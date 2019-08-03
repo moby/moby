@@ -8,12 +8,11 @@ pipeline {
         timestamps()
     }
     parameters {
-        booleanParam(name: 'unit', defaultValue: true, description: 'x86 unit tests')
+        booleanParam(name: 'unit_validate', defaultValue: true, description: 'x86 unit tests and vendor check')
         booleanParam(name: 'janky', defaultValue: true, description: 'x86 Build/Test')
         booleanParam(name: 'experimental', defaultValue: true, description: 'x86 Experimental Build/Test ')
         booleanParam(name: 'z', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
         booleanParam(name: 'powerpc', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
-        booleanParam(name: 'vendor', defaultValue: true, description: 'Vendor')
         booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
         booleanParam(name: 'windowsRS5', defaultValue: false, description: 'Windows 2019 (RS5) Build/Test')
     }
@@ -24,10 +23,10 @@ pipeline {
     stages {
         stage('Build') {
             parallel {
-                stage('unit') {
+                stage('unit-validate') {
                     when {
                         beforeAgent true
-                        expression { params.unit }
+                        expression { params.unit_validate }
                     }
                     agent { label 'amd64 && ubuntu-1804 && overlay2' }
 
@@ -48,7 +47,7 @@ pipeline {
                                 '''
                             }
                         }
-                        stage("Run tests") {
+                        stage("Unit tests") {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
@@ -62,6 +61,20 @@ pipeline {
                                 '''
                             }
                         }
+                        stage("Validate vendor") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                                  --name dockerven-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER=overlay2 \
+                                  -e TIMEOUT=120m \
+                                  docker:${GIT_COMMIT} \
+                                  hack/validate/vendor
+                                '''
+                            }
+                        }
                     }
 
                     post {
@@ -70,6 +83,7 @@ pipeline {
                             sh '''
                             echo 'Ensuring container killed.'
                             docker rm -vf docker-pr$BUILD_NUMBER || true
+                            docker rm -vf dockerven-pr$BUILD_NUMBER || true
                             '''
 
                             sh '''
@@ -350,45 +364,6 @@ pipeline {
                         }
                     }
                 }
-                stage('vendor') {
-                    when {
-                        beforeAgent true
-                        expression { params.vendor }
-                    }
-                    agent { label 'amd64 && ubuntu-1804 && overlay2' }
-
-                    stages {
-                        stage("Print info") {
-                            steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                            }
-                        }
-                        stage("Build dev image") {
-                            steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t dockerven:${GIT_COMMIT} .'
-                            }
-                        }
-                        stage("Run tests") {
-                            steps {
-                                sh '''
-                                docker run --rm -t --privileged \
-                                  --name dockerven-pr$BUILD_NUMBER \
-                                  -e DOCKER_GRAPHDRIVER=vfs \
-                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e TIMEOUT=120m dockerven:${GIT_COMMIT} \
-                                  hack/validate/vendor
-                                '''
-                            }
-                        }
-                    }
-                    post {
-                        cleanup {
-                            sh 'make clean'
-                            deleteDir()
-                        }
-                    }                }
                 stage('windowsRS1') {
                     when {
                         beforeAgent true
