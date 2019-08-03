@@ -18,6 +18,7 @@ pipeline {
     }
     environment {
         DOCKER_BUILDKIT     = '1'
+        DOCKER_GRAPHDRIVER  = 'overlay2'
         APT_MIRROR          = 'cdn-fastly.deb.debian.org'
         CHECK_CONFIG_COMMIT = '78405559cfe5987174aa2cb6463b9b2c1b917255'
     }
@@ -56,7 +57,7 @@ pipeline {
                                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER=overlay2 \
+                                  -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
                                   hack/test/unit
                                 '''
@@ -69,7 +70,7 @@ pipeline {
                                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER=overlay2 \
+                                  -e DOCKER_GRAPHDRIVER \
                                   -e TIMEOUT=120m \
                                   docker:${GIT_COMMIT} \
                                   hack/validate/vendor
@@ -141,7 +142,7 @@ pipeline {
                                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER=overlay2 \
+                                  -e DOCKER_GRAPHDRIVER \
                                   -e GIT_SHA1=${GIT_COMMIT} \
                                   docker:${GIT_COMMIT} \
                                   hack/ci/janky
@@ -215,7 +216,7 @@ pipeline {
                                     -e DOCKER_EXPERIMENTAL=y \
                                     --name docker-pr$BUILD_NUMBER \
                                     -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                    -e DOCKER_GRAPHDRIVER=overlay2 \
+                                    -e DOCKER_GRAPHDRIVER \
                                     docker:${GIT_COMMIT}-exp \
                                     hack/ci/experimental
                                 '''
@@ -282,7 +283,7 @@ pipeline {
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                     --name docker-pr$BUILD_NUMBER \
-                                    -e DOCKER_GRAPHDRIVER=overlay2 \
+                                    -e DOCKER_GRAPHDRIVER \
                                     -e TIMEOUT="300m" \
                                     -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                     docker:${GIT_COMMIT} \
@@ -349,7 +350,7 @@ pipeline {
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                     --name docker-pr$BUILD_NUMBER \
-                                    -e DOCKER_GRAPHDRIVER=overlay2 \
+                                    -e DOCKER_GRAPHDRIVER \
                                     -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                     -e TIMEOUT="180m" \
                                     docker:${GIT_COMMIT} \
