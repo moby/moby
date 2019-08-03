@@ -3,8 +3,7 @@ set -e
 
 # This script exists as backwards compatibility for CI
 (
-
-    DEST="${DEST}-daemon"
-    ABS_DEST="${ABS_DEST}-daemon"
-    . hack/make/dynbinary-daemon
+	DEST="${DEST}-daemon"
+	ABS_DEST="${ABS_DEST}-daemon"
+	. hack/make/dynbinary-daemon
 )

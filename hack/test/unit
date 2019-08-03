@@ -20,9 +20,9 @@ pkg_list=$(go list $TESTDIRS | grep -vE "($exclude_paths)")
 
 mkdir -p bundles
 gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report.json --junitfile=bundles/junit-report.xml -- \
-  "${BUILDFLAGS[@]}" \
-  -cover \
-  -coverprofile=bundles/profile.out \
-  -covermode=atomic \
-  ${TESTFLAGS} \
-  ${pkg_list}
+	"${BUILDFLAGS[@]}" \
+	-cover \
+	-coverprofile=bundles/profile.out \
+	-covermode=atomic \
+	${TESTFLAGS} \
+	${pkg_list}
