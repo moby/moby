@@ -54,7 +54,6 @@ pipeline {
                                 sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
