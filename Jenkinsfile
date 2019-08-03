@@ -282,7 +282,7 @@ pipeline {
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                     --name docker-pr$BUILD_NUMBER \
-                                    -e DOCKER_GRAPHDRIVER=vfs \
+                                    -e DOCKER_GRAPHDRIVER=overlay2 \
                                     -e TIMEOUT="300m" \
                                     -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                     docker:${GIT_COMMIT} \
@@ -349,7 +349,7 @@ pipeline {
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                     --name docker-pr$BUILD_NUMBER \
-                                    -e DOCKER_GRAPHDRIVER=vfs \
+                                    -e DOCKER_GRAPHDRIVER=overlay2 \
                                     -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                     -e TIMEOUT="180m" \
                                     docker:${GIT_COMMIT} \
