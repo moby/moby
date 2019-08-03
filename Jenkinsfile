@@ -17,8 +17,9 @@ pipeline {
         booleanParam(name: 'windowsRS5', defaultValue: false, description: 'Windows 2019 (RS5) Build/Test')
     }
     environment {
-        DOCKER_BUILDKIT = '1'
-        APT_MIRROR      = 'cdn-fastly.deb.debian.org'
+        DOCKER_BUILDKIT     = '1'
+        APT_MIRROR          = 'cdn-fastly.deb.debian.org'
+        CHECK_CONFIG_COMMIT = '78405559cfe5987174aa2cb6463b9b2c1b917255'
     }
     stages {
         stage('Build') {
@@ -35,6 +36,11 @@ pipeline {
                             steps {
                                 sh 'docker version'
                                 sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
                             }
                         }
                         stage("Build dev image") {
@@ -110,6 +116,11 @@ pipeline {
                             steps {
                                 sh 'docker version'
                                 sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
                             }
                         }
                         stage("Build dev image") {
@@ -184,6 +195,11 @@ pipeline {
                             steps {
                                 sh 'docker version'
                                 sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
                             }
                         }
                         stage("Build dev image") {
@@ -246,6 +262,11 @@ pipeline {
                             steps {
                                 sh 'docker version'
                                 sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
                             }
                         }
                         stage("Build dev image") {
@@ -310,6 +331,11 @@ pipeline {
                             steps {
                                 sh 'docker version'
                                 sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
                             }
                         }
                         stage("Build dev image") {
