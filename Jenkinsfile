@@ -39,12 +39,7 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh '''
-                                # todo: include ip_vs in base image
-                                sudo modprobe ip_vs
-                
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
-                                '''
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
                             }
                         }
                         stage("Unit tests") {
