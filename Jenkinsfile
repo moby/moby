@@ -49,6 +49,20 @@ pipeline {
                                 sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
                             }
                         }
+                        stage("Validate") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/validate/default
+                                '''
+                            }
+                        }
                         stage("Unit tests") {
                             steps {
                                 sh '''
@@ -151,7 +165,13 @@ pipeline {
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
-                                  hack/ci/janky
+                                  hack/make.sh \
+                                    binary-daemon \
+                                    dynbinary-daemon \
+                                    test-docker-py \
+                                    test-integration-flaky \
+                                    test-integration \
+                                    cross
                                 '''
                             }
                         }
