@@ -44,23 +44,20 @@ pipeline {
                                 # todo: include ip_vs in base image
                                 sudo modprobe ip_vs
                 
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:$GITCOMMIT .
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
                         stage("Run tests") {
                             steps {
                                 sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-               
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
                                   --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_GITCOMMIT=${GITCOMMIT} \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER=overlay2 \
-                                  docker:$GITCOMMIT \
+                                  docker:${GIT_COMMIT} \
                                   hack/test/unit
                                 '''
                             }
@@ -113,24 +110,21 @@ pipeline {
                                 # todo: include ip_vs in base image
                                 sudo modprobe ip_vs
                 
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:$GITCOMMIT .
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
                         stage("Run tests") {
                             steps {
                                 sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-        
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
                                   --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_GITCOMMIT=${GITCOMMIT} \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER=overlay2 \
                                   -e GIT_SHA1=${GIT_COMMIT} \
-                                  docker:$GITCOMMIT \
+                                  docker:${GIT_COMMIT} \
                                   hack/ci/janky
                                 '''
                             }
@@ -138,9 +132,8 @@ pipeline {
                         stage("Build e2e image") {
                             steps {
                                 sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
                                 echo "Building e2e image"
-                                docker build --build-arg DOCKER_GITCOMMIT=$GITCOMMIT -t moby-e2e-test -f Dockerfile.e2e .
+                                docker build --build-arg DOCKER_GITCOMMIT=${GIT_COMMIT} -t moby-e2e-test -f Dockerfile.e2e .
                                 '''
                             }
                         }
@@ -187,23 +180,19 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GITCOMMIT}-exp .
-                                '''
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT}-exp .'
                             }
                         }
                         stage("Run tests") {
                             steps {
                                 sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
                                 docker run --rm -t --privileged \
                                     -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                     -e DOCKER_EXPERIMENTAL=y \
                                     --name docker-pr-exp$BUILD_NUMBER \
-                                    -e DOCKER_GITCOMMIT=${GITCOMMIT} \
+                                    -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                     -e DOCKER_GRAPHDRIVER=overlay2 \
-                                    docker:${GITCOMMIT}-exp \
+                                    docker:${GIT_COMMIT}-exp \
                                     hack/ci/experimental
                                 '''
                             }
@@ -254,22 +243,20 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:$GITCOMMIT -f Dockerfile .
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .
                                 '''
                             }
                         }
                         stage("Run tests") {
                             steps {
                                 sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                     --name docker-pr$BUILD_NUMBER \
                                     -e DOCKER_GRAPHDRIVER=vfs \
                                     -e TIMEOUT="300m" \
-                                    -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                                    docker:$GITCOMMIT \
+                                    -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                    docker:${GIT_COMMIT} \
                                     hack/ci/z
                                 '''
                             }
@@ -319,23 +306,19 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:$GITCOMMIT -f Dockerfile .
-                                '''
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .'
                             }
                         }
                         stage("Run tests") {
                             steps {
                                 sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                     --name docker-pr$BUILD_NUMBER \
                                     -e DOCKER_GRAPHDRIVER=vfs \
-                                    -e DOCKER_GITCOMMIT=${GITCOMMIT} \
+                                    -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                     -e TIMEOUT="180m" \
-                                    docker:$GITCOMMIT \
+                                    docker:${GIT_COMMIT} \
                                     hack/ci/powerpc
                                 '''
                             }
@@ -383,22 +366,18 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-                                docker build --force-rm --build-arg APT_MIRROR -t dockerven:$GITCOMMIT .
-                                '''
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t dockerven:${GIT_COMMIT} .'
                             }
                         }
                         stage("Run tests") {
                             steps {
                                 sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
                                 docker run --rm -t --privileged \
                                   --name dockerven-pr$BUILD_NUMBER \
                                   -e DOCKER_GRAPHDRIVER=vfs \
                                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                                  -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                                  -e TIMEOUT=120m dockerven:$GITCOMMIT \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e TIMEOUT=120m dockerven:${GIT_COMMIT} \
                                   hack/validate/vendor
                                 '''
                             }
