@@ -151,7 +151,6 @@ pipeline {
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
-                                  -e GIT_SHA1=${GIT_COMMIT} \
                                   docker:${GIT_COMMIT} \
                                   hack/ci/janky
                                 '''
