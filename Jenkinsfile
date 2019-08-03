@@ -77,6 +77,14 @@ pipeline {
                                 '''
                             }
                         }
+                        stage("Build e2e image") {
+                            steps {
+                                sh '''
+                                echo "Building e2e image"
+                                docker build --build-arg DOCKER_GITCOMMIT=${GIT_COMMIT} -t moby-e2e-test -f Dockerfile.e2e .
+                                '''
+                            }
+                        }
                     }
 
                     post {
@@ -146,14 +154,6 @@ pipeline {
                                   -e GIT_SHA1=${GIT_COMMIT} \
                                   docker:${GIT_COMMIT} \
                                   hack/ci/janky
-                                '''
-                            }
-                        }
-                        stage("Build e2e image") {
-                            steps {
-                                sh '''
-                                echo "Building e2e image"
-                                docker build --build-arg DOCKER_GITCOMMIT=${GIT_COMMIT} -t moby-e2e-test -f Dockerfile.e2e .
                                 '''
                             }
                         }
