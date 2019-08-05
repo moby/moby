@@ -1332,8 +1332,8 @@ func (s *DockerSuite) TestRunDNSOptionsBasedOnHostResolvConf(c *testing.T) {
 	var out string
 	out, _ = dockerCmd(c, "run", "--dns=127.0.0.1", "busybox", "cat", "/etc/resolv.conf")
 
-	if actualNameservers := resolvconf.GetNameservers([]byte(out), types.IP); string(actualNameservers[0]) != "127.0.0.1" {
-		c.Fatalf("expected '127.0.0.1', but says: %q", string(actualNameservers[0]))
+	if actualNameservers := resolvconf.GetNameservers([]byte(out), types.IP); actualNameservers[0] != "127.0.0.1" {
+		c.Fatalf("expected '127.0.0.1', but says: %q", actualNameservers[0])
 	}
 
 	actualSearch := resolvconf.GetSearchDomains([]byte(out))
@@ -1358,8 +1358,8 @@ func (s *DockerSuite) TestRunDNSOptionsBasedOnHostResolvConf(c *testing.T) {
 		}
 	}
 
-	if actualSearch = resolvconf.GetSearchDomains([]byte(out)); string(actualSearch[0]) != "mydomain" {
-		c.Fatalf("expected 'mydomain', but says: %q", string(actualSearch[0]))
+	if actualSearch = resolvconf.GetSearchDomains([]byte(out)); actualSearch[0] != "mydomain" {
+		c.Fatalf("expected 'mydomain', but says: %q", actualSearch[0])
 	}
 
 	// test with file
@@ -1382,7 +1382,7 @@ func (s *DockerSuite) TestRunDNSOptionsBasedOnHostResolvConf(c *testing.T) {
 	hostSearch = resolvconf.GetSearchDomains(resolvConf)
 
 	out, _ = dockerCmd(c, "run", "busybox", "cat", "/etc/resolv.conf")
-	if actualNameservers = resolvconf.GetNameservers([]byte(out), types.IP); string(actualNameservers[0]) != "12.34.56.78" || len(actualNameservers) != 1 {
+	if actualNameservers = resolvconf.GetNameservers([]byte(out), types.IP); actualNameservers[0] != "12.34.56.78" || len(actualNameservers) != 1 {
 		c.Fatalf("expected '12.34.56.78', but has: %v", actualNameservers)
 	}
 
@@ -1458,8 +1458,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *testing.T) {
 	containerID1 := getIDByName(c, "first")
 
 	// replace resolv.conf with our temporary copy
-	bytesResolvConf := []byte(tmpResolvConf)
-	if err := ioutil.WriteFile("/etc/resolv.conf", bytesResolvConf, 0644); err != nil {
+	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1468,7 +1467,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *testing.T) {
 
 	// check for update in container
 	containerResolv := readContainerFile(c, containerID1, "resolv.conf")
-	if !bytes.Equal(containerResolv, bytesResolvConf) {
+	if !bytes.Equal(containerResolv, tmpResolvConf) {
 		c.Fatalf("Restarted container does not have updated resolv.conf; expected %q, got %q", tmpResolvConf, string(containerResolv))
 	}
 
@@ -1500,13 +1499,13 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *testing.T) {
 	runningContainerID := strings.TrimSpace(out)
 
 	// replace resolv.conf
-	if err := ioutil.WriteFile("/etc/resolv.conf", bytesResolvConf, 0644); err != nil {
+	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
 		c.Fatal(err)
 	}
 
 	// check for update in container
 	containerResolv = readContainerFile(c, runningContainerID, "resolv.conf")
-	if bytes.Equal(containerResolv, bytesResolvConf) {
+	if bytes.Equal(containerResolv, tmpResolvConf) {
 		c.Fatalf("Running container should not have updated resolv.conf; expected %q, got %q", string(resolvConfSystem), string(containerResolv))
 	}
 
@@ -1516,16 +1515,15 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *testing.T) {
 
 	// check for update in container
 	containerResolv = readContainerFile(c, runningContainerID, "resolv.conf")
-	if !bytes.Equal(containerResolv, bytesResolvConf) {
-		c.Fatalf("Restarted container should have updated resolv.conf; expected %q, got %q", string(bytesResolvConf), string(containerResolv))
+	if !bytes.Equal(containerResolv, tmpResolvConf) {
+		c.Fatalf("Restarted container should have updated resolv.conf; expected %q, got %q", string(tmpResolvConf), string(containerResolv))
 	}
 
 	//5. test that additions of a localhost resolver are cleaned from
 	//   host resolv.conf before updating container's resolv.conf copies
 
 	// replace resolv.conf with a localhost-only nameserver copy
-	bytesResolvConf = []byte(tmpLocalhostResolvConf)
-	if err = ioutil.WriteFile("/etc/resolv.conf", bytesResolvConf, 0644); err != nil {
+	if err = ioutil.WriteFile("/etc/resolv.conf", tmpLocalhostResolvConf, 0644); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1553,8 +1551,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *testing.T) {
 	containerID3 := getIDByName(c, "third")
 
 	// Create a modified resolv.conf.aside and override resolv.conf with it
-	bytesResolvConf = []byte(tmpResolvConf)
-	if err := ioutil.WriteFile("/etc/resolv.conf.aside", bytesResolvConf, 0644); err != nil {
+	if err := ioutil.WriteFile("/etc/resolv.conf.aside", tmpResolvConf, 0644); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1568,7 +1565,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *testing.T) {
 
 	// check for update in container
 	containerResolv = readContainerFile(c, containerID3, "resolv.conf")
-	if !bytes.Equal(containerResolv, bytesResolvConf) {
+	if !bytes.Equal(containerResolv, tmpResolvConf) {
 		c.Fatalf("Stopped container does not have updated resolv.conf; expected\n%q\n got\n%q", tmpResolvConf, string(containerResolv))
 	}
 
@@ -2661,7 +2658,7 @@ func (s *DockerSuite) TestRunRestartMaxRetries(c *testing.T) {
 		timeout = 120 * time.Second
 	}
 
-	id := strings.TrimSpace(string(out))
+	id := strings.TrimSpace(out)
 	if err := waitInspect(id, "{{ .State.Restarting }} {{ .State.Running }}", "false false", timeout); err != nil {
 		c.Fatal(err)
 	}
@@ -2704,7 +2701,7 @@ func (s *DockerSuite) TestPermissionsPtsReadonlyRootfs(c *testing.T) {
 		c.Fatal("Could not obtain mounts when checking /dev/pts mntpnt.")
 	}
 	expected := "type devpts (rw,"
-	if !strings.Contains(string(out), expected) {
+	if !strings.Contains(out, expected) {
 		c.Fatalf("expected output to contain %s but contains %s", expected, out)
 	}
 }
@@ -2739,7 +2736,7 @@ func (s *DockerSuite) TestRunContainerWithReadonlyEtcHostsAndLinkedContainer(c *
 	dockerCmd(c, "run", "-d", "--name", "test-etc-hosts-ro-linked", "busybox", "top")
 
 	out, _ := dockerCmd(c, "run", "--read-only", "--link", "test-etc-hosts-ro-linked:testlinked", "busybox", "cat", "/etc/hosts")
-	if !strings.Contains(string(out), "testlinked") {
+	if !strings.Contains(out, "testlinked") {
 		c.Fatal("Expected /etc/hosts to be updated even if --read-only enabled")
 	}
 }
@@ -2749,7 +2746,7 @@ func (s *DockerSuite) TestRunContainerWithReadonlyRootfsWithDNSFlag(c *testing.T
 	testRequires(c, DaemonIsLinux, UserNamespaceROMount)
 
 	out, _ := dockerCmd(c, "run", "--read-only", "--dns", "1.1.1.1", "busybox", "/bin/cat", "/etc/resolv.conf")
-	if !strings.Contains(string(out), "1.1.1.1") {
+	if !strings.Contains(out, "1.1.1.1") {
 		c.Fatal("Expected /etc/resolv.conf to be updated even if --read-only enabled and --dns flag used")
 	}
 }
@@ -2759,7 +2756,7 @@ func (s *DockerSuite) TestRunContainerWithReadonlyRootfsWithAddHostFlag(c *testi
 	testRequires(c, DaemonIsLinux, UserNamespaceROMount)
 
 	out, _ := dockerCmd(c, "run", "--read-only", "--add-host", "testreadonly:127.0.0.1", "busybox", "/bin/cat", "/etc/hosts")
-	if !strings.Contains(string(out), "testreadonly") {
+	if !strings.Contains(out, "testreadonly") {
 		c.Fatal("Expected /etc/hosts to be updated even if --read-only enabled and --add-host flag used")
 	}
 }
@@ -3249,11 +3246,11 @@ func (s *DockerSuite) TestRunContainerWithCgroupParent(c *testing.T) {
 func testRunContainerWithCgroupParent(c *testing.T, cgroupParent, name string) {
 	out, _, err := dockerCmdWithError("run", "--cgroup-parent", cgroupParent, "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	if err != nil {
-		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
+		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", out, err)
 	}
-	cgroupPaths := ParseCgroupPaths(string(out))
+	cgroupPaths := ParseCgroupPaths(out)
 	if len(cgroupPaths) == 0 {
-		c.Fatalf("unexpected output - %q", string(out))
+		c.Fatalf("unexpected output - %q", out)
 	}
 	id := getIDByName(c, name)
 	expectedCgroup := path.Join(cgroupParent, id)
@@ -3283,7 +3280,7 @@ func testRunInvalidCgroupParent(c *testing.T, cgroupParent, cleanCgroupParent, n
 	out, _, err := dockerCmdWithError("run", "--cgroup-parent", cgroupParent, "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	if err != nil {
 		// XXX: This may include a daemon crash.
-		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
+		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", out, err)
 	}
 
 	// We expect "/SHOULD_NOT_EXIST" to not exist. If not, we have a security issue.
@@ -3291,9 +3288,9 @@ func testRunInvalidCgroupParent(c *testing.T, cgroupParent, cleanCgroupParent, n
 		c.Fatalf("SECURITY: --cgroup-parent with ../../ relative paths cause files to be created in the host (this is bad) !!")
 	}
 
-	cgroupPaths := ParseCgroupPaths(string(out))
+	cgroupPaths := ParseCgroupPaths(out)
 	if len(cgroupPaths) == 0 {
-		c.Fatalf("unexpected output - %q", string(out))
+		c.Fatalf("unexpected output - %q", out)
 	}
 	id := getIDByName(c, name)
 	expectedCgroup := path.Join(cleanCgroupParent, id)
@@ -3947,11 +3944,11 @@ func (s *DockerSuite) TestRunAttachFailedNoLeak(c *testing.T) {
 	assert.Assert(c, err != nil, "Command should have failed but succeeded with: %s\nContainer 'test' [%+v]: %s\nContainer 'fail' [%+v]: %s", out, err1, out1, err2, out2)
 	// check for windows error as well
 	// TODO Windows Post TP5. Fix the error message string
-	assert.Assert(c, strings.Contains(string(out), "port is already allocated") ||
-		strings.Contains(string(out), "were not connected because a duplicate name exists") ||
-		strings.Contains(string(out), "The specified port already exists") ||
-		strings.Contains(string(out), "HNS failed with error : Failed to create endpoint") ||
-		strings.Contains(string(out), "HNS failed with error : The object already exists"), fmt.Sprintf("Output: %s", out))
+	assert.Assert(c, strings.Contains(out, "port is already allocated") ||
+		strings.Contains(out, "were not connected because a duplicate name exists") ||
+		strings.Contains(out, "The specified port already exists") ||
+		strings.Contains(out, "HNS failed with error : Failed to create endpoint") ||
+		strings.Contains(out, "HNS failed with error : The object already exists"), fmt.Sprintf("Output: %s", out))
 	dockerCmd(c, "rm", "-f", "test")
 
 	// NGoroutines is not updated right away, so we need to wait before failing

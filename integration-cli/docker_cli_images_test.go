@@ -329,7 +329,7 @@ func (s *DockerSuite) TestImagesFormat(c *testing.T) {
 	dockerCmd(c, "tag", "busybox", tag+":v2")
 
 	out, _ := dockerCmd(c, "images", "--format", "{{.Repository}}", tag)
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	lines := strings.Split(strings.TrimSpace(out), "\n")
 
 	expected := []string{"myimage", "myimage"}
 	var names []string

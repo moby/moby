@@ -27,7 +27,7 @@ func (s *DockerSuite) TestGetContainersAttachWebsocket(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-dit", "busybox", "cat")
 
-	rwc, err := request.SockConn(time.Duration(10*time.Second), request.DaemonHost())
+	rwc, err := request.SockConn(10*time.Second, request.DaemonHost())
 	assert.NilError(c, err)
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -237,7 +237,7 @@ func sockRequestHijack(method, endpoint string, data io.Reader, ct string, daemo
 // Deprecated: Use New instead of NewRequestClient
 // Deprecated: use request.Do (or Get, Delete, Post) instead
 func newRequestClient(method, endpoint string, data io.Reader, ct, daemon string, modifiers ...func(*http.Request)) (*http.Request, *httputil.ClientConn, error) {
-	c, err := request.SockConn(time.Duration(10*time.Second), daemon)
+	c, err := request.SockConn(10*time.Second, daemon)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not dial docker daemon: %v", err)
 	}

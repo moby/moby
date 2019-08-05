@@ -394,7 +394,7 @@ func (s *DockerSuite) TestContainerAPIPause(c *testing.T) {
 func (s *DockerSuite) TestContainerAPITop(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "top")
-	id := strings.TrimSpace(string(out))
+	id := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(id))
 
 	cli, err := client.NewClientWithOpts(client.FromEnv)
@@ -417,7 +417,7 @@ func (s *DockerSuite) TestContainerAPITop(c *testing.T) {
 func (s *DockerSuite) TestContainerAPITopWindows(c *testing.T) {
 	testRequires(c, DaemonIsWindows)
 	out := runSleepingContainer(c, "-d")
-	id := strings.TrimSpace(string(out))
+	id := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(id))
 
 	cli, err := client.NewClientWithOpts(client.FromEnv)
@@ -614,7 +614,7 @@ func UtilCreateNetworkMode(c *testing.T, networkMode containertypes.NetworkMode)
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
 	assert.NilError(c, err)
 
-	assert.Equal(c, containerJSON.HostConfig.NetworkMode, containertypes.NetworkMode(networkMode), "Mismatched NetworkMode")
+	assert.Equal(c, containerJSON.HostConfig.NetworkMode, networkMode, "Mismatched NetworkMode")
 }
 
 func (s *DockerSuite) TestContainerAPICreateWithCpuSharesCpuset(c *testing.T) {

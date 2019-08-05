@@ -1854,11 +1854,11 @@ func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *testing.T) {
 
 	out, err := s.d.Cmd("run", "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	assert.NilError(c, err)
-	cgroupPaths := ParseCgroupPaths(string(out))
-	assert.Assert(c, len(cgroupPaths) != 0, "unexpected output - %q", string(out))
+	cgroupPaths := ParseCgroupPaths(out)
+	assert.Assert(c, len(cgroupPaths) != 0, "unexpected output - %q", out)
 	out, err = s.d.Cmd("inspect", "-f", "{{.Id}}", name)
 	assert.NilError(c, err)
-	id := strings.TrimSpace(string(out))
+	id := strings.TrimSpace(out)
 	expectedCgroup := path.Join(cgroupParent, id)
 	found := false
 	for _, path := range cgroupPaths {
