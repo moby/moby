@@ -174,20 +174,6 @@ func inspectMountPointJSON(j, destination string) (types.MountPoint, error) {
 	return *m, nil
 }
 
-// Deprecated: use cli.Inspect
-func inspectImage(c *testing.T, name, filter string) string {
-	c.Helper()
-	args := []string{"inspect", "--type", "image"}
-	if filter != "" {
-		format := fmt.Sprintf("{{%s}}", filter)
-		args = append(args, "-f", format)
-	}
-	args = append(args, name)
-	result := icmd.RunCommand(dockerBinary, args...)
-	result.Assert(c, icmd.Success)
-	return strings.TrimSpace(result.Combined())
-}
-
 func getIDByName(c *testing.T, name string) string {
 	c.Helper()
 	id, err := inspectFieldWithError(name, "Id")

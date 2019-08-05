@@ -14,15 +14,6 @@ import (
 	"gotest.tools/assert"
 )
 
-type testingT interface {
-	logT
-	Fatalf(string, ...interface{})
-}
-
-type logT interface {
-	Logf(string, ...interface{})
-}
-
 func ensureSyscallTest(c *testing.T) {
 	defer testEnv.ProtectImage(c, "syscall-test:latest")
 

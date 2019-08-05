@@ -107,11 +107,11 @@ func testConcurrentPullWholeRepo(c *testing.T) {
 	}
 }
 
-func (s *DockerRegistrySuite) testConcurrentPullWholeRepo(c *testing.T) {
+func (s *DockerRegistrySuite) TestConcurrentPullWholeRepo(c *testing.T) {
 	testConcurrentPullWholeRepo(c)
 }
 
-func (s *DockerSchema1RegistrySuite) testConcurrentPullWholeRepo(c *testing.T) {
+func (s *DockerSchema1RegistrySuite) TestConcurrentPullWholeRepo(c *testing.T) {
 	testConcurrentPullWholeRepo(c)
 }
 
@@ -138,11 +138,11 @@ func testConcurrentFailingPull(c *testing.T) {
 	}
 }
 
-func (s *DockerRegistrySuite) testConcurrentFailingPull(c *testing.T) {
+func (s *DockerRegistrySuite) TestConcurrentFailingPull(c *testing.T) {
 	testConcurrentFailingPull(c)
 }
 
-func (s *DockerSchema1RegistrySuite) testConcurrentFailingPull(c *testing.T) {
+func (s *DockerSchema1RegistrySuite) TestConcurrentFailingPull(c *testing.T) {
 	testConcurrentFailingPull(c)
 }
 
