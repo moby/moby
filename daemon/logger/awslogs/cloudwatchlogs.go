@@ -551,7 +551,6 @@ func (l *logStream) collectBatch(created chan bool) {
 			if !more {
 				// Flush event buffer and release resources
 				l.processEvent(batch, eventBuffer, eventBufferTimestamp)
-				eventBuffer = eventBuffer[:0]
 				l.publishBatch(batch)
 				batch.reset()
 				return
