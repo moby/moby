@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/testutil"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	"gotest.tools/assert"
 )
 

@@ -7,7 +7,7 @@ import (
 	"syscall" // used for STD_INPUT_HANDLE, STD_OUTPUT_HANDLE and STD_ERROR_HANDLE
 
 	"github.com/Azure/go-ansiterm/winterm"
-	"github.com/docker/docker/pkg/term/windows"
+	windowsconsole "github.com/docker/docker/pkg/term/windows"
 )
 
 // State holds the console mode for the terminal.

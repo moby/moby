@@ -1,6 +1,6 @@
 package events // import "github.com/docker/docker/daemon/events"
 
-import "github.com/docker/go-metrics"
+import metrics "github.com/docker/go-metrics"
 
 var (
 	eventsCounter    metrics.Counter

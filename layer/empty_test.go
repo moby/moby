@@ -4,7 +4,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 )
 
 func TestEmptyLayer(t *testing.T) {

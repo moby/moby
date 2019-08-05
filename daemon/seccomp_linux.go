@@ -10,7 +10,7 @@ import (
 	coci "github.com/containerd/containerd/oci"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/profiles/seccomp"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )
 

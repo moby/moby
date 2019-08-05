@@ -1,6 +1,6 @@
 package daemon // import "github.com/docker/docker/daemon"
 
-import "github.com/opencontainers/selinux/go-selinux"
+import selinux "github.com/opencontainers/selinux/go-selinux"
 
 func selinuxSetDisabled() {
 	selinux.SetDisabled()

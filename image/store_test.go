@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/layer"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	"gotest.tools/assert"
 	"gotest.tools/assert/cmp"
 )

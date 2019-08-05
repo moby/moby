@@ -2,7 +2,7 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"github.com/docker/docker/container"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func setLinuxDomainname(c *container.Container, s *specs.Spec) {
