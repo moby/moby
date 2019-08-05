@@ -80,6 +80,33 @@ pipeline {
                                 '''
                             }
                         }
+			stage("Static") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh binary-daemon
+                                '''
+                            }
+                        }
+                        stage("Cross") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh cross
+                                '''
+                            }
+                        }
+                        // needs to be last stage that calls make.sh for the junit report to work
                         stage("Unit tests") {
                             steps {
                                 sh '''
@@ -190,7 +217,6 @@ pipeline {
                                     dynbinary-daemon \
                                     test-integration-flaky \
                                     test-integration \
-                                    cross
                                 '''
                             }
                         }
