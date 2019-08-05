@@ -28,8 +28,3 @@ func TestMain(m *testing.M) {
 	testEnv.Print()
 	os.Exit(m.Run())
 }
-
-func setupTest(t *testing.T) func() {
-	environment.ProtectAll(t, testEnv)
-	return func() { testEnv.Clean(t) }
-}
