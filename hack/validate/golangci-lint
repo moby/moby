@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -e -o pipefail
+
+SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# CI platforms differ, so per-platform GOLANGCI_LINT_OPTS can be set
+# from a platform-specific Dockerfile, otherwise let's just set
+# (somewhat pessimistic) default of 10 minutes.
+: ${GOLANGCI_LINT_OPTS=--deadline=20m}
+
+[ -n "${TESTDEBUG}" ] && set -x
+
+# TODO use --out-format=junit-xml and store artifacts
+GOGC=20 golangci-lint run \
+	${GOLANGCI_LINT_OPTS} \
+	--print-resources-usage \
+	--build-tags="${DOCKER_BUILDTAGS}" \
+	--verbose \
+	--config ${SCRIPTDIR}/golangci-lint.yml

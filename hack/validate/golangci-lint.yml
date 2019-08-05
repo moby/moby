@@ -1,0 +1,31 @@
+linters:
+  enable:
+    - deadcode
+    - gofmt
+    - goimports
+    - golint
+    - gosimple
+    - govet
+    - ineffassign
+    - unconvert
+
+  disable:
+    - errcheck
+
+  run:
+    concurrency: 2
+    modules-download-mode: vendor
+
+    skip-dirs:
+      - docs
+      - integration-cli
+
+    skip-files:
+      - ".*\\.pb\\.go"
+      - "dockerversion/version_autogen.go"
+      - "api/types/container/container_.*"
+      - "api/types/volume/volume_.*"
+
+linters-settings:
+  govet:
+    check-shadowing: false

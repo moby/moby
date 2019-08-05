@@ -6,7 +6,7 @@ export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 . ${SCRIPTDIR}/dco
 . ${SCRIPTDIR}/default-seccomp
-. ${SCRIPTDIR}/gometalinter
+. ${SCRIPTDIR}/golangci-lint
 . ${SCRIPTDIR}/pkg-imports
 . ${SCRIPTDIR}/swagger
 . ${SCRIPTDIR}/swagger-gen
