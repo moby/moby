@@ -900,15 +900,15 @@ func (s *DockerSwarmSuite) TestSwarmServiceNetworkUpdate(c *testing.T) {
 
 	result := icmd.RunCmd(d.Command("network", "create", "-d", "overlay", "foo"))
 	result.Assert(c, icmd.Success)
-	fooNetwork := strings.TrimSpace(string(result.Combined()))
+	fooNetwork := strings.TrimSpace(result.Combined())
 
 	result = icmd.RunCmd(d.Command("network", "create", "-d", "overlay", "bar"))
 	result.Assert(c, icmd.Success)
-	barNetwork := strings.TrimSpace(string(result.Combined()))
+	barNetwork := strings.TrimSpace(result.Combined())
 
 	result = icmd.RunCmd(d.Command("network", "create", "-d", "overlay", "baz"))
 	result.Assert(c, icmd.Success)
-	bazNetwork := strings.TrimSpace(string(result.Combined()))
+	bazNetwork := strings.TrimSpace(result.Combined())
 
 	// Create a service
 	name := "top"

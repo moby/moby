@@ -84,7 +84,7 @@ func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 	assert.Equal(c, res.StatusCode, http.StatusOK)
 
 	inspectOut := cli.InspectCmd(c, id, cli.Format(".Id")).Combined()
-	assert.Equal(c, strings.TrimSpace(string(inspectOut)), id, "load did not work properly")
+	assert.Equal(c, strings.TrimSpace(inspectOut), id, "load did not work properly")
 }
 
 func (s *DockerSuite) TestAPIImagesDelete(c *testing.T) {

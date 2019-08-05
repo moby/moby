@@ -333,7 +333,7 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *testing.T) {
 	err = os.MkdirAll(blobDir, 0755)
 	assert.NilError(c, err, "error creating blob dir")
 	blobPath := filepath.Join(blobDir, "data")
-	err = ioutil.WriteFile(blobPath, []byte(manifestListJSON), 0644)
+	err = ioutil.WriteFile(blobPath, manifestListJSON, 0644)
 	assert.NilError(c, err, "error writing manifest list")
 
 	// Add to revision store

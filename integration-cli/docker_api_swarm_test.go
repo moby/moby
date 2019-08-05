@@ -595,7 +595,7 @@ func (s *DockerSwarmSuite) TestAPISwarmForceNewCluster(c *testing.T) {
 
 func simpleTestService(s *swarm.Service) {
 	ureplicas := uint64(1)
-	restartDelay := time.Duration(100 * time.Millisecond)
+	restartDelay := 100 * time.Millisecond
 
 	s.Spec = swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
@@ -618,7 +618,7 @@ func simpleTestService(s *swarm.Service) {
 
 func serviceForUpdate(s *swarm.Service) {
 	ureplicas := uint64(1)
-	restartDelay := time.Duration(100 * time.Millisecond)
+	restartDelay := 100 * time.Millisecond
 
 	s.Spec = swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{

@@ -94,7 +94,7 @@ func (d *Daemon) CheckActiveContainerCount(c *testing.T) (interface{}, string) {
 	if len(strings.TrimSpace(out)) == 0 {
 		return 0, ""
 	}
-	return len(strings.Split(strings.TrimSpace(out), "\n")), fmt.Sprintf("output: %q", string(out))
+	return len(strings.Split(strings.TrimSpace(out), "\n")), fmt.Sprintf("output: %q", out)
 }
 
 // WaitRun waits for a container to be running for 10s

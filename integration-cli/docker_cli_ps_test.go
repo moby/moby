@@ -478,22 +478,22 @@ func (s *DockerSuite) TestPsRightTagName(c *testing.T) {
 
 	var id1 string
 	out := runSleepingContainer(c)
-	id1 = strings.TrimSpace(string(out))
+	id1 = strings.TrimSpace(out)
 
 	var id2 string
 	out = runSleepingContainerInImage(c, tag)
-	id2 = strings.TrimSpace(string(out))
+	id2 = strings.TrimSpace(out)
 
 	var imageID string
 	out = inspectField(c, "busybox", "Id")
-	imageID = strings.TrimSpace(string(out))
+	imageID = strings.TrimSpace(out)
 
 	var id3 string
 	out = runSleepingContainerInImage(c, imageID)
-	id3 = strings.TrimSpace(string(out))
+	id3 = strings.TrimSpace(out)
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc")
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	lines := strings.Split(strings.TrimSpace(out), "\n")
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
 	// skip header
 	lines = lines[1:]
@@ -562,7 +562,7 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *testing.T) {
 	result = icmd.RunCommand(dockerBinary, "ps", "--no-trunc")
 	result.Assert(c, icmd.Success)
 
-	lines := strings.Split(strings.TrimSpace(string(result.Combined())), "\n")
+	lines := strings.Split(strings.TrimSpace(result.Combined()), "\n")
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
 	// skip header
 	lines = lines[1:]
@@ -579,7 +579,7 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *testing.T) {
 	result = icmd.RunCommand(dockerBinary, "ps", "--no-trunc")
 	result.Assert(c, icmd.Success)
 
-	lines = strings.Split(strings.TrimSpace(string(result.Combined())), "\n")
+	lines = strings.Split(strings.TrimSpace(result.Combined()), "\n")
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
 	// skip header
 	lines = lines[1:]
@@ -597,7 +597,7 @@ func (s *DockerSuite) TestPsNotShowPortsOfStoppedContainer(c *testing.T) {
 	dockerCmd(c, "run", "--name=foo", "-d", "-p", "5000:5000", "busybox", "top")
 	assert.Assert(c, waitRun("foo") == nil)
 	out, _ := dockerCmd(c, "ps")
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	lines := strings.Split(strings.TrimSpace(out), "\n")
 	expected := "0.0.0.0:5000->5000/tcp"
 	fields := strings.Fields(lines[1])
 	assert.Equal(c, fields[len(fields)-2], expected, fmt.Sprintf("Expected: %v, got: %v", expected, fields[len(fields)-2]))
@@ -605,7 +605,7 @@ func (s *DockerSuite) TestPsNotShowPortsOfStoppedContainer(c *testing.T) {
 	dockerCmd(c, "kill", "foo")
 	dockerCmd(c, "wait", "foo")
 	out, _ = dockerCmd(c, "ps", "-l")
-	lines = strings.Split(strings.TrimSpace(string(out)), "\n")
+	lines = strings.Split(strings.TrimSpace(out), "\n")
 	fields = strings.Fields(lines[1])
 	assert.Assert(c, fields[len(fields)-2] != expected, "Should not got %v", expected)
 }
@@ -638,7 +638,7 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 
 	out, _ := dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}")
 
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	lines := strings.Split(strings.TrimSpace(out), "\n")
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
 	assert.Equal(c, len(lines), 3)
 
@@ -658,7 +658,7 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 	// filter by volume name
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume=ps-volume-test")
 
-	lines = strings.Split(strings.TrimSpace(string(out)), "\n")
+	lines = strings.Split(strings.TrimSpace(out), "\n")
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
 	assert.Equal(c, len(lines), 1)
 
@@ -667,12 +667,12 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 
 	// empty results filtering by unknown volume
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume=this-volume-should-not-exist")
-	assert.Equal(c, len(strings.TrimSpace(string(out))), 0)
+	assert.Equal(c, len(strings.TrimSpace(out)), 0)
 
 	// filter by mount destination
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+mp)
 
-	lines = strings.Split(strings.TrimSpace(string(out)), "\n")
+	lines = strings.Split(strings.TrimSpace(out), "\n")
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
 	assert.Equal(c, len(lines), 2)
 
@@ -684,7 +684,7 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 	// filter by bind mount source
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+bindMountSource)
 
-	lines = strings.Split(strings.TrimSpace(string(out)), "\n")
+	lines = strings.Split(strings.TrimSpace(out), "\n")
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
 	assert.Equal(c, len(lines), 1)
 
@@ -696,7 +696,7 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 	// filter by bind mount destination
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+bindMountDestination)
 
-	lines = strings.Split(strings.TrimSpace(string(out)), "\n")
+	lines = strings.Split(strings.TrimSpace(out), "\n")
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
 	assert.Equal(c, len(lines), 1)
 
@@ -707,7 +707,7 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 
 	// empty results filtering by unknown mount point
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+prefix+slash+"this-path-was-never-mounted")
-	assert.Equal(c, len(strings.TrimSpace(string(out))), 0)
+	assert.Equal(c, len(strings.TrimSpace(out)), 0)
 }
 
 func (s *DockerSuite) TestPsListContainersFilterNetwork(c *testing.T) {
@@ -723,7 +723,7 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 
 	// Filter docker ps on non existing network
 	out, _ := dockerCmd(c, "ps", "--filter", "network=doesnotexist")
-	containerOut := strings.TrimSpace(string(out))
+	containerOut := strings.TrimSpace(out)
 	lines := strings.Split(containerOut, "\n")
 
 	// skip header
@@ -734,7 +734,7 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 
 	// Filter docker ps on network bridge
 	out, _ = dockerCmd(c, "ps", "--filter", "network=bridge")
-	containerOut = strings.TrimSpace(string(out))
+	containerOut = strings.TrimSpace(out)
 
 	lines = strings.Split(containerOut, "\n")
 
@@ -748,7 +748,7 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 	assert.Assert(c, strings.Contains(containerOut, "onbridgenetwork"), "Missing the container on network\n")
 	// Filter docker ps on networks bridge and none
 	out, _ = dockerCmd(c, "ps", "--filter", "network=bridge", "--filter", "network=none")
-	containerOut = strings.TrimSpace(string(out))
+	containerOut = strings.TrimSpace(out)
 
 	lines = strings.Split(containerOut, "\n")
 
@@ -765,15 +765,15 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 
 	// Filter by network ID
 	out, _ = dockerCmd(c, "ps", "--filter", "network="+nwID)
-	containerOut = strings.TrimSpace(string(out))
+	containerOut = strings.TrimSpace(out)
 
 	assert.Assert(c, is.Contains(containerOut, "onbridgenetwork"))
 
 	// Filter by partial network ID
-	partialnwID := string(nwID[0:4])
+	partialnwID := nwID[0:4]
 
 	out, _ = dockerCmd(c, "ps", "--filter", "network="+partialnwID)
-	containerOut = strings.TrimSpace(string(out))
+	containerOut = strings.TrimSpace(out)
 
 	lines = strings.Split(containerOut, "\n")
 
@@ -849,7 +849,7 @@ func (s *DockerSuite) TestPsNotShowLinknamesOfDeletedContainer(c *testing.T) {
 	dockerCmd(c, "create", "--name=bbb", "--link=aaa", "busybox", "top")
 
 	out, _ := dockerCmd(c, "ps", "--no-trunc", "-a", "--format", "{{.Names}}")
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	lines := strings.Split(strings.TrimSpace(out), "\n")
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
 	expected := []string{"bbb", "aaa,bbb/aaa"}
 	var names []string
