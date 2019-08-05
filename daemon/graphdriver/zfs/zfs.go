@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/mistifyio/go-zfs"
+	zfs "github.com/mistifyio/go-zfs"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -54,7 +54,7 @@ func Init(base string, opt []string, uidMaps, gidMaps []idtools.IDMap) (graphdri
 		return nil, graphdriver.ErrPrerequisites
 	}
 
-	file, err := os.OpenFile("/dev/zfs", os.O_RDWR, 600)
+	file, err := os.OpenFile("/dev/zfs", os.O_RDWR, 0600)
 	if err != nil {
 		logger.Debugf("cannot open /dev/zfs: %v", err)
 		return nil, graphdriver.ErrPrerequisites
