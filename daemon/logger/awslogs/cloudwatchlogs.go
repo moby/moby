@@ -308,8 +308,12 @@ var strftimeToRegex = map[string]string{
 
 // newRegionFinder is a variable such that the implementation
 // can be swapped out for unit tests.
-var newRegionFinder = func() regionFinder {
-	return ec2metadata.New(session.New())
+var newRegionFinder = func() (regionFinder, error) {
+	s, err := session.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	return ec2metadata.New(s), nil
 }
 
 // newSDKEndpoint is a variable such that the implementation
@@ -333,12 +337,15 @@ func newAWSLogsClient(info logger.Info) (api, error) {
 	}
 	if region == nil || *region == "" {
 		logrus.Info("Trying to get region from EC2 Metadata")
-		ec2MetadataClient := newRegionFinder()
+		ec2MetadataClient, err := newRegionFinder()
+		if err != nil {
+			logrus.WithError(err).Error("could not create EC2 metadata client")
+			return nil, errors.Wrap(err, "could not create EC2 metadata client")
+		}
+
 		r, err := ec2MetadataClient.Region()
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				"error": err,
-			}).Error("Could not get region from EC2 metadata, environment, or log option")
+			logrus.WithError(err).Error("Could not get region from EC2 metadata, environment, or log option")
 			return nil, errors.New("Cannot determine region for awslogs driver")
 		}
 		region = &r
