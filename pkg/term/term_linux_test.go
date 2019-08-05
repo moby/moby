@@ -31,8 +31,8 @@ func newTempFile() (*os.File, error) {
 
 func TestGetWinsize(t *testing.T) {
 	tty, err := newTtyForTest(t)
-	defer tty.Close()
 	assert.NilError(t, err)
+	defer tty.Close()
 	winSize, err := GetWinsize(tty.Fd())
 	assert.NilError(t, err)
 	assert.Assert(t, winSize != nil)
@@ -49,8 +49,8 @@ var cmpWinsize = cmp.AllowUnexported(Winsize{})
 
 func TestSetWinsize(t *testing.T) {
 	tty, err := newTtyForTest(t)
-	defer tty.Close()
 	assert.NilError(t, err)
+	defer tty.Close()
 	winSize, err := GetWinsize(tty.Fd())
 	assert.NilError(t, err)
 	assert.Assert(t, winSize != nil)
@@ -64,8 +64,8 @@ func TestSetWinsize(t *testing.T) {
 
 func TestGetFdInfo(t *testing.T) {
 	tty, err := newTtyForTest(t)
-	defer tty.Close()
 	assert.NilError(t, err)
+	defer tty.Close()
 	inFd, isTerminal := GetFdInfo(tty)
 	assert.Equal(t, inFd, tty.Fd())
 	assert.Equal(t, isTerminal, true)
@@ -79,8 +79,8 @@ func TestGetFdInfo(t *testing.T) {
 
 func TestIsTerminal(t *testing.T) {
 	tty, err := newTtyForTest(t)
-	defer tty.Close()
 	assert.NilError(t, err)
+	defer tty.Close()
 	isTerminal := IsTerminal(tty.Fd())
 	assert.Equal(t, isTerminal, true)
 	tmpFile, err := newTempFile()
@@ -92,8 +92,8 @@ func TestIsTerminal(t *testing.T) {
 
 func TestSaveState(t *testing.T) {
 	tty, err := newTtyForTest(t)
-	defer tty.Close()
 	assert.NilError(t, err)
+	defer tty.Close()
 	state, err := SaveState(tty.Fd())
 	assert.NilError(t, err)
 	assert.Assert(t, state != nil)
@@ -106,8 +106,8 @@ func TestSaveState(t *testing.T) {
 
 func TestDisableEcho(t *testing.T) {
 	tty, err := newTtyForTest(t)
-	defer tty.Close()
 	assert.NilError(t, err)
+	defer tty.Close()
 	state, err := SetRawTerminal(tty.Fd())
 	defer RestoreTerminal(tty.Fd(), state)
 	assert.NilError(t, err)
