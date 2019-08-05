@@ -91,6 +91,19 @@ pipeline {
                                 '''
                             }
                         }
+			stage("Static") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh binary-daemon
+                                '''
+                            }
+                        }
                         stage("Cross") {
                             steps {
                                 sh '''
@@ -186,18 +199,36 @@ pipeline {
                         stage("Run tests") {
                             steps {
                                 sh '''
-                                docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                                  --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER \
-                                  docker:${GIT_COMMIT} \
-                                  hack/make.sh \
-                                    binary-daemon \
-                                    dynbinary-daemon \
-                                    test-integration-flaky \
-                                    test-integration \
+				run_tests() {
+					docker run --rm -t --privileged \
+					  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+					  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+					  --name docker-pr$BUILD_NUMBER \
+                                          -e KEEPBUNDLE=1 \
+					  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+					  -e DOCKER_GRAPHDRIVER \
+					  $1 \
+					  docker:${GIT_COMMIT} \
+					  hack/make.sh
+					    dynbinary-daemon \
+                                            $2 \
+					    test-integration
+				}
+
+				# integration + flaky
+				run_tests "-e TEST_INTEGRATION_DEST=/1 -e TEST_SKIP_INTEGRATION_CLI=1" test-integration-flaky &
+
+				# integration-cli set1
+				run_tests "-e TEST_INTEGRATION_DEST=/2 -e TEST_SKIP_INTEGRATION=1 -e TESTFLAGS='-check.f ^(DockerSuite|DockerNetworkSuite|DockerHubPullSuite)'" &
+
+				# integration-cli set2
+				run_tests "-e TEST_INTEGRATION_DEST=/3 -e TEST_SKIP_INTEGRATION=1 -e TESTFLAGS='-check.f ^(DockerSwarmSuite|DockerExternalVolumeSuite|DockerDaemonSuite|DockerRegistrySuite|DockerSchema1RegistrySuite|DockerRegistryAuthTokenSuite|DockerRegistryAuthHtpasswdSuite)'" &
+
+				c=0
+				for pid in $(jobs -p); do
+					wait $pid || c=$?
+				done
+				exit $c
                                 '''
                             }
                         }

@@ -80,6 +80,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 	(
 		echo "Starting dockerd"
 		[ -n "$TESTDEBUG" ] && set -x
+
 		exec \
 			dockerd --debug \
 			--host "$DOCKER_HOST" \
