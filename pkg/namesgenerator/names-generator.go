@@ -17,6 +17,7 @@ var (
 		"beautiful",
 		"blissful",
 		"bold",
+		"bored",
 		"brave",
 		"busy",
 		"charming",
