@@ -8,6 +8,6 @@ files=( $(validate_diff --diff-filter=ACMR --name-only -- 'api/swagger.yaml' || 
 unset IFS
 
 if [ ${#files[@]} -gt 0 ]; then
-	yamllint -c ${SCRIPTDIR}/.swagger-yamllint api/swagger.yaml
+	LANG=C.UTF-8 yamllint -c ${SCRIPTDIR}/.swagger-yamllint api/swagger.yaml
 	swagger validate api/swagger.yaml
 fi
