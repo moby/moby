@@ -2093,14 +2093,6 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 		}...)
 	}
 
-	type wrapper struct {
-		containertypes.Config
-		HostConfig containertypes.HostConfig
-	}
-	type createResp struct {
-		ID string `json:"Id"`
-	}
-
 	ctx := context.Background()
 	apiclient := testEnv.APIClient()
 	for i, x := range cases {
