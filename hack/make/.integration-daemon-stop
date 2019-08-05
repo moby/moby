@@ -10,6 +10,8 @@ if [ ! "$(go env GOOS)" = 'windows' ]; then
 		if ! wait "$pid"; then
 			echo >&2 "warning: PID $pid from $pidFile had a nonzero exit code"
 		fi
+		root=$(dirname "$pidFile")/root
+		umount "$root" || true
 	done
 
 	if [ -z "$DOCKER_TEST_HOST" ]; then
