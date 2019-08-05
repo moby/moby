@@ -91,6 +91,19 @@ pipeline {
                                 '''
                             }
                         }
+                        stage("Cross") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh cross
+                                '''
+                            }
+                        }
                         stage("Validate vendor") {
                             steps {
                                 sh '''
@@ -185,7 +198,6 @@ pipeline {
                                     dynbinary-daemon \
                                     test-integration-flaky \
                                     test-integration \
-                                    cross
                                 '''
                             }
                         }
