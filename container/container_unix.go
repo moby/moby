@@ -190,7 +190,7 @@ func (container *Container) UnmountIpcMount() error {
 	if shmPath == "" {
 		return nil
 	}
-	if err = mount.Unmount(shmPath); err != nil && !os.IsNotExist(err) {
+	if err = mount.Unmount(shmPath); err != nil && !os.IsNotExist(errors.Cause(err)) {
 		return err
 	}
 	return nil
