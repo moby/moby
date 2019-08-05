@@ -171,10 +171,6 @@ func getCachedLayer(l Layer) *roLayer {
 	return l.(*roLayer)
 }
 
-func getMountLayer(l RWLayer) *mountedLayer {
-	return l.(*referencedRWLayer).mountedLayer
-}
-
 func createMetadata(layers ...Layer) []Metadata {
 	metadata := make([]Metadata, len(layers))
 	for i := range layers {

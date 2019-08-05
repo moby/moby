@@ -96,9 +96,9 @@ func TestValidateEnv(t *testing.T) {
 		}{
 			value:    "PaTh",
 			expected: fmt.Sprintf("PaTh=%v", os.Getenv("PATH")),
+			err:      nil,
 		}
 		testcase = append(testcase, tmp)
-
 	}
 
 	for _, r := range testcase {

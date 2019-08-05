@@ -180,7 +180,7 @@ func TestValidateManifest(t *testing.T) {
 		t.Fatal("error unmarshaling manifest:", err)
 	}
 
-	verifiedManifest, err = verifySchema1Manifest(&badSignedManifest, expectedDigest)
+	_, err = verifySchema1Manifest(&badSignedManifest, expectedDigest)
 	if err == nil || !strings.HasPrefix(err.Error(), "image verification failed for digest") {
 		t.Fatal("expected validateManifest to fail with digest error")
 	}
