@@ -3427,7 +3427,7 @@ func (s *DockerSuite) TestBuildLabelsCache(c *testing.T) {
 func (s *DockerSuite) TestBuildNotVerboseSuccess(c *testing.T) {
 	// This test makes sure that -q works correctly when build is successful:
 	// stdout has only the image ID (long image ID) and stderr is empty.
-	outRegexp := regexp.MustCompile("^(sha256:|)[a-z0-9]{64}\\n$")
+	outRegexp := regexp.MustCompile(`^(sha256:|)[a-z0-9]{64}\n$`)
 	buildFlags := cli.WithFlags("-q")
 
 	tt := []struct {

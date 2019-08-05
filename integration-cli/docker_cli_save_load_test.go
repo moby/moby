@@ -236,7 +236,7 @@ func (s *DockerSuite) TestSaveRepoWithMultipleImages(c *testing.T) {
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	var actual []string
 	for _, l := range lines {
-		if regexp.MustCompile("^[a-f0-9]{64}\\.json$").Match([]byte(l)) {
+		if regexp.MustCompile(`^[a-f0-9]{64}\.json$`).Match([]byte(l)) {
 			actual = append(actual, strings.TrimSuffix(l, ".json"))
 		}
 	}
