@@ -60,6 +60,9 @@ func TestDockerNetworkMacvlan(t *testing.T) {
 			name: "InternalMode",
 			test: testMacvlanInternalMode,
 		}, {
+			name: "MultiSubnet",
+			test: testMacvlanMultiSubnet,
+		}, {
 			name: "Addressing",
 			test: testMacvlanAddressing,
 		},
@@ -237,7 +240,7 @@ func testMacvlanMultiSubnet(client client.APIClient) func(*testing.T) {
 		// Inspect the v4 gateway to ensure the proper explicitly assigned default GW was assigned
 		assert.Equal(t, c3.NetworkSettings.Networks["dualstackbridge"].Gateway, "172.28.102.254")
 		// Inspect the v6 gateway to ensure the proper explicitly assigned default GW was assigned
-		assert.Equal(t, c3.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway, "2001:db8.abc4::254")
+		assert.Equal(t, c3.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway, "2001:db8:abc4::254")
 	}
 }
 
