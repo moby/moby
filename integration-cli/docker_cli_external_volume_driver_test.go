@@ -162,7 +162,6 @@ func newVolumePlugin(c *testing.T, name string) *volumePlugin {
 
 		v.Mountpoint = hostVolumePath(pr.Name)
 		send(w, map[string]vol{"Volume": v})
-		return
 	})
 
 	mux.HandleFunc("/VolumeDriver.Remove", func(w http.ResponseWriter, r *http.Request) {
