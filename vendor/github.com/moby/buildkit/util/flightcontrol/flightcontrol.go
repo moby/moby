@@ -72,16 +72,18 @@ func (g *Group) do(ctx context.Context, key string, fn func(ctx context.Context)
 		g.mu.Lock()
 		delete(g.m, key)
 		g.mu.Unlock()
+		close(c.cleaned)
 	}()
 	g.mu.Unlock()
 	return c.wait(ctx)
 }
 
 type call struct {
-	mu     sync.Mutex
-	result interface{}
-	err    error
-	ready  chan struct{}
+	mu      sync.Mutex
+	result  interface{}
+	err     error
+	ready   chan struct{}
+	cleaned chan struct{}
 
 	ctx  *sharedContext
 	ctxs []context.Context
@@ -97,6 +99,7 @@ func newCall(fn func(ctx context.Context) (interface{}, error)) *call {
 	c := &call{
 		fn:            fn,
 		ready:         make(chan struct{}),
+		cleaned:       make(chan struct{}),
 		progressState: newProgressState(),
 	}
 	ctx := newContext(c) // newSharedContext
@@ -127,6 +130,7 @@ func (c *call) wait(ctx context.Context) (v interface{}, err error) {
 	select {
 	case <-c.ready: // could return if no error
 		c.mu.Unlock()
+		<-c.cleaned
 		return nil, errRetry
 	default:
 	}

@@ -147,7 +147,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp exporter.Source)
 		fs = d.FS
 	}
 
-	w, err := filesync.CopyFileWriter(ctx, e.caller)
+	w, err := filesync.CopyFileWriter(ctx, nil, e.caller)
 	if err != nil {
 		return nil, err
 	}

@@ -36,6 +36,7 @@ type Accessor interface {
 	New(ctx context.Context, s ImmutableRef, opts ...RefOption) (MutableRef, error)
 	GetMutable(ctx context.Context, id string) (MutableRef, error) // Rebase?
 	IdentityMapping() *idtools.IdentityMapping
+	Metadata(string) *metadata.StorageItem
 }
 
 type Controller interface {
@@ -122,6 +123,16 @@ func (cm *cacheManager) GetFromSnapshotter(ctx context.Context, id string, opts 
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 	return cm.get(ctx, id, true, opts...)
+}
+
+func (cm *cacheManager) Metadata(id string) *metadata.StorageItem {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+	r, ok := cm.records[id]
+	if !ok {
+		return nil
+	}
+	return r.Metadata()
 }
 
 // get requires manager lock to be taken

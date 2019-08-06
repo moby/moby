@@ -29,6 +29,7 @@ type llbBridge struct {
 	builder                   solver.Builder
 	frontends                 map[string]frontend.Frontend
 	resolveWorker             func() (worker.Worker, error)
+	eachWorker                func(func(worker.Worker) error) error
 	resolveCacheImporterFuncs map[string]remotecache.ResolveCacheImporterFunc
 	cms                       map[string]solver.CacheManager
 	cmsMu                     sync.Mutex
@@ -91,11 +92,25 @@ func (b *llbBridge) Solve(ctx context.Context, req frontend.SolveRequest) (res *
 		if err != nil {
 			return nil, err
 		}
+		dpc := &detectPrunedCacheID{}
 
-		edge, err := Load(req.Definition, ValidateEntitlements(ent), WithCacheSources(cms), RuntimePlatforms(b.platforms), WithValidateCaps())
+		edge, err := Load(req.Definition, dpc.Load, ValidateEntitlements(ent), WithCacheSources(cms), RuntimePlatforms(b.platforms), WithValidateCaps())
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to load LLB")
 		}
+
+		if len(dpc.ids) > 0 {
+			ids := make([]string, 0, len(dpc.ids))
+			for id := range dpc.ids {
+				ids = append(ids, id)
+			}
+			if err := b.eachWorker(func(w worker.Worker) error {
+				return w.PruneCacheMounts(ctx, ids)
+			}); err != nil {
+				return nil, err
+			}
+		}
+
 		ref, err := b.builder.Build(ctx, edge)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to build LLB")

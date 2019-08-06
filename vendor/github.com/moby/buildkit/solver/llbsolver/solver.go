@@ -39,6 +39,7 @@ type Solver struct {
 	workerController          *worker.Controller
 	solver                    *solver.Solver
 	resolveWorker             ResolveWorkerFunc
+	eachWorker                func(func(worker.Worker) error) error
 	frontends                 map[string]frontend.Frontend
 	resolveCacheImporterFuncs map[string]remotecache.ResolveCacheImporterFunc
 	platforms                 []specs.Platform
@@ -51,6 +52,7 @@ func New(wc *worker.Controller, f map[string]frontend.Frontend, cache solver.Cac
 	s := &Solver{
 		workerController:          wc,
 		resolveWorker:             defaultResolver(wc),
+		eachWorker:                allWorkers(wc),
 		frontends:                 f,
 		resolveCacheImporterFuncs: resolveCI,
 		gatewayForwarder:          gatewayForwarder,
@@ -87,6 +89,7 @@ func (s *Solver) Bridge(b solver.Builder) frontend.FrontendLLBBridge {
 		builder:                   b,
 		frontends:                 s.frontends,
 		resolveWorker:             s.resolveWorker,
+		eachWorker:                s.eachWorker,
 		resolveCacheImporterFuncs: s.resolveCacheImporterFuncs,
 		cms:                       map[string]solver.CacheManager{},
 		platforms:                 s.platforms,
@@ -283,6 +286,20 @@ func (s *Solver) Status(ctx context.Context, id string, statusChan chan *client.
 func defaultResolver(wc *worker.Controller) ResolveWorkerFunc {
 	return func() (worker.Worker, error) {
 		return wc.GetDefault()
+	}
+}
+func allWorkers(wc *worker.Controller) func(func(w worker.Worker) error) error {
+	return func(f func(worker.Worker) error) error {
+		all, err := wc.List()
+		if err != nil {
+			return err
+		}
+		for _, w := range all {
+			if err := f(w); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 }
 

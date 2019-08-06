@@ -461,7 +461,7 @@ type dispatchOpt struct {
 func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 	if ex, ok := cmd.Command.(instructions.SupportsSingleWordExpansion); ok {
 		err := ex.Expand(func(word string) (string, error) {
-			return opt.shlex.ProcessWordWithMap(word, toEnvMap(d.buildArgs, d.image.Config.Env))
+			return opt.shlex.ProcessWord(word, d.state.Env())
 		})
 		if err != nil {
 			return err
@@ -626,14 +626,7 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 		args = withShell(d.image, args)
 	}
 	env := d.state.Env()
-	opt := []llb.RunOption{llb.Args(args)}
-	for _, arg := range d.buildArgs {
-		if arg.Value != nil {
-			env = append(env, fmt.Sprintf("%s=%s", arg.Key, arg.ValueString()))
-			opt = append(opt, llb.AddEnv(arg.Key, arg.ValueString()))
-		}
-	}
-	opt = append(opt, dfCmd(c))
+	opt := []llb.RunOption{llb.Args(args), dfCmd(c)}
 	if d.ignoreCache {
 		opt = append(opt, llb.IgnoreCache)
 	}
@@ -647,6 +640,11 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 	}
 	opt = append(opt, runMounts...)
 
+	err = dispatchRunSecurity(d, c)
+	if err != nil {
+		return err
+	}
+
 	shlex := *dopt.shlex
 	shlex.RawQuotes = true
 	shlex.SkipUnsetEnv = true
@@ -656,7 +654,7 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 		opt = append(opt, llb.AddExtraHost(h.Host, h.IP))
 	}
 	d.state = d.state.Run(opt...).Root()
-	return commitToHistory(&d.image, "RUN "+runCommandString(args, d.buildArgs), true, &d.state)
+	return commitToHistory(&d.image, "RUN "+runCommandString(args, d.buildArgs, shell.BuildEnvs(env)), true, &d.state)
 }
 
 func dispatchWorkdir(d *dispatchState, c *instructions.WorkdirCommand, commit bool, opt *dispatchOpt) error {
@@ -927,7 +925,7 @@ func dispatchHealthcheck(d *dispatchState, c *instructions.HealthCheckCommand) e
 func dispatchExpose(d *dispatchState, c *instructions.ExposeCommand, shlex *shell.Lex) error {
 	ports := []string{}
 	for _, p := range c.Ports {
-		ps, err := shlex.ProcessWordsWithMap(p, toEnvMap(d.buildArgs, d.image.Config.Env))
+		ps, err := shlex.ProcessWords(p, d.state.Env())
 		if err != nil {
 			return err
 		}
@@ -1000,6 +998,10 @@ func dispatchArg(d *dispatchState, c *instructions.ArgCommand, metaArgs []instru
 		}
 	}
 
+	if buildArg.Value != nil {
+		d.state = d.state.AddEnv(buildArg.Key, *buildArg.Value)
+	}
+
 	d.buildArgs = append(d.buildArgs, buildArg)
 	return commitToHistory(&d.image, commitStr, false, nil)
 }
@@ -1065,21 +1067,6 @@ func setKVValue(kvpo instructions.KeyValuePairOptional, values map[string]string
 	return kvpo
 }
 
-func toEnvMap(args []instructions.KeyValuePairOptional, env []string) map[string]string {
-	m := shell.BuildEnvs(env)
-
-	for _, arg := range args {
-		// If key already exists, keep previous value.
-		if _, ok := m[arg.Key]; ok {
-			continue
-		}
-		if arg.Value != nil {
-			m[arg.Key] = arg.ValueString()
-		}
-	}
-	return m
-}
-
 func dfCmd(cmd interface{}) llb.ConstraintsOpt {
 	// TODO: add fmt.Stringer to instructions.Command to remove interface{}
 	var cmdStr string
@@ -1094,10 +1081,14 @@ func dfCmd(cmd interface{}) llb.ConstraintsOpt {
 	})
 }
 
-func runCommandString(args []string, buildArgs []instructions.KeyValuePairOptional) string {
+func runCommandString(args []string, buildArgs []instructions.KeyValuePairOptional, envMap map[string]string) string {
 	var tmpBuildEnv []string
 	for _, arg := range buildArgs {
-		tmpBuildEnv = append(tmpBuildEnv, arg.Key+"="+arg.ValueString())
+		v, ok := envMap[arg.Key]
+		if !ok {
+			v = arg.ValueString()
+		}
+		tmpBuildEnv = append(tmpBuildEnv, arg.Key+"="+v)
 	}
 	if len(tmpBuildEnv) > 0 {
 		tmpBuildEnv = append([]string{fmt.Sprintf("|%d", len(tmpBuildEnv))}, tmpBuildEnv...)
