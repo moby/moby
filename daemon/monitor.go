@@ -54,9 +54,9 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			if err != nil {
 				logrus.WithError(err).Warnf("failed to delete container %s from containerd", c.ID)
 			}
-			ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
-
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			c.StreamConfig.Wait(ctx)
+			cancel()
 			c.Reset(false)
 
 			exitStatus := container.ExitStatus{
@@ -125,8 +125,9 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			execConfig.ExitCode = &ec
 			execConfig.Running = false
 
-			ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			execConfig.StreamConfig.Wait(ctx)
+			cancel()
 
 			if err := execConfig.CloseStreams(); err != nil {
 				logrus.Errorf("failed to cleanup exec %s streams: %s", c.ID, err)
