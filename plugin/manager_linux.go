@@ -282,9 +282,6 @@ func (pm *Manager) setupNewPlugin(configDigest digest.Digest, blobsums []digest.
 	}
 
 	requiredPrivileges := computePrivileges(config)
-	if err != nil {
-		return types.PluginConfig{}, err
-	}
 	if privileges != nil {
 		if err := validatePrivileges(requiredPrivileges, *privileges); err != nil {
 			return types.PluginConfig{}, err
