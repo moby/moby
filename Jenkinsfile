@@ -763,36 +763,43 @@ pipeline {
                         expression { params.aarch64 }
                     }
                     agent { label 'aarch64 && packet' }
+                    environment {
+                        TEST_SKIP_INTEGRATION_CLI = '1'
+                    }
+
                     steps {
                         sh '''
-                        GITCOMMIT=$(git rev-parse --short HEAD)
-
-                        docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-aarch64:$GITCOMMIT -f Dockerfile .
-
                         docker run --rm -t --privileged \
                           -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                          --name docker-pr-aarch64$BUILD_NUMBER \
-                          -e DOCKER_GRAPHDRIVER=vfs \
-                          -e DOCKER_EXECDRIVER=native \
-                          -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                          docker-aarch64:$GITCOMMIT \
-                          hack/ci/arm
+                          --name docker-pr$BUILD_NUMBER \
+                          -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                          -e DOCKER_GRAPHDRIVER \
+                          -e TEST_SKIP_INTEGRATION_CLI \
+                          docker:${GIT_COMMIT} \
+                          hack/make.sh \
+                            binary-daemon \
+                            dynbinary \
+                            test-integration
                         '''
                     }
                     post {
                         always {
                             sh '''
                             echo "Ensuring container killed."
-                            docker rm -vf docker-pr-aarch64$BUILD_NUMBER || true
-
-                            echo "Chowning /workspace to jenkins user"
-                            docker run --rm -v "$WORKSPACE:/workspace" aarch64/busybox chown -R "$(id -u):$(id -g)" /workspace
+                            docker rm -vf docker-pr$BUILD_NUMBER || true
                             '''
+
+                            sh '''
+                            echo "Chowning /workspace to jenkins user"
+                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
+                            '''
+
                             sh '''
                             echo "Creating bundles.tar.gz"
-                            find bundles -name '*.log' | xargs tar -czf bundles.tar.gz
+                            find bundles -name '*.log' | xargs tar -czf aarch64-bundles.tar.gz
                             '''
-                            archiveArtifacts artifacts: 'bundles.tar.gz'
+
+                            archiveArtifacts artifacts: 'aarch64-bundles.tar.gz'
                         }
                     }
                 }
