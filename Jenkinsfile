@@ -767,20 +767,53 @@ pipeline {
                         TEST_SKIP_INTEGRATION_CLI = '1'
                     }
 
-                    steps {
-                        sh '''
-                        docker run --rm -t --privileged \
-                          -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                          --name docker-pr$BUILD_NUMBER \
-                          -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                          -e DOCKER_GRAPHDRIVER \
-                          -e TEST_SKIP_INTEGRATION_CLI \
-                          docker:${GIT_COMMIT} \
-                          hack/make.sh \
-                            binary-daemon \
-                            dynbinary \
-                            test-integration
-                        '''
+                    stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
+                            }
+                        }
+                        stage("Build dev image") {
+                            steps {
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .'
+                            }
+                        }
+                        stage("Unit tests") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/test/unit
+                                '''
+                            }
+                        }
+                        stage("Integration tests") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  -e TEST_SKIP_INTEGRATION_CLI \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh \
+                                    binary-daemon \
+                                    dynbinary \
+                                    test-integration
+                                '''
+                            }
+                        }
                     }
                     post {
                         always {
@@ -800,6 +833,10 @@ pipeline {
                             '''
 
                             archiveArtifacts artifacts: 'aarch64-bundles.tar.gz'
+                        }
+                        cleanup {
+                            sh 'make clean'
+                            deleteDir()
                         }
                     }
                 }
