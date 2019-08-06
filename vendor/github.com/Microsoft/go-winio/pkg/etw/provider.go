@@ -14,7 +14,7 @@ import (
 // name and ID (GUID), which should always have a 1:1 mapping to each other
 // (e.g. don't use multiple provider names with the same ID, or vice versa).
 type Provider struct {
-	ID         *guid.GUID
+	ID         guid.GUID
 	handle     providerHandle
 	metadata   []byte
 	callback   EnableCallback
@@ -61,9 +61,9 @@ const (
 
 // EnableCallback is the form of the callback function that receives provider
 // enable/disable notifications from ETW.
-type EnableCallback func(*guid.GUID, ProviderState, Level, uint64, uint64, uintptr)
+type EnableCallback func(guid.GUID, ProviderState, Level, uint64, uint64, uintptr)
 
-func providerCallback(sourceID *guid.GUID, state ProviderState, level Level, matchAnyKeyword uint64, matchAllKeyword uint64, filterData uintptr, i uintptr) {
+func providerCallback(sourceID guid.GUID, state ProviderState, level Level, matchAnyKeyword uint64, matchAllKeyword uint64, filterData uintptr, i uintptr) {
 	provider := providers.getProvider(uint(i))
 
 	switch state {
@@ -86,7 +86,7 @@ func providerCallback(sourceID *guid.GUID, state ProviderState, level Level, mat
 // different size, it has only pointer-sized arguments, which are then cast to
 // the appropriate types when calling providerCallback.
 func providerCallbackAdapter(sourceID *guid.GUID, state uintptr, level uintptr, matchAnyKeyword uintptr, matchAllKeyword uintptr, filterData uintptr, i uintptr) uintptr {
-	providerCallback(sourceID, ProviderState(state), Level(level), uint64(matchAnyKeyword), uint64(matchAllKeyword), filterData, i)
+	providerCallback(*sourceID, ProviderState(state), Level(level), uint64(matchAnyKeyword), uint64(matchAllKeyword), filterData, i)
 	return 0
 }
 
@@ -94,26 +94,27 @@ func providerCallbackAdapter(sourceID *guid.GUID, state uintptr, level uintptr, 
 // uses the same algorithm as used by .NET's EventSource class, which is based
 // on RFC 4122. More information on the algorithm can be found here:
 // https://blogs.msdn.microsoft.com/dcook/2015/09/08/etw-provider-names-and-guids/
-// The algorithm is roughly:
-// Hash = Sha1(namespace + arg.ToUpper().ToUtf16be())
-// Guid = Hash[0..15], with Hash[7] tweaked according to RFC 4122
-func providerIDFromName(name string) *guid.GUID {
+//
+// The algorithm is roughly the RFC 4122 algorithm for a V5 UUID, but differs in
+// the following ways:
+// - The input name is first upper-cased, UTF16-encoded, and converted to
+//   big-endian.
+// - No variant is set on the result UUID.
+// - The result UUID is treated as being in little-endian format, rather than
+//   big-endian.
+func providerIDFromName(name string) guid.GUID {
 	buffer := sha1.New()
-
-	namespace := []byte{0x48, 0x2C, 0x2D, 0xB2, 0xC3, 0x90, 0x47, 0xC8, 0x87, 0xF8, 0x1A, 0x15, 0xBF, 0xC1, 0x30, 0xFB}
-	buffer.Write(namespace)
-
+	namespace := guid.GUID{0x482C2DB2, 0xC390, 0x47C8, [8]byte{0x87, 0xF8, 0x1A, 0x15, 0xBF, 0xC1, 0x30, 0xFB}}
+	namespaceBytes := namespace.ToArray()
+	buffer.Write(namespaceBytes[:])
 	binary.Write(buffer, binary.BigEndian, utf16.Encode([]rune(strings.ToUpper(name))))
 
 	sum := buffer.Sum(nil)
 	sum[7] = (sum[7] & 0xf) | 0x50
 
-	return &guid.GUID{
-		Data1: binary.LittleEndian.Uint32(sum[0:4]),
-		Data2: binary.LittleEndian.Uint16(sum[4:6]),
-		Data3: binary.LittleEndian.Uint16(sum[6:8]),
-		Data4: [8]byte{sum[8], sum[9], sum[10], sum[11], sum[12], sum[13], sum[14], sum[15]},
-	}
+	a := [16]byte{}
+	copy(a[:], sum)
+	return guid.FromWindowsArray(a)
 }
 
 // NewProvider creates and registers a new ETW provider. The provider ID is
@@ -219,8 +220,8 @@ func (provider *Provider) WriteEvent(name string, eventOpts []EventOpt, fieldOpt
 // the ETW infrastructure.
 func (provider *Provider) writeEventRaw(
 	descriptor *eventDescriptor,
-	activityID *guid.GUID,
-	relatedActivityID *guid.GUID,
+	activityID guid.GUID,
+	relatedActivityID guid.GUID,
 	metadataBlobs [][]byte,
 	dataBlobs [][]byte) error {
 
@@ -235,5 +236,5 @@ func (provider *Provider) writeEventRaw(
 		dataDescriptors = append(dataDescriptors, newEventDataDescriptor(eventDataDescriptorTypeUserData, blob))
 	}
 
-	return eventWriteTransfer(provider.handle, descriptor, (*windows.GUID)(activityID), (*windows.GUID)(relatedActivityID), dataDescriptorCount, &dataDescriptors[0])
+	return eventWriteTransfer(provider.handle, descriptor, (*windows.GUID)(&activityID), (*windows.GUID)(&relatedActivityID), dataDescriptorCount, &dataDescriptors[0])
 }

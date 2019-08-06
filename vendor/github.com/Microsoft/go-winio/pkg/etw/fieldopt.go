@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -380,6 +382,14 @@ func Struct(name string, opts ...FieldOpt) FieldOpt {
 	}
 }
 
+// Time adds a time to the event.
+func Time(name string, value time.Time) FieldOpt {
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeField(name, inTypeFileTime, outTypeDateTimeUTC, 0)
+		ed.writeFiletime(syscall.NsecToFiletime(value.UTC().UnixNano()))
+	}
+}
+
 // Currently, we support logging basic builtin types (int, string, etc), slices
 // of basic builtin types, error, types derived from the basic types (e.g. "type
 // foo int"), and structs (recursively logging their fields). We do not support
@@ -454,6 +464,8 @@ func SmartField(name string, v interface{}) FieldOpt {
 		return Float64Array(name, v)
 	case error:
 		return StringField(name, v.Error())
+	case time.Time:
+		return Time(name, v)
 	default:
 		switch rv := reflect.ValueOf(v); rv.Kind() {
 		case reflect.Bool:
