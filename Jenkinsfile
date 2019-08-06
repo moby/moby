@@ -10,7 +10,7 @@ pipeline {
     parameters {
         booleanParam(name: 'unit_validate', defaultValue: true, description: 'amd64 (x86_64) unit tests and vendor check')
         booleanParam(name: 'amd64', defaultValue: true, description: 'amd64 (x86_64) Build/Test')
-        booleanParam(name: 'aarch64', defaultValue: true, description: 'ARM (aarch64) Build/Test')
+        booleanParam(name: 'arm64', defaultValue: true, description: 'ARM (arm64) Build/Test')
         booleanParam(name: 's390x', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
         booleanParam(name: 'ppc64le', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
         booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
@@ -757,10 +757,10 @@ pipeline {
                         }
                     }
                 }
-                stage('aarch64') {
+                stage('arm64') {
                     when {
                         beforeAgent true
-                        expression { params.aarch64 }
+                        expression { params.arm64 }
                     }
                     agent { label 'aarch64 && packet' }
                     environment {
@@ -829,10 +829,10 @@ pipeline {
 
                             sh '''
                             echo "Creating bundles.tar.gz"
-                            find bundles -name '*.log' | xargs tar -czf aarch64-bundles.tar.gz
+                            find bundles -name '*.log' | xargs tar -czf arm64-bundles.tar.gz
                             '''
 
-                            archiveArtifacts artifacts: 'aarch64-bundles.tar.gz'
+                            archiveArtifacts artifacts: 'arm64-bundles.tar.gz'
                         }
                         cleanup {
                             sh 'make clean'
