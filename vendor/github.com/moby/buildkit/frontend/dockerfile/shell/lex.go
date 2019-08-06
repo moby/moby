@@ -417,10 +417,7 @@ func BuildEnvs(env []string) map[string]string {
 			k := e[:i]
 			v := e[i+1:]
 
-			// If key already exists, keep previous value.
-			if _, ok := envs[k]; ok {
-				continue
-			}
+			// overwrite value if key already exists
 			envs[k] = v
 		}
 	}

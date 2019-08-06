@@ -40,9 +40,9 @@ func dup(res Result) (Result, Result) {
 }
 
 type splitResult struct {
-	Result
 	released int64
 	sem      *int64
+	Result
 }
 
 func (r *splitResult) Release(ctx context.Context) error {

@@ -40,6 +40,12 @@ type streamWriterCloser struct {
 
 func (wc *streamWriterCloser) Write(dt []byte) (int, error) {
 	if err := wc.ClientStream.SendMsg(&BytesMessage{Data: dt}); err != nil {
+		// SendMsg return EOF on remote errors
+		if errors.Cause(err) == io.EOF {
+			if err := errors.WithStack(wc.ClientStream.RecvMsg(struct{}{})); err != nil {
+				return 0, err
+			}
+		}
 		return 0, errors.WithStack(err)
 	}
 	return len(dt), nil

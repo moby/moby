@@ -67,8 +67,8 @@ func sortConfig(cc *CacheConfig) {
 		if ri.Digest != rj.Digest {
 			return ri.Digest < rj.Digest
 		}
-		if len(ri.Inputs) != len(ri.Inputs) {
-			return len(ri.Inputs) < len(ri.Inputs)
+		if len(ri.Inputs) != len(rj.Inputs) {
+			return len(ri.Inputs) < len(rj.Inputs)
 		}
 		for i, inputs := range ri.Inputs {
 			if len(ri.Inputs[i]) != len(rj.Inputs[i]) {
@@ -76,7 +76,7 @@ func sortConfig(cc *CacheConfig) {
 			}
 			for j := range inputs {
 				if ri.Inputs[i][j].Selector != rj.Inputs[i][j].Selector {
-					return ri.Inputs[i][j].Selector != rj.Inputs[i][j].Selector
+					return ri.Inputs[i][j].Selector < rj.Inputs[i][j].Selector
 				}
 				return cc.Records[ri.Inputs[i][j].LinkIndex].Digest < cc.Records[rj.Inputs[i][j].LinkIndex].Digest
 			}
