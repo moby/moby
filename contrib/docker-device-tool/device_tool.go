@@ -38,7 +38,7 @@ func byteSizeFromString(arg string) (int64, error) {
 
 	rest = strings.ToLower(strings.TrimSpace(rest))
 
-	var multiplier int64 = 1
+	var multiplier int64
 	switch rest {
 	case "":
 		multiplier = 1

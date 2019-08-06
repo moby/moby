@@ -637,7 +637,7 @@ func parsePortMap(portMap nat.PortMap) ([]*api.PortConfig, error) {
 			return nil, err
 		}
 
-		protocol := api.ProtocolTCP
+		var protocol api.PortConfig_Protocol
 		switch strings.ToLower(parts[1]) {
 		case "tcp":
 			protocol = api.ProtocolTCP
