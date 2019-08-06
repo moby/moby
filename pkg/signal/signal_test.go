@@ -28,7 +28,7 @@ func TestValidSignalForPlatform(t *testing.T) {
 	assert.Check(t, is.Equal(false, isValidSignal))
 
 	for _, sigN := range SignalMap {
-		isValidSignal = ValidSignalForPlatform(syscall.Signal(sigN))
+		isValidSignal = ValidSignalForPlatform(sigN)
 		assert.Check(t, is.Equal(true, isValidSignal))
 	}
 }
