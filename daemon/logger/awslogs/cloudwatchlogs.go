@@ -436,25 +436,20 @@ func (l *logStream) Close() error {
 
 // create creates log group and log stream for the instance of the awslogs logging driver
 func (l *logStream) create() error {
-	if err := l.createLogStream(); err != nil {
-		if l.logCreateGroup {
-			if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == resourceNotFoundCode {
-				if err := l.createLogGroup(); err != nil {
-					return errors.Wrap(err, "failed to create Cloudwatch log group")
-				}
-				err := l.createLogStream()
-				if err != nil {
-					return errors.Wrap(err, "failed to create Cloudwatch log stream")
-				}
-				return nil
-			}
+	err := l.createLogStream()
+	if err == nil {
+		return nil
+	}
+	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == resourceNotFoundCode && l.logCreateGroup {
+		if err := l.createLogGroup(); err != nil {
+			return errors.Wrap(err, "failed to create Cloudwatch log group")
 		}
-		if err != nil {
-			return errors.Wrap(err, "failed to create Cloudwatch log stream")
+		err = l.createLogStream()
+		if err == nil {
+			return nil
 		}
 	}
-
-	return nil
+	return errors.Wrap(err, "failed to create Cloudwatch log stream")
 }
 
 // createLogGroup creates a log group for the instance of the awslogs logging driver
