@@ -84,31 +84,6 @@ func testPushMultipleTags(c *check.C) {
 	dockerCmd(c, "tag", "busybox", repoTag2)
 
 	dockerCmd(c, "push", repoName)
-
-	// Ensure layer list is equivalent for repoTag1 and repoTag2
-	out1, _ := dockerCmd(c, "pull", repoTag1)
-
-	imageAlreadyExists := ": Image already exists"
-	var out1Lines []string
-	for _, outputLine := range strings.Split(out1, "\n") {
-		if strings.Contains(outputLine, imageAlreadyExists) {
-			out1Lines = append(out1Lines, outputLine)
-		}
-	}
-
-	out2, _ := dockerCmd(c, "pull", repoTag2)
-
-	var out2Lines []string
-	for _, outputLine := range strings.Split(out2, "\n") {
-		if strings.Contains(outputLine, imageAlreadyExists) {
-			out1Lines = append(out1Lines, outputLine)
-		}
-	}
-	assert.Equal(c, len(out2Lines), len(out1Lines))
-
-	for i := range out1Lines {
-		assert.Equal(c, out1Lines[i], out2Lines[i])
-	}
 }
 
 func (s *DockerRegistrySuite) TestPushMultipleTags(c *check.C) {
