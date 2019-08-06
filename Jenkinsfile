@@ -8,26 +8,27 @@ pipeline {
         timestamps()
     }
     parameters {
-        booleanParam(name: 'unit', defaultValue: true, description: 'x86 unit tests')
+        booleanParam(name: 'unit_validate', defaultValue: true, description: 'x86 unit tests and vendor check')
         booleanParam(name: 'janky', defaultValue: true, description: 'x86 Build/Test')
         booleanParam(name: 'experimental', defaultValue: true, description: 'x86 Experimental Build/Test ')
         booleanParam(name: 'z', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
         booleanParam(name: 'powerpc', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
-        booleanParam(name: 'vendor', defaultValue: true, description: 'Vendor')
         booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
         booleanParam(name: 'windowsRS5', defaultValue: false, description: 'Windows 2019 (RS5) Build/Test')
     }
     environment {
-        DOCKER_BUILDKIT = '1'
-        APT_MIRROR      = 'cdn-fastly.deb.debian.org'
+        DOCKER_BUILDKIT     = '1'
+        DOCKER_GRAPHDRIVER  = 'overlay2'
+        APT_MIRROR          = 'cdn-fastly.deb.debian.org'
+        CHECK_CONFIG_COMMIT = '78405559cfe5987174aa2cb6463b9b2c1b917255'
     }
     stages {
         stage('Build') {
             parallel {
-                stage('unit') {
+                stage('unit-validate') {
                     when {
                         beforeAgent true
-                        expression { params.unit }
+                        expression { params.unit_validate }
                     }
                     agent { label 'amd64 && ubuntu-1804 && overlay2' }
 
@@ -36,32 +37,79 @@ pipeline {
                             steps {
                                 sh 'docker version'
                                 sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
                             }
                         }
                         stage("Build dev image") {
                             steps {
-                                sh '''
-                                # todo: include ip_vs in base image
-                                sudo modprobe ip_vs
-                
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:$GITCOMMIT .
-                                '''
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
                             }
                         }
-                        stage("Run tests") {
+                        stage("Validate") {
                             steps {
                                 sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-               
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
                                   --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                                  -e DOCKER_GRAPHDRIVER=overlay2 \
-                                  docker:$GITCOMMIT \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/validate/default
+                                '''
+                            }
+                        }
+                        stage("Docker-py") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh \
+                                    binary-daemon \
+                                    test-docker-py
+                                '''
+                            }
+                        }
+                        stage("Unit tests") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
                                   hack/test/unit
+                                '''
+                            }
+                        }
+                        stage("Validate vendor") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  -e TIMEOUT=120m \
+                                  docker:${GIT_COMMIT} \
+                                  hack/validate/vendor
+                                '''
+                            }
+                        }
+                        stage("Build e2e image") {
+                            steps {
+                                sh '''
+                                echo "Building e2e image"
+                                docker build --build-arg DOCKER_GITCOMMIT=${GIT_COMMIT} -t moby-e2e-test -f Dockerfile.e2e .
                                 '''
                             }
                         }
@@ -105,6 +153,11 @@ pipeline {
                             steps {
                                 sh 'docker version'
                                 sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
                             }
                         }
                         stage("Build dev image") {
@@ -113,34 +166,26 @@ pipeline {
                                 # todo: include ip_vs in base image
                                 sudo modprobe ip_vs
                 
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:$GITCOMMIT .
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
                         stage("Run tests") {
                             steps {
                                 sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-        
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
                                   --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                                  -e DOCKER_GRAPHDRIVER=overlay2 \
-                                  -e GIT_SHA1=${GIT_COMMIT} \
-                                  docker:$GITCOMMIT \
-                                  hack/ci/janky
-                                '''
-                            }
-                        }
-                        stage("Build e2e image") {
-                            steps {
-                                sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-                                echo "Building e2e image"
-                                docker build --build-arg DOCKER_GITCOMMIT=$GITCOMMIT -t moby-e2e-test -f Dockerfile.e2e .
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh \
+                                    binary-daemon \
+                                    dynbinary-daemon \
+                                    test-integration-flaky \
+                                    test-integration \
+                                    cross
                                 '''
                             }
                         }
@@ -183,28 +228,31 @@ pipeline {
                             steps {
                                 sh 'docker version'
                                 sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
                             }
                         }
                         stage("Build dev image") {
                             steps {
-                                sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GITCOMMIT}-exp .
-                                '''
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT}-exp .'
                             }
                         }
-                        stage("Run tests") {
+                        stage("Integration tests") {
                             steps {
                                 sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
                                 docker run --rm -t --privileged \
-                                    -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                    -e DOCKER_EXPERIMENTAL=y \
-                                    --name docker-pr-exp$BUILD_NUMBER \
-                                    -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                                    -e DOCKER_GRAPHDRIVER=overlay2 \
-                                    docker:${GITCOMMIT}-exp \
-                                    hack/ci/experimental
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL=y \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT}-exp \
+                                  hack/make.sh \
+                                    binary-daemon \
+                                    test-integration
                                 '''
                             }
                         }
@@ -214,7 +262,7 @@ pipeline {
                         always {
                             sh '''
                             echo "Ensuring container killed."
-                            docker rm -vf docker-pr-exp$BUILD_NUMBER || true
+                            docker rm -vf docker-pr$BUILD_NUMBER || true
                             '''
 
                             sh '''
@@ -249,28 +297,46 @@ pipeline {
                             steps {
                                 sh 'docker version'
                                 sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
                             }
                         }
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:$GITCOMMIT -f Dockerfile .
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .
                                 '''
                             }
                         }
-                        stage("Run tests") {
+                        stage("Unit tests") {
                             steps {
                                 sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                    --name docker-pr$BUILD_NUMBER \
-                                    -e DOCKER_GRAPHDRIVER=vfs \
-                                    -e TIMEOUT="300m" \
-                                    -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                                    docker:$GITCOMMIT \
-                                    hack/ci/z
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/test/unit
+                                '''
+                            }
+                        }
+                        stage("Integration tests") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  -e TIMEOUT="300m" \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh \
+                                    dynbinary \
+                                    test-integration
                                 '''
                             }
                         }
@@ -280,7 +346,7 @@ pipeline {
                         always {
                             sh '''
                             echo "Ensuring container killed."
-                            docker rm -vf docker-pr-$BUILD_NUMBER || true
+                            docker rm -vf docker-pr$BUILD_NUMBER || true
                             '''
 
                             sh '''
@@ -315,28 +381,44 @@ pipeline {
                             steps {
                                 sh 'docker version'
                                 sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
                             }
                         }
                         stage("Build dev image") {
                             steps {
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .'
+                            }
+                        }
+                        stage("Unit tests") {
+                            steps {
                                 sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:$GITCOMMIT -f Dockerfile .
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/test/unit
                                 '''
                             }
                         }
-                        stage("Run tests") {
+                        stage("Integration tests") {
                             steps {
                                 sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                    --name docker-pr$BUILD_NUMBER \
-                                    -e DOCKER_GRAPHDRIVER=vfs \
-                                    -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                                    -e TIMEOUT="180m" \
-                                    docker:$GITCOMMIT \
-                                    hack/ci/powerpc
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  -e TIMEOUT="180m" \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh \
+                                    dynbinary \
+                                    test-integration
                                 '''
                             }
                         }
@@ -367,49 +449,6 @@ pipeline {
                         }
                     }
                 }
-                stage('vendor') {
-                    when {
-                        beforeAgent true
-                        expression { params.vendor }
-                    }
-                    agent { label 'amd64 && ubuntu-1804 && overlay2' }
-
-                    stages {
-                        stage("Print info") {
-                            steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                            }
-                        }
-                        stage("Build dev image") {
-                            steps {
-                                sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-                                docker build --force-rm --build-arg APT_MIRROR -t dockerven:$GITCOMMIT .
-                                '''
-                            }
-                        }
-                        stage("Run tests") {
-                            steps {
-                                sh '''
-                                GITCOMMIT=$(git rev-parse --short HEAD)
-                                docker run --rm -t --privileged \
-                                  --name dockerven-pr$BUILD_NUMBER \
-                                  -e DOCKER_GRAPHDRIVER=vfs \
-                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                                  -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                                  -e TIMEOUT=120m dockerven:$GITCOMMIT \
-                                  hack/validate/vendor
-                                '''
-                            }
-                        }
-                    }
-                    post {
-                        cleanup {
-                            sh 'make clean'
-                            deleteDir()
-                        }
-                    }                }
                 stage('windowsRS1') {
                     when {
                         beforeAgent true
