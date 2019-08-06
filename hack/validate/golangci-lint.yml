@@ -4,6 +4,7 @@ linters:
     - gofmt
     - goimports
     - golint
+    - gosec
     - gosimple
     - govet
     - ineffassign
@@ -29,3 +30,12 @@ linters:
 linters-settings:
   govet:
     check-shadowing: false
+
+issues:
+  exclude-rules:
+    - text: "G201: SQL string formatting"
+      linters:
+        - gosec
+    - text: "G202: SQL string concatenation"
+      linters:
+        - gosec
