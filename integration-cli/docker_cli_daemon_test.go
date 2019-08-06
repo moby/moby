@@ -2217,7 +2217,7 @@ func (s *DockerDaemonSuite) TestDaemonDiscoveryBackendConfigReload(c *testing.T)
 
 	err = configFile.Truncate(0)
 	assert.NilError(c, err)
-	_, err = configFile.Seek(0, os.SEEK_SET)
+	_, err = configFile.Seek(0, io.SeekStart)
 	assert.NilError(c, err)
 
 	_, err = configFile.Write([]byte(daemonConfig))

@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
-	"os"
 	"runtime"
 	"sort"
 	"strconv"
@@ -41,7 +41,7 @@ func (ld *v2LayerDescriptor) open(ctx context.Context) (distribution.ReadSeekClo
 	// We're done if the registry has this blob.
 	if err == nil {
 		// Seek does an HTTP GET.  If it succeeds, the blob really is accessible.
-		if _, err = rsc.Seek(0, os.SEEK_SET); err == nil {
+		if _, err = rsc.Seek(0, io.SeekStart); err == nil {
 			return rsc, nil
 		}
 		rsc.Close()
@@ -53,7 +53,7 @@ func (ld *v2LayerDescriptor) open(ctx context.Context) (distribution.ReadSeekClo
 		rsc = transport.NewHTTPReadSeeker(http.DefaultClient, url, nil)
 
 		// Seek does an HTTP GET.  If it succeeds, the blob really is accessible.
-		_, err = rsc.Seek(0, os.SEEK_SET)
+		_, err = rsc.Seek(0, io.SeekStart)
 		if err == nil {
 			break
 		}
