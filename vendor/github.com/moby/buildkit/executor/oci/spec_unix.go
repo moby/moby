@@ -27,18 +27,6 @@ import (
 
 // Ideally we don't have to import whole containerd just for the default spec
 
-// ProcMode configures PID namespaces
-type ProcessMode int
-
-const (
-	// ProcessSandbox unshares pidns and mount procfs.
-	ProcessSandbox ProcessMode = iota
-	// NoProcessSandbox uses host pidns and bind-mount procfs.
-	// Note that NoProcessSandbox allows build containers to kill (and potentially ptrace) an arbitrary process in the BuildKit host namespace.
-	// NoProcessSandbox should be enabled only when the BuildKit is running in a container as an unprivileged user.
-	NoProcessSandbox
-)
-
 // GenerateSpec generates spec using containerd functionality.
 // opts are ignored for s.Process, s.Hostname, and s.Mounts .
 func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, processMode ProcessMode, idmap *idtools.IdentityMapping, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
@@ -113,11 +101,11 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 	}
 
 	if meta.SecurityMode == pb.SecurityMode_INSECURE {
-		//make sysfs rw mount for insecure mode.
-		for _, m := range s.Mounts {
-			if m.Type == "sysfs" {
-				m.Options = []string{"nosuid", "noexec", "nodev", "rw"}
-			}
+		if err = oci.WithWriteableCgroupfs(ctx, nil, c, s); err != nil {
+			return nil, nil, err
+		}
+		if err = oci.WithWriteableSysfs(ctx, nil, c, s); err != nil {
+			return nil, nil, err
 		}
 	}
 

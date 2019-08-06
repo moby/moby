@@ -46,8 +46,8 @@ type SolveOpt struct {
 type ExportEntry struct {
 	Type      string
 	Attrs     map[string]string
-	Output    io.WriteCloser // for ExporterOCI and ExporterDocker
-	OutputDir string         // for ExporterLocal
+	Output    func(map[string]string) (io.WriteCloser, error) // for ExporterOCI and ExporterDocker
+	OutputDir string                                          // for ExporterLocal
 }
 
 type CacheOptionsEntry struct {

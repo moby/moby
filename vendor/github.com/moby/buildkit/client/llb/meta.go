@@ -24,19 +24,24 @@ var (
 	keySecurity  = contextKeyT("llb.security")
 )
 
-func addEnvf(key, value string, v ...interface{}) StateOption {
+func addEnvf(key, value string, replace bool, v ...interface{}) StateOption {
+	if replace {
+		value = fmt.Sprintf(value, v...)
+	}
 	return func(s State) State {
-		return s.WithValue(keyEnv, getEnv(s).AddOrReplace(key, fmt.Sprintf(value, v...)))
+		return s.WithValue(keyEnv, getEnv(s).AddOrReplace(key, value))
 	}
 }
 
 func dir(str string) StateOption {
-	return dirf(str)
+	return dirf(str, false)
 }
 
-func dirf(str string, v ...interface{}) StateOption {
+func dirf(value string, replace bool, v ...interface{}) StateOption {
+	if replace {
+		value = fmt.Sprintf(value, v...)
+	}
 	return func(s State) State {
-		value := fmt.Sprintf(str, v...)
 		if !path.IsAbs(value) {
 			prev := getDir(s)
 			if prev == "" {
@@ -100,9 +105,12 @@ func args(args ...string) StateOption {
 	}
 }
 
-func shlexf(str string, v ...interface{}) StateOption {
+func shlexf(str string, replace bool, v ...interface{}) StateOption {
+	if replace {
+		str = fmt.Sprintf(str, v...)
+	}
 	return func(s State) State {
-		arg, err := shlex.Split(fmt.Sprintf(str, v...))
+		arg, err := shlex.Split(str)
 		if err != nil {
 			// TODO: handle error
 		}
