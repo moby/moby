@@ -998,7 +998,7 @@ func (s *DockerSuite) TestBuildAddBadLinks(c *testing.T) {
 	}
 
 	buildImageSuccessfully(c, name, build.WithExternalBuildContext(ctx))
-	if _, err := os.Stat(nonExistingFile); err == nil || err != nil && !os.IsNotExist(err) {
+	if _, err := os.Stat(nonExistingFile); err == nil || !os.IsNotExist(err) {
 		c.Fatalf("%s shouldn't have been written and it shouldn't exist", nonExistingFile)
 	}
 
@@ -1039,7 +1039,7 @@ func (s *DockerSuite) TestBuildAddBadLinksVolume(c *testing.T) {
 	}
 
 	buildImageSuccessfully(c, "test-link-absolute-volume", build.WithExternalBuildContext(ctx))
-	if _, err := os.Stat(nonExistingFile); err == nil || err != nil && !os.IsNotExist(err) {
+	if _, err := os.Stat(nonExistingFile); err == nil || !os.IsNotExist(err) {
 		c.Fatalf("%s shouldn't have been written and it shouldn't exist", nonExistingFile)
 	}
 
