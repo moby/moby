@@ -6,8 +6,8 @@ import (
 
 type eventOptions struct {
 	descriptor        *eventDescriptor
-	activityID        *guid.GUID
-	relatedActivityID *guid.GUID
+	activityID        guid.GUID
+	relatedActivityID guid.GUID
 	tags              uint32
 }
 
@@ -59,14 +59,14 @@ func WithTags(newTags uint32) EventOpt {
 }
 
 // WithActivityID specifies the activity ID of the event to be written.
-func WithActivityID(activityID *guid.GUID) EventOpt {
+func WithActivityID(activityID guid.GUID) EventOpt {
 	return func(options *eventOptions) {
 		options.activityID = activityID
 	}
 }
 
 // WithRelatedActivityID specifies the parent activity ID of the event to be written.
-func WithRelatedActivityID(activityID *guid.GUID) EventOpt {
+func WithRelatedActivityID(activityID guid.GUID) EventOpt {
 	return func(options *eventOptions) {
 		options.relatedActivityID = activityID
 	}

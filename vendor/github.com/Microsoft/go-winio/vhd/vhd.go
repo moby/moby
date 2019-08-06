@@ -117,9 +117,13 @@ func CreateVhdx(path string, maxSizeInGb, blockSizeInMb uint32) error {
 	return nil
 }
 
-// DetachVhd detaches a VHD attached at the given path.
+// DetachVhd detaches a mounted container layer vhd found at `path`.
 func DetachVhd(path string) error {
-	handle, err := OpenVirtualDisk(path, VirtualDiskAccessDetach, OpenVirtualDiskFlagNone)
+	handle, err := OpenVirtualDisk(
+		path,
+		VirtualDiskAccessNone,
+		OpenVirtualDiskFlagCachedIO|OpenVirtualDiskFlagIgnoreRelativeParentLocator)
+
 	if err != nil {
 		return err
 	}
@@ -127,7 +131,7 @@ func DetachVhd(path string) error {
 	return detachVirtualDisk(handle, 0, 0)
 }
 
-// OpenVirtuaDisk obtains a handle to a VHD opened with supplied access mask and flags.
+// OpenVirtualDisk obtains a handle to a VHD opened with supplied access mask and flags.
 func OpenVirtualDisk(path string, accessMask VirtualDiskAccessMask, flag VirtualDiskFlag) (syscall.Handle, error) {
 	var (
 		defaultType virtualStorageType
