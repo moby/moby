@@ -88,9 +88,8 @@ func (m *imageSources) Add(im *imageMount) {
 
 // imageMount is a reference to an image that can be used as a builder.Source
 type imageMount struct {
-	image  builder.Image
-	source builder.Source
-	layer  builder.ROLayer
+	image builder.Image
+	layer builder.ROLayer
 }
 
 func newImageMount(image builder.Image, layer builder.ROLayer) *imageMount {
