@@ -80,7 +80,7 @@ pipeline {
                                 '''
                             }
                         }
-			stage("Static") {
+                        stage("Static") {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
@@ -203,20 +203,61 @@ pipeline {
                         }
                         stage("Run tests") {
                             steps {
-                                sh '''
+                                sh '''#!/bin/bash
+                                # bash is needed so 'jobs -p' works properly
+                                # it also accepts setting inline envvars for functions without explicitly exporting
+ 
+                                run_tests() {
+                                        [ -n "$TESTDEBUG" ] && rm= || rm=--rm;
+                                        docker run $rm -t --privileged \
+                                          -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                          -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                                          --name "$CONTAINER_NAME" \
+                                          -e KEEPBUNDLE=1 \
+                                          -e TESTDEBUG \
+                                          -e TESTFLAGS \
+                                          -e TEST_INTEGRATION_DEST \
+                                          -e TEST_SKIP_INTEGRATION \
+                                          -e TEST_SKIP_INTEGRATION_CLI \
+                                          -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                          -e DOCKER_GRAPHDRIVER \
+                                          docker:${GIT_COMMIT} \
+                                          hack/make.sh \
+                                            "$1" \
+                                            test-integration
+                                }
+
+                                trap "exit" INT TERM
+                                trap 'pids=$(jobs -p); echo "Remaining pids to kill: [$pids]"; [ -z "$pids" ] || kill $pids' EXIT
+
+                                CONTAINER_NAME=docker-pr$BUILD_NUMBER
+
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                                  --name docker-pr$BUILD_NUMBER \
+                                  --name ${CONTAINER_NAME}-build \
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
-                                    binary-daemon \
-                                    dynbinary-daemon \
-                                    test-integration-flaky \
-                                    test-integration \
+                                    dynbinary-daemon
+
+                                # flaky + integration
+                                TEST_INTEGRATION_DEST=1 CONTAINER_NAME=${CONTAINER_NAME}-1 TEST_SKIP_INTEGRATION_CLI=1 run_tests test-integration-flaky &
+
+                                # integration-cli first set
+                                TEST_INTEGRATION_DEST=2 CONTAINER_NAME=${CONTAINER_NAME}-2 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-check.f ^(DockerSuite|DockerNetworkSuite|DockerHubPullSuite|DockerRegistrySuite|DockerSchema1RegistrySuite|DockerRegistryAuthTokenSuite|DockerRegistryAuthHtpasswdSuite)" run_tests &
+
+                                # integration-cli second set
+                                TEST_INTEGRATION_DEST=3 CONTAINER_NAME=${CONTAINER_NAME}-3 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-check.f ^(DockerSwarmSuite|DockerDaemonSuite|DockerExternalVolumeSuite)" run_tests &
+
+                                set +x
+                                c=0
+                                for job in $(jobs -p); do
+                                        wait ${job} || c=$?
+                                done
+                                exit $c
                                 '''
                             }
                         }
