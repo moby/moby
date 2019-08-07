@@ -26,7 +26,6 @@ type mockLayer struct {
 	diffID    layer.DiffID
 	chainID   layer.ChainID
 	parent    layer.Layer
-	os        string
 }
 
 func (ml *mockLayer) TarStream() (io.ReadCloser, error) {
