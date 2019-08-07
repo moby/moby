@@ -279,5 +279,8 @@ VOLUME /var/lib/docker
 ENTRYPOINT ["hack/dind"]
 
 FROM dev AS final
+
+ENV TEST_FILTER=TestBuildWithEmptyLayers
+
 # Upload docker source
 COPY . /go/src/github.com/docker/docker

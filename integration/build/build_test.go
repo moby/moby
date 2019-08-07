@@ -258,7 +258,7 @@ func TestBuildLabelWithTargets(t *testing.T) {
 
 func TestBuildWithEmptyLayers(t *testing.T) {
 	dockerfile := `
-		FROM    busybox
+		FROM    nosuchimage
 		COPY    1/ /target/
 		COPY    2/ /target/
 		COPY    3/ /target/
@@ -279,9 +279,11 @@ func TestBuildWithEmptyLayers(t *testing.T) {
 			ForceRemove: true,
 		})
 	assert.NilError(t, err)
-	_, err = io.Copy(ioutil.Discard, resp.Body)
+	out := bytes.NewBuffer(nil)
+	_, err = io.Copy(out, resp.Body)
 	resp.Body.Close()
 	assert.NilError(t, err)
+	//assert.Check(t, is.Contains(out.String(), "Successfully built"))
 }
 
 // TestBuildMultiStageOnBuild checks that ONBUILD commands are applied to
