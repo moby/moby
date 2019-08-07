@@ -1,14 +1,14 @@
-## Step 1: Build tests
-FROM golang:1.11.11-alpine3.9 as builder
+ARG GO_VERSION=1.11.12
 
-RUN apk add --update \
+FROM golang:${GO_VERSION}-alpine3.9 AS builder
+
+RUN apk --no-cache add \
     bash \
     btrfs-progs-dev \
     build-base \
     curl \
     lvm2-dev \
-    jq \
-    && rm -rf /var/cache/apk/*
+    jq
 
 RUN mkdir -p /go/src/github.com/docker/docker/
 WORKDIR /go/src/github.com/docker/docker/
@@ -43,7 +43,7 @@ RUN mkdir -p /output/tests && find . -name test.main -exec cp --parents '{}' /ou
 FROM alpine:3.9 as runner
 
 # GNU tar is used for generating the emptyfs image
-RUN apk add --update \
+RUN apk --no-cache add \
     bash \
     ca-certificates \
     g++ \
@@ -51,8 +51,7 @@ RUN apk add --update \
     iptables \
     pigz \
     tar \
-    xz \
-    && rm -rf /var/cache/apk/*
+    xz
 
 # Add an unprivileged user to be used for tests which need it
 RUN addgroup docker && adduser -D -G docker unprivilegeduser -s /bin/ash
