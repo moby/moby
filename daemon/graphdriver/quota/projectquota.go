@@ -1,4 +1,4 @@
-// +build linux
+// +build linux,!exclude_disk_quota
 
 //
 // projectquota.go - implements XFS project quota controls
@@ -62,19 +62,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
-
-// Quota limit params - currently we only control blocks hard limit
-type Quota struct {
-	Size uint64
-}
-
-// Control - Context to be used by storage driver (e.g. overlay)
-// who wants to apply project quotas to container dirs
-type Control struct {
-	backingFsBlockDev string
-	nextProjectID     uint32
-	quotas            map[string]uint32
-}
 
 // NewControl - initialize project quota support.
 // Test to make sure that quota can be set on a test dir and find
@@ -166,9 +153,11 @@ func NewControl(basePath string) (*Control, error) {
 // SetQuota - assign a unique project id to directory and set the quota limits
 // for that project id
 func (q *Control) SetQuota(targetPath string, quota Quota) error {
-
+	q.RLock()
 	projectID, ok := q.quotas[targetPath]
+	q.RUnlock()
 	if !ok {
+		q.Lock()
 		projectID = q.nextProjectID
 
 		//
@@ -176,11 +165,12 @@ func (q *Control) SetQuota(targetPath string, quota Quota) error {
 		//
 		err := setProjectID(targetPath, projectID)
 		if err != nil {
+			q.Unlock()
 			return err
 		}
-
 		q.quotas[targetPath] = projectID
 		q.nextProjectID++
+		q.Unlock()
 	}
 
 	//
@@ -217,8 +207,9 @@ func setProjectQuota(backingFsBlockDev string, projectID uint32, quota Quota) er
 
 // GetQuota - get the quota limits of a directory that was configured with SetQuota
 func (q *Control) GetQuota(targetPath string, quota *Quota) error {
-
+	q.RLock()
 	projectID, ok := q.quotas[targetPath]
+	q.RUnlock()
 	if !ok {
 		return errors.Errorf("quota not found for path: %s", targetPath)
 	}
@@ -289,6 +280,8 @@ func setProjectID(targetPath string, projectID uint32) error {
 // findNextProjectID - find the next project id to be used for containers
 // by scanning driver home directory to find used project ids
 func (q *Control) findNextProjectID(home string) error {
+	q.Lock()
+	defer q.Unlock()
 	files, err := ioutil.ReadDir(home)
 	if err != nil {
 		return errors.Errorf("read directory failed: %s", home)
