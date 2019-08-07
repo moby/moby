@@ -29,15 +29,13 @@ func TestFSGetInvalidData(t *testing.T) {
 	store, cleanup := defaultFSStoreBackend(t)
 	defer cleanup()
 
-	id, err := store.Set([]byte("foobar"))
+	dgst, err := store.Set([]byte("foobar"))
 	assert.Check(t, err)
-
-	dgst := digest.Digest(id)
 
 	err = ioutil.WriteFile(filepath.Join(store.(*fs).root, contentDirName, string(dgst.Algorithm()), dgst.Hex()), []byte("foobar2"), 0600)
 	assert.Check(t, err)
 
-	_, err = store.Get(id)
+	_, err = store.Get(dgst)
 	assert.Check(t, is.ErrorContains(err, "failed to verify"))
 }
 
@@ -172,7 +170,7 @@ func TestFSGetSet(t *testing.T) {
 	})
 
 	for _, tc := range tcases {
-		id, err := store.Set([]byte(tc.input))
+		id, err := store.Set(tc.input)
 		assert.Check(t, err)
 		assert.Check(t, is.Equal(tc.expected, id))
 	}

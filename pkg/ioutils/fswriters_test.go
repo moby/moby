@@ -45,7 +45,7 @@ func TestAtomicWriteToFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error statting file: %v", err)
 	}
-	if expected := os.FileMode(testMode); st.Mode() != expected {
+	if expected := testMode; st.Mode() != expected {
 		t.Fatalf("Mode mismatched, expected %o, got %o", expected, st.Mode())
 	}
 }
@@ -93,7 +93,7 @@ func TestAtomicWriteSetCommit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error statting file: %v", err)
 	}
-	if expected := os.FileMode(testMode); st.Mode() != expected {
+	if expected := testMode; st.Mode() != expected {
 		t.Fatalf("Mode mismatched, expected %o, got %o", expected, st.Mode())
 	}
 
