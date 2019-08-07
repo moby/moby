@@ -221,11 +221,13 @@ func (e *execOp) getMountDeps() ([]dep, error) {
 }
 
 func (e *execOp) getRefCacheDir(ctx context.Context, ref cache.ImmutableRef, id string, m *pb.Mount, sharing pb.CacheSharingOpt) (mref cache.MutableRef, err error) {
-
 	key := "cache-dir:" + id
 	if ref != nil {
 		key += ":" + ref.ID()
 	}
+	mu := CacheMountsLocker()
+	mu.Lock()
+	defer mu.Unlock()
 
 	if ref, ok := e.cacheMounts[key]; ok {
 		return ref.clone(), nil
@@ -792,10 +794,17 @@ type cacheRefs struct {
 	shares map[string]*cacheRefShare
 }
 
-func (r *cacheRefs) get(key string, fn func() (cache.MutableRef, error)) (cache.MutableRef, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+// ClearActiveCacheMounts clears shared cache mounts currently in use.
+// Caller needs to hold CacheMountsLocker before calling
+func ClearActiveCacheMounts() {
+	sharedCacheRefs.shares = nil
+}
 
+func CacheMountsLocker() sync.Locker {
+	return &sharedCacheRefs.mu
+}
+
+func (r *cacheRefs) get(key string, fn func() (cache.MutableRef, error)) (cache.MutableRef, error) {
 	if r.shares == nil {
 		r.shares = map[string]*cacheRefShare{}
 	}

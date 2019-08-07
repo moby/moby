@@ -131,6 +131,34 @@ func ValidateEntitlements(ent entitlements.Set) LoadOpt {
 	}
 }
 
+type detectPrunedCacheID struct {
+	ids map[string]struct{}
+}
+
+func (dpc *detectPrunedCacheID) Load(op *pb.Op, md *pb.OpMetadata, opt *solver.VertexOptions) error {
+	if md == nil || !md.IgnoreCache {
+		return nil
+	}
+	switch op := op.Op.(type) {
+	case *pb.Op_Exec:
+		for _, m := range op.Exec.GetMounts() {
+			if m.MountType == pb.MountType_CACHE {
+				if m.CacheOpt != nil {
+					id := m.CacheOpt.ID
+					if id == "" {
+						id = m.Dest
+					}
+					if dpc.ids == nil {
+						dpc.ids = map[string]struct{}{}
+					}
+					dpc.ids[id] = struct{}{}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func Load(def *pb.Definition, opts ...LoadOpt) (solver.Edge, error) {
 	return loadLLB(def, func(dgst digest.Digest, pbOp *pb.Op, load func(digest.Digest) (solver.Vertex, error)) (solver.Vertex, error) {
 		opMetadata := def.Metadata[dgst]

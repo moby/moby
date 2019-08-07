@@ -9,12 +9,14 @@ require (
 	github.com/codahale/hdrhistogram v0.0.0-20160425231609-f8ad88b59a58 // indirect
 	github.com/containerd/cgroups v0.0.0-20190226200435-dbea6f2bd416 // indirect
 	github.com/containerd/console v0.0.0-20181022165439-0650fd9eeb50
-	github.com/containerd/containerd v1.3.0-0.20190426060238-3a3f0aac8819
+	github.com/containerd/containerd v1.3.0-0.20190507210959-7c1e88399ec0
 	github.com/containerd/continuity v0.0.0-20190426062206-aaeac12a7ffc
 	github.com/containerd/fifo v0.0.0-20180307165137-3d5202aec260 // indirect
+	github.com/containerd/go-cni v0.0.0-20190610170741-5a4663dad645
 	github.com/containerd/go-runc v0.0.0-20180907222934-5a6d9f37cfa3
 	github.com/containerd/ttrpc v0.0.0-20190411181408-699c4e40d1e7 // indirect
 	github.com/containerd/typeurl v0.0.0-20180627222232-a93fcdb778cd // indirect
+	github.com/containernetworking/cni v0.6.1-0.20180218032124-142cde0c766c // indirect
 	github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e
 	github.com/docker/cli v0.0.0-20190321234815-f40f9c240ab0
 	github.com/docker/distribution v2.7.1-0.20190205005809-0d3efadf0154+incompatible
@@ -41,7 +43,7 @@ require (
 	github.com/morikuni/aec v0.0.0-20170113033406-39771216ff4c
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/opencontainers/image-spec v1.0.1
-	github.com/opencontainers/runc v1.0.1-0.20190307181833-2b18fe1d885e
+	github.com/opencontainers/runc v1.0.0-rc8
 	github.com/opencontainers/runtime-spec v0.0.0-20180909173843-eba862dc2470
 	github.com/opentracing-contrib/go-stdlib v0.0.0-20171029140428-b1a47cfbdd75
 	github.com/opentracing/opentracing-go v0.0.0-20171003133519-1361b9cd60be

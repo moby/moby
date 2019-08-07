@@ -250,6 +250,10 @@ func (s *StorageItem) Update(fn func(b *bolt.Bucket) error) error {
 	return s.storage.Update(s.id, fn)
 }
 
+func (s *StorageItem) Metadata() *StorageItem {
+	return s
+}
+
 func (s *StorageItem) Keys() []string {
 	keys := make([]string, 0, len(s.values))
 	for k := range s.values {
@@ -333,6 +337,15 @@ func (s *StorageItem) Indexes() (out []string) {
 
 func (s *StorageItem) SetValue(b *bolt.Bucket, key string, v *Value) error {
 	if v == nil {
+		if old, ok := s.values[key]; ok {
+			if old.Index != "" {
+				b, err := b.Tx().CreateBucketIfNotExists([]byte(indexBucket))
+				if err != nil {
+					return errors.WithStack(err)
+				}
+				b.Delete([]byte(indexKey(old.Index, s.ID()))) // ignore error
+			}
+		}
 		if err := b.Put([]byte(key), nil); err != nil {
 			return err
 		}
