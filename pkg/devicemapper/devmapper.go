@@ -48,7 +48,6 @@ var (
 	ErrTaskSetName          = errors.New("dm_task_set_name failed")
 	ErrTaskSetMessage       = errors.New("dm_task_set_message failed")
 	ErrTaskSetAddNode       = errors.New("dm_task_set_add_node failed")
-	ErrTaskSetRo            = errors.New("dm_task_set_ro failed")
 	ErrTaskAddTarget        = errors.New("dm_task_add_target failed")
 	ErrTaskSetSector        = errors.New("dm_task_set_sector failed")
 	ErrTaskGetDeps          = errors.New("dm_task_get_deps failed")
@@ -195,13 +194,6 @@ func (t *Task) setAddNode(addNode AddNodeType) error {
 	}
 	if res := DmTaskSetAddNode(t.unmanaged, addNode); res != 1 {
 		return ErrTaskSetAddNode
-	}
-	return nil
-}
-
-func (t *Task) setRo() error {
-	if res := DmTaskSetRo(t.unmanaged); res != 1 {
-		return ErrTaskSetRo
 	}
 	return nil
 }

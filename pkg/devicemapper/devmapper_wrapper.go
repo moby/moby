@@ -74,7 +74,6 @@ var (
 	DmTaskSetCookie           = dmTaskSetCookieFct
 	DmTaskSetMessage          = dmTaskSetMessageFct
 	DmTaskSetName             = dmTaskSetNameFct
-	DmTaskSetRo               = dmTaskSetRoFct
 	DmTaskSetSector           = dmTaskSetSectorFct
 	DmUdevWait                = dmUdevWaitFct
 	DmUdevSetSyncSupport      = dmUdevSetSyncSupportFct
@@ -130,10 +129,6 @@ func dmTaskSetCookieFct(task *cdmTask, cookie *uint, flags uint16) int {
 
 func dmTaskSetAddNodeFct(task *cdmTask, addNode AddNodeType) int {
 	return int(C.dm_task_set_add_node((*C.struct_dm_task)(task), C.dm_add_node_t(addNode)))
-}
-
-func dmTaskSetRoFct(task *cdmTask) int {
-	return int(C.dm_task_set_ro((*C.struct_dm_task)(task)))
 }
 
 func dmTaskAddTargetFct(task *cdmTask,
