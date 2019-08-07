@@ -762,7 +762,7 @@ pipeline {
                         beforeAgent true
                         expression { params.arm64 }
                     }
-                    agent { label 'aarch64 && packet' }
+                    agent { label 'aarch64' }
                     environment {
                         TEST_SKIP_INTEGRATION_CLI = '1'
                     }
