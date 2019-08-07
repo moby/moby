@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	"github.com/containerd/containerd/mount"
@@ -190,7 +191,7 @@ func (cr *cacheRecord) remove(ctx context.Context, removeSnapshot bool) error {
 	}
 	if removeSnapshot {
 		if err := cr.cm.Snapshotter.Remove(ctx, cr.ID()); err != nil {
-			return err
+			return errors.Wrapf(err, "failed to remove %s", cr.ID())
 		}
 	}
 	if err := cr.cm.md.Clear(cr.ID()); err != nil {
@@ -259,7 +260,7 @@ func (sr *immutableRef) release(ctx context.Context) error {
 	if len(sr.refs) == 0 {
 		if sr.viewMount != nil { // TODO: release viewMount earlier if possible
 			if err := sr.cm.Snapshotter.Remove(ctx, sr.view); err != nil {
-				return err
+				return errors.Wrapf(err, "failed to remove view %s", sr.view)
 			}
 			sr.view = ""
 			sr.viewMount = nil
@@ -429,6 +430,10 @@ func (m *readOnlyMounter) Mount() ([]mount.Mount, error) {
 		return nil, err
 	}
 	for i, m := range mounts {
+		if m.Type == "overlay" {
+			mounts[i].Options = readonlyOverlay(m.Options)
+			continue
+		}
 		opts := make([]string, 0, len(m.Options))
 		for _, opt := range m.Options {
 			if opt != "rw" {
@@ -439,4 +444,24 @@ func (m *readOnlyMounter) Mount() ([]mount.Mount, error) {
 		mounts[i].Options = opts
 	}
 	return mounts, nil
+}
+
+func readonlyOverlay(opt []string) []string {
+	out := make([]string, 0, len(opt))
+	upper := ""
+	for _, o := range opt {
+		if strings.HasPrefix(o, "upperdir=") {
+			upper = strings.TrimPrefix(o, "upperdir=")
+		} else if !strings.HasPrefix(o, "workdir=") {
+			out = append(out, o)
+		}
+	}
+	if upper != "" {
+		for i, o := range out {
+			if strings.HasPrefix(o, "lowerdir=") {
+				out[i] = "lowerdir=" + upper + ":" + strings.TrimPrefix(o, "lowerdir=")
+			}
+		}
+	}
+	return out
 }

@@ -33,6 +33,7 @@ type Worker interface {
 	Prune(ctx context.Context, ch chan client.UsageInfo, opt ...client.PruneInfo) error
 	GetRemote(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool) (*solver.Remote, error)
 	FromRemote(ctx context.Context, remote *solver.Remote) (cache.ImmutableRef, error)
+	PruneCacheMounts(ctx context.Context, ids []string) error
 }
 
 // Pre-defined label keys

@@ -34,6 +34,7 @@ const (
 	keyFilename                = "filename"
 	keyCacheFrom               = "cache-from"    // for registry only. deprecated in favor of keyCacheImports
 	keyCacheImports            = "cache-imports" // JSON representation of []CacheOptionsEntry
+	keyCacheNS                 = "build-arg:BUILDKIT_CACHE_MOUNT_NS"
 	defaultDockerfileName      = "Dockerfile"
 	dockerignoreFilename       = ".dockerignore"
 	buildArgPrefix             = "build-arg:"
@@ -50,8 +51,8 @@ const (
 	keyContextSubDir           = "contextsubdir"
 )
 
-var httpPrefix = regexp.MustCompile("^https?://")
-var gitUrlPathWithFragmentSuffix = regexp.MustCompile("\\.git(?:#.+)?$")
+var httpPrefix = regexp.MustCompile(`^https?://`)
+var gitUrlPathWithFragmentSuffix = regexp.MustCompile(`\.git(?:#.+)?$`)
 
 func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 	opts := c.BuildOpts().Opts
@@ -322,6 +323,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 					MetaResolver:      c,
 					BuildArgs:         filter(opts, buildArgPrefix),
 					Labels:            filter(opts, labelPrefix),
+					CacheIDNamespace:  opts[keyCacheNS],
 					SessionID:         c.BuildOpts().SessionID,
 					BuildContext:      buildContext,
 					Excludes:          excludes,

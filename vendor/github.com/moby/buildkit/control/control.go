@@ -38,13 +38,13 @@ type Opt struct {
 }
 
 type Controller struct { // TODO: ControlService
+	buildCount       int64
 	opt              Opt
 	solver           *llbsolver.Solver
 	cache            solver.CacheManager
 	gatewayForwarder *controlgateway.GatewayForwarder
 	throttledGC      func()
 	gcmu             sync.Mutex
-	buildCount       int64
 }
 
 func NewController(opt Opt) (*Controller, error) {
