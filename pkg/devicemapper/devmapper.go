@@ -48,7 +48,6 @@ var (
 	ErrTaskSetName          = errors.New("dm_task_set_name failed")
 	ErrTaskSetMessage       = errors.New("dm_task_set_message failed")
 	ErrTaskSetAddNode       = errors.New("dm_task_set_add_node failed")
-	ErrTaskSetRo            = errors.New("dm_task_set_ro failed")
 	ErrTaskAddTarget        = errors.New("dm_task_add_target failed")
 	ErrTaskSetSector        = errors.New("dm_task_set_sector failed")
 	ErrTaskGetDeps          = errors.New("dm_task_get_deps failed")
@@ -61,13 +60,10 @@ var (
 	ErrUdevWait             = errors.New("wait on udev cookie failed")
 	ErrSetDevDir            = errors.New("dm_set_dev_dir failed")
 	ErrGetLibraryVersion    = errors.New("dm_get_library_version failed")
-	ErrCreateRemoveTask     = errors.New("Can't create task of type deviceRemove")
-	ErrRunRemoveDevice      = errors.New("running RemoveDevice failed")
 	ErrInvalidAddNode       = errors.New("Invalid AddNode type")
 	ErrBusy                 = errors.New("Device is Busy")
 	ErrDeviceIDExists       = errors.New("Device Id Exists")
 	ErrEnxio                = errors.New("No such device or address")
-	ErrEnoData              = errors.New("No data available")
 )
 
 var (
@@ -195,13 +191,6 @@ func (t *Task) setAddNode(addNode AddNodeType) error {
 	}
 	if res := DmTaskSetAddNode(t.unmanaged, addNode); res != 1 {
 		return ErrTaskSetAddNode
-	}
-	return nil
-}
-
-func (t *Task) setRo() error {
-	if res := DmTaskSetRo(t.unmanaged); res != 1 {
-		return ErrTaskSetRo
 	}
 	return nil
 }
