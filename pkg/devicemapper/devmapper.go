@@ -60,13 +60,10 @@ var (
 	ErrUdevWait             = errors.New("wait on udev cookie failed")
 	ErrSetDevDir            = errors.New("dm_set_dev_dir failed")
 	ErrGetLibraryVersion    = errors.New("dm_get_library_version failed")
-	ErrCreateRemoveTask     = errors.New("Can't create task of type deviceRemove")
-	ErrRunRemoveDevice      = errors.New("running RemoveDevice failed")
 	ErrInvalidAddNode       = errors.New("Invalid AddNode type")
 	ErrBusy                 = errors.New("Device is Busy")
 	ErrDeviceIDExists       = errors.New("Device Id Exists")
 	ErrEnxio                = errors.New("No such device or address")
-	ErrEnoData              = errors.New("No data available")
 )
 
 var (
