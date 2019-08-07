@@ -98,7 +98,6 @@ func New(t testingT, ops ...func(*Daemon)) *Daemon {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
-	t.Log("Creating a new daemon")
 	dest := os.Getenv("DOCKER_INTEGRATION_DAEMON_DEST")
 	if dest == "" {
 		dest = os.Getenv("DEST")
@@ -109,6 +108,7 @@ func New(t testingT, ops ...func(*Daemon)) *Daemon {
 	case testNamer:
 		dest = filepath.Join(dest, v.TestName())
 	}
+	t.Logf("Creating a new daemon at: %s", dest)
 	assert.Check(t, dest != "", "Please set the DOCKER_INTEGRATION_DAEMON_DEST or the DEST environment variable")
 
 	storageDriver := os.Getenv("DOCKER_GRAPHDRIVER")
