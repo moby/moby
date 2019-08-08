@@ -83,7 +83,7 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 	}
 	r.setDefaults()
 
-	if err := system.MkdirAll(stateDir, 0700, ""); err != nil {
+	if err := system.MkdirAll(stateDir, 0700); err != nil {
 		return nil, err
 	}
 

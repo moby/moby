@@ -113,7 +113,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 	// os.MkdirAll on not-Windows and changed for Windows.
 	if dstDriver.OS() == "windows" {
 		// Now we are WCOW
-		if err := system.MkdirAll(filepath.Dir(dst), 0700, ""); err != nil {
+		if err := system.MkdirAll(filepath.Dir(dst), 0700); err != nil {
 			return err
 		}
 	} else {

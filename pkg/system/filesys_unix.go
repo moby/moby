@@ -8,14 +8,14 @@ import (
 	"path/filepath"
 )
 
-// MkdirAllWithACL is a wrapper for MkdirAll on unix systems.
+// MkdirAllWithACL is a wrapper for os.MkdirAll on unix systems.
 func MkdirAllWithACL(path string, perm os.FileMode, sddl string) error {
-	return MkdirAll(path, perm, sddl)
+	return os.MkdirAll(path, perm)
 }
 
 // MkdirAll creates a directory named path along with any necessary parents,
 // with permission specified by attribute perm for all dir created.
-func MkdirAll(path string, perm os.FileMode, sddl string) error {
+func MkdirAll(path string, perm os.FileMode) error {
 	return os.MkdirAll(path, perm)
 }
 

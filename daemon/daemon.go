@@ -772,7 +772,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	if runtime.GOOS == "windows" {
 		if _, err := os.Stat(realTmp); err != nil && os.IsNotExist(err) {
-			if err := system.MkdirAll(realTmp, 0700, ""); err != nil {
+			if err := system.MkdirAll(realTmp, 0700); err != nil {
 				return nil, fmt.Errorf("Unable to create the TempDir (%s): %s", realTmp, err)
 			}
 		}
@@ -834,7 +834,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// Create the directory where we'll store the runtime scripts (i.e. in
 	// order to support runtimeArgs)
 	daemonRuntimes := filepath.Join(config.Root, "runtimes")
-	if err := system.MkdirAll(daemonRuntimes, 0700, ""); err != nil {
+	if err := system.MkdirAll(daemonRuntimes, 0700); err != nil {
 		return nil, err
 	}
 	if err := d.loadRuntimes(); err != nil {
@@ -842,7 +842,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	if runtime.GOOS == "windows" {
-		if err := system.MkdirAll(filepath.Join(config.Root, "credentialspecs"), 0, ""); err != nil {
+		if err := system.MkdirAll(filepath.Join(config.Root, "credentialspecs"), 0); err != nil {
 			return nil, err
 		}
 	}
@@ -981,7 +981,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	trustDir := filepath.Join(config.Root, "trust")
 
-	if err := system.MkdirAll(trustDir, 0700, ""); err != nil {
+	if err := system.MkdirAll(trustDir, 0700); err != nil {
 		return nil, err
 	}
 
