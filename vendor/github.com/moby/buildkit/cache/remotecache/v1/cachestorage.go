@@ -254,7 +254,7 @@ func (cs *cacheResultStorage) Load(ctx context.Context, res solver.CacheResult) 
 
 	ref, err := cs.w.FromRemote(ctx, item.result)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to load result from remote")
+		return nil, err
 	}
 	return worker.NewWorkerRefResult(ref, cs.w), nil
 }

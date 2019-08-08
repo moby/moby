@@ -60,9 +60,6 @@ type execOp struct {
 }
 
 func NewExecOp(v solver.Vertex, op *pb.Op_Exec, platform *pb.Platform, cm cache.Manager, sm *session.Manager, md *metadata.Store, exec executor.Executor, w worker.Worker) (solver.Op, error) {
-	if err := llbsolver.ValidateOp(&pb.Op{Op: op}); err != nil {
-		return nil, err
-	}
 	return &execOp{
 		op:          op.Exec,
 		cm:          cm,
@@ -221,13 +218,11 @@ func (e *execOp) getMountDeps() ([]dep, error) {
 }
 
 func (e *execOp) getRefCacheDir(ctx context.Context, ref cache.ImmutableRef, id string, m *pb.Mount, sharing pb.CacheSharingOpt) (mref cache.MutableRef, err error) {
+
 	key := "cache-dir:" + id
 	if ref != nil {
 		key += ":" + ref.ID()
 	}
-	mu := CacheMountsLocker()
-	mu.Lock()
-	defer mu.Unlock()
 
 	if ref, ok := e.cacheMounts[key]; ok {
 		return ref.clone(), nil
@@ -329,7 +324,7 @@ func (e *execOp) getSSHMountable(ctx context.Context, m *pb.Mount) (cache.Mounta
 		if m.SSHOpt.Optional {
 			return nil, nil
 		}
-		if st, ok := status.FromError(errors.Cause(err)); ok && st.Code() == codes.Unimplemented {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.Unimplemented {
 			return nil, errors.Errorf("no SSH key %q forwarded from the client", m.SSHOpt.ID)
 		}
 		return nil, err
@@ -794,17 +789,10 @@ type cacheRefs struct {
 	shares map[string]*cacheRefShare
 }
 
-// ClearActiveCacheMounts clears shared cache mounts currently in use.
-// Caller needs to hold CacheMountsLocker before calling
-func ClearActiveCacheMounts() {
-	sharedCacheRefs.shares = nil
-}
-
-func CacheMountsLocker() sync.Locker {
-	return &sharedCacheRefs.mu
-}
-
 func (r *cacheRefs) get(key string, fn func() (cache.MutableRef, error)) (cache.MutableRef, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if r.shares == nil {
 		r.shares = map[string]*cacheRefShare{}
 	}

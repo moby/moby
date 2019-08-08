@@ -331,8 +331,7 @@ func (e *edge) unpark(incoming []pipe.Sender, updates, allPipes []pipe.Receiver,
 	if e.cacheMapReq == nil && (e.cacheMap == nil || len(e.cacheRecords) == 0) {
 		index := e.cacheMapIndex
 		e.cacheMapReq = f.NewFuncRequest(func(ctx context.Context) (interface{}, error) {
-			cm, err := e.op.CacheMap(ctx, index)
-			return cm, errors.Wrap(err, "failed to load cache key")
+			return e.op.CacheMap(ctx, index)
 		})
 		cacheMapReq = true
 	}
@@ -799,8 +798,7 @@ func (e *edge) createInputRequests(desiredState edgeStatusType, f *pipeFactory, 
 			res := dep.result
 			func(fn ResultBasedCacheFunc, res Result, index Index) {
 				dep.slowCacheReq = f.NewFuncRequest(func(ctx context.Context) (interface{}, error) {
-					v, err := e.op.CalcSlowCache(ctx, index, fn, res)
-					return v, errors.Wrap(err, "failed to compute cache key")
+					return e.op.CalcSlowCache(ctx, index, fn, res)
 				})
 			}(fn, res, dep.index)
 			addedNew = true
@@ -852,7 +850,7 @@ func (e *edge) loadCache(ctx context.Context) (interface{}, error) {
 	logrus.Debugf("load cache for %s with %s", e.edge.Vertex.Name(), rec.ID)
 	res, err := e.op.LoadCache(ctx, rec)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to load cache")
+		return nil, err
 	}
 
 	return NewCachedResult(res, []ExportableCacheKey{{CacheKey: rec.key, Exporter: &exporter{k: rec.key, record: rec, edge: e}}}), nil
@@ -863,7 +861,7 @@ func (e *edge) execOp(ctx context.Context) (interface{}, error) {
 	cacheKeys, inputs := e.commitOptions()
 	results, subExporters, err := e.op.Exec(ctx, toResultSlice(inputs))
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	index := e.edge.Index

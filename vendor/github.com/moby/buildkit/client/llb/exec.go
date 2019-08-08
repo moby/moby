@@ -427,13 +427,11 @@ func Security(s pb.SecurityMode) RunOption {
 }
 
 func Shlex(str string) RunOption {
-	return runOptionFunc(func(ei *ExecInfo) {
-		ei.State = shlexf(str, false)(ei.State)
-	})
+	return Shlexf(str)
 }
 func Shlexf(str string, v ...interface{}) RunOption {
 	return runOptionFunc(func(ei *ExecInfo) {
-		ei.State = shlexf(str, true, v...)(ei.State)
+		ei.State = shlexf(str, v...)(ei.State)
 	})
 }
 
@@ -444,9 +442,7 @@ func Args(a []string) RunOption {
 }
 
 func AddEnv(key, value string) RunOption {
-	return runOptionFunc(func(ei *ExecInfo) {
-		ei.State = ei.State.AddEnv(key, value)
-	})
+	return AddEnvf(key, value)
 }
 
 func AddEnvf(key, value string, v ...interface{}) RunOption {
@@ -462,9 +458,7 @@ func User(str string) RunOption {
 }
 
 func Dir(str string) RunOption {
-	return runOptionFunc(func(ei *ExecInfo) {
-		ei.State = ei.State.Dir(str)
-	})
+	return Dirf(str)
 }
 func Dirf(str string, v ...interface{}) RunOption {
 	return runOptionFunc(func(ei *ExecInfo) {

@@ -142,8 +142,6 @@ func parseMount(value string) (*Mount, error) {
 				if m.Type == "secret" || m.Type == "ssh" {
 					m.Required = true
 					continue
-				} else {
-					return nil, errors.Errorf("unexpected key '%s' for mount type '%s'", key, m.Type)
 				}
 			}
 		}
@@ -178,16 +176,6 @@ func parseMount(value string) (*Mount, error) {
 			}
 			m.ReadOnly = !rw
 			roAuto = false
-		case "required":
-			if m.Type == "secret" || m.Type == "ssh" {
-				v, err := strconv.ParseBool(value)
-				if err != nil {
-					return nil, errors.Errorf("invalid value for %s: %s", key, value)
-				}
-				m.Required = v
-			} else {
-				return nil, errors.Errorf("unexpected key '%s' for mount type '%s'", key, m.Type)
-			}
 		case "id":
 			m.CacheID = value
 		case "sharing":

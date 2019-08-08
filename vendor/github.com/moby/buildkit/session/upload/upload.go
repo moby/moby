@@ -6,7 +6,6 @@ import (
 	"net/url"
 
 	"github.com/moby/buildkit/session"
-	"github.com/pkg/errors"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -27,7 +26,7 @@ func New(ctx context.Context, c session.Caller, url *url.URL) (*Upload, error) {
 
 	cc, err := client.Pull(ctx)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	return &Upload{cc: cc}, nil
@@ -45,12 +44,12 @@ func (u *Upload) WriteTo(w io.Writer) (int, error) {
 			if err == io.EOF {
 				return n, nil
 			}
-			return n, errors.WithStack(err)
+			return n, err
 		}
 		nn, err := w.Write(bm.Data)
 		n += nn
 		if err != nil {
-			return n, errors.WithStack(err)
+			return n, err
 		}
 	}
 }

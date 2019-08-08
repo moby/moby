@@ -3,7 +3,6 @@ package sshforward
 import (
 	io "io"
 
-	"github.com/pkg/errors"
 	context "golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -20,7 +19,7 @@ func Copy(ctx context.Context, conn io.ReadWriteCloser, stream grpc.Stream) erro
 					return nil
 				}
 				conn.Close()
-				return errors.WithStack(err)
+				return err
 			}
 			select {
 			case <-ctx.Done():
@@ -30,7 +29,7 @@ func Copy(ctx context.Context, conn io.ReadWriteCloser, stream grpc.Stream) erro
 			}
 			if _, err := conn.Write(p.Data); err != nil {
 				conn.Close()
-				return errors.WithStack(err)
+				return err
 			}
 			p.Data = p.Data[:0]
 		}
@@ -44,7 +43,7 @@ func Copy(ctx context.Context, conn io.ReadWriteCloser, stream grpc.Stream) erro
 			case err == io.EOF:
 				return nil
 			case err != nil:
-				return errors.WithStack(err)
+				return err
 			}
 			select {
 			case <-ctx.Done():
@@ -53,7 +52,7 @@ func Copy(ctx context.Context, conn io.ReadWriteCloser, stream grpc.Stream) erro
 			}
 			p := &BytesMessage{Data: buf[:n]}
 			if err := stream.SendMsg(p); err != nil {
-				return errors.WithStack(err)
+				return err
 			}
 		}
 	})

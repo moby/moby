@@ -20,11 +20,19 @@ func GetUser(ctx context.Context, root, username string) (uint32, uint32, []uint
 		return uid, gid, nil, nil
 	}
 
-	passwdFile, err := openUserFile(root, "/etc/passwd")
+	passwdPath, err := user.GetPasswdPath()
+	if err != nil {
+		return 0, 0, nil, err
+	}
+	groupPath, err := user.GetGroupPath()
+	if err != nil {
+		return 0, 0, nil, err
+	}
+	passwdFile, err := openUserFile(root, passwdPath)
 	if err == nil {
 		defer passwdFile.Close()
 	}
-	groupFile, err := openUserFile(root, "/etc/group")
+	groupFile, err := openUserFile(root, groupPath)
 	if err == nil {
 		defer groupFile.Close()
 	}

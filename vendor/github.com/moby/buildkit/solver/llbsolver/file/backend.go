@@ -27,8 +27,12 @@ func timestampToTime(ts int64) *time.Time {
 }
 
 func mapUser(user *copy.ChownOpt, idmap *idtools.IdentityMapping) (*copy.ChownOpt, error) {
-	if idmap == nil || user == nil {
+	if idmap == nil {
 		return user, nil
+	}
+	if user == nil {
+		identity := idmap.RootPair()
+		return &copy.ChownOpt{Uid: identity.UID, Gid: identity.GID}, nil
 	}
 	identity, err := idmap.ToHost(idtools.Identity{
 		UID: user.Uid,
@@ -134,6 +138,7 @@ func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *
 		return nil
 	}
 
+	// TODO(tonistiigi): this is wrong. fsutil.Copy can't handle non-forced user
 	u, err := mapUser(u, idmap)
 	if err != nil {
 		return err

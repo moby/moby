@@ -43,7 +43,6 @@ type Opt struct {
 	IdentityMapping *idtools.IdentityMapping
 	// runc run --no-pivot (unrecommended)
 	NoPivot bool
-	DNS     *oci.DNSConfig
 }
 
 var defaultCommandCandidates = []string{"buildkit-runc", "runc"}
@@ -58,7 +57,6 @@ type runcExecutor struct {
 	processMode      oci.ProcessMode
 	idmap            *idtools.IdentityMapping
 	noPivot          bool
-	dns              *oci.DNSConfig
 }
 
 func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Executor, error) {
@@ -81,7 +79,7 @@ func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Ex
 
 	root := opt.Root
 
-	if err := os.MkdirAll(root, 0711); err != nil {
+	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, errors.Wrapf(err, "failed to create %s", root)
 	}
 
@@ -117,7 +115,6 @@ func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Ex
 		processMode:      opt.ProcessMode,
 		idmap:            opt.IdentityMapping,
 		noPivot:          opt.NoPivot,
-		dns:              opt.DNS,
 	}
 	return w, nil
 }
@@ -137,12 +134,12 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 		logrus.Info("enabling HostNetworking")
 	}
 
-	resolvConf, err := oci.GetResolvConf(ctx, w.root, w.idmap, w.dns)
+	resolvConf, err := oci.GetResolvConf(ctx, w.root)
 	if err != nil {
 		return err
 	}
 
-	hostsFile, clean, err := oci.GetHostsFile(ctx, w.root, meta.ExtraHosts, w.idmap)
+	hostsFile, clean, err := oci.GetHostsFile(ctx, w.root, meta.ExtraHosts)
 	if err != nil {
 		return err
 	}
@@ -164,7 +161,7 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 	id := identity.NewID()
 	bundle := filepath.Join(w.root, id)
 
-	if err := os.Mkdir(bundle, 0711); err != nil {
+	if err := os.Mkdir(bundle, 0700); err != nil {
 		return err
 	}
 	defer os.RemoveAll(bundle)
@@ -236,10 +233,8 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 	if err != nil {
 		return errors.Wrapf(err, "working dir %s points to invalid target", newp)
 	}
-	if _, err := os.Stat(newp); err != nil {
-		if err := idtools.MkdirAllAndChown(newp, 0755, identity); err != nil {
-			return errors.Wrapf(err, "failed to create working directory %s", newp)
-		}
+	if err := idtools.MkdirAllAndChown(newp, 0755, identity); err != nil {
+		return errors.Wrapf(err, "failed to create working directory %s", newp)
 	}
 
 	if err := setOOMScoreAdj(spec); err != nil {

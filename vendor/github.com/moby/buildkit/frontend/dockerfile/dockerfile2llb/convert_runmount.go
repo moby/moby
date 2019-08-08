@@ -124,9 +124,6 @@ func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*
 			if mount.CacheSharing == instructions.MountSharingLocked {
 				sharing = llb.CacheMountLocked
 			}
-			if mount.CacheID == "" {
-				mount.CacheID = path.Clean(mount.Target)
-			}
 			mountOpts = append(mountOpts, llb.AsPersistentCacheDir(opt.cacheIDNamespace+"/"+mount.CacheID, sharing))
 		}
 		target := mount.Target
@@ -147,9 +144,7 @@ func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*
 
 		out = append(out, llb.AddMount(target, st, mountOpts...))
 
-		if mount.From == "" {
-			d.ctxPaths[path.Join("/", filepath.ToSlash(mount.Source))] = struct{}{}
-		}
+		d.ctxPaths[path.Join("/", filepath.ToSlash(mount.Source))] = struct{}{}
 	}
 	return out, nil
 }

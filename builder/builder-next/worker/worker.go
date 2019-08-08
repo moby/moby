@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	nethttp "net/http"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/containerd/containerd/content"
@@ -44,7 +43,6 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	bolt "go.etcd.io/bbolt"
 )
 
 const labelCreatedAt = "buildkit/createdat"
@@ -257,47 +255,6 @@ func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIf
 		Descriptors: descriptors,
 		Provider:    &emptyProvider{},
 	}, nil
-}
-
-// PruneCacheMounts removes the current cache snapshots for specified IDs
-func (w *Worker) PruneCacheMounts(ctx context.Context, ids []string) error {
-	mu := ops.CacheMountsLocker()
-	mu.Lock()
-	defer mu.Unlock()
-
-	for _, id := range ids {
-		id = "cache-dir:" + id
-		sis, err := w.MetadataStore.Search(id)
-		if err != nil {
-			return err
-		}
-		for _, si := range sis {
-			for _, k := range si.Indexes() {
-				if k == id || strings.HasPrefix(k, id+":") {
-					if siCached := w.CacheManager.Metadata(si.ID()); siCached != nil {
-						si = siCached
-					}
-					if err := cache.CachePolicyDefault(si); err != nil {
-						return err
-					}
-					si.Queue(func(b *bolt.Bucket) error {
-						return si.SetValue(b, k, nil)
-					})
-					if err := si.Commit(); err != nil {
-						return err
-					}
-					// if ref is unused try to clean it up right away by releasing it
-					if mref, err := w.CacheManager.GetMutable(ctx, si.ID()); err == nil {
-						go mref.Release(context.TODO())
-					}
-					break
-				}
-			}
-		}
-	}
-
-	ops.ClearActiveCacheMounts()
-	return nil
 }
 
 // FromRemote converts a remote snapshot reference to a local one
