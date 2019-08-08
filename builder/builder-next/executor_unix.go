@@ -8,8 +8,11 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/libnetwork"
 	"github.com/moby/buildkit/executor"
+	"github.com/moby/buildkit/executor/oci"
 	"github.com/moby/buildkit/executor/runcexecutor"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/solver/pb"
@@ -20,7 +23,7 @@ import (
 
 const networkName = "bridge"
 
-func newExecutor(root, cgroupParent string, net libnetwork.NetworkController, rootless bool) (executor.Executor, error) {
+func newExecutor(root, cgroupParent string, net libnetwork.NetworkController, dnsConfig *oci.DNSConfig, rootless bool, idmap *idtools.IdentityMapping) (executor.Executor, error) {
 	networkProviders := map[pb.NetMode]network.Provider{
 		pb.NetMode_UNSET: &bridgeProvider{NetworkController: net, Root: filepath.Join(root, "net")},
 		pb.NetMode_HOST:  network.NewHostProvider(),
@@ -32,6 +35,8 @@ func newExecutor(root, cgroupParent string, net libnetwork.NetworkController, ro
 		DefaultCgroupParent: cgroupParent,
 		Rootless:            rootless,
 		NoPivot:             os.Getenv("DOCKER_RAMDISK") != "",
+		IdentityMapping:     idmap,
+		DNS:                 dnsConfig,
 	}, networkProviders)
 }
 
@@ -114,4 +119,15 @@ func (iface *lnInterface) Close() error {
 		}()
 	}
 	return iface.err
+}
+
+func getDNSConfig(cfg config.DNSConfig) *oci.DNSConfig {
+	if cfg.DNS != nil || cfg.DNSSearch != nil || cfg.DNSOptions != nil {
+		return &oci.DNSConfig{
+			Nameservers:   cfg.DNS,
+			SearchDomains: cfg.DNSSearch,
+			Options:       cfg.DNSOptions,
+		}
+	}
+	return nil
 }

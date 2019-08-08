@@ -38,7 +38,7 @@ import (
 )
 
 func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
-	if err := os.MkdirAll(opt.Root, 0700); err != nil {
+	if err := os.MkdirAll(opt.Root, 0711); err != nil {
 		return nil, err
 	}
 
@@ -55,9 +55,10 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 	}
 
 	sbase, err := snapshot.NewSnapshotter(snapshot.Opt{
-		GraphDriver: driver,
-		LayerStore:  dist.LayerStore,
-		Root:        root,
+		GraphDriver:     driver,
+		LayerStore:      dist.LayerStore,
+		Root:            root,
+		IdentityMapping: opt.IdentityMapping,
 	})
 	if err != nil {
 		return nil, err
@@ -112,7 +113,9 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, err
 	}
 
-	exec, err := newExecutor(root, opt.DefaultCgroupParent, opt.NetworkController, opt.Rootless)
+	dns := getDNSConfig(opt.DNSConfig)
+
+	exec, err := newExecutor(root, opt.DefaultCgroupParent, opt.NetworkController, dns, opt.Rootless, opt.IdentityMapping)
 	if err != nil {
 		return nil, err
 	}

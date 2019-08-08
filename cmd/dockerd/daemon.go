@@ -318,6 +318,8 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		ResolverOpt:         d.NewResolveOptionsFunc(),
 		BuilderConfig:       config.Builder,
 		Rootless:            d.Rootless(),
+		IdentityMapping:     d.IdentityMapping(),
+		DNSConfig:           config.DNSConfig,
 	})
 	if err != nil {
 		return opts, err

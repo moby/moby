@@ -26,9 +26,10 @@ var keySize = []byte("size")
 
 // Opt defines options for creating the snapshotter
 type Opt struct {
-	GraphDriver graphdriver.Driver
-	LayerStore  layer.Store
-	Root        string
+	GraphDriver     graphdriver.Driver
+	LayerStore      layer.Store
+	Root            string
+	IdentityMapping *idtools.IdentityMapping
 }
 
 type graphIDRegistrar interface {
@@ -79,7 +80,7 @@ func (s *snapshotter) Name() string {
 }
 
 func (s *snapshotter) IdentityMapping() *idtools.IdentityMapping {
-	return nil
+	return s.opt.IdentityMapping
 }
 
 func (s *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) error {
@@ -253,6 +254,7 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 		id := identity.NewID()
 		var rwlayer layer.RWLayer
 		return &mountable{
+			idmap: s.opt.IdentityMapping,
 			acquire: func() ([]mount.Mount, error) {
 				rwlayer, err = s.opt.LayerStore.CreateRWLayer(id, l.ChainID(), nil)
 				if err != nil {
@@ -278,6 +280,7 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 	id, _ := s.getGraphDriverID(key)
 
 	return &mountable{
+		idmap: s.opt.IdentityMapping,
 		acquire: func() ([]mount.Mount, error) {
 			rootfs, err := s.opt.GraphDriver.Get(id, "")
 			if err != nil {
@@ -440,6 +443,7 @@ type mountable struct {
 	acquire  func() ([]mount.Mount, error)
 	release  func() error
 	refCount int
+	idmap    *idtools.IdentityMapping
 }
 
 func (m *mountable) Mount() ([]mount.Mount, error) {
@@ -480,5 +484,5 @@ func (m *mountable) Release() error {
 }
 
 func (m *mountable) IdentityMapping() *idtools.IdentityMapping {
-	return nil
+	return m.idmap
 }

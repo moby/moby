@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/libnetwork"
@@ -73,6 +74,8 @@ type Opt struct {
 	ResolverOpt         resolver.ResolveOptionsFunc
 	BuilderConfig       config.BuilderConfig
 	Rootless            bool
+	IdentityMapping     *idtools.IdentityMapping
+	DNSConfig           config.DNSConfig
 }
 
 // Builder can build using BuildKit backend
@@ -87,6 +90,10 @@ type Builder struct {
 // New creates a new builder
 func New(opt Opt) (*Builder, error) {
 	reqHandler := newReqBodyHandler(tracing.DefaultTransport)
+
+	if opt.IdentityMapping != nil && opt.IdentityMapping.Empty() {
+		opt.IdentityMapping = nil
+	}
 
 	c, err := newController(reqHandler, opt)
 	if err != nil {
