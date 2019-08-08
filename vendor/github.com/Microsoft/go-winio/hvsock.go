@@ -46,7 +46,7 @@ func (addr *HvsockAddr) String() string {
 func VsockServiceID(port uint32) guid.GUID {
 	g, _ := guid.FromString("00000000-facb-11e6-bd58-64006a7986d3")
 	g.Data1 = port
-	return *g
+	return g
 }
 
 func (addr *HvsockAddr) raw() rawHvsockAddr {

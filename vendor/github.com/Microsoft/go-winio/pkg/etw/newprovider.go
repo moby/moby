@@ -15,7 +15,7 @@ import (
 // provider ID to be manually specified. This is most useful when there is an
 // existing provider ID that must be used to conform to existing diagnostic
 // infrastructure.
-func NewProviderWithID(name string, id *guid.GUID, callback EnableCallback) (provider *Provider, err error) {
+func NewProviderWithID(name string, id guid.GUID, callback EnableCallback) (provider *Provider, err error) {
 	providerCallbackOnce.Do(func() {
 		globalProviderCallback = windows.NewCallback(providerCallbackAdapter)
 	})
@@ -29,7 +29,7 @@ func NewProviderWithID(name string, id *guid.GUID, callback EnableCallback) (pro
 	provider.ID = id
 	provider.callback = callback
 
-	if err := eventRegister((*windows.GUID)(provider.ID), globalProviderCallback, uintptr(provider.index), &provider.handle); err != nil {
+	if err := eventRegister((*windows.GUID)(&provider.ID), globalProviderCallback, uintptr(provider.index), &provider.handle); err != nil {
 		return nil, err
 	}
 

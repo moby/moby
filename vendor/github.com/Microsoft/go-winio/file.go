@@ -111,7 +111,13 @@ func makeWin32File(h syscall.Handle) (*win32File, error) {
 }
 
 func MakeOpenFile(h syscall.Handle) (io.ReadWriteCloser, error) {
-	return makeWin32File(h)
+	// If we return the result of makeWin32File directly, it can result in an
+	// interface-wrapped nil, rather than a nil interface value.
+	f, err := makeWin32File(h)
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
 // closeHandle closes the resources associated with a Win32 handle
@@ -269,6 +275,10 @@ func (f *win32File) SetWriteDeadline(deadline time.Time) error {
 
 func (f *win32File) Flush() error {
 	return syscall.FlushFileBuffers(f.handle)
+}
+
+func (f *win32File) Fd() uintptr {
+	return uintptr(f.handle)
 }
 
 func (d *deadlineHandler) set(deadline time.Time) error {
