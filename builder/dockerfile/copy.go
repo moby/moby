@@ -556,13 +556,15 @@ func copyFile(archiver Archiver, source, dest *copyEndpoint, identity *idtools.I
 			return errors.Wrapf(err, "failed to create new directory")
 		}
 	} else {
+		// Normal containers
 		if identity == nil {
-			if err := os.MkdirAll(filepath.Dir(dest.path), 0755); err != nil {
+			// Use system.MkdirAll here, which is a custom version of os.MkdirAll
+			// modified for use on Windows to handle volume GUID paths (\\?\{dae8d3ac-b9a1-11e9-88eb-e8554b2ba1db}\path\)
+			if err := system.MkdirAll(filepath.Dir(dest.path), 0755, ""); err != nil {
 				return err
 			}
 		} else {
 			if err := idtools.MkdirAllAndChownNew(filepath.Dir(dest.path), 0755, *identity); err != nil {
-				// Normal containers
 				return errors.Wrapf(err, "failed to create new directory")
 			}
 		}
