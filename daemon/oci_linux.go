@@ -873,7 +873,10 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		var devs []specs.LinuxDevice
 		devPermissions := s.Linux.Resources.Devices
 
-		if c.HostConfig.Privileged && !userns.RunningInUserNS() {
+		if c.PrivilegedWithoutHostDevices && !c.HostConfig.Privileged {
+			return errors.New("privileged-without-host-devices requires privileged mode to be enabled")
+		}
+		if c.HostConfig.Privileged && !userns.RunningInUserNS() && !c.PrivilegedWithoutHostDevices {
 			hostDevices, err := devices.HostDevices()
 			if err != nil {
 				return err
