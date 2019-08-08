@@ -340,6 +340,7 @@ Function Run-IntegrationTests() {
         Write-Host "Running $($PWD.Path)"
         $pinfo = New-Object System.Diagnostics.ProcessStartInfo
         $pinfo.FileName = "$($PWD.Path)\test.exe"
+        $pinfo.WorkingDirectory = "$($PWD.Path)"
         $pinfo.RedirectStandardError = $true
         $pinfo.UseShellExecute = $false
         $pinfo.Arguments = $env:INTEGRATION_TESTFLAGS
