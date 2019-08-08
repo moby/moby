@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/containerd/go-cni"
 	"github.com/docker/docker/internal/test"
@@ -41,13 +40,12 @@ func cleanupNetworkNamespace(t testingT, execRoot string) {
 }
 
 func (d *Daemon) configureNetNS() (retErr error) {
+	defer d.logDuration("configureNetNS")()
+
 	if d.cniConfig != nil {
 		return nil
 	}
-	started := time.Now()
-	defer func() {
-		d.log.Logf("[%s] configureNetNS duration: %f", d.id, time.Since(started).Seconds())
-	}()
+
 	defer func() {
 		if retErr != nil {
 			retErr = errors.Wrap(retErr, "error configuring daemon network namespace")
@@ -91,6 +89,7 @@ CNIInterfaces:
 	}
 
 	d.cleanupHandlers = append(d.cleanupHandlers, func(t testingT) {
+		defer d.logDuration("daemon nsnet cleanup")()
 		d.log.Logf("[%s] cleaning up cni networking", d.id)
 		if err := daemonNetworks.Remove(d.id, nsPath); err != nil {
 			t.Logf("[%s] error removing cni network:", d.id, err.Error())

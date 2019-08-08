@@ -216,6 +216,8 @@ func (d *Daemon) NewClientT(t assert.TestingT, extraOpts ...client.Opt) *client.
 
 // Cleanup cleans the daemon files : exec root (network namespaces, ...), swarmkit files
 func (d *Daemon) Cleanup(t testingT) {
+	defer d.logDuration("cleanup")()
+
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
@@ -223,6 +225,7 @@ func (d *Daemon) Cleanup(t testingT) {
 	if err := d.StopWithError(); err != nil && err != errDaemonNotStarted {
 		t.Logf("Error stopping daemon: %v", err)
 	}
+
 	// Cleanup swarmkit wal files if present
 	cleanupRaftDir(t, d.Root)
 	cleanupNetworkNamespace(t, d.execRoot)
@@ -253,8 +256,17 @@ func (d *Daemon) StartWithError(args ...string) error {
 	return d.StartWithLogFile(logFile, args...)
 }
 
+func (d *Daemon) logDuration(kind string) func() {
+	started := time.Now()
+	return func() {
+		d.log.Logf("[%s] Daemon %s duration: %fs", d.id, kind, time.Since(started).Seconds())
+	}
+}
+
 // StartWithLogFile will start the daemon and attach its streams to a given file.
 func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
+	defer d.logDuration("daemon start")()
+
 	d.handleUserns()
 	dockerdBinary, err := exec.LookPath(d.dockerdBinary)
 	if err != nil {
@@ -316,16 +328,13 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 	d.logFile = out
 
-	var startErr error
+	started := time.Now()
 	if err := d.cmd.Start(); err != nil {
-		startErr = errors.Errorf("[%s] could not start daemon container: %v", d.id, err)
+		return errors.Errorf("[%s] could not start daemon: %v", d.id, err)
 	}
-	if err != nil {
-		return err
-	}
-	if startErr != nil {
-		return err
-	}
+	defer func() {
+		d.log.Logf("[%s] daemon startup time: %f", d.id, time.Since(started).Seconds())
+	}()
 
 	wait := make(chan error, 1)
 
@@ -483,6 +492,7 @@ func (d *Daemon) Stop(t testingT) {
 // Stop will not delete the daemon directory. If a purged daemon is needed,
 // instantiate a new one with NewDaemon.
 func (d *Daemon) StopWithError() (err error) {
+	defer d.logDuration("daemon stop")()
 	if d.cmd == nil || d.Wait == nil || d.cmd.Process == nil {
 		return errDaemonNotStarted
 	}
