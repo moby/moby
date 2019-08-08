@@ -136,6 +136,58 @@ func buildContainerIdsFilter(buildOutput io.Reader) (filters.Args, error) {
 	}
 }
 
+// TestBuildMultiStageCopy verifies that copying between stages works correctly.
+//
+// Regression test for docker/for-win#4349, ENGCORE-935, where creating the target
+// directory failed on Windows, because `os.MkdirAll()` was called with a volume
+// GUID path (\\?\Volume{dae8d3ac-b9a1-11e9-88eb-e8554b2ba1db}\newdir\hello}),
+// which currently isn't supported by Golang.
+func TestBuildMultiStageCopy(t *testing.T) {
+	ctx := context.Background()
+
+	dockerfile, err := ioutil.ReadFile("testdata/Dockerfile." + t.Name())
+	assert.NilError(t, err)
+
+	source := fakecontext.New(t, "", fakecontext.WithDockerfile(string(dockerfile)))
+	defer source.Close()
+
+	apiclient := testEnv.APIClient()
+
+	for _, target := range []string{"copy_to_root", "copy_to_newdir", "copy_to_newdir_nested", "copy_to_existingdir", "copy_to_newsubdir"} {
+		t.Run(target, func(t *testing.T) {
+			imgName := strings.ToLower(t.Name())
+
+			resp, err := apiclient.ImageBuild(
+				ctx,
+				source.AsTarReader(t),
+				types.ImageBuildOptions{
+					Remove:      true,
+					ForceRemove: true,
+					Target:      target,
+					Tags:        []string{imgName},
+				},
+			)
+			assert.NilError(t, err)
+
+			out := bytes.NewBuffer(nil)
+			assert.NilError(t, err)
+			_, err = io.Copy(out, resp.Body)
+			_ = resp.Body.Close()
+			if err != nil {
+				t.Log(out)
+			}
+			assert.NilError(t, err)
+
+			// verify the image was successfully built
+			_, _, err = apiclient.ImageInspectWithRaw(ctx, imgName)
+			if err != nil {
+				t.Log(out)
+			}
+			assert.NilError(t, err)
+		})
+	}
+}
+
 func TestBuildMultiStageParentConfig(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.35"), "broken in earlier versions")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
