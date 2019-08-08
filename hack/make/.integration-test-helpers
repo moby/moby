@@ -173,7 +173,7 @@ set_platform_timeout() {
 	elif [ "${DOCKER_ENGINE_GOARCH}" = "windows" ]; then
 		: ${TIMEOUT:=8m}
 	else
-		: ${TIMEOUT:=5m}
+		: ${TIMEOUT:=10m}
 	fi
 
 	if [ "${TEST_REPEAT}" -gt 1 ]; then
