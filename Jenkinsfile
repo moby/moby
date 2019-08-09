@@ -425,6 +425,7 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e TEST_SKIP_INTEGRATION_CLI=1 \
                                   -e TIMEOUT="180m" \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
@@ -454,6 +455,77 @@ pipeline {
                             '''
 
                             archiveArtifacts artifacts: 'powerpc-bundles.tar.gz'
+                        }
+                        cleanup {
+                            sh 'make clean'
+                            deleteDir()
+                        }
+                    }
+                }
+                stage('powerpc-master') {
+                    when {
+                        beforeAgent true
+                        branch 'master'
+                        expression { params.powerpc }
+                    }
+                    agent { label 'ppc64le-ubuntu-1604' }
+                    // power machines run on Docker 18.06, and buildkit has some bugs on that version
+                    environment { DOCKER_BUILDKIT = '0' }
+
+                    stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
+                            }
+                        }
+                        stage("Build dev image") {
+                            steps {
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .'
+                            }
+                        }
+                        stage("Integration-cli tests") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  -e TEST_SKIP_INTEGRATION=1 \
+                                  -e TIMEOUT="180m" \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh \
+                                    dynbinary \
+                                    test-integration
+                                '''
+                            }
+                        }
+                    }
+
+                    post {
+                        always {
+                            sh '''
+                            echo "Ensuring container killed."
+                            docker rm -vf docker-pr$BUILD_NUMBER || true
+                            '''
+
+                            sh '''
+                            echo "Chowning /workspace to jenkins user"
+                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
+                            '''
+
+                            sh '''
+                            echo "Creating bundles.tar.gz"
+                            find bundles -name '*.log' | xargs tar -czf powerpc-master-bundles.tar.gz
+                            '''
+
+                            archiveArtifacts artifacts: 'powerpc-master-bundles.tar.gz'
                         }
                         cleanup {
                             sh 'make clean'
