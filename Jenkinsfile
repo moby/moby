@@ -4,7 +4,7 @@ pipeline {
 
     options {
         buildDiscarder(logRotator(daysToKeepStr: '30'))
-        timeout(time: 3, unit: 'HOURS')
+        timeout(time: 2, unit: 'HOURS')
         timestamps()
     }
     parameters {
@@ -21,6 +21,7 @@ pipeline {
         DOCKER_GRAPHDRIVER  = 'overlay2'
         APT_MIRROR          = 'cdn-fastly.deb.debian.org'
         CHECK_CONFIG_COMMIT = '78405559cfe5987174aa2cb6463b9b2c1b917255'
+        TIMEOUT             = '120m'
     }
     stages {
         stage('Build') {
@@ -130,7 +131,6 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
-                                  -e TIMEOUT=120m \
                                   docker:${GIT_COMMIT} \
                                   hack/validate/vendor
                                 '''
@@ -221,6 +221,7 @@ pipeline {
                                           -e TEST_SKIP_INTEGRATION_CLI \
                                           -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                           -e DOCKER_GRAPHDRIVER \
+                                          -e TIMEOUT \
                                           docker:${GIT_COMMIT} \
                                           hack/make.sh \
                                             "$1" \
@@ -341,7 +342,7 @@ pipeline {
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TEST_SKIP_INTEGRATION_CLI=1 \
-                                  -e TIMEOUT="300m" \
+                                  -e TIMEOUT \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     dynbinary \
@@ -415,7 +416,7 @@ pipeline {
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TEST_SKIP_INTEGRATION=1 \
-                                  -e TIMEOUT="300m" \
+                                  -e TIMEOUT \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     dynbinary \
@@ -500,7 +501,7 @@ pipeline {
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TEST_SKIP_INTEGRATION_CLI=1 \
-                                  -e TIMEOUT="180m" \
+                                  -e TIMEOUT \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     dynbinary \
@@ -572,7 +573,7 @@ pipeline {
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TEST_SKIP_INTEGRATION=1 \
-                                  -e TIMEOUT="180m" \
+                                  -e TIMEOUT \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     dynbinary \
