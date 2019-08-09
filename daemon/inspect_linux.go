@@ -20,38 +20,38 @@ func setPlatformSpecificContainerFields(container *container.Container, contJSON
 
 // containerInspectPre120 gets containers for pre 1.20 APIs.
 func (daemon *Daemon) containerInspectPre120(name string) (*v1p19.ContainerJSON, error) {
-	container, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
 
-	container.Lock()
-	defer container.Unlock()
+	ctr.Lock()
+	defer ctr.Unlock()
 
-	base, err := daemon.getInspectData(container)
+	base, err := daemon.getInspectData(ctr)
 	if err != nil {
 		return nil, err
 	}
 
 	volumes := make(map[string]string)
 	volumesRW := make(map[string]bool)
-	for _, m := range container.MountPoints {
+	for _, m := range ctr.MountPoints {
 		volumes[m.Destination] = m.Path()
 		volumesRW[m.Destination] = m.RW
 	}
 
 	config := &v1p19.ContainerConfig{
-		Config:          container.Config,
-		MacAddress:      container.Config.MacAddress,
-		NetworkDisabled: container.Config.NetworkDisabled,
-		ExposedPorts:    container.Config.ExposedPorts,
-		VolumeDriver:    container.HostConfig.VolumeDriver,
-		Memory:          container.HostConfig.Memory,
-		MemorySwap:      container.HostConfig.MemorySwap,
-		CPUShares:       container.HostConfig.CPUShares,
-		CPUSet:          container.HostConfig.CpusetCpus,
+		Config:          ctr.Config,
+		MacAddress:      ctr.Config.MacAddress,
+		NetworkDisabled: ctr.Config.NetworkDisabled,
+		ExposedPorts:    ctr.Config.ExposedPorts,
+		VolumeDriver:    ctr.HostConfig.VolumeDriver,
+		Memory:          ctr.HostConfig.Memory,
+		MemorySwap:      ctr.HostConfig.MemorySwap,
+		CPUShares:       ctr.HostConfig.CPUShares,
+		CPUSet:          ctr.HostConfig.CpusetCpus,
 	}
-	networkSettings := daemon.getBackwardsCompatibleNetworkSettings(container.NetworkSettings)
+	networkSettings := daemon.getBackwardsCompatibleNetworkSettings(ctr.NetworkSettings)
 
 	return &v1p19.ContainerJSON{
 		ContainerJSONBase: base,

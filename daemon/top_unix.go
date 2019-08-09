@@ -144,20 +144,20 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.Conta
 		return nil, err
 	}
 
-	container, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
 
-	if !container.IsRunning() {
-		return nil, errNotRunning(container.ID)
+	if !ctr.IsRunning() {
+		return nil, errNotRunning(ctr.ID)
 	}
 
-	if container.IsRestarting() {
-		return nil, errContainerIsRestarting(container.ID)
+	if ctr.IsRestarting() {
+		return nil, errContainerIsRestarting(ctr.ID)
 	}
 
-	procs, err := daemon.containerd.ListPids(context.Background(), container.ID)
+	procs, err := daemon.containerd.ListPids(context.Background(), ctr.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -184,6 +184,6 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.Conta
 	if err != nil {
 		return nil, err
 	}
-	daemon.LogContainerEvent(container, "top")
+	daemon.LogContainerEvent(ctr, "top")
 	return procList, nil
 }

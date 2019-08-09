@@ -25,16 +25,17 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		return errors.New("API versions pre v1.21 do not support stats on Windows")
 	}
 
-	container, err := daemon.GetContainer(prefixOrName)
+	ctr, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
 	}
 
 	// If the container is either not running or restarting and requires no stream, return an empty stats.
-	if (!container.IsRunning() || container.IsRestarting()) && !config.Stream {
+	if (!ctr.IsRunning() || ctr.IsRestarting()) && !config.Stream {
 		return json.NewEncoder(config.OutStream).Encode(&types.StatsJSON{
-			Name: container.Name,
-			ID:   container.ID})
+			Name: ctr.Name,
+			ID:   ctr.ID,
+		})
 	}
 
 	outStream := config.OutStream
@@ -49,8 +50,8 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	var preRead time.Time
 	getStatJSON := func(v interface{}) *types.StatsJSON {
 		ss := v.(types.StatsJSON)
-		ss.Name = container.Name
-		ss.ID = container.ID
+		ss.Name = ctr.Name
+		ss.ID = ctr.ID
 		ss.PreCPUStats = preCPUStats
 		ss.PreRead = preRead
 		preCPUStats = ss.CPUStats
@@ -60,8 +61,8 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 
 	enc := json.NewEncoder(outStream)
 
-	updates := daemon.subscribeToContainerStats(container)
-	defer daemon.unsubscribeToContainerStats(container, updates)
+	updates := daemon.subscribeToContainerStats(ctr)
+	defer daemon.unsubscribeToContainerStats(ctr, updates)
 
 	noStreamFirstFrame := true
 	for {

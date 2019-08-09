@@ -90,7 +90,7 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
-	container, err := daemon.create(opts)
+	ctr, err := daemon.create(opts)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, err
 	}
@@ -100,16 +100,16 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 		warnings = make([]string, 0) // Create an empty slice to avoid https://github.com/moby/moby/issues/38222
 	}
 
-	return containertypes.ContainerCreateCreatedBody{ID: container.ID, Warnings: warnings}, nil
+	return containertypes.ContainerCreateCreatedBody{ID: ctr.ID, Warnings: warnings}, nil
 }
 
 // Create creates a new container from the given configuration with a given name.
 func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr error) {
 	var (
-		container *container.Container
-		img       *image.Image
-		imgID     image.ID
-		err       error
+		ctr   *container.Container
+		img   *image.Image
+		imgID image.ID
+		err   error
 	)
 
 	os := runtime.GOOS
@@ -153,22 +153,22 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	if container, err = daemon.newContainer(opts.params.Name, os, opts.params.Config, opts.params.HostConfig, imgID, opts.managed); err != nil {
+	if ctr, err = daemon.newContainer(opts.params.Name, os, opts.params.Config, opts.params.HostConfig, imgID, opts.managed); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if retErr != nil {
-			if err := daemon.cleanupContainer(container, true, true); err != nil {
+			if err := daemon.cleanupContainer(ctr, true, true); err != nil {
 				logrus.Errorf("failed to cleanup container on create error: %v", err)
 			}
 		}
 	}()
 
-	if err := daemon.setSecurityOptions(container, opts.params.HostConfig); err != nil {
+	if err := daemon.setSecurityOptions(ctr, opts.params.HostConfig); err != nil {
 		return nil, err
 	}
 
-	container.HostConfig.StorageOpt = opts.params.HostConfig.StorageOpt
+	ctr.HostConfig.StorageOpt = opts.params.HostConfig.StorageOpt
 
 	// Fixes: https://github.com/moby/moby/issues/34074 and
 	// https://github.com/docker/for-win/issues/999.
@@ -176,38 +176,38 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	// do this on Windows as there's no effective sandbox size limit other than
 	// physical on Linux.
 	if isWindows {
-		if container.HostConfig.StorageOpt == nil {
-			container.HostConfig.StorageOpt = make(map[string]string)
+		if ctr.HostConfig.StorageOpt == nil {
+			ctr.HostConfig.StorageOpt = make(map[string]string)
 		}
 		for _, v := range daemon.configStore.GraphOptions {
 			opt := strings.SplitN(v, "=", 2)
-			if _, ok := container.HostConfig.StorageOpt[opt[0]]; !ok {
-				container.HostConfig.StorageOpt[opt[0]] = opt[1]
+			if _, ok := ctr.HostConfig.StorageOpt[opt[0]]; !ok {
+				ctr.HostConfig.StorageOpt[opt[0]] = opt[1]
 			}
 		}
 	}
 
 	// Set RWLayer for container after mount labels have been set
-	rwLayer, err := daemon.imageService.CreateLayer(container, setupInitLayer(daemon.idMapping))
+	rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping))
 	if err != nil {
 		return nil, errdefs.System(err)
 	}
-	container.RWLayer = rwLayer
+	ctr.RWLayer = rwLayer
 
 	rootIDs := daemon.idMapping.RootPair()
 
-	if err := idtools.MkdirAndChown(container.Root, 0700, rootIDs); err != nil {
+	if err := idtools.MkdirAndChown(ctr.Root, 0700, rootIDs); err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAndChown(container.CheckpointDir(), 0700, rootIDs); err != nil {
-		return nil, err
-	}
-
-	if err := daemon.setHostConfig(container, opts.params.HostConfig); err != nil {
+	if err := idtools.MkdirAndChown(ctr.CheckpointDir(), 0700, rootIDs); err != nil {
 		return nil, err
 	}
 
-	if err := daemon.createContainerOSSpecificSettings(container, opts.params.Config, opts.params.HostConfig); err != nil {
+	if err := daemon.setHostConfig(ctr, opts.params.HostConfig); err != nil {
+		return nil, err
+	}
+
+	if err := daemon.createContainerOSSpecificSettings(ctr, opts.params.Config, opts.params.HostConfig); err != nil {
 		return nil, err
 	}
 
@@ -217,15 +217,15 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	}
 	// Make sure NetworkMode has an acceptable value. We do this to ensure
 	// backwards API compatibility.
-	runconfig.SetDefaultNetModeIfBlank(container.HostConfig)
+	runconfig.SetDefaultNetModeIfBlank(ctr.HostConfig)
 
-	daemon.updateContainerNetworkSettings(container, endpointsConfigs)
-	if err := daemon.Register(container); err != nil {
+	daemon.updateContainerNetworkSettings(ctr, endpointsConfigs)
+	if err := daemon.Register(ctr); err != nil {
 		return nil, err
 	}
-	stateCtr.set(container.ID, "stopped")
-	daemon.LogContainerEvent(container, "create")
-	return container, nil
+	stateCtr.set(ctr.ID, "stopped")
+	daemon.LogContainerEvent(ctr, "create")
+	return ctr, nil
 }
 
 func toHostConfigSelinuxLabels(labels []string) []string {

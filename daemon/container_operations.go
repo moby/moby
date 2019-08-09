@@ -342,12 +342,12 @@ func (daemon *Daemon) updateNetwork(container *container.Container) error {
 		return nil
 	}
 
-	options, err := daemon.buildSandboxOptions(container)
+	sbOptions, err := daemon.buildSandboxOptions(container)
 	if err != nil {
 		return fmt.Errorf("Update network failed: %v", err)
 	}
 
-	if err := sb.Refresh(options...); err != nil {
+	if err := sb.Refresh(sbOptions...); err != nil {
 		return fmt.Errorf("Update network failed: Failure in refresh sandbox %s: %v", sid, err)
 	}
 
@@ -378,7 +378,7 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 		if container.NetworkSettings.Networks != nil {
 			networkName := n.Name()
 			containerName := strings.TrimPrefix(container.Name, "/")
-			if network, ok := container.NetworkSettings.Networks[networkName]; ok && network.EndpointID != "" {
+			if nw, ok := container.NetworkSettings.Networks[networkName]; ok && nw.EndpointID != "" {
 				err := fmt.Errorf("%s is already attached to network %s", containerName, networkName)
 				return n, nil, errdefs.Conflict(err)
 			}
@@ -584,11 +584,11 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 	// create its network sandbox now if not present
 	if len(networks) == 0 {
 		if nil == daemon.getNetworkSandbox(container) {
-			options, err := daemon.buildSandboxOptions(container)
+			sbOptions, err := daemon.buildSandboxOptions(container)
 			if err != nil {
 				return err
 			}
-			sb, err := daemon.netController.NewSandbox(container.ID, options...)
+			sb, err := daemon.netController.NewSandbox(container.ID, sbOptions...)
 			if err != nil {
 				return err
 			}
@@ -802,11 +802,11 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 	}
 
 	if sb == nil {
-		options, err := daemon.buildSandboxOptions(container)
+		sbOptions, err := daemon.buildSandboxOptions(container)
 		if err != nil {
 			return err
 		}
-		sb, err = controller.NewSandbox(container.ID, options...)
+		sb, err = controller.NewSandbox(container.ID, sbOptions...)
 		if err != nil {
 			return err
 		}
@@ -1135,11 +1135,11 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, netw
 
 // ActivateContainerServiceBinding puts this container into load balancer active rotation and DNS response
 func (daemon *Daemon) ActivateContainerServiceBinding(containerName string) error {
-	container, err := daemon.GetContainer(containerName)
+	ctr, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
 	}
-	sb := daemon.getNetworkSandbox(container)
+	sb := daemon.getNetworkSandbox(ctr)
 	if sb == nil {
 		return fmt.Errorf("network sandbox does not exist for container %s", containerName)
 	}
@@ -1148,11 +1148,11 @@ func (daemon *Daemon) ActivateContainerServiceBinding(containerName string) erro
 
 // DeactivateContainerServiceBinding removes this container from load balancer active rotation, and DNS response
 func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) error {
-	container, err := daemon.GetContainer(containerName)
+	ctr, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
 	}
-	sb := daemon.getNetworkSandbox(container)
+	sb := daemon.getNetworkSandbox(ctr)
 	if sb == nil {
 		// If the network sandbox is not found, then there is nothing to deactivate
 		logrus.Debugf("Could not find network sandbox for container %s on service binding deactivation request", containerName)

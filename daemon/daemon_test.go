@@ -82,15 +82,15 @@ func TestGetContainer(t *testing.T) {
 	daemon.reserveName(c4.ID, c4.Name)
 	daemon.reserveName(c5.ID, c5.Name)
 
-	if container, _ := daemon.GetContainer("3cdbd1aa394fd68559fd1441d6eff2ab7c1e6363582c82febfaa8045df3bd8de"); container != c2 {
+	if ctr, _ := daemon.GetContainer("3cdbd1aa394fd68559fd1441d6eff2ab7c1e6363582c82febfaa8045df3bd8de"); ctr != c2 {
 		t.Fatal("Should explicitly match full container IDs")
 	}
 
-	if container, _ := daemon.GetContainer("75fb0b8009"); container != c4 {
+	if ctr, _ := daemon.GetContainer("75fb0b8009"); ctr != c4 {
 		t.Fatal("Should match a partial ID")
 	}
 
-	if container, _ := daemon.GetContainer("drunk_hawking"); container != c2 {
+	if ctr, _ := daemon.GetContainer("drunk_hawking"); ctr != c2 {
 		t.Fatal("Should match a full name")
 	}
 
@@ -99,7 +99,7 @@ func TestGetContainer(t *testing.T) {
 		t.Fatal("Should match a full name even though it collides with another container's ID")
 	}
 
-	if container, _ := daemon.GetContainer("d22d69a2b896"); container != c5 {
+	if ctr, _ := daemon.GetContainer("d22d69a2b896"); ctr != c5 {
 		t.Fatal("Should match a container where the provided prefix is an exact match to the its name, and is also a prefix for its ID")
 	}
 
@@ -176,8 +176,8 @@ func TestContainerInitDNS(t *testing.T) {
 "UpdateDns":false,"Volumes":{},"VolumesRW":{},"AppliedVolumesFrom":null}`
 
 	// Container struct only used to retrieve path to config file
-	container := &container.Container{Root: containerPath}
-	configPath, err := container.ConfigPath()
+	ctr := &container.Container{Root: containerPath}
+	configPath, err := ctr.ConfigPath()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +190,7 @@ func TestContainerInitDNS(t *testing.T) {
 "Devices":[],"NetworkMode":"bridge","IpcMode":"","PidMode":"","CapAdd":null,"CapDrop":null,"RestartPolicy":{"Name":"no","MaximumRetryCount":0},
 "SecurityOpt":null,"ReadonlyRootfs":false,"Ulimits":null,"LogConfig":{"Type":"","Config":null},"CgroupParent":""}`
 
-	hostConfigPath, err := container.HostConfigPath()
+	hostConfigPath, err := ctr.HostConfigPath()
 	if err != nil {
 		t.Fatal(err)
 	}

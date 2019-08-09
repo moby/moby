@@ -384,11 +384,11 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 	adaptSharedNamespaceContainer(daemon, hostConfig)
 
 	var err error
-	opts, err := daemon.generateSecurityOpt(hostConfig)
+	secOpts, err := daemon.generateSecurityOpt(hostConfig)
 	if err != nil {
 		return err
 	}
-	hostConfig.SecurityOpt = append(hostConfig.SecurityOpt, opts...)
+	hostConfig.SecurityOpt = append(hostConfig.SecurityOpt, secOpts...)
 	if hostConfig.OomKillDisable == nil {
 		defaultOomKillDisable := false
 		hostConfig.OomKillDisable = &defaultOomKillDisable
@@ -1310,7 +1310,7 @@ func setupDaemonRoot(config *config.Config, rootDir string, rootIdentity idtools
 }
 
 func setupDaemonRootPropagation(cfg *config.Config) error {
-	rootParentMount, options, err := getSourceMount(cfg.Root)
+	rootParentMount, mountOptions, err := getSourceMount(cfg.Root)
 	if err != nil {
 		return errors.Wrap(err, "error getting daemon root's parent mount")
 	}
@@ -1326,7 +1326,7 @@ func setupDaemonRootPropagation(cfg *config.Config) error {
 		}
 	}()
 
-	if hasMountInfoOption(options, sharedPropagationOption, slavePropagationOption) {
+	if hasMountInfoOption(mountOptions, sharedPropagationOption, slavePropagationOption) {
 		cleanupOldFile = true
 		return nil
 	}
@@ -1745,11 +1745,11 @@ func (daemon *Daemon) initCgroupsPath(path string) error {
 	}
 
 	path = filepath.Join(mnt, root, path)
-	sysinfo := sysinfo.New(true)
-	if err := maybeCreateCPURealTimeFile(sysinfo.CPURealtimePeriod, daemon.configStore.CPURealtimePeriod, "cpu.rt_period_us", path); err != nil {
+	sysInfo := sysinfo.New(true)
+	if err := maybeCreateCPURealTimeFile(sysInfo.CPURealtimePeriod, daemon.configStore.CPURealtimePeriod, "cpu.rt_period_us", path); err != nil {
 		return err
 	}
-	return maybeCreateCPURealTimeFile(sysinfo.CPURealtimeRuntime, daemon.configStore.CPURealtimeRuntime, "cpu.rt_runtime_us", path)
+	return maybeCreateCPURealTimeFile(sysInfo.CPURealtimeRuntime, daemon.configStore.CPURealtimeRuntime, "cpu.rt_runtime_us", path)
 }
 
 func maybeCreateCPURealTimeFile(sysinfoPresent bool, configValue int64, file string, path string) error {

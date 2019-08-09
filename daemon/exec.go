@@ -54,18 +54,18 @@ func (daemon *Daemon) getExecConfig(name string) (*exec.Config, error) {
 	// saying the container isn't running, we should return a 404 so that
 	// the user sees the same error now that they will after the
 	// 5 minute clean-up loop is run which erases old/dead execs.
-	container := daemon.containers.Get(ec.ContainerID)
-	if container == nil {
+	ctr := daemon.containers.Get(ec.ContainerID)
+	if ctr == nil {
 		return nil, containerNotFound(name)
 	}
-	if !container.IsRunning() {
-		return nil, fmt.Errorf("Container %s is not running: %s", container.ID, container.State.String())
+	if !ctr.IsRunning() {
+		return nil, fmt.Errorf("Container %s is not running: %s", ctr.ID, ctr.State.String())
 	}
-	if container.IsPaused() {
-		return nil, errExecPaused(container.ID)
+	if ctr.IsPaused() {
+		return nil, errExecPaused(ctr.ID)
 	}
-	if container.IsRestarting() {
-		return nil, errContainerIsRestarting(container.ID)
+	if ctr.IsRestarting() {
+		return nil, errContainerIsRestarting(ctr.ID)
 	}
 	return ec, nil
 }
@@ -76,21 +76,21 @@ func (daemon *Daemon) unregisterExecCommand(container *container.Container, exec
 }
 
 func (daemon *Daemon) getActiveContainer(name string) (*container.Container, error) {
-	container, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
 
-	if !container.IsRunning() {
-		return nil, errNotRunning(container.ID)
+	if !ctr.IsRunning() {
+		return nil, errNotRunning(ctr.ID)
 	}
-	if container.IsPaused() {
+	if ctr.IsPaused() {
 		return nil, errExecPaused(name)
 	}
-	if container.IsRestarting() {
-		return nil, errContainerIsRestarting(container.ID)
+	if ctr.IsRestarting() {
+		return nil, errContainerIsRestarting(ctr.ID)
 	}
-	return container, nil
+	return ctr, nil
 }
 
 // ContainerExecCreate sets up an exec in a running container.
@@ -220,11 +220,11 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 
 	p := &specs.Process{}
 	if runtime.GOOS != "windows" {
-		container, err := daemon.containerdCli.LoadContainer(ctx, ec.ContainerID)
+		ctr, err := daemon.containerdCli.LoadContainer(ctx, ec.ContainerID)
 		if err != nil {
 			return err
 		}
-		spec, err := container.Spec(ctx)
+		spec, err := ctr.Spec(ctx)
 		if err != nil {
 			return err
 		}
