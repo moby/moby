@@ -282,6 +282,10 @@ func getMemorySettings(resources *specs.LinuxResources) []memorySettings {
 			value: mem.Limit,
 		},
 		{
+			name: "soft_limit_in_bytes",
+			value: mem.Reservation,
+		},
+		{
 			name:  "memsw.limit_in_bytes",
 			value: mem.Swap,
 		},

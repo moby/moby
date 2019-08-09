@@ -86,6 +86,7 @@ func (b *blkioController) Stat(path string, stats *Metrics) error {
 	}
 	// Try to read CFQ stats available on all CFQ enabled kernels first
 	if _, err := os.Lstat(filepath.Join(b.Path(path), fmt.Sprintf("blkio.io_serviced_recursive"))); err == nil {
+		settings = []blkioStatSettings{}
 		settings = append(settings,
 			blkioStatSettings{
 				name:  "sectors_recursive",
