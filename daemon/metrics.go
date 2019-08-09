@@ -115,8 +115,8 @@ func (ctr *stateCounter) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(ctr.desc, prometheus.GaugeValue, float64(stopped), "stopped")
 }
 
-func (d *Daemon) cleanupMetricsPlugins() {
-	ls := d.PluginStore.GetAllManagedPluginsByCap(metricsPluginType)
+func (daemon *Daemon) cleanupMetricsPlugins() {
+	ls := daemon.PluginStore.GetAllManagedPluginsByCap(metricsPluginType)
 	var wg sync.WaitGroup
 	wg.Add(len(ls))
 
@@ -137,8 +137,8 @@ func (d *Daemon) cleanupMetricsPlugins() {
 	}
 	wg.Wait()
 
-	if d.metricsPluginListener != nil {
-		d.metricsPluginListener.Close()
+	if daemon.metricsPluginListener != nil {
+		daemon.metricsPluginListener.Close()
 	}
 }
 

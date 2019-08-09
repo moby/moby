@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func (d *Daemon) setupDumpStackTrap(root string) {
+func (daemon *Daemon) setupDumpStackTrap(root string) {
 	// Windows does not support signals like *nix systems. So instead of
 	// trapping on SIGUSR1 to dump stacks, we wait on a Win32 event to be
 	// signaled. ACL'd to builtin administrators and local system

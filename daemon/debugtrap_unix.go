@@ -11,7 +11,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func (d *Daemon) setupDumpStackTrap(root string) {
+func (daemon *Daemon) setupDumpStackTrap(root string) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, unix.SIGUSR1)
 	go func() {
