@@ -335,7 +335,7 @@ func (daemon *Daemon) restore() error {
 			}
 			if !alive && process != nil {
 				ec, exitedAt, err = process.Delete(context.Background())
-				if err != nil {
+				if err != nil && !errdefs.IsNotFound(err) {
 					logrus.WithError(err).Errorf("Failed to delete container %s from containerd", c.ID)
 					return
 				}
