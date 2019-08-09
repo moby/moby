@@ -135,10 +135,10 @@ func WithApparmor(c *container.Container) coci.SpecOpts {
 			} else if c.HostConfig.Privileged {
 				appArmorProfile = unconfinedAppArmorProfile
 			} else {
-				appArmorProfile = defaultApparmorProfile
+				appArmorProfile = defaultAppArmorProfile
 			}
 
-			if appArmorProfile == defaultApparmorProfile {
+			if appArmorProfile == defaultAppArmorProfile {
 				// Unattended upgrades and other fun services can unload AppArmor
 				// profiles inadvertently. Since we cannot store our profile in
 				// /etc/apparmor.d, nor can we practically add other ways of
@@ -397,9 +397,9 @@ const (
 	slavePropagationOption  = "master:"
 )
 
-// hasMountinfoOption checks if any of the passed any of the given option values
+// hasMountInfoOption checks if any of the passed any of the given option values
 // are set in the passed in option string.
-func hasMountinfoOption(opts string, vals ...string) bool {
+func hasMountInfoOption(opts string, vals ...string) bool {
 	for _, opt := range strings.Split(opts, " ") {
 		for _, val := range vals {
 			if strings.HasPrefix(opt, val) {
@@ -417,7 +417,7 @@ func ensureShared(path string) error {
 		return err
 	}
 	// Make sure source mount point is shared.
-	if !hasMountinfoOption(optionalOpts, sharedPropagationOption) {
+	if !hasMountInfoOption(optionalOpts, sharedPropagationOption) {
 		return errors.Errorf("path %s is mounted on %s but it is not a shared mount", path, sourceMount)
 	}
 	return nil
@@ -430,7 +430,7 @@ func ensureSharedOrSlave(path string) error {
 		return err
 	}
 
-	if !hasMountinfoOption(optionalOpts, sharedPropagationOption, slavePropagationOption) {
+	if !hasMountInfoOption(optionalOpts, sharedPropagationOption, slavePropagationOption) {
 		return errors.Errorf("path %s is mounted on %s but it is not a shared or slave mount", path, sourceMount)
 	}
 	return nil

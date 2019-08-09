@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/errdefs"
 )
 
-func (daemon *Daemon) saveApparmorConfig(container *container.Container) error {
+func (daemon *Daemon) saveAppArmorConfig(container *container.Container) error {
 	container.AppArmorProfile = "" // we don't care about the previous value.
 
 	if !daemon.apparmorEnabled {
@@ -20,7 +20,7 @@ func (daemon *Daemon) saveApparmorConfig(container *container.Container) error {
 
 	if !container.HostConfig.Privileged {
 		if container.AppArmorProfile == "" {
-			container.AppArmorProfile = defaultApparmorProfile
+			container.AppArmorProfile = defaultAppArmorProfile
 		}
 
 	} else {

@@ -164,7 +164,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		container.HasBeenManuallyStopped = false
 	}
 
-	if err := daemon.saveApparmorConfig(container); err != nil {
+	if err := daemon.saveAppArmorConfig(container); err != nil {
 		return err
 	}
 

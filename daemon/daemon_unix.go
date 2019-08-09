@@ -1326,7 +1326,7 @@ func setupDaemonRootPropagation(cfg *config.Config) error {
 		}
 	}()
 
-	if hasMountinfoOption(options, sharedPropagationOption, slavePropagationOption) {
+	if hasMountInfoOption(options, sharedPropagationOption, slavePropagationOption) {
 		cleanupOldFile = true
 		return nil
 	}

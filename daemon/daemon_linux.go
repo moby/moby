@@ -127,7 +127,7 @@ func shouldUnmountRoot(root string, info *mountinfo.Info) bool {
 	if !strings.HasSuffix(root, info.Root) {
 		return false
 	}
-	return hasMountinfoOption(info.Optional, sharedPropagationOption)
+	return hasMountInfoOption(info.Optional, sharedPropagationOption)
 }
 
 // setupResolvConf sets the appropriate resolv.conf file if not specified
