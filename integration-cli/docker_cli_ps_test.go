@@ -443,11 +443,11 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 	secondZero, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 
 	out, _, err := dockerCmdWithError("run", "--name", "nonzero1", "busybox", "false")
-	c.Assert(err, checker.NotNil, check.Commentf("Should fail.", out, err))
+	c.Assert(err, checker.NotNil, check.Commentf("Should fail. out: %s", out))
 	firstNonZero := getIDByName(c, "nonzero1")
 
 	out, _, err = dockerCmdWithError("run", "--name", "nonzero2", "busybox", "false")
-	c.Assert(err, checker.NotNil, check.Commentf("Should fail.", out, err))
+	c.Assert(err, checker.NotNil, check.Commentf("Should fail. out: %s", out))
 	secondNonZero := getIDByName(c, "nonzero2")
 
 	// filter containers by exited=0

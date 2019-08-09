@@ -190,6 +190,6 @@ func TODOBuildkit() bool {
 
 // testRequires checks if the environment satisfies the requirements
 // for the test to run or skips the tests.
-func testRequires(c requirement.SkipT, requirements ...requirement.Test) {
-	requirement.Is(c, requirements...)
+func testRequires(c interface{}, requirements ...requirement.Test) {
+	requirement.Is(c.(requirement.SkipT), requirements...)
 }
