@@ -1555,7 +1555,9 @@ func (daemon *Daemon) initCgroupsPath(path string) error {
 
 	// Recursively create cgroup to ensure that the system and all parent cgroups have values set
 	// for the period and runtime as this limits what the children can be set to.
-	daemon.initCgroupsPath(filepath.Dir(path))
+	if err := daemon.initCgroupsPath(filepath.Dir(path)); err != nil {
+		return err
+	}
 
 	mnt, root, err := cgroups.FindCgroupMountpointAndRoot("", "cpu")
 	if err != nil {
