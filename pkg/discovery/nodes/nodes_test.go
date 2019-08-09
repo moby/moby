@@ -3,16 +3,17 @@ package nodes // import "github.com/docker/docker/pkg/discovery/nodes"
 import (
 	"testing"
 
+	"github.com/docker/docker/internal/test/suite"
 	"github.com/docker/docker/pkg/discovery"
 	"gotest.tools/assert"
 )
 
 // Hook up gocheck into the "go test" runner.
-func Test(t *testing.T) { /*check.TestingT(t)*/ }
+func Test(t *testing.T) {
+	suite.Run(t, &DiscoverySuite{})
+}
 
 type DiscoverySuite struct{}
-
-/*check.Suite(&DiscoverySuite{})*/
 
 func (s *DiscoverySuite) TestInitialize(c *testing.T) {
 	d := &Discovery{}

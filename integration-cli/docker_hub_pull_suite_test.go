@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os/exec"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -11,14 +10,6 @@ import (
 	testdaemon "github.com/docker/docker/internal/test/daemon"
 	"gotest.tools/assert"
 )
-
-func init() {
-	// FIXME. Temporarily turning this off for Windows as GH16039 was breaking
-	// Windows to Linux CI @icecrime
-	if runtime.GOOS != "windows" {
-		/*check.Suite(newDockerHubPullSuite())*/
-	}
-}
 
 // DockerHubPullSuite provides an isolated daemon that doesn't have all the
 // images that are baked into our 'global' test environment daemon (e.g.,
