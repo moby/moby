@@ -1,5 +1,3 @@
-// +build !windows
-
 package main
 
 import (
@@ -25,10 +23,6 @@ import (
 )
 
 const volumePluginName = "test-external-volume-driver"
-
-func init() {
-	/*check.Suite(&DockerExternalVolumeSuite{ds: &DockerSuite{}})*/
-}
 
 type eventCounter struct {
 	activations int

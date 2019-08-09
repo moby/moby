@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http/httptest"
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"sync"
 	"syscall"
@@ -22,6 +24,7 @@ import (
 	"github.com/docker/docker/internal/test/fakestorage"
 	"github.com/docker/docker/internal/test/fixtures/plugin"
 	"github.com/docker/docker/internal/test/registry"
+	"github.com/docker/docker/internal/test/suite"
 	"github.com/docker/docker/pkg/reexec"
 	"gotest.tools/assert"
 )
@@ -57,6 +60,9 @@ func init() {
 }
 
 func TestMain(m *testing.M) {
+	flag.Parse()
+
+	// Global set up
 	dockerBinary = testEnv.DockerBinary()
 	err := ienv.EnsureFrozenImagesLinux(&testEnv.Execution)
 	if err != nil {
@@ -72,11 +78,21 @@ func Test(t *testing.T) {
 	cli.SetTestEnvironment(testEnv)
 	fakestorage.SetTestEnvironment(&testEnv.Execution)
 	ienv.ProtectAll(t, &testEnv.Execution)
-	/*check.TestingT(t)*/
-}
-
-func init() {
-	/*check.Suite(&DockerSuite{})*/
+	suite.Run(t, &DockerSuite{})
+	suite.Run(t, &DockerRegistrySuite{ds: &DockerSuite{}})
+	suite.Run(t, &DockerSchema1RegistrySuite{ds: &DockerSuite{}})
+	suite.Run(t, &DockerRegistryAuthHtpasswdSuite{ds: &DockerSuite{}})
+	suite.Run(t, &DockerRegistryAuthTokenSuite{ds: &DockerSuite{}})
+	suite.Run(t, &DockerDaemonSuite{ds: &DockerSuite{}})
+	suite.Run(t, &DockerSwarmSuite{ds: &DockerSuite{}})
+	suite.Run(t, &DockerPluginSuite{ds: &DockerSuite{}})
+	if runtime.GOOS != "windows" {
+		suite.Run(t, &DockerExternalVolumeSuite{ds: &DockerSuite{}})
+		suite.Run(t, &DockerNetworkSuite{ds: &DockerSuite{}})
+		// FIXME. Temporarily turning this off for Windows as GH16039 was breaking
+		// Windows to Linux CI @icecrime
+		suite.Run(t, newDockerHubPullSuite())
+	}
 }
 
 type DockerSuite struct {
@@ -107,10 +123,6 @@ func (s *DockerSuite) TearDownTest(c *testing.T) {
 	testEnv.Clean(c)
 }
 
-func init() {
-	/*check.Suite(&DockerRegistrySuite{ds: &DockerSuite{}})*/
-}
-
 type DockerRegistrySuite struct {
 	ds  *DockerSuite
 	reg *registry.V2
@@ -136,10 +148,6 @@ func (s *DockerRegistrySuite) TearDownTest(c *testing.T) {
 		s.d.Stop(c)
 	}
 	s.ds.TearDownTest(c)
-}
-
-func init() {
-	/*check.Suite(&DockerSchema1RegistrySuite{ds: &DockerSuite{}})*/
 }
 
 type DockerSchema1RegistrySuite struct {
@@ -169,10 +177,6 @@ func (s *DockerSchema1RegistrySuite) TearDownTest(c *testing.T) {
 	s.ds.TearDownTest(c)
 }
 
-func init() {
-	/*check.Suite(&DockerRegistryAuthHtpasswdSuite{ds: &DockerSuite{}})*/
-}
-
 type DockerRegistryAuthHtpasswdSuite struct {
 	ds  *DockerSuite
 	reg *registry.V2
@@ -200,10 +204,6 @@ func (s *DockerRegistryAuthHtpasswdSuite) TearDownTest(c *testing.T) {
 		s.d.Stop(c)
 	}
 	s.ds.TearDownTest(c)
-}
-
-func init() {
-	/*check.Suite(&DockerRegistryAuthTokenSuite{ds: &DockerSuite{}})*/
 }
 
 type DockerRegistryAuthTokenSuite struct {
@@ -239,10 +239,6 @@ func (s *DockerRegistryAuthTokenSuite) setupRegistryWithTokenService(c *testing.
 	}
 	s.reg = registry.NewV2(c, registry.Token(tokenURL))
 	s.reg.WaitReady(c)
-}
-
-func init() {
-	/*check.Suite(&DockerDaemonSuite{ds: &DockerSuite{}})*/
 }
 
 type DockerDaemonSuite struct {
@@ -283,10 +279,6 @@ func (s *DockerDaemonSuite) TearDownSuite(c *testing.T) {
 }
 
 const defaultSwarmPort = 2477
-
-func init() {
-	/*check.Suite(&DockerSwarmSuite{ds: &DockerSuite{}})*/
-}
 
 type DockerSwarmSuite struct {
 	server      *httptest.Server
@@ -344,10 +336,6 @@ func (s *DockerSwarmSuite) TearDownTest(c *testing.T) {
 	s.portIndex = 0
 	s.daemonsLock.Unlock()
 	s.ds.TearDownTest(c)
-}
-
-func init() {
-	/*check.Suite(&DockerPluginSuite{ds: &DockerSuite{}})*/
 }
 
 type DockerPluginSuite struct {

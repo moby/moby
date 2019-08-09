@@ -37,16 +37,6 @@ const dummyIPAMDriver = "dummy-ipam-driver"
 
 var remoteDriverNetworkRequest remoteapi.CreateNetworkRequest
 
-func init() {
-	/*check.Suite(&DockerNetworkSuite{ds: &DockerSuite{}})*/
-}
-
-type DockerNetworkSuite struct {
-	server *httptest.Server
-	ds     *DockerSuite
-	d      *daemon.Daemon
-}
-
 func (s *DockerNetworkSuite) SetUpTest(c *testing.T) {
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }

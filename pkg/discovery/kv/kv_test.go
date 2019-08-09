@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/internal/test/suite"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
@@ -15,11 +16,11 @@ import (
 )
 
 // Hook up gocheck into the "go test" runner.
-func Test(t *testing.T) { /*check.TestingT(t)*/ }
+func Test(t *testing.T) {
+	suite.Run(t, &DiscoverySuite{})
+}
 
 type DiscoverySuite struct{}
-
-/*check.Suite(&DiscoverySuite{})*/
 
 func (ds *DiscoverySuite) TestInitialize(c *testing.T) {
 	storeMock := &FakeStore{
