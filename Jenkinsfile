@@ -1,6 +1,44 @@
 #!groovy
 
-def utils = load "utils.groovy"
+void printInfo() {
+    sh 'docker version'
+    sh 'docker info'
+    sh '''
+    echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+    curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+    && bash ${WORKSPACE}/check-config.sh || true
+    '''
+}
+
+void buildDevImage() {
+    sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
+}
+
+void runUnitTest() {
+    sh '''
+    docker run --rm -t --privileged \
+      -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+      --name docker-pr$BUILD_NUMBER \
+      -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+      -e DOCKER_GRAPHDRIVER \
+      docker:${GIT_COMMIT} \
+      hack/test/unit
+    '''
+}
+
+void cleanupContainer() {
+    sh '''
+    echo 'Ensuring container killed.'
+    docker rm -vf docker-pr$BUILD_NUMBER || true
+    '''
+}
+
+void chownWorkSpace() {
+    sh '''
+    echo 'Chowning /workspace to jenkins user'
+    docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
+    '''
+}
 
 pipeline {
     agent none
@@ -38,12 +76,12 @@ pipeline {
                     stages {
                         stage("Print info") {
                             steps {
-                                utils.printInfo()
+                                printInfo()
                             }
                         }
                         stage("Build dev image") {
                             steps {
-                                utils.buildDevImage()
+                                buildDevImage()
                             }
                         }
                         stage("Validate") {
@@ -77,7 +115,7 @@ pipeline {
                         }
                         stage("Unit tests") {
                             steps {
-                                utils.runUnitTest()
+                                runUnitTest()
                             }
                         }
                         stage("Validate vendor") {
@@ -107,8 +145,8 @@ pipeline {
                     post {
                         always {
                             junit 'bundles/junit-report.xml'
-                            utils.cleanupContainer()
-                            utils.chownWorkSpace()
+                            cleanupContainer()
+                            chownWorkSpace()
 
                             sh '''
                             echo 'Creating unit-bundles.tar.gz'
@@ -133,7 +171,7 @@ pipeline {
                     stages {
                         stage("Print info") {
                             steps {
-                                utils.printInfo()
+                                printInfo()
                             }
                         }
                         stage("Build dev image") {
@@ -142,7 +180,7 @@ pipeline {
                                 # todo: include ip_vs in base image
                                 sudo modprobe ip_vs
                                 '''
-                                utils.buildDevImage()
+                                buildDevImage()
                             }
                         }
                         stage("Run tests") {
@@ -168,8 +206,8 @@ pipeline {
 
                     post {
                         always {
-                            utils.cleanupContainer()
-                            utils.chownWorkSpace()
+                            cleanupContainer()
+                            chownWorkSpace()
 
                             sh '''
                             echo "Creating janky-bundles.tar.gz"
@@ -194,12 +232,12 @@ pipeline {
                     stages {
                         stage("Print info") {
                             steps {
-                                utils.printInfo()
+                                printInfo()
                             }
                         }
                         stage("Build dev image") {
                             steps {
-                                utils.buildDevImage()
+                                buildDevImage()
                             }
                         }
                         stage("Integration tests") {
@@ -222,8 +260,8 @@ pipeline {
 
                     post {
                         always {
-                            utils.cleanupContainer()
-                            utils.chownWorkSpace()
+                            cleanupContainer()
+                            chownWorkSpace()
 
                             sh '''
                             echo "Creating bundles.tar.gz"
@@ -250,17 +288,17 @@ pipeline {
                     stages {
                         stage("Print info") {
                             steps {
-                                utils.printInfo()
+                                printInfo()
                             }
                         }
                         stage("Build dev image") {
                             steps {
-                                utils.buildDevImage()
+                                buildDevImage()
                             }
                         }
                         stage("Unit tests") {
                             steps {
-                                utils.runUnitTest()
+                                runUnitTest()
                             }
                         }
                         stage("Integration tests") {
@@ -283,8 +321,8 @@ pipeline {
 
                     post {
                         always {
-                            utils.cleanupContainer()
-                            utils.chownWorkSpace()
+                            cleanupContainer()
+                            chownWorkSpace()
 
                             sh '''
                             echo "Creating bundles.tar.gz"
@@ -311,17 +349,17 @@ pipeline {
                     stages {
                         stage("Print info") {
                             steps {
-                                utils.printInfo()
+                                printInfo()
                             }
                         }
                         stage("Build dev image") {
                             steps {
-                                utils.buildDevImage()
+                                buildDevImage()
                             }
                         }
                         stage("Unit tests") {
                             steps {
-                                utils.runUnitTest()
+                                runUnitTest()
                             }
                         }
                         stage("Integration tests") {
@@ -344,8 +382,8 @@ pipeline {
 
                     post {
                         always {
-                            utils.cleanupContainer()
-                            utils.chownWorkSpace()
+                            cleanupContainer()
+                            chownWorkSpace()
 
                             sh '''
                             echo "Creating bundles.tar.gz"
