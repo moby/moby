@@ -1,4 +1,7 @@
 #!groovy
+
+def utils = load "utils.groovy"
+
 pipeline {
     agent none
 
@@ -35,18 +38,12 @@ pipeline {
                     stages {
                         stage("Print info") {
                             steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                                sh '''
-                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
-                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
-                                && bash ${WORKSPACE}/check-config.sh || true
-                                '''
+                                utils.printInfo()
                             }
                         }
                         stage("Build dev image") {
                             steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
+                                utils.buildDevImage()
                             }
                         }
                         stage("Validate") {
@@ -80,15 +77,7 @@ pipeline {
                         }
                         stage("Unit tests") {
                             steps {
-                                sh '''
-                                docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                  --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER \
-                                  docker:${GIT_COMMIT} \
-                                  hack/test/unit
-                                '''
+                                utils.runUnitTest()
                             }
                         }
                         stage("Validate vendor") {
@@ -118,15 +107,8 @@ pipeline {
                     post {
                         always {
                             junit 'bundles/junit-report.xml'
-                            sh '''
-                            echo 'Ensuring container killed.'
-                            docker rm -vf docker-pr$BUILD_NUMBER || true
-                            '''
-
-                            sh '''
-                            echo 'Chowning /workspace to jenkins user'
-                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
-                            '''
+                            utils.cleanupContainer()
+                            utils.chownWorkSpace()
 
                             sh '''
                             echo 'Creating unit-bundles.tar.gz'
@@ -151,13 +133,7 @@ pipeline {
                     stages {
                         stage("Print info") {
                             steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                                sh '''
-                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
-                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
-                                && bash ${WORKSPACE}/check-config.sh || true
-                                '''
+                                utils.printInfo()
                             }
                         }
                         stage("Build dev image") {
@@ -165,9 +141,8 @@ pipeline {
                                 sh '''
                                 # todo: include ip_vs in base image
                                 sudo modprobe ip_vs
-                
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
+                                utils.buildDevImage()
                             }
                         }
                         stage("Run tests") {
@@ -193,15 +168,8 @@ pipeline {
 
                     post {
                         always {
-                            sh '''
-                            echo "Ensuring container killed."
-                            docker rm -vf docker-pr$BUILD_NUMBER || true
-                            '''
-
-                            sh '''
-                            echo "Chowning /workspace to jenkins user"
-                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
-                            '''
+                            utils.cleanupContainer()
+                            utils.chownWorkSpace()
 
                             sh '''
                             echo "Creating janky-bundles.tar.gz"
@@ -226,18 +194,12 @@ pipeline {
                     stages {
                         stage("Print info") {
                             steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                                sh '''
-                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
-                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
-                                && bash ${WORKSPACE}/check-config.sh || true
-                                '''
+                                utils.printInfo()
                             }
                         }
                         stage("Build dev image") {
                             steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT}-exp .'
+                                utils.buildDevImage()
                             }
                         }
                         stage("Integration tests") {
@@ -249,7 +211,7 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL=y \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
-                                  docker:${GIT_COMMIT}-exp \
+                                  docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     binary-daemon \
                                     test-integration
@@ -260,15 +222,8 @@ pipeline {
 
                     post {
                         always {
-                            sh '''
-                            echo "Ensuring container killed."
-                            docker rm -vf docker-pr$BUILD_NUMBER || true
-                            '''
-
-                            sh '''
-                            echo "Chowning /workspace to jenkins user"
-                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
-                            '''
+                            utils.cleanupContainer()
+                            utils.chownWorkSpace()
 
                             sh '''
                             echo "Creating bundles.tar.gz"
@@ -295,33 +250,17 @@ pipeline {
                     stages {
                         stage("Print info") {
                             steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                                sh '''
-                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
-                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
-                                && bash ${WORKSPACE}/check-config.sh || true
-                                '''
+                                utils.printInfo()
                             }
                         }
                         stage("Build dev image") {
                             steps {
-                                sh '''
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .
-                                '''
+                                utils.buildDevImage()
                             }
                         }
                         stage("Unit tests") {
                             steps {
-                                sh '''
-                                docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                  --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER \
-                                  docker:${GIT_COMMIT} \
-                                  hack/test/unit
-                                '''
+                                utils.runUnitTest()
                             }
                         }
                         stage("Integration tests") {
@@ -344,15 +283,8 @@ pipeline {
 
                     post {
                         always {
-                            sh '''
-                            echo "Ensuring container killed."
-                            docker rm -vf docker-pr$BUILD_NUMBER || true
-                            '''
-
-                            sh '''
-                            echo "Chowning /workspace to jenkins user"
-                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
-                            '''
+                            utils.cleanupContainer()
+                            utils.chownWorkSpace()
 
                             sh '''
                             echo "Creating bundles.tar.gz"
@@ -379,31 +311,17 @@ pipeline {
                     stages {
                         stage("Print info") {
                             steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                                sh '''
-                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
-                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
-                                && bash ${WORKSPACE}/check-config.sh || true
-                                '''
+                                utils.printInfo()
                             }
                         }
                         stage("Build dev image") {
                             steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .'
+                                utils.buildDevImage()
                             }
                         }
                         stage("Unit tests") {
                             steps {
-                                sh '''
-                                docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                  --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER \
-                                  docker:${GIT_COMMIT} \
-                                  hack/test/unit
-                                '''
+                                utils.runUnitTest()
                             }
                         }
                         stage("Integration tests") {
@@ -426,15 +344,8 @@ pipeline {
 
                     post {
                         always {
-                            sh '''
-                            echo "Ensuring container killed."
-                            docker rm -vf docker-pr$BUILD_NUMBER || true
-                            '''
-
-                            sh '''
-                            echo "Chowning /workspace to jenkins user"
-                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
-                            '''
+                            utils.cleanupContainer()
+                            utils.chownWorkSpace()
 
                             sh '''
                             echo "Creating bundles.tar.gz"
