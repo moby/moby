@@ -43,7 +43,7 @@ import (
 	lntypes "github.com/docker/libnetwork/types"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -954,12 +954,7 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *config.Co
 		netOption[bridge.DefaultBindingIP] = config.BridgeConfig.DefaultIP.String()
 	}
 
-	var (
-		ipamV4Conf *libnetwork.IpamConf
-		ipamV6Conf *libnetwork.IpamConf
-	)
-
-	ipamV4Conf = &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
+	ipamV4Conf := &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
 
 	nwList, nw6List, err := netutils.ElectInterfaceAddresses(bridgeName)
 	if err != nil {
@@ -1011,7 +1006,11 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *config.Co
 		ipamV4Conf.AuxAddresses["DefaultGatewayIPv4"] = config.BridgeConfig.DefaultGatewayIPv4.String()
 	}
 
-	var deferIPv6Alloc bool
+	var (
+		deferIPv6Alloc bool
+		ipamV6Conf     *libnetwork.IpamConf
+	)
+
 	if config.BridgeConfig.FixedCIDRv6 != "" {
 		_, fCIDRv6, err := net.ParseCIDR(config.BridgeConfig.FixedCIDRv6)
 		if err != nil {
@@ -1027,10 +1026,10 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *config.Co
 		ones, _ := fCIDRv6.Mask.Size()
 		deferIPv6Alloc = ones <= 80
 
-		if ipamV6Conf == nil {
-			ipamV6Conf = &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
+		ipamV6Conf = &libnetwork.IpamConf{
+			AuxAddresses:  make(map[string]string),
+			PreferredPool: fCIDRv6.String(),
 		}
-		ipamV6Conf.PreferredPool = fCIDRv6.String()
 
 		// In case the --fixed-cidr-v6 is specified and the current docker0 bridge IPv6
 		// address belongs to the same network, we need to inform libnetwork about it, so
