@@ -1175,12 +1175,12 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectWithPortMapping(c *check.C)
 }
 
 func verifyPortMap(c *check.C, container, port, originalMapping string, mustBeEqual bool) {
-	chk := checker.Equals
-	if !mustBeEqual {
-		chk = checker.Not(checker.Equals)
-	}
 	currentMapping, _ := dockerCmd(c, "port", container, port)
-	c.Assert(currentMapping, chk, originalMapping)
+	if mustBeEqual {
+		c.Assert(currentMapping, checker.Equals, originalMapping)
+	} else {
+		c.Assert(currentMapping, checker.Not(checker.Equals), originalMapping)
+	}
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnectWithPortMapping(c *check.C) {

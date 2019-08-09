@@ -38,7 +38,7 @@ type logT interface {
 }
 
 type skipT interface {
-	Skip(reason string)
+	Skip(...interface{})
 }
 
 // Fake is a static file server. It might be running locally or remotely
@@ -56,7 +56,8 @@ func SetTestEnvironment(env *environment.Execution) {
 }
 
 // New returns a static file server that will be use as build context.
-func New(t testingT, dir string, modifiers ...func(*fakecontext.Fake) error) Fake {
+func New(tt interface{}, dir string, modifiers ...func(*fakecontext.Fake) error) Fake {
+	t := tt.(testingT)
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}

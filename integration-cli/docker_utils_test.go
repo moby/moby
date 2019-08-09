@@ -38,7 +38,7 @@ func dockerCmdWithError(args ...string) (string, int, error) {
 }
 
 // Deprecated: use cli.Docker or cli.DockerCmd
-func dockerCmd(c *check.C, args ...string) (string, int) {
+func dockerCmd(c cli.TestingT, args ...string) (string, int) {
 	result := cli.DockerCmd(c, args...)
 	return result.Combined(), result.ExitCode
 }
@@ -412,27 +412,28 @@ func getErrorMessage(c *check.C, body []byte) string {
 	return strings.TrimSpace(resp.Message)
 }
 
-func waitAndAssert(c *check.C, timeout time.Duration, f checkF, checker check.Checker, args ...interface{}) {
+func waitAndAssert(t assert.TestingT, timeout time.Duration, f checkF, comparison assert.BoolOrComparison, args ...interface{}) {
 	t1 := time.Now()
 	defer func() {
 		t2 := time.Now()
-		c.Logf("waited for %v (out of %v)", t2.Sub(t1), timeout)
+		t.(testingT).Logf("waited for %v (out of %v)", t2.Sub(t1), timeout)
 	}()
 
 	after := time.After(timeout)
 	for {
-		v, comment := f(c)
-		assert, _ := checker.Check(append([]interface{}{v}, args...), checker.Info().Params)
+		v, comment := f(t.(*check.C))
+		args = append([]interface{}{v}, args...)
+		shouldAssert := assert.Check(t, comparison, args...)
 		select {
 		case <-after:
-			assert = true
+			shouldAssert = true
 		default:
 		}
-		if assert {
+		if shouldAssert {
 			if comment != nil {
-				args = append(args, comment)
+				args = append(args, comment.CheckCommentString())
 			}
-			c.Assert(v, checker, args...)
+			assert.Assert(t, comparison, args...)
 			return
 		}
 		time.Sleep(100 * time.Millisecond)

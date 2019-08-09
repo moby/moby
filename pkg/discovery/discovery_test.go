@@ -85,23 +85,20 @@ func (s *DiscoverySuite) TestEntriesEquality(c *check.C) {
 	c.Assert(entries.Equals(Entries{
 		&Entry{Host: "127.0.0.1", Port: "2375"},
 		&Entry{Host: "127.0.0.2", Port: "2375"},
-	}), check.
-		Equals, true)
+	}), check.Equals, true)
 
 	// Different size
 	c.Assert(entries.Equals(Entries{
 		&Entry{Host: "127.0.0.1", Port: "2375"},
 		&Entry{Host: "127.0.0.2", Port: "2375"},
 		&Entry{Host: "127.0.0.3", Port: "2375"},
-	}), check.
-		Equals, false)
+	}), check.Equals, false)
 
 	// Different content
 	c.Assert(entries.Equals(Entries{
 		&Entry{Host: "127.0.0.1", Port: "2375"},
 		&Entry{Host: "127.0.0.42", Port: "2375"},
-	}), check.
-		Equals, false)
+	}), check.Equals, false)
 
 }
 

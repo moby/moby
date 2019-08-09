@@ -28,7 +28,7 @@ type logT interface {
 }
 
 type skipT interface {
-	Skip(reason string)
+	Skip(...interface{})
 }
 
 type gitServer interface {
@@ -63,7 +63,8 @@ func (g *FakeGit) Close() {
 }
 
 // New create a fake git server that can be used for git related tests
-func New(c testingT, name string, files map[string]string, enforceLocalServer bool) *FakeGit {
+func New(cc interface{}, name string, files map[string]string, enforceLocalServer bool) *FakeGit {
+	c := cc.(testingT)
 	if ht, ok := c.(test.HelperT); ok {
 		ht.Helper()
 	}
