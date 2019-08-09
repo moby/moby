@@ -179,6 +179,8 @@ pipeline {
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e TEST_SKIP_INTEGRATION \
+                                  -e TEST_SKIP_INTEGRATION_CLI \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     binary-daemon \
@@ -249,6 +251,8 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL=y \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e TEST_SKIP_INTEGRATION \
+                                  -e TEST_SKIP_INTEGRATION_CLI \
                                   docker:${GIT_COMMIT}-exp \
                                   hack/make.sh \
                                     binary-daemon \
@@ -289,8 +293,13 @@ pipeline {
                         expression { params.z }
                     }
                     agent { label 's390x-ubuntu-1604' }
-                    // s390x machines run on Docker 18.06, and buildkit has some bugs on that version
-                    environment { DOCKER_BUILDKIT = '0' }
+                    environment {
+                        // s390x machines run on Docker 18.06, and buildkit has some bugs on that version
+                        DOCKER_BUILDKIT = '0'
+
+                        // Run integration-cli only on master
+                        TEST_SKIP_INTEGRATION_CLI = "${env.BRANCH_NAME != "master" ? '1' : '0'}"
+                    }
 
                     stages {
                         stage("Print info") {
@@ -332,6 +341,8 @@ pipeline {
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e TEST_SKIP_INTEGRATION \
+                                  -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT="300m" \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
@@ -373,8 +384,13 @@ pipeline {
                         expression { params.powerpc }
                     }
                     agent { label 'ppc64le-ubuntu-1604' }
-                    // power machines run on Docker 18.06, and buildkit has some bugs on that version
-                    environment { DOCKER_BUILDKIT = '0' }
+                    environment {
+                        // power machines run on Docker 18.06, and buildkit has some bugs on that version
+                        DOCKER_BUILDKIT = '0'
+
+                        // Run integration-cli only on master
+                        TEST_SKIP_INTEGRATION_CLI = "${env.BRANCH_NAME != "master" ? '1' : '0'}"
+                    }
 
                     stages {
                         stage("Print info") {
@@ -414,6 +430,8 @@ pipeline {
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e TEST_SKIP_INTEGRATION \
+                                  -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT="180m" \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
