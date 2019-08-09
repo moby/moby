@@ -333,6 +333,7 @@ pipeline {
                             }
                         }
                         stage("Integration tests") {
+                            environment { TEST_SKIP_INTEGRATION_CLI = '1' }
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
@@ -341,7 +342,7 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
-                                  -e TEST_SKIP_INTEGRATION_CLI=1 \
+                                  -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
@@ -408,6 +409,7 @@ pipeline {
                             }
                         }
                         stage("Integration-cli tests") {
+                            environment { TEST_SKIP_INTEGRATION = '1' }
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
@@ -415,7 +417,7 @@ pipeline {
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
-                                  -e TEST_SKIP_INTEGRATION=1 \
+                                  -e TEST_SKIP_INTEGRATION \
                                   -e TIMEOUT \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
