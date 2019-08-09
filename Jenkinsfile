@@ -10,7 +10,6 @@ pipeline {
     parameters {
         booleanParam(name: 'unit_validate', defaultValue: true, description: 'x86 unit tests and vendor check')
         booleanParam(name: 'janky', defaultValue: true, description: 'x86 Build/Test')
-        booleanParam(name: 'experimental', defaultValue: true, description: 'x86 Experimental Build/Test ')
         booleanParam(name: 'z', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
         booleanParam(name: 'powerpc', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
         booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
@@ -18,6 +17,7 @@ pipeline {
     }
     environment {
         DOCKER_BUILDKIT     = '1'
+        DOCKER_EXPERIMENTAL = '1'
         DOCKER_GRAPHDRIVER  = 'overlay2'
         APT_MIRROR          = 'cdn-fastly.deb.debian.org'
         CHECK_CONFIG_COMMIT = '78405559cfe5987174aa2cb6463b9b2c1b917255'
@@ -56,6 +56,7 @@ pipeline {
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
                                   --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
@@ -69,6 +70,7 @@ pipeline {
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
@@ -84,6 +86,7 @@ pipeline {
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
@@ -97,6 +100,7 @@ pipeline {
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
                                   --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TIMEOUT=120m \
@@ -177,6 +181,7 @@ pipeline {
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
                                   --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
@@ -209,73 +214,6 @@ pipeline {
                             '''
 
                             archiveArtifacts artifacts: 'janky-bundles.tar.gz'
-                        }
-                        cleanup {
-                            sh 'make clean'
-                            deleteDir()
-                        }
-                    }
-                }
-                stage('experimental') {
-                    when {
-                        beforeAgent true
-                        expression { params.experimental }
-                    }
-                    agent { label 'amd64 && ubuntu-1804 && overlay2' }
-
-                    stages {
-                        stage("Print info") {
-                            steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                                sh '''
-                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
-                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
-                                && bash ${WORKSPACE}/check-config.sh || true
-                                '''
-                            }
-                        }
-                        stage("Build dev image") {
-                            steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT}-exp .'
-                            }
-                        }
-                        stage("Integration tests") {
-                            steps {
-                                sh '''
-                                docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                  --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_EXPERIMENTAL=y \
-                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER \
-                                  docker:${GIT_COMMIT}-exp \
-                                  hack/make.sh \
-                                    binary-daemon \
-                                    test-integration
-                                '''
-                            }
-                        }
-                    }
-
-                    post {
-                        always {
-                            sh '''
-                            echo "Ensuring container killed."
-                            docker rm -vf docker-pr$BUILD_NUMBER || true
-                            '''
-
-                            sh '''
-                            echo "Chowning /workspace to jenkins user"
-                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
-                            '''
-
-                            sh '''
-                            echo "Creating bundles.tar.gz"
-                            (find bundles -name '*.log' -o -name '*.prof' -o -name integration.test | xargs tar -czf experimental-bundles.tar.gz) || true
-                            '''
-
-                            archiveArtifacts artifacts: 'experimental-bundles.tar.gz'
                         }
                         cleanup {
                             sh 'make clean'
@@ -317,6 +255,7 @@ pipeline {
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
@@ -330,6 +269,7 @@ pipeline {
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TIMEOUT="300m" \
@@ -399,6 +339,7 @@ pipeline {
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
@@ -412,6 +353,7 @@ pipeline {
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TIMEOUT="180m" \
