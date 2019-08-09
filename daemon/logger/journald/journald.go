@@ -21,7 +21,6 @@ type journald struct {
 	mu      sync.Mutex
 	vars    map[string]string // additional variables and values to send to the journal along with the log message
 	readers map[*logger.LogWatcher]struct{}
-	closed  bool
 }
 
 func init() {
