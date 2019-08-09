@@ -16,7 +16,7 @@ func getLoopbackBackingFile(file *os.File) (uint64, uint64, error) {
 		logrus.Errorf("Error get loopback backing file: %s", err)
 		return 0, 0, ErrGetLoopbackBackingFile
 	}
-	return loopInfo.loDevice, loopInfo.loInode, nil
+	return loopInfo.Device, loopInfo.Inode, nil
 }
 
 // SetCapacity reloads the size for the loopback device.
