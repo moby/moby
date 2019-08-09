@@ -148,7 +148,6 @@ pipeline {
 
                     post {
                         always {
-                            junit 'bundles/junit-report.xml'
                             sh '''
                             echo 'Ensuring container killed.'
                             docker rm -vf docker-pr$BUILD_NUMBER || true
@@ -165,6 +164,7 @@ pipeline {
                             '''
 
                             archiveArtifacts artifacts: 'unit-bundles.tar.gz'
+                            junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
                         }
                         cleanup {
                             sh 'make clean'
