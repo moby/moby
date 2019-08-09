@@ -290,7 +290,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 				setNamespace(s, nsUser)
 			}
 		case ipcMode.IsHost():
-			oci.RemoveNamespace(s, specs.LinuxNamespaceType("ipc"))
+			oci.RemoveNamespace(s, "ipc")
 		case ipcMode.IsEmpty():
 			// A container was created by an older version of the daemon.
 			// The default behavior used to be what is now called "shareable".
@@ -304,28 +304,32 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 
 		// pid
 		if c.HostConfig.PidMode.IsContainer() {
-			ns := specs.LinuxNamespace{Type: "pid"}
 			pc, err := daemon.getPidContainer(c)
 			if err != nil {
 				return err
 			}
-			ns.Path = fmt.Sprintf("/proc/%d/ns/pid", pc.State.GetPID())
+			ns := specs.LinuxNamespace{
+				Type: "pid",
+				Path: fmt.Sprintf("/proc/%d/ns/pid", pc.State.GetPID()),
+			}
 			setNamespace(s, ns)
 			if userNS {
 				// to share a PID namespace, they must also share a user namespace
-				nsUser := specs.LinuxNamespace{Type: "user"}
-				nsUser.Path = fmt.Sprintf("/proc/%d/ns/user", pc.State.GetPID())
+				nsUser := specs.LinuxNamespace{
+					Type: "user",
+					Path: fmt.Sprintf("/proc/%d/ns/user", pc.State.GetPID()),
+				}
 				setNamespace(s, nsUser)
 			}
 		} else if c.HostConfig.PidMode.IsHost() {
-			oci.RemoveNamespace(s, specs.LinuxNamespaceType("pid"))
+			oci.RemoveNamespace(s, "pid")
 		} else {
 			ns := specs.LinuxNamespace{Type: "pid"}
 			setNamespace(s, ns)
 		}
 		// uts
 		if c.HostConfig.UTSMode.IsHost() {
-			oci.RemoveNamespace(s, specs.LinuxNamespaceType("uts"))
+			oci.RemoveNamespace(s, "uts")
 			s.Hostname = ""
 		}
 

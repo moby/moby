@@ -54,7 +54,7 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 }
 
 func cleanupFakeContainer(c *container.Container) {
-	os.RemoveAll(c.Root)
+	_ = os.RemoveAll(c.Root)
 }
 
 // TestTmpfsDevShmNoDupMount checks that a user-specified /dev/shm tmpfs
