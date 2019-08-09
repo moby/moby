@@ -210,7 +210,8 @@ pipeline {
 
                             sh '''
                             echo "Creating janky-bundles.tar.gz"
-                            (find bundles -name '*.log' -o -name '*.prof' -o -name integration.test | xargs tar -czf janky-bundles.tar.gz) || true
+                            # exclude overlay2 directories
+                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf janky-bundles.tar.gz
                             '''
 
                             archiveArtifacts artifacts: 'janky-bundles.tar.gz'
@@ -295,8 +296,9 @@ pipeline {
                             '''
 
                             sh '''
-                            echo "Creating bundles.tar.gz"
-                            find bundles -name '*.log' | xargs tar -czf s390x-bundles.tar.gz
+                            echo "Creating s390x-bundles.tar.gz"
+                            # exclude overlay2 directories
+                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf s390x-bundles.tar.gz
                             '''
 
                             archiveArtifacts artifacts: 's390x-bundles.tar.gz'
@@ -379,8 +381,9 @@ pipeline {
                             '''
 
                             sh '''
-                            echo "Creating bundles.tar.gz"
-                            find bundles -name '*.log' | xargs tar -czf powerpc-bundles.tar.gz
+                            echo "Creating powerpc-bundles.tar.gz"
+                            # exclude overlay2 directories
+                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf powerpc-bundles.tar.gz
                             '''
 
                             archiveArtifacts artifacts: 'powerpc-bundles.tar.gz'
