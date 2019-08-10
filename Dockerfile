@@ -248,6 +248,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	pigz \
 	python3-pip \
 	python3-setuptools \
+	python3-wheel \
 	thin-provisioning-tools \
 	vim \
 	vim-common \
