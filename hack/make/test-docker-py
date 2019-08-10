@@ -16,7 +16,7 @@ source hack/make/.integration-test-helpers
 --deselect=tests/integration/api_exec_test.py::ExecTest::test_detach_with_arg \
 --deselect=tests/integration/api_exec_test.py::ExecDemuxTest::test_exec_command_tty_stream_no_demux \
 --deselect=tests/integration/api_build_test.py::BuildTest::test_build_invalid_platform \
---deselect=tests/integration/api_image_test.py::PullImageTest::test_build_invalid_platform \
+--deselect=tests/integration/api_image_test.py::PullImageTest::test_pull_invalid_platform \
 "}
 (
 	bundle .integration-daemon-start
