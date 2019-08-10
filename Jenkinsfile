@@ -80,6 +80,11 @@ pipeline {
                                     test-docker-py
                                 '''
                             }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/test-docker-py/junit-report.xml', allowEmptyResults: true
+                                }
+                            }
                         }
                         stage("Static") {
                             steps {
