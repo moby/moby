@@ -371,7 +371,7 @@ pipeline {
                             find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf s390x-bundles.tar.gz
                             '''
 
-                            archiveArtifacts artifacts: 's390x-bundles.tar.gz'
+                            archiveArtifacts artifacts: 's390x-integration-bundles.tar.gz'
                         }
                         cleanup {
                             sh 'make clean'
@@ -442,10 +442,10 @@ pipeline {
 
                             sh '''
                             echo "Creating bundles.tar.gz"
-                            find bundles -name '*.log' | xargs tar -czf s390x-master-bundles.tar.gz
+                            find bundles -name '*.log' | xargs tar -czf z-integration-cli-bundles.tar.gz
                             '''
 
-                            archiveArtifacts artifacts: 's390x-master-bundles.tar.gz'
+                            archiveArtifacts artifacts: 'z-integration-cli-bundles.tar.gz'
                         }
                         cleanup {
                             sh 'make clean'
