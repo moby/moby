@@ -26,7 +26,7 @@ source hack/make/.integration-test-helpers
 	case "${docker_host_scheme}" in
 		unix)
 			# trim the tcp:// scheme, and bind-mount the docker socket into the container
-			run_opts="-v ${DOCKER_HOST#unix://}:/var/run/docker.sock"
+			run_opts="--mount type=bind,src=${DOCKER_HOST#unix://},dst=/var/run/docker.sock"
 			;;
 
 		tcp)
