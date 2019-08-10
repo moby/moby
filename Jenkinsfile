@@ -76,7 +76,7 @@ pipeline {
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
-                                    binary-daemon \
+                                    dynbinary-daemon \
                                     test-docker-py
                                 '''
                             }
