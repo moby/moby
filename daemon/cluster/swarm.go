@@ -19,6 +19,7 @@ import (
 	swarmnode "github.com/docker/swarmkit/node"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 )
 
 // Init initializes new cluster from user provided request.
@@ -449,7 +450,10 @@ func (c *Cluster) Info() types.Info {
 
 		info.Cluster = &swarm.ClusterInfo
 
-		if r, err := state.controlClient.ListNodes(ctx, &swarmapi.ListNodesRequest{}); err != nil {
+		if r, err := state.controlClient.ListNodes(
+			ctx, &swarmapi.ListNodesRequest{},
+			grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse),
+		); err != nil {
 			info.Error = err.Error()
 		} else {
 			info.Nodes = len(r.Nodes)
