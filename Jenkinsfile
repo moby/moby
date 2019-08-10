@@ -527,12 +527,12 @@ pipeline {
                             '''
 
                             sh '''
-                            echo "Creating powerpc-bundles.tar.gz"
+                            echo "Creating powerpc-integration-bundles.tar.gz"
                             # exclude overlay2 directories
-                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf powerpc-bundles.tar.gz
+                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf powerpc-integration-bundles.tar.gz
                             '''
 
-                            archiveArtifacts artifacts: 'powerpc-bundles.tar.gz'
+                            archiveArtifacts artifacts: 'powerpc-integration-bundles.tar.gz'
                         }
                         cleanup {
                             sh 'make clean'
@@ -601,10 +601,10 @@ pipeline {
 
                             sh '''
                             echo "Creating bundles.tar.gz"
-                            find bundles -name '*.log' | xargs tar -czf powerpc-master-bundles.tar.gz
+                            find bundles -name '*.log' | xargs tar -czf powerpc-integration-cli-bundles.tar.gz
                             '''
 
-                            archiveArtifacts artifacts: 'powerpc-master-bundles.tar.gz'
+                            archiveArtifacts artifacts: 'powerpc-integration-cli-bundles.tar.gz'
                         }
                         cleanup {
                             sh 'make clean'
