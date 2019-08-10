@@ -7,21 +7,21 @@ source hack/make/.integration-test-helpers
 # TODO docker 17.06 cli client used in CI fails to build using a sha;
 # unable to prepare context: unable to 'git clone' to temporary context directory: error fetching: error: no such remote ref ead0bb9e08c13dd3d1712759491eee06bf5a5602
 #: exit status 128
-: ${DOCKER_PY_COMMIT:=4.0.2}
+: "${DOCKER_PY_COMMIT:=4.0.2}"
 
 # custom options to pass py.test
 # TODO remove these skip once we update to a docker-py version that has https://github.com/docker/docker-py/pull/2369, https://github.com/docker/docker-py/pull/2380, https://github.com/docker/docker-py/pull/2382
-: ${PY_TEST_OPTIONS:="\
+: "${PY_TEST_OPTIONS:=\
 --deselect=tests/integration/api_swarm_test.py::SwarmTest::test_init_swarm_data_path_addr \
 --deselect=tests/integration/api_exec_test.py::ExecTest::test_detach_with_arg \
 --deselect=tests/integration/api_exec_test.py::ExecDemuxTest::test_exec_command_tty_stream_no_demux \
 --deselect=tests/integration/api_build_test.py::BuildTest::test_build_invalid_platform \
 --deselect=tests/integration/api_image_test.py::PullImageTest::test_pull_invalid_platform \
-"}
+}"
 (
 	bundle .integration-daemon-start
 
-	docker_host_scheme=`echo "${DOCKER_HOST}" | cut -d: -f1 -`
+	docker_host_scheme=$(echo "${DOCKER_HOST}" | cut -d: -f1 -)
 
 	case "${docker_host_scheme}" in
 		unix)
@@ -48,14 +48,16 @@ source hack/make/.integration-test-helpers
 			[ -n "${TESTDEBUG}" ] && set -x
 			[ -z "${TESTDEBUG}" ] && build_opts="--quiet"
 			[ -f /.dockerenv ] || build_opts="${build_opts} --network=host"
-			exec docker build ${build_opts} -t ${docker_py_image} -f tests/Dockerfile "https://github.com/docker/docker-py.git#${DOCKER_PY_COMMIT}"
+			# shellcheck disable=SC2086
+			exec docker build ${build_opts} -t "${docker_py_image}" -f tests/Dockerfile "https://github.com/docker/docker-py.git#${DOCKER_PY_COMMIT}"
 		)
 	fi
 
 	echo INFO: Starting docker-py tests...
 	(
 		[ -n "${TESTDEBUG}" ] && set -x
-		exec docker run -t --rm ${run_opts} ${docker_py_image} pytest ${PY_TEST_OPTIONS} tests/integration
+		# shellcheck disable=SC2086
+		exec docker run -t --rm ${run_opts} "${docker_py_image}" pytest ${PY_TEST_OPTIONS} tests/integration
 	)
 	bundle .integration-daemon-stop
 ) 2>&1 | tee -a "$DEST/test.log"
