@@ -17,6 +17,7 @@ source hack/make/.integration-test-helpers
 --deselect=tests/integration/api_exec_test.py::ExecDemuxTest::test_exec_command_tty_stream_no_demux \
 --deselect=tests/integration/api_build_test.py::BuildTest::test_build_invalid_platform \
 --deselect=tests/integration/api_image_test.py::PullImageTest::test_pull_invalid_platform \
+--junitxml=${DEST}/junit-report.xml \
 }"
 (
 	bundle .integration-daemon-start
@@ -56,8 +57,8 @@ source hack/make/.integration-test-helpers
 	echo INFO: Starting docker-py tests...
 	(
 		[ -n "${TESTDEBUG}" ] && set -x
-		# shellcheck disable=SC2086
-		exec docker run --rm ${run_opts} "${docker_py_image}" pytest ${PY_TEST_OPTIONS} tests/integration
+		# shellcheck disable=SC2086,SC2140
+		exec docker run --rm ${run_opts} --mount type=bind,"src=${ABS_DEST}","dst=/src/${DEST}" "${docker_py_image}" pytest ${PY_TEST_OPTIONS} tests/integration
 	)
 	bundle .integration-daemon-stop
 ) 2>&1 | tee -a "$DEST/test.log"
