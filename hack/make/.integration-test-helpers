@@ -60,8 +60,14 @@ run_test_integration_suites() {
 		if ! (
 			cd "$dir"
 			echo "Running $PWD flags=${flags}"
+			[ -n "$TESTDEBUG" ] && set -x
 			# shellcheck disable=SC2086
-			test_env ./test.main ${flags}
+			test_env gotestsum \
+				--format=standard-verbose \
+				--jsonfile="${ABS_DEST}/$(basename "$dir")-go-test-report.json" \
+				--junitfile="${ABS_DEST}/$(basename "$dir")-junit-report.xml" \
+				--raw-command \
+				-- go tool test2json ./test.main ${flags}
 		); then exit 1; fi
 	done
 }
