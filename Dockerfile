@@ -26,6 +26,7 @@
 
 ARG CROSS="false"
 ARG GO_VERSION=1.12.8
+ARG DEBIAN_FRONTEND=noninteractive
 
 FROM golang:${GO_VERSION}-stretch AS base
 ARG APT_MIRROR
@@ -33,6 +34,7 @@ RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/
  && sed -ri "s/(security).debian.org/${APT_MIRROR:-security.debian.org}/g" /etc/apt/sources.list
 
 FROM base AS criu
+ARG DEBIAN_FRONTEND
 # Install CRIU for checkpoint/restore support
 ENV CRIU_VERSION 3.11
 # Install dependency packages specific to criu
@@ -85,6 +87,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 FROM base AS frozen-images
+ARG DEBIAN_FRONTEND
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	ca-certificates \
 	jq \
@@ -102,6 +105,7 @@ RUN /download-frozen-image-v2.sh /build \
 FROM base AS cross-false
 
 FROM base AS cross-true
+ARG DEBIAN_FRONTEND
 RUN dpkg --add-architecture armhf
 RUN dpkg --add-architecture arm64
 RUN dpkg --add-architecture armel
@@ -116,11 +120,13 @@ RUN if [ "$(go env GOHOSTARCH)" = "amd64" ]; then \
 FROM cross-${CROSS} as dev-base
 
 FROM dev-base AS runtime-dev-cross-false
+ARG DEBIAN_FRONTEND
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	libapparmor-dev \
 	libseccomp-dev \
 	&& rm -rf /var/lib/apt/lists/*
 FROM cross-true AS runtime-dev-cross-true
+ARG DEBIAN_FRONTEND
 # These crossbuild packages rely on gcc-<arch>, but this doesn't want to install
 # on non-amd64 systems.
 # Additionally, the crossbuild-amd64 is currently only on debian:buster, so
@@ -155,6 +161,7 @@ COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM dev-base AS containerd
+ARG DEBIAN_FRONTEND
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	btrfs-tools \
 	&& rm -rf /var/lib/apt/lists/*
@@ -194,6 +201,7 @@ COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM dev-base AS tini
+ARG DEBIAN_FRONTEND
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	cmake \
 	vim-common \
@@ -212,6 +220,7 @@ COPY ./contrib/dockerd-rootless.sh /build
 
 # TODO: Some of this is only really needed for testing, it would be nice to split this up
 FROM runtime-dev AS dev
+ARG DEBIAN_FRONTEND
 RUN groupadd -r docker
 RUN useradd --create-home --gid docker unprivilegeduser
 # Let us use a .bashrc file
