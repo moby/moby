@@ -335,6 +335,11 @@ pipeline {
                                   hack/test/unit
                                 '''
                             }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
+                                }
+                            }
                         }
                         stage("Integration tests") {
                             environment { TEST_SKIP_INTEGRATION_CLI = '1' }
@@ -495,6 +500,11 @@ pipeline {
                                   docker:${GIT_COMMIT} \
                                   hack/test/unit
                                 '''
+                            }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
+                                }
                             }
                         }
                         stage("Integration tests") {
