@@ -114,7 +114,7 @@ pipeline {
                                     tar -czf docker-py-bundles.tar.gz bundles/test-docker-py/*.xml bundles/test-docker-py/*.log
                                     '''
 
-                                    archiveArtifacts artifacts: 'docker-py-bundles.tar.gz'
+                                    archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
                                 }
                             }
                         }
@@ -205,7 +205,7 @@ pipeline {
                             tar -czvf unit-bundles.tar.gz bundles/junit-report.xml bundles/go-test-report.json bundles/profile.out
                             '''
 
-                            archiveArtifacts artifacts: 'unit-bundles.tar.gz'
+                            archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
                         }
                         cleanup {
                             sh 'make clean'
@@ -323,7 +323,7 @@ pipeline {
                             find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf janky-bundles.tar.gz
                             '''
 
-                            archiveArtifacts artifacts: 'janky-bundles.tar.gz'
+                            archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
                         }
                         cleanup {
                             sh 'make clean'
@@ -417,7 +417,7 @@ pipeline {
                             find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf s390x-integration-bundles.tar.gz
                             '''
 
-                            archiveArtifacts artifacts: 's390x-integration-bundles.tar.gz'
+                            archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
                         }
                         cleanup {
                             sh 'make clean'
@@ -491,7 +491,7 @@ pipeline {
                             find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf s390x-integration-cli-bundles.tar.gz
                             '''
 
-                            archiveArtifacts artifacts: 's390x-integration-cli-bundles.tar.gz'
+                            archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
                         }
                         cleanup {
                             sh 'make clean'
@@ -583,7 +583,7 @@ pipeline {
                             find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf powerpc-integration-bundles.tar.gz
                             '''
 
-                            archiveArtifacts artifacts: 'powerpc-integration-bundles.tar.gz'
+                            archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
                         }
                         cleanup {
                             sh 'make clean'
@@ -655,7 +655,7 @@ pipeline {
                             find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf powerpc-integration-cli-bundles.tar.gz
                             '''
 
-                            archiveArtifacts artifacts: 'powerpc-integration-cli-bundles.tar.gz'
+                            archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
                         }
                         cleanup {
                             sh 'make clean'
