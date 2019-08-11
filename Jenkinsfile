@@ -121,6 +121,11 @@ pipeline {
                                   hack/test/unit
                                 '''
                             }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
+                                }
+                            }
                         }
                         stage("Validate vendor") {
                             steps {
@@ -164,7 +169,6 @@ pipeline {
                             '''
 
                             archiveArtifacts artifacts: 'unit-bundles.tar.gz'
-                            junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
                         }
                         cleanup {
                             sh 'make clean'
