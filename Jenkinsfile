@@ -14,6 +14,7 @@ pipeline {
         booleanParam(name: 'powerpc', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
         booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
         booleanParam(name: 'windowsRS5', defaultValue: false, description: 'Windows 2019 (RS5) Build/Test')
+        booleanParam(name: 'skip_dco', defaultValue: false, description: 'Skip the DCO check')
     }
     environment {
         DOCKER_BUILDKIT     = '1'
@@ -24,6 +25,20 @@ pipeline {
         TIMEOUT             = '120m'
     }
     stages {
+        stage('DCO-check') {
+            when {
+                beforeAgent true
+                expression { !params.skip_dco }
+            }
+            agent { label 'linux' }
+            steps {
+                sh '''
+                docker run --rm \
+                  -v "$WORKSPACE:/workspace" \
+                  alpine sh -c 'apk add --no-cache -q git bash && cd /workspace && hack/validate/dco'
+                '''
+            }
+        }
         stage('Build') {
             parallel {
                 stage('unit-validate') {
