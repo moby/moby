@@ -366,9 +366,9 @@ pipeline {
                             '''
 
                             sh '''
-                            echo "Creating s390x-bundles.tar.gz"
+                            echo "Creating s390x-integration-bundles.tar.gz"
                             # exclude overlay2 directories
-                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf s390x-bundles.tar.gz
+                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf s390x-integration-bundles.tar.gz
                             '''
 
                             archiveArtifacts artifacts: 's390x-integration-bundles.tar.gz'
@@ -441,11 +441,11 @@ pipeline {
                             '''
 
                             sh '''
-                            echo "Creating bundles.tar.gz"
-                            find bundles -name '*.log' | xargs tar -czf z-integration-cli-bundles.tar.gz
+                            echo "Creating s390x-integration-cli-bundles.tar.gz"
+                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf s390x-integration-cli-bundles.tar.gz
                             '''
 
-                            archiveArtifacts artifacts: 'z-integration-cli-bundles.tar.gz'
+                            archiveArtifacts artifacts: 's390x-integration-cli-bundles.tar.gz'
                         }
                         cleanup {
                             sh 'make clean'
@@ -600,8 +600,8 @@ pipeline {
                             '''
 
                             sh '''
-                            echo "Creating bundles.tar.gz"
-                            find bundles -name '*.log' | xargs tar -czf powerpc-integration-cli-bundles.tar.gz
+                            echo "Creating powerpc-integration-cli-bundles.tar.gz"
+                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf powerpc-integration-cli-bundles.tar.gz
                             '''
 
                             archiveArtifacts artifacts: 'powerpc-integration-cli-bundles.tar.gz'
