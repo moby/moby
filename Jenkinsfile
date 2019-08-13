@@ -121,6 +121,11 @@ pipeline {
                                   hack/test/unit
                                 '''
                             }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
+                                }
+                            }
                         }
                         stage("Validate vendor") {
                             steps {
@@ -164,7 +169,6 @@ pipeline {
                             '''
 
                             archiveArtifacts artifacts: 'unit-bundles.tar.gz'
-                            junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
                         }
                         cleanup {
                             sh 'make clean'
@@ -331,6 +335,11 @@ pipeline {
                                   hack/test/unit
                                 '''
                             }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
+                                }
+                            }
                         }
                         stage("Integration tests") {
                             environment { TEST_SKIP_INTEGRATION_CLI = '1' }
@@ -491,6 +500,11 @@ pipeline {
                                   docker:${GIT_COMMIT} \
                                   hack/test/unit
                                 '''
+                            }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
+                                }
                             }
                         }
                         stage("Integration tests") {
