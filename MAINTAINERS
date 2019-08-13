@@ -111,7 +111,7 @@
 			# still stumble into him in our issue tracker, or on IRC.
 			"erikh",
 
-			# Evan Hazlett is the creator of of the Shipyard and Interlock open source projects,
+			# Evan Hazlett is the creator of the Shipyard and Interlock open source projects,
 			# and the author of "Orca", which became the foundation of Docker Universal Control
 			# Plane (UCP). As a maintainer, Evan helped integrating SwarmKit (secrets, tasks)
 			# into the Docker engine.
