@@ -4,7 +4,7 @@ pipeline {
 
     options {
         buildDiscarder(logRotator(daysToKeepStr: '30'))
-        timeout(time: 3, unit: 'HOURS')
+        timeout(time: 2, unit: 'HOURS')
         timestamps()
     }
     parameters {
@@ -21,6 +21,7 @@ pipeline {
         DOCKER_GRAPHDRIVER  = 'overlay2'
         APT_MIRROR          = 'cdn-fastly.deb.debian.org'
         CHECK_CONFIG_COMMIT = '78405559cfe5987174aa2cb6463b9b2c1b917255'
+        TIMEOUT             = '120m'
     }
     stages {
         stage('Build') {
@@ -80,6 +81,33 @@ pipeline {
                                 '''
                             }
                         }
+                        stage("Static") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh binary-daemon
+                                '''
+                            }
+                        }
+                        stage("Cross") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh cross
+                                '''
+                            }
+                        }
+                        // needs to be last stage that calls make.sh for the junit report to work
                         stage("Unit tests") {
                             steps {
                                 sh '''
@@ -103,7 +131,6 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
-                                  -e TIMEOUT=120m \
                                   docker:${GIT_COMMIT} \
                                   hack/validate/vendor
                                 '''
@@ -121,7 +148,6 @@ pipeline {
 
                     post {
                         always {
-                            junit 'bundles/junit-report.xml'
                             sh '''
                             echo 'Ensuring container killed.'
                             docker rm -vf docker-pr$BUILD_NUMBER || true
@@ -138,6 +164,7 @@ pipeline {
                             '''
 
                             archiveArtifacts artifacts: 'unit-bundles.tar.gz'
+                            junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
                         }
                         cleanup {
                             sh 'make clean'
@@ -176,21 +203,62 @@ pipeline {
                         }
                         stage("Run tests") {
                             steps {
-                                sh '''
+                                sh '''#!/bin/bash
+                                # bash is needed so 'jobs -p' works properly
+                                # it also accepts setting inline envvars for functions without explicitly exporting
+ 
+                                run_tests() {
+                                        [ -n "$TESTDEBUG" ] && rm= || rm=--rm;
+                                        docker run $rm -t --privileged \
+                                          -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                          -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                                          --name "$CONTAINER_NAME" \
+                                          -e KEEPBUNDLE=1 \
+                                          -e TESTDEBUG \
+                                          -e TESTFLAGS \
+                                          -e TEST_INTEGRATION_DEST \
+                                          -e TEST_SKIP_INTEGRATION \
+                                          -e TEST_SKIP_INTEGRATION_CLI \
+                                          -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                          -e DOCKER_GRAPHDRIVER \
+                                          -e TIMEOUT \
+                                          docker:${GIT_COMMIT} \
+                                          hack/make.sh \
+                                            "$1" \
+                                            test-integration
+                                }
+
+                                trap "exit" INT TERM
+                                trap 'pids=$(jobs -p); echo "Remaining pids to kill: [$pids]"; [ -z "$pids" ] || kill $pids' EXIT
+
+                                CONTAINER_NAME=docker-pr$BUILD_NUMBER
+
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                                  --name docker-pr$BUILD_NUMBER \
+                                  --name ${CONTAINER_NAME}-build \
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
-                                    binary-daemon \
-                                    dynbinary-daemon \
-                                    test-integration-flaky \
-                                    test-integration \
-                                    cross
+                                    dynbinary-daemon
+
+                                # flaky + integration
+                                TEST_INTEGRATION_DEST=1 CONTAINER_NAME=${CONTAINER_NAME}-1 TEST_SKIP_INTEGRATION_CLI=1 run_tests test-integration-flaky &
+
+                                # integration-cli first set
+                                TEST_INTEGRATION_DEST=2 CONTAINER_NAME=${CONTAINER_NAME}-2 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-check.f ^(DockerSuite|DockerNetworkSuite|DockerHubPullSuite|DockerRegistrySuite|DockerSchema1RegistrySuite|DockerRegistryAuthTokenSuite|DockerRegistryAuthHtpasswdSuite)" run_tests &
+
+                                # integration-cli second set
+                                TEST_INTEGRATION_DEST=3 CONTAINER_NAME=${CONTAINER_NAME}-3 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-check.f ^(DockerSwarmSuite|DockerDaemonSuite|DockerExternalVolumeSuite)" run_tests &
+
+                                set +x
+                                c=0
+                                for job in $(jobs -p); do
+                                        wait ${job} || c=$?
+                                done
+                                exit $c
                                 '''
                             }
                         }
@@ -265,6 +333,7 @@ pipeline {
                             }
                         }
                         stage("Integration tests") {
+                            environment { TEST_SKIP_INTEGRATION_CLI = '1' }
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
@@ -273,7 +342,8 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
-                                  -e TIMEOUT="300m" \
+                                  -e TEST_SKIP_INTEGRATION_CLI \
+                                  -e TIMEOUT \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     dynbinary \
@@ -296,12 +366,86 @@ pipeline {
                             '''
 
                             sh '''
-                            echo "Creating s390x-bundles.tar.gz"
+                            echo "Creating s390x-integration-bundles.tar.gz"
                             # exclude overlay2 directories
-                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf s390x-bundles.tar.gz
+                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf s390x-integration-bundles.tar.gz
                             '''
 
-                            archiveArtifacts artifacts: 's390x-bundles.tar.gz'
+                            archiveArtifacts artifacts: 's390x-integration-bundles.tar.gz'
+                        }
+                        cleanup {
+                            sh 'make clean'
+                            deleteDir()
+                        }
+                    }
+                }
+                stage('z-master') {
+                    when {
+                        beforeAgent true
+                        branch 'master'
+                        expression { params.z }
+                    }
+                    agent { label 's390x-ubuntu-1604' }
+                    // s390x machines run on Docker 18.06, and buildkit has some bugs on that version
+                    environment { DOCKER_BUILDKIT = '0' }
+
+                    stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
+                            }
+                        }
+                        stage("Build dev image") {
+                            steps {
+                                sh '''
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .
+                                '''
+                            }
+                        }
+                        stage("Integration-cli tests") {
+                            environment { TEST_SKIP_INTEGRATION = '1' }
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  -e TEST_SKIP_INTEGRATION \
+                                  -e TIMEOUT \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh \
+                                    dynbinary \
+                                    test-integration
+                                '''
+                            }
+                        }
+                    }
+
+                    post {
+                        always {
+                            sh '''
+                            echo "Ensuring container killed."
+                            docker rm -vf docker-pr$BUILD_NUMBER || true
+                            '''
+
+                            sh '''
+                            echo "Chowning /workspace to jenkins user"
+                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
+                            '''
+
+                            sh '''
+                            echo "Creating s390x-integration-cli-bundles.tar.gz"
+                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf s390x-integration-cli-bundles.tar.gz
+                            '''
+
+                            archiveArtifacts artifacts: 's390x-integration-cli-bundles.tar.gz'
                         }
                         cleanup {
                             sh 'make clean'
@@ -350,6 +494,7 @@ pipeline {
                             }
                         }
                         stage("Integration tests") {
+                            environment { TEST_SKIP_INTEGRATION_CLI = '1' }
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
@@ -358,7 +503,8 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
-                                  -e TIMEOUT="180m" \
+                                  -e TEST_SKIP_INTEGRATION_CLI \
+                                  -e TIMEOUT \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     dynbinary \
@@ -381,12 +527,84 @@ pipeline {
                             '''
 
                             sh '''
-                            echo "Creating powerpc-bundles.tar.gz"
+                            echo "Creating powerpc-integration-bundles.tar.gz"
                             # exclude overlay2 directories
-                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf powerpc-bundles.tar.gz
+                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf powerpc-integration-bundles.tar.gz
                             '''
 
-                            archiveArtifacts artifacts: 'powerpc-bundles.tar.gz'
+                            archiveArtifacts artifacts: 'powerpc-integration-bundles.tar.gz'
+                        }
+                        cleanup {
+                            sh 'make clean'
+                            deleteDir()
+                        }
+                    }
+                }
+                stage('powerpc-master') {
+                    when {
+                        beforeAgent true
+                        branch 'master'
+                        expression { params.powerpc }
+                    }
+                    agent { label 'ppc64le-ubuntu-1604' }
+                    // power machines run on Docker 18.06, and buildkit has some bugs on that version
+                    environment { DOCKER_BUILDKIT = '0' }
+
+                    stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
+                            }
+                        }
+                        stage("Build dev image") {
+                            steps {
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .'
+                            }
+                        }
+                        stage("Integration-cli tests") {
+                            environment { TEST_SKIP_INTEGRATION = '1' }
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  -e TEST_SKIP_INTEGRATION \
+                                  -e TIMEOUT \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh \
+                                    dynbinary \
+                                    test-integration
+                                '''
+                            }
+                        }
+                    }
+
+                    post {
+                        always {
+                            sh '''
+                            echo "Ensuring container killed."
+                            docker rm -vf docker-pr$BUILD_NUMBER || true
+                            '''
+
+                            sh '''
+                            echo "Chowning /workspace to jenkins user"
+                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
+                            '''
+
+                            sh '''
+                            echo "Creating powerpc-integration-cli-bundles.tar.gz"
+                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf powerpc-integration-cli-bundles.tar.gz
+                            '''
+
+                            archiveArtifacts artifacts: 'powerpc-integration-cli-bundles.tar.gz'
                         }
                         cleanup {
                             sh 'make clean'
