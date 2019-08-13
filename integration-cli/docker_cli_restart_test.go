@@ -292,7 +292,7 @@ func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *check.C) {
 	dockerCmd(c, "start", id1)
 	dockerCmd(c, "start", id2)
 
-	// Kill the containers, making sure the are stopped at the end of the test
+	// Kill the containers, making sure they are stopped at the end of the test
 	dockerCmd(c, "kill", id1)
 	dockerCmd(c, "kill", id2)
 	err = waitInspect(id1, "{{ .State.Restarting }} {{ .State.Running }}", "false false", waitTimeout)
