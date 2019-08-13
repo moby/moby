@@ -105,7 +105,7 @@ func TestCopyFromContainer(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, imageID != "")
 
-	cid := container.Create(t, ctx, apiClient, container.WithImage(imageID))
+	cid := container.Create(ctx, t, apiClient, container.WithImage(imageID))
 
 	for _, x := range []struct {
 		src    string
