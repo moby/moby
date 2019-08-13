@@ -188,7 +188,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 
 		logrus.Warnf("failed to upload schema2 manifest: %v - falling back to schema1", err)
 
-		msg := schema1DeprecationMessage(ref)
+		msg := fmt.Sprintf("[DEPRECATION NOTICE] registry v2 schema1 support will be removed in an upcoming release. Please contact admins of the %s registry NOW to avoid future disruption. More information at https://docs.docker.com/registry/spec/deprecated-schema-v1/", reference.Domain(ref))
 		logrus.Warn(msg)
 		progress.Message(p.config.ProgressOutput, "", msg)
 
