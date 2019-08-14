@@ -781,7 +781,7 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .'
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
                             }
                         }
                         stage("Unit tests") {
@@ -790,31 +790,50 @@ pipeline {
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/test/unit
                                 '''
                             }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
+                                }
+                            }
                         }
                         stage("Integration tests") {
+                            environment { TEST_SKIP_INTEGRATION_CLI = '1' }
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e TESTDEBUG \
                                   -e TEST_SKIP_INTEGRATION_CLI \
+                                  -e TIMEOUT \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
-                                    binary-daemon \
                                     dynbinary \
                                     test-integration
                                 '''
                             }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                                }
+                            }
                         }
                     }
+
                     post {
                         always {
                             sh '''
@@ -827,12 +846,16 @@ pipeline {
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
 
-                            sh '''
-                            echo "Creating bundles.tar.gz"
-                            find bundles -name '*.log' | xargs tar -czf arm64-bundles.tar.gz
-                            '''
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                sh '''
+                                bundleName=arm64-integration
+                                echo "Creating ${bundleName}-bundles.tar.gz"
+                                # exclude overlay2 directories
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                '''
 
-                            archiveArtifacts artifacts: 'arm64-bundles.tar.gz'
+                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
+                            }
                         }
                         cleanup {
                             sh 'make clean'
