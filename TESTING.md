@@ -115,5 +115,5 @@ You can change a version of golang used for building stuff that is being tested
 by setting `GO_VERSION` variable, for example:
 
 ```
-make GO_VERSION=1.12.7 test
+make GO_VERSION=1.12.8 test
 ```
