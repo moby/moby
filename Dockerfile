@@ -36,7 +36,7 @@ RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/
 FROM base AS criu
 ARG DEBIAN_FRONTEND
 # Install CRIU for checkpoint/restore support
-ENV CRIU_VERSION 3.11
+ENV CRIU_VERSION 3.12
 # Install dependency packages specific to criu
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	libnet-dev \
