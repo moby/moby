@@ -328,10 +328,12 @@ func (fms *fileMetadataStore) getOrphan() ([]roLayer, error) {
 					contentBytes, err := ioutil.ReadFile(chainFile)
 					if err != nil {
 						logrus.WithError(err).WithField("digest", dgst).Error("cannot get cache ID")
+						continue
 					}
 					cacheID := strings.TrimSpace(string(contentBytes))
 					if cacheID == "" {
 						logrus.Errorf("invalid cache id value")
+						continue
 					}
 
 					l := &roLayer{
