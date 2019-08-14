@@ -25,7 +25,7 @@
 #
 
 ARG CROSS="false"
-ARG GO_VERSION=1.12.7
+ARG GO_VERSION=1.12.8
 
 FROM golang:${GO_VERSION}-stretch AS base
 ARG APT_MIRROR
