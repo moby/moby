@@ -24,7 +24,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-ARG GO_VERSION=1.11.12
+ARG GO_VERSION=1.11.13
 
 FROM golang:${GO_VERSION}-stretch AS base
 ARG APT_MIRROR
