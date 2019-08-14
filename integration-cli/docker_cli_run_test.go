@@ -1706,7 +1706,7 @@ func (s *DockerSuite) TestRunCleanupCmdOnEntrypoint(c *check.C) {
 	out = strings.TrimSpace(out)
 	expected := "root"
 	if testEnv.OSType == "windows" {
-		if strings.Contains(testEnv.PlatformDefaults.BaseImage, "windowsservercore") {
+		if strings.Contains(testEnv.PlatformDefaults.BaseImage, "servercore") {
 			expected = `user manager\containeradministrator`
 		} else {
 			expected = `ContainerAdministrator` // nanoserver
