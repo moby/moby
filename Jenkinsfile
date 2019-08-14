@@ -8,12 +8,12 @@ pipeline {
         timestamps()
     }
     parameters {
-        booleanParam(name: 'unit_validate', defaultValue: true, description: 'x86 unit tests and vendor check')
-        booleanParam(name: 'janky', defaultValue: true, description: 'x86 Build/Test')
-        booleanParam(name: 'z', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
-        booleanParam(name: 'powerpc', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
+        booleanParam(name: 'unit_validate', defaultValue: false, description: 'x86 unit tests and vendor check')
+        booleanParam(name: 'janky', defaultValue: false, description: 'x86 Build/Test')
+        booleanParam(name: 'z', defaultValue: false, description: 'IBM Z (s390x) Build/Test')
+        booleanParam(name: 'powerpc', defaultValue: false, description: 'PowerPC (ppc64le) Build/Test')
         booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
-        booleanParam(name: 'windowsRS5', defaultValue: false, description: 'Windows 2019 (RS5) Build/Test')
+        booleanParam(name: 'windowsRS5', defaultValue: true, description: 'Windows 2019 (RS5) Build/Test')
     }
     environment {
         DOCKER_BUILDKIT     = '1'
@@ -633,8 +633,7 @@ pipeline {
                     }
                     agent {
                         node {
-                            label 'windows-rs1'
-                            customWorkspace 'c:\\gopath\\src\\github.com\\docker\\docker'
+                            label 'windows-2016'
                         }
                     }
                     stages {
@@ -662,8 +661,7 @@ pipeline {
                     }
                     agent {
                         node {
-                            label 'windows-rs5'
-                            customWorkspace 'c:\\gopath\\src\\github.com\\docker\\docker'
+                            label 'windows-2019'
                         }
                     }
                     stages {
