@@ -170,7 +170,6 @@ func TestBuildMultiStageCopy(t *testing.T) {
 			assert.NilError(t, err)
 
 			out := bytes.NewBuffer(nil)
-			assert.NilError(t, err)
 			_, err = io.Copy(out, resp.Body)
 			_ = resp.Body.Close()
 			if err != nil {
@@ -604,7 +603,6 @@ func TestBuildPreserveOwnership(t *testing.T) {
 			assert.NilError(t, err)
 
 			out := bytes.NewBuffer(nil)
-			assert.NilError(t, err)
 			_, err = io.Copy(out, resp.Body)
 			_ = resp.Body.Close()
 			if err != nil {
