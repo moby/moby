@@ -12,8 +12,8 @@ pipeline {
         booleanParam(name: 'janky', defaultValue: true, description: 'x86 Build/Test')
         booleanParam(name: 'z', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
         booleanParam(name: 'powerpc', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
-        booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
-        booleanParam(name: 'windowsRS5', defaultValue: false, description: 'Windows 2019 (RS5) Build/Test')
+        booleanParam(name: 'windowsRS1', defaultValue: true, description: 'Windows 2016 (RS1) Build/Test')
+        booleanParam(name: 'windowsRS5', defaultValue: true, description: 'Windows 2019 (RS5) Build/Test')
         booleanParam(name: 'skip_dco', defaultValue: false, description: 'Skip the DCO check')
     }
     environment {
@@ -668,10 +668,20 @@ pipeline {
                         beforeAgent true
                         expression { params.windowsRS1 }
                     }
+                    environment {
+                        DOCKER_BUILDKIT        = '0'
+                        SKIP_VALIDATION_TESTS  = '1'
+                        SOURCES_DRIVE          = 'd'
+                        SOURCES_SUBDIR         = 'gopath'
+                        TESTRUN_DRIVE          = 'd'
+                        TESTRUN_SUBDIR         = "CI-$BUILD_NUMBER"
+                        WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
+                        WINDOWS_BASE_IMAGE_TAG = 'ltsc2016'
+                    }
                     agent {
                         node {
-                            label 'windows-rs1'
-                            customWorkspace 'c:\\gopath\\src\\github.com\\docker\\docker'
+                            customWorkspace 'd:\\gopath\\src\\github.com\\docker\\docker'
+                            label 'windows-2016'
                         }
                     }
                     stages {
@@ -685,7 +695,9 @@ pipeline {
                             steps {
                                 powershell '''
                                 $ErrorActionPreference = 'Stop'
-                                .\\hack\\ci\\windows.ps1
+                                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                                Invoke-WebRequest https://github.com/jhowardmsft/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
+                                ./hack/ci/windows.ps1
                                 exit $LastExitCode
                                 '''
                             }
@@ -697,10 +709,20 @@ pipeline {
                         beforeAgent true
                         expression { params.windowsRS5 }
                     }
+                    environment {
+                        DOCKER_BUILDKIT        = '0'
+                        SKIP_VALIDATION_TESTS  = '1'
+                        SOURCES_DRIVE          = 'd'
+                        SOURCES_SUBDIR         = 'gopath'
+                        TESTRUN_DRIVE          = 'd'
+                        TESTRUN_SUBDIR         = "CI-$BUILD_NUMBER"
+                        WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
+                        WINDOWS_BASE_IMAGE_TAG = 'ltsc2019'
+                    }
                     agent {
                         node {
-                            label 'windows-rs5'
-                            customWorkspace 'c:\\gopath\\src\\github.com\\docker\\docker'
+                            customWorkspace 'd:\\gopath\\src\\github.com\\docker\\docker'
+                            label 'windows-2019'
                         }
                     }
                     stages {
@@ -714,7 +736,8 @@ pipeline {
                             steps {
                                 powershell '''
                                 $ErrorActionPreference = 'Stop'
-                                .\\hack\\ci\\windows.ps1
+                                Invoke-WebRequest https://github.com/jhowardmsft/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
+                                ./hack/ci/windows.ps1
                                 exit $LastExitCode
                                 '''
                             }
