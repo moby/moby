@@ -256,7 +256,7 @@ func (e *execOp) getRefCacheDir(ctx context.Context, ref cache.ImmutableRef, id 
 }
 
 func (e *execOp) getRefCacheDirNoCache(ctx context.Context, key string, ref cache.ImmutableRef, id string, m *pb.Mount, block bool) (cache.MutableRef, error) {
-	makeMutable := func(cache.ImmutableRef) (cache.MutableRef, error) {
+	makeMutable := func(ref cache.ImmutableRef) (cache.MutableRef, error) {
 		desc := fmt.Sprintf("cached mount %s from exec %s", m.Dest, strings.Join(e.op.Meta.Args, " "))
 		return e.cm.New(ctx, ref, cache.WithRecordType(client.UsageRecordTypeCacheMount), cache.WithDescription(desc), cache.CachePolicyRetain)
 	}
@@ -585,7 +585,7 @@ func (e *execOp) Exec(ctx context.Context, inputs []solver.Result) ([]solver.Res
 			mountable = ref
 		}
 
-		makeMutable := func(cache.ImmutableRef) (cache.MutableRef, error) {
+		makeMutable := func(ref cache.ImmutableRef) (cache.MutableRef, error) {
 			desc := fmt.Sprintf("mount %s from exec %s", m.Dest, strings.Join(e.op.Meta.Args, " "))
 			return e.cm.New(ctx, ref, cache.WithDescription(desc))
 		}
@@ -606,7 +606,7 @@ func (e *execOp) Exec(ctx context.Context, inputs []solver.Result) ([]solver.Res
 					outputs = append(outputs, active)
 					mountable = active
 				}
-			} else if ref == nil {
+			} else if (!m.Readonly || ref == nil) && m.Dest != pb.RootMount {
 				// this case is empty readonly scratch without output that is not really useful for anything but don't error
 				active, err := makeMutable(ref)
 				if err != nil {
