@@ -196,7 +196,7 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 				return 0, err
 			}
 
-			if err := createTarFile(path, dest, srcHdr, srcData, true, nil, options.InUserNS); err != nil {
+			if err := createTarFile(path, dest, srcHdr, srcData, !options.NoLchown, nil, options.InUserNS); err != nil {
 				return 0, err
 			}
 
