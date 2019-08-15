@@ -559,7 +559,10 @@ func copyFile(archiver Archiver, source, dest *copyEndpoint, identity *idtools.I
 		// Normal containers
 		if identity == nil {
 			// Use system.MkdirAll here, which is a custom version of os.MkdirAll
-			// modified for use on Windows to handle volume GUID paths (\\?\{dae8d3ac-b9a1-11e9-88eb-e8554b2ba1db}\path\)
+			// modified for use on Windows to handle volume GUID paths. These paths
+			// are of the form \\?\Volume{<GUID>}\<path>. An example would be:
+			// \\?\Volume{dae8d3ac-b9a1-11e9-88eb-e8554b2ba1db}\bin\busybox.exe
+
 			if err := system.MkdirAll(filepath.Dir(dest.path), 0755, ""); err != nil {
 				return err
 			}
