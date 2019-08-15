@@ -850,7 +850,6 @@ func parallelJoin(t *testing.T, rc libnetwork.Sandbox, ep libnetwork.Endpoint, t
 	err = ep.Join(sb)
 
 	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
 	if err != nil {
 		if _, ok := err.(types.ForbiddenError); !ok {
 			t.Fatalf("thread %d: %v", thrNumber, err)
@@ -868,7 +867,6 @@ func parallelLeave(t *testing.T, rc libnetwork.Sandbox, ep libnetwork.Endpoint, 
 
 	err = ep.Leave(sb)
 	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
 	if err != nil {
 		if _, ok := err.(types.ForbiddenError); !ok {
 			t.Fatalf("thread %d: %v", thrNumber, err)
