@@ -353,6 +353,7 @@ func TestServiceWithDataPathPortInit(t *testing.T) {
 	// Clean up , set it back to original one to make sure other tests don't fail
 	// call without datapath port option.
 	d = swarm.NewSwarm(t, testEnv)
+	defer d.Stop(t)
 	nc := d.NewClientT(t)
 	defer nc.Close()
 	// Create a overlay network
@@ -373,14 +374,12 @@ func TestServiceWithDataPathPortInit(t *testing.T) {
 	assert.Equal(t, info.Swarm.Cluster.DataPathPort, defaultDataPathPort)
 	err = nc.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
-	assert.NilError(t, err)
 	poll.WaitOn(t, noServices(ctx, nc), swarm.ServicePoll)
 	poll.WaitOn(t, swarm.NoTasks(ctx, nc), swarm.ServicePoll)
 	err = nc.NetworkRemove(ctx, overlayID)
 	assert.NilError(t, err)
 	err = d.SwarmLeave(t, true)
 	assert.NilError(t, err)
-	defer d.Stop(t)
 }
 
 func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
@@ -389,7 +388,7 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	d := swarm.NewSwarm(t, testEnv,
 		daemon.WithSwarmDefaultAddrPool([]string{"20.20.0.0/16"}),
 		daemon.WithSwarmDefaultAddrPoolSubnetSize(24))
-
+	defer d.Stop(t)
 	cli := d.NewClientT(t)
 	defer cli.Close()
 	ctx := context.Background()
@@ -428,6 +427,5 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	assert.NilError(t, err)
 	err = d.SwarmLeave(t, true)
 	assert.NilError(t, err)
-	defer d.Stop(t)
 
 }
