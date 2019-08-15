@@ -30,19 +30,20 @@ const (
 
 	CapBuildOpLLBFileName apicaps.CapID = "source.buildop.llbfilename"
 
-	CapExecMetaBase            apicaps.CapID = "exec.meta.base"
-	CapExecMetaProxy           apicaps.CapID = "exec.meta.proxyenv"
-	CapExecMetaNetwork         apicaps.CapID = "exec.meta.network"
-	CapExecMetaSecurity        apicaps.CapID = "exec.meta.security"
-	CapExecMetaSetsDefaultPath apicaps.CapID = "exec.meta.setsdefaultpath"
-	CapExecMountBind           apicaps.CapID = "exec.mount.bind"
-	CapExecMountCache          apicaps.CapID = "exec.mount.cache"
-	CapExecMountCacheSharing   apicaps.CapID = "exec.mount.cache.sharing"
-	CapExecMountSelector       apicaps.CapID = "exec.mount.selector"
-	CapExecMountTmpfs          apicaps.CapID = "exec.mount.tmpfs"
-	CapExecMountSecret         apicaps.CapID = "exec.mount.secret"
-	CapExecMountSSH            apicaps.CapID = "exec.mount.ssh"
-	CapExecCgroupsMounted      apicaps.CapID = "exec.cgroup"
+	CapExecMetaBase                  apicaps.CapID = "exec.meta.base"
+	CapExecMetaProxy                 apicaps.CapID = "exec.meta.proxyenv"
+	CapExecMetaNetwork               apicaps.CapID = "exec.meta.network"
+	CapExecMetaSecurity              apicaps.CapID = "exec.meta.security"
+	CapExecMetaSetsDefaultPath       apicaps.CapID = "exec.meta.setsdefaultpath"
+	CapExecMountBind                 apicaps.CapID = "exec.mount.bind"
+	CapExecMountBindReadWriteNoOuput apicaps.CapID = "exec.mount.bind.readwrite-nooutput"
+	CapExecMountCache                apicaps.CapID = "exec.mount.cache"
+	CapExecMountCacheSharing         apicaps.CapID = "exec.mount.cache.sharing"
+	CapExecMountSelector             apicaps.CapID = "exec.mount.selector"
+	CapExecMountTmpfs                apicaps.CapID = "exec.mount.tmpfs"
+	CapExecMountSecret               apicaps.CapID = "exec.mount.secret"
+	CapExecMountSSH                  apicaps.CapID = "exec.mount.ssh"
+	CapExecCgroupsMounted            apicaps.CapID = "exec.cgroup"
 
 	CapFileBase apicaps.CapID = "file.base"
 
@@ -189,6 +190,12 @@ func init() {
 
 	Caps.Init(apicaps.Cap{
 		ID:      CapExecMountBind,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapExecMountBindReadWriteNoOuput,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})
