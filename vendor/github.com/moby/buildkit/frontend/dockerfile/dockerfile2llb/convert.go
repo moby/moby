@@ -746,9 +746,9 @@ func dispatchCopyFileOp(d *dispatchState, c instructions.SourcesAndDest, sourceS
 			}}, copyOpt...)
 
 			if a == nil {
-				a = llb.Copy(sourceState, src, dest, opts...)
+				a = llb.Copy(sourceState, filepath.Join("/", src), dest, opts...)
 			} else {
-				a = a.Copy(sourceState, src, dest, opts...)
+				a = a.Copy(sourceState, filepath.Join("/", src), dest, opts...)
 			}
 		}
 	}

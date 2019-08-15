@@ -153,6 +153,14 @@ type gitSourceHandler struct {
 	cacheKey string
 }
 
+func (gs *gitSourceHandler) shaToCacheKey(sha string) string {
+	key := sha
+	if gs.src.KeepGitDir {
+		key += ".git"
+	}
+	return key
+}
+
 func (gs *gitSource) Resolve(ctx context.Context, id source.Identifier, _ *session.Manager) (source.SourceInstance, error) {
 	gitIdentifier, ok := id.(*source.GitIdentifier)
 	if !ok {
@@ -175,6 +183,7 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, index int) (string, bo
 	defer gs.locker.Unlock(remote)
 
 	if isCommitSHA(ref) {
+		ref = gs.shaToCacheKey(ref)
 		gs.cacheKey = ref
 		return ref, true, nil
 	}
@@ -201,6 +210,7 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, index int) (string, bo
 	if !isCommitSHA(sha) {
 		return "", false, errors.Errorf("invalid commit sha %q", sha)
 	}
+	sha = gs.shaToCacheKey(sha)
 	gs.cacheKey = sha
 	return sha, true, nil
 }
@@ -298,11 +308,15 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context) (out cache.ImmutableRe
 	}()
 
 	if gs.src.KeepGitDir {
-		_, err = gitWithinDir(ctx, checkoutDir, "", "init")
+		checkoutDirGit := filepath.Join(checkoutDir, ".git")
+		if err := os.MkdirAll(checkoutDir, 0711); err != nil {
+			return nil, err
+		}
+		_, err = gitWithinDir(ctx, checkoutDirGit, "", "init")
 		if err != nil {
 			return nil, err
 		}
-		_, err = gitWithinDir(ctx, checkoutDir, "", "remote", "add", "origin", gitDir)
+		_, err = gitWithinDir(ctx, checkoutDirGit, "", "remote", "add", "origin", gitDir)
 		if err != nil {
 			return nil, err
 		}
@@ -313,16 +327,18 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context) (out cache.ImmutableRe
 			if err != nil {
 				return nil, err
 			}
+		} else {
+			pullref += ":" + pullref
 		}
-		_, err = gitWithinDir(ctx, checkoutDir, "", "fetch", "--depth=1", "origin", pullref)
+		_, err = gitWithinDir(ctx, checkoutDirGit, "", "fetch", "-u", "--depth=1", "origin", pullref)
 		if err != nil {
 			return nil, err
 		}
-		_, err = gitWithinDir(ctx, checkoutDir, checkoutDir, "checkout", "FETCH_HEAD")
+		_, err = gitWithinDir(ctx, checkoutDirGit, checkoutDir, "checkout", "FETCH_HEAD")
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to checkout remote %s", gs.src.Remote)
 		}
-		gitDir = checkoutDir
+		gitDir = checkoutDirGit
 	} else {
 		_, err = gitWithinDir(ctx, gitDir, checkoutDir, "checkout", ref, "--", ".")
 		if err != nil {
