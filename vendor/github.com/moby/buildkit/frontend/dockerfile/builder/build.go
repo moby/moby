@@ -49,6 +49,7 @@ const (
 	keyNameContext             = "contextkey"
 	keyNameDockerfile          = "dockerfilekey"
 	keyContextSubDir           = "contextsubdir"
+	keyContextKeepGitDir       = "build-arg:BUILDKIT_CONTEXT_KEEP_GIT_DIR"
 )
 
 var httpPrefix = regexp.MustCompile(`^https?://`)
@@ -129,7 +130,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 
 	var buildContext *llb.State
 	isScratchContext := false
-	if st, ok := detectGitContext(opts[localNameContext]); ok {
+	if st, ok := detectGitContext(opts[localNameContext], opts[keyContextKeepGitDir]); ok {
 		if !forceLocalDockerfile {
 			src = *st
 		}
@@ -451,10 +452,17 @@ func filter(opt map[string]string, key string) map[string]string {
 	return m
 }
 
-func detectGitContext(ref string) (*llb.State, bool) {
+func detectGitContext(ref, gitContext string) (*llb.State, bool) {
 	found := false
 	if httpPrefix.MatchString(ref) && gitUrlPathWithFragmentSuffix.MatchString(ref) {
 		found = true
+	}
+
+	keepGit := false
+	if gitContext != "" {
+		if v, err := strconv.ParseBool(gitContext); err == nil {
+			keepGit = v
+		}
 	}
 
 	for _, prefix := range []string{"git://", "github.com/", "git@"} {
@@ -472,7 +480,12 @@ func detectGitContext(ref string) (*llb.State, bool) {
 	if len(parts) > 1 {
 		branch = parts[1]
 	}
-	st := llb.Git(parts[0], branch, dockerfile2llb.WithInternalName("load git source "+ref))
+	gitOpts := []llb.GitOption{dockerfile2llb.WithInternalName("load git source " + ref)}
+	if keepGit {
+		gitOpts = append(gitOpts, llb.KeepGitDir())
+	}
+
+	st := llb.Git(parts[0], branch, gitOpts...)
 	return &st, true
 }
 
