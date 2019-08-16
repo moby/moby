@@ -681,7 +681,7 @@ func (n *networkNamespace) ApplyOSTweaks(types []SandboxType) {
 	for _, t := range types {
 		switch t {
 		case SandboxTypeLoadBalancer:
-			n.InvokeFunc(func() { kernel.ApplyOSTweaks(loadBalancerConfig) })
+			kernel.ApplyOSTweaks(loadBalancerConfig)
 		}
 	}
 }
