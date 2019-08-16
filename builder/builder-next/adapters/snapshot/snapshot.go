@@ -480,6 +480,9 @@ func (m *mountable) Release() error {
 	}
 
 	m.mounts = nil
+	defer func() {
+		m.release = nil
+	}()
 	return m.release()
 }
 
