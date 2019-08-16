@@ -4873,7 +4873,7 @@ paths:
                       Note that a running container can be _paused_. The `Running` and `Paused`
                       booleans are not mutually exclusive:
 
-                      When pausing a container (on Linux), the cgroups freezer is used to suspend
+                      When pausing a container (on Linux), the freezer cgroup is used to suspend
                       all processes in the container. Freezing the process requires the process to
                       be running. As a result, paused containers are both `Running` _and_ `Paused`.
 
@@ -5764,9 +5764,9 @@ paths:
     post:
       summary: "Pause a container"
       description: |
-        Use the cgroups freezer to suspend all processes in a container.
+        Use the freezer cgroup to suspend all processes in a container.
 
-        Traditionally, when suspending a process the `SIGSTOP` signal is used, which is observable by the process being suspended. With the cgroups freezer the process is unaware, and unable to capture, that it is being suspended, and subsequently resumed.
+        Traditionally, when suspending a process the `SIGSTOP` signal is used, which is observable by the process being suspended. With the freezer cgroup the process is unaware, and unable to capture, that it is being suspended, and subsequently resumed.
       operationId: "ContainerPause"
       responses:
         204:
