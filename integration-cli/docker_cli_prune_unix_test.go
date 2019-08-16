@@ -38,8 +38,7 @@ func pruneNetworkAndVerify(c *testing.T, d *daemon.Daemon, kept, pruned []string
 			out, err := d.Cmd("network", "ls", "--format", "{{.Name}}")
 			assert.NilError(c, err)
 			return out, ""
-		}, checker.Not(checker.Contains(s))()), poll.WithTimeout(defaultReconciliationTimeout))
-
+		}, checker.Not(checker.Contains(s))), poll.WithTimeout(defaultReconciliationTimeout))
 	}
 }
 

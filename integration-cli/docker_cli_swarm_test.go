@@ -389,7 +389,7 @@ func (s *DockerSwarmSuite) TestSwarmContainerAttachByNetworkId(c *testing.T) {
 		return out, ""
 	}
 
-	poll.WaitOn(c, pollCheck(c, checkNetwork, checker.Not(checker.Contains("testnet"))()), poll.WithTimeout(3*time.Second))
+	poll.WaitOn(c, pollCheck(c, checkNetwork, checker.Not(checker.Contains("testnet"))), poll.WithTimeout(3*time.Second))
 }
 
 func (s *DockerSwarmSuite) TestOverlayAttachable(c *testing.T) {

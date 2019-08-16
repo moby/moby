@@ -3,7 +3,6 @@ package discovery // import "github.com/docker/docker/pkg/discovery"
 import (
 	"testing"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"gotest.tools/assert"
 )
 
@@ -86,20 +85,20 @@ func (s *DiscoverySuite) TestEntriesEquality(c *testing.T) {
 	assert.Assert(c, entries.Equals(Entries{
 		&Entry{Host: "127.0.0.1", Port: "2375"},
 		&Entry{Host: "127.0.0.2", Port: "2375"},
-	}), checker.Equals, true)
+	}))
 
 	// Different size
-	assert.Assert(c, entries.Equals(Entries{
+	assert.Assert(c, !entries.Equals(Entries{
 		&Entry{Host: "127.0.0.1", Port: "2375"},
 		&Entry{Host: "127.0.0.2", Port: "2375"},
 		&Entry{Host: "127.0.0.3", Port: "2375"},
-	}), checker.Equals, false)
+	}))
 
 	// Different content
-	assert.Assert(c, entries.Equals(Entries{
+	assert.Assert(c, !entries.Equals(Entries{
 		&Entry{Host: "127.0.0.1", Port: "2375"},
 		&Entry{Host: "127.0.0.42", Port: "2375"},
-	}), checker.Equals, false)
+	}))
 
 }
 
