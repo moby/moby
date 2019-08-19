@@ -142,11 +142,7 @@ func TestConfigsCreateAndDelete(t *testing.T) {
 	testName := "test_config-" + t.Name()
 	configID := createConfig(ctx, t, c, testName, []byte("TESTINGDATA"), nil)
 
-	insp, _, err := c.ConfigInspectWithRaw(ctx, configID)
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(insp.Spec.Name, testName))
-
-	err = c.ConfigRemove(ctx, configID)
+	err := c.ConfigRemove(ctx, configID)
 	assert.NilError(t, err)
 
 	_, _, err = c.ConfigInspectWithRaw(ctx, configID)
@@ -159,7 +155,7 @@ func TestConfigsCreateAndDelete(t *testing.T) {
 		"key2": "value2",
 	})
 
-	insp, _, err = c.ConfigInspectWithRaw(ctx, configID)
+	insp, _, err := c.ConfigInspectWithRaw(ctx, configID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(insp.Spec.Name, testName))
 	assert.Check(t, is.Equal(len(insp.Spec.Labels), 2))
