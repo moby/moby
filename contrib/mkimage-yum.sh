@@ -43,10 +43,10 @@ while getopts ":y:p:g:t:h" opt; do
             usage
             ;;
         p)
-            install_packages+=("\"$OPTARG\"")
+            install_packages+=("$OPTARG")
             ;;
         g)
-            install_groups+=("\"$OPTARG\"")
+            install_groups+=("$OPTARG")
             ;;
         t)
             version="$OPTARG"
@@ -94,13 +94,13 @@ fi
 if [[ -n "$install_groups" ]];
 then
     yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
-        --setopt=group_package_types=mandatory -y groupinstall "${install_groups[*]}"
+        --setopt=group_package_types=mandatory -y groupinstall "${install_groups[@]}"
 fi
 
 if [[ -n "$install_packages" ]];
 then
     yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
-        --setopt=group_package_types=mandatory -y install "${install_packages[*]}"
+        --setopt=group_package_types=mandatory -y install "${install_packages[@]}"
 fi
 
 yum -c "$yum_config" --installroot="$target" -y clean all
