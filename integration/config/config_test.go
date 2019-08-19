@@ -271,29 +271,12 @@ func TestTemplatedConfig(t *testing.T) {
 		swarm.ServiceWithName("svc"),
 	)
 
-	var tasks []swarmtypes.Task
-	getRunningTasks := func(log poll.LogT) poll.Result {
-		tasks = swarm.GetRunningTasks(t, c, serviceID)
-		if len(tasks) > 0 {
-			return poll.Success()
-		}
-		return poll.Continue("task still waiting")
-	}
-	poll.WaitOn(t, getRunningTasks, swarm.ServicePoll, poll.WithTimeout(1*time.Minute))
+	poll.WaitOn(t, swarm.RunningTasksCount(c, serviceID, 1), swarm.ServicePoll, poll.WithTimeout(1*time.Minute))
 
-	task := tasks[0]
-	getTask := func(log poll.LogT) poll.Result {
-		if task.NodeID == "" || (task.Status.ContainerStatus == nil || task.Status.ContainerStatus.ContainerID == "") {
-			task, _, _ = c.TaskInspectWithRaw(context.Background(), task.ID)
-		}
-		if task.NodeID != "" && task.Status.ContainerStatus != nil && task.Status.ContainerStatus.ContainerID != "" {
-			return poll.Success()
-		}
-		return poll.Continue("task still waiting")
-	}
-	poll.WaitOn(t, getTask, swarm.ServicePoll, poll.WithTimeout(1*time.Minute))
+	tasks := swarm.GetRunningTasks(t, c, serviceID)
+	assert.Assert(t, len(tasks) > 0, "no running tasks found for service %s", serviceID)
 
-	attach := swarm.ExecTask(t, d, task, types.ExecConfig{
+	attach := swarm.ExecTask(t, d, tasks[0], types.ExecConfig{
 		Cmd:          []string{"/bin/cat", "/" + templatedConfigName},
 		AttachStdout: true,
 		AttachStderr: true,
@@ -304,7 +287,7 @@ func TestTemplatedConfig(t *testing.T) {
 		"this is a config\n"
 	assertAttachedStream(t, attach, expect)
 
-	attach = swarm.ExecTask(t, d, task, types.ExecConfig{
+	attach = swarm.ExecTask(t, d, tasks[0], types.ExecConfig{
 		Cmd:          []string{"mount"},
 		AttachStdout: true,
 		AttachStderr: true,
