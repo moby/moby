@@ -149,6 +149,10 @@ func TestConfigsCreateAndDelete(t *testing.T) {
 	assert.Check(t, errdefs.IsNotFound(err))
 	assert.Check(t, is.ErrorContains(err, configID))
 
+	err = c.ConfigRemove(ctx, "non-existing")
+	assert.Check(t, errdefs.IsNotFound(err))
+	assert.Check(t, is.ErrorContains(err, "non-existing"))
+
 	testName = "test_secret_with_labels_" + t.Name()
 	configID = createConfig(ctx, t, c, testName, []byte("TESTINGDATA"), map[string]string{
 		"key1": "value1",
