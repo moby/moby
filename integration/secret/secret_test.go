@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -301,21 +302,12 @@ func TestTemplatedSecret(t *testing.T) {
 		swarm.ServiceWithName(serviceName),
 	)
 
-	var tasks []swarmtypes.Task
-	waitAndAssert(t, 60*time.Second, func(t *testing.T) bool {
-		tasks = swarm.GetRunningTasks(t, c, serviceID)
-		return len(tasks) > 0
-	})
+	poll.WaitOn(t, swarm.RunningTasksCount(c, serviceID, 1), swarm.ServicePoll, poll.WithTimeout(1*time.Minute))
 
-	task := tasks[0]
-	waitAndAssert(t, 60*time.Second, func(t *testing.T) bool {
-		if task.NodeID == "" || (task.Status.ContainerStatus == nil || task.Status.ContainerStatus.ContainerID == "") {
-			task, _, _ = c.TaskInspectWithRaw(context.Background(), task.ID)
-		}
-		return task.NodeID != "" && task.Status.ContainerStatus != nil && task.Status.ContainerStatus.ContainerID != ""
-	})
+	tasks := swarm.GetRunningTasks(t, c, serviceID)
+	assert.Assert(t, len(tasks) > 0, "no running tasks found for service %s", serviceID)
 
-	attach := swarm.ExecTask(t, d, task, types.ExecConfig{
+	attach := swarm.ExecTask(t, d, tasks[0], types.ExecConfig{
 		Cmd:          []string{"/bin/cat", "/run/secrets/templated_secret"},
 		AttachStdout: true,
 		AttachStderr: true,
@@ -326,7 +318,7 @@ func TestTemplatedSecret(t *testing.T) {
 		"this is a config\n"
 	assertAttachedStream(t, attach, expect)
 
-	attach = swarm.ExecTask(t, d, task, types.ExecConfig{
+	attach = swarm.ExecTask(t, d, tasks[0], types.ExecConfig{
 		Cmd:          []string{"mount"},
 		AttachStdout: true,
 		AttachStderr: true,
@@ -389,22 +381,6 @@ func assertAttachedStream(t *testing.T, attach types.HijackedResponse, expect st
 	_, err := stdcopy.StdCopy(buf, buf, attach.Reader)
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(buf.String(), expect))
-}
-
-func waitAndAssert(t *testing.T, timeout time.Duration, f func(*testing.T) bool) {
-	t.Helper()
-	after := time.After(timeout)
-	for {
-		select {
-		case <-after:
-			t.Fatal("timed out waiting for condition")
-		default:
-		}
-		if f(t) {
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
 }
 
 func secretNamesFromList(entries []swarmtypes.Secret) []string {
