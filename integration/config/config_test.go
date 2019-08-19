@@ -140,21 +140,31 @@ func TestConfigsCreateAndDelete(t *testing.T) {
 	ctx := context.Background()
 
 	testName := "test_config-" + t.Name()
-
-	// This test case is ported from the original TestConfigsCreate
 	configID := createConfig(ctx, t, c, testName, []byte("TESTINGDATA"), nil)
 
 	insp, _, err := c.ConfigInspectWithRaw(ctx, configID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(insp.Spec.Name, testName))
 
-	// This test case is ported from the original TestConfigsDelete
 	err = c.ConfigRemove(ctx, configID)
 	assert.NilError(t, err)
 
 	_, _, err = c.ConfigInspectWithRaw(ctx, configID)
 	assert.Check(t, errdefs.IsNotFound(err))
 	assert.Check(t, is.ErrorContains(err, configID))
+
+	testName = "test_secret_with_labels_" + t.Name()
+	configID = createConfig(ctx, t, c, testName, []byte("TESTINGDATA"), map[string]string{
+		"key1": "value1",
+		"key2": "value2",
+	})
+
+	insp, _, err = c.ConfigInspectWithRaw(ctx, configID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(insp.Spec.Name, testName))
+	assert.Check(t, is.Equal(len(insp.Spec.Labels), 2))
+	assert.Check(t, is.Equal(insp.Spec.Labels["key1"], "value1"))
+	assert.Check(t, is.Equal(insp.Spec.Labels["key2"], "value2"))
 }
 
 func TestConfigsUpdate(t *testing.T) {
@@ -316,32 +326,6 @@ func TestTemplatedConfig(t *testing.T) {
 		AttachStderr: true,
 	})
 	assertAttachedStream(t, attach, "tmpfs on /templated_config type tmpfs")
-}
-
-func TestConfigCreateWithLabels(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
-	c := d.NewClientT(t)
-	defer c.Close()
-
-	ctx := context.Background()
-
-	labels := map[string]string{
-		"key1": "value1",
-		"key2": "value2",
-	}
-	testName := t.Name()
-	configID := createConfig(ctx, t, c, testName, []byte("TESTINGDATA"), labels)
-
-	insp, _, err := c.ConfigInspectWithRaw(ctx, configID)
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(insp.Spec.Name, testName))
-	assert.Check(t, is.Equal(2, len(insp.Spec.Labels)))
-	assert.Check(t, is.Equal("value1", insp.Spec.Labels["key1"]))
-	assert.Check(t, is.Equal("value2", insp.Spec.Labels["key2"]))
 }
 
 // Test case for 28884
