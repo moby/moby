@@ -369,7 +369,7 @@ func (i *ImageService) checkImageDeleteConflict(imgID image.ID, mask conflictTyp
 	if mask&conflictRunningContainer != 0 {
 		// Check if any running container is using the image.
 		running := func(c *container.Container) bool {
-			return c.IsRunning() && c.ImageID == imgID
+			return c.ImageID == imgID && c.IsRunning()
 		}
 		if container := i.containers.First(running); container != nil {
 			return &imageDeleteConflict{
