@@ -3,6 +3,7 @@ package secret // import "github.com/docker/docker/integration/secret"
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"sort"
 	"testing"
 	"time"
@@ -30,16 +31,17 @@ func TestSecretInspect(t *testing.T) {
 
 	ctx := context.Background()
 
-	testName := "test_secret_" + t.Name()
+	testName := t.Name()
 	secretID := createSecret(ctx, t, c, testName, []byte("TESTINGDATA"), nil)
 
-	secret, _, err := c.SecretInspectWithRaw(context.Background(), secretID)
+	insp, body, err := c.SecretInspectWithRaw(ctx, secretID)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(secret.Spec.Name, testName))
+	assert.Check(t, is.Equal(insp.Spec.Name, testName))
 
-	secret, _, err = c.SecretInspectWithRaw(context.Background(), testName)
+	var secret swarmtypes.Secret
+	err = json.Unmarshal(body, &secret)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(secretID, secretID))
+	assert.Check(t, is.DeepEqual(secret, insp))
 }
 
 func TestSecretList(t *testing.T) {
