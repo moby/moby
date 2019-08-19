@@ -76,9 +76,31 @@ pipeline {
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
-                                    binary-daemon \
+                                    dynbinary-daemon \
                                     test-docker-py
                                 '''
+                            }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/test-docker-py/junit-report.xml', allowEmptyResults: true
+
+                                    sh '''
+                                    echo "Ensuring container killed."
+                                    docker rm -vf docker-pr$BUILD_NUMBER || true
+                                    '''
+
+                                    sh '''
+                                    echo 'Chowning /workspace to jenkins user'
+                                    docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
+                                    '''
+
+                                    sh '''
+                                    echo 'Creating docker-py-bundles.tar.gz'
+                                    tar -czf docker-py-bundles.tar.gz bundles/test-docker-py/*.xml bundles/test-docker-py/*.log
+                                    '''
+
+                                    archiveArtifacts artifacts: 'docker-py-bundles.tar.gz'
+                                }
                             }
                         }
                         stage("Static") {
