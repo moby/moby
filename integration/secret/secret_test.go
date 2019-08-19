@@ -55,6 +55,10 @@ func TestSecretList(t *testing.T) {
 	defer c.Close()
 	ctx := context.Background()
 
+	configs, err := c.SecretList(ctx, types.SecretListOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(len(configs), 0))
+
 	testName0 := "test0_" + t.Name()
 	testName1 := "test1_" + t.Name()
 	testNames := []string{testName0, testName1}
