@@ -15,24 +15,6 @@ import (
 	"gotest.tools/assert"
 )
 
-func (s *DockerSuite) TestAPIOptionsRoute(c *check.C) {
-	resp, _, err := request.Do("/", request.Method(http.MethodOptions))
-	assert.NilError(c, err)
-	assert.Equal(c, resp.StatusCode, http.StatusOK)
-}
-
-func (s *DockerSuite) TestAPIGetEnabledCORS(c *check.C) {
-	res, body, err := request.Get("/version")
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusOK)
-	body.Close()
-	// TODO: @runcom incomplete tests, why old integration tests had this headers
-	// and here none of the headers below are in the response?
-	//c.Log(res.Header)
-	//assert.Equal(c, res.Header.Get("Access-Control-Allow-Origin"), "*")
-	//assert.Equal(c, res.Header.Get("Access-Control-Allow-Headers"), "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth")
-}
-
 func (s *DockerSuite) TestAPIClientVersionOldNotSupported(c *check.C) {
 	if testEnv.OSType != runtime.GOOS {
 		c.Skip("Daemon platform doesn't match test platform")
