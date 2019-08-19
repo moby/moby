@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/pkg/stdcopy"
 	"gotest.tools/v3/assert"
@@ -134,23 +135,26 @@ func TestSecretsCreateAndDelete(t *testing.T) {
 	testName := "test_secret_" + t.Name()
 	secretID := createSecret(ctx, t, c, testName, []byte("TESTINGDATA"), nil)
 
-	// create an already existin secret, daemon should return a status code of 409
+	// create an already existing secret, daemon should return a status code of 409
 	_, err := c.SecretCreate(ctx, swarmtypes.SecretSpec{
 		Annotations: swarmtypes.Annotations{
 			Name: testName,
 		},
 		Data: []byte("TESTINGDATA"),
 	})
-	assert.Check(t, is.ErrorContains(err, "already exists"))
+	assert.Check(t, errdefs.IsConflict(err))
+	assert.Check(t, is.ErrorContains(err, testName))
 
 	err = c.SecretRemove(ctx, secretID)
 	assert.NilError(t, err)
 
 	_, _, err = c.SecretInspectWithRaw(ctx, secretID)
-	assert.Check(t, is.ErrorContains(err, "No such secret"))
+	assert.Check(t, errdefs.IsNotFound(err))
+	assert.Check(t, is.ErrorContains(err, secretID))
 
-	err = c.SecretRemove(ctx, "non-existin")
-	assert.Check(t, is.ErrorContains(err, "No such secret: non-existin"))
+	err = c.SecretRemove(ctx, "non-existing")
+	assert.Check(t, errdefs.IsNotFound(err))
+	assert.Check(t, is.ErrorContains(err, "non-existing"))
 
 	testName = "test_secret_with_labels_" + t.Name()
 	secretID = createSecret(ctx, t, c, testName, []byte("TESTINGDATA"), map[string]string{
@@ -214,6 +218,7 @@ func TestSecretsUpdate(t *testing.T) {
 	// this test will produce an error in func UpdateSecret
 	insp.Spec.Data = []byte("TESTINGDATA2")
 	err = c.SecretUpdate(ctx, secretID, insp.Version, insp.Spec)
+	assert.Check(t, errdefs.IsInvalidParameter(err))
 	assert.Check(t, is.ErrorContains(err, "only updates to Labels are allowed"))
 }
 
