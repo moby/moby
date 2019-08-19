@@ -23,6 +23,30 @@ import (
 	"gotest.tools/v3/skip"
 )
 
+func TestConfigInspect(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	defer setupTest(t)()
+	d := swarm.NewSwarm(t, testEnv)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	ctx := context.Background()
+
+	testName := t.Name()
+	configID := createConfig(ctx, t, c, testName, []byte("TESTINGDATA"), nil)
+
+	insp, body, err := c.ConfigInspectWithRaw(ctx, configID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(insp.Spec.Name, testName))
+
+	var config swarmtypes.Config
+	err = json.Unmarshal(body, &config)
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(config, insp))
+}
+
 func TestConfigList(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
@@ -300,30 +324,6 @@ func assertAttachedStream(t *testing.T, attach types.HijackedResponse, expect st
 	_, err := stdcopy.StdCopy(buf, buf, attach.Reader)
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(buf.String(), expect))
-}
-
-func TestConfigInspect(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
-	c := d.NewClientT(t)
-	defer c.Close()
-
-	ctx := context.Background()
-
-	testName := t.Name()
-	configID := createConfig(ctx, t, c, testName, []byte("TESTINGDATA"), nil)
-
-	insp, body, err := c.ConfigInspectWithRaw(ctx, configID)
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(insp.Spec.Name, testName))
-
-	var config swarmtypes.Config
-	err = json.Unmarshal(body, &config)
-	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(config, insp))
 }
 
 func TestConfigCreateWithLabels(t *testing.T) {
