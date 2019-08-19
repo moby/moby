@@ -55,7 +55,6 @@ func TestConfigList(t *testing.T) {
 	defer d.Stop(t)
 	c := d.NewClientT(t)
 	defer c.Close()
-
 	ctx := context.Background()
 
 	// This test case is ported from the original TestConfigsEmptyList
@@ -137,7 +136,6 @@ func TestConfigsCreateAndDelete(t *testing.T) {
 	defer d.Stop(t)
 	c := d.NewClientT(t)
 	defer c.Close()
-
 	ctx := context.Background()
 
 	testName := "test_config-" + t.Name()
@@ -165,12 +163,9 @@ func TestConfigsUpdate(t *testing.T) {
 	defer d.Stop(t)
 	c := d.NewClientT(t)
 	defer c.Close()
-
 	ctx := context.Background()
 
 	testName := "test_config-" + t.Name()
-
-	// This test case is ported from the original TestConfigsCreate
 	configID := createConfig(ctx, t, c, testName, []byte("TESTINGDATA"), nil)
 
 	insp, _, err := c.ConfigInspectWithRaw(ctx, configID)
@@ -255,11 +250,12 @@ func TestTemplatedConfig(t *testing.T) {
 	templatedConfig, err := c.ConfigCreate(ctx, configSpec)
 	assert.Check(t, err)
 
+	serviceName := "svc_" + t.Name()
 	serviceID := swarm.CreateService(t, d,
 		swarm.ServiceWithConfig(
 			&swarmtypes.ConfigReference{
 				File: &swarmtypes.ConfigReferenceFileTarget{
-					Name: "/" + templatedConfigName,
+					Name: "templated_config",
 					UID:  "0",
 					GID:  "0",
 					Mode: 0600,
@@ -292,7 +288,7 @@ func TestTemplatedConfig(t *testing.T) {
 				SecretName: referencedSecretName,
 			},
 		),
-		swarm.ServiceWithName("svc"),
+		swarm.ServiceWithName(serviceName),
 	)
 
 	poll.WaitOn(t, swarm.RunningTasksCount(c, serviceID, 1), swarm.ServicePoll, poll.WithTimeout(1*time.Minute))
@@ -301,12 +297,12 @@ func TestTemplatedConfig(t *testing.T) {
 	assert.Assert(t, len(tasks) > 0, "no running tasks found for service %s", serviceID)
 
 	attach := swarm.ExecTask(t, d, tasks[0], types.ExecConfig{
-		Cmd:          []string{"/bin/cat", "/" + templatedConfigName},
+		Cmd:          []string{"/bin/cat", "/templated_config"},
 		AttachStdout: true,
 		AttachStderr: true,
 	})
 
-	expect := "SERVICE_NAME=svc\n" +
+	expect := "SERVICE_NAME=" + serviceName + "\n" +
 		"this is a secret\n" +
 		"this is a config\n"
 	assertAttachedStream(t, attach, expect)
@@ -316,14 +312,7 @@ func TestTemplatedConfig(t *testing.T) {
 		AttachStdout: true,
 		AttachStderr: true,
 	})
-	assertAttachedStream(t, attach, "tmpfs on /"+templatedConfigName+" type tmpfs")
-}
-
-func assertAttachedStream(t *testing.T, attach types.HijackedResponse, expect string) {
-	buf := bytes.NewBuffer(nil)
-	_, err := stdcopy.StdCopy(buf, buf, attach.Reader)
-	assert.NilError(t, err)
-	assert.Check(t, is.Contains(buf.String(), expect))
+	assertAttachedStream(t, attach, "tmpfs on /templated_config type tmpfs")
 }
 
 func TestConfigCreateWithLabels(t *testing.T) {
@@ -365,8 +354,8 @@ func TestConfigCreateResolve(t *testing.T) {
 	ctx := context.Background()
 
 	configName := "test_config_" + t.Name()
-
 	configID := createConfig(ctx, t, c, configName, []byte("foo"), nil)
+
 	fakeName := configID
 	fakeID := createConfig(ctx, t, c, fakeName, []byte("fake foo"), nil)
 
@@ -421,6 +410,13 @@ func TestConfigDaemonLibtrustID(t *testing.T) {
 	d.Start(t, "--config-file", config)
 	info := d.Info(t)
 	assert.Equal(t, info.ID, "WTJ3:YSIP:CE2E:G6KJ:PSBD:YX2Y:WEYD:M64G:NU2V:XPZV:H2CR:VLUB")
+}
+
+func assertAttachedStream(t *testing.T, attach types.HijackedResponse, expect string) {
+	buf := bytes.NewBuffer(nil)
+	_, err := stdcopy.StdCopy(buf, buf, attach.Reader)
+	assert.NilError(t, err)
+	assert.Check(t, is.Contains(buf.String(), expect))
 }
 
 func configNamesFromList(entries []swarmtypes.Config) []string {

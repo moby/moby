@@ -143,7 +143,6 @@ func TestSecretsCreateAndDelete(t *testing.T) {
 	})
 	assert.Check(t, is.ErrorContains(err, "already exists"))
 
-	// Ported from original TestSecretsDelete
 	err = c.SecretRemove(ctx, secretID)
 	assert.NilError(t, err)
 
@@ -153,7 +152,6 @@ func TestSecretsCreateAndDelete(t *testing.T) {
 	err = c.SecretRemove(ctx, "non-existin")
 	assert.Check(t, is.ErrorContains(err, "No such secret: non-existin"))
 
-	// Ported from original TestSecretsCreteaWithLabels
 	testName = "test_secret_with_labels_" + t.Name()
 	secretID = createSecret(ctx, t, c, testName, []byte("TESTINGDATA"), map[string]string{
 		"key1": "value1",
