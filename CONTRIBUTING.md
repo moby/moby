@@ -32,7 +32,6 @@ although we keep your name confidential if you request it. We also like to send
 gifts&mdash;if you're into schwag, make sure to let us know. We currently do not
 offer a paid security bounty program, but are not ruling it out in the future.
 
-
 ## Reporting other issues
 
 A great way to contribute to the project is to send a detailed report when you
@@ -116,7 +115,6 @@ the contributors guide.
     </td>
   </tr>
 </table>
-
 
 ### Conventions
 
