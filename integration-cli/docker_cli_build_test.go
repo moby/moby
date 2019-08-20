@@ -5952,7 +5952,7 @@ func (s *DockerSuite) TestBuildCopyFromWindowsIsCaseInsensitive(c *check.C) {
 }
 
 // #33176
-func (s *DockerSuite) TestBuildMulitStageResetScratch(c *check.C) {
+func (s *DockerSuite) TestBuildMultiStageResetScratch(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	dockerfile := `
