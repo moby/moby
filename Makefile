@@ -50,11 +50,18 @@ DOCKER_ENVS := \
 	-e DOCKER_PORT \
 	-e DOCKER_REMAP_ROOT \
 	-e DOCKER_STORAGE_OPTS \
+	-e DOCKER_TEST_HOST \
 	-e DOCKER_USERLANDPROXY \
 	-e DOCKERD_ARGS \
+	-e TEST_INTEGRATION_DEST \
 	-e TEST_INTEGRATION_DIR \
+	-e TEST_SKIP_INTEGRATION \
+	-e TEST_SKIP_INTEGRATION_CLI \
+	-e TESTDEBUG \
 	-e TESTDIRS \
 	-e TESTFLAGS \
+	-e TESTFLAGS_INTEGRATION \
+	-e TESTFLAGS_INTEGRATION_CLI \
 	-e TIMEOUT \
 	-e VALIDATE_REPO \
 	-e VALIDATE_BRANCH \
@@ -104,9 +111,6 @@ BUILD_APT_MIRROR := $(if $(DOCKER_BUILD_APT_MIRROR),--build-arg APT_MIRROR=$(DOC
 export BUILD_APT_MIRROR
 
 SWAGGER_DOCS_PORT ?= 9000
-
-INTEGRATION_CLI_MASTER_IMAGE := $(if $(INTEGRATION_CLI_MASTER_IMAGE), $(INTEGRATION_CLI_MASTER_IMAGE), integration-cli-master)
-INTEGRATION_CLI_WORKER_IMAGE := $(if $(INTEGRATION_CLI_WORKER_IMAGE), $(INTEGRATION_CLI_WORKER_IMAGE), integration-cli-worker)
 
 define \n
 
@@ -182,8 +186,13 @@ test-docker-py: build ## run the docker-py tests
 
 test-integration-cli: test-integration ## (DEPRECATED) use test-integration
 
+ifneq ($(and $(TEST_SKIP_INTEGRATION),$(TEST_SKIP_INTEGRATION_CLI)),)
+test-integration:
+	@echo Both integrations suites skipped per environment variables
+else
 test-integration: build ## run the integration tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration
+endif
 
 test-integration-flaky: build ## run the stress test for all new integration tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration-flaky
@@ -212,18 +221,3 @@ swagger-docs: ## preview the API documentation
 		-e 'REDOC_OPTIONS=hide-hostname="true" lazy-rendering' \
 		-p $(SWAGGER_DOCS_PORT):80 \
 		bfirsh/redoc:1.6.2
-
-build-integration-cli-on-swarm: build ## build images and binary for running integration-cli on Swarm in parallel
-	@echo "Building hack/integration-cli-on-swarm (if build fails, please refer to hack/integration-cli-on-swarm/README.md)"
-	go build -buildmode=pie -o ./hack/integration-cli-on-swarm/integration-cli-on-swarm ./hack/integration-cli-on-swarm/host
-	@echo "Building $(INTEGRATION_CLI_MASTER_IMAGE)"
-	docker build -t $(INTEGRATION_CLI_MASTER_IMAGE) hack/integration-cli-on-swarm/agent
-	@echo "Building $(INTEGRATION_CLI_WORKER_IMAGE) from $(DOCKER_IMAGE)"
-	$(eval tmp := integration-cli-worker-tmp)
-# We mount pkgcache, but not bundle (bundle needs to be baked into the image)
-# For avoiding bakings DOCKER_GRAPHDRIVER and so on to image, we cannot use $(DOCKER_ENVS) here
-	docker run -t -d --name $(tmp) -e DOCKER_GITCOMMIT -e BUILDFLAGS --privileged $(DOCKER_IMAGE) top
-	docker exec $(tmp) hack/make.sh build-integration-test-binary dynbinary
-	docker exec $(tmp) go build -buildmode=pie -o /worker github.com/docker/docker/hack/integration-cli-on-swarm/agent/worker
-	docker commit -c 'ENTRYPOINT ["/worker"]' $(tmp) $(INTEGRATION_CLI_WORKER_IMAGE)
-	docker rm -f $(tmp)

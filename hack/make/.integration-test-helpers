@@ -5,6 +5,18 @@
 #
 #     TESTFLAGS='-check.f DockerSuite.TestBuild*' ./hack/make.sh binary test-integration
 #
+
+if [[ "${TESTFLAGS}" = *-check.f* ]]; then
+	echo Skipping integration tests since TESTFLAGS includes integration-cli only flags
+	TEST_SKIP_INTEGRATION=1
+fi
+
+if [[ "${TESTFLAGS}" = *-test.run* ]]; then
+	echo Skipping integration-cli tests since TESTFLAGS includes integration only flags
+	TEST_SKIP_INTEGRATION_CLI=1
+fi
+
+
 if [ -z ${MAKEDIR} ]; then
 	export MAKEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 fi
@@ -15,21 +27,24 @@ source "$MAKEDIR/.go-autogen"
 : ${TESTFLAGS:=}
 : ${TESTDEBUG:=}
 
-integration_api_dirs=${TEST_INTEGRATION_DIR:-"$(
-	find ./integration -type d |
-	grep -vE '(^./integration($|/internal)|/testdata)')"}
+integration_api_dirs=${TEST_INTEGRATION_DIR:-"$(go list  -test -f '{{- if ne .ForTest "" -}}{{- .Dir -}}{{- end -}}'  ./integration/...)"}
 
 run_test_integration() {
-	[[ "$TESTFLAGS" != *-check.f* ]] && run_test_integration_suites
-	run_test_integration_legacy_suites
+	set_platform_timeout
+	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
+		run_test_integration_suites
+	fi
+	if [ -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
+		run_test_integration_legacy_suites
+	fi
 }
 
 run_test_integration_suites() {
-	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS"
+	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS ${TESTFLAGS_INTEGRATION}"
 	for dir in ${integration_api_dirs}; do
 		if ! (
 			cd "$dir"
-			echo "Running $PWD"
+			echo "Running $PWD flags=${flags}"
 			test_env ./test.main ${flags}
 		); then exit 1; fi
 	done
@@ -37,9 +52,9 @@ run_test_integration_suites() {
 
 run_test_integration_legacy_suites() {
 	(
-		flags="-check.v -check.timeout=${TIMEOUT} -test.timeout=360m $TESTFLAGS"
+		flags="-check.v -check.timeout=${TIMEOUT} -test.timeout=360m $TESTFLAGS ${TESTFLAGS_INTEGRATION_CLI}"
 		cd integration-cli
-		echo "Running $PWD"
+		echo "Running $PWD flags=${flags}"
 		test_env ./test.main $flags
 	)
 }
@@ -49,10 +64,14 @@ build_test_suite_binaries() {
 		echo "Skipping building test binaries; as DOCKER_INTEGRATION_TESTS_VERIFIED is set"
 		return
 	fi
-	build_test_suite_binary ./integration-cli "test.main"
-	for dir in ${integration_api_dirs}; do
-		build_test_suite_binary "$dir" "test.main"
-	done
+	if [ -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
+		build_test_suite_binary ./integration-cli "test.main"
+	fi
+	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
+		for dir in ${integration_api_dirs}; do
+			build_test_suite_binary "$dir" "test.main"
+		done
+	fi
 }
 
 # Build a binary for a test suite package
@@ -104,10 +123,9 @@ test_env() {
 			"$@"
 	)
 }
-   
 
 error_on_leaked_containerd_shims() {
-	if [ "$(go env GOOS)" == 'windows' ]; then
+	if [ "$(go env GOOS)" = 'windows' ]; then
 		return
 	fi
 
@@ -118,5 +136,25 @@ error_on_leaked_containerd_shims() {
 		kill -9 ${leftovers} 2> /dev/null
 		echo "!!!! WARNING you have left over shim(s), Cleanup your test !!!!"
 		exit 1
+	fi
+}
+
+set_platform_timeout() {
+	# Test timeout.
+	if [ "${DOCKER_ENGINE_GOARCH}" = "arm64" ] || [ "${DOCKER_ENGINE_GOARCH}" = "arm" ]; then
+		: ${TIMEOUT:=10m}
+	elif [ "${DOCKER_ENGINE_GOARCH}" = "windows" ]; then
+		: ${TIMEOUT:=8m}
+	else
+		: ${TIMEOUT:=5m}
+	fi
+
+	if [ "${TEST_REPEAT}" -gt 1 ]; then
+		# TIMEOUT needs to take TEST_REPEAT into account, or a premature time out may happen.
+		# The following ugliness will:
+		# - remove last character (usually 'm' from '10m')
+		# - multiply by testcount
+		# - add last character back
+		TIMEOUT=$((${TIMEOUT::-1} * ${TEST_REPEAT}))${TIMEOUT:$((${#TIMEOUT}-1)):1}
 	fi
 }

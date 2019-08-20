@@ -1,9 +1,21 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
+if [ -n "$TEST_INTEGRATION_DEST" ]; then
+	export DEST="$ABS_DEST/$TEST_INTEGRATION_DEST"
+	export DOCKER_INTEGRATION_DAEMON_DEST="$DEST"
+	mkdir -p "$DEST"
+fi
+
 source hack/make/.integration-test-helpers
 
+if [ ! -z "${TEST_SKIP_INTEGRATION}" ] && [ ! -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
+	echo integration and integration-cli skipped according to env vars
+	exit 0
+fi
+
 (
+	env
 	build_test_suite_binaries
 	bundle .integration-daemon-start
 	bundle .integration-daemon-setup

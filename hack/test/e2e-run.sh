@@ -2,7 +2,7 @@
 set -e -u -o pipefail
 
 ARCH=$(uname -m)
-if [ "$ARCH" == "x86_64" ]; then
+if [ "$ARCH" = "x86_64" ]; then
   ARCH="amd64"
 fi
 
@@ -17,8 +17,13 @@ integration_api_dirs=${TEST_INTEGRATION_DIR:-"$(
 	grep -vE '(^/tests/integration($|/internal)|/testdata)')"}
 
 run_test_integration() {
-	[[ "$TESTFLAGS" != *-check.f* ]] && run_test_integration_suites
-	run_test_integration_legacy_suites
+	set_platform_timeout
+	if [[ "$TESTFLAGS" != *-check.f* ]]; then
+		run_test_integration_suites
+	fi
+	if [[ "$TESTFLAGS" != *-test.run* ]]; then
+		run_test_integration_legacy_suites
+	fi
 }
 
 run_test_integration_suites() {
@@ -66,6 +71,17 @@ test_env() {
 			TEST_CLIENT_BINARY="$TEST_CLIENT_BINARY" \
 			"$@"
 	)
+}
+
+set_platform_timeout() {
+	# Test timeout.
+	if [ "${DOCKER_ENGINE_GOARCH}" = "arm64" ] || [ "${DOCKER_ENGINE_GOARCH}" = "arm" ]; then
+		: ${TIMEOUT:=10m}
+	elif [ "${DOCKER_ENGINE_GOARCH}" = "windows" ]; then
+		: ${TIMEOUT:=8m}
+	else
+		: ${TIMEOUT:=5m}
+	fi
 }
 
 sh /scripts/ensure-emptyfs.sh

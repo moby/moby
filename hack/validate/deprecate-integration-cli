@@ -5,13 +5,13 @@ export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${SCRIPTDIR}/.validate"
 
 new_tests=$(
-    validate_diff --diff-filter=ACMR --unified=0 -- 'integration-cli/*_cli_*.go' |
-    grep -E '^\+func (.*) Test' || true
+	validate_diff --diff-filter=ACMR --unified=0 -- 'integration-cli/*_cli_*.go' |
+	grep -E '^\+func (.*) Test' || true
 )
 
 if [ -z "$new_tests" ]; then
 	echo 'Congratulations!  No new tests added to integration-cli.'
-    exit
+	exit
 fi
 
 echo "The following new tests were added to integration-cli:"

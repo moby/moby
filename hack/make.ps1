@@ -327,19 +327,16 @@ Function Run-UnitTests() {
 # Run the integration tests
 Function Run-IntegrationTests() {
     $env:DOCKER_INTEGRATION_DAEMON_DEST = $root + "\bundles\tmp"
-    $dirs =  Get-ChildItem -Path integration -Directory -Recurse
+    $dirs = go list -test -f '{{- if ne .ForTest `"`" -}}{{- .Dir -}}{{- end -}}' .\integration\...
     $integration_api_dirs = @()
     ForEach($dir in $dirs) {
-        $RelativePath = "." + $dir.FullName -replace "$($PWD.Path -replace "\\","\\")",""
-        If ($RelativePath -notmatch '(^.\\integration($|\\internal)|\\testdata)') {
-            $integration_api_dirs += $dir
-            Write-Host "Building test suite binary $RelativePath"
-            go test -c -o "$RelativePath\test.exe" $RelativePath
-        }
+        $integration_api_dirs += $dir
+        Write-Host "Building test suite binary $dir"
+        go test -c -o "$dir\test.exe" $dir
     }
 
     ForEach($dir in $integration_api_dirs) {
-        Set-Location $dir.FullName
+        Set-Location $dir
         Write-Host "Running $($PWD.Path)"
         $pinfo = New-Object System.Diagnostics.ProcessStartInfo
         $pinfo.FileName = "$($PWD.Path)\test.exe"

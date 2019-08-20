@@ -25,5 +25,5 @@ if [ ${#files[@]} -gt 0 ]; then
 		echo 'Congratulations! All api changes are done the right way.'
 	fi
 else
-    echo 'No api/types/ or api/swagger.yaml changes in diff.'
+	echo 'No api/types/ or api/swagger.yaml changes in diff.'
 fi
