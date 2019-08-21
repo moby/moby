@@ -255,24 +255,23 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 		var rwlayer layer.RWLayer
 		return &mountable{
 			idmap: s.opt.IdentityMapping,
-			acquire: func() ([]mount.Mount, error) {
+			acquire: func() ([]mount.Mount, func() error, error) {
 				rwlayer, err = s.opt.LayerStore.CreateRWLayer(id, l.ChainID(), nil)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				rootfs, err := rwlayer.Mount("")
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				return []mount.Mount{{
-					Source:  rootfs.Path(),
-					Type:    "bind",
-					Options: []string{"rbind"},
-				}}, nil
-			},
-			release: func() error {
-				_, err := s.opt.LayerStore.ReleaseRWLayer(rwlayer)
-				return err
+						Source:  rootfs.Path(),
+						Type:    "bind",
+						Options: []string{"rbind"},
+					}}, func() error {
+						_, err := s.opt.LayerStore.ReleaseRWLayer(rwlayer)
+						return err
+					}, nil
 			},
 		}, nil
 	}
@@ -281,19 +280,18 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 
 	return &mountable{
 		idmap: s.opt.IdentityMapping,
-		acquire: func() ([]mount.Mount, error) {
+		acquire: func() ([]mount.Mount, func() error, error) {
 			rootfs, err := s.opt.GraphDriver.Get(id, "")
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			return []mount.Mount{{
-				Source:  rootfs.Path(),
-				Type:    "bind",
-				Options: []string{"rbind"},
-			}}, nil
-		},
-		release: func() error {
-			return s.opt.GraphDriver.Put(id)
+					Source:  rootfs.Path(),
+					Type:    "bind",
+					Options: []string{"rbind"},
+				}}, func() error {
+					return s.opt.GraphDriver.Put(id)
+				}, nil
 		},
 	}, nil
 }
@@ -440,32 +438,33 @@ func (s *snapshotter) Close() error {
 type mountable struct {
 	mu       sync.Mutex
 	mounts   []mount.Mount
-	acquire  func() ([]mount.Mount, error)
+	acquire  func() ([]mount.Mount, func() error, error)
 	release  func() error
 	refCount int
 	idmap    *idtools.IdentityMapping
 }
 
-func (m *mountable) Mount() ([]mount.Mount, error) {
+func (m *mountable) Mount() ([]mount.Mount, func() error, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.mounts != nil {
 		m.refCount++
-		return m.mounts, nil
+		return m.mounts, m.releaseMount, nil
 	}
 
-	mounts, err := m.acquire()
+	mounts, release, err := m.acquire()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	m.mounts = mounts
+	m.release = release
 	m.refCount = 1
 
-	return m.mounts, nil
+	return m.mounts, m.releaseMount, nil
 }
 
-func (m *mountable) Release() error {
+func (m *mountable) releaseMount() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
