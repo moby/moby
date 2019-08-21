@@ -125,7 +125,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			execConfig.ExitCode = &ec
 			execConfig.Running = false
 
-			ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), 1*time.Second)
 			execConfig.StreamConfig.Wait(ctx)
 
 			if err := execConfig.CloseStreams(); err != nil {

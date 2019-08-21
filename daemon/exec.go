@@ -259,18 +259,15 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 
 	// Synchronize with libcontainerd event loop
 	ec.Lock()
-	c.ExecCommands.Lock()
 	systemPid, err := d.containerd.Exec(ctx, c.ID, ec.ID, p, cStdin != nil, ec.InitializeStdio)
 	// the exec context should be ready, or error happened.
 	// close the chan to notify readiness
 	close(ec.Started)
 	if err != nil {
-		c.ExecCommands.Unlock()
 		ec.Unlock()
 		return translateContainerdStartErr(ec.Entrypoint, ec.SetExitCode, err)
 	}
 	ec.Pid = systemPid
-	c.ExecCommands.Unlock()
 	ec.Unlock()
 
 	select {

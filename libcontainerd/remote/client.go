@@ -26,7 +26,6 @@ import (
 	"github.com/containerd/containerd/runtime/linux/runctypes"
 	"github.com/containerd/typeurl"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/libcontainerd/queue"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 
 	"github.com/docker/docker/pkg/ioutils"
@@ -48,7 +47,6 @@ type client struct {
 	ns       string
 
 	backend libcontainerdtypes.Backend
-	eventQ  queue.Queue
 	oomMu   sync.Mutex
 	oom     map[string]bool
 }
@@ -630,55 +628,53 @@ func (c *client) createIO(fifos *cio.FIFOSet, containerID, processID string, std
 }
 
 func (c *client) processEvent(ctx context.Context, et libcontainerdtypes.EventType, ei libcontainerdtypes.EventInfo) {
-	c.eventQ.Append(ei.ContainerID, func() {
-		err := c.backend.ProcessEvent(ei.ContainerID, et, ei)
+	err := c.backend.ProcessEvent(ei.ContainerID, et, ei)
+	if err != nil {
+		c.logger.WithError(err).WithFields(logrus.Fields{
+			"container":  ei.ContainerID,
+			"event":      et,
+			"event-info": ei,
+		}).Error("failed to process event")
+	}
+
+	if et == libcontainerdtypes.EventExit && ei.ProcessID != ei.ContainerID {
+		p, err := c.getProcess(ctx, ei.ContainerID, ei.ProcessID)
 		if err != nil {
-			c.logger.WithError(err).WithFields(logrus.Fields{
-				"container":  ei.ContainerID,
-				"event":      et,
-				"event-info": ei,
-			}).Error("failed to process event")
+
+			c.logger.WithError(errors.New("no such process")).
+				WithFields(logrus.Fields{
+					"error":     err,
+					"container": ei.ContainerID,
+					"process":   ei.ProcessID,
+				}).Error("exit event")
+			return
 		}
 
-		if et == libcontainerdtypes.EventExit && ei.ProcessID != ei.ContainerID {
-			p, err := c.getProcess(ctx, ei.ContainerID, ei.ProcessID)
-			if err != nil {
-
-				c.logger.WithError(errors.New("no such process")).
-					WithFields(logrus.Fields{
-						"error":     err,
-						"container": ei.ContainerID,
-						"process":   ei.ProcessID,
-					}).Error("exit event")
-				return
-			}
-
-			ctr, err := c.getContainer(ctx, ei.ContainerID)
+		ctr, err := c.getContainer(ctx, ei.ContainerID)
+		if err != nil {
+			c.logger.WithFields(logrus.Fields{
+				"container": ei.ContainerID,
+				"error":     err,
+			}).Error("failed to find container")
+		} else {
+			labels, err := ctr.Labels(ctx)
 			if err != nil {
 				c.logger.WithFields(logrus.Fields{
 					"container": ei.ContainerID,
 					"error":     err,
-				}).Error("failed to find container")
-			} else {
-				labels, err := ctr.Labels(ctx)
-				if err != nil {
-					c.logger.WithFields(logrus.Fields{
-						"container": ei.ContainerID,
-						"error":     err,
-					}).Error("failed to get container labels")
-					return
-				}
-				newFIFOSet(labels[DockerContainerBundlePath], ei.ProcessID, true, false).Close()
+				}).Error("failed to get container labels")
+				return
 			}
-			_, err = p.Delete(context.Background())
-			if err != nil {
-				c.logger.WithError(err).WithFields(logrus.Fields{
-					"container": ei.ContainerID,
-					"process":   ei.ProcessID,
-				}).Warn("failed to delete process")
-			}
+			newFIFOSet(labels[DockerContainerBundlePath], ei.ProcessID, true, false).Close()
 		}
-	})
+		_, err = p.Delete(context.Background())
+		if err != nil {
+			c.logger.WithError(err).WithFields(logrus.Fields{
+				"container": ei.ContainerID,
+				"process":   ei.ProcessID,
+			}).Warn("failed to delete process")
+		}
+	}
 }
 
 func (c *client) processEventStream(ctx context.Context, ns string) {
@@ -798,7 +794,7 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 			ei.OOMKilled = c.oom[ei.ContainerID]
 			c.oomMu.Unlock()
 
-			c.processEvent(ctx, et, ei)
+			go c.processEvent(ctx, et, ei)
 		}
 	}
 }
