@@ -18,8 +18,8 @@ func (lm *localMounter) Unmount() error {
 		lm.target = ""
 	}
 
-	if lm.mountable != nil {
-		return lm.mountable.Release()
+	if lm.release != nil {
+		return lm.release()
 	}
 
 	return nil
