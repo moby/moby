@@ -2,7 +2,7 @@
 # Entrypoint for jenkins experimental CI
 set -eu -o pipefail
 
-export DOCKER_EXPERIMENTAL=y
+export DOCKER_EXPERIMENTAL=1
 
 hack/make.sh \
 	binary-daemon \

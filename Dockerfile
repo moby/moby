@@ -72,17 +72,6 @@ RUN set -x \
 	   esac \
 	&& rm -rf "$GOPATH"
 
-
-
-FROM base AS docker-py
-# Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT ac922192959870774ad8428344d9faa0555f7ba6
-RUN git clone https://github.com/docker/docker-py.git /build \
-	&& cd /build \
-	&& git checkout -q $DOCKER_PY_COMMIT
-
-
-
 FROM base AS swagger
 # Install go-swagger for validating swagger.yaml
 ENV GO_SWAGGER_COMMIT c28258affb0b6251755d92489ef685af8d4ff3eb
@@ -92,7 +81,6 @@ RUN set -x \
 	&& (cd "$GOPATH/src/github.com/go-swagger/go-swagger" && git checkout -q "$GO_SWAGGER_COMMIT") \
 	&& go build -o /build/swagger github.com/go-swagger/go-swagger/cmd/swagger \
 	&& rm -rf "$GOPATH"
-
 
 FROM base AS frozen-images
 RUN apt-get update && apt-get install -y jq ca-certificates --no-install-recommends
@@ -144,6 +132,12 @@ COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 
+FROM base AS gotestsum
+ENV INSTALL_BINARY_NAME=gotestsum
+COPY hack/dockerfile/install/install.sh ./install.sh
+COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
+
 FROM base AS dockercli
 ENV INSTALL_BINARY_NAME=dockercli
 COPY hack/dockerfile/install/install.sh ./install.sh
@@ -186,25 +180,14 @@ RUN apt-get update && apt-get install -y \
 	jq \
 	libcap2-bin \
 	libdevmapper-dev \
-# libffi-dev and libssl-dev appear to be required for compiling paramiko on s390x/ppc64le
-	libffi-dev \
-	libssl-dev \
 	libudev-dev \
 	libsystemd-dev \
 	binutils-mingw-w64 \
 	g++-mingw-w64-x86-64 \
 	net-tools \
 	pigz \
-	python-backports.ssl-match-hostname \
-	python-dev \
-# python-cffi appears to be required for compiling paramiko on s390x/ppc64le
-	python-cffi \
-	python-mock \
-	python-pip \
-	python-requests \
-	python-setuptools \
-	python-websocket \
-	python-wheel \
+	python3-pip \
+	python3-setuptools \
 	thin-provisioning-tools \
 	vim \
 	vim-common \
@@ -213,9 +196,13 @@ RUN apt-get update && apt-get install -y \
 	bzip2 \
 	xz-utils \
 	--no-install-recommends
+
+RUN pip3 install yamllint==1.16.0
+
 COPY --from=swagger /build/swagger* /usr/local/bin/
 COPY --from=frozen-images /build/ /docker-frozen-images
 COPY --from=gometalinter /build/ /usr/local/bin/
+COPY --from=gotestsum /build/ /usr/local/bin/
 COPY --from=tomlv /build/ /usr/local/bin/
 COPY --from=vndr /build/ /usr/local/bin/
 COPY --from=tini /build/ /usr/local/bin/
@@ -225,16 +212,6 @@ COPY --from=proxy /build/ /usr/local/bin/
 COPY --from=dockercli /build/ /usr/local/cli
 COPY --from=registry /build/registry* /usr/local/bin/
 COPY --from=criu /build/ /usr/local/
-COPY --from=docker-py /build/ /docker-py
-# TODO: This is for the docker-py tests, which shouldn't really be needed for
-# this image, but currently CI is expecting to run this image. This should be
-# split out into a separate image, including all the `python-*` deps installed
-# above.
-RUN cd /docker-py \
-	&& pip install docker-pycreds==0.4.0 \
-	&& pip install paramiko==2.4.2 \
-	&& pip install yamllint==1.5.0 \
-	&& pip install -r test-requirements.txt
 
 ENV PATH=/usr/local/cli:$PATH
 ENV DOCKER_BUILDTAGS apparmor seccomp selinux

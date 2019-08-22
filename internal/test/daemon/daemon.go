@@ -33,6 +33,13 @@ type testingT interface {
 	Fatalf(string, ...interface{})
 }
 
+type namer interface {
+	Name() string
+}
+type testNamer interface {
+	TestName() string
+}
+
 type logT interface {
 	Logf(string, ...interface{})
 }
@@ -91,6 +98,13 @@ func New(t testingT, ops ...func(*Daemon)) *Daemon {
 	if dest == "" {
 		dest = os.Getenv("DEST")
 	}
+	switch v := t.(type) {
+	case namer:
+		dest = filepath.Join(dest, v.Name())
+	case testNamer:
+		dest = filepath.Join(dest, v.TestName())
+	}
+	t.Logf("Creating a new daemon at: %s", dest)
 	assert.Check(t, dest != "", "Please set the DOCKER_INTEGRATION_DAEMON_DEST or the DEST environment variable")
 
 	storageDriver := os.Getenv("DOCKER_GRAPHDRIVER")
@@ -607,7 +621,9 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 		return nil, err
 	}
 	transport.DisableKeepAlives = true
-
+	if proto == "unix" {
+		addr = filepath.Base(addr)
+	}
 	return &clientConfig{
 		transport: transport,
 		scheme:    scheme,

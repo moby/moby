@@ -148,16 +148,7 @@ EXTLDFLAGS_STATIC='-static'
 ORIG_BUILDFLAGS=( -tags "autogen netgo osusergo static_build $DOCKER_BUILDTAGS" -installsuffix netgo )
 # see https://github.com/golang/go/issues/9369#issuecomment-69864440 for why -installsuffix is necessary here
 
-BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
-
-# Test timeout.
-if [ "${DOCKER_ENGINE_GOARCH}" == "arm64" ] || [ "${DOCKER_ENGINE_GOARCH}" == "arm" ]; then
-	: ${TIMEOUT:=10m}
-elif [ "${DOCKER_ENGINE_GOARCH}" == "windows" ]; then
-	: ${TIMEOUT:=8m}
-else
-	: ${TIMEOUT:=5m}
-fi
+BUILDFLAGS=( ${BUILDFLAGS} "${ORIG_BUILDFLAGS[@]}" )
 
 LDFLAGS_STATIC_DOCKER="
 	$LDFLAGS_STATIC
