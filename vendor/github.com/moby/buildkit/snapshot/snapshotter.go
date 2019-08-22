@@ -2,7 +2,9 @@ package snapshot
 
 import (
 	"context"
+	"os"
 	"sync"
+	"sync/atomic"
 
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
@@ -12,8 +14,7 @@ import (
 
 type Mountable interface {
 	// ID() string
-	Mount() ([]mount.Mount, error)
-	Release() error
+	Mount() ([]mount.Mount, func() error, error)
 	IdentityMapping() *idtools.IdentityMapping
 }
 
@@ -63,7 +64,7 @@ func (s *fromContainerd) Mounts(ctx context.Context, key string) (Mountable, err
 	if err != nil {
 		return nil, err
 	}
-	return &staticMountable{mounts, s.idmap}, nil
+	return &staticMountable{mounts: mounts, idmap: s.idmap, id: key}, nil
 }
 func (s *fromContainerd) Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) error {
 	_, err := s.Snapshotter.Prepare(ctx, key, parent, opts...)
@@ -74,23 +75,29 @@ func (s *fromContainerd) View(ctx context.Context, key, parent string, opts ...s
 	if err != nil {
 		return nil, err
 	}
-	return &staticMountable{mounts, s.idmap}, nil
+	return &staticMountable{mounts: mounts, idmap: s.idmap, id: key}, nil
 }
 func (s *fromContainerd) IdentityMapping() *idtools.IdentityMapping {
 	return s.idmap
 }
 
 type staticMountable struct {
+	count  int32
+	id     string
 	mounts []mount.Mount
 	idmap  *idtools.IdentityMapping
 }
 
-func (m *staticMountable) Mount() ([]mount.Mount, error) {
-	return m.mounts, nil
-}
-
-func (cm *staticMountable) Release() error {
-	return nil
+func (cm *staticMountable) Mount() ([]mount.Mount, func() error, error) {
+	atomic.AddInt32(&cm.count, 1)
+	return cm.mounts, func() error {
+		if atomic.AddInt32(&cm.count, -1) < 0 {
+			if v := os.Getenv("BUILDKIT_DEBUG_PANIC_ON_ERROR"); v == "1" {
+				panic("release of released mount " + cm.id)
+			}
+		}
+		return nil
+	}, nil
 }
 
 func (cm *staticMountable) IdentityMapping() *idtools.IdentityMapping {
@@ -122,12 +129,12 @@ func (cs *containerdSnapshotter) release() error {
 }
 
 func (cs *containerdSnapshotter) returnMounts(mf Mountable) ([]mount.Mount, error) {
-	mounts, err := mf.Mount()
+	mounts, release, err := mf.Mount()
 	if err != nil {
 		return nil, err
 	}
 	cs.mu.Lock()
-	cs.releasers = append(cs.releasers, mf.Release)
+	cs.releasers = append(cs.releasers, release)
 	cs.mu.Unlock()
 	return mounts, nil
 }

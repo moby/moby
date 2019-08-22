@@ -31,6 +31,7 @@ type localMounter struct {
 	mounts    []mount.Mount
 	mountable Mountable
 	target    string
+	release   func() error
 }
 
 func (lm *localMounter) Mount() (string, error) {
@@ -38,11 +39,12 @@ func (lm *localMounter) Mount() (string, error) {
 	defer lm.mu.Unlock()
 
 	if lm.mounts == nil {
-		mounts, err := lm.mountable.Mount()
+		mounts, release, err := lm.mountable.Mount()
 		if err != nil {
 			return "", err
 		}
 		lm.mounts = mounts
+		lm.release = release
 	}
 
 	if len(lm.mounts) == 1 && (lm.mounts[0].Type == "bind" || lm.mounts[0].Type == "rbind") {

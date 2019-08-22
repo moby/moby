@@ -424,10 +424,10 @@ type readOnlyMounter struct {
 	snapshot.Mountable
 }
 
-func (m *readOnlyMounter) Mount() ([]mount.Mount, error) {
-	mounts, err := m.Mountable.Mount()
+func (m *readOnlyMounter) Mount() ([]mount.Mount, func() error, error) {
+	mounts, release, err := m.Mountable.Mount()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for i, m := range mounts {
 		if m.Type == "overlay" {
@@ -443,7 +443,7 @@ func (m *readOnlyMounter) Mount() ([]mount.Mount, error) {
 		opts = append(opts, "ro")
 		mounts[i].Options = opts
 	}
-	return mounts, nil
+	return mounts, release, nil
 }
 
 func readonlyOverlay(opt []string) []string {

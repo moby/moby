@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -25,7 +23,6 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
 	rootlessspecconv "github.com/moby/buildkit/util/rootless/specconv"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -42,8 +39,9 @@ type Opt struct {
 	ProcessMode     oci.ProcessMode
 	IdentityMapping *idtools.IdentityMapping
 	// runc run --no-pivot (unrecommended)
-	NoPivot bool
-	DNS     *oci.DNSConfig
+	NoPivot     bool
+	DNS         *oci.DNSConfig
+	OOMScoreAdj *int
 }
 
 var defaultCommandCandidates = []string{"buildkit-runc", "runc"}
@@ -59,6 +57,7 @@ type runcExecutor struct {
 	idmap            *idtools.IdentityMapping
 	noPivot          bool
 	dns              *oci.DNSConfig
+	oomScoreAdj      *int
 }
 
 func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Executor, error) {
@@ -118,6 +117,7 @@ func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Ex
 		idmap:            opt.IdentityMapping,
 		noPivot:          opt.NoPivot,
 		dns:              opt.DNS,
+		oomScoreAdj:      opt.OOMScoreAdj,
 	}
 	return w, nil
 }
@@ -155,11 +155,13 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 		return err
 	}
 
-	rootMount, err := mountable.Mount()
+	rootMount, release, err := mountable.Mount()
 	if err != nil {
 		return err
 	}
-	defer mountable.Release()
+	if release != nil {
+		defer release()
+	}
 
 	id := identity.NewID()
 	bundle := filepath.Join(w.root, id)
@@ -242,9 +244,7 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 		}
 	}
 
-	if err := setOOMScoreAdj(spec); err != nil {
-		return err
-	}
+	spec.Process.OOMScoreAdj = w.oomScoreAdj
 	if w.rootless {
 		if err := rootlessspecconv.ToRootless(spec); err != nil {
 			return err
@@ -334,21 +334,5 @@ func (s *forwardIO) Stdout() io.ReadCloser {
 }
 
 func (s *forwardIO) Stderr() io.ReadCloser {
-	return nil
-}
-
-// setOOMScoreAdj comes from https://github.com/genuinetools/img/blob/2fabe60b7dc4623aa392b515e013bbc69ad510ab/executor/runc/executor.go#L182-L192
-func setOOMScoreAdj(spec *specs.Spec) error {
-	// Set the oom_score_adj of our children containers to that of the current process.
-	b, err := ioutil.ReadFile("/proc/self/oom_score_adj")
-	if err != nil {
-		return errors.Wrap(err, "failed to read /proc/self/oom_score_adj")
-	}
-	s := strings.TrimSpace(string(b))
-	oom, err := strconv.Atoi(s)
-	if err != nil {
-		return errors.Wrapf(err, "failed to parse %s as int", s)
-	}
-	spec.Process.OOMScoreAdj = &oom
 	return nil
 }
