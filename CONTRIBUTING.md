@@ -245,7 +245,7 @@ indicate acceptance, or use the Github review approval feature.
 For an explanation of the review and approval process see the
 [REVIEWING](project/REVIEWING.md) page.
 
-### Sign your work
+
 
 The sign-off is a simple line at the end of the explanation for the patch. Your
 signature certifies that you wrote the patch or otherwise have the right to pass
