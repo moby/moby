@@ -133,49 +133,67 @@ func TestService(t *testing.T) {
 
 	for _, protocol := range protocols {
 		for _, schedMethod := range schedMethods {
-
-			s := Service{
-				AddressFamily: nl.FAMILY_V4,
-				SchedName:     schedMethod,
+			testDatas := []struct {
+				AddressFamily uint16
+				IP            string
+				Netmask       uint32
+			}{
+				{
+					AddressFamily: nl.FAMILY_V4,
+					IP:            "1.2.3.4",
+					Netmask:       0xFFFFFFFF,
+				}, {
+					AddressFamily: nl.FAMILY_V6,
+					IP:            "2001:db8:3c4d:15::1a00",
+					Netmask:       128,
+				},
 			}
-
-			switch protocol {
-			case "FWM":
-				s.FWMark = 1234
-			case "TCP":
-				s.Protocol = unix.IPPROTO_TCP
-				s.Port = 80
-				s.Address = net.ParseIP("1.2.3.4")
-				s.Netmask = 0xFFFFFFFF
-			case "UDP":
-				s.Protocol = unix.IPPROTO_UDP
-				s.Port = 53
-				s.Address = net.ParseIP("2.3.4.5")
-			}
-
-			err := i.NewService(&s)
-			assert.NilError(t, err)
-			checkService(t, i, &s, true)
-			for _, updateSchedMethod := range schedMethods {
-				if updateSchedMethod == schedMethod {
-					continue
+			for _, td := range testDatas {
+				s := Service{
+					AddressFamily: td.AddressFamily,
+					SchedName:     schedMethod,
 				}
 
-				s.SchedName = updateSchedMethod
-				err = i.UpdateService(&s)
+				switch protocol {
+				case "FWM":
+					s.FWMark = 1234
+					s.Netmask = td.Netmask
+				case "TCP":
+					s.Protocol = unix.IPPROTO_TCP
+					s.Port = 80
+					s.Address = net.ParseIP(td.IP)
+					s.Netmask = td.Netmask
+				case "UDP":
+					s.Protocol = unix.IPPROTO_UDP
+					s.Port = 53
+					s.Address = net.ParseIP(td.IP)
+					s.Netmask = td.Netmask
+				}
+
+				err := i.NewService(&s)
 				assert.NilError(t, err)
 				checkService(t, i, &s, true)
+				for _, updateSchedMethod := range schedMethods {
+					if updateSchedMethod == schedMethod {
+						continue
+					}
 
-				scopy, err := i.GetService(&s)
+					s.SchedName = updateSchedMethod
+					err = i.UpdateService(&s)
+					assert.NilError(t, err)
+					checkService(t, i, &s, true)
+
+					scopy, err := i.GetService(&s)
+					assert.NilError(t, err)
+					assert.Check(t, is.Equal((*scopy).Address.String(), s.Address.String()))
+					assert.Check(t, is.Equal((*scopy).Port, s.Port))
+					assert.Check(t, is.Equal((*scopy).Protocol, s.Protocol))
+				}
+
+				err = i.DelService(&s)
 				assert.NilError(t, err)
-				assert.Check(t, is.Equal((*scopy).Address.String(), s.Address.String()))
-				assert.Check(t, is.Equal((*scopy).Port, s.Port))
-				assert.Check(t, is.Equal((*scopy).Protocol, s.Protocol))
+				checkService(t, i, &s, false)
 			}
-
-			err = i.DelService(&s)
-			assert.NilError(t, err)
-			checkService(t, i, &s, false)
 		}
 	}
 
@@ -251,94 +269,84 @@ func TestDestination(t *testing.T) {
 	assert.NilError(t, err)
 
 	for _, protocol := range protocols {
-
-		s := Service{
-			AddressFamily: nl.FAMILY_V4,
-			SchedName:     RoundRobin,
+		testDatas := []struct {
+			AddressFamily uint16
+			IP            string
+			Netmask       uint32
+			Destinations  []string
+		}{
+			{
+				AddressFamily: nl.FAMILY_V4,
+				IP:            "1.2.3.4",
+				Netmask:       0xFFFFFFFF,
+				Destinations:  []string{"10.1.1.2", "10.1.1.3", "10.1.1.4"},
+			}, {
+				AddressFamily: nl.FAMILY_V6,
+				IP:            "2001:db8:3c4d:15::1a00",
+				Netmask:       128,
+				Destinations:  []string{"2001:db8:3c4d:15::1a2b", "2001:db8:3c4d:15::1a2c", "2001:db8:3c4d:15::1a2d"},
+			},
 		}
-
-		switch protocol {
-		case "FWM":
-			s.FWMark = 1234
-		case "TCP":
-			s.Protocol = unix.IPPROTO_TCP
-			s.Port = 80
-			s.Address = net.ParseIP("1.2.3.4")
-			s.Netmask = 0xFFFFFFFF
-		case "UDP":
-			s.Protocol = unix.IPPROTO_UDP
-			s.Port = 53
-			s.Address = net.ParseIP("2.3.4.5")
-		}
-
-		err := i.NewService(&s)
-		assert.NilError(t, err)
-		checkService(t, i, &s, true)
-
-		s.SchedName = ""
-		for _, fwdMethod := range fwdMethods {
-			d1 := Destination{
-				AddressFamily:   nl.FAMILY_V4,
-				Address:         net.ParseIP("10.1.1.2"),
-				Port:            5000,
-				Weight:          1,
-				ConnectionFlags: fwdMethod,
+		for _, td := range testDatas {
+			s := Service{
+				AddressFamily: td.AddressFamily,
+				SchedName:     RoundRobin,
 			}
 
-			err := i.NewDestination(&s, &d1)
-			assert.NilError(t, err)
-			checkDestination(t, i, &s, &d1, true)
-			d2 := Destination{
-				AddressFamily:   nl.FAMILY_V4,
-				Address:         net.ParseIP("10.1.1.3"),
-				Port:            5000,
-				Weight:          1,
-				ConnectionFlags: fwdMethod,
+			switch protocol {
+			case "FWM":
+				s.FWMark = 1234
+				s.Netmask = td.Netmask
+			case "TCP":
+				s.Protocol = unix.IPPROTO_TCP
+				s.Port = 80
+				s.Address = net.ParseIP(td.IP)
+				s.Netmask = td.Netmask
+			case "UDP":
+				s.Protocol = unix.IPPROTO_UDP
+				s.Port = 53
+				s.Address = net.ParseIP(td.IP)
+				s.Netmask = td.Netmask
 			}
 
-			err = i.NewDestination(&s, &d2)
+			err := i.NewService(&s)
 			assert.NilError(t, err)
-			checkDestination(t, i, &s, &d2, true)
+			checkService(t, i, &s, true)
 
-			d3 := Destination{
-				AddressFamily:   nl.FAMILY_V4,
-				Address:         net.ParseIP("10.1.1.4"),
-				Port:            5000,
-				Weight:          1,
-				ConnectionFlags: fwdMethod,
-			}
-
-			err = i.NewDestination(&s, &d3)
-			assert.NilError(t, err)
-			checkDestination(t, i, &s, &d3, true)
-
-			for _, updateFwdMethod := range fwdMethods {
-				if updateFwdMethod == fwdMethod {
-					continue
+			s.SchedName = ""
+			for _, fwdMethod := range fwdMethods {
+				destinations := make([]Destination, 0)
+				for _, ip := range td.Destinations {
+					d := Destination{
+						AddressFamily:   td.AddressFamily,
+						Address:         net.ParseIP(ip),
+						Port:            5000,
+						Weight:          1,
+						ConnectionFlags: fwdMethod,
+					}
+					destinations = append(destinations, d)
+					err := i.NewDestination(&s, &d)
+					assert.NilError(t, err)
+					checkDestination(t, i, &s, &d, true)
 				}
-				d1.ConnectionFlags = updateFwdMethod
-				err = i.UpdateDestination(&s, &d1)
-				assert.NilError(t, err)
-				checkDestination(t, i, &s, &d1, true)
 
-				d2.ConnectionFlags = updateFwdMethod
-				err = i.UpdateDestination(&s, &d2)
-				assert.NilError(t, err)
-				checkDestination(t, i, &s, &d2, true)
-
-				d3.ConnectionFlags = updateFwdMethod
-				err = i.UpdateDestination(&s, &d3)
-				assert.NilError(t, err)
-				checkDestination(t, i, &s, &d3, true)
+				for _, updateFwdMethod := range fwdMethods {
+					if updateFwdMethod == fwdMethod {
+						continue
+					}
+					for _, d := range destinations {
+						d.ConnectionFlags = updateFwdMethod
+						err = i.UpdateDestination(&s, &d)
+						assert.NilError(t, err)
+						checkDestination(t, i, &s, &d, true)
+					}
+				}
+				for _, d := range destinations {
+					err = i.DelDestination(&s, &d)
+					assert.NilError(t, err)
+					checkDestination(t, i, &s, &d, false)
+				}
 			}
-
-			err = i.DelDestination(&s, &d1)
-			assert.NilError(t, err)
-			err = i.DelDestination(&s, &d2)
-			assert.NilError(t, err)
-			err = i.DelDestination(&s, &d3)
-			assert.NilError(t, err)
-			checkDestination(t, i, &s, &d3, false)
 
 		}
 	}
