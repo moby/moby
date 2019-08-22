@@ -792,7 +792,7 @@ func getFollowLinksWalk(root *iradix.Node, k []byte, follow bool, linksWalked *i
 		return k, v.(*CacheRecord), nil
 	}
 	if !follow || len(k) == 0 {
-		return nil, nil, nil
+		return k, nil, nil
 	}
 
 	dir, file := splitKey(k)
@@ -817,14 +817,13 @@ func getFollowLinksWalk(root *iradix.Node, k []byte, follow bool, linksWalked *i
 			}
 			return getFollowLinksWalk(root, append(convertPathToKey([]byte(link)), file...), follow, linksWalked)
 		}
-
-		k = append(k, file...)
-		v, ok = root.Get(k)
-		if ok {
-			return k, v.(*CacheRecord), nil
-		}
 	}
-	return nil, nil, nil
+	k = append(k, file...)
+	v, ok = root.Get(k)
+	if ok {
+		return k, v.(*CacheRecord), nil
+	}
+	return k, nil, nil
 }
 
 func prepareDigest(fp, p string, fi os.FileInfo) (digest.Digest, error) {
