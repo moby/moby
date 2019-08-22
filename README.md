@@ -1,3 +1,5 @@
+TEST
+
 The Moby Project
 ================
 
