@@ -67,7 +67,7 @@ run_test_integration_suites() {
 				--jsonfile="${ABS_DEST}/$(basename "$dir")-go-test-report.json" \
 				--junitfile="${ABS_DEST}/$(basename "$dir")-junit-report.xml" \
 				--raw-command \
-				-- go tool test2json ./test.main ${flags}
+				-- go tool test2json -t ./test.main ${flags}
 		); then exit 1; fi
 	done
 }
