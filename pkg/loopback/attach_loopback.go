@@ -1,4 +1,4 @@
-// +build linux,cgo
+// +build linux
 
 package loopback // import "github.com/docker/docker/pkg/loopback"
 
@@ -116,10 +116,10 @@ func AttachLoopDevice(sparseName string) (loop *os.File, err error) {
 	}
 
 	// Set the status of the loopback device
-	loopInfo := &loopInfo64{
-		loFileName: stringToLoopName(loopFile.Name()),
-		loOffset:   0,
-		loFlags:    LoFlagsAutoClear,
+	loopInfo := &unix.LoopInfo64{
+		File_name: stringToLoopName(loopFile.Name()),
+		Offset:    0,
+		Flags:     LoFlagsAutoClear,
 	}
 
 	if err := ioctlLoopSetStatus64(loopFile.Fd(), loopInfo); err != nil {
