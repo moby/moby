@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/internal/test/request"
 	"gotest.tools/assert"
+	"gotest.tools/poll"
 )
 
 // Regression test for #9414
@@ -229,13 +230,13 @@ func (s *DockerSuite) TestExecStateCleanup(c *testing.T) {
 	startExec(c, id, http.StatusOK)
 	waitForExec(c, id)
 
-	waitAndAssert(c, 5*time.Second, checkReadDir, checker.Equals, len(fi))
+	poll.WaitOn(c, pollCheck(c, checkReadDir, checker.Equals(len(fi))), poll.WithTimeout(5*time.Second))
 
 	id = createExecCmd(c, name, "invalid")
 	startExec(c, id, http.StatusBadRequest)
 	waitForExec(c, id)
 
-	waitAndAssert(c, 5*time.Second, checkReadDir, checker.Equals, len(fi))
+	poll.WaitOn(c, pollCheck(c, checkReadDir, checker.Equals(len(fi))), poll.WithTimeout(5*time.Second))
 
 	dockerCmd(c, "stop", name)
 	_, err = os.Stat(stateDir)

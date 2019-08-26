@@ -40,6 +40,7 @@ import (
 	"golang.org/x/sys/unix"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
+	"gotest.tools/poll"
 )
 
 const containerdSocket = "/var/run/docker/containerd/containerd.sock"
@@ -2071,10 +2072,10 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *tes
 
 	// Give time to containerd to process the command if we don't
 	// the resume event might be received after we do the inspect
-	waitAndAssert(t, defaultReconciliationTimeout, func(*testing.T) (interface{}, string) {
+	poll.WaitOn(t, pollCheck(t, func(*testing.T) (interface{}, string) {
 		result := icmd.RunCommand("kill", "-0", strings.TrimSpace(pid))
 		return result.ExitCode, ""
-	}, checker.Equals, 0)
+	}, checker.Equals(0)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// restart the daemon
 	s.d.Start(t, "--live-restore")
