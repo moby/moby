@@ -1,4 +1,4 @@
-// Copyright 2016, Google Inc.
+// Copyright 2018, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,14 +27,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Package gax contains a set of modules which aid the development of APIs
-// for clients and servers based on gRPC and Google API conventions.
-//
-// Application code will rarely need to use this library directly.
-// However, code generated automatically from API definition files can use it
-// to simplify code generation and to provide more convenient and idiomatic API surfaces.
-//
-// This project is currently experimental and not supported.
 package gax
 
-const Version = "0.1.0"
+import "bytes"
+
+// XGoogHeader is for use by the Google Cloud Libraries only.
+//
+// XGoogHeader formats key-value pairs.
+// The resulting string is suitable for x-goog-api-client header.
+func XGoogHeader(keyval ...string) string {
+	if len(keyval) == 0 {
+		return ""
+	}
+	if len(keyval)%2 != 0 {
+		panic("gax.Header: odd argument count")
+	}
+	var buf bytes.Buffer
+	for i := 0; i < len(keyval); i += 2 {
+		buf.WriteByte(' ')
+		buf.WriteString(keyval[i])
+		buf.WriteByte('/')
+		buf.WriteString(keyval[i+1])
+	}
+	return buf.String()[1:]
+}

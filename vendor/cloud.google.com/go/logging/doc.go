@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2016 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,9 +19,6 @@ see package cloud.google.com/go/logging/logadmin.
 
 This client uses Logging API v2.
 See https://cloud.google.com/logging/docs/api/v2/ for an introduction to the API.
-
-
-Note: This package is in beta.  Some backwards-incompatible changes may occur.
 
 
 Creating a Client
@@ -65,7 +62,10 @@ For critical errors, you may want to send your log entries immediately.
 LogSync is slow and will block until the log entry has been sent, so it is
 not recommended for normal use.
 
-	lg.LogSync(ctx, logging.Entry{Payload: "ALERT! Something critical happened!"})
+	err = lg.LogSync(ctx, logging.Entry{Payload: "ALERT! Something critical happened!"})
+	if err != nil {
+		// TODO: Handle error.
+	}
 
 
 Payloads
@@ -85,11 +85,11 @@ If you have a []byte of JSON, wrap it in json.RawMessage:
 	lg.Log(logging.Entry{Payload: json.RawMessage(j)})
 
 
-The Standard Logger Interface
+The Standard Logger
 
 You may want use a standard log.Logger in your program.
 
-	// stdlg implements log.Logger
+	// stdlg is an instance of *log.Logger.
 	stdlg := lg.StandardLogger(logging.Info)
 	stdlg.Println("some info")
 
@@ -113,5 +113,22 @@ running from a Google Cloud Platform VM, select "GCE VM Instance". Otherwise, se
 accounts can be viewed on the command line with the "gcloud logging read" command.
 
 
+Grouping Logs by Request
+
+To group all the log entries written during a single HTTP request, create two
+Loggers, a "parent" and a "child," with different log IDs. Both should be in the same
+project, and have the same MonitoredResouce type and labels.
+
+- Parent entries must have HTTPRequest.Request populated. (Strictly speaking, only the URL is necessary.)
+
+- A child entry's timestamp must be within the time interval covered by the parent request (i.e., older
+than parent.Timestamp, and newer than parent.Timestamp - parent.HTTPRequest.Latency, assuming the
+parent timestamp marks the end of the request.
+
+- The trace field must be populated in all of the entries and match exactly.
+
+You should observe the child log entries grouped under the parent on the console. The
+parent entry will not inherit the severity of its children; you must update the
+parent severity yourself.
 */
 package logging // import "cloud.google.com/go/logging"

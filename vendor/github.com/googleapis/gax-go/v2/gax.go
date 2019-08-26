@@ -27,64 +27,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Package gax contains a set of modules which aid the development of APIs
+// for clients and servers based on gRPC and Google API conventions.
+//
+// Application code will rarely need to use this library directly.
+// However, code generated automatically from API definition files can use it
+// to simplify code generation and to provide more convenient and idiomatic API surfaces.
 package gax
 
-import (
-	"time"
-
-	"golang.org/x/net/context"
-)
-
-// A user defined call stub.
-type APICall func(context.Context, CallSettings) error
-
-// Invoke calls the given APICall,
-// performing retries as specified by opts, if any.
-func Invoke(ctx context.Context, call APICall, opts ...CallOption) error {
-	var settings CallSettings
-	for _, opt := range opts {
-		opt.Resolve(&settings)
-	}
-	return invoke(ctx, call, settings, Sleep)
-}
-
-// Sleep is similar to time.Sleep, but it can be interrupted by ctx.Done() closing.
-// If interrupted, Sleep returns ctx.Err().
-func Sleep(ctx context.Context, d time.Duration) error {
-	t := time.NewTimer(d)
-	select {
-	case <-ctx.Done():
-		t.Stop()
-		return ctx.Err()
-	case <-t.C:
-		return nil
-	}
-}
-
-type sleeper func(ctx context.Context, d time.Duration) error
-
-// invoke implements Invoke, taking an additional sleeper argument for testing.
-func invoke(ctx context.Context, call APICall, settings CallSettings, sp sleeper) error {
-	var retryer Retryer
-	for {
-		err := call(ctx, settings)
-		if err == nil {
-			return nil
-		}
-		if settings.Retry == nil {
-			return err
-		}
-		if retryer == nil {
-			if r := settings.Retry(); r != nil {
-				retryer = r
-			} else {
-				return err
-			}
-		}
-		if d, ok := retryer.Retry(err); !ok {
-			return err
-		} else if err = sp(ctx, d); err != nil {
-			return err
-		}
-	}
-}
+// Version specifies the gax-go version being used.
+const Version = "2.0.4"
