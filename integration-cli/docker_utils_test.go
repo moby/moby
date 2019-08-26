@@ -413,41 +413,12 @@ func getErrorMessage(c *testing.T, body []byte) string {
 	return strings.TrimSpace(resp.Message)
 }
 
-func waitAndAssert(t *testing.T, timeout time.Duration, f interface{}, comparison interface{}, args ...interface{}) {
-	t1 := time.Now()
-	defer func() {
-		t2 := time.Now()
-		t.Logf("waited for %v (out of %v)", t2.Sub(t1), timeout)
-	}()
-
-	after := time.After(timeout)
-	for {
-		v, comment := f.(checkF)(t)
-		args = append([]interface{}{v}, args...)
-		shouldAssert := assert.Check(t, comparison, args...)
-		select {
-		case <-after:
-			shouldAssert = true
-		default:
-		}
-		if shouldAssert {
-			if len(comment) > 0 {
-				args = append(args, comment)
-			}
-			assert.Assert(t, comparison, args...)
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-}
-
 type checkF func(*testing.T) (interface{}, string)
 type reducer func(...interface{}) interface{}
 
-func pollCheck(t *testing.T, f interface{}, compare func(x interface{}) assert.BoolOrComparison) poll.Check {
+func pollCheck(t *testing.T, f checkF, compare func(x interface{}) assert.BoolOrComparison) poll.Check {
 	return func(poll.LogT) poll.Result {
-		ff := f.(checkF)
-		v, comment := ff(t)
+		v, comment := f(t)
 		if assert.Check(t, compare(v)) {
 			return poll.Success()
 		}
@@ -455,12 +426,12 @@ func pollCheck(t *testing.T, f interface{}, compare func(x interface{}) assert.B
 	}
 }
 
-func reducedCheck(r reducer, funcs ...interface{}) checkF {
+func reducedCheck(r reducer, funcs ...checkF) checkF {
 	return func(c *testing.T) (interface{}, string) {
 		var values []interface{}
 		var comments []string
 		for _, f := range funcs {
-			v, comment := f.(checkF)(c)
+			v, comment := f(c)
 			values = append(values, v)
 			if len(comment) > 0 {
 				comments = append(comments, comment)

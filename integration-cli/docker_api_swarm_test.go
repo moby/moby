@@ -316,7 +316,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *testing.T) {
 		followers []*daemon.Daemon // keep track of followers
 	)
 	var lastErr error
-	checkLeader := func(nodes ...*daemon.Daemon) interface{} {
+	checkLeader := func(nodes ...*daemon.Daemon) checkF {
 		return func(c *testing.T) (interface{}, string) {
 			// clear these out before each run
 			leader = nil
