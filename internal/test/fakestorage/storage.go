@@ -56,8 +56,7 @@ func SetTestEnvironment(env *environment.Execution) {
 }
 
 // New returns a static file server that will be use as build context.
-func New(tt interface{}, dir string, modifiers ...func(*fakecontext.Fake) error) Fake {
-	t := tt.(testingT)
+func New(t testingT, dir string, modifiers ...func(*fakecontext.Fake) error) Fake {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
