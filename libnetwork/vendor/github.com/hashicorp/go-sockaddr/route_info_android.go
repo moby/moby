@@ -1,5 +1,3 @@
-// +build !android
-
 package sockaddr
 
 import (
@@ -11,18 +9,11 @@ type routeInfo struct {
 	cmds map[string][]string
 }
 
-// NewRouteInfo returns a Linux-specific implementation of the RouteInfo
+// NewRouteInfo returns a Android-specific implementation of the RouteInfo
 // interface.
 func NewRouteInfo() (routeInfo, error) {
-	// CoreOS Container Linux moved ip to /usr/bin/ip, so look it up on
-	// $PATH and fallback to /sbin/ip on error.
-	path, _ := exec.LookPath("ip")
-	if path == "" {
-		path = "/sbin/ip"
-	}
-
 	return routeInfo{
-		cmds: map[string][]string{"ip": {path, "route"}},
+		cmds: map[string][]string{"ip": {"/system/bin/ip", "route", "get", "8.8.8.8"}},
 	}, nil
 }
 
@@ -34,8 +25,9 @@ func (ri routeInfo) GetDefaultInterfaceName() (string, error) {
 		return "", err
 	}
 
+
 	var ifName string
-	if ifName, err = parseDefaultIfNameFromIPCmd(string(out)); err != nil {
+	if ifName, err = parseDefaultIfNameFromIPCmdAndroid(string(out)); err != nil {
 		return "", errors.New("No default interface found")
 	}
 	return ifName, nil
