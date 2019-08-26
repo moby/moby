@@ -797,14 +797,14 @@ Try {
     
             #https://blogs.technet.microsoft.com/heyscriptingguy/2011/09/20/solve-problems-with-external-command-lines-in-powershell/ is useful to see tokenising
             $c = "go test "
-            $c += "`"-check.v`" "
+            $c += "`"-test.v`" "
             if ($null -ne $env:INTEGRATION_TEST_NAME) { # Makes is quicker for debugging to be able to run only a subset of the integration tests
-                $c += "`"-check.f`" "
+                $c += "`"-test.run`" "
                 $c += "`"$env:INTEGRATION_TEST_NAME`" "
                 Write-Host -ForegroundColor Magenta "WARN: Only running integration tests matching $env:INTEGRATION_TEST_NAME"
             }
             $c += "`"-tags`" " + "`"autogen`" "
-            $c += "`"-check.timeout`" " + "`"10m`" "
+            $c += "`"-timeout`" " + "`"10m`" "
             $c += "`"-test.timeout`" " + "`"200m`" "
     
             if ($null -ne $env:INTEGRATION_IN_CONTAINER) {
@@ -892,14 +892,14 @@ Try {
             } else {
                 #https://blogs.technet.microsoft.com/heyscriptingguy/2011/09/20/solve-problems-with-external-command-lines-in-powershell/ is useful to see tokenising
                 $c = "go test "
-                $c += "`"-check.v`" "
+                $c += "`"-test.v`" "
                 if ($null -ne $env:INTEGRATION_TEST_NAME) { # Makes is quicker for debugging to be able to run only a subset of the integration tests
-                    $c += "`"-check.f`" "
+                    $c += "`"-test.run`" "
                     $c += "`"$env:INTEGRATION_TEST_NAME`" "
                     Write-Host -ForegroundColor Magenta "WARN: Only running LCOW integration tests matching $env:INTEGRATION_TEST_NAME"
                 }
                 $c += "`"-tags`" " + "`"autogen`" "
-                $c += "`"-check.timeout`" " + "`"10m`" "
+                $c += "`"-timeout`" " + "`"10m`" "
                 $c += "`"-test.timeout`" " + "`"200m`" "
 
                 Write-Host -ForegroundColor Green "INFO: LCOW Integration tests being run from the host:"
