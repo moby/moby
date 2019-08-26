@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
+// Copyright 2019 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build go1.8
-
-package http
-
-import (
-	"net/http"
-
-	"go.opencensus.io/exporter/stackdriver/propagation"
-	"go.opencensus.io/plugin/ochttp"
-)
-
-func addOCTransport(trans http.RoundTripper) http.RoundTripper {
-	return &ochttp.Transport{
-		Base:        trans,
-		Propagation: &propagation.HTTPFormat{},
-	}
-}
+// Package transport provides utility methods for creating authenticated
+// transports to Google's HTTP and gRPC APIs. It is intended to be used in
+// conjunction with google.golang.org/api/option.
+//
+// This package is not intended for use by end developers. Use the
+// google.golang.org/api/option package to configure API clients.
+package transport
