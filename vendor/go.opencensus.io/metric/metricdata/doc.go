@@ -12,17 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal // import "go.opencensus.io/stats/internal"
-
-const (
-	MaxNameLength = 255
-)
-
-func IsPrintable(str string) bool {
-	for _, r := range str {
-		if !(r >= ' ' && r <= '~') {
-			return false
-		}
-	}
-	return true
-}
+// Package metricdata contains the metrics data model.
+//
+// This is an EXPERIMENTAL package, and may change in arbitrary ways without
+// notice.
+package metricdata // import "go.opencensus.io/metric/metricdata"

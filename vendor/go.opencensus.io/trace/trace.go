@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"go.opencensus.io/internal"
+	"go.opencensus.io/trace/tracestate"
 )
 
 // Span represents a span of a trace.  It has an associated SpanContext, and
@@ -41,6 +42,20 @@ type Span struct {
 	data        *SpanData
 	mu          sync.Mutex // protects the contents of *data (but not the pointer value.)
 	spanContext SpanContext
+
+	// lruAttributes are capped at configured limit. When the capacity is reached an oldest entry
+	// is removed to create room for a new entry.
+	lruAttributes *lruMap
+
+	// annotations are stored in FIFO queue capped by configured limit.
+	annotations *evictedQueue
+
+	// messageEvents are stored in FIFO queue capped by configured limit.
+	messageEvents *evictedQueue
+
+	// links are stored in FIFO queue capped by configured limit.
+	links *evictedQueue
+
 	// spanStore is the spanStore this span belongs to, if any, otherwise it is nil.
 	*spanStore
 	endOnce sync.Once
@@ -88,6 +103,7 @@ type SpanContext struct {
 	TraceID      TraceID
 	SpanID       SpanID
 	TraceOptions TraceOptions
+	Tracestate   *tracestate.Tracestate
 }
 
 type contextKey struct{}
@@ -96,13 +112,6 @@ type contextKey struct{}
 func FromContext(ctx context.Context) *Span {
 	s, _ := ctx.Value(contextKey{}).(*Span)
 	return s
-}
-
-// WithSpan returns a new context with the given Span attached.
-//
-// Deprecated: Use NewContext.
-func WithSpan(parent context.Context, s *Span) context.Context {
-	return NewContext(parent, s)
 }
 
 // NewContext returns a new context with the given Span attached.
@@ -154,10 +163,14 @@ func WithSampler(sampler Sampler) StartOption {
 
 // StartSpan starts a new child span of the current span in the context. If
 // there is no span in the context, creates a new trace and span.
+//
+// Returned context contains the newly created span. You can use it to
+// propagate the returned span in process.
 func StartSpan(ctx context.Context, name string, o ...StartOption) (context.Context, *Span) {
 	var opts StartOptions
 	var parent SpanContext
 	if p := FromContext(ctx); p != nil {
+		p.addChild()
 		parent = p.spanContext
 	}
 	for _, op := range o {
@@ -174,6 +187,9 @@ func StartSpan(ctx context.Context, name string, o ...StartOption) (context.Cont
 //
 // If the incoming context contains a parent, it ignores. StartSpanWithRemoteParent is
 // preferred for cases where the parent is propagated via an incoming request.
+//
+// Returned context contains the newly created span. You can use it to
+// propagate the returned span in process.
 func StartSpanWithRemoteParent(ctx context.Context, name string, parent SpanContext, o ...StartOption) (context.Context, *Span) {
 	var opts StartOptions
 	for _, op := range o {
@@ -183,26 +199,6 @@ func StartSpanWithRemoteParent(ctx context.Context, name string, parent SpanCont
 	ctx, end := startExecutionTracerTask(ctx, name)
 	span.executionTracerTaskEnd = end
 	return NewContext(ctx, span), span
-}
-
-// NewSpan returns a new span.
-//
-// If parent is not nil, created span will be a child of the parent.
-//
-// Deprecated: Use StartSpan.
-func NewSpan(name string, parent *Span, o StartOptions) *Span {
-	var parentSpanContext SpanContext
-	if parent != nil {
-		parentSpanContext = parent.SpanContext()
-	}
-	return startSpanInternal(name, parent != nil, parentSpanContext, false, o)
-}
-
-// NewSpanWithRemoteParent returns a new span with the given parent SpanContext.
-//
-// Deprecated: Use StartSpanWithRemoteParent.
-func NewSpanWithRemoteParent(name string, parent SpanContext, o StartOptions) *Span {
-	return startSpanInternal(name, true, parent, true, o)
 }
 
 func startSpanInternal(name string, hasParent bool, parent SpanContext, remoteParent bool, o StartOptions) *Span {
@@ -245,6 +241,11 @@ func startSpanInternal(name string, hasParent bool, parent SpanContext, remotePa
 		Name:            name,
 		HasRemoteParent: remoteParent,
 	}
+	span.lruAttributes = newLruMap(cfg.MaxAttributesPerSpan)
+	span.annotations = newEvictedQueue(cfg.MaxAnnotationEventsPerSpan)
+	span.messageEvents = newEvictedQueue(cfg.MaxMessageEventsPerSpan)
+	span.links = newEvictedQueue(cfg.MaxLinksPerSpan)
+
 	if hasParent {
 		span.data.ParentSpanID = parent.SpanID
 	}
@@ -262,26 +263,29 @@ func startSpanInternal(name string, hasParent bool, parent SpanContext, remotePa
 
 // End ends the span.
 func (s *Span) End() {
+	if s == nil {
+		return
+	}
+	if s.executionTracerTaskEnd != nil {
+		s.executionTracerTaskEnd()
+	}
 	if !s.IsRecordingEvents() {
 		return
 	}
 	s.endOnce.Do(func() {
-		if s.executionTracerTaskEnd != nil {
-			s.executionTracerTaskEnd()
-		}
-		// TODO: optimize to avoid this call if sd won't be used.
-		sd := s.makeSpanData()
-		sd.EndTime = internal.MonotonicEndTime(sd.StartTime)
-		if s.spanStore != nil {
-			s.spanStore.finished(s, sd)
-		}
-		if s.spanContext.IsSampled() {
-			// TODO: consider holding exportersMu for less time.
-			exportersMu.Lock()
-			for e := range exporters {
-				e.ExportSpan(sd)
+		exp, _ := exporters.Load().(exportersMap)
+		mustExport := s.spanContext.IsSampled() && len(exp) > 0
+		if s.spanStore != nil || mustExport {
+			sd := s.makeSpanData()
+			sd.EndTime = internal.MonotonicEndTime(sd.StartTime)
+			if s.spanStore != nil {
+				s.spanStore.finished(s, sd)
 			}
-			exportersMu.Unlock()
+			if mustExport {
+				for e := range exp {
+					e.ExportSpan(sd)
+				}
+			}
 		}
 	})
 }
@@ -292,11 +296,21 @@ func (s *Span) makeSpanData() *SpanData {
 	var sd SpanData
 	s.mu.Lock()
 	sd = *s.data
-	if s.data.Attributes != nil {
-		sd.Attributes = make(map[string]interface{})
-		for k, v := range s.data.Attributes {
-			sd.Attributes[k] = v
-		}
+	if s.lruAttributes.len() > 0 {
+		sd.Attributes = s.lruAttributesToAttributeMap()
+		sd.DroppedAttributeCount = s.lruAttributes.droppedCount
+	}
+	if len(s.annotations.queue) > 0 {
+		sd.Annotations = s.interfaceArrayToAnnotationArray()
+		sd.DroppedAnnotationCount = s.annotations.droppedCount
+	}
+	if len(s.messageEvents.queue) > 0 {
+		sd.MessageEvents = s.interfaceArrayToMessageEventArray()
+		sd.DroppedMessageEventCount = s.messageEvents.droppedCount
+	}
+	if len(s.links.queue) > 0 {
+		sd.Links = s.interfaceArrayToLinksArray()
+		sd.DroppedLinkCount = s.links.droppedCount
 	}
 	s.mu.Unlock()
 	return &sd
@@ -310,6 +324,16 @@ func (s *Span) SpanContext() SpanContext {
 	return s.spanContext
 }
 
+// SetName sets the name of the span, if it is recording events.
+func (s *Span) SetName(name string) {
+	if !s.IsRecordingEvents() {
+		return
+	}
+	s.mu.Lock()
+	s.data.Name = name
+	s.mu.Unlock()
+}
+
 // SetStatus sets the status of the span, if it is recording events.
 func (s *Span) SetStatus(status Status) {
 	if !s.IsRecordingEvents() {
@@ -317,6 +341,57 @@ func (s *Span) SetStatus(status Status) {
 	}
 	s.mu.Lock()
 	s.data.Status = status
+	s.mu.Unlock()
+}
+
+func (s *Span) interfaceArrayToLinksArray() []Link {
+	linksArr := make([]Link, 0)
+	for _, value := range s.links.queue {
+		linksArr = append(linksArr, value.(Link))
+	}
+	return linksArr
+}
+
+func (s *Span) interfaceArrayToMessageEventArray() []MessageEvent {
+	messageEventArr := make([]MessageEvent, 0)
+	for _, value := range s.messageEvents.queue {
+		messageEventArr = append(messageEventArr, value.(MessageEvent))
+	}
+	return messageEventArr
+}
+
+func (s *Span) interfaceArrayToAnnotationArray() []Annotation {
+	annotationArr := make([]Annotation, 0)
+	for _, value := range s.annotations.queue {
+		annotationArr = append(annotationArr, value.(Annotation))
+	}
+	return annotationArr
+}
+
+func (s *Span) lruAttributesToAttributeMap() map[string]interface{} {
+	attributes := make(map[string]interface{})
+	for _, key := range s.lruAttributes.keys() {
+		value, ok := s.lruAttributes.get(key)
+		if ok {
+			keyStr := key.(string)
+			attributes[keyStr] = value
+		}
+	}
+	return attributes
+}
+
+func (s *Span) copyToCappedAttributes(attributes []Attribute) {
+	for _, a := range attributes {
+		s.lruAttributes.add(a.key, a.value)
+	}
+}
+
+func (s *Span) addChild() {
+	if !s.IsRecordingEvents() {
+		return
+	}
+	s.mu.Lock()
+	s.data.ChildSpanCount++
 	s.mu.Unlock()
 }
 
@@ -328,10 +403,7 @@ func (s *Span) AddAttributes(attributes ...Attribute) {
 		return
 	}
 	s.mu.Lock()
-	if s.data.Attributes == nil {
-		s.data.Attributes = make(map[string]interface{})
-	}
-	copyAttributes(s.data.Attributes, attributes)
+	s.copyToCappedAttributes(attributes)
 	s.mu.Unlock()
 }
 
@@ -351,7 +423,7 @@ func (s *Span) lazyPrintfInternal(attributes []Attribute, format string, a ...in
 		m = make(map[string]interface{})
 		copyAttributes(m, attributes)
 	}
-	s.data.Annotations = append(s.data.Annotations, Annotation{
+	s.annotations.add(Annotation{
 		Time:       now,
 		Message:    msg,
 		Attributes: m,
@@ -367,7 +439,7 @@ func (s *Span) printStringInternal(attributes []Attribute, str string) {
 		a = make(map[string]interface{})
 		copyAttributes(a, attributes)
 	}
-	s.data.Annotations = append(s.data.Annotations, Annotation{
+	s.annotations.add(Annotation{
 		Time:       now,
 		Message:    str,
 		Attributes: a,
@@ -404,7 +476,7 @@ func (s *Span) AddMessageSendEvent(messageID, uncompressedByteSize, compressedBy
 	}
 	now := time.Now()
 	s.mu.Lock()
-	s.data.MessageEvents = append(s.data.MessageEvents, MessageEvent{
+	s.messageEvents.add(MessageEvent{
 		Time:                 now,
 		EventType:            MessageEventTypeSent,
 		MessageID:            messageID,
@@ -426,7 +498,7 @@ func (s *Span) AddMessageReceiveEvent(messageID, uncompressedByteSize, compresse
 	}
 	now := time.Now()
 	s.mu.Lock()
-	s.data.MessageEvents = append(s.data.MessageEvents, MessageEvent{
+	s.messageEvents.add(MessageEvent{
 		Time:                 now,
 		EventType:            MessageEventTypeRecv,
 		MessageID:            messageID,
@@ -442,7 +514,7 @@ func (s *Span) AddLink(l Link) {
 		return
 	}
 	s.mu.Lock()
-	s.data.Links = append(s.data.Links, l)
+	s.links.add(l)
 	s.mu.Unlock()
 }
 
@@ -474,29 +546,39 @@ func init() {
 	gen.spanIDInc |= 1
 
 	config.Store(&Config{
-		DefaultSampler: ProbabilitySampler(defaultSamplingProbability),
-		IDGenerator:    gen,
+		DefaultSampler:             ProbabilitySampler(defaultSamplingProbability),
+		IDGenerator:                gen,
+		MaxAttributesPerSpan:       DefaultMaxAttributesPerSpan,
+		MaxAnnotationEventsPerSpan: DefaultMaxAnnotationEventsPerSpan,
+		MaxMessageEventsPerSpan:    DefaultMaxMessageEventsPerSpan,
+		MaxLinksPerSpan:            DefaultMaxLinksPerSpan,
 	})
 }
 
 type defaultIDGenerator struct {
 	sync.Mutex
-	traceIDRand *rand.Rand
+
+	// Please keep these as the first fields
+	// so that these 8 byte fields will be aligned on addresses
+	// divisible by 8, on both 32-bit and 64-bit machines when
+	// performing atomic increments and accesses.
+	// See:
+	// * https://github.com/census-instrumentation/opencensus-go/issues/587
+	// * https://github.com/census-instrumentation/opencensus-go/issues/865
+	// * https://golang.org/pkg/sync/atomic/#pkg-note-BUG
+	nextSpanID uint64
+	spanIDInc  uint64
+
 	traceIDAdd  [2]uint64
-	nextSpanID  uint64
-	spanIDInc   uint64
+	traceIDRand *rand.Rand
 }
 
 // NewSpanID returns a non-zero span ID from a randomly-chosen sequence.
-// mu should be held while this function is called.
 func (gen *defaultIDGenerator) NewSpanID() [8]byte {
-	gen.Lock()
-	id := gen.nextSpanID
-	gen.nextSpanID += gen.spanIDInc
-	if gen.nextSpanID == 0 {
-		gen.nextSpanID += gen.spanIDInc
+	var id uint64
+	for id == 0 {
+		id = atomic.AddUint64(&gen.nextSpanID, gen.spanIDInc)
 	}
-	gen.Unlock()
 	var sid [8]byte
 	binary.LittleEndian.PutUint64(sid[:], id)
 	return sid

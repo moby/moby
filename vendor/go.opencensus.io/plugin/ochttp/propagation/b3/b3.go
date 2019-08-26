@@ -38,7 +38,7 @@ const (
 // because there are additional fields not represented in the
 // OpenCensus span context. Spans created from the incoming
 // header will be the direct children of the client-side span.
-// Similarly, reciever of the outgoing spans should use client-side
+// Similarly, receiver of the outgoing spans should use client-side
 // span created by OpenCensus as the parent.
 type HTTPFormat struct{}
 

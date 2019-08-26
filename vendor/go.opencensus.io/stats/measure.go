@@ -20,19 +20,31 @@ import (
 	"sync/atomic"
 )
 
-// Measure represents a type of metric to be tracked and recorded.
-// For example, latency, request Mb/s, and response Mb/s are measures
+// Measure represents a single numeric value to be tracked and recorded.
+// For example, latency, request bytes, and response bytes could be measures
 // to collect from a server.
 //
-// Each measure needs to be registered before being used.
-// Measure constructors such as Int64 and
-// Float64 automatically registers the measure
-// by the given name.
-// Each registered measure needs to be unique by name.
-// Measures also have a description and a unit.
+// Measures by themselves have no outside effects. In order to be exported,
+// the measure needs to be used in a View. If no Views are defined over a
+// measure, there is very little cost in recording it.
 type Measure interface {
+	// Name returns the name of this measure.
+	//
+	// Measure names are globally unique (among all libraries linked into your program).
+	// We recommend prefixing the measure name with a domain name relevant to your
+	// project or application.
+	//
+	// Measure names are never sent over the wire or exported to backends.
+	// They are only used to create Views.
 	Name() string
+
+	// Description returns the human-readable description of this measure.
 	Description() string
+
+	// Unit returns the units for the values this measure takes on.
+	//
+	// Units are encoded according to the case-sensitive abbreviations from the
+	// Unified Code for Units of Measure: http://unitsofmeasure.org/ucum.html
 	Unit() string
 }
 
@@ -81,8 +93,9 @@ func registerMeasureHandle(name, desc, unit string) *measureDescriptor {
 // provides methods to create measurements of their kind. For example, Int64Measure
 // provides M to convert an int64 into a measurement.
 type Measurement struct {
-	v float64
-	m Measure
+	v    float64
+	m    Measure
+	desc *measureDescriptor
 }
 
 // Value returns the value of the Measurement as a float64.

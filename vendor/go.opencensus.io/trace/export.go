@@ -16,6 +16,7 @@ package trace
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -30,9 +31,11 @@ type Exporter interface {
 	ExportSpan(s *SpanData)
 }
 
+type exportersMap map[Exporter]struct{}
+
 var (
-	exportersMu sync.Mutex
-	exporters   map[Exporter]struct{}
+	exporterMu sync.Mutex
+	exporters  atomic.Value
 )
 
 // RegisterExporter adds to the list of Exporters that will receive sampled
@@ -40,20 +43,31 @@ var (
 //
 // Binaries can register exporters, libraries shouldn't register exporters.
 func RegisterExporter(e Exporter) {
-	exportersMu.Lock()
-	if exporters == nil {
-		exporters = make(map[Exporter]struct{})
+	exporterMu.Lock()
+	new := make(exportersMap)
+	if old, ok := exporters.Load().(exportersMap); ok {
+		for k, v := range old {
+			new[k] = v
+		}
 	}
-	exporters[e] = struct{}{}
-	exportersMu.Unlock()
+	new[e] = struct{}{}
+	exporters.Store(new)
+	exporterMu.Unlock()
 }
 
 // UnregisterExporter removes from the list of Exporters the Exporter that was
 // registered with the given name.
 func UnregisterExporter(e Exporter) {
-	exportersMu.Lock()
-	delete(exporters, e)
-	exportersMu.Unlock()
+	exporterMu.Lock()
+	new := make(exportersMap)
+	if old, ok := exporters.Load().(exportersMap); ok {
+		for k, v := range old {
+			new[k] = v
+		}
+	}
+	delete(new, e)
+	exporters.Store(new)
+	exporterMu.Unlock()
 }
 
 // SpanData contains all the information collected by a Span.
@@ -71,6 +85,13 @@ type SpanData struct {
 	Annotations   []Annotation
 	MessageEvents []MessageEvent
 	Status
-	Links           []Link
-	HasRemoteParent bool
+	Links                    []Link
+	HasRemoteParent          bool
+	DroppedAttributeCount    int
+	DroppedAnnotationCount   int
+	DroppedMessageEventCount int
+	DroppedLinkCount         int
+
+	// ChildSpanCount holds the number of child span created for this span.
+	ChildSpanCount int
 }
