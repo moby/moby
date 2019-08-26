@@ -20,6 +20,7 @@ import (
 	"golang.org/x/sys/unix"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
+	"gotest.tools/poll"
 )
 
 func setPortConfig(portConfig []swarm.PortConfig) testdaemon.ServiceConstructor {
@@ -37,7 +38,7 @@ func (s *DockerSwarmSuite) TestAPIServiceUpdatePort(c *testing.T) {
 	// Create a service with a port mapping of 8080:8081.
 	portConfig := []swarm.PortConfig{{TargetPort: 8081, PublishedPort: 8080}}
 	serviceID := d.CreateService(c, simpleTestService, setInstances(1), setPortConfig(portConfig))
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// Update the service: changed the port mapping from 8080:8081 to 8082:8083.
 	updatedPortConfig := []swarm.PortConfig{{TargetPort: 8083, PublishedPort: 8082}}
@@ -65,7 +66,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesCreate(c *testing.T) {
 
 	instances := 2
 	id := d.CreateService(c, simpleTestService, setInstances(instances))
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	client := d.NewClientT(c)
 	defer client.Close()
@@ -87,10 +88,10 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesCreate(c *testing.T) {
 	service := d.GetService(c, id)
 	instances = 5
 	d.UpdateService(c, service, setInstances(instances))
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	d.RemoveService(c, service.ID)
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 0)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(0)), poll.WithTimeout(defaultReconciliationTimeout))
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmServicesMultipleAgents(c *testing.T) {
@@ -103,21 +104,21 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesMultipleAgents(c *testing.T) {
 	instances := 9
 	id := d1.CreateService(c, simpleTestService, setInstances(instances))
 
-	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckActiveContainerCount, checker.GreaterThan, 0)
-	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckActiveContainerCount, checker.GreaterThan, 0)
-	waitAndAssert(c, defaultReconciliationTimeout, d3.CheckActiveContainerCount, checker.GreaterThan, 0)
+	poll.WaitOn(c, pollCheck(c, d1.CheckActiveContainerCount, checker.GreaterThan(0)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, d2.CheckActiveContainerCount, checker.GreaterThan(0)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, d3.CheckActiveContainerCount, checker.GreaterThan(0)), poll.WithTimeout(defaultReconciliationTimeout))
 
-	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount, d3.CheckActiveContainerCount), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount, d3.CheckActiveContainerCount), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// reconciliation on d2 node down
 	d2.Stop(c)
 
-	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d3.CheckActiveContainerCount), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d3.CheckActiveContainerCount), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// test downscaling
 	instances = 5
 	d1.UpdateService(c, d1.GetService(c, id), setInstances(instances))
-	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d3.CheckActiveContainerCount), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d3.CheckActiveContainerCount), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 
 }
 
@@ -128,15 +129,15 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesCreateGlobal(c *testing.T) {
 
 	d1.CreateService(c, simpleTestService, setGlobalMode)
 
-	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckActiveContainerCount, checker.Equals, 1)
-	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckActiveContainerCount, checker.Equals, 1)
-	waitAndAssert(c, defaultReconciliationTimeout, d3.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d1.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, d2.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, d3.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	d4 := s.AddDaemon(c, true, false)
 	d5 := s.AddDaemon(c, true, false)
 
-	waitAndAssert(c, defaultReconciliationTimeout, d4.CheckActiveContainerCount, checker.Equals, 1)
-	waitAndAssert(c, defaultReconciliationTimeout, d5.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d4.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, d5.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmServicesUpdate(c *testing.T) {
@@ -146,7 +147,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdate(c *testing.T) {
 		daemons[i] = s.AddDaemon(c, true, i == 0)
 	}
 	// wait for nodes ready
-	waitAndAssert(c, 5*time.Second, daemons[0].CheckNodeReadyCount, checker.Equals, nodeCount)
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckNodeReadyCount, checker.Equals(nodeCount)), poll.WithTimeout(5*time.Second))
 
 	// service image at start
 	image1 := "busybox:latest"
@@ -166,24 +167,20 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdate(c *testing.T) {
 	id := daemons[0].CreateService(c, serviceForUpdate, setInstances(instances))
 
 	// wait for tasks ready
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image1: instances})
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckRunningTaskImages, checker.DeepEquals(map[string]int{image1: instances})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// issue service update
 	service := daemons[0].GetService(c, id)
 	daemons[0].UpdateService(c, service, setImage(image2))
 
 	// first batch
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image1: instances - parallelism, image2: parallelism})
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckRunningTaskImages, checker.DeepEquals(map[string]int{image1: instances - parallelism, image2: parallelism})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// 2nd batch
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image1: instances - 2*parallelism, image2: 2 * parallelism})
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckRunningTaskImages, checker.DeepEquals(map[string]int{image1: instances - 2*parallelism, image2: 2 * parallelism})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// 3nd batch
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image2: instances})
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckRunningTaskImages, checker.DeepEquals(map[string]int{image2: instances})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// Roll back to the previous version. This uses the CLI because
 	// rollback used to be a client-side operation.
@@ -191,12 +188,11 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdate(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// first batch
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image2: instances - rollbackParallelism, image1: rollbackParallelism})
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckRunningTaskImages, checker.DeepEquals(map[string]int{image2: instances - rollbackParallelism, image1: rollbackParallelism})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// 2nd batch
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image1: instances})
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckRunningTaskImages, checker.DeepEquals(map[string]int{image1: instances})), poll.WithTimeout(defaultReconciliationTimeout))
+
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *testing.T) {
@@ -223,7 +219,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *testing.T) {
 
 	checkStartingTasks := func(expected int) []swarm.Task {
 		var startingTasks []swarm.Task
-		waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
+		poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 			tasks := d.GetServiceTasks(c, id)
 			startingTasks = nil
 			for _, t := range tasks {
@@ -232,7 +228,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *testing.T) {
 				}
 			}
 			return startingTasks, ""
-		}, checker.HasLen, expected)
+		}, checker.HasLen(expected)), poll.WithTimeout(defaultReconciliationTimeout))
 
 		return startingTasks
 	}
@@ -245,8 +241,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *testing.T) {
 	}
 
 	// wait for tasks ready
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image1: instances})
+	poll.WaitOn(c, pollCheck(c, d.CheckRunningTaskImages, checker.DeepEquals(map[string]int{image1: instances})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// issue service update
 	service := d.GetService(c, id)
@@ -257,42 +252,36 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *testing.T) {
 	// The old tasks should be running, and the new ones should be starting.
 	startingTasks := checkStartingTasks(parallelism)
 
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image1: instances})
+	poll.WaitOn(c, pollCheck(c, d.CheckRunningTaskImages, checker.DeepEquals(map[string]int{image1: instances})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// make it healthy
 	makeTasksHealthy(startingTasks)
 
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image1: instances - parallelism, image2: parallelism})
+	poll.WaitOn(c, pollCheck(c, d.CheckRunningTaskImages, checker.DeepEquals(map[string]int{image1: instances - parallelism, image2: parallelism})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// 2nd batch
 
 	// The old tasks should be running, and the new ones should be starting.
 	startingTasks = checkStartingTasks(parallelism)
 
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image1: instances - parallelism, image2: parallelism})
+	poll.WaitOn(c, pollCheck(c, d.CheckRunningTaskImages, checker.DeepEquals(map[string]int{image1: instances - parallelism, image2: parallelism})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// make it healthy
 	makeTasksHealthy(startingTasks)
 
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image1: instances - 2*parallelism, image2: 2 * parallelism})
+	poll.WaitOn(c, pollCheck(c, d.CheckRunningTaskImages, checker.DeepEquals(map[string]int{image1: instances - 2*parallelism, image2: 2 * parallelism})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// 3nd batch
 
 	// The old tasks should be running, and the new ones should be starting.
 	startingTasks = checkStartingTasks(1)
 
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image1: instances - 2*parallelism, image2: 2 * parallelism})
+	poll.WaitOn(c, pollCheck(c, d.CheckRunningTaskImages, checker.DeepEquals(map[string]int{image1: instances - 2*parallelism, image2: 2 * parallelism})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// make it healthy
 	makeTasksHealthy(startingTasks)
 
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image2: instances})
+	poll.WaitOn(c, pollCheck(c, d.CheckRunningTaskImages, checker.DeepEquals(map[string]int{image2: instances})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// Roll back to the previous version. This uses the CLI because
 	// rollback is a client-side operation.
@@ -300,12 +289,11 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// first batch
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image2: instances - rollbackParallelism, image1: rollbackParallelism})
+	poll.WaitOn(c, pollCheck(c, d.CheckRunningTaskImages, checker.DeepEquals(map[string]int{image2: instances - rollbackParallelism, image1: rollbackParallelism})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// 2nd batch
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image1: instances})
+	poll.WaitOn(c, pollCheck(c, d.CheckRunningTaskImages, checker.DeepEquals(map[string]int{image1: instances})), poll.WithTimeout(defaultReconciliationTimeout))
+
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmServicesFailedUpdate(c *testing.T) {
@@ -315,7 +303,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesFailedUpdate(c *testing.T) {
 		daemons[i] = s.AddDaemon(c, true, i == 0)
 	}
 	// wait for nodes ready
-	waitAndAssert(c, 5*time.Second, daemons[0].CheckNodeReadyCount, checker.Equals, nodeCount)
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckNodeReadyCount, checker.Equals(nodeCount)), poll.WithTimeout(5*time.Second))
 
 	// service image at start
 	image1 := "busybox:latest"
@@ -327,15 +315,14 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesFailedUpdate(c *testing.T) {
 	id := daemons[0].CreateService(c, serviceForUpdate, setInstances(instances))
 
 	// wait for tasks ready
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image1: instances})
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckRunningTaskImages, checker.DeepEquals(map[string]int{image1: instances})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// issue service update
 	service := daemons[0].GetService(c, id)
 	daemons[0].UpdateService(c, service, setImage(image2), setFailureAction(swarm.UpdateFailureActionPause), setMaxFailureRatio(0.25), setParallelism(1))
 
 	// should update 2 tasks and then pause
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckServiceUpdateState(id), checker.Equals, swarm.UpdateStatePaused)
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckServiceUpdateState(id), checker.Equals(swarm.UpdateStatePaused)), poll.WithTimeout(defaultReconciliationTimeout))
 	v, _ := daemons[0].CheckServiceRunningTasks(id)(c)
 	assert.Assert(c, v == instances-2)
 
@@ -344,8 +331,8 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesFailedUpdate(c *testing.T) {
 	out, err := daemons[0].Cmd("service", "update", "--detach", "--rollback", id)
 	assert.NilError(c, err, out)
 
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image1: instances})
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckRunningTaskImages, checker.DeepEquals(map[string]int{image1: instances})), poll.WithTimeout(defaultReconciliationTimeout))
+
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *testing.T) {
@@ -355,14 +342,14 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *testing.T) {
 		daemons[i] = s.AddDaemon(c, true, i == 0)
 	}
 	// wait for nodes ready
-	waitAndAssert(c, 5*time.Second, daemons[0].CheckNodeReadyCount, checker.Equals, nodeCount)
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckNodeReadyCount, checker.Equals(nodeCount)), poll.WithTimeout(5*time.Second))
 
 	// create service
 	constraints := []string{"node.role==worker"}
 	instances := 3
 	id := daemons[0].CreateService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
 	// wait for tasks ready
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckServiceRunningTasks(id), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckServiceRunningTasks(id), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 	// validate tasks are running on worker nodes
 	tasks := daemons[0].GetServiceTasks(c, id)
 	for _, task := range tasks {
@@ -376,7 +363,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *testing.T) {
 	constraints = []string{"node.role!=worker"}
 	id = daemons[0].CreateService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
 	// wait for tasks ready
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckServiceRunningTasks(id), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckServiceRunningTasks(id), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 	tasks = daemons[0].GetServiceTasks(c, id)
 	// validate tasks are running on manager nodes
 	for _, task := range tasks {
@@ -390,7 +377,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *testing.T) {
 	constraints = []string{"node.role==nosuchrole"}
 	id = daemons[0].CreateService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
 	// wait for tasks created
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckServiceTasks(id), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckServiceTasks(id), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 	// let scheduler try
 	time.Sleep(250 * time.Millisecond)
 	// validate tasks are not assigned to any node
@@ -407,7 +394,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *testing.T) {
 		daemons[i] = s.AddDaemon(c, true, i == 0)
 	}
 	// wait for nodes ready
-	waitAndAssert(c, 5*time.Second, daemons[0].CheckNodeReadyCount, checker.Equals, nodeCount)
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckNodeReadyCount, checker.Equals(nodeCount)), poll.WithTimeout(5*time.Second))
 	nodes := daemons[0].ListNodes(c)
 	assert.Equal(c, len(nodes), nodeCount)
 
@@ -430,7 +417,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *testing.T) {
 	constraints := []string{"node.labels.security==high"}
 	id := daemons[0].CreateService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
 	// wait for tasks ready
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckServiceRunningTasks(id), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckServiceRunningTasks(id), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 	tasks := daemons[0].GetServiceTasks(c, id)
 	// validate all tasks are running on nodes[0]
 	for _, task := range tasks {
@@ -443,7 +430,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *testing.T) {
 	constraints = []string{"node.labels.security!=high"}
 	id = daemons[0].CreateService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
 	// wait for tasks ready
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckServiceRunningTasks(id), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckServiceRunningTasks(id), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 	tasks = daemons[0].GetServiceTasks(c, id)
 	// validate all tasks are NOT running on nodes[0]
 	for _, task := range tasks {
@@ -455,7 +442,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *testing.T) {
 	constraints = []string{"node.labels.security==medium"}
 	id = daemons[0].CreateService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
 	// wait for tasks created
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckServiceTasks(id), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckServiceTasks(id), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 	// let scheduler try
 	time.Sleep(250 * time.Millisecond)
 	tasks = daemons[0].GetServiceTasks(c, id)
@@ -473,7 +460,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *testing.T) {
 	}
 	id = daemons[0].CreateService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
 	// wait for tasks created
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckServiceTasks(id), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckServiceTasks(id), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 	// let scheduler try
 	time.Sleep(250 * time.Millisecond)
 	tasks = daemons[0].GetServiceTasks(c, id)
@@ -488,7 +475,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *testing.T) {
 		}
 	})
 	// wait for tasks ready
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckServiceRunningTasks(id), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckServiceRunningTasks(id), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 	tasks = daemons[0].GetServiceTasks(c, id)
 	for _, task := range tasks {
 		assert.Assert(c, task.NodeID == nodes[1].ID)
@@ -502,7 +489,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicePlacementPrefs(c *testing.T) {
 		daemons[i] = s.AddDaemon(c, true, i == 0)
 	}
 	// wait for nodes ready
-	waitAndAssert(c, 5*time.Second, daemons[0].CheckNodeReadyCount, checker.Equals, nodeCount)
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckNodeReadyCount, checker.Equals(nodeCount)), poll.WithTimeout(5*time.Second))
 	nodes := daemons[0].ListNodes(c)
 	assert.Equal(c, len(nodes), nodeCount)
 
@@ -525,7 +512,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicePlacementPrefs(c *testing.T) {
 	prefs := []swarm.PlacementPreference{{Spread: &swarm.SpreadOver{SpreadDescriptor: "node.labels.rack"}}}
 	id := daemons[0].CreateService(c, simpleTestService, setPlacementPrefs(prefs), setInstances(instances))
 	// wait for tasks ready
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckServiceRunningTasks(id), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckServiceRunningTasks(id), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 	tasks := daemons[0].GetServiceTasks(c, id)
 	// validate all tasks are running on nodes[0]
 	tasksOnNode := make(map[string]int)
@@ -550,7 +537,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *testing.T) {
 	instances := 9
 	d1.CreateService(c, simpleTestService, setInstances(instances))
 
-	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount, d3.CheckActiveContainerCount), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount, d3.CheckActiveContainerCount), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	getContainers := func() map[string]*daemon.Daemon {
 		m := make(map[string]*daemon.Daemon)
@@ -572,7 +559,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *testing.T) {
 	_, err := containers[toRemove].Cmd("stop", toRemove)
 	assert.NilError(c, err)
 
-	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount, d3.CheckActiveContainerCount), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount, d3.CheckActiveContainerCount), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	containers2 := getContainers()
 	assert.Assert(c, len(containers2) == instances)
@@ -598,7 +585,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *testing.T) {
 
 	time.Sleep(time.Second) // give some time to handle the signal
 
-	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount, d3.CheckActiveContainerCount), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount, d3.CheckActiveContainerCount), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	containers2 = getContainers()
 	assert.Assert(c, len(containers2) == instances)

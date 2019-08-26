@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
+	"gotest.tools/poll"
 )
 
 // start a service, and then make its task unhealthy during running
@@ -39,39 +40,40 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *testing.T) {
 	id := strings.TrimSpace(out)
 
 	var tasks []swarm.Task
-	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		tasks = d.GetServiceTasks(c, id)
 		return tasks, ""
-	}, checker.HasLen, 1)
+	}, checker.HasLen(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	task := tasks[0]
 
 	// wait for task to start
-	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		task = d.GetTask(c, task.ID)
 		return task.Status.State, ""
-	}, checker.Equals, swarm.TaskStateRunning)
+	}, checker.Equals(swarm.TaskStateRunning)), poll.WithTimeout(defaultReconciliationTimeout))
+
 	containerID := task.Status.ContainerStatus.ContainerID
 
 	// wait for container to be healthy
-	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		out, _ := d.Cmd("inspect", "--format={{.State.Health.Status}}", containerID)
 		return strings.TrimSpace(out), ""
-	}, checker.Equals, "healthy")
+	}, checker.Equals("healthy")), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// make it fail
 	d.Cmd("exec", containerID, "rm", "/status")
 	// wait for container to be unhealthy
-	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		out, _ := d.Cmd("inspect", "--format={{.State.Health.Status}}", containerID)
 		return strings.TrimSpace(out), ""
-	}, checker.Equals, "unhealthy")
+	}, checker.Equals("unhealthy")), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// Task should be terminated
-	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		task = d.GetTask(c, task.ID)
 		return task.Status.State, ""
-	}, checker.Equals, swarm.TaskStateFailed)
+	}, checker.Equals(swarm.TaskStateFailed)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	if !strings.Contains(task.Status.Err, container.ErrContainerUnhealthy.Error()) {
 		c.Fatal("unhealthy task exits because of other error")
@@ -100,27 +102,27 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *testing.T) {
 	id := strings.TrimSpace(out)
 
 	var tasks []swarm.Task
-	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		tasks = d.GetServiceTasks(c, id)
 		return tasks, ""
-	}, checker.HasLen, 1)
+	}, checker.HasLen(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	task := tasks[0]
 
 	// wait for task to start
-	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		task = d.GetTask(c, task.ID)
 		return task.Status.State, ""
-	}, checker.Equals, swarm.TaskStateStarting)
+	}, checker.Equals(swarm.TaskStateStarting)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	containerID := task.Status.ContainerStatus.ContainerID
 
 	// wait for health check to work
-	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		out, _ := d.Cmd("inspect", "--format={{.State.Health.FailingStreak}}", containerID)
 		failingStreak, _ := strconv.Atoi(strings.TrimSpace(out))
 		return failingStreak, ""
-	}, checker.GreaterThan, 0)
+	}, checker.GreaterThan(0)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// task should be blocked at starting status
 	task = d.GetTask(c, task.ID)
@@ -130,8 +132,9 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *testing.T) {
 	d.Cmd("exec", containerID, "touch", "/status")
 
 	// Task should be at running status
-	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		task = d.GetTask(c, task.ID)
 		return task.Status.State, ""
-	}, checker.Equals, swarm.TaskStateRunning)
+	}, checker.Equals(swarm.TaskStateRunning)), poll.WithTimeout(defaultReconciliationTimeout))
+
 }

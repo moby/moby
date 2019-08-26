@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
 	"gotest.tools/assert"
+	"gotest.tools/poll"
 )
 
 func (s *DockerSwarmSuite) TestAPISwarmListNodes(c *testing.T) {
@@ -84,16 +85,16 @@ func (s *DockerSwarmSuite) TestAPISwarmNodeDrainPause(c *testing.T) {
 	instances := 2
 	id := d1.CreateService(c, simpleTestService, setInstances(instances))
 
-	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckActiveContainerCount, checker.GreaterThan, 0)
-	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckActiveContainerCount, checker.GreaterThan, 0)
-	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, d1.CheckActiveContainerCount, checker.GreaterThan(0)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, d2.CheckActiveContainerCount, checker.GreaterThan(0)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// drain d2, all containers should move to d1
 	d1.UpdateNode(c, d2.NodeID(), func(n *swarm.Node) {
 		n.Spec.Availability = swarm.NodeAvailabilityDrain
 	})
-	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckActiveContainerCount, checker.Equals, instances)
-	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckActiveContainerCount, checker.Equals, 0)
+	poll.WaitOn(c, pollCheck(c, d1.CheckActiveContainerCount, checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, d2.CheckActiveContainerCount, checker.Equals(0)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// set d2 back to active
 	d1.UpdateNode(c, d2.NodeID(), func(n *swarm.Node) {
@@ -102,15 +103,15 @@ func (s *DockerSwarmSuite) TestAPISwarmNodeDrainPause(c *testing.T) {
 
 	instances = 1
 	d1.UpdateService(c, d1.GetService(c, id), setInstances(instances))
-	waitAndAssert(c, defaultReconciliationTimeout*2, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout*2))
 
 	instances = 2
 	d1.UpdateService(c, d1.GetService(c, id), setInstances(instances))
 
 	// drained node first so we don't get any old containers
-	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckActiveContainerCount, checker.GreaterThan, 0)
-	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckActiveContainerCount, checker.GreaterThan, 0)
-	waitAndAssert(c, defaultReconciliationTimeout*2, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount), checker.Equals, instances)
+	poll.WaitOn(c, pollCheck(c, d2.CheckActiveContainerCount, checker.GreaterThan(0)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, d1.CheckActiveContainerCount, checker.GreaterThan(0)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout*2))
 
 	d2ContainerCount := len(d2.ActiveContainers(c))
 
@@ -121,7 +122,7 @@ func (s *DockerSwarmSuite) TestAPISwarmNodeDrainPause(c *testing.T) {
 
 	instances = 4
 	d1.UpdateService(c, d1.GetService(c, id), setInstances(instances))
-	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckActiveContainerCount, checker.Equals, instances-d2ContainerCount)
-	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckActiveContainerCount, checker.Equals, d2ContainerCount)
+	poll.WaitOn(c, pollCheck(c, d1.CheckActiveContainerCount, checker.Equals(instances-d2ContainerCount)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, d2.CheckActiveContainerCount, checker.Equals(d2ContainerCount)), poll.WithTimeout(defaultReconciliationTimeout))
 
 }

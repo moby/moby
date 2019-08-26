@@ -32,6 +32,7 @@ import (
 	"gotest.tools/assert"
 	"gotest.tools/fs"
 	"gotest.tools/icmd"
+	"gotest.tools/poll"
 )
 
 func (s *DockerSwarmSuite) TestSwarmUpdate(c *testing.T) {
@@ -176,7 +177,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceTemplatingHostname(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	containers := d.ActiveContainers(c)
 	out, err = d.Cmd("inspect", "--type", "container", "--format", "{{.Config.Hostname}}", containers[0])
@@ -251,7 +252,7 @@ func (s *DockerSwarmSuite) TestSwarmNodeTaskListFilter(c *testing.T) {
 	assert.Assert(c, strings.TrimSpace(out) != "")
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 3)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(3)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	filter := "name=redis-cluster"
 
@@ -303,7 +304,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceWithGroup(c *testing.T) {
 	assert.Assert(c, strings.TrimSpace(out) != "")
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	out, err = d.Cmd("ps", "-q")
 	assert.NilError(c, err, out)
@@ -388,7 +389,7 @@ func (s *DockerSwarmSuite) TestSwarmContainerAttachByNetworkId(c *testing.T) {
 		return out, ""
 	}
 
-	waitAndAssert(c, 3*time.Second, checkNetwork, checker.Not(checker.Contains("testnet")))
+	poll.WaitOn(c, pollCheck(c, checkNetwork, checker.Not(checker.Contains("testnet"))()), poll.WithTimeout(3*time.Second))
 }
 
 func (s *DockerSwarmSuite) TestOverlayAttachable(c *testing.T) {
@@ -550,7 +551,7 @@ func (s *DockerSwarmSuite) TestSwarmTaskListFilter(c *testing.T) {
 	}
 
 	// wait until all tasks have been created
-	waitAndAssert(c, defaultReconciliationTimeout, checkNumTasks, checker.Equals, 3)
+	poll.WaitOn(c, pollCheck(c, checkNumTasks, checker.Equals(3)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	out, err = d.Cmd("service", "ps", "--filter", filter, name)
 	assert.NilError(c, err, out)
@@ -572,7 +573,7 @@ func (s *DockerSwarmSuite) TestSwarmTaskListFilter(c *testing.T) {
 	assert.NilError(c, err, out)
 	assert.Assert(c, strings.TrimSpace(out) != "")
 
-	waitAndAssert(c, defaultReconciliationTimeout, checkNumTasks, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, checkNumTasks, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	filter = "name=redis-cluster"
 	out, err = d.Cmd("service", "ps", "--filter", filter, name)
@@ -600,7 +601,7 @@ func (s *DockerSwarmSuite) TestPsListContainersFilterIsTask(c *testing.T) {
 	assert.Assert(c, strings.TrimSpace(out) != "")
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckServiceRunningTasks(name), checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckServiceRunningTasks(name), checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// Filter non-tasks
 	out, err = d.Cmd("ps", "-a", "-q", "--filter=is-task=false")
@@ -837,7 +838,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceTTY(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// Make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// We need to get the container id.
 	out, err = d.Cmd("ps", "-q", "--no-trunc")
@@ -851,7 +852,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceTTY(c *testing.T) {
 	out, err = d.Cmd("service", "rm", name)
 	assert.NilError(c, err, out)
 	// Make sure container has been destroyed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 0)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(0)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// With --tty
 	expectedOutput = "TTY"
@@ -859,7 +860,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceTTY(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// Make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// We need to get the container id.
 	out, err = d.Cmd("ps", "-q", "--no-trunc")
@@ -880,7 +881,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceTTYUpdate(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// Make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ .Spec.TaskTemplate.ContainerSpec.TTY }}", name)
 	assert.NilError(c, err, out)
@@ -915,22 +916,20 @@ func (s *DockerSwarmSuite) TestSwarmServiceNetworkUpdate(c *testing.T) {
 	result.Assert(c, icmd.Success)
 
 	// Make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskNetworks, checker.DeepEquals,
-		map[string]int{fooNetwork: 1, barNetwork: 1})
+	poll.WaitOn(c, pollCheck(c, d.CheckRunningTaskNetworks, checker.DeepEquals(map[string]int{fooNetwork: 1, barNetwork: 1})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// Remove a network
 	result = icmd.RunCmd(d.Command("service", "update", "--detach", "--network-rm", "foo", name))
 	result.Assert(c, icmd.Success)
 
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskNetworks, checker.DeepEquals,
-		map[string]int{barNetwork: 1})
+	poll.WaitOn(c, pollCheck(c, d.CheckRunningTaskNetworks, checker.DeepEquals(map[string]int{barNetwork: 1})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// Add a network
 	result = icmd.RunCmd(d.Command("service", "update", "--detach", "--network-add", "baz", name))
 	result.Assert(c, icmd.Success)
 
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckRunningTaskNetworks, checker.DeepEquals,
-		map[string]int{barNetwork: 1, bazNetwork: 1})
+	poll.WaitOn(c, pollCheck(c, d.CheckRunningTaskNetworks, checker.DeepEquals(map[string]int{barNetwork: 1, bazNetwork: 1})), poll.WithTimeout(defaultReconciliationTimeout))
+
 }
 
 func (s *DockerSwarmSuite) TestDNSConfig(c *testing.T) {
@@ -942,7 +941,7 @@ func (s *DockerSwarmSuite) TestDNSConfig(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// Make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// We need to get the container id.
 	out, err = d.Cmd("ps", "-a", "-q", "--no-trunc")
@@ -969,7 +968,7 @@ func (s *DockerSwarmSuite) TestDNSConfigUpdate(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// Make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	out, err = d.Cmd("service", "update", "--detach", "--dns-add=1.2.3.4", "--dns-search-add=example.com", "--dns-option-add=timeout:3", name)
 	assert.NilError(c, err, out)
@@ -1002,18 +1001,18 @@ func checkKeyIsEncrypted(d *daemon.Daemon) func(*testing.T) (interface{}, string
 
 func checkSwarmLockedToUnlocked(c *testing.T, d *daemon.Daemon) {
 	// Wait for the PEM file to become unencrypted
-	waitAndAssert(c, defaultReconciliationTimeout, checkKeyIsEncrypted(d), checker.Equals, false)
+	poll.WaitOn(c, pollCheck(c, checkKeyIsEncrypted(d), checker.Equals(false)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	d.RestartNode(c)
-	waitAndAssert(c, time.Second, d.CheckLocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+	poll.WaitOn(c, pollCheck(c, d.CheckLocalNodeState, checker.Equals(swarm.LocalNodeStateActive)), poll.WithTimeout(time.Second))
 }
 
 func checkSwarmUnlockedToLocked(c *testing.T, d *daemon.Daemon) {
 	// Wait for the PEM file to become encrypted
-	waitAndAssert(c, defaultReconciliationTimeout, checkKeyIsEncrypted(d), checker.Equals, true)
+	poll.WaitOn(c, pollCheck(c, checkKeyIsEncrypted(d), checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	d.RestartNode(c)
-	waitAndAssert(c, time.Second, d.CheckLocalNodeState, checker.Equals, swarm.LocalNodeStateLocked)
+	poll.WaitOn(c, pollCheck(c, d.CheckLocalNodeState, checker.Equals(swarm.LocalNodeStateLocked)), poll.WithTimeout(time.Second))
 }
 
 func (s *DockerSwarmSuite) TestUnlockEngineAndUnlockedSwarm(c *testing.T) {
@@ -1184,7 +1183,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
 	// joined workers start off unlocked
 	d2 := s.AddDaemon(c, true, false)
 	d2.RestartNode(c)
-	waitAndAssert(c, time.Second, d2.CheckLocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+	poll.WaitOn(c, pollCheck(c, d2.CheckLocalNodeState, checker.Equals(swarm.LocalNodeStateActive)), poll.WithTimeout(time.Second))
 
 	// promote worker
 	outs, err = d1.Cmd("node", "promote", d2.NodeID())
@@ -1212,8 +1211,8 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
 	// to be replaced, then the node still has the manager TLS key which is still locked
 	// (because we never want a manager TLS key to be on disk unencrypted if the cluster
 	// is set to autolock)
-	waitAndAssert(c, defaultReconciliationTimeout, d3.CheckControlAvailable, checker.False)
-	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, d3.CheckControlAvailable, checker.False()), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		certBytes, err := ioutil.ReadFile(filepath.Join(d3.Folder, "root", "swarm", "certificates", "swarm-node.crt"))
 		if err != nil {
 			return "", fmt.Sprintf("error: %v", err)
@@ -1223,11 +1222,11 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
 			return certs[0].Subject.OrganizationalUnit[0], ""
 		}
 		return "", "could not get organizational unit from certificate"
-	}, checker.Equals, "swarm-worker")
+	}, checker.Equals("swarm-worker")), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// by now, it should *never* be locked on restart
 	d3.RestartNode(c)
-	waitAndAssert(c, time.Second, d3.CheckLocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+	poll.WaitOn(c, pollCheck(c, d3.CheckLocalNodeState, checker.Equals(swarm.LocalNodeStateActive)), poll.WithTimeout(time.Second))
 }
 
 func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *testing.T) {
@@ -1430,7 +1429,7 @@ func (s *DockerSwarmSuite) TestExtraHosts(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// Make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// We need to get the container id.
 	out, err = d.Cmd("ps", "-a", "-q", "--no-trunc")
@@ -1480,7 +1479,7 @@ func (s *DockerSwarmSuite) TestSwarmNetworkIPAMOptions(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	out, err = d.Cmd("network", "inspect", "--format", "{{.IPAM.Options}}", "foo")
 	assert.NilError(c, err, out)
@@ -1542,7 +1541,7 @@ func (s *DockerSwarmSuite) TestSwarmPublishDuplicatePorts(c *testing.T) {
 	id := strings.TrimSpace(out)
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// Total len = 4, with 2 dynamic ports and 2 non-dynamic ports
 	// Dynamic ports are likely to be 30000 and 30001 but doesn't matter
@@ -1599,7 +1598,7 @@ func (s *DockerSwarmSuite) TestSwarmReadonlyRootfs(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ .Spec.TaskTemplate.ContainerSpec.ReadOnly }}", "top")
 	assert.NilError(c, err, out)
@@ -1684,7 +1683,7 @@ func (s *DockerSwarmSuite) TestSwarmStopSignal(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ .Spec.TaskTemplate.ContainerSpec.StopSignal }}", "top")
 	assert.NilError(c, err, out)
@@ -1715,7 +1714,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceLsFilterMode(c *testing.T) {
 	assert.Assert(c, strings.TrimSpace(out) != "")
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 2)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(2)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	out, err = d.Cmd("service", "ls")
 	assert.NilError(c, err, out)

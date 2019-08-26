@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
 	"gotest.tools/assert"
+	"gotest.tools/poll"
 )
 
 func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *testing.T) {
@@ -20,7 +21,7 @@ func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// Make sure task stays pending before plugin is available
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckServiceTasksInStateWithError("top", swarm.TaskStatePending, "missing plugin on 1 node"), checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckServiceTasksInStateWithError("top", swarm.TaskStatePending, "missing plugin on 1 node"), checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	plugin := newVolumePlugin(c, "customvolumedriver")
 	defer plugin.Close()
@@ -34,7 +35,7 @@ func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *testing.T) {
 	// this long delay.
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	out, err = d.Cmd("ps", "-q")
 	assert.NilError(c, err)
@@ -80,7 +81,7 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *testing.T) {
 	assert.NilError(c, err)
 
 	// wait for tasks ready
-	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount), checker.Equals, 2)
+	poll.WaitOn(c, pollCheck(c, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount), checker.Equals(2)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// remove service
 	_, err = d1.Cmd("service", "rm", serviceName)
@@ -88,7 +89,7 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *testing.T) {
 
 	// wait to ensure all containers have exited before removing the plugin. Else there's a
 	// possibility of container exits erroring out due to plugins being unavailable.
-	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount), checker.Equals, 0)
+	poll.WaitOn(c, pollCheck(c, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount), checker.Equals(0)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// disable plugin on worker
 	_, err = d2.Cmd("plugin", "disable", "-f", pluginName)
@@ -101,6 +102,6 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *testing.T) {
 	_, err = d1.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", serviceName, "--mode=global", "--network", networkName, image, "top")
 	assert.NilError(c, err)
 
-	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{image: 1})
+	poll.WaitOn(c, pollCheck(c, d1.CheckRunningTaskImages, checker.DeepEquals(map[string]int{image: 1})), poll.WithTimeout(defaultReconciliationTimeout))
+
 }

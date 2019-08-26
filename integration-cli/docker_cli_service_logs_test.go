@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/integration-cli/daemon"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
+	"gotest.tools/poll"
 )
 
 type logMessage struct {
@@ -39,9 +40,8 @@ func (s *DockerSwarmSuite) TestServiceLogs(c *testing.T) {
 	}
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout,
-		d.CheckRunningTaskImages, checker.DeepEquals,
-		map[string]int{"busybox:latest": len(services)})
+	poll.WaitOn(c, pollCheck(c,
+		d.CheckRunningTaskImages, checker.DeepEquals(map[string]int{"busybox:latest": len(services)})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	for name, message := range services {
 		out, err := d.Cmd("service", "logs", name)
@@ -80,9 +80,9 @@ func (s *DockerSwarmSuite) TestServiceLogsCompleteness(c *testing.T) {
 	assert.Assert(c, strings.TrimSpace(out) != "")
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 	// and make sure we have all the log lines
-	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 6)
+	poll.WaitOn(c, pollCheck(c, countLogLines(d, name), checker.Equals(6)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	out, err = d.Cmd("service", "logs", name)
 	assert.NilError(c, err)
@@ -107,8 +107,8 @@ func (s *DockerSwarmSuite) TestServiceLogsTail(c *testing.T) {
 	assert.Assert(c, strings.TrimSpace(out) != "")
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
-	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 6)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, countLogLines(d, name), checker.Equals(6)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	out, err = d.Cmd("service", "logs", "--tail=2", name)
 	assert.NilError(c, err)
@@ -129,9 +129,9 @@ func (s *DockerSwarmSuite) TestServiceLogsSince(c *testing.T) {
 	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for i in $(seq 1 3); do sleep .1; echo log$i; done; sleep 10000000")
 	assert.NilError(c, err)
 	assert.Assert(c, strings.TrimSpace(out) != "")
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 	// wait a sec for the logs to come in
-	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 3)
+	poll.WaitOn(c, pollCheck(c, countLogLines(d, name), checker.Equals(3)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	out, err = d.Cmd("service", "logs", "-t", name)
 	assert.NilError(c, err)
@@ -165,7 +165,7 @@ func (s *DockerSwarmSuite) TestServiceLogsFollow(c *testing.T) {
 	assert.Assert(c, strings.TrimSpace(out) != "")
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	args := []string{"service", "logs", "-f", name}
 	cmd := exec.Command(dockerBinary, d.PrependHostArg(args)...)
@@ -228,8 +228,8 @@ func (s *DockerSwarmSuite) TestServiceLogsTaskLogs(c *testing.T) {
 	result.Assert(c, icmd.Expected{Out: id})
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, replicas)
-	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 6*replicas)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(replicas)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, countLogLines(d, name), checker.Equals(6*replicas)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// get the task ids
 	result = icmd.RunCmd(d.Command("service", "ps", "-q", name))
@@ -281,9 +281,9 @@ func (s *DockerSwarmSuite) TestServiceLogsTTY(c *testing.T) {
 	result.Assert(c, icmd.Expected{Out: id})
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 	// and make sure we have all the log lines
-	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 2)
+	poll.WaitOn(c, pollCheck(c, countLogLines(d, name), checker.Equals(2)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	cmd := d.Command("service", "logs", "--raw", name)
 	result = icmd.RunCmd(cmd)
@@ -315,9 +315,9 @@ func (s *DockerSwarmSuite) TestServiceLogsNoHangDeletedContainer(c *testing.T) {
 	assert.Assert(c, id != "")
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 	// and make sure we have all the log lines
-	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 2)
+	poll.WaitOn(c, pollCheck(c, countLogLines(d, name), checker.Equals(2)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// now find and nuke the container
 	result = icmd.RunCmd(d.Command("ps", "-q"))
@@ -368,9 +368,9 @@ func (s *DockerSwarmSuite) TestServiceLogsDetails(c *testing.T) {
 	assert.Assert(c, id != "")
 
 	// make sure task has been deployed
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 	// and make sure we have all the log lines
-	waitAndAssert(c, defaultReconciliationTimeout, countLogLines(d, name), checker.Equals, 1)
+	poll.WaitOn(c, pollCheck(c, countLogLines(d, name), checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// First, test without pretty printing
 	// call service logs with details. set raw to skip pretty printing

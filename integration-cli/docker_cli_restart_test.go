@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
+	"gotest.tools/poll"
 )
 
 func (s *DockerSuite) TestRestartStoppedContainer(c *testing.T) {
@@ -42,13 +43,13 @@ func (s *DockerSuite) TestRestartRunningContainer(c *testing.T) {
 	}
 
 	// Wait 10 seconds for the 'echo' to appear in the logs
-	waitAndAssert(c, 10*time.Second, getLogs, checker.Equals, "foobar\n")
+	poll.WaitOn(c, pollCheck(c, getLogs, checker.Equals("foobar\n")), poll.WithTimeout(10*time.Second))
 
 	dockerCmd(c, "restart", "-t", "1", cleanedContainerID)
 	assert.NilError(c, waitRun(cleanedContainerID))
 
 	// Wait 10 seconds for first 'echo' appear (again) in the logs
-	waitAndAssert(c, 10*time.Second, getLogs, checker.Equals, "foobar\nfoobar\n")
+	poll.WaitOn(c, pollCheck(c, getLogs, checker.Equals("foobar\nfoobar\n")), poll.WithTimeout(10*time.Second))
 }
 
 // Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
