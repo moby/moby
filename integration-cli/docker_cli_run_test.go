@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/internal/test/fakecontext"
@@ -3954,7 +3953,7 @@ func (s *DockerSuite) TestRunAttachFailedNoLeak(c *testing.T) {
 		strings.Contains(string(out), "were not connected because a duplicate name exists") ||
 		strings.Contains(string(out), "The specified port already exists") ||
 		strings.Contains(string(out), "HNS failed with error : Failed to create endpoint") ||
-		strings.Contains(string(out), "HNS failed with error : The object already exists"), checker.Equals, true, fmt.Sprintf("Output: %s", out))
+		strings.Contains(string(out), "HNS failed with error : The object already exists"), fmt.Sprintf("Output: %s", out))
 	dockerCmd(c, "rm", "-f", "test")
 
 	// NGoroutines is not updated right away, so we need to wait before failing

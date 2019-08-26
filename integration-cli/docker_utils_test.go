@@ -430,8 +430,8 @@ func waitAndAssert(t assert.TestingT, timeout time.Duration, f checkF, compariso
 		default:
 		}
 		if shouldAssert {
-			if comment != nil {
-				args = append(args, comment.CheckCommentString())
+			if len(comment) > 0 {
+				args = append(args, comment)
 			}
 			assert.Assert(t, comparison, args...)
 			return
@@ -450,8 +450,8 @@ func reducedCheck(r reducer, funcs ...checkF) checkF {
 		for _, f := range funcs {
 			v, comment := f(c)
 			values = append(values, v)
-			if comment != nil {
-				comments = append(comments, comment.CheckCommentString())
+			if len(comment) > 0 {
+				comments = append(comments, comment)
 			}
 		}
 		return r(values...), fmt.Sprintf("%v", strings.Join(comments, ", "))
