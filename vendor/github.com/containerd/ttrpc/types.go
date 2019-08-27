@@ -23,10 +23,11 @@ import (
 )
 
 type Request struct {
-	Service     string `protobuf:"bytes,1,opt,name=service,proto3"`
-	Method      string `protobuf:"bytes,2,opt,name=method,proto3"`
-	Payload     []byte `protobuf:"bytes,3,opt,name=payload,proto3"`
-	TimeoutNano int64  `protobuf:"varint,4,opt,name=timeout_nano,proto3"`
+	Service     string      `protobuf:"bytes,1,opt,name=service,proto3"`
+	Method      string      `protobuf:"bytes,2,opt,name=method,proto3"`
+	Payload     []byte      `protobuf:"bytes,3,opt,name=payload,proto3"`
+	TimeoutNano int64       `protobuf:"varint,4,opt,name=timeout_nano,proto3"`
+	Metadata    []*KeyValue `protobuf:"bytes,5,rep,name=metadata,proto3"`
 }
 
 func (r *Request) Reset()         { *r = Request{} }
@@ -41,3 +42,22 @@ type Response struct {
 func (r *Response) Reset()         { *r = Response{} }
 func (r *Response) String() string { return fmt.Sprintf("%+#v", r) }
 func (r *Response) ProtoMessage()  {}
+
+type StringList struct {
+	List []string `protobuf:"bytes,1,rep,name=list,proto3"`
+}
+
+func (r *StringList) Reset()         { *r = StringList{} }
+func (r *StringList) String() string { return fmt.Sprintf("%+#v", r) }
+func (r *StringList) ProtoMessage()  {}
+
+func makeStringList(item ...string) StringList { return StringList{List: item} }
+
+type KeyValue struct {
+	Key   string `protobuf:"bytes,1,opt,name=key,proto3"`
+	Value string `protobuf:"bytes,2,opt,name=value,proto3"`
+}
+
+func (m *KeyValue) Reset()         { *m = KeyValue{} }
+func (*KeyValue) ProtoMessage()    {}
+func (m *KeyValue) String() string { return fmt.Sprintf("%+#v", m) }
