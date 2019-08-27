@@ -109,12 +109,15 @@ pipeline {
                                     docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                                     '''
 
-                                    sh '''
-                                    echo 'Creating docker-py-bundles.tar.gz'
-                                    tar -czf docker-py-bundles.tar.gz bundles/test-docker-py/*.xml bundles/test-docker-py/*.log
-                                    '''
+                                    catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                        sh '''
+                                        bundleName=docker-py
+                                        echo "Creating ${bundleName}-bundles.tar.gz"
+                                        tar -czf ${bundleName}-bundles.tar.gz bundles/test-docker-py/*.xml bundles/test-docker-py/*.log
+                                        '''
 
-                                    archiveArtifacts artifacts: 'docker-py-bundles.tar.gz'
+                                        archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
+                                    }
                                 }
                             }
                         }
@@ -200,12 +203,15 @@ pipeline {
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
 
-                            sh '''
-                            echo 'Creating unit-bundles.tar.gz'
-                            tar -czvf unit-bundles.tar.gz bundles/junit-report.xml bundles/go-test-report.json bundles/profile.out
-                            '''
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                sh '''
+                                bundleName=unit
+                                echo "Creating ${bundleName}-bundles.tar.gz"
+                                tar -czvf ${bundleName}-bundles.tar.gz bundles/junit-report.xml bundles/go-test-report.json bundles/profile.out
+                                '''
 
-                            archiveArtifacts artifacts: 'unit-bundles.tar.gz'
+                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
+                            }
                         }
                         cleanup {
                             sh 'make clean'
@@ -317,13 +323,16 @@ pipeline {
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
 
-                            sh '''
-                            echo "Creating janky-bundles.tar.gz"
-                            # exclude overlay2 directories
-                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf janky-bundles.tar.gz
-                            '''
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                sh '''
+                                bundleName=janky
+                                echo "Creating ${bundleName}-bundles.tar.gz"
+                                # exclude overlay2 directories
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -o -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                '''
 
-                            archiveArtifacts artifacts: 'janky-bundles.tar.gz'
+                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
+                            }
                         }
                         cleanup {
                             sh 'make clean'
@@ -411,13 +420,16 @@ pipeline {
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
 
-                            sh '''
-                            echo "Creating s390x-integration-bundles.tar.gz"
-                            # exclude overlay2 directories
-                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf s390x-integration-bundles.tar.gz
-                            '''
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                sh '''
+                                bundleName=s390x-integration
+                                echo "Creating ${bundleName}-bundles.tar.gz"
+                                # exclude overlay2 directories
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -o -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                '''
 
-                            archiveArtifacts artifacts: 's390x-integration-bundles.tar.gz'
+                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
+                            }
                         }
                         cleanup {
                             sh 'make clean'
@@ -486,12 +498,16 @@ pipeline {
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
 
-                            sh '''
-                            echo "Creating s390x-integration-cli-bundles.tar.gz"
-                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf s390x-integration-cli-bundles.tar.gz
-                            '''
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                sh '''
+                                bundleName=s390x-integration-cli
+                                echo "Creating ${bundleName}-bundles.tar.gz"
+                                # exclude overlay2 directories
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -o -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                '''
 
-                            archiveArtifacts artifacts: 's390x-integration-cli-bundles.tar.gz'
+                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
+                            }
                         }
                         cleanup {
                             sh 'make clean'
@@ -577,13 +593,16 @@ pipeline {
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
 
-                            sh '''
-                            echo "Creating powerpc-integration-bundles.tar.gz"
-                            # exclude overlay2 directories
-                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf powerpc-integration-bundles.tar.gz
-                            '''
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                sh '''
+                                bundleName=powerpc-integration
+                                echo "Creating ${bundleName}-bundles.tar.gz"
+                                # exclude overlay2 directories
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -o -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                '''
 
-                            archiveArtifacts artifacts: 'powerpc-integration-bundles.tar.gz'
+                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
+                            }
                         }
                         cleanup {
                             sh 'make clean'
@@ -650,12 +669,16 @@ pipeline {
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
 
-                            sh '''
-                            echo "Creating powerpc-integration-cli-bundles.tar.gz"
-                            find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf powerpc-integration-cli-bundles.tar.gz
-                            '''
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                sh '''
+                                bundleName=powerpc-integration-cli
+                                echo "Creating ${bundleName}-bundles.tar.gz"
+                                # exclude overlay2 directories
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -o -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                '''
 
-                            archiveArtifacts artifacts: 'powerpc-integration-cli-bundles.tar.gz'
+                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
+                            }
                         }
                         cleanup {
                             sh 'make clean'
