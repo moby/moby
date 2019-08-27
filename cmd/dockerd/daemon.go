@@ -133,7 +133,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return err
 	}
 
-	if err := system.MkdirAll(cli.Config.ExecRoot, 0700, ""); err != nil {
+	if err := system.MkdirAll(cli.Config.ExecRoot, 0700); err != nil {
 		return err
 	}
 
