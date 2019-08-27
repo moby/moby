@@ -274,7 +274,7 @@ Try {
         }
       }
     } Catch {}
-    if ($defender) { Throw "ERROR: Windows Defender real time protection must be disabled for integration tests" }
+    if ($defender) { Write-Host -ForegroundColor Magenta "WARN: Windows Defender real time protection is enabled, which may cause some integration tests to fail" }
 
     # Make sure SOURCES_DRIVE is set
     if ($null -eq $env:SOURCES_DRIVE) { Throw "ERROR: Environment variable SOURCES_DRIVE is not set" }
