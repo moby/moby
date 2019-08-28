@@ -204,13 +204,13 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 	st := progress.Status{
 		Started: &now,
 	}
-	pw.Write(id, st)
+	_ = pw.Write(id, st)
 	return func(err error) error {
 		// TODO: set error on status
 		now := time.Now()
 		st.Completed = &now
-		pw.Write(id, st)
-		pw.Close()
+		_ = pw.Write(id, st)
+		_ = pw.Close()
 		return err
 	}
 }

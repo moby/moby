@@ -275,7 +275,7 @@ func (p *puller) resolve(ctx context.Context) error {
 		ref, err := distreference.ParseNormalizedNamed(p.src.Reference.String())
 		if err != nil {
 			p.resolveErr = err
-			resolveProgressDone(err)
+			_ = resolveProgressDone(err)
 			return
 		}
 
@@ -283,7 +283,7 @@ func (p *puller) resolve(ctx context.Context) error {
 			origRef, desc, err := p.resolver.Resolve(ctx, ref.String())
 			if err != nil {
 				p.resolveErr = err
-				resolveProgressDone(err)
+				_ = resolveProgressDone(err)
 				return
 			}
 
@@ -300,19 +300,19 @@ func (p *puller) resolve(ctx context.Context) error {
 			ref, err := distreference.WithDigest(ref, p.desc.Digest)
 			if err != nil {
 				p.resolveErr = err
-				resolveProgressDone(err)
+				_ = resolveProgressDone(err)
 				return
 			}
 			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), gw.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: resolveModeToString(p.src.ResolveMode)}, p.sm)
 			if err != nil {
 				p.resolveErr = err
-				resolveProgressDone(err)
+				_ = resolveProgressDone(err)
 				return
 			}
 
 			p.config = dt
 		}
-		resolveProgressDone(nil)
+		_ = resolveProgressDone(nil)
 	})
 	return p.resolveErr
 }
@@ -509,7 +509,7 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 						tm := time.Now()
 						end = &tm
 					}
-					pw.Write("extracting "+p.ID, progress.Status{
+					_ = pw.Write("extracting "+p.ID, progress.Status{
 						Action:    "extract",
 						Started:   &st.st,
 						Completed: end,
@@ -672,7 +672,7 @@ func showProgress(ctx context.Context, ongoing *jobs, cs content.Store, pw progr
 			refKey := remotes.MakeRefKey(ctx, j.Descriptor)
 			if a, ok := actives[refKey]; ok {
 				started := j.started
-				pw.Write(j.Digest.String(), progress.Status{
+				_ = pw.Write(j.Digest.String(), progress.Status{
 					Action:  a.Status,
 					Total:   int(a.Total),
 					Current: int(a.Offset),
@@ -685,7 +685,7 @@ func showProgress(ctx context.Context, ongoing *jobs, cs content.Store, pw progr
 				info, err := cs.Info(context.TODO(), j.Digest)
 				if err != nil {
 					if containerderrors.IsNotFound(err) {
-						// pw.Write(j.Digest.String(), progress.Status{
+						// _ = pw.Write(j.Digest.String(), progress.Status{
 						// 	Action: "waiting",
 						// })
 						continue
@@ -697,7 +697,7 @@ func showProgress(ctx context.Context, ongoing *jobs, cs content.Store, pw progr
 				if done || j.done {
 					started := j.started
 					createdAt := info.CreatedAt
-					pw.Write(j.Digest.String(), progress.Status{
+					_ = pw.Write(j.Digest.String(), progress.Status{
 						Action:    "done",
 						Current:   int(info.Size),
 						Total:     int(info.Size),
@@ -783,13 +783,13 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 	st := progress.Status{
 		Started: &now,
 	}
-	pw.Write(id, st)
+	_ = pw.Write(id, st)
 	return func(err error) error {
 		// TODO: set error on status
 		now := time.Now()
 		st.Completed = &now
-		pw.Write(id, st)
-		pw.Close()
+		_ = pw.Write(id, st)
+		_ = pw.Close()
 		return err
 	}
 }
