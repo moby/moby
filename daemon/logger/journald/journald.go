@@ -18,7 +18,7 @@ import (
 const name = "journald"
 
 type journald struct {
-	mu      sync.Mutex
+	mu      sync.Mutex        //nolint:structcheck,unused
 	vars    map[string]string // additional variables and values to send to the journal along with the log message
 	readers map[*logger.LogWatcher]struct{}
 }
