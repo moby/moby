@@ -75,8 +75,9 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *testing.T) {
 	var ua string
 
 	reg, err := registry.NewMock(c)
-	defer reg.Close()
 	assert.NilError(c, err)
+	defer reg.Close()
+
 	registerUserAgentHandler(reg, &ua)
 	repoName := fmt.Sprintf("%s/busybox", reg.URL())
 

@@ -348,6 +348,7 @@ func (s *DockerSuite) TestGetStoppedContainerStats(c *testing.T) {
 		defer cli.Close()
 
 		resp, err := cli.ContainerStats(context.Background(), name, false)
+		assert.NilError(c, err)
 		defer resp.Body.Close()
 		chResp <- err
 	}()
