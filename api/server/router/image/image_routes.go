@@ -91,7 +91,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 		if !output.Flushed() {
 			return err
 		}
-		output.Write(streamformatter.FormatError(err))
+		_, _ = output.Write(streamformatter.FormatError(err))
 	}
 
 	return nil
@@ -136,7 +136,7 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 		if !output.Flushed() {
 			return err
 		}
-		output.Write(streamformatter.FormatError(err))
+		_, _ = output.Write(streamformatter.FormatError(err))
 	}
 	return nil
 }
@@ -161,7 +161,7 @@ func (s *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, r
 		if !output.Flushed() {
 			return err
 		}
-		output.Write(streamformatter.FormatError(err))
+		_, _ = output.Write(streamformatter.FormatError(err))
 	}
 	return nil
 }
@@ -177,7 +177,7 @@ func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter,
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 	if err := s.backend.LoadImage(r.Body, output, quiet); err != nil {
-		output.Write(streamformatter.FormatError(err))
+		_, _ = output.Write(streamformatter.FormatError(err))
 	}
 	return nil
 }

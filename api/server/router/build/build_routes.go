@@ -176,7 +176,7 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	filters, err := filters.FromJSON(r.Form.Get("filters"))
+	fltrs, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return errors.Wrap(err, "could not parse filters")
 	}
@@ -191,7 +191,7 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 
 	opts := types.BuildCachePruneOptions{
 		All:         httputils.BoolValue(r, "all"),
-		Filters:     filters,
+		Filters:     fltrs,
 		KeepStorage: int64(ks),
 	}
 
@@ -234,12 +234,12 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	}
 
 	output := ioutils.NewWriteFlusher(ww)
-	defer output.Close()
+	defer func() { _ = output.Close() }()
 
 	errf := func(err error) error {
 
 		if httputils.BoolValue(r, "q") && notVerboseBuffer.Len() > 0 {
-			output.Write(notVerboseBuffer.Bytes())
+			_, _ = output.Write(notVerboseBuffer.Bytes())
 		}
 
 		// Do not write the error in the http output if it's still empty.
@@ -290,7 +290,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	// Everything worked so if -q was provided the output from the daemon
 	// should be just the image ID and we'll print that to stdout.
 	if buildOptions.SuppressOutput {
-		fmt.Fprintln(streamformatter.NewStdoutWriter(output), imgID)
+		_, _ = fmt.Fprintln(streamformatter.NewStdoutWriter(output), imgID)
 	}
 	return nil
 }
@@ -306,7 +306,7 @@ func getAuthConfigs(header http.Header) map[string]types.AuthConfig {
 	authConfigsJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authConfigsEncoded))
 	// Pulling an image does not error when no auth is provided so to remain
 	// consistent with the existing api decode errors are ignored
-	json.NewDecoder(authConfigsJSON).Decode(&authConfigs)
+	_ = json.NewDecoder(authConfigsJSON).Decode(&authConfigs)
 	return authConfigs
 }
 
@@ -428,7 +428,7 @@ func (w *wcf) notify() {
 	w.mu.Lock()
 	if !w.ready {
 		if w.buf.Len() > 0 {
-			io.Copy(w.Writer, w.buf)
+			_, _ = io.Copy(w.Writer, w.buf)
 		}
 		if w.flushed {
 			w.flusher.Flush()
