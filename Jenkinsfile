@@ -328,7 +328,7 @@ pipeline {
                                 bundleName=janky
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -o -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
@@ -425,7 +425,7 @@ pipeline {
                                 bundleName=s390x-integration
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -o -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
@@ -503,7 +503,7 @@ pipeline {
                                 bundleName=s390x-integration-cli
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -o -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
@@ -598,7 +598,7 @@ pipeline {
                                 bundleName=powerpc-integration
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -o -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
@@ -674,7 +674,7 @@ pipeline {
                                 bundleName=powerpc-integration-cli
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -o -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
