@@ -45,6 +45,7 @@ func downloadRemote(remoteURL string) (string, io.ReadCloser, error) {
 // GetWithStatusError does an http.Get() and returns an error if the
 // status code is 4xx or 5xx.
 func GetWithStatusError(address string) (resp *http.Response, err error) {
+	// #nosec G107
 	if resp, err = http.Get(address); err != nil {
 		if uerr, ok := err.(*url.Error); ok {
 			if derr, ok := uerr.Err.(*net.DNSError); ok && !derr.IsTimeout {

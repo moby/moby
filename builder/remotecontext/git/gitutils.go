@@ -142,9 +142,9 @@ func supportsShallowClone(remoteURL string) bool {
 		serviceURL := remoteURL + "/info/refs?service=git-upload-pack"
 
 		// Try a HEAD request and fallback to a Get request on error
-		res, err := http.Head(serviceURL)
+		res, err := http.Head(serviceURL) // #nosec G107
 		if err != nil || res.StatusCode != http.StatusOK {
-			res, err = http.Get(serviceURL)
+			res, err = http.Get(serviceURL) // #nosec G107
 			if err == nil {
 				res.Body.Close()
 			}
