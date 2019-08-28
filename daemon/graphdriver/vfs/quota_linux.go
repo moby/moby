@@ -5,6 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+//nolint:structcheck
 type driverQuota struct {
 	quotaCtl *quota.Control
 	quotaOpt quota.Quota

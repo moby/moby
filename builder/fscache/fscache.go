@@ -497,6 +497,7 @@ type sourceMeta struct {
 	Size        int64
 }
 
+//nolint:structcheck
 type cachedSource struct {
 	sourceMeta
 	refs    map[*cachedSourceRef]struct{}
