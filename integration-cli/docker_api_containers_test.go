@@ -994,13 +994,13 @@ func (s *DockerSuite) TestContainerAPIWait(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	waitresC, errC := cli.ContainerWait(context.Background(), name, "")
+	waitResC, errC := cli.ContainerWait(context.Background(), name, "")
 
 	select {
 	case err = <-errC:
 		assert.NilError(c, err)
-	case waitres := <-waitresC:
-		assert.Equal(c, waitres.StatusCode, int64(0))
+	case waitRes := <-waitResC:
+		assert.Equal(c, waitRes.StatusCode, int64(0))
 	}
 }
 
