@@ -112,15 +112,30 @@ type NetworkListOptions struct {
 	Filters filters.Args
 }
 
+// NewHijackedResponse intializes a HijackedResponse type
+func NewHijackedResponse(conn net.Conn, mediaType string) HijackedResponse {
+	return HijackedResponse{Conn: conn, Reader: bufio.NewReader(conn), mediaType: mediaType}
+}
+
 // HijackedResponse holds connection information for a hijacked request.
 type HijackedResponse struct {
-	Conn   net.Conn
-	Reader *bufio.Reader
+	mediaType string
+	Conn      net.Conn
+	Reader    *bufio.Reader
 }
 
 // Close closes the hijacked connection and reader.
 func (h *HijackedResponse) Close() {
 	h.Conn.Close()
+}
+
+// MediaType let client know if HijackedResponse hold a raw or multiplexed stream.
+// returns false if HTTP Content-Type is not relevant, and container must be inspected
+func (h *HijackedResponse) MediaType() (string, bool) {
+	if h.mediaType == "" {
+		return "", false
+	}
+	return h.mediaType, true
 }
 
 // CloseWriter is an interface that implements structs

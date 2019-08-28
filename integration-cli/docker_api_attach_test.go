@@ -193,6 +193,9 @@ func (s *DockerSuite) TestPostContainersAttach(c *testing.T) {
 
 	resp, err := client.ContainerAttach(context.Background(), cid, attachOpts)
 	assert.NilError(c, err)
+	mediaType, b := resp.MediaType()
+	assert.Check(c, b)
+	assert.Equal(c, mediaType, types.MediaTypeMultiplexedStream)
 	expectSuccess(resp.Conn, resp.Reader, "stdout", false)
 
 	// Make sure we do see "hello" if Logs is true

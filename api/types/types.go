@@ -18,6 +18,14 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
+const (
+	// MediaTypeRawStream is vendor specific MIME-Type set for raw TTY streams
+	MediaTypeRawStream = "application/vnd.docker.raw-stream"
+
+	// MediaTypeMultiplexedStream is vendor specific MIME-Type set for stdin/stdout/stderr multiplexed streams
+	MediaTypeMultiplexedStream = "application/vnd.docker.multiplexed-stream"
+)
+
 // RootFS returns Image's RootFS description including the layer IDs.
 type RootFS struct {
 	Type   string   `json:",omitempty"`

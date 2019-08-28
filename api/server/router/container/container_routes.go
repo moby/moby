@@ -153,6 +153,12 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 		return err
 	}
 
+	contentType := types.MediaTypeRawStream
+	if !tty && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
+		contentType = types.MediaTypeMultiplexedStream
+	}
+	w.Header().Set("Content-Type", contentType)
+
 	// if has a tty, we're not muxing streams. if it doesn't, we are. simple.
 	// this is the point of no return for writing a response. once we call
 	// WriteLogStream, the response has been started and errors will be
@@ -598,7 +604,8 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		return errdefs.InvalidParameter(errors.Errorf("error attaching to container %s, hijack connection missing", containerName))
 	}
 
-	setupStreams := func() (io.ReadCloser, io.Writer, io.Writer, error) {
+	contentType := types.MediaTypeRawStream
+	setupStreams := func(multiplexed bool) (io.ReadCloser, io.Writer, io.Writer, error) {
 		conn, _, err := hijacker.Hijack()
 		if err != nil {
 			return nil, nil, nil, err
@@ -608,7 +615,10 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		conn.Write([]byte{})
 
 		if upgrade {
-			fmt.Fprintf(conn, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
+			if multiplexed && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
+				contentType = types.MediaTypeMultiplexedStream
+			}
+			fmt.Fprintf(conn, "HTTP/1.1 101 UPGRADED\r\nContent-Type: "+contentType+"\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
 		} else {
 			fmt.Fprintf(conn, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 		}
@@ -632,16 +642,16 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 	}
 
 	if err = s.backend.ContainerAttach(containerName, attachConfig); err != nil {
-		logrus.Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
+		logrus.WithError(err).Errorf("Handler for %s %s returned error", r.Method, r.URL.Path)
 		// Remember to close stream if error happens
 		conn, _, errHijack := hijacker.Hijack()
-		if errHijack == nil {
+		if errHijack != nil {
+			logrus.WithError(err).Errorf("Handler for %s %s: unable to close stream; error when hijacking connection", r.Method, r.URL.Path)
+		} else {
 			statusCode := httpstatus.FromError(err)
 			statusText := http.StatusText(statusCode)
-			fmt.Fprintf(conn, "HTTP/1.1 %d %s\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n%s\r\n", statusCode, statusText, err.Error())
+			fmt.Fprintf(conn, "HTTP/1.1 %d %s\r\nContent-Type: %s\r\n\r\n%s\r\n", statusCode, statusText, contentType, err.Error())
 			httputils.CloseStreams(conn)
-		} else {
-			logrus.Errorf("Error Hijacking: %v", err)
 		}
 	}
 	return nil
@@ -661,7 +671,7 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 
 	version := httputils.VersionFromContext(ctx)
 
-	setupStreams := func() (io.ReadCloser, io.Writer, io.Writer, error) {
+	setupStreams := func(multiplexed bool) (io.ReadCloser, io.Writer, io.Writer, error) {
 		wsChan := make(chan *websocket.Conn)
 		h := func(conn *websocket.Conn) {
 			wsChan <- conn

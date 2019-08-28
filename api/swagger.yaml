@@ -6478,6 +6478,9 @@ paths:
 
         Note: This endpoint works only for containers with the `json-file` or
         `journald` logging driver.
+      produces:
+        - "application/vnd.docker.raw-stream"
+        - "application/vnd.docker.multiplexed-stream"
       operationId: "ContainerLogs"
       responses:
         200:
@@ -7189,7 +7192,8 @@ paths:
         ### Stream format
 
         When the TTY setting is disabled in [`POST /containers/create`](#operation/ContainerCreate),
-        the stream over the hijacked connected is multiplexed to separate out
+        the HTTP Content-Type header is set to application/vnd.docker.multiplexed-stream
+        and the stream over the hijacked connected is multiplexed to separate out
         `stdout` and `stderr`. The stream consists of a series of frames, each
         containing a header and a payload.
 
@@ -7233,6 +7237,7 @@ paths:
       operationId: "ContainerAttach"
       produces:
         - "application/vnd.docker.raw-stream"
+        - "application/vnd.docker.multiplexed-stream"
       responses:
         101:
           description: "no error, hints proxy about hijacking"
@@ -9015,6 +9020,7 @@ paths:
         - "application/json"
       produces:
         - "application/vnd.docker.raw-stream"
+        - "application/vnd.docker.multiplexed-stream"
       responses:
         200:
           description: "No error"
@@ -10913,6 +10919,9 @@ paths:
 
         **Note**: This endpoint works only for services with the `local`,
         `json-file` or `journald` logging drivers.
+      produces:
+        - "application/vnd.docker.raw-stream"
+        - "application/vnd.docker.multiplexed-stream"
       operationId: "ServiceLogs"
       responses:
         200:
@@ -11168,6 +11177,9 @@ paths:
         **Note**: This endpoint works only for services with the `local`,
         `json-file` or `journald` logging drivers.
       operationId: "TaskLogs"
+      produces:
+        - "application/vnd.docker.raw-stream"
+        - "application/vnd.docker.multiplexed-stream"
       responses:
         200:
           description: "logs returned as a stream in response body"
