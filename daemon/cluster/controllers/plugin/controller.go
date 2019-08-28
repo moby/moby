@@ -34,7 +34,6 @@ type Controller struct {
 
 	pluginID  string
 	serviceID string
-	taskID    string
 
 	// hook used to signal tests that `Wait()` is actually ready and waiting
 	signalWaitReady func()
