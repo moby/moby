@@ -8,6 +8,7 @@ linters:
     - gosimple
     - govet
     - ineffassign
+    - misspell
     - unconvert
 
   disable:
@@ -33,6 +34,12 @@ linters-settings:
 
 issues:
   exclude-rules:
+    # Exclude some linters from running on tests files.
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+
     - text: "G201: SQL string formatting"
       linters:
         - gosec
