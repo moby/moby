@@ -563,7 +563,7 @@ func copyFile(archiver Archiver, source, dest *copyEndpoint, identity *idtools.I
 			// are of the form \\?\Volume{<GUID>}\<path>. An example would be:
 			// \\?\Volume{dae8d3ac-b9a1-11e9-88eb-e8554b2ba1db}\bin\busybox.exe
 
-			if err := system.MkdirAll(filepath.Dir(dest.path), 0755, ""); err != nil {
+			if err := system.MkdirAll(filepath.Dir(dest.path), 0755); err != nil {
 				return err
 			}
 		} else {
