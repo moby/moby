@@ -1065,8 +1065,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	close(d.startupDone)
 
-	// FIXME: this method never returns an error
-	info, _ := d.SystemInfo()
+	info := d.SystemInfo()
 
 	engineInfo.WithValues(
 		dockerversion.Version,

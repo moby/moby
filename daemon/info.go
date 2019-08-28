@@ -26,7 +26,7 @@ import (
 )
 
 // SystemInfo returns information about the host server the daemon is running on.
-func (daemon *Daemon) SystemInfo() (*types.Info, error) {
+func (daemon *Daemon) SystemInfo() *types.Info {
 	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_info"))()
 
 	sysInfo := sysinfo.New(true)
@@ -81,7 +81,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	daemon.fillSecurityOptions(v, sysInfo)
 	daemon.fillLicense(v)
 
-	return v, nil
+	return v
 }
 
 // SystemVersion returns version information about the daemon.
