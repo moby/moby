@@ -337,14 +337,17 @@ func TestWalkValues(t *testing.T) {
 	f.Add("status", "running")
 	f.Add("status", "paused")
 
-	f.WalkValues("status", func(value string) error {
+	err := f.WalkValues("status", func(value string) error {
 		if value != "running" && value != "paused" {
 			t.Fatalf("Unexpected value %s", value)
 		}
 		return nil
 	})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
 
-	err := f.WalkValues("status", func(value string) error {
+	err = f.WalkValues("status", func(value string) error {
 		return errors.New("return")
 	})
 	if err == nil {
