@@ -195,6 +195,29 @@ definitions:
       Propagation:
         type: "string"
 
+  ContainerNode:
+    type: "object"
+    description: "Node container is running on in Swarm"
+    properties:
+      ID:
+        type: "string"
+      IP:
+        description: "IP Address"
+        type: "string"
+      Addr:
+        type: "string"
+      Name:
+        type: "string"
+      Cpus:
+        type: "integer"
+      Memory:
+        type: "integer"
+        format: "int64"
+      Labels:
+        type: "object"
+        additionalProperties:
+          type: "string"
+
   DeviceMapping:
     type: "object"
     description: "A device mapping between the host and container"
@@ -4916,8 +4939,7 @@ paths:
               LogPath:
                 type: "string"
               Node:
-                description: "TODO"
-                type: "object"
+                $ref: "#/definitions/ContainerNode"
               Name:
                 type: "string"
               RestartCount:
