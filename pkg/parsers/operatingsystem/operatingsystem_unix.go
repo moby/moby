@@ -4,7 +4,6 @@ package operatingsystem // import "github.com/docker/docker/pkg/parsers/operatin
 
 import (
 	"errors"
-	"fmt"
 	"os/exec"
 )
 
@@ -21,7 +20,7 @@ func GetOperatingSystem() (string, error) {
 // GetOperatingSystemVersion gets the version of the current operating system, as a string.
 func GetOperatingSystemVersion() (string, error) {
 	// there's no standard unix way of getting this, sadly...
-	return "", fmt.Error("Unsupported on generic unix")
+	return "", errors.New("Unsupported on generic unix")
 }
 
 // IsContainerized returns true if we are running inside a container.
