@@ -203,12 +203,8 @@ Function Nuke-Everything {
         $count=(Get-ChildItem $reg | Measure-Object).Count
         if ($count -gt 0) {
             Write-Warning "There are $count NdisAdapters leaked under Psched\Parameters"
-            if ($env:COMPUTERNAME -match "jenkins-rs1-") {
-                Write-Warning "Cleaning Psched..."
-                Get-ChildItem $reg | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-            } else {
-                Write-Warning "Not cleaning as not a production RS1 server"
-            }
+            Write-Warning "Cleaning Psched..."
+            Get-ChildItem $reg | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
         }
 
         # TODO: This should be able to be removed in August 2017 update. Only needed for RS1
@@ -216,12 +212,8 @@ Function Nuke-Everything {
         $count=(Get-ChildItem $reg | Measure-Object).Count
         if ($count -gt 0) {
             Write-Warning "There are $count NdisAdapters leaked under WFPLWFS\Parameters"
-            if ($env:COMPUTERNAME -match "jenkins-rs1-") {
-                Write-Warning "Cleaning WFPLWFS..."
-                Get-ChildItem $reg | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-            } else {
-                Write-Warning "Not cleaning as not a production RS1 server"
-            }
+            Write-Warning "Cleaning WFPLWFS..."
+            Get-ChildItem $reg | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
         }
     } catch {
         # Don't throw any errors onwards Throw $_
