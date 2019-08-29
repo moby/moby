@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"strings"
 )
 
 // GetOperatingSystem gets the name of the current operating system.
@@ -15,7 +16,7 @@ func GetOperatingSystem() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(osName), nil
+	return strings.TrimSpace(string(osName)), nil
 }
 
 // GetOperatingSystemVersion gets the version of the current operating system, as a string.
