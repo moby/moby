@@ -23,9 +23,10 @@ setup_integration_test_filter() {
 	fi
 	TESTFLAGS+="-test.run ${TEST_FILTER}"
 
-	local dirs=$(grep -rIlE --include '*_test.go' "func .*${TEST_FILTER}.*\(. \*testing\.T\)" ./integration*/ | xargs -I file dirname file | uniq)
+	local dirs
+	dirs=$(grep -rIlE --include '*_test.go' "func .*${TEST_FILTER}.*\(. \*testing\.T\)" ./integration*/ | xargs -I file dirname file | uniq)
 	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
-		: "${TEST_INTEGRATION_DIR:=$(echo "$dirs" | grep -v '^\./integration-cli$')"
+		: "${TEST_INTEGRATION_DIR:=$(echo "$dirs" | grep -v '^\./integration-cli$')}"
 		if [ -z "${TEST_INTEGRATION_DIR}" ]; then
 			echo "Skipping integration tests since the supplied filter \"${TEST_FILTER}\" omits all integration tests"
 			TEST_SKIP_INTEGRATION=1
@@ -67,7 +68,7 @@ run_test_integration_suites() {
 
 run_test_integration_legacy_suites() {
 	(
-		flags="-test.v -timeout=${TIMEOUT} $TESTFLAGS"
+		flags="-test.v -test.timeout=360m $TESTFLAGS"
 		cd integration-cli
 		echo "Running $PWD flags=${flags}"
 		# shellcheck disable=SC2086

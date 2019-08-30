@@ -35,7 +35,7 @@ run_test_integration_suites() {
 
 run_test_integration_legacy_suites() {
 	(
-		flags="-test.v -timeout=${TIMEOUT:-10m} -test.timeout=360m $TESTFLAGS"
+		flags="-test.v -test.timeout=360m $TESTFLAGS"
 		cd /tests/integration-cli
 		echo "Running $PWD"
 		test_env ./test.main $flags
