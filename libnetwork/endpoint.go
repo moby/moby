@@ -498,11 +498,11 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) (err error) {
 	}
 
 	if doUpdateHostsFile(n, sb) {
-		address := ""
+		var addresses []string
 		if ip := ep.getFirstInterfaceAddress(); ip != nil {
-			address = ip.String()
+			addresses = append(addresses, ip.String())
 		}
-		if err = sb.updateHostsFile(address); err != nil {
+		if err = sb.updateHostsFile(addresses); err != nil {
 			return err
 		}
 	}
