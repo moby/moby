@@ -838,7 +838,6 @@ Try {
                 Write-Host -ForegroundColor Magenta "WARN: Only running integration tests matching $env:INTEGRATION_TEST_NAME"
             }
             $c += "`"-tags`" " + "`"autogen`" "
-            $c += "`"-timeout`" " + "`"10m`" "
             $c += "`"-test.timeout`" " + "`"200m`" "
     
             if ($null -ne $env:INTEGRATION_IN_CONTAINER) {
@@ -933,7 +932,6 @@ Try {
                     Write-Host -ForegroundColor Magenta "WARN: Only running LCOW integration tests matching $env:INTEGRATION_TEST_NAME"
                 }
                 $c += "`"-tags`" " + "`"autogen`" "
-                $c += "`"-timeout`" " + "`"10m`" "
                 $c += "`"-test.timeout`" " + "`"200m`" "
 
                 Write-Host -ForegroundColor Green "INFO: LCOW Integration tests being run from the host:"

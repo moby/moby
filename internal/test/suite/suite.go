@@ -4,16 +4,14 @@ package suite
 
 import (
 	"flag"
-	"fmt"
 	"reflect"
 	"runtime/debug"
 	"strings"
 	"testing"
-	"time"
 )
 
 // TimeoutFlag is the flag to set a per-test timeout when running tests. Defaults to `-timeout`.
-var TimeoutFlag = flag.Duration("timeout", 0, "per-test panic after duration `d` (default 0, timeout disabled)")
+var TimeoutFlag = flag.Duration("timeout", 0, "DO NOT USE")
 
 var typTestingT = reflect.TypeOf(new(testing.T))
 
@@ -53,32 +51,7 @@ func Run(t *testing.T, suite interface{}) {
 				}
 			}()
 
-			var timeout <-chan time.Time
-			if *TimeoutFlag > 0 {
-				timeout = time.After(*TimeoutFlag)
-			}
-			panicCh := make(chan error)
-			go func() {
-				defer func() {
-					if r := recover(); r != nil {
-						panicCh <- fmt.Errorf("test panicked: %v\n%s", r, debug.Stack())
-					} else {
-						close(panicCh)
-					}
-				}()
-				method.Func.Call([]reflect.Value{reflect.ValueOf(suite), reflect.ValueOf(t)})
-			}()
-			select {
-			case err := <-panicCh:
-				if err != nil {
-					t.Fatal(err.Error())
-				}
-			case <-timeout:
-				if timeoutSuite, ok := suite.(TimeoutTestSuite); ok {
-					timeoutSuite.OnTimeout()
-				}
-				t.Fatalf("timeout: test timed out after %s since start of test", *TimeoutFlag)
-			}
+			method.Func.Call([]reflect.Value{reflect.ValueOf(suite), reflect.ValueOf(t)})
 		})
 	}
 }
