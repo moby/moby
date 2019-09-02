@@ -717,7 +717,7 @@ Try {
     
         # Inspect the pulled or loaded image to get the version directly
         $ErrorActionPreference = "SilentlyContinue"
-        $dutimgVersion = $(&"$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" inspect  $($env:WINDOWS_BASE_IMAGE) --format "{{.OsVersion}}")
+        $dutimgVersion = $(&"$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" inspect "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG" --format "{{.OsVersion}}")
         $ErrorActionPreference = "Stop"
         Write-Host -ForegroundColor Green $("INFO: Version of $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG is '"+$dutimgVersion+"'")
     }
