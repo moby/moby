@@ -39,6 +39,9 @@ fi
 
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_NET:=}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_MTU:=}"
+# if slirp4netns v0.4.0+ is installed, slirp4netns is hardened using sandbox (mount namespace) and seccomp
+: "${DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX:=auto}"
+: "${DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP:=auto}"
 net=$DOCKERD_ROOTLESS_ROOTLESSKIT_NET
 mtu=$DOCKERD_ROOTLESS_ROOTLESSKIT_MTU
 if [ -z $net ]; then
@@ -77,6 +80,8 @@ if [ -z $_DOCKERD_ROOTLESS_CHILD ]; then
 	# * /run: copy-up is required so that we can create /run/docker (hardcoded for plugins) in our namespace
 	exec $rootlesskit \
 		--net=$net --mtu=$mtu \
+		--slirp4netns-sandbox=$DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX \
+		--slirp4netns-seccomp=$DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP \
 		--disable-host-loopback --port-driver=builtin \
 		--copy-up=/etc --copy-up=/run \
 		$DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS \
