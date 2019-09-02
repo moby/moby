@@ -18,6 +18,7 @@ pipeline {
         booleanParam(name: 'ppc64le', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
         booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
         booleanParam(name: 'windowsRS5', defaultValue: true, description: 'Windows 2019 (RS5) Build/Test')
+        booleanParam(name: 'windows1903', defaultValue: true, description: 'Windows 1903 (SAC) Build/Test')
         booleanParam(name: 'dco', defaultValue: true, description: 'Run the DCO check')
     }
     environment {
@@ -1158,6 +1159,67 @@ pipeline {
 
                                 # archiveArtifacts does not support env-vars to , so save the artifacts in a fixed location
                                 Compress-Archive -Path "bundles/CIDUT.out", "bundles/CIDUT.err", "bundles/junit-report-*.xml" -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
+                                '''
+
+                                archiveArtifacts artifacts: '*-bundles.zip', allowEmptyArchive: true
+                            }
+                        }
+                        cleanup {
+                            sh 'make clean'
+                            deleteDir()
+                        }
+                    }
+                }
+                stage('windows-1903') {
+                    when {
+                        beforeAgent true
+                        expression { params.windows1903 }
+                    }
+                    environment {
+                        DOCKER_BUILDKIT        = '0'
+                        DOCKER_DUT_DEBUG       = '1'
+                        SKIP_VALIDATION_TESTS  = '1'
+                        SOURCES_DRIVE          = 'd'
+                        SOURCES_SUBDIR         = 'gopath'
+                        TESTRUN_DRIVE          = 'd'
+                        TESTRUN_SUBDIR         = "CI"
+                        WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
+                        WINDOWS_BASE_IMAGE_TAG = '1903'
+                    }
+                    agent {
+                        node {
+                            customWorkspace 'd:\\gopath\\src\\github.com\\docker\\docker'
+                            label 'windows-1903'
+                        }
+                    }
+                    stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                            }
+                        }
+                        stage("Run tests") {
+                            steps {
+                                powershell '''
+                                $ErrorActionPreference = 'Stop'
+                                Invoke-WebRequest https://github.com/moby/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
+                                ./hack/ci/windows.ps1
+                                exit $LastExitCode
+                                '''
+                            }
+                        }
+                    }
+                    post {
+                        always {
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.zip') {
+                                powershell '''
+                                cd $env:WORKSPACE
+                                $bundleName="windows-1903-integration"
+                                Write-Host -ForegroundColor Green "Creating ${bundleName}-bundles.zip"
+
+                                # archiveArtifacts does not support env-vars to , so save the artifacts in a fixed location
+                                Compress-Archive -Path "bundles/CIDUT.out", "bundles/CIDUT.err", -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.zip', allowEmptyArchive: true
