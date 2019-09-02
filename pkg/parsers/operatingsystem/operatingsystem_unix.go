@@ -3,19 +3,19 @@
 package operatingsystem // import "github.com/docker/docker/pkg/parsers/operatingsystem"
 
 import (
+	"bytes"
 	"errors"
-	"os/exec"
-	"strings"
+
+	"golang.org/x/sys/unix"
 )
 
 // GetOperatingSystem gets the name of the current operating system.
 func GetOperatingSystem() (string, error) {
-	cmd := exec.Command("uname", "-s")
-	osName, err := cmd.Output()
-	if err != nil {
+	utsname := &unix.Utsname{}
+	if err := unix.Uname(utsname); err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(osName)), nil
+	return string(utsname.Machine[:bytes.IndexByte(utsname.Sysname[:], 0)]), nil
 }
 
 // GetOperatingSystemVersion gets the version of the current operating system, as a string.
