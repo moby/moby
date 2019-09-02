@@ -65,6 +65,28 @@ func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 	}
 }
 
+// TestCreateLinkToNonExistingContainer verifies that linking to a non-existing
+// container returns an "invalid parameter" (400) status, and not the underlying
+// "non exists" (404).
+func TestCreateLinkToNonExistingContainer(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "legacy links are not supported on windows")
+	defer setupTest(t)()
+	c := testEnv.APIClient()
+
+	_, err := c.ContainerCreate(context.Background(),
+		&container.Config{
+			Image: "busybox",
+		},
+		&container.HostConfig{
+			Links: []string{"no-such-container"},
+		},
+		&network.NetworkingConfig{},
+		"",
+	)
+	assert.Check(t, is.ErrorContains(err, "could not get container for no-such-container"))
+	assert.Check(t, errdefs.IsInvalidParameter(err))
+}
+
 func TestCreateWithInvalidEnv(t *testing.T) {
 	defer setupTest(t)()
 	client := testEnv.APIClient()
