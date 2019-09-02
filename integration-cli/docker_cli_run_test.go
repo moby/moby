@@ -1792,16 +1792,14 @@ func (s *DockerSuite) TestRunExitOnStdinClose(c *check.C) {
 func (s *DockerSuite) TestRunInteractiveWithRestartPolicy(c *check.C) {
 	name := "test-inter-restart"
 
-	result := icmd.StartCmd(icmd.Cmd{
+	result := icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "run", "-i", "--name", name, "--restart=always", "busybox", "sh"},
 		Stdin:   bytes.NewBufferString("exit 11"),
 	})
-	assert.NilError(c, result.Error)
 	defer func() {
-		dockerCmdWithResult("stop", name).Assert(c, icmd.Success)
+		cli.Docker(cli.Args("stop", name)).Assert(c, icmd.Success)
 	}()
 
-	result = icmd.WaitOnCmd(60*time.Second, result)
 	result.Assert(c, icmd.Expected{ExitCode: 11})
 }
 
