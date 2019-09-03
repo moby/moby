@@ -14,7 +14,7 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -317,32 +317,40 @@ func (fms *fileMetadataStore) getOrphan() ([]roLayer, error) {
 		}
 
 		for _, fi := range fileInfos {
-			if fi.IsDir() && strings.Contains(fi.Name(), "-removing") {
-				nameSplit := strings.Split(fi.Name(), "-")
-				dgst := digest.NewDigestFromEncoded(algorithm, nameSplit[0])
-				if err := dgst.Validate(); err != nil {
-					logrus.Debugf("Ignoring invalid digest %s:%s", algorithm, nameSplit[0])
-				} else {
-					chainID := ChainID(dgst)
-					chainFile := filepath.Join(fms.root, string(algorithm), fi.Name(), "cache-id")
-					contentBytes, err := ioutil.ReadFile(chainFile)
-					if err != nil {
-						logrus.WithError(err).WithField("digest", dgst).Error("cannot get cache ID")
-					}
-					cacheID := strings.TrimSpace(string(contentBytes))
-					if cacheID == "" {
-						logrus.Errorf("invalid cache id value")
-					}
-
-					l := &roLayer{
-						chainID: chainID,
-						cacheID: cacheID,
-					}
-					orphanLayers = append(orphanLayers, *l)
-				}
+			if !fi.IsDir() || !strings.HasSuffix(fi.Name(), "-removing") {
+				continue
 			}
+			// At this stage, fi.Name value looks like <digest>-<random>-removing
+			// Split on '-' to get the digest value.
+			nameSplit := strings.Split(fi.Name(), "-")
+			dgst := digest.NewDigestFromEncoded(algorithm, nameSplit[0])
+			if err := dgst.Validate(); err != nil {
+				logrus.WithError(err).WithField("digest", string(algorithm)+":"+nameSplit[0]).Debug("ignoring invalid digest")
+				continue
+			}
+
+			chainFile := filepath.Join(fms.root, string(algorithm), fi.Name(), "cache-id")
+			contentBytes, err := ioutil.ReadFile(chainFile)
+			if err != nil {
+				if !os.IsNotExist(err) {
+					logrus.WithError(err).WithField("digest", dgst).Error("failed to read cache ID")
+				}
+				continue
+			}
+			cacheID := strings.TrimSpace(string(contentBytes))
+			if cacheID == "" {
+				logrus.Error("invalid cache ID")
+				continue
+			}
+
+			l := &roLayer{
+				chainID: ChainID(dgst),
+				cacheID: cacheID,
+			}
+			orphanLayers = append(orphanLayers, *l)
 		}
 	}
+
 	return orphanLayers, nil
 }
 
