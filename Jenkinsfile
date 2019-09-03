@@ -760,6 +760,25 @@ pipeline {
                             }
                         }
                     }
+                    post {
+                        always {
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                powershell '''
+                                $bundleName="windowsRS1-integration"
+                                Write-Host -ForegroundColor Green "Creating ${bundleName}-bundles.zip"
+
+                                # archiveArtifacts does not support env-vars to , so save the artifacts in a fixed location
+                                Compress-Archive -Path "${env:TEMP}/CIDUT.out", "${env:TEMP}/CIDUT.err" -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
+                                '''
+
+                                archiveArtifacts artifacts: '*-bundles.zip', allowEmptyArchive: true
+                            }
+                        }
+                        cleanup {
+                            sh 'make clean'
+                            deleteDir()
+                        }
+                    }
                 }
                 stage('win-RS5') {
                     when {
@@ -798,6 +817,25 @@ pipeline {
                                 exit $LastExitCode
                                 '''
                             }
+                        }
+                    }
+                    post {
+                        always {
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                powershell '''
+                                $bundleName="windowsRS5-integration"
+                                Write-Host -ForegroundColor Green "Creating ${bundleName}-bundles.zip"
+
+                                # archiveArtifacts does not support env-vars to , so save the artifacts in a fixed location
+                                Compress-Archive -Path "${env:TEMP}/CIDUT.out", "${env:TEMP}/CIDUT.err" -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
+                                '''
+
+                                archiveArtifacts artifacts: '*-bundles.zip', allowEmptyArchive: true
+                            }
+                        }
+                        cleanup {
+                            sh 'make clean'
+                            deleteDir()
                         }
                     }
                 }
