@@ -727,6 +727,7 @@ pipeline {
                     }
                     environment {
                         DOCKER_BUILDKIT        = '0'
+                        DOCKER_DUT_DEBUG       = '1'
                         SKIP_VALIDATION_TESTS  = '1'
                         SOURCES_DRIVE          = 'd'
                         SOURCES_SUBDIR         = 'gopath'
@@ -787,6 +788,7 @@ pipeline {
                     }
                     environment {
                         DOCKER_BUILDKIT        = '0'
+                        DOCKER_DUT_DEBUG       = '1'
                         SKIP_VALIDATION_TESTS  = '1'
                         SOURCES_DRIVE          = 'd'
                         SOURCES_SUBDIR         = 'gopath'
