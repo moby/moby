@@ -183,6 +183,10 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 
 	penUlt, err := ioutil.ReadFile(filename + ".1")
 	if err != nil {
+		if isSharingViolation(err) {
+			// Catch flakiness due to: "The process cannot access the file because it is being used by another process."
+			t.Skipf("FLAKY_TEST: skipping remainder of test: got sharing violation error: %v", err)
+		}
 		if !os.IsNotExist(err) {
 			t.Fatal(err)
 		}
