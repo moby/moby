@@ -18,7 +18,6 @@ package ttrpc
 
 import (
 	"bufio"
-	"context"
 	"encoding/binary"
 	"io"
 	"net"
@@ -98,7 +97,7 @@ func newChannel(conn net.Conn) *channel {
 // returned will be valid and caller should send that along to
 // the correct consumer. The bytes on the underlying channel
 // will be discarded.
-func (ch *channel) recv(ctx context.Context) (messageHeader, []byte, error) {
+func (ch *channel) recv() (messageHeader, []byte, error) {
 	mh, err := readMessageHeader(ch.hrbuf[:], ch.br)
 	if err != nil {
 		return messageHeader{}, nil, err
@@ -120,7 +119,7 @@ func (ch *channel) recv(ctx context.Context) (messageHeader, []byte, error) {
 	return mh, p, nil
 }
 
-func (ch *channel) send(ctx context.Context, streamID uint32, t messageType, p []byte) error {
+func (ch *channel) send(streamID uint32, t messageType, p []byte) error {
 	if err := writeMessageHeader(ch.bw, ch.hwbuf[:], messageHeader{Length: uint32(len(p)), StreamID: streamID, Type: t}); err != nil {
 		return err
 	}

@@ -120,6 +120,14 @@ func (bp *pickerWrapper) pick(ctx context.Context, failfast bool, opts balancer.
 			bp.mu.Unlock()
 			select {
 			case <-ctx.Done():
+				if connectionErr := bp.connectionError(); connectionErr != nil {
+					switch ctx.Err() {
+					case context.DeadlineExceeded:
+						return nil, nil, status.Errorf(codes.DeadlineExceeded, "latest connection error: %v", connectionErr)
+					case context.Canceled:
+						return nil, nil, status.Errorf(codes.Canceled, "latest connection error: %v", connectionErr)
+					}
+				}
 				return nil, nil, ctx.Err()
 			case <-ch:
 			}

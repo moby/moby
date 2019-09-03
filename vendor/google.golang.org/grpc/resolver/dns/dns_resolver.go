@@ -66,6 +66,9 @@ var (
 
 var (
 	defaultResolver netResolver = net.DefaultResolver
+	// To prevent excessive re-resolution, we enforce a rate limit on DNS
+	// resolution requests.
+	minDNSResRate = 30 * time.Second
 )
 
 var customAuthorityDialler = func(authority string) func(ctx context.Context, network, address string) (net.Conn, error) {
@@ -241,7 +244,13 @@ func (d *dnsResolver) watcher() {
 			return
 		case <-d.t.C:
 		case <-d.rn:
+			if !d.t.Stop() {
+				// Before resetting a timer, it should be stopped to prevent racing with
+				// reads on it's channel.
+				<-d.t.C
+			}
 		}
+
 		result, sc := d.lookup()
 		// Next lookup should happen within an interval defined by d.freq. It may be
 		// more often due to exponential retry on empty address list.
@@ -254,6 +263,16 @@ func (d *dnsResolver) watcher() {
 		}
 		d.cc.NewServiceConfig(sc)
 		d.cc.NewAddress(result)
+
+		// Sleep to prevent excessive re-resolutions. Incoming resolution requests
+		// will be queued in d.rn.
+		t := time.NewTimer(minDNSResRate)
+		select {
+		case <-t.C:
+		case <-d.ctx.Done():
+			t.Stop()
+			return
+		}
 	}
 }
 

@@ -138,19 +138,22 @@ func (ccr *ccResolverWrapper) NewServiceConfig(sc string) {
 		return
 	}
 	grpclog.Infof("ccResolverWrapper: got new service config: %v", sc)
-	if channelz.IsOn() {
-		ccr.addChannelzTraceEvent(resolver.State{Addresses: ccr.curState.Addresses, ServiceConfig: sc})
+	c, err := parseServiceConfig(sc)
+	if err != nil {
+		return
 	}
-	ccr.curState.ServiceConfig = sc
+	if channelz.IsOn() {
+		ccr.addChannelzTraceEvent(resolver.State{Addresses: ccr.curState.Addresses, ServiceConfig: c})
+	}
+	ccr.curState.ServiceConfig = c
 	ccr.cc.updateResolverState(ccr.curState)
 }
 
 func (ccr *ccResolverWrapper) addChannelzTraceEvent(s resolver.State) {
-	if s.ServiceConfig == ccr.curState.ServiceConfig && (len(ccr.curState.Addresses) == 0) == (len(s.Addresses) == 0) {
-		return
-	}
 	var updates []string
-	if s.ServiceConfig != ccr.curState.ServiceConfig {
+	oldSC, oldOK := ccr.curState.ServiceConfig.(*ServiceConfig)
+	newSC, newOK := s.ServiceConfig.(*ServiceConfig)
+	if oldOK != newOK || (oldOK && newOK && oldSC.rawJSONString != newSC.rawJSONString) {
 		updates = append(updates, "service config updated")
 	}
 	if len(ccr.curState.Addresses) > 0 && len(s.Addresses) == 0 {
