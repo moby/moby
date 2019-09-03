@@ -41,10 +41,10 @@ func NewBackend(components ImageComponent, builder Builder, fsCache *fscache.FSC
 	return &Backend{imageComponent: components, builder: builder, fsCache: fsCache, buildkit: buildkit}, nil
 }
 
-// RegisterGRPC registers buildkit controller to the grpc server.
-func (b *Backend) RegisterGRPC(s *grpc.Server) {
+// RegisterTCP registers buildkit controller to the grpc server over tcp.
+func (b *Backend) RegisterTCP(s *grpc.Server) {
 	if b.buildkit != nil {
-		b.buildkit.RegisterGRPC(s)
+		b.buildkit.RegisterTCP(s)
 	}
 }
 

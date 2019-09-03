@@ -13,13 +13,10 @@ type grpcRouter struct {
 }
 
 // NewRouter initializes a new grpc http router
-func NewRouter(backends ...Backend) router.Router {
+func NewRouter(gs *grpc.Server) router.Router {
 	r := &grpcRouter{
 		h2Server:   &http2.Server{},
-		grpcServer: grpc.NewServer(),
-	}
-	for _, b := range backends {
-		b.RegisterGRPC(r.grpcServer)
+		grpcServer: gs,
 	}
 	r.initRoutes()
 	return r

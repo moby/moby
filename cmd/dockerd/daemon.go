@@ -11,6 +11,7 @@ import (
 	"time"
 
 	containerddefaults "github.com/containerd/containerd/defaults"
+	"github.com/containerd/containerd/plugin"
 	"github.com/docker/distribution/uuid"
 	"github.com/docker/docker/api"
 	apiserver "github.com/docker/docker/api/server"
@@ -47,7 +48,7 @@ import (
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/plugin"
+	dplugin "github.com/docker/docker/plugin"
 	"github.com/docker/docker/rootless"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/tlsconfig"
@@ -56,6 +57,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"google.golang.org/grpc"
 )
 
 // DaemonCli represents the daemon CLI.
@@ -64,7 +66,13 @@ type DaemonCli struct {
 	configFile *string
 	flags      *pflag.FlagSet
 
-	api             *apiserver.Server
+	api     *apiserver.Server
+	plugins []*plugin.Plugin
+	// tcpServer is a grpcServer allowed over gRPC
+	tcpServer *grpc.Server
+	// grpcServer is a local socket only gRPC server (ex: containerd services)
+	grpcServer *grpc.Server
+
 	d               *daemon.Daemon
 	authzMiddleware *authorization.Middleware // authzMiddleware enables to dynamically reload the authorization plugins
 }
@@ -190,7 +198,15 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	// Notify that the API is active, but before daemon is set up.
 	preNotifySystem()
 
-	pluginStore := plugin.NewStore()
+	cli.tcpServer = grpc.NewServer()
+	// TODO: enable grpcServer only if local socket services configured
+	//cli.grpcServer= grpc.NewServer()
+
+	if err := cli.initPlugins(ctx, cli.Config); err != nil {
+		return errors.Wrap(err, "failed to initialize plugins")
+	}
+
+	pluginStore := dplugin.NewStore()
 
 	if err := cli.initMiddlewares(cli.api, serverConfig, pluginStore); err != nil {
 		logrus.Fatalf("Error creating middlewares: %v", err)
@@ -238,6 +254,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	}
 	routerOptions.api = cli.api
 	routerOptions.cluster = c
+	routerOptions.grpcServer = cli.tcpServer
 
 	initRouter(routerOptions)
 
@@ -281,6 +298,7 @@ type routerOptions struct {
 	daemon         *daemon.Daemon
 	api            *apiserver.Server
 	cluster        *cluster.Cluster
+	grpcServer     *grpc.Server
 }
 
 func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, error) {
@@ -509,14 +527,14 @@ func initRouter(opts routerOptions) {
 		distributionrouter.NewRouter(opts.daemon.ImageService()),
 	}
 
-	grpcBackends := []grpcrouter.Backend{}
-	for _, b := range []interface{}{opts.daemon, opts.buildBackend} {
-		if b, ok := b.(grpcrouter.Backend); ok {
-			grpcBackends = append(grpcBackends, b)
+	if opts.grpcServer != nil {
+		for _, b := range []interface{}{opts.daemon, opts.buildBackend} {
+			if svc, ok := b.(plugin.TCPService); ok {
+				svc.RegisterTCP(opts.grpcServer)
+			}
 		}
-	}
-	if len(grpcBackends) > 0 {
-		routers = append(routers, grpcrouter.NewRouter(grpcBackends...))
+
+		routers = append(routers, grpcrouter.NewRouter(opts.grpcServer))
 	}
 
 	if opts.daemon.NetworkControllerEnabled() {

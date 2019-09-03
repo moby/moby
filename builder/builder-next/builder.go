@@ -107,8 +107,8 @@ func New(opt Opt) (*Builder, error) {
 	return b, nil
 }
 
-// RegisterGRPC registers controller to the grpc server.
-func (b *Builder) RegisterGRPC(s *grpc.Server) {
+// RegisterTCP registers controller to the grpc server over tcp.
+func (b *Builder) RegisterTCP(s *grpc.Server) {
 	b.controller.Register(s)
 }
 

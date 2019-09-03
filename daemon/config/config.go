@@ -238,6 +238,10 @@ type CommonConfig struct {
 
 	ContainerdNamespace       string `json:"containerd-namespace,omitempty"`
 	ContainerdPluginNamespace string `json:"containerd-plugin-namespace,omitempty"`
+
+	// Plugins configures individual plugins, the configurations defined
+	// by the plugins
+	Plugins map[string]json.RawMessage `json:"plugins,omitempty"`
 }
 
 // IsValueSet returns true if a configuration value
