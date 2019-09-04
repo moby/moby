@@ -32,11 +32,10 @@ type Config struct {
 
 // Server contains instance details for the server
 type Server struct {
-	cfg           *Config
-	servers       []*HTTPServer
-	routers       []router.Router
-	routerSwapper *routerSwapper
-	middlewares   []middleware.Middleware
+	cfg         *Config
+	servers     []*HTTPServer
+	routers     []router.Router
+	middlewares []middleware.Middleware
 }
 
 // New returns a new instance of the server based on the specified configuration.
@@ -80,7 +79,7 @@ func (s *Server) Close() {
 func (s *Server) serveAPI() error {
 	var chErrors = make(chan error, len(s.servers))
 	for _, srv := range s.servers {
-		srv.srv.Handler = s.routerSwapper
+		srv.srv.Handler = s.createMux()
 		go func(srv *HTTPServer) {
 			var err error
 			logrus.Infof("API listen on %s", srv.l.Addr())
@@ -153,11 +152,6 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 // This method also enables the Go profiler.
 func (s *Server) InitRouter(routers ...router.Router) {
 	s.routers = append(s.routers, routers...)
-
-	m := s.createMux()
-	s.routerSwapper = &routerSwapper{
-		router: m,
-	}
 }
 
 type pageNotFoundError struct{}
