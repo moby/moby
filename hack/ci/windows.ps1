@@ -55,6 +55,11 @@ Write-Host -ForegroundColor Red "-----------------------------------------------
 #
 #    DOCKER_DUT_DEBUG         if defined starts the daemon under test in debug mode.
 #
+#   DOCKER_STORAGE_OPTS       comma-separated list of optional storage driver options for the daemon under test
+#                             examples:
+#                             DOCKER_STORAGE_OPTS="size=40G"
+#                             DOCKER_STORAGE_OPTS="lcow.globalmode=false,lcow.kernel=kernel.efi"
+#
 #    SKIP_VALIDATION_TESTS    if defined skips the validation tests
 #
 #    SKIP_UNIT_TESTS          if defined skips the unit tests
@@ -583,6 +588,15 @@ Try {
     if (-not ("$env:DOCKER_DUT_HYPERV" -eq "")) {
         Write-Host -ForegroundColor Green "INFO: Running the daemon under test with Hyper-V containers as the default"
         $dutArgs += "--exec-opt isolation=hyperv"
+    }
+
+    # Arguments: Allow setting optional storage-driver options
+    # example usage: DOCKER_STORAGE_OPTS="lcow.globalmode=false,lcow.kernel=kernel.efi"
+    if (-not ("$env:DOCKER_STORAGE_OPTS" -eq "")) {
+        Write-Host -ForegroundColor Green "INFO: Running the daemon under test with storage-driver options ${env:DOCKER_STORAGE_OPTS}"
+        $env:DOCKER_STORAGE_OPTS.Split(",") | ForEach {
+            $dutArgs += "--storage-opt $_"
+        }
     }
 
     # Start the daemon under test, ensuring everything is redirected to folders under $TEMP.
