@@ -991,6 +991,10 @@ Finally {
 
     Set-Location "$env:SOURCES_DRIVE\$env:SOURCES_SUBDIR" -ErrorAction SilentlyContinue
     Nuke-Everything
+
+    # Restore the TEMP path
+    if ($null -ne $TEMPORIG) { $env:TEMP="$TEMPORIG" }
+
     $Dur=New-TimeSpan -Start $StartTime -End $(Get-Date)
     Write-Host -ForegroundColor $FinallyColour "`nINFO: executeCI.ps1 exiting at $(date). Duration $dur`n"
 }
