@@ -31,6 +31,11 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context) (*types.DiskUsage, er
 		return nil, fmt.Errorf("failed to retrieve image list: %v", err)
 	}
 
+	allPlugins, err := daemon.pluginManager.List(filters.NewArgs())
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve plugin list: %v", err)
+	}
+
 	localVolumes, err := daemon.volumes.LocalVolumesSize(ctx)
 	if err != nil {
 		return nil, err
@@ -46,5 +51,6 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context) (*types.DiskUsage, er
 		Containers: allContainers,
 		Volumes:    localVolumes,
 		Images:     allImages,
+		Plugins:    allPlugins,
 	}, nil
 }

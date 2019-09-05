@@ -520,6 +520,7 @@ type DiskUsage struct {
 	Volumes     []*Volume
 	BuildCache  []*BuildCache
 	BuilderSize int64 // deprecated
+	Plugins     []Plugin
 }
 
 // ContainersPruneReport contains the response for Engine API:
