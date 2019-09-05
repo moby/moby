@@ -489,9 +489,13 @@ func hostConfigFromOptions(options *types.ImageBuildOptions, isWCOW bool) *conta
 	// For WCOW, the default of 20GB hard-coded in the platform
 	// is too small for builder scenarios where many users are
 	// using RUN statements to install large amounts of data.
-	// Use 127GB as that's the default size of a VHD in Hyper-V.
-	if isWCOW {
-		hc.StorageOpt = make(map[string]string)
+	// If no custom size is set, use 127GB for containers that
+	// are started during build, as that's the default size of
+	// a VHD in Hyper-V.
+	if isWCOW && hc.StorageOpt["size"] == "" {
+		if hc.StorageOpt == nil {
+			hc.StorageOpt = make(map[string]string)
+		}
 		hc.StorageOpt["size"] = "127GB"
 	}
 
