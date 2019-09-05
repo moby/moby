@@ -50,11 +50,13 @@ func dockerCmdWithResult(args ...string) *icmd.Result {
 }
 
 func findContainerIP(c *testing.T, id string, network string) string {
+	c.Helper()
 	out, _ := dockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id)
 	return strings.Trim(out, " \r\n'")
 }
 
 func getContainerCount(c *testing.T) int {
+	c.Helper()
 	const containers = "Containers:"
 
 	result := icmd.RunCommand(dockerBinary, "info")
@@ -75,6 +77,7 @@ func getContainerCount(c *testing.T) int {
 }
 
 func inspectFieldAndUnmarshall(c *testing.T, name, field string, output interface{}) {
+	c.Helper()
 	str := inspectFieldJSON(c, name, field)
 	err := json.Unmarshal([]byte(str), output)
 	if c != nil {
@@ -99,6 +102,7 @@ func inspectFieldWithError(name, field string) (string, error) {
 
 // Deprecated: use cli.Inspect
 func inspectField(c *testing.T, name, field string) string {
+	c.Helper()
 	out, err := inspectFilter(name, fmt.Sprintf(".%s", field))
 	if c != nil {
 		assert.NilError(c, err)
@@ -108,6 +112,7 @@ func inspectField(c *testing.T, name, field string) string {
 
 // Deprecated: use cli.Inspect
 func inspectFieldJSON(c *testing.T, name, field string) string {
+	c.Helper()
 	out, err := inspectFilter(name, fmt.Sprintf("json .%s", field))
 	if c != nil {
 		assert.NilError(c, err)
@@ -117,6 +122,7 @@ func inspectFieldJSON(c *testing.T, name, field string) string {
 
 // Deprecated: use cli.Inspect
 func inspectFieldMap(c *testing.T, name, path, field string) string {
+	c.Helper()
 	out, err := inspectFilter(name, fmt.Sprintf("index .%s %q", path, field))
 	if c != nil {
 		assert.NilError(c, err)
@@ -169,6 +175,7 @@ func inspectMountPointJSON(j, destination string) (types.MountPoint, error) {
 
 // Deprecated: use cli.Inspect
 func inspectImage(c *testing.T, name, filter string) string {
+	c.Helper()
 	args := []string{"inspect", "--type", "image"}
 	if filter != "" {
 		format := fmt.Sprintf("{{%s}}", filter)
@@ -181,6 +188,7 @@ func inspectImage(c *testing.T, name, filter string) string {
 }
 
 func getIDByName(c *testing.T, name string) string {
+	c.Helper()
 	id, err := inspectFieldWithError(name, "Id")
 	assert.NilError(c, err)
 	return id
@@ -188,6 +196,7 @@ func getIDByName(c *testing.T, name string) string {
 
 // Deprecated: use cli.Build
 func buildImageSuccessfully(c *testing.T, name string, cmdOperators ...cli.CmdOperator) {
+	c.Helper()
 	buildImage(name, cmdOperators...).Assert(c, icmd.Success)
 }
 
@@ -201,6 +210,7 @@ func buildImage(name string, cmdOperators ...cli.CmdOperator) *icmd.Result {
 // The file is truncated if it already exists.
 // Fail the test when error occurs.
 func writeFile(dst, content string, c *testing.T) {
+	c.Helper()
 	// Create subdirectories if necessary
 	assert.Assert(c, os.MkdirAll(path.Dir(dst), 0700) == nil)
 	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0700)
@@ -214,6 +224,7 @@ func writeFile(dst, content string, c *testing.T) {
 // Return the contents of file at path `src`.
 // Fail the test when error occurs.
 func readFile(src string, c *testing.T) (content string) {
+	c.Helper()
 	data, err := ioutil.ReadFile(src)
 	assert.NilError(c, err)
 
@@ -226,6 +237,7 @@ func containerStorageFile(containerID, basename string) string {
 
 // docker commands that use this function must be run with the '-d' switch.
 func runCommandAndReadContainerFile(c *testing.T, filename string, command string, args ...string) []byte {
+	c.Helper()
 	result := icmd.RunCommand(command, args...)
 	result.Assert(c, icmd.Success)
 	contID := strings.TrimSpace(result.Combined())
@@ -236,6 +248,7 @@ func runCommandAndReadContainerFile(c *testing.T, filename string, command strin
 }
 
 func readContainerFile(c *testing.T, containerID, filename string) []byte {
+	c.Helper()
 	f, err := os.Open(containerStorageFile(containerID, filename))
 	assert.NilError(c, err)
 	defer f.Close()
@@ -246,6 +259,7 @@ func readContainerFile(c *testing.T, containerID, filename string) []byte {
 }
 
 func readContainerFileWithExec(c *testing.T, containerID, filename string) []byte {
+	c.Helper()
 	result := icmd.RunCommand(dockerBinary, "exec", containerID, "cat", filename)
 	result.Assert(c, icmd.Success)
 	return []byte(result.Combined())
@@ -253,6 +267,7 @@ func readContainerFileWithExec(c *testing.T, containerID, filename string) []byt
 
 // daemonTime provides the current time on the daemon host
 func daemonTime(c *testing.T) time.Time {
+	c.Helper()
 	if testEnv.IsLocalDaemon() {
 		return time.Now()
 	}
@@ -271,6 +286,7 @@ func daemonTime(c *testing.T) time.Time {
 // daemonUnixTime returns the current time on the daemon host with nanoseconds precision.
 // It return the time formatted how the client sends timestamps to the server.
 func daemonUnixTime(c *testing.T) string {
+	c.Helper()
 	return parseEventTime(daemonTime(c))
 }
 
@@ -306,6 +322,7 @@ func appendBaseEnv(isTLS bool, env ...string) []string {
 }
 
 func createTmpFile(c *testing.T, content string) string {
+	c.Helper()
 	f, err := ioutil.TempFile("", "testfile")
 	assert.NilError(c, err)
 
@@ -337,6 +354,7 @@ func waitInspectWithArgs(name, expr, expected string, timeout time.Duration, arg
 }
 
 func getInspectBody(c *testing.T, version, id string) []byte {
+	c.Helper()
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(version))
 	assert.NilError(c, err)
 	defer cli.Close()
@@ -348,12 +366,14 @@ func getInspectBody(c *testing.T, version, id string) []byte {
 // Run a long running idle task in a background container using the
 // system-specific default image and command.
 func runSleepingContainer(c *testing.T, extraArgs ...string) string {
+	c.Helper()
 	return runSleepingContainerInImage(c, "busybox", extraArgs...)
 }
 
 // Run a long running idle task in a background container using the specified
 // image and the system-specific command.
 func runSleepingContainerInImage(c *testing.T, image string, extraArgs ...string) string {
+	c.Helper()
 	args := []string{"run", "-d"}
 	args = append(args, extraArgs...)
 	args = append(args, image)
@@ -408,6 +428,7 @@ func waitForGoroutines(expected int) error {
 
 // getErrorMessage returns the error message from an error API response
 func getErrorMessage(c *testing.T, body []byte) string {
+	c.Helper()
 	var resp types.ErrorResponse
 	assert.Assert(c, json.Unmarshal(body, &resp) == nil)
 	return strings.TrimSpace(resp.Message)
@@ -418,6 +439,7 @@ type reducer func(...interface{}) interface{}
 
 func pollCheck(t *testing.T, f checkF, compare func(x interface{}) assert.BoolOrComparison) poll.Check {
 	return func(poll.LogT) poll.Result {
+		t.Helper()
 		v, comment := f(t)
 		if assert.Check(t, compare(v)) {
 			return poll.Success()
@@ -428,6 +450,7 @@ func pollCheck(t *testing.T, f checkF, compare func(x interface{}) assert.BoolOr
 
 func reducedCheck(r reducer, funcs ...checkF) checkF {
 	return func(c *testing.T) (interface{}, string) {
+		c.Helper()
 		var values []interface{}
 		var comments []string
 		for _, f := range funcs {
