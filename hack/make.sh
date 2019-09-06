@@ -174,17 +174,10 @@ bundle() {
 main() {
 	if [ -z "${KEEPBUNDLE-}" ]; then
 		echo "Removing bundles/"
-		rm -rf "bundles/*"
+		rm -rf bundles/*
 		echo
 	fi
 	mkdir -p bundles
-
-	# Windows and symlinks don't get along well
-	if [ "$(go env GOHOSTOS)" != 'windows' ]; then
-		rm -f bundles/latest
-		# preserve latest symlink for backward compatibility
-		ln -sf . bundles/latest
-	fi
 
 	if [ $# -lt 1 ]; then
 		bundles=(${DEFAULT_BUNDLES[@]})

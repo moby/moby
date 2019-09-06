@@ -17,17 +17,45 @@ if [[ "${TESTFLAGS}" = *-test.run* ]]; then
 fi
 
 
-if [ -z ${MAKEDIR} ]; then
-	export MAKEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+if [ -z "${MAKEDIR}" ]; then
+	MAKEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+	export MAKEDIR
 fi
-source "$MAKEDIR/.go-autogen"
+source "${MAKEDIR}/.go-autogen"
 
 # Set defaults
-: ${TEST_REPEAT:=1}
-: ${TESTFLAGS:=}
-: ${TESTDEBUG:=}
+: "${TEST_REPEAT:=1}"
+: "${TESTFLAGS:=}"
+: "${TESTDEBUG:=}"
 
-integration_api_dirs=${TEST_INTEGRATION_DIR:-"$(go list  -test -f '{{- if ne .ForTest "" -}}{{- .Dir -}}{{- end -}}'  ./integration/...)"}
+setup_integration_test_filter() {
+	if [ -z "${TEST_FILTER}" ]; then
+		return
+	fi
+
+	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
+		: "${TEST_INTEGRATION_DIR:=$(grep -rl "func\ .*${TEST_FILTER}.*\(t\ \*testing\.T\)" ./integration | grep '_test\.go' | xargs -I file dirname file | uniq)}"
+		if [ -z "${TEST_INTEGRATION_DIR}" ]; then
+			echo "Skipping integration tests since the supplied filter \"${TEST_FILTER}\" omits all integration tests"
+			TEST_SKIP_INTEGRATION=1
+		else
+			TESTFLAGS_INTEGRATION+="-test.run ${TEST_FILTER}"
+		fi
+	fi
+
+	if [ -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
+		# ease up on the filtering here since CLI suites are namespaced by an object
+		if grep -r "${TEST_FILTER}.*\(c\ \*check\.C\)" ./integration-cli | grep -q '_test\.go$'; then
+			TEST_SKIP_INTEGRATION_CLI=1
+			echo "Skipping integration-cli tests since the supplied filter \"${TEST_FILTER}\" omits all integration-cli tests"
+		else
+			TESTFLAGS_INTEGRATION_CLI+="-check.f ${TEST_FILTER}"
+		fi
+	fi
+}
+
+setup_integration_test_filter
+integration_api_dirs="${TEST_INTEGRATION_DIR:-$(go list  -test -f '{{- if ne .ForTest "" -}}{{- .Dir -}}{{- end -}}'  ./integration/...)}"
 
 run_test_integration() {
 	set_platform_timeout
@@ -45,6 +73,7 @@ run_test_integration_suites() {
 		if ! (
 			cd "$dir"
 			echo "Running $PWD flags=${flags}"
+			# shellcheck disable=SC2086
 			test_env ./test.main ${flags}
 		); then exit 1; fi
 	done
@@ -55,12 +84,13 @@ run_test_integration_legacy_suites() {
 		flags="-check.v -check.timeout=${TIMEOUT} -test.timeout=360m $TESTFLAGS ${TESTFLAGS_INTEGRATION_CLI}"
 		cd integration-cli
 		echo "Running $PWD flags=${flags}"
+		# shellcheck disable=SC2086
 		test_env ./test.main $flags
 	)
 }
 
 build_test_suite_binaries() {
-	if [ ${DOCKER_INTEGRATION_TESTS_VERIFIED-} ]; then
+	if [ -n "${DOCKER_INTEGRATION_TESTS_VERIFIED}" ]; then
 		echo "Skipping building test binaries; as DOCKER_INTEGRATION_TESTS_VERIFIED is set"
 		return
 	fi
@@ -85,6 +115,7 @@ build_test_suite_binary() {
 cleanup_test_suite_binaries() {
 	[ -n "$TESTDEBUG" ] && return
 	echo "Removing test suite binaries"
+	# shellcheck disable=SC2038
 	find integration* -name test.main | xargs -r rm
 }
 
@@ -133,6 +164,7 @@ error_on_leaked_containerd_shims() {
 	            awk '$2 == "containerd-shim" && $4 ~ /.*\/bundles\/.*\/test-integration/ { print $1 }')
 	if [ -n "$leftovers" ]; then
 		ps aux
+		# shellcheck disable=SC2086
 		kill -9 ${leftovers} 2> /dev/null
 		echo "!!!! WARNING you have left over shim(s), Cleanup your test !!!!"
 		exit 1
@@ -142,11 +174,11 @@ error_on_leaked_containerd_shims() {
 set_platform_timeout() {
 	# Test timeout.
 	if [ "${DOCKER_ENGINE_GOARCH}" = "arm64" ] || [ "${DOCKER_ENGINE_GOARCH}" = "arm" ]; then
-		: ${TIMEOUT:=10m}
+		: "${TIMEOUT:=10m}"
 	elif [ "${DOCKER_ENGINE_GOARCH}" = "windows" ]; then
-		: ${TIMEOUT:=8m}
+		: "${TIMEOUT:=8m}"
 	else
-		: ${TIMEOUT:=5m}
+		: "${TIMEOUT:=5m}"
 	fi
 
 	if [ "${TEST_REPEAT}" -gt 1 ]; then

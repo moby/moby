@@ -67,6 +67,8 @@ If a remote daemon is detected, the test will be skipped.
 
 ## Running tests
 
+### Unit Tests
+
 To run the unit test suite:
 
 ```
@@ -82,11 +84,32 @@ The following environment variables may be used to run a subset of tests:
 * `TESTFLAGS` - flags passed to `go test`, to run tests which match a pattern
   use `TESTFLAGS="-test.run TestNameOrPrefix"`
 
+### Integration Tests
+
 To run the integration test suite:
 
 ```
 make test-integration
 ```
+
+This make target runs both the "integration" suite and the "integration-cli"
+suite.
+
+You can specify which integration test dirs to build and run by specifying
+the list of dirs in the TEST_INTEGRATION_DIR environment variable.
+
+You can also explicitly skip either suite by setting (any value) in
+TEST_SKIP_INTEGRATION and/or TEST_SKIP_INTEGRATION_CLI environment variables.
+
+Flags specific to each suite can be set in the TESTFLAGS_INTEGRATION and
+TESTFLAGS_INTEGRATION_CLI environment variables.
+
+If all you want is to specity a test filter to run, you can set the
+`TEST_FILTER` environment variable. This ends up getting passed directly to `go
+test -run` (or `go test -check-f`, dpenending on the test suite). It will also
+automatically set the other above mentioned environment variables accordingly.
+
+### Go Version
 
 You can change a version of golang used for building stuff that is being tested
 by setting `GO_VERSION` variable, for example:

@@ -78,6 +78,9 @@ if ($env:BUILD_TAG -match "-WoW") { $env:LCOW_MODE="" }
 #                             docker integration tests are also coded to use the same
 #                             environment variable, and if no set, defaults to microsoft/windowsservercore
 #
+#    WINDOWS_BASE_IMAGE_TAG   if defined, uses that as the tag name for the base image.
+#                             if no set, defaults to latest
+#
 #    LCOW_BASIC_MODE          if defined, does very basic LCOW verification. Ultimately we 
 #                             want to run the entire CI suite from docker, but that's a way off.
 #                            
@@ -139,7 +142,7 @@ Function Nuke-Everything {
             }
 
             $allImages  = $(docker images --format "{{.Repository}}#{{.ID}}")
-            $toRemove   = ($allImages | Select-String -NotMatch "windowsservercore","nanoserver","docker")
+            $toRemove   = ($allImages | Select-String -NotMatch "servercore","nanoserver","docker")
             $imageCount = ($toRemove | Measure-Object -line).Lines
 
             if ($imageCount -gt 0) {
@@ -200,12 +203,8 @@ Function Nuke-Everything {
         $count=(Get-ChildItem $reg | Measure-Object).Count
         if ($count -gt 0) {
             Write-Warning "There are $count NdisAdapters leaked under Psched\Parameters"
-            if ($env:COMPUTERNAME -match "jenkins-rs1-") {
-                Write-Warning "Cleaning Psched..."
-                Get-ChildItem $reg | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-            } else {
-                Write-Warning "Not cleaning as not a production RS1 server"
-            }
+            Write-Warning "Cleaning Psched..."
+            Get-ChildItem $reg | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
         }
 
         # TODO: This should be able to be removed in August 2017 update. Only needed for RS1
@@ -213,12 +212,8 @@ Function Nuke-Everything {
         $count=(Get-ChildItem $reg | Measure-Object).Count
         if ($count -gt 0) {
             Write-Warning "There are $count NdisAdapters leaked under WFPLWFS\Parameters"
-            if ($env:COMPUTERNAME -match "jenkins-rs1-") {
-                Write-Warning "Cleaning WFPLWFS..."
-                Get-ChildItem $reg | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-            } else {
-                Write-Warning "Not cleaning as not a production RS1 server"
-            }
+            Write-Warning "Cleaning WFPLWFS..."
+            Get-ChildItem $reg | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
         }
     } catch {
         # Don't throw any errors onwards Throw $_
@@ -260,6 +255,18 @@ Try {
 
     # Make sure docker-ci-zap is installed
     if ($null -eq (Get-Command "docker-ci-zap" -ErrorAction SilentlyContinue)) { Throw "ERROR: docker-ci-zap is not installed or not found on path" }
+
+    # Make sure Windows Defender is disabled
+    $defender = $false
+    Try {
+      $status = Get-MpComputerStatus
+      if ($status) {
+        if ($status.RealTimeProtectionEnabled) {
+          $defender = $true
+        }
+      }
+    } Catch {}
+    if ($defender) { Throw "ERROR: Windows Defender real time protection must be disabled for integration tests" }
 
     # Make sure SOURCES_DRIVE is set
     if ($null -eq $env:SOURCES_DRIVE) { Throw "ERROR: Environment variable SOURCES_DRIVE is not set" }
@@ -345,14 +352,16 @@ Try {
             Write-Host -ForegroundColor Green "INFO: docker load of"$ControlDaemonBaseImage" completed successfully"
         } else {
             # We need to docker pull it instead. It will come in directly as microsoft/imagename:latest
-            Write-Host -ForegroundColor Green $("INFO: Pulling microsoft/"+$ControlDaemonBaseImage+":latest from docker hub. This may take some time...")
+            Write-Host -ForegroundColor Green $("INFO: Pulling $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG from docker hub. This may take some time...")
             $ErrorActionPreference = "SilentlyContinue"
-            docker pull $("microsoft/"+$ControlDaemonBaseImage)
+            docker pull "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG"
             $ErrorActionPreference = "Stop"
             if (-not $LastExitCode -eq 0) {
-                Throw $("ERROR: Failed to docker pull microsoft/"+$ControlDaemonBaseImage+":latest.")
+                Throw $("ERROR: Failed to docker pull $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG.")
             }
-            Write-Host -ForegroundColor Green $("INFO: docker pull of microsoft/"+$ControlDaemonBaseImage+":latest completed successfully")
+            Write-Host -ForegroundColor Green $("INFO: docker pull of $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG completed successfully")
+            Write-Host -ForegroundColor Green $("INFO: Tagging $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG as microsoft/$ControlDaemonBaseImage")
+            docker tag "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG" microsoft/$ControlDaemonBaseImage
         }
     } else {
         Write-Host -ForegroundColor Green "INFO: Image"$("microsoft/"+$ControlDaemonBaseImage+":latest")"is already loaded in the control daemon"
@@ -663,17 +672,20 @@ Try {
         if ($null -eq $env:WINDOWS_BASE_IMAGE) {
             $env:WINDOWS_BASE_IMAGE="microsoft/windowsservercore"
         }
+        if ($null -eq $env:WINDOWS_BASE_IMAGE_TAG) {
+            $env:WINDOWS_BASE_IMAGE_TAG="latest"
+        }
 
         # Lowercase and make sure it has a microsoft/ prefix
         $env:WINDOWS_BASE_IMAGE = $env:WINDOWS_BASE_IMAGE.ToLower()
-        if ($($env:WINDOWS_BASE_IMAGE -Split "/")[0] -ne "microsoft") {
-            Throw "ERROR: WINDOWS_BASE_IMAGE should start microsoft/"
+        if (! $($env:WINDOWS_BASE_IMAGE -Split "/")[0] -match "microsoft") {
+            Throw "ERROR: WINDOWS_BASE_IMAGE should start microsoft/ or mcr.microsoft.com/"
         }
 
         Write-Host -ForegroundColor Green "INFO: Base image for tests is $env:WINDOWS_BASE_IMAGE"
 
         $ErrorActionPreference = "SilentlyContinue"
-        if ($((& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" images --format "{{.Repository}}:{{.Tag}}" | Select-String $($env:WINDOWS_BASE_IMAGE+":latest") | Measure-Object -Line).Lines) -eq 0) {
+        if ($((& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" images --format "{{.Repository}}:{{.Tag}}" | Select-String "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG" | Measure-Object -Line).Lines) -eq 0) {
             # Try the internal azure CI image version or Microsoft internal corpnet where the base image is already pre-prepared on the disk,
             # either through Invoke-DockerCI or, in the case of Azure CI servers, baked into the VHD at the same location.
             if (Test-Path $("c:\baseimages\"+$($env:WINDOWS_BASE_IMAGE -Split "/")[1]+".tar")) {
@@ -686,18 +698,20 @@ Try {
                 }
                 Write-Host -ForegroundColor Green "INFO: docker load of"$($env:WINDOWS_BASE_IMAGE -Split "/")[1]" into daemon under test completed successfully"
             } else {
-                # We need to docker pull it instead. It will come in directly as microsoft/imagename:latest
-                Write-Host -ForegroundColor Green $("INFO: Pulling "+$env:WINDOWS_BASE_IMAGE+":latest from docker hub into daemon under test. This may take some time...")
+                # We need to docker pull it instead. It will come in directly as microsoft/imagename:tagname
+                Write-Host -ForegroundColor Green $("INFO: Pulling "+$env:WINDOWS_BASE_IMAGE+":"+$env:WINDOWS_BASE_IMAGE_TAG+" from docker hub into daemon under test. This may take some time...")
                 $ErrorActionPreference = "SilentlyContinue"
-                & "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" pull $($env:WINDOWS_BASE_IMAGE)
+                & "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" pull "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG"
                 $ErrorActionPreference = "Stop"
                 if (-not $LastExitCode -eq 0) {
-                    Throw $("ERROR: Failed to docker pull "+$env:WINDOWS_BASE_IMAGE+":latest into daemon under test.")
+                    Throw $("ERROR: Failed to docker pull $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG into daemon under test.")
                 }
-                Write-Host -ForegroundColor Green $("INFO: docker pull of "+$env:WINDOWS_BASE_IMAGE+":latest into daemon under test completed successfully")
+                Write-Host -ForegroundColor Green $("INFO: docker pull of $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG into daemon under test completed successfully")
+                Write-Host -ForegroundColor Green $("INFO: Tagging $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG as microsoft/$ControlDaemonBaseImage in daemon under test")
+                & "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" tag "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG" microsoft/$ControlDaemonBaseImage
             }
         } else {
-            Write-Host -ForegroundColor Green "INFO: Image"$($env:WINDOWS_BASE_IMAGE+":latest")"is already loaded in the daemon under test"
+            Write-Host -ForegroundColor Green "INFO: Image $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG is already loaded in the daemon under test"
         }
     
     
@@ -705,7 +719,7 @@ Try {
         $ErrorActionPreference = "SilentlyContinue"
         $dutimgVersion = $(&"$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" inspect  $($env:WINDOWS_BASE_IMAGE) --format "{{.OsVersion}}")
         $ErrorActionPreference = "Stop"
-        Write-Host -ForegroundColor Green $("INFO: Version of "+$env:WINDOWS_BASE_IMAGE+":latest is '"+$dutimgVersion+"'")
+        Write-Host -ForegroundColor Green $("INFO: Version of $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG is '"+$dutimgVersion+"'")
     }
 
     # Run the validation tests unless SKIP_VALIDATION_TESTS is defined.
@@ -752,14 +766,7 @@ Try {
             #if ($bbCount -eq 0) {
                 Write-Host -ForegroundColor Green "INFO: Building busybox"
                 $ErrorActionPreference = "SilentlyContinue"
-    
-                # This is a temporary hack for nanoserver
-                if ($env:WINDOWS_BASE_IMAGE -ne "microsoft/windowsservercore") {
-                    Write-Host -ForegroundColor Red "HACK HACK HACK - Building 64-bit nanoserver busybox image"
-                    $(& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" build -t busybox https://raw.githubusercontent.com/jhowardmsft/busybox64/v1.1/Dockerfile | Out-Host)
-                } else {
-                    $(& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" build -t busybox https://raw.githubusercontent.com/jhowardmsft/busybox/v1.1/Dockerfile | Out-Host)
-                }
+                $(& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" build -t busybox https://raw.githubusercontent.com/jhowardmsft/busybox/v1.1/Dockerfile | Out-Host)
                 $ErrorActionPreference = "Stop"
                 if (-not($LastExitCode -eq 0)) {
                     Throw "ERROR: Failed to build busybox image"
