@@ -13,6 +13,7 @@ source hack/make/.integration-test-helpers
 # TODO remove these skip once we update to a docker-py version that has https://github.com/docker/docker-py/pull/2369, https://github.com/docker/docker-py/pull/2380, https://github.com/docker/docker-py/pull/2382
 : "${PY_TEST_OPTIONS:=\
 --deselect=tests/integration/api_swarm_test.py::SwarmTest::test_init_swarm_data_path_addr \
+--deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream \
 --deselect=tests/integration/api_exec_test.py::ExecTest::test_detach_with_arg \
 --deselect=tests/integration/api_exec_test.py::ExecDemuxTest::test_exec_command_tty_stream_no_demux \
 --deselect=tests/integration/api_build_test.py::BuildTest::test_build_invalid_platform \
