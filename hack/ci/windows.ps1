@@ -608,7 +608,8 @@ Try {
 
     # Start tailing the daemon under test if the command is installed
     if ($null -ne (Get-Command "tail" -ErrorAction SilentlyContinue)) {
-        $tail = start-process "tail" -ArgumentList "-f $env:TEMP\dut.out" -ErrorAction SilentlyContinue
+        Write-Host -ForegroundColor green "INFO: Start tailing logs of the daemon under tests"
+        $tail = Start-Process "tail" -ArgumentList "-f $env:TEMP\dut.out" -PassThru -ErrorAction SilentlyContinue
     }
 
     # Verify we can get the daemon under test to respond 
@@ -942,6 +943,12 @@ Try {
             #sleep 5
         }
         Remove-Item "$env:TEMP\docker.pid" -force -ErrorAction SilentlyContinue
+    }
+
+    # Stop the tail process (if started)
+    if ($null -ne $tail) {
+        Write-Host -ForegroundColor green "INFO: Stop tailing logs of the daemon under tests"
+        Stop-Process -InputObject $tail -Force
     }
 
     Write-Host -ForegroundColor Green "INFO: executeCI.ps1 Completed successfully at $(Get-Date)."
