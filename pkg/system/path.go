@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	"github.com/containerd/continuity/pathdriver"
 )
 
 const defaultUnixPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -27,6 +25,12 @@ func DefaultPathEnv(os string) string {
 
 }
 
+// PathVerifier defines the subset of a PathDriver that CheckSystemDriveAndRemoveDriveLetter
+// actually uses in order to avoid system depending on containerd/continuity.
+type PathVerifier interface {
+	IsAbs(string) bool
+}
+
 // CheckSystemDriveAndRemoveDriveLetter verifies that a path, if it includes a drive letter,
 // is the system drive.
 // On Linux: this is a no-op.
@@ -42,7 +46,7 @@ func DefaultPathEnv(os string) string {
 // a			--> a
 // /a			--> \a
 // d:\			--> Fail
-func CheckSystemDriveAndRemoveDriveLetter(path string, driver pathdriver.PathDriver) (string, error) {
+func CheckSystemDriveAndRemoveDriveLetter(path string, driver PathVerifier) (string, error) {
 	if runtime.GOOS != "windows" || LCOWSupported() {
 		return path, nil
 	}
