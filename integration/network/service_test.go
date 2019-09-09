@@ -227,6 +227,8 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 const ingressNet = "ingress"
 
 func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
+	t.Skip("FLAKY_TEST")
+
 	skip.If(t, testEnv.OSType == "windows")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
