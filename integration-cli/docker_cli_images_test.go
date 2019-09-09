@@ -21,7 +21,7 @@ import (
 
 func (s *DockerSuite) TestImagesEnsureImageIsListed(c *check.C) {
 	imagesOut, _ := dockerCmd(c, "images")
-	c.Assert(imagesOut, checker.Contains, "busybox")
+	assert.Assert(c, imagesOut, checker.Contains, "busybox")
 }
 
 func (s *DockerSuite) TestImagesEnsureImageWithTagIsListed(c *check.C) {
@@ -31,21 +31,21 @@ func (s *DockerSuite) TestImagesEnsureImageWithTagIsListed(c *check.C) {
 	dockerCmd(c, "tag", "busybox", name+":v2")
 
 	imagesOut, _ := dockerCmd(c, "images", name+":v1")
-	c.Assert(imagesOut, checker.Contains, name)
-	c.Assert(imagesOut, checker.Contains, "v1")
-	c.Assert(imagesOut, checker.Not(checker.Contains), "v2")
-	c.Assert(imagesOut, checker.Not(checker.Contains), "v1v1")
+	assert.Assert(c, imagesOut, checker.Contains, name)
+	assert.Assert(c, imagesOut, checker.Contains, "v1")
+	assert.Assert(c, imagesOut, checker.Not(checker.Contains), "v2")
+	assert.Assert(c, imagesOut, checker.Not(checker.Contains), "v1v1")
 
 	imagesOut, _ = dockerCmd(c, "images", name)
-	c.Assert(imagesOut, checker.Contains, name)
-	c.Assert(imagesOut, checker.Contains, "v1")
-	c.Assert(imagesOut, checker.Contains, "v1v1")
-	c.Assert(imagesOut, checker.Contains, "v2")
+	assert.Assert(c, imagesOut, checker.Contains, name)
+	assert.Assert(c, imagesOut, checker.Contains, "v1")
+	assert.Assert(c, imagesOut, checker.Contains, "v1v1")
+	assert.Assert(c, imagesOut, checker.Contains, "v2")
 }
 
 func (s *DockerSuite) TestImagesEnsureImageWithBadTagIsNotListed(c *check.C) {
 	imagesOut, _ := dockerCmd(c, "images", "busybox:nonexistent")
-	c.Assert(imagesOut, checker.Not(checker.Contains), "busybox")
+	assert.Assert(c, imagesOut, checker.Not(checker.Contains), "busybox")
 }
 
 func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
@@ -63,15 +63,15 @@ func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
 
 	out, _ := dockerCmd(c, "images", "-q", "--no-trunc")
 	imgs := strings.Split(out, "\n")
-	c.Assert(imgs[0], checker.Equals, id3, check.Commentf("First image must be %s, got %s", id3, imgs[0]))
-	c.Assert(imgs[1], checker.Equals, id2, check.Commentf("First image must be %s, got %s", id2, imgs[1]))
-	c.Assert(imgs[2], checker.Equals, id1, check.Commentf("First image must be %s, got %s", id1, imgs[2]))
+	assert.Assert(c, imgs[0], checker.Equals, id3, check.Commentf("First image must be %s, got %s", id3, imgs[0]))
+	assert.Assert(c, imgs[1], checker.Equals, id2, check.Commentf("First image must be %s, got %s", id2, imgs[1]))
+	assert.Assert(c, imgs[2], checker.Equals, id1, check.Commentf("First image must be %s, got %s", id1, imgs[2]))
 }
 
 func (s *DockerSuite) TestImagesErrorWithInvalidFilterNameTest(c *check.C) {
 	out, _, err := dockerCmdWithError("images", "-f", "FOO=123")
 	assert.ErrorContains(c, err, "")
-	c.Assert(out, checker.Contains, "Invalid filter")
+	assert.Assert(c, out, checker.Contains, "Invalid filter")
 }
 
 func (s *DockerSuite) TestImagesFilterLabelMatch(c *check.C) {
@@ -92,9 +92,9 @@ func (s *DockerSuite) TestImagesFilterLabelMatch(c *check.C) {
 
 	out, _ := dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match")
 	out = strings.TrimSpace(out)
-	c.Assert(out, check.Matches, fmt.Sprintf("[\\s\\w:]*%s[\\s\\w:]*", image1ID))
-	c.Assert(out, check.Matches, fmt.Sprintf("[\\s\\w:]*%s[\\s\\w:]*", image2ID))
-	c.Assert(out, check.Not(check.Matches), fmt.Sprintf("[\\s\\w:]*%s[\\s\\w:]*", image3ID))
+	assert.Assert(c, out, check.Matches, fmt.Sprintf("[\\s\\w:]*%s[\\s\\w:]*", image1ID))
+	assert.Assert(c, out, check.Matches, fmt.Sprintf("[\\s\\w:]*%s[\\s\\w:]*", image2ID))
+	assert.Assert(c, out, check.Not(check.Matches), fmt.Sprintf("[\\s\\w:]*%s[\\s\\w:]*", image3ID))
 
 	out, _ = dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match=me too")
 	out = strings.TrimSpace(out)
@@ -128,34 +128,34 @@ LABEL number=3`))
 	expected := []string{imageID3, imageID2}
 
 	out, _ := dockerCmd(c, "images", "-f", "since=image:1", "image")
-	c.Assert(assertImageList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	assert.Assert(c, assertImageList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	out, _ = dockerCmd(c, "images", "-f", "since="+imageID1, "image")
-	c.Assert(assertImageList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	assert.Assert(c, assertImageList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	expected = []string{imageID3}
 
 	out, _ = dockerCmd(c, "images", "-f", "since=image:2", "image")
-	c.Assert(assertImageList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	assert.Assert(c, assertImageList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	out, _ = dockerCmd(c, "images", "-f", "since="+imageID2, "image")
-	c.Assert(assertImageList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	assert.Assert(c, assertImageList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	expected = []string{imageID2, imageID1}
 
 	out, _ = dockerCmd(c, "images", "-f", "before=image:3", "image")
-	c.Assert(assertImageList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	assert.Assert(c, assertImageList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	out, _ = dockerCmd(c, "images", "-f", "before="+imageID3, "image")
-	c.Assert(assertImageList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	assert.Assert(c, assertImageList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	expected = []string{imageID1}
 
 	out, _ = dockerCmd(c, "images", "-f", "before=image:2", "image")
-	c.Assert(assertImageList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	assert.Assert(c, assertImageList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	out, _ = dockerCmd(c, "images", "-f", "before="+imageID2, "image")
-	c.Assert(assertImageList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	assert.Assert(c, assertImageList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
 }
 
 func assertImageList(out string, expected []string) bool {
@@ -239,15 +239,15 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
 
 	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=true")
 	// Expect one dangling image
-	c.Assert(strings.Count(out, imageID), checker.Equals, 1)
+	assert.Assert(c, strings.Count(out, imageID), checker.Equals, 1)
 
 	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=false")
 	//dangling=false would not include dangling images
-	c.Assert(out, checker.Not(checker.Contains), imageID)
+	assert.Assert(c, out, checker.Not(checker.Contains), imageID)
 
 	out, _ = dockerCmd(c, "images")
 	//docker images still include dangling images
-	c.Assert(out, checker.Contains, imageID)
+	assert.Assert(c, out, checker.Contains, imageID)
 
 }
 
@@ -255,7 +255,7 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
 func (s *DockerSuite) TestImagesWithIncorrectFilter(c *check.C) {
 	out, _, err := dockerCmdWithError("images", "-f", "dangling=invalid")
 	assert.ErrorContains(c, err, "")
-	c.Assert(out, checker.Contains, "Invalid filter")
+	assert.Assert(c, out, checker.Contains, "Invalid filter")
 }
 
 func (s *DockerSuite) TestImagesEnsureOnlyHeadsImagesShown(c *check.C) {
@@ -276,9 +276,9 @@ func (s *DockerSuite) TestImagesEnsureOnlyHeadsImagesShown(c *check.C) {
 
 	out, _ := dockerCmd(c, "images")
 	// images shouldn't show non-heads images
-	c.Assert(out, checker.Not(checker.Contains), intermediate)
+	assert.Assert(c, out, checker.Not(checker.Contains), intermediate)
 	// images should contain final built images
-	c.Assert(out, checker.Contains, stringid.TruncateID(id))
+	assert.Assert(c, out, checker.Contains, stringid.TruncateID(id))
 }
 
 func (s *DockerSuite) TestImagesEnsureImagesFromScratchShown(c *check.C) {
@@ -293,7 +293,7 @@ func (s *DockerSuite) TestImagesEnsureImagesFromScratchShown(c *check.C) {
 
 	out, _ := dockerCmd(c, "images")
 	// images should contain images built from scratch
-	c.Assert(out, checker.Contains, stringid.TruncateID(id))
+	assert.Assert(c, out, checker.Contains, stringid.TruncateID(id))
 }
 
 // For W2W - equivalent to TestImagesEnsureImagesFromScratchShown but Windows
@@ -309,7 +309,7 @@ func (s *DockerSuite) TestImagesEnsureImagesFromBusyboxShown(c *check.C) {
 
 	out, _ := dockerCmd(c, "images")
 	// images should contain images built from busybox
-	c.Assert(out, checker.Contains, stringid.TruncateID(id))
+	assert.Assert(c, out, checker.Contains, stringid.TruncateID(id))
 }
 
 // #18181
@@ -317,13 +317,13 @@ func (s *DockerSuite) TestImagesFilterNameWithPort(c *check.C) {
 	tag := "a.b.c.d:5000/hello"
 	dockerCmd(c, "tag", "busybox", tag)
 	out, _ := dockerCmd(c, "images", tag)
-	c.Assert(out, checker.Contains, tag)
+	assert.Assert(c, out, checker.Contains, tag)
 
 	out, _ = dockerCmd(c, "images", tag+":latest")
-	c.Assert(out, checker.Contains, tag)
+	assert.Assert(c, out, checker.Contains, tag)
 
 	out, _ = dockerCmd(c, "images", tag+":no-such-tag")
-	c.Assert(out, checker.Not(checker.Contains), tag)
+	assert.Assert(c, out, checker.Not(checker.Contains), tag)
 }
 
 func (s *DockerSuite) TestImagesFormat(c *check.C) {

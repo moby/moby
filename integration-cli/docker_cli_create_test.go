@@ -37,11 +37,11 @@ func (s *DockerSuite) TestCreateArgs(c *check.C) {
 	}
 
 	err := json.Unmarshal([]byte(out), &containers)
-	c.Assert(err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
+	assert.Assert(c, err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
 	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
-	c.Assert(string(cont.Path), checker.Equals, "command", check.Commentf("Unexpected container path. Expected command, received: %s", cont.Path))
+	assert.Assert(c, string(cont.Path), checker.Equals, "command", check.Commentf("Unexpected container path. Expected command, received: %s", cont.Path))
 
 	b := false
 	expected := []string{"arg1", "arg2", "arg with space", "-c", "flags"}
@@ -68,7 +68,7 @@ func (s *DockerSuite) TestCreateGrowRootfs(c *check.C) {
 	cleanedContainerID := strings.TrimSpace(out)
 
 	inspectOut := inspectField(c, cleanedContainerID, "HostConfig.StorageOpt")
-	c.Assert(inspectOut, checker.Equals, "map[size:120G]")
+	assert.Assert(c, inspectOut, checker.Equals, "map[size:120G]")
 }
 
 // Make sure we cannot shrink the container's rootfs at creation time.
@@ -78,7 +78,7 @@ func (s *DockerSuite) TestCreateShrinkRootfs(c *check.C) {
 	// Ensure this fails because of the defaultBaseFsSize is 10G
 	out, _, err := dockerCmdWithError("create", "--storage-opt", "size=5G", "busybox")
 	assert.ErrorContains(c, err, "", out)
-	c.Assert(out, checker.Contains, "Container size cannot be smaller than")
+	assert.Assert(c, out, checker.Contains, "Container size cannot be smaller than")
 }
 
 // Make sure we can set hostconfig options too
@@ -96,12 +96,12 @@ func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
 	}
 
 	err := json.Unmarshal([]byte(out), &containers)
-	c.Assert(err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
+	assert.Assert(c, err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
 	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
-	c.Assert(cont.HostConfig, check.NotNil, check.Commentf("Expected HostConfig, got none"))
-	c.Assert(cont.HostConfig.PublishAllPorts, checker.True, check.Commentf("Expected PublishAllPorts, got false"))
+	assert.Assert(c, cont.HostConfig, check.NotNil, check.Commentf("Expected HostConfig, got none"))
+	assert.Assert(c, cont.HostConfig.PublishAllPorts, checker.True, check.Commentf("Expected PublishAllPorts, got false"))
 }
 
 func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
@@ -117,17 +117,17 @@ func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
 		}
 	}
 	err := json.Unmarshal([]byte(out), &containers)
-	c.Assert(err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
+	assert.Assert(c, err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
 	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
 
-	c.Assert(cont.HostConfig, check.NotNil, check.Commentf("Expected HostConfig, got none"))
-	c.Assert(cont.HostConfig.PortBindings, checker.HasLen, 4, check.Commentf("Expected 4 ports bindings, got %d", len(cont.HostConfig.PortBindings)))
+	assert.Assert(c, cont.HostConfig, check.NotNil, check.Commentf("Expected HostConfig, got none"))
+	assert.Assert(c, cont.HostConfig.PortBindings, checker.HasLen, 4, check.Commentf("Expected 4 ports bindings, got %d", len(cont.HostConfig.PortBindings)))
 
 	for k, v := range cont.HostConfig.PortBindings {
-		c.Assert(v, checker.HasLen, 1, check.Commentf("Expected 1 ports binding, for the port  %s but found %s", k, v))
-		c.Assert(k.Port(), checker.Equals, v[0].HostPort, check.Commentf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
+		assert.Assert(c, v, checker.HasLen, 1, check.Commentf("Expected 1 ports binding, for the port  %s but found %s", k, v))
+		assert.Assert(c, k.Port(), checker.Equals, v[0].HostPort, check.Commentf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
 
 	}
 
@@ -147,16 +147,16 @@ func (s *DockerSuite) TestCreateWithLargePortRange(c *check.C) {
 	}
 
 	err := json.Unmarshal([]byte(out), &containers)
-	c.Assert(err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
+	assert.Assert(c, err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
 	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
-	c.Assert(cont.HostConfig, check.NotNil, check.Commentf("Expected HostConfig, got none"))
-	c.Assert(cont.HostConfig.PortBindings, checker.HasLen, 65535)
+	assert.Assert(c, cont.HostConfig, check.NotNil, check.Commentf("Expected HostConfig, got none"))
+	assert.Assert(c, cont.HostConfig.PortBindings, checker.HasLen, 65535)
 
 	for k, v := range cont.HostConfig.PortBindings {
-		c.Assert(v, checker.HasLen, 1)
-		c.Assert(k.Port(), checker.Equals, v[0].HostPort, check.Commentf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
+		assert.Assert(c, v, checker.HasLen, 1)
+		assert.Assert(c, k.Port(), checker.Equals, v[0].HostPort, check.Commentf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
 	}
 
 }
@@ -179,7 +179,7 @@ func (s *DockerSuite) TestCreateVolumesCreated(c *check.C) {
 	dockerCmd(c, "create", "--name", name, "-v", prefix+slash+"foo", "busybox")
 
 	dir, err := inspectMountSourceField(name, prefix+slash+"foo")
-	c.Assert(err, check.IsNil, check.Commentf("Error getting volume host path: %q", err))
+	assert.Assert(c, err, check.IsNil, check.Commentf("Error getting volume host path: %q", err))
 
 	if _, err := os.Stat(dir); err != nil && os.IsNotExist(err) {
 		c.Fatalf("Volume was not created")
@@ -295,7 +295,7 @@ func (s *DockerSuite) TestCreateStopSignal(c *check.C) {
 	dockerCmd(c, "create", "--name", name, "--stop-signal", "9", "busybox")
 
 	res := inspectFieldJSON(c, name, "Config.StopSignal")
-	c.Assert(res, checker.Contains, "9")
+	assert.Assert(c, res, checker.Contains, "9")
 
 }
 
@@ -325,11 +325,11 @@ func (s *DockerSuite) TestCreateWithInvalidLogOpts(c *check.C) {
 	name := "test-invalidate-log-opts"
 	out, _, err := dockerCmdWithError("create", "--name", name, "--log-opt", "invalid=true", "busybox")
 	assert.ErrorContains(c, err, "")
-	c.Assert(out, checker.Contains, "unknown log opt")
+	assert.Assert(c, out, checker.Contains, "unknown log opt")
 	assert.Assert(c, is.Contains(out, "unknown log opt"))
 
 	out, _ = dockerCmd(c, "ps", "-a")
-	c.Assert(out, checker.Not(checker.Contains), name)
+	assert.Assert(c, out, checker.Not(checker.Contains), name)
 }
 
 // #20972
@@ -362,9 +362,9 @@ exec "$@"`,
 
 	out := cli.DockerCmd(c, "create", "--entrypoint=", name, "echo", "foo").Combined()
 	id := strings.TrimSpace(out)
-	c.Assert(id, check.Not(check.Equals), "")
+	assert.Assert(c, id, check.Not(check.Equals), "")
 	out = cli.DockerCmd(c, "start", "-a", id).Combined()
-	c.Assert(strings.TrimSpace(out), check.Equals, "foo")
+	assert.Assert(c, strings.TrimSpace(out), check.Equals, "foo")
 }
 
 // #22471
@@ -373,11 +373,11 @@ func (s *DockerSuite) TestCreateStopTimeout(c *check.C) {
 	dockerCmd(c, "create", "--name", name1, "--stop-timeout", "15", "busybox")
 
 	res := inspectFieldJSON(c, name1, "Config.StopTimeout")
-	c.Assert(res, checker.Contains, "15")
+	assert.Assert(c, res, checker.Contains, "15")
 
 	name2 := "test_create_stop_timeout_2"
 	dockerCmd(c, "create", "--name", name2, "busybox")
 
 	res = inspectFieldJSON(c, name2, "Config.StopTimeout")
-	c.Assert(res, checker.Contains, "null")
+	assert.Assert(c, res, checker.Contains, "null")
 }

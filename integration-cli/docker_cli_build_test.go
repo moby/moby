@@ -2082,7 +2082,7 @@ CMD ["cat", "/foo"]`),
 	}).Assert(c, icmd.Success)
 
 	res := inspectField(c, name, "Config.Cmd")
-	c.Assert(strings.TrimSpace(string(res)), checker.Equals, `[cat /foo]`)
+	assert.Assert(c, strings.TrimSpace(string(res)), checker.Equals, `[cat /foo]`)
 }
 
 // FIXME(vdemeester) migrate to docker/cli tests (unit or e2e)
@@ -2142,9 +2142,9 @@ COPY . /baz`),
 
 	result = cli.DockerCmd(c, "run", "--rm", name, "ls", "-A", "/baz")
 	if hasDockerignore && !ignoreDockerignore {
-		c.Assert(result.Stdout(), checker.Equals, ".dockerignore\nfoo\n")
+		assert.Assert(c, result.Stdout(), checker.Equals, ".dockerignore\nfoo\n")
 	} else {
-		c.Assert(result.Stdout(), checker.Equals, "foo\n")
+		assert.Assert(c, result.Stdout(), checker.Equals, "foo\n")
 	}
 }
 
@@ -4178,7 +4178,7 @@ func (s *DockerSuite) TestBuildTimeArgHistoryExclusions(c *check.C) {
 	result.Assert(c, icmd.Expected{Out: fmt.Sprintf("%s=%s", explicitProxyKey, explicitProxyVal)})
 
 	cacheID := buildImage(imgName + "-two")
-	c.Assert(origID, checker.Equals, cacheID)
+	assert.Assert(c, origID, checker.Equals, cacheID)
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgCacheHit(c *check.C) {
@@ -4373,7 +4373,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgExpansion(c *check.C) {
 	)
 
 	res := inspectField(c, imgName, "Config.WorkingDir")
-	c.Assert(filepath.ToSlash(res), check.Equals, filepath.ToSlash(wdVal))
+	assert.Assert(c, filepath.ToSlash(res), check.Equals, filepath.ToSlash(wdVal))
 
 	var resArr []string
 	inspectFieldAndUnmarshall(c, imgName, "Config.Env", &resArr)
@@ -4579,9 +4579,9 @@ func (s *DockerSuite) TestBuildBuildTimeArgEnv(c *check.C) {
 	out := result.Combined()[i:] // "out" should contain just the warning message now
 
 	// These were specified on a --build-arg but no ARG was in the Dockerfile
-	c.Assert(out, checker.Contains, "FOO7")
-	c.Assert(out, checker.Contains, "FOO8")
-	c.Assert(out, checker.Contains, "FOO9")
+	assert.Assert(c, out, checker.Contains, "FOO7")
+	assert.Assert(c, out, checker.Contains, "FOO8")
+	assert.Assert(c, out, checker.Contains, "FOO9")
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgQuotedValVariants(c *check.C) {
@@ -4652,11 +4652,11 @@ func (s *DockerSuite) TestBuildMultiStageArg(c *check.C) {
 	parentID := strings.TrimSpace(result.Stdout())
 
 	result = cli.DockerCmd(c, "run", "--rm", parentID, "cat", "/out")
-	c.Assert(result.Stdout(), checker.Contains, "foo=abc")
+	assert.Assert(c, result.Stdout(), checker.Contains, "foo=abc")
 
 	result = cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
-	c.Assert(result.Stdout(), checker.Not(checker.Contains), "foo")
-	c.Assert(result.Stdout(), checker.Contains, "bar=def")
+	assert.Assert(c, result.Stdout(), checker.Not(checker.Contains), "foo")
+	assert.Assert(c, result.Stdout(), checker.Contains, "bar=def")
 }
 
 func (s *DockerSuite) TestBuildMultiStageGlobalArg(c *check.C) {
@@ -4678,10 +4678,10 @@ func (s *DockerSuite) TestBuildMultiStageGlobalArg(c *check.C) {
 	parentID := strings.TrimSpace(result.Stdout())
 
 	result = cli.DockerCmd(c, "run", "--rm", parentID, "cat", "/out")
-	c.Assert(result.Stdout(), checker.Not(checker.Contains), "tag")
+	assert.Assert(c, result.Stdout(), checker.Not(checker.Contains), "tag")
 
 	result = cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
-	c.Assert(result.Stdout(), checker.Contains, "tag=latest")
+	assert.Assert(c, result.Stdout(), checker.Contains, "tag=latest")
 }
 
 func (s *DockerSuite) TestBuildMultiStageUnusedArg(c *check.C) {
@@ -4696,12 +4696,12 @@ func (s *DockerSuite) TestBuildMultiStageUnusedArg(c *check.C) {
 		build.WithDockerfile(dockerfile),
 		cli.WithFlags("--build-arg", fmt.Sprintf("baz=abc")))
 	result.Assert(c, icmd.Success)
-	c.Assert(result.Combined(), checker.Contains, "[Warning]")
-	c.Assert(result.Combined(), checker.Contains, "[baz] were not consumed")
+	assert.Assert(c, result.Combined(), checker.Contains, "[Warning]")
+	assert.Assert(c, result.Combined(), checker.Contains, "[baz] were not consumed")
 
 	result = cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
-	c.Assert(result.Stdout(), checker.Not(checker.Contains), "bar")
-	c.Assert(result.Stdout(), checker.Not(checker.Contains), "baz")
+	assert.Assert(c, result.Stdout(), checker.Not(checker.Contains), "bar")
+	assert.Assert(c, result.Stdout(), checker.Not(checker.Contains), "baz")
 }
 
 func (s *DockerSuite) TestBuildNoNamedVolume(c *check.C) {
@@ -4741,7 +4741,7 @@ func (s *DockerSuite) TestBuildTagEvent(c *check.C) {
 		}
 	}
 
-	c.Assert(foundTag, checker.True, check.Commentf("No tag event found:\n%s", out))
+	assert.Assert(c, foundTag, checker.True, check.Commentf("No tag event found:\n%s", out))
 }
 
 // #15780
@@ -4754,7 +4754,7 @@ func (s *DockerSuite) TestBuildMultipleTags(c *check.C) {
 
 	id1 := getIDByName(c, "tag1")
 	id2 := getIDByName(c, "tag2:v2")
-	c.Assert(id1, check.Equals, id2)
+	assert.Assert(c, id1, check.Equals, id2)
 }
 
 // #17290
@@ -4802,17 +4802,17 @@ func (s *DockerSuite) TestBuildFollowSymlinkToFile(c *check.C) {
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
 	out := cli.DockerCmd(c, "run", "--rm", name, "cat", "target").Combined()
-	c.Assert(out, checker.Matches, "bar")
+	assert.Assert(c, out, checker.Matches, "bar")
 
 	// change target file should invalidate cache
 	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("baz"), 0644)
 	assert.NilError(c, err)
 
 	result := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
-	c.Assert(result.Combined(), checker.Not(checker.Contains), "Using cache")
+	assert.Assert(c, result.Combined(), checker.Not(checker.Contains), "Using cache")
 
 	out = cli.DockerCmd(c, "run", "--rm", name, "cat", "target").Combined()
-	c.Assert(out, checker.Matches, "baz")
+	assert.Assert(c, out, checker.Matches, "baz")
 }
 
 func (s *DockerSuite) TestBuildFollowSymlinkToDir(c *check.C) {
@@ -4833,17 +4833,17 @@ func (s *DockerSuite) TestBuildFollowSymlinkToDir(c *check.C) {
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
 	out := cli.DockerCmd(c, "run", "--rm", name, "cat", "abc", "def").Combined()
-	c.Assert(out, checker.Matches, "barbaz")
+	assert.Assert(c, out, checker.Matches, "barbaz")
 
 	// change target file should invalidate cache
 	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "foo/def"), []byte("bax"), 0644)
 	assert.NilError(c, err)
 
 	result := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
-	c.Assert(result.Combined(), checker.Not(checker.Contains), "Using cache")
+	assert.Assert(c, result.Combined(), checker.Not(checker.Contains), "Using cache")
 
 	out = cli.DockerCmd(c, "run", "--rm", name, "cat", "abc", "def").Combined()
-	c.Assert(out, checker.Matches, "barbax")
+	assert.Assert(c, out, checker.Matches, "barbax")
 
 }
 
@@ -4866,7 +4866,7 @@ func (s *DockerSuite) TestBuildSymlinkBasename(c *check.C) {
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
 	out := cli.DockerCmd(c, "run", "--rm", name, "cat", "asymlink").Combined()
-	c.Assert(out, checker.Matches, "bar")
+	assert.Assert(c, out, checker.Matches, "bar")
 }
 
 // #17827
@@ -4890,7 +4890,7 @@ func (s *DockerSuite) TestBuildCacheRootSource(c *check.C) {
 
 	result := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
-	c.Assert(result.Combined(), checker.Not(checker.Contains), "Using cache")
+	assert.Assert(c, result.Combined(), checker.Not(checker.Contains), "Using cache")
 }
 
 // #19375
@@ -4949,7 +4949,7 @@ func (s *DockerSuite) TestBuildLabelOneNode(c *check.C) {
 	if !ok {
 		c.Fatal("label `foo` not found in image")
 	}
-	c.Assert(v, checker.Equals, "bar")
+	assert.Assert(c, v, checker.Equals, "bar")
 }
 
 func (s *DockerSuite) TestBuildLabelCacheCommit(c *check.C) {
@@ -5044,7 +5044,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestBuildWithExternalAuth(c *check.C) 
 
 	b, err := ioutil.ReadFile(configPath)
 	assert.NilError(c, err)
-	c.Assert(string(b), checker.Not(checker.Contains), "\"auth\":")
+	assert.Assert(c, string(b), checker.Not(checker.Contains), "\"auth\":")
 
 	dockerCmd(c, "--config", tmp, "tag", "busybox", repoName)
 	dockerCmd(c, "--config", tmp, "push", repoName)
@@ -5383,9 +5383,9 @@ func (s *DockerSuite) TestBuildStepsWithProgress(c *check.C) {
 	totalRun := 5
 	result := buildImage(name, build.WithDockerfile("FROM busybox\n"+strings.Repeat("RUN echo foo\n", totalRun)))
 	result.Assert(c, icmd.Success)
-	c.Assert(result.Combined(), checker.Contains, fmt.Sprintf("Step 1/%d : FROM busybox", 1+totalRun))
+	assert.Assert(c, result.Combined(), checker.Contains, fmt.Sprintf("Step 1/%d : FROM busybox", 1+totalRun))
 	for i := 2; i <= 1+totalRun; i++ {
-		c.Assert(result.Combined(), checker.Contains, fmt.Sprintf("Step %d/%d : RUN echo foo", i, 1+totalRun))
+		assert.Assert(c, result.Combined(), checker.Contains, fmt.Sprintf("Step %d/%d : RUN echo foo", i, 1+totalRun))
 	}
 }
 
@@ -5395,16 +5395,16 @@ func (s *DockerSuite) TestBuildWithFailure(c *check.C) {
 	// First test case can only detect `nobody` in runtime so all steps will show up
 	dockerfile := "FROM busybox\nRUN nobody"
 	result := buildImage(name, build.WithDockerfile(dockerfile))
-	c.Assert(result.Error, checker.NotNil)
-	c.Assert(result.Stdout(), checker.Contains, "Step 1/2 : FROM busybox")
-	c.Assert(result.Stdout(), checker.Contains, "Step 2/2 : RUN nobody")
+	assert.Assert(c, result.Error, checker.NotNil)
+	assert.Assert(c, result.Stdout(), checker.Contains, "Step 1/2 : FROM busybox")
+	assert.Assert(c, result.Stdout(), checker.Contains, "Step 2/2 : RUN nobody")
 
 	// Second test case `FFOM` should have been detected before build runs so no steps
 	dockerfile = "FFOM nobody\nRUN nobody"
 	result = buildImage(name, build.WithDockerfile(dockerfile))
-	c.Assert(result.Error, checker.NotNil)
-	c.Assert(result.Stdout(), checker.Not(checker.Contains), "Step 1/2 : FROM busybox")
-	c.Assert(result.Stdout(), checker.Not(checker.Contains), "Step 2/2 : RUN nobody")
+	assert.Assert(c, result.Error, checker.NotNil)
+	assert.Assert(c, result.Stdout(), checker.Not(checker.Contains), "Step 1/2 : FROM busybox")
+	assert.Assert(c, result.Stdout(), checker.Not(checker.Contains), "Step 2/2 : RUN nobody")
 }
 
 func (s *DockerSuite) TestBuildCacheFromEqualDiffIDsLength(c *check.C) {
@@ -5425,8 +5425,8 @@ func (s *DockerSuite) TestBuildCacheFromEqualDiffIDsLength(c *check.C) {
 	// rebuild with cache-from
 	result := cli.BuildCmd(c, "build2", cli.WithFlags("--cache-from=build1"), build.WithExternalBuildContext(ctx))
 	id2 := getIDByName(c, "build2")
-	c.Assert(id1, checker.Equals, id2)
-	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 2)
+	assert.Assert(c, id1, checker.Equals, id2)
+	assert.Assert(c, strings.Count(result.Combined(), "Using cache"), checker.Equals, 2)
 }
 
 func (s *DockerSuite) TestBuildCacheFrom(c *check.C) {
@@ -5450,15 +5450,15 @@ func (s *DockerSuite) TestBuildCacheFrom(c *check.C) {
 	// rebuild with cache-from
 	result := cli.BuildCmd(c, "build2", cli.WithFlags("--cache-from=build1"), build.WithExternalBuildContext(ctx))
 	id2 := getIDByName(c, "build2")
-	c.Assert(id1, checker.Equals, id2)
-	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 3)
+	assert.Assert(c, id1, checker.Equals, id2)
+	assert.Assert(c, strings.Count(result.Combined(), "Using cache"), checker.Equals, 3)
 	cli.DockerCmd(c, "rmi", "build2")
 
 	// no cache match with unknown source
 	result = cli.BuildCmd(c, "build2", cli.WithFlags("--cache-from=nosuchtag"), build.WithExternalBuildContext(ctx))
 	id2 = getIDByName(c, "build2")
-	c.Assert(id1, checker.Not(checker.Equals), id2)
-	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 0)
+	assert.Assert(c, id1, checker.Not(checker.Equals), id2)
+	assert.Assert(c, strings.Count(result.Combined(), "Using cache"), checker.Equals, 0)
 	cli.DockerCmd(c, "rmi", "build2")
 
 	// clear parent images
@@ -5472,23 +5472,23 @@ func (s *DockerSuite) TestBuildCacheFrom(c *check.C) {
 	cli.DockerCmd(c, "rmi", "build1")
 	cli.DockerCmd(c, "load", "-i", tempFile)
 	parentID := cli.DockerCmd(c, "inspect", "-f", "{{.Parent}}", "build1").Combined()
-	c.Assert(strings.TrimSpace(parentID), checker.Equals, "")
+	assert.Assert(c, strings.TrimSpace(parentID), checker.Equals, "")
 
 	// cache still applies without parents
 	result = cli.BuildCmd(c, "build2", cli.WithFlags("--cache-from=build1"), build.WithExternalBuildContext(ctx))
 	id2 = getIDByName(c, "build2")
-	c.Assert(id1, checker.Equals, id2)
-	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 3)
+	assert.Assert(c, id1, checker.Equals, id2)
+	assert.Assert(c, strings.Count(result.Combined(), "Using cache"), checker.Equals, 3)
 	history1 := cli.DockerCmd(c, "history", "-q", "build2").Combined()
 
 	// Retry, no new intermediate images
 	result = cli.BuildCmd(c, "build3", cli.WithFlags("--cache-from=build1"), build.WithExternalBuildContext(ctx))
 	id3 := getIDByName(c, "build3")
-	c.Assert(id1, checker.Equals, id3)
-	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 3)
+	assert.Assert(c, id1, checker.Equals, id3)
+	assert.Assert(c, strings.Count(result.Combined(), "Using cache"), checker.Equals, 3)
 	history2 := cli.DockerCmd(c, "history", "-q", "build3").Combined()
 
-	c.Assert(history1, checker.Equals, history2)
+	assert.Assert(c, history1, checker.Equals, history2)
 	cli.DockerCmd(c, "rmi", "build2")
 	cli.DockerCmd(c, "rmi", "build3")
 	cli.DockerCmd(c, "rmi", "build1")
@@ -5505,22 +5505,22 @@ func (s *DockerSuite) TestBuildCacheFrom(c *check.C) {
 
 	result = cli.BuildCmd(c, "build2", cli.WithFlags("--cache-from=build1"), build.WithExternalBuildContext(ctx))
 	id2 = getIDByName(c, "build2")
-	c.Assert(id1, checker.Not(checker.Equals), id2)
-	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 2)
+	assert.Assert(c, id1, checker.Not(checker.Equals), id2)
+	assert.Assert(c, strings.Count(result.Combined(), "Using cache"), checker.Equals, 2)
 
 	layers1Str := cli.DockerCmd(c, "inspect", "-f", "{{json .RootFS.Layers}}", "build1").Combined()
 	layers2Str := cli.DockerCmd(c, "inspect", "-f", "{{json .RootFS.Layers}}", "build2").Combined()
 
 	var layers1 []string
 	var layers2 []string
-	c.Assert(json.Unmarshal([]byte(layers1Str), &layers1), checker.IsNil)
-	c.Assert(json.Unmarshal([]byte(layers2Str), &layers2), checker.IsNil)
+	assert.Assert(c, json.Unmarshal([]byte(layers1Str), &layers1), checker.IsNil)
+	assert.Assert(c, json.Unmarshal([]byte(layers2Str), &layers2), checker.IsNil)
 
-	c.Assert(len(layers1), checker.Equals, len(layers2))
+	assert.Assert(c, len(layers1), checker.Equals, len(layers2))
 	for i := 0; i < len(layers1)-1; i++ {
-		c.Assert(layers1[i], checker.Equals, layers2[i])
+		assert.Assert(c, layers1[i], checker.Equals, layers2[i])
 	}
-	c.Assert(layers1[len(layers1)-1], checker.Not(checker.Equals), layers2[len(layers1)-1])
+	assert.Assert(c, layers1[len(layers1)-1], checker.Not(checker.Equals), layers2[len(layers1)-1])
 }
 
 func (s *DockerSuite) TestBuildMultiStageCache(c *check.C) {
@@ -5540,11 +5540,11 @@ func (s *DockerSuite) TestBuildMultiStageCache(c *check.C) {
 
 	result := cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
 	// second part of dockerfile was a repeat of first so should be cached
-	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 1)
+	assert.Assert(c, strings.Count(result.Combined(), "Using cache"), checker.Equals, 1)
 
 	result = cli.BuildCmd(c, "build2", cli.WithFlags("--cache-from=build1"), build.WithExternalBuildContext(ctx))
 	// now both parts of dockerfile should be cached
-	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 2)
+	assert.Assert(c, strings.Count(result.Combined(), "Using cache"), checker.Equals, 2)
 }
 
 func (s *DockerSuite) TestBuildNetNone(c *check.C) {
@@ -5572,7 +5572,7 @@ func (s *DockerSuite) TestBuildNetContainer(c *check.C) {
   `))
 
 	host, _ := dockerCmd(c, "run", "testbuildnetcontainer", "cat", "/otherhost")
-	c.Assert(strings.TrimSpace(host), check.Equals, "foobar")
+	assert.Assert(c, strings.TrimSpace(host), check.Equals, "foobar")
 }
 
 func (s *DockerSuite) TestBuildWithExtraHost(c *check.C) {
@@ -5628,20 +5628,20 @@ func (s *DockerSuite) TestBuildContChar(c *check.C) {
 	result := buildImage(name, build.WithDockerfile(`FROM busybox
 		 RUN echo hi \`))
 	result.Assert(c, icmd.Success)
-	c.Assert(result.Combined(), checker.Contains, "Step 1/2 : FROM busybox")
-	c.Assert(result.Combined(), checker.Contains, "Step 2/2 : RUN echo hi\n")
+	assert.Assert(c, result.Combined(), checker.Contains, "Step 1/2 : FROM busybox")
+	assert.Assert(c, result.Combined(), checker.Contains, "Step 2/2 : RUN echo hi\n")
 
 	result = buildImage(name, build.WithDockerfile(`FROM busybox
 		 RUN echo hi \\`))
 	result.Assert(c, icmd.Success)
-	c.Assert(result.Combined(), checker.Contains, "Step 1/2 : FROM busybox")
-	c.Assert(result.Combined(), checker.Contains, "Step 2/2 : RUN echo hi \\\n")
+	assert.Assert(c, result.Combined(), checker.Contains, "Step 1/2 : FROM busybox")
+	assert.Assert(c, result.Combined(), checker.Contains, "Step 2/2 : RUN echo hi \\\n")
 
 	result = buildImage(name, build.WithDockerfile(`FROM busybox
 		 RUN echo hi \\\`))
 	result.Assert(c, icmd.Success)
-	c.Assert(result.Combined(), checker.Contains, "Step 1/2 : FROM busybox")
-	c.Assert(result.Combined(), checker.Contains, "Step 2/2 : RUN echo hi \\\\\n")
+	assert.Assert(c, result.Combined(), checker.Contains, "Step 1/2 : FROM busybox")
+	assert.Assert(c, result.Combined(), checker.Contains, "Step 2/2 : RUN echo hi \\\\\n")
 }
 
 func (s *DockerSuite) TestBuildMultiStageCopyFromSyntax(c *check.C) {
@@ -5681,22 +5681,22 @@ func (s *DockerSuite) TestBuildMultiStageCopyFromSyntax(c *check.C) {
 	result := cli.BuildCmd(c, "build2", build.WithExternalBuildContext(ctx))
 
 	// all commands should be cached
-	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 7)
-	c.Assert(getIDByName(c, "build1"), checker.Equals, getIDByName(c, "build2"))
+	assert.Assert(c, strings.Count(result.Combined(), "Using cache"), checker.Equals, 7)
+	assert.Assert(c, getIDByName(c, "build1"), checker.Equals, getIDByName(c, "build2"))
 
 	err := ioutil.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), []byte(fmt.Sprintf(dockerfile, "COPY baz/aa foo")), 0644)
 	assert.NilError(c, err)
 
 	// changing file in parent block should not affect last block
 	result = cli.BuildCmd(c, "build3", build.WithExternalBuildContext(ctx))
-	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 5)
+	assert.Assert(c, strings.Count(result.Combined(), "Using cache"), checker.Equals, 5)
 
 	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("pqr"), 0644)
 	assert.NilError(c, err)
 
 	// changing file in parent block should affect both first and last block
 	result = cli.BuildCmd(c, "build4", build.WithExternalBuildContext(ctx))
-	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 5)
+	assert.Assert(c, strings.Count(result.Combined(), "Using cache"), checker.Equals, 5)
 
 	cli.DockerCmd(c, "run", "build4", "cat", "bay").Assert(c, icmd.Expected{Out: "pqr"})
 	cli.DockerCmd(c, "run", "build4", "cat", "baz").Assert(c, icmd.Expected{Out: "pqr"})
@@ -5777,9 +5777,9 @@ func (s *DockerSuite) TestBuildMultiStageMultipleBuilds(c *check.C) {
 	cli.BuildCmd(c, "build2", build.WithExternalBuildContext(ctx))
 
 	out := cli.DockerCmd(c, "run", "build2", "cat", "bar").Combined()
-	c.Assert(strings.TrimSpace(out), check.Equals, "abc")
+	assert.Assert(c, strings.TrimSpace(out), check.Equals, "abc")
 	out = cli.DockerCmd(c, "run", "build2", "cat", "foo").Combined()
-	c.Assert(strings.TrimSpace(out), check.Equals, "def")
+	assert.Assert(c, strings.TrimSpace(out), check.Equals, "def")
 }
 
 func (s *DockerSuite) TestBuildMultiStageImplicitFrom(c *check.C) {
@@ -5893,9 +5893,9 @@ func (s *DockerSuite) TestBuildMultiStageMultipleBuildsWindows(c *check.C) {
 	cli.BuildCmd(c, "build2", build.WithExternalBuildContext(ctx))
 
 	out := cli.DockerCmd(c, "run", "build2", "cmd.exe", "/s", "/c", "type", "c:\\bar").Combined()
-	c.Assert(strings.TrimSpace(out), check.Equals, "abc")
+	assert.Assert(c, strings.TrimSpace(out), check.Equals, "abc")
 	out = cli.DockerCmd(c, "run", "build2", "cmd.exe", "/s", "/c", "type", "c:\\foo").Combined()
-	c.Assert(strings.TrimSpace(out), check.Equals, "def")
+	assert.Assert(c, strings.TrimSpace(out), check.Equals, "def")
 }
 
 func (s *DockerSuite) TestBuildCopyFromForbidWindowsSystemPaths(c *check.C) {
@@ -5969,7 +5969,7 @@ func (s *DockerSuite) TestBuildMultiStageResetScratch(c *check.C) {
 	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
 
 	res := cli.InspectCmd(c, "build1", cli.Format(".Config.WorkingDir")).Combined()
-	c.Assert(strings.TrimSpace(res), checker.Equals, "")
+	assert.Assert(c, strings.TrimSpace(res), checker.Equals, "")
 }
 
 func (s *DockerSuite) TestBuildIntermediateTarget(c *check.C) {
@@ -5990,14 +5990,14 @@ func (s *DockerSuite) TestBuildIntermediateTarget(c *check.C) {
 		cli.WithFlags("--target", "build-env"))
 
 	res := cli.InspectCmd(c, "build1", cli.Format("json .Config.Cmd")).Combined()
-	c.Assert(strings.TrimSpace(res), checker.Equals, `["/dev"]`)
+	assert.Assert(c, strings.TrimSpace(res), checker.Equals, `["/dev"]`)
 
 	// Stage name is case-insensitive by design
 	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx),
 		cli.WithFlags("--target", "BUIld-EnV"))
 
 	res = cli.InspectCmd(c, "build1", cli.Format("json .Config.Cmd")).Combined()
-	c.Assert(strings.TrimSpace(res), checker.Equals, `["/dev"]`)
+	assert.Assert(c, strings.TrimSpace(res), checker.Equals, `["/dev"]`)
 
 	result := cli.Docker(cli.Build("build1"), build.WithExternalBuildContext(ctx),
 		cli.WithFlags("--target", "nosuchtarget"))
@@ -6100,7 +6100,7 @@ func (s *DockerSuite) TestBuildWorkdirCmd(c *check.C) {
 	buildImageSuccessfully(c, name, build.WithDockerfile(dockerFile))
 	result := buildImage(name, build.WithDockerfile(dockerFile))
 	result.Assert(c, icmd.Success)
-	c.Assert(strings.Count(result.Combined(), "Using cache"), checker.Equals, 1)
+	assert.Assert(c, strings.Count(result.Combined(), "Using cache"), checker.Equals, 1)
 }
 
 // FIXME(vdemeester) should be a unit test
@@ -6200,7 +6200,7 @@ ENV BAR BAZ`),
 	assert.NilError(c, err)
 	d, err := digest.Parse(string(id))
 	assert.NilError(c, err)
-	c.Assert(d.String(), checker.Equals, getIDByName(c, name))
+	assert.Assert(c, d.String(), checker.Equals, getIDByName(c, name))
 }
 
 // FIXME(vdemeester) should migrate to docker/cli tests
@@ -6223,5 +6223,5 @@ func (s *DockerSuite) TestBuildIidFileCleanupOnFail(c *check.C) {
 	})
 	_, err = os.Stat(tmpIidFile)
 	assert.ErrorContains(c, err, "")
-	c.Assert(os.IsNotExist(err), check.Equals, true)
+	assert.Assert(c, os.IsNotExist(err), check.Equals, true)
 }

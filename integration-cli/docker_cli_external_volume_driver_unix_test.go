@@ -287,8 +287,8 @@ func (s *DockerExternalVolumeSuite) TestVolumeCLICreateOptionConflict(c *check.C
 	dockerCmd(c, "volume", "create", "test")
 
 	out, _, err := dockerCmdWithError("volume", "create", "test", "--driver", volumePluginName)
-	c.Assert(err, check.NotNil, check.Commentf("volume create exception name already in use with another driver"))
-	c.Assert(out, checker.Contains, "must be unique")
+	assert.Assert(c, err, check.NotNil, check.Commentf("volume create exception name already in use with another driver"))
+	assert.Assert(c, out, checker.Contains, "must be unique")
 
 	out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Driver }}", "test")
 	_, _, err = dockerCmdWithError("volume", "create", "test", "--driver", strings.TrimSpace(out))
@@ -300,7 +300,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamed(c *check.C) {
 
 	out, err := s.d.Cmd("run", "--rm", "--name", "test-data", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", volumePluginName, "busybox:latest", "cat", "/tmp/external-volume-test/test")
 	assert.NilError(c, err, out)
-	c.Assert(out, checker.Contains, s.Server.URL)
+	assert.Assert(c, out, checker.Contains, s.Server.URL)
 
 	_, err = s.d.Cmd("volume", "rm", "external-volume-test")
 	assert.NilError(c, err)
@@ -308,13 +308,13 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamed(c *check.C) {
 	p := hostVolumePath("external-volume-test")
 	_, err = os.Lstat(p)
 	assert.ErrorContains(c, err, "")
-	c.Assert(os.IsNotExist(err), checker.True, check.Commentf("Expected volume path in host to not exist: %s, %v\n", p, err))
+	assert.Assert(c, os.IsNotExist(err), checker.True, check.Commentf("Expected volume path in host to not exist: %s, %v\n", p, err))
 
-	c.Assert(s.ec.activations, checker.Equals, 1)
-	c.Assert(s.ec.creations, checker.Equals, 1)
-	c.Assert(s.ec.removals, checker.Equals, 1)
-	c.Assert(s.ec.mounts, checker.Equals, 1)
-	c.Assert(s.ec.unmounts, checker.Equals, 1)
+	assert.Assert(c, s.ec.activations, checker.Equals, 1)
+	assert.Assert(c, s.ec.creations, checker.Equals, 1)
+	assert.Assert(c, s.ec.removals, checker.Equals, 1)
+	assert.Assert(c, s.ec.mounts, checker.Equals, 1)
+	assert.Assert(c, s.ec.unmounts, checker.Equals, 1)
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnnamed(c *check.C) {
@@ -322,13 +322,13 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnnamed(c *check.C) 
 
 	out, err := s.d.Cmd("run", "--rm", "--name", "test-data", "-v", "/tmp/external-volume-test", "--volume-driver", volumePluginName, "busybox:latest", "cat", "/tmp/external-volume-test/test")
 	assert.NilError(c, err, out)
-	c.Assert(out, checker.Contains, s.Server.URL)
+	assert.Assert(c, out, checker.Contains, s.Server.URL)
 
-	c.Assert(s.ec.activations, checker.Equals, 1)
-	c.Assert(s.ec.creations, checker.Equals, 1)
-	c.Assert(s.ec.removals, checker.Equals, 1)
-	c.Assert(s.ec.mounts, checker.Equals, 1)
-	c.Assert(s.ec.unmounts, checker.Equals, 1)
+	assert.Assert(c, s.ec.activations, checker.Equals, 1)
+	assert.Assert(c, s.ec.creations, checker.Equals, 1)
+	assert.Assert(c, s.ec.removals, checker.Equals, 1)
+	assert.Assert(c, s.ec.mounts, checker.Equals, 1)
+	assert.Assert(c, s.ec.unmounts, checker.Equals, 1)
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverVolumesFrom(c *check.C) {
@@ -343,11 +343,11 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverVolumesFrom(c *check
 	out, err = s.d.Cmd("rm", "-fv", "vol-test1")
 	assert.NilError(c, err, out)
 
-	c.Assert(s.ec.activations, checker.Equals, 1)
-	c.Assert(s.ec.creations, checker.Equals, 1)
-	c.Assert(s.ec.removals, checker.Equals, 1)
-	c.Assert(s.ec.mounts, checker.Equals, 2)
-	c.Assert(s.ec.unmounts, checker.Equals, 2)
+	assert.Assert(c, s.ec.activations, checker.Equals, 1)
+	assert.Assert(c, s.ec.creations, checker.Equals, 1)
+	assert.Assert(c, s.ec.removals, checker.Equals, 1)
+	assert.Assert(c, s.ec.mounts, checker.Equals, 2)
+	assert.Assert(c, s.ec.unmounts, checker.Equals, 2)
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverDeleteContainer(c *check.C) {
@@ -359,11 +359,11 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverDeleteContainer(c *c
 	out, err = s.d.Cmd("rm", "-fv", "vol-test1")
 	assert.NilError(c, err, out)
 
-	c.Assert(s.ec.activations, checker.Equals, 1)
-	c.Assert(s.ec.creations, checker.Equals, 1)
-	c.Assert(s.ec.removals, checker.Equals, 1)
-	c.Assert(s.ec.mounts, checker.Equals, 1)
-	c.Assert(s.ec.unmounts, checker.Equals, 1)
+	assert.Assert(c, s.ec.activations, checker.Equals, 1)
+	assert.Assert(c, s.ec.creations, checker.Equals, 1)
+	assert.Assert(c, s.ec.removals, checker.Equals, 1)
+	assert.Assert(c, s.ec.mounts, checker.Equals, 1)
+	assert.Assert(c, s.ec.unmounts, checker.Equals, 1)
 }
 
 func hostVolumePath(name string) string {
@@ -382,10 +382,10 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverLookupNotBlocked(c *
 	cmd1 := exec.Command(dockerBinary, "volume", "create", "-d", "down-driver")
 	cmd2 := exec.Command(dockerBinary, "volume", "create")
 
-	c.Assert(cmd1.Start(), checker.IsNil)
+	assert.Assert(c, cmd1.Start(), checker.IsNil)
 	defer cmd1.Process.Kill()
 	time.Sleep(100 * time.Millisecond) // ensure API has been called
-	c.Assert(cmd2.Start(), checker.IsNil)
+	assert.Assert(c, cmd2.Start(), checker.IsNil)
 
 	go func() {
 		cmd1.Wait()
@@ -437,11 +437,11 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverRetryNotImmediatelyE
 	_, err := s.d.Cmd("volume", "rm", "external-volume-test")
 	assert.NilError(c, err)
 
-	c.Assert(p.ec.activations, checker.Equals, 1)
-	c.Assert(p.ec.creations, checker.Equals, 1)
-	c.Assert(p.ec.removals, checker.Equals, 1)
-	c.Assert(p.ec.mounts, checker.Equals, 1)
-	c.Assert(p.ec.unmounts, checker.Equals, 1)
+	assert.Assert(c, p.ec.activations, checker.Equals, 1)
+	assert.Assert(c, p.ec.creations, checker.Equals, 1)
+	assert.Assert(c, p.ec.removals, checker.Equals, 1)
+	assert.Assert(c, p.ec.mounts, checker.Equals, 1)
+	assert.Assert(c, p.ec.unmounts, checker.Equals, 1)
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverBindExternalVolume(c *check.C) {
@@ -453,31 +453,31 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverBindExternalVolume(c
 		Driver string
 	}
 	out := inspectFieldJSON(c, "testing", "Mounts")
-	c.Assert(json.NewDecoder(strings.NewReader(out)).Decode(&mounts), checker.IsNil)
-	c.Assert(len(mounts), checker.Equals, 1, check.Commentf("%s", out))
-	c.Assert(mounts[0].Name, checker.Equals, "foo")
-	c.Assert(mounts[0].Driver, checker.Equals, volumePluginName)
+	assert.Assert(c, json.NewDecoder(strings.NewReader(out)).Decode(&mounts), checker.IsNil)
+	assert.Assert(c, len(mounts), checker.Equals, 1, check.Commentf("%s", out))
+	assert.Assert(c, mounts[0].Name, checker.Equals, "foo")
+	assert.Assert(c, mounts[0].Driver, checker.Equals, volumePluginName)
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverList(c *check.C) {
 	dockerCmd(c, "volume", "create", "-d", volumePluginName, "abc3")
 	out, _ := dockerCmd(c, "volume", "ls")
 	ls := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(ls), check.Equals, 2, check.Commentf("\n%s", out))
+	assert.Assert(c, len(ls), check.Equals, 2, check.Commentf("\n%s", out))
 
 	vol := strings.Fields(ls[len(ls)-1])
-	c.Assert(len(vol), check.Equals, 2, check.Commentf("%v", vol))
-	c.Assert(vol[0], check.Equals, volumePluginName)
-	c.Assert(vol[1], check.Equals, "abc3")
+	assert.Assert(c, len(vol), check.Equals, 2, check.Commentf("%v", vol))
+	assert.Assert(c, vol[0], check.Equals, volumePluginName)
+	assert.Assert(c, vol[1], check.Equals, "abc3")
 
-	c.Assert(s.ec.lists, check.Equals, 1)
+	assert.Assert(c, s.ec.lists, check.Equals, 1)
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *check.C) {
 	out, _, err := dockerCmdWithError("volume", "inspect", "dummy")
 	assert.ErrorContains(c, err, "", out)
-	c.Assert(out, checker.Contains, "No such volume")
-	c.Assert(s.ec.gets, check.Equals, 1)
+	assert.Assert(c, out, checker.Contains, "No such volume")
+	assert.Assert(c, s.ec.gets, check.Equals, 1)
 
 	dockerCmd(c, "volume", "create", "test", "-d", volumePluginName)
 	out, _ = dockerCmd(c, "volume", "inspect", "test")
@@ -487,10 +487,10 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *check.C) {
 	}
 	var st []vol
 
-	c.Assert(json.Unmarshal([]byte(out), &st), checker.IsNil)
-	c.Assert(st, checker.HasLen, 1)
-	c.Assert(st[0].Status, checker.HasLen, 1, check.Commentf("%v", st[0]))
-	c.Assert(st[0].Status["Hello"], checker.Equals, "world", check.Commentf("%v", st[0].Status))
+	assert.Assert(c, json.Unmarshal([]byte(out), &st), checker.IsNil)
+	assert.Assert(c, st, checker.HasLen, 1)
+	assert.Assert(c, st[0].Status, checker.HasLen, 1, check.Commentf("%v", st[0]))
+	assert.Assert(c, st[0].Status["Hello"], checker.Equals, "world", check.Commentf("%v", st[0].Status))
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemonRestart(c *check.C) {
@@ -500,8 +500,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemonRestart(c 
 	dockerCmd(c, "run", "--name=test", "-v", "abc1:/foo", "busybox", "true")
 	var mounts []types.MountPoint
 	inspectFieldAndUnmarshall(c, "test", "Mounts", &mounts)
-	c.Assert(mounts, checker.HasLen, 1)
-	c.Assert(mounts[0].Driver, checker.Equals, volumePluginName)
+	assert.Assert(c, mounts, checker.HasLen, 1)
+	assert.Assert(c, mounts[0].Driver, checker.Equals, volumePluginName)
 }
 
 // Ensures that the daemon handles when the plugin responds to a `Get` request with a null volume and a null error.
@@ -514,7 +514,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGetEmptyResponse(c *
 
 	out, err = s.d.Cmd("volume", "inspect", "abc2")
 	assert.ErrorContains(c, err, "", out)
-	c.Assert(out, checker.Contains, "No such volume")
+	assert.Assert(c, out, checker.Contains, "No such volume")
 }
 
 // Ensure only cached paths are used in volume list to prevent N+1 calls to `VolumeDriver.Path`
@@ -523,15 +523,15 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGetEmptyResponse(c *
 // 	available because the volume is not even mounted. Consider removing this test.
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverPathCalls(c *check.C) {
 	s.d.Start(c)
-	c.Assert(s.ec.paths, checker.Equals, 0)
+	assert.Assert(c, s.ec.paths, checker.Equals, 0)
 
 	out, err := s.d.Cmd("volume", "create", "test", "--driver=test-external-volume-driver")
 	assert.NilError(c, err, out)
-	c.Assert(s.ec.paths, checker.Equals, 0)
+	assert.Assert(c, s.ec.paths, checker.Equals, 0)
 
 	out, err = s.d.Cmd("volume", "ls")
 	assert.NilError(c, err, out)
-	c.Assert(s.ec.paths, checker.Equals, 0)
+	assert.Assert(c, s.ec.paths, checker.Equals, 0)
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverMountID(c *check.C) {
@@ -545,12 +545,12 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverMountID(c *check.C) 
 // Check that VolumeDriver.Capabilities gets called, and only called once
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverCapabilities(c *check.C) {
 	s.d.Start(c)
-	c.Assert(s.ec.caps, checker.Equals, 0)
+	assert.Assert(c, s.ec.caps, checker.Equals, 0)
 
 	for i := 0; i < 3; i++ {
 		out, err := s.d.Cmd("volume", "create", "-d", volumePluginName, fmt.Sprintf("test%d", i))
 		assert.NilError(c, err, out)
-		c.Assert(s.ec.caps, checker.Equals, 1)
+		assert.Assert(c, s.ec.caps, checker.Equals, 1)
 		out, err = s.d.Cmd("volume", "inspect", "--format={{.Scope}}", fmt.Sprintf("test%d", i))
 		assert.NilError(c, err)
 		assert.Equal(c, strings.TrimSpace(out), volume.GlobalScope)
@@ -569,7 +569,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverOutOfBandDelete(c *c
 
 	out, err = s.d.Cmd("volume", "create", "-d", "local", "--name", "test")
 	assert.ErrorContains(c, err, "", out)
-	c.Assert(out, checker.Contains, "must be unique")
+	assert.Assert(c, out, checker.Contains, "must be unique")
 
 	// simulate out of band volume deletion on plugin level
 	delete(p.vols, "test")
@@ -583,11 +583,11 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverOutOfBandDelete(c *c
 	var vs []types.Volume
 	err = json.Unmarshal([]byte(out), &vs)
 	assert.NilError(c, err)
-	c.Assert(vs, checker.HasLen, 1)
-	c.Assert(vs[0].Driver, checker.Equals, driverName)
-	c.Assert(vs[0].Options, checker.NotNil)
-	c.Assert(vs[0].Options["foo"], checker.Equals, "bar")
-	c.Assert(vs[0].Driver, checker.Equals, driverName)
+	assert.Assert(c, vs, checker.HasLen, 1)
+	assert.Assert(c, vs[0].Driver, checker.Equals, driverName)
+	assert.Assert(c, vs[0].Options, checker.NotNil)
+	assert.Assert(c, vs[0].Options["foo"], checker.Equals, "bar")
+	assert.Assert(c, vs[0].Driver, checker.Equals, driverName)
 
 	// simulate out of band volume deletion on plugin level
 	delete(p.vols, "test")
@@ -601,9 +601,9 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverOutOfBandDelete(c *c
 	vs = nil
 	err = json.Unmarshal([]byte(out), &vs)
 	assert.NilError(c, err)
-	c.Assert(vs, checker.HasLen, 1)
-	c.Assert(vs[0].Options, checker.HasLen, 0)
-	c.Assert(vs[0].Driver, checker.Equals, "local")
+	assert.Assert(c, vs, checker.HasLen, 1)
+	assert.Assert(c, vs[0].Options, checker.HasLen, 0)
+	assert.Assert(c, vs[0].Driver, checker.Equals, "local")
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnmountOnMountFail(c *check.C) {
@@ -611,9 +611,9 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnmountOnMountFail(c
 	s.d.Cmd("volume", "create", "-d", "test-external-volume-driver", "--opt=invalidOption=1", "--name=testumount")
 
 	out, _ := s.d.Cmd("run", "-v", "testumount:/foo", "busybox", "true")
-	c.Assert(s.ec.unmounts, checker.Equals, 0, check.Commentf("%s", out))
+	assert.Assert(c, s.ec.unmounts, checker.Equals, 0, check.Commentf("%s", out))
 	out, _ = s.d.Cmd("run", "-w", "/foo", "-v", "testumount:/foo", "busybox", "true")
-	c.Assert(s.ec.unmounts, checker.Equals, 0, check.Commentf("%s", out))
+	assert.Assert(c, s.ec.unmounts, checker.Equals, 0, check.Commentf("%s", out))
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnmountOnCp(c *check.C) {
@@ -621,12 +621,12 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnmountOnCp(c *check
 	s.d.Cmd("volume", "create", "-d", "test-external-volume-driver", "--name=test")
 
 	out, _ := s.d.Cmd("run", "-d", "--name=test", "-v", "test:/foo", "busybox", "/bin/sh", "-c", "touch /test && top")
-	c.Assert(s.ec.mounts, checker.Equals, 1, check.Commentf("%s", out))
+	assert.Assert(c, s.ec.mounts, checker.Equals, 1, check.Commentf("%s", out))
 
 	out, _ = s.d.Cmd("cp", "test:/test", "/tmp/test")
-	c.Assert(s.ec.mounts, checker.Equals, 2, check.Commentf("%s", out))
-	c.Assert(s.ec.unmounts, checker.Equals, 1, check.Commentf("%s", out))
+	assert.Assert(c, s.ec.mounts, checker.Equals, 2, check.Commentf("%s", out))
+	assert.Assert(c, s.ec.unmounts, checker.Equals, 1, check.Commentf("%s", out))
 
 	out, _ = s.d.Cmd("kill", "test")
-	c.Assert(s.ec.unmounts, checker.Equals, 2, check.Commentf("%s", out))
+	assert.Assert(c, s.ec.unmounts, checker.Equals, 2, check.Commentf("%s", out))
 }

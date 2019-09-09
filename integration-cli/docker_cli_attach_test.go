@@ -147,7 +147,7 @@ func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
 	stdout, err := cmd.StdoutPipe()
 	assert.NilError(c, err)
 	defer stdout.Close()
-	c.Assert(cmd.Start(), check.IsNil)
+	assert.Assert(c, cmd.Start(), check.IsNil)
 	defer func() {
 		cmd.Process.Kill()
 		cmd.Wait()
@@ -157,13 +157,13 @@ func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
 	assert.NilError(c, err)
 	out, err = bufio.NewReader(stdout).ReadString('\n')
 	assert.NilError(c, err)
-	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
+	assert.Assert(c, strings.TrimSpace(out), check.Equals, "hello")
 
-	c.Assert(stdin.Close(), check.IsNil)
+	assert.Assert(c, stdin.Close(), check.IsNil)
 
 	// Expect container to still be running after stdin is closed
 	running := inspectField(c, id, "State.Running")
-	c.Assert(running, check.Equals, "true")
+	assert.Assert(c, running, check.Equals, "true")
 }
 
 func (s *DockerSuite) TestAttachPausedContainer(c *check.C) {

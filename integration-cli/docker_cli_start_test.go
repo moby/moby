@@ -21,7 +21,7 @@ func (s *DockerSuite) TestStartAttachReturnsOnError(c *check.C) {
 	// Expect this to fail because the above container is stopped, this is what we want
 	out, _, err := dockerCmdWithError("run", "--name", "test2", "--link", "test:test", "busybox")
 	// err shouldn't be nil because container test2 try to link to stopped container
-	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
 
 	ch := make(chan error)
 	go func() {
@@ -64,7 +64,7 @@ func (s *DockerSuite) TestStartAttachSilent(c *check.C) {
 
 	startOut, _ := dockerCmd(c, "start", "-a", name)
 	// start -a produced unexpected output
-	c.Assert(startOut, checker.Equals, "test\n")
+	assert.Assert(c, startOut, checker.Equals, "test\n")
 }
 
 func (s *DockerSuite) TestStartRecordError(c *check.C) {
@@ -74,22 +74,22 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 	dockerCmd(c, "run", "-d", "-p", "9999:9999", "--name", "test", "busybox", "top")
 	stateErr := inspectField(c, "test", "State.Error")
 	// Expected to not have state error
-	c.Assert(stateErr, checker.Equals, "")
+	assert.Assert(c, stateErr, checker.Equals, "")
 
 	// Expect this to fail and records error because of ports conflict
 	out, _, err := dockerCmdWithError("run", "-d", "--name", "test2", "-p", "9999:9999", "busybox", "top")
 	// err shouldn't be nil because docker run will fail
-	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
 
 	stateErr = inspectField(c, "test2", "State.Error")
-	c.Assert(stateErr, checker.Contains, "port is already allocated")
+	assert.Assert(c, stateErr, checker.Contains, "port is already allocated")
 
 	// Expect the conflict to be resolved when we stop the initial container
 	dockerCmd(c, "stop", "test")
 	dockerCmd(c, "start", "test2")
 	stateErr = inspectField(c, "test2", "State.Error")
 	// Expected to not have state error but got one
-	c.Assert(stateErr, checker.Equals, "")
+	assert.Assert(c, stateErr, checker.Equals, "")
 }
 
 func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
@@ -102,9 +102,9 @@ func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
 
 	out, _, err := dockerCmdWithError("start", "testing")
 	// an error should have been shown that you cannot start paused container
-	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
 	// an error should have been shown that you cannot start paused container
-	c.Assert(strings.ToLower(out), checker.Contains, "cannot start a paused container, try unpause instead")
+	assert.Assert(c, strings.ToLower(out), checker.Contains, "cannot start a paused container, try unpause instead")
 }
 
 func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
@@ -130,7 +130,7 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 	expErr := "failed to start containers: [child_first]"
 	out, _, err := dockerCmdWithError("start", "child_first", "parent", "child_second")
 	// err shouldn't be nil because start will fail
-	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
 	// output does not correspond to what was expected
 	if !(strings.Contains(out, expOut) || strings.Contains(err.Error(), expErr)) {
 		c.Fatalf("Expected out: %v with err: %v  but got out: %v with err: %v", expOut, expErr, out, err)
@@ -158,9 +158,9 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 	for _, option := range []string{"-a", "-i", "-ai"} {
 		out, _, err := dockerCmdWithError("start", option, "test1", "test2", "test3")
 		// err shouldn't be nil because start will fail
-		c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+		assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
 		// output does not correspond to what was expected
-		c.Assert(out, checker.Contains, "you cannot start and attach multiple containers at once")
+		assert.Assert(c, out, checker.Contains, "you cannot start and attach multiple containers at once")
 	}
 
 	// confirm the state of all the containers be stopped
@@ -184,7 +184,7 @@ func (s *DockerSuite) TestStartAttachWithRename(c *check.C) {
 	result := cli.Docker(cli.Args("start", "-a", "before")).Assert(c, icmd.Expected{
 		ExitCode: 137,
 	})
-	c.Assert(result.Stderr(), checker.Not(checker.Contains), "No such container")
+	assert.Assert(c, result.Stderr(), checker.Not(checker.Contains), "No such container")
 }
 
 func (s *DockerSuite) TestStartReturnCorrectExitCode(c *check.C) {
@@ -193,9 +193,9 @@ func (s *DockerSuite) TestStartReturnCorrectExitCode(c *check.C) {
 
 	out, exitCode, err := dockerCmdWithError("start", "-a", "withRestart")
 	assert.ErrorContains(c, err, "")
-	c.Assert(exitCode, checker.Equals, 11, check.Commentf("out: %s", out))
+	assert.Assert(c, exitCode, checker.Equals, 11, check.Commentf("out: %s", out))
 
 	out, exitCode, err = dockerCmdWithError("start", "-a", "withRm")
 	assert.ErrorContains(c, err, "")
-	c.Assert(exitCode, checker.Equals, 12, check.Commentf("out: %s", out))
+	assert.Assert(c, exitCode, checker.Equals, 12, check.Commentf("out: %s", out))
 }
