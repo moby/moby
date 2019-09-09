@@ -31,8 +31,8 @@ func (ds *DiscoverySuite) TestInitialize(c *testing.T) {
 
 	s := d.store.(*FakeStore)
 	assert.Assert(c, s.Endpoints, checker.HasLen, 1)
-	assert.Assert(c, s.Endpoints[0], checker.Equals, "127.0.0.1")
-	assert.Assert(c, d.path, checker.Equals, defaultDiscoveryPath)
+	assert.Equal(c, s.Endpoints[0], "127.0.0.1")
+	assert.Equal(c, d.path, defaultDiscoveryPath)
 
 	storeMock = &FakeStore{
 		Endpoints: []string{"127.0.0.1:1234"},
@@ -43,8 +43,8 @@ func (ds *DiscoverySuite) TestInitialize(c *testing.T) {
 
 	s = d.store.(*FakeStore)
 	assert.Assert(c, s.Endpoints, checker.HasLen, 1)
-	assert.Assert(c, s.Endpoints[0], checker.Equals, "127.0.0.1:1234")
-	assert.Assert(c, d.path, checker.Equals, "path/"+defaultDiscoveryPath)
+	assert.Equal(c, s.Endpoints[0], "127.0.0.1:1234")
+	assert.Equal(c, d.path, "path/"+defaultDiscoveryPath)
 
 	storeMock = &FakeStore{
 		Endpoints: []string{"127.0.0.1:1234", "127.0.0.2:1234", "127.0.0.3:1234"},
@@ -55,11 +55,11 @@ func (ds *DiscoverySuite) TestInitialize(c *testing.T) {
 
 	s = d.store.(*FakeStore)
 	assert.Assert(c, s.Endpoints, checker.HasLen, 3)
-	assert.Assert(c, s.Endpoints[0], checker.Equals, "127.0.0.1:1234")
-	assert.Assert(c, s.Endpoints[1], checker.Equals, "127.0.0.2:1234")
-	assert.Assert(c, s.Endpoints[2], checker.Equals, "127.0.0.3:1234")
+	assert.Equal(c, s.Endpoints[0], "127.0.0.1:1234")
+	assert.Equal(c, s.Endpoints[1], "127.0.0.2:1234")
+	assert.Equal(c, s.Endpoints[2], "127.0.0.3:1234")
 
-	assert.Assert(c, d.path, checker.Equals, "path/"+defaultDiscoveryPath)
+	assert.Equal(c, d.path, "path/"+defaultDiscoveryPath)
 }
 
 // Extremely limited mock store so we can test initialization

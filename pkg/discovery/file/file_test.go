@@ -20,13 +20,13 @@ var _ = check.Suite(&DiscoverySuite{})
 func (s *DiscoverySuite) TestInitialize(c *testing.T) {
 	d := &Discovery{}
 	d.Initialize("/path/to/file", 1000, 0, nil)
-	assert.Assert(c, d.path, checker.Equals, "/path/to/file")
+	assert.Equal(c, d.path, "/path/to/file")
 }
 
 func (s *DiscoverySuite) TestNew(c *testing.T) {
 	d, err := discovery.New("file:///path/to/file", 0, 0, nil)
 	assert.Assert(c, err, checker.IsNil)
-	assert.Assert(c, d.(*Discovery).path, checker.Equals, "/path/to/file")
+	assert.Equal(c, d.(*Discovery).path, "/path/to/file")
 }
 
 func (s *DiscoverySuite) TestContent(c *testing.T) {
@@ -36,11 +36,11 @@ func (s *DiscoverySuite) TestContent(c *testing.T) {
 `
 	ips := parseFileContent([]byte(data))
 	assert.Assert(c, ips, checker.HasLen, 5)
-	assert.Assert(c, ips[0], checker.Equals, "1.1.1.1:1111")
-	assert.Assert(c, ips[1], checker.Equals, "1.1.1.2:1111")
-	assert.Assert(c, ips[2], checker.Equals, "2.2.2.2:2222")
-	assert.Assert(c, ips[3], checker.Equals, "2.2.2.3:2222")
-	assert.Assert(c, ips[4], checker.Equals, "2.2.2.4:2222")
+	assert.Equal(c, ips[0], "1.1.1.1:1111")
+	assert.Equal(c, ips[1], "1.1.1.2:1111")
+	assert.Equal(c, ips[2], "2.2.2.2:2222")
+	assert.Equal(c, ips[3], "2.2.2.3:2222")
+	assert.Equal(c, ips[4], "2.2.2.4:2222")
 }
 
 func (s *DiscoverySuite) TestRegister(c *testing.T) {
@@ -59,8 +59,8 @@ func (s *DiscoverySuite) TestParsingContentsWithComments(c *testing.T) {
 `
 	ips := parseFileContent([]byte(data))
 	assert.Assert(c, ips, checker.HasLen, 2)
-	assert.Assert(c, "1.1.1.1:1111", checker.Equals, ips[0])
-	assert.Assert(c, "3.3.3.3:3333", checker.Equals, ips[1])
+	assert.Equal(c, "1.1.1.1:1111", ips[0])
+	assert.Equal(c, "3.3.3.3:3333", ips[1])
 }
 
 func (s *DiscoverySuite) TestWatch(c *testing.T) {

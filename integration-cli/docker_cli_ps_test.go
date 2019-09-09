@@ -45,79 +45,79 @@ func (s *DockerSuite) TestPsListContainersBase(c *testing.T) {
 
 	// all
 	out, _ = dockerCmd(c, "ps", "-a")
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), []string{fourthID, thirdID, secondID, firstID}), checker.Equals, true, check.Commentf("ALL: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), []string{fourthID, thirdID, secondID, firstID}), true, check.Commentf("ALL: Container list is not in the correct order: \n%s", out))
 
 	// running
 	out, _ = dockerCmd(c, "ps")
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), []string{fourthID, secondID, firstID}), checker.Equals, true, check.Commentf("RUNNING: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), []string{fourthID, secondID, firstID}), true, check.Commentf("RUNNING: Container list is not in the correct order: \n%s", out))
 
 	// limit
 	out, _ = dockerCmd(c, "ps", "-n=2", "-a")
 	expected := []string{fourthID, thirdID}
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), checker.Equals, true, check.Commentf("LIMIT & ALL: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, check.Commentf("LIMIT & ALL: Container list is not in the correct order: \n%s", out))
 
 	out, _ = dockerCmd(c, "ps", "-n=2")
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), checker.Equals, true, check.Commentf("LIMIT: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, check.Commentf("LIMIT: Container list is not in the correct order: \n%s", out))
 
 	// filter since
 	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-a")
 	expected = []string{fourthID, thirdID, secondID}
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), checker.Equals, true, check.Commentf("SINCE filter & ALL: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, check.Commentf("SINCE filter & ALL: Container list is not in the correct order: \n%s", out))
 
 	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID)
 	expected = []string{fourthID, secondID}
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), checker.Equals, true, check.Commentf("SINCE filter: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, check.Commentf("SINCE filter: Container list is not in the correct order: \n%s", out))
 
 	out, _ = dockerCmd(c, "ps", "-f", "since="+thirdID)
 	expected = []string{fourthID}
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), checker.Equals, true, check.Commentf("SINCE filter: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, check.Commentf("SINCE filter: Container list is not in the correct order: \n%s", out))
 
 	// filter before
 	out, _ = dockerCmd(c, "ps", "-f", "before="+fourthID, "-a")
 	expected = []string{thirdID, secondID, firstID}
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), checker.Equals, true, check.Commentf("BEFORE filter & ALL: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, check.Commentf("BEFORE filter & ALL: Container list is not in the correct order: \n%s", out))
 
 	out, _ = dockerCmd(c, "ps", "-f", "before="+fourthID)
 	expected = []string{secondID, firstID}
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), checker.Equals, true, check.Commentf("BEFORE filter: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, check.Commentf("BEFORE filter: Container list is not in the correct order: \n%s", out))
 
 	out, _ = dockerCmd(c, "ps", "-f", "before="+thirdID)
 	expected = []string{secondID, firstID}
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), checker.Equals, true, check.Commentf("SINCE filter: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, check.Commentf("SINCE filter: Container list is not in the correct order: \n%s", out))
 
 	// filter since & before
 	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID, "-a")
 	expected = []string{thirdID, secondID}
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), checker.Equals, true, check.Commentf("SINCE filter, BEFORE filter & ALL: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, check.Commentf("SINCE filter, BEFORE filter & ALL: Container list is not in the correct order: \n%s", out))
 
 	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID)
 	expected = []string{secondID}
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), checker.Equals, true, check.Commentf("SINCE filter, BEFORE filter: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, check.Commentf("SINCE filter, BEFORE filter: Container list is not in the correct order: \n%s", out))
 
 	// filter since & limit
 	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-n=2", "-a")
 	expected = []string{fourthID, thirdID}
 
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), checker.Equals, true, check.Commentf("SINCE filter, LIMIT & ALL: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, check.Commentf("SINCE filter, LIMIT & ALL: Container list is not in the correct order: \n%s", out))
 
 	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-n=2")
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), checker.Equals, true, check.Commentf("SINCE filter, LIMIT: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, check.Commentf("SINCE filter, LIMIT: Container list is not in the correct order: \n%s", out))
 
 	// filter before & limit
 	out, _ = dockerCmd(c, "ps", "-f", "before="+fourthID, "-n=1", "-a")
 	expected = []string{thirdID}
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), checker.Equals, true, check.Commentf("BEFORE filter, LIMIT & ALL: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, check.Commentf("BEFORE filter, LIMIT & ALL: Container list is not in the correct order: \n%s", out))
 
 	out, _ = dockerCmd(c, "ps", "-f", "before="+fourthID, "-n=1")
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), checker.Equals, true, check.Commentf("BEFORE filter, LIMIT: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, check.Commentf("BEFORE filter, LIMIT: Container list is not in the correct order: \n%s", out))
 
 	// filter since & filter before & limit
 	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID, "-n=1", "-a")
 	expected = []string{thirdID}
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), checker.Equals, true, check.Commentf("SINCE filter, BEFORE filter, LIMIT & ALL: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, check.Commentf("SINCE filter, BEFORE filter, LIMIT & ALL: Container list is not in the correct order: \n%s", out))
 
 	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID, "-n=1")
-	assert.Assert(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), checker.Equals, true, check.Commentf("SINCE filter, BEFORE filter, LIMIT: Container list is not in the correct order: \n%s", out))
+	assert.Equal(c, assertContainerList(RemoveOutputForExistingElements(out, existingContainers), expected), true, check.Commentf("SINCE filter, BEFORE filter, LIMIT: Container list is not in the correct order: \n%s", out))
 
 }
 
@@ -173,7 +173,7 @@ func (s *DockerSuite) TestPsListContainersSize(c *testing.T) {
 	sizeIndex := strings.Index(lines[0], "SIZE")
 	idIndex := strings.Index(lines[0], "CONTAINER ID")
 	foundID := lines[1][idIndex : idIndex+12]
-	assert.Assert(c, foundID, checker.Equals, id[:12], check.Commentf("Expected id %s, got %s", id[:12], foundID))
+	assert.Equal(c, foundID, id[:12], check.Commentf("Expected id %s, got %s", id[:12], foundID))
 	expectedSize := fmt.Sprintf("%dB", 2+baseBytes)
 	foundSize := lines[1][sizeIndex:]
 	assert.Assert(c, foundSize, checker.Contains, expectedSize, check.Commentf("Expected size %q, got %q", expectedSize, foundSize))
@@ -196,11 +196,11 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *testing.T) {
 	// filter containers by exited
 	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "--filter=status=exited").Combined()
 	containerOut := strings.TrimSpace(out)
-	assert.Assert(c, RemoveOutputForExistingElements(containerOut, existingContainers), checker.Equals, firstID)
+	assert.Equal(c, RemoveOutputForExistingElements(containerOut, existingContainers), firstID)
 
 	out = cli.DockerCmd(c, "ps", "-a", "--no-trunc", "-q", "--filter=status=running").Combined()
 	containerOut = strings.TrimSpace(out)
-	assert.Assert(c, RemoveOutputForExistingElements(containerOut, existingContainers), checker.Equals, secondID)
+	assert.Equal(c, RemoveOutputForExistingElements(containerOut, existingContainers), secondID)
 
 	result := cli.Docker(cli.Args("ps", "-a", "-q", "--filter=status=rubbish"), cli.WithTimeout(time.Second*60))
 	err := "Invalid filter 'status=rubbish'"
@@ -222,7 +222,7 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *testing.T) {
 
 		out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "--filter=status=paused").Combined()
 		containerOut = strings.TrimSpace(out)
-		assert.Assert(c, RemoveOutputForExistingElements(containerOut, existingContainers), checker.Equals, pausedID)
+		assert.Equal(c, RemoveOutputForExistingElements(containerOut, existingContainers), pausedID)
 	}
 }
 
@@ -236,7 +236,7 @@ func (s *DockerSuite) TestPsListContainersFilterHealth(c *testing.T) {
 
 	out = cli.DockerCmd(c, "ps", "-q", "-l", "--no-trunc", "--filter=health=none").Combined()
 	containerOut := strings.TrimSpace(out)
-	assert.Assert(c, containerOut, checker.Equals, containerID, check.Commentf("Expected id %s, got %s for legacy none filter, output: %q", containerID, containerOut, out))
+	assert.Equal(c, containerOut, containerID, check.Commentf("Expected id %s, got %s for legacy none filter, output: %q", containerID, containerOut, out))
 
 	// Test no health check specified explicitly
 	out = runSleepingContainer(c, "--name=none", "--no-healthcheck")
@@ -246,7 +246,7 @@ func (s *DockerSuite) TestPsListContainersFilterHealth(c *testing.T) {
 
 	out = cli.DockerCmd(c, "ps", "-q", "-l", "--no-trunc", "--filter=health=none").Combined()
 	containerOut = strings.TrimSpace(out)
-	assert.Assert(c, containerOut, checker.Equals, containerID, check.Commentf("Expected id %s, got %s for none filter, output: %q", containerID, containerOut, out))
+	assert.Equal(c, containerOut, containerID, check.Commentf("Expected id %s, got %s for none filter, output: %q", containerID, containerOut, out))
 
 	// Test failing health check
 	out = runSleepingContainer(c, "--name=failing_container", "--health-cmd=exit 1", "--health-interval=1s")
@@ -256,7 +256,7 @@ func (s *DockerSuite) TestPsListContainersFilterHealth(c *testing.T) {
 
 	out = cli.DockerCmd(c, "ps", "-q", "--no-trunc", "--filter=health=unhealthy").Combined()
 	containerOut = strings.TrimSpace(out)
-	assert.Assert(c, containerOut, checker.Equals, containerID, check.Commentf("Expected containerID %s, got %s for unhealthy filter, output: %q", containerID, containerOut, out))
+	assert.Equal(c, containerOut, containerID, check.Commentf("Expected containerID %s, got %s for unhealthy filter, output: %q", containerID, containerOut, out))
 
 	// Check passing healthcheck
 	out = runSleepingContainer(c, "--name=passing_container", "--health-cmd=exit 0", "--health-interval=1s")
@@ -266,7 +266,7 @@ func (s *DockerSuite) TestPsListContainersFilterHealth(c *testing.T) {
 
 	out = cli.DockerCmd(c, "ps", "-q", "--no-trunc", "--filter=health=healthy").Combined()
 	containerOut = strings.TrimSpace(RemoveOutputForExistingElements(out, existingContainers))
-	assert.Assert(c, containerOut, checker.Equals, containerID, check.Commentf("Expected containerID %s, got %s for healthy filter, output: %q", containerID, containerOut, out))
+	assert.Equal(c, containerOut, containerID, check.Commentf("Expected containerID %s, got %s for healthy filter, output: %q", containerID, containerOut, out))
 }
 
 func (s *DockerSuite) TestPsListContainersFilterID(c *testing.T) {
@@ -280,7 +280,7 @@ func (s *DockerSuite) TestPsListContainersFilterID(c *testing.T) {
 	// filter containers by id
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--filter=id="+firstID)
 	containerOut := strings.TrimSpace(out)
-	assert.Assert(c, containerOut, checker.Equals, firstID[:12], check.Commentf("Expected id %s, got %s for exited filter, output: %q", firstID[:12], containerOut, out))
+	assert.Equal(c, containerOut, firstID[:12], check.Commentf("Expected id %s, got %s for exited filter, output: %q", firstID[:12], containerOut, out))
 }
 
 func (s *DockerSuite) TestPsListContainersFilterName(c *testing.T) {
@@ -294,7 +294,7 @@ func (s *DockerSuite) TestPsListContainersFilterName(c *testing.T) {
 	// filter containers by name
 	out, _ := dockerCmd(c, "ps", "-a", "-q", "--filter=name=a_name_to_match")
 	containerOut := strings.TrimSpace(out)
-	assert.Assert(c, containerOut, checker.Equals, id[:12], check.Commentf("Expected id %s, got %s for exited filter, output: %q", id[:12], containerOut, out))
+	assert.Equal(c, containerOut, id[:12], check.Commentf("Expected id %s, got %s for exited filter, output: %q", id[:12], containerOut, out))
 }
 
 // Test for the ancestor filter for ps.
@@ -396,7 +396,7 @@ func checkPsAncestorFilterOutput(c *testing.T, out string, filterName string, ex
 				break
 			}
 		}
-		assert.Assert(c, same, checker.Equals, true, check.Commentf("Expected filtered container(s) for %s ancestor filter to be %v, got %v", filterName, expectedIDs, actualIDs))
+		assert.Equal(c, same, true, check.Commentf("Expected filtered container(s) for %s ancestor filter to be %v, got %v", filterName, expectedIDs, actualIDs))
 	}
 }
 
@@ -416,17 +416,17 @@ func (s *DockerSuite) TestPsListContainersFilterLabel(c *testing.T) {
 	// filter containers by exact match
 	out, _ := dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me")
 	containerOut := strings.TrimSpace(out)
-	assert.Assert(c, containerOut, checker.Equals, firstID, check.Commentf("Expected id %s, got %s for exited filter, output: %q", firstID, containerOut, out))
+	assert.Equal(c, containerOut, firstID, check.Commentf("Expected id %s, got %s for exited filter, output: %q", firstID, containerOut, out))
 
 	// filter containers by two labels
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me", "--filter=label=second=tag")
 	containerOut = strings.TrimSpace(out)
-	assert.Assert(c, containerOut, checker.Equals, firstID, check.Commentf("Expected id %s, got %s for exited filter, output: %q", firstID, containerOut, out))
+	assert.Equal(c, containerOut, firstID, check.Commentf("Expected id %s, got %s for exited filter, output: %q", firstID, containerOut, out))
 
 	// filter containers by two labels, but expect not found because of AND behavior
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me", "--filter=label=second=tag-no")
 	containerOut = strings.TrimSpace(out)
-	assert.Assert(c, containerOut, checker.Equals, "", check.Commentf("Expected nothing, got %s for exited filter, output: %q", containerOut, out))
+	assert.Equal(c, containerOut, "", check.Commentf("Expected nothing, got %s for exited filter, output: %q", containerOut, out))
 
 	// filter containers by exact key
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match")
@@ -499,11 +499,11 @@ func (s *DockerSuite) TestPsRightTagName(c *testing.T) {
 		f := strings.Fields(line)
 		switch f[0] {
 		case id1:
-			assert.Assert(c, f[1], checker.Equals, "busybox", check.Commentf("Expected %s tag for id %s, got %s", "busybox", id1, f[1]))
+			assert.Equal(c, f[1], "busybox", check.Commentf("Expected %s tag for id %s, got %s", "busybox", id1, f[1]))
 		case id2:
-			assert.Assert(c, f[1], checker.Equals, tag, check.Commentf("Expected %s tag for id %s, got %s", tag, id2, f[1]))
+			assert.Equal(c, f[1], tag, check.Commentf("Expected %s tag for id %s, got %s", tag, id2, f[1]))
 		case id3:
-			assert.Assert(c, f[1], checker.Equals, imageID, check.Commentf("Expected %s imageID for id %s, got %s", tag, id3, f[1]))
+			assert.Equal(c, f[1], imageID, check.Commentf("Expected %s imageID for id %s, got %s", tag, id3, f[1]))
 		default:
 			c.Fatalf("Unexpected id %s, expected %s and %s and %s", f[0], id1, id2, id3)
 		}
@@ -532,7 +532,7 @@ func (s *DockerSuite) TestPsListContainersFilterCreated(c *testing.T) {
 		assert.Assert(c, line, checker.Contains, "Created", check.Commentf("Missing 'Created' on '%s'", line))
 	}
 
-	assert.Assert(c, hits, checker.Equals, 1, check.Commentf("Should have seen '%s' in ps -a output once:%d\n%s", shortCID, hits, out))
+	assert.Equal(c, hits, 1, check.Commentf("Should have seen '%s' in ps -a output once:%d\n%s", shortCID, hits, out))
 
 	// filter containers by 'create' - note, no -a needed
 	out, _ = dockerCmd(c, "ps", "-q", "-f", "status=created")
@@ -564,11 +564,11 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *testing.T) {
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
 	// skip header
 	lines = lines[1:]
-	assert.Assert(c, len(lines), checker.Equals, 1)
+	assert.Equal(c, len(lines), 1)
 
 	for _, line := range lines {
 		f := strings.Fields(line)
-		assert.Assert(c, f[1], checker.Equals, originalImageName)
+		assert.Equal(c, f[1], originalImageName)
 	}
 
 	icmd.RunCommand(dockerBinary, "commit", containerID, updatedImageName).Assert(c, icmd.Success)
@@ -581,11 +581,11 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *testing.T) {
 	lines = RemoveLinesForExistingElements(lines, existingContainers)
 	// skip header
 	lines = lines[1:]
-	assert.Assert(c, len(lines), checker.Equals, 1)
+	assert.Equal(c, len(lines), 1)
 
 	for _, line := range lines {
 		f := strings.Fields(line)
-		assert.Assert(c, f[1], checker.Equals, originalImageID)
+		assert.Equal(c, f[1], originalImageID)
 	}
 
 }
@@ -598,7 +598,7 @@ func (s *DockerSuite) TestPsNotShowPortsOfStoppedContainer(c *testing.T) {
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	expected := "0.0.0.0:5000->5000/tcp"
 	fields := strings.Fields(lines[1])
-	assert.Assert(c, fields[len(fields)-2], checker.Equals, expected, check.Commentf("Expected: %v, got: %v", expected, fields[len(fields)-2]))
+	assert.Equal(c, fields[len(fields)-2], expected, check.Commentf("Expected: %v, got: %v", expected, fields[len(fields)-2]))
 
 	dockerCmd(c, "kill", "foo")
 	dockerCmd(c, "wait", "foo")
@@ -642,8 +642,8 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 
 	fields := strings.Fields(lines[0])
 	assert.Equal(c, len(fields), 2)
-	assert.Assert(c, fields[0], checker.Equals, "bind-mount-test")
-	assert.Assert(c, fields[1], checker.Equals, bindMountSource)
+	assert.Equal(c, fields[0], "bind-mount-test")
+	assert.Equal(c, fields[1], bindMountSource)
 
 	fields = strings.Fields(lines[1])
 	assert.Equal(c, len(fields), 2)
@@ -651,7 +651,7 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 	anonymousVolumeID := fields[1]
 
 	fields = strings.Fields(lines[2])
-	assert.Assert(c, fields[1], checker.Equals, "ps-volume-test")
+	assert.Equal(c, fields[1], "ps-volume-test")
 
 	// filter by volume name
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume=ps-volume-test")
@@ -661,7 +661,7 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 	assert.Equal(c, len(lines), 1)
 
 	fields = strings.Fields(lines[0])
-	assert.Assert(c, fields[1], checker.Equals, "ps-volume-test")
+	assert.Equal(c, fields[1], "ps-volume-test")
 
 	// empty results filtering by unknown volume
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume=this-volume-should-not-exist")
@@ -675,9 +675,9 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 	assert.Equal(c, len(lines), 2)
 
 	fields = strings.Fields(lines[0])
-	assert.Assert(c, fields[1], checker.Equals, anonymousVolumeID)
+	assert.Equal(c, fields[1], anonymousVolumeID)
 	fields = strings.Fields(lines[1])
-	assert.Assert(c, fields[1], checker.Equals, "ps-volume-test")
+	assert.Equal(c, fields[1], "ps-volume-test")
 
 	// filter by bind mount source
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+bindMountSource)
@@ -688,8 +688,8 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 
 	fields = strings.Fields(lines[0])
 	assert.Equal(c, len(fields), 2)
-	assert.Assert(c, fields[0], checker.Equals, "bind-mount-test")
-	assert.Assert(c, fields[1], checker.Equals, bindMountSource)
+	assert.Equal(c, fields[0], "bind-mount-test")
+	assert.Equal(c, fields[1], bindMountSource)
 
 	// filter by bind mount destination
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+bindMountDestination)
@@ -700,8 +700,8 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 
 	fields = strings.Fields(lines[0])
 	assert.Equal(c, len(fields), 2)
-	assert.Assert(c, fields[0], checker.Equals, "bind-mount-test")
-	assert.Assert(c, fields[1], checker.Equals, bindMountSource)
+	assert.Equal(c, fields[0], "bind-mount-test")
+	assert.Equal(c, fields[1], bindMountSource)
 
 	// empty results filtering by unknown mount point
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+prefix+slash+"this-path-was-never-mounted")

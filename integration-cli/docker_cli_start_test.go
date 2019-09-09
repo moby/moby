@@ -64,7 +64,7 @@ func (s *DockerSuite) TestStartAttachSilent(c *testing.T) {
 
 	startOut, _ := dockerCmd(c, "start", "-a", name)
 	// start -a produced unexpected output
-	assert.Assert(c, startOut, checker.Equals, "test\n")
+	assert.Equal(c, startOut, "test\n")
 }
 
 func (s *DockerSuite) TestStartRecordError(c *testing.T) {
@@ -74,7 +74,7 @@ func (s *DockerSuite) TestStartRecordError(c *testing.T) {
 	dockerCmd(c, "run", "-d", "-p", "9999:9999", "--name", "test", "busybox", "top")
 	stateErr := inspectField(c, "test", "State.Error")
 	// Expected to not have state error
-	assert.Assert(c, stateErr, checker.Equals, "")
+	assert.Equal(c, stateErr, "")
 
 	// Expect this to fail and records error because of ports conflict
 	out, _, err := dockerCmdWithError("run", "-d", "--name", "test2", "-p", "9999:9999", "busybox", "top")
@@ -89,7 +89,7 @@ func (s *DockerSuite) TestStartRecordError(c *testing.T) {
 	dockerCmd(c, "start", "test2")
 	stateErr = inspectField(c, "test2", "State.Error")
 	// Expected to not have state error but got one
-	assert.Assert(c, stateErr, checker.Equals, "")
+	assert.Equal(c, stateErr, "")
 }
 
 func (s *DockerSuite) TestStartPausedContainer(c *testing.T) {
@@ -193,9 +193,9 @@ func (s *DockerSuite) TestStartReturnCorrectExitCode(c *testing.T) {
 
 	out, exitCode, err := dockerCmdWithError("start", "-a", "withRestart")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, exitCode, checker.Equals, 11, check.Commentf("out: %s", out))
+	assert.Equal(c, exitCode, 11, check.Commentf("out: %s", out))
 
 	out, exitCode, err = dockerCmdWithError("start", "-a", "withRm")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, exitCode, checker.Equals, 12, check.Commentf("out: %s", out))
+	assert.Equal(c, exitCode, 12, check.Commentf("out: %s", out))
 }

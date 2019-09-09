@@ -3214,7 +3214,7 @@ func (s *DockerSuite) TestRunCreateContainerFailedCleanUp(c *testing.T) {
 
 	containerID, err := inspectFieldWithError(name, "Id")
 	assert.Assert(c, err, checker.NotNil, check.Commentf("Expected not to have this container: %s!", containerID))
-	assert.Assert(c, containerID, checker.Equals, "", check.Commentf("Expected not to have this container: %s!", containerID))
+	assert.Equal(c, containerID, "", check.Commentf("Expected not to have this container: %s!", containerID))
 }
 
 func (s *DockerSuite) TestRunNamedVolume(c *testing.T) {
@@ -3223,10 +3223,10 @@ func (s *DockerSuite) TestRunNamedVolume(c *testing.T) {
 	dockerCmd(c, "run", "--name=test", "-v", "testing:"+prefix+"/foo", "busybox", "sh", "-c", "echo hello > "+prefix+"/foo/bar")
 
 	out, _ := dockerCmd(c, "run", "--volumes-from", "test", "busybox", "sh", "-c", "cat "+prefix+"/foo/bar")
-	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "hello")
+	assert.Equal(c, strings.TrimSpace(out), "hello")
 
 	out, _ = dockerCmd(c, "run", "-v", "testing:"+prefix+"/foo", "busybox", "sh", "-c", "cat "+prefix+"/foo/bar")
-	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "hello")
+	assert.Equal(c, strings.TrimSpace(out), "hello")
 }
 
 func (s *DockerSuite) TestRunWithUlimits(c *testing.T) {
@@ -3872,7 +3872,7 @@ func (s *DockerSuite) TestRunNamedVolumeCopyImageData(c *testing.T) {
 
 	dockerCmd(c, "run", "-v", "foo:/foo", testImg)
 	out, _ := dockerCmd(c, "run", "-v", "foo:/foo", "busybox", "cat", "/foo/hello")
-	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "hello")
+	assert.Equal(c, strings.TrimSpace(out), "hello")
 }
 
 func (s *DockerSuite) TestRunNamedVolumeNotRemoved(c *testing.T) {
@@ -4056,7 +4056,7 @@ func (s *DockerSuite) TestRunRmAndWait(c *testing.T) {
 	out, code, err := dockerCmdWithError("wait", "test")
 	assert.Assert(c, err, checker.IsNil, check.Commentf("out: %s; exit code: %d", out, code))
 	assert.Equal(c, out, "2\n", "exit code: %d", code)
-	assert.Assert(c, code, checker.Equals, 0)
+	assert.Equal(c, code, 0)
 }
 
 // Test that auto-remove is performed by the daemon (API 1.25 and above)
@@ -4104,7 +4104,7 @@ exec "$@"`,
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
 	out := cli.DockerCmd(c, "run", "--entrypoint=", "-t", name, "echo", "foo").Combined()
-	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "foo")
+	assert.Equal(c, strings.TrimSpace(out), "foo")
 
 	// CMD will be reset as well (the same as setting a custom entrypoint)
 	cli.Docker(cli.Args("run", "--entrypoint=", "-t", name)).Assert(c, icmd.Expected{

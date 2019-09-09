@@ -60,7 +60,7 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *testing.T) {
 // TestInfoFormat tests `docker info --format`
 func (s *DockerSuite) TestInfoFormat(c *testing.T) {
 	out, status := dockerCmd(c, "info", "--format", "{{json .}}")
-	assert.Assert(c, status, checker.Equals, 0)
+	assert.Equal(c, status, 0)
 	var m map[string]interface{}
 	err := json.Unmarshal([]byte(out), &m)
 	assert.NilError(c, err)

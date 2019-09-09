@@ -124,7 +124,7 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *testing.T) {
 
 	// task should be blocked at starting status
 	task = d.GetTask(c, task.ID)
-	assert.Assert(c, task.Status.State, checker.Equals, swarm.TaskStateStarting)
+	assert.Equal(c, task.Status.State, swarm.TaskStateStarting)
 
 	// make it healthy
 	d.Cmd("exec", containerID, "touch", "/status")

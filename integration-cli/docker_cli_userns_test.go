@@ -51,13 +51,13 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 	assert.NilError(c, err, "Output: %s", out)
 
 	user := s.findUser(c, "userns")
-	assert.Assert(c, uidgid[0], checker.Equals, user)
+	assert.Equal(c, uidgid[0], user)
 
 	// check that the created directory is owned by remapped uid:gid
 	statNotExists, err := system.Stat(tmpDirNotExists)
 	assert.NilError(c, err)
-	assert.Assert(c, statNotExists.UID(), checker.Equals, uint32(uid), check.Commentf("Created directory not owned by remapped root UID"))
-	assert.Assert(c, statNotExists.GID(), checker.Equals, uint32(gid), check.Commentf("Created directory not owned by remapped root GID"))
+	assert.Equal(c, statNotExists.UID(), uint32(uid), check.Commentf("Created directory not owned by remapped root UID"))
+	assert.Equal(c, statNotExists.GID(), uint32(gid), check.Commentf("Created directory not owned by remapped root GID"))
 
 	pid, err := s.d.Cmd("inspect", "--format={{.State.Pid}}", "userns")
 	assert.Assert(c, err, checker.IsNil, check.Commentf("Could not inspect running container: out: %q", pid))
@@ -76,15 +76,15 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 	// check that the touched file is owned by remapped uid:gid
 	stat, err := system.Stat(filepath.Join(tmpDir, "testfile"))
 	assert.NilError(c, err)
-	assert.Assert(c, stat.UID(), checker.Equals, uint32(uid), check.Commentf("Touched file not owned by remapped root UID"))
-	assert.Assert(c, stat.GID(), checker.Equals, uint32(gid), check.Commentf("Touched file not owned by remapped root GID"))
+	assert.Equal(c, stat.UID(), uint32(uid), check.Commentf("Touched file not owned by remapped root UID"))
+	assert.Equal(c, stat.GID(), uint32(gid), check.Commentf("Touched file not owned by remapped root GID"))
 
 	// use host usernamespace
 	out, err = s.d.Cmd("run", "-d", "--name", "userns_skip", "--userns", "host", "busybox", "sh", "-c", "touch /goofy/testfile; top")
 	assert.Assert(c, err, checker.IsNil, check.Commentf("Output: %s", out))
 	user = s.findUser(c, "userns_skip")
 	// userns are skipped, user is root
-	assert.Assert(c, user, checker.Equals, "root")
+	assert.Equal(c, user, "root")
 }
 
 // findUser finds the uid or name of the user of the first process that runs in a container

@@ -33,13 +33,13 @@ func (s *DockerSuite) TestInspectImage(c *testing.T) {
 	imageTestID := "sha256:11f64303f0f7ffdc71f001788132bca5346831939a956e3e975c93267d89a16d"
 	id := inspectField(c, imageTest, "Id")
 
-	assert.Assert(c, id, checker.Equals, imageTestID)
+	assert.Equal(c, id, imageTestID)
 }
 
 func (s *DockerSuite) TestInspectInt64(c *testing.T) {
 	dockerCmd(c, "run", "-d", "-m=300M", "--name", "inspectTest", "busybox", "true")
 	inspectOut := inspectField(c, "inspectTest", "HostConfig.Memory")
-	assert.Assert(c, inspectOut, checker.Equals, "314572800")
+	assert.Equal(c, inspectOut, "314572800")
 }
 
 func (s *DockerSuite) TestInspectDefault(c *testing.T) {
@@ -50,7 +50,7 @@ func (s *DockerSuite) TestInspectDefault(c *testing.T) {
 	containerID := strings.TrimSpace(out)
 
 	inspectOut := inspectField(c, "busybox", "Id")
-	assert.Assert(c, strings.TrimSpace(inspectOut), checker.Equals, containerID)
+	assert.Equal(c, strings.TrimSpace(inspectOut), containerID)
 }
 
 func (s *DockerSuite) TestInspectStatus(c *testing.T) {
@@ -58,23 +58,23 @@ func (s *DockerSuite) TestInspectStatus(c *testing.T) {
 	out = strings.TrimSpace(out)
 
 	inspectOut := inspectField(c, out, "State.Status")
-	assert.Assert(c, inspectOut, checker.Equals, "running")
+	assert.Equal(c, inspectOut, "running")
 
 	// Windows does not support pause/unpause on Windows Server Containers.
 	// (RS1 does for Hyper-V Containers, but production CI is not setup for that)
 	if testEnv.OSType != "windows" {
 		dockerCmd(c, "pause", out)
 		inspectOut = inspectField(c, out, "State.Status")
-		assert.Assert(c, inspectOut, checker.Equals, "paused")
+		assert.Equal(c, inspectOut, "paused")
 
 		dockerCmd(c, "unpause", out)
 		inspectOut = inspectField(c, out, "State.Status")
-		assert.Assert(c, inspectOut, checker.Equals, "running")
+		assert.Equal(c, inspectOut, "running")
 	}
 
 	dockerCmd(c, "stop", out)
 	inspectOut = inspectField(c, out, "State.Status")
-	assert.Assert(c, inspectOut, checker.Equals, "exited")
+	assert.Equal(c, inspectOut, "exited")
 
 }
 
@@ -120,7 +120,7 @@ func (s *DockerSuite) TestInspectTypeFlagWithInvalidValue(c *testing.T) {
 
 	out, exitCode, err := dockerCmdWithError("inspect", "--type=foobar", "busybox")
 	assert.Assert(c, err, checker.NotNil, check.Commentf("%d", exitCode))
-	assert.Assert(c, exitCode, checker.Equals, 1, check.Commentf("%s", err))
+	assert.Equal(c, exitCode, 1, check.Commentf("%s", err))
 	assert.Assert(c, out, checker.Contains, "not a valid value for --type")
 }
 
@@ -137,7 +137,7 @@ func (s *DockerSuite) TestInspectImageFilterInt(c *testing.T) {
 	out, _ = dockerCmd(c, "inspect", formatStr, imageTest)
 	result, err := strconv.ParseBool(strings.TrimSuffix(out, "\n"))
 	assert.NilError(c, err)
-	assert.Assert(c, result, checker.Equals, true)
+	assert.Equal(c, result, true)
 }
 
 func (s *DockerSuite) TestInspectContainerFilterInt(c *testing.T) {
@@ -159,7 +159,7 @@ func (s *DockerSuite) TestInspectContainerFilterInt(c *testing.T) {
 	out, _ = dockerCmd(c, "inspect", formatStr, id)
 	inspectResult, err := strconv.ParseBool(strings.TrimSuffix(out, "\n"))
 	assert.NilError(c, err)
-	assert.Assert(c, inspectResult, checker.Equals, true)
+	assert.Equal(c, inspectResult, true)
 }
 
 func (s *DockerSuite) TestInspectImageGraphDriver(c *testing.T) {
@@ -227,14 +227,14 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *testing.T) {
 
 	m := mp[0]
 
-	assert.Assert(c, m.Name, checker.Equals, "")
-	assert.Assert(c, m.Driver, checker.Equals, "")
-	assert.Assert(c, m.Source, checker.Equals, prefix+slash+"data")
-	assert.Assert(c, m.Destination, checker.Equals, prefix+slash+"data")
+	assert.Equal(c, m.Name, "")
+	assert.Equal(c, m.Driver, "")
+	assert.Equal(c, m.Source, prefix+slash+"data")
+	assert.Equal(c, m.Destination, prefix+slash+"data")
 	if testEnv.OSType != "windows" { // Windows does not set mode
-		assert.Assert(c, m.Mode, checker.Equals, "ro"+modifier)
+		assert.Equal(c, m.Mode, "ro"+modifier)
 	}
-	assert.Assert(c, m.RW, checker.Equals, false)
+	assert.Equal(c, m.RW, false)
 }
 
 func (s *DockerSuite) TestInspectNamedMountPoint(c *testing.T) {
@@ -253,11 +253,11 @@ func (s *DockerSuite) TestInspectNamedMountPoint(c *testing.T) {
 
 	m := mp[0]
 
-	assert.Assert(c, m.Name, checker.Equals, "data")
-	assert.Assert(c, m.Driver, checker.Equals, "local")
+	assert.Equal(c, m.Name, "data")
+	assert.Equal(c, m.Driver, "local")
 	assert.Assert(c, m.Source != "")
-	assert.Assert(c, m.Destination, checker.Equals, prefix+slash+"data")
-	assert.Assert(c, m.RW, checker.Equals, true)
+	assert.Equal(c, m.Destination, prefix+slash+"data")
+	assert.Equal(c, m.RW, true)
 }
 
 // #14947
@@ -291,8 +291,8 @@ func (s *DockerSuite) TestInspectLogConfigNoType(c *testing.T) {
 	err := json.NewDecoder(strings.NewReader(out)).Decode(&logConfig)
 	assert.Assert(c, err, checker.IsNil, check.Commentf("%v", out))
 
-	assert.Assert(c, logConfig.Type, checker.Equals, "json-file")
-	assert.Assert(c, logConfig.Config["max-file"], checker.Equals, "42", check.Commentf("%v", logConfig))
+	assert.Equal(c, logConfig.Type, "json-file")
+	assert.Equal(c, logConfig.Config["max-file"], "42", check.Commentf("%v", logConfig))
 }
 
 func (s *DockerSuite) TestInspectNoSizeFlagContainer(c *testing.T) {
@@ -304,7 +304,7 @@ func (s *DockerSuite) TestInspectNoSizeFlagContainer(c *testing.T) {
 
 	formatStr := "--format={{.SizeRw}},{{.SizeRootFs}}"
 	out, _ := dockerCmd(c, "inspect", "--type=container", formatStr, "busybox")
-	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "<nil>,<nil>", check.Commentf("Expected not to display size info: %s", out))
+	assert.Equal(c, strings.TrimSpace(out), "<nil>,<nil>", check.Commentf("Expected not to display size info: %s", out))
 }
 
 func (s *DockerSuite) TestInspectSizeFlagContainer(c *testing.T) {
@@ -345,10 +345,10 @@ func (s *DockerSuite) TestInspectByPrefix(c *testing.T) {
 	assert.Assert(c, strings.HasPrefix(id, "sha256:"))
 
 	id2 := inspectField(c, id[:12], "Id")
-	assert.Assert(c, id, checker.Equals, id2)
+	assert.Equal(c, id, id2)
 
 	id3 := inspectField(c, strings.TrimPrefix(id, "sha256:")[:12], "Id")
-	assert.Assert(c, id, checker.Equals, id3)
+	assert.Equal(c, id, id3)
 }
 
 func (s *DockerSuite) TestInspectStopWhenNotFound(c *testing.T) {

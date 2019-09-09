@@ -42,23 +42,23 @@ func (s *DockerSuite) TestRmiTag(c *testing.T) {
 	dockerCmd(c, "tag", "busybox", "utest:5000/docker:tag3")
 	{
 		imagesAfter, _ := dockerCmd(c, "images", "-a")
-		assert.Assert(c, strings.Count(imagesAfter, "\n"), checker.Equals, strings.Count(imagesBefore, "\n")+3, check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
+		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n")+3, check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
 	}
 	dockerCmd(c, "rmi", "utest/docker:tag2")
 	{
 		imagesAfter, _ := dockerCmd(c, "images", "-a")
-		assert.Assert(c, strings.Count(imagesAfter, "\n"), checker.Equals, strings.Count(imagesBefore, "\n")+2, check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
+		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n")+2, check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
 	}
 	dockerCmd(c, "rmi", "utest:5000/docker:tag3")
 	{
 		imagesAfter, _ := dockerCmd(c, "images", "-a")
-		assert.Assert(c, strings.Count(imagesAfter, "\n"), checker.Equals, strings.Count(imagesBefore, "\n")+1, check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
+		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n")+1, check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
 
 	}
 	dockerCmd(c, "rmi", "utest:tag1")
 	{
 		imagesAfter, _ := dockerCmd(c, "images", "-a")
-		assert.Assert(c, strings.Count(imagesAfter, "\n"), checker.Equals, strings.Count(imagesBefore, "\n"), check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
+		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n"), check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
 
 	}
 }
@@ -81,7 +81,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *testing.T) {
 
 	imagesAfter := cli.DockerCmd(c, "images", "-a").Combined()
 	// tag busybox to create 2 more images with same imageID
-	assert.Assert(c, strings.Count(imagesAfter, "\n"), checker.Equals, strings.Count(imagesBefore, "\n")+2, check.Commentf("docker images shows: %q\n", imagesAfter))
+	assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n")+2, check.Commentf("docker images shows: %q\n", imagesAfter))
 
 	imgID := inspectField(c, "busybox-one:tag1", "Id")
 
@@ -123,7 +123,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *testing.T) {
 	cli.DockerCmd(c, "tag", "busybox-test", "utest:5000/docker:tag4")
 	{
 		imagesAfter := cli.DockerCmd(c, "images", "-a").Combined()
-		assert.Assert(c, strings.Count(imagesAfter, "\n"), checker.Equals, strings.Count(imagesBefore, "\n")+4, check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
+		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n")+4, check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
 	}
 	imgID := inspectField(c, "busybox-test", "Id")
 
@@ -166,7 +166,7 @@ func (s *DockerSuite) TestRmiTagWithExistingContainers(c *testing.T) {
 	dockerCmd(c, "run", "--name", container, bb, "/bin/true")
 
 	out, _ := dockerCmd(c, "rmi", newtag)
-	assert.Assert(c, strings.Count(out, "Untagged: "), checker.Equals, 1)
+	assert.Equal(c, strings.Count(out, "Untagged: "), 1)
 }
 
 func (s *DockerSuite) TestRmiForceWithExistingContainers(c *testing.T) {
@@ -274,7 +274,7 @@ RUN echo 2 #layer2
 	// See if the "tmp2" can be untagged.
 	out, _ = dockerCmd(c, "rmi", newTag)
 	// Expected 1 untagged entry
-	assert.Assert(c, strings.Count(out, "Untagged: "), checker.Equals, 1, check.Commentf("out: %s", out))
+	assert.Equal(c, strings.Count(out, "Untagged: "), 1, check.Commentf("out: %s", out))
 
 	// Now let's add the tag again and create a container based on it.
 	dockerCmd(c, "tag", idToTag, newTag)
@@ -335,5 +335,5 @@ func (s *DockerSuite) TestRmiByIDHardConflict(c *testing.T) {
 
 	// check that tag was not removed
 	imgID2 := inspectField(c, "busybox:latest", "Id")
-	assert.Assert(c, imgID, checker.Equals, imgID2)
+	assert.Equal(c, imgID, imgID2)
 }

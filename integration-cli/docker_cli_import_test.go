@@ -114,7 +114,7 @@ func (s *DockerSuite) TestImportFileWithMessage(c *testing.T) {
 	r := regexp.MustCompile("[\\s]{2,}")
 	split = r.Split(split[1], -1)
 
-	assert.Assert(c, message, checker.Equals, split[3], check.Commentf("didn't get expected value in commit message"))
+	assert.Equal(c, message, split[3], check.Commentf("didn't get expected value in commit message"))
 
 	out, _ = dockerCmd(c, "run", "--rm", image, "true")
 	assert.Equal(c, out, "", "command output should've been nothing")

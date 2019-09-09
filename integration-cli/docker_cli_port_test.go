@@ -236,9 +236,9 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *testing.T) {
 	expBndRegx2 := regexp.MustCompile(`0.0.0.0:\d\d\d\d\d->` + unpPort2)
 	out, _ = dockerCmd(c, "ps", "-n=1")
 	// Cannot find expected port binding port (0.0.0.0:xxxxx->unpPort1) in docker ps output
-	assert.Assert(c, expBndRegx1.MatchString(out), checker.Equals, true, check.Commentf("out: %s; unpPort1: %s", out, unpPort1))
+	assert.Equal(c, expBndRegx1.MatchString(out), true, check.Commentf("out: %s; unpPort1: %s", out, unpPort1))
 	// Cannot find expected port binding port (0.0.0.0:xxxxx->unpPort2) in docker ps output
-	assert.Assert(c, expBndRegx2.MatchString(out), checker.Equals, true, check.Commentf("out: %s; unpPort2: %s", out, unpPort2))
+	assert.Equal(c, expBndRegx2.MatchString(out), true, check.Commentf("out: %s; unpPort2: %s", out, unpPort2))
 
 	// Run the container specifying explicit port bindings for the exposed ports
 	offset := 10000
@@ -331,7 +331,7 @@ func (s *DockerSuite) TestPortBindingOnSandbox(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "network", "create", "--internal", "-d", "bridge", "internal-net")
 	nr := getNetworkResource(c, "internal-net")
-	assert.Assert(c, nr.Internal, checker.Equals, true)
+	assert.Equal(c, nr.Internal, true)
 
 	dockerCmd(c, "run", "--net", "internal-net", "-d", "--name", "c1",
 		"-p", "8080:8080", "busybox", "nc", "-l", "-p", "8080")

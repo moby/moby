@@ -41,7 +41,7 @@ func (s *DockerSuite) TestCreateArgs(c *testing.T) {
 	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
-	assert.Assert(c, string(cont.Path), checker.Equals, "command", check.Commentf("Unexpected container path. Expected command, received: %s", cont.Path))
+	assert.Equal(c, string(cont.Path), "command", check.Commentf("Unexpected container path. Expected command, received: %s", cont.Path))
 
 	b := false
 	expected := []string{"arg1", "arg2", "arg with space", "-c", "flags"}
@@ -68,7 +68,7 @@ func (s *DockerSuite) TestCreateGrowRootfs(c *testing.T) {
 	cleanedContainerID := strings.TrimSpace(out)
 
 	inspectOut := inspectField(c, cleanedContainerID, "HostConfig.StorageOpt")
-	assert.Assert(c, inspectOut, checker.Equals, "map[size:120G]")
+	assert.Equal(c, inspectOut, "map[size:120G]")
 }
 
 // Make sure we cannot shrink the container's rootfs at creation time.
@@ -127,7 +127,7 @@ func (s *DockerSuite) TestCreateWithPortRange(c *testing.T) {
 
 	for k, v := range cont.HostConfig.PortBindings {
 		assert.Assert(c, v, checker.HasLen, 1, check.Commentf("Expected 1 ports binding, for the port  %s but found %s", k, v))
-		assert.Assert(c, k.Port(), checker.Equals, v[0].HostPort, check.Commentf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
+		assert.Equal(c, k.Port(), v[0].HostPort, check.Commentf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
 
 	}
 
@@ -156,7 +156,7 @@ func (s *DockerSuite) TestCreateWithLargePortRange(c *testing.T) {
 
 	for k, v := range cont.HostConfig.PortBindings {
 		assert.Assert(c, v, checker.HasLen, 1)
-		assert.Assert(c, k.Port(), checker.Equals, v[0].HostPort, check.Commentf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
+		assert.Equal(c, k.Port(), v[0].HostPort, check.Commentf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
 	}
 
 }
@@ -356,7 +356,7 @@ exec "$@"`,
 	id := strings.TrimSpace(out)
 	assert.Assert(c, id != "")
 	out = cli.DockerCmd(c, "start", "-a", id).Combined()
-	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "foo")
+	assert.Equal(c, strings.TrimSpace(out), "foo")
 }
 
 // #22471

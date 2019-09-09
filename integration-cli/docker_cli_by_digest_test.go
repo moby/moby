@@ -73,7 +73,7 @@ func testPullByTagDisplaysDigest(c *testing.T) {
 	pullDigest := matches[1]
 
 	// make sure the pushed and pull digests match
-	assert.Assert(c, pushDigest.String(), checker.Equals, pullDigest)
+	assert.Equal(c, pushDigest.String(), pullDigest)
 }
 
 func (s *DockerRegistrySuite) TestPullByTagDisplaysDigest(c *testing.T) {
@@ -99,7 +99,7 @@ func testPullByDigest(c *testing.T) {
 	pullDigest := matches[1]
 
 	// make sure the pushed and pull digests match
-	assert.Assert(c, pushDigest.String(), checker.Equals, pullDigest)
+	assert.Equal(c, pushDigest.String(), pullDigest)
 }
 
 func (s *DockerRegistrySuite) TestPullByDigest(c *testing.T) {
@@ -152,7 +152,7 @@ func (s *DockerRegistrySuite) TestRunByDigest(c *testing.T) {
 	foundRegex := regexp.MustCompile("found=([^\n]+)")
 	matches := foundRegex.FindStringSubmatch(out)
 	assert.Assert(c, matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", out))
-	assert.Assert(c, matches[1], checker.Equals, "1", check.Commentf("Expected %q, got %q", "1", matches[1]))
+	assert.Equal(c, matches[1], "1", check.Commentf("Expected %q, got %q", "1", matches[1]))
 
 	res := inspectField(c, containerName, "Config.Image")
 	assert.Equal(c, res, imageReference)

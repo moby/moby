@@ -61,7 +61,7 @@ func (s *DockerSuite) TestCommitNewFile(c *testing.T) {
 
 	out, _ := dockerCmd(c, "run", imageID, "cat", "/foo")
 	actual := strings.TrimSpace(out)
-	assert.Assert(c, actual, checker.Equals, "koye")
+	assert.Equal(c, actual, "koye")
 }
 
 func (s *DockerSuite) TestCommitHardlink(c *testing.T) {
@@ -161,7 +161,7 @@ func (s *DockerSuite) TestCommitChangeLabels(c *testing.T) {
 		"test", "test-commit")
 	imageID = strings.TrimSpace(imageID)
 
-	assert.Assert(c, inspectField(c, imageID, "Config.Labels"), checker.Equals, "map[some:label2]")
+	assert.Equal(c, inspectField(c, imageID, "Config.Labels"), "map[some:label2]")
 	// check that container labels didn't change
-	assert.Assert(c, inspectField(c, "test", "Config.Labels"), checker.Equals, "map[some:label]")
+	assert.Equal(c, inspectField(c, "test", "Config.Labels"), "map[some:label]")
 }

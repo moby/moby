@@ -44,9 +44,9 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
 	assert.Assert(c, json.Unmarshal([]byte(out), &mountConfig), checker.IsNil)
 	assert.Assert(c, mountConfig, checker.HasLen, 1)
 
-	assert.Assert(c, mountConfig[0].Source, checker.Equals, "foo")
-	assert.Assert(c, mountConfig[0].Target, checker.Equals, "/foo")
-	assert.Assert(c, mountConfig[0].Type, checker.Equals, mount.TypeVolume)
+	assert.Equal(c, mountConfig[0].Source, "foo")
+	assert.Equal(c, mountConfig[0].Target, "/foo")
+	assert.Equal(c, mountConfig[0].Type, mount.TypeVolume)
 	assert.Assert(c, mountConfig[0].VolumeOptions, checker.NotNil)
 	assert.Assert(c, mountConfig[0].VolumeOptions.NoCopy, checker.True)
 
@@ -58,10 +58,10 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
 	assert.Assert(c, json.Unmarshal([]byte(out), &mounts), checker.IsNil)
 	assert.Assert(c, mounts, checker.HasLen, 1)
 
-	assert.Assert(c, mounts[0].Type, checker.Equals, mount.TypeVolume)
-	assert.Assert(c, mounts[0].Name, checker.Equals, "foo")
-	assert.Assert(c, mounts[0].Destination, checker.Equals, "/foo")
-	assert.Assert(c, mounts[0].RW, checker.Equals, true)
+	assert.Equal(c, mounts[0].Type, mount.TypeVolume)
+	assert.Equal(c, mounts[0].Name, "foo")
+	assert.Equal(c, mounts[0].Destination, "/foo")
+	assert.Equal(c, mounts[0].RW, true)
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *testing.T) {
@@ -87,11 +87,11 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *testing.T) {
 	assert.Assert(c, json.Unmarshal([]byte(out), &refs), checker.IsNil)
 	assert.Equal(c, len(refs), 1)
 
-	assert.Assert(c, refs[0].SecretName, checker.Equals, testName)
+	assert.Equal(c, refs[0].SecretName, testName)
 	assert.Assert(c, refs[0].File != nil)
-	assert.Assert(c, refs[0].File.Name, checker.Equals, testName)
-	assert.Assert(c, refs[0].File.UID, checker.Equals, "0")
-	assert.Assert(c, refs[0].File.GID, checker.Equals, "0")
+	assert.Equal(c, refs[0].File.Name, testName)
+	assert.Equal(c, refs[0].File.UID, "0")
+	assert.Equal(c, refs[0].File.GID, "0")
 
 	out, err = d.Cmd("service", "rm", serviceName)
 	assert.NilError(c, err, out)
@@ -235,11 +235,11 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSimple(c *testing.T) {
 	assert.Assert(c, json.Unmarshal([]byte(out), &refs), checker.IsNil)
 	assert.Equal(c, len(refs), 1)
 
-	assert.Assert(c, refs[0].ConfigName, checker.Equals, testName)
+	assert.Equal(c, refs[0].ConfigName, testName)
 	assert.Assert(c, refs[0].File != nil)
-	assert.Assert(c, refs[0].File.Name, checker.Equals, testName)
-	assert.Assert(c, refs[0].File.UID, checker.Equals, "0")
-	assert.Assert(c, refs[0].File.GID, checker.Equals, "0")
+	assert.Equal(c, refs[0].File.Name, testName)
+	assert.Equal(c, refs[0].File.UID, "0")
+	assert.Equal(c, refs[0].File.GID, "0")
 
 	out, err = d.Cmd("service", "rm", serviceName)
 	assert.NilError(c, err, out)
@@ -387,11 +387,11 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 	assert.Assert(c, json.Unmarshal([]byte(out), &mountConfig), checker.IsNil)
 	assert.Assert(c, mountConfig, checker.HasLen, 1)
 
-	assert.Assert(c, mountConfig[0].Source, checker.Equals, "")
-	assert.Assert(c, mountConfig[0].Target, checker.Equals, "/foo")
-	assert.Assert(c, mountConfig[0].Type, checker.Equals, mount.TypeTmpfs)
+	assert.Equal(c, mountConfig[0].Source, "")
+	assert.Equal(c, mountConfig[0].Target, "/foo")
+	assert.Equal(c, mountConfig[0].Type, mount.TypeTmpfs)
 	assert.Assert(c, mountConfig[0].TmpfsOptions, checker.NotNil)
-	assert.Assert(c, mountConfig[0].TmpfsOptions.SizeBytes, checker.Equals, int64(1048576))
+	assert.Equal(c, mountConfig[0].TmpfsOptions.SizeBytes, int64(1048576))
 
 	// check container mounts actual
 	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .Mounts}}", task.Status.ContainerStatus.ContainerID)
@@ -401,10 +401,10 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 	assert.Assert(c, json.Unmarshal([]byte(out), &mounts), checker.IsNil)
 	assert.Assert(c, mounts, checker.HasLen, 1)
 
-	assert.Assert(c, mounts[0].Type, checker.Equals, mount.TypeTmpfs)
-	assert.Assert(c, mounts[0].Name, checker.Equals, "")
-	assert.Assert(c, mounts[0].Destination, checker.Equals, "/foo")
-	assert.Assert(c, mounts[0].RW, checker.Equals, true)
+	assert.Equal(c, mounts[0].Type, mount.TypeTmpfs)
+	assert.Equal(c, mounts[0].Name, "")
+	assert.Equal(c, mounts[0].Destination, "/foo")
+	assert.Equal(c, mounts[0].RW, true)
 
 	out, err = s.nodeCmd(c, task.NodeID, "logs", task.Status.ContainerStatus.ContainerID)
 	assert.NilError(c, err, out)
