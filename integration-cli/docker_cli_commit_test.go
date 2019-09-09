@@ -1,12 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

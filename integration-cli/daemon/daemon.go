@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/internal/test/daemon"
-	"github.com/go-check/check"
 	"github.com/pkg/errors"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"

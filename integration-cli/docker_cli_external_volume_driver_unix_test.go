@@ -21,7 +21,6 @@ import (
 	testdaemon "github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

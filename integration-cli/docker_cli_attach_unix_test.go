@@ -4,6 +4,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io/ioutil"
 	"os/exec"
 	"strings"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

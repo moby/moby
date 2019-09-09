@@ -1,11 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 
