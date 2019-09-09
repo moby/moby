@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/go-check/check"
 	"gotest.tools/assert"
@@ -83,8 +82,7 @@ func (s *DockerSuite) TestStartRecordError(c *testing.T) {
 	assert.Assert(c, err != nil, check.Commentf("out: %s", out))
 
 	stateErr = inspectField(c, "test2", "State.Error")
-	assert.Assert(c, stateErr, checker.Contains, "port is already allocated")
-
+	assert.Assert(c, strings.Contains(stateErr, "port is already allocated"))
 	// Expect the conflict to be resolved when we stop the initial container
 	dockerCmd(c, "stop", "test")
 	dockerCmd(c, "start", "test2")
@@ -105,7 +103,7 @@ func (s *DockerSuite) TestStartPausedContainer(c *testing.T) {
 	// an error should have been shown that you cannot start paused container
 	assert.Assert(c, err != nil, check.Commentf("out: %s", out))
 	// an error should have been shown that you cannot start paused container
-	assert.Assert(c, strings.ToLower(out), checker.Contains, "cannot start a paused container, try unpause instead")
+	assert.Assert(c, strings.Contains(strings.ToLower(out), "cannot start a paused container, try unpause instead"))
 }
 
 func (s *DockerSuite) TestStartMultipleContainers(c *testing.T) {
@@ -161,7 +159,7 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *testing.T) {
 		// err shouldn't be nil because start will fail
 		assert.Assert(c, err != nil, check.Commentf("out: %s", out))
 		// output does not correspond to what was expected
-		assert.Assert(c, out, checker.Contains, "you cannot start and attach multiple containers at once")
+		assert.Assert(c, strings.Contains(out, "you cannot start and attach multiple containers at once"))
 	}
 
 	// confirm the state of all the containers be stopped

@@ -445,5 +445,5 @@ func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *testing.T) {
 	assert.Assert(c, json.Unmarshal([]byte(out), &aliases) == nil)
 	assert.Equal(c, len(aliases), 1)
 
-	assert.Assert(c, task.Status.ContainerStatus.ContainerID, checker.Contains, aliases[0])
+	assert.Assert(c, strings.Contains(task.Status.ContainerStatus.ContainerID, aliases[0]))
 }

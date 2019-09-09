@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
 	testdaemon "github.com/docker/docker/internal/test/daemon"
 	"github.com/go-check/check"
@@ -54,7 +53,7 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *testing.T) {
 	}
 
 	for _, linePrefix := range stringsToCheck {
-		assert.Assert(c, out, checker.Contains, linePrefix, check.Commentf("couldn't find string %v in output", linePrefix))
+		assert.Assert(c, strings.Contains(out, linePrefix), check.Commentf("couldn't find string %v in output", linePrefix))
 	}
 }
 
@@ -82,8 +81,8 @@ func (s *DockerSuite) TestInfoDiscoveryBackend(c *testing.T) {
 
 	out, err := d.Cmd("info")
 	assert.NilError(c, err)
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf("Cluster Store: %s\n", discoveryBackend))
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf("Cluster Advertise: %s\n", discoveryAdvertise))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf("Cluster Store: %s\n", discoveryBackend)))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf("Cluster Advertise: %s\n", discoveryAdvertise)))
 }
 
 // TestInfoDiscoveryInvalidAdvertise verifies that a daemon run with
@@ -125,8 +124,8 @@ func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *testing.T) {
 
 	out, err := d.Cmd("info")
 	assert.NilError(c, err)
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf("Cluster Store: %s\n", discoveryBackend))
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf("Cluster Advertise: %s:2375\n", ip.String()))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf("Cluster Store: %s\n", discoveryBackend)))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf("Cluster Advertise: %s:2375\n", ip.String())))
 }
 
 func (s *DockerSuite) TestInfoDisplaysRunningContainers(c *testing.T) {
@@ -136,10 +135,10 @@ func (s *DockerSuite) TestInfoDisplaysRunningContainers(c *testing.T) {
 
 	dockerCmd(c, "run", "-d", "busybox", "top")
 	out, _ := dockerCmd(c, "info")
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf("Containers: %d\n", existing["Containers"]+1))
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" Running: %d\n", existing["ContainersRunning"]+1))
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" Paused: %d\n", existing["ContainersPaused"]))
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"]))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf("Containers: %d\n", existing["Containers"]+1)))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Running: %d\n", existing["ContainersRunning"]+1)))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Paused: %d\n", existing["ContainersPaused"])))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"])))
 }
 
 func (s *DockerSuite) TestInfoDisplaysPausedContainers(c *testing.T) {
@@ -153,10 +152,10 @@ func (s *DockerSuite) TestInfoDisplaysPausedContainers(c *testing.T) {
 	dockerCmd(c, "pause", cleanedContainerID)
 
 	out, _ = dockerCmd(c, "info")
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf("Containers: %d\n", existing["Containers"]+1))
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" Running: %d\n", existing["ContainersRunning"]))
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" Paused: %d\n", existing["ContainersPaused"]+1))
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"]))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf("Containers: %d\n", existing["Containers"]+1)))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Running: %d\n", existing["ContainersRunning"])))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Paused: %d\n", existing["ContainersPaused"]+1)))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"])))
 }
 
 func (s *DockerSuite) TestInfoDisplaysStoppedContainers(c *testing.T) {
@@ -170,10 +169,10 @@ func (s *DockerSuite) TestInfoDisplaysStoppedContainers(c *testing.T) {
 	dockerCmd(c, "stop", cleanedContainerID)
 
 	out, _ = dockerCmd(c, "info")
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf("Containers: %d\n", existing["Containers"]+1))
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" Running: %d\n", existing["ContainersRunning"]))
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" Paused: %d\n", existing["ContainersPaused"]))
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"]+1))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf("Containers: %d\n", existing["Containers"]+1)))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Running: %d\n", existing["ContainersRunning"])))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Paused: %d\n", existing["ContainersPaused"])))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"]+1)))
 }
 
 func (s *DockerSuite) TestInfoDebug(c *testing.T) {
@@ -185,13 +184,13 @@ func (s *DockerSuite) TestInfoDebug(c *testing.T) {
 
 	out, err := d.Cmd("--debug", "info")
 	assert.NilError(c, err)
-	assert.Assert(c, out, checker.Contains, "Debug Mode (client): true\n")
-	assert.Assert(c, out, checker.Contains, "Debug Mode (server): true\n")
-	assert.Assert(c, out, checker.Contains, "File Descriptors")
-	assert.Assert(c, out, checker.Contains, "Goroutines")
-	assert.Assert(c, out, checker.Contains, "System Time")
-	assert.Assert(c, out, checker.Contains, "EventsListeners")
-	assert.Assert(c, out, checker.Contains, "Docker Root Dir")
+	assert.Assert(c, strings.Contains(out, "Debug Mode (client): true\n"))
+	assert.Assert(c, strings.Contains(out, "Debug Mode (server): true\n"))
+	assert.Assert(c, strings.Contains(out, "File Descriptors"))
+	assert.Assert(c, strings.Contains(out, "Goroutines"))
+	assert.Assert(c, strings.Contains(out, "System Time"))
+	assert.Assert(c, strings.Contains(out, "EventsListeners"))
+	assert.Assert(c, strings.Contains(out, "Docker Root Dir"))
 }
 
 func (s *DockerSuite) TestInsecureRegistries(c *testing.T) {
@@ -206,9 +205,9 @@ func (s *DockerSuite) TestInsecureRegistries(c *testing.T) {
 
 	out, err := d.Cmd("info")
 	assert.NilError(c, err)
-	assert.Assert(c, out, checker.Contains, "Insecure Registries:\n")
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" %s\n", registryHost))
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" %s\n", registryCIDR))
+	assert.Assert(c, strings.Contains(out, "Insecure Registries:\n"))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" %s\n", registryHost)))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" %s\n", registryCIDR)))
 }
 
 func (s *DockerDaemonSuite) TestRegistryMirrors(c *testing.T) {
@@ -220,9 +219,9 @@ func (s *DockerDaemonSuite) TestRegistryMirrors(c *testing.T) {
 
 	out, err := s.d.Cmd("info")
 	assert.NilError(c, err)
-	assert.Assert(c, out, checker.Contains, "Registry Mirrors:\n")
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" %s", registryMirror1))
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" %s", registryMirror2))
+	assert.Assert(c, strings.Contains(out, "Registry Mirrors:\n"))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" %s", registryMirror1)))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf(" %s", registryMirror2)))
 }
 
 func existingContainerStates(c *testing.T) map[string]int {

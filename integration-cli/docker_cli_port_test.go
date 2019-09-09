@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
@@ -225,10 +224,9 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *testing.T) {
 	unpPort2 := fmt.Sprintf("%d/tcp", port2)
 	out, _ := dockerCmd(c, "ps", "-n=1")
 	// Missing unpublished ports in docker ps output
-	assert.Assert(c, out, checker.Contains, unpPort1)
+	assert.Assert(c, strings.Contains(out, unpPort1))
 	// Missing unpublished ports in docker ps output
-	assert.Assert(c, out, checker.Contains, unpPort2)
-
+	assert.Assert(c, strings.Contains(out, unpPort2))
 	// Run the container forcing to publish the exposed ports
 	dockerCmd(c, "run", "-d", "-P", expose1, expose2, "busybox", "sleep", "5")
 
@@ -253,10 +251,9 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *testing.T) {
 	expBnd2 := fmt.Sprintf("0.0.0.0:%d->%s", offset+port2, unpPort2)
 	out, _ = dockerCmd(c, "ps", "-n=1")
 	// Cannot find expected port binding (expBnd1) in docker ps output
-	assert.Assert(c, out, checker.Contains, expBnd1)
+	assert.Assert(c, strings.Contains(out, expBnd1))
 	// Cannot find expected port binding (expBnd2) in docker ps output
-	assert.Assert(c, out, checker.Contains, expBnd2)
-
+	assert.Assert(c, strings.Contains(out, expBnd2))
 	// Remove container now otherwise it will interfere with next test
 	stopRemoveContainer(id, c)
 
@@ -267,9 +264,9 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *testing.T) {
 	// Check docker ps o/p for last created container reports the specified port mappings
 	out, _ = dockerCmd(c, "ps", "-n=1")
 	// Cannot find expected port binding (expBnd1) in docker ps output
-	assert.Assert(c, out, checker.Contains, expBnd1)
+	assert.Assert(c, strings.Contains(out, expBnd1))
 	// Cannot find expected port binding (expBnd2) in docker ps output
-	assert.Assert(c, out, checker.Contains, expBnd2)
+	assert.Assert(c, strings.Contains(out, expBnd2))
 	// Remove container now otherwise it will interfere with next test
 	stopRemoveContainer(id, c)
 
@@ -279,9 +276,9 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *testing.T) {
 	// Check docker ps o/p for last created container reports the specified unpublished port and port mapping
 	out, _ = dockerCmd(c, "ps", "-n=1")
 	// Missing unpublished exposed ports (unpPort1) in docker ps output
-	assert.Assert(c, out, checker.Contains, unpPort1)
+	assert.Assert(c, strings.Contains(out, unpPort1))
 	// Missing port binding (expBnd2) in docker ps output
-	assert.Assert(c, out, checker.Contains, expBnd2)
+	assert.Assert(c, strings.Contains(out, expBnd2))
 }
 
 func (s *DockerSuite) TestPortHostBinding(c *testing.T) {

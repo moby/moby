@@ -474,7 +474,7 @@ func (s *DockerDaemonSuite) TestDaemonIPv6HostMode(c *testing.T) {
 
 	out, err = s.d.Cmd("exec", "hostcnt", "ip", "-6", "addr", "show", "docker0")
 	assert.NilError(c, err, out)
-	assert.Assert(c, strings.Trim(out, " \r\n'"), checker.Contains, "2001:db8:2::1")
+	assert.Assert(c, strings.Contains(strings.Trim(out, " \r\n'"), "2001:db8:2::1"))
 }
 
 func (s *DockerDaemonSuite) TestDaemonLogLevelWrong(c *testing.T) {
@@ -1154,7 +1154,7 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverShouldBeIgnoredForBuild(c *te
 	comment := check.Commentf("Failed to build image. output %s, exitCode %d, err %v", result.Combined(), result.ExitCode, result.Error)
 	assert.Assert(c, result.Error == nil, comment)
 	assert.Equal(c, result.ExitCode, 0, comment)
-	assert.Assert(c, result.Combined(), checker.Contains, "foo", comment)
+	assert.Assert(c, strings.Contains(result.Combined(), "foo"), comment)
 }
 
 func (s *DockerDaemonSuite) TestDaemonUnixSockCleanedUp(c *testing.T) {
@@ -1632,7 +1632,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartRmVolumeInUse(c *testing.T) {
 
 	out, err = s.d.Cmd("volume", "rm", "test")
 	assert.Assert(c, err != nil, check.Commentf("should not be able to remove in use volume after daemon restart"))
-	assert.Assert(c, out, checker.Contains, "in use")
+	assert.Assert(c, strings.Contains(out, "in use"))
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartLocalVolumes(c *testing.T) {
@@ -1781,7 +1781,7 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 	// pull a repository large enough to overfill the mounted filesystem
 	pullOut, err := s.d.Cmd("pull", "debian:stretch")
 	assert.Assert(c, err != nil, check.Commentf("%s", pullOut))
-	assert.Assert(c, pullOut, checker.Contains, "no space left on device")
+	assert.Assert(c, strings.Contains(pullOut, "no space left on device"))
 }
 
 // Test daemon restart with container links + auto restart
@@ -2104,8 +2104,7 @@ func (s *DockerDaemonSuite) TestRunLinksChanged(c *testing.T) {
 
 	out, err = s.d.Cmd("run", "--name=test2", "--link=test:abc", "busybox", "sh", "-c", "ping -c 1 abc")
 	assert.NilError(c, err, out)
-	assert.Assert(c, out, checker.Contains, "1 packets transmitted, 1 packets received")
-
+	assert.Assert(c, strings.Contains(out, "1 packets transmitted, 1 packets received"))
 	out, err = s.d.Cmd("rm", "-f", "test")
 	assert.NilError(c, err, out)
 
@@ -2145,8 +2144,7 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *testing.T) {
 	s.d.Stop(c)
 	// Wait for io.Copy() before checking output
 	<-done
-	assert.Assert(c, b.String(), checker.Contains, infoLog)
-
+	assert.Assert(c, strings.Contains(b.String(), infoLog))
 	b.Reset()
 
 	// "tty" is already closed in prev s.d.Stop(),
@@ -2187,7 +2185,7 @@ func (s *DockerDaemonSuite) TestDaemonDebugLog(c *testing.T) {
 
 	s.d.StartWithLogFile(tty, "--debug")
 	s.d.Stop(c)
-	assert.Assert(c, b.String(), checker.Contains, debugLog)
+	assert.Assert(c, strings.Contains(b.String(), debugLog))
 }
 
 func (s *DockerDaemonSuite) TestDaemonDiscoveryBackendConfigReload(c *testing.T) {
@@ -2231,8 +2229,8 @@ func (s *DockerDaemonSuite) TestDaemonDiscoveryBackendConfigReload(c *testing.T)
 	out, err := s.d.Cmd("info")
 	assert.NilError(c, err)
 
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf("Cluster Store: consul://consuladdr:consulport/some/path"))
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf("Cluster Advertise: 192.168.56.100:0"))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf("Cluster Store: consul://consuladdr:consulport/some/path")))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf("Cluster Advertise: 192.168.56.100:0")))
 }
 
 // Test for #21956
@@ -2245,7 +2243,7 @@ func (s *DockerDaemonSuite) TestDaemonLogOptions(c *testing.T) {
 
 	out, err = s.d.Cmd("inspect", "--format='{{.HostConfig.LogConfig}}'", id)
 	assert.NilError(c, err, out)
-	assert.Assert(c, out, checker.Contains, "{json-file map[]}")
+	assert.Assert(c, strings.Contains(out, "{json-file map[]}"))
 }
 
 // Test case for #20936, #22443
@@ -2256,8 +2254,8 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrency(c *testing.T) {
 	expectedMaxConcurrentDownloads := `level=debug msg="Max Concurrent Downloads: 8"`
 	content, err := s.d.ReadLogFile()
 	assert.NilError(c, err)
-	assert.Assert(c, string(content), checker.Contains, expectedMaxConcurrentUploads)
-	assert.Assert(c, string(content), checker.Contains, expectedMaxConcurrentDownloads)
+	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentUploads))
+	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentDownloads))
 }
 
 // Test case for #20936, #22443
@@ -2279,9 +2277,8 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFile(c *testing.T)
 	expectedMaxConcurrentDownloads := `level=debug msg="Max Concurrent Downloads: 8"`
 	content, err := s.d.ReadLogFile()
 	assert.NilError(c, err)
-	assert.Assert(c, string(content), checker.Contains, expectedMaxConcurrentUploads)
-	assert.Assert(c, string(content), checker.Contains, expectedMaxConcurrentDownloads)
-
+	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentUploads))
+	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentDownloads))
 	configFile, err = os.Create(configFilePath)
 	assert.NilError(c, err)
 	daemonConfig = `{ "max-concurrent-uploads" : 7, "max-concurrent-downloads" : 9 }`
@@ -2297,8 +2294,8 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFile(c *testing.T)
 	expectedMaxConcurrentDownloads = `level=debug msg="Reset Max Concurrent Downloads: 9"`
 	content, err = s.d.ReadLogFile()
 	assert.NilError(c, err)
-	assert.Assert(c, string(content), checker.Contains, expectedMaxConcurrentUploads)
-	assert.Assert(c, string(content), checker.Contains, expectedMaxConcurrentDownloads)
+	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentUploads))
+	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentDownloads))
 }
 
 // Test case for #20936, #22443
@@ -2320,9 +2317,8 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *test
 	expectedMaxConcurrentDownloads := `level=debug msg="Max Concurrent Downloads: 3"`
 	content, err := s.d.ReadLogFile()
 	assert.NilError(c, err)
-	assert.Assert(c, string(content), checker.Contains, expectedMaxConcurrentUploads)
-	assert.Assert(c, string(content), checker.Contains, expectedMaxConcurrentDownloads)
-
+	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentUploads))
+	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentDownloads))
 	configFile, err = os.Create(configFilePath)
 	assert.NilError(c, err)
 	daemonConfig = `{ "max-concurrent-uploads" : 1, "max-concurrent-downloads" : null }`
@@ -2338,9 +2334,8 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *test
 	expectedMaxConcurrentDownloads = `level=debug msg="Reset Max Concurrent Downloads: 3"`
 	content, err = s.d.ReadLogFile()
 	assert.NilError(c, err)
-	assert.Assert(c, string(content), checker.Contains, expectedMaxConcurrentUploads)
-	assert.Assert(c, string(content), checker.Contains, expectedMaxConcurrentDownloads)
-
+	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentUploads))
+	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentDownloads))
 	configFile, err = os.Create(configFilePath)
 	assert.NilError(c, err)
 	daemonConfig = `{ "labels":["foo=bar"] }`
@@ -2355,8 +2350,8 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *test
 	expectedMaxConcurrentDownloads = `level=debug msg="Reset Max Concurrent Downloads: 3"`
 	content, err = s.d.ReadLogFile()
 	assert.NilError(c, err)
-	assert.Assert(c, string(content), checker.Contains, expectedMaxConcurrentUploads)
-	assert.Assert(c, string(content), checker.Contains, expectedMaxConcurrentDownloads)
+	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentUploads))
+	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentDownloads))
 }
 
 func (s *DockerDaemonSuite) TestBuildOnDisabledBridgeNetworkDaemon(c *testing.T) {
@@ -2381,11 +2376,11 @@ func (s *DockerDaemonSuite) TestDaemonDNSFlagsInHostMode(c *testing.T) {
 
 	expectedOutput := "nameserver 1.2.3.4"
 	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
-	assert.Assert(c, out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+	assert.Assert(c, strings.Contains(out, expectedOutput), check.Commentf("Expected '%s', but got %q", expectedOutput, out))
 	expectedOutput = "search example.com"
-	assert.Assert(c, out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+	assert.Assert(c, strings.Contains(out, expectedOutput), check.Commentf("Expected '%s', but got %q", expectedOutput, out))
 	expectedOutput = "options timeout:3"
-	assert.Assert(c, out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+	assert.Assert(c, strings.Contains(out, expectedOutput), check.Commentf("Expected '%s', but got %q", expectedOutput, out))
 }
 
 func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
@@ -2428,8 +2423,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
 	// Run with "vm"
 	out, err = s.d.Cmd("run", "--rm", "--runtime=vm", "busybox", "ls")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
-
+	assert.Assert(c, strings.Contains(out, "/usr/local/bin/vm-manager: no such file or directory"))
 	// Reset config to only have the default
 	config = `
 {
@@ -2449,13 +2443,11 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
 	// Run with "oci"
 	out, err = s.d.Cmd("run", "--rm", "--runtime=oci", "busybox", "ls")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, out, checker.Contains, "Unknown runtime specified oci")
-
+	assert.Assert(c, strings.Contains(out, "Unknown runtime specified oci"))
 	// Start previously created container with oci
 	out, err = s.d.Cmd("start", "oci-runtime-ls")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, out, checker.Contains, "Unknown runtime specified oci")
-
+	assert.Assert(c, strings.Contains(out, "Unknown runtime specified oci"))
 	// Check that we can't override the default runtime
 	config = `
 {
@@ -2473,8 +2465,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
 
 	content, err := s.d.ReadLogFile()
 	assert.NilError(c, err)
-	assert.Assert(c, string(content), checker.Contains, `file configuration validation failed: runtime name 'runc' is reserved`)
-
+	assert.Assert(c, strings.Contains(string(content), `file configuration validation failed: runtime name 'runc' is reserved`))
 	// Check that we can select a default runtime
 	config = `
 {
@@ -2499,8 +2490,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
 
 	out, err = s.d.Cmd("run", "--rm", "busybox", "ls")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
-
+	assert.Assert(c, strings.Contains(out, "/usr/local/bin/vm-manager: no such file or directory"))
 	// Run with default runtime explicitly
 	out, err = s.d.Cmd("run", "--rm", "--runtime=runc", "busybox", "ls")
 	assert.NilError(c, err, out)
@@ -2524,8 +2514,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *testing.T) {
 	// Run with "vm"
 	out, err = s.d.Cmd("run", "--rm", "--runtime=vm", "busybox", "ls")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
-
+	assert.Assert(c, strings.Contains(out, "/usr/local/bin/vm-manager: no such file or directory"))
 	// Start a daemon without any extra runtimes
 	s.d.Stop(c)
 	s.d.StartWithBusybox(c)
@@ -2537,29 +2526,25 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *testing.T) {
 	// Run with "oci"
 	out, err = s.d.Cmd("run", "--rm", "--runtime=oci", "busybox", "ls")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, out, checker.Contains, "Unknown runtime specified oci")
-
+	assert.Assert(c, strings.Contains(out, "Unknown runtime specified oci"))
 	// Start previously created container with oci
 	out, err = s.d.Cmd("start", "oci-runtime-ls")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, out, checker.Contains, "Unknown runtime specified oci")
-
+	assert.Assert(c, strings.Contains(out, "Unknown runtime specified oci"))
 	// Check that we can't override the default runtime
 	s.d.Stop(c)
 	assert.Assert(c, s.d.StartWithError("--add-runtime", "runc=my-runc") != nil)
 
 	content, err := s.d.ReadLogFile()
 	assert.NilError(c, err)
-	assert.Assert(c, string(content), checker.Contains, `runtime name 'runc' is reserved`)
-
+	assert.Assert(c, strings.Contains(string(content), `runtime name 'runc' is reserved`))
 	// Check that we can select a default runtime
 	s.d.Stop(c)
 	s.d.StartWithBusybox(c, "--default-runtime=vm", "--add-runtime", "oci=runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
 
 	out, err = s.d.Cmd("run", "--rm", "busybox", "ls")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
-
+	assert.Assert(c, strings.Contains(out, "/usr/local/bin/vm-manager: no such file or directory"))
 	// Run with default runtime explicitly
 	out, err = s.d.Cmd("run", "--rm", "--runtime=runc", "busybox", "ls")
 	assert.NilError(c, err, out)
@@ -2577,15 +2562,14 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithAutoRemoveContainer(c *testing.
 
 	out, err = s.d.Cmd("ps")
 	assert.NilError(c, err)
-	assert.Assert(c, out, checker.Contains, "top1", check.Commentf("top1 should be running"))
-	assert.Assert(c, out, checker.Contains, "top2", check.Commentf("top2 should be running"))
-
+	assert.Assert(c, strings.Contains(out, "top1"), check.Commentf("top1 should be running"))
+	assert.Assert(c, strings.Contains(out, "top2"), check.Commentf("top2 should be running"))
 	// now restart daemon gracefully
 	s.d.Restart(c)
 
 	out, err = s.d.Cmd("ps", "-a")
 	assert.NilError(c, err, "out: %v", out)
-	assert.Assert(c, out, checker.Contains, "top1", check.Commentf("top1 should exist after daemon restarts"))
+	assert.Assert(c, strings.Contains(out, "top1"), check.Commentf("top1 should exist after daemon restarts"))
 	assert.Assert(c, !strings.Contains(out, "top2"), check.Commentf("top2 should be removed after daemon restarts"))
 }
 
@@ -2613,8 +2597,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *testing.T)
 	errMsg1, err := s.d.Cmd("inspect", "-f", "{{.State.Error}}", containerName)
 	errMsg1 = strings.TrimSpace(errMsg1)
 	assert.NilError(c, err)
-	assert.Assert(c, errMsg1, checker.Contains, "executable file not found")
-
+	assert.Assert(c, strings.Contains(errMsg1, "executable file not found"))
 	// now restart daemon
 	s.d.Restart(c)
 
@@ -2656,8 +2639,8 @@ func (s *DockerDaemonSuite) TestDaemonWithUserlandProxyPath(c *testing.T) {
 	s.d.Restart(c, "--userland-proxy-path", "/does/not/exist")
 	out, err = s.d.Cmd("run", "-p", "5000:5000", "busybox:latest", "true")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, out, checker.Contains, "driver failed programming external connectivity on endpoint")
-	assert.Assert(c, out, checker.Contains, "/does/not/exist: no such file or directory")
+	assert.Assert(c, strings.Contains(out, "driver failed programming external connectivity on endpoint"))
+	assert.Assert(c, strings.Contains(out, "/does/not/exist: no such file or directory"))
 }
 
 // Test case for #22471
@@ -2678,7 +2661,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeout(c *testing.T) {
 	expectedMessage := `level=debug msg="daemon configured with a 3 seconds minimum shutdown timeout"`
 	content, err := s.d.ReadLogFile()
 	assert.NilError(c, err)
-	assert.Assert(c, string(content), checker.Contains, expectedMessage)
+	assert.Assert(c, strings.Contains(string(content), expectedMessage))
 }
 
 // Test case for #22471
@@ -2712,7 +2695,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeoutWithConfigFile(c *testing.T
 	expectedMessage := `level=debug msg="Reset Shutdown Timeout: 5"`
 	content, err := s.d.ReadLogFile()
 	assert.NilError(c, err)
-	assert.Assert(c, string(content), checker.Contains, expectedMessage)
+	assert.Assert(c, strings.Contains(string(content), expectedMessage))
 }
 
 // Test case for 29342

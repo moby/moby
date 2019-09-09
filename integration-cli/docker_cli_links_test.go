@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/runconfig"
 	"github.com/go-check/check"
 	"gotest.tools/assert"
@@ -33,7 +32,7 @@ func (s *DockerSuite) TestLinksInvalidContainerTarget(c *testing.T) {
 	// an invalid container target should produce an error
 	// note: convert the output to lowercase first as the error string
 	// capitalization was changed after API version 1.32
-	assert.Assert(c, strings.ToLower(out), checker.Contains, "could not get container")
+	assert.Assert(c, strings.Contains(strings.ToLower(out), "could not get container"))
 }
 
 func (s *DockerSuite) TestLinksPingLinkedContainers(c *testing.T) {
@@ -155,7 +154,7 @@ func (s *DockerSuite) TestLinksHostsFilesInject(c *testing.T) {
 	readContainerFileWithExec(c, idOne, "/etc/hosts")
 	contentTwo := readContainerFileWithExec(c, idTwo, "/etc/hosts")
 	// Host is not present in updated hosts file
-	assert.Assert(c, string(contentTwo), checker.Contains, "onetwo")
+	assert.Assert(c, strings.Contains(string(contentTwo), "onetwo"))
 }
 
 func (s *DockerSuite) TestLinksUpdateOnRestart(c *testing.T) {
@@ -195,9 +194,9 @@ func (s *DockerSuite) TestLinksEnvs(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "-e", "e1=", "-e", "e2=v2", "-e", "e3=v3=v3", "--name=first", "busybox", "top")
 	out, _ := dockerCmd(c, "run", "--name=second", "--link=first:first", "busybox", "env")
-	assert.Assert(c, out, checker.Contains, "FIRST_ENV_e1=\n")
-	assert.Assert(c, out, checker.Contains, "FIRST_ENV_e2=v2")
-	assert.Assert(c, out, checker.Contains, "FIRST_ENV_e3=v3=v3")
+	assert.Assert(c, strings.Contains(out, "FIRST_ENV_e1=\n"))
+	assert.Assert(c, strings.Contains(out, "FIRST_ENV_e2=v2"))
+	assert.Assert(c, strings.Contains(out, "FIRST_ENV_e3=v3=v3"))
 }
 
 func (s *DockerSuite) TestLinkShortDefinition(c *testing.T) {
@@ -224,7 +223,7 @@ func (s *DockerSuite) TestLinksNetworkHostContainer(c *testing.T) {
 	// Running container linking to a container with --net host should have failed
 	assert.Assert(c, err != nil, check.Commentf("out: %s", out))
 	// Running container linking to a container with --net host should have failed
-	assert.Assert(c, out, checker.Contains, runconfig.ErrConflictHostNetworkAndLinks.Error())
+	assert.Assert(c, strings.Contains(out, runconfig.ErrConflictHostNetworkAndLinks.Error()))
 }
 
 func (s *DockerSuite) TestLinksEtcHostsRegularFile(c *testing.T) {

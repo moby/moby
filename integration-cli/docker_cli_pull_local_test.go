@@ -14,7 +14,6 @@ import (
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 	"github.com/opencontainers/go-digest"
@@ -461,8 +460,7 @@ func (s *DockerRegistrySuite) TestRunImplicitPullWithNoTag(c *testing.T) {
 	dockerCmd(c, "rmi", repoTag2)
 
 	out, _ := dockerCmd(c, "run", repo)
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf("Unable to find image '%s:latest' locally", repo))
-
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf("Unable to find image '%s:latest' locally", repo)))
 	// There should be only one line for repo, the one with repo:latest
 	outImageCmd, _ := dockerCmd(c, "images", repo)
 	splitOutImageCmd := strings.Split(strings.TrimSpace(outImageCmd), "\n")

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 	"gotest.tools/assert"
@@ -53,7 +52,7 @@ LABEL label.Z="Z"`))
 	for i := 0; i < 26; i++ {
 		echoValue := fmt.Sprintf("LABEL label.%s=%s", expectedValues[i], expectedValues[i])
 		actualValue := actualValues[i]
-		assert.Assert(c, actualValue, checker.Contains, echoValue)
+		assert.Assert(c, strings.Contains(actualValue, echoValue))
 	}
 
 }
@@ -83,7 +82,7 @@ func (s *DockerSuite) TestHistoryImageWithComment(c *testing.T) {
 	out, _ := dockerCmd(c, "history", name)
 	outputTabs := strings.Fields(strings.Split(out, "\n")[1])
 	actualValue := outputTabs[len(outputTabs)-1]
-	assert.Assert(c, actualValue, checker.Contains, comment)
+	assert.Assert(c, strings.Contains(actualValue, comment))
 }
 
 func (s *DockerSuite) TestHistoryHumanOptionFalse(c *testing.T) {

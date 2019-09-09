@@ -23,7 +23,6 @@ import (
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/internal/test/request"
@@ -578,10 +577,10 @@ func (s *DockerSuite) TestContainerAPICreateMultipleNetworksConfig(c *testing.T)
 	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networkingConfig, "")
 	msg := err.Error()
 	// network name order in error message is not deterministic
-	assert.Assert(c, msg, checker.Contains, "Container cannot be connected to network endpoints")
-	assert.Assert(c, msg, checker.Contains, "net1")
-	assert.Assert(c, msg, checker.Contains, "net2")
-	assert.Assert(c, msg, checker.Contains, "net3")
+	assert.Assert(c, strings.Contains(msg, "Container cannot be connected to network endpoints"))
+	assert.Assert(c, strings.Contains(msg, "net1"))
+	assert.Assert(c, strings.Contains(msg, "net2"))
+	assert.Assert(c, strings.Contains(msg, "net3"))
 }
 
 func (s *DockerSuite) TestContainerAPICreateBridgeNetworkMode(c *testing.T) {
@@ -714,7 +713,7 @@ func (s *DockerSuite) TestContainerAPIInvalidPortSyntax(c *testing.T) {
 
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Assert(c, string(b[:]), checker.Contains, "invalid port")
+	assert.Assert(c, strings.Contains(string(b[:]), "invalid port"))
 }
 
 func (s *DockerSuite) TestContainerAPIRestartPolicyInvalidPolicyName(c *testing.T) {
@@ -738,7 +737,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyInvalidPolicyName(c *testing.
 
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Assert(c, string(b[:]), checker.Contains, "invalid restart policy")
+	assert.Assert(c, strings.Contains(string(b[:]), "invalid restart policy"))
 }
 
 func (s *DockerSuite) TestContainerAPIRestartPolicyRetryMismatch(c *testing.T) {
@@ -762,7 +761,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyRetryMismatch(c *testing.T) {
 
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Assert(c, string(b[:]), checker.Contains, "maximum retry count cannot be used with restart policy")
+	assert.Assert(c, strings.Contains(string(b[:]), "maximum retry count cannot be used with restart policy"))
 }
 
 func (s *DockerSuite) TestContainerAPIRestartPolicyNegativeRetryCount(c *testing.T) {
@@ -786,7 +785,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyNegativeRetryCount(c *testing
 
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Assert(c, string(b[:]), checker.Contains, "maximum retry count cannot be negative")
+	assert.Assert(c, strings.Contains(string(b[:]), "maximum retry count cannot be negative"))
 }
 
 func (s *DockerSuite) TestContainerAPIRestartPolicyDefaultRetryCount(c *testing.T) {
@@ -872,7 +871,7 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *testing.T) {
 	} else {
 		assert.Assert(c, res.StatusCode != http.StatusOK)
 	}
-	assert.Assert(c, string(b), checker.Contains, "Minimum memory limit allowed is 4MB")
+	assert.Assert(c, strings.Contains(string(b), "Minimum memory limit allowed is 4MB"))
 }
 
 func (s *DockerSuite) TestContainerAPIRename(c *testing.T) {
@@ -2232,7 +2231,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsTmpfs(c *testing.T) {
 		assert.NilError(c, err)
 		out, _ := dockerCmd(c, "start", "-a", cName)
 		for _, option := range x.expectedOptions {
-			assert.Assert(c, out, checker.Contains, option)
+			assert.Assert(c, strings.Contains(out, option))
 		}
 	}
 }

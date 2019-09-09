@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/internal/test/fakecontext"
@@ -79,7 +78,7 @@ func (s *DockerSuite) TestCreateShrinkRootfs(c *testing.T) {
 	// Ensure this fails because of the defaultBaseFsSize is 10G
 	out, _, err := dockerCmdWithError("create", "--storage-opt", "size=5G", "busybox")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, out, checker.Contains, "Container size cannot be smaller than")
+	assert.Assert(c, strings.Contains(out, "Container size cannot be smaller than"))
 }
 
 // Make sure we can set hostconfig options too
@@ -296,8 +295,7 @@ func (s *DockerSuite) TestCreateStopSignal(c *testing.T) {
 	dockerCmd(c, "create", "--name", name, "--stop-signal", "9", "busybox")
 
 	res := inspectFieldJSON(c, name, "Config.StopSignal")
-	assert.Assert(c, res, checker.Contains, "9")
-
+	assert.Assert(c, strings.Contains(res, "9"))
 }
 
 func (s *DockerSuite) TestCreateWithWorkdir(c *testing.T) {
@@ -318,7 +316,7 @@ func (s *DockerSuite) TestCreateWithInvalidLogOpts(c *testing.T) {
 	name := "test-invalidate-log-opts"
 	out, _, err := dockerCmdWithError("create", "--name", name, "--log-opt", "invalid=true", "busybox")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, out, checker.Contains, "unknown log opt")
+	assert.Assert(c, strings.Contains(out, "unknown log opt"))
 	assert.Assert(c, is.Contains(out, "unknown log opt"))
 
 	out, _ = dockerCmd(c, "ps", "-a")
@@ -366,11 +364,10 @@ func (s *DockerSuite) TestCreateStopTimeout(c *testing.T) {
 	dockerCmd(c, "create", "--name", name1, "--stop-timeout", "15", "busybox")
 
 	res := inspectFieldJSON(c, name1, "Config.StopTimeout")
-	assert.Assert(c, res, checker.Contains, "15")
-
+	assert.Assert(c, strings.Contains(res, "15"))
 	name2 := "test_create_stop_timeout_2"
 	dockerCmd(c, "create", "--name", name2, "busybox")
 
 	res = inspectFieldJSON(c, name2, "Config.StopTimeout")
-	assert.Assert(c, res, checker.Contains, "null")
+	assert.Assert(c, strings.Contains(res, "null"))
 }

@@ -17,7 +17,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/internal/test/fakecontext"
@@ -4581,9 +4580,9 @@ func (s *DockerSuite) TestBuildBuildTimeArgEnv(c *testing.T) {
 	out := result.Combined()[i:] // "out" should contain just the warning message now
 
 	// These were specified on a --build-arg but no ARG was in the Dockerfile
-	assert.Assert(c, out, checker.Contains, "FOO7")
-	assert.Assert(c, out, checker.Contains, "FOO8")
-	assert.Assert(c, out, checker.Contains, "FOO9")
+	assert.Assert(c, strings.Contains(out, "FOO7"))
+	assert.Assert(c, strings.Contains(out, "FOO8"))
+	assert.Assert(c, strings.Contains(out, "FOO9"))
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgQuotedValVariants(c *testing.T) {
@@ -4654,11 +4653,10 @@ func (s *DockerSuite) TestBuildMultiStageArg(c *testing.T) {
 	parentID := strings.TrimSpace(result.Stdout())
 
 	result = cli.DockerCmd(c, "run", "--rm", parentID, "cat", "/out")
-	assert.Assert(c, result.Stdout(), checker.Contains, "foo=abc")
-
+	assert.Assert(c, strings.Contains(result.Stdout(), "foo=abc"))
 	result = cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
 	assert.Assert(c, !strings.Contains(result.Stdout(), "foo"))
-	assert.Assert(c, result.Stdout(), checker.Contains, "bar=def")
+	assert.Assert(c, strings.Contains(result.Stdout(), "bar=def"))
 }
 
 func (s *DockerSuite) TestBuildMultiStageGlobalArg(c *testing.T) {
@@ -4682,7 +4680,7 @@ func (s *DockerSuite) TestBuildMultiStageGlobalArg(c *testing.T) {
 	result = cli.DockerCmd(c, "run", "--rm", parentID, "cat", "/out")
 	assert.Assert(c, !strings.Contains(result.Stdout(), "tag"))
 	result = cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
-	assert.Assert(c, result.Stdout(), checker.Contains, "tag=latest")
+	assert.Assert(c, strings.Contains(result.Stdout(), "tag=latest"))
 }
 
 func (s *DockerSuite) TestBuildMultiStageUnusedArg(c *testing.T) {
@@ -4697,9 +4695,8 @@ func (s *DockerSuite) TestBuildMultiStageUnusedArg(c *testing.T) {
 		build.WithDockerfile(dockerfile),
 		cli.WithFlags("--build-arg", fmt.Sprintf("baz=abc")))
 	result.Assert(c, icmd.Success)
-	assert.Assert(c, result.Combined(), checker.Contains, "[Warning]")
-	assert.Assert(c, result.Combined(), checker.Contains, "[baz] were not consumed")
-
+	assert.Assert(c, strings.Contains(result.Combined(), "[Warning]"))
+	assert.Assert(c, strings.Contains(result.Combined(), "[baz] were not consumed"))
 	result = cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
 	assert.Assert(c, !strings.Contains(result.Stdout(), "bar"))
 	assert.Assert(c, !strings.Contains(result.Stdout(), "baz"))
@@ -5408,9 +5405,9 @@ func (s *DockerSuite) TestBuildStepsWithProgress(c *testing.T) {
 	totalRun := 5
 	result := buildImage(name, build.WithDockerfile("FROM busybox\n"+strings.Repeat("RUN echo foo\n", totalRun)))
 	result.Assert(c, icmd.Success)
-	assert.Assert(c, result.Combined(), checker.Contains, fmt.Sprintf("Step 1/%d : FROM busybox", 1+totalRun))
+	assert.Assert(c, strings.Contains(result.Combined(), fmt.Sprintf("Step 1/%d : FROM busybox", 1+totalRun)))
 	for i := 2; i <= 1+totalRun; i++ {
-		assert.Assert(c, result.Combined(), checker.Contains, fmt.Sprintf("Step %d/%d : RUN echo foo", i, 1+totalRun))
+		assert.Assert(c, strings.Contains(result.Combined(), fmt.Sprintf("Step %d/%d : RUN echo foo", i, 1+totalRun)))
 	}
 }
 
@@ -5421,9 +5418,8 @@ func (s *DockerSuite) TestBuildWithFailure(c *testing.T) {
 	dockerfile := "FROM busybox\nRUN nobody"
 	result := buildImage(name, build.WithDockerfile(dockerfile))
 	assert.Assert(c, result.Error != nil)
-	assert.Assert(c, result.Stdout(), checker.Contains, "Step 1/2 : FROM busybox")
-	assert.Assert(c, result.Stdout(), checker.Contains, "Step 2/2 : RUN nobody")
-
+	assert.Assert(c, strings.Contains(result.Stdout(), "Step 1/2 : FROM busybox"))
+	assert.Assert(c, strings.Contains(result.Stdout(), "Step 2/2 : RUN nobody"))
 	// Second test case `FFOM` should have been detected before build runs so no steps
 	dockerfile = "FFOM nobody\nRUN nobody"
 	result = buildImage(name, build.WithDockerfile(dockerfile))
@@ -5653,20 +5649,18 @@ func (s *DockerSuite) TestBuildContChar(c *testing.T) {
 	result := buildImage(name, build.WithDockerfile(`FROM busybox
 		 RUN echo hi \`))
 	result.Assert(c, icmd.Success)
-	assert.Assert(c, result.Combined(), checker.Contains, "Step 1/2 : FROM busybox")
-	assert.Assert(c, result.Combined(), checker.Contains, "Step 2/2 : RUN echo hi\n")
-
+	assert.Assert(c, strings.Contains(result.Combined(), "Step 1/2 : FROM busybox"))
+	assert.Assert(c, strings.Contains(result.Combined(), "Step 2/2 : RUN echo hi\n"))
 	result = buildImage(name, build.WithDockerfile(`FROM busybox
 		 RUN echo hi \\`))
 	result.Assert(c, icmd.Success)
-	assert.Assert(c, result.Combined(), checker.Contains, "Step 1/2 : FROM busybox")
-	assert.Assert(c, result.Combined(), checker.Contains, "Step 2/2 : RUN echo hi \\\n")
-
+	assert.Assert(c, strings.Contains(result.Combined(), "Step 1/2 : FROM busybox"))
+	assert.Assert(c, strings.Contains(result.Combined(), "Step 2/2 : RUN echo hi \\\n"))
 	result = buildImage(name, build.WithDockerfile(`FROM busybox
 		 RUN echo hi \\\`))
 	result.Assert(c, icmd.Success)
-	assert.Assert(c, result.Combined(), checker.Contains, "Step 1/2 : FROM busybox")
-	assert.Assert(c, result.Combined(), checker.Contains, "Step 2/2 : RUN echo hi \\\\\n")
+	assert.Assert(c, strings.Contains(result.Combined(), "Step 1/2 : FROM busybox"))
+	assert.Assert(c, strings.Contains(result.Combined(), "Step 2/2 : RUN echo hi \\\\\n"))
 }
 
 func (s *DockerSuite) TestBuildMultiStageCopyFromSyntax(c *testing.T) {

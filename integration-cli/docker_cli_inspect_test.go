@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
@@ -122,7 +121,7 @@ func (s *DockerSuite) TestInspectTypeFlagWithInvalidValue(c *testing.T) {
 	out, exitCode, err := dockerCmdWithError("inspect", "--type=foobar", "busybox")
 	assert.Assert(c, err != nil, check.Commentf("%d", exitCode))
 	assert.Equal(c, exitCode, 1, check.Commentf("%s", err))
-	assert.Assert(c, out, checker.Contains, "not a valid value for --type")
+	assert.Assert(c, strings.Contains(out, "not a valid value for --type"))
 }
 
 func (s *DockerSuite) TestInspectImageFilterInt(c *testing.T) {
@@ -326,11 +325,10 @@ func (s *DockerSuite) TestInspectTemplateError(c *testing.T) {
 
 	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format='Format container: {{.ThisDoesNotExist}}'", "container1")
 	assert.Assert(c, err != nil)
-	assert.Assert(c, out, checker.Contains, "Template parsing error")
-
+	assert.Assert(c, strings.Contains(out, "Template parsing error"))
 	out, _, err = dockerCmdWithError("inspect", "--type=image", "--format='Format container: {{.ThisDoesNotExist}}'", "busybox")
 	assert.Assert(c, err != nil)
-	assert.Assert(c, out, checker.Contains, "Template parsing error")
+	assert.Assert(c, strings.Contains(out, "Template parsing error"))
 }
 
 func (s *DockerSuite) TestInspectJSONFields(c *testing.T) {
@@ -358,17 +356,16 @@ func (s *DockerSuite) TestInspectStopWhenNotFound(c *testing.T) {
 	result := dockerCmdWithResult("inspect", "--type=container", "--format='{{.Name}}'", "busybox1", "busybox2", "missing")
 
 	assert.Assert(c, result.Error != nil)
-	assert.Assert(c, result.Stdout(), checker.Contains, "busybox1")
-	assert.Assert(c, result.Stdout(), checker.Contains, "busybox2")
-	assert.Assert(c, result.Stderr(), checker.Contains, "Error: No such container: missing")
-
+	assert.Assert(c, strings.Contains(result.Stdout(), "busybox1"))
+	assert.Assert(c, strings.Contains(result.Stdout(), "busybox2"))
+	assert.Assert(c, strings.Contains(result.Stderr(), "Error: No such container: missing"))
 	// test inspect would not fast fail
 	result = dockerCmdWithResult("inspect", "--type=container", "--format='{{.Name}}'", "missing", "busybox1", "busybox2")
 
 	assert.Assert(c, result.Error != nil)
-	assert.Assert(c, result.Stdout(), checker.Contains, "busybox1")
-	assert.Assert(c, result.Stdout(), checker.Contains, "busybox2")
-	assert.Assert(c, result.Stderr(), checker.Contains, "Error: No such container: missing")
+	assert.Assert(c, strings.Contains(result.Stdout(), "busybox1"))
+	assert.Assert(c, strings.Contains(result.Stdout(), "busybox2"))
+	assert.Assert(c, strings.Contains(result.Stderr(), "Error: No such container: missing"))
 }
 
 func (s *DockerSuite) TestInspectHistory(c *testing.T) {
@@ -376,7 +373,7 @@ func (s *DockerSuite) TestInspectHistory(c *testing.T) {
 	dockerCmd(c, "commit", "-m", "test comment", "testcont", "testimg")
 	out, _, err := dockerCmdWithError("inspect", "--format='{{.Comment}}'", "testimg")
 	assert.NilError(c, err)
-	assert.Assert(c, out, checker.Contains, "test comment")
+	assert.Assert(c, strings.Contains(out, "test comment"))
 }
 
 func (s *DockerSuite) TestInspectContainerNetworkDefault(c *testing.T) {
@@ -386,7 +383,7 @@ func (s *DockerSuite) TestInspectContainerNetworkDefault(c *testing.T) {
 	dockerCmd(c, "run", "--name", contName, "-d", "busybox", "top")
 	netOut, _ := dockerCmd(c, "network", "inspect", "--format={{.ID}}", "bridge")
 	out := inspectField(c, contName, "NetworkSettings.Networks")
-	assert.Assert(c, out, checker.Contains, "bridge")
+	assert.Assert(c, strings.Contains(out, "bridge"))
 	out = inspectField(c, contName, "NetworkSettings.Networks.bridge.NetworkID")
 	assert.Equal(c, strings.TrimSpace(out), strings.TrimSpace(netOut))
 }
@@ -397,7 +394,7 @@ func (s *DockerSuite) TestInspectContainerNetworkCustom(c *testing.T) {
 	netOut, _ := dockerCmd(c, "network", "create", "net1")
 	dockerCmd(c, "run", "--name=container1", "--net=net1", "-d", "busybox", "top")
 	out := inspectField(c, "container1", "NetworkSettings.Networks")
-	assert.Assert(c, out, checker.Contains, "net1")
+	assert.Assert(c, strings.Contains(out, "net1"))
 	out = inspectField(c, "container1", "NetworkSettings.Networks.net1.NetworkID")
 	assert.Equal(c, strings.TrimSpace(out), strings.TrimSpace(netOut))
 }
@@ -417,9 +414,9 @@ func (s *DockerSuite) TestInspectAmpersand(c *testing.T) {
 
 	name := "test"
 	out, _ := dockerCmd(c, "run", "--name", name, "--env", `TEST_ENV="soanni&rtr"`, "busybox", "env")
-	assert.Assert(c, out, checker.Contains, `soanni&rtr`)
+	assert.Assert(c, strings.Contains(out, `soanni&rtr`))
 	out, _ = dockerCmd(c, "inspect", name)
-	assert.Assert(c, out, checker.Contains, `soanni&rtr`)
+	assert.Assert(c, strings.Contains(out, `soanni&rtr`))
 }
 
 func (s *DockerSuite) TestInspectPlugin(c *testing.T) {
@@ -449,7 +446,7 @@ func (s *DockerSuite) TestInspectPlugin(c *testing.T) {
 
 	out, _, err = dockerCmdWithError("plugin", "remove", pNameWithTag)
 	assert.NilError(c, err)
-	assert.Assert(c, out, checker.Contains, pNameWithTag)
+	assert.Assert(c, strings.Contains(out, pNameWithTag))
 }
 
 // Test case for 29185
@@ -457,6 +454,6 @@ func (s *DockerSuite) TestInspectUnknownObject(c *testing.T) {
 	// This test should work on both Windows and Linux
 	out, _, err := dockerCmdWithError("inspect", "foobar")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, out, checker.Contains, "Error: No such object: foobar")
+	assert.Assert(c, strings.Contains(out, "Error: No such object: foobar"))
 	assert.ErrorContains(c, err, "Error: No such object: foobar")
 }

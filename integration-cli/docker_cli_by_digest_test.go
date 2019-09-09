@@ -12,7 +12,6 @@ import (
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
@@ -117,7 +116,7 @@ func testPullByDigestNoFallback(c *testing.T) {
 	imageReference := fmt.Sprintf("%s@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", repoName)
 	out, _, err := dockerCmdWithError("pull", imageReference)
 	assert.Assert(c, err != nil, check.Commentf("expected non-zero exit status and correct error message when pulling non-existing image"))
-	assert.Assert(c, out, checker.Contains, fmt.Sprintf("manifest for %s not found", imageReference), check.Commentf("expected non-zero exit status and correct error message when pulling non-existing image"))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf("manifest for %s not found", imageReference)), check.Commentf("expected non-zero exit status and correct error message when pulling non-existing image"))
 }
 
 func (s *DockerRegistrySuite) TestPullByDigestNoFallback(c *testing.T) {
@@ -602,7 +601,7 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredManifest(c *testing
 	assert.Assert(c, exitStatus != 0)
 
 	expectedErrorMsg := fmt.Sprintf("image verification failed for digest %s", manifestDigest)
-	assert.Assert(c, out, checker.Contains, expectedErrorMsg)
+	assert.Assert(c, strings.Contains(out, expectedErrorMsg))
 }
 
 // TestPullFailsWithAlteredLayer tests that a `docker pull` fails when
@@ -645,7 +644,7 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *testing.T) {
 	assert.Assert(c, exitStatus != 0, check.Commentf("expected a non-zero exit status"))
 
 	expectedErrorMsg := fmt.Sprintf("filesystem layer verification failed for digest %s", targetLayerDigest)
-	assert.Assert(c, out, checker.Contains, expectedErrorMsg, check.Commentf("expected error message in output: %s", out))
+	assert.Assert(c, strings.Contains(out, expectedErrorMsg), check.Commentf("expected error message in output: %s", out))
 }
 
 // TestPullFailsWithAlteredLayer tests that a `docker pull` fails when
@@ -688,5 +687,5 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredLayer(c *testing.T)
 	assert.Assert(c, exitStatus != 0, check.Commentf("expected a non-zero exit status"))
 
 	expectedErrorMsg := fmt.Sprintf("filesystem layer verification failed for digest %s", targetLayerDigest)
-	assert.Assert(c, out, checker.Contains, expectedErrorMsg, check.Commentf("expected error message in output: %s", out))
+	assert.Assert(c, strings.Contains(out, expectedErrorMsg), check.Commentf("expected error message in output: %s", out))
 }
