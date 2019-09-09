@@ -230,7 +230,7 @@ func (ds *DiscoverySuite) TestWatch(c *testing.T) {
 	ch, errCh := d.Watch(stopCh)
 
 	// It should fire an error since the first WatchTree call failed.
-	assert.Assert(c, <-errCh, check.ErrorMatches, "test error")
+	assert.ErrorContains(c, <-errCh, "test error")
 	// We have to drain the error channel otherwise Watch will get stuck.
 	go func() {
 		for range errCh {
