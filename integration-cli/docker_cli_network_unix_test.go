@@ -1104,7 +1104,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkMultipleNetworksUngracefulDaemonRe
 func (s *DockerNetworkSuite) TestDockerNetworkRunNetByID(c *testing.T) {
 	out, _ := dockerCmd(c, "network", "create", "one")
 	containerOut, _, err := dockerCmdWithError("run", "-d", "--net", strings.TrimSpace(out), "busybox", "top")
-	assert.Assert(c, err == nil, check.Commentf(containerOut))
+	assert.Assert(c, err == nil, containerOut)
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c *testing.T) {
