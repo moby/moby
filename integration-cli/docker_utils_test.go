@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	"gotest.tools/assert"
+	"gotest.tools/assert/cmp"
 	"gotest.tools/icmd"
 	"gotest.tools/poll"
 )
@@ -441,8 +442,18 @@ func pollCheck(t *testing.T, f checkF, compare func(x interface{}) assert.BoolOr
 	return func(poll.LogT) poll.Result {
 		t.Helper()
 		v, comment := f(t)
-		if assert.Check(t, compare(v)) {
-			return poll.Success()
+		r := compare(v)
+		switch r := r.(type) {
+		case bool:
+			if r {
+				return poll.Success()
+			}
+		case cmp.Comparison:
+			if r().Success() {
+				return poll.Success()
+			}
+		default:
+			panic(fmt.Errorf("pollCheck: type %T not implemented", r))
 		}
 		return poll.Continue(comment)
 	}
