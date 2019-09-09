@@ -20,12 +20,19 @@ var (
 	startArgs = []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
 )
 
-// StartNode starts daemon to be used as a swarm node
+// StartNode (re)starts the daemon
 func (d *Daemon) StartNode(t testingT) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
-	// avoid networking conflicts
+	d.Start(t, startArgs...)
+}
+
+// StartNodeWithBusybox starts daemon to be used as a swarm node, and loads the busybox image
+func (d *Daemon) StartNodeWithBusybox(t testingT) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	d.StartWithBusybox(t, startArgs...)
 }
 
@@ -41,7 +48,7 @@ func (d *Daemon) RestartNode(t testingT) {
 
 // StartAndSwarmInit starts the daemon (with busybox) and init the swarm
 func (d *Daemon) StartAndSwarmInit(t testingT) {
-	d.StartNode(t)
+	d.StartNodeWithBusybox(t)
 	d.SwarmInit(t, swarm.InitRequest{})
 }
 
@@ -50,7 +57,7 @@ func (d *Daemon) StartAndSwarmJoin(t testingT, leader *Daemon, manager bool) {
 	if th, ok := t.(test.HelperT); ok {
 		th.Helper()
 	}
-	d.StartNode(t)
+	d.StartNodeWithBusybox(t)
 
 	tokens := leader.JoinTokens(t)
 	token := tokens.Worker
