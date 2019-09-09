@@ -1866,7 +1866,7 @@ func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *testing.T) {
 			break
 		}
 	}
-	assert.Assert(c, found, checker.True, check.Commentf("Cgroup path for container (%s) doesn't found in cgroups file: %s", expectedCgroup, cgroupPaths))
+	assert.Assert(c, found, check.Commentf("Cgroup path for container (%s) doesn't found in cgroups file: %s", expectedCgroup, cgroupPaths))
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithLinks(c *testing.T) {
@@ -2845,7 +2845,7 @@ func (s *DockerDaemonSuite) TestShmSize(c *testing.T) {
 	name := "shm1"
 	out, err := s.d.Cmd("run", "--name", name, "busybox", "mount")
 	assert.NilError(c, err, "Output: %s", out)
-	assert.Assert(c, pattern.MatchString(out), checker.True)
+	assert.Assert(c, pattern.MatchString(out))
 	out, err = s.d.Cmd("inspect", "--format", "{{.HostConfig.ShmSize}}", name)
 	assert.NilError(c, err, "Output: %s", out)
 	assert.Equal(c, strings.TrimSpace(out), fmt.Sprintf("%v", size))
@@ -2869,7 +2869,7 @@ func (s *DockerDaemonSuite) TestShmSizeReload(c *testing.T) {
 	name := "shm1"
 	out, err := s.d.Cmd("run", "--name", name, "busybox", "mount")
 	assert.NilError(c, err, "Output: %s", out)
-	assert.Assert(c, pattern.MatchString(out), checker.True)
+	assert.Assert(c, pattern.MatchString(out))
 	out, err = s.d.Cmd("inspect", "--format", "{{.HostConfig.ShmSize}}", name)
 	assert.NilError(c, err, "Output: %s", out)
 	assert.Equal(c, strings.TrimSpace(out), fmt.Sprintf("%v", size))
@@ -2885,7 +2885,7 @@ func (s *DockerDaemonSuite) TestShmSizeReload(c *testing.T) {
 	name = "shm2"
 	out, err = s.d.Cmd("run", "--name", name, "busybox", "mount")
 	assert.NilError(c, err, "Output: %s", out)
-	assert.Assert(c, pattern.MatchString(out), checker.True)
+	assert.Assert(c, pattern.MatchString(out))
 	out, err = s.d.Cmd("inspect", "--format", "{{.HostConfig.ShmSize}}", name)
 	assert.NilError(c, err, "Output: %s", out)
 	assert.Equal(c, strings.TrimSpace(out), fmt.Sprintf("%v", size))

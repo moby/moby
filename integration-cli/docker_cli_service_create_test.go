@@ -48,7 +48,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
 	assert.Equal(c, mountConfig[0].Target, "/foo")
 	assert.Equal(c, mountConfig[0].Type, mount.TypeVolume)
 	assert.Assert(c, mountConfig[0].VolumeOptions != nil)
-	assert.Assert(c, mountConfig[0].VolumeOptions.NoCopy, checker.True)
+	assert.Assert(c, mountConfig[0].VolumeOptions.NoCopy)
 
 	// check container mounts actual
 	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .Mounts}}", task.Status.ContainerStatus.ContainerID)

@@ -158,7 +158,7 @@ func (s *DockerSuite) TestCpToCaseB(c *testing.T) {
 	err := runDockerCp(c, srcPath, dstDir, nil)
 	assert.ErrorContains(c, err, "")
 
-	assert.Assert(c, isCpDirNotExist(err), checker.True, check.Commentf("expected DirNotExists error, but got %T: %s", err, err))
+	assert.Assert(c, isCpDirNotExist(err), check.Commentf("expected DirNotExists error, but got %T: %s", err, err))
 }
 
 // C. SRC specifies a file and DST exists as a file. This should overwrite
@@ -288,7 +288,7 @@ func (s *DockerSuite) TestCpToCaseF(c *testing.T) {
 	err := runDockerCp(c, srcDir, dstFile, nil)
 	assert.ErrorContains(c, err, "")
 
-	assert.Assert(c, isCpCannotCopyDir(err), checker.True, check.Commentf("expected ErrCannotCopyDir error, but got %T: %s", err, err))
+	assert.Assert(c, isCpCannotCopyDir(err), check.Commentf("expected ErrCannotCopyDir error, but got %T: %s", err, err))
 }
 
 // G. SRC specifies a directory and DST exists as a directory. This should copy
@@ -393,7 +393,7 @@ func (s *DockerSuite) TestCpToCaseI(c *testing.T) {
 	err := runDockerCp(c, srcDir, dstFile, nil)
 	assert.ErrorContains(c, err, "")
 
-	assert.Assert(c, isCpCannotCopyDir(err), checker.True, check.Commentf("expected ErrCannotCopyDir error, but got %T: %s", err, err))
+	assert.Assert(c, isCpCannotCopyDir(err), check.Commentf("expected ErrCannotCopyDir error, but got %T: %s", err, err))
 }
 
 // J. SRC specifies a directory's contents only and DST exists as a directory.
@@ -462,7 +462,7 @@ func (s *DockerSuite) TestCpToErrReadOnlyRootfs(c *testing.T) {
 	err := runDockerCp(c, srcPath, dstPath, nil)
 	assert.ErrorContains(c, err, "")
 
-	assert.Assert(c, isCpCannotCopyReadOnly(err), checker.True, check.Commentf("expected ErrContainerRootfsReadonly error, but got %T: %s", err, err))
+	assert.Assert(c, isCpCannotCopyReadOnly(err), check.Commentf("expected ErrContainerRootfsReadonly error, but got %T: %s", err, err))
 
 	// Ensure that dstPath doesn't exist.
 	assert.Assert(c, containerStartOutputEquals(c, containerID, "") == nil)
@@ -489,7 +489,7 @@ func (s *DockerSuite) TestCpToErrReadOnlyVolume(c *testing.T) {
 	err := runDockerCp(c, srcPath, dstPath, nil)
 	assert.ErrorContains(c, err, "")
 
-	assert.Assert(c, isCpCannotCopyReadOnly(err), checker.True, check.Commentf("expected ErrVolumeReadonly error, but got %T: %s", err, err))
+	assert.Assert(c, isCpCannotCopyReadOnly(err), check.Commentf("expected ErrVolumeReadonly error, but got %T: %s", err, err))
 
 	// Ensure that dstPath doesn't exist.
 	assert.Assert(c, containerStartOutputEquals(c, containerID, "") == nil)

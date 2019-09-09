@@ -1619,7 +1619,7 @@ func (s *DockerSuite) TestDockerNetworkInternalMode(c *testing.T) {
 	dockerCmd(c, "network", "create", "--driver=bridge", "--internal", "internal")
 	assertNwIsAvailable(c, "internal")
 	nr := getNetworkResource(c, "internal")
-	assert.Assert(c, nr.Internal, checker.True)
+	assert.Assert(c, nr.Internal)
 
 	dockerCmd(c, "run", "-d", "--net=internal", "--name=first", "busybox:glibc", "top")
 	assert.Assert(c, waitRun("first") == nil)
