@@ -1457,7 +1457,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *testin
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
 	assert.NilError(c, err)
 
-	assert.Assert(c, containerJSON.HostConfig.ShmSize, check.Equals, defaultSHMSize)
+	assert.Assert(c, containerJSON.HostConfig.ShmSize, checker.Equals, defaultSHMSize)
 
 	out, _ := dockerCmd(c, "start", "-i", containerJSON.ID)
 	shmRegexp := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=65536k`)
@@ -1484,7 +1484,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeOmitted(c *testing.T) {
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
 	assert.NilError(c, err)
 
-	assert.Assert(c, containerJSON.HostConfig.ShmSize, check.Equals, int64(67108864))
+	assert.Assert(c, containerJSON.HostConfig.ShmSize, checker.Equals, int64(67108864))
 
 	out, _ := dockerCmd(c, "start", "-i", containerJSON.ID)
 	shmRegexp := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=65536k`)
@@ -1515,7 +1515,7 @@ func (s *DockerSuite) TestPostContainersCreateWithShmSize(c *testing.T) {
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
 	assert.NilError(c, err)
 
-	assert.Assert(c, containerJSON.HostConfig.ShmSize, check.Equals, int64(1073741824))
+	assert.Assert(c, containerJSON.HostConfig.ShmSize, checker.Equals, int64(1073741824))
 
 	out, _ := dockerCmd(c, "start", "-i", containerJSON.ID)
 	shmRegex := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=1048576k`)
@@ -1542,9 +1542,9 @@ func (s *DockerSuite) TestPostContainersCreateMemorySwappinessHostConfigOmitted(
 	assert.NilError(c, err)
 
 	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.31") {
-		assert.Assert(c, *containerJSON.HostConfig.MemorySwappiness, check.Equals, int64(-1))
+		assert.Assert(c, *containerJSON.HostConfig.MemorySwappiness, checker.Equals, int64(-1))
 	} else {
-		assert.Assert(c, containerJSON.HostConfig.MemorySwappiness, check.IsNil)
+		assert.Assert(c, containerJSON.HostConfig.MemorySwappiness, checker.IsNil)
 	}
 }
 
@@ -1614,7 +1614,7 @@ func (s *DockerSuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) {
 	err = cli.ContainerStart(context.Background(), name, types.ContainerStartOptions{})
 	assert.NilError(c, err)
 
-	assert.Assert(c, waitRun(name), check.IsNil)
+	assert.Assert(c, waitRun(name), checker.IsNil)
 
 	type b struct {
 		stats types.ContainerStats

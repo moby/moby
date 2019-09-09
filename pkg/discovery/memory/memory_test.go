@@ -30,19 +30,19 @@ func (s *discoverySuite) TestWatch(c *testing.T) {
 		&discovery.Entry{Host: "1.1.1.1", Port: "1111"},
 	}
 
-	assert.Assert(c, d.Register("1.1.1.1:1111"), check.IsNil)
-	assert.Assert(c, <-ch, check.DeepEquals, expected)
+	assert.Assert(c, d.Register("1.1.1.1:1111"), checker.IsNil)
+	assert.Assert(c, <-ch, checker.DeepEquals, expected)
 
 	expected = discovery.Entries{
 		&discovery.Entry{Host: "1.1.1.1", Port: "1111"},
 		&discovery.Entry{Host: "2.2.2.2", Port: "2222"},
 	}
 
-	assert.Assert(c, d.Register("2.2.2.2:2222"), check.IsNil)
-	assert.Assert(c, <-ch, check.DeepEquals, expected)
+	assert.Assert(c, d.Register("2.2.2.2:2222"), checker.IsNil)
+	assert.Assert(c, <-ch, checker.DeepEquals, expected)
 
 	// Stop and make sure it closes all channels.
 	close(stopCh)
-	assert.Assert(c, <-ch, check.IsNil)
-	assert.Assert(c, <-errCh, check.IsNil)
+	assert.Assert(c, <-ch, checker.IsNil)
+	assert.Assert(c, <-errCh, checker.IsNil)
 }

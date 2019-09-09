@@ -4373,7 +4373,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgExpansion(c *testing.T) {
 	)
 
 	res := inspectField(c, imgName, "Config.WorkingDir")
-	assert.Assert(c, filepath.ToSlash(res), check.Equals, filepath.ToSlash(wdVal))
+	assert.Assert(c, filepath.ToSlash(res), checker.Equals, filepath.ToSlash(wdVal))
 
 	var resArr []string
 	inspectFieldAndUnmarshall(c, imgName, "Config.Env", &resArr)
@@ -4754,7 +4754,7 @@ func (s *DockerSuite) TestBuildMultipleTags(c *testing.T) {
 
 	id1 := getIDByName(c, "tag1")
 	id2 := getIDByName(c, "tag2:v2")
-	assert.Assert(c, id1, check.Equals, id2)
+	assert.Assert(c, id1, checker.Equals, id2)
 }
 
 // #17290
@@ -5572,7 +5572,7 @@ func (s *DockerSuite) TestBuildNetContainer(c *testing.T) {
   `))
 
 	host, _ := dockerCmd(c, "run", "testbuildnetcontainer", "cat", "/otherhost")
-	assert.Assert(c, strings.TrimSpace(host), check.Equals, "foobar")
+	assert.Assert(c, strings.TrimSpace(host), checker.Equals, "foobar")
 }
 
 func (s *DockerSuite) TestBuildWithExtraHost(c *testing.T) {
@@ -5777,9 +5777,9 @@ func (s *DockerSuite) TestBuildMultiStageMultipleBuilds(c *testing.T) {
 	cli.BuildCmd(c, "build2", build.WithExternalBuildContext(ctx))
 
 	out := cli.DockerCmd(c, "run", "build2", "cat", "bar").Combined()
-	assert.Assert(c, strings.TrimSpace(out), check.Equals, "abc")
+	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "abc")
 	out = cli.DockerCmd(c, "run", "build2", "cat", "foo").Combined()
-	assert.Assert(c, strings.TrimSpace(out), check.Equals, "def")
+	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "def")
 }
 
 func (s *DockerSuite) TestBuildMultiStageImplicitFrom(c *testing.T) {
@@ -5893,9 +5893,9 @@ func (s *DockerSuite) TestBuildMultiStageMultipleBuildsWindows(c *testing.T) {
 	cli.BuildCmd(c, "build2", build.WithExternalBuildContext(ctx))
 
 	out := cli.DockerCmd(c, "run", "build2", "cmd.exe", "/s", "/c", "type", "c:\\bar").Combined()
-	assert.Assert(c, strings.TrimSpace(out), check.Equals, "abc")
+	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "abc")
 	out = cli.DockerCmd(c, "run", "build2", "cmd.exe", "/s", "/c", "type", "c:\\foo").Combined()
-	assert.Assert(c, strings.TrimSpace(out), check.Equals, "def")
+	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "def")
 }
 
 func (s *DockerSuite) TestBuildCopyFromForbidWindowsSystemPaths(c *testing.T) {
@@ -6223,5 +6223,5 @@ func (s *DockerSuite) TestBuildIidFileCleanupOnFail(c *testing.T) {
 	})
 	_, err = os.Stat(tmpIidFile)
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, os.IsNotExist(err), check.Equals, true)
+	assert.Assert(c, os.IsNotExist(err), checker.Equals, true)
 }
