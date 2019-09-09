@@ -168,7 +168,7 @@ func (ps *DockerPluginSuite) TestPluginSet(c *testing.T) {
 			{Name: "pdev2", Settable: []string{"path"}}, // Device without Path is invalid.
 		}
 	})
-	assert.Assert(c, err == nil, check.Commentf("failed to create test plugin"))
+	assert.Assert(c, err == nil, "failed to create test plugin")
 
 	env, _ := dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", name)
 	assert.Equal(c, strings.TrimSpace(env), "[DEBUG=0]")
@@ -338,7 +338,7 @@ func (ps *DockerPluginSuite) TestPluginIDPrefix(c *testing.T) {
 	})
 	cancel()
 
-	assert.Assert(c, err == nil, check.Commentf("failed to create test plugin"))
+	assert.Assert(c, err == nil, "failed to create test plugin")
 
 	// Find ID first
 	id, _, err := dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", name)
@@ -397,7 +397,7 @@ func (ps *DockerPluginSuite) TestPluginListDefaultFormat(c *testing.T) {
 	err = plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
 		cfg.Description = "test plugin"
 	})
-	assert.Assert(c, err == nil, check.Commentf("failed to create test plugin"))
+	assert.Assert(c, err == nil, "failed to create test plugin")
 
 	out, _ := dockerCmd(c, "plugin", "inspect", "--format", "{{.ID}}", name)
 	id := strings.TrimSpace(out)

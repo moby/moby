@@ -36,7 +36,7 @@ func (s *DockerSuite) TestImportDisplay(c *testing.T) {
 
 func (s *DockerSuite) TestImportBadURL(c *testing.T) {
 	out, _, err := dockerCmdWithError("import", "http://nourl/bad")
-	assert.Assert(c, err != nil, check.Commentf("import was supposed to fail but didn't"))
+	assert.Assert(c, err != nil, "import was supposed to fail but didn't")
 	// Depending on your system you can get either of these errors
 	if !strings.Contains(out, "dial tcp") &&
 		!strings.Contains(out, "ApplyLayer exit status 1 stdout:  stderr: archive/tar: invalid tar header") &&
@@ -50,7 +50,7 @@ func (s *DockerSuite) TestImportFile(c *testing.T) {
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
 	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
-	assert.Assert(c, err == nil, check.Commentf("failed to create temporary file"))
+	assert.Assert(c, err == nil, "failed to create temporary file")
 	defer os.Remove(temporaryFile.Name())
 
 	icmd.RunCmd(icmd.Cmd{
@@ -71,7 +71,7 @@ func (s *DockerSuite) TestImportGzipped(c *testing.T) {
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
 	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
-	assert.Assert(c, err == nil, check.Commentf("failed to create temporary file"))
+	assert.Assert(c, err == nil, "failed to create temporary file")
 	defer os.Remove(temporaryFile.Name())
 
 	w := gzip.NewWriter(temporaryFile)
@@ -79,7 +79,7 @@ func (s *DockerSuite) TestImportGzipped(c *testing.T) {
 		Command: []string{dockerBinary, "export", "test-import"},
 		Stdout:  w,
 	}).Assert(c, icmd.Success)
-	assert.Assert(c, w.Close() == nil, check.Commentf("failed to close gzip writer"))
+	assert.Assert(c, w.Close() == nil, "failed to close gzip writer")
 	temporaryFile.Close()
 	out, _ := dockerCmd(c, "import", temporaryFile.Name())
 	assert.Assert(c, strings.Count(out, "\n") == 1, "display is expected 1 '\\n' but didn't")
@@ -94,7 +94,7 @@ func (s *DockerSuite) TestImportFileWithMessage(c *testing.T) {
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
 	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
-	assert.Assert(c, err == nil, check.Commentf("failed to create temporary file"))
+	assert.Assert(c, err == nil, "failed to create temporary file")
 	defer os.Remove(temporaryFile.Name())
 
 	icmd.RunCmd(icmd.Cmd{
@@ -110,11 +110,11 @@ func (s *DockerSuite) TestImportFileWithMessage(c *testing.T) {
 	out, _ = dockerCmd(c, "history", image)
 	split := strings.Split(out, "\n")
 
-	assert.Equal(c, len(split), 3, check.Commentf("expected 3 lines from image history"))
+	assert.Equal(c, len(split), 3, "expected 3 lines from image history")
 	r := regexp.MustCompile("[\\s]{2,}")
 	split = r.Split(split[1], -1)
 
-	assert.Equal(c, message, split[3], check.Commentf("didn't get expected value in commit message"))
+	assert.Equal(c, message, split[3], "didn't get expected value in commit message")
 
 	out, _ = dockerCmd(c, "run", "--rm", image, "true")
 	assert.Equal(c, out, "", "command output should've been nothing")
@@ -122,7 +122,7 @@ func (s *DockerSuite) TestImportFileWithMessage(c *testing.T) {
 
 func (s *DockerSuite) TestImportFileNonExistentFile(c *testing.T) {
 	_, _, err := dockerCmdWithError("import", "example.com/myImage.tar")
-	assert.Assert(c, err != nil, check.Commentf("import non-existing file must failed"))
+	assert.Assert(c, err != nil, "import non-existing file must failed")
 }
 
 func (s *DockerSuite) TestImportWithQuotedChanges(c *testing.T) {
@@ -130,7 +130,7 @@ func (s *DockerSuite) TestImportWithQuotedChanges(c *testing.T) {
 	cli.DockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
 	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
-	assert.Assert(c, err == nil, check.Commentf("failed to create temporary file"))
+	assert.Assert(c, err == nil, "failed to create temporary file")
 	defer os.Remove(temporaryFile.Name())
 
 	cli.Docker(cli.Args("export", "test-import"), cli.WithStdout(bufio.NewWriter(temporaryFile))).Assert(c, icmd.Success)

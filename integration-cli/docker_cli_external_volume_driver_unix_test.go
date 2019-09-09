@@ -285,7 +285,7 @@ func (s *DockerExternalVolumeSuite) TestVolumeCLICreateOptionConflict(c *testing
 	dockerCmd(c, "volume", "create", "test")
 
 	out, _, err := dockerCmdWithError("volume", "create", "test", "--driver", volumePluginName)
-	assert.Assert(c, err != nil, check.Commentf("volume create exception name already in use with another driver"))
+	assert.Assert(c, err != nil, "volume create exception name already in use with another driver")
 	assert.Assert(c, strings.Contains(out, "must be unique"))
 	out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Driver }}", "test")
 	_, _, err = dockerCmdWithError("volume", "create", "test", "--driver", strings.TrimSpace(out))

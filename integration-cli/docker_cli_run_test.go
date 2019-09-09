@@ -2293,7 +2293,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughExpose(c *testing.T) {
 
 func (s *DockerSuite) TestRunExposePort(c *testing.T) {
 	out, _, err := dockerCmdWithError("run", "--expose", "80000", "busybox")
-	assert.Assert(c, err != nil, check.Commentf("--expose with an invalid port should error out"))
+	assert.Assert(c, err != nil, "--expose with an invalid port should error out")
 	assert.Assert(c, strings.Contains(out, "invalid range format for --expose"))
 }
 
@@ -3209,7 +3209,7 @@ func (s *DockerSuite) TestRunCreateContainerFailedCleanUp(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	name := "unique_name"
 	_, _, err := dockerCmdWithError("run", "--name", name, "--link", "nothing:nothing", "busybox")
-	assert.Assert(c, err != nil, check.Commentf("Expected docker run to fail!"))
+	assert.Assert(c, err != nil, "Expected docker run to fail!")
 
 	containerID, err := inspectFieldWithError(name, "Id")
 	assert.Assert(c, err != nil, fmt.Sprintf("Expected not to have this container: %s!", containerID))

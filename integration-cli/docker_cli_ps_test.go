@@ -741,7 +741,7 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 	assert.Equal(c, len(RemoveLinesForExistingElements(lines, existing)), 1)
 
 	// Making sure onbridgenetwork is on the output
-	assert.Assert(c, strings.Contains(containerOut, "onbridgenetwork"), check.Commentf("Missing the container on network\n"))
+	assert.Assert(c, strings.Contains(containerOut, "onbridgenetwork"), "Missing the container on network\n")
 	// Filter docker ps on networks bridge and none
 	out, _ = dockerCmd(c, "ps", "--filter", "network=bridge", "--filter", "network=none")
 	containerOut = strings.TrimSpace(string(out))
@@ -755,8 +755,8 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 	assert.Equal(c, len(RemoveLinesForExistingElements(lines, existing)), 2)
 
 	// Making sure onbridgenetwork and onnonenetwork is on the output
-	assert.Assert(c, strings.Contains(containerOut, "onnonenetwork"), check.Commentf("Missing the container on none network\n"))
-	assert.Assert(c, strings.Contains(containerOut, "onbridgenetwork"), check.Commentf("Missing the container on bridge network\n"))
+	assert.Assert(c, strings.Contains(containerOut, "onnonenetwork"), "Missing the container on none network\n")
+	assert.Assert(c, strings.Contains(containerOut, "onbridgenetwork"), "Missing the container on bridge network\n")
 	nwID, _ := dockerCmd(c, "network", "inspect", "--format", "{{.ID}}", "bridge")
 
 	// Filter by network ID
@@ -780,7 +780,7 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 	assert.Equal(c, len(RemoveLinesForExistingElements(lines, existing)), 1)
 
 	// Making sure onbridgenetwork is on the output
-	assert.Assert(c, strings.Contains(containerOut, "onbridgenetwork"), check.Commentf("Missing the container on network\n"))
+	assert.Assert(c, strings.Contains(containerOut, "onbridgenetwork"), "Missing the container on network\n")
 }
 
 func (s *DockerSuite) TestPsByOrder(c *testing.T) {

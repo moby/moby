@@ -232,7 +232,7 @@ func (s *DockerSwarmSuite) TestAPISwarmPromoteDemote(c *testing.T) {
 		if err == nil && len(certs) > 0 && len(certs[0].Subject.OrganizationalUnit) > 0 {
 			return certs[0].Subject.OrganizationalUnit[0], nil
 		}
-		return "", check.Commentf("could not get organizational unit from certificate")
+		return "", "could not get organizational unit from certificate"
 	}, checker.Equals, "swarm-worker")
 
 	// Demoting last node should fail
@@ -340,7 +340,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *testing.T) {
 			}
 
 			if leader == nil {
-				return false, check.Commentf("no leader elected")
+				return false, "no leader elected"
 			}
 
 			return true, fmt.Sprintf("elected %v", leader.ID())
@@ -742,7 +742,7 @@ func checkClusterHealth(c *testing.T, cl []*daemon.Daemon, managerCount, workerC
 			client := d.NewClientT(c)
 			daemonInfo, err := client.Info(context.Background())
 			info = daemonInfo.Swarm
-			return err, check.Commentf("cluster not ready in time")
+			return err, "cluster not ready in time"
 		}
 		waitAndAssert(c, defaultReconciliationTimeout, checkInfo, checker.IsNil)
 		if !info.ControlAvailable {
