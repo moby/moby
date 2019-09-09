@@ -53,7 +53,7 @@ func (s *DockerSuite) TestContainerAPIGetAll(c *testing.T) {
 	assert.NilError(c, err)
 	assert.Equal(c, len(containers), startCount+1)
 	actual := containers[0].Names[0]
-	assert.Assert(c, actual, checker.Equals, "/"+name)
+	assert.Equal(c, actual, "/"+name)
 }
 
 // regression test for empty json field being omitted #13691
@@ -411,8 +411,8 @@ func (s *DockerSuite) TestContainerAPITop(c *testing.T) {
 		c.Fatalf("expected `USER` at `Titles[0]` and `COMMAND` at Titles[10]: %v", top.Titles)
 	}
 	assert.Assert(c, top.Processes, checker.HasLen, 2, check.Commentf("expected 2 processes, found %d: %v", len(top.Processes), top.Processes))
-	assert.Assert(c, top.Processes[0][10], checker.Equals, "/bin/sh -c top")
-	assert.Assert(c, top.Processes[1][10], checker.Equals, "top")
+	assert.Equal(c, top.Processes[0][10], "/bin/sh -c top")
+	assert.Equal(c, top.Processes[1][10], "top")
 }
 
 func (s *DockerSuite) TestContainerAPITopWindows(c *testing.T) {
@@ -462,7 +462,7 @@ func (s *DockerSuite) TestContainerAPICommit(c *testing.T) {
 	assert.NilError(c, err)
 
 	cmd := inspectField(c, img.ID, "Config.Cmd")
-	assert.Assert(c, cmd, checker.Equals, "[/bin/sh -c touch /test]", check.Commentf("got wrong Cmd from commit: %q", cmd))
+	assert.Equal(c, cmd, "[/bin/sh -c touch /test]", check.Commentf("got wrong Cmd from commit: %q", cmd))
 
 	// sanity check, make sure the image is what we think it is
 	dockerCmd(c, "run", img.ID, "ls", "/test")
@@ -488,13 +488,13 @@ func (s *DockerSuite) TestContainerAPICommitWithLabelInConfig(c *testing.T) {
 	assert.NilError(c, err)
 
 	label1 := inspectFieldMap(c, img.ID, "Config.Labels", "key1")
-	assert.Assert(c, label1, checker.Equals, "value1")
+	assert.Equal(c, label1, "value1")
 
 	label2 := inspectFieldMap(c, img.ID, "Config.Labels", "key2")
-	assert.Assert(c, label2, checker.Equals, "value2")
+	assert.Equal(c, label2, "value2")
 
 	cmd := inspectField(c, img.ID, "Config.Cmd")
-	assert.Assert(c, cmd, checker.Equals, "[/bin/sh -c touch /test]", check.Commentf("got wrong Cmd from commit: %q", cmd))
+	assert.Equal(c, cmd, "[/bin/sh -c touch /test]", check.Commentf("got wrong Cmd from commit: %q", cmd))
 
 	// sanity check, make sure the image is what we think it is
 	dockerCmd(c, "run", img.ID, "ls", "/test")
@@ -615,7 +615,7 @@ func UtilCreateNetworkMode(c *testing.T, networkMode containertypes.NetworkMode)
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
 	assert.NilError(c, err)
 
-	assert.Assert(c, containerJSON.HostConfig.NetworkMode, checker.Equals, containertypes.NetworkMode(networkMode), check.Commentf("Mismatched NetworkMode"))
+	assert.Equal(c, containerJSON.HostConfig.NetworkMode, containertypes.NetworkMode(networkMode), check.Commentf("Mismatched NetworkMode"))
 }
 
 func (s *DockerSuite) TestContainerAPICreateWithCpuSharesCpuset(c *testing.T) {
@@ -646,7 +646,7 @@ func (s *DockerSuite) TestContainerAPICreateWithCpuSharesCpuset(c *testing.T) {
 	assert.Equal(c, out, "512")
 
 	outCpuset := inspectField(c, containerJSON.ID, "HostConfig.CpusetCpus")
-	assert.Assert(c, outCpuset, checker.Equals, "0")
+	assert.Equal(c, outCpuset, "0")
 }
 
 func (s *DockerSuite) TestContainerAPIVerifyHeader(c *testing.T) {
@@ -845,9 +845,9 @@ func (s *DockerSuite) TestContainerAPIPostCreateNull(c *testing.T) {
 	assert.Equal(c, out, "")
 
 	outMemory := inspectField(c, container.ID, "HostConfig.Memory")
-	assert.Assert(c, outMemory, checker.Equals, "0")
+	assert.Equal(c, outMemory, "0")
 	outMemorySwap := inspectField(c, container.ID, "HostConfig.MemorySwap")
-	assert.Assert(c, outMemorySwap, checker.Equals, "0")
+	assert.Equal(c, outMemorySwap, "0")
 }
 
 func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *testing.T) {
@@ -888,7 +888,7 @@ func (s *DockerSuite) TestContainerAPIRename(c *testing.T) {
 	assert.NilError(c, err)
 
 	name := inspectField(c, containerID, "Name")
-	assert.Assert(c, name, checker.Equals, "/"+newName, check.Commentf("Failed to rename container"))
+	assert.Equal(c, name, "/"+newName, check.Commentf("Failed to rename container"))
 }
 
 func (s *DockerSuite) TestContainerAPIKill(c *testing.T) {
@@ -903,7 +903,7 @@ func (s *DockerSuite) TestContainerAPIKill(c *testing.T) {
 	assert.NilError(c, err)
 
 	state := inspectField(c, name, "State.Running")
-	assert.Assert(c, state, checker.Equals, "false", check.Commentf("got wrong State from container %s: %q", name, state))
+	assert.Equal(c, state, "false", check.Commentf("got wrong State from container %s: %q", name, state))
 }
 
 func (s *DockerSuite) TestContainerAPIRestart(c *testing.T) {
@@ -1000,7 +1000,7 @@ func (s *DockerSuite) TestContainerAPIWait(c *testing.T) {
 	case err = <-errC:
 		assert.NilError(c, err)
 	case waitres := <-waitresC:
-		assert.Assert(c, waitres.StatusCode, checker.Equals, int64(0))
+		assert.Equal(c, waitres.StatusCode, int64(0))
 	}
 }
 
@@ -1156,7 +1156,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveLinks(c *testing.T) {
 	assert.Assert(c, waitRun(id2), checker.IsNil)
 
 	links := inspectFieldJSON(c, id2, "HostConfig.Links")
-	assert.Assert(c, links, checker.Equals, "[\"/tlink1:/tlink2/tlink1\"]", check.Commentf("expected to have links between containers"))
+	assert.Equal(c, links, "[\"/tlink1:/tlink2/tlink1\"]", check.Commentf("expected to have links between containers"))
 
 	removeOptions := types.ContainerRemoveOptions{
 		RemoveLinks: true,
@@ -1170,7 +1170,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveLinks(c *testing.T) {
 	assert.NilError(c, err)
 
 	linksPostRm := inspectFieldJSON(c, id2, "HostConfig.Links")
-	assert.Assert(c, linksPostRm, checker.Equals, "null", check.Commentf("call to api deleteContainer links should have removed the specified links"))
+	assert.Equal(c, linksPostRm, "null", check.Commentf("call to api deleteContainer links should have removed the specified links"))
 }
 
 func (s *DockerSuite) TestContainerAPIDeleteConflict(c *testing.T) {
@@ -1457,7 +1457,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *testin
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
 	assert.NilError(c, err)
 
-	assert.Assert(c, containerJSON.HostConfig.ShmSize, checker.Equals, defaultSHMSize)
+	assert.Equal(c, containerJSON.HostConfig.ShmSize, defaultSHMSize)
 
 	out, _ := dockerCmd(c, "start", "-i", containerJSON.ID)
 	shmRegexp := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=65536k`)
@@ -1484,7 +1484,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeOmitted(c *testing.T) {
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
 	assert.NilError(c, err)
 
-	assert.Assert(c, containerJSON.HostConfig.ShmSize, checker.Equals, int64(67108864))
+	assert.Equal(c, containerJSON.HostConfig.ShmSize, int64(67108864))
 
 	out, _ := dockerCmd(c, "start", "-i", containerJSON.ID)
 	shmRegexp := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=65536k`)
@@ -1515,7 +1515,7 @@ func (s *DockerSuite) TestPostContainersCreateWithShmSize(c *testing.T) {
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
 	assert.NilError(c, err)
 
-	assert.Assert(c, containerJSON.HostConfig.ShmSize, checker.Equals, int64(1073741824))
+	assert.Equal(c, containerJSON.HostConfig.ShmSize, int64(1073741824))
 
 	out, _ := dockerCmd(c, "start", "-i", containerJSON.ID)
 	shmRegex := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=1048576k`)
@@ -1542,7 +1542,7 @@ func (s *DockerSuite) TestPostContainersCreateMemorySwappinessHostConfigOmitted(
 	assert.NilError(c, err)
 
 	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.31") {
-		assert.Assert(c, *containerJSON.HostConfig.MemorySwappiness, checker.Equals, int64(-1))
+		assert.Equal(c, *containerJSON.HostConfig.MemorySwappiness, int64(-1))
 	} else {
 		assert.Assert(c, containerJSON.HostConfig.MemorySwappiness, checker.IsNil)
 	}

@@ -18,7 +18,7 @@ func (s *DockerSuite) TestLinksPingUnlinkedContainers(c *testing.T) {
 	_, exitCode, err := dockerCmdWithError("run", "--rm", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
 
 	// run ping failed with error
-	assert.Assert(c, exitCode, checker.Equals, 1, check.Commentf("error: %v", err))
+	assert.Equal(c, exitCode, 1, check.Commentf("error: %v", err))
 }
 
 // Test for appropriate error when calling --link with an invalid target container
@@ -173,20 +173,20 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *testing.T) {
 		return string(matches[1])
 	}
 	ip := getIP(content, "one")
-	assert.Assert(c, ip, checker.Equals, realIP)
+	assert.Equal(c, ip, realIP)
 
 	ip = getIP(content, "onetwo")
-	assert.Assert(c, ip, checker.Equals, realIP)
+	assert.Equal(c, ip, realIP)
 
 	dockerCmd(c, "restart", "one")
 	realIP = inspectField(c, "one", "NetworkSettings.Networks.bridge.IPAddress")
 
 	content = readContainerFileWithExec(c, id, "/etc/hosts")
 	ip = getIP(content, "one")
-	assert.Assert(c, ip, checker.Equals, realIP)
+	assert.Equal(c, ip, realIP)
 
 	ip = getIP(content, "onetwo")
-	assert.Assert(c, ip, checker.Equals, realIP)
+	assert.Equal(c, ip, realIP)
 }
 
 func (s *DockerSuite) TestLinksEnvs(c *testing.T) {
@@ -211,7 +211,7 @@ func (s *DockerSuite) TestLinkShortDefinition(c *testing.T) {
 	assert.Assert(c, waitRun(cid2), checker.IsNil)
 
 	links := inspectFieldJSON(c, cid2, "HostConfig.Links")
-	assert.Assert(c, links, checker.Equals, "[\"/shortlinkdef:/link2/shortlinkdef\"]")
+	assert.Equal(c, links, "[\"/shortlinkdef:/link2/shortlinkdef\"]")
 }
 
 func (s *DockerSuite) TestLinksNetworkHostContainer(c *testing.T) {

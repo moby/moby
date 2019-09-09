@@ -20,7 +20,7 @@ func waitForHealthStatus(c *testing.T, name string, prev string, expected string
 		if out == expected {
 			return
 		}
-		assert.Assert(c, out, checker.Equals, prev)
+		assert.Equal(c, out, prev)
 		if out != prev {
 			return
 		}
@@ -32,7 +32,7 @@ func getHealth(c *testing.T, name string) *types.Health {
 	out, _ := dockerCmd(c, "inspect", "--format={{json .State.Health}}", name)
 	var health types.Health
 	err := json.Unmarshal([]byte(out), &health)
-	assert.Assert(c, err, checker.Equals, nil)
+	assert.Equal(c, err, nil)
 	return &health
 }
 
@@ -54,12 +54,12 @@ func (s *DockerSuite) TestHealth(c *testing.T) {
 	cid, _ := dockerCmd(c, "create", "--name", name, imageName)
 	out, _ := dockerCmd(c, "ps", "-a", "--format={{.ID}} {{.Status}}")
 	out = RemoveOutputForExistingElements(out, existingContainers)
-	assert.Assert(c, out, checker.Equals, cid[:12]+" Created\n")
+	assert.Equal(c, out, cid[:12]+" Created\n")
 
 	// Inspect the options
 	out, _ = dockerCmd(c, "inspect",
 		"--format=timeout={{.Config.Healthcheck.Timeout}} interval={{.Config.Healthcheck.Interval}} retries={{.Config.Healthcheck.Retries}} test={{.Config.Healthcheck.Test}}", name)
-	assert.Assert(c, out, checker.Equals, "timeout=30s interval=1s retries=0 test=[CMD-SHELL cat /status]\n")
+	assert.Equal(c, out, "timeout=30s interval=1s retries=0 test=[CMD-SHELL cat /status]\n")
 
 	// Start
 	dockerCmd(c, "start", name)
@@ -71,7 +71,7 @@ func (s *DockerSuite) TestHealth(c *testing.T) {
 
 	// Inspect the status
 	out, _ = dockerCmd(c, "inspect", "--format={{.State.Health.Status}}", name)
-	assert.Assert(c, out, checker.Equals, "unhealthy\n")
+	assert.Equal(c, out, "unhealthy\n")
 
 	// Make it healthy again
 	dockerCmd(c, "exec", name, "touch", "/status")
@@ -83,7 +83,7 @@ func (s *DockerSuite) TestHealth(c *testing.T) {
 	// Disable the check from the CLI
 	dockerCmd(c, "create", "--name=noh", "--no-healthcheck", imageName)
 	out, _ = dockerCmd(c, "inspect", "--format={{.Config.Healthcheck.Test}}", "noh")
-	assert.Assert(c, out, checker.Equals, "[NONE]\n")
+	assert.Equal(c, out, "[NONE]\n")
 	dockerCmd(c, "rm", "noh")
 
 	// Disable the check with a new build
@@ -91,7 +91,7 @@ func (s *DockerSuite) TestHealth(c *testing.T) {
 		HEALTHCHECK NONE`))
 
 	out, _ = dockerCmd(c, "inspect", "--format={{.Config.Healthcheck.Test}}", "no_healthcheck")
-	assert.Assert(c, out, checker.Equals, "[NONE]\n")
+	assert.Equal(c, out, "[NONE]\n")
 
 	// Enable the checks from the CLI
 	_, _ = dockerCmd(c, "run", "-d", "--name=fatal_healthcheck",
@@ -101,11 +101,11 @@ func (s *DockerSuite) TestHealth(c *testing.T) {
 		"no_healthcheck")
 	waitForHealthStatus(c, "fatal_healthcheck", "starting", "healthy")
 	health := getHealth(c, "fatal_healthcheck")
-	assert.Assert(c, health.Status, checker.Equals, "healthy")
-	assert.Assert(c, health.FailingStreak, checker.Equals, 0)
+	assert.Equal(c, health.Status, "healthy")
+	assert.Equal(c, health.FailingStreak, 0)
 	last := health.Log[len(health.Log)-1]
-	assert.Assert(c, last.ExitCode, checker.Equals, 0)
-	assert.Assert(c, last.Output, checker.Equals, "OK\n")
+	assert.Equal(c, last.ExitCode, 0)
+	assert.Equal(c, last.Output, "OK\n")
 
 	// Fail the check
 	dockerCmd(c, "exec", "fatal_healthcheck", "rm", "/status")
@@ -114,7 +114,7 @@ func (s *DockerSuite) TestHealth(c *testing.T) {
 	failsStr, _ := dockerCmd(c, "inspect", "--format={{.State.Health.FailingStreak}}", "fatal_healthcheck")
 	fails, err := strconv.Atoi(strings.TrimSpace(failsStr))
 	assert.Assert(c, err, checker.IsNil)
-	assert.Assert(c, fails >= 3, checker.Equals, true)
+	assert.Equal(c, fails >= 3, true)
 	dockerCmd(c, "rm", "-f", "fatal_healthcheck")
 
 	// Check timeout
@@ -125,9 +125,9 @@ func (s *DockerSuite) TestHealth(c *testing.T) {
 	waitForHealthStatus(c, "test", "starting", "unhealthy")
 	health = getHealth(c, "test")
 	last = health.Log[len(health.Log)-1]
-	assert.Assert(c, health.Status, checker.Equals, "unhealthy")
-	assert.Assert(c, last.ExitCode, checker.Equals, -1)
-	assert.Assert(c, last.Output, checker.Equals, "Health check exceeded timeout (1s)")
+	assert.Equal(c, health.Status, "unhealthy")
+	assert.Equal(c, last.ExitCode, -1)
+	assert.Equal(c, last.Output, "Health check exceeded timeout (1s)")
 	dockerCmd(c, "rm", "-f", "test")
 
 	// Check JSON-format
@@ -139,7 +139,7 @@ func (s *DockerSuite) TestHealth(c *testing.T) {
 		  CMD ["cat", "/my status"]`))
 	out, _ = dockerCmd(c, "inspect",
 		"--format={{.Config.Healthcheck.Test}}", imageName)
-	assert.Assert(c, out, checker.Equals, "[CMD cat /my status]\n")
+	assert.Equal(c, out, "[CMD cat /my status]\n")
 
 }
 

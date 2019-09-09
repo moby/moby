@@ -63,9 +63,9 @@ func (s *DockerSuite) TestImagesOrderedByCreationDate(c *testing.T) {
 
 	out, _ := dockerCmd(c, "images", "-q", "--no-trunc")
 	imgs := strings.Split(out, "\n")
-	assert.Assert(c, imgs[0], checker.Equals, id3, check.Commentf("First image must be %s, got %s", id3, imgs[0]))
-	assert.Assert(c, imgs[1], checker.Equals, id2, check.Commentf("First image must be %s, got %s", id2, imgs[1]))
-	assert.Assert(c, imgs[2], checker.Equals, id1, check.Commentf("First image must be %s, got %s", id1, imgs[2]))
+	assert.Equal(c, imgs[0], id3, check.Commentf("First image must be %s, got %s", id3, imgs[0]))
+	assert.Equal(c, imgs[1], id2, check.Commentf("First image must be %s, got %s", id2, imgs[1]))
+	assert.Equal(c, imgs[2], id1, check.Commentf("First image must be %s, got %s", id1, imgs[2]))
 }
 
 func (s *DockerSuite) TestImagesErrorWithInvalidFilterNameTest(c *testing.T) {
@@ -128,34 +128,34 @@ LABEL number=3`))
 	expected := []string{imageID3, imageID2}
 
 	out, _ := dockerCmd(c, "images", "-f", "since=image:1", "image")
-	assert.Assert(c, assertImageList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	assert.Equal(c, assertImageList(out, expected), true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	out, _ = dockerCmd(c, "images", "-f", "since="+imageID1, "image")
-	assert.Assert(c, assertImageList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	assert.Equal(c, assertImageList(out, expected), true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	expected = []string{imageID3}
 
 	out, _ = dockerCmd(c, "images", "-f", "since=image:2", "image")
-	assert.Assert(c, assertImageList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	assert.Equal(c, assertImageList(out, expected), true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	out, _ = dockerCmd(c, "images", "-f", "since="+imageID2, "image")
-	assert.Assert(c, assertImageList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	assert.Equal(c, assertImageList(out, expected), true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	expected = []string{imageID2, imageID1}
 
 	out, _ = dockerCmd(c, "images", "-f", "before=image:3", "image")
-	assert.Assert(c, assertImageList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	assert.Equal(c, assertImageList(out, expected), true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	out, _ = dockerCmd(c, "images", "-f", "before="+imageID3, "image")
-	assert.Assert(c, assertImageList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	assert.Equal(c, assertImageList(out, expected), true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	expected = []string{imageID1}
 
 	out, _ = dockerCmd(c, "images", "-f", "before=image:2", "image")
-	assert.Assert(c, assertImageList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	assert.Equal(c, assertImageList(out, expected), true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	out, _ = dockerCmd(c, "images", "-f", "before="+imageID2, "image")
-	assert.Assert(c, assertImageList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	assert.Equal(c, assertImageList(out, expected), true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
 }
 
 func assertImageList(out string, expected []string) bool {
@@ -239,7 +239,7 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *testing.T) 
 
 	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=true")
 	// Expect one dangling image
-	assert.Assert(c, strings.Count(out, imageID), checker.Equals, 1)
+	assert.Equal(c, strings.Count(out, imageID), 1)
 
 	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=false")
 	//dangling=false would not include dangling images

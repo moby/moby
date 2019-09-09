@@ -183,12 +183,12 @@ func (ps *DockerPluginSuite) TestPluginSet(c *testing.T) {
 	assert.Assert(c, err, checker.IsNil, check.Commentf("failed to create test plugin"))
 
 	env, _ := dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", name)
-	assert.Assert(c, strings.TrimSpace(env), checker.Equals, "[DEBUG=0]")
+	assert.Equal(c, strings.TrimSpace(env), "[DEBUG=0]")
 
 	dockerCmd(c, "plugin", "set", name, "DEBUG=1")
 
 	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", name)
-	assert.Assert(c, strings.TrimSpace(env), checker.Equals, "[DEBUG=1]")
+	assert.Equal(c, strings.TrimSpace(env), "[DEBUG=1]")
 
 	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{with $mount := index .Settings.Mounts 0}}{{$mount.Source}}{{end}}", name)
 	assert.Assert(c, strings.TrimSpace(env), checker.Contains, mntSrc)
@@ -221,7 +221,7 @@ func (ps *DockerPluginSuite) TestPluginInstallArgs(c *testing.T) {
 	assert.Assert(c, strings.TrimSpace(out), checker.Contains, pName)
 
 	env, _ := dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", pName)
-	assert.Assert(c, strings.TrimSpace(env), checker.Equals, "[DEBUG=1]")
+	assert.Equal(c, strings.TrimSpace(env), "[DEBUG=1]")
 }
 
 func (ps *DockerPluginSuite) TestPluginInstallImage(c *testing.T) {
@@ -289,7 +289,7 @@ func (ps *DockerPluginSuite) TestPluginCreate(c *testing.T) {
 	assert.NilError(c, err)
 	assert.Assert(c, out, checker.Contains, name)
 	// The output will consists of one HEADER line and one line of foo/bar-driver
-	assert.Assert(c, len(strings.Split(strings.TrimSpace(out), "\n")), checker.Equals, 2)
+	assert.Equal(c, len(strings.Split(strings.TrimSpace(out), "\n")), 2)
 }
 
 func (ps *DockerPluginSuite) TestPluginInspect(c *testing.T) {
@@ -377,12 +377,12 @@ func (ps *DockerPluginSuite) TestPluginIDPrefix(c *testing.T) {
 	assert.Assert(c, out, checker.Contains, "false")
 
 	env, _ := dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", id[:5])
-	assert.Assert(c, strings.TrimSpace(env), checker.Equals, "[DEBUG=0]")
+	assert.Equal(c, strings.TrimSpace(env), "[DEBUG=0]")
 
 	dockerCmd(c, "plugin", "set", id[:5], "DEBUG=1")
 
 	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", id[:5])
-	assert.Assert(c, strings.TrimSpace(env), checker.Equals, "[DEBUG=1]")
+	assert.Equal(c, strings.TrimSpace(env), "[DEBUG=1]")
 
 	// Enable
 	_, _, err = dockerCmdWithError("plugin", "enable", id[:5])

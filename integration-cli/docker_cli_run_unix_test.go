@@ -137,7 +137,7 @@ func (s *DockerSuite) TestRunAttachDetach(c *testing.T) {
 	}
 
 	running := inspectField(c, name, "State.Running")
-	assert.Assert(c, running, checker.Equals, "true", check.Commentf("expected container to still be running"))
+	assert.Equal(c, running, "true", check.Commentf("expected container to still be running"))
 
 	out, _ = dockerCmd(c, "events", "--since=0", "--until", daemonUnixTime(c), "-f", "container="+name)
 	// attach and detach event should be monitored
@@ -203,7 +203,7 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *testing.T) {
 	}
 
 	running := inspectField(c, name, "State.Running")
-	assert.Assert(c, running, checker.Equals, "true", check.Commentf("expected container to still be running"))
+	assert.Equal(c, running, "true", check.Commentf("expected container to still be running"))
 }
 
 // TestRunAttachDetachFromInvalidFlag checks attaching and detaching with the escape sequence specified via flags.
@@ -319,7 +319,7 @@ func (s *DockerSuite) TestRunAttachDetachFromConfig(c *testing.T) {
 	}
 
 	running := inspectField(c, name, "State.Running")
-	assert.Assert(c, running, checker.Equals, "true", check.Commentf("expected container to still be running"))
+	assert.Equal(c, running, "true", check.Commentf("expected container to still be running"))
 }
 
 // TestRunAttachDetachKeysOverrideConfig checks attaching and detaching with the detach flags, making sure it overrides config file
@@ -402,7 +402,7 @@ func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *testing.T) {
 	}
 
 	running := inspectField(c, name, "State.Running")
-	assert.Assert(c, running, checker.Equals, "true", check.Commentf("expected container to still be running"))
+	assert.Equal(c, running, "true", check.Commentf("expected container to still be running"))
 }
 
 func (s *DockerSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *testing.T) {
@@ -793,7 +793,7 @@ func (s *DockerSuite) TestRunWithDefaultShmSize(c *testing.T) {
 		c.Fatalf("Expected shm of 64MB in mount command, got %v", out)
 	}
 	shmSize := inspectField(c, name, "HostConfig.ShmSize")
-	assert.Assert(c, shmSize, checker.Equals, "67108864")
+	assert.Equal(c, shmSize, "67108864")
 }
 
 func (s *DockerSuite) TestRunWithShmSize(c *testing.T) {
@@ -806,7 +806,7 @@ func (s *DockerSuite) TestRunWithShmSize(c *testing.T) {
 		c.Fatalf("Expected shm of 1GB in mount command, got %v", out)
 	}
 	shmSize := inspectField(c, name, "HostConfig.ShmSize")
-	assert.Assert(c, shmSize, checker.Equals, "1073741824")
+	assert.Equal(c, shmSize, "1073741824")
 }
 
 func (s *DockerSuite) TestRunTmpfsMountsEnsureOrdered(c *testing.T) {
@@ -895,23 +895,23 @@ func (s *DockerSuite) TestRunSysctls(c *testing.T) {
 	var err error
 
 	out, _ := dockerCmd(c, "run", "--sysctl", "net.ipv4.ip_forward=1", "--name", "test", "busybox", "cat", "/proc/sys/net/ipv4/ip_forward")
-	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "1")
+	assert.Equal(c, strings.TrimSpace(out), "1")
 
 	out = inspectFieldJSON(c, "test", "HostConfig.Sysctls")
 
 	sysctls := make(map[string]string)
 	err = json.Unmarshal([]byte(out), &sysctls)
 	assert.NilError(c, err)
-	assert.Assert(c, sysctls["net.ipv4.ip_forward"], checker.Equals, "1")
+	assert.Equal(c, sysctls["net.ipv4.ip_forward"], "1")
 
 	out, _ = dockerCmd(c, "run", "--sysctl", "net.ipv4.ip_forward=0", "--name", "test1", "busybox", "cat", "/proc/sys/net/ipv4/ip_forward")
-	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "0")
+	assert.Equal(c, strings.TrimSpace(out), "0")
 
 	out = inspectFieldJSON(c, "test1", "HostConfig.Sysctls")
 
 	err = json.Unmarshal([]byte(out), &sysctls)
 	assert.NilError(c, err)
-	assert.Assert(c, sysctls["net.ipv4.ip_forward"], checker.Equals, "0")
+	assert.Equal(c, sysctls["net.ipv4.ip_forward"], "0")
 
 	icmd.RunCommand(dockerBinary, "run", "--sysctl", "kernel.foobar=1", "--name", "test2",
 		"busybox", "cat", "/proc/sys/kernel/foobar").Assert(c, icmd.Expected{
@@ -1577,7 +1577,7 @@ func (s *DockerSuite) TestRunWithNanoCPUs(c *testing.T) {
 	assert.NilError(c, err)
 	inspect, err := clt.ContainerInspect(context.Background(), "test")
 	assert.NilError(c, err)
-	assert.Assert(c, inspect.HostConfig.NanoCPUs, checker.Equals, int64(500000000))
+	assert.Equal(c, inspect.HostConfig.NanoCPUs, int64(500000000))
 
 	out = inspectField(c, "test", "HostConfig.CpuQuota")
 	assert.Equal(c, out, "0", "CPU CFS quota should be 0")
