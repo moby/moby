@@ -19,12 +19,12 @@ import (
 	"gotest.tools/icmd"
 )
 
-func (s *DockerSuite) TestImagesEnsureImageIsListed(c *check.C) {
+func (s *DockerSuite) TestImagesEnsureImageIsListed(c *testing.T) {
 	imagesOut, _ := dockerCmd(c, "images")
 	assert.Assert(c, imagesOut, checker.Contains, "busybox")
 }
 
-func (s *DockerSuite) TestImagesEnsureImageWithTagIsListed(c *check.C) {
+func (s *DockerSuite) TestImagesEnsureImageWithTagIsListed(c *testing.T) {
 	name := "imagewithtag"
 	dockerCmd(c, "tag", "busybox", name+":v1")
 	dockerCmd(c, "tag", "busybox", name+":v1v1")
@@ -43,12 +43,12 @@ func (s *DockerSuite) TestImagesEnsureImageWithTagIsListed(c *check.C) {
 	assert.Assert(c, imagesOut, checker.Contains, "v2")
 }
 
-func (s *DockerSuite) TestImagesEnsureImageWithBadTagIsNotListed(c *check.C) {
+func (s *DockerSuite) TestImagesEnsureImageWithBadTagIsNotListed(c *testing.T) {
 	imagesOut, _ := dockerCmd(c, "images", "busybox:nonexistent")
 	assert.Assert(c, imagesOut, checker.Not(checker.Contains), "busybox")
 }
 
-func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
+func (s *DockerSuite) TestImagesOrderedByCreationDate(c *testing.T) {
 	buildImageSuccessfully(c, "order:test_a", build.WithDockerfile(`FROM busybox
                 MAINTAINER dockerio1`))
 	id1 := getIDByName(c, "order:test_a")
@@ -68,13 +68,13 @@ func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
 	assert.Assert(c, imgs[2], checker.Equals, id1, check.Commentf("First image must be %s, got %s", id1, imgs[2]))
 }
 
-func (s *DockerSuite) TestImagesErrorWithInvalidFilterNameTest(c *check.C) {
+func (s *DockerSuite) TestImagesErrorWithInvalidFilterNameTest(c *testing.T) {
 	out, _, err := dockerCmdWithError("images", "-f", "FOO=123")
 	assert.ErrorContains(c, err, "")
 	assert.Assert(c, out, checker.Contains, "Invalid filter")
 }
 
-func (s *DockerSuite) TestImagesFilterLabelMatch(c *check.C) {
+func (s *DockerSuite) TestImagesFilterLabelMatch(c *testing.T) {
 	imageName1 := "images_filter_test1"
 	imageName2 := "images_filter_test2"
 	imageName3 := "images_filter_test3"
@@ -102,7 +102,7 @@ func (s *DockerSuite) TestImagesFilterLabelMatch(c *check.C) {
 }
 
 // Regression : #15659
-func (s *DockerSuite) TestCommitWithFilterLabel(c *check.C) {
+func (s *DockerSuite) TestCommitWithFilterLabel(c *testing.T) {
 	// Create a container
 	dockerCmd(c, "run", "--name", "bar", "busybox", "/bin/sh")
 	// Commit with labels "using changes"
@@ -114,7 +114,7 @@ func (s *DockerSuite) TestCommitWithFilterLabel(c *check.C) {
 	assert.Equal(c, out, imageID)
 }
 
-func (s *DockerSuite) TestImagesFilterSinceAndBefore(c *check.C) {
+func (s *DockerSuite) TestImagesFilterSinceAndBefore(c *testing.T) {
 	buildImageSuccessfully(c, "image:1", build.WithDockerfile(`FROM `+minimalBaseImage()+`
 LABEL number=1`))
 	imageID1 := getIDByName(c, "image:1")
@@ -184,7 +184,7 @@ func assertImageList(out string, expected []string) bool {
 }
 
 // FIXME(vdemeester) should be a unit test on `docker image ls`
-func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *check.C) {
+func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *testing.T) {
 	imageName := "images_filter_test"
 	// Build a image and fail to build so that we have dangling images ?
 	buildImage(imageName, build.WithDockerfile(`FROM busybox
@@ -224,7 +224,7 @@ func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
+func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// create container 1
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
@@ -252,13 +252,13 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
 }
 
 // FIXME(vdemeester) should be a unit test for `docker image ls`
-func (s *DockerSuite) TestImagesWithIncorrectFilter(c *check.C) {
+func (s *DockerSuite) TestImagesWithIncorrectFilter(c *testing.T) {
 	out, _, err := dockerCmdWithError("images", "-f", "dangling=invalid")
 	assert.ErrorContains(c, err, "")
 	assert.Assert(c, out, checker.Contains, "Invalid filter")
 }
 
-func (s *DockerSuite) TestImagesEnsureOnlyHeadsImagesShown(c *check.C) {
+func (s *DockerSuite) TestImagesEnsureOnlyHeadsImagesShown(c *testing.T) {
 	dockerfile := `
         FROM busybox
         MAINTAINER docker
@@ -281,7 +281,7 @@ func (s *DockerSuite) TestImagesEnsureOnlyHeadsImagesShown(c *check.C) {
 	assert.Assert(c, out, checker.Contains, stringid.TruncateID(id))
 }
 
-func (s *DockerSuite) TestImagesEnsureImagesFromScratchShown(c *check.C) {
+func (s *DockerSuite) TestImagesEnsureImagesFromScratchShown(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Windows does not support FROM scratch
 	dockerfile := `
         FROM scratch
@@ -298,7 +298,7 @@ func (s *DockerSuite) TestImagesEnsureImagesFromScratchShown(c *check.C) {
 
 // For W2W - equivalent to TestImagesEnsureImagesFromScratchShown but Windows
 // doesn't support from scratch
-func (s *DockerSuite) TestImagesEnsureImagesFromBusyboxShown(c *check.C) {
+func (s *DockerSuite) TestImagesEnsureImagesFromBusyboxShown(c *testing.T) {
 	dockerfile := `
         FROM busybox
         MAINTAINER docker`
@@ -313,7 +313,7 @@ func (s *DockerSuite) TestImagesEnsureImagesFromBusyboxShown(c *check.C) {
 }
 
 // #18181
-func (s *DockerSuite) TestImagesFilterNameWithPort(c *check.C) {
+func (s *DockerSuite) TestImagesFilterNameWithPort(c *testing.T) {
 	tag := "a.b.c.d:5000/hello"
 	dockerCmd(c, "tag", "busybox", tag)
 	out, _ := dockerCmd(c, "images", tag)
@@ -326,7 +326,7 @@ func (s *DockerSuite) TestImagesFilterNameWithPort(c *check.C) {
 	assert.Assert(c, out, checker.Not(checker.Contains), tag)
 }
 
-func (s *DockerSuite) TestImagesFormat(c *check.C) {
+func (s *DockerSuite) TestImagesFormat(c *testing.T) {
 	// testRequires(c, DaemonIsLinux)
 	tag := "myimage"
 	dockerCmd(c, "tag", "busybox", tag+":v1")
@@ -342,7 +342,7 @@ func (s *DockerSuite) TestImagesFormat(c *check.C) {
 }
 
 // ImagesDefaultFormatAndQuiet
-func (s *DockerSuite) TestImagesFormatDefaultFormat(c *check.C) {
+func (s *DockerSuite) TestImagesFormatDefaultFormat(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	// create container 1

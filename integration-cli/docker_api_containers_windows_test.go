@@ -18,7 +18,7 @@ import (
 	is "gotest.tools/assert/cmp"
 )
 
-func (s *DockerSuite) TestContainersAPICreateMountsBindNamedPipe(c *check.C) {
+func (s *DockerSuite) TestContainersAPICreateMountsBindNamedPipe(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsWindowsAtLeastBuild(16299)) // Named pipe support was added in RS3
 
 	// Create a host pipe to map into the container

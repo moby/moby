@@ -14,7 +14,7 @@ type discoverySuite struct{}
 
 var _ = check.Suite(&discoverySuite{})
 
-func (s *discoverySuite) TestWatch(c *check.C) {
+func (s *discoverySuite) TestWatch(c *testing.T) {
 	d := &Discovery{}
 	d.Initialize("foo", 1000, 0, nil)
 	stopCh := make(chan struct{})

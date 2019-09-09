@@ -13,7 +13,7 @@ import (
 	"gotest.tools/assert"
 )
 
-func (s *DockerSuite) TestPortList(c *check.C) {
+func (s *DockerSuite) TestPortList(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// one port
 	out, _ := dockerCmd(c, "run", "-d", "-p", "9876:80", "busybox", "top")
@@ -157,7 +157,7 @@ func (s *DockerSuite) TestPortList(c *check.C) {
 	dockerCmd(c, "rm", "-f", ID)
 }
 
-func assertPortList(c *check.C, out string, expected []string) error {
+func assertPortList(c *testing.T, out string, expected []string) error {
 	lines := strings.Split(strings.Trim(out, "\n "), "\n")
 	if len(lines) != len(expected) {
 		return fmt.Errorf("different size lists %s, %d, %d", out, len(lines), len(expected))
@@ -174,7 +174,7 @@ func assertPortList(c *check.C, out string, expected []string) error {
 	return nil
 }
 
-func assertPortRange(c *check.C, out string, expectedTcp, expectedUdp []int) error {
+func assertPortRange(c *testing.T, out string, expectedTcp, expectedUdp []int) error {
 	lines := strings.Split(strings.Trim(out, "\n "), "\n")
 
 	var validTcp, validUdp bool
@@ -206,11 +206,11 @@ func assertPortRange(c *check.C, out string, expectedTcp, expectedUdp []int) err
 	return nil
 }
 
-func stopRemoveContainer(id string, c *check.C) {
+func stopRemoveContainer(id string, c *testing.T) {
 	dockerCmd(c, "rm", "-f", id)
 }
 
-func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
+func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// Run busybox with command line expose (equivalent to EXPOSE in image's Dockerfile) for the following ports
 	port1 := 80
@@ -283,7 +283,7 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 	assert.Assert(c, out, checker.Contains, expBnd2)
 }
 
-func (s *DockerSuite) TestPortHostBinding(c *check.C) {
+func (s *DockerSuite) TestPortHostBinding(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	out, _ := dockerCmd(c, "run", "-d", "-p", "9876:80", "busybox",
 		"nc", "-l", "-p", "80")
@@ -305,7 +305,7 @@ func (s *DockerSuite) TestPortHostBinding(c *check.C) {
 	assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
 }
 
-func (s *DockerSuite) TestPortExposeHostBinding(c *check.C) {
+func (s *DockerSuite) TestPortExposeHostBinding(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	out, _ := dockerCmd(c, "run", "-d", "-P", "--expose", "80", "busybox",
 		"nc", "-l", "-p", "80")
@@ -327,7 +327,7 @@ func (s *DockerSuite) TestPortExposeHostBinding(c *check.C) {
 	assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
 }
 
-func (s *DockerSuite) TestPortBindingOnSandbox(c *check.C) {
+func (s *DockerSuite) TestPortBindingOnSandbox(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "network", "create", "--internal", "-d", "bridge", "internal-net")
 	nr := getNetworkResource(c, "internal-net")

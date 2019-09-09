@@ -7,7 +7,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestInfoSecurityOptions(c *check.C) {
+func (s *DockerSuite) TestInfoSecurityOptions(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, Apparmor, DaemonIsLinux)
 
 	out, _ := dockerCmd(c, "info")

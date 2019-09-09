@@ -8,7 +8,7 @@ import (
 	"gotest.tools/icmd"
 )
 
-func (s *DockerSuite) TestTopMultipleArgs(c *check.C) {
+func (s *DockerSuite) TestTopMultipleArgs(c *testing.T) {
 	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -23,7 +23,7 @@ func (s *DockerSuite) TestTopMultipleArgs(c *check.C) {
 	result.Assert(c, expected)
 }
 
-func (s *DockerSuite) TestTopNonPrivileged(c *check.C) {
+func (s *DockerSuite) TestTopNonPrivileged(c *testing.T) {
 	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -47,7 +47,7 @@ func (s *DockerSuite) TestTopNonPrivileged(c *check.C) {
 // TestTopWindowsCoreProcesses validates that there are lines for the critical
 // processes which are found in a Windows container. Note Windows is architecturally
 // very different to Linux in this regard.
-func (s *DockerSuite) TestTopWindowsCoreProcesses(c *check.C) {
+func (s *DockerSuite) TestTopWindowsCoreProcesses(c *testing.T) {
 	testRequires(c, DaemonIsWindows)
 	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
@@ -58,7 +58,7 @@ func (s *DockerSuite) TestTopWindowsCoreProcesses(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestTopPrivileged(c *check.C) {
+func (s *DockerSuite) TestTopPrivileged(c *testing.T) {
 	// Windows does not support --privileged
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	out, _ := dockerCmd(c, "run", "--privileged", "-i", "-d", "busybox", "top")

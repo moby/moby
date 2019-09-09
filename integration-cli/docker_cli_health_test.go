@@ -12,7 +12,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func waitForHealthStatus(c *check.C, name string, prev string, expected string) {
+func waitForHealthStatus(c *testing.T, name string, prev string, expected string) {
 	prev = prev + "\n"
 	expected = expected + "\n"
 	for {
@@ -28,7 +28,7 @@ func waitForHealthStatus(c *check.C, name string, prev string, expected string) 
 	}
 }
 
-func getHealth(c *check.C, name string) *types.Health {
+func getHealth(c *testing.T, name string) *types.Health {
 	out, _ := dockerCmd(c, "inspect", "--format={{json .State.Health}}", name)
 	var health types.Health
 	err := json.Unmarshal([]byte(out), &health)
@@ -36,7 +36,7 @@ func getHealth(c *check.C, name string) *types.Health {
 	return &health
 }
 
-func (s *DockerSuite) TestHealth(c *check.C) {
+func (s *DockerSuite) TestHealth(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // busybox doesn't work on Windows
 
 	existingContainers := ExistingContainerIDs(c)
@@ -144,7 +144,7 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 }
 
 // GitHub #33021
-func (s *DockerSuite) TestUnsetEnvVarHealthCheck(c *check.C) {
+func (s *DockerSuite) TestUnsetEnvVarHealthCheck(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // busybox doesn't work on Windows
 
 	imageName := "testhealth"

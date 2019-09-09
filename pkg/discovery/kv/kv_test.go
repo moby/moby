@@ -21,7 +21,7 @@ type DiscoverySuite struct{}
 
 var _ = check.Suite(&DiscoverySuite{})
 
-func (ds *DiscoverySuite) TestInitialize(c *check.C) {
+func (ds *DiscoverySuite) TestInitialize(c *testing.T) {
 	storeMock := &FakeStore{
 		Endpoints: []string{"127.0.0.1"},
 	}
@@ -131,7 +131,7 @@ func (s *Mock) AtomicDelete(key string, previous *store.KVPair) (bool, error) {
 func (s *Mock) Close() {
 }
 
-func (ds *DiscoverySuite) TestInitializeWithCerts(c *check.C) {
+func (ds *DiscoverySuite) TestInitializeWithCerts(c *testing.T) {
 	cert := `-----BEGIN CERTIFICATE-----
 MIIDCDCCAfKgAwIBAgIICifG7YeiQOEwCwYJKoZIhvcNAQELMBIxEDAOBgNVBAMT
 B1Rlc3QgQ0EwHhcNMTUxMDAxMjMwMDAwWhcNMjAwOTI5MjMwMDAwWjASMRAwDgYD
@@ -205,7 +205,7 @@ BFrwkQE4HQtQBV60hYQUzzlSk44VFDz+jxIEtacRHaomDRh2FtOTz+I=
 	assert.Assert(c, s.Options.TLS.Certificates, check.HasLen, 1)
 }
 
-func (ds *DiscoverySuite) TestWatch(c *check.C) {
+func (ds *DiscoverySuite) TestWatch(c *testing.T) {
 	mockCh := make(chan []*store.KVPair)
 
 	storeMock := &FakeStore{

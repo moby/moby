@@ -18,7 +18,7 @@ func formatV123StartAPIURL(url string) string {
 	return "/v1.23" + url
 }
 
-func (s *DockerSuite) TestDeprecatedContainerAPIStartHostConfig(c *check.C) {
+func (s *DockerSuite) TestDeprecatedContainerAPIStartHostConfig(c *testing.T) {
 	name := "test-deprecated-api-124"
 	dockerCmd(c, "create", "--name", name, "busybox")
 	config := map[string]interface{}{
@@ -37,7 +37,7 @@ func (s *DockerSuite) TestDeprecatedContainerAPIStartHostConfig(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestDeprecatedContainerAPIStartVolumeBinds(c *check.C) {
+func (s *DockerSuite) TestDeprecatedContainerAPIStartVolumeBinds(c *testing.T) {
 	// TODO Windows CI: Investigate further why this fails on Windows to Windows CI.
 	testRequires(c, DaemonIsLinux)
 	path := "/foo"
@@ -68,7 +68,7 @@ func (s *DockerSuite) TestDeprecatedContainerAPIStartVolumeBinds(c *check.C) {
 }
 
 // Test for GH#10618
-func (s *DockerSuite) TestDeprecatedContainerAPIStartDupVolumeBinds(c *check.C) {
+func (s *DockerSuite) TestDeprecatedContainerAPIStartDupVolumeBinds(c *testing.T) {
 	// TODO Windows to Windows CI - Port this
 	testRequires(c, DaemonIsLinux)
 	name := "testdups"
@@ -101,7 +101,7 @@ func (s *DockerSuite) TestDeprecatedContainerAPIStartDupVolumeBinds(c *check.C) 
 	assert.Assert(c, strings.Contains(string(buf), "Duplicate mount point"), "Expected failure due to duplicate bind mounts to same path, instead got: %q with error: %v", string(buf), err)
 }
 
-func (s *DockerSuite) TestDeprecatedContainerAPIStartVolumesFrom(c *check.C) {
+func (s *DockerSuite) TestDeprecatedContainerAPIStartVolumesFrom(c *testing.T) {
 	// TODO Windows to Windows CI - Port this
 	testRequires(c, DaemonIsLinux)
 	volName := "voltst"
@@ -134,7 +134,7 @@ func (s *DockerSuite) TestDeprecatedContainerAPIStartVolumesFrom(c *check.C) {
 }
 
 // #9981 - Allow a docker created volume (ie, one in /var/lib/docker/volumes) to be used to overwrite (via passing in Binds on api start) an existing volume
-func (s *DockerSuite) TestDeprecatedPostContainerBindNormalVolume(c *check.C) {
+func (s *DockerSuite) TestDeprecatedPostContainerBindNormalVolume(c *testing.T) {
 	// TODO Windows to Windows CI - Port this
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "create", "-v", "/foo", "--name=one", "busybox")
@@ -154,7 +154,7 @@ func (s *DockerSuite) TestDeprecatedPostContainerBindNormalVolume(c *check.C) {
 	assert.Equal(c, fooDir2, fooDir, "expected volume path to be %s, got: %s", fooDir, fooDir2)
 }
 
-func (s *DockerSuite) TestDeprecatedStartWithTooLowMemoryLimit(c *check.C) {
+func (s *DockerSuite) TestDeprecatedStartWithTooLowMemoryLimit(c *testing.T) {
 	// TODO Windows: Port once memory is supported
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "create", "busybox")
@@ -179,7 +179,7 @@ func (s *DockerSuite) TestDeprecatedStartWithTooLowMemoryLimit(c *check.C) {
 }
 
 // #14640
-func (s *DockerSuite) TestDeprecatedPostContainersStartWithoutLinksInHostConfig(c *check.C) {
+func (s *DockerSuite) TestDeprecatedPostContainersStartWithoutLinksInHostConfig(c *testing.T) {
 	// TODO Windows: Windows doesn't support supplying a hostconfig on start.
 	// An alternate test could be written to validate the negative testing aspect of this
 	testRequires(c, DaemonIsLinux)
@@ -196,7 +196,7 @@ func (s *DockerSuite) TestDeprecatedPostContainersStartWithoutLinksInHostConfig(
 }
 
 // #14640
-func (s *DockerSuite) TestDeprecatedPostContainersStartWithLinksInHostConfig(c *check.C) {
+func (s *DockerSuite) TestDeprecatedPostContainersStartWithLinksInHostConfig(c *testing.T) {
 	// TODO Windows: Windows doesn't support supplying a hostconfig on start.
 	// An alternate test could be written to validate the negative testing aspect of this
 	testRequires(c, DaemonIsLinux)
@@ -214,7 +214,7 @@ func (s *DockerSuite) TestDeprecatedPostContainersStartWithLinksInHostConfig(c *
 }
 
 // #14640
-func (s *DockerSuite) TestDeprecatedPostContainersStartWithLinksInHostConfigIdLinked(c *check.C) {
+func (s *DockerSuite) TestDeprecatedPostContainersStartWithLinksInHostConfigIdLinked(c *testing.T) {
 	// Windows does not support links
 	testRequires(c, DaemonIsLinux)
 	name := "test-host-config-links"
@@ -233,7 +233,7 @@ func (s *DockerSuite) TestDeprecatedPostContainersStartWithLinksInHostConfigIdLi
 	b.Close()
 }
 
-func (s *DockerSuite) TestDeprecatedStartWithNilDNS(c *check.C) {
+func (s *DockerSuite) TestDeprecatedStartWithNilDNS(c *testing.T) {
 	// TODO Windows: Add once DNS is supported
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "create", "busybox")

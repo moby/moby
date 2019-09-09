@@ -19,12 +19,12 @@ import (
 	"gotest.tools/icmd"
 )
 
-func pruneNetworkAndVerify(c *check.C, d *daemon.Daemon, kept, pruned []string) {
+func pruneNetworkAndVerify(c *testing.T, d *daemon.Daemon, kept, pruned []string) {
 	_, err := d.Cmd("network", "prune", "--force")
 	assert.NilError(c, err)
 
 	for _, s := range kept {
-		waitAndAssert(c, defaultReconciliationTimeout, func(*check.C) (interface{}, check.CommentInterface) {
+		waitAndAssert(c, defaultReconciliationTimeout, func(*testing.T) (interface{}, check.CommentInterface) {
 			out, err := d.Cmd("network", "ls", "--format", "{{.Name}}")
 			assert.NilError(c, err)
 			return out, nil
@@ -32,7 +32,7 @@ func pruneNetworkAndVerify(c *check.C, d *daemon.Daemon, kept, pruned []string) 
 	}
 
 	for _, s := range pruned {
-		waitAndAssert(c, defaultReconciliationTimeout, func(*check.C) (interface{}, check.CommentInterface) {
+		waitAndAssert(c, defaultReconciliationTimeout, func(*testing.T) (interface{}, check.CommentInterface) {
 			out, err := d.Cmd("network", "ls", "--format", "{{.Name}}")
 			assert.NilError(c, err)
 			return out, nil
@@ -40,7 +40,7 @@ func pruneNetworkAndVerify(c *check.C, d *daemon.Daemon, kept, pruned []string) 
 	}
 }
 
-func (s *DockerSwarmSuite) TestPruneNetwork(c *check.C) {
+func (s *DockerSwarmSuite) TestPruneNetwork(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 	_, err := d.Cmd("network", "create", "n1") // used by container (testprune)
 	assert.NilError(c, err)
@@ -79,7 +79,7 @@ func (s *DockerSwarmSuite) TestPruneNetwork(c *check.C) {
 	pruneNetworkAndVerify(c, d, []string{}, []string{"n1", "n3"})
 }
 
-func (s *DockerDaemonSuite) TestPruneImageDangling(c *check.C) {
+func (s *DockerDaemonSuite) TestPruneImageDangling(c *testing.T) {
 	s.d.StartWithBusybox(c)
 
 	result := cli.BuildCmd(c, "test", cli.Daemon(s.d),
@@ -111,7 +111,7 @@ func (s *DockerDaemonSuite) TestPruneImageDangling(c *check.C) {
 	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Contains), id)
 }
 
-func (s *DockerSuite) TestPruneContainerUntil(c *check.C) {
+func (s *DockerSuite) TestPruneContainerUntil(c *testing.T) {
 	out := cli.DockerCmd(c, "run", "-d", "busybox").Combined()
 	id1 := strings.TrimSpace(out)
 	cli.WaitExited(c, id1, 5*time.Second)
@@ -131,7 +131,7 @@ func (s *DockerSuite) TestPruneContainerUntil(c *check.C) {
 	assert.Assert(c, strings.TrimSpace(out), checker.Contains, id2)
 }
 
-func (s *DockerSuite) TestPruneContainerLabel(c *check.C) {
+func (s *DockerSuite) TestPruneContainerLabel(c *testing.T) {
 	out := cli.DockerCmd(c, "run", "-d", "--label", "foo", "busybox").Combined()
 	id1 := strings.TrimSpace(out)
 	cli.WaitExited(c, id1, 5*time.Second)
@@ -189,7 +189,7 @@ func (s *DockerSuite) TestPruneContainerLabel(c *check.C) {
 	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Contains), id2)
 }
 
-func (s *DockerSuite) TestPruneVolumeLabel(c *check.C) {
+func (s *DockerSuite) TestPruneVolumeLabel(c *testing.T) {
 	out, _ := dockerCmd(c, "volume", "create", "--label", "foo")
 	id1 := strings.TrimSpace(out)
 	assert.Assert(c, id1, checker.Not(checker.Equals), "")
@@ -247,7 +247,7 @@ func (s *DockerSuite) TestPruneVolumeLabel(c *check.C) {
 	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Contains), id2)
 }
 
-func (s *DockerSuite) TestPruneNetworkLabel(c *check.C) {
+func (s *DockerSuite) TestPruneNetworkLabel(c *testing.T) {
 	dockerCmd(c, "network", "create", "--label", "foo", "n1")
 	dockerCmd(c, "network", "create", "--label", "bar", "n2")
 	dockerCmd(c, "network", "create", "n3")
@@ -268,7 +268,7 @@ func (s *DockerSuite) TestPruneNetworkLabel(c *check.C) {
 	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Contains), "n3")
 }
 
-func (s *DockerDaemonSuite) TestPruneImageLabel(c *check.C) {
+func (s *DockerDaemonSuite) TestPruneImageLabel(c *testing.T) {
 	s.d.StartWithBusybox(c)
 
 	result := cli.BuildCmd(c, "test1", cli.Daemon(s.d),

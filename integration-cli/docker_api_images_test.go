@@ -19,7 +19,7 @@ import (
 	"gotest.tools/assert"
 )
 
-func (s *DockerSuite) TestAPIImagesFilter(c *check.C) {
+func (s *DockerSuite) TestAPIImagesFilter(c *testing.T) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
 	defer cli.Close()
@@ -57,7 +57,7 @@ func (s *DockerSuite) TestAPIImagesFilter(c *check.C) {
 	assert.Equal(c, len(images[0].RepoTags), 1)
 }
 
-func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *check.C) {
+func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 	if runtime.GOOS == "windows" {
 		v, err := kernel.GetKernelVersion()
 		assert.NilError(c, err)
@@ -87,7 +87,7 @@ func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *check.C) {
 	assert.Equal(c, strings.TrimSpace(string(inspectOut)), id, "load did not work properly")
 }
 
-func (s *DockerSuite) TestAPIImagesDelete(c *check.C) {
+func (s *DockerSuite) TestAPIImagesDelete(c *testing.T) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
 	defer cli.Close()
@@ -111,7 +111,7 @@ func (s *DockerSuite) TestAPIImagesDelete(c *check.C) {
 	assert.NilError(c, err)
 }
 
-func (s *DockerSuite) TestAPIImagesHistory(c *check.C) {
+func (s *DockerSuite) TestAPIImagesHistory(c *testing.T) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
 	defer cli.Close()
@@ -137,7 +137,7 @@ func (s *DockerSuite) TestAPIImagesHistory(c *check.C) {
 	assert.Assert(c, found)
 }
 
-func (s *DockerSuite) TestAPIImagesImportBadSrc(c *check.C) {
+func (s *DockerSuite) TestAPIImagesImportBadSrc(c *testing.T) {
 	if runtime.GOOS == "windows" {
 		v, err := kernel.GetKernelVersion()
 		assert.NilError(c, err)
@@ -172,7 +172,7 @@ func (s *DockerSuite) TestAPIImagesImportBadSrc(c *check.C) {
 }
 
 // #14846
-func (s *DockerSuite) TestAPIImagesSearchJSONContentType(c *check.C) {
+func (s *DockerSuite) TestAPIImagesSearchJSONContentType(c *testing.T) {
 	testRequires(c, Network)
 
 	res, b, err := request.Get("/images/search?term=test", request.JSON)
@@ -184,7 +184,7 @@ func (s *DockerSuite) TestAPIImagesSearchJSONContentType(c *check.C) {
 
 // Test case for 30027: image size reported as -1 in v1.12 client against v1.13 daemon.
 // This test checks to make sure both v1.12 and v1.13 client against v1.13 daemon get correct `Size` after the fix.
-func (s *DockerSuite) TestAPIImagesSizeCompatibility(c *check.C) {
+func (s *DockerSuite) TestAPIImagesSizeCompatibility(c *testing.T) {
 	apiclient := testEnv.APIClient()
 	defer apiclient.Close()
 

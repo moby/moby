@@ -27,14 +27,14 @@ const (
 )
 
 // Ensure that an all-local path case returns an error.
-func (s *DockerSuite) TestCpLocalOnly(c *check.C) {
+func (s *DockerSuite) TestCpLocalOnly(c *testing.T) {
 	err := runDockerCp(c, "foo", "bar", nil)
 	assert.ErrorContains(c, err, "must specify at least one container source")
 }
 
 // Test for #5656
 // Check that garbage paths don't escape the container's rootfs
-func (s *DockerSuite) TestCpGarbagePath(c *check.C) {
+func (s *DockerSuite) TestCpGarbagePath(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 
 	containerID := strings.TrimSpace(out)
@@ -70,7 +70,7 @@ func (s *DockerSuite) TestCpGarbagePath(c *check.C) {
 }
 
 // Check that relative paths are relative to the container's rootfs
-func (s *DockerSuite) TestCpRelativePath(c *check.C) {
+func (s *DockerSuite) TestCpRelativePath(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 
 	containerID := strings.TrimSpace(out)
@@ -112,7 +112,7 @@ func (s *DockerSuite) TestCpRelativePath(c *check.C) {
 }
 
 // Check that absolute paths are relative to the container's rootfs
-func (s *DockerSuite) TestCpAbsolutePath(c *check.C) {
+func (s *DockerSuite) TestCpAbsolutePath(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 
 	containerID := strings.TrimSpace(out)
@@ -149,7 +149,7 @@ func (s *DockerSuite) TestCpAbsolutePath(c *check.C) {
 
 // Test for #5619
 // Check that absolute symlinks are still relative to the container's rootfs
-func (s *DockerSuite) TestCpAbsoluteSymlink(c *check.C) {
+func (s *DockerSuite) TestCpAbsoluteSymlink(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpFullPath+" container_path")
 
@@ -185,7 +185,7 @@ func (s *DockerSuite) TestCpAbsoluteSymlink(c *check.C) {
 
 // Check that symlinks to a directory behave as expected when copying one from
 // a container.
-func (s *DockerSuite) TestCpFromSymlinkToDirectory(c *check.C) {
+func (s *DockerSuite) TestCpFromSymlinkToDirectory(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPathParent+" /dir_link")
 
@@ -231,7 +231,7 @@ func (s *DockerSuite) TestCpFromSymlinkToDirectory(c *check.C) {
 
 // Check that symlinks to a directory behave as expected when copying one to a
 // container.
-func (s *DockerSuite) TestCpToSymlinkToDirectory(c *check.C) {
+func (s *DockerSuite) TestCpToSymlinkToDirectory(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, testEnv.IsLocalDaemon) // Requires local volume mount bind.
 
@@ -308,7 +308,7 @@ func (s *DockerSuite) TestCpToSymlinkToDirectory(c *check.C) {
 
 // Test for #5619
 // Check that symlinks which are part of the resource path are still relative to the container's rootfs
-func (s *DockerSuite) TestCpSymlinkComponent(c *check.C) {
+func (s *DockerSuite) TestCpSymlinkComponent(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPath+" container_path")
 
@@ -347,7 +347,7 @@ func (s *DockerSuite) TestCpSymlinkComponent(c *check.C) {
 }
 
 // Check that cp with unprivileged user doesn't return any error
-func (s *DockerSuite) TestCpUnprivilegedUser(c *check.C) {
+func (s *DockerSuite) TestCpUnprivilegedUser(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	testRequires(c, UnixCli) // uses chmod/su: not available on windows
 
@@ -371,7 +371,7 @@ func (s *DockerSuite) TestCpUnprivilegedUser(c *check.C) {
 	result.Assert(c, icmd.Expected{})
 }
 
-func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
+func (s *DockerSuite) TestCpSpecialFiles(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, testEnv.IsLocalDaemon)
 
@@ -411,7 +411,7 @@ func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
 	assert.Assert(c, bytes.Equal(actual, expected), "Expected copied file to be duplicate of the container hostname")
 }
 
-func (s *DockerSuite) TestCpVolumePath(c *check.C) {
+func (s *DockerSuite) TestCpVolumePath(c *testing.T) {
 	//  stat /tmp/cp-test-volumepath851508420/test gets permission denied for the user
 	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
@@ -474,7 +474,7 @@ func (s *DockerSuite) TestCpVolumePath(c *check.C) {
 	assert.Assert(c, bytes.Equal(fb, fb2), "Expected copied file to be duplicate of bind-mounted file")
 }
 
-func (s *DockerSuite) TestCpToDot(c *check.C) {
+func (s *DockerSuite) TestCpToDot(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
 
 	containerID := strings.TrimSpace(out)
@@ -497,7 +497,7 @@ func (s *DockerSuite) TestCpToDot(c *check.C) {
 	assert.Equal(c, string(content), "lololol\n")
 }
 
-func (s *DockerSuite) TestCpToStdout(c *check.C) {
+func (s *DockerSuite) TestCpToStdout(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
 
 	containerID := strings.TrimSpace(out)
@@ -514,7 +514,7 @@ func (s *DockerSuite) TestCpToStdout(c *check.C) {
 	assert.Check(c, is.Contains(out, "-rw"))
 }
 
-func (s *DockerSuite) TestCpNameHasColon(c *check.C) {
+func (s *DockerSuite) TestCpNameHasColon(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /te:s:t")
@@ -533,7 +533,7 @@ func (s *DockerSuite) TestCpNameHasColon(c *check.C) {
 	assert.Equal(c, string(content), "lololol\n")
 }
 
-func (s *DockerSuite) TestCopyAndRestart(c *check.C) {
+func (s *DockerSuite) TestCopyAndRestart(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	expectedMsg := "hello"
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "echo", expectedMsg)
@@ -552,7 +552,7 @@ func (s *DockerSuite) TestCopyAndRestart(c *check.C) {
 	assert.Equal(c, strings.TrimSpace(out), expectedMsg)
 }
 
-func (s *DockerSuite) TestCopyCreatedContainer(c *check.C) {
+func (s *DockerSuite) TestCopyCreatedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "create", "--name", "test_cp", "-v", "/test", "busybox")
 
@@ -565,7 +565,7 @@ func (s *DockerSuite) TestCopyCreatedContainer(c *check.C) {
 // test copy with option `-L`: following symbol link
 // Check that symlinks to a file behave as expected when copying one from
 // a container to host following symbol link
-func (s *DockerSuite) TestCpSymlinkFromConToHostFollowSymlink(c *check.C) {
+func (s *DockerSuite) TestCpSymlinkFromConToHostFollowSymlink(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpFullPath+" /dir_link")
 	assert.Equal(c, exitCode, 0, "failed to set up container: %s", out)

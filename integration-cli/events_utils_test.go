@@ -35,13 +35,13 @@ type eventObserver struct {
 
 // newEventObserver creates the observer and initializes the command
 // without running it. Users must call `eventObserver.Start` to start the command.
-func newEventObserver(c *check.C, args ...string) (*eventObserver, error) {
+func newEventObserver(c *testing.T, args ...string) (*eventObserver, error) {
 	since := daemonTime(c).Unix()
 	return newEventObserverWithBacklog(c, since, args...)
 }
 
 // newEventObserverWithBacklog creates a new observer changing the start time of the backlog to return.
-func newEventObserverWithBacklog(c *check.C, since int64, args ...string) (*eventObserver, error) {
+func newEventObserverWithBacklog(c *testing.T, since int64, args ...string) (*eventObserver, error) {
 	startTime := strconv.FormatInt(since, 10)
 	cmdArgs := []string{"events", "--since", startTime}
 	if len(args) > 0 {
@@ -93,7 +93,7 @@ func (e *eventObserver) Match(match eventMatcher, process eventMatchProcessor) {
 	e.disconnectionError = err
 }
 
-func (e *eventObserver) CheckEventError(c *check.C, id, event string, match eventMatcher) {
+func (e *eventObserver) CheckEventError(c *testing.T, id, event string, match eventMatcher) {
 	var foundEvent bool
 	scannerOut := e.buffer.String()
 
@@ -144,14 +144,14 @@ func processEventMatch(actions map[string]chan bool) eventMatchProcessor {
 
 // parseEventAction parses an event text and returns the action.
 // It fails if the text is not in the event format.
-func parseEventAction(c *check.C, text string) string {
+func parseEventAction(c *testing.T, text string) string {
 	matches := eventstestutils.ScanMap(text)
 	return matches["action"]
 }
 
 // eventActionsByIDAndType returns the actions for a given id and type.
 // It fails if the text is not in the event format.
-func eventActionsByIDAndType(c *check.C, events []string, id, eventType string) []string {
+func eventActionsByIDAndType(c *testing.T, events []string, id, eventType string) []string {
 	var filtered []string
 	for _, event := range events {
 		matches := eventstestutils.ScanMap(event)
@@ -183,7 +183,7 @@ func matchEventID(matches map[string]string, id string) bool {
 	return matchID
 }
 
-func parseEvents(c *check.C, out, match string) {
+func parseEvents(c *testing.T, out, match string) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	for _, event := range events {
 		matches := eventstestutils.ScanMap(event)
@@ -193,7 +193,7 @@ func parseEvents(c *check.C, out, match string) {
 	}
 }
 
-func parseEventsWithID(c *check.C, out, match, id string) {
+func parseEventsWithID(c *testing.T, out, match, id string) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	for _, event := range events {
 		matches := eventstestutils.ScanMap(event)

@@ -32,7 +32,7 @@ import (
 )
 
 // #6509
-func (s *DockerSuite) TestRunRedirectStdout(c *check.C) {
+func (s *DockerSuite) TestRunRedirectStdout(c *testing.T) {
 	checkRedirect := func(command string) {
 		_, tty, err := pty.Open()
 		assert.Assert(c, err, checker.IsNil, check.Commentf("Could not open pty"))
@@ -60,7 +60,7 @@ func (s *DockerSuite) TestRunRedirectStdout(c *check.C) {
 }
 
 // Test recursive bind mount works by default
-func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
+func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *testing.T) {
 	// /tmp gets permission denied
 	testRequires(c, NotUserNamespace, testEnv.IsLocalDaemon)
 	tmpDir, err := ioutil.TempDir("", "docker_recursive_mount_test")
@@ -81,7 +81,7 @@ func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 	assert.Assert(c, out, checker.Contains, filepath.Base(f.Name()), check.Commentf("Recursive bind mount test failed. Expected file not found"))
 }
 
-func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
+func (s *DockerSuite) TestRunDeviceDirectory(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
 	if _, err := os.Stat("/dev/snd"); err != nil {
 		c.Skip("Host does not have /dev/snd")
@@ -95,7 +95,7 @@ func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
 }
 
 // TestRunAttachDetach checks attaching and detaching with the default escape sequence.
-func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
+func (s *DockerSuite) TestRunAttachDetach(c *testing.T) {
 	name := "attach-detach"
 
 	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "cat")
@@ -146,7 +146,7 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 }
 
 // TestRunAttachDetachFromFlag checks attaching and detaching with the escape sequence specified via flags.
-func (s *DockerSuite) TestRunAttachDetachFromFlag(c *check.C) {
+func (s *DockerSuite) TestRunAttachDetachFromFlag(c *testing.T) {
 	name := "attach-detach"
 	keyCtrlA := []byte{1}
 	keyA := []byte{97}
@@ -207,7 +207,7 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *check.C) {
 }
 
 // TestRunAttachDetachFromInvalidFlag checks attaching and detaching with the escape sequence specified via flags.
-func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *check.C) {
+func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *testing.T) {
 	name := "attach-detach"
 	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "top")
 	assert.Assert(c, waitRun(name), check.IsNil)
@@ -240,7 +240,7 @@ func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *check.C) {
 }
 
 // TestRunAttachDetachFromConfig checks attaching and detaching with the escape sequence specified via config file.
-func (s *DockerSuite) TestRunAttachDetachFromConfig(c *check.C) {
+func (s *DockerSuite) TestRunAttachDetachFromConfig(c *testing.T) {
 	keyCtrlA := []byte{1}
 	keyA := []byte{97}
 
@@ -323,7 +323,7 @@ func (s *DockerSuite) TestRunAttachDetachFromConfig(c *check.C) {
 }
 
 // TestRunAttachDetachKeysOverrideConfig checks attaching and detaching with the detach flags, making sure it overrides config file
-func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *check.C) {
+func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *testing.T) {
 	keyCtrlA := []byte{1}
 	keyA := []byte{97}
 
@@ -405,7 +405,7 @@ func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *check.C) {
 	assert.Assert(c, running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 }
 
-func (s *DockerSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *check.C) {
+func (s *DockerSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *testing.T) {
 	name := "attach-detach"
 	keyA := []byte{97}
 	keyB := []byte{98}
@@ -456,7 +456,7 @@ func (s *DockerSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *check.C)
 }
 
 // "test" should be printed
-func (s *DockerSuite) TestRunWithCPUQuota(c *check.C) {
+func (s *DockerSuite) TestRunWithCPUQuota(c *testing.T) {
 	testRequires(c, cpuCfsQuota)
 
 	file := "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
@@ -467,7 +467,7 @@ func (s *DockerSuite) TestRunWithCPUQuota(c *check.C) {
 	assert.Equal(c, out, "8000", "setting the CPU CFS quota failed")
 }
 
-func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
+func (s *DockerSuite) TestRunWithCpuPeriod(c *testing.T) {
 	testRequires(c, cpuCfsPeriod)
 
 	file := "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
@@ -481,7 +481,7 @@ func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
 	assert.Equal(c, out, "50000", "setting the CPU CFS period failed")
 }
 
-func (s *DockerSuite) TestRunWithInvalidCpuPeriod(c *check.C) {
+func (s *DockerSuite) TestRunWithInvalidCpuPeriod(c *testing.T) {
 	testRequires(c, cpuCfsPeriod)
 	out, _, err := dockerCmdWithError("run", "--cpu-period", "900", "busybox", "true")
 	assert.ErrorContains(c, err, "")
@@ -497,7 +497,7 @@ func (s *DockerSuite) TestRunWithInvalidCpuPeriod(c *check.C) {
 	assert.Assert(c, strings.Contains(out, expected))
 }
 
-func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
+func (s *DockerSuite) TestRunWithKernelMemory(c *testing.T) {
 	testRequires(c, DaemonIsLinux, kernelMemorySupport)
 
 	file := "/sys/fs/cgroup/memory/memory.kmem.limit_in_bytes"
@@ -510,7 +510,7 @@ func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
 	})
 }
 
-func (s *DockerSuite) TestRunWithInvalidKernelMemory(c *check.C) {
+func (s *DockerSuite) TestRunWithInvalidKernelMemory(c *testing.T) {
 	testRequires(c, DaemonIsLinux, kernelMemorySupport)
 
 	out, _, err := dockerCmdWithError("run", "--kernel-memory", "2M", "busybox", "true")
@@ -524,7 +524,7 @@ func (s *DockerSuite) TestRunWithInvalidKernelMemory(c *check.C) {
 	assert.Assert(c, strings.Contains(out, expected))
 }
 
-func (s *DockerSuite) TestRunWithCPUShares(c *check.C) {
+func (s *DockerSuite) TestRunWithCPUShares(c *testing.T) {
 	testRequires(c, cpuShare)
 
 	file := "/sys/fs/cgroup/cpu/cpu.shares"
@@ -536,7 +536,7 @@ func (s *DockerSuite) TestRunWithCPUShares(c *check.C) {
 }
 
 // "test" should be printed
-func (s *DockerSuite) TestRunEchoStdoutWithCPUSharesAndMemoryLimit(c *check.C) {
+func (s *DockerSuite) TestRunEchoStdoutWithCPUSharesAndMemoryLimit(c *testing.T) {
 	testRequires(c, cpuShare)
 	testRequires(c, memoryLimitSupport)
 	cli.DockerCmd(c, "run", "--cpu-shares", "1000", "-m", "32m", "busybox", "echo", "test").Assert(c, icmd.Expected{
@@ -544,7 +544,7 @@ func (s *DockerSuite) TestRunEchoStdoutWithCPUSharesAndMemoryLimit(c *check.C) {
 	})
 }
 
-func (s *DockerSuite) TestRunWithCpusetCpus(c *check.C) {
+func (s *DockerSuite) TestRunWithCpusetCpus(c *testing.T) {
 	testRequires(c, cgroupCpuset)
 
 	file := "/sys/fs/cgroup/cpuset/cpuset.cpus"
@@ -555,7 +555,7 @@ func (s *DockerSuite) TestRunWithCpusetCpus(c *check.C) {
 	assert.Equal(c, out, "0")
 }
 
-func (s *DockerSuite) TestRunWithCpusetMems(c *check.C) {
+func (s *DockerSuite) TestRunWithCpusetMems(c *testing.T) {
 	testRequires(c, cgroupCpuset)
 
 	file := "/sys/fs/cgroup/cpuset/cpuset.mems"
@@ -566,7 +566,7 @@ func (s *DockerSuite) TestRunWithCpusetMems(c *check.C) {
 	assert.Equal(c, out, "0")
 }
 
-func (s *DockerSuite) TestRunWithBlkioWeight(c *check.C) {
+func (s *DockerSuite) TestRunWithBlkioWeight(c *testing.T) {
 	testRequires(c, blkioWeight)
 
 	file := "/sys/fs/cgroup/blkio/blkio.weight"
@@ -577,7 +577,7 @@ func (s *DockerSuite) TestRunWithBlkioWeight(c *check.C) {
 	assert.Equal(c, out, "300")
 }
 
-func (s *DockerSuite) TestRunWithInvalidBlkioWeight(c *check.C) {
+func (s *DockerSuite) TestRunWithInvalidBlkioWeight(c *testing.T) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--blkio-weight", "5", "busybox", "true")
 	assert.ErrorContains(c, err, "", out)
@@ -585,37 +585,37 @@ func (s *DockerSuite) TestRunWithInvalidBlkioWeight(c *check.C) {
 	assert.Assert(c, strings.Contains(out, expected))
 }
 
-func (s *DockerSuite) TestRunWithInvalidPathforBlkioWeightDevice(c *check.C) {
+func (s *DockerSuite) TestRunWithInvalidPathforBlkioWeightDevice(c *testing.T) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--blkio-weight-device", "/dev/sdX:100", "busybox", "true")
 	assert.ErrorContains(c, err, "", out)
 }
 
-func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceReadBps(c *check.C) {
+func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceReadBps(c *testing.T) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--device-read-bps", "/dev/sdX:500", "busybox", "true")
 	assert.ErrorContains(c, err, "", out)
 }
 
-func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceWriteBps(c *check.C) {
+func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceWriteBps(c *testing.T) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--device-write-bps", "/dev/sdX:500", "busybox", "true")
 	assert.ErrorContains(c, err, "", out)
 }
 
-func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceReadIOps(c *check.C) {
+func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceReadIOps(c *testing.T) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--device-read-iops", "/dev/sdX:500", "busybox", "true")
 	assert.ErrorContains(c, err, "", out)
 }
 
-func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceWriteIOps(c *check.C) {
+func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceWriteIOps(c *testing.T) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--device-write-iops", "/dev/sdX:500", "busybox", "true")
 	assert.ErrorContains(c, err, "", out)
 }
 
-func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
+func (s *DockerSuite) TestRunOOMExitCode(c *testing.T) {
 	testRequires(c, memoryLimitSupport, swapMemorySupport, NotPpc64le)
 	errChan := make(chan error)
 	go func() {
@@ -635,7 +635,7 @@ func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunWithMemoryLimit(c *check.C) {
+func (s *DockerSuite) TestRunWithMemoryLimit(c *testing.T) {
 	testRequires(c, memoryLimitSupport)
 
 	file := "/sys/fs/cgroup/memory/memory.limit_in_bytes"
@@ -651,14 +651,14 @@ func (s *DockerSuite) TestRunWithMemoryLimit(c *check.C) {
 // memory limit, this means the processes in the container can use
 // 16M memory and as much swap memory as they need (if the host
 // supports swap memory).
-func (s *DockerSuite) TestRunWithoutMemoryswapLimit(c *check.C) {
+func (s *DockerSuite) TestRunWithoutMemoryswapLimit(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, swapMemorySupport)
 	dockerCmd(c, "run", "-m", "32m", "--memory-swap", "-1", "busybox", "true")
 }
 
-func (s *DockerSuite) TestRunWithSwappiness(c *check.C) {
+func (s *DockerSuite) TestRunWithSwappiness(c *testing.T) {
 	testRequires(c, memorySwappinessSupport)
 	file := "/sys/fs/cgroup/memory/memory.swappiness"
 	out, _ := dockerCmd(c, "run", "--memory-swappiness", "0", "--name", "test", "busybox", "cat", file)
@@ -668,7 +668,7 @@ func (s *DockerSuite) TestRunWithSwappiness(c *check.C) {
 	assert.Equal(c, out, "0")
 }
 
-func (s *DockerSuite) TestRunWithSwappinessInvalid(c *check.C) {
+func (s *DockerSuite) TestRunWithSwappinessInvalid(c *testing.T) {
 	testRequires(c, memorySwappinessSupport)
 	out, _, err := dockerCmdWithError("run", "--memory-swappiness", "101", "busybox", "true")
 	assert.ErrorContains(c, err, "")
@@ -680,7 +680,7 @@ func (s *DockerSuite) TestRunWithSwappinessInvalid(c *check.C) {
 	assert.Assert(c, out, checker.Contains, expected, check.Commentf("Expected output to contain %q, not %q", out, expected))
 }
 
-func (s *DockerSuite) TestRunWithMemoryReservation(c *check.C) {
+func (s *DockerSuite) TestRunWithMemoryReservation(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, memoryReservationSupport)
 
 	file := "/sys/fs/cgroup/memory/memory.soft_limit_in_bytes"
@@ -691,7 +691,7 @@ func (s *DockerSuite) TestRunWithMemoryReservation(c *check.C) {
 	assert.Equal(c, out, "209715200")
 }
 
-func (s *DockerSuite) TestRunWithMemoryReservationInvalid(c *check.C) {
+func (s *DockerSuite) TestRunWithMemoryReservationInvalid(c *testing.T) {
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, testEnv.IsLocalDaemon, memoryReservationSupport)
 	out, _, err := dockerCmdWithError("run", "-m", "500M", "--memory-reservation", "800M", "busybox", "true")
@@ -705,7 +705,7 @@ func (s *DockerSuite) TestRunWithMemoryReservationInvalid(c *check.C) {
 	assert.Assert(c, strings.TrimSpace(out), checker.Contains, expected, check.Commentf("run container should fail with invalid memory reservation"))
 }
 
-func (s *DockerSuite) TestStopContainerSignal(c *check.C) {
+func (s *DockerSuite) TestStopContainerSignal(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "--stop-signal", "SIGUSR1", "-d", "busybox", "/bin/sh", "-c", `trap 'echo "exit trapped"; exit 0' USR1; while true; do sleep 1; done`)
 	containerID := strings.TrimSpace(out)
 
@@ -717,7 +717,7 @@ func (s *DockerSuite) TestStopContainerSignal(c *check.C) {
 	assert.Assert(c, out, checker.Contains, "exit trapped", check.Commentf("Expected `exit trapped` in the log"))
 }
 
-func (s *DockerSuite) TestRunSwapLessThanMemoryLimit(c *check.C) {
+func (s *DockerSuite) TestRunSwapLessThanMemoryLimit(c *testing.T) {
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, swapMemorySupport)
 	out, _, err := dockerCmdWithError("run", "-m", "16m", "--memory-swap", "15m", "busybox", "echo", "test")
@@ -727,7 +727,7 @@ func (s *DockerSuite) TestRunSwapLessThanMemoryLimit(c *check.C) {
 	assert.Assert(c, strings.Contains(out, expected))
 }
 
-func (s *DockerSuite) TestRunInvalidCpusetCpusFlagValue(c *check.C) {
+func (s *DockerSuite) TestRunInvalidCpusetCpusFlagValue(c *testing.T) {
 	testRequires(c, cgroupCpuset, testEnv.IsLocalDaemon)
 
 	sysInfo := sysinfo.New(true)
@@ -746,7 +746,7 @@ func (s *DockerSuite) TestRunInvalidCpusetCpusFlagValue(c *check.C) {
 	assert.Assert(c, strings.Contains(out, expected))
 }
 
-func (s *DockerSuite) TestRunInvalidCpusetMemsFlagValue(c *check.C) {
+func (s *DockerSuite) TestRunInvalidCpusetMemsFlagValue(c *testing.T) {
 	testRequires(c, cgroupCpuset)
 
 	sysInfo := sysinfo.New(true)
@@ -765,7 +765,7 @@ func (s *DockerSuite) TestRunInvalidCpusetMemsFlagValue(c *check.C) {
 	assert.Assert(c, strings.Contains(out, expected))
 }
 
-func (s *DockerSuite) TestRunInvalidCPUShares(c *check.C) {
+func (s *DockerSuite) TestRunInvalidCPUShares(c *testing.T) {
 	testRequires(c, cpuShare, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "--cpu-shares", "1", "busybox", "echo", "test")
 	assert.ErrorContains(c, err, "", out)
@@ -783,7 +783,7 @@ func (s *DockerSuite) TestRunInvalidCPUShares(c *check.C) {
 	assert.Assert(c, strings.Contains(out, expected))
 }
 
-func (s *DockerSuite) TestRunWithDefaultShmSize(c *check.C) {
+func (s *DockerSuite) TestRunWithDefaultShmSize(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	name := "shm-default"
@@ -796,7 +796,7 @@ func (s *DockerSuite) TestRunWithDefaultShmSize(c *check.C) {
 	assert.Assert(c, shmSize, check.Equals, "67108864")
 }
 
-func (s *DockerSuite) TestRunWithShmSize(c *check.C) {
+func (s *DockerSuite) TestRunWithShmSize(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	name := "shm"
@@ -809,7 +809,7 @@ func (s *DockerSuite) TestRunWithShmSize(c *check.C) {
 	assert.Assert(c, shmSize, check.Equals, "1073741824")
 }
 
-func (s *DockerSuite) TestRunTmpfsMountsEnsureOrdered(c *check.C) {
+func (s *DockerSuite) TestRunTmpfsMountsEnsureOrdered(c *testing.T) {
 	tmpFile, err := ioutil.TempFile("", "test")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
@@ -817,7 +817,7 @@ func (s *DockerSuite) TestRunTmpfsMountsEnsureOrdered(c *check.C) {
 	assert.Assert(c, out, checker.Contains, "test")
 }
 
-func (s *DockerSuite) TestRunTmpfsMounts(c *check.C) {
+func (s *DockerSuite) TestRunTmpfsMounts(c *testing.T) {
 	// TODO Windows (Post TP5): This test cannot run on a Windows daemon as
 	// Windows does not support tmpfs mounts.
 	testRequires(c, DaemonIsLinux)
@@ -838,7 +838,7 @@ func (s *DockerSuite) TestRunTmpfsMounts(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunTmpfsMountsOverrideImageVolumes(c *check.C) {
+func (s *DockerSuite) TestRunTmpfsMountsOverrideImageVolumes(c *testing.T) {
 	name := "img-with-volumes"
 	buildImageSuccessfully(c, name, build.WithDockerfile(`
     FROM busybox
@@ -850,7 +850,7 @@ func (s *DockerSuite) TestRunTmpfsMountsOverrideImageVolumes(c *check.C) {
 }
 
 // Test case for #22420
-func (s *DockerSuite) TestRunTmpfsMountsWithOptions(c *check.C) {
+func (s *DockerSuite) TestRunTmpfsMountsWithOptions(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	expectedOptions := []string{"rw", "nosuid", "nodev", "noexec", "relatime"}
@@ -890,7 +890,7 @@ func (s *DockerSuite) TestRunTmpfsMountsWithOptions(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunSysctls(c *check.C) {
+func (s *DockerSuite) TestRunSysctls(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	var err error
 
@@ -921,7 +921,7 @@ func (s *DockerSuite) TestRunSysctls(c *check.C) {
 }
 
 // TestRunSeccompProfileDenyUnshare checks that 'docker run --security-opt seccomp=/tmp/profile.json debian:jessie unshare' exits with operation not permitted.
-func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *check.C) {
+func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotArm, Apparmor)
 	jsonData := `{
 	"defaultAction": "SCMP_ACT_ALLOW",
@@ -950,7 +950,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *check.C) {
 }
 
 // TestRunSeccompProfileDenyChmod checks that 'docker run --security-opt seccomp=/tmp/profile.json busybox chmod 400 /etc/hostname' exits with operation not permitted.
-func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
+func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 	jsonData := `{
 	"defaultAction": "SCMP_ACT_ALLOW",
@@ -985,7 +985,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
 
 // TestRunSeccompProfileDenyUnshareUserns checks that 'docker run debian:jessie unshare --map-root-user --user sh -c whoami' with a specific profile to
 // deny unshare of a userns exits with operation not permitted.
-func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
+func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotArm, Apparmor)
 	// from sched.h
 	jsonData := fmt.Sprintf(`{
@@ -1023,7 +1023,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
 
 // TestRunSeccompProfileDenyCloneUserns checks that 'docker run syscall-test'
 // with a the default seccomp profile exits with operation not permitted.
-func (s *DockerSuite) TestRunSeccompProfileDenyCloneUserns(c *check.C) {
+func (s *DockerSuite) TestRunSeccompProfileDenyCloneUserns(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 	ensureSyscallTest(c)
 
@@ -1035,7 +1035,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyCloneUserns(c *check.C) {
 
 // TestRunSeccompUnconfinedCloneUserns checks that
 // 'docker run --security-opt seccomp=unconfined syscall-test' allows creating a userns.
-func (s *DockerSuite) TestRunSeccompUnconfinedCloneUserns(c *check.C) {
+func (s *DockerSuite) TestRunSeccompUnconfinedCloneUserns(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace, unprivilegedUsernsClone)
 	ensureSyscallTest(c)
 
@@ -1048,7 +1048,7 @@ func (s *DockerSuite) TestRunSeccompUnconfinedCloneUserns(c *check.C) {
 
 // TestRunSeccompAllowPrivCloneUserns checks that 'docker run --privileged syscall-test'
 // allows creating a userns.
-func (s *DockerSuite) TestRunSeccompAllowPrivCloneUserns(c *check.C) {
+func (s *DockerSuite) TestRunSeccompAllowPrivCloneUserns(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace)
 	ensureSyscallTest(c)
 
@@ -1060,7 +1060,7 @@ func (s *DockerSuite) TestRunSeccompAllowPrivCloneUserns(c *check.C) {
 
 // TestRunSeccompProfileAllow32Bit checks that 32 bit code can run on x86_64
 // with the default seccomp profile.
-func (s *DockerSuite) TestRunSeccompProfileAllow32Bit(c *check.C) {
+func (s *DockerSuite) TestRunSeccompProfileAllow32Bit(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, IsAmd64)
 	ensureSyscallTest(c)
 
@@ -1068,14 +1068,14 @@ func (s *DockerSuite) TestRunSeccompProfileAllow32Bit(c *check.C) {
 }
 
 // TestRunSeccompAllowSetrlimit checks that 'docker run debian:jessie ulimit -v 1048510' succeeds.
-func (s *DockerSuite) TestRunSeccompAllowSetrlimit(c *check.C) {
+func (s *DockerSuite) TestRunSeccompAllowSetrlimit(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
 	// ulimit uses setrlimit, so we want to make sure we don't break it
 	icmd.RunCommand(dockerBinary, "run", "debian:jessie", "bash", "-c", "ulimit -v 1048510").Assert(c, icmd.Success)
 }
 
-func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
+func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotUserNamespace)
 	ensureSyscallTest(c)
 
@@ -1105,7 +1105,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
+func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotUserNamespace)
 	ensureSyscallTest(c)
 
@@ -1142,7 +1142,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
 
 // TestRunNoNewPrivSetuid checks that --security-opt='no-new-privileges=true' prevents
 // effective uid transitions on executing setuid binaries.
-func (s *DockerSuite) TestRunNoNewPrivSetuid(c *check.C) {
+func (s *DockerSuite) TestRunNoNewPrivSetuid(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, testEnv.IsLocalDaemon)
 	ensureNNPTest(c)
 
@@ -1155,7 +1155,7 @@ func (s *DockerSuite) TestRunNoNewPrivSetuid(c *check.C) {
 
 // TestLegacyRunNoNewPrivSetuid checks that --security-opt=no-new-privileges prevents
 // effective uid transitions on executing setuid binaries.
-func (s *DockerSuite) TestLegacyRunNoNewPrivSetuid(c *check.C) {
+func (s *DockerSuite) TestLegacyRunNoNewPrivSetuid(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, testEnv.IsLocalDaemon)
 	ensureNNPTest(c)
 
@@ -1166,7 +1166,7 @@ func (s *DockerSuite) TestLegacyRunNoNewPrivSetuid(c *check.C) {
 	})
 }
 
-func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChown(c *check.C) {
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChown(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
@@ -1184,7 +1184,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChown(c *check.C) {
 	})
 }
 
-func (s *DockerSuite) TestUserNoEffectiveCapabilitiesDacOverride(c *check.C) {
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesDacOverride(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
@@ -1197,7 +1197,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesDacOverride(c *check.C) {
 	})
 }
 
-func (s *DockerSuite) TestUserNoEffectiveCapabilitiesFowner(c *check.C) {
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesFowner(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
@@ -1213,7 +1213,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesFowner(c *check.C) {
 
 // TODO CAP_KILL
 
-func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetuid(c *check.C) {
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetuid(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
@@ -1231,7 +1231,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetuid(c *check.C) {
 	})
 }
 
-func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetgid(c *check.C) {
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetgid(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
@@ -1251,7 +1251,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetgid(c *check.C) {
 
 // TODO CAP_SETPCAP
 
-func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetBindService(c *check.C) {
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetBindService(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
@@ -1269,7 +1269,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetBindService(c *check.C) 
 	})
 }
 
-func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetRaw(c *check.C) {
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetRaw(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
@@ -1287,7 +1287,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetRaw(c *check.C) {
 	})
 }
 
-func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChroot(c *check.C) {
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChroot(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
@@ -1305,7 +1305,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChroot(c *check.C) {
 	})
 }
 
-func (s *DockerSuite) TestUserNoEffectiveCapabilitiesMknod(c *check.C) {
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesMknod(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
@@ -1327,7 +1327,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesMknod(c *check.C) {
 // TODO CAP_AUDIT_WRITE
 // TODO CAP_SETFCAP
 
-func (s *DockerSuite) TestRunApparmorProcDirectory(c *check.C) {
+func (s *DockerSuite) TestRunApparmorProcDirectory(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, Apparmor)
 
 	// running w seccomp unconfined tests the apparmor profile
@@ -1346,7 +1346,7 @@ func (s *DockerSuite) TestRunApparmorProcDirectory(c *check.C) {
 
 // make sure the default profile can be successfully parsed (using unshare as it is
 // something which we know is blocked in the default profile)
-func (s *DockerSuite) TestRunSeccompWithDefaultProfile(c *check.C) {
+func (s *DockerSuite) TestRunSeccompWithDefaultProfile(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
 	out, _, err := dockerCmdWithError("run", "--security-opt", "seccomp=../profiles/seccomp/default.json", "debian:jessie", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
@@ -1355,7 +1355,7 @@ func (s *DockerSuite) TestRunSeccompWithDefaultProfile(c *check.C) {
 }
 
 // TestRunDeviceSymlink checks run with device that follows symlink (#13840 and #22271)
-func (s *DockerSuite) TestRunDeviceSymlink(c *check.C) {
+func (s *DockerSuite) TestRunDeviceSymlink(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm, testEnv.IsLocalDaemon)
 	if _, err := os.Stat("/dev/zero"); err != nil {
 		c.Skip("Host does not have /dev/zero")
@@ -1404,7 +1404,7 @@ func (s *DockerSuite) TestRunDeviceSymlink(c *check.C) {
 }
 
 // TestRunPIDsLimit makes sure the pids cgroup is set with --pids-limit
-func (s *DockerSuite) TestRunPIDsLimit(c *check.C) {
+func (s *DockerSuite) TestRunPIDsLimit(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, pidsLimit)
 
 	file := "/sys/fs/cgroup/pids/pids.max"
@@ -1415,7 +1415,7 @@ func (s *DockerSuite) TestRunPIDsLimit(c *check.C) {
 	assert.Equal(c, out, "4", "setting the pids limit failed")
 }
 
-func (s *DockerSuite) TestRunPrivilegedAllowedDevices(c *check.C) {
+func (s *DockerSuite) TestRunPrivilegedAllowedDevices(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	file := "/sys/fs/cgroup/devices/devices.list"
@@ -1424,7 +1424,7 @@ func (s *DockerSuite) TestRunPrivilegedAllowedDevices(c *check.C) {
 	assert.Equal(c, strings.TrimSpace(out), "a *:* rwm")
 }
 
-func (s *DockerSuite) TestRunUserDeviceAllowed(c *check.C) {
+func (s *DockerSuite) TestRunUserDeviceAllowed(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	fi, err := os.Stat("/dev/snd/timer")
@@ -1441,7 +1441,7 @@ func (s *DockerSuite) TestRunUserDeviceAllowed(c *check.C) {
 	assert.Assert(c, out, checker.Contains, fmt.Sprintf("c %d:%d w", stat.Rdev/256, stat.Rdev%256))
 }
 
-func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *check.C) {
+func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *testing.T) {
 	testRequires(c, seccompEnabled)
 
 	s.d.StartWithBusybox(c)
@@ -1466,7 +1466,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *check.C) {
 	assert.Assert(c, out, checker.Contains, "Operation not permitted")
 }
 
-func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *check.C) {
+func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *testing.T) {
 	testRequires(c, seccompEnabled)
 
 	s.d.StartWithBusybox(c)
@@ -1492,7 +1492,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *check.C) {
 	assert.Assert(c, out, checker.Contains, "'name' and 'names' were specified in the seccomp profile, use either 'name' or 'names'")
 }
 
-func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *check.C) {
+func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *testing.T) {
 	testRequires(c, seccompEnabled)
 
 	s.d.StartWithBusybox(c)
@@ -1529,7 +1529,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *check.C) {
 	assert.Assert(c, out, checker.Contains, "'architectures' and 'archMap' were specified in the seccomp profile, use either 'architectures' or 'archMap'")
 }
 
-func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *check.C) {
+func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *testing.T) {
 	testRequires(c, seccompEnabled)
 
 	s.d.StartWithBusybox(c)
@@ -1565,7 +1565,7 @@ func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *check.C) {
 	assert.Assert(c, out, checker.Contains, "Operation not permitted")
 }
 
-func (s *DockerSuite) TestRunWithNanoCPUs(c *check.C) {
+func (s *DockerSuite) TestRunWithNanoCPUs(c *testing.T) {
 	testRequires(c, cpuCfsQuota, cpuCfsPeriod)
 
 	file1 := "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"

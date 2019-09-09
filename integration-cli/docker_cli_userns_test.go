@@ -22,7 +22,7 @@ import (
 // user namespaces test: run daemon with remapped root setting
 // 1. validate uid/gid maps are set properly
 // 2. verify that files created are owned by remapped root
-func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 	testRequires(c, UserNamespaceInKernel)
 
 	s.d.StartWithBusybox(c, "--userns-remap", "default")
@@ -88,7 +88,7 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *check.C) {
 }
 
 // findUser finds the uid or name of the user of the first process that runs in a container
-func (s *DockerDaemonSuite) findUser(c *check.C, container string) string {
+func (s *DockerDaemonSuite) findUser(c *testing.T, container string) string {
 	out, err := s.d.Cmd("top", container)
 	assert.Assert(c, err, checker.IsNil, check.Commentf("Output: %s", out))
 	rows := strings.Split(out, "\n")

@@ -13,7 +13,7 @@ import (
 
 // This is a heisen-test.  Because the created timestamp of images and the behavior of
 // sort is not predictable it doesn't always fail.
-func (s *DockerSuite) TestBuildHistory(c *check.C) {
+func (s *DockerSuite) TestBuildHistory(c *testing.T) {
 	name := "testbuildhistory"
 	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM `+minimalBaseImage()+`
 LABEL label.A="A"
@@ -55,16 +55,16 @@ LABEL label.Z="Z"`))
 
 }
 
-func (s *DockerSuite) TestHistoryExistentImage(c *check.C) {
+func (s *DockerSuite) TestHistoryExistentImage(c *testing.T) {
 	dockerCmd(c, "history", "busybox")
 }
 
-func (s *DockerSuite) TestHistoryNonExistentImage(c *check.C) {
+func (s *DockerSuite) TestHistoryNonExistentImage(c *testing.T) {
 	_, _, err := dockerCmdWithError("history", "testHistoryNonExistentImage")
 	assert.Assert(c, err, checker.NotNil, check.Commentf("history on a non-existent image should fail."))
 }
 
-func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
+func (s *DockerSuite) TestHistoryImageWithComment(c *testing.T) {
 	name := "testhistoryimagewithcomment"
 
 	// make an image through docker commit <container id> [ -m messages ]
@@ -83,7 +83,7 @@ func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
 	assert.Assert(c, actualValue, checker.Contains, comment)
 }
 
-func (s *DockerSuite) TestHistoryHumanOptionFalse(c *check.C) {
+func (s *DockerSuite) TestHistoryHumanOptionFalse(c *testing.T) {
 	out, _ := dockerCmd(c, "history", "--human=false", "busybox")
 	lines := strings.Split(out, "\n")
 	sizeColumnRegex, _ := regexp.Compile("SIZE +")
@@ -101,7 +101,7 @@ func (s *DockerSuite) TestHistoryHumanOptionFalse(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestHistoryHumanOptionTrue(c *check.C) {
+func (s *DockerSuite) TestHistoryHumanOptionTrue(c *testing.T) {
 	out, _ := dockerCmd(c, "history", "--human=true", "busybox")
 	lines := strings.Split(out, "\n")
 	sizeColumnRegex, _ := regexp.Compile("SIZE +")

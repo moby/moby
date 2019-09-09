@@ -11,7 +11,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSwarmSuite) TestAPISwarmListNodes(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmListNodes(c *testing.T) {
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, false)
 	d3 := s.AddDaemon(c, true, false)
@@ -30,7 +30,7 @@ loop0:
 	}
 }
 
-func (s *DockerSwarmSuite) TestAPISwarmNodeUpdate(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmNodeUpdate(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 
 	nodes := d.ListNodes(c)
@@ -43,7 +43,7 @@ func (s *DockerSwarmSuite) TestAPISwarmNodeUpdate(c *check.C) {
 	assert.Assert(c, n.Spec.Availability, checker.Equals, swarm.NodeAvailabilityPause)
 }
 
-func (s *DockerSwarmSuite) TestAPISwarmNodeRemove(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmNodeRemove(c *testing.T) {
 	testRequires(c, Network)
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, false)
@@ -72,7 +72,7 @@ func (s *DockerSwarmSuite) TestAPISwarmNodeRemove(c *check.C) {
 	assert.Assert(c, len(nodes), checker.Equals, 2, check.Commentf("nodes: %#v", nodes))
 }
 
-func (s *DockerSwarmSuite) TestAPISwarmNodeDrainPause(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmNodeDrainPause(c *testing.T) {
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, false)
 
