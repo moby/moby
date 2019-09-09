@@ -231,7 +231,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *testing.T) {
 					startingTasks = append(startingTasks, t)
 				}
 			}
-			return startingTasks, nil
+			return startingTasks, ""
 		}, checker.HasLen, expected)
 
 		return startingTasks

@@ -26,7 +26,7 @@ func (d *Daemon) CheckServiceTasksInState(service string, state swarm.TaskState,
 				}
 			}
 		}
-		return count, nil
+		return count, ""
 	}
 }
 
@@ -43,7 +43,7 @@ func (d *Daemon) CheckServiceTasksInStateWithError(service string, state swarm.T
 				}
 			}
 		}
-		return count, nil
+		return count, ""
 	}
 }
 
@@ -57,9 +57,9 @@ func (d *Daemon) CheckServiceUpdateState(service string) func(*testing.T) (inter
 	return func(c *testing.T) (interface{}, string) {
 		service := d.GetService(c, service)
 		if service.UpdateStatus == nil {
-			return "", nil
+			return "", ""
 		}
-		return service.UpdateStatus.State, nil
+		return service.UpdateStatus.State, ""
 	}
 }
 
@@ -93,7 +93,7 @@ func (d *Daemon) CheckPluginImage(plugin string) func(c *testing.T) (interface{}
 func (d *Daemon) CheckServiceTasks(service string) func(*testing.T) (interface{}, string) {
 	return func(c *testing.T) (interface{}, string) {
 		tasks := d.GetServiceTasks(c, service)
-		return len(tasks), nil
+		return len(tasks), ""
 	}
 }
 
@@ -118,7 +118,7 @@ func (d *Daemon) CheckRunningTaskNetworks(c *testing.T) (interface{}, string) {
 			result[network.Target]++
 		}
 	}
-	return result, nil
+	return result, ""
 }
 
 // CheckRunningTaskImages returns the times each image is running as a task.
@@ -142,7 +142,7 @@ func (d *Daemon) CheckRunningTaskImages(c *testing.T) (interface{}, string) {
 			result[task.Spec.ContainerSpec.Image]++
 		}
 	}
-	return result, nil
+	return result, ""
 }
 
 // CheckNodeReadyCount returns the number of ready node on the swarm
@@ -154,20 +154,20 @@ func (d *Daemon) CheckNodeReadyCount(c *testing.T) (interface{}, string) {
 			readyCount++
 		}
 	}
-	return readyCount, nil
+	return readyCount, ""
 }
 
 // CheckLocalNodeState returns the current swarm node state
 func (d *Daemon) CheckLocalNodeState(c *testing.T) (interface{}, string) {
 	info := d.SwarmInfo(c)
-	return info.LocalNodeState, nil
+	return info.LocalNodeState, ""
 }
 
 // CheckControlAvailable returns the current swarm control available
 func (d *Daemon) CheckControlAvailable(c *testing.T) (interface{}, string) {
 	info := d.SwarmInfo(c)
 	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateActive)
-	return info.ControlAvailable, nil
+	return info.ControlAvailable, ""
 }
 
 // CheckLeader returns whether there is a leader on the swarm or not
@@ -184,7 +184,7 @@ func (d *Daemon) CheckLeader(c *testing.T) (interface{}, string) {
 
 	for _, node := range ls {
 		if node.ManagerStatus != nil && node.ManagerStatus.Leader {
-			return nil, nil
+			return nil, ""
 		}
 	}
 	return fmt.Errorf("no leader"), "could not find leader"
