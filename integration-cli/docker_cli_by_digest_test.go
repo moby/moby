@@ -235,7 +235,7 @@ func (s *DockerRegistrySuite) TestListImagesWithoutDigests(c *testing.T) {
 	dockerCmd(c, "pull", imageReference)
 
 	out, _ := dockerCmd(c, "images")
-	assert.Assert(c, out, checker.Not(checker.Contains), "DIGEST", check.Commentf("list output should not have contained DIGEST header"))
+	assert.Assert(c, !strings.Contains(out, "DIGEST"), check.Commentf("list output should not have contained DIGEST header"))
 }
 
 func (s *DockerRegistrySuite) TestListImagesWithDigests(c *testing.T) {

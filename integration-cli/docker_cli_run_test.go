@@ -3919,7 +3919,7 @@ func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *testing.T) {
 	dockerCmd(c, "volume", "inspect", "test")
 	out, _ := dockerCmd(c, "volume", "ls", "-q")
 	assert.Assert(c, strings.Contains(out, "test"))
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Contains), vname)
+	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), vname))
 }
 
 func (s *DockerSuite) TestRunAttachFailedNoLeak(c *testing.T) {
@@ -4197,7 +4197,7 @@ func (s *DockerSuite) TestRunDuplicateMount(c *testing.T) {
 
 	name := "test"
 	out, _ := dockerCmd(c, "run", "--name", name, "-v", "/tmp:/tmp", "-v", "/tmp:/tmp", "busybox", "sh", "-c", "cat "+tmpFile.Name()+" && ls /")
-	assert.Assert(c, out, checker.Not(checker.Contains), "tmp:")
+	assert.Assert(c, !strings.Contains(out, "tmp:"))
 	assert.Assert(c, out, checker.Contains, data)
 
 	out = inspectFieldJSON(c, name, "Config.Volumes")

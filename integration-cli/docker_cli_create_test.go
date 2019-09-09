@@ -330,7 +330,7 @@ func (s *DockerSuite) TestCreateWithInvalidLogOpts(c *testing.T) {
 	assert.Assert(c, is.Contains(out, "unknown log opt"))
 
 	out, _ = dockerCmd(c, "ps", "-a")
-	assert.Assert(c, out, checker.Not(checker.Contains), name)
+	assert.Assert(c, !strings.Contains(out, name))
 }
 
 // #20972

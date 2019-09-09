@@ -847,7 +847,7 @@ func (s *DockerSuite) TestRunTmpfsMountsOverrideImageVolumes(c *testing.T) {
     RUN touch /run/stuff
     `))
 	out, _ := dockerCmd(c, "run", "--tmpfs", "/run", name, "ls", "/run")
-	assert.Assert(c, out, checker.Not(checker.Contains), "stuff")
+	assert.Assert(c, !strings.Contains(out, "stuff"))
 }
 
 // Test case for #22420
@@ -859,15 +859,13 @@ func (s *DockerSuite) TestRunTmpfsMountsWithOptions(c *testing.T) {
 	for _, option := range expectedOptions {
 		assert.Assert(c, out, checker.Contains, option)
 	}
-	assert.Assert(c, out, checker.Not(checker.Contains), "size=")
-
+	assert.Assert(c, !strings.Contains(out, "size="))
 	expectedOptions = []string{"rw", "nosuid", "nodev", "noexec", "relatime"}
 	out, _ = dockerCmd(c, "run", "--tmpfs", "/tmp:rw", "busybox", "sh", "-c", "mount | grep 'tmpfs on /tmp'")
 	for _, option := range expectedOptions {
 		assert.Assert(c, out, checker.Contains, option)
 	}
-	assert.Assert(c, out, checker.Not(checker.Contains), "size=")
-
+	assert.Assert(c, !strings.Contains(out, "size="))
 	expectedOptions = []string{"rw", "nosuid", "nodev", "relatime", "size=8192k"}
 	out, _ = dockerCmd(c, "run", "--tmpfs", "/tmp:rw,exec,size=8192k", "busybox", "sh", "-c", "mount | grep 'tmpfs on /tmp'")
 	for _, option := range expectedOptions {

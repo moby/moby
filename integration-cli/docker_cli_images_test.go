@@ -34,9 +34,8 @@ func (s *DockerSuite) TestImagesEnsureImageWithTagIsListed(c *testing.T) {
 	imagesOut, _ := dockerCmd(c, "images", name+":v1")
 	assert.Assert(c, imagesOut, checker.Contains, name)
 	assert.Assert(c, imagesOut, checker.Contains, "v1")
-	assert.Assert(c, imagesOut, checker.Not(checker.Contains), "v2")
-	assert.Assert(c, imagesOut, checker.Not(checker.Contains), "v1v1")
-
+	assert.Assert(c, !strings.Contains(imagesOut, "v2"))
+	assert.Assert(c, !strings.Contains(imagesOut, "v1v1"))
 	imagesOut, _ = dockerCmd(c, "images", name)
 	assert.Assert(c, imagesOut, checker.Contains, name)
 	assert.Assert(c, imagesOut, checker.Contains, "v1")
@@ -46,7 +45,7 @@ func (s *DockerSuite) TestImagesEnsureImageWithTagIsListed(c *testing.T) {
 
 func (s *DockerSuite) TestImagesEnsureImageWithBadTagIsNotListed(c *testing.T) {
 	imagesOut, _ := dockerCmd(c, "images", "busybox:nonexistent")
-	assert.Assert(c, imagesOut, checker.Not(checker.Contains), "busybox")
+	assert.Assert(c, !strings.Contains(imagesOut, "busybox"))
 }
 
 func (s *DockerSuite) TestImagesOrderedByCreationDate(c *testing.T) {
@@ -256,8 +255,7 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *testing.T) 
 
 	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=false")
 	//dangling=false would not include dangling images
-	assert.Assert(c, out, checker.Not(checker.Contains), imageID)
-
+	assert.Assert(c, !strings.Contains(out, imageID))
 	out, _ = dockerCmd(c, "images")
 	//docker images still include dangling images
 	assert.Assert(c, out, checker.Contains, imageID)
@@ -289,7 +287,7 @@ func (s *DockerSuite) TestImagesEnsureOnlyHeadsImagesShown(c *testing.T) {
 
 	out, _ := dockerCmd(c, "images")
 	// images shouldn't show non-heads images
-	assert.Assert(c, out, checker.Not(checker.Contains), intermediate)
+	assert.Assert(c, !strings.Contains(out, intermediate))
 	// images should contain final built images
 	assert.Assert(c, out, checker.Contains, stringid.TruncateID(id))
 }
@@ -336,7 +334,7 @@ func (s *DockerSuite) TestImagesFilterNameWithPort(c *testing.T) {
 	assert.Assert(c, out, checker.Contains, tag)
 
 	out, _ = dockerCmd(c, "images", tag+":no-such-tag")
-	assert.Assert(c, out, checker.Not(checker.Contains), tag)
+	assert.Assert(c, !strings.Contains(out, tag))
 }
 
 func (s *DockerSuite) TestImagesFormat(c *testing.T) {

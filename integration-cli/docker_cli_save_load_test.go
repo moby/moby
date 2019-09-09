@@ -394,7 +394,7 @@ func (s *DockerSuite) TestSaveLoadNoTag(c *testing.T) {
 	assert.NilError(c, err, "failed to save and load repo: %s, %v", out, err)
 
 	// Should not show 'name' but should show the image ID during the load
-	assert.Assert(c, out, checker.Not(checker.Contains), "Loaded image: ")
+	assert.Assert(c, !strings.Contains(out, "Loaded image: "))
 	assert.Assert(c, out, checker.Contains, "Loaded image ID:")
 	assert.Assert(c, out, checker.Contains, id)
 
@@ -405,5 +405,5 @@ func (s *DockerSuite) TestSaveLoadNoTag(c *testing.T) {
 	assert.NilError(c, err, "failed to save and load repo: %s, %v", out, err)
 
 	assert.Assert(c, out, checker.Contains, "Loaded image: "+name+":latest")
-	assert.Assert(c, out, checker.Not(checker.Contains), "Loaded image ID:")
+	assert.Assert(c, !strings.Contains(out, "Loaded image ID:"))
 }
