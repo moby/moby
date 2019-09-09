@@ -16,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 	"github.com/opencontainers/go-digest"
@@ -395,15 +394,14 @@ func (s *DockerSuite) TestSaveLoadNoTag(c *testing.T) {
 
 	// Should not show 'name' but should show the image ID during the load
 	assert.Assert(c, !strings.Contains(out, "Loaded image: "))
-	assert.Assert(c, out, checker.Contains, "Loaded image ID:")
-	assert.Assert(c, out, checker.Contains, id)
-
+	assert.Assert(c, strings.Contains(out, "Loaded image ID:"))
+	assert.Assert(c, strings.Contains(out, id))
 	// Test to make sure that save by name shows that name during load
 	out, err = RunCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "save", name),
 		exec.Command(dockerBinary, "load"))
 	assert.NilError(c, err, "failed to save and load repo: %s, %v", out, err)
 
-	assert.Assert(c, out, checker.Contains, "Loaded image: "+name+":latest")
+	assert.Assert(c, strings.Contains(out, "Loaded image: "+name+":latest"))
 	assert.Assert(c, !strings.Contains(out, "Loaded image ID:"))
 }

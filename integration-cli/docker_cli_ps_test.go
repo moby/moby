@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
@@ -177,7 +176,7 @@ func (s *DockerSuite) TestPsListContainersSize(c *testing.T) {
 	assert.Equal(c, foundID, id[:12], check.Commentf("Expected id %s, got %s", id[:12], foundID))
 	expectedSize := fmt.Sprintf("%dB", 2+baseBytes)
 	foundSize := lines[1][sizeIndex:]
-	assert.Assert(c, foundSize, checker.Contains, expectedSize, check.Commentf("Expected size %q, got %q", expectedSize, foundSize))
+	assert.Assert(c, strings.Contains(foundSize, expectedSize), check.Commentf("Expected size %q, got %q", expectedSize, foundSize))
 }
 
 func (s *DockerSuite) TestPsListContainersFilterStatus(c *testing.T) {
@@ -432,8 +431,8 @@ func (s *DockerSuite) TestPsListContainersFilterLabel(c *testing.T) {
 	// filter containers by exact key
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match")
 	containerOut = strings.TrimSpace(out)
-	assert.Assert(c, containerOut, checker.Contains, firstID)
-	assert.Assert(c, containerOut, checker.Contains, secondID)
+	assert.Assert(c, strings.Contains(containerOut, firstID))
+	assert.Assert(c, strings.Contains(containerOut, secondID))
 	assert.Assert(c, !strings.Contains(containerOut, thirdID))
 }
 
@@ -453,13 +452,13 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *testing.T) {
 
 	// filter containers by exited=0
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=0")
-	assert.Assert(c, out, checker.Contains, strings.TrimSpace(firstZero))
-	assert.Assert(c, out, checker.Contains, strings.TrimSpace(secondZero))
+	assert.Assert(c, strings.Contains(out, strings.TrimSpace(firstZero)))
+	assert.Assert(c, strings.Contains(out, strings.TrimSpace(secondZero)))
 	assert.Assert(c, !strings.Contains(out, strings.TrimSpace(firstNonZero)))
 	assert.Assert(c, !strings.Contains(out, strings.TrimSpace(secondNonZero)))
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=1")
-	assert.Assert(c, out, checker.Contains, strings.TrimSpace(firstNonZero))
-	assert.Assert(c, out, checker.Contains, strings.TrimSpace(secondNonZero))
+	assert.Assert(c, strings.Contains(out, strings.TrimSpace(firstNonZero)))
+	assert.Assert(c, strings.Contains(out, strings.TrimSpace(secondNonZero)))
 	assert.Assert(c, !strings.Contains(out, strings.TrimSpace(firstZero)))
 	assert.Assert(c, !strings.Contains(out, strings.TrimSpace(secondZero)))
 }
@@ -528,7 +527,7 @@ func (s *DockerSuite) TestPsListContainersFilterCreated(c *testing.T) {
 			continue
 		}
 		hits++
-		assert.Assert(c, line, checker.Contains, "Created", check.Commentf("Missing 'Created' on '%s'", line))
+		assert.Assert(c, strings.Contains(line, "Created"), check.Commentf("Missing 'Created' on '%s'", line))
 	}
 
 	assert.Equal(c, hits, 1, check.Commentf("Should have seen '%s' in ps -a output once:%d\n%s", shortCID, hits, out))
@@ -742,8 +741,7 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 	assert.Equal(c, len(RemoveLinesForExistingElements(lines, existing)), 1)
 
 	// Making sure onbridgenetwork is on the output
-	assert.Assert(c, containerOut, checker.Contains, "onbridgenetwork", check.Commentf("Missing the container on network\n"))
-
+	assert.Assert(c, strings.Contains(containerOut, "onbridgenetwork"), check.Commentf("Missing the container on network\n"))
 	// Filter docker ps on networks bridge and none
 	out, _ = dockerCmd(c, "ps", "--filter", "network=bridge", "--filter", "network=none")
 	containerOut = strings.TrimSpace(string(out))
@@ -757,9 +755,8 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 	assert.Equal(c, len(RemoveLinesForExistingElements(lines, existing)), 2)
 
 	// Making sure onbridgenetwork and onnonenetwork is on the output
-	assert.Assert(c, containerOut, checker.Contains, "onnonenetwork", check.Commentf("Missing the container on none network\n"))
-	assert.Assert(c, containerOut, checker.Contains, "onbridgenetwork", check.Commentf("Missing the container on bridge network\n"))
-
+	assert.Assert(c, strings.Contains(containerOut, "onnonenetwork"), check.Commentf("Missing the container on none network\n"))
+	assert.Assert(c, strings.Contains(containerOut, "onbridgenetwork"), check.Commentf("Missing the container on bridge network\n"))
 	nwID, _ := dockerCmd(c, "network", "inspect", "--format", "{{.ID}}", "bridge")
 
 	// Filter by network ID
@@ -783,8 +780,7 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 	assert.Equal(c, len(RemoveLinesForExistingElements(lines, existing)), 1)
 
 	// Making sure onbridgenetwork is on the output
-	assert.Assert(c, containerOut, checker.Contains, "onbridgenetwork", check.Commentf("Missing the container on network\n"))
-
+	assert.Assert(c, strings.Contains(containerOut, "onbridgenetwork"), check.Commentf("Missing the container on network\n"))
 }
 
 func (s *DockerSuite) TestPsByOrder(c *testing.T) {
@@ -817,9 +813,8 @@ func (s *DockerSuite) TestPsListContainersFilterPorts(c *testing.T) {
 	id2 := strings.TrimSpace(out)
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q")
-	assert.Assert(c, strings.TrimSpace(out), checker.Contains, id1)
-	assert.Assert(c, strings.TrimSpace(out), checker.Contains, id2)
-
+	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id1))
+	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id2))
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=80-8080/udp")
 	assert.Assert(c, strings.TrimSpace(out) != id1)
 	assert.Assert(c, strings.TrimSpace(out) != id2)

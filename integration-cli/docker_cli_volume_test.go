@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 	"gotest.tools/assert"
@@ -61,9 +60,9 @@ func (s *DockerSuite) TestVolumeCLIInspectMulti(c *testing.T) {
 	})
 
 	out := result.Stdout()
-	assert.Assert(c, out, checker.Contains, "test1")
-	assert.Assert(c, out, checker.Contains, "test2")
-	assert.Assert(c, out, checker.Contains, "test3")
+	assert.Assert(c, strings.Contains(out, "test1"))
+	assert.Assert(c, strings.Contains(out, "test2"))
+	assert.Assert(c, strings.Contains(out, "test3"))
 }
 
 func (s *DockerSuite) TestVolumeCLILs(c *testing.T) {
@@ -135,50 +134,47 @@ func (s *DockerSuite) TestVolumeCLILsFilterDangling(c *testing.T) {
 	out, _ := dockerCmd(c, "volume", "ls")
 
 	// No filter, all volumes should show
-	assert.Assert(c, out, checker.Contains, "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
-	assert.Assert(c, out, checker.Contains, "testisinuse1\n", check.Commentf("expected volume 'testisinuse1' in output"))
-	assert.Assert(c, out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
-
+	assert.Assert(c, strings.Contains(out, "testnotinuse1\n"), check.Commentf("expected volume 'testnotinuse1' in output"))
+	assert.Assert(c, strings.Contains(out, "testisinuse1\n"), check.Commentf("expected volume 'testisinuse1' in output"))
+	assert.Assert(c, strings.Contains(out, "testisinuse2\n"), check.Commentf("expected volume 'testisinuse2' in output"))
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "dangling=false")
 
 	// Explicitly disabling dangling
 	assert.Assert(c, !strings.Contains(out, "testnotinuse1\n"), check.Commentf("expected volume 'testnotinuse1' in output"))
-	assert.Assert(c, out, checker.Contains, "testisinuse1\n", check.Commentf("expected volume 'testisinuse1' in output"))
-	assert.Assert(c, out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
-
+	assert.Assert(c, strings.Contains(out, "testisinuse1\n"), check.Commentf("expected volume 'testisinuse1' in output"))
+	assert.Assert(c, strings.Contains(out, "testisinuse2\n"), check.Commentf("expected volume 'testisinuse2' in output"))
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "dangling=true")
 
 	// Filter "dangling" volumes; only "dangling" (unused) volumes should be in the output
-	assert.Assert(c, out, checker.Contains, "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
+	assert.Assert(c, strings.Contains(out, "testnotinuse1\n"), check.Commentf("expected volume 'testnotinuse1' in output"))
 	assert.Assert(c, !strings.Contains(out, "testisinuse1\n"), check.Commentf("volume 'testisinuse1' in output, but not expected"))
 	assert.Assert(c, !strings.Contains(out, "testisinuse2\n"), check.Commentf("volume 'testisinuse2' in output, but not expected"))
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "dangling=1")
 	// Filter "dangling" volumes; only "dangling" (unused) volumes should be in the output, dangling also accept 1
-	assert.Assert(c, out, checker.Contains, "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
+	assert.Assert(c, strings.Contains(out, "testnotinuse1\n"), check.Commentf("expected volume 'testnotinuse1' in output"))
 	assert.Assert(c, !strings.Contains(out, "testisinuse1\n"), check.Commentf("volume 'testisinuse1' in output, but not expected"))
 	assert.Assert(c, !strings.Contains(out, "testisinuse2\n"), check.Commentf("volume 'testisinuse2' in output, but not expected"))
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "dangling=0")
 	// dangling=0 is same as dangling=false case
 	assert.Assert(c, !strings.Contains(out, "testnotinuse1\n"), check.Commentf("expected volume 'testnotinuse1' in output"))
-	assert.Assert(c, out, checker.Contains, "testisinuse1\n", check.Commentf("expected volume 'testisinuse1' in output"))
-	assert.Assert(c, out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
-
+	assert.Assert(c, strings.Contains(out, "testisinuse1\n"), check.Commentf("expected volume 'testisinuse1' in output"))
+	assert.Assert(c, strings.Contains(out, "testisinuse2\n"), check.Commentf("expected volume 'testisinuse2' in output"))
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "name=testisin")
 	assert.Assert(c, !strings.Contains(out, "testnotinuse1\n"), check.Commentf("expected volume 'testnotinuse1' in output"))
-	assert.Assert(c, out, checker.Contains, "testisinuse1\n", check.Commentf("expected volume 'testisinuse1' in output"))
-	assert.Assert(c, out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
+	assert.Assert(c, strings.Contains(out, "testisinuse1\n"), check.Commentf("expected volume 'testisinuse1' in output"))
+	assert.Assert(c, strings.Contains(out, "testisinuse2\n"), check.Commentf("expected volume 'testisinuse2' in output"))
 }
 
 func (s *DockerSuite) TestVolumeCLILsErrorWithInvalidFilterName(c *testing.T) {
 	out, _, err := dockerCmdWithError("volume", "ls", "-f", "FOO=123")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, out, checker.Contains, "Invalid filter")
+	assert.Assert(c, strings.Contains(out, "Invalid filter"))
 }
 
 func (s *DockerSuite) TestVolumeCLILsWithIncorrectFilterValue(c *testing.T) {
 	out, _, err := dockerCmdWithError("volume", "ls", "-f", "dangling=invalid")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, out, checker.Contains, "Invalid filter")
+	assert.Assert(c, strings.Contains(out, "Invalid filter"))
 }
 
 func (s *DockerSuite) TestVolumeCLIRm(c *testing.T) {
@@ -217,8 +213,7 @@ func (s *DockerSuite) TestVolumeCLINoArgs(c *testing.T) {
 	out, _ := dockerCmd(c, "volume")
 	// no args should produce the cmd usage output
 	usage := "Usage:	docker volume COMMAND"
-	assert.Assert(c, out, checker.Contains, usage)
-
+	assert.Assert(c, strings.Contains(out, usage))
 	// invalid arg should error and show the command usage on stderr
 	icmd.RunCommand(dockerBinary, "volume", "somearg").Assert(c, icmd.Expected{
 		ExitCode: 1,
@@ -233,7 +228,7 @@ func (s *DockerSuite) TestVolumeCLINoArgs(c *testing.T) {
 		Error:    "exit status 125",
 		Err:      usage,
 	})
-	assert.Assert(c, result.Stderr(), checker.Contains, "unknown flag: --no-such-flag")
+	assert.Assert(c, strings.Contains(result.Stderr(), "unknown flag: --no-such-flag"))
 }
 
 func (s *DockerSuite) TestVolumeCLIInspectTmplError(c *testing.T) {
@@ -243,7 +238,7 @@ func (s *DockerSuite) TestVolumeCLIInspectTmplError(c *testing.T) {
 	out, exitCode, err := dockerCmdWithError("volume", "inspect", "--format='{{ .FooBar }}'", name)
 	assert.Assert(c, err != nil, check.Commentf("Output: %s", out))
 	assert.Equal(c, exitCode, 1, check.Commentf("Output: %s", out))
-	assert.Assert(c, out, checker.Contains, "Template parsing error")
+	assert.Assert(c, strings.Contains(out, "Template parsing error"))
 }
 
 func (s *DockerSuite) TestVolumeCLICreateWithOpts(c *testing.T) {
@@ -262,8 +257,8 @@ func (s *DockerSuite) TestVolumeCLICreateWithOpts(c *testing.T) {
 			assert.Equal(c, info[0], "tmpfs")
 			assert.Equal(c, info[2], "/foo")
 			assert.Equal(c, info[4], "tmpfs")
-			assert.Assert(c, info[5], checker.Contains, "uid=1000")
-			assert.Assert(c, info[5], checker.Contains, "size=1024k")
+			assert.Assert(c, strings.Contains(info[5], "uid=1000"))
+			assert.Assert(c, strings.Contains(info[5], "size=1024k"))
 			break
 		}
 	}
@@ -321,13 +316,12 @@ func (s *DockerSuite) TestVolumeCLILsFilterLabels(c *testing.T) {
 	out, _ := dockerCmd(c, "volume", "ls", "--filter", "label=foo")
 
 	// filter with label=key
-	assert.Assert(c, out, checker.Contains, "testvolcreatelabel-1\n", check.Commentf("expected volume 'testvolcreatelabel-1' in output"))
-	assert.Assert(c, out, checker.Contains, "testvolcreatelabel-2\n", check.Commentf("expected volume 'testvolcreatelabel-2' in output"))
-
+	assert.Assert(c, strings.Contains(out, "testvolcreatelabel-1\n"), check.Commentf("expected volume 'testvolcreatelabel-1' in output"))
+	assert.Assert(c, strings.Contains(out, "testvolcreatelabel-2\n"), check.Commentf("expected volume 'testvolcreatelabel-2' in output"))
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "label=foo=bar1")
 
 	// filter with label=key=value
-	assert.Assert(c, out, checker.Contains, "testvolcreatelabel-1\n", check.Commentf("expected volume 'testvolcreatelabel-1' in output"))
+	assert.Assert(c, strings.Contains(out, "testvolcreatelabel-1\n"), check.Commentf("expected volume 'testvolcreatelabel-1' in output"))
 	assert.Assert(c, !strings.Contains(out, "testvolcreatelabel-2\n"), check.Commentf("expected volume 'testvolcreatelabel-2 in output"))
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "label=non-exist")
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
@@ -350,9 +344,8 @@ func (s *DockerSuite) TestVolumeCLILsFilterDrivers(c *testing.T) {
 
 	// filter with driver=local
 	out, _ := dockerCmd(c, "volume", "ls", "--filter", "driver=local")
-	assert.Assert(c, out, checker.Contains, "testvol-1\n", check.Commentf("expected volume 'testvol-1' in output"))
-	assert.Assert(c, out, checker.Contains, "testvol-2\n", check.Commentf("expected volume 'testvol-2' in output"))
-
+	assert.Assert(c, strings.Contains(out, "testvol-1\n"), check.Commentf("expected volume 'testvol-1' in output"))
+	assert.Assert(c, strings.Contains(out, "testvol-2\n"), check.Commentf("expected volume 'testvol-2' in output"))
 	// filter with driver=invaliddriver
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "driver=invaliddriver")
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
@@ -396,7 +389,7 @@ func (s *DockerSuite) TestVolumeCLIRmForce(c *testing.T) {
 	assert.Assert(c, !strings.Contains(out, name))
 	dockerCmd(c, "volume", "create", name)
 	out, _ = dockerCmd(c, "volume", "ls")
-	assert.Assert(c, out, checker.Contains, name)
+	assert.Assert(c, strings.Contains(out, name))
 }
 
 // TestVolumeCLIRmForceInUse verifies that repeated `docker volume rm -f` calls does not remove a volume
@@ -415,8 +408,7 @@ func (s *DockerSuite) TestVolumeCLIRmForceInUse(c *testing.T) {
 	assert.ErrorContains(c, err, "")
 	assert.ErrorContains(c, err, "volume is in use")
 	out, _ = dockerCmd(c, "volume", "ls")
-	assert.Assert(c, out, checker.Contains, name)
-
+	assert.Assert(c, strings.Contains(out, name))
 	// The original issue did not _remove_ the volume from the list
 	// the first time. But a second call to `volume rm` removed it.
 	// Calling `volume rm` a second time to confirm it's not removed
@@ -425,8 +417,7 @@ func (s *DockerSuite) TestVolumeCLIRmForceInUse(c *testing.T) {
 	assert.ErrorContains(c, err, "")
 	assert.ErrorContains(c, err, "volume is in use")
 	out, _ = dockerCmd(c, "volume", "ls")
-	assert.Assert(c, out, checker.Contains, name)
-
+	assert.Assert(c, strings.Contains(out, name))
 	// Verify removing the volume after the container is removed works
 	_, e := dockerCmd(c, "rm", cid)
 	assert.Equal(c, e, 0)
@@ -446,8 +437,7 @@ func (s *DockerSuite) TestVolumeCliInspectWithVolumeOpts(c *testing.T) {
 	name := "test1"
 	dockerCmd(c, "volume", "create", "-d", "local", name)
 	out, _ := dockerCmd(c, "volume", "inspect", "--format={{ .Options }}", name)
-	assert.Assert(c, strings.TrimSpace(out), checker.Contains, "map[]")
-
+	assert.Assert(c, strings.Contains(strings.TrimSpace(out), "map[]"))
 	// With options
 	name = "test2"
 	k1, v1 := "type", "tmpfs"
@@ -455,9 +445,9 @@ func (s *DockerSuite) TestVolumeCliInspectWithVolumeOpts(c *testing.T) {
 	k3, v3 := "o", "size=1m,uid=1000"
 	dockerCmd(c, "volume", "create", "-d", "local", name, "--opt", fmt.Sprintf("%s=%s", k1, v1), "--opt", fmt.Sprintf("%s=%s", k2, v2), "--opt", fmt.Sprintf("%s=%s", k3, v3))
 	out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Options }}", name)
-	assert.Assert(c, strings.TrimSpace(out), checker.Contains, fmt.Sprintf("%s:%s", k1, v1))
-	assert.Assert(c, strings.TrimSpace(out), checker.Contains, fmt.Sprintf("%s:%s", k2, v2))
-	assert.Assert(c, strings.TrimSpace(out), checker.Contains, fmt.Sprintf("%s:%s", k3, v3))
+	assert.Assert(c, strings.Contains(strings.TrimSpace(out), fmt.Sprintf("%s:%s", k1, v1)))
+	assert.Assert(c, strings.Contains(strings.TrimSpace(out), fmt.Sprintf("%s:%s", k2, v2)))
+	assert.Assert(c, strings.Contains(strings.TrimSpace(out), fmt.Sprintf("%s:%s", k3, v3)))
 }
 
 // Test case (1) for 21845: duplicate targets for --volumes-from
@@ -482,9 +472,8 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFrom(c *testing.T) {
 
 	// Both volume should exist
 	out, _ = dockerCmd(c, "volume", "ls", "-q")
-	assert.Assert(c, strings.TrimSpace(out), checker.Contains, data1)
-	assert.Assert(c, strings.TrimSpace(out), checker.Contains, data2)
-
+	assert.Assert(c, strings.Contains(strings.TrimSpace(out), data1))
+	assert.Assert(c, strings.Contains(strings.TrimSpace(out), data2))
 	out, _, err := dockerCmdWithError("run", "--name=app", "--volumes-from=data1", "--volumes-from=data2", "-d", "busybox", "top")
 	assert.Assert(c, err == nil, check.Commentf("Out: %s", out))
 
@@ -524,9 +513,8 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndBind(c *testing.T
 
 	// Both volume should exist
 	out, _ = dockerCmd(c, "volume", "ls", "-q")
-	assert.Assert(c, strings.TrimSpace(out), checker.Contains, data1)
-	assert.Assert(c, strings.TrimSpace(out), checker.Contains, data2)
-
+	assert.Assert(c, strings.Contains(strings.TrimSpace(out), data1))
+	assert.Assert(c, strings.Contains(strings.TrimSpace(out), data2))
 	// /tmp/data is automatically created, because we are not using the modern mount API here
 	out, _, err := dockerCmdWithError("run", "--name=app", "--volumes-from=data1", "--volumes-from=data2", "-v", "/tmp/data:/tmp/data", "-d", "busybox", "top")
 	assert.Assert(c, err == nil, check.Commentf("Out: %s", out))
@@ -567,9 +555,8 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *testing
 
 	// Both volume should exist
 	out, _ = dockerCmd(c, "volume", "ls", "-q")
-	assert.Assert(c, strings.TrimSpace(out), checker.Contains, data1)
-	assert.Assert(c, strings.TrimSpace(out), checker.Contains, data2)
-
+	assert.Assert(c, strings.Contains(strings.TrimSpace(out), data1))
+	assert.Assert(c, strings.Contains(strings.TrimSpace(out), data2))
 	err := os.MkdirAll("/tmp/data", 0755)
 	assert.NilError(c, err)
 	// Mounts is available in API

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/go-check/check"
 	"gotest.tools/assert"
@@ -52,7 +51,7 @@ func (s *DockerSuite) TestCommitPausedContainer(c *testing.T) {
 
 	out = inspectField(c, cleanedContainerID, "State.Paused")
 	// commit should not unpause a paused container
-	assert.Assert(c, out, checker.Contains, "true")
+	assert.Assert(c, strings.Contains(out, "true"))
 }
 
 func (s *DockerSuite) TestCommitNewFile(c *testing.T) {
@@ -73,8 +72,7 @@ func (s *DockerSuite) TestCommitHardlink(c *testing.T) {
 	chunks := strings.Split(strings.TrimSpace(firstOutput), " ")
 	inode := chunks[0]
 	chunks = strings.SplitAfterN(strings.TrimSpace(firstOutput), " ", 2)
-	assert.Assert(c, chunks[1], checker.Contains, chunks[0], check.Commentf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
-
+	assert.Assert(c, strings.Contains(chunks[1], chunks[0]), check.Commentf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
 	imageID, _ := dockerCmd(c, "commit", "hardlinks", "hardlinks")
 	imageID = strings.TrimSpace(imageID)
 
@@ -83,7 +81,7 @@ func (s *DockerSuite) TestCommitHardlink(c *testing.T) {
 	chunks = strings.Split(strings.TrimSpace(secondOutput), " ")
 	inode = chunks[0]
 	chunks = strings.SplitAfterN(strings.TrimSpace(secondOutput), " ", 2)
-	assert.Assert(c, chunks[1], checker.Contains, chunks[0], check.Commentf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
+	assert.Assert(c, strings.Contains(chunks[1], chunks[0]), check.Commentf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
 }
 
 func (s *DockerSuite) TestCommitTTY(c *testing.T) {
