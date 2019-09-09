@@ -20,13 +20,13 @@ var _ = check.Suite(&DiscoverySuite{})
 func (s *DiscoverySuite) TestInitialize(c *check.C) {
 	d := &Discovery{}
 	d.Initialize("/path/to/file", 1000, 0, nil)
-	c.Assert(d.path, check.Equals, "/path/to/file")
+	assert.Assert(c, d.path, check.Equals, "/path/to/file")
 }
 
 func (s *DiscoverySuite) TestNew(c *check.C) {
 	d, err := discovery.New("file:///path/to/file", 0, 0, nil)
-	c.Assert(err, check.IsNil)
-	c.Assert(d.(*Discovery).path, check.Equals, "/path/to/file")
+	assert.Assert(c, err, check.IsNil)
+	assert.Assert(c, d.(*Discovery).path, check.Equals, "/path/to/file")
 }
 
 func (s *DiscoverySuite) TestContent(c *check.C) {
@@ -35,17 +35,17 @@ func (s *DiscoverySuite) TestContent(c *check.C) {
 2.2.2.[2:4]:2222
 `
 	ips := parseFileContent([]byte(data))
-	c.Assert(ips, check.HasLen, 5)
-	c.Assert(ips[0], check.Equals, "1.1.1.1:1111")
-	c.Assert(ips[1], check.Equals, "1.1.1.2:1111")
-	c.Assert(ips[2], check.Equals, "2.2.2.2:2222")
-	c.Assert(ips[3], check.Equals, "2.2.2.3:2222")
-	c.Assert(ips[4], check.Equals, "2.2.2.4:2222")
+	assert.Assert(c, ips, check.HasLen, 5)
+	assert.Assert(c, ips[0], check.Equals, "1.1.1.1:1111")
+	assert.Assert(c, ips[1], check.Equals, "1.1.1.2:1111")
+	assert.Assert(c, ips[2], check.Equals, "2.2.2.2:2222")
+	assert.Assert(c, ips[3], check.Equals, "2.2.2.3:2222")
+	assert.Assert(c, ips[4], check.Equals, "2.2.2.4:2222")
 }
 
 func (s *DiscoverySuite) TestRegister(c *check.C) {
 	discovery := &Discovery{path: "/path/to/file"}
-	c.Assert(discovery.Register("0.0.0.0"), check.NotNil)
+	assert.Assert(c, discovery.Register("0.0.0.0"), check.NotNil)
 }
 
 func (s *DiscoverySuite) TestParsingContentsWithComments(c *check.C) {
@@ -58,9 +58,9 @@ func (s *DiscoverySuite) TestParsingContentsWithComments(c *check.C) {
 ### test ###
 `
 	ips := parseFileContent([]byte(data))
-	c.Assert(ips, check.HasLen, 2)
-	c.Assert("1.1.1.1:1111", check.Equals, ips[0])
-	c.Assert("3.3.3.3:3333", check.Equals, ips[1])
+	assert.Assert(c, ips, check.HasLen, 2)
+	assert.Assert(c, "1.1.1.1:1111", check.Equals, ips[0])
+	assert.Assert(c, "3.3.3.3:3333", check.Equals, ips[1])
 }
 
 func (s *DiscoverySuite) TestWatch(c *check.C) {
@@ -75,9 +75,9 @@ func (s *DiscoverySuite) TestWatch(c *check.C) {
 
 	// Create a temporary file and remove it.
 	tmp, err := ioutil.TempFile(os.TempDir(), "discovery-file-test")
-	c.Assert(err, check.IsNil)
-	c.Assert(tmp.Close(), check.IsNil)
-	c.Assert(os.Remove(tmp.Name()), check.IsNil)
+	assert.Assert(c, err, check.IsNil)
+	assert.Assert(c, tmp.Close(), check.IsNil)
+	assert.Assert(c, os.Remove(tmp.Name()), check.IsNil)
 
 	// Set up file discovery.
 	d := &Discovery{}
@@ -86,7 +86,7 @@ func (s *DiscoverySuite) TestWatch(c *check.C) {
 	ch, errCh := d.Watch(stopCh)
 
 	// Make sure it fires errors since the file doesn't exist.
-	c.Assert(<-errCh, check.NotNil)
+	assert.Assert(c, <-errCh, check.NotNil)
 	// We have to drain the error channel otherwise Watch will get stuck.
 	go func() {
 		for range errCh {
@@ -94,21 +94,21 @@ func (s *DiscoverySuite) TestWatch(c *check.C) {
 	}()
 
 	// Write the file and make sure we get the expected value back.
-	c.Assert(ioutil.WriteFile(tmp.Name(), []byte(data), 0600), check.IsNil)
-	c.Assert(<-ch, check.DeepEquals, expected)
+	assert.Assert(c, ioutil.WriteFile(tmp.Name(), []byte(data), 0600), check.IsNil)
+	assert.Assert(c, <-ch, check.DeepEquals, expected)
 
 	// Add a new entry and look it up.
 	expected = append(expected, &discovery.Entry{Host: "3.3.3.3", Port: "3333"})
 	f, err := os.OpenFile(tmp.Name(), os.O_APPEND|os.O_WRONLY, 0600)
-	c.Assert(err, check.IsNil)
-	c.Assert(f, check.NotNil)
+	assert.Assert(c, err, check.IsNil)
+	assert.Assert(c, f, check.NotNil)
 	_, err = f.WriteString("\n3.3.3.3:3333\n")
-	c.Assert(err, check.IsNil)
+	assert.Assert(c, err, check.IsNil)
 	f.Close()
-	c.Assert(<-ch, check.DeepEquals, expected)
+	assert.Assert(c, <-ch, check.DeepEquals, expected)
 
 	// Stop and make sure it closes all channels.
 	close(stopCh)
-	c.Assert(<-ch, check.IsNil)
-	c.Assert(<-errCh, check.IsNil)
+	assert.Assert(c, <-ch, check.IsNil)
+	assert.Assert(c, <-errCh, check.IsNil)
 }

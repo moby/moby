@@ -340,10 +340,10 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *check.C) {
 	// Add to revision store
 	revisionDir := filepath.Join(registryV2Path, "repositories", remoteRepoName, "_manifests", "revisions", "sha256", hexDigest)
 	err = os.Mkdir(revisionDir, 0755)
-	c.Assert(err, checker.IsNil, check.Commentf("error creating revision dir"))
+	assert.Assert(c, err, checker.IsNil, check.Commentf("error creating revision dir"))
 	revisionPath := filepath.Join(revisionDir, "link")
 	err = ioutil.WriteFile(revisionPath, []byte(manifestListDigest.String()), 0644)
-	c.Assert(err, checker.IsNil, check.Commentf("error writing revision link"))
+	assert.Assert(c, err, checker.IsNil, check.Commentf("error writing revision link"))
 
 	// Update tag
 	tagPath := filepath.Join(registryV2Path, "repositories", remoteRepoName, "_manifests", "tags", "latest", "current", "link")
@@ -355,7 +355,7 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *check.C) {
 
 	// The pull output includes "Digest: <digest>", so find that
 	matches := digestRegex.FindStringSubmatch(out)
-	c.Assert(matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", out))
+	assert.Assert(c, matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", out))
 	pullDigest := matches[1]
 
 	// Make sure the pushed and pull digests match
@@ -395,7 +395,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuthLoginWithSchem
 
 	b, err := ioutil.ReadFile(configPath)
 	assert.NilError(c, err)
-	c.Assert(string(b), checker.Not(checker.Contains), "\"auth\":")
+	assert.Assert(c, string(b), checker.Not(checker.Contains), "\"auth\":")
 
 	dockerCmd(c, "--config", tmp, "tag", "busybox", repoName)
 	dockerCmd(c, "--config", tmp, "push", repoName)
@@ -440,7 +440,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuth(c *check.C) {
 
 	b, err := ioutil.ReadFile(configPath)
 	assert.NilError(c, err)
-	c.Assert(string(b), checker.Not(checker.Contains), "\"auth\":")
+	assert.Assert(c, string(b), checker.Not(checker.Contains), "\"auth\":")
 
 	dockerCmd(c, "--config", tmp, "tag", "busybox", repoName)
 	dockerCmd(c, "--config", tmp, "push", repoName)
@@ -462,10 +462,10 @@ func (s *DockerRegistrySuite) TestRunImplicitPullWithNoTag(c *check.C) {
 	dockerCmd(c, "rmi", repoTag2)
 
 	out, _ := dockerCmd(c, "run", repo)
-	c.Assert(out, checker.Contains, fmt.Sprintf("Unable to find image '%s:latest' locally", repo))
+	assert.Assert(c, out, checker.Contains, fmt.Sprintf("Unable to find image '%s:latest' locally", repo))
 
 	// There should be only one line for repo, the one with repo:latest
 	outImageCmd, _ := dockerCmd(c, "images", repo)
 	splitOutImageCmd := strings.Split(strings.TrimSpace(outImageCmd), "\n")
-	c.Assert(splitOutImageCmd, checker.HasLen, 2)
+	assert.Assert(c, splitOutImageCmd, checker.HasLen, 2)
 }

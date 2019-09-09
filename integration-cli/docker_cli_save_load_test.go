@@ -129,21 +129,21 @@ func (s *DockerSuite) TestSaveImageId(c *check.C) {
 	cleanedShortImageID := strings.TrimSpace(out)
 
 	// Make sure IDs are not empty
-	c.Assert(cleanedLongImageID, checker.Not(check.Equals), "", check.Commentf("Id should not be empty."))
-	c.Assert(cleanedShortImageID, checker.Not(check.Equals), "", check.Commentf("Id should not be empty."))
+	assert.Assert(c, cleanedLongImageID, checker.Not(check.Equals), "", check.Commentf("Id should not be empty."))
+	assert.Assert(c, cleanedShortImageID, checker.Not(check.Equals), "", check.Commentf("Id should not be empty."))
 
 	saveCmd := exec.Command(dockerBinary, "save", cleanedShortImageID)
 	tarCmd := exec.Command("tar", "t")
 
 	var err error
 	tarCmd.Stdin, err = saveCmd.StdoutPipe()
-	c.Assert(err, checker.IsNil, check.Commentf("cannot set stdout pipe for tar: %v", err))
+	assert.Assert(c, err, checker.IsNil, check.Commentf("cannot set stdout pipe for tar: %v", err))
 	grepCmd := exec.Command("grep", cleanedLongImageID)
 	grepCmd.Stdin, err = tarCmd.StdoutPipe()
-	c.Assert(err, checker.IsNil, check.Commentf("cannot set stdout pipe for grep: %v", err))
+	assert.Assert(c, err, checker.IsNil, check.Commentf("cannot set stdout pipe for grep: %v", err))
 
-	c.Assert(tarCmd.Start(), checker.IsNil, check.Commentf("tar failed with error: %v", err))
-	c.Assert(saveCmd.Start(), checker.IsNil, check.Commentf("docker save failed with error: %v", err))
+	assert.Assert(c, tarCmd.Start(), checker.IsNil, check.Commentf("tar failed with error: %v", err))
+	assert.Assert(c, saveCmd.Start(), checker.IsNil, check.Commentf("docker save failed with error: %v", err))
 	defer func() {
 		saveCmd.Wait()
 		tarCmd.Wait()
@@ -152,7 +152,7 @@ func (s *DockerSuite) TestSaveImageId(c *check.C) {
 
 	out, _, err = runCommandWithOutput(grepCmd)
 
-	c.Assert(err, checker.IsNil, check.Commentf("failed to save repo with image ID: %s, %v", out, err))
+	assert.Assert(c, err, checker.IsNil, check.Commentf("failed to save repo with image ID: %s, %v", out, err))
 }
 
 // save a repo and try to load it using flags
@@ -264,7 +264,7 @@ func (s *DockerSuite) TestSaveDirectoryPermissions(c *check.C) {
 
 	name := "save-directory-permissions"
 	tmpDir, err := ioutil.TempDir("", "save-layers-with-directories")
-	c.Assert(err, checker.IsNil, check.Commentf("failed to create temporary directory: %s", err))
+	assert.Assert(c, err, checker.IsNil, check.Commentf("failed to create temporary directory: %s", err))
 	extractionDirectory := filepath.Join(tmpDir, "image-extraction-dir")
 	os.Mkdir(extractionDirectory, 0777)
 
@@ -393,9 +393,9 @@ func (s *DockerSuite) TestSaveLoadNoTag(c *check.C) {
 	assert.NilError(c, err, "failed to save and load repo: %s, %v", out, err)
 
 	// Should not show 'name' but should show the image ID during the load
-	c.Assert(out, checker.Not(checker.Contains), "Loaded image: ")
-	c.Assert(out, checker.Contains, "Loaded image ID:")
-	c.Assert(out, checker.Contains, id)
+	assert.Assert(c, out, checker.Not(checker.Contains), "Loaded image: ")
+	assert.Assert(c, out, checker.Contains, "Loaded image ID:")
+	assert.Assert(c, out, checker.Contains, id)
 
 	// Test to make sure that save by name shows that name during load
 	out, err = RunCommandPipelineWithOutput(
@@ -403,6 +403,6 @@ func (s *DockerSuite) TestSaveLoadNoTag(c *check.C) {
 		exec.Command(dockerBinary, "load"))
 	assert.NilError(c, err, "failed to save and load repo: %s, %v", out, err)
 
-	c.Assert(out, checker.Contains, "Loaded image: "+name+":latest")
-	c.Assert(out, checker.Not(checker.Contains), "Loaded image ID:")
+	assert.Assert(c, out, checker.Contains, "Loaded image: "+name+":latest")
+	assert.Assert(c, out, checker.Not(checker.Contains), "Loaded image ID:")
 }

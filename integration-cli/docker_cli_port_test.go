@@ -105,7 +105,7 @@ func (s *DockerSuite) TestPortList(c *check.C) {
 			"-p", "9090-9092:80",
 			"busybox", "top")
 		// Exhausted port range did not return an error
-		c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+		assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
 
 		for i := 0; i < 3; i++ {
 			dockerCmd(c, "rm", "-f", IDs[i])
@@ -121,7 +121,7 @@ func (s *DockerSuite) TestPortList(c *check.C) {
 			"-p", invalidRange,
 			"busybox", "top")
 		// Port range should have returned an error
-		c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+		assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
 	}
 
 	// test host range:container range spec.
@@ -224,9 +224,9 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 	unpPort2 := fmt.Sprintf("%d/tcp", port2)
 	out, _ := dockerCmd(c, "ps", "-n=1")
 	// Missing unpublished ports in docker ps output
-	c.Assert(out, checker.Contains, unpPort1)
+	assert.Assert(c, out, checker.Contains, unpPort1)
 	// Missing unpublished ports in docker ps output
-	c.Assert(out, checker.Contains, unpPort2)
+	assert.Assert(c, out, checker.Contains, unpPort2)
 
 	// Run the container forcing to publish the exposed ports
 	dockerCmd(c, "run", "-d", "-P", expose1, expose2, "busybox", "sleep", "5")
@@ -236,9 +236,9 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 	expBndRegx2 := regexp.MustCompile(`0.0.0.0:\d\d\d\d\d->` + unpPort2)
 	out, _ = dockerCmd(c, "ps", "-n=1")
 	// Cannot find expected port binding port (0.0.0.0:xxxxx->unpPort1) in docker ps output
-	c.Assert(expBndRegx1.MatchString(out), checker.Equals, true, check.Commentf("out: %s; unpPort1: %s", out, unpPort1))
+	assert.Assert(c, expBndRegx1.MatchString(out), checker.Equals, true, check.Commentf("out: %s; unpPort1: %s", out, unpPort1))
 	// Cannot find expected port binding port (0.0.0.0:xxxxx->unpPort2) in docker ps output
-	c.Assert(expBndRegx2.MatchString(out), checker.Equals, true, check.Commentf("out: %s; unpPort2: %s", out, unpPort2))
+	assert.Assert(c, expBndRegx2.MatchString(out), checker.Equals, true, check.Commentf("out: %s; unpPort2: %s", out, unpPort2))
 
 	// Run the container specifying explicit port bindings for the exposed ports
 	offset := 10000
@@ -252,9 +252,9 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 	expBnd2 := fmt.Sprintf("0.0.0.0:%d->%s", offset+port2, unpPort2)
 	out, _ = dockerCmd(c, "ps", "-n=1")
 	// Cannot find expected port binding (expBnd1) in docker ps output
-	c.Assert(out, checker.Contains, expBnd1)
+	assert.Assert(c, out, checker.Contains, expBnd1)
 	// Cannot find expected port binding (expBnd2) in docker ps output
-	c.Assert(out, checker.Contains, expBnd2)
+	assert.Assert(c, out, checker.Contains, expBnd2)
 
 	// Remove container now otherwise it will interfere with next test
 	stopRemoveContainer(id, c)
@@ -266,9 +266,9 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 	// Check docker ps o/p for last created container reports the specified port mappings
 	out, _ = dockerCmd(c, "ps", "-n=1")
 	// Cannot find expected port binding (expBnd1) in docker ps output
-	c.Assert(out, checker.Contains, expBnd1)
+	assert.Assert(c, out, checker.Contains, expBnd1)
 	// Cannot find expected port binding (expBnd2) in docker ps output
-	c.Assert(out, checker.Contains, expBnd2)
+	assert.Assert(c, out, checker.Contains, expBnd2)
 	// Remove container now otherwise it will interfere with next test
 	stopRemoveContainer(id, c)
 
@@ -278,9 +278,9 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 	// Check docker ps o/p for last created container reports the specified unpublished port and port mapping
 	out, _ = dockerCmd(c, "ps", "-n=1")
 	// Missing unpublished exposed ports (unpPort1) in docker ps output
-	c.Assert(out, checker.Contains, unpPort1)
+	assert.Assert(c, out, checker.Contains, unpPort1)
 	// Missing port binding (expBnd2) in docker ps output
-	c.Assert(out, checker.Contains, expBnd2)
+	assert.Assert(c, out, checker.Contains, expBnd2)
 }
 
 func (s *DockerSuite) TestPortHostBinding(c *check.C) {
@@ -302,7 +302,7 @@ func (s *DockerSuite) TestPortHostBinding(c *check.C) {
 
 	out, _, err = dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "9876")
 	// Port is still bound after the Container is removed
-	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
 }
 
 func (s *DockerSuite) TestPortExposeHostBinding(c *check.C) {
@@ -314,7 +314,7 @@ func (s *DockerSuite) TestPortExposeHostBinding(c *check.C) {
 	out, _ = dockerCmd(c, "port", firstID, "80")
 
 	_, exposedPort, err := net.SplitHostPort(out)
-	c.Assert(err, checker.IsNil, check.Commentf("out: %s", out))
+	assert.Assert(c, err, checker.IsNil, check.Commentf("out: %s", out))
 
 	dockerCmd(c, "run", "--net=host", "busybox",
 		"nc", "localhost", strings.TrimSpace(exposedPort))
@@ -324,25 +324,25 @@ func (s *DockerSuite) TestPortExposeHostBinding(c *check.C) {
 	out, _, err = dockerCmdWithError("run", "--net=host", "busybox",
 		"nc", "localhost", strings.TrimSpace(exposedPort))
 	// Port is still bound after the Container is removed
-	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
 }
 
 func (s *DockerSuite) TestPortBindingOnSandbox(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "network", "create", "--internal", "-d", "bridge", "internal-net")
 	nr := getNetworkResource(c, "internal-net")
-	c.Assert(nr.Internal, checker.Equals, true)
+	assert.Assert(c, nr.Internal, checker.Equals, true)
 
 	dockerCmd(c, "run", "--net", "internal-net", "-d", "--name", "c1",
 		"-p", "8080:8080", "busybox", "nc", "-l", "-p", "8080")
-	c.Assert(waitRun("c1"), check.IsNil)
+	assert.Assert(c, waitRun("c1"), check.IsNil)
 
 	_, _, err := dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "8080")
-	c.Assert(err, check.NotNil, check.Commentf("Port mapping on internal network is expected to fail"))
+	assert.Assert(c, err, check.NotNil, check.Commentf("Port mapping on internal network is expected to fail"))
 	// Connect container to another normal bridge network
 	dockerCmd(c, "network", "create", "-d", "bridge", "foo-net")
 	dockerCmd(c, "network", "connect", "foo-net", "c1")
 
 	_, _, err = dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "8080")
-	c.Assert(err, check.IsNil, check.Commentf("Port mapping on the new network is expected to succeed"))
+	assert.Assert(c, err, check.IsNil, check.Commentf("Port mapping on the new network is expected to succeed"))
 }

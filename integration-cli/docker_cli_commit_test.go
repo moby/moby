@@ -50,7 +50,7 @@ func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
 
 	out = inspectField(c, cleanedContainerID, "State.Paused")
 	// commit should not unpause a paused container
-	c.Assert(out, checker.Contains, "true")
+	assert.Assert(c, out, checker.Contains, "true")
 }
 
 func (s *DockerSuite) TestCommitNewFile(c *check.C) {
@@ -61,7 +61,7 @@ func (s *DockerSuite) TestCommitNewFile(c *check.C) {
 
 	out, _ := dockerCmd(c, "run", imageID, "cat", "/foo")
 	actual := strings.TrimSpace(out)
-	c.Assert(actual, checker.Equals, "koye")
+	assert.Assert(c, actual, checker.Equals, "koye")
 }
 
 func (s *DockerSuite) TestCommitHardlink(c *check.C) {
@@ -71,7 +71,7 @@ func (s *DockerSuite) TestCommitHardlink(c *check.C) {
 	chunks := strings.Split(strings.TrimSpace(firstOutput), " ")
 	inode := chunks[0]
 	chunks = strings.SplitAfterN(strings.TrimSpace(firstOutput), " ", 2)
-	c.Assert(chunks[1], checker.Contains, chunks[0], check.Commentf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
+	assert.Assert(c, chunks[1], checker.Contains, chunks[0], check.Commentf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
 
 	imageID, _ := dockerCmd(c, "commit", "hardlinks", "hardlinks")
 	imageID = strings.TrimSpace(imageID)
@@ -81,7 +81,7 @@ func (s *DockerSuite) TestCommitHardlink(c *check.C) {
 	chunks = strings.Split(strings.TrimSpace(secondOutput), " ")
 	inode = chunks[0]
 	chunks = strings.SplitAfterN(strings.TrimSpace(secondOutput), " ", 2)
-	c.Assert(chunks[1], checker.Contains, chunks[0], check.Commentf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
+	assert.Assert(c, chunks[1], checker.Contains, chunks[0], check.Commentf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
 }
 
 func (s *DockerSuite) TestCommitTTY(c *check.C) {
@@ -161,7 +161,7 @@ func (s *DockerSuite) TestCommitChangeLabels(c *check.C) {
 		"test", "test-commit")
 	imageID = strings.TrimSpace(imageID)
 
-	c.Assert(inspectField(c, imageID, "Config.Labels"), checker.Equals, "map[some:label2]")
+	assert.Assert(c, inspectField(c, imageID, "Config.Labels"), checker.Equals, "map[some:label2]")
 	// check that container labels didn't change
-	c.Assert(inspectField(c, "test", "Config.Labels"), checker.Equals, "map[some:label]")
+	assert.Assert(c, inspectField(c, "test", "Config.Labels"), checker.Equals, "map[some:label]")
 }

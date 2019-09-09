@@ -18,20 +18,20 @@ var _ = check.Suite(&DiscoverySuite{})
 func (s *DiscoverySuite) TestInitialize(c *check.C) {
 	d := &Discovery{}
 	d.Initialize("1.1.1.1:1111,2.2.2.2:2222", 0, 0, nil)
-	c.Assert(len(d.entries), check.Equals, 2)
-	c.Assert(d.entries[0].String(), check.Equals, "1.1.1.1:1111")
-	c.Assert(d.entries[1].String(), check.Equals, "2.2.2.2:2222")
+	assert.Assert(c, len(d.entries), check.Equals, 2)
+	assert.Assert(c, d.entries[0].String(), check.Equals, "1.1.1.1:1111")
+	assert.Assert(c, d.entries[1].String(), check.Equals, "2.2.2.2:2222")
 }
 
 func (s *DiscoverySuite) TestInitializeWithPattern(c *check.C) {
 	d := &Discovery{}
 	d.Initialize("1.1.1.[1:2]:1111,2.2.2.[2:4]:2222", 0, 0, nil)
-	c.Assert(len(d.entries), check.Equals, 5)
-	c.Assert(d.entries[0].String(), check.Equals, "1.1.1.1:1111")
-	c.Assert(d.entries[1].String(), check.Equals, "1.1.1.2:1111")
-	c.Assert(d.entries[2].String(), check.Equals, "2.2.2.2:2222")
-	c.Assert(d.entries[3].String(), check.Equals, "2.2.2.3:2222")
-	c.Assert(d.entries[4].String(), check.Equals, "2.2.2.4:2222")
+	assert.Assert(c, len(d.entries), check.Equals, 5)
+	assert.Assert(c, d.entries[0].String(), check.Equals, "1.1.1.1:1111")
+	assert.Assert(c, d.entries[1].String(), check.Equals, "1.1.1.2:1111")
+	assert.Assert(c, d.entries[2].String(), check.Equals, "2.2.2.2:2222")
+	assert.Assert(c, d.entries[3].String(), check.Equals, "2.2.2.3:2222")
+	assert.Assert(c, d.entries[4].String(), check.Equals, "2.2.2.4:2222")
 }
 
 func (s *DiscoverySuite) TestWatch(c *check.C) {
@@ -42,10 +42,10 @@ func (s *DiscoverySuite) TestWatch(c *check.C) {
 		&discovery.Entry{Host: "2.2.2.2", Port: "2222"},
 	}
 	ch, _ := d.Watch(nil)
-	c.Assert(expected.Equals(<-ch), check.Equals, true)
+	assert.Assert(c, expected.Equals(<-ch), check.Equals, true)
 }
 
 func (s *DiscoverySuite) TestRegister(c *check.C) {
 	d := &Discovery{}
-	c.Assert(d.Register("0.0.0.0"), check.NotNil)
+	assert.Assert(c, d.Register("0.0.0.0"), check.NotNil)
 }

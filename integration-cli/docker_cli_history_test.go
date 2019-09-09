@@ -50,7 +50,7 @@ LABEL label.Z="Z"`))
 	for i := 0; i < 26; i++ {
 		echoValue := fmt.Sprintf("LABEL label.%s=%s", expectedValues[i], expectedValues[i])
 		actualValue := actualValues[i]
-		c.Assert(actualValue, checker.Contains, echoValue)
+		assert.Assert(c, actualValue, checker.Contains, echoValue)
 	}
 
 }
@@ -61,7 +61,7 @@ func (s *DockerSuite) TestHistoryExistentImage(c *check.C) {
 
 func (s *DockerSuite) TestHistoryNonExistentImage(c *check.C) {
 	_, _, err := dockerCmdWithError("history", "testHistoryNonExistentImage")
-	c.Assert(err, checker.NotNil, check.Commentf("history on a non-existent image should fail."))
+	assert.Assert(c, err, checker.NotNil, check.Commentf("history on a non-existent image should fail."))
 }
 
 func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
@@ -80,7 +80,7 @@ func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
 	out, _ := dockerCmd(c, "history", name)
 	outputTabs := strings.Fields(strings.Split(out, "\n")[1])
 	actualValue := outputTabs[len(outputTabs)-1]
-	c.Assert(actualValue, checker.Contains, comment)
+	assert.Assert(c, actualValue, checker.Contains, comment)
 }
 
 func (s *DockerSuite) TestHistoryHumanOptionFalse(c *check.C) {
@@ -97,7 +97,7 @@ func (s *DockerSuite) TestHistoryHumanOptionFalse(c *check.C) {
 		sizeString := lines[i][startIndex:endIndex]
 
 		_, err := strconv.Atoi(strings.TrimSpace(sizeString))
-		c.Assert(err, checker.IsNil, check.Commentf("The size '%s' was not an Integer", sizeString))
+		assert.Assert(c, err, checker.IsNil, check.Commentf("The size '%s' was not an Integer", sizeString))
 	}
 }
 
@@ -114,6 +114,6 @@ func (s *DockerSuite) TestHistoryHumanOptionTrue(c *check.C) {
 			endIndex = len(lines[i])
 		}
 		sizeString := lines[i][startIndex:endIndex]
-		c.Assert(strings.TrimSpace(sizeString), checker.Matches, humanSizeRegexRaw, check.Commentf("The size '%s' was not in human format", sizeString))
+		assert.Assert(c, strings.TrimSpace(sizeString), checker.Matches, humanSizeRegexRaw, check.Commentf("The size '%s' was not in human format", sizeString))
 	}
 }
