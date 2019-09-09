@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/pkg/system"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

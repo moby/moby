@@ -1,8 +1,9 @@
 package main
 
 import (
+	"testing"
+
 	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/go-check/check"
 )
 
 func (s *DockerSwarmSuite) getDaemon(c *testing.T, nodeID string) *daemon.Daemon {

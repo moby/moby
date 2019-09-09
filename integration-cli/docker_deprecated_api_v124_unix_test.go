@@ -4,9 +4,9 @@ package main
 
 import (
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/internal/test/request"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

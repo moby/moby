@@ -8,9 +8,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"testing"
 
 	eventstestutils "github.com/docker/docker/daemon/events/testutils"
-	"github.com/go-check/check"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/assert"
 )

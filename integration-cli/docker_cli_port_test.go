@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"

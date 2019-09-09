@@ -6,8 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/discovery"
-
-	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 // Hook up gocheck into the "go test" runner.
@@ -15,7 +14,7 @@ func Test(t *testing.T) { /*check.TestingT(t)*/ }
 
 type DiscoverySuite struct{}
 
- /*check.Suite(&DiscoverySuite{})*/
+/*check.Suite(&DiscoverySuite{})*/
 
 func (s *DiscoverySuite) TestInitialize(c *testing.T) {
 	d := &Discovery{}

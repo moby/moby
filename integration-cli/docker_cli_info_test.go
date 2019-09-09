@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"

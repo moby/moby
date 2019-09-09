@@ -5,10 +5,12 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 // This is a heisen-test.  Because the created timestamp of images and the behavior of

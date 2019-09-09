@@ -9,11 +9,11 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/creack/pty"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )

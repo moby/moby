@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"

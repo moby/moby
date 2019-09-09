@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"testing"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
 	"github.com/go-check/check"

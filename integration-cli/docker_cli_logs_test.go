@@ -6,11 +6,11 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )

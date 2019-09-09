@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"testing"
 
 	"github.com/docker/docker/internal/test/registry"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

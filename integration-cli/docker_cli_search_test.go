@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"strings"
+	"testing"
 
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

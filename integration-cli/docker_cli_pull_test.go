@@ -5,9 +5,9 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 
-	"github.com/go-check/check"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"

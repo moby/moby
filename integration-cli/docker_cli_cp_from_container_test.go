@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"testing"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 	"gotest.tools/assert"
 )

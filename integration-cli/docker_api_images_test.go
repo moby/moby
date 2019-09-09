@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -15,7 +16,6 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

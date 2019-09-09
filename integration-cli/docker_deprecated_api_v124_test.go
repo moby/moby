@@ -6,10 +6,10 @@ package main
 import (
 	"net/http"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/internal/test/request"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )

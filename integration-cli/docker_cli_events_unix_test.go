@@ -10,12 +10,12 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"testing"
 	"time"
 	"unicode"
 
 	"github.com/creack/pty"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/go-check/check"
 	"golang.org/x/sys/unix"
 	"gotest.tools/assert"
 )

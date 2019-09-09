@@ -2,10 +2,12 @@ package main
 
 import (
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/runconfig"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 // GH14530. Validates combinations of --net= with other options
