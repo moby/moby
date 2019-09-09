@@ -679,9 +679,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
 
 	containerIP := d.FindContainerIP(c, "test")
 	ip = net.ParseIP(containerIP)
-	c.Assert(bridgeIPNet.Contains(ip), check.Equals, true,
-		check.Commentf("Container IP-Address must be in the same subnet range : %s",
-			containerIP))
+	c.Assert(bridgeIPNet.Contains(ip), check.Equals, true, check.Commentf("Container IP-Address must be in the same subnet range : %s", containerIP))
 	deleteInterface(c, defaultNetworkBridge)
 }
 
@@ -785,9 +783,7 @@ func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4Implicit(c *check.C) {
 	expectedMessage := fmt.Sprintf("default via %s dev", bridgeIP)
 	out, err := d.Cmd("run", "busybox", "ip", "-4", "route", "list", "0/0")
 	assert.NilError(c, err, out)
-	c.Assert(strings.Contains(out, expectedMessage), check.Equals, true,
-		check.Commentf("Implicit default gateway should be bridge IP %s, but default route was '%s'",
-			bridgeIP, strings.TrimSpace(out)))
+	c.Assert(strings.Contains(out, expectedMessage), check.Equals, true, check.Commentf("Implicit default gateway should be bridge IP %s, but default route was '%s'", bridgeIP, strings.TrimSpace(out)))
 	deleteInterface(c, defaultNetworkBridge)
 }
 
@@ -807,9 +803,7 @@ func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4Explicit(c *check.C) {
 	expectedMessage := fmt.Sprintf("default via %s dev", gatewayIP)
 	out, err := d.Cmd("run", "busybox", "ip", "-4", "route", "list", "0/0")
 	assert.NilError(c, err, out)
-	c.Assert(strings.Contains(out, expectedMessage), check.Equals, true,
-		check.Commentf("Explicit default gateway should be %s, but default route was '%s'",
-			gatewayIP, strings.TrimSpace(out)))
+	c.Assert(strings.Contains(out, expectedMessage), check.Equals, true, check.Commentf("Explicit default gateway should be %s, but default route was '%s'", gatewayIP, strings.TrimSpace(out)))
 	deleteInterface(c, defaultNetworkBridge)
 }
 
@@ -850,8 +844,7 @@ func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
 	defer d.Restart(c)
 
 	out, err := d.Cmd("run", "-d", "-p", "8000:8000", "busybox", "top")
-	c.Assert(err, check.NotNil,
-		check.Commentf("Running a container must fail with an invalid --ip option"))
+	c.Assert(err, check.NotNil, check.Commentf("Running a container must fail with an invalid --ip option"))
 	c.Assert(strings.Contains(out, "Error starting userland proxy"), check.Equals, true)
 
 	ifName := "dummy"
@@ -865,8 +858,7 @@ func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
 	result.Assert(c, icmd.Success)
 	regex := fmt.Sprintf("DNAT.*%s.*dpt:8000", ip.String())
 	matched, _ := regexp.MatchString(regex, result.Combined())
-	c.Assert(matched, check.Equals, true,
-		check.Commentf("iptables output should have contained %q, but was %q", regex, result.Combined()))
+	c.Assert(matched, check.Equals, true, check.Commentf("iptables output should have contained %q, but was %q", regex, result.Combined()))
 }
 
 func (s *DockerDaemonSuite) TestDaemonICCPing(c *check.C) {
@@ -886,9 +878,7 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *check.C) {
 	result.Assert(c, icmd.Success)
 	regex := fmt.Sprintf("DROP.*all.*%s.*%s", bridgeName, bridgeName)
 	matched, _ := regexp.MatchString(regex, result.Combined())
-	c.Assert(matched, check.Equals, true,
-		check.Commentf("iptables output should have contained %q, but was %q", regex, result.Combined()))
-
+	c.Assert(matched, check.Equals, true, check.Commentf("iptables output should have contained %q, but was %q", regex, result.Combined()))
 	// Pinging another container must fail with --icc=false
 	pingContainers(c, d, true)
 
@@ -921,9 +911,7 @@ func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *check.C) {
 	result.Assert(c, icmd.Success)
 	regex := fmt.Sprintf("DROP.*all.*%s.*%s", bridgeName, bridgeName)
 	matched, _ := regexp.MatchString(regex, result.Combined())
-	c.Assert(matched, check.Equals, true,
-		check.Commentf("iptables output should have contained %q, but was %q", regex, result.Combined()))
-
+	c.Assert(matched, check.Equals, true, check.Commentf("iptables output should have contained %q, but was %q", regex, result.Combined()))
 	out, err := d.Cmd("run", "-d", "--expose", "4567", "--name", "icc1", "busybox", "nc", "-l", "-p", "4567")
 	assert.NilError(c, err, out)
 
