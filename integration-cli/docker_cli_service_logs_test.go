@@ -63,7 +63,7 @@ func countLogLines(d *daemon.Daemon, name string) func(*testing.T) (interface{},
 		// an array containing emptystring. a valid log line will NEVER be
 		// emptystring because we ask for the timestamp.
 		if result.Stdout() == "" {
-			return 0, check.Commentf("Empty stdout")
+			return 0, "Empty stdout"
 		}
 		lines := strings.Split(strings.TrimSpace(result.Stdout()), "\n")
 		return len(lines), fmt.Sprintf("output, %q", string(result.Stdout()))

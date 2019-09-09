@@ -35,7 +35,7 @@ import (
 func (s *DockerSuite) TestRunRedirectStdout(c *testing.T) {
 	checkRedirect := func(command string) {
 		_, tty, err := pty.Open()
-		assert.Assert(c, err == nil, check.Commentf("Could not open pty"))
+		assert.Assert(c, err == nil, "Could not open pty")
 		cmd := exec.Command("sh", "-c", command)
 		cmd.Stdin = tty
 		cmd.Stdout = tty
@@ -51,7 +51,7 @@ func (s *DockerSuite) TestRunRedirectStdout(c *testing.T) {
 		case <-time.After(10 * time.Second):
 			c.Fatal("command timeout")
 		case err := <-ch:
-			assert.Assert(c, err == nil, check.Commentf("wait err"))
+			assert.Assert(c, err == nil, "wait err")
 		}
 	}
 
@@ -78,7 +78,7 @@ func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *testing.T) {
 	defer f.Close()
 
 	out, _ := dockerCmd(c, "run", "--name", "test-data", "--volume", fmt.Sprintf("%s:/tmp:ro", tmpDir), "busybox:latest", "ls", "/tmp/tmpfs")
-	assert.Assert(c, strings.Contains(out, filepath.Base(f.Name())), check.Commentf("Recursive bind mount test failed. Expected file not found"))
+	assert.Assert(c, strings.Contains(out, filepath.Base(f.Name())), "Recursive bind mount test failed. Expected file not found")
 }
 
 func (s *DockerSuite) TestRunDeviceDirectory(c *testing.T) {
@@ -88,9 +88,9 @@ func (s *DockerSuite) TestRunDeviceDirectory(c *testing.T) {
 	}
 
 	out, _ := dockerCmd(c, "run", "--device", "/dev/snd:/dev/snd", "busybox", "sh", "-c", "ls /dev/snd/")
-	assert.Assert(c, strings.Contains(strings.Trim(out, "\r\n"), "timer"), check.Commentf("expected output /dev/snd/timer"))
+	assert.Assert(c, strings.Contains(strings.Trim(out, "\r\n"), "timer"), "expected output /dev/snd/timer")
 	out, _ = dockerCmd(c, "run", "--device", "/dev/snd:/dev/othersnd", "busybox", "sh", "-c", "ls /dev/othersnd/")
-	assert.Assert(c, strings.Contains(strings.Trim(out, "\r\n"), "seq"), check.Commentf("expected output /dev/othersnd/seq"))
+	assert.Assert(c, strings.Contains(strings.Trim(out, "\r\n"), "seq"), "expected output /dev/othersnd/seq")
 }
 
 // TestRunAttachDetach checks attaching and detaching with the default escape sequence.
@@ -136,7 +136,7 @@ func (s *DockerSuite) TestRunAttachDetach(c *testing.T) {
 	}
 
 	running := inspectField(c, name, "State.Running")
-	assert.Equal(c, running, "true", check.Commentf("expected container to still be running"))
+	assert.Equal(c, running, "true", "expected container to still be running")
 
 	out, _ = dockerCmd(c, "events", "--since=0", "--until", daemonUnixTime(c), "-f", "container="+name)
 	// attach and detach event should be monitored
@@ -202,7 +202,7 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *testing.T) {
 	}
 
 	running := inspectField(c, name, "State.Running")
-	assert.Equal(c, running, "true", check.Commentf("expected container to still be running"))
+	assert.Equal(c, running, "true", "expected container to still be running")
 }
 
 // TestRunAttachDetachFromInvalidFlag checks attaching and detaching with the escape sequence specified via flags.
@@ -318,7 +318,7 @@ func (s *DockerSuite) TestRunAttachDetachFromConfig(c *testing.T) {
 	}
 
 	running := inspectField(c, name, "State.Running")
-	assert.Equal(c, running, "true", check.Commentf("expected container to still be running"))
+	assert.Equal(c, running, "true", "expected container to still be running")
 }
 
 // TestRunAttachDetachKeysOverrideConfig checks attaching and detaching with the detach flags, making sure it overrides config file
@@ -401,7 +401,7 @@ func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *testing.T) {
 	}
 
 	running := inspectField(c, name, "State.Running")
-	assert.Equal(c, running, "true", check.Commentf("expected container to still be running"))
+	assert.Equal(c, running, "true", "expected container to still be running")
 }
 
 func (s *DockerSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *testing.T) {
@@ -695,11 +695,11 @@ func (s *DockerSuite) TestRunWithMemoryReservationInvalid(c *testing.T) {
 	out, _, err := dockerCmdWithError("run", "-m", "500M", "--memory-reservation", "800M", "busybox", "true")
 	assert.ErrorContains(c, err, "")
 	expected := "Minimum memory limit can not be less than memory reservation limit"
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), expected), check.Commentf("run container should fail with invalid memory reservation"))
+	assert.Assert(c, strings.Contains(strings.TrimSpace(out), expected), "run container should fail with invalid memory reservation")
 	out, _, err = dockerCmdWithError("run", "--memory-reservation", "1k", "busybox", "true")
 	assert.ErrorContains(c, err, "")
 	expected = "Minimum memory reservation allowed is 4MB"
-	assert.Assert(c, strings.Contains(strings.TrimSpace(out), expected), check.Commentf("run container should fail with invalid memory reservation"))
+	assert.Assert(c, strings.Contains(strings.TrimSpace(out), expected), "run container should fail with invalid memory reservation")
 }
 
 func (s *DockerSuite) TestStopContainerSignal(c *testing.T) {
@@ -711,7 +711,7 @@ func (s *DockerSuite) TestStopContainerSignal(c *testing.T) {
 	dockerCmd(c, "stop", containerID)
 	out, _ = dockerCmd(c, "logs", containerID)
 
-	assert.Assert(c, strings.Contains(out, "exit trapped"), check.Commentf("Expected `exit trapped` in the log"))
+	assert.Assert(c, strings.Contains(out, "exit trapped"), "Expected `exit trapped` in the log")
 }
 
 func (s *DockerSuite) TestRunSwapLessThanMemoryLimit(c *testing.T) {
@@ -1386,14 +1386,14 @@ func (s *DockerSuite) TestRunDeviceSymlink(c *testing.T) {
 
 	// md5sum of 'dd if=/dev/zero bs=4K count=8' is bb7df04e1b0a2570657527a7e108ae23
 	out, _ := dockerCmd(c, "run", "--device", symZero+":/dev/symzero", "busybox", "sh", "-c", "dd if=/dev/symzero bs=4K count=8 | md5sum")
-	assert.Assert(c, strings.Contains(strings.Trim(out, "\r\n"), "bb7df04e1b0a2570657527a7e108ae23"), check.Commentf("expected output bb7df04e1b0a2570657527a7e108ae23"))
+	assert.Assert(c, strings.Contains(strings.Trim(out, "\r\n"), "bb7df04e1b0a2570657527a7e108ae23"), "expected output bb7df04e1b0a2570657527a7e108ae23")
 	// symlink "tmpDir/file" to a file "tmpDir/temp" will result in an error as it is not a device.
 	out, _, err = dockerCmdWithError("run", "--device", symFile+":/dev/symzero", "busybox", "sh", "-c", "dd if=/dev/symzero bs=4K count=8 | md5sum")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(strings.Trim(out, "\r\n"), "not a device node"), check.Commentf("expected output 'not a device node'"))
+	assert.Assert(c, strings.Contains(strings.Trim(out, "\r\n"), "not a device node"), "expected output 'not a device node'")
 	// md5sum of 'dd if=/dev/zero bs=4K count=8' is bb7df04e1b0a2570657527a7e108ae23 (this time check with relative path backed, see #22271)
 	out, _ = dockerCmd(c, "run", "--device", "/dev/symzero:/dev/symzero", "busybox", "sh", "-c", "dd if=/dev/symzero bs=4K count=8 | md5sum")
-	assert.Assert(c, strings.Contains(strings.Trim(out, "\r\n"), "bb7df04e1b0a2570657527a7e108ae23"), check.Commentf("expected output bb7df04e1b0a2570657527a7e108ae23"))
+	assert.Assert(c, strings.Contains(strings.Trim(out, "\r\n"), "bb7df04e1b0a2570657527a7e108ae23"), "expected output bb7df04e1b0a2570657527a7e108ae23")
 }
 
 // TestRunPIDsLimit makes sure the pids cgroup is set with --pids-limit

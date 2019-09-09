@@ -176,7 +176,7 @@ func (d *Daemon) CheckLeader(c *testing.T) (interface{}, check.CommentInterface)
 	cli := d.NewClientT(c)
 	defer cli.Close()
 
-	errList := check.Commentf("could not get node list")
+	errList := "could not get node list"
 
 	ls, err := cli.NodeList(context.Background(), types.NodeListOptions{})
 	if err != nil {
@@ -188,7 +188,7 @@ func (d *Daemon) CheckLeader(c *testing.T) (interface{}, check.CommentInterface)
 			return nil, nil
 		}
 	}
-	return fmt.Errorf("no leader"), check.Commentf("could not find leader")
+	return fmt.Errorf("no leader"), "could not find leader"
 }
 
 // CmdRetryOutOfSequence tries the specified command against the current daemon

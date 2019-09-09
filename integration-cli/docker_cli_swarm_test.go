@@ -182,7 +182,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceTemplatingHostname(c *testing.T) {
 	containers := d.ActiveContainers(c)
 	out, err = d.Cmd("inspect", "--type", "container", "--format", "{{.Config.Hostname}}", containers[0])
 	assert.NilError(c, err, out)
-	assert.Equal(c, strings.Split(out, "\n")[0], "test-1-"+strings.Split(hostname, "\n")[0], check.Commentf("hostname with templating invalid"))
+	assert.Equal(c, strings.Split(out, "\n")[0], "test-1-"+strings.Split(hostname, "\n")[0], "hostname with templating invalid")
 }
 
 // Test case for #24270
@@ -1223,7 +1223,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
 		if err == nil && len(certs) > 0 && len(certs[0].Subject.OrganizationalUnit) > 0 {
 			return certs[0].Subject.OrganizationalUnit[0], nil
 		}
-		return "", check.Commentf("could not get organizational unit from certificate")
+		return "", "could not get organizational unit from certificate"
 	}, checker.Equals, "swarm-worker")
 
 	// by now, it should *never* be locked on restart

@@ -264,7 +264,7 @@ func daemonTime(c *testing.T) time.Time {
 	assert.NilError(c, err)
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
-	assert.Assert(c, err == nil, check.Commentf("invalid time format in GET /info response"))
+	assert.Assert(c, err == nil, "invalid time format in GET /info response")
 	return dt
 }
 

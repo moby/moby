@@ -121,7 +121,7 @@ func (s *DockerSuite) TestContainerAPIGetExport(c *testing.T) {
 			break
 		}
 	}
-	assert.Assert(c, found, check.Commentf("The created test file has not been found in the exported image"))
+	assert.Assert(c, found, "The created test file has not been found in the exported image")
 }
 
 func (s *DockerSuite) TestContainerAPIGetChanges(c *testing.T) {
@@ -144,7 +144,7 @@ func (s *DockerSuite) TestContainerAPIGetChanges(c *testing.T) {
 			success = true
 		}
 	}
-	assert.Assert(c, success, check.Commentf("/etc/passwd has been removed but is not present in the diff"))
+	assert.Assert(c, success, "/etc/passwd has been removed but is not present in the diff")
 }
 
 func (s *DockerSuite) TestGetContainerStats(c *testing.T) {
@@ -215,7 +215,7 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *testing.T) {
 
 	// Now remove without `-f` and make sure we are still pulling stats
 	_, _, err = dockerCmdWithError("rm", id)
-	assert.Assert(c, err != nil, check.Commentf("rm should have failed but didn't"))
+	assert.Assert(c, err != nil, "rm should have failed but didn't")
 	_, err = buf.ReadTimeout(b, 2*time.Second)
 	assert.NilError(c, err)
 
@@ -389,7 +389,7 @@ func (s *DockerSuite) TestContainerAPIPause(c *testing.T) {
 	assert.NilError(c, err)
 
 	pausedContainers = getPaused(c)
-	assert.Equal(c, len(pausedContainers), 0, check.Commentf("There should be no paused container."))
+	assert.Equal(c, len(pausedContainers), 0, "There should be no paused container.")
 }
 
 func (s *DockerSuite) TestContainerAPITop(c *testing.T) {
@@ -615,7 +615,7 @@ func UtilCreateNetworkMode(c *testing.T, networkMode containertypes.NetworkMode)
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
 	assert.NilError(c, err)
 
-	assert.Equal(c, containerJSON.HostConfig.NetworkMode, containertypes.NetworkMode(networkMode), check.Commentf("Mismatched NetworkMode"))
+	assert.Equal(c, containerJSON.HostConfig.NetworkMode, containertypes.NetworkMode(networkMode), "Mismatched NetworkMode")
 }
 
 func (s *DockerSuite) TestContainerAPICreateWithCpuSharesCpuset(c *testing.T) {
@@ -888,7 +888,7 @@ func (s *DockerSuite) TestContainerAPIRename(c *testing.T) {
 	assert.NilError(c, err)
 
 	name := inspectField(c, containerID, "Name")
-	assert.Equal(c, name, "/"+newName, check.Commentf("Failed to rename container"))
+	assert.Equal(c, name, "/"+newName, "Failed to rename container")
 }
 
 func (s *DockerSuite) TestContainerAPIKill(c *testing.T) {
@@ -1168,7 +1168,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveLinks(c *testing.T) {
 	assert.Assert(c, waitRun(id2) == nil)
 
 	links := inspectFieldJSON(c, id2, "HostConfig.Links")
-	assert.Equal(c, links, "[\"/tlink1:/tlink2/tlink1\"]", check.Commentf("expected to have links between containers"))
+	assert.Equal(c, links, "[\"/tlink1:/tlink2/tlink1\"]", "expected to have links between containers")
 
 	removeOptions := types.ContainerRemoveOptions{
 		RemoveLinks: true,
@@ -1182,7 +1182,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveLinks(c *testing.T) {
 	assert.NilError(c, err)
 
 	linksPostRm := inspectFieldJSON(c, id2, "HostConfig.Links")
-	assert.Equal(c, linksPostRm, "null", check.Commentf("call to api deleteContainer links should have removed the specified links"))
+	assert.Equal(c, linksPostRm, "null", "call to api deleteContainer links should have removed the specified links")
 }
 
 func (s *DockerSuite) TestContainerAPIDeleteConflict(c *testing.T) {
@@ -1250,7 +1250,7 @@ func (s *DockerSuite) TestContainerAPIChunkedEncoding(c *testing.T) {
 		req.ContentLength = -1
 		return nil
 	}))
-	assert.Assert(c, err == nil, check.Commentf("error creating container with chunked encoding"))
+	assert.Assert(c, err == nil, "error creating container with chunked encoding")
 	defer resp.Body.Close()
 	assert.Equal(c, resp.StatusCode, http.StatusCreated)
 }
