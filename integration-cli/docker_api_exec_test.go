@@ -216,7 +216,7 @@ func (s *DockerSuite) TestExecStateCleanup(c *testing.T) {
 
 	stateDir := "/var/run/docker/containerd/" + cid
 
-	checkReadDir := func(c *testing.T) (interface{}, check.CommentInterface) {
+	checkReadDir := func(c *testing.T) (interface{}, string) {
 		fi, err := ioutil.ReadDir(stateDir)
 		assert.NilError(c, err)
 		return len(fi), nil

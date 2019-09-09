@@ -55,8 +55,8 @@ func (s *DockerSwarmSuite) TestServiceLogs(c *testing.T) {
 // countLogLines returns a closure that can be used with waitAndAssert to
 // verify that a minimum number of expected container log messages have been
 // output.
-func countLogLines(d *daemon.Daemon, name string) func(*testing.T) (interface{}, check.CommentInterface) {
-	return func(c *testing.T) (interface{}, check.CommentInterface) {
+func countLogLines(d *daemon.Daemon, name string) func(*testing.T) (interface{}, string) {
+	return func(c *testing.T) (interface{}, string) {
 		result := icmd.RunCmd(d.Command("service", "logs", "-t", "--raw", name))
 		result.Assert(c, icmd.Expected{})
 		// if this returns an emptystring, trying to split it later will return

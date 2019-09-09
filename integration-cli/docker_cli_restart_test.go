@@ -37,7 +37,7 @@ func (s *DockerSuite) TestRestartRunningContainer(c *testing.T) {
 
 	assert.NilError(c, waitRun(cleanedContainerID))
 
-	getLogs := func(c *testing.T) (interface{}, check.CommentInterface) {
+	getLogs := func(c *testing.T) (interface{}, string) {
 		out, _ := dockerCmd(c, "logs", cleanedContainerID)
 		return out, nil
 	}
