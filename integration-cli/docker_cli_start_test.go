@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )

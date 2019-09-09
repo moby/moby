@@ -1,11 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/runconfig"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

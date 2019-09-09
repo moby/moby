@@ -27,7 +27,6 @@ import (
 	testdaemon "github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/swarmkit/ca"
-	"github.com/go-check/check"
 	"github.com/pkg/errors"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"

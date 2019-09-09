@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/runconfig"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 	"gotest.tools/assert/cmp"
 )

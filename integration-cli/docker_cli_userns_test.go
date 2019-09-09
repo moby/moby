@@ -15,7 +15,6 @@ import (
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

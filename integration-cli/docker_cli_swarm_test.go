@@ -28,7 +28,6 @@ import (
 	"github.com/docker/libnetwork/ipamapi"
 	remoteipam "github.com/docker/libnetwork/ipams/remote/api"
 	"github.com/docker/swarmkit/ca/keyutils"
-	"github.com/go-check/check"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/assert"
 	"gotest.tools/fs"
