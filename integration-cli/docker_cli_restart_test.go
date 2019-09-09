@@ -38,7 +38,7 @@ func (s *DockerSuite) TestRestartRunningContainer(c *testing.T) {
 
 	getLogs := func(c *testing.T) (interface{}, string) {
 		out, _ := dockerCmd(c, "logs", cleanedContainerID)
-		return out, nil
+		return out, ""
 	}
 
 	// Wait 10 seconds for the 'echo' to appear in the logs

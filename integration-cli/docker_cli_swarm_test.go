@@ -385,7 +385,7 @@ func (s *DockerSwarmSuite) TestSwarmContainerAttachByNetworkId(c *testing.T) {
 	checkNetwork := func(*testing.T) (interface{}, string) {
 		out, err := d.Cmd("network", "ls")
 		assert.NilError(c, err)
-		return out, nil
+		return out, ""
 	}
 
 	waitAndAssert(c, 3*time.Second, checkNetwork, checker.Not(checker.Contains), "testnet")
@@ -546,7 +546,7 @@ func (s *DockerSwarmSuite) TestSwarmTaskListFilter(c *testing.T) {
 	checkNumTasks := func(*testing.T) (interface{}, string) {
 		out, err := d.Cmd("service", "ps", "--filter", filter, name)
 		assert.NilError(c, err, out)
-		return len(strings.Split(out, "\n")) - 2, nil // includes header and nl in last line
+		return len(strings.Split(out, "\n")) - 2, "" // includes header and nl in last line
 	}
 
 	// wait until all tasks have been created
@@ -988,15 +988,15 @@ func checkKeyIsEncrypted(d *daemon.Daemon) func(*testing.T) (interface{}, string
 	return func(c *testing.T) (interface{}, string) {
 		keyBytes, err := ioutil.ReadFile(filepath.Join(d.Folder, "root", "swarm", "certificates", "swarm-node.key"))
 		if err != nil {
-			return fmt.Errorf("error reading key: %v", err), nil
+			return fmt.Errorf("error reading key: %v", err), ""
 		}
 
 		keyBlock, _ := pem.Decode(keyBytes)
 		if keyBlock == nil {
-			return fmt.Errorf("invalid PEM-encoded private key"), nil
+			return fmt.Errorf("invalid PEM-encoded private key"), ""
 		}
 
-		return keyutils.IsEncryptedPEMBlock(keyBlock), nil
+		return keyutils.IsEncryptedPEMBlock(keyBlock), ""
 	}
 }
 
@@ -1220,7 +1220,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
 		}
 		certs, err := helpers.ParseCertificatesPEM(certBytes)
 		if err == nil && len(certs) > 0 && len(certs[0].Subject.OrganizationalUnit) > 0 {
-			return certs[0].Subject.OrganizationalUnit[0], nil
+			return certs[0].Subject.OrganizationalUnit[0], ""
 		}
 		return "", "could not get organizational unit from certificate"
 	}, checker.Equals, "swarm-worker")

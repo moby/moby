@@ -25,7 +25,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
 	var tasks []swarm.Task
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
 		tasks = d.GetServiceTasks(c, id)
-		return len(tasks) > 0, nil
+		return len(tasks) > 0, ""
 	}, checker.Equals, true)
 
 	task := tasks[0]
@@ -33,7 +33,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
 			task = d.GetTask(c, task.ID)
 		}
-		return task.NodeID != "" && task.Status.ContainerStatus != nil, nil
+		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals, true)
 
 	// check container mount config
@@ -139,7 +139,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTargetPaths(c *testi
 	var tasks []swarm.Task
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
 		tasks = d.GetServiceTasks(c, serviceName)
-		return len(tasks) > 0, nil
+		return len(tasks) > 0, ""
 	}, checker.Equals, true)
 
 	task := tasks[0]
@@ -147,7 +147,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTargetPaths(c *testi
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
 			task = d.GetTask(c, task.ID)
 		}
-		return task.NodeID != "" && task.Status.ContainerStatus != nil, nil
+		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals, true)
 
 	for testName, testTarget := range testPaths {
@@ -189,7 +189,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *testing
 	var tasks []swarm.Task
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
 		tasks = d.GetServiceTasks(c, serviceName)
-		return len(tasks) > 0, nil
+		return len(tasks) > 0, ""
 	}, checker.Equals, true)
 
 	task := tasks[0]
@@ -197,7 +197,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *testing
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
 			task = d.GetTask(c, task.ID)
 		}
-		return task.NodeID != "" && task.Status.ContainerStatus != nil, nil
+		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals, true)
 
 	for _, target := range []string{"target1", "target2"} {
@@ -286,7 +286,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSourceTargetPaths(c *testi
 	var tasks []swarm.Task
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
 		tasks = d.GetServiceTasks(c, serviceName)
-		return len(tasks) > 0, nil
+		return len(tasks) > 0, ""
 	}, checker.Equals, true)
 
 	task := tasks[0]
@@ -294,7 +294,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSourceTargetPaths(c *testi
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
 			task = d.GetTask(c, task.ID)
 		}
-		return task.NodeID != "" && task.Status.ContainerStatus != nil, nil
+		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals, true)
 
 	for testName, testTarget := range testPaths {
@@ -336,7 +336,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigReferencedTwice(c *testing
 	var tasks []swarm.Task
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
 		tasks = d.GetServiceTasks(c, serviceName)
-		return len(tasks) > 0, nil
+		return len(tasks) > 0, ""
 	}, checker.Equals, true)
 
 	task := tasks[0]
@@ -344,7 +344,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigReferencedTwice(c *testing
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
 			task = d.GetTask(c, task.ID)
 		}
-		return task.NodeID != "" && task.Status.ContainerStatus != nil, nil
+		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals, true)
 
 	for _, target := range []string{"target1", "target2"} {
@@ -368,7 +368,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 	var tasks []swarm.Task
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
 		tasks = d.GetServiceTasks(c, id)
-		return len(tasks) > 0, nil
+		return len(tasks) > 0, ""
 	}, checker.Equals, true)
 
 	task := tasks[0]
@@ -376,7 +376,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
 			task = d.GetTask(c, task.ID)
 		}
-		return task.NodeID != "" && task.Status.ContainerStatus != nil, nil
+		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals, true)
 
 	// check container mount config
@@ -424,7 +424,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *testing.T) {
 	var tasks []swarm.Task
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
 		tasks = d.GetServiceTasks(c, id)
-		return len(tasks) > 0, nil
+		return len(tasks) > 0, ""
 	}, checker.Equals, true)
 
 	task := tasks[0]
@@ -432,7 +432,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *testing.T) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
 			task = d.GetTask(c, task.ID)
 		}
-		return task.NodeID != "" && task.Status.ContainerStatus != nil, nil
+		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals, true)
 
 	// check container alias config

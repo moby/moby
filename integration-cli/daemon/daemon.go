@@ -92,7 +92,7 @@ func (d *Daemon) CheckActiveContainerCount(c *testing.T) (interface{}, string) {
 	out, err := d.Cmd("ps", "-q")
 	assert.NilError(c, err)
 	if len(strings.TrimSpace(out)) == 0 {
-		return 0, nil
+		return 0, ""
 	}
 	return len(strings.Split(strings.TrimSpace(out), "\n")), fmt.Sprintf("output: %q", string(out))
 }

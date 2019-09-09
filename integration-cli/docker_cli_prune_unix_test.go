@@ -27,7 +27,7 @@ func pruneNetworkAndVerify(c *testing.T, d *daemon.Daemon, kept, pruned []string
 		waitAndAssert(c, defaultReconciliationTimeout, func(*testing.T) (interface{}, string) {
 			out, err := d.Cmd("network", "ls", "--format", "{{.Name}}")
 			assert.NilError(c, err)
-			return out, nil
+			return out, ""
 		}, checker.Contains, s)
 	}
 
@@ -35,7 +35,7 @@ func pruneNetworkAndVerify(c *testing.T, d *daemon.Daemon, kept, pruned []string
 		waitAndAssert(c, defaultReconciliationTimeout, func(*testing.T) (interface{}, string) {
 			out, err := d.Cmd("network", "ls", "--format", "{{.Name}}")
 			assert.NilError(c, err)
-			return out, nil
+			return out, ""
 		}, checker.Not(checker.Contains), s)
 	}
 }
