@@ -3633,7 +3633,7 @@ func (s *DockerSuite) TestRunStdinBlockedAfterContainerExit(c *testing.T) {
 
 	select {
 	case err := <-waitChan:
-		assert.Assert(c, err == nil, check.Commentf(stdout.String()))
+		assert.Assert(c, err == nil, stdout.String())
 	case <-time.After(30 * time.Second):
 		c.Fatal("timeout waiting for command to exit")
 	}

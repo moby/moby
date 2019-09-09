@@ -56,7 +56,7 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) {
 
 	var c1 hostConfig
 	err := json.Unmarshal([]byte(cfg), &c1)
-	assert.Assert(c, err == nil, check.Commentf(cfg))
+	assert.Assert(c, err == nil, cfg)
 
 	assert.Equal(c, c1.Memory, int64(64*1024*1024), "resource constraints not set properly for Memory")
 	assert.Equal(c, c1.MemorySwap, int64(-1), "resource constraints not set properly for MemorySwap")
@@ -74,7 +74,7 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) {
 
 	var c2 hostConfig
 	err = json.Unmarshal([]byte(cfg), &c2)
-	assert.Assert(c, err == nil, check.Commentf(cfg))
+	assert.Assert(c, err == nil, cfg)
 
 	assert.Assert(c, c2.Memory != int64(64*1024*1024), "resource leaked from build for Memory")
 	assert.Assert(c, c2.MemorySwap != int64(-1), "resource leaked from build for MemorySwap")
