@@ -88,7 +88,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *testing.T) {
 	assert.Equal(c, len(refs), 1)
 
 	assert.Assert(c, refs[0].SecretName, checker.Equals, testName)
-	assert.Assert(c, refs[0].File, checker.Not(checker.IsNil))
+	assert.Assert(c, refs[0].File != nil)
 	assert.Assert(c, refs[0].File.Name, checker.Equals, testName)
 	assert.Assert(c, refs[0].File.UID, checker.Equals, "0")
 	assert.Assert(c, refs[0].File.GID, checker.Equals, "0")
@@ -236,7 +236,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSimple(c *testing.T) {
 	assert.Equal(c, len(refs), 1)
 
 	assert.Assert(c, refs[0].ConfigName, checker.Equals, testName)
-	assert.Assert(c, refs[0].File, checker.Not(checker.IsNil))
+	assert.Assert(c, refs[0].File != nil)
 	assert.Assert(c, refs[0].File.Name, checker.Equals, testName)
 	assert.Assert(c, refs[0].File.UID, checker.Equals, "0")
 	assert.Assert(c, refs[0].File.GID, checker.Equals, "0")

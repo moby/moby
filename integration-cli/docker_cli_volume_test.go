@@ -37,7 +37,7 @@ func (s *DockerSuite) TestVolumeCLICreate(c *testing.T) {
 }
 
 func (s *DockerSuite) TestVolumeCLIInspect(c *testing.T) {
-	assert.Assert(c, exec.Command(dockerBinary, "volume", "inspect", "doesnotexist").Run(), checker.Not(checker.IsNil), check.Commentf("volume inspect should error on non-existent volume"))
+	assert.Assert(c, exec.Command(dockerBinary, "volume", "inspect", "doesnotexist").Run() != nil, check.Commentf("volume inspect should error on non-existent volume"))
 	out, _ := dockerCmd(c, "volume", "create")
 	name := strings.TrimSpace(out)
 	out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Name }}", name)
@@ -210,7 +210,7 @@ func (s *DockerSuite) TestVolumeCLIRm(c *testing.T) {
 	dockerCmd(c, "rm", "test2")
 
 	dockerCmd(c, "volume", "rm", volumeID)
-	assert.Assert(c, exec.Command("volume", "rm", "doesnotexist").Run(), checker.Not(checker.IsNil), check.Commentf("volume rm should fail with non-existent volume"))
+	assert.Assert(c, exec.Command("volume", "rm", "doesnotexist").Run() != nil, check.Commentf("volume rm should fail with non-existent volume"))
 }
 
 // FIXME(vdemeester) should be a unit test in cli/command/volume package

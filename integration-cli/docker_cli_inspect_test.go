@@ -324,11 +324,11 @@ func (s *DockerSuite) TestInspectTemplateError(c *testing.T) {
 	runSleepingContainer(c, "--name=container1", "-d")
 
 	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format='Format container: {{.ThisDoesNotExist}}'", "container1")
-	assert.Assert(c, err, checker.Not(checker.IsNil))
+	assert.Assert(c, err != nil)
 	assert.Assert(c, out, checker.Contains, "Template parsing error")
 
 	out, _, err = dockerCmdWithError("inspect", "--type=image", "--format='Format container: {{.ThisDoesNotExist}}'", "busybox")
-	assert.Assert(c, err, checker.Not(checker.IsNil))
+	assert.Assert(c, err != nil)
 	assert.Assert(c, out, checker.Contains, "Template parsing error")
 }
 
@@ -356,7 +356,7 @@ func (s *DockerSuite) TestInspectStopWhenNotFound(c *testing.T) {
 	runSleepingContainer(c, "--name=busybox2", "-d")
 	result := dockerCmdWithResult("inspect", "--type=container", "--format='{{.Name}}'", "busybox1", "busybox2", "missing")
 
-	assert.Assert(c, result.Error, checker.Not(checker.IsNil))
+	assert.Assert(c, result.Error != nil)
 	assert.Assert(c, result.Stdout(), checker.Contains, "busybox1")
 	assert.Assert(c, result.Stdout(), checker.Contains, "busybox2")
 	assert.Assert(c, result.Stderr(), checker.Contains, "Error: No such container: missing")
@@ -364,7 +364,7 @@ func (s *DockerSuite) TestInspectStopWhenNotFound(c *testing.T) {
 	// test inspect would not fast fail
 	result = dockerCmdWithResult("inspect", "--type=container", "--format='{{.Name}}'", "missing", "busybox1", "busybox2")
 
-	assert.Assert(c, result.Error, checker.Not(checker.IsNil))
+	assert.Assert(c, result.Error != nil)
 	assert.Assert(c, result.Stdout(), checker.Contains, "busybox1")
 	assert.Assert(c, result.Stdout(), checker.Contains, "busybox2")
 	assert.Assert(c, result.Stderr(), checker.Contains, "Error: No such container: missing")
