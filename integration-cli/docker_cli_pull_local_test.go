@@ -355,7 +355,7 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *testing.T) {
 
 	// The pull output includes "Digest: <digest>", so find that
 	matches := digestRegex.FindStringSubmatch(out)
-	assert.Equal(c, len(matches), 2, check.Commentf("unable to parse digest from pull output: %s", out))
+	assert.Equal(c, len(matches), 2, fmt.Sprintf("unable to parse digest from pull output: %s", out))
 	pullDigest := matches[1]
 
 	// Make sure the pushed and pull digests match

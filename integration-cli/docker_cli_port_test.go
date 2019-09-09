@@ -105,7 +105,7 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 			"-p", "9090-9092:80",
 			"busybox", "top")
 		// Exhausted port range did not return an error
-		assert.Assert(c, err != nil, check.Commentf("out: %s", out))
+		assert.Assert(c, err != nil, fmt.Sprintf("out: %s", out))
 
 		for i := 0; i < 3; i++ {
 			dockerCmd(c, "rm", "-f", IDs[i])
@@ -121,7 +121,7 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 			"-p", invalidRange,
 			"busybox", "top")
 		// Port range should have returned an error
-		assert.Assert(c, err != nil, check.Commentf("out: %s", out))
+		assert.Assert(c, err != nil, fmt.Sprintf("out: %s", out))
 	}
 
 	// test host range:container range spec.
@@ -235,9 +235,9 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *testing.T) {
 	expBndRegx2 := regexp.MustCompile(`0.0.0.0:\d\d\d\d\d->` + unpPort2)
 	out, _ = dockerCmd(c, "ps", "-n=1")
 	// Cannot find expected port binding port (0.0.0.0:xxxxx->unpPort1) in docker ps output
-	assert.Equal(c, expBndRegx1.MatchString(out), true, check.Commentf("out: %s; unpPort1: %s", out, unpPort1))
+	assert.Equal(c, expBndRegx1.MatchString(out), true, fmt.Sprintf("out: %s; unpPort1: %s", out, unpPort1))
 	// Cannot find expected port binding port (0.0.0.0:xxxxx->unpPort2) in docker ps output
-	assert.Equal(c, expBndRegx2.MatchString(out), true, check.Commentf("out: %s; unpPort2: %s", out, unpPort2))
+	assert.Equal(c, expBndRegx2.MatchString(out), true, fmt.Sprintf("out: %s; unpPort2: %s", out, unpPort2))
 
 	// Run the container specifying explicit port bindings for the exposed ports
 	offset := 10000
@@ -300,7 +300,7 @@ func (s *DockerSuite) TestPortHostBinding(c *testing.T) {
 
 	out, _, err = dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "9876")
 	// Port is still bound after the Container is removed
-	assert.Assert(c, err != nil, check.Commentf("out: %s", out))
+	assert.Assert(c, err != nil, fmt.Sprintf("out: %s", out))
 }
 
 func (s *DockerSuite) TestPortExposeHostBinding(c *testing.T) {
@@ -312,7 +312,7 @@ func (s *DockerSuite) TestPortExposeHostBinding(c *testing.T) {
 	out, _ = dockerCmd(c, "port", firstID, "80")
 
 	_, exposedPort, err := net.SplitHostPort(out)
-	assert.Assert(c, err == nil, check.Commentf("out: %s", out))
+	assert.Assert(c, err == nil, fmt.Sprintf("out: %s", out))
 
 	dockerCmd(c, "run", "--net=host", "busybox",
 		"nc", "localhost", strings.TrimSpace(exposedPort))
@@ -322,7 +322,7 @@ func (s *DockerSuite) TestPortExposeHostBinding(c *testing.T) {
 	out, _, err = dockerCmdWithError("run", "--net=host", "busybox",
 		"nc", "localhost", strings.TrimSpace(exposedPort))
 	// Port is still bound after the Container is removed
-	assert.Assert(c, err != nil, check.Commentf("out: %s", out))
+	assert.Assert(c, err != nil, fmt.Sprintf("out: %s", out))
 }
 
 func (s *DockerSuite) TestPortBindingOnSandbox(c *testing.T) {

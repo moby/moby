@@ -27,7 +27,7 @@ func (s *DockerSuite) TestRmiWithContainerFails(c *testing.T) {
 	// Container is using image, should not be able to rmi
 	assert.ErrorContains(c, err, "")
 	// Container is using image, error message should contain errSubstr
-	assert.Assert(c, strings.Contains(out, errSubstr), check.Commentf("Container: %q", cleanedContainerID))
+	assert.Assert(c, strings.Contains(out, errSubstr), fmt.Sprintf("Container: %q", cleanedContainerID))
 	// make sure it didn't delete the busybox name
 	images, _ := dockerCmd(c, "images")
 	// The name 'busybox' should not have been removed from images
@@ -41,23 +41,23 @@ func (s *DockerSuite) TestRmiTag(c *testing.T) {
 	dockerCmd(c, "tag", "busybox", "utest:5000/docker:tag3")
 	{
 		imagesAfter, _ := dockerCmd(c, "images", "-a")
-		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n")+3, check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
+		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n")+3, fmt.Sprintf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
 	}
 	dockerCmd(c, "rmi", "utest/docker:tag2")
 	{
 		imagesAfter, _ := dockerCmd(c, "images", "-a")
-		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n")+2, check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
+		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n")+2, fmt.Sprintf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
 	}
 	dockerCmd(c, "rmi", "utest:5000/docker:tag3")
 	{
 		imagesAfter, _ := dockerCmd(c, "images", "-a")
-		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n")+1, check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
+		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n")+1, fmt.Sprintf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
 
 	}
 	dockerCmd(c, "rmi", "utest:tag1")
 	{
 		imagesAfter, _ := dockerCmd(c, "images", "-a")
-		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n"), check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
+		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n"), fmt.Sprintf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
 
 	}
 }
@@ -80,7 +80,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *testing.T) {
 
 	imagesAfter := cli.DockerCmd(c, "images", "-a").Combined()
 	// tag busybox to create 2 more images with same imageID
-	assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n")+2, check.Commentf("docker images shows: %q\n", imagesAfter))
+	assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n")+2, fmt.Sprintf("docker images shows: %q\n", imagesAfter))
 
 	imgID := inspectField(c, "busybox-one:tag1", "Id")
 
@@ -100,7 +100,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *testing.T) {
 
 	imagesAfter = cli.DockerCmd(c, "images", "-a").Combined()
 	// rmi -f failed, image still exists
-	assert.Assert(c, !strings.Contains(imagesAfter, imgID[:12]), check.Commentf("ImageID:%q; ImagesAfter: %q", imgID, imagesAfter))
+	assert.Assert(c, !strings.Contains(imagesAfter, imgID[:12]), fmt.Sprintf("ImageID:%q; ImagesAfter: %q", imgID, imagesAfter))
 }
 
 func (s *DockerSuite) TestRmiImgIDForce(c *testing.T) {
@@ -122,7 +122,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *testing.T) {
 	cli.DockerCmd(c, "tag", "busybox-test", "utest:5000/docker:tag4")
 	{
 		imagesAfter := cli.DockerCmd(c, "images", "-a").Combined()
-		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n")+4, check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
+		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n")+4, fmt.Sprintf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
 	}
 	imgID := inspectField(c, "busybox-test", "Id")
 
@@ -210,7 +210,7 @@ func (s *DockerSuite) TestRmiForceWithMultipleRepositories(c *testing.T) {
 	assert.Assert(c, !strings.Contains(out, "Untagged: "+tag1))
 	// Check built image still exists
 	images, _ := dockerCmd(c, "images", "-a")
-	assert.Assert(c, strings.Contains(images, imageName), check.Commentf("Built image missing %q; Images: %q", imageName, images))
+	assert.Assert(c, strings.Contains(images, imageName), fmt.Sprintf("Built image missing %q; Images: %q", imageName, images))
 }
 
 func (s *DockerSuite) TestRmiBlank(c *testing.T) {
@@ -218,9 +218,9 @@ func (s *DockerSuite) TestRmiBlank(c *testing.T) {
 	// Should have failed to delete ' ' image
 	assert.ErrorContains(c, err, "")
 	// Wrong error message generated
-	assert.Assert(c, !strings.Contains(out, "no such id"), check.Commentf("out: %s", out))
+	assert.Assert(c, !strings.Contains(out, "no such id"), fmt.Sprintf("out: %s", out))
 	// Expected error message not generated
-	assert.Assert(c, strings.Contains(out, "image name cannot be blank"), check.Commentf("out: %s", out))
+	assert.Assert(c, strings.Contains(out, "image name cannot be blank"), fmt.Sprintf("out: %s", out))
 }
 
 func (s *DockerSuite) TestRmiContainerImageNotFound(c *testing.T) {
@@ -245,7 +245,7 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *testing.T) {
 	out, _, err := dockerCmdWithError("rmi", "-f", imageIds[0])
 	// The image of the running container should not be removed.
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "image is being used by running container"), check.Commentf("out: %s", out))
+	assert.Assert(c, strings.Contains(out, "image is being used by running container"), fmt.Sprintf("out: %s", out))
 }
 
 // #13422
@@ -272,7 +272,7 @@ RUN echo 2 #layer2
 	// See if the "tmp2" can be untagged.
 	out, _ = dockerCmd(c, "rmi", newTag)
 	// Expected 1 untagged entry
-	assert.Equal(c, strings.Count(out, "Untagged: "), 1, check.Commentf("out: %s", out))
+	assert.Equal(c, strings.Count(out, "Untagged: "), 1, fmt.Sprintf("out: %s", out))
 
 	// Now let's add the tag again and create a container based on it.
 	dockerCmd(c, "tag", idToTag, newTag)

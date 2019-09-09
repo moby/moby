@@ -70,10 +70,10 @@ func (d *Daemon) CheckPluginRunning(plugin string) func(c *testing.T) (interface
 		apiclient := d.NewClientT(c)
 		resp, _, err := apiclient.PluginInspectWithRaw(context.Background(), plugin)
 		if client.IsErrNotFound(err) {
-			return false, check.Commentf("%v", err)
+			return false, fmt.Sprintf("%v", err)
 		}
 		assert.NilError(c, err)
-		return resp.Enabled, check.Commentf("%+v", resp)
+		return resp.Enabled, fmt.Sprintf("%+v", resp)
 	}
 }
 
@@ -83,10 +83,10 @@ func (d *Daemon) CheckPluginImage(plugin string) func(c *testing.T) (interface{}
 		apiclient := d.NewClientT(c)
 		resp, _, err := apiclient.PluginInspectWithRaw(context.Background(), plugin)
 		if client.IsErrNotFound(err) {
-			return false, check.Commentf("%v", err)
+			return false, fmt.Sprintf("%v", err)
 		}
 		assert.NilError(c, err)
-		return resp.PluginReference, check.Commentf("%+v", resp)
+		return resp.PluginReference, fmt.Sprintf("%+v", resp)
 	}
 }
 

@@ -124,7 +124,7 @@ func (s *DockerSuite) TestExecAPIStartBackwardsCompatible(c *testing.T) {
 	assert.NilError(c, err)
 
 	b, err := request.ReadBody(body)
-	comment := check.Commentf("response body: %s", b)
+	comment := fmt.Sprintf("response body: %s", b)
 	assert.NilError(c, err, comment)
 	assert.Equal(c, resp.StatusCode, http.StatusOK, comment)
 }
@@ -160,7 +160,7 @@ func (s *DockerSuite) TestExecAPIStartWithDetach(c *testing.T) {
 	assert.NilError(c, err)
 
 	b, err := request.ReadBody(body)
-	comment := check.Commentf("response body: %s", b)
+	comment := fmt.Sprintf("response body: %s", b)
 	assert.NilError(c, err, comment)
 
 	resp, _, err := request.Get("/_ping")

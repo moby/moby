@@ -38,7 +38,7 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 
 	// we need to find the uid and gid of the remapped root from the daemon's root dir info
 	uidgid := strings.Split(filepath.Base(s.d.Root), ".")
-	assert.Equal(c, len(uidgid), 2, check.Commentf("Should have gotten uid/gid strings from root dirname: %s", filepath.Base(s.d.Root)))
+	assert.Equal(c, len(uidgid), 2, fmt.Sprintf("Should have gotten uid/gid strings from root dirname: %s", filepath.Base(s.d.Root)))
 	uid, err := strconv.Atoi(uidgid[0])
 	assert.NilError(c, err, "Can't parse uid")
 	gid, err := strconv.Atoi(uidgid[1])
@@ -60,7 +60,7 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 	assert.Equal(c, statNotExists.GID(), uint32(gid), check.Commentf("Created directory not owned by remapped root GID"))
 
 	pid, err := s.d.Cmd("inspect", "--format={{.State.Pid}}", "userns")
-	assert.Assert(c, err == nil, check.Commentf("Could not inspect running container: out: %q", pid))
+	assert.Assert(c, err == nil, fmt.Sprintf("Could not inspect running container: out: %q", pid))
 	// check the uid and gid maps for the PID to ensure root is remapped
 	// (cmd = cat /proc/<pid>/uid_map | grep -E '0\s+9999\s+1')
 	_, err = RunCommandPipelineWithOutput(
@@ -81,7 +81,7 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 
 	// use host usernamespace
 	out, err = s.d.Cmd("run", "-d", "--name", "userns_skip", "--userns", "host", "busybox", "sh", "-c", "touch /goofy/testfile; top")
-	assert.Assert(c, err == nil, check.Commentf("Output: %s", out))
+	assert.Assert(c, err == nil, fmt.Sprintf("Output: %s", out))
 	user = s.findUser(c, "userns_skip")
 	// userns are skipped, user is root
 	assert.Equal(c, user, "root")
@@ -90,7 +90,7 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 // findUser finds the uid or name of the user of the first process that runs in a container
 func (s *DockerDaemonSuite) findUser(c *testing.T, container string) string {
 	out, err := s.d.Cmd("top", container)
-	assert.Assert(c, err == nil, check.Commentf("Output: %s", out))
+	assert.Assert(c, err == nil, fmt.Sprintf("Output: %s", out))
 	rows := strings.Split(out, "\n")
 	if len(rows) < 2 {
 		// No process rows founds

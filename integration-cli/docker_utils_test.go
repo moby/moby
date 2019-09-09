@@ -78,7 +78,7 @@ func inspectFieldAndUnmarshall(c *testing.T, name, field string, output interfac
 	str := inspectFieldJSON(c, name, field)
 	err := json.Unmarshal([]byte(str), output)
 	if c != nil {
-		assert.Assert(c, err == nil, check.Commentf("failed to unmarshal: %v", err))
+		assert.Assert(c, err == nil, fmt.Sprintf("failed to unmarshal: %v", err))
 	}
 }
 
@@ -455,7 +455,7 @@ func reducedCheck(r reducer, funcs ...checkF) checkF {
 				comments = append(comments, comment.CheckCommentString())
 			}
 		}
-		return r(values...), check.Commentf("%v", strings.Join(comments, ", "))
+		return r(values...), fmt.Sprintf("%v", strings.Join(comments, ", "))
 	}
 }
 

@@ -119,8 +119,8 @@ func (s *DockerSuite) TestInspectTypeFlagWithInvalidValue(c *testing.T) {
 	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "true")
 
 	out, exitCode, err := dockerCmdWithError("inspect", "--type=foobar", "busybox")
-	assert.Assert(c, err != nil, check.Commentf("%d", exitCode))
-	assert.Equal(c, exitCode, 1, check.Commentf("%s", err))
+	assert.Assert(c, err != nil, fmt.Sprintf("%d", exitCode))
+	assert.Equal(c, exitCode, 1, fmt.Sprintf("%s", err))
 	assert.Assert(c, strings.Contains(out, "not a valid value for --type"))
 }
 
@@ -130,7 +130,7 @@ func (s *DockerSuite) TestInspectImageFilterInt(c *testing.T) {
 	out := inspectField(c, imageTest, "Size")
 
 	size, err := strconv.Atoi(out)
-	assert.Assert(c, err == nil, check.Commentf("failed to inspect size of the image: %s, %v", out, err))
+	assert.Assert(c, err == nil, fmt.Sprintf("failed to inspect size of the image: %s, %v", out, err))
 
 	//now see if the size turns out to be the same
 	formatStr := fmt.Sprintf("--format={{eq .Size %d}}", size)
@@ -152,7 +152,7 @@ func (s *DockerSuite) TestInspectContainerFilterInt(c *testing.T) {
 	out = inspectField(c, id, "State.ExitCode")
 
 	exitCode, err := strconv.Atoi(out)
-	assert.Assert(c, err == nil, check.Commentf("failed to inspect exitcode of the container: %s, %v", out, err))
+	assert.Assert(c, err == nil, fmt.Sprintf("failed to inspect exitcode of the container: %s, %v", out, err))
 
 	//now get the exit code to verify
 	formatStr := fmt.Sprintf("--format={{eq .State.ExitCode %d}}", exitCode)
@@ -172,12 +172,12 @@ func (s *DockerSuite) TestInspectImageGraphDriver(c *testing.T) {
 	deviceID := inspectField(c, imageTest, "GraphDriver.Data.DeviceId")
 
 	_, err := strconv.Atoi(deviceID)
-	assert.Assert(c, err == nil, check.Commentf("failed to inspect DeviceId of the image: %s, %v", deviceID, err))
+	assert.Assert(c, err == nil, fmt.Sprintf("failed to inspect DeviceId of the image: %s, %v", deviceID, err))
 
 	deviceSize := inspectField(c, imageTest, "GraphDriver.Data.DeviceSize")
 
 	_, err = strconv.ParseUint(deviceSize, 10, 64)
-	assert.Assert(c, err == nil, check.Commentf("failed to inspect DeviceSize of the image: %s, %v", deviceSize, err))
+	assert.Assert(c, err == nil, fmt.Sprintf("failed to inspect DeviceSize of the image: %s, %v", deviceSize, err))
 }
 
 func (s *DockerSuite) TestInspectContainerGraphDriver(c *testing.T) {
@@ -197,12 +197,12 @@ func (s *DockerSuite) TestInspectContainerGraphDriver(c *testing.T) {
 	assert.Assert(c, imageDeviceID != deviceID)
 
 	_, err := strconv.Atoi(deviceID)
-	assert.Assert(c, err == nil, check.Commentf("failed to inspect DeviceId of the image: %s, %v", deviceID, err))
+	assert.Assert(c, err == nil, fmt.Sprintf("failed to inspect DeviceId of the image: %s, %v", deviceID, err))
 
 	deviceSize := inspectField(c, out, "GraphDriver.Data.DeviceSize")
 
 	_, err = strconv.ParseUint(deviceSize, 10, 64)
-	assert.Assert(c, err == nil, check.Commentf("failed to inspect DeviceSize of the image: %s, %v", deviceSize, err))
+	assert.Assert(c, err == nil, fmt.Sprintf("failed to inspect DeviceSize of the image: %s, %v", deviceSize, err))
 }
 
 func (s *DockerSuite) TestInspectBindMountPoint(c *testing.T) {
@@ -289,10 +289,10 @@ func (s *DockerSuite) TestInspectLogConfigNoType(c *testing.T) {
 	out := inspectFieldJSON(c, "test", "HostConfig.LogConfig")
 
 	err := json.NewDecoder(strings.NewReader(out)).Decode(&logConfig)
-	assert.Assert(c, err == nil, check.Commentf("%v", out))
+	assert.Assert(c, err == nil, fmt.Sprintf("%v", out))
 
 	assert.Equal(c, logConfig.Type, "json-file")
-	assert.Equal(c, logConfig.Config["max-file"], "42", check.Commentf("%v", logConfig))
+	assert.Equal(c, logConfig.Config["max-file"], "42", fmt.Sprintf("%v", logConfig))
 }
 
 func (s *DockerSuite) TestInspectNoSizeFlagContainer(c *testing.T) {
@@ -304,7 +304,7 @@ func (s *DockerSuite) TestInspectNoSizeFlagContainer(c *testing.T) {
 
 	formatStr := "--format={{.SizeRw}},{{.SizeRootFs}}"
 	out, _ := dockerCmd(c, "inspect", "--type=container", formatStr, "busybox")
-	assert.Equal(c, strings.TrimSpace(out), "<nil>,<nil>", check.Commentf("Expected not to display size info: %s", out))
+	assert.Equal(c, strings.TrimSpace(out), "<nil>,<nil>", fmt.Sprintf("Expected not to display size info: %s", out))
 }
 
 func (s *DockerSuite) TestInspectSizeFlagContainer(c *testing.T) {

@@ -20,7 +20,7 @@ const stringCheckPS = "PID   USER"
 // stop the tests.
 func dockerCmdWithFail(c *testing.T, args ...string) (string, int) {
 	out, status, err := dockerCmdWithError(args...)
-	assert.Assert(c, err != nil, check.Commentf("%v", out))
+	assert.Assert(c, err != nil, fmt.Sprintf("%v", out))
 	return out, status
 }
 

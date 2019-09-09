@@ -70,8 +70,8 @@ func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *testing.T) {
 
 	// Create a temporary tmpfs mount.
 	tmpfsDir := filepath.Join(tmpDir, "tmpfs")
-	assert.Assert(c, os.MkdirAll(tmpfsDir, 0777) == nil, check.Commentf("failed to mkdir at %s", tmpfsDir))
-	assert.Assert(c, mount.Mount("tmpfs", tmpfsDir, "tmpfs", "") == nil, check.Commentf("failed to create a tmpfs mount at %s", tmpfsDir))
+	assert.Assert(c, os.MkdirAll(tmpfsDir, 0777) == nil, fmt.Sprintf("failed to mkdir at %s", tmpfsDir))
+	assert.Assert(c, mount.Mount("tmpfs", tmpfsDir, "tmpfs", "") == nil, fmt.Sprintf("failed to create a tmpfs mount at %s", tmpfsDir))
 
 	f, err := ioutil.TempFile(tmpfsDir, "touch-me")
 	assert.NilError(c, err)
@@ -672,10 +672,10 @@ func (s *DockerSuite) TestRunWithSwappinessInvalid(c *testing.T) {
 	out, _, err := dockerCmdWithError("run", "--memory-swappiness", "101", "busybox", "true")
 	assert.ErrorContains(c, err, "")
 	expected := "Valid memory swappiness range is 0-100"
-	assert.Assert(c, strings.Contains(out, expected), check.Commentf("Expected output to contain %q, not %q", out, expected))
+	assert.Assert(c, strings.Contains(out, expected), fmt.Sprintf("Expected output to contain %q, not %q", out, expected))
 	out, _, err = dockerCmdWithError("run", "--memory-swappiness", "-10", "busybox", "true")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, expected), check.Commentf("Expected output to contain %q, not %q", out, expected))
+	assert.Assert(c, strings.Contains(out, expected), fmt.Sprintf("Expected output to contain %q, not %q", out, expected))
 }
 
 func (s *DockerSuite) TestRunWithMemoryReservation(c *testing.T) {

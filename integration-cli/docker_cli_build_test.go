@@ -4739,7 +4739,7 @@ func (s *DockerSuite) TestBuildTagEvent(c *testing.T) {
 		}
 	}
 
-	assert.Assert(c, foundTag, check.Commentf("No tag event found:\n%s", out))
+	assert.Assert(c, foundTag, fmt.Sprintf("No tag event found:\n%s", out))
 }
 
 // #15780

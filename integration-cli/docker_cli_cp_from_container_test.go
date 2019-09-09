@@ -150,7 +150,7 @@ func (s *DockerSuite) TestCpFromCaseB(c *testing.T) {
 	err := runDockerCp(c, srcPath, dstDir, nil)
 	assert.ErrorContains(c, err, "")
 
-	assert.Assert(c, isCpDirNotExist(err), check.Commentf("expected DirNotExists error, but got %T: %s", err, err))
+	assert.Assert(c, isCpDirNotExist(err), fmt.Sprintf("expected DirNotExists error, but got %T: %s", err, err))
 }
 
 // C. SRC specifies a file and DST exists as a file. This should overwrite
@@ -195,7 +195,7 @@ func (s *DockerSuite) TestCpFromCaseD(c *testing.T) {
 
 	// Ensure that dstPath doesn't exist.
 	_, err := os.Stat(dstPath)
-	assert.Assert(c, os.IsNotExist(err), check.Commentf("did not expect dstPath %q to exist", dstPath))
+	assert.Assert(c, os.IsNotExist(err), fmt.Sprintf("did not expect dstPath %q to exist", dstPath))
 
 	assert.Assert(c, runDockerCp(c, srcPath, dstDir, nil) == nil)
 
@@ -266,7 +266,7 @@ func (s *DockerSuite) TestCpFromCaseF(c *testing.T) {
 	err := runDockerCp(c, srcDir, dstFile, nil)
 	assert.ErrorContains(c, err, "")
 
-	assert.Assert(c, isCpCannotCopyDir(err), check.Commentf("expected ErrCannotCopyDir error, but got %T: %s", err, err))
+	assert.Assert(c, isCpCannotCopyDir(err), fmt.Sprintf("expected ErrCannotCopyDir error, but got %T: %s", err, err))
 }
 
 // G. SRC specifies a directory and DST exists as a directory. This should copy
@@ -358,7 +358,7 @@ func (s *DockerSuite) TestCpFromCaseI(c *testing.T) {
 	err := runDockerCp(c, srcDir, dstFile, nil)
 	assert.ErrorContains(c, err, "")
 
-	assert.Assert(c, isCpCannotCopyDir(err), check.Commentf("expected ErrCannotCopyDir error, but got %T: %s", err, err))
+	assert.Assert(c, isCpCannotCopyDir(err), fmt.Sprintf("expected ErrCannotCopyDir error, but got %T: %s", err, err))
 }
 
 // J. SRC specifies a directory's contents only and DST exists as a directory.
