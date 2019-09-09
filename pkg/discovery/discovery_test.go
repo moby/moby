@@ -110,25 +110,25 @@ func (s *DiscoverySuite) TestEntriesDiff(c *testing.T) {
 
 	// No diff
 	added, removed := entries.Diff(Entries{entry2, entry1})
-	assert.Assert(c, added, checker.HasLen, 0)
-	assert.Assert(c, removed, checker.HasLen, 0)
+	assert.Equal(c, len(added), 0)
+	assert.Equal(c, len(removed), 0)
 
 	// Add
 	added, removed = entries.Diff(Entries{entry2, entry3, entry1})
-	assert.Assert(c, added, checker.HasLen, 1)
+	assert.Equal(c, len(added), 1)
 	assert.Equal(c, added.Contains(entry3), true)
-	assert.Assert(c, removed, checker.HasLen, 0)
+	assert.Equal(c, len(removed), 0)
 
 	// Remove
 	added, removed = entries.Diff(Entries{entry2})
-	assert.Assert(c, added, checker.HasLen, 0)
-	assert.Assert(c, removed, checker.HasLen, 1)
+	assert.Equal(c, len(added), 0)
+	assert.Equal(c, len(removed), 1)
 	assert.Equal(c, removed.Contains(entry1), true)
 
 	// Add and remove
 	added, removed = entries.Diff(Entries{entry1, entry3})
-	assert.Assert(c, added, checker.HasLen, 1)
+	assert.Equal(c, len(added), 1)
 	assert.Equal(c, added.Contains(entry3), true)
-	assert.Assert(c, removed, checker.HasLen, 1)
+	assert.Equal(c, len(removed), 1)
 	assert.Equal(c, removed.Contains(entry2), true)
 }

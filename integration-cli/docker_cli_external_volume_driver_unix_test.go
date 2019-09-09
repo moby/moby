@@ -488,8 +488,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *testing.T) {
 	var st []vol
 
 	assert.Assert(c, json.Unmarshal([]byte(out), &st), checker.IsNil)
-	assert.Assert(c, st, checker.HasLen, 1)
-	assert.Assert(c, st[0].Status, checker.HasLen, 1, check.Commentf("%v", st[0]))
+	assert.Equal(c, len(st), 1)
+	assert.Equal(c, len(st[0].Status), 1, check.Commentf("%v", st[0]))
 	assert.Equal(c, st[0].Status["Hello"], "world", check.Commentf("%v", st[0].Status))
 }
 
@@ -500,7 +500,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemonRestart(c 
 	dockerCmd(c, "run", "--name=test", "-v", "abc1:/foo", "busybox", "true")
 	var mounts []types.MountPoint
 	inspectFieldAndUnmarshall(c, "test", "Mounts", &mounts)
-	assert.Assert(c, mounts, checker.HasLen, 1)
+	assert.Equal(c, len(mounts), 1)
 	assert.Equal(c, mounts[0].Driver, volumePluginName)
 }
 
@@ -583,7 +583,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverOutOfBandDelete(c *t
 	var vs []types.Volume
 	err = json.Unmarshal([]byte(out), &vs)
 	assert.NilError(c, err)
-	assert.Assert(c, vs, checker.HasLen, 1)
+	assert.Equal(c, len(vs), 1)
 	assert.Equal(c, vs[0].Driver, driverName)
 	assert.Assert(c, vs[0].Options, checker.NotNil)
 	assert.Equal(c, vs[0].Options["foo"], "bar")
@@ -601,8 +601,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverOutOfBandDelete(c *t
 	vs = nil
 	err = json.Unmarshal([]byte(out), &vs)
 	assert.NilError(c, err)
-	assert.Assert(c, vs, checker.HasLen, 1)
-	assert.Assert(c, vs[0].Options, checker.HasLen, 0)
+	assert.Equal(c, len(vs), 1)
+	assert.Equal(c, len(vs[0].Options), 0)
 	assert.Equal(c, vs[0].Driver, "local")
 }
 

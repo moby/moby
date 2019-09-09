@@ -223,7 +223,7 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *testing.T) {
 	assert.NilError(c, err)
 
 	// check that there is only one mountpoint
-	assert.Assert(c, mp, checker.HasLen, 1)
+	assert.Equal(c, len(mp), 1)
 
 	m := mp[0]
 
@@ -249,7 +249,7 @@ func (s *DockerSuite) TestInspectNamedMountPoint(c *testing.T) {
 	assert.NilError(c, err)
 
 	// check that there is only one mountpoint
-	assert.Assert(c, mp, checker.HasLen, 1)
+	assert.Equal(c, len(mp), 1)
 
 	m := mp[0]
 

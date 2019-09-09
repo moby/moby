@@ -110,7 +110,7 @@ func (s *DockerSuite) TestImportFileWithMessage(c *testing.T) {
 	out, _ = dockerCmd(c, "history", image)
 	split := strings.Split(out, "\n")
 
-	assert.Assert(c, split, checker.HasLen, 3, check.Commentf("expected 3 lines from image history"))
+	assert.Equal(c, len(split), 3, check.Commentf("expected 3 lines from image history"))
 	r := regexp.MustCompile("[\\s]{2,}")
 	split = r.Split(split[1], -1)
 

@@ -530,7 +530,7 @@ func (s *DockerSuite) TestDockerInspectNetworkWithContainerName(c *testing.T) {
 	var newNetRes []types.NetworkResource
 	err = json.Unmarshal([]byte(out), &newNetRes)
 	assert.NilError(c, err)
-	assert.Assert(c, newNetRes, checker.HasLen, 1)
+	assert.Equal(c, len(newNetRes), 1)
 	container1, ok := newNetRes[0].Containers[containerID]
 	assert.Assert(c, ok)
 	assert.Equal(c, container1.Name, newName)
@@ -1034,7 +1034,7 @@ func (s *DockerSuite) TestInspectAPIMultipleNetworks(c *testing.T) {
 	var inspect121 types.ContainerJSON
 	err = json.Unmarshal(body, &inspect121)
 	assert.NilError(c, err)
-	assert.Assert(c, inspect121.NetworkSettings.Networks, checker.HasLen, 3)
+	assert.Equal(c, len(inspect121.NetworkSettings.Networks), 3)
 
 	bridge := inspect121.NetworkSettings.Networks["bridge"]
 	assert.Equal(c, bridge.IPAddress, versionedIP)

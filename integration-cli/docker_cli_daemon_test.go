@@ -1726,7 +1726,7 @@ func (s *DockerDaemonSuite) TestDaemonStartWithDefaultTLSHost(c *testing.T) {
 	conn.Close()
 
 	assert.Assert(c, certRequestInfo, checker.NotNil)
-	assert.Assert(c, certRequestInfo.AcceptableCAs, checker.HasLen, 1)
+	assert.Equal(c, len(certRequestInfo.AcceptableCAs), 1)
 	assert.DeepEqual(c, certRequestInfo.AcceptableCAs[0], rootCert.RawSubject)
 }
 
