@@ -11,7 +11,7 @@ func Test(t *testing.T) { check.TestingT(t) }
 
 type DiscoverySuite struct{}
 
-var _ = check.Suite(&DiscoverySuite{})
+ /*check.Suite(&DiscoverySuite{})*/
 
 func (s *DiscoverySuite) TestNewEntry(c *testing.T) {
 	entry, err := NewEntry("127.0.0.1:2375")
