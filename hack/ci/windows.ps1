@@ -486,7 +486,7 @@ Try {
     }
 
     # Following at the moment must be docker\docker as it's dictated by dockerfile.Windows
-    $contPath="$COMMITHASH`:c`:\go\src\github.com\docker\docker\bundles"
+    $contPath="$COMMITHASH`:c`:\gopath\src\github.com\docker\docker\bundles"
 
     # After https://github.com/docker/docker/pull/30290, .git was added to .dockerignore. Therefore
     # we have to calculate unsupported outside of the container, and pass the commit ID in through
@@ -850,7 +850,7 @@ Try {
                 $Duration= $(Measure-Command { & docker run `
                                                         --rm `
                                                         -e c=$c `
-                                                        --workdir "c`:\go\src\github.com\docker\docker\integration-cli" `
+                                                        --workdir "c`:\gopath\src\github.com\docker\docker\integration-cli" `
                                                         -v "$env:TEMP\binary`:c:\target" `
                                                         docker `
                                                         "`$env`:PATH`='c`:\target;'+`$env:PATH`;  `$env:DOCKER_HOST`='tcp`://'+(ipconfig | select -last 1).Substring(39)+'`:2357'; c:\target\runIntegrationCLI.ps1" | Out-Host } )
