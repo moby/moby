@@ -21,6 +21,14 @@ func Run(t *testing.T, suite interface{}) {
 
 	suiteSetupDone := false
 
+	defer func() {
+		if suiteSetupDone {
+			if tearDownAllSuite, ok := suite.(TearDownAllSuite); ok {
+				tearDownAllSuite.TearDownSuite(t)
+			}
+		}
+	}()
+
 	methodFinder := reflect.TypeOf(suite)
 	suiteName := methodFinder.Elem().Name()
 	for index := 0; index < methodFinder.NumMethod(); index++ {
@@ -28,19 +36,15 @@ func Run(t *testing.T, suite interface{}) {
 		if !methodFilter(method.Name, method.Type) {
 			continue
 		}
-		if !suiteSetupDone {
-			if setupAllSuite, ok := suite.(SetupAllSuite); ok {
-				setupAllSuite.SetUpSuite(t)
-			}
-			defer func() {
-				if tearDownAllSuite, ok := suite.(TearDownAllSuite); ok {
-					tearDownAllSuite.TearDownSuite(t)
-				}
-			}()
-			suiteSetupDone = true
-		}
 		t.Run(suiteName+"/"+method.Name, func(t *testing.T) {
 			defer failOnPanic(t)
+
+			if !suiteSetupDone {
+				if setupAllSuite, ok := suite.(SetupAllSuite); ok {
+					setupAllSuite.SetUpSuite(t)
+				}
+				suiteSetupDone = true
+			}
 
 			if setupTestSuite, ok := suite.(SetupTestSuite); ok {
 				setupTestSuite.SetUpTest(t)
