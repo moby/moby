@@ -30,6 +30,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/command"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/assert"
+	"gotest.tools/assert/cmp"
 	"gotest.tools/icmd"
 )
 
@@ -4803,7 +4804,12 @@ func (s *DockerSuite) TestBuildFollowSymlinkToFile(c *testing.T) {
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
 	out := cli.DockerCmd(c, "run", "--rm", name, "cat", "target").Combined()
-	assert.Assert(c, out, checker.Matches, "bar")
+	assert.Assert(c, cmp.Regexp("^"+
+
+		"bar"+
+		"$",
+
+		out))
 
 	// change target file should invalidate cache
 	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("baz"), 0644)
@@ -4813,7 +4819,13 @@ func (s *DockerSuite) TestBuildFollowSymlinkToFile(c *testing.T) {
 	assert.Assert(c, result.Combined(), checker.Not(checker.Contains), "Using cache")
 
 	out = cli.DockerCmd(c, "run", "--rm", name, "cat", "target").Combined()
-	assert.Assert(c, out, checker.Matches, "baz")
+	assert.Assert(c, cmp.Regexp("^"+
+
+		"baz"+
+		"$",
+
+		out))
+
 }
 
 func (s *DockerSuite) TestBuildFollowSymlinkToDir(c *testing.T) {
@@ -4834,7 +4846,12 @@ func (s *DockerSuite) TestBuildFollowSymlinkToDir(c *testing.T) {
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
 	out := cli.DockerCmd(c, "run", "--rm", name, "cat", "abc", "def").Combined()
-	assert.Assert(c, out, checker.Matches, "barbaz")
+	assert.Assert(c, cmp.Regexp("^"+
+
+		"barbaz"+
+		"$",
+
+		out))
 
 	// change target file should invalidate cache
 	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "foo/def"), []byte("bax"), 0644)
@@ -4844,7 +4861,12 @@ func (s *DockerSuite) TestBuildFollowSymlinkToDir(c *testing.T) {
 	assert.Assert(c, result.Combined(), checker.Not(checker.Contains), "Using cache")
 
 	out = cli.DockerCmd(c, "run", "--rm", name, "cat", "abc", "def").Combined()
-	assert.Assert(c, out, checker.Matches, "barbax")
+	assert.Assert(c, cmp.Regexp("^"+
+
+		"barbax"+
+		"$",
+
+		out))
 
 }
 
@@ -4867,7 +4889,13 @@ func (s *DockerSuite) TestBuildSymlinkBasename(c *testing.T) {
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
 	out := cli.DockerCmd(c, "run", "--rm", name, "cat", "asymlink").Combined()
-	assert.Assert(c, out, checker.Matches, "bar")
+	assert.Assert(c, cmp.Regexp("^"+
+
+		"bar"+
+		"$",
+
+		out))
+
 }
 
 // #17827
