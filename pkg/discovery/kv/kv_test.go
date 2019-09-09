@@ -239,13 +239,13 @@ func (ds *DiscoverySuite) TestWatch(c *testing.T) {
 
 	// Push the entries into the store channel and make sure discovery emits.
 	mockCh <- kvs
-	assert.Assert(c, <-ch, checker.DeepEquals, expected)
+	assert.DeepEqual(c, <-ch, expected)
 
 	// Add a new entry.
 	expected = append(expected, &discovery.Entry{Host: "3.3.3.3", Port: "3333"})
 	kvs = append(kvs, &store.KVPair{Key: path.Join("path", defaultDiscoveryPath, "3.3.3.3"), Value: []byte("3.3.3.3:3333")})
 	mockCh <- kvs
-	assert.Assert(c, <-ch, checker.DeepEquals, expected)
+	assert.DeepEqual(c, <-ch, expected)
 
 	close(mockCh)
 	// Give it enough time to call WatchTree.

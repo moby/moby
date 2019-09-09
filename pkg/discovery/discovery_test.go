@@ -52,7 +52,7 @@ func (s *DiscoverySuite) TestParse(c *testing.T) {
 
 func (s *DiscoverySuite) TestCreateEntries(c *testing.T) {
 	entries, err := CreateEntries(nil)
-	assert.Assert(c, entries, checker.DeepEquals, Entries{})
+	assert.DeepEqual(c, entries, Entries{})
 	assert.Assert(c, err, checker.IsNil)
 
 	entries, err = CreateEntries([]string{"127.0.0.1:2375", "127.0.0.2:2375", "[2001:db8:0:f101::2]:2375", ""})
