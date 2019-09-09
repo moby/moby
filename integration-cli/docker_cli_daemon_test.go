@@ -216,7 +216,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithInvalidBasesize(c *testing.T) {
 
 	if newBasesizeBytes < oldBasesizeBytes {
 		err := s.d.RestartWithError("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
-		assert.Assert(c, err, checker.NotNil, check.Commentf("daemon should not have started as new base device size is less than existing base device size: %v", err))
+		assert.Assert(c, err != nil, check.Commentf("daemon should not have started as new base device size is less than existing base device size: %v", err))
 		// 'err != nil' is expected behaviour, no new daemon started,
 		// so no need to stop daemon.
 		if err != nil {
@@ -434,7 +434,7 @@ func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDR(c *testing.T) {
 	out = strings.Trim(out, " \r\n'")
 
 	ip := net.ParseIP(out)
-	assert.Assert(c, ip, checker.NotNil, check.Commentf("Container should have a global IPv6 address"))
+	assert.Assert(c, ip != nil, check.Commentf("Container should have a global IPv6 address"))
 
 	out, err = s.d.Cmd("inspect", "--format", "{{.NetworkSettings.Networks.bridge.IPv6Gateway}}", "ipv6test")
 	assert.NilError(c, err, out)
@@ -477,7 +477,7 @@ func (s *DockerDaemonSuite) TestDaemonIPv6HostMode(c *testing.T) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonLogLevelWrong(c *testing.T) {
-	assert.Assert(c, s.d.StartWithError("--log-level=bogus"), checker.NotNil, check.Commentf("Daemon shouldn't start with wrong log level"))
+	assert.Assert(c, s.d.StartWithError("--log-level=bogus") != nil, check.Commentf("Daemon shouldn't start with wrong log level"))
 }
 
 func (s *DockerDaemonSuite) TestDaemonLogLevelDebug(c *testing.T) {
@@ -844,7 +844,7 @@ func (s *DockerDaemonSuite) TestDaemonIP(c *testing.T) {
 	defer d.Restart(c)
 
 	out, err := d.Cmd("run", "-d", "-p", "8000:8000", "busybox", "top")
-	assert.Assert(c, err, checker.NotNil, check.Commentf("Running a container must fail with an invalid --ip option"))
+	assert.Assert(c, err != nil, check.Commentf("Running a container must fail with an invalid --ip option"))
 	assert.Equal(c, strings.Contains(out, "Error starting userland proxy"), true)
 
 	ifName := "dummy"
@@ -1136,7 +1136,7 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneLogsError(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	out, err = s.d.Cmd("logs", "test")
-	assert.Assert(c, err, checker.NotNil, check.Commentf("Logs should fail with 'none' driver"))
+	assert.Assert(c, err != nil, check.Commentf("Logs should fail with 'none' driver"))
 	expected := `configured logging driver does not support reading`
 	assert.Assert(c, strings.Contains(out, expected))
 }
@@ -1630,7 +1630,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartRmVolumeInUse(c *testing.T) {
 	s.d.Restart(c)
 
 	out, err = s.d.Cmd("volume", "rm", "test")
-	assert.Assert(c, err, checker.NotNil, check.Commentf("should not be able to remove in use volume after daemon restart"))
+	assert.Assert(c, err != nil, check.Commentf("should not be able to remove in use volume after daemon restart"))
 	assert.Assert(c, out, checker.Contains, "in use")
 }
 
@@ -1648,7 +1648,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartLocalVolumes(c *testing.T) {
 // FIXME(vdemeester) should be a unit test
 func (s *DockerDaemonSuite) TestDaemonCorruptedLogDriverAddress(c *testing.T) {
 	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
-	assert.Assert(c, d.StartWithError("--log-driver=syslog", "--log-opt", "syslog-address=corrupted:42"), checker.NotNil)
+	assert.Assert(c, d.StartWithError("--log-driver=syslog", "--log-opt", "syslog-address=corrupted:42") != nil)
 	expected := "syslog-address should be in form proto://address"
 	icmd.RunCommand("grep", expected, d.LogFileName()).Assert(c, icmd.Success)
 }
@@ -1656,7 +1656,7 @@ func (s *DockerDaemonSuite) TestDaemonCorruptedLogDriverAddress(c *testing.T) {
 // FIXME(vdemeester) should be a unit test
 func (s *DockerDaemonSuite) TestDaemonCorruptedFluentdAddress(c *testing.T) {
 	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
-	assert.Assert(c, d.StartWithError("--log-driver=fluentd", "--log-opt", "fluentd-address=corrupted:c"), checker.NotNil)
+	assert.Assert(c, d.StartWithError("--log-driver=fluentd", "--log-opt", "fluentd-address=corrupted:c") != nil)
 	expected := "invalid fluentd-address corrupted:c: "
 	icmd.RunCommand("grep", expected, d.LogFileName()).Assert(c, icmd.Success)
 }
@@ -1725,7 +1725,7 @@ func (s *DockerDaemonSuite) TestDaemonStartWithDefaultTLSHost(c *testing.T) {
 	assert.NilError(c, err)
 	conn.Close()
 
-	assert.Assert(c, certRequestInfo, checker.NotNil)
+	assert.Assert(c, certRequestInfo != nil)
 	assert.Equal(c, len(certRequestInfo.AcceptableCAs), 1)
 	assert.DeepEqual(c, certRequestInfo.AcceptableCAs[0], rootCert.RawSubject)
 }
@@ -1779,7 +1779,7 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 
 	// pull a repository large enough to overfill the mounted filesystem
 	pullOut, err := s.d.Cmd("pull", "debian:stretch")
-	assert.Assert(c, err, checker.NotNil, check.Commentf("%s", pullOut))
+	assert.Assert(c, err != nil, check.Commentf("%s", pullOut))
 	assert.Assert(c, pullOut, checker.Contains, "no space left on device")
 }
 
@@ -2546,7 +2546,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *testing.T) {
 
 	// Check that we can't override the default runtime
 	s.d.Stop(c)
-	assert.Assert(c, s.d.StartWithError("--add-runtime", "runc=my-runc"), checker.NotNil)
+	assert.Assert(c, s.d.StartWithError("--add-runtime", "runc=my-runc") != nil)
 
 	content, err := s.d.ReadLogFile()
 	assert.NilError(c, err)

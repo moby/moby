@@ -105,7 +105,7 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 			"-p", "9090-9092:80",
 			"busybox", "top")
 		// Exhausted port range did not return an error
-		assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
+		assert.Assert(c, err != nil, check.Commentf("out: %s", out))
 
 		for i := 0; i < 3; i++ {
 			dockerCmd(c, "rm", "-f", IDs[i])
@@ -121,7 +121,7 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 			"-p", invalidRange,
 			"busybox", "top")
 		// Port range should have returned an error
-		assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
+		assert.Assert(c, err != nil, check.Commentf("out: %s", out))
 	}
 
 	// test host range:container range spec.
@@ -302,7 +302,7 @@ func (s *DockerSuite) TestPortHostBinding(c *testing.T) {
 
 	out, _, err = dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "9876")
 	// Port is still bound after the Container is removed
-	assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
+	assert.Assert(c, err != nil, check.Commentf("out: %s", out))
 }
 
 func (s *DockerSuite) TestPortExposeHostBinding(c *testing.T) {
@@ -324,7 +324,7 @@ func (s *DockerSuite) TestPortExposeHostBinding(c *testing.T) {
 	out, _, err = dockerCmdWithError("run", "--net=host", "busybox",
 		"nc", "localhost", strings.TrimSpace(exposedPort))
 	// Port is still bound after the Container is removed
-	assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
+	assert.Assert(c, err != nil, check.Commentf("out: %s", out))
 }
 
 func (s *DockerSuite) TestPortBindingOnSandbox(c *testing.T) {
@@ -338,7 +338,7 @@ func (s *DockerSuite) TestPortBindingOnSandbox(c *testing.T) {
 	assert.Assert(c, waitRun("c1") == nil)
 
 	_, _, err := dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "8080")
-	assert.Assert(c, err, checker.NotNil, check.Commentf("Port mapping on internal network is expected to fail"))
+	assert.Assert(c, err != nil, check.Commentf("Port mapping on internal network is expected to fail"))
 	// Connect container to another normal bridge network
 	dockerCmd(c, "network", "create", "-d", "bridge", "foo-net")
 	dockerCmd(c, "network", "connect", "foo-net", "c1")

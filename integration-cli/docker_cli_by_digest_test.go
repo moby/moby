@@ -115,7 +115,7 @@ func testPullByDigestNoFallback(c *testing.T) {
 	// pull from the registry using the <name>@<digest> reference
 	imageReference := fmt.Sprintf("%s@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", repoName)
 	out, _, err := dockerCmdWithError("pull", imageReference)
-	assert.Assert(c, err, checker.NotNil, check.Commentf("expected non-zero exit status and correct error message when pulling non-existing image"))
+	assert.Assert(c, err != nil, check.Commentf("expected non-zero exit status and correct error message when pulling non-existing image"))
 	assert.Assert(c, out, checker.Contains, fmt.Sprintf("manifest for %s not found", imageReference), check.Commentf("expected non-zero exit status and correct error message when pulling non-existing image"))
 }
 

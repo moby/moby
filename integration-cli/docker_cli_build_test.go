@@ -5395,14 +5395,14 @@ func (s *DockerSuite) TestBuildWithFailure(c *testing.T) {
 	// First test case can only detect `nobody` in runtime so all steps will show up
 	dockerfile := "FROM busybox\nRUN nobody"
 	result := buildImage(name, build.WithDockerfile(dockerfile))
-	assert.Assert(c, result.Error, checker.NotNil)
+	assert.Assert(c, result.Error != nil)
 	assert.Assert(c, result.Stdout(), checker.Contains, "Step 1/2 : FROM busybox")
 	assert.Assert(c, result.Stdout(), checker.Contains, "Step 2/2 : RUN nobody")
 
 	// Second test case `FFOM` should have been detected before build runs so no steps
 	dockerfile = "FFOM nobody\nRUN nobody"
 	result = buildImage(name, build.WithDockerfile(dockerfile))
-	assert.Assert(c, result.Error, checker.NotNil)
+	assert.Assert(c, result.Error != nil)
 	assert.Assert(c, result.Stdout(), checker.Not(checker.Contains), "Step 1/2 : FROM busybox")
 	assert.Assert(c, result.Stdout(), checker.Not(checker.Contains), "Step 2/2 : RUN nobody")
 }

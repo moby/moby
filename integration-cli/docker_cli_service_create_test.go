@@ -47,7 +47,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
 	assert.Equal(c, mountConfig[0].Source, "foo")
 	assert.Equal(c, mountConfig[0].Target, "/foo")
 	assert.Equal(c, mountConfig[0].Type, mount.TypeVolume)
-	assert.Assert(c, mountConfig[0].VolumeOptions, checker.NotNil)
+	assert.Assert(c, mountConfig[0].VolumeOptions != nil)
 	assert.Assert(c, mountConfig[0].VolumeOptions.NoCopy, checker.True)
 
 	// check container mounts actual
@@ -390,7 +390,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 	assert.Equal(c, mountConfig[0].Source, "")
 	assert.Equal(c, mountConfig[0].Target, "/foo")
 	assert.Equal(c, mountConfig[0].Type, mount.TypeTmpfs)
-	assert.Assert(c, mountConfig[0].TmpfsOptions, checker.NotNil)
+	assert.Assert(c, mountConfig[0].TmpfsOptions != nil)
 	assert.Equal(c, mountConfig[0].TmpfsOptions.SizeBytes, int64(1048576))
 
 	// check container mounts actual

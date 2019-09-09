@@ -47,5 +47,5 @@ func (s *DiscoverySuite) TestWatch(c *testing.T) {
 
 func (s *DiscoverySuite) TestRegister(c *testing.T) {
 	d := &Discovery{}
-	assert.Assert(c, d.Register("0.0.0.0"), checker.NotNil)
+	assert.Assert(c, d.Register("0.0.0.0") != nil)
 }

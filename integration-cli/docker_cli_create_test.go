@@ -100,7 +100,7 @@ func (s *DockerSuite) TestCreateHostConfig(c *testing.T) {
 	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
-	assert.Assert(c, cont.HostConfig, checker.NotNil, check.Commentf("Expected HostConfig, got none"))
+	assert.Assert(c, cont.HostConfig != nil, check.Commentf("Expected HostConfig, got none"))
 	assert.Assert(c, cont.HostConfig.PublishAllPorts, checker.True, check.Commentf("Expected PublishAllPorts, got false"))
 }
 
@@ -122,7 +122,7 @@ func (s *DockerSuite) TestCreateWithPortRange(c *testing.T) {
 
 	cont := containers[0]
 
-	assert.Assert(c, cont.HostConfig, checker.NotNil, check.Commentf("Expected HostConfig, got none"))
+	assert.Assert(c, cont.HostConfig != nil, check.Commentf("Expected HostConfig, got none"))
 	assert.Equal(c, len(cont.HostConfig.PortBindings), 4, check.Commentf("Expected 4 ports bindings, got %d", len(cont.HostConfig.PortBindings)))
 
 	for k, v := range cont.HostConfig.PortBindings {
@@ -151,7 +151,7 @@ func (s *DockerSuite) TestCreateWithLargePortRange(c *testing.T) {
 	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
-	assert.Assert(c, cont.HostConfig, checker.NotNil, check.Commentf("Expected HostConfig, got none"))
+	assert.Assert(c, cont.HostConfig != nil, check.Commentf("Expected HostConfig, got none"))
 	assert.Equal(c, len(cont.HostConfig.PortBindings), 65535)
 
 	for k, v := range cont.HostConfig.PortBindings {
