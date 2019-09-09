@@ -333,7 +333,7 @@ func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *daemo
 			d.StartAndSwarmInit(c)
 		}
 	} else {
-		d.StartNode(c)
+		d.StartNodeWithBusybox(c)
 	}
 
 	s.daemonsLock.Lock()
