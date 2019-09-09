@@ -956,7 +956,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverUngracefulRestart(c *testing
 	_, err := s.d.Cmd("network", "create", "-d", dnd, "--subnet", "1.1.1.0/24", "net1")
 	assert.NilError(c, err)
 
-	_, err = s.d.Cmd("run", "-itd", "--net", "net1", "--name", "foo", "--ip", "1.1.1.10", "busybox", "sh")
+	_, err = s.d.Cmd("run", "-d", "--net", "net1", "--name", "foo", "--ip", "1.1.1.10", "busybox", "top")
 	assert.NilError(c, err)
 
 	// Kill daemon and restart
@@ -980,7 +980,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverUngracefulRestart(c *testing
 	setupRemoteNetworkDrivers(c, mux, server.URL, dnd, did)
 
 	// trying to reuse the same ip must succeed
-	_, err = s.d.Cmd("run", "-itd", "--net", "net1", "--name", "bar", "--ip", "1.1.1.10", "busybox", "sh")
+	_, err = s.d.Cmd("run", "-d", "--net", "net1", "--name", "bar", "--ip", "1.1.1.10", "busybox", "top")
 	assert.NilError(c, err)
 }
 
