@@ -121,7 +121,7 @@ func (s *DockerSuite) TestContainerAPIGetExport(c *testing.T) {
 			break
 		}
 	}
-	assert.Assert(c, found, checker.True, check.Commentf("The created test file has not been found in the exported image"))
+	assert.Assert(c, found, check.Commentf("The created test file has not been found in the exported image"))
 }
 
 func (s *DockerSuite) TestContainerAPIGetChanges(c *testing.T) {
@@ -144,7 +144,7 @@ func (s *DockerSuite) TestContainerAPIGetChanges(c *testing.T) {
 			success = true
 		}
 	}
-	assert.Assert(c, success, checker.True, check.Commentf("/etc/passwd has been removed but is not present in the diff"))
+	assert.Assert(c, success, check.Commentf("/etc/passwd has been removed but is not present in the diff"))
 }
 
 func (s *DockerSuite) TestGetContainerStats(c *testing.T) {
@@ -1044,7 +1044,7 @@ func (s *DockerSuite) TestContainerAPICopyPre124(c *testing.T) {
 			break
 		}
 	}
-	assert.Assert(c, found, checker.True)
+	assert.Assert(c, found)
 }
 
 func (s *DockerSuite) TestContainerAPICopyResourcePathEmptyPre124(c *testing.T) {
@@ -1219,7 +1219,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 	assert.NilError(c, err)
 
 	_, err = os.Stat(source)
-	assert.Assert(c, os.IsNotExist(err), checker.True, check.Commentf("expected to get ErrNotExist error, got %v", err))
+	assert.Assert(c, os.IsNotExist(err), check.Commentf("expected to get ErrNotExist error, got %v", err))
 }
 
 // Regression test for https://github.com/docker/docker/issues/6231

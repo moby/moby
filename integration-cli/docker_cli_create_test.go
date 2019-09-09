@@ -101,7 +101,7 @@ func (s *DockerSuite) TestCreateHostConfig(c *testing.T) {
 
 	cont := containers[0]
 	assert.Assert(c, cont.HostConfig != nil, check.Commentf("Expected HostConfig, got none"))
-	assert.Assert(c, cont.HostConfig.PublishAllPorts, checker.True, check.Commentf("Expected PublishAllPorts, got false"))
+	assert.Assert(c, cont.HostConfig.PublishAllPorts, check.Commentf("Expected PublishAllPorts, got false"))
 }
 
 func (s *DockerSuite) TestCreateWithPortRange(c *testing.T) {

@@ -253,7 +253,7 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *testing.T) {
 
 	// make sure repo shown, tag=<none>, digest = $digest1
 	re1 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest1.String() + `\s`)
-	assert.Assert(c, re1.MatchString(out), checker.True, check.Commentf("expected %q: %s", re1.String(), out))
+	assert.Assert(c, re1.MatchString(out), check.Commentf("expected %q: %s", re1.String(), out))
 	// setup image2
 	digest2, err := setupImageWithTag(c, "tag2")
 	//error setting up image
@@ -271,11 +271,11 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *testing.T) {
 	out, _ = dockerCmd(c, "images", "--digests")
 
 	// make sure repo shown, tag=<none>, digest = $digest1
-	assert.Assert(c, re1.MatchString(out), checker.True, check.Commentf("expected %q: %s", re1.String(), out))
+	assert.Assert(c, re1.MatchString(out), check.Commentf("expected %q: %s", re1.String(), out))
 
 	// make sure repo shown, tag=<none>, digest = $digest2
 	re2 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest2.String() + `\s`)
-	assert.Assert(c, re2.MatchString(out), checker.True, check.Commentf("expected %q: %s", re2.String(), out))
+	assert.Assert(c, re2.MatchString(out), check.Commentf("expected %q: %s", re2.String(), out))
 
 	// pull tag1
 	dockerCmd(c, "pull", repoName+":tag1")
@@ -285,9 +285,9 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *testing.T) {
 
 	// make sure image 1 has repo, tag, <none> AND repo, <none>, digest
 	reWithDigest1 := regexp.MustCompile(`\s*` + repoName + `\s*tag1\s*` + digest1.String() + `\s`)
-	assert.Assert(c, reWithDigest1.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest1.String(), out))
+	assert.Assert(c, reWithDigest1.MatchString(out), check.Commentf("expected %q: %s", reWithDigest1.String(), out))
 	// make sure image 2 has repo, <none>, digest
-	assert.Assert(c, re2.MatchString(out), checker.True, check.Commentf("expected %q: %s", re2.String(), out))
+	assert.Assert(c, re2.MatchString(out), check.Commentf("expected %q: %s", re2.String(), out))
 
 	// pull tag 2
 	dockerCmd(c, "pull", repoName+":tag2")
@@ -296,22 +296,22 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *testing.T) {
 	out, _ = dockerCmd(c, "images", "--digests")
 
 	// make sure image 1 has repo, tag, digest
-	assert.Assert(c, reWithDigest1.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest1.String(), out))
+	assert.Assert(c, reWithDigest1.MatchString(out), check.Commentf("expected %q: %s", reWithDigest1.String(), out))
 
 	// make sure image 2 has repo, tag, digest
 	reWithDigest2 := regexp.MustCompile(`\s*` + repoName + `\s*tag2\s*` + digest2.String() + `\s`)
-	assert.Assert(c, reWithDigest2.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest2.String(), out))
+	assert.Assert(c, reWithDigest2.MatchString(out), check.Commentf("expected %q: %s", reWithDigest2.String(), out))
 
 	// list images
 	out, _ = dockerCmd(c, "images", "--digests")
 
 	// make sure image 1 has repo, tag, digest
-	assert.Assert(c, reWithDigest1.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest1.String(), out))
+	assert.Assert(c, reWithDigest1.MatchString(out), check.Commentf("expected %q: %s", reWithDigest1.String(), out))
 	// make sure image 2 has repo, tag, digest
-	assert.Assert(c, reWithDigest2.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest2.String(), out))
+	assert.Assert(c, reWithDigest2.MatchString(out), check.Commentf("expected %q: %s", reWithDigest2.String(), out))
 	// make sure busybox has tag, but not digest
 	busyboxRe := regexp.MustCompile(`\s*busybox\s*latest\s*<none>\s`)
-	assert.Assert(c, busyboxRe.MatchString(out), checker.True, check.Commentf("expected %q: %s", busyboxRe.String(), out))
+	assert.Assert(c, busyboxRe.MatchString(out), check.Commentf("expected %q: %s", busyboxRe.String(), out))
 }
 
 func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *testing.T) {
@@ -329,7 +329,7 @@ func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *testing.T) {
 
 	// make sure repo shown, tag=<none>, digest = $digest1
 	re1 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest1.String() + `\s`)
-	assert.Assert(c, re1.MatchString(out), checker.True, check.Commentf("expected %q: %s", re1.String(), out))
+	assert.Assert(c, re1.MatchString(out), check.Commentf("expected %q: %s", re1.String(), out))
 	// setup image2
 	digest2, err := setupImageWithTag(c, "dangle2")
 	//error setting up image
@@ -347,11 +347,11 @@ func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *testing.T) {
 	out, _ = dockerCmd(c, "images", "--digests", "--filter=dangling=true")
 
 	// make sure repo shown, tag=<none>, digest = $digest1
-	assert.Assert(c, re1.MatchString(out), checker.True, check.Commentf("expected %q: %s", re1.String(), out))
+	assert.Assert(c, re1.MatchString(out), check.Commentf("expected %q: %s", re1.String(), out))
 
 	// make sure repo shown, tag=<none>, digest = $digest2
 	re2 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest2.String() + `\s`)
-	assert.Assert(c, re2.MatchString(out), checker.True, check.Commentf("expected %q: %s", re2.String(), out))
+	assert.Assert(c, re2.MatchString(out), check.Commentf("expected %q: %s", re2.String(), out))
 
 	// pull dangle1 tag
 	dockerCmd(c, "pull", repoName+":dangle1")
@@ -363,7 +363,7 @@ func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *testing.T) {
 	reWithDigest1 := regexp.MustCompile(`\s*` + repoName + `\s*dangle1\s*` + digest1.String() + `\s`)
 	assert.Assert(c, !reWithDigest1.MatchString(out), check.Commentf("unexpected %q: %s", reWithDigest1.String(), out))
 	// make sure image 2 has repo, <none>, digest
-	assert.Assert(c, re2.MatchString(out), checker.True, check.Commentf("expected %q: %s", re2.String(), out))
+	assert.Assert(c, re2.MatchString(out), check.Commentf("expected %q: %s", re2.String(), out))
 
 	// pull dangle2 tag
 	dockerCmd(c, "pull", repoName+":dangle2")
@@ -372,11 +372,11 @@ func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *testing.T) {
 	out, _ = dockerCmd(c, "images", "--digests")
 
 	// make sure image 1 has repo, tag, digest
-	assert.Assert(c, reWithDigest1.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest1.String(), out))
+	assert.Assert(c, reWithDigest1.MatchString(out), check.Commentf("expected %q: %s", reWithDigest1.String(), out))
 
 	// make sure image 2 has repo, tag, digest
 	reWithDigest2 := regexp.MustCompile(`\s*` + repoName + `\s*dangle2\s*` + digest2.String() + `\s`)
-	assert.Assert(c, reWithDigest2.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest2.String(), out))
+	assert.Assert(c, reWithDigest2.MatchString(out), check.Commentf("expected %q: %s", reWithDigest2.String(), out))
 
 	// list images, no longer dangling, should not match
 	out, _ = dockerCmd(c, "images", "--digests", "--filter=dangling=true")
