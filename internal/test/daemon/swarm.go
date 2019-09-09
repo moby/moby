@@ -36,7 +36,7 @@ func (d *Daemon) RestartNode(t testingT) {
 	}
 	// avoid networking conflicts
 	d.Stop(t)
-	d.StartWithBusybox(t, startArgs...)
+	d.Start(t, startArgs...)
 }
 
 // StartAndSwarmInit starts the daemon (with busybox) and init the swarm
