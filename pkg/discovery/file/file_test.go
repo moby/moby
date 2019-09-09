@@ -95,7 +95,7 @@ func (s *DiscoverySuite) TestWatch(c *testing.T) {
 
 	// Write the file and make sure we get the expected value back.
 	assert.Assert(c, ioutil.WriteFile(tmp.Name(), []byte(data), 0600), checker.IsNil)
-	assert.Assert(c, <-ch, checker.DeepEquals, expected)
+	assert.DeepEqual(c, <-ch, expected)
 
 	// Add a new entry and look it up.
 	expected = append(expected, &discovery.Entry{Host: "3.3.3.3", Port: "3333"})
@@ -105,7 +105,7 @@ func (s *DiscoverySuite) TestWatch(c *testing.T) {
 	_, err = f.WriteString("\n3.3.3.3:3333\n")
 	assert.Assert(c, err, checker.IsNil)
 	f.Close()
-	assert.Assert(c, <-ch, checker.DeepEquals, expected)
+	assert.DeepEqual(c, <-ch, expected)
 
 	// Stop and make sure it closes all channels.
 	close(stopCh)

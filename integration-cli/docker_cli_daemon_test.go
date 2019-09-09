@@ -1727,7 +1727,7 @@ func (s *DockerDaemonSuite) TestDaemonStartWithDefaultTLSHost(c *testing.T) {
 
 	assert.Assert(c, certRequestInfo, checker.NotNil)
 	assert.Assert(c, certRequestInfo.AcceptableCAs, checker.HasLen, 1)
-	assert.Assert(c, certRequestInfo.AcceptableCAs[0], checker.DeepEquals, rootCert.RawSubject)
+	assert.DeepEqual(c, certRequestInfo.AcceptableCAs[0], rootCert.RawSubject)
 }
 
 func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *testing.T) {
