@@ -109,9 +109,7 @@ func (s *DockerSuite) TearDownTest(c *testing.T) {
 }
 
 func init() {
-	check.Suite(&DockerRegistrySuite{
-		ds: &DockerSuite{},
-	})
+	check.Suite(&DockerRegistrySuite{ds: &DockerSuite{}})
 }
 
 type DockerRegistrySuite struct {
@@ -142,9 +140,7 @@ func (s *DockerRegistrySuite) TearDownTest(c *testing.T) {
 }
 
 func init() {
-	check.Suite(&DockerSchema1RegistrySuite{
-		ds: &DockerSuite{},
-	})
+	check.Suite(&DockerSchema1RegistrySuite{ds: &DockerSuite{}})
 }
 
 type DockerSchema1RegistrySuite struct {
@@ -175,9 +171,7 @@ func (s *DockerSchema1RegistrySuite) TearDownTest(c *testing.T) {
 }
 
 func init() {
-	check.Suite(&DockerRegistryAuthHtpasswdSuite{
-		ds: &DockerSuite{},
-	})
+	check.Suite(&DockerRegistryAuthHtpasswdSuite{ds: &DockerSuite{}})
 }
 
 type DockerRegistryAuthHtpasswdSuite struct {
@@ -210,9 +204,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TearDownTest(c *testing.T) {
 }
 
 func init() {
-	check.Suite(&DockerRegistryAuthTokenSuite{
-		ds: &DockerSuite{},
-	})
+	check.Suite(&DockerRegistryAuthTokenSuite{ds: &DockerSuite{}})
 }
 
 type DockerRegistryAuthTokenSuite struct {
@@ -251,9 +243,7 @@ func (s *DockerRegistryAuthTokenSuite) setupRegistryWithTokenService(c *testing.
 }
 
 func init() {
-	check.Suite(&DockerDaemonSuite{
-		ds: &DockerSuite{},
-	})
+	check.Suite(&DockerDaemonSuite{ds: &DockerSuite{}})
 }
 
 type DockerDaemonSuite struct {
@@ -296,9 +286,7 @@ func (s *DockerDaemonSuite) TearDownSuite(c *testing.T) {
 const defaultSwarmPort = 2477
 
 func init() {
-	check.Suite(&DockerSwarmSuite{
-		ds: &DockerSuite{},
-	})
+	check.Suite(&DockerSwarmSuite{ds: &DockerSuite{}})
 }
 
 type DockerSwarmSuite struct {
@@ -360,9 +348,7 @@ func (s *DockerSwarmSuite) TearDownTest(c *testing.T) {
 }
 
 func init() {
-	check.Suite(&DockerPluginSuite{
-		ds: &DockerSuite{},
-	})
+	check.Suite(&DockerPluginSuite{ds: &DockerSuite{}})
 }
 
 type DockerPluginSuite struct {
