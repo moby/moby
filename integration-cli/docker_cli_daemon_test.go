@@ -1751,7 +1751,7 @@ func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *testing.T
 		ip, err := s.d.Cmd("inspect", "--format", "'{{.NetworkSettings.IPAddress}}'", contName)
 		assert.Assert(c, err, checker.IsNil, check.Commentf("%s", ip))
 
-		assert.Assert(c, ip, checker.Not(checker.Equals), bridgeIP)
+		assert.Assert(c, ip != bridgeIP)
 		cont++
 	}
 }
@@ -1854,7 +1854,7 @@ func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *testing.T) {
 	out, err := s.d.Cmd("run", "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	assert.NilError(c, err)
 	cgroupPaths := ParseCgroupPaths(string(out))
-	assert.Assert(c, len(cgroupPaths), checker.Not(checker.Equals), 0, check.Commentf("unexpected output - %q", string(out)))
+	assert.Assert(c, len(cgroupPaths) != 0, check.Commentf("unexpected output - %q", string(out)))
 	out, err = s.d.Cmd("inspect", "-f", "{{.Id}}", name)
 	assert.NilError(c, err)
 	id := strings.TrimSpace(string(out))
@@ -2166,7 +2166,7 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *testing.T) {
 	s.d.Stop(c)
 	// Wait for io.Copy() before checking output
 	<-done
-	assert.Assert(c, b.String(), checker.Not(checker.Equals), "")
+	assert.Assert(c, b.String() != "")
 	assert.Assert(c, b.String(), checker.Not(checker.Contains), infoLog)
 }
 

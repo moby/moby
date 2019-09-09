@@ -1060,7 +1060,7 @@ func verifyContainerIsConnectedToNetworks(c *testing.T, d *daemon.Daemon, cName 
 	for _, nw := range nws {
 		out, err := d.Cmd("inspect", "-f", fmt.Sprintf("{{.NetworkSettings.Networks.%s}}", nw), cName)
 		assert.NilError(c, err, out)
-		assert.Assert(c, out, checker.Not(checker.Equals), "<no value>\n")
+		assert.Assert(c, out != "<no value>\n")
 	}
 }
 
@@ -1166,7 +1166,7 @@ func verifyPortMap(c *testing.T, container, port, originalMapping string, mustBe
 	if mustBeEqual {
 		assert.Assert(c, currentMapping, checker.Equals, originalMapping)
 	} else {
-		assert.Assert(c, currentMapping, checker.Not(checker.Equals), originalMapping)
+		assert.Assert(c, currentMapping != originalMapping)
 	}
 }
 
@@ -1216,7 +1216,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectWithMac(c *testing.T) {
 	assert.Assert(c, strings.TrimSpace(mac1), checker.Equals, macAddress)
 	dockerCmd(c, "network", "connect", "mynetwork", "test")
 	mac2 := inspectField(c, "test", "NetworkSettings.Networks.mynetwork.MacAddress")
-	assert.Assert(c, strings.TrimSpace(mac2), checker.Not(checker.Equals), strings.TrimSpace(mac1))
+	assert.Assert(c, strings.TrimSpace(mac2) != strings.TrimSpace(mac1))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkInspectCreatedContainer(c *testing.T) {

@@ -194,7 +194,7 @@ func (s *DockerSuite) TestInspectContainerGraphDriver(c *testing.T) {
 
 	deviceID := inspectField(c, out, "GraphDriver.Data.DeviceId")
 
-	assert.Assert(c, imageDeviceID, checker.Not(checker.Equals), deviceID)
+	assert.Assert(c, imageDeviceID != deviceID)
 
 	_, err := strconv.Atoi(deviceID)
 	assert.Assert(c, err, checker.IsNil, check.Commentf("failed to inspect DeviceId of the image: %s, %v", deviceID, err))
@@ -255,7 +255,7 @@ func (s *DockerSuite) TestInspectNamedMountPoint(c *testing.T) {
 
 	assert.Assert(c, m.Name, checker.Equals, "data")
 	assert.Assert(c, m.Driver, checker.Equals, "local")
-	assert.Assert(c, m.Source, checker.Not(checker.Equals), "")
+	assert.Assert(c, m.Source != "")
 	assert.Assert(c, m.Destination, checker.Equals, prefix+slash+"data")
 	assert.Assert(c, m.RW, checker.Equals, true)
 }
@@ -314,8 +314,8 @@ func (s *DockerSuite) TestInspectSizeFlagContainer(c *testing.T) {
 	out, _ := dockerCmd(c, "inspect", "-s", "--type=container", formatStr, "busybox")
 	sz := strings.Split(out, ",")
 
-	assert.Assert(c, strings.TrimSpace(sz[0]), checker.Not(checker.Equals), "<nil>")
-	assert.Assert(c, strings.TrimSpace(sz[1]), checker.Not(checker.Equals), "<nil>")
+	assert.Assert(c, strings.TrimSpace(sz[0]) != "<nil>")
+	assert.Assert(c, strings.TrimSpace(sz[1]) != "<nil>")
 }
 
 func (s *DockerSuite) TestInspectTemplateError(c *testing.T) {

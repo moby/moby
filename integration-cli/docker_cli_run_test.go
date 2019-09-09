@@ -3855,7 +3855,7 @@ func (s *DockerSuite) TestRunVolumesMountedAsSlave(c *testing.T) {
 func (s *DockerSuite) TestRunNamedVolumesMountedAsShared(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	out, exitCode, _ := dockerCmdWithError("run", "-v", "foo:/test:shared", "busybox", "touch", "/test/somefile")
-	assert.Assert(c, exitCode, checker.Not(checker.Equals), 0)
+	assert.Assert(c, exitCode != 0)
 	assert.Assert(c, out, checker.Contains, "invalid mount config")
 }
 
@@ -3909,7 +3909,7 @@ func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *testing.T) {
 			vname = v.Name
 		}
 	}
-	assert.Assert(c, vname, checker.Not(checker.Equals), "")
+	assert.Assert(c, vname != "")
 
 	// Remove the parent so there are not other references to the volumes
 	dockerCmd(c, "rm", "-f", "parent")

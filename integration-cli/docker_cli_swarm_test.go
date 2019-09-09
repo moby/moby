@@ -626,7 +626,7 @@ func (s *DockerSwarmSuite) TestPsListContainersFilterIsTask(c *testing.T) {
 	assert.NilError(c, err, out)
 	lines := strings.Split(strings.Trim(out, "\n "), "\n")
 	assert.Equal(c, len(lines), 1)
-	assert.Assert(c, lines[0], checker.Not(checker.Equals), bareID, check.Commentf("Expected not %s, but got it for is-task label, output %q", bareID, out))
+	assert.Assert(c, lines[0] != bareID, check.Commentf("Expected not %s, but got it for is-task label, output %q", bareID, out))
 }
 
 const globalNetworkPlugin = "global-network-plugin"
@@ -1263,8 +1263,8 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *testing.T) {
 		assert.Assert(c, err, checker.IsNil, check.Commentf("out: %v", outs))
 		// Strip \n
 		newUnlockKey := outs[:len(outs)-1]
-		assert.Assert(c, newUnlockKey, checker.Not(checker.Equals), "")
-		assert.Assert(c, newUnlockKey, checker.Not(checker.Equals), unlockKey)
+		assert.Assert(c, newUnlockKey != "")
+		assert.Assert(c, newUnlockKey != unlockKey)
 
 		d.RestartNode(c)
 		assert.Assert(c, getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateLocked)
@@ -1352,8 +1352,8 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *testing.T) {
 		assert.Assert(c, err, checker.IsNil, check.Commentf("%s", outs))
 		// Strip \n
 		newUnlockKey := outs[:len(outs)-1]
-		assert.Assert(c, newUnlockKey, checker.Not(checker.Equals), "")
-		assert.Assert(c, newUnlockKey, checker.Not(checker.Equals), unlockKey)
+		assert.Assert(c, newUnlockKey != "")
+		assert.Assert(c, newUnlockKey != unlockKey)
 
 		d2.RestartNode(c)
 		d3.RestartNode(c)
@@ -1520,7 +1520,7 @@ func (s *DockerSwarmSuite) TestSwarmNetworkCreateIssue27866(c *testing.T) {
 	out, err := d.Cmd("network", "inspect", "-f", "{{.Id}}", "ingress")
 	assert.NilError(c, err, "out: %v", out)
 	ingressID := strings.TrimSpace(out)
-	assert.Assert(c, ingressID, checker.Not(checker.Equals), "")
+	assert.Assert(c, ingressID != "")
 
 	// create a network of which name is the prefix of the ID of an overlay network
 	// (ingressID in this case)
@@ -1833,7 +1833,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsSource(c *testing.T) {
 	out, err := d1.Cmd("network", "create", "--attachable", "-d", "overlay", "foo")
 	assert.NilError(c, err, out)
 	networkID := strings.TrimSpace(out)
-	assert.Assert(c, networkID, checker.Not(checker.Equals), "")
+	assert.Assert(c, networkID != "")
 
 	// d1, d2 are managers that can get swarm events
 	waitForEvent(c, d1, "0", "-f scope=swarm", "network create "+networkID, defaultRetryCount)
@@ -1877,7 +1877,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsType(c *testing.T) {
 	out, err = d.Cmd("network", "create", "--attachable", "-d", "overlay", "foo")
 	assert.NilError(c, err, out)
 	networkID := strings.TrimSpace(out)
-	assert.Assert(c, networkID, checker.Not(checker.Equals), "")
+	assert.Assert(c, networkID != "")
 
 	// filter by service
 	out = waitForEvent(c, d, "0", "-f type=service", "service create "+serviceID, defaultRetryCount)
@@ -1987,7 +1987,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsSecret(c *testing.T) {
 		},
 		Data: []byte("TESTINGDATA"),
 	})
-	assert.Assert(c, id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
+	assert.Assert(c, id != "", check.Commentf("secrets: %s", id))
 
 	waitForEvent(c, d, "0", "-f scope=swarm", "secret create "+id, defaultRetryCount)
 
@@ -2007,7 +2007,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsConfig(c *testing.T) {
 		},
 		Data: []byte("TESTINGDATA"),
 	})
-	assert.Assert(c, id, checker.Not(checker.Equals), "", check.Commentf("configs: %s", id))
+	assert.Assert(c, id != "", check.Commentf("configs: %s", id))
 
 	waitForEvent(c, d, "0", "-f scope=swarm", "config create "+id, defaultRetryCount)
 

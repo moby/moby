@@ -76,12 +76,12 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) {
 	err = json.Unmarshal([]byte(cfg), &c2)
 	assert.Assert(c, err, checker.IsNil, check.Commentf(cfg))
 
-	assert.Assert(c, c2.Memory, checker.Not(checker.Equals), int64(64*1024*1024), check.Commentf("resource leaked from build for Memory"))
-	assert.Assert(c, c2.MemorySwap, checker.Not(checker.Equals), int64(-1), check.Commentf("resource leaked from build for MemorySwap"))
-	assert.Assert(c, c2.CpusetCpus, checker.Not(checker.Equals), "0", check.Commentf("resource leaked from build for CpusetCpus"))
-	assert.Assert(c, c2.CpusetMems, checker.Not(checker.Equals), "0", check.Commentf("resource leaked from build for CpusetMems"))
-	assert.Assert(c, c2.CPUShares, checker.Not(checker.Equals), int64(100), check.Commentf("resource leaked from build for CPUShares"))
-	assert.Assert(c, c2.CPUQuota, checker.Not(checker.Equals), int64(8000), check.Commentf("resource leaked from build for CPUQuota"))
+	assert.Assert(c, c2.Memory != int64(64*1024*1024), check.Commentf("resource leaked from build for Memory"))
+	assert.Assert(c, c2.MemorySwap != int64(-1), check.Commentf("resource leaked from build for MemorySwap"))
+	assert.Assert(c, c2.CpusetCpus != "0", check.Commentf("resource leaked from build for CpusetCpus"))
+	assert.Assert(c, c2.CpusetMems != "0", check.Commentf("resource leaked from build for CpusetMems"))
+	assert.Assert(c, c2.CPUShares != int64(100), check.Commentf("resource leaked from build for CPUShares"))
+	assert.Assert(c, c2.CPUQuota != int64(8000), check.Commentf("resource leaked from build for CPUQuota"))
 	assert.Assert(c, c2.Ulimits, checker.IsNil, check.Commentf("resource leaked from build for Ulimits"))
 }
 

@@ -476,11 +476,11 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFrom(c *testing.T) {
 
 	out, _ := dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "data1")
 	data1 := strings.TrimSpace(out)
-	assert.Assert(c, data1, checker.Not(checker.Equals), "")
+	assert.Assert(c, data1 != "")
 
 	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "data2")
 	data2 := strings.TrimSpace(out)
-	assert.Assert(c, data2, checker.Not(checker.Equals), "")
+	assert.Assert(c, data2 != "")
 
 	// Both volume should exist
 	out, _ = dockerCmd(c, "volume", "ls", "-q")
@@ -518,11 +518,11 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndBind(c *testing.T
 
 	out, _ := dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "data1")
 	data1 := strings.TrimSpace(out)
-	assert.Assert(c, data1, checker.Not(checker.Equals), "")
+	assert.Assert(c, data1 != "")
 
 	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "data2")
 	data2 := strings.TrimSpace(out)
-	assert.Assert(c, data2, checker.Not(checker.Equals), "")
+	assert.Assert(c, data2 != "")
 
 	// Both volume should exist
 	out, _ = dockerCmd(c, "volume", "ls", "-q")
@@ -562,11 +562,11 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *testing
 
 	out, _ := dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "data1")
 	data1 := strings.TrimSpace(out)
-	assert.Assert(c, data1, checker.Not(checker.Equals), "")
+	assert.Assert(c, data1 != "")
 
 	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "data2")
 	data2 := strings.TrimSpace(out)
-	assert.Assert(c, data2, checker.Not(checker.Equals), "")
+	assert.Assert(c, data2 != "")
 
 	// Both volume should exist
 	out, _ = dockerCmd(c, "volume", "ls", "-q")

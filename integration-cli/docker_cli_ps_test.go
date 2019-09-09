@@ -605,7 +605,7 @@ func (s *DockerSuite) TestPsNotShowPortsOfStoppedContainer(c *testing.T) {
 	out, _ = dockerCmd(c, "ps", "-l")
 	lines = strings.Split(strings.TrimSpace(string(out)), "\n")
 	fields = strings.Fields(lines[1])
-	assert.Assert(c, fields[len(fields)-2], checker.Not(checker.Equals), expected, check.Commentf("Should not got %v", expected))
+	assert.Assert(c, fields[len(fields)-2] != expected, check.Commentf("Should not got %v", expected))
 }
 
 func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
@@ -822,24 +822,24 @@ func (s *DockerSuite) TestPsListContainersFilterPorts(c *testing.T) {
 	assert.Assert(c, strings.TrimSpace(out), checker.Contains, id2)
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=80-8080/udp")
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Equals), id1)
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Equals), id2)
+	assert.Assert(c, strings.TrimSpace(out) != id1)
+	assert.Assert(c, strings.TrimSpace(out) != id2)
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=8081")
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Equals), id1)
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Equals), id2)
+	assert.Assert(c, strings.TrimSpace(out) != id1)
+	assert.Assert(c, strings.TrimSpace(out) != id2)
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=80-81")
 	assert.Equal(c, strings.TrimSpace(out), id1)
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Equals), id2)
+	assert.Assert(c, strings.TrimSpace(out) != id2)
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=80/tcp")
 	assert.Equal(c, strings.TrimSpace(out), id1)
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Equals), id2)
+	assert.Assert(c, strings.TrimSpace(out) != id2)
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=8080/tcp")
 	out = RemoveOutputForExistingElements(out, existingContainers)
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Equals), id1)
+	assert.Assert(c, strings.TrimSpace(out) != id1)
 	assert.Equal(c, strings.TrimSpace(out), id2)
 }
 
