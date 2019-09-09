@@ -4495,14 +4495,11 @@ func (s *DockerSuite) TestRunMount(c *check.C) {
 			_, _, err := dockerCmdWithError(append([]string{"run", "-i", "-d", "--name", cName},
 				append(opts, []string{"busybox", "top"}...)...)...)
 			if testCase.valid {
-				c.Assert(err, check.IsNil,
-					check.Commentf("got error while creating a container with %v (%s)", opts, cName))
-				c.Assert(testCase.fn(cName), check.IsNil,
-					check.Commentf("got error while executing test for %v (%s)", opts, cName))
+				c.Assert(err, check.IsNil, check.Commentf("got error while creating a container with %v (%s)", opts, cName))
+				c.Assert(testCase.fn(cName), check.IsNil, check.Commentf("got error while executing test for %v (%s)", opts, cName))
 				dockerCmd(c, "rm", "-f", cName)
 			} else {
-				c.Assert(err, checker.NotNil,
-					check.Commentf("got nil while creating a container with %v (%s)", opts, cName))
+				c.Assert(err, checker.NotNil, check.Commentf("got nil while creating a container with %v (%s)", opts, cName))
 			}
 		}
 	}

@@ -338,15 +338,11 @@ func (s *DockerSuite) TestPortBindingOnSandbox(c *check.C) {
 	c.Assert(waitRun("c1"), check.IsNil)
 
 	_, _, err := dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "8080")
-	c.Assert(err, check.NotNil,
-		check.Commentf("Port mapping on internal network is expected to fail"))
-
+	c.Assert(err, check.NotNil, check.Commentf("Port mapping on internal network is expected to fail"))
 	// Connect container to another normal bridge network
 	dockerCmd(c, "network", "create", "-d", "bridge", "foo-net")
 	dockerCmd(c, "network", "connect", "foo-net", "c1")
 
 	_, _, err = dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "8080")
-	c.Assert(err, check.IsNil,
-		check.Commentf("Port mapping on the new network is expected to succeed"))
-
+	c.Assert(err, check.IsNil, check.Commentf("Port mapping on the new network is expected to succeed"))
 }

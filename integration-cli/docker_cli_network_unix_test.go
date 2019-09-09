@@ -826,18 +826,14 @@ func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *
 	// verify first container's etc/hosts file has not changed after spawning the second named container
 	hostsPost, err := s.d.Cmd("exec", cid1, "cat", hostsFile)
 	assert.NilError(c, err)
-	c.Assert(string(hosts), checker.Equals, string(hostsPost),
-		check.Commentf("Unexpected %s change on second container creation", hostsFile))
-
+	c.Assert(string(hosts), checker.Equals, string(hostsPost), check.Commentf("Unexpected %s change on second container creation", hostsFile))
 	// stop container 2 and verify first container's etc/hosts has not changed
 	_, err = s.d.Cmd("stop", cid2)
 	assert.NilError(c, err)
 
 	hostsPost, err = s.d.Cmd("exec", cid1, "cat", hostsFile)
 	assert.NilError(c, err)
-	c.Assert(string(hosts), checker.Equals, string(hostsPost),
-		check.Commentf("Unexpected %s change on second container creation", hostsFile))
-
+	c.Assert(string(hosts), checker.Equals, string(hostsPost), check.Commentf("Unexpected %s change on second container creation", hostsFile))
 	// but discovery is on when connecting to non default bridge network
 	network := "anotherbridge"
 	out, err = s.d.Cmd("network", "create", network)
@@ -852,8 +848,7 @@ func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *
 
 	hostsPost, err = s.d.Cmd("exec", cid1, "cat", hostsFile)
 	assert.NilError(c, err)
-	c.Assert(string(hosts), checker.Equals, string(hostsPost),
-		check.Commentf("Unexpected %s change on second network connection", hostsFile))
+	c.Assert(string(hosts), checker.Equals, string(hostsPost), check.Commentf("Unexpected %s change on second network connection", hostsFile))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
@@ -876,9 +871,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
 
 	// verify first container etc/hosts file has not changed
 	hosts1post := readContainerFileWithExec(c, cid1, hostsFile)
-	c.Assert(string(hosts1), checker.Equals, string(hosts1post),
-		check.Commentf("Unexpected %s change on anonymous container creation", hostsFile))
-
+	c.Assert(string(hosts1), checker.Equals, string(hosts1post), check.Commentf("Unexpected %s change on anonymous container creation", hostsFile))
 	// Connect the 2nd container to a new network and verify the
 	// first container /etc/hosts file still hasn't changed.
 	dockerCmd(c, "network", "create", "-d", "bridge", cstmBridgeNw1)
@@ -888,9 +881,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
 
 	hosts2 := readContainerFileWithExec(c, cid2, hostsFile)
 	hosts1post = readContainerFileWithExec(c, cid1, hostsFile)
-	c.Assert(string(hosts1), checker.Equals, string(hosts1post),
-		check.Commentf("Unexpected %s change on container connect", hostsFile))
-
+	c.Assert(string(hosts1), checker.Equals, string(hosts1post), check.Commentf("Unexpected %s change on container connect", hostsFile))
 	// start a named container
 	cName := "AnyName"
 	out, _ = dockerCmd(c, "run", "-d", "--net", cstmBridgeNw, "--name", cName, "busybox", "top")
@@ -903,13 +894,9 @@ func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
 	// Stop named container and verify first two containers' etc/hosts file hasn't changed
 	dockerCmd(c, "stop", cid3)
 	hosts1post = readContainerFileWithExec(c, cid1, hostsFile)
-	c.Assert(string(hosts1), checker.Equals, string(hosts1post),
-		check.Commentf("Unexpected %s change on name container creation", hostsFile))
-
+	c.Assert(string(hosts1), checker.Equals, string(hosts1post), check.Commentf("Unexpected %s change on name container creation", hostsFile))
 	hosts2post := readContainerFileWithExec(c, cid2, hostsFile)
-	c.Assert(string(hosts2), checker.Equals, string(hosts2post),
-		check.Commentf("Unexpected %s change on name container creation", hostsFile))
-
+	c.Assert(string(hosts2), checker.Equals, string(hosts2post), check.Commentf("Unexpected %s change on name container creation", hostsFile))
 	// verify that container 1 and 2 can't ping the named container now
 	_, _, err := dockerCmdWithError("exec", cid1, "ping", "-c", "1", cName)
 	assert.ErrorContains(c, err, "")

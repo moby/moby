@@ -1549,8 +1549,7 @@ func (s *DockerSwarmSuite) TestSwarmNetworkCreateDup(c *check.C) {
 			out, err := d.Cmd("network", "create", "--driver", driver1, nwName)
 			assert.NilError(c, err, "out: %v", out)
 			out, err = d.Cmd("network", "create", "--driver", driver2, nwName)
-			c.Assert(out, checker.Contains,
-				fmt.Sprintf("network with name %s already exists", nwName))
+			c.Assert(out, checker.Contains, fmt.Sprintf("network with name %s already exists", nwName))
 			assert.ErrorContains(c, err, "")
 			c.Logf("As expected, the attempt to network %q with %q failed: %s",
 				nwName, driver2, out)
