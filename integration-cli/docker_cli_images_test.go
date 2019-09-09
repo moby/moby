@@ -92,9 +92,9 @@ func (s *DockerSuite) TestImagesFilterLabelMatch(c *testing.T) {
 
 	out, _ := dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match")
 	out = strings.TrimSpace(out)
-	assert.Assert(c, out, check.Matches, fmt.Sprintf("[\\s\\w:]*%s[\\s\\w:]*", image1ID))
-	assert.Assert(c, out, check.Matches, fmt.Sprintf("[\\s\\w:]*%s[\\s\\w:]*", image2ID))
-	assert.Assert(c, out, check.Not(check.Matches), fmt.Sprintf("[\\s\\w:]*%s[\\s\\w:]*", image3ID))
+	assert.Assert(c, out, checker.Matches, fmt.Sprintf("[\\s\\w:]*%s[\\s\\w:]*", image1ID))
+	assert.Assert(c, out, checker.Matches, fmt.Sprintf("[\\s\\w:]*%s[\\s\\w:]*", image2ID))
+	assert.Assert(c, out, checker.Not(checker.Matches), fmt.Sprintf("[\\s\\w:]*%s[\\s\\w:]*", image3ID))
 
 	out, _ = dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match=me too")
 	out = strings.TrimSpace(out)

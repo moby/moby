@@ -108,7 +108,7 @@ func (s *DockerSuite) TestRunAttachDetach(c *testing.T) {
 	defer cpty.Close()
 	cmd.Stdin = tty
 	assert.NilError(c, cmd.Start())
-	assert.Assert(c, waitRun(name), check.IsNil)
+	assert.Assert(c, waitRun(name), checker.IsNil)
 
 	_, err = cpty.Write([]byte("hello\n"))
 	assert.NilError(c, err)
@@ -167,7 +167,7 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *testing.T) {
 	if err := cmd.Start(); err != nil {
 		c.Fatal(err)
 	}
-	assert.Assert(c, waitRun(name), check.IsNil)
+	assert.Assert(c, waitRun(name), checker.IsNil)
 
 	if _, err := cpty.Write([]byte("hello\n")); err != nil {
 		c.Fatal(err)
@@ -210,7 +210,7 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *testing.T) {
 func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *testing.T) {
 	name := "attach-detach"
 	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "top")
-	assert.Assert(c, waitRun(name), check.IsNil)
+	assert.Assert(c, waitRun(name), checker.IsNil)
 
 	// specify an invalid detach key, container will ignore it and use default
 	cmd := exec.Command(dockerBinary, "attach", "--detach-keys=ctrl-A,a", name)
@@ -283,7 +283,7 @@ func (s *DockerSuite) TestRunAttachDetachFromConfig(c *testing.T) {
 	if err := cmd.Start(); err != nil {
 		c.Fatal(err)
 	}
-	assert.Assert(c, waitRun(name), check.IsNil)
+	assert.Assert(c, waitRun(name), checker.IsNil)
 
 	if _, err := cpty.Write([]byte("hello\n")); err != nil {
 		c.Fatal(err)
@@ -366,7 +366,7 @@ func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *testing.T) {
 	if err := cmd.Start(); err != nil {
 		c.Fatal(err)
 	}
-	assert.Assert(c, waitRun(name), check.IsNil)
+	assert.Assert(c, waitRun(name), checker.IsNil)
 
 	if _, err := cpty.Write([]byte("hello\n")); err != nil {
 		c.Fatal(err)
@@ -427,7 +427,7 @@ func (s *DockerSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *testing.
 		c.Fatal(err)
 	}
 	go cmd.Wait()
-	assert.Assert(c, waitRun(name), check.IsNil)
+	assert.Assert(c, waitRun(name), checker.IsNil)
 
 	// Invalid escape sequence aba, should print aba in output
 	if _, err := cpty.Write(keyA); err != nil {
@@ -793,7 +793,7 @@ func (s *DockerSuite) TestRunWithDefaultShmSize(c *testing.T) {
 		c.Fatalf("Expected shm of 64MB in mount command, got %v", out)
 	}
 	shmSize := inspectField(c, name, "HostConfig.ShmSize")
-	assert.Assert(c, shmSize, check.Equals, "67108864")
+	assert.Assert(c, shmSize, checker.Equals, "67108864")
 }
 
 func (s *DockerSuite) TestRunWithShmSize(c *testing.T) {
@@ -806,7 +806,7 @@ func (s *DockerSuite) TestRunWithShmSize(c *testing.T) {
 		c.Fatalf("Expected shm of 1GB in mount command, got %v", out)
 	}
 	shmSize := inspectField(c, name, "HostConfig.ShmSize")
-	assert.Assert(c, shmSize, check.Equals, "1073741824")
+	assert.Assert(c, shmSize, checker.Equals, "1073741824")
 }
 
 func (s *DockerSuite) TestRunTmpfsMountsEnsureOrdered(c *testing.T) {
@@ -895,23 +895,23 @@ func (s *DockerSuite) TestRunSysctls(c *testing.T) {
 	var err error
 
 	out, _ := dockerCmd(c, "run", "--sysctl", "net.ipv4.ip_forward=1", "--name", "test", "busybox", "cat", "/proc/sys/net/ipv4/ip_forward")
-	assert.Assert(c, strings.TrimSpace(out), check.Equals, "1")
+	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "1")
 
 	out = inspectFieldJSON(c, "test", "HostConfig.Sysctls")
 
 	sysctls := make(map[string]string)
 	err = json.Unmarshal([]byte(out), &sysctls)
 	assert.NilError(c, err)
-	assert.Assert(c, sysctls["net.ipv4.ip_forward"], check.Equals, "1")
+	assert.Assert(c, sysctls["net.ipv4.ip_forward"], checker.Equals, "1")
 
 	out, _ = dockerCmd(c, "run", "--sysctl", "net.ipv4.ip_forward=0", "--name", "test1", "busybox", "cat", "/proc/sys/net/ipv4/ip_forward")
-	assert.Assert(c, strings.TrimSpace(out), check.Equals, "0")
+	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "0")
 
 	out = inspectFieldJSON(c, "test1", "HostConfig.Sysctls")
 
 	err = json.Unmarshal([]byte(out), &sysctls)
 	assert.NilError(c, err)
-	assert.Assert(c, sysctls["net.ipv4.ip_forward"], check.Equals, "0")
+	assert.Assert(c, sysctls["net.ipv4.ip_forward"], checker.Equals, "0")
 
 	icmd.RunCommand(dockerBinary, "run", "--sysctl", "kernel.foobar=1", "--name", "test2",
 		"busybox", "cat", "/proc/sys/kernel/foobar").Assert(c, icmd.Expected{

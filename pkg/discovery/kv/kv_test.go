@@ -30,9 +30,9 @@ func (ds *DiscoverySuite) TestInitialize(c *testing.T) {
 	d.store = storeMock
 
 	s := d.store.(*FakeStore)
-	assert.Assert(c, s.Endpoints, check.HasLen, 1)
-	assert.Assert(c, s.Endpoints[0], check.Equals, "127.0.0.1")
-	assert.Assert(c, d.path, check.Equals, defaultDiscoveryPath)
+	assert.Assert(c, s.Endpoints, checker.HasLen, 1)
+	assert.Assert(c, s.Endpoints[0], checker.Equals, "127.0.0.1")
+	assert.Assert(c, d.path, checker.Equals, defaultDiscoveryPath)
 
 	storeMock = &FakeStore{
 		Endpoints: []string{"127.0.0.1:1234"},
@@ -42,9 +42,9 @@ func (ds *DiscoverySuite) TestInitialize(c *testing.T) {
 	d.store = storeMock
 
 	s = d.store.(*FakeStore)
-	assert.Assert(c, s.Endpoints, check.HasLen, 1)
-	assert.Assert(c, s.Endpoints[0], check.Equals, "127.0.0.1:1234")
-	assert.Assert(c, d.path, check.Equals, "path/"+defaultDiscoveryPath)
+	assert.Assert(c, s.Endpoints, checker.HasLen, 1)
+	assert.Assert(c, s.Endpoints[0], checker.Equals, "127.0.0.1:1234")
+	assert.Assert(c, d.path, checker.Equals, "path/"+defaultDiscoveryPath)
 
 	storeMock = &FakeStore{
 		Endpoints: []string{"127.0.0.1:1234", "127.0.0.2:1234", "127.0.0.3:1234"},
@@ -54,12 +54,12 @@ func (ds *DiscoverySuite) TestInitialize(c *testing.T) {
 	d.store = storeMock
 
 	s = d.store.(*FakeStore)
-	assert.Assert(c, s.Endpoints, check.HasLen, 3)
-	assert.Assert(c, s.Endpoints[0], check.Equals, "127.0.0.1:1234")
-	assert.Assert(c, s.Endpoints[1], check.Equals, "127.0.0.2:1234")
-	assert.Assert(c, s.Endpoints[2], check.Equals, "127.0.0.3:1234")
+	assert.Assert(c, s.Endpoints, checker.HasLen, 3)
+	assert.Assert(c, s.Endpoints[0], checker.Equals, "127.0.0.1:1234")
+	assert.Assert(c, s.Endpoints[1], checker.Equals, "127.0.0.2:1234")
+	assert.Assert(c, s.Endpoints[2], checker.Equals, "127.0.0.3:1234")
 
-	assert.Assert(c, d.path, check.Equals, "path/"+defaultDiscoveryPath)
+	assert.Assert(c, d.path, checker.Equals, "path/"+defaultDiscoveryPath)
 }
 
 // Extremely limited mock store so we can test initialization
@@ -181,12 +181,12 @@ BFrwkQE4HQtQBV60hYQUzzlSk44VFDz+jxIEtacRHaomDRh2FtOTz+I=
 -----END RSA PRIVATE KEY-----
 `
 	certFile, err := ioutil.TempFile("", "cert")
-	assert.Assert(c, err, check.IsNil)
+	assert.Assert(c, err, checker.IsNil)
 	defer os.Remove(certFile.Name())
 	certFile.Write([]byte(cert))
 	certFile.Close()
 	keyFile, err := ioutil.TempFile("", "key")
-	assert.Assert(c, err, check.IsNil)
+	assert.Assert(c, err, checker.IsNil)
 	defer os.Remove(keyFile.Name())
 	keyFile.Write([]byte(key))
 	keyFile.Close()
@@ -198,11 +198,11 @@ BFrwkQE4HQtQBV60hYQUzzlSk44VFDz+jxIEtacRHaomDRh2FtOTz+I=
 		"kv.certfile":   certFile.Name(),
 		"kv.keyfile":    keyFile.Name(),
 	})
-	assert.Assert(c, err, check.IsNil)
+	assert.Assert(c, err, checker.IsNil)
 	s := d.store.(*Mock)
-	assert.Assert(c, s.Options.TLS, check.NotNil)
-	assert.Assert(c, s.Options.TLS.RootCAs, check.NotNil)
-	assert.Assert(c, s.Options.TLS.Certificates, check.HasLen, 1)
+	assert.Assert(c, s.Options.TLS, checker.NotNil)
+	assert.Assert(c, s.Options.TLS.RootCAs, checker.NotNil)
+	assert.Assert(c, s.Options.TLS.Certificates, checker.HasLen, 1)
 }
 
 func (ds *DiscoverySuite) TestWatch(c *testing.T) {
@@ -239,13 +239,13 @@ func (ds *DiscoverySuite) TestWatch(c *testing.T) {
 
 	// Push the entries into the store channel and make sure discovery emits.
 	mockCh <- kvs
-	assert.Assert(c, <-ch, check.DeepEquals, expected)
+	assert.Assert(c, <-ch, checker.DeepEquals, expected)
 
 	// Add a new entry.
 	expected = append(expected, &discovery.Entry{Host: "3.3.3.3", Port: "3333"})
 	kvs = append(kvs, &store.KVPair{Key: path.Join("path", defaultDiscoveryPath, "3.3.3.3"), Value: []byte("3.3.3.3:3333")})
 	mockCh <- kvs
-	assert.Assert(c, <-ch, check.DeepEquals, expected)
+	assert.Assert(c, <-ch, checker.DeepEquals, expected)
 
 	close(mockCh)
 	// Give it enough time to call WatchTree.
@@ -253,8 +253,8 @@ func (ds *DiscoverySuite) TestWatch(c *testing.T) {
 
 	// Stop and make sure it closes all channels.
 	close(stopCh)
-	assert.Assert(c, <-ch, check.IsNil)
-	assert.Assert(c, <-errCh, check.IsNil)
+	assert.Assert(c, <-ch, checker.IsNil)
+	assert.Assert(c, <-errCh, checker.IsNil)
 }
 
 // FakeStore implements store.Store methods. It mocks all store

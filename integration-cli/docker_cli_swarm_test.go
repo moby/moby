@@ -803,7 +803,7 @@ func setupRemoteGlobalNetworkPlugin(c *testing.T, mux *http.ServeMux, url, netDr
 func (s *DockerSwarmSuite) TestSwarmNetworkPlugin(c *testing.T) {
 	mux := http.NewServeMux()
 	s.server = httptest.NewServer(mux)
-	assert.Assert(c, s.server, check.NotNil) // check that HTTP server has started
+	assert.Assert(c, s.server, checker.NotNil) // check that HTTP server has started
 	setupRemoteGlobalNetworkPlugin(c, mux, s.server.URL, globalNetworkPlugin, globalIPAMPlugin)
 	defer func() {
 		s.server.Close()

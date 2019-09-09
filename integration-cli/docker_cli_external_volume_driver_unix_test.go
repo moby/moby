@@ -287,7 +287,7 @@ func (s *DockerExternalVolumeSuite) TestVolumeCLICreateOptionConflict(c *testing
 	dockerCmd(c, "volume", "create", "test")
 
 	out, _, err := dockerCmdWithError("volume", "create", "test", "--driver", volumePluginName)
-	assert.Assert(c, err, check.NotNil, check.Commentf("volume create exception name already in use with another driver"))
+	assert.Assert(c, err, checker.NotNil, check.Commentf("volume create exception name already in use with another driver"))
 	assert.Assert(c, out, checker.Contains, "must be unique")
 
 	out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Driver }}", "test")
@@ -463,21 +463,21 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverList(c *testing.T) {
 	dockerCmd(c, "volume", "create", "-d", volumePluginName, "abc3")
 	out, _ := dockerCmd(c, "volume", "ls")
 	ls := strings.Split(strings.TrimSpace(out), "\n")
-	assert.Assert(c, len(ls), check.Equals, 2, check.Commentf("\n%s", out))
+	assert.Assert(c, len(ls), checker.Equals, 2, check.Commentf("\n%s", out))
 
 	vol := strings.Fields(ls[len(ls)-1])
-	assert.Assert(c, len(vol), check.Equals, 2, check.Commentf("%v", vol))
-	assert.Assert(c, vol[0], check.Equals, volumePluginName)
-	assert.Assert(c, vol[1], check.Equals, "abc3")
+	assert.Assert(c, len(vol), checker.Equals, 2, check.Commentf("%v", vol))
+	assert.Assert(c, vol[0], checker.Equals, volumePluginName)
+	assert.Assert(c, vol[1], checker.Equals, "abc3")
 
-	assert.Assert(c, s.ec.lists, check.Equals, 1)
+	assert.Assert(c, s.ec.lists, checker.Equals, 1)
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *testing.T) {
 	out, _, err := dockerCmdWithError("volume", "inspect", "dummy")
 	assert.ErrorContains(c, err, "", out)
 	assert.Assert(c, out, checker.Contains, "No such volume")
-	assert.Assert(c, s.ec.gets, check.Equals, 1)
+	assert.Assert(c, s.ec.gets, checker.Equals, 1)
 
 	dockerCmd(c, "volume", "create", "test", "-d", volumePluginName)
 	out, _ = dockerCmd(c, "volume", "inspect", "test")

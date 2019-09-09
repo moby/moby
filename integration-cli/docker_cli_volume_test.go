@@ -29,23 +29,23 @@ func (s *DockerSuite) TestVolumeCLICreate(c *testing.T) {
 	// test using hidden --name option
 	out, _ := dockerCmd(c, "volume", "create", "--name=test")
 	name := strings.TrimSpace(out)
-	assert.Assert(c, name, check.Equals, "test")
+	assert.Assert(c, name, checker.Equals, "test")
 
 	out, _ = dockerCmd(c, "volume", "create", "test2")
 	name = strings.TrimSpace(out)
-	assert.Assert(c, name, check.Equals, "test2")
+	assert.Assert(c, name, checker.Equals, "test2")
 }
 
 func (s *DockerSuite) TestVolumeCLIInspect(c *testing.T) {
-	assert.Assert(c, exec.Command(dockerBinary, "volume", "inspect", "doesnotexist").Run(), check.Not(check.IsNil), check.Commentf("volume inspect should error on non-existent volume"))
+	assert.Assert(c, exec.Command(dockerBinary, "volume", "inspect", "doesnotexist").Run(), checker.Not(checker.IsNil), check.Commentf("volume inspect should error on non-existent volume"))
 	out, _ := dockerCmd(c, "volume", "create")
 	name := strings.TrimSpace(out)
 	out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Name }}", name)
-	assert.Assert(c, strings.TrimSpace(out), check.Equals, name)
+	assert.Assert(c, strings.TrimSpace(out), checker.Equals, name)
 
 	dockerCmd(c, "volume", "create", "test")
 	out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Name }}", "test")
-	assert.Assert(c, strings.TrimSpace(out), check.Equals, "test")
+	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "test")
 }
 
 func (s *DockerSuite) TestVolumeCLIInspectMulti(c *testing.T) {
@@ -141,7 +141,7 @@ func (s *DockerSuite) TestVolumeCLILsFilterDangling(c *testing.T) {
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "dangling=false")
 
 	// Explicitly disabling dangling
-	assert.Assert(c, out, check.Not(checker.Contains), "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
+	assert.Assert(c, out, checker.Not(checker.Contains), "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
 	assert.Assert(c, out, checker.Contains, "testisinuse1\n", check.Commentf("expected volume 'testisinuse1' in output"))
 	assert.Assert(c, out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
 
@@ -149,23 +149,23 @@ func (s *DockerSuite) TestVolumeCLILsFilterDangling(c *testing.T) {
 
 	// Filter "dangling" volumes; only "dangling" (unused) volumes should be in the output
 	assert.Assert(c, out, checker.Contains, "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
-	assert.Assert(c, out, check.Not(checker.Contains), "testisinuse1\n", check.Commentf("volume 'testisinuse1' in output, but not expected"))
-	assert.Assert(c, out, check.Not(checker.Contains), "testisinuse2\n", check.Commentf("volume 'testisinuse2' in output, but not expected"))
+	assert.Assert(c, out, checker.Not(checker.Contains), "testisinuse1\n", check.Commentf("volume 'testisinuse1' in output, but not expected"))
+	assert.Assert(c, out, checker.Not(checker.Contains), "testisinuse2\n", check.Commentf("volume 'testisinuse2' in output, but not expected"))
 
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "dangling=1")
 	// Filter "dangling" volumes; only "dangling" (unused) volumes should be in the output, dangling also accept 1
 	assert.Assert(c, out, checker.Contains, "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
-	assert.Assert(c, out, check.Not(checker.Contains), "testisinuse1\n", check.Commentf("volume 'testisinuse1' in output, but not expected"))
-	assert.Assert(c, out, check.Not(checker.Contains), "testisinuse2\n", check.Commentf("volume 'testisinuse2' in output, but not expected"))
+	assert.Assert(c, out, checker.Not(checker.Contains), "testisinuse1\n", check.Commentf("volume 'testisinuse1' in output, but not expected"))
+	assert.Assert(c, out, checker.Not(checker.Contains), "testisinuse2\n", check.Commentf("volume 'testisinuse2' in output, but not expected"))
 
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "dangling=0")
 	// dangling=0 is same as dangling=false case
-	assert.Assert(c, out, check.Not(checker.Contains), "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
+	assert.Assert(c, out, checker.Not(checker.Contains), "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
 	assert.Assert(c, out, checker.Contains, "testisinuse1\n", check.Commentf("expected volume 'testisinuse1' in output"))
 	assert.Assert(c, out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
 
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "name=testisin")
-	assert.Assert(c, out, check.Not(checker.Contains), "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
+	assert.Assert(c, out, checker.Not(checker.Contains), "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
 	assert.Assert(c, out, checker.Contains, "testisinuse1\n", check.Commentf("expected volume 'testisinuse1' in output"))
 	assert.Assert(c, out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
 }
@@ -200,17 +200,17 @@ func (s *DockerSuite) TestVolumeCLIRm(c *testing.T) {
 	})
 
 	out, _ = dockerCmd(c, "run", "--volumes-from=test", "--name=test2", "busybox", "sh", "-c", "cat /foo/bar")
-	assert.Assert(c, strings.TrimSpace(out), check.Equals, "hello")
+	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "hello")
 	dockerCmd(c, "rm", "-fv", "test2")
 	dockerCmd(c, "volume", "inspect", volumeID)
 	dockerCmd(c, "rm", "-f", "test")
 
 	out, _ = dockerCmd(c, "run", "--name=test2", "-v", volumeID+":"+prefix+"/foo", "busybox", "sh", "-c", "cat /foo/bar")
-	assert.Assert(c, strings.TrimSpace(out), check.Equals, "hello", check.Commentf("volume data was removed"))
+	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "hello", check.Commentf("volume data was removed"))
 	dockerCmd(c, "rm", "test2")
 
 	dockerCmd(c, "volume", "rm", volumeID)
-	assert.Assert(c, exec.Command("volume", "rm", "doesnotexist").Run(), check.Not(check.IsNil), check.Commentf("volume rm should fail with non-existent volume"))
+	assert.Assert(c, exec.Command("volume", "rm", "doesnotexist").Run(), checker.Not(checker.IsNil), check.Commentf("volume rm should fail with non-existent volume"))
 }
 
 // FIXME(vdemeester) should be a unit test in cli/command/volume package
@@ -280,7 +280,7 @@ func (s *DockerSuite) TestVolumeCLICreateLabel(c *testing.T) {
 	assert.NilError(c, err)
 
 	out, _ := dockerCmd(c, "volume", "inspect", "--format={{ .Labels."+testLabel+" }}", testVol)
-	assert.Assert(c, strings.TrimSpace(out), check.Equals, testValue)
+	assert.Assert(c, strings.TrimSpace(out), checker.Equals, testValue)
 }
 
 func (s *DockerSuite) TestVolumeCLICreateLabelMultiple(c *testing.T) {
@@ -306,7 +306,7 @@ func (s *DockerSuite) TestVolumeCLICreateLabelMultiple(c *testing.T) {
 
 	for k, v := range testLabels {
 		out, _ := dockerCmd(c, "volume", "inspect", "--format={{ .Labels."+k+" }}", testVol)
-		assert.Assert(c, strings.TrimSpace(out), check.Equals, v)
+		assert.Assert(c, strings.TrimSpace(out), checker.Equals, v)
 	}
 }
 
@@ -329,15 +329,15 @@ func (s *DockerSuite) TestVolumeCLILsFilterLabels(c *testing.T) {
 
 	// filter with label=key=value
 	assert.Assert(c, out, checker.Contains, "testvolcreatelabel-1\n", check.Commentf("expected volume 'testvolcreatelabel-1' in output"))
-	assert.Assert(c, out, check.Not(checker.Contains), "testvolcreatelabel-2\n", check.Commentf("expected volume 'testvolcreatelabel-2 in output"))
+	assert.Assert(c, out, checker.Not(checker.Contains), "testvolcreatelabel-2\n", check.Commentf("expected volume 'testvolcreatelabel-2 in output"))
 
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "label=non-exist")
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
-	assert.Assert(c, len(outArr), check.Equals, 1, check.Commentf("\n%s", out))
+	assert.Assert(c, len(outArr), checker.Equals, 1, check.Commentf("\n%s", out))
 
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "label=foo=non-exist")
 	outArr = strings.Split(strings.TrimSpace(out), "\n")
-	assert.Assert(c, len(outArr), check.Equals, 1, check.Commentf("\n%s", out))
+	assert.Assert(c, len(outArr), checker.Equals, 1, check.Commentf("\n%s", out))
 }
 
 func (s *DockerSuite) TestVolumeCLILsFilterDrivers(c *testing.T) {
@@ -358,17 +358,17 @@ func (s *DockerSuite) TestVolumeCLILsFilterDrivers(c *testing.T) {
 	// filter with driver=invaliddriver
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "driver=invaliddriver")
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
-	assert.Assert(c, len(outArr), check.Equals, 1, check.Commentf("\n%s", out))
+	assert.Assert(c, len(outArr), checker.Equals, 1, check.Commentf("\n%s", out))
 
 	// filter with driver=loca
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "driver=loca")
 	outArr = strings.Split(strings.TrimSpace(out), "\n")
-	assert.Assert(c, len(outArr), check.Equals, 1, check.Commentf("\n%s", out))
+	assert.Assert(c, len(outArr), checker.Equals, 1, check.Commentf("\n%s", out))
 
 	// filter with driver=
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "driver=")
 	outArr = strings.Split(strings.TrimSpace(out), "\n")
-	assert.Assert(c, len(outArr), check.Equals, 1, check.Commentf("\n%s", out))
+	assert.Assert(c, len(outArr), checker.Equals, 1, check.Commentf("\n%s", out))
 }
 
 func (s *DockerSuite) TestVolumeCLIRmForceUsage(c *testing.T) {
@@ -431,13 +431,13 @@ func (s *DockerSuite) TestVolumeCLIRmForceInUse(c *testing.T) {
 
 	// Verify removing the volume after the container is removed works
 	_, e := dockerCmd(c, "rm", cid)
-	assert.Assert(c, e, check.Equals, 0)
+	assert.Assert(c, e, checker.Equals, 0)
 
 	_, e = dockerCmd(c, "volume", "rm", "-f", name)
-	assert.Assert(c, e, check.Equals, 0)
+	assert.Assert(c, e, checker.Equals, 0)
 
 	out, e = dockerCmd(c, "volume", "ls")
-	assert.Assert(c, e, check.Equals, 0)
+	assert.Assert(c, e, checker.Equals, 0)
 	assert.Assert(c, out, checker.Not(checker.Contains), name)
 }
 
