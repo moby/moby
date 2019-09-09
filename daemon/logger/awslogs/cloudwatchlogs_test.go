@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
+	"gotest.tools/skip"
 )
 
 const (
@@ -286,6 +287,7 @@ func TestLogClosed(t *testing.T) {
 }
 
 func TestLogBlocking(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "FIXME: test is flaky on Windows. See #39857")
 	mockClient := newMockClient()
 	stream := &logStream{
 		client:   mockClient,
