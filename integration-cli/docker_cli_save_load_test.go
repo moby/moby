@@ -137,13 +137,13 @@ func (s *DockerSuite) TestSaveImageId(c *testing.T) {
 
 	var err error
 	tarCmd.Stdin, err = saveCmd.StdoutPipe()
-	assert.Assert(c, err, checker.IsNil, check.Commentf("cannot set stdout pipe for tar: %v", err))
+	assert.Assert(c, err == nil, check.Commentf("cannot set stdout pipe for tar: %v", err))
 	grepCmd := exec.Command("grep", cleanedLongImageID)
 	grepCmd.Stdin, err = tarCmd.StdoutPipe()
-	assert.Assert(c, err, checker.IsNil, check.Commentf("cannot set stdout pipe for grep: %v", err))
+	assert.Assert(c, err == nil, check.Commentf("cannot set stdout pipe for grep: %v", err))
 
-	assert.Assert(c, tarCmd.Start(), checker.IsNil, check.Commentf("tar failed with error: %v", err))
-	assert.Assert(c, saveCmd.Start(), checker.IsNil, check.Commentf("docker save failed with error: %v", err))
+	assert.Assert(c, tarCmd.Start() == nil, check.Commentf("tar failed with error: %v", err))
+	assert.Assert(c, saveCmd.Start() == nil, check.Commentf("docker save failed with error: %v", err))
 	defer func() {
 		saveCmd.Wait()
 		tarCmd.Wait()
@@ -152,7 +152,7 @@ func (s *DockerSuite) TestSaveImageId(c *testing.T) {
 
 	out, _, err = runCommandWithOutput(grepCmd)
 
-	assert.Assert(c, err, checker.IsNil, check.Commentf("failed to save repo with image ID: %s, %v", out, err))
+	assert.Assert(c, err == nil, check.Commentf("failed to save repo with image ID: %s, %v", out, err))
 }
 
 // save a repo and try to load it using flags
@@ -264,7 +264,7 @@ func (s *DockerSuite) TestSaveDirectoryPermissions(c *testing.T) {
 
 	name := "save-directory-permissions"
 	tmpDir, err := ioutil.TempDir("", "save-layers-with-directories")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("failed to create temporary directory: %s", err))
+	assert.Assert(c, err == nil, check.Commentf("failed to create temporary directory: %s", err))
 	extractionDirectory := filepath.Join(tmpDir, "image-extraction-dir")
 	os.Mkdir(extractionDirectory, 0777)
 

@@ -117,7 +117,7 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *testing.T) {
 	assert.Equal(c, spec.CAConfig.ExternalCAs[0].CACert, "")
 	assert.Equal(c, spec.CAConfig.ExternalCAs[1].CACert, string(expected))
 
-	assert.Assert(c, d.SwarmLeave(c, true), checker.IsNil)
+	assert.Assert(c, d.SwarmLeave(c, true) == nil)
 	cli.Docker(cli.Args("swarm", "init"), cli.Daemon(d)).Assert(c, icmd.Success)
 
 	spec = getSpec()
@@ -171,7 +171,7 @@ func (s *DockerSwarmSuite) TestSwarmIncompatibleDaemon(c *testing.T) {
 func (s *DockerSwarmSuite) TestSwarmServiceTemplatingHostname(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 	hostname, err := d.Cmd("node", "inspect", "--format", "{{.Description.Hostname}}", "self")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("%s", hostname))
+	assert.Assert(c, err == nil, check.Commentf("%s", hostname))
 
 	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", "test", "--hostname", "{{.Service.Name}}-{{.Task.Slot}}-{{.Node.Hostname}}", "busybox", "top")
 	assert.NilError(c, err, out)
@@ -431,7 +431,7 @@ func (s *DockerSwarmSuite) TestOverlayAttachableOnSwarmLeave(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// Leave the swarm
-	assert.Assert(c, d.SwarmLeave(c, true), checker.IsNil)
+	assert.Assert(c, d.SwarmLeave(c, true) == nil)
 
 	// Check the container is disconnected
 	out, err = d.Cmd("inspect", "c1", "--format", "{{.NetworkSettings.Networks."+nwName+"}}")
@@ -1059,7 +1059,7 @@ func (s *DockerSwarmSuite) TestSwarmInitLocked(c *testing.T) {
 	d := s.AddDaemon(c, false, false)
 
 	outs, err := d.Cmd("swarm", "init", "--autolock")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, check.Commentf("%s", outs))
 	unlockKey := getUnlockKey(d, c, outs)
 
 	assert.Equal(c, getNodeStatus(c, d), swarm.LocalNodeStateActive)
@@ -1084,16 +1084,16 @@ func (s *DockerSwarmSuite) TestSwarmInitLocked(c *testing.T) {
 	assert.Equal(c, getNodeStatus(c, d), swarm.LocalNodeStateActive)
 
 	outs, err = d.Cmd("node", "ls")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, check.Commentf("%s", outs))
 	assert.Assert(c, outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
 
 	outs, err = d.Cmd("swarm", "update", "--autolock=false")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, check.Commentf("%s", outs))
 
 	checkSwarmLockedToUnlocked(c, d)
 
 	outs, err = d.Cmd("node", "ls")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, check.Commentf("%s", outs))
 	assert.Assert(c, outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
 }
 
@@ -1101,7 +1101,7 @@ func (s *DockerSwarmSuite) TestSwarmLeaveLocked(c *testing.T) {
 	d := s.AddDaemon(c, false, false)
 
 	outs, err := d.Cmd("swarm", "init", "--autolock")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, check.Commentf("%s", outs))
 
 	// It starts off locked
 	d.RestartNode(c)
@@ -1118,13 +1118,13 @@ func (s *DockerSwarmSuite) TestSwarmLeaveLocked(c *testing.T) {
 
 	// It is OK for user to leave a locked swarm with --force
 	outs, err = d.Cmd("swarm", "leave", "--force")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, check.Commentf("%s", outs))
 
 	info = d.SwarmInfo(c)
 	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateInactive)
 
 	outs, err = d.Cmd("swarm", "init")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, check.Commentf("%s", outs))
 
 	info = d.SwarmInfo(c)
 	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateActive)
@@ -1144,7 +1144,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *testing.T) {
 
 	// enable autolock
 	outs, err := d1.Cmd("swarm", "update", "--autolock")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, check.Commentf("%s", outs))
 	unlockKey := getUnlockKey(d1, c, outs)
 
 	// The ones that got the cluster update should be set to locked
@@ -1166,7 +1166,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *testing.T) {
 
 	// leave it locked, and set the cluster to no longer autolock
 	outs, err = d1.Cmd("swarm", "update", "--autolock=false")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("out: %v", outs))
+	assert.Assert(c, err == nil, check.Commentf("out: %v", outs))
 
 	// the ones that got the update are now set to unlocked
 	for _, d := range []*daemon.Daemon{d1, d3} {
@@ -1196,7 +1196,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
 
 	// enable autolock
 	outs, err := d1.Cmd("swarm", "update", "--autolock")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("out: %v", outs))
+	assert.Assert(c, err == nil, check.Commentf("out: %v", outs))
 	unlockKey := getUnlockKey(d1, c, outs)
 
 	// joined workers start off unlocked
@@ -1254,13 +1254,13 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 
 	outs, err := d.Cmd("swarm", "update", "--autolock")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("out: %v", outs))
+	assert.Assert(c, err == nil, check.Commentf("out: %v", outs))
 	unlockKey := getUnlockKey(d, c, outs)
 
 	// Rotate multiple times
 	for i := 0; i != 3; i++ {
 		outs, err = d.Cmd("swarm", "unlock-key", "-q", "--rotate")
-		assert.Assert(c, err, checker.IsNil, check.Commentf("out: %v", outs))
+		assert.Assert(c, err == nil, check.Commentf("out: %v", outs))
 		// Strip \n
 		newUnlockKey := outs[:len(outs)-1]
 		assert.Assert(c, newUnlockKey != "")
@@ -1343,13 +1343,13 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *testing.T) {
 	d3 := s.AddDaemon(c, true, true)
 
 	outs, err := d1.Cmd("swarm", "update", "--autolock")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, check.Commentf("%s", outs))
 	unlockKey := getUnlockKey(d1, c, outs)
 
 	// Rotate multiple times
 	for i := 0; i != 3; i++ {
 		outs, err = d1.Cmd("swarm", "unlock-key", "-q", "--rotate")
-		assert.Assert(c, err, checker.IsNil, check.Commentf("%s", outs))
+		assert.Assert(c, err == nil, check.Commentf("%s", outs))
 		// Strip \n
 		newUnlockKey := outs[:len(outs)-1]
 		assert.Assert(c, newUnlockKey != "")
@@ -1410,7 +1410,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *testing.T) {
 						continue
 					}
 				}
-				assert.Assert(c, err, checker.IsNil, check.Commentf("%s", outs))
+				assert.Assert(c, err == nil, check.Commentf("%s", outs))
 				assert.Assert(c, outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
 				break
 			}
@@ -1426,7 +1426,7 @@ func (s *DockerSwarmSuite) TestSwarmAlternateLockUnlock(c *testing.T) {
 	for i := 0; i < 2; i++ {
 		// set to lock
 		outs, err := d.Cmd("swarm", "update", "--autolock")
-		assert.Assert(c, err, checker.IsNil, check.Commentf("out: %v", outs))
+		assert.Assert(c, err == nil, check.Commentf("out: %v", outs))
 		assert.Assert(c, outs, checker.Contains, "docker swarm unlock")
 		unlockKey := getUnlockKey(d, c, outs)
 
@@ -1439,7 +1439,7 @@ func (s *DockerSwarmSuite) TestSwarmAlternateLockUnlock(c *testing.T) {
 		assert.Equal(c, getNodeStatus(c, d), swarm.LocalNodeStateActive)
 
 		outs, err = d.Cmd("swarm", "update", "--autolock=false")
-		assert.Assert(c, err, checker.IsNil, check.Commentf("out: %v", outs))
+		assert.Assert(c, err == nil, check.Commentf("out: %v", outs))
 
 		checkSwarmLockedToUnlocked(c, d)
 	}
@@ -2019,7 +2019,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsConfig(c *testing.T) {
 
 func getUnlockKey(d *daemon.Daemon, c *testing.T, autolockOutput string) string {
 	unlockKey, err := d.Cmd("swarm", "unlock-key", "-q")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("%s", unlockKey))
+	assert.Assert(c, err == nil, check.Commentf("%s", unlockKey))
 	unlockKey = strings.TrimSuffix(unlockKey, "\n")
 
 	// Check that "docker swarm init --autolock" or "docker swarm update --autolock"

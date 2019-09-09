@@ -113,7 +113,7 @@ func (s *DockerSuite) TestHealth(c *testing.T) {
 
 	failsStr, _ := dockerCmd(c, "inspect", "--format={{.State.Health.FailingStreak}}", "fatal_healthcheck")
 	fails, err := strconv.Atoi(strings.TrimSpace(failsStr))
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 	assert.Equal(c, fails >= 3, true)
 	dockerCmd(c, "rm", "-f", "fatal_healthcheck")
 

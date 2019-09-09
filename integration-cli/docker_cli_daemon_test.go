@@ -130,7 +130,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartUnlessStopped(c *testing.T) {
 		var format string
 		for name, shouldRun := range m {
 			out, err := s.d.Cmd("ps")
-			assert.Assert(c, err, checker.IsNil, check.Commentf("run ps: %v", out))
+			assert.Assert(c, err == nil, check.Commentf("run ps: %v", out))
 			if shouldRun {
 				format = "%scontainer %q is not running"
 			} else {
@@ -240,11 +240,11 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithIncreasedBasesize(c *testing.T)
 	}
 
 	err := s.d.RestartWithError("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
-	assert.Assert(c, err, checker.IsNil, check.Commentf("we should have been able to start the daemon with increased base device size: %v", err))
+	assert.Assert(c, err == nil, check.Commentf("we should have been able to start the daemon with increased base device size: %v", err))
 
 	basesizeAfterRestart := getBaseDeviceSize(c, s.d)
 	newBasesize, err := convertBasesize(newBasesizeBytes)
-	assert.Assert(c, err, checker.IsNil, check.Commentf("Error in converting base device size: %v", err))
+	assert.Assert(c, err == nil, check.Commentf("Error in converting base device size: %v", err))
 	assert.Equal(c, newBasesize, basesizeAfterRestart, check.Commentf("Basesize passed is not equal to Basesize set"))
 	s.d.Stop(c)
 }
@@ -1151,7 +1151,7 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverShouldBeIgnoredForBuild(c *te
 		build.WithoutCache,
 	)
 	comment := check.Commentf("Failed to build image. output %s, exitCode %d, err %v", result.Combined(), result.ExitCode, result.Error)
-	assert.Assert(c, result.Error, checker.IsNil, comment)
+	assert.Assert(c, result.Error == nil, comment)
 	assert.Equal(c, result.ExitCode, 0, comment)
 	assert.Assert(c, result.Combined(), checker.Contains, "foo", comment)
 }
@@ -1223,7 +1223,7 @@ func (s *DockerDaemonSuite) TestDaemonWithWrongkey(c *testing.T) {
 	}
 
 	content, err := s.d.ReadLogFile()
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 
 	if !strings.Contains(string(content), "Public Key ID does not match") {
 		c.Fatalf("Missing KeyID message from daemon logs: %s", string(content))
@@ -1749,7 +1749,7 @@ func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *testing.T
 			break
 		}
 		ip, err := s.d.Cmd("inspect", "--format", "'{{.NetworkSettings.IPAddress}}'", contName)
-		assert.Assert(c, err, checker.IsNil, check.Commentf("%s", ip))
+		assert.Assert(c, err == nil, check.Commentf("%s", ip))
 
 		assert.Assert(c, ip != bridgeIP)
 		cont++
@@ -1763,7 +1763,7 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 	testDir, err := ioutil.TempDir("", "no-space-left-on-device-test")
 	assert.NilError(c, err)
 	defer os.RemoveAll(testDir)
-	assert.Assert(c, mount.MakeRShared(testDir), checker.IsNil)
+	assert.Assert(c, mount.MakeRShared(testDir) == nil)
 	defer mount.Unmount(testDir)
 
 	// create a 3MiB image (with a 2MiB ext4 fs) and mount it as graph root
@@ -1999,14 +1999,14 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *testing.T) {
 	id := strings.TrimSpace(out)
 
 	// kill the daemon
-	assert.Assert(c, s.d.Kill(), checker.IsNil)
+	assert.Assert(c, s.d.Kill() == nil)
 
 	// Check if there are mounts with container id visible from the host.
 	// If not, those mounts exist in container's own mount ns, and so
 	// the following check for mounts being cleared is pointless.
 	skipMountCheck := false
 	mountOut, err := ioutil.ReadFile("/proc/self/mountinfo")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("Output: %s", mountOut))
+	assert.Assert(c, err == nil, check.Commentf("Output: %s", mountOut))
 	if !strings.Contains(string(mountOut), id) {
 		skipMountCheck = true
 	}
@@ -2031,7 +2031,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *testing.T) {
 	}
 	// Now, container mounts should be gone.
 	mountOut, err = ioutil.ReadFile("/proc/self/mountinfo")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("Output: %s", mountOut))
+	assert.Assert(c, err == nil, check.Commentf("Output: %s", mountOut))
 	comment := check.Commentf("%s is still mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.Root, mountOut)
 	assert.Equal(c, strings.Contains(string(mountOut), id), false, comment)
 }
@@ -2196,7 +2196,7 @@ func (s *DockerDaemonSuite) TestDaemonDiscoveryBackendConfigReload(c *testing.T)
 	// daemon config file
 	daemonConfig := `{ "debug" : false }`
 	configFile, err := ioutil.TempFile("", "test-daemon-discovery-backend-config-reload-config")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("could not create temp file for config reload"))
+	assert.Assert(c, err == nil, check.Commentf("could not create temp file for config reload"))
 	configFilePath := configFile.Name()
 	defer func() {
 		configFile.Close()
@@ -2226,7 +2226,7 @@ func (s *DockerDaemonSuite) TestDaemonDiscoveryBackendConfigReload(c *testing.T)
 	assert.NilError(c, err)
 
 	err = s.d.ReloadConfig()
-	assert.Assert(c, err, checker.IsNil, check.Commentf("error reloading daemon config"))
+	assert.Assert(c, err == nil, check.Commentf("error reloading daemon config"))
 
 	out, err := s.d.Cmd("info")
 	assert.NilError(c, err)
@@ -2288,7 +2288,7 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFile(c *testing.T)
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
 
-	assert.Assert(c, s.d.Signal(unix.SIGHUP), checker.IsNil)
+	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 	// unix.Kill(s.d.cmd.Process.Pid, unix.SIGHUP)
 
 	time.Sleep(3 * time.Second)
@@ -2329,7 +2329,7 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *test
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
 
-	assert.Assert(c, s.d.Signal(unix.SIGHUP), checker.IsNil)
+	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 	// unix.Kill(s.d.cmd.Process.Pid, unix.SIGHUP)
 
 	time.Sleep(3 * time.Second)
@@ -2347,7 +2347,7 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *test
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
 
-	assert.Assert(c, s.d.Signal(unix.SIGHUP), checker.IsNil)
+	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 
 	time.Sleep(3 * time.Second)
 
@@ -2369,7 +2369,7 @@ func (s *DockerDaemonSuite) TestBuildOnDisabledBridgeNetworkDaemon(c *testing.T)
 		build.WithoutCache,
 	)
 	comment := check.Commentf("Failed to build image. output %s, exitCode %d, err %v", result.Combined(), result.ExitCode, result.Error)
-	assert.Assert(c, result.Error, checker.IsNil, comment)
+	assert.Assert(c, result.Error == nil, comment)
 	assert.Equal(c, result.ExitCode, 0, comment)
 }
 
@@ -2438,7 +2438,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
 }
 `
 	ioutil.WriteFile(configName, []byte(config), 0644)
-	assert.Assert(c, s.d.Signal(unix.SIGHUP), checker.IsNil)
+	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 	// Give daemon time to reload config
 	<-time.After(1 * time.Second)
 
@@ -2467,7 +2467,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
 }
 `
 	ioutil.WriteFile(configName, []byte(config), 0644)
-	assert.Assert(c, s.d.Signal(unix.SIGHUP), checker.IsNil)
+	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 	// Give daemon time to reload config
 	<-time.After(1 * time.Second)
 
@@ -2493,7 +2493,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
 }
 `
 	ioutil.WriteFile(configName, []byte(config), 0644)
-	assert.Assert(c, s.d.Signal(unix.SIGHUP), checker.IsNil)
+	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 	// Give daemon time to reload config
 	<-time.After(1 * time.Second)
 
@@ -2570,10 +2570,10 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithAutoRemoveContainer(c *testing.
 
 	// top1 will exist after daemon restarts
 	out, err := s.d.Cmd("run", "-d", "--name", "top1", "busybox:latest", "top")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("run top1: %v", out))
+	assert.Assert(c, err == nil, check.Commentf("run top1: %v", out))
 	// top2 will be removed after daemon restarts
 	out, err = s.d.Cmd("run", "-d", "--rm", "--name", "top2", "busybox:latest", "top")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("run top2: %v", out))
+	assert.Assert(c, err == nil, check.Commentf("run top2: %v", out))
 
 	out, err = s.d.Cmd("ps")
 	assert.NilError(c, err)
@@ -2668,7 +2668,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeout(c *testing.T) {
 	_, err := s.d.Cmd("run", "-d", "busybox", "top")
 	assert.NilError(c, err)
 
-	assert.Assert(c, s.d.Signal(unix.SIGINT), checker.IsNil)
+	assert.Assert(c, s.d.Signal(unix.SIGINT) == nil)
 
 	select {
 	case <-s.d.Wait:
@@ -2702,7 +2702,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeoutWithConfigFile(c *testing.T
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
 
-	assert.Assert(c, s.d.Signal(unix.SIGHUP), checker.IsNil)
+	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 
 	select {
 	case <-s.d.Wait:
@@ -2727,17 +2727,17 @@ func (s *DockerDaemonSuite) TestExecWithUserAfterLiveRestore(c *testing.T) {
 
 	// Wait for shell command to be completed
 	_, err = s.d.Cmd("exec", "top", "sh", "-c", `for i in $(seq 1 5); do if [ -e /adduser_end ]; then rm -f /adduser_end && break; else sleep 1 && false; fi; done`)
-	assert.Assert(c, err, checker.IsNil, check.Commentf("Timeout waiting for shell command to be completed"))
+	assert.Assert(c, err == nil, check.Commentf("Timeout waiting for shell command to be completed"))
 
 	out1, err := s.d.Cmd("exec", "-u", "test", "top", "id")
 	// uid=100(test) gid=101(test) groups=101(test)
-	assert.Assert(c, err, checker.IsNil, check.Commentf("Output: %s", out1))
+	assert.Assert(c, err == nil, check.Commentf("Output: %s", out1))
 
 	// restart daemon.
 	s.d.Restart(c, "--live-restore")
 
 	out2, err := s.d.Cmd("exec", "-u", "test", "top", "id")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("Output: %s", out2))
+	assert.Assert(c, err == nil, check.Commentf("Output: %s", out2))
 	assert.Equal(c, out2, out1, check.Commentf("Output: before restart '%s', after restart '%s'", out1, out2))
 
 	out, err = s.d.Cmd("stop", "top")
@@ -2790,7 +2790,7 @@ func (s *DockerDaemonSuite) TestRestartPolicyWithLiveRestore(c *testing.T) {
 		StartedAt time.Time
 	}
 	out, err = s.d.Cmd("inspect", "-f", "{{json .State}}", id)
-	assert.Assert(c, err, checker.IsNil, check.Commentf("output: %s", out))
+	assert.Assert(c, err == nil, check.Commentf("output: %s", out))
 
 	var origState state
 	err = json.Unmarshal([]byte(strings.TrimSpace(out)), &origState)
@@ -2816,7 +2816,7 @@ func (s *DockerDaemonSuite) TestRestartPolicyWithLiveRestore(c *testing.T) {
 		}
 
 		out, err := s.d.Cmd("inspect", "-f", "{{json .State}}", id)
-		assert.Assert(c, err, checker.IsNil, check.Commentf("output: %s", out))
+		assert.Assert(c, err == nil, check.Commentf("output: %s", out))
 
 		var newState state
 		err = json.Unmarshal([]byte(strings.TrimSpace(out)), &newState)
@@ -2855,13 +2855,13 @@ func (s *DockerDaemonSuite) TestShmSizeReload(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	configPath, err := ioutil.TempDir("", "test-daemon-shm-size-reload-config")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("could not create temp file for config reload"))
+	assert.Assert(c, err == nil, check.Commentf("could not create temp file for config reload"))
 	defer os.RemoveAll(configPath) // clean up
 	configFile := filepath.Join(configPath, "config.json")
 
 	size := 67108864 * 2
 	configData := []byte(fmt.Sprintf(`{"default-shm-size": "%dM"}`, size/1024/1024))
-	assert.Assert(c, ioutil.WriteFile(configFile, configData, 0666), checker.IsNil, check.Commentf("could not write temp file for config reload"))
+	assert.Assert(c, ioutil.WriteFile(configFile, configData, 0666) == nil, check.Commentf("could not write temp file for config reload"))
 	pattern := regexp.MustCompile(fmt.Sprintf("shm on /dev/shm type tmpfs(.*)size=%dk", size/1024))
 
 	s.d.StartWithBusybox(c, "--config-file", configFile)
@@ -2876,11 +2876,11 @@ func (s *DockerDaemonSuite) TestShmSizeReload(c *testing.T) {
 
 	size = 67108864 * 3
 	configData = []byte(fmt.Sprintf(`{"default-shm-size": "%dM"}`, size/1024/1024))
-	assert.Assert(c, ioutil.WriteFile(configFile, configData, 0666), checker.IsNil, check.Commentf("could not write temp file for config reload"))
+	assert.Assert(c, ioutil.WriteFile(configFile, configData, 0666) == nil, check.Commentf("could not write temp file for config reload"))
 	pattern = regexp.MustCompile(fmt.Sprintf("shm on /dev/shm type tmpfs(.*)size=%dk", size/1024))
 
 	err = s.d.ReloadConfig()
-	assert.Assert(c, err, checker.IsNil, check.Commentf("error reloading daemon config"))
+	assert.Assert(c, err == nil, check.Commentf("error reloading daemon config"))
 
 	name = "shm2"
 	out, err = s.d.Cmd("run", "--name", name, "busybox", "mount")

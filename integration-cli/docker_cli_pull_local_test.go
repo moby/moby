@@ -340,10 +340,10 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *testing.T) {
 	// Add to revision store
 	revisionDir := filepath.Join(registryV2Path, "repositories", remoteRepoName, "_manifests", "revisions", "sha256", hexDigest)
 	err = os.Mkdir(revisionDir, 0755)
-	assert.Assert(c, err, checker.IsNil, check.Commentf("error creating revision dir"))
+	assert.Assert(c, err == nil, check.Commentf("error creating revision dir"))
 	revisionPath := filepath.Join(revisionDir, "link")
 	err = ioutil.WriteFile(revisionPath, []byte(manifestListDigest.String()), 0644)
-	assert.Assert(c, err, checker.IsNil, check.Commentf("error writing revision link"))
+	assert.Assert(c, err == nil, check.Commentf("error writing revision link"))
 
 	// Update tag
 	tagPath := filepath.Join(registryV2Path, "repositories", remoteRepoName, "_manifests", "tags", "latest", "current", "link")

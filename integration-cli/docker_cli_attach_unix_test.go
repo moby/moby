@@ -51,7 +51,7 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *testing.T) {
 	case err := <-errChan:
 		tty.Close()
 		out, _ := ioutil.ReadAll(pty)
-		assert.Assert(c, err, checker.IsNil, check.Commentf("out: %v", string(out)))
+		assert.Assert(c, err == nil, check.Commentf("out: %v", string(out)))
 	case <-time.After(attachWait):
 		c.Fatal("timed out without attach returning")
 	}
@@ -74,7 +74,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *testing.T) {
 		close(cmdExit)
 	}()
 
-	assert.Assert(c, waitRun(name), checker.IsNil)
+	assert.Assert(c, waitRun(name) == nil)
 
 	cpty.Write([]byte{16})
 	time.Sleep(100 * time.Millisecond)

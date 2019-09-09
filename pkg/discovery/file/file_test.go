@@ -25,7 +25,7 @@ func (s *DiscoverySuite) TestInitialize(c *testing.T) {
 
 func (s *DiscoverySuite) TestNew(c *testing.T) {
 	d, err := discovery.New("file:///path/to/file", 0, 0, nil)
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 	assert.Equal(c, d.(*Discovery).path, "/path/to/file")
 }
 
@@ -75,9 +75,9 @@ func (s *DiscoverySuite) TestWatch(c *testing.T) {
 
 	// Create a temporary file and remove it.
 	tmp, err := ioutil.TempFile(os.TempDir(), "discovery-file-test")
-	assert.Assert(c, err, checker.IsNil)
-	assert.Assert(c, tmp.Close(), checker.IsNil)
-	assert.Assert(c, os.Remove(tmp.Name()), checker.IsNil)
+	assert.Assert(c, err == nil)
+	assert.Assert(c, tmp.Close() == nil)
+	assert.Assert(c, os.Remove(tmp.Name()) == nil)
 
 	// Set up file discovery.
 	d := &Discovery{}
@@ -94,21 +94,21 @@ func (s *DiscoverySuite) TestWatch(c *testing.T) {
 	}()
 
 	// Write the file and make sure we get the expected value back.
-	assert.Assert(c, ioutil.WriteFile(tmp.Name(), []byte(data), 0600), checker.IsNil)
+	assert.Assert(c, ioutil.WriteFile(tmp.Name(), []byte(data), 0600) == nil)
 	assert.DeepEqual(c, <-ch, expected)
 
 	// Add a new entry and look it up.
 	expected = append(expected, &discovery.Entry{Host: "3.3.3.3", Port: "3333"})
 	f, err := os.OpenFile(tmp.Name(), os.O_APPEND|os.O_WRONLY, 0600)
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 	assert.Assert(c, f, checker.NotNil)
 	_, err = f.WriteString("\n3.3.3.3:3333\n")
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 	f.Close()
 	assert.DeepEqual(c, <-ch, expected)
 
 	// Stop and make sure it closes all channels.
 	close(stopCh)
-	assert.Assert(c, <-ch, checker.IsNil)
-	assert.Assert(c, <-errCh, checker.IsNil)
+	assert.Assert(c, <-ch == nil)
+	assert.Assert(c, <-errCh == nil)
 }

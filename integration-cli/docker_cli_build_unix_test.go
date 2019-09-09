@@ -56,7 +56,7 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) {
 
 	var c1 hostConfig
 	err := json.Unmarshal([]byte(cfg), &c1)
-	assert.Assert(c, err, checker.IsNil, check.Commentf(cfg))
+	assert.Assert(c, err == nil, check.Commentf(cfg))
 
 	assert.Equal(c, c1.Memory, int64(64*1024*1024), check.Commentf("resource constraints not set properly for Memory"))
 	assert.Equal(c, c1.MemorySwap, int64(-1), check.Commentf("resource constraints not set properly for MemorySwap"))
@@ -74,7 +74,7 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) {
 
 	var c2 hostConfig
 	err = json.Unmarshal([]byte(cfg), &c2)
-	assert.Assert(c, err, checker.IsNil, check.Commentf(cfg))
+	assert.Assert(c, err == nil, check.Commentf(cfg))
 
 	assert.Assert(c, c2.Memory != int64(64*1024*1024), check.Commentf("resource leaked from build for Memory"))
 	assert.Assert(c, c2.MemorySwap != int64(-1), check.Commentf("resource leaked from build for MemorySwap"))
@@ -82,7 +82,7 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) {
 	assert.Assert(c, c2.CpusetMems != "0", check.Commentf("resource leaked from build for CpusetMems"))
 	assert.Assert(c, c2.CPUShares != int64(100), check.Commentf("resource leaked from build for CPUShares"))
 	assert.Assert(c, c2.CPUQuota != int64(8000), check.Commentf("resource leaked from build for CPUQuota"))
-	assert.Assert(c, c2.Ulimits, checker.IsNil, check.Commentf("resource leaked from build for Ulimits"))
+	assert.Assert(c, c2.Ulimits == nil, check.Commentf("resource leaked from build for Ulimits"))
 }
 
 func (s *DockerSuite) TestBuildAddChangeOwnership(c *testing.T) {

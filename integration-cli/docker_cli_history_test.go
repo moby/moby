@@ -97,7 +97,7 @@ func (s *DockerSuite) TestHistoryHumanOptionFalse(c *testing.T) {
 		sizeString := lines[i][startIndex:endIndex]
 
 		_, err := strconv.Atoi(strings.TrimSpace(sizeString))
-		assert.Assert(c, err, checker.IsNil, check.Commentf("The size '%s' was not an Integer", sizeString))
+		assert.Assert(c, err == nil, check.Commentf("The size '%s' was not an Integer", sizeString))
 	}
 }
 

@@ -389,7 +389,7 @@ func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *testing.T) {
 
 func (s *DockerRegistrySuite) TestInspectImageWithDigests(c *testing.T) {
 	digest, err := setupImage(c)
-	assert.Assert(c, err, checker.IsNil, check.Commentf("error setting up image"))
+	assert.Assert(c, err == nil, check.Commentf("error setting up image"))
 
 	imageReference := fmt.Sprintf("%s@%s", repoName, digest)
 
@@ -568,14 +568,14 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredManifest(c *testing.T) {
 func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredManifest(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	manifestDigest, err := setupImage(c)
-	assert.Assert(c, err, checker.IsNil, check.Commentf("error setting up image"))
+	assert.Assert(c, err == nil, check.Commentf("error setting up image"))
 
 	// Load the target manifest blob.
 	manifestBlob := s.reg.ReadBlobContents(c, manifestDigest)
 
 	var imgManifest schema1.Manifest
 	err = json.Unmarshal(manifestBlob, &imgManifest)
-	assert.Assert(c, err, checker.IsNil, check.Commentf("unable to decode image manifest from blob"))
+	assert.Assert(c, err == nil, check.Commentf("unable to decode image manifest from blob"))
 
 	// Change a layer in the manifest.
 	imgManifest.FSLayers[0] = schema1.FSLayer{
@@ -588,7 +588,7 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredManifest(c *testing
 	defer undo()
 
 	alteredManifestBlob, err := json.MarshalIndent(imgManifest, "", "   ")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("unable to encode altered image manifest to JSON"))
+	assert.Assert(c, err == nil, check.Commentf("unable to encode altered image manifest to JSON"))
 
 	s.reg.WriteBlobContents(c, manifestDigest, alteredManifestBlob)
 
@@ -610,14 +610,14 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredManifest(c *testing
 func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	manifestDigest, err := setupImage(c)
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 
 	// Load the target manifest blob.
 	manifestBlob := s.reg.ReadBlobContents(c, manifestDigest)
 
 	var imgManifest schema2.Manifest
 	err = json.Unmarshal(manifestBlob, &imgManifest)
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 
 	// Next, get the digest of one of the layers from the manifest.
 	targetLayerDigest := imgManifest.Layers[0].Digest
@@ -653,14 +653,14 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *testing.T) {
 func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredLayer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	manifestDigest, err := setupImage(c)
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 
 	// Load the target manifest blob.
 	manifestBlob := s.reg.ReadBlobContents(c, manifestDigest)
 
 	var imgManifest schema1.Manifest
 	err = json.Unmarshal(manifestBlob, &imgManifest)
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 
 	// Next, get the digest of one of the layers from the manifest.
 	targetLayerDigest := imgManifest.FSLayers[0].BlobSum

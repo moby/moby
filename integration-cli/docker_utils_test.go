@@ -77,7 +77,7 @@ func inspectFieldAndUnmarshall(c *testing.T, name, field string, output interfac
 	str := inspectFieldJSON(c, name, field)
 	err := json.Unmarshal([]byte(str), output)
 	if c != nil {
-		assert.Assert(c, err, checker.IsNil, check.Commentf("failed to unmarshal: %v", err))
+		assert.Assert(c, err == nil, check.Commentf("failed to unmarshal: %v", err))
 	}
 }
 
@@ -201,7 +201,7 @@ func buildImage(name string, cmdOperators ...cli.CmdOperator) *icmd.Result {
 // Fail the test when error occurs.
 func writeFile(dst, content string, c *testing.T) {
 	// Create subdirectories if necessary
-	assert.Assert(c, os.MkdirAll(path.Dir(dst), 0700), checker.IsNil)
+	assert.Assert(c, os.MkdirAll(path.Dir(dst), 0700) == nil)
 	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0700)
 	assert.NilError(c, err)
 	defer f.Close()
@@ -263,7 +263,7 @@ func daemonTime(c *testing.T) time.Time {
 	assert.NilError(c, err)
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
-	assert.Assert(c, err, checker.IsNil, check.Commentf("invalid time format in GET /info response"))
+	assert.Assert(c, err == nil, check.Commentf("invalid time format in GET /info response"))
 	return dt
 }
 
@@ -408,7 +408,7 @@ func waitForGoroutines(expected int) error {
 // getErrorMessage returns the error message from an error API response
 func getErrorMessage(c *testing.T, body []byte) string {
 	var resp types.ErrorResponse
-	assert.Assert(c, json.Unmarshal(body, &resp), checker.IsNil)
+	assert.Assert(c, json.Unmarshal(body, &resp) == nil)
 	return strings.TrimSpace(resp.Message)
 }
 

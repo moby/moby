@@ -314,7 +314,7 @@ func (s *DockerSuite) TestPortExposeHostBinding(c *testing.T) {
 	out, _ = dockerCmd(c, "port", firstID, "80")
 
 	_, exposedPort, err := net.SplitHostPort(out)
-	assert.Assert(c, err, checker.IsNil, check.Commentf("out: %s", out))
+	assert.Assert(c, err == nil, check.Commentf("out: %s", out))
 
 	dockerCmd(c, "run", "--net=host", "busybox",
 		"nc", "localhost", strings.TrimSpace(exposedPort))
@@ -335,7 +335,7 @@ func (s *DockerSuite) TestPortBindingOnSandbox(c *testing.T) {
 
 	dockerCmd(c, "run", "--net", "internal-net", "-d", "--name", "c1",
 		"-p", "8080:8080", "busybox", "nc", "-l", "-p", "8080")
-	assert.Assert(c, waitRun("c1"), checker.IsNil)
+	assert.Assert(c, waitRun("c1") == nil)
 
 	_, _, err := dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "8080")
 	assert.Assert(c, err, checker.NotNil, check.Commentf("Port mapping on internal network is expected to fail"))
@@ -344,5 +344,5 @@ func (s *DockerSuite) TestPortBindingOnSandbox(c *testing.T) {
 	dockerCmd(c, "network", "connect", "foo-net", "c1")
 
 	_, _, err = dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "8080")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("Port mapping on the new network is expected to succeed"))
+	assert.Assert(c, err == nil, check.Commentf("Port mapping on the new network is expected to succeed"))
 }

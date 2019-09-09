@@ -41,7 +41,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	var mountConfig []mount.Mount
-	assert.Assert(c, json.Unmarshal([]byte(out), &mountConfig), checker.IsNil)
+	assert.Assert(c, json.Unmarshal([]byte(out), &mountConfig) == nil)
 	assert.Equal(c, len(mountConfig), 1)
 
 	assert.Equal(c, mountConfig[0].Source, "foo")
@@ -55,7 +55,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	var mounts []types.MountPoint
-	assert.Assert(c, json.Unmarshal([]byte(out), &mounts), checker.IsNil)
+	assert.Assert(c, json.Unmarshal([]byte(out), &mounts) == nil)
 	assert.Equal(c, len(mounts), 1)
 
 	assert.Equal(c, mounts[0].Type, mount.TypeVolume)
@@ -84,7 +84,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *testing.T) {
 	assert.NilError(c, err)
 
 	var refs []swarm.SecretReference
-	assert.Assert(c, json.Unmarshal([]byte(out), &refs), checker.IsNil)
+	assert.Assert(c, json.Unmarshal([]byte(out), &refs) == nil)
 	assert.Equal(c, len(refs), 1)
 
 	assert.Equal(c, refs[0].SecretName, testName)
@@ -133,7 +133,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTargetPaths(c *testi
 	assert.NilError(c, err)
 
 	var refs []swarm.SecretReference
-	assert.Assert(c, json.Unmarshal([]byte(out), &refs), checker.IsNil)
+	assert.Assert(c, json.Unmarshal([]byte(out), &refs) == nil)
 	assert.Equal(c, len(refs), len(testPaths))
 
 	var tasks []swarm.Task
@@ -183,7 +183,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *testing
 	assert.NilError(c, err)
 
 	var refs []swarm.SecretReference
-	assert.Assert(c, json.Unmarshal([]byte(out), &refs), checker.IsNil)
+	assert.Assert(c, json.Unmarshal([]byte(out), &refs) == nil)
 	assert.Equal(c, len(refs), 2)
 
 	var tasks []swarm.Task
@@ -232,7 +232,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSimple(c *testing.T) {
 	assert.NilError(c, err)
 
 	var refs []swarm.ConfigReference
-	assert.Assert(c, json.Unmarshal([]byte(out), &refs), checker.IsNil)
+	assert.Assert(c, json.Unmarshal([]byte(out), &refs) == nil)
 	assert.Equal(c, len(refs), 1)
 
 	assert.Equal(c, refs[0].ConfigName, testName)
@@ -280,7 +280,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSourceTargetPaths(c *testi
 	assert.NilError(c, err)
 
 	var refs []swarm.ConfigReference
-	assert.Assert(c, json.Unmarshal([]byte(out), &refs), checker.IsNil)
+	assert.Assert(c, json.Unmarshal([]byte(out), &refs) == nil)
 	assert.Equal(c, len(refs), len(testPaths))
 
 	var tasks []swarm.Task
@@ -330,7 +330,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigReferencedTwice(c *testing
 	assert.NilError(c, err)
 
 	var refs []swarm.ConfigReference
-	assert.Assert(c, json.Unmarshal([]byte(out), &refs), checker.IsNil)
+	assert.Assert(c, json.Unmarshal([]byte(out), &refs) == nil)
 	assert.Equal(c, len(refs), 2)
 
 	var tasks []swarm.Task
@@ -384,7 +384,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	var mountConfig []mount.Mount
-	assert.Assert(c, json.Unmarshal([]byte(out), &mountConfig), checker.IsNil)
+	assert.Assert(c, json.Unmarshal([]byte(out), &mountConfig) == nil)
 	assert.Equal(c, len(mountConfig), 1)
 
 	assert.Equal(c, mountConfig[0].Source, "")
@@ -398,7 +398,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	var mounts []types.MountPoint
-	assert.Assert(c, json.Unmarshal([]byte(out), &mounts), checker.IsNil)
+	assert.Assert(c, json.Unmarshal([]byte(out), &mounts) == nil)
 	assert.Equal(c, len(mounts), 1)
 
 	assert.Equal(c, mounts[0].Type, mount.TypeTmpfs)
@@ -441,7 +441,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *testing.T) {
 
 	// Make sure the only alias seen is the container-id
 	var aliases []string
-	assert.Assert(c, json.Unmarshal([]byte(out), &aliases), checker.IsNil)
+	assert.Assert(c, json.Unmarshal([]byte(out), &aliases) == nil)
 	assert.Equal(c, len(aliases), 1)
 
 	assert.Assert(c, task.Status.ContainerStatus.ContainerID, checker.Contains, aliases[0])
