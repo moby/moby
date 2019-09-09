@@ -73,7 +73,7 @@ func Test(t *testing.T) {
 	cli.SetTestEnvironment(testEnv)
 	fakestorage.SetTestEnvironment(&testEnv.Execution)
 	ienv.ProtectAll(t, &testEnv.Execution)
-	check.TestingT(t)
+	/*check.TestingT(t)*/
 }
 
 func init() {
