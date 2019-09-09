@@ -27,7 +27,7 @@ func (s *DockerSuite) TestLinksInvalidContainerTarget(c *testing.T) {
 	out, _, err := dockerCmdWithError("run", "--link", "bogus:alias", "busybox", "true")
 
 	// an invalid container target should produce an error
-	assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
+	assert.Assert(c, err != nil, check.Commentf("out: %s", out))
 	// an invalid container target should produce an error
 	// note: convert the output to lowercase first as the error string
 	// capitalization was changed after API version 1.32
@@ -169,7 +169,7 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *testing.T) {
 	getIP := func(hosts []byte, hostname string) string {
 		re := regexp.MustCompile(fmt.Sprintf(`(\S*)\t%s`, regexp.QuoteMeta(hostname)))
 		matches := re.FindSubmatch(hosts)
-		assert.Assert(c, matches, checker.NotNil, check.Commentf("Hostname %s have no matches in hosts", hostname))
+		assert.Assert(c, matches != nil, check.Commentf("Hostname %s have no matches in hosts", hostname))
 		return string(matches[1])
 	}
 	ip := getIP(content, "one")
@@ -220,7 +220,7 @@ func (s *DockerSuite) TestLinksNetworkHostContainer(c *testing.T) {
 	out, _, err := dockerCmdWithError("run", "--name", "should_fail", "--link", "host_container:tester", "busybox", "true")
 
 	// Running container linking to a container with --net host should have failed
-	assert.Assert(c, err, checker.NotNil, check.Commentf("out: %s", out))
+	assert.Assert(c, err != nil, check.Commentf("out: %s", out))
 	// Running container linking to a container with --net host should have failed
 	assert.Assert(c, out, checker.Contains, runconfig.ErrConflictHostNetworkAndLinks.Error())
 }

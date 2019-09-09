@@ -287,7 +287,7 @@ func (s *DockerExternalVolumeSuite) TestVolumeCLICreateOptionConflict(c *testing
 	dockerCmd(c, "volume", "create", "test")
 
 	out, _, err := dockerCmdWithError("volume", "create", "test", "--driver", volumePluginName)
-	assert.Assert(c, err, checker.NotNil, check.Commentf("volume create exception name already in use with another driver"))
+	assert.Assert(c, err != nil, check.Commentf("volume create exception name already in use with another driver"))
 	assert.Assert(c, out, checker.Contains, "must be unique")
 
 	out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Driver }}", "test")
@@ -585,7 +585,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverOutOfBandDelete(c *t
 	assert.NilError(c, err)
 	assert.Equal(c, len(vs), 1)
 	assert.Equal(c, vs[0].Driver, driverName)
-	assert.Assert(c, vs[0].Options, checker.NotNil)
+	assert.Assert(c, vs[0].Options != nil)
 	assert.Equal(c, vs[0].Options["foo"], "bar")
 	assert.Equal(c, vs[0].Driver, driverName)
 

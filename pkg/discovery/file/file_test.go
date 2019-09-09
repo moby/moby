@@ -45,7 +45,7 @@ func (s *DiscoverySuite) TestContent(c *testing.T) {
 
 func (s *DiscoverySuite) TestRegister(c *testing.T) {
 	discovery := &Discovery{path: "/path/to/file"}
-	assert.Assert(c, discovery.Register("0.0.0.0"), checker.NotNil)
+	assert.Assert(c, discovery.Register("0.0.0.0") != nil)
 }
 
 func (s *DiscoverySuite) TestParsingContentsWithComments(c *testing.T) {
@@ -86,7 +86,7 @@ func (s *DiscoverySuite) TestWatch(c *testing.T) {
 	ch, errCh := d.Watch(stopCh)
 
 	// Make sure it fires errors since the file doesn't exist.
-	assert.Assert(c, <-errCh, checker.NotNil)
+	assert.Assert(c, <-errCh != nil)
 	// We have to drain the error channel otherwise Watch will get stuck.
 	go func() {
 		for range errCh {
@@ -101,7 +101,7 @@ func (s *DiscoverySuite) TestWatch(c *testing.T) {
 	expected = append(expected, &discovery.Entry{Host: "3.3.3.3", Port: "3333"})
 	f, err := os.OpenFile(tmp.Name(), os.O_APPEND|os.O_WRONLY, 0600)
 	assert.Assert(c, err == nil)
-	assert.Assert(c, f, checker.NotNil)
+	assert.Assert(c, f != nil)
 	_, err = f.WriteString("\n3.3.3.3:3333\n")
 	assert.Assert(c, err == nil)
 	f.Close()

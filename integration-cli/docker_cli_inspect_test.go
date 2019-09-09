@@ -119,7 +119,7 @@ func (s *DockerSuite) TestInspectTypeFlagWithInvalidValue(c *testing.T) {
 	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "true")
 
 	out, exitCode, err := dockerCmdWithError("inspect", "--type=foobar", "busybox")
-	assert.Assert(c, err, checker.NotNil, check.Commentf("%d", exitCode))
+	assert.Assert(c, err != nil, check.Commentf("%d", exitCode))
 	assert.Equal(c, exitCode, 1, check.Commentf("%s", err))
 	assert.Assert(c, out, checker.Contains, "not a valid value for --type")
 }

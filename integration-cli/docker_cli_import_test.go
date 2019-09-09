@@ -36,7 +36,7 @@ func (s *DockerSuite) TestImportDisplay(c *testing.T) {
 
 func (s *DockerSuite) TestImportBadURL(c *testing.T) {
 	out, _, err := dockerCmdWithError("import", "http://nourl/bad")
-	assert.Assert(c, err, checker.NotNil, check.Commentf("import was supposed to fail but didn't"))
+	assert.Assert(c, err != nil, check.Commentf("import was supposed to fail but didn't"))
 	// Depending on your system you can get either of these errors
 	if !strings.Contains(out, "dial tcp") &&
 		!strings.Contains(out, "ApplyLayer exit status 1 stdout:  stderr: archive/tar: invalid tar header") &&
@@ -122,7 +122,7 @@ func (s *DockerSuite) TestImportFileWithMessage(c *testing.T) {
 
 func (s *DockerSuite) TestImportFileNonExistentFile(c *testing.T) {
 	_, _, err := dockerCmdWithError("import", "example.com/myImage.tar")
-	assert.Assert(c, err, checker.NotNil, check.Commentf("import non-existing file must failed"))
+	assert.Assert(c, err != nil, check.Commentf("import non-existing file must failed"))
 }
 
 func (s *DockerSuite) TestImportWithQuotedChanges(c *testing.T) {

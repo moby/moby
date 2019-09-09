@@ -200,8 +200,8 @@ BFrwkQE4HQtQBV60hYQUzzlSk44VFDz+jxIEtacRHaomDRh2FtOTz+I=
 	})
 	assert.Assert(c, err == nil)
 	s := d.store.(*Mock)
-	assert.Assert(c, s.Options.TLS, checker.NotNil)
-	assert.Assert(c, s.Options.TLS.RootCAs, checker.NotNil)
+	assert.Assert(c, s.Options.TLS != nil)
+	assert.Assert(c, s.Options.TLS.RootCAs != nil)
 	assert.Equal(c, len(s.Options.TLS.Certificates), 1)
 }
 

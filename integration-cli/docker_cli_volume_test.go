@@ -242,7 +242,7 @@ func (s *DockerSuite) TestVolumeCLIInspectTmplError(c *testing.T) {
 	name := strings.TrimSpace(out)
 
 	out, exitCode, err := dockerCmdWithError("volume", "inspect", "--format='{{ .FooBar }}'", name)
-	assert.Assert(c, err, checker.NotNil, check.Commentf("Output: %s", out))
+	assert.Assert(c, err != nil, check.Commentf("Output: %s", out))
 	assert.Equal(c, exitCode, 1, check.Commentf("Output: %s", out))
 	assert.Assert(c, out, checker.Contains, "Template parsing error")
 }

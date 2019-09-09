@@ -25,7 +25,7 @@ func (s *DiscoverySuite) TestNewEntry(c *testing.T) {
 	assert.Equal(c, entry.String(), "[2001:db8:0:f101::2]:2375")
 
 	_, err = NewEntry("127.0.0.1")
-	assert.Assert(c, err, checker.NotNil)
+	assert.Assert(c, err != nil)
 }
 
 func (s *DiscoverySuite) TestParse(c *testing.T) {
@@ -65,7 +65,7 @@ func (s *DiscoverySuite) TestCreateEntries(c *testing.T) {
 	assert.Equal(c, entries.Equals(expected), true)
 
 	_, err = CreateEntries([]string{"127.0.0.1", "127.0.0.2"})
-	assert.Assert(c, err, checker.NotNil)
+	assert.Assert(c, err != nil)
 }
 
 func (s *DiscoverySuite) TestContainsEntry(c *testing.T) {

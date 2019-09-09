@@ -2292,7 +2292,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughExpose(c *testing.T) {
 
 func (s *DockerSuite) TestRunExposePort(c *testing.T) {
 	out, _, err := dockerCmdWithError("run", "--expose", "80000", "busybox")
-	assert.Assert(c, err, checker.NotNil, check.Commentf("--expose with an invalid port should error out"))
+	assert.Assert(c, err != nil, check.Commentf("--expose with an invalid port should error out"))
 	assert.Assert(c, out, checker.Contains, "invalid range format for --expose")
 }
 
@@ -3208,10 +3208,10 @@ func (s *DockerSuite) TestRunCreateContainerFailedCleanUp(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	name := "unique_name"
 	_, _, err := dockerCmdWithError("run", "--name", name, "--link", "nothing:nothing", "busybox")
-	assert.Assert(c, err, checker.NotNil, check.Commentf("Expected docker run to fail!"))
+	assert.Assert(c, err != nil, check.Commentf("Expected docker run to fail!"))
 
 	containerID, err := inspectFieldWithError(name, "Id")
-	assert.Assert(c, err, checker.NotNil, check.Commentf("Expected not to have this container: %s!", containerID))
+	assert.Assert(c, err != nil, check.Commentf("Expected not to have this container: %s!", containerID))
 	assert.Equal(c, containerID, "", check.Commentf("Expected not to have this container: %s!", containerID))
 }
 
@@ -3948,7 +3948,7 @@ func (s *DockerSuite) TestRunAttachFailedNoLeak(c *testing.T) {
 	// We will need the following `inspect` to diagnose the issue if test fails (#21247)
 	out1, err1 := dockerCmd(c, "inspect", "--format", "{{json .State}}", "test")
 	out2, err2 := dockerCmd(c, "inspect", "--format", "{{json .State}}", "fail")
-	assert.Assert(c, err, checker.NotNil, check.Commentf("Command should have failed but succeeded with: %s\nContainer 'test' [%+v]: %s\nContainer 'fail' [%+v]: %s", out, err1, out1, err2, out2))
+	assert.Assert(c, err != nil, check.Commentf("Command should have failed but succeeded with: %s\nContainer 'test' [%+v]: %s\nContainer 'fail' [%+v]: %s", out, err1, out1, err2, out2))
 	// check for windows error as well
 	// TODO Windows Post TP5. Fix the error message string
 	assert.Assert(c, strings.Contains(string(out), "port is already allocated") ||
@@ -4160,7 +4160,7 @@ func (s *DockerSuite) TestRunCredentialSpecFailures(c *testing.T) {
 	}
 	for _, attempt := range attempts {
 		_, _, err := dockerCmdWithError("run", "--security-opt=credentialspec="+attempt.value, "busybox", "true")
-		assert.Assert(c, err, checker.NotNil, check.Commentf("%s expected non-nil err", attempt.value))
+		assert.Assert(c, err != nil, check.Commentf("%s expected non-nil err", attempt.value))
 		assert.Assert(c, err.Error(), checker.Contains, attempt.expectedError, check.Commentf("%s expected %s got %s", attempt.value, attempt.expectedError, err))
 	}
 }
@@ -4499,7 +4499,7 @@ func (s *DockerSuite) TestRunMount(c *testing.T) {
 				assert.Assert(c, testCase.fn(cName) == nil, check.Commentf("got error while executing test for %v (%s)", opts, cName))
 				dockerCmd(c, "rm", "-f", cName)
 			} else {
-				assert.Assert(c, err, checker.NotNil, check.Commentf("got nil while creating a container with %v (%s)", opts, cName))
+				assert.Assert(c, err != nil, check.Commentf("got nil while creating a container with %v (%s)", opts, cName))
 			}
 		}
 	}
