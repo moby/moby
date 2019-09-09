@@ -382,10 +382,10 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverLookupNotBlocked(c *
 	cmd1 := exec.Command(dockerBinary, "volume", "create", "-d", "down-driver")
 	cmd2 := exec.Command(dockerBinary, "volume", "create")
 
-	assert.Assert(c, cmd1.Start(), checker.IsNil)
+	assert.Assert(c, cmd1.Start() == nil)
 	defer cmd1.Process.Kill()
 	time.Sleep(100 * time.Millisecond) // ensure API has been called
-	assert.Assert(c, cmd2.Start(), checker.IsNil)
+	assert.Assert(c, cmd2.Start() == nil)
 
 	go func() {
 		cmd1.Wait()
@@ -453,7 +453,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverBindExternalVolume(c
 		Driver string
 	}
 	out := inspectFieldJSON(c, "testing", "Mounts")
-	assert.Assert(c, json.NewDecoder(strings.NewReader(out)).Decode(&mounts), checker.IsNil)
+	assert.Assert(c, json.NewDecoder(strings.NewReader(out)).Decode(&mounts) == nil)
 	assert.Equal(c, len(mounts), 1, check.Commentf("%s", out))
 	assert.Equal(c, mounts[0].Name, "foo")
 	assert.Equal(c, mounts[0].Driver, volumePluginName)
@@ -487,7 +487,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *testing.T) {
 	}
 	var st []vol
 
-	assert.Assert(c, json.Unmarshal([]byte(out), &st), checker.IsNil)
+	assert.Assert(c, json.Unmarshal([]byte(out), &st) == nil)
 	assert.Equal(c, len(st), 1)
 	assert.Equal(c, len(st[0].Status), 1, check.Commentf("%v", st[0]))
 	assert.Equal(c, st[0].Status["Hello"], "world", check.Commentf("%v", st[0].Status))

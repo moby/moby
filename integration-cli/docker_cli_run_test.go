@@ -211,13 +211,13 @@ func (s *DockerSuite) TestUserDefinedNetworkLinks(c *testing.T) {
 	dockerCmd(c, "network", "create", "-d", "bridge", "udlinkNet")
 
 	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=first", "busybox", "top")
-	assert.Assert(c, waitRun("first"), checker.IsNil)
+	assert.Assert(c, waitRun("first") == nil)
 
 	// run a container in user-defined network udlinkNet with a link for an existing container
 	// and a link for a container that doesn't exist
 	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=second", "--link=first:foo",
 		"--link=third:bar", "busybox", "top")
-	assert.Assert(c, waitRun("second"), checker.IsNil)
+	assert.Assert(c, waitRun("second") == nil)
 
 	// ping to first and its alias foo must succeed
 	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
@@ -233,7 +233,7 @@ func (s *DockerSuite) TestUserDefinedNetworkLinks(c *testing.T) {
 
 	// start third container now
 	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=third", "busybox", "top")
-	assert.Assert(c, waitRun("third"), checker.IsNil)
+	assert.Assert(c, waitRun("third") == nil)
 
 	// ping to third and its alias must succeed now
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "third")
@@ -247,11 +247,11 @@ func (s *DockerSuite) TestUserDefinedNetworkLinksWithRestart(c *testing.T) {
 	dockerCmd(c, "network", "create", "-d", "bridge", "udlinkNet")
 
 	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=first", "busybox", "top")
-	assert.Assert(c, waitRun("first"), checker.IsNil)
+	assert.Assert(c, waitRun("first") == nil)
 
 	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=second", "--link=first:foo",
 		"busybox", "top")
-	assert.Assert(c, waitRun("second"), checker.IsNil)
+	assert.Assert(c, waitRun("second") == nil)
 
 	// ping to first and its alias foo must succeed
 	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
@@ -261,7 +261,7 @@ func (s *DockerSuite) TestUserDefinedNetworkLinksWithRestart(c *testing.T) {
 
 	// Restart first container
 	dockerCmd(c, "restart", "first")
-	assert.Assert(c, waitRun("first"), checker.IsNil)
+	assert.Assert(c, waitRun("first") == nil)
 
 	// ping to first and its alias foo must still succeed
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
@@ -271,7 +271,7 @@ func (s *DockerSuite) TestUserDefinedNetworkLinksWithRestart(c *testing.T) {
 
 	// Restart second container
 	dockerCmd(c, "restart", "second")
-	assert.Assert(c, waitRun("second"), checker.IsNil)
+	assert.Assert(c, waitRun("second") == nil)
 
 	// ping to first and its alias foo must still succeed
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
@@ -296,7 +296,7 @@ func (s *DockerSuite) TestUserDefinedNetworkAlias(c *testing.T) {
 	dockerCmd(c, "network", "create", "-d", "bridge", "net1")
 
 	cid1, _ := dockerCmd(c, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo1", "--net-alias=foo2", "busybox:glibc", "top")
-	assert.Assert(c, waitRun("first"), checker.IsNil)
+	assert.Assert(c, waitRun("first") == nil)
 
 	// Check if default short-id alias is added automatically
 	id := strings.TrimSpace(cid1)
@@ -304,7 +304,7 @@ func (s *DockerSuite) TestUserDefinedNetworkAlias(c *testing.T) {
 	assert.Assert(c, aliases, checker.Contains, stringid.TruncateID(id))
 
 	cid2, _ := dockerCmd(c, "run", "-d", "--net=net1", "--name=second", "busybox:glibc", "top")
-	assert.Assert(c, waitRun("second"), checker.IsNil)
+	assert.Assert(c, waitRun("second") == nil)
 
 	// Check if default short-id alias is added automatically
 	id = strings.TrimSpace(cid2)
@@ -324,7 +324,7 @@ func (s *DockerSuite) TestUserDefinedNetworkAlias(c *testing.T) {
 
 	// Restart first container
 	dockerCmd(c, "restart", "first")
-	assert.Assert(c, waitRun("first"), checker.IsNil)
+	assert.Assert(c, waitRun("first") == nil)
 
 	// ping to first and its network-scoped aliases must succeed
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
@@ -2813,7 +2813,7 @@ func (s *DockerSuite) TestRunPIDHostWithChildIsKillable(c *testing.T) {
 	name := "ibuildthecloud"
 	dockerCmd(c, "run", "-d", "--pid=host", "--name", name, "busybox", "sh", "-c", "sleep 30; echo hi")
 
-	assert.Assert(c, waitRun(name), checker.IsNil)
+	assert.Assert(c, waitRun(name) == nil)
 
 	errchan := make(chan error)
 	go func() {
@@ -3464,7 +3464,7 @@ func (s *DockerSuite) TestContainersInUserDefinedNetwork(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork")
 	dockerCmd(c, "run", "-d", "--net=testnetwork", "--name=first", "busybox", "top")
-	assert.Assert(c, waitRun("first"), checker.IsNil)
+	assert.Assert(c, waitRun("first") == nil)
 	dockerCmd(c, "run", "-t", "--net=testnetwork", "--name=second", "busybox", "ping", "-c", "1", "first")
 }
 
@@ -3475,9 +3475,9 @@ func (s *DockerSuite) TestContainersInMultipleNetworks(c *testing.T) {
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork2")
 	// Run and connect containers to testnetwork1
 	dockerCmd(c, "run", "-d", "--net=testnetwork1", "--name=first", "busybox", "top")
-	assert.Assert(c, waitRun("first"), checker.IsNil)
+	assert.Assert(c, waitRun("first") == nil)
 	dockerCmd(c, "run", "-d", "--net=testnetwork1", "--name=second", "busybox", "top")
-	assert.Assert(c, waitRun("second"), checker.IsNil)
+	assert.Assert(c, waitRun("second") == nil)
 	// Check connectivity between containers in testnetwork2
 	dockerCmd(c, "exec", "first", "ping", "-c", "1", "second.testnetwork1")
 	// Connect containers to testnetwork2
@@ -3494,9 +3494,9 @@ func (s *DockerSuite) TestContainersNetworkIsolation(c *testing.T) {
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork2")
 	// Run 1 container in testnetwork1 and another in testnetwork2
 	dockerCmd(c, "run", "-d", "--net=testnetwork1", "--name=first", "busybox", "top")
-	assert.Assert(c, waitRun("first"), checker.IsNil)
+	assert.Assert(c, waitRun("first") == nil)
 	dockerCmd(c, "run", "-d", "--net=testnetwork2", "--name=second", "busybox", "top")
-	assert.Assert(c, waitRun("second"), checker.IsNil)
+	assert.Assert(c, waitRun("second") == nil)
 
 	// Check Isolation between containers : ping must fail
 	_, _, err := dockerCmdWithError("exec", "first", "ping", "-c", "1", "second")
@@ -3520,9 +3520,9 @@ func (s *DockerSuite) TestNetworkRmWithActiveContainers(c *testing.T) {
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork1")
 	// Run and connect containers to testnetwork1
 	dockerCmd(c, "run", "-d", "--net=testnetwork1", "--name=first", "busybox", "top")
-	assert.Assert(c, waitRun("first"), checker.IsNil)
+	assert.Assert(c, waitRun("first") == nil)
 	dockerCmd(c, "run", "-d", "--net=testnetwork1", "--name=second", "busybox", "top")
-	assert.Assert(c, waitRun("second"), checker.IsNil)
+	assert.Assert(c, waitRun("second") == nil)
 	// Network delete with active containers must fail
 	_, _, err := dockerCmdWithError("network", "rm", "testnetwork1")
 	assert.ErrorContains(c, err, "")
@@ -3540,9 +3540,9 @@ func (s *DockerSuite) TestContainerRestartInMultipleNetworks(c *testing.T) {
 
 	// Run and connect containers to testnetwork1
 	dockerCmd(c, "run", "-d", "--net=testnetwork1", "--name=first", "busybox", "top")
-	assert.Assert(c, waitRun("first"), checker.IsNil)
+	assert.Assert(c, waitRun("first") == nil)
 	dockerCmd(c, "run", "-d", "--net=testnetwork1", "--name=second", "busybox", "top")
-	assert.Assert(c, waitRun("second"), checker.IsNil)
+	assert.Assert(c, waitRun("second") == nil)
 	// Check connectivity between containers in testnetwork2
 	dockerCmd(c, "exec", "first", "ping", "-c", "1", "second.testnetwork1")
 	// Connect containers to testnetwork2
@@ -3568,7 +3568,7 @@ func (s *DockerSuite) TestContainerWithConflictingHostNetworks(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	// Run a container with --net=host
 	dockerCmd(c, "run", "-d", "--net=host", "--name=first", "busybox", "top")
-	assert.Assert(c, waitRun("first"), checker.IsNil)
+	assert.Assert(c, waitRun("first") == nil)
 
 	// Create a network using bridge driver
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork1")
@@ -3581,10 +3581,10 @@ func (s *DockerSuite) TestContainerWithConflictingHostNetworks(c *testing.T) {
 func (s *DockerSuite) TestContainerWithConflictingSharedNetwork(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name=first", "busybox", "top")
-	assert.Assert(c, waitRun("first"), checker.IsNil)
+	assert.Assert(c, waitRun("first") == nil)
 	// Run second container in first container's network namespace
 	dockerCmd(c, "run", "-d", "--net=container:first", "--name=second", "busybox", "top")
-	assert.Assert(c, waitRun("second"), checker.IsNil)
+	assert.Assert(c, waitRun("second") == nil)
 
 	// Create a network using bridge driver
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork1")
@@ -3598,7 +3598,7 @@ func (s *DockerSuite) TestContainerWithConflictingSharedNetwork(c *testing.T) {
 func (s *DockerSuite) TestContainerWithConflictingNoneNetwork(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--net=none", "--name=first", "busybox", "top")
-	assert.Assert(c, waitRun("first"), checker.IsNil)
+	assert.Assert(c, waitRun("first") == nil)
 
 	// Create a network using bridge driver
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork1")
@@ -3610,7 +3610,7 @@ func (s *DockerSuite) TestContainerWithConflictingNoneNetwork(c *testing.T) {
 
 	// create a container connected to testnetwork1
 	dockerCmd(c, "run", "-d", "--net=testnetwork1", "--name=second", "busybox", "top")
-	assert.Assert(c, waitRun("second"), checker.IsNil)
+	assert.Assert(c, waitRun("second") == nil)
 
 	// Connect second container to none network. it must fail as well
 	_, _, err = dockerCmdWithError("network", "connect", "none", "second")
@@ -3626,7 +3626,7 @@ func (s *DockerSuite) TestRunStdinBlockedAfterContainerExit(c *testing.T) {
 	stdout := bytes.NewBuffer(nil)
 	cmd.Stdout = stdout
 	cmd.Stderr = stdout
-	assert.Assert(c, cmd.Start(), checker.IsNil)
+	assert.Assert(c, cmd.Start() == nil)
 
 	waitChan := make(chan error)
 	go func() {
@@ -3635,7 +3635,7 @@ func (s *DockerSuite) TestRunStdinBlockedAfterContainerExit(c *testing.T) {
 
 	select {
 	case err := <-waitChan:
-		assert.Assert(c, err, checker.IsNil, check.Commentf(stdout.String()))
+		assert.Assert(c, err == nil, check.Commentf(stdout.String()))
 	case <-time.After(30 * time.Second):
 		c.Fatal("timeout waiting for command to exit")
 	}
@@ -3942,7 +3942,7 @@ func (s *DockerSuite) TestRunAttachFailedNoLeak(c *testing.T) {
 	runSleepingContainer(c, "--name=test", "-p", "8000:8000")
 
 	// Wait until container is fully up and running
-	assert.Assert(c, waitRun("test"), checker.IsNil)
+	assert.Assert(c, waitRun("test") == nil)
 
 	out, _, err := dockerCmdWithError("run", "--name=fail", "-p", "8000:8000", "busybox", "true")
 	// We will need the following `inspect` to diagnose the issue if test fails (#21247)
@@ -3959,7 +3959,7 @@ func (s *DockerSuite) TestRunAttachFailedNoLeak(c *testing.T) {
 	dockerCmd(c, "rm", "-f", "test")
 
 	// NGoroutines is not updated right away, so we need to wait before failing
-	assert.Assert(c, waitForGoroutines(nroutines), checker.IsNil)
+	assert.Assert(c, waitForGoroutines(nroutines) == nil)
 }
 
 // Test for one character directory name case (#20122)
@@ -4052,7 +4052,7 @@ func (s *DockerSuite) TestRunRmAndWait(c *testing.T) {
 	dockerCmd(c, "run", "--name=test", "--rm", "-d", "busybox", "sh", "-c", "sleep 3;exit 2")
 
 	out, code, err := dockerCmdWithError("wait", "test")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("out: %s; exit code: %d", out, code))
+	assert.Assert(c, err == nil, check.Commentf("out: %s; exit code: %d", out, code))
 	assert.Equal(c, out, "2\n", "exit code: %d", code)
 	assert.Equal(c, code, 0)
 }
@@ -4142,7 +4142,7 @@ func (s *DockerSuite) TestRunStoppedLoggingDriverNoLeak(c *testing.T) {
 	assert.Assert(c, out, checker.Contains, "failed to initialize logging driver", check.Commentf("error should be about logging driver, got output %s", out))
 
 	// NGoroutines is not updated right away, so we need to wait before failing
-	assert.Assert(c, waitForGoroutines(nroutines), checker.IsNil)
+	assert.Assert(c, waitForGoroutines(nroutines) == nil)
 }
 
 // Handles error conditions for --credentialspec. Validating E2E success cases
@@ -4495,8 +4495,8 @@ func (s *DockerSuite) TestRunMount(c *testing.T) {
 			_, _, err := dockerCmdWithError(append([]string{"run", "-i", "-d", "--name", cName},
 				append(opts, []string{"busybox", "top"}...)...)...)
 			if testCase.valid {
-				assert.Assert(c, err, checker.IsNil, check.Commentf("got error while creating a container with %v (%s)", opts, cName))
-				assert.Assert(c, testCase.fn(cName), checker.IsNil, check.Commentf("got error while executing test for %v (%s)", opts, cName))
+				assert.Assert(c, err == nil, check.Commentf("got error while creating a container with %v (%s)", opts, cName))
+				assert.Assert(c, testCase.fn(cName) == nil, check.Commentf("got error while executing test for %v (%s)", opts, cName))
 				dockerCmd(c, "rm", "-f", cName)
 			} else {
 				assert.Assert(c, err, checker.NotNil, check.Commentf("got nil while creating a container with %v (%s)", opts, cName))

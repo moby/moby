@@ -35,7 +35,7 @@ import (
 func (s *DockerSuite) TestRunRedirectStdout(c *testing.T) {
 	checkRedirect := func(command string) {
 		_, tty, err := pty.Open()
-		assert.Assert(c, err, checker.IsNil, check.Commentf("Could not open pty"))
+		assert.Assert(c, err == nil, check.Commentf("Could not open pty"))
 		cmd := exec.Command("sh", "-c", command)
 		cmd.Stdin = tty
 		cmd.Stdout = tty
@@ -51,7 +51,7 @@ func (s *DockerSuite) TestRunRedirectStdout(c *testing.T) {
 		case <-time.After(10 * time.Second):
 			c.Fatal("command timeout")
 		case err := <-ch:
-			assert.Assert(c, err, checker.IsNil, check.Commentf("wait err"))
+			assert.Assert(c, err == nil, check.Commentf("wait err"))
 		}
 	}
 
@@ -70,8 +70,8 @@ func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *testing.T) {
 
 	// Create a temporary tmpfs mount.
 	tmpfsDir := filepath.Join(tmpDir, "tmpfs")
-	assert.Assert(c, os.MkdirAll(tmpfsDir, 0777), checker.IsNil, check.Commentf("failed to mkdir at %s", tmpfsDir))
-	assert.Assert(c, mount.Mount("tmpfs", tmpfsDir, "tmpfs", ""), checker.IsNil, check.Commentf("failed to create a tmpfs mount at %s", tmpfsDir))
+	assert.Assert(c, os.MkdirAll(tmpfsDir, 0777) == nil, check.Commentf("failed to mkdir at %s", tmpfsDir))
+	assert.Assert(c, mount.Mount("tmpfs", tmpfsDir, "tmpfs", "") == nil, check.Commentf("failed to create a tmpfs mount at %s", tmpfsDir))
 
 	f, err := ioutil.TempFile(tmpfsDir, "touch-me")
 	assert.NilError(c, err)
@@ -108,7 +108,7 @@ func (s *DockerSuite) TestRunAttachDetach(c *testing.T) {
 	defer cpty.Close()
 	cmd.Stdin = tty
 	assert.NilError(c, cmd.Start())
-	assert.Assert(c, waitRun(name), checker.IsNil)
+	assert.Assert(c, waitRun(name) == nil)
 
 	_, err = cpty.Write([]byte("hello\n"))
 	assert.NilError(c, err)
@@ -167,7 +167,7 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *testing.T) {
 	if err := cmd.Start(); err != nil {
 		c.Fatal(err)
 	}
-	assert.Assert(c, waitRun(name), checker.IsNil)
+	assert.Assert(c, waitRun(name) == nil)
 
 	if _, err := cpty.Write([]byte("hello\n")); err != nil {
 		c.Fatal(err)
@@ -210,7 +210,7 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *testing.T) {
 func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *testing.T) {
 	name := "attach-detach"
 	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "top")
-	assert.Assert(c, waitRun(name), checker.IsNil)
+	assert.Assert(c, waitRun(name) == nil)
 
 	// specify an invalid detach key, container will ignore it and use default
 	cmd := exec.Command(dockerBinary, "attach", "--detach-keys=ctrl-A,a", name)
@@ -283,7 +283,7 @@ func (s *DockerSuite) TestRunAttachDetachFromConfig(c *testing.T) {
 	if err := cmd.Start(); err != nil {
 		c.Fatal(err)
 	}
-	assert.Assert(c, waitRun(name), checker.IsNil)
+	assert.Assert(c, waitRun(name) == nil)
 
 	if _, err := cpty.Write([]byte("hello\n")); err != nil {
 		c.Fatal(err)
@@ -366,7 +366,7 @@ func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *testing.T) {
 	if err := cmd.Start(); err != nil {
 		c.Fatal(err)
 	}
-	assert.Assert(c, waitRun(name), checker.IsNil)
+	assert.Assert(c, waitRun(name) == nil)
 
 	if _, err := cpty.Write([]byte("hello\n")); err != nil {
 		c.Fatal(err)
@@ -427,7 +427,7 @@ func (s *DockerSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *testing.
 		c.Fatal(err)
 	}
 	go cmd.Wait()
-	assert.Assert(c, waitRun(name), checker.IsNil)
+	assert.Assert(c, waitRun(name) == nil)
 
 	// Invalid escape sequence aba, should print aba in output
 	if _, err := cpty.Write(keyA); err != nil {
@@ -709,7 +709,7 @@ func (s *DockerSuite) TestStopContainerSignal(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "--stop-signal", "SIGUSR1", "-d", "busybox", "/bin/sh", "-c", `trap 'echo "exit trapped"; exit 0' USR1; while true; do sleep 1; done`)
 	containerID := strings.TrimSpace(out)
 
-	assert.Assert(c, waitRun(containerID), checker.IsNil)
+	assert.Assert(c, waitRun(containerID) == nil)
 
 	dockerCmd(c, "stop", containerID)
 	out, _ = dockerCmd(c, "logs", containerID)

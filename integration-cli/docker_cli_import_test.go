@@ -50,7 +50,7 @@ func (s *DockerSuite) TestImportFile(c *testing.T) {
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
 	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("failed to create temporary file"))
+	assert.Assert(c, err == nil, check.Commentf("failed to create temporary file"))
 	defer os.Remove(temporaryFile.Name())
 
 	icmd.RunCmd(icmd.Cmd{
@@ -71,7 +71,7 @@ func (s *DockerSuite) TestImportGzipped(c *testing.T) {
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
 	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("failed to create temporary file"))
+	assert.Assert(c, err == nil, check.Commentf("failed to create temporary file"))
 	defer os.Remove(temporaryFile.Name())
 
 	w := gzip.NewWriter(temporaryFile)
@@ -79,7 +79,7 @@ func (s *DockerSuite) TestImportGzipped(c *testing.T) {
 		Command: []string{dockerBinary, "export", "test-import"},
 		Stdout:  w,
 	}).Assert(c, icmd.Success)
-	assert.Assert(c, w.Close(), checker.IsNil, check.Commentf("failed to close gzip writer"))
+	assert.Assert(c, w.Close() == nil, check.Commentf("failed to close gzip writer"))
 	temporaryFile.Close()
 	out, _ := dockerCmd(c, "import", temporaryFile.Name())
 	assert.Assert(c, strings.Count(out, "\n") == 1, "display is expected 1 '\\n' but didn't")
@@ -94,7 +94,7 @@ func (s *DockerSuite) TestImportFileWithMessage(c *testing.T) {
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
 	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("failed to create temporary file"))
+	assert.Assert(c, err == nil, check.Commentf("failed to create temporary file"))
 	defer os.Remove(temporaryFile.Name())
 
 	icmd.RunCmd(icmd.Cmd{
@@ -130,7 +130,7 @@ func (s *DockerSuite) TestImportWithQuotedChanges(c *testing.T) {
 	cli.DockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
 	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("failed to create temporary file"))
+	assert.Assert(c, err == nil, check.Commentf("failed to create temporary file"))
 	defer os.Remove(temporaryFile.Name())
 
 	cli.Docker(cli.Args("export", "test-import"), cli.WithStdout(bufio.NewWriter(temporaryFile))).Assert(c, icmd.Success)

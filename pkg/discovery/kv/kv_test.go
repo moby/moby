@@ -181,12 +181,12 @@ BFrwkQE4HQtQBV60hYQUzzlSk44VFDz+jxIEtacRHaomDRh2FtOTz+I=
 -----END RSA PRIVATE KEY-----
 `
 	certFile, err := ioutil.TempFile("", "cert")
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 	defer os.Remove(certFile.Name())
 	certFile.Write([]byte(cert))
 	certFile.Close()
 	keyFile, err := ioutil.TempFile("", "key")
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 	defer os.Remove(keyFile.Name())
 	keyFile.Write([]byte(key))
 	keyFile.Close()
@@ -198,7 +198,7 @@ BFrwkQE4HQtQBV60hYQUzzlSk44VFDz+jxIEtacRHaomDRh2FtOTz+I=
 		"kv.certfile":   certFile.Name(),
 		"kv.keyfile":    keyFile.Name(),
 	})
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 	s := d.store.(*Mock)
 	assert.Assert(c, s.Options.TLS, checker.NotNil)
 	assert.Assert(c, s.Options.TLS.RootCAs, checker.NotNil)
@@ -253,8 +253,8 @@ func (ds *DiscoverySuite) TestWatch(c *testing.T) {
 
 	// Stop and make sure it closes all channels.
 	close(stopCh)
-	assert.Assert(c, <-ch, checker.IsNil)
-	assert.Assert(c, <-errCh, checker.IsNil)
+	assert.Assert(c, <-ch == nil)
+	assert.Assert(c, <-errCh == nil)
 }
 
 // FakeStore implements store.Store methods. It mocks all store

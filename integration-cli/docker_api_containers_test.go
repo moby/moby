@@ -220,7 +220,7 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *testing.T) {
 	assert.NilError(c, err)
 
 	dockerCmd(c, "rm", "-f", id)
-	assert.Assert(c, <-chErr, checker.IsNil)
+	assert.Assert(c, <-chErr == nil)
 }
 
 // ChannelBuffer holds a chan of byte array that can be populate in a goroutine.
@@ -656,7 +656,7 @@ func (s *DockerSuite) TestContainerAPIVerifyHeader(c *testing.T) {
 
 	create := func(ct string) (*http.Response, io.ReadCloser, error) {
 		jsonData := bytes.NewBuffer(nil)
-		assert.Assert(c, json.NewEncoder(jsonData).Encode(config), checker.IsNil)
+		assert.Assert(c, json.NewEncoder(jsonData).Encode(config) == nil)
 		return request.Post("/containers/create", request.RawContent(ioutil.NopCloser(jsonData)), request.ContentType(ct))
 	}
 
@@ -840,7 +840,7 @@ func (s *DockerSuite) TestContainerAPIPostCreateNull(c *testing.T) {
 		ID string
 	}
 	var container createResp
-	assert.Assert(c, json.Unmarshal(b, &container), checker.IsNil)
+	assert.Assert(c, json.Unmarshal(b, &container) == nil)
 	out := inspectField(c, container.ID, "HostConfig.CpusetCpus")
 	assert.Equal(c, out, "")
 
@@ -864,7 +864,7 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *testing.T) {
 	res, body, err := request.Post("/containers/create", request.RawString(config), request.JSON)
 	assert.NilError(c, err)
 	b, err2 := request.ReadBody(body)
-	assert.Assert(c, err2, checker.IsNil)
+	assert.Assert(c, err2 == nil)
 
 	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
 		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
@@ -917,7 +917,7 @@ func (s *DockerSuite) TestContainerAPIRestart(c *testing.T) {
 	err = cli.ContainerRestart(context.Background(), name, &timeout)
 	assert.NilError(c, err)
 
-	assert.Assert(c, waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second), checker.IsNil)
+	assert.Assert(c, waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second) == nil)
 }
 
 func (s *DockerSuite) TestContainerAPIRestartNotimeoutParam(c *testing.T) {
@@ -933,7 +933,7 @@ func (s *DockerSuite) TestContainerAPIRestartNotimeoutParam(c *testing.T) {
 	err = cli.ContainerRestart(context.Background(), name, nil)
 	assert.NilError(c, err)
 
-	assert.Assert(c, waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second), checker.IsNil)
+	assert.Assert(c, waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second) == nil)
 }
 
 func (s *DockerSuite) TestContainerAPIStart(c *testing.T) {
@@ -973,7 +973,7 @@ func (s *DockerSuite) TestContainerAPIStop(c *testing.T) {
 
 	err = cli.ContainerStop(context.Background(), name, &timeout)
 	assert.NilError(c, err)
-	assert.Assert(c, waitInspect(name, "{{ .State.Running  }}", "false", 60*time.Second), checker.IsNil)
+	assert.Assert(c, waitInspect(name, "{{ .State.Running  }}", "false", 60*time.Second) == nil)
 
 	// second call to start should give 304
 	// maybe add ContainerStartWithRaw to test it
@@ -1153,7 +1153,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveLinks(c *testing.T) {
 	out, _ = dockerCmd(c, "run", "--link", "tlink1:tlink1", "--name", "tlink2", "-d", "busybox", "top")
 
 	id2 := strings.TrimSpace(out)
-	assert.Assert(c, waitRun(id2), checker.IsNil)
+	assert.Assert(c, waitRun(id2) == nil)
 
 	links := inspectFieldJSON(c, id2, "HostConfig.Links")
 	assert.Equal(c, links, "[\"/tlink1:/tlink2/tlink1\"]", check.Commentf("expected to have links between containers"))
@@ -1238,7 +1238,7 @@ func (s *DockerSuite) TestContainerAPIChunkedEncoding(c *testing.T) {
 		req.ContentLength = -1
 		return nil
 	}))
-	assert.Assert(c, err, checker.IsNil, check.Commentf("error creating container with chunked encoding"))
+	assert.Assert(c, err == nil, check.Commentf("error creating container with chunked encoding"))
 	defer resp.Body.Close()
 	assert.Equal(c, resp.StatusCode, http.StatusCreated)
 }
@@ -1247,7 +1247,7 @@ func (s *DockerSuite) TestContainerAPIPostContainerStop(c *testing.T) {
 	out := runSleepingContainer(c)
 
 	containerID := strings.TrimSpace(out)
-	assert.Assert(c, waitRun(containerID), checker.IsNil)
+	assert.Assert(c, waitRun(containerID) == nil)
 
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -1255,7 +1255,7 @@ func (s *DockerSuite) TestContainerAPIPostContainerStop(c *testing.T) {
 
 	err = cli.ContainerStop(context.Background(), containerID, nil)
 	assert.NilError(c, err)
-	assert.Assert(c, waitInspect(containerID, "{{ .State.Running  }}", "false", 60*time.Second), checker.IsNil)
+	assert.Assert(c, waitInspect(containerID, "{{ .State.Running  }}", "false", 60*time.Second) == nil)
 }
 
 // #14170
@@ -1544,7 +1544,7 @@ func (s *DockerSuite) TestPostContainersCreateMemorySwappinessHostConfigOmitted(
 	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.31") {
 		assert.Equal(c, *containerJSON.HostConfig.MemorySwappiness, int64(-1))
 	} else {
-		assert.Assert(c, containerJSON.HostConfig.MemorySwappiness, checker.IsNil)
+		assert.Assert(c, containerJSON.HostConfig.MemorySwappiness == nil)
 	}
 }
 
@@ -1614,7 +1614,7 @@ func (s *DockerSuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) {
 	err = cli.ContainerStart(context.Background(), name, types.ContainerStartOptions{})
 	assert.NilError(c, err)
 
-	assert.Assert(c, waitRun(name), checker.IsNil)
+	assert.Assert(c, waitRun(name) == nil)
 
 	type b struct {
 		stats types.ContainerStats
@@ -1636,7 +1636,7 @@ func (s *DockerSuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) {
 	case <-time.After(2 * time.Second):
 		c.Fatal("stream was not closed after container was removed")
 	case sr := <-bc:
-		assert.Assert(c, sr.err, checker.IsNil)
+		assert.Assert(c, sr.err == nil)
 		sr.stats.Body.Close()
 	}
 }
@@ -2052,7 +2052,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 			assert.NilError(c, err)
 			defer os.RemoveAll(tmpDir3)
 
-			assert.Assert(c, mount.Mount(tmpDir3, tmpDir3, "none", "bind,shared"), checker.IsNil)
+			assert.Assert(c, mount.Mount(tmpDir3, tmpDir3, "none", "bind,shared") == nil)
 
 			cases = append(cases, []testCase{
 				{

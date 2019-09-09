@@ -180,7 +180,7 @@ func (ps *DockerPluginSuite) TestPluginSet(c *testing.T) {
 			{Name: "pdev2", Settable: []string{"path"}}, // Device without Path is invalid.
 		}
 	})
-	assert.Assert(c, err, checker.IsNil, check.Commentf("failed to create test plugin"))
+	assert.Assert(c, err == nil, check.Commentf("failed to create test plugin"))
 
 	env, _ := dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", name)
 	assert.Equal(c, strings.TrimSpace(env), "[DEBUG=0]")
@@ -363,7 +363,7 @@ func (ps *DockerPluginSuite) TestPluginIDPrefix(c *testing.T) {
 	})
 	cancel()
 
-	assert.Assert(c, err, checker.IsNil, check.Commentf("failed to create test plugin"))
+	assert.Assert(c, err == nil, check.Commentf("failed to create test plugin"))
 
 	// Find ID first
 	id, _, err := dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", name)
@@ -425,7 +425,7 @@ func (ps *DockerPluginSuite) TestPluginListDefaultFormat(c *testing.T) {
 	err = plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
 		cfg.Description = "test plugin"
 	})
-	assert.Assert(c, err, checker.IsNil, check.Commentf("failed to create test plugin"))
+	assert.Assert(c, err == nil, check.Commentf("failed to create test plugin"))
 
 	out, _ := dockerCmd(c, "plugin", "inspect", "--format", "{{.ID}}", name)
 	id := strings.TrimSpace(out)
@@ -480,7 +480,7 @@ func (s *DockerSuite) TestPluginMetricsCollector(c *testing.T) {
 
 	name := "cpuguy83/docker-metrics-plugin-test:latest"
 	r := cli.Docker(cli.Args("plugin", "install", "--grant-all-permissions", name), cli.Daemon(d))
-	assert.Assert(c, r.Error, checker.IsNil, check.Commentf(r.Combined()))
+	assert.Assert(c, r.Error == nil, check.Commentf(r.Combined()))
 
 	// plugin lisens on localhost:19393 and proxies the metrics
 	resp, err := http.Get("http://localhost:19393/metrics")

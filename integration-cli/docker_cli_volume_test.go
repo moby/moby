@@ -488,7 +488,7 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFrom(c *testing.T) {
 	assert.Assert(c, strings.TrimSpace(out), checker.Contains, data2)
 
 	out, _, err := dockerCmdWithError("run", "--name=app", "--volumes-from=data1", "--volumes-from=data2", "-d", "busybox", "top")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("Out: %s", out))
+	assert.Assert(c, err == nil, check.Commentf("Out: %s", out))
 
 	// Only the second volume will be referenced, this is backward compatible
 	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "app")
@@ -531,7 +531,7 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndBind(c *testing.T
 
 	// /tmp/data is automatically created, because we are not using the modern mount API here
 	out, _, err := dockerCmdWithError("run", "--name=app", "--volumes-from=data1", "--volumes-from=data2", "-v", "/tmp/data:/tmp/data", "-d", "busybox", "top")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("Out: %s", out))
+	assert.Assert(c, err == nil, check.Commentf("Out: %s", out))
 
 	// No volume will be referenced (mount is /tmp/data), this is backward compatible
 	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "app")

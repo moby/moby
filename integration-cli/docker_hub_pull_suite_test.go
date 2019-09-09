@@ -70,7 +70,7 @@ func (s *DockerHubPullSuite) TearDownTest(c *testing.T) {
 // output. The function fails the test when the command returns an error.
 func (s *DockerHubPullSuite) Cmd(c *testing.T, name string, arg ...string) string {
 	out, err := s.CmdWithError(name, arg...)
-	assert.Assert(c, err, checker.IsNil, check.Commentf("%q failed with errors: %s, %v", strings.Join(arg, " "), out, err))
+	assert.Assert(c, err == nil, check.Commentf("%q failed with errors: %s, %v", strings.Join(arg, " "), out, err))
 	return out
 }
 

@@ -15,12 +15,12 @@ var _ = check.Suite(&DiscoverySuite{})
 
 func (s *DiscoverySuite) TestNewEntry(c *testing.T) {
 	entry, err := NewEntry("127.0.0.1:2375")
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 	assert.Equal(c, entry.Equals(&Entry{Host: "127.0.0.1", Port: "2375"}), true)
 	assert.Equal(c, entry.String(), "127.0.0.1:2375")
 
 	entry, err = NewEntry("[2001:db8:0:f101::2]:2375")
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 	assert.Equal(c, entry.Equals(&Entry{Host: "2001:db8:0:f101::2", Port: "2375"}), true)
 	assert.Equal(c, entry.String(), "[2001:db8:0:f101::2]:2375")
 
@@ -53,10 +53,10 @@ func (s *DiscoverySuite) TestParse(c *testing.T) {
 func (s *DiscoverySuite) TestCreateEntries(c *testing.T) {
 	entries, err := CreateEntries(nil)
 	assert.DeepEqual(c, entries, Entries{})
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 
 	entries, err = CreateEntries([]string{"127.0.0.1:2375", "127.0.0.2:2375", "[2001:db8:0:f101::2]:2375", ""})
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 	expected := Entries{
 		&Entry{Host: "127.0.0.1", Port: "2375"},
 		&Entry{Host: "127.0.0.2", Port: "2375"},
@@ -70,7 +70,7 @@ func (s *DiscoverySuite) TestCreateEntries(c *testing.T) {
 
 func (s *DiscoverySuite) TestContainsEntry(c *testing.T) {
 	entries, err := CreateEntries([]string{"127.0.0.1:2375", "127.0.0.2:2375", ""})
-	assert.Assert(c, err, checker.IsNil)
+	assert.Assert(c, err == nil)
 	assert.Equal(c, entries.Contains(&Entry{Host: "127.0.0.1", Port: "2375"}), true)
 	assert.Equal(c, entries.Contains(&Entry{Host: "127.0.0.3", Port: "2375"}), false)
 }

@@ -148,7 +148,7 @@ func (s *DockerSuite) TestLinksHostsFilesInject(c *testing.T) {
 	out, _ = dockerCmd(c, "run", "-itd", "--name", "two", "--link", "one:onetwo", "busybox", "top")
 	idTwo := strings.TrimSpace(out)
 
-	assert.Assert(c, waitRun(idTwo), checker.IsNil)
+	assert.Assert(c, waitRun(idTwo) == nil)
 
 	readContainerFileWithExec(c, idOne, "/etc/hosts")
 	contentTwo := readContainerFileWithExec(c, idTwo, "/etc/hosts")
@@ -203,12 +203,12 @@ func (s *DockerSuite) TestLinkShortDefinition(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "--name", "shortlinkdef", "busybox", "top")
 
 	cid := strings.TrimSpace(out)
-	assert.Assert(c, waitRun(cid), checker.IsNil)
+	assert.Assert(c, waitRun(cid) == nil)
 
 	out, _ = dockerCmd(c, "run", "-d", "--name", "link2", "--link", "shortlinkdef", "busybox", "top")
 
 	cid2 := strings.TrimSpace(out)
-	assert.Assert(c, waitRun(cid2), checker.IsNil)
+	assert.Assert(c, waitRun(cid2) == nil)
 
 	links := inspectFieldJSON(c, cid2, "HostConfig.Links")
 	assert.Equal(c, links, "[\"/shortlinkdef:/link2/shortlinkdef\"]")

@@ -35,13 +35,13 @@ func (s *DockerSuite) TestPsListContainersBase(c *testing.T) {
 	fourthID := strings.TrimSpace(out)
 
 	// make sure the second is running
-	assert.Assert(c, waitRun(secondID), checker.IsNil)
+	assert.Assert(c, waitRun(secondID) == nil)
 
 	// make sure third one is not running
 	dockerCmd(c, "wait", thirdID)
 
 	// make sure the forth is running
-	assert.Assert(c, waitRun(fourthID), checker.IsNil)
+	assert.Assert(c, waitRun(fourthID) == nil)
 
 	// all
 	out, _ = dockerCmd(c, "ps", "-a")
@@ -593,7 +593,7 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *testing.T) {
 func (s *DockerSuite) TestPsNotShowPortsOfStoppedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name=foo", "-d", "-p", "5000:5000", "busybox", "top")
-	assert.Assert(c, waitRun("foo"), checker.IsNil)
+	assert.Assert(c, waitRun("foo") == nil)
 	out, _ := dockerCmd(c, "ps")
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	expected := "0.0.0.0:5000->5000/tcp"
@@ -618,9 +618,9 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 	dockerCmd(c, "volume", "create", "ps-volume-test")
 	// volume mount containers
 	runSleepingContainer(c, "--name=volume-test-1", "--volume", "ps-volume-test:"+mp)
-	assert.Assert(c, waitRun("volume-test-1"), checker.IsNil)
+	assert.Assert(c, waitRun("volume-test-1") == nil)
 	runSleepingContainer(c, "--name=volume-test-2", "--volume", mp)
-	assert.Assert(c, waitRun("volume-test-2"), checker.IsNil)
+	assert.Assert(c, waitRun("volume-test-2") == nil)
 	// bind mount container
 	var bindMountSource string
 	var bindMountDestination string
@@ -632,7 +632,7 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 		bindMountDestination = "/t"
 	}
 	runSleepingContainer(c, "--name=bind-mount-test", "-v", bindMountSource+":"+bindMountDestination)
-	assert.Assert(c, waitRun("bind-mount-test"), checker.IsNil)
+	assert.Assert(c, waitRun("bind-mount-test") == nil)
 
 	out, _ := dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}")
 

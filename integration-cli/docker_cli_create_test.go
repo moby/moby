@@ -37,7 +37,7 @@ func (s *DockerSuite) TestCreateArgs(c *testing.T) {
 	}
 
 	err := json.Unmarshal([]byte(out), &containers)
-	assert.Assert(c, err, checker.IsNil, check.Commentf("Error inspecting the container: %s", err))
+	assert.Assert(c, err == nil, check.Commentf("Error inspecting the container: %s", err))
 	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
@@ -96,7 +96,7 @@ func (s *DockerSuite) TestCreateHostConfig(c *testing.T) {
 	}
 
 	err := json.Unmarshal([]byte(out), &containers)
-	assert.Assert(c, err, checker.IsNil, check.Commentf("Error inspecting the container: %s", err))
+	assert.Assert(c, err == nil, check.Commentf("Error inspecting the container: %s", err))
 	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
@@ -117,7 +117,7 @@ func (s *DockerSuite) TestCreateWithPortRange(c *testing.T) {
 		}
 	}
 	err := json.Unmarshal([]byte(out), &containers)
-	assert.Assert(c, err, checker.IsNil, check.Commentf("Error inspecting the container: %s", err))
+	assert.Assert(c, err == nil, check.Commentf("Error inspecting the container: %s", err))
 	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
@@ -147,7 +147,7 @@ func (s *DockerSuite) TestCreateWithLargePortRange(c *testing.T) {
 	}
 
 	err := json.Unmarshal([]byte(out), &containers)
-	assert.Assert(c, err, checker.IsNil, check.Commentf("Error inspecting the container: %s", err))
+	assert.Assert(c, err == nil, check.Commentf("Error inspecting the container: %s", err))
 	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
@@ -179,7 +179,7 @@ func (s *DockerSuite) TestCreateVolumesCreated(c *testing.T) {
 	dockerCmd(c, "create", "--name", name, "-v", prefix+slash+"foo", "busybox")
 
 	dir, err := inspectMountSourceField(name, prefix+slash+"foo")
-	assert.Assert(c, err, checker.IsNil, check.Commentf("Error getting volume host path: %q", err))
+	assert.Assert(c, err == nil, check.Commentf("Error getting volume host path: %q", err))
 
 	if _, err := os.Stat(dir); err != nil && os.IsNotExist(err) {
 		c.Fatalf("Volume was not created")
