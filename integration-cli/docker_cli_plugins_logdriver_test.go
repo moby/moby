@@ -9,7 +9,7 @@ import (
 	"gotest.tools/assert"
 )
 
-func (s *DockerSuite) TestPluginLogDriver(c *check.C) {
+func (s *DockerSuite) TestPluginLogDriver(c *testing.T) {
 	testRequires(c, IsAmd64, DaemonIsLinux)
 
 	pluginName := "cpuguy83/docker-logdriver-test:latest"
@@ -29,7 +29,7 @@ func (s *DockerSuite) TestPluginLogDriver(c *check.C) {
 }
 
 // Make sure log drivers are listed in info, and v2 plugins are not.
-func (s *DockerSuite) TestPluginLogDriverInfoList(c *check.C) {
+func (s *DockerSuite) TestPluginLogDriverInfoList(c *testing.T) {
 	testRequires(c, IsAmd64, DaemonIsLinux)
 	pluginName := "cpuguy83/docker-logdriver-test"
 

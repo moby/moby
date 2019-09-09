@@ -14,7 +14,7 @@ import (
 )
 
 // ensure docker info succeeds
-func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
+func (s *DockerSuite) TestInfoEnsureSucceeds(c *testing.T) {
 	out, _ := dockerCmd(c, "info")
 
 	// always shown fields
@@ -58,7 +58,7 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 }
 
 // TestInfoFormat tests `docker info --format`
-func (s *DockerSuite) TestInfoFormat(c *check.C) {
+func (s *DockerSuite) TestInfoFormat(c *testing.T) {
 	out, status := dockerCmd(c, "info", "--format", "{{json .}}")
 	assert.Assert(c, status, checker.Equals, 0)
 	var m map[string]interface{}
@@ -70,7 +70,7 @@ func (s *DockerSuite) TestInfoFormat(c *check.C) {
 
 // TestInfoDiscoveryBackend verifies that a daemon run with `--cluster-advertise` and
 // `--cluster-store` properly show the backend's endpoint in info output.
-func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
+func (s *DockerSuite) TestInfoDiscoveryBackend(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
@@ -87,7 +87,7 @@ func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
 
 // TestInfoDiscoveryInvalidAdvertise verifies that a daemon run with
 // an invalid `--cluster-advertise` configuration
-func (s *DockerSuite) TestInfoDiscoveryInvalidAdvertise(c *check.C) {
+func (s *DockerSuite) TestInfoDiscoveryInvalidAdvertise(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
@@ -104,7 +104,7 @@ func (s *DockerSuite) TestInfoDiscoveryInvalidAdvertise(c *check.C) {
 
 // TestInfoDiscoveryAdvertiseInterfaceName verifies that a daemon run with `--cluster-advertise`
 // configured with interface name properly show the advertise ip-address in info output.
-func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
+func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, Network, DaemonIsLinux)
 
 	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
@@ -128,7 +128,7 @@ func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
 	assert.Assert(c, out, checker.Contains, fmt.Sprintf("Cluster Advertise: %s:2375\n", ip.String()))
 }
 
-func (s *DockerSuite) TestInfoDisplaysRunningContainers(c *check.C) {
+func (s *DockerSuite) TestInfoDisplaysRunningContainers(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	existing := existingContainerStates(c)
@@ -141,7 +141,7 @@ func (s *DockerSuite) TestInfoDisplaysRunningContainers(c *check.C) {
 	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"]))
 }
 
-func (s *DockerSuite) TestInfoDisplaysPausedContainers(c *check.C) {
+func (s *DockerSuite) TestInfoDisplaysPausedContainers(c *testing.T) {
 	testRequires(c, IsPausable)
 
 	existing := existingContainerStates(c)
@@ -158,7 +158,7 @@ func (s *DockerSuite) TestInfoDisplaysPausedContainers(c *check.C) {
 	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"]))
 }
 
-func (s *DockerSuite) TestInfoDisplaysStoppedContainers(c *check.C) {
+func (s *DockerSuite) TestInfoDisplaysStoppedContainers(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	existing := existingContainerStates(c)
@@ -175,7 +175,7 @@ func (s *DockerSuite) TestInfoDisplaysStoppedContainers(c *check.C) {
 	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" Stopped: %d\n", existing["ContainersStopped"]+1))
 }
 
-func (s *DockerSuite) TestInfoDebug(c *check.C) {
+func (s *DockerSuite) TestInfoDebug(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
@@ -193,7 +193,7 @@ func (s *DockerSuite) TestInfoDebug(c *check.C) {
 	assert.Assert(c, out, checker.Contains, "Docker Root Dir")
 }
 
-func (s *DockerSuite) TestInsecureRegistries(c *check.C) {
+func (s *DockerSuite) TestInsecureRegistries(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	registryCIDR := "192.168.1.0/24"
@@ -210,7 +210,7 @@ func (s *DockerSuite) TestInsecureRegistries(c *check.C) {
 	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" %s\n", registryCIDR))
 }
 
-func (s *DockerDaemonSuite) TestRegistryMirrors(c *check.C) {
+func (s *DockerDaemonSuite) TestRegistryMirrors(c *testing.T) {
 
 	registryMirror1 := "https://192.168.1.2"
 	registryMirror2 := "http://registry.mirror.com:5000"
@@ -224,7 +224,7 @@ func (s *DockerDaemonSuite) TestRegistryMirrors(c *check.C) {
 	assert.Assert(c, out, checker.Contains, fmt.Sprintf(" %s", registryMirror2))
 }
 
-func existingContainerStates(c *check.C) map[string]int {
+func existingContainerStates(c *testing.T) map[string]int {
 	out, _ := dockerCmd(c, "info", "--format", "{{json .}}")
 	var m map[string]interface{}
 	err := json.Unmarshal([]byte(out), &m)

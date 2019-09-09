@@ -17,7 +17,7 @@ import (
 	"gotest.tools/assert"
 )
 
-func (s *DockerSuite) TestAPINetworkGetDefaults(c *check.C) {
+func (s *DockerSuite) TestAPINetworkGetDefaults(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// By default docker daemon creates 3 networks. check if they are present
 	defaults := []string{"bridge", "host", "none"}
@@ -26,7 +26,7 @@ func (s *DockerSuite) TestAPINetworkGetDefaults(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestAPINetworkCreateCheckDuplicate(c *check.C) {
+func (s *DockerSuite) TestAPINetworkCreateCheckDuplicate(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	name := "testcheckduplicate"
 	configOnCheck := types.NetworkCreateRequest{
@@ -64,13 +64,13 @@ func (s *DockerSuite) TestAPINetworkCreateCheckDuplicate(c *check.C) {
 	createNetwork(c, configNotCheck, http.StatusCreated)
 }
 
-func (s *DockerSuite) TestAPINetworkFilter(c *check.C) {
+func (s *DockerSuite) TestAPINetworkFilter(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	nr := getNetworkResource(c, getNetworkIDByName(c, "bridge"))
 	assert.Equal(c, nr.Name, "bridge")
 }
 
-func (s *DockerSuite) TestAPINetworkInspectBridge(c *check.C) {
+func (s *DockerSuite) TestAPINetworkInspectBridge(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// Inspect default bridge network
 	nr := getNetworkResource(c, "bridge")
@@ -96,7 +96,7 @@ func (s *DockerSuite) TestAPINetworkInspectBridge(c *check.C) {
 	assert.Equal(c, ip.String(), containerIP)
 }
 
-func (s *DockerSuite) TestAPINetworkInspectUserDefinedNetwork(c *check.C) {
+func (s *DockerSuite) TestAPINetworkInspectUserDefinedNetwork(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// IPAM configuration inspect
 	ipam := &network.IPAM{
@@ -127,7 +127,7 @@ func (s *DockerSuite) TestAPINetworkInspectUserDefinedNetwork(c *check.C) {
 	assert.Assert(c, !isNetworkAvailable(c, "br0"))
 }
 
-func (s *DockerSuite) TestAPINetworkConnectDisconnect(c *check.C) {
+func (s *DockerSuite) TestAPINetworkConnectDisconnect(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// Create test network
 	name := "testnetwork"
@@ -169,7 +169,7 @@ func (s *DockerSuite) TestAPINetworkConnectDisconnect(c *check.C) {
 	deleteNetwork(c, nr.ID, true)
 }
 
-func (s *DockerSuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *check.C) {
+func (s *DockerSuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// test0 bridge network
 	ipam0 := &network.IPAM{
@@ -238,14 +238,14 @@ func (s *DockerSuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestAPICreateDeletePredefinedNetworks(c *check.C) {
+func (s *DockerSuite) TestAPICreateDeletePredefinedNetworks(c *testing.T) {
 	testRequires(c, DaemonIsLinux, SwarmInactive)
 	createDeletePredefinedNetwork(c, "bridge")
 	createDeletePredefinedNetwork(c, "none")
 	createDeletePredefinedNetwork(c, "host")
 }
 
-func createDeletePredefinedNetwork(c *check.C, name string) {
+func createDeletePredefinedNetwork(c *testing.T, name string) {
 	// Create pre-defined network
 	config := types.NetworkCreateRequest{
 		Name: name,
@@ -267,7 +267,7 @@ func createDeletePredefinedNetwork(c *check.C, name string) {
 	deleteNetwork(c, name, false)
 }
 
-func isNetworkAvailable(c *check.C, name string) bool {
+func isNetworkAvailable(c *testing.T, name string) bool {
 	resp, body, err := request.Get("/networks")
 	assert.NilError(c, err)
 	defer resp.Body.Close()
@@ -285,7 +285,7 @@ func isNetworkAvailable(c *check.C, name string) bool {
 	return false
 }
 
-func getNetworkIDByName(c *check.C, name string) string {
+func getNetworkIDByName(c *testing.T, name string) string {
 	var (
 		v          = url.Values{}
 		filterArgs = filters.NewArgs()
@@ -314,7 +314,7 @@ func getNetworkIDByName(c *check.C, name string) string {
 	return res
 }
 
-func getNetworkResource(c *check.C, id string) *types.NetworkResource {
+func getNetworkResource(c *testing.T, id string) *types.NetworkResource {
 	_, obj, err := request.Get("/networks/" + id)
 	assert.NilError(c, err)
 
@@ -325,7 +325,7 @@ func getNetworkResource(c *check.C, id string) *types.NetworkResource {
 	return &nr
 }
 
-func createNetwork(c *check.C, config types.NetworkCreateRequest, expectedStatusCode int) string {
+func createNetwork(c *testing.T, config types.NetworkCreateRequest, expectedStatusCode int) string {
 	resp, body, err := request.Post("/networks/create", request.JSONBody(config))
 	assert.NilError(c, err)
 	defer resp.Body.Close()
@@ -346,7 +346,7 @@ func createNetwork(c *check.C, config types.NetworkCreateRequest, expectedStatus
 	return ""
 }
 
-func connectNetwork(c *check.C, nid, cid string) {
+func connectNetwork(c *testing.T, nid, cid string) {
 	config := types.NetworkConnect{
 		Container: cid,
 	}
@@ -356,7 +356,7 @@ func connectNetwork(c *check.C, nid, cid string) {
 	assert.NilError(c, err)
 }
 
-func disconnectNetwork(c *check.C, nid, cid string) {
+func disconnectNetwork(c *testing.T, nid, cid string) {
 	config := types.NetworkConnect{
 		Container: cid,
 	}
@@ -366,7 +366,7 @@ func disconnectNetwork(c *check.C, nid, cid string) {
 	assert.NilError(c, err)
 }
 
-func deleteNetwork(c *check.C, id string, shouldSucceed bool) {
+func deleteNetwork(c *testing.T, id string, shouldSucceed bool) {
 	resp, _, err := request.Delete("/networks/" + id)
 	assert.NilError(c, err)
 	defer resp.Body.Close()

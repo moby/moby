@@ -22,7 +22,7 @@ type logMessage struct {
 	data []byte
 }
 
-func (s *DockerSwarmSuite) TestServiceLogs(c *check.C) {
+func (s *DockerSwarmSuite) TestServiceLogs(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 
 	// we have multiple services here for detecting the goroutine issue #28915
@@ -54,8 +54,8 @@ func (s *DockerSwarmSuite) TestServiceLogs(c *check.C) {
 // countLogLines returns a closure that can be used with waitAndAssert to
 // verify that a minimum number of expected container log messages have been
 // output.
-func countLogLines(d *daemon.Daemon, name string) func(*check.C) (interface{}, check.CommentInterface) {
-	return func(c *check.C) (interface{}, check.CommentInterface) {
+func countLogLines(d *daemon.Daemon, name string) func(*testing.T) (interface{}, check.CommentInterface) {
+	return func(c *testing.T) (interface{}, check.CommentInterface) {
 		result := icmd.RunCmd(d.Command("service", "logs", "-t", "--raw", name))
 		result.Assert(c, icmd.Expected{})
 		// if this returns an emptystring, trying to split it later will return
@@ -69,7 +69,7 @@ func countLogLines(d *daemon.Daemon, name string) func(*check.C) (interface{}, c
 	}
 }
 
-func (s *DockerSwarmSuite) TestServiceLogsCompleteness(c *check.C) {
+func (s *DockerSwarmSuite) TestServiceLogsCompleteness(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 
 	name := "TestServiceLogsCompleteness"
@@ -96,7 +96,7 @@ func (s *DockerSwarmSuite) TestServiceLogsCompleteness(c *check.C) {
 	}
 }
 
-func (s *DockerSwarmSuite) TestServiceLogsTail(c *check.C) {
+func (s *DockerSwarmSuite) TestServiceLogsTail(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 
 	name := "TestServiceLogsTail"
@@ -120,7 +120,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTail(c *check.C) {
 	}
 }
 
-func (s *DockerSwarmSuite) TestServiceLogsSince(c *check.C) {
+func (s *DockerSwarmSuite) TestServiceLogsSince(c *testing.T) {
 	// See DockerSuite.TestLogsSince, which is where this comes from
 	d := s.AddDaemon(c, true, true)
 
@@ -155,7 +155,7 @@ func (s *DockerSwarmSuite) TestServiceLogsSince(c *check.C) {
 	}
 }
 
-func (s *DockerSwarmSuite) TestServiceLogsFollow(c *check.C) {
+func (s *DockerSwarmSuite) TestServiceLogsFollow(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 
 	name := "TestServiceLogsFollow"
@@ -201,7 +201,7 @@ func (s *DockerSwarmSuite) TestServiceLogsFollow(c *check.C) {
 	assert.NilError(c, cmd.Process.Kill())
 }
 
-func (s *DockerSwarmSuite) TestServiceLogsTaskLogs(c *check.C) {
+func (s *DockerSwarmSuite) TestServiceLogsTaskLogs(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 
 	name := "TestServicelogsTaskLogs"
@@ -254,7 +254,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTaskLogs(c *check.C) {
 	}
 }
 
-func (s *DockerSwarmSuite) TestServiceLogsTTY(c *check.C) {
+func (s *DockerSwarmSuite) TestServiceLogsTTY(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 
 	name := "TestServiceLogsTTY"
@@ -292,7 +292,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTTY(c *check.C) {
 	result.Assert(c, icmd.Expected{Out: "out\r\nerr\r\n"})
 }
 
-func (s *DockerSwarmSuite) TestServiceLogsNoHangDeletedContainer(c *check.C) {
+func (s *DockerSwarmSuite) TestServiceLogsNoHangDeletedContainer(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 
 	name := "TestServiceLogsNoHangDeletedContainer"
@@ -341,7 +341,7 @@ func (s *DockerSwarmSuite) TestServiceLogsNoHangDeletedContainer(c *check.C) {
 	result.Assert(c, icmd.Expected{})
 }
 
-func (s *DockerSwarmSuite) TestServiceLogsDetails(c *check.C) {
+func (s *DockerSwarmSuite) TestServiceLogsDetails(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 
 	name := "TestServiceLogsDetails"

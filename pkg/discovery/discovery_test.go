@@ -13,7 +13,7 @@ type DiscoverySuite struct{}
 
 var _ = check.Suite(&DiscoverySuite{})
 
-func (s *DiscoverySuite) TestNewEntry(c *check.C) {
+func (s *DiscoverySuite) TestNewEntry(c *testing.T) {
 	entry, err := NewEntry("127.0.0.1:2375")
 	assert.Assert(c, err, check.IsNil)
 	assert.Assert(c, entry.Equals(&Entry{Host: "127.0.0.1", Port: "2375"}), check.Equals, true)
@@ -28,7 +28,7 @@ func (s *DiscoverySuite) TestNewEntry(c *check.C) {
 	assert.Assert(c, err, check.NotNil)
 }
 
-func (s *DiscoverySuite) TestParse(c *check.C) {
+func (s *DiscoverySuite) TestParse(c *testing.T) {
 	scheme, uri := parse("127.0.0.1:2375")
 	assert.Assert(c, scheme, check.Equals, "nodes")
 	assert.Assert(c, uri, check.Equals, "127.0.0.1:2375")
@@ -50,7 +50,7 @@ func (s *DiscoverySuite) TestParse(c *check.C) {
 	assert.Assert(c, uri, check.Equals, "")
 }
 
-func (s *DiscoverySuite) TestCreateEntries(c *check.C) {
+func (s *DiscoverySuite) TestCreateEntries(c *testing.T) {
 	entries, err := CreateEntries(nil)
 	assert.Assert(c, entries, check.DeepEquals, Entries{})
 	assert.Assert(c, err, check.IsNil)
@@ -68,14 +68,14 @@ func (s *DiscoverySuite) TestCreateEntries(c *check.C) {
 	assert.Assert(c, err, check.NotNil)
 }
 
-func (s *DiscoverySuite) TestContainsEntry(c *check.C) {
+func (s *DiscoverySuite) TestContainsEntry(c *testing.T) {
 	entries, err := CreateEntries([]string{"127.0.0.1:2375", "127.0.0.2:2375", ""})
 	assert.Assert(c, err, check.IsNil)
 	assert.Assert(c, entries.Contains(&Entry{Host: "127.0.0.1", Port: "2375"}), check.Equals, true)
 	assert.Assert(c, entries.Contains(&Entry{Host: "127.0.0.3", Port: "2375"}), check.Equals, false)
 }
 
-func (s *DiscoverySuite) TestEntriesEquality(c *check.C) {
+func (s *DiscoverySuite) TestEntriesEquality(c *testing.T) {
 	entries := Entries{
 		&Entry{Host: "127.0.0.1", Port: "2375"},
 		&Entry{Host: "127.0.0.2", Port: "2375"},
@@ -102,7 +102,7 @@ func (s *DiscoverySuite) TestEntriesEquality(c *check.C) {
 
 }
 
-func (s *DiscoverySuite) TestEntriesDiff(c *check.C) {
+func (s *DiscoverySuite) TestEntriesDiff(c *testing.T) {
 	entry1 := &Entry{Host: "1.1.1.1", Port: "1111"}
 	entry2 := &Entry{Host: "2.2.2.2", Port: "2222"}
 	entry3 := &Entry{Host: "3.3.3.3", Port: "3333"}

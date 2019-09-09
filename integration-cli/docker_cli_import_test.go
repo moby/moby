@@ -16,7 +16,7 @@ import (
 	"gotest.tools/icmd"
 )
 
-func (s *DockerSuite) TestImportDisplay(c *check.C) {
+func (s *DockerSuite) TestImportDisplay(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	cleanedContainerID := strings.TrimSpace(out)
@@ -34,7 +34,7 @@ func (s *DockerSuite) TestImportDisplay(c *check.C) {
 	assert.Equal(c, out, "", "command output should've been nothing.")
 }
 
-func (s *DockerSuite) TestImportBadURL(c *check.C) {
+func (s *DockerSuite) TestImportBadURL(c *testing.T) {
 	out, _, err := dockerCmdWithError("import", "http://nourl/bad")
 	assert.Assert(c, err, checker.NotNil, check.Commentf("import was supposed to fail but didn't"))
 	// Depending on your system you can get either of these errors
@@ -45,7 +45,7 @@ func (s *DockerSuite) TestImportBadURL(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestImportFile(c *check.C) {
+func (s *DockerSuite) TestImportFile(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
@@ -66,7 +66,7 @@ func (s *DockerSuite) TestImportFile(c *check.C) {
 	assert.Equal(c, out, "", "command output should've been nothing.")
 }
 
-func (s *DockerSuite) TestImportGzipped(c *check.C) {
+func (s *DockerSuite) TestImportGzipped(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
@@ -89,7 +89,7 @@ func (s *DockerSuite) TestImportGzipped(c *check.C) {
 	assert.Equal(c, out, "", "command output should've been nothing.")
 }
 
-func (s *DockerSuite) TestImportFileWithMessage(c *check.C) {
+func (s *DockerSuite) TestImportFileWithMessage(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
@@ -120,12 +120,12 @@ func (s *DockerSuite) TestImportFileWithMessage(c *check.C) {
 	assert.Equal(c, out, "", "command output should've been nothing")
 }
 
-func (s *DockerSuite) TestImportFileNonExistentFile(c *check.C) {
+func (s *DockerSuite) TestImportFileNonExistentFile(c *testing.T) {
 	_, _, err := dockerCmdWithError("import", "example.com/myImage.tar")
 	assert.Assert(c, err, checker.NotNil, check.Commentf("import non-existing file must failed"))
 }
 
-func (s *DockerSuite) TestImportWithQuotedChanges(c *check.C) {
+func (s *DockerSuite) TestImportWithQuotedChanges(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	cli.DockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 

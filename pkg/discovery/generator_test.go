@@ -4,25 +4,25 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DiscoverySuite) TestGeneratorNotGenerate(c *check.C) {
+func (s *DiscoverySuite) TestGeneratorNotGenerate(c *testing.T) {
 	ips := Generate("127.0.0.1")
 	assert.Assert(c, len(ips), check.Equals, 1)
 	assert.Assert(c, ips[0], check.Equals, "127.0.0.1")
 }
 
-func (s *DiscoverySuite) TestGeneratorWithPortNotGenerate(c *check.C) {
+func (s *DiscoverySuite) TestGeneratorWithPortNotGenerate(c *testing.T) {
 	ips := Generate("127.0.0.1:8080")
 	assert.Assert(c, len(ips), check.Equals, 1)
 	assert.Assert(c, ips[0], check.Equals, "127.0.0.1:8080")
 }
 
-func (s *DiscoverySuite) TestGeneratorMatchFailedNotGenerate(c *check.C) {
+func (s *DiscoverySuite) TestGeneratorMatchFailedNotGenerate(c *testing.T) {
 	ips := Generate("127.0.0.[1]")
 	assert.Assert(c, len(ips), check.Equals, 1)
 	assert.Assert(c, ips[0], check.Equals, "127.0.0.[1]")
 }
 
-func (s *DiscoverySuite) TestGeneratorWithPort(c *check.C) {
+func (s *DiscoverySuite) TestGeneratorWithPort(c *testing.T) {
 	ips := Generate("127.0.0.[1:11]:2375")
 	assert.Assert(c, len(ips), check.Equals, 11)
 	assert.Assert(c, ips[0], check.Equals, "127.0.0.1:2375")
@@ -38,14 +38,14 @@ func (s *DiscoverySuite) TestGeneratorWithPort(c *check.C) {
 	assert.Assert(c, ips[10], check.Equals, "127.0.0.11:2375")
 }
 
-func (s *DiscoverySuite) TestGenerateWithMalformedInputAtRangeStart(c *check.C) {
+func (s *DiscoverySuite) TestGenerateWithMalformedInputAtRangeStart(c *testing.T) {
 	malformedInput := "127.0.0.[x:11]:2375"
 	ips := Generate(malformedInput)
 	assert.Assert(c, len(ips), check.Equals, 1)
 	assert.Assert(c, ips[0], check.Equals, malformedInput)
 }
 
-func (s *DiscoverySuite) TestGenerateWithMalformedInputAtRangeEnd(c *check.C) {
+func (s *DiscoverySuite) TestGenerateWithMalformedInputAtRangeEnd(c *testing.T) {
 	malformedInput := "127.0.0.[1:x]:2375"
 	ips := Generate(malformedInput)
 	assert.Assert(c, len(ips), check.Equals, 1)

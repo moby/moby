@@ -12,7 +12,7 @@ import (
 	is "gotest.tools/assert/cmp"
 )
 
-func (s *DockerSuite) TestRestartStoppedContainer(c *check.C) {
+func (s *DockerSuite) TestRestartStoppedContainer(c *testing.T) {
 	dockerCmd(c, "run", "--name=test", "busybox", "echo", "foobar")
 	cleanedContainerID := getIDByName(c, "test")
 
@@ -29,14 +29,14 @@ func (s *DockerSuite) TestRestartStoppedContainer(c *check.C) {
 	assert.Equal(c, out, "foobar\nfoobar\n")
 }
 
-func (s *DockerSuite) TestRestartRunningContainer(c *check.C) {
+func (s *DockerSuite) TestRestartRunningContainer(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "echo foobar && sleep 30 && echo 'should not print this'")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
 	assert.NilError(c, waitRun(cleanedContainerID))
 
-	getLogs := func(c *check.C) (interface{}, check.CommentInterface) {
+	getLogs := func(c *testing.T) (interface{}, check.CommentInterface) {
 		out, _ := dockerCmd(c, "logs", cleanedContainerID)
 		return out, nil
 	}
@@ -52,7 +52,7 @@ func (s *DockerSuite) TestRestartRunningContainer(c *check.C) {
 }
 
 // Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
-func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
+func (s *DockerSuite) TestRestartWithVolumes(c *testing.T) {
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	out := runSleepingContainer(c, "-d", "-v", prefix+slash+"test")
 
@@ -77,7 +77,7 @@ func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
 	assert.Equal(c, source, sourceAfterRestart)
 }
 
-func (s *DockerSuite) TestRestartDisconnectedContainer(c *check.C) {
+func (s *DockerSuite) TestRestartDisconnectedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon, NotUserNamespace, NotArm)
 
 	// Run a container on the default bridge network
@@ -94,7 +94,7 @@ func (s *DockerSuite) TestRestartDisconnectedContainer(c *check.C) {
 	assert.Assert(c, exitCode == 0, out)
 }
 
-func (s *DockerSuite) TestRestartPolicyNO(c *check.C) {
+func (s *DockerSuite) TestRestartPolicyNO(c *testing.T) {
 	out, _ := dockerCmd(c, "create", "--restart=no", "busybox")
 
 	id := strings.TrimSpace(string(out))
@@ -102,7 +102,7 @@ func (s *DockerSuite) TestRestartPolicyNO(c *check.C) {
 	assert.Equal(c, name, "no")
 }
 
-func (s *DockerSuite) TestRestartPolicyAlways(c *check.C) {
+func (s *DockerSuite) TestRestartPolicyAlways(c *testing.T) {
 	out, _ := dockerCmd(c, "create", "--restart=always", "busybox")
 
 	id := strings.TrimSpace(string(out))
@@ -115,7 +115,7 @@ func (s *DockerSuite) TestRestartPolicyAlways(c *check.C) {
 	assert.Equal(c, MaximumRetryCount, "0")
 }
 
-func (s *DockerSuite) TestRestartPolicyOnFailure(c *check.C) {
+func (s *DockerSuite) TestRestartPolicyOnFailure(c *testing.T) {
 	out, _, err := dockerCmdWithError("create", "--restart=on-failure:-1", "busybox")
 	assert.ErrorContains(c, err, "", out)
 	assert.Assert(c, strings.Contains(out, "maximum retry count cannot be negative"))
@@ -150,7 +150,7 @@ func (s *DockerSuite) TestRestartPolicyOnFailure(c *check.C) {
 
 // a good container with --restart=on-failure:3
 // MaximumRetryCount!=0; RestartCount=0
-func (s *DockerSuite) TestRestartContainerwithGoodContainer(c *check.C) {
+func (s *DockerSuite) TestRestartContainerwithGoodContainer(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "true")
 
 	id := strings.TrimSpace(string(out))
@@ -164,7 +164,7 @@ func (s *DockerSuite) TestRestartContainerwithGoodContainer(c *check.C) {
 	assert.Equal(c, MaximumRetryCount, "3")
 }
 
-func (s *DockerSuite) TestRestartContainerSuccess(c *check.C) {
+func (s *DockerSuite) TestRestartContainerSuccess(c *testing.T) {
 	// Skipped for Hyper-V isolated containers. Test is currently written
 	// such that it assumes there is a host process to kill. In Hyper-V
 	// containers, the process is inside the utility VM, not on the host.
@@ -193,7 +193,7 @@ func (s *DockerSuite) TestRestartContainerSuccess(c *check.C) {
 	assert.NilError(c, err)
 }
 
-func (s *DockerSuite) TestRestartWithPolicyUserDefinedNetwork(c *check.C) {
+func (s *DockerSuite) TestRestartWithPolicyUserDefinedNetwork(c *testing.T) {
 	// TODO Windows. This may be portable following HNS integration post TP5.
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon, NotUserNamespace, NotArm)
 	dockerCmd(c, "network", "create", "-d", "bridge", "udNet")
@@ -237,7 +237,7 @@ func (s *DockerSuite) TestRestartWithPolicyUserDefinedNetwork(c *check.C) {
 	assert.NilError(c, err)
 }
 
-func (s *DockerSuite) TestRestartPolicyAfterRestart(c *check.C) {
+func (s *DockerSuite) TestRestartPolicyAfterRestart(c *testing.T) {
 	// Skipped for Hyper-V isolated containers. Test is currently written
 	// such that it assumes there is a host process to kill. In Hyper-V
 	// containers, the process is inside the utility VM, not on the host.
@@ -270,7 +270,7 @@ func (s *DockerSuite) TestRestartPolicyAfterRestart(c *check.C) {
 	assert.NilError(c, err)
 }
 
-func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *check.C) {
+func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *testing.T) {
 	out1, _ := dockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "false")
 	out2, _ := dockerCmd(c, "run", "-d", "--restart=always", "busybox", "false")
 
@@ -301,7 +301,7 @@ func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *check.C) {
 	assert.NilError(c, err)
 }
 
-func (s *DockerSuite) TestRestartAutoRemoveContainer(c *check.C) {
+func (s *DockerSuite) TestRestartAutoRemoveContainer(c *testing.T) {
 	out := runSleepingContainer(c, "--rm")
 
 	id := strings.TrimSpace(string(out))

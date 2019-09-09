@@ -13,7 +13,7 @@ import (
 )
 
 // Regression test for https://github.com/docker/docker/issues/7843
-func (s *DockerSuite) TestStartAttachReturnsOnError(c *check.C) {
+func (s *DockerSuite) TestStartAttachReturnsOnError(c *testing.T) {
 	// Windows does not support link
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "test", "busybox")
@@ -42,7 +42,7 @@ func (s *DockerSuite) TestStartAttachReturnsOnError(c *check.C) {
 }
 
 // gh#8555: Exit code should be passed through when using start -a
-func (s *DockerSuite) TestStartAttachCorrectExitCode(c *check.C) {
+func (s *DockerSuite) TestStartAttachCorrectExitCode(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out := cli.DockerCmd(c, "run", "-d", "busybox", "sh", "-c", "sleep 2; exit 1").Stdout()
 	out = strings.TrimSpace(out)
@@ -55,7 +55,7 @@ func (s *DockerSuite) TestStartAttachCorrectExitCode(c *check.C) {
 	})
 }
 
-func (s *DockerSuite) TestStartAttachSilent(c *check.C) {
+func (s *DockerSuite) TestStartAttachSilent(c *testing.T) {
 	name := "teststartattachcorrectexitcode"
 	dockerCmd(c, "run", "--name", name, "busybox", "echo", "test")
 
@@ -67,7 +67,7 @@ func (s *DockerSuite) TestStartAttachSilent(c *check.C) {
 	assert.Assert(c, startOut, checker.Equals, "test\n")
 }
 
-func (s *DockerSuite) TestStartRecordError(c *check.C) {
+func (s *DockerSuite) TestStartRecordError(c *testing.T) {
 	// TODO Windows CI: Requires further porting work. Should be possible.
 	testRequires(c, DaemonIsLinux)
 	// when container runs successfully, we should not have state.Error
@@ -92,7 +92,7 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 	assert.Assert(c, stateErr, checker.Equals, "")
 }
 
-func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
+func (s *DockerSuite) TestStartPausedContainer(c *testing.T) {
 	// Windows does not support pausing containers
 	testRequires(c, IsPausable)
 
@@ -107,7 +107,7 @@ func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
 	assert.Assert(c, strings.ToLower(out), checker.Contains, "cannot start a paused container, try unpause instead")
 }
 
-func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
+func (s *DockerSuite) TestStartMultipleContainers(c *testing.T) {
 	// Windows does not support --link
 	testRequires(c, DaemonIsLinux)
 	// run a container named 'parent' and create two container link to `parent`
@@ -143,7 +143,7 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
+func (s *DockerSuite) TestStartAttachMultipleContainers(c *testing.T) {
 	// run  multiple containers to test
 	for _, container := range []string{"test1", "test2", "test3"} {
 		runSleepingContainer(c, "--name", container)
@@ -172,7 +172,7 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 }
 
 // Test case for #23716
-func (s *DockerSuite) TestStartAttachWithRename(c *check.C) {
+func (s *DockerSuite) TestStartAttachWithRename(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	cli.DockerCmd(c, "create", "-t", "--name", "before", "busybox")
 	go func() {
@@ -187,7 +187,7 @@ func (s *DockerSuite) TestStartAttachWithRename(c *check.C) {
 	assert.Assert(c, result.Stderr(), checker.Not(checker.Contains), "No such container")
 }
 
-func (s *DockerSuite) TestStartReturnCorrectExitCode(c *check.C) {
+func (s *DockerSuite) TestStartReturnCorrectExitCode(c *testing.T) {
 	dockerCmd(c, "create", "--restart=on-failure:2", "--name", "withRestart", "busybox", "sh", "-c", "exit 11")
 	dockerCmd(c, "create", "--rm", "--name", "withRm", "busybox", "sh", "-c", "exit 12")
 

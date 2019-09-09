@@ -20,7 +20,7 @@ import (
 )
 
 // Make sure we can create a simple container with some args
-func (s *DockerSuite) TestCreateArgs(c *check.C) {
+func (s *DockerSuite) TestCreateArgs(c *testing.T) {
 	// Intentionally clear entrypoint, as the Windows busybox image needs an entrypoint, which breaks this test
 	out, _ := dockerCmd(c, "create", "--entrypoint=", "busybox", "command", "arg1", "arg2", "arg with space", "-c", "flags")
 
@@ -58,7 +58,7 @@ func (s *DockerSuite) TestCreateArgs(c *check.C) {
 }
 
 // Make sure we can grow the container's rootfs at creation time.
-func (s *DockerSuite) TestCreateGrowRootfs(c *check.C) {
+func (s *DockerSuite) TestCreateGrowRootfs(c *testing.T) {
 	// Windows and Devicemapper support growing the rootfs
 	if testEnv.OSType != "windows" {
 		testRequires(c, Devicemapper)
@@ -72,7 +72,7 @@ func (s *DockerSuite) TestCreateGrowRootfs(c *check.C) {
 }
 
 // Make sure we cannot shrink the container's rootfs at creation time.
-func (s *DockerSuite) TestCreateShrinkRootfs(c *check.C) {
+func (s *DockerSuite) TestCreateShrinkRootfs(c *testing.T) {
 	testRequires(c, Devicemapper)
 
 	// Ensure this fails because of the defaultBaseFsSize is 10G
@@ -82,7 +82,7 @@ func (s *DockerSuite) TestCreateShrinkRootfs(c *check.C) {
 }
 
 // Make sure we can set hostconfig options too
-func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
+func (s *DockerSuite) TestCreateHostConfig(c *testing.T) {
 	out, _ := dockerCmd(c, "create", "-P", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -104,7 +104,7 @@ func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
 	assert.Assert(c, cont.HostConfig.PublishAllPorts, checker.True, check.Commentf("Expected PublishAllPorts, got false"))
 }
 
-func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
+func (s *DockerSuite) TestCreateWithPortRange(c *testing.T) {
 	out, _ := dockerCmd(c, "create", "-p", "3300-3303:3300-3303/tcp", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -133,7 +133,7 @@ func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestCreateWithLargePortRange(c *check.C) {
+func (s *DockerSuite) TestCreateWithLargePortRange(c *testing.T) {
 	out, _ := dockerCmd(c, "create", "-p", "1-65535:1-65535/tcp", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -162,7 +162,7 @@ func (s *DockerSuite) TestCreateWithLargePortRange(c *check.C) {
 }
 
 // "test123" should be printed by docker create + start
-func (s *DockerSuite) TestCreateEchoStdout(c *check.C) {
+func (s *DockerSuite) TestCreateEchoStdout(c *testing.T) {
 	out, _ := dockerCmd(c, "create", "busybox", "echo", "test123")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -171,7 +171,7 @@ func (s *DockerSuite) TestCreateEchoStdout(c *check.C) {
 	assert.Equal(c, out, "test123\n", "container should've printed 'test123', got %q", out)
 }
 
-func (s *DockerSuite) TestCreateVolumesCreated(c *check.C) {
+func (s *DockerSuite) TestCreateVolumesCreated(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
@@ -190,7 +190,7 @@ func (s *DockerSuite) TestCreateVolumesCreated(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestCreateLabels(c *check.C) {
+func (s *DockerSuite) TestCreateLabels(c *testing.T) {
 	name := "test_create_labels"
 	expected := map[string]string{"k1": "v1", "k2": "v2"}
 	dockerCmd(c, "create", "--name", name, "-l", "k1=v1", "--label", "k2=v2", "busybox")
@@ -203,7 +203,7 @@ func (s *DockerSuite) TestCreateLabels(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
+func (s *DockerSuite) TestCreateLabelFromImage(c *testing.T) {
 	imageName := "testcreatebuildlabel"
 	buildImageSuccessfully(c, imageName, build.WithDockerfile(`FROM busybox
 		LABEL k1=v1 k2=v2`))
@@ -220,7 +220,7 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestCreateHostnameWithNumber(c *check.C) {
+func (s *DockerSuite) TestCreateHostnameWithNumber(c *testing.T) {
 	image := "busybox"
 	// Busybox on Windows does not implement hostname command
 	if testEnv.OSType == "windows" {
@@ -230,7 +230,7 @@ func (s *DockerSuite) TestCreateHostnameWithNumber(c *check.C) {
 	assert.Equal(c, strings.TrimSpace(out), "web.0", "hostname not set, expected `web.0`, got: %s", out)
 }
 
-func (s *DockerSuite) TestCreateRM(c *check.C) {
+func (s *DockerSuite) TestCreateRM(c *testing.T) {
 	// Test to make sure we can 'rm' a new container that is in
 	// "Created" state, and has ever been run. Test "rm -f" too.
 
@@ -247,7 +247,7 @@ func (s *DockerSuite) TestCreateRM(c *check.C) {
 	dockerCmd(c, "rm", "-f", cID)
 }
 
-func (s *DockerSuite) TestCreateModeIpcContainer(c *check.C) {
+func (s *DockerSuite) TestCreateModeIpcContainer(c *testing.T) {
 	// Uses Linux specific functionality (--ipc)
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 
@@ -257,7 +257,7 @@ func (s *DockerSuite) TestCreateModeIpcContainer(c *check.C) {
 	dockerCmd(c, "create", fmt.Sprintf("--ipc=container:%s", id), "busybox")
 }
 
-func (s *DockerSuite) TestCreateByImageID(c *check.C) {
+func (s *DockerSuite) TestCreateByImageID(c *testing.T) {
 	imageName := "testcreatebyimageid"
 	buildImageSuccessfully(c, imageName, build.WithDockerfile(`FROM busybox
 		MAINTAINER dockerio`))
@@ -290,7 +290,7 @@ func (s *DockerSuite) TestCreateByImageID(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestCreateStopSignal(c *check.C) {
+func (s *DockerSuite) TestCreateStopSignal(c *testing.T) {
 	name := "test_create_stop_signal"
 	dockerCmd(c, "create", "--name", name, "--stop-signal", "9", "busybox")
 
@@ -299,7 +299,7 @@ func (s *DockerSuite) TestCreateStopSignal(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestCreateWithWorkdir(c *check.C) {
+func (s *DockerSuite) TestCreateWithWorkdir(c *testing.T) {
 	name := "foo"
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
@@ -321,7 +321,7 @@ func (s *DockerSuite) TestCreateWithWorkdir(c *check.C) {
 	dockerCmd(c, "cp", fmt.Sprintf("%s:%s", name, dir), prefix+slash+"tmp")
 }
 
-func (s *DockerSuite) TestCreateWithInvalidLogOpts(c *check.C) {
+func (s *DockerSuite) TestCreateWithInvalidLogOpts(c *testing.T) {
 	name := "test-invalidate-log-opts"
 	out, _, err := dockerCmdWithError("create", "--name", name, "--log-opt", "invalid=true", "busybox")
 	assert.ErrorContains(c, err, "")
@@ -333,7 +333,7 @@ func (s *DockerSuite) TestCreateWithInvalidLogOpts(c *check.C) {
 }
 
 // #20972
-func (s *DockerSuite) TestCreate64ByteHexID(c *check.C) {
+func (s *DockerSuite) TestCreate64ByteHexID(c *testing.T) {
 	out := inspectField(c, "busybox", "Id")
 	imageID := strings.TrimPrefix(strings.TrimSpace(string(out)), "sha256:")
 
@@ -341,7 +341,7 @@ func (s *DockerSuite) TestCreate64ByteHexID(c *check.C) {
 }
 
 // Test case for #23498
-func (s *DockerSuite) TestCreateUnsetEntrypoint(c *check.C) {
+func (s *DockerSuite) TestCreateUnsetEntrypoint(c *testing.T) {
 	name := "test-entrypoint"
 	dockerfile := `FROM busybox
 ADD entrypoint.sh /entrypoint.sh
@@ -368,7 +368,7 @@ exec "$@"`,
 }
 
 // #22471
-func (s *DockerSuite) TestCreateStopTimeout(c *check.C) {
+func (s *DockerSuite) TestCreateStopTimeout(c *testing.T) {
 	name1 := "test_create_stop_timeout_1"
 	dockerCmd(c, "create", "--name", name1, "--stop-timeout", "15", "busybox")
 

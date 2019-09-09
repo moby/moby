@@ -25,7 +25,7 @@ import (
 	"gotest.tools/icmd"
 )
 
-func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
+func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) {
 	testRequires(c, cpuCfsQuota)
 	name := "testbuildresourceconstraints"
 	buildLabel := "DockerSuite.TestBuildResourceConstraintsAreUsed"
@@ -85,7 +85,7 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	assert.Assert(c, c2.Ulimits, checker.IsNil, check.Commentf("resource leaked from build for Ulimits"))
 }
 
-func (s *DockerSuite) TestBuildAddChangeOwnership(c *check.C) {
+func (s *DockerSuite) TestBuildAddChangeOwnership(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildaddown"
 
@@ -131,7 +131,7 @@ func (s *DockerSuite) TestBuildAddChangeOwnership(c *check.C) {
 // TODO(buildkit): this test needs to be rewritten for buildkit.
 // It has been manually tested positive. Confirmed issue: docker build output parsing.
 // Potential issue: newEventObserver uses docker events, which is not hooked up to buildkit.
-func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
+func (s *DockerSuite) TestBuildCancellationKillsSleep(c *testing.T) {
 	testRequires(c, DaemonIsLinux, TODOBuildkit)
 	name := "testbuildcancellation"
 

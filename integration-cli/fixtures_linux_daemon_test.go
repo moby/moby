@@ -23,7 +23,7 @@ type logT interface {
 	Logf(string, ...interface{})
 }
 
-func ensureSyscallTest(c *check.C) {
+func ensureSyscallTest(c *testing.T) {
 	defer testEnv.ProtectImage(c, "syscall-test:latest")
 
 	// If the image already exists, there's nothing left to do.
@@ -73,7 +73,7 @@ func ensureSyscallTest(c *check.C) {
 	dockerCmd(c, buildArgs...)
 }
 
-func ensureSyscallTestBuild(c *check.C) {
+func ensureSyscallTestBuild(c *testing.T) {
 	err := load.FrozenImagesLinux(testEnv.APIClient(), "buildpack-deps:jessie")
 	assert.NilError(c, err)
 
@@ -86,7 +86,7 @@ func ensureSyscallTestBuild(c *check.C) {
 	dockerCmd(c, buildArgs...)
 }
 
-func ensureNNPTest(c *check.C) {
+func ensureNNPTest(c *testing.T) {
 	defer testEnv.ProtectImage(c, "nnp-test:latest")
 
 	// If the image already exists, there's nothing left to do.
@@ -128,7 +128,7 @@ func ensureNNPTest(c *check.C) {
 	dockerCmd(c, buildArgs...)
 }
 
-func ensureNNPTestBuild(c *check.C) {
+func ensureNNPTestBuild(c *testing.T) {
 	err := load.FrozenImagesLinux(testEnv.APIClient(), "buildpack-deps:jessie")
 	assert.NilError(c, err)
 

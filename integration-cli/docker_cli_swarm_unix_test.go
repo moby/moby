@@ -13,7 +13,7 @@ import (
 	"gotest.tools/assert"
 )
 
-func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *check.C) {
+func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 
 	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--mount", "type=volume,source=my-volume,destination=/foo,volume-driver=customvolumedriver", "--name", "top", "busybox", "top")
@@ -55,7 +55,7 @@ func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *check.C) {
 }
 
 // Test network plugin filter in swarm
-func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *check.C) {
+func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *testing.T) {
 	testRequires(c, IsAmd64)
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, false)

@@ -15,7 +15,7 @@ import (
 	"gotest.tools/assert"
 )
 
-func (s *DockerSuite) TestExecResizeAPIHeightWidthNoInt(c *check.C) {
+func (s *DockerSuite) TestExecResizeAPIHeightWidthNoInt(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
@@ -31,7 +31,7 @@ func (s *DockerSuite) TestExecResizeAPIHeightWidthNoInt(c *check.C) {
 }
 
 // Part of #14845
-func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *check.C) {
+func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *testing.T) {
 	name := "exec_resize_test"
 	dockerCmd(c, "run", "-d", "-i", "-t", "--name", name, "--restart", "always", "busybox", "/bin/sh")
 

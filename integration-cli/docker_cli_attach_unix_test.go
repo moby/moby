@@ -15,7 +15,7 @@ import (
 )
 
 // #9860 Make sure attach ends when container ends (with no errors)
-func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
+func (s *DockerSuite) TestAttachClosedOnContainerStop(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 
 	out, _ := dockerCmd(c, "run", "-dti", "busybox", "/bin/sh", "-c", `trap 'exit 0' SIGTERM; while true; do sleep 1; done`)
@@ -58,7 +58,7 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
+func (s *DockerSuite) TestAttachAfterDetach(c *testing.T) {
 	name := "detachtest"
 
 	cpty, tty, err := pty.Open()
@@ -123,7 +123,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 }
 
 // TestAttachDetach checks that attach in tty mode can be detached using the long container ID
-func (s *DockerSuite) TestAttachDetach(c *check.C) {
+func (s *DockerSuite) TestAttachDetach(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-itd", "busybox", "cat")
 	id := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(id))

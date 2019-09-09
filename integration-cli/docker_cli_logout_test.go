@@ -13,7 +13,7 @@ import (
 	"gotest.tools/assert"
 )
 
-func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *check.C) {
+func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *testing.T) {
 	s.d.StartWithBusybox(c)
 
 	osPath := os.Getenv("PATH")
@@ -65,7 +65,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *check.C)
 }
 
 // #23100
-func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithWrongHostnamesStored(c *check.C) {
+func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithWrongHostnamesStored(c *testing.T) {
 	osPath := os.Getenv("PATH")
 	defer os.Setenv("PATH", osPath)
 

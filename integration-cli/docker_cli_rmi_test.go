@@ -14,7 +14,7 @@ import (
 	"gotest.tools/icmd"
 )
 
-func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
+func (s *DockerSuite) TestRmiWithContainerFails(c *testing.T) {
 	errSubstr := "is using it"
 
 	// create a container
@@ -35,7 +35,7 @@ func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
 	assert.Assert(c, images, checker.Contains, "busybox")
 }
 
-func (s *DockerSuite) TestRmiTag(c *check.C) {
+func (s *DockerSuite) TestRmiTag(c *testing.T) {
 	imagesBefore, _ := dockerCmd(c, "images", "-a")
 	dockerCmd(c, "tag", "busybox", "utest:tag1")
 	dockerCmd(c, "tag", "busybox", "utest/docker:tag2")
@@ -63,7 +63,7 @@ func (s *DockerSuite) TestRmiTag(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
+func (s *DockerSuite) TestRmiImgIDMultipleTag(c *testing.T) {
 	out := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-one'").Combined()
 	containerID := strings.TrimSpace(out)
 
@@ -104,7 +104,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 	assert.Assert(c, imagesAfter, checker.Not(checker.Contains), imgID[:12], check.Commentf("ImageID:%q; ImagesAfter: %q", imgID, imagesAfter))
 }
 
-func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
+func (s *DockerSuite) TestRmiImgIDForce(c *testing.T) {
 	out := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-test'").Combined()
 	containerID := strings.TrimSpace(out)
 
@@ -142,7 +142,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 }
 
 // See https://github.com/docker/docker/issues/14116
-func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c *check.C) {
+func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c *testing.T) {
 	dockerfile := "FROM busybox\nRUN echo test 14116\n"
 	buildImageSuccessfully(c, "test-14116", build.WithDockerfile(dockerfile))
 	imgID := getIDByName(c, "test-14116")
@@ -157,7 +157,7 @@ func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c 
 	assert.Assert(c, out, checker.Contains, "(cannot be forced) - image is being used by running container")
 }
 
-func (s *DockerSuite) TestRmiTagWithExistingContainers(c *check.C) {
+func (s *DockerSuite) TestRmiTagWithExistingContainers(c *testing.T) {
 	container := "test-delete-tag"
 	newtag := "busybox:newtag"
 	bb := "busybox:latest"
@@ -169,7 +169,7 @@ func (s *DockerSuite) TestRmiTagWithExistingContainers(c *check.C) {
 	assert.Assert(c, strings.Count(out, "Untagged: "), checker.Equals, 1)
 }
 
-func (s *DockerSuite) TestRmiForceWithExistingContainers(c *check.C) {
+func (s *DockerSuite) TestRmiForceWithExistingContainers(c *testing.T) {
 	image := "busybox-clone"
 
 	icmd.RunCmd(icmd.Cmd{
@@ -183,7 +183,7 @@ MAINTAINER foo`),
 	dockerCmd(c, "rmi", "-f", image)
 }
 
-func (s *DockerSuite) TestRmiWithMultipleRepositories(c *check.C) {
+func (s *DockerSuite) TestRmiWithMultipleRepositories(c *testing.T) {
 	newRepo := "127.0.0.1:5000/busybox"
 	oldRepo := "busybox"
 	newTag := "busybox:test"
@@ -197,7 +197,7 @@ func (s *DockerSuite) TestRmiWithMultipleRepositories(c *check.C) {
 	assert.Assert(c, out, checker.Contains, "Untagged: "+newTag)
 }
 
-func (s *DockerSuite) TestRmiForceWithMultipleRepositories(c *check.C) {
+func (s *DockerSuite) TestRmiForceWithMultipleRepositories(c *testing.T) {
 	imageName := "rmiimage"
 	tag1 := imageName + ":tag1"
 	tag2 := imageName + ":tag2"
@@ -215,7 +215,7 @@ func (s *DockerSuite) TestRmiForceWithMultipleRepositories(c *check.C) {
 	assert.Assert(c, images, checker.Contains, imageName, check.Commentf("Built image missing %q; Images: %q", imageName, images))
 }
 
-func (s *DockerSuite) TestRmiBlank(c *check.C) {
+func (s *DockerSuite) TestRmiBlank(c *testing.T) {
 	out, _, err := dockerCmdWithError("rmi", " ")
 	// Should have failed to delete ' ' image
 	assert.ErrorContains(c, err, "")
@@ -225,7 +225,7 @@ func (s *DockerSuite) TestRmiBlank(c *check.C) {
 	assert.Assert(c, out, checker.Contains, "image name cannot be blank", check.Commentf("out: %s", out))
 }
 
-func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
+func (s *DockerSuite) TestRmiContainerImageNotFound(c *testing.T) {
 	// Build 2 images for testing.
 	imageNames := []string{"test1", "test2"}
 	imageIds := make([]string, 2)
@@ -251,7 +251,7 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
 }
 
 // #13422
-func (s *DockerSuite) TestRmiUntagHistoryLayer(c *check.C) {
+func (s *DockerSuite) TestRmiUntagHistoryLayer(c *testing.T) {
 	image := "tmp1"
 	// Build an image for testing.
 	dockerfile := `FROM busybox
@@ -295,7 +295,7 @@ RUN echo 2 #layer2
 	assert.Assert(c, out, checker.Contains, fmt.Sprintf("Untagged: %s:latest", newTag))
 }
 
-func (*DockerSuite) TestRmiParentImageFail(c *check.C) {
+func (*DockerSuite) TestRmiParentImageFail(c *testing.T) {
 	buildImageSuccessfully(c, "test", build.WithDockerfile(`
 	FROM busybox
 	RUN echo hello`))
@@ -308,7 +308,7 @@ func (*DockerSuite) TestRmiParentImageFail(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRmiWithParentInUse(c *check.C) {
+func (s *DockerSuite) TestRmiWithParentInUse(c *testing.T) {
 	out, _ := dockerCmd(c, "create", "busybox")
 	cID := strings.TrimSpace(out)
 
@@ -325,7 +325,7 @@ func (s *DockerSuite) TestRmiWithParentInUse(c *check.C) {
 }
 
 // #18873
-func (s *DockerSuite) TestRmiByIDHardConflict(c *check.C) {
+func (s *DockerSuite) TestRmiByIDHardConflict(c *testing.T) {
 	dockerCmd(c, "create", "busybox")
 
 	imgID := inspectField(c, "busybox:latest", "Id")

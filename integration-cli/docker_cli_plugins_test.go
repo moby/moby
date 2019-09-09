@@ -29,7 +29,7 @@ var (
 	npNameWithTag     = npName + ":" + pTag
 )
 
-func (ps *DockerPluginSuite) TestPluginBasicOps(c *check.C) {
+func (ps *DockerPluginSuite) TestPluginBasicOps(c *testing.T) {
 	plugin := ps.getPluginRepoWithTag()
 	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", plugin)
 	assert.NilError(c, err)
@@ -60,7 +60,7 @@ func (ps *DockerPluginSuite) TestPluginBasicOps(c *check.C) {
 	}
 }
 
-func (ps *DockerPluginSuite) TestPluginForceRemove(c *check.C) {
+func (ps *DockerPluginSuite) TestPluginForceRemove(c *testing.T) {
 	pNameWithTag := ps.getPluginRepoWithTag()
 
 	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pNameWithTag)
@@ -74,7 +74,7 @@ func (ps *DockerPluginSuite) TestPluginForceRemove(c *check.C) {
 	assert.Assert(c, out, checker.Contains, pNameWithTag)
 }
 
-func (s *DockerSuite) TestPluginActive(c *check.C) {
+func (s *DockerSuite) TestPluginActive(c *testing.T) {
 	testRequires(c, DaemonIsLinux, IsAmd64, Network)
 
 	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pNameWithTag)
@@ -97,7 +97,7 @@ func (s *DockerSuite) TestPluginActive(c *check.C) {
 	assert.Assert(c, out, checker.Contains, pNameWithTag)
 }
 
-func (s *DockerSuite) TestPluginActiveNetwork(c *check.C) {
+func (s *DockerSuite) TestPluginActiveNetwork(c *testing.T) {
 	testRequires(c, DaemonIsLinux, IsAmd64, Network)
 	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", npNameWithTag)
 	assert.NilError(c, err)
@@ -124,7 +124,7 @@ func (s *DockerSuite) TestPluginActiveNetwork(c *check.C) {
 	assert.Assert(c, out, checker.Contains, npNameWithTag)
 }
 
-func (ps *DockerPluginSuite) TestPluginInstallDisable(c *check.C) {
+func (ps *DockerPluginSuite) TestPluginInstallDisable(c *testing.T) {
 	pName := ps.getPluginRepoWithTag()
 
 	out, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", "--disable", pName)
@@ -148,7 +148,7 @@ func (ps *DockerPluginSuite) TestPluginInstallDisable(c *check.C) {
 	assert.Assert(c, strings.TrimSpace(out), checker.Contains, pName)
 }
 
-func (s *DockerSuite) TestPluginInstallDisableVolumeLs(c *check.C) {
+func (s *DockerSuite) TestPluginInstallDisableVolumeLs(c *testing.T) {
 	testRequires(c, DaemonIsLinux, IsAmd64, Network)
 	out, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", "--disable", pName)
 	assert.NilError(c, err)
@@ -157,7 +157,7 @@ func (s *DockerSuite) TestPluginInstallDisableVolumeLs(c *check.C) {
 	dockerCmd(c, "volume", "ls")
 }
 
-func (ps *DockerPluginSuite) TestPluginSet(c *check.C) {
+func (ps *DockerPluginSuite) TestPluginSet(c *testing.T) {
 	client := testEnv.APIClient()
 
 	name := "test"
@@ -208,7 +208,7 @@ func (ps *DockerPluginSuite) TestPluginSet(c *check.C) {
 
 }
 
-func (ps *DockerPluginSuite) TestPluginInstallArgs(c *check.C) {
+func (ps *DockerPluginSuite) TestPluginInstallArgs(c *testing.T) {
 	pName := path.Join(ps.registryHost(), "plugin", "testplugininstallwithargs")
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -224,7 +224,7 @@ func (ps *DockerPluginSuite) TestPluginInstallArgs(c *check.C) {
 	assert.Assert(c, strings.TrimSpace(env), checker.Equals, "[DEBUG=1]")
 }
 
-func (ps *DockerPluginSuite) TestPluginInstallImage(c *check.C) {
+func (ps *DockerPluginSuite) TestPluginInstallImage(c *testing.T) {
 	testRequires(c, IsAmd64)
 
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
@@ -238,7 +238,7 @@ func (ps *DockerPluginSuite) TestPluginInstallImage(c *check.C) {
 	assert.Assert(c, out, checker.Contains, `Encountered remote "application/vnd.docker.container.image.v1+json"(image) when fetching`)
 }
 
-func (ps *DockerPluginSuite) TestPluginEnableDisableNegative(c *check.C) {
+func (ps *DockerPluginSuite) TestPluginEnableDisableNegative(c *testing.T) {
 	pName := ps.getPluginRepoWithTag()
 
 	out, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pName)
@@ -260,7 +260,7 @@ func (ps *DockerPluginSuite) TestPluginEnableDisableNegative(c *check.C) {
 	assert.NilError(c, err)
 }
 
-func (ps *DockerPluginSuite) TestPluginCreate(c *check.C) {
+func (ps *DockerPluginSuite) TestPluginCreate(c *testing.T) {
 	name := "foo/bar-driver"
 	temp, err := ioutil.TempDir("", "foo")
 	assert.NilError(c, err)
@@ -292,7 +292,7 @@ func (ps *DockerPluginSuite) TestPluginCreate(c *check.C) {
 	assert.Assert(c, len(strings.Split(strings.TrimSpace(out), "\n")), checker.Equals, 2)
 }
 
-func (ps *DockerPluginSuite) TestPluginInspect(c *check.C) {
+func (ps *DockerPluginSuite) TestPluginInspect(c *testing.T) {
 	pNameWithTag := ps.getPluginRepoWithTag()
 
 	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pNameWithTag)
@@ -342,7 +342,7 @@ func (ps *DockerPluginSuite) TestPluginInspect(c *check.C) {
 }
 
 // Test case for https://github.com/docker/docker/pull/29186#discussion_r91277345
-func (s *DockerSuite) TestPluginInspectOnWindows(c *check.C) {
+func (s *DockerSuite) TestPluginInspectOnWindows(c *testing.T) {
 	// This test should work on Windows only
 	testRequires(c, DaemonIsWindows)
 
@@ -352,7 +352,7 @@ func (s *DockerSuite) TestPluginInspectOnWindows(c *check.C) {
 	assert.ErrorContains(c, err, "plugins are not supported on this platform")
 }
 
-func (ps *DockerPluginSuite) TestPluginIDPrefix(c *check.C) {
+func (ps *DockerPluginSuite) TestPluginIDPrefix(c *testing.T) {
 	name := "test"
 	client := testEnv.APIClient()
 
@@ -409,7 +409,7 @@ func (ps *DockerPluginSuite) TestPluginIDPrefix(c *check.C) {
 	assert.Assert(c, out, checker.Not(checker.Contains), name)
 }
 
-func (ps *DockerPluginSuite) TestPluginListDefaultFormat(c *check.C) {
+func (ps *DockerPluginSuite) TestPluginListDefaultFormat(c *testing.T) {
 	config, err := ioutil.TempDir("", "config-file-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(config)
@@ -440,7 +440,7 @@ enabled: false`, id, name)
 	assert.Assert(c, strings.TrimSpace(out), checker.Contains, expectedOutput)
 }
 
-func (s *DockerSuite) TestPluginUpgrade(c *check.C) {
+func (s *DockerSuite) TestPluginUpgrade(c *testing.T) {
 	testRequires(c, DaemonIsLinux, Network, testEnv.IsLocalDaemon, IsAmd64, NotUserNamespace)
 	plugin := "cpuguy83/docker-volume-driver-plugin-local:latest"
 	pluginV2 := "cpuguy83/docker-volume-driver-plugin-local:v2"
@@ -472,7 +472,7 @@ func (s *DockerSuite) TestPluginUpgrade(c *check.C) {
 	dockerCmd(c, "run", "--rm", "-v", "bananas:/apple", "busybox", "sh", "-c", "ls -lh /apple/core")
 }
 
-func (s *DockerSuite) TestPluginMetricsCollector(c *check.C) {
+func (s *DockerSuite) TestPluginMetricsCollector(c *testing.T) {
 	testRequires(c, DaemonIsLinux, Network, testEnv.IsLocalDaemon, IsAmd64)
 	d := daemon.New(c, dockerBinary, dockerdBinary)
 	d.Start(c)

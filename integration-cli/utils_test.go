@@ -118,7 +118,7 @@ type elementListOptions struct {
 	element, format string
 }
 
-func existingElements(c *check.C, opts elementListOptions) []string {
+func existingElements(c *testing.T, opts elementListOptions) []string {
 	var args []string
 	switch opts.element {
 	case "container":
@@ -146,12 +146,12 @@ func existingElements(c *check.C, opts elementListOptions) []string {
 }
 
 // ExistingContainerIDs returns a list of currently existing container IDs.
-func ExistingContainerIDs(c *check.C) []string {
+func ExistingContainerIDs(c *testing.T) []string {
 	return existingElements(c, elementListOptions{element: "container", format: "{{.ID}}"})
 }
 
 // ExistingContainerNames returns a list of existing container names.
-func ExistingContainerNames(c *check.C) []string {
+func ExistingContainerNames(c *testing.T) []string {
 	return existingElements(c, elementListOptions{element: "container", format: "{{.Names}}"})
 }
 

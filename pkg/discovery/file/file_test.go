@@ -17,19 +17,19 @@ type DiscoverySuite struct{}
 
 var _ = check.Suite(&DiscoverySuite{})
 
-func (s *DiscoverySuite) TestInitialize(c *check.C) {
+func (s *DiscoverySuite) TestInitialize(c *testing.T) {
 	d := &Discovery{}
 	d.Initialize("/path/to/file", 1000, 0, nil)
 	assert.Assert(c, d.path, check.Equals, "/path/to/file")
 }
 
-func (s *DiscoverySuite) TestNew(c *check.C) {
+func (s *DiscoverySuite) TestNew(c *testing.T) {
 	d, err := discovery.New("file:///path/to/file", 0, 0, nil)
 	assert.Assert(c, err, check.IsNil)
 	assert.Assert(c, d.(*Discovery).path, check.Equals, "/path/to/file")
 }
 
-func (s *DiscoverySuite) TestContent(c *check.C) {
+func (s *DiscoverySuite) TestContent(c *testing.T) {
 	data := `
 1.1.1.[1:2]:1111
 2.2.2.[2:4]:2222
@@ -43,12 +43,12 @@ func (s *DiscoverySuite) TestContent(c *check.C) {
 	assert.Assert(c, ips[4], check.Equals, "2.2.2.4:2222")
 }
 
-func (s *DiscoverySuite) TestRegister(c *check.C) {
+func (s *DiscoverySuite) TestRegister(c *testing.T) {
 	discovery := &Discovery{path: "/path/to/file"}
 	assert.Assert(c, discovery.Register("0.0.0.0"), check.NotNil)
 }
 
-func (s *DiscoverySuite) TestParsingContentsWithComments(c *check.C) {
+func (s *DiscoverySuite) TestParsingContentsWithComments(c *testing.T) {
 	data := `
 ### test ###
 1.1.1.1:1111 # inline comment
@@ -63,7 +63,7 @@ func (s *DiscoverySuite) TestParsingContentsWithComments(c *check.C) {
 	assert.Assert(c, "3.3.3.3:3333", check.Equals, ips[1])
 }
 
-func (s *DiscoverySuite) TestWatch(c *check.C) {
+func (s *DiscoverySuite) TestWatch(c *testing.T) {
 	data := `
 1.1.1.1:1111
 2.2.2.2:2222

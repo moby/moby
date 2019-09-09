@@ -13,7 +13,7 @@ import (
 )
 
 // TestDaemonRestartWithPluginEnabled tests state restore for an enabled plugin
-func (s *DockerDaemonSuite) TestDaemonRestartWithPluginEnabled(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonRestartWithPluginEnabled(c *testing.T) {
 	testRequires(c, IsAmd64, Network)
 
 	s.d.Start(c)
@@ -42,7 +42,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginEnabled(c *check.C) {
 }
 
 // TestDaemonRestartWithPluginDisabled tests state restore for a disabled plugin
-func (s *DockerDaemonSuite) TestDaemonRestartWithPluginDisabled(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonRestartWithPluginDisabled(c *testing.T) {
 	testRequires(c, IsAmd64, Network)
 
 	s.d.Start(c)
@@ -69,7 +69,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginDisabled(c *check.C) {
 
 // TestDaemonKillLiveRestoreWithPlugins SIGKILLs daemon started with --live-restore.
 // Plugins should continue to run.
-func (s *DockerDaemonSuite) TestDaemonKillLiveRestoreWithPlugins(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonKillLiveRestoreWithPlugins(c *testing.T) {
 	testRequires(c, IsAmd64, Network)
 
 	s.d.Start(c, "--live-restore")
@@ -95,7 +95,7 @@ func (s *DockerDaemonSuite) TestDaemonKillLiveRestoreWithPlugins(c *check.C) {
 
 // TestDaemonShutdownLiveRestoreWithPlugins SIGTERMs daemon started with --live-restore.
 // Plugins should continue to run.
-func (s *DockerDaemonSuite) TestDaemonShutdownLiveRestoreWithPlugins(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonShutdownLiveRestoreWithPlugins(c *testing.T) {
 	testRequires(c, IsAmd64, Network)
 
 	s.d.Start(c, "--live-restore")
@@ -120,7 +120,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownLiveRestoreWithPlugins(c *check.C)
 }
 
 // TestDaemonShutdownWithPlugins shuts down running plugins.
-func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *testing.T) {
 	testRequires(c, IsAmd64, Network)
 
 	s.d.Start(c)
@@ -158,7 +158,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
 }
 
 // TestDaemonKillWithPlugins leaves plugins running.
-func (s *DockerDaemonSuite) TestDaemonKillWithPlugins(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonKillWithPlugins(c *testing.T) {
 	testRequires(c, IsAmd64, Network)
 
 	s.d.Start(c)
@@ -185,7 +185,7 @@ func (s *DockerDaemonSuite) TestDaemonKillWithPlugins(c *check.C) {
 }
 
 // TestVolumePlugin tests volume creation using a plugin.
-func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
+func (s *DockerDaemonSuite) TestVolumePlugin(c *testing.T) {
 	testRequires(c, IsAmd64, Network)
 
 	volName := "plugin-volume"
@@ -231,7 +231,7 @@ func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
 	assert.NilError(c, err, out)
 }
 
-func (s *DockerDaemonSuite) TestPluginVolumeRemoveOnRestart(c *check.C) {
+func (s *DockerDaemonSuite) TestPluginVolumeRemoveOnRestart(c *testing.T) {
 	testRequires(c, IsAmd64, Network)
 
 	s.d.Start(c, "--live-restore=true")
@@ -272,7 +272,7 @@ func existsMountpointWithPrefix(mountpointPrefix string) (bool, error) {
 	return false, nil
 }
 
-func (s *DockerDaemonSuite) TestPluginListFilterEnabled(c *check.C) {
+func (s *DockerDaemonSuite) TestPluginListFilterEnabled(c *testing.T) {
 	testRequires(c, IsAmd64, Network)
 
 	s.d.Start(c)
@@ -300,7 +300,7 @@ func (s *DockerDaemonSuite) TestPluginListFilterEnabled(c *check.C) {
 	assert.Assert(c, strings.Contains(out, pName))
 }
 
-func (s *DockerDaemonSuite) TestPluginListFilterCapability(c *check.C) {
+func (s *DockerDaemonSuite) TestPluginListFilterCapability(c *testing.T) {
 	testRequires(c, IsAmd64, Network)
 
 	s.d.Start(c)

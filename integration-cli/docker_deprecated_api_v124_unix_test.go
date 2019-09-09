@@ -11,7 +11,7 @@ import (
 )
 
 // #19100 This is a deprecated feature test, it should be removed in Docker 1.12
-func (s *DockerNetworkSuite) TestDeprecatedDockerNetworkStartAPIWithHostconfig(c *check.C) {
+func (s *DockerNetworkSuite) TestDeprecatedDockerNetworkStartAPIWithHostconfig(c *testing.T) {
 	netName := "test"
 	conName := "foo"
 	dockerCmd(c, "network", "create", netName)

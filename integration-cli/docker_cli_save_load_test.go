@@ -25,7 +25,7 @@ import (
 )
 
 // save a repo using gz compression and try to load it using stdout
-func (s *DockerSuite) TestSaveXzAndLoadRepoStdout(c *check.C) {
+func (s *DockerSuite) TestSaveXzAndLoadRepoStdout(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	name := "test-save-xz-and-load-repo-stdout"
 	dockerCmd(c, "run", "--name", name, "busybox", "true")
@@ -54,7 +54,7 @@ func (s *DockerSuite) TestSaveXzAndLoadRepoStdout(c *check.C) {
 }
 
 // save a repo using xz+gz compression and try to load it using stdout
-func (s *DockerSuite) TestSaveXzGzAndLoadRepoStdout(c *check.C) {
+func (s *DockerSuite) TestSaveXzGzAndLoadRepoStdout(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	name := "test-save-xz-gz-and-load-repo-stdout"
 	dockerCmd(c, "run", "--name", name, "busybox", "true")
@@ -83,7 +83,7 @@ func (s *DockerSuite) TestSaveXzGzAndLoadRepoStdout(c *check.C) {
 	assert.ErrorContains(c, err, "", "the repo should not exist: %v", after)
 }
 
-func (s *DockerSuite) TestSaveSingleTag(c *check.C) {
+func (s *DockerSuite) TestSaveSingleTag(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	repoName := "foobar-save-single-tag-test"
 	dockerCmd(c, "tag", "busybox:latest", fmt.Sprintf("%v:latest", repoName))
@@ -98,7 +98,7 @@ func (s *DockerSuite) TestSaveSingleTag(c *check.C) {
 	assert.NilError(c, err, "failed to save repo with image ID and 'repositories' file: %s, %v", out, err)
 }
 
-func (s *DockerSuite) TestSaveCheckTimes(c *check.C) {
+func (s *DockerSuite) TestSaveCheckTimes(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	repoName := "busybox:latest"
 	out, _ := dockerCmd(c, "inspect", repoName)
@@ -117,7 +117,7 @@ func (s *DockerSuite) TestSaveCheckTimes(c *check.C) {
 	assert.NilError(c, err, "failed to save repo with image ID and 'repositories' file: %s, %v", out, err)
 }
 
-func (s *DockerSuite) TestSaveImageId(c *check.C) {
+func (s *DockerSuite) TestSaveImageId(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	repoName := "foobar-save-image-id-test"
 	dockerCmd(c, "tag", "emptyfs:latest", fmt.Sprintf("%v:latest", repoName))
@@ -156,7 +156,7 @@ func (s *DockerSuite) TestSaveImageId(c *check.C) {
 }
 
 // save a repo and try to load it using flags
-func (s *DockerSuite) TestSaveAndLoadRepoFlags(c *check.C) {
+func (s *DockerSuite) TestSaveAndLoadRepoFlags(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	name := "test-save-and-load-repo-flags"
 	dockerCmd(c, "run", "--name", name, "busybox", "true")
@@ -177,7 +177,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoFlags(c *check.C) {
 	assert.Equal(c, before, after, "inspect is not the same after a save / load")
 }
 
-func (s *DockerSuite) TestSaveWithNoExistImage(c *check.C) {
+func (s *DockerSuite) TestSaveWithNoExistImage(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	imgName := "foobar-non-existing-image"
@@ -187,7 +187,7 @@ func (s *DockerSuite) TestSaveWithNoExistImage(c *check.C) {
 	assert.Assert(c, strings.Contains(out, fmt.Sprintf("No such image: %s", imgName)))
 }
 
-func (s *DockerSuite) TestSaveMultipleNames(c *check.C) {
+func (s *DockerSuite) TestSaveMultipleNames(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	repoName := "foobar-save-multi-name-test"
 
@@ -205,7 +205,7 @@ func (s *DockerSuite) TestSaveMultipleNames(c *check.C) {
 	assert.NilError(c, err, "failed to save multiple repos: %s, %v", out, err)
 }
 
-func (s *DockerSuite) TestSaveRepoWithMultipleImages(c *check.C) {
+func (s *DockerSuite) TestSaveRepoWithMultipleImages(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	makeImage := func(from string, tag string) string {
 		var (
@@ -257,7 +257,7 @@ func (s *DockerSuite) TestSaveRepoWithMultipleImages(c *check.C) {
 }
 
 // Issue #6722 #5892 ensure directories are included in changes
-func (s *DockerSuite) TestSaveDirectoryPermissions(c *check.C) {
+func (s *DockerSuite) TestSaveDirectoryPermissions(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	layerEntries := []string{"opt/", "opt/a/", "opt/a/b/", "opt/a/b/c"}
 	layerEntriesAUFS := []string{"./", ".wh..wh.aufs", ".wh..wh.orph/", ".wh..wh.plnk/", "opt/", "opt/a/", "opt/a/b/", "opt/a/b/c"}
@@ -331,7 +331,7 @@ func listTar(f io.Reader) ([]string, error) {
 // Test loading a weird image where one of the layers is of zero size.
 // The layer.tar file is actually zero bytes, no padding or anything else.
 // See issue: 18170
-func (s *DockerSuite) TestLoadZeroSizeLayer(c *check.C) {
+func (s *DockerSuite) TestLoadZeroSizeLayer(c *testing.T) {
 	// this will definitely not work if using remote daemon
 	// very weird test
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
@@ -339,7 +339,7 @@ func (s *DockerSuite) TestLoadZeroSizeLayer(c *check.C) {
 	dockerCmd(c, "load", "-i", "testdata/emptyLayer.tar")
 }
 
-func (s *DockerSuite) TestSaveLoadParents(c *check.C) {
+func (s *DockerSuite) TestSaveLoadParents(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	makeImage := func(from string, addfile string) string {
@@ -378,7 +378,7 @@ func (s *DockerSuite) TestSaveLoadParents(c *check.C) {
 	assert.Equal(c, inspectOut, "")
 }
 
-func (s *DockerSuite) TestSaveLoadNoTag(c *check.C) {
+func (s *DockerSuite) TestSaveLoadNoTag(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	name := "saveloadnotag"

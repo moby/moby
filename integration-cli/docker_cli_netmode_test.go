@@ -17,20 +17,20 @@ const stringCheckPS = "PID   USER"
 // DockerCmdWithFail executes a docker command that is supposed to fail and returns
 // the output, the exit code. If the command returns a Nil error, it will fail and
 // stop the tests.
-func dockerCmdWithFail(c *check.C, args ...string) (string, int) {
+func dockerCmdWithFail(c *testing.T, args ...string) (string, int) {
 	out, status, err := dockerCmdWithError(args...)
 	assert.Assert(c, err, check.NotNil, check.Commentf("%v", out))
 	return out, status
 }
 
-func (s *DockerSuite) TestNetHostnameWithNetHost(c *check.C) {
+func (s *DockerSuite) TestNetHostnameWithNetHost(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	out, _ := dockerCmd(c, "run", "--net=host", "busybox", "ps")
 	assert.Assert(c, out, checker.Contains, stringCheckPS)
 }
 
-func (s *DockerSuite) TestNetHostname(c *check.C) {
+func (s *DockerSuite) TestNetHostname(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	out, _ := dockerCmd(c, "run", "-h=name", "busybox", "ps")
@@ -52,28 +52,28 @@ func (s *DockerSuite) TestNetHostname(c *check.C) {
 	assert.Assert(c, strings.ToLower(out), checker.Contains, "not found")
 }
 
-func (s *DockerSuite) TestConflictContainerNetworkAndLinks(c *check.C) {
+func (s *DockerSuite) TestConflictContainerNetworkAndLinks(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	out, _ := dockerCmdWithFail(c, "run", "--net=container:other", "--link=zip:zap", "busybox", "ps")
 	assert.Assert(c, out, checker.Contains, runconfig.ErrConflictContainerNetworkAndLinks.Error())
 }
 
-func (s *DockerSuite) TestConflictContainerNetworkHostAndLinks(c *check.C) {
+func (s *DockerSuite) TestConflictContainerNetworkHostAndLinks(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	out, _ := dockerCmdWithFail(c, "run", "--net=host", "--link=zip:zap", "busybox", "ps")
 	assert.Assert(c, out, checker.Contains, runconfig.ErrConflictHostNetworkAndLinks.Error())
 }
 
-func (s *DockerSuite) TestConflictNetworkModeNetHostAndOptions(c *check.C) {
+func (s *DockerSuite) TestConflictNetworkModeNetHostAndOptions(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	out, _ := dockerCmdWithFail(c, "run", "--net=host", "--mac-address=92:d0:c6:0a:29:33", "busybox", "ps")
 	assert.Assert(c, out, checker.Contains, runconfig.ErrConflictContainerNetworkAndMac.Error())
 }
 
-func (s *DockerSuite) TestConflictNetworkModeAndOptions(c *check.C) {
+func (s *DockerSuite) TestConflictNetworkModeAndOptions(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	out, _ := dockerCmdWithFail(c, "run", "--net=container:other", "--dns=8.8.8.8", "busybox", "ps")

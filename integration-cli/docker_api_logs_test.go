@@ -20,7 +20,7 @@ import (
 	"gotest.tools/assert"
 )
 
-func (s *DockerSuite) TestLogsAPIWithStdout(c *check.C) {
+func (s *DockerSuite) TestLogsAPIWithStdout(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "-t", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 1; done")
 	id := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(id))
@@ -56,7 +56,7 @@ func (s *DockerSuite) TestLogsAPIWithStdout(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestLogsAPINoStdoutNorStderr(c *check.C) {
+func (s *DockerSuite) TestLogsAPINoStdoutNorStderr(c *testing.T) {
 	name := "logs_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 	cli, err := client.NewClientWithOpts(client.FromEnv)
@@ -68,7 +68,7 @@ func (s *DockerSuite) TestLogsAPINoStdoutNorStderr(c *check.C) {
 }
 
 // Regression test for #12704
-func (s *DockerSuite) TestLogsAPIFollowEmptyOutput(c *check.C) {
+func (s *DockerSuite) TestLogsAPIFollowEmptyOutput(c *testing.T) {
 	name := "logs_test"
 	t0 := time.Now()
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "sleep", "10")
@@ -83,14 +83,14 @@ func (s *DockerSuite) TestLogsAPIFollowEmptyOutput(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestLogsAPIContainerNotFound(c *check.C) {
+func (s *DockerSuite) TestLogsAPIContainerNotFound(c *testing.T) {
 	name := "nonExistentContainer"
 	resp, _, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name))
 	assert.NilError(c, err)
 	assert.Equal(c, resp.StatusCode, http.StatusNotFound)
 }
 
-func (s *DockerSuite) TestLogsAPIUntilFutureFollow(c *check.C) {
+func (s *DockerSuite) TestLogsAPIUntilFutureFollow(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	name := "logsuntilfuturefollow"
 	dockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", "while true; do date +%s; sleep 1; done")
@@ -147,7 +147,7 @@ func (s *DockerSuite) TestLogsAPIUntilFutureFollow(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestLogsAPIUntil(c *check.C) {
+func (s *DockerSuite) TestLogsAPIUntil(c *testing.T) {
 	testRequires(c, MinimumAPIVersion("1.34"))
 	name := "logsuntil"
 	dockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; sleep 1; done")
@@ -157,7 +157,7 @@ func (s *DockerSuite) TestLogsAPIUntil(c *check.C) {
 		c.Fatal(err)
 	}
 
-	extractBody := func(c *check.C, cfg types.ContainerLogsOptions) []string {
+	extractBody := func(c *testing.T, cfg types.ContainerLogsOptions) []string {
 		reader, err := client.ContainerLogs(context.Background(), name, cfg)
 		assert.NilError(c, err)
 
@@ -185,7 +185,7 @@ func (s *DockerSuite) TestLogsAPIUntil(c *check.C) {
 	assert.Assert(c, !strings.Contains(logsString, "log3"), "unexpected log message returned, until=%v", until)
 }
 
-func (s *DockerSuite) TestLogsAPIUntilDefaultValue(c *check.C) {
+func (s *DockerSuite) TestLogsAPIUntilDefaultValue(c *testing.T) {
 	name := "logsuntildefaultval"
 	dockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; done")
 
@@ -194,7 +194,7 @@ func (s *DockerSuite) TestLogsAPIUntilDefaultValue(c *check.C) {
 		c.Fatal(err)
 	}
 
-	extractBody := func(c *check.C, cfg types.ContainerLogsOptions) []string {
+	extractBody := func(c *testing.T, cfg types.ContainerLogsOptions) []string {
 		reader, err := client.ContainerLogs(context.Background(), name, cfg)
 		assert.NilError(c, err)
 

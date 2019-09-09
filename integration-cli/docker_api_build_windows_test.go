@@ -12,7 +12,7 @@ import (
 	is "gotest.tools/assert/cmp"
 )
 
-func (s *DockerSuite) TestBuildWithRecycleBin(c *check.C) {
+func (s *DockerSuite) TestBuildWithRecycleBin(c *testing.T) {
 	testRequires(c, DaemonIsWindows)
 
 	dockerfile := "" +
