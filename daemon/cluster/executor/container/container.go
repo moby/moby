@@ -431,6 +431,12 @@ func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volumetypes.Vol
 func (c *containerConfig) resources() enginecontainer.Resources {
 	resources := enginecontainer.Resources{}
 
+	// set pids limit
+	pidsLimit := c.spec().PidsLimit
+	if pidsLimit > 0 {
+		resources.PidsLimit = &pidsLimit
+	}
+
 	// If no limits are specified let the engine use its defaults.
 	//
 	// TODO(aluzzardi): We might want to set some limits anyway otherwise

@@ -36,6 +36,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 		Configs:      configReferencesFromGRPC(c.Configs),
 		Isolation:    IsolationFromGRPC(c.Isolation),
 		Init:         initFromGRPC(c.Init),
+		PidsLimit:    c.PidsLimit,
 		Sysctls:      c.Sysctls,
 		Capabilities: c.Capabilities,
 	}
@@ -263,6 +264,7 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		Secrets:      secretReferencesToGRPC(c.Secrets),
 		Isolation:    isolationToGRPC(c.Isolation),
 		Init:         initToGRPC(c.Init),
+		PidsLimit:    c.PidsLimit,
 		Sysctls:      c.Sysctls,
 		Capabilities: c.Capabilities,
 	}

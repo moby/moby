@@ -30,6 +30,12 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /services/{id}/update` now accepts `Capabilities` as part of the `ContainerSpec`.
 * `GET /tasks` now  returns `Capabilities` as part of the `ContainerSpec`.
 * `GET /tasks/{id}` now  returns `Capabilities` as part of the `ContainerSpec`.
+* `GET /services` now returns `PidsLimit` as part of the `ContainerSpec`.
+* `GET /services/{id}` now returns `PidsLimit` as part of the `ContainerSpec`.
+* `POST /services/create` now accepts `PidsLimit` as part of the `ContainerSpec`.
+* `POST /services/{id}/update` now accepts `PidsLimit` as part of the `ContainerSpec`.
+* `GET /tasks` now  returns `PidsLimit` as part of the `ContainerSpec`.
+* `GET /tasks/{id}` now  returns `PidsLimit` as part of the `ContainerSpec`.
 * `POST /containers/create` on Linux now accepts the `HostConfig.CgroupnsMode` property.
   Set the property to `host` to create the container in the daemon's cgroup namespace, or
   `private` to create the container in its own private cgroup namespace.  The per-daemon
