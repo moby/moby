@@ -842,7 +842,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceTTY(c *check.C) {
 
 	name := "top"
 
-	ttyCheck := "if [ -t 0 ]; then echo TTY > /status && top; else echo none > /status && top; fi"
+	ttyCheck := "if [ -t 0 ]; then echo TTY > /status; else echo none > /status; fi; exec top"
 
 	// Without --tty
 	expectedOutput := "none"
