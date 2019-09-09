@@ -38,7 +38,7 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 
 	// we need to find the uid and gid of the remapped root from the daemon's root dir info
 	uidgid := strings.Split(filepath.Base(s.d.Root), ".")
-	assert.Assert(c, uidgid, checker.HasLen, 2, check.Commentf("Should have gotten uid/gid strings from root dirname: %s", filepath.Base(s.d.Root)))
+	assert.Equal(c, len(uidgid), 2, check.Commentf("Should have gotten uid/gid strings from root dirname: %s", filepath.Base(s.d.Root)))
 	uid, err := strconv.Atoi(uidgid[0])
 	assert.NilError(c, err, "Can't parse uid")
 	gid, err := strconv.Atoi(uidgid[1])

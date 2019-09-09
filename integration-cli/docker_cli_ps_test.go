@@ -386,7 +386,7 @@ func checkPsAncestorFilterOutput(c *testing.T, out string, filterName string, ex
 	sort.Strings(actualIDs)
 	sort.Strings(expectedIDs)
 
-	assert.Assert(c, actualIDs, checker.HasLen, len(expectedIDs), check.Commentf("Expected filtered container(s) for %s ancestor filter to be %v:%v, got %v:%v", filterName, len(expectedIDs), expectedIDs, len(actualIDs), actualIDs))
+	assert.Equal(c, len(actualIDs), len(expectedIDs), check.Commentf("Expected filtered container(s) for %s ancestor filter to be %v:%v, got %v:%v", filterName, len(expectedIDs), expectedIDs, len(actualIDs), actualIDs))
 	if len(expectedIDs) > 0 {
 		same := true
 		for i := range expectedIDs {
@@ -665,7 +665,7 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 
 	// empty results filtering by unknown volume
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume=this-volume-should-not-exist")
-	assert.Assert(c, strings.TrimSpace(string(out)), checker.HasLen, 0)
+	assert.Equal(c, len(strings.TrimSpace(string(out))), 0)
 
 	// filter by mount destination
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+mp)
@@ -705,7 +705,7 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 
 	// empty results filtering by unknown mount point
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+prefix+slash+"this-path-was-never-mounted")
-	assert.Assert(c, strings.TrimSpace(string(out)), checker.HasLen, 0)
+	assert.Equal(c, len(strings.TrimSpace(string(out))), 0)
 }
 
 func (s *DockerSuite) TestPsListContainersFilterNetwork(c *testing.T) {

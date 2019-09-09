@@ -35,7 +35,7 @@ func (s *DiscoverySuite) TestContent(c *testing.T) {
 2.2.2.[2:4]:2222
 `
 	ips := parseFileContent([]byte(data))
-	assert.Assert(c, ips, checker.HasLen, 5)
+	assert.Equal(c, len(ips), 5)
 	assert.Equal(c, ips[0], "1.1.1.1:1111")
 	assert.Equal(c, ips[1], "1.1.1.2:1111")
 	assert.Equal(c, ips[2], "2.2.2.2:2222")
@@ -58,7 +58,7 @@ func (s *DiscoverySuite) TestParsingContentsWithComments(c *testing.T) {
 ### test ###
 `
 	ips := parseFileContent([]byte(data))
-	assert.Assert(c, ips, checker.HasLen, 2)
+	assert.Equal(c, len(ips), 2)
 	assert.Equal(c, "1.1.1.1:1111", ips[0])
 	assert.Equal(c, "3.3.3.3:3333", ips[1])
 }

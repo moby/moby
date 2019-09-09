@@ -42,7 +42,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
 
 	var mountConfig []mount.Mount
 	assert.Assert(c, json.Unmarshal([]byte(out), &mountConfig), checker.IsNil)
-	assert.Assert(c, mountConfig, checker.HasLen, 1)
+	assert.Equal(c, len(mountConfig), 1)
 
 	assert.Equal(c, mountConfig[0].Source, "foo")
 	assert.Equal(c, mountConfig[0].Target, "/foo")
@@ -56,7 +56,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
 
 	var mounts []types.MountPoint
 	assert.Assert(c, json.Unmarshal([]byte(out), &mounts), checker.IsNil)
-	assert.Assert(c, mounts, checker.HasLen, 1)
+	assert.Equal(c, len(mounts), 1)
 
 	assert.Equal(c, mounts[0].Type, mount.TypeVolume)
 	assert.Equal(c, mounts[0].Name, "foo")
@@ -385,7 +385,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 
 	var mountConfig []mount.Mount
 	assert.Assert(c, json.Unmarshal([]byte(out), &mountConfig), checker.IsNil)
-	assert.Assert(c, mountConfig, checker.HasLen, 1)
+	assert.Equal(c, len(mountConfig), 1)
 
 	assert.Equal(c, mountConfig[0].Source, "")
 	assert.Equal(c, mountConfig[0].Target, "/foo")
@@ -399,7 +399,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 
 	var mounts []types.MountPoint
 	assert.Assert(c, json.Unmarshal([]byte(out), &mounts), checker.IsNil)
-	assert.Assert(c, mounts, checker.HasLen, 1)
+	assert.Equal(c, len(mounts), 1)
 
 	assert.Equal(c, mounts[0].Type, mount.TypeTmpfs)
 	assert.Equal(c, mounts[0].Name, "")
@@ -442,7 +442,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *testing.T) {
 	// Make sure the only alias seen is the container-id
 	var aliases []string
 	assert.Assert(c, json.Unmarshal([]byte(out), &aliases), checker.IsNil)
-	assert.Assert(c, aliases, checker.HasLen, 1)
+	assert.Equal(c, len(aliases), 1)
 
 	assert.Assert(c, task.Status.ContainerStatus.ContainerID, checker.Contains, aliases[0])
 }

@@ -123,10 +123,10 @@ func (s *DockerSuite) TestCreateWithPortRange(c *testing.T) {
 	cont := containers[0]
 
 	assert.Assert(c, cont.HostConfig, checker.NotNil, check.Commentf("Expected HostConfig, got none"))
-	assert.Assert(c, cont.HostConfig.PortBindings, checker.HasLen, 4, check.Commentf("Expected 4 ports bindings, got %d", len(cont.HostConfig.PortBindings)))
+	assert.Equal(c, len(cont.HostConfig.PortBindings), 4, check.Commentf("Expected 4 ports bindings, got %d", len(cont.HostConfig.PortBindings)))
 
 	for k, v := range cont.HostConfig.PortBindings {
-		assert.Assert(c, v, checker.HasLen, 1, check.Commentf("Expected 1 ports binding, for the port  %s but found %s", k, v))
+		assert.Equal(c, len(v), 1, check.Commentf("Expected 1 ports binding, for the port  %s but found %s", k, v))
 		assert.Equal(c, k.Port(), v[0].HostPort, check.Commentf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
 
 	}
@@ -152,10 +152,10 @@ func (s *DockerSuite) TestCreateWithLargePortRange(c *testing.T) {
 
 	cont := containers[0]
 	assert.Assert(c, cont.HostConfig, checker.NotNil, check.Commentf("Expected HostConfig, got none"))
-	assert.Assert(c, cont.HostConfig.PortBindings, checker.HasLen, 65535)
+	assert.Equal(c, len(cont.HostConfig.PortBindings), 65535)
 
 	for k, v := range cont.HostConfig.PortBindings {
-		assert.Assert(c, v, checker.HasLen, 1)
+		assert.Equal(c, len(v), 1)
 		assert.Equal(c, k.Port(), v[0].HostPort, check.Commentf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
 	}
 

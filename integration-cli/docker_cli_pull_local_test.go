@@ -355,7 +355,7 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *testing.T) {
 
 	// The pull output includes "Digest: <digest>", so find that
 	matches := digestRegex.FindStringSubmatch(out)
-	assert.Assert(c, matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", out))
+	assert.Equal(c, len(matches), 2, check.Commentf("unable to parse digest from pull output: %s", out))
 	pullDigest := matches[1]
 
 	// Make sure the pushed and pull digests match
@@ -467,5 +467,5 @@ func (s *DockerRegistrySuite) TestRunImplicitPullWithNoTag(c *testing.T) {
 	// There should be only one line for repo, the one with repo:latest
 	outImageCmd, _ := dockerCmd(c, "images", repo)
 	splitOutImageCmd := strings.Split(strings.TrimSpace(outImageCmd), "\n")
-	assert.Assert(c, splitOutImageCmd, checker.HasLen, 2)
+	assert.Equal(c, len(splitOutImageCmd), 2)
 }

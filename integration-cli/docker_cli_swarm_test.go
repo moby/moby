@@ -65,7 +65,7 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *testing.T) {
 	assert.NilError(c, err)
 
 	spec = getSpec()
-	assert.Assert(c, spec.CAConfig.ExternalCAs, checker.HasLen, 2)
+	assert.Equal(c, len(spec.CAConfig.ExternalCAs), 2)
 	assert.Equal(c, spec.CAConfig.ExternalCAs[0].CACert, "")
 	assert.Equal(c, spec.CAConfig.ExternalCAs[1].CACert, string(expected))
 
@@ -113,7 +113,7 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *testing.T) {
 	spec := getSpec()
 	assert.Equal(c, spec.CAConfig.NodeCertExpiry, 30*time.Hour)
 	assert.Equal(c, spec.Dispatcher.HeartbeatPeriod, 11*time.Second)
-	assert.Assert(c, spec.CAConfig.ExternalCAs, checker.HasLen, 2)
+	assert.Equal(c, len(spec.CAConfig.ExternalCAs), 2)
 	assert.Equal(c, spec.CAConfig.ExternalCAs[0].CACert, "")
 	assert.Equal(c, spec.CAConfig.ExternalCAs[1].CACert, string(expected))
 

@@ -151,7 +151,7 @@ func (s *DockerRegistrySuite) TestRunByDigest(c *testing.T) {
 
 	foundRegex := regexp.MustCompile("found=([^\n]+)")
 	matches := foundRegex.FindStringSubmatch(out)
-	assert.Assert(c, matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", out))
+	assert.Equal(c, len(matches), 2, check.Commentf("unable to parse digest from pull output: %s", out))
 	assert.Equal(c, matches[1], "1", check.Commentf("Expected %q, got %q", "1", matches[1]))
 
 	res := inspectField(c, containerName, "Config.Image")
@@ -401,8 +401,8 @@ func (s *DockerRegistrySuite) TestInspectImageWithDigests(c *testing.T) {
 	var imageJSON []types.ImageInspect
 	err = json.Unmarshal([]byte(out), &imageJSON)
 	assert.NilError(c, err)
-	assert.Assert(c, imageJSON, checker.HasLen, 1)
-	assert.Assert(c, imageJSON[0].RepoDigests, checker.HasLen, 1)
+	assert.Equal(c, len(imageJSON), 1)
+	assert.Equal(c, len(imageJSON[0].RepoDigests), 1)
 	assert.Check(c, is.Contains(imageJSON[0].RepoDigests, imageReference))
 }
 

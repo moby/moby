@@ -30,7 +30,7 @@ func (ds *DiscoverySuite) TestInitialize(c *testing.T) {
 	d.store = storeMock
 
 	s := d.store.(*FakeStore)
-	assert.Assert(c, s.Endpoints, checker.HasLen, 1)
+	assert.Equal(c, len(s.Endpoints), 1)
 	assert.Equal(c, s.Endpoints[0], "127.0.0.1")
 	assert.Equal(c, d.path, defaultDiscoveryPath)
 
@@ -42,7 +42,7 @@ func (ds *DiscoverySuite) TestInitialize(c *testing.T) {
 	d.store = storeMock
 
 	s = d.store.(*FakeStore)
-	assert.Assert(c, s.Endpoints, checker.HasLen, 1)
+	assert.Equal(c, len(s.Endpoints), 1)
 	assert.Equal(c, s.Endpoints[0], "127.0.0.1:1234")
 	assert.Equal(c, d.path, "path/"+defaultDiscoveryPath)
 
@@ -54,7 +54,7 @@ func (ds *DiscoverySuite) TestInitialize(c *testing.T) {
 	d.store = storeMock
 
 	s = d.store.(*FakeStore)
-	assert.Assert(c, s.Endpoints, checker.HasLen, 3)
+	assert.Equal(c, len(s.Endpoints), 3)
 	assert.Equal(c, s.Endpoints[0], "127.0.0.1:1234")
 	assert.Equal(c, s.Endpoints[1], "127.0.0.2:1234")
 	assert.Equal(c, s.Endpoints[2], "127.0.0.3:1234")
@@ -202,7 +202,7 @@ BFrwkQE4HQtQBV60hYQUzzlSk44VFDz+jxIEtacRHaomDRh2FtOTz+I=
 	s := d.store.(*Mock)
 	assert.Assert(c, s.Options.TLS, checker.NotNil)
 	assert.Assert(c, s.Options.TLS.RootCAs, checker.NotNil)
-	assert.Assert(c, s.Options.TLS.Certificates, checker.HasLen, 1)
+	assert.Equal(c, len(s.Options.TLS.Certificates), 1)
 }
 
 func (ds *DiscoverySuite) TestWatch(c *testing.T) {

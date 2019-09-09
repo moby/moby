@@ -389,7 +389,7 @@ func (s *DockerSuite) TestContainerAPIPause(c *testing.T) {
 	assert.NilError(c, err)
 
 	pausedContainers = getPaused(c)
-	assert.Assert(c, pausedContainers, checker.HasLen, 0, check.Commentf("There should be no paused container."))
+	assert.Equal(c, len(pausedContainers), 0, check.Commentf("There should be no paused container."))
 }
 
 func (s *DockerSuite) TestContainerAPITop(c *testing.T) {
@@ -405,12 +405,12 @@ func (s *DockerSuite) TestContainerAPITop(c *testing.T) {
 	// sort by comm[andline] to make sure order stays the same in case of PID rollover
 	top, err := cli.ContainerTop(context.Background(), id, []string{"aux", "--sort=comm"})
 	assert.NilError(c, err)
-	assert.Assert(c, top.Titles, checker.HasLen, 11, check.Commentf("expected 11 titles, found %d: %v", len(top.Titles), top.Titles))
+	assert.Equal(c, len(top.Titles), 11, check.Commentf("expected 11 titles, found %d: %v", len(top.Titles), top.Titles))
 
 	if top.Titles[0] != "USER" || top.Titles[10] != "COMMAND" {
 		c.Fatalf("expected `USER` at `Titles[0]` and `COMMAND` at Titles[10]: %v", top.Titles)
 	}
-	assert.Assert(c, top.Processes, checker.HasLen, 2, check.Commentf("expected 2 processes, found %d: %v", len(top.Processes), top.Processes))
+	assert.Equal(c, len(top.Processes), 2, check.Commentf("expected 2 processes, found %d: %v", len(top.Processes), top.Processes))
 	assert.Equal(c, top.Processes[0][10], "/bin/sh -c top")
 	assert.Equal(c, top.Processes[1][10], "top")
 }
