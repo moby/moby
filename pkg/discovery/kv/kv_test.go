@@ -19,7 +19,7 @@ func Test(t *testing.T) { check.TestingT(t) }
 
 type DiscoverySuite struct{}
 
-var _ = check.Suite(&DiscoverySuite{})
+ /*check.Suite(&DiscoverySuite{})*/
 
 func (ds *DiscoverySuite) TestInitialize(c *testing.T) {
 	storeMock := &FakeStore{

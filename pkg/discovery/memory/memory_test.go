@@ -12,7 +12,7 @@ func Test(t *testing.T) { check.TestingT(t) }
 
 type discoverySuite struct{}
 
-var _ = check.Suite(&discoverySuite{})
+ /*check.Suite(&discoverySuite{})*/
 
 func (s *discoverySuite) TestWatch(c *testing.T) {
 	d := &Discovery{}
