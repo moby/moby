@@ -30,10 +30,6 @@ type testingT interface {
 	Fatalf(string, ...interface{})
 }
 
-type TestingT interface {
-	testingT
-}
-
 // DockerCmd executes the specified docker command and expect a success
 func DockerCmd(t testingT, args ...string) *icmd.Result {
 	return Docker(Args(args...)).Assert(t, icmd.Success)

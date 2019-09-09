@@ -40,7 +40,7 @@ func dockerCmdWithError(args ...string) (string, int, error) {
 }
 
 // Deprecated: use cli.Docker or cli.DockerCmd
-func dockerCmd(c cli.TestingT, args ...string) (string, int) {
+func dockerCmd(c testing.TB, args ...string) (string, int) {
 	result := cli.DockerCmd(c, args...)
 	return result.Combined(), result.ExitCode
 }
