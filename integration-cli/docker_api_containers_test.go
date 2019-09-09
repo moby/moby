@@ -1066,7 +1066,13 @@ func (s *DockerSuite) TestContainerAPICopyResourcePathEmptyPre124(c *testing.T) 
 	}
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Assert(c, string(b), checker.Matches, "Path cannot be empty\n")
+	assert.Assert(c, is.Regexp("^"+
+
+		"Path cannot be empty\n"+
+		"$",
+
+		string(b)))
+
 }
 
 func (s *DockerSuite) TestContainerAPICopyResourcePathNotFoundPre124(c *testing.T) {
@@ -1087,7 +1093,13 @@ func (s *DockerSuite) TestContainerAPICopyResourcePathNotFoundPre124(c *testing.
 	}
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Assert(c, string(b), checker.Matches, "Could not find the file /notexist in container "+name+"\n")
+	assert.Assert(c, is.Regexp("^"+
+
+		("Could not find the file /notexist in container "+name+"\n")+
+		"$",
+
+		string(b)))
+
 }
 
 func (s *DockerSuite) TestContainerAPICopyContainerNotFoundPr124(c *testing.T) {

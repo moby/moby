@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/go-check/check"
 	"gotest.tools/assert"
+	"gotest.tools/assert/cmp"
 )
 
 func (s *DockerSuite) TestLinksPingUnlinkedContainers(c *testing.T) {
@@ -230,7 +231,13 @@ func (s *DockerSuite) TestLinksEtcHostsRegularFile(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	out, _ := dockerCmd(c, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
 	// /etc/hosts should be a regular file
-	assert.Assert(c, out, checker.Matches, "^-.+\n")
+	assert.Assert(c, cmp.Regexp("^"+
+
+		"^-.+\n"+
+		"$",
+
+		out))
+
 }
 
 func (s *DockerSuite) TestLinksMultipleWithSameName(c *testing.T) {

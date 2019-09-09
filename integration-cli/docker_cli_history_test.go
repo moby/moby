@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 	"gotest.tools/assert"
+	"gotest.tools/assert/cmp"
 )
 
 // This is a heisen-test.  Because the created timestamp of images and the behavior of
@@ -116,6 +117,11 @@ func (s *DockerSuite) TestHistoryHumanOptionTrue(c *testing.T) {
 			endIndex = len(lines[i])
 		}
 		sizeString := lines[i][startIndex:endIndex]
-		assert.Assert(c, strings.TrimSpace(sizeString), checker.Matches, humanSizeRegexRaw, check.Commentf("The size '%s' was not in human format", sizeString))
+		assert.Assert(c, cmp.Regexp("^"+
+
+			humanSizeRegexRaw+
+			"$",
+
+			strings.TrimSpace(sizeString)), check.Commentf("The size '%s' was not in human format", sizeString))
 	}
 }
