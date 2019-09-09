@@ -72,7 +72,7 @@ func (s *DockerSuite) TestCommitHardlink(c *testing.T) {
 	chunks := strings.Split(strings.TrimSpace(firstOutput), " ")
 	inode := chunks[0]
 	chunks = strings.SplitAfterN(strings.TrimSpace(firstOutput), " ", 2)
-	assert.Assert(c, strings.Contains(chunks[1], chunks[0]), check.Commentf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
+	assert.Assert(c, strings.Contains(chunks[1], chunks[0]), fmt.Sprintf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
 	imageID, _ := dockerCmd(c, "commit", "hardlinks", "hardlinks")
 	imageID = strings.TrimSpace(imageID)
 
@@ -81,7 +81,7 @@ func (s *DockerSuite) TestCommitHardlink(c *testing.T) {
 	chunks = strings.Split(strings.TrimSpace(secondOutput), " ")
 	inode = chunks[0]
 	chunks = strings.SplitAfterN(strings.TrimSpace(secondOutput), " ", 2)
-	assert.Assert(c, strings.Contains(chunks[1], chunks[0]), check.Commentf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
+	assert.Assert(c, strings.Contains(chunks[1], chunks[0]), fmt.Sprintf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
 }
 
 func (s *DockerSuite) TestCommitTTY(c *testing.T) {

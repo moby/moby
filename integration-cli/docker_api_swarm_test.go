@@ -226,7 +226,7 @@ func (s *DockerSwarmSuite) TestAPISwarmPromoteDemote(c *testing.T) {
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, check.CommentInterface) {
 		certBytes, err := ioutil.ReadFile(filepath.Join(d2.Folder, "root", "swarm", "certificates", "swarm-node.crt"))
 		if err != nil {
-			return "", check.Commentf("error: %v", err)
+			return "", fmt.Sprintf("error: %v", err)
 		}
 		certs, err := helpers.ParseCertificatesPEM(certBytes)
 		if err == nil && len(certs) > 0 && len(certs[0].Subject.OrganizationalUnit) > 0 {
@@ -330,7 +330,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *testing.T) {
 					return false
 				})
 				if n == nil {
-					return false, check.Commentf("failed to get node: %v", lastErr)
+					return false, fmt.Sprintf("failed to get node: %v", lastErr)
 				}
 				if n.ManagerStatus.Leader {
 					leader = d
@@ -343,7 +343,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *testing.T) {
 				return false, check.Commentf("no leader elected")
 			}
 
-			return true, check.Commentf("elected %v", leader.ID())
+			return true, fmt.Sprintf("elected %v", leader.ID())
 		}
 	}
 
@@ -761,7 +761,7 @@ func checkClusterHealth(c *testing.T, cl []*daemon.Daemon, managerCount, workerC
 				}
 				nn := d.GetNode(c, n.ID)
 				n = *nn
-				return n.Status.State == swarm.NodeStateReady, check.Commentf("state of node %s, reported by %s", n.ID, d.NodeID())
+				return n.Status.State == swarm.NodeStateReady, fmt.Sprintf("state of node %s, reported by %s", n.ID, d.NodeID())
 			}
 			waitAndAssert(c, defaultReconciliationTimeout, waitReady, checker.True)
 
@@ -771,7 +771,7 @@ func checkClusterHealth(c *testing.T, cl []*daemon.Daemon, managerCount, workerC
 				}
 				nn := d.GetNode(c, n.ID)
 				n = *nn
-				return n.Spec.Availability == swarm.NodeAvailabilityActive, check.Commentf("availability of node %s, reported by %s", n.ID, d.NodeID())
+				return n.Spec.Availability == swarm.NodeAvailabilityActive, fmt.Sprintf("availability of node %s, reported by %s", n.ID, d.NodeID())
 			}
 			waitAndAssert(c, defaultReconciliationTimeout, waitActive, checker.True)
 

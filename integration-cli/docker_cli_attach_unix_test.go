@@ -52,7 +52,7 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *testing.T) {
 	case err := <-errChan:
 		tty.Close()
 		out, _ := ioutil.ReadAll(pty)
-		assert.Assert(c, err == nil, check.Commentf("out: %v", string(out)))
+		assert.Assert(c, err == nil, fmt.Sprintf("out: %v", string(out)))
 	case <-time.After(attachWait):
 		c.Fatal("timed out without attach returning")
 	}

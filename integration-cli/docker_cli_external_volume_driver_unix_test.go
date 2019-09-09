@@ -304,7 +304,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamed(c *testing.T) 
 	p := hostVolumePath("external-volume-test")
 	_, err = os.Lstat(p)
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, os.IsNotExist(err), check.Commentf("Expected volume path in host to not exist: %s, %v\n", p, err))
+	assert.Assert(c, os.IsNotExist(err), fmt.Sprintf("Expected volume path in host to not exist: %s, %v\n", p, err))
 
 	assert.Equal(c, s.ec.activations, 1)
 	assert.Equal(c, s.ec.creations, 1)
@@ -449,7 +449,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverBindExternalVolume(c
 	}
 	out := inspectFieldJSON(c, "testing", "Mounts")
 	assert.Assert(c, json.NewDecoder(strings.NewReader(out)).Decode(&mounts) == nil)
-	assert.Equal(c, len(mounts), 1, check.Commentf("%s", out))
+	assert.Equal(c, len(mounts), 1, fmt.Sprintf("%s", out))
 	assert.Equal(c, mounts[0].Name, "foo")
 	assert.Equal(c, mounts[0].Driver, volumePluginName)
 }
@@ -458,10 +458,10 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverList(c *testing.T) {
 	dockerCmd(c, "volume", "create", "-d", volumePluginName, "abc3")
 	out, _ := dockerCmd(c, "volume", "ls")
 	ls := strings.Split(strings.TrimSpace(out), "\n")
-	assert.Equal(c, len(ls), 2, check.Commentf("\n%s", out))
+	assert.Equal(c, len(ls), 2, fmt.Sprintf("\n%s", out))
 
 	vol := strings.Fields(ls[len(ls)-1])
-	assert.Equal(c, len(vol), 2, check.Commentf("%v", vol))
+	assert.Equal(c, len(vol), 2, fmt.Sprintf("%v", vol))
 	assert.Equal(c, vol[0], volumePluginName)
 	assert.Equal(c, vol[1], "abc3")
 
@@ -484,8 +484,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *testing.T) {
 
 	assert.Assert(c, json.Unmarshal([]byte(out), &st) == nil)
 	assert.Equal(c, len(st), 1)
-	assert.Equal(c, len(st[0].Status), 1, check.Commentf("%v", st[0]))
-	assert.Equal(c, st[0].Status["Hello"], "world", check.Commentf("%v", st[0].Status))
+	assert.Equal(c, len(st[0].Status), 1, fmt.Sprintf("%v", st[0]))
+	assert.Equal(c, st[0].Status["Hello"], "world", fmt.Sprintf("%v", st[0].Status))
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemonRestart(c *testing.T) {
@@ -605,9 +605,9 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnmountOnMountFail(c
 	s.d.Cmd("volume", "create", "-d", "test-external-volume-driver", "--opt=invalidOption=1", "--name=testumount")
 
 	out, _ := s.d.Cmd("run", "-v", "testumount:/foo", "busybox", "true")
-	assert.Equal(c, s.ec.unmounts, 0, check.Commentf("%s", out))
+	assert.Equal(c, s.ec.unmounts, 0, fmt.Sprintf("%s", out))
 	out, _ = s.d.Cmd("run", "-w", "/foo", "-v", "testumount:/foo", "busybox", "true")
-	assert.Equal(c, s.ec.unmounts, 0, check.Commentf("%s", out))
+	assert.Equal(c, s.ec.unmounts, 0, fmt.Sprintf("%s", out))
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnmountOnCp(c *testing.T) {
@@ -615,12 +615,12 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnmountOnCp(c *testi
 	s.d.Cmd("volume", "create", "-d", "test-external-volume-driver", "--name=test")
 
 	out, _ := s.d.Cmd("run", "-d", "--name=test", "-v", "test:/foo", "busybox", "/bin/sh", "-c", "touch /test && top")
-	assert.Equal(c, s.ec.mounts, 1, check.Commentf("%s", out))
+	assert.Equal(c, s.ec.mounts, 1, fmt.Sprintf("%s", out))
 
 	out, _ = s.d.Cmd("cp", "test:/test", "/tmp/test")
-	assert.Equal(c, s.ec.mounts, 2, check.Commentf("%s", out))
-	assert.Equal(c, s.ec.unmounts, 1, check.Commentf("%s", out))
+	assert.Equal(c, s.ec.mounts, 2, fmt.Sprintf("%s", out))
+	assert.Equal(c, s.ec.unmounts, 1, fmt.Sprintf("%s", out))
 
 	out, _ = s.d.Cmd("kill", "test")
-	assert.Equal(c, s.ec.unmounts, 2, check.Commentf("%s", out))
+	assert.Equal(c, s.ec.unmounts, 2, fmt.Sprintf("%s", out))
 }

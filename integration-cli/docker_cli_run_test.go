@@ -3210,8 +3210,8 @@ func (s *DockerSuite) TestRunCreateContainerFailedCleanUp(c *testing.T) {
 	assert.Assert(c, err != nil, check.Commentf("Expected docker run to fail!"))
 
 	containerID, err := inspectFieldWithError(name, "Id")
-	assert.Assert(c, err != nil, check.Commentf("Expected not to have this container: %s!", containerID))
-	assert.Equal(c, containerID, "", check.Commentf("Expected not to have this container: %s!", containerID))
+	assert.Assert(c, err != nil, fmt.Sprintf("Expected not to have this container: %s!", containerID))
+	assert.Equal(c, containerID, "", fmt.Sprintf("Expected not to have this container: %s!", containerID))
 }
 
 func (s *DockerSuite) TestRunNamedVolume(c *testing.T) {
@@ -3946,14 +3946,14 @@ func (s *DockerSuite) TestRunAttachFailedNoLeak(c *testing.T) {
 	// We will need the following `inspect` to diagnose the issue if test fails (#21247)
 	out1, err1 := dockerCmd(c, "inspect", "--format", "{{json .State}}", "test")
 	out2, err2 := dockerCmd(c, "inspect", "--format", "{{json .State}}", "fail")
-	assert.Assert(c, err != nil, check.Commentf("Command should have failed but succeeded with: %s\nContainer 'test' [%+v]: %s\nContainer 'fail' [%+v]: %s", out, err1, out1, err2, out2))
+	assert.Assert(c, err != nil, fmt.Sprintf("Command should have failed but succeeded with: %s\nContainer 'test' [%+v]: %s\nContainer 'fail' [%+v]: %s", out, err1, out1, err2, out2))
 	// check for windows error as well
 	// TODO Windows Post TP5. Fix the error message string
 	assert.Assert(c, strings.Contains(string(out), "port is already allocated") ||
 		strings.Contains(string(out), "were not connected because a duplicate name exists") ||
 		strings.Contains(string(out), "The specified port already exists") ||
 		strings.Contains(string(out), "HNS failed with error : Failed to create endpoint") ||
-		strings.Contains(string(out), "HNS failed with error : The object already exists"), checker.Equals, true, check.Commentf("Output: %s", out))
+		strings.Contains(string(out), "HNS failed with error : The object already exists"), checker.Equals, true, fmt.Sprintf("Output: %s", out))
 	dockerCmd(c, "rm", "-f", "test")
 
 	// NGoroutines is not updated right away, so we need to wait before failing
@@ -4032,9 +4032,9 @@ func (s *DockerSuite) TestRunDNSInHostMode(c *testing.T) {
 	expectedOutput2 := "search example.com"
 	expectedOutput3 := "options timeout:3"
 	out := cli.DockerCmd(c, "run", "--dns=1.2.3.4", "--dns-search=example.com", "--dns-opt=timeout:3", "--net=host", "busybox", "cat", "/etc/resolv.conf").Combined()
-	assert.Assert(c, strings.Contains(out, expectedOutput1), check.Commentf("Expected '%s', but got %q", expectedOutput1, out))
-	assert.Assert(c, strings.Contains(out, expectedOutput2), check.Commentf("Expected '%s', but got %q", expectedOutput2, out))
-	assert.Assert(c, strings.Contains(out, expectedOutput3), check.Commentf("Expected '%s', but got %q", expectedOutput3, out))
+	assert.Assert(c, strings.Contains(out, expectedOutput1), fmt.Sprintf("Expected '%s', but got %q", expectedOutput1, out))
+	assert.Assert(c, strings.Contains(out, expectedOutput2), fmt.Sprintf("Expected '%s', but got %q", expectedOutput2, out))
+	assert.Assert(c, strings.Contains(out, expectedOutput3), fmt.Sprintf("Expected '%s', but got %q", expectedOutput3, out))
 }
 
 // Test case for #21976
@@ -4043,14 +4043,14 @@ func (s *DockerSuite) TestRunAddHostInHostMode(c *testing.T) {
 
 	expectedOutput := "1.2.3.4\textra"
 	out, _ := dockerCmd(c, "run", "--add-host=extra:1.2.3.4", "--net=host", "busybox", "cat", "/etc/hosts")
-	assert.Assert(c, strings.Contains(out, expectedOutput), check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+	assert.Assert(c, strings.Contains(out, expectedOutput), fmt.Sprintf("Expected '%s', but got %q", expectedOutput, out))
 }
 
 func (s *DockerSuite) TestRunRmAndWait(c *testing.T) {
 	dockerCmd(c, "run", "--name=test", "--rm", "-d", "busybox", "sh", "-c", "sleep 3;exit 2")
 
 	out, code, err := dockerCmdWithError("wait", "test")
-	assert.Assert(c, err == nil, check.Commentf("out: %s; exit code: %d", out, code))
+	assert.Assert(c, err == nil, fmt.Sprintf("out: %s; exit code: %d", out, code))
 	assert.Equal(c, out, "2\n", "exit code: %d", code)
 	assert.Equal(c, code, 0)
 }
@@ -4136,7 +4136,7 @@ func (s *DockerSuite) TestRunStoppedLoggingDriverNoLeak(c *testing.T) {
 
 	out, _, err := dockerCmdWithError("run", "--name=fail", "--log-driver=splunk", "busybox", "true")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "failed to initialize logging driver"), check.Commentf("error should be about logging driver, got output %s", out))
+	assert.Assert(c, strings.Contains(out, "failed to initialize logging driver"), fmt.Sprintf("error should be about logging driver, got output %s", out))
 	// NGoroutines is not updated right away, so we need to wait before failing
 	assert.Assert(c, waitForGoroutines(nroutines) == nil)
 }
@@ -4156,8 +4156,8 @@ func (s *DockerSuite) TestRunCredentialSpecFailures(c *testing.T) {
 	}
 	for _, attempt := range attempts {
 		_, _, err := dockerCmdWithError("run", "--security-opt=credentialspec="+attempt.value, "busybox", "true")
-		assert.Assert(c, err != nil, check.Commentf("%s expected non-nil err", attempt.value))
-		assert.Assert(c, strings.Contains(err.Error(), attempt.expectedError), check.Commentf("%s expected %s got %s", attempt.value, attempt.expectedError, err))
+		assert.Assert(c, err != nil, fmt.Sprintf("%s expected non-nil err", attempt.value))
+		assert.Assert(c, strings.Contains(err.Error(), attempt.expectedError), fmt.Sprintf("%s expected %s got %s", attempt.value, attempt.expectedError, err))
 	}
 }
 
@@ -4488,11 +4488,11 @@ func (s *DockerSuite) TestRunMount(c *testing.T) {
 			_, _, err := dockerCmdWithError(append([]string{"run", "-i", "-d", "--name", cName},
 				append(opts, []string{"busybox", "top"}...)...)...)
 			if testCase.valid {
-				assert.Assert(c, err == nil, check.Commentf("got error while creating a container with %v (%s)", opts, cName))
-				assert.Assert(c, testCase.fn(cName) == nil, check.Commentf("got error while executing test for %v (%s)", opts, cName))
+				assert.Assert(c, err == nil, fmt.Sprintf("got error while creating a container with %v (%s)", opts, cName))
+				assert.Assert(c, testCase.fn(cName) == nil, fmt.Sprintf("got error while executing test for %v (%s)", opts, cName))
 				dockerCmd(c, "rm", "-f", cName)
 			} else {
-				assert.Assert(c, err != nil, check.Commentf("got nil while creating a container with %v (%s)", opts, cName))
+				assert.Assert(c, err != nil, fmt.Sprintf("got nil while creating a container with %v (%s)", opts, cName))
 			}
 		}
 	}

@@ -405,12 +405,12 @@ func (s *DockerSuite) TestContainerAPITop(c *testing.T) {
 	// sort by comm[andline] to make sure order stays the same in case of PID rollover
 	top, err := cli.ContainerTop(context.Background(), id, []string{"aux", "--sort=comm"})
 	assert.NilError(c, err)
-	assert.Equal(c, len(top.Titles), 11, check.Commentf("expected 11 titles, found %d: %v", len(top.Titles), top.Titles))
+	assert.Equal(c, len(top.Titles), 11, fmt.Sprintf("expected 11 titles, found %d: %v", len(top.Titles), top.Titles))
 
 	if top.Titles[0] != "USER" || top.Titles[10] != "COMMAND" {
 		c.Fatalf("expected `USER` at `Titles[0]` and `COMMAND` at Titles[10]: %v", top.Titles)
 	}
-	assert.Equal(c, len(top.Processes), 2, check.Commentf("expected 2 processes, found %d: %v", len(top.Processes), top.Processes))
+	assert.Equal(c, len(top.Processes), 2, fmt.Sprintf("expected 2 processes, found %d: %v", len(top.Processes), top.Processes))
 	assert.Equal(c, top.Processes[0][10], "/bin/sh -c top")
 	assert.Equal(c, top.Processes[1][10], "top")
 }
@@ -462,7 +462,7 @@ func (s *DockerSuite) TestContainerAPICommit(c *testing.T) {
 	assert.NilError(c, err)
 
 	cmd := inspectField(c, img.ID, "Config.Cmd")
-	assert.Equal(c, cmd, "[/bin/sh -c touch /test]", check.Commentf("got wrong Cmd from commit: %q", cmd))
+	assert.Equal(c, cmd, "[/bin/sh -c touch /test]", fmt.Sprintf("got wrong Cmd from commit: %q", cmd))
 
 	// sanity check, make sure the image is what we think it is
 	dockerCmd(c, "run", img.ID, "ls", "/test")
@@ -494,7 +494,7 @@ func (s *DockerSuite) TestContainerAPICommitWithLabelInConfig(c *testing.T) {
 	assert.Equal(c, label2, "value2")
 
 	cmd := inspectField(c, img.ID, "Config.Cmd")
-	assert.Equal(c, cmd, "[/bin/sh -c touch /test]", check.Commentf("got wrong Cmd from commit: %q", cmd))
+	assert.Equal(c, cmd, "[/bin/sh -c touch /test]", fmt.Sprintf("got wrong Cmd from commit: %q", cmd))
 
 	// sanity check, make sure the image is what we think it is
 	dockerCmd(c, "run", img.ID, "ls", "/test")
@@ -903,7 +903,7 @@ func (s *DockerSuite) TestContainerAPIKill(c *testing.T) {
 	assert.NilError(c, err)
 
 	state := inspectField(c, name, "State.Running")
-	assert.Equal(c, state, "false", check.Commentf("got wrong State from container %s: %q", name, state))
+	assert.Equal(c, state, "false", fmt.Sprintf("got wrong State from container %s: %q", name, state))
 }
 
 func (s *DockerSuite) TestContainerAPIRestart(c *testing.T) {
@@ -1231,7 +1231,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 	assert.NilError(c, err)
 
 	_, err = os.Stat(source)
-	assert.Assert(c, os.IsNotExist(err), check.Commentf("expected to get ErrNotExist error, got %v", err))
+	assert.Assert(c, os.IsNotExist(err), fmt.Sprintf("expected to get ErrNotExist error, got %v", err))
 }
 
 // Regression test for https://github.com/docker/docker/issues/6231

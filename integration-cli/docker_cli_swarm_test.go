@@ -171,7 +171,7 @@ func (s *DockerSwarmSuite) TestSwarmIncompatibleDaemon(c *testing.T) {
 func (s *DockerSwarmSuite) TestSwarmServiceTemplatingHostname(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 	hostname, err := d.Cmd("node", "inspect", "--format", "{{.Description.Hostname}}", "self")
-	assert.Assert(c, err == nil, check.Commentf("%s", hostname))
+	assert.Assert(c, err == nil, fmt.Sprintf("%s", hostname))
 
 	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", "test", "--hostname", "{{.Service.Name}}-{{.Task.Slot}}-{{.Node.Hostname}}", "busybox", "top")
 	assert.NilError(c, err, out)
@@ -607,14 +607,14 @@ func (s *DockerSwarmSuite) TestPsListContainersFilterIsTask(c *testing.T) {
 	out, err = d.Cmd("ps", "-a", "-q", "--filter=is-task=false")
 	assert.NilError(c, err, out)
 	psOut := strings.TrimSpace(out)
-	assert.Equal(c, psOut, bareID, check.Commentf("Expected id %s, got %s for is-task label, output %q", bareID, psOut, out))
+	assert.Equal(c, psOut, bareID, fmt.Sprintf("Expected id %s, got %s for is-task label, output %q", bareID, psOut, out))
 
 	// Filter tasks
 	out, err = d.Cmd("ps", "-a", "-q", "--filter=is-task=true")
 	assert.NilError(c, err, out)
 	lines := strings.Split(strings.Trim(out, "\n "), "\n")
 	assert.Equal(c, len(lines), 1)
-	assert.Assert(c, lines[0] != bareID, check.Commentf("Expected not %s, but got it for is-task label, output %q", bareID, out))
+	assert.Assert(c, lines[0] != bareID, fmt.Sprintf("Expected not %s, but got it for is-task label, output %q", bareID, out))
 }
 
 const globalNetworkPlugin = "global-network-plugin"
@@ -847,7 +847,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceTTY(c *testing.T) {
 
 	out, err = d.Cmd("exec", id, "cat", "/status")
 	assert.NilError(c, err, out)
-	assert.Assert(c, strings.Contains(out, expectedOutput), check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+	assert.Assert(c, strings.Contains(out, expectedOutput), fmt.Sprintf("Expected '%s', but got %q", expectedOutput, out))
 	// Remove service
 	out, err = d.Cmd("service", "rm", name)
 	assert.NilError(c, err, out)
@@ -869,7 +869,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceTTY(c *testing.T) {
 
 	out, err = d.Cmd("exec", id, "cat", "/status")
 	assert.NilError(c, err, out)
-	assert.Assert(c, strings.Contains(out, expectedOutput), check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+	assert.Assert(c, strings.Contains(out, expectedOutput), fmt.Sprintf("Expected '%s', but got %q", expectedOutput, out))
 }
 
 func (s *DockerSwarmSuite) TestSwarmServiceTTYUpdate(c *testing.T) {
@@ -956,9 +956,9 @@ func (s *DockerSwarmSuite) TestDNSConfig(c *testing.T) {
 	expectedOutput3 := "options timeout:3"
 	out, err = d.Cmd("exec", id, "cat", "/etc/resolv.conf")
 	assert.NilError(c, err, out)
-	assert.Assert(c, strings.Contains(out, expectedOutput1), check.Commentf("Expected '%s', but got %q", expectedOutput1, out))
-	assert.Assert(c, strings.Contains(out, expectedOutput2), check.Commentf("Expected '%s', but got %q", expectedOutput2, out))
-	assert.Assert(c, strings.Contains(out, expectedOutput3), check.Commentf("Expected '%s', but got %q", expectedOutput3, out))
+	assert.Assert(c, strings.Contains(out, expectedOutput1), fmt.Sprintf("Expected '%s', but got %q", expectedOutput1, out))
+	assert.Assert(c, strings.Contains(out, expectedOutput2), fmt.Sprintf("Expected '%s', but got %q", expectedOutput2, out))
+	assert.Assert(c, strings.Contains(out, expectedOutput3), fmt.Sprintf("Expected '%s', but got %q", expectedOutput3, out))
 }
 
 func (s *DockerSwarmSuite) TestDNSConfigUpdate(c *testing.T) {
@@ -1045,7 +1045,7 @@ func (s *DockerSwarmSuite) TestSwarmInitLocked(c *testing.T) {
 	d := s.AddDaemon(c, false, false)
 
 	outs, err := d.Cmd("swarm", "init", "--autolock")
-	assert.Assert(c, err == nil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, fmt.Sprintf("%s", outs))
 	unlockKey := getUnlockKey(d, c, outs)
 
 	assert.Equal(c, getNodeStatus(c, d), swarm.LocalNodeStateActive)
@@ -1070,15 +1070,15 @@ func (s *DockerSwarmSuite) TestSwarmInitLocked(c *testing.T) {
 	assert.Equal(c, getNodeStatus(c, d), swarm.LocalNodeStateActive)
 
 	outs, err = d.Cmd("node", "ls")
-	assert.Assert(c, err == nil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, fmt.Sprintf("%s", outs))
 	assert.Assert(c, !strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"))
 	outs, err = d.Cmd("swarm", "update", "--autolock=false")
-	assert.Assert(c, err == nil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, fmt.Sprintf("%s", outs))
 
 	checkSwarmLockedToUnlocked(c, d)
 
 	outs, err = d.Cmd("node", "ls")
-	assert.Assert(c, err == nil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, fmt.Sprintf("%s", outs))
 	assert.Assert(c, !strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"))
 }
 
@@ -1086,7 +1086,7 @@ func (s *DockerSwarmSuite) TestSwarmLeaveLocked(c *testing.T) {
 	d := s.AddDaemon(c, false, false)
 
 	outs, err := d.Cmd("swarm", "init", "--autolock")
-	assert.Assert(c, err == nil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, fmt.Sprintf("%s", outs))
 
 	// It starts off locked
 	d.RestartNode(c)
@@ -1101,13 +1101,13 @@ func (s *DockerSwarmSuite) TestSwarmLeaveLocked(c *testing.T) {
 	assert.Assert(c, strings.Contains(outs, "Swarm is encrypted and locked."))
 	// It is OK for user to leave a locked swarm with --force
 	outs, err = d.Cmd("swarm", "leave", "--force")
-	assert.Assert(c, err == nil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, fmt.Sprintf("%s", outs))
 
 	info = d.SwarmInfo(c)
 	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateInactive)
 
 	outs, err = d.Cmd("swarm", "init")
-	assert.Assert(c, err == nil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, fmt.Sprintf("%s", outs))
 
 	info = d.SwarmInfo(c)
 	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateActive)
@@ -1127,7 +1127,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *testing.T) {
 
 	// enable autolock
 	outs, err := d1.Cmd("swarm", "update", "--autolock")
-	assert.Assert(c, err == nil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, fmt.Sprintf("%s", outs))
 	unlockKey := getUnlockKey(d1, c, outs)
 
 	// The ones that got the cluster update should be set to locked
@@ -1149,7 +1149,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *testing.T) {
 
 	// leave it locked, and set the cluster to no longer autolock
 	outs, err = d1.Cmd("swarm", "update", "--autolock=false")
-	assert.Assert(c, err == nil, check.Commentf("out: %v", outs))
+	assert.Assert(c, err == nil, fmt.Sprintf("out: %v", outs))
 
 	// the ones that got the update are now set to unlocked
 	for _, d := range []*daemon.Daemon{d1, d3} {
@@ -1179,7 +1179,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
 
 	// enable autolock
 	outs, err := d1.Cmd("swarm", "update", "--autolock")
-	assert.Assert(c, err == nil, check.Commentf("out: %v", outs))
+	assert.Assert(c, err == nil, fmt.Sprintf("out: %v", outs))
 	unlockKey := getUnlockKey(d1, c, outs)
 
 	// joined workers start off unlocked
@@ -1217,7 +1217,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, check.CommentInterface) {
 		certBytes, err := ioutil.ReadFile(filepath.Join(d3.Folder, "root", "swarm", "certificates", "swarm-node.crt"))
 		if err != nil {
-			return "", check.Commentf("error: %v", err)
+			return "", fmt.Sprintf("error: %v", err)
 		}
 		certs, err := helpers.ParseCertificatesPEM(certBytes)
 		if err == nil && len(certs) > 0 && len(certs[0].Subject.OrganizationalUnit) > 0 {
@@ -1235,13 +1235,13 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 
 	outs, err := d.Cmd("swarm", "update", "--autolock")
-	assert.Assert(c, err == nil, check.Commentf("out: %v", outs))
+	assert.Assert(c, err == nil, fmt.Sprintf("out: %v", outs))
 	unlockKey := getUnlockKey(d, c, outs)
 
 	// Rotate multiple times
 	for i := 0; i != 3; i++ {
 		outs, err = d.Cmd("swarm", "unlock-key", "-q", "--rotate")
-		assert.Assert(c, err == nil, check.Commentf("out: %v", outs))
+		assert.Assert(c, err == nil, fmt.Sprintf("out: %v", outs))
 		// Strip \n
 		newUnlockKey := outs[:len(outs)-1]
 		assert.Assert(c, newUnlockKey != "")
@@ -1322,13 +1322,13 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *testing.T) {
 	d3 := s.AddDaemon(c, true, true)
 
 	outs, err := d1.Cmd("swarm", "update", "--autolock")
-	assert.Assert(c, err == nil, check.Commentf("%s", outs))
+	assert.Assert(c, err == nil, fmt.Sprintf("%s", outs))
 	unlockKey := getUnlockKey(d1, c, outs)
 
 	// Rotate multiple times
 	for i := 0; i != 3; i++ {
 		outs, err = d1.Cmd("swarm", "unlock-key", "-q", "--rotate")
-		assert.Assert(c, err == nil, check.Commentf("%s", outs))
+		assert.Assert(c, err == nil, fmt.Sprintf("%s", outs))
 		// Strip \n
 		newUnlockKey := outs[:len(outs)-1]
 		assert.Assert(c, newUnlockKey != "")
@@ -1387,7 +1387,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *testing.T) {
 						continue
 					}
 				}
-				assert.Assert(c, err == nil, check.Commentf("%s", outs))
+				assert.Assert(c, err == nil, fmt.Sprintf("%s", outs))
 				assert.Assert(c, !strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"))
 				break
 			}
@@ -1403,7 +1403,7 @@ func (s *DockerSwarmSuite) TestSwarmAlternateLockUnlock(c *testing.T) {
 	for i := 0; i < 2; i++ {
 		// set to lock
 		outs, err := d.Cmd("swarm", "update", "--autolock")
-		assert.Assert(c, err == nil, check.Commentf("out: %v", outs))
+		assert.Assert(c, err == nil, fmt.Sprintf("out: %v", outs))
 		assert.Assert(c, strings.Contains(outs, "docker swarm unlock"))
 		unlockKey := getUnlockKey(d, c, outs)
 
@@ -1416,7 +1416,7 @@ func (s *DockerSwarmSuite) TestSwarmAlternateLockUnlock(c *testing.T) {
 		assert.Equal(c, getNodeStatus(c, d), swarm.LocalNodeStateActive)
 
 		outs, err = d.Cmd("swarm", "update", "--autolock=false")
-		assert.Assert(c, err == nil, check.Commentf("out: %v", outs))
+		assert.Assert(c, err == nil, fmt.Sprintf("out: %v", outs))
 
 		checkSwarmLockedToUnlocked(c, d)
 	}
@@ -1442,7 +1442,7 @@ func (s *DockerSwarmSuite) TestExtraHosts(c *testing.T) {
 	expectedOutput := "1.2.3.4\texample.com"
 	out, err = d.Cmd("exec", id, "cat", "/etc/hosts")
 	assert.NilError(c, err, out)
-	assert.Assert(c, strings.Contains(out, expectedOutput), check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+	assert.Assert(c, strings.Contains(out, expectedOutput), fmt.Sprintf("Expected '%s', but got %q", expectedOutput, out))
 }
 
 func (s *DockerSwarmSuite) TestSwarmManagerAddress(c *testing.T) {
@@ -1952,7 +1952,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsSecret(c *testing.T) {
 		},
 		Data: []byte("TESTINGDATA"),
 	})
-	assert.Assert(c, id != "", check.Commentf("secrets: %s", id))
+	assert.Assert(c, id != "", fmt.Sprintf("secrets: %s", id))
 
 	waitForEvent(c, d, "0", "-f scope=swarm", "secret create "+id, defaultRetryCount)
 
@@ -1972,7 +1972,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsConfig(c *testing.T) {
 		},
 		Data: []byte("TESTINGDATA"),
 	})
-	assert.Assert(c, id != "", check.Commentf("configs: %s", id))
+	assert.Assert(c, id != "", fmt.Sprintf("configs: %s", id))
 
 	waitForEvent(c, d, "0", "-f scope=swarm", "config create "+id, defaultRetryCount)
 
@@ -1984,7 +1984,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsConfig(c *testing.T) {
 
 func getUnlockKey(d *daemon.Daemon, c *testing.T, autolockOutput string) string {
 	unlockKey, err := d.Cmd("swarm", "unlock-key", "-q")
-	assert.Assert(c, err == nil, check.Commentf("%s", unlockKey))
+	assert.Assert(c, err == nil, fmt.Sprintf("%s", unlockKey))
 	unlockKey = strings.TrimSuffix(unlockKey, "\n")
 
 	// Check that "docker swarm init --autolock" or "docker swarm update --autolock"

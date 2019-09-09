@@ -21,7 +21,7 @@ func (s *DockerSuite) TestStartAttachReturnsOnError(c *testing.T) {
 	// Expect this to fail because the above container is stopped, this is what we want
 	out, _, err := dockerCmdWithError("run", "--name", "test2", "--link", "test:test", "busybox")
 	// err shouldn't be nil because container test2 try to link to stopped container
-	assert.Assert(c, err != nil, check.Commentf("out: %s", out))
+	assert.Assert(c, err != nil, fmt.Sprintf("out: %s", out))
 
 	ch := make(chan error)
 	go func() {
@@ -79,7 +79,7 @@ func (s *DockerSuite) TestStartRecordError(c *testing.T) {
 	// Expect this to fail and records error because of ports conflict
 	out, _, err := dockerCmdWithError("run", "-d", "--name", "test2", "-p", "9999:9999", "busybox", "top")
 	// err shouldn't be nil because docker run will fail
-	assert.Assert(c, err != nil, check.Commentf("out: %s", out))
+	assert.Assert(c, err != nil, fmt.Sprintf("out: %s", out))
 
 	stateErr = inspectField(c, "test2", "State.Error")
 	assert.Assert(c, strings.Contains(stateErr, "port is already allocated"))
@@ -101,7 +101,7 @@ func (s *DockerSuite) TestStartPausedContainer(c *testing.T) {
 
 	out, _, err := dockerCmdWithError("start", "testing")
 	// an error should have been shown that you cannot start paused container
-	assert.Assert(c, err != nil, check.Commentf("out: %s", out))
+	assert.Assert(c, err != nil, fmt.Sprintf("out: %s", out))
 	// an error should have been shown that you cannot start paused container
 	assert.Assert(c, strings.Contains(strings.ToLower(out), "cannot start a paused container, try unpause instead"))
 }
@@ -129,7 +129,7 @@ func (s *DockerSuite) TestStartMultipleContainers(c *testing.T) {
 	expErr := "failed to start containers: [child_first]"
 	out, _, err := dockerCmdWithError("start", "child_first", "parent", "child_second")
 	// err shouldn't be nil because start will fail
-	assert.Assert(c, err != nil, check.Commentf("out: %s", out))
+	assert.Assert(c, err != nil, fmt.Sprintf("out: %s", out))
 	// output does not correspond to what was expected
 	if !(strings.Contains(out, expOut) || strings.Contains(err.Error(), expErr)) {
 		c.Fatalf("Expected out: %v with err: %v  but got out: %v with err: %v", expOut, expErr, out, err)
@@ -157,7 +157,7 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *testing.T) {
 	for _, option := range []string{"-a", "-i", "-ai"} {
 		out, _, err := dockerCmdWithError("start", option, "test1", "test2", "test3")
 		// err shouldn't be nil because start will fail
-		assert.Assert(c, err != nil, check.Commentf("out: %s", out))
+		assert.Assert(c, err != nil, fmt.Sprintf("out: %s", out))
 		// output does not correspond to what was expected
 		assert.Assert(c, strings.Contains(out, "you cannot start and attach multiple containers at once"))
 	}
@@ -192,9 +192,9 @@ func (s *DockerSuite) TestStartReturnCorrectExitCode(c *testing.T) {
 
 	out, exitCode, err := dockerCmdWithError("start", "-a", "withRestart")
 	assert.ErrorContains(c, err, "")
-	assert.Equal(c, exitCode, 11, check.Commentf("out: %s", out))
+	assert.Equal(c, exitCode, 11, fmt.Sprintf("out: %s", out))
 
 	out, exitCode, err = dockerCmdWithError("start", "-a", "withRm")
 	assert.ErrorContains(c, err, "")
-	assert.Equal(c, exitCode, 12, check.Commentf("out: %s", out))
+	assert.Equal(c, exitCode, 12, fmt.Sprintf("out: %s", out))
 }

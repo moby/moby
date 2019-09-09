@@ -429,7 +429,7 @@ func (s *DockerSuite) TestPluginUpgrade(c *testing.T) {
 
 	// make sure "v2" does not exists
 	_, err = os.Stat(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "plugins", id, "rootfs", "v2"))
-	assert.Assert(c, os.IsNotExist(err), check.Commentf("%s", out))
+	assert.Assert(c, os.IsNotExist(err), fmt.Sprintf("%s", out))
 
 	dockerCmd(c, "plugin", "disable", "-f", plugin)
 	dockerCmd(c, "plugin", "upgrade", "--grant-all-permissions", "--skip-remote-check", plugin, pluginV2)
