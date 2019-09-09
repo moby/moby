@@ -4799,12 +4799,7 @@ func (s *DockerSuite) TestBuildFollowSymlinkToFile(c *testing.T) {
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
 	out := cli.DockerCmd(c, "run", "--rm", name, "cat", "target").Combined()
-	assert.Assert(c, cmp.Regexp("^"+
-
-		"bar"+
-		"$",
-
-		out))
+	assert.Assert(c, cmp.Regexp("^bar$", out))
 
 	// change target file should invalidate cache
 	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("baz"), 0644)
@@ -4813,12 +4808,7 @@ func (s *DockerSuite) TestBuildFollowSymlinkToFile(c *testing.T) {
 	result := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	assert.Assert(c, !strings.Contains(result.Combined(), "Using cache"))
 	out = cli.DockerCmd(c, "run", "--rm", name, "cat", "target").Combined()
-	assert.Assert(c, cmp.Regexp("^"+
-
-		"baz"+
-		"$",
-
-		out))
+	assert.Assert(c, cmp.Regexp("^baz$", out))
 
 }
 
@@ -4840,12 +4830,7 @@ func (s *DockerSuite) TestBuildFollowSymlinkToDir(c *testing.T) {
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
 	out := cli.DockerCmd(c, "run", "--rm", name, "cat", "abc", "def").Combined()
-	assert.Assert(c, cmp.Regexp("^"+
-
-		"barbaz"+
-		"$",
-
-		out))
+	assert.Assert(c, cmp.Regexp("^barbaz$", out))
 
 	// change target file should invalidate cache
 	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "foo/def"), []byte("bax"), 0644)
@@ -4854,12 +4839,7 @@ func (s *DockerSuite) TestBuildFollowSymlinkToDir(c *testing.T) {
 	result := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	assert.Assert(c, !strings.Contains(result.Combined(), "Using cache"))
 	out = cli.DockerCmd(c, "run", "--rm", name, "cat", "abc", "def").Combined()
-	assert.Assert(c, cmp.Regexp("^"+
-
-		"barbax"+
-		"$",
-
-		out))
+	assert.Assert(c, cmp.Regexp("^barbax$", out))
 
 }
 
@@ -4882,12 +4862,7 @@ func (s *DockerSuite) TestBuildSymlinkBasename(c *testing.T) {
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
 	out := cli.DockerCmd(c, "run", "--rm", name, "cat", "asymlink").Combined()
-	assert.Assert(c, cmp.Regexp("^"+
-
-		"bar"+
-		"$",
-
-		out))
+	assert.Assert(c, cmp.Regexp("^bar$", out))
 
 }
 

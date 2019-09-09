@@ -229,13 +229,7 @@ func (s *DockerSuite) TestLinksEtcHostsRegularFile(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	out, _ := dockerCmd(c, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
 	// /etc/hosts should be a regular file
-	assert.Assert(c, cmp.Regexp("^"+
-
-		"^-.+\n"+
-		"$",
-
-		out))
-
+	assert.Assert(c, cmp.Regexp("^-.+\n$", out))
 }
 
 func (s *DockerSuite) TestLinksMultipleWithSameName(c *testing.T) {

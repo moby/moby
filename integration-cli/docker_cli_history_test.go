@@ -115,11 +115,7 @@ func (s *DockerSuite) TestHistoryHumanOptionTrue(c *testing.T) {
 			endIndex = len(lines[i])
 		}
 		sizeString := lines[i][startIndex:endIndex]
-		assert.Assert(c, cmp.Regexp("^"+
-
-			humanSizeRegexRaw+
-			"$",
-
+		assert.Assert(c, cmp.Regexp("^"+humanSizeRegexRaw+"$",
 			strings.TrimSpace(sizeString)), fmt.Sprintf("The size '%s' was not in human format", sizeString))
 	}
 }
