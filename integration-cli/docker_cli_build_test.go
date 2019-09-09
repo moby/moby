@@ -4373,7 +4373,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgExpansion(c *check.C) {
 	)
 
 	res := inspectField(c, imgName, "Config.WorkingDir")
-	c.Check(filepath.ToSlash(res), check.Equals, filepath.ToSlash(wdVal))
+	c.Assert(filepath.ToSlash(res), check.Equals, filepath.ToSlash(wdVal))
 
 	var resArr []string
 	inspectFieldAndUnmarshall(c, imgName, "Config.Env", &resArr)
