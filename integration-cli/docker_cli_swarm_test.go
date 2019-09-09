@@ -383,7 +383,7 @@ func (s *DockerSwarmSuite) TestSwarmContainerAttachByNetworkId(c *testing.T) {
 	out, err = d.Cmd("network", "rm", "testnet")
 	assert.NilError(c, err, out)
 
-	checkNetwork := func(*testing.T) (interface{}, check.CommentInterface) {
+	checkNetwork := func(*testing.T) (interface{}, string) {
 		out, err := d.Cmd("network", "ls")
 		assert.NilError(c, err)
 		return out, nil
@@ -544,7 +544,7 @@ func (s *DockerSwarmSuite) TestSwarmTaskListFilter(c *testing.T) {
 
 	filter := "name=redis-cluster"
 
-	checkNumTasks := func(*testing.T) (interface{}, check.CommentInterface) {
+	checkNumTasks := func(*testing.T) (interface{}, string) {
 		out, err := d.Cmd("service", "ps", "--filter", filter, name)
 		assert.NilError(c, err, out)
 		return len(strings.Split(out, "\n")) - 2, nil // includes header and nl in last line
@@ -985,8 +985,8 @@ func getNodeStatus(c *testing.T, d *daemon.Daemon) swarm.LocalNodeState {
 	return info.LocalNodeState
 }
 
-func checkKeyIsEncrypted(d *daemon.Daemon) func(*testing.T) (interface{}, check.CommentInterface) {
-	return func(c *testing.T) (interface{}, check.CommentInterface) {
+func checkKeyIsEncrypted(d *daemon.Daemon) func(*testing.T) (interface{}, string) {
+	return func(c *testing.T) (interface{}, string) {
 		keyBytes, err := ioutil.ReadFile(filepath.Join(d.Folder, "root", "swarm", "certificates", "swarm-node.key"))
 		if err != nil {
 			return fmt.Errorf("error reading key: %v", err), nil
@@ -1214,7 +1214,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
 	// (because we never want a manager TLS key to be on disk unencrypted if the cluster
 	// is set to autolock)
 	waitAndAssert(c, defaultReconciliationTimeout, d3.CheckControlAvailable, checker.False)
-	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, check.CommentInterface) {
+	waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
 		certBytes, err := ioutil.ReadFile(filepath.Join(d3.Folder, "root", "swarm", "certificates", "swarm-node.crt"))
 		if err != nil {
 			return "", fmt.Sprintf("error: %v", err)

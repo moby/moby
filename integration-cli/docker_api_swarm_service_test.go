@@ -224,7 +224,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *testing.T) {
 
 	checkStartingTasks := func(expected int) []swarm.Task {
 		var startingTasks []swarm.Task
-		waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, check.CommentInterface) {
+		waitAndAssert(c, defaultReconciliationTimeout, func(c *testing.T) (interface{}, string) {
 			tasks := d.GetServiceTasks(c, id)
 			startingTasks = nil
 			for _, t := range tasks {

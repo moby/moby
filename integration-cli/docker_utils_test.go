@@ -441,11 +441,11 @@ func waitAndAssert(t assert.TestingT, timeout time.Duration, f checkF, compariso
 	}
 }
 
-type checkF func(*testing.T) (interface{}, check.CommentInterface)
+type checkF func(*testing.T) (interface{}, string)
 type reducer func(...interface{}) interface{}
 
 func reducedCheck(r reducer, funcs ...checkF) checkF {
-	return func(c *testing.T) (interface{}, check.CommentInterface) {
+	return func(c *testing.T) (interface{}, string) {
 		var values []interface{}
 		var comments []string
 		for _, f := range funcs {
