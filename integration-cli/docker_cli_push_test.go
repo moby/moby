@@ -9,10 +9,10 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"testing"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )

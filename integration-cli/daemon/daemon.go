@@ -3,6 +3,7 @@ package daemon // import "github.com/docker/docker/integration-cli/daemon"
 import (
 	"fmt"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/internal/test/daemon"

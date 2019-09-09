@@ -5,6 +5,7 @@ package main
 import (
 	"strconv"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/executor/container"

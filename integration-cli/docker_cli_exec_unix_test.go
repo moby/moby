@@ -7,10 +7,10 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

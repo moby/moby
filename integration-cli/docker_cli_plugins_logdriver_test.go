@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/client"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

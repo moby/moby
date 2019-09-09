@@ -3,12 +3,14 @@
 package main
 
 import (
+	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 func (s *DockerSwarmSuite) TestAPISwarmListNodes(c *testing.T) {

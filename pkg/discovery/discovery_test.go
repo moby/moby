@@ -3,7 +3,8 @@ package discovery // import "github.com/docker/docker/pkg/discovery"
 import (
 	"testing"
 
-	"github.com/go-check/check"
+	"github.com/docker/docker/integration-cli/checker"
+	"gotest.tools/assert"
 )
 
 // Hook up gocheck into the "go test" runner.
@@ -11,7 +12,7 @@ func Test(t *testing.T) { /*check.TestingT(t)*/ }
 
 type DiscoverySuite struct{}
 
- /*check.Suite(&DiscoverySuite{})*/
+/*check.Suite(&DiscoverySuite{})*/
 
 func (s *DiscoverySuite) TestNewEntry(c *testing.T) {
 	entry, err := NewEntry("127.0.0.1:2375")

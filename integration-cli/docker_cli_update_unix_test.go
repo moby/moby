@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/creack/pty"
@@ -15,7 +16,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

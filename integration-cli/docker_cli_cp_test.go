@@ -9,8 +9,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"testing"
 
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/icmd"

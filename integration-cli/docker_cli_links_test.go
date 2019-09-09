@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/runconfig"

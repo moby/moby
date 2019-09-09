@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"

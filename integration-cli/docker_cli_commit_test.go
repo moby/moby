@@ -2,11 +2,13 @@ package main
 
 import (
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 func (s *DockerSuite) TestCommitAfterContainerIsDone(c *testing.T) {

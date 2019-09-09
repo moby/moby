@@ -23,7 +23,6 @@ import (
 	"github.com/docker/docker/internal/test/fixtures/plugin"
 	"github.com/docker/docker/internal/test/registry"
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 func waitForHealthStatus(c *testing.T, name string, prev string, expected string) {

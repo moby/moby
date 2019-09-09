@@ -3,9 +3,8 @@ package main
 import (
 	"fmt"
 	"strings"
+	"testing"
 	"time"
-
-	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) BenchmarkLogsCLIRotateFollow(c *testing.B) {

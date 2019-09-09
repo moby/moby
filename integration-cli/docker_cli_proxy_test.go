@@ -3,8 +3,8 @@ package main
 import (
 	"net"
 	"strings"
+	"testing"
 
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )

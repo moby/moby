@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"testing"
 
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

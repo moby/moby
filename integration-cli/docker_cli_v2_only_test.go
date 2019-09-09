@@ -5,9 +5,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"testing"
 
 	"github.com/docker/docker/internal/test/registry"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

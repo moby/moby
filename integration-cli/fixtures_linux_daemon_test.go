@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/internal/test/fixtures/load"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 

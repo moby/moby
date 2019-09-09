@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"testing"
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest"

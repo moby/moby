@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"os/exec"
 	"strings"
+	"testing"
 
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 
