@@ -4657,7 +4657,7 @@ func (s *DockerSuite) TestBuildMultiStageArg(c *testing.T) {
 	assert.Assert(c, result.Stdout(), checker.Contains, "foo=abc")
 
 	result = cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
-	assert.Assert(c, result.Stdout(), checker.Not(checker.Contains), "foo")
+	assert.Assert(c, !strings.Contains(result.Stdout(), "foo"))
 	assert.Assert(c, result.Stdout(), checker.Contains, "bar=def")
 }
 
@@ -4680,8 +4680,7 @@ func (s *DockerSuite) TestBuildMultiStageGlobalArg(c *testing.T) {
 	parentID := strings.TrimSpace(result.Stdout())
 
 	result = cli.DockerCmd(c, "run", "--rm", parentID, "cat", "/out")
-	assert.Assert(c, result.Stdout(), checker.Not(checker.Contains), "tag")
-
+	assert.Assert(c, !strings.Contains(result.Stdout(), "tag"))
 	result = cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
 	assert.Assert(c, result.Stdout(), checker.Contains, "tag=latest")
 }
@@ -4702,8 +4701,8 @@ func (s *DockerSuite) TestBuildMultiStageUnusedArg(c *testing.T) {
 	assert.Assert(c, result.Combined(), checker.Contains, "[baz] were not consumed")
 
 	result = cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
-	assert.Assert(c, result.Stdout(), checker.Not(checker.Contains), "bar")
-	assert.Assert(c, result.Stdout(), checker.Not(checker.Contains), "baz")
+	assert.Assert(c, !strings.Contains(result.Stdout(), "bar"))
+	assert.Assert(c, !strings.Contains(result.Stdout(), "baz"))
 }
 
 func (s *DockerSuite) TestBuildNoNamedVolume(c *testing.T) {
@@ -4816,8 +4815,7 @@ func (s *DockerSuite) TestBuildFollowSymlinkToFile(c *testing.T) {
 	assert.NilError(c, err)
 
 	result := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
-	assert.Assert(c, result.Combined(), checker.Not(checker.Contains), "Using cache")
-
+	assert.Assert(c, !strings.Contains(result.Combined(), "Using cache"))
 	out = cli.DockerCmd(c, "run", "--rm", name, "cat", "target").Combined()
 	assert.Assert(c, cmp.Regexp("^"+
 
@@ -4858,8 +4856,7 @@ func (s *DockerSuite) TestBuildFollowSymlinkToDir(c *testing.T) {
 	assert.NilError(c, err)
 
 	result := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
-	assert.Assert(c, result.Combined(), checker.Not(checker.Contains), "Using cache")
-
+	assert.Assert(c, !strings.Contains(result.Combined(), "Using cache"))
 	out = cli.DockerCmd(c, "run", "--rm", name, "cat", "abc", "def").Combined()
 	assert.Assert(c, cmp.Regexp("^"+
 
@@ -4919,7 +4916,7 @@ func (s *DockerSuite) TestBuildCacheRootSource(c *testing.T) {
 
 	result := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
-	assert.Assert(c, result.Combined(), checker.Not(checker.Contains), "Using cache")
+	assert.Assert(c, !strings.Contains(result.Combined(), "Using cache"))
 }
 
 // #19375
@@ -5073,8 +5070,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestBuildWithExternalAuth(c *testing.T
 
 	b, err := ioutil.ReadFile(configPath)
 	assert.NilError(c, err)
-	assert.Assert(c, string(b), checker.Not(checker.Contains), "\"auth\":")
-
+	assert.Assert(c, !strings.Contains(string(b), "\"auth\":"))
 	dockerCmd(c, "--config", tmp, "tag", "busybox", repoName)
 	dockerCmd(c, "--config", tmp, "push", repoName)
 
@@ -5432,8 +5428,8 @@ func (s *DockerSuite) TestBuildWithFailure(c *testing.T) {
 	dockerfile = "FFOM nobody\nRUN nobody"
 	result = buildImage(name, build.WithDockerfile(dockerfile))
 	assert.Assert(c, result.Error != nil)
-	assert.Assert(c, result.Stdout(), checker.Not(checker.Contains), "Step 1/2 : FROM busybox")
-	assert.Assert(c, result.Stdout(), checker.Not(checker.Contains), "Step 2/2 : RUN nobody")
+	assert.Assert(c, !strings.Contains(result.Stdout(), "Step 1/2 : FROM busybox"))
+	assert.Assert(c, !strings.Contains(result.Stdout(), "Step 2/2 : RUN nobody"))
 }
 
 func (s *DockerSuite) TestBuildCacheFromEqualDiffIDsLength(c *testing.T) {

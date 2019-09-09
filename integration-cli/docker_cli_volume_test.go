@@ -142,7 +142,7 @@ func (s *DockerSuite) TestVolumeCLILsFilterDangling(c *testing.T) {
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "dangling=false")
 
 	// Explicitly disabling dangling
-	assert.Assert(c, out, checker.Not(checker.Contains), "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
+	assert.Assert(c, !strings.Contains(out, "testnotinuse1\n"), check.Commentf("expected volume 'testnotinuse1' in output"))
 	assert.Assert(c, out, checker.Contains, "testisinuse1\n", check.Commentf("expected volume 'testisinuse1' in output"))
 	assert.Assert(c, out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
 
@@ -150,23 +150,21 @@ func (s *DockerSuite) TestVolumeCLILsFilterDangling(c *testing.T) {
 
 	// Filter "dangling" volumes; only "dangling" (unused) volumes should be in the output
 	assert.Assert(c, out, checker.Contains, "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
-	assert.Assert(c, out, checker.Not(checker.Contains), "testisinuse1\n", check.Commentf("volume 'testisinuse1' in output, but not expected"))
-	assert.Assert(c, out, checker.Not(checker.Contains), "testisinuse2\n", check.Commentf("volume 'testisinuse2' in output, but not expected"))
-
+	assert.Assert(c, !strings.Contains(out, "testisinuse1\n"), check.Commentf("volume 'testisinuse1' in output, but not expected"))
+	assert.Assert(c, !strings.Contains(out, "testisinuse2\n"), check.Commentf("volume 'testisinuse2' in output, but not expected"))
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "dangling=1")
 	// Filter "dangling" volumes; only "dangling" (unused) volumes should be in the output, dangling also accept 1
 	assert.Assert(c, out, checker.Contains, "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
-	assert.Assert(c, out, checker.Not(checker.Contains), "testisinuse1\n", check.Commentf("volume 'testisinuse1' in output, but not expected"))
-	assert.Assert(c, out, checker.Not(checker.Contains), "testisinuse2\n", check.Commentf("volume 'testisinuse2' in output, but not expected"))
-
+	assert.Assert(c, !strings.Contains(out, "testisinuse1\n"), check.Commentf("volume 'testisinuse1' in output, but not expected"))
+	assert.Assert(c, !strings.Contains(out, "testisinuse2\n"), check.Commentf("volume 'testisinuse2' in output, but not expected"))
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "dangling=0")
 	// dangling=0 is same as dangling=false case
-	assert.Assert(c, out, checker.Not(checker.Contains), "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
+	assert.Assert(c, !strings.Contains(out, "testnotinuse1\n"), check.Commentf("expected volume 'testnotinuse1' in output"))
 	assert.Assert(c, out, checker.Contains, "testisinuse1\n", check.Commentf("expected volume 'testisinuse1' in output"))
 	assert.Assert(c, out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
 
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "name=testisin")
-	assert.Assert(c, out, checker.Not(checker.Contains), "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
+	assert.Assert(c, !strings.Contains(out, "testnotinuse1\n"), check.Commentf("expected volume 'testnotinuse1' in output"))
 	assert.Assert(c, out, checker.Contains, "testisinuse1\n", check.Commentf("expected volume 'testisinuse1' in output"))
 	assert.Assert(c, out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
 }
@@ -330,8 +328,7 @@ func (s *DockerSuite) TestVolumeCLILsFilterLabels(c *testing.T) {
 
 	// filter with label=key=value
 	assert.Assert(c, out, checker.Contains, "testvolcreatelabel-1\n", check.Commentf("expected volume 'testvolcreatelabel-1' in output"))
-	assert.Assert(c, out, checker.Not(checker.Contains), "testvolcreatelabel-2\n", check.Commentf("expected volume 'testvolcreatelabel-2 in output"))
-
+	assert.Assert(c, !strings.Contains(out, "testvolcreatelabel-2\n"), check.Commentf("expected volume 'testvolcreatelabel-2 in output"))
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "label=non-exist")
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
 	assert.Equal(c, len(outArr), 1, check.Commentf("\n%s", out))
@@ -396,7 +393,7 @@ func (s *DockerSuite) TestVolumeCLIRmForce(c *testing.T) {
 
 	dockerCmd(c, "volume", "rm", "-f", name)
 	out, _ = dockerCmd(c, "volume", "ls")
-	assert.Assert(c, out, checker.Not(checker.Contains), name)
+	assert.Assert(c, !strings.Contains(out, name))
 	dockerCmd(c, "volume", "create", name)
 	out, _ = dockerCmd(c, "volume", "ls")
 	assert.Assert(c, out, checker.Contains, name)
@@ -439,7 +436,7 @@ func (s *DockerSuite) TestVolumeCLIRmForceInUse(c *testing.T) {
 
 	out, e = dockerCmd(c, "volume", "ls")
 	assert.Equal(c, e, 0)
-	assert.Assert(c, out, checker.Not(checker.Contains), name)
+	assert.Assert(c, !strings.Contains(out, name))
 }
 
 func (s *DockerSuite) TestVolumeCliInspectWithVolumeOpts(c *testing.T) {
@@ -501,8 +498,8 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFrom(c *testing.T) {
 
 	// Both volume should not exist
 	out, _ = dockerCmd(c, "volume", "ls", "-q")
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Contains), data1)
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Contains), data2)
+	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), data1))
+	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), data2))
 }
 
 // Test case (2) for 21845: duplicate targets for --volumes-from and -v (bind)
@@ -536,17 +533,16 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndBind(c *testing.T
 
 	// No volume will be referenced (mount is /tmp/data), this is backward compatible
 	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "app")
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Contains), data1)
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Contains), data2)
-
+	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), data1))
+	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), data2))
 	dockerCmd(c, "rm", "-f", "-v", "app")
 	dockerCmd(c, "rm", "-f", "-v", "data1")
 	dockerCmd(c, "rm", "-f", "-v", "data2")
 
 	// Both volume should not exist
 	out, _ = dockerCmd(c, "volume", "ls", "-q")
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Contains), data1)
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Contains), data2)
+	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), data1))
+	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), data2))
 }
 
 // Test case (3) for 21845: duplicate targets for --volumes-from and `Mounts` (API only)
@@ -602,15 +598,14 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *testing
 
 	// No volume will be referenced (mount is /tmp/data), this is backward compatible
 	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "app")
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Contains), data1)
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Contains), data2)
-
+	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), data1))
+	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), data2))
 	dockerCmd(c, "rm", "-f", "-v", "app")
 	dockerCmd(c, "rm", "-f", "-v", "data1")
 	dockerCmd(c, "rm", "-f", "-v", "data2")
 
 	// Both volume should not exist
 	out, _ = dockerCmd(c, "volume", "ls", "-q")
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Contains), data1)
-	assert.Assert(c, strings.TrimSpace(out), checker.Not(checker.Contains), data2)
+	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), data1))
+	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), data2))
 }

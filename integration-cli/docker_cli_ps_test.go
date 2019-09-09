@@ -434,7 +434,7 @@ func (s *DockerSuite) TestPsListContainersFilterLabel(c *testing.T) {
 	containerOut = strings.TrimSpace(out)
 	assert.Assert(c, containerOut, checker.Contains, firstID)
 	assert.Assert(c, containerOut, checker.Contains, secondID)
-	assert.Assert(c, containerOut, checker.Not(checker.Contains), thirdID)
+	assert.Assert(c, !strings.Contains(containerOut, thirdID))
 }
 
 func (s *DockerSuite) TestPsListContainersFilterExited(c *testing.T) {
@@ -455,14 +455,13 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *testing.T) {
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=0")
 	assert.Assert(c, out, checker.Contains, strings.TrimSpace(firstZero))
 	assert.Assert(c, out, checker.Contains, strings.TrimSpace(secondZero))
-	assert.Assert(c, out, checker.Not(checker.Contains), strings.TrimSpace(firstNonZero))
-	assert.Assert(c, out, checker.Not(checker.Contains), strings.TrimSpace(secondNonZero))
-
+	assert.Assert(c, !strings.Contains(out, strings.TrimSpace(firstNonZero)))
+	assert.Assert(c, !strings.Contains(out, strings.TrimSpace(secondNonZero)))
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=1")
 	assert.Assert(c, out, checker.Contains, strings.TrimSpace(firstNonZero))
 	assert.Assert(c, out, checker.Contains, strings.TrimSpace(secondNonZero))
-	assert.Assert(c, out, checker.Not(checker.Contains), strings.TrimSpace(firstZero))
-	assert.Assert(c, out, checker.Not(checker.Contains), strings.TrimSpace(secondZero))
+	assert.Assert(c, !strings.Contains(out, strings.TrimSpace(firstZero)))
+	assert.Assert(c, !strings.Contains(out, strings.TrimSpace(secondZero)))
 }
 
 func (s *DockerSuite) TestPsRightTagName(c *testing.T) {
@@ -519,8 +518,7 @@ func (s *DockerSuite) TestPsListContainersFilterCreated(c *testing.T) {
 
 	// Make sure it DOESN'T show up w/o a '-a' for normal 'ps'
 	out, _ = dockerCmd(c, "ps", "-q")
-	assert.Assert(c, out, checker.Not(checker.Contains), shortCID, check.Commentf("Should have not seen '%s' in ps output:\n%s", shortCID, out))
-
+	assert.Assert(c, !strings.Contains(out, shortCID), check.Commentf("Should have not seen '%s' in ps output:\n%s", shortCID, out))
 	// Make sure it DOES show up as 'Created' for 'ps -a'
 	out, _ = dockerCmd(c, "ps", "-a")
 

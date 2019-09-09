@@ -212,15 +212,13 @@ func (s *DockerSwarmSuite) TestSwarmServiceListFilter(c *testing.T) {
 	out, err = d.Cmd("service", "ls", "--filter", filter1)
 	assert.NilError(c, err, out)
 	assert.Assert(c, out, checker.Contains, name1+" ")
-	assert.Assert(c, out, checker.Not(checker.Contains), name2+" ")
-	assert.Assert(c, out, checker.Not(checker.Contains), name3+" ")
-
+	assert.Assert(c, !strings.Contains(out, name2+" "))
+	assert.Assert(c, !strings.Contains(out, name3+" "))
 	out, err = d.Cmd("service", "ls", "--filter", filter2)
 	assert.NilError(c, err, out)
 	assert.Assert(c, out, checker.Contains, name1+" ")
 	assert.Assert(c, out, checker.Contains, name2+" ")
-	assert.Assert(c, out, checker.Not(checker.Contains), name3+" ")
-
+	assert.Assert(c, !strings.Contains(out, name3+" "))
 	out, err = d.Cmd("service", "ls")
 	assert.NilError(c, err, out)
 	assert.Assert(c, out, checker.Contains, name1+" ")
@@ -244,7 +242,7 @@ func (s *DockerSwarmSuite) TestSwarmNodeListFilter(c *testing.T) {
 
 	out, err = d.Cmd("node", "ls", "--filter", "name=none")
 	assert.NilError(c, err, out)
-	assert.Assert(c, out, checker.Not(checker.Contains), name)
+	assert.Assert(c, !strings.Contains(out, name))
 }
 
 func (s *DockerSwarmSuite) TestSwarmNodeTaskListFilter(c *testing.T) {
@@ -268,9 +266,9 @@ func (s *DockerSwarmSuite) TestSwarmNodeTaskListFilter(c *testing.T) {
 
 	out, err = d.Cmd("node", "ps", "--filter", "name=none", "self")
 	assert.NilError(c, err, out)
-	assert.Assert(c, out, checker.Not(checker.Contains), name+".1")
-	assert.Assert(c, out, checker.Not(checker.Contains), name+".2")
-	assert.Assert(c, out, checker.Not(checker.Contains), name+".3")
+	assert.Assert(c, !strings.Contains(out, name+".1"))
+	assert.Assert(c, !strings.Contains(out, name+".2"))
+	assert.Assert(c, !strings.Contains(out, name+".3"))
 }
 
 // Test case for #25375
@@ -442,7 +440,7 @@ func (s *DockerSwarmSuite) TestOverlayAttachableOnSwarmLeave(c *testing.T) {
 	// Check the network is gone
 	out, err = d.Cmd("network", "ls", "--format", "{{.Name}}")
 	assert.NilError(c, err, out)
-	assert.Assert(c, out, checker.Not(checker.Contains), nwName)
+	assert.Assert(c, !strings.Contains(out, nwName))
 }
 
 func (s *DockerSwarmSuite) TestOverlayAttachableReleaseResourcesOnFailure(c *testing.T) {
@@ -570,15 +568,13 @@ func (s *DockerSwarmSuite) TestSwarmTaskListFilter(c *testing.T) {
 	out, err = d.Cmd("service", "ps", "--filter", "name="+name+".1", name)
 	assert.NilError(c, err, out)
 	assert.Assert(c, out, checker.Contains, name+".1")
-	assert.Assert(c, out, checker.Not(checker.Contains), name+".2")
-	assert.Assert(c, out, checker.Not(checker.Contains), name+".3")
-
+	assert.Assert(c, !strings.Contains(out, name+".2"))
+	assert.Assert(c, !strings.Contains(out, name+".3"))
 	out, err = d.Cmd("service", "ps", "--filter", "name=none", name)
 	assert.NilError(c, err, out)
-	assert.Assert(c, out, checker.Not(checker.Contains), name+".1")
-	assert.Assert(c, out, checker.Not(checker.Contains), name+".2")
-	assert.Assert(c, out, checker.Not(checker.Contains), name+".3")
-
+	assert.Assert(c, !strings.Contains(out, name+".1"))
+	assert.Assert(c, !strings.Contains(out, name+".2"))
+	assert.Assert(c, !strings.Contains(out, name+".3"))
 	name = "redis-cluster-sha1"
 	out, err = d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "--mode=global", "busybox", "top")
 	assert.NilError(c, err, out)
@@ -597,7 +593,7 @@ func (s *DockerSwarmSuite) TestSwarmTaskListFilter(c *testing.T) {
 
 	out, err = d.Cmd("service", "ps", "--filter", "name=none", name)
 	assert.NilError(c, err, out)
-	assert.Assert(c, out, checker.Not(checker.Contains), name)
+	assert.Assert(c, !strings.Contains(out, name))
 }
 
 func (s *DockerSwarmSuite) TestPsListContainersFilterIsTask(c *testing.T) {
@@ -1041,8 +1037,7 @@ func (s *DockerSwarmSuite) TestUnlockEngineAndUnlockedSwarm(c *testing.T) {
 		ExitCode: 1,
 	})
 	assert.Assert(c, result.Combined(), checker.Contains, "Error: This node is not part of a swarm")
-	assert.Assert(c, result.Combined(), checker.Not(checker.Contains), "Please enter unlock key")
-
+	assert.Assert(c, !strings.Contains(result.Combined(), "Please enter unlock key"))
 	out, err := d.Cmd("swarm", "init")
 	assert.NilError(c, err, out)
 
@@ -1053,7 +1048,7 @@ func (s *DockerSwarmSuite) TestUnlockEngineAndUnlockedSwarm(c *testing.T) {
 		ExitCode: 1,
 	})
 	assert.Assert(c, result.Combined(), checker.Contains, "Error: swarm is not locked")
-	assert.Assert(c, result.Combined(), checker.Not(checker.Contains), "Please enter unlock key")
+	assert.Assert(c, !strings.Contains(result.Combined(), "Please enter unlock key"))
 }
 
 func (s *DockerSwarmSuite) TestSwarmInitLocked(c *testing.T) {
@@ -1086,8 +1081,7 @@ func (s *DockerSwarmSuite) TestSwarmInitLocked(c *testing.T) {
 
 	outs, err = d.Cmd("node", "ls")
 	assert.Assert(c, err == nil, check.Commentf("%s", outs))
-	assert.Assert(c, outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
-
+	assert.Assert(c, !strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"))
 	outs, err = d.Cmd("swarm", "update", "--autolock=false")
 	assert.Assert(c, err == nil, check.Commentf("%s", outs))
 
@@ -1095,7 +1089,7 @@ func (s *DockerSwarmSuite) TestSwarmInitLocked(c *testing.T) {
 
 	outs, err = d.Cmd("node", "ls")
 	assert.Assert(c, err == nil, check.Commentf("%s", outs))
-	assert.Assert(c, outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
+	assert.Assert(c, !strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"))
 }
 
 func (s *DockerSwarmSuite) TestSwarmLeaveLocked(c *testing.T) {
@@ -1320,7 +1314,7 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *testing.T) {
 				}
 			}
 			assert.NilError(c, err)
-			assert.Assert(c, outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
+			assert.Assert(c, !strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"))
 			break
 		}
 
@@ -1412,7 +1406,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *testing.T) {
 					}
 				}
 				assert.Assert(c, err == nil, check.Commentf("%s", outs))
-				assert.Assert(c, outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
+				assert.Assert(c, !strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"))
 				break
 			}
 		}
@@ -1584,8 +1578,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinWithDrain(c *testing.T) {
 
 	out, err := d.Cmd("node", "ls")
 	assert.NilError(c, err)
-	assert.Assert(c, out, checker.Not(checker.Contains), "Drain")
-
+	assert.Assert(c, !strings.Contains(out, "Drain"))
 	out, err = d.Cmd("swarm", "join-token", "-q", "manager")
 	assert.NilError(c, err)
 	assert.Assert(c, strings.TrimSpace(out) != "")
@@ -1750,17 +1743,16 @@ func (s *DockerSwarmSuite) TestSwarmServiceLsFilterMode(c *testing.T) {
 	assert.NilError(c, err, out)
 	assert.Assert(c, out, checker.Contains, "top1")
 	assert.Assert(c, out, checker.Contains, "top2")
-	assert.Assert(c, out, checker.Not(checker.Contains), "localnet")
-
+	assert.Assert(c, !strings.Contains(out, "localnet"))
 	out, err = d.Cmd("service", "ls", "--filter", "mode=global")
-	assert.Assert(c, out, checker.Not(checker.Contains), "top1")
+	assert.Assert(c, !strings.Contains(out, "top1"))
 	assert.Assert(c, out, checker.Contains, "top2")
 	assert.NilError(c, err, out)
 
 	out, err = d.Cmd("service", "ls", "--filter", "mode=replicated")
 	assert.NilError(c, err, out)
 	assert.Assert(c, out, checker.Contains, "top1")
-	assert.Assert(c, out, checker.Not(checker.Contains), "top2")
+	assert.Assert(c, !strings.Contains(out, "top2"))
 }
 
 func (s *DockerSwarmSuite) TestSwarmInitUnspecifiedDataPathAddr(c *testing.T) {
@@ -1842,7 +1834,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsSource(c *testing.T) {
 
 	// d3 is a worker, not able to get cluster events
 	out = waitForEvent(c, d3, "0", "-f scope=swarm", "", 1)
-	assert.Assert(c, out, checker.Not(checker.Contains), "network create ")
+	assert.Assert(c, !strings.Contains(out, "network create "))
 }
 
 func (s *DockerSwarmSuite) TestSwarmClusterEventsScope(c *testing.T) {
@@ -1855,15 +1847,14 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsScope(c *testing.T) {
 
 	// scope swarm filters cluster events
 	out = waitForEvent(c, d, "0", "-f scope=swarm", "service create "+serviceID, defaultRetryCount)
-	assert.Assert(c, out, checker.Not(checker.Contains), "container create ")
-
+	assert.Assert(c, !strings.Contains(out, "container create "))
 	// all events are returned if scope is not specified
 	waitForEvent(c, d, "0", "", "service create "+serviceID, 1)
 	waitForEvent(c, d, "0", "", "container create ", defaultRetryCount)
 
 	// scope local only shows non-cluster events
 	out = waitForEvent(c, d, "0", "-f scope=local", "container create ", 1)
-	assert.Assert(c, out, checker.Not(checker.Contains), "service create ")
+	assert.Assert(c, !strings.Contains(out, "service create "))
 }
 
 func (s *DockerSwarmSuite) TestSwarmClusterEventsType(c *testing.T) {
@@ -1882,11 +1873,10 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsType(c *testing.T) {
 
 	// filter by service
 	out = waitForEvent(c, d, "0", "-f type=service", "service create "+serviceID, defaultRetryCount)
-	assert.Assert(c, out, checker.Not(checker.Contains), "network create")
-
+	assert.Assert(c, !strings.Contains(out, "network create"))
 	// filter by network
 	out = waitForEvent(c, d, "0", "-f type=network", "network create "+networkID, defaultRetryCount)
-	assert.Assert(c, out, checker.Not(checker.Contains), "service create")
+	assert.Assert(c, !strings.Contains(out, "service create"))
 }
 
 func (s *DockerSwarmSuite) TestSwarmClusterEventsService(c *testing.T) {

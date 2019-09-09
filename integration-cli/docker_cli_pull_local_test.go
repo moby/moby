@@ -396,8 +396,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuthLoginWithSchem
 
 	b, err := ioutil.ReadFile(configPath)
 	assert.NilError(c, err)
-	assert.Assert(c, string(b), checker.Not(checker.Contains), "\"auth\":")
-
+	assert.Assert(c, !strings.Contains(string(b), "\"auth\":"))
 	dockerCmd(c, "--config", tmp, "tag", "busybox", repoName)
 	dockerCmd(c, "--config", tmp, "push", repoName)
 
@@ -441,8 +440,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuth(c *testing.T)
 
 	b, err := ioutil.ReadFile(configPath)
 	assert.NilError(c, err)
-	assert.Assert(c, string(b), checker.Not(checker.Contains), "\"auth\":")
-
+	assert.Assert(c, !strings.Contains(string(b), "\"auth\":"))
 	dockerCmd(c, "--config", tmp, "tag", "busybox", repoName)
 	dockerCmd(c, "--config", tmp, "push", repoName)
 

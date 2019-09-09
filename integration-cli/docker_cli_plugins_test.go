@@ -407,7 +407,7 @@ func (ps *DockerPluginSuite) TestPluginIDPrefix(c *testing.T) {
 	// List returns none
 	out, _, err = dockerCmdWithError("plugin", "ls")
 	assert.NilError(c, err)
-	assert.Assert(c, out, checker.Not(checker.Contains), name)
+	assert.Assert(c, !strings.Contains(out, name))
 }
 
 func (ps *DockerPluginSuite) TestPluginListDefaultFormat(c *testing.T) {

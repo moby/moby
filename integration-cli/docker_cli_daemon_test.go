@@ -2113,12 +2113,11 @@ func (s *DockerDaemonSuite) TestRunLinksChanged(c *testing.T) {
 	assert.NilError(c, err, out)
 	out, err = s.d.Cmd("start", "-a", "test2")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, out, checker.Not(checker.Contains), "1 packets transmitted, 1 packets received")
-
+	assert.Assert(c, !strings.Contains(out, "1 packets transmitted, 1 packets received"))
 	s.d.Restart(c)
 	out, err = s.d.Cmd("start", "-a", "test2")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, out, checker.Not(checker.Contains), "1 packets transmitted, 1 packets received")
+	assert.Assert(c, !strings.Contains(out, "1 packets transmitted, 1 packets received"))
 }
 
 func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *testing.T) {
@@ -2168,7 +2167,7 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *testing.T) {
 	// Wait for io.Copy() before checking output
 	<-done
 	assert.Assert(c, b.String() != "")
-	assert.Assert(c, b.String(), checker.Not(checker.Contains), infoLog)
+	assert.Assert(c, !strings.Contains(b.String(), infoLog))
 }
 
 func (s *DockerDaemonSuite) TestDaemonDebugLog(c *testing.T) {
@@ -2587,7 +2586,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithAutoRemoveContainer(c *testing.
 	out, err = s.d.Cmd("ps", "-a")
 	assert.NilError(c, err, "out: %v", out)
 	assert.Assert(c, out, checker.Contains, "top1", check.Commentf("top1 should exist after daemon restarts"))
-	assert.Assert(c, out, checker.Not(checker.Contains), "top2", check.Commentf("top2 should be removed after daemon restarts"))
+	assert.Assert(c, !strings.Contains(out, "top2"), check.Commentf("top2 should be removed after daemon restarts"))
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *testing.T) {

@@ -1260,13 +1260,11 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnectToStoppedContaine
 	// Test disconnect
 	dockerCmd(c, "network", "disconnect", "test", "foo")
 	networks = inspectField(c, "foo", "NetworkSettings.Networks")
-	assert.Assert(c, networks, checker.Not(checker.Contains), "test", check.Commentf("Should not contain 'test' network"))
-
+	assert.Assert(c, !strings.Contains(networks, "test"), check.Commentf("Should not contain 'test' network"))
 	// Restart docker daemon to test the config has persisted to disk
 	s.d.Restart(c)
 	networks = inspectField(c, "foo", "NetworkSettings.Networks")
-	assert.Assert(c, networks, checker.Not(checker.Contains), "test", check.Commentf("Should not contain 'test' network"))
-
+	assert.Assert(c, !strings.Contains(networks, "test"), check.Commentf("Should not contain 'test' network"))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkDisconnectContainerNonexistingNetwork(c *testing.T) {
@@ -1282,7 +1280,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDisconnectContainerNonexistingNetw
 	// Test disconnecting stopped container from nonexisting network
 	dockerCmd(c, "network", "disconnect", "-f", "test", "foo")
 	networks = inspectField(c, "foo", "NetworkSettings.Networks")
-	assert.Assert(c, networks, checker.Not(checker.Contains), "test", check.Commentf("Should not contain 'test' network"))
+	assert.Assert(c, !strings.Contains(networks, "test"), check.Commentf("Should not contain 'test' network"))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkConnectPreferredIP(c *testing.T) {
@@ -1497,7 +1495,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDisconnectDefault(c *testing.T) {
 	networks := inspectField(c, containerName, "NetworkSettings.Networks")
 	assert.Assert(c, networks, checker.Contains, netWorkName1, check.Commentf(fmt.Sprintf("Should contain '%s' network", netWorkName1)))
 	assert.Assert(c, networks, checker.Contains, netWorkName2, check.Commentf(fmt.Sprintf("Should contain '%s' network", netWorkName2)))
-	assert.Assert(c, networks, checker.Not(checker.Contains), "bridge", check.Commentf("Should not contain 'bridge' network"))
+	assert.Assert(c, !strings.Contains(networks, "bridge"), check.Commentf("Should not contain 'bridge' network"))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkConnectWithAliasOnDefaultNetworks(c *testing.T) {

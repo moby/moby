@@ -102,7 +102,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *testing.T) {
 
 	imagesAfter = cli.DockerCmd(c, "images", "-a").Combined()
 	// rmi -f failed, image still exists
-	assert.Assert(c, imagesAfter, checker.Not(checker.Contains), imgID[:12], check.Commentf("ImageID:%q; ImagesAfter: %q", imgID, imagesAfter))
+	assert.Assert(c, !strings.Contains(imagesAfter, imgID[:12]), check.Commentf("ImageID:%q; ImagesAfter: %q", imgID, imagesAfter))
 }
 
 func (s *DockerSuite) TestRmiImgIDForce(c *testing.T) {
@@ -138,7 +138,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *testing.T) {
 	{
 		imagesAfter := cli.DockerCmd(c, "images", "-a").Combined()
 		// rmi failed, image still exists
-		assert.Assert(c, imagesAfter, checker.Not(checker.Contains), imgID[:12])
+		assert.Assert(c, !strings.Contains(imagesAfter, imgID[:12]))
 	}
 }
 
@@ -209,8 +209,7 @@ func (s *DockerSuite) TestRmiForceWithMultipleRepositories(c *testing.T) {
 
 	out, _ := dockerCmd(c, "rmi", "-f", tag2)
 	assert.Assert(c, out, checker.Contains, "Untagged: "+tag2)
-	assert.Assert(c, out, checker.Not(checker.Contains), "Untagged: "+tag1)
-
+	assert.Assert(c, !strings.Contains(out, "Untagged: "+tag1))
 	// Check built image still exists
 	images, _ := dockerCmd(c, "images", "-a")
 	assert.Assert(c, images, checker.Contains, imageName, check.Commentf("Built image missing %q; Images: %q", imageName, images))
@@ -221,7 +220,7 @@ func (s *DockerSuite) TestRmiBlank(c *testing.T) {
 	// Should have failed to delete ' ' image
 	assert.ErrorContains(c, err, "")
 	// Wrong error message generated
-	assert.Assert(c, out, checker.Not(checker.Contains), "no such id", check.Commentf("out: %s", out))
+	assert.Assert(c, !strings.Contains(out, "no such id"), check.Commentf("out: %s", out))
 	// Expected error message not generated
 	assert.Assert(c, out, checker.Contains, "image name cannot be blank", check.Commentf("out: %s", out))
 }

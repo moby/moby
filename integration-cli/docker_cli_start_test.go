@@ -185,7 +185,7 @@ func (s *DockerSuite) TestStartAttachWithRename(c *testing.T) {
 	result := cli.Docker(cli.Args("start", "-a", "before")).Assert(c, icmd.Expected{
 		ExitCode: 137,
 	})
-	assert.Assert(c, result.Stderr(), checker.Not(checker.Contains), "No such container")
+	assert.Assert(c, !strings.Contains(result.Stderr(), "No such container"))
 }
 
 func (s *DockerSuite) TestStartReturnCorrectExitCode(c *testing.T) {
