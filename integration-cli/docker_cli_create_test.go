@@ -354,7 +354,7 @@ exec "$@"`,
 
 	out := cli.DockerCmd(c, "create", "--entrypoint=", name, "echo", "foo").Combined()
 	id := strings.TrimSpace(out)
-	assert.Assert(c, id, checker.Not(checker.Equals), "")
+	assert.Assert(c, id != "")
 	out = cli.DockerCmd(c, "start", "-a", id).Combined()
 	assert.Assert(c, strings.TrimSpace(out), checker.Equals, "foo")
 }

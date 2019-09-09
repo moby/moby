@@ -5457,7 +5457,7 @@ func (s *DockerSuite) TestBuildCacheFrom(c *testing.T) {
 	// no cache match with unknown source
 	result = cli.BuildCmd(c, "build2", cli.WithFlags("--cache-from=nosuchtag"), build.WithExternalBuildContext(ctx))
 	id2 = getIDByName(c, "build2")
-	assert.Assert(c, id1, checker.Not(checker.Equals), id2)
+	assert.Assert(c, id1 != id2)
 	assert.Assert(c, strings.Count(result.Combined(), "Using cache"), checker.Equals, 0)
 	cli.DockerCmd(c, "rmi", "build2")
 
@@ -5505,7 +5505,7 @@ func (s *DockerSuite) TestBuildCacheFrom(c *testing.T) {
 
 	result = cli.BuildCmd(c, "build2", cli.WithFlags("--cache-from=build1"), build.WithExternalBuildContext(ctx))
 	id2 = getIDByName(c, "build2")
-	assert.Assert(c, id1, checker.Not(checker.Equals), id2)
+	assert.Assert(c, id1 != id2)
 	assert.Assert(c, strings.Count(result.Combined(), "Using cache"), checker.Equals, 2)
 
 	layers1Str := cli.DockerCmd(c, "inspect", "-f", "{{json .RootFS.Layers}}", "build1").Combined()
@@ -5520,7 +5520,7 @@ func (s *DockerSuite) TestBuildCacheFrom(c *testing.T) {
 	for i := 0; i < len(layers1)-1; i++ {
 		assert.Assert(c, layers1[i], checker.Equals, layers2[i])
 	}
-	assert.Assert(c, layers1[len(layers1)-1], checker.Not(checker.Equals), layers2[len(layers1)-1])
+	assert.Assert(c, layers1[len(layers1)-1] != layers2[len(layers1)-1])
 }
 
 func (s *DockerSuite) TestBuildMultiStageCache(c *testing.T) {

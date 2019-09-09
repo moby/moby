@@ -192,19 +192,19 @@ func (s *DockerSuite) TestPruneContainerLabel(c *testing.T) {
 func (s *DockerSuite) TestPruneVolumeLabel(c *testing.T) {
 	out, _ := dockerCmd(c, "volume", "create", "--label", "foo")
 	id1 := strings.TrimSpace(out)
-	assert.Assert(c, id1, checker.Not(checker.Equals), "")
+	assert.Assert(c, id1 != "")
 
 	out, _ = dockerCmd(c, "volume", "create", "--label", "bar")
 	id2 := strings.TrimSpace(out)
-	assert.Assert(c, id2, checker.Not(checker.Equals), "")
+	assert.Assert(c, id2 != "")
 
 	out, _ = dockerCmd(c, "volume", "create")
 	id3 := strings.TrimSpace(out)
-	assert.Assert(c, id3, checker.Not(checker.Equals), "")
+	assert.Assert(c, id3 != "")
 
 	out, _ = dockerCmd(c, "volume", "create", "--label", "foobar")
 	id4 := strings.TrimSpace(out)
-	assert.Assert(c, id4, checker.Not(checker.Equals), "")
+	assert.Assert(c, id4 != "")
 
 	// Add a config file of label=foobar, that will have no impact if cli is label!=foobar
 	config := `{"pruneFilters": ["label=foobar"]}`

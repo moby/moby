@@ -556,7 +556,7 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredManifest(c *testing.T) {
 	// Pull from the registry using the <name>@<digest> reference.
 	imageReference := fmt.Sprintf("%s@%s", repoName, manifestDigest)
 	out, exitStatus, _ := dockerCmdWithError("pull", imageReference)
-	assert.Assert(c, exitStatus, checker.Not(checker.Equals), 0)
+	assert.Assert(c, exitStatus != 0)
 
 	expectedErrorMsg := fmt.Sprintf("manifest verification failed for digest %s", manifestDigest)
 	assert.Assert(c, is.Contains(out, expectedErrorMsg))
@@ -598,7 +598,7 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredManifest(c *testing
 	// Pull from the registry using the <name>@<digest> reference.
 	imageReference := fmt.Sprintf("%s@%s", repoName, manifestDigest)
 	out, exitStatus, _ := dockerCmdWithError("pull", imageReference)
-	assert.Assert(c, exitStatus, checker.Not(checker.Equals), 0)
+	assert.Assert(c, exitStatus != 0)
 
 	expectedErrorMsg := fmt.Sprintf("image verification failed for digest %s", manifestDigest)
 	assert.Assert(c, out, checker.Contains, expectedErrorMsg)
@@ -641,7 +641,7 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *testing.T) {
 	// Pull from the registry using the <name>@<digest> reference.
 	imageReference := fmt.Sprintf("%s@%s", repoName, manifestDigest)
 	out, exitStatus, _ := dockerCmdWithError("pull", imageReference)
-	assert.Assert(c, exitStatus, checker.Not(checker.Equals), 0, check.Commentf("expected a non-zero exit status"))
+	assert.Assert(c, exitStatus != 0, check.Commentf("expected a non-zero exit status"))
 
 	expectedErrorMsg := fmt.Sprintf("filesystem layer verification failed for digest %s", targetLayerDigest)
 	assert.Assert(c, out, checker.Contains, expectedErrorMsg, check.Commentf("expected error message in output: %s", out))
@@ -684,7 +684,7 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredLayer(c *testing.T)
 	// Pull from the registry using the <name>@<digest> reference.
 	imageReference := fmt.Sprintf("%s@%s", repoName, manifestDigest)
 	out, exitStatus, _ := dockerCmdWithError("pull", imageReference)
-	assert.Assert(c, exitStatus, checker.Not(checker.Equals), 0, check.Commentf("expected a non-zero exit status"))
+	assert.Assert(c, exitStatus != 0, check.Commentf("expected a non-zero exit status"))
 
 	expectedErrorMsg := fmt.Sprintf("filesystem layer verification failed for digest %s", targetLayerDigest)
 	assert.Assert(c, out, checker.Contains, expectedErrorMsg, check.Commentf("expected error message in output: %s", out))

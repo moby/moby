@@ -668,7 +668,7 @@ func (s *DockerSuite) TestContainerAPIVerifyHeader(c *testing.T) {
 	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
 		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	} else {
-		assert.Assert(c, res.StatusCode, checker.Not(checker.Equals), http.StatusOK)
+		assert.Assert(c, res.StatusCode != http.StatusOK)
 	}
 	body.Close()
 
@@ -678,7 +678,7 @@ func (s *DockerSuite) TestContainerAPIVerifyHeader(c *testing.T) {
 	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
 		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	} else {
-		assert.Assert(c, res.StatusCode, checker.Not(checker.Equals), http.StatusOK)
+		assert.Assert(c, res.StatusCode != http.StatusOK)
 	}
 	body.Close()
 
@@ -708,7 +708,7 @@ func (s *DockerSuite) TestContainerAPIInvalidPortSyntax(c *testing.T) {
 	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
 		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	} else {
-		assert.Assert(c, res.StatusCode, checker.Not(checker.Equals), http.StatusOK)
+		assert.Assert(c, res.StatusCode != http.StatusOK)
 	}
 
 	b, err := request.ReadBody(body)
@@ -732,7 +732,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyInvalidPolicyName(c *testing.
 	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
 		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	} else {
-		assert.Assert(c, res.StatusCode, checker.Not(checker.Equals), http.StatusOK)
+		assert.Assert(c, res.StatusCode != http.StatusOK)
 	}
 
 	b, err := request.ReadBody(body)
@@ -756,7 +756,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyRetryMismatch(c *testing.T) {
 	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
 		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	} else {
-		assert.Assert(c, res.StatusCode, checker.Not(checker.Equals), http.StatusOK)
+		assert.Assert(c, res.StatusCode != http.StatusOK)
 	}
 
 	b, err := request.ReadBody(body)
@@ -780,7 +780,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyNegativeRetryCount(c *testing
 	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
 		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	} else {
-		assert.Assert(c, res.StatusCode, checker.Not(checker.Equals), http.StatusOK)
+		assert.Assert(c, res.StatusCode != http.StatusOK)
 	}
 
 	b, err := request.ReadBody(body)
@@ -869,7 +869,7 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *testing.T) {
 	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
 		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	} else {
-		assert.Assert(c, res.StatusCode, checker.Not(checker.Equals), http.StatusOK)
+		assert.Assert(c, res.StatusCode != http.StatusOK)
 	}
 	assert.Assert(c, string(b), checker.Contains, "Minimum memory limit allowed is 4MB")
 }
@@ -1061,7 +1061,7 @@ func (s *DockerSuite) TestContainerAPICopyResourcePathEmptyPre124(c *testing.T) 
 	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
 		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	} else {
-		assert.Assert(c, res.StatusCode, checker.Not(checker.Equals), http.StatusOK)
+		assert.Assert(c, res.StatusCode != http.StatusOK)
 	}
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
