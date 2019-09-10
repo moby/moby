@@ -1,6 +1,7 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -271,6 +272,10 @@ func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.M
 		return nil, false, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, false, fmt.Errorf("ping to a invalid registry. ")
+	}
 
 	versions := auth.APIVersions(resp, DefaultRegistryVersionHeader)
 	for _, pingVersion := range versions {
