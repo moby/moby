@@ -71,6 +71,13 @@ func WithEnvironment(e environment.Execution) func(*Daemon) {
 	}
 }
 
+// WithShutDownTimeOut sets the shutdown-timeout for the daemon
+func WithShutDownTimeOut(seconds int) func(*Daemon) {
+	return func(d *Daemon) {
+		d.shutdownTimeout = seconds
+	}
+}
+
 // WithStorageDriver sets store driver option
 func WithStorageDriver(driver string) func(d *Daemon) {
 	return func(d *Daemon) {
