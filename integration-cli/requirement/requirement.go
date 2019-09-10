@@ -10,7 +10,7 @@ import (
 
 // SkipT is the interface required to skip tests
 type SkipT interface {
-	Skip(reason string)
+	Skip(...interface{})
 }
 
 // Test represent a function that can be used as a requirement validation.

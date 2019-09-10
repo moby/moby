@@ -5,15 +5,16 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"testing"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/go-check/check"
+	"gotest.tools/assert"
+	"gotest.tools/assert/cmp"
 )
 
 // This is a heisen-test.  Because the created timestamp of images and the behavior of
 // sort is not predictable it doesn't always fail.
-func (s *DockerSuite) TestBuildHistory(c *check.C) {
+func (s *DockerSuite) TestBuildHistory(c *testing.T) {
 	name := "testbuildhistory"
 	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM `+minimalBaseImage()+`
 LABEL label.A="A"
@@ -50,21 +51,21 @@ LABEL label.Z="Z"`))
 	for i := 0; i < 26; i++ {
 		echoValue := fmt.Sprintf("LABEL label.%s=%s", expectedValues[i], expectedValues[i])
 		actualValue := actualValues[i]
-		c.Assert(actualValue, checker.Contains, echoValue)
+		assert.Assert(c, strings.Contains(actualValue, echoValue))
 	}
 
 }
 
-func (s *DockerSuite) TestHistoryExistentImage(c *check.C) {
+func (s *DockerSuite) TestHistoryExistentImage(c *testing.T) {
 	dockerCmd(c, "history", "busybox")
 }
 
-func (s *DockerSuite) TestHistoryNonExistentImage(c *check.C) {
+func (s *DockerSuite) TestHistoryNonExistentImage(c *testing.T) {
 	_, _, err := dockerCmdWithError("history", "testHistoryNonExistentImage")
-	c.Assert(err, checker.NotNil, check.Commentf("history on a non-existent image should fail."))
+	assert.Assert(c, err != nil, "history on a non-existent image should fail.")
 }
 
-func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
+func (s *DockerSuite) TestHistoryImageWithComment(c *testing.T) {
 	name := "testhistoryimagewithcomment"
 
 	// make an image through docker commit <container id> [ -m messages ]
@@ -80,10 +81,10 @@ func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
 	out, _ := dockerCmd(c, "history", name)
 	outputTabs := strings.Fields(strings.Split(out, "\n")[1])
 	actualValue := outputTabs[len(outputTabs)-1]
-	c.Assert(actualValue, checker.Contains, comment)
+	assert.Assert(c, strings.Contains(actualValue, comment))
 }
 
-func (s *DockerSuite) TestHistoryHumanOptionFalse(c *check.C) {
+func (s *DockerSuite) TestHistoryHumanOptionFalse(c *testing.T) {
 	out, _ := dockerCmd(c, "history", "--human=false", "busybox")
 	lines := strings.Split(out, "\n")
 	sizeColumnRegex, _ := regexp.Compile("SIZE +")
@@ -97,11 +98,11 @@ func (s *DockerSuite) TestHistoryHumanOptionFalse(c *check.C) {
 		sizeString := lines[i][startIndex:endIndex]
 
 		_, err := strconv.Atoi(strings.TrimSpace(sizeString))
-		c.Assert(err, checker.IsNil, check.Commentf("The size '%s' was not an Integer", sizeString))
+		assert.Assert(c, err == nil, fmt.Sprintf("The size '%s' was not an Integer", sizeString))
 	}
 }
 
-func (s *DockerSuite) TestHistoryHumanOptionTrue(c *check.C) {
+func (s *DockerSuite) TestHistoryHumanOptionTrue(c *testing.T) {
 	out, _ := dockerCmd(c, "history", "--human=true", "busybox")
 	lines := strings.Split(out, "\n")
 	sizeColumnRegex, _ := regexp.Compile("SIZE +")
@@ -114,6 +115,7 @@ func (s *DockerSuite) TestHistoryHumanOptionTrue(c *check.C) {
 			endIndex = len(lines[i])
 		}
 		sizeString := lines[i][startIndex:endIndex]
-		c.Assert(strings.TrimSpace(sizeString), checker.Matches, humanSizeRegexRaw, check.Commentf("The size '%s' was not in human format", sizeString))
+		assert.Assert(c, cmp.Regexp("^"+humanSizeRegexRaw+"$",
+			strings.TrimSpace(sizeString)), fmt.Sprintf("The size '%s' was not in human format", sizeString))
 	}
 }

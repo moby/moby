@@ -5,9 +5,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"testing"
 
 	"github.com/docker/docker/internal/test/registry"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 
@@ -25,7 +25,7 @@ func makefile(path string, contents string) (string, error) {
 
 // TestV2Only ensures that a daemon does not
 // attempt to contact any v1 registry endpoints.
-func (s *DockerRegistrySuite) TestV2Only(c *check.C) {
+func (s *DockerRegistrySuite) TestV2Only(c *testing.T) {
 	reg, err := registry.NewMock(c)
 	defer reg.Close()
 	assert.NilError(c, err)

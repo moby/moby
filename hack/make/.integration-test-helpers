@@ -3,19 +3,8 @@
 # For integration-cli test, we use [gocheck](https://labix.org/gocheck), if you want
 # to run certain tests on your local host, you should run with command:
 #
-#     TESTFLAGS='-check.f DockerSuite.TestBuild*' ./hack/make.sh binary test-integration
+#     TESTFLAGS='-test.run /DockerSuite/TestBuild*' ./hack/make.sh binary test-integration
 #
-
-if [[ "${TESTFLAGS}" = *-check.f* ]]; then
-	echo Skipping integration tests since TESTFLAGS includes integration-cli only flags
-	TEST_SKIP_INTEGRATION=1
-fi
-
-if [[ "${TESTFLAGS}" = *-test.run* ]]; then
-	echo Skipping integration-cli tests since TESTFLAGS includes integration only flags
-	TEST_SKIP_INTEGRATION_CLI=1
-fi
-
 
 if [ -z "${MAKEDIR}" ]; then
 	MAKEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -32,24 +21,22 @@ setup_integration_test_filter() {
 	if [ -z "${TEST_FILTER}" ]; then
 		return
 	fi
+	TESTFLAGS+="-test.run ${TEST_FILTER}"
 
+	local dirs
+	dirs=$(grep -rIlE --include '*_test.go' "func .*${TEST_FILTER}.*\(. \*testing\.T\)" ./integration*/ | xargs -I file dirname file | uniq)
 	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
-		: "${TEST_INTEGRATION_DIR:=$(grep -rl "func\ .*${TEST_FILTER}.*\(t\ \*testing\.T\)" ./integration | grep '_test\.go' | xargs -I file dirname file | uniq)}"
+		: "${TEST_INTEGRATION_DIR:=$(echo "$dirs" | grep -v '^\./integration-cli$')}"
 		if [ -z "${TEST_INTEGRATION_DIR}" ]; then
 			echo "Skipping integration tests since the supplied filter \"${TEST_FILTER}\" omits all integration tests"
 			TEST_SKIP_INTEGRATION=1
-		else
-			TESTFLAGS_INTEGRATION+="-test.run ${TEST_FILTER}"
 		fi
 	fi
 
 	if [ -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
-		# ease up on the filtering here since CLI suites are namespaced by an object
-		if grep -r "${TEST_FILTER}.*\(c\ \*check\.C\)" ./integration-cli | grep -q '_test\.go$'; then
+		if echo "$dirs" | grep -vq '^./integration-cli$'; then
 			TEST_SKIP_INTEGRATION_CLI=1
 			echo "Skipping integration-cli tests since the supplied filter \"${TEST_FILTER}\" omits all integration-cli tests"
-		else
-			TESTFLAGS_INTEGRATION_CLI+="-check.f ${TEST_FILTER}"
 		fi
 	fi
 }
@@ -68,7 +55,7 @@ run_test_integration() {
 }
 
 run_test_integration_suites() {
-	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS ${TESTFLAGS_INTEGRATION}"
+	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS"
 	for dir in ${integration_api_dirs}; do
 		if ! (
 			cd "$dir"
@@ -81,7 +68,7 @@ run_test_integration_suites() {
 
 run_test_integration_legacy_suites() {
 	(
-		flags="-check.v -check.timeout=${TIMEOUT} -test.timeout=360m $TESTFLAGS ${TESTFLAGS_INTEGRATION_CLI}"
+		flags="-test.v -test.timeout=360m $TESTFLAGS"
 		cd integration-cli
 		echo "Running $PWD flags=${flags}"
 		# shellcheck disable=SC2086

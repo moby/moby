@@ -5,15 +5,15 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )
 
-func (s *DockerSuite) TestStatsNoStream(c *check.C) {
+func (s *DockerSuite) TestStatsNoStream(c *testing.T) {
 	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
@@ -42,7 +42,7 @@ func (s *DockerSuite) TestStatsNoStream(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestStatsContainerNotFound(c *check.C) {
+func (s *DockerSuite) TestStatsContainerNotFound(c *testing.T) {
 	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 
@@ -55,7 +55,7 @@ func (s *DockerSuite) TestStatsContainerNotFound(c *check.C) {
 	assert.Assert(c, is.Contains(out, "No such container: notfound"), "Expected to fail on not found container stats with --no-stream, got %q instead", out)
 }
 
-func (s *DockerSuite) TestStatsAllRunningNoStream(c *check.C) {
+func (s *DockerSuite) TestStatsAllRunningNoStream(c *testing.T) {
 	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 
@@ -91,7 +91,7 @@ func (s *DockerSuite) TestStatsAllRunningNoStream(c *check.C) {
 	assert.Assert(c, realData != nil, "stat result are empty: %s", out)
 }
 
-func (s *DockerSuite) TestStatsAllNoStream(c *check.C) {
+func (s *DockerSuite) TestStatsAllNoStream(c *testing.T) {
 	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 
@@ -121,7 +121,7 @@ func (s *DockerSuite) TestStatsAllNoStream(c *check.C) {
 	assert.Assert(c, realData == nil, "stat result of %s should be empty : %s", id1, out)
 }
 
-func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
+func (s *DockerSuite) TestStatsAllNewContainersAdded(c *testing.T) {
 	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 
@@ -162,7 +162,7 @@ func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestStatsFormatAll(c *check.C) {
+func (s *DockerSuite) TestStatsFormatAll(c *testing.T) {
 	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 

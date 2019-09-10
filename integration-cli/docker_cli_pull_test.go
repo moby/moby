@@ -5,9 +5,9 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 
-	"github.com/go-check/check"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -15,7 +15,7 @@ import (
 
 // TestPullFromCentralRegistry pulls an image from the central registry and verifies that the client
 // prints all expected output.
-func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *check.C) {
+func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out := s.Cmd(c, "pull", "hello-world")
 	defer deleteImages("hello-world")
@@ -40,7 +40,7 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *check.C) {
 
 // TestPullNonExistingImage pulls non-existing images from the central registry, with different
 // combinations of implicit tag and library prefix.
-func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
+func (s *DockerHubPullSuite) TestPullNonExistingImage(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	type entry struct {
@@ -115,7 +115,7 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
 // that pulling the same image with different combinations of implicit elements of the image
 // reference (tag, repository, central registry url, ...) doesn't trigger a new pull nor leads to
 // multiple images.
-func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *check.C) {
+func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	// Pull hello-world from v2
@@ -184,7 +184,7 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *chec
 }
 
 // TestPullScratchNotAllowed verifies that pulling 'scratch' is rejected.
-func (s *DockerHubPullSuite) TestPullScratchNotAllowed(c *check.C) {
+func (s *DockerHubPullSuite) TestPullScratchNotAllowed(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, err := s.CmdWithError("pull", "scratch")
 	assert.ErrorContains(c, err, "", "expected pull of scratch to fail")
@@ -194,7 +194,7 @@ func (s *DockerHubPullSuite) TestPullScratchNotAllowed(c *check.C) {
 
 // TestPullAllTagsFromCentralRegistry pulls using `all-tags` for a given image and verifies that it
 // results in more images than a naked pull.
-func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
+func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	s.Cmd(c, "pull", "dockercore/engine-pull-all-test-fixture")
 	outImageCmd := s.Cmd(c, "images", "dockercore/engine-pull-all-test-fixture")
@@ -238,7 +238,7 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
 // gets cancelled.
 //
 // Ref: docker/docker#15589
-func (s *DockerHubPullSuite) TestPullClientDisconnect(c *check.C) {
+func (s *DockerHubPullSuite) TestPullClientDisconnect(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	repoName := "hello-world:latest"
 
@@ -263,14 +263,14 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *check.C) {
 }
 
 // Regression test for https://github.com/docker/docker/issues/26429
-func (s *DockerSuite) TestPullLinuxImageFailsOnWindows(c *check.C) {
+func (s *DockerSuite) TestPullLinuxImageFailsOnWindows(c *testing.T) {
 	testRequires(c, DaemonIsWindows, Network)
 	_, _, err := dockerCmdWithError("pull", "ubuntu")
 	assert.ErrorContains(c, err, "no matching manifest for windows")
 }
 
 // Regression test for https://github.com/docker/docker/issues/28892
-func (s *DockerSuite) TestPullWindowsImageFailsOnLinux(c *check.C) {
+func (s *DockerSuite) TestPullWindowsImageFailsOnLinux(c *testing.T) {
 	testRequires(c, DaemonIsLinux, Network)
 	_, _, err := dockerCmdWithError("pull", "mcr.microsoft.com/windows/servercore:ltsc2019")
 	assert.ErrorContains(c, err, "no matching manifest for linux")

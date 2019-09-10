@@ -4,18 +4,19 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io/ioutil"
 	"os/exec"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 
 // #9860 Make sure attach ends when container ends (with no errors)
-func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
+func (s *DockerSuite) TestAttachClosedOnContainerStop(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 
 	out, _ := dockerCmd(c, "run", "-dti", "busybox", "/bin/sh", "-c", `trap 'exit 0' SIGTERM; while true; do sleep 1; done`)
@@ -51,14 +52,14 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 	case err := <-errChan:
 		tty.Close()
 		out, _ := ioutil.ReadAll(pty)
-		c.Assert(err, check.IsNil, check.Commentf("out: %v", string(out)))
+		assert.Assert(c, err == nil, fmt.Sprintf("out: %v", string(out)))
 	case <-time.After(attachWait):
 		c.Fatal("timed out without attach returning")
 	}
 
 }
 
-func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
+func (s *DockerSuite) TestAttachAfterDetach(c *testing.T) {
 	name := "detachtest"
 
 	cpty, tty, err := pty.Open()
@@ -74,7 +75,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 		close(cmdExit)
 	}()
 
-	c.Assert(waitRun(name), check.IsNil)
+	assert.Assert(c, waitRun(name) == nil)
 
 	cpty.Write([]byte{16})
 	time.Sleep(100 * time.Millisecond)
@@ -123,7 +124,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 }
 
 // TestAttachDetach checks that attach in tty mode can be detached using the long container ID
-func (s *DockerSuite) TestAttachDetach(c *check.C) {
+func (s *DockerSuite) TestAttachDetach(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-itd", "busybox", "cat")
 	id := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(id))

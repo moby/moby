@@ -10,19 +10,19 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/internal/test/request"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 
 var expectedNetworkInterfaceStats = strings.Split("rx_bytes rx_dropped rx_errors rx_packets tx_bytes tx_dropped tx_errors tx_packets", " ")
 
-func (s *DockerSuite) TestAPIStatsNoStreamGetCpu(c *check.C) {
+func (s *DockerSuite) TestAPIStatsNoStreamGetCpu(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;usleep 100; do echo 'Hello'; done")
 
 	id := strings.TrimSpace(out)
@@ -62,7 +62,7 @@ func (s *DockerSuite) TestAPIStatsNoStreamGetCpu(c *check.C) {
 	assert.Assert(c, cpuPercent != 0.0, "docker stats with no-stream get cpu usage failed: was %v", cpuPercent)
 }
 
-func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *check.C) {
+func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo 1")
 	id := strings.TrimSpace(out)
 
@@ -97,7 +97,7 @@ func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
+func (s *DockerSuite) TestAPIStatsNetworkStats(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 
 	out := runSleepingContainer(c)
@@ -162,7 +162,7 @@ func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 	assert.Assert(c, postRxPackets >= expRxPkts, "Reported less RxPackets than expected. Expected >= %d. Found %d. %s", expRxPkts, postRxPackets, pingouts)
 }
 
-func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
+func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *testing.T) {
 	// Windows doesn't support API versions less than 1.25, so no point testing 1.17 .. 1.21
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
@@ -187,7 +187,7 @@ func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
 	wg.Wait()
 }
 
-func getNetworkStats(c *check.C, id string) map[string]types.NetworkStats {
+func getNetworkStats(c *testing.T, id string) map[string]types.NetworkStats {
 	var st *types.StatsJSON
 
 	_, body, err := request.Get(fmt.Sprintf("/containers/%s/stats?stream=false", id))
@@ -204,7 +204,7 @@ func getNetworkStats(c *check.C, id string) map[string]types.NetworkStats {
 // container with id using an API call with version apiVersion. Since the
 // stats result type differs between API versions, we simply return
 // map[string]interface{}.
-func getVersionedStats(c *check.C, id string, apiVersion string) map[string]interface{} {
+func getVersionedStats(c *testing.T, id string, apiVersion string) map[string]interface{} {
 	stats := make(map[string]interface{})
 
 	_, body, err := request.Get(fmt.Sprintf("/%s/containers/%s/stats?stream=false", apiVersion, id))
@@ -257,7 +257,7 @@ func jsonBlobHasGTE121NetworkStats(blob map[string]interface{}) bool {
 	return true
 }
 
-func (s *DockerSuite) TestAPIStatsContainerNotFound(c *check.C) {
+func (s *DockerSuite) TestAPIStatsContainerNotFound(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -271,7 +271,7 @@ func (s *DockerSuite) TestAPIStatsContainerNotFound(c *check.C) {
 	assert.ErrorContains(c, err, expected)
 }
 
-func (s *DockerSuite) TestAPIStatsNoStreamConnectedContainers(c *check.C) {
+func (s *DockerSuite) TestAPIStatsNoStreamConnectedContainers(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	out1 := runSleepingContainer(c)

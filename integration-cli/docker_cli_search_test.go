@@ -3,18 +3,18 @@ package main
 import (
 	"fmt"
 	"strings"
+	"testing"
 
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 
 // search for repos named  "registry" on the central registry
-func (s *DockerSuite) TestSearchOnCentralRegistry(c *check.C) {
+func (s *DockerSuite) TestSearchOnCentralRegistry(c *testing.T) {
 	out, _ := dockerCmd(c, "search", "busybox")
 	assert.Assert(c, strings.Contains(out, "Busybox base image."), "couldn't find any repository named (or containing) 'Busybox base image.'")
 }
 
-func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *check.C) {
+func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *testing.T) {
 	out, _, err := dockerCmdWithError("search", "--filter", "stars=a", "busybox")
 	assert.ErrorContains(c, err, "", out)
 	assert.Assert(c, strings.Contains(out, "Invalid filter"), "couldn't find the invalid filter warning")
@@ -32,7 +32,7 @@ func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *check.C) {
 	assert.Assert(c, strings.Contains(out, "Invalid filter"), "couldn't find the invalid filter warning")
 }
 
-func (s *DockerSuite) TestSearchCmdOptions(c *check.C) {
+func (s *DockerSuite) TestSearchCmdOptions(c *testing.T) {
 	outSearchCmd, _ := dockerCmd(c, "search", "busybox")
 	assert.Assert(c, strings.Count(outSearchCmd, "\n") > 3, outSearchCmd)
 
@@ -60,12 +60,12 @@ func (s *DockerSuite) TestSearchCmdOptions(c *check.C) {
 }
 
 // search for repos which start with "ubuntu-" on the central registry
-func (s *DockerSuite) TestSearchOnCentralRegistryWithDash(c *check.C) {
+func (s *DockerSuite) TestSearchOnCentralRegistryWithDash(c *testing.T) {
 	dockerCmd(c, "search", "ubuntu-")
 }
 
 // test case for #23055
-func (s *DockerSuite) TestSearchWithLimit(c *check.C) {
+func (s *DockerSuite) TestSearchWithLimit(c *testing.T) {
 	for _, limit := range []int{10, 50, 100} {
 		out, _, err := dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
 		assert.NilError(c, err)

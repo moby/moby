@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/pkg/system"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 
-func (s *DockerSuite) TestCpToContainerWithPermissions(c *check.C) {
+func (s *DockerSuite) TestCpToContainerWithPermissions(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	tmpDir := getTestDir(c, "test-cp-to-host-with-permissions")
@@ -38,7 +38,7 @@ func (s *DockerSuite) TestCpToContainerWithPermissions(c *check.C) {
 }
 
 // Check ownership is root, both in non-userns and userns enabled modes
-func (s *DockerSuite) TestCpCheckDestOwnership(c *check.C) {
+func (s *DockerSuite) TestCpCheckDestOwnership(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	tmpVolDir := getTestDir(c, "test-cp-tmpvol")
 	containerID := makeTestContainer(c,

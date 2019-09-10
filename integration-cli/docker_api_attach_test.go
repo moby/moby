@@ -10,20 +10,20 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/go-check/check"
 	"github.com/pkg/errors"
 	"golang.org/x/net/websocket"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )
 
-func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
+func (s *DockerSuite) TestGetContainersAttachWebsocket(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-dit", "busybox", "cat")
 
@@ -76,7 +76,7 @@ func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
 }
 
 // regression gh14320
-func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *check.C) {
+func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *testing.T) {
 	resp, _, err := request.Post("/containers/doesnotexist/attach")
 	assert.NilError(c, err)
 	// connection will shutdown, err should be "persistent connection closed"
@@ -87,7 +87,7 @@ func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *check.C) {
 	assert.Equal(c, string(content), expected)
 }
 
-func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *check.C) {
+func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *testing.T) {
 	res, body, err := request.Get("/containers/doesnotexist/attach/ws")
 	assert.Equal(c, res.StatusCode, http.StatusNotFound)
 	assert.NilError(c, err)
@@ -97,7 +97,7 @@ func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *check.C) {
 	assert.Assert(c, strings.Contains(getErrorMessage(c, b), expected))
 }
 
-func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
+func (s *DockerSuite) TestPostContainersAttach(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	expectSuccess := func(conn net.Conn, br *bufio.Reader, stream string, tty bool) {

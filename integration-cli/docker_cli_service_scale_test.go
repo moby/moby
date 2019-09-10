@@ -5,12 +5,12 @@ package main
 import (
 	"fmt"
 	"strings"
+	"testing"
 
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 
-func (s *DockerSwarmSuite) TestServiceScale(c *check.C) {
+func (s *DockerSwarmSuite) TestServiceScale(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 
 	service1Name := "TestService1"

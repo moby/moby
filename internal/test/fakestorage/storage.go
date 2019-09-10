@@ -38,7 +38,7 @@ type logT interface {
 }
 
 type skipT interface {
-	Skip(reason string)
+	Skip(...interface{})
 }
 
 // Fake is a static file server. It might be running locally or remotely

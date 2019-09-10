@@ -1,15 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
-func (s *DockerSuite) TestCommitAfterContainerIsDone(c *check.C) {
+func (s *DockerSuite) TestCommitAfterContainerIsDone(c *testing.T) {
 	out := cli.DockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo").Combined()
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -23,7 +24,7 @@ func (s *DockerSuite) TestCommitAfterContainerIsDone(c *check.C) {
 	cli.DockerCmd(c, "inspect", cleanedImageID)
 }
 
-func (s *DockerSuite) TestCommitWithoutPause(c *check.C) {
+func (s *DockerSuite) TestCommitWithoutPause(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
 
@@ -39,7 +40,7 @@ func (s *DockerSuite) TestCommitWithoutPause(c *check.C) {
 }
 
 //test commit a paused container should not unpause it after commit
-func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
+func (s *DockerSuite) TestCommitPausedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-i", "-d", "busybox")
 
@@ -50,10 +51,10 @@ func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
 
 	out = inspectField(c, cleanedContainerID, "State.Paused")
 	// commit should not unpause a paused container
-	c.Assert(out, checker.Contains, "true")
+	assert.Assert(c, strings.Contains(out, "true"))
 }
 
-func (s *DockerSuite) TestCommitNewFile(c *check.C) {
+func (s *DockerSuite) TestCommitNewFile(c *testing.T) {
 	dockerCmd(c, "run", "--name", "committer", "busybox", "/bin/sh", "-c", "echo koye > /foo")
 
 	imageID, _ := dockerCmd(c, "commit", "committer")
@@ -61,18 +62,17 @@ func (s *DockerSuite) TestCommitNewFile(c *check.C) {
 
 	out, _ := dockerCmd(c, "run", imageID, "cat", "/foo")
 	actual := strings.TrimSpace(out)
-	c.Assert(actual, checker.Equals, "koye")
+	assert.Equal(c, actual, "koye")
 }
 
-func (s *DockerSuite) TestCommitHardlink(c *check.C) {
+func (s *DockerSuite) TestCommitHardlink(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	firstOutput, _ := dockerCmd(c, "run", "-t", "--name", "hardlinks", "busybox", "sh", "-c", "touch file1 && ln file1 file2 && ls -di file1 file2")
 
 	chunks := strings.Split(strings.TrimSpace(firstOutput), " ")
 	inode := chunks[0]
 	chunks = strings.SplitAfterN(strings.TrimSpace(firstOutput), " ", 2)
-	c.Assert(chunks[1], checker.Contains, chunks[0], check.Commentf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
-
+	assert.Assert(c, strings.Contains(chunks[1], chunks[0]), fmt.Sprintf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
 	imageID, _ := dockerCmd(c, "commit", "hardlinks", "hardlinks")
 	imageID = strings.TrimSpace(imageID)
 
@@ -81,10 +81,10 @@ func (s *DockerSuite) TestCommitHardlink(c *check.C) {
 	chunks = strings.Split(strings.TrimSpace(secondOutput), " ")
 	inode = chunks[0]
 	chunks = strings.SplitAfterN(strings.TrimSpace(secondOutput), " ", 2)
-	c.Assert(chunks[1], checker.Contains, chunks[0], check.Commentf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
+	assert.Assert(c, strings.Contains(chunks[1], chunks[0]), fmt.Sprintf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
 }
 
-func (s *DockerSuite) TestCommitTTY(c *check.C) {
+func (s *DockerSuite) TestCommitTTY(c *testing.T) {
 	dockerCmd(c, "run", "-t", "--name", "tty", "busybox", "/bin/ls")
 
 	imageID, _ := dockerCmd(c, "commit", "tty", "ttytest")
@@ -93,7 +93,7 @@ func (s *DockerSuite) TestCommitTTY(c *check.C) {
 	dockerCmd(c, "run", imageID, "/bin/ls")
 }
 
-func (s *DockerSuite) TestCommitWithHostBindMount(c *check.C) {
+func (s *DockerSuite) TestCommitWithHostBindMount(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "bind-commit", "-v", "/dev/null:/winning", "busybox", "true")
 
@@ -103,7 +103,7 @@ func (s *DockerSuite) TestCommitWithHostBindMount(c *check.C) {
 	dockerCmd(c, "run", imageID, "true")
 }
 
-func (s *DockerSuite) TestCommitChange(c *check.C) {
+func (s *DockerSuite) TestCommitChange(c *testing.T) {
 	dockerCmd(c, "run", "--name", "test", "busybox", "true")
 
 	imageID, _ := dockerCmd(c, "commit",
@@ -153,7 +153,7 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestCommitChangeLabels(c *check.C) {
+func (s *DockerSuite) TestCommitChangeLabels(c *testing.T) {
 	dockerCmd(c, "run", "--name", "test", "--label", "some=label", "busybox", "true")
 
 	imageID, _ := dockerCmd(c, "commit",
@@ -161,7 +161,7 @@ func (s *DockerSuite) TestCommitChangeLabels(c *check.C) {
 		"test", "test-commit")
 	imageID = strings.TrimSpace(imageID)
 
-	c.Assert(inspectField(c, imageID, "Config.Labels"), checker.Equals, "map[some:label2]")
+	assert.Equal(c, inspectField(c, imageID, "Config.Labels"), "map[some:label2]")
 	// check that container labels didn't change
-	c.Assert(inspectField(c, "test", "Config.Labels"), checker.Equals, "map[some:label]")
+	assert.Equal(c, inspectField(c, "test", "Config.Labels"), "map[some:label]")
 }

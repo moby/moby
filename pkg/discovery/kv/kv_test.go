@@ -8,20 +8,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/internal/test/suite"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
-	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 // Hook up gocheck into the "go test" runner.
-func Test(t *testing.T) { check.TestingT(t) }
+func Test(t *testing.T) {
+	suite.Run(t, &DiscoverySuite{})
+}
 
 type DiscoverySuite struct{}
 
-var _ = check.Suite(&DiscoverySuite{})
-
-func (ds *DiscoverySuite) TestInitialize(c *check.C) {
+func (ds *DiscoverySuite) TestInitialize(c *testing.T) {
 	storeMock := &FakeStore{
 		Endpoints: []string{"127.0.0.1"},
 	}
@@ -30,9 +31,9 @@ func (ds *DiscoverySuite) TestInitialize(c *check.C) {
 	d.store = storeMock
 
 	s := d.store.(*FakeStore)
-	c.Assert(s.Endpoints, check.HasLen, 1)
-	c.Assert(s.Endpoints[0], check.Equals, "127.0.0.1")
-	c.Assert(d.path, check.Equals, defaultDiscoveryPath)
+	assert.Equal(c, len(s.Endpoints), 1)
+	assert.Equal(c, s.Endpoints[0], "127.0.0.1")
+	assert.Equal(c, d.path, defaultDiscoveryPath)
 
 	storeMock = &FakeStore{
 		Endpoints: []string{"127.0.0.1:1234"},
@@ -42,9 +43,9 @@ func (ds *DiscoverySuite) TestInitialize(c *check.C) {
 	d.store = storeMock
 
 	s = d.store.(*FakeStore)
-	c.Assert(s.Endpoints, check.HasLen, 1)
-	c.Assert(s.Endpoints[0], check.Equals, "127.0.0.1:1234")
-	c.Assert(d.path, check.Equals, "path/"+defaultDiscoveryPath)
+	assert.Equal(c, len(s.Endpoints), 1)
+	assert.Equal(c, s.Endpoints[0], "127.0.0.1:1234")
+	assert.Equal(c, d.path, "path/"+defaultDiscoveryPath)
 
 	storeMock = &FakeStore{
 		Endpoints: []string{"127.0.0.1:1234", "127.0.0.2:1234", "127.0.0.3:1234"},
@@ -54,12 +55,12 @@ func (ds *DiscoverySuite) TestInitialize(c *check.C) {
 	d.store = storeMock
 
 	s = d.store.(*FakeStore)
-	c.Assert(s.Endpoints, check.HasLen, 3)
-	c.Assert(s.Endpoints[0], check.Equals, "127.0.0.1:1234")
-	c.Assert(s.Endpoints[1], check.Equals, "127.0.0.2:1234")
-	c.Assert(s.Endpoints[2], check.Equals, "127.0.0.3:1234")
+	assert.Equal(c, len(s.Endpoints), 3)
+	assert.Equal(c, s.Endpoints[0], "127.0.0.1:1234")
+	assert.Equal(c, s.Endpoints[1], "127.0.0.2:1234")
+	assert.Equal(c, s.Endpoints[2], "127.0.0.3:1234")
 
-	c.Assert(d.path, check.Equals, "path/"+defaultDiscoveryPath)
+	assert.Equal(c, d.path, "path/"+defaultDiscoveryPath)
 }
 
 // Extremely limited mock store so we can test initialization
@@ -131,7 +132,7 @@ func (s *Mock) AtomicDelete(key string, previous *store.KVPair) (bool, error) {
 func (s *Mock) Close() {
 }
 
-func (ds *DiscoverySuite) TestInitializeWithCerts(c *check.C) {
+func (ds *DiscoverySuite) TestInitializeWithCerts(c *testing.T) {
 	cert := `-----BEGIN CERTIFICATE-----
 MIIDCDCCAfKgAwIBAgIICifG7YeiQOEwCwYJKoZIhvcNAQELMBIxEDAOBgNVBAMT
 B1Rlc3QgQ0EwHhcNMTUxMDAxMjMwMDAwWhcNMjAwOTI5MjMwMDAwWjASMRAwDgYD
@@ -181,12 +182,12 @@ BFrwkQE4HQtQBV60hYQUzzlSk44VFDz+jxIEtacRHaomDRh2FtOTz+I=
 -----END RSA PRIVATE KEY-----
 `
 	certFile, err := ioutil.TempFile("", "cert")
-	c.Assert(err, check.IsNil)
+	assert.Assert(c, err == nil)
 	defer os.Remove(certFile.Name())
 	certFile.Write([]byte(cert))
 	certFile.Close()
 	keyFile, err := ioutil.TempFile("", "key")
-	c.Assert(err, check.IsNil)
+	assert.Assert(c, err == nil)
 	defer os.Remove(keyFile.Name())
 	keyFile.Write([]byte(key))
 	keyFile.Close()
@@ -198,14 +199,14 @@ BFrwkQE4HQtQBV60hYQUzzlSk44VFDz+jxIEtacRHaomDRh2FtOTz+I=
 		"kv.certfile":   certFile.Name(),
 		"kv.keyfile":    keyFile.Name(),
 	})
-	c.Assert(err, check.IsNil)
+	assert.Assert(c, err == nil)
 	s := d.store.(*Mock)
-	c.Assert(s.Options.TLS, check.NotNil)
-	c.Assert(s.Options.TLS.RootCAs, check.NotNil)
-	c.Assert(s.Options.TLS.Certificates, check.HasLen, 1)
+	assert.Assert(c, s.Options.TLS != nil)
+	assert.Assert(c, s.Options.TLS.RootCAs != nil)
+	assert.Equal(c, len(s.Options.TLS.Certificates), 1)
 }
 
-func (ds *DiscoverySuite) TestWatch(c *check.C) {
+func (ds *DiscoverySuite) TestWatch(c *testing.T) {
 	mockCh := make(chan []*store.KVPair)
 
 	storeMock := &FakeStore{
@@ -230,7 +231,7 @@ func (ds *DiscoverySuite) TestWatch(c *check.C) {
 	ch, errCh := d.Watch(stopCh)
 
 	// It should fire an error since the first WatchTree call failed.
-	c.Assert(<-errCh, check.ErrorMatches, "test error")
+	assert.ErrorContains(c, <-errCh, "test error")
 	// We have to drain the error channel otherwise Watch will get stuck.
 	go func() {
 		for range errCh {
@@ -239,13 +240,13 @@ func (ds *DiscoverySuite) TestWatch(c *check.C) {
 
 	// Push the entries into the store channel and make sure discovery emits.
 	mockCh <- kvs
-	c.Assert(<-ch, check.DeepEquals, expected)
+	assert.DeepEqual(c, <-ch, expected)
 
 	// Add a new entry.
 	expected = append(expected, &discovery.Entry{Host: "3.3.3.3", Port: "3333"})
 	kvs = append(kvs, &store.KVPair{Key: path.Join("path", defaultDiscoveryPath, "3.3.3.3"), Value: []byte("3.3.3.3:3333")})
 	mockCh <- kvs
-	c.Assert(<-ch, check.DeepEquals, expected)
+	assert.DeepEqual(c, <-ch, expected)
 
 	close(mockCh)
 	// Give it enough time to call WatchTree.
@@ -253,8 +254,8 @@ func (ds *DiscoverySuite) TestWatch(c *check.C) {
 
 	// Stop and make sure it closes all channels.
 	close(stopCh)
-	c.Assert(<-ch, check.IsNil)
-	c.Assert(<-errCh, check.IsNil)
+	assert.Assert(c, <-ch == nil)
+	assert.Assert(c, <-errCh == nil)
 }
 
 // FakeStore implements store.Store methods. It mocks all store

@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"testing"
 
 	"github.com/docker/docker/internal/test/registry"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 
@@ -29,7 +29,7 @@ func unescapeBackslashSemicolonParens(s string) string {
 	return string(ret)
 }
 
-func regexpCheckUA(c *check.C, ua string) {
+func regexpCheckUA(c *testing.T, ua string) {
 	re := regexp.MustCompile("(?P<dockerUA>.+) UpstreamClient(?P<upstreamUA>.+)")
 	substrArr := re.FindStringSubmatch(ua)
 
@@ -71,7 +71,7 @@ func registerUserAgentHandler(reg *registry.Mock, result *string) {
 // TestUserAgentPassThrough verifies that when an image is pulled from
 // a registry, the registry should see a User-Agent string of the form
 // [docker engine UA] UpstreamClientSTREAM-CLIENT([client UA])
-func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *check.C) {
+func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *testing.T) {
 	var ua string
 
 	reg, err := registry.NewMock(c)
