@@ -7,9 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/google/go-cmp/cmp"
 	"gotest.tools/assert"
@@ -38,7 +36,7 @@ func TestInspect(t *testing.T) {
 	assert.NilError(t, err)
 
 	id := resp.ID
-	poll.WaitOn(t, serviceContainerCount(client, id, instances))
+	poll.WaitOn(t, swarm.RunningTasksCount(client, id, instances))
 
 	service, _, err := client.ServiceInspectWithRaw(ctx, id, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
@@ -132,23 +130,5 @@ func fullSwarmServiceSpec(name string, replicas uint64) swarmtypes.ServiceSpec {
 			MaxFailureRatio: 0.3,
 			Order:           swarmtypes.UpdateOrderStartFirst,
 		},
-	}
-}
-
-func serviceContainerCount(client client.ServiceAPIClient, id string, count uint64) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
-		filter := filters.NewArgs()
-		filter.Add("service", id)
-		tasks, err := client.TaskList(context.Background(), types.TaskListOptions{
-			Filters: filter,
-		})
-		switch {
-		case err != nil:
-			return poll.Error(err)
-		case len(tasks) == int(count):
-			return poll.Success()
-		default:
-			return poll.Continue("task count at %d waiting for %d", len(tasks), count)
-		}
 	}
 }
