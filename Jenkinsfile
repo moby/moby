@@ -697,9 +697,10 @@ pipeline {
                         }
                     }
                 }
-                stage('windowsRS1') {
+                stage('windowsRS1-master') {
                     when {
                         beforeAgent true
+                        branch 'master'
                         expression { params.windowsRS1 }
                     }
                     environment {
