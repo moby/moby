@@ -87,6 +87,8 @@ func (cli *Client) setupHijackConn(ctx context.Context, req *http.Request, proto
 
 	// Server hijacks the connection, error 'connection closed' expected
 	resp, err := clientconn.Do(req)
+
+	//lint:ignore SA1019 for connecting to old (pre go1.8) daemons
 	if err != httputil.ErrPersistEOF {
 		if err != nil {
 			return nil, err
