@@ -175,7 +175,7 @@ func (s *DockerSuite) TestPsListContainersSize(c *testing.T) {
 	assert.Equal(c, foundID, id[:12], fmt.Sprintf("Expected id %s, got %s", id[:12], foundID))
 	expectedSize := fmt.Sprintf("%dB", 2+baseBytes)
 	foundSize := lines[1][sizeIndex:]
-	assert.Assert(c, strings.Contains(foundSize, expectedSize), fmt.Sprintf("Expected size %q, got %q", expectedSize, foundSize))
+	assert.Assert(c, strings.Contains(foundSize, expectedSize), "Expected size %q, got %q", expectedSize, foundSize)
 }
 
 func (s *DockerSuite) TestPsListContainersFilterStatus(c *testing.T) {
@@ -442,11 +442,11 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *testing.T) {
 	secondZero, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 
 	out, _, err := dockerCmdWithError("run", "--name", "nonzero1", "busybox", "false")
-	assert.Assert(c, err != nil, fmt.Sprintf("Should fail. out: %s", out))
+	assert.Assert(c, err != nil, "Should fail. out: %s", out)
 	firstNonZero := getIDByName(c, "nonzero1")
 
 	out, _, err = dockerCmdWithError("run", "--name", "nonzero2", "busybox", "false")
-	assert.Assert(c, err != nil, fmt.Sprintf("Should fail. out: %s", out))
+	assert.Assert(c, err != nil, "Should fail. out: %s", out)
 	secondNonZero := getIDByName(c, "nonzero2")
 
 	// filter containers by exited=0
@@ -516,7 +516,7 @@ func (s *DockerSuite) TestPsListContainersFilterCreated(c *testing.T) {
 
 	// Make sure it DOESN'T show up w/o a '-a' for normal 'ps'
 	out, _ = dockerCmd(c, "ps", "-q")
-	assert.Assert(c, !strings.Contains(out, shortCID), fmt.Sprintf("Should have not seen '%s' in ps output:\n%s", shortCID, out))
+	assert.Assert(c, !strings.Contains(out, shortCID), "Should have not seen '%s' in ps output:\n%s", shortCID, out)
 	// Make sure it DOES show up as 'Created' for 'ps -a'
 	out, _ = dockerCmd(c, "ps", "-a")
 
@@ -526,7 +526,7 @@ func (s *DockerSuite) TestPsListContainersFilterCreated(c *testing.T) {
 			continue
 		}
 		hits++
-		assert.Assert(c, strings.Contains(line, "Created"), fmt.Sprintf("Missing 'Created' on '%s'", line))
+		assert.Assert(c, strings.Contains(line, "Created"), "Missing 'Created' on '%s'", line)
 	}
 
 	assert.Equal(c, hits, 1, fmt.Sprintf("Should have seen '%s' in ps -a output once:%d\n%s", shortCID, hits, out))
@@ -602,7 +602,7 @@ func (s *DockerSuite) TestPsNotShowPortsOfStoppedContainer(c *testing.T) {
 	out, _ = dockerCmd(c, "ps", "-l")
 	lines = strings.Split(strings.TrimSpace(string(out)), "\n")
 	fields = strings.Fields(lines[1])
-	assert.Assert(c, fields[len(fields)-2] != expected, fmt.Sprintf("Should not got %v", expected))
+	assert.Assert(c, fields[len(fields)-2] != expected, "Should not got %v", expected)
 }
 
 func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
