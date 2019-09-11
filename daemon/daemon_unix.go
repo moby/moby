@@ -634,7 +634,7 @@ func UsingSystemd(config *config.Config) bool {
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
+func (daemon *Daemon) verifyPlatformContainerSettings(config *containertypes.Config, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
 	if hostConfig == nil {
 		return nil, nil
 	}
@@ -668,13 +668,33 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	// check for various conflicting options with user namespaces
 	if daemon.configStore.RemappedRoot != "" && hostConfig.UsernsMode.IsPrivate() {
 		if hostConfig.Privileged {
-			return warnings, fmt.Errorf("privileged mode is incompatible with user namespaces.  You must run the container in the host namespace when running privileged mode")
+			if !daemon.configStore.EnableUsernsHostOnPrivileged {
+				return warnings, fmt.Errorf("privileged mode is incompatible with user namespaces.  You must run the container in the host namespace when running privileged mode")
+			}
+			warnings = append(warnings, "Setting userns mode to host due to privileged mode being set to host per daemon configured policy")
 		}
 		if hostConfig.NetworkMode.IsHost() && !hostConfig.UsernsMode.IsHost() {
-			return warnings, fmt.Errorf("cannot share the host's network namespace when user namespaces are enabled")
+			if !daemon.configStore.EnableUsernsHostOnNetHost {
+				return warnings, fmt.Errorf("cannot share the host's network namespace when user namespaces are enabled")
+			}
+			warnings = append(warnings, "Setting userns mode to host due to the configured network mode being set to host per daemon configured policy")
 		}
 		if hostConfig.PidMode.IsHost() && !hostConfig.UsernsMode.IsHost() {
-			return warnings, fmt.Errorf("cannot share the host PID namespace when user namespaces are enabled")
+			if !daemon.configStore.EnableUsernsHostOnPidHost {
+				return warnings, fmt.Errorf("cannot share the host PID namespace when user namespaces are enabled")
+			}
+			warnings = append(warnings, "Setting userns mode to host due to the configured pid mode being set to host per daemon configured policy")
+		}
+
+		if hostConfig.IpcMode.IsHost() && !hostConfig.UsernsMode.IsHost() {
+			if !daemon.configStore.EnableUsernsHostOnIPCHost {
+				return warnings, fmt.Errorf("cannot share host's ipc when user namespaces are enabled")
+			}
+			warnings = append(warnings, "Setting userns mode to host due to the configured ipc mode being set to host per daemon configured policy")
+		}
+
+		if config != nil && config.Domainname != "" && !hostConfig.UsernsMode.IsHost() {
+			warnings = append(warnings, "Cannot set domain name when userns is enabled")
 		}
 	}
 	if hostConfig.CgroupParent != "" && UsingSystemd(daemon.configStore) {
@@ -1097,7 +1117,6 @@ func setupInitLayer(idMapping *idtools.IdentityMapping) func(containerfs.Contain
 //
 //  If names are used, they are verified to exist in passwd/group
 func parseRemappedRoot(usergrp string) (string, string, error) {
-
 	var (
 		userID, groupID     int
 		username, groupname string
@@ -1184,30 +1203,39 @@ func setupRemappedRoot(config *config.Config) (*idtools.IdentityMapping, error) 
 		return nil, fmt.Errorf("User namespaces are only supported on Linux")
 	}
 
+	if config.DefaultUsernsMode == "host" {
+		return &idtools.IdentityMapping{}, nil
+	}
+
+	// TODO(@cpuguy83): detect if remapped root is empty and daemon already has
+	// unmapped images. In this case we should not automatically remap as this could
+	// break existing installations.
+
+	if config.RemappedRoot == "" {
+		config.RemappedRoot = defaultIDSpecifier
+	}
+
 	// if the daemon was started with remapped root option, parse
 	// the config option to the int uid,gid values
-	if config.RemappedRoot != "" {
-		username, groupname, err := parseRemappedRoot(config.RemappedRoot)
-		if err != nil {
-			return nil, err
-		}
-		if username == "root" {
-			// Cannot setup user namespaces with a 1-to-1 mapping; "--root=0:0" is a no-op
-			// effectively
-			logrus.Warn("User namespaces: root cannot be remapped with itself; user namespaces are OFF")
-			return &idtools.IdentityMapping{}, nil
-		}
-		logrus.Infof("User namespaces: ID ranges will be mapped to subuid/subgid ranges of: %s:%s", username, groupname)
-		// update remapped root setting now that we have resolved them to actual names
-		config.RemappedRoot = fmt.Sprintf("%s:%s", username, groupname)
-
-		mappings, err := idtools.NewIdentityMapping(username, groupname)
-		if err != nil {
-			return nil, errors.Wrap(err, "Can't create ID mappings")
-		}
-		return mappings, nil
+	username, groupname, err := parseRemappedRoot(config.RemappedRoot)
+	if err != nil {
+		return nil, err
 	}
-	return &idtools.IdentityMapping{}, nil
+	if username == "root" {
+		// Cannot setup user namespaces with a 1-to-1 mapping; "--root=0:0" is a no-op
+		// effectively
+		logrus.Warn("User namespaces: root cannot be remapped with itself; user namespaces are OFF")
+		return &idtools.IdentityMapping{}, nil
+	}
+	logrus.Infof("User namespaces: ID ranges will be mapped to subuid/subgid ranges of: %s:%s", username, groupname)
+	// update remapped root setting now that we have resolved them to actual names
+	config.RemappedRoot = fmt.Sprintf("%s:%s", username, groupname)
+
+	mappings, err := idtools.NewIdentityMapping(username, groupname)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't create ID mappings")
+	}
+	return mappings, nil
 }
 
 func setupDaemonRoot(config *config.Config, rootDir string, rootIdentity idtools.Identity) error {

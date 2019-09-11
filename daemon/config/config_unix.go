@@ -28,7 +28,6 @@ type Config struct {
 	// Fields below here are platform specific.
 	CgroupParent         string                   `json:"cgroup-parent,omitempty"`
 	EnableSelinuxSupport bool                     `json:"selinux-enabled,omitempty"`
-	RemappedRoot         string                   `json:"userns-remap,omitempty"`
 	Ulimits              map[string]*units.Ulimit `json:"default-ulimits,omitempty"`
 	CPURealtimePeriod    int64                    `json:"cpu-rt-period,omitempty"`
 	CPURealtimeRuntime   int64                    `json:"cpu-rt-runtime,omitempty"`
@@ -40,6 +39,17 @@ type Config struct {
 	NoNewPrivileges      bool                     `json:"no-new-privileges,omitempty"`
 	IpcMode              string                   `json:"default-ipc-mode,omitempty"`
 	CgroupNamespaceMode  string                   `json:"default-cgroupns-mode,omitempty"`
+
+	RemappedRoot        string `json:"userns-remap,omitempty"`
+	DefaultUsernsMode   string `json:"userns-default-mode,omitempty"`
+	UsernsMappingDriver string `json:"userns-mapping-driver,omitempty"`
+	// TODO(cpuguy83): naming is hard
+	EnableUsernsHostOnNetHost      bool `json:"enable-userns-host-on-net-host"`
+	EnableUsernsHostOnPidHost      bool `json:"enable-userns-host-on-pid-host"`
+	EnableUsernsHostOnIPCHost      bool `json:"enable-userns-host-on-ipc-host"`
+	EnableUsernsHostOnPrivileged   bool `json:"enable-userns-host-on-privileged"`
+	EnableUsernsRemappedUserMounts bool `json:"enable-userns-remapped-user-mounts"`
+
 	// ResolvConf is the path to the configuration of the host resolver
 	ResolvConf string `json:"resolv-conf,omitempty"`
 	Rootless   bool   `json:"rootless,omitempty"`

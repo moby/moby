@@ -235,7 +235,7 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 // structures.
 func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, err error) {
 	// First perform verification of settings common across all platforms.
-	if err = validateContainerConfig(config, platform); err != nil {
+	if err := validateContainerConfig(config, platform); err != nil {
 		return warnings, err
 	}
 	if err := validateHostConfig(hostConfig, platform); err != nil {
@@ -243,17 +243,19 @@ func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *conta
 	}
 
 	// Now do platform-specific verification
-	warnings, err = verifyPlatformContainerSettings(daemon, hostConfig, update)
+	warnings, err = daemon.verifyPlatformContainerSettings(config, hostConfig, update)
+
 	for _, w := range warnings {
 		logrus.Warn(w)
 	}
 	return warnings, err
 }
 
-func validateContainerConfig(config *containertypes.Config, platform string) error {
+func validateContainerConfig(config *containertypes.Config, platform string) (err error) {
 	if config == nil {
 		return nil
 	}
+
 	if err := translateWorkingDir(config, platform); err != nil {
 		return err
 	}

@@ -21,7 +21,9 @@ import (
 	"github.com/docker/docker/integration/internal/requirement"
 	"github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugins"
+	"github.com/pkg/errors"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/skip"
@@ -136,19 +138,18 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		}
 	}
 
-	decReq := func(b io.ReadCloser, out interface{}, w http.ResponseWriter) error {
+	decReq := func(b io.ReadCloser, out interface{}) error {
 		defer b.Close()
 		if err := json.NewDecoder(b).Decode(&out); err != nil {
-			http.Error(w, fmt.Sprintf("error decoding json: %s", err.Error()), 500)
+			return errors.Wrap(err, "error decoding request")
 		}
 		return nil
 	}
 
 	base, err := ioutil.TempDir("", name)
 	assert.NilError(t, err)
-	vfsProto, err := vfs.Init(base, []string{}, nil, nil)
-	assert.NilError(t, err, "error initializing graph driver")
-	driver := graphdriver.NewNaiveDiffDriver(vfsProto, nil, nil)
+
+	var driver graphdriver.Driver
 
 	ec[ext] = &graphEventsCounter{}
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
@@ -156,8 +157,25 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		respond(w, `{"Implements": ["GraphDriver"]}`)
 	})
 
+	type initConfig struct {
+		UIDMaps []idtools.IDMap
+		GIDMaps []idtools.IDMap
+	}
+
 	mux.HandleFunc("/GraphDriver.Init", func(w http.ResponseWriter, r *http.Request) {
 		ec[ext].init++
+		var init initConfig
+		if err = decReq(r.Body, &init); err != nil {
+			respond(w, err)
+			return
+		}
+
+		vfsProto, err := vfs.Init(base, []string{}, init.UIDMaps, init.GIDMaps)
+		if err != nil {
+			respond(w, err)
+			return
+		}
+		driver = graphdriver.NewNaiveDiffDriver(vfsProto, init.UIDMaps, init.GIDMaps)
 		respond(w, "{}")
 	})
 
@@ -165,7 +183,8 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		ec[ext].creations++
 
 		var req graphDriverRequest
-		if err := decReq(r.Body, &req, w); err != nil {
+		if err := decReq(r.Body, &req); err != nil {
+			respond(w, err)
 			return
 		}
 		if err := driver.CreateReadWrite(req.ID, req.Parent, nil); err != nil {
@@ -179,7 +198,8 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		ec[ext].creations++
 
 		var req graphDriverRequest
-		if err := decReq(r.Body, &req, w); err != nil {
+		if err := decReq(r.Body, &req); err != nil {
+			respond(w, err)
 			return
 		}
 		if err := driver.Create(req.ID, req.Parent, nil); err != nil {
@@ -193,7 +213,8 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		ec[ext].removals++
 
 		var req graphDriverRequest
-		if err := decReq(r.Body, &req, w); err != nil {
+		if err := decReq(r.Body, &req); err != nil {
+			respond(w, err)
 			return
 		}
 
@@ -208,7 +229,8 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		ec[ext].gets++
 
 		var req graphDriverRequest
-		if err := decReq(r.Body, &req, w); err != nil {
+		if err := decReq(r.Body, &req); err != nil {
+			respond(w, err)
 			return
 		}
 
@@ -225,7 +247,8 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		ec[ext].puts++
 
 		var req graphDriverRequest
-		if err := decReq(r.Body, &req, w); err != nil {
+		if err := decReq(r.Body, &req); err != nil {
+			respond(w, err)
 			return
 		}
 
@@ -240,7 +263,8 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		ec[ext].exists++
 
 		var req graphDriverRequest
-		if err := decReq(r.Body, &req, w); err != nil {
+		if err := decReq(r.Body, &req); err != nil {
+			respond(w, err)
 			return
 		}
 		respond(w, &graphDriverResponse{Exists: driver.Exists(req.ID)})
@@ -265,7 +289,8 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		ec[ext].metadata++
 
 		var req graphDriverRequest
-		if err := decReq(r.Body, &req, w); err != nil {
+		if err := decReq(r.Body, &req); err != nil {
+			respond(w, err)
 			return
 		}
 
@@ -281,7 +306,8 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		ec[ext].diff++
 
 		var req graphDriverRequest
-		if err := decReq(r.Body, &req, w); err != nil {
+		if err := decReq(r.Body, &req); err != nil {
+			respond(w, err)
 			return
 		}
 
@@ -296,7 +322,8 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 	mux.HandleFunc("/GraphDriver.Changes", func(w http.ResponseWriter, r *http.Request) {
 		ec[ext].changes++
 		var req graphDriverRequest
-		if err := decReq(r.Body, &req, w); err != nil {
+		if err := decReq(r.Body, &req); err != nil {
+			respond(w, err)
 			return
 		}
 
@@ -332,7 +359,8 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		ec[ext].diffsize++
 
 		var req graphDriverRequest
-		if err := decReq(r.Body, &req, w); err != nil {
+		if err := decReq(r.Body, &req); err != nil {
+			respond(w, err)
 			return
 		}
 

@@ -69,6 +69,7 @@ func TestNISDomainname(t *testing.T) {
 	cID := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.Config.Hostname = hostname
 		c.Config.Domainname = domainname
+		c.HostConfig.UsernsMode = containertypes.UsernsMode("host") // cannot set domain with private userns
 	})
 
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))

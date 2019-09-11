@@ -86,6 +86,11 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 			--storage-driver "$DOCKER_GRAPHDRIVER" \
 			--pidfile "$DEST/docker.pid" \
 			--userland-proxy="$DOCKER_USERLANDPROXY" \
+			--enable-userns-host-on-net-host \
+			--enable-userns-host-on-pid-host \
+			--enable-userns-host-on-ipc-host \
+			--enable-userns-host-on-privileged \
+			--enable-userns-remapped-user-mounts \
 			${storage_params} \
 			${extra_params} \
 				&> "$DEST/docker.log"

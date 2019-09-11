@@ -756,6 +756,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if err != nil {
 		return nil, err
 	}
+
 	rootIDs := idMapping.RootPair()
 	if err := setupDaemonProcess(config); err != nil {
 		return nil, err
@@ -929,13 +930,18 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
+	layerStoreIDMap := &idtools.IdentityMapping{}
+	if config.UsernsMappingDriver == mapperChownV0 || runtime.GOOS != "linux" {
+		layerStoreIDMap = idMapping
+	}
+
 	for operatingSystem, gd := range d.graphDrivers {
 		layerStores[operatingSystem], err = layer.NewStoreFromOptions(layer.StoreOptions{
 			Root:                      config.Root,
 			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
 			GraphDriver:               gd,
 			GraphDriverOptions:        config.GraphOptions,
-			IDMapping:                 idMapping,
+			IDMapping:                 layerStoreIDMap,
 			PluginGetter:              d.PluginStore,
 			ExperimentalEnabled:       config.Experimental,
 			OS:                        operatingSystem,
