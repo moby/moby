@@ -62,8 +62,8 @@ func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 		v, err := kernel.GetKernelVersion()
 		assert.NilError(c, err)
 		build, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
-		if build == 16299 {
-			c.Skip("Temporarily disabled on RS3 builds")
+		if build <= 16299 {
+			c.Skip("Temporarily disabled on RS3 and older because they are too slow. See #39909")
 		}
 	}
 
