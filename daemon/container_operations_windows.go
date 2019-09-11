@@ -55,7 +55,10 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 			continue
 		}
 
-		fPath := c.ConfigFilePath(*configRef)
+		fPath, err := c.ConfigFilePath(*configRef)
+		if err != nil {
+			return errors.Wrap(err, "error getting config file path for container")
+		}
 		log := logrus.WithFields(logrus.Fields{"name": configRef.File.Name, "path": fPath})
 
 		log.Debug("injecting config")

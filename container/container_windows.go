@@ -202,6 +202,6 @@ func (container *Container) ConfigsDirPath() string {
 }
 
 // ConfigFilePath returns the path to the on-disk location of a config.
-func (container *Container) ConfigFilePath(configRef swarmtypes.ConfigReference) string {
-	return filepath.Join(container.ConfigsDirPath(), configRef.ConfigID)
+func (container *Container) ConfigFilePath(configRef swarmtypes.ConfigReference) (string, error) {
+	return filepath.Join(container.ConfigsDirPath(), configRef.ConfigID), nil
 }
