@@ -22,6 +22,7 @@ pipeline {
         DOCKER_GRAPHDRIVER  = 'overlay2'
         APT_MIRROR          = 'cdn-fastly.deb.debian.org'
         CHECK_CONFIG_COMMIT = '78405559cfe5987174aa2cb6463b9b2c1b917255'
+        TESTDEBUG           = '0'
         TIMEOUT             = '120m'
     }
     stages {
@@ -319,6 +320,11 @@ pipeline {
                                 exit $c
                                 '''
                             }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                                }
+                            }
                         }
                     }
 
@@ -339,7 +345,7 @@ pipeline {
                                 bundleName=amd64
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
@@ -408,6 +414,7 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e TESTDEBUG \
                                   -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
                                   docker:${GIT_COMMIT} \
@@ -415,6 +422,11 @@ pipeline {
                                     dynbinary \
                                     test-integration
                                 '''
+                            }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                                }
                             }
                         }
                     }
@@ -436,7 +448,7 @@ pipeline {
                                 bundleName=s390x-integration
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
@@ -494,6 +506,11 @@ pipeline {
                                     test-integration
                                 '''
                             }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                                }
+                            }
                         }
                     }
 
@@ -514,7 +531,7 @@ pipeline {
                                 bundleName=s390x-integration-cli
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
@@ -581,6 +598,7 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e TESTDEBUG \
                                   -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
                                   docker:${GIT_COMMIT} \
@@ -588,6 +606,11 @@ pipeline {
                                     dynbinary \
                                     test-integration
                                 '''
+                            }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                                }
                             }
                         }
                     }
@@ -609,7 +632,7 @@ pipeline {
                                 bundleName=ppc64le-integration
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
@@ -665,6 +688,11 @@ pipeline {
                                     test-integration
                                 '''
                             }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                                }
+                            }
                         }
                     }
 
@@ -685,7 +713,7 @@ pipeline {
                                 bundleName=ppc64le-integration-cli
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true

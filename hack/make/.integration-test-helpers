@@ -59,9 +59,27 @@ run_test_integration_suites() {
 	for dir in ${integration_api_dirs}; do
 		if ! (
 			cd "$dir"
-			echo "Running $PWD flags=${flags}"
+			# Create a useful package name based on the tests's $dir. We need to take
+			# into account that  "$dir" can be either an absolute (/go/src/github.com/docker/docker/integration/foo)
+			# or relative (./integration/foo) path. To account for both, first we strip
+			# the absolute path, then remove any leading periods and slashes.
+			pkgname="${dir}"
+			pkgname="${pkgname#*${GOPATH}/src/${DOCKER_PKG}}"
+			pkgname="${pkgname#*.}"
+			pkgname="${pkgname#*\/}"
+
+			# Finally, we use periods as separator (instead of slashes) to be more
+			# in line with Java package names (which is what junit.xml was designed for)
+			pkgname="$(go env GOARCH).${pkgname//\//.}"
+			echo "Running $PWD (${pkgname}) flags=${flags}"
+			[ -n "$TESTDEBUG" ] && set -x
 			# shellcheck disable=SC2086
-			test_env ./test.main ${flags}
+			test_env gotestsum \
+				--format=standard-verbose \
+				--jsonfile="${ABS_DEST}/${pkgname//./-}-go-test-report.json" \
+				--junitfile="${ABS_DEST}/${pkgname//./-}-junit-report.xml" \
+				--raw-command \
+				-- go tool test2json -p "${pkgname}" -t ./test.main ${flags}
 		); then exit 1; fi
 	done
 }
