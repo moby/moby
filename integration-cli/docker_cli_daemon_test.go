@@ -131,7 +131,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartUnlessStopped(c *testing.T) {
 		var format string
 		for name, shouldRun := range m {
 			out, err := s.d.Cmd("ps")
-			assert.Assert(c, err == nil, fmt.Sprintf("run ps: %v", out))
+			assert.Assert(c, err == nil, "run ps: %v", out)
 			if shouldRun {
 				format = "%scontainer %q is not running"
 			} else {
@@ -217,7 +217,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithInvalidBasesize(c *testing.T) {
 
 	if newBasesizeBytes < oldBasesizeBytes {
 		err := s.d.RestartWithError("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
-		assert.Assert(c, err != nil, fmt.Sprintf("daemon should not have started as new base device size is less than existing base device size: %v", err))
+		assert.Assert(c, err != nil, "daemon should not have started as new base device size is less than existing base device size: %v", err)
 		// 'err != nil' is expected behaviour, no new daemon started,
 		// so no need to stop daemon.
 		if err != nil {
@@ -241,11 +241,11 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithIncreasedBasesize(c *testing.T)
 	}
 
 	err := s.d.RestartWithError("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
-	assert.Assert(c, err == nil, fmt.Sprintf("we should have been able to start the daemon with increased base device size: %v", err))
+	assert.Assert(c, err == nil, "we should have been able to start the daemon with increased base device size: %v", err)
 
 	basesizeAfterRestart := getBaseDeviceSize(c, s.d)
 	newBasesize, err := convertBasesize(newBasesizeBytes)
-	assert.Assert(c, err == nil, fmt.Sprintf("Error in converting base device size: %v", err))
+	assert.Assert(c, err == nil, "Error in converting base device size: %v", err)
 	assert.Equal(c, newBasesize, basesizeAfterRestart, "Basesize passed is not equal to Basesize set")
 	s.d.Stop(c)
 }
@@ -1750,7 +1750,7 @@ func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *testing.T
 			break
 		}
 		ip, err := s.d.Cmd("inspect", "--format", "'{{.NetworkSettings.IPAddress}}'", contName)
-		assert.Assert(c, err == nil, fmt.Sprintf("%s", ip))
+		assert.Assert(c, err == nil, "%s", ip)
 
 		assert.Assert(c, ip != bridgeIP)
 		cont++
@@ -1780,7 +1780,7 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 
 	// pull a repository large enough to overfill the mounted filesystem
 	pullOut, err := s.d.Cmd("pull", "debian:stretch")
-	assert.Assert(c, err != nil, fmt.Sprintf("%s", pullOut))
+	assert.Assert(c, err != nil, "%s", pullOut)
 	assert.Assert(c, strings.Contains(pullOut, "no space left on device"))
 }
 
@@ -1855,7 +1855,7 @@ func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *testing.T) {
 	out, err := s.d.Cmd("run", "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	assert.NilError(c, err)
 	cgroupPaths := ParseCgroupPaths(string(out))
-	assert.Assert(c, len(cgroupPaths) != 0, fmt.Sprintf("unexpected output - %q", string(out)))
+	assert.Assert(c, len(cgroupPaths) != 0, "unexpected output - %q", string(out))
 	out, err = s.d.Cmd("inspect", "-f", "{{.Id}}", name)
 	assert.NilError(c, err)
 	id := strings.TrimSpace(string(out))
@@ -1867,7 +1867,7 @@ func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *testing.T) {
 			break
 		}
 	}
-	assert.Assert(c, found, fmt.Sprintf("Cgroup path for container (%s) doesn't found in cgroups file: %s", expectedCgroup, cgroupPaths))
+	assert.Assert(c, found, "Cgroup path for container (%s) doesn't found in cgroups file: %s", expectedCgroup, cgroupPaths)
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithLinks(c *testing.T) {
@@ -2007,7 +2007,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *testing.T) {
 	// the following check for mounts being cleared is pointless.
 	skipMountCheck := false
 	mountOut, err := ioutil.ReadFile("/proc/self/mountinfo")
-	assert.Assert(c, err == nil, fmt.Sprintf("Output: %s", mountOut))
+	assert.Assert(c, err == nil, "Output: %s", mountOut)
 	if !strings.Contains(string(mountOut), id) {
 		skipMountCheck = true
 	}
@@ -2032,7 +2032,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *testing.T) {
 	}
 	// Now, container mounts should be gone.
 	mountOut, err = ioutil.ReadFile("/proc/self/mountinfo")
-	assert.Assert(c, err == nil, fmt.Sprintf("Output: %s", mountOut))
+	assert.Assert(c, err == nil, "Output: %s", mountOut)
 	comment := fmt.Sprintf("%s is still mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.Root, mountOut)
 	assert.Equal(c, strings.Contains(string(mountOut), id), false, comment)
 }
@@ -2229,8 +2229,8 @@ func (s *DockerDaemonSuite) TestDaemonDiscoveryBackendConfigReload(c *testing.T)
 	out, err := s.d.Cmd("info")
 	assert.NilError(c, err)
 
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf("Cluster Store: consul://consuladdr:consulport/some/path")))
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf("Cluster Advertise: 192.168.56.100:0")))
+	assert.Assert(c, strings.Contains(out, "Cluster Store: consul://consuladdr:consulport/some/path"))
+	assert.Assert(c, strings.Contains(out, "Cluster Advertise: 192.168.56.100:0"))
 }
 
 // Test for #21956
@@ -2376,11 +2376,11 @@ func (s *DockerDaemonSuite) TestDaemonDNSFlagsInHostMode(c *testing.T) {
 
 	expectedOutput := "nameserver 1.2.3.4"
 	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
-	assert.Assert(c, strings.Contains(out, expectedOutput), fmt.Sprintf("Expected '%s', but got %q", expectedOutput, out))
+	assert.Assert(c, strings.Contains(out, expectedOutput), "Expected '%s', but got %q", expectedOutput, out)
 	expectedOutput = "search example.com"
-	assert.Assert(c, strings.Contains(out, expectedOutput), fmt.Sprintf("Expected '%s', but got %q", expectedOutput, out))
+	assert.Assert(c, strings.Contains(out, expectedOutput), "Expected '%s', but got %q", expectedOutput, out)
 	expectedOutput = "options timeout:3"
-	assert.Assert(c, strings.Contains(out, expectedOutput), fmt.Sprintf("Expected '%s', but got %q", expectedOutput, out))
+	assert.Assert(c, strings.Contains(out, expectedOutput), "Expected '%s', but got %q", expectedOutput, out)
 }
 
 func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
@@ -2555,10 +2555,10 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithAutoRemoveContainer(c *testing.
 
 	// top1 will exist after daemon restarts
 	out, err := s.d.Cmd("run", "-d", "--name", "top1", "busybox:latest", "top")
-	assert.Assert(c, err == nil, fmt.Sprintf("run top1: %v", out))
+	assert.Assert(c, err == nil, "run top1: %v", out)
 	// top2 will be removed after daemon restarts
 	out, err = s.d.Cmd("run", "-d", "--rm", "--name", "top2", "busybox:latest", "top")
-	assert.Assert(c, err == nil, fmt.Sprintf("run top2: %v", out))
+	assert.Assert(c, err == nil, "run top2: %v", out)
 
 	out, err = s.d.Cmd("ps")
 	assert.NilError(c, err)
@@ -2714,13 +2714,13 @@ func (s *DockerDaemonSuite) TestExecWithUserAfterLiveRestore(c *testing.T) {
 
 	out1, err := s.d.Cmd("exec", "-u", "test", "top", "id")
 	// uid=100(test) gid=101(test) groups=101(test)
-	assert.Assert(c, err == nil, fmt.Sprintf("Output: %s", out1))
+	assert.Assert(c, err == nil, "Output: %s", out1)
 
 	// restart daemon.
 	s.d.Restart(c, "--live-restore")
 
 	out2, err := s.d.Cmd("exec", "-u", "test", "top", "id")
-	assert.Assert(c, err == nil, fmt.Sprintf("Output: %s", out2))
+	assert.Assert(c, err == nil, "Output: %s", out2)
 	assert.Equal(c, out2, out1, fmt.Sprintf("Output: before restart '%s', after restart '%s'", out1, out2))
 
 	out, err = s.d.Cmd("stop", "top")
@@ -2773,7 +2773,7 @@ func (s *DockerDaemonSuite) TestRestartPolicyWithLiveRestore(c *testing.T) {
 		StartedAt time.Time
 	}
 	out, err = s.d.Cmd("inspect", "-f", "{{json .State}}", id)
-	assert.Assert(c, err == nil, fmt.Sprintf("output: %s", out))
+	assert.Assert(c, err == nil, "output: %s", out)
 
 	var origState state
 	err = json.Unmarshal([]byte(strings.TrimSpace(out)), &origState)
@@ -2799,7 +2799,7 @@ func (s *DockerDaemonSuite) TestRestartPolicyWithLiveRestore(c *testing.T) {
 		}
 
 		out, err := s.d.Cmd("inspect", "-f", "{{json .State}}", id)
-		assert.Assert(c, err == nil, fmt.Sprintf("output: %s", out))
+		assert.Assert(c, err == nil, "output: %s", out)
 
 		var newState state
 		err = json.Unmarshal([]byte(strings.TrimSpace(out)), &newState)

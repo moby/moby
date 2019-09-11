@@ -1220,7 +1220,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 	assert.NilError(c, err)
 
 	_, err = os.Stat(source)
-	assert.Assert(c, os.IsNotExist(err), fmt.Sprintf("expected to get ErrNotExist error, got %v", err))
+	assert.Assert(c, os.IsNotExist(err), "expected to get ErrNotExist error, got %v", err)
 }
 
 // Regression test for https://github.com/docker/docker/issues/6231

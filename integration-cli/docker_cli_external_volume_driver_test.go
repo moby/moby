@@ -297,7 +297,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamed(c *testing.T) 
 	p := hostVolumePath("external-volume-test")
 	_, err = os.Lstat(p)
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, os.IsNotExist(err), fmt.Sprintf("Expected volume path in host to not exist: %s, %v\n", p, err))
+	assert.Assert(c, os.IsNotExist(err), "Expected volume path in host to not exist: %s, %v\n", p, err)
 
 	assert.Equal(c, s.ec.activations, 1)
 	assert.Equal(c, s.ec.creations, 1)

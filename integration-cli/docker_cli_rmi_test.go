@@ -26,7 +26,7 @@ func (s *DockerSuite) TestRmiWithContainerFails(c *testing.T) {
 	// Container is using image, should not be able to rmi
 	assert.ErrorContains(c, err, "")
 	// Container is using image, error message should contain errSubstr
-	assert.Assert(c, strings.Contains(out, errSubstr), fmt.Sprintf("Container: %q", cleanedContainerID))
+	assert.Assert(c, strings.Contains(out, errSubstr), "Container: %q", cleanedContainerID)
 	// make sure it didn't delete the busybox name
 	images, _ := dockerCmd(c, "images")
 	// The name 'busybox' should not have been removed from images
@@ -99,7 +99,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *testing.T) {
 
 	imagesAfter = cli.DockerCmd(c, "images", "-a").Combined()
 	// rmi -f failed, image still exists
-	assert.Assert(c, !strings.Contains(imagesAfter, imgID[:12]), fmt.Sprintf("ImageID:%q; ImagesAfter: %q", imgID, imagesAfter))
+	assert.Assert(c, !strings.Contains(imagesAfter, imgID[:12]), "ImageID:%q; ImagesAfter: %q", imgID, imagesAfter)
 }
 
 func (s *DockerSuite) TestRmiImgIDForce(c *testing.T) {
@@ -209,7 +209,7 @@ func (s *DockerSuite) TestRmiForceWithMultipleRepositories(c *testing.T) {
 	assert.Assert(c, !strings.Contains(out, "Untagged: "+tag1))
 	// Check built image still exists
 	images, _ := dockerCmd(c, "images", "-a")
-	assert.Assert(c, strings.Contains(images, imageName), fmt.Sprintf("Built image missing %q; Images: %q", imageName, images))
+	assert.Assert(c, strings.Contains(images, imageName), "Built image missing %q; Images: %q", imageName, images)
 }
 
 func (s *DockerSuite) TestRmiBlank(c *testing.T) {
@@ -217,9 +217,9 @@ func (s *DockerSuite) TestRmiBlank(c *testing.T) {
 	// Should have failed to delete ' ' image
 	assert.ErrorContains(c, err, "")
 	// Wrong error message generated
-	assert.Assert(c, !strings.Contains(out, "no such id"), fmt.Sprintf("out: %s", out))
+	assert.Assert(c, !strings.Contains(out, "no such id"), "out: %s", out)
 	// Expected error message not generated
-	assert.Assert(c, strings.Contains(out, "image name cannot be blank"), fmt.Sprintf("out: %s", out))
+	assert.Assert(c, strings.Contains(out, "image name cannot be blank"), "out: %s", out)
 }
 
 func (s *DockerSuite) TestRmiContainerImageNotFound(c *testing.T) {
@@ -244,7 +244,7 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *testing.T) {
 	out, _, err := dockerCmdWithError("rmi", "-f", imageIds[0])
 	// The image of the running container should not be removed.
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "image is being used by running container"), fmt.Sprintf("out: %s", out))
+	assert.Assert(c, strings.Contains(out, "image is being used by running container"), "out: %s", out)
 }
 
 // #13422

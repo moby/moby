@@ -403,7 +403,7 @@ func (s *DockerSuite) TestDockerNetworkDeleteMultiple(c *testing.T) {
 	// contains active container, its deletion should fail.
 	out, _, err := dockerCmdWithError("network", "rm", "testDelMulti0", "testDelMulti1", "testDelMulti2")
 	// err should not be nil due to deleting testDelMulti2 failed.
-	assert.Assert(c, err != nil, fmt.Sprintf("out: %s", out))
+	assert.Assert(c, err != nil, "out: %s", out)
 	// testDelMulti2 should fail due to network has active endpoints
 	assert.Assert(c, strings.Contains(out, "has active endpoints"))
 	assertNwNotAvailable(c, "testDelMulti0")
@@ -1298,7 +1298,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectPreferredIP(c *testing.T) {
 
 	// Still it should fail to connect to the default network with a specified IP (whatever ip)
 	out, _, err := dockerCmdWithError("network", "connect", "--ip", "172.21.55.44", "bridge", "c0")
-	assert.Assert(c, err != nil, fmt.Sprintf("out: %s", out))
+	assert.Assert(c, err != nil, "out: %s", out)
 	assert.Assert(c, strings.Contains(out, runconfig.ErrUnsupportedNetworkAndIP.Error()))
 }
 
@@ -1336,10 +1336,10 @@ func (s *DockerNetworkSuite) TestDockerNetworkUnsupportedRequiredIP(c *testing.T
 	assertNwIsAvailable(c, "n0")
 
 	out, _, err := dockerCmdWithError("run", "-d", "--ip", "172.28.99.88", "--net", "n0", "busybox", "top")
-	assert.Assert(c, err != nil, fmt.Sprintf("out: %s", out))
+	assert.Assert(c, err != nil, "out: %s", out)
 	assert.Assert(c, strings.Contains(out, runconfig.ErrUnsupportedNetworkNoSubnetAndIP.Error()))
 	out, _, err = dockerCmdWithError("run", "-d", "--ip6", "2001:db8:1234::9988", "--net", "n0", "busybox", "top")
-	assert.Assert(c, err != nil, fmt.Sprintf("out: %s", out))
+	assert.Assert(c, err != nil, "out: %s", out)
 	assert.Assert(c, strings.Contains(out, runconfig.ErrUnsupportedNetworkNoSubnetAndIP.Error()))
 	dockerCmd(c, "network", "rm", "n0")
 	assertNwNotAvailable(c, "n0")
@@ -1347,7 +1347,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkUnsupportedRequiredIP(c *testing.T
 
 func checkUnsupportedNetworkAndIP(c *testing.T, nwMode string) {
 	out, _, err := dockerCmdWithError("run", "-d", "--net", nwMode, "--ip", "172.28.99.88", "--ip6", "2001:db8:1234::9988", "busybox", "top")
-	assert.Assert(c, err != nil, fmt.Sprintf("out: %s", out))
+	assert.Assert(c, err != nil, "out: %s", out)
 	assert.Assert(c, strings.Contains(out, runconfig.ErrUnsupportedNetworkAndIP.Error()))
 }
 
@@ -1474,8 +1474,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkDisconnectDefault(c *testing.T) {
 	dockerCmd(c, "start", containerName)
 	assert.Assert(c, waitRun(containerName) == nil)
 	networks := inspectField(c, containerName, "NetworkSettings.Networks")
-	assert.Assert(c, strings.Contains(networks, netWorkName1), fmt.Sprintf(fmt.Sprintf("Should contain '%s' network", netWorkName1)))
-	assert.Assert(c, strings.Contains(networks, netWorkName2), fmt.Sprintf(fmt.Sprintf("Should contain '%s' network", netWorkName2)))
+	assert.Assert(c, strings.Contains(networks, netWorkName1), fmt.Sprintf("Should contain '%s' network", netWorkName1))
+	assert.Assert(c, strings.Contains(networks, netWorkName2), fmt.Sprintf("Should contain '%s' network", netWorkName2))
 	assert.Assert(c, !strings.Contains(networks, "bridge"), "Should not contain 'bridge' network")
 }
 
@@ -1538,11 +1538,11 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectAlias(c *testing.T)
 
 	// verify the alias option is rejected when running on predefined network
 	out, _, err := dockerCmdWithError("run", "--rm", "--name=any", "--net-alias=any", "busybox:glibc", "top")
-	assert.Assert(c, err != nil, fmt.Sprintf("out: %s", out))
+	assert.Assert(c, err != nil, "out: %s", out)
 	assert.Assert(c, strings.Contains(out, runconfig.ErrUnsupportedNetworkAndAlias.Error()))
 	// verify the alias option is rejected when connecting to predefined network
 	out, _, err = dockerCmdWithError("network", "connect", "--alias=any", "bridge", "first")
-	assert.Assert(c, err != nil, fmt.Sprintf("out: %s", out))
+	assert.Assert(c, err != nil, "out: %s", out)
 	assert.Assert(c, strings.Contains(out, runconfig.ErrUnsupportedNetworkAndAlias.Error()))
 }
 
