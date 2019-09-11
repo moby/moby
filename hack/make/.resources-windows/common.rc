@@ -1,6 +1,3 @@
-// Application icon
-1 ICON "dockerd.ico"
-
 // Windows executable manifest
 1 24 /* RT_MANIFEST */ "dockerd.exe.manifest"
 
