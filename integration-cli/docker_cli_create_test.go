@@ -36,7 +36,7 @@ func (s *DockerSuite) TestCreateArgs(c *testing.T) {
 	}
 
 	err := json.Unmarshal([]byte(out), &containers)
-	assert.Assert(c, err == nil, fmt.Sprintf("Error inspecting the container: %s", err))
+	assert.Assert(c, err == nil, "Error inspecting the container: %s", err)
 	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
@@ -95,12 +95,12 @@ func (s *DockerSuite) TestCreateHostConfig(c *testing.T) {
 	}
 
 	err := json.Unmarshal([]byte(out), &containers)
-	assert.Assert(c, err == nil, fmt.Sprintf("Error inspecting the container: %s", err))
+	assert.Assert(c, err == nil, "Error inspecting the container: %s", err)
 	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
-	assert.Assert(c, cont.HostConfig != nil, fmt.Sprintf("Expected HostConfig, got none"))
-	assert.Assert(c, cont.HostConfig.PublishAllPorts, fmt.Sprintf("Expected PublishAllPorts, got false"))
+	assert.Assert(c, cont.HostConfig != nil, "Expected HostConfig, got none")
+	assert.Assert(c, cont.HostConfig.PublishAllPorts, "Expected PublishAllPorts, got false")
 }
 
 func (s *DockerSuite) TestCreateWithPortRange(c *testing.T) {
@@ -116,12 +116,12 @@ func (s *DockerSuite) TestCreateWithPortRange(c *testing.T) {
 		}
 	}
 	err := json.Unmarshal([]byte(out), &containers)
-	assert.Assert(c, err == nil, fmt.Sprintf("Error inspecting the container: %s", err))
+	assert.Assert(c, err == nil, "Error inspecting the container: %s", err)
 	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
 
-	assert.Assert(c, cont.HostConfig != nil, fmt.Sprintf("Expected HostConfig, got none"))
+	assert.Assert(c, cont.HostConfig != nil, "Expected HostConfig, got none")
 	assert.Equal(c, len(cont.HostConfig.PortBindings), 4, fmt.Sprintf("Expected 4 ports bindings, got %d", len(cont.HostConfig.PortBindings)))
 
 	for k, v := range cont.HostConfig.PortBindings {
@@ -146,11 +146,11 @@ func (s *DockerSuite) TestCreateWithLargePortRange(c *testing.T) {
 	}
 
 	err := json.Unmarshal([]byte(out), &containers)
-	assert.Assert(c, err == nil, fmt.Sprintf("Error inspecting the container: %s", err))
+	assert.Assert(c, err == nil, "Error inspecting the container: %s", err)
 	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
-	assert.Assert(c, cont.HostConfig != nil, fmt.Sprintf("Expected HostConfig, got none"))
+	assert.Assert(c, cont.HostConfig != nil, "Expected HostConfig, got none")
 	assert.Equal(c, len(cont.HostConfig.PortBindings), 65535)
 
 	for k, v := range cont.HostConfig.PortBindings {
@@ -178,7 +178,7 @@ func (s *DockerSuite) TestCreateVolumesCreated(c *testing.T) {
 	dockerCmd(c, "create", "--name", name, "-v", prefix+slash+"foo", "busybox")
 
 	dir, err := inspectMountSourceField(name, prefix+slash+"foo")
-	assert.Assert(c, err == nil, fmt.Sprintf("Error getting volume host path: %q", err))
+	assert.Assert(c, err == nil, "Error getting volume host path: %q", err)
 
 	if _, err := os.Stat(dir); err != nil && os.IsNotExist(err) {
 		c.Fatalf("Volume was not created")

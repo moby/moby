@@ -82,7 +82,7 @@ func inspectFieldAndUnmarshall(c *testing.T, name, field string, output interfac
 	str := inspectFieldJSON(c, name, field)
 	err := json.Unmarshal([]byte(str), output)
 	if c != nil {
-		assert.Assert(c, err == nil, fmt.Sprintf("failed to unmarshal: %v", err))
+		assert.Assert(c, err == nil, "failed to unmarshal: %v", err)
 	}
 }
 
