@@ -66,8 +66,8 @@
 #    by running one of the following, specifying the Windows version you're building on. For example,
 #    the following commands build the binaries on Windows Server 1607 ("RS1"):
 #
-#    >>   docker build -t nativebuildimage --build-arg WINDOWS_VERSION=1607 -f Dockerfile.windows .
-#    >>   docker build -t nativebuildimage --build-arg WINDOWS_VERSION=1607 -f Dockerfile.windows -m 2GB .    (if using Hyper-V containers)
+#    >>   docker build -t nativebuildimage --build-arg WINDOWS_BASE_IMAGE_TAG=1607 -f Dockerfile.windows .
+#    >>   docker build -t nativebuildimage --build-arg WINDOWS_BASE_IMAGE_TAG=1607 -f Dockerfile.windows -m 2GB .    (if using Hyper-V containers)
 #
 #
 # 4. Build the docker executable binaries by running one of the following:
@@ -156,11 +156,12 @@
 # Extremely important. If using this Dockerfile in process isolated containers,
 # the kernel of the host must match the container image, and hence would fail
 # between Windows Server 2016 (aka RS1) and Windows Server 2019 (aka RS5).
-ARG WINDOWS_VERSION=${WINDOWS_VERSION:-1809}
+ARG WINDOWS_BASE_IMAGE=mcr.microsoft.com/windows/servercore
+ARG WINDOWS_BASE_IMAGE_TAG=1809
 
 # The number of build steps below are explicitly minimised to improve performance.
 
-FROM mcr.microsoft.com/windows/servercore:${WINDOWS_VERSION}
+FROM ${WINDOWS_BASE_IMAGE}:${WINDOWS_BASE_IMAGE_TAG}
 
 # Use PowerShell as the default shell
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
@@ -283,8 +284,8 @@ ENTRYPOINT ["powershell.exe"]
 # Set the working directory to the location of the sources
 WORKDIR ${GOPATH}\src\github.com\docker\docker
 
-ARG WINDOWS_VERSION
-ENV WINDOWS_VERSION=${WINDOWS_VERSION}
+ARG WINDOWS_BASE_IMAGE_TAG
+ENV WINDOWS_BASE_IMAGE_TAG=${WINDOWS_BASE_IMAGE_TAG}
 
 # Copy the sources into the container
 COPY . .

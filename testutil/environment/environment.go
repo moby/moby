@@ -83,21 +83,19 @@ func getPlatformDefaults(info types.Info, osType string) PlatformDefaults {
 		}
 	case "windows":
 		var baseImage string
+		// Default to Windows Server 2019
+		baseImageRepo := "mcr.microsoft.com/windows/servercore"
+		baseImageTag := "1809"
+
 		if overrideBaseImage := os.Getenv("WINDOWS_BASE_IMAGE"); overrideBaseImage != "" {
-			baseImage = overrideBaseImage
-			if overrideBaseImageTag := os.Getenv("WINDOWS_BASE_IMAGE_TAG"); overrideBaseImageTag != "" {
-				baseImage = baseImage + ":" + overrideBaseImageTag
-			}
-		} else {
-			baseImageRepo := "mcr.microsoft.com/windows/servercore"
-			baseImageTag := "1809"
-
-			if windowsVersion := os.Getenv("WINDOWS_VERSION"); windowsVersion != "" {
-				baseImageTag = windowsVersion
-			}
-
-			baseImage = baseImageRepo + ":" + baseImageTag
+			// When setting `WINDOWS_BASE_IMAGE`, assume it's a full reference, including tag
+			baseImageRepo = overrideBaseImage
+			baseImageTag = ""
 		}
+		if overrideBaseImageTag := os.Getenv("WINDOWS_BASE_IMAGE_TAG"); overrideBaseImageTag != "" {
+			baseImageTag = overrideBaseImageTag
+		}
+		baseImage = baseImageRepo + ":" + baseImageTag
 		fmt.Println("INFO: Windows Base image is", baseImage)
 		return PlatformDefaults{
 			BaseImage:            baseImage,
