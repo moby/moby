@@ -46,3 +46,11 @@ issues:
     - text: "G202: SQL string concatenation"
       linters:
         - gosec
+    # FIXME temporarily suppress these. See #39924
+    - text: "SA1019: h.Xattrs is deprecated: Use PAXRecords instead"
+      linters:
+        - staticcheck
+    # FIXME temporarily suppress these. See #39924
+    - text: "SA1019: hdr.Xattrs is deprecated: Use PAXRecords instead"
+      linters:
+        - staticcheck
