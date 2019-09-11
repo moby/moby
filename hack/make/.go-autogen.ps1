@@ -60,9 +60,7 @@ const (
     [System.IO.File]::WriteAllText($outputFile, $fileContents, (New-Object System.Text.UTF8Encoding($False)))
 
     New-Item -ItemType Directory -Path "autogen\winresources\tmp" | Out-Null
-    New-Item -ItemType Directory -Path "autogen\winresources\docker" | Out-Null
     New-Item -ItemType Directory -Path "autogen\winresources\dockerd" | Out-Null
-    Copy-Item "hack\make\.resources-windows\resources.go" "autogen\winresources\docker"
     Copy-Item "hack\make\.resources-windows\resources.go" "autogen\winresources\dockerd"
 
     # Generate a version in the form major,minor,patch,build
@@ -76,12 +74,6 @@ const (
     # Generate the .syso files containing all the resources and manifest needed to compile the final docker binaries. Both 32 and 64-bit clients.
     $env:_ag_dockerVersion=$DockerVersion
     $env:_ag_gitCommit=$CommitString
-
-    windres -i hack/make/.resources-windows/docker.rc  -o autogen/winresources/docker/rsrc_amd64.syso  -F pe-x86-64 --use-temp-file -I autogen/winresources/tmp -D DOCKER_VERSION_QUAD=$versionQuad --% -D DOCKER_VERSION=\"%_ag_dockerVersion%\" -D DOCKER_COMMIT=\"%_ag_gitCommit%\"
-    if ($LASTEXITCODE -ne 0) { Throw "Failed to compile client 64-bit resources" }
-
-    windres -i hack/make/.resources-windows/docker.rc  -o autogen/winresources/docker/rsrc_386.syso    -F pe-i386   --use-temp-file -I autogen/winresources/tmp -D DOCKER_VERSION_QUAD=$versionQuad --% -D DOCKER_VERSION=\"%_ag_dockerVersion%\" -D DOCKER_COMMIT=\"%_ag_gitCommit%\"
-    if ($LASTEXITCODE -ne 0) { Throw "Failed to compile client 32-bit resources" }
 
     windres -i hack/make/.resources-windows/dockerd.rc -o autogen/winresources/dockerd/rsrc_amd64.syso -F pe-x86-64 --use-temp-file -I autogen/winresources/tmp -D DOCKER_VERSION_QUAD=$versionQuad --% -D DOCKER_VERSION=\"%_ag_dockerVersion%\" -D DOCKER_COMMIT=\"%_ag_gitCommit%\"
     if ($LASTEXITCODE -ne 0) { Throw "Failed to compile daemon resources" }

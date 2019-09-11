@@ -1,6 +1,6 @@
 /*
 
-Package winresources is used to embed Windows resources into docker.exe.
+Package winresources is used to embed Windows resources into dockerd.exe.
 These resources are used to provide
 
     * Version information

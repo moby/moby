@@ -44,8 +44,7 @@ DVEOF
 
 # Compile the Windows resources into the sources
 if [ "$(go env GOOS)" = "windows" ]; then
-	mkdir -p autogen/winresources/tmp autogen/winresources/docker autogen/winresources/dockerd
-	cp hack/make/.resources-windows/resources.go autogen/winresources/docker/
+	mkdir -p autogen/winresources/tmp autogen/winresources/dockerd
 	cp hack/make/.resources-windows/resources.go autogen/winresources/dockerd/
 
 	if [ "$(go env GOHOSTOS)" == "windows" ]; then
@@ -81,8 +80,6 @@ if [ "$(go env GOOS)" = "windows" ]; then
 		-h autogen/winresources/tmp \
 		-r autogen/winresources/tmp
 
-	makeres docker.rc pe-x86-64 autogen/winresources/docker/rsrc_amd64.syso
-	makeres docker.rc pe-i386 autogen/winresources/docker/rsrc_386.syso
 	makeres dockerd.rc pe-x86-64 autogen/winresources/dockerd/rsrc_amd64.syso
 
 	rm -r autogen/winresources/tmp
