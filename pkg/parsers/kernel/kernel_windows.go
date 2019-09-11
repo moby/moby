@@ -36,7 +36,7 @@ func GetKernelVersion() (*VersionInfo, error) {
 	}
 	KVI.kvi = blex
 
-	// Important - docker.exe MUST be manifested for this API to return
+	// Important - dockerd.exe MUST be manifested for this API to return
 	// the correct information.
 	dwVersion, err := windows.GetVersion()
 	if err != nil {
