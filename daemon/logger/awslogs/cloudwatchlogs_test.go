@@ -173,8 +173,8 @@ func TestNewAWSLogsClientRegionDetect(t *testing.T) {
 	}
 
 	mockMetadata := newMockMetadataClient()
-	newRegionFinder = func() regionFinder {
-		return mockMetadata
+	newRegionFinder = func() (regionFinder, error) {
+		return mockMetadata, nil
 	}
 	mockMetadata.regionResult <- &regionResult{
 		successResult: "us-east-1",

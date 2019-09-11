@@ -308,8 +308,12 @@ var strftimeToRegex = map[string]string{
 
 // newRegionFinder is a variable such that the implementation
 // can be swapped out for unit tests.
-var newRegionFinder = func() regionFinder {
-	return ec2metadata.New(session.New())
+var newRegionFinder = func() (regionFinder, error) {
+	s, err := session.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	return ec2metadata.New(s), nil
 }
 
 // newSDKEndpoint is a variable such that the implementation
@@ -333,12 +337,15 @@ func newAWSLogsClient(info logger.Info) (api, error) {
 	}
 	if region == nil || *region == "" {
 		logrus.Info("Trying to get region from EC2 Metadata")
-		ec2MetadataClient := newRegionFinder()
+		ec2MetadataClient, err := newRegionFinder()
+		if err != nil {
+			logrus.WithError(err).Error("could not create EC2 metadata client")
+			return nil, errors.Wrap(err, "could not create EC2 metadata client")
+		}
+
 		r, err := ec2MetadataClient.Region()
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				"error": err,
-			}).Error("Could not get region from EC2 metadata, environment, or log option")
+			logrus.WithError(err).Error("Could not get region from EC2 metadata, environment, or log option")
 			return nil, errors.New("Cannot determine region for awslogs driver")
 		}
 		region = &r
@@ -429,25 +436,20 @@ func (l *logStream) Close() error {
 
 // create creates log group and log stream for the instance of the awslogs logging driver
 func (l *logStream) create() error {
-	if err := l.createLogStream(); err != nil {
-		if l.logCreateGroup {
-			if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == resourceNotFoundCode {
-				if err := l.createLogGroup(); err != nil {
-					return errors.Wrap(err, "failed to create Cloudwatch log group")
-				}
-				err := l.createLogStream()
-				if err != nil {
-					return errors.Wrap(err, "failed to create Cloudwatch log stream")
-				}
-				return nil
-			}
+	err := l.createLogStream()
+	if err == nil {
+		return nil
+	}
+	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == resourceNotFoundCode && l.logCreateGroup {
+		if err := l.createLogGroup(); err != nil {
+			return errors.Wrap(err, "failed to create Cloudwatch log group")
 		}
-		if err != nil {
-			return errors.Wrap(err, "failed to create Cloudwatch log stream")
+		err = l.createLogStream()
+		if err == nil {
+			return nil
 		}
 	}
-
-	return nil
+	return errors.Wrap(err, "failed to create Cloudwatch log stream")
 }
 
 // createLogGroup creates a log group for the instance of the awslogs logging driver
@@ -551,7 +553,6 @@ func (l *logStream) collectBatch(created chan bool) {
 			if !more {
 				// Flush event buffer and release resources
 				l.processEvent(batch, eventBuffer, eventBufferTimestamp)
-				eventBuffer = eventBuffer[:0]
 				l.publishBatch(batch)
 				batch.reset()
 				return
