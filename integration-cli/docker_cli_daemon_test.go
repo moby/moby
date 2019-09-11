@@ -1750,7 +1750,7 @@ func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *testing.T
 			break
 		}
 		ip, err := s.d.Cmd("inspect", "--format", "'{{.NetworkSettings.IPAddress}}'", contName)
-		assert.Assert(c, err == nil, "%s", ip)
+		assert.Assert(c, err == nil, ip)
 
 		assert.Assert(c, ip != bridgeIP)
 		cont++
@@ -1780,7 +1780,7 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 
 	// pull a repository large enough to overfill the mounted filesystem
 	pullOut, err := s.d.Cmd("pull", "debian:stretch")
-	assert.Assert(c, err != nil, "%s", pullOut)
+	assert.Assert(c, err != nil, pullOut)
 	assert.Assert(c, strings.Contains(pullOut, "no space left on device"))
 }
 
@@ -1890,7 +1890,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithLinks(c *testing.T) {
 	assert.NilError(c, err, out)
 	out, err = s.d.Cmd("start", "-a", "test2")
 	assert.NilError(c, err, out)
-	assert.Equal(c, strings.Contains(out, "1 packets transmitted, 1 packets received"), true, fmt.Sprintf("%s", out))
+	assert.Equal(c, strings.Contains(out, "1 packets transmitted, 1 packets received"), true, out)
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithNames(c *testing.T) {

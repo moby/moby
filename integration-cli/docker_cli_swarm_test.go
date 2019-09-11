@@ -171,7 +171,7 @@ func (s *DockerSwarmSuite) TestSwarmIncompatibleDaemon(c *testing.T) {
 func (s *DockerSwarmSuite) TestSwarmServiceTemplatingHostname(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 	hostname, err := d.Cmd("node", "inspect", "--format", "{{.Description.Hostname}}", "self")
-	assert.Assert(c, err == nil, "%s", hostname)
+	assert.Assert(c, err == nil, hostname)
 
 	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", "test", "--hostname", "{{.Service.Name}}-{{.Task.Slot}}-{{.Node.Hostname}}", "busybox", "top")
 	assert.NilError(c, err, out)
@@ -1043,7 +1043,7 @@ func (s *DockerSwarmSuite) TestSwarmInitLocked(c *testing.T) {
 	d := s.AddDaemon(c, false, false)
 
 	outs, err := d.Cmd("swarm", "init", "--autolock")
-	assert.Assert(c, err == nil, "%s", outs)
+	assert.Assert(c, err == nil, outs)
 	unlockKey := getUnlockKey(d, c, outs)
 
 	assert.Equal(c, getNodeStatus(c, d), swarm.LocalNodeStateActive)
@@ -1068,15 +1068,15 @@ func (s *DockerSwarmSuite) TestSwarmInitLocked(c *testing.T) {
 	assert.Equal(c, getNodeStatus(c, d), swarm.LocalNodeStateActive)
 
 	outs, err = d.Cmd("node", "ls")
-	assert.Assert(c, err == nil, "%s", outs)
+	assert.Assert(c, err == nil, outs)
 	assert.Assert(c, !strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"))
 	outs, err = d.Cmd("swarm", "update", "--autolock=false")
-	assert.Assert(c, err == nil, "%s", outs)
+	assert.Assert(c, err == nil, outs)
 
 	checkSwarmLockedToUnlocked(c, d)
 
 	outs, err = d.Cmd("node", "ls")
-	assert.Assert(c, err == nil, "%s", outs)
+	assert.Assert(c, err == nil, outs)
 	assert.Assert(c, !strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"))
 }
 
@@ -1084,7 +1084,7 @@ func (s *DockerSwarmSuite) TestSwarmLeaveLocked(c *testing.T) {
 	d := s.AddDaemon(c, false, false)
 
 	outs, err := d.Cmd("swarm", "init", "--autolock")
-	assert.Assert(c, err == nil, "%s", outs)
+	assert.Assert(c, err == nil, outs)
 
 	// It starts off locked
 	d.RestartNode(c)
@@ -1099,13 +1099,13 @@ func (s *DockerSwarmSuite) TestSwarmLeaveLocked(c *testing.T) {
 	assert.Assert(c, strings.Contains(outs, "Swarm is encrypted and locked."))
 	// It is OK for user to leave a locked swarm with --force
 	outs, err = d.Cmd("swarm", "leave", "--force")
-	assert.Assert(c, err == nil, "%s", outs)
+	assert.Assert(c, err == nil, outs)
 
 	info = d.SwarmInfo(c)
 	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateInactive)
 
 	outs, err = d.Cmd("swarm", "init")
-	assert.Assert(c, err == nil, "%s", outs)
+	assert.Assert(c, err == nil, outs)
 
 	info = d.SwarmInfo(c)
 	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateActive)
@@ -1125,7 +1125,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *testing.T) {
 
 	// enable autolock
 	outs, err := d1.Cmd("swarm", "update", "--autolock")
-	assert.Assert(c, err == nil, "%s", outs)
+	assert.Assert(c, err == nil, outs)
 	unlockKey := getUnlockKey(d1, c, outs)
 
 	// The ones that got the cluster update should be set to locked
@@ -1320,13 +1320,13 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *testing.T) {
 	d3 := s.AddDaemon(c, true, true)
 
 	outs, err := d1.Cmd("swarm", "update", "--autolock")
-	assert.Assert(c, err == nil, "%s", outs)
+	assert.Assert(c, err == nil, outs)
 	unlockKey := getUnlockKey(d1, c, outs)
 
 	// Rotate multiple times
 	for i := 0; i != 3; i++ {
 		outs, err = d1.Cmd("swarm", "unlock-key", "-q", "--rotate")
-		assert.Assert(c, err == nil, "%s", outs)
+		assert.Assert(c, err == nil, outs)
 		// Strip \n
 		newUnlockKey := outs[:len(outs)-1]
 		assert.Assert(c, newUnlockKey != "")
@@ -1385,7 +1385,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *testing.T) {
 						continue
 					}
 				}
-				assert.Assert(c, err == nil, "%s", outs)
+				assert.Assert(c, err == nil, outs)
 				assert.Assert(c, !strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"))
 				break
 			}
@@ -1982,7 +1982,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsConfig(c *testing.T) {
 
 func getUnlockKey(d *daemon.Daemon, c *testing.T, autolockOutput string) string {
 	unlockKey, err := d.Cmd("swarm", "unlock-key", "-q")
-	assert.Assert(c, err == nil, "%s", unlockKey)
+	assert.Assert(c, err == nil, unlockKey)
 	unlockKey = strings.TrimSuffix(unlockKey, "\n")
 
 	// Check that "docker swarm init --autolock" or "docker swarm update --autolock"
