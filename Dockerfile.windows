@@ -160,7 +160,7 @@
 # would fail between Windows Server 2016 (aka RS1) and Windows Server 2019 (aka RS5).
 # It is expected that the image `microsoft/windowsservercore:latest` is present, and matches
 # the hosts kernel version before doing a build. 
-FROM microsoft/windowsservercore
+FROM mcr.microsoft.com/windows/servercore:ltsc2019
 
 # Use PowerShell as the default shell
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
