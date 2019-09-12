@@ -15,6 +15,11 @@ if ($env:BUILD_TAG -match "-LoW") { $env:LCOW_MODE=1 }
 if ($env:BUILD_TAG -match "-WoW") { $env:LCOW_MODE="" }
 
 
+Write-Host -ForegroundColor Red "DEBUG: print all environment variables to check how Jenkins runs this script"
+$allArgs = [Environment]::GetCommandLineArgs()
+Write-Host -ForegroundColor Red $allArgs
+Write-Host -ForegroundColor Red "----------------------------------------------------------------------------"
+
 # -------------------------------------------------------------------------------------------
 # When executed, we rely on four variables being set in the environment:
 #
@@ -979,6 +984,9 @@ Catch [Exception] {
     Throw $_
 }
 Finally {
+    # Preserve the LastExitCode of the tests
+    $tmpLastExitCode = $LastExitCode
+
     $ErrorActionPreference="SilentlyContinue"
     $global:ProgressPreference=$origProgressPreference
     Write-Host  -ForegroundColor Green "INFO: Tidying up at end of run"
@@ -1016,4 +1024,6 @@ Finally {
 
     $Dur=New-TimeSpan -Start $StartTime -End $(Get-Date)
     Write-Host -ForegroundColor $FinallyColour "`nINFO: executeCI.ps1 exiting at $(date). Duration $dur`n"
+
+    exit $tmpLastExitCode
 }
