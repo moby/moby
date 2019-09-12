@@ -307,10 +307,10 @@ pipeline {
                                 TEST_INTEGRATION_DEST=1 CONTAINER_NAME=${CONTAINER_NAME}-1 TEST_SKIP_INTEGRATION_CLI=1 run_tests test-integration-flaky &
 
                                 # integration-cli first set
-                                TEST_INTEGRATION_DEST=2 CONTAINER_NAME=${CONTAINER_NAME}-2 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-test.run /(DockerSuite|DockerNetworkSuite|DockerHubPullSuite|DockerRegistrySuite|DockerSchema1RegistrySuite|DockerRegistryAuthTokenSuite|DockerRegistryAuthHtpasswdSuite)/" run_tests &
+                                TEST_INTEGRATION_DEST=2 CONTAINER_NAME=${CONTAINER_NAME}-2 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-test.run Test(DockerSuite|DockerNetworkSuite|DockerHubPullSuite|DockerRegistrySuite|DockerSchema1RegistrySuite|DockerRegistryAuthTokenSuite|DockerRegistryAuthHtpasswdSuite)/" run_tests &
 
                                 # integration-cli second set
-                                TEST_INTEGRATION_DEST=3 CONTAINER_NAME=${CONTAINER_NAME}-3 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-test.run /(DockerSwarmSuite|DockerDaemonSuite|DockerExternalVolumeSuite)/" run_tests &
+                                TEST_INTEGRATION_DEST=3 CONTAINER_NAME=${CONTAINER_NAME}-3 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-test.run Test(DockerSwarmSuite|DockerDaemonSuite|DockerExternalVolumeSuite)/" run_tests &
 
                                 set +x
                                 c=0

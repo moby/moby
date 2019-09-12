@@ -9,7 +9,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"sync"
 	"syscall"
@@ -45,6 +44,8 @@ var (
 
 	// the docker client binary to use
 	dockerBinary = ""
+
+	testEnvOnce sync.Once
 )
 
 func init() {
@@ -74,25 +75,72 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func Test(t *testing.T) {
-	cli.SetTestEnvironment(testEnv)
-	fakestorage.SetTestEnvironment(&testEnv.Execution)
-	ienv.ProtectAll(t, &testEnv.Execution)
+func ensureTestEnvSetup(t *testing.T) {
+	testEnvOnce.Do(func() {
+		cli.SetTestEnvironment(testEnv)
+		fakestorage.SetTestEnvironment(&testEnv.Execution)
+		ienv.ProtectAll(t, &testEnv.Execution)
+	})
+}
+
+func TestDockerSuite(t *testing.T) {
+	ensureTestEnvSetup(t)
 	suite.Run(t, &DockerSuite{})
+}
+
+func TestDockerRegistrySuite(t *testing.T) {
+	ensureTestEnvSetup(t)
 	suite.Run(t, &DockerRegistrySuite{ds: &DockerSuite{}})
+}
+
+func TestDockerSchema1RegistrySuite(t *testing.T) {
+	ensureTestEnvSetup(t)
 	suite.Run(t, &DockerSchema1RegistrySuite{ds: &DockerSuite{}})
+}
+
+func TestDockerRegistryAuthHtpasswdSuite(t *testing.T) {
+	ensureTestEnvSetup(t)
 	suite.Run(t, &DockerRegistryAuthHtpasswdSuite{ds: &DockerSuite{}})
+}
+
+func TestDockerRegistryAuthTokenSuite(t *testing.T) {
+	ensureTestEnvSetup(t)
 	suite.Run(t, &DockerRegistryAuthTokenSuite{ds: &DockerSuite{}})
+}
+
+func TestDockerDaemonSuite(t *testing.T) {
+	ensureTestEnvSetup(t)
 	suite.Run(t, &DockerDaemonSuite{ds: &DockerSuite{}})
+}
+
+func TestDockerSwarmSuite(t *testing.T) {
+	ensureTestEnvSetup(t)
 	suite.Run(t, &DockerSwarmSuite{ds: &DockerSuite{}})
+}
+
+func TestDockerPluginSuite(t *testing.T) {
+	ensureTestEnvSetup(t)
 	suite.Run(t, &DockerPluginSuite{ds: &DockerSuite{}})
-	if runtime.GOOS != "windows" {
-		suite.Run(t, &DockerExternalVolumeSuite{ds: &DockerSuite{}})
-		suite.Run(t, &DockerNetworkSuite{ds: &DockerSuite{}})
-		// FIXME. Temporarily turning this off for Windows as GH16039 was breaking
-		// Windows to Linux CI @icecrime
-		suite.Run(t, newDockerHubPullSuite())
-	}
+}
+
+func TestDockerExternalVolumeSuite(t *testing.T) {
+	ensureTestEnvSetup(t)
+	testRequires(t, DaemonIsLinux)
+	suite.Run(t, &DockerExternalVolumeSuite{ds: &DockerSuite{}})
+}
+
+func TestDockerNetworkSuite(t *testing.T) {
+	ensureTestEnvSetup(t)
+	testRequires(t, DaemonIsLinux)
+	suite.Run(t, &DockerExternalVolumeSuite{ds: &DockerSuite{}})
+}
+
+func TestDockerHubPullSuite(t *testing.T) {
+	ensureTestEnvSetup(t)
+	// FIXME. Temporarily turning this off for Windows as GH16039 was breaking
+	// Windows to Linux CI @icecrime
+	testRequires(t, DaemonIsLinux)
+	suite.Run(t, newDockerHubPullSuite())
 }
 
 type DockerSuite struct {
