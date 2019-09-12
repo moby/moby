@@ -12,8 +12,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
 )
 
 type f struct {
@@ -133,58 +131,4 @@ func callDecodeContainerConfigIsolation(isolation string) (*container.Config, *c
 		return nil, nil, nil, fmt.Errorf("Error on marshal %s", err.Error())
 	}
 	return decodeContainerConfig(bytes.NewReader(b))
-}
-
-type decodeConfigTestcase struct {
-	doc                string
-	wrapper            ContainerConfigWrapper
-	expectedErr        string
-	expectedConfig     *container.Config
-	expectedHostConfig *container.HostConfig
-	goos               string
-}
-
-func runDecodeContainerConfigTestCase(testcase decodeConfigTestcase) func(t *testing.T) {
-	return func(t *testing.T) {
-		raw := marshal(t, testcase.wrapper, testcase.doc)
-		config, hostConfig, _, err := decodeContainerConfig(bytes.NewReader(raw))
-		if testcase.expectedErr != "" {
-			if !assert.Check(t, is.ErrorContains(err, "")) {
-				return
-			}
-			assert.Check(t, is.Contains(err.Error(), testcase.expectedErr))
-			return
-		}
-		assert.Check(t, err)
-		assert.Check(t, is.DeepEqual(testcase.expectedConfig, config))
-		assert.Check(t, is.DeepEqual(testcase.expectedHostConfig, hostConfig))
-	}
-}
-
-func marshal(t *testing.T, w ContainerConfigWrapper, doc string) []byte {
-	b, err := json.Marshal(w)
-	assert.NilError(t, err, "%s: failed to encode config wrapper", doc)
-	return b
-}
-
-func containerWrapperWithVolume(volume string) ContainerConfigWrapper {
-	return ContainerConfigWrapper{
-		Config: &container.Config{
-			Volumes: map[string]struct{}{
-				volume: {},
-			},
-		},
-		HostConfig: &container.HostConfig{},
-	}
-}
-
-func containerWrapperWithBind(bind string) ContainerConfigWrapper {
-	return ContainerConfigWrapper{
-		Config: &container.Config{
-			Volumes: map[string]struct{}{},
-		},
-		HostConfig: &container.HostConfig{
-			Binds: []string{bind},
-		},
-	}
 }
