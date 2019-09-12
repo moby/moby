@@ -51,6 +51,15 @@ Write-Host -ForegroundColor Red "-----------------------------------------------
 #                        TESTRUN_DRIVE\TESTRUN_SUBDIR\CI-<CommitID> or
 #                        d:\CI\CI-<CommitID>
 #
+# Optional environment variables help in CI:
+#
+#    BUILD_NUMBER + BRANCH_NAME   are optional variables to be added to the directory below TESTRUN_SUBDIR
+#                        to have individual folder per CI build. If some files couldn't be
+#                        cleaned up and we want to re-run the build in CI.
+#                        Hence, the daemon under test is run under
+#                        TESTRUN_DRIVE\TESTRUN_SUBDIR\PR-<PR-Number>\<BuildNumber> or
+#                        d:\CI\PR-<PR-Number>\<BuildNumber>
+#
 # In addition, the following variables can control the run configuration:
 #
 #    DOCKER_DUT_DEBUG         if defined starts the daemon under test in debug mode.
@@ -428,7 +437,12 @@ Try {
 
     # Redirect to a temporary location. 
     $TEMPORIG=$env:TEMP
-    $env:TEMP="$env:TESTRUN_DRIVE`:\$env:TESTRUN_SUBDIR\CI-$COMMITHASH"
+    if ($null -eq $env:BUILD_NUMBER) {
+      $env:TEMP="$env:TESTRUN_DRIVE`:\$env:TESTRUN_SUBDIR\CI-$COMMITHASH"
+    } else {
+      # individual temporary location per CI build that better matches the BUILD_URL
+      $env:TEMP="$env:TESTRUN_DRIVE`:\$env:TESTRUN_SUBDIR\$env:BRANCH_NAME\$env:BUILD_NUMBER"
+    }
     $env:LOCALAPPDATA="$env:TEMP\localappdata"
     $errorActionPreference='Stop'
     New-Item -ItemType Directory "$env:TEMP" -ErrorAction SilentlyContinue | Out-Null
