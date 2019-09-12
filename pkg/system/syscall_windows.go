@@ -84,7 +84,7 @@ type osVersionInfoEx struct {
 }
 
 // GetOSVersion gets the operating system version on Windows. Note that
-// docker.exe must be manifested to get the correct version information.
+// dockerd.exe must be manifested to get the correct version information.
 func GetOSVersion() OSVersion {
 	var err error
 	osv := OSVersion{}
