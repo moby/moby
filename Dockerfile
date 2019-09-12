@@ -154,18 +154,21 @@ FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
 FROM base AS tomlv
 ENV INSTALL_BINARY_NAME=tomlv
+ARG TOMLV_COMMIT
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM base AS vndr
 ENV INSTALL_BINARY_NAME=vndr
+ARG VNDR_COMMIT
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM dev-base AS containerd
 ARG DEBIAN_FRONTEND
+ARG CONTAINERD_COMMIT
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	btrfs-tools \
 	&& rm -rf /var/lib/apt/lists/*
@@ -176,6 +179,7 @@ RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM dev-base AS proxy
 ENV INSTALL_BINARY_NAME=proxy
+ARG LIBNETWORK_COMMIT
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
@@ -188,24 +192,30 @@ RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM base AS gotestsum
 ENV INSTALL_BINARY_NAME=gotestsum
+ARG GOTESTSUM_COMMIT
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM dev-base AS dockercli
 ENV INSTALL_BINARY_NAME=dockercli
+ARG DOCKERCLI_CHANNEL
+ARG DOCKERCLI_VERSION
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM runtime-dev AS runc
 ENV INSTALL_BINARY_NAME=runc
+ARG RUNC_COMMIT
+ARG RUNC_BUILDTAGS
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM dev-base AS tini
 ARG DEBIAN_FRONTEND
+ARG TINI_COMMIT
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	cmake \
 	vim-common \
@@ -217,6 +227,7 @@ RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM dev-base AS rootlesskit
 ENV INSTALL_BINARY_NAME=rootlesskit
+ARG ROOTLESSKIT_COMMIT
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
