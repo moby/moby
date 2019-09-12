@@ -1,6 +1,6 @@
 #!/bin/sh
 
-GOTESTSUM_COMMIT='v0.3.5'
+: ${GOTESTSUM_COMMIT:=v0.3.5}
 
 install_gotestsum() {
 	echo "Installing gotestsum version $GOTESTSUM_COMMIT"
