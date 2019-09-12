@@ -42,7 +42,7 @@ func TestHealthKillContainer(t *testing.T) {
 	ctx := context.Background()
 	client := testEnv.APIClient()
 
-	id := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
+	id := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.Config.Healthcheck = &containertypes.HealthConfig{
 			Test:     []string{"CMD-SHELL", "sleep 1"},
 			Interval: time.Second,
