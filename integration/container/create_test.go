@@ -385,7 +385,6 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 	ctx := context.Background()
 
 	testCases := []struct {
-		doc           string
 		readonlyPaths []string
 		expected      []string
 	}{
