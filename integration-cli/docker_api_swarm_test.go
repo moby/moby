@@ -737,7 +737,7 @@ func checkClusterHealth(c *testing.T, cl []*daemon.Daemon, managerCount, workerC
 			info swarm.Info
 		)
 
-		// check info in a waitAndAssert, because if the cluster doesn't have a leader, `info` will return an error
+		// check info in a poll.WaitOn(), because if the cluster doesn't have a leader, `info` will return an error
 		checkInfo := func(c *testing.T) (interface{}, string) {
 			client := d.NewClientT(c)
 			daemonInfo, err := client.Info(context.Background())

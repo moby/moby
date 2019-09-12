@@ -51,7 +51,7 @@ func (s *DockerSwarmSuite) TestServiceLogs(c *testing.T) {
 	}
 }
 
-// countLogLines returns a closure that can be used with waitAndAssert to
+// countLogLines returns a closure that can be used with poll.WaitOn() to
 // verify that a minimum number of expected container log messages have been
 // output.
 func countLogLines(d *daemon.Daemon, name string) func(*testing.T) (interface{}, string) {
