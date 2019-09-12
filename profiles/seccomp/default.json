@@ -314,6 +314,7 @@
 				"sigaltstack",
 				"signalfd",
 				"signalfd4",
+				"sigprocmask",
 				"sigreturn",
 				"socket",
 				"socketcall",
