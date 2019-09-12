@@ -271,27 +271,35 @@ func newBinaryIO(ctx context.Context, id string, uri *url.URL) (runc.IO, error) 
 	)
 	out, err := newPipe()
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 	serr, err := newPipe()
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 	r, w, err := os.Pipe()
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 	cmd.ExtraFiles = append(cmd.ExtraFiles, out.r, serr.r, w)
 	// don't need to register this with the reaper or wait when
 	// running inside a shim
 	if err := cmd.Start(); err != nil {
+		cancel()
 		return nil, err
 	}
 	// close our side of the pipe after start
-	w.Close()
+	if err := w.Close(); err != nil {
+		cancel()
+		return nil, err
+	}
 	// wait for the logging binary to be ready
 	b := make([]byte, 1)
 	if _, err := r.Read(b); err != nil && err != io.EOF {
+		cancel()
 		return nil, err
 	}
 	return &binaryIO{
