@@ -463,7 +463,7 @@ pipeline {
                 stage('s390x integration-cli') {
                     when {
                         beforeAgent true
-                        branch 'master'
+                        not { changeRequest() }
                         expression { params.s390x }
                     }
                     agent { label 's390x-ubuntu-1604' }
@@ -647,7 +647,7 @@ pipeline {
                 stage('ppc64le integration-cli') {
                     when {
                         beforeAgent true
-                        branch 'master'
+                        not { changeRequest() }
                         expression { params.ppc64le }
                     }
                     agent { label 'ppc64le-ubuntu-1604' }
