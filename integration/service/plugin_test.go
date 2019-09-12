@@ -31,9 +31,9 @@ func TestServicePlugin(t *testing.T) {
 	reg := registry.NewV2(t)
 	defer reg.Close()
 
-	repo := path.Join(registry.DefaultURL, "swarm", "test:v1")
-	repo2 := path.Join(registry.DefaultURL, "swarm", "test:v2")
-	name := "test"
+	name := "test-" + strings.ToLower(t.Name())
+	repo := path.Join(registry.DefaultURL, "swarm", name+":v1")
+	repo2 := path.Join(registry.DefaultURL, "swarm", name+":v2")
 
 	d := daemon.New(t)
 	d.StartWithBusybox(t)
