@@ -208,18 +208,6 @@ RUN `
     } `
   } `
   `
-  setx /M PATH $('C:\git\cmd;C:\git\usr\bin;'+$Env:PATH+';C:\gcc\bin;C:\go\bin;C:\containerd\bin'); `
-  `
-  Write-Host INFO: Downloading git...; `
-  $location='https://www.nuget.org/api/v2/package/GitForWindows/'+$Env:GIT_VERSION; `
-  Download-File $location C:\gitsetup.zip; `
-  `
-  Write-Host INFO: Extracting git...; `
-  Expand-Archive C:\gitsetup.zip C:\git-tmp; `
-  New-Item -Type Directory C:\git | Out-Null; `
-  Move-Item C:\git-tmp\tools\* C:\git\.; `
-  Remove-Item -Recurse -Force C:\git-tmp; `
-  `
   Write-Host INFO: Expanding compiler 1 of 3...; `
   Expand-Archive C:\gcc.zip -DestinationPath C:\gcc -Force; `
   Write-Host INFO: Expanding compiler 2 of 3...; `
