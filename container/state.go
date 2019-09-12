@@ -366,13 +366,6 @@ func (s *State) IsRemovalInProgress() bool {
 	return res
 }
 
-// SetDead sets the container state to "dead"
-func (s *State) SetDead() {
-	s.Lock()
-	s.Dead = true
-	s.Unlock()
-}
-
 // IsDead returns whether the Dead flag is set. Used by Container to check whether a container is dead.
 func (s *State) IsDead() bool {
 	s.Lock()
