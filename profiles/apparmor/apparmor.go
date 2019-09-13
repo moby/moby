@@ -65,9 +65,8 @@ func macroExists(m string) bool {
 	return err == nil
 }
 
-// InstallDefault generates a default profile in a temp directory determined by
-// os.TempDir(), then loads the profile into the kernel using 'apparmor_parser'.
-func InstallDefault(name string) error {
+// Default generates a default profile to out in the human-readable text format.
+func Default(out io.Writer, name string) error {
 	p := profileData{
 		Name: name,
 	}
@@ -91,6 +90,12 @@ func InstallDefault(name string) error {
 	}
 	p.DaemonProfile = daemonProfile
 
+	return p.generateDefault(out)
+}
+
+// InstallDefault generates a default profile in a temp directory determined by
+// os.TempDir(), then loads the profile into the kernel using 'apparmor_parser'.
+func InstallDefault(name string) error {
 	// Install to a temporary directory.
 	f, err := ioutil.TempFile("", name)
 	if err != nil {
@@ -101,7 +106,7 @@ func InstallDefault(name string) error {
 	defer f.Close()
 	defer os.Remove(profilePath)
 
-	if err := p.generateDefault(f); err != nil {
+	if err = Default(f, name); err != nil {
 		return err
 	}
 

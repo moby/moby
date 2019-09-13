@@ -4,7 +4,9 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/containerd/containerd/containers"
 	coci "github.com/containerd/containerd/oci"
@@ -58,4 +60,15 @@ func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		s.Linux.Seccomp = profile
 		return nil
 	}
+}
+
+// PrintDefaultSeccompProfile dumps the default profile to out
+func PrintDefaultSeccompProfile(out io.Writer) error {
+	b, err := json.MarshalIndent(seccomp.DefaultProfile(), "", "\t")
+	if err != nil {
+		return err
+	}
+	b = append(b, []byte("\n")...)
+	_, err = out.Write(b)
+	return err
 }

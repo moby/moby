@@ -4,9 +4,11 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"fmt"
+	"io"
 
 	aaprofile "github.com/docker/docker/profiles/apparmor"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
+	"github.com/pkg/errors"
 )
 
 // Define constants for native driver
@@ -33,4 +35,12 @@ func ensureDefaultAppArmorProfile() error {
 	}
 
 	return nil
+}
+
+// PrintDefaultAppArmorProfile dumps the default profile to out
+func PrintDefaultAppArmorProfile(out io.Writer) error {
+	if apparmor.IsEnabled() {
+		return aaprofile.Default(out, defaultApparmorProfile)
+	}
+	return errors.New("apparmor is not enabled for this host or unsupported in this build")
 }

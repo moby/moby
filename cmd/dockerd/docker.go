@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -12,6 +14,7 @@ import (
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/rootless"
 	"github.com/moby/buildkit/util/apicaps"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -21,6 +24,10 @@ var (
 )
 
 func newDaemonCommand() (*cobra.Command, error) {
+	var (
+		printDefaultSeccompProfile  bool
+		printDefaultApparmorProfile bool
+	)
 	opts := newDaemonOptions(config.New())
 
 	cmd := &cobra.Command{
@@ -30,6 +37,15 @@ func newDaemonCommand() (*cobra.Command, error) {
 		SilenceErrors: true,
 		Args:          cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if printDefaultSeccompProfile && printDefaultApparmorProfile {
+				return errors.New("conflicting flag: --print-default-seccomp-profile and --print-default-apparmor-profile")
+			}
+			if printDefaultSeccompProfile {
+				return daemon.PrintDefaultSeccompProfile(cmd.OutOrStdout())
+			}
+			if printDefaultApparmorProfile {
+				return daemon.PrintDefaultAppArmorProfile(cmd.OutOrStdout())
+			}
 			opts.flags = cmd.Flags()
 			return runDaemon(opts)
 		},
@@ -40,6 +56,11 @@ func newDaemonCommand() (*cobra.Command, error) {
 
 	flags := cmd.Flags()
 	flags.BoolP("version", "v", false, "Print version information and quit")
+	if runtime.GOOS == "linux" {
+		flags.BoolVar(&printDefaultSeccompProfile, "print-default-seccomp-profile", false, "Print the default seccomp profile and quit")
+		flags.BoolVar(&printDefaultApparmorProfile, "print-default-apparmor-profile", false, "Print the default AppArmor profile and quit")
+	}
+
 	defaultDaemonConfigFile, err := getDefaultDaemonConfigFile()
 	if err != nil {
 		return nil, err
