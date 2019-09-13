@@ -265,3 +265,7 @@ bundles/buildx: bundles ## build buildx CLI tool
 		. && \
 		id=$$(docker create moby-buildx:$(BUILDX_COMMIT)); \
 		if [ -n "$${id}" ]; then docker cp $${id}:/usr/bin/buildx $@ && touch $@; docker rm -f $${id}; fi
+
+
+# allow extending the makefile by adding includes in the hack/makefiles/ directory
+-include hack/makefiles/*.mk
