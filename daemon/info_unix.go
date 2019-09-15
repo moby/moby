@@ -35,7 +35,7 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 
 	defaultRuntimeBinary := daemon.configStore.GetRuntime(v.DefaultRuntime).Path
 	if rv, err := exec.Command(defaultRuntimeBinary, "--version").Output(); err == nil {
-		if _, commit, err := parseRuncVersion(string(rv)); err != nil {
+		if _, _, commit, err := parseRuntimeVersion(string(rv)); err != nil {
 			logrus.Warnf("failed to parse %s version: %v", defaultRuntimeBinary, err)
 			v.RuncCommit.ID = "N/A"
 		} else {
@@ -131,7 +131,7 @@ func (daemon *Daemon) fillPlatformVersion(v *types.Version) {
 	defaultRuntime := daemon.configStore.GetDefaultRuntimeName()
 	defaultRuntimeBinary := daemon.configStore.GetRuntime(defaultRuntime).Path
 	if rv, err := exec.Command(defaultRuntimeBinary, "--version").Output(); err == nil {
-		if ver, commit, err := parseRuncVersion(string(rv)); err != nil {
+		if _, ver, commit, err := parseRuntimeVersion(string(rv)); err != nil {
 			logrus.Warnf("failed to parse %s version: %v", defaultRuntimeBinary, err)
 		} else {
 			v.Components = append(v.Components, types.ComponentVersion{
@@ -222,19 +222,20 @@ func parseInitVersion(v string) (version string, commit string, err error) {
 	return version, commit, err
 }
 
-// parseRuncVersion parses the output of `runc --version` and extracts the
-// "version" and "git commit" from the output.
+// parseRuntimeVersion parses the output of `[runtime] --version` and extracts the
+// "name", "version" and "git commit" from the output.
 //
 // Output example from `runc --version`:
 //
 //   runc version 1.0.0-rc5+dev
 //   commit: 69663f0bd4b60df09991c08812a60108003fa340
 //   spec: 1.0.0
-func parseRuncVersion(v string) (version string, commit string, err error) {
+func parseRuntimeVersion(v string) (runtime string, version string, commit string, err error) {
 	lines := strings.Split(strings.TrimSpace(v), "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "version") {
 			s := strings.Split(line, "version")
+			runtime = strings.TrimSpace(s[0])
 			version = strings.TrimSpace(s[len(s)-1])
 			continue
 		}
@@ -246,7 +247,7 @@ func parseRuncVersion(v string) (version string, commit string, err error) {
 	if version == "" && commit == "" {
 		err = errors.Errorf("unknown output format: %s", v)
 	}
-	return version, commit, err
+	return runtime, version, commit, err
 }
 
 func (daemon *Daemon) cgroupNamespacesEnabled(sysInfo *sysinfo.SysInfo) bool {
