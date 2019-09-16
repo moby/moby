@@ -1303,9 +1303,21 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
 
 		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
 
-		outs, err = d.Cmd("node", "ls")
-		assert.NilError(c, err)
-		c.Assert(outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
+		retry := 0
+		for {
+			// an issue sometimes prevents leader to be available right away
+			outs, err = d.Cmd("node", "ls")
+			if err != nil && retry < 5 {
+				if strings.Contains(outs, "swarm does not have a leader") {
+					retry++
+					time.Sleep(3 * time.Second)
+					continue
+				}
+			}
+			assert.NilError(c, err)
+			c.Assert(outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
+			break
+		}
 
 		unlockKey = newUnlockKey
 	}
@@ -1383,9 +1395,21 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *check.C) {
 
 			c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
 
-			outs, err = d.Cmd("node", "ls")
-			c.Assert(err, checker.IsNil, check.Commentf("%s", outs))
-			c.Assert(outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
+			retry := 0
+			for {
+				// an issue sometimes prevents leader to be available right away
+				outs, err = d.Cmd("node", "ls")
+				if err != nil && retry < 5 {
+					if strings.Contains(outs, "swarm does not have a leader") {
+						retry++
+						time.Sleep(3 * time.Second)
+						continue
+					}
+				}
+				c.Assert(err, checker.IsNil, check.Commentf("%s", outs))
+				c.Assert(outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
+				break
+			}
 		}
 
 		unlockKey = newUnlockKey
