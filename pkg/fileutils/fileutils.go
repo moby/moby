@@ -10,7 +10,7 @@ import (
 	"strings"
 	"text/scanner"
 
-	"github.com/sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 // PatternMatcher allows checking paths against a list of patterns
