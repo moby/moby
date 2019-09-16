@@ -381,7 +381,7 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
@@ -485,7 +485,7 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
@@ -566,7 +566,7 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .'
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
                             }
                         }
                         stage("Unit tests") {
@@ -668,7 +668,7 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .'
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
                             }
                         }
                         stage("Integration-cli tests") {
