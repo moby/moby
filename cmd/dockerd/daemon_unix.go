@@ -150,7 +150,16 @@ func (cli *DaemonCli) initContainerD(ctx context.Context) (func(time.Duration) e
 				return nil, errors.Wrap(err, "failed to generate containerd options")
 			}
 
-			r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
+			// Check process is running
+			hook := func() {
+				if cli.d == nil {
+					return
+				}
+				for _, c := range cli.d.List() {
+					c.CheckProcessIsRunning()
+				}
+			}
+			r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), hook, opts...)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to start containerd")
 			}

@@ -42,9 +42,10 @@ type remote struct {
 	daemonPid int
 	logger    *logrus.Entry
 
-	daemonWaitCh  chan struct{}
-	daemonStartCh chan error
-	daemonStopCh  chan struct{}
+	daemonWaitCh         chan struct{}
+	daemonStartCh        chan error
+	daemonStopCh         chan struct{}
+	handleContainerdHook func()
 
 	rootDir     string
 	stateDir    string
@@ -61,7 +62,7 @@ type Daemon interface {
 type DaemonOpt func(c *remote) error
 
 // Start starts a containerd daemon and monitors it
-func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Daemon, error) {
+func Start(ctx context.Context, rootDir, stateDir string, hook func(), opts ...DaemonOpt) (Daemon, error) {
 	r := &remote{
 		rootDir:  rootDir,
 		stateDir: stateDir,
@@ -69,11 +70,12 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 			Root:  filepath.Join(rootDir, "daemon"),
 			State: filepath.Join(stateDir, "daemon"),
 		},
-		pluginConfs:   pluginConfigs{make(map[string]interface{})},
-		daemonPid:     -1,
-		logger:        logrus.WithField("module", "libcontainerd"),
-		daemonStartCh: make(chan error, 1),
-		daemonStopCh:  make(chan struct{}),
+		pluginConfs:          pluginConfigs{make(map[string]interface{})},
+		daemonPid:            -1,
+		logger:               logrus.WithField("module", "libcontainerd"),
+		daemonStartCh:        make(chan error, 1),
+		daemonStopCh:         make(chan struct{}),
+		handleContainerdHook: hook,
 	}
 
 	for _, opt := range opts {
@@ -100,7 +102,6 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 			return nil, err
 		}
 	}
-
 	return r, nil
 }
 func (r *remote) WaitTimeout(d time.Duration) error {
@@ -294,6 +295,10 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				continue
 			}
 
+			// Workaround to fix inconsistency stopped status
+			go func() {
+				r.handleContainerdHook()
+			}()
 			client, err = containerd.New(r.GRPC.Address, containerd.WithTimeout(60*time.Second))
 			if err != nil {
 				r.logger.WithError(err).Error("failed connecting to containerd")
