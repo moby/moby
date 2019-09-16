@@ -115,16 +115,16 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 
 		m = &mapping{
 			proto:     proto,
-			host:      &sctp.SCTPAddr{IP: []net.IP{hostIP}, Port: allocatedHostPort},
+			host:      &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: hostIP}}, Port: allocatedHostPort},
 			container: container,
 		}
 
 		if useProxy {
 			sctpAddr := container.(*sctp.SCTPAddr)
-			if len(sctpAddr.IP) == 0 {
+			if len(sctpAddr.IPAddrs) == 0 {
 				return nil, ErrSCTPAddrNoIP
 			}
-			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, sctpAddr.IP[0], sctpAddr.Port, pm.proxyPath)
+			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, sctpAddr.IPAddrs[0].IP, sctpAddr.Port, pm.proxyPath)
 			if err != nil {
 				return nil, err
 			}
@@ -210,10 +210,10 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 	case *net.UDPAddr:
 		return pm.Allocator.ReleasePort(a.IP, "udp", a.Port)
 	case *sctp.SCTPAddr:
-		if len(a.IP) == 0 {
+		if len(a.IPAddrs) == 0 {
 			return ErrSCTPAddrNoIP
 		}
-		return pm.Allocator.ReleasePort(a.IP[0], "sctp", a.Port)
+		return pm.Allocator.ReleasePort(a.IPAddrs[0].IP, "sctp", a.Port)
 	}
 	return ErrUnknownBackendAddressType
 }
@@ -239,11 +239,11 @@ func getKey(a net.Addr) string {
 	case *net.UDPAddr:
 		return fmt.Sprintf("%s:%d/%s", t.IP.String(), t.Port, "udp")
 	case *sctp.SCTPAddr:
-		if len(t.IP) == 0 {
+		if len(t.IPAddrs) == 0 {
 			logrus.Error(ErrSCTPAddrNoIP)
 			return ""
 		}
-		return fmt.Sprintf("%s:%d/%s", t.IP[0].String(), t.Port, "sctp")
+		return fmt.Sprintf("%s:%d/%s", t.IPAddrs[0].IP.String(), t.Port, "sctp")
 	}
 	return ""
 }
@@ -255,11 +255,11 @@ func getIPAndPort(a net.Addr) (net.IP, int) {
 	case *net.UDPAddr:
 		return t.IP, t.Port
 	case *sctp.SCTPAddr:
-		if len(t.IP) == 0 {
+		if len(t.IPAddrs) == 0 {
 			logrus.Error(ErrSCTPAddrNoIP)
 			return nil, 0
 		}
-		return t.IP[0], t.Port
+		return t.IPAddrs[0].IP, t.Port
 	}
 	return nil, 0
 }

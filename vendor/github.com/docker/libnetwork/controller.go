@@ -706,9 +706,10 @@ const overlayDSROptionString = "dsr"
 // are network specific and modeled in a generic way.
 func (c *controller) NewNetwork(networkType, name string, id string, options ...NetworkOption) (Network, error) {
 	var (
-		cap *driverapi.Capability
-		err error
-		t   *network
+		cap            *driverapi.Capability
+		err            error
+		t              *network
+		skipCfgEpCount bool
 	)
 
 	if id != "" {
@@ -801,8 +802,9 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		if err = t.applyConfigurationTo(network); err != nil {
 			return nil, types.InternalErrorf("Failed to apply configuration: %v", err)
 		}
+		network.generic[netlabel.Internal] = network.internal
 		defer func() {
-			if err == nil {
+			if err == nil && !skipCfgEpCount {
 				if err := t.getEpCnt().IncEndpointCnt(); err != nil {
 					logrus.Warnf("Failed to update reference count for configuration network %q on creation of network %q: %v",
 						t.Name(), network.Name(), err)
@@ -823,7 +825,13 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 
 	err = c.addNetwork(network)
 	if err != nil {
-		return nil, err
+		if strings.Contains(err.Error(), "restoring existing network") {
+			// This error can be ignored and set this boolean
+			// value to skip a refcount increment for configOnly networks
+			skipCfgEpCount = true
+		} else {
+			return nil, err
+		}
 	}
 	defer func() {
 		if err != nil {
@@ -1298,7 +1306,7 @@ func (c *controller) loadIPAMDriver(name string) error {
 	}
 
 	if err != nil {
-		if err == plugins.ErrNotFound {
+		if errors.Cause(err) == plugins.ErrNotFound {
 			return types.NotFoundErrorf(err.Error())
 		}
 		return err

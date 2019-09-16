@@ -1,5 +1,11 @@
 # go-multierror
 
+[![Build Status](http://img.shields.io/travis/hashicorp/go-multierror.svg?style=flat-square)][travis]
+[![Go Documentation](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)][godocs]
+
+[travis]: https://travis-ci.org/hashicorp/go-multierror
+[godocs]: https://godoc.org/github.com/hashicorp/go-multierror
+
 `go-multierror` is a package for Go that provides a mechanism for
 representing a list of `error` values as a single `error`.
 

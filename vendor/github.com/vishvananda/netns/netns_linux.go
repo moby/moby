@@ -7,14 +7,29 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
 )
 
+// SYS_SETNS syscall allows changing the namespace of the current process.
+var SYS_SETNS = map[string]uintptr{
+	"386":     346,
+	"amd64":   308,
+	"arm64":   268,
+	"arm":     375,
+	"mips":    4344,
+	"mipsle":  4344,
+	"mips64le":  4344,
+	"ppc64":   350,
+	"ppc64le": 350,
+	"riscv64": 268,
+	"s390x":   339,
+}[runtime.GOARCH]
+
+// Deprecated: use syscall pkg instead (go >= 1.5 needed).
 const (
-	// These constants belong in the syscall library but have not been
-	// added yet.
 	CLONE_NEWUTS  = 0x04000000 /* New utsname group? */
 	CLONE_NEWIPC  = 0x08000000 /* New ipcs */
 	CLONE_NEWUSER = 0x10000000 /* New user namespace */
@@ -39,7 +54,8 @@ func Set(ns NsHandle) (err error) {
 	return Setns(ns, CLONE_NEWNET)
 }
 
-// New creates a new network namespace and returns a handle to it.
+// New creates a new network namespace, sets it as current and returns
+// a handle to it.
 func New() (ns NsHandle, err error) {
 	if err := syscall.Unshare(CLONE_NEWNET); err != nil {
 		return -1, err
@@ -125,7 +141,9 @@ func getThisCgroup(cgroupType string) (string, error) {
 		return "", fmt.Errorf("docker pid not found in /var/run/docker.pid")
 	}
 	pid, err := strconv.Atoi(result[0])
-
+	if err != nil {
+		return "", err
+	}
 	output, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/cgroup", pid))
 	if err != nil {
 		return "", err
@@ -167,8 +185,18 @@ func getPidForContainer(id string) (int, error) {
 		filepath.Join(cgroupRoot, cgroupThis, id, "tasks"),
 		// With more recent lxc versions use, cgroup will be in lxc/
 		filepath.Join(cgroupRoot, cgroupThis, "lxc", id, "tasks"),
-		// With more recent dockee, cgroup will be in docker/
+		// With more recent docker, cgroup will be in docker/
 		filepath.Join(cgroupRoot, cgroupThis, "docker", id, "tasks"),
+		// Even more recent docker versions under systemd use docker-<id>.scope/
+		filepath.Join(cgroupRoot, "system.slice", "docker-"+id+".scope", "tasks"),
+		// Even more recent docker versions under cgroup/systemd/docker/<id>/
+		filepath.Join(cgroupRoot, "..", "systemd", "docker", id, "tasks"),
+		// Kubernetes with docker and CNI is even more different
+		filepath.Join(cgroupRoot, "..", "systemd", "kubepods", "*", "pod*", id, "tasks"),
+		// Another flavor of containers location in recent kubernetes 1.11+
+		filepath.Join(cgroupRoot, cgroupThis, "kubepods.slice", "kubepods-besteffort.slice", "*", "docker-"+id+".scope", "tasks"),
+		// When runs inside of a container with recent kubernetes 1.11+
+		filepath.Join(cgroupRoot, "kubepods.slice", "kubepods-besteffort.slice", "*", "docker-"+id+".scope", "tasks"),
 	}
 
 	var filename string
