@@ -166,10 +166,13 @@ func (s *DockerSuite) TestRestartContainerwithGoodContainer(c *testing.T) {
 }
 
 func (s *DockerSuite) TestRestartContainerSuccess(c *testing.T) {
+	testRequires(c, testEnv.IsLocalDaemon)
 	// Skipped for Hyper-V isolated containers. Test is currently written
 	// such that it assumes there is a host process to kill. In Hyper-V
 	// containers, the process is inside the utility VM, not on the host.
-	testRequires(c, testEnv.IsLocalDaemon, IsolationIsProcess)
+	if DaemonIsWindows() {
+		testRequires(c, IsolationIsProcess)
+	}
 
 	out := runSleepingContainer(c, "-d", "--restart=always")
 	id := strings.TrimSpace(out)
@@ -239,10 +242,13 @@ func (s *DockerSuite) TestRestartWithPolicyUserDefinedNetwork(c *testing.T) {
 }
 
 func (s *DockerSuite) TestRestartPolicyAfterRestart(c *testing.T) {
+	testRequires(c, testEnv.IsLocalDaemon)
 	// Skipped for Hyper-V isolated containers. Test is currently written
 	// such that it assumes there is a host process to kill. In Hyper-V
 	// containers, the process is inside the utility VM, not on the host.
-	testRequires(c, testEnv.IsLocalDaemon, IsolationIsProcess)
+	if DaemonIsWindows() {
+		testRequires(c, IsolationIsProcess)
+	}
 
 	out := runSleepingContainer(c, "-d", "--restart=always")
 	id := strings.TrimSpace(out)
