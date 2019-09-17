@@ -34,11 +34,11 @@ func setupIPForwarding(enableIPTables bool) error {
 		if err := configureIPForwarding(true); err != nil {
 			return fmt.Errorf("Enabling IP forwarding failed: %v", err)
 		}
-		// When enabling ip_forward set the default policy on forward chain to
-		// drop only if the daemon option iptables is not set to false.
-		if !enableIPTables {
-			return nil
-		}
+	}
+
+	// Set the default policy on forward chain to drop only if the
+	// daemon option iptables is not set to false.
+	if enableIPTables {
 		if err := iptables.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
 			if err := configureIPForwarding(false); err != nil {
 				logrus.Errorf("Disabling IP forwarding failed, %v", err)
