@@ -30,7 +30,7 @@ func TestServiceCreateInit(t *testing.T) {
 
 func testServiceCreateInit(daemonEnabled bool) func(t *testing.T) {
 	return func(t *testing.T) {
-		var ops = []func(*daemon.Daemon){}
+		var ops = []daemon.Option{}
 
 		if daemonEnabled {
 			ops = append(ops, daemon.WithInit)
