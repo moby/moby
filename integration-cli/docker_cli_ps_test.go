@@ -436,6 +436,10 @@ func (s *DockerSuite) TestPsListContainersFilterLabel(c *testing.T) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterExited(c *testing.T) {
+	// TODO Flaky on  Windows CI [both RS1 and RS5]
+	// On slower machines the container may not have exited
+	// yet when we filter below by exit status/exit value.
+	skip.If(c, DaemonIsWindows(), "FLAKY on Windows, see #20819")
 	runSleepingContainer(c, "--name=sleep")
 
 	firstZero, _ := dockerCmd(c, "run", "-d", "busybox", "true")
