@@ -233,8 +233,9 @@ func parseInitVersion(v string) (version string, commit string, err error) {
 func parseRuncVersion(v string) (version string, commit string, err error) {
 	lines := strings.Split(strings.TrimSpace(v), "\n")
 	for _, line := range lines {
-		if strings.HasPrefix(line, "runc version") {
-			version = strings.TrimSpace(strings.TrimPrefix(line, "runc version"))
+		if strings.Contains(line, "version") {
+			s := strings.Split(line, "version")
+			version = strings.TrimSpace(s[len(s)-1])
 			continue
 		}
 		if strings.HasPrefix(line, "commit:") {

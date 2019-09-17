@@ -81,6 +81,14 @@ spec: 1.0.0
 			commit: "69663f0bd4b60df09991c08812a60108003fa340",
 		},
 		{
+			output: `
+crun version 0.7
+spec: 1.0.0
++SYSTEMD +SELINUX +CAP +SECCOMP +EBPF +YAJL
+`,
+			version: "0.7",
+		},
+		{
 			output:  "",
 			invalid: true,
 		},
