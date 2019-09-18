@@ -15,7 +15,6 @@ import (
 type ResponseModifier interface {
 	http.ResponseWriter
 	http.Flusher
-	http.CloseNotifier
 
 	// RawBody returns the current http content
 	RawBody() []byte
@@ -153,16 +152,6 @@ func (rm *responseModifier) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 		return nil, nil, fmt.Errorf("Internal response writer doesn't support the Hijacker interface")
 	}
 	return hijacker.Hijack()
-}
-
-// CloseNotify uses the internal close notify API of the wrapped http.ResponseWriter
-func (rm *responseModifier) CloseNotify() <-chan bool {
-	closeNotifier, ok := rm.rw.(http.CloseNotifier)
-	if !ok {
-		logrus.Error("Internal response writer doesn't support the CloseNotifier interface")
-		return nil
-	}
-	return closeNotifier.CloseNotify()
 }
 
 // Flush uses the internal flush API of the wrapped http.ResponseWriter

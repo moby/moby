@@ -62,10 +62,6 @@ issues:
     - text: "SA1019: hdr.Xattrs is deprecated: Use PAXRecords instead"
       linters:
         - staticcheck
-    # FIXME temporarily suppress these. See #39929
-    - text: "SA1019: http.CloseNotifier is deprecated"
-      linters:
-        - staticcheck
     # FIXME temporarily suppress these. See #39926
     - text: "SA1019: httputil.NewClientConn is deprecated"
       linters:
