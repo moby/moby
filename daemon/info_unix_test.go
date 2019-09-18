@@ -39,7 +39,7 @@ func TestParseInitVersion(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		version, commit, err := parseInitVersion(string(test.output))
+		version, commit, err := parseInitVersion(test.output)
 		if test.invalid {
 			assert.Check(t, is.ErrorContains(err, ""))
 		} else {
@@ -91,7 +91,7 @@ spec: 1.0.0
 	}
 
 	for _, test := range tests {
-		version, commit, err := parseRuncVersion(string(test.output))
+		version, commit, err := parseRuncVersion(test.output)
 		if test.invalid {
 			assert.Check(t, is.ErrorContains(err, ""))
 		} else {

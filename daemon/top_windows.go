@@ -7,7 +7,7 @@ import (
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 )
 
 // ContainerTop handles `docker top` client requests.

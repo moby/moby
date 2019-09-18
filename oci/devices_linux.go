@@ -8,7 +8,7 @@ import (
 
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // Device transforms a libcontainer configs.Device to a specs.LinuxDevice object.
@@ -61,7 +61,8 @@ func DevicesFromPath(pathOnHost, pathInContainer, cgroupPermissions string) (dev
 		if src, e := os.Stat(resolvedPathOnHost); e == nil && src.IsDir() {
 
 			// mount the internal devices recursively
-			filepath.Walk(resolvedPathOnHost, func(dpath string, f os.FileInfo, e error) error {
+			// TODO check if additional errors should be handled or logged
+			_ = filepath.Walk(resolvedPathOnHost, func(dpath string, f os.FileInfo, _ error) error {
 				childDevice, e := devices.DeviceFromPath(dpath, cgroupPermissions)
 				if e != nil {
 					// ignore the device

@@ -106,7 +106,7 @@ func (s *DockerSuite) TestVolumeLsFormatDefaultFormat(c *testing.T) {
 }
 
 func assertVolumesInList(c *testing.T, out string, expected []string) {
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	lines := strings.Split(strings.TrimSpace(out), "\n")
 	for _, expect := range expected {
 		found := false
 		for _, v := range lines {

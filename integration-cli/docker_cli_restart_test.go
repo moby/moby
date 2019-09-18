@@ -98,7 +98,7 @@ func (s *DockerSuite) TestRestartDisconnectedContainer(c *testing.T) {
 func (s *DockerSuite) TestRestartPolicyNO(c *testing.T) {
 	out, _ := dockerCmd(c, "create", "--restart=no", "busybox")
 
-	id := strings.TrimSpace(string(out))
+	id := strings.TrimSpace(out)
 	name := inspectField(c, id, "HostConfig.RestartPolicy.Name")
 	assert.Equal(c, name, "no")
 }
@@ -106,7 +106,7 @@ func (s *DockerSuite) TestRestartPolicyNO(c *testing.T) {
 func (s *DockerSuite) TestRestartPolicyAlways(c *testing.T) {
 	out, _ := dockerCmd(c, "create", "--restart=always", "busybox")
 
-	id := strings.TrimSpace(string(out))
+	id := strings.TrimSpace(out)
 	name := inspectField(c, id, "HostConfig.RestartPolicy.Name")
 	assert.Equal(c, name, "always")
 
@@ -123,7 +123,7 @@ func (s *DockerSuite) TestRestartPolicyOnFailure(c *testing.T) {
 
 	out, _ = dockerCmd(c, "create", "--restart=on-failure:1", "busybox")
 
-	id := strings.TrimSpace(string(out))
+	id := strings.TrimSpace(out)
 	name := inspectField(c, id, "HostConfig.RestartPolicy.Name")
 	maxRetry := inspectField(c, id, "HostConfig.RestartPolicy.MaximumRetryCount")
 
@@ -132,7 +132,7 @@ func (s *DockerSuite) TestRestartPolicyOnFailure(c *testing.T) {
 
 	out, _ = dockerCmd(c, "create", "--restart=on-failure:0", "busybox")
 
-	id = strings.TrimSpace(string(out))
+	id = strings.TrimSpace(out)
 	name = inspectField(c, id, "HostConfig.RestartPolicy.Name")
 	maxRetry = inspectField(c, id, "HostConfig.RestartPolicy.MaximumRetryCount")
 
@@ -141,7 +141,7 @@ func (s *DockerSuite) TestRestartPolicyOnFailure(c *testing.T) {
 
 	out, _ = dockerCmd(c, "create", "--restart=on-failure", "busybox")
 
-	id = strings.TrimSpace(string(out))
+	id = strings.TrimSpace(out)
 	name = inspectField(c, id, "HostConfig.RestartPolicy.Name")
 	maxRetry = inspectField(c, id, "HostConfig.RestartPolicy.MaximumRetryCount")
 
@@ -154,7 +154,7 @@ func (s *DockerSuite) TestRestartPolicyOnFailure(c *testing.T) {
 func (s *DockerSuite) TestRestartContainerwithGoodContainer(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "true")
 
-	id := strings.TrimSpace(string(out))
+	id := strings.TrimSpace(out)
 	err := waitInspect(id, "{{ .State.Restarting }} {{ .State.Running }}", "false false", 30*time.Second)
 	assert.NilError(c, err)
 
@@ -281,8 +281,8 @@ func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *testing.T) {
 	out1, _ := dockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "false")
 	out2, _ := dockerCmd(c, "run", "-d", "--restart=always", "busybox", "false")
 
-	id1 := strings.TrimSpace(string(out1))
-	id2 := strings.TrimSpace(string(out2))
+	id1 := strings.TrimSpace(out1)
+	id2 := strings.TrimSpace(out2)
 	waitTimeout := 15 * time.Second
 	if testEnv.OSType == "windows" {
 		waitTimeout = 150 * time.Second
@@ -311,7 +311,7 @@ func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *testing.T) {
 func (s *DockerSuite) TestRestartAutoRemoveContainer(c *testing.T) {
 	out := runSleepingContainer(c, "--rm")
 
-	id := strings.TrimSpace(string(out))
+	id := strings.TrimSpace(out)
 	dockerCmd(c, "restart", id)
 	err := waitInspect(id, "{{ .State.Restarting }} {{ .State.Running }}", "false true", 15*time.Second)
 	assert.NilError(c, err)

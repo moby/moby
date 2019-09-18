@@ -80,15 +80,13 @@ func testPushMultipleTags(c *testing.T) {
 	repoTag2 := fmt.Sprintf("%v/dockercli/busybox:t2", privateRegistryURL)
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoTag1)
-
 	dockerCmd(c, "tag", "busybox", repoTag2)
-
 	dockerCmd(c, "push", repoName)
 
-	// Ensure layer list is equivalent for repoTag1 and repoTag2
-	out1, _ := dockerCmd(c, "pull", repoTag1)
-
 	imageAlreadyExists := ": Image already exists"
+
+	// Ensure layer list is equivalent for repoTag1 and repoTag2
+	out1, _ := dockerCmd(c, "push", repoTag1)
 	var out1Lines []string
 	for _, outputLine := range strings.Split(out1, "\n") {
 		if strings.Contains(outputLine, imageAlreadyExists) {
@@ -96,19 +94,14 @@ func testPushMultipleTags(c *testing.T) {
 		}
 	}
 
-	out2, _ := dockerCmd(c, "pull", repoTag2)
-
+	out2, _ := dockerCmd(c, "push", repoTag2)
 	var out2Lines []string
 	for _, outputLine := range strings.Split(out2, "\n") {
 		if strings.Contains(outputLine, imageAlreadyExists) {
-			out1Lines = append(out1Lines, outputLine)
+			out2Lines = append(out2Lines, outputLine)
 		}
 	}
-	assert.Equal(c, len(out2Lines), len(out1Lines))
-
-	for i := range out1Lines {
-		assert.Equal(c, out1Lines[i], out2Lines[i])
-	}
+	assert.DeepEqual(c, out1Lines, out2Lines)
 }
 
 func (s *DockerRegistrySuite) TestPushMultipleTags(c *testing.T) {

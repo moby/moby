@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
@@ -28,11 +27,8 @@ func (s *DockerSuite) TestCreateArgs(c *testing.T) {
 	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
 
 	var containers []struct {
-		ID      string
-		Created time.Time
-		Path    string
-		Args    []string
-		Image   string
+		Path string
+		Args []string
 	}
 
 	err := json.Unmarshal([]byte(out), &containers)
@@ -40,7 +36,7 @@ func (s *DockerSuite) TestCreateArgs(c *testing.T) {
 	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
-	assert.Equal(c, string(cont.Path), "command", fmt.Sprintf("Unexpected container path. Expected command, received: %s", cont.Path))
+	assert.Equal(c, cont.Path, "command", fmt.Sprintf("Unexpected container path. Expected command, received: %s", cont.Path))
 
 	b := false
 	expected := []string{"arg1", "arg2", "arg with space", "-c", "flags"}
@@ -325,7 +321,7 @@ func (s *DockerSuite) TestCreateWithInvalidLogOpts(c *testing.T) {
 // #20972
 func (s *DockerSuite) TestCreate64ByteHexID(c *testing.T) {
 	out := inspectField(c, "busybox", "Id")
-	imageID := strings.TrimPrefix(strings.TrimSpace(string(out)), "sha256:")
+	imageID := strings.TrimPrefix(strings.TrimSpace(out), "sha256:")
 
 	dockerCmd(c, "create", imageID)
 }

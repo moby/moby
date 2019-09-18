@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/layer"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 )
 
 // ID is the content-addressable ID of an image.
@@ -62,7 +62,7 @@ type V1Image struct {
 // Image stores the image configuration
 type Image struct {
 	V1Image
-	Parent     ID        `json:"parent,omitempty"`
+	Parent     ID        `json:"parent,omitempty"` //nolint:govet
 	RootFS     *RootFS   `json:"rootfs,omitempty"`
 	History    []History `json:"history,omitempty"`
 	OSVersion  string    `json:"os.version,omitempty"`

@@ -394,7 +394,7 @@ func (ld *layerDescriptor) Download(ctx context.Context, progressOutput pkgprogr
 	if err := contentutil.Copy(ctx, ld.w.ContentStore, ld.provider, ld.desc); err != nil {
 		return nil, 0, done(err)
 	}
-	done(nil)
+	_ = done(nil)
 
 	ra, err := ld.w.ContentStore.ReaderAt(ctx, ld.desc)
 	if err != nil {
@@ -443,13 +443,13 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 	st := progress.Status{
 		Started: &now,
 	}
-	pw.Write(id, st)
+	_ = pw.Write(id, st)
 	return func(err error) error {
 		// TODO: set error on status
 		now := time.Now()
 		st.Completed = &now
-		pw.Write(id, st)
-		pw.Close()
+		_ = pw.Write(id, st)
+		_ = pw.Close()
 		return err
 	}
 }

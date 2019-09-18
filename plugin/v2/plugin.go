@@ -11,8 +11,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
-	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	digest "github.com/opencontainers/go-digest"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // Plugin represents an individual plugin.

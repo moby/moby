@@ -323,7 +323,7 @@ func TestNewIDMappings(t *testing.T) {
 
 	gids, err := tempUser.GroupIds()
 	assert.Check(t, err)
-	group, err := user.LookupGroupId(string(gids[0]))
+	group, err := user.LookupGroupId(gids[0])
 	assert.Check(t, err)
 
 	idMapping, err := NewIdentityMapping(tempUser.Username, group.Name)

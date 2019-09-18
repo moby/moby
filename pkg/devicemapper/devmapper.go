@@ -14,7 +14,7 @@ import (
 )
 
 // Same as DM_DEVICE_* enum values from libdevmapper.h
-// nolint: deadcode
+// nolint: deadcode,unused,varcheck
 const (
 	deviceCreate TaskType = iota
 	deviceReload

@@ -133,9 +133,6 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 		}
 
 		dstPath := filepath.Join(dstDir, relPath)
-		if err != nil {
-			return err
-		}
 
 		stat, ok := f.Sys().(*syscall.Stat_t)
 		if !ok {

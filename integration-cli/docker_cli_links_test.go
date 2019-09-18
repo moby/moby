@@ -161,7 +161,7 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 	dockerCmd(c, "run", "-d", "--name", "one", "busybox", "top")
 	out, _ := dockerCmd(c, "run", "-d", "--name", "two", "--link", "one:onetwo", "--link", "one:one", "busybox", "top")
-	id := strings.TrimSpace(string(out))
+	id := strings.TrimSpace(out)
 
 	realIP := inspectField(c, "one", "NetworkSettings.Networks.bridge.IPAddress")
 	content := readContainerFileWithExec(c, id, "/etc/hosts")

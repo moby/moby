@@ -89,14 +89,14 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 // CopyFileWithTar emulates the behavior of the 'cp' command-line
 // for a single file. It copies a regular file from path `src` to
 // path `dst`, and preserves all its metadata.
-func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
+func (archiver *Archiver) CopyFileWithTar(src, dst string) (retErr error) {
 	logrus.Debugf("CopyFileWithTar(%s, %s)", src, dst)
 	srcDriver := archiver.SrcDriver
 	dstDriver := archiver.DstDriver
 
-	srcSt, err := srcDriver.Stat(src)
-	if err != nil {
-		return err
+	srcSt, retErr := srcDriver.Stat(src)
+	if retErr != nil {
+		return retErr
 	}
 
 	if srcSt.IsDir() {
@@ -168,16 +168,16 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		}()
 	}()
 	defer func() {
-		if er := <-errC; err == nil && er != nil {
-			err = er
+		if err := <-errC; retErr == nil && err != nil {
+			retErr = err
 		}
 	}()
 
-	err = archiver.Untar(r, dstDriver.Dir(dst), nil)
-	if err != nil {
-		r.CloseWithError(err)
+	retErr = archiver.Untar(r, dstDriver.Dir(dst), nil)
+	if retErr != nil {
+		r.CloseWithError(retErr)
 	}
-	return err
+	return retErr
 }
 
 // IdentityMapping returns the IdentityMapping of the archiver.

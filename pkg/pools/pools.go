@@ -72,6 +72,7 @@ func (bp *bufferPool) Get() []byte {
 }
 
 func (bp *bufferPool) Put(b []byte) {
+	//nolint:staticcheck // TODO changing this to a pointer makes tests fail. Investigate if we should change or not (otherwise remove this TODO)
 	bp.pool.Put(b)
 }
 

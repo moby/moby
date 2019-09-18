@@ -147,14 +147,14 @@ func TestServiceGet(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(v.Status, 1), v.Status)
 
-	v, err = service.Get(ctx, "test", opts.WithGetDriver("notarealdriver"))
+	_, err = service.Get(ctx, "test", opts.WithGetDriver("notarealdriver"))
 	assert.Assert(t, errdefs.IsConflict(err), err)
 	v, err = service.Get(ctx, "test", opts.WithGetDriver("d1"))
 	assert.Assert(t, err == nil)
 	assert.Assert(t, is.DeepEqual(created, v))
 
 	assert.Assert(t, ds.Register(testutils.NewFakeDriver("d2"), "d2"))
-	v, err = service.Get(ctx, "test", opts.WithGetDriver("d2"))
+	_, err = service.Get(ctx, "test", opts.WithGetDriver("d2"))
 	assert.Assert(t, errdefs.IsConflict(err), err)
 }
 

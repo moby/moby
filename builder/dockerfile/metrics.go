@@ -1,7 +1,7 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
-	"github.com/docker/go-metrics"
+	metrics "github.com/docker/go-metrics"
 )
 
 var (

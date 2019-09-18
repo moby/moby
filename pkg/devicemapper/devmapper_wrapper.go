@@ -206,6 +206,7 @@ func dmGetNextTargetFct(task *cdmTask, next unsafe.Pointer, start, length *uint6
 		*params = C.GoString(Cparams)
 	}()
 
+	//lint:ignore SA4000 false positive on (identical expressions on the left and right side of the '==' operator) (staticcheck)
 	nextp := C.dm_get_next_target((*C.struct_dm_task)(task), next, &Cstart, &Clength, &CtargetType, &Cparams)
 	return nextp
 }

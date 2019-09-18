@@ -26,7 +26,7 @@ import (
 	"github.com/docker/docker/testutil/fakegit"
 	"github.com/docker/docker/testutil/fakestorage"
 	"github.com/moby/buildkit/frontend/dockerfile/command"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	"gotest.tools/assert"
 	"gotest.tools/assert/cmp"
 	"gotest.tools/icmd"
@@ -998,7 +998,7 @@ func (s *DockerSuite) TestBuildAddBadLinks(c *testing.T) {
 	}
 
 	buildImageSuccessfully(c, name, build.WithExternalBuildContext(ctx))
-	if _, err := os.Stat(nonExistingFile); err == nil || err != nil && !os.IsNotExist(err) {
+	if _, err := os.Stat(nonExistingFile); err == nil || !os.IsNotExist(err) {
 		c.Fatalf("%s shouldn't have been written and it shouldn't exist", nonExistingFile)
 	}
 
@@ -1039,7 +1039,7 @@ func (s *DockerSuite) TestBuildAddBadLinksVolume(c *testing.T) {
 	}
 
 	buildImageSuccessfully(c, "test-link-absolute-volume", build.WithExternalBuildContext(ctx))
-	if _, err := os.Stat(nonExistingFile); err == nil || err != nil && !os.IsNotExist(err) {
+	if _, err := os.Stat(nonExistingFile); err == nil || !os.IsNotExist(err) {
 		c.Fatalf("%s shouldn't have been written and it shouldn't exist", nonExistingFile)
 	}
 
@@ -2082,7 +2082,7 @@ CMD ["cat", "/foo"]`),
 	}).Assert(c, icmd.Success)
 
 	res := inspectField(c, name, "Config.Cmd")
-	assert.Equal(c, strings.TrimSpace(string(res)), `[cat /foo]`)
+	assert.Equal(c, strings.TrimSpace(res), `[cat /foo]`)
 }
 
 // FIXME(vdemeester) migrate to docker/cli tests (unit or e2e)
@@ -3427,7 +3427,7 @@ func (s *DockerSuite) TestBuildLabelsCache(c *testing.T) {
 func (s *DockerSuite) TestBuildNotVerboseSuccess(c *testing.T) {
 	// This test makes sure that -q works correctly when build is successful:
 	// stdout has only the image ID (long image ID) and stderr is empty.
-	outRegexp := regexp.MustCompile("^(sha256:|)[a-z0-9]{64}\\n$")
+	outRegexp := regexp.MustCompile(`^(sha256:|)[a-z0-9]{64}\n$`)
 	buildFlags := cli.WithFlags("-q")
 
 	tt := []struct {

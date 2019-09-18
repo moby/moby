@@ -34,7 +34,7 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/mount"
 	testdaemon "github.com/docker/docker/testutil/daemon"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
 	"golang.org/x/sys/unix"
@@ -1750,7 +1750,7 @@ func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *testing.T
 			break
 		}
 		ip, err := s.d.Cmd("inspect", "--format", "'{{.NetworkSettings.IPAddress}}'", contName)
-		assert.Assert(c, err == nil, "%s", ip)
+		assert.Assert(c, err == nil, ip)
 
 		assert.Assert(c, ip != bridgeIP)
 		cont++
@@ -1780,7 +1780,7 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 
 	// pull a repository large enough to overfill the mounted filesystem
 	pullOut, err := s.d.Cmd("pull", "debian:stretch")
-	assert.Assert(c, err != nil, "%s", pullOut)
+	assert.Assert(c, err != nil, pullOut)
 	assert.Assert(c, strings.Contains(pullOut, "no space left on device"))
 }
 
@@ -1854,11 +1854,11 @@ func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *testing.T) {
 
 	out, err := s.d.Cmd("run", "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	assert.NilError(c, err)
-	cgroupPaths := ParseCgroupPaths(string(out))
-	assert.Assert(c, len(cgroupPaths) != 0, "unexpected output - %q", string(out))
+	cgroupPaths := ParseCgroupPaths(out)
+	assert.Assert(c, len(cgroupPaths) != 0, "unexpected output - %q", out)
 	out, err = s.d.Cmd("inspect", "-f", "{{.Id}}", name)
 	assert.NilError(c, err)
-	id := strings.TrimSpace(string(out))
+	id := strings.TrimSpace(out)
 	expectedCgroup := path.Join(cgroupParent, id)
 	found := false
 	for _, path := range cgroupPaths {
@@ -1890,7 +1890,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithLinks(c *testing.T) {
 	assert.NilError(c, err, out)
 	out, err = s.d.Cmd("start", "-a", "test2")
 	assert.NilError(c, err, out)
-	assert.Equal(c, strings.Contains(out, "1 packets transmitted, 1 packets received"), true, fmt.Sprintf("%s", out))
+	assert.Equal(c, strings.Contains(out, "1 packets transmitted, 1 packets received"), true, out)
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithNames(c *testing.T) {
@@ -2217,7 +2217,7 @@ func (s *DockerDaemonSuite) TestDaemonDiscoveryBackendConfigReload(c *testing.T)
 
 	err = configFile.Truncate(0)
 	assert.NilError(c, err)
-	_, err = configFile.Seek(0, os.SEEK_SET)
+	_, err = configFile.Seek(0, io.SeekStart)
 	assert.NilError(c, err)
 
 	_, err = configFile.Write([]byte(daemonConfig))

@@ -127,7 +127,6 @@ type scanner struct {
 	delim []byte
 	err   error
 	idx   int
-	done  bool
 }
 
 func (s *scanner) Start(ctx context.Context) int64 {

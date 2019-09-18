@@ -61,16 +61,18 @@ func TestPollerEvent(t *testing.T) {
 	default:
 	}
 
-	if err := ioutil.WriteFile(f.Name(), []byte("hello"), 0644); err != nil {
+	if err := ioutil.WriteFile(f.Name(), []byte("hello"), 0600); err != nil {
 		t.Fatal(err)
 	}
+	assertFileMode(t, f.Name(), 0600)
 	if err := assertEvent(w, fsnotify.Write); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.Chmod(f.Name(), 600); err != nil {
+	if err := os.Chmod(f.Name(), 0644); err != nil {
 		t.Fatal(err)
 	}
+	assertFileMode(t, f.Name(), 0644)
 	if err := assertEvent(w, fsnotify.Chmod); err != nil {
 		t.Fatal(err)
 	}
@@ -100,6 +102,17 @@ func TestPollerClose(t *testing.T) {
 	defer os.RemoveAll(f.Name())
 	if err := w.Add(f.Name()); err == nil {
 		t.Fatal("should have gotten error adding watch for closed watcher")
+	}
+}
+
+func assertFileMode(t *testing.T, fileName string, mode uint32) {
+	t.Helper()
+	f, err := os.Stat(fileName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Mode() != os.FileMode(mode) {
+		t.Fatalf("expected file %s to have mode %#o, but got %#o", fileName, mode, f.Mode())
 	}
 }
 

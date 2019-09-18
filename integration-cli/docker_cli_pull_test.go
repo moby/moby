@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )

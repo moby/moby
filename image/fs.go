@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 )
 
 func init() {
@@ -169,10 +169,6 @@ func getCachedLayer(l Layer) *roLayer {
 		return rl.roLayer
 	}
 	return l.(*roLayer)
-}
-
-func getMountLayer(l RWLayer) *mountedLayer {
-	return l.(*referencedRWLayer).mountedLayer
 }
 
 func createMetadata(layers ...Layer) []Metadata {

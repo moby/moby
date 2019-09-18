@@ -1,7 +1,7 @@
 package ioutils // import "github.com/docker/docker/pkg/ioutils"
 
 import (
-	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
 	"math/rand"
 	"testing"
@@ -77,7 +77,7 @@ func TestBytesPipeWriteRandomChunks(t *testing.T) {
 
 	for _, c := range cases {
 		// first pass: write directly to hash
-		hash := sha1.New()
+		hash := sha256.New()
 		for i := 0; i < c.iterations*c.writesPerLoop; i++ {
 			if _, err := hash.Write(testMessage[:writeChunks[i%len(writeChunks)]]); err != nil {
 				t.Fatal(err)

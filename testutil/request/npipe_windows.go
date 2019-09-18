@@ -4,7 +4,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/Microsoft/go-winio"
+	winio "github.com/Microsoft/go-winio"
 )
 
 func npipeDial(path string, timeout time.Duration) (net.Conn, error) {

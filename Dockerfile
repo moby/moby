@@ -176,8 +176,8 @@ COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
-FROM base AS gometalinter
-ENV INSTALL_BINARY_NAME=gometalinter
+FROM base AS golangci_lint
+ENV INSTALL_BINARY_NAME=golangci_lint
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
@@ -265,7 +265,7 @@ RUN pip3 install yamllint==1.16.0
 
 COPY --from=swagger /build/swagger* /usr/local/bin/
 COPY --from=frozen-images /build/ /docker-frozen-images
-COPY --from=gometalinter /build/ /usr/local/bin/
+COPY --from=golangci_lint /build/ /usr/local/bin/
 COPY --from=gotestsum /build/ /usr/local/bin/
 COPY --from=tomlv /build/ /usr/local/bin/
 COPY --from=vndr /build/ /usr/local/bin/

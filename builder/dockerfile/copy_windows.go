@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Microsoft/go-winio"
+	winio "github.com/Microsoft/go-winio"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"

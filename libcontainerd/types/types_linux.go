@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/containerd/cgroups"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // Summary is not used on linux
