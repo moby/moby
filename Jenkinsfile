@@ -701,6 +701,8 @@ pipeline {
                             sh '''
                             echo "Ensuring container killed."
                             docker rm -vf docker-pr$BUILD_NUMBER || true
+                            cids=$(docker ps -aq -f name=docker-pr${BUILD_NUMBER}-*)
+                            [ -n "$cids" ] && docker rm -vf $cids || true
                             '''
 
                             sh '''
