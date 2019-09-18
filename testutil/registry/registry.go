@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/testutil"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	"gotest.tools/assert"
 )
 
@@ -84,6 +84,7 @@ http:
 	case "htpasswd":
 		htpasswdPath := filepath.Join(tmp, "htpasswd")
 		// generated with: htpasswd -Bbn testuser testpassword
+		// #nosec G101
 		userpasswd := "testuser:$2y$05$sBsSqk0OpSD1uTZkHXc4FeJ0Z70wLQdAX/82UiHuQOKbNbBrzs63m"
 		username = "testuser"
 		password = "testpassword"

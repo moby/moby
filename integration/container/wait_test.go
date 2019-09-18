@@ -42,12 +42,12 @@ func TestWaitNonBlocked(t *testing.T) {
 			containerID := container.Run(ctx, t, cli, container.WithCmd("sh", "-c", tc.cmd))
 			poll.WaitOn(t, container.IsInState(ctx, cli, containerID, "exited"), poll.WithTimeout(30*time.Second), poll.WithDelay(100*time.Millisecond))
 
-			waitresC, errC := cli.ContainerWait(ctx, containerID, "")
+			waitResC, errC := cli.ContainerWait(ctx, containerID, "")
 			select {
 			case err := <-errC:
 				assert.NilError(t, err)
-			case waitres := <-waitresC:
-				assert.Check(t, is.Equal(tc.expectedCode, waitres.StatusCode))
+			case waitRes := <-waitResC:
+				assert.Check(t, is.Equal(tc.expectedCode, waitRes.StatusCode))
 			}
 		})
 	}
@@ -84,7 +84,7 @@ func TestWaitBlocked(t *testing.T) {
 			containerID := container.Run(ctx, t, cli, container.WithCmd("sh", "-c", tc.cmd))
 			poll.WaitOn(t, container.IsInState(ctx, cli, containerID, "running"), poll.WithTimeout(30*time.Second), poll.WithDelay(100*time.Millisecond))
 
-			waitresC, errC := cli.ContainerWait(ctx, containerID, "")
+			waitResC, errC := cli.ContainerWait(ctx, containerID, "")
 
 			err := cli.ContainerStop(ctx, containerID, nil)
 			assert.NilError(t, err)
@@ -92,8 +92,8 @@ func TestWaitBlocked(t *testing.T) {
 			select {
 			case err := <-errC:
 				assert.NilError(t, err)
-			case waitres := <-waitresC:
-				assert.Check(t, is.Equal(tc.expectedCode, waitres.StatusCode))
+			case waitRes := <-waitResC:
+				assert.Check(t, is.Equal(tc.expectedCode, waitRes.StatusCode))
 			case <-time.After(2 * time.Second):
 				t.Fatal("timeout waiting for `docker wait`")
 			}

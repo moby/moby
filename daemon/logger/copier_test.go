@@ -3,7 +3,6 @@ package logger // import "github.com/docker/docker/daemon/logger"
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -453,9 +452,9 @@ func piped(b *testing.B, iterations int, delay time.Duration, buf []byte) io.Rea
 			time.Sleep(delay)
 			if n, err := w.Write(buf); err != nil || n != len(buf) {
 				if err != nil {
-					b.Fatal(err)
+					b.Error(err)
 				}
-				b.Fatal(fmt.Errorf("short write"))
+				b.Error("short write")
 			}
 		}
 		w.Close()

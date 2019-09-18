@@ -1,7 +1,7 @@
 package metadata // import "github.com/docker/docker/distribution/metadata"
 
 import (
-	"github.com/docker/docker/image/v1"
+	v1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
 	"github.com/pkg/errors"
 )

@@ -51,24 +51,24 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *testing.T) {
 
 			out, err := cmd.StdoutPipe()
 			if err != nil {
-				c.Fatal(err)
+				c.Error(err)
 			}
 			defer out.Close()
 
 			if err := cmd.Start(); err != nil {
-				c.Fatal(err)
+				c.Error(err)
 			}
 
 			buf := make([]byte, 1024)
 
 			if _, err := out.Read(buf); err != nil && err != io.EOF {
-				c.Fatal(err)
+				c.Error(err)
 			}
 
 			startGroup.Done()
 
 			if !strings.Contains(string(buf), "hello") {
-				c.Fatalf("unexpected output %s expected hello\n", string(buf))
+				c.Errorf("unexpected output %s expected hello\n", string(buf))
 			}
 		}()
 	}

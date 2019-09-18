@@ -15,7 +15,7 @@ import (
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )
@@ -107,11 +107,11 @@ func testConcurrentPullWholeRepo(c *testing.T) {
 	}
 }
 
-func (s *DockerRegistrySuite) testConcurrentPullWholeRepo(c *testing.T) {
+func (s *DockerRegistrySuite) TestConcurrentPullWholeRepo(c *testing.T) {
 	testConcurrentPullWholeRepo(c)
 }
 
-func (s *DockerSchema1RegistrySuite) testConcurrentPullWholeRepo(c *testing.T) {
+func (s *DockerSchema1RegistrySuite) TestConcurrentPullWholeRepo(c *testing.T) {
 	testConcurrentPullWholeRepo(c)
 }
 
@@ -138,11 +138,11 @@ func testConcurrentFailingPull(c *testing.T) {
 	}
 }
 
-func (s *DockerRegistrySuite) testConcurrentFailingPull(c *testing.T) {
+func (s *DockerRegistrySuite) TestConcurrentFailingPull(c *testing.T) {
 	testConcurrentFailingPull(c)
 }
 
-func (s *DockerSchema1RegistrySuite) testConcurrentFailingPull(c *testing.T) {
+func (s *DockerSchema1RegistrySuite) TestConcurrentFailingPull(c *testing.T) {
 	testConcurrentFailingPull(c)
 }
 
@@ -333,7 +333,7 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *testing.T) {
 	err = os.MkdirAll(blobDir, 0755)
 	assert.NilError(c, err, "error creating blob dir")
 	blobPath := filepath.Join(blobDir, "data")
-	err = ioutil.WriteFile(blobPath, []byte(manifestListJSON), 0644)
+	err = ioutil.WriteFile(blobPath, manifestListJSON, 0644)
 	assert.NilError(c, err, "error writing manifest list")
 
 	// Add to revision store

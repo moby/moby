@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 )
 
 // State holds the current container state, and has methods to get and

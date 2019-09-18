@@ -4,7 +4,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func iPtr(i int64) *int64        { return &i }

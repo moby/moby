@@ -41,7 +41,10 @@ func TestParseRelease(t *testing.T) {
 	for _, invalid := range invalids {
 		expectedMessage := fmt.Sprintf("Can't parse kernel version %v", invalid)
 		if _, err := ParseRelease(invalid); err == nil || err.Error() != expectedMessage {
-
+			if err == nil {
+				t.Fatalf("Expected %q, got nil", expectedMessage)
+			}
+			t.Fatalf("Expected %q, got %q", expectedMessage, err.Error())
 		}
 	}
 }

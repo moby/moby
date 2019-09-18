@@ -202,15 +202,13 @@ func (daemon *Daemon) autoRemove(c *container.Container) {
 		return
 	}
 
-	var err error
-	if err = daemon.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err == nil {
+	err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
+	if err == nil {
 		return
 	}
 	if c := daemon.containers.Get(c.ID); c == nil {
 		return
 	}
 
-	if err != nil {
-		logrus.WithError(err).WithField("container", c.ID).Error("error removing container")
-	}
+	logrus.WithError(err).WithField("container", c.ID).Error("error removing container")
 }

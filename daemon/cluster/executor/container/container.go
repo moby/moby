@@ -98,10 +98,6 @@ func (c *containerConfig) taskID() string {
 	return c.task.ID
 }
 
-func (c *containerConfig) endpoint() *api.Endpoint {
-	return c.task.Endpoint
-}
-
 func (c *containerConfig) spec() *api.ContainerSpec {
 	return c.task.Spec.GetContainer()
 }

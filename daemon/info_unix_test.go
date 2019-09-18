@@ -39,7 +39,7 @@ func TestParseInitVersion(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		version, commit, err := parseInitVersion(string(test.output))
+		version, commit, err := parseInitVersion(test.output)
 		if test.invalid {
 			assert.Check(t, is.ErrorContains(err, ""))
 		} else {
@@ -50,7 +50,7 @@ func TestParseInitVersion(t *testing.T) {
 	}
 }
 
-func parseRuncVersion(t *testing.T) {
+func TestParseRuntimeVersion(t *testing.T) {
 	tests := []struct {
 		output  string
 		runtime string
@@ -103,7 +103,7 @@ spec: 1.0.0
 	}
 
 	for _, test := range tests {
-		runtime, version, commit, err := parseRuntimeVersion(string(test.output))
+		runtime, version, commit, err := parseRuntimeVersion(test.output)
 		if test.invalid {
 			assert.Check(t, is.ErrorContains(err, ""))
 		} else {

@@ -57,7 +57,7 @@ func ToJSON(a Args) (string, error) {
 // then the encoded format will use an older legacy format where the values are a
 // list of strings, instead of a set.
 //
-// Deprecated: Use ToJSON
+// Deprecated: do not use in any new code; use ToJSON instead
 func ToParamWithVersion(version string, a Args) (string, error) {
 	if a.Len() == 0 {
 		return "", nil

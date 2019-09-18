@@ -66,7 +66,7 @@ func (c *Cluster) GetNode(input string) (types.Node, error) {
 
 // UpdateNode updates existing nodes properties.
 func (c *Cluster) UpdateNode(input string, version uint64, spec types.NodeSpec) error {
-	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	return c.lockedManagerAction(func(_ context.Context, state nodeState) error {
 		nodeSpec, err := convert.NodeSpecToGRPC(spec)
 		if err != nil {
 			return errdefs.InvalidParameter(err)

@@ -1,0 +1,76 @@
+linters:
+  enable:
+    - deadcode
+    - gofmt
+    - goimports
+    - golint
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - unconvert
+
+  disable:
+    - errcheck
+
+  run:
+    concurrency: 2
+    modules-download-mode: vendor
+
+    skip-dirs:
+      - docs
+      - integration-cli
+
+    skip-files:
+      - ".*\\.pb\\.go"
+      - "dockerversion/version_autogen.go"
+      - "api/types/container/container_.*"
+      - "api/types/volume/volume_.*"
+
+linters-settings:
+  govet:
+    check-shadowing: false
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files.
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+
+    - text: "G201: SQL string formatting"
+      linters:
+        - gosec
+    - text: "G202: SQL string concatenation"
+      linters:
+        - gosec
+    # FIXME temporarily suppress these. See #39925
+    - text: "SA1019: base.Dial is deprecated"
+      linters:
+        - staticcheck
+    # FIXME temporarily suppress these. See #39928
+    - text: "SA1019: grpc.WithDialer is deprecated"
+      linters:
+        - staticcheck
+    # FIXME temporarily suppress these. See #39924
+    - text: "SA1019: h.Xattrs is deprecated: Use PAXRecords instead"
+      linters:
+        - staticcheck
+    # FIXME temporarily suppress these. See #39924
+    - text: "SA1019: hdr.Xattrs is deprecated: Use PAXRecords instead"
+      linters:
+        - staticcheck
+    # FIXME temporarily suppress these. See #39929
+    - text: "SA1019: http.CloseNotifier is deprecated"
+      linters:
+        - staticcheck
+    # FIXME temporarily suppress these. See #39926
+    - text: "SA1019: httputil.NewClientConn is deprecated"
+      linters:
+        - staticcheck
+    # FIXME temporarily suppress these. See #39927
+    - text: "SA1019: httputil.ClientConn is deprecated"
+      linters:
+        - staticcheck

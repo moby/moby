@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/layer"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 )
 
 func TestV2MetadataService(t *testing.T) {

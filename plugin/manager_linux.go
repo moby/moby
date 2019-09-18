@@ -15,8 +15,8 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/plugin/v2"
-	"github.com/opencontainers/go-digest"
+	v2 "github.com/docker/docker/plugin/v2"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -282,9 +282,6 @@ func (pm *Manager) setupNewPlugin(configDigest digest.Digest, blobsums []digest.
 	}
 
 	requiredPrivileges := computePrivileges(config)
-	if err != nil {
-		return types.PluginConfig{}, err
-	}
 	if privileges != nil {
 		if err := validatePrivileges(requiredPrivileges, *privileges); err != nil {
 			return types.PluginConfig{}, err

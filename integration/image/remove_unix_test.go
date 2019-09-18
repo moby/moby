@@ -88,6 +88,6 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 
 	// Run imageService.Cleanup() and make sure that layer was removed from disk
 	i.Cleanup()
-	dir, err = os.Stat(data["UpperDir"])
-	assert.ErrorContains(t, err, "no such file or directory")
+	_, err = os.Stat(data["UpperDir"])
+	assert.Assert(t, os.IsNotExist(err))
 }

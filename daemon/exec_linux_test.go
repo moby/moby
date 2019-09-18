@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"gotest.tools/assert"
 )
 

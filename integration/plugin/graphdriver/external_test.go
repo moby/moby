@@ -424,8 +424,8 @@ func TestGraphdriverPluginV2(t *testing.T) {
 		RemoteRef:            plugin,
 		AcceptAllPermissions: true,
 	})
-	defer responseReader.Close()
 	assert.NilError(t, err)
+	defer responseReader.Close()
 	// ensure it's done by waiting for EOF on the response
 	_, err = io.Copy(ioutil.Discard, responseReader)
 	assert.NilError(t, err)

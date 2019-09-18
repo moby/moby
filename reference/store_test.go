@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/reference"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )
@@ -110,8 +110,9 @@ func TestAddDeleteGet(t *testing.T) {
 		t.Fatalf("error creating temp file: %v", err)
 	}
 	_, err = jsonFile.Write([]byte(`{}`))
-	jsonFile.Close()
-	defer os.RemoveAll(jsonFile.Name())
+	assert.NilError(t, err)
+	_ = jsonFile.Close()
+	defer func() { _ = os.RemoveAll(jsonFile.Name()) }()
 
 	store, err := NewReferenceStore(jsonFile.Name())
 	if err != nil {

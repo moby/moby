@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/layer"
-	"github.com/opencontainers/go-digest"
 	"gotest.tools/assert"
 	"gotest.tools/assert/cmp"
 )
@@ -60,11 +59,11 @@ func TestRestore(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Equal(ID(id1), sid1))
 
-	sid1, err = is.Search(digest.Digest(id1).Hex()[:6])
+	sid1, err = is.Search(id1.Hex()[:6])
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Equal(ID(id1), sid1))
 
-	invalidPattern := digest.Digest(id1).Hex()[1:6]
+	invalidPattern := id1.Hex()[1:6]
 	_, err = is.Search(invalidPattern)
 	assert.ErrorContains(t, err, "No such image")
 }

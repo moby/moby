@@ -149,7 +149,7 @@ func TestCreate(t *testing.T) {
 		}
 	}
 
-	r, err = New(rootDir, idtools.Identity{UID: os.Geteuid(), GID: os.Getegid()})
+	_, err = New(rootDir, idtools.Identity{UID: os.Geteuid(), GID: os.Getegid()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -295,7 +295,7 @@ func TestRelaodNoOpts(t *testing.T) {
 		t.Fatal(err)
 	}
 	// make sure a file with `null` (.e.g. empty opts map from older daemon) is ok
-	if err := ioutil.WriteFile(filepath.Join(rootDir, "test2"), []byte("null"), 600); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(rootDir, "test2"), []byte("null"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -303,7 +303,7 @@ func TestRelaodNoOpts(t *testing.T) {
 		t.Fatal(err)
 	}
 	// make sure an empty opts file doesn't break us too
-	if err := ioutil.WriteFile(filepath.Join(rootDir, "test3"), nil, 600); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(rootDir, "test3"), nil, 0600); err != nil {
 		t.Fatal(err)
 	}
 

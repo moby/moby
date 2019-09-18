@@ -960,12 +960,6 @@ func buildCreateEndpointOptions(c *container.Container, n libnetwork.Network, ep
 	return createOptions, nil
 }
 
-// getEndpointInNetwork returns the container's endpoint to the provided network.
-func getEndpointInNetwork(name string, n libnetwork.Network) (libnetwork.Endpoint, error) {
-	endpointName := strings.TrimPrefix(name, "/")
-	return n.EndpointByName(endpointName)
-}
-
 // getSandboxPortMapInfo retrieves the current port-mapping programmed for the given sandbox
 func getSandboxPortMapInfo(sb libnetwork.Sandbox) nat.PortMap {
 	pm := nat.PortMap{}

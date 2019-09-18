@@ -122,7 +122,7 @@ func TestMountReadonly(t *testing.T) {
 		}
 	}()
 
-	f, err = os.OpenFile(targetPath, os.O_RDWR, 0777)
+	_, err = os.OpenFile(targetPath, os.O_RDWR, 0777)
 	if err == nil {
 		t.Fatal("Should not be able to open a ro file as rw")
 	}

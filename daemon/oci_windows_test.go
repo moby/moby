@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/container"
 	swarmagent "github.com/docker/swarmkit/agent"
 	swarmapi "github.com/docker/swarmkit/api"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/windows/registry"
 	"gotest.tools/assert"
 )
