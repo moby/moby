@@ -3,71 +3,220 @@
 
 package api
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/protobuf/gogoproto"
-import _ "github.com/docker/swarmkit/protobuf/plugin"
-
-import deepcopy "github.com/docker/swarmkit/api/deepcopy"
-
-import context "golang.org/x/net/context"
-import grpc "google.golang.org/grpc"
-
-import raftselector "github.com/docker/swarmkit/manager/raftselector"
-import codes "google.golang.org/grpc/codes"
-import status "google.golang.org/grpc/status"
-import metadata "google.golang.org/grpc/metadata"
-import peer "google.golang.org/grpc/peer"
-import rafttime "time"
-
-import strings "strings"
-import reflect "reflect"
-
-import io "io"
+import (
+	context "context"
+	fmt "fmt"
+	github_com_docker_swarmkit_api_deepcopy "github.com/docker/swarmkit/api/deepcopy"
+	raftselector "github.com/docker/swarmkit/manager/raftselector"
+	_ "github.com/docker/swarmkit/protobuf/plugin"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	metadata "google.golang.org/grpc/metadata"
+	peer "google.golang.org/grpc/peer"
+	status "google.golang.org/grpc/status"
+	io "io"
+	math "math"
+	reflect "reflect"
+	strings "strings"
+	rafttime "time"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+
 type AttachNetworkRequest struct {
-	Config      *NetworkAttachmentConfig `protobuf:"bytes,1,opt,name=config" json:"config,omitempty"`
+	Config      *NetworkAttachmentConfig `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
 	ContainerID string                   `protobuf:"bytes,2,opt,name=container_id,json=containerId,proto3" json:"container_id,omitempty"`
 }
 
-func (m *AttachNetworkRequest) Reset()                    { *m = AttachNetworkRequest{} }
-func (*AttachNetworkRequest) ProtoMessage()               {}
-func (*AttachNetworkRequest) Descriptor() ([]byte, []int) { return fileDescriptorResource, []int{0} }
+func (m *AttachNetworkRequest) Reset()      { *m = AttachNetworkRequest{} }
+func (*AttachNetworkRequest) ProtoMessage() {}
+func (*AttachNetworkRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_909455b1b868ddb9, []int{0}
+}
+func (m *AttachNetworkRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AttachNetworkRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AttachNetworkRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AttachNetworkRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AttachNetworkRequest.Merge(m, src)
+}
+func (m *AttachNetworkRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *AttachNetworkRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_AttachNetworkRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AttachNetworkRequest proto.InternalMessageInfo
 
 type AttachNetworkResponse struct {
 	AttachmentID string `protobuf:"bytes,1,opt,name=attachment_id,json=attachmentId,proto3" json:"attachment_id,omitempty"`
 }
 
-func (m *AttachNetworkResponse) Reset()                    { *m = AttachNetworkResponse{} }
-func (*AttachNetworkResponse) ProtoMessage()               {}
-func (*AttachNetworkResponse) Descriptor() ([]byte, []int) { return fileDescriptorResource, []int{1} }
+func (m *AttachNetworkResponse) Reset()      { *m = AttachNetworkResponse{} }
+func (*AttachNetworkResponse) ProtoMessage() {}
+func (*AttachNetworkResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_909455b1b868ddb9, []int{1}
+}
+func (m *AttachNetworkResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AttachNetworkResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AttachNetworkResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AttachNetworkResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AttachNetworkResponse.Merge(m, src)
+}
+func (m *AttachNetworkResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *AttachNetworkResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_AttachNetworkResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AttachNetworkResponse proto.InternalMessageInfo
 
 type DetachNetworkRequest struct {
 	AttachmentID string `protobuf:"bytes,1,opt,name=attachment_id,json=attachmentId,proto3" json:"attachment_id,omitempty"`
 }
 
-func (m *DetachNetworkRequest) Reset()                    { *m = DetachNetworkRequest{} }
-func (*DetachNetworkRequest) ProtoMessage()               {}
-func (*DetachNetworkRequest) Descriptor() ([]byte, []int) { return fileDescriptorResource, []int{2} }
+func (m *DetachNetworkRequest) Reset()      { *m = DetachNetworkRequest{} }
+func (*DetachNetworkRequest) ProtoMessage() {}
+func (*DetachNetworkRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_909455b1b868ddb9, []int{2}
+}
+func (m *DetachNetworkRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *DetachNetworkRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_DetachNetworkRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *DetachNetworkRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DetachNetworkRequest.Merge(m, src)
+}
+func (m *DetachNetworkRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *DetachNetworkRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_DetachNetworkRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DetachNetworkRequest proto.InternalMessageInfo
 
 type DetachNetworkResponse struct {
 }
 
-func (m *DetachNetworkResponse) Reset()                    { *m = DetachNetworkResponse{} }
-func (*DetachNetworkResponse) ProtoMessage()               {}
-func (*DetachNetworkResponse) Descriptor() ([]byte, []int) { return fileDescriptorResource, []int{3} }
+func (m *DetachNetworkResponse) Reset()      { *m = DetachNetworkResponse{} }
+func (*DetachNetworkResponse) ProtoMessage() {}
+func (*DetachNetworkResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_909455b1b868ddb9, []int{3}
+}
+func (m *DetachNetworkResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *DetachNetworkResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_DetachNetworkResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *DetachNetworkResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DetachNetworkResponse.Merge(m, src)
+}
+func (m *DetachNetworkResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *DetachNetworkResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_DetachNetworkResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DetachNetworkResponse proto.InternalMessageInfo
 
 func init() {
 	proto.RegisterType((*AttachNetworkRequest)(nil), "docker.swarmkit.v1.AttachNetworkRequest")
 	proto.RegisterType((*AttachNetworkResponse)(nil), "docker.swarmkit.v1.AttachNetworkResponse")
 	proto.RegisterType((*DetachNetworkRequest)(nil), "docker.swarmkit.v1.DetachNetworkRequest")
 	proto.RegisterType((*DetachNetworkResponse)(nil), "docker.swarmkit.v1.DetachNetworkResponse")
+}
+
+func init() {
+	proto.RegisterFile("github.com/docker/swarmkit/api/resource.proto", fileDescriptor_909455b1b868ddb9)
+}
+
+var fileDescriptor_909455b1b868ddb9 = []byte{
+	// 411 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x92, 0x3f, 0x6f, 0xda, 0x40,
+	0x18, 0xc6, 0x7d, 0x0c, 0x48, 0x3d, 0x8c, 0xda, 0x5a, 0xa0, 0x22, 0xa4, 0x1e, 0xc8, 0xed, 0x40,
+	0x5b, 0x61, 0xab, 0x54, 0x55, 0x67, 0xfe, 0x2c, 0x1e, 0xca, 0xe0, 0x2f, 0x50, 0x1d, 0xf6, 0x61,
+	0x2c, 0xb0, 0xcf, 0x3d, 0x9f, 0x83, 0xb2, 0x65, 0xcd, 0x94, 0x8c, 0xf9, 0x0e, 0x91, 0xf2, 0x39,
+	0x50, 0x26, 0x46, 0x26, 0x14, 0xcc, 0x9e, 0xcf, 0x10, 0xe1, 0x33, 0x20, 0x88, 0x95, 0xa0, 0x4c,
+	0x3e, 0x9f, 0x9f, 0xe7, 0x79, 0x7f, 0xef, 0xfb, 0x1a, 0x36, 0x1d, 0x97, 0x8f, 0xa2, 0x81, 0x66,
+	0x51, 0x4f, 0xb7, 0xa9, 0x35, 0x26, 0x4c, 0x0f, 0xa7, 0x98, 0x79, 0x63, 0x97, 0xeb, 0x38, 0x70,
+	0x75, 0x46, 0x42, 0x1a, 0x31, 0x8b, 0x68, 0x01, 0xa3, 0x9c, 0x2a, 0x8a, 0xd0, 0x68, 0x5b, 0x8d,
+	0x76, 0xf6, 0xb3, 0xfa, 0xfd, 0x95, 0x08, 0x7e, 0x1e, 0x90, 0x50, 0xf8, 0xab, 0x25, 0x87, 0x3a,
+	0x34, 0x39, 0xea, 0x9b, 0x53, 0x7a, 0xfb, 0xe7, 0x85, 0x84, 0x44, 0x31, 0x88, 0x86, 0x7a, 0x30,
+	0x89, 0x1c, 0xd7, 0x4f, 0x1f, 0xc2, 0xa8, 0x5e, 0x01, 0x58, 0x6a, 0x73, 0x8e, 0xad, 0x51, 0x9f,
+	0xf0, 0x29, 0x65, 0x63, 0x93, 0xfc, 0x8f, 0x48, 0xc8, 0x95, 0x2e, 0xcc, 0x5b, 0xd4, 0x1f, 0xba,
+	0x4e, 0x05, 0xd4, 0x41, 0xa3, 0xd0, 0xfa, 0xa1, 0x3d, 0x07, 0xd7, 0x52, 0x8f, 0x08, 0xf0, 0x88,
+	0xcf, 0xbb, 0x89, 0xc5, 0x4c, 0xad, 0x4a, 0x0b, 0xca, 0x16, 0xf5, 0x39, 0x76, 0x7d, 0xc2, 0xfe,
+	0xb9, 0x76, 0x25, 0x57, 0x07, 0x8d, 0x77, 0x9d, 0xf7, 0xf1, 0xb2, 0x56, 0xe8, 0x6e, 0xef, 0x8d,
+	0x9e, 0x59, 0xd8, 0x89, 0x0c, 0x5b, 0xed, 0xc3, 0xf2, 0x11, 0x50, 0x18, 0x50, 0x3f, 0x24, 0xca,
+	0x6f, 0x58, 0xc4, 0xbb, 0x42, 0x9b, 0x34, 0x90, 0xa4, 0x7d, 0x88, 0x97, 0x35, 0x79, 0x4f, 0x60,
+	0xf4, 0x4c, 0x79, 0x2f, 0x33, 0x6c, 0xf5, 0x2f, 0x2c, 0xf5, 0x48, 0x46, 0x83, 0x6f, 0x8c, 0xfb,
+	0x04, 0xcb, 0x47, 0x71, 0x02, 0xaf, 0x75, 0x9b, 0x83, 0x1f, 0xcd, 0x74, 0xd7, 0xed, 0xc9, 0x84,
+	0x5a, 0x98, 0x53, 0xa6, 0x5c, 0x02, 0x58, 0x3c, 0x68, 0x47, 0x69, 0x64, 0x0d, 0x32, 0x6b, 0x05,
+	0xd5, 0x6f, 0x27, 0x28, 0x45, 0x71, 0xf5, 0xcb, 0xfd, 0xdd, 0xe3, 0x4d, 0xee, 0x33, 0x94, 0x13,
+	0x69, 0x73, 0xf3, 0x8d, 0x30, 0x58, 0x14, 0x6f, 0x1e, 0xf6, 0xb1, 0x43, 0x04, 0xcb, 0x01, 0x7b,
+	0x36, 0x4b, 0xd6, 0xb4, 0xb2, 0x59, 0x32, 0x07, 0x71, 0x12, 0x4b, 0xe7, 0xeb, 0x6c, 0x85, 0xa4,
+	0xc5, 0x0a, 0x49, 0x17, 0x31, 0x02, 0xb3, 0x18, 0x81, 0x79, 0x8c, 0xc0, 0x43, 0x8c, 0xc0, 0xf5,
+	0x1a, 0x49, 0xf3, 0x35, 0x92, 0x16, 0x6b, 0x24, 0x0d, 0xf2, 0xc9, 0x4f, 0xfa, 0xeb, 0x29, 0x00,
+	0x00, 0xff, 0xff, 0x9d, 0x2f, 0x31, 0x83, 0x64, 0x03, 0x00, 0x00,
 }
 
 type authenticatedWrapperResourceAllocatorServer struct {
@@ -113,7 +262,7 @@ func (m *AttachNetworkRequest) CopyFrom(src interface{}) {
 	*m = *o
 	if o.Config != nil {
 		m.Config = &NetworkAttachmentConfig{}
-		deepcopy.Copy(m.Config, o.Config)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Config, o.Config)
 	}
 }
 
@@ -166,8 +315,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for ResourceAllocator service
-
+// ResourceAllocatorClient is the client API for ResourceAllocator service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ResourceAllocatorClient interface {
 	AttachNetwork(ctx context.Context, in *AttachNetworkRequest, opts ...grpc.CallOption) (*AttachNetworkResponse, error)
 	DetachNetwork(ctx context.Context, in *DetachNetworkRequest, opts ...grpc.CallOption) (*DetachNetworkResponse, error)
@@ -183,7 +333,7 @@ func NewResourceAllocatorClient(cc *grpc.ClientConn) ResourceAllocatorClient {
 
 func (c *resourceAllocatorClient) AttachNetwork(ctx context.Context, in *AttachNetworkRequest, opts ...grpc.CallOption) (*AttachNetworkResponse, error) {
 	out := new(AttachNetworkResponse)
-	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.ResourceAllocator/AttachNetwork", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/docker.swarmkit.v1.ResourceAllocator/AttachNetwork", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -192,15 +342,14 @@ func (c *resourceAllocatorClient) AttachNetwork(ctx context.Context, in *AttachN
 
 func (c *resourceAllocatorClient) DetachNetwork(ctx context.Context, in *DetachNetworkRequest, opts ...grpc.CallOption) (*DetachNetworkResponse, error) {
 	out := new(DetachNetworkResponse)
-	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.ResourceAllocator/DetachNetwork", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/docker.swarmkit.v1.ResourceAllocator/DetachNetwork", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for ResourceAllocator service
-
+// ResourceAllocatorServer is the server API for ResourceAllocator service.
 type ResourceAllocatorServer interface {
 	AttachNetwork(context.Context, *AttachNetworkRequest) (*AttachNetworkResponse, error)
 	DetachNetwork(context.Context, *DetachNetworkRequest) (*DetachNetworkResponse, error)
@@ -516,6 +665,9 @@ func (p *raftProxyResourceAllocatorServer) DetachNetwork(ctx context.Context, r 
 }
 
 func (m *AttachNetworkRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Config != nil {
@@ -530,6 +682,9 @@ func (m *AttachNetworkRequest) Size() (n int) {
 }
 
 func (m *AttachNetworkResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.AttachmentID)
@@ -540,6 +695,9 @@ func (m *AttachNetworkResponse) Size() (n int) {
 }
 
 func (m *DetachNetworkRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.AttachmentID)
@@ -550,6 +708,9 @@ func (m *DetachNetworkRequest) Size() (n int) {
 }
 
 func (m *DetachNetworkResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	return n
@@ -631,7 +792,7 @@ func (m *AttachNetworkRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -659,7 +820,7 @@ func (m *AttachNetworkRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -668,6 +829,9 @@ func (m *AttachNetworkRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthResource
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthResource
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -692,7 +856,7 @@ func (m *AttachNetworkRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -702,6 +866,9 @@ func (m *AttachNetworkRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthResource
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthResource
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -714,6 +881,9 @@ func (m *AttachNetworkRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthResource
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthResource
 			}
 			if (iNdEx + skippy) > l {
@@ -743,7 +913,7 @@ func (m *AttachNetworkResponse) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -771,7 +941,7 @@ func (m *AttachNetworkResponse) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -781,6 +951,9 @@ func (m *AttachNetworkResponse) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthResource
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthResource
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -793,6 +966,9 @@ func (m *AttachNetworkResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthResource
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthResource
 			}
 			if (iNdEx + skippy) > l {
@@ -822,7 +998,7 @@ func (m *DetachNetworkRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -850,7 +1026,7 @@ func (m *DetachNetworkRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -860,6 +1036,9 @@ func (m *DetachNetworkRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthResource
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthResource
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -872,6 +1051,9 @@ func (m *DetachNetworkRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthResource
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthResource
 			}
 			if (iNdEx + skippy) > l {
@@ -901,7 +1083,7 @@ func (m *DetachNetworkResponse) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -922,6 +1104,9 @@ func (m *DetachNetworkResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthResource
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthResource
 			}
 			if (iNdEx + skippy) > l {
@@ -990,8 +1175,11 @@ func skipResource(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			iNdEx += length
 			if length < 0 {
+				return 0, ErrInvalidLengthResource
+			}
+			iNdEx += length
+			if iNdEx < 0 {
 				return 0, ErrInvalidLengthResource
 			}
 			return iNdEx, nil
@@ -1022,6 +1210,9 @@ func skipResource(dAtA []byte) (n int, err error) {
 					return 0, err
 				}
 				iNdEx = start + next
+				if iNdEx < 0 {
+					return 0, ErrInvalidLengthResource
+				}
 			}
 			return iNdEx, nil
 		case 4:
@@ -1040,36 +1231,3 @@ var (
 	ErrInvalidLengthResource = fmt.Errorf("proto: negative length found during unmarshaling")
 	ErrIntOverflowResource   = fmt.Errorf("proto: integer overflow")
 )
-
-func init() {
-	proto.RegisterFile("github.com/docker/swarmkit/api/resource.proto", fileDescriptorResource)
-}
-
-var fileDescriptorResource = []byte{
-	// 397 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x92, 0xcf, 0x4e, 0xf2, 0x40,
-	0x14, 0xc5, 0x19, 0x16, 0x24, 0xdf, 0x50, 0xf2, 0x69, 0x03, 0x91, 0x90, 0x58, 0x48, 0xdd, 0xa0,
-	0x86, 0x36, 0x62, 0x8c, 0x6b, 0xfe, 0x6c, 0xba, 0x90, 0x45, 0x5f, 0xc0, 0x0c, 0xed, 0x50, 0x1a,
-	0x68, 0xa7, 0x4e, 0xa7, 0x12, 0x77, 0x6e, 0x5d, 0xb9, 0xf5, 0x1d, 0x4c, 0x7c, 0x0e, 0xe2, 0xca,
-	0xa5, 0x2b, 0x22, 0x7d, 0x00, 0x9f, 0xc1, 0xd0, 0x29, 0x10, 0x70, 0xa2, 0xc4, 0x55, 0xa7, 0xd3,
-	0x73, 0xce, 0xfd, 0xdd, 0x7b, 0x0b, 0x1b, 0x8e, 0xcb, 0x86, 0x51, 0x5f, 0xb3, 0x88, 0xa7, 0xdb,
-	0xc4, 0x1a, 0x61, 0xaa, 0x87, 0x13, 0x44, 0xbd, 0x91, 0xcb, 0x74, 0x14, 0xb8, 0x3a, 0xc5, 0x21,
-	0x89, 0xa8, 0x85, 0xb5, 0x80, 0x12, 0x46, 0x64, 0x99, 0x6b, 0xb4, 0xa5, 0x46, 0xbb, 0x3d, 0xab,
-	0x9c, 0xfc, 0x12, 0xc1, 0xee, 0x02, 0x1c, 0x72, 0x7f, 0xa5, 0xe8, 0x10, 0x87, 0x24, 0x47, 0x7d,
-	0x71, 0x4a, 0x6f, 0x2f, 0x7f, 0x48, 0x48, 0x14, 0xfd, 0x68, 0xa0, 0x07, 0xe3, 0xc8, 0x71, 0xfd,
-	0xf4, 0xc1, 0x8d, 0xea, 0x23, 0x80, 0xc5, 0x16, 0x63, 0xc8, 0x1a, 0xf6, 0x30, 0x9b, 0x10, 0x3a,
-	0x32, 0xf1, 0x4d, 0x84, 0x43, 0x26, 0x77, 0x60, 0xce, 0x22, 0xfe, 0xc0, 0x75, 0xca, 0xa0, 0x06,
-	0xea, 0xf9, 0xe6, 0xa9, 0xf6, 0x1d, 0x5c, 0x4b, 0x3d, 0x3c, 0xc0, 0xc3, 0x3e, 0xeb, 0x24, 0x16,
-	0x33, 0xb5, 0xca, 0x4d, 0x28, 0x59, 0xc4, 0x67, 0xc8, 0xf5, 0x31, 0xbd, 0x76, 0xed, 0x72, 0xb6,
-	0x06, 0xea, 0xff, 0xda, 0xff, 0xe3, 0x59, 0x35, 0xdf, 0x59, 0xde, 0x1b, 0x5d, 0x33, 0xbf, 0x12,
-	0x19, 0xb6, 0xda, 0x83, 0xa5, 0x2d, 0xa0, 0x30, 0x20, 0x7e, 0x88, 0xe5, 0x0b, 0x58, 0x40, 0xab,
-	0x42, 0x8b, 0x34, 0x90, 0xa4, 0xed, 0xc5, 0xb3, 0xaa, 0xb4, 0x26, 0x30, 0xba, 0xa6, 0xb4, 0x96,
-	0x19, 0xb6, 0x7a, 0x05, 0x8b, 0x5d, 0x2c, 0x68, 0xf0, 0x8f, 0x71, 0x07, 0xb0, 0xb4, 0x15, 0xc7,
-	0xf1, 0x9a, 0xcf, 0x59, 0xb8, 0x6f, 0xa6, 0xbb, 0x6e, 0x8d, 0xc7, 0xc4, 0x42, 0x8c, 0x50, 0xf9,
-	0x01, 0xc0, 0xc2, 0x46, 0x3b, 0x72, 0x5d, 0x34, 0x48, 0xd1, 0x0a, 0x2a, 0xc7, 0x3b, 0x28, 0x79,
-	0x71, 0xf5, 0xe8, 0xf5, 0xe5, 0xf3, 0x29, 0x7b, 0x08, 0xa5, 0x44, 0xda, 0x58, 0x7c, 0xc3, 0x14,
-	0x16, 0xf8, 0x9b, 0x87, 0x7c, 0xe4, 0x60, 0xce, 0xb2, 0xc1, 0x2e, 0x66, 0x11, 0x4d, 0x4b, 0xcc,
-	0x22, 0x1c, 0xc4, 0x4e, 0x2c, 0xed, 0xf2, 0x74, 0xae, 0x64, 0xde, 0xe7, 0x4a, 0xe6, 0x3e, 0x56,
-	0xc0, 0x34, 0x56, 0xc0, 0x5b, 0xac, 0x80, 0x8f, 0x58, 0x01, 0xfd, 0x5c, 0xf2, 0x63, 0x9e, 0x7f,
-	0x05, 0x00, 0x00, 0xff, 0xff, 0xc1, 0x7a, 0x29, 0xfc, 0x58, 0x03, 0x00, 0x00,
-}

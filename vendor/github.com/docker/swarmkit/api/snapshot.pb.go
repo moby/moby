@@ -3,23 +3,26 @@
 
 package api
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-
-// skipping weak import gogoproto "github.com/gogo/protobuf/gogoproto"
-
-import deepcopy "github.com/docker/swarmkit/api/deepcopy"
-
-import strings "strings"
-import reflect "reflect"
-
-import io "io"
+import (
+	fmt "fmt"
+	github_com_docker_swarmkit_api_deepcopy "github.com/docker/swarmkit/api/deepcopy"
+	proto "github.com/gogo/protobuf/proto"
+	io "io"
+	math "math"
+	reflect "reflect"
+	strings "strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
 type Snapshot_Version int32
 
@@ -31,6 +34,7 @@ const (
 var Snapshot_Version_name = map[int32]string{
 	0: "V0",
 }
+
 var Snapshot_Version_value = map[string]int32{
 	"V0": 0,
 }
@@ -38,50 +42,177 @@ var Snapshot_Version_value = map[string]int32{
 func (x Snapshot_Version) String() string {
 	return proto.EnumName(Snapshot_Version_name, int32(x))
 }
-func (Snapshot_Version) EnumDescriptor() ([]byte, []int) { return fileDescriptorSnapshot, []int{2, 0} }
+
+func (Snapshot_Version) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_c5cad0b62cecd9af, []int{2, 0}
+}
 
 // StoreSnapshot is used to store snapshots of the store.
 type StoreSnapshot struct {
-	Nodes      []*Node      `protobuf:"bytes,1,rep,name=nodes" json:"nodes,omitempty"`
-	Services   []*Service   `protobuf:"bytes,2,rep,name=services" json:"services,omitempty"`
-	Networks   []*Network   `protobuf:"bytes,3,rep,name=networks" json:"networks,omitempty"`
-	Tasks      []*Task      `protobuf:"bytes,4,rep,name=tasks" json:"tasks,omitempty"`
-	Clusters   []*Cluster   `protobuf:"bytes,5,rep,name=clusters" json:"clusters,omitempty"`
-	Secrets    []*Secret    `protobuf:"bytes,6,rep,name=secrets" json:"secrets,omitempty"`
-	Resources  []*Resource  `protobuf:"bytes,7,rep,name=resources" json:"resources,omitempty"`
-	Extensions []*Extension `protobuf:"bytes,8,rep,name=extensions" json:"extensions,omitempty"`
-	Configs    []*Config    `protobuf:"bytes,9,rep,name=configs" json:"configs,omitempty"`
+	Nodes      []*Node      `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	Services   []*Service   `protobuf:"bytes,2,rep,name=services,proto3" json:"services,omitempty"`
+	Networks   []*Network   `protobuf:"bytes,3,rep,name=networks,proto3" json:"networks,omitempty"`
+	Tasks      []*Task      `protobuf:"bytes,4,rep,name=tasks,proto3" json:"tasks,omitempty"`
+	Clusters   []*Cluster   `protobuf:"bytes,5,rep,name=clusters,proto3" json:"clusters,omitempty"`
+	Secrets    []*Secret    `protobuf:"bytes,6,rep,name=secrets,proto3" json:"secrets,omitempty"`
+	Resources  []*Resource  `protobuf:"bytes,7,rep,name=resources,proto3" json:"resources,omitempty"`
+	Extensions []*Extension `protobuf:"bytes,8,rep,name=extensions,proto3" json:"extensions,omitempty"`
+	Configs    []*Config    `protobuf:"bytes,9,rep,name=configs,proto3" json:"configs,omitempty"`
 }
 
-func (m *StoreSnapshot) Reset()                    { *m = StoreSnapshot{} }
-func (*StoreSnapshot) ProtoMessage()               {}
-func (*StoreSnapshot) Descriptor() ([]byte, []int) { return fileDescriptorSnapshot, []int{0} }
+func (m *StoreSnapshot) Reset()      { *m = StoreSnapshot{} }
+func (*StoreSnapshot) ProtoMessage() {}
+func (*StoreSnapshot) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c5cad0b62cecd9af, []int{0}
+}
+func (m *StoreSnapshot) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *StoreSnapshot) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_StoreSnapshot.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *StoreSnapshot) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StoreSnapshot.Merge(m, src)
+}
+func (m *StoreSnapshot) XXX_Size() int {
+	return m.Size()
+}
+func (m *StoreSnapshot) XXX_DiscardUnknown() {
+	xxx_messageInfo_StoreSnapshot.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StoreSnapshot proto.InternalMessageInfo
 
 // ClusterSnapshot stores cluster membership information in snapshots.
 type ClusterSnapshot struct {
-	Members []*RaftMember `protobuf:"bytes,1,rep,name=members" json:"members,omitempty"`
-	Removed []uint64      `protobuf:"varint,2,rep,name=removed" json:"removed,omitempty"`
+	Members []*RaftMember `protobuf:"bytes,1,rep,name=members,proto3" json:"members,omitempty"`
+	Removed []uint64      `protobuf:"varint,2,rep,name=removed,proto3" json:"removed,omitempty"`
 }
 
-func (m *ClusterSnapshot) Reset()                    { *m = ClusterSnapshot{} }
-func (*ClusterSnapshot) ProtoMessage()               {}
-func (*ClusterSnapshot) Descriptor() ([]byte, []int) { return fileDescriptorSnapshot, []int{1} }
+func (m *ClusterSnapshot) Reset()      { *m = ClusterSnapshot{} }
+func (*ClusterSnapshot) ProtoMessage() {}
+func (*ClusterSnapshot) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c5cad0b62cecd9af, []int{1}
+}
+func (m *ClusterSnapshot) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ClusterSnapshot) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ClusterSnapshot.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ClusterSnapshot) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ClusterSnapshot.Merge(m, src)
+}
+func (m *ClusterSnapshot) XXX_Size() int {
+	return m.Size()
+}
+func (m *ClusterSnapshot) XXX_DiscardUnknown() {
+	xxx_messageInfo_ClusterSnapshot.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ClusterSnapshot proto.InternalMessageInfo
 
 type Snapshot struct {
 	Version    Snapshot_Version `protobuf:"varint,1,opt,name=version,proto3,enum=docker.swarmkit.v1.Snapshot_Version" json:"version,omitempty"`
-	Membership ClusterSnapshot  `protobuf:"bytes,2,opt,name=membership" json:"membership"`
-	Store      StoreSnapshot    `protobuf:"bytes,3,opt,name=store" json:"store"`
+	Membership ClusterSnapshot  `protobuf:"bytes,2,opt,name=membership,proto3" json:"membership"`
+	Store      StoreSnapshot    `protobuf:"bytes,3,opt,name=store,proto3" json:"store"`
 }
 
-func (m *Snapshot) Reset()                    { *m = Snapshot{} }
-func (*Snapshot) ProtoMessage()               {}
-func (*Snapshot) Descriptor() ([]byte, []int) { return fileDescriptorSnapshot, []int{2} }
+func (m *Snapshot) Reset()      { *m = Snapshot{} }
+func (*Snapshot) ProtoMessage() {}
+func (*Snapshot) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c5cad0b62cecd9af, []int{2}
+}
+func (m *Snapshot) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Snapshot) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Snapshot.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Snapshot) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Snapshot.Merge(m, src)
+}
+func (m *Snapshot) XXX_Size() int {
+	return m.Size()
+}
+func (m *Snapshot) XXX_DiscardUnknown() {
+	xxx_messageInfo_Snapshot.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Snapshot proto.InternalMessageInfo
 
 func init() {
+	proto.RegisterEnum("docker.swarmkit.v1.Snapshot_Version", Snapshot_Version_name, Snapshot_Version_value)
 	proto.RegisterType((*StoreSnapshot)(nil), "docker.swarmkit.v1.StoreSnapshot")
 	proto.RegisterType((*ClusterSnapshot)(nil), "docker.swarmkit.v1.ClusterSnapshot")
 	proto.RegisterType((*Snapshot)(nil), "docker.swarmkit.v1.Snapshot")
-	proto.RegisterEnum("docker.swarmkit.v1.Snapshot_Version", Snapshot_Version_name, Snapshot_Version_value)
+}
+
+func init() {
+	proto.RegisterFile("github.com/docker/swarmkit/api/snapshot.proto", fileDescriptor_c5cad0b62cecd9af)
+}
+
+var fileDescriptor_c5cad0b62cecd9af = []byte{
+	// 507 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x93, 0xcf, 0x6f, 0xd3, 0x30,
+	0x14, 0xc7, 0x93, 0xfe, 0x4a, 0xe7, 0x09, 0x18, 0x16, 0x07, 0xab, 0x0c, 0x53, 0xca, 0x0e, 0x45,
+	0x82, 0x14, 0x0a, 0x12, 0x08, 0x69, 0x1c, 0x3a, 0x71, 0xe0, 0xc0, 0x0e, 0x2e, 0x9a, 0xb8, 0xa6,
+	0xa9, 0xdb, 0x86, 0x90, 0xb8, 0xf2, 0x73, 0x3b, 0x8e, 0xf0, 0x1f, 0xf0, 0x67, 0xf5, 0xb8, 0xe3,
+	0x4e, 0x88, 0xb5, 0x07, 0xfe, 0x0d, 0x64, 0x3b, 0x09, 0x95, 0x48, 0xb7, 0x5b, 0x64, 0x7d, 0x3e,
+	0xef, 0x7d, 0xed, 0xbc, 0x87, 0x9e, 0x4d, 0x23, 0x35, 0x5b, 0x8c, 0xfc, 0x50, 0x24, 0xbd, 0xb1,
+	0x08, 0x63, 0x2e, 0x7b, 0x70, 0x1e, 0xc8, 0x24, 0x8e, 0x54, 0x2f, 0x98, 0x47, 0x3d, 0x48, 0x83,
+	0x39, 0xcc, 0x84, 0xf2, 0xe7, 0x52, 0x28, 0x81, 0xb1, 0x65, 0xfc, 0x9c, 0xf1, 0x97, 0x2f, 0x5a,
+	0x4f, 0x6f, 0x28, 0x21, 0x46, 0x5f, 0x78, 0xa8, 0xc0, 0x56, 0x68, 0x3d, 0xb9, 0x81, 0x96, 0xc1,
+	0x24, 0x6b, 0xd6, 0xba, 0x37, 0x15, 0x53, 0x61, 0x3e, 0x7b, 0xfa, 0xcb, 0x9e, 0x76, 0x7e, 0xd4,
+	0xd0, 0xad, 0xa1, 0x12, 0x92, 0x0f, 0xb3, 0x68, 0xd8, 0x47, 0xf5, 0x54, 0x8c, 0x39, 0x10, 0xb7,
+	0x5d, 0xed, 0xee, 0xf7, 0x89, 0xff, 0x7f, 0x48, 0xff, 0x54, 0x8c, 0x39, 0xb3, 0x18, 0x7e, 0x8d,
+	0x9a, 0xc0, 0xe5, 0x32, 0x0a, 0x39, 0x90, 0x8a, 0x51, 0xee, 0x97, 0x29, 0x43, 0xcb, 0xb0, 0x02,
+	0xd6, 0x62, 0xca, 0xd5, 0xb9, 0x90, 0x31, 0x90, 0xea, 0x6e, 0xf1, 0xd4, 0x32, 0xac, 0x80, 0x75,
+	0x42, 0x15, 0x40, 0x0c, 0xa4, 0xb6, 0x3b, 0xe1, 0xa7, 0x00, 0x62, 0x66, 0x31, 0xdd, 0x28, 0xfc,
+	0xba, 0x00, 0xc5, 0x25, 0x90, 0xfa, 0xee, 0x46, 0x27, 0x96, 0x61, 0x05, 0x8c, 0x5f, 0x21, 0x0f,
+	0x78, 0x28, 0xb9, 0x02, 0xd2, 0x30, 0x5e, 0xab, 0xfc, 0x66, 0x1a, 0x61, 0x39, 0x8a, 0xdf, 0xa2,
+	0x3d, 0xc9, 0x41, 0x2c, 0xa4, 0x7e, 0x11, 0xcf, 0x78, 0x87, 0x65, 0x1e, 0xcb, 0x20, 0xf6, 0x0f,
+	0xc7, 0xc7, 0x08, 0xf1, 0x6f, 0x8a, 0xa7, 0x10, 0x89, 0x14, 0x48, 0xd3, 0xc8, 0x0f, 0xca, 0xe4,
+	0xf7, 0x39, 0xc5, 0xb6, 0x04, 0x1d, 0x38, 0x14, 0xe9, 0x24, 0x9a, 0x02, 0xd9, 0xdb, 0x1d, 0xf8,
+	0xc4, 0x20, 0x2c, 0x47, 0x3b, 0x11, 0xba, 0x93, 0xdd, 0xbd, 0x18, 0x82, 0x37, 0xc8, 0x4b, 0x78,
+	0x32, 0xd2, 0x2f, 0x66, 0xc7, 0x80, 0x96, 0xde, 0x20, 0x98, 0xa8, 0x8f, 0x06, 0x63, 0x39, 0x8e,
+	0x0f, 0x91, 0x27, 0x79, 0x22, 0x96, 0x7c, 0x6c, 0xa6, 0xa1, 0x36, 0xa8, 0x1c, 0x38, 0x2c, 0x3f,
+	0xea, 0xfc, 0x71, 0x51, 0xb3, 0x68, 0xf2, 0x0e, 0x79, 0x4b, 0x2e, 0x75, 0x72, 0xe2, 0xb6, 0xdd,
+	0xee, 0xed, 0xfe, 0x51, 0xe9, 0xf3, 0xe6, 0x3b, 0x73, 0x66, 0x59, 0x96, 0x4b, 0xf8, 0x03, 0x42,
+	0x59, 0xd7, 0x59, 0x34, 0x27, 0x95, 0xb6, 0xdb, 0xdd, 0xef, 0x3f, 0xbe, 0xe6, 0xcf, 0xe6, 0x95,
+	0x06, 0xb5, 0xd5, 0xaf, 0x87, 0x0e, 0xdb, 0x92, 0xf1, 0x31, 0xaa, 0x83, 0xde, 0x02, 0x52, 0x35,
+	0x55, 0x1e, 0x95, 0x06, 0xd9, 0x5e, 0x93, 0xac, 0x86, 0xb5, 0x3a, 0x77, 0x91, 0x97, 0xa5, 0xc3,
+	0x0d, 0x54, 0x39, 0x7b, 0x7e, 0xe0, 0x0c, 0x8e, 0x56, 0x57, 0xd4, 0xb9, 0xbc, 0xa2, 0xce, 0xf7,
+	0x35, 0x75, 0x57, 0x6b, 0xea, 0x5e, 0xac, 0xa9, 0xfb, 0x7b, 0x4d, 0xdd, 0x9f, 0x1b, 0xea, 0x5c,
+	0x6c, 0xa8, 0x73, 0xb9, 0xa1, 0xce, 0xe7, 0xca, 0xa8, 0x61, 0xf6, 0xf0, 0xe5, 0xdf, 0x00, 0x00,
+	0x00, 0xff, 0xff, 0x97, 0x4e, 0xfd, 0x2a, 0x3b, 0x04, 0x00, 0x00,
 }
 
 func (m *StoreSnapshot) Copy() *StoreSnapshot {
@@ -101,7 +232,7 @@ func (m *StoreSnapshot) CopyFrom(src interface{}) {
 		m.Nodes = make([]*Node, len(o.Nodes))
 		for i := range m.Nodes {
 			m.Nodes[i] = &Node{}
-			deepcopy.Copy(m.Nodes[i], o.Nodes[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Nodes[i], o.Nodes[i])
 		}
 	}
 
@@ -109,7 +240,7 @@ func (m *StoreSnapshot) CopyFrom(src interface{}) {
 		m.Services = make([]*Service, len(o.Services))
 		for i := range m.Services {
 			m.Services[i] = &Service{}
-			deepcopy.Copy(m.Services[i], o.Services[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Services[i], o.Services[i])
 		}
 	}
 
@@ -117,7 +248,7 @@ func (m *StoreSnapshot) CopyFrom(src interface{}) {
 		m.Networks = make([]*Network, len(o.Networks))
 		for i := range m.Networks {
 			m.Networks[i] = &Network{}
-			deepcopy.Copy(m.Networks[i], o.Networks[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Networks[i], o.Networks[i])
 		}
 	}
 
@@ -125,7 +256,7 @@ func (m *StoreSnapshot) CopyFrom(src interface{}) {
 		m.Tasks = make([]*Task, len(o.Tasks))
 		for i := range m.Tasks {
 			m.Tasks[i] = &Task{}
-			deepcopy.Copy(m.Tasks[i], o.Tasks[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Tasks[i], o.Tasks[i])
 		}
 	}
 
@@ -133,7 +264,7 @@ func (m *StoreSnapshot) CopyFrom(src interface{}) {
 		m.Clusters = make([]*Cluster, len(o.Clusters))
 		for i := range m.Clusters {
 			m.Clusters[i] = &Cluster{}
-			deepcopy.Copy(m.Clusters[i], o.Clusters[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Clusters[i], o.Clusters[i])
 		}
 	}
 
@@ -141,7 +272,7 @@ func (m *StoreSnapshot) CopyFrom(src interface{}) {
 		m.Secrets = make([]*Secret, len(o.Secrets))
 		for i := range m.Secrets {
 			m.Secrets[i] = &Secret{}
-			deepcopy.Copy(m.Secrets[i], o.Secrets[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Secrets[i], o.Secrets[i])
 		}
 	}
 
@@ -149,7 +280,7 @@ func (m *StoreSnapshot) CopyFrom(src interface{}) {
 		m.Resources = make([]*Resource, len(o.Resources))
 		for i := range m.Resources {
 			m.Resources[i] = &Resource{}
-			deepcopy.Copy(m.Resources[i], o.Resources[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Resources[i], o.Resources[i])
 		}
 	}
 
@@ -157,7 +288,7 @@ func (m *StoreSnapshot) CopyFrom(src interface{}) {
 		m.Extensions = make([]*Extension, len(o.Extensions))
 		for i := range m.Extensions {
 			m.Extensions[i] = &Extension{}
-			deepcopy.Copy(m.Extensions[i], o.Extensions[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Extensions[i], o.Extensions[i])
 		}
 	}
 
@@ -165,7 +296,7 @@ func (m *StoreSnapshot) CopyFrom(src interface{}) {
 		m.Configs = make([]*Config, len(o.Configs))
 		for i := range m.Configs {
 			m.Configs[i] = &Config{}
-			deepcopy.Copy(m.Configs[i], o.Configs[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Configs[i], o.Configs[i])
 		}
 	}
 
@@ -188,7 +319,7 @@ func (m *ClusterSnapshot) CopyFrom(src interface{}) {
 		m.Members = make([]*RaftMember, len(o.Members))
 		for i := range m.Members {
 			m.Members[i] = &RaftMember{}
-			deepcopy.Copy(m.Members[i], o.Members[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Members[i], o.Members[i])
 		}
 	}
 
@@ -212,8 +343,8 @@ func (m *Snapshot) CopyFrom(src interface{}) {
 
 	o := src.(*Snapshot)
 	*m = *o
-	deepcopy.Copy(&m.Membership, &o.Membership)
-	deepcopy.Copy(&m.Store, &o.Store)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Membership, &o.Membership)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Store, &o.Store)
 }
 
 func (m *StoreSnapshot) Marshal() (dAtA []byte, err error) {
@@ -427,8 +558,10 @@ func encodeVarintSnapshot(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return offset + 1
 }
-
 func (m *StoreSnapshot) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if len(m.Nodes) > 0 {
@@ -489,6 +622,9 @@ func (m *StoreSnapshot) Size() (n int) {
 }
 
 func (m *ClusterSnapshot) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if len(m.Members) > 0 {
@@ -506,6 +642,9 @@ func (m *ClusterSnapshot) Size() (n int) {
 }
 
 func (m *Snapshot) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Version != 0 {
@@ -595,7 +734,7 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -623,7 +762,7 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -632,6 +771,9 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -654,7 +796,7 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -663,6 +805,9 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -685,7 +830,7 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -694,6 +839,9 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -716,7 +864,7 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -725,6 +873,9 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -747,7 +898,7 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -756,6 +907,9 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -778,7 +932,7 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -787,6 +941,9 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -809,7 +966,7 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -818,6 +975,9 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -840,7 +1000,7 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -849,6 +1009,9 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -871,7 +1034,7 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -880,6 +1043,9 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -895,6 +1061,9 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthSnapshot
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthSnapshot
 			}
 			if (iNdEx + skippy) > l {
@@ -924,7 +1093,7 @@ func (m *ClusterSnapshot) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -952,7 +1121,7 @@ func (m *ClusterSnapshot) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -961,6 +1130,9 @@ func (m *ClusterSnapshot) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -981,7 +1153,7 @@ func (m *ClusterSnapshot) Unmarshal(dAtA []byte) error {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					v |= (uint64(b) & 0x7F) << shift
+					v |= uint64(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
@@ -998,7 +1170,7 @@ func (m *ClusterSnapshot) Unmarshal(dAtA []byte) error {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					packedLen |= (int(b) & 0x7F) << shift
+					packedLen |= int(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
@@ -1007,8 +1179,22 @@ func (m *ClusterSnapshot) Unmarshal(dAtA []byte) error {
 					return ErrInvalidLengthSnapshot
 				}
 				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return ErrInvalidLengthSnapshot
+				}
 				if postIndex > l {
 					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				var count int
+				for _, integer := range dAtA[iNdEx:postIndex] {
+					if integer < 128 {
+						count++
+					}
+				}
+				elementCount = count
+				if elementCount != 0 && len(m.Removed) == 0 {
+					m.Removed = make([]uint64, 0, elementCount)
 				}
 				for iNdEx < postIndex {
 					var v uint64
@@ -1021,7 +1207,7 @@ func (m *ClusterSnapshot) Unmarshal(dAtA []byte) error {
 						}
 						b := dAtA[iNdEx]
 						iNdEx++
-						v |= (uint64(b) & 0x7F) << shift
+						v |= uint64(b&0x7F) << shift
 						if b < 0x80 {
 							break
 						}
@@ -1038,6 +1224,9 @@ func (m *ClusterSnapshot) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthSnapshot
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthSnapshot
 			}
 			if (iNdEx + skippy) > l {
@@ -1067,7 +1256,7 @@ func (m *Snapshot) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -1095,7 +1284,7 @@ func (m *Snapshot) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Version |= (Snapshot_Version(b) & 0x7F) << shift
+				m.Version |= Snapshot_Version(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1114,7 +1303,7 @@ func (m *Snapshot) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1123,6 +1312,9 @@ func (m *Snapshot) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -1144,7 +1336,7 @@ func (m *Snapshot) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1153,6 +1345,9 @@ func (m *Snapshot) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -1167,6 +1362,9 @@ func (m *Snapshot) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthSnapshot
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthSnapshot
 			}
 			if (iNdEx + skippy) > l {
@@ -1235,8 +1433,11 @@ func skipSnapshot(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			iNdEx += length
 			if length < 0 {
+				return 0, ErrInvalidLengthSnapshot
+			}
+			iNdEx += length
+			if iNdEx < 0 {
 				return 0, ErrInvalidLengthSnapshot
 			}
 			return iNdEx, nil
@@ -1267,6 +1468,9 @@ func skipSnapshot(dAtA []byte) (n int, err error) {
 					return 0, err
 				}
 				iNdEx = start + next
+				if iNdEx < 0 {
+					return 0, ErrInvalidLengthSnapshot
+				}
 			}
 			return iNdEx, nil
 		case 4:
@@ -1285,42 +1489,3 @@ var (
 	ErrInvalidLengthSnapshot = fmt.Errorf("proto: negative length found during unmarshaling")
 	ErrIntOverflowSnapshot   = fmt.Errorf("proto: integer overflow")
 )
-
-func init() {
-	proto.RegisterFile("github.com/docker/swarmkit/api/snapshot.proto", fileDescriptorSnapshot)
-}
-
-var fileDescriptorSnapshot = []byte{
-	// 493 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x93, 0xbf, 0x8f, 0xd3, 0x30,
-	0x14, 0xc7, 0x93, 0xf4, 0x47, 0x7a, 0x3e, 0x01, 0x87, 0xc5, 0x60, 0x95, 0x23, 0x94, 0xc2, 0x50,
-	0x24, 0x48, 0xa0, 0x20, 0x81, 0x90, 0x8e, 0xa1, 0x27, 0x06, 0x06, 0x6e, 0x70, 0xd1, 0x89, 0x35,
-	0x4d, 0xdd, 0x36, 0x84, 0xc4, 0x95, 0x9f, 0xdb, 0x63, 0x84, 0xff, 0xae, 0x23, 0x23, 0x13, 0xe2,
-	0xba, 0xf0, 0x6f, 0x20, 0xdb, 0x71, 0xa8, 0x44, 0x7a, 0xb7, 0x45, 0xd6, 0xe7, 0xf3, 0xde, 0xd7,
-	0xce, 0x7b, 0xe8, 0xe9, 0x3c, 0x95, 0x8b, 0xd5, 0x24, 0x4c, 0x78, 0x1e, 0x4d, 0x79, 0x92, 0x31,
-	0x11, 0xc1, 0x45, 0x2c, 0xf2, 0x2c, 0x95, 0x51, 0xbc, 0x4c, 0x23, 0x28, 0xe2, 0x25, 0x2c, 0xb8,
-	0x0c, 0x97, 0x82, 0x4b, 0x8e, 0xb1, 0x61, 0x42, 0xcb, 0x84, 0xeb, 0xe7, 0xdd, 0x27, 0xd7, 0x94,
-	0xe0, 0x93, 0xcf, 0x2c, 0x91, 0x60, 0x2a, 0x74, 0x1f, 0x5f, 0x43, 0x8b, 0x78, 0x56, 0x36, 0xeb,
-	0xde, 0x99, 0xf3, 0x39, 0xd7, 0x9f, 0x91, 0xfa, 0x32, 0xa7, 0xfd, 0xef, 0x4d, 0x74, 0x63, 0x2c,
-	0xb9, 0x60, 0xe3, 0x32, 0x1a, 0x0e, 0x51, 0xab, 0xe0, 0x53, 0x06, 0xc4, 0xed, 0x35, 0x06, 0x87,
-	0x43, 0x12, 0xfe, 0x1f, 0x32, 0x3c, 0xe3, 0x53, 0x46, 0x0d, 0x86, 0x5f, 0xa1, 0x0e, 0x30, 0xb1,
-	0x4e, 0x13, 0x06, 0xc4, 0xd3, 0xca, 0xdd, 0x3a, 0x65, 0x6c, 0x18, 0x5a, 0xc1, 0x4a, 0x2c, 0x98,
-	0xbc, 0xe0, 0x22, 0x03, 0xd2, 0xd8, 0x2f, 0x9e, 0x19, 0x86, 0x56, 0xb0, 0x4a, 0x28, 0x63, 0xc8,
-	0x80, 0x34, 0xf7, 0x27, 0xfc, 0x18, 0x43, 0x46, 0x0d, 0xa6, 0x1a, 0x25, 0x5f, 0x56, 0x20, 0x99,
-	0x00, 0xd2, 0xda, 0xdf, 0xe8, 0xd4, 0x30, 0xb4, 0x82, 0xf1, 0x4b, 0xe4, 0x03, 0x4b, 0x04, 0x93,
-	0x40, 0xda, 0xda, 0xeb, 0xd6, 0xdf, 0x4c, 0x21, 0xd4, 0xa2, 0xf8, 0x0d, 0x3a, 0x10, 0x0c, 0xf8,
-	0x4a, 0xa8, 0x17, 0xf1, 0xb5, 0x77, 0x5c, 0xe7, 0xd1, 0x12, 0xa2, 0xff, 0x70, 0x7c, 0x82, 0x10,
-	0xfb, 0x2a, 0x59, 0x01, 0x29, 0x2f, 0x80, 0x74, 0xb4, 0x7c, 0xaf, 0x4e, 0x7e, 0x67, 0x29, 0xba,
-	0x23, 0xa8, 0xc0, 0x09, 0x2f, 0x66, 0xe9, 0x1c, 0xc8, 0xc1, 0xfe, 0xc0, 0xa7, 0x1a, 0xa1, 0x16,
-	0xed, 0xa7, 0xe8, 0x56, 0x79, 0xf7, 0x6a, 0x08, 0x5e, 0x23, 0x3f, 0x67, 0xf9, 0x44, 0xbd, 0x98,
-	0x19, 0x83, 0xa0, 0xf6, 0x06, 0xf1, 0x4c, 0x7e, 0xd0, 0x18, 0xb5, 0x38, 0x3e, 0x46, 0xbe, 0x60,
-	0x39, 0x5f, 0xb3, 0xa9, 0x9e, 0x86, 0xe6, 0xc8, 0x3b, 0x72, 0xa8, 0x3d, 0xea, 0xff, 0x71, 0x51,
-	0xa7, 0x6a, 0xf2, 0x16, 0xf9, 0x6b, 0x26, 0x54, 0x72, 0xe2, 0xf6, 0xdc, 0xc1, 0xcd, 0xe1, 0xa3,
-	0xda, 0xe7, 0xb5, 0x3b, 0x73, 0x6e, 0x58, 0x6a, 0x25, 0xfc, 0x1e, 0xa1, 0xb2, 0xeb, 0x22, 0x5d,
-	0x12, 0xaf, 0xe7, 0x0e, 0x0e, 0x87, 0x0f, 0xaf, 0xf8, 0xb3, 0xb6, 0xd2, 0xa8, 0xb9, 0xf9, 0x75,
-	0xdf, 0xa1, 0x3b, 0x32, 0x3e, 0x41, 0x2d, 0x50, 0x5b, 0x40, 0x1a, 0xba, 0xca, 0x83, 0xda, 0x20,
-	0xbb, 0x6b, 0x52, 0xd6, 0x30, 0x56, 0xff, 0x36, 0xf2, 0xcb, 0x74, 0xb8, 0x8d, 0xbc, 0xf3, 0x67,
-	0x47, 0xce, 0x88, 0x6c, 0x2e, 0x03, 0xe7, 0xe7, 0x65, 0xe0, 0x7c, 0xdb, 0x06, 0xee, 0x66, 0x1b,
-	0xb8, 0x3f, 0xb6, 0x81, 0xfb, 0x7b, 0x1b, 0xb8, 0x9f, 0xbc, 0x49, 0x5b, 0xef, 0xde, 0x8b, 0xbf,
-	0x01, 0x00, 0x00, 0xff, 0xff, 0xfd, 0xbe, 0x47, 0xec, 0x2f, 0x04, 0x00, 0x00,
-}

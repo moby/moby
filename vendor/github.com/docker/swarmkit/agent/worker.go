@@ -257,13 +257,11 @@ func reconcileTaskState(ctx context.Context, w *worker, assignments []*api.Assig
 	}
 
 	closeManager := func(tm *taskManager) {
-		go func(tm *taskManager) {
-			defer w.closers.Done()
-			// when a task is no longer assigned, we shutdown the task manager
-			if err := tm.Close(); err != nil {
-				log.G(ctx).WithError(err).Error("error closing task manager")
-			}
-		}(tm)
+		defer w.closers.Done()
+		// when a task is no longer assigned, we shutdown the task manager
+		if err := tm.Close(); err != nil {
+			log.G(ctx).WithError(err).Error("error closing task manager")
+		}
 
 		// make an attempt at removing. this is best effort. any errors will be
 		// retried by the reaper later.

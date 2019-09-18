@@ -3,35 +3,35 @@
 
 package api
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import raftpb "github.com/coreos/etcd/raft/raftpb"
-
-// skipping weak import gogoproto "github.com/gogo/protobuf/gogoproto"
-// skipping weak import docker_protobuf_plugin "github.com/docker/swarmkit/protobuf/plugin"
-
-import deepcopy "github.com/docker/swarmkit/api/deepcopy"
-
-import context "golang.org/x/net/context"
-import grpc "google.golang.org/grpc"
-
-import raftselector "github.com/docker/swarmkit/manager/raftselector"
-import codes "google.golang.org/grpc/codes"
-import status "google.golang.org/grpc/status"
-import metadata "google.golang.org/grpc/metadata"
-import peer "google.golang.org/grpc/peer"
-import rafttime "time"
-
-import strings "strings"
-import reflect "reflect"
-
-import io "io"
+import (
+	context "context"
+	fmt "fmt"
+	raftpb "github.com/coreos/etcd/raft/raftpb"
+	github_com_docker_swarmkit_api_deepcopy "github.com/docker/swarmkit/api/deepcopy"
+	raftselector "github.com/docker/swarmkit/manager/raftselector"
+	proto "github.com/gogo/protobuf/proto"
+	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	metadata "google.golang.org/grpc/metadata"
+	peer "google.golang.org/grpc/peer"
+	status "google.golang.org/grpc/status"
+	io "io"
+	math "math"
+	reflect "reflect"
+	strings "strings"
+	rafttime "time"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
 // StoreActionKind defines the operation to take on the store for the target of
 // a storage action.
@@ -50,6 +50,7 @@ var StoreActionKind_name = map[int32]string{
 	2: "STORE_ACTION_UPDATE",
 	3: "STORE_ACTION_REMOVE",
 }
+
 var StoreActionKind_value = map[string]int32{
 	"UNKNOWN":             0,
 	"STORE_ACTION_CREATE": 1,
@@ -60,7 +61,10 @@ var StoreActionKind_value = map[string]int32{
 func (x StoreActionKind) String() string {
 	return proto.EnumName(StoreActionKind_name, int32(x))
 }
-func (StoreActionKind) EnumDescriptor() ([]byte, []int) { return fileDescriptorRaft, []int{0} }
+
+func (StoreActionKind) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_d2c32e1e3c930c15, []int{0}
+}
 
 type RaftMember struct {
 	// RaftID specifies the internal ID used by the manager in a raft context, it can never be modified
@@ -71,112 +75,448 @@ type RaftMember struct {
 	// Addr specifies the address of the member
 	Addr string `protobuf:"bytes,3,opt,name=addr,proto3" json:"addr,omitempty"`
 	// Status provides the current status of the manager from the perspective of another manager.
-	Status RaftMemberStatus `protobuf:"bytes,4,opt,name=status" json:"status"`
+	Status RaftMemberStatus `protobuf:"bytes,4,opt,name=status,proto3" json:"status"`
 }
 
-func (m *RaftMember) Reset()                    { *m = RaftMember{} }
-func (*RaftMember) ProtoMessage()               {}
-func (*RaftMember) Descriptor() ([]byte, []int) { return fileDescriptorRaft, []int{0} }
+func (m *RaftMember) Reset()      { *m = RaftMember{} }
+func (*RaftMember) ProtoMessage() {}
+func (*RaftMember) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d2c32e1e3c930c15, []int{0}
+}
+func (m *RaftMember) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *RaftMember) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_RaftMember.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *RaftMember) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RaftMember.Merge(m, src)
+}
+func (m *RaftMember) XXX_Size() int {
+	return m.Size()
+}
+func (m *RaftMember) XXX_DiscardUnknown() {
+	xxx_messageInfo_RaftMember.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RaftMember proto.InternalMessageInfo
 
 type JoinRequest struct {
 	// Addr specifies the address of the member
 	Addr string `protobuf:"bytes,1,opt,name=addr,proto3" json:"addr,omitempty"`
 }
 
-func (m *JoinRequest) Reset()                    { *m = JoinRequest{} }
-func (*JoinRequest) ProtoMessage()               {}
-func (*JoinRequest) Descriptor() ([]byte, []int) { return fileDescriptorRaft, []int{1} }
+func (m *JoinRequest) Reset()      { *m = JoinRequest{} }
+func (*JoinRequest) ProtoMessage() {}
+func (*JoinRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d2c32e1e3c930c15, []int{1}
+}
+func (m *JoinRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *JoinRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_JoinRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *JoinRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_JoinRequest.Merge(m, src)
+}
+func (m *JoinRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *JoinRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_JoinRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_JoinRequest proto.InternalMessageInfo
 
 type JoinResponse struct {
 	// RaftID is the ID assigned to the new member.
 	RaftID uint64 `protobuf:"varint,1,opt,name=raft_id,json=raftId,proto3" json:"raft_id,omitempty"`
 	// Members is the membership set of the cluster.
-	Members []*RaftMember `protobuf:"bytes,2,rep,name=members" json:"members,omitempty"`
+	Members []*RaftMember `protobuf:"bytes,2,rep,name=members,proto3" json:"members,omitempty"`
 	// RemovedMembers is a list of members that have been removed from
 	// the cluster, so the new node can avoid communicating with them.
-	RemovedMembers []uint64 `protobuf:"varint,3,rep,name=removed_members,json=removedMembers" json:"removed_members,omitempty"`
+	RemovedMembers []uint64 `protobuf:"varint,3,rep,name=removed_members,json=removedMembers,proto3" json:"removed_members,omitempty"`
 }
 
-func (m *JoinResponse) Reset()                    { *m = JoinResponse{} }
-func (*JoinResponse) ProtoMessage()               {}
-func (*JoinResponse) Descriptor() ([]byte, []int) { return fileDescriptorRaft, []int{2} }
+func (m *JoinResponse) Reset()      { *m = JoinResponse{} }
+func (*JoinResponse) ProtoMessage() {}
+func (*JoinResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d2c32e1e3c930c15, []int{2}
+}
+func (m *JoinResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *JoinResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_JoinResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *JoinResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_JoinResponse.Merge(m, src)
+}
+func (m *JoinResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *JoinResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_JoinResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_JoinResponse proto.InternalMessageInfo
 
 type LeaveRequest struct {
-	Node *RaftMember `protobuf:"bytes,1,opt,name=node" json:"node,omitempty"`
+	Node *RaftMember `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
 }
 
-func (m *LeaveRequest) Reset()                    { *m = LeaveRequest{} }
-func (*LeaveRequest) ProtoMessage()               {}
-func (*LeaveRequest) Descriptor() ([]byte, []int) { return fileDescriptorRaft, []int{3} }
+func (m *LeaveRequest) Reset()      { *m = LeaveRequest{} }
+func (*LeaveRequest) ProtoMessage() {}
+func (*LeaveRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d2c32e1e3c930c15, []int{3}
+}
+func (m *LeaveRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *LeaveRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_LeaveRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *LeaveRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LeaveRequest.Merge(m, src)
+}
+func (m *LeaveRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *LeaveRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_LeaveRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_LeaveRequest proto.InternalMessageInfo
 
 type LeaveResponse struct {
 }
 
-func (m *LeaveResponse) Reset()                    { *m = LeaveResponse{} }
-func (*LeaveResponse) ProtoMessage()               {}
-func (*LeaveResponse) Descriptor() ([]byte, []int) { return fileDescriptorRaft, []int{4} }
-
-type ProcessRaftMessageRequest struct {
-	Message *raftpb.Message `protobuf:"bytes,1,opt,name=message" json:"message,omitempty"`
+func (m *LeaveResponse) Reset()      { *m = LeaveResponse{} }
+func (*LeaveResponse) ProtoMessage() {}
+func (*LeaveResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d2c32e1e3c930c15, []int{4}
+}
+func (m *LeaveResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *LeaveResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_LeaveResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *LeaveResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LeaveResponse.Merge(m, src)
+}
+func (m *LeaveResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *LeaveResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_LeaveResponse.DiscardUnknown(m)
 }
 
-func (m *ProcessRaftMessageRequest) Reset()                    { *m = ProcessRaftMessageRequest{} }
-func (*ProcessRaftMessageRequest) ProtoMessage()               {}
-func (*ProcessRaftMessageRequest) Descriptor() ([]byte, []int) { return fileDescriptorRaft, []int{5} }
+var xxx_messageInfo_LeaveResponse proto.InternalMessageInfo
+
+type ProcessRaftMessageRequest struct {
+	Message *raftpb.Message `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+}
+
+func (m *ProcessRaftMessageRequest) Reset()      { *m = ProcessRaftMessageRequest{} }
+func (*ProcessRaftMessageRequest) ProtoMessage() {}
+func (*ProcessRaftMessageRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d2c32e1e3c930c15, []int{5}
+}
+func (m *ProcessRaftMessageRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ProcessRaftMessageRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ProcessRaftMessageRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ProcessRaftMessageRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessRaftMessageRequest.Merge(m, src)
+}
+func (m *ProcessRaftMessageRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *ProcessRaftMessageRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ProcessRaftMessageRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ProcessRaftMessageRequest proto.InternalMessageInfo
 
 type ProcessRaftMessageResponse struct {
 }
 
-func (m *ProcessRaftMessageResponse) Reset()                    { *m = ProcessRaftMessageResponse{} }
-func (*ProcessRaftMessageResponse) ProtoMessage()               {}
-func (*ProcessRaftMessageResponse) Descriptor() ([]byte, []int) { return fileDescriptorRaft, []int{6} }
+func (m *ProcessRaftMessageResponse) Reset()      { *m = ProcessRaftMessageResponse{} }
+func (*ProcessRaftMessageResponse) ProtoMessage() {}
+func (*ProcessRaftMessageResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d2c32e1e3c930c15, []int{6}
+}
+func (m *ProcessRaftMessageResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ProcessRaftMessageResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ProcessRaftMessageResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ProcessRaftMessageResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessRaftMessageResponse.Merge(m, src)
+}
+func (m *ProcessRaftMessageResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *ProcessRaftMessageResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ProcessRaftMessageResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ProcessRaftMessageResponse proto.InternalMessageInfo
 
 // Raft message streaming request.
 type StreamRaftMessageRequest struct {
-	Message *raftpb.Message `protobuf:"bytes,1,opt,name=message" json:"message,omitempty"`
+	Message *raftpb.Message `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
 }
 
-func (m *StreamRaftMessageRequest) Reset()                    { *m = StreamRaftMessageRequest{} }
-func (*StreamRaftMessageRequest) ProtoMessage()               {}
-func (*StreamRaftMessageRequest) Descriptor() ([]byte, []int) { return fileDescriptorRaft, []int{7} }
+func (m *StreamRaftMessageRequest) Reset()      { *m = StreamRaftMessageRequest{} }
+func (*StreamRaftMessageRequest) ProtoMessage() {}
+func (*StreamRaftMessageRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d2c32e1e3c930c15, []int{7}
+}
+func (m *StreamRaftMessageRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *StreamRaftMessageRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_StreamRaftMessageRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *StreamRaftMessageRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StreamRaftMessageRequest.Merge(m, src)
+}
+func (m *StreamRaftMessageRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *StreamRaftMessageRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_StreamRaftMessageRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StreamRaftMessageRequest proto.InternalMessageInfo
 
 // Raft message streaming response.
 type StreamRaftMessageResponse struct {
 }
 
-func (m *StreamRaftMessageResponse) Reset()                    { *m = StreamRaftMessageResponse{} }
-func (*StreamRaftMessageResponse) ProtoMessage()               {}
-func (*StreamRaftMessageResponse) Descriptor() ([]byte, []int) { return fileDescriptorRaft, []int{8} }
+func (m *StreamRaftMessageResponse) Reset()      { *m = StreamRaftMessageResponse{} }
+func (*StreamRaftMessageResponse) ProtoMessage() {}
+func (*StreamRaftMessageResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d2c32e1e3c930c15, []int{8}
+}
+func (m *StreamRaftMessageResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *StreamRaftMessageResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_StreamRaftMessageResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *StreamRaftMessageResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StreamRaftMessageResponse.Merge(m, src)
+}
+func (m *StreamRaftMessageResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *StreamRaftMessageResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_StreamRaftMessageResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StreamRaftMessageResponse proto.InternalMessageInfo
 
 type ResolveAddressRequest struct {
 	// raft_id is the ID to resolve to an address.
 	RaftID uint64 `protobuf:"varint,1,opt,name=raft_id,json=raftId,proto3" json:"raft_id,omitempty"`
 }
 
-func (m *ResolveAddressRequest) Reset()                    { *m = ResolveAddressRequest{} }
-func (*ResolveAddressRequest) ProtoMessage()               {}
-func (*ResolveAddressRequest) Descriptor() ([]byte, []int) { return fileDescriptorRaft, []int{9} }
+func (m *ResolveAddressRequest) Reset()      { *m = ResolveAddressRequest{} }
+func (*ResolveAddressRequest) ProtoMessage() {}
+func (*ResolveAddressRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d2c32e1e3c930c15, []int{9}
+}
+func (m *ResolveAddressRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ResolveAddressRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ResolveAddressRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ResolveAddressRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResolveAddressRequest.Merge(m, src)
+}
+func (m *ResolveAddressRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *ResolveAddressRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ResolveAddressRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ResolveAddressRequest proto.InternalMessageInfo
 
 type ResolveAddressResponse struct {
 	// Addr specifies the address of the member
 	Addr string `protobuf:"bytes,1,opt,name=addr,proto3" json:"addr,omitempty"`
 }
 
-func (m *ResolveAddressResponse) Reset()                    { *m = ResolveAddressResponse{} }
-func (*ResolveAddressResponse) ProtoMessage()               {}
-func (*ResolveAddressResponse) Descriptor() ([]byte, []int) { return fileDescriptorRaft, []int{10} }
+func (m *ResolveAddressResponse) Reset()      { *m = ResolveAddressResponse{} }
+func (*ResolveAddressResponse) ProtoMessage() {}
+func (*ResolveAddressResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d2c32e1e3c930c15, []int{10}
+}
+func (m *ResolveAddressResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ResolveAddressResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ResolveAddressResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ResolveAddressResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResolveAddressResponse.Merge(m, src)
+}
+func (m *ResolveAddressResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *ResolveAddressResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ResolveAddressResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ResolveAddressResponse proto.InternalMessageInfo
 
 // Contains one of many protobuf encoded objects to replicate
 // over the raft backend with a request ID to track when the
 // action is effectively applied
 type InternalRaftRequest struct {
 	ID     uint64        `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Action []StoreAction `protobuf:"bytes,2,rep,name=action" json:"action"`
+	Action []StoreAction `protobuf:"bytes,2,rep,name=action,proto3" json:"action"`
 }
 
-func (m *InternalRaftRequest) Reset()                    { *m = InternalRaftRequest{} }
-func (*InternalRaftRequest) ProtoMessage()               {}
-func (*InternalRaftRequest) Descriptor() ([]byte, []int) { return fileDescriptorRaft, []int{11} }
+func (m *InternalRaftRequest) Reset()      { *m = InternalRaftRequest{} }
+func (*InternalRaftRequest) ProtoMessage() {}
+func (*InternalRaftRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d2c32e1e3c930c15, []int{11}
+}
+func (m *InternalRaftRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *InternalRaftRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_InternalRaftRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *InternalRaftRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InternalRaftRequest.Merge(m, src)
+}
+func (m *InternalRaftRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *InternalRaftRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_InternalRaftRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_InternalRaftRequest proto.InternalMessageInfo
 
 // StoreAction defines a target and operation to apply on the storage system.
 type StoreAction struct {
@@ -194,9 +534,37 @@ type StoreAction struct {
 	Target isStoreAction_Target `protobuf_oneof:"target"`
 }
 
-func (m *StoreAction) Reset()                    { *m = StoreAction{} }
-func (*StoreAction) ProtoMessage()               {}
-func (*StoreAction) Descriptor() ([]byte, []int) { return fileDescriptorRaft, []int{12} }
+func (m *StoreAction) Reset()      { *m = StoreAction{} }
+func (*StoreAction) ProtoMessage() {}
+func (*StoreAction) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d2c32e1e3c930c15, []int{12}
+}
+func (m *StoreAction) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *StoreAction) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_StoreAction.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *StoreAction) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StoreAction.Merge(m, src)
+}
+func (m *StoreAction) XXX_Size() int {
+	return m.Size()
+}
+func (m *StoreAction) XXX_DiscardUnknown() {
+	xxx_messageInfo_StoreAction.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StoreAction proto.InternalMessageInfo
 
 type isStoreAction_Target interface {
 	isStoreAction_Target()
@@ -205,31 +573,31 @@ type isStoreAction_Target interface {
 }
 
 type StoreAction_Node struct {
-	Node *Node `protobuf:"bytes,2,opt,name=node,oneof"`
+	Node *Node `protobuf:"bytes,2,opt,name=node,proto3,oneof"`
 }
 type StoreAction_Service struct {
-	Service *Service `protobuf:"bytes,3,opt,name=service,oneof"`
+	Service *Service `protobuf:"bytes,3,opt,name=service,proto3,oneof"`
 }
 type StoreAction_Task struct {
-	Task *Task `protobuf:"bytes,4,opt,name=task,oneof"`
+	Task *Task `protobuf:"bytes,4,opt,name=task,proto3,oneof"`
 }
 type StoreAction_Network struct {
-	Network *Network `protobuf:"bytes,5,opt,name=network,oneof"`
+	Network *Network `protobuf:"bytes,5,opt,name=network,proto3,oneof"`
 }
 type StoreAction_Cluster struct {
-	Cluster *Cluster `protobuf:"bytes,6,opt,name=cluster,oneof"`
+	Cluster *Cluster `protobuf:"bytes,6,opt,name=cluster,proto3,oneof"`
 }
 type StoreAction_Secret struct {
-	Secret *Secret `protobuf:"bytes,7,opt,name=secret,oneof"`
+	Secret *Secret `protobuf:"bytes,7,opt,name=secret,proto3,oneof"`
 }
 type StoreAction_Resource struct {
-	Resource *Resource `protobuf:"bytes,8,opt,name=resource,oneof"`
+	Resource *Resource `protobuf:"bytes,8,opt,name=resource,proto3,oneof"`
 }
 type StoreAction_Extension struct {
-	Extension *Extension `protobuf:"bytes,9,opt,name=extension,oneof"`
+	Extension *Extension `protobuf:"bytes,9,opt,name=extension,proto3,oneof"`
 }
 type StoreAction_Config struct {
-	Config *Config `protobuf:"bytes,10,opt,name=config,oneof"`
+	Config *Config `protobuf:"bytes,10,opt,name=config,proto3,oneof"`
 }
 
 func (*StoreAction_Node) isStoreAction_Target()      {}
@@ -469,47 +837,47 @@ func _StoreAction_OneofSizer(msg proto.Message) (n int) {
 	switch x := m.Target.(type) {
 	case *StoreAction_Node:
 		s := proto.Size(x.Node)
-		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *StoreAction_Service:
 		s := proto.Size(x.Service)
-		n += proto.SizeVarint(3<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *StoreAction_Task:
 		s := proto.Size(x.Task)
-		n += proto.SizeVarint(4<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *StoreAction_Network:
 		s := proto.Size(x.Network)
-		n += proto.SizeVarint(5<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *StoreAction_Cluster:
 		s := proto.Size(x.Cluster)
-		n += proto.SizeVarint(6<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *StoreAction_Secret:
 		s := proto.Size(x.Secret)
-		n += proto.SizeVarint(7<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *StoreAction_Resource:
 		s := proto.Size(x.Resource)
-		n += proto.SizeVarint(8<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *StoreAction_Extension:
 		s := proto.Size(x.Extension)
-		n += proto.SizeVarint(9<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *StoreAction_Config:
 		s := proto.Size(x.Config)
-		n += proto.SizeVarint(10<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case nil:
@@ -520,6 +888,7 @@ func _StoreAction_OneofSizer(msg proto.Message) (n int) {
 }
 
 func init() {
+	proto.RegisterEnum("docker.swarmkit.v1.StoreActionKind", StoreActionKind_name, StoreActionKind_value)
 	proto.RegisterType((*RaftMember)(nil), "docker.swarmkit.v1.RaftMember")
 	proto.RegisterType((*JoinRequest)(nil), "docker.swarmkit.v1.JoinRequest")
 	proto.RegisterType((*JoinResponse)(nil), "docker.swarmkit.v1.JoinResponse")
@@ -533,7 +902,79 @@ func init() {
 	proto.RegisterType((*ResolveAddressResponse)(nil), "docker.swarmkit.v1.ResolveAddressResponse")
 	proto.RegisterType((*InternalRaftRequest)(nil), "docker.swarmkit.v1.InternalRaftRequest")
 	proto.RegisterType((*StoreAction)(nil), "docker.swarmkit.v1.StoreAction")
-	proto.RegisterEnum("docker.swarmkit.v1.StoreActionKind", StoreActionKind_name, StoreActionKind_value)
+}
+
+func init() {
+	proto.RegisterFile("github.com/docker/swarmkit/api/raft.proto", fileDescriptor_d2c32e1e3c930c15)
+}
+
+var fileDescriptor_d2c32e1e3c930c15 = []byte{
+	// 1028 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x96, 0x41, 0x73, 0xdb, 0x44,
+	0x14, 0xc7, 0x25, 0x5b, 0x75, 0x9a, 0x97, 0x36, 0x09, 0x5b, 0x12, 0x14, 0xb5, 0x28, 0xae, 0xda,
+	0x19, 0x9c, 0x90, 0xc8, 0x83, 0x61, 0xa6, 0x4c, 0xa1, 0x87, 0x38, 0xf1, 0x4c, 0x4c, 0x5a, 0xa7,
+	0xa3, 0x24, 0xd0, 0x5b, 0x90, 0xa5, 0x8d, 0x2b, 0x1c, 0x6b, 0xcd, 0xee, 0x3a, 0x81, 0x0b, 0xd3,
+	0x23, 0xe4, 0xc4, 0x0d, 0x86, 0x99, 0x0e, 0x07, 0x38, 0xf7, 0x03, 0xf0, 0x01, 0x98, 0x0c, 0xa7,
+	0xde, 0xe8, 0x29, 0x43, 0x9d, 0x3b, 0x7c, 0x05, 0x66, 0x57, 0x52, 0x12, 0x6c, 0xd9, 0xf1, 0x81,
+	0x4b, 0xb2, 0xa3, 0xfd, 0xfd, 0xdf, 0xff, 0xed, 0xee, 0xdb, 0xb7, 0x86, 0x85, 0x46, 0xc0, 0x9f,
+	0x76, 0xea, 0xb6, 0x47, 0x5a, 0x45, 0x9f, 0x78, 0x4d, 0x4c, 0x8b, 0xec, 0xd0, 0xa5, 0xad, 0x66,
+	0xc0, 0x8b, 0x6e, 0x3b, 0x28, 0x52, 0x77, 0x8f, 0xdb, 0x6d, 0x4a, 0x38, 0x41, 0x28, 0x9a, 0xb7,
+	0x93, 0x79, 0xfb, 0xe0, 0x3d, 0x63, 0xe9, 0x12, 0x39, 0xa9, 0x7f, 0x81, 0x3d, 0xce, 0xa2, 0x08,
+	0xc6, 0xe2, 0x25, 0x34, 0xff, 0xba, 0x8d, 0x13, 0x76, 0xf9, 0x02, 0xeb, 0x11, 0x8a, 0x09, 0x2b,
+	0x62, 0xee, 0xf9, 0x32, 0x21, 0xf9, 0xa7, 0x5d, 0xbf, 0x90, 0x9c, 0xf1, 0x66, 0x83, 0x34, 0x88,
+	0x1c, 0x16, 0xc5, 0x28, 0xfe, 0x7a, 0x6f, 0x88, 0xa1, 0x24, 0xea, 0x9d, 0xbd, 0x62, 0x7b, 0xbf,
+	0xd3, 0x08, 0xc2, 0xf8, 0x5f, 0x24, 0xb4, 0x5e, 0xa8, 0x00, 0x8e, 0xbb, 0xc7, 0x1f, 0xe1, 0x56,
+	0x1d, 0x53, 0x74, 0x07, 0xc6, 0x84, 0xd7, 0x6e, 0xe0, 0xeb, 0x6a, 0x5e, 0x2d, 0x68, 0x65, 0xe8,
+	0x9e, 0xcc, 0xe7, 0x04, 0x50, 0x5d, 0x73, 0x72, 0x62, 0xaa, 0xea, 0x0b, 0x28, 0x24, 0x3e, 0x16,
+	0x50, 0x26, 0xaf, 0x16, 0xc6, 0x23, 0xa8, 0x46, 0x7c, 0x2c, 0x20, 0x31, 0x55, 0xf5, 0x11, 0x02,
+	0xcd, 0xf5, 0x7d, 0xaa, 0x67, 0x05, 0xe1, 0xc8, 0x31, 0x2a, 0x43, 0x8e, 0x71, 0x97, 0x77, 0x98,
+	0xae, 0xe5, 0xd5, 0xc2, 0x44, 0xe9, 0xae, 0xdd, 0xbf, 0xd3, 0xf6, 0x79, 0x36, 0x5b, 0x92, 0x2d,
+	0x6b, 0xc7, 0x27, 0xf3, 0x8a, 0x13, 0x2b, 0xad, 0xdb, 0x30, 0xf1, 0x09, 0x09, 0x42, 0x07, 0x7f,
+	0xd9, 0xc1, 0x8c, 0x9f, 0xd9, 0xa8, 0xe7, 0x36, 0xd6, 0x4f, 0x2a, 0x5c, 0x8b, 0x18, 0xd6, 0x26,
+	0x21, 0xc3, 0xa3, 0xad, 0xea, 0x43, 0x18, 0x6b, 0x49, 0x5b, 0xa6, 0x67, 0xf2, 0xd9, 0xc2, 0x44,
+	0xc9, 0x1c, 0x9e, 0x9d, 0x93, 0xe0, 0xe8, 0x5d, 0x98, 0xa2, 0xb8, 0x45, 0x0e, 0xb0, 0xbf, 0x9b,
+	0x44, 0xc8, 0xe6, 0xb3, 0x05, 0xad, 0x9c, 0x99, 0x56, 0x9c, 0xc9, 0x78, 0x2a, 0x12, 0x31, 0xab,
+	0x0c, 0xd7, 0x1e, 0x62, 0xf7, 0x00, 0x27, 0x0b, 0x28, 0x81, 0x26, 0x76, 0x4c, 0x26, 0x76, 0xb9,
+	0xa7, 0x64, 0xad, 0x29, 0xb8, 0x1e, 0xc7, 0x88, 0x16, 0x68, 0x3d, 0x84, 0xb9, 0xc7, 0x94, 0x78,
+	0x98, 0xb1, 0x88, 0x65, 0xcc, 0x6d, 0x9c, 0x39, 0x2c, 0x88, 0x85, 0xc9, 0x2f, 0xb1, 0xc9, 0x94,
+	0x1d, 0x95, 0x95, 0x9d, 0x80, 0xc9, 0xfc, 0x7d, 0xed, 0xd9, 0x0f, 0x96, 0x62, 0xdd, 0x02, 0x23,
+	0x2d, 0x5a, 0xec, 0xb5, 0x01, 0xfa, 0x16, 0xa7, 0xd8, 0x6d, 0xfd, 0x1f, 0x56, 0x37, 0x61, 0x2e,
+	0x25, 0x58, 0xec, 0xf4, 0x31, 0xcc, 0x38, 0x98, 0x91, 0xfd, 0x03, 0xbc, 0xe2, 0xfb, 0x54, 0xa4,
+	0x13, 0xdb, 0x8c, 0x72, 0x9e, 0xd6, 0x12, 0xcc, 0xf6, 0xaa, 0xe3, 0x72, 0x48, 0xab, 0x99, 0x7d,
+	0xb8, 0x51, 0x0d, 0x39, 0xa6, 0xa1, 0xbb, 0x2f, 0xe2, 0x24, 0x4e, 0xb3, 0x90, 0x39, 0x33, 0xc9,
+	0x75, 0x4f, 0xe6, 0x33, 0xd5, 0x35, 0x27, 0x13, 0xf8, 0xe8, 0x01, 0xe4, 0x5c, 0x8f, 0x07, 0x24,
+	0x8c, 0x6b, 0x65, 0x3e, 0xed, 0xdc, 0xb6, 0x38, 0xa1, 0x78, 0x45, 0x62, 0x49, 0x11, 0x47, 0x22,
+	0xeb, 0x77, 0x0d, 0x26, 0x2e, 0xcc, 0xa2, 0x8f, 0xce, 0xc2, 0x09, 0xab, 0xc9, 0xd2, 0x9d, 0x4b,
+	0xc2, 0x6d, 0x04, 0xa1, 0x9f, 0x04, 0x43, 0x76, 0x5c, 0x41, 0x19, 0xb9, 0xe3, 0x7a, 0x9a, 0x54,
+	0xdc, 0xcd, 0x75, 0x25, 0xaa, 0x1e, 0x74, 0x0f, 0xc6, 0x18, 0xa6, 0x07, 0x81, 0x87, 0xe5, 0xe5,
+	0x9c, 0x28, 0xdd, 0x4c, 0x75, 0x8b, 0x90, 0x75, 0xc5, 0x49, 0x68, 0x61, 0xc4, 0x5d, 0xd6, 0x8c,
+	0x2f, 0x6f, 0xaa, 0xd1, 0xb6, 0xcb, 0x9a, 0xc2, 0x48, 0x70, 0xc2, 0x28, 0xc4, 0xfc, 0x90, 0xd0,
+	0xa6, 0x7e, 0x65, 0xb0, 0x51, 0x2d, 0x42, 0x84, 0x51, 0x4c, 0x0b, 0xa1, 0xb7, 0xdf, 0x61, 0x1c,
+	0x53, 0x3d, 0x37, 0x58, 0xb8, 0x1a, 0x21, 0x42, 0x18, 0xd3, 0xe8, 0x03, 0xc8, 0x31, 0xec, 0x51,
+	0xcc, 0xf5, 0x31, 0xa9, 0x33, 0xd2, 0x57, 0x26, 0x88, 0x75, 0xd1, 0x52, 0xe4, 0x08, 0xdd, 0x87,
+	0xab, 0x14, 0x33, 0xd2, 0xa1, 0x1e, 0xd6, 0xaf, 0x4a, 0xdd, 0xad, 0xd4, 0x6b, 0x18, 0x33, 0xeb,
+	0x8a, 0x73, 0xc6, 0xa3, 0x07, 0x30, 0x8e, 0xbf, 0xe2, 0x38, 0x64, 0xe2, 0xf0, 0xc6, 0xa5, 0xf8,
+	0xed, 0x34, 0x71, 0x25, 0x81, 0xd6, 0x15, 0xe7, 0x5c, 0x21, 0x12, 0xf6, 0x48, 0xb8, 0x17, 0x34,
+	0x74, 0x18, 0x9c, 0xf0, 0xaa, 0x24, 0x44, 0xc2, 0x11, 0x5b, 0xbe, 0x0a, 0x39, 0xee, 0xd2, 0x06,
+	0xe6, 0x8b, 0xff, 0xa8, 0x30, 0xd5, 0x53, 0x17, 0xe8, 0x1d, 0x18, 0xdb, 0xa9, 0x6d, 0xd4, 0x36,
+	0x3f, 0xab, 0x4d, 0x2b, 0x86, 0x71, 0xf4, 0x3c, 0x3f, 0xdb, 0x43, 0xec, 0x84, 0xcd, 0x90, 0x1c,
+	0x86, 0xa8, 0x04, 0x37, 0xb6, 0xb6, 0x37, 0x9d, 0xca, 0xee, 0xca, 0xea, 0x76, 0x75, 0xb3, 0xb6,
+	0xbb, 0xea, 0x54, 0x56, 0xb6, 0x2b, 0xd3, 0xaa, 0x31, 0x77, 0xf4, 0x3c, 0x3f, 0xd3, 0x23, 0x5a,
+	0xa5, 0xd8, 0xe5, 0xb8, 0x4f, 0xb3, 0xf3, 0x78, 0x4d, 0x68, 0x32, 0xa9, 0x9a, 0x9d, 0xb6, 0x9f,
+	0xa6, 0x71, 0x2a, 0x8f, 0x36, 0x3f, 0xad, 0x4c, 0x67, 0x53, 0x35, 0x8e, 0x6c, 0x97, 0xc6, 0x5b,
+	0xdf, 0xfe, 0x62, 0x2a, 0xbf, 0xfd, 0x6a, 0xf6, 0xae, 0xae, 0xf4, 0x73, 0x16, 0x34, 0x71, 0x43,
+	0xd1, 0x91, 0x0a, 0xa8, 0xbf, 0x4d, 0xa1, 0xe5, 0xb4, 0x1d, 0x1c, 0xd8, 0x1c, 0x0d, 0x7b, 0x54,
+	0x3c, 0xee, 0x49, 0x33, 0x7f, 0xbc, 0xf8, 0xfb, 0xc7, 0xcc, 0x14, 0x5c, 0x97, 0xfc, 0x72, 0xcb,
+	0x0d, 0xdd, 0x06, 0xa6, 0xe8, 0x3b, 0x15, 0xde, 0xe8, 0x6b, 0x64, 0x68, 0x29, 0xfd, 0x1a, 0xa7,
+	0x37, 0x4f, 0x63, 0x79, 0x44, 0x7a, 0x68, 0x26, 0x05, 0x15, 0x7d, 0x03, 0x93, 0xff, 0x6d, 0x7c,
+	0x68, 0x61, 0x50, 0x39, 0xf7, 0xb5, 0x56, 0x63, 0x71, 0x14, 0x74, 0x68, 0x06, 0xa5, 0x3f, 0x55,
+	0x98, 0x3c, 0x7f, 0xb2, 0xd8, 0xd3, 0xa0, 0x8d, 0x3e, 0x07, 0x4d, 0x3c, 0xc8, 0x28, 0xb5, 0x4d,
+	0x5e, 0x78, 0xce, 0x8d, 0xfc, 0x60, 0x60, 0xf8, 0x01, 0x78, 0x70, 0x45, 0x3e, 0x89, 0x28, 0x35,
+	0xc2, 0xc5, 0x17, 0xd7, 0xb8, 0x3d, 0x84, 0x18, 0x6a, 0x52, 0xbe, 0x7b, 0xfc, 0xda, 0x54, 0x5e,
+	0xbd, 0x36, 0x95, 0x67, 0x5d, 0x53, 0x3d, 0xee, 0x9a, 0xea, 0xcb, 0xae, 0xa9, 0xfe, 0xd5, 0x35,
+	0xd5, 0xef, 0x4f, 0x4d, 0xe5, 0xe5, 0xa9, 0xa9, 0xbc, 0x3a, 0x35, 0x95, 0x27, 0xd9, 0x27, 0x5a,
+	0x3d, 0x27, 0x7f, 0x5d, 0xbd, 0xff, 0x6f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xc9, 0x42, 0x09, 0xd0,
+	0x76, 0x0a, 0x00, 0x00,
 }
 
 type authenticatedWrapperRaftServer struct {
@@ -613,7 +1054,7 @@ func (m *RaftMember) CopyFrom(src interface{}) {
 
 	o := src.(*RaftMember)
 	*m = *o
-	deepcopy.Copy(&m.Status, &o.Status)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Status, &o.Status)
 }
 
 func (m *JoinRequest) Copy() *JoinRequest {
@@ -648,7 +1089,7 @@ func (m *JoinResponse) CopyFrom(src interface{}) {
 		m.Members = make([]*RaftMember, len(o.Members))
 		for i := range m.Members {
 			m.Members[i] = &RaftMember{}
-			deepcopy.Copy(m.Members[i], o.Members[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Members[i], o.Members[i])
 		}
 	}
 
@@ -674,7 +1115,7 @@ func (m *LeaveRequest) CopyFrom(src interface{}) {
 	*m = *o
 	if o.Node != nil {
 		m.Node = &RaftMember{}
-		deepcopy.Copy(m.Node, o.Node)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Node, o.Node)
 	}
 }
 
@@ -754,7 +1195,7 @@ func (m *InternalRaftRequest) CopyFrom(src interface{}) {
 	if o.Action != nil {
 		m.Action = make([]StoreAction, len(o.Action))
 		for i := range m.Action {
-			deepcopy.Copy(&m.Action[i], &o.Action[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(&m.Action[i], &o.Action[i])
 		}
 	}
 
@@ -779,55 +1220,55 @@ func (m *StoreAction) CopyFrom(src interface{}) {
 			v := StoreAction_Node{
 				Node: &Node{},
 			}
-			deepcopy.Copy(v.Node, o.GetNode())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Node, o.GetNode())
 			m.Target = &v
 		case *StoreAction_Service:
 			v := StoreAction_Service{
 				Service: &Service{},
 			}
-			deepcopy.Copy(v.Service, o.GetService())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Service, o.GetService())
 			m.Target = &v
 		case *StoreAction_Task:
 			v := StoreAction_Task{
 				Task: &Task{},
 			}
-			deepcopy.Copy(v.Task, o.GetTask())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Task, o.GetTask())
 			m.Target = &v
 		case *StoreAction_Network:
 			v := StoreAction_Network{
 				Network: &Network{},
 			}
-			deepcopy.Copy(v.Network, o.GetNetwork())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Network, o.GetNetwork())
 			m.Target = &v
 		case *StoreAction_Cluster:
 			v := StoreAction_Cluster{
 				Cluster: &Cluster{},
 			}
-			deepcopy.Copy(v.Cluster, o.GetCluster())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Cluster, o.GetCluster())
 			m.Target = &v
 		case *StoreAction_Secret:
 			v := StoreAction_Secret{
 				Secret: &Secret{},
 			}
-			deepcopy.Copy(v.Secret, o.GetSecret())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Secret, o.GetSecret())
 			m.Target = &v
 		case *StoreAction_Resource:
 			v := StoreAction_Resource{
 				Resource: &Resource{},
 			}
-			deepcopy.Copy(v.Resource, o.GetResource())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Resource, o.GetResource())
 			m.Target = &v
 		case *StoreAction_Extension:
 			v := StoreAction_Extension{
 				Extension: &Extension{},
 			}
-			deepcopy.Copy(v.Extension, o.GetExtension())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Extension, o.GetExtension())
 			m.Target = &v
 		case *StoreAction_Config:
 			v := StoreAction_Config{
 				Config: &Config{},
 			}
-			deepcopy.Copy(v.Config, o.GetConfig())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Config, o.GetConfig())
 			m.Target = &v
 		}
 	}
@@ -842,8 +1283,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for Raft service
-
+// RaftClient is the client API for Raft service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type RaftClient interface {
 	// ProcessRaftMessage sends a raft message to be processed on a raft member, it is
 	// called from the RaftMember willing to send a message to its destination ('To' field)
@@ -868,7 +1310,7 @@ func NewRaftClient(cc *grpc.ClientConn) RaftClient {
 
 func (c *raftClient) ProcessRaftMessage(ctx context.Context, in *ProcessRaftMessageRequest, opts ...grpc.CallOption) (*ProcessRaftMessageResponse, error) {
 	out := new(ProcessRaftMessageResponse)
-	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.Raft/ProcessRaftMessage", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/docker.swarmkit.v1.Raft/ProcessRaftMessage", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -876,7 +1318,7 @@ func (c *raftClient) ProcessRaftMessage(ctx context.Context, in *ProcessRaftMess
 }
 
 func (c *raftClient) StreamRaftMessage(ctx context.Context, opts ...grpc.CallOption) (Raft_StreamRaftMessageClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_Raft_serviceDesc.Streams[0], c.cc, "/docker.swarmkit.v1.Raft/StreamRaftMessage", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Raft_serviceDesc.Streams[0], "/docker.swarmkit.v1.Raft/StreamRaftMessage", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -911,15 +1353,14 @@ func (x *raftStreamRaftMessageClient) CloseAndRecv() (*StreamRaftMessageResponse
 
 func (c *raftClient) ResolveAddress(ctx context.Context, in *ResolveAddressRequest, opts ...grpc.CallOption) (*ResolveAddressResponse, error) {
 	out := new(ResolveAddressResponse)
-	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.Raft/ResolveAddress", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/docker.swarmkit.v1.Raft/ResolveAddress", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for Raft service
-
+// RaftServer is the server API for Raft service.
 type RaftServer interface {
 	// ProcessRaftMessage sends a raft message to be processed on a raft member, it is
 	// called from the RaftMember willing to send a message to its destination ('To' field)
@@ -1023,8 +1464,9 @@ var _Raft_serviceDesc = grpc.ServiceDesc{
 	Metadata: "github.com/docker/swarmkit/api/raft.proto",
 }
 
-// Client API for RaftMembership service
-
+// RaftMembershipClient is the client API for RaftMembership service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type RaftMembershipClient interface {
 	// Join adds a RaftMember to the raft cluster.
 	Join(ctx context.Context, in *JoinRequest, opts ...grpc.CallOption) (*JoinResponse, error)
@@ -1042,7 +1484,7 @@ func NewRaftMembershipClient(cc *grpc.ClientConn) RaftMembershipClient {
 
 func (c *raftMembershipClient) Join(ctx context.Context, in *JoinRequest, opts ...grpc.CallOption) (*JoinResponse, error) {
 	out := new(JoinResponse)
-	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.RaftMembership/Join", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/docker.swarmkit.v1.RaftMembership/Join", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1051,15 +1493,14 @@ func (c *raftMembershipClient) Join(ctx context.Context, in *JoinRequest, opts .
 
 func (c *raftMembershipClient) Leave(ctx context.Context, in *LeaveRequest, opts ...grpc.CallOption) (*LeaveResponse, error) {
 	out := new(LeaveResponse)
-	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.RaftMembership/Leave", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/docker.swarmkit.v1.RaftMembership/Leave", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for RaftMembership service
-
+// RaftMembershipServer is the server API for RaftMembership service.
 type RaftMembershipServer interface {
 	// Join adds a RaftMember to the raft cluster.
 	Join(context.Context, *JoinRequest) (*JoinResponse, error)
@@ -1961,6 +2402,9 @@ func (p *raftProxyRaftMembershipServer) Leave(ctx context.Context, r *LeaveReque
 }
 
 func (m *RaftMember) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.RaftID != 0 {
@@ -1980,6 +2424,9 @@ func (m *RaftMember) Size() (n int) {
 }
 
 func (m *JoinRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.Addr)
@@ -1990,6 +2437,9 @@ func (m *JoinRequest) Size() (n int) {
 }
 
 func (m *JoinResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.RaftID != 0 {
@@ -2010,6 +2460,9 @@ func (m *JoinResponse) Size() (n int) {
 }
 
 func (m *LeaveRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Node != nil {
@@ -2020,12 +2473,18 @@ func (m *LeaveRequest) Size() (n int) {
 }
 
 func (m *LeaveResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	return n
 }
 
 func (m *ProcessRaftMessageRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Message != nil {
@@ -2036,12 +2495,18 @@ func (m *ProcessRaftMessageRequest) Size() (n int) {
 }
 
 func (m *ProcessRaftMessageResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	return n
 }
 
 func (m *StreamRaftMessageRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Message != nil {
@@ -2052,12 +2517,18 @@ func (m *StreamRaftMessageRequest) Size() (n int) {
 }
 
 func (m *StreamRaftMessageResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	return n
 }
 
 func (m *ResolveAddressRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.RaftID != 0 {
@@ -2067,6 +2538,9 @@ func (m *ResolveAddressRequest) Size() (n int) {
 }
 
 func (m *ResolveAddressResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.Addr)
@@ -2077,6 +2551,9 @@ func (m *ResolveAddressResponse) Size() (n int) {
 }
 
 func (m *InternalRaftRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.ID != 0 {
@@ -2092,6 +2569,9 @@ func (m *InternalRaftRequest) Size() (n int) {
 }
 
 func (m *StoreAction) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Action != 0 {
@@ -2104,6 +2584,9 @@ func (m *StoreAction) Size() (n int) {
 }
 
 func (m *StoreAction_Node) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Node != nil {
@@ -2113,6 +2596,9 @@ func (m *StoreAction_Node) Size() (n int) {
 	return n
 }
 func (m *StoreAction_Service) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Service != nil {
@@ -2122,6 +2608,9 @@ func (m *StoreAction_Service) Size() (n int) {
 	return n
 }
 func (m *StoreAction_Task) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Task != nil {
@@ -2131,6 +2620,9 @@ func (m *StoreAction_Task) Size() (n int) {
 	return n
 }
 func (m *StoreAction_Network) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Network != nil {
@@ -2140,6 +2632,9 @@ func (m *StoreAction_Network) Size() (n int) {
 	return n
 }
 func (m *StoreAction_Cluster) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Cluster != nil {
@@ -2149,6 +2644,9 @@ func (m *StoreAction_Cluster) Size() (n int) {
 	return n
 }
 func (m *StoreAction_Secret) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Secret != nil {
@@ -2158,6 +2656,9 @@ func (m *StoreAction_Secret) Size() (n int) {
 	return n
 }
 func (m *StoreAction_Resource) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Resource != nil {
@@ -2167,6 +2668,9 @@ func (m *StoreAction_Resource) Size() (n int) {
 	return n
 }
 func (m *StoreAction_Extension) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Extension != nil {
@@ -2176,6 +2680,9 @@ func (m *StoreAction_Extension) Size() (n int) {
 	return n
 }
 func (m *StoreAction_Config) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Config != nil {
@@ -2445,7 +2952,7 @@ func (m *RaftMember) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2473,7 +2980,7 @@ func (m *RaftMember) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.RaftID |= (uint64(b) & 0x7F) << shift
+				m.RaftID |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2492,7 +2999,7 @@ func (m *RaftMember) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2502,6 +3009,9 @@ func (m *RaftMember) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2521,7 +3031,7 @@ func (m *RaftMember) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2531,6 +3041,9 @@ func (m *RaftMember) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2550,7 +3063,7 @@ func (m *RaftMember) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2559,6 +3072,9 @@ func (m *RaftMember) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2573,6 +3089,9 @@ func (m *RaftMember) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthRaft
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -2602,7 +3121,7 @@ func (m *JoinRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2630,7 +3149,7 @@ func (m *JoinRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2640,6 +3159,9 @@ func (m *JoinRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2652,6 +3174,9 @@ func (m *JoinRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthRaft
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -2681,7 +3206,7 @@ func (m *JoinResponse) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2709,7 +3234,7 @@ func (m *JoinResponse) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.RaftID |= (uint64(b) & 0x7F) << shift
+				m.RaftID |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2728,7 +3253,7 @@ func (m *JoinResponse) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2737,6 +3262,9 @@ func (m *JoinResponse) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2757,7 +3285,7 @@ func (m *JoinResponse) Unmarshal(dAtA []byte) error {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					v |= (uint64(b) & 0x7F) << shift
+					v |= uint64(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
@@ -2774,7 +3302,7 @@ func (m *JoinResponse) Unmarshal(dAtA []byte) error {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					packedLen |= (int(b) & 0x7F) << shift
+					packedLen |= int(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
@@ -2783,8 +3311,22 @@ func (m *JoinResponse) Unmarshal(dAtA []byte) error {
 					return ErrInvalidLengthRaft
 				}
 				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return ErrInvalidLengthRaft
+				}
 				if postIndex > l {
 					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				var count int
+				for _, integer := range dAtA[iNdEx:postIndex] {
+					if integer < 128 {
+						count++
+					}
+				}
+				elementCount = count
+				if elementCount != 0 && len(m.RemovedMembers) == 0 {
+					m.RemovedMembers = make([]uint64, 0, elementCount)
 				}
 				for iNdEx < postIndex {
 					var v uint64
@@ -2797,7 +3339,7 @@ func (m *JoinResponse) Unmarshal(dAtA []byte) error {
 						}
 						b := dAtA[iNdEx]
 						iNdEx++
-						v |= (uint64(b) & 0x7F) << shift
+						v |= uint64(b&0x7F) << shift
 						if b < 0x80 {
 							break
 						}
@@ -2814,6 +3356,9 @@ func (m *JoinResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthRaft
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -2843,7 +3388,7 @@ func (m *LeaveRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2871,7 +3416,7 @@ func (m *LeaveRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2880,6 +3425,9 @@ func (m *LeaveRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2897,6 +3445,9 @@ func (m *LeaveRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthRaft
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -2926,7 +3477,7 @@ func (m *LeaveResponse) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2947,6 +3498,9 @@ func (m *LeaveResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthRaft
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -2976,7 +3530,7 @@ func (m *ProcessRaftMessageRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3004,7 +3558,7 @@ func (m *ProcessRaftMessageRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3013,6 +3567,9 @@ func (m *ProcessRaftMessageRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3030,6 +3587,9 @@ func (m *ProcessRaftMessageRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthRaft
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3059,7 +3619,7 @@ func (m *ProcessRaftMessageResponse) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3080,6 +3640,9 @@ func (m *ProcessRaftMessageResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthRaft
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3109,7 +3672,7 @@ func (m *StreamRaftMessageRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3137,7 +3700,7 @@ func (m *StreamRaftMessageRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3146,6 +3709,9 @@ func (m *StreamRaftMessageRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3163,6 +3729,9 @@ func (m *StreamRaftMessageRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthRaft
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3192,7 +3761,7 @@ func (m *StreamRaftMessageResponse) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3213,6 +3782,9 @@ func (m *StreamRaftMessageResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthRaft
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3242,7 +3814,7 @@ func (m *ResolveAddressRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3270,7 +3842,7 @@ func (m *ResolveAddressRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.RaftID |= (uint64(b) & 0x7F) << shift
+				m.RaftID |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3282,6 +3854,9 @@ func (m *ResolveAddressRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthRaft
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3311,7 +3886,7 @@ func (m *ResolveAddressResponse) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3339,7 +3914,7 @@ func (m *ResolveAddressResponse) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3349,6 +3924,9 @@ func (m *ResolveAddressResponse) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3361,6 +3939,9 @@ func (m *ResolveAddressResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthRaft
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3390,7 +3971,7 @@ func (m *InternalRaftRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3418,7 +3999,7 @@ func (m *InternalRaftRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.ID |= (uint64(b) & 0x7F) << shift
+				m.ID |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3437,7 +4018,7 @@ func (m *InternalRaftRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3446,6 +4027,9 @@ func (m *InternalRaftRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3461,6 +4045,9 @@ func (m *InternalRaftRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthRaft
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3490,7 +4077,7 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3518,7 +4105,7 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Action |= (StoreActionKind(b) & 0x7F) << shift
+				m.Action |= StoreActionKind(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3537,7 +4124,7 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3546,6 +4133,9 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3569,7 +4159,7 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3578,6 +4168,9 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3601,7 +4194,7 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3610,6 +4203,9 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3633,7 +4229,7 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3642,6 +4238,9 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3665,7 +4264,7 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3674,6 +4273,9 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3697,7 +4299,7 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3706,6 +4308,9 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3729,7 +4334,7 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3738,6 +4343,9 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3761,7 +4369,7 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3770,6 +4378,9 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3793,7 +4404,7 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3802,6 +4413,9 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthRaft
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3818,6 +4432,9 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthRaft
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3886,8 +4503,11 @@ func skipRaft(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			iNdEx += length
 			if length < 0 {
+				return 0, ErrInvalidLengthRaft
+			}
+			iNdEx += length
+			if iNdEx < 0 {
 				return 0, ErrInvalidLengthRaft
 			}
 			return iNdEx, nil
@@ -3918,6 +4538,9 @@ func skipRaft(dAtA []byte) (n int, err error) {
 					return 0, err
 				}
 				iNdEx = start + next
+				if iNdEx < 0 {
+					return 0, ErrInvalidLengthRaft
+				}
 			}
 			return iNdEx, nil
 		case 4:
@@ -3936,73 +4559,3 @@ var (
 	ErrInvalidLengthRaft = fmt.Errorf("proto: negative length found during unmarshaling")
 	ErrIntOverflowRaft   = fmt.Errorf("proto: integer overflow")
 )
-
-func init() { proto.RegisterFile("github.com/docker/swarmkit/api/raft.proto", fileDescriptorRaft) }
-
-var fileDescriptorRaft = []byte{
-	// 1015 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x96, 0xc1, 0x6e, 0x1b, 0x45,
-	0x18, 0xc7, 0x77, 0xed, 0xad, 0xd3, 0x7c, 0x69, 0x93, 0x30, 0x25, 0x61, 0xb3, 0x2d, 0x8e, 0xbb,
-	0x45, 0xc2, 0x09, 0xc9, 0x5a, 0x18, 0xa4, 0xa2, 0x42, 0x0f, 0x71, 0x62, 0x29, 0x26, 0xad, 0x53,
-	0x6d, 0x12, 0xe8, 0x2d, 0xac, 0x77, 0x27, 0xee, 0x62, 0x7b, 0xc7, 0xcc, 0x8c, 0x1d, 0xb8, 0xa0,
-	0x1e, 0x21, 0x2f, 0x00, 0x42, 0xaa, 0x38, 0xc0, 0xb9, 0x0f, 0xc0, 0x03, 0xa0, 0x88, 0x13, 0x37,
-	0x38, 0x45, 0xd4, 0x0f, 0x00, 0xaf, 0x80, 0x66, 0x76, 0xd7, 0x31, 0xf6, 0xda, 0xf1, 0x81, 0x4b,
-	0x32, 0xda, 0xf9, 0xfd, 0xbf, 0xff, 0x37, 0x33, 0xdf, 0x7c, 0x63, 0x58, 0xab, 0xfb, 0xfc, 0x59,
-	0xa7, 0x66, 0xb9, 0xa4, 0x55, 0xf0, 0x88, 0xdb, 0xc0, 0xb4, 0xc0, 0x4e, 0x1d, 0xda, 0x6a, 0xf8,
-	0xbc, 0xe0, 0xb4, 0xfd, 0x02, 0x75, 0x4e, 0xb8, 0xd5, 0xa6, 0x84, 0x13, 0x84, 0xc2, 0x79, 0x2b,
-	0x9e, 0xb7, 0xba, 0xef, 0x1a, 0x1b, 0x57, 0xc8, 0x49, 0xed, 0x73, 0xec, 0x72, 0x16, 0x46, 0x30,
-	0xd6, 0xaf, 0xa0, 0xf9, 0x57, 0x6d, 0x1c, 0xb3, 0x9b, 0x03, 0xac, 0x4b, 0x28, 0x26, 0xac, 0x80,
-	0xb9, 0xeb, 0xc9, 0x84, 0xe4, 0x9f, 0x76, 0x6d, 0x20, 0x39, 0xe3, 0xf5, 0x3a, 0xa9, 0x13, 0x39,
-	0x2c, 0x88, 0x51, 0xf4, 0xf5, 0xfe, 0x04, 0x43, 0x49, 0xd4, 0x3a, 0x27, 0x85, 0x76, 0xb3, 0x53,
-	0xf7, 0x83, 0xe8, 0x5f, 0x28, 0x34, 0x5f, 0xaa, 0x00, 0xb6, 0x73, 0xc2, 0x1f, 0xe3, 0x56, 0x0d,
-	0x53, 0x74, 0x0f, 0x66, 0x84, 0xd7, 0xb1, 0xef, 0xe9, 0x6a, 0x4e, 0xcd, 0x6b, 0x25, 0xe8, 0x5d,
-	0xac, 0x66, 0x04, 0x50, 0xd9, 0xb1, 0x33, 0x62, 0xaa, 0xe2, 0x09, 0x28, 0x20, 0x1e, 0x16, 0x50,
-	0x2a, 0xa7, 0xe6, 0x67, 0x43, 0xa8, 0x4a, 0x3c, 0x2c, 0x20, 0x31, 0x55, 0xf1, 0x10, 0x02, 0xcd,
-	0xf1, 0x3c, 0xaa, 0xa7, 0x05, 0x61, 0xcb, 0x31, 0x2a, 0x41, 0x86, 0x71, 0x87, 0x77, 0x98, 0xae,
-	0xe5, 0xd4, 0xfc, 0x5c, 0xf1, 0x2d, 0x6b, 0x74, 0xa7, 0xad, 0xcb, 0x6c, 0x0e, 0x24, 0x5b, 0xd2,
-	0xce, 0x2f, 0x56, 0x15, 0x3b, 0x52, 0x9a, 0x77, 0x61, 0xee, 0x63, 0xe2, 0x07, 0x36, 0xfe, 0xa2,
-	0x83, 0x19, 0xef, 0xdb, 0xa8, 0x97, 0x36, 0xe6, 0x0f, 0x2a, 0xdc, 0x08, 0x19, 0xd6, 0x26, 0x01,
-	0xc3, 0xd3, 0xad, 0xea, 0x03, 0x98, 0x69, 0x49, 0x5b, 0xa6, 0xa7, 0x72, 0xe9, 0xfc, 0x5c, 0x31,
-	0x3b, 0x39, 0x3b, 0x3b, 0xc6, 0xd1, 0x3b, 0xb0, 0x40, 0x71, 0x8b, 0x74, 0xb1, 0x77, 0x1c, 0x47,
-	0x48, 0xe7, 0xd2, 0x79, 0xad, 0x94, 0x5a, 0x54, 0xec, 0xf9, 0x68, 0x2a, 0x14, 0x31, 0xb3, 0x04,
-	0x37, 0x1e, 0x61, 0xa7, 0x8b, 0xe3, 0x05, 0x14, 0x41, 0x13, 0x3b, 0x26, 0x13, 0xbb, 0xda, 0x53,
-	0xb2, 0xe6, 0x02, 0xdc, 0x8c, 0x62, 0x84, 0x0b, 0x34, 0x1f, 0xc1, 0xca, 0x13, 0x4a, 0x5c, 0xcc,
-	0x58, 0xc8, 0x32, 0xe6, 0xd4, 0xfb, 0x0e, 0x6b, 0x62, 0x61, 0xf2, 0x4b, 0x64, 0xb2, 0x60, 0x85,
-	0x65, 0x65, 0xc5, 0x60, 0x3c, 0xff, 0x40, 0x7b, 0xfe, 0x9d, 0xa9, 0x98, 0x77, 0xc0, 0x48, 0x8a,
-	0x16, 0x79, 0xed, 0x81, 0x7e, 0xc0, 0x29, 0x76, 0x5a, 0xff, 0x87, 0xd5, 0x6d, 0x58, 0x49, 0x08,
-	0x16, 0x39, 0x7d, 0x04, 0x4b, 0x36, 0x66, 0xa4, 0xd9, 0xc5, 0x5b, 0x9e, 0x47, 0x45, 0x3a, 0x91,
-	0xcd, 0x34, 0xe7, 0x69, 0x6e, 0xc0, 0xf2, 0xb0, 0x3a, 0x2a, 0x87, 0xa4, 0x9a, 0x69, 0xc2, 0xad,
-	0x4a, 0xc0, 0x31, 0x0d, 0x9c, 0xa6, 0x88, 0x13, 0x3b, 0x2d, 0x43, 0xaa, 0x6f, 0x92, 0xe9, 0x5d,
-	0xac, 0xa6, 0x2a, 0x3b, 0x76, 0xca, 0xf7, 0xd0, 0x43, 0xc8, 0x38, 0x2e, 0xf7, 0x49, 0x10, 0xd5,
-	0xca, 0x6a, 0xd2, 0xb9, 0x1d, 0x70, 0x42, 0xf1, 0x96, 0xc4, 0xe2, 0x22, 0x0e, 0x45, 0xe6, 0xaf,
-	0x1a, 0xcc, 0x0d, 0xcc, 0xa2, 0x0f, 0xfb, 0xe1, 0x84, 0xd5, 0x7c, 0xf1, 0xde, 0x15, 0xe1, 0xf6,
-	0xfc, 0xc0, 0x8b, 0x83, 0x21, 0x2b, 0xaa, 0xa0, 0x94, 0xdc, 0x71, 0x3d, 0x49, 0x2a, 0xee, 0xe6,
-	0xae, 0x12, 0x56, 0x0f, 0xba, 0x0f, 0x33, 0x0c, 0xd3, 0xae, 0xef, 0x62, 0x79, 0x39, 0xe7, 0x8a,
-	0xb7, 0x13, 0xdd, 0x42, 0x64, 0x57, 0xb1, 0x63, 0x5a, 0x18, 0x71, 0x87, 0x35, 0xa2, 0xcb, 0x9b,
-	0x68, 0x74, 0xe8, 0xb0, 0x86, 0x30, 0x12, 0x9c, 0x30, 0x0a, 0x30, 0x3f, 0x25, 0xb4, 0xa1, 0x5f,
-	0x1b, 0x6f, 0x54, 0x0d, 0x11, 0x61, 0x14, 0xd1, 0x42, 0xe8, 0x36, 0x3b, 0x8c, 0x63, 0xaa, 0x67,
-	0xc6, 0x0b, 0xb7, 0x43, 0x44, 0x08, 0x23, 0x1a, 0xbd, 0x0f, 0x19, 0x86, 0x5d, 0x8a, 0xb9, 0x3e,
-	0x23, 0x75, 0x46, 0xf2, 0xca, 0x04, 0xb1, 0x2b, 0x5a, 0x8a, 0x1c, 0xa1, 0x07, 0x70, 0x9d, 0x62,
-	0x46, 0x3a, 0xd4, 0xc5, 0xfa, 0x75, 0xa9, 0xbb, 0x93, 0x78, 0x0d, 0x23, 0x66, 0x57, 0xb1, 0xfb,
-	0x3c, 0x7a, 0x08, 0xb3, 0xf8, 0x4b, 0x8e, 0x03, 0x26, 0x0e, 0x6f, 0x56, 0x8a, 0xdf, 0x4c, 0x12,
-	0x97, 0x63, 0x68, 0x57, 0xb1, 0x2f, 0x15, 0x22, 0x61, 0x97, 0x04, 0x27, 0x7e, 0x5d, 0x87, 0xf1,
-	0x09, 0x6f, 0x4b, 0x42, 0x24, 0x1c, 0xb2, 0xa5, 0xeb, 0x90, 0xe1, 0x0e, 0xad, 0x63, 0xbe, 0xfe,
-	0x8f, 0x0a, 0x0b, 0x43, 0x75, 0x81, 0xde, 0x86, 0x99, 0xa3, 0xea, 0x5e, 0x75, 0xff, 0xd3, 0xea,
-	0xa2, 0x62, 0x18, 0x67, 0x2f, 0x72, 0xcb, 0x43, 0xc4, 0x51, 0xd0, 0x08, 0xc8, 0x69, 0x80, 0x8a,
-	0x70, 0xeb, 0xe0, 0x70, 0xdf, 0x2e, 0x1f, 0x6f, 0x6d, 0x1f, 0x56, 0xf6, 0xab, 0xc7, 0xdb, 0x76,
-	0x79, 0xeb, 0xb0, 0xbc, 0xa8, 0x1a, 0x2b, 0x67, 0x2f, 0x72, 0x4b, 0x43, 0xa2, 0x6d, 0x8a, 0x1d,
-	0x8e, 0x47, 0x34, 0x47, 0x4f, 0x76, 0x84, 0x26, 0x95, 0xa8, 0x39, 0x6a, 0x7b, 0x49, 0x1a, 0xbb,
-	0xfc, 0x78, 0xff, 0x93, 0xf2, 0x62, 0x3a, 0x51, 0x63, 0xcb, 0x76, 0x69, 0xbc, 0xf1, 0xcd, 0x4f,
-	0x59, 0xe5, 0x97, 0x9f, 0xb3, 0xc3, 0xab, 0x2b, 0xfe, 0x98, 0x06, 0x4d, 0xdc, 0x50, 0x74, 0xa6,
-	0x02, 0x1a, 0x6d, 0x53, 0x68, 0x33, 0x69, 0x07, 0xc7, 0x36, 0x47, 0xc3, 0x9a, 0x16, 0x8f, 0x7a,
-	0xd2, 0xd2, 0x6f, 0x2f, 0xff, 0xfe, 0x3e, 0xb5, 0x00, 0x37, 0x25, 0xbf, 0xd9, 0x72, 0x02, 0xa7,
-	0x8e, 0x29, 0xfa, 0x56, 0x85, 0xd7, 0x46, 0x1a, 0x19, 0xda, 0x48, 0xbe, 0xc6, 0xc9, 0xcd, 0xd3,
-	0xd8, 0x9c, 0x92, 0x9e, 0x98, 0x49, 0x5e, 0x45, 0x5f, 0xc3, 0xfc, 0x7f, 0x1b, 0x1f, 0x5a, 0x1b,
-	0x57, 0xce, 0x23, 0xad, 0xd5, 0x58, 0x9f, 0x06, 0x9d, 0x98, 0x41, 0xf1, 0x0f, 0x15, 0xe6, 0x2f,
-	0x9f, 0x2c, 0xf6, 0xcc, 0x6f, 0xa3, 0xcf, 0x40, 0x13, 0x0f, 0x32, 0x4a, 0x6c, 0x93, 0x03, 0xcf,
-	0xb9, 0x91, 0x1b, 0x0f, 0x4c, 0x3e, 0x00, 0x17, 0xae, 0xc9, 0x27, 0x11, 0x25, 0x46, 0x18, 0x7c,
-	0x71, 0x8d, 0xbb, 0x13, 0x88, 0x89, 0x26, 0x25, 0xfd, 0xfc, 0x55, 0x56, 0xf9, 0xf3, 0x55, 0x56,
-	0x79, 0xde, 0xcb, 0xaa, 0xe7, 0xbd, 0xac, 0xfa, 0x7b, 0x2f, 0xab, 0xfe, 0xd5, 0xcb, 0xaa, 0x4f,
-	0xd3, 0x4f, 0xb5, 0x5a, 0x46, 0xfe, 0xa2, 0x7a, 0xef, 0xdf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x3e,
-	0x7a, 0x8b, 0xe7, 0x6a, 0x0a, 0x00, 0x00,
-}
