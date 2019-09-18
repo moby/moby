@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/sirupsen/logrus"
 )
@@ -176,16 +175,12 @@ func NewTransport(tlsConfig *tls.Config) *http.Transport {
 
 	base := &http.Transport{
 		Proxy:               http.ProxyFromEnvironment,
-		Dial:                direct.Dial,
+		DialContext:         direct.DialContext,
 		TLSHandshakeTimeout: 10 * time.Second,
 		TLSClientConfig:     tlsConfig,
 		// TODO(dmcgowan): Call close idle connections when complete and use keep alive
 		DisableKeepAlives: true,
 	}
 
-	proxyDialer, err := sockets.DialerFromEnvironment(direct)
-	if err == nil {
-		base.Dial = proxyDialer.Dial
-	}
 	return base
 }
