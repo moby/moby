@@ -94,7 +94,7 @@ type Daemon struct {
 // New returns a Daemon instance to be used for testing.
 // This will create a directory such as d123456789 in the folder specified by $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
 // The daemon will not automatically start.
-func New(t testingT, ops ...func(*Daemon)) *Daemon {
+func New(t testingT, ops ...Option) *Daemon {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}
