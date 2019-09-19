@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/test/fakecontext"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"gotest.tools/assert"
@@ -612,6 +613,35 @@ func TestBuildPreserveOwnership(t *testing.T) {
 			assert.NilError(t, err)
 		})
 	}
+}
+
+func TestBuildPlatformInvalid(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "experimental in older versions")
+
+	ctx := context.Background()
+	defer setupTest(t)()
+
+	dockerfile := `FROM busybox
+`
+
+	buf := bytes.NewBuffer(nil)
+	w := tar.NewWriter(buf)
+	writeTarRecord(t, w, "Dockerfile", dockerfile)
+	err := w.Close()
+	assert.NilError(t, err)
+
+	apiclient := testEnv.APIClient()
+	_, err = apiclient.ImageBuild(ctx,
+		buf,
+		types.ImageBuildOptions{
+			Remove:      true,
+			ForceRemove: true,
+			Platform:    "foobar",
+		})
+
+	assert.Assert(t, err != nil)
+	assert.ErrorContains(t, err, "unknown operating system or architecture")
+	assert.Assert(t, errdefs.IsInvalidParameter(err))
 }
 
 func writeTarRecord(t *testing.T, w *tar.Writer, fn, contents string) {
