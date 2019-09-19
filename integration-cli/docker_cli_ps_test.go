@@ -15,6 +15,7 @@ import (
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/icmd"
+	"gotest.tools/skip"
 )
 
 func (s *DockerSuite) TestPsListContainersBase(c *testing.T) {
