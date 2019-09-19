@@ -6,7 +6,7 @@ SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # CI platforms differ, so per-platform GOLANGCI_LINT_OPTS can be set
 # from a platform-specific Dockerfile, otherwise let's just set
 # (somewhat pessimistic) default of 10 minutes.
-: ${GOLANGCI_LINT_OPTS=--deadline=20m}
+: "${GOLANGCI_LINT_OPTS=--timeout=10m}"
 
 [ -n "${TESTDEBUG}" ] && set -x
 
@@ -18,9 +18,10 @@ elif ${PKG_CONFIG} 'libsystemd-journal' 2> /dev/null ; then
 fi
 
 # TODO use --out-format=junit-xml and store artifacts
-GOGC=20 golangci-lint run \
+# shellcheck disable=SC2086
+GOGC=75 golangci-lint run \
 	${GOLANGCI_LINT_OPTS} \
 	--print-resources-usage \
 	--build-tags="${DOCKER_BUILDTAGS}" \
 	--verbose \
-	--config ${SCRIPTDIR}/golangci-lint.yml
+	--config "${SCRIPTDIR}/golangci-lint.yml"
