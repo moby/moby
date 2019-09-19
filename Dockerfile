@@ -25,13 +25,14 @@
 #
 
 ARG CROSS="false"
-ARG GO_VERSION=1.12.9
+ARG GO_VERSION=1.13.0
 ARG DEBIAN_FRONTEND=noninteractive
 
 FROM golang:${GO_VERSION}-stretch AS base
 ARG APT_MIRROR
 RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/apt/sources.list \
  && sed -ri "s/(security).debian.org/${APT_MIRROR:-security.debian.org}/g" /etc/apt/sources.list
+ENV GO111MODULE=off
 
 FROM base AS criu
 ARG DEBIAN_FRONTEND
