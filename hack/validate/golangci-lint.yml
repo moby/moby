@@ -19,8 +19,8 @@ linters:
     modules-download-mode: vendor
 
     skip-dirs:
+      - bundles
       - docs
-      - integration-cli
 
     skip-files:
       - ".*\\.pb\\.go"
