@@ -30,13 +30,12 @@ func Run(t *testing.T, suite interface{}) {
 	}()
 
 	methodFinder := reflect.TypeOf(suite)
-	suiteName := methodFinder.Elem().Name()
 	for index := 0; index < methodFinder.NumMethod(); index++ {
 		method := methodFinder.Method(index)
 		if !methodFilter(method.Name, method.Type) {
 			continue
 		}
-		t.Run(suiteName+"/"+method.Name, func(t *testing.T) {
+		t.Run(method.Name, func(t *testing.T) {
 			defer failOnPanic(t)
 
 			if !suiteSetupDone {
