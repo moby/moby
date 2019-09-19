@@ -1381,11 +1381,14 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *testing.T) {
 				if err != nil && retry < 5 {
 					if strings.Contains(outs, "swarm does not have a leader") {
 						retry++
+						c.Logf("[%s] got 'swarm does not have a leader'. retrying (attempt %d/5)", d.ID(), retry)
 						time.Sleep(3 * time.Second)
 						continue
+					} else {
+						c.Logf("[%s] gave error: '%v'. retrying (attempt %d/5): %s", d.ID(), err, retry, outs)
 					}
 				}
-				assert.Assert(c, err == nil, outs)
+				assert.NilError(c, err, "[%s] failed after %d retries: %v (%s)", d.ID(), retry, err, outs)
 				assert.Assert(c, !strings.Contains(outs, "Swarm is encrypted and needs to be unlocked"))
 				break
 			}
