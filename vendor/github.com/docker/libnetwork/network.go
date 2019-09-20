@@ -1938,6 +1938,22 @@ func (n *network) TableEventRegister(tableName string, objType driverapi.ObjectT
 	return nil
 }
 
+func (n *network) UpdateIpamConfig(ipV4Data []driverapi.IPAMData) {
+
+	ipamV4Config := make([]*IpamConf, len(ipV4Data))
+
+	for i, data := range ipV4Data {
+		ic := &IpamConf{}
+		ic.PreferredPool = data.Pool.String()
+		ic.Gateway = data.Gateway.IP.String()
+		ipamV4Config[i] = ic
+	}
+
+	n.Lock()
+	defer n.Unlock()
+	n.ipamV4Config = ipamV4Config
+}
+
 // Special drivers are ones which do not need to perform any network plumbing
 func (n *network) hasSpecialDriver() bool {
 	return n.Type() == "host" || n.Type() == "null"
