@@ -265,7 +265,7 @@ func compressFile(fileName string, lastTimestamp time.Time) {
 	compressWriter := gzip.NewWriter(outFile)
 	defer compressWriter.Close()
 
-	// Add the last log entry timestramp to the gzip header
+	// Add the last log entry timestamp to the gzip header
 	extra := rotateFileMetadata{}
 	extra.LastTime = lastTimestamp
 	compressWriter.Header.Extra, err = json.Marshal(&extra)
@@ -614,9 +614,23 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 		}
 	}
 
+	oldSize := int64(-1)
 	handleDecodeErr := func(err error) error {
 		if errors.Cause(err) != io.EOF {
 			return err
+		}
+
+		// Handle special case (#39235): max-file=1 and file was truncated
+		st, stErr := f.Stat()
+		if stErr == nil {
+			size := st.Size()
+			defer func() { oldSize = size }()
+			if size < oldSize { // truncated
+				f.Seek(0, 0)
+				return nil
+			}
+		} else {
+			logrus.WithError(stErr).Warn("logger: stat error")
 		}
 
 		for {
