@@ -8,11 +8,11 @@ pipeline {
         timestamps()
     }
     parameters {
-        booleanParam(name: 'unit_validate', defaultValue: true, description: 'x86 unit tests and vendor check')
-        booleanParam(name: 'janky', defaultValue: true, description: 'x86 Build/Test')
-        booleanParam(name: 'z', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
-        booleanParam(name: 'powerpc', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
-        booleanParam(name: 'windowsRS1', defaultValue: true, description: 'Windows 2016 (RS1) Build/Test')
+        booleanParam(name: 'unit_validate', defaultValue: true, description: 'amd64 (x86_64) unit tests and vendor check')
+        booleanParam(name: 'amd64', defaultValue: true, description: 'amd64 (x86_64) Build/Test')
+        booleanParam(name: 's390x', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
+        booleanParam(name: 'ppc64le', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
+        booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
         booleanParam(name: 'windowsRS5', defaultValue: true, description: 'Windows 2019 (RS5) Build/Test')
         booleanParam(name: 'skip_dco', defaultValue: false, description: 'Skip the DCO check')
     }
@@ -219,10 +219,10 @@ pipeline {
                         }
                     }
                 }
-                stage('janky') {
+                stage('amd64') {
                     when {
                         beforeAgent true
-                        expression { params.janky }
+                        expression { params.amd64 }
                     }
                     agent { label 'amd64 && ubuntu-1804 && overlay2' }
 
@@ -325,7 +325,7 @@ pipeline {
 
                             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
                                 sh '''
-                                bundleName=janky
+                                bundleName=amd64
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
                                 find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
@@ -340,10 +340,10 @@ pipeline {
                         }
                     }
                 }
-                stage('z') {
+                stage('s390x') {
                     when {
                         beforeAgent true
-                        expression { params.z }
+                        expression { params.s390x }
                     }
                     agent { label 's390x-ubuntu-1604' }
                     // s390x machines run on Docker 18.06, and buildkit has some bugs on that version
@@ -437,11 +437,11 @@ pipeline {
                         }
                     }
                 }
-                stage('z-master') {
+                stage('s390x integration-cli') {
                     when {
                         beforeAgent true
-                        branch 'master'
-                        expression { params.z }
+                        not { changeRequest() }
+                        expression { params.s390x }
                     }
                     agent { label 's390x-ubuntu-1604' }
                     // s390x machines run on Docker 18.06, and buildkit has some bugs on that version
@@ -515,13 +515,13 @@ pipeline {
                         }
                     }
                 }
-                stage('powerpc') {
+                stage('ppc64le') {
                     when {
                         beforeAgent true
-                        expression { params.powerpc }
+                        expression { params.ppc64le }
                     }
                     agent { label 'ppc64le-ubuntu-1604' }
-                    // power machines run on Docker 18.06, and buildkit has some bugs on that version
+                    // ppc64le machines run on Docker 18.06, and buildkit has some bugs on that version
                     environment { DOCKER_BUILDKIT = '0' }
 
                     stages {
@@ -595,7 +595,7 @@ pipeline {
 
                             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
                                 sh '''
-                                bundleName=powerpc-integration
+                                bundleName=ppc64le-integration
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
                                 find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
@@ -610,14 +610,14 @@ pipeline {
                         }
                     }
                 }
-                stage('powerpc-master') {
+                stage('ppc64le integration-cli') {
                     when {
                         beforeAgent true
-                        branch 'master'
-                        expression { params.powerpc }
+                        not { changeRequest() }
+                        expression { params.ppc64le }
                     }
                     agent { label 'ppc64le-ubuntu-1604' }
-                    // power machines run on Docker 18.06, and buildkit has some bugs on that version
+                    // ppc64le machines run on Docker 18.06, and buildkit has some bugs on that version
                     environment { DOCKER_BUILDKIT = '0' }
 
                     stages {
@@ -671,7 +671,7 @@ pipeline {
 
                             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
                                 sh '''
-                                bundleName=powerpc-integration-cli
+                                bundleName=ppc64le-integration-cli
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
                                 find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
@@ -686,10 +686,14 @@ pipeline {
                         }
                     }
                 }
-                stage('windowsRS1') {
+                stage('win-RS1') {
                     when {
                         beforeAgent true
-                        expression { params.windowsRS1 }
+                        // Skip this stage on PRs unless the windowsRS1 checkbox is selected
+                        anyOf {
+                            not { changeRequest() }
+                            expression { params.windowsRS1 }
+                        }
                     }
                     environment {
                         DOCKER_BUILDKIT        = '0'
@@ -727,7 +731,7 @@ pipeline {
                         }
                     }
                 }
-                stage('windowsRS5-process') {
+                stage('win-RS5') {
                     when {
                         beforeAgent true
                         expression { params.windowsRS5 }
