@@ -10,10 +10,10 @@ require (
 	github.com/containerd/cgroups v0.0.0-20190226200435-dbea6f2bd416 // indirect
 	github.com/containerd/console v0.0.0-20181022165439-0650fd9eeb50
 	github.com/containerd/containerd v1.3.0-0.20190507210959-7c1e88399ec0
-	github.com/containerd/continuity v0.0.0-20190426062206-aaeac12a7ffc
+	github.com/containerd/continuity v0.0.0-20190827140505-75bee3e2ccb6
 	github.com/containerd/fifo v0.0.0-20180307165137-3d5202aec260 // indirect
 	github.com/containerd/go-cni v0.0.0-20190610170741-5a4663dad645
-	github.com/containerd/go-runc v0.0.0-20180907222934-5a6d9f37cfa3
+	github.com/containerd/go-runc v0.0.0-20190911050354-e029b79d8cda
 	github.com/containerd/ttrpc v0.0.0-20190411181408-699c4e40d1e7 // indirect
 	github.com/containerd/typeurl v0.0.0-20180627222232-a93fcdb778cd // indirect
 	github.com/containernetworking/cni v0.6.1-0.20180218032124-142cde0c766c // indirect
@@ -53,7 +53,7 @@ require (
 	github.com/sirupsen/logrus v1.3.0
 	github.com/stretchr/testify v1.3.0
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
-	github.com/tonistiigi/fsutil v0.0.0-20190327153851-3bbb99cdbd76
+	github.com/tonistiigi/fsutil v0.0.0-20190819224149-3d2716dd0a4d
 	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea
 	github.com/uber/jaeger-client-go v0.0.0-20180103221425-e02c85f9069e
 	github.com/uber/jaeger-lib v1.2.1 // indirect

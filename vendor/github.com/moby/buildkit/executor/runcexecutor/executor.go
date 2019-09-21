@@ -293,12 +293,11 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 		NoPivot: w.noPivot,
 	})
 	close(done)
-	if err != nil {
-		return err
-	}
 
-	if status != 0 {
-		err := errors.Errorf("exit code: %d", status)
+	if status != 0 || err != nil {
+		if err == nil {
+			err = errors.Errorf("exit code: %d", status)
+		}
 		select {
 		case <-ctx.Done():
 			return errors.Wrapf(ctx.Err(), err.Error())
