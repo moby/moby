@@ -828,6 +828,7 @@ pipeline {
                     }
                     post {
                         always {
+                            junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
                             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
                                 powershell '''
                                 $bundleName="windowsRS5-integration"

@@ -94,6 +94,8 @@ param(
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 $pushed=$False  # To restore the directory if we have temporarily pushed to one.
+Set-Variable GOTESTSUM_COMMIT -option Constant -value 'v0.3.5'
+Set-Variable GOTESTSUM_LOCATION -option Constant -value "$env:GOPATH/src/gotest.tools/gotestsum"
 
 # Utility function to get the commit ID of the repository
 Function Get-GitCommit() {
@@ -307,6 +309,44 @@ Function Validate-GoFormat($headCommit, $upstreamCommit) {
     }
 }
 
+Function Build-GoTestSum() {
+    if (Test-Path "$GOTESTSUM_LOCATION\gotestsum.exe") {
+        Write-Host "INFO: gotestsum already available - skipping building it...."
+        return
+    } else {
+        Write-Host "INFO: Building gotestsum version $GOTESTSUM_COMMIT in $env:GOPATH"
+    }
+
+    Push-Location "$env:GOPATH"
+    $gotestOut = Invoke-Expression "go get -d gotest.tools/gotestsum"
+    Pop-Location
+
+    if ($LASTEXITCODE -ne 0) { 
+        Write-Host $gotestOut
+        Throw "Failed getting gotest" 
+    }
+
+    Write-Host "INFO:     sources obtained..."
+
+    Push-Location "$GOTESTSUM_LOCATION"
+    $gitcheckoutOut = Invoke-Expression "git checkout -q $GOTESTSUM_COMMIT"
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "INFO:     checkout done..."
+        $gobuildOut = Invoke-Expression "go build -buildmode=exe"
+    } else {
+        Write-Host $gitcheckoutOut
+    }
+
+    Pop-Location
+    if ($LASTEXITCODE -ne 0) { 
+        Write-Host $gobuildOut
+        Throw "Failed getting gobuildOut"
+    }
+
+    Write-Host "INFO:     build done..."
+}
+ 
 # Run the unit tests
 Function Run-UnitTests() {
     Write-Host "INFO: Running unit tests..."
@@ -319,14 +359,15 @@ Function Run-UnitTests() {
     $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/man"
     $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/integration"
     $pkgList = $pkgList -replace "`r`n", " "
-    $goTestCommand = "go test" + $raceParm + " -cover -ldflags -w -tags """ + "autogen daemon" + """ -a """ + "-test.timeout=10m" + """ $pkgList"
+    $goTestCommand = "$GOTESTSUM_LOCATION\gotestsum.exe --format=standard-quiet --jsonfile=bundles\go-test-report.json --junitfile=bundles\junit-report.xml --" + $raceParm + " -cover -ldflags -w -tags """ + "autogen daemon" + """ -a """ + "-test.timeout=10m" + """ $pkgList"
+    Write-Host "INFO: Invoking unit tests run with $goTestCommand"
     Invoke-Expression $goTestCommand
     if ($LASTEXITCODE -ne 0) { Throw "Unit tests failed" }
 }
 
 # Run the integration tests
 Function Run-IntegrationTests() {
-    $env:DOCKER_INTEGRATION_DAEMON_DEST = $root + "\bundles\tmp"
+    $env:DOCKER_INTEGRATION_DAEMON_DEST = $bundlesDir + "\tmp"
     $dirs = go list -test -f '{{- if ne .ForTest `"`" -}}{{- .Dir -}}{{- end -}}' .\integration\...
     $integration_api_dirs = @()
     ForEach($dir in $dirs) {
@@ -362,6 +403,10 @@ Try {
     # Get to the root of the repo
     $root = $(Split-Path $MyInvocation.MyCommand.Definition -Parent | Split-Path -Parent)
     Push-Location $root
+
+    # Create the bundles directory if it doesn't exist
+    $bundlesDir = $root + "\bundles"
+    if (-not (Test-Path $bundlesDir)) { New-Item $bundlesDir -ItemType Directory | Out-Null }
 
     # Handle the "-All" shortcut to turn on all things we can handle.
     # Note we expressly only include the items which can run in a container - the validations tests cannot
@@ -424,8 +469,6 @@ Try {
 
     # Build the binaries
     if ($Client -or $Daemon) {
-        # Create the bundles directory if it doesn't exist
-        if (-not (Test-Path ".\bundles")) { New-Item ".\bundles" -ItemType Directory | Out-Null }
 
         # Perform the actual build
         if ($Daemon) { Execute-Build "daemon" "daemon" "dockerd" }
@@ -456,6 +499,8 @@ Try {
             }
         }
     }
+
+    if ($TestUnit) { Build-GoTestSum }
 
     # Run unit tests
     if ($TestUnit) { Run-UnitTests }
