@@ -743,7 +743,7 @@ pipeline {
                         SOURCES_DRIVE          = 'd'
                         SOURCES_SUBDIR         = 'gopath'
                         TESTRUN_DRIVE          = 'd'
-                        TESTRUN_SUBDIR         = "CI-$BUILD_NUMBER"
+                        TESTRUN_SUBDIR         = "CI"
                         WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
                         WINDOWS_BASE_IMAGE_TAG = 'ltsc2016'
                     }
@@ -804,7 +804,7 @@ pipeline {
                         SOURCES_DRIVE          = 'd'
                         SOURCES_SUBDIR         = 'gopath'
                         TESTRUN_DRIVE          = 'd'
-                        TESTRUN_SUBDIR         = "CI-$BUILD_NUMBER"
+                        TESTRUN_SUBDIR         = "CI"
                         WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
                         WINDOWS_BASE_IMAGE_TAG = 'ltsc2019'
                     }
