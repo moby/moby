@@ -6,12 +6,6 @@ import (
 	"errors"
 )
 
-// GetStatic is not needed for non-linux systems.
-// (Precisely, it is needed only for glibc-based linux systems.)
-func GetStatic() (string, error) {
-	return "", errors.New("homedir.GetStatic() is not supported on this system")
-}
-
 // GetRuntimeDir is unsupported on non-linux system.
 func GetRuntimeDir() (string, error) {
 	return "", errors.New("homedir.GetRuntimeDir() is not supported on this system")
