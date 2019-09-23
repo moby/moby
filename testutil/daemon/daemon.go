@@ -45,6 +45,12 @@ type logT interface {
 	Logf(string, ...interface{})
 }
 
+// nopLog is a no-op implementation of logT that is used in daemons created by
+// NewDaemon (where no testingT is available).
+type nopLog struct{}
+
+func (nopLog) Logf(string, ...interface{}) {}
+
 const defaultDockerdBinary = "dockerd"
 const containerdSocket = "/var/run/docker/containerd/containerd.sock"
 
@@ -91,37 +97,26 @@ type Daemon struct {
 	CachedInfo types.Info
 }
 
-// New returns a Daemon instance to be used for testing.
-// This will create a directory such as d123456789 in the folder specified by $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
+// NewDaemon returns a Daemon instance to be used for testing.
 // The daemon will not automatically start.
-func New(t testingT, ops ...Option) *Daemon {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
-	dest := os.Getenv("DOCKER_INTEGRATION_DAEMON_DEST")
-	if dest == "" {
-		dest = os.Getenv("DEST")
-	}
-	switch v := t.(type) {
-	case namer:
-		dest = filepath.Join(dest, v.Name())
-	case testNamer:
-		dest = filepath.Join(dest, v.TestName())
-	}
-	t.Logf("Creating a new daemon at: %s", dest)
-	assert.Check(t, dest != "", "Please set the DOCKER_INTEGRATION_DAEMON_DEST or the DEST environment variable")
-
+// The daemon will modify and create files under workingDir.
+func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 	storageDriver := os.Getenv("DOCKER_GRAPHDRIVER")
 
-	assert.NilError(t, os.MkdirAll(SockRoot, 0700), "could not create daemon socket root")
+	if err := os.MkdirAll(SockRoot, 0700); err != nil {
+		return nil, fmt.Errorf("could not create daemon socket root: %v", err)
+	}
 
 	id := fmt.Sprintf("d%s", stringid.TruncateID(stringid.GenerateRandomID()))
-	dir := filepath.Join(dest, id)
+	dir := filepath.Join(workingDir, id)
 	daemonFolder, err := filepath.Abs(dir)
-	assert.NilError(t, err, "Could not make %q an absolute path", dir)
+	if err != nil {
+		return nil, err
+	}
 	daemonRoot := filepath.Join(daemonFolder, "root")
-
-	assert.NilError(t, os.MkdirAll(daemonRoot, 0755), "Could not create daemon root %q", dir)
+	if err := os.MkdirAll(daemonRoot, 0755); err != nil {
+		return nil, fmt.Errorf("could not create daemon root: %v", err)
+	}
 
 	userlandProxy := true
 	if env := os.Getenv("DOCKER_USERLANDPROXY"); env != "" {
@@ -140,12 +135,40 @@ func New(t testingT, ops ...Option) *Daemon {
 		dockerdBinary:   defaultDockerdBinary,
 		swarmListenAddr: defaultSwarmListenAddr,
 		SwarmPort:       DefaultSwarmPort,
-		log:             t,
+		log:             nopLog{},
 	}
 
 	for _, op := range ops {
 		op(d)
 	}
+
+	return d, nil
+}
+
+// New returns a Daemon instance to be used for testing.
+// This will create a directory such as d123456789 in the folder specified by
+// $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
+// The daemon will not automatically start.
+func New(t testingT, ops ...Option) *Daemon {
+	if ht, ok := t.(testutil.HelperT); ok {
+		ht.Helper()
+	}
+	dest := os.Getenv("DOCKER_INTEGRATION_DAEMON_DEST")
+	if dest == "" {
+		dest = os.Getenv("DEST")
+	}
+
+	switch v := t.(type) {
+	case namer:
+		dest = filepath.Join(dest, v.Name())
+	case testNamer:
+		dest = filepath.Join(dest, v.TestName())
+	}
+	assert.Check(t, dest != "", "Please set the DOCKER_INTEGRATION_DAEMON_DEST or the DEST environment variable")
+
+	t.Logf("Creating a new daemon at: %q", dest)
+	d, err := NewDaemon(dest, ops...)
+	assert.NilError(t, err, "could not create daemon")
 
 	return d
 }
@@ -195,15 +218,20 @@ func (d *Daemon) NewClientT(t assert.TestingT, extraOpts ...client.Opt) *client.
 		ht.Helper()
 	}
 
+	c, err := d.NewClient(extraOpts...)
+	assert.NilError(t, err, "cannot create daemon client")
+	return c
+}
+
+// NewClient creates new client based on daemon's socket path
+func (d *Daemon) NewClient(extraOpts ...client.Opt) (*client.Client, error) {
 	clientOpts := []client.Opt{
 		client.FromEnv,
 		client.WithHost(d.Sock()),
 	}
 	clientOpts = append(clientOpts, extraOpts...)
 
-	c, err := client.NewClientWithOpts(clientOpts...)
-	assert.NilError(t, err, "cannot create daemon client")
-	return c
+	return client.NewClientWithOpts(clientOpts...)
 }
 
 // Cleanup cleans the daemon files : exec root (network namespaces, ...), swarmkit files

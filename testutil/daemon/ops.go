@@ -1,6 +1,10 @@
 package daemon
 
-import "github.com/docker/docker/testutil/environment"
+import (
+	"testing"
+
+	"github.com/docker/docker/testutil/environment"
+)
 
 // Option is used to configure a daemon.
 type Option func(*Daemon)
@@ -9,6 +13,13 @@ type Option func(*Daemon)
 func WithDefaultCgroupNamespaceMode(mode string) Option {
 	return func(d *Daemon) {
 		d.defaultCgroupNamespaceMode = mode
+	}
+}
+
+// WithTestLogger causes the daemon to log certain actions to the provided test.
+func WithTestLogger(t testing.TB) func(*Daemon) {
+	return func(d *Daemon) {
+		d.log = t
 	}
 }
 
