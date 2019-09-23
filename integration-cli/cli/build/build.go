@@ -11,6 +11,7 @@ import (
 type testingT interface {
 	Fatal(args ...interface{})
 	Fatalf(string, ...interface{})
+	Name() string
 }
 
 // WithStdinContext sets the build context from the standard input with the specified reader

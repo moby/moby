@@ -16,6 +16,7 @@ type testingT interface {
 	assert.TestingT
 	logT
 	Fatalf(string, ...interface{})
+	Name() string
 }
 
 type logT interface {

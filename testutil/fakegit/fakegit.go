@@ -21,6 +21,7 @@ type testingT interface {
 	skipT
 	Fatal(args ...interface{})
 	Fatalf(string, ...interface{})
+	Name() string
 }
 
 type logT interface {

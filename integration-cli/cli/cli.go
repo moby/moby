@@ -28,6 +28,7 @@ type testingT interface {
 	assert.TestingT
 	Fatal(args ...interface{})
 	Fatalf(string, ...interface{})
+	Name() string
 }
 
 // DockerCmd executes the specified docker command and expect a success

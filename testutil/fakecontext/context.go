@@ -14,6 +14,7 @@ import (
 type testingT interface {
 	Fatal(args ...interface{})
 	Fatalf(string, ...interface{})
+	Name() string
 }
 
 // New creates a fake build context

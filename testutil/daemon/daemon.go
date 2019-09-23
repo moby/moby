@@ -32,13 +32,7 @@ type testingT interface {
 	assert.TestingT
 	logT
 	Fatalf(string, ...interface{})
-}
-
-type namer interface {
 	Name() string
-}
-type testNamer interface {
-	TestName() string
 }
 
 type logT interface {
@@ -157,13 +151,8 @@ func New(t testingT, ops ...Option) *Daemon {
 	if dest == "" {
 		dest = os.Getenv("DEST")
 	}
+	dest = filepath.Join(dest, t.Name())
 
-	switch v := t.(type) {
-	case namer:
-		dest = filepath.Join(dest, v.Name())
-	case testNamer:
-		dest = filepath.Join(dest, v.TestName())
-	}
 	assert.Check(t, dest != "", "Please set the DOCKER_INTEGRATION_DAEMON_DEST or the DEST environment variable")
 
 	t.Logf("Creating a new daemon at: %q", dest)

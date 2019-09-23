@@ -28,6 +28,7 @@ type testingT interface {
 	logT
 	Fatal(...interface{})
 	Fatalf(string, ...interface{})
+	Name() string
 }
 
 type logT interface {
