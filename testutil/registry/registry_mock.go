@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"testing"
 
 	"github.com/docker/docker/testutil"
 )
@@ -28,7 +29,7 @@ func (tr *Mock) RegisterHandler(path string, h handlerFunc) {
 }
 
 // NewMock creates a registry mock
-func NewMock(t testingT) (*Mock, error) {
+func NewMock(t testing.TB) (*Mock, error) {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}

@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/environment"
 	"github.com/pkg/errors"
-	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )
 
@@ -24,46 +24,39 @@ func SetTestEnvironment(env *environment.Execution) {
 // CmdOperator defines functions that can modify a command
 type CmdOperator func(*icmd.Cmd) func()
 
-type testingT interface {
-	assert.TestingT
-	Fatal(args ...interface{})
-	Fatalf(string, ...interface{})
-	Name() string
-}
-
 // DockerCmd executes the specified docker command and expect a success
-func DockerCmd(t testingT, args ...string) *icmd.Result {
+func DockerCmd(t testing.TB, args ...string) *icmd.Result {
 	return Docker(Args(args...)).Assert(t, icmd.Success)
 }
 
 // BuildCmd executes the specified docker build command and expect a success
-func BuildCmd(t testingT, name string, cmdOperators ...CmdOperator) *icmd.Result {
+func BuildCmd(t testing.TB, name string, cmdOperators ...CmdOperator) *icmd.Result {
 	return Docker(Build(name), cmdOperators...).Assert(t, icmd.Success)
 }
 
 // InspectCmd executes the specified docker inspect command and expect a success
-func InspectCmd(t testingT, name string, cmdOperators ...CmdOperator) *icmd.Result {
+func InspectCmd(t testing.TB, name string, cmdOperators ...CmdOperator) *icmd.Result {
 	return Docker(Inspect(name), cmdOperators...).Assert(t, icmd.Success)
 }
 
 // WaitRun will wait for the specified container to be running, maximum 5 seconds.
-func WaitRun(t testingT, name string, cmdOperators ...CmdOperator) {
+func WaitRun(t testing.TB, name string, cmdOperators ...CmdOperator) {
 	WaitForInspectResult(t, name, "{{.State.Running}}", "true", 5*time.Second, cmdOperators...)
 }
 
 // WaitExited will wait for the specified container to state exit, subject
 // to a maximum time limit in seconds supplied by the caller
-func WaitExited(t testingT, name string, timeout time.Duration, cmdOperators ...CmdOperator) {
+func WaitExited(t testing.TB, name string, timeout time.Duration, cmdOperators ...CmdOperator) {
 	WaitForInspectResult(t, name, "{{.State.Status}}", "exited", timeout, cmdOperators...)
 }
 
 // WaitRestart will wait for the specified container to restart once
-func WaitRestart(t testingT, name string, timeout time.Duration, cmdOperators ...CmdOperator) {
+func WaitRestart(t testing.TB, name string, timeout time.Duration, cmdOperators ...CmdOperator) {
 	WaitForInspectResult(t, name, "{{.RestartCount}}", "1", timeout, cmdOperators...)
 }
 
 // WaitForInspectResult waits for the specified expression to be equals to the specified expected string in the given time.
-func WaitForInspectResult(t testingT, name, expr, expected string, timeout time.Duration, cmdOperators ...CmdOperator) {
+func WaitForInspectResult(t testing.TB, name, expr, expected string, timeout time.Duration, cmdOperators ...CmdOperator) {
 	after := time.After(timeout)
 
 	args := []string{"inspect", "-f", expr, name}

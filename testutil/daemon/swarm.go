@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/testutil"
@@ -21,7 +22,7 @@ var (
 )
 
 // StartNode (re)starts the daemon
-func (d *Daemon) StartNode(t testingT) {
+func (d *Daemon) StartNode(t testing.TB) {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}
@@ -29,7 +30,7 @@ func (d *Daemon) StartNode(t testingT) {
 }
 
 // StartNodeWithBusybox starts daemon to be used as a swarm node, and loads the busybox image
-func (d *Daemon) StartNodeWithBusybox(t testingT) {
+func (d *Daemon) StartNodeWithBusybox(t testing.TB) {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}
@@ -37,7 +38,7 @@ func (d *Daemon) StartNodeWithBusybox(t testingT) {
 }
 
 // RestartNode restarts a daemon to be used as a swarm node
-func (d *Daemon) RestartNode(t testingT) {
+func (d *Daemon) RestartNode(t testing.TB) {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}
@@ -47,13 +48,13 @@ func (d *Daemon) RestartNode(t testingT) {
 }
 
 // StartAndSwarmInit starts the daemon (with busybox) and init the swarm
-func (d *Daemon) StartAndSwarmInit(t testingT) {
+func (d *Daemon) StartAndSwarmInit(t testing.TB) {
 	d.StartNodeWithBusybox(t)
 	d.SwarmInit(t, swarm.InitRequest{})
 }
 
 // StartAndSwarmJoin starts the daemon (with busybox) and join the specified swarm as worker or manager
-func (d *Daemon) StartAndSwarmJoin(t testingT, leader *Daemon, manager bool) {
+func (d *Daemon) StartAndSwarmJoin(t testing.TB, leader *Daemon, manager bool) {
 	if th, ok := t.(testutil.HelperT); ok {
 		th.Helper()
 	}

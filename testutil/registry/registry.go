@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/testutil"
@@ -22,18 +23,6 @@ const (
 	// DefaultURL is the default url that will be used by the registry (if not specified otherwise)
 	DefaultURL = "127.0.0.1:5000"
 )
-
-type testingT interface {
-	assert.TestingT
-	logT
-	Fatal(...interface{})
-	Fatalf(string, ...interface{})
-	Name() string
-}
-
-type logT interface {
-	Logf(string, ...interface{})
-}
 
 // V2 represent a registry version 2
 type V2 struct {
@@ -55,7 +44,7 @@ type Config struct {
 }
 
 // NewV2 creates a v2 registry server
-func NewV2(t testingT, ops ...func(*Config)) *V2 {
+func NewV2(t testing.TB, ops ...func(*Config)) *V2 {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}
@@ -140,7 +129,7 @@ http:
 }
 
 // WaitReady waits for the registry to be ready to serve requests (or fail after a while)
-func (r *V2) WaitReady(t testingT) {
+func (r *V2) WaitReady(t testing.TB) {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}
@@ -212,7 +201,7 @@ func (r *V2) WriteBlobContents(t assert.TestingT, blobDigest digest.Digest, data
 
 // TempMoveBlobData moves the existing data file aside, so that we can replace it with a
 // malicious blob of data for example.
-func (r *V2) TempMoveBlobData(t testingT, blobDigest digest.Digest) (undo func()) {
+func (r *V2) TempMoveBlobData(t testing.TB, blobDigest digest.Digest) (undo func()) {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/archive"
@@ -17,7 +18,7 @@ import (
 
 var ensureHTTPServerOnce sync.Once
 
-func ensureHTTPServerImage(t testingT) {
+func ensureHTTPServerImage(t testing.TB) {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}

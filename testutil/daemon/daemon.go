@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -27,13 +28,6 @@ import (
 	"github.com/pkg/errors"
 	"gotest.tools/assert"
 )
-
-type testingT interface {
-	assert.TestingT
-	logT
-	Fatalf(string, ...interface{})
-	Name() string
-}
 
 type logT interface {
 	Logf(string, ...interface{})
@@ -143,7 +137,7 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 // This will create a directory such as d123456789 in the folder specified by
 // $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
 // The daemon will not automatically start.
-func New(t testingT, ops ...Option) *Daemon {
+func New(t testing.TB, ops ...Option) *Daemon {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}
@@ -224,7 +218,7 @@ func (d *Daemon) NewClient(extraOpts ...client.Opt) (*client.Client, error) {
 }
 
 // Cleanup cleans the daemon files : exec root (network namespaces, ...), swarmkit files
-func (d *Daemon) Cleanup(t testingT) {
+func (d *Daemon) Cleanup(t testing.TB) {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}
@@ -234,7 +228,7 @@ func (d *Daemon) Cleanup(t testingT) {
 }
 
 // Start starts the daemon and return once it is ready to receive requests.
-func (d *Daemon) Start(t testingT, args ...string) {
+func (d *Daemon) Start(t testing.TB, args ...string) {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}
@@ -390,7 +384,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 // StartWithBusybox will first start the daemon with Daemon.Start()
 // then save the busybox image from the main daemon and load it into this Daemon instance.
-func (d *Daemon) StartWithBusybox(t testingT, arg ...string) {
+func (d *Daemon) StartWithBusybox(t testing.TB, arg ...string) {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}
@@ -449,7 +443,7 @@ func (d *Daemon) DumpStackAndQuit() {
 // Stop will not delete the daemon directory. If a purged daemon is needed,
 // instantiate a new one with NewDaemon.
 // If an error occurs while starting the daemon, the test will fail.
-func (d *Daemon) Stop(t testingT) {
+func (d *Daemon) Stop(t testing.TB) {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}
@@ -537,7 +531,7 @@ out2:
 
 // Restart will restart the daemon by first stopping it and the starting it.
 // If an error occurs while starting the daemon, the test will fail.
-func (d *Daemon) Restart(t testingT, args ...string) {
+func (d *Daemon) Restart(t testing.TB, args ...string) {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}
@@ -737,7 +731,7 @@ func (d *Daemon) Info(t assert.TestingT) types.Info {
 	return info
 }
 
-func cleanupRaftDir(t testingT, rootPath string) {
+func cleanupRaftDir(t testing.TB, rootPath string) {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}

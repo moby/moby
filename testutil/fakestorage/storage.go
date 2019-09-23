@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -23,23 +24,6 @@ import (
 )
 
 var testEnv *environment.Execution
-
-type testingT interface {
-	assert.TestingT
-	logT
-	skipT
-	Fatal(args ...interface{})
-	Fatalf(string, ...interface{})
-	Name() string
-}
-
-type logT interface {
-	Logf(string, ...interface{})
-}
-
-type skipT interface {
-	Skip(...interface{})
-}
 
 // Fake is a static file server. It might be running locally or remotely
 // on test host.
@@ -56,7 +40,7 @@ func SetTestEnvironment(env *environment.Execution) {
 }
 
 // New returns a static file server that will be use as build context.
-func New(t testingT, dir string, modifiers ...func(*fakecontext.Fake) error) Fake {
+func New(t testing.TB, dir string, modifiers ...func(*fakecontext.Fake) error) Fake {
 	if ht, ok := t.(testutil.HelperT); ok {
 		ht.Helper()
 	}
@@ -149,7 +133,7 @@ func (f *remoteFileServer) Close() error {
 	})
 }
 
-func newRemoteFileServer(t testingT, ctx *fakecontext.Fake, c client.APIClient) *remoteFileServer {
+func newRemoteFileServer(t testing.TB, ctx *fakecontext.Fake, c client.APIClient) *remoteFileServer {
 	var (
 		image     = fmt.Sprintf("fileserver-img-%s", strings.ToLower(testutil.GenerateRandomAlphaOnlyString(10)))
 		container = fmt.Sprintf("fileserver-cnt-%s", strings.ToLower(testutil.GenerateRandomAlphaOnlyString(10)))

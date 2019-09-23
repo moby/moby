@@ -8,29 +8,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"testing"
 
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/fakestorage"
-	"gotest.tools/assert"
 )
-
-type testingT interface {
-	assert.TestingT
-	logT
-	skipT
-	Fatal(args ...interface{})
-	Fatalf(string, ...interface{})
-	Name() string
-}
-
-type logT interface {
-	Logf(string, ...interface{})
-}
-
-type skipT interface {
-	Skip(...interface{})
-}
 
 type gitServer interface {
 	URL() string
@@ -64,7 +47,7 @@ func (g *FakeGit) Close() {
 }
 
 // New create a fake git server that can be used for git related tests
-func New(c testingT, name string, files map[string]string, enforceLocalServer bool) *FakeGit {
+func New(c testing.TB, name string, files map[string]string, enforceLocalServer bool) *FakeGit {
 	if ht, ok := c.(testutil.HelperT); ok {
 		ht.Helper()
 	}
