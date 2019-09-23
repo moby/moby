@@ -10,8 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/testutil"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"gotest.tools/assert"
 )
 
@@ -176,10 +175,8 @@ func (r *V2) getBlobFilename(blobDigest digest.Digest) string {
 }
 
 // ReadBlobContents read the file corresponding to the specified digest
-func (r *V2) ReadBlobContents(t assert.TestingT, blobDigest digest.Digest) []byte {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (r *V2) ReadBlobContents(t testing.TB, blobDigest digest.Digest) []byte {
+	t.Helper()
 	// Load the target manifest blob.
 	manifestBlob, err := ioutil.ReadFile(r.getBlobFilename(blobDigest))
 	assert.NilError(t, err, "unable to read blob")
@@ -187,10 +184,8 @@ func (r *V2) ReadBlobContents(t assert.TestingT, blobDigest digest.Digest) []byt
 }
 
 // WriteBlobContents write the file corresponding to the specified digest with the given content
-func (r *V2) WriteBlobContents(t assert.TestingT, blobDigest digest.Digest, data []byte) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (r *V2) WriteBlobContents(t testing.TB, blobDigest digest.Digest, data []byte) {
+	t.Helper()
 	err := ioutil.WriteFile(r.getBlobFilename(blobDigest), data, os.FileMode(0644))
 	assert.NilError(t, err, "unable to write malicious data blob")
 }

@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
@@ -34,7 +33,7 @@ type logT interface {
 }
 
 // nopLog is a no-op implementation of logT that is used in daemons created by
-// NewDaemon (where no testingT is available).
+// NewDaemon (where no testing.TB is available).
 type nopLog struct{}
 
 func (nopLog) Logf(string, ...interface{}) {}
@@ -194,10 +193,8 @@ func (d *Daemon) ReadLogFile() ([]byte, error) {
 }
 
 // NewClientT creates new client based on daemon's socket path
-func (d *Daemon) NewClientT(t assert.TestingT, extraOpts ...client.Opt) *client.Client {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) NewClientT(t testing.TB, extraOpts ...client.Opt) *client.Client {
+	t.Helper()
 
 	c, err := d.NewClient(extraOpts...)
 	assert.NilError(t, err, "cannot create daemon client")
@@ -595,10 +592,8 @@ func (d *Daemon) ReloadConfig() error {
 }
 
 // LoadBusybox image into the daemon
-func (d *Daemon) LoadBusybox(t assert.TestingT) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) LoadBusybox(t testing.TB) {
+	t.Helper()
 	clientHost, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(t, err, "failed to create client")
 	defer clientHost.Close()
@@ -709,10 +704,8 @@ func (d *Daemon) queryRootDir() (string, error) {
 }
 
 // Info returns the info struct for this daemon
-func (d *Daemon) Info(t assert.TestingT) types.Info {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) Info(t testing.TB) types.Info {
+	t.Helper()
 	c := d.NewClientT(t)
 	info, err := c.Info(context.Background())
 	assert.NilError(t, err)

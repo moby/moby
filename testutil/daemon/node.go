@@ -3,11 +3,11 @@ package daemon
 import (
 	"context"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/testutil"
 	"gotest.tools/assert"
 )
 
@@ -15,10 +15,8 @@ import (
 type NodeConstructor func(*swarm.Node)
 
 // GetNode returns a swarm node identified by the specified id
-func (d *Daemon) GetNode(t assert.TestingT, id string, errCheck ...func(error) bool) *swarm.Node {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) GetNode(t testing.TB, id string, errCheck ...func(error) bool) *swarm.Node {
+	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -36,10 +34,8 @@ func (d *Daemon) GetNode(t assert.TestingT, id string, errCheck ...func(error) b
 }
 
 // RemoveNode removes the specified node
-func (d *Daemon) RemoveNode(t assert.TestingT, id string, force bool) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) RemoveNode(t testing.TB, id string, force bool) {
+	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -51,10 +47,8 @@ func (d *Daemon) RemoveNode(t assert.TestingT, id string, force bool) {
 }
 
 // UpdateNode updates a swarm node with the specified node constructor
-func (d *Daemon) UpdateNode(t assert.TestingT, id string, f ...NodeConstructor) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) UpdateNode(t testing.TB, id string, f ...NodeConstructor) {
+	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -75,10 +69,8 @@ func (d *Daemon) UpdateNode(t assert.TestingT, id string, f ...NodeConstructor) 
 }
 
 // ListNodes returns the list of the current swarm nodes
-func (d *Daemon) ListNodes(t assert.TestingT) []swarm.Node {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) ListNodes(t testing.TB) []swarm.Node {
+	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
