@@ -275,7 +275,11 @@ func (r *Runc) Run(context context.Context, id, bundle string, opts *CreateOpts)
 	if err != nil {
 		return -1, err
 	}
-	return Monitor.Wait(cmd, ec)
+	status, err := Monitor.Wait(cmd, ec)
+	if err == nil && status != 0 {
+		err = fmt.Errorf("%s did not terminate sucessfully", cmd.Args[0])
+	}
+	return status, err
 }
 
 type DeleteOpts struct {
@@ -570,7 +574,11 @@ func (r *Runc) Restore(context context.Context, id, bundle string, opts *Restore
 			}
 		}
 	}
-	return Monitor.Wait(cmd, ec)
+	status, err := Monitor.Wait(cmd, ec)
+	if err == nil && status != 0 {
+		err = fmt.Errorf("%s did not terminate sucessfully", cmd.Args[0])
+	}
+	return status, err
 }
 
 // Update updates the current container with the provided resource spec
