@@ -25,7 +25,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(t, ctx, client, container.WithCmd("true"))
+	cID := container.Run(ctx, t, client, container.WithCmd("true"))
 	poll.WaitOn(t, container.IsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
 
 	reference := "repo/testexp:v1"
@@ -67,7 +67,7 @@ func TestExportContainerAfterDaemonRestart(t *testing.T) {
 	defer d.Stop(t)
 
 	ctx := context.Background()
-	ctrID := container.Create(t, ctx, c)
+	ctrID := container.Create(ctx, t, c)
 
 	d.Restart(t)
 

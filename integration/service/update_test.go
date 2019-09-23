@@ -207,7 +207,7 @@ func TestServiceUpdateNetwork(t *testing.T) {
 
 	// Create a overlay network
 	testNet := "testNet" + t.Name()
-	overlayID := network.CreateNoError(t, ctx, cli, testNet,
+	overlayID := network.CreateNoError(ctx, t, cli, testNet,
 		network.WithDriver("overlay"))
 
 	var instances uint64 = 1

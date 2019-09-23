@@ -24,12 +24,12 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 	ctx := context.Background()
 
 	name := t.Name() + "test-alias"
-	net.CreateNoError(t, ctx, client, name,
+	net.CreateNoError(ctx, t, client, name,
 		net.WithDriver("overlay"),
 		net.WithAttachable(),
 	)
 
-	cID1 := container.Create(t, ctx, client, func(c *container.TestContainerConfig) {
+	cID1 := container.Create(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.NetworkingConfig = &network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{
 				name: {},
@@ -52,7 +52,7 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 	assert.Check(t, is.Equal(len(ng1.NetworkSettings.Networks[name].Aliases), 2))
 	assert.Check(t, is.Equal(ng1.NetworkSettings.Networks[name].Aliases[0], "aaa"))
 
-	cID2 := container.Create(t, ctx, client, func(c *container.TestContainerConfig) {
+	cID2 := container.Create(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.NetworkingConfig = &network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{
 				name: {},
@@ -86,12 +86,12 @@ func TestDockerNetworkReConnect(t *testing.T) {
 	ctx := context.Background()
 
 	name := t.Name() + "dummyNet"
-	net.CreateNoError(t, ctx, client, name,
+	net.CreateNoError(ctx, t, client, name,
 		net.WithDriver("overlay"),
 		net.WithAttachable(),
 	)
 
-	c1 := container.Create(t, ctx, client, func(c *container.TestContainerConfig) {
+	c1 := container.Create(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.NetworkingConfig = &network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{
 				name: {},

@@ -50,7 +50,7 @@ func TestCheckpoint(t *testing.T) {
 	}
 
 	t.Log("Start a container")
-	cID := container.Run(t, ctx, client, container.WithMount(mnt))
+	cID := container.Run(ctx, t, client, container.WithMount(mnt))
 	poll.WaitOn(t,
 		container.IsInState(ctx, client, cID, "running"),
 		poll.WithDelay(100*time.Millisecond),

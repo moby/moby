@@ -22,8 +22,7 @@ type TestContainerConfig struct {
 }
 
 // Create creates a container with the specified options
-// nolint: golint
-func Create(t *testing.T, ctx context.Context, client client.APIClient, ops ...func(*TestContainerConfig)) string { // nolint: golint
+func Create(ctx context.Context, t *testing.T, client client.APIClient, ops ...func(*TestContainerConfig)) string {
 	t.Helper()
 	cmd := []string{"top"}
 	if runtime.GOOS == "windows" {
@@ -49,10 +48,9 @@ func Create(t *testing.T, ctx context.Context, client client.APIClient, ops ...f
 }
 
 // Run creates and start a container with the specified options
-// nolint: golint
-func Run(t *testing.T, ctx context.Context, client client.APIClient, ops ...func(*TestContainerConfig)) string { // nolint: golint
+func Run(ctx context.Context, t *testing.T, client client.APIClient, ops ...func(*TestContainerConfig)) string {
 	t.Helper()
-	id := Create(t, ctx, client, ops...)
+	id := Create(ctx, t, client, ops...)
 
 	err := client.ContainerStart(ctx, id, types.ContainerStartOptions{})
 	assert.NilError(t, err)

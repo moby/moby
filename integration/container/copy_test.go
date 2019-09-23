@@ -26,7 +26,7 @@ func TestCopyFromContainerPathDoesNotExist(t *testing.T) {
 
 	ctx := context.Background()
 	apiclient := testEnv.APIClient()
-	cid := container.Create(t, ctx, apiclient)
+	cid := container.Create(ctx, t, apiclient)
 
 	_, _, err := apiclient.CopyFromContainer(ctx, cid, "/dne")
 	assert.Check(t, client.IsErrNotFound(err))
@@ -40,7 +40,7 @@ func TestCopyFromContainerPathIsNotDir(t *testing.T) {
 
 	ctx := context.Background()
 	apiclient := testEnv.APIClient()
-	cid := container.Create(t, ctx, apiclient)
+	cid := container.Create(ctx, t, apiclient)
 
 	_, _, err := apiclient.CopyFromContainer(ctx, cid, "/etc/passwd/")
 	assert.Assert(t, is.ErrorContains(err, "not a directory"))
@@ -52,7 +52,7 @@ func TestCopyToContainerPathDoesNotExist(t *testing.T) {
 
 	ctx := context.Background()
 	apiclient := testEnv.APIClient()
-	cid := container.Create(t, ctx, apiclient)
+	cid := container.Create(ctx, t, apiclient)
 
 	err := apiclient.CopyToContainer(ctx, cid, "/dne", nil, types.CopyToContainerOptions{})
 	assert.Check(t, client.IsErrNotFound(err))
@@ -66,7 +66,7 @@ func TestCopyToContainerPathIsNotDir(t *testing.T) {
 
 	ctx := context.Background()
 	apiclient := testEnv.APIClient()
-	cid := container.Create(t, ctx, apiclient)
+	cid := container.Create(ctx, t, apiclient)
 
 	err := apiclient.CopyToContainer(ctx, cid, "/etc/passwd/", nil, types.CopyToContainerOptions{})
 	assert.Assert(t, is.ErrorContains(err, "not a directory"))
@@ -105,7 +105,7 @@ func TestCopyFromContainer(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, imageID != "")
 
-	cid := container.Create(t, ctx, apiClient, container.WithImage(imageID))
+	cid := container.Create(ctx, t, apiClient, container.WithImage(imageID))
 
 	for _, x := range []struct {
 		src    string

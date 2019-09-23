@@ -256,9 +256,9 @@ func TestContainerBindMountNonRecursive(t *testing.T) {
 	ctx := context.Background()
 	client := testEnv.APIClient()
 	containers := []string{
-		container.Run(t, ctx, client, container.WithMount(implicit), container.WithCmd(recursiveVerifier...)),
-		container.Run(t, ctx, client, container.WithMount(recursive), container.WithCmd(recursiveVerifier...)),
-		container.Run(t, ctx, client, container.WithMount(nonRecursive), container.WithCmd(nonRecursiveVerifier...)),
+		container.Run(ctx, t, client, container.WithMount(implicit), container.WithCmd(recursiveVerifier...)),
+		container.Run(ctx, t, client, container.WithMount(recursive), container.WithCmd(recursiveVerifier...)),
+		container.Run(ctx, t, client, container.WithMount(nonRecursive), container.WithCmd(nonRecursiveVerifier...)),
 	}
 
 	for _, c := range containers {

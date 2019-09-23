@@ -84,7 +84,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	ctx := context.Background()
 
 	overlayName := "overlay1_" + t.Name()
-	overlayID := network.CreateNoError(t, ctx, client, overlayName,
+	overlayID := network.CreateNoError(ctx, t, client, overlayName,
 		network.WithCheckDuplicate(),
 		network.WithDriver("overlay"),
 	)
@@ -175,11 +175,11 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	ctx := context.Background()
 
 	name := "foo_" + t.Name()
-	n1 := network.CreateNoError(t, ctx, client, name, network.WithDriver("bridge"))
-	n2 := network.CreateNoError(t, ctx, client, name, network.WithDriver("bridge"))
+	n1 := network.CreateNoError(ctx, t, client, name, network.WithDriver("bridge"))
+	n2 := network.CreateNoError(ctx, t, client, name, network.WithDriver("bridge"))
 
 	// Duplicates with name but with different driver
-	n3 := network.CreateNoError(t, ctx, client, name, network.WithDriver("overlay"))
+	n3 := network.CreateNoError(ctx, t, client, name, network.WithDriver("overlay"))
 
 	// Create Service with the same name
 	var instances uint64 = 1

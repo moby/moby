@@ -33,7 +33,7 @@ func TestContinueAfterPluginCrash(t *testing.T) {
 
 	ctx, cancel = context.WithTimeout(context.Background(), 60*time.Second)
 
-	id := container.Run(t, ctx, client,
+	id := container.Run(ctx, t, client,
 		container.WithAutoRemove,
 		container.WithLogDriver("test"),
 		container.WithCmd(

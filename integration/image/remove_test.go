@@ -20,7 +20,7 @@ func TestRemoveImageOrphaning(t *testing.T) {
 	img := "test-container-orphaning"
 
 	// Create a container from busybox, and commit a small change so we have a new image
-	cID1 := container.Create(t, ctx, client, container.WithCmd(""))
+	cID1 := container.Create(ctx, t, client, container.WithCmd(""))
 	commitResp1, err := client.ContainerCommit(ctx, cID1, types.ContainerCommitOptions{
 		Changes:   []string{`ENTRYPOINT ["true"]`},
 		Reference: img,
@@ -33,7 +33,7 @@ func TestRemoveImageOrphaning(t *testing.T) {
 	assert.Check(t, is.Equal(resp.ID, commitResp1.ID))
 
 	// Create a container from created image, and commit a small change with same reference name
-	cID2 := container.Create(t, ctx, client, container.WithImage(img), container.WithCmd(""))
+	cID2 := container.Create(ctx, t, client, container.WithImage(img), container.WithCmd(""))
 	commitResp2, err := client.ContainerCommit(ctx, cID2, types.ContainerCommitOptions{
 		Changes:   []string{`LABEL Maintainer="Integration Tests"`},
 		Reference: img,

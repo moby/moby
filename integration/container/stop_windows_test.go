@@ -51,7 +51,7 @@ func TestStopContainerWithTimeout(t *testing.T) {
 		d := d
 		t.Run(strconv.Itoa(d.timeout), func(t *testing.T) {
 			t.Parallel()
-			id := container.Run(t, ctx, client, testCmd)
+			id := container.Run(ctx, t, client, testCmd)
 
 			timeout := time.Duration(d.timeout) * time.Second
 			err := client.ContainerStop(ctx, id, &timeout)

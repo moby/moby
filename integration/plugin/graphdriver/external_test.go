@@ -360,7 +360,7 @@ func testExternalGraphDriver(ext string, ec map[string]*graphEventsCounter) func
 
 			ctx := context.Background()
 
-			testGraphDriver(t, c, ctx, driverName, func(t *testing.T) {
+			testGraphDriver(ctx, t, c, driverName, func(t *testing.T) {
 				d.Restart(t, "-s", driverName)
 			})
 
@@ -399,7 +399,7 @@ func testGraphDriverPull(c client.APIClient, d *daemon.Daemon) func(*testing.T) 
 		_, err = io.Copy(ioutil.Discard, r)
 		assert.NilError(t, err)
 
-		container.Run(t, ctx, c, container.WithImage("busybox:latest@sha256:bbc3a03235220b170ba48a157dd097dd1379299370e1ed99ce976df0355d24f0"))
+		container.Run(ctx, t, c, container.WithImage("busybox:latest@sha256:bbc3a03235220b170ba48a157dd097dd1379299370e1ed99ce976df0355d24f0"))
 	}
 }
 
@@ -434,12 +434,11 @@ func TestGraphdriverPluginV2(t *testing.T) {
 	d.Stop(t)
 	d.StartWithBusybox(t, "-s", plugin, "--storage-opt", "overlay2.override_kernel_check=1")
 
-	testGraphDriver(t, client, ctx, plugin, nil)
+	testGraphDriver(ctx, t, client, plugin, nil)
 }
 
-// nolint: golint
-func testGraphDriver(t *testing.T, c client.APIClient, ctx context.Context, driverName string, afterContainerRunFn func(*testing.T)) { //nolint: golint
-	id := container.Run(t, ctx, c, container.WithCmd("sh", "-c", "echo hello > /hello"))
+func testGraphDriver(ctx context.Context, t *testing.T, c client.APIClient, driverName string, afterContainerRunFn func(*testing.T)) {
+	id := container.Run(ctx, t, c, container.WithCmd("sh", "-c", "echo hello > /hello"))
 
 	if afterContainerRunFn != nil {
 		afterContainerRunFn(t)
