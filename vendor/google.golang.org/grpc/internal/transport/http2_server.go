@@ -35,9 +35,11 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/hpack"
 
+	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/grpclog"
+	"google.golang.org/grpc/internal"
 	"google.golang.org/grpc/internal/channelz"
 	"google.golang.org/grpc/internal/grpcrand"
 	"google.golang.org/grpc/keepalive"
@@ -55,6 +57,9 @@ var (
 	// ErrHeaderListSizeLimitViolation indicates that the header list size is larger
 	// than the limit set by peer.
 	ErrHeaderListSizeLimitViolation = errors.New("transport: trying to send header list size larger than the limit set by peer")
+	// statusRawProto is a function to get to the raw status proto wrapped in a
+	// status.Status without a proto.Clone().
+	statusRawProto = internal.StatusRawProto.(func(*status.Status) *spb.Status)
 )
 
 // http2Server implements the ServerTransport interface with HTTP2.
@@ -119,6 +124,7 @@ type http2Server struct {
 	// Fields below are for channelz metric collection.
 	channelzID int64 // channelz unique identification number
 	czData     *channelzData
+	bufferPool *bufferPool
 }
 
 // newHTTP2Server constructs a ServerTransport based on HTTP2. ConnectionError is
@@ -220,6 +226,7 @@ func newHTTP2Server(conn net.Conn, config *ServerConfig) (_ ServerTransport, err
 		kep:               kep,
 		initialWindowSize: iwz,
 		czData:            new(channelzData),
+		bufferPool:        newBufferPool(),
 	}
 	t.controlBuf = newControlBuffer(t.ctxDone)
 	if dynamicWindow {
@@ -405,9 +412,10 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 	s.wq = newWriteQuota(defaultWriteQuota, s.ctxDone)
 	s.trReader = &transportReader{
 		reader: &recvBufferReader{
-			ctx:     s.ctx,
-			ctxDone: s.ctxDone,
-			recv:    s.buf,
+			ctx:        s.ctx,
+			ctxDone:    s.ctxDone,
+			recv:       s.buf,
+			freeBuffer: t.bufferPool.put,
 		},
 		windowHandler: func(n int) {
 			t.updateWindow(s, uint32(n))
@@ -428,6 +436,7 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 func (t *http2Server) HandleStreams(handle func(*Stream), traceCtx func(context.Context, string) context.Context) {
 	defer close(t.readerDone)
 	for {
+		t.controlBuf.throttle()
 		frame, err := t.framer.fr.ReadFrame()
 		atomic.StoreUint32(&t.activity, 1)
 		if err != nil {
@@ -591,9 +600,10 @@ func (t *http2Server) handleData(f *http2.DataFrame) {
 		// guarantee f.Data() is consumed before the arrival of next frame.
 		// Can this copy be eliminated?
 		if len(f.Data()) > 0 {
-			data := make([]byte, len(f.Data()))
-			copy(data, f.Data())
-			s.write(recvMsg{data: data})
+			buffer := t.bufferPool.get()
+			buffer.Reset()
+			buffer.Write(f.Data())
+			s.write(recvMsg{buffer: buffer})
 		}
 	}
 	if f.Header().Flags.Has(http2.FlagDataEndStream) {
@@ -757,6 +767,10 @@ func (t *http2Server) WriteHeader(s *Stream, md metadata.MD) error {
 	return nil
 }
 
+func (t *http2Server) setResetPingStrikes() {
+	atomic.StoreUint32(&t.resetPingStrikes, 1)
+}
+
 func (t *http2Server) writeHeaderLocked(s *Stream) error {
 	// TODO(mmukhi): Benchmark if the performance gets better if count the metadata and other header fields
 	// first and create a slice of that exact size.
@@ -771,9 +785,7 @@ func (t *http2Server) writeHeaderLocked(s *Stream) error {
 		streamID:  s.id,
 		hf:        headerFields,
 		endStream: false,
-		onWrite: func() {
-			atomic.StoreUint32(&t.resetPingStrikes, 1)
-		},
+		onWrite:   t.setResetPingStrikes,
 	})
 	if !success {
 		if err != nil {
@@ -817,7 +829,7 @@ func (t *http2Server) WriteStatus(s *Stream, st *status.Status) error {
 	headerFields = append(headerFields, hpack.HeaderField{Name: "grpc-status", Value: strconv.Itoa(int(st.Code()))})
 	headerFields = append(headerFields, hpack.HeaderField{Name: "grpc-message", Value: encodeGrpcMessage(st.Message())})
 
-	if p := st.Proto(); p != nil && len(p.Details) > 0 {
+	if p := statusRawProto(st); p != nil && len(p.Details) > 0 {
 		stBytes, err := proto.Marshal(p)
 		if err != nil {
 			// TODO: return error instead, when callers are able to handle it.
@@ -833,9 +845,7 @@ func (t *http2Server) WriteStatus(s *Stream, st *status.Status) error {
 		streamID:  s.id,
 		hf:        headerFields,
 		endStream: true,
-		onWrite: func() {
-			atomic.StoreUint32(&t.resetPingStrikes, 1)
-		},
+		onWrite:   t.setResetPingStrikes,
 	}
 	s.hdrMu.Unlock()
 	success, err := t.controlBuf.execute(t.checkForHeaderListSize, trailingHeader)
@@ -887,12 +897,10 @@ func (t *http2Server) Write(s *Stream, hdr []byte, data []byte, opts *Options) e
 	hdr = append(hdr, data[:emptyLen]...)
 	data = data[emptyLen:]
 	df := &dataFrame{
-		streamID: s.id,
-		h:        hdr,
-		d:        data,
-		onEachWrite: func() {
-			atomic.StoreUint32(&t.resetPingStrikes, 1)
-		},
+		streamID:    s.id,
+		h:           hdr,
+		d:           data,
+		onEachWrite: t.setResetPingStrikes,
 	}
 	if err := s.wq.get(int32(len(hdr) + len(data))); err != nil {
 		select {
@@ -958,6 +966,7 @@ func (t *http2Server) keepalive() {
 			select {
 			case <-maxAge.C:
 				// Close the connection after grace period.
+				infof("transport: closing server transport due to maximum connection age.")
 				t.Close()
 				// Resetting the timer so that the clean-up doesn't deadlock.
 				maxAge.Reset(infinity)
@@ -971,6 +980,7 @@ func (t *http2Server) keepalive() {
 				continue
 			}
 			if pingSent {
+				infof("transport: closing server transport due to idleness.")
 				t.Close()
 				// Resetting the timer so that the clean-up doesn't deadlock.
 				keepalive.Reset(infinity)
@@ -1019,13 +1029,7 @@ func (t *http2Server) Close() error {
 }
 
 // deleteStream deletes the stream s from transport's active streams.
-func (t *http2Server) deleteStream(s *Stream, eosReceived bool) (oldState streamState) {
-	oldState = s.swapState(streamDone)
-	if oldState == streamDone {
-		// If the stream was already done, return.
-		return oldState
-	}
-
+func (t *http2Server) deleteStream(s *Stream, eosReceived bool) {
 	// In case stream sending and receiving are invoked in separate
 	// goroutines (e.g., bi-directional streaming), cancel needs to be
 	// called to interrupt the potential blocking on other goroutines.
@@ -1047,15 +1051,13 @@ func (t *http2Server) deleteStream(s *Stream, eosReceived bool) (oldState stream
 			atomic.AddInt64(&t.czData.streamsFailed, 1)
 		}
 	}
-
-	return oldState
 }
 
 // finishStream closes the stream and puts the trailing headerFrame into controlbuf.
 func (t *http2Server) finishStream(s *Stream, rst bool, rstCode http2.ErrCode, hdr *headerFrame, eosReceived bool) {
-	oldState := t.deleteStream(s, eosReceived)
-	// If the stream is already closed, then don't put trailing header to controlbuf.
+	oldState := s.swapState(streamDone)
 	if oldState == streamDone {
+		// If the stream was already done, return.
 		return
 	}
 
@@ -1063,14 +1065,18 @@ func (t *http2Server) finishStream(s *Stream, rst bool, rstCode http2.ErrCode, h
 		streamID: s.id,
 		rst:      rst,
 		rstCode:  rstCode,
-		onWrite:  func() {},
+		onWrite: func() {
+			t.deleteStream(s, eosReceived)
+		},
 	}
 	t.controlBuf.put(hdr)
 }
 
 // closeStream clears the footprint of a stream when the stream is not needed any more.
 func (t *http2Server) closeStream(s *Stream, rst bool, rstCode http2.ErrCode, eosReceived bool) {
+	s.swapState(streamDone)
 	t.deleteStream(s, eosReceived)
+
 	t.controlBuf.put(&cleanupStream{
 		streamID: s.id,
 		rst:      rst,

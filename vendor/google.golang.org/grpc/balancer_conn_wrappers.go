@@ -88,7 +88,7 @@ type ccBalancerWrapper struct {
 	cc               *ClientConn
 	balancer         balancer.Balancer
 	stateChangeQueue *scStateUpdateBuffer
-	resolverUpdateCh chan *resolver.State
+	ccUpdateCh       chan *balancer.ClientConnState
 	done             chan struct{}
 
 	mu       sync.Mutex
@@ -99,7 +99,7 @@ func newCCBalancerWrapper(cc *ClientConn, b balancer.Builder, bopts balancer.Bui
 	ccb := &ccBalancerWrapper{
 		cc:               cc,
 		stateChangeQueue: newSCStateUpdateBuffer(),
-		resolverUpdateCh: make(chan *resolver.State, 1),
+		ccUpdateCh:       make(chan *balancer.ClientConnState, 1),
 		done:             make(chan struct{}),
 		subConns:         make(map[*acBalancerWrapper]struct{}),
 	}
@@ -126,7 +126,7 @@ func (ccb *ccBalancerWrapper) watcher() {
 			} else {
 				ccb.balancer.HandleSubConnStateChange(t.sc, t.state)
 			}
-		case s := <-ccb.resolverUpdateCh:
+		case s := <-ccb.ccUpdateCh:
 			select {
 			case <-ccb.done:
 				ccb.balancer.Close()
@@ -134,9 +134,9 @@ func (ccb *ccBalancerWrapper) watcher() {
 			default:
 			}
 			if ub, ok := ccb.balancer.(balancer.V2Balancer); ok {
-				ub.UpdateResolverState(*s)
+				ub.UpdateClientConnState(*s)
 			} else {
-				ccb.balancer.HandleResolvedAddrs(s.Addresses, nil)
+				ccb.balancer.HandleResolvedAddrs(s.ResolverState.Addresses, nil)
 			}
 		case <-ccb.done:
 		}
@@ -151,9 +151,11 @@ func (ccb *ccBalancerWrapper) watcher() {
 			for acbw := range scs {
 				ccb.cc.removeAddrConn(acbw.getAddrConn(), errConnDrain)
 			}
+			ccb.UpdateBalancerState(connectivity.Connecting, nil)
 			return
 		default:
 		}
+		ccb.cc.firstResolveEvent.Fire()
 	}
 }
 
@@ -178,9 +180,10 @@ func (ccb *ccBalancerWrapper) handleSubConnStateChange(sc balancer.SubConn, s co
 	})
 }
 
-func (ccb *ccBalancerWrapper) updateResolverState(s resolver.State) {
+func (ccb *ccBalancerWrapper) updateClientConnState(ccs *balancer.ClientConnState) {
 	if ccb.cc.curBalancerName != grpclbName {
 		// Filter any grpclb addresses since we don't have the grpclb balancer.
+		s := &ccs.ResolverState
 		for i := 0; i < len(s.Addresses); {
 			if s.Addresses[i].Type == resolver.GRPCLB {
 				copy(s.Addresses[i:], s.Addresses[i+1:])
@@ -191,10 +194,10 @@ func (ccb *ccBalancerWrapper) updateResolverState(s resolver.State) {
 		}
 	}
 	select {
-	case <-ccb.resolverUpdateCh:
+	case <-ccb.ccUpdateCh:
 	default:
 	}
-	ccb.resolverUpdateCh <- &s
+	ccb.ccUpdateCh <- ccs
 }
 
 func (ccb *ccBalancerWrapper) NewSubConn(addrs []resolver.Address, opts balancer.NewSubConnOptions) (balancer.SubConn, error) {

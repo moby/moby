@@ -22,6 +22,7 @@ package balancer
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net"
 	"strings"
@@ -31,6 +32,7 @@ import (
 	"google.golang.org/grpc/internal"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/resolver"
+	"google.golang.org/grpc/serviceconfig"
 )
 
 var (
@@ -39,7 +41,10 @@ var (
 )
 
 // Register registers the balancer builder to the balancer map. b.Name
-// (lowercased) will be used as the name registered with this builder.
+// (lowercased) will be used as the name registered with this builder.  If the
+// Builder implements ConfigParser, ParseConfig will be called when new service
+// configs are received by the resolver, and the result will be provided to the
+// Balancer in UpdateClientConnState.
 //
 // NOTE: this function must only be called during initialization time (i.e. in
 // an init() function), and is not thread-safe. If multiple Balancers are
@@ -138,6 +143,8 @@ type ClientConn interface {
 	ResolveNow(resolver.ResolveNowOption)
 
 	// Target returns the dial target for this ClientConn.
+	//
+	// Deprecated: Use the Target field in the BuildOptions instead.
 	Target() string
 }
 
@@ -155,6 +162,10 @@ type BuildOptions struct {
 	Dialer func(context.Context, string) (net.Conn, error)
 	// ChannelzParentID is the entity parent's channelz unique identification number.
 	ChannelzParentID int64
+	// Target contains the parsed address info of the dial target. It is the same resolver.Target as
+	// passed to the resolver.
+	// See the documentation for the resolver.Target type for details about what it contains.
+	Target resolver.Target
 }
 
 // Builder creates a balancer.
@@ -164,6 +175,14 @@ type Builder interface {
 	// Name returns the name of balancers built by this builder.
 	// It will be used to pick balancers (for example in service config).
 	Name() string
+}
+
+// ConfigParser parses load balancer configs.
+type ConfigParser interface {
+	// ParseConfig parses the JSON load balancer config provided into an
+	// internal form or returns an error if the config is invalid.  For future
+	// compatibility reasons, unknown fields in the config should be ignored.
+	ParseConfig(LoadBalancingConfigJSON json.RawMessage) (serviceconfig.LoadBalancingConfig, error)
 }
 
 // PickOptions contains addition information for the Pick operation.
@@ -264,7 +283,7 @@ type Balancer interface {
 	// non-nil error to gRPC.
 	//
 	// Deprecated: if V2Balancer is implemented by the Balancer,
-	// UpdateResolverState will be called instead.
+	// UpdateClientConnState will be called instead.
 	HandleResolvedAddrs([]resolver.Address, error)
 	// Close closes the balancer. The balancer is not required to call
 	// ClientConn.RemoveSubConn for its existing SubConns.
@@ -277,14 +296,23 @@ type SubConnState struct {
 	// TODO: add last connection error
 }
 
+// ClientConnState describes the state of a ClientConn relevant to the
+// balancer.
+type ClientConnState struct {
+	ResolverState resolver.State
+	// The parsed load balancing configuration returned by the builder's
+	// ParseConfig method, if implemented.
+	BalancerConfig serviceconfig.LoadBalancingConfig
+}
+
 // V2Balancer is defined for documentation purposes.  If a Balancer also
-// implements V2Balancer, its UpdateResolverState method will be called instead
-// of HandleResolvedAddrs and its UpdateSubConnState will be called instead of
-// HandleSubConnStateChange.
+// implements V2Balancer, its UpdateClientConnState method will be called
+// instead of HandleResolvedAddrs and its UpdateSubConnState will be called
+// instead of HandleSubConnStateChange.
 type V2Balancer interface {
-	// UpdateResolverState is called by gRPC when the state of the resolver
+	// UpdateClientConnState is called by gRPC when the state of the ClientConn
 	// changes.
-	UpdateResolverState(resolver.State)
+	UpdateClientConnState(ClientConnState)
 	// UpdateSubConnState is called by gRPC when the state of a SubConn
 	// changes.
 	UpdateSubConnState(SubConn, SubConnState)

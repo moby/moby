@@ -26,6 +26,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/connectivity"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/internal"
 	"google.golang.org/grpc/internal/backoff"
@@ -51,7 +52,11 @@ func init() {
 	internal.HealthCheckFunc = clientHealthCheck
 }
 
-func clientHealthCheck(ctx context.Context, newStream func() (interface{}, error), reportHealth func(bool), service string) error {
+const healthCheckMethod = "/grpc.health.v1.Health/Watch"
+
+// This function implements the protocol defined at:
+// https://github.com/grpc/grpc/blob/master/doc/health-checking.md
+func clientHealthCheck(ctx context.Context, newStream func(string) (interface{}, error), setConnectivityState func(connectivity.State), service string) error {
 	tryCnt := 0
 
 retryConnection:
@@ -65,7 +70,8 @@ retryConnection:
 		if ctx.Err() != nil {
 			return nil
 		}
-		rawS, err := newStream()
+		setConnectivityState(connectivity.Connecting)
+		rawS, err := newStream(healthCheckMethod)
 		if err != nil {
 			continue retryConnection
 		}
@@ -73,7 +79,7 @@ retryConnection:
 		s, ok := rawS.(grpc.ClientStream)
 		// Ideally, this should never happen. But if it happens, the server is marked as healthy for LBing purposes.
 		if !ok {
-			reportHealth(true)
+			setConnectivityState(connectivity.Ready)
 			return fmt.Errorf("newStream returned %v (type %T); want grpc.ClientStream", rawS, rawS)
 		}
 
@@ -89,19 +95,23 @@ retryConnection:
 
 			// Reports healthy for the LBing purposes if health check is not implemented in the server.
 			if status.Code(err) == codes.Unimplemented {
-				reportHealth(true)
+				setConnectivityState(connectivity.Ready)
 				return err
 			}
 
 			// Reports unhealthy if server's Watch method gives an error other than UNIMPLEMENTED.
 			if err != nil {
-				reportHealth(false)
+				setConnectivityState(connectivity.TransientFailure)
 				continue retryConnection
 			}
 
 			// As a message has been received, removes the need for backoff for the next retry by reseting the try count.
 			tryCnt = 0
-			reportHealth(resp.Status == healthpb.HealthCheckResponse_SERVING)
+			if resp.Status == healthpb.HealthCheckResponse_SERVING {
+				setConnectivityState(connectivity.Ready)
+			} else {
+				setConnectivityState(connectivity.TransientFailure)
+			}
 		}
 	}
 }

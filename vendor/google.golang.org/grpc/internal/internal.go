@@ -23,6 +23,8 @@ package internal
 import (
 	"context"
 	"time"
+
+	"google.golang.org/grpc/connectivity"
 )
 
 var (
@@ -37,10 +39,25 @@ var (
 	// KeepaliveMinPingTime is the minimum ping interval.  This must be 10s by
 	// default, but tests may wish to set it lower for convenience.
 	KeepaliveMinPingTime = 10 * time.Second
+	// ParseServiceConfig is a function to parse JSON service configs into
+	// opaque data structures.
+	ParseServiceConfig func(sc string) (interface{}, error)
+	// StatusRawProto is exported by status/status.go. This func returns a
+	// pointer to the wrapped Status proto for a given status.Status without a
+	// call to proto.Clone(). The returned Status proto should not be mutated by
+	// the caller.
+	StatusRawProto interface{} // func (*status.Status) *spb.Status
 )
 
 // HealthChecker defines the signature of the client-side LB channel health checking function.
-type HealthChecker func(ctx context.Context, newStream func() (interface{}, error), reportHealth func(bool), serviceName string) error
+//
+// The implementation is expected to create a health checking RPC stream by
+// calling newStream(), watch for the health status of serviceName, and report
+// it's health back by calling setConnectivityState().
+//
+// The health checking protocol is defined at:
+// https://github.com/grpc/grpc/blob/master/doc/health-checking.md
+type HealthChecker func(ctx context.Context, newStream func(string) (interface{}, error), setConnectivityState func(connectivity.State), serviceName string) error
 
 const (
 	// CredsBundleModeFallback switches GoogleDefaultCreds to fallback mode.

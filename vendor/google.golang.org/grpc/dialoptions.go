@@ -39,8 +39,12 @@ import (
 // dialOptions configure a Dial call. dialOptions are set by the DialOption
 // values passed to Dial.
 type dialOptions struct {
-	unaryInt    UnaryClientInterceptor
-	streamInt   StreamClientInterceptor
+	unaryInt  UnaryClientInterceptor
+	streamInt StreamClientInterceptor
+
+	chainUnaryInts  []UnaryClientInterceptor
+	chainStreamInts []StreamClientInterceptor
+
 	cp          Compressor
 	dc          Decompressor
 	bs          backoff.Strategy
@@ -56,7 +60,6 @@ type dialOptions struct {
 	balancerBuilder balancer.Builder
 	// This is to support grpclb.
 	resolverBuilder             resolver.Builder
-	reqHandshake                envconfig.RequireHandshakeSetting
 	channelzParentID            int64
 	disableServiceConfig        bool
 	disableRetry                bool
@@ -94,17 +97,6 @@ func newFuncDialOption(f func(*dialOptions)) *funcDialOption {
 	return &funcDialOption{
 		f: f,
 	}
-}
-
-// WithWaitForHandshake blocks until the initial settings frame is received from
-// the server before assigning RPCs to the connection.
-//
-// Deprecated: this is the default behavior, and this option will be removed
-// after the 1.18 release.
-func WithWaitForHandshake() DialOption {
-	return newFuncDialOption(func(o *dialOptions) {
-		o.reqHandshake = envconfig.RequireHandshakeOn
-	})
 }
 
 // WithWriteBufferSize determines how much data can be batched before doing a
@@ -152,7 +144,8 @@ func WithInitialConnWindowSize(s int32) DialOption {
 // WithMaxMsgSize returns a DialOption which sets the maximum message size the
 // client can receive.
 //
-// Deprecated: use WithDefaultCallOptions(MaxCallRecvMsgSize(s)) instead.
+// Deprecated: use WithDefaultCallOptions(MaxCallRecvMsgSize(s)) instead.  Will
+// be supported throughout 1.x.
 func WithMaxMsgSize(s int) DialOption {
 	return WithDefaultCallOptions(MaxCallRecvMsgSize(s))
 }
@@ -168,7 +161,8 @@ func WithDefaultCallOptions(cos ...CallOption) DialOption {
 // WithCodec returns a DialOption which sets a codec for message marshaling and
 // unmarshaling.
 //
-// Deprecated: use WithDefaultCallOptions(ForceCodec(_)) instead.
+// Deprecated: use WithDefaultCallOptions(ForceCodec(_)) instead.  Will be
+// supported throughout 1.x.
 func WithCodec(c Codec) DialOption {
 	return WithDefaultCallOptions(CallCustomCodec(c))
 }
@@ -177,7 +171,7 @@ func WithCodec(c Codec) DialOption {
 // message compression. It has lower priority than the compressor set by the
 // UseCompressor CallOption.
 //
-// Deprecated: use UseCompressor instead.
+// Deprecated: use UseCompressor instead.  Will be supported throughout 1.x.
 func WithCompressor(cp Compressor) DialOption {
 	return newFuncDialOption(func(o *dialOptions) {
 		o.cp = cp
@@ -192,7 +186,8 @@ func WithCompressor(cp Compressor) DialOption {
 // message.  If no compressor is registered for the encoding, an Unimplemented
 // status error will be returned.
 //
-// Deprecated: use encoding.RegisterCompressor instead.
+// Deprecated: use encoding.RegisterCompressor instead.  Will be supported
+// throughout 1.x.
 func WithDecompressor(dc Decompressor) DialOption {
 	return newFuncDialOption(func(o *dialOptions) {
 		o.dc = dc
@@ -203,7 +198,7 @@ func WithDecompressor(dc Decompressor) DialOption {
 // Name resolver will be ignored if this DialOption is specified.
 //
 // Deprecated: use the new balancer APIs in balancer package and
-// WithBalancerName.
+// WithBalancerName.  Will be removed in a future 1.x release.
 func WithBalancer(b Balancer) DialOption {
 	return newFuncDialOption(func(o *dialOptions) {
 		o.balancerBuilder = &balancerWrapperBuilder{
@@ -219,7 +214,8 @@ func WithBalancer(b Balancer) DialOption {
 // The balancer cannot be overridden by balancer option specified by service
 // config.
 //
-// This is an EXPERIMENTAL API.
+// Deprecated: use WithDefaultServiceConfig and WithDisableServiceConfig
+// instead.  Will be removed in a future 1.x release.
 func WithBalancerName(balancerName string) DialOption {
 	builder := balancer.Get(balancerName)
 	if builder == nil {
@@ -240,9 +236,10 @@ func withResolverBuilder(b resolver.Builder) DialOption {
 // WithServiceConfig returns a DialOption which has a channel to read the
 // service configuration.
 //
-// Deprecated: service config should be received through name resolver, as
-// specified here.
-// https://github.com/grpc/grpc/blob/master/doc/service_config.md
+// Deprecated: service config should be received through name resolver or via
+// WithDefaultServiceConfig, as specified at
+// https://github.com/grpc/grpc/blob/master/doc/service_config.md.  Will be
+// removed in a future 1.x release.
 func WithServiceConfig(c <-chan ServiceConfig) DialOption {
 	return newFuncDialOption(func(o *dialOptions) {
 		o.scChan = c
@@ -325,7 +322,8 @@ func WithCredentialsBundle(b credentials.Bundle) DialOption {
 // WithTimeout returns a DialOption that configures a timeout for dialing a
 // ClientConn initially. This is valid if and only if WithBlock() is present.
 //
-// Deprecated: use DialContext and context.WithTimeout instead.
+// Deprecated: use DialContext and context.WithTimeout instead.  Will be
+// supported throughout 1.x.
 func WithTimeout(d time.Duration) DialOption {
 	return newFuncDialOption(func(o *dialOptions) {
 		o.timeout = d
@@ -352,7 +350,8 @@ func init() {
 // is returned by f, gRPC checks the error's Temporary() method to decide if it
 // should try to reconnect to the network address.
 //
-// Deprecated: use WithContextDialer instead
+// Deprecated: use WithContextDialer instead.  Will be supported throughout
+// 1.x.
 func WithDialer(f func(string, time.Duration) (net.Conn, error)) DialOption {
 	return WithContextDialer(
 		func(ctx context.Context, addr string) (net.Conn, error) {
@@ -414,11 +413,33 @@ func WithUnaryInterceptor(f UnaryClientInterceptor) DialOption {
 	})
 }
 
+// WithChainUnaryInterceptor returns a DialOption that specifies the chained
+// interceptor for unary RPCs. The first interceptor will be the outer most,
+// while the last interceptor will be the inner most wrapper around the real call.
+// All interceptors added by this method will be chained, and the interceptor
+// defined by WithUnaryInterceptor will always be prepended to the chain.
+func WithChainUnaryInterceptor(interceptors ...UnaryClientInterceptor) DialOption {
+	return newFuncDialOption(func(o *dialOptions) {
+		o.chainUnaryInts = append(o.chainUnaryInts, interceptors...)
+	})
+}
+
 // WithStreamInterceptor returns a DialOption that specifies the interceptor for
 // streaming RPCs.
 func WithStreamInterceptor(f StreamClientInterceptor) DialOption {
 	return newFuncDialOption(func(o *dialOptions) {
 		o.streamInt = f
+	})
+}
+
+// WithChainStreamInterceptor returns a DialOption that specifies the chained
+// interceptor for unary RPCs. The first interceptor will be the outer most,
+// while the last interceptor will be the inner most wrapper around the real call.
+// All interceptors added by this method will be chained, and the interceptor
+// defined by WithStreamInterceptor will always be prepended to the chain.
+func WithChainStreamInterceptor(interceptors ...StreamClientInterceptor) DialOption {
+	return newFuncDialOption(func(o *dialOptions) {
+		o.chainStreamInts = append(o.chainStreamInts, interceptors...)
 	})
 }
 
@@ -440,12 +461,12 @@ func WithChannelzParentID(id int64) DialOption {
 	})
 }
 
-// WithDisableServiceConfig returns a DialOption that causes grpc to ignore any
+// WithDisableServiceConfig returns a DialOption that causes gRPC to ignore any
 // service config provided by the resolver and provides a hint to the resolver
 // to not fetch service configs.
 //
-// Note that, this dial option only disables service config from resolver. If
-// default service config is provided, grpc will use the default service config.
+// Note that this dial option only disables service config from resolver. If
+// default service config is provided, gRPC will use the default service config.
 func WithDisableServiceConfig() DialOption {
 	return newFuncDialOption(func(o *dialOptions) {
 		o.disableServiceConfig = true
@@ -454,8 +475,10 @@ func WithDisableServiceConfig() DialOption {
 
 // WithDefaultServiceConfig returns a DialOption that configures the default
 // service config, which will be used in cases where:
-// 1. WithDisableServiceConfig is called.
-// 2. Resolver does not return service config or if the resolver gets and invalid config.
+//
+// 1. WithDisableServiceConfig is also used.
+// 2. Resolver does not return a service config or if the resolver returns an
+//    invalid service config.
 //
 // This API is EXPERIMENTAL.
 func WithDefaultServiceConfig(s string) DialOption {
@@ -511,7 +534,6 @@ func withHealthCheckFunc(f internal.HealthChecker) DialOption {
 func defaultDialOptions() dialOptions {
 	return dialOptions{
 		disableRetry:    !envconfig.Retry,
-		reqHandshake:    envconfig.RequireHandshake,
 		healthCheckFunc: internal.HealthCheckFunc,
 		copts: transport.ConnectOptions{
 			WriteBufferSize: defaultWriteBufSize,
