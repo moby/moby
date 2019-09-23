@@ -9,14 +9,11 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/testutil"
 )
 
 // New creates a fake build context
 func New(t testing.TB, dir string, modifiers ...func(*Fake) error) *Fake {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+	t.Helper()
 	fakeContext := &Fake{Dir: dir}
 	if dir == "" {
 		if err := newDir(fakeContext); err != nil {
@@ -116,9 +113,7 @@ func (f *Fake) Close() error {
 
 // AsTarReader returns a ReadCloser with the contents of Dir as a tar archive.
 func (f *Fake) AsTarReader(t testing.TB) io.ReadCloser {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+	t.Helper()
 	reader, err := archive.TarWithOptions(f.Dir, &archive.TarOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create tar from %s: %s", f.Dir, err)

@@ -45,9 +45,7 @@ type Config struct {
 
 // NewV2 creates a v2 registry server
 func NewV2(t testing.TB, ops ...func(*Config)) *V2 {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+	t.Helper()
 	c := &Config{
 		registryURL: DefaultURL,
 	}
@@ -130,9 +128,7 @@ http:
 
 // WaitReady waits for the registry to be ready to serve requests (or fail after a while)
 func (r *V2) WaitReady(t testing.TB) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+	t.Helper()
 	var err error
 	for i := 0; i != 50; i++ {
 		if err = r.Ping(); err == nil {
@@ -202,9 +198,7 @@ func (r *V2) WriteBlobContents(t assert.TestingT, blobDigest digest.Digest, data
 // TempMoveBlobData moves the existing data file aside, so that we can replace it with a
 // malicious blob of data for example.
 func (r *V2) TempMoveBlobData(t testing.TB, blobDigest digest.Digest) (undo func()) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+	t.Helper()
 	tempFile, err := ioutil.TempFile("", "registry-temp-blob-")
 	assert.NilError(t, err, "unable to get temporary blob file")
 	tempFile.Close()

@@ -41,9 +41,7 @@ func SetTestEnvironment(env *environment.Execution) {
 
 // New returns a static file server that will be use as build context.
 func New(t testing.TB, dir string, modifiers ...func(*fakecontext.Fake) error) Fake {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+	t.Helper()
 	if testEnv == nil {
 		t.Fatal("fakstorage package requires SetTestEnvironment() to be called before use.")
 	}

@@ -12,16 +12,13 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/testutil"
 	"gotest.tools/assert"
 )
 
 var ensureHTTPServerOnce sync.Once
 
 func ensureHTTPServerImage(t testing.TB) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+	t.Helper()
 	var doIt bool
 	ensureHTTPServerOnce.Do(func() {
 		doIt = true

@@ -138,9 +138,7 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 // $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
 // The daemon will not automatically start.
 func New(t testing.TB, ops ...Option) *Daemon {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+	t.Helper()
 	dest := os.Getenv("DOCKER_INTEGRATION_DAEMON_DEST")
 	if dest == "" {
 		dest = os.Getenv("DEST")
@@ -219,9 +217,7 @@ func (d *Daemon) NewClient(extraOpts ...client.Opt) (*client.Client, error) {
 
 // Cleanup cleans the daemon files : exec root (network namespaces, ...), swarmkit files
 func (d *Daemon) Cleanup(t testing.TB) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+	t.Helper()
 	// Cleanup swarmkit wal files if present
 	cleanupRaftDir(t, d.Root)
 	cleanupNetworkNamespace(t, d.execRoot)
@@ -229,9 +225,7 @@ func (d *Daemon) Cleanup(t testing.TB) {
 
 // Start starts the daemon and return once it is ready to receive requests.
 func (d *Daemon) Start(t testing.TB, args ...string) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+	t.Helper()
 	if err := d.StartWithError(args...); err != nil {
 		t.Fatalf("failed to start daemon with arguments %v : %v", args, err)
 	}
@@ -385,9 +379,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 // StartWithBusybox will first start the daemon with Daemon.Start()
 // then save the busybox image from the main daemon and load it into this Daemon instance.
 func (d *Daemon) StartWithBusybox(t testing.TB, arg ...string) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+	t.Helper()
 	d.Start(t, arg...)
 	d.LoadBusybox(t)
 }
@@ -444,9 +436,7 @@ func (d *Daemon) DumpStackAndQuit() {
 // instantiate a new one with NewDaemon.
 // If an error occurs while starting the daemon, the test will fail.
 func (d *Daemon) Stop(t testing.TB) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+	t.Helper()
 	err := d.StopWithError()
 	if err != nil {
 		if err != errDaemonNotStarted {
@@ -532,9 +522,7 @@ out2:
 // Restart will restart the daemon by first stopping it and the starting it.
 // If an error occurs while starting the daemon, the test will fail.
 func (d *Daemon) Restart(t testing.TB, args ...string) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+	t.Helper()
 	d.Stop(t)
 	d.Start(t, args...)
 }
@@ -732,9 +720,7 @@ func (d *Daemon) Info(t assert.TestingT) types.Info {
 }
 
 func cleanupRaftDir(t testing.TB, rootPath string) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+	t.Helper()
 	for _, p := range []string{"wal", "wal-v3-encrypted", "snap-v3-encrypted"} {
 		dir := filepath.Join(rootPath, "swarm/raft", p)
 		if err := os.RemoveAll(dir); err != nil {
