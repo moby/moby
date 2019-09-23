@@ -1224,8 +1224,12 @@ func newIngressNetwork() *api.Network {
 			},
 			DriverConfig: &api.Driver{},
 			IPAM: &api.IPAMOptions{
-				Driver:  &api.Driver{},
-				Configs: []*api.IPAMConfig{},
+				Driver: &api.Driver{},
+				Configs: []*api.IPAMConfig{
+					{
+						Subnet: "10.255.0.0/16",
+					},
+				},
 			},
 		},
 	}
