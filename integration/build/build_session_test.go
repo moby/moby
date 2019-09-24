@@ -22,6 +22,7 @@ import (
 )
 
 func TestBuildWithSession(t *testing.T) {
+	t.Skip("TODO: BuildKit")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "experimental in older versions")
 

@@ -31,7 +31,6 @@ import (
 	"github.com/docker/docker/api/server/router/volume"
 	buildkit "github.com/docker/docker/builder/builder-next"
 	"github.com/docker/docker/builder/dockerfile"
-	"github.com/docker/docker/builder/fscache"
 	"github.com/docker/docker/cli/debug"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster"
@@ -269,7 +268,6 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 type routerOptions struct {
 	sessionManager *session.Manager
 	buildBackend   *buildbackend.Backend
-	buildCache     *fscache.FSCache // legacy
 	features       *map[string]bool
 	buildkit       *buildkit.Builder
 	daemon         *daemon.Daemon
@@ -284,21 +282,7 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		return opts, errors.Wrap(err, "failed to create sessionmanager")
 	}
 
-	builderStateDir := filepath.Join(config.Root, "builder")
-
-	buildCache, err := fscache.NewFSCache(fscache.Opt{
-		Backend: fscache.NewNaiveCacheBackend(builderStateDir),
-		Root:    builderStateDir,
-		GCPolicy: fscache.GCPolicy{ // TODO: expose this in config
-			MaxSize:         1024 * 1024 * 512,  // 512MB
-			MaxKeepDuration: 7 * 24 * time.Hour, // 1 week
-		},
-	})
-	if err != nil {
-		return opts, errors.Wrap(err, "failed to create fscache")
-	}
-
-	manager, err := dockerfile.NewBuildManager(d.BuilderBackend(), sm, buildCache, d.IdentityMapping())
+	manager, err := dockerfile.NewBuildManager(d.BuilderBackend(), d.IdentityMapping())
 	if err != nil {
 		return opts, err
 	}
@@ -319,14 +303,13 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		return opts, err
 	}
 
-	bb, err := buildbackend.NewBackend(d.ImageService(), manager, buildCache, bk)
+	bb, err := buildbackend.NewBackend(d.ImageService(), manager, bk)
 	if err != nil {
 		return opts, errors.Wrap(err, "failed to create buildmanager")
 	}
 	return routerOptions{
 		sessionManager: sm,
 		buildBackend:   bb,
-		buildCache:     buildCache,
 		buildkit:       bk,
 		features:       d.Features(),
 		daemon:         d,
@@ -494,7 +477,7 @@ func initRouter(opts routerOptions) {
 		checkpointrouter.NewRouter(opts.daemon, decoder),
 		container.NewRouter(opts.daemon, decoder),
 		image.NewRouter(opts.daemon.ImageService()),
-		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildCache, opts.buildkit, opts.features),
+		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildkit, opts.features),
 		volume.NewRouter(opts.daemon.VolumesService()),
 		build.NewRouter(opts.buildBackend, opts.daemon, opts.features),
 		sessionrouter.NewRouter(opts.sessionManager),
