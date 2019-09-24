@@ -81,9 +81,12 @@ func (c *controller) getStores() []datastore.DataStore {
 
 func (c *controller) getNetworkFromStore(nid string) (*network, error) {
 	ns, err := c.getNetworksFromStore()
+	if err != nil {
+		return nil, err
+	}
 	for _, n := range ns {
 		if n.id == nid {
-			return n, err
+			return n, nil
 		}
 	}
 	return nil, fmt.Errorf("network %s not found", nid)
