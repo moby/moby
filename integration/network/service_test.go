@@ -215,7 +215,7 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 		swarm.ServiceWithNetwork(hostName),
 	)
 
-	poll.WaitOn(t, serviceRunningCount(c, serviceID, instances), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.RunningTasksCount(c, serviceID, instances), swarm.ServicePoll)
 
 	_, _, err := c.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
@@ -254,7 +254,7 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 		}),
 	)
 
-	poll.WaitOn(t, serviceRunningCount(c, serviceID, instances), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.RunningTasksCount(c, serviceID, instances), swarm.ServicePoll)
 
 	ctx := context.Background()
 	_, _, err := c.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
@@ -277,20 +277,6 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 	assert.Assert(t, len(netInfo.Peers) != 0, "No peers (including self) in ingress network")
 	_, ok := netInfo.Containers["ingress-sbox"]
 	assert.Assert(t, ok, "ingress-sbox not present in ingress network")
-}
-
-func serviceRunningCount(client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
-		services, err := client.ServiceList(context.Background(), types.ServiceListOptions{})
-		if err != nil {
-			return poll.Error(err)
-		}
-
-		if len(services) != int(instances) {
-			return poll.Continue("Service count at %d waiting for %d", len(services), instances)
-		}
-		return poll.Success()
-	}
 }
 
 func swarmIngressReady(client client.NetworkAPIClient) func(log poll.LogT) poll.Result {
@@ -333,77 +319,86 @@ func TestServiceWithDataPathPortInit(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "DataPathPort was added in API v1.40")
 	defer setupTest(t)()
-	var ops = []func(*daemon.Daemon){}
 	var datapathPort uint32 = 7777
-	ops = append(ops, daemon.WithSwarmDataPathPort(datapathPort))
-	d := swarm.NewSwarm(t, testEnv, ops...)
-
+	d := swarm.NewSwarm(t, testEnv, daemon.WithSwarmDataPathPort(datapathPort))
 	c := d.NewClientT(t)
-	defer c.Close()
-
+	ctx := context.Background()
 	// Create a overlay network
 	name := "saanvisthira" + t.Name()
-	network.CreateNoError(context.Background(), t, c, name,
+	overlayID := network.CreateNoError(context.Background(), t, c, name,
 		network.WithDriver("overlay"))
 
 	var instances uint64 = 1
 	serviceID := swarm.CreateService(t, d,
 		swarm.ServiceWithReplicas(instances),
+		swarm.ServiceWithName(name),
 		swarm.ServiceWithNetwork(name),
 	)
 
-	poll.WaitOn(t, serviceRunningCount(c, serviceID, instances), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.RunningTasksCount(c, serviceID, instances), swarm.ServicePoll)
 
 	info := d.Info(t)
 	assert.Equal(t, info.Swarm.Cluster.DataPathPort, datapathPort)
-	err := c.ServiceRemove(context.Background(), serviceID)
+	err := c.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
-	d.SwarmLeave(t, true)
+	poll.WaitOn(t, noServices(ctx, c), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.NoTasks(ctx, c), swarm.ServicePoll)
+	err = c.NetworkRemove(ctx, overlayID)
+	assert.NilError(t, err)
+	c.Close()
+	err = d.SwarmLeave(t, true)
+	assert.NilError(t, err)
 	d.Stop(t)
 
 	// Clean up , set it back to original one to make sure other tests don't fail
 	// call without datapath port option.
-	ops = []func(*daemon.Daemon){}
-	d = swarm.NewSwarm(t, testEnv, ops...)
-	c = d.NewClientT(t)
-
+	d = swarm.NewSwarm(t, testEnv)
+	defer d.Stop(t)
+	nc := d.NewClientT(t)
+	defer nc.Close()
 	// Create a overlay network
-	name = "saanvisthira" + t.Name()
-	network.CreateNoError(context.Background(), t, c, name,
+	name = "not-saanvisthira" + t.Name()
+	overlayID = network.CreateNoError(ctx, t, nc, name,
 		network.WithDriver("overlay"))
 
 	serviceID = swarm.CreateService(t, d,
 		swarm.ServiceWithReplicas(instances),
+		swarm.ServiceWithName(name),
 		swarm.ServiceWithNetwork(name),
 	)
 
-	poll.WaitOn(t, serviceRunningCount(c, serviceID, instances), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.RunningTasksCount(nc, serviceID, instances), swarm.ServicePoll)
 
 	info = d.Info(t)
 	var defaultDataPathPort uint32 = 4789
 	assert.Equal(t, info.Swarm.Cluster.DataPathPort, defaultDataPathPort)
-	err = c.ServiceRemove(context.Background(), serviceID)
+	err = nc.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
-	d.SwarmLeave(t, true)
-	defer d.Stop(t)
+	poll.WaitOn(t, noServices(ctx, nc), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.NoTasks(ctx, nc), swarm.ServicePoll)
+	err = nc.NetworkRemove(ctx, overlayID)
+	assert.NilError(t, err)
+	err = d.SwarmLeave(t, true)
+	assert.NilError(t, err)
 }
 
 func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
 	defer setupTest(t)()
-	var ops = []func(*daemon.Daemon){}
-	ipAddr := []string{"20.20.0.0/16"}
-	ops = append(ops, daemon.WithSwarmDefaultAddrPool(ipAddr))
-	ops = append(ops, daemon.WithSwarmDefaultAddrPoolSubnetSize(24))
-	d := swarm.NewSwarm(t, testEnv, ops...)
-
+	d := swarm.NewSwarm(t, testEnv,
+		daemon.WithSwarmDefaultAddrPool([]string{"20.20.0.0/16"}),
+		daemon.WithSwarmDefaultAddrPoolSubnetSize(24))
+	defer d.Stop(t)
 	cli := d.NewClientT(t)
 	defer cli.Close()
+	ctx := context.Background()
 
 	// Create a overlay network
-	name := "saanvisthira" + t.Name()
-	network.CreateNoError(context.Background(), t, cli, name,
-		network.WithDriver("overlay"))
+	name := "sthira" + t.Name()
+	overlayID := network.CreateNoError(ctx, t, cli, name,
+		network.WithDriver("overlay"),
+		network.WithCheckDuplicate(),
+	)
 
 	var instances uint64 = 1
 	serviceName := "TestService" + t.Name()
@@ -413,27 +408,24 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 		swarm.ServiceWithNetwork(name),
 	)
 
-	poll.WaitOn(t, serviceRunningCount(cli, serviceID, instances), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.RunningTasksCount(cli, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := cli.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
+	_, _, err := cli.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
-	out, err := cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
+	out, err := cli.NetworkInspect(ctx, overlayID, types.NetworkInspectOptions{Verbose: true})
 	assert.NilError(t, err)
 	t.Logf("%s: NetworkInspect: %+v", t.Name(), out)
 	assert.Assert(t, len(out.IPAM.Config) > 0)
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "20.20.0.0/24")
 
-	err = cli.ServiceRemove(context.Background(), serviceID)
+	err = cli.ServiceRemove(ctx, serviceID)
+	poll.WaitOn(t, noServices(ctx, cli), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.NoTasks(ctx, cli), swarm.ServicePoll)
 	assert.NilError(t, err)
-	d.SwarmLeave(t, true)
-	d.Stop(t)
+	err = cli.NetworkRemove(ctx, overlayID)
+	assert.NilError(t, err)
+	err = d.SwarmLeave(t, true)
+	assert.NilError(t, err)
 
-	// Clean up , set it back to original one to make sure other tests don't fail
-	ipAddr = []string{"10.0.0.0/8"}
-	ops = append(ops, daemon.WithSwarmDefaultAddrPool(ipAddr))
-	ops = append(ops, daemon.WithSwarmDefaultAddrPoolSubnetSize(24))
-	d = swarm.NewSwarm(t, testEnv, ops...)
-	d.SwarmLeave(t, true)
-	defer d.Stop(t)
 }
