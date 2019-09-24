@@ -6,8 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-
-	"github.com/docker/docker/testutil"
+	"testing"
 )
 
 type handlerFunc func(w http.ResponseWriter, r *http.Request)
@@ -28,10 +27,8 @@ func (tr *Mock) RegisterHandler(path string, h handlerFunc) {
 }
 
 // NewMock creates a registry mock
-func NewMock(t testingT) (*Mock, error) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func NewMock(t testing.TB) (*Mock, error) {
+	t.Helper()
 	testReg := &Mock{handlers: make(map[string]handlerFunc)}
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

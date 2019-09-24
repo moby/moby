@@ -7,16 +7,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
 
-	"github.com/docker/docker/testutil"
 	"golang.org/x/sys/unix"
 	"gotest.tools/assert"
 )
 
-func cleanupNetworkNamespace(t testingT, execRoot string) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func cleanupNetworkNamespace(t testing.TB, execRoot string) {
+	t.Helper()
 	// Cleanup network namespaces in the exec root of this
 	// daemon because this exec root is specific to this
 	// daemon instance and has no chance of getting
@@ -33,7 +31,7 @@ func cleanupNetworkNamespace(t testingT, execRoot string) {
 }
 
 // CgroupNamespace returns the cgroup namespace the daemon is running in
-func (d *Daemon) CgroupNamespace(t assert.TestingT) string {
+func (d *Daemon) CgroupNamespace(t testing.TB) string {
 	link, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/cgroup", d.Pid()))
 	assert.NilError(t, err)
 

@@ -12,16 +12,6 @@ import (
 	"gotest.tools/icmd"
 )
 
-type testingT interface {
-	assert.TestingT
-	logT
-	Fatalf(string, ...interface{})
-}
-
-type logT interface {
-	Logf(string, ...interface{})
-}
-
 // Daemon represents a Docker daemon for the testing framework.
 type Daemon struct {
 	*daemon.Daemon
@@ -31,7 +21,7 @@ type Daemon struct {
 // New returns a Daemon instance to be used for testing.
 // This will create a directory such as d123456789 in the folder specified by $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
 // The daemon will not automatically start.
-func New(t testingT, dockerBinary string, dockerdBinary string, ops ...daemon.Option) *Daemon {
+func New(t testing.TB, dockerBinary string, dockerdBinary string, ops ...daemon.Option) *Daemon {
 	ops = append(ops, daemon.WithDockerdBinary(dockerdBinary))
 	d := daemon.New(t, ops...)
 	return &Daemon{

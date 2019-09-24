@@ -2,17 +2,15 @@ package daemon
 
 import (
 	"context"
+	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/testutil"
 	"gotest.tools/assert"
 )
 
 // ActiveContainers returns the list of ids of the currently running containers
-func (d *Daemon) ActiveContainers(t assert.TestingT) []string {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) ActiveContainers(t testing.TB) []string {
+	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -27,10 +25,8 @@ func (d *Daemon) ActiveContainers(t assert.TestingT) []string {
 }
 
 // FindContainerIP returns the ip of the specified container
-func (d *Daemon) FindContainerIP(t assert.TestingT, id string) string {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) FindContainerIP(t testing.TB, id string) string {
+	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
