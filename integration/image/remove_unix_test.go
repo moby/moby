@@ -7,6 +7,8 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -14,6 +16,10 @@ import (
 	"unsafe"
 
 	"github.com/docker/docker/api/types"
+	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
+	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
 	"gotest.tools/assert"
@@ -31,13 +37,27 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 
 	// Create daemon with overlay2 graphdriver because vfs uses disk differently
 	// and this test case would not work with it.
-	d := daemon.New(t, daemon.WithStorageDriver("overlay2"), daemon.WithImageService)
+	d := daemon.New(t, daemon.WithStorageDriver("overlay2"))
 	d.Start(t)
 	defer d.Stop(t)
 
 	ctx := context.Background()
 	client := d.NewClientT(t)
-	i := d.ImageService()
+
+	layerStores := make(map[string]layer.Store)
+	layerStores[runtime.GOOS], _ = layer.NewStoreFromOptions(layer.StoreOptions{
+		Root:                      d.Root,
+		MetadataStorePathTemplate: filepath.Join(d.RootDir(), "image", "%s", "layerdb"),
+		GraphDriver:               d.StorageDriver(),
+		GraphDriverOptions:        nil,
+		IDMapping:                 &idtools.IdentityMapping{},
+		PluginGetter:              nil,
+		ExperimentalEnabled:       false,
+		OS:                        runtime.GOOS,
+	})
+	i := images.NewImageService(images.ImageServiceConfig{
+		LayerStores: layerStores,
+	})
 
 	img := "test-garbage-collector"
 
