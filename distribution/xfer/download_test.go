@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
 	digest "github.com/opencontainers/go-digest"
+	"gotest.tools/assert"
 )
 
 const maxDownloadConcurrency = 3
@@ -160,6 +161,7 @@ type mockDownloadDescriptor struct {
 	registeredDiffID layer.DiffID
 	expectedDiffID   layer.DiffID
 	simulateRetries  int
+	retries          int
 }
 
 // Key returns the key used to deduplicate downloads.
@@ -213,9 +215,9 @@ func (d *mockDownloadDescriptor) Download(ctx context.Context, progressOutput pr
 		}
 	}
 
-	if d.simulateRetries != 0 {
-		d.simulateRetries--
-		return nil, 0, errors.New("simulating retry")
+	if d.retries < d.simulateRetries {
+		d.retries++
+		return nil, 0, fmt.Errorf("simulating download attempt %d/%d", d.retries, d.simulateRetries)
 	}
 
 	return d.mockTarStream(), 0, nil
@@ -358,4 +360,71 @@ func TestCancelledDownload(t *testing.T) {
 
 	close(progressChan)
 	<-progressDone
+}
+
+func TestMaxDownloadAttempts(t *testing.T) {
+	tests := []struct {
+		name                string
+		simulateRetries     int
+		maxDownloadAttempts int
+		expectedErr         string
+	}{
+		{
+			name:                "max-attempts=5, succeed at 2nd attempt",
+			simulateRetries:     2,
+			maxDownloadAttempts: 5,
+		},
+		{
+			name:                "max-attempts=5, succeed at 5th attempt",
+			simulateRetries:     5,
+			maxDownloadAttempts: 5,
+		},
+		{
+			name:                "max-attempts=5, fail at 6th attempt",
+			simulateRetries:     6,
+			maxDownloadAttempts: 5,
+			expectedErr:         "simulating download attempt 5/6",
+		},
+		{
+			name:                "max-attempts=0, fail after 1 attempt",
+			simulateRetries:     1,
+			maxDownloadAttempts: 0,
+			expectedErr:         "simulating download attempt 1/1",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			layerStore := &mockLayerStore{make(map[layer.ChainID]*mockLayer)}
+			lsMap := make(map[string]layer.Store)
+			lsMap[runtime.GOOS] = layerStore
+			ldm := NewLayerDownloadManager(
+				lsMap,
+				maxDownloadConcurrency,
+				func(m *LayerDownloadManager) {
+					m.waitDuration = time.Millisecond
+					m.maxDownloadAttempts = tc.maxDownloadAttempts
+				})
+
+			progressChan := make(chan progress.Progress)
+			progressDone := make(chan struct{})
+
+			go func() {
+				for range progressChan {
+				}
+				close(progressDone)
+			}()
+
+			var currentDownloads int32
+			descriptors := downloadDescriptors(&currentDownloads)
+			descriptors[4].(*mockDownloadDescriptor).simulateRetries = tc.simulateRetries
+
+			_, _, err := ldm.Download(context.Background(), *image.NewRootFS(), runtime.GOOS, descriptors, progress.ChanOutput(progressChan))
+			if tc.expectedErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tc.expectedErr)
+			}
+		})
+	}
 }
