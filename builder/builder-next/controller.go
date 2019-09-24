@@ -8,6 +8,7 @@ import (
 	"github.com/containerd/containerd/content/local"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
 	"github.com/docker/docker/builder/builder-next/adapters/localinlinecache"
 	"github.com/docker/docker/builder/builder-next/adapters/snapshot"
@@ -229,7 +230,7 @@ func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, er
 				gcPolicy[i], err = toBuildkitPruneInfo(types.BuildCachePruneOptions{
 					All:         p.All,
 					KeepStorage: b,
-					Filters:     p.Filter,
+					Filters:     filters.Args(p.Filter),
 				})
 				if err != nil {
 					return nil, err
