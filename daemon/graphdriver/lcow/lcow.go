@@ -1,6 +1,5 @@
 // +build windows
 
-// Maintainer:  jhowardmsft
 // Locale:      en-gb
 // About:       Graph-driver for Linux Containers On Windows (LCOW)
 //

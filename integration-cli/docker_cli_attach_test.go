@@ -89,7 +89,7 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *testing.T) {
 }
 
 func (s *DockerSuite) TestAttachTTYWithoutStdin(c *testing.T) {
-	// TODO @jhowardmsft. Figure out how to get this running again reliable on Windows.
+	// TODO: Figure out how to get this running again reliable on Windows.
 	// It works by accident at the moment. Sometimes. I've gone back to v1.13.0 and see the same.
 	// On Windows, docker run -d -ti busybox causes the container to exit immediately.
 	// Obviously a year back when I updated the test, that was not the case. However,
