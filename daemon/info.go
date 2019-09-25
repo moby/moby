@@ -20,7 +20,6 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
-	"github.com/docker/go-connections/sockets"
 	metrics "github.com/docker/go-metrics"
 	"github.com/sirupsen/logrus"
 )
@@ -66,9 +65,9 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		ServerVersion:      dockerversion.Version,
 		ClusterStore:       daemon.configStore.ClusterStore,
 		ClusterAdvertise:   daemon.configStore.ClusterAdvertise,
-		HTTPProxy:          maskCredentials(sockets.GetProxyEnv("http_proxy")),
-		HTTPSProxy:         maskCredentials(sockets.GetProxyEnv("https_proxy")),
-		NoProxy:            sockets.GetProxyEnv("no_proxy"),
+		HTTPProxy:          maskCredentials(getEnvAny("HTTP_PROXY", "http_proxy")),
+		HTTPSProxy:         maskCredentials(getEnvAny("HTTPS_PROXY", "https_proxy")),
+		NoProxy:            getEnvAny("NO_PROXY", "no_proxy"),
 		LiveRestoreEnabled: daemon.configStore.LiveRestoreEnabled,
 		Isolation:          daemon.defaultIsolation,
 	}
@@ -286,4 +285,13 @@ func maskCredentials(rawURL string) string {
 	parsedURL.User = url.UserPassword("xxxxx", "xxxxx")
 	maskedURL := parsedURL.String()
 	return maskedURL
+}
+
+func getEnvAny(names ...string) string {
+	for _, n := range names {
+		if val := os.Getenv(n); val != "" {
+			return val
+		}
+	}
+	return ""
 }
