@@ -370,7 +370,7 @@ func (daemon *Daemon) setWindowsCredentialSpec(c *container.Container, s *specs.
 }
 
 // Sets the Linux-specific fields of the OCI spec
-// TODO: @jhowardmsft LCOW Support. We need to do a lot more pulling in what can
+// TODO: LCOW Support. We need to do a lot more pulling in what can
 // be pulled in from oci_linux.go.
 func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spec) error {
 	s.Root = &specs.Root{

@@ -6,10 +6,10 @@
 builder/**                              @tonistiigi
 contrib/mkimage/**                      @tianon
 daemon/graphdriver/devmapper/**         @rhvgoyal 
-daemon/graphdriver/lcow/**              @johnstep @jhowardmsft
+daemon/graphdriver/lcow/**              @johnstep
 daemon/graphdriver/overlay/**           @dmcgowan
 daemon/graphdriver/overlay2/**          @dmcgowan
-daemon/graphdriver/windows/**           @johnstep @jhowardmsft
+daemon/graphdriver/windows/**           @johnstep
 daemon/logger/awslogs/**                @samuelkarp  
 hack/**                                 @tianon
 plugin/**                               @cpuguy83

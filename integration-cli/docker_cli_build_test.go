@@ -390,7 +390,7 @@ func (s *DockerSuite) TestBuildCacheAdd(c *testing.T) {
 }
 
 func (s *DockerSuite) TestBuildLastModified(c *testing.T) {
-	// Temporary fix for #30890. TODO @jhowardmsft figure out what
+	// Temporary fix for #30890. TODO: figure out what
 	// has changed in the master busybox image.
 	testRequires(c, DaemonIsLinux)
 
@@ -1347,7 +1347,7 @@ func (s *DockerSuite) TestBuildWindowsWorkdirProcessing(c *testing.T) {
 // One functional test for end-to-end
 func (s *DockerSuite) TestBuildWindowsAddCopyPathProcessing(c *testing.T) {
 	testRequires(c, DaemonIsWindows)
-	// TODO Windows (@jhowardmsft). Needs a follow-up PR to 22181 to
+	// TODO Windows. Needs a follow-up PR to 22181 to
 	// support backslash such as .\\ being equivalent to ./ and c:\\ being
 	// equivalent to c:/. This is not currently (nor ever has been) supported
 	// by docker on the Windows platform.

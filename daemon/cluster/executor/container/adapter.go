@@ -97,7 +97,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	pr, pw := io.Pipe()
 	metaHeaders := map[string][]string{}
 	go func() {
-		// TODO @jhowardmsft LCOW Support: This will need revisiting as
+		// TODO LCOW Support: This will need revisiting as
 		// the stack is built up to include LCOW support for swarm.
 		err := c.imageBackend.PullImage(ctx, c.container.image(), "", nil, metaHeaders, authConfig, pw)
 		pw.CloseWithError(err)
