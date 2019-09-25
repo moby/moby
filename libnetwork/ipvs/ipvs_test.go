@@ -21,8 +21,8 @@ var (
 		LeastConnection,
 		DestinationHashing,
 		SourceHashing,
-		WeightedRoundRobin,
 		WeightedLeastConnection,
+		WeightedRoundRobin,
 	}
 
 	protocols = []string{
