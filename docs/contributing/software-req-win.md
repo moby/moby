@@ -169,7 +169,7 @@ quit due to the use of console hooks which are not available.
 The docker integration tests do not currently run in a container on Windows,
 predominantly due to Windows not supporting privileged mode, so anything using a volume would fail.
 They (along with the rest of the docker CI suite) can be run using
-https://github.com/jhowardmsft/docker-w2wCIScripts/blob/master/runCI/Invoke-DockerCI.ps1.
+https://github.com/kevpar/docker-w2wCIScripts/blob/master/runCI/Invoke-DockerCI.ps1.
 
 ## Where to go next
 
