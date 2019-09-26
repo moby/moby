@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-connections/nat"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -117,14 +118,20 @@ func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, paren
 		return err
 	}
 
-	// add an image mount without an image so the layer is properly unmounted
-	// if there is an error before we can add the full mount with image
-	b.imageSources.Add(newImageMount(nil, newLayer))
-
 	parentImage, ok := parent.(*image.Image)
 	if !ok {
 		return errors.Errorf("unexpected image type")
 	}
+
+	platform := &specs.Platform{
+		OS:           parentImage.OS,
+		Architecture: parentImage.Architecture,
+		Variant:      parentImage.Variant,
+	}
+
+	// add an image mount without an image so the layer is properly unmounted
+	// if there is an error before we can add the full mount with image
+	b.imageSources.Add(newImageMount(nil, newLayer), platform)
 
 	newImage := image.NewChildImage(parentImage, image.ChildConfig{
 		Author:          state.maintainer,
@@ -146,7 +153,7 @@ func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, paren
 	}
 
 	state.imageID = exportedImage.ImageID()
-	b.imageSources.Add(newImageMount(exportedImage, newLayer))
+	b.imageSources.Add(newImageMount(exportedImage, newLayer), platform)
 	return nil
 }
 

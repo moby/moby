@@ -170,7 +170,7 @@ func (s *imageConfigStore) PlatformFromConfig(c []byte) (*specs.Platform, error)
 	if !system.IsOSSupported(os) {
 		return nil, system.ErrNotSupportedOperatingSystem
 	}
-	return &specs.Platform{OS: os, Architecture: unmarshalledConfig.Architecture, OSVersion: unmarshalledConfig.OSVersion}, nil
+	return &specs.Platform{OS: os, Architecture: unmarshalledConfig.Architecture, Variant: unmarshalledConfig.Variant, OSVersion: unmarshalledConfig.OSVersion}, nil
 }
 
 type storeLayerProvider struct {

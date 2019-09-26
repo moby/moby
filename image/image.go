@@ -53,6 +53,8 @@ type V1Image struct {
 	Config *container.Config `json:"config,omitempty"`
 	// Architecture is the hardware that the image is built and runs on
 	Architecture string `json:"architecture,omitempty"`
+	// Variant is the CPU architecture variant (presently ARM-only)
+	Variant string `json:"variant,omitempty"`
 	// OS is the operating system used to build and run the image
 	OS string `json:"os,omitempty"`
 	// Size is the total size of the image including all layers it is composed of
@@ -103,6 +105,13 @@ func (img *Image) BaseImgArch() string {
 		arch = runtime.GOARCH
 	}
 	return arch
+}
+
+// BaseImgVariant returns the image's variant, whether populated or not.
+// This avoids creating an inconsistency where the stored image variant
+// is "greater than" (i.e. v8 vs v6) the actual image variant.
+func (img *Image) BaseImgVariant() string {
+	return img.Variant
 }
 
 // OperatingSystem returns the image's operating system. If not populated, defaults to the host runtime OS.
@@ -167,6 +176,7 @@ func NewChildImage(img *Image, child ChildConfig, os string) *Image {
 			DockerVersion:   dockerversion.Version,
 			Config:          child.Config,
 			Architecture:    img.BaseImgArch(),
+			Variant:         img.BaseImgVariant(),
 			OS:              os,
 			Container:       child.ContainerID,
 			ContainerConfig: *child.ContainerConfig,
