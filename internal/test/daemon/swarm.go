@@ -20,12 +20,19 @@ var (
 	startArgs = []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
 )
 
-// StartNode starts daemon to be used as a swarm node
+// StartNode (re)starts the daemon
 func (d *Daemon) StartNode(t testingT) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
-	// avoid networking conflicts
+	d.Start(t, startArgs...)
+}
+
+// StartNodeWithBusybox starts daemon to be used as a swarm node, and loads the busybox image
+func (d *Daemon) StartNodeWithBusybox(t testingT) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	d.StartWithBusybox(t, startArgs...)
 }
 
@@ -36,24 +43,28 @@ func (d *Daemon) RestartNode(t testingT) {
 	}
 	// avoid networking conflicts
 	d.Stop(t)
-	d.StartWithBusybox(t, startArgs...)
+	d.Start(t, startArgs...)
 }
 
 // StartAndSwarmInit starts the daemon (with busybox) and init the swarm
 func (d *Daemon) StartAndSwarmInit(t testingT) {
-	d.StartNode(t)
+	d.StartNodeWithBusybox(t)
 	d.SwarmInit(t, swarm.InitRequest{})
 }
 
 // StartAndSwarmJoin starts the daemon (with busybox) and join the specified swarm as worker or manager
 func (d *Daemon) StartAndSwarmJoin(t testingT, leader *Daemon, manager bool) {
-	d.StartNode(t)
+	if th, ok := t.(test.HelperT); ok {
+		th.Helper()
+	}
+	d.StartNodeWithBusybox(t)
 
 	tokens := leader.JoinTokens(t)
 	token := tokens.Worker
 	if manager {
 		token = tokens.Manager
 	}
+	t.Logf("[%s] joining swarm manager [%s]@%s, swarm listen addr %s", d.id, leader.id, leader.SwarmListenAddr(), d.SwarmListenAddr())
 	d.SwarmJoin(t, swarm.JoinRequest{
 		RemoteAddrs: []string{leader.SwarmListenAddr()},
 		JoinToken:   token,
@@ -106,7 +117,7 @@ func (d *Daemon) SwarmJoin(t assert.TestingT, req swarm.JoinRequest) {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 	err := cli.SwarmJoin(context.Background(), req)
-	assert.NilError(t, err, "initializing swarm")
+	assert.NilError(t, err, "[%s] joining swarm", d.id)
 	d.CachedInfo = d.Info(t)
 }
 

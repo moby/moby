@@ -304,8 +304,8 @@ func init() {
 type DockerSwarmSuite struct {
 	server      *httptest.Server
 	ds          *DockerSuite
+	daemonsLock sync.Mutex // protect access to daemons and portIndex
 	daemons     []*daemon.Daemon
-	daemonsLock sync.Mutex // protect access to daemons
 	portIndex   int
 }
 
@@ -333,11 +333,11 @@ func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *daemo
 			d.StartAndSwarmInit(c)
 		}
 	} else {
-		d.StartNode(c)
+		d.StartNodeWithBusybox(c)
 	}
 
-	s.portIndex++
 	s.daemonsLock.Lock()
+	s.portIndex++
 	s.daemons = append(s.daemons, d)
 	s.daemonsLock.Unlock()
 
@@ -354,9 +354,8 @@ func (s *DockerSwarmSuite) TearDownTest(c *check.C) {
 		}
 	}
 	s.daemons = nil
-	s.daemonsLock.Unlock()
-
 	s.portIndex = 0
+	s.daemonsLock.Unlock()
 	s.ds.TearDownTest(c)
 }
 

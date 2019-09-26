@@ -84,18 +84,9 @@ func bridgeNfIptables() bool {
 	return !SysInfo.BridgeNFCallIPTablesDisabled
 }
 
-func bridgeNfIP6tables() bool {
-	return !SysInfo.BridgeNFCallIP6TablesDisabled
-}
-
 func unprivilegedUsernsClone() bool {
 	content, err := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
 	return err != nil || !strings.Contains(string(content), "0")
-}
-
-func ambientCapabilities() bool {
-	content, err := ioutil.ReadFile("/proc/self/status")
-	return err != nil || strings.Contains(string(content), "CapAmb:")
 }
 
 func overlayFSSupported() bool {
@@ -105,20 +96,6 @@ func overlayFSSupported() bool {
 		return false
 	}
 	return bytes.Contains(out, []byte("overlay\n"))
-}
-
-func overlay2Supported() bool {
-	if !overlayFSSupported() {
-		return false
-	}
-
-	daemonV, err := kernel.ParseRelease(testEnv.DaemonInfo.KernelVersion)
-	if err != nil {
-		return false
-	}
-	requiredV := kernel.VersionInfo{Kernel: 4}
-	return kernel.CompareKernelVersion(*daemonV, requiredV) > -1
-
 }
 
 func init() {

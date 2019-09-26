@@ -26,7 +26,6 @@ import (
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/creack/pty"
 	"github.com/docker/docker/api/types"
-	moby_daemon "github.com/docker/docker/daemon"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
@@ -826,7 +825,6 @@ func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4ExplicitOutsideContainer
 }
 
 func (s *DockerDaemonSuite) TestDaemonDefaultNetworkInvalidClusterConfig(c *check.C) {
-	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 
 	// Start daemon without docker0 bridge
 	defaultNetworkBridge := "docker0"
@@ -967,7 +965,6 @@ func (s *DockerDaemonSuite) TestDaemonLinksIpTablesRulesWhenLinkAndUnlink(c *che
 }
 
 func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 
 	s.d.StartWithBusybox(c, "--default-ulimit", "nofile=42:42", "--default-ulimit", "nproc=1024:1024")
 
@@ -1457,7 +1454,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *chec
 
 	// kill the container
 	icmd.RunCommand(ctrBinary, "--address", containerdSocket,
-		"--namespace", moby_daemon.ContainersNamespace, "tasks", "kill", id).Assert(c, icmd.Success)
+		"--namespace", d.ContainersNamespace(), "tasks", "kill", id).Assert(c, icmd.Success)
 
 	// restart daemon.
 	d.Restart(c)
@@ -1977,7 +1974,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check
 
 	// kill the container
 	icmd.RunCommand(ctrBinary, "--address", containerdSocket,
-		"--namespace", moby_daemon.ContainersNamespace, "tasks", "kill", cid).Assert(t, icmd.Success)
+		"--namespace", s.d.ContainersNamespace(), "tasks", "kill", cid).Assert(t, icmd.Success)
 
 	// Give time to containerd to process the command if we don't
 	// the exit event might be received after we do the inspect
@@ -2080,7 +2077,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *che
 	result := icmd.RunCommand(
 		ctrBinary,
 		"--address", containerdSocket,
-		"--namespace", moby_daemon.ContainersNamespace,
+		"--namespace", s.d.ContainersNamespace(),
 		"tasks", "resume", cid)
 	result.Assert(t, icmd.Success)
 

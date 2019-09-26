@@ -22,15 +22,27 @@ pipeline {
         DOCKER_GRAPHDRIVER  = 'overlay2'
         APT_MIRROR          = 'cdn-fastly.deb.debian.org'
         CHECK_CONFIG_COMMIT = '78405559cfe5987174aa2cb6463b9b2c1b917255'
+        TESTDEBUG           = '0'
         TIMEOUT             = '120m'
     }
     stages {
+        stage('pr-hack') {
+            when { changeRequest() }
+            steps {
+                script {
+                    echo "Workaround for PR auto-cancel feature. Borrowed from https://issues.jenkins-ci.org/browse/JENKINS-43353"
+                    def buildNumber = env.BUILD_NUMBER as int
+                    if (buildNumber > 1) milestone(buildNumber - 1)
+                    milestone(buildNumber)
+                }
+            }
+        }
         stage('DCO-check') {
             when {
                 beforeAgent true
                 expression { !params.skip_dco }
             }
-            agent { label 'linux' }
+            agent { label 'amd64 && ubuntu-1804 && overlay2' }
             steps {
                 sh '''
                 docker run --rm \
@@ -257,13 +269,13 @@ pipeline {
                                 run_tests() {
                                         [ -n "$TESTDEBUG" ] && rm= || rm=--rm;
                                         docker run $rm -t --privileged \
-                                          -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                          -v "$WORKSPACE/bundles/${TEST_INTEGRATION_DEST}:/go/src/github.com/docker/docker/bundles" \
+                                          -v "$WORKSPACE/bundles/dynbinary-daemon:/go/src/github.com/docker/docker/bundles/dynbinary-daemon" \
                                           -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
                                           --name "$CONTAINER_NAME" \
                                           -e KEEPBUNDLE=1 \
                                           -e TESTDEBUG \
                                           -e TESTFLAGS \
-                                          -e TEST_INTEGRATION_DEST \
                                           -e TEST_SKIP_INTEGRATION \
                                           -e TEST_SKIP_INTEGRATION_CLI \
                                           -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
@@ -308,6 +320,11 @@ pipeline {
                                 exit $c
                                 '''
                             }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                                }
+                            }
                         }
                     }
 
@@ -315,7 +332,8 @@ pipeline {
                         always {
                             sh '''
                             echo "Ensuring container killed."
-                            docker rm -vf docker-pr$BUILD_NUMBER || true
+                            cids=$(docker ps -aq -f name=docker-pr${BUILD_NUMBER}-*)
+                            [ -n "$cids" ] && docker rm -vf $cids || true
                             '''
 
                             sh '''
@@ -328,7 +346,7 @@ pipeline {
                                 bundleName=amd64
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
@@ -397,6 +415,7 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e TESTDEBUG \
                                   -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
                                   docker:${GIT_COMMIT} \
@@ -404,6 +423,11 @@ pipeline {
                                     dynbinary \
                                     test-integration
                                 '''
+                            }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                                }
                             }
                         }
                     }
@@ -425,7 +449,7 @@ pipeline {
                                 bundleName=s390x-integration
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
@@ -483,6 +507,11 @@ pipeline {
                                     test-integration
                                 '''
                             }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                                }
+                            }
                         }
                     }
 
@@ -503,7 +532,7 @@ pipeline {
                                 bundleName=s390x-integration-cli
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
@@ -570,6 +599,7 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e TESTDEBUG \
                                   -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
                                   docker:${GIT_COMMIT} \
@@ -577,6 +607,11 @@ pipeline {
                                     dynbinary \
                                     test-integration
                                 '''
+                            }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                                }
                             }
                         }
                     }
@@ -598,7 +633,7 @@ pipeline {
                                 bundleName=ppc64le-integration
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
@@ -654,6 +689,11 @@ pipeline {
                                     test-integration
                                 '''
                             }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                                }
+                            }
                         }
                     }
 
@@ -662,8 +702,6 @@ pipeline {
                             sh '''
                             echo "Ensuring container killed."
                             docker rm -vf docker-pr$BUILD_NUMBER || true
-                            cids=$(docker ps -aq -f name=docker-pr${BUILD_NUMBER}-*)
-                            [ -n "$cids" ] && docker rm -vf $cids || true
                             '''
 
                             sh '''
@@ -676,7 +714,7 @@ pipeline {
                                 bundleName=ppc64le-integration-cli
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*.log' -o -name '*.prof' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
@@ -699,11 +737,12 @@ pipeline {
                     }
                     environment {
                         DOCKER_BUILDKIT        = '0'
+                        DOCKER_DUT_DEBUG       = '1'
                         SKIP_VALIDATION_TESTS  = '1'
                         SOURCES_DRIVE          = 'd'
                         SOURCES_SUBDIR         = 'gopath'
                         TESTRUN_DRIVE          = 'd'
-                        TESTRUN_SUBDIR         = "CI-$BUILD_NUMBER"
+                        TESTRUN_SUBDIR         = "CI"
                         WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
                         WINDOWS_BASE_IMAGE_TAG = 'ltsc2016'
                     }
@@ -732,6 +771,25 @@ pipeline {
                             }
                         }
                     }
+                    post {
+                        always {
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                powershell '''
+                                $bundleName="windowsRS1-integration"
+                                Write-Host -ForegroundColor Green "Creating ${bundleName}-bundles.zip"
+
+                                # archiveArtifacts does not support env-vars to , so save the artifacts in a fixed location
+                                Compress-Archive -Path "${env:TEMP}/CIDUT.out", "${env:TEMP}/CIDUT.err" -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
+                                '''
+
+                                archiveArtifacts artifacts: '*-bundles.zip', allowEmptyArchive: true
+                            }
+                        }
+                        cleanup {
+                            sh 'make clean'
+                            deleteDir()
+                        }
+                    }
                 }
                 stage('win-RS5') {
                     when {
@@ -740,11 +798,12 @@ pipeline {
                     }
                     environment {
                         DOCKER_BUILDKIT        = '0'
+                        DOCKER_DUT_DEBUG       = '1'
                         SKIP_VALIDATION_TESTS  = '1'
                         SOURCES_DRIVE          = 'd'
                         SOURCES_SUBDIR         = 'gopath'
                         TESTRUN_DRIVE          = 'd'
-                        TESTRUN_SUBDIR         = "CI-$BUILD_NUMBER"
+                        TESTRUN_SUBDIR         = "CI"
                         WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
                         WINDOWS_BASE_IMAGE_TAG = 'ltsc2019'
                     }
@@ -770,6 +829,25 @@ pipeline {
                                 exit $LastExitCode
                                 '''
                             }
+                        }
+                    }
+                    post {
+                        always {
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                powershell '''
+                                $bundleName="windowsRS5-integration"
+                                Write-Host -ForegroundColor Green "Creating ${bundleName}-bundles.zip"
+
+                                # archiveArtifacts does not support env-vars to , so save the artifacts in a fixed location
+                                Compress-Archive -Path "${env:TEMP}/CIDUT.out", "${env:TEMP}/CIDUT.err" -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
+                                '''
+
+                                archiveArtifacts artifacts: '*-bundles.zip', allowEmptyArchive: true
+                            }
+                        }
+                        cleanup {
+                            sh 'make clean'
+                            deleteDir()
                         }
                     }
                 }

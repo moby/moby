@@ -15,6 +15,11 @@ if ($env:BUILD_TAG -match "-LoW") { $env:LCOW_MODE=1 }
 if ($env:BUILD_TAG -match "-WoW") { $env:LCOW_MODE="" }
 
 
+Write-Host -ForegroundColor Red "DEBUG: print all environment variables to check how Jenkins runs this script"
+$allArgs = [Environment]::GetCommandLineArgs()
+Write-Host -ForegroundColor Red $allArgs
+Write-Host -ForegroundColor Red "----------------------------------------------------------------------------"
+
 # -------------------------------------------------------------------------------------------
 # When executed, we rely on four variables being set in the environment:
 #
@@ -46,9 +51,23 @@ if ($env:BUILD_TAG -match "-WoW") { $env:LCOW_MODE="" }
 #                        TESTRUN_DRIVE\TESTRUN_SUBDIR\CI-<CommitID> or
 #                        d:\CI\CI-<CommitID>
 #
+# Optional environment variables help in CI:
+#
+#    BUILD_NUMBER + BRANCH_NAME   are optional variables to be added to the directory below TESTRUN_SUBDIR
+#                        to have individual folder per CI build. If some files couldn't be
+#                        cleaned up and we want to re-run the build in CI.
+#                        Hence, the daemon under test is run under
+#                        TESTRUN_DRIVE\TESTRUN_SUBDIR\PR-<PR-Number>\<BuildNumber> or
+#                        d:\CI\PR-<PR-Number>\<BuildNumber>
+#
 # In addition, the following variables can control the run configuration:
 #
 #    DOCKER_DUT_DEBUG         if defined starts the daemon under test in debug mode.
+#
+#   DOCKER_STORAGE_OPTS       comma-separated list of optional storage driver options for the daemon under test
+#                             examples:
+#                             DOCKER_STORAGE_OPTS="size=40G"
+#                             DOCKER_STORAGE_OPTS="lcow.globalmode=false,lcow.kernel=kernel.efi"
 #
 #    SKIP_VALIDATION_TESTS    if defined skips the validation tests
 #
@@ -266,7 +285,7 @@ Try {
         }
       }
     } Catch {}
-    if ($defender) { Throw "ERROR: Windows Defender real time protection must be disabled for integration tests" }
+    if ($defender) { Write-Host -ForegroundColor Magenta "WARN: Windows Defender real time protection is enabled, which may cause some integration tests to fail" }
 
     # Make sure SOURCES_DRIVE is set
     if ($null -eq $env:SOURCES_DRIVE) { Throw "ERROR: Environment variable SOURCES_DRIVE is not set" }
@@ -418,7 +437,12 @@ Try {
 
     # Redirect to a temporary location. 
     $TEMPORIG=$env:TEMP
-    $env:TEMP="$env:TESTRUN_DRIVE`:\$env:TESTRUN_SUBDIR\CI-$COMMITHASH"
+    if ($null -eq $env:BUILD_NUMBER) {
+      $env:TEMP="$env:TESTRUN_DRIVE`:\$env:TESTRUN_SUBDIR\CI-$COMMITHASH"
+    } else {
+      # individual temporary location per CI build that better matches the BUILD_URL
+      $env:TEMP="$env:TESTRUN_DRIVE`:\$env:TESTRUN_SUBDIR\$env:BRANCH_NAME\$env:BUILD_NUMBER"
+    }
     $env:LOCALAPPDATA="$env:TEMP\localappdata"
     $errorActionPreference='Stop'
     New-Item -ItemType Directory "$env:TEMP" -ErrorAction SilentlyContinue | Out-Null
@@ -580,6 +604,15 @@ Try {
         $dutArgs += "--exec-opt isolation=hyperv"
     }
 
+    # Arguments: Allow setting optional storage-driver options
+    # example usage: DOCKER_STORAGE_OPTS="lcow.globalmode=false,lcow.kernel=kernel.efi"
+    if (-not ("$env:DOCKER_STORAGE_OPTS" -eq "")) {
+        Write-Host -ForegroundColor Green "INFO: Running the daemon under test with storage-driver options ${env:DOCKER_STORAGE_OPTS}"
+        $env:DOCKER_STORAGE_OPTS.Split(",") | ForEach {
+            $dutArgs += "--storage-opt $_"
+        }
+    }
+
     # Start the daemon under test, ensuring everything is redirected to folders under $TEMP.
     # Important - we launch the -$COMMITHASH version so that we can kill it without
     # killing the control daemon. 
@@ -608,7 +641,8 @@ Try {
 
     # Start tailing the daemon under test if the command is installed
     if ($null -ne (Get-Command "tail" -ErrorAction SilentlyContinue)) {
-        $tail = start-process "tail" -ArgumentList "-f $env:TEMP\dut.out" -ErrorAction SilentlyContinue
+        Write-Host -ForegroundColor green "INFO: Start tailing logs of the daemon under tests"
+        $tail = Start-Process "tail" -ArgumentList "-f $env:TEMP\dut.out" -PassThru -ErrorAction SilentlyContinue
     }
 
     # Verify we can get the daemon under test to respond 
@@ -717,7 +751,7 @@ Try {
     
         # Inspect the pulled or loaded image to get the version directly
         $ErrorActionPreference = "SilentlyContinue"
-        $dutimgVersion = $(&"$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" inspect  $($env:WINDOWS_BASE_IMAGE) --format "{{.OsVersion}}")
+        $dutimgVersion = $(&"$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" inspect "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG" --format "{{.OsVersion}}")
         $ErrorActionPreference = "Stop"
         Write-Host -ForegroundColor Green $("INFO: Version of $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG is '"+$dutimgVersion+"'")
     }
@@ -944,6 +978,12 @@ Try {
         Remove-Item "$env:TEMP\docker.pid" -force -ErrorAction SilentlyContinue
     }
 
+    # Stop the tail process (if started)
+    if ($null -ne $tail) {
+        Write-Host -ForegroundColor green "INFO: Stop tailing logs of the daemon under tests"
+        Stop-Process -InputObject $tail -Force
+    }
+
     Write-Host -ForegroundColor Green "INFO: executeCI.ps1 Completed successfully at $(Get-Date)."
 }
 Catch [Exception] {
@@ -960,6 +1000,9 @@ Catch [Exception] {
     Throw $_
 }
 Finally {
+    # Preserve the LastExitCode of the tests
+    $tmpLastExitCode = $LastExitCode
+
     $ErrorActionPreference="SilentlyContinue"
     $global:ProgressPreference=$origProgressPreference
     Write-Host  -ForegroundColor Green "INFO: Tidying up at end of run"
@@ -991,6 +1034,12 @@ Finally {
 
     Set-Location "$env:SOURCES_DRIVE\$env:SOURCES_SUBDIR" -ErrorAction SilentlyContinue
     Nuke-Everything
+
+    # Restore the TEMP path
+    if ($null -ne $TEMPORIG) { $env:TEMP="$TEMPORIG" }
+
     $Dur=New-TimeSpan -Start $StartTime -End $(Get-Date)
     Write-Host -ForegroundColor $FinallyColour "`nINFO: executeCI.ps1 exiting at $(date). Duration $dur`n"
+
+    exit $tmpLastExitCode
 }

@@ -1792,16 +1792,14 @@ func (s *DockerSuite) TestRunExitOnStdinClose(c *check.C) {
 func (s *DockerSuite) TestRunInteractiveWithRestartPolicy(c *check.C) {
 	name := "test-inter-restart"
 
-	result := icmd.StartCmd(icmd.Cmd{
+	result := icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "run", "-i", "--name", name, "--restart=always", "busybox", "sh"},
 		Stdin:   bytes.NewBufferString("exit 11"),
 	})
-	assert.NilError(c, result.Error)
 	defer func() {
-		dockerCmdWithResult("stop", name).Assert(c, icmd.Success)
+		cli.Docker(cli.Args("stop", name)).Assert(c, icmd.Success)
 	}()
 
-	result = icmd.WaitOnCmd(60*time.Second, result)
 	result.Assert(c, icmd.Expected{ExitCode: 11})
 }
 
@@ -3430,7 +3428,7 @@ func (s *DockerSuite) TestRunLoopbackWhenNetworkDisabled(c *check.C) {
 
 func (s *DockerSuite) TestRunModeNetContainerHostname(c *check.C) {
 	// Windows does not support --net=container
-	testRequires(c, DaemonIsLinux, ExecSupport)
+	testRequires(c, DaemonIsLinux)
 
 	dockerCmd(c, "run", "-i", "-d", "--name", "parent", "busybox", "top")
 	out, _ := dockerCmd(c, "exec", "parent", "cat", "/etc/hostname")

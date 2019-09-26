@@ -63,7 +63,7 @@ func getContainerCount(c *check.C) int {
 	for _, line := range lines {
 		if strings.Contains(line, containers) {
 			output := strings.TrimSpace(line)
-			output = strings.TrimLeft(output, containers)
+			output = strings.TrimPrefix(output, containers)
 			output = strings.Trim(output, " ")
 			containerCount, err := strconv.Atoi(output)
 			assert.NilError(c, err)
@@ -347,7 +347,7 @@ func getInspectBody(c *check.C, version, id string) []byte {
 // Run a long running idle task in a background container using the
 // system-specific default image and command.
 func runSleepingContainer(c *check.C, extraArgs ...string) string {
-	return runSleepingContainerInImage(c, defaultSleepImage, extraArgs...)
+	return runSleepingContainerInImage(c, "busybox", extraArgs...)
 }
 
 // Run a long running idle task in a background container using the specified

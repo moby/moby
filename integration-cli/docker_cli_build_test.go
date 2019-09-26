@@ -4535,17 +4535,17 @@ func (s *DockerSuite) TestBuildBuildTimeArgEnv(c *check.C) {
 		ARG FOO6
 		ARG FO10
 		RUN env
-		RUN [ "$FOO1" == "fromcmd" ]
-		RUN [ "$FOO2" == "" ]
-		RUN [ "$FOO3" == "fromenv" ]
-		RUN [ "$FOO4" == "fromfile" ]
-		RUN [ "$FOO5" == "fromcmd" ]
+		RUN [ "$FOO1" = "fromcmd" ]
+		RUN [ "$FOO2" = "" ]
+		RUN [ "$FOO3" = "fromenv" ]
+		RUN [ "$FOO4" = "fromfile" ]
+		RUN [ "$FOO5" = "fromcmd" ]
 		# The following should not exist at all in the env
-		RUN [ "$(env | grep FOO6)" == "" ]
-		RUN [ "$(env | grep FOO7)" == "" ]
-		RUN [ "$(env | grep FOO8)" == "" ]
-		RUN [ "$(env | grep FOO9)" == "" ]
-		RUN [ "$FO10" == "" ]
+		RUN [ "$(env | grep FOO6)" = "" ]
+		RUN [ "$(env | grep FOO7)" = "" ]
+		RUN [ "$(env | grep FOO8)" = "" ]
+		RUN [ "$(env | grep FOO9)" = "" ]
+		RUN [ "$FO10" = "" ]
 	    `
 	result := buildImage("testbuildtimeargenv",
 		cli.WithFlags(
@@ -4615,9 +4615,9 @@ func (s *DockerSuite) TestBuildBuildTimeArgEmptyValVariants(c *check.C) {
 		ARG %s=
 		ARG %s=""
 		ARG %s=''
-		RUN [ "$%s" == "$%s" ]
-		RUN [ "$%s" == "$%s" ]
-		RUN [ "$%s" == "$%s" ]`, envKey, envKey1, envKey2, envKey, envKey1, envKey1, envKey2, envKey, envKey2)
+		RUN [ "$%s" = "$%s" ]
+		RUN [ "$%s" = "$%s" ]
+		RUN [ "$%s" = "$%s" ]`, envKey, envKey1, envKey2, envKey, envKey1, envKey1, envKey2, envKey, envKey2)
 	buildImageSuccessfully(c, imgName, build.WithDockerfile(dockerfile))
 }
 
@@ -5952,7 +5952,7 @@ func (s *DockerSuite) TestBuildCopyFromWindowsIsCaseInsensitive(c *check.C) {
 }
 
 // #33176
-func (s *DockerSuite) TestBuildMulitStageResetScratch(c *check.C) {
+func (s *DockerSuite) TestBuildMultiStageResetScratch(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	dockerfile := `

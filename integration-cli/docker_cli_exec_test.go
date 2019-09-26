@@ -1,5 +1,3 @@
-// +build !test_no_exec
-
 package main
 
 import (
@@ -81,8 +79,7 @@ func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestExecAfterDaemonRestart(c *check.C) {
-	// TODO Windows CI: Requires a little work to get this ported.
-	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
+	// TODO Windows CI: DockerDaemonSuite doesn't run on Windows, and requires a little work to get this ported.
 	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top")

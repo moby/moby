@@ -36,7 +36,7 @@ RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/
 FROM base AS criu
 ARG DEBIAN_FRONTEND
 # Install CRIU for checkpoint/restore support
-ENV CRIU_VERSION 3.11
+ENV CRIU_VERSION 3.12
 # Install dependency packages specific to criu
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	libnet-dev \
@@ -281,8 +281,6 @@ COPY --from=djs55/vpnkit@sha256:e508a17cfacc8fd39261d5b4e397df2b953690da577e2c98
 
 ENV PATH=/usr/local/cli:$PATH
 ENV DOCKER_BUILDTAGS apparmor seccomp selinux
-# Options for hack/validate/gometalinter
-ENV GOMETALINTER_OPTS="--deadline=2m"
 WORKDIR /go/src/github.com/docker/docker
 VOLUME /var/lib/docker
 # Wrap all commands in the "docker-in-docker" script to allow nested containers

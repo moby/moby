@@ -100,7 +100,7 @@ func TestBuildSquashParent(t *testing.T) {
 	)
 	container.Run(ctx, t, client,
 		container.WithImage(name),
-		container.WithCmd("/bin/sh", "-c", `[ "$(echo $HELLO)" == "world" ]`),
+		container.WithCmd("/bin/sh", "-c", `[ "$(echo $HELLO)" = "world" ]`),
 	)
 
 	origHistory, err := client.ImageHistory(ctx, origID)

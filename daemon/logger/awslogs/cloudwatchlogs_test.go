@@ -285,6 +285,9 @@ func TestLogClosed(t *testing.T) {
 	}
 }
 
+// TestLogBlocking tests that the Log method blocks appropriately when
+// non-blocking behavior is not enabled.  Blocking is achieved through an
+// internal channel that must be drained for Log to return.
 func TestLogBlocking(t *testing.T) {
 	mockClient := newMockClient()
 	stream := &logStream{
@@ -299,18 +302,20 @@ func TestLogBlocking(t *testing.T) {
 		err := stream.Log(&logger.Message{})
 		errorCh <- err
 	}()
+	// block until the goroutine above has started
 	<-started
 	select {
 	case err := <-errorCh:
 		t.Fatal("Expected stream.Log to block: ", err)
 	default:
-		break
 	}
+	// assuming it is blocked, we can now try to drain the internal channel and
+	// unblock it
 	select {
-	case <-stream.messages:
-		break
-	default:
+	case <-time.After(10 * time.Millisecond):
+		// if we're unable to drain the channel within 10ms, something seems broken
 		t.Fatal("Expected to be able to read from stream.messages but was unable to")
+	case <-stream.messages:
 	}
 	select {
 	case err := <-errorCh:
