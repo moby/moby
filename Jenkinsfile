@@ -764,7 +764,7 @@ pipeline {
                                 powershell '''
                                 $ErrorActionPreference = 'Stop'
                                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-                                Invoke-WebRequest https://github.com/jhowardmsft/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
+                                Invoke-WebRequest https://github.com/moby/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
                                 ./hack/ci/windows.ps1
                                 exit $LastExitCode
                                 '''
@@ -824,7 +824,7 @@ pipeline {
                             steps {
                                 powershell '''
                                 $ErrorActionPreference = 'Stop'
-                                Invoke-WebRequest https://github.com/jhowardmsft/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
+                                Invoke-WebRequest https://github.com/moby/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
                                 ./hack/ci/windows.ps1
                                 exit $LastExitCode
                                 '''
