@@ -1,4 +1,4 @@
-// +build !windows
+// +build !windows,cgo !windows,osusergo
 
 package homedir // import "github.com/docker/docker/pkg/homedir"
 
