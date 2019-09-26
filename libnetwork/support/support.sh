@@ -18,6 +18,7 @@ IPTABLES="${IPTABLES:-iptables}"
 IPVSADM="${IPVSADM:-ipvsadm}"
 IP="${IP:-ip}"
 SSDBIN="${SSDBIN:-ssd}"
+JQ="${JQ:-jq}"
 
 networks=0
 containers=0
@@ -53,6 +54,7 @@ type -P ${BRIDGE} > /dev/null || echo "This tool requires bridge"
 type -P ${IPTABLES} > /dev/null || echo "This tool requires iptables"
 type -P ${IPVSADM} > /dev/null || echo "This tool requires ipvsadm"
 type -P ${IP} > /dev/null || echo "This tool requires ip"
+type -P ${JQ} > /dev/null || echo "This tool requires jq"
 
 if ${DOCKER} network inspect --help | grep -q -- --verbose; then
     NETINSPECT_VERBOSE_SUPPORT="--verbose"
@@ -89,7 +91,16 @@ for networkID in $(${DOCKER} network ls --no-trunc --filter driver=overlay -q) "
       echo_and_run ${NSENTER} --net=${i} ${IP} -o -4 address show
       echo_and_run ${NSENTER} --net=${i} ${IP} -4 route show
       echo_and_run ${NSENTER} --net=${i} ${IP} -4 neigh show
-      echo_and_run ${NSENTER} --net=${i} ${BRIDGE} fdb show
+      bridges=$(${NSENTER} --net=${i} ${IP} -j link show type bridge | ${JQ} -r '.[].ifname')
+      # break string to array
+      bridges=(${bridges})
+      for b in "${bridges[@]}"
+      do
+        if [ -z ${b} ] || [ ${b} == "null" ]; then
+          continue
+        fi
+        echo_and_run ${NSENTER} --net=${i} ${BRIDGE} fdb show br ${b}
+      done
       echo_and_run ${NSENTER} --net=${i} ${IPTABLES} -w1 -n -v -L -t filter | grep -v '^$'
       echo_and_run ${NSENTER} --net=${i} ${IPTABLES} -w1 -n -v -L -t nat | grep -v '^$'
       echo_and_run ${NSENTER} --net=${i} ${IPTABLES} -w1 -n -v -L -t mangle | grep -v '^$'
