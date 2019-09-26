@@ -147,7 +147,7 @@
 # The docker integration tests do not currently run in a container on Windows, predominantly
 # due to Windows not supporting privileged mode, so anything using a volume would fail.
 # They (along with the rest of the docker CI suite) can be run using 
-# https://github.com/jhowardmsft/docker-w2wCIScripts/blob/master/runCI/Invoke-DockerCI.ps1.
+# https://github.com/kevpar/docker-w2wCIScripts/blob/master/runCI/Invoke-DockerCI.ps1.
 #
 # -----------------------------------------------------------------------------------------
 
@@ -219,13 +219,13 @@ RUN `
   Download-File "https://golang.org/dl/go${dlGoVersion}.windows-amd64.zip" C:\go.zip; `
   `
   Write-Host INFO: Downloading compiler 1 of 3...; `
-  Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/gcc.zip C:\gcc.zip; `
+  Download-File https://raw.githubusercontent.com/moby/docker-tdmgcc/master/gcc.zip C:\gcc.zip; `
   `
   Write-Host INFO: Downloading compiler 2 of 3...; `
-  Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/runtime.zip C:\runtime.zip; `
+  Download-File https://raw.githubusercontent.com/moby/docker-tdmgcc/master/runtime.zip C:\runtime.zip; `
   `
   Write-Host INFO: Downloading compiler 3 of 3...; `
-  Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/binutils.zip C:\binutils.zip; `
+  Download-File https://raw.githubusercontent.com/moby/docker-tdmgcc/master/binutils.zip C:\binutils.zip; `
   `
   Write-Host INFO: Extracting git...; `
   Expand-Archive C:\gitsetup.zip C:\git-tmp; `
