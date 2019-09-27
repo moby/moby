@@ -3,10 +3,10 @@ package daemon // import "github.com/docker/docker/integration-cli/daemon"
 import (
 	"fmt"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/internal/test/daemon"
-	"github.com/go-check/check"
 	"github.com/pkg/errors"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
@@ -88,13 +88,13 @@ func (d *Daemon) inspectFieldWithError(name, field string) (string, error) {
 
 // CheckActiveContainerCount returns the number of active containers
 // FIXME(vdemeester) should re-use ActivateContainers in some way
-func (d *Daemon) CheckActiveContainerCount(c *check.C) (interface{}, check.CommentInterface) {
+func (d *Daemon) CheckActiveContainerCount(c *testing.T) (interface{}, string) {
 	out, err := d.Cmd("ps", "-q")
 	assert.NilError(c, err)
 	if len(strings.TrimSpace(out)) == 0 {
-		return 0, nil
+		return 0, ""
 	}
-	return len(strings.Split(strings.TrimSpace(out), "\n")), check.Commentf("output: %q", string(out))
+	return len(strings.Split(strings.TrimSpace(out), "\n")), fmt.Sprintf("output: %q", string(out))
 }
 
 // WaitRun waits for a container to be running for 10s

@@ -28,7 +28,7 @@ type logT interface {
 }
 
 type skipT interface {
-	Skip(reason string)
+	Skip(...interface{})
 }
 
 type gitServer interface {

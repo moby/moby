@@ -9,12 +9,12 @@ import (
 	"net/url"
 	"os/exec"
 	"strings"
+	"testing"
 
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 
-func (s *DockerSuite) TestClientSetsTLSServerName(c *check.C) {
+func (s *DockerSuite) TestClientSetsTLSServerName(c *testing.T) {
 	c.Skip("Flakey test")
 	// there may be more than one hit to the server for each registry request
 	var serverNameReceived []string

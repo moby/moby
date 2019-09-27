@@ -8,17 +8,17 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )
 
 const attachWait = 5 * time.Second
 
-func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
+func (s *DockerSuite) TestAttachMultipleAndRestart(c *testing.T) {
 	endGroup := &sync.WaitGroup{}
 	startGroup := &sync.WaitGroup{}
 	endGroup.Add(3)
@@ -88,7 +88,7 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestAttachTTYWithoutStdin(c *check.C) {
+func (s *DockerSuite) TestAttachTTYWithoutStdin(c *testing.T) {
 	// TODO @jhowardmsft. Figure out how to get this running again reliable on Windows.
 	// It works by accident at the moment. Sometimes. I've gone back to v1.13.0 and see the same.
 	// On Windows, docker run -d -ti busybox causes the container to exit immediately.
@@ -133,7 +133,7 @@ func (s *DockerSuite) TestAttachTTYWithoutStdin(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
+func (s *DockerSuite) TestAttachDisconnect(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-di", "busybox", "/bin/cat")
 	id := strings.TrimSpace(out)
@@ -147,7 +147,7 @@ func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
 	stdout, err := cmd.StdoutPipe()
 	assert.NilError(c, err)
 	defer stdout.Close()
-	c.Assert(cmd.Start(), check.IsNil)
+	assert.Assert(c, cmd.Start() == nil)
 	defer func() {
 		cmd.Process.Kill()
 		cmd.Wait()
@@ -157,16 +157,16 @@ func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
 	assert.NilError(c, err)
 	out, err = bufio.NewReader(stdout).ReadString('\n')
 	assert.NilError(c, err)
-	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
+	assert.Equal(c, strings.TrimSpace(out), "hello")
 
-	c.Assert(stdin.Close(), check.IsNil)
+	assert.Assert(c, stdin.Close() == nil)
 
 	// Expect container to still be running after stdin is closed
 	running := inspectField(c, id, "State.Running")
-	c.Assert(running, check.Equals, "true")
+	assert.Equal(c, running, "true")
 }
 
-func (s *DockerSuite) TestAttachPausedContainer(c *check.C) {
+func (s *DockerSuite) TestAttachPausedContainer(c *testing.T) {
 	testRequires(c, IsPausable)
 	runSleepingContainer(c, "-d", "--name=test")
 	dockerCmd(c, "pause", "test")

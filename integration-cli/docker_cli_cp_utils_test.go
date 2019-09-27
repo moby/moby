@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
 
@@ -92,7 +92,7 @@ func defaultMkContentCommand() string {
 	return mkFilesCommand(defaultFileData)
 }
 
-func makeTestContentInDir(c *check.C, dir string) {
+func makeTestContentInDir(c *testing.T, dir string) {
 	for _, fd := range defaultFileData {
 		path := filepath.Join(dir, filepath.FromSlash(fd.path))
 		switch fd.filetype {
@@ -118,7 +118,7 @@ type testContainerOptions struct {
 	command    string
 }
 
-func makeTestContainer(c *check.C, options testContainerOptions) (containerID string) {
+func makeTestContainer(c *testing.T, options testContainerOptions) (containerID string) {
 	if options.addContent {
 		mkContentCmd := defaultMkContentCommand()
 		if options.command == "" {
@@ -188,7 +188,7 @@ func containerCpPathTrailingSep(containerID string, pathElements ...string) stri
 	return fmt.Sprintf("%s/", containerCpPath(containerID, pathElements...))
 }
 
-func runDockerCp(c *check.C, src, dst string, params []string) (err error) {
+func runDockerCp(c *testing.T, src, dst string, params []string) (err error) {
 	c.Logf("running `docker cp %s %s %s`", strings.Join(params, " "), src, dst)
 
 	args := []string{"cp"}
@@ -205,7 +205,7 @@ func runDockerCp(c *check.C, src, dst string, params []string) (err error) {
 	return
 }
 
-func startContainerGetOutput(c *check.C, containerID string) (out string, err error) {
+func startContainerGetOutput(c *testing.T, containerID string) (out string, err error) {
 	c.Logf("running `docker start -a %s`", containerID)
 
 	args := []string{"start", "-a", containerID}
@@ -218,7 +218,7 @@ func startContainerGetOutput(c *check.C, containerID string) (out string, err er
 	return
 }
 
-func getTestDir(c *check.C, label string) (tmpDir string) {
+func getTestDir(c *testing.T, label string) (tmpDir string) {
 	var err error
 
 	tmpDir, err = ioutil.TempDir("", label)
@@ -240,7 +240,7 @@ func isCpCannotCopyReadOnly(err error) bool {
 	return strings.Contains(err.Error(), "marked read-only")
 }
 
-func fileContentEquals(c *check.C, filename, contents string) (err error) {
+func fileContentEquals(c *testing.T, filename, contents string) (err error) {
 	c.Logf("checking that file %q contains %q\n", filename, contents)
 
 	fileBytes, err := ioutil.ReadFile(filename)
@@ -260,7 +260,7 @@ func fileContentEquals(c *check.C, filename, contents string) (err error) {
 	return
 }
 
-func symlinkTargetEquals(c *check.C, symlink, expectedTarget string) (err error) {
+func symlinkTargetEquals(c *testing.T, symlink, expectedTarget string) (err error) {
 	c.Logf("checking that the symlink %q points to %q\n", symlink, expectedTarget)
 
 	actualTarget, err := os.Readlink(symlink)
@@ -275,7 +275,7 @@ func symlinkTargetEquals(c *check.C, symlink, expectedTarget string) (err error)
 	return
 }
 
-func containerStartOutputEquals(c *check.C, containerID, contents string) (err error) {
+func containerStartOutputEquals(c *testing.T, containerID, contents string) (err error) {
 	c.Logf("checking that container %q start output contains %q\n", containerID, contents)
 
 	out, err := startContainerGetOutput(c, containerID)

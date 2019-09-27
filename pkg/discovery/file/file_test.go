@@ -5,50 +5,50 @@ import (
 	"os"
 	"testing"
 
+	"github.com/docker/docker/internal/test/suite"
 	"github.com/docker/docker/pkg/discovery"
-
-	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 // Hook up gocheck into the "go test" runner.
-func Test(t *testing.T) { check.TestingT(t) }
+func Test(t *testing.T) {
+	suite.Run(t, &DiscoverySuite{})
+}
 
 type DiscoverySuite struct{}
 
-var _ = check.Suite(&DiscoverySuite{})
-
-func (s *DiscoverySuite) TestInitialize(c *check.C) {
+func (s *DiscoverySuite) TestInitialize(c *testing.T) {
 	d := &Discovery{}
 	d.Initialize("/path/to/file", 1000, 0, nil)
-	c.Assert(d.path, check.Equals, "/path/to/file")
+	assert.Equal(c, d.path, "/path/to/file")
 }
 
-func (s *DiscoverySuite) TestNew(c *check.C) {
+func (s *DiscoverySuite) TestNew(c *testing.T) {
 	d, err := discovery.New("file:///path/to/file", 0, 0, nil)
-	c.Assert(err, check.IsNil)
-	c.Assert(d.(*Discovery).path, check.Equals, "/path/to/file")
+	assert.Assert(c, err == nil)
+	assert.Equal(c, d.(*Discovery).path, "/path/to/file")
 }
 
-func (s *DiscoverySuite) TestContent(c *check.C) {
+func (s *DiscoverySuite) TestContent(c *testing.T) {
 	data := `
 1.1.1.[1:2]:1111
 2.2.2.[2:4]:2222
 `
 	ips := parseFileContent([]byte(data))
-	c.Assert(ips, check.HasLen, 5)
-	c.Assert(ips[0], check.Equals, "1.1.1.1:1111")
-	c.Assert(ips[1], check.Equals, "1.1.1.2:1111")
-	c.Assert(ips[2], check.Equals, "2.2.2.2:2222")
-	c.Assert(ips[3], check.Equals, "2.2.2.3:2222")
-	c.Assert(ips[4], check.Equals, "2.2.2.4:2222")
+	assert.Equal(c, len(ips), 5)
+	assert.Equal(c, ips[0], "1.1.1.1:1111")
+	assert.Equal(c, ips[1], "1.1.1.2:1111")
+	assert.Equal(c, ips[2], "2.2.2.2:2222")
+	assert.Equal(c, ips[3], "2.2.2.3:2222")
+	assert.Equal(c, ips[4], "2.2.2.4:2222")
 }
 
-func (s *DiscoverySuite) TestRegister(c *check.C) {
+func (s *DiscoverySuite) TestRegister(c *testing.T) {
 	discovery := &Discovery{path: "/path/to/file"}
-	c.Assert(discovery.Register("0.0.0.0"), check.NotNil)
+	assert.Assert(c, discovery.Register("0.0.0.0") != nil)
 }
 
-func (s *DiscoverySuite) TestParsingContentsWithComments(c *check.C) {
+func (s *DiscoverySuite) TestParsingContentsWithComments(c *testing.T) {
 	data := `
 ### test ###
 1.1.1.1:1111 # inline comment
@@ -58,12 +58,12 @@ func (s *DiscoverySuite) TestParsingContentsWithComments(c *check.C) {
 ### test ###
 `
 	ips := parseFileContent([]byte(data))
-	c.Assert(ips, check.HasLen, 2)
-	c.Assert("1.1.1.1:1111", check.Equals, ips[0])
-	c.Assert("3.3.3.3:3333", check.Equals, ips[1])
+	assert.Equal(c, len(ips), 2)
+	assert.Equal(c, "1.1.1.1:1111", ips[0])
+	assert.Equal(c, "3.3.3.3:3333", ips[1])
 }
 
-func (s *DiscoverySuite) TestWatch(c *check.C) {
+func (s *DiscoverySuite) TestWatch(c *testing.T) {
 	data := `
 1.1.1.1:1111
 2.2.2.2:2222
@@ -75,9 +75,9 @@ func (s *DiscoverySuite) TestWatch(c *check.C) {
 
 	// Create a temporary file and remove it.
 	tmp, err := ioutil.TempFile(os.TempDir(), "discovery-file-test")
-	c.Assert(err, check.IsNil)
-	c.Assert(tmp.Close(), check.IsNil)
-	c.Assert(os.Remove(tmp.Name()), check.IsNil)
+	assert.Assert(c, err == nil)
+	assert.Assert(c, tmp.Close() == nil)
+	assert.Assert(c, os.Remove(tmp.Name()) == nil)
 
 	// Set up file discovery.
 	d := &Discovery{}
@@ -86,7 +86,7 @@ func (s *DiscoverySuite) TestWatch(c *check.C) {
 	ch, errCh := d.Watch(stopCh)
 
 	// Make sure it fires errors since the file doesn't exist.
-	c.Assert(<-errCh, check.NotNil)
+	assert.Assert(c, <-errCh != nil)
 	// We have to drain the error channel otherwise Watch will get stuck.
 	go func() {
 		for range errCh {
@@ -94,21 +94,21 @@ func (s *DiscoverySuite) TestWatch(c *check.C) {
 	}()
 
 	// Write the file and make sure we get the expected value back.
-	c.Assert(ioutil.WriteFile(tmp.Name(), []byte(data), 0600), check.IsNil)
-	c.Assert(<-ch, check.DeepEquals, expected)
+	assert.Assert(c, ioutil.WriteFile(tmp.Name(), []byte(data), 0600) == nil)
+	assert.DeepEqual(c, <-ch, expected)
 
 	// Add a new entry and look it up.
 	expected = append(expected, &discovery.Entry{Host: "3.3.3.3", Port: "3333"})
 	f, err := os.OpenFile(tmp.Name(), os.O_APPEND|os.O_WRONLY, 0600)
-	c.Assert(err, check.IsNil)
-	c.Assert(f, check.NotNil)
+	assert.Assert(c, err == nil)
+	assert.Assert(c, f != nil)
 	_, err = f.WriteString("\n3.3.3.3:3333\n")
-	c.Assert(err, check.IsNil)
+	assert.Assert(c, err == nil)
 	f.Close()
-	c.Assert(<-ch, check.DeepEquals, expected)
+	assert.DeepEqual(c, <-ch, expected)
 
 	// Stop and make sure it closes all channels.
 	close(stopCh)
-	c.Assert(<-ch, check.IsNil)
-	c.Assert(<-errCh, check.IsNil)
+	assert.Assert(c, <-ch == nil)
+	assert.Assert(c, <-errCh == nil)
 }
