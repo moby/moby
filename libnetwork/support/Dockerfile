@@ -11,6 +11,7 @@ RUN apk add --no-cache \
     iproute2 \
     ipvsadm \
     conntrack-tools \
+    jq \
     bash
 
 WORKDIR /bin
