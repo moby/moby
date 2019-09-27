@@ -37,9 +37,6 @@ enum sync_t {
 	SYNC_RECVPID_ACK = 0x43,	/* PID was correctly received by parent. */
 	SYNC_GRANDCHILD = 0x44,	/* The grandchild is ready to run. */
 	SYNC_CHILD_READY = 0x45,	/* The child or grandchild is ready to return. */
-
-	/* XXX: This doesn't help with segfaults and other such issues. */
-	SYNC_ERR = 0xFF,	/* Fatal error, no turning back. The error code follows. */
 };
 
 /*
@@ -52,9 +49,6 @@ enum sync_t {
 #define JUMP_PARENT 0x00
 #define JUMP_CHILD  0xA0
 #define JUMP_INIT   0xA1
-
-/* JSON buffer. */
-#define JSON_MAX 4096
 
 /* Assume the stack grows down, so arguments should be above it. */
 struct clone_t {
@@ -95,6 +89,15 @@ struct nlconfig_t {
 	size_t gidmappath_len;
 };
 
+#define PANIC   "panic"
+#define FATAL   "fatal"
+#define ERROR   "error"
+#define WARNING "warning"
+#define INFO    "info"
+#define DEBUG   "debug"
+
+static int logfd = -1;
+
 /*
  * List of netlink message types sent to us as part of bootstrapping the init.
  * These constants are defined in libcontainer/message_linux.go.
@@ -131,22 +134,34 @@ int setns(int fd, int nstype)
 }
 #endif
 
+static void write_log_with_info(const char *level, const char *function, int line, const char *format, ...)
+{
+	char message[1024] = {};
+
+	va_list args;
+
+	if (logfd < 0 || level == NULL)
+		return;
+
+	va_start(args, format);
+	if (vsnprintf(message, sizeof(message), format, args) < 0)
+		goto done;
+
+	dprintf(logfd, "{\"level\":\"%s\", \"msg\": \"%s:%d %s\"}\n", level, function, line, message);
+done:
+	va_end(args);
+}
+
+#define write_log(level, fmt, ...) \
+	write_log_with_info((level), __FUNCTION__, __LINE__, (fmt), ##__VA_ARGS__)
+
 /* XXX: This is ugly. */
 static int syncfd = -1;
 
-/* TODO(cyphar): Fix this so it correctly deals with syncT. */
-#define bail(fmt, ...)								\
-	do {									\
-		int ret = __COUNTER__ + 1;					\
-		fprintf(stderr, "nsenter: " fmt ": %m\n", ##__VA_ARGS__);	\
-		if (syncfd >= 0) {						\
-			enum sync_t s = SYNC_ERR;				\
-			if (write(syncfd, &s, sizeof(s)) != sizeof(s))		\
-				fprintf(stderr, "nsenter: failed: write(s)");	\
-			if (write(syncfd, &ret, sizeof(ret)) != sizeof(ret))	\
-				fprintf(stderr, "nsenter: failed: write(ret)");	\
-		}								\
-		exit(ret);							\
+#define bail(fmt, ...)                                       \
+	do {                                                       \
+		write_log(FATAL, "nsenter: " fmt ": %m", ##__VA_ARGS__); \
+		exit(1);                                                 \
 	} while(0)
 
 static int write_file(char *data, size_t data_len, char *pathfmt, ...)
@@ -352,6 +367,23 @@ static int initpipe(void)
 	return pipenum;
 }
 
+static void setup_logpipe(void)
+{
+	char *logpipe, *endptr;
+
+	logpipe = getenv("_LIBCONTAINER_LOGPIPE");
+	if (logpipe == NULL || *logpipe == '\0') {
+		return;
+	}
+
+	logfd = strtol(logpipe, &endptr, 10);
+	if (logpipe == endptr || *endptr != '\0') {
+		fprintf(stderr, "unable to parse _LIBCONTAINER_LOGPIPE, value: %s\n", logpipe);
+		/* It is too early to use bail */
+		exit(1);
+	}
+}
+
 /* Returns the clone(2) flag for a namespace, given the name of a namespace. */
 static int nsflag(char *name)
 {
@@ -545,6 +577,12 @@ void nsexec(void)
 	struct nlconfig_t config = { 0 };
 
 	/*
+	 * Setup a pipe to send logs to the parent. This should happen
+	 * first, because bail will use that pipe.
+	 */
+	setup_logpipe();
+
+	/*
 	 * If we don't have an init pipe, just return to the go routine.
 	 * We'll only get an init pipe for start or exec.
 	 */
@@ -559,6 +597,8 @@ void nsexec(void)
 	 */
 	if (ensure_cloned_binary() < 0)
 		bail("could not ensure we are a cloned binary");
+
+	write_log(DEBUG, "nsexec started");
 
 	/* Parse all of the netlink configuration. */
 	nl_parse(pipenum, &config);
@@ -676,7 +716,6 @@ void nsexec(void)
 			 */
 			while (!ready) {
 				enum sync_t s;
-				int ret;
 
 				syncfd = sync_child_pipe[1];
 				close(sync_child_pipe[0]);
@@ -685,12 +724,6 @@ void nsexec(void)
 					bail("failed to sync with child: next state");
 
 				switch (s) {
-				case SYNC_ERR:
-					/* We have to mirror the error code of the child. */
-					if (read(syncfd, &ret, sizeof(ret)) != sizeof(ret))
-						bail("failed to sync with child: read(error code)");
-
-					exit(ret);
 				case SYNC_USERMAP_PLS:
 					/*
 					 * Enable setgroups(2) if we've been asked to. But we also
@@ -759,7 +792,6 @@ void nsexec(void)
 			ready = false;
 			while (!ready) {
 				enum sync_t s;
-				int ret;
 
 				syncfd = sync_grandchild_pipe[1];
 				close(sync_grandchild_pipe[0]);
@@ -774,12 +806,6 @@ void nsexec(void)
 					bail("failed to sync with child: next state");
 
 				switch (s) {
-				case SYNC_ERR:
-					/* We have to mirror the error code of the child. */
-					if (read(syncfd, &ret, sizeof(ret)) != sizeof(ret))
-						bail("failed to sync with child: read(error code)");
-
-					exit(ret);
 				case SYNC_CHILD_READY:
 					ready = true;
 					break;
