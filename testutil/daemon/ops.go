@@ -85,7 +85,7 @@ func WithEnvironment(e environment.Execution) Option {
 }
 
 // WithStorageDriver sets store driver option
-func WithStorageDriver(driver string) func(d *Daemon) {
+func WithStorageDriver(driver string) Option {
 	return func(d *Daemon) {
 		d.storageDriver = driver
 	}
