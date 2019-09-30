@@ -25,6 +25,7 @@ import (
 
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/api/types"
+	tasktypes "github.com/containerd/containerd/api/types/task"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/errdefs"
@@ -49,7 +50,7 @@ type Container interface {
 	// ID identifies the container
 	ID() string
 	// Info returns the underlying container record type
-	Info(context.Context) (containers.Container, error)
+	Info(context.Context, ...InfoOpts) (containers.Container, error)
 	// Delete removes the container
 	Delete(context.Context, ...DeleteOpts) error
 	// NewTask creates a new task based on the container metadata
@@ -80,16 +81,18 @@ type Container interface {
 
 func containerFromRecord(client *Client, c containers.Container) *container {
 	return &container{
-		client: client,
-		id:     c.ID,
+		client:   client,
+		id:       c.ID,
+		metadata: c,
 	}
 }
 
 var _ = (Container)(&container{})
 
 type container struct {
-	client *Client
-	id     string
+	client   *Client
+	id       string
+	metadata containers.Container
 }
 
 // ID returns the container's unique id
@@ -97,8 +100,22 @@ func (c *container) ID() string {
 	return c.id
 }
 
-func (c *container) Info(ctx context.Context) (containers.Container, error) {
-	return c.get(ctx)
+func (c *container) Info(ctx context.Context, opts ...InfoOpts) (containers.Container, error) {
+	i := &InfoConfig{
+		// default to refreshing the container's local metadata
+		Refresh: true,
+	}
+	for _, o := range opts {
+		o(i)
+	}
+	if i.Refresh {
+		metadata, err := c.get(ctx)
+		if err != nil {
+			return c.metadata, err
+		}
+		c.metadata = metadata
+	}
+	return c.metadata, nil
 }
 
 func (c *container) Extensions(ctx context.Context) (map[string]prototypes.Any, error) {
@@ -217,7 +234,11 @@ func (c *container) NewTask(ctx context.Context, ioCreate cio.Creator, opts ...N
 		}
 
 		// get the rootfs from the snapshotter and add it to the request
-		mounts, err := c.client.SnapshotService(r.Snapshotter).Mounts(ctx, r.SnapshotKey)
+		s, err := c.client.getSnapshotter(ctx, r.Snapshotter)
+		if err != nil {
+			return nil, err
+		}
+		mounts, err := s.Mounts(ctx, r.SnapshotKey)
 		if err != nil {
 			return nil, err
 		}
@@ -362,7 +383,9 @@ func (c *container) loadTask(ctx context.Context, ioAttach cio.Attach) (Task, er
 		return nil, err
 	}
 	var i cio.IO
-	if ioAttach != nil {
+	if ioAttach != nil && response.Process.Status != tasktypes.StatusUnknown {
+		// Do not attach IO for task in unknown state, because there
+		// are no fifo paths anyway.
 		if i, err = attachExistingIO(response, ioAttach); err != nil {
 			return nil, err
 		}

@@ -1,4 +1,4 @@
-// +build !windows
+// +build !linux
 
 /*
    Copyright The containerd Authors.
@@ -16,9 +16,11 @@
    limitations under the License.
 */
 
-package archive
+package seccomp
 
-// ApplyOptions provides additional options for an Apply operation
-type ApplyOptions struct {
-	Filter Filter // Filter tar headers
+import specs "github.com/opencontainers/runtime-spec/specs-go"
+
+// DefaultProfile defines the whitelist for the default seccomp profile.
+func DefaultProfile(sp *specs.Spec) *specs.LinuxSeccomp {
+	return &specs.LinuxSeccomp{}
 }

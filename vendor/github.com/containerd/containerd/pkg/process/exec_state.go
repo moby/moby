@@ -16,7 +16,7 @@
    limitations under the License.
 */
 
-package proc
+package process
 
 import (
 	"context"

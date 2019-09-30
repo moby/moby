@@ -23,7 +23,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"path"
+	"net/url"
 	"strings"
 
 	"github.com/containerd/containerd/errdefs"
@@ -32,7 +32,6 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type dockerFetcher struct {
@@ -40,29 +39,87 @@ type dockerFetcher struct {
 }
 
 func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
-	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(
-		logrus.Fields{
-			"base":   r.base.String(),
-			"digest": desc.Digest,
-		},
-	))
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("digest", desc.Digest))
 
-	urls, err := r.getV2URLPaths(ctx, desc)
-	if err != nil {
-		return nil, err
+	hosts := r.filterHosts(HostCapabilityPull)
+	if len(hosts) == 0 {
+		return nil, errors.Wrap(errdefs.ErrNotFound, "no pull hosts")
 	}
 
-	ctx, err = contextWithRepositoryScope(ctx, r.refspec, false)
+	ctx, err := contextWithRepositoryScope(ctx, r.refspec, false)
 	if err != nil {
 		return nil, err
 	}
 
 	return newHTTPReadSeeker(desc.Size, func(offset int64) (io.ReadCloser, error) {
-		for _, u := range urls {
-			rc, err := r.open(ctx, u, desc.MediaType, offset)
+		// firstly try fetch via external urls
+		for _, us := range desc.URLs {
+			ctx = log.WithLogger(ctx, log.G(ctx).WithField("url", us))
+
+			u, err := url.Parse(us)
+			if err != nil {
+				log.G(ctx).WithError(err).Debug("failed to parse")
+				continue
+			}
+			log.G(ctx).Debug("trying alternative url")
+
+			// Try this first, parse it
+			host := RegistryHost{
+				Client:       http.DefaultClient,
+				Host:         u.Host,
+				Scheme:       u.Scheme,
+				Path:         u.Path,
+				Capabilities: HostCapabilityPull,
+			}
+			req := r.request(host, http.MethodGet)
+			// Strip namespace from base
+			req.path = u.Path
+			if u.RawQuery != "" {
+				req.path = req.path + "?" + u.RawQuery
+			}
+
+			rc, err := r.open(ctx, req, desc.MediaType, offset)
 			if err != nil {
 				if errdefs.IsNotFound(err) {
 					continue // try one of the other urls.
+				}
+
+				return nil, err
+			}
+
+			return rc, nil
+		}
+
+		// Try manifests endpoints for manifests types
+		switch desc.MediaType {
+		case images.MediaTypeDockerSchema2Manifest, images.MediaTypeDockerSchema2ManifestList,
+			images.MediaTypeDockerSchema1Manifest,
+			ocispec.MediaTypeImageManifest, ocispec.MediaTypeImageIndex:
+
+			for _, host := range r.hosts {
+				req := r.request(host, http.MethodGet, "manifests", desc.Digest.String())
+
+				rc, err := r.open(ctx, req, desc.MediaType, offset)
+				if err != nil {
+					if errdefs.IsNotFound(err) {
+						continue // try another host
+					}
+
+					return nil, err
+				}
+
+				return rc, nil
+			}
+		}
+
+		// Finally use blobs endpoints
+		for _, host := range r.hosts {
+			req := r.request(host, http.MethodGet, "blobs", desc.Digest.String())
+
+			rc, err := r.open(ctx, req, desc.MediaType, offset)
+			if err != nil {
+				if errdefs.IsNotFound(err) {
+					continue // try another host
 				}
 
 				return nil, err
@@ -78,22 +135,17 @@ func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.R
 	})
 }
 
-func (r dockerFetcher) open(ctx context.Context, u, mediatype string, offset int64) (io.ReadCloser, error) {
-	req, err := http.NewRequest(http.MethodGet, u, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Accept", strings.Join([]string{mediatype, `*`}, ", "))
+func (r dockerFetcher) open(ctx context.Context, req *request, mediatype string, offset int64) (io.ReadCloser, error) {
+	req.header.Set("Accept", strings.Join([]string{mediatype, `*/*`}, ", "))
 
 	if offset > 0 {
 		// Note: "Accept-Ranges: bytes" cannot be trusted as some endpoints
 		// will return the header without supporting the range. The content
 		// range must always be checked.
-		req.Header.Set("Range", fmt.Sprintf("bytes=%d-", offset))
+		req.header.Set("Range", fmt.Sprintf("bytes=%d-", offset))
 	}
 
-	resp, err := r.doRequestWithRetries(ctx, req, nil)
+	resp, err := req.doWithRetries(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -106,13 +158,13 @@ func (r dockerFetcher) open(ctx context.Context, u, mediatype string, offset int
 		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusNotFound {
-			return nil, errors.Wrapf(errdefs.ErrNotFound, "content at %v not found", u)
+			return nil, errors.Wrapf(errdefs.ErrNotFound, "content at %v not found", req.String())
 		}
 		var registryErr errcode.Errors
 		if err := json.NewDecoder(resp.Body).Decode(&registryErr); err != nil || registryErr.Len() < 1 {
-			return nil, errors.Errorf("unexpected status code %v: %v", u, resp.Status)
+			return nil, errors.Errorf("unexpected status code %v: %v", req.String(), resp.Status)
 		}
-		return nil, errors.Errorf("unexpected status code %v: %s - Server message: %s", u, resp.Status, registryErr.Error())
+		return nil, errors.Errorf("unexpected status code %v: %s - Server message: %s", req.String(), resp.Status, registryErr.Error())
 	}
 	if offset > 0 {
 		cr := resp.Header.Get("content-range")
@@ -140,31 +192,4 @@ func (r dockerFetcher) open(ctx context.Context, u, mediatype string, offset int
 	}
 
 	return resp.Body, nil
-}
-
-// getV2URLPaths generates the candidate urls paths for the object based on the
-// set of hints and the provided object id. URLs are returned in the order of
-// most to least likely succeed.
-func (r *dockerFetcher) getV2URLPaths(ctx context.Context, desc ocispec.Descriptor) ([]string, error) {
-	var urls []string
-
-	if len(desc.URLs) > 0 {
-		// handle fetch via external urls.
-		for _, u := range desc.URLs {
-			log.G(ctx).WithField("url", u).Debug("adding alternative url")
-			urls = append(urls, u)
-		}
-	}
-
-	switch desc.MediaType {
-	case images.MediaTypeDockerSchema2Manifest, images.MediaTypeDockerSchema2ManifestList,
-		images.MediaTypeDockerSchema1Manifest,
-		ocispec.MediaTypeImageManifest, ocispec.MediaTypeImageIndex:
-		urls = append(urls, r.url(path.Join("manifests", desc.Digest.String())))
-	}
-
-	// always fallback to attempting to get the object out of the blobs store.
-	urls = append(urls, r.url(path.Join("blobs", desc.Digest.String())))
-
-	return urls, nil
 }

@@ -26,7 +26,11 @@
 // client-side errors to the correct types.
 package errdefs
 
-import "github.com/pkg/errors"
+import (
+	"context"
+
+	"github.com/pkg/errors"
+)
 
 // Definitions of common error types used throughout containerd. All containerd
 // errors returned by most packages will map into one of these errors classes.
@@ -75,4 +79,15 @@ func IsUnavailable(err error) bool {
 // IsNotImplemented returns true if the error is due to not being implemented
 func IsNotImplemented(err error) bool {
 	return errors.Cause(err) == ErrNotImplemented
+}
+
+// IsCanceled returns true if the error is due to `context.Canceled`.
+func IsCanceled(err error) bool {
+	return errors.Cause(err) == context.Canceled
+}
+
+// IsDeadlineExceeded returns true if the error is due to
+// `context.DeadlineExceeded`.
+func IsDeadlineExceeded(err error) bool {
+	return errors.Cause(err) == context.DeadlineExceeded
 }

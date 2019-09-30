@@ -218,7 +218,7 @@ This will be the best place to discuss design and implementation.
 For sync communication we have a community slack with a #containerd channel that everyone is welcome to join and chat about development.
 
 **Slack:** Catch us in the #containerd and #containerd-dev channels on dockercommunity.slack.com.
-[Click here for an invite to docker community slack.](https://join.slack.com/t/dockercommunity/shared_invite/enQtNDY4MDc1Mzc0MzIwLTgxZDBlMmM4ZGEyNDc1N2FkMzlhODJkYmE1YTVkYjM1MDE3ZjAwZjBkOGFlOTJkZjRmZGYzNjYyY2M3ZTUxYzQ)
+[Click here for an invite to docker community slack.](https://dockr.ly/slack)
 
 ### Security audit
 

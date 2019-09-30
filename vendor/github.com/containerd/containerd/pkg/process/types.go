@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package proc
+package process
 
 import (
 	google_protobuf "github.com/gogo/protobuf/types"

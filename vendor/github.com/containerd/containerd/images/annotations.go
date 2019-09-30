@@ -1,5 +1,3 @@
-// +build !windows
-
 /*
    Copyright The containerd Authors.
 
@@ -16,27 +14,10 @@
    limitations under the License.
 */
 
-package proc
+package images
 
-import (
-	"github.com/pkg/errors"
+const (
+	// AnnotationImageName is an annotation on a Descriptor in an index.json
+	// containing the `Name` value as used by an `Image` struct
+	AnnotationImageName = "io.containerd.image.name"
 )
-
-// RuncRoot is the path to the root runc state directory
-const RuncRoot = "/run/containerd/runc"
-
-func stateName(v interface{}) string {
-	switch v.(type) {
-	case *runningState, *execRunningState:
-		return "running"
-	case *createdState, *execCreatedState, *createdCheckpointState:
-		return "created"
-	case *pausedState:
-		return "paused"
-	case *deletedState:
-		return "deleted"
-	case *stoppedState:
-		return "stopped"
-	}
-	panic(errors.Errorf("invalid state %v", v))
-}

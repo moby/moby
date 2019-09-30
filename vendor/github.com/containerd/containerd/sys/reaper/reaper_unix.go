@@ -16,7 +16,7 @@
    limitations under the License.
 */
 
-package shim
+package reaper
 
 import (
 	"os/exec"
@@ -31,37 +31,61 @@ import (
 // ErrNoSuchProcess is returned when the process no longer exists
 var ErrNoSuchProcess = errors.New("no such process")
 
-const bufferSize = 2048
+const bufferSize = 32
+
+type subscriber struct {
+	sync.Mutex
+	c      chan runc.Exit
+	closed bool
+}
+
+func (s *subscriber) close() {
+	s.Lock()
+	if s.closed {
+		s.Unlock()
+		return
+	}
+	close(s.c)
+	s.closed = true
+	s.Unlock()
+}
+
+func (s *subscriber) do(fn func()) {
+	s.Lock()
+	fn()
+	s.Unlock()
+}
 
 // Reap should be called when the process receives an SIGCHLD.  Reap will reap
 // all exited processes and close their wait channels
 func Reap() error {
 	now := time.Now()
 	exits, err := sys.Reap(false)
-	Default.Lock()
-	for c := range Default.subscribers {
-		for _, e := range exits {
-			c <- runc.Exit{
-				Timestamp: now,
-				Pid:       e.Pid,
-				Status:    e.Status,
-			}
+	for _, e := range exits {
+		done := Default.notify(runc.Exit{
+			Timestamp: now,
+			Pid:       e.Pid,
+			Status:    e.Status,
+		})
+
+		select {
+		case <-done:
+		case <-time.After(1 * time.Second):
 		}
 	}
-	Default.Unlock()
 	return err
 }
 
 // Default is the default monitor initialized for the package
 var Default = &Monitor{
-	subscribers: make(map[chan runc.Exit]struct{}),
+	subscribers: make(map[chan runc.Exit]*subscriber),
 }
 
 // Monitor monitors the underlying system for process status changes
 type Monitor struct {
 	sync.Mutex
 
-	subscribers map[chan runc.Exit]struct{}
+	subscribers map[chan runc.Exit]*subscriber
 }
 
 // Start starts the command a registers the process with the reaper
@@ -95,7 +119,9 @@ func (m *Monitor) Wait(c *exec.Cmd, ec chan runc.Exit) (int, error) {
 func (m *Monitor) Subscribe() chan runc.Exit {
 	c := make(chan runc.Exit, bufferSize)
 	m.Lock()
-	m.subscribers[c] = struct{}{}
+	m.subscribers[c] = &subscriber{
+		c: c,
+	}
 	m.Unlock()
 	return c
 }
@@ -103,7 +129,74 @@ func (m *Monitor) Subscribe() chan runc.Exit {
 // Unsubscribe to process exit changes
 func (m *Monitor) Unsubscribe(c chan runc.Exit) {
 	m.Lock()
+	s, ok := m.subscribers[c]
+	if !ok {
+		m.Unlock()
+		return
+	}
+	s.close()
 	delete(m.subscribers, c)
-	close(c)
 	m.Unlock()
+}
+
+func (m *Monitor) getSubscribers() map[chan runc.Exit]*subscriber {
+	out := make(map[chan runc.Exit]*subscriber)
+	m.Lock()
+	for k, v := range m.subscribers {
+		out[k] = v
+	}
+	m.Unlock()
+	return out
+}
+
+func (m *Monitor) notify(e runc.Exit) chan struct{} {
+	const timeout = 1 * time.Millisecond
+	var (
+		done    = make(chan struct{}, 1)
+		timer   = time.NewTimer(timeout)
+		success = make(map[chan runc.Exit]struct{})
+	)
+	stop(timer, true)
+
+	go func() {
+		defer close(done)
+
+		for {
+			var (
+				failed      int
+				subscribers = m.getSubscribers()
+			)
+			for _, s := range subscribers {
+				s.do(func() {
+					if s.closed {
+						return
+					}
+					if _, ok := success[s.c]; ok {
+						return
+					}
+					timer.Reset(timeout)
+					recv := true
+					select {
+					case s.c <- e:
+						success[s.c] = struct{}{}
+					case <-timer.C:
+						recv = false
+						failed++
+					}
+					stop(timer, recv)
+				})
+			}
+			// all subscribers received the message
+			if failed == 0 {
+				return
+			}
+		}
+	}()
+	return done
+}
+
+func stop(timer *time.Timer, recv bool) {
+	if !timer.Stop() && recv {
+		<-timer.C
+	}
 }

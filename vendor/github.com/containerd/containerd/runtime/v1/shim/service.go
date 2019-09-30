@@ -35,11 +35,12 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/pkg/process"
+	"github.com/containerd/containerd/pkg/stdio"
 	"github.com/containerd/containerd/runtime"
 	"github.com/containerd/containerd/runtime/linux/runctypes"
-	rproc "github.com/containerd/containerd/runtime/proc"
-	"github.com/containerd/containerd/runtime/v1/linux/proc"
 	shimapi "github.com/containerd/containerd/runtime/v1/shim/v1"
+	"github.com/containerd/containerd/sys/reaper"
 	runc "github.com/containerd/go-runc"
 	"github.com/containerd/typeurl"
 	ptypes "github.com/gogo/protobuf/types"
@@ -84,9 +85,9 @@ func NewService(config Config, publisher events.Publisher) (*Service, error) {
 	s := &Service{
 		config:    config,
 		context:   ctx,
-		processes: make(map[string]rproc.Process),
+		processes: make(map[string]process.Process),
 		events:    make(chan interface{}, 128),
-		ec:        Default.Subscribe(),
+		ec:        reaper.Default.Subscribe(),
 	}
 	go s.processExits()
 	if err := s.initPlatform(); err != nil {
@@ -102,9 +103,9 @@ type Service struct {
 
 	config    Config
 	context   context.Context
-	processes map[string]rproc.Process
+	processes map[string]process.Process
 	events    chan interface{}
-	platform  rproc.Platform
+	platform  stdio.Platform
 	ec        chan runc.Exit
 
 	// Filled by Create()
@@ -114,9 +115,9 @@ type Service struct {
 
 // Create a new initial process and container with the underlying OCI runtime
 func (s *Service) Create(ctx context.Context, r *shimapi.CreateTaskRequest) (_ *shimapi.CreateTaskResponse, err error) {
-	var mounts []proc.Mount
+	var mounts []process.Mount
 	for _, m := range r.Rootfs {
-		mounts = append(mounts, proc.Mount{
+		mounts = append(mounts, process.Mount{
 			Type:    m.Type,
 			Source:  m.Source,
 			Target:  m.Target,
@@ -127,12 +128,12 @@ func (s *Service) Create(ctx context.Context, r *shimapi.CreateTaskRequest) (_ *
 	rootfs := ""
 	if len(mounts) > 0 {
 		rootfs = filepath.Join(r.Bundle, "rootfs")
-		if err := os.Mkdir(rootfs, 0711); err != nil {
+		if err := os.Mkdir(rootfs, 0711); err != nil && !os.IsExist(err) {
 			return nil, err
 		}
 	}
 
-	config := &proc.CreateConfig{
+	config := &process.CreateConfig{
 		ID:               r.ID,
 		Bundle:           r.Bundle,
 		Runtime:          r.Runtime,
@@ -266,7 +267,7 @@ func (s *Service) Exec(ctx context.Context, r *shimapi.ExecProcessRequest) (*pty
 		return nil, errdefs.ToGRPCf(errdefs.ErrFailedPrecondition, "container must be created")
 	}
 
-	process, err := p.(*proc.Init).Exec(ctx, s.config.Path, &proc.ExecConfig{
+	process, err := p.(*process.Init).Exec(ctx, s.config.Path, &process.ExecConfig{
 		ID:       r.ID,
 		Terminal: r.Terminal,
 		Stdin:    r.Stdin,
@@ -348,7 +349,7 @@ func (s *Service) Pause(ctx context.Context, r *ptypes.Empty) (*ptypes.Empty, er
 	if err != nil {
 		return nil, err
 	}
-	if err := p.(*proc.Init).Pause(ctx); err != nil {
+	if err := p.(*process.Init).Pause(ctx); err != nil {
 		return nil, err
 	}
 	return empty, nil
@@ -360,7 +361,7 @@ func (s *Service) Resume(ctx context.Context, r *ptypes.Empty) (*ptypes.Empty, e
 	if err != nil {
 		return nil, err
 	}
-	if err := p.(*proc.Init).Resume(ctx); err != nil {
+	if err := p.(*process.Init).Resume(ctx); err != nil {
 		return nil, err
 	}
 	return empty, nil
@@ -448,7 +449,7 @@ func (s *Service) Checkpoint(ctx context.Context, r *shimapi.CheckpointTaskReque
 		}
 		options = *v.(*runctypes.CheckpointOptions)
 	}
-	if err := p.(*proc.Init).Checkpoint(ctx, &proc.CheckpointConfig{
+	if err := p.(*process.Init).Checkpoint(ctx, &process.CheckpointConfig{
 		Path:                     r.Path,
 		Exit:                     options.Exit,
 		AllowOpenTCP:             options.OpenTcp,
@@ -476,7 +477,7 @@ func (s *Service) Update(ctx context.Context, r *shimapi.UpdateTaskRequest) (*pt
 	if err != nil {
 		return nil, err
 	}
-	if err := p.(*proc.Init).Update(ctx, r.Resources); err != nil {
+	if err := p.(*process.Init).Update(ctx, r.Resources); err != nil {
 		return nil, errdefs.ToGRPC(err)
 	}
 	return empty, nil
@@ -502,11 +503,11 @@ func (s *Service) processExits() {
 	}
 }
 
-func (s *Service) allProcesses() []rproc.Process {
+func (s *Service) allProcesses() []process.Process {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	res := make([]rproc.Process, 0, len(s.processes))
+	res := make([]process.Process, 0, len(s.processes))
 	for _, p := range s.processes {
 		res = append(res, p)
 	}
@@ -514,33 +515,35 @@ func (s *Service) allProcesses() []rproc.Process {
 }
 
 func (s *Service) checkProcesses(e runc.Exit) {
-	shouldKillAll, err := shouldKillAllOnExit(s.bundle)
-	if err != nil {
-		log.G(s.context).WithError(err).Error("failed to check shouldKillAll")
-	}
-
 	for _, p := range s.allProcesses() {
-		if p.Pid() == e.Pid {
+		if p.Pid() != e.Pid {
+			continue
+		}
 
+		if ip, ok := p.(*process.Init); ok {
+			shouldKillAll, err := shouldKillAllOnExit(s.bundle)
+			if err != nil {
+				log.G(s.context).WithError(err).Error("failed to check shouldKillAll")
+			}
+
+			// Ensure all children are killed
 			if shouldKillAll {
-				if ip, ok := p.(*proc.Init); ok {
-					// Ensure all children are killed
-					if err := ip.KillAll(s.context); err != nil {
-						log.G(s.context).WithError(err).WithField("id", ip.ID()).
-							Error("failed to kill init's children")
-					}
+				if err := ip.KillAll(s.context); err != nil {
+					log.G(s.context).WithError(err).WithField("id", ip.ID()).
+						Error("failed to kill init's children")
 				}
 			}
-			p.SetExited(e.Status)
-			s.events <- &eventstypes.TaskExit{
-				ContainerID: s.id,
-				ID:          p.ID(),
-				Pid:         uint32(e.Pid),
-				ExitStatus:  uint32(e.Status),
-				ExitedAt:    p.ExitedAt(),
-			}
-			return
 		}
+
+		p.SetExited(e.Status)
+		s.events <- &eventstypes.TaskExit{
+			ContainerID: s.id,
+			ID:          p.ID(),
+			Pid:         uint32(e.Pid),
+			ExitStatus:  uint32(e.Status),
+			ExitedAt:    p.ExitedAt(),
+		}
+		return
 	}
 }
 
@@ -554,7 +557,7 @@ func shouldKillAllOnExit(bundlePath string) (bool, error) {
 
 	if bundleSpec.Linux != nil {
 		for _, ns := range bundleSpec.Linux.Namespaces {
-			if ns.Type == specs.PIDNamespace {
+			if ns.Type == specs.PIDNamespace && ns.Path == "" {
 				return false, nil
 			}
 		}
@@ -569,7 +572,7 @@ func (s *Service) getContainerPids(ctx context.Context, id string) ([]uint32, er
 		return nil, err
 	}
 
-	ps, err := p.(*proc.Init).Runtime().Ps(ctx, id)
+	ps, err := p.(*process.Init).Runtime().Ps(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -589,7 +592,7 @@ func (s *Service) forward(publisher events.Publisher) {
 }
 
 // getInitProcess returns initial process
-func (s *Service) getInitProcess() (rproc.Process, error) {
+func (s *Service) getInitProcess() (process.Process, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -601,7 +604,7 @@ func (s *Service) getInitProcess() (rproc.Process, error) {
 }
 
 // getExecProcess returns exec process
-func (s *Service) getExecProcess(id string) (rproc.Process, error) {
+func (s *Service) getExecProcess(id string) (process.Process, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -640,7 +643,7 @@ func getTopic(ctx context.Context, e interface{}) string {
 	return runtime.TaskUnknownTopic
 }
 
-func newInit(ctx context.Context, path, workDir, runtimeRoot, namespace, criu string, systemdCgroup bool, platform rproc.Platform, r *proc.CreateConfig, rootfs string) (*proc.Init, error) {
+func newInit(ctx context.Context, path, workDir, runtimeRoot, namespace, criu string, systemdCgroup bool, platform stdio.Platform, r *process.CreateConfig, rootfs string) (*process.Init, error) {
 	var options runctypes.CreateOptions
 	if r.Options != nil {
 		v, err := typeurl.UnmarshalAny(r.Options)
@@ -650,8 +653,8 @@ func newInit(ctx context.Context, path, workDir, runtimeRoot, namespace, criu st
 		options = *v.(*runctypes.CreateOptions)
 	}
 
-	runtime := proc.NewRunc(runtimeRoot, path, namespace, r.Runtime, criu, systemdCgroup)
-	p := proc.New(r.ID, runtime, rproc.Stdio{
+	runtime := process.NewRunc(runtimeRoot, path, namespace, r.Runtime, criu, systemdCgroup)
+	p := process.New(r.ID, runtime, stdio.Stdio{
 		Stdin:    r.Stdin,
 		Stdout:   r.Stdout,
 		Stderr:   r.Stderr,

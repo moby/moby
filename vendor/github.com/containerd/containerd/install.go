@@ -27,7 +27,6 @@ import (
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/platforms"
 	"github.com/pkg/errors"
 )
 
@@ -43,7 +42,7 @@ func (c *Client) Install(ctx context.Context, image Image, opts ...InstallOpts) 
 	}
 	var (
 		cs       = image.ContentStore()
-		platform = platforms.Default()
+		platform = c.platform
 	)
 	manifest, err := images.Manifest(ctx, cs, image.Target(), platform)
 	if err != nil {

@@ -30,7 +30,8 @@ var (
 	ErrNoType = errors.New("plugin: no type")
 	// ErrNoPluginID is returned when no id is specified
 	ErrNoPluginID = errors.New("plugin: no id")
-
+	// ErrIDRegistered is returned when a duplicate id is already registered
+	ErrIDRegistered = errors.New("plugin: id already registered")
 	// ErrSkipPlugin is used when a plugin is not initialized and should not be loaded,
 	// this allows the plugin loader differentiate between a plugin which is configured
 	// not to load and one that fails to load.
@@ -100,6 +101,8 @@ type Registration struct {
 	// context are passed in. The init function may modify the registration to
 	// add exports, capabilities and platform support declarations.
 	InitFn func(*InitContext) (interface{}, error)
+	// Disable the plugin from loading
+	Disable bool
 }
 
 // Init the registered plugin
@@ -157,11 +160,15 @@ func Load(path string) (err error) {
 func Register(r *Registration) {
 	register.Lock()
 	defer register.Unlock()
+
 	if r.Type == "" {
 		panic(ErrNoType)
 	}
 	if r.ID == "" {
 		panic(ErrNoPluginID)
+	}
+	if err := checkUnique(r); err != nil {
+		panic(err)
 	}
 
 	var last bool
@@ -177,24 +184,36 @@ func Register(r *Registration) {
 	register.r = append(register.r, r)
 }
 
+func checkUnique(r *Registration) error {
+	for _, registered := range register.r {
+		if r.URI() == registered.URI() {
+			return errors.Wrap(ErrIDRegistered, r.URI())
+		}
+	}
+	return nil
+}
+
+// DisableFilter filters out disabled plugins
+type DisableFilter func(r *Registration) bool
+
 // Graph returns an ordered list of registered plugins for initialization.
 // Plugins in disableList specified by id will be disabled.
-func Graph(disableList []string) (ordered []*Registration) {
+func Graph(filter DisableFilter) (ordered []*Registration) {
 	register.RLock()
 	defer register.RUnlock()
-	for _, d := range disableList {
-		for i, r := range register.r {
-			if r.ID == d {
-				register.r = append(register.r[:i], register.r[i+1:]...)
-				break
-			}
+
+	for _, r := range register.r {
+		if filter(r) {
+			r.Disable = true
 		}
 	}
 
 	added := map[*Registration]bool{}
 	for _, r := range register.r {
-
-		children(r.ID, r.Requires, added, &ordered)
+		if r.Disable {
+			continue
+		}
+		children(r, added, &ordered)
 		if !added[r] {
 			ordered = append(ordered, r)
 			added[r] = true
@@ -203,11 +222,13 @@ func Graph(disableList []string) (ordered []*Registration) {
 	return ordered
 }
 
-func children(id string, types []Type, added map[*Registration]bool, ordered *[]*Registration) {
-	for _, t := range types {
+func children(reg *Registration, added map[*Registration]bool, ordered *[]*Registration) {
+	for _, t := range reg.Requires {
 		for _, r := range register.r {
-			if r.ID != id && (t == "*" || r.Type == t) {
-				children(r.ID, r.Requires, added, ordered)
+			if !r.Disable &&
+				r.URI() != reg.URI() &&
+				(t == "*" || r.Type == t) {
+				children(r, added, ordered)
 				if !added[r] {
 					*ordered = append(*ordered, r)
 					added[r] = true

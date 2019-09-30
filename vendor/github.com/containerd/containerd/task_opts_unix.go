@@ -77,3 +77,29 @@ func WithNoPivotRoot(_ context.Context, _ *Client, ti *TaskInfo) error {
 	}
 	return nil
 }
+
+// WithShimCgroup sets the existing cgroup for the shim
+func WithShimCgroup(path string) NewTaskOpts {
+	return func(ctx context.Context, c *Client, ti *TaskInfo) error {
+		if CheckRuntime(ti.Runtime(), "io.containerd.runc") {
+			if ti.Options == nil {
+				ti.Options = &options.Options{}
+			}
+			opts, ok := ti.Options.(*options.Options)
+			if !ok {
+				return errors.New("invalid v2 shim create options format")
+			}
+			opts.ShimCgroup = path
+		} else {
+			if ti.Options == nil {
+				ti.Options = &runctypes.CreateOptions{}
+			}
+			opts, ok := ti.Options.(*runctypes.CreateOptions)
+			if !ok {
+				return errors.New("could not cast TaskInfo Options to CreateOptions")
+			}
+			opts.ShimCgroup = path
+		}
+		return nil
+	}
+}

@@ -32,7 +32,7 @@ import (
 
 // Pull downloads the provided content into containerd's content store
 // and returns a platform specific image object
-func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (Image, error) {
+func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (_ Image, retErr error) {
 	pullCtx := defaultRemoteContext()
 	for _, o := range opts {
 		if err := o(c, pullCtx); err != nil {
@@ -44,7 +44,7 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (Image
 		if len(pullCtx.Platforms) > 1 {
 			return nil, errors.New("cannot pull multiplatform image locally, try Fetch")
 		} else if len(pullCtx.Platforms) == 0 {
-			pullCtx.PlatformMatcher = platforms.Default()
+			pullCtx.PlatformMatcher = c.platform
 		} else {
 			p, err := platforms.Parse(pullCtx.Platforms[0])
 			if err != nil {
@@ -61,6 +61,30 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (Image
 	}
 	defer done(ctx)
 
+	var unpacks int32
+	if pullCtx.Unpack {
+		// unpacker only supports schema 2 image, for schema 1 this is noop.
+		u, err := c.newUnpacker(ctx, pullCtx)
+		if err != nil {
+			return nil, errors.Wrap(err, "create unpacker")
+		}
+		unpackWrapper, eg := u.handlerWrapper(ctx, &unpacks)
+		defer func() {
+			if err := eg.Wait(); err != nil {
+				if retErr == nil {
+					retErr = errors.Wrap(err, "unpack")
+				}
+			}
+		}()
+		wrapper := pullCtx.HandlerWrapper
+		pullCtx.HandlerWrapper = func(h images.Handler) images.Handler {
+			if wrapper == nil {
+				return unpackWrapper(h)
+			}
+			return wrapper(unpackWrapper(h))
+		}
+	}
+
 	img, err := c.fetch(ctx, pullCtx, ref, 1)
 	if err != nil {
 		return nil, err
@@ -69,8 +93,12 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (Image
 	i := NewImageWithPlatform(c, img, pullCtx.PlatformMatcher)
 
 	if pullCtx.Unpack {
-		if err := i.Unpack(ctx, pullCtx.Snapshotter); err != nil {
-			return nil, errors.Wrapf(err, "failed to unpack image on snapshotter %s", pullCtx.Snapshotter)
+		if unpacks == 0 {
+			// Try to unpack is none is done previously.
+			// This is at least required for schema 1 image.
+			if err := i.Unpack(ctx, pullCtx.Snapshotter, pullCtx.UnpackOpts...); err != nil {
+				return nil, errors.Wrapf(err, "failed to unpack image on snapshotter %s", pullCtx.Snapshotter)
+			}
 		}
 	}
 
@@ -112,9 +140,14 @@ func (c *Client) fetch(ctx context.Context, rCtx *RemoteContext, ref string, lim
 		childrenHandler := images.ChildrenHandler(store)
 		// Set any children labels for that content
 		childrenHandler = images.SetChildrenLabels(store, childrenHandler)
-		// Filter manifests by platforms but allow to handle manifest
-		// and configuration for not-target platforms
-		childrenHandler = remotes.FilterManifestByPlatformHandler(childrenHandler, rCtx.PlatformMatcher)
+		if rCtx.AllMetadata {
+			// Filter manifests by platforms but allow to handle manifest
+			// and configuration for not-target platforms
+			childrenHandler = remotes.FilterManifestByPlatformHandler(childrenHandler, rCtx.PlatformMatcher)
+		} else {
+			// Filter children by platforms if specified.
+			childrenHandler = images.FilterPlatforms(childrenHandler, rCtx.PlatformMatcher)
+		}
 		// Sort and limit manifests if a finite number is needed
 		if limit > 0 {
 			childrenHandler = images.LimitManifests(childrenHandler, rCtx.PlatformMatcher, limit)
@@ -131,21 +164,17 @@ func (c *Client) fetch(ctx context.Context, rCtx *RemoteContext, ref string, lim
 			},
 		)
 
+		appendDistSrcLabelHandler, err := docker.AppendDistributionSourceLabel(store, ref)
+		if err != nil {
+			return images.Image{}, err
+		}
+
 		handlers := append(rCtx.BaseHandlers,
 			remotes.FetchHandler(store, fetcher),
 			convertibleHandler,
 			childrenHandler,
+			appendDistSrcLabelHandler,
 		)
-
-		// append distribution source label to blob data
-		if rCtx.AppendDistributionSourceLabel {
-			appendDistSrcLabelHandler, err := docker.AppendDistributionSourceLabel(store, ref)
-			if err != nil {
-				return images.Image{}, err
-			}
-
-			handlers = append(handlers, appendDistSrcLabelHandler)
-		}
 
 		handler = images.Handlers(handlers...)
 

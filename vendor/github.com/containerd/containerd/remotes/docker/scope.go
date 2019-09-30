@@ -18,6 +18,7 @@ package docker
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"sort"
 	"strings"
@@ -50,27 +51,47 @@ func contextWithRepositoryScope(ctx context.Context, refspec reference.Spec, pus
 	if err != nil {
 		return nil, err
 	}
-	return context.WithValue(ctx, tokenScopesKey{}, []string{s}), nil
+	return WithScope(ctx, s), nil
 }
 
-// getTokenScopes returns deduplicated and sorted scopes from ctx.Value(tokenScopesKey{}) and params["scope"].
-func getTokenScopes(ctx context.Context, params map[string]string) []string {
+// WithScope appends a custom registry auth scope to the context.
+func WithScope(ctx context.Context, scope string) context.Context {
+	var scopes []string
+	if v := ctx.Value(tokenScopesKey{}); v != nil {
+		scopes = v.([]string)
+		scopes = append(scopes, scope)
+	} else {
+		scopes = []string{scope}
+	}
+	return context.WithValue(ctx, tokenScopesKey{}, scopes)
+}
+
+// contextWithAppendPullRepositoryScope is used to append repository pull
+// scope into existing scopes indexed by the tokenScopesKey{}.
+func contextWithAppendPullRepositoryScope(ctx context.Context, repo string) context.Context {
+	return WithScope(ctx, fmt.Sprintf("repository:%s:pull", repo))
+}
+
+// getTokenScopes returns deduplicated and sorted scopes from ctx.Value(tokenScopesKey{}) and common scopes.
+func getTokenScopes(ctx context.Context, common []string) []string {
 	var scopes []string
 	if x := ctx.Value(tokenScopesKey{}); x != nil {
 		scopes = append(scopes, x.([]string)...)
 	}
-	if scope, ok := params["scope"]; ok {
-		for _, s := range scopes {
-			// Note: this comparison is unaware of the scope grammar (https://docs.docker.com/registry/spec/auth/scope/)
-			// So, "repository:foo/bar:pull,push" != "repository:foo/bar:push,pull", although semantically they are equal.
-			if s == scope {
-				// already appended
-				goto Sort
-			}
-		}
-		scopes = append(scopes, scope)
-	}
-Sort:
+
+	scopes = append(scopes, common...)
 	sort.Strings(scopes)
-	return scopes
+
+	l := 0
+	for idx := 1; idx < len(scopes); idx++ {
+		// Note: this comparison is unaware of the scope grammar (https://docs.docker.com/registry/spec/auth/scope/)
+		// So, "repository:foo/bar:pull,push" != "repository:foo/bar:push,pull", although semantically they are equal.
+		if scopes[l] == scopes[idx] {
+			continue
+		}
+
+		l++
+		scopes[l] = scopes[idx]
+	}
+	return scopes[:l+1]
 }

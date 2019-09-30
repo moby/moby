@@ -20,11 +20,12 @@ package archive
 
 import (
 	"archive/tar"
-	"context"
 	"os"
+	"strings"
 	"sync"
 	"syscall"
 
+	"github.com/containerd/continuity/fs"
 	"github.com/containerd/continuity/sysx"
 	"github.com/opencontainers/runc/libcontainer/system"
 	"github.com/pkg/errors"
@@ -72,10 +73,6 @@ func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
 		return nil, err
 	}
 	return f, err
-}
-
-func mkdirAll(path string, perm os.FileMode) error {
-	return os.MkdirAll(path, perm)
 }
 
 func mkdir(path string, perm os.FileMode) error {
@@ -149,11 +146,71 @@ func getxattr(path, attr string) ([]byte, error) {
 }
 
 func setxattr(path, key, value string) error {
-	return sysx.LSetxattr(path, key, []byte(value), 0)
+	// Do not set trusted attributes
+	if strings.HasPrefix(key, "trusted.") {
+		return errors.Wrap(unix.ENOTSUP, "admin attributes from archive not supported")
+	}
+	return unix.Lsetxattr(path, key, []byte(value), 0)
 }
 
-// apply applies a tar stream of an OCI style diff tar.
-// See https://github.com/opencontainers/image-spec/blob/master/layer.md#applying-changesets
-func apply(ctx context.Context, root string, tr *tar.Reader, options ApplyOptions) (size int64, err error) {
-	return applyNaive(ctx, root, tr, options)
+func copyDirInfo(fi os.FileInfo, path string) error {
+	st := fi.Sys().(*syscall.Stat_t)
+	if err := os.Lchown(path, int(st.Uid), int(st.Gid)); err != nil {
+		if os.IsPermission(err) {
+			// Normally if uid/gid are the same this would be a no-op, but some
+			// filesystems may still return EPERM... for instance NFS does this.
+			// In such a case, this is not an error.
+			if dstStat, err2 := os.Lstat(path); err2 == nil {
+				st2 := dstStat.Sys().(*syscall.Stat_t)
+				if st.Uid == st2.Uid && st.Gid == st2.Gid {
+					err = nil
+				}
+			}
+		}
+		if err != nil {
+			return errors.Wrapf(err, "failed to chown %s", path)
+		}
+	}
+
+	if err := os.Chmod(path, fi.Mode()); err != nil {
+		return errors.Wrapf(err, "failed to chmod %s", path)
+	}
+
+	timespec := []unix.Timespec{unix.Timespec(fs.StatAtime(st)), unix.Timespec(fs.StatMtime(st))}
+	if err := unix.UtimesNanoAt(unix.AT_FDCWD, path, timespec, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+		return errors.Wrapf(err, "failed to utime %s", path)
+	}
+
+	return nil
+}
+
+func copyUpXAttrs(dst, src string) error {
+	xattrKeys, err := sysx.LListxattr(src)
+	if err != nil {
+		if err == unix.ENOTSUP || err == sysx.ENODATA {
+			return nil
+		}
+		return errors.Wrapf(err, "failed to list xattrs on %s", src)
+	}
+	for _, xattr := range xattrKeys {
+		// Do not copy up trusted attributes
+		if strings.HasPrefix(xattr, "trusted.") {
+			continue
+		}
+		data, err := sysx.LGetxattr(src, xattr)
+		if err != nil {
+			if err == unix.ENOTSUP || err == sysx.ENODATA {
+				continue
+			}
+			return errors.Wrapf(err, "failed to get xattr %q on %s", xattr, src)
+		}
+		if err := unix.Lsetxattr(dst, xattr, data, unix.XATTR_CREATE); err != nil {
+			if err == unix.ENOTSUP || err == unix.ENODATA || err == unix.EEXIST {
+				continue
+			}
+			return errors.Wrapf(err, "failed to set xattr %q on %s", xattr, dst)
+		}
+	}
+
+	return nil
 }
