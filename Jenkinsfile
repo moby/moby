@@ -17,11 +17,13 @@ pipeline {
         booleanParam(name: 'skip_dco', defaultValue: false, description: 'Skip the DCO check')
     }
     environment {
+        TEST_DOCKERD        = '1'
         DOCKER_BUILDKIT     = '1'
         DOCKER_EXPERIMENTAL = '1'
         DOCKER_GRAPHDRIVER  = 'overlay2'
         APT_MIRROR          = 'cdn-fastly.deb.debian.org'
         CHECK_CONFIG_COMMIT = '78405559cfe5987174aa2cb6463b9b2c1b917255'
+        BUILDKIT_COMMIT     = '10cef0c6e178bcaca1ad02b041a96b1091f52071'
         TESTDEBUG           = '0'
         TIMEOUT             = '120m'
     }
@@ -53,6 +55,22 @@ pipeline {
         }
         stage('Build') {
             parallel {
+                stage("buildkit") {
+                    steps {
+                        sh '''
+                        curl -fsSL -o ${WORKSPACE}/buildkit.zip https://github.com/moby/buildkit/archive/${BUILDKIT_COMMIT}.zip
+                        unzip ${WORKSPACE}/buildkit.zip
+                        mv buildkit-${BUILDKIT_COMMIT}/ buildkit/
+                        cd buildkit/
+                        make TEST_DOCKERD=1 test integration
+                        '''
+                    }
+                    post {
+                        always {
+                            junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                        }
+                    }
+                }
                 stage('unit-validate') {
                     when {
                         beforeAgent true
