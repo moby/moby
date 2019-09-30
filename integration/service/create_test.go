@@ -33,7 +33,7 @@ func testServiceCreateInit(daemonEnabled bool) func(t *testing.T) {
 		var ops = []daemon.Option{}
 
 		if daemonEnabled {
-			ops = append(ops, daemon.WithInit)
+			ops = append(ops, daemon.WithInit())
 		}
 		d := swarm.NewSwarm(t, testEnv, ops...)
 		defer d.Stop(t)

@@ -31,8 +31,10 @@ func WithExperimental() Option {
 }
 
 // WithInit sets the daemon init
-func WithInit(d *Daemon) {
-	d.init = true
+func WithInit() Option {
+	return func(d *Daemon) {
+		d.init = true
+	}
 }
 
 // WithDockerdBinary sets the dockerd binary to the specified one
