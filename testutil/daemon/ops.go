@@ -24,8 +24,10 @@ func WithTestLogger(t testing.TB) Option {
 }
 
 // WithExperimental sets the daemon in experimental mode
-func WithExperimental(d *Daemon) {
-	d.experimental = true
+func WithExperimental() Option {
+	return func(d *Daemon) {
+		d.experimental = true
+	}
 }
 
 // WithInit sets the daemon init

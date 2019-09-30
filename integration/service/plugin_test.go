@@ -56,12 +56,12 @@ func TestServicePlugin(t *testing.T) {
 	assert.NilError(t, err)
 	d.Stop(t)
 
-	d1 := swarm.NewSwarm(t, testEnv, daemon.WithExperimental)
+	d1 := swarm.NewSwarm(t, testEnv, daemon.WithExperimental())
 	defer d1.Stop(t)
-	d2 := daemon.New(t, daemon.WithExperimental, daemon.WithSwarmPort(daemon.DefaultSwarmPort+1))
+	d2 := daemon.New(t, daemon.WithExperimental(), daemon.WithSwarmPort(daemon.DefaultSwarmPort+1))
 	d2.StartAndSwarmJoin(t, d1, true)
 	defer d2.Stop(t)
-	d3 := daemon.New(t, daemon.WithExperimental, daemon.WithSwarmPort(daemon.DefaultSwarmPort+2))
+	d3 := daemon.New(t, daemon.WithExperimental(), daemon.WithSwarmPort(daemon.DefaultSwarmPort+2))
 	d3.StartAndSwarmJoin(t, d1, false)
 	defer d3.Stop(t)
 

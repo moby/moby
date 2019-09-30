@@ -51,7 +51,7 @@ func setupTest(t *testing.T) func() {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	environment.ProtectAll(t, testEnv)
 
-	d = daemon.New(t, daemon.WithExperimental)
+	d = daemon.New(t, daemon.WithExperimental())
 
 	return func() {
 		if d != nil {

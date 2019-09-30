@@ -26,7 +26,7 @@ func TestBuildSquashParent(t *testing.T) {
 	if !testEnv.DaemonInfo.ExperimentalBuild {
 		skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 
-		d := daemon.New(t, daemon.WithExperimental)
+		d := daemon.New(t, daemon.WithExperimental())
 		d.StartWithBusybox(t)
 		defer d.Stop(t)
 		client = d.NewClientT(t)

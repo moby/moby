@@ -54,7 +54,7 @@ func NewSwarm(t *testing.T, testEnv *environment.Execution, ops ...daemon.Option
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	if testEnv.DaemonInfo.ExperimentalBuild {
-		ops = append(ops, daemon.WithExperimental)
+		ops = append(ops, daemon.WithExperimental())
 	}
 	d := daemon.New(t, ops...)
 	d.StartAndSwarmInit(t)
