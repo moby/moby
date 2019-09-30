@@ -132,7 +132,7 @@ func TestDockerExternalVolumeSuite(t *testing.T) {
 func TestDockerNetworkSuite(t *testing.T) {
 	ensureTestEnvSetup(t)
 	testRequires(t, DaemonIsLinux)
-	suite.Run(t, &DockerExternalVolumeSuite{ds: &DockerSuite{}})
+	suite.Run(t, &DockerNetworkSuite{ds: &DockerSuite{}})
 }
 
 func TestDockerHubPullSuite(t *testing.T) {
