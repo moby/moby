@@ -17,7 +17,7 @@ func WithDefaultCgroupNamespaceMode(mode string) Option {
 }
 
 // WithTestLogger causes the daemon to log certain actions to the provided test.
-func WithTestLogger(t testing.TB) func(*Daemon) {
+func WithTestLogger(t testing.TB) Option {
 	return func(d *Daemon) {
 		d.log = t
 	}
