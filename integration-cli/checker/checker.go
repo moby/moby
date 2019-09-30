@@ -62,14 +62,14 @@ func DeepEquals(y interface{}) Compare {
 	}
 }
 
-// DeepEquals compares if two values are deepequal
+// HasLen checks if the value has the expected number of elements
 func HasLen(y int) Compare {
 	return func(x interface{}) assert.BoolOrComparison {
 		return cmp.Len(x, y)
 	}
 }
 
-// DeepEquals checks if the given value is nil
+// IsNil checks if the value is nil
 func IsNil() Compare {
 	return func(x interface{}) assert.BoolOrComparison {
 		return cmp.Nil(x)
