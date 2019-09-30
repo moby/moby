@@ -9,11 +9,11 @@ pipeline {
     }
     parameters {
         booleanParam(name: 'unit_validate', defaultValue: true, description: 'amd64 (x86_64) unit tests and vendor check')
-        booleanParam(name: 'amd64', defaultValue: true, description: 'amd64 (x86_64) Build/Test')
+        booleanParam(name: 'amd64', defaultValue: false, description: 'amd64 (x86_64) Build/Test')
         booleanParam(name: 's390x', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
         booleanParam(name: 'ppc64le', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
         booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
-        booleanParam(name: 'windowsRS5', defaultValue: true, description: 'Windows 2019 (RS5) Build/Test')
+        booleanParam(name: 'windowsRS5', defaultValue: false, description: 'Windows 2019 (RS5) Build/Test')
         booleanParam(name: 'skip_dco', defaultValue: false, description: 'Skip the DCO check')
     }
     environment {
@@ -464,7 +464,6 @@ pipeline {
                 stage('s390x integration-cli') {
                     when {
                         beforeAgent true
-                        not { changeRequest() }
                         expression { params.s390x }
                     }
                     agent { label 's390x-ubuntu-1604' }
@@ -648,7 +647,6 @@ pipeline {
                 stage('ppc64le integration-cli') {
                     when {
                         beforeAgent true
-                        not { changeRequest() }
                         expression { params.ppc64le }
                     }
                     agent { label 'ppc64le-ubuntu-1604' }
