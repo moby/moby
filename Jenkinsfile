@@ -15,6 +15,7 @@ pipeline {
         booleanParam(name: 'arm64', defaultValue: true, description: 'ARM (arm64) Build/Test')
         booleanParam(name: 's390x', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
         booleanParam(name: 'ppc64le', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
+        booleanParam(name: 'buildkit', defaultValue: true, description: 'Skip the buildkit integration tests')
         booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
         booleanParam(name: 'windowsRS5', defaultValue: true, description: 'Windows 2019 (RS5) Build/Test')
         booleanParam(name: 'dco', defaultValue: true, description: 'Run the DCO check')
@@ -58,6 +59,47 @@ pipeline {
         }
         stage('Build') {
             parallel {
+                stage("buildkit") {
+                    when {
+                        beforeAgent true
+                        expression { params.buildkit }
+                    }
+                    agent { label 'amd64 && ubuntu-1804 && overlay2' }
+                    stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
+                            }
+                        }
+                        stage("Build dev image") {
+                            steps {
+                                sh '''
+                                docker build --force-rm \
+                                  --build-arg APT_MIRROR \
+                                  -t docker:${GIT_COMMIT} .
+                                '''
+                            }
+                        }
+                        stage("Integration Tests") {
+                            steps {
+                                sh '''
+                                  make test-buildkit
+                                '''
+                            }
+                        }
+                    }
+                    post {
+                        always {
+                            junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                        }
+                    }
+                }
                 stage('unit-validate') {
                     when {
                         beforeAgent true
