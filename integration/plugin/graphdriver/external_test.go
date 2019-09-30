@@ -54,7 +54,7 @@ func TestExternalGraphDriver(t *testing.T) {
 	sserver := setupPluginViaSpecFile(t, ec)
 	jserver := setupPluginViaJSONFile(t, ec)
 	// Create daemon
-	d := daemon.New(t, daemon.WithExperimental)
+	d := daemon.New(t, daemon.WithExperimental())
 	c := d.NewClientT(t)
 
 	for _, tc := range []struct {
@@ -410,7 +410,7 @@ func TestGraphdriverPluginV2(t *testing.T) {
 	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
 	skip.If(t, !requirement.Overlay2Supported(testEnv.DaemonInfo.KernelVersion))
 
-	d := daemon.New(t, daemon.WithExperimental)
+	d := daemon.New(t, daemon.WithExperimental())
 	d.Start(t)
 	defer d.Stop(t)
 

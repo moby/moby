@@ -17,20 +17,24 @@ func WithDefaultCgroupNamespaceMode(mode string) Option {
 }
 
 // WithTestLogger causes the daemon to log certain actions to the provided test.
-func WithTestLogger(t testing.TB) func(*Daemon) {
+func WithTestLogger(t testing.TB) Option {
 	return func(d *Daemon) {
 		d.log = t
 	}
 }
 
 // WithExperimental sets the daemon in experimental mode
-func WithExperimental(d *Daemon) {
-	d.experimental = true
+func WithExperimental() Option {
+	return func(d *Daemon) {
+		d.experimental = true
+	}
 }
 
 // WithInit sets the daemon init
-func WithInit(d *Daemon) {
-	d.init = true
+func WithInit() Option {
+	return func(d *Daemon) {
+		d.init = true
+	}
 }
 
 // WithDockerdBinary sets the dockerd binary to the specified one
@@ -85,7 +89,7 @@ func WithEnvironment(e environment.Execution) Option {
 }
 
 // WithStorageDriver sets store driver option
-func WithStorageDriver(driver string) func(d *Daemon) {
+func WithStorageDriver(driver string) Option {
 	return func(d *Daemon) {
 		d.storageDriver = driver
 	}
