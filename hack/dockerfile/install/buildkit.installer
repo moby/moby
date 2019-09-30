@@ -1,0 +1,23 @@
+#!/bin/sh
+
+BUILDKIT_COMMIT=10cef0c6e178bcaca1ad02b041a96b1091f52071
+
+install_buildkit() {
+	echo "Install buildkit version $BUILDKIT_COMMIT"
+	git clone https://github.com/moby/buildkit.git "$GOPATH/src/github.com/moby/buildkit"
+	cd "$GOPATH/src/github.com/moby/buildkit"
+	git checkout -q "$BUILDKIT_COMMIT"
+
+	(
+		export EXTRA_FLAGS='-buildmode=pie'
+
+		# Make requires docker and lots of complexity. Just build.
+		go build $EXTRA_FLAGS ./cmd/buildctl
+		go build $EXTRA_FLAGS ./cmd/buildkitd
+	)
+
+	mkdir -p "${PREFIX}"
+
+	cp buildkitd "${PREFIX}/buildkitd"
+	cp buildctl "${PREFIX}/buildctl"
+}

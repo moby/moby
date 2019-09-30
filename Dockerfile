@@ -171,6 +171,13 @@ COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
+FROM dev-base AS buildkit
+ARG DEBIAN_FRONTEND
+ENV INSTALL_BINARY_NAME=buildkit
+COPY hack/dockerfile/install/install.sh ./install.sh
+COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
+
 FROM dev-base AS proxy
 ENV INSTALL_BINARY_NAME=proxy
 COPY hack/dockerfile/install/install.sh ./install.sh
@@ -273,6 +280,7 @@ COPY --from=vndr /build/ /usr/local/bin/
 COPY --from=tini /build/ /usr/local/bin/
 COPY --from=runc /build/ /usr/local/bin/
 COPY --from=containerd /build/ /usr/local/bin/
+COPY --from=buildkit /build/ /usr/local/bin/
 COPY --from=proxy /build/ /usr/local/bin/
 COPY --from=dockercli /build/ /usr/local/cli
 COPY --from=registry /build/registry* /usr/local/bin/
