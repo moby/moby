@@ -87,6 +87,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /swarm/init` now accepts a `DefaultAddrPool` property to set global scope default address pool
 * `POST /swarm/init` now accepts a `SubnetSize` property to set global scope networks by giving the
   length of the subnet masks for every such network
+* `POST /session` (added in [V1.31](#v131-api-changes) is no longer experimental.
+  This endpoint can be used to run interactive long-running protocols between the
+  client and the daemon.
 
 ## V1.38 API changes
 
