@@ -14,7 +14,7 @@ import (
 
 func TestMiddlewares(t *testing.T) {
 	cfg := &Config{
-		Version: "0.1omega2",
+		Version: "0.1omega89",
 	}
 	srv := &Server{
 		cfg: cfg,
