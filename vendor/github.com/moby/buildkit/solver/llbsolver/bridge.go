@@ -54,7 +54,7 @@ func (b *llbBridge) Solve(ctx context.Context, req frontend.SolveRequest) (res *
 			}
 		}
 		if prevCm, ok := b.cms[cmId]; !ok {
-			func(cmId string) {
+			func(cmId string, im gw.CacheOptionsEntry) {
 				cm = newLazyCacheManager(cmId, func() (solver.CacheManager, error) {
 					var cmNew solver.CacheManager
 					if err := inVertexContext(b.builder.Context(ctx), "importing cache manifest from "+cmId, "", func(ctx context.Context) error {
@@ -74,7 +74,7 @@ func (b *llbBridge) Solve(ctx context.Context, req frontend.SolveRequest) (res *
 					}
 					return cmNew, nil
 				})
-			}(cmId)
+			}(cmId, im)
 			b.cms[cmId] = cm
 		} else {
 			cm = prevCm

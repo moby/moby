@@ -38,7 +38,7 @@ BuildKit is used by the following projects:
 -   [Knative Build Templates](https://github.com/knative/build-templates)
 -   [the Sanic build tool](https://github.com/distributed-containers-inc/sanic)
 -   [vab](https://github.com/stellarproject/vab)
--   [Rio](https://github.com/rancher/rio) (on roadmap)
+-   [Rio](https://github.com/rancher/rio)
 
 ### Quick start
 

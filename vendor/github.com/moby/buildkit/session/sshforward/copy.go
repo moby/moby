@@ -9,17 +9,17 @@ import (
 	"google.golang.org/grpc"
 )
 
-func Copy(ctx context.Context, conn io.ReadWriteCloser, stream grpc.Stream) error {
+func Copy(ctx context.Context, conn io.ReadWriteCloser, stream grpc.Stream, closeStream func() error) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() (retErr error) {
 		p := &BytesMessage{}
 		for {
 			if err := stream.RecvMsg(p); err != nil {
+				conn.Close()
 				if err == io.EOF {
 					return nil
 				}
-				conn.Close()
 				return errors.WithStack(err)
 			}
 			select {
@@ -42,6 +42,9 @@ func Copy(ctx context.Context, conn io.ReadWriteCloser, stream grpc.Stream) erro
 			n, err := conn.Read(buf)
 			switch {
 			case err == io.EOF:
+				if closeStream != nil {
+					closeStream()
+				}
 				return nil
 			case err != nil:
 				return errors.WithStack(err)

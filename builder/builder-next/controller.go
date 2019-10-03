@@ -189,7 +189,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		Frontends:        frontends,
 		CacheKeyStorage:  cacheStorage,
 		ResolveCacheImporterFuncs: map[string]remotecache.ResolveCacheImporterFunc{
-			"registry": localinlinecache.ResolveCacheImporterFunc(opt.SessionManager, opt.ResolverOpt, dist.ReferenceStore, dist.ImageStore),
+			"registry": localinlinecache.ResolveCacheImporterFunc(opt.SessionManager, opt.ResolverOpt, store, dist.ReferenceStore, dist.ImageStore),
 			"local":    localremotecache.ResolveCacheImporterFunc(opt.SessionManager),
 		},
 		ResolveCacheExporterFuncs: map[string]remotecache.ResolveCacheExporterFunc{
