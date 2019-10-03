@@ -36,6 +36,14 @@ func NewArgs(initialArgs ...KeyValuePair) Args {
 	return args
 }
 
+func (args Args) Keys() []string {
+	keys := make([]string, 0, len(args.fields))
+	for k := range args.fields {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 // MarshalJSON returns a JSON byte representation of the Args
 func (args Args) MarshalJSON() ([]byte, error) {
 	if len(args.fields) == 0 {
