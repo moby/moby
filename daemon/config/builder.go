@@ -2,6 +2,8 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/docker/docker/api/types/filters"
@@ -15,6 +17,20 @@ type BuilderGCRule struct {
 }
 
 type BuilderGCFilter filters.Args
+
+func (x *BuilderGCFilter) MarshalJSON() ([]byte, error) {
+	f := filters.Args(*x)
+	keys := f.Keys()
+	sort.Strings(keys)
+	arr := make([]string, 0, len(keys))
+	for _, k := range keys {
+		values := f.Get(k)
+		for _, v := range values {
+			arr = append(arr, fmt.Sprintf("%s=%s", k, v))
+		}
+	}
+	return json.Marshal(arr)
+}
 
 func (x *BuilderGCFilter) UnmarshalJSON(data []byte) error {
 	var arr []string
