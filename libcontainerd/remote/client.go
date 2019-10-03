@@ -124,15 +124,18 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio libcontaine
 	}, nil
 }
 
-func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, runtimeOptions interface{}) error {
+func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) error {
 	bdir := c.bundleDir(id)
 	c.logger.WithField("bundle", bdir).WithField("root", ociSpec.Root.Path).Debug("bundle dir created")
 
-	_, err := c.client.NewContainer(ctx, id,
+	newOpts := []containerd.NewContainerOpts{
 		containerd.WithSpec(ociSpec),
 		containerd.WithRuntime(runtimeName, runtimeOptions),
 		WithBundle(bdir, ociSpec),
-	)
+	}
+	opts = append(opts, newOpts...)
+
+	_, err := c.client.NewContainer(ctx, id, opts...)
 	if err != nil {
 		if containerderrors.IsAlreadyExists(err) {
 			return errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
