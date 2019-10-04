@@ -60,12 +60,14 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM base AS swagger
 # Install go-swagger for validating swagger.yaml
-ENV GO_SWAGGER_COMMIT c28258affb0b6251755d92489ef685af8d4ff3eb
+# This is https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix
+# TODO: move to under moby/ or fix upstream go-swagger to work for us.
+ENV GO_SWAGGER_COMMIT 5793aa66d4b4112c2602c716516e24710e4adbb5
 RUN --mount=type=cache,target=/root/.cache/go-build \
 	--mount=type=cache,target=/go/pkg/mod \
 		set -x \
 		&& export GOPATH="$(mktemp -d)" \
-		&& git clone https://github.com/go-swagger/go-swagger.git "$GOPATH/src/github.com/go-swagger/go-swagger" \
+		&& git clone https://github.com/kolyshkin/go-swagger.git "$GOPATH/src/github.com/go-swagger/go-swagger" \
 		&& (cd "$GOPATH/src/github.com/go-swagger/go-swagger" && git checkout -q "$GO_SWAGGER_COMMIT") \
 		&& go build -o /build/swagger github.com/go-swagger/go-swagger/cmd/swagger \
 		&& rm -rf "$GOPATH"
