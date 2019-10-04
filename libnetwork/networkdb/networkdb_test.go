@@ -17,6 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
+	"gotest.tools/poll"
 
 	// this takes care of the incontainer flag
 	_ "github.com/docker/libnetwork/testutils"
@@ -51,13 +52,17 @@ func createNetworkDBInstances(t *testing.T, num int, namePrefix string, conf *Co
 		dbs = append(dbs, db)
 	}
 
-	// Check that the cluster is properly created
-	for i := 0; i < num; i++ {
-		if num != len(dbs[i].ClusterPeers()) {
-			t.Fatalf("Number of nodes for %s into the cluster does not match %d != %d",
-				dbs[i].config.Hostname, num, len(dbs[i].ClusterPeers()))
+	// Wait till the cluster creation is successful
+	check := func(t poll.LogT) poll.Result {
+		// Check that the cluster is properly created
+		for i := 0; i < num; i++ {
+			if num != len(dbs[i].ClusterPeers()) {
+				return poll.Continue("%s:Waiting for cluser peers to be established", dbs[i].config.Hostname)
+			}
 		}
+		return poll.Success()
 	}
+	poll.WaitOn(t, check, poll.WithDelay(2*time.Second), poll.WithTimeout(20*time.Second))
 
 	return dbs
 }
@@ -826,39 +831,51 @@ func TestNetworkDBIslands(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		logrus.Infof("node %d leaving", i)
 		dbs[i].Close()
-		time.Sleep(2 * time.Second)
 	}
 
 	// Give some time to let the system propagate the messages and free up the ports
-	time.Sleep(10 * time.Second)
-
-	// Verify that the nodes are actually all gone and marked appropiately
-	for i := 3; i < 5; i++ {
-		assert.Check(t, is.Len(dbs[i].leftNodes, 3))
-		assert.Check(t, is.Len(dbs[i].failedNodes, 0))
+	check := func(t poll.LogT) poll.Result {
+		// Verify that the nodes are actually all gone and marked appropiately
+		for i := 3; i < 5; i++ {
+			if (len(dbs[i].leftNodes) != 3) || (len(dbs[i].failedNodes) != 0) {
+				return poll.Continue("%s:Waiting for all nodes to cleanly leave", dbs[i].config.Hostname)
+			}
+		}
+		return poll.Success()
 	}
+	poll.WaitOn(t, check, poll.WithDelay(20*time.Second), poll.WithTimeout(120*time.Second))
 
 	// Spawn again the first 3 nodes with different names but same IP:port
 	for i := 0; i < 3; i++ {
 		logrus.Infof("node %d coming back", i)
 		dbs[i].config.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
 		dbs[i] = launchNode(t, *dbs[i].config)
-		time.Sleep(2 * time.Second)
 	}
 
 	// Give some time for the reconnect routine to run, it runs every 60s
-	time.Sleep(50 * time.Second)
-
-	// Verify that the cluster is again all connected. Note that the 3 previous node did not do any join
-	for i := 0; i < 5; i++ {
-		assert.Check(t, is.Len(dbs[i].nodes, 5))
-		assert.Check(t, is.Len(dbs[i].failedNodes, 0))
-		if i < 3 {
-			// nodes from 0 to 3 has no left nodes
-			assert.Check(t, is.Len(dbs[i].leftNodes, 0))
-		} else {
-			// nodes from 4 to 5 has the 3 previous left nodes
-			assert.Check(t, is.Len(dbs[i].leftNodes, 3))
+	check = func(t poll.LogT) poll.Result {
+		// Verify that the cluster is again all connected. Note that the 3 previous node did not do any join
+		for i := 0; i < 5; i++ {
+			if len(dbs[i].nodes) != 5 {
+				return poll.Continue("%s:Waiting to connect to all nodes", dbs[i].config.Hostname)
+			}
+			if len(dbs[i].failedNodes) != 0 {
+				return poll.Continue("%s:Waiting for 0 failedNodes", dbs[i].config.Hostname)
+			}
+			if i < 3 {
+				// nodes from 0 to 3 has no left nodes
+				if len(dbs[i].leftNodes) != 0 {
+					return poll.Continue("%s:Waiting to have no leftNodes", dbs[i].config.Hostname)
+				}
+			} else {
+				// nodes from 4 to 5 has the 3 previous left nodes
+				if len(dbs[i].leftNodes) != 3 {
+					return poll.Continue("%s:Waiting to have 3 leftNodes", dbs[i].config.Hostname)
+				}
+			}
 		}
+		return poll.Success()
 	}
+	poll.WaitOn(t, check, poll.WithDelay(20*time.Second), poll.WithTimeout(120*time.Second))
+	closeNetworkDBInstances(dbs)
 }
