@@ -289,21 +289,21 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
 
 RUN pip3 install yamllint==1.16.0
 
-COPY --from=swagger /build/swagger* /usr/local/bin/
-COPY --from=frozen-images /build/ /docker-frozen-images
-COPY --from=golangci_lint /build/ /usr/local/bin/
-COPY --from=gotestsum /build/ /usr/local/bin/
-COPY --from=tomlv /build/ /usr/local/bin/
-COPY --from=vndr /build/ /usr/local/bin/
-COPY --from=tini /build/ /usr/local/bin/
-COPY --from=runc /build/ /usr/local/bin/
-COPY --from=containerd /build/ /usr/local/bin/
-COPY --from=proxy /build/ /usr/local/bin/
 COPY --from=dockercli /build/ /usr/local/cli
+COPY --from=frozen-images /build/ /docker-frozen-images
+COPY --from=swagger /build/swagger* /usr/local/bin/
+COPY --from=tomlv /build/ /usr/local/bin/
+COPY --from=tini /build/ /usr/local/bin/
 COPY --from=registry /build/registry* /usr/local/bin/
 COPY --from=criu /build/ /usr/local/
+COPY --from=vndr /build/ /usr/local/bin/
+COPY --from=gotestsum /build/ /usr/local/bin/
+COPY --from=golangci_lint /build/ /usr/local/bin/
+COPY --from=runc /build/ /usr/local/bin/
+COPY --from=containerd /build/ /usr/local/bin/
 COPY --from=rootlesskit /build/ /usr/local/bin/
 COPY --from=vpnkit /vpnkit /usr/local/bin/vpnkit.x86_64
+COPY --from=proxy /build/ /usr/local/bin/
 
 ENV PATH=/usr/local/cli:$PATH
 ENV DOCKER_BUILDTAGS apparmor seccomp selinux
