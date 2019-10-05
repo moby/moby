@@ -392,7 +392,8 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                make bundles/buildx
+                                bundles/buildx build --load --force-rm --build-arg APT_MIRROR=${APT_MIRROR} -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
@@ -500,7 +501,8 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                make bundles/buildx
+                                bundles/buidx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
@@ -583,7 +585,10 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
+                                sh '''
+                                make bundles/buildx
+                                bundles/buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                '''
                             }
                         }
                         stage("Unit tests") {
@@ -689,7 +694,10 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
+                                sh '''
+                                make bundles/buildx
+                                bundles/buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                '''
                             }
                         }
                         stage("Integration-cli tests") {
