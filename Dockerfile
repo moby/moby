@@ -28,6 +28,7 @@ ARG CROSS="false"
 # IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
 ARG GO_VERSION=1.12.17
 ARG DEBIAN_FRONTEND=noninteractive
+ARG VPNKIT_DIGEST=e508a17cfacc8fd39261d5b4e397df2b953690da577e2c987a47630cd0c42f8e
 
 FROM golang:${GO_VERSION}-stretch AS base
 ARG APT_MIRROR
@@ -235,6 +236,8 @@ COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 COPY ./contrib/dockerd-rootless.sh /build
 
+FROM djs55/vpnkit@sha256:${VPNKIT_DIGEST} AS vpnkit
+
 # TODO: Some of this is only really needed for testing, it would be nice to split this up
 FROM runtime-dev AS dev
 ARG DEBIAN_FRONTEND
@@ -294,7 +297,7 @@ COPY --from=dockercli /build/ /usr/local/cli
 COPY --from=registry /build/registry* /usr/local/bin/
 COPY --from=criu /build/ /usr/local/
 COPY --from=rootlesskit /build/ /usr/local/bin/
-COPY --from=djs55/vpnkit@sha256:e508a17cfacc8fd39261d5b4e397df2b953690da577e2c987a47630cd0c42f8e /vpnkit /usr/local/bin/vpnkit.x86_64
+COPY --from=vpnkit /vpnkit /usr/local/bin/vpnkit.x86_64
 
 ENV PATH=/usr/local/cli:$PATH
 ENV DOCKER_BUILDTAGS apparmor seccomp selinux
