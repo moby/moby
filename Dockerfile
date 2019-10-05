@@ -18,13 +18,13 @@ ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-criu-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
+            libcap-dev \
             libnet-dev \
+            libnl-3-dev \
             libprotobuf-c-dev \
             libprotobuf-dev \
-            libnl-3-dev \
-            libcap-dev \
-            protobuf-compiler \
             protobuf-c-compiler \
+            protobuf-compiler \
             python-protobuf
 
 # Install CRIU for checkpoint/restore support
@@ -94,15 +94,15 @@ FROM base AS cross-false
 
 FROM --platform=linux/amd64 base AS cross-true
 ARG DEBIAN_FRONTEND
-RUN dpkg --add-architecture armhf
 RUN dpkg --add-architecture arm64
 RUN dpkg --add-architecture armel
+RUN dpkg --add-architecture armhf
 RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-cross-true-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
-        crossbuild-essential-armhf \
-        crossbuild-essential-arm64 \
-        crossbuild-essential-armel
+            crossbuild-essential-arm64 \
+            crossbuild-essential-armel \
+            crossbuild-essential-armhf
 
 FROM cross-${CROSS} as dev-base
 
@@ -123,17 +123,16 @@ ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-cross-true-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
-            libseccomp-dev:armhf \
-            libseccomp-dev:arm64 \
-            libseccomp-dev:armel \
-            libapparmor-dev:armhf \
             libapparmor-dev:arm64 \
             libapparmor-dev:armel \
+            libapparmor-dev:armhf \
+            libseccomp-dev:arm64 \
+            libseccomp-dev:armel \
+            libseccomp-dev:armhf \
             # install this arches seccomp here due to compat issues with the v0 builder
             # This is as opposed to inheriting from runtime-dev-cross-false
             libapparmor-dev \
             libseccomp-dev
-
 
 FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
@@ -262,15 +261,19 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             apparmor \
             aufs-tools \
             bash-completion \
+            binutils-mingw-w64 \
             btrfs-tools \
+            bzip2 \
+            g++-mingw-w64-x86-64 \
             iptables \
             jq \
             libcap2-bin \
             libdevmapper-dev \
-            libudev-dev \
+            libnet1 \
+            libnl-3-200 \
+            libprotobuf-c1 \
             libsystemd-dev \
-            binutils-mingw-w64 \
-            g++-mingw-w64-x86-64 \
+            libudev-dev \
             net-tools \
             pigz \
             python3-pip \
@@ -280,12 +283,8 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             vim \
             vim-common \
             xfsprogs \
-            zip \
-            bzip2 \
             xz-utils \
-            libprotobuf-c1 \
-            libnet1 \
-            libnl-3-200
+            zip
 
 
 RUN pip3 install yamllint==1.16.0
