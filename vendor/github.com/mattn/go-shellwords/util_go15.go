@@ -9,14 +9,19 @@ import (
 	"strings"
 )
 
-func shellRun(line string) (string, error) {
+func shellRun(line, dir string) (string, error) {
 	var b []byte
 	var err error
+	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		b, err = exec.Command(os.Getenv("COMSPEC"), "/c", line).Output()
+		cmd = exec.Command(os.Getenv("COMSPEC"), "/c", line)
 	} else {
-		b, err = exec.Command(os.Getenv("SHELL"), "-c", line).Output()
+		cmd = exec.Command(os.Getenv("SHELL"), "-c", line)
 	}
+	if dir != "" {
+		cmd.Dir = dir
+	}
+	b, err = cmd.Output()
 	if err != nil {
 		return "", err
 	}
