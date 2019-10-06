@@ -1,6 +1,6 @@
-This project is the source for http://godoc.org/
+This project is the source for https://godoc.org/
 
-[![GoDoc](https://godoc.org/github.com/golang/gddo?status.svg)](http://godoc.org/github.com/golang/gddo)
+[![GoDoc](https://godoc.org/github.com/golang/gddo?status.svg)](https://godoc.org/github.com/golang/gddo)
 [![Build
 Status](https://travis-ci.org/golang/gddo.svg?branch=master)](https://travis-ci.org/golang/gddo)
 
@@ -18,8 +18,6 @@ Tracker](https://github.com/golang/gddo/issues/new).
 Contributions to this project are welcome, though please [file an
 issue](https://github.com/golang/gddo/issues/new). before starting work on
 anything major.
-
-**We do not accept GitHub pull requests**
 
 Please refer to the [Contribution
 Guidelines](https://golang.org/doc/contribute.html) on how to submit changes.
