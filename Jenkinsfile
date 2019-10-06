@@ -502,7 +502,7 @@ pipeline {
                             steps {
                                 sh '''
                                 make bundles/buildx
-                                bundles/buidx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                bundles/buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
