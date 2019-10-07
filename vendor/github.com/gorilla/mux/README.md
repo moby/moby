@@ -2,6 +2,7 @@
 
 [![GoDoc](https://godoc.org/github.com/gorilla/mux?status.svg)](https://godoc.org/github.com/gorilla/mux)
 [![Build Status](https://travis-ci.org/gorilla/mux.svg?branch=master)](https://travis-ci.org/gorilla/mux)
+[![CircleCI](https://circleci.com/gh/gorilla/mux.svg?style=svg)](https://circleci.com/gh/gorilla/mux)
 [![Sourcegraph](https://sourcegraph.com/github.com/gorilla/mux/-/badge.svg)](https://sourcegraph.com/github.com/gorilla/mux?badge)
 
 ![Gorilla Logo](http://www.gorillatoolkit.org/static/images/gorilla-icon-64.png)
@@ -29,6 +30,7 @@ The name mux stands for "HTTP request multiplexer". Like the standard `http.Serv
 * [Walking Routes](#walking-routes)
 * [Graceful Shutdown](#graceful-shutdown)
 * [Middleware](#middleware)
+* [Handling CORS Requests](#handling-cors-requests)
 * [Testing Handlers](#testing-handlers)
 * [Full Example](#full-example)
 
@@ -490,6 +492,73 @@ r.Use(amw.Middleware)
 ```
 
 Note: The handler chain will be stopped if your middleware doesn't call `next.ServeHTTP()` with the corresponding parameters. This can be used to abort a request if the middleware writer wants to. Middlewares _should_ write to `ResponseWriter` if they _are_ going to terminate the request, and they _should not_ write to `ResponseWriter` if they _are not_ going to terminate it.
+
+### Handling CORS Requests
+
+[CORSMethodMiddleware](https://godoc.org/github.com/gorilla/mux#CORSMethodMiddleware) intends to make it easier to strictly set the `Access-Control-Allow-Methods` response header.
+
+* You will still need to use your own CORS handler to set the other CORS headers such as `Access-Control-Allow-Origin`
+* The middleware will set the `Access-Control-Allow-Methods` header to all the method matchers (e.g. `r.Methods(http.MethodGet, http.MethodPut, http.MethodOptions)` -> `Access-Control-Allow-Methods: GET,PUT,OPTIONS`) on a route
+* If you do not specify any methods, then:
+> _Important_: there must be an `OPTIONS` method matcher for the middleware to set the headers.
+
+Here is an example of using `CORSMethodMiddleware` along with a custom `OPTIONS` handler to set all the required CORS headers:
+
+```go
+package main
+
+import (
+	"net/http"
+	"github.com/gorilla/mux"
+)
+
+func main() {
+    r := mux.NewRouter()
+
+    // IMPORTANT: you must specify an OPTIONS method matcher for the middleware to set CORS headers
+    r.HandleFunc("/foo", fooHandler).Methods(http.MethodGet, http.MethodPut, http.MethodPatch, http.MethodOptions)
+    r.Use(mux.CORSMethodMiddleware(r))
+    
+    http.ListenAndServe(":8080", r)
+}
+
+func fooHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Access-Control-Allow-Origin", "*")
+    if r.Method == http.MethodOptions {
+        return
+    }
+
+    w.Write([]byte("foo"))
+}
+```
+
+And an request to `/foo` using something like:
+
+```bash
+curl localhost:8080/foo -v
+```
+
+Would look like:
+
+```bash
+*   Trying ::1...
+* TCP_NODELAY set
+* Connected to localhost (::1) port 8080 (#0)
+> GET /foo HTTP/1.1
+> Host: localhost:8080
+> User-Agent: curl/7.59.0
+> Accept: */*
+> 
+< HTTP/1.1 200 OK
+< Access-Control-Allow-Methods: GET,PUT,PATCH,OPTIONS
+< Access-Control-Allow-Origin: *
+< Date: Fri, 28 Jun 2019 20:13:30 GMT
+< Content-Length: 3
+< Content-Type: text/plain; charset=utf-8
+< 
+* Connection #0 to host localhost left intact
+foo
+```
 
 ### Testing Handlers
 

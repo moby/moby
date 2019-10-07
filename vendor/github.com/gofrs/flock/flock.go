@@ -2,7 +2,7 @@
 // Use of this source code is governed by the BSD 3-Clause
 // license that can be found in the LICENSE file.
 
-// Package flock implements a thread-safe sync.Locker interface for file locking.
+// Package flock implements a thread-safe interface for file locking.
 // It also includes a non-blocking TryLock() function to allow locking
 // without blocking execution.
 //
@@ -13,7 +13,7 @@
 // guaranteed to be the same on each platform. For example, some UNIX-like
 // operating systems will transparently convert a shared lock to an exclusive
 // lock. If you Unlock() the flock from a location where you believe that you
-// have the shared lock, you may accidently drop the exclusive lock.
+// have the shared lock, you may accidentally drop the exclusive lock.
 package flock
 
 import (
@@ -86,17 +86,17 @@ func (f *Flock) String() string {
 // conditions is met: TryLock succeeds, TryLock fails with error, or Context
 // Done channel is closed.
 func (f *Flock) TryLockContext(ctx context.Context, retryDelay time.Duration) (bool, error) {
-	return tryCtx(f.TryLock, ctx, retryDelay)
+	return tryCtx(ctx, f.TryLock, retryDelay)
 }
 
 // TryRLockContext repeatedly tries to take a shared lock until one of the
 // conditions is met: TryRLock succeeds, TryRLock fails with error, or Context
 // Done channel is closed.
 func (f *Flock) TryRLockContext(ctx context.Context, retryDelay time.Duration) (bool, error) {
-	return tryCtx(f.TryRLock, ctx, retryDelay)
+	return tryCtx(ctx, f.TryRLock, retryDelay)
 }
 
-func tryCtx(fn func() (bool, error), ctx context.Context, retryDelay time.Duration) (bool, error) {
+func tryCtx(ctx context.Context, fn func() (bool, error), retryDelay time.Duration) (bool, error) {
 	if ctx.Err() != nil {
 		return false, ctx.Err()
 	}
