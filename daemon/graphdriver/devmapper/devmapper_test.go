@@ -34,8 +34,9 @@ func initLoopbacks() error {
 	if err != nil {
 		return err
 	}
-	// create at least 8 loopback files, ya, that is a good number
-	for i := 0; i < 8; i++ {
+	// create at least 128 loopback files, since a few first ones
+	// might be already in use by the host OS
+	for i := 0; i < 128; i++ {
 		loopPath := fmt.Sprintf("/dev/loop%d", i)
 		// only create new loopback files if they don't exist
 		if _, err := os.Stat(loopPath); err != nil {
