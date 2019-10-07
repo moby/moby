@@ -391,23 +391,17 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *testing.T) {
 
 	// daemon config file
 	configFilePath := "test.json"
-	configFile, err := os.Create(configFilePath)
-	assert.NilError(c, err)
 	defer os.Remove(configFilePath)
 
 	daemonConfig := `{"labels":["foo=bar"]}`
-	_, err = configFile.Write([]byte(daemonConfig))
-	assert.NilError(c, configFile.Close())
+	err := ioutil.WriteFile(configFilePath, []byte(daemonConfig), 0644)
 	assert.NilError(c, err)
 	s.d.Start(c, "--config-file="+configFilePath)
 
 	info := s.d.Info(c)
 
-	configFile, err = os.Create(configFilePath)
-	assert.NilError(c, err)
 	daemonConfig = `{"max-concurrent-downloads":1,"labels":["bar=foo"], "shutdown-timeout": 10}`
-	_, err = fmt.Fprintf(configFile, "%s", daemonConfig)
-	assert.NilError(c, configFile.Close())
+	err = ioutil.WriteFile(configFilePath, []byte(daemonConfig), 0644)
 	assert.NilError(c, err)
 
 	assert.NilError(c, s.d.Signal(unix.SIGHUP))
@@ -448,13 +442,10 @@ func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *testing.T) {
 
 	// daemon config file
 	configFilePath := "test.json"
-	configFile, err := os.Create(configFilePath)
-	assert.NilError(c, err)
 	defer os.Remove(configFilePath)
 
 	daemonConfig := `{"labels":["foo=bar"]}`
-	_, err = configFile.Write([]byte(daemonConfig))
-	assert.NilError(c, configFile.Close())
+	err := ioutil.WriteFile(configFilePath, []byte(daemonConfig), 0644)
 	assert.NilError(c, err)
 	s.d.Start(c, "--config-file="+configFilePath)
 
