@@ -11,16 +11,15 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
@@ -28,22 +27,15 @@ import (
 	"gotest.tools/assert"
 )
 
-type testingT interface {
-	assert.TestingT
-	logT
-	Fatalf(string, ...interface{})
-}
-
-type namer interface {
-	Name() string
-}
-type testNamer interface {
-	TestName() string
-}
-
 type logT interface {
 	Logf(string, ...interface{})
 }
+
+// nopLog is a no-op implementation of logT that is used in daemons created by
+// NewDaemon (where no testing.TB is available).
+type nopLog struct{}
+
+func (nopLog) Logf(string, ...interface{}) {}
 
 const defaultDockerdBinary = "dockerd"
 const containerdSocket = "/var/run/docker/containerd/containerd.sock"
@@ -79,7 +71,6 @@ type Daemon struct {
 	init                       bool
 	dockerdBinary              string
 	log                        logT
-	imageService               *images.ImageService
 
 	// swarm related field
 	swarmListenAddr string
@@ -91,37 +82,26 @@ type Daemon struct {
 	CachedInfo types.Info
 }
 
-// New returns a Daemon instance to be used for testing.
-// This will create a directory such as d123456789 in the folder specified by $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
+// NewDaemon returns a Daemon instance to be used for testing.
 // The daemon will not automatically start.
-func New(t testingT, ops ...func(*Daemon)) *Daemon {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
-	dest := os.Getenv("DOCKER_INTEGRATION_DAEMON_DEST")
-	if dest == "" {
-		dest = os.Getenv("DEST")
-	}
-	switch v := t.(type) {
-	case namer:
-		dest = filepath.Join(dest, v.Name())
-	case testNamer:
-		dest = filepath.Join(dest, v.TestName())
-	}
-	t.Logf("Creating a new daemon at: %s", dest)
-	assert.Check(t, dest != "", "Please set the DOCKER_INTEGRATION_DAEMON_DEST or the DEST environment variable")
-
+// The daemon will modify and create files under workingDir.
+func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 	storageDriver := os.Getenv("DOCKER_GRAPHDRIVER")
 
-	assert.NilError(t, os.MkdirAll(SockRoot, 0700), "could not create daemon socket root")
+	if err := os.MkdirAll(SockRoot, 0700); err != nil {
+		return nil, fmt.Errorf("could not create daemon socket root: %v", err)
+	}
 
 	id := fmt.Sprintf("d%s", stringid.TruncateID(stringid.GenerateRandomID()))
-	dir := filepath.Join(dest, id)
+	dir := filepath.Join(workingDir, id)
 	daemonFolder, err := filepath.Abs(dir)
-	assert.NilError(t, err, "Could not make %q an absolute path", dir)
+	if err != nil {
+		return nil, err
+	}
 	daemonRoot := filepath.Join(daemonFolder, "root")
-
-	assert.NilError(t, os.MkdirAll(daemonRoot, 0755), "Could not create daemon root %q", dir)
+	if err := os.MkdirAll(daemonRoot, 0755); err != nil {
+		return nil, fmt.Errorf("could not create daemon root: %v", err)
+	}
 
 	userlandProxy := true
 	if env := os.Getenv("DOCKER_USERLANDPROXY"); env != "" {
@@ -140,12 +120,33 @@ func New(t testingT, ops ...func(*Daemon)) *Daemon {
 		dockerdBinary:   defaultDockerdBinary,
 		swarmListenAddr: defaultSwarmListenAddr,
 		SwarmPort:       DefaultSwarmPort,
-		log:             t,
+		log:             nopLog{},
 	}
 
 	for _, op := range ops {
 		op(d)
 	}
+
+	return d, nil
+}
+
+// New returns a Daemon instance to be used for testing.
+// This will create a directory such as d123456789 in the folder specified by
+// $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
+// The daemon will not automatically start.
+func New(t testing.TB, ops ...Option) *Daemon {
+	t.Helper()
+	dest := os.Getenv("DOCKER_INTEGRATION_DAEMON_DEST")
+	if dest == "" {
+		dest = os.Getenv("DEST")
+	}
+	dest = filepath.Join(dest, t.Name())
+
+	assert.Check(t, dest != "", "Please set the DOCKER_INTEGRATION_DAEMON_DEST or the DEST environment variable")
+
+	t.Logf("Creating a new daemon at: %q", dest)
+	d, err := NewDaemon(dest, ops...)
+	assert.NilError(t, err, "could not create daemon")
 
 	return d
 }
@@ -190,37 +191,36 @@ func (d *Daemon) ReadLogFile() ([]byte, error) {
 }
 
 // NewClientT creates new client based on daemon's socket path
-func (d *Daemon) NewClientT(t assert.TestingT, extraOpts ...client.Opt) *client.Client {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) NewClientT(t testing.TB, extraOpts ...client.Opt) *client.Client {
+	t.Helper()
 
+	c, err := d.NewClient(extraOpts...)
+	assert.NilError(t, err, "cannot create daemon client")
+	return c
+}
+
+// NewClient creates new client based on daemon's socket path
+func (d *Daemon) NewClient(extraOpts ...client.Opt) (*client.Client, error) {
 	clientOpts := []client.Opt{
 		client.FromEnv,
 		client.WithHost(d.Sock()),
 	}
 	clientOpts = append(clientOpts, extraOpts...)
 
-	c, err := client.NewClientWithOpts(clientOpts...)
-	assert.NilError(t, err, "cannot create daemon client")
-	return c
+	return client.NewClientWithOpts(clientOpts...)
 }
 
 // Cleanup cleans the daemon files : exec root (network namespaces, ...), swarmkit files
-func (d *Daemon) Cleanup(t testingT) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) Cleanup(t testing.TB) {
+	t.Helper()
 	// Cleanup swarmkit wal files if present
 	cleanupRaftDir(t, d.Root)
 	cleanupNetworkNamespace(t, d.execRoot)
 }
 
 // Start starts the daemon and return once it is ready to receive requests.
-func (d *Daemon) Start(t testingT, args ...string) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) Start(t testing.TB, args ...string) {
+	t.Helper()
 	if err := d.StartWithError(args...); err != nil {
 		t.Fatalf("failed to start daemon with arguments %v : %v", args, err)
 	}
@@ -373,10 +373,8 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 // StartWithBusybox will first start the daemon with Daemon.Start()
 // then save the busybox image from the main daemon and load it into this Daemon instance.
-func (d *Daemon) StartWithBusybox(t testingT, arg ...string) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) StartWithBusybox(t testing.TB, arg ...string) {
+	t.Helper()
 	d.Start(t, arg...)
 	d.LoadBusybox(t)
 }
@@ -432,10 +430,8 @@ func (d *Daemon) DumpStackAndQuit() {
 // Stop will not delete the daemon directory. If a purged daemon is needed,
 // instantiate a new one with NewDaemon.
 // If an error occurs while starting the daemon, the test will fail.
-func (d *Daemon) Stop(t testingT) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) Stop(t testing.TB) {
+	t.Helper()
 	err := d.StopWithError()
 	if err != nil {
 		if err != errDaemonNotStarted {
@@ -520,10 +516,8 @@ out2:
 
 // Restart will restart the daemon by first stopping it and the starting it.
 // If an error occurs while starting the daemon, the test will fail.
-func (d *Daemon) Restart(t testingT, args ...string) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) Restart(t testing.TB, args ...string) {
+	t.Helper()
 	d.Stop(t)
 	d.Start(t, args...)
 }
@@ -596,10 +590,8 @@ func (d *Daemon) ReloadConfig() error {
 }
 
 // LoadBusybox image into the daemon
-func (d *Daemon) LoadBusybox(t assert.TestingT) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) LoadBusybox(t testing.TB) {
+	t.Helper()
 	clientHost, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(t, err, "failed to create client")
 	defer clientHost.Close()
@@ -710,29 +702,20 @@ func (d *Daemon) queryRootDir() (string, error) {
 }
 
 // Info returns the info struct for this daemon
-func (d *Daemon) Info(t assert.TestingT) types.Info {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) Info(t testing.TB) types.Info {
+	t.Helper()
 	c := d.NewClientT(t)
 	info, err := c.Info(context.Background())
 	assert.NilError(t, err)
 	return info
 }
 
-func cleanupRaftDir(t testingT, rootPath string) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func cleanupRaftDir(t testing.TB, rootPath string) {
+	t.Helper()
 	for _, p := range []string{"wal", "wal-v3-encrypted", "snap-v3-encrypted"} {
 		dir := filepath.Join(rootPath, "swarm/raft", p)
 		if err := os.RemoveAll(dir); err != nil {
 			t.Logf("error removing %v: %v", dir, err)
 		}
 	}
-}
-
-// ImageService returns the Daemon's ImageService
-func (d *Daemon) ImageService() *images.ImageService {
-	return d.imageService
 }

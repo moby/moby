@@ -812,14 +812,14 @@ func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *
 	// verify first container's etc/hosts file has not changed after spawning the second named container
 	hostsPost, err := s.d.Cmd("exec", cid1, "cat", hostsFile)
 	assert.NilError(c, err)
-	assert.Equal(c, string(hosts), string(hostsPost), fmt.Sprintf("Unexpected %s change on second container creation", hostsFile))
+	assert.Equal(c, hosts, hostsPost, fmt.Sprintf("Unexpected %s change on second container creation", hostsFile))
 	// stop container 2 and verify first container's etc/hosts has not changed
 	_, err = s.d.Cmd("stop", cid2)
 	assert.NilError(c, err)
 
 	hostsPost, err = s.d.Cmd("exec", cid1, "cat", hostsFile)
 	assert.NilError(c, err)
-	assert.Equal(c, string(hosts), string(hostsPost), fmt.Sprintf("Unexpected %s change on second container creation", hostsFile))
+	assert.Equal(c, hosts, hostsPost, fmt.Sprintf("Unexpected %s change on second container creation", hostsFile))
 	// but discovery is on when connecting to non default bridge network
 	network := "anotherbridge"
 	out, err = s.d.Cmd("network", "create", network)
@@ -834,7 +834,7 @@ func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *
 
 	hostsPost, err = s.d.Cmd("exec", cid1, "cat", hostsFile)
 	assert.NilError(c, err)
-	assert.Equal(c, string(hosts), string(hostsPost), fmt.Sprintf("Unexpected %s change on second network connection", hostsFile))
+	assert.Equal(c, hosts, hostsPost, fmt.Sprintf("Unexpected %s change on second network connection", hostsFile))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *testing.T) {
@@ -956,7 +956,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverUngracefulRestart(c *testing
 	_, err := s.d.Cmd("network", "create", "-d", dnd, "--subnet", "1.1.1.0/24", "net1")
 	assert.NilError(c, err)
 
-	_, err = s.d.Cmd("run", "-itd", "--net", "net1", "--name", "foo", "--ip", "1.1.1.10", "busybox", "sh")
+	_, err = s.d.Cmd("run", "-d", "--net", "net1", "--name", "foo", "--ip", "1.1.1.10", "busybox", "top")
 	assert.NilError(c, err)
 
 	// Kill daemon and restart
@@ -980,7 +980,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverUngracefulRestart(c *testing
 	setupRemoteNetworkDrivers(c, mux, server.URL, dnd, did)
 
 	// trying to reuse the same ip must succeed
-	_, err = s.d.Cmd("run", "-itd", "--net", "net1", "--name", "bar", "--ip", "1.1.1.10", "busybox", "sh")
+	_, err = s.d.Cmd("run", "-d", "--net", "net1", "--name", "bar", "--ip", "1.1.1.10", "busybox", "top")
 	assert.NilError(c, err)
 }
 
@@ -1683,7 +1683,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartRestoreBridgeNetwork(t *testing.T) 
 	// Cleanup because these containers will not be shut down by daemon
 	out, err = s.d.Cmd("stop", newCon)
 	if err != nil {
-		t.Fatalf("err: %v %v", err, string(out))
+		t.Fatalf("err: %v %v", err, out)
 	}
 	_, err = s.d.Cmd("stop", strings.TrimSpace(id))
 	if err != nil {

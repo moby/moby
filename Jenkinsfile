@@ -12,7 +12,7 @@ pipeline {
         booleanParam(name: 'amd64', defaultValue: true, description: 'amd64 (x86_64) Build/Test')
         booleanParam(name: 's390x', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
         booleanParam(name: 'ppc64le', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
-        booleanParam(name: 'windowsRS1', defaultValue: true, description: 'Windows 2016 (RS1) Build/Test')
+        booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
         booleanParam(name: 'windowsRS5', defaultValue: true, description: 'Windows 2019 (RS5) Build/Test')
         booleanParam(name: 'skip_dco', defaultValue: false, description: 'Skip the DCO check')
     }
@@ -87,6 +87,8 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/validate/default
                                 '''
@@ -101,6 +103,8 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     dynbinary-daemon \
@@ -169,6 +173,8 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/test/unit
                                 '''
@@ -188,6 +194,8 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/validate/vendor
                                 '''
@@ -281,6 +289,8 @@ pipeline {
                                           -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                           -e DOCKER_GRAPHDRIVER \
                                           -e TIMEOUT \
+                                          -e VALIDATE_REPO=${GIT_URL} \
+                                          -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                           docker:${GIT_COMMIT} \
                                           hack/make.sh \
                                             "$1" \
@@ -307,10 +317,10 @@ pipeline {
                                 TEST_INTEGRATION_DEST=1 CONTAINER_NAME=${CONTAINER_NAME}-1 TEST_SKIP_INTEGRATION_CLI=1 run_tests test-integration-flaky &
 
                                 # integration-cli first set
-                                TEST_INTEGRATION_DEST=2 CONTAINER_NAME=${CONTAINER_NAME}-2 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-test.run /(DockerSuite|DockerNetworkSuite|DockerHubPullSuite|DockerRegistrySuite|DockerSchema1RegistrySuite|DockerRegistryAuthTokenSuite|DockerRegistryAuthHtpasswdSuite)/" run_tests &
+                                TEST_INTEGRATION_DEST=2 CONTAINER_NAME=${CONTAINER_NAME}-2 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-test.run Test(DockerSuite|DockerNetworkSuite|DockerHubPullSuite|DockerRegistrySuite|DockerSchema1RegistrySuite|DockerRegistryAuthTokenSuite|DockerRegistryAuthHtpasswdSuite)/" run_tests &
 
                                 # integration-cli second set
-                                TEST_INTEGRATION_DEST=3 CONTAINER_NAME=${CONTAINER_NAME}-3 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-test.run /(DockerSwarmSuite|DockerDaemonSuite|DockerExternalVolumeSuite)/" run_tests &
+                                TEST_INTEGRATION_DEST=3 CONTAINER_NAME=${CONTAINER_NAME}-3 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-test.run Test(DockerSwarmSuite|DockerDaemonSuite|DockerExternalVolumeSuite)/" run_tests &
 
                                 set +x
                                 c=0
@@ -332,7 +342,8 @@ pipeline {
                         always {
                             sh '''
                             echo "Ensuring container killed."
-                            docker rm -vf docker-pr$BUILD_NUMBER || true
+                            cids=$(docker ps -aq -f name=docker-pr${BUILD_NUMBER}-*)
+                            [ -n "$cids" ] && docker rm -vf $cids || true
                             '''
 
                             sh '''
@@ -381,7 +392,8 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .
+                                make bundles/buildx
+                                bundles/buildx build --load --force-rm --build-arg APT_MIRROR=${APT_MIRROR} -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
@@ -394,6 +406,8 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/test/unit
                                 '''
@@ -417,6 +431,8 @@ pipeline {
                                   -e TESTDEBUG \
                                   -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     dynbinary \
@@ -463,7 +479,7 @@ pipeline {
                 stage('s390x integration-cli') {
                     when {
                         beforeAgent true
-                        branch 'master'
+                        not { changeRequest() }
                         expression { params.s390x }
                     }
                     agent { label 's390x-ubuntu-1604' }
@@ -485,7 +501,8 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .
+                                make bundles/buildx
+                                bundles/buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
@@ -500,6 +517,8 @@ pipeline {
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TEST_SKIP_INTEGRATION \
                                   -e TIMEOUT \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     dynbinary \
@@ -566,7 +585,10 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .'
+                                sh '''
+                                make bundles/buildx
+                                bundles/buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                '''
                             }
                         }
                         stage("Unit tests") {
@@ -578,6 +600,8 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/test/unit
                                 '''
@@ -601,6 +625,8 @@ pipeline {
                                   -e TESTDEBUG \
                                   -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     dynbinary \
@@ -647,7 +673,7 @@ pipeline {
                 stage('ppc64le integration-cli') {
                     when {
                         beforeAgent true
-                        branch 'master'
+                        not { changeRequest() }
                         expression { params.ppc64le }
                     }
                     agent { label 'ppc64le-ubuntu-1604' }
@@ -668,7 +694,10 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .'
+                                sh '''
+                                make bundles/buildx
+                                bundles/buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                '''
                             }
                         }
                         stage("Integration-cli tests") {
@@ -682,6 +711,8 @@ pipeline {
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TEST_SKIP_INTEGRATION \
                                   -e TIMEOUT \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     dynbinary \
@@ -728,7 +759,11 @@ pipeline {
                 stage('win-RS1') {
                     when {
                         beforeAgent true
-                        expression { params.windowsRS1 }
+                        // Skip this stage on PRs unless the windowsRS1 checkbox is selected
+                        anyOf {
+                            not { changeRequest() }
+                            expression { params.windowsRS1 }
+                        }
                     }
                     environment {
                         DOCKER_BUILDKIT        = '0'
@@ -737,7 +772,7 @@ pipeline {
                         SOURCES_DRIVE          = 'd'
                         SOURCES_SUBDIR         = 'gopath'
                         TESTRUN_DRIVE          = 'd'
-                        TESTRUN_SUBDIR         = "CI-$BUILD_NUMBER"
+                        TESTRUN_SUBDIR         = "CI"
                         WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
                         WINDOWS_BASE_IMAGE_TAG = 'ltsc2016'
                     }
@@ -759,7 +794,7 @@ pipeline {
                                 powershell '''
                                 $ErrorActionPreference = 'Stop'
                                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-                                Invoke-WebRequest https://github.com/jhowardmsft/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
+                                Invoke-WebRequest https://github.com/moby/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
                                 ./hack/ci/windows.ps1
                                 exit $LastExitCode
                                 '''
@@ -798,7 +833,7 @@ pipeline {
                         SOURCES_DRIVE          = 'd'
                         SOURCES_SUBDIR         = 'gopath'
                         TESTRUN_DRIVE          = 'd'
-                        TESTRUN_SUBDIR         = "CI-$BUILD_NUMBER"
+                        TESTRUN_SUBDIR         = "CI"
                         WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
                         WINDOWS_BASE_IMAGE_TAG = 'ltsc2019'
                     }
@@ -819,7 +854,7 @@ pipeline {
                             steps {
                                 powershell '''
                                 $ErrorActionPreference = 'Stop'
-                                Invoke-WebRequest https://github.com/jhowardmsft/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
+                                Invoke-WebRequest https://github.com/moby/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
                                 ./hack/ci/windows.ps1
                                 exit $LastExitCode
                                 '''

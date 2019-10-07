@@ -62,8 +62,8 @@ func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 		v, err := kernel.GetKernelVersion()
 		assert.NilError(c, err)
 		build, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
-		if build == 16299 {
-			c.Skip("Temporarily disabled on RS3 builds")
+		if build <= 16299 {
+			c.Skip("Temporarily disabled on RS3 and older because they are too slow. See #39909")
 		}
 	}
 
@@ -84,7 +84,7 @@ func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 	assert.Equal(c, res.StatusCode, http.StatusOK)
 
 	inspectOut := cli.InspectCmd(c, id, cli.Format(".Id")).Combined()
-	assert.Equal(c, strings.TrimSpace(string(inspectOut)), id, "load did not work properly")
+	assert.Equal(c, strings.TrimSpace(inspectOut), id, "load did not work properly")
 }
 
 func (s *DockerSuite) TestAPIImagesDelete(c *testing.T) {

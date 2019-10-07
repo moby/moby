@@ -84,9 +84,11 @@ func (s *DockerSuite) TestEventsContainerEvents(c *testing.T) {
 	events := strings.Split(out, "\n")
 	events = events[:len(events)-1]
 
-	assert.Assert(c, len(events) >= 5) //Missing expected event
 	containerEvents := eventActionsByIDAndType(c, events, "container-events-test", "container")
-	assert.Assert(c, is.DeepEqual(containerEvents[:5], []string{"create", "attach", "start", "die", "destroy"}), out)
+	if len(containerEvents) > 5 {
+		containerEvents = containerEvents[:5]
+	}
+	assert.Assert(c, is.DeepEqual(containerEvents, []string{"create", "attach", "start", "die", "destroy"}), out)
 }
 
 func (s *DockerSuite) TestEventsContainerEventsAttrSort(c *testing.T) {

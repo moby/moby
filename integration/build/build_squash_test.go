@@ -26,7 +26,7 @@ func TestBuildSquashParent(t *testing.T) {
 	if !testEnv.DaemonInfo.ExperimentalBuild {
 		skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 
-		d := daemon.New(t, daemon.WithExperimental)
+		d := daemon.New(t, daemon.WithExperimental())
 		d.StartWithBusybox(t)
 		defer d.Stop(t)
 		client = d.NewClientT(t)
@@ -100,7 +100,7 @@ func TestBuildSquashParent(t *testing.T) {
 	)
 	container.Run(ctx, t, client,
 		container.WithImage(name),
-		container.WithCmd("/bin/sh", "-c", `[ "$(echo $HELLO)" == "world" ]`),
+		container.WithCmd("/bin/sh", "-c", `[ "$(echo $HELLO)" = "world" ]`),
 	)
 
 	origHistory, err := client.ImageHistory(ctx, origID)

@@ -78,9 +78,9 @@ func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History,
 	}
 
 	if cache != nil {
-		dt, err := json.Marshal(cache)
+		dt, err = json.Marshal(cache)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to marshal cache")
 		}
 		m["moby.buildkit.cache.v0"] = dt
 	}
@@ -204,13 +204,13 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 	st := progress.Status{
 		Started: &now,
 	}
-	pw.Write(id, st)
+	_ = pw.Write(id, st)
 	return func(err error) error {
 		// TODO: set error on status
 		now := time.Now()
 		st.Completed = &now
-		pw.Write(id, st)
-		pw.Close()
+		_ = pw.Write(id, st)
+		_ = pw.Close()
 		return err
 	}
 }

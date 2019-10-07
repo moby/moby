@@ -31,7 +31,7 @@ func HijackConnection(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 		return nil, nil, err
 	}
 	// Flush the options to make sure the client sets the raw mode
-	conn.Write([]byte{})
+	_, _ = conn.Write([]byte{})
 	return conn, conn, nil
 }
 
@@ -41,9 +41,9 @@ func CloseStreams(streams ...interface{}) {
 		if tcpc, ok := stream.(interface {
 			CloseWrite() error
 		}); ok {
-			tcpc.CloseWrite()
+			_ = tcpc.CloseWrite()
 		} else if closer, ok := stream.(io.Closer); ok {
-			closer.Close()
+			_ = closer.Close()
 		}
 	}
 }
@@ -102,7 +102,7 @@ func MakeErrorHandler(err error) http.HandlerFunc {
 			response := &types.ErrorResponse{
 				Message: err.Error(),
 			}
-			WriteJSON(w, statusCode, response)
+			_ = WriteJSON(w, statusCode, response)
 		} else {
 			http.Error(w, status.Convert(err).Message(), statusCode)
 		}

@@ -6,11 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fixtures/load"
 	"github.com/pkg/errors"
 	"gotest.tools/assert"
@@ -34,7 +34,7 @@ type PlatformDefaults struct {
 }
 
 // New creates a new Execution struct
-// This is configured useing the env client (see client.FromEnv)
+// This is configured using the env client (see client.FromEnv)
 func New() (*Execution, error) {
 	c, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
@@ -165,10 +165,7 @@ func (e *Execution) IsUserNamespace() bool {
 // HasExistingImage checks whether there is an image with the given reference.
 // Note that this is done by filtering and then checking whether there were any
 // results -- so ambiguous references might result in false-positives.
-func (e *Execution) HasExistingImage(t assert.TestingT, reference string) bool {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (e *Execution) HasExistingImage(t testing.TB, reference string) bool {
 	client := e.APIClient()
 	filter := filters.NewArgs()
 	filter.Add("dangling", "false")

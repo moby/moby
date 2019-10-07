@@ -11,12 +11,12 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/environment"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
@@ -25,10 +25,8 @@ import (
 )
 
 // NewAPIClient returns a docker API client configured from environment variables
-func NewAPIClient(t assert.TestingT, ops ...client.Opt) client.APIClient {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func NewAPIClient(t testing.TB, ops ...client.Opt) client.APIClient {
+	t.Helper()
 	ops = append([]client.Opt{client.FromEnv}, ops...)
 	clt, err := client.NewClientWithOpts(ops...)
 	assert.NilError(t, err)
@@ -36,10 +34,8 @@ func NewAPIClient(t assert.TestingT, ops ...client.Opt) client.APIClient {
 }
 
 // DaemonTime provides the current time on the daemon host
-func DaemonTime(ctx context.Context, t assert.TestingT, client client.APIClient, testEnv *environment.Execution) time.Time {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func DaemonTime(ctx context.Context, t testing.TB, client client.APIClient, testEnv *environment.Execution) time.Time {
+	t.Helper()
 	if testEnv.IsLocalDaemon() {
 		return time.Now()
 	}
@@ -54,10 +50,8 @@ func DaemonTime(ctx context.Context, t assert.TestingT, client client.APIClient,
 
 // DaemonUnixTime returns the current time on the daemon host with nanoseconds precision.
 // It return the time formatted how the client sends timestamps to the server.
-func DaemonUnixTime(ctx context.Context, t assert.TestingT, client client.APIClient, testEnv *environment.Execution) string {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func DaemonUnixTime(ctx context.Context, t testing.TB, client client.APIClient, testEnv *environment.Execution) string {
+	t.Helper()
 	dt := DaemonTime(ctx, t, client, testEnv)
 	return fmt.Sprintf("%d.%09d", dt.Unix(), int64(dt.Nanosecond()))
 }

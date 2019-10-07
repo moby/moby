@@ -147,7 +147,7 @@
 # The docker integration tests do not currently run in a container on Windows, predominantly
 # due to Windows not supporting privileged mode, so anything using a volume would fail.
 # They (along with the rest of the docker CI suite) can be run using 
-# https://github.com/jhowardmsft/docker-w2wCIScripts/blob/master/runCI/Invoke-DockerCI.ps1.
+# https://github.com/kevpar/docker-w2wCIScripts/blob/master/runCI/Invoke-DockerCI.ps1.
 #
 # -----------------------------------------------------------------------------------------
 
@@ -165,7 +165,7 @@ FROM microsoft/windowsservercore
 # Use PowerShell as the default shell
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ARG GO_VERSION=1.12.9
+ARG GO_VERSION=1.13.1
 
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
@@ -173,6 +173,7 @@ ARG GO_VERSION=1.12.9
 ENV GO_VERSION=${GO_VERSION} `
     GIT_VERSION=2.11.1 `
     GOPATH=C:\gopath `
+    GO111MODULE=off `
     FROM_DOCKERFILE=1
 
 RUN `
@@ -218,13 +219,13 @@ RUN `
   Download-File "https://golang.org/dl/go${dlGoVersion}.windows-amd64.zip" C:\go.zip; `
   `
   Write-Host INFO: Downloading compiler 1 of 3...; `
-  Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/gcc.zip C:\gcc.zip; `
+  Download-File https://raw.githubusercontent.com/moby/docker-tdmgcc/master/gcc.zip C:\gcc.zip; `
   `
   Write-Host INFO: Downloading compiler 2 of 3...; `
-  Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/runtime.zip C:\runtime.zip; `
+  Download-File https://raw.githubusercontent.com/moby/docker-tdmgcc/master/runtime.zip C:\runtime.zip; `
   `
   Write-Host INFO: Downloading compiler 3 of 3...; `
-  Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/binutils.zip C:\binutils.zip; `
+  Download-File https://raw.githubusercontent.com/moby/docker-tdmgcc/master/binutils.zip C:\binutils.zip; `
   `
   Write-Host INFO: Extracting git...; `
   Expand-Archive C:\gitsetup.zip C:\git-tmp; `

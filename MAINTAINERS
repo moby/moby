@@ -33,10 +33,10 @@
 			"dnephin",
 			"duglin",
 			"estesp",
-			"jhowardmsft",
 			"johnstep",
 			"justincormack",
 			"kolyshkin",
+			"lowenna",
 			"mhbauer",
 			"mlaventure",
 			"runcom",
@@ -338,11 +338,6 @@
 	Email = "james@lovedthanlost.net"
 	GitHub = "jamtur01"
 
-	[people.jhowardmsft]
-	Name = "John Howard"
-	Email = "jhoward@microsoft.com"
-	GitHub = "jhowardmsft"
-
 	[people.jessfraz]
 	Name = "Jessie Frazelle"
 	Email = "jess@linux.com"
@@ -367,6 +362,11 @@
 	Name = "Alexander Morozov"
 	Email = "lk4d4@docker.com"
 	GitHub = "lk4d4"
+
+	[people.lowenna]
+	Name = "John Howard"
+	Email = "github@lowenna.com"
+	GitHub = "lowenna"
 
 	[people.mavenugo]
 	Name = "Madhu Venugopal"

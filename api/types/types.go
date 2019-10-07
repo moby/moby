@@ -39,6 +39,7 @@ type ImageInspect struct {
 	Author          string
 	Config          *container.Config
 	Architecture    string
+	Variant         string `json:",omitempty"`
 	Os              string
 	OsVersion       string `json:",omitempty"`
 	Size            int64

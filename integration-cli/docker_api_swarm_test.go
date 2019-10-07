@@ -595,7 +595,7 @@ func (s *DockerSwarmSuite) TestAPISwarmForceNewCluster(c *testing.T) {
 
 func simpleTestService(s *swarm.Service) {
 	ureplicas := uint64(1)
-	restartDelay := time.Duration(100 * time.Millisecond)
+	restartDelay := 100 * time.Millisecond
 
 	s.Spec = swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
@@ -618,7 +618,7 @@ func simpleTestService(s *swarm.Service) {
 
 func serviceForUpdate(s *swarm.Service) {
 	ureplicas := uint64(1)
-	restartDelay := time.Duration(100 * time.Millisecond)
+	restartDelay := 100 * time.Millisecond
 
 	s.Spec = swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
@@ -737,7 +737,7 @@ func checkClusterHealth(c *testing.T, cl []*daemon.Daemon, managerCount, workerC
 			info swarm.Info
 		)
 
-		// check info in a waitAndAssert, because if the cluster doesn't have a leader, `info` will return an error
+		// check info in a poll.WaitOn(), because if the cluster doesn't have a leader, `info` will return an error
 		checkInfo := func(c *testing.T) (interface{}, string) {
 			client := d.NewClientT(c)
 			daemonInfo, err := client.Info(context.Background())

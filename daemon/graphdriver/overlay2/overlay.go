@@ -10,7 +10,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -31,7 +30,7 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/sirupsen/logrus"
@@ -276,9 +275,15 @@ func parseOptions(options []string) (*overlayOptions, error) {
 }
 
 func supportsOverlay() error {
-	// We can try to modprobe overlay first before looking at
-	// proc/filesystems for when overlay is supported
-	exec.Command("modprobe", "overlay").Run()
+	// Access overlay filesystem so that Linux loads it (if possible).
+	mountTarget, err := ioutil.TempDir("", "supportsOverlay2")
+	if err != nil {
+		logrus.WithError(err).WithField("storage-driver", "overlay2").Error("could not create temporary directory, so assuming that 'overlay' is not supported")
+		return graphdriver.ErrNotSupported
+	}
+	/* The mounting will fail--after the module has been loaded.*/
+	defer os.RemoveAll(mountTarget)
+	unix.Mount("overlay", mountTarget, "overlay", 0, "")
 
 	f, err := os.Open("/proc/filesystems")
 	if err != nil {

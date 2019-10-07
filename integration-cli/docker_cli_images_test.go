@@ -202,7 +202,7 @@ func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *testing.T) {
 		"dangling = true",
 	}
 
-	imageListings := make([][]string, 5, 5)
+	imageListings := make([][]string, 5)
 	for idx, filter := range filters {
 		out, _ := dockerCmd(c, "images", "-q", "-f", filter)
 		listing := strings.Split(out, "\n")
@@ -329,7 +329,7 @@ func (s *DockerSuite) TestImagesFormat(c *testing.T) {
 	dockerCmd(c, "tag", "busybox", tag+":v2")
 
 	out, _ := dockerCmd(c, "images", "--format", "{{.Repository}}", tag)
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	lines := strings.Split(strings.TrimSpace(out), "\n")
 
 	expected := []string{"myimage", "myimage"}
 	var names []string

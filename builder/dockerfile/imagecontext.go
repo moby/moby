@@ -4,6 +4,7 @@ import (
 	"context"
 	"runtime"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	dockerimage "github.com/docker/docker/image"
@@ -56,7 +57,7 @@ func (m *imageSources) Get(idOrRef string, localOnly bool, platform *specs.Platf
 		return nil, err
 	}
 	im := newImageMount(image, layer)
-	m.Add(im)
+	m.Add(im, platform)
 	return im, nil
 }
 
@@ -70,16 +71,26 @@ func (m *imageSources) Unmount() (retErr error) {
 	return
 }
 
-func (m *imageSources) Add(im *imageMount) {
+func (m *imageSources) Add(im *imageMount, platform *specs.Platform) {
 	switch im.image {
 	case nil:
-		// set the OS for scratch images
-		os := runtime.GOOS
+		// Set the platform for scratch images
+		if platform == nil {
+			p := platforms.DefaultSpec()
+			platform = &p
+		}
+
 		// Windows does not support scratch except for LCOW
+		os := platform.OS
 		if runtime.GOOS == "windows" {
 			os = "linux"
 		}
-		im.image = &dockerimage.Image{V1Image: dockerimage.V1Image{OS: os}}
+
+		im.image = &dockerimage.Image{V1Image: dockerimage.V1Image{
+			OS:           os,
+			Architecture: platform.Architecture,
+			Variant:      platform.Variant,
+		}}
 	default:
 		m.byImageID[im.image.ImageID()] = im
 	}
@@ -88,9 +99,8 @@ func (m *imageSources) Add(im *imageMount) {
 
 // imageMount is a reference to an image that can be used as a builder.Source
 type imageMount struct {
-	image  builder.Image
-	source builder.Source
-	layer  builder.ROLayer
+	image builder.Image
+	layer builder.ROLayer
 }
 
 func newImageMount(image builder.Image, layer builder.ROLayer) *imageMount {

@@ -8,14 +8,12 @@ import (
 	"io/ioutil"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/builder/fscache"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
@@ -25,7 +23,6 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
-	"github.com/moby/buildkit/session"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -49,31 +46,19 @@ const (
 	stepFormat = "Step %d/%d : %v"
 )
 
-// SessionGetter is object used to get access to a session by uuid
-type SessionGetter interface {
-	Get(ctx context.Context, uuid string) (session.Caller, error)
-}
-
 // BuildManager is shared across all Builder objects
 type BuildManager struct {
 	idMapping *idtools.IdentityMapping
 	backend   builder.Backend
 	pathCache pathCache // TODO: make this persistent
-	sg        SessionGetter
-	fsCache   *fscache.FSCache
 }
 
 // NewBuildManager creates a BuildManager
-func NewBuildManager(b builder.Backend, sg SessionGetter, fsCache *fscache.FSCache, identityMapping *idtools.IdentityMapping) (*BuildManager, error) {
+func NewBuildManager(b builder.Backend, identityMapping *idtools.IdentityMapping) (*BuildManager, error) {
 	bm := &BuildManager{
 		backend:   b,
 		pathCache: &syncmap.Map{},
-		sg:        sg,
 		idMapping: identityMapping,
-		fsCache:   fsCache,
-	}
-	if err := fsCache.RegisterTransport(remotecontext.ClientSessionRemote, NewClientSessionTransport()); err != nil {
-		return nil, err
 	}
 	return bm, nil
 }
@@ -100,10 +85,8 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	if src, err := bm.initializeClientSession(ctx, cancel, config.Options); err != nil {
-		return nil, err
-	} else if src != nil {
-		source = src
+	if config.Options.SessionID != "" {
+		return nil, errors.New("experimental session with v1 builder is no longer supported, use builder version v2 (BuildKit) instead")
 	}
 
 	builderOptions := builderOptions{
@@ -118,39 +101,6 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		return nil, err
 	}
 	return b.build(source, dockerfile)
-}
-
-func (bm *BuildManager) initializeClientSession(ctx context.Context, cancel func(), options *types.ImageBuildOptions) (builder.Source, error) {
-	if options.SessionID == "" || bm.sg == nil {
-		return nil, nil
-	}
-	logrus.Debug("client is session enabled")
-
-	connectCtx, cancelCtx := context.WithTimeout(ctx, sessionConnectTimeout)
-	defer cancelCtx()
-
-	c, err := bm.sg.Get(connectCtx, options.SessionID)
-	if err != nil {
-		return nil, err
-	}
-	go func() {
-		<-c.Context().Done()
-		cancel()
-	}()
-	if options.RemoteContext == remotecontext.ClientSessionRemote {
-		st := time.Now()
-		csi, err := NewClientSessionSourceIdentifier(ctx, bm.sg, options.SessionID)
-		if err != nil {
-			return nil, err
-		}
-		src, err := bm.fsCache.SyncFrom(ctx, csi)
-		if err != nil {
-			return nil, err
-		}
-		logrus.Debugf("sync-time: %v", time.Since(st))
-		return src, nil
-	}
-	return nil, nil
 }
 
 // builderOptions are the dependencies required by the builder

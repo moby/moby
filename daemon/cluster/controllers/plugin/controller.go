@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/api/types/swarm/runtime"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/plugin"
-	"github.com/docker/docker/plugin/v2"
+	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/docker/swarmkit/api"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
@@ -34,7 +34,6 @@ type Controller struct {
 
 	pluginID  string
 	serviceID string
-	taskID    string
 
 	// hook used to signal tests that `Wait()` is actually ready and waiting
 	signalWaitReady func()

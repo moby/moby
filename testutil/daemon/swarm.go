@@ -3,9 +3,9 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/testutil"
 	"github.com/pkg/errors"
 	"gotest.tools/assert"
 )
@@ -21,42 +21,34 @@ var (
 )
 
 // StartNode (re)starts the daemon
-func (d *Daemon) StartNode(t testingT) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) StartNode(t testing.TB) {
+	t.Helper()
 	d.Start(t, startArgs...)
 }
 
 // StartNodeWithBusybox starts daemon to be used as a swarm node, and loads the busybox image
-func (d *Daemon) StartNodeWithBusybox(t testingT) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) StartNodeWithBusybox(t testing.TB) {
+	t.Helper()
 	d.StartWithBusybox(t, startArgs...)
 }
 
 // RestartNode restarts a daemon to be used as a swarm node
-func (d *Daemon) RestartNode(t testingT) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) RestartNode(t testing.TB) {
+	t.Helper()
 	// avoid networking conflicts
 	d.Stop(t)
 	d.Start(t, startArgs...)
 }
 
 // StartAndSwarmInit starts the daemon (with busybox) and init the swarm
-func (d *Daemon) StartAndSwarmInit(t testingT) {
+func (d *Daemon) StartAndSwarmInit(t testing.TB) {
 	d.StartNodeWithBusybox(t)
 	d.SwarmInit(t, swarm.InitRequest{})
 }
 
 // StartAndSwarmJoin starts the daemon (with busybox) and join the specified swarm as worker or manager
-func (d *Daemon) StartAndSwarmJoin(t testingT, leader *Daemon, manager bool) {
-	if th, ok := t.(testutil.HelperT); ok {
-		th.Helper()
-	}
+func (d *Daemon) StartAndSwarmJoin(t testing.TB, leader *Daemon, manager bool) {
+	t.Helper()
 	d.StartNodeWithBusybox(t)
 
 	tokens := leader.JoinTokens(t)
@@ -85,10 +77,8 @@ func (d *Daemon) NodeID() string {
 }
 
 // SwarmInit initializes a new swarm cluster.
-func (d *Daemon) SwarmInit(t assert.TestingT, req swarm.InitRequest) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) SwarmInit(t testing.TB, req swarm.InitRequest) {
+	t.Helper()
 	if req.ListenAddr == "" {
 		req.ListenAddr = fmt.Sprintf("%s:%d", d.swarmListenAddr, d.SwarmPort)
 	}
@@ -107,10 +97,8 @@ func (d *Daemon) SwarmInit(t assert.TestingT, req swarm.InitRequest) {
 }
 
 // SwarmJoin joins a daemon to an existing cluster.
-func (d *Daemon) SwarmJoin(t assert.TestingT, req swarm.JoinRequest) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) SwarmJoin(t testing.TB, req swarm.JoinRequest) {
+	t.Helper()
 	if req.ListenAddr == "" {
 		req.ListenAddr = fmt.Sprintf("%s:%d", d.swarmListenAddr, d.SwarmPort)
 	}
@@ -123,20 +111,18 @@ func (d *Daemon) SwarmJoin(t assert.TestingT, req swarm.JoinRequest) {
 
 // SwarmLeave forces daemon to leave current cluster.
 //
-// The passed in TestingT is only used to validate that the client was successfully created
+// The passed in testing.TB is only used to validate that the client was successfully created
 // Some tests rely on error checking the result of the actual unlock, so allow
 // the error to be returned.
-func (d *Daemon) SwarmLeave(t assert.TestingT, force bool) error {
+func (d *Daemon) SwarmLeave(t testing.TB, force bool) error {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 	return cli.SwarmLeave(context.Background(), force)
 }
 
 // SwarmInfo returns the swarm information of the daemon
-func (d *Daemon) SwarmInfo(t assert.TestingT) swarm.Info {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) SwarmInfo(t testing.TB) swarm.Info {
+	t.Helper()
 	cli := d.NewClientT(t)
 	info, err := cli.Info(context.Background())
 	assert.NilError(t, err, "get swarm info")
@@ -145,10 +131,10 @@ func (d *Daemon) SwarmInfo(t assert.TestingT) swarm.Info {
 
 // SwarmUnlock tries to unlock a locked swarm
 //
-// The passed in TestingT is only used to validate that the client was successfully created
+// The passed in testing.TB is only used to validate that the client was successfully created
 // Some tests rely on error checking the result of the actual unlock, so allow
 // the error to be returned.
-func (d *Daemon) SwarmUnlock(t assert.TestingT, req swarm.UnlockRequest) error {
+func (d *Daemon) SwarmUnlock(t testing.TB, req swarm.UnlockRequest) error {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -160,10 +146,8 @@ func (d *Daemon) SwarmUnlock(t assert.TestingT, req swarm.UnlockRequest) error {
 }
 
 // GetSwarm returns the current swarm object
-func (d *Daemon) GetSwarm(t assert.TestingT) swarm.Swarm {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) GetSwarm(t testing.TB) swarm.Swarm {
+	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -173,10 +157,8 @@ func (d *Daemon) GetSwarm(t assert.TestingT) swarm.Swarm {
 }
 
 // UpdateSwarm updates the current swarm object with the specified spec constructors
-func (d *Daemon) UpdateSwarm(t assert.TestingT, f ...SpecConstructor) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) UpdateSwarm(t testing.TB, f ...SpecConstructor) {
+	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -190,10 +172,8 @@ func (d *Daemon) UpdateSwarm(t assert.TestingT, f ...SpecConstructor) {
 }
 
 // RotateTokens update the swarm to rotate tokens
-func (d *Daemon) RotateTokens(t assert.TestingT) {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) RotateTokens(t testing.TB) {
+	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -210,10 +190,8 @@ func (d *Daemon) RotateTokens(t assert.TestingT) {
 }
 
 // JoinTokens returns the current swarm join tokens
-func (d *Daemon) JoinTokens(t assert.TestingT) swarm.JoinTokens {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (d *Daemon) JoinTokens(t testing.TB) swarm.JoinTokens {
+	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
 

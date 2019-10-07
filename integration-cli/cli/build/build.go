@@ -3,15 +3,11 @@ package build // import "github.com/docker/docker/integration-cli/cli/build"
 import (
 	"io"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/testutil/fakecontext"
 	"gotest.tools/icmd"
 )
-
-type testingT interface {
-	Fatal(args ...interface{})
-	Fatalf(string, ...interface{})
-}
 
 // WithStdinContext sets the build context from the standard input with the specified reader
 func WithStdinContext(closer io.ReadCloser) func(*icmd.Cmd) func() {
@@ -58,7 +54,7 @@ func WithExternalBuildContext(ctx *fakecontext.Fake) func(*icmd.Cmd) func() {
 }
 
 // WithBuildContext sets up the build context
-func WithBuildContext(t testingT, contextOperators ...func(*fakecontext.Fake) error) func(*icmd.Cmd) func() {
+func WithBuildContext(t testing.TB, contextOperators ...func(*fakecontext.Fake) error) func(*icmd.Cmd) func() {
 	// FIXME(vdemeester) de-duplicate that
 	ctx := fakecontext.New(t, "", contextOperators...)
 	return func(cmd *icmd.Cmd) func() {
@@ -73,7 +69,7 @@ func WithFile(name, content string) func(*fakecontext.Fake) error {
 	return fakecontext.WithFile(name, content)
 }
 
-func closeBuildContext(t testingT, ctx *fakecontext.Fake) func() {
+func closeBuildContext(t testing.TB, ctx *fakecontext.Fake) func() {
 	return func() {
 		if err := ctx.Close(); err != nil {
 			t.Fatal(err)

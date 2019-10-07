@@ -49,12 +49,12 @@ func ContainerPoll(config *poll.Settings) {
 }
 
 // NewSwarm creates a swarm daemon for testing
-func NewSwarm(t *testing.T, testEnv *environment.Execution, ops ...func(*daemon.Daemon)) *daemon.Daemon {
+func NewSwarm(t *testing.T, testEnv *environment.Execution, ops ...daemon.Option) *daemon.Daemon {
 	t.Helper()
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	if testEnv.DaemonInfo.ExperimentalBuild {
-		ops = append(ops, daemon.WithExperimental)
+		ops = append(ops, daemon.WithExperimental())
 	}
 	d := daemon.New(t, ops...)
 	d.StartAndSwarmInit(t)

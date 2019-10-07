@@ -17,8 +17,6 @@ func init() {
 	reexec.Init() // This is required for external graphdriver tests
 }
 
-const dockerdBinary = "dockerd"
-
 func TestMain(m *testing.M) {
 	var err error
 	testEnv, err = environment.New()

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/opts"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"

@@ -1,0 +1,11 @@
+#!/bin/sh
+
+: "${GOLANGCI_LINT_COMMIT=v1.17.1}"
+
+install_golangci_lint() {
+	echo "Installing golangci-lint version ${GOLANGCI_LINT_COMMIT}"
+	go get -d github.com/golangci/golangci-lint/cmd/golangci-lint
+	cd "$GOPATH/src/github.com/golangci/golangci-lint/" || exit 1
+	git checkout -q "${GOLANGCI_LINT_COMMIT}"
+	go build -buildmode=pie -o "${PREFIX}/golangci-lint" "github.com/golangci/golangci-lint/cmd/golangci-lint"
+}

@@ -348,6 +348,7 @@ func (s *DockerSuite) TestGetStoppedContainerStats(c *testing.T) {
 		defer cli.Close()
 
 		resp, err := cli.ContainerStats(context.Background(), name, false)
+		assert.NilError(c, err)
 		defer resp.Body.Close()
 		chResp <- err
 	}()
@@ -394,7 +395,7 @@ func (s *DockerSuite) TestContainerAPIPause(c *testing.T) {
 func (s *DockerSuite) TestContainerAPITop(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "top")
-	id := strings.TrimSpace(string(out))
+	id := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(id))
 
 	cli, err := client.NewClientWithOpts(client.FromEnv)
@@ -417,7 +418,7 @@ func (s *DockerSuite) TestContainerAPITop(c *testing.T) {
 func (s *DockerSuite) TestContainerAPITopWindows(c *testing.T) {
 	testRequires(c, DaemonIsWindows)
 	out := runSleepingContainer(c, "-d")
-	id := strings.TrimSpace(string(out))
+	id := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(id))
 
 	cli, err := client.NewClientWithOpts(client.FromEnv)
@@ -614,7 +615,7 @@ func UtilCreateNetworkMode(c *testing.T, networkMode containertypes.NetworkMode)
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
 	assert.NilError(c, err)
 
-	assert.Equal(c, containerJSON.HostConfig.NetworkMode, containertypes.NetworkMode(networkMode), "Mismatched NetworkMode")
+	assert.Equal(c, containerJSON.HostConfig.NetworkMode, networkMode, "Mismatched NetworkMode")
 }
 
 func (s *DockerSuite) TestContainerAPICreateWithCpuSharesCpuset(c *testing.T) {
@@ -993,13 +994,13 @@ func (s *DockerSuite) TestContainerAPIWait(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	waitresC, errC := cli.ContainerWait(context.Background(), name, "")
+	waitResC, errC := cli.ContainerWait(context.Background(), name, "")
 
 	select {
 	case err = <-errC:
 		assert.NilError(c, err)
-	case waitres := <-waitresC:
-		assert.Equal(c, waitres.StatusCode, int64(0))
+	case waitRes := <-waitResC:
+		assert.Equal(c, waitRes.StatusCode, int64(0))
 	}
 }
 
@@ -1941,7 +1942,7 @@ func (s *DockerSuite) TestContainerAPICreateMountsBindRead(c *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "test-mounts-api-bind")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpDir)
-	err = ioutil.WriteFile(filepath.Join(tmpDir, "bar"), []byte("hello"), 666)
+	err = ioutil.WriteFile(filepath.Join(tmpDir, "bar"), []byte("hello"), 0666)
 	assert.NilError(c, err)
 	config := containertypes.Config{
 		Image: "busybox",
@@ -2091,14 +2092,6 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 				expected: types.MountPoint{Type: "volume", Name: "test5", RW: false, Destination: destPath, Mode: selinuxSharedLabel},
 			},
 		}...)
-	}
-
-	type wrapper struct {
-		containertypes.Config
-		HostConfig containertypes.HostConfig
-	}
-	type createResp struct {
-		ID string `json:"Id"`
 	}
 
 	ctx := context.Background()

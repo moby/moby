@@ -15,7 +15,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 		return opts, nil
 	}
 
-	// TODO @jhowardmsft (containerd) - Probably need to revisit LCOW options here
+	// TODO (containerd) - Probably need to revisit LCOW options here
 	// rather than blindly ignoring them.
 
 	// LCOW options.

@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/testutil/request"
+	"github.com/pkg/errors"
 	"gotest.tools/assert"
 )
 
@@ -46,7 +47,7 @@ func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *testing.T) {
 			return err
 		}
 		if res.StatusCode != http.StatusCreated {
-			return fmt.Errorf("POST %s is expected to return %d, got %d", uri, http.StatusCreated, res.StatusCode)
+			return errors.Errorf("POST %s is expected to return %d, got %d", uri, http.StatusCreated, res.StatusCode)
 		}
 
 		buf, err := request.ReadBody(body)
@@ -55,18 +56,18 @@ func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *testing.T) {
 		out := map[string]string{}
 		err = json.Unmarshal(buf, &out)
 		if err != nil {
-			return fmt.Errorf("ExecCreate returned invalid json. Error: %q", err.Error())
+			return errors.Wrap(err, "ExecCreate returned invalid json")
 		}
 
 		execID := out["Id"]
 		if len(execID) < 1 {
-			return fmt.Errorf("ExecCreate got invalid execID")
+			return errors.New("ExecCreate got invalid execID")
 		}
 
 		payload := bytes.NewBufferString(`{"Tty":true}`)
 		conn, _, err := sockRequestHijack("POST", fmt.Sprintf("/exec/%s/start", execID), payload, "application/json", request.DaemonHost())
 		if err != nil {
-			return fmt.Errorf("Failed to start the exec: %q", err.Error())
+			return errors.Wrap(err, "failed to start the exec")
 		}
 		defer conn.Close()
 
@@ -74,10 +75,10 @@ func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *testing.T) {
 		if err != nil {
 			// It's probably a panic of the daemon if io.ErrUnexpectedEOF is returned.
 			if err == io.ErrUnexpectedEOF {
-				return fmt.Errorf("The daemon might have crashed.")
+				return errors.New("the daemon might have crashed")
 			}
 			// Other error happened, should be reported.
-			return fmt.Errorf("Fail to exec resize immediately after start. Error: %q", err.Error())
+			return errors.Wrap(err, "failed to exec resize immediately after start")
 		}
 
 		rc.Close()

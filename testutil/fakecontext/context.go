@@ -6,21 +6,14 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"testing"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/testutil"
 )
 
-type testingT interface {
-	Fatal(args ...interface{})
-	Fatalf(string, ...interface{})
-}
-
 // New creates a fake build context
-func New(t testingT, dir string, modifiers ...func(*Fake) error) *Fake {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func New(t testing.TB, dir string, modifiers ...func(*Fake) error) *Fake {
+	t.Helper()
 	fakeContext := &Fake{Dir: dir}
 	if dir == "" {
 		if err := newDir(fakeContext); err != nil {
@@ -119,10 +112,8 @@ func (f *Fake) Close() error {
 }
 
 // AsTarReader returns a ReadCloser with the contents of Dir as a tar archive.
-func (f *Fake) AsTarReader(t testingT) io.ReadCloser {
-	if ht, ok := t.(testutil.HelperT); ok {
-		ht.Helper()
-	}
+func (f *Fake) AsTarReader(t testing.TB) io.ReadCloser {
+	t.Helper()
 	reader, err := archive.TarWithOptions(f.Dir, &archive.TarOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create tar from %s: %s", f.Dir, err)

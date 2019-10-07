@@ -19,7 +19,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/Microsoft/go-winio"
+	winio "github.com/Microsoft/go-winio"
 	"github.com/Microsoft/go-winio/archive/tar"
 	"github.com/Microsoft/go-winio/backuptar"
 	"github.com/Microsoft/go-winio/vhd"
@@ -286,7 +286,7 @@ func (d *Driver) Remove(id string) error {
 		// in RS1 and RS2 building during enumeration when a silo is going away
 		// for example under it, in HCS. AccessIsDenied added to fix 30278.
 		//
-		// TODO @jhowardmsft - For RS3, we can remove the retries. Also consider
+		// TODO: For RS3, we can remove the retries. Also consider
 		// using platform APIs (if available) to get this more succinctly. Also
 		// consider enhancing the Remove() interface to have context of why
 		// the remove is being called - that could improve efficiency by not

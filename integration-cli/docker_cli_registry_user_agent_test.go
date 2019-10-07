@@ -18,13 +18,13 @@ func unescapeBackslashSemicolonParens(s string) string {
 	ret := re.ReplaceAll([]byte(s), []byte(";"))
 
 	re = regexp.MustCompile(`\\\(`)
-	ret = re.ReplaceAll([]byte(ret), []byte("("))
+	ret = re.ReplaceAll(ret, []byte("("))
 
 	re = regexp.MustCompile(`\\\)`)
-	ret = re.ReplaceAll([]byte(ret), []byte(")"))
+	ret = re.ReplaceAll(ret, []byte(")"))
 
 	re = regexp.MustCompile(`\\\\`)
-	ret = re.ReplaceAll([]byte(ret), []byte(`\`))
+	ret = re.ReplaceAll(ret, []byte(`\`))
 
 	return string(ret)
 }
@@ -45,7 +45,7 @@ func regexpCheckUA(c *testing.T, ua string) {
 	// check upstreamUA looks correct
 	// Expecting something like:  Docker-Client/1.11.0-dev (linux)
 	upstreamUA := unescapeBackslashSemicolonParens(upstreamUAEscaped)
-	reUpstreamUA := regexp.MustCompile("^\\(Docker-Client/[0-9A-Za-z+]")
+	reUpstreamUA := regexp.MustCompile(`^\(Docker-Client/[0-9A-Za-z+]`)
 	bMatchUpstreamUA := reUpstreamUA.MatchString(upstreamUA)
 	assert.Assert(c, bMatchUpstreamUA, "(Upstream) Docker Client User-Agent malformed")
 }
@@ -75,8 +75,9 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *testing.T) {
 	var ua string
 
 	reg, err := registry.NewMock(c)
-	defer reg.Close()
 	assert.NilError(c, err)
+	defer reg.Close()
+
 	registerUserAgentHandler(reg, &ua)
 	repoName := fmt.Sprintf("%s/busybox", reg.URL())
 

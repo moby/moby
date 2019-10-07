@@ -9,7 +9,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/distribution/registry/api/v2"
+	v2 "github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/distribution/xfer"

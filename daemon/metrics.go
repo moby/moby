@@ -6,7 +6,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
-	"github.com/docker/go-metrics"
+	metrics "github.com/docker/go-metrics"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"

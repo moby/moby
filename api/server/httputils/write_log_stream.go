@@ -51,10 +51,10 @@ func WriteLogStream(_ context.Context, w io.Writer, msgs <-chan *backend.LogMess
 			logLine = append([]byte(msg.Timestamp.Format(jsonmessage.RFC3339NanoFixed)+" "), logLine...)
 		}
 		if msg.Source == "stdout" && config.ShowStdout {
-			outStream.Write(logLine)
+			_, _ = outStream.Write(logLine)
 		}
 		if msg.Source == "stderr" && config.ShowStderr {
-			errStream.Write(logLine)
+			_, _ = errStream.Write(logLine)
 		}
 	}
 }

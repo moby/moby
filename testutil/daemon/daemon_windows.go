@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 	"strconv"
+	"testing"
 
 	"golang.org/x/sys/windows"
 	"gotest.tools/assert"
@@ -22,11 +23,11 @@ func signalDaemonReload(pid int) error {
 	return fmt.Errorf("daemon reload not supported")
 }
 
-func cleanupNetworkNamespace(t testingT, execRoot string) {
+func cleanupNetworkNamespace(t testing.TB, execRoot string) {
 }
 
 // CgroupNamespace returns the cgroup namespace the daemon is running in
-func (d *Daemon) CgroupNamespace(t assert.TestingT) string {
+func (d *Daemon) CgroupNamespace(t testing.TB) string {
 	assert.Assert(t, false)
 	return "cgroup namespaces are not supported on Windows"
 }

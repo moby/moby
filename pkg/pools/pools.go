@@ -62,23 +62,23 @@ type bufferPool struct {
 func newBufferPoolWithSize(size int) *bufferPool {
 	return &bufferPool{
 		pool: sync.Pool{
-			New: func() interface{} { return make([]byte, size) },
+			New: func() interface{} { s := make([]byte, size); return &s },
 		},
 	}
 }
 
-func (bp *bufferPool) Get() []byte {
-	return bp.pool.Get().([]byte)
+func (bp *bufferPool) Get() *[]byte {
+	return bp.pool.Get().(*[]byte)
 }
 
-func (bp *bufferPool) Put(b []byte) {
+func (bp *bufferPool) Put(b *[]byte) {
 	bp.pool.Put(b)
 }
 
 // Copy is a convenience wrapper which uses a buffer to avoid allocation in io.Copy.
 func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
 	buf := buffer32KPool.Get()
-	written, err = io.CopyBuffer(dst, src, buf)
+	written, err = io.CopyBuffer(dst, src, *buf)
 	buffer32KPool.Put(buf)
 	return
 }

@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/oci/caps"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows/registry"
@@ -370,7 +370,7 @@ func (daemon *Daemon) setWindowsCredentialSpec(c *container.Container, s *specs.
 }
 
 // Sets the Linux-specific fields of the OCI spec
-// TODO: @jhowardmsft LCOW Support. We need to do a lot more pulling in what can
+// TODO: LCOW Support. We need to do a lot more pulling in what can
 // be pulled in from oci_linux.go.
 func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spec) error {
 	s.Root = &specs.Root{

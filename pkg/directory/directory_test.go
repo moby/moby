@@ -179,7 +179,7 @@ func TestMoveToSubdir(t *testing.T) {
 	for _, info := range infos {
 		results = append(results, info.Name())
 	}
-	sort.Sort(sort.StringSlice(results))
+	sort.Strings(results)
 	if !reflect.DeepEqual(filesList, results) {
 		t.Fatalf("Results after migration do not equal list of files: expected: %v, got: %v", filesList, results)
 	}

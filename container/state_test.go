@@ -109,7 +109,9 @@ func TestStateRunStop(t *testing.T) {
 	}
 
 	// Set the state to dead and removed.
-	s.SetDead()
+	s.Lock()
+	s.Dead = true
+	s.Unlock()
 	s.SetRemoved()
 
 	// Wait for removed status or timeout.

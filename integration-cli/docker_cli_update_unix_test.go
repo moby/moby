@@ -271,7 +271,7 @@ func (s *DockerSuite) TestUpdateNotAffectMonitorRestartPolicy(c *testing.T) {
 	testRequires(c, DaemonIsLinux, cpuShare)
 
 	out, _ := dockerCmd(c, "run", "-tid", "--restart=always", "busybox", "sh")
-	id := strings.TrimSpace(string(out))
+	id := strings.TrimSpace(out)
 	dockerCmd(c, "update", "--cpu-shares", "512", id)
 
 	cpty, tty, err := pty.Open()

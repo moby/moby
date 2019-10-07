@@ -26,7 +26,7 @@ import (
 	"github.com/docker/docker/testutil/fakegit"
 	"github.com/docker/docker/testutil/fakestorage"
 	"github.com/moby/buildkit/frontend/dockerfile/command"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	"gotest.tools/assert"
 	"gotest.tools/assert/cmp"
 	"gotest.tools/icmd"
@@ -390,7 +390,7 @@ func (s *DockerSuite) TestBuildCacheAdd(c *testing.T) {
 }
 
 func (s *DockerSuite) TestBuildLastModified(c *testing.T) {
-	// Temporary fix for #30890. TODO @jhowardmsft figure out what
+	// Temporary fix for #30890. TODO: figure out what
 	// has changed in the master busybox image.
 	testRequires(c, DaemonIsLinux)
 
@@ -998,7 +998,7 @@ func (s *DockerSuite) TestBuildAddBadLinks(c *testing.T) {
 	}
 
 	buildImageSuccessfully(c, name, build.WithExternalBuildContext(ctx))
-	if _, err := os.Stat(nonExistingFile); err == nil || err != nil && !os.IsNotExist(err) {
+	if _, err := os.Stat(nonExistingFile); err == nil || !os.IsNotExist(err) {
 		c.Fatalf("%s shouldn't have been written and it shouldn't exist", nonExistingFile)
 	}
 
@@ -1039,7 +1039,7 @@ func (s *DockerSuite) TestBuildAddBadLinksVolume(c *testing.T) {
 	}
 
 	buildImageSuccessfully(c, "test-link-absolute-volume", build.WithExternalBuildContext(ctx))
-	if _, err := os.Stat(nonExistingFile); err == nil || err != nil && !os.IsNotExist(err) {
+	if _, err := os.Stat(nonExistingFile); err == nil || !os.IsNotExist(err) {
 		c.Fatalf("%s shouldn't have been written and it shouldn't exist", nonExistingFile)
 	}
 
@@ -1347,7 +1347,7 @@ func (s *DockerSuite) TestBuildWindowsWorkdirProcessing(c *testing.T) {
 // One functional test for end-to-end
 func (s *DockerSuite) TestBuildWindowsAddCopyPathProcessing(c *testing.T) {
 	testRequires(c, DaemonIsWindows)
-	// TODO Windows (@jhowardmsft). Needs a follow-up PR to 22181 to
+	// TODO Windows. Needs a follow-up PR to 22181 to
 	// support backslash such as .\\ being equivalent to ./ and c:\\ being
 	// equivalent to c:/. This is not currently (nor ever has been) supported
 	// by docker on the Windows platform.
@@ -2082,7 +2082,7 @@ CMD ["cat", "/foo"]`),
 	}).Assert(c, icmd.Success)
 
 	res := inspectField(c, name, "Config.Cmd")
-	assert.Equal(c, strings.TrimSpace(string(res)), `[cat /foo]`)
+	assert.Equal(c, strings.TrimSpace(res), `[cat /foo]`)
 }
 
 // FIXME(vdemeester) migrate to docker/cli tests (unit or e2e)
@@ -3427,7 +3427,7 @@ func (s *DockerSuite) TestBuildLabelsCache(c *testing.T) {
 func (s *DockerSuite) TestBuildNotVerboseSuccess(c *testing.T) {
 	// This test makes sure that -q works correctly when build is successful:
 	// stdout has only the image ID (long image ID) and stderr is empty.
-	outRegexp := regexp.MustCompile("^(sha256:|)[a-z0-9]{64}\\n$")
+	outRegexp := regexp.MustCompile(`^(sha256:|)[a-z0-9]{64}\n$`)
 	buildFlags := cli.WithFlags("-q")
 
 	tt := []struct {
@@ -4535,17 +4535,17 @@ func (s *DockerSuite) TestBuildBuildTimeArgEnv(c *testing.T) {
 		ARG FOO6
 		ARG FO10
 		RUN env
-		RUN [ "$FOO1" == "fromcmd" ]
-		RUN [ "$FOO2" == "" ]
-		RUN [ "$FOO3" == "fromenv" ]
-		RUN [ "$FOO4" == "fromfile" ]
-		RUN [ "$FOO5" == "fromcmd" ]
+		RUN [ "$FOO1" = "fromcmd" ]
+		RUN [ "$FOO2" = "" ]
+		RUN [ "$FOO3" = "fromenv" ]
+		RUN [ "$FOO4" = "fromfile" ]
+		RUN [ "$FOO5" = "fromcmd" ]
 		# The following should not exist at all in the env
-		RUN [ "$(env | grep FOO6)" == "" ]
-		RUN [ "$(env | grep FOO7)" == "" ]
-		RUN [ "$(env | grep FOO8)" == "" ]
-		RUN [ "$(env | grep FOO9)" == "" ]
-		RUN [ "$FO10" == "" ]
+		RUN [ "$(env | grep FOO6)" = "" ]
+		RUN [ "$(env | grep FOO7)" = "" ]
+		RUN [ "$(env | grep FOO8)" = "" ]
+		RUN [ "$(env | grep FOO9)" = "" ]
+		RUN [ "$FO10" = "" ]
 	    `
 	result := buildImage("testbuildtimeargenv",
 		cli.WithFlags(
@@ -4615,9 +4615,9 @@ func (s *DockerSuite) TestBuildBuildTimeArgEmptyValVariants(c *testing.T) {
 		ARG %s=
 		ARG %s=""
 		ARG %s=''
-		RUN [ "$%s" == "$%s" ]
-		RUN [ "$%s" == "$%s" ]
-		RUN [ "$%s" == "$%s" ]`, envKey, envKey1, envKey2, envKey, envKey1, envKey1, envKey2, envKey, envKey2)
+		RUN [ "$%s" = "$%s" ]
+		RUN [ "$%s" = "$%s" ]
+		RUN [ "$%s" = "$%s" ]`, envKey, envKey1, envKey2, envKey, envKey1, envKey1, envKey2, envKey, envKey2)
 	buildImageSuccessfully(c, imgName, build.WithDockerfile(dockerfile))
 }
 

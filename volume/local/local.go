@@ -172,7 +172,7 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 		if err != nil {
 			return nil, err
 		}
-		if err = ioutil.WriteFile(filepath.Join(filepath.Dir(path), "opts.json"), b, 600); err != nil {
+		if err = ioutil.WriteFile(filepath.Join(filepath.Dir(path), "opts.json"), b, 0600); err != nil {
 			return nil, errdefs.System(errors.Wrap(err, "error while persisting volume options"))
 		}
 	}
