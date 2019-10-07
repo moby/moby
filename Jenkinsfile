@@ -8,10 +8,10 @@ pipeline {
         timestamps()
     }
     parameters {
-        booleanParam(name: 'unit_validate', defaultValue: true, description: 'amd64 (x86_64) unit tests and vendor check')
-        booleanParam(name: 'amd64', defaultValue: true, description: 'amd64 (x86_64) Build/Test')
-        booleanParam(name: 's390x', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
-        booleanParam(name: 'ppc64le', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
+        booleanParam(name: 'unit_validate', defaultValue: false, description: 'amd64 (x86_64) unit tests and vendor check')
+        booleanParam(name: 'amd64', defaultValue: false, description: 'amd64 (x86_64) Build/Test')
+        booleanParam(name: 's390x', defaultValue: false, description: 'IBM Z (s390x) Build/Test')
+        booleanParam(name: 'ppc64le', defaultValue: false, description: 'PowerPC (ppc64le) Build/Test')
         booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
         booleanParam(name: 'windowsRS5', defaultValue: true, description: 'Windows 2019 (RS5) Build/Test')
         booleanParam(name: 'skip_dco', defaultValue: false, description: 'Skip the DCO check')

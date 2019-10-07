@@ -777,7 +777,14 @@ Try {
             Write-Host -ForegroundColor Cyan "INFO: Running unit tests at $(Get-Date)..."
             $ErrorActionPreference = "SilentlyContinue"
             $Duration=$(Measure-Command {docker run -e DOCKER_GITCOMMIT=$COMMITHASH$CommitUnsupported docker hack\make.ps1 -TestUnit | Out-Host })
+            $TestRunExitCode = $LastExitCode
             $ErrorActionPreference = "Stop"
+
+            docker cp "$contPath\junit-report.xml" $env:TEMP\junit-report-unit-tests.xml
+            if (-not($LastExitCode -eq 0)) {
+                Throw "ERROR: Failed to docker cp the test report (junit-report.xml) to $env:TEMP"
+            }
+
             if (-not($LastExitCode -eq 0)) {
                 Throw "ERROR: Unit tests failed"
             }
