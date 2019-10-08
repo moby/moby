@@ -28,12 +28,13 @@ import (
 
 // InitContext is used for plugin inititalization
 type InitContext struct {
-	Context context.Context
-	Root    string
-	State   string
-	Config  interface{}
-	Address string
-	Events  *exchange.Exchange
+	Context      context.Context
+	Root         string
+	State        string
+	Config       interface{}
+	Address      string
+	TTRPCAddress string
+	Events       *exchange.Exchange
 
 	Meta *Meta // plugins can fill in metadata at init.
 

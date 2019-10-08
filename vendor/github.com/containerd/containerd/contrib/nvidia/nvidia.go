@@ -52,7 +52,7 @@ const (
 	Display Capability = "display"
 )
 
-// AllCaps returns the complete list of supported Nvidia capabilties.
+// AllCaps returns the complete list of supported Nvidia capabilities.
 func AllCaps() []Capability {
 	return []Capability{
 		Compute,

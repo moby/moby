@@ -130,7 +130,7 @@ type Matcher interface {
 // specification. The returned matcher only looks for equality based on os,
 // architecture and variant.
 //
-// One may implement their own matcher if this doesn't provide the the required
+// One may implement their own matcher if this doesn't provide the required
 // functionality.
 //
 // Applications should opt to use `Match` over directly parsing specifiers.

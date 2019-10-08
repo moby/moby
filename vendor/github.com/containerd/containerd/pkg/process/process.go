@@ -14,29 +14,16 @@
    limitations under the License.
 */
 
-package proc
+package process
 
 import (
 	"context"
 	"io"
-	"sync"
 	"time"
 
 	"github.com/containerd/console"
+	"github.com/containerd/containerd/pkg/stdio"
 )
-
-// Stdio of a process
-type Stdio struct {
-	Stdin    string
-	Stdout   string
-	Stderr   string
-	Terminal bool
-}
-
-// IsNull returns true if the stdio is not defined
-func (s Stdio) IsNull() bool {
-	return s.Stdin == "" && s.Stdout == "" && s.Stderr == ""
-}
 
 // Process on a system
 type Process interface {
@@ -51,7 +38,7 @@ type Process interface {
 	// Stdin returns the process STDIN
 	Stdin() io.Closer
 	// Stdio returns io information for the container
-	Stdio() Stdio
+	Stdio() stdio.Stdio
 	// Status returns the process status
 	Status(context.Context) (string, error)
 	// Wait blocks until the process has exited
@@ -66,13 +53,4 @@ type Process interface {
 	Kill(context.Context, uint32, bool) error
 	// SetExited sets the exit status for the process
 	SetExited(status int)
-}
-
-// Platform handles platform-specific behavior that may differs across
-// platform implementations
-type Platform interface {
-	CopyConsole(ctx context.Context, console console.Console, stdin, stdout, stderr string,
-		wg *sync.WaitGroup) (console.Console, error)
-	ShutdownConsole(ctx context.Context, console console.Console) error
-	Close() error
 }

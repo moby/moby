@@ -16,9 +16,10 @@
    limitations under the License.
 */
 
-package proc
+package process
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,6 +35,15 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const (
+	// RuncRoot is the path to the root runc state directory
+	RuncRoot = "/run/containerd/runc"
+	// StoppedPID is the pid assigned after a container has run and stopped
+	StoppedPID = -1
+	// InitPidFile name of the file that contains the init pid
+	InitPidFile = "init.pid"
+)
+
 // safePid is a thread safe wrapper for pid.
 type safePid struct {
 	sync.Mutex
@@ -46,6 +56,12 @@ func (s *safePid) get() int {
 	return s.pid
 }
 
+func (s *safePid) set(pid int) {
+	s.Lock()
+	s.pid = pid
+	s.Unlock()
+}
+
 // TODO(mlaventure): move to runc package?
 func getLastRuntimeError(r *runc.Runc) (string, error) {
 	if r.Log == "" {
@@ -56,6 +72,7 @@ func getLastRuntimeError(r *runc.Runc) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer f.Close()
 
 	var (
 		errMsg string
@@ -110,14 +127,12 @@ func checkKillError(err error) error {
 	}
 	if strings.Contains(err.Error(), "os: process already finished") ||
 		strings.Contains(err.Error(), "container not running") ||
+		strings.Contains(strings.ToLower(err.Error()), "no such process") ||
 		err == unix.ESRCH {
 		return errors.Wrapf(errdefs.ErrNotFound, "process already finished")
 	}
 	return errors.Wrapf(err, "unknown error after kill")
 }
-
-// InitPidFile name of the file that contains the init pid
-const InitPidFile = "init.pid"
 
 func newPidFile(bundle string) *pidFile {
 	return &pidFile{
@@ -141,4 +156,38 @@ func (p *pidFile) Path() string {
 
 func (p *pidFile) Read() (int, error) {
 	return runc.ReadPidFile(p.path)
+}
+
+// waitTimeout handles waiting on a waitgroup with a specified timeout.
+// this is commonly used for waiting on IO to finish after a process has exited
+func waitTimeout(ctx context.Context, wg *sync.WaitGroup, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	done := make(chan struct{}, 1)
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func stateName(v interface{}) string {
+	switch v.(type) {
+	case *runningState, *execRunningState:
+		return "running"
+	case *createdState, *execCreatedState, *createdCheckpointState:
+		return "created"
+	case *pausedState:
+		return "paused"
+	case *deletedState:
+		return "deleted"
+	case *stoppedState:
+		return "stopped"
+	}
+	panic(errors.Errorf("invalid state %v", v))
 }

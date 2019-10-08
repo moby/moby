@@ -22,7 +22,6 @@ import (
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/platforms"
 	"github.com/gogo/protobuf/proto"
 	ptypes "github.com/gogo/protobuf/types"
 	"github.com/opencontainers/image-spec/identity"
@@ -58,7 +57,7 @@ func WithRestoreImage(ctx context.Context, id string, client *Client, checkpoint
 			return err
 		}
 
-		diffIDs, err := i.(*image).i.RootFS(ctx, client.ContentStore(), platforms.Default())
+		diffIDs, err := i.(*image).i.RootFS(ctx, client.ContentStore(), client.platform)
 		if err != nil {
 			return err
 		}

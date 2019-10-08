@@ -23,9 +23,9 @@ import (
 )
 
 // ResolveCacheImporterFunc returns a resolver function for local inline cache
-func ResolveCacheImporterFunc(sm *session.Manager, resolverOpt resolver.ResolveOptionsFunc, rs reference.Store, is imagestore.Store) remotecache.ResolveCacheImporterFunc {
+func ResolveCacheImporterFunc(sm *session.Manager, resolverOpt resolver.ResolveOptionsFunc, cs content.Store, rs reference.Store, is imagestore.Store) remotecache.ResolveCacheImporterFunc {
 
-	upstream := registryremotecache.ResolveCacheImporterFunc(sm, resolverOpt)
+	upstream := registryremotecache.ResolveCacheImporterFunc(sm, cs, resolverOpt)
 
 	return func(ctx context.Context, attrs map[string]string) (remotecache.Importer, specs.Descriptor, error) {
 		if dt, err := tryImportLocal(rs, is, attrs["ref"]); err == nil {

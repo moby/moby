@@ -16,7 +16,7 @@
    limitations under the License.
 */
 
-package proc
+package process
 
 import (
 	"context"
@@ -33,7 +33,7 @@ import (
 	"github.com/containerd/console"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/runtime/proc"
+	"github.com/containerd/containerd/pkg/stdio"
 	"github.com/containerd/fifo"
 	runc "github.com/containerd/go-runc"
 	google_protobuf "github.com/gogo/protobuf/types"
@@ -59,15 +59,15 @@ type Init struct {
 	id           string
 	Bundle       string
 	console      console.Console
-	Platform     proc.Platform
+	Platform     stdio.Platform
 	io           *processIO
 	runtime      *runc.Runc
 	status       int
 	exited       time.Time
-	pid          int
+	pid          safePid
 	closers      []io.Closer
 	stdin        io.Closer
-	stdio        proc.Stdio
+	stdio        stdio.Stdio
 	Rootfs       string
 	IoUID        int
 	IoGID        int
@@ -93,7 +93,7 @@ func NewRunc(root, path, namespace, runtime, criu string, systemd bool) *runc.Ru
 }
 
 // New returns a new process
-func New(id string, runtime *runc.Runc, stdio proc.Stdio) *Init {
+func New(id string, runtime *runc.Runc, stdio stdio.Stdio) *Init {
 	p := &Init{
 		id:        id,
 		runtime:   runtime,
@@ -113,6 +113,9 @@ func (p *Init) Create(ctx context.Context, r *CreateConfig) error {
 		pio     *processIO
 		pidFile = newPidFile(p.Bundle)
 	)
+	p.pid.Lock()
+	defer p.pid.Unlock()
+
 	if r.Terminal {
 		if socket, err = runc.NewTempConsoleSocket(); err != nil {
 			return errors.Wrap(err, "failed to create OCI runtime console socket")
@@ -167,7 +170,7 @@ func (p *Init) Create(ctx context.Context, r *CreateConfig) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve OCI runtime container pid")
 	}
-	p.pid = pid
+	p.pid.pid = pid
 	return nil
 }
 
@@ -213,7 +216,7 @@ func (p *Init) ID() string {
 
 // Pid of the process
 func (p *Init) Pid() int {
-	return p.pid
+	return p.pid.get()
 }
 
 // ExitStatus of the process
@@ -272,6 +275,7 @@ func (p *Init) setExited(status int) {
 	p.exited = time.Now()
 	p.status = status
 	p.Platform.ShutdownConsole(context.Background(), p.console)
+	p.pid.set(StoppedPID)
 	close(p.waitBlock)
 }
 
@@ -284,7 +288,7 @@ func (p *Init) Delete(ctx context.Context) error {
 }
 
 func (p *Init) delete(ctx context.Context) error {
-	p.wg.Wait()
+	waitTimeout(ctx, &p.wg, 2*time.Second)
 	err := p.runtime.Delete(ctx, p.id, nil)
 	// ignore errors if a runtime has already deleted the process
 	// but we still hold metadata and pipes
@@ -318,13 +322,6 @@ func (p *Init) Resize(ws console.WinSize) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.console == nil {
-		return nil
-	}
-	return p.console.Resize(ws)
-}
-
-func (p *Init) resize(ws console.WinSize) error {
 	if p.console == nil {
 		return nil
 	}
@@ -384,7 +381,7 @@ func (p *Init) Runtime() *runc.Runc {
 }
 
 // Exec returns a new child process
-func (p *Init) Exec(ctx context.Context, path string, r *ExecConfig) (proc.Process, error) {
+func (p *Init) Exec(ctx context.Context, path string, r *ExecConfig) (Process, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -392,7 +389,7 @@ func (p *Init) Exec(ctx context.Context, path string, r *ExecConfig) (proc.Proce
 }
 
 // exec returns a new exec'd process
-func (p *Init) exec(ctx context.Context, path string, r *ExecConfig) (proc.Process, error) {
+func (p *Init) exec(ctx context.Context, path string, r *ExecConfig) (Process, error) {
 	// process exec request
 	var spec specs.Process
 	if err := json.Unmarshal(r.Spec.Value, &spec); err != nil {
@@ -405,14 +402,13 @@ func (p *Init) exec(ctx context.Context, path string, r *ExecConfig) (proc.Proce
 		path:   path,
 		parent: p,
 		spec:   spec,
-		stdio: proc.Stdio{
+		stdio: stdio.Stdio{
 			Stdin:    r.Stdin,
 			Stdout:   r.Stdout,
 			Stderr:   r.Stderr,
 			Terminal: r.Terminal,
 		},
 		waitBlock: make(chan struct{}),
-		pid:       &safePid{},
 	}
 	e.execState = &execCreatedState{p: e}
 	return e, nil
@@ -472,7 +468,7 @@ func (p *Init) update(ctx context.Context, r *google_protobuf.Any) error {
 }
 
 // Stdio of the process
-func (p *Init) Stdio() proc.Stdio {
+func (p *Init) Stdio() stdio.Stdio {
 	return p.stdio
 }
 
@@ -492,7 +488,7 @@ func (p *Init) runtimeError(rErr error, msg string) error {
 	}
 }
 
-func withConditionalIO(c proc.Stdio) runc.IOOpt {
+func withConditionalIO(c stdio.Stdio) runc.IOOpt {
 	return func(o *runc.IOOption) {
 		o.OpenStdin = c.Stdin != ""
 		o.OpenStdout = c.Stdout != ""

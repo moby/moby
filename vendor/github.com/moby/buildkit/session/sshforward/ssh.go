@@ -49,7 +49,7 @@ func (s *server) run(ctx context.Context, l net.Listener, id string) error {
 				return err
 			}
 
-			go Copy(ctx, conn, stream)
+			go Copy(ctx, conn, stream, stream.CloseSend)
 		}
 	})
 

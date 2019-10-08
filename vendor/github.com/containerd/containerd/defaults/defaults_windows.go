@@ -40,4 +40,6 @@ const (
 	// DefaultFIFODir is the default location used by client-side cio library
 	// to store FIFOs. Unused on Windows.
 	DefaultFIFODir = ""
+	// DefaultRuntime is the default windows runtime
+	DefaultRuntime = "io.containerd.runhcs.v1"
 )

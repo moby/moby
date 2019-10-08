@@ -27,6 +27,11 @@ type Importer interface {
 	Resolve(ctx context.Context, desc ocispec.Descriptor, id string, w worker.Worker) (solver.CacheManager, error)
 }
 
+type DistributionSourceLabelSetter interface {
+	SetDistributionSourceLabel(context.Context, digest.Digest) error
+	SetDistributionSourceAnnotation(desc ocispec.Descriptor) ocispec.Descriptor
+}
+
 func NewImporter(provider content.Provider) Importer {
 	return &contentCacheImporter{provider: provider}
 }
@@ -58,6 +63,15 @@ func (ci *contentCacheImporter) Resolve(ctx context.Context, desc ocispec.Descri
 		allLayers[m.Digest] = v1.DescriptorProviderPair{
 			Descriptor: m,
 			Provider:   ci.provider,
+		}
+	}
+
+	if dsls, ok := ci.provider.(DistributionSourceLabelSetter); ok {
+		for dgst, l := range allLayers {
+			err := dsls.SetDistributionSourceLabel(ctx, dgst)
+			_ = err // error ignored because layer may not exist
+			l.Descriptor = dsls.SetDistributionSourceAnnotation(l.Descriptor)
+			allLayers[dgst] = l
 		}
 	}
 
@@ -125,6 +139,14 @@ func (ci *contentCacheImporter) importInlineCache(ctx context.Context, dt []byte
 
 				if m.Config.Digest == "" || len(m.Layers) == 0 {
 					return nil
+				}
+
+				if dsls, ok := ci.provider.(DistributionSourceLabelSetter); ok {
+					for i, l := range m.Layers {
+						err := dsls.SetDistributionSourceLabel(ctx, l.Digest)
+						_ = err // error ignored because layer may not exist
+						m.Layers[i] = dsls.SetDistributionSourceAnnotation(l)
+					}
 				}
 
 				p, err := content.ReadBlob(ctx, ci.provider, m.Config)

@@ -11,6 +11,7 @@ message Metrics {
 	MemoryStat memory = 4;
 	BlkIOStat blkio = 5;
 	RdmaStat rdma = 6;
+	repeated NetworkStat network = 7;
 }
 
 message HugetlbStat {
@@ -120,4 +121,16 @@ message RdmaEntry {
 	string device = 1;
 	uint32 hca_handles = 2;
 	uint32 hca_objects = 3;
+}
+
+message NetworkStat {
+	string name = 1;
+	uint64 rx_bytes = 2;
+	uint64 rx_packets = 3;
+	uint64 rx_errors  = 4;
+	uint64 rx_dropped = 5;
+	uint64 tx_bytes = 6;
+	uint64 tx_packets = 7;
+	uint64 tx_errors = 8;
+	uint64 tx_dropped = 9;
 }

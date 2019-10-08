@@ -129,7 +129,15 @@ func (s *namespaceStore) List(ctx context.Context) ([]string, error) {
 	return namespaces, nil
 }
 
-func (s *namespaceStore) Delete(ctx context.Context, namespace string) error {
+func (s *namespaceStore) Delete(ctx context.Context, namespace string, opts ...namespaces.DeleteOpts) error {
+	i := &namespaces.DeleteInfo{
+		Name: namespace,
+	}
+	for _, o := range opts {
+		if err := o(ctx, i); err != nil {
+			return err
+		}
+	}
 	bkt := getBucket(s.tx, bucketKeyVersion)
 	if empty, err := s.namespaceEmpty(ctx, namespace); err != nil {
 		return err

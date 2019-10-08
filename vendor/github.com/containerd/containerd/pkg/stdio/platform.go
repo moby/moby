@@ -14,15 +14,20 @@
    limitations under the License.
 */
 
-package continuity
+package stdio
 
-import "os"
+import (
+	"context"
+	"sync"
 
-type hardlinkKey struct{}
+	"github.com/containerd/console"
+)
 
-func newHardlinkKey(fi os.FileInfo) (hardlinkKey, error) {
-	// NOTE(stevvooe): Obviously, this is not yet implemented. However, the
-	// makings of an implementation are available in src/os/types_windows.go. More
-	// investigation needs to be done to figure out exactly how to do this.
-	return hardlinkKey{}, errNotAHardLink
+// Platform handles platform-specific behavior that may differs across
+// platform implementations
+type Platform interface {
+	CopyConsole(ctx context.Context, console console.Console, stdin, stdout, stderr string,
+		wg *sync.WaitGroup) (console.Console, error)
+	ShutdownConsole(ctx context.Context, console console.Console) error
+	Close() error
 }

@@ -497,6 +497,9 @@ func (c *cgroup) MoveTo(destination Cgroup) error {
 		}
 		for _, p := range processes {
 			if err := destination.Add(p); err != nil {
+				if strings.Contains(err.Error(), "no such process") {
+					continue
+				}
 				return err
 			}
 		}

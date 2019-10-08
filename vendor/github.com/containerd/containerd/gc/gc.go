@@ -30,6 +30,11 @@ import (
 // ResourceType represents type of resource at a node
 type ResourceType uint8
 
+// ResourceMax represents the max resource.
+// Upper bits are stripped out during the mark phase, allowing the upper 3 bits
+// to be used by the caller reference function.
+const ResourceMax = ResourceType(0x1F)
+
 // Node presents a resource which has a type and key,
 // this node can be used to lookup other nodes.
 type Node struct {
@@ -80,6 +85,8 @@ func Tricolor(roots []Node, refs func(ref Node) ([]Node, error)) (map[Node]struc
 			}
 		}
 
+		// strip bits above max resource type
+		id.Type = id.Type & ResourceMax
 		// mark as black when done
 		reachable[id] = struct{}{}
 	}

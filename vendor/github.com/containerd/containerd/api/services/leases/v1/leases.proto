@@ -22,6 +22,15 @@ service Leases {
 	// List lists all active leases, returning the full list of
 	// leases and optionally including the referenced resources.
 	rpc List(ListRequest) returns (ListResponse);
+
+	// AddResource references the resource by the provided lease.
+	rpc AddResource(AddResourceRequest) returns (google.protobuf.Empty);
+
+	// DeleteResource dereferences the resource by the provided lease.
+	rpc DeleteResource(DeleteResourceRequest) returns (google.protobuf.Empty);
+
+	// ListResources lists all the resources referenced by the lease.
+	rpc ListResources(ListResourcesRequest) returns (ListResourcesResponse);
 }
 
 // Lease is an object which retains resources while it exists.
@@ -61,4 +70,33 @@ message ListRequest {
 
 message ListResponse {
 	repeated Lease leases = 1;
+}
+
+message Resource {
+	string id = 1;
+
+	// For snapshotter resource, there are many snapshotter types here, like
+	// overlayfs, devmapper etc. The type will be formatted with type,
+	// like "snapshotter/overlayfs".
+	string type = 2;
+}
+
+message AddResourceRequest {
+	string id = 1;
+
+	Resource resource = 2 [(gogoproto.nullable) = false];
+}
+
+message DeleteResourceRequest {
+	string id = 1;
+
+	Resource resource = 2 [(gogoproto.nullable) = false];
+}
+
+message ListResourcesRequest {
+	string id = 1;
+}
+
+message ListResourcesResponse {
+	repeated Resource resources = 1	[(gogoproto.nullable) = false];
 }

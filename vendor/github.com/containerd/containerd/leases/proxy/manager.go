@@ -91,3 +91,43 @@ func (pm *proxyManager) List(ctx context.Context, filters ...string) ([]leases.L
 
 	return l, nil
 }
+
+func (pm *proxyManager) AddResource(ctx context.Context, lease leases.Lease, r leases.Resource) error {
+	_, err := pm.client.AddResource(ctx, &leasesapi.AddResourceRequest{
+		ID: lease.ID,
+		Resource: leasesapi.Resource{
+			ID:   r.ID,
+			Type: r.Type,
+		},
+	})
+	return errdefs.FromGRPC(err)
+}
+
+func (pm *proxyManager) DeleteResource(ctx context.Context, lease leases.Lease, r leases.Resource) error {
+	_, err := pm.client.DeleteResource(ctx, &leasesapi.DeleteResourceRequest{
+		ID: lease.ID,
+		Resource: leasesapi.Resource{
+			ID:   r.ID,
+			Type: r.Type,
+		},
+	})
+	return errdefs.FromGRPC(err)
+}
+
+func (pm *proxyManager) ListResources(ctx context.Context, lease leases.Lease) ([]leases.Resource, error) {
+	resp, err := pm.client.ListResources(ctx, &leasesapi.ListResourcesRequest{
+		ID: lease.ID,
+	})
+	if err != nil {
+		return nil, errdefs.FromGRPC(err)
+	}
+
+	rs := make([]leases.Resource, 0, len(resp.Resources))
+	for _, i := range resp.Resources {
+		rs = append(rs, leases.Resource{
+			ID:   i.ID,
+			Type: i.Type,
+		})
+	}
+	return rs, nil
+}

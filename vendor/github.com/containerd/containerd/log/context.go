@@ -30,7 +30,7 @@ var (
 	// messages.
 	G = GetLogger
 
-	// L is an alias for the the standard logger.
+	// L is an alias for the standard logger.
 	L = logrus.NewEntry(logrus.StandardLogger())
 )
 

@@ -50,7 +50,7 @@ var _ events.Publisher = &Exchange{}
 var _ events.Forwarder = &Exchange{}
 var _ events.Subscriber = &Exchange{}
 
-// Forward accepts an envelope to be direcly distributed on the exchange.
+// Forward accepts an envelope to be directly distributed on the exchange.
 //
 // This is useful when an event is forwarded on behalf of another namespace or
 // when the event is propagated on behalf of another publisher.

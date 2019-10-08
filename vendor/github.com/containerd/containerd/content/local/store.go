@@ -35,7 +35,6 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/sirupsen/logrus"
 
-	"github.com/containerd/continuity"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -661,6 +660,19 @@ func writeTimestampFile(p string, t time.Time) error {
 	if err != nil {
 		return err
 	}
+	return atomicWrite(p, b, 0666)
+}
 
-	return continuity.AtomicWriteFile(p, b, 0666)
+func atomicWrite(path string, data []byte, mode os.FileMode) error {
+	tmp := fmt.Sprintf("%s.tmp", path)
+	f, err := os.OpenFile(tmp, os.O_RDWR|os.O_CREATE|os.O_TRUNC|os.O_SYNC, mode)
+	if err != nil {
+		return errors.Wrap(err, "create tmp file")
+	}
+	_, err = f.Write(data)
+	f.Close()
+	if err != nil {
+		return errors.Wrap(err, "write atomic data")
+	}
+	return os.Rename(tmp, path)
 }

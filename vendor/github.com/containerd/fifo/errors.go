@@ -14,15 +14,17 @@
    limitations under the License.
 */
 
-package continuity
+package fifo
 
-import "os"
+import (
+	"errors"
+)
 
-// newBaseResource returns a *resource, populated with data from p and fi,
-// where p will be populated directly.
-func newBaseResource(p string, fi os.FileInfo) (*resource, error) {
-	return &resource{
-		paths: []string{p},
-		mode:  fi.Mode(),
-	}, nil
-}
+var (
+	ErrClosed       = errors.New("fifo closed")
+	ErrCtrlClosed   = errors.New("control of closed fifo")
+	ErrRdFrmWRONLY  = errors.New("reading from write-only fifo")
+	ErrReadClosed   = errors.New("reading from a closed fifo")
+	ErrWrToRDONLY   = errors.New("writing to read-only fifo")
+	ErrWriteClosed  = errors.New("writing to a closed fifo")
+)

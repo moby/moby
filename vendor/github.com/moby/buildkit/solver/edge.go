@@ -177,6 +177,9 @@ func (e *edge) finishIncoming(req pipe.Sender) {
 
 // updateIncoming updates the current value of incoming pipe request
 func (e *edge) updateIncoming(req pipe.Sender) {
+	if debugScheduler {
+		logrus.Debugf("updateIncoming %s %#v desired=%s", e.edge.Vertex.Name(), e.edgeState, req.Request().Payload.(*edgeRequest).desiredState)
+	}
 	req.Update(&e.edgeState)
 }
 

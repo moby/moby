@@ -16,7 +16,7 @@
    limitations under the License.
 */
 
-package proc
+package process
 
 import (
 	"context"
@@ -32,7 +32,7 @@ import (
 
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/containerd/runtime/proc"
+	"github.com/containerd/containerd/pkg/stdio"
 	"github.com/containerd/fifo"
 	runc "github.com/containerd/go-runc"
 	"github.com/pkg/errors"
@@ -50,7 +50,7 @@ type processIO struct {
 
 	uri   *url.URL
 	copy  bool
-	stdio proc.Stdio
+	stdio stdio.Stdio
 }
 
 func (p *processIO) Close() error {
@@ -76,7 +76,7 @@ func (p *processIO) Copy(ctx context.Context, wg *sync.WaitGroup) error {
 	return nil
 }
 
-func createIO(ctx context.Context, id string, ioUID, ioGID int, stdio proc.Stdio) (*processIO, error) {
+func createIO(ctx context.Context, id string, ioUID, ioGID int, stdio stdio.Stdio) (*processIO, error) {
 	pio := &processIO{
 		stdio: stdio,
 	}
@@ -101,17 +101,20 @@ func createIO(ctx context.Context, id string, ioUID, ioGID int, stdio proc.Stdio
 		pio.copy = true
 		pio.io, err = runc.NewPipeIO(ioUID, ioGID, withConditionalIO(stdio))
 	case "binary":
-		pio.io, err = newBinaryIO(ctx, id, u)
+		pio.io, err = NewBinaryIO(ctx, id, u)
 	case "file":
-		if err := os.MkdirAll(filepath.Dir(u.Host), 0755); err != nil {
+		filePath := u.Path
+		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 			return nil, err
 		}
 		var f *os.File
-		f, err = os.OpenFile(u.Host, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		f, err = os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			return nil, err
 		}
 		f.Close()
+		pio.stdio.Stdout = filePath
+		pio.stdio.Stderr = filePath
 		pio.copy = true
 		pio.io, err = runc.NewPipeIO(ioUID, ioGID, withConditionalIO(stdio))
 	default:
@@ -179,10 +182,10 @@ func copyPipes(ctx context.Context, rio runc.IO, stdin, stdout, stderr string, w
 		)
 		if ok {
 			if fw, err = fifo.OpenFifo(ctx, i.name, syscall.O_WRONLY, 0); err != nil {
-				return fmt.Errorf("containerd-shim: opening %s failed: %s", i.name, err)
+				return errors.Wrapf(err, "containerd-shim: opening w/o fifo %q failed", i.name)
 			}
 			if fr, err = fifo.OpenFifo(ctx, i.name, syscall.O_RDONLY, 0); err != nil {
-				return fmt.Errorf("containerd-shim: opening %s failed: %s", i.name, err)
+				return errors.Wrapf(err, "containerd-shim: opening r/o fifo %q failed", i.name)
 			}
 		} else {
 			if sameFile != nil {
@@ -191,7 +194,7 @@ func copyPipes(ctx context.Context, rio runc.IO, stdin, stdout, stderr string, w
 				continue
 			}
 			if fw, err = os.OpenFile(i.name, syscall.O_WRONLY|syscall.O_APPEND, 0); err != nil {
-				return fmt.Errorf("containerd-shim: opening %s failed: %s", i.name, err)
+				return errors.Wrapf(err, "containerd-shim: opening file %q failed", i.name)
 			}
 			if stdout == stderr {
 				sameFile = &countingWriteCloser{
@@ -251,7 +254,8 @@ func isFifo(path string) (bool, error) {
 	return false, nil
 }
 
-func newBinaryIO(ctx context.Context, id string, uri *url.URL) (runc.IO, error) {
+// NewBinaryIO runs a custom binary process for pluggable shim logging
+func NewBinaryIO(ctx context.Context, id string, uri *url.URL) (runc.IO, error) {
 	ns, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return nil, err
@@ -264,7 +268,7 @@ func newBinaryIO(ctx context.Context, id string, uri *url.URL) (runc.IO, error) 
 		}
 	}
 	ctx, cancel := context.WithCancel(ctx)
-	cmd := exec.CommandContext(ctx, uri.Host, args...)
+	cmd := exec.CommandContext(ctx, uri.Path, args...)
 	cmd.Env = append(cmd.Env,
 		"CONTAINER_ID="+id,
 		"CONTAINER_NAMESPACE="+ns,

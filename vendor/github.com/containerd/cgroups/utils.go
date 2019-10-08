@@ -168,7 +168,7 @@ func readTasksPids(path string, subsystem Name) ([]Task, error) {
 func hugePageSizes() ([]string, error) {
 	var (
 		pageSizes []string
-		sizeList  = []string{"B", "kB", "MB", "GB", "TB", "PB"}
+		sizeList  = []string{"B", "KB", "MB", "GB", "TB", "PB"}
 	)
 	files, err := ioutil.ReadDir("/sys/kernel/mm/hugepages")
 	if err != nil {
