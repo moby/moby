@@ -60,14 +60,16 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM base AS swagger
 # Install go-swagger for validating swagger.yaml
-ENV GO_SWAGGER_COMMIT c28258affb0b6251755d92489ef685af8d4ff3eb
+# Version: 0.20.1 + golang 1.13 fix
+ENV GO_SWAGGER_COMMIT 4042f8256534e999e907faded70e3542b786b4cf
 RUN --mount=type=cache,target=/root/.cache/go-build \
 	--mount=type=cache,target=/go/pkg/mod \
 		set -x \
 		&& export GOPATH="$(mktemp -d)" \
 		&& git clone https://github.com/go-swagger/go-swagger.git "$GOPATH/src/github.com/go-swagger/go-swagger" \
-		&& (cd "$GOPATH/src/github.com/go-swagger/go-swagger" && git checkout -q "$GO_SWAGGER_COMMIT") \
-		&& go build -o /build/swagger github.com/go-swagger/go-swagger/cmd/swagger \
+		&& (cd "$GOPATH/src/github.com/go-swagger/go-swagger" \
+			&& git checkout -q "$GO_SWAGGER_COMMIT" \
+			&& GO111MODULE=on go build -o /build/swagger ./cmd/swagger) \
 		&& rm -rf "$GOPATH"
 
 FROM base AS frozen-images
