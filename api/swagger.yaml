@@ -270,7 +270,7 @@ definitions:
         type: "string"
       Type:
         description: |
-          The mount type. Available types:
+          Mount type. Available types are:
 
           - `bind` Mounts a file or directory from the host into the container. Must exist prior to creating the container.
           - `volume` Creates a volume with the given name and options (or uses a pre-existing volume with the same name and options). These are **not** removed when the container is removed.
