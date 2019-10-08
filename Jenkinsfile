@@ -928,13 +928,14 @@ pipeline {
                     }
                     post {
                         always {
+                            junit testResults: 'bundles/junit-report-*.xml', allowEmptyResults: true
                             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
                                 powershell '''
                                 $bundleName="windowsRS1-integration"
                                 Write-Host -ForegroundColor Green "Creating ${bundleName}-bundles.zip"
 
                                 # archiveArtifacts does not support env-vars to , so save the artifacts in a fixed location
-                                Compress-Archive -Path "${env:TEMP}/CIDUT.out", "${env:TEMP}/CIDUT.err" -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
+                                Compress-Archive -Path "${env:TEMP}/CIDUT.out", "${env:TEMP}/CIDUT.err", "${env:TEMP}/testresults/unittests/junit-report-unit-tests.xml" -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.zip', allowEmptyArchive: true
@@ -988,13 +989,14 @@ pipeline {
                     }
                     post {
                         always {
+                            junit testResults: 'bundles/junit-report-*.xml', allowEmptyResults: true
                             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
                                 powershell '''
                                 $bundleName="windowsRS5-integration"
                                 Write-Host -ForegroundColor Green "Creating ${bundleName}-bundles.zip"
 
                                 # archiveArtifacts does not support env-vars to , so save the artifacts in a fixed location
-                                Compress-Archive -Path "${env:TEMP}/CIDUT.out", "${env:TEMP}/CIDUT.err" -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
+                                Compress-Archive -Path "${env:TEMP}/CIDUT.out", "${env:TEMP}/CIDUT.err", "${env:TEMP}/junit-report-*.xml" -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.zip', allowEmptyArchive: true

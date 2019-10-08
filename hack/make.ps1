@@ -94,6 +94,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 $pushed=$False  # To restore the directory if we have temporarily pushed to one.
+Set-Variable GOTESTSUM_LOCATION -option Constant -value "$env:GOPATH/src/gotest.tools/gotestsum"
 
 # Utility function to get the commit ID of the repository
 Function Get-GitCommit() {
@@ -319,31 +320,42 @@ Function Run-UnitTests() {
     $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/man"
     $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/integration"
     $pkgList = $pkgList -replace "`r`n", " "
-    $goTestCommand = "go test" + $raceParm + " -cover -ldflags -w -tags """ + "autogen daemon" + """ -a """ + "-test.timeout=10m" + """ $pkgList"
+    $goTestCommand = "$GOTESTSUM_LOCATION\gotestsum.exe --format=standard-quiet --jsonfile=bundles\go-test-report-unit-tests.json --junitfile=bundles\junit-report-unit-tests.xml -- " + $raceParm + " -cover -ldflags -w -a """ + "-test.timeout=10m" + """ $pkgList"
+    Write-Host "INFO: Invoking unit tests run with $goTestCommand"
     Invoke-Expression $goTestCommand
     if ($LASTEXITCODE -ne 0) { Throw "Unit tests failed" }
 }
 
 # Run the integration tests
 Function Run-IntegrationTests() {
-    $env:DOCKER_INTEGRATION_DAEMON_DEST = $root + "\bundles\tmp"
+    $escRoot = [Regex]::Escape($root)
+    $env:DOCKER_INTEGRATION_DAEMON_DEST = $bundlesDir + "\tmp"
     $dirs = go list -test -f '{{- if ne .ForTest `"`" -}}{{- .Dir -}}{{- end -}}' .\integration\...
-    $integration_api_dirs = @()
     ForEach($dir in $dirs) {
-        $integration_api_dirs += $dir
-        Write-Host "Building test suite binary $dir"
-        go test -c -o "$dir\test.exe" $dir
-    }
-
-    ForEach($dir in $integration_api_dirs) {
+        # Normalize directory name for using in the test results files.
+        $normDir = $dir.Trim()
+        $normDir = $normDir -replace $escRoot, ""
+        $normDir = $normDir -replace "\\", "-"
+        $normDir = $normDir -replace "\/", "-"
+        $normDir = $normDir -replace "\.", "-"
+        if ($normDir.StartsWith("-"))
+        {
+            $normDir = $normDir.TrimStart("-")
+        }
+        if ($normDir.EndsWith("-"))
+        {
+            $normDir = $normDir.TrimEnd("-")
+        }
+        $jsonFilePath = $bundlesDir + "\go-test-report-int-tests-$normDir" + ".json"
+        $xmlFilePath = $bundlesDir + "\junit-report-int-tests-$normDir" + ".xml"
         Set-Location $dir
         Write-Host "Running $($PWD.Path)"
         $pinfo = New-Object System.Diagnostics.ProcessStartInfo
-        $pinfo.FileName = "$($PWD.Path)\test.exe"
+        $pinfo.FileName = "gotestsum.exe"
         $pinfo.WorkingDirectory = "$($PWD.Path)"
         $pinfo.RedirectStandardError = $true
         $pinfo.UseShellExecute = $false
-        $pinfo.Arguments = $env:INTEGRATION_TESTFLAGS
+        $pinfo.Arguments = "--format=standard-quiet --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- $env:INTEGRATION_TESTFLAGS"
         $p = New-Object System.Diagnostics.Process
         $p.StartInfo = $pinfo
         $p.Start() | Out-Null
@@ -351,6 +363,8 @@ Function Run-IntegrationTests() {
         $err = $p.StandardError.ReadToEnd()
         if (($LASTEXITCODE -ne 0) -and ($err -notlike "*warning: no tests to run*")) {
             Throw "Integration tests failed: $err"
+        } else {
+            Write-Host "$err"
         }
     }
 }
@@ -362,6 +376,11 @@ Try {
     # Get to the root of the repo
     $root = $(Split-Path $MyInvocation.MyCommand.Definition -Parent | Split-Path -Parent)
     Push-Location $root
+
+    # Ensure the bundles directory exists
+    $bundlesDir = $root + "\bundles"
+    Set-Variable bundlesDir -option ReadOnly
+    New-Item -Force $bundlesDir -ItemType Directory | Out-Null
 
     # Handle the "-All" shortcut to turn on all things we can handle.
     # Note we expressly only include the items which can run in a container - the validations tests cannot
@@ -424,8 +443,6 @@ Try {
 
     # Build the binaries
     if ($Client -or $Daemon) {
-        # Create the bundles directory if it doesn't exist
-        if (-not (Test-Path ".\bundles")) { New-Item ".\bundles" -ItemType Directory | Out-Null }
 
         # Perform the actual build
         if ($Daemon) { Execute-Build "daemon" "daemon" "dockerd" }
