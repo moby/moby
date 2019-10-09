@@ -524,7 +524,7 @@ out2:
 		return err
 	}
 
-	return d.cmd.Wait()
+	return nil
 }
 
 // Restart will restart the daemon by first stopping it and the starting it.
