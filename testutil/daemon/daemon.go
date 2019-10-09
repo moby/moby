@@ -90,7 +90,7 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 	storageDriver := os.Getenv("DOCKER_GRAPHDRIVER")
 
 	if err := os.MkdirAll(SockRoot, 0700); err != nil {
-		return nil, fmt.Errorf("could not create daemon socket root: %v", err)
+		return nil, errors.Wrapf(err, "failed to create daemon socket root %q", SockRoot)
 	}
 
 	id := fmt.Sprintf("d%s", stringid.TruncateID(stringid.GenerateRandomID()))
@@ -101,7 +101,7 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 	}
 	daemonRoot := filepath.Join(daemonFolder, "root")
 	if err := os.MkdirAll(daemonRoot, 0755); err != nil {
-		return nil, fmt.Errorf("could not create daemon root: %v", err)
+		return nil, errors.Wrapf(err, "failed to create daemon root %q", daemonRoot)
 	}
 
 	userlandProxy := true
@@ -298,7 +298,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	d.logFile = out
 
 	if err := d.cmd.Start(); err != nil {
-		return errors.Errorf("[%s] could not start daemon container: %v", d.id, err)
+		return errors.Wrapf(err, "[%s] could not start daemon container", d.id)
 	}
 
 	wait := make(chan error, 1)
@@ -338,9 +338,9 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 		select {
 		case <-ctx.Done():
-			return errors.Errorf("[%s] Daemon exited and never started: %s", d.id, ctx.Err())
+			return errors.Wrapf(ctx.Err(), "[%s] daemon exited and never started", d.id)
 		case err := <-d.Wait:
-			return errors.Errorf("[%s] Daemon exited during startup: %v", d.id, err)
+			return errors.Wrapf(err, "[%s] daemon exited during startup", d.id)
 		default:
 			rctx, rcancel := context.WithTimeout(context.TODO(), 2*time.Second)
 			defer rcancel()
@@ -365,7 +365,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 			d.log.Logf("[%s] daemon started\n", d.id)
 			d.Root, err = d.queryRootDir()
 			if err != nil {
-				return errors.Errorf("[%s] error querying daemon for root directory: %v", d.id, err)
+				return errors.Wrapf(err, "[%s] error querying daemon for root directory", d.id)
 			}
 			return nil
 		}
@@ -472,7 +472,7 @@ func (d *Daemon) StopWithError() (err error) {
 		if strings.Contains(err.Error(), "os: process already finished") {
 			return errDaemonNotStarted
 		}
-		return errors.Errorf("[%s] could not send signal: %v", d.id, err)
+		return errors.Wrapf(err, "[%s] could not send signal", d.id)
 	}
 
 out1:
@@ -500,7 +500,7 @@ out2:
 			}
 			d.log.Logf("[%d] attempt #%d/5: daemon is still running with pid %d", i, d.cmd.Process.Pid)
 			if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
-				return errors.Errorf("[%s] attempt #%d/5 could not send signal: %v", d.id, i, err)
+				return errors.Wrapf(err, "[%s] attempt #%d/5 could not send signal", d.id, i)
 			}
 		}
 	}
@@ -577,7 +577,7 @@ func (d *Daemon) ReloadConfig() error {
 
 	<-started
 	if err := signalDaemonReload(d.cmd.Process.Pid); err != nil {
-		return errors.Errorf("[%s] error signaling daemon reload: %v", d.id, err)
+		return errors.Wrapf(err, "[%s] error signaling daemon reload", d.id)
 	}
 	select {
 	case err := <-errCh:
