@@ -73,6 +73,7 @@ type Daemon struct {
 	dockerdBinary              string
 	log                        logT
 	pidFile                    string
+	args                       []string
 
 	// swarm related field
 	swarmListenAddr string
@@ -224,7 +225,7 @@ func (d *Daemon) Cleanup(t testing.TB) {
 func (d *Daemon) Start(t testing.TB, args ...string) {
 	t.Helper()
 	if err := d.StartWithError(args...); err != nil {
-		t.Fatalf("[%s] failed to start daemon with arguments %v : %v", d.id, args, err)
+		t.Fatalf("[%s] failed to start daemon with arguments %v : %v", d.id, d.args, err)
 	}
 }
 
@@ -251,7 +252,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		d.pidFile = filepath.Join(d.Folder, "docker.pid")
 	}
 
-	args := append(d.GlobalFlags,
+	d.args = append(d.GlobalFlags,
 		"--containerd", containerdSocket,
 		"--data-root", d.Root,
 		"--exec-root", d.execRoot,
@@ -261,19 +262,19 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		"--containerd-plugins-namespace", d.id+"p",
 	)
 	if d.defaultCgroupNamespaceMode != "" {
-		args = append(args, []string{"--default-cgroupns-mode", d.defaultCgroupNamespaceMode}...)
+		d.args = append(d.args, []string{"--default-cgroupns-mode", d.defaultCgroupNamespaceMode}...)
 	}
 	if d.experimental {
-		args = append(args, "--experimental")
+		d.args = append(d.args, "--experimental")
 	}
 	if d.init {
-		args = append(args, "--init")
+		d.args = append(d.args, "--init")
 	}
 	if !(d.UseDefaultHost || d.UseDefaultTLSHost) {
-		args = append(args, []string{"--host", d.Sock()}...)
+		d.args = append(d.args, []string{"--host", d.Sock()}...)
 	}
 	if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {
-		args = append(args, []string{"--userns-remap", root}...)
+		d.args = append(d.args, []string{"--userns-remap", root}...)
 	}
 
 	// If we don't explicitly set the log-level or debug flag(-D) then
@@ -289,14 +290,14 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		}
 	}
 	if !foundLog {
-		args = append(args, "--debug")
+		d.args = append(d.args, "--debug")
 	}
 	if d.storageDriver != "" && !foundSd {
-		args = append(args, "--storage-driver", d.storageDriver)
+		d.args = append(d.args, "--storage-driver", d.storageDriver)
 	}
 
-	args = append(args, providedArgs...)
-	d.cmd = exec.Command(dockerdBinary, args...)
+	d.args = append(d.args, providedArgs...)
+	d.cmd = exec.Command(dockerdBinary, d.args...)
 	d.cmd.Env = append(os.Environ(), "DOCKER_SERVICE_PREFER_OFFLINE_IMAGE=1")
 	d.cmd.Stdout = out
 	d.cmd.Stderr = out
