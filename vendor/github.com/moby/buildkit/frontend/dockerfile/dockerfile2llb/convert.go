@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/url"
 	"path"
 	"path/filepath"
@@ -1325,7 +1326,7 @@ func prefixCommand(ds *dispatchState, str string, prefixPlatform bool, platform 
 		out += ds.stageName + " "
 	}
 	ds.cmdIndex++
-	out += fmt.Sprintf("%d/%d] ", ds.cmdIndex, ds.cmdTotal)
+	out += fmt.Sprintf("%*d/%d] ", int(1+math.Log10(float64(ds.cmdTotal))), ds.cmdIndex, ds.cmdTotal)
 	return out + str
 }
 

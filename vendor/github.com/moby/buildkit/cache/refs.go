@@ -2,15 +2,24 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/util/flightcontrol"
+	"github.com/moby/buildkit/util/leaseutil"
+	"github.com/opencontainers/go-digest"
+	imagespecidentity "github.com/opencontainers/image-spec/identity"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -30,6 +39,20 @@ type ImmutableRef interface {
 	Parent() ImmutableRef
 	Finalize(ctx context.Context, commit bool) error // Make sure reference is flushed to driver
 	Clone() ImmutableRef
+
+	Info() RefInfo
+	SetBlob(ctx context.Context, desc ocispec.Descriptor) error
+	Extract(ctx context.Context) error // +progress
+}
+
+type RefInfo struct {
+	SnapshotID  string
+	ChainID     digest.Digest
+	BlobChainID digest.Digest
+	DiffID      digest.Digest
+	Blob        digest.Digest
+	MediaType   string
+	Extracted   bool
 }
 
 type MutableRef interface {
@@ -65,6 +88,8 @@ type cacheRecord struct {
 	// these are filled if multiple refs point to same data
 	equalMutable   *mutableRef
 	equalImmutable *immutableRef
+
+	parentChainCache []digest.Digest
 }
 
 // hold ref lock before calling
@@ -79,6 +104,26 @@ func (cr *cacheRecord) mref(triggerLastUsed bool) *mutableRef {
 	ref := &mutableRef{cacheRecord: cr, triggerLastUsed: triggerLastUsed}
 	cr.refs[ref] = struct{}{}
 	return ref
+}
+
+func (cr *cacheRecord) parentChain() []digest.Digest {
+	if cr.parentChainCache != nil {
+		return cr.parentChainCache
+	}
+	blob := getBlob(cr.md)
+	if blob == "" {
+		return nil
+	}
+
+	var parent []digest.Digest
+	if cr.parent != nil {
+		parent = cr.parent.parentChain()
+	}
+	pcc := make([]digest.Digest, len(parent)+1)
+	copy(pcc, parent)
+	pcc[len(parent)] = digest.Digest(blob)
+	cr.parentChainCache = pcc
+	return pcc
 }
 
 // hold ref lock before calling
@@ -99,20 +144,32 @@ func (cr *cacheRecord) Size(ctx context.Context) (int64, error) {
 			cr.mu.Unlock()
 			return s, nil
 		}
-		driverID := cr.ID()
+		driverID := getSnapshotID(cr.md)
 		if cr.equalMutable != nil {
-			driverID = cr.equalMutable.ID()
+			driverID = getSnapshotID(cr.equalMutable.md)
 		}
 		cr.mu.Unlock()
-		usage, err := cr.cm.ManagerOpt.Snapshotter.Usage(ctx, driverID)
-		if err != nil {
-			cr.mu.Lock()
-			isDead := cr.isDead()
-			cr.mu.Unlock()
-			if isDead {
-				return int64(0), nil
+		var usage snapshots.Usage
+		if !getBlobOnly(cr.md) {
+			var err error
+			usage, err = cr.cm.ManagerOpt.Snapshotter.Usage(ctx, driverID)
+			if err != nil {
+				cr.mu.Lock()
+				isDead := cr.isDead()
+				cr.mu.Unlock()
+				if isDead {
+					return int64(0), nil
+				}
+				if !errdefs.IsNotFound(err) {
+					return s, errors.Wrapf(err, "failed to get usage for %s", cr.ID())
+				}
 			}
-			return s, errors.Wrapf(err, "failed to get usage for %s", cr.ID())
+		}
+		if dgst := getBlob(cr.md); dgst != "" {
+			info, err := cr.cm.ContentStore.Info(ctx, digest.Digest(dgst))
+			if err == nil {
+				usage.Size += info.Size
+			}
 		}
 		cr.mu.Lock()
 		setSize(cr.md, usage.Size)
@@ -148,7 +205,7 @@ func (cr *cacheRecord) Mount(ctx context.Context, readonly bool) (snapshot.Mount
 	defer cr.mu.Unlock()
 
 	if cr.mutable {
-		m, err := cr.cm.Snapshotter.Mounts(ctx, cr.ID())
+		m, err := cr.cm.Snapshotter.Mounts(ctx, getSnapshotID(cr.md))
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to mount %s", cr.ID())
 		}
@@ -159,7 +216,7 @@ func (cr *cacheRecord) Mount(ctx context.Context, readonly bool) (snapshot.Mount
 	}
 
 	if cr.equalMutable != nil && readonly {
-		m, err := cr.cm.Snapshotter.Mounts(ctx, cr.equalMutable.ID())
+		m, err := cr.cm.Snapshotter.Mounts(ctx, getSnapshotID(cr.equalMutable.md))
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to mount %s", cr.equalMutable.ID())
 		}
@@ -170,12 +227,24 @@ func (cr *cacheRecord) Mount(ctx context.Context, readonly bool) (snapshot.Mount
 		return nil, err
 	}
 	if cr.viewMount == nil { // TODO: handle this better
-		cr.view = identity.NewID()
-		m, err := cr.cm.Snapshotter.View(ctx, cr.view, cr.ID())
+		view := identity.NewID()
+		l, err := cr.cm.LeaseManager.Create(ctx, func(l *leases.Lease) error {
+			l.ID = view
+			l.Labels = map[string]string{
+				"containerd.io/gc.flat": time.Now().UTC().Format(time.RFC3339Nano),
+			}
+			return nil
+		}, leaseutil.MakeTemporary)
 		if err != nil {
-			cr.view = ""
+			return nil, err
+		}
+		ctx = leases.WithLease(ctx, l.ID)
+		m, err := cr.cm.Snapshotter.View(ctx, view, getSnapshotID(cr.md))
+		if err != nil {
+			cr.cm.LeaseManager.Delete(context.TODO(), leases.Lease{ID: l.ID})
 			return nil, errors.Wrapf(err, "failed to mount %s", cr.ID())
 		}
+		cr.view = view
 		cr.viewMount = m
 	}
 	return cr.viewMount, nil
@@ -190,7 +259,7 @@ func (cr *cacheRecord) remove(ctx context.Context, removeSnapshot bool) error {
 		}
 	}
 	if removeSnapshot {
-		if err := cr.cm.Snapshotter.Remove(ctx, cr.ID()); err != nil {
+		if err := cr.cm.LeaseManager.Delete(context.TODO(), leases.Lease{ID: cr.ID()}); err != nil {
 			return errors.Wrapf(err, "failed to remove %s", cr.ID())
 		}
 	}
@@ -219,6 +288,134 @@ func (sr *immutableRef) Clone() ImmutableRef {
 	ref := sr.ref(false)
 	sr.mu.Unlock()
 	return ref
+}
+
+func (sr *immutableRef) Info() RefInfo {
+	return RefInfo{
+		ChainID:     digest.Digest(getChainID(sr.md)),
+		DiffID:      digest.Digest(getDiffID(sr.md)),
+		Blob:        digest.Digest(getBlob(sr.md)),
+		MediaType:   getMediaType(sr.md),
+		BlobChainID: digest.Digest(getBlobChainID(sr.md)),
+		SnapshotID:  getSnapshotID(sr.md),
+		Extracted:   !getBlobOnly(sr.md),
+	}
+}
+
+func (sr *immutableRef) Extract(ctx context.Context) error {
+	_, err := sr.sizeG.Do(ctx, sr.ID()+"-extract", func(ctx context.Context) (interface{}, error) {
+		snapshotID := getSnapshotID(sr.md)
+		if _, err := sr.cm.Snapshotter.Stat(ctx, snapshotID); err == nil {
+			queueBlobOnly(sr.md, false)
+			return nil, sr.md.Commit()
+		}
+
+		parentID := ""
+		if sr.parent != nil {
+			if err := sr.parent.Extract(ctx); err != nil {
+				return nil, err
+			}
+			parentID = getSnapshotID(sr.parent.md)
+		}
+		info := sr.Info()
+		key := fmt.Sprintf("extract-%s %s", identity.NewID(), info.ChainID)
+
+		err := sr.cm.Snapshotter.Prepare(ctx, key, parentID)
+		if err != nil {
+			return nil, err
+		}
+
+		mountable, err := sr.cm.Snapshotter.Mounts(ctx, key)
+		if err != nil {
+			return nil, err
+		}
+		mounts, unmount, err := mountable.Mount()
+		if err != nil {
+			return nil, err
+		}
+		_, err = sr.cm.Applier.Apply(ctx, ocispec.Descriptor{
+			Digest:    info.Blob,
+			MediaType: info.MediaType,
+		}, mounts)
+		if err != nil {
+			unmount()
+			return nil, err
+		}
+
+		if err := unmount(); err != nil {
+			return nil, err
+		}
+		if err := sr.cm.Snapshotter.Commit(ctx, getSnapshotID(sr.md), key); err != nil {
+			if !errdefs.IsAlreadyExists(err) {
+				return nil, err
+			}
+		}
+		queueBlobOnly(sr.md, false)
+		if err := sr.md.Commit(); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	})
+	return err
+}
+
+// SetBlob associates a blob with the cache record.
+// A lease must be held for the blob when calling this function
+// Caller should call Info() for knowing what current values are actually set
+func (sr *immutableRef) SetBlob(ctx context.Context, desc ocispec.Descriptor) error {
+	diffID, err := diffIDFromDescriptor(desc)
+	if err != nil {
+		return err
+	}
+	if _, err := sr.cm.ContentStore.Info(ctx, desc.Digest); err != nil {
+		return err
+	}
+
+	sr.mu.Lock()
+	defer sr.mu.Unlock()
+
+	if getChainID(sr.md) != "" {
+		return nil
+	}
+
+	if err := sr.finalize(ctx, true); err != nil {
+		return err
+	}
+
+	p := sr.parent
+	var parentChainID digest.Digest
+	var parentBlobChainID digest.Digest
+	if p != nil {
+		pInfo := p.Info()
+		if pInfo.ChainID == "" || pInfo.BlobChainID == "" {
+			return errors.Errorf("failed to set blob for reference with non-addressable parent")
+		}
+		parentChainID = pInfo.ChainID
+		parentBlobChainID = pInfo.BlobChainID
+	}
+
+	if err := sr.cm.LeaseManager.AddResource(ctx, leases.Lease{ID: sr.ID()}, leases.Resource{
+		ID:   desc.Digest.String(),
+		Type: "content",
+	}); err != nil {
+		return err
+	}
+
+	queueDiffID(sr.md, diffID.String())
+	queueBlob(sr.md, desc.Digest.String())
+	chainID := diffID
+	blobChainID := imagespecidentity.ChainID([]digest.Digest{desc.Digest, diffID})
+	if parentChainID != "" {
+		chainID = imagespecidentity.ChainID([]digest.Digest{parentChainID, chainID})
+		blobChainID = imagespecidentity.ChainID([]digest.Digest{parentBlobChainID, blobChainID})
+	}
+	queueChainID(sr.md, chainID.String())
+	queueBlobChainID(sr.md, blobChainID.String())
+	queueMediaType(sr.md, desc.MediaType)
+	if err := sr.md.Commit(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (sr *immutableRef) Release(ctx context.Context) error {
@@ -259,8 +456,8 @@ func (sr *immutableRef) release(ctx context.Context) error {
 
 	if len(sr.refs) == 0 {
 		if sr.viewMount != nil { // TODO: release viewMount earlier if possible
-			if err := sr.cm.Snapshotter.Remove(ctx, sr.view); err != nil {
-				return errors.Wrapf(err, "failed to remove view %s", sr.view)
+			if err := sr.cm.LeaseManager.Delete(ctx, leases.Lease{ID: sr.view}); err != nil {
+				return errors.Wrapf(err, "failed to remove view lease %s", sr.view)
 			}
 			sr.view = ""
 			sr.viewMount = nil
@@ -269,7 +466,6 @@ func (sr *immutableRef) release(ctx context.Context) error {
 		if sr.equalMutable != nil {
 			sr.equalMutable.release(ctx)
 		}
-		// go sr.cm.GC()
 	}
 
 	return nil
@@ -298,18 +494,42 @@ func (cr *cacheRecord) finalize(ctx context.Context, commit bool) error {
 		}
 		return nil
 	}
-	err := cr.cm.Snapshotter.Commit(ctx, cr.ID(), mutable.ID())
+
+	_, err := cr.cm.ManagerOpt.LeaseManager.Create(ctx, func(l *leases.Lease) error {
+		l.ID = cr.ID()
+		l.Labels = map[string]string{
+			"containerd.io/gc.flat": time.Now().UTC().Format(time.RFC3339Nano),
+		}
+		return nil
+	})
 	if err != nil {
+		if !errdefs.IsAlreadyExists(err) { // migrator adds leases for everything
+			return errors.Wrap(err, "failed to create lease")
+		}
+	}
+
+	if err := cr.cm.ManagerOpt.LeaseManager.AddResource(ctx, leases.Lease{ID: cr.ID()}, leases.Resource{
+		ID:   cr.ID(),
+		Type: "snapshots/" + cr.cm.ManagerOpt.Snapshotter.Name(),
+	}); err != nil {
+		cr.cm.LeaseManager.Delete(context.TODO(), leases.Lease{ID: cr.ID()})
+		return errors.Wrapf(err, "failed to add snapshot %s to lease", cr.ID())
+	}
+
+	err = cr.cm.Snapshotter.Commit(ctx, cr.ID(), mutable.ID())
+	if err != nil {
+		cr.cm.LeaseManager.Delete(context.TODO(), leases.Lease{ID: cr.ID()})
 		return errors.Wrapf(err, "failed to commit %s", mutable.ID())
 	}
 	mutable.dead = true
 	go func() {
 		cr.cm.mu.Lock()
 		defer cr.cm.mu.Unlock()
-		if err := mutable.remove(context.TODO(), false); err != nil {
+		if err := mutable.remove(context.TODO(), true); err != nil {
 			logrus.Error(err)
 		}
 	}()
+
 	cr.equalMutable = nil
 	clearEqualMutable(cr.md)
 	return cr.md.Commit()
@@ -341,7 +561,11 @@ func (sr *mutableRef) commit(ctx context.Context) (*immutableRef, error) {
 		}
 	}
 
-	if err := initializeMetadata(rec); err != nil {
+	parentID := ""
+	if rec.parent != nil {
+		parentID = rec.parent.ID()
+	}
+	if err := initializeMetadata(rec, parentID); err != nil {
 		return nil, err
 	}
 
@@ -351,6 +575,7 @@ func (sr *mutableRef) commit(ctx context.Context) (*immutableRef, error) {
 		return nil, err
 	}
 
+	queueCommitted(md)
 	setSize(md, sizeUnknown)
 	setEqualMutable(md, sr.ID())
 	if err := md.Commit(); err != nil {
@@ -398,11 +623,6 @@ func (sr *mutableRef) release(ctx context.Context) error {
 				return nil
 			}
 			if err := sr.equalImmutable.remove(ctx, false); err != nil {
-				return err
-			}
-		}
-		if sr.parent != nil {
-			if err := sr.parent.release(ctx); err != nil {
 				return err
 			}
 		}

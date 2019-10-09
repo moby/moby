@@ -16,6 +16,9 @@ var g flightcontrol.Group
 var notFirstRun bool
 var lastNotEmpty bool
 
+// overridden by tests
+var resolvconfGet = resolvconf.Get
+
 type DNSConfig struct {
 	Nameservers   []string
 	Options       []string
@@ -59,7 +62,7 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.Identity
 		}
 
 		var dt []byte
-		f, err := resolvconf.Get()
+		f, err := resolvconfGet()
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return "", err
@@ -88,14 +91,12 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.Identity
 			if err != nil {
 				return "", err
 			}
-		} else {
-			// Logic seems odd here: why are we filtering localhost IPs
-			// only if neither of the DNS configs were specified?
-			// Logic comes from https://github.com/docker/libnetwork/blob/164a77ee6d24fb2b1d61f8ad3403a51d8453899e/sandbox_dns_unix.go#L230-L269
-			f, err = resolvconf.FilterResolvDNS(f.Content, true)
-			if err != nil {
-				return "", err
-			}
+			dt = f.Content
+		}
+
+		f, err = resolvconf.FilterResolvDNS(dt, true)
+		if err != nil {
+			return "", err
 		}
 
 		tmpPath := p + ".tmp"
