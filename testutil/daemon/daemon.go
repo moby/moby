@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/sockets"
@@ -213,6 +214,7 @@ func (d *Daemon) NewClient(extraOpts ...client.Opt) (*client.Client, error) {
 // Cleanup cleans the daemon files : exec root (network namespaces, ...), swarmkit files
 func (d *Daemon) Cleanup(t testing.TB) {
 	t.Helper()
+	cleanupMount(t, d)
 	// Cleanup swarmkit wal files if present
 	cleanupRaftDir(t, d.Root)
 	cleanupNetworkNamespace(t, d.execRoot)
@@ -708,6 +710,15 @@ func (d *Daemon) Info(t testing.TB) types.Info {
 	info, err := c.Info(context.Background())
 	assert.NilError(t, err)
 	return info
+}
+
+// cleanupMount unmounts the daemon root directory, or logs a message if
+// unmounting failed.
+func cleanupMount(t testing.TB, d *Daemon) {
+	t.Helper()
+	if err := mount.Unmount(d.Root); err != nil {
+		d.log.Logf("[%s] unable to unmount daemon root (%s): %v", d.id, d.Root, err)
+	}
 }
 
 func cleanupRaftDir(t testing.TB, rootPath string) {
