@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"golang.org/x/sys/unix"
 	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 // #5979
@@ -434,7 +435,7 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *testing.T) {
 	}
 
 	for _, s := range expectedSubstrings {
-		assert.Check(c, strings.Contains(out, s))
+		assert.Check(c, is.Contains(out, s))
 	}
 }
 
