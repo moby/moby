@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -190,6 +191,7 @@ func TODOBuildkit() bool {
 
 // testRequires checks if the environment satisfies the requirements
 // for the test to run or skips the tests.
-func testRequires(c interface{}, requirements ...requirement.Test) {
-	requirement.Is(c.(requirement.SkipT), requirements...)
+func testRequires(t *testing.T, requirements ...requirement.Test) {
+	t.Helper()
+	requirement.Is(t, requirements...)
 }
