@@ -72,6 +72,7 @@ type Daemon struct {
 	init                       bool
 	dockerdBinary              string
 	log                        logT
+	pidFile                    string
 
 	// swarm related field
 	swarmListenAddr string
@@ -246,11 +247,15 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		return errors.Wrapf(err, "[%s] could not find docker binary in $PATH", d.id)
 	}
 
+	if d.pidFile == "" {
+		d.pidFile = filepath.Join(d.Folder, "docker.pid")
+	}
+
 	args := append(d.GlobalFlags,
 		"--containerd", containerdSocket,
 		"--data-root", d.Root,
 		"--exec-root", d.execRoot,
-		"--pidfile", fmt.Sprintf("%s/docker.pid", d.Folder),
+		"--pidfile", d.pidFile,
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 		"--containerd-namespace", d.id,
 		"--containerd-plugins-namespace", d.id+"p",
@@ -395,7 +400,10 @@ func (d *Daemon) Kill() error {
 		return err
 	}
 
-	return os.Remove(fmt.Sprintf("%s/docker.pid", d.Folder))
+	if d.pidFile != "" {
+		_ = os.Remove(d.pidFile)
+	}
+	return nil
 }
 
 // Pid returns the pid of the daemon
@@ -512,7 +520,10 @@ out2:
 
 	d.cmd.Wait()
 
-	return os.Remove(fmt.Sprintf("%s/docker.pid", d.Folder))
+	if d.pidFile != "" {
+		_ = os.Remove(d.pidFile)
+	}
+	return nil
 }
 
 // Restart will restart the daemon by first stopping it and the starting it.
