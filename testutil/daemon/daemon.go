@@ -465,8 +465,13 @@ func (d *Daemon) StopWithError() (err error) {
 			d.log.Logf("[%s] error while stopping daemon: %v", d.id, err)
 		} else {
 			d.log.Logf("[%s] daemon stopped", d.id)
+			if d.pidFile != "" {
+				_ = os.Remove(d.pidFile)
+			}
 		}
-		d.logFile.Close()
+		if err := d.logFile.Close(); err != nil {
+			d.log.Logf("[%s] failed to close daemon logfile: %v", d.id, err)
+		}
 		d.cmd = nil
 	}()
 
@@ -519,12 +524,7 @@ out2:
 		return err
 	}
 
-	d.cmd.Wait()
-
-	if d.pidFile != "" {
-		_ = os.Remove(d.pidFile)
-	}
-	return nil
+	return d.cmd.Wait()
 }
 
 // Restart will restart the daemon by first stopping it and the starting it.
