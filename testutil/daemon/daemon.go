@@ -196,7 +196,7 @@ func (d *Daemon) NewClientT(t testing.TB, extraOpts ...client.Opt) *client.Clien
 	t.Helper()
 
 	c, err := d.NewClient(extraOpts...)
-	assert.NilError(t, err, "cannot create daemon client")
+	assert.NilError(t, err, "[%s] could not create daemon client", d.id)
 	return c
 }
 
@@ -215,16 +215,15 @@ func (d *Daemon) NewClient(extraOpts ...client.Opt) (*client.Client, error) {
 func (d *Daemon) Cleanup(t testing.TB) {
 	t.Helper()
 	cleanupMount(t, d)
-	// Cleanup swarmkit wal files if present
-	cleanupRaftDir(t, d.Root)
-	cleanupNetworkNamespace(t, d.execRoot)
+	cleanupRaftDir(t, d)
+	cleanupNetworkNamespace(t, d)
 }
 
 // Start starts the daemon and return once it is ready to receive requests.
 func (d *Daemon) Start(t testing.TB, args ...string) {
 	t.Helper()
 	if err := d.StartWithError(args...); err != nil {
-		t.Fatalf("failed to start daemon with arguments %v : %v", args, err)
+		t.Fatalf("[%s] failed to start daemon with arguments %v : %v", d.id, args, err)
 	}
 }
 
@@ -233,7 +232,7 @@ func (d *Daemon) Start(t testing.TB, args ...string) {
 func (d *Daemon) StartWithError(args ...string) error {
 	logFile, err := os.OpenFile(filepath.Join(d.Folder, "docker.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
 	if err != nil {
-		return errors.Wrapf(err, "[%s] Could not create %s/docker.log", d.id, d.Folder)
+		return errors.Wrapf(err, "[%s] failed to create logfile", d.id)
 	}
 
 	return d.StartWithLogFile(logFile, args...)
@@ -437,9 +436,9 @@ func (d *Daemon) Stop(t testing.TB) {
 	err := d.StopWithError()
 	if err != nil {
 		if err != errDaemonNotStarted {
-			t.Fatalf("Error while stopping the daemon %s : %v", d.id, err)
+			t.Fatalf("[%s] error while stopping the daemon: %v", d.id, err)
 		} else {
-			t.Logf("Daemon %s is not started", d.id)
+			t.Logf("[%s] daemon is not started", d.id)
 		}
 	}
 }
@@ -453,10 +452,10 @@ func (d *Daemon) StopWithError() (err error) {
 		return errDaemonNotStarted
 	}
 	defer func() {
-		if err == nil {
-			d.log.Logf("[%s] Daemon stopped", d.id)
+		if err != nil {
+			d.log.Logf("[%s] error while stopping daemon: %v", d.id, err)
 		} else {
-			d.log.Logf("[%s] Error when stopping daemon: %v", d.id, err)
+			d.log.Logf("[%s] daemon stopped", d.id)
 		}
 		d.logFile.Close()
 		d.cmd = nil
@@ -467,13 +466,13 @@ func (d *Daemon) StopWithError() (err error) {
 	defer ticker.Stop()
 	tick := ticker.C
 
-	d.log.Logf("[%s] Stopping daemon", d.id)
+	d.log.Logf("[%s] stopping daemon", d.id)
 
 	if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
 		if strings.Contains(err.Error(), "os: process already finished") {
 			return errDaemonNotStarted
 		}
-		return errors.Errorf("could not send signal: %v", err)
+		return errors.Errorf("[%s] could not send signal: %v", d.id, err)
 	}
 
 out1:
@@ -483,7 +482,7 @@ out1:
 			return err
 		case <-time.After(20 * time.Second):
 			// time for stopping jobs and run onShutdown hooks
-			d.log.Logf("[%s] daemon stop timeout", d.id)
+			d.log.Logf("[%s] daemon stop timed out after 20 seconds", d.id)
 			break out1
 		}
 	}
@@ -496,18 +495,18 @@ out2:
 		case <-tick:
 			i++
 			if i > 5 {
-				d.log.Logf("tried to interrupt daemon for %d times, now try to kill it", i)
+				d.log.Logf("[%s] tried to interrupt daemon for %d times, now try to kill it", d.id, i)
 				break out2
 			}
-			d.log.Logf("Attempt #%d: daemon is still running with pid %d", i, d.cmd.Process.Pid)
+			d.log.Logf("[%d] attempt #%d/5: daemon is still running with pid %d", i, d.cmd.Process.Pid)
 			if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
-				return errors.Errorf("could not send signal: %v", err)
+				return errors.Errorf("[%s] attempt #%d/5 could not send signal: %v", d.id, i, err)
 			}
 		}
 	}
 
 	if err := d.cmd.Process.Kill(); err != nil {
-		d.log.Logf("Could not kill daemon: %v", err)
+		d.log.Logf("[%s] failed to kill daemon: %v", d.id, err)
 		return err
 	}
 
@@ -578,15 +577,15 @@ func (d *Daemon) ReloadConfig() error {
 
 	<-started
 	if err := signalDaemonReload(d.cmd.Process.Pid); err != nil {
-		return errors.Errorf("error signaling daemon reload: %v", err)
+		return errors.Errorf("[%s] error signaling daemon reload: %v", d.id, err)
 	}
 	select {
 	case err := <-errCh:
 		if err != nil {
-			return errors.Errorf("error waiting for daemon reload event: %v", err)
+			return errors.Wrapf(err, "[%s] error waiting for daemon reload event", d.id)
 		}
 	case <-time.After(30 * time.Second):
-		return errors.New("timeout waiting for daemon reload event")
+		return errors.Errorf("[%s] daemon reload event timed out after 30 seconds", d.id)
 	}
 	return nil
 }
@@ -595,19 +594,19 @@ func (d *Daemon) ReloadConfig() error {
 func (d *Daemon) LoadBusybox(t testing.TB) {
 	t.Helper()
 	clientHost, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(t, err, "failed to create client")
+	assert.NilError(t, err, "[%s] failed to create client", d.id)
 	defer clientHost.Close()
 
 	ctx := context.Background()
 	reader, err := clientHost.ImageSave(ctx, []string{"busybox:latest"})
-	assert.NilError(t, err, "failed to download busybox")
+	assert.NilError(t, err, "[%s] failed to download busybox", d.id)
 	defer reader.Close()
 
 	c := d.NewClientT(t)
 	defer c.Close()
 
 	resp, err := c.ImageLoad(ctx, reader, true)
-	assert.NilError(t, err, "failed to load busybox")
+	assert.NilError(t, err, "[%s] failed to load busybox", d.id)
 	defer resp.Body.Close()
 }
 
@@ -721,12 +720,13 @@ func cleanupMount(t testing.TB, d *Daemon) {
 	}
 }
 
-func cleanupRaftDir(t testing.TB, rootPath string) {
+// cleanupRaftDir removes swarmkit wal files if present
+func cleanupRaftDir(t testing.TB, d *Daemon) {
 	t.Helper()
 	for _, p := range []string{"wal", "wal-v3-encrypted", "snap-v3-encrypted"} {
-		dir := filepath.Join(rootPath, "swarm/raft", p)
+		dir := filepath.Join(d.Root, "swarm/raft", p)
 		if err := os.RemoveAll(dir); err != nil {
-			t.Logf("error removing %v: %v", dir, err)
+			t.Logf("[%s] error removing %v: %v", d.id, dir, err)
 		}
 	}
 }
