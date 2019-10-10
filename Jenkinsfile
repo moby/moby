@@ -87,6 +87,8 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/validate/default
                                 '''
@@ -101,6 +103,8 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     dynbinary-daemon \
@@ -169,6 +173,8 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/test/unit
                                 '''
@@ -188,6 +194,8 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/validate/vendor
                                 '''
@@ -281,6 +289,8 @@ pipeline {
                                           -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                           -e DOCKER_GRAPHDRIVER \
                                           -e TIMEOUT \
+                                          -e VALIDATE_REPO=${GIT_URL} \
+                                          -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                           docker:${GIT_COMMIT} \
                                           hack/make.sh \
                                             "$1" \
@@ -382,7 +392,7 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
@@ -395,6 +405,8 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/test/unit
                                 '''
@@ -418,6 +430,8 @@ pipeline {
                                   -e TESTDEBUG \
                                   -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     dynbinary \
@@ -486,7 +500,7 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
@@ -501,6 +515,8 @@ pipeline {
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TEST_SKIP_INTEGRATION \
                                   -e TIMEOUT \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     dynbinary \
@@ -567,7 +583,7 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .'
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
                             }
                         }
                         stage("Unit tests") {
@@ -579,6 +595,8 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/test/unit
                                 '''
@@ -602,6 +620,8 @@ pipeline {
                                   -e TESTDEBUG \
                                   -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     dynbinary \
@@ -669,7 +689,7 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .'
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
                             }
                         }
                         stage("Integration-cli tests") {
@@ -683,6 +703,8 @@ pipeline {
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TEST_SKIP_INTEGRATION \
                                   -e TIMEOUT \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
                                     dynbinary \
