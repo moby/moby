@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/daemon/graphdriver"
@@ -21,6 +22,7 @@ import (
 
 var keyParent = []byte("parent")
 var keyCommitted = []byte("committed")
+var keyIsCommitted = []byte("iscommitted")
 var keyChainID = []byte("chainid")
 var keySize = []byte("size")
 
@@ -52,16 +54,16 @@ type snapshotter struct {
 }
 
 // NewSnapshotter creates a new snapshotter
-func NewSnapshotter(opt Opt) (snapshot.Snapshotter, error) {
+func NewSnapshotter(opt Opt, prevLM leases.Manager) (snapshot.Snapshotter, leases.Manager, error) {
 	dbPath := filepath.Join(opt.Root, "snapshots.db")
 	db, err := bolt.Open(dbPath, 0600, nil)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to open database file %s", dbPath)
+		return nil, nil, errors.Wrapf(err, "failed to open database file %s", dbPath)
 	}
 
 	reg, ok := opt.LayerStore.(graphIDRegistrar)
 	if !ok {
-		return nil, errors.Errorf("layerstore doesn't support graphID registration")
+		return nil, nil, errors.Errorf("layerstore doesn't support graphID registration")
 	}
 
 	s := &snapshotter{
@@ -70,7 +72,28 @@ func NewSnapshotter(opt Opt) (snapshot.Snapshotter, error) {
 		refs: map[string]layer.Layer{},
 		reg:  reg,
 	}
-	return s, nil
+
+	lm := newLeaseManager(s, prevLM)
+
+	// TODO: temp-leases
+
+	ll, err := lm.List(context.TODO())
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, l := range ll {
+		rr, err := lm.ListResources(context.TODO(), l)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, r := range rr {
+			if r.Type == "snapshots/default" {
+				lm.addRef(l.ID, r.ID)
+			}
+		}
+	}
+
+	return s, lm, nil
 }
 
 func (s *snapshotter) Name() string {
@@ -295,6 +318,10 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 }
 
 func (s *snapshotter) Remove(ctx context.Context, key string) error {
+	return errors.Errorf("calling snapshot.remove is forbidden")
+}
+
+func (s *snapshotter) remove(ctx context.Context, key string) error {
 	l, err := s.getLayer(key, true)
 	if err != nil {
 		return err
@@ -303,8 +330,17 @@ func (s *snapshotter) Remove(ctx context.Context, key string) error {
 	id, _ := s.getGraphDriverID(key)
 
 	var found bool
+	var alreadyCommitted bool
 	if err := s.db.Update(func(tx *bolt.Tx) error {
-		found = tx.Bucket([]byte(key)) != nil
+		b := tx.Bucket([]byte(key))
+		found = b != nil
+
+		if b != nil {
+			if b.Get(keyIsCommitted) != nil {
+				alreadyCommitted = true
+				return nil
+			}
+		}
 		if found {
 			tx.DeleteBucket([]byte(key))
 			if id != key {
@@ -314,6 +350,10 @@ func (s *snapshotter) Remove(ctx context.Context, key string) error {
 		return nil
 	}); err != nil {
 		return err
+	}
+
+	if alreadyCommitted {
+		return nil
 	}
 
 	if l != nil {
@@ -337,7 +377,17 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 		if err != nil {
 			return err
 		}
-		return b.Put(keyCommitted, []byte(key))
+		if err := b.Put(keyCommitted, []byte(key)); err != nil {
+			return err
+		}
+		b, err = tx.CreateBucketIfNotExists([]byte(key))
+		if err != nil {
+			return err
+		}
+		if err := b.Put(keyIsCommitted, []byte{}); err != nil {
+			return err
+		}
+		return nil
 	})
 }
 
