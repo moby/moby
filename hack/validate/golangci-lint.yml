@@ -46,10 +46,6 @@ issues:
     - text: "G202: SQL string concatenation"
       linters:
         - gosec
-    # FIXME temporarily suppress these. See #39928
-    - text: "SA1019: grpc.WithDialer is deprecated"
-      linters:
-        - staticcheck
     # FIXME temporarily suppress these. See #39924
     - text: "SA1019: h.Xattrs is deprecated: Use PAXRecords instead"
       linters:

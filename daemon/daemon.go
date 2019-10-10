@@ -887,7 +887,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	gopts := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithBackoffMaxDelay(3 * time.Second),
-		grpc.WithDialer(dialer.Dialer),
+		grpc.WithContextDialer(dialer.ContextDialer),
 
 		// TODO(stevvooe): We may need to allow configuration of this on the client.
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
