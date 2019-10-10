@@ -297,19 +297,21 @@ WORKDIR /go/src/github.com/docker/docker
 VOLUME /var/lib/docker
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
+
+FROM dev AS src
 COPY . /go/src/github.com/docker/docker
 
-FROM dev AS build-binary
+FROM src AS build-binary
 ARG DOCKER_GITCOMMIT=HEAD
 RUN --mount=type=cache,target=/root/.cache/go-build \
 	hack/make.sh binary
 
-FROM dev AS build-dynbinary
+FROM src AS build-dynbinary
 ARG DOCKER_GITCOMMIT=HEAD
 RUN --mount=type=cache,target=/root/.cache/go-build \
 	hack/make.sh dynbinary
 
-FROM dev AS build-cross
+FROM src AS build-cross
 ARG DOCKER_GITCOMMIT=HEAD
 ARG DOCKER_CROSSPLATFORMS=""
 RUN --mount=type=cache,target=/root/.cache/go-build \
@@ -324,4 +326,4 @@ COPY --from=build-dynbinary /go/src/github.com/docker/docker/bundles/ /
 FROM scratch AS cross
 COPY --from=build-cross /go/src/github.com/docker/docker/bundles/ /
 
-FROM dev AS final
+FROM src AS final

@@ -192,7 +192,11 @@ install: ## install the linux binaries
 run: build ## run the docker daemon in a container
 	$(DOCKER_RUN_DOCKER) sh -c "KEEPBUNDLE=1 hack/make.sh install-binary run"
 
+ifeq ($(BIND_DIR), .)
 shell: DOCKER_BUILD_ARGS += --target=dev
+else
+shell: DOCKER_BUILD_ARGS += --target=final
+endif
 shell: BUILDX_BUILD_EXTRA_OPTS += --load
 shell: build  ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash
