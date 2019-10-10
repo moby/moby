@@ -51,10 +51,8 @@ type snapshotter struct {
 	reg  graphIDRegistrar
 }
 
-var _ snapshot.SnapshotterBase = &snapshotter{}
-
 // NewSnapshotter creates a new snapshotter
-func NewSnapshotter(opt Opt) (snapshot.SnapshotterBase, error) {
+func NewSnapshotter(opt Opt) (snapshot.Snapshotter, error) {
 	dbPath := filepath.Join(opt.Root, "snapshots.db")
 	db, err := bolt.Open(dbPath, 0600, nil)
 	if err != nil {
@@ -87,11 +85,11 @@ func (s *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 	origParent := parent
 	if parent != "" {
 		if l, err := s.getLayer(parent, false); err != nil {
-			return err
+			return errors.Wrapf(err, "failed to get parent layer %s", parent)
 		} else if l != nil {
 			parent, err = getGraphID(l)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "failed to get parent graphid %s", l.ChainID())
 			}
 		} else {
 			parent, _ = s.getGraphDriverID(parent)
@@ -146,7 +144,7 @@ func (s *snapshotter) getLayer(key string, withCommitted bool) (layer.Layer, err
 				return nil
 			}); err != nil {
 				s.mu.Unlock()
-				return nil, err
+				return nil, errors.WithStack(err)
 			}
 			if id == "" {
 				s.mu.Unlock()
@@ -157,12 +155,12 @@ func (s *snapshotter) getLayer(key string, withCommitted bool) (layer.Layer, err
 		l, err = s.opt.LayerStore.Get(id)
 		if err != nil {
 			s.mu.Unlock()
-			return nil, err
+			return nil, errors.WithStack(err)
 		}
 		s.refs[key] = l
 		if err := s.db.Update(func(tx *bolt.Tx) error {
 			_, err := tx.CreateBucketIfNotExists([]byte(key))
-			return err
+			return errors.WithStack(err)
 		}); err != nil {
 			s.mu.Unlock()
 			return nil, err
