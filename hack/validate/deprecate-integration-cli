@@ -9,17 +9,17 @@ new_tests=$(
 	grep -E '^\+func (.*) Test' || true
 )
 
-if [ -z "$new_tests" ]; then
+if [ -n "$new_tests" ]; then
+	{
+		echo "The following new tests were added to integration-cli:"
+		echo
+		echo "$new_tests"
+		echo
+		echo "integration-cli is deprecated. Please add an API integration test to"
+		echo "./integration/COMPONENT/. See ./TESTING.md for more details."
+		echo
+	} >&2
+	false
+else
 	echo 'Congratulations!  No new tests added to integration-cli.'
-	exit
 fi
-
-echo "The following new tests were added to integration-cli:"
-echo
-echo "$new_tests"
-echo
-echo "integration-cli is deprecated. Please add an API integration test to"
-echo "./integration/COMPONENT/. See ./TESTING.md for more details."
-echo
-
-exit 1
