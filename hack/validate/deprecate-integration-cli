@@ -5,7 +5,7 @@ export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${SCRIPTDIR}/.validate"
 
 new_tests=$(
-	validate_diff --diff-filter=ACMR --unified=0 -- 'integration-cli/*_cli_*.go' |
+	validate_diff --diff-filter=ACMR --unified=0 -- 'integration-cli/*_api_*.go' 'integration-cli/*_cli_*.go' |
 	grep -E '^\+func (.*) Test' || true
 )
 
