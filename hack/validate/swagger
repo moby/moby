@@ -9,5 +9,10 @@ unset IFS
 
 if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ ${#files[@]} -gt 0 ]; then
 	LANG=C.UTF-8 yamllint -c "${SCRIPTDIR}"/.swagger-yamllint api/swagger.yaml
-	swagger validate api/swagger.yaml
+	if out=$(swagger validate api/swagger.yaml); then
+		echo "Congratulations!  ${out}"
+	else
+		echo  "${out}" >&2
+		false
+	fi
 fi
