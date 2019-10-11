@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"golang.org/x/sys/unix"
 	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 // #5979
@@ -391,46 +392,29 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *testing.T) {
 
 	// daemon config file
 	configFilePath := "test.json"
-	configFile, err := os.Create(configFilePath)
-	assert.NilError(c, err)
 	defer os.Remove(configFilePath)
 
 	daemonConfig := `{"labels":["foo=bar"]}`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
-	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
-
-	// Get daemon ID
-	out, err := s.d.Cmd("info")
+	err := ioutil.WriteFile(configFilePath, []byte(daemonConfig), 0644)
 	assert.NilError(c, err)
-	daemonID := ""
-	daemonName := ""
-	for _, line := range strings.Split(out, "\n") {
-		if strings.HasPrefix(line, "ID: ") {
-			daemonID = strings.TrimPrefix(line, "ID: ")
-		} else if strings.HasPrefix(line, "Name: ") {
-			daemonName = strings.TrimPrefix(line, "Name: ")
-		}
-	}
-	assert.Assert(c, daemonID != "")
+	s.d.Start(c, "--config-file="+configFilePath)
 
-	configFile, err = os.Create(configFilePath)
-	assert.NilError(c, err)
+	info := s.d.Info(c)
+
 	daemonConfig = `{"max-concurrent-downloads":1,"labels":["bar=foo"], "shutdown-timeout": 10}`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
+	err = ioutil.WriteFile(configFilePath, []byte(daemonConfig), 0644)
+	assert.NilError(c, err)
 
 	assert.NilError(c, s.d.Signal(unix.SIGHUP))
-
 	time.Sleep(3 * time.Second)
 
-	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c))
+	out, err := s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c))
 	assert.NilError(c, err)
 
 	// only check for values known (daemon ID/name) or explicitly set above,
 	// otherwise just check for names being present.
 	expectedSubstrings := []string{
-		" daemon reload " + daemonID + " ",
+		" daemon reload " + info.ID + " ",
 		"(allow-nondistributable-artifacts=[",
 		" cluster-advertise=, ",
 		" cluster-store=, ",
@@ -444,14 +428,14 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *testing.T) {
 		" live-restore=",
 		" max-concurrent-downloads=1, ",
 		" max-concurrent-uploads=5, ",
-		" name=" + daemonName,
+		" name=" + info.Name,
 		" registry-mirrors=[",
 		" runtimes=",
 		" shutdown-timeout=10)",
 	}
 
 	for _, s := range expectedSubstrings {
-		assert.Check(c, strings.Contains(out, s))
+		assert.Check(c, is.Contains(out, s))
 	}
 }
 
@@ -459,49 +443,35 @@ func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *testing.T) {
 
 	// daemon config file
 	configFilePath := "test.json"
-	configFile, err := os.Create(configFilePath)
-	assert.NilError(c, err)
 	defer os.Remove(configFilePath)
 
 	daemonConfig := `{"labels":["foo=bar"]}`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
-	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
-
-	// Get daemon ID
-	out, err := s.d.Cmd("info")
+	err := ioutil.WriteFile(configFilePath, []byte(daemonConfig), 0644)
 	assert.NilError(c, err)
-	daemonID := ""
-	daemonName := ""
-	for _, line := range strings.Split(out, "\n") {
-		if strings.HasPrefix(line, "ID: ") {
-			daemonID = strings.TrimPrefix(line, "ID: ")
-		} else if strings.HasPrefix(line, "Name: ") {
-			daemonName = strings.TrimPrefix(line, "Name: ")
-		}
-	}
-	assert.Assert(c, daemonID != "")
-	assert.NilError(c, s.d.Signal(unix.SIGHUP))
+	s.d.Start(c, "--config-file="+configFilePath)
 
+	info := s.d.Info(c)
+
+	assert.NilError(c, s.d.Signal(unix.SIGHUP))
 	time.Sleep(3 * time.Second)
 
-	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", fmt.Sprintf("daemon=%s", daemonID))
+	out, err := s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", fmt.Sprintf("daemon=%s", info.ID))
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf("daemon reload %s", daemonID)))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf("daemon reload %s", info.ID)))
 
-	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", fmt.Sprintf("daemon=%s", daemonName))
+	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", fmt.Sprintf("daemon=%s", info.ID))
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf("daemon reload %s", daemonID)))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf("daemon reload %s", info.ID)))
 
 	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", "daemon=foo")
 	assert.NilError(c, err)
-	assert.Assert(c, !strings.Contains(out, fmt.Sprintf("daemon reload %s", daemonID)))
+	assert.Assert(c, !strings.Contains(out, fmt.Sprintf("daemon reload %s", info.ID)))
 
 	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", "type=daemon")
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(out, fmt.Sprintf("daemon reload %s", daemonID)))
+	assert.Assert(c, strings.Contains(out, fmt.Sprintf("daemon reload %s", info.ID)))
 
 	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", "type=container")
 	assert.NilError(c, err)
-	assert.Assert(c, !strings.Contains(out, fmt.Sprintf("daemon reload %s", daemonID)))
+	assert.Assert(c, !strings.Contains(out, fmt.Sprintf("daemon reload %s", info.ID)))
 }
