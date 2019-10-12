@@ -123,7 +123,7 @@ func TestImageTag(t *testing.T) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
-				if req.Method != "POST" {
+				if req.Method != http.MethodPost {
 					return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 				}
 				query := req.URL.Query()

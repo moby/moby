@@ -35,7 +35,7 @@ func TestSwarmJoin(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			if req.Method != "POST" {
+			if req.Method != http.MethodPost {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
 			return &http.Response{

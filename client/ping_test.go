@@ -90,11 +90,11 @@ func TestPingHeadFallback(t *testing.T) {
 	}{
 		{
 			status:   http.StatusOK,
-			expected: "HEAD",
+			expected: http.MethodHead,
 		},
 		{
 			status:   http.StatusInternalServerError,
-			expected: "HEAD",
+			expected: http.MethodHead,
 		},
 		{
 			status:   http.StatusNotFound,
