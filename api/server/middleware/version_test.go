@@ -25,7 +25,7 @@ func TestVersionMiddlewareVersion(t *testing.T) {
 	m := NewVersionMiddleware(defaultVersion, defaultVersion, minVersion)
 	h := m.WrapHandler(handler)
 
-	req, _ := http.NewRequest("GET", "/containers/json", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/containers/json", nil)
 	resp := httptest.NewRecorder()
 	ctx := context.Background()
 
@@ -76,7 +76,7 @@ func TestVersionMiddlewareWithErrorsReturnsHeaders(t *testing.T) {
 	m := NewVersionMiddleware(defaultVersion, defaultVersion, minVersion)
 	h := m.WrapHandler(handler)
 
-	req, _ := http.NewRequest("GET", "/containers/json", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/containers/json", nil)
 	resp := httptest.NewRecorder()
 	ctx := context.Background()
 
