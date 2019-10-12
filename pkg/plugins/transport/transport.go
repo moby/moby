@@ -27,7 +27,7 @@ func newHTTPRequest(path string, data io.Reader) (*http.Request, error) {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
-	req, err := http.NewRequest("POST", path, data)
+	req, err := http.NewRequest(http.MethodPost, path, data)
 	if err != nil {
 		return nil, err
 	}

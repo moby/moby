@@ -95,7 +95,7 @@ func TestPluginWithNoManifest(t *testing.T) {
 	}
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
+		if r.Method != http.MethodPost {
 			t.Fatalf("Expected POST, got %s\n", r.Method)
 		}
 

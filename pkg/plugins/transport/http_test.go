@@ -17,5 +17,5 @@ func TestHTTPTransport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Check(t, is.Equal("POST", request.Method))
+	assert.Check(t, is.Equal(http.MethodPost, request.Method))
 }
