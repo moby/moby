@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/errdefs"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )
@@ -33,7 +34,9 @@ func TestContainerLogsError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{})
-	assert.Check(t, is.Error(err, "Error response from daemon: Server error"))
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
+	}
 	_, err = client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{
 		Since: "2006-01-02TZ",
 	})

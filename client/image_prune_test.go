@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/errdefs"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"gotest.tools/assert"
@@ -22,10 +24,10 @@ func TestImagesPruneError(t *testing.T) {
 		version: "1.25",
 	}
 
-	filters := filters.NewArgs()
-
-	_, err := client.ImagesPrune(context.Background(), filters)
-	assert.Check(t, is.Error(err, "Error response from daemon: Server error"))
+	_, err := client.ImagesPrune(context.Background(), filters.NewArgs())
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
+	}
 }
 
 func TestImagesPrune(t *testing.T) {

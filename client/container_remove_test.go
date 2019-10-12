@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/errdefs"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )
@@ -19,7 +20,9 @@ func TestContainerRemoveError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerRemove(context.Background(), "container_id", types.ContainerRemoveOptions{})
-	assert.Check(t, is.Error(err, "Error response from daemon: Server error"))
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
+	}
 }
 
 func TestContainerRemoveNotFoundError(t *testing.T) {

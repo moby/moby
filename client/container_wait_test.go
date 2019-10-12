@@ -25,11 +25,8 @@ func TestContainerWaitError(t *testing.T) {
 	case result := <-resultC:
 		t.Fatalf("expected to not get a wait result, got %d", result.StatusCode)
 	case err := <-errC:
-		if err.Error() != "Error response from daemon: Server error" {
-			t.Fatalf("expected a Server Error, got %v", err)
-		}
 		if !errdefs.IsSystem(err) {
-			t.Fatalf("expected a Server Error, got %T", err)
+			t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 		}
 	}
 }
