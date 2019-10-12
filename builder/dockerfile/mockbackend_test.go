@@ -104,7 +104,7 @@ func (i *mockImage) OperatingSystem() string {
 
 func (i *mockImage) MarshalJSON() ([]byte, error) {
 	type rawImage mockImage
-	return json.Marshal(rawImage(*i))
+	return json.Marshal(rawImage(*i)) //nolint:staticcheck
 }
 
 type mockImageCache struct {
