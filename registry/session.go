@@ -289,7 +289,7 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io
 		imageURL   = fmt.Sprintf("%simages/%s/layer", registry, imgID)
 	)
 
-	req, err := http.NewRequest("GET", imageURL, nil)
+	req, err := http.NewRequest(http.MethodGet, imageURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Error while getting from the server: %v", err)
 	}
@@ -423,7 +423,7 @@ func (r *Session) GetRepositoryData(name reference.Named) (*RepositoryData, erro
 
 	logrus.Debugf("[registry] Calling GET %s", repositoryTarget)
 
-	req, err := http.NewRequest("GET", repositoryTarget, nil)
+	req, err := http.NewRequest(http.MethodGet, repositoryTarget, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -490,7 +490,7 @@ func (r *Session) PushImageChecksumRegistry(imgData *ImgData, registry string) e
 
 	logrus.Debugf("[registry] Calling PUT %s", u)
 
-	req, err := http.NewRequest("PUT", u, nil)
+	req, err := http.NewRequest(http.MethodPut, u, nil)
 	if err != nil {
 		return err
 	}
@@ -528,7 +528,7 @@ func (r *Session) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regist
 
 	logrus.Debugf("[registry] Calling PUT %s", u)
 
-	req, err := http.NewRequest("PUT", u, bytes.NewReader(jsonRaw))
+	req, err := http.NewRequest(http.MethodPut, u, bytes.NewReader(jsonRaw))
 	if err != nil {
 		return err
 	}
@@ -573,7 +573,7 @@ func (r *Session) PushImageLayerRegistry(imgID string, layer io.Reader, registry
 	h.Write([]byte{'\n'})
 	checksumLayer := io.TeeReader(tarsumLayer, h)
 
-	req, err := http.NewRequest("PUT", u, checksumLayer)
+	req, err := http.NewRequest(http.MethodPut, u, checksumLayer)
 	if err != nil {
 		return "", "", err
 	}
@@ -610,7 +610,7 @@ func (r *Session) PushRegistryTag(remote reference.Named, revision, tag, registr
 	revision = "\"" + revision + "\""
 	path := fmt.Sprintf("repositories/%s/tags/%s", reference.Path(remote), tag)
 
-	req, err := http.NewRequest("PUT", registry+path, strings.NewReader(revision))
+	req, err := http.NewRequest(http.MethodPut, registry+path, strings.NewReader(revision))
 	if err != nil {
 		return err
 	}
@@ -714,7 +714,7 @@ func (r *Session) PushImageJSONIndex(remote reference.Named, imgList []*ImgData,
 }
 
 func (r *Session) putImageRequest(u string, headers map[string][]string, body []byte) (*http.Response, error) {
-	req, err := http.NewRequest("PUT", u, bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPut, u, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -741,7 +741,7 @@ func (r *Session) SearchRepositories(term string, limit int) (*registrytypes.Sea
 	logrus.Debugf("Index server: %s", r.indexEndpoint)
 	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term) + "&n=" + url.QueryEscape(fmt.Sprintf("%d", limit))
 
-	req, err := http.NewRequest("GET", u, nil)
+	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, errors.Wrap(errdefs.InvalidParameter(err), "Error building request")
 	}

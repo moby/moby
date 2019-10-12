@@ -97,19 +97,19 @@ func init() {
 	r := mux.NewRouter()
 
 	// /v1/
-	r.HandleFunc("/v1/_ping", handlerGetPing).Methods("GET")
-	r.HandleFunc("/v1/images/{image_id:[^/]+}/{action:json|layer|ancestry}", handlerGetImage).Methods("GET")
-	r.HandleFunc("/v1/images/{image_id:[^/]+}/{action:json|layer|checksum}", handlerPutImage).Methods("PUT")
-	r.HandleFunc("/v1/repositories/{repository:.+}/tags", handlerGetDeleteTags).Methods("GET", "DELETE")
-	r.HandleFunc("/v1/repositories/{repository:.+}/tags/{tag:.+}", handlerGetTag).Methods("GET")
-	r.HandleFunc("/v1/repositories/{repository:.+}/tags/{tag:.+}", handlerPutTag).Methods("PUT")
-	r.HandleFunc("/v1/users{null:.*}", handlerUsers).Methods("GET", "POST", "PUT")
-	r.HandleFunc("/v1/repositories/{repository:.+}{action:/images|/}", handlerImages).Methods("GET", "PUT", "DELETE")
-	r.HandleFunc("/v1/repositories/{repository:.+}/auth", handlerAuth).Methods("PUT")
-	r.HandleFunc("/v1/search", handlerSearch).Methods("GET")
+	r.HandleFunc("/v1/_ping", handlerGetPing).Methods(http.MethodGet)
+	r.HandleFunc("/v1/images/{image_id:[^/]+}/{action:json|layer|ancestry}", handlerGetImage).Methods(http.MethodGet)
+	r.HandleFunc("/v1/images/{image_id:[^/]+}/{action:json|layer|checksum}", handlerPutImage).Methods(http.MethodPut)
+	r.HandleFunc("/v1/repositories/{repository:.+}/tags", handlerGetDeleteTags).Methods(http.MethodGet, http.MethodDelete)
+	r.HandleFunc("/v1/repositories/{repository:.+}/tags/{tag:.+}", handlerGetTag).Methods(http.MethodGet)
+	r.HandleFunc("/v1/repositories/{repository:.+}/tags/{tag:.+}", handlerPutTag).Methods(http.MethodPut)
+	r.HandleFunc("/v1/users{null:.*}", handlerUsers).Methods(http.MethodGet, http.MethodPost, http.MethodPut)
+	r.HandleFunc("/v1/repositories/{repository:.+}{action:/images|/}", handlerImages).Methods(http.MethodGet, http.MethodPut, http.MethodDelete)
+	r.HandleFunc("/v1/repositories/{repository:.+}/auth", handlerAuth).Methods(http.MethodPut)
+	r.HandleFunc("/v1/search", handlerSearch).Methods(http.MethodGet)
 
 	// /v2/
-	r.HandleFunc("/v2/version", handlerGetPing).Methods("GET")
+	r.HandleFunc("/v2/version", handlerGetPing).Methods(http.MethodGet)
 
 	testHTTPServer = httptest.NewServer(handlerAccessLog(r))
 	testHTTPSServer = httptest.NewTLSServer(handlerAccessLog(r))
@@ -350,7 +350,7 @@ func handlerGetDeleteTags(w http.ResponseWriter, r *http.Request) {
 		apiError(w, "Repository not found", 404)
 		return
 	}
-	if r.Method == "DELETE" {
+	if r.Method == http.MethodDelete {
 		delete(testRepositories, repositoryName.String())
 		writeResponse(w, true, 200)
 		return
@@ -406,9 +406,9 @@ func handlerPutTag(w http.ResponseWriter, r *http.Request) {
 
 func handlerUsers(w http.ResponseWriter, r *http.Request) {
 	code := 200
-	if r.Method == "POST" {
+	if r.Method == http.MethodPost {
 		code = 201
-	} else if r.Method == "PUT" {
+	} else if r.Method == http.MethodPut {
 		code = 204
 	}
 	writeResponse(w, "", code)
@@ -418,7 +418,7 @@ func handlerImages(w http.ResponseWriter, r *http.Request) {
 	u, _ := url.Parse(testHTTPServer.URL)
 	w.Header().Add("X-Docker-Endpoints", fmt.Sprintf("%s 	,  %s ", u.Host, "test.example.com"))
 	w.Header().Add("X-Docker-Token", fmt.Sprintf("FAKE-SESSION-%d", time.Now().UnixNano()))
-	if r.Method == "PUT" {
+	if r.Method == http.MethodPut {
 		if strings.HasSuffix(r.URL.Path, "images") {
 			writeResponse(w, "", 204)
 			return
@@ -426,7 +426,7 @@ func handlerImages(w http.ResponseWriter, r *http.Request) {
 		writeResponse(w, "", 200)
 		return
 	}
-	if r.Method == "DELETE" {
+	if r.Method == http.MethodDelete {
 		writeResponse(w, "", 204)
 		return
 	}
