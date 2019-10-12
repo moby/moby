@@ -15,7 +15,7 @@ func (cli *Client) VolumeList(ctx context.Context, filter filters.Args) (volumet
 	query := url.Values{}
 
 	if filter.Len() > 0 {
-		//lint:ignore SA1019 for old code
+		//nolint:staticcheck // ignore SA1019 for old code
 		filterJSON, err := filters.ToParamWithVersion(cli.version, filter)
 		if err != nil {
 			return volumes, err
