@@ -42,7 +42,7 @@ func (h *reqBodyHandler) newRequest(rc io.ReadCloser) (string, func()) {
 func (h *reqBodyHandler) RoundTrip(req *http.Request) (*http.Response, error) {
 	host := req.URL.Host
 	if strings.HasPrefix(host, urlPrefix) {
-		if req.Method != "GET" {
+		if req.Method != http.MethodGet {
 			return nil, errors.Errorf("invalid request")
 		}
 		id := strings.TrimPrefix(host, urlPrefix)
