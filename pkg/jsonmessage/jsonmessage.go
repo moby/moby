@@ -139,13 +139,13 @@ type JSONMessage struct {
 	Stream          string        `json:"stream,omitempty"`
 	Status          string        `json:"status,omitempty"`
 	Progress        *JSONProgress `json:"progressDetail,omitempty"`
-	ProgressMessage string        `json:"progress,omitempty"` //deprecated
+	ProgressMessage string        `json:"progress,omitempty"` // deprecated
 	ID              string        `json:"id,omitempty"`
 	From            string        `json:"from,omitempty"`
 	Time            int64         `json:"time,omitempty"`
 	TimeNano        int64         `json:"timeNano,omitempty"`
 	Error           *JSONError    `json:"errorDetail,omitempty"`
-	ErrorMessage    string        `json:"error,omitempty"` //deprecated
+	ErrorMessage    string        `json:"error,omitempty"` // deprecated
 	// Aux contains out-of-band data, such as digests for push signing and image id after building.
 	Aux *json.RawMessage `json:"aux,omitempty"`
 }
@@ -177,7 +177,7 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	if isTerminal && jm.Stream == "" && jm.Progress != nil {
 		clearLine(out)
 		endl = "\r"
-		fmt.Fprintf(out, endl)
+		fmt.Fprint(out, endl)
 	} else if jm.Progress != nil && jm.Progress.String() != "" { //disable progressbar in non-terminal
 		return nil
 	}
@@ -194,7 +194,7 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	}
 	if jm.Progress != nil && isTerminal {
 		fmt.Fprintf(out, "%s %s%s", jm.Status, jm.Progress.String(), endl)
-	} else if jm.ProgressMessage != "" { //deprecated
+	} else if jm.ProgressMessage != "" { // deprecated
 		fmt.Fprintf(out, "%s %s%s", jm.Status, jm.ProgressMessage, endl)
 	} else if jm.Stream != "" {
 		fmt.Fprintf(out, "%s%s", jm.Stream, endl)
