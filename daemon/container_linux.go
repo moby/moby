@@ -24,7 +24,7 @@ func (daemon *Daemon) saveApparmorConfig(container *container.Container) error {
 		}
 
 	} else {
-		container.AppArmorProfile = "unconfined"
+		container.AppArmorProfile = unconfinedAppArmorProfile
 	}
 	return nil
 }

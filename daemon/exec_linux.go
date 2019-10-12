@@ -38,12 +38,12 @@ func (daemon *Daemon) execSetPlatformOpt(c *container.Container, ec *exec.Config
 		} else if c.HostConfig.Privileged {
 			// `docker exec --privileged` does not currently disable AppArmor
 			// profiles. Privileged configuration of the container is inherited
-			appArmorProfile = "unconfined"
+			appArmorProfile = unconfinedAppArmorProfile
 		} else {
-			appArmorProfile = "docker-default"
+			appArmorProfile = defaultApparmorProfile
 		}
 
-		if appArmorProfile == "docker-default" {
+		if appArmorProfile == defaultApparmorProfile {
 			// Unattended upgrades and other fun services can unload AppArmor
 			// profiles inadvertently. Since we cannot store our profile in
 			// /etc/apparmor.d, nor can we practically add other ways of

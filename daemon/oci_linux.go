@@ -111,12 +111,12 @@ func WithApparmor(c *container.Container) coci.SpecOpts {
 			if c.AppArmorProfile != "" {
 				appArmorProfile = c.AppArmorProfile
 			} else if c.HostConfig.Privileged {
-				appArmorProfile = "unconfined"
+				appArmorProfile = unconfinedAppArmorProfile
 			} else {
-				appArmorProfile = "docker-default"
+				appArmorProfile = defaultApparmorProfile
 			}
 
-			if appArmorProfile == "docker-default" {
+			if appArmorProfile == defaultApparmorProfile {
 				// Unattended upgrades and other fun services can unload AppArmor
 				// profiles inadvertently. Since we cannot store our profile in
 				// /etc/apparmor.d, nor can we practically add other ways of
