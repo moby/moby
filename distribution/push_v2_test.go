@@ -549,7 +549,7 @@ type mockBlobStoreWithCreate struct {
 }
 
 func (blob *mockBlobStoreWithCreate) Create(ctx context.Context, options ...distribution.BlobCreateOption) (distribution.BlobWriter, error) {
-	return nil, errcode.Errors(append([]error{errcode.ErrorCodeUnauthorized.WithMessage("unauthorized")}))
+	return nil, errcode.Errors([]error{errcode.ErrorCodeUnauthorized.WithMessage("unauthorized")})
 }
 
 type mockRepoWithBlob struct {
