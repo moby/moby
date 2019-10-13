@@ -493,9 +493,7 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 	if len(unknownKeys) > 0 {
 		unknownNamedConflicts := func(f *pflag.Flag) {
 			if namedOption, ok := f.Value.(opts.NamedOption); ok {
-				if _, valid := unknownKeys[namedOption.Name()]; valid {
-					delete(unknownKeys, namedOption.Name())
-				}
+				delete(unknownKeys, namedOption.Name())
 			}
 		}
 		flags.VisitAll(unknownNamedConflicts)
