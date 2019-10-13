@@ -56,10 +56,10 @@ func (r *requestReader) Read(p []byte) (n int, err error) {
 		r.cleanUpResponse()
 		return 0, err
 	}
-	if r.currentResponse.StatusCode == 416 && r.lastRange == r.totalSize && r.currentResponse.ContentLength == 0 {
+	if r.currentResponse.StatusCode == http.StatusRequestedRangeNotSatisfiable && r.lastRange == r.totalSize && r.currentResponse.ContentLength == 0 {
 		r.cleanUpResponse()
 		return 0, io.EOF
-	} else if r.currentResponse.StatusCode != 206 && r.lastRange != 0 && isFreshRequest {
+	} else if r.currentResponse.StatusCode != http.StatusPartialContent && r.lastRange != 0 && isFreshRequest {
 		r.cleanUpResponse()
 		return 0, fmt.Errorf("the server doesn't support byte ranges")
 	}

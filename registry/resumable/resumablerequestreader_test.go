@@ -99,7 +99,7 @@ func TestResumableRequestReaderWithReadError(t *testing.T) {
 
 	response := &http.Response{
 		Status:        "500 Internal Server",
-		StatusCode:    500,
+		StatusCode:    http.StatusInternalServerError,
 		ContentLength: 0,
 		Close:         true,
 		Body:          errorReaderCloser{},
@@ -130,7 +130,7 @@ func TestResumableRequestReaderWithEOFWith416Response(t *testing.T) {
 
 	response := &http.Response{
 		Status:        "416 Requested Range Not Satisfiable",
-		StatusCode:    416,
+		StatusCode:    http.StatusRequestedRangeNotSatisfiable,
 		ContentLength: 0,
 		Close:         true,
 		Body:          ioutil.NopCloser(strings.NewReader("")),
