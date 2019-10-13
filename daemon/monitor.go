@@ -2,7 +2,6 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
-	"runtime"
 	"strconv"
 	"time"
 
@@ -35,7 +34,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 	switch e {
 	case libcontainerdtypes.EventOOM:
 		// StateOOM is Linux specific and should never be hit on Windows
-		if runtime.GOOS == "windows" {
+		if isWindows {
 			return errors.New("received StateOOM from libcontainerd on Windows. This should never happen")
 		}
 

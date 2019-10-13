@@ -21,7 +21,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	// Engine API version (used for backwards compatibility)
 	apiVersion := config.Version
 
-	if runtime.GOOS == "windows" && versions.LessThan(apiVersion, "1.21") {
+	if isWindows && versions.LessThan(apiVersion, "1.21") {
 		return errors.New("API versions pre v1.21 do not support stats on Windows")
 	}
 

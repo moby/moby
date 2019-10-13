@@ -45,6 +45,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -61,14 +62,14 @@ import (
 	"google.golang.org/grpc"
 )
 
-const swarmDirName = "swarm"
-const controlSocket = "control.sock"
-const swarmConnectTimeout = 20 * time.Second
-const swarmRequestTimeout = 20 * time.Second
-const stateFile = "docker-state.json"
-const defaultAddr = "0.0.0.0:2377"
-
 const (
+	swarmDirName                   = "swarm"
+	controlSocket                  = "control.sock"
+	swarmConnectTimeout            = 20 * time.Second
+	swarmRequestTimeout            = 20 * time.Second
+	stateFile                      = "docker-state.json"
+	defaultAddr                    = "0.0.0.0:2377"
+	isWindows                      = runtime.GOOS == "windows"
 	initialReconnectDelay          = 100 * time.Millisecond
 	maxReconnectDelay              = 30 * time.Second
 	contextPrefix                  = "com.docker.swarm"

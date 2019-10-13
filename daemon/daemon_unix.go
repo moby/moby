@@ -53,6 +53,8 @@ import (
 )
 
 const (
+	isWindows = false
+
 	// DefaultShimBinary is the default shim to be used by containerd if none
 	// is specified
 	DefaultShimBinary = "containerd-shim"

@@ -67,7 +67,7 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 	} else {
 		// This mean scratch. On Windows, we can safely assume that this is a linux
 		// container. On other platforms, it's the host OS (which it already is)
-		if runtime.GOOS == "windows" && system.LCOWSupported() {
+		if isWindows && system.LCOWSupported() {
 			os = "linux"
 		}
 	}
@@ -122,17 +122,17 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 			os = img.OS
 		} else {
 			// default to the host OS except on Windows with LCOW
-			if runtime.GOOS == "windows" && system.LCOWSupported() {
+			if isWindows && system.LCOWSupported() {
 				os = "linux"
 			}
 		}
 		imgID = img.ID()
 
-		if runtime.GOOS == "windows" && img.OS == "linux" && !system.LCOWSupported() {
+		if isWindows && img.OS == "linux" && !system.LCOWSupported() {
 			return nil, errors.New("operating system on which parent image was created is not Windows")
 		}
 	} else {
-		if runtime.GOOS == "windows" {
+		if isWindows {
 			os = "linux" // 'scratch' case.
 		}
 	}
@@ -175,7 +175,7 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	// Merge the daemon's storage options if they aren't already present. We only
 	// do this on Windows as there's no effective sandbox size limit other than
 	// physical on Linux.
-	if runtime.GOOS == "windows" {
+	if isWindows {
 		if container.HostConfig.StorageOpt == nil {
 			container.HostConfig.StorageOpt = make(map[string]string)
 		}

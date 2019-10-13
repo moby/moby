@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -104,7 +103,7 @@ func (n *nodeRunner) Start(conf nodeStartConfig) error {
 
 func (n *nodeRunner) start(conf nodeStartConfig) error {
 	var control string
-	if runtime.GOOS == "windows" {
+	if isWindows {
 		control = `\\.\pipe\` + controlSocket
 	} else {
 		control = filepath.Join(n.cluster.runtimeRoot, controlSocket)

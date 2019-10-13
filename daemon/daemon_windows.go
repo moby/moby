@@ -31,6 +31,7 @@ import (
 )
 
 const (
+	isWindows            = true
 	defaultNetworkSpace  = "172.16.0.0/12"
 	platformSupported    = true
 	windowsMinCPUShares  = 1
