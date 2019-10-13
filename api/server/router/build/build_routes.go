@@ -163,13 +163,17 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 }
 
 func parseVersion(s string) (types.BuilderVersion, error) {
-	if s == "" || s == string(types.BuilderV1) {
+	if s == "" {
 		return types.BuilderV1, nil
 	}
-	if s == string(types.BuilderBuildKit) {
+	switch types.BuilderVersion(s) {
+	case types.BuilderV1:
+		return types.BuilderV1, nil
+	case types.BuilderBuildKit:
 		return types.BuilderBuildKit, nil
+	default:
+		return "", errors.Errorf("invalid version %s", s)
 	}
-	return "", errors.Errorf("invalid version %s", s)
 }
 
 func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

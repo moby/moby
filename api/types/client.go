@@ -205,7 +205,7 @@ const (
 	// BuilderV1 is the first generation builder in docker daemon
 	BuilderV1 BuilderVersion = "1"
 	// BuilderBuildKit is builder based on moby/buildkit project
-	BuilderBuildKit = "2"
+	BuilderBuildKit BuilderVersion = "2"
 )
 
 // ImageBuildResponse holds information
