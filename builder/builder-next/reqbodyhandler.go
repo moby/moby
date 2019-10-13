@@ -57,7 +57,7 @@ func (h *reqBodyHandler) RoundTrip(req *http.Request) (*http.Response, error) {
 
 		resp := &http.Response{
 			Status:        "200 OK",
-			StatusCode:    200,
+			StatusCode:    http.StatusOK,
 			Body:          rc,
 			ContentLength: -1,
 		}
