@@ -51,6 +51,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		options.PullParent = true
 	}
 
+	options.Version = types.BuilderV1 // Builder V1 is the default, but can be overridden
 	options.Dockerfile = r.FormValue("dockerfile")
 	options.SuppressOutput = httputils.BoolValue(r, "q")
 	options.NoCache = httputils.BoolValue(r, "nocache")
@@ -74,28 +75,27 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		options.Platform = r.FormValue("platform")
 	}
 
-	if r.Form.Get("shmsize") != "" {
-		shmSize, err := strconv.ParseInt(r.Form.Get("shmsize"), 10, 64)
+	if s := r.Form.Get("shmsize"); s != "" {
+		shmSize, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
 			return nil, err
 		}
 		options.ShmSize = shmSize
 	}
 
-	if i := container.Isolation(r.FormValue("isolation")); i != "" {
-		if !container.Isolation.IsValid(i) {
-			return nil, invalidIsolationError(i)
+	if i := r.FormValue("isolation"); i != "" {
+		options.Isolation = container.Isolation(i)
+		if !options.Isolation.IsValid() {
+			return nil, invalidIsolationError(options.Isolation)
 		}
-		options.Isolation = i
 	}
 
 	if runtime.GOOS != "windows" && options.SecurityOpt != nil {
 		return nil, errdefs.InvalidParameter(errors.New("The daemon on this platform does not support setting security options on build"))
 	}
 
-	var buildUlimits = []*units.Ulimit{}
-	ulimitsJSON := r.FormValue("ulimits")
-	if ulimitsJSON != "" {
+	if ulimitsJSON := r.FormValue("ulimits"); ulimitsJSON != "" {
+		var buildUlimits = []*units.Ulimit{}
 		if err := json.Unmarshal([]byte(ulimitsJSON), &buildUlimits); err != nil {
 			return nil, errors.Wrap(errdefs.InvalidParameter(err), "error reading ulimit settings")
 		}
@@ -114,8 +114,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	// the fact they mentioned it, we need to pass that along to the builder
 	// so that it can print a warning about "foo" being unused if there is
 	// no "ARG foo" in the Dockerfile.
-	buildArgsJSON := r.FormValue("buildargs")
-	if buildArgsJSON != "" {
+	if buildArgsJSON := r.FormValue("buildargs"); buildArgsJSON != "" {
 		var buildArgs = map[string]*string{}
 		if err := json.Unmarshal([]byte(buildArgsJSON), &buildArgs); err != nil {
 			return nil, errors.Wrap(errdefs.InvalidParameter(err), "error reading build args")
@@ -123,8 +122,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		options.BuildArgs = buildArgs
 	}
 
-	labelsJSON := r.FormValue("labels")
-	if labelsJSON != "" {
+	if labelsJSON := r.FormValue("labels"); labelsJSON != "" {
 		var labels = map[string]string{}
 		if err := json.Unmarshal([]byte(labelsJSON), &labels); err != nil {
 			return nil, errors.Wrap(errdefs.InvalidParameter(err), "error reading labels")
@@ -132,8 +130,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		options.Labels = labels
 	}
 
-	cacheFromJSON := r.FormValue("cachefrom")
-	if cacheFromJSON != "" {
+	if cacheFromJSON := r.FormValue("cachefrom"); cacheFromJSON != "" {
 		var cacheFrom = []string{}
 		if err := json.Unmarshal([]byte(cacheFromJSON), &cacheFrom); err != nil {
 			return nil, err
@@ -142,11 +139,14 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	}
 	options.SessionID = r.FormValue("session")
 	options.BuildID = r.FormValue("buildid")
-	builderVersion, err := parseVersion(r.FormValue("version"))
-	if err != nil {
-		return nil, err
+
+	if bv := r.FormValue("version"); bv != "" {
+		v, err := parseVersion(bv)
+		if err != nil {
+			return nil, err
+		}
+		options.Version = v
 	}
-	options.Version = builderVersion
 
 	if versions.GreaterThanOrEqualTo(version, "1.40") {
 		outputsJSON := r.FormValue("outputs")
