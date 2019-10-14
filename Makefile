@@ -252,11 +252,10 @@ else
 buildx:
 endif
 
-bundles/buildx: BUILDX_DOCKERFILE ?= Dockerfile.buildx
 bundles/buildx: bundles ## build buildx CLI tool
 	# This intetionally is not using the `--output` flag from the docker CLI which is a buildkit option
 	# The idea here being that if buildx is being used, it's because buildkit is not supported natively
-	docker build -f $(BUILDX_DOCKERFILE) -t "moby-buildx:$${BUILDX_COMMIT:-latest}" \
+	docker build -f $${BUILDX_DOCKERFILE:-Dockerfile.buildx} -t "moby-buildx:$${BUILDX_COMMIT:-latest}" \
 		--build-arg BUILDX_COMMIT \
 		--build-arg BUILDX_REPO \
 		--build-arg GOOS=$$(if [ -n "$(GOOS)" ]; then echo $(GOOS); else go env GOHOSTOS || uname | awk '{print tolower($$0)}' || true; fi) \
