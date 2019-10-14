@@ -22,12 +22,6 @@ linters:
       - bundles
       - docs
 
-    skip-files:
-      - ".*\\.pb\\.go"
-      - "dockerversion/version_autogen.go"
-      - "api/types/container/container_.*"
-      - "api/types/volume/volume_.*"
-
 linters-settings:
   govet:
     check-shadowing: false
@@ -40,6 +34,11 @@ issues:
         - errcheck
         - gosec
 
+    # Suppress golint complaining about generated types in api/types/
+    - text: "type name will be used as (container|volume)\\.(Container|Volume).* by other packages, and that stutters; consider calling this"
+      path: "api/types/(volume|container)/"
+      linters:
+        - golint
     - text: "(G201|G202): SQL string (formatting|concatenation)"
       linters:
         - gosec
