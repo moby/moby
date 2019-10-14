@@ -252,9 +252,6 @@ else
 buildx:
 endif
 
-BUILDX_COMMIT ?= v0.3.0
-export BUILDX_COMMIT
-
 bundles/buildx: BUILDX_DOCKERFILE ?= Dockerfile.buildx
 bundles/buildx: bundles ## build buildx CLI tool
 	# This intetionally is not using the `--output` flag from the docker CLI which is a buildkit option

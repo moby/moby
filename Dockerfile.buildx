@@ -1,9 +1,12 @@
 ARG GO_VERSION=1.12.10
-FROM golang:${GO_VERSION}-stretch
+ARG BUILDX_COMMIT=v0.3.0
 ARG BUILDX_REPO=https://github.com/docker/buildx.git
+
+FROM golang:${GO_VERSION}-stretch
+ARG BUILDX_REPO
 RUN git clone "${BUILDX_REPO}" /buildx
 WORKDIR /buildx
-ARG BUILDX_COMMIT=master
+ARG BUILDX_COMMIT
 RUN git fetch origin "${BUILDX_COMMIT}":build && git checkout build
 RUN go mod download
 ARG GOOS
