@@ -56,6 +56,7 @@ dockerd - Enable daemon mode
 [**--mtu**[=*0*]]
 [**--max-concurrent-downloads**[=*3*]]
 [**--max-concurrent-uploads**[=*5*]]
+[**--max-download-attempts**[=*5*]]
 [**--node-generic-resources**[=*[]*]]
 [**-p**|**--pidfile**[=*/var/run/docker.pid*]]
 [**--raw-logs**]
@@ -328,6 +329,9 @@ unix://[/path/to/socket] to use.
 
 **--max-concurrent-uploads**=*5*
   Set the max concurrent uploads for each push. Default is `5`.
+
+**--max-download-attempts**=*5*
+  Set the max download attempts for each pull. Default is `5`.
 
 **--node-generic-resources**=*[]*
   Advertise user-defined resource. Default is `[]`.
