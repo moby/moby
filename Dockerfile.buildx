@@ -2,7 +2,7 @@ ARG GO_VERSION=1.12.10
 ARG BUILDX_COMMIT=v0.3.0
 ARG BUILDX_REPO=https://github.com/docker/buildx.git
 
-FROM golang:${GO_VERSION}-stretch
+FROM golang:${GO_VERSION}-stretch AS build
 ARG BUILDX_REPO
 RUN git clone "${BUILDX_REPO}" /buildx
 WORKDIR /buildx
@@ -21,4 +21,7 @@ RUN GOOS="${GOOS}" GOARCH="${GOARCH}" BUILDX_COMMIT="${BUILDX_COMMIT}"; \
       -X \"${pkg}/version.Package=buildx\" \
     "; \
     go build -ldflags "${ldflags}" -o /usr/bin/buildx ./cmd/buildx
+
+FROM golang:${GO_VERSION}-stretch
+COPY --from=build /usr/bin/buildx /usr/bin/buildx
 ENTRYPOINT ["/usr/bin/buildx"]
