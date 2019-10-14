@@ -40,10 +40,7 @@ issues:
         - errcheck
         - gosec
 
-    - text: "G201: SQL string formatting"
-      linters:
-        - gosec
-    - text: "G202: SQL string concatenation"
+    - text: "(G201|G202): SQL string (formatting|concatenation)"
       linters:
         - gosec
     # FIXME temporarily suppress these. See #39928
@@ -51,11 +48,7 @@ issues:
       linters:
         - staticcheck
     # FIXME temporarily suppress these. See #39924
-    - text: "SA1019: h.Xattrs is deprecated: Use PAXRecords instead"
-      linters:
-        - staticcheck
-    # FIXME temporarily suppress these. See #39924
-    - text: "SA1019: hdr.Xattrs is deprecated: Use PAXRecords instead"
+    - text: "SA1019: .*\\.Xattrs is deprecated: Use PAXRecords instead"
       linters:
         - staticcheck
     # FIXME temporarily suppress these. See #39926
@@ -64,5 +57,9 @@ issues:
         - staticcheck
     # FIXME temporarily suppress these. See #39927
     - text: "SA1019: httputil.ClientConn is deprecated"
+      linters:
+        - staticcheck
+    # FIXME temporarily suppress these (related to the ones above)
+    - text: "SA1019: httputil.ErrPersistEOF is deprecated"
       linters:
         - staticcheck
