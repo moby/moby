@@ -10,5 +10,12 @@ ARG GOOS
 ARG GOARCH
 # Keep these essentially no-op var settings for debug purposes.
 # It allows us to see what the GOOS/GOARCH that's being built for is.
-RUN GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags '-X github.com/docker/buildx/version.Version=${BUILDX_COMMIT} -X github.com/docker/buildx/version.Revision=${BUILDX_COMMIT} -X github.com/docker/buildx/version.Package=github.com/docker/buildx' -o /usr/bin/buildx ./cmd/buildx
+RUN GOOS="${GOOS}" GOARCH="${GOARCH}" BUILDX_COMMIT="${BUILDX_COMMIT}"; \
+    pkg="github.com/docker/buildx"; \
+    ldflags="\
+      -X \"${pkg}/version.Version=$(git describe --tags)\" \
+      -X \"${pkg}/version.Revision=$(git rev-parse --short HEAD)\" \
+      -X \"${pkg}/version.Package=buildx\" \
+    "; \
+    go build -ldflags "${ldflags}" -o /usr/bin/buildx ./cmd/buildx
 ENTRYPOINT ["/usr/bin/buildx"]
