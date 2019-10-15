@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
 )
 
@@ -18,7 +19,7 @@ func TestContainerRestartError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	timeout := 0 * time.Second
-	err := client.ContainerRestart(context.Background(), "nothing", &timeout)
+	err := client.ContainerRestart(context.Background(), "nothing", &timeout, types.ContainerStartOptions{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
 	}
@@ -45,7 +46,7 @@ func TestContainerRestart(t *testing.T) {
 		}),
 	}
 	timeout := 100 * time.Second
-	err := client.ContainerRestart(context.Background(), "container_id", &timeout)
+	err := client.ContainerRestart(context.Background(), "container_id", &timeout, types.ContainerStartOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

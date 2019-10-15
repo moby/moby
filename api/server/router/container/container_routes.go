@@ -279,7 +279,10 @@ func (s *containerRouter) postContainersRestart(ctx context.Context, w http.Resp
 		seconds = &valSeconds
 	}
 
-	if err := s.backend.ContainerRestart(vars["name"], seconds); err != nil {
+	checkpoint := r.Form.Get("checkpoint")
+	checkpointDir := r.Form.Get("checkpoint-dir")
+
+	if err := s.backend.ContainerRestart(vars["name"], seconds, checkpoint, checkpointDir); err != nil {
 		return err
 	}
 
