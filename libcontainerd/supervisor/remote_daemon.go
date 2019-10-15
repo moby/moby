@@ -49,6 +49,8 @@ type remote struct {
 	rootDir     string
 	stateDir    string
 	pluginConfs pluginConfigs
+
+	healthcheckDelay time.Duration
 }
 
 // Daemon represents a running containerd daemon
@@ -241,6 +243,11 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 		started               bool
 	)
 
+	if r.healthcheckDelay == 0 {
+		r.healthcheckDelay = 500 * time.Millisecond
+		logrus.Debugf("Setting containerd healthcheck delay to %v", r.healthcheckDelay)
+	}
+
 	defer func() {
 		if r.daemonPid != -1 {
 			r.stopDaemon()
@@ -259,6 +266,8 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 	if !timer.Stop() {
 		<-timer.C
 	}
+
+	logrus.Debugf("Starting containerd daemon healthcheck with delay of %v", r.healthcheckDelay)
 
 	for {
 		timer.Reset(delay)
@@ -313,7 +322,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				}
 
 				transientFailureCount = 0
-				delay = 500 * time.Millisecond
+				delay = r.healthcheckDelay
 				continue
 			}
 

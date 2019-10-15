@@ -246,6 +246,8 @@ type CommonConfig struct {
 
 	ContainerdNamespace       string `json:"containerd-namespace,omitempty"`
 	ContainerdPluginNamespace string `json:"containerd-plugin-namespace,omitempty"`
+	// Delay (in seconds) between successful containerd daemon healthchecks
+	ContainerdHealthcheckDelay int `json:"containerd-healthcheck-delay,omitempty"`
 }
 
 // IsValueSet returns true if a configuration value

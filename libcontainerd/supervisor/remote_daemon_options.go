@@ -1,5 +1,7 @@
 package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
 
+import "time"
+
 // WithRemoteAddr sets the external containerd socket to connect to.
 func WithRemoteAddr(addr string) DaemonOpt {
 	return func(r *remote) error {
@@ -50,6 +52,15 @@ func WithMetricsAddress(addr string) DaemonOpt {
 func WithPlugin(name string, conf interface{}) DaemonOpt {
 	return func(r *remote) error {
 		r.pluginConfs.Plugins[name] = conf
+		return nil
+	}
+}
+
+// WithHealthcheckDelay configures the delay between successful
+// healthchecks of the containerd daemon.
+func WithHealthcheckDelay(delay time.Duration) DaemonOpt {
+	return func(r *remote) error {
+		r.healthcheckDelay = delay
 		return nil
 	}
 }

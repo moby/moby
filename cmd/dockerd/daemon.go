@@ -550,6 +550,8 @@ func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) 
 		opts = append(opts, supervisor.WithPlugin("cri", nil))
 	}
 
+	opts = append(opts, supervisor.WithHealthcheckDelay(time.Duration(cli.Config.ContainerdHealthcheckDelay)*time.Second))
+
 	return opts, nil
 }
 
