@@ -28,11 +28,12 @@ import (
 	"gotest.tools/assert"
 )
 
-type logT interface {
+// LogT is the subset of the testing.TB interface used by the daemon.
+type LogT interface {
 	Logf(string, ...interface{})
 }
 
-// nopLog is a no-op implementation of logT that is used in daemons created by
+// nopLog is a no-op implementation of LogT that is used in daemons created by
 // NewDaemon (where no testing.TB is available).
 type nopLog struct{}
 
@@ -71,7 +72,7 @@ type Daemon struct {
 	experimental               bool
 	init                       bool
 	dockerdBinary              string
-	log                        logT
+	log                        LogT
 	pidFile                    string
 	args                       []string
 
