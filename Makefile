@@ -158,6 +158,8 @@ ifdef DOCKER_CROSSPLATFORMS
 BUILD_CROSS = --build-arg CROSS=true
 endif
 
+VERSION_AUTOGEN_ARGS = --build-arg VERSION --build-arg DOCKER_GITCOMMIT --build-arg PRODUCT --build-arg PLATFORM --build-arg DEFAULT_PRODUCT_LICENSE
+
 default: binary
 
 all: build ## validate all checks, build linux binaries, run all tests\ncross build non-linux binaries and generate archives
@@ -170,7 +172,7 @@ cross: ## cross build the binaries for darwin, freebsd and\nwindows
 cross: BUILD_OPTS += --build-arg CROSS=true --build-arg DOCKER_CROSSPLATFORMS
 
 binary dynbinary cross: buildx
-	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ .
+	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
 
 build: target = --target=final
 ifdef USE_BUILDX
@@ -263,6 +265,7 @@ swagger-docs: ## preview the API documentation
 ifdef USE_BUILDX
 ifeq ($(BUILDX), bundles/buildx)
 buildx: bundles/buildx ## build buildx cli tool
+endif
 endif
 
 # This intentionally is not using the `--output` flag from the docker CLI, which

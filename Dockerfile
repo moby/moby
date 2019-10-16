@@ -315,19 +315,28 @@ ENTRYPOINT ["hack/dind"]
 FROM dev AS src
 COPY . /go/src/github.com/docker/docker
 
-FROM src AS build-binary
+FROM src AS binary-base
 ARG DOCKER_GITCOMMIT=HEAD
+ENV DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT}
+ARG VERSION
+ENV VERSION=${VERSION}
+ARG PLATFORM
+ENV PLATFORM=${PLATFORM}
+ARG PRODUCT
+ENV PRODUCT=${PRODUCT}
+ARG DEFAULT_PRODUCT_LICENSE
+ENV DEFAULT_PRODUCT_LICENSE=${DEFAULT_PRODUCT_LICENSE}
+
+FROM binary-base AS build-binary
 RUN --mount=type=cache,target=/root/.cache/go-build \
         hack/make.sh binary
 
-FROM src AS build-dynbinary
-ARG DOCKER_GITCOMMIT=HEAD
+FROM binary-base AS build-dynbinary
 RUN --mount=type=cache,target=/root/.cache/go-build \
         hack/make.sh dynbinary
 
-FROM src AS build-cross
-ARG DOCKER_GITCOMMIT=HEAD
-ARG DOCKER_CROSSPLATFORMS=""
+FROM binary-base AS build-cross
+ARG DOCKER_CROSSPLATFORMS
 RUN --mount=type=cache,target=/root/.cache/go-build \
         hack/make.sh cross
 
