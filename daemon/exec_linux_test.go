@@ -49,5 +49,5 @@ func TestExecSetPlatformOptPrivileged(t *testing.T) {
 	c.HostConfig = &containertypes.HostConfig{Privileged: true}
 	err = d.execSetPlatformOpt(c, ec, p)
 	assert.NilError(t, err)
-	assert.Equal(t, "unconfined", p.ApparmorProfile)
+	assert.Equal(t, unconfinedAppArmorProfile, p.ApparmorProfile)
 }

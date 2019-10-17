@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/container"
 )
 
-var supportsSeccomp = false
+const supportsSeccomp = false
 
 // WithSeccomp sets the seccomp profile
 func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {

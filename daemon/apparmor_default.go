@@ -11,7 +11,8 @@ import (
 
 // Define constants for native driver
 const (
-	defaultApparmorProfile = "docker-default"
+	unconfinedAppArmorProfile = "unconfined"
+	defaultApparmorProfile    = "docker-default"
 )
 
 func ensureDefaultAppArmorProfile() error {
