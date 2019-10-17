@@ -154,6 +154,7 @@ func newGELFUDPWriter(address string, info logger.Info) (gelf.Writer, error) {
 		}
 	}
 
+	gelfWriter.CompressionLevel = 0 // no compression by default
 	if v, ok := info.Config["gelf-compression-level"]; ok {
 		val, err := strconv.Atoi(v)
 		if err != nil {
