@@ -35,7 +35,7 @@ func TestPluginRemove(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			if req.Method != "DELETE" {
+			if req.Method != http.MethodDelete {
 				return nil, fmt.Errorf("expected DELETE method, got %s", req.Method)
 			}
 			return &http.Response{

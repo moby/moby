@@ -329,7 +329,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		Transport: clientConfig.transport,
 	}
 
-	req, err := http.NewRequest("GET", "/_ping", nil)
+	req, err := http.NewRequest(http.MethodGet, "/_ping", nil)
 	if err != nil {
 		return errors.Wrapf(err, "[%s] could not create new request", d.id)
 	}
@@ -684,7 +684,7 @@ func (d *Daemon) queryRootDir() (string, error) {
 		Transport: clientConfig.transport,
 	}
 
-	req, err := http.NewRequest("GET", "/info", nil)
+	req, err := http.NewRequest(http.MethodGet, "/info", nil)
 	if err != nil {
 		return "", err
 	}

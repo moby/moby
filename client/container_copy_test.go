@@ -61,7 +61,7 @@ func TestContainerStatPath(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			if req.Method != "HEAD" {
+			if req.Method != http.MethodHead {
 				return nil, fmt.Errorf("expected HEAD method, got %s", req.Method)
 			}
 			query := req.URL.Query()
@@ -140,7 +140,7 @@ func TestCopyToContainer(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			if req.Method != "PUT" {
+			if req.Method != http.MethodPut {
 				return nil, fmt.Errorf("expected PUT method, got %s", req.Method)
 			}
 			query := req.URL.Query()
@@ -235,7 +235,7 @@ func TestCopyFromContainer(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			if req.Method != "GET" {
+			if req.Method != http.MethodGet {
 				return nil, fmt.Errorf("expected GET method, got %s", req.Method)
 			}
 			query := req.URL.Query()

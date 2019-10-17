@@ -70,7 +70,7 @@ func TestEchoInputOutput(t *testing.T) {
 	m := Manifest{[]string{"VolumeDriver", "NetworkDriver"}}
 
 	mux.HandleFunc("/Test.Echo", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
+		if r.Method != http.MethodPost {
 			t.Fatalf("Expected POST, got %s\n", r.Method)
 		}
 
@@ -185,7 +185,7 @@ func TestClientStream(t *testing.T) {
 	var output Manifest
 
 	mux.HandleFunc("/Test.Echo", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
+		if r.Method != http.MethodPost {
 			t.Fatalf("Expected POST, got %s", r.Method)
 		}
 
@@ -218,7 +218,7 @@ func TestClientSendFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	mux.HandleFunc("/Test.Echo", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
+		if r.Method != http.MethodPost {
 			t.Fatalf("Expected POST, got %s\n", r.Method)
 		}
 
@@ -263,7 +263,7 @@ type testRequestWrapper struct {
 }
 
 func (w *testRequestWrapper) NewRequest(path string, data io.Reader) (*http.Request, error) {
-	req, err := http.NewRequest("POST", path, data)
+	req, err := http.NewRequest(http.MethodPost, path, data)
 	if err != nil {
 		return nil, err
 	}

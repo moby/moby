@@ -46,7 +46,7 @@ func TestPeerCertificateMarshalJSON(t *testing.T) {
 
 	var certs = []*x509.Certificate{cert}
 	addr := "www.authz.com/auth"
-	req, err := http.NewRequest("GET", addr, nil)
+	req, err := http.NewRequest(http.MethodGet, addr, nil)
 	assert.NilError(t, err)
 
 	req.RequestURI = addr

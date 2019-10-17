@@ -38,7 +38,7 @@ func TestAuthZRequestPluginError(t *testing.T) {
 		User:           "user",
 		RequestBody:    []byte("sample body"),
 		RequestURI:     "www.authz.com/auth",
-		RequestMethod:  "GET",
+		RequestMethod:  http.MethodGet,
 		RequestHeaders: map[string]string{"header": "value"},
 	}
 	server.replayResponse = Response{
@@ -69,7 +69,7 @@ func TestAuthZRequestPlugin(t *testing.T) {
 		User:           "user",
 		RequestBody:    []byte("sample body"),
 		RequestURI:     "www.authz.com/auth",
-		RequestMethod:  "GET",
+		RequestMethod:  http.MethodGet,
 		RequestHeaders: map[string]string{"header": "value"},
 	}
 	server.replayResponse = Response{

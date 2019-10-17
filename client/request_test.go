@@ -73,7 +73,7 @@ func TestSetHostHeader(t *testing.T) {
 			basePath: hostURL.Path,
 		}
 
-		_, err = client.sendRequest(context.Background(), "GET", testURL, nil, nil, nil)
+		_, err = client.sendRequest(context.Background(), http.MethodGet, testURL, nil, nil, nil)
 		assert.NilError(t, err)
 	}
 }
