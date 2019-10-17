@@ -24,6 +24,7 @@ func TestContainerWarningHostAndPublishPorts(t *testing.T) {
 			"8080": []nat.PortBinding{{HostPort: "8989"}},
 		}, warnings: []string{"Published ports are discarded when using host network mode"}},
 	}
+	muteLogs()
 
 	for _, tc := range testCases {
 		hostConfig := &containertypes.HostConfig{
