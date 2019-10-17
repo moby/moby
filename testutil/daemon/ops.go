@@ -1,8 +1,6 @@
 package daemon
 
 import (
-	"testing"
-
 	"github.com/docker/docker/testutil/environment"
 )
 
@@ -17,7 +15,7 @@ func WithDefaultCgroupNamespaceMode(mode string) Option {
 }
 
 // WithTestLogger causes the daemon to log certain actions to the provided test.
-func WithTestLogger(t testing.TB) Option {
+func WithTestLogger(t LogT) Option {
 	return func(d *Daemon) {
 		d.log = t
 	}
