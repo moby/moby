@@ -43,7 +43,9 @@ func NewTCPWriter(addr string) (*TCPWriter, error) {
 // filled out appropriately.  In general, clients will want to use
 // Write, rather than WriteMessage.
 func (w *TCPWriter) WriteMessage(m *Message) (err error) {
-	messageBytes, err := m.toBytes()
+	buf := newBuffer()
+	defer bufPool.Put(buf)
+	messageBytes, err := m.toBytes(buf)
 	if err != nil {
 		return err
 	}
