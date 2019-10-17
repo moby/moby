@@ -22,11 +22,8 @@ func TestServiceListError(t *testing.T) {
 	}
 
 	_, err := client.ServiceList(context.Background(), types.ServiceListOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
-	}
 	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %T", err)
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 

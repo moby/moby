@@ -19,9 +19,6 @@ func TestContainerCreateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerCreate(context.Background(), nil, nil, nil, "nothing")
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error while testing StatusInternalServerError, got %v", err)
-	}
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error while testing StatusInternalServerError, got %T", err)
 	}
@@ -31,9 +28,6 @@ func TestContainerCreateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 	_, err = client.ContainerCreate(context.Background(), nil, nil, nil, "nothing")
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error while testing StatusNotFound, got %v", err)
-	}
 	if err == nil || !IsErrNotFound(err) {
 		t.Fatalf("expected a Server Error while testing StatusNotFound, got %T", err)
 	}

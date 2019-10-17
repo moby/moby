@@ -21,11 +21,8 @@ func TestImageSearchAnyError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
-	}
 	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %T", err)
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
@@ -34,8 +31,8 @@ func TestImageSearchStatusUnauthorizedError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	_, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Unauthorized error" {
-		t.Fatalf("expected an Unauthorized Error, got %v", err)
+	if !errdefs.IsUnauthorized(err) {
+		t.Fatalf("expected a Unauthorized Error, got %[1]T: %[1]v", err)
 	}
 }
 
@@ -64,8 +61,8 @@ func TestImageSearchWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.
 	_, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
-	if err == nil || err.Error() != "Error response from daemon: Unauthorized error" {
-		t.Fatalf("expected an Unauthorized Error, got %v", err)
+	if !errdefs.IsUnauthorized(err) {
+		t.Fatalf("expected a Unauthorized Error, got %[1]T: %[1]v", err)
 	}
 }
 

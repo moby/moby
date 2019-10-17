@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -22,7 +23,9 @@ func TestVolumeInspectError(t *testing.T) {
 	}
 
 	_, err := client.VolumeInspect(context.Background(), "nothing")
-	assert.Check(t, is.ErrorContains(err, "Error response from daemon: Server error"))
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
+	}
 }
 
 func TestVolumeInspectNotFound(t *testing.T) {
