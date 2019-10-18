@@ -3,15 +3,30 @@
 package main
 
 import (
-	"strings"
+	"context"
 	"testing"
 
+	"github.com/docker/docker/client"
 	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func (s *DockerSuite) TestInfoSecurityOptions(c *testing.T) {
-	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, Apparmor, DaemonIsLinux)
+	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
+	if !seccompEnabled() && !Apparmor() {
+		c.Skip("test requires Seccomp and/or AppArmor")
+	}
 
-	out, _ := dockerCmd(c, "info")
-	assert.Assert(c, strings.Contains(out, "Security Options:\n apparmor\n seccomp\n  Profile: default\n"))
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	assert.NilError(c, err)
+	defer cli.Close()
+	info, err := cli.Info(context.Background())
+	assert.NilError(c, err)
+
+	if Apparmor() {
+		assert.Check(c, is.Contains(info.SecurityOptions, "name=apparmor"))
+	}
+	if seccompEnabled() {
+		assert.Check(c, is.Contains(info.SecurityOptions, "name=seccomp,profile=default"))
+	}
 }
