@@ -721,6 +721,7 @@ func (d *Daemon) Info(t testing.TB) types.Info {
 	c := d.NewClientT(t)
 	info, err := c.Info(context.Background())
 	assert.NilError(t, err)
+	assert.NilError(t, c.Close())
 	return info
 }
 
