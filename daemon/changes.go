@@ -2,7 +2,6 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"errors"
-	"runtime"
 	"time"
 
 	"github.com/docker/docker/pkg/archive"
@@ -16,7 +15,7 @@ func (daemon *Daemon) ContainerChanges(name string) ([]archive.Change, error) {
 		return nil, err
 	}
 
-	if runtime.GOOS == "windows" && container.IsRunning() {
+	if isWindows && container.IsRunning() {
 		return nil, errors.New("Windows does not support diff of a running container")
 	}
 
