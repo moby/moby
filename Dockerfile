@@ -167,6 +167,7 @@ FROM dev-base AS yamllint
 RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-dev-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
+            zlib1g-dev \
             python3-dev \
             python3-pip \
             python3-setuptools \
