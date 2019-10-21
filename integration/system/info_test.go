@@ -3,8 +3,10 @@ package system // import "github.com/docker/docker/integration/system"
 import (
 	"context"
 	"fmt"
+	"sort"
 	"testing"
 
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -49,7 +51,7 @@ func TestInfoAPIWarnings(t *testing.T) {
 	d := daemon.New(t)
 	c := d.NewClientT(t)
 
-	d.StartWithBusybox(t, "-H=0.0.0.0:23756", "-H="+d.Sock())
+	d.Start(t, "-H=0.0.0.0:23756", "-H="+d.Sock())
 	defer d.Stop(t)
 
 	info, err := c.Info(context.Background())
@@ -64,4 +66,65 @@ func TestInfoAPIWarnings(t *testing.T) {
 	for _, linePrefix := range stringsToCheck {
 		assert.Check(t, is.Contains(out, linePrefix))
 	}
+}
+
+func TestInfoDebug(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+
+	d := daemon.New(t)
+	d.Start(t, "--debug")
+	defer d.Stop(t)
+
+	info := d.Info(t)
+	assert.Equal(t, info.Debug, true)
+
+	// Note that the information below is not tied to debug-mode being enabled.
+	assert.Check(t, info.NFd != 0)
+
+	// TODO need a stable way to generate event listeners
+	// assert.Check(t, info.NEventsListener != 0)
+	assert.Check(t, info.NGoroutines != 0)
+	assert.Check(t, info.SystemTime != "")
+	assert.Equal(t, info.DockerRootDir, d.Root)
+}
+
+func TestInfoInsecureRegistries(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+
+	const (
+		registryCIDR = "192.168.1.0/24"
+		registryHost = "insecurehost.com:5000"
+	)
+
+	d := daemon.New(t)
+	d.Start(t, "--insecure-registry="+registryCIDR, "--insecure-registry="+registryHost)
+	defer d.Stop(t)
+
+	info := d.Info(t)
+	assert.Assert(t, is.Len(info.RegistryConfig.InsecureRegistryCIDRs, 2))
+	cidrs := []string{
+		info.RegistryConfig.InsecureRegistryCIDRs[0].String(),
+		info.RegistryConfig.InsecureRegistryCIDRs[1].String(),
+	}
+	assert.Assert(t, is.Contains(cidrs, registryCIDR))
+	assert.Assert(t, is.Contains(cidrs, "127.0.0.0/8"))
+	assert.DeepEqual(t, *info.RegistryConfig.IndexConfigs["docker.io"], registry.IndexInfo{Name: "docker.io", Mirrors: []string{}, Secure: true, Official: true})
+	assert.DeepEqual(t, *info.RegistryConfig.IndexConfigs[registryHost], registry.IndexInfo{Name: registryHost, Mirrors: []string{}, Secure: false, Official: false})
+}
+
+func TestInfoRegistryMirrors(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+
+	const (
+		registryMirror1 = "https://192.168.1.2"
+		registryMirror2 = "http://registry.mirror.com:5000"
+	)
+
+	d := daemon.New(t)
+	d.Start(t, "--registry-mirror="+registryMirror1, "--registry-mirror="+registryMirror2)
+	defer d.Stop(t)
+
+	info := d.Info(t)
+	sort.Strings(info.RegistryConfig.Mirrors)
+	assert.DeepEqual(t, info.RegistryConfig.Mirrors, []string{registryMirror2 + "/", registryMirror1 + "/"})
 }
