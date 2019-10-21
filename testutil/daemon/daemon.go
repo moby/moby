@@ -148,9 +148,8 @@ func New(t testing.TB, ops ...Option) *Daemon {
 
 	assert.Check(t, dest != "", "Please set the DOCKER_INTEGRATION_DAEMON_DEST or the DEST environment variable")
 
-	t.Logf("Creating a new daemon at: %q", dest)
 	d, err := NewDaemon(dest, ops...)
-	assert.NilError(t, err, "could not create daemon")
+	assert.NilError(t, err, "could not create daemon at %q", dest)
 
 	return d
 }
