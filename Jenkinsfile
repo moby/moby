@@ -47,7 +47,9 @@ pipeline {
                 sh '''
                 docker run --rm \
                   -v "$WORKSPACE:/workspace" \
-                  alpine sh -c 'apk add --no-cache -q git bash && cd /workspace && hack/validate/dco'
+                  -e VALIDATE_REPO=${GIT_URL} \
+                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
+                  alpine sh -c 'apk add --no-cache -q bash git openssh-client && cd /workspace && hack/validate/dco'
                 '''
             }
         }
