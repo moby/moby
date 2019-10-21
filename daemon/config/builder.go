@@ -16,8 +16,10 @@ type BuilderGCRule struct {
 	KeepStorage string          `json:",omitempty"`
 }
 
+// BuilderGCFilter contains garbage-collection filter rules for a BuildKit builder
 type BuilderGCFilter filters.Args
 
+// MarshalJSON returns a JSON byte representation of the BuilderGCFilter
 func (x *BuilderGCFilter) MarshalJSON() ([]byte, error) {
 	f := filters.Args(*x)
 	keys := f.Keys()
@@ -32,6 +34,7 @@ func (x *BuilderGCFilter) MarshalJSON() ([]byte, error) {
 	return json.Marshal(arr)
 }
 
+// UnmarshalJSON fills the BuilderGCFilter values structure from JSON input
 func (x *BuilderGCFilter) UnmarshalJSON(data []byte) error {
 	var arr []string
 	f := filters.NewArgs()
