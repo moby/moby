@@ -729,9 +729,9 @@ func BenchmarkConcurrentAccess(b *testing.B) {
 
 	numConcurrent := 256
 	// create a bunch of ids
-	var ids []string
+	ids := make([]string, numConcurrent)
 	for i := 0; i < numConcurrent; i++ {
-		ids = append(ids, stringid.GenerateRandomID())
+		ids[i] = stringid.GenerateRandomID()
 	}
 
 	if err := d.Create(ids[0], "", nil); err != nil {
@@ -743,7 +743,7 @@ func BenchmarkConcurrentAccess(b *testing.B) {
 	}
 
 	parent := ids[1]
-	ids = append(ids[2:])
+	ids = ids[2:]
 
 	chErr := make(chan error, numConcurrent)
 	var outerGroup sync.WaitGroup

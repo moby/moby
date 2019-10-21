@@ -51,7 +51,7 @@ func Unmount(target string) error {
 			continue // try again
 		default:
 			// any other error is fatal
-			break
+			return err
 		}
 	}
 

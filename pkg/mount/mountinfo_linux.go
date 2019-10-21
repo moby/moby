@@ -90,7 +90,6 @@ func parseInfoFile(r io.Reader, filter FilterFunc) ([]*Info, error) {
 				   mount propagation flags in fields[6]. The correct
 				   behavior is to ignore any unknown optional fields.
 				*/
-				break
 			}
 		}
 		if i == numFields {

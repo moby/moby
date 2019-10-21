@@ -784,9 +784,8 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		EndpointSettings: endpointConfig,
 		IPAMOperational:  operIPAM,
 	}
-	if _, ok := container.NetworkSettings.Networks[n.ID()]; ok {
-		delete(container.NetworkSettings.Networks, n.ID())
-	}
+
+	delete(container.NetworkSettings.Networks, n.ID())
 
 	if err := daemon.updateEndpointNetworkSettings(container, n, ep); err != nil {
 		return err

@@ -606,7 +606,7 @@ func (d *Driver) parseStorageOpt(storageOpt map[string]string, driver *Driver) e
 
 // Set btrfs storage size
 func (d *Driver) setStorageSize(dir string, driver *Driver) error {
-	if driver.options.size <= 0 {
+	if driver.options.size == 0 {
 		return fmt.Errorf("btrfs: invalid storage size: %s", units.HumanSize(float64(driver.options.size)))
 	}
 	if d.options.minSpace > 0 && driver.options.size < d.options.minSpace {
