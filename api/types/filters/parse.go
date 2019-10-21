@@ -36,6 +36,7 @@ func NewArgs(initialArgs ...KeyValuePair) Args {
 	return args
 }
 
+// Keys returns all the keys in list of Args
 func (args Args) Keys() []string {
 	keys := make([]string, 0, len(args.fields))
 	for k := range args.fields {
