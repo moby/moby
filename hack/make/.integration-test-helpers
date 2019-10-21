@@ -21,7 +21,6 @@ setup_integration_test_filter() {
 	if [ -z "${TEST_FILTER}" ]; then
 		return
 	fi
-	TESTFLAGS+="-test.run ${TEST_FILTER}"
 
 	local dirs
 	dirs=$(grep -rIlE --include '*_test.go' "func .*${TEST_FILTER}.*\(. \*testing\.T\)" ./integration*/ | xargs -I file dirname file | uniq)
@@ -30,6 +29,8 @@ setup_integration_test_filter() {
 		if [ -z "${TEST_INTEGRATION_DIR}" ]; then
 			echo "Skipping integration tests since the supplied filter \"${TEST_FILTER}\" omits all integration tests"
 			TEST_SKIP_INTEGRATION=1
+		else
+			TESTFLAGS+=" -test.run ${TEST_FILTER}"
 		fi
 	fi
 
@@ -37,12 +38,18 @@ setup_integration_test_filter() {
 		if echo "$dirs" | grep -vq '^./integration-cli$'; then
 			TEST_SKIP_INTEGRATION_CLI=1
 			echo "Skipping integration-cli tests since the supplied filter \"${TEST_FILTER}\" omits all integration-cli tests"
+		else
+			TESTFLAGS+=" -test.run /${TEST_FILTER}"
 		fi
 	fi
 }
 
 setup_integration_test_filter
-integration_api_dirs="${TEST_INTEGRATION_DIR:-$(go list  -test -f '{{- if ne .ForTest "" -}}{{- .Dir -}}{{- end -}}'  ./integration/...)}"
+if [ -z "${TEST_SKIP_INTEGRATION}" ] && [ -z "${TEST_INTEGRATION_DIR}" ]; then
+	integration_api_dirs="$(go list -test -f '{{- if ne .ForTest "" -}}{{- .Dir -}}{{- end -}}'  ./integration/...)"
+else
+	integration_api_dirs="${TEST_INTEGRATION_DIR}"
+fi
 
 run_test_integration() {
 	set_platform_timeout
