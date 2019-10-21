@@ -172,7 +172,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             python3-setuptools \
             python3-wheel
 
-ARG YAMLLINT_VERSION=1.16.0
+ARG YAMLLINT_VERSION=1.23.0
 RUN --mount=type=cache,sharing=locked,id=moby-dev-piplocal,target=/root/.local \
     --mount=type=cache,sharing=locked,id=moby-dev-pipcache,target=/root/.cache \
         pip3 install --user pyinstaller yamllint==${YAMLLINT_VERSION} \
