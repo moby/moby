@@ -35,38 +35,26 @@ func (s *DockerSuite) TestCpFromSymlinkDestination(c *testing.T) {
 	srcPath := containerCpPath(containerID, "/file2")
 	dstPath := cpPath(tmpDir, "symlinkToFile1")
 
-	assert.Assert(c, runDockerCp(c, srcPath, dstPath, nil) == nil)
-
-	// The symlink should not have been modified.
-	assert.Assert(c, symlinkTargetEquals(c, dstPath, "file1") == nil)
-
-	// The file should have the contents of "file2" now.
-	assert.Assert(c, fileContentEquals(c, cpPath(tmpDir, "file1"), "file2\n") == nil)
+	assert.NilError(c, runDockerCp(c, srcPath, dstPath))
+	assert.NilError(c, symlinkTargetEquals(c, dstPath, "file1"), "The symlink should not have been modified")
+	assert.NilError(c, fileContentEquals(c, cpPath(tmpDir, "file1"), "file2\n"), `The file should have the contents of "file2" now`)
 
 	// Next, copy a file from the container to a symlink to a directory. This
 	// should copy the file into the symlink target directory.
 	dstPath = cpPath(tmpDir, "symlinkToDir1")
 
-	assert.Assert(c, runDockerCp(c, srcPath, dstPath, nil) == nil)
-
-	// The symlink should not have been modified.
-	assert.Assert(c, symlinkTargetEquals(c, dstPath, "dir1") == nil)
-
-	// The file should have the contents of "file2" now.
-	assert.Assert(c, fileContentEquals(c, cpPath(tmpDir, "file2"), "file2\n") == nil)
+	assert.NilError(c, runDockerCp(c, srcPath, dstPath))
+	assert.NilError(c, symlinkTargetEquals(c, dstPath, "dir1"), "The symlink should not have been modified")
+	assert.NilError(c, fileContentEquals(c, cpPath(tmpDir, "file2"), "file2\n"), `The file should have the contents of "file2" now`)
 
 	// Next, copy a file from the container to a symlink to a file that does
 	// not exist (a broken symlink). This should create the target file with
 	// the contents of the source file.
 	dstPath = cpPath(tmpDir, "brokenSymlinkToFileX")
 
-	assert.Assert(c, runDockerCp(c, srcPath, dstPath, nil) == nil)
-
-	// The symlink should not have been modified.
-	assert.Assert(c, symlinkTargetEquals(c, dstPath, "fileX") == nil)
-
-	// The file should have the contents of "file2" now.
-	assert.Assert(c, fileContentEquals(c, cpPath(tmpDir, "fileX"), "file2\n") == nil)
+	assert.NilError(c, runDockerCp(c, srcPath, dstPath))
+	assert.NilError(c, symlinkTargetEquals(c, dstPath, "fileX"), "The symlink should not have been modified")
+	assert.NilError(c, fileContentEquals(c, cpPath(tmpDir, "fileX"), "file2\n"), `The file should have the contents of "file2" now`)
 
 	// Next, copy a directory from the container to a symlink to a local
 	// directory. This should copy the directory into the symlink target
@@ -74,13 +62,9 @@ func (s *DockerSuite) TestCpFromSymlinkDestination(c *testing.T) {
 	srcPath = containerCpPath(containerID, "/dir2")
 	dstPath = cpPath(tmpDir, "symlinkToDir1")
 
-	assert.Assert(c, runDockerCp(c, srcPath, dstPath, nil) == nil)
-
-	// The symlink should not have been modified.
-	assert.Assert(c, symlinkTargetEquals(c, dstPath, "dir1") == nil)
-
-	// The directory should now contain a copy of "dir2".
-	assert.Assert(c, fileContentEquals(c, cpPath(tmpDir, "dir1/dir2/file2-1"), "file2-1\n") == nil)
+	assert.NilError(c, runDockerCp(c, srcPath, dstPath))
+	assert.NilError(c, symlinkTargetEquals(c, dstPath, "dir1"), "The symlink should not have been modified")
+	assert.NilError(c, fileContentEquals(c, cpPath(tmpDir, "dir1/dir2/file2-1"), "file2-1\n"), `The directory should now contain a copy of "dir2"`)
 
 	// Next, copy a directory from the container to a symlink to a local
 	// directory that does not exist (a broken symlink). This should create
@@ -88,13 +72,9 @@ func (s *DockerSuite) TestCpFromSymlinkDestination(c *testing.T) {
 	// should not modify the symlink.
 	dstPath = cpPath(tmpDir, "brokenSymlinkToDirX")
 
-	assert.Assert(c, runDockerCp(c, srcPath, dstPath, nil) == nil)
-
-	// The symlink should not have been modified.
-	assert.Assert(c, symlinkTargetEquals(c, dstPath, "dirX") == nil)
-
-	// The "dirX" directory should now be a copy of "dir2".
-	assert.Assert(c, fileContentEquals(c, cpPath(tmpDir, "dirX/file2-1"), "file2-1\n") == nil)
+	assert.NilError(c, runDockerCp(c, srcPath, dstPath))
+	assert.NilError(c, symlinkTargetEquals(c, dstPath, "dirX"), "The symlink should not have been modified")
+	assert.NilError(c, fileContentEquals(c, cpPath(tmpDir, "dirX/file2-1"), "file2-1\n"), `The "dirX" directory should now be a copy of "dir2"`)
 }
 
 // Possibilities are reduced to the remaining 10 cases:
@@ -128,9 +108,8 @@ func (s *DockerSuite) TestCpFromCaseA(c *testing.T) {
 	srcPath := containerCpPath(containerID, "/root/file1")
 	dstPath := cpPath(tmpDir, "itWorks.txt")
 
-	assert.Assert(c, runDockerCp(c, srcPath, dstPath, nil) == nil)
-
-	assert.Assert(c, fileContentEquals(c, dstPath, "file1\n") == nil)
+	assert.NilError(c, runDockerCp(c, srcPath, dstPath))
+	assert.NilError(c, fileContentEquals(c, dstPath, "file1\n"))
 }
 
 // B. SRC specifies a file and DST (with trailing path separator) doesn't
@@ -146,9 +125,8 @@ func (s *DockerSuite) TestCpFromCaseB(c *testing.T) {
 	srcPath := containerCpPath(containerID, "/file1")
 	dstDir := cpPathTrailingSep(tmpDir, "testDir")
 
-	err := runDockerCp(c, srcPath, dstDir, nil)
+	err := runDockerCp(c, srcPath, dstDir)
 	assert.ErrorContains(c, err, "")
-
 	assert.Assert(c, isCpDirNotExist(err), "expected DirNotExists error, but got %T: %s", err, err)
 }
 
@@ -169,11 +147,9 @@ func (s *DockerSuite) TestCpFromCaseC(c *testing.T) {
 	dstPath := cpPath(tmpDir, "file2")
 
 	// Ensure the local file starts with different content.
-	assert.Assert(c, fileContentEquals(c, dstPath, "file2\n") == nil)
-
-	assert.Assert(c, runDockerCp(c, srcPath, dstPath, nil) == nil)
-
-	assert.Assert(c, fileContentEquals(c, dstPath, "file1\n") == nil)
+	assert.NilError(c, fileContentEquals(c, dstPath, "file2\n"))
+	assert.NilError(c, runDockerCp(c, srcPath, dstPath))
+	assert.NilError(c, fileContentEquals(c, dstPath, "file1\n"))
 }
 
 // D. SRC specifies a file and DST exists as a directory. This should place
@@ -196,23 +172,18 @@ func (s *DockerSuite) TestCpFromCaseD(c *testing.T) {
 	_, err := os.Stat(dstPath)
 	assert.Assert(c, os.IsNotExist(err), "did not expect dstPath %q to exist", dstPath)
 
-	assert.Assert(c, runDockerCp(c, srcPath, dstDir, nil) == nil)
-
-	assert.Assert(c, fileContentEquals(c, dstPath, "file1\n") == nil)
+	assert.NilError(c, runDockerCp(c, srcPath, dstDir))
+	assert.NilError(c, fileContentEquals(c, dstPath, "file1\n"))
 
 	// Now try again but using a trailing path separator for dstDir.
 
-	// unable to remove dstDir
-	assert.Assert(c, os.RemoveAll(dstDir) == nil)
-
-	// unable to make dstDir
-	assert.Assert(c, os.MkdirAll(dstDir, os.FileMode(0755)) == nil)
+	assert.NilError(c, os.RemoveAll(dstDir), "unable to remove dstDir")
+	assert.NilError(c, os.MkdirAll(dstDir, os.FileMode(0755)), "unable to make dstDir")
 
 	dstDir = cpPathTrailingSep(tmpDir, "dir1")
 
-	assert.Assert(c, runDockerCp(c, srcPath, dstDir, nil) == nil)
-
-	assert.Assert(c, fileContentEquals(c, dstPath, "file1\n") == nil)
+	assert.NilError(c, runDockerCp(c, srcPath, dstDir))
+	assert.NilError(c, fileContentEquals(c, dstPath, "file1\n"))
 }
 
 // E. SRC specifies a directory and DST does not exist. This should create a
@@ -230,20 +201,17 @@ func (s *DockerSuite) TestCpFromCaseE(c *testing.T) {
 	dstDir := cpPath(tmpDir, "testDir")
 	dstPath := filepath.Join(dstDir, "file1-1")
 
-	assert.Assert(c, runDockerCp(c, srcDir, dstDir, nil) == nil)
-
-	assert.Assert(c, fileContentEquals(c, dstPath, "file1-1\n") == nil)
+	assert.NilError(c, runDockerCp(c, srcDir, dstDir))
+	assert.NilError(c, fileContentEquals(c, dstPath, "file1-1\n"))
 
 	// Now try again but using a trailing path separator for dstDir.
 
-	// unable to remove dstDir
-	assert.Assert(c, os.RemoveAll(dstDir) == nil)
+	assert.NilError(c, os.RemoveAll(dstDir), "unable to remove dstDir")
 
 	dstDir = cpPathTrailingSep(tmpDir, "testDir")
 
-	assert.Assert(c, runDockerCp(c, srcDir, dstDir, nil) == nil)
-
-	assert.Assert(c, fileContentEquals(c, dstPath, "file1-1\n") == nil)
+	assert.NilError(c, runDockerCp(c, srcDir, dstDir))
+	assert.NilError(c, fileContentEquals(c, dstPath, "file1-1\n"))
 }
 
 // F. SRC specifies a directory and DST exists as a file. This should cause an
@@ -262,9 +230,8 @@ func (s *DockerSuite) TestCpFromCaseF(c *testing.T) {
 	srcDir := containerCpPath(containerID, "/root/dir1")
 	dstFile := cpPath(tmpDir, "file1")
 
-	err := runDockerCp(c, srcDir, dstFile, nil)
+	err := runDockerCp(c, srcDir, dstFile)
 	assert.ErrorContains(c, err, "")
-
 	assert.Assert(c, isCpCannotCopyDir(err), "expected ErrCannotCopyDir error, but got %T: %s", err, err)
 }
 
@@ -287,23 +254,18 @@ func (s *DockerSuite) TestCpFromCaseG(c *testing.T) {
 	resultDir := filepath.Join(dstDir, "dir1")
 	dstPath := filepath.Join(resultDir, "file1-1")
 
-	assert.Assert(c, runDockerCp(c, srcDir, dstDir, nil) == nil)
-
-	assert.Assert(c, fileContentEquals(c, dstPath, "file1-1\n") == nil)
+	assert.NilError(c, runDockerCp(c, srcDir, dstDir))
+	assert.NilError(c, fileContentEquals(c, dstPath, "file1-1\n"))
 
 	// Now try again but using a trailing path separator for dstDir.
 
-	// unable to remove dstDir
-	assert.Assert(c, os.RemoveAll(dstDir) == nil)
-
-	// unable to make dstDir
-	assert.Assert(c, os.MkdirAll(dstDir, os.FileMode(0755)) == nil)
+	assert.NilError(c, os.RemoveAll(dstDir), "unable to remove dstDir")
+	assert.NilError(c, os.MkdirAll(dstDir, os.FileMode(0755)), "unable to make dstDir")
 
 	dstDir = cpPathTrailingSep(tmpDir, "dir2")
 
-	assert.Assert(c, runDockerCp(c, srcDir, dstDir, nil) == nil)
-
-	assert.Assert(c, fileContentEquals(c, dstPath, "file1-1\n") == nil)
+	assert.NilError(c, runDockerCp(c, srcDir, dstDir))
+	assert.NilError(c, fileContentEquals(c, dstPath, "file1-1\n"))
 }
 
 // H. SRC specifies a directory's contents only and DST does not exist. This
@@ -321,20 +283,17 @@ func (s *DockerSuite) TestCpFromCaseH(c *testing.T) {
 	dstDir := cpPath(tmpDir, "testDir")
 	dstPath := filepath.Join(dstDir, "file1-1")
 
-	assert.Assert(c, runDockerCp(c, srcDir, dstDir, nil) == nil)
-
-	assert.Assert(c, fileContentEquals(c, dstPath, "file1-1\n") == nil)
+	assert.NilError(c, runDockerCp(c, srcDir, dstDir))
+	assert.NilError(c, fileContentEquals(c, dstPath, "file1-1\n"))
 
 	// Now try again but using a trailing path separator for dstDir.
 
-	// unable to remove resultDir
-	assert.Assert(c, os.RemoveAll(dstDir) == nil)
+	assert.NilError(c, os.RemoveAll(dstDir), "unable to remove resultDir")
 
 	dstDir = cpPathTrailingSep(tmpDir, "testDir")
 
-	assert.Assert(c, runDockerCp(c, srcDir, dstDir, nil) == nil)
-
-	assert.Assert(c, fileContentEquals(c, dstPath, "file1-1\n") == nil)
+	assert.NilError(c, runDockerCp(c, srcDir, dstDir))
+	assert.NilError(c, fileContentEquals(c, dstPath, "file1-1\n"))
 }
 
 // I. SRC specifies a directory's contents only and DST exists as a file. This
@@ -354,9 +313,8 @@ func (s *DockerSuite) TestCpFromCaseI(c *testing.T) {
 	srcDir := containerCpPathTrailingSep(containerID, "/root/dir1") + "."
 	dstFile := cpPath(tmpDir, "file1")
 
-	err := runDockerCp(c, srcDir, dstFile, nil)
+	err := runDockerCp(c, srcDir, dstFile)
 	assert.ErrorContains(c, err, "")
-
 	assert.Assert(c, isCpCannotCopyDir(err), "expected ErrCannotCopyDir error, but got %T: %s", err, err)
 }
 
@@ -379,21 +337,16 @@ func (s *DockerSuite) TestCpFromCaseJ(c *testing.T) {
 	dstDir := cpPath(tmpDir, "dir2")
 	dstPath := filepath.Join(dstDir, "file1-1")
 
-	assert.Assert(c, runDockerCp(c, srcDir, dstDir, nil) == nil)
-
-	assert.Assert(c, fileContentEquals(c, dstPath, "file1-1\n") == nil)
+	assert.NilError(c, runDockerCp(c, srcDir, dstDir))
+	assert.NilError(c, fileContentEquals(c, dstPath, "file1-1\n"))
 
 	// Now try again but using a trailing path separator for dstDir.
 
-	// unable to remove dstDir
-	assert.Assert(c, os.RemoveAll(dstDir) == nil)
-
-	// unable to make dstDir
-	assert.Assert(c, os.MkdirAll(dstDir, os.FileMode(0755)) == nil)
+	assert.NilError(c, os.RemoveAll(dstDir), "unable to remove dstDir")
+	assert.NilError(c, os.MkdirAll(dstDir, os.FileMode(0755)), "unable to make dstDir")
 
 	dstDir = cpPathTrailingSep(tmpDir, "dir2")
 
-	assert.Assert(c, runDockerCp(c, srcDir, dstDir, nil) == nil)
-
-	assert.Assert(c, fileContentEquals(c, dstPath, "file1-1\n") == nil)
+	assert.NilError(c, runDockerCp(c, srcDir, dstDir))
+	assert.NilError(c, fileContentEquals(c, dstPath, "file1-1\n"))
 }
