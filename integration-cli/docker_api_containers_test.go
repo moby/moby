@@ -1918,19 +1918,21 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 		}...)
 
 	}
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
 	// TODO add checks for statuscode returned by API
 	for i, x := range cases {
-		c.Logf("case %d", i)
-		_, err = cli.ContainerCreate(context.Background(), &x.config, &x.hostConfig, &networktypes.NetworkingConfig{}, "")
-		if len(x.msg) > 0 {
-			assert.ErrorContains(c, err, x.msg, "%v", cases[i].config)
-		} else {
-			assert.NilError(c, err)
-		}
+		x := x
+		c.Run(fmt.Sprintf("case %d", i), func(c *testing.T) {
+			_, err = apiClient.ContainerCreate(context.Background(), &x.config, &x.hostConfig, &networktypes.NetworkingConfig{}, "")
+			if len(x.msg) > 0 {
+				assert.ErrorContains(c, err, x.msg, "%v", cases[i].config)
+			} else {
+				assert.NilError(c, err)
+			}
+		})
 	}
 }
 
