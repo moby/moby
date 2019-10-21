@@ -192,7 +192,6 @@ func containerCpPathTrailingSep(containerID string, pathElements ...string) stri
 
 func runDockerCp(c *testing.T, src, dst string) error {
 	c.Helper()
-	c.Logf("running `docker cp %s %s`", src, dst)
 
 	args := []string{"cp", src, dst}
 	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, args...)); err != nil {
@@ -203,7 +202,6 @@ func runDockerCp(c *testing.T, src, dst string) error {
 
 func startContainerGetOutput(c *testing.T, containerID string) (out string, err error) {
 	c.Helper()
-	c.Logf("running `docker start -a %s`", containerID)
 
 	args := []string{"start", "-a", containerID}
 
@@ -240,7 +238,6 @@ func isCpCannotCopyReadOnly(err error) bool {
 
 func fileContentEquals(c *testing.T, filename, contents string) error {
 	c.Helper()
-	c.Logf("checking that file %q contains %q\n", filename, contents)
 
 	fileBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -261,7 +258,6 @@ func fileContentEquals(c *testing.T, filename, contents string) error {
 
 func symlinkTargetEquals(c *testing.T, symlink, expectedTarget string) error {
 	c.Helper()
-	c.Logf("checking that the symlink %q points to %q\n", symlink, expectedTarget)
 
 	actualTarget, err := os.Readlink(symlink)
 	if err != nil {
@@ -277,7 +273,6 @@ func symlinkTargetEquals(c *testing.T, symlink, expectedTarget string) error {
 
 func containerStartOutputEquals(c *testing.T, containerID, contents string) error {
 	c.Helper()
-	c.Logf("checking that container %q start output contains %q\n", containerID, contents)
 
 	out, err := startContainerGetOutput(c, containerID)
 	if err != nil {
