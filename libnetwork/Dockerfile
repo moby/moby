@@ -1,4 +1,4 @@
-ARG GO_VERSION=1.12.8
+ARG GO_VERSION=1.12.12
 
 FROM golang:${GO_VERSION}-stretch as dev
 RUN apt-get update && apt-get -y install iptables \
