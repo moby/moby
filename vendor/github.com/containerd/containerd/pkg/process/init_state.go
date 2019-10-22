@@ -37,6 +37,7 @@ type initState interface {
 	Exec(context.Context, string, *ExecConfig) (Process, error)
 	Kill(context.Context, uint32, bool) error
 	SetExited(int)
+	Status(context.Context) (string, error)
 }
 
 type createdState struct {
@@ -101,6 +102,10 @@ func (s *createdState) SetExited(status int) {
 
 func (s *createdState) Exec(ctx context.Context, path string, r *ExecConfig) (Process, error) {
 	return s.p.exec(ctx, path, r)
+}
+
+func (s *createdState) Status(ctx context.Context) (string, error) {
+	return "created", nil
 }
 
 type createdCheckpointState struct {
@@ -211,6 +216,10 @@ func (s *createdCheckpointState) Exec(ctx context.Context, path string, r *ExecC
 	return nil, errors.Errorf("cannot exec in a created state")
 }
 
+func (s *createdCheckpointState) Status(ctx context.Context) (string, error) {
+	return "created", nil
+}
+
 type runningState struct {
 	p *Init
 }
@@ -228,6 +237,13 @@ func (s *runningState) transition(name string) error {
 }
 
 func (s *runningState) Pause(ctx context.Context) error {
+	s.p.pausing.set(true)
+	// NOTE "pausing" will be returned in the short window
+	// after `transition("paused")`, before `pausing` is reset
+	// to false. That doesn't break the state machine, just
+	// delays the "paused" state a little bit.
+	defer s.p.pausing.set(false)
+
 	if err := s.p.runtime.Pause(ctx, s.p.id); err != nil {
 		return s.p.runtimeError(err, "OCI runtime pause failed")
 	}
@@ -269,6 +285,10 @@ func (s *runningState) SetExited(status int) {
 
 func (s *runningState) Exec(ctx context.Context, path string, r *ExecConfig) (Process, error) {
 	return s.p.exec(ctx, path, r)
+}
+
+func (s *runningState) Status(ctx context.Context) (string, error) {
+	return "running", nil
 }
 
 type pausedState struct {
@@ -335,6 +355,10 @@ func (s *pausedState) Exec(ctx context.Context, path string, r *ExecConfig) (Pro
 	return nil, errors.Errorf("cannot exec in a paused state")
 }
 
+func (s *pausedState) Status(ctx context.Context) (string, error) {
+	return "paused", nil
+}
+
 type stoppedState struct {
 	p *Init
 }
@@ -386,4 +410,8 @@ func (s *stoppedState) SetExited(status int) {
 
 func (s *stoppedState) Exec(ctx context.Context, path string, r *ExecConfig) (Process, error) {
 	return nil, errors.Errorf("cannot exec in a stopped state")
+}
+
+func (s *stoppedState) Status(ctx context.Context) (string, error) {
+	return "stopped", nil
 }

@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/reference"
-	distref "github.com/docker/distribution/reference"
+	distref "github.com/containerd/containerd/reference/docker"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )

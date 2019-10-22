@@ -19,11 +19,68 @@
 package oci
 
 import (
+	"context"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 
+	"github.com/containerd/containerd/containers"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
 )
+
+// WithHostDevices adds all the hosts device nodes to the container's spec
+func WithHostDevices(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+	setLinux(s)
+
+	devs, err := getDevices("/dev")
+	if err != nil {
+		return err
+	}
+	s.Linux.Devices = append(s.Linux.Devices, devs...)
+	return nil
+}
+
+func getDevices(path string) ([]specs.LinuxDevice, error) {
+	files, err := ioutil.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+	var out []specs.LinuxDevice
+	for _, f := range files {
+		switch {
+		case f.IsDir():
+			switch f.Name() {
+			// ".lxc" & ".lxd-mounts" added to address https://github.com/lxc/lxd/issues/2825
+			// ".udev" added to address https://github.com/opencontainers/runc/issues/2093
+			case "pts", "shm", "fd", "mqueue", ".lxc", ".lxd-mounts", ".udev":
+				continue
+			default:
+				sub, err := getDevices(filepath.Join(path, f.Name()))
+				if err != nil {
+					return nil, err
+				}
+
+				out = append(out, sub...)
+				continue
+			}
+		case f.Name() == "console":
+			continue
+		}
+		device, err := deviceFromPath(filepath.Join(path, f.Name()), "rwm")
+		if err != nil {
+			if err == ErrNotADevice {
+				continue
+			}
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, err
+		}
+		out = append(out, *device)
+	}
+	return out, nil
+}
 
 func deviceFromPath(path, permissions string) (*specs.LinuxDevice, error) {
 	var stat unix.Stat_t

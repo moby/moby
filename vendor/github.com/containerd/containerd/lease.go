@@ -24,7 +24,7 @@ import (
 )
 
 // WithLease attaches a lease on the context
-func (c *Client) WithLease(ctx context.Context) (context.Context, func(context.Context) error, error) {
+func (c *Client) WithLease(ctx context.Context, opts ...leases.Opt) (context.Context, func(context.Context) error, error) {
 	_, ok := leases.FromContext(ctx)
 	if ok {
 		return ctx, func(context.Context) error {
@@ -34,7 +34,15 @@ func (c *Client) WithLease(ctx context.Context) (context.Context, func(context.C
 
 	ls := c.LeasesService()
 
-	l, err := ls.Create(ctx, leases.WithRandomID(), leases.WithExpiration(24*time.Hour))
+	if len(opts) == 0 {
+		// Use default lease configuration if no options provided
+		opts = []leases.Opt{
+			leases.WithRandomID(),
+			leases.WithExpiration(24 * time.Hour),
+		}
+	}
+
+	l, err := ls.Create(ctx, opts...)
 	if err != nil {
 		return nil, nil, err
 	}
