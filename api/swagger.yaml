@@ -4945,6 +4945,8 @@ paths:
                 type: "integer"
               Driver:
                 type: "string"
+              Platform:
+                type: "string"
               MountLabel:
                 type: "string"
               ProcessLabel:
