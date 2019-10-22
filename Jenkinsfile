@@ -377,8 +377,12 @@ pipeline {
                         expression { params.s390x }
                     }
                     agent { label 's390x-ubuntu-1604' }
-                    // s390x machines run on Docker 18.06, and buildkit has some bugs on that version
-                    environment { DOCKER_BUILDKIT = '0' }
+                    // s390x machines run on Docker 18.06, and buildkit has some
+                    // bugs on that version. Build and use buildx instead.
+                    environment {
+                        USE_BUILDX      = '1'
+                        DOCKER_BUILDKIT = '0'
+                    }
 
                     stages {
                         stage("Print info") {
@@ -486,8 +490,12 @@ pipeline {
                         expression { params.s390x }
                     }
                     agent { label 's390x-ubuntu-1604' }
-                    // s390x machines run on Docker 18.06, and buildkit has some bugs on that version
-                    environment { DOCKER_BUILDKIT = '0' }
+                    // s390x machines run on Docker 18.06, and buildkit has some
+                    // bugs on that version. Build and use buildx instead.
+                    environment {
+                        USE_BUILDX      = '1'
+                        DOCKER_BUILDKIT = '0'
+                    }
 
                     stages {
                         stage("Print info") {
@@ -571,8 +579,12 @@ pipeline {
                         expression { params.ppc64le }
                     }
                     agent { label 'ppc64le-ubuntu-1604' }
-                    // ppc64le machines run on Docker 18.06, and buildkit has some bugs on that version
-                    environment { DOCKER_BUILDKIT = '0' }
+                    // ppc64le machines run on Docker 18.06, and buildkit has some
+                    // bugs on that version. Build and use buildx instead.
+                    environment {
+                        USE_BUILDX      = '1'
+                        DOCKER_BUILDKIT = '0'
+                    }
 
                     stages {
                         stage("Print info") {
@@ -680,8 +692,12 @@ pipeline {
                         expression { params.ppc64le }
                     }
                     agent { label 'ppc64le-ubuntu-1604' }
-                    // ppc64le machines run on Docker 18.06, and buildkit has some bugs on that version
-                    environment { DOCKER_BUILDKIT = '0' }
+                    // ppc64le machines run on Docker 18.06, and buildkit has some
+                    // bugs on that version. Build and use buildx instead.
+                    environment {
+                        USE_BUILDX      = '1'
+                        DOCKER_BUILDKIT = '0'
+                    }
 
                     stages {
                         stage("Print info") {
