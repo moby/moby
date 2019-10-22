@@ -59,7 +59,6 @@ type checker struct {
 }
 
 func (c *checker) Exists(key string, chain []digest.Digest) bool {
-	// TODO: neeeds update
 	if c.opt.ImageStore == nil {
 		return false
 	}

@@ -75,8 +75,6 @@ func NewSnapshotter(opt Opt, prevLM leases.Manager) (snapshot.Snapshotter, lease
 
 	lm := newLeaseManager(s, prevLM)
 
-	// TODO: temp-leases
-
 	ll, err := lm.List(context.TODO())
 	if err != nil {
 		return nil, nil, err

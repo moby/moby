@@ -1,6 +1,7 @@
 package buildkit
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -164,6 +165,14 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 	p, err := parsePlatforms(binfmt_misc.SupportedPlatforms())
 	if err != nil {
 		return nil, err
+	}
+
+	leases, err := lm.List(context.TODO(), "labels.\"buildkit/lease.temporary\"")
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range leases {
+		lm.Delete(context.TODO(), l)
 	}
 
 	wopt := mobyworker.Opt{
