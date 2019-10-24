@@ -2,7 +2,6 @@ package resolver
 
 import (
 	"math/rand"
-	"strings"
 
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/distribution/reference"
@@ -11,7 +10,7 @@ import (
 
 type RegistryConf struct {
 	Mirrors   []string
-	PlainHTTP *bool
+	PlainHTTP bool
 }
 
 type ResolveOptionsFunc func(string) docker.ResolverOptions
@@ -33,21 +32,13 @@ func NewResolveOptionsFunc(m map[string]RegistryConf) ResolveOptionsFunc {
 			return def
 		}
 
-		var mirrorHost string
 		if len(c.Mirrors) > 0 {
-			mirrorHost = c.Mirrors[rand.Intn(len(c.Mirrors))]
 			def.Host = func(string) (string, error) {
-				return mirrorHost, nil
+				return c.Mirrors[rand.Intn(len(c.Mirrors))], nil
 			}
 		}
 
-		if c.PlainHTTP != nil {
-			def.PlainHTTP = *c.PlainHTTP
-		} else {
-			if mirrorHost == "localhost" || strings.HasPrefix(mirrorHost, "localhost:") {
-				def.PlainHTTP = true
-			}
-		}
+		def.PlainHTTP = c.PlainHTTP
 
 		return def
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 
-	"github.com/containerd/containerd/content"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/executor"
@@ -35,7 +34,6 @@ type Worker interface {
 	GetRemote(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool) (*solver.Remote, error)
 	FromRemote(ctx context.Context, remote *solver.Remote) (cache.ImmutableRef, error)
 	PruneCacheMounts(ctx context.Context, ids []string) error
-	ContentStore() content.Store
 }
 
 // Pre-defined label keys

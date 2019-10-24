@@ -3,6 +3,9 @@
 package instructions
 
 import (
+	"encoding/csv"
+	"strings"
+
 	"github.com/pkg/errors"
 )
 
@@ -21,7 +24,9 @@ func isValidSecurity(value string) bool {
 	return ok
 }
 
-var securityKey = "dockerfile/run/security"
+type securityKeyT string
+
+var securityKey = securityKeyT("dockerfile/run/security")
 
 func init() {
 	parseRunPreHooks = append(parseRunPreHooks, runSecurityPreHook)
@@ -30,32 +35,49 @@ func init() {
 
 func runSecurityPreHook(cmd *RunCommand, req parseRequest) error {
 	st := &securityState{}
-	st.flag = req.flags.AddString("security", SecuritySandbox)
+	st.flag = req.flags.AddStrings("security")
 	cmd.setExternalValue(securityKey, st)
 	return nil
 }
 
 func runSecurityPostHook(cmd *RunCommand, req parseRequest) error {
-	st := cmd.getExternalValue(securityKey).(*securityState)
+	st := getSecurityState(cmd)
 	if st == nil {
 		return errors.Errorf("no security state")
 	}
 
-	value := st.flag.Value
-	if !isValidSecurity(value) {
-		return errors.Errorf("security %q is not valid", value)
-	}
+	for _, value := range st.flag.StringValues {
+		csvReader := csv.NewReader(strings.NewReader(value))
+		fields, err := csvReader.Read()
+		if err != nil {
+			return errors.Wrap(err, "failed to parse csv security")
+		}
 
-	st.security = value
+		for _, field := range fields {
+			if !isValidSecurity(field) {
+				return errors.Errorf("security %q is not valid", field)
+			}
+
+			st.security = append(st.security, field)
+		}
+	}
 
 	return nil
 }
 
-func GetSecurity(cmd *RunCommand) string {
-	return cmd.getExternalValue(securityKey).(*securityState).security
+func getSecurityState(cmd *RunCommand) *securityState {
+	v := cmd.getExternalValue(securityKey)
+	if v == nil {
+		return nil
+	}
+	return v.(*securityState)
+}
+
+func GetSecurity(cmd *RunCommand) []string {
+	return getSecurityState(cmd).security
 }
 
 type securityState struct {
 	flag     *Flag
-	security string
+	security []string
 }
