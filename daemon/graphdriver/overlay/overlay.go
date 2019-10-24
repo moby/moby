@@ -200,19 +200,40 @@ func parseOptions(options []string) (*overlayOptions, error) {
 
 func supportsOverlay() error {
 	// Access overlay filesystem so that Linux loads it (if possible).
+	mkdirSucc := true
 	lower, err := ioutil.TempDir("", "overlayLower")
+	if err != nil {
+		mkdirSucc = false
+	} else {
+		defer os.RemoveAll(lower)
+	}
+
 	upper, err := ioutil.TempDir("", "overlayUpper")
+	if err != nil {
+		mkdirSucc = false
+	} else {
+		defer os.RemoveAll(upper)
+	}
+
 	work, err := ioutil.TempDir("", "overlayWork")
+	if err != nil {
+		mkdirSucc = false
+	} else {
+		defer os.RemoveAll(work)
+	}
+
 	merged, err := ioutil.TempDir("", "overlayMerged")
 	if err != nil {
+		mkdirSucc = false
+	} else {
+		defer os.RemoveAll(merged)
+	}
+
+	if mkdirSucc == false {
 		logrus.WithError(err).WithField("storage-driver", "overlay").Error("could not create temporary directory, so assuming that 'overlay' is not supported")
 		return graphdriver.ErrNotSupported
 	}
 
-	defer os.RemoveAll(lower)
-	defer os.RemoveAll(upper)
-	defer os.RemoveAll(work)
-	defer os.RemoveAll(merged)
 	// Attempt to perform an overlay mount to determine whether the current user (and system) can support it
 	if err := unix.Mount("overlay", merged, "overlay", 0, fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lower, upper, work)); err != nil {
 		logrus.WithField("storage-driver", "overlay").Error("'overlay' not supported on this host.")
