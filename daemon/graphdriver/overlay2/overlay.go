@@ -304,7 +304,7 @@ func supportsOverlay() error {
 		defer os.RemoveAll(merged)
 	}
 
-	if mkdirSucc == false {
+	if !mkdirSucc {
 		logrus.WithError(err).WithField("storage-driver", "overlay2").Error("could not create temporary directory, so assuming that 'overlay2' is not supported")
 		return graphdriver.ErrNotSupported
 	}
