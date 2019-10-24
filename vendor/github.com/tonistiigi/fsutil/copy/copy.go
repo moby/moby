@@ -329,21 +329,6 @@ func ensureEmptyFileTarget(dst string) error {
 	return os.Remove(dst)
 }
 
-func copyFile(source, target string) error {
-	src, err := os.Open(source)
-	if err != nil {
-		return errors.Wrapf(err, "failed to open source %s", source)
-	}
-	defer src.Close()
-	tgt, err := os.Create(target)
-	if err != nil {
-		return errors.Wrapf(err, "failed to open target %s", target)
-	}
-	defer tgt.Close()
-
-	return copyFileContent(tgt, src)
-}
-
 func containsWildcards(name string) bool {
 	isWindows := runtime.GOOS == "windows"
 	for i := 0; i < len(name); i++ {

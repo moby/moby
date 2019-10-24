@@ -3,7 +3,6 @@
 package fs
 
 import (
-	"io"
 	"os"
 	"syscall"
 
@@ -49,14 +48,6 @@ func (c *copier) copyFileInfo(fi os.FileInfo, name string) error {
 		}
 	}
 	return nil
-}
-
-func copyFileContent(dst, src *os.File) error {
-	buf := bufferPool.Get().(*[]byte)
-	_, err := io.CopyBuffer(dst, src, *buf)
-	bufferPool.Put(buf)
-
-	return err
 }
 
 func copyDevice(dst string, fi os.FileInfo) error {
