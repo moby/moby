@@ -135,7 +135,6 @@ message NetworkStat {
 	uint64 tx_errors = 8;
 	uint64 tx_dropped = 9;
 }
-
 // CgroupStats exports per-cgroup statistics.
 message CgroupStats {
 	// number of tasks sleeping
