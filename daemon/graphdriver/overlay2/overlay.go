@@ -3,7 +3,6 @@
 package overlay2 // import "github.com/docker/docker/daemon/graphdriver/overlay2"
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -276,29 +275,27 @@ func parseOptions(options []string) (*overlayOptions, error) {
 
 func supportsOverlay() error {
 	// Access overlay filesystem so that Linux loads it (if possible).
-	mountTarget, err := ioutil.TempDir("", "supportsOverlay2")
+	lower, err := ioutil.TempDir("", "overlay2Lower")
+	upper, err := ioutil.TempDir("", "overlay2Upper")
+	work, err := ioutil.TempDir("", "overlay2Work")
+	merged, err := ioutil.TempDir("", "overlay2Merged")
 	if err != nil {
 		logrus.WithError(err).WithField("storage-driver", "overlay2").Error("could not create temporary directory, so assuming that 'overlay' is not supported")
 		return graphdriver.ErrNotSupported
 	}
-	/* The mounting will fail--after the module has been loaded.*/
-	defer os.RemoveAll(mountTarget)
-	unix.Mount("overlay", mountTarget, "overlay", 0, "")
 
-	f, err := os.Open("/proc/filesystems")
-	if err != nil {
-		return err
+	defer os.RemoveAll(lower)
+	defer os.RemoveAll(upper)
+	defer os.RemoveAll(work)
+	defer os.RemoveAll(merged)
+	// Attempt to perform an overlay mount to determine whether the current user (and system) can support it
+	if err := unix.Mount("overlay", merged, "overlay", 0, fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lower, upper, work)); err != nil {
+		logrus.WithField("storage-driver", "overlay").Error("'overlay' not supported on this host.")
+		return graphdriver.ErrNotSupported
 	}
-	defer f.Close()
 
-	s := bufio.NewScanner(f)
-	for s.Scan() {
-		if s.Text() == "nodev\toverlay" {
-			return nil
-		}
-	}
-	logger.Error("'overlay' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlay support loaded.")
-	return graphdriver.ErrNotSupported
+	defer unix.Unmount(merged, 0)
+	return nil
 }
 
 func useNaiveDiff(home string) bool {
