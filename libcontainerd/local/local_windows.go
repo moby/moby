@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/Microsoft/hcsshim"
+	"github.com/Microsoft/hcsshim/osversion"
 	opengcs "github.com/Microsoft/opengcs/client"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
@@ -318,7 +319,7 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 		}
 	}
 	configuration.MappedDirectories = mds
-	if len(mps) > 0 && system.GetOSVersion().Build < 16299 { // RS3
+	if len(mps) > 0 && osversion.Build() < osversion.RS3 {
 		return errors.New("named pipe mounts are not supported on this version of Windows")
 	}
 	configuration.MappedPipes = mps
@@ -328,7 +329,7 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 		if configuration.HvPartition {
 			return errors.New("device assignment is not supported for HyperV containers")
 		}
-		if system.GetOSVersion().Build < 17763 { // RS5
+		if osversion.Build() < osversion.RS5 {
 			return errors.New("device assignment requires Windows builds RS5 (17763+) or later")
 		}
 		for _, d := range spec.Windows.Devices {
@@ -519,7 +520,7 @@ func (c *client) createLinux(id string, spec *specs.Spec, runtimeOptions interfa
 				ReadOnly:          readonly,
 			}
 			// If we are 1803/RS4+ enable LinuxMetadata support by default
-			if system.GetOSVersion().Build >= 17134 {
+			if osversion.Build() >= osversion.RS4 {
 				md.LinuxMetadata = true
 			}
 			mds = append(mds, md)

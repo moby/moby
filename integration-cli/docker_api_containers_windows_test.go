@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	winio "github.com/Microsoft/go-winio"
+	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -19,7 +20,7 @@ import (
 )
 
 func (s *DockerSuite) TestContainersAPICreateMountsBindNamedPipe(c *testing.T) {
-	testRequires(c, testEnv.IsLocalDaemon, DaemonIsWindowsAtLeastBuild(16299)) // Named pipe support was added in RS3
+	testRequires(c, testEnv.IsLocalDaemon, DaemonIsWindowsAtLeastBuild(osversion.RS3)) // Named pipe support was added in RS3
 
 	// Create a host pipe to map into the container
 	hostPipeName := fmt.Sprintf(`\\.\pipe\docker-cli-test-pipe-%x`, rand.Uint64())

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
@@ -65,7 +66,7 @@ func (ld *v2LayerDescriptor) open(ctx context.Context) (distribution.ReadSeekClo
 }
 
 func filterManifests(manifests []manifestlist.ManifestDescriptor, p specs.Platform) []manifestlist.ManifestDescriptor {
-	version := system.GetOSVersion()
+	version := osversion.Get()
 	osVersion := fmt.Sprintf("%d.%d.%d", version.MajorVersion, version.MinorVersion, version.Build)
 	logrus.Debugf("will prefer Windows entries with version %s", osVersion)
 
@@ -123,7 +124,7 @@ func (mbv manifestsByVersion) Swap(i, j int) {
 // Fixes https://github.com/moby/moby/issues/36184.
 func checkImageCompatibility(imageOS, imageOSVersion string) error {
 	if imageOS == "windows" {
-		hostOSV := system.GetOSVersion()
+		hostOSV := osversion.Get()
 		splitImageOSVersion := strings.Split(imageOSVersion, ".") // eg 10.0.16299.nnnn
 		if len(splitImageOSVersion) >= 3 {
 			if imageOSBuild, err := strconv.Atoi(splitImageOSVersion[2]); err == nil {
@@ -142,5 +143,5 @@ func formatPlatform(platform specs.Platform) string {
 	if platform.OS == "" {
 		platform = platforms.DefaultSpec()
 	}
-	return fmt.Sprintf("%s %s", platforms.Format(platform), system.GetOSVersion().ToString())
+	return fmt.Sprintf("%s %s", platforms.Format(platform), osversion.Get().ToString())
 }

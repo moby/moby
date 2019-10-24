@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
@@ -59,10 +60,12 @@ func (s *DockerSuite) TestAPIImagesFilter(c *testing.T) {
 
 func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 	if runtime.GOOS == "windows" {
+		// Note we parse kernel.GetKernelVersion rather than osversion.Build()
+		// as test binaries aren't manifested, so would otherwise report build 9200.
 		v, err := kernel.GetKernelVersion()
 		assert.NilError(c, err)
-		build, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
-		if build <= 16299 {
+		buildNumber, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
+		if buildNumber <= osversion.RS3 {
 			c.Skip("Temporarily disabled on RS3 and older because they are too slow. See #39909")
 		}
 	}
@@ -139,10 +142,12 @@ func (s *DockerSuite) TestAPIImagesHistory(c *testing.T) {
 
 func (s *DockerSuite) TestAPIImagesImportBadSrc(c *testing.T) {
 	if runtime.GOOS == "windows" {
+		// Note we parse kernel.GetKernelVersion rather than osversion.Build()
+		// as test binaries aren't manifested, so would otherwise report build 9200.
 		v, err := kernel.GetKernelVersion()
 		assert.NilError(c, err)
-		build, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
-		if build == 16299 {
+		buildNumber, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
+		if buildNumber == osversion.RS3 {
 			c.Skip("Temporarily disabled on RS3 builds")
 		}
 	}

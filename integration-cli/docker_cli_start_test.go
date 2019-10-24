@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Microsoft/hcsshim/osversion"
+
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"gotest.tools/assert"
@@ -196,7 +198,7 @@ func (s *DockerSuite) TestStartReturnCorrectExitCode(c *testing.T) {
 		v, err := kernel.GetKernelVersion()
 		assert.NilError(c, err)
 		build, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
-		if build < 16299 {
+		if build < osversion.RS3 {
 			c.Skip("FLAKY on Windows RS1, see #38521")
 		}
 	}

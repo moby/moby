@@ -12,7 +12,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/docker/docker/pkg/system"
+	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"golang.org/x/sys/windows"
@@ -171,7 +171,7 @@ func registerService() error {
 
 	// This dependency is required on build 14393 (RS1)
 	// it is added to the platform in newer builds
-	if system.GetOSVersion().Build == 14393 {
+	if osversion.Build() == osversion.RS1 {
 		depends = append(depends, "ConDrv")
 	}
 
