@@ -349,6 +349,7 @@ func (s *DockerSwarmSuite) SetUpTest(c *testing.T) {
 }
 
 func (s *DockerSwarmSuite) AddDaemon(c *testing.T, joinSwarm, manager bool) *daemon.Daemon {
+	c.Helper()
 	d := daemon.New(c, dockerBinary, dockerdBinary,
 		testdaemon.WithEnvironment(testEnv.Execution),
 		testdaemon.WithSwarmPort(defaultSwarmPort+s.portIndex),
