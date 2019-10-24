@@ -46,8 +46,7 @@ func (s *DockerSwarmSuite) TestServiceLogs(c *testing.T) {
 	for name, message := range services {
 		out, err := d.Cmd("service", "logs", name)
 		assert.NilError(c, err)
-		c.Logf("log for %q: %q", name, out)
-		assert.Assert(c, strings.Contains(out, message))
+		assert.Assert(c, strings.Contains(out, message), "log for %q: %q", name, out)
 	}
 }
 

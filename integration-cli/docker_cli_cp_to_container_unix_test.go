@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -30,9 +31,12 @@ func (s *DockerSuite) TestCpToContainerWithPermissions(c *testing.T) {
 
 	srcPath := cpPath(tmpDir, "permdirtest")
 	dstPath := containerCpPath(containerName, "/")
-	assert.NilError(c, runDockerCp(c, srcPath, dstPath, []string{"-a"}))
 
-	out, err := startContainerGetOutput(c, containerName)
+	args := []string{"cp", "-a", srcPath, dstPath}
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
+	assert.NilError(c, err, "output: %v", out)
+
+	out, err = startContainerGetOutput(c, containerName)
 	assert.NilError(c, err, "output: %v", out)
 	assert.Equal(c, strings.TrimSpace(out), "2 2 700\n65534 65534 400", "output: %v", out)
 }
@@ -52,8 +56,7 @@ func (s *DockerSuite) TestCpCheckDestOwnership(c *testing.T) {
 	srcPath := cpPath(tmpDir, "file1")
 	dstPath := containerCpPath(containerID, "/tmpvol", "file1")
 
-	err := runDockerCp(c, srcPath, dstPath, nil)
-	assert.NilError(c, err)
+	assert.NilError(c, runDockerCp(c, srcPath, dstPath))
 
 	stat, err := system.Stat(filepath.Join(tmpVolDir, "file1"))
 	assert.NilError(c, err)
@@ -66,7 +69,7 @@ func (s *DockerSuite) TestCpCheckDestOwnership(c *testing.T) {
 func getRootUIDGID() (int, int, error) {
 	uidgid := strings.Split(filepath.Base(testEnv.DaemonInfo.DockerRootDir), ".")
 	if len(uidgid) == 1 {
-		//user namespace remapping is not turned on; return 0
+		// user namespace remapping is not turned on; return 0
 		return 0, 0, nil
 	}
 	uid, err := strconv.Atoi(uidgid[0])

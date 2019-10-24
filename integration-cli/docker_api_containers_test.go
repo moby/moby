@@ -1918,19 +1918,21 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 		}...)
 
 	}
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
 	// TODO add checks for statuscode returned by API
 	for i, x := range cases {
-		c.Logf("case %d", i)
-		_, err = cli.ContainerCreate(context.Background(), &x.config, &x.hostConfig, &networktypes.NetworkingConfig{}, "")
-		if len(x.msg) > 0 {
-			assert.ErrorContains(c, err, x.msg, "%v", cases[i].config)
-		} else {
-			assert.NilError(c, err)
-		}
+		x := x
+		c.Run(fmt.Sprintf("case %d", i), func(c *testing.T) {
+			_, err = apiClient.ContainerCreate(context.Background(), &x.config, &x.hostConfig, &networktypes.NetworkingConfig{}, "")
+			if len(x.msg) > 0 {
+				assert.ErrorContains(c, err, x.msg, "%v", cases[i].config)
+			} else {
+				assert.NilError(c, err)
+			}
+		})
 	}
 }
 
@@ -2097,63 +2099,65 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 	ctx := context.Background()
 	apiclient := testEnv.APIClient()
 	for i, x := range cases {
-		c.Logf("case %d - config: %v", i, x.spec)
-		container, err := apiclient.ContainerCreate(
-			ctx,
-			&containertypes.Config{Image: testImg},
-			&containertypes.HostConfig{Mounts: []mounttypes.Mount{x.spec}},
-			&networktypes.NetworkingConfig{},
-			"")
-		assert.NilError(c, err)
-
-		containerInspect, err := apiclient.ContainerInspect(ctx, container.ID)
-		assert.NilError(c, err)
-		mps := containerInspect.Mounts
-		assert.Assert(c, is.Len(mps, 1))
-		mountPoint := mps[0]
-
-		if x.expected.Source != "" {
-			assert.Check(c, is.Equal(x.expected.Source, mountPoint.Source))
-		}
-		if x.expected.Name != "" {
-			assert.Check(c, is.Equal(x.expected.Name, mountPoint.Name))
-		}
-		if x.expected.Driver != "" {
-			assert.Check(c, is.Equal(x.expected.Driver, mountPoint.Driver))
-		}
-		if x.expected.Propagation != "" {
-			assert.Check(c, is.Equal(x.expected.Propagation, mountPoint.Propagation))
-		}
-		assert.Check(c, is.Equal(x.expected.RW, mountPoint.RW))
-		assert.Check(c, is.Equal(x.expected.Type, mountPoint.Type))
-		assert.Check(c, is.Equal(x.expected.Mode, mountPoint.Mode))
-		assert.Check(c, is.Equal(x.expected.Destination, mountPoint.Destination))
-
-		err = apiclient.ContainerStart(ctx, container.ID, types.ContainerStartOptions{})
-		assert.NilError(c, err)
-		poll.WaitOn(c, containerExit(apiclient, container.ID), poll.WithDelay(time.Second))
-
-		err = apiclient.ContainerRemove(ctx, container.ID, types.ContainerRemoveOptions{
-			RemoveVolumes: true,
-			Force:         true,
-		})
-		assert.NilError(c, err)
-
-		switch {
-
-		// Named volumes still exist after the container is removed
-		case x.spec.Type == "volume" && len(x.spec.Source) > 0:
-			_, err := apiclient.VolumeInspect(ctx, mountPoint.Name)
+		x := x
+		c.Run(fmt.Sprintf("%d config: %v", i, x.spec), func(c *testing.T) {
+			container, err := apiclient.ContainerCreate(
+				ctx,
+				&containertypes.Config{Image: testImg},
+				&containertypes.HostConfig{Mounts: []mounttypes.Mount{x.spec}},
+				&networktypes.NetworkingConfig{},
+				"")
 			assert.NilError(c, err)
 
-		// Bind mounts are never removed with the container
-		case x.spec.Type == "bind":
+			containerInspect, err := apiclient.ContainerInspect(ctx, container.ID)
+			assert.NilError(c, err)
+			mps := containerInspect.Mounts
+			assert.Assert(c, is.Len(mps, 1))
+			mountPoint := mps[0]
 
-		// anonymous volumes are removed
-		default:
-			_, err := apiclient.VolumeInspect(ctx, mountPoint.Name)
-			assert.Check(c, client.IsErrNotFound(err))
-		}
+			if x.expected.Source != "" {
+				assert.Check(c, is.Equal(x.expected.Source, mountPoint.Source))
+			}
+			if x.expected.Name != "" {
+				assert.Check(c, is.Equal(x.expected.Name, mountPoint.Name))
+			}
+			if x.expected.Driver != "" {
+				assert.Check(c, is.Equal(x.expected.Driver, mountPoint.Driver))
+			}
+			if x.expected.Propagation != "" {
+				assert.Check(c, is.Equal(x.expected.Propagation, mountPoint.Propagation))
+			}
+			assert.Check(c, is.Equal(x.expected.RW, mountPoint.RW))
+			assert.Check(c, is.Equal(x.expected.Type, mountPoint.Type))
+			assert.Check(c, is.Equal(x.expected.Mode, mountPoint.Mode))
+			assert.Check(c, is.Equal(x.expected.Destination, mountPoint.Destination))
+
+			err = apiclient.ContainerStart(ctx, container.ID, types.ContainerStartOptions{})
+			assert.NilError(c, err)
+			poll.WaitOn(c, containerExit(apiclient, container.ID), poll.WithDelay(time.Second))
+
+			err = apiclient.ContainerRemove(ctx, container.ID, types.ContainerRemoveOptions{
+				RemoveVolumes: true,
+				Force:         true,
+			})
+			assert.NilError(c, err)
+
+			switch {
+
+			// Named volumes still exist after the container is removed
+			case x.spec.Type == "volume" && len(x.spec.Source) > 0:
+				_, err := apiclient.VolumeInspect(ctx, mountPoint.Name)
+				assert.NilError(c, err)
+
+			// Bind mounts are never removed with the container
+			case x.spec.Type == "bind":
+
+			// anonymous volumes are removed
+			default:
+				_, err := apiclient.VolumeInspect(ctx, mountPoint.Name)
+				assert.Check(c, client.IsErrNotFound(err))
+			}
+		})
 	}
 }
 
