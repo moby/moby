@@ -133,7 +133,9 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	}
 	resp, err := tr.RoundTripper.RoundTrip(req)
 	if err != nil {
+		tr.mu.Lock()
 		delete(tr.modReq, orig)
+		tr.mu.Unlock()
 		return nil, err
 	}
 	if len(resp.Header["X-Docker-Token"]) > 0 {
