@@ -14,6 +14,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
+	"github.com/docker/distribution/manifest/ocischema"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
@@ -410,6 +411,11 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named, platform 
 		if err != nil {
 			return false, err
 		}
+	case *ocischema.DeserializedManifest:
+		id, manifestDigest, err = p.pullOCI(ctx, ref, v, platform)
+		if err != nil {
+			return false, err
+		}
 	case *manifestlist.DeserializedManifestList:
 		id, manifestDigest, err = p.pullManifestList(ctx, ref, v, platform)
 		if err != nil {
@@ -557,24 +563,18 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unv
 	return imageID, manifestDigest, nil
 }
 
-func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *schema2.DeserializedManifest, platform *specs.Platform) (id digest.Digest, manifestDigest digest.Digest, err error) {
-	manifestDigest, err = schema2ManifestDigest(ref, mfst)
-	if err != nil {
-		return "", "", err
-	}
-
-	target := mfst.Target()
+func (p *v2Puller) pullSchema2Layers(ctx context.Context, target distribution.Descriptor, layers []distribution.Descriptor, platform *specs.Platform) (id digest.Digest, err error) {
 	if _, err := p.config.ImageStore.Get(target.Digest); err == nil {
 		// If the image already exists locally, no need to pull
 		// anything.
-		return target.Digest, manifestDigest, nil
+		return target.Digest, nil
 	}
 
 	var descriptors []xfer.DownloadDescriptor
 
 	// Note that the order of this loop is in the direction of bottom-most
 	// to top-most, so that the downloads slice gets ordered correctly.
-	for _, d := range mfst.Layers {
+	for _, d := range layers {
 		layerDescriptor := &v2LayerDescriptor{
 			digest:            d.Digest,
 			repo:              p.repo,
@@ -629,23 +629,23 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	if runtime.GOOS == "windows" {
 		configJSON, configRootFS, configPlatform, err = receiveConfig(p.config.ImageStore, configChan, configErrChan)
 		if err != nil {
-			return "", "", err
+			return "", err
 		}
 		if configRootFS == nil {
-			return "", "", errRootFSInvalid
+			return "", errRootFSInvalid
 		}
 		if err := checkImageCompatibility(configPlatform.OS, configPlatform.OSVersion); err != nil {
-			return "", "", err
+			return "", err
 		}
 
 		if len(descriptors) != len(configRootFS.DiffIDs) {
-			return "", "", errRootFSMismatch
+			return "", errRootFSMismatch
 		}
 		if platform == nil {
 			// Early bath if the requested OS doesn't match that of the configuration.
 			// This avoids doing the download, only to potentially fail later.
 			if !system.IsOSSupported(configPlatform.OS) {
-				return "", "", fmt.Errorf("cannot download image with operating system %q when requesting %q", configPlatform.OS, layerStoreOS)
+				return "", fmt.Errorf("cannot download image with operating system %q when requesting %q", configPlatform.OS, layerStoreOS)
 			}
 			layerStoreOS = configPlatform.OS
 		}
@@ -692,14 +692,14 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 			case <-downloadsDone:
 			case <-layerErrChan:
 			}
-			return "", "", err
+			return "", err
 		}
 	}
 
 	select {
 	case <-downloadsDone:
 	case err = <-layerErrChan:
-		return "", "", err
+		return "", err
 	}
 
 	if release != nil {
@@ -711,22 +711,40 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 		// Otherwise the image config could be referencing layers that aren't
 		// included in the manifest.
 		if len(downloadedRootFS.DiffIDs) != len(configRootFS.DiffIDs) {
-			return "", "", errRootFSMismatch
+			return "", errRootFSMismatch
 		}
 
 		for i := range downloadedRootFS.DiffIDs {
 			if downloadedRootFS.DiffIDs[i] != configRootFS.DiffIDs[i] {
-				return "", "", errRootFSMismatch
+				return "", errRootFSMismatch
 			}
 		}
 	}
 
 	imageID, err := p.config.ImageStore.Put(configJSON)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
-	return imageID, manifestDigest, nil
+	return imageID, nil
+}
+
+func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *schema2.DeserializedManifest, platform *specs.Platform) (id digest.Digest, manifestDigest digest.Digest, err error) {
+	manifestDigest, err = schema2ManifestDigest(ref, mfst)
+	if err != nil {
+		return "", "", err
+	}
+	id, err = p.pullSchema2Layers(ctx, mfst.Target(), mfst.Layers, platform)
+	return id, manifestDigest, err
+}
+
+func (p *v2Puller) pullOCI(ctx context.Context, ref reference.Named, mfst *ocischema.DeserializedManifest, platform *specs.Platform) (id digest.Digest, manifestDigest digest.Digest, err error) {
+	manifestDigest, err = schema2ManifestDigest(ref, mfst)
+	if err != nil {
+		return "", "", err
+	}
+	id, err = p.pullSchema2Layers(ctx, mfst.Target(), mfst.Layers, platform)
+	return id, manifestDigest, err
 }
 
 func receiveConfig(s ImageConfigStore, configChan <-chan []byte, errChan <-chan error) ([]byte, *image.RootFS, *specs.Platform, error) {
@@ -808,6 +826,12 @@ func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mf
 	case *schema2.DeserializedManifest:
 		platform := toOCIPlatform(manifestMatches[0].Platform)
 		id, _, err = p.pullSchema2(ctx, manifestRef, v, &platform)
+		if err != nil {
+			return "", "", err
+		}
+	case *ocischema.DeserializedManifest:
+		platform := toOCIPlatform(manifestMatches[0].Platform)
+		id, _, err = p.pullOCI(ctx, manifestRef, v, &platform)
 		if err != nil {
 			return "", "", err
 		}
