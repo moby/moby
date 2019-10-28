@@ -165,6 +165,11 @@ func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
+	type timeoutError interface{ Timeout() bool }
+	if e, ok := err.(timeoutError); ok && e.Timeout() {
+		return nil, err
+	}
+
 	if errors.Is(err, os.ErrPermission) {
 		// Don't include request errors (Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.51/version"),
 		// which are irrelevant if we weren't able to connect.
