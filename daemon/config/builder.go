@@ -61,7 +61,14 @@ type BuilderGCConfig struct {
 	DefaultKeepStorage string          `json:",omitempty"`
 }
 
+// BuilderEntitlements contains settings to enable/disable entitlements
+type BuilderEntitlements struct {
+	NetworkHost      *bool `json:"network-host,omitempty"`
+	SecurityInsecure *bool `json:"security-insecure,omitempty"`
+}
+
 // BuilderConfig contains config for the builder
 type BuilderConfig struct {
-	GC BuilderGCConfig `json:",omitempty"`
+	GC           BuilderGCConfig     `json:",omitempty"`
+	Entitlements BuilderEntitlements `json:",omitempty"`
 }

@@ -196,10 +196,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		ResolveCacheExporterFuncs: map[string]remotecache.ResolveCacheExporterFunc{
 			"inline": inlineremotecache.ResolveCacheExporterFunc(),
 		},
-		Entitlements: []string{
-			string(entitlements.EntitlementNetworkHost),
-			// string(entitlements.EntitlementSecurityInsecure),
-		},
+		Entitlements: getEntitlements(opt.BuilderConfig),
 	})
 }
 
@@ -254,4 +251,16 @@ func parsePlatforms(platformsStr []string) ([]specs.Platform, error) {
 		out = append(out, platforms.Normalize(p))
 	}
 	return out, nil
+}
+
+func getEntitlements(conf config.BuilderConfig) []string {
+	var ents []string
+	// Incase of no config settings, NetworkHost should be enabled & SecurityInsecure must be disabled.
+	if conf.Entitlements.NetworkHost == nil || *conf.Entitlements.NetworkHost {
+		ents = append(ents, string(entitlements.EntitlementNetworkHost))
+	}
+	if conf.Entitlements.SecurityInsecure != nil && *conf.Entitlements.SecurityInsecure {
+		ents = append(ents, string(entitlements.EntitlementSecurityInsecure))
+	}
+	return ents
 }
