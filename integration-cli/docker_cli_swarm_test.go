@@ -1522,19 +1522,17 @@ func (s *DockerSwarmSuite) TestSwarmNetworkCreateDup(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 	drivers := []string{"bridge", "overlay"}
 	for i, driver1 := range drivers {
-		nwName := fmt.Sprintf("network-test-%d", i)
 		for _, driver2 := range drivers {
-			c.Logf("Creating a network named %q with %q, then %q",
-				nwName, driver1, driver2)
-			out, err := d.Cmd("network", "create", "--driver", driver1, nwName)
-			assert.NilError(c, err, "out: %v", out)
-			out, err = d.Cmd("network", "create", "--driver", driver2, nwName)
-			assert.Assert(c, strings.Contains(out, fmt.Sprintf("network with name %s already exists", nwName)), out)
-			assert.ErrorContains(c, err, "")
-			c.Logf("As expected, the attempt to network %q with %q failed: %s",
-				nwName, driver2, out)
-			out, err = d.Cmd("network", "rm", nwName)
-			assert.NilError(c, err, "out: %v", out)
+			c.Run(fmt.Sprintf("driver %s then %s", driver1, driver2), func(c *testing.T) {
+				nwName := fmt.Sprintf("network-test-%d", i)
+				out, err := d.Cmd("network", "create", "--driver", driver1, nwName)
+				assert.NilError(c, err, "out: %v", out)
+				out, err = d.Cmd("network", "create", "--driver", driver2, nwName)
+				assert.Assert(c, strings.Contains(out, fmt.Sprintf("network with name %s already exists", nwName)), out)
+				assert.ErrorContains(c, err, "")
+				out, err = d.Cmd("network", "rm", nwName)
+				assert.NilError(c, err, "out: %v", out)
+			})
 		}
 	}
 }
