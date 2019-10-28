@@ -94,6 +94,10 @@ func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOp
 	}
 }
 
+func withLogLevel(_ logrus.Level) containerd.NewTaskOpts {
+	panic("Not implemented")
+}
+
 func newFIFOSet(bundleDir, processID string, withStdin, withTerminal bool) *cio.FIFOSet {
 	config := cio.Config{
 		Terminal: withTerminal,
