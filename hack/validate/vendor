@@ -38,10 +38,9 @@ validate_vendor_diff(){
 # 1. make sure all the vendored packages are used
 # 2. make sure all the packages contain license information (just warning, because it can cause false-positive)
 validate_vendor_used() {
-	pkgs=$(mawk '/^[a-zA-Z0-9]/ { print $1 }' < vendor.conf)
-	for f in $pkgs; do
-	if ls -d "vendor/$f"  > /dev/null 2>&1; then
-		found=$(find "vendor/$f" -iregex '.*LICENSE.*' -or -iregex '.*COPYRIGHT.*' -or -iregex '.*COPYING.*' | wc -l)
+	for f in $(mawk '/^[a-zA-Z0-9]/ { print $1 }' vendor.conf); do
+	if [ -d "vendor/$f" ]; then
+		found=$(echo "vendor/$f/"* | grep -iEc '/(LICENSE|COPYING)')
 		if [ "$found" -eq 0 ]; then
 		echo "WARNING: could not find copyright information for $f"
 		fi
