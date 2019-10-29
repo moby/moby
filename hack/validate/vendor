@@ -13,6 +13,7 @@ validate_vendor_diff(){
 		vndr
 		# check if any files have changed
 		diffs="$(git status --porcelain -- vendor 2>/dev/null)"
+		mfiles="$(echo "$diffs" | awk '/^ M / {print $2}')"
 		if [ "$diffs" ]; then
 			{
 				echo 'The result of vndr differs'
@@ -21,6 +22,9 @@ validate_vendor_diff(){
 				echo
 				echo 'Please vendor your package with github.com/LK4D4/vndr.'
 				echo
+				if [ -n "$mfiles" ] ; then
+					git diff -- "$mfiles"
+				fi
 			} >&2
 			false
 		else
