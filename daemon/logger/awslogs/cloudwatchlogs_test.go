@@ -345,7 +345,7 @@ func TestLogNonBlockingBufferFull(t *testing.T) {
 		logNonBlocking: true,
 	}
 	stream.messages <- &logger.Message{}
-	errorCh := make(chan error)
+	errorCh := make(chan error, 1)
 	started := make(chan bool)
 	go func() {
 		started <- true
