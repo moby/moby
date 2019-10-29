@@ -17,7 +17,7 @@ steps.
 
 To fork and clone Moby:
 
-1. Open a browser and log into GitHub with your account.
+01. Open a browser and log into GitHub with your account.
 
 2. Go to the <a href="https://github.com/moby/moby"
 target="_blank">moby/moby repository</a>.
