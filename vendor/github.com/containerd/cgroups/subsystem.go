@@ -19,6 +19,7 @@ package cgroups
 import (
 	"fmt"
 
+	v1 "github.com/containerd/cgroups/stats/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -85,7 +86,7 @@ type deleter interface {
 
 type stater interface {
 	Subsystem
-	Stat(path string, stats *Metrics) error
+	Stat(path string, stats *v1.Metrics) error
 }
 
 type updater interface {

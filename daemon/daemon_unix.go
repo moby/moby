@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	containerd_cgroups "github.com/containerd/cgroups"
+	v1 "github.com/containerd/cgroups/stats/v1"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/blkiodev"
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
@@ -1347,7 +1347,7 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 	return daemon.Unmount(container)
 }
 
-func copyBlkioEntry(entries []*containerd_cgroups.BlkIOEntry) []types.BlkioStatEntry {
+func copyBlkioEntry(entries []*v1.BlkIOEntry) []types.BlkioStatEntry {
 	out := make([]types.BlkioStatEntry, len(entries))
 	for i, re := range entries {
 		out[i] = types.BlkioStatEntry{
