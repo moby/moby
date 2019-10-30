@@ -70,6 +70,7 @@ func TestInfoAPIWarnings(t *testing.T) {
 
 func TestInfoDebug(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME: test starts daemon with -H unix://.....")
 
 	d := daemon.New(t)
 	d.Start(t, "--debug")
