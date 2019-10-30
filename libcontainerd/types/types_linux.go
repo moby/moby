@@ -3,7 +3,7 @@ package types // import "github.com/docker/docker/libcontainerd/types"
 import (
 	"time"
 
-	"github.com/containerd/cgroups"
+	v1 "github.com/containerd/cgroups/stats/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -13,13 +13,13 @@ type Summary struct{}
 // Stats holds metrics properties as returned by containerd
 type Stats struct {
 	Read    time.Time
-	Metrics *cgroups.Metrics
+	Metrics *v1.Metrics
 }
 
 // InterfaceToStats returns a stats object from the platform-specific interface.
 func InterfaceToStats(read time.Time, v interface{}) *Stats {
 	return &Stats{
-		Metrics: v.(*cgroups.Metrics),
+		Metrics: v.(*v1.Metrics),
 		Read:    read,
 	}
 }
