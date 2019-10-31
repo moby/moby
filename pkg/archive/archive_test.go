@@ -217,7 +217,7 @@ func TestCmdStreamLargeStderr(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start command: %s", err)
 	}
-	errCh := make(chan error)
+	errCh := make(chan error, 1)
 	go func() {
 		_, err := io.Copy(ioutil.Discard, out)
 		errCh <- err
