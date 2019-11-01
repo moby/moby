@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/request"
@@ -44,7 +43,7 @@ func TestVolumesCreateAndList(t *testing.T) {
 	}
 	assert.Check(t, is.DeepEqual(vol, expected, cmpopts.EquateEmpty()))
 
-	volList, err := client.VolumeList(ctx, filters.Args{})
+	volList, err := client.VolumeList(ctx, types.VolumeListOptions{})
 	assert.NilError(t, err)
 	assert.Assert(t, len(volList.Volumes) > 0)
 

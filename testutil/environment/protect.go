@@ -211,7 +211,7 @@ func ProtectVolumes(t testing.TB, testEnv *Execution) {
 func getExistingVolumes(t testing.TB, testEnv *Execution) []string {
 	t.Helper()
 	client := testEnv.APIClient()
-	volumeList, err := client.VolumeList(context.Background(), filters.Args{})
+	volumeList, err := client.VolumeList(context.Background(), types.VolumeListOptions{})
 	assert.NilError(t, err, "failed to list volumes")
 
 	var volumes []string

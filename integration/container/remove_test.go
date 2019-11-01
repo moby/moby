@@ -72,7 +72,9 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	volumes, err := client.VolumeList(ctx, filters.NewArgs(filters.Arg("name", volName)))
+	volumes, err := client.VolumeList(ctx, types.VolumeListOptions{
+		Filters: filters.NewArgs(filters.Arg("name", volName)),
+	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(0, len(volumes.Volumes)))
 }

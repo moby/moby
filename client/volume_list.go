@@ -5,18 +5,19 @@ import (
 	"encoding/json"
 	"net/url"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	volumetypes "github.com/docker/docker/api/types/volume"
 )
 
 // VolumeList returns the volumes configured in the docker host.
-func (cli *Client) VolumeList(ctx context.Context, filter filters.Args) (volumetypes.VolumeListOKBody, error) {
+func (cli *Client) VolumeList(ctx context.Context, options types.VolumeListOptions) (volumetypes.VolumeListOKBody, error) {
 	var volumes volumetypes.VolumeListOKBody
 	query := url.Values{}
 
-	if filter.Len() > 0 {
+	if options.Filters.Len() > 0 {
 		//nolint:staticcheck // ignore SA1019 for old code
-		filterJSON, err := filters.ToParamWithVersion(cli.version, filter)
+		filterJSON, err := filters.ToParamWithVersion(cli.version, options.Filters)
 		if err != nil {
 			return volumes, err
 		}
