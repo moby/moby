@@ -19,9 +19,6 @@ DOCKER ?= docker
 DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info 2>&1 | grep "Storage Driver" | sed 's/.*: //'))
 export DOCKER_GRAPHDRIVER
 
-# enable/disable cross-compile
-DOCKER_CROSS ?= false
-
 # get OS/Arch of docker engine
 DOCKER_OSARCH := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKER_ENGINE_OSARCH}')
 DOCKERFILE := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKERFILE}')
@@ -143,34 +140,47 @@ endif
 
 DOCKER_RUN_DOCKER := $(DOCKER_FLAGS) "$(DOCKER_IMAGE)"
 
+DOCKER_BUILD_ARGS += --build-arg=GO_VERSION
+BUILD_OPTS := ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} ${DOCKER_BUILD_OPTS} -f "$(DOCKERFILE)"
+ifdef USE_BUILDX
+BUILD_OPTS += $(BUILDX_BUILD_EXTRA_OPTS)
+BUILD_CMD := $(BUILDX) build
+else
+BUILD_CMD := $(DOCKER) build
+endif
+
+# This is used for the legacy "build" target and anything still depending on it
+BUILD_CROSS =
+ifdef DOCKER_CROSS
+BUILD_CROSS = --build-arg CROSS=$(DOCKER_CROSS)
+endif
+ifdef DOCKER_CROSSPLATFORMS
+BUILD_CROSS = --build-arg CROSS=true
+endif
+
+VERSION_AUTOGEN_ARGS = --build-arg VERSION --build-arg DOCKER_GITCOMMIT --build-arg PRODUCT --build-arg PLATFORM --build-arg DEFAULT_PRODUCT_LICENSE
+
 default: binary
 
 all: build ## validate all checks, build linux binaries, run all tests\ncross build non-linux binaries and generate archives
 	$(DOCKER_RUN_DOCKER) bash -c 'hack/validate/default && hack/make.sh'
 
-binary: DOCKER_BUILD_ARGS += --output=bundles/ --target=binary
-binary: build ## build the linux binaries
+binary: ## build statically linked linux binaries
+dynbinary: ## build dynamically linked linux binaries
+cross: ## cross build the binaries for darwin, freebsd and\nwindows
 
-dynbinary: DOCKER_BUILD_ARGS += --output=bundles/ --target=dynbinary
-dynbinary: build ## build the linux dynbinaries
+cross: BUILD_OPTS += --build-arg CROSS=true --build-arg DOCKER_CROSSPLATFORMS
 
-cross: DOCKER_BUILD_ARGS += --output=bundles/ --target=cross --build-arg DOCKER_CROSSPLATFORMS=$(DOCKER_CROSSPLATFORMS)
-cross: DOCKER_CROSS := true
-cross: build ## cross build the binaries for darwin, freebsd and\nwindows
+binary dynbinary cross: buildx
+	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
 
-ifdef DOCKER_CROSSPLATFORMS
-build: DOCKER_CROSS := true
-endif
-build: DOCKER_BUILD_ARGS += --build-arg=CROSS=$(DOCKER_CROSS)
-ifdef GO_VERSION
-build: DOCKER_BUILD_ARGS += --build-arg=GO_VERSION=$(GO_VERSION)
-endif
+build: target = --target=final
 ifdef USE_BUILDX
-build: bundles buildx 
-	$(BUILDX) build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} ${DOCKER_BUILD_OPTS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" $(BUILDX_BUILD_EXTRA_OPTS) .
+build: bundles buildx
+	$(BUILD_CMD) $(BUILD_OPTS) $(BUILD_CROSS) $(target) -t "$(DOCKER_IMAGE)" .
 else
-build: bundles
-	$(DOCKER) build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} ${DOCKER_BUILD_OPTS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
+build: bundles ## This is a legacy target and you should probably use something else.
+	$(BUILD_CMD) $(BUILD_OPTS) -t "$(DOCKER_IMAGE)" $(BUILD_CROSS) $(target) .
 endif
 
 bundles:
@@ -191,14 +201,20 @@ install: ## install the linux binaries
 
 run: build ## run the docker daemon in a container
 	$(DOCKER_RUN_DOCKER) sh -c "KEEPBUNDLE=1 hack/make.sh install-binary run"
-
+ 
+.PHONY: build_shell
 ifeq ($(BIND_DIR), .)
-shell: DOCKER_BUILD_ARGS += --target=dev
+build_shell: shell_target := --target=dev
 else
-shell: DOCKER_BUILD_ARGS += --target=final
+build_shell: shell_target := --target=final
 endif
-shell: BUILDX_BUILD_EXTRA_OPTS += --load
-shell: build  ## start a shell inside the build env
+ifdef USE_BUILDX
+build_shell: buildx_load := --load
+endif
+build_shell: buildx
+	$(BUILD_CMD) $(BUILD_OPTS) $(shell_target) $(buildx_load) $(BUILD_CROSS) -t "$(DOCKER_IMAGE)" .
+
+shell: build_shell  ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash
 
 test: build test-unit ## run the unit, integration and docker-py tests
@@ -246,8 +262,10 @@ swagger-docs: ## preview the API documentation
 		bfirsh/redoc:1.6.2
 
 .PHONY: buildx
+ifdef USE_BUILDX
 ifeq ($(BUILDX), bundles/buildx)
 buildx: bundles/buildx ## build buildx cli tool
+endif
 endif
 
 # This intentionally is not using the `--output` flag from the docker CLI, which
