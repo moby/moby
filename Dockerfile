@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.1.3-experimental
 
 ARG CROSS="false"
-ARG GO_VERSION=1.13.3
+ARG GO_VERSION=1.13.4
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_DIGEST=e508a17cfacc8fd39261d5b4e397df2b953690da577e2c987a47630cd0c42f8e
 
