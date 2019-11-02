@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/pkg/homedir"
 )
 
@@ -169,8 +170,11 @@ func ValidateExtraHost(val string) (string, error) {
 	if len(arr) != 2 || len(arr[0]) == 0 {
 		return "", fmt.Errorf("bad format for add-host: %q", val)
 	}
-	if _, err := ValidateIPAddress(arr[1]); err != nil {
-		return "", fmt.Errorf("invalid IP address in add-host: %q", arr[1])
+	// Skip IPaddr validation for special "host-gateway" string
+	if arr[1] != network.HostGatewayName {
+		if _, err := ValidateIPAddress(arr[1]); err != nil {
+			return "", fmt.Errorf("invalid IP address in add-host: %q", arr[1])
+		}
 	}
 	return val, nil
 }
