@@ -97,6 +97,26 @@ pipeline {
                     post {
                         always {
                             junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+
+                            sh '''
+                            echo "Ensuring container killed."
+                            docker rm -vf docker-pr$BUILD_NUMBER || true
+                            '''
+
+                            sh '''
+                            echo 'Chowning /workspace to jenkins user'
+                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
+                            '''
+
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                sh '''
+                                bundleName=buildkit
+                                echo "Creating ${bundleName}-bundles.tar.gz"
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                '''
+
+                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
+                            }
                         }
                     }
                 }
