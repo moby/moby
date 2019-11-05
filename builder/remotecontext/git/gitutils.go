@@ -209,7 +209,7 @@ func isGitTransport(str string) bool {
 	}
 
 	switch getScheme(str) {
-	case "git", "http", "https":
+	case "git", "http", "https", "ssh":
 		return true
 	}
 
