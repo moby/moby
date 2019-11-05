@@ -1639,3 +1639,7 @@ func (daemon *Daemon) setupSeccompProfile() error {
 	}
 	return nil
 }
+
+func (daemon *Daemon) useShimV2() bool {
+	return cgroups.IsCgroup2UnifiedMode()
+}

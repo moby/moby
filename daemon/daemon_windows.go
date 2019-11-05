@@ -653,3 +653,7 @@ func (daemon *Daemon) initRuntimes(_ map[string]types.Runtime) error {
 
 func setupResolvConf(config *config.Config) {
 }
+
+func (daemon *Daemon) useShimV2() bool {
+	return true
+}
