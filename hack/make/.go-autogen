@@ -58,7 +58,9 @@ if [ "$(go env GOOS)" = "windows" ]; then
 	fi
 
 	# Generate a Windows file version of the form major,minor,patch,build (with any part optional)
-	VERSION_QUAD=$(echo -n $VERSION | sed -re 's/^([0-9.]*).*$/\1/' | tr . ,)
+	if [ ! -v VERSION_QUAD ]; then
+		VERSION_QUAD=$(echo -n $VERSION | sed -re 's/^([0-9.]*).*$/\1/' | tr . ,)
+	fi
 
 	# Pass version and commit information into the resource compiler
 	defs=
