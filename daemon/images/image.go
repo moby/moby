@@ -83,10 +83,13 @@ func (i *ImageService) resolveImageName(ctx context.Context, refOrID string) (oc
 		return imgs[0].Target, nil, nil
 	}
 
+	namedRef = reference.TagNameOnly(namedRef)
+
 	// If the identifier could be a short ID, attempt to match
 	if shortID.MatchString(refOrID) {
+		ref := namedRef.String()
 		filters := []string{
-			fmt.Sprintf("name==%q", namedRef.String()),
+			fmt.Sprintf("name==%q", ref),
 			fmt.Sprintf(`target.digest~=/sha256:%s[0-9a-fA-F]{%d}/`, refOrID, 64-len(refOrID)),
 		}
 		imgs, err := is.List(ctx, filters...)
@@ -98,11 +101,10 @@ func (i *ImageService) resolveImageName(ctx context.Context, refOrID string) (oc
 			return ocispec.Descriptor{}, nil, errdefs.NotFound(errors.New("list returned no images"))
 		}
 		if len(imgs) > 1 {
-			ref := namedRef.String()
 			digests := map[digest.Digest]struct{}{}
 			for _, img := range imgs {
 				if img.Name == ref {
-					return img.Target, nil, nil
+					return img.Target, namedRef, nil
 				}
 				digests[img.Target.Digest] = struct{}{}
 			}
@@ -111,9 +113,12 @@ func (i *ImageService) resolveImageName(ctx context.Context, refOrID string) (oc
 				return ocispec.Descriptor{}, nil, errdefs.NotFound(errors.New("ambiguous reference"))
 			}
 		}
-		return imgs[0].Target, nil, nil
+
+		if imgs[0].Name != ref {
+			namedRef = nil
+		}
+		return imgs[0].Target, namedRef, nil
 	}
-	namedRef = reference.TagNameOnly(namedRef)
 	img, err := is.Get(ctx, namedRef.String())
 	if err != nil {
 		// TODO(containerd): error translation can use common function
