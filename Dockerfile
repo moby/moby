@@ -309,12 +309,7 @@ VOLUME /var/lib/docker
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
 
-FROM runtime-dev AS src
-# Make arg inheritable
-WORKDIR /go/src/github.com/docker/docker
-COPY . /go/src/github.com/docker/docker
-
-FROM src AS binary-base
+FROM runtime-dev AS binary-base
 ARG DOCKER_GITCOMMIT=HEAD
 ENV DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT}
 ARG VERSION
@@ -327,6 +322,7 @@ ARG DEFAULT_PRODUCT_LICENSE
 ENV DEFAULT_PRODUCT_LICENSE=${DEFAULT_PRODUCT_LICENSE}
 ARG DOCKER_BUILDTAGS
 ENV DOCKER_BUILDTAGS="${DOCKER_BUILDTAGS}"
+ENV PREFIX=/build
 # TODO: This is here because hack/make.sh binary copies these extras binaries
 # from $PATH into the bundles dir.
 # It would be nice to handle this in a different way.
@@ -335,26 +331,32 @@ COPY --from=runc        /build/ /usr/local/bin/
 COPY --from=containerd  /build/ /usr/local/bin/
 COPY --from=rootlesskit /build/ /usr/local/bin/
 COPY --from=proxy       /build/ /usr/local/bin/
+WORKDIR /go/src/github.com/docker/docker
 
 FROM binary-base AS build-binary
 RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=bind,target=/go/src/github.com/docker/docker \
         hack/make.sh binary
 
 FROM binary-base AS build-dynbinary
 RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=bind,target=/go/src/github.com/docker/docker \
         hack/make.sh dynbinary
 
 FROM binary-base AS build-cross
 ARG DOCKER_CROSSPLATFORMS
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=bind,target=/go/src/github.com/docker/docker \
         hack/make.sh cross
 
 FROM scratch AS binary
-COPY --from=build-binary /go/src/github.com/docker/docker/bundles/ /
+COPY --from=build-binary /build/bundles/ /
 
 FROM scratch AS dynbinary
-COPY --from=build-dynbinary /go/src/github.com/docker/docker/bundles/ /
+COPY --from=build-dynbinary /build/ /
 
 FROM scratch AS cross
-COPY --from=build-cross /go/src/github.com/docker/docker/bundles/ /
+COPY --from=build-cross /build/ /
 
-FROM src AS final
+FROM dev AS final
+COPY . /go/src/github.com/docker/docker
