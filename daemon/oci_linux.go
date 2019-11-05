@@ -875,14 +875,16 @@ func WithResources(c *container.Container) coci.SpecOpts {
 
 		memoryRes := getMemoryResources(r)
 		cpuRes, err := getCPUResources(r)
+		hugepageRes := getHugepageResources(r)
 		if err != nil {
 			return err
 		}
 		blkioWeight := r.BlkioWeight
 
 		specResources := &specs.LinuxResources{
-			Memory: memoryRes,
-			CPU:    cpuRes,
+			Memory:         memoryRes,
+			CPU:            cpuRes,
+			HugepageLimits: hugepageRes,
 			BlockIO: &specs.LinuxBlockIO{
 				Weight:                  &blkioWeight,
 				WeightDevice:            weightDevices,

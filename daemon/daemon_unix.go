@@ -258,6 +258,19 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 	return err
 }
 
+func getHugepageResources(config containertypes.Resources) []specs.LinuxHugepageLimit {
+	var hugepages []specs.LinuxHugepageLimit
+
+	for _, hugepage := range config.HugepageLimits {
+		hugepages = append(hugepages, specs.LinuxHugepageLimit{
+			Pagesize: hugepage.PageSize,
+			Limit:    hugepage.Limit,
+		})
+	}
+
+	return hugepages
+}
+
 func getBlkioThrottleDevices(devs []*blkiodev.ThrottleDevice) ([]specs.LinuxThrottleDevice, error) {
 	var throttleDevices []specs.LinuxThrottleDevice
 	var stat unix.Stat_t
