@@ -15,7 +15,7 @@ pipeline {
         booleanParam(name: 'ppc64le', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
         booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
         booleanParam(name: 'windowsRS5', defaultValue: true, description: 'Windows 2019 (RS5) Build/Test')
-        booleanParam(name: 'skip_dco', defaultValue: false, description: 'Skip the DCO check')
+        booleanParam(name: 'dco', defaultValue: true, description: 'Run the DCO check')
     }
     environment {
         DOCKER_BUILDKIT     = '1'
@@ -41,7 +41,7 @@ pipeline {
         stage('DCO-check') {
             when {
                 beforeAgent true
-                expression { !params.skip_dco }
+                expression { params.dco }
             }
             agent { label 'amd64 && ubuntu-1804 && overlay2' }
             steps {
@@ -266,7 +266,7 @@ pipeline {
                                 sh '''
                                 # todo: include ip_vs in base image
                                 sudo modprobe ip_vs
-                
+
                                 docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
@@ -276,7 +276,7 @@ pipeline {
                                 sh '''#!/bin/bash
                                 # bash is needed so 'jobs -p' works properly
                                 # it also accepts setting inline envvars for functions without explicitly exporting
- 
+
                                 run_tests() {
                                         [ -n "$TESTDEBUG" ] && rm= || rm=--rm;
                                         docker run $rm -t --privileged \
