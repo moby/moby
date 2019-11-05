@@ -525,7 +525,7 @@ func (sm *secretMountInstance) Mount() ([]mount.Mount, func() error, error) {
 	return []mount.Mount{{
 		Type:    "bind",
 		Source:  fp,
-		Options: []string{"ro", "rbind"},
+		Options: []string{"ro", "rbind", "nodev", "nosuid", "noexec"},
 	}}, cleanup, nil
 }
 
