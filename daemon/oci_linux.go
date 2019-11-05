@@ -316,7 +316,9 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 				return fmt.Errorf("invalid cgroup namespace mode: %v", cgroupNsMode)
 			}
 
-			if cgroupNsMode.IsPrivate() && !c.HostConfig.Privileged {
+			// for cgroup v2: unshare cgroupns even for privileged containers
+			// https://github.com/containers/libpod/pull/4374#issuecomment-549776387
+			if cgroupNsMode.IsPrivate() && (cgroups.IsCgroup2UnifiedMode() || !c.HostConfig.Privileged) {
 				nsCgroup := specs.LinuxNamespace{Type: "cgroup"}
 				setNamespace(s, nsCgroup)
 			}
