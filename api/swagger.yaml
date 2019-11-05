@@ -2995,16 +2995,10 @@ definitions:
         description: "Runtime is the type of runtime specified for the task executor."
         type: "string"
       Networks:
+        description: "Specifies which networks the service should attach to."
         type: "array"
         items:
-          type: "object"
-          properties:
-            Target:
-              type: "string"
-            Aliases:
-              type: "array"
-              items:
-                type: "string"
+          $ref: "#/definitions/NetworkAttachmentConfig"
       LogDriver:
         description: "Specifies the log driver to use for tasks created from this spec. If not present, the default one for the swarm will be used, finally falling back to the engine default if not specified."
         type: "object"
@@ -3250,17 +3244,11 @@ definitions:
               - "stop-first"
               - "start-first"
       Networks:
-        description: "Array of network names or IDs to attach the service to."
+        description: "Specifies which networks the service should attach to."
         type: "array"
         items:
-          type: "object"
-          properties:
-            Target:
-              type: "string"
-            Aliases:
-              type: "array"
-              items:
-                type: "string"
+          $ref: "#/definitions/NetworkAttachmentConfig"
+
       EndpointSpec:
         $ref: "#/definitions/EndpointSpec"
 
@@ -4463,6 +4451,24 @@ definitions:
         description: |
           IP address and ports at which this node can be reached.
         type: "string"
+
+  NetworkAttachmentConfig:
+    description: "Specifies how a service should be attached to a particular network."
+    type: "object"
+    properties:
+      Target:
+        description: "The target network for attachment. Must be a network name or ID."
+        type: "string"
+      Aliases:
+        description: "Discoverable alternate names for the service on this network."
+        type: "array"
+        items:
+          type: "string"
+      DriverOpts:
+        description: "Driver attachment options for the network target"
+        type: "object"
+        additionalProperties:
+          type: "string"
 
 paths:
   /containers/json:
