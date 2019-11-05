@@ -7,6 +7,16 @@ import (
 // Option is used to configure a daemon.
 type Option func(*Daemon)
 
+// WithContainerdSocket sets the --containerd option on the daemon.
+// Use an empty string to remove the option.
+//
+// If unset the --containerd option will be used with a default value.
+func WithContainerdSocket(socket string) Option {
+	return func(d *Daemon) {
+		d.containerdSocket = socket
+	}
+}
+
 // WithDefaultCgroupNamespaceMode sets the default cgroup namespace mode for the daemon
 func WithDefaultCgroupNamespaceMode(mode string) Option {
 	return func(d *Daemon) {
