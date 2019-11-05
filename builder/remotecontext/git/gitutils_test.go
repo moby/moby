@@ -25,6 +25,14 @@ func TestParseRemoteURL(t *testing.T) {
 		expected gitRepo
 	}{
 		{
+			doc: "git scheme uppercase, no url-fragment",
+			url: "GIT://github.com/user/repo.git",
+			expected: gitRepo{
+				remote: "git://github.com/user/repo.git",
+				ref:    "master",
+			},
+		},
+		{
 			doc: "git scheme, no url-fragment",
 			url: "git://github.com/user/repo.git",
 			expected: gitRepo{
