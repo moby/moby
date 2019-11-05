@@ -1,6 +1,8 @@
-bundles
-.gopath
-vendor/pkg
-.go-pkg-cache
+.dockerignore
 .git
+.go-pkg-cache
+.gopath
+bundles
+Dockerfile
+vendor/pkg
 
