@@ -57,7 +57,6 @@ type clientConfig struct {
 
 // Daemon represents a Docker daemon for the testing framework
 type Daemon struct {
-	GlobalFlags       []string
 	Root              string
 	Folder            string
 	Wait              chan error
@@ -256,17 +255,17 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		d.pidFile = filepath.Join(d.Folder, "docker.pid")
 	}
 
-	d.args = append(d.GlobalFlags, "--data-root", d.Root)
-	if d.containerdSocket != "" {
-		d.args = append(d.args, "--containerd", d.containerdSocket)
-	}
-	d.args = append(d.args,
+	d.args = []string{
+		"--data-root", d.Root,
 		"--exec-root", d.execRoot,
 		"--pidfile", d.pidFile,
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 		"--containerd-namespace", d.id,
-		"--containerd-plugins-namespace", d.id+"p",
-	)
+		"--containerd-plugins-namespace", d.id + "p",
+	}
+	if d.containerdSocket != "" {
+		d.args = append(d.args, "--containerd", d.containerdSocket)
+	}
 
 	if d.defaultCgroupNamespaceMode != "" {
 		d.args = append(d.args, "--default-cgroupns-mode", d.defaultCgroupNamespaceMode)
