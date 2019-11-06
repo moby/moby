@@ -417,6 +417,12 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	assert.NilError(t, err)
 	t.Logf("%s: NetworkInspect: %+v", t.Name(), out)
 	assert.Assert(t, len(out.IPAM.Config) > 0)
+	assert.Equal(t, out.IPAM.Config[0].Subnet, "20.20.1.0/24")
+
+	// Also inspect ingress network and make sure its in the same subnet
+	out, err = cli.NetworkInspect(ctx, "ingress", types.NetworkInspectOptions{Verbose: true})
+	assert.NilError(t, err)
+	assert.Assert(t, len(out.IPAM.Config) > 0)
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "20.20.0.0/24")
 
 	err = cli.ServiceRemove(ctx, serviceID)
