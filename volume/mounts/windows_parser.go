@@ -275,6 +275,10 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex strin
 				return err
 			}
 		}
+
+		if windowsDetectMountType(mnt.Target) == mount.TypeNamedPipe {
+			return &errMountConfig{mnt, fmt.Errorf("'%s' is a pipe path", mnt.Target)}
+		}
 	case mount.TypeVolume:
 		if mnt.BindOptions != nil {
 			return &errMountConfig{mnt, errExtraField("BindOptions")}

@@ -345,6 +345,7 @@ func TestParseMountRawSplit(t *testing.T) {
 		{`c:\:d:\:ro`, "local", mount.TypeBind, `d:\`, `c:\`, ``, "", false, false},
 		{`c:\:d:\:rw`, "local", mount.TypeBind, `d:\`, `c:\`, ``, "", true, false},
 		{`c:\:d:\:foo`, "local", mount.TypeBind, `d:\`, `c:\`, ``, "", false, true},
+		{`c:\foo\bar:\\.\pipe\foo`, "local", mount.TypeBind, ``, ``, "", "", true, true},
 		{`name:d::rw`, "local", mount.TypeVolume, `d:`, ``, `name`, "local", true, false},
 		{`name:d:`, "local", mount.TypeVolume, `d:`, ``, `name`, "local", true, false},
 		{`name:d::ro`, "local", mount.TypeVolume, `d:`, ``, `name`, "local", false, false},
@@ -352,7 +353,6 @@ func TestParseMountRawSplit(t *testing.T) {
 		{`driver/name:c:`, "", mount.TypeVolume, ``, ``, ``, "", true, true},
 		{`\\.\pipe\foo:\\.\pipe\bar`, "local", mount.TypeNamedPipe, `\\.\pipe\bar`, `\\.\pipe\foo`, "", "", true, false},
 		{`\\.\pipe\foo:c:\foo\bar`, "local", mount.TypeNamedPipe, ``, ``, "", "", true, true},
-		{`c:\foo\bar:\\.\pipe\foo`, "local", mount.TypeNamedPipe, ``, ``, "", "", true, true},
 	}
 	lcowCases := []testParseMountRaw{
 		{`c:\:/foo`, "local", mount.TypeBind, `/foo`, `c:\`, ``, "", true, false},
