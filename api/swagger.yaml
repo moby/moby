@@ -210,6 +210,23 @@ definitions:
       PathInContainer: "/dev/deviceName"
       CgroupPermissions: "mrw"
 
+  HugepageLimit:
+    type: "object"
+    description: |
+      HugepageLimit corresponds to the file`hugetlb.<hugepagesize>.limit_in_byte` in container level cgroup.
+      For example, `PageSize=1GB`, `Limit=1073741824` means setting `1073741824` bytes to hugetlb.1GB.limit_in_bytes.
+    properties:
+      PageSize:
+        type: "string"
+        example: "1GB"
+      Limit:
+        type: "integer"
+        format: "uint64"
+        example: 1073741824
+    example:
+      PageSize: "1GB"
+      Limit: 1073741824
+
   DeviceRequest:
     type: "object"
     description: "A request for devices to be sent to device drivers"
@@ -519,6 +536,11 @@ definitions:
             Hard:
               description: "Hard limit"
               type: "integer"
+      HugepageLimits:
+        description: "List of hugepage limits to limit the HugeTLB usage of container per page size"
+        type: "array"
+        items:
+          $ref: "#/definitions/HugepageLimit"
       # Applicable to Windows
       CpuCount:
         description: |
@@ -4725,6 +4747,7 @@ paths:
                 Memory: 0
                 MemorySwap: 0
                 MemoryReservation: 0
+                HugepageLimits: []
                 KernelMemory: 0
                 NanoCPUs: 500000
                 CpuPercent: 80
