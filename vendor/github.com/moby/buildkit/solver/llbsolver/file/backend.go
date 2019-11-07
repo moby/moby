@@ -100,13 +100,33 @@ func mkfile(ctx context.Context, d string, action pb.FileActionMkFile, user *cop
 }
 
 func rm(ctx context.Context, d string, action pb.FileActionRm) error {
-	p, err := fs.RootPath(d, filepath.Join(filepath.Join("/", action.Path)))
+	if action.AllowWildcard {
+		src := cleanPath(action.Path)
+		m, err := copy.ResolveWildcards(d, src, false)
+		if err != nil {
+			return err
+		}
+
+		for _, s := range m {
+			if err := rmPath(d, s, action.AllowNotFound); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	return rmPath(d, action.Path, action.AllowNotFound)
+}
+
+func rmPath(root, src string, allowNotFound bool) error {
+	p, err := fs.RootPath(root, filepath.Join(filepath.Join("/", src)))
 	if err != nil {
 		return err
 	}
 
 	if err := os.RemoveAll(p); err != nil {
-		if os.IsNotExist(errors.Cause(err)) && action.AllowNotFound {
+		if os.IsNotExist(errors.Cause(err)) && allowNotFound {
 			return nil
 		}
 		return err

@@ -45,7 +45,8 @@ const (
 	CapExecMountSSH                  apicaps.CapID = "exec.mount.ssh"
 	CapExecCgroupsMounted            apicaps.CapID = "exec.cgroup"
 
-	CapFileBase apicaps.CapID = "file.base"
+	CapFileBase       apicaps.CapID = "file.base"
+	CapFileRmWildcard apicaps.CapID = "file.rm.wildcard"
 
 	CapConstraints apicaps.CapID = "constraints"
 	CapPlatform    apicaps.CapID = "platform"
@@ -250,6 +251,12 @@ func init() {
 			"docker":   "Docker v19.03",
 			"buildkit": "BuildKit v0.5.0",
 		},
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapFileRmWildcard,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
 	})
 
 	Caps.Init(apicaps.Cap{

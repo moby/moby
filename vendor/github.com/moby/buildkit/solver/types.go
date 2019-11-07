@@ -9,29 +9,43 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// Vertex is one node in the build graph
+// Vertex is a node in a build graph. It defines an interface for a
+// content-addressable operation and its inputs.
 type Vertex interface {
-	// Digest is a content-addressable vertex identifier
+	// Digest returns a checksum of the definition up to the vertex including
+	// all of its inputs.
 	Digest() digest.Digest
-	// Sys returns an internal value that is used to execute the vertex. Usually
-	// this is capured by the operation resolver method during solve.
+
+	// Sys returns an object used to resolve the executor for this vertex.
+	// In LLB solver, this value would be of type `llb.Op`.
 	Sys() interface{}
+
+	// Options return metadata associated with the vertex that doesn't change the
+	// definition or equality check of it.
 	Options() VertexOptions
-	// Array of edges current vertex depends on.
+
+	// Inputs returns an array of edges the vertex depends on. An input edge is
+	// a vertex and an index from the returned array of results from an executor
+	// returned by Sys(). A vertex may have zero inputs.
 	Inputs() []Edge
+
 	Name() string
 }
 
-// Index is a index value for output edge
+// Index is an index value for the return array of an operation. Index starts
+// counting from zero.
 type Index int
 
-// Edge is a path to a specific output of the vertex
+// Edge is a connection point between vertexes. An edge references a specific
+// output of a vertex's operation. Edges are used as inputs to other vertexes.
 type Edge struct {
 	Index  Index
 	Vertex Vertex
 }
 
-// VertexOptions has optional metadata for the vertex that is not contained in digest
+// VertexOptions define optional metadata for a vertex that doesn't change the
+// definition or equality check of it. These options are not contained in the
+// vertex digest.
 type VertexOptions struct {
 	IgnoreCache  bool
 	CacheSources []CacheManager
@@ -110,26 +124,44 @@ type CacheLink struct {
 	Selector digest.Digest `json:",omitempty"`
 }
 
-// Op is an implementation for running a vertex
+// Op defines how the solver can evaluate the properties of a vertex operation.
+// An op is executed in the worker, and is retrieved from the vertex by the
+// value of `vertex.Sys()`. The solver is configured with a resolve function to
+// convert a `vertex.Sys()` into an `Op`.
 type Op interface {
 	// CacheMap returns structure describing how the operation is cached.
 	// Currently only roots are allowed to return multiple cache maps per op.
 	CacheMap(context.Context, int) (*CacheMap, bool, error)
+
 	// Exec runs an operation given results from previous operations.
 	Exec(ctx context.Context, inputs []Result) (outputs []Result, err error)
 }
 
 type ResultBasedCacheFunc func(context.Context, Result) (digest.Digest, error)
 
+// CacheMap is a description for calculating the cache key of an operation.
 type CacheMap struct {
-	// Digest is a base digest for operation that needs to be combined with
-	// inputs cache or selectors for dependencies.
+	// Digest returns a checksum for the operation. The operation result can be
+	// cached by a checksum that combines this digest and the cache keys of the
+	// operation's inputs.
+	//
+	// For example, in LLB this digest is a manifest digest for OCI images, or
+	// commit SHA for git sources.
 	Digest digest.Digest
-	Deps   []struct {
-		// Optional digest that is merged with the cache key of the input
+
+	// Deps contain optional selectors or content-based cache functions for its
+	// inputs.
+	Deps []struct {
+		// Selector is a digest that is merged with the cache key of the input.
+		// Selectors are not merged with the result of the `ComputeDigestFunc` for
+		// this input.
 		Selector digest.Digest
-		// Optional function that returns a digest for the input based on its
-		// return value
+
+		// ComputeDigestFunc should return a digest for the input based on its return
+		// value.
+		//
+		// For example, in LLB this is invoked to calculate the cache key based on
+		// the checksum of file contents from input snapshots.
 		ComputeDigestFunc ResultBasedCacheFunc
 	}
 }
@@ -152,17 +184,24 @@ type CacheRecord struct {
 	key          *CacheKey
 }
 
-// CacheManager implements build cache backend
+// CacheManager determines if there is a result that matches the cache keys
+// generated during the build that could be reused instead of fully
+// reevaluating the vertex and its inputs. There can be multiple cache
+// managers, and specific managers can be defined per vertex using
+// `VertexOptions`.
 type CacheManager interface {
 	// ID is used to identify cache providers that are backed by same source
-	// to avoid duplicate calls to the same provider
+	// to avoid duplicate calls to the same provider.
 	ID() string
+
 	// Query searches for cache paths from one cache key to the output of a
 	// possible match.
 	Query(inp []CacheKeyWithSelector, inputIndex Index, dgst digest.Digest, outputIndex Index) ([]*CacheKey, error)
 	Records(ck *CacheKey) ([]*CacheRecord, error)
-	// Load pulls and returns the cached result
+
+	// Load loads a cache record into a result reference.
 	Load(ctx context.Context, rec *CacheRecord) (Result, error)
+
 	// Save saves a result based on a cache key
 	Save(key *CacheKey, s Result, createdAt time.Time) (*ExportableCacheKey, error)
 }

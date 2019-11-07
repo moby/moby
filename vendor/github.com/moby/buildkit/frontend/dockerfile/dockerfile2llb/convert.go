@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/url"
 	"path"
 	"path/filepath"
@@ -1213,31 +1214,13 @@ func normalizeContextPaths(paths map[string]struct{}) []string {
 		if p == "/" {
 			return nil
 		}
-		pathSlice = append(pathSlice, p)
+		pathSlice = append(pathSlice, path.Join(".", p))
 	}
 
-	toDelete := map[string]struct{}{}
-	for i := range pathSlice {
-		for j := range pathSlice {
-			if i == j {
-				continue
-			}
-			if strings.HasPrefix(pathSlice[j], pathSlice[i]+"/") {
-				delete(paths, pathSlice[j])
-			}
-		}
-	}
-
-	toSort := make([]string, 0, len(paths))
-	for p := range paths {
-		if _, ok := toDelete[p]; !ok {
-			toSort = append(toSort, path.Join(".", p))
-		}
-	}
-	sort.Slice(toSort, func(i, j int) bool {
-		return toSort[i] < toSort[j]
+	sort.Slice(pathSlice, func(i, j int) bool {
+		return pathSlice[i] < pathSlice[j]
 	})
-	return toSort
+	return pathSlice
 }
 
 func proxyEnvFromBuildArgs(args map[string]string) *llb.ProxyEnv {
@@ -1325,7 +1308,7 @@ func prefixCommand(ds *dispatchState, str string, prefixPlatform bool, platform 
 		out += ds.stageName + " "
 	}
 	ds.cmdIndex++
-	out += fmt.Sprintf("%d/%d] ", ds.cmdIndex, ds.cmdTotal)
+	out += fmt.Sprintf("%*d/%d] ", int(1+math.Log10(float64(ds.cmdTotal))), ds.cmdIndex, ds.cmdTotal)
 	return out + str
 }
 

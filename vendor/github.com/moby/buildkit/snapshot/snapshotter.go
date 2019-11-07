@@ -9,7 +9,6 @@ import (
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/pkg/idtools"
-	digest "github.com/opencontainers/go-digest"
 )
 
 type Mountable interface {
@@ -18,7 +17,8 @@ type Mountable interface {
 	IdentityMapping() *idtools.IdentityMapping
 }
 
-type SnapshotterBase interface {
+// Snapshotter defines interface that any snapshot implementation should satisfy
+type Snapshotter interface {
 	Name() string
 	Mounts(ctx context.Context, key string) (Mountable, error)
 	Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) error
@@ -34,18 +34,7 @@ type SnapshotterBase interface {
 	IdentityMapping() *idtools.IdentityMapping
 }
 
-// Snapshotter defines interface that any snapshot implementation should satisfy
-type Snapshotter interface {
-	Blobmapper
-	SnapshotterBase
-}
-
-type Blobmapper interface {
-	GetBlob(ctx context.Context, key string) (digest.Digest, digest.Digest, error)
-	SetBlob(ctx context.Context, key string, diffID, blob digest.Digest) error
-}
-
-func FromContainerdSnapshotter(name string, s snapshots.Snapshotter, idmap *idtools.IdentityMapping) SnapshotterBase {
+func FromContainerdSnapshotter(name string, s snapshots.Snapshotter, idmap *idtools.IdentityMapping) Snapshotter {
 	return &fromContainerd{name: name, Snapshotter: s, idmap: idmap}
 }
 
