@@ -31,13 +31,13 @@ func ErrDTypeNotSupported(driver, backingFs string) error {
 	return graphdriver.NotSupportedError(msg)
 }
 
-// SupportsMultipleLowerDir checks if the system supports multiple lowerdirs,
-// which is required for the overlay2 driver. On 4.x kernels, multiple lowerdirs
-// are always available (so this check isn't needed), and backported to RHEL and
-// CentOS 3.x kernels (3.10.0-693.el7.x86_64 and up). This function is to detect
-// support on those kernels, without doing a kernel version compare.
-func SupportsMultipleLowerDir(d string) error {
-	td, err := ioutil.TempDir(d, "multiple-lowerdir-check")
+// SupportsOverlay checks if the system supports overlay filesystem
+// by performing an actual overlay mount.
+//
+// checkMultipleLowers parameter enables check for multiple lowerdirs,
+// which is required for the overlay2 driver.
+func SupportsOverlay(d string, checkMultipleLowers bool) error {
+	td, err := ioutil.TempDir(d, "check-overlayfs-support")
 	if err != nil {
 		return err
 	}
@@ -54,7 +54,11 @@ func SupportsMultipleLowerDir(d string) error {
 	}
 
 	mnt := filepath.Join(td, "merged")
-	opts := fmt.Sprintf("lowerdir=%s:%s,upperdir=%s,workdir=%s", path.Join(td, "lower2"), path.Join(td, "lower1"), path.Join(td, "upper"), path.Join(td, "work"))
+	lowerDir := path.Join(td, "lower2")
+	if checkMultipleLowers {
+		lowerDir += ":" + path.Join(td, "lower1")
+	}
+	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, path.Join(td, "upper"), path.Join(td, "work"))
 	if err := unix.Mount("overlay", mnt, "overlay", 0, opts); err != nil {
 		return errors.Wrap(err, "failed to mount overlay")
 	}
