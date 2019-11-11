@@ -9,7 +9,8 @@ DOCKER_LOGFILE="${DOCKER_LOGFILE:-/var/log/${RC_SVCNAME}.log}"
 DOCKER_ERRFILE="${DOCKER_ERRFILE:-${DOCKER_LOGFILE}}"
 DOCKER_OUTFILE="${DOCKER_OUTFILE:-${DOCKER_LOGFILE}}"
 start_stop_daemon_args="--background \
-	--stderr \"${DOCKER_ERRFILE}\" --stdout \"${DOCKER_OUTFILE}\""
+	--stderr \"${DOCKER_ERRFILE}\" --stdout \"${DOCKER_OUTFILE}\" \
+	--env HTTP_PROXY=\"${DOCKER_HTTP_PROXY}\" --env HTTPS_PROXY=\"${DOCKER_HTTPS_PROXY}\" --env NO_PROXY=\"${DOCKER_NO_PROXY}\""
 
 extra_started_commands="reload"
 
