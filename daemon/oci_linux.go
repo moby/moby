@@ -139,7 +139,7 @@ func WithApparmor(c *container.Container) coci.SpecOpts {
 func WithCapabilities(c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		capabilities, err := caps.TweakCapabilities(
-			oci.DefaultCapabilities(),
+			caps.DefaultCapabilities(),
 			c.HostConfig.CapAdd,
 			c.HostConfig.CapDrop,
 			c.HostConfig.Capabilities,
