@@ -136,20 +136,6 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, graphdriver.ErrNotSupported
 	}
 
-	fsMagic, err := graphdriver.GetFSMagic(testdir)
-	if err != nil {
-		return nil, err
-	}
-	if fsName, ok := graphdriver.FsNames[fsMagic]; ok {
-		backingFs = fsName
-	}
-
-	switch fsMagic {
-	case graphdriver.FsMagicAufs, graphdriver.FsMagicBtrfs, graphdriver.FsMagicEcryptfs, graphdriver.FsMagicNfsFs, graphdriver.FsMagicOverlay, graphdriver.FsMagicZfs:
-		logrus.WithField("storage-driver", "overlay").Errorf("'overlay' is not supported over %s", backingFs)
-		return nil, graphdriver.ErrIncompatibleFS
-	}
-
 	supportsDType, err := fsutils.SupportsDType(testdir)
 	if err != nil {
 		return nil, err
