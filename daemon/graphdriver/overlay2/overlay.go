@@ -27,7 +27,6 @@ import (
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-units"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
@@ -132,12 +131,6 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 
-	// require kernel 4.0.0 to ensure multiple lower dirs are supported
-	v, err := kernel.GetKernelVersion()
-	if err != nil {
-		return nil, err
-	}
-
 	// Perform feature detection on /var/lib/docker/overlay2 if it's an existing directory.
 	// This covers situations where /var/lib/docker/overlay2 is a mount, and on a different
 	// filesystem than /var/lib/docker.
@@ -150,30 +143,6 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	if err := overlayutils.SupportsOverlay(testdir, true); err != nil {
 		logger.Error(err)
 		return nil, graphdriver.ErrNotSupported
-	}
-
-	fsMagic, err := graphdriver.GetFSMagic(testdir)
-	if err != nil {
-		return nil, err
-	}
-	if fsName, ok := graphdriver.FsNames[fsMagic]; ok {
-		backingFs = fsName
-	}
-
-	switch fsMagic {
-	case graphdriver.FsMagicAufs, graphdriver.FsMagicEcryptfs, graphdriver.FsMagicNfsFs, graphdriver.FsMagicOverlay, graphdriver.FsMagicZfs:
-		logger.Errorf("'overlay2' is not supported over %s", backingFs)
-		return nil, graphdriver.ErrIncompatibleFS
-	case graphdriver.FsMagicBtrfs:
-		// Support for OverlayFS on BTRFS was added in kernel 4.7
-		// See https://btrfs.wiki.kernel.org/index.php/Changelog
-		if kernel.CompareKernelVersion(*v, kernel.VersionInfo{Kernel: 4, Major: 7, Minor: 0}) < 0 {
-			if !opts.overrideKernelCheck {
-				logger.Errorf("'overlay2' requires kernel 4.7 to use on %s", backingFs)
-				return nil, graphdriver.ErrIncompatibleFS
-			}
-			logger.Warn("Using pre-4.7.0 kernel for overlay2 on btrfs, may require kernel update")
-		}
 	}
 
 	supportsDType, err := fsutils.SupportsDType(testdir)
