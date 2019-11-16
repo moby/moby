@@ -205,14 +205,15 @@ func getBackingFs(v *types.Info) string {
 //
 //     tini version 0.18.0 - git.fec3683
 func parseInitVersion(v string) (version string, commit string, err error) {
-	parts := strings.Split(strings.TrimSpace(v), " - ")
+	parts := strings.Split(v, " - ")
 
 	if len(parts) >= 2 {
-		gitParts := strings.Split(parts[1], ".")
+		gitParts := strings.Split(strings.TrimSpace(parts[1]), ".")
 		if len(gitParts) == 2 && gitParts[0] == "git" {
 			commit = gitParts[1]
 		}
 	}
+	parts[0] = strings.TrimSpace(parts[0])
 	if strings.HasPrefix(parts[0], "tini version ") {
 		version = strings.TrimPrefix(parts[0], "tini version ")
 	}

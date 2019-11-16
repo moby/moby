@@ -68,6 +68,7 @@ func TestAdjustCPUShares(t *testing.T) {
 		repository: tmp,
 		root:       tmp,
 	}
+	muteLogs()
 
 	hostConfig := &containertypes.HostConfig{
 		Resources: containertypes.Resources{CPUShares: linuxMinCPUShares - 1},

@@ -27,10 +27,22 @@ func TestParseInitVersion(t *testing.T) {
 			output:  "tini version 0.13.2",
 			version: "0.13.2",
 		}, {
+			output:  "tini version 0.13.2 - ",
+			version: "0.13.2",
+		}, {
+			output: " - git.949e6fa",
+			commit: "949e6fa",
+		}, {
 			output:  "tini version0.13.2",
 			invalid: true,
 		}, {
+			output:  "version 0.13.0",
+			invalid: true,
+		}, {
 			output:  "",
+			invalid: true,
+		}, {
+			output:  " - ",
 			invalid: true,
 		}, {
 			output:  "hello world",
@@ -39,14 +51,17 @@ func TestParseInitVersion(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		version, commit, err := parseInitVersion(test.output)
-		if test.invalid {
-			assert.Check(t, is.ErrorContains(err, ""))
-		} else {
-			assert.Check(t, err)
-		}
-		assert.Equal(t, test.version, version)
-		assert.Equal(t, test.commit, commit)
+		test := test
+		t.Run(test.output, func(t *testing.T) {
+			version, commit, err := parseInitVersion(test.output)
+			if test.invalid {
+				assert.Check(t, is.ErrorContains(err, ""))
+			} else {
+				assert.Check(t, err)
+			}
+			assert.Equal(t, test.version, version)
+			assert.Equal(t, test.commit, commit)
+		})
 	}
 }
 
