@@ -4,32 +4,13 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/docker/docker/oci/caps"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func iPtr(i int64) *int64        { return &i }
 func u32Ptr(i int64) *uint32     { u := uint32(i); return &u }
 func fmPtr(i int64) *os.FileMode { fm := os.FileMode(i); return &fm }
-
-// DefaultCapabilities returns a Linux kernel default capabilities
-func DefaultCapabilities() []string {
-	return []string{
-		"CAP_CHOWN",
-		"CAP_DAC_OVERRIDE",
-		"CAP_FSETID",
-		"CAP_FOWNER",
-		"CAP_MKNOD",
-		"CAP_NET_RAW",
-		"CAP_SETGID",
-		"CAP_SETUID",
-		"CAP_SETFCAP",
-		"CAP_SETPCAP",
-		"CAP_NET_BIND_SERVICE",
-		"CAP_SYS_CHROOT",
-		"CAP_KILL",
-		"CAP_AUDIT_WRITE",
-	}
-}
 
 // DefaultSpec returns the default spec used by docker for the current Platform
 func DefaultSpec() specs.Spec {
@@ -60,10 +41,10 @@ func DefaultLinuxSpec() specs.Spec {
 		Version: specs.Version,
 		Process: &specs.Process{
 			Capabilities: &specs.LinuxCapabilities{
-				Bounding:    DefaultCapabilities(),
-				Permitted:   DefaultCapabilities(),
-				Inheritable: DefaultCapabilities(),
-				Effective:   DefaultCapabilities(),
+				Bounding:    caps.DefaultCapabilities(),
+				Permitted:   caps.DefaultCapabilities(),
+				Inheritable: caps.DefaultCapabilities(),
+				Effective:   caps.DefaultCapabilities(),
 			},
 		},
 		Root: &specs.Root{},

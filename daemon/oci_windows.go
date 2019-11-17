@@ -390,7 +390,7 @@ func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spe
 	// Note these are against the UVM.
 	setResourcesInSpec(c, s, true) // LCOW is Hyper-V only
 
-	capabilities, err := caps.TweakCapabilities(oci.DefaultCapabilities(), c.HostConfig.CapAdd, c.HostConfig.CapDrop, c.HostConfig.Capabilities, c.HostConfig.Privileged)
+	capabilities, err := caps.TweakCapabilities(caps.DefaultCapabilities(), c.HostConfig.CapAdd, c.HostConfig.CapDrop, c.HostConfig.Capabilities, c.HostConfig.Privileged)
 	if err != nil {
 		return fmt.Errorf("linux spec capabilities: %v", err)
 	}
