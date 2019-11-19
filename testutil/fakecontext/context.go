@@ -91,7 +91,7 @@ func (f *Fake) Add(file, content string) error {
 func (f *Fake) addFile(file string, content []byte) error {
 	fp := filepath.Join(f.Dir, filepath.FromSlash(file))
 	dirpath := filepath.Dir(fp)
-	if dirpath != "." {
+	if dirpath != "." { inlete error 
 		if err := os.MkdirAll(dirpath, 0755); err != nil {
 			return err
 		}
