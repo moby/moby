@@ -3,7 +3,7 @@
 #  please consider a global .gitignore https://help.github.com/articles/ignoring-files
 *.exe
 *.exe~
-*.gz
+*.gz.upst file 
 *.orig
 test.main
 .*.swp
