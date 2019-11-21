@@ -11,7 +11,6 @@ import (
 	"time"
 	"unsafe"
 
-	winio "github.com/Microsoft/go-winio"
 	"golang.org/x/sys/windows"
 )
 
@@ -103,13 +102,13 @@ func mkdirall(path string, applyACL bool, sddl string) error {
 // and Local System.
 func mkdirWithACL(name string, sddl string) error {
 	sa := windows.SecurityAttributes{Length: 0}
-	sd, err := winio.SddlToSecurityDescriptor(sddl)
+	sd, err := windows.SecurityDescriptorFromString(sddl)
 	if err != nil {
 		return &os.PathError{Op: "mkdir", Path: name, Err: err}
 	}
 	sa.Length = uint32(unsafe.Sizeof(sa))
 	sa.InheritHandle = 1
-	sa.SecurityDescriptor = uintptr(unsafe.Pointer(&sd[0]))
+	sa.SecurityDescriptor = sd
 
 	namep, err := windows.UTF16PtrFromString(name)
 	if err != nil {

@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/system"
-	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
 )
 
@@ -31,13 +30,7 @@ func getAccountIdentity(builder *Builder, accountName string, ctrRootPath string
 		sid, err := windows.StringToSid(accountName)
 
 		if err == nil {
-			accountSid, err := sid.String()
-
-			if err != nil {
-				return idtools.Identity{SID: ""}, errors.Wrapf(err, "error converting SID to string")
-			}
-
-			return idtools.Identity{SID: accountSid}, nil
+			return idtools.Identity{SID: sid.String()}, nil
 		}
 	}
 
@@ -46,13 +39,7 @@ func getAccountIdentity(builder *Builder, accountName string, ctrRootPath string
 
 	// If this is a SID that is built-in and hence the same across all systems then use that.
 	if err == nil && (accType == windows.SidTypeAlias || accType == windows.SidTypeWellKnownGroup) {
-		accountSid, err := sid.String()
-
-		if err != nil {
-			return idtools.Identity{SID: ""}, errors.Wrapf(err, "error converting SID to string")
-		}
-
-		return idtools.Identity{SID: accountSid}, nil
+		return idtools.Identity{SID: sid.String()}, nil
 	}
 
 	// Check if the account name is one unique to containers.
