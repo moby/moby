@@ -1,7 +1,6 @@
 package system // import "github.com/docker/docker/pkg/system"
 
 import (
-	"fmt"
 	"syscall"
 	"unsafe"
 
@@ -62,7 +61,7 @@ var (
 
 // OSVersion is a wrapper for Windows version information
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ms724439(v=vs.85).aspx
-type OSVersion osversion.OSVersion
+type OSVersion = osversion.OSVersion
 
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ms724833(v=vs.85).aspx
 type osVersionInfoEx struct {
@@ -83,11 +82,7 @@ type osVersionInfoEx struct {
 // dockerd.exe must be manifested to get the correct version information.
 // Deprecated: use github.com/Microsoft/hcsshim/osversion.Get() instead
 func GetOSVersion() OSVersion {
-	return OSVersion(osversion.Get())
-}
-
-func (osv OSVersion) ToString() string {
-	return fmt.Sprintf("%d.%d.%d", osv.MajorVersion, osv.MinorVersion, osv.Build)
+	return osversion.Get()
 }
 
 // IsWindowsClient returns true if the SKU is client

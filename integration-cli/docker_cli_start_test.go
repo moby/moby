@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/Microsoft/hcsshim/osversion"
-
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"gotest.tools/assert"
