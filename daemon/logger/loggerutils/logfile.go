@@ -116,7 +116,7 @@ func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, mar
 		return nil, err
 	}
 
-	size, err := log.Seek(0, os.SEEK_END)
+	size, err := log.Seek(0, io.SeekEnd)
 	if err != nil {
 		return nil, err
 	}
@@ -472,7 +472,7 @@ func decompressfile(fileName, destFileName string, since time.Time) (*os.File, e
 func newSectionReader(f *os.File) (*io.SectionReader, error) {
 	// seek to the end to get the size
 	// we'll leave this at the end of the file since section reader does not advance the reader
-	size, err := f.Seek(0, os.SEEK_END)
+	size, err := f.Seek(0, io.SeekEnd)
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting current file size")
 	}
