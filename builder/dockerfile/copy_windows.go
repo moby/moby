@@ -81,7 +81,7 @@ func fixPermissionsWindows(source, destination, SID string) error {
 		return err
 	}
 
-	return system.SetNamedSecurityInfo(windows.StringToUTF16Ptr(destination), system.SE_FILE_OBJECT, system.OWNER_SECURITY_INFORMATION|system.DACL_SECURITY_INFORMATION, sid, nil, dacl, nil)
+	return system.SetNamedSecurityInfo(windows.StringToUTF16Ptr(destination), windows.SE_FILE_OBJECT, windows.OWNER_SECURITY_INFORMATION|windows.DACL_SECURITY_INFORMATION, sid, nil, dacl, nil)
 }
 
 func validateCopySourcePath(imageSource *imageMount, origPath, platform string) error {
