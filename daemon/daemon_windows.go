@@ -223,8 +223,7 @@ func verifyDaemonSettings(config *config.Config) error {
 func checkSystem() error {
 	// Validate the OS version. Note that dockerd.exe must be manifested for this
 	// call to return the correct version.
-	osv := system.GetOSVersion()
-	if osv.MajorVersion < 10 {
+	if osversion.Get().MajorVersion < 10 {
 		return fmt.Errorf("This version of Windows does not support the docker daemon")
 	}
 	if osversion.Build() < osversion.RS1 {
