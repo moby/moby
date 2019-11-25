@@ -10,36 +10,36 @@ import (
 )
 
 const (
-	OWNER_SECURITY_INFORMATION               = 0x00000001
-	GROUP_SECURITY_INFORMATION               = 0x00000002
-	DACL_SECURITY_INFORMATION                = 0x00000004
-	SACL_SECURITY_INFORMATION                = 0x00000008
-	LABEL_SECURITY_INFORMATION               = 0x00000010
-	ATTRIBUTE_SECURITY_INFORMATION           = 0x00000020
-	SCOPE_SECURITY_INFORMATION               = 0x00000040
+	OWNER_SECURITY_INFORMATION               = windows.OWNER_SECURITY_INFORMATION     // Deprecated: use golang.org/x/sys/windows.OWNER_SECURITY_INFORMATION
+	GROUP_SECURITY_INFORMATION               = windows.GROUP_SECURITY_INFORMATION     // Deprecated: use golang.org/x/sys/windows.GROUP_SECURITY_INFORMATION
+	DACL_SECURITY_INFORMATION                = windows.DACL_SECURITY_INFORMATION      // Deprecated: use golang.org/x/sys/windows.DACL_SECURITY_INFORMATION
+	SACL_SECURITY_INFORMATION                = windows.SACL_SECURITY_INFORMATION      // Deprecated: use golang.org/x/sys/windows.SACL_SECURITY_INFORMATION
+	LABEL_SECURITY_INFORMATION               = windows.LABEL_SECURITY_INFORMATION     // Deprecated: use golang.org/x/sys/windows.LABEL_SECURITY_INFORMATION
+	ATTRIBUTE_SECURITY_INFORMATION           = windows.ATTRIBUTE_SECURITY_INFORMATION // Deprecated: use golang.org/x/sys/windows.ATTRIBUTE_SECURITY_INFORMATION
+	SCOPE_SECURITY_INFORMATION               = windows.SCOPE_SECURITY_INFORMATION     // Deprecated: use golang.org/x/sys/windows.SCOPE_SECURITY_INFORMATION
 	PROCESS_TRUST_LABEL_SECURITY_INFORMATION = 0x00000080
 	ACCESS_FILTER_SECURITY_INFORMATION       = 0x00000100
-	BACKUP_SECURITY_INFORMATION              = 0x00010000
-	PROTECTED_DACL_SECURITY_INFORMATION      = 0x80000000
-	PROTECTED_SACL_SECURITY_INFORMATION      = 0x40000000
-	UNPROTECTED_DACL_SECURITY_INFORMATION    = 0x20000000
-	UNPROTECTED_SACL_SECURITY_INFORMATION    = 0x10000000
+	BACKUP_SECURITY_INFORMATION              = windows.BACKUP_SECURITY_INFORMATION           // Deprecated: use golang.org/x/sys/windows.BACKUP_SECURITY_INFORMATION
+	PROTECTED_DACL_SECURITY_INFORMATION      = windows.PROTECTED_DACL_SECURITY_INFORMATION   // Deprecated: use golang.org/x/sys/windows.PROTECTED_DACL_SECURITY_INFORMATION
+	PROTECTED_SACL_SECURITY_INFORMATION      = windows.PROTECTED_SACL_SECURITY_INFORMATION   // Deprecated: use golang.org/x/sys/windows.PROTECTED_SACL_SECURITY_INFORMATION
+	UNPROTECTED_DACL_SECURITY_INFORMATION    = windows.UNPROTECTED_DACL_SECURITY_INFORMATION // Deprecated: use golang.org/x/sys/windows.UNPROTECTED_DACL_SECURITY_INFORMATION
+	UNPROTECTED_SACL_SECURITY_INFORMATION    = windows.UNPROTECTED_SACL_SECURITY_INFORMATION // Deprecated: use golang.org/x/sys/windows.UNPROTECTED_SACL_SECURITY_INFORMATION
 )
 
 const (
-	SE_UNKNOWN_OBJECT_TYPE = iota
-	SE_FILE_OBJECT
-	SE_SERVICE
-	SE_PRINTER
-	SE_REGISTRY_KEY
-	SE_LMSHARE
-	SE_KERNEL_OBJECT
-	SE_WINDOW_OBJECT
-	SE_DS_OBJECT
-	SE_DS_OBJECT_ALL
-	SE_PROVIDER_DEFINED_OBJECT
-	SE_WMIGUID_OBJECT
-	SE_REGISTRY_WOW64_32KEY
+	SE_UNKNOWN_OBJECT_TYPE     = windows.SE_UNKNOWN_OBJECT_TYPE     // Deprecated: use golang.org/x/sys/windows.SE_UNKNOWN_OBJECT_TYPE
+	SE_FILE_OBJECT             = windows.SE_FILE_OBJECT             // Deprecated: use golang.org/x/sys/windows.SE_FILE_OBJECT
+	SE_SERVICE                 = windows.SE_SERVICE                 // Deprecated: use golang.org/x/sys/windows.SE_SERVICE
+	SE_PRINTER                 = windows.SE_PRINTER                 // Deprecated: use golang.org/x/sys/windows.SE_PRINTER
+	SE_REGISTRY_KEY            = windows.SE_REGISTRY_KEY            // Deprecated: use golang.org/x/sys/windows.SE_REGISTRY_KEY
+	SE_LMSHARE                 = windows.SE_LMSHARE                 // Deprecated: use golang.org/x/sys/windows.SE_LMSHARE
+	SE_KERNEL_OBJECT           = windows.SE_KERNEL_OBJECT           // Deprecated: use golang.org/x/sys/windows.SE_KERNEL_OBJECT
+	SE_WINDOW_OBJECT           = windows.SE_WINDOW_OBJECT           // Deprecated: use golang.org/x/sys/windows.SE_WINDOW_OBJECT
+	SE_DS_OBJECT               = windows.SE_DS_OBJECT               // Deprecated: use golang.org/x/sys/windows.SE_DS_OBJECT
+	SE_DS_OBJECT_ALL           = windows.SE_DS_OBJECT_ALL           // Deprecated: use golang.org/x/sys/windows.SE_DS_OBJECT_ALL
+	SE_PROVIDER_DEFINED_OBJECT = windows.SE_PROVIDER_DEFINED_OBJECT // Deprecated: use golang.org/x/sys/windows.SE_PROVIDER_DEFINED_OBJECT
+	SE_WMIGUID_OBJECT          = windows.SE_WMIGUID_OBJECT          // Deprecated: use golang.org/x/sys/windows.SE_WMIGUID_OBJECT
+	SE_REGISTRY_WOW64_32KEY    = windows.SE_REGISTRY_WOW64_32KEY    // Deprecated: use golang.org/x/sys/windows.SE_REGISTRY_WOW64_32KEY
 )
 
 const (
@@ -64,6 +64,7 @@ var (
 type OSVersion = osversion.OSVersion
 
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ms724833(v=vs.85).aspx
+// TODO: use golang.org/x/sys/windows.OsVersionInfoEx (needs OSVersionInfoSize to be exported)
 type osVersionInfoEx struct {
 	OSVersionInfoSize uint32
 	MajorVersion      uint32
