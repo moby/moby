@@ -99,7 +99,7 @@ func IsWindowsClient() bool {
 
 // Unmount is a platform-specific helper function to call
 // the unmount syscall. Not supported on Windows
-func Unmount(dest string) error {
+func Unmount(_ string) error {
 	return nil
 }
 
@@ -120,7 +120,7 @@ func CommandLineToArgv(commandLine string) ([]string, error) {
 
 	newArgs := make([]string, argc)
 	for i, v := range (*argv)[:argc] {
-		newArgs[i] = string(windows.UTF16ToString((*v)[:]))
+		newArgs[i] = windows.UTF16ToString((*v)[:])
 	}
 
 	return newArgs, nil
@@ -147,7 +147,7 @@ func GetSecurityDescriptorDacl(securityDescriptor *byte, daclPresent *uint32, da
 	r1, _, e1 := syscall.Syscall6(procGetSecurityDescriptorDacl.Addr(), 4, uintptr(unsafe.Pointer(securityDescriptor)), uintptr(unsafe.Pointer(daclPresent)), uintptr(unsafe.Pointer(dacl)), uintptr(unsafe.Pointer(daclDefaulted)), 0, 0)
 	if r1 == 0 {
 		if e1 != 0 {
-			result = syscall.Errno(e1)
+			result = e1
 		} else {
 			result = syscall.EINVAL
 		}
