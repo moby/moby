@@ -166,6 +166,10 @@ func newGELFUDPWriter(address string, info logger.Info) (gelf.Writer, error) {
 }
 
 func (s *gelfLogger) Log(msg *logger.Message) error {
+	if len(msg.Line) == 0 {
+		return nil
+	}
+
 	level := gelf.LOG_INFO
 	if msg.Source == "stderr" {
 		level = gelf.LOG_ERR
