@@ -96,7 +96,7 @@ func verifyDefaultCgroupNsMode(mode string) error {
 	return nil
 }
 
-func verifyUlimits(ulimits map[string]*units.Ulimit) error {
+func VerifyUlimits(ulimits map[string]*units.Ulimit) error {
 	for _, v := range ulimits {
 		if _, err := v.GetRlimit(); err != nil {
 			return err
@@ -115,7 +115,7 @@ func (conf *Config) ValidatePlatformConfig() error {
 		return err
 	}
 
-	if err := verifyUlimits(conf.Ulimits); err != nil {
+	if err := VerifyUlimits(conf.Ulimits); err != nil {
 		return err
 	}
 
