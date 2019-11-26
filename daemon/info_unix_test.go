@@ -65,9 +65,10 @@ func TestParseInitVersion(t *testing.T) {
 	}
 }
 
-func TestParseRuncVersion(t *testing.T) {
+func TestParseRuntimeVersion(t *testing.T) {
 	tests := []struct {
 		output  string
+		runtime string
 		version string
 		commit  string
 		invalid bool
@@ -78,6 +79,7 @@ runc version 1.0.0-rc5+dev
 commit: 69663f0bd4b60df09991c08812a60108003fa340
 spec: 1.0.0
 `,
+			runtime: "runc",
 			version: "1.0.0-rc5+dev",
 			commit:  "69663f0bd4b60df09991c08812a60108003fa340",
 		},
@@ -86,6 +88,7 @@ spec: 1.0.0
 runc version 1.0.0-rc5+dev
 spec: 1.0.0
 `,
+			runtime: "runc",
 			version: "1.0.0-rc5+dev",
 		},
 		{
@@ -94,6 +97,15 @@ commit: 69663f0bd4b60df09991c08812a60108003fa340
 spec: 1.0.0
 `,
 			commit: "69663f0bd4b60df09991c08812a60108003fa340",
+		},
+		{
+			output: `
+crun version 0.7
+spec: 1.0.0
++SYSTEMD +SELINUX +CAP +SECCOMP +EBPF +YAJL
+`,
+			runtime: "crun",
+			version: "0.7",
 		},
 		{
 			output:  "",
@@ -106,12 +118,13 @@ spec: 1.0.0
 	}
 
 	for _, test := range tests {
-		version, commit, err := parseRuncVersion(test.output)
+		runtime, version, commit, err := parseRuntimeVersion(test.output)
 		if test.invalid {
 			assert.Check(t, is.ErrorContains(err, ""))
 		} else {
 			assert.Check(t, err)
 		}
+		assert.Equal(t, test.runtime, runtime)
 		assert.Equal(t, test.version, version)
 		assert.Equal(t, test.commit, commit)
 	}
