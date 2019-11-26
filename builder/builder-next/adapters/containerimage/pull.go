@@ -53,6 +53,7 @@ type SourceOpt struct {
 	MetadataStore   metadata.V2MetadataService
 	ImageStore      image.Store
 	ResolverOpt     resolver.ResolveOptionsFunc
+	LayerStore      layer.Store
 }
 
 type imageSource struct {
@@ -360,6 +361,23 @@ func (p *puller) CacheKey(ctx context.Context, index int) (string, bool, error) 
 	return k, true, nil
 }
 
+func (p *puller) getRef(ctx context.Context, diffIDs []layer.DiffID, opts ...cache.RefOption) (cache.ImmutableRef, error) {
+	var parent cache.ImmutableRef
+	if len(diffIDs) > 1 {
+		var err error
+		parent, err = p.getRef(ctx, diffIDs[:len(diffIDs)-1], opts...)
+		if err != nil {
+			return nil, err
+		}
+		defer parent.Release(context.TODO())
+	}
+	return p.is.CacheAccessor.GetByBlob(ctx, ocispec.Descriptor{
+		Annotations: map[string]string{
+			"containerd.io/uncompressed": diffIDs[len(diffIDs)-1].String(),
+		},
+	}, parent, opts...)
+}
+
 func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 	p.resolveLocal()
 	if err := p.resolve(ctx); err != nil {
@@ -372,11 +390,15 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 			if len(img.RootFS.DiffIDs) == 0 {
 				return nil, nil
 			}
-			ref, err := p.is.CacheAccessor.GetFromSnapshotter(ctx, string(img.RootFS.ChainID()), cache.WithDescription(fmt.Sprintf("from local %s", p.ref)))
-			if err != nil {
-				return nil, err
+			l, err := p.is.LayerStore.Get(img.RootFS.ChainID())
+			if err == nil {
+				layer.ReleaseAndLog(p.is.LayerStore, l)
+				ref, err := p.getRef(ctx, img.RootFS.DiffIDs, cache.WithDescription(fmt.Sprintf("from local %s", p.ref)))
+				if err != nil {
+					return nil, err
+				}
+				return ref, nil
 			}
-			return ref, nil
 		}
 	}
 
@@ -550,7 +572,7 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 		return nil, err
 	}
 
-	ref, err := p.is.CacheAccessor.GetFromSnapshotter(ctx, string(rootFS.ChainID()), cache.WithDescription(fmt.Sprintf("pulled from %s", p.ref)))
+	ref, err := p.getRef(ctx, rootFS.DiffIDs, cache.WithDescription(fmt.Sprintf("pulled from %s", p.ref)))
 	release()
 	if err != nil {
 		return nil, err

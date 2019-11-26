@@ -263,7 +263,7 @@ func getRecords(ctx context.Context, store content.Provider, desc ocispec.Descri
 		images.HandlerFunc(exportHandler),
 	)
 
-	// Walk sequentially since the number of fetchs is likely one and doing in
+	// Walk sequentially since the number of fetches is likely one and doing in
 	// parallel requires locking the export handler
 	if err := images.Walk(ctx, handlers, desc); err != nil {
 		return nil, err

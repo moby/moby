@@ -261,17 +261,5 @@ func (e *execProcess) Status(ctx context.Context) (string, error) {
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	// if we don't have a pid(pid=0) then the exec process has just been created
-	if e.pid.get() == 0 {
-		return "created", nil
-	}
-	if e.pid.get() == StoppedPID {
-		return "stopped", nil
-	}
-	// if we have a pid and it can be signaled, the process is running
-	if err := unix.Kill(e.pid.get(), 0); err == nil {
-		return "running", nil
-	}
-	// else if we have a pid but it can nolonger be signaled, it has stopped
-	return "stopped", nil
+	return e.execState.Status(ctx)
 }

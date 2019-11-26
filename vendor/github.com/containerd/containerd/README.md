@@ -210,6 +210,34 @@ See [PLUGINS.md](PLUGINS.md) for how to create plugins
 Please see [RELEASES.md](RELEASES.md) for details on versioning and stability
 of containerd components.
 
+Downloadable 64-bit Intel/AMD binaries of all official releases are available on
+our [releases page](https://github.com/containerd/containerd/releases), as well as
+auto-published to the [cri-containerd-release storage bucket](https://console.cloud.google.com/storage/browser/cri-containerd-release?pli=1).
+
+For other architectures and distribution support, you will find that many
+Linux distributions package their own containerd and provide it across several
+architectures, such as [Canonical's Ubuntu packaging](https://launchpad.net/ubuntu/bionic/+package/containerd).
+
+#### Enabling command auto-completion
+
+Starting with containerd 1.4, the urfave client feature for auto-creation of bash
+autocompletion data is enabled. To use the autocomplete feature in your shell, source
+the autocomplete/bash_autocomplete file in your .bashrc file while setting the `PROG`
+variable to `ctr`:
+
+```
+$ PROG=ctr source vendor/github.com/urfave/cli/autocomplete/bash_autocomplete
+```
+
+#### Distribution of `ctr` autocomplete for bash
+
+Copy `vendor/github.com/urfave/cli/autocomplete/bash_autocomplete` into
+`/etc/bash_completion.d/` and rename it to `ctr`.
+
+Provide documentation to users to `source` this file into their shell if
+you don't place the autocomplete file in a location where it is automatically
+loaded for user's bash shell environment.
+
 ### Communication
 
 For async communication and long running discussions please use issues and pull requests on the github repo.

@@ -3,7 +3,6 @@ package imageutil
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"sync"
 	"time"
 
@@ -50,7 +49,7 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 	}
 
 	if leaseManager != nil {
-		ctx2, done, err := leaseutil.WithLease(ctx, leaseManager, leases.WithExpiration(5*time.Minute))
+		ctx2, done, err := leaseutil.WithLease(ctx, leaseManager, leases.WithExpiration(5*time.Minute), leaseutil.MakeTemporary)
 		if err != nil {
 			return "", nil, errors.WithStack(err)
 		}
@@ -94,12 +93,9 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 	}
 
 	children := childrenConfigHandler(cache, platform)
-	if m, ok := cache.(content.Manager); ok {
-		children = SetChildrenLabelsNonBlobs(m, children)
-	}
 
 	handlers := []images.Handler{
-		fetchWithoutRoot(remotes.FetchHandler(cache, fetcher)),
+		remotes.FetchHandler(cache, fetcher),
 		children,
 	}
 	if err := images.Dispatch(ctx, images.Handlers(handlers...), nil, desc); err != nil {
@@ -116,16 +112,6 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 	}
 
 	return desc.Digest, dt, nil
-}
-
-func fetchWithoutRoot(fetch images.HandlerFunc) images.HandlerFunc {
-	return func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
-		if desc.Annotations == nil {
-			desc.Annotations = map[string]string{}
-		}
-		desc.Annotations["buildkit/noroot"] = "true"
-		return fetch(ctx, desc)
-	}
 }
 
 func childrenConfigHandler(provider content.Provider, platform platforms.MatchComparer) images.HandlerFunc {
@@ -206,40 +192,4 @@ func DetectManifestBlobMediaType(dt []byte) (string, error) {
 		return images.MediaTypeDockerSchema2Manifest, nil
 	}
 	return images.MediaTypeDockerSchema2ManifestList, nil
-}
-
-func SetChildrenLabelsNonBlobs(manager content.Manager, f images.HandlerFunc) images.HandlerFunc {
-	return func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
-		children, err := f(ctx, desc)
-		if err != nil {
-			return children, err
-		}
-
-		if len(children) > 0 {
-			info := content.Info{
-				Digest: desc.Digest,
-				Labels: map[string]string{},
-			}
-			fields := []string{}
-			for i, ch := range children {
-				switch ch.MediaType {
-				case images.MediaTypeDockerSchema2Layer, images.MediaTypeDockerSchema2LayerGzip, specs.MediaTypeImageLayer, specs.MediaTypeImageLayerGzip:
-					continue
-				default:
-				}
-
-				info.Labels[fmt.Sprintf("containerd.io/gc.ref.content.%d", i)] = ch.Digest.String()
-				fields = append(fields, fmt.Sprintf("labels.containerd.io/gc.ref.content.%d", i))
-			}
-
-			if len(info.Labels) > 0 {
-				_, err := manager.Update(ctx, info, fields...)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-
-		return children, err
-	}
 }

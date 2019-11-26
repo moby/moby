@@ -67,6 +67,13 @@ func WithWindowNetworksAllowUnqualifiedDNSQuery() SpecOpts {
 	}
 }
 
+// WithHostDevices adds all the hosts device nodes to the container's spec
+//
+// Not supported on windows
+func WithHostDevices(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+	return nil
+}
+
 func deviceFromPath(path, permissions string) (*specs.LinuxDevice, error) {
 	return nil, errors.New("device from path not supported on Windows")
 }
