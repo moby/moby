@@ -3945,11 +3945,12 @@ func (s *DockerSuite) TestRunAttachFailedNoLeak(c *testing.T) {
 	assert.Assert(c, err != nil, "Command should have failed but succeeded with: %s\nContainer 'test' [%+v]: %s\nContainer 'fail' [%+v]: %s", out, err1, out1, err2, out2)
 	// check for windows error as well
 	// TODO Windows Post TP5. Fix the error message string
-	assert.Assert(c, strings.Contains(out, "port is already allocated") ||
-		strings.Contains(out, "were not connected because a duplicate name exists") ||
-		strings.Contains(out, "The specified port already exists") ||
-		strings.Contains(out, "HNS failed with error : Failed to create endpoint") ||
-		strings.Contains(out, "HNS failed with error : The object already exists"), fmt.Sprintf("Output: %s", out))
+	outLowerCase := strings.ToLower(out)
+	assert.Assert(c, strings.Contains(outLowerCase, "port is already allocated") ||
+		strings.Contains(outLowerCase, "were not connected because a duplicate name exists") ||
+		strings.Contains(outLowerCase, "the specified port already exists") ||
+		strings.Contains(outLowerCase, "hns failed with error : failed to create endpoint") ||
+		strings.Contains(outLowerCase, "hns failed with error : the object already exists"), fmt.Sprintf("Output: %s", out))
 	dockerCmd(c, "rm", "-f", "test")
 
 	// NGoroutines is not updated right away, so we need to wait before failing
