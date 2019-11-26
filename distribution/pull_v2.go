@@ -174,7 +174,7 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 			return nil, 0, xfer.DoNotRetry{Err: err}
 		}
 	} else {
-		offset, err = ld.tmpFile.Seek(0, os.SEEK_END)
+		offset, err = ld.tmpFile.Seek(0, io.SeekEnd)
 		if err != nil {
 			logrus.Debugf("error seeking to end of download file: %v", err)
 			offset = 0
@@ -209,7 +209,7 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 			return nil, 0, err
 		}
 	}
-	size, err := layerDownload.Seek(0, os.SEEK_END)
+	size, err := layerDownload.Seek(0, io.SeekEnd)
 	if err != nil {
 		// Seek failed, perhaps because there was no Content-Length
 		// header. This shouldn't fail the download, because we can
