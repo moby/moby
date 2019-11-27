@@ -95,7 +95,7 @@ func validateDefaultAddrPool(defaultAddrPool []string, size uint32) error {
 		// defaultAddrPool is not defined
 		return nil
 	}
-	//if size is not set, then we use default value 24
+	// if size is not set, then we use default value 24
 	if size == 0 {
 		size = 24
 	}
