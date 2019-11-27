@@ -109,7 +109,7 @@ func makeMarshaller() func(m *logger.Message) ([]byte, error) {
 
 		messageToProto(m, proto, md)
 		protoSize := proto.Size()
-		writeLen := protoSize + (2 * encodeBinaryLen) //+ len(messageDelimiter)
+		writeLen := protoSize + (2 * encodeBinaryLen) // + len(messageDelimiter)
 
 		if writeLen > len(buf) {
 			buf = make([]byte, writeLen)

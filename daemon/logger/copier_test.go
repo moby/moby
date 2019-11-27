@@ -203,7 +203,7 @@ func TestCopierSlow(t *testing.T) {
 	}
 
 	var jsonBuf bytes.Buffer
-	//encoder := &encodeCloser{Encoder: json.NewEncoder(&jsonBuf)}
+	// encoder := &encodeCloser{Encoder: json.NewEncoder(&jsonBuf)}
 	jsonLog := &TestLoggerJSON{Encoder: json.NewEncoder(&jsonBuf), delay: 100 * time.Millisecond}
 
 	c := NewCopier(map[string]io.Reader{"stdout": &stdout}, jsonLog)
