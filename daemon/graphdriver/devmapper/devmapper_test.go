@@ -110,7 +110,7 @@ func testChangeLoopBackSize(t *testing.T, delta, expectDataSize, expectMetaDataS
 	if err := driver.Cleanup(); err != nil {
 		t.Fatal(err)
 	}
-	//Reload
+	// Reload
 	d, err := Init(driver.home, []string{
 		fmt.Sprintf("dm.loopdatasize=%d", defaultDataLoopbackSize+delta),
 		fmt.Sprintf("dm.loopmetadatasize=%d", defaultMetaDataLoopbackSize+delta),

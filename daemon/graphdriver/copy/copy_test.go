@@ -67,8 +67,7 @@ func TestCopyDir(t *testing.T) {
 		if srcFileSys.Dev == dstFileSys.Dev {
 			assert.Check(t, srcFileSys.Ino != dstFileSys.Ino)
 		}
-		// Todo: check size, and ctim is not equal
-		/// on filesystems that have granular ctimes
+		// Todo: check size, and ctim is not equal on filesystems that have granular ctimes
 		assert.Check(t, is.DeepEqual(srcFileSys.Mode, dstFileSys.Mode))
 		assert.Check(t, is.DeepEqual(srcFileSys.Uid, dstFileSys.Uid))
 		assert.Check(t, is.DeepEqual(srcFileSys.Gid, dstFileSys.Gid))

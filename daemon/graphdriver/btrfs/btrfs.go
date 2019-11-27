@@ -134,7 +134,7 @@ func parseOptions(opt []string) (btrfsOptions, bool, error) {
 
 // Driver contains information about the filesystem mounted.
 type Driver struct {
-	//root of the file system
+	// root of the file system
 	home         string
 	uidMaps      []idtools.IDMap
 	gidMaps      []idtools.IDMap
