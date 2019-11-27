@@ -39,8 +39,8 @@ type EndpointSettings struct {
 // AttachmentStore stores the load balancer IP address for a network id.
 type AttachmentStore struct {
 	sync.Mutex
-	//key: networkd id
-	//value: load balancer ip address
+	// key: networkd id
+	// value: load balancer ip address
 	networkToNodeLBIP map[string]net.IP
 }
 

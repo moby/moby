@@ -388,7 +388,7 @@ func portOp(key string, filter map[nat.Port]bool) func(value string) error {
 		if strings.Contains(value, ":") {
 			return fmt.Errorf("filter for '%s' should not contain ':': %s", key, value)
 		}
-		//support two formats, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
+		// support two formats, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
 		proto, port := nat.SplitProtoPort(value)
 		start, end, err := nat.ParsePortRange(port)
 		if err != nil {
