@@ -13,7 +13,7 @@ import (
 	"unsafe"
 )
 
-//parseMountTable returns information about mounted filesystems
+// parseMountTable returns information about mounted filesystems
 func parseMountTable(filter FilterFunc) ([]*Info, error) {
 	var rawEntries *C.struct_statfs
 
