@@ -213,7 +213,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithInvalidBasesize(c *testing.T) {
 	s.d.Start(c)
 
 	oldBasesizeBytes := getBaseDeviceSize(c, s.d)
-	var newBasesizeBytes int64 = 1073741824 //1GB in bytes
+	var newBasesizeBytes int64 = 1073741824 // 1GB in bytes
 
 	if newBasesizeBytes < oldBasesizeBytes {
 		err := s.d.RestartWithError("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
@@ -234,7 +234,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithIncreasedBasesize(c *testing.T)
 
 	oldBasesizeBytes := getBaseDeviceSize(c, s.d)
 
-	var newBasesizeBytes int64 = 53687091200 //50GB in bytes
+	var newBasesizeBytes int64 = 53687091200 // 50GB in bytes
 
 	if newBasesizeBytes < oldBasesizeBytes {
 		c.Skip(fmt.Sprintf("New base device size (%v) must be greater than (%s)", units.HumanSize(float64(newBasesizeBytes)), units.HumanSize(float64(oldBasesizeBytes))))
@@ -572,16 +572,16 @@ func (s *DockerDaemonSuite) TestDaemonKeyGeneration(c *testing.T) {
 // Note that this explicitly tests the conflict of {-b,--bridge} and {--bip} options as the means
 // to get a daemon init failure; no other tests for -b/--bip conflict are therefore required
 func (s *DockerDaemonSuite) TestDaemonExitOnFailure(c *testing.T) {
-	//attempt to start daemon with incorrect flags (we know -b and --bip conflict)
+	// attempt to start daemon with incorrect flags (we know -b and --bip conflict)
 	if err := s.d.StartWithError("--bridge", "nosuchbridge", "--bip", "1.1.1.1"); err != nil {
-		//verify we got the right error
+		// verify we got the right error
 		if !strings.Contains(err.Error(), "daemon exited") {
 			c.Fatalf("Expected daemon not to start, got %v", err)
 		}
 		// look in the log and make sure we got the message that daemon is shutting down
 		icmd.RunCommand("grep", "failed to start daemon", s.d.LogFileName()).Assert(c, icmd.Success)
 	} else {
-		//if we didn't get an error and the daemon is running, this is a failure
+		// if we didn't get an error and the daemon is running, this is a failure
 		c.Fatal("Conflicting options should cause the daemon to error out with a failure")
 	}
 }
@@ -697,7 +697,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithBridgeIPChange(c *testing.T) {
 
 	s.d.Start(c, "--bip", bridgeIP)
 
-	//check if the iptables contains new bridgeIP MASQUERADE rule
+	// check if the iptables contains new bridgeIP MASQUERADE rule
 	ipTablesSearchString := bridgeIPNet.String()
 	icmd.RunCommand("iptables", "-t", "nat", "-nvL").Assert(c, icmd.Expected{
 		Out: ipTablesSearchString,
@@ -1203,7 +1203,7 @@ func (s *DockerDaemonSuite) TestDaemonWithWrongkey(c *testing.T) {
 		c.Fatalf("Error Unmarshal: %s", err)
 	}
 
-	//replace config.Kid with the fake value
+	// replace config.Kid with the fake value
 	config.Kid = "VSAJ:FUYR:X3H2:B2VZ:KZ6U:CJD5:K7BX:ZXHY:UZXT:P4FT:MJWG:HRJ4"
 
 	// NEW Data-Struct to byte[]

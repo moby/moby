@@ -689,7 +689,7 @@ func (s *DockerSuite) TestContainerAPIVerifyHeader(c *testing.T) {
 	body.Close()
 }
 
-//Issue 14230. daemon should return 500 for invalid port syntax
+// Issue 14230. daemon should return 500 for invalid port syntax
 func (s *DockerSuite) TestContainerAPIInvalidPortSyntax(c *testing.T) {
 	config := `{
 				  "Image": "busybox",

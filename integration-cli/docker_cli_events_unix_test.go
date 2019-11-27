@@ -243,7 +243,7 @@ func (s *DockerSuite) TestEventsContainerWithMultiNetwork(c *testing.T) {
 	assert.Assert(c, strings.Contains(netEvents[0], "disconnect"))
 	assert.Assert(c, strings.Contains(netEvents[1], "disconnect"))
 
-	//both networks appeared in the network event output
+	// both networks appeared in the network event output
 	assert.Assert(c, strings.Contains(out, "test-event-network-local-1"))
 	assert.Assert(c, strings.Contains(out, "test-event-network-local-2"))
 }

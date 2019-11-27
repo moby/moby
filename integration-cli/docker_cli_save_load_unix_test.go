@@ -66,7 +66,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *testing.T) {
 	buf := make([]byte, 1024)
 
 	n, err := pty.Read(buf)
-	assert.NilError(c, err) //could not read tty output
+	assert.NilError(c, err, "could not read tty output")
 	assert.Assert(c, strings.Contains(string(buf[:n]), "cowardly refusing"), "help output is not being yielded")
 }
 

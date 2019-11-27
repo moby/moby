@@ -755,7 +755,7 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 	// skip header
 	lines = lines[1:]
 
-	//ps output should have both the containers
+	// ps output should have both the containers
 	assert.Equal(c, len(RemoveLinesForExistingElements(lines, existing)), 2)
 
 	// Making sure onbridgenetwork and onnonenetwork is on the output
