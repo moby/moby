@@ -227,7 +227,7 @@ func TestServiceUpdateNetwork(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, len(netInfo.Containers) == 2, "Expected 2 endpoints, one for container and one for LB Sandbox")
 
-	//Remove network from service
+	// Remove network from service
 	service.Spec.TaskTemplate.Networks = []swarmtypes.NetworkAttachmentConfig{}
 	_, err = cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
