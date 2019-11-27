@@ -32,7 +32,7 @@ type tarexporter struct {
 
 // LogImageEvent defines interface for event generation related to image tar(load and save) operations
 type LogImageEvent interface {
-	//LogImageEvent generates an event related to an image operation
+	// LogImageEvent generates an event related to an image operation
 	LogImageEvent(imageID, refName, action string)
 }
 
