@@ -178,7 +178,7 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 		clearLine(out)
 		endl = "\r"
 		fmt.Fprint(out, endl)
-	} else if jm.Progress != nil && jm.Progress.String() != "" { //disable progressbar in non-terminal
+	} else if jm.Progress != nil && jm.Progress.String() != "" { // disable progressbar in non-terminal
 		return nil
 	}
 	if jm.TimeNano != 0 {
