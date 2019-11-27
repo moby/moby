@@ -442,7 +442,7 @@ func newTarAppender(idMapping *idtools.IdentityMapping, writer io.Writer, chownO
 }
 
 // canonicalTarName provides a platform-independent and consistent posix-style
-//path for files and directories to be archived regardless of the platform.
+// path for files and directories to be archived regardless of the platform.
 func canonicalTarName(name string, isDir bool) string {
 	name = CanonicalTarNameForPath(name)
 
@@ -495,13 +495,13 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		}
 	}
 
-	//check whether the file is overlayfs whiteout
-	//if yes, skip re-mapping container ID mappings.
+	// check whether the file is overlayfs whiteout
+	// if yes, skip re-mapping container ID mappings.
 	isOverlayWhiteout := fi.Mode()&os.ModeCharDevice != 0 && hdr.Devmajor == 0 && hdr.Devminor == 0
 
-	//handle re-mapping container ID mappings back to host ID mappings before
-	//writing tar headers/files. We skip whiteout files because they were written
-	//by the kernel and already have proper ownership relative to the host
+	// handle re-mapping container ID mappings back to host ID mappings before
+	// writing tar headers/files. We skip whiteout files because they were written
+	// by the kernel and already have proper ownership relative to the host
 	if !isOverlayWhiteout && !strings.HasPrefix(filepath.Base(hdr.Name), WhiteoutPrefix) && !ta.IdentityMapping.Empty() {
 		fileIDPair, err := getFileUIDGID(fi.Sys())
 		if err != nil {
