@@ -16,6 +16,9 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/sirupsen/logrus"
+
+	"github.com/docker/docker/pkg/homedir"
+	"github.com/docker/docker/rootless"
 )
 
 var (
@@ -31,7 +34,19 @@ func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 	tlsConfig.InsecureSkipVerify = !isSecure
 
 	if isSecure && CertsDir != "" {
-		hostDir := filepath.Join(CertsDir, cleanPath(hostname))
+		certsDir := CertsDir
+
+		if rootless.RunningWithRootlessKit() {
+			configHome, err := homedir.GetConfigHome()
+			if err != nil {
+				return nil, err
+			}
+
+			certsDir = filepath.Join(configHome, "docker/certs.d")
+		}
+
+		hostDir := filepath.Join(certsDir, cleanPath(hostname))
+
 		logrus.Debugf("hostDir: %s", hostDir)
 		if err := ReadCertsDirectory(tlsConfig, hostDir); err != nil {
 			return nil, err
@@ -55,7 +70,7 @@ func hasFile(files []os.FileInfo, name string) bool {
 // provided TLS configuration.
 func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 	fs, err := ioutil.ReadDir(directory)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !os.IsNotExist(err) && !os.IsPermission(err) {
 		return err
 	}
 
