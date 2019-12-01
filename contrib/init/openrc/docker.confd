@@ -28,7 +28,7 @@
 # proxy server to be used by docker daemon
 #DOCKER_HTTP_PROXY="http://proxy-server:80"
 #DOCKER_HTTPS_PROXY="https://proxy-server:443"
-#DOCKER_NO_PROXY="127.0.0.1,localhost,docker.io,*.docker.com"
+#DOCKER_NO_PROXY="127.0.0.1,localhost,*.docker.io,*.docker.com"
 
 # any other random options you want to pass to docker
 DOCKER_OPTS=""
