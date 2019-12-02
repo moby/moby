@@ -920,10 +920,11 @@ const (
 	MADV_WILLNEED                     = 0x3
 	MAP_ANON                          = 0x1000
 	MAP_ANONYMOUS                     = 0x1000
+	MAP_CONCEAL                       = 0x8000
 	MAP_COPY                          = 0x2
 	MAP_FILE                          = 0x0
 	MAP_FIXED                         = 0x10
-	MAP_FLAGMASK                      = 0x7ff7
+	MAP_FLAGMASK                      = 0xfff7
 	MAP_HASSEMAPHORE                  = 0x0
 	MAP_INHERIT                       = 0x0
 	MAP_INHERIT_COPY                  = 0x1
