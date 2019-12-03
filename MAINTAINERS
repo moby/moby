@@ -37,7 +37,6 @@
 			"kolyshkin",
 			"lowenna",
 			"mhbauer",
-			"mlaventure",
 			"runcom",
 			"stevvooe",
 			"thajeztah",
@@ -170,6 +169,13 @@
 			# Model (CNM) implemented through libnetwork, and the "routing mesh" powering
 			# Swarm mode networking.
 			"mavenugo",
+
+			# As a maintainer, Kenfe-Mickaël Laventure worked on the container runtime,
+			# integrating containerd 1.0 with the daemon, and adding support for custom
+			# OCI runtimes, as well as implementing the `docker prune` subcommands,
+			# which was a welcome feature to be added. You can keep up with Mickaél on
+			# Twitter (@kmlaventure).
+			"mlaventure",
 
 			# As a docs maintainer, Mary Anthony contributed greatly to the Docker
 			# docs. She wrote the Docker Contributor Guide and Getting Started
