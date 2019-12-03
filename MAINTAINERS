@@ -24,7 +24,6 @@
 	# subsystem maintainers accountable. If ownership is unclear, they are the de facto owners.
 
 		people = [
-			"aaronlehmann",
 			"akihirosuda",
 			"anusha",
 			"coolljt0725",
@@ -82,6 +81,12 @@
 	# Thank you!
 
 		people = [
+			# Aaron Lehmann was a maintainer for swarmkit, the registry, and the engine,
+			# and contributed many improvements, features, and bugfixes in those areas,
+			# among which "automated service rollbacks", templated secrets and configs,
+			# and resumable image layer downloads.
+			"aaronlehmann",
+
 			# Harald Albers is the mastermind behind the bash completion scripts for the
 			# Docker CLI. The completion scripts moved to the Docker CLI repository, so
 			# you can now find him perform his magic in the https://github.com/docker/cli repository.
