@@ -29,7 +29,6 @@
 			"coolljt0725",
 			"cpuguy83",
 			"crosbymichael",
-			"dnephin",
 			"estesp",
 			"johnstep",
 			"justincormack",
@@ -105,6 +104,13 @@
 			# David is now doing amazing stuff as CTO for https://www.netlify.com,
 			# and tweets as @calavera.
 			"calavera",
+
+			# Before becoming a maintainer, Daniel Nephin was a core contributor
+			# to "Fig" (now known as Docker Compose). As a maintainer for both the
+			# Engine and Docker CLI, Daniel contributed many features, among which
+			# the `docker stack` commands, allowing users to deploy their Docker
+			# Compose projects as a Swarm service.
+			"dnephin",
 
 			# Doug Davis contributed many features and fixes for the classic builder,
 			# such as "wildcard" copy, the dockerignore file, custom paths/names
