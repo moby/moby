@@ -62,13 +62,10 @@
 		people = [
 			"alexellis",
 			"andrewhsu",
-			"anonymuse",
-			"chanwit",
 			"fntlnz",
 			"gianarb",
 			"olljanat",
 			"programmerq",
-			"rheinwein",
 			"ripcurld",
 			"thajeztah"
 		]
@@ -280,11 +277,6 @@
 	Email = "andrewhsu@docker.com"
 	GitHub = "andrewhsu"
 
-	[people.anonymuse]
-	Name = "Jesse White"
-	Email = "anonymuse@gmail.com"
-	GitHub = "anonymuse"
-
 	[people.anusha]
 	Name = "Anusha Ragunathan"
 	Email = "anusha@docker.com"
@@ -304,11 +296,6 @@
 	Name = "Brian Goff"
 	Email = "cpuguy83@gmail.com"
 	GitHub = "cpuguy83"
-
-	[people.chanwit]
-	Name = "Chanwit Kaewkasi"
-	Email = "chanwit@gmail.com"
-	GitHub = "chanwit"
 
 	[people.crosbymichael]
 	Name = "Michael Crosby"
@@ -424,11 +411,6 @@
 	Name = "Jeff Anderson"
 	Email = "jeff@docker.com"
 	GitHub = "programmerq"
-
-	[people.rheinwein]
-	Name = "Laura Frank"
-	Email = "laura@codeship.com"
-	GitHub = "rheinwein"
 
 	[people.ripcurld]
 	Name = "Boaz Shuster"
