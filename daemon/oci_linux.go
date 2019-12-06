@@ -16,7 +16,6 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	daemonconfig "github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/oci/caps"
 	"github.com/docker/docker/pkg/idtools"
@@ -806,6 +805,7 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		// Build lists of devices allowed and created within the container.
 		var devs []specs.LinuxDevice
 		devPermissions := s.Linux.Resources.Devices
+
 		if c.HostConfig.Privileged && !rsystem.RunningInUserNS() {
 			hostDevices, err := devices.HostDevices()
 			if err != nil {
@@ -814,6 +814,30 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			for _, d := range hostDevices {
 				devs = append(devs, oci.Device(d))
 			}
+
+			// adding device mappings in privileged containers
+			for _, deviceMapping := range c.HostConfig.Devices {
+				// issue a warning that custom cgroup permissions are ignored in privileged mode
+				if deviceMapping.CgroupPermissions != "rwm" {
+					logrus.WithField("container", c.ID).Warnf("custom %s permissions for device %s are ignored in privileged mode", deviceMapping.CgroupPermissions, deviceMapping.PathOnHost)
+				}
+				// issue a warning that the device path already exists via /dev mounting in privileged mode
+				if deviceMapping.PathOnHost == deviceMapping.PathInContainer {
+					logrus.WithField("container", c.ID).Warnf("path in container %s already exists in privileged mode", deviceMapping.PathInContainer)
+					continue
+				}
+				// check if the path exists in the container. need to create a device only if the
+				// path does not exists.
+				if _, err := os.Stat(deviceMapping.PathInContainer); !os.IsNotExist(err) {
+					return errors.Errorf("container device path: %s must be different from any host device path for privileged mode containers", deviceMapping.PathInContainer)
+				}
+				d, _, err := oci.DevicesFromPath(deviceMapping.PathOnHost, deviceMapping.PathInContainer, "rwm")
+				if err != nil {
+					return err
+				}
+				devs = append(devs, d...)
+			}
+
 			devPermissions = []specs.LinuxDeviceCgroup{
 				{
 					Allow:  true,
