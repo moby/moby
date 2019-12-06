@@ -53,6 +53,7 @@ const (
 	retryWaitKey          = "fluentd-retry-wait"
 	maxRetriesKey         = "fluentd-max-retries"
 	asyncConnectKey       = "fluentd-async-connect"
+	asyncStopKey          = "fluentd-async-stop"
 	subSecondPrecisionKey = "fluentd-sub-second-precision"
 )
 
@@ -118,6 +119,13 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
+	asyncStop := false
+	if info.Config[asyncStopKey] != "" {
+		if asyncStop, err = strconv.ParseBool(info.Config[asyncStopKey]); err != nil {
+			return nil, err
+		}
+	}
+
 	subSecondPrecision := false
 	if info.Config[subSecondPrecisionKey] != "" {
 		if subSecondPrecision, err = strconv.ParseBool(info.Config[subSecondPrecisionKey]); err != nil {
@@ -134,6 +142,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		RetryWait:          retryWait,
 		MaxRetry:           maxRetries,
 		Async:              asyncConnect,
+		AsyncStop:          asyncStop,
 		SubSecondPrecision: subSecondPrecision,
 	}
 
@@ -199,6 +208,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case retryWaitKey:
 		case maxRetriesKey:
 		case asyncConnectKey:
+		case asyncStopKey:
 		case subSecondPrecisionKey:
 			// Accepted
 		default:
