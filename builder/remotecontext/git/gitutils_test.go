@@ -83,6 +83,32 @@ func TestParseRemoteURL(t *testing.T) {
 				subdir: "mydir/mysubdir/",
 			},
 		},
+		{
+			doc: "ssh, no url-fragment",
+			url: "ssh://github.com/user/repo.git",
+			expected: gitRepo{
+				remote: "ssh://github.com/user/repo.git",
+				ref:    "master",
+			},
+		},
+		{
+			doc: "ssh, with url-fragment",
+			url: "ssh://github.com/user/repo.git#mybranch:mydir/mysubdir/",
+			expected: gitRepo{
+				remote: "ssh://github.com/user/repo.git",
+				ref:    "mybranch",
+				subdir: "mydir/mysubdir/",
+			},
+		},
+		{
+			doc: "ssh, with url-fragment and user",
+			url: "ssh://foo%40barcorp.com@github.com/user/repo.git#mybranch:mydir/mysubdir/",
+			expected: gitRepo{
+				remote: "ssh://foo%40barcorp.com@github.com/user/repo.git",
+				ref:    "mybranch",
+				subdir: "mydir/mysubdir/",
+			},
+		},
 	}
 
 	for _, tc := range tests {
