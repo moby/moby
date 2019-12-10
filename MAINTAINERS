@@ -24,21 +24,17 @@
 	# subsystem maintainers accountable. If ownership is unclear, they are the de facto owners.
 
 		people = [
-			"aaronlehmann",
 			"akihirosuda",
 			"anusha",
 			"coolljt0725",
 			"cpuguy83",
 			"crosbymichael",
-			"dnephin",
-			"duglin",
 			"estesp",
 			"johnstep",
 			"justincormack",
 			"kolyshkin",
 			"lowenna",
 			"mhbauer",
-			"mlaventure",
 			"runcom",
 			"stevvooe",
 			"thajeztah",
@@ -66,13 +62,10 @@
 		people = [
 			"alexellis",
 			"andrewhsu",
-			"anonymuse",
-			"chanwit",
 			"fntlnz",
 			"gianarb",
 			"olljanat",
 			"programmerq",
-			"rheinwein",
 			"ripcurld",
 			"thajeztah"
 		]
@@ -84,6 +77,12 @@
 	# Thank you!
 
 		people = [
+			# Aaron Lehmann was a maintainer for swarmkit, the registry, and the engine,
+			# and contributed many improvements, features, and bugfixes in those areas,
+			# among which "automated service rollbacks", templated secrets and configs,
+			# and resumable image layer downloads.
+			"aaronlehmann",
+
 			# Harald Albers is the mastermind behind the bash completion scripts for the
 			# Docker CLI. The completion scripts moved to the Docker CLI repository, so
 			# you can now find him perform his magic in the https://github.com/docker/cli repository.
@@ -102,6 +101,19 @@
 			# David is now doing amazing stuff as CTO for https://www.netlify.com,
 			# and tweets as @calavera.
 			"calavera",
+
+			# Before becoming a maintainer, Daniel Nephin was a core contributor
+			# to "Fig" (now known as Docker Compose). As a maintainer for both the
+			# Engine and Docker CLI, Daniel contributed many features, among which
+			# the `docker stack` commands, allowing users to deploy their Docker
+			# Compose projects as a Swarm service.
+			"dnephin",
+
+			# Doug Davis contributed many features and fixes for the classic builder,
+			# such as "wildcard" copy, the dockerignore file, custom paths/names
+			# for the Dockerfile, as well as enhancements to the API and documentation.
+			# Follow Doug on Twitter, where he tweets as @duginabox.
+			"duglin",
 
 			# As a maintainer, Erik was responsible for the "builder", and
 			# started the first designs for the new networking model in
@@ -165,6 +177,13 @@
 			# Model (CNM) implemented through libnetwork, and the "routing mesh" powering
 			# Swarm mode networking.
 			"mavenugo",
+
+			# As a maintainer, Kenfe-Mickaël Laventure worked on the container runtime,
+			# integrating containerd 1.0 with the daemon, and adding support for custom
+			# OCI runtimes, as well as implementing the `docker prune` subcommands,
+			# which was a welcome feature to be added. You can keep up with Mickaél on
+			# Twitter (@kmlaventure).
+			"mlaventure",
 
 			# As a docs maintainer, Mary Anthony contributed greatly to the Docker
 			# docs. She wrote the Docker Contributor Guide and Getting Started
@@ -258,11 +277,6 @@
 	Email = "andrewhsu@docker.com"
 	GitHub = "andrewhsu"
 
-	[people.anonymuse]
-	Name = "Jesse White"
-	Email = "anonymuse@gmail.com"
-	GitHub = "anonymuse"
-
 	[people.anusha]
 	Name = "Anusha Ragunathan"
 	Email = "anusha@docker.com"
@@ -282,11 +296,6 @@
 	Name = "Brian Goff"
 	Email = "cpuguy83@gmail.com"
 	GitHub = "cpuguy83"
-
-	[people.chanwit]
-	Name = "Chanwit Kaewkasi"
-	Email = "chanwit@gmail.com"
-	GitHub = "chanwit"
 
 	[people.crosbymichael]
 	Name = "Michael Crosby"
@@ -402,11 +411,6 @@
 	Name = "Jeff Anderson"
 	Email = "jeff@docker.com"
 	GitHub = "programmerq"
-
-	[people.rheinwein]
-	Name = "Laura Frank"
-	Email = "laura@codeship.com"
-	GitHub = "rheinwein"
 
 	[people.ripcurld]
 	Name = "Boaz Shuster"
