@@ -20,7 +20,7 @@ import (
 // ServicePoll tweaks the pollSettings for `service`
 func ServicePoll(config *poll.Settings) {
 	// Override the default pollSettings for `service` resource here ...
-	config.Timeout = 30 * time.Second
+	config.Timeout = 15 * time.Second
 	config.Delay = 100 * time.Millisecond
 	if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
 		config.Timeout = 90 * time.Second
@@ -89,6 +89,13 @@ func CreateServiceSpec(t *testing.T, opts ...ServiceSpecOpt) swarmtypes.ServiceS
 		o(&spec)
 	}
 	return spec
+}
+
+// ServiceWithMode sets the mode of the service to the provided mode.
+func ServiceWithMode(mode swarmtypes.ServiceMode) func(*swarmtypes.ServiceSpec) {
+	return func(spec *swarmtypes.ServiceSpec) {
+		spec.Mode = mode
+	}
 }
 
 // ServiceWithInit sets whether the service should use init or not

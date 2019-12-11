@@ -115,7 +115,7 @@ func (ce *ConstraintEnforcer) rejectNoncompliantTasks(node *api.Node) {
 	// to remove the most resource-intensive tasks.
 loop:
 	for _, t := range tasks {
-		if t.DesiredState < api.TaskStateAssigned || t.DesiredState > api.TaskStateRunning {
+		if t.DesiredState < api.TaskStateAssigned || t.DesiredState > api.TaskStateCompleted {
 			continue
 		}
 
@@ -195,7 +195,7 @@ loop:
 			for _, t := range removeTasks {
 				err := batch.Update(func(tx store.Tx) error {
 					t = store.GetTask(tx, t.ID)
-					if t == nil || t.DesiredState > api.TaskStateRunning {
+					if t == nil || t.DesiredState > api.TaskStateCompleted {
 						return nil
 					}
 

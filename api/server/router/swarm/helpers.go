@@ -101,5 +101,11 @@ func adjustForAPIVersion(cliVersion string, service *swarm.ServiceSpec) {
 			// API version 1.41
 			service.TaskTemplate.ContainerSpec.Capabilities = nil
 		}
+
+		// jobs were only introduced in API version 1.41. Nil out both Job
+		// modes; if the service is one of these modes and subsequently has no
+		// mode, then something down the pipe will thrown an error.
+		service.Mode.ReplicatedJob = nil
+		service.Mode.GlobalJob = nil
 	}
 }

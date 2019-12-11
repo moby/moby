@@ -1115,3 +1115,19 @@ message Privileges {
 	}
 	SELinuxContext selinux_context = 2 [(gogoproto.customname) = "SELinuxContext"];
 }
+
+// JobStatus indicates the status of a Service that is in one of the Job modes.
+message JobStatus {
+	// JobIteration is the count of how many times the Job has been excecuted,
+	// successfully or otherwise. "Executed" refers to the job as a whole being
+	// started, not to the individual Tasks being launched. This is used to
+	// disambiguate which Tasks belong to which iteration of a Job.
+	Version job_iteration = 1 [(gogoproto.nullable) = false];
+
+	// LastExecution is the time that the job was last executed. This is set by
+	// the orchestrator in the same transaction that JobIteration is incremented.
+	// While time is a fungible concept in distributed systems like Swarmkit,
+	// this value gives us a best-effort attempt to prevent weird behavior like
+	// newly added nodes executing long-forgotten jobs.
+	google.protobuf.Timestamp last_execution = 2;
+}

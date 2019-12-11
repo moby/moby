@@ -127,6 +127,10 @@ message Service {
 	// progress.
 	UpdateStatus update_status = 5;
 
+	// JobStatus contains the status of a Service that is in one of the Job
+	// modes. It is absent on Replicated and Global services.
+	JobStatus job_status = 12;
+
 	// PendingDelete indicates that this service's deletion has been requested.
 	// Services, as well as all service-level resources, can only be deleted
 	// after all of the service's containers have properly shut down.
@@ -261,6 +265,10 @@ message Task {
 	Driver log_driver = 13;
 
 	repeated GenericResource assigned_generic_resources = 15;
+
+	// JobIteration is the iteration number of the Job-mode Service that this
+	// task belongs to.
+	Version job_iteration = 16;
 }
 
 // NetworkAttachment specifies the network parameters of attachment to

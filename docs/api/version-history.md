@@ -32,8 +32,25 @@ keywords: "API, Docker, rcli, REST, documentation"
   version. This change is not versioned, and affects all API versions if the daemon
   has this patch.
 * `GET /services` now accepts query parameter `status`. When set `true`,
-  services returned will include `ServiceStatus`, which provides Desired and
-  Running task counts for the service.
+  services returned will include `ServiceStatus`, which provides Desired,
+  Running, and Completed task counts for the service.
+* `GET /services` may now include `ReplicatedJob` or `GlobalJob` as the `Mode`
+  in a `ServiceSpec`.
+* `GET /services/{id}` may now include `ReplicatedJob` or `GlobalJob` as the
+  `Mode` in a `ServiceSpec`.
+* `POST /services/create` now accepts `ReplicatedJob or `GlobalJob` as the `Mode`
+  in the `ServiceSpec.
+* `POST /services/{id}/update` accepts updating the fields of the
+  `ReplicatedJob` object in the `ServiceSpec.Mode`. The service mode still
+  cannot be changed, however.
+* `GET /services` now includes `JobStatus` on Services with mode
+  `ReplicatedJob` or `GlobalJob`.
+* `GET /services/{id}` now includes `JobStatus` on Services with mode
+  `ReplicatedJob` or `GlobalJob`.
+* `GET /tasks` now includes `JobIteration` on Tasks spawned from a job-mode
+  service.
+* `GET /tasks/{id}` now includes `JobIteration` on the task if spawned from a
+  job-mode service.
 
 ## v1.40 API changes
 
