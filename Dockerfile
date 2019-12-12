@@ -4,6 +4,7 @@ ARG CROSS="false"
 ARG GO_VERSION=1.13.4
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_DIGEST=e508a17cfacc8fd39261d5b4e397df2b953690da577e2c987a47630cd0c42f8e
+ARG DOCKER_BUILDTAGS="apparmor seccomp selinux"
 
 FROM golang:${GO_VERSION}-stretch AS base
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
@@ -111,10 +112,16 @@ ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,sharing=locked,id=moby-cross-false-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-cross-false-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
+            binutils-mingw-w64 \
+            btrfs-tools \
+            g++-mingw-w64-x86-64 \
             libapparmor-dev \
-            libseccomp-dev
+            libdevmapper-dev \
+            libseccomp-dev \
+            libsystemd-dev \
+            libudev-dev
 
-FROM --platform=linux/amd64 cross-true AS runtime-dev-cross-true
+FROM --platform=linux/amd64 runtime-dev-cross-false AS runtime-dev-cross-true
 ARG DEBIAN_FRONTEND
 # These crossbuild packages rely on gcc-<arch>, but this doesn't want to install
 # on non-amd64 systems.
@@ -128,11 +135,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/
             libapparmor-dev:armhf \
             libseccomp-dev:arm64 \
             libseccomp-dev:armel \
-            libseccomp-dev:armhf \
-            # install this arches seccomp here due to compat issues with the v0 builder
-            # This is as opposed to inheriting from runtime-dev-cross-false
-            libapparmor-dev \
-            libseccomp-dev
+            libseccomp-dev:armhf
 
 FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
@@ -261,19 +264,13 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             apparmor \
             aufs-tools \
             bash-completion \
-            binutils-mingw-w64 \
-            btrfs-tools \
             bzip2 \
-            g++-mingw-w64-x86-64 \
             iptables \
             jq \
             libcap2-bin \
-            libdevmapper-dev \
             libnet1 \
             libnl-3-200 \
             libprotobuf-c1 \
-            libsystemd-dev \
-            libudev-dev \
             net-tools \
             pigz \
             python3-pip \
@@ -304,18 +301,15 @@ COPY --from=containerd    /build/ /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
 COPY --from=vpnkit        /vpnkit /usr/local/bin/vpnkit.x86_64
 COPY --from=proxy         /build/ /usr/local/bin/
-
 ENV PATH=/usr/local/cli:$PATH
-ENV DOCKER_BUILDTAGS apparmor seccomp selinux
+ARG DOCKER_BUILDTAGS
+ENV DOCKER_BUILDTAGS="${DOCKER_BUILDTAGS}"
 WORKDIR /go/src/github.com/docker/docker
 VOLUME /var/lib/docker
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
 
-FROM dev AS src
-COPY . /go/src/github.com/docker/docker
-
-FROM src AS binary-base
+FROM runtime-dev AS binary-base
 ARG DOCKER_GITCOMMIT=HEAD
 ENV DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT}
 ARG VERSION
@@ -326,27 +320,43 @@ ARG PRODUCT
 ENV PRODUCT=${PRODUCT}
 ARG DEFAULT_PRODUCT_LICENSE
 ENV DEFAULT_PRODUCT_LICENSE=${DEFAULT_PRODUCT_LICENSE}
+ARG DOCKER_BUILDTAGS
+ENV DOCKER_BUILDTAGS="${DOCKER_BUILDTAGS}"
+ENV PREFIX=/build
+# TODO: This is here because hack/make.sh binary copies these extras binaries
+# from $PATH into the bundles dir.
+# It would be nice to handle this in a different way.
+COPY --from=tini        /build/ /usr/local/bin/
+COPY --from=runc        /build/ /usr/local/bin/
+COPY --from=containerd  /build/ /usr/local/bin/
+COPY --from=rootlesskit /build/ /usr/local/bin/
+COPY --from=proxy       /build/ /usr/local/bin/
+WORKDIR /go/src/github.com/docker/docker
 
 FROM binary-base AS build-binary
 RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=bind,target=/go/src/github.com/docker/docker \
         hack/make.sh binary
 
 FROM binary-base AS build-dynbinary
 RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=bind,target=/go/src/github.com/docker/docker \
         hack/make.sh dynbinary
 
 FROM binary-base AS build-cross
 ARG DOCKER_CROSSPLATFORMS
 RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=bind,target=/go/src/github.com/docker/docker \
         hack/make.sh cross
 
 FROM scratch AS binary
-COPY --from=build-binary /go/src/github.com/docker/docker/bundles/ /
+COPY --from=build-binary /build/bundles/ /
 
 FROM scratch AS dynbinary
-COPY --from=build-dynbinary /go/src/github.com/docker/docker/bundles/ /
+COPY --from=build-dynbinary /build/ /
 
 FROM scratch AS cross
-COPY --from=build-cross /go/src/github.com/docker/docker/bundles/ /
+COPY --from=build-cross /build/ /
 
-FROM src AS final
+FROM dev AS final
+COPY . /go/src/github.com/docker/docker
