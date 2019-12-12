@@ -265,7 +265,7 @@ type ImagePullOptions struct {
 // if the privilege request fails.
 type RequestPrivilegeFunc func() (string, error)
 
-//ImagePushOptions holds information to push images.
+// ImagePushOptions holds information to push images.
 type ImagePushOptions ImagePullOptions
 
 // ImageRemoveOptions holds parameters to remove images.

@@ -48,7 +48,7 @@ func (s *DockerSuite) TestEventsTimestampFormats(c *testing.T) {
 		events = events[:len(events)-1]
 
 		nEvents := len(events)
-		assert.Assert(c, nEvents >= 5) //Missing expected event
+		assert.Assert(c, nEvents >= 5)
 		containerEvents := eventActionsByIDAndType(c, events, name, "container")
 		assert.Assert(c, is.DeepEqual(containerEvents, []string{"create", "attach", "start", "die", "destroy"}), out)
 	}
@@ -99,7 +99,7 @@ func (s *DockerSuite) TestEventsContainerEventsAttrSort(c *testing.T) {
 	events := strings.Split(out, "\n")
 
 	nEvents := len(events)
-	assert.Assert(c, nEvents >= 3) //Missing expected event
+	assert.Assert(c, nEvents >= 3)
 	matchedEvents := 0
 	for _, event := range events {
 		matches := eventstestutils.ScanMap(event)
@@ -124,7 +124,7 @@ func (s *DockerSuite) TestEventsContainerEventsSinceUnixEpoch(c *testing.T) {
 	events = events[:len(events)-1]
 
 	nEvents := len(events)
-	assert.Assert(c, nEvents >= 5) //Missing expected event
+	assert.Assert(c, nEvents >= 5)
 	containerEvents := eventActionsByIDAndType(c, events, "since-epoch-test", "container")
 	assert.Assert(c, is.DeepEqual(containerEvents, []string{"create", "attach", "start", "die", "destroy"}), out)
 }
@@ -664,7 +664,7 @@ func (s *DockerSuite) TestEventsContainerRestart(c *testing.T) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 
 	nEvents := len(events)
-	assert.Assert(c, nEvents >= 1) //Missing expected event
+	assert.Assert(c, nEvents >= 1)
 	actions := eventActionsByIDAndType(c, events, "testEvent", "container")
 
 	for _, a := range actions {

@@ -29,10 +29,10 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 	node.CreatedAt, _ = gogotypes.TimestampFromProto(n.Meta.CreatedAt)
 	node.UpdatedAt, _ = gogotypes.TimestampFromProto(n.Meta.UpdatedAt)
 
-	//Annotations
+	// Annotations
 	node.Spec.Annotations = annotationsFromGRPC(n.Spec.Annotations)
 
-	//Description
+	// Description
 	if n.Description != nil {
 		node.Description.Hostname = n.Description.Hostname
 		if n.Description.Platform != nil {
@@ -58,7 +58,7 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 		}
 	}
 
-	//Manager
+	// Manager
 	if n.ManagerStatus != nil {
 		node.ManagerStatus = &types.ManagerStatus{
 			Leader:       n.ManagerStatus.Leader,

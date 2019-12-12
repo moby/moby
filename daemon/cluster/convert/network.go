@@ -47,10 +47,10 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 		network.CreatedAt, _ = gogotypes.TimestampFromProto(n.Meta.CreatedAt)
 		network.UpdatedAt, _ = gogotypes.TimestampFromProto(n.Meta.UpdatedAt)
 
-		//Annotations
+		// Annotations
 		network.Spec.Annotations = annotationsFromGRPC(n.Spec.Annotations)
 
-		//DriverConfiguration
+		// DriverConfiguration
 		if n.Spec.DriverConfig != nil {
 			network.Spec.DriverConfiguration = &types.Driver{
 				Name:    n.Spec.DriverConfig.Name,
@@ -58,7 +58,7 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 			}
 		}
 
-		//DriverState
+		// DriverState
 		if n.DriverState != nil {
 			network.DriverState = types.Driver{
 				Name:    n.DriverState.Name,

@@ -175,7 +175,7 @@ func (s *DockerSuite) TestRunWithoutNetworking(c *testing.T) {
 	}
 }
 
-//test --link use container name to link target
+// test --link use container name to link target
 func (s *DockerSuite) TestRunLinksContainerWithContainerName(c *testing.T) {
 	// TODO Windows: This test cannot run on a Windows daemon as the networking
 	// settings are not populated back yet on inspect.
@@ -190,7 +190,7 @@ func (s *DockerSuite) TestRunLinksContainerWithContainerName(c *testing.T) {
 	}
 }
 
-//test --link use container id to link target
+// test --link use container id to link target
 func (s *DockerSuite) TestRunLinksContainerWithContainerID(c *testing.T) {
 	// TODO Windows: This test cannot run on a Windows daemon as the networking
 	// settings are not populated back yet on inspect.
@@ -1430,7 +1430,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *testing.T) {
 	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\n")
 	tmpLocalhostResolvConf := []byte("nameserver 127.0.0.1")
 
-	//take a copy of resolv.conf for restoring after test completes
+	// take a copy of resolv.conf for restoring after test completes
 	resolvConfSystem, err := ioutil.ReadFile("/etc/resolv.conf")
 	if err != nil {
 		c.Fatal(err)
@@ -1447,14 +1447,14 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *testing.T) {
 		icmd.RunCommand("umount", "/etc/resolv.conf").Assert(c, icmd.Success)
 	}
 
-	//cleanup
+	// cleanup
 	defer func() {
 		if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
 			c.Fatal(err)
 		}
 	}()
 
-	//1. test that a restarting container gets an updated resolv.conf
+	// 1. test that a restarting container gets an updated resolv.conf
 	dockerCmd(c, "run", "--name=first", "busybox", "true")
 	containerID1 := getIDByName(c, "first")
 
@@ -1472,16 +1472,16 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *testing.T) {
 		c.Fatalf("Restarted container does not have updated resolv.conf; expected %q, got %q", tmpResolvConf, string(containerResolv))
 	}
 
-	/*	//make a change to resolv.conf (in this case replacing our tmp copy with orig copy)
+	/*	// make a change to resolv.conf (in this case replacing our tmp copy with orig copy)
 		if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
 						c.Fatal(err)
 								} */
-	//2. test that a restarting container does not receive resolv.conf updates
+	// 2. test that a restarting container does not receive resolv.conf updates
 	//   if it modified the container copy of the starting point resolv.conf
 	dockerCmd(c, "run", "--name=second", "busybox", "sh", "-c", "echo 'search mylittlepony.com' >>/etc/resolv.conf")
 	containerID2 := getIDByName(c, "second")
 
-	//make a change to resolv.conf (in this case replacing our tmp copy with orig copy)
+	// make a change to resolv.conf (in this case replacing our tmp copy with orig copy)
 	if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
 		c.Fatal(err)
 	}
@@ -1495,7 +1495,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *testing.T) {
 		c.Fatalf("Container's resolv.conf should not have been updated with host resolv.conf: %q", string(containerResolv))
 	}
 
-	//3. test that a running container's resolv.conf is not modified while running
+	// 3. test that a running container's resolv.conf is not modified while running
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	runningContainerID := strings.TrimSpace(out)
 
@@ -1510,7 +1510,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *testing.T) {
 		c.Fatalf("Running container should not have updated resolv.conf; expected %q, got %q", string(resolvConfSystem), string(containerResolv))
 	}
 
-	//4. test that a running container's resolv.conf is updated upon restart
+	// 4. test that a running container's resolv.conf is updated upon restart
 	//   (the above container is still running..)
 	dockerCmd(c, "restart", runningContainerID)
 
@@ -1520,7 +1520,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *testing.T) {
 		c.Fatalf("Restarted container should have updated resolv.conf; expected %q, got %q", string(tmpResolvConf), string(containerResolv))
 	}
 
-	//5. test that additions of a localhost resolver are cleaned from
+	// 5. test that additions of a localhost resolver are cleaned from
 	//   host resolv.conf before updating container's resolv.conf copies
 
 	// replace resolv.conf with a localhost-only nameserver copy
@@ -1539,7 +1539,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *testing.T) {
 		c.Fatalf("Container does not have cleaned/replaced DNS in resolv.conf; expected %q, got %q", expected, string(containerResolv))
 	}
 
-	//6. Test that replacing (as opposed to modifying) resolv.conf triggers an update
+	// 6. Test that replacing (as opposed to modifying) resolv.conf triggers an update
 	//   of containers' resolv.conf.
 
 	// Restore the original resolv.conf
@@ -1570,7 +1570,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *testing.T) {
 		c.Fatalf("Stopped container does not have updated resolv.conf; expected\n%q\n got\n%q", tmpResolvConf, string(containerResolv))
 	}
 
-	//cleanup, restore original resolv.conf happens in defer func()
+	// cleanup, restore original resolv.conf happens in defer func()
 }
 
 func (s *DockerSuite) TestRunAddHost(c *testing.T) {
@@ -1958,7 +1958,7 @@ func (s *DockerSuite) TestRunCidFileCleanupIfEmpty(c *testing.T) {
 }
 
 // #2098 - Docker cidFiles only contain short version of the containerId
-//sudo docker run --cidfile /tmp/docker_tesc.cid ubuntu echo "test"
+// sudo docker run --cidfile /tmp/docker_tesc.cid ubuntu echo "test"
 // TestRunCidFile tests that run --cidfile returns the longid
 func (s *DockerSuite) TestRunCidFileCheckIDLength(c *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "TestRunCidFile")
@@ -2016,7 +2016,7 @@ func (s *DockerSuite) TestRunInspectMacAddress(c *testing.T) {
 // test docker run use an invalid mac address
 func (s *DockerSuite) TestRunWithInvalidMacAddress(c *testing.T) {
 	out, _, err := dockerCmdWithError("run", "--mac-address", "92:d0:c6:0a:29", "busybox")
-	//use an invalid mac address should with an error out
+	// use an invalid mac address should with an error out
 	if err == nil || !strings.Contains(out, "is not a valid mac address") {
 		c.Fatalf("run with an invalid --mac-address should with error out")
 	}
@@ -2148,7 +2148,7 @@ func (s *DockerSuite) TestRunReuseBindVolumeThatIsSymlink(c *testing.T) {
 	dockerCmd(c, "run", "-v", fmt.Sprintf("%s:"+prefix+"/tmp/test", linkPath), "busybox", "ls", prefix+"/tmp/test")
 }
 
-//GH#10604: Test an "/etc" volume doesn't overlay special bind mounts in container
+// GH#10604: Test an "/etc" volume doesn't overlay special bind mounts in container
 func (s *DockerSuite) TestRunCreateVolumeEtc(c *testing.T) {
 	// While Windows supports volumes, it does not support --add-host hence
 	// this test is not applicable on Windows.

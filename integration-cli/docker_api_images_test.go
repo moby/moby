@@ -44,7 +44,7 @@ func (s *DockerSuite) TestAPIImagesFilter(c *testing.T) {
 		return images
 	}
 
-	//incorrect number of matches returned
+	// incorrect number of matches returned
 	images := getImages("utest*/*")
 	assert.Equal(c, len(images[0].RepoTags), 2)
 

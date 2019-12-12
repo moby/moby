@@ -171,7 +171,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 			if all || len(i.imageStore.Children(id)) == 0 {
 
 				if imageFilters.Contains("dangling") && !danglingOnly {
-					//dangling=false case, so dangling image is not needed
+					// dangling=false case, so dangling image is not needed
 					continue
 				}
 				if imageFilters.Contains("reference") { // skip images with no references if filtering by reference

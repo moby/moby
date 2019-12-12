@@ -29,7 +29,7 @@ var (
 	drivers map[string]InitFunc
 )
 
-//CreateOpts contains optional arguments for Create() and CreateReadWrite()
+// CreateOpts contains optional arguments for Create() and CreateReadWrite()
 // methods.
 type CreateOpts struct {
 	MountLabel string

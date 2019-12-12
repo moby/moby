@@ -356,7 +356,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *testing.T) {
 		node := daemons[0].GetNode(c, task.NodeID)
 		assert.Equal(c, node.Spec.Role, swarm.NodeRoleWorker)
 	}
-	//remove service
+	// remove service
 	daemons[0].RemoveService(c, id)
 
 	// create service
@@ -370,7 +370,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *testing.T) {
 		node := daemons[0].GetNode(c, task.NodeID)
 		assert.Equal(c, node.Spec.Role, swarm.NodeRoleManager)
 	}
-	//remove service
+	// remove service
 	daemons[0].RemoveService(c, id)
 
 	// create service
@@ -423,7 +423,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *testing.T) {
 	for _, task := range tasks {
 		assert.Assert(c, task.NodeID == nodes[0].ID)
 	}
-	//remove service
+	// remove service
 	daemons[0].RemoveService(c, id)
 
 	// create service
@@ -436,7 +436,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *testing.T) {
 	for _, task := range tasks {
 		assert.Assert(c, task.NodeID != nodes[0].ID)
 	}
-	//remove service
+	// remove service
 	daemons[0].RemoveService(c, id)
 
 	constraints = []string{"node.labels.security==medium"}
@@ -450,7 +450,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *testing.T) {
 	for _, task := range tasks {
 		assert.Assert(c, task.NodeID == "")
 	}
-	//remove service
+	// remove service
 	daemons[0].RemoveService(c, id)
 
 	// multiple constraints

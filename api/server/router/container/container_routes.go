@@ -41,7 +41,7 @@ func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 	}
 
 	config, _, _, err := s.decoder.DecodeConfig(r.Body)
-	if err != nil && err != io.EOF { //Do not fail if body is empty.
+	if err != nil && err != io.EOF { // Do not fail if body is empty.
 		return err
 	}
 

@@ -175,7 +175,7 @@ func (s *DockerRegistrySuite) TestRemoveImageByDigest(c *testing.T) {
 
 	// try to inspect again - it should error this time
 	_, err = inspectFieldWithError(imageReference, "Id")
-	//unexpected nil err trying to inspect what should be a non-existent image
+	// unexpected nil err trying to inspect what should be a non-existent image
 	assert.ErrorContains(c, err, "No such object")
 }
 
@@ -255,8 +255,7 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *testing.T) {
 	assert.Assert(c, re1.MatchString(out), "expected %q: %s", re1.String(), out)
 	// setup image2
 	digest2, err := setupImageWithTag(c, "tag2")
-	//error setting up image
-	assert.NilError(c, err)
+	assert.NilError(c, err, "error setting up image")
 	imageReference2 := fmt.Sprintf("%s@%s", repoName, digest2)
 	c.Logf("imageReference2 = %s", imageReference2)
 

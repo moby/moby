@@ -57,7 +57,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 		}
 	}
 
-	if image != "" { //pull
+	if image != "" { // pull
 		metaHeaders := map[string][]string{}
 		for k, v := range r.Header {
 			if strings.HasPrefix(k, "X-Meta-") {
@@ -76,7 +76,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 			}
 		}
 		err = s.backend.PullImage(ctx, image, tag, platform, metaHeaders, authConfig, output)
-	} else { //import
+	} else { // import
 		src := r.Form.Get("fromSrc")
 		// 'err' MUST NOT be defined within this block, we need any error
 		// generated from the download to be available to the output

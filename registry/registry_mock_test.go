@@ -268,7 +268,7 @@ func requiresAuth(w http.ResponseWriter, r *http.Request) bool {
 		value := fmt.Sprintf("FAKE-SESSION-%d", time.Now().UnixNano())
 		cookie := &http.Cookie{Name: "session", Value: value, MaxAge: 3600}
 		http.SetCookie(w, cookie)
-		//FIXME(sam): this should be sent only on Index routes
+		// FIXME(sam): this should be sent only on Index routes
 		value = fmt.Sprintf("FAKE-TOKEN-%d", time.Now().UnixNano())
 		w.Header().Add("X-Docker-Token", value)
 	}
