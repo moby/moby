@@ -27,7 +27,7 @@ func TestInspect(t *testing.T) {
 
 	var now = time.Now()
 	var instances uint64 = 2
-	serviceSpec := fullSwarmServiceSpec("test-service-inspect", instances)
+	serviceSpec := fullSwarmServiceSpec("test-service-inspect"+t.Name(), instances)
 
 	ctx := context.Background()
 	resp, err := client.ServiceCreate(ctx, serviceSpec, types.ServiceCreateOptions{
