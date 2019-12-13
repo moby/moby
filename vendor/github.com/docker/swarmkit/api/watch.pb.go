@@ -3,33 +3,36 @@
 
 package api
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/protobuf/gogoproto"
-import _ "github.com/docker/swarmkit/protobuf/plugin"
-
-import deepcopy "github.com/docker/swarmkit/api/deepcopy"
-
-import context "golang.org/x/net/context"
-import grpc "google.golang.org/grpc"
-
-import raftselector "github.com/docker/swarmkit/manager/raftselector"
-import codes "google.golang.org/grpc/codes"
-import status "google.golang.org/grpc/status"
-import metadata "google.golang.org/grpc/metadata"
-import peer "google.golang.org/grpc/peer"
-import rafttime "time"
-
-import strings "strings"
-import reflect "reflect"
-
-import io "io"
+import (
+	context "context"
+	fmt "fmt"
+	github_com_docker_swarmkit_api_deepcopy "github.com/docker/swarmkit/api/deepcopy"
+	raftselector "github.com/docker/swarmkit/manager/raftselector"
+	_ "github.com/docker/swarmkit/protobuf/plugin"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	metadata "google.golang.org/grpc/metadata"
+	peer "google.golang.org/grpc/peer"
+	status "google.golang.org/grpc/status"
+	io "io"
+	math "math"
+	reflect "reflect"
+	strings "strings"
+	rafttime "time"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
 // WatchActionKind distinguishes between creations, updates, and removals. It
 // is structured as a bitmap so multiple kinds of events can be requested with
@@ -49,6 +52,7 @@ var WatchActionKind_name = map[int32]string{
 	2: "WATCH_ACTION_UPDATE",
 	4: "WATCH_ACTION_REMOVE",
 }
+
 var WatchActionKind_value = map[string]int32{
 	"WATCH_ACTION_UNKNOWN": 0,
 	"WATCH_ACTION_CREATE":  1,
@@ -59,7 +63,10 @@ var WatchActionKind_value = map[string]int32{
 func (x WatchActionKind) String() string {
 	return proto.EnumName(WatchActionKind_name, int32(x))
 }
-func (WatchActionKind) EnumDescriptor() ([]byte, []int) { return fileDescriptorWatch, []int{0} }
+
+func (WatchActionKind) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_da25266013800cd9, []int{0}
+}
 
 type Object struct {
 	// Types that are valid to be assigned to Object:
@@ -75,9 +82,37 @@ type Object struct {
 	Object isObject_Object `protobuf_oneof:"Object"`
 }
 
-func (m *Object) Reset()                    { *m = Object{} }
-func (*Object) ProtoMessage()               {}
-func (*Object) Descriptor() ([]byte, []int) { return fileDescriptorWatch, []int{0} }
+func (m *Object) Reset()      { *m = Object{} }
+func (*Object) ProtoMessage() {}
+func (*Object) Descriptor() ([]byte, []int) {
+	return fileDescriptor_da25266013800cd9, []int{0}
+}
+func (m *Object) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Object) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Object.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Object) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Object.Merge(m, src)
+}
+func (m *Object) XXX_Size() int {
+	return m.Size()
+}
+func (m *Object) XXX_DiscardUnknown() {
+	xxx_messageInfo_Object.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Object proto.InternalMessageInfo
 
 type isObject_Object interface {
 	isObject_Object()
@@ -86,31 +121,31 @@ type isObject_Object interface {
 }
 
 type Object_Node struct {
-	Node *Node `protobuf:"bytes,1,opt,name=node,oneof"`
+	Node *Node `protobuf:"bytes,1,opt,name=node,proto3,oneof"`
 }
 type Object_Service struct {
-	Service *Service `protobuf:"bytes,2,opt,name=service,oneof"`
+	Service *Service `protobuf:"bytes,2,opt,name=service,proto3,oneof"`
 }
 type Object_Network struct {
-	Network *Network `protobuf:"bytes,3,opt,name=network,oneof"`
+	Network *Network `protobuf:"bytes,3,opt,name=network,proto3,oneof"`
 }
 type Object_Task struct {
-	Task *Task `protobuf:"bytes,4,opt,name=task,oneof"`
+	Task *Task `protobuf:"bytes,4,opt,name=task,proto3,oneof"`
 }
 type Object_Cluster struct {
-	Cluster *Cluster `protobuf:"bytes,5,opt,name=cluster,oneof"`
+	Cluster *Cluster `protobuf:"bytes,5,opt,name=cluster,proto3,oneof"`
 }
 type Object_Secret struct {
-	Secret *Secret `protobuf:"bytes,6,opt,name=secret,oneof"`
+	Secret *Secret `protobuf:"bytes,6,opt,name=secret,proto3,oneof"`
 }
 type Object_Resource struct {
-	Resource *Resource `protobuf:"bytes,7,opt,name=resource,oneof"`
+	Resource *Resource `protobuf:"bytes,7,opt,name=resource,proto3,oneof"`
 }
 type Object_Extension struct {
-	Extension *Extension `protobuf:"bytes,8,opt,name=extension,oneof"`
+	Extension *Extension `protobuf:"bytes,8,opt,name=extension,proto3,oneof"`
 }
 type Object_Config struct {
-	Config *Config `protobuf:"bytes,9,opt,name=config,oneof"`
+	Config *Config `protobuf:"bytes,9,opt,name=config,proto3,oneof"`
 }
 
 func (*Object_Node) isObject_Object()      {}
@@ -350,47 +385,47 @@ func _Object_OneofSizer(msg proto.Message) (n int) {
 	switch x := m.Object.(type) {
 	case *Object_Node:
 		s := proto.Size(x.Node)
-		n += proto.SizeVarint(1<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *Object_Service:
 		s := proto.Size(x.Service)
-		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *Object_Network:
 		s := proto.Size(x.Network)
-		n += proto.SizeVarint(3<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *Object_Task:
 		s := proto.Size(x.Task)
-		n += proto.SizeVarint(4<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *Object_Cluster:
 		s := proto.Size(x.Cluster)
-		n += proto.SizeVarint(5<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *Object_Secret:
 		s := proto.Size(x.Secret)
-		n += proto.SizeVarint(6<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *Object_Resource:
 		s := proto.Size(x.Resource)
-		n += proto.SizeVarint(7<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *Object_Extension:
 		s := proto.Size(x.Extension)
-		n += proto.SizeVarint(8<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *Object_Config:
 		s := proto.Size(x.Config)
-		n += proto.SizeVarint(9<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case nil:
@@ -407,9 +442,37 @@ type SelectBySlot struct {
 	Slot      uint64 `protobuf:"varint,2,opt,name=slot,proto3" json:"slot,omitempty"`
 }
 
-func (m *SelectBySlot) Reset()                    { *m = SelectBySlot{} }
-func (*SelectBySlot) ProtoMessage()               {}
-func (*SelectBySlot) Descriptor() ([]byte, []int) { return fileDescriptorWatch, []int{1} }
+func (m *SelectBySlot) Reset()      { *m = SelectBySlot{} }
+func (*SelectBySlot) ProtoMessage() {}
+func (*SelectBySlot) Descriptor() ([]byte, []int) {
+	return fileDescriptor_da25266013800cd9, []int{1}
+}
+func (m *SelectBySlot) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SelectBySlot) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_SelectBySlot.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *SelectBySlot) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SelectBySlot.Merge(m, src)
+}
+func (m *SelectBySlot) XXX_Size() int {
+	return m.Size()
+}
+func (m *SelectBySlot) XXX_DiscardUnknown() {
+	xxx_messageInfo_SelectBySlot.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SelectBySlot proto.InternalMessageInfo
 
 type SelectByCustom struct {
 	Kind  string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
@@ -417,9 +480,37 @@ type SelectByCustom struct {
 	Value string `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
 }
 
-func (m *SelectByCustom) Reset()                    { *m = SelectByCustom{} }
-func (*SelectByCustom) ProtoMessage()               {}
-func (*SelectByCustom) Descriptor() ([]byte, []int) { return fileDescriptorWatch, []int{2} }
+func (m *SelectByCustom) Reset()      { *m = SelectByCustom{} }
+func (*SelectByCustom) ProtoMessage() {}
+func (*SelectByCustom) Descriptor() ([]byte, []int) {
+	return fileDescriptor_da25266013800cd9, []int{2}
+}
+func (m *SelectByCustom) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SelectByCustom) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_SelectByCustom.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *SelectByCustom) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SelectByCustom.Merge(m, src)
+}
+func (m *SelectByCustom) XXX_Size() int {
+	return m.Size()
+}
+func (m *SelectByCustom) XXX_DiscardUnknown() {
+	xxx_messageInfo_SelectByCustom.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SelectByCustom proto.InternalMessageInfo
 
 type SelectBy struct {
 	// TODO(aaronl): Are all of these things we want to expose in
@@ -446,9 +537,37 @@ type SelectBy struct {
 	By isSelectBy_By `protobuf_oneof:"By"`
 }
 
-func (m *SelectBy) Reset()                    { *m = SelectBy{} }
-func (*SelectBy) ProtoMessage()               {}
-func (*SelectBy) Descriptor() ([]byte, []int) { return fileDescriptorWatch, []int{3} }
+func (m *SelectBy) Reset()      { *m = SelectBy{} }
+func (*SelectBy) ProtoMessage() {}
+func (*SelectBy) Descriptor() ([]byte, []int) {
+	return fileDescriptor_da25266013800cd9, []int{3}
+}
+func (m *SelectBy) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SelectBy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_SelectBy.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *SelectBy) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SelectBy.Merge(m, src)
+}
+func (m *SelectBy) XXX_Size() int {
+	return m.Size()
+}
+func (m *SelectBy) XXX_DiscardUnknown() {
+	xxx_messageInfo_SelectBy.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SelectBy proto.InternalMessageInfo
 
 type isSelectBy_By interface {
 	isSelectBy_By()
@@ -469,10 +588,10 @@ type SelectBy_NamePrefix struct {
 	NamePrefix string `protobuf:"bytes,4,opt,name=name_prefix,json=namePrefix,proto3,oneof"`
 }
 type SelectBy_Custom struct {
-	Custom *SelectByCustom `protobuf:"bytes,5,opt,name=custom,oneof"`
+	Custom *SelectByCustom `protobuf:"bytes,5,opt,name=custom,proto3,oneof"`
 }
 type SelectBy_CustomPrefix struct {
-	CustomPrefix *SelectByCustom `protobuf:"bytes,6,opt,name=custom_prefix,json=customPrefix,oneof"`
+	CustomPrefix *SelectByCustom `protobuf:"bytes,6,opt,name=custom_prefix,json=customPrefix,proto3,oneof"`
 }
 type SelectBy_ServiceID struct {
 	ServiceID string `protobuf:"bytes,7,opt,name=service_id,json=serviceId,proto3,oneof"`
@@ -481,7 +600,7 @@ type SelectBy_NodeID struct {
 	NodeID string `protobuf:"bytes,8,opt,name=node_id,json=nodeId,proto3,oneof"`
 }
 type SelectBy_Slot struct {
-	Slot *SelectBySlot `protobuf:"bytes,9,opt,name=slot,oneof"`
+	Slot *SelectBySlot `protobuf:"bytes,9,opt,name=slot,proto3,oneof"`
 }
 type SelectBy_DesiredState struct {
 	DesiredState TaskState `protobuf:"varint,10,opt,name=desired_state,json=desiredState,proto3,enum=docker.swarmkit.v1.TaskState,oneof"`
@@ -856,67 +975,67 @@ func _SelectBy_OneofSizer(msg proto.Message) (n int) {
 	// By
 	switch x := m.By.(type) {
 	case *SelectBy_ID:
-		n += proto.SizeVarint(1<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.ID)))
 		n += len(x.ID)
 	case *SelectBy_IDPrefix:
-		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.IDPrefix)))
 		n += len(x.IDPrefix)
 	case *SelectBy_Name:
-		n += proto.SizeVarint(3<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.Name)))
 		n += len(x.Name)
 	case *SelectBy_NamePrefix:
-		n += proto.SizeVarint(4<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.NamePrefix)))
 		n += len(x.NamePrefix)
 	case *SelectBy_Custom:
 		s := proto.Size(x.Custom)
-		n += proto.SizeVarint(5<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *SelectBy_CustomPrefix:
 		s := proto.Size(x.CustomPrefix)
-		n += proto.SizeVarint(6<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *SelectBy_ServiceID:
-		n += proto.SizeVarint(7<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.ServiceID)))
 		n += len(x.ServiceID)
 	case *SelectBy_NodeID:
-		n += proto.SizeVarint(8<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.NodeID)))
 		n += len(x.NodeID)
 	case *SelectBy_Slot:
 		s := proto.Size(x.Slot)
-		n += proto.SizeVarint(9<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *SelectBy_DesiredState:
-		n += proto.SizeVarint(10<<3 | proto.WireVarint)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(x.DesiredState))
 	case *SelectBy_Role:
-		n += proto.SizeVarint(11<<3 | proto.WireVarint)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(x.Role))
 	case *SelectBy_Membership:
-		n += proto.SizeVarint(12<<3 | proto.WireVarint)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(x.Membership))
 	case *SelectBy_ReferencedNetworkID:
-		n += proto.SizeVarint(13<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.ReferencedNetworkID)))
 		n += len(x.ReferencedNetworkID)
 	case *SelectBy_ReferencedSecretID:
-		n += proto.SizeVarint(14<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.ReferencedSecretID)))
 		n += len(x.ReferencedSecretID)
 	case *SelectBy_ReferencedConfigID:
-		n += proto.SizeVarint(16<<3 | proto.WireBytes)
+		n += 2 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.ReferencedConfigID)))
 		n += len(x.ReferencedConfigID)
 	case *SelectBy_Kind:
-		n += proto.SizeVarint(15<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.Kind)))
 		n += len(x.Kind)
 	case nil:
@@ -930,13 +1049,13 @@ type WatchRequest struct {
 	// Multiple entries are combined using OR logic - i.e. if an event
 	// matches all of the selectors specified in any single watch entry,
 	// the event will be sent to the client.
-	Entries []*WatchRequest_WatchEntry `protobuf:"bytes,1,rep,name=entries" json:"entries,omitempty"`
+	Entries []*WatchRequest_WatchEntry `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
 	// ResumeFrom provides an version to resume the watch from, if non-nil.
 	// The watch will return changes since this version, and continue to
 	// return new changes afterwards. Watch will return an error if the
 	// server has compacted its log and no longer has complete history to
 	// this point.
-	ResumeFrom *Version `protobuf:"bytes,2,opt,name=resume_from,json=resumeFrom" json:"resume_from,omitempty"`
+	ResumeFrom *Version `protobuf:"bytes,2,opt,name=resume_from,json=resumeFrom,proto3" json:"resume_from,omitempty"`
 	// IncludeOldObject causes WatchMessages to include a copy of the
 	// previous version of the object on updates. Note that only live
 	// changes will include the old object (not historical changes
@@ -944,9 +1063,37 @@ type WatchRequest struct {
 	IncludeOldObject bool `protobuf:"varint,3,opt,name=include_old_object,json=includeOldObject,proto3" json:"include_old_object,omitempty"`
 }
 
-func (m *WatchRequest) Reset()                    { *m = WatchRequest{} }
-func (*WatchRequest) ProtoMessage()               {}
-func (*WatchRequest) Descriptor() ([]byte, []int) { return fileDescriptorWatch, []int{4} }
+func (m *WatchRequest) Reset()      { *m = WatchRequest{} }
+func (*WatchRequest) ProtoMessage() {}
+func (*WatchRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_da25266013800cd9, []int{4}
+}
+func (m *WatchRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *WatchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_WatchRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *WatchRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WatchRequest.Merge(m, src)
+}
+func (m *WatchRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *WatchRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WatchRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WatchRequest proto.InternalMessageInfo
 
 type WatchRequest_WatchEntry struct {
 	// Kind can contain a builtin type such as "node", "secret", etc. or
@@ -957,26 +1104,82 @@ type WatchRequest_WatchEntry struct {
 	Action WatchActionKind `protobuf:"varint,2,opt,name=action,proto3,enum=docker.swarmkit.v1.WatchActionKind" json:"action,omitempty"`
 	// Filters are combined using AND logic - an event must match
 	// all of them to pass the filter.
-	Filters []*SelectBy `protobuf:"bytes,3,rep,name=filters" json:"filters,omitempty"`
+	Filters []*SelectBy `protobuf:"bytes,3,rep,name=filters,proto3" json:"filters,omitempty"`
 }
 
-func (m *WatchRequest_WatchEntry) Reset()                    { *m = WatchRequest_WatchEntry{} }
-func (*WatchRequest_WatchEntry) ProtoMessage()               {}
-func (*WatchRequest_WatchEntry) Descriptor() ([]byte, []int) { return fileDescriptorWatch, []int{4, 0} }
+func (m *WatchRequest_WatchEntry) Reset()      { *m = WatchRequest_WatchEntry{} }
+func (*WatchRequest_WatchEntry) ProtoMessage() {}
+func (*WatchRequest_WatchEntry) Descriptor() ([]byte, []int) {
+	return fileDescriptor_da25266013800cd9, []int{4, 0}
+}
+func (m *WatchRequest_WatchEntry) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *WatchRequest_WatchEntry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_WatchRequest_WatchEntry.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *WatchRequest_WatchEntry) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WatchRequest_WatchEntry.Merge(m, src)
+}
+func (m *WatchRequest_WatchEntry) XXX_Size() int {
+	return m.Size()
+}
+func (m *WatchRequest_WatchEntry) XXX_DiscardUnknown() {
+	xxx_messageInfo_WatchRequest_WatchEntry.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WatchRequest_WatchEntry proto.InternalMessageInfo
 
 // WatchMessage is the type of the stream that's returned to the client by
 // Watch. Note that the first item of this stream will always be a WatchMessage
 // with a nil Object, to signal that the stream has started.
 type WatchMessage struct {
-	Events []*WatchMessage_Event `protobuf:"bytes,1,rep,name=events" json:"events,omitempty"`
+	Events []*WatchMessage_Event `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
 	// Index versions this change to the data store. It can be used to
 	// resume the watch from this point.
-	Version *Version `protobuf:"bytes,2,opt,name=version" json:"version,omitempty"`
+	Version *Version `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
 }
 
-func (m *WatchMessage) Reset()                    { *m = WatchMessage{} }
-func (*WatchMessage) ProtoMessage()               {}
-func (*WatchMessage) Descriptor() ([]byte, []int) { return fileDescriptorWatch, []int{5} }
+func (m *WatchMessage) Reset()      { *m = WatchMessage{} }
+func (*WatchMessage) ProtoMessage() {}
+func (*WatchMessage) Descriptor() ([]byte, []int) {
+	return fileDescriptor_da25266013800cd9, []int{5}
+}
+func (m *WatchMessage) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *WatchMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_WatchMessage.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *WatchMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WatchMessage.Merge(m, src)
+}
+func (m *WatchMessage) XXX_Size() int {
+	return m.Size()
+}
+func (m *WatchMessage) XXX_DiscardUnknown() {
+	xxx_messageInfo_WatchMessage.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WatchMessage proto.InternalMessageInfo
 
 type WatchMessage_Event struct {
 	// Action (create/update/delete)
@@ -984,18 +1187,47 @@ type WatchMessage_Event struct {
 	// mark transaction boundaries.
 	Action WatchActionKind `protobuf:"varint,1,opt,name=action,proto3,enum=docker.swarmkit.v1.WatchActionKind" json:"action,omitempty"`
 	// Matched object
-	Object *Object `protobuf:"bytes,2,opt,name=object" json:"object,omitempty"`
+	Object *Object `protobuf:"bytes,2,opt,name=object,proto3" json:"object,omitempty"`
 	// For updates, OldObject will optionally be included in the
 	// watch message, containing the previous version of the
 	// object, if IncludeOldObject was set in WatchRequest.
-	OldObject *Object `protobuf:"bytes,3,opt,name=old_object,json=oldObject" json:"old_object,omitempty"`
+	OldObject *Object `protobuf:"bytes,3,opt,name=old_object,json=oldObject,proto3" json:"old_object,omitempty"`
 }
 
-func (m *WatchMessage_Event) Reset()                    { *m = WatchMessage_Event{} }
-func (*WatchMessage_Event) ProtoMessage()               {}
-func (*WatchMessage_Event) Descriptor() ([]byte, []int) { return fileDescriptorWatch, []int{5, 0} }
+func (m *WatchMessage_Event) Reset()      { *m = WatchMessage_Event{} }
+func (*WatchMessage_Event) ProtoMessage() {}
+func (*WatchMessage_Event) Descriptor() ([]byte, []int) {
+	return fileDescriptor_da25266013800cd9, []int{5, 0}
+}
+func (m *WatchMessage_Event) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *WatchMessage_Event) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_WatchMessage_Event.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *WatchMessage_Event) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WatchMessage_Event.Merge(m, src)
+}
+func (m *WatchMessage_Event) XXX_Size() int {
+	return m.Size()
+}
+func (m *WatchMessage_Event) XXX_DiscardUnknown() {
+	xxx_messageInfo_WatchMessage_Event.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WatchMessage_Event proto.InternalMessageInfo
 
 func init() {
+	proto.RegisterEnum("docker.swarmkit.v1.WatchActionKind", WatchActionKind_name, WatchActionKind_value)
 	proto.RegisterType((*Object)(nil), "docker.swarmkit.v1.Object")
 	proto.RegisterType((*SelectBySlot)(nil), "docker.swarmkit.v1.SelectBySlot")
 	proto.RegisterType((*SelectByCustom)(nil), "docker.swarmkit.v1.SelectByCustom")
@@ -1004,7 +1236,89 @@ func init() {
 	proto.RegisterType((*WatchRequest_WatchEntry)(nil), "docker.swarmkit.v1.WatchRequest.WatchEntry")
 	proto.RegisterType((*WatchMessage)(nil), "docker.swarmkit.v1.WatchMessage")
 	proto.RegisterType((*WatchMessage_Event)(nil), "docker.swarmkit.v1.WatchMessage.Event")
-	proto.RegisterEnum("docker.swarmkit.v1.WatchActionKind", WatchActionKind_name, WatchActionKind_value)
+}
+
+func init() {
+	proto.RegisterFile("github.com/docker/swarmkit/api/watch.proto", fileDescriptor_da25266013800cd9)
+}
+
+var fileDescriptor_da25266013800cd9 = []byte{
+	// 1199 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x96, 0xbd, 0x73, 0x1b, 0xc5,
+	0x1b, 0xc7, 0xef, 0x14, 0xf9, 0x24, 0x3d, 0xb6, 0x13, 0xcf, 0xc6, 0x49, 0xee, 0xa7, 0x5f, 0x90,
+	0x85, 0x78, 0xcb, 0x24, 0x41, 0x06, 0x13, 0x92, 0x01, 0x02, 0x33, 0x96, 0x2c, 0x46, 0x22, 0xe3,
+	0x97, 0x59, 0xdb, 0x49, 0xa9, 0x39, 0xdf, 0x3d, 0x56, 0x0e, 0xdf, 0xdd, 0x8a, 0xbd, 0x93, 0x1d,
+	0x77, 0x14, 0x14, 0x4c, 0x2a, 0x1a, 0x66, 0x68, 0x52, 0x41, 0x4d, 0x43, 0x07, 0xff, 0x40, 0x86,
+	0x2a, 0x65, 0x68, 0x3c, 0x44, 0xe9, 0x28, 0xf8, 0x0b, 0x28, 0x98, 0x7d, 0x39, 0xdb, 0x51, 0x4e,
+	0x36, 0xa9, 0xb4, 0xb7, 0xf7, 0xf9, 0x3e, 0xfb, 0xec, 0xf3, 0x76, 0x82, 0xab, 0x3d, 0x3f, 0xb9,
+	0x3f, 0xd8, 0xaa, 0xbb, 0x2c, 0x9c, 0xf7, 0x98, 0xbb, 0x83, 0x7c, 0x3e, 0xde, 0x73, 0x78, 0xb8,
+	0xe3, 0x27, 0xf3, 0x4e, 0xdf, 0x9f, 0xdf, 0x73, 0x12, 0xf7, 0x7e, 0xbd, 0xcf, 0x59, 0xc2, 0x08,
+	0x51, 0x40, 0x3d, 0x05, 0xea, 0xbb, 0xef, 0x97, 0x4f, 0xd3, 0xc7, 0x7d, 0x74, 0x63, 0xa5, 0x2f,
+	0x5f, 0x3f, 0x85, 0x65, 0x5b, 0x5f, 0xa2, 0x9b, 0xa4, 0xf4, 0x69, 0x96, 0x93, 0xfd, 0x3e, 0xa6,
+	0xec, 0x6c, 0x8f, 0xf5, 0x98, 0x5c, 0xce, 0x8b, 0x95, 0xde, 0xbd, 0x75, 0x82, 0x05, 0x49, 0x6c,
+	0x0d, 0xb6, 0xe7, 0xfb, 0xc1, 0xa0, 0xe7, 0x47, 0xfa, 0x47, 0x09, 0x6b, 0xdf, 0xe4, 0xc1, 0x5a,
+	0x95, 0xce, 0x90, 0x3a, 0xe4, 0x23, 0xe6, 0xa1, 0x6d, 0x56, 0xcd, 0x2b, 0x93, 0x0b, 0x76, 0xfd,
+	0xe5, 0x10, 0xd4, 0x57, 0x98, 0x87, 0x6d, 0x83, 0x4a, 0x8e, 0xdc, 0x82, 0x42, 0x8c, 0x7c, 0xd7,
+	0x77, 0xd1, 0xce, 0x49, 0xc9, 0xff, 0xb3, 0x24, 0xeb, 0x0a, 0x69, 0x1b, 0x34, 0xa5, 0x85, 0x30,
+	0xc2, 0x64, 0x8f, 0xf1, 0x1d, 0xfb, 0xcc, 0x78, 0xe1, 0x8a, 0x42, 0x84, 0x50, 0xd3, 0xc2, 0xc3,
+	0xc4, 0x89, 0x77, 0xec, 0xfc, 0x78, 0x0f, 0x37, 0x9c, 0x58, 0x48, 0x24, 0x27, 0x0e, 0x72, 0x83,
+	0x41, 0x9c, 0x20, 0xb7, 0x27, 0xc6, 0x1f, 0xd4, 0x54, 0x88, 0x38, 0x48, 0xd3, 0xe4, 0x06, 0x58,
+	0x31, 0xba, 0x1c, 0x13, 0xdb, 0x92, 0xba, 0x72, 0xf6, 0xcd, 0x04, 0xd1, 0x36, 0xa8, 0x66, 0xc9,
+	0xc7, 0x50, 0xe4, 0x18, 0xb3, 0x01, 0x77, 0xd1, 0x2e, 0x48, 0xdd, 0xe5, 0x2c, 0x1d, 0xd5, 0x4c,
+	0xdb, 0xa0, 0x87, 0x3c, 0xf9, 0x14, 0x4a, 0xf8, 0x20, 0xc1, 0x28, 0xf6, 0x59, 0x64, 0x17, 0xa5,
+	0xf8, 0xb5, 0x2c, 0x71, 0x2b, 0x85, 0xda, 0x06, 0x3d, 0x52, 0x08, 0x87, 0x5d, 0x16, 0x6d, 0xfb,
+	0x3d, 0xbb, 0x34, 0xde, 0xe1, 0xa6, 0x24, 0x84, 0xc3, 0x8a, 0x6d, 0x14, 0xd3, 0xdc, 0xd7, 0xd6,
+	0x60, 0x6a, 0x1d, 0x03, 0x74, 0x93, 0xc6, 0xfe, 0x7a, 0xc0, 0x12, 0x72, 0x1d, 0x40, 0x67, 0xab,
+	0xeb, 0x7b, 0xb2, 0x22, 0x4a, 0x8d, 0xe9, 0xe1, 0xc1, 0x5c, 0x49, 0xa7, 0xb3, 0xb3, 0x44, 0x4b,
+	0x1a, 0xe8, 0x78, 0x84, 0x40, 0x3e, 0x0e, 0x58, 0x22, 0xcb, 0x20, 0x4f, 0xe5, 0xba, 0xb6, 0x06,
+	0x67, 0x53, 0x8b, 0xcd, 0x41, 0x9c, 0xb0, 0x50, 0x50, 0x3b, 0x7e, 0xa4, 0xad, 0x51, 0xb9, 0x26,
+	0xb3, 0x30, 0xe1, 0x47, 0x1e, 0x3e, 0x90, 0xd2, 0x12, 0x55, 0x0f, 0x62, 0x77, 0xd7, 0x09, 0x06,
+	0x28, 0xcb, 0xa3, 0x44, 0xd5, 0x43, 0xed, 0x2f, 0x0b, 0x8a, 0xa9, 0x49, 0x62, 0x43, 0xee, 0xd0,
+	0x31, 0x6b, 0x78, 0x30, 0x97, 0xeb, 0x2c, 0xb5, 0x0d, 0x9a, 0xf3, 0x3d, 0x72, 0x0d, 0x4a, 0xbe,
+	0xd7, 0xed, 0x73, 0xdc, 0xf6, 0xb5, 0xd9, 0xc6, 0xd4, 0xf0, 0x60, 0xae, 0xd8, 0x59, 0x5a, 0x93,
+	0x7b, 0x22, 0xec, 0xbe, 0xa7, 0xd6, 0x64, 0x16, 0xf2, 0x91, 0x13, 0xea, 0x83, 0x64, 0x65, 0x3b,
+	0x21, 0x92, 0xd7, 0x61, 0x52, 0xfc, 0xa6, 0x46, 0xf2, 0xfa, 0x25, 0x88, 0x4d, 0x2d, 0xbc, 0x0d,
+	0x96, 0x2b, 0xaf, 0xa5, 0x2b, 0xab, 0x96, 0x5d, 0x21, 0xc7, 0x03, 0x20, 0x03, 0xaf, 0x42, 0xd1,
+	0x81, 0x69, 0xb5, 0x4a, 0x8f, 0xb0, 0x5e, 0xc1, 0xc8, 0x94, 0x92, 0x6a, 0x47, 0xea, 0x2f, 0x64,
+	0xaa, 0x90, 0x91, 0x29, 0x51, 0x29, 0x47, 0xb9, 0x7a, 0x0b, 0x0a, 0xa2, 0x7b, 0x05, 0x5c, 0x94,
+	0x30, 0x0c, 0x0f, 0xe6, 0x2c, 0xd1, 0xd8, 0x92, 0xb4, 0xc4, 0xcb, 0x8e, 0x47, 0x6e, 0xea, 0x94,
+	0xaa, 0x72, 0xaa, 0x9e, 0xe4, 0x98, 0x28, 0x18, 0x11, 0x3a, 0xc1, 0x93, 0x25, 0x98, 0xf6, 0x30,
+	0xf6, 0x39, 0x7a, 0xdd, 0x38, 0x71, 0x12, 0xb4, 0xa1, 0x6a, 0x5e, 0x39, 0x9b, 0x5d, 0xcb, 0xa2,
+	0x57, 0xd7, 0x05, 0x24, 0x2e, 0xa5, 0x55, 0xf2, 0x99, 0x2c, 0x40, 0x9e, 0xb3, 0x00, 0xed, 0x49,
+	0x29, 0xbe, 0x3c, 0x6e, 0x14, 0x51, 0x16, 0xc8, 0x71, 0x24, 0x58, 0xd2, 0x01, 0x08, 0x31, 0xdc,
+	0x42, 0x1e, 0xdf, 0xf7, 0xfb, 0xf6, 0x94, 0x54, 0xbe, 0x33, 0x4e, 0xb9, 0xde, 0x47, 0xb7, 0xbe,
+	0x7c, 0x88, 0x8b, 0xe4, 0x1e, 0x89, 0xc9, 0x32, 0x5c, 0xe0, 0xb8, 0x8d, 0x1c, 0x23, 0x17, 0xbd,
+	0xae, 0x9e, 0x3e, 0x22, 0x62, 0xd3, 0x32, 0x62, 0x97, 0x86, 0x07, 0x73, 0xe7, 0xe9, 0x21, 0xa0,
+	0x07, 0x95, 0x0c, 0xdf, 0x79, 0xfe, 0xd2, 0xb6, 0x47, 0xbe, 0x80, 0xd9, 0x63, 0xe6, 0xd4, 0xb0,
+	0x10, 0xd6, 0xce, 0x4a, 0x6b, 0x17, 0x87, 0x07, 0x73, 0xe4, 0xc8, 0x9a, 0x9a, 0x2a, 0xd2, 0x18,
+	0xe1, 0xa3, 0xbb, 0xa3, 0xb6, 0x54, 0x1f, 0x0b, 0x5b, 0x33, 0x59, 0xb6, 0x54, 0xc3, 0x8f, 0xda,
+	0xd2, 0xbb, 0xa2, 0xf9, 0x54, 0x43, 0x9e, 0x4b, 0x8b, 0x5f, 0x3c, 0x35, 0xf2, 0x90, 0x6b, 0xec,
+	0xd7, 0xfe, 0xc8, 0xc1, 0xd4, 0x3d, 0xf1, 0x41, 0xa4, 0xf8, 0xd5, 0x00, 0xe3, 0x84, 0xb4, 0xa0,
+	0x80, 0x51, 0xc2, 0x7d, 0x8c, 0x6d, 0xb3, 0x7a, 0xe6, 0xca, 0xe4, 0xc2, 0xb5, 0xac, 0xd8, 0x1e,
+	0x97, 0xa8, 0x87, 0x56, 0x94, 0xf0, 0x7d, 0x9a, 0x6a, 0xc9, 0x6d, 0x98, 0xe4, 0x18, 0x0f, 0x42,
+	0xec, 0x6e, 0x73, 0x16, 0x9e, 0xf4, 0xe1, 0xb8, 0x8b, 0x5c, 0x8c, 0x36, 0x0a, 0x8a, 0xff, 0x9c,
+	0xb3, 0x90, 0x5c, 0x07, 0xe2, 0x47, 0x6e, 0x30, 0xf0, 0xb0, 0xcb, 0x02, 0xaf, 0xab, 0xbe, 0xa2,
+	0xb2, 0x79, 0x8b, 0x74, 0x46, 0xbf, 0x59, 0x0d, 0x3c, 0x35, 0xd4, 0xca, 0xdf, 0x9b, 0x00, 0x47,
+	0x3e, 0x64, 0xce, 0x9f, 0x4f, 0xc0, 0x72, 0xdc, 0x44, 0xcc, 0xdc, 0x9c, 0x2c, 0x98, 0x37, 0xc6,
+	0x5e, 0x6a, 0x51, 0x62, 0x77, 0xfc, 0xc8, 0xa3, 0x5a, 0x42, 0x6e, 0x42, 0x61, 0xdb, 0x0f, 0x12,
+	0xe4, 0xb1, 0x7d, 0x46, 0x86, 0xe4, 0xf2, 0x49, 0x6d, 0x42, 0x53, 0xb8, 0xf6, 0x5b, 0x1a, 0xdb,
+	0x65, 0x8c, 0x63, 0xa7, 0x87, 0xe4, 0x33, 0xb0, 0x70, 0x17, 0xa3, 0x24, 0x0d, 0xed, 0xdb, 0x63,
+	0xbd, 0xd0, 0x8a, 0x7a, 0x4b, 0xe0, 0x54, 0xab, 0xc8, 0x87, 0x50, 0xd8, 0x55, 0xd1, 0xfa, 0x2f,
+	0x01, 0x4d, 0xd9, 0xf2, 0x2f, 0x26, 0x4c, 0x48, 0x43, 0xc7, 0xc2, 0x60, 0xbe, 0x7a, 0x18, 0x16,
+	0xc0, 0xd2, 0x89, 0xc8, 0x8d, 0xff, 0xf6, 0xa8, 0x94, 0x50, 0x4d, 0x92, 0x8f, 0x00, 0x46, 0x12,
+	0x78, 0xb2, 0xae, 0xc4, 0xd2, 0xac, 0x5e, 0xfd, 0xc7, 0x84, 0x73, 0x23, 0xae, 0x90, 0x1b, 0x30,
+	0x7b, 0x6f, 0x71, 0xa3, 0xd9, 0xee, 0x2e, 0x36, 0x37, 0x3a, 0xab, 0x2b, 0xdd, 0xcd, 0x95, 0x3b,
+	0x2b, 0xab, 0xf7, 0x56, 0x66, 0x8c, 0x72, 0xf9, 0xe1, 0xa3, 0xea, 0xc5, 0x11, 0x7c, 0x33, 0xda,
+	0x89, 0xd8, 0x9e, 0x70, 0xfc, 0xfc, 0x0b, 0xaa, 0x26, 0x6d, 0x2d, 0x6e, 0xb4, 0x66, 0xcc, 0xf2,
+	0xff, 0x1e, 0x3e, 0xaa, 0x5e, 0x18, 0x11, 0x35, 0x39, 0xaa, 0xc9, 0xf4, 0xa2, 0x66, 0x73, 0x6d,
+	0x49, 0x68, 0x72, 0x99, 0x9a, 0xcd, 0xbe, 0x97, 0xa5, 0xa1, 0xad, 0xe5, 0xd5, 0xbb, 0xad, 0x99,
+	0x7c, 0xa6, 0x86, 0x62, 0xc8, 0x76, 0xb1, 0x7c, 0xe9, 0xdb, 0x1f, 0x2b, 0xc6, 0xaf, 0x3f, 0x55,
+	0x46, 0xaf, 0xba, 0x10, 0xc2, 0x84, 0xdc, 0x22, 0x5e, 0xba, 0xa8, 0x9e, 0xd6, 0x88, 0xe5, 0xea,
+	0x69, 0xf5, 0x54, 0xbb, 0xf0, 0xfb, 0xcf, 0x7f, 0xff, 0x90, 0x3b, 0x07, 0xd3, 0x92, 0x78, 0x37,
+	0x74, 0x22, 0xa7, 0x87, 0xfc, 0x3d, 0xb3, 0xf1, 0xe6, 0xe3, 0x67, 0x15, 0xe3, 0xe9, 0xb3, 0x8a,
+	0xf1, 0xf5, 0xb0, 0x62, 0x3e, 0x1e, 0x56, 0xcc, 0x27, 0xc3, 0x8a, 0xf9, 0xe7, 0xb0, 0x62, 0x7e,
+	0xf7, 0xbc, 0x62, 0x3c, 0x79, 0x5e, 0x31, 0x9e, 0x3e, 0xaf, 0x18, 0x5b, 0x96, 0xfc, 0x33, 0xf9,
+	0xc1, 0xbf, 0x01, 0x00, 0x00, 0xff, 0xff, 0x96, 0x4e, 0x58, 0x61, 0x63, 0x0b, 0x00, 0x00,
 }
 
 type authenticatedWrapperWatchServer struct {
@@ -1046,55 +1360,55 @@ func (m *Object) CopyFrom(src interface{}) {
 			v := Object_Node{
 				Node: &Node{},
 			}
-			deepcopy.Copy(v.Node, o.GetNode())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Node, o.GetNode())
 			m.Object = &v
 		case *Object_Service:
 			v := Object_Service{
 				Service: &Service{},
 			}
-			deepcopy.Copy(v.Service, o.GetService())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Service, o.GetService())
 			m.Object = &v
 		case *Object_Network:
 			v := Object_Network{
 				Network: &Network{},
 			}
-			deepcopy.Copy(v.Network, o.GetNetwork())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Network, o.GetNetwork())
 			m.Object = &v
 		case *Object_Task:
 			v := Object_Task{
 				Task: &Task{},
 			}
-			deepcopy.Copy(v.Task, o.GetTask())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Task, o.GetTask())
 			m.Object = &v
 		case *Object_Cluster:
 			v := Object_Cluster{
 				Cluster: &Cluster{},
 			}
-			deepcopy.Copy(v.Cluster, o.GetCluster())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Cluster, o.GetCluster())
 			m.Object = &v
 		case *Object_Secret:
 			v := Object_Secret{
 				Secret: &Secret{},
 			}
-			deepcopy.Copy(v.Secret, o.GetSecret())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Secret, o.GetSecret())
 			m.Object = &v
 		case *Object_Resource:
 			v := Object_Resource{
 				Resource: &Resource{},
 			}
-			deepcopy.Copy(v.Resource, o.GetResource())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Resource, o.GetResource())
 			m.Object = &v
 		case *Object_Extension:
 			v := Object_Extension{
 				Extension: &Extension{},
 			}
-			deepcopy.Copy(v.Extension, o.GetExtension())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Extension, o.GetExtension())
 			m.Object = &v
 		case *Object_Config:
 			v := Object_Config{
 				Config: &Config{},
 			}
-			deepcopy.Copy(v.Config, o.GetConfig())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Config, o.GetConfig())
 			m.Object = &v
 		}
 	}
@@ -1170,13 +1484,13 @@ func (m *SelectBy) CopyFrom(src interface{}) {
 			v := SelectBy_Custom{
 				Custom: &SelectByCustom{},
 			}
-			deepcopy.Copy(v.Custom, o.GetCustom())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Custom, o.GetCustom())
 			m.By = &v
 		case *SelectBy_CustomPrefix:
 			v := SelectBy_CustomPrefix{
 				CustomPrefix: &SelectByCustom{},
 			}
-			deepcopy.Copy(v.CustomPrefix, o.GetCustomPrefix())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.CustomPrefix, o.GetCustomPrefix())
 			m.By = &v
 		case *SelectBy_ServiceID:
 			v := SelectBy_ServiceID{
@@ -1192,7 +1506,7 @@ func (m *SelectBy) CopyFrom(src interface{}) {
 			v := SelectBy_Slot{
 				Slot: &SelectBySlot{},
 			}
-			deepcopy.Copy(v.Slot, o.GetSlot())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Slot, o.GetSlot())
 			m.By = &v
 		case *SelectBy_DesiredState:
 			v := SelectBy_DesiredState{
@@ -1251,13 +1565,13 @@ func (m *WatchRequest) CopyFrom(src interface{}) {
 		m.Entries = make([]*WatchRequest_WatchEntry, len(o.Entries))
 		for i := range m.Entries {
 			m.Entries[i] = &WatchRequest_WatchEntry{}
-			deepcopy.Copy(m.Entries[i], o.Entries[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Entries[i], o.Entries[i])
 		}
 	}
 
 	if o.ResumeFrom != nil {
 		m.ResumeFrom = &Version{}
-		deepcopy.Copy(m.ResumeFrom, o.ResumeFrom)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.ResumeFrom, o.ResumeFrom)
 	}
 }
 
@@ -1278,7 +1592,7 @@ func (m *WatchRequest_WatchEntry) CopyFrom(src interface{}) {
 		m.Filters = make([]*SelectBy, len(o.Filters))
 		for i := range m.Filters {
 			m.Filters[i] = &SelectBy{}
-			deepcopy.Copy(m.Filters[i], o.Filters[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Filters[i], o.Filters[i])
 		}
 	}
 
@@ -1301,13 +1615,13 @@ func (m *WatchMessage) CopyFrom(src interface{}) {
 		m.Events = make([]*WatchMessage_Event, len(o.Events))
 		for i := range m.Events {
 			m.Events[i] = &WatchMessage_Event{}
-			deepcopy.Copy(m.Events[i], o.Events[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Events[i], o.Events[i])
 		}
 	}
 
 	if o.Version != nil {
 		m.Version = &Version{}
-		deepcopy.Copy(m.Version, o.Version)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Version, o.Version)
 	}
 }
 
@@ -1326,11 +1640,11 @@ func (m *WatchMessage_Event) CopyFrom(src interface{}) {
 	*m = *o
 	if o.Object != nil {
 		m.Object = &Object{}
-		deepcopy.Copy(m.Object, o.Object)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Object, o.Object)
 	}
 	if o.OldObject != nil {
 		m.OldObject = &Object{}
-		deepcopy.Copy(m.OldObject, o.OldObject)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.OldObject, o.OldObject)
 	}
 }
 
@@ -1342,8 +1656,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for Watch service
-
+// WatchClient is the client API for Watch service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type WatchClient interface {
 	// Watch starts a stream that returns any changes to objects that match
 	// the specified selectors. When the stream begins, it immediately sends
@@ -1362,7 +1677,7 @@ func NewWatchClient(cc *grpc.ClientConn) WatchClient {
 }
 
 func (c *watchClient) Watch(ctx context.Context, in *WatchRequest, opts ...grpc.CallOption) (Watch_WatchClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_Watch_serviceDesc.Streams[0], c.cc, "/docker.swarmkit.v1.Watch/Watch", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Watch_serviceDesc.Streams[0], "/docker.swarmkit.v1.Watch/Watch", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1393,8 +1708,7 @@ func (x *watchWatchClient) Recv() (*WatchMessage, error) {
 	return m, nil
 }
 
-// Server API for Watch service
-
+// WatchServer is the server API for Watch service.
 type WatchServer interface {
 	// Watch starts a stream that returns any changes to objects that match
 	// the specified selectors. When the stream begins, it immediately sends
@@ -2137,6 +2451,9 @@ func (p *raftProxyWatchServer) Watch(r *WatchRequest, stream Watch_WatchServer) 
 }
 
 func (m *Object) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Object != nil {
@@ -2146,6 +2463,9 @@ func (m *Object) Size() (n int) {
 }
 
 func (m *Object_Node) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Node != nil {
@@ -2155,6 +2475,9 @@ func (m *Object_Node) Size() (n int) {
 	return n
 }
 func (m *Object_Service) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Service != nil {
@@ -2164,6 +2487,9 @@ func (m *Object_Service) Size() (n int) {
 	return n
 }
 func (m *Object_Network) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Network != nil {
@@ -2173,6 +2499,9 @@ func (m *Object_Network) Size() (n int) {
 	return n
 }
 func (m *Object_Task) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Task != nil {
@@ -2182,6 +2511,9 @@ func (m *Object_Task) Size() (n int) {
 	return n
 }
 func (m *Object_Cluster) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Cluster != nil {
@@ -2191,6 +2523,9 @@ func (m *Object_Cluster) Size() (n int) {
 	return n
 }
 func (m *Object_Secret) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Secret != nil {
@@ -2200,6 +2535,9 @@ func (m *Object_Secret) Size() (n int) {
 	return n
 }
 func (m *Object_Resource) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Resource != nil {
@@ -2209,6 +2547,9 @@ func (m *Object_Resource) Size() (n int) {
 	return n
 }
 func (m *Object_Extension) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Extension != nil {
@@ -2218,6 +2559,9 @@ func (m *Object_Extension) Size() (n int) {
 	return n
 }
 func (m *Object_Config) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Config != nil {
@@ -2227,6 +2571,9 @@ func (m *Object_Config) Size() (n int) {
 	return n
 }
 func (m *SelectBySlot) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ServiceID)
@@ -2240,6 +2587,9 @@ func (m *SelectBySlot) Size() (n int) {
 }
 
 func (m *SelectByCustom) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.Kind)
@@ -2258,6 +2608,9 @@ func (m *SelectByCustom) Size() (n int) {
 }
 
 func (m *SelectBy) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.By != nil {
@@ -2267,6 +2620,9 @@ func (m *SelectBy) Size() (n int) {
 }
 
 func (m *SelectBy_ID) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ID)
@@ -2274,6 +2630,9 @@ func (m *SelectBy_ID) Size() (n int) {
 	return n
 }
 func (m *SelectBy_IDPrefix) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.IDPrefix)
@@ -2281,6 +2640,9 @@ func (m *SelectBy_IDPrefix) Size() (n int) {
 	return n
 }
 func (m *SelectBy_Name) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.Name)
@@ -2288,6 +2650,9 @@ func (m *SelectBy_Name) Size() (n int) {
 	return n
 }
 func (m *SelectBy_NamePrefix) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.NamePrefix)
@@ -2295,6 +2660,9 @@ func (m *SelectBy_NamePrefix) Size() (n int) {
 	return n
 }
 func (m *SelectBy_Custom) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Custom != nil {
@@ -2304,6 +2672,9 @@ func (m *SelectBy_Custom) Size() (n int) {
 	return n
 }
 func (m *SelectBy_CustomPrefix) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.CustomPrefix != nil {
@@ -2313,6 +2684,9 @@ func (m *SelectBy_CustomPrefix) Size() (n int) {
 	return n
 }
 func (m *SelectBy_ServiceID) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ServiceID)
@@ -2320,6 +2694,9 @@ func (m *SelectBy_ServiceID) Size() (n int) {
 	return n
 }
 func (m *SelectBy_NodeID) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.NodeID)
@@ -2327,6 +2704,9 @@ func (m *SelectBy_NodeID) Size() (n int) {
 	return n
 }
 func (m *SelectBy_Slot) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Slot != nil {
@@ -2336,24 +2716,36 @@ func (m *SelectBy_Slot) Size() (n int) {
 	return n
 }
 func (m *SelectBy_DesiredState) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	n += 1 + sovWatch(uint64(m.DesiredState))
 	return n
 }
 func (m *SelectBy_Role) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	n += 1 + sovWatch(uint64(m.Role))
 	return n
 }
 func (m *SelectBy_Membership) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	n += 1 + sovWatch(uint64(m.Membership))
 	return n
 }
 func (m *SelectBy_ReferencedNetworkID) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ReferencedNetworkID)
@@ -2361,6 +2753,9 @@ func (m *SelectBy_ReferencedNetworkID) Size() (n int) {
 	return n
 }
 func (m *SelectBy_ReferencedSecretID) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ReferencedSecretID)
@@ -2368,6 +2763,9 @@ func (m *SelectBy_ReferencedSecretID) Size() (n int) {
 	return n
 }
 func (m *SelectBy_Kind) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.Kind)
@@ -2375,6 +2773,9 @@ func (m *SelectBy_Kind) Size() (n int) {
 	return n
 }
 func (m *SelectBy_ReferencedConfigID) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ReferencedConfigID)
@@ -2382,6 +2783,9 @@ func (m *SelectBy_ReferencedConfigID) Size() (n int) {
 	return n
 }
 func (m *WatchRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if len(m.Entries) > 0 {
@@ -2401,6 +2805,9 @@ func (m *WatchRequest) Size() (n int) {
 }
 
 func (m *WatchRequest_WatchEntry) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.Kind)
@@ -2420,6 +2827,9 @@ func (m *WatchRequest_WatchEntry) Size() (n int) {
 }
 
 func (m *WatchMessage) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if len(m.Events) > 0 {
@@ -2436,6 +2846,9 @@ func (m *WatchMessage) Size() (n int) {
 }
 
 func (m *WatchMessage_Event) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Action != 0 {
@@ -2828,7 +3241,7 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2856,7 +3269,7 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2865,6 +3278,9 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2888,7 +3304,7 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2897,6 +3313,9 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2920,7 +3339,7 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2929,6 +3348,9 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2952,7 +3374,7 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2961,6 +3383,9 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2984,7 +3409,7 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2993,6 +3418,9 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3016,7 +3444,7 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3025,6 +3453,9 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3048,7 +3479,7 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3057,6 +3488,9 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3080,7 +3514,7 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3089,6 +3523,9 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3112,7 +3549,7 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3121,6 +3558,9 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3137,6 +3577,9 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthWatch
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthWatch
 			}
 			if (iNdEx + skippy) > l {
@@ -3166,7 +3609,7 @@ func (m *SelectBySlot) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3194,7 +3637,7 @@ func (m *SelectBySlot) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3204,6 +3647,9 @@ func (m *SelectBySlot) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3223,7 +3669,7 @@ func (m *SelectBySlot) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Slot |= (uint64(b) & 0x7F) << shift
+				m.Slot |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3235,6 +3681,9 @@ func (m *SelectBySlot) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthWatch
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthWatch
 			}
 			if (iNdEx + skippy) > l {
@@ -3264,7 +3713,7 @@ func (m *SelectByCustom) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3292,7 +3741,7 @@ func (m *SelectByCustom) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3302,6 +3751,9 @@ func (m *SelectByCustom) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3321,7 +3773,7 @@ func (m *SelectByCustom) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3331,6 +3783,9 @@ func (m *SelectByCustom) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3350,7 +3805,7 @@ func (m *SelectByCustom) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3360,6 +3815,9 @@ func (m *SelectByCustom) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3372,6 +3830,9 @@ func (m *SelectByCustom) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthWatch
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthWatch
 			}
 			if (iNdEx + skippy) > l {
@@ -3401,7 +3862,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3429,7 +3890,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3439,6 +3900,9 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3458,7 +3922,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3468,6 +3932,9 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3487,7 +3954,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3497,6 +3964,9 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3516,7 +3986,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3526,6 +3996,9 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3545,7 +4018,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3554,6 +4027,9 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3577,7 +4053,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3586,6 +4062,9 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3609,7 +4088,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3619,6 +4098,9 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3638,7 +4120,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3648,6 +4130,9 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3667,7 +4152,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3676,6 +4161,9 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3699,7 +4187,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= (TaskState(b) & 0x7F) << shift
+				v |= TaskState(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3719,7 +4207,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= (NodeRole(b) & 0x7F) << shift
+				v |= NodeRole(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3739,7 +4227,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= (NodeSpec_Membership(b) & 0x7F) << shift
+				v |= NodeSpec_Membership(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3759,7 +4247,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3769,6 +4257,9 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3788,7 +4279,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3798,6 +4289,9 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3817,7 +4311,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3827,6 +4321,9 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3846,7 +4343,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3856,6 +4353,9 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3868,6 +4368,9 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthWatch
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthWatch
 			}
 			if (iNdEx + skippy) > l {
@@ -3897,7 +4400,7 @@ func (m *WatchRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3925,7 +4428,7 @@ func (m *WatchRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3934,6 +4437,9 @@ func (m *WatchRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3956,7 +4462,7 @@ func (m *WatchRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3965,6 +4471,9 @@ func (m *WatchRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3989,7 +4498,7 @@ func (m *WatchRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= (int(b) & 0x7F) << shift
+				v |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -4002,6 +4511,9 @@ func (m *WatchRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthWatch
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthWatch
 			}
 			if (iNdEx + skippy) > l {
@@ -4031,7 +4543,7 @@ func (m *WatchRequest_WatchEntry) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -4059,7 +4571,7 @@ func (m *WatchRequest_WatchEntry) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -4069,6 +4581,9 @@ func (m *WatchRequest_WatchEntry) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -4088,7 +4603,7 @@ func (m *WatchRequest_WatchEntry) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Action |= (WatchActionKind(b) & 0x7F) << shift
+				m.Action |= WatchActionKind(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -4107,7 +4622,7 @@ func (m *WatchRequest_WatchEntry) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -4116,6 +4631,9 @@ func (m *WatchRequest_WatchEntry) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -4131,6 +4649,9 @@ func (m *WatchRequest_WatchEntry) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthWatch
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthWatch
 			}
 			if (iNdEx + skippy) > l {
@@ -4160,7 +4681,7 @@ func (m *WatchMessage) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -4188,7 +4709,7 @@ func (m *WatchMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -4197,6 +4718,9 @@ func (m *WatchMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -4219,7 +4743,7 @@ func (m *WatchMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -4228,6 +4752,9 @@ func (m *WatchMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -4245,6 +4772,9 @@ func (m *WatchMessage) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthWatch
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthWatch
 			}
 			if (iNdEx + skippy) > l {
@@ -4274,7 +4804,7 @@ func (m *WatchMessage_Event) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -4302,7 +4832,7 @@ func (m *WatchMessage_Event) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Action |= (WatchActionKind(b) & 0x7F) << shift
+				m.Action |= WatchActionKind(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -4321,7 +4851,7 @@ func (m *WatchMessage_Event) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -4330,6 +4860,9 @@ func (m *WatchMessage_Event) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -4354,7 +4887,7 @@ func (m *WatchMessage_Event) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -4363,6 +4896,9 @@ func (m *WatchMessage_Event) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWatch
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -4380,6 +4916,9 @@ func (m *WatchMessage_Event) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthWatch
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthWatch
 			}
 			if (iNdEx + skippy) > l {
@@ -4448,8 +4987,11 @@ func skipWatch(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			iNdEx += length
 			if length < 0 {
+				return 0, ErrInvalidLengthWatch
+			}
+			iNdEx += length
+			if iNdEx < 0 {
 				return 0, ErrInvalidLengthWatch
 			}
 			return iNdEx, nil
@@ -4480,6 +5022,9 @@ func skipWatch(dAtA []byte) (n int, err error) {
 					return 0, err
 				}
 				iNdEx = start + next
+				if iNdEx < 0 {
+					return 0, ErrInvalidLengthWatch
+				}
 			}
 			return iNdEx, nil
 		case 4:
@@ -4498,84 +5043,3 @@ var (
 	ErrInvalidLengthWatch = fmt.Errorf("proto: negative length found during unmarshaling")
 	ErrIntOverflowWatch   = fmt.Errorf("proto: integer overflow")
 )
-
-func init() { proto.RegisterFile("github.com/docker/swarmkit/api/watch.proto", fileDescriptorWatch) }
-
-var fileDescriptorWatch = []byte{
-	// 1186 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x96, 0xbd, 0x73, 0x1b, 0xc5,
-	0x1b, 0xc7, 0x75, 0x8a, 0x7c, 0x92, 0x1e, 0xdb, 0x89, 0x67, 0xe3, 0x24, 0xf7, 0xd3, 0x2f, 0xc8,
-	0x42, 0x0c, 0x90, 0x49, 0x82, 0x0c, 0x26, 0x24, 0x03, 0x04, 0x66, 0x2c, 0x59, 0x8c, 0x44, 0xc6,
-	0x2f, 0xb3, 0xb6, 0x93, 0x52, 0x73, 0xbe, 0x7b, 0xac, 0x1c, 0xba, 0xbb, 0x15, 0x7b, 0x27, 0x39,
-	0xee, 0x28, 0x28, 0x98, 0xf4, 0xcc, 0xd0, 0xa4, 0x82, 0x9a, 0x86, 0x0e, 0xfe, 0x81, 0x0c, 0x15,
-	0x25, 0x34, 0x1a, 0xa2, 0x92, 0x82, 0xbf, 0x80, 0x82, 0xd9, 0x97, 0xf3, 0x8b, 0x72, 0xb2, 0x49,
-	0xa5, 0xbd, 0xbd, 0xcf, 0xf7, 0xd9, 0x67, 0x9f, 0xb7, 0x13, 0xdc, 0xec, 0x7a, 0xf1, 0xe3, 0xc1,
-	0x5e, 0xcd, 0x61, 0xc1, 0xb2, 0xcb, 0x9c, 0x1e, 0xf2, 0xe5, 0xe8, 0xc0, 0xe6, 0x41, 0xcf, 0x8b,
-	0x97, 0xed, 0xbe, 0xb7, 0x7c, 0x60, 0xc7, 0xce, 0xe3, 0x5a, 0x9f, 0xb3, 0x98, 0x11, 0xa2, 0x80,
-	0x5a, 0x02, 0xd4, 0x86, 0xef, 0x95, 0xce, 0xd3, 0x47, 0x7d, 0x74, 0x22, 0xa5, 0x2f, 0xdd, 0x3e,
-	0x87, 0x65, 0x7b, 0x5f, 0xa0, 0x13, 0x27, 0xf4, 0x79, 0x96, 0xe3, 0xc3, 0x3e, 0x26, 0xec, 0x62,
-	0x97, 0x75, 0x99, 0x5c, 0x2e, 0x8b, 0x95, 0xde, 0xbd, 0x77, 0x86, 0x05, 0x49, 0xec, 0x0d, 0xf6,
-	0x97, 0xfb, 0xfe, 0xa0, 0xeb, 0x85, 0xfa, 0x47, 0x09, 0xab, 0x5f, 0xe7, 0xc0, 0xdc, 0x94, 0xce,
-	0x90, 0x1a, 0xe4, 0x42, 0xe6, 0xa2, 0x65, 0x54, 0x8c, 0x1b, 0xb3, 0x2b, 0x56, 0xed, 0xe5, 0x10,
-	0xd4, 0x36, 0x98, 0x8b, 0xad, 0x0c, 0x95, 0x1c, 0xb9, 0x07, 0xf9, 0x08, 0xf9, 0xd0, 0x73, 0xd0,
-	0xca, 0x4a, 0xc9, 0xff, 0xd3, 0x24, 0xdb, 0x0a, 0x69, 0x65, 0x68, 0x42, 0x0b, 0x61, 0x88, 0xf1,
-	0x01, 0xe3, 0x3d, 0xeb, 0xc2, 0x74, 0xe1, 0x86, 0x42, 0x84, 0x50, 0xd3, 0xc2, 0xc3, 0xd8, 0x8e,
-	0x7a, 0x56, 0x6e, 0xba, 0x87, 0x3b, 0x76, 0x24, 0x24, 0x92, 0x13, 0x07, 0x39, 0xfe, 0x20, 0x8a,
-	0x91, 0x5b, 0x33, 0xd3, 0x0f, 0x6a, 0x28, 0x44, 0x1c, 0xa4, 0x69, 0x72, 0x07, 0xcc, 0x08, 0x1d,
-	0x8e, 0xb1, 0x65, 0x4a, 0x5d, 0x29, 0xfd, 0x66, 0x82, 0x68, 0x65, 0xa8, 0x66, 0xc9, 0x47, 0x50,
-	0xe0, 0x18, 0xb1, 0x01, 0x77, 0xd0, 0xca, 0x4b, 0xdd, 0xf5, 0x34, 0x1d, 0xd5, 0x4c, 0x2b, 0x43,
-	0x8f, 0x78, 0xf2, 0x09, 0x14, 0xf1, 0x49, 0x8c, 0x61, 0xe4, 0xb1, 0xd0, 0x2a, 0x48, 0xf1, 0x6b,
-	0x69, 0xe2, 0x66, 0x02, 0xb5, 0x32, 0xf4, 0x58, 0x21, 0x1c, 0x76, 0x58, 0xb8, 0xef, 0x75, 0xad,
-	0xe2, 0x74, 0x87, 0x1b, 0x92, 0x10, 0x0e, 0x2b, 0xb6, 0x5e, 0x48, 0x72, 0x5f, 0xdd, 0x82, 0xb9,
-	0x6d, 0xf4, 0xd1, 0x89, 0xeb, 0x87, 0xdb, 0x3e, 0x8b, 0xc9, 0x6d, 0x00, 0x9d, 0xad, 0x8e, 0xe7,
-	0xca, 0x8a, 0x28, 0xd6, 0xe7, 0xc7, 0xa3, 0xa5, 0xa2, 0x4e, 0x67, 0x7b, 0x8d, 0x16, 0x35, 0xd0,
-	0x76, 0x09, 0x81, 0x5c, 0xe4, 0xb3, 0x58, 0x96, 0x41, 0x8e, 0xca, 0x75, 0x75, 0x0b, 0x2e, 0x26,
-	0x16, 0x1b, 0x83, 0x28, 0x66, 0x81, 0xa0, 0x7a, 0x5e, 0xa8, 0xad, 0x51, 0xb9, 0x26, 0x8b, 0x30,
-	0xe3, 0x85, 0x2e, 0x3e, 0x91, 0xd2, 0x22, 0x55, 0x0f, 0x62, 0x77, 0x68, 0xfb, 0x03, 0x94, 0xe5,
-	0x51, 0xa4, 0xea, 0xa1, 0xfa, 0x97, 0x09, 0x85, 0xc4, 0x24, 0xb1, 0x20, 0x7b, 0xe4, 0x98, 0x39,
-	0x1e, 0x2d, 0x65, 0xdb, 0x6b, 0xad, 0x0c, 0xcd, 0x7a, 0x2e, 0xb9, 0x05, 0x45, 0xcf, 0xed, 0xf4,
-	0x39, 0xee, 0x7b, 0xda, 0x6c, 0x7d, 0x6e, 0x3c, 0x5a, 0x2a, 0xb4, 0xd7, 0xb6, 0xe4, 0x9e, 0x08,
-	0xbb, 0xe7, 0xaa, 0x35, 0x59, 0x84, 0x5c, 0x68, 0x07, 0xfa, 0x20, 0x59, 0xd9, 0x76, 0x80, 0xe4,
-	0x75, 0x98, 0x15, 0xbf, 0x89, 0x91, 0x9c, 0x7e, 0x09, 0x62, 0x53, 0x0b, 0xef, 0x83, 0xe9, 0xc8,
-	0x6b, 0xe9, 0xca, 0xaa, 0xa6, 0x57, 0xc8, 0xc9, 0x00, 0xc8, 0xc0, 0xab, 0x50, 0xb4, 0x61, 0x5e,
-	0xad, 0x92, 0x23, 0xcc, 0x57, 0x30, 0x32, 0xa7, 0xa4, 0xda, 0x91, 0xda, 0xa9, 0x4c, 0xe5, 0x53,
-	0x32, 0x25, 0x2a, 0xe5, 0x38, 0x57, 0x6f, 0x42, 0x5e, 0x74, 0xaf, 0x80, 0x0b, 0x12, 0x86, 0xf1,
-	0x68, 0xc9, 0x14, 0x8d, 0x2d, 0x49, 0x53, 0xbc, 0x6c, 0xbb, 0xe4, 0xae, 0x4e, 0xa9, 0x2a, 0xa7,
-	0xca, 0x59, 0x8e, 0x89, 0x82, 0x11, 0xa1, 0x13, 0x3c, 0x59, 0x83, 0x79, 0x17, 0x23, 0x8f, 0xa3,
-	0xdb, 0x89, 0x62, 0x3b, 0x46, 0x0b, 0x2a, 0xc6, 0x8d, 0x8b, 0xe9, 0xb5, 0x2c, 0x7a, 0x75, 0x5b,
-	0x40, 0xe2, 0x52, 0x5a, 0x25, 0x9f, 0xc9, 0x0a, 0xe4, 0x38, 0xf3, 0xd1, 0x9a, 0x95, 0xe2, 0xeb,
-	0xd3, 0x46, 0x11, 0x65, 0xbe, 0x1c, 0x47, 0x82, 0x25, 0x6d, 0x80, 0x00, 0x83, 0x3d, 0xe4, 0xd1,
-	0x63, 0xaf, 0x6f, 0xcd, 0x49, 0xe5, 0xdb, 0xd3, 0x94, 0xdb, 0x7d, 0x74, 0x6a, 0xeb, 0x47, 0xb8,
-	0x48, 0xee, 0xb1, 0x98, 0xac, 0xc3, 0x15, 0x8e, 0xfb, 0xc8, 0x31, 0x74, 0xd0, 0xed, 0xe8, 0xe9,
-	0x23, 0x22, 0x36, 0x2f, 0x23, 0x76, 0x6d, 0x3c, 0x5a, 0xba, 0x4c, 0x8f, 0x00, 0x3d, 0xa8, 0x64,
-	0xf8, 0x2e, 0xf3, 0x97, 0xb6, 0x5d, 0xf2, 0x39, 0x2c, 0x9e, 0x30, 0xa7, 0x86, 0x85, 0xb0, 0x76,
-	0x51, 0x5a, 0xbb, 0x3a, 0x1e, 0x2d, 0x91, 0x63, 0x6b, 0x6a, 0xaa, 0x48, 0x63, 0x84, 0x4f, 0xee,
-	0x8a, 0x86, 0x51, 0x4d, 0x74, 0x29, 0x29, 0x58, 0xd9, 0x46, 0xa7, 0x4f, 0x50, 0xdd, 0x2d, 0x4e,
-	0x58, 0x48, 0x3b, 0x41, 0x8d, 0x81, 0xc9, 0x13, 0xf4, 0xae, 0x5b, 0xcf, 0x41, 0xb6, 0x7e, 0x58,
-	0xfd, 0x23, 0x0b, 0x73, 0x8f, 0xc4, 0x07, 0x91, 0xe2, 0x97, 0x03, 0x8c, 0x62, 0xd2, 0x84, 0x3c,
-	0x86, 0x31, 0xf7, 0x30, 0xb2, 0x8c, 0xca, 0x85, 0x1b, 0xb3, 0x2b, 0xb7, 0xd2, 0x62, 0x7b, 0x52,
-	0xa2, 0x1e, 0x9a, 0x61, 0xcc, 0x0f, 0x69, 0xa2, 0x25, 0xf7, 0x61, 0x96, 0x63, 0x34, 0x08, 0xb0,
-	0xb3, 0xcf, 0x59, 0x70, 0xd6, 0x87, 0xe3, 0x21, 0x72, 0x31, 0xda, 0x28, 0x28, 0xfe, 0x33, 0xce,
-	0x02, 0x72, 0x1b, 0x88, 0x17, 0x3a, 0xfe, 0xc0, 0xc5, 0x0e, 0xf3, 0xdd, 0x8e, 0xfa, 0x8a, 0xca,
-	0xe6, 0x2d, 0xd0, 0x05, 0xfd, 0x66, 0xd3, 0x77, 0xd5, 0x50, 0x2b, 0x7d, 0x6b, 0x00, 0x1c, 0xfb,
-	0x90, 0x3a, 0x7f, 0x3e, 0x06, 0xd3, 0x76, 0x62, 0x31, 0x73, 0xb3, 0xb2, 0x60, 0xde, 0x98, 0x7a,
-	0xa9, 0x55, 0x89, 0x3d, 0xf0, 0x42, 0x97, 0x6a, 0x09, 0xb9, 0x0b, 0xf9, 0x7d, 0xcf, 0x8f, 0x91,
-	0x47, 0xd6, 0x05, 0x19, 0x92, 0xeb, 0x67, 0xb5, 0x09, 0x4d, 0xe0, 0xea, 0x2f, 0x49, 0x6c, 0xd7,
-	0x31, 0x8a, 0xec, 0x2e, 0x92, 0x4f, 0xc1, 0xc4, 0x21, 0x86, 0x71, 0x12, 0xda, 0xb7, 0xa6, 0x7a,
-	0xa1, 0x15, 0xb5, 0xa6, 0xc0, 0xa9, 0x56, 0x91, 0x0f, 0x20, 0x3f, 0x54, 0xd1, 0xfa, 0x2f, 0x01,
-	0x4d, 0xd8, 0xd2, 0x4f, 0x06, 0xcc, 0x48, 0x43, 0x27, 0xc2, 0x60, 0xbc, 0x7a, 0x18, 0x56, 0xc0,
-	0xd4, 0x89, 0xc8, 0x4e, 0xff, 0xf6, 0xa8, 0x94, 0x50, 0x4d, 0x92, 0x0f, 0x01, 0x26, 0x12, 0x78,
-	0xb6, 0xae, 0xc8, 0x92, 0xac, 0xde, 0xfc, 0xc7, 0x80, 0x4b, 0x13, 0xae, 0x90, 0x3b, 0xb0, 0xf8,
-	0x68, 0x75, 0xa7, 0xd1, 0xea, 0xac, 0x36, 0x76, 0xda, 0x9b, 0x1b, 0x9d, 0xdd, 0x8d, 0x07, 0x1b,
-	0x9b, 0x8f, 0x36, 0x16, 0x32, 0xa5, 0xd2, 0xd3, 0x67, 0x95, 0xab, 0x13, 0xf8, 0x6e, 0xd8, 0x0b,
-	0xd9, 0x81, 0x70, 0xfc, 0xf2, 0x29, 0x55, 0x83, 0x36, 0x57, 0x77, 0x9a, 0x0b, 0x46, 0xe9, 0x7f,
-	0x4f, 0x9f, 0x55, 0xae, 0x4c, 0x88, 0x1a, 0x1c, 0xd5, 0x64, 0x3a, 0xad, 0xd9, 0xdd, 0x5a, 0x13,
-	0x9a, 0x6c, 0xaa, 0x66, 0xb7, 0xef, 0xa6, 0x69, 0x68, 0x73, 0x7d, 0xf3, 0x61, 0x73, 0x21, 0x97,
-	0xaa, 0xa1, 0x18, 0xb0, 0x21, 0x96, 0xae, 0x7d, 0xf3, 0x7d, 0x39, 0xf3, 0xf3, 0x0f, 0xe5, 0xc9,
-	0xab, 0xae, 0x04, 0x30, 0x23, 0xb7, 0x88, 0x9b, 0x2c, 0x2a, 0xe7, 0x35, 0x62, 0xa9, 0x72, 0x5e,
-	0x3d, 0x55, 0xaf, 0xfc, 0xfa, 0xe3, 0xdf, 0xdf, 0x65, 0x2f, 0xc1, 0xbc, 0x24, 0xde, 0x09, 0xec,
-	0xd0, 0xee, 0x22, 0x7f, 0xd7, 0xa8, 0x5b, 0xcf, 0x5f, 0x94, 0x33, 0xbf, 0xbf, 0x28, 0x67, 0xbe,
-	0x1a, 0x97, 0x8d, 0xe7, 0xe3, 0xb2, 0xf1, 0xdb, 0xb8, 0x6c, 0xfc, 0x39, 0x2e, 0x1b, 0x7b, 0xa6,
-	0xfc, 0x03, 0xf9, 0xfe, 0xbf, 0x01, 0x00, 0x00, 0xff, 0xff, 0xe6, 0x76, 0x89, 0xef, 0x57, 0x0b,
-	0x00, 0x00,
-}

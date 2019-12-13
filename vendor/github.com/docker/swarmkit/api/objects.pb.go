@@ -3,64 +3,95 @@
 
 package api
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import google_protobuf "github.com/gogo/protobuf/types"
-import _ "github.com/gogo/protobuf/gogoproto"
-import google_protobuf4 "github.com/gogo/protobuf/types"
-import _ "github.com/docker/swarmkit/protobuf/plugin"
-
-import deepcopy "github.com/docker/swarmkit/api/deepcopy"
-
-import go_events "github.com/docker/go-events"
-import strings "strings"
-
-import reflect "reflect"
-import sortkeys "github.com/gogo/protobuf/sortkeys"
-
-import io "io"
+import (
+	fmt "fmt"
+	github_com_docker_go_events "github.com/docker/go-events"
+	github_com_docker_swarmkit_api_deepcopy "github.com/docker/swarmkit/api/deepcopy"
+	_ "github.com/docker/swarmkit/protobuf/plugin"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
+	types "github.com/gogo/protobuf/types"
+	io "io"
+	math "math"
+	reflect "reflect"
+	strings "strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+
 // Meta contains metadata about objects. Every object contains a meta field.
 type Meta struct {
 	// Version tracks the current version of the object.
-	Version Version `protobuf:"bytes,1,opt,name=version" json:"version"`
+	Version Version `protobuf:"bytes,1,opt,name=version,proto3" json:"version"`
 	// Object timestamps.
 	// Note: can't use stdtime because these fields are nullable.
-	CreatedAt *google_protobuf.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt" json:"created_at,omitempty"`
-	UpdatedAt *google_protobuf.Timestamp `protobuf:"bytes,3,opt,name=updated_at,json=updatedAt" json:"updated_at,omitempty"`
+	CreatedAt *types.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt *types.Timestamp `protobuf:"bytes,3,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 }
 
-func (m *Meta) Reset()                    { *m = Meta{} }
-func (*Meta) ProtoMessage()               {}
-func (*Meta) Descriptor() ([]byte, []int) { return fileDescriptorObjects, []int{0} }
+func (m *Meta) Reset()      { *m = Meta{} }
+func (*Meta) ProtoMessage() {}
+func (*Meta) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6218a23329ef342d, []int{0}
+}
+func (m *Meta) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Meta) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Meta.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Meta) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Meta.Merge(m, src)
+}
+func (m *Meta) XXX_Size() int {
+	return m.Size()
+}
+func (m *Meta) XXX_DiscardUnknown() {
+	xxx_messageInfo_Meta.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Meta proto.InternalMessageInfo
 
 // Node provides the internal node state as seen by the cluster.
 type Node struct {
 	// ID specifies the identity of the node.
 	ID   string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Meta Meta   `protobuf:"bytes,2,opt,name=meta" json:"meta"`
+	Meta Meta   `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta"`
 	// Spec defines the desired state of the node as specified by the user.
 	// The system will honor this and will *never* modify it.
-	Spec NodeSpec `protobuf:"bytes,3,opt,name=spec" json:"spec"`
+	Spec NodeSpec `protobuf:"bytes,3,opt,name=spec,proto3" json:"spec"`
 	// Description encapsulated the properties of the Node as reported by the
 	// agent.
-	Description *NodeDescription `protobuf:"bytes,4,opt,name=description" json:"description,omitempty"`
+	Description *NodeDescription `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	// Status provides the current status of the node, as seen by the manager.
-	Status NodeStatus `protobuf:"bytes,5,opt,name=status" json:"status"`
+	Status NodeStatus `protobuf:"bytes,5,opt,name=status,proto3" json:"status"`
 	// ManagerStatus provides the current status of the node's manager
 	// component, if the node is a manager.
-	ManagerStatus *ManagerStatus `protobuf:"bytes,6,opt,name=manager_status,json=managerStatus" json:"manager_status,omitempty"`
+	ManagerStatus *ManagerStatus `protobuf:"bytes,6,opt,name=manager_status,json=managerStatus,proto3" json:"manager_status,omitempty"`
 	// DEPRECATED: Use Attachments to find the ingress network
 	// The node attachment to the ingress network.
-	Attachment *NetworkAttachment `protobuf:"bytes,7,opt,name=attachment" json:"attachment,omitempty"`
+	Attachment *NetworkAttachment `protobuf:"bytes,7,opt,name=attachment,proto3" json:"attachment,omitempty"` // Deprecated: Do not use.
 	// Certificate is the TLS certificate issued for the node, if any.
-	Certificate Certificate `protobuf:"bytes,8,opt,name=certificate" json:"certificate"`
+	Certificate Certificate `protobuf:"bytes,8,opt,name=certificate,proto3" json:"certificate"`
 	// Role is the *observed* role for this node. It differs from the
 	// desired role set in Node.Spec.Role because the role here is only
 	// updated after the Raft member list has been reconciled with the
@@ -74,37 +105,65 @@ type Node struct {
 	// Attachments enumerates the network attachments for the node to set up an
 	// endpoint on the node to be used for load balancing. Each overlay
 	// network, including ingress network, will have an NetworkAttachment.
-	Attachments []*NetworkAttachment `protobuf:"bytes,10,rep,name=attachments" json:"attachments,omitempty"`
+	Attachments []*NetworkAttachment `protobuf:"bytes,10,rep,name=attachments,proto3" json:"attachments,omitempty"`
 	// VXLANUDPPort specifies the UDP port for VXLAN traffic.
 	// This information is passed from cluster object to individual nodes.
 	VXLANUDPPort uint32 `protobuf:"varint,11,opt,name=VXLANUDPPort,proto3" json:"VXLANUDPPort,omitempty"`
 }
 
-func (m *Node) Reset()                    { *m = Node{} }
-func (*Node) ProtoMessage()               {}
-func (*Node) Descriptor() ([]byte, []int) { return fileDescriptorObjects, []int{1} }
+func (m *Node) Reset()      { *m = Node{} }
+func (*Node) ProtoMessage() {}
+func (*Node) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6218a23329ef342d, []int{1}
+}
+func (m *Node) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Node) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Node.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Node) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Node.Merge(m, src)
+}
+func (m *Node) XXX_Size() int {
+	return m.Size()
+}
+func (m *Node) XXX_DiscardUnknown() {
+	xxx_messageInfo_Node.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Node proto.InternalMessageInfo
 
 type Service struct {
 	ID   string      `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Meta Meta        `protobuf:"bytes,2,opt,name=meta" json:"meta"`
-	Spec ServiceSpec `protobuf:"bytes,3,opt,name=spec" json:"spec"`
+	Meta Meta        `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta"`
+	Spec ServiceSpec `protobuf:"bytes,3,opt,name=spec,proto3" json:"spec"`
 	// SpecVersion versions Spec, to identify changes in the spec. Note that
 	// this is not directly comparable to the service's Version.
-	SpecVersion *Version `protobuf:"bytes,10,opt,name=spec_version,json=specVersion" json:"spec_version,omitempty"`
+	SpecVersion *Version `protobuf:"bytes,10,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
 	// PreviousSpec is the previous service spec that was in place before
 	// "Spec".
-	PreviousSpec *ServiceSpec `protobuf:"bytes,6,opt,name=previous_spec,json=previousSpec" json:"previous_spec,omitempty"`
+	PreviousSpec *ServiceSpec `protobuf:"bytes,6,opt,name=previous_spec,json=previousSpec,proto3" json:"previous_spec,omitempty"`
 	// PreviousSpecVersion versions PreviousSpec. Note that this is not
 	// directly comparable to the service's Version.
-	PreviousSpecVersion *Version `protobuf:"bytes,11,opt,name=previous_spec_version,json=previousSpecVersion" json:"previous_spec_version,omitempty"`
+	PreviousSpecVersion *Version `protobuf:"bytes,11,opt,name=previous_spec_version,json=previousSpecVersion,proto3" json:"previous_spec_version,omitempty"`
 	// Runtime state of service endpoint. This may be different
 	// from the spec version because the user may not have entered
 	// the optional fields like node_port or virtual_ip and it
 	// could be auto allocated by the system.
-	Endpoint *Endpoint `protobuf:"bytes,4,opt,name=endpoint" json:"endpoint,omitempty"`
+	Endpoint *Endpoint `protobuf:"bytes,4,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
 	// UpdateStatus contains the status of an update, if one is in
 	// progress.
-	UpdateStatus *UpdateStatus `protobuf:"bytes,5,opt,name=update_status,json=updateStatus" json:"update_status,omitempty"`
+	UpdateStatus *UpdateStatus `protobuf:"bytes,5,opt,name=update_status,json=updateStatus,proto3" json:"update_status,omitempty"`
 	// PendingDelete indicates that this service's deletion has been requested.
 	// Services, as well as all service-level resources, can only be deleted
 	// after all of the service's containers have properly shut down.
@@ -116,26 +175,82 @@ type Service struct {
 	PendingDelete bool `protobuf:"varint,7,opt,name=pending_delete,json=pendingDelete,proto3" json:"pending_delete,omitempty"`
 }
 
-func (m *Service) Reset()                    { *m = Service{} }
-func (*Service) ProtoMessage()               {}
-func (*Service) Descriptor() ([]byte, []int) { return fileDescriptorObjects, []int{2} }
+func (m *Service) Reset()      { *m = Service{} }
+func (*Service) ProtoMessage() {}
+func (*Service) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6218a23329ef342d, []int{2}
+}
+func (m *Service) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Service) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Service.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Service) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Service.Merge(m, src)
+}
+func (m *Service) XXX_Size() int {
+	return m.Size()
+}
+func (m *Service) XXX_DiscardUnknown() {
+	xxx_messageInfo_Service.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Service proto.InternalMessageInfo
 
 // Endpoint specified all the network parameters required to
 // correctly discover and load balance a service
 type Endpoint struct {
-	Spec *EndpointSpec `protobuf:"bytes,1,opt,name=spec" json:"spec,omitempty"`
+	Spec *EndpointSpec `protobuf:"bytes,1,opt,name=spec,proto3" json:"spec,omitempty"`
 	// Runtime state of the exposed ports which may carry
 	// auto-allocated swarm ports in addition to the user
 	// configured information.
-	Ports []*PortConfig `protobuf:"bytes,2,rep,name=ports" json:"ports,omitempty"`
+	Ports []*PortConfig `protobuf:"bytes,2,rep,name=ports,proto3" json:"ports,omitempty"`
 	// VirtualIPs specifies the IP addresses under which this endpoint will be
 	// made available.
-	VirtualIPs []*Endpoint_VirtualIP `protobuf:"bytes,3,rep,name=virtual_ips,json=virtualIps" json:"virtual_ips,omitempty"`
+	VirtualIPs []*Endpoint_VirtualIP `protobuf:"bytes,3,rep,name=virtual_ips,json=virtualIps,proto3" json:"virtual_ips,omitempty"`
 }
 
-func (m *Endpoint) Reset()                    { *m = Endpoint{} }
-func (*Endpoint) ProtoMessage()               {}
-func (*Endpoint) Descriptor() ([]byte, []int) { return fileDescriptorObjects, []int{3} }
+func (m *Endpoint) Reset()      { *m = Endpoint{} }
+func (*Endpoint) ProtoMessage() {}
+func (*Endpoint) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6218a23329ef342d, []int{3}
+}
+func (m *Endpoint) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Endpoint) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Endpoint.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Endpoint) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Endpoint.Merge(m, src)
+}
+func (m *Endpoint) XXX_Size() int {
+	return m.Size()
+}
+func (m *Endpoint) XXX_DiscardUnknown() {
+	xxx_messageInfo_Endpoint.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Endpoint proto.InternalMessageInfo
 
 // VirtualIP specifies a set of networks this endpoint will be attached to
 // and the IP addresses the target service will be made available under.
@@ -153,23 +268,51 @@ type Endpoint_VirtualIP struct {
 	Addr string `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty"`
 }
 
-func (m *Endpoint_VirtualIP) Reset()                    { *m = Endpoint_VirtualIP{} }
-func (*Endpoint_VirtualIP) ProtoMessage()               {}
-func (*Endpoint_VirtualIP) Descriptor() ([]byte, []int) { return fileDescriptorObjects, []int{3, 0} }
+func (m *Endpoint_VirtualIP) Reset()      { *m = Endpoint_VirtualIP{} }
+func (*Endpoint_VirtualIP) ProtoMessage() {}
+func (*Endpoint_VirtualIP) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6218a23329ef342d, []int{3, 0}
+}
+func (m *Endpoint_VirtualIP) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Endpoint_VirtualIP) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Endpoint_VirtualIP.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Endpoint_VirtualIP) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Endpoint_VirtualIP.Merge(m, src)
+}
+func (m *Endpoint_VirtualIP) XXX_Size() int {
+	return m.Size()
+}
+func (m *Endpoint_VirtualIP) XXX_DiscardUnknown() {
+	xxx_messageInfo_Endpoint_VirtualIP.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Endpoint_VirtualIP proto.InternalMessageInfo
 
 // Task specifies the parameters for implementing a Spec. A task is effectively
 // immutable and idempotent. Once it is dispatched to a node, it will not be
 // dispatched to another node.
 type Task struct {
 	ID   string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Meta Meta   `protobuf:"bytes,2,opt,name=meta" json:"meta"`
+	Meta Meta   `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta"`
 	// Spec defines the desired state of the task as specified by the user.
 	// The system will honor this and will *never* modify it.
-	Spec TaskSpec `protobuf:"bytes,3,opt,name=spec" json:"spec"`
+	Spec TaskSpec `protobuf:"bytes,3,opt,name=spec,proto3" json:"spec"`
 	// SpecVersion is copied from Service, to identify which version of the
 	// spec this task has. Note that this is not directly comparable to the
 	// service's Version.
-	SpecVersion *Version `protobuf:"bytes,14,opt,name=spec_version,json=specVersion" json:"spec_version,omitempty"`
+	SpecVersion *Version `protobuf:"bytes,14,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
 	// ServiceID indicates the service under which this task is orchestrated. This
 	// should almost always be set.
 	ServiceID string `protobuf:"bytes,4,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
@@ -188,24 +331,24 @@ type Task struct {
 	//
 	// NOTE(stevvooe): The preserves the ability for us to making naming
 	// decisions for tasks in orchestrator, albeit, this is left empty for now.
-	Annotations Annotations `protobuf:"bytes,7,opt,name=annotations" json:"annotations"`
+	Annotations Annotations `protobuf:"bytes,7,opt,name=annotations,proto3" json:"annotations"`
 	// ServiceAnnotations is a direct copy of the service name and labels when
 	// this task is created.
 	//
 	// Labels set here will *not* be propagated to the runtime target, such as a
 	// container. Use labels on the runtime target for that purpose.
-	ServiceAnnotations Annotations `protobuf:"bytes,8,opt,name=service_annotations,json=serviceAnnotations" json:"service_annotations"`
-	Status             TaskStatus  `protobuf:"bytes,9,opt,name=status" json:"status"`
+	ServiceAnnotations Annotations `protobuf:"bytes,8,opt,name=service_annotations,json=serviceAnnotations,proto3" json:"service_annotations"`
+	Status             TaskStatus  `protobuf:"bytes,9,opt,name=status,proto3" json:"status"`
 	// DesiredState is the target state for the task. It is set to
 	// TaskStateRunning when a task is first created, and changed to
 	// TaskStateShutdown if the manager wants to terminate the task. This field
 	// is only written by the manager.
 	DesiredState TaskState `protobuf:"varint,10,opt,name=desired_state,json=desiredState,proto3,enum=docker.swarmkit.v1.TaskState" json:"desired_state,omitempty"`
 	// List of network attachments by the task.
-	Networks []*NetworkAttachment `protobuf:"bytes,11,rep,name=networks" json:"networks,omitempty"`
+	Networks []*NetworkAttachment `protobuf:"bytes,11,rep,name=networks,proto3" json:"networks,omitempty"`
 	// A copy of runtime state of service endpoint from Service
 	// object to be distributed to agents as part of the task.
-	Endpoint *Endpoint `protobuf:"bytes,12,opt,name=endpoint" json:"endpoint,omitempty"`
+	Endpoint *Endpoint `protobuf:"bytes,12,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
 	// LogDriver specifies the selected log driver to use for the task. Agent
 	// processes should always favor the value in this field.
 	//
@@ -214,13 +357,41 @@ type Task struct {
 	// such a cluster default or policy-based value.
 	//
 	// If not present, the daemon's default will be used.
-	LogDriver                *Driver            `protobuf:"bytes,13,opt,name=log_driver,json=logDriver" json:"log_driver,omitempty"`
-	AssignedGenericResources []*GenericResource `protobuf:"bytes,15,rep,name=assigned_generic_resources,json=assignedGenericResources" json:"assigned_generic_resources,omitempty"`
+	LogDriver                *Driver            `protobuf:"bytes,13,opt,name=log_driver,json=logDriver,proto3" json:"log_driver,omitempty"`
+	AssignedGenericResources []*GenericResource `protobuf:"bytes,15,rep,name=assigned_generic_resources,json=assignedGenericResources,proto3" json:"assigned_generic_resources,omitempty"`
 }
 
-func (m *Task) Reset()                    { *m = Task{} }
-func (*Task) ProtoMessage()               {}
-func (*Task) Descriptor() ([]byte, []int) { return fileDescriptorObjects, []int{4} }
+func (m *Task) Reset()      { *m = Task{} }
+func (*Task) ProtoMessage() {}
+func (*Task) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6218a23329ef342d, []int{4}
+}
+func (m *Task) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Task) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Task.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Task) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Task.Merge(m, src)
+}
+func (m *Task) XXX_Size() int {
+	return m.Size()
+}
+func (m *Task) XXX_DiscardUnknown() {
+	xxx_messageInfo_Task.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Task proto.InternalMessageInfo
 
 // NetworkAttachment specifies the network parameters of attachment to
 // a single network by an object such as task or node.
@@ -228,29 +399,57 @@ type NetworkAttachment struct {
 	// Network state as a whole becomes part of the object so that
 	// it always is available for use in agents so that agents
 	// don't have any other dependency during execution.
-	Network *Network `protobuf:"bytes,1,opt,name=network" json:"network,omitempty"`
+	Network *Network `protobuf:"bytes,1,opt,name=network,proto3" json:"network,omitempty"`
 	// List of IPv4/IPv6 addresses that are assigned to the object
 	// as part of getting attached to this network.
-	Addresses []string `protobuf:"bytes,2,rep,name=addresses" json:"addresses,omitempty"`
+	Addresses []string `protobuf:"bytes,2,rep,name=addresses,proto3" json:"addresses,omitempty"`
 	// List of aliases by which a task is resolved in a network
-	Aliases []string `protobuf:"bytes,3,rep,name=aliases" json:"aliases,omitempty"`
+	Aliases []string `protobuf:"bytes,3,rep,name=aliases,proto3" json:"aliases,omitempty"`
 	// Map of all the driver attachment options for this network
-	DriverAttachmentOpts map[string]string `protobuf:"bytes,4,rep,name=driver_attachment_opts,json=driverAttachmentOpts" json:"driver_attachment_opts,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	DriverAttachmentOpts map[string]string `protobuf:"bytes,4,rep,name=driver_attachment_opts,json=driverAttachmentOpts,proto3" json:"driver_attachment_opts,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
-func (m *NetworkAttachment) Reset()                    { *m = NetworkAttachment{} }
-func (*NetworkAttachment) ProtoMessage()               {}
-func (*NetworkAttachment) Descriptor() ([]byte, []int) { return fileDescriptorObjects, []int{5} }
+func (m *NetworkAttachment) Reset()      { *m = NetworkAttachment{} }
+func (*NetworkAttachment) ProtoMessage() {}
+func (*NetworkAttachment) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6218a23329ef342d, []int{5}
+}
+func (m *NetworkAttachment) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *NetworkAttachment) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_NetworkAttachment.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *NetworkAttachment) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NetworkAttachment.Merge(m, src)
+}
+func (m *NetworkAttachment) XXX_Size() int {
+	return m.Size()
+}
+func (m *NetworkAttachment) XXX_DiscardUnknown() {
+	xxx_messageInfo_NetworkAttachment.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_NetworkAttachment proto.InternalMessageInfo
 
 type Network struct {
 	ID   string      `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Meta Meta        `protobuf:"bytes,2,opt,name=meta" json:"meta"`
-	Spec NetworkSpec `protobuf:"bytes,3,opt,name=spec" json:"spec"`
+	Meta Meta        `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta"`
+	Spec NetworkSpec `protobuf:"bytes,3,opt,name=spec,proto3" json:"spec"`
 	// Driver specific operational state provided by the network driver.
-	DriverState *Driver `protobuf:"bytes,4,opt,name=driver_state,json=driverState" json:"driver_state,omitempty"`
+	DriverState *Driver `protobuf:"bytes,4,opt,name=driver_state,json=driverState,proto3" json:"driver_state,omitempty"`
 	// Runtime state of IPAM options. This may not reflect the
 	// ipam options from NetworkSpec.
-	IPAM *IPAMOptions `protobuf:"bytes,5,opt,name=ipam" json:"ipam,omitempty"`
+	IPAM *IPAMOptions `protobuf:"bytes,5,opt,name=ipam,proto3" json:"ipam,omitempty"`
 	// PendingDelete indicates that this network's deletion has been requested.
 	// Services, as well as all service-level resources, can only be deleted
 	// after all the service's containers have properly shut down
@@ -266,20 +465,48 @@ type Network struct {
 	PendingDelete bool `protobuf:"varint,6,opt,name=pending_delete,json=pendingDelete,proto3" json:"pending_delete,omitempty"`
 }
 
-func (m *Network) Reset()                    { *m = Network{} }
-func (*Network) ProtoMessage()               {}
-func (*Network) Descriptor() ([]byte, []int) { return fileDescriptorObjects, []int{6} }
+func (m *Network) Reset()      { *m = Network{} }
+func (*Network) ProtoMessage() {}
+func (*Network) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6218a23329ef342d, []int{6}
+}
+func (m *Network) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Network) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Network.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Network) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Network.Merge(m, src)
+}
+func (m *Network) XXX_Size() int {
+	return m.Size()
+}
+func (m *Network) XXX_DiscardUnknown() {
+	xxx_messageInfo_Network.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Network proto.InternalMessageInfo
 
 // Cluster provides global cluster settings.
 type Cluster struct {
 	ID   string      `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Meta Meta        `protobuf:"bytes,2,opt,name=meta" json:"meta"`
-	Spec ClusterSpec `protobuf:"bytes,3,opt,name=spec" json:"spec"`
+	Meta Meta        `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta"`
+	Spec ClusterSpec `protobuf:"bytes,3,opt,name=spec,proto3" json:"spec"`
 	// RootCA contains key material for the root CA.
-	RootCA RootCA `protobuf:"bytes,4,opt,name=root_ca,json=rootCa" json:"root_ca"`
+	RootCA RootCA `protobuf:"bytes,4,opt,name=root_ca,json=rootCa,proto3" json:"root_ca"`
 	// Symmetric encryption key distributed by the lead manager. Used by agents
 	// for securing network bootstrapping and communication.
-	NetworkBootstrapKeys []*EncryptionKey `protobuf:"bytes,5,rep,name=network_bootstrap_keys,json=networkBootstrapKeys" json:"network_bootstrap_keys,omitempty"`
+	NetworkBootstrapKeys []*EncryptionKey `protobuf:"bytes,5,rep,name=network_bootstrap_keys,json=networkBootstrapKeys,proto3" json:"network_bootstrap_keys,omitempty"`
 	// Logical clock used to timestamp every key.  It allows other managers
 	// and agents to unambiguously identify the older key to be deleted when
 	// a new key is allocated on key rotation.
@@ -287,13 +514,13 @@ type Cluster struct {
 	// BlacklistedCertificates tracks certificates that should no longer
 	// be honored. It's a mapping from CN -> BlacklistedCertificate.
 	// swarm. Their certificates should effectively be blacklisted.
-	BlacklistedCertificates map[string]*BlacklistedCertificate `protobuf:"bytes,8,rep,name=blacklisted_certificates,json=blacklistedCertificates" json:"blacklisted_certificates,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value"`
+	BlacklistedCertificates map[string]*BlacklistedCertificate `protobuf:"bytes,8,rep,name=blacklisted_certificates,json=blacklistedCertificates,proto3" json:"blacklisted_certificates,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// UnlockKeys defines the keys that lock node data at rest.  For example,
 	// this would contain the key encrypting key (KEK) that will encrypt the
 	// manager TLS keys at rest and the raft encryption keys at rest.
 	// If the key is empty, the node will be unlocked (will not require a key
 	// to start up from a shut down state).
-	UnlockKeys []*EncryptionKey `protobuf:"bytes,9,rep,name=unlock_keys,json=unlockKeys" json:"unlock_keys,omitempty"`
+	UnlockKeys []*EncryptionKey `protobuf:"bytes,9,rep,name=unlock_keys,json=unlockKeys,proto3" json:"unlock_keys,omitempty"`
 	// FIPS specifies whether this cluster should be in FIPS mode.  This changes
 	// the format of the join tokens, and nodes that are not FIPS-enabled should
 	// reject joining the cluster.  Nodes that report themselves to be non-FIPS
@@ -302,7 +529,7 @@ type Cluster struct {
 	// This field specifies default subnet pools for global scope networks. If
 	// unspecified, Docker will use the predefined subnets as it works on older releases.
 	// Format Example : {"20.20.0.0/16",""20.20.0.0/16"}
-	DefaultAddressPool []string `protobuf:"bytes,11,rep,name=defaultAddressPool" json:"defaultAddressPool,omitempty"`
+	DefaultAddressPool []string `protobuf:"bytes,11,rep,name=defaultAddressPool,proto3" json:"defaultAddressPool,omitempty"`
 	// This flag specifies the default subnet size of global scope networks by giving
 	// the length of the subnet masks for every such network
 	SubnetSize uint32 `protobuf:"varint,12,opt,name=subnetSize,proto3" json:"subnetSize,omitempty"`
@@ -310,72 +537,212 @@ type Cluster struct {
 	VXLANUDPPort uint32 `protobuf:"varint,13,opt,name=VXLANUDPPort,proto3" json:"VXLANUDPPort,omitempty"`
 }
 
-func (m *Cluster) Reset()                    { *m = Cluster{} }
-func (*Cluster) ProtoMessage()               {}
-func (*Cluster) Descriptor() ([]byte, []int) { return fileDescriptorObjects, []int{7} }
+func (m *Cluster) Reset()      { *m = Cluster{} }
+func (*Cluster) ProtoMessage() {}
+func (*Cluster) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6218a23329ef342d, []int{7}
+}
+func (m *Cluster) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Cluster) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Cluster.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Cluster) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Cluster.Merge(m, src)
+}
+func (m *Cluster) XXX_Size() int {
+	return m.Size()
+}
+func (m *Cluster) XXX_DiscardUnknown() {
+	xxx_messageInfo_Cluster.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Cluster proto.InternalMessageInfo
 
 // Secret represents a secret that should be passed to a container or a node,
 // and is immutable.
 type Secret struct {
 	ID   string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Meta Meta   `protobuf:"bytes,2,opt,name=meta" json:"meta"`
+	Meta Meta   `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta"`
 	// Spec contains the actual secret data, as well as any context around the
 	// secret data that the user provides.
-	Spec SecretSpec `protobuf:"bytes,3,opt,name=spec" json:"spec"`
+	Spec SecretSpec `protobuf:"bytes,3,opt,name=spec,proto3" json:"spec"`
 	// Whether the secret is an internal secret (not set by a user) or not.
 	Internal bool `protobuf:"varint,4,opt,name=internal,proto3" json:"internal,omitempty"`
 }
 
-func (m *Secret) Reset()                    { *m = Secret{} }
-func (*Secret) ProtoMessage()               {}
-func (*Secret) Descriptor() ([]byte, []int) { return fileDescriptorObjects, []int{8} }
+func (m *Secret) Reset()      { *m = Secret{} }
+func (*Secret) ProtoMessage() {}
+func (*Secret) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6218a23329ef342d, []int{8}
+}
+func (m *Secret) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Secret) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Secret.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Secret) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Secret.Merge(m, src)
+}
+func (m *Secret) XXX_Size() int {
+	return m.Size()
+}
+func (m *Secret) XXX_DiscardUnknown() {
+	xxx_messageInfo_Secret.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Secret proto.InternalMessageInfo
 
 // Config represents a set of configuration files that should be passed to a
 // container.
 type Config struct {
 	ID   string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Meta Meta   `protobuf:"bytes,2,opt,name=meta" json:"meta"`
+	Meta Meta   `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta"`
 	// Spec contains the actual config data, as well as any context around the
 	// config data that the user provides.
-	Spec ConfigSpec `protobuf:"bytes,3,opt,name=spec" json:"spec"`
+	Spec ConfigSpec `protobuf:"bytes,3,opt,name=spec,proto3" json:"spec"`
 }
 
-func (m *Config) Reset()                    { *m = Config{} }
-func (*Config) ProtoMessage()               {}
-func (*Config) Descriptor() ([]byte, []int) { return fileDescriptorObjects, []int{9} }
+func (m *Config) Reset()      { *m = Config{} }
+func (*Config) ProtoMessage() {}
+func (*Config) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6218a23329ef342d, []int{9}
+}
+func (m *Config) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Config) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Config.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Config) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Config.Merge(m, src)
+}
+func (m *Config) XXX_Size() int {
+	return m.Size()
+}
+func (m *Config) XXX_DiscardUnknown() {
+	xxx_messageInfo_Config.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Config proto.InternalMessageInfo
 
 // Resource is a top-level object with externally defined content and indexing.
 // SwarmKit can serve as a store for these objects without understanding their
 // meanings.
 type Resource struct {
 	ID          string      `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Meta        Meta        `protobuf:"bytes,2,opt,name=meta" json:"meta"`
-	Annotations Annotations `protobuf:"bytes,3,opt,name=annotations" json:"annotations"`
+	Meta        Meta        `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta"`
+	Annotations Annotations `protobuf:"bytes,3,opt,name=annotations,proto3" json:"annotations"`
 	// Kind identifies this class of object. It is essentially a namespace
 	// to keep IDs or indices from colliding between unrelated Resource
 	// objects. This must correspond to the name of an Extension.
 	Kind string `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
 	// Payload bytes. This data is not interpreted in any way by SwarmKit.
 	// By convention, it should be a marshalled protocol buffers message.
-	Payload *google_protobuf4.Any `protobuf:"bytes,5,opt,name=payload" json:"payload,omitempty"`
+	Payload *types.Any `protobuf:"bytes,5,opt,name=payload,proto3" json:"payload,omitempty"`
 }
 
-func (m *Resource) Reset()                    { *m = Resource{} }
-func (*Resource) ProtoMessage()               {}
-func (*Resource) Descriptor() ([]byte, []int) { return fileDescriptorObjects, []int{10} }
+func (m *Resource) Reset()      { *m = Resource{} }
+func (*Resource) ProtoMessage() {}
+func (*Resource) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6218a23329ef342d, []int{10}
+}
+func (m *Resource) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Resource) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Resource.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Resource) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Resource.Merge(m, src)
+}
+func (m *Resource) XXX_Size() int {
+	return m.Size()
+}
+func (m *Resource) XXX_DiscardUnknown() {
+	xxx_messageInfo_Resource.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Resource proto.InternalMessageInfo
 
 // Extension declares a type of "resource" object. This message provides some
 // metadata about the objects.
 type Extension struct {
 	ID          string      `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Meta        Meta        `protobuf:"bytes,2,opt,name=meta" json:"meta"`
-	Annotations Annotations `protobuf:"bytes,3,opt,name=annotations" json:"annotations"`
+	Meta        Meta        `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta"`
+	Annotations Annotations `protobuf:"bytes,3,opt,name=annotations,proto3" json:"annotations"`
 	Description string      `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 }
 
-func (m *Extension) Reset()                    { *m = Extension{} }
-func (*Extension) ProtoMessage()               {}
-func (*Extension) Descriptor() ([]byte, []int) { return fileDescriptorObjects, []int{11} }
+func (m *Extension) Reset()      { *m = Extension{} }
+func (*Extension) ProtoMessage() {}
+func (*Extension) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6218a23329ef342d, []int{11}
+}
+func (m *Extension) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Extension) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Extension.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Extension) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Extension.Merge(m, src)
+}
+func (m *Extension) XXX_Size() int {
+	return m.Size()
+}
+func (m *Extension) XXX_DiscardUnknown() {
+	xxx_messageInfo_Extension.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Extension proto.InternalMessageInfo
 
 func init() {
 	proto.RegisterType((*Meta)(nil), "docker.swarmkit.v1.Meta")
@@ -385,12 +752,126 @@ func init() {
 	proto.RegisterType((*Endpoint_VirtualIP)(nil), "docker.swarmkit.v1.Endpoint.VirtualIP")
 	proto.RegisterType((*Task)(nil), "docker.swarmkit.v1.Task")
 	proto.RegisterType((*NetworkAttachment)(nil), "docker.swarmkit.v1.NetworkAttachment")
+	proto.RegisterMapType((map[string]string)(nil), "docker.swarmkit.v1.NetworkAttachment.DriverAttachmentOptsEntry")
 	proto.RegisterType((*Network)(nil), "docker.swarmkit.v1.Network")
 	proto.RegisterType((*Cluster)(nil), "docker.swarmkit.v1.Cluster")
+	proto.RegisterMapType((map[string]*BlacklistedCertificate)(nil), "docker.swarmkit.v1.Cluster.BlacklistedCertificatesEntry")
 	proto.RegisterType((*Secret)(nil), "docker.swarmkit.v1.Secret")
 	proto.RegisterType((*Config)(nil), "docker.swarmkit.v1.Config")
 	proto.RegisterType((*Resource)(nil), "docker.swarmkit.v1.Resource")
 	proto.RegisterType((*Extension)(nil), "docker.swarmkit.v1.Extension")
+}
+
+func init() {
+	proto.RegisterFile("github.com/docker/swarmkit/api/objects.proto", fileDescriptor_6218a23329ef342d)
+}
+
+var fileDescriptor_6218a23329ef342d = []byte{
+	// 1654 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x58, 0xcd, 0x73, 0x23, 0x47,
+	0x15, 0xf7, 0xc8, 0xb3, 0xfa, 0x78, 0xfa, 0x60, 0xe9, 0x18, 0x33, 0x2b, 0x8c, 0x64, 0x14, 0x42,
+	0x6d, 0xa5, 0xb6, 0xe4, 0xb0, 0x04, 0xf0, 0x1a, 0x42, 0x22, 0x59, 0x66, 0xa3, 0x4a, 0x36, 0xeb,
+	0x6a, 0x27, 0x9b, 0xdc, 0x86, 0xd6, 0x4c, 0x5b, 0x3b, 0x68, 0x34, 0x3d, 0x35, 0xdd, 0x52, 0x10,
+	0x27, 0xce, 0xcb, 0x85, 0xdb, 0xde, 0x38, 0x00, 0xff, 0x04, 0x17, 0x0e, 0x1c, 0xa8, 0xe5, 0x96,
+	0x13, 0x95, 0x93, 0x8b, 0xd5, 0xfe, 0x15, 0xdc, 0xa8, 0xee, 0xe9, 0x91, 0xc6, 0xd6, 0xf8, 0x8b,
+	0xda, 0x72, 0x71, 0x52, 0x7f, 0xfc, 0x7e, 0xaf, 0xdf, 0x7b, 0xdd, 0xef, 0x63, 0x04, 0xf7, 0x86,
+	0x9e, 0x78, 0x3a, 0x19, 0xb4, 0x1d, 0x36, 0xde, 0x71, 0x99, 0x33, 0xa2, 0xd1, 0x0e, 0xff, 0x92,
+	0x44, 0xe3, 0x91, 0x27, 0x76, 0x48, 0xe8, 0xed, 0xb0, 0xc1, 0xaf, 0xa9, 0x23, 0x78, 0x3b, 0x8c,
+	0x98, 0x60, 0x08, 0xc5, 0x90, 0x76, 0x02, 0x69, 0x4f, 0x7f, 0x58, 0x7f, 0xfb, 0x12, 0x09, 0x62,
+	0x16, 0x52, 0xcd, 0xbf, 0x14, 0xcb, 0x43, 0xea, 0x24, 0xd8, 0xe6, 0x90, 0xb1, 0xa1, 0x4f, 0x77,
+	0xd4, 0x6c, 0x30, 0x39, 0xde, 0x11, 0xde, 0x98, 0x72, 0x41, 0xc6, 0xa1, 0x06, 0x6c, 0x0c, 0xd9,
+	0x90, 0xa9, 0xe1, 0x8e, 0x1c, 0xe9, 0xd5, 0x3b, 0x67, 0x69, 0x24, 0x98, 0xe9, 0xad, 0x9f, 0x5e,
+	0x70, 0xfa, 0x02, 0x1e, 0xfa, 0x93, 0xa1, 0x17, 0xe8, 0x9f, 0x98, 0xd8, 0xfa, 0xab, 0x01, 0xe6,
+	0x23, 0x2a, 0x08, 0xfa, 0x19, 0x14, 0xa6, 0x34, 0xe2, 0x1e, 0x0b, 0x2c, 0x63, 0xdb, 0xb8, 0x5b,
+	0xbe, 0xff, 0x9d, 0xf6, 0xaa, 0x47, 0xda, 0x4f, 0x62, 0x48, 0xd7, 0x7c, 0x71, 0xd2, 0x5c, 0xc3,
+	0x09, 0x03, 0x3d, 0x00, 0x70, 0x22, 0x4a, 0x04, 0x75, 0x6d, 0x22, 0xac, 0x9c, 0xe2, 0xd7, 0xdb,
+	0xb1, 0xba, 0xed, 0xe4, 0xfc, 0xf6, 0xa7, 0x89, 0x95, 0xb8, 0xa4, 0xd1, 0x1d, 0x21, 0xa9, 0x93,
+	0xd0, 0x4d, 0xa8, 0xeb, 0x97, 0x53, 0x35, 0xba, 0x23, 0x5a, 0x7f, 0xb9, 0x05, 0xe6, 0x27, 0xcc,
+	0xa5, 0x68, 0x13, 0x72, 0x9e, 0xab, 0xd4, 0x2e, 0x75, 0xf3, 0xf3, 0x93, 0x66, 0xae, 0xdf, 0xc3,
+	0x39, 0xcf, 0x45, 0xf7, 0xc1, 0x1c, 0x53, 0x41, 0xb4, 0x42, 0x56, 0x96, 0x41, 0xd2, 0x76, 0x6d,
+	0x8d, 0xc2, 0xa2, 0x9f, 0x80, 0x29, 0xaf, 0x4a, 0x6b, 0xb2, 0x95, 0xc5, 0x91, 0x67, 0x1e, 0x85,
+	0xd4, 0x49, 0x78, 0x12, 0x8f, 0x0e, 0xa0, 0xec, 0x52, 0xee, 0x44, 0x5e, 0x28, 0xa4, 0x0f, 0x4d,
+	0x45, 0x7f, 0xf3, 0x3c, 0x7a, 0x6f, 0x09, 0xc5, 0x69, 0x1e, 0xfa, 0x39, 0xe4, 0xb9, 0x20, 0x62,
+	0xc2, 0xad, 0x5b, 0x4a, 0x42, 0xe3, 0x5c, 0x05, 0x14, 0x4a, 0xab, 0xa0, 0x39, 0xe8, 0x43, 0xa8,
+	0x8d, 0x49, 0x40, 0x86, 0x34, 0xb2, 0xb5, 0x94, 0xbc, 0x92, 0xf2, 0xbd, 0x4c, 0xd3, 0x63, 0x64,
+	0x2c, 0x08, 0x57, 0xc7, 0xe9, 0x29, 0xea, 0x03, 0x10, 0x21, 0x88, 0xf3, 0x74, 0x4c, 0x03, 0x61,
+	0x15, 0x94, 0x94, 0xb7, 0x32, 0x75, 0xa1, 0xe2, 0x4b, 0x16, 0x8d, 0x3a, 0x0b, 0x70, 0x37, 0x67,
+	0x19, 0x38, 0x45, 0x46, 0x0f, 0xa1, 0xec, 0xd0, 0x48, 0x78, 0xc7, 0x9e, 0x43, 0x04, 0xb5, 0x8a,
+	0x4a, 0x56, 0x33, 0x4b, 0xd6, 0xfe, 0x12, 0xa6, 0x0d, 0x4b, 0x33, 0xd1, 0x3b, 0x60, 0x46, 0xcc,
+	0xa7, 0x56, 0x69, 0xdb, 0xb8, 0x5b, 0x3b, 0xff, 0x6a, 0x30, 0xf3, 0x29, 0x56, 0x48, 0x79, 0xf4,
+	0x52, 0x11, 0x6e, 0xc1, 0xf6, 0xfa, 0x95, 0xcd, 0xc0, 0x69, 0x26, 0x6a, 0x41, 0xe5, 0xc9, 0x17,
+	0x1f, 0x77, 0x3e, 0xf9, 0xac, 0x77, 0x78, 0xc8, 0x22, 0x61, 0x95, 0xb7, 0x8d, 0xbb, 0x55, 0x7c,
+	0x6a, 0x6d, 0x6f, 0xf3, 0xd9, 0xf3, 0x16, 0x82, 0xdb, 0x45, 0xe3, 0xb6, 0xa1, 0xde, 0xa2, 0xf1,
+	0x8e, 0xf1, 0x85, 0xf1, 0x2b, 0xa3, 0xf5, 0x67, 0x13, 0x0a, 0x47, 0x34, 0x9a, 0x7a, 0xce, 0xeb,
+	0x7d, 0xa9, 0x0f, 0x4e, 0xbd, 0xd4, 0x4c, 0x87, 0xea, 0x63, 0x57, 0x1e, 0xeb, 0x2f, 0xa0, 0x22,
+	0x7f, 0xed, 0x24, 0xe2, 0xe1, 0xd2, 0x88, 0xc7, 0x65, 0x49, 0xd0, 0x13, 0xd4, 0x83, 0x6a, 0x18,
+	0xd1, 0xa9, 0xc7, 0x26, 0xdc, 0x56, 0x3a, 0xe4, 0xaf, 0xa4, 0x03, 0xae, 0x24, 0x2c, 0x39, 0x43,
+	0x8f, 0xe1, 0x5b, 0xa7, 0xa4, 0x2c, 0xd4, 0x29, 0x5f, 0xae, 0xce, 0x1b, 0x69, 0x49, 0x89, 0x5a,
+	0xbb, 0x50, 0xa4, 0x81, 0x1b, 0x32, 0x2f, 0x10, 0x3a, 0x00, 0x33, 0x1f, 0xc9, 0x81, 0xc6, 0xe0,
+	0x05, 0x1a, 0x1d, 0x40, 0x35, 0xce, 0x2b, 0xf6, 0xa9, 0xe8, 0xdb, 0xce, 0xa2, 0x7f, 0xa6, 0x80,
+	0x3a, 0x6c, 0x2a, 0x93, 0xd4, 0x0c, 0xbd, 0x05, 0xb5, 0x90, 0x06, 0xae, 0x17, 0x0c, 0x6d, 0x97,
+	0xfa, 0x54, 0x50, 0x15, 0x39, 0x45, 0x5c, 0xd5, 0xab, 0x3d, 0xb5, 0xb8, 0x87, 0x9e, 0x3d, 0x6f,
+	0xd5, 0xa0, 0x92, 0x7e, 0x29, 0xad, 0x3f, 0xe6, 0xa0, 0x98, 0x28, 0x86, 0xde, 0xd5, 0x57, 0x6b,
+	0x9c, 0xaf, 0x45, 0x82, 0x55, 0x7e, 0x8d, 0x6f, 0xf5, 0x5d, 0xb8, 0x15, 0xb2, 0x48, 0x70, 0x2b,
+	0xa7, 0xde, 0x79, 0x66, 0xea, 0x90, 0x2f, 0x75, 0x9f, 0x05, 0xc7, 0xde, 0x10, 0xc7, 0x60, 0xf4,
+	0x39, 0x94, 0xa7, 0x5e, 0x24, 0x26, 0xc4, 0xb7, 0xbd, 0x90, 0x5b, 0xeb, 0x8a, 0xfb, 0x83, 0x8b,
+	0x8e, 0x6c, 0x3f, 0x89, 0xf1, 0xfd, 0xc3, 0x6e, 0x6d, 0x7e, 0xd2, 0x84, 0xc5, 0x94, 0x63, 0xd0,
+	0xa2, 0xfa, 0x21, 0xaf, 0x3f, 0x82, 0xd2, 0x62, 0x07, 0xdd, 0x03, 0x08, 0xe2, 0x10, 0xb3, 0x17,
+	0x01, 0x50, 0x9d, 0x9f, 0x34, 0x4b, 0x3a, 0xf0, 0xfa, 0x3d, 0x5c, 0xd2, 0x80, 0xbe, 0x8b, 0x10,
+	0x98, 0xc4, 0x75, 0x23, 0x15, 0x0e, 0x25, 0xac, 0xc6, 0xad, 0xdf, 0x17, 0xc0, 0xfc, 0x94, 0xf0,
+	0xd1, 0x4d, 0x67, 0x7b, 0x79, 0xe6, 0xa5, 0x01, 0x54, 0xbb, 0x66, 0x00, 0xdd, 0x03, 0xe0, 0x71,
+	0x5c, 0x48, 0x77, 0x98, 0x4b, 0x77, 0xe8, 0x68, 0x91, 0xee, 0xd0, 0x80, 0xd8, 0x1d, 0xdc, 0x67,
+	0x42, 0x3d, 0x4a, 0x13, 0xab, 0x31, 0x7a, 0x13, 0x0a, 0x01, 0x73, 0x15, 0x3d, 0xaf, 0xe8, 0x30,
+	0x3f, 0x69, 0xe6, 0x65, 0xfe, 0xeb, 0xf7, 0x70, 0x5e, 0x6e, 0xf5, 0x5d, 0x95, 0xff, 0x82, 0x80,
+	0x09, 0x22, 0x6b, 0x0b, 0xd7, 0x69, 0x3c, 0x33, 0x4a, 0x3b, 0x4b, 0x58, 0x92, 0x7a, 0x53, 0x4c,
+	0xf4, 0x04, 0xde, 0x48, 0xf4, 0x4d, 0x0b, 0x2c, 0x5e, 0x47, 0x20, 0xd2, 0x12, 0x52, 0x3b, 0xa9,
+	0x72, 0x57, 0x3a, 0xbf, 0xdc, 0xa9, 0x1b, 0xc8, 0x2a, 0x77, 0x5d, 0xa8, 0xba, 0x94, 0x7b, 0x11,
+	0x75, 0x55, 0xd8, 0x52, 0x95, 0xc7, 0x6a, 0xf7, 0xbf, 0x7b, 0x91, 0x10, 0x8a, 0x2b, 0x9a, 0xa3,
+	0x66, 0xa8, 0x03, 0x45, 0xfd, 0xee, 0xb8, 0x55, 0xbe, 0x4e, 0x7d, 0x58, 0xd0, 0x4e, 0xa5, 0x9d,
+	0xca, 0xb5, 0xd2, 0xce, 0x03, 0x00, 0x9f, 0x0d, 0x6d, 0x37, 0xf2, 0xa6, 0x34, 0xb2, 0xaa, 0xba,
+	0xf9, 0xc9, 0xe0, 0xf6, 0x14, 0x02, 0x97, 0x7c, 0x36, 0x8c, 0x87, 0x88, 0x40, 0x9d, 0x70, 0xee,
+	0x0d, 0x03, 0xea, 0xda, 0x43, 0x1a, 0xd0, 0xc8, 0x73, 0xec, 0x88, 0x72, 0x36, 0x89, 0x1c, 0xca,
+	0xad, 0x6f, 0x28, 0x4b, 0x32, 0xdb, 0x8f, 0x87, 0x31, 0x18, 0x6b, 0x2c, 0xb6, 0x12, 0x31, 0x67,
+	0x36, 0xf8, 0x5e, 0xfd, 0xd9, 0xf3, 0xd6, 0x26, 0x6c, 0xa4, 0xd3, 0xd4, 0xae, 0xf1, 0x81, 0xf1,
+	0xa1, 0x71, 0x68, 0xb4, 0xfe, 0x9e, 0x83, 0x6f, 0xae, 0xf8, 0x04, 0xfd, 0x18, 0x0a, 0xda, 0x2b,
+	0x17, 0x35, 0x91, 0x9a, 0x87, 0x13, 0x2c, 0xda, 0x82, 0x92, 0x0c, 0x71, 0xca, 0x39, 0x8d, 0x93,
+	0x57, 0x09, 0x2f, 0x17, 0x90, 0x05, 0x05, 0xe2, 0x7b, 0x44, 0xee, 0xad, 0xab, 0xbd, 0x64, 0x8a,
+	0x26, 0xb0, 0x19, 0xbb, 0xce, 0x5e, 0xd6, 0x6a, 0x9b, 0x85, 0x82, 0x5b, 0xa6, 0xb2, 0xff, 0xfd,
+	0x2b, 0xdd, 0xa4, 0x76, 0xee, 0x72, 0xe1, 0x71, 0x28, 0xf8, 0x41, 0x20, 0xa2, 0x19, 0xde, 0x70,
+	0x33, 0xb6, 0xea, 0x0f, 0xe1, 0xce, 0xb9, 0x14, 0x74, 0x1b, 0xd6, 0x47, 0x74, 0x16, 0xa7, 0x27,
+	0x2c, 0x87, 0x68, 0x03, 0x6e, 0x4d, 0x89, 0x3f, 0xa1, 0x3a, 0x9b, 0xc5, 0x93, 0xbd, 0xdc, 0xae,
+	0xd1, 0xfa, 0x67, 0x0e, 0x0a, 0x5a, 0x9d, 0x9b, 0xee, 0x0c, 0xf4, 0xb1, 0x2b, 0x89, 0xed, 0x3d,
+	0xa8, 0x68, 0x97, 0xc6, 0x11, 0x65, 0x5e, 0xfa, 0x26, 0xcb, 0x31, 0x3e, 0x8e, 0xa6, 0xf7, 0xc0,
+	0xf4, 0x42, 0x32, 0xd6, 0xe5, 0x33, 0xf3, 0xe4, 0xfe, 0x61, 0xe7, 0xd1, 0xe3, 0x30, 0x4e, 0x0c,
+	0xc5, 0xf9, 0x49, 0xd3, 0x94, 0x0b, 0x58, 0xd1, 0x32, 0xea, 0x67, 0xfe, 0xaa, 0xf5, 0xf3, 0x1f,
+	0x79, 0x28, 0xec, 0xfb, 0x13, 0x2e, 0x68, 0x74, 0xd3, 0xbe, 0xd4, 0xc7, 0xae, 0xf8, 0x72, 0x1f,
+	0x0a, 0x11, 0x63, 0xc2, 0x76, 0xc8, 0x45, 0x6e, 0xc4, 0x8c, 0x89, 0xfd, 0x4e, 0xb7, 0x26, 0x89,
+	0x32, 0x85, 0xc7, 0x73, 0x9c, 0x97, 0xd4, 0x7d, 0x82, 0x3e, 0x87, 0xcd, 0xa4, 0x70, 0x0e, 0x18,
+	0x13, 0x5c, 0x44, 0x24, 0xb4, 0x47, 0x74, 0x26, 0x5b, 0x94, 0xf5, 0xf3, 0x5a, 0xfb, 0x83, 0xc0,
+	0x89, 0x66, 0xca, 0xc7, 0x1f, 0xd1, 0x19, 0xde, 0xd0, 0x02, 0xba, 0x09, 0xff, 0x23, 0x3a, 0xe3,
+	0xe8, 0x7d, 0xd8, 0xa2, 0x0b, 0x98, 0x94, 0x68, 0xfb, 0x64, 0x2c, 0x5b, 0x02, 0xdb, 0xf1, 0x99,
+	0x33, 0x52, 0x9e, 0x37, 0xf1, 0x1d, 0x9a, 0x16, 0xf5, 0x71, 0x8c, 0xd8, 0x97, 0x00, 0xc4, 0xc1,
+	0x1a, 0xf8, 0xc4, 0x19, 0xf9, 0x1e, 0x97, 0x5f, 0x6f, 0xa9, 0x4e, 0x5d, 0x16, 0x06, 0xa9, 0xdb,
+	0xee, 0x05, 0xde, 0x6a, 0x77, 0x97, 0xdc, 0x54, 0xdf, 0xaf, 0x03, 0xef, 0xdb, 0x83, 0xec, 0x5d,
+	0xd4, 0x85, 0xf2, 0x24, 0x90, 0xc7, 0xc7, 0x3e, 0x28, 0x5d, 0xd5, 0x07, 0x10, 0xb3, 0x94, 0xe5,
+	0x5b, 0x60, 0x1e, 0xcb, 0x56, 0x47, 0x56, 0x8b, 0x62, 0xfc, 0x06, 0x7f, 0xd9, 0x3f, 0x3c, 0xc2,
+	0x6a, 0x15, 0xb5, 0x01, 0xb9, 0xf4, 0x98, 0x4c, 0x7c, 0xd1, 0x89, 0x53, 0xd0, 0x21, 0x63, 0xbe,
+	0x2a, 0x0d, 0x25, 0x9c, 0xb1, 0x83, 0x1a, 0x00, 0x7c, 0x32, 0x08, 0xa8, 0x38, 0xf2, 0x7e, 0x4b,
+	0x55, 0xfe, 0xaf, 0xe2, 0xd4, 0xca, 0xca, 0xa7, 0x43, 0x75, 0xf5, 0xd3, 0xa1, 0x3e, 0x85, 0xad,
+	0x8b, 0xdc, 0x91, 0x91, 0x54, 0x3e, 0x48, 0x27, 0x95, 0xf2, 0xfd, 0xb7, 0xb3, 0x3c, 0x90, 0x2d,
+	0x32, 0x95, 0x80, 0x32, 0x03, 0xe9, 0x6f, 0x06, 0xe4, 0x8f, 0xa8, 0x13, 0x51, 0xf1, 0x5a, 0xe3,
+	0x68, 0xf7, 0x54, 0x1c, 0x35, 0xb2, 0xbf, 0x14, 0xe4, 0xa9, 0x2b, 0x61, 0x54, 0x87, 0xa2, 0x17,
+	0x08, 0x1a, 0x05, 0xc4, 0x57, 0x71, 0x54, 0xc4, 0x8b, 0x79, 0xa6, 0x01, 0x7f, 0x32, 0x20, 0x1f,
+	0xb7, 0xb8, 0x37, 0x6d, 0x40, 0x7c, 0xea, 0x59, 0x03, 0x32, 0x95, 0xfc, 0x8f, 0x01, 0xc5, 0xa4,
+	0xd2, 0xbe, 0x56, 0x35, 0xcf, 0xb4, 0x7c, 0xeb, 0xff, 0x73, 0xcb, 0x87, 0xc0, 0x1c, 0x79, 0x81,
+	0x6e, 0x4e, 0xb1, 0x1a, 0xa3, 0x36, 0x14, 0x42, 0x32, 0xf3, 0x19, 0x71, 0x75, 0x86, 0xdf, 0x58,
+	0xf9, 0xa7, 0xa6, 0x13, 0xcc, 0x70, 0x02, 0xda, 0xdb, 0x78, 0xf6, 0xbc, 0x75, 0x1b, 0x6a, 0x69,
+	0xcb, 0x9f, 0x1a, 0xad, 0x7f, 0x19, 0x50, 0x3a, 0xf8, 0x8d, 0xa0, 0x81, 0x6a, 0x85, 0xff, 0x2f,
+	0x8d, 0xdf, 0x5e, 0xfd, 0x37, 0xa7, 0x74, 0xea, 0x8f, 0x9a, 0xac, 0x4b, 0xed, 0x7e, 0xff, 0xc5,
+	0xcb, 0xc6, 0xda, 0xd7, 0x2f, 0x1b, 0x6b, 0xbf, 0x9b, 0x37, 0x8c, 0x17, 0xf3, 0x86, 0xf1, 0xd5,
+	0xbc, 0x61, 0xfc, 0x7b, 0xde, 0x30, 0xfe, 0xf0, 0xaa, 0xb1, 0xf6, 0xd5, 0xab, 0xc6, 0xda, 0xd7,
+	0xaf, 0x1a, 0x6b, 0x83, 0xbc, 0xf2, 0xd5, 0x8f, 0xfe, 0x1b, 0x00, 0x00, 0xff, 0xff, 0x53, 0x14,
+	0x4d, 0x41, 0xa0, 0x14, 0x00, 0x00,
 }
 
 func (m *Meta) Copy() *Meta {
@@ -406,14 +887,14 @@ func (m *Meta) CopyFrom(src interface{}) {
 
 	o := src.(*Meta)
 	*m = *o
-	deepcopy.Copy(&m.Version, &o.Version)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Version, &o.Version)
 	if o.CreatedAt != nil {
-		m.CreatedAt = &google_protobuf.Timestamp{}
-		deepcopy.Copy(m.CreatedAt, o.CreatedAt)
+		m.CreatedAt = &types.Timestamp{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.CreatedAt, o.CreatedAt)
 	}
 	if o.UpdatedAt != nil {
-		m.UpdatedAt = &google_protobuf.Timestamp{}
-		deepcopy.Copy(m.UpdatedAt, o.UpdatedAt)
+		m.UpdatedAt = &types.Timestamp{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.UpdatedAt, o.UpdatedAt)
 	}
 }
 
@@ -430,27 +911,27 @@ func (m *Node) CopyFrom(src interface{}) {
 
 	o := src.(*Node)
 	*m = *o
-	deepcopy.Copy(&m.Meta, &o.Meta)
-	deepcopy.Copy(&m.Spec, &o.Spec)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Meta, &o.Meta)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Spec, &o.Spec)
 	if o.Description != nil {
 		m.Description = &NodeDescription{}
-		deepcopy.Copy(m.Description, o.Description)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Description, o.Description)
 	}
-	deepcopy.Copy(&m.Status, &o.Status)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Status, &o.Status)
 	if o.ManagerStatus != nil {
 		m.ManagerStatus = &ManagerStatus{}
-		deepcopy.Copy(m.ManagerStatus, o.ManagerStatus)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.ManagerStatus, o.ManagerStatus)
 	}
 	if o.Attachment != nil {
 		m.Attachment = &NetworkAttachment{}
-		deepcopy.Copy(m.Attachment, o.Attachment)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Attachment, o.Attachment)
 	}
-	deepcopy.Copy(&m.Certificate, &o.Certificate)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Certificate, &o.Certificate)
 	if o.Attachments != nil {
 		m.Attachments = make([]*NetworkAttachment, len(o.Attachments))
 		for i := range m.Attachments {
 			m.Attachments[i] = &NetworkAttachment{}
-			deepcopy.Copy(m.Attachments[i], o.Attachments[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Attachments[i], o.Attachments[i])
 		}
 	}
 
@@ -469,27 +950,27 @@ func (m *Service) CopyFrom(src interface{}) {
 
 	o := src.(*Service)
 	*m = *o
-	deepcopy.Copy(&m.Meta, &o.Meta)
-	deepcopy.Copy(&m.Spec, &o.Spec)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Meta, &o.Meta)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Spec, &o.Spec)
 	if o.SpecVersion != nil {
 		m.SpecVersion = &Version{}
-		deepcopy.Copy(m.SpecVersion, o.SpecVersion)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.SpecVersion, o.SpecVersion)
 	}
 	if o.PreviousSpec != nil {
 		m.PreviousSpec = &ServiceSpec{}
-		deepcopy.Copy(m.PreviousSpec, o.PreviousSpec)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.PreviousSpec, o.PreviousSpec)
 	}
 	if o.PreviousSpecVersion != nil {
 		m.PreviousSpecVersion = &Version{}
-		deepcopy.Copy(m.PreviousSpecVersion, o.PreviousSpecVersion)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.PreviousSpecVersion, o.PreviousSpecVersion)
 	}
 	if o.Endpoint != nil {
 		m.Endpoint = &Endpoint{}
-		deepcopy.Copy(m.Endpoint, o.Endpoint)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Endpoint, o.Endpoint)
 	}
 	if o.UpdateStatus != nil {
 		m.UpdateStatus = &UpdateStatus{}
-		deepcopy.Copy(m.UpdateStatus, o.UpdateStatus)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.UpdateStatus, o.UpdateStatus)
 	}
 }
 
@@ -508,13 +989,13 @@ func (m *Endpoint) CopyFrom(src interface{}) {
 	*m = *o
 	if o.Spec != nil {
 		m.Spec = &EndpointSpec{}
-		deepcopy.Copy(m.Spec, o.Spec)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Spec, o.Spec)
 	}
 	if o.Ports != nil {
 		m.Ports = make([]*PortConfig, len(o.Ports))
 		for i := range m.Ports {
 			m.Ports[i] = &PortConfig{}
-			deepcopy.Copy(m.Ports[i], o.Ports[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Ports[i], o.Ports[i])
 		}
 	}
 
@@ -522,7 +1003,7 @@ func (m *Endpoint) CopyFrom(src interface{}) {
 		m.VirtualIPs = make([]*Endpoint_VirtualIP, len(o.VirtualIPs))
 		for i := range m.VirtualIPs {
 			m.VirtualIPs[i] = &Endpoint_VirtualIP{}
-			deepcopy.Copy(m.VirtualIPs[i], o.VirtualIPs[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.VirtualIPs[i], o.VirtualIPs[i])
 		}
 	}
 
@@ -556,36 +1037,36 @@ func (m *Task) CopyFrom(src interface{}) {
 
 	o := src.(*Task)
 	*m = *o
-	deepcopy.Copy(&m.Meta, &o.Meta)
-	deepcopy.Copy(&m.Spec, &o.Spec)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Meta, &o.Meta)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Spec, &o.Spec)
 	if o.SpecVersion != nil {
 		m.SpecVersion = &Version{}
-		deepcopy.Copy(m.SpecVersion, o.SpecVersion)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.SpecVersion, o.SpecVersion)
 	}
-	deepcopy.Copy(&m.Annotations, &o.Annotations)
-	deepcopy.Copy(&m.ServiceAnnotations, &o.ServiceAnnotations)
-	deepcopy.Copy(&m.Status, &o.Status)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Annotations, &o.Annotations)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.ServiceAnnotations, &o.ServiceAnnotations)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Status, &o.Status)
 	if o.Networks != nil {
 		m.Networks = make([]*NetworkAttachment, len(o.Networks))
 		for i := range m.Networks {
 			m.Networks[i] = &NetworkAttachment{}
-			deepcopy.Copy(m.Networks[i], o.Networks[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Networks[i], o.Networks[i])
 		}
 	}
 
 	if o.Endpoint != nil {
 		m.Endpoint = &Endpoint{}
-		deepcopy.Copy(m.Endpoint, o.Endpoint)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Endpoint, o.Endpoint)
 	}
 	if o.LogDriver != nil {
 		m.LogDriver = &Driver{}
-		deepcopy.Copy(m.LogDriver, o.LogDriver)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.LogDriver, o.LogDriver)
 	}
 	if o.AssignedGenericResources != nil {
 		m.AssignedGenericResources = make([]*GenericResource, len(o.AssignedGenericResources))
 		for i := range m.AssignedGenericResources {
 			m.AssignedGenericResources[i] = &GenericResource{}
-			deepcopy.Copy(m.AssignedGenericResources[i], o.AssignedGenericResources[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.AssignedGenericResources[i], o.AssignedGenericResources[i])
 		}
 	}
 
@@ -606,7 +1087,7 @@ func (m *NetworkAttachment) CopyFrom(src interface{}) {
 	*m = *o
 	if o.Network != nil {
 		m.Network = &Network{}
-		deepcopy.Copy(m.Network, o.Network)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Network, o.Network)
 	}
 	if o.Addresses != nil {
 		m.Addresses = make([]string, len(o.Addresses))
@@ -640,15 +1121,15 @@ func (m *Network) CopyFrom(src interface{}) {
 
 	o := src.(*Network)
 	*m = *o
-	deepcopy.Copy(&m.Meta, &o.Meta)
-	deepcopy.Copy(&m.Spec, &o.Spec)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Meta, &o.Meta)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Spec, &o.Spec)
 	if o.DriverState != nil {
 		m.DriverState = &Driver{}
-		deepcopy.Copy(m.DriverState, o.DriverState)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.DriverState, o.DriverState)
 	}
 	if o.IPAM != nil {
 		m.IPAM = &IPAMOptions{}
-		deepcopy.Copy(m.IPAM, o.IPAM)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.IPAM, o.IPAM)
 	}
 }
 
@@ -665,14 +1146,14 @@ func (m *Cluster) CopyFrom(src interface{}) {
 
 	o := src.(*Cluster)
 	*m = *o
-	deepcopy.Copy(&m.Meta, &o.Meta)
-	deepcopy.Copy(&m.Spec, &o.Spec)
-	deepcopy.Copy(&m.RootCA, &o.RootCA)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Meta, &o.Meta)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Spec, &o.Spec)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.RootCA, &o.RootCA)
 	if o.NetworkBootstrapKeys != nil {
 		m.NetworkBootstrapKeys = make([]*EncryptionKey, len(o.NetworkBootstrapKeys))
 		for i := range m.NetworkBootstrapKeys {
 			m.NetworkBootstrapKeys[i] = &EncryptionKey{}
-			deepcopy.Copy(m.NetworkBootstrapKeys[i], o.NetworkBootstrapKeys[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.NetworkBootstrapKeys[i], o.NetworkBootstrapKeys[i])
 		}
 	}
 
@@ -680,7 +1161,7 @@ func (m *Cluster) CopyFrom(src interface{}) {
 		m.BlacklistedCertificates = make(map[string]*BlacklistedCertificate, len(o.BlacklistedCertificates))
 		for k, v := range o.BlacklistedCertificates {
 			m.BlacklistedCertificates[k] = &BlacklistedCertificate{}
-			deepcopy.Copy(m.BlacklistedCertificates[k], v)
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.BlacklistedCertificates[k], v)
 		}
 	}
 
@@ -688,7 +1169,7 @@ func (m *Cluster) CopyFrom(src interface{}) {
 		m.UnlockKeys = make([]*EncryptionKey, len(o.UnlockKeys))
 		for i := range m.UnlockKeys {
 			m.UnlockKeys[i] = &EncryptionKey{}
-			deepcopy.Copy(m.UnlockKeys[i], o.UnlockKeys[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.UnlockKeys[i], o.UnlockKeys[i])
 		}
 	}
 
@@ -712,8 +1193,8 @@ func (m *Secret) CopyFrom(src interface{}) {
 
 	o := src.(*Secret)
 	*m = *o
-	deepcopy.Copy(&m.Meta, &o.Meta)
-	deepcopy.Copy(&m.Spec, &o.Spec)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Meta, &o.Meta)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Spec, &o.Spec)
 }
 
 func (m *Config) Copy() *Config {
@@ -729,8 +1210,8 @@ func (m *Config) CopyFrom(src interface{}) {
 
 	o := src.(*Config)
 	*m = *o
-	deepcopy.Copy(&m.Meta, &o.Meta)
-	deepcopy.Copy(&m.Spec, &o.Spec)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Meta, &o.Meta)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Spec, &o.Spec)
 }
 
 func (m *Resource) Copy() *Resource {
@@ -746,11 +1227,11 @@ func (m *Resource) CopyFrom(src interface{}) {
 
 	o := src.(*Resource)
 	*m = *o
-	deepcopy.Copy(&m.Meta, &o.Meta)
-	deepcopy.Copy(&m.Annotations, &o.Annotations)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Meta, &o.Meta)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Annotations, &o.Annotations)
 	if o.Payload != nil {
-		m.Payload = &google_protobuf4.Any{}
-		deepcopy.Copy(m.Payload, o.Payload)
+		m.Payload = &types.Any{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Payload, o.Payload)
 	}
 }
 
@@ -767,8 +1248,8 @@ func (m *Extension) CopyFrom(src interface{}) {
 
 	o := src.(*Extension)
 	*m = *o
-	deepcopy.Copy(&m.Meta, &o.Meta)
-	deepcopy.Copy(&m.Annotations, &o.Annotations)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Meta, &o.Meta)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Annotations, &o.Annotations)
 }
 
 func (m *Meta) Marshal() (dAtA []byte, err error) {
@@ -1733,8 +2214,10 @@ func encodeVarintObjects(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return offset + 1
 }
-
 func (m *Meta) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = m.Version.Size()
@@ -1751,6 +2234,9 @@ func (m *Meta) Size() (n int) {
 }
 
 func (m *Node) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ID)
@@ -1793,6 +2279,9 @@ func (m *Node) Size() (n int) {
 }
 
 func (m *Service) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ID)
@@ -1830,6 +2319,9 @@ func (m *Service) Size() (n int) {
 }
 
 func (m *Endpoint) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Spec != nil {
@@ -1852,6 +2344,9 @@ func (m *Endpoint) Size() (n int) {
 }
 
 func (m *Endpoint_VirtualIP) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.NetworkID)
@@ -1866,6 +2361,9 @@ func (m *Endpoint_VirtualIP) Size() (n int) {
 }
 
 func (m *Task) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ID)
@@ -1924,6 +2422,9 @@ func (m *Task) Size() (n int) {
 }
 
 func (m *NetworkAttachment) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Network != nil {
@@ -1954,6 +2455,9 @@ func (m *NetworkAttachment) Size() (n int) {
 }
 
 func (m *Network) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ID)
@@ -1979,6 +2483,9 @@ func (m *Network) Size() (n int) {
 }
 
 func (m *Cluster) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ID)
@@ -2038,6 +2545,9 @@ func (m *Cluster) Size() (n int) {
 }
 
 func (m *Secret) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ID)
@@ -2055,6 +2565,9 @@ func (m *Secret) Size() (n int) {
 }
 
 func (m *Config) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ID)
@@ -2069,6 +2582,9 @@ func (m *Config) Size() (n int) {
 }
 
 func (m *Resource) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ID)
@@ -2091,6 +2607,9 @@ func (m *Resource) Size() (n int) {
 }
 
 func (m *Extension) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ID)
@@ -2133,7 +2652,7 @@ type EventCreateNode struct {
 	Checks []NodeCheckFunc
 }
 
-func (e EventCreateNode) Matches(apiEvent go_events.Event) bool {
+func (e EventCreateNode) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventCreateNode)
 	if !ok {
 		return false
@@ -2161,7 +2680,7 @@ type EventUpdateNode struct {
 	Checks  []NodeCheckFunc
 }
 
-func (e EventUpdateNode) Matches(apiEvent go_events.Event) bool {
+func (e EventUpdateNode) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventUpdateNode)
 	if !ok {
 		return false
@@ -2188,7 +2707,7 @@ type EventDeleteNode struct {
 	Checks []NodeCheckFunc
 }
 
-func (e EventDeleteNode) Matches(apiEvent go_events.Event) bool {
+func (e EventDeleteNode) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventDeleteNode)
 	if !ok {
 		return false
@@ -2409,7 +2928,7 @@ type EventCreateService struct {
 	Checks  []ServiceCheckFunc
 }
 
-func (e EventCreateService) Matches(apiEvent go_events.Event) bool {
+func (e EventCreateService) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventCreateService)
 	if !ok {
 		return false
@@ -2437,7 +2956,7 @@ type EventUpdateService struct {
 	Checks     []ServiceCheckFunc
 }
 
-func (e EventUpdateService) Matches(apiEvent go_events.Event) bool {
+func (e EventUpdateService) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventUpdateService)
 	if !ok {
 		return false
@@ -2464,7 +2983,7 @@ type EventDeleteService struct {
 	Checks  []ServiceCheckFunc
 }
 
-func (e EventDeleteService) Matches(apiEvent go_events.Event) bool {
+func (e EventDeleteService) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventDeleteService)
 	if !ok {
 		return false
@@ -2655,7 +3174,7 @@ type EventCreateTask struct {
 	Checks []TaskCheckFunc
 }
 
-func (e EventCreateTask) Matches(apiEvent go_events.Event) bool {
+func (e EventCreateTask) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventCreateTask)
 	if !ok {
 		return false
@@ -2683,7 +3202,7 @@ type EventUpdateTask struct {
 	Checks  []TaskCheckFunc
 }
 
-func (e EventUpdateTask) Matches(apiEvent go_events.Event) bool {
+func (e EventUpdateTask) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventUpdateTask)
 	if !ok {
 		return false
@@ -2710,7 +3229,7 @@ type EventDeleteTask struct {
 	Checks []TaskCheckFunc
 }
 
-func (e EventDeleteTask) Matches(apiEvent go_events.Event) bool {
+func (e EventDeleteTask) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventDeleteTask)
 	if !ok {
 		return false
@@ -2944,7 +3463,7 @@ type EventCreateNetwork struct {
 	Checks  []NetworkCheckFunc
 }
 
-func (e EventCreateNetwork) Matches(apiEvent go_events.Event) bool {
+func (e EventCreateNetwork) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventCreateNetwork)
 	if !ok {
 		return false
@@ -2972,7 +3491,7 @@ type EventUpdateNetwork struct {
 	Checks     []NetworkCheckFunc
 }
 
-func (e EventUpdateNetwork) Matches(apiEvent go_events.Event) bool {
+func (e EventUpdateNetwork) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventUpdateNetwork)
 	if !ok {
 		return false
@@ -2999,7 +3518,7 @@ type EventDeleteNetwork struct {
 	Checks  []NetworkCheckFunc
 }
 
-func (e EventDeleteNetwork) Matches(apiEvent go_events.Event) bool {
+func (e EventDeleteNetwork) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventDeleteNetwork)
 	if !ok {
 		return false
@@ -3190,7 +3709,7 @@ type EventCreateCluster struct {
 	Checks  []ClusterCheckFunc
 }
 
-func (e EventCreateCluster) Matches(apiEvent go_events.Event) bool {
+func (e EventCreateCluster) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventCreateCluster)
 	if !ok {
 		return false
@@ -3218,7 +3737,7 @@ type EventUpdateCluster struct {
 	Checks     []ClusterCheckFunc
 }
 
-func (e EventUpdateCluster) Matches(apiEvent go_events.Event) bool {
+func (e EventUpdateCluster) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventUpdateCluster)
 	if !ok {
 		return false
@@ -3245,7 +3764,7 @@ type EventDeleteCluster struct {
 	Checks  []ClusterCheckFunc
 }
 
-func (e EventDeleteCluster) Matches(apiEvent go_events.Event) bool {
+func (e EventDeleteCluster) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventDeleteCluster)
 	if !ok {
 		return false
@@ -3436,7 +3955,7 @@ type EventCreateSecret struct {
 	Checks []SecretCheckFunc
 }
 
-func (e EventCreateSecret) Matches(apiEvent go_events.Event) bool {
+func (e EventCreateSecret) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventCreateSecret)
 	if !ok {
 		return false
@@ -3464,7 +3983,7 @@ type EventUpdateSecret struct {
 	Checks    []SecretCheckFunc
 }
 
-func (e EventUpdateSecret) Matches(apiEvent go_events.Event) bool {
+func (e EventUpdateSecret) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventUpdateSecret)
 	if !ok {
 		return false
@@ -3491,7 +4010,7 @@ type EventDeleteSecret struct {
 	Checks []SecretCheckFunc
 }
 
-func (e EventDeleteSecret) Matches(apiEvent go_events.Event) bool {
+func (e EventDeleteSecret) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventDeleteSecret)
 	if !ok {
 		return false
@@ -3682,7 +4201,7 @@ type EventCreateConfig struct {
 	Checks []ConfigCheckFunc
 }
 
-func (e EventCreateConfig) Matches(apiEvent go_events.Event) bool {
+func (e EventCreateConfig) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventCreateConfig)
 	if !ok {
 		return false
@@ -3710,7 +4229,7 @@ type EventUpdateConfig struct {
 	Checks    []ConfigCheckFunc
 }
 
-func (e EventUpdateConfig) Matches(apiEvent go_events.Event) bool {
+func (e EventUpdateConfig) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventUpdateConfig)
 	if !ok {
 		return false
@@ -3737,7 +4256,7 @@ type EventDeleteConfig struct {
 	Checks []ConfigCheckFunc
 }
 
-func (e EventDeleteConfig) Matches(apiEvent go_events.Event) bool {
+func (e EventDeleteConfig) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventDeleteConfig)
 	if !ok {
 		return false
@@ -3928,7 +4447,7 @@ type EventCreateResource struct {
 	Checks   []ResourceCheckFunc
 }
 
-func (e EventCreateResource) Matches(apiEvent go_events.Event) bool {
+func (e EventCreateResource) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventCreateResource)
 	if !ok {
 		return false
@@ -3956,7 +4475,7 @@ type EventUpdateResource struct {
 	Checks      []ResourceCheckFunc
 }
 
-func (e EventUpdateResource) Matches(apiEvent go_events.Event) bool {
+func (e EventUpdateResource) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventUpdateResource)
 	if !ok {
 		return false
@@ -3983,7 +4502,7 @@ type EventDeleteResource struct {
 	Checks   []ResourceCheckFunc
 }
 
-func (e EventDeleteResource) Matches(apiEvent go_events.Event) bool {
+func (e EventDeleteResource) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventDeleteResource)
 	if !ok {
 		return false
@@ -4180,7 +4699,7 @@ type EventCreateExtension struct {
 	Checks    []ExtensionCheckFunc
 }
 
-func (e EventCreateExtension) Matches(apiEvent go_events.Event) bool {
+func (e EventCreateExtension) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventCreateExtension)
 	if !ok {
 		return false
@@ -4208,7 +4727,7 @@ type EventUpdateExtension struct {
 	Checks       []ExtensionCheckFunc
 }
 
-func (e EventUpdateExtension) Matches(apiEvent go_events.Event) bool {
+func (e EventUpdateExtension) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventUpdateExtension)
 	if !ok {
 		return false
@@ -4235,7 +4754,7 @@ type EventDeleteExtension struct {
 	Checks    []ExtensionCheckFunc
 }
 
-func (e EventDeleteExtension) Matches(apiEvent go_events.Event) bool {
+func (e EventDeleteExtension) Matches(apiEvent github_com_docker_go_events.Event) bool {
 	typedEvent, ok := apiEvent.(EventDeleteExtension)
 	if !ok {
 		return false
@@ -4764,8 +5283,8 @@ func (this *Meta) String() string {
 	}
 	s := strings.Join([]string{`&Meta{`,
 		`Version:` + strings.Replace(strings.Replace(this.Version.String(), "Version", "Version", 1), `&`, ``, 1) + `,`,
-		`CreatedAt:` + strings.Replace(fmt.Sprintf("%v", this.CreatedAt), "Timestamp", "google_protobuf.Timestamp", 1) + `,`,
-		`UpdatedAt:` + strings.Replace(fmt.Sprintf("%v", this.UpdatedAt), "Timestamp", "google_protobuf.Timestamp", 1) + `,`,
+		`CreatedAt:` + strings.Replace(fmt.Sprintf("%v", this.CreatedAt), "Timestamp", "types.Timestamp", 1) + `,`,
+		`UpdatedAt:` + strings.Replace(fmt.Sprintf("%v", this.UpdatedAt), "Timestamp", "types.Timestamp", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -4863,7 +5382,7 @@ func (this *NetworkAttachment) String() string {
 	for k, _ := range this.DriverAttachmentOpts {
 		keysForDriverAttachmentOpts = append(keysForDriverAttachmentOpts, k)
 	}
-	sortkeys.Strings(keysForDriverAttachmentOpts)
+	github_com_gogo_protobuf_sortkeys.Strings(keysForDriverAttachmentOpts)
 	mapStringForDriverAttachmentOpts := "map[string]string{"
 	for _, k := range keysForDriverAttachmentOpts {
 		mapStringForDriverAttachmentOpts += fmt.Sprintf("%v: %v,", k, this.DriverAttachmentOpts[k])
@@ -4901,7 +5420,7 @@ func (this *Cluster) String() string {
 	for k, _ := range this.BlacklistedCertificates {
 		keysForBlacklistedCertificates = append(keysForBlacklistedCertificates, k)
 	}
-	sortkeys.Strings(keysForBlacklistedCertificates)
+	github_com_gogo_protobuf_sortkeys.Strings(keysForBlacklistedCertificates)
 	mapStringForBlacklistedCertificates := "map[string]*BlacklistedCertificate{"
 	for _, k := range keysForBlacklistedCertificates {
 		mapStringForBlacklistedCertificates += fmt.Sprintf("%v: %v,", k, this.BlacklistedCertificates[k])
@@ -4958,7 +5477,7 @@ func (this *Resource) String() string {
 		`Meta:` + strings.Replace(strings.Replace(this.Meta.String(), "Meta", "Meta", 1), `&`, ``, 1) + `,`,
 		`Annotations:` + strings.Replace(strings.Replace(this.Annotations.String(), "Annotations", "Annotations", 1), `&`, ``, 1) + `,`,
 		`Kind:` + fmt.Sprintf("%v", this.Kind) + `,`,
-		`Payload:` + strings.Replace(fmt.Sprintf("%v", this.Payload), "Any", "google_protobuf4.Any", 1) + `,`,
+		`Payload:` + strings.Replace(fmt.Sprintf("%v", this.Payload), "Any", "types.Any", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -4999,7 +5518,7 @@ func (m *Meta) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -5027,7 +5546,7 @@ func (m *Meta) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5036,6 +5555,9 @@ func (m *Meta) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5057,7 +5579,7 @@ func (m *Meta) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5066,11 +5588,14 @@ func (m *Meta) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
 			if m.CreatedAt == nil {
-				m.CreatedAt = &google_protobuf.Timestamp{}
+				m.CreatedAt = &types.Timestamp{}
 			}
 			if err := m.CreatedAt.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
@@ -5090,7 +5615,7 @@ func (m *Meta) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5099,11 +5624,14 @@ func (m *Meta) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
 			if m.UpdatedAt == nil {
-				m.UpdatedAt = &google_protobuf.Timestamp{}
+				m.UpdatedAt = &types.Timestamp{}
 			}
 			if err := m.UpdatedAt.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
@@ -5116,6 +5644,9 @@ func (m *Meta) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthObjects
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -5145,7 +5676,7 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -5173,7 +5704,7 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5183,6 +5714,9 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5202,7 +5736,7 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5211,6 +5745,9 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5232,7 +5769,7 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5241,6 +5778,9 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5262,7 +5802,7 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5271,6 +5811,9 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5295,7 +5838,7 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5304,6 +5847,9 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5325,7 +5871,7 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5334,6 +5880,9 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5358,7 +5907,7 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5367,6 +5916,9 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5391,7 +5943,7 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5400,6 +5952,9 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5421,7 +5976,7 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Role |= (NodeRole(b) & 0x7F) << shift
+				m.Role |= NodeRole(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5440,7 +5995,7 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5449,6 +6004,9 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5471,7 +6029,7 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.VXLANUDPPort |= (uint32(b) & 0x7F) << shift
+				m.VXLANUDPPort |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5483,6 +6041,9 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthObjects
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -5512,7 +6073,7 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -5540,7 +6101,7 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5550,6 +6111,9 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5569,7 +6133,7 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5578,6 +6142,9 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5599,7 +6166,7 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5608,6 +6175,9 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5629,7 +6199,7 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5638,6 +6208,9 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5662,7 +6235,7 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5671,6 +6244,9 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5695,7 +6271,7 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5704,6 +6280,9 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5728,7 +6307,7 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= (int(b) & 0x7F) << shift
+				v |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5748,7 +6327,7 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5757,6 +6336,9 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5781,7 +6363,7 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5790,6 +6372,9 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5807,6 +6392,9 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthObjects
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -5836,7 +6424,7 @@ func (m *Endpoint) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -5864,7 +6452,7 @@ func (m *Endpoint) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5873,6 +6461,9 @@ func (m *Endpoint) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5897,7 +6488,7 @@ func (m *Endpoint) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5906,6 +6497,9 @@ func (m *Endpoint) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5928,7 +6522,7 @@ func (m *Endpoint) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -5937,6 +6531,9 @@ func (m *Endpoint) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -5952,6 +6549,9 @@ func (m *Endpoint) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthObjects
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -5981,7 +6581,7 @@ func (m *Endpoint_VirtualIP) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -6009,7 +6609,7 @@ func (m *Endpoint_VirtualIP) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6019,6 +6619,9 @@ func (m *Endpoint_VirtualIP) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6038,7 +6641,7 @@ func (m *Endpoint_VirtualIP) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6048,6 +6651,9 @@ func (m *Endpoint_VirtualIP) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6060,6 +6666,9 @@ func (m *Endpoint_VirtualIP) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthObjects
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -6089,7 +6698,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -6117,7 +6726,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6127,6 +6736,9 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6146,7 +6758,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6155,6 +6767,9 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6176,7 +6791,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6185,6 +6800,9 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6206,7 +6824,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6216,6 +6834,9 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6235,7 +6856,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Slot |= (uint64(b) & 0x7F) << shift
+				m.Slot |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6254,7 +6875,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6264,6 +6885,9 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6283,7 +6907,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6292,6 +6916,9 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6313,7 +6940,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6322,6 +6949,9 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6343,7 +6973,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6352,6 +6982,9 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6373,7 +7006,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.DesiredState |= (TaskState(b) & 0x7F) << shift
+				m.DesiredState |= TaskState(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6392,7 +7025,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6401,6 +7034,9 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6423,7 +7059,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6432,6 +7068,9 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6456,7 +7095,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6465,6 +7104,9 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6489,7 +7131,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6498,6 +7140,9 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6522,7 +7167,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6531,6 +7176,9 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6546,6 +7194,9 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthObjects
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -6575,7 +7226,7 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -6603,7 +7254,7 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6612,6 +7263,9 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6636,7 +7290,7 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6646,6 +7300,9 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6665,7 +7322,7 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6675,6 +7332,9 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6694,7 +7354,7 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6703,6 +7363,9 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6723,7 +7386,7 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					wire |= (uint64(b) & 0x7F) << shift
+					wire |= uint64(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
@@ -6740,7 +7403,7 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 						}
 						b := dAtA[iNdEx]
 						iNdEx++
-						stringLenmapkey |= (uint64(b) & 0x7F) << shift
+						stringLenmapkey |= uint64(b&0x7F) << shift
 						if b < 0x80 {
 							break
 						}
@@ -6750,6 +7413,9 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 						return ErrInvalidLengthObjects
 					}
 					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthObjects
+					}
 					if postStringIndexmapkey > l {
 						return io.ErrUnexpectedEOF
 					}
@@ -6766,7 +7432,7 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 						}
 						b := dAtA[iNdEx]
 						iNdEx++
-						stringLenmapvalue |= (uint64(b) & 0x7F) << shift
+						stringLenmapvalue |= uint64(b&0x7F) << shift
 						if b < 0x80 {
 							break
 						}
@@ -6776,6 +7442,9 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 						return ErrInvalidLengthObjects
 					}
 					postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+					if postStringIndexmapvalue < 0 {
+						return ErrInvalidLengthObjects
+					}
 					if postStringIndexmapvalue > l {
 						return io.ErrUnexpectedEOF
 					}
@@ -6807,6 +7476,9 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 			if skippy < 0 {
 				return ErrInvalidLengthObjects
 			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if (iNdEx + skippy) > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6834,7 +7506,7 @@ func (m *Network) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -6862,7 +7534,7 @@ func (m *Network) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6872,6 +7544,9 @@ func (m *Network) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6891,7 +7566,7 @@ func (m *Network) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6900,6 +7575,9 @@ func (m *Network) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6921,7 +7599,7 @@ func (m *Network) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6930,6 +7608,9 @@ func (m *Network) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6951,7 +7632,7 @@ func (m *Network) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6960,6 +7641,9 @@ func (m *Network) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -6984,7 +7668,7 @@ func (m *Network) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6993,6 +7677,9 @@ func (m *Network) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7017,7 +7704,7 @@ func (m *Network) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= (int(b) & 0x7F) << shift
+				v |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7030,6 +7717,9 @@ func (m *Network) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthObjects
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -7059,7 +7749,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -7087,7 +7777,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7097,6 +7787,9 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7116,7 +7809,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7125,6 +7818,9 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7146,7 +7842,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7155,6 +7851,9 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7176,7 +7875,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7185,6 +7884,9 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7206,7 +7908,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7215,6 +7917,9 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7237,7 +7942,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.EncryptionKeyLamportClock |= (uint64(b) & 0x7F) << shift
+				m.EncryptionKeyLamportClock |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7256,7 +7961,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7265,6 +7970,9 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7285,7 +7993,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					wire |= (uint64(b) & 0x7F) << shift
+					wire |= uint64(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
@@ -7302,7 +8010,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 						}
 						b := dAtA[iNdEx]
 						iNdEx++
-						stringLenmapkey |= (uint64(b) & 0x7F) << shift
+						stringLenmapkey |= uint64(b&0x7F) << shift
 						if b < 0x80 {
 							break
 						}
@@ -7312,6 +8020,9 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 						return ErrInvalidLengthObjects
 					}
 					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthObjects
+					}
 					if postStringIndexmapkey > l {
 						return io.ErrUnexpectedEOF
 					}
@@ -7328,7 +8039,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 						}
 						b := dAtA[iNdEx]
 						iNdEx++
-						mapmsglen |= (int(b) & 0x7F) << shift
+						mapmsglen |= int(b&0x7F) << shift
 						if b < 0x80 {
 							break
 						}
@@ -7337,7 +8048,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 						return ErrInvalidLengthObjects
 					}
 					postmsgIndex := iNdEx + mapmsglen
-					if mapmsglen < 0 {
+					if postmsgIndex < 0 {
 						return ErrInvalidLengthObjects
 					}
 					if postmsgIndex > l {
@@ -7379,7 +8090,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7388,6 +8099,9 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7410,7 +8124,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= (int(b) & 0x7F) << shift
+				v |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7430,7 +8144,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7440,6 +8154,9 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7459,7 +8176,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.SubnetSize |= (uint32(b) & 0x7F) << shift
+				m.SubnetSize |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7478,7 +8195,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.VXLANUDPPort |= (uint32(b) & 0x7F) << shift
+				m.VXLANUDPPort |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7490,6 +8207,9 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthObjects
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -7519,7 +8239,7 @@ func (m *Secret) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -7547,7 +8267,7 @@ func (m *Secret) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7557,6 +8277,9 @@ func (m *Secret) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7576,7 +8299,7 @@ func (m *Secret) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7585,6 +8308,9 @@ func (m *Secret) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7606,7 +8332,7 @@ func (m *Secret) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7615,6 +8341,9 @@ func (m *Secret) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7636,7 +8365,7 @@ func (m *Secret) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= (int(b) & 0x7F) << shift
+				v |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7649,6 +8378,9 @@ func (m *Secret) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthObjects
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -7678,7 +8410,7 @@ func (m *Config) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -7706,7 +8438,7 @@ func (m *Config) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7716,6 +8448,9 @@ func (m *Config) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7735,7 +8470,7 @@ func (m *Config) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7744,6 +8479,9 @@ func (m *Config) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7765,7 +8503,7 @@ func (m *Config) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7774,6 +8512,9 @@ func (m *Config) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7788,6 +8529,9 @@ func (m *Config) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthObjects
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -7817,7 +8561,7 @@ func (m *Resource) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -7845,7 +8589,7 @@ func (m *Resource) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7855,6 +8599,9 @@ func (m *Resource) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7874,7 +8621,7 @@ func (m *Resource) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7883,6 +8630,9 @@ func (m *Resource) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7904,7 +8654,7 @@ func (m *Resource) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7913,6 +8663,9 @@ func (m *Resource) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7934,7 +8687,7 @@ func (m *Resource) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7944,6 +8697,9 @@ func (m *Resource) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -7963,7 +8719,7 @@ func (m *Resource) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7972,11 +8728,14 @@ func (m *Resource) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Payload == nil {
-				m.Payload = &google_protobuf4.Any{}
+				m.Payload = &types.Any{}
 			}
 			if err := m.Payload.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
@@ -7989,6 +8748,9 @@ func (m *Resource) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthObjects
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -8018,7 +8780,7 @@ func (m *Extension) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -8046,7 +8808,7 @@ func (m *Extension) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -8056,6 +8818,9 @@ func (m *Extension) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -8075,7 +8840,7 @@ func (m *Extension) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -8084,6 +8849,9 @@ func (m *Extension) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -8105,7 +8873,7 @@ func (m *Extension) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -8114,6 +8882,9 @@ func (m *Extension) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -8135,7 +8906,7 @@ func (m *Extension) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -8145,6 +8916,9 @@ func (m *Extension) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthObjects
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthObjects
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -8157,6 +8931,9 @@ func (m *Extension) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthObjects
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -8225,8 +9002,11 @@ func skipObjects(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			iNdEx += length
 			if length < 0 {
+				return 0, ErrInvalidLengthObjects
+			}
+			iNdEx += length
+			if iNdEx < 0 {
 				return 0, ErrInvalidLengthObjects
 			}
 			return iNdEx, nil
@@ -8257,6 +9037,9 @@ func skipObjects(dAtA []byte) (n int, err error) {
 					return 0, err
 				}
 				iNdEx = start + next
+				if iNdEx < 0 {
+					return 0, ErrInvalidLengthObjects
+				}
 			}
 			return iNdEx, nil
 		case 4:
@@ -8275,112 +9058,3 @@ var (
 	ErrInvalidLengthObjects = fmt.Errorf("proto: negative length found during unmarshaling")
 	ErrIntOverflowObjects   = fmt.Errorf("proto: integer overflow")
 )
-
-func init() { proto.RegisterFile("github.com/docker/swarmkit/api/objects.proto", fileDescriptorObjects) }
-
-var fileDescriptorObjects = []byte{
-	// 1643 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x58, 0xcd, 0x73, 0x23, 0x47,
-	0x15, 0xdf, 0x91, 0x67, 0xf5, 0xf1, 0xf4, 0xc1, 0xd2, 0x31, 0x66, 0x56, 0x18, 0xc9, 0x28, 0x15,
-	0x6a, 0x2b, 0xb5, 0x25, 0x87, 0x25, 0x80, 0xd7, 0x10, 0x12, 0xc9, 0x32, 0x1b, 0x55, 0xb2, 0x59,
-	0x57, 0x3b, 0x71, 0x72, 0x1b, 0x5a, 0x33, 0x6d, 0xed, 0xa0, 0xd1, 0xf4, 0xd4, 0x74, 0x4b, 0x41,
-	0x9c, 0x38, 0x9b, 0x3f, 0xc0, 0x37, 0x0e, 0xc0, 0x3f, 0xc1, 0x85, 0x03, 0x07, 0x6a, 0xb9, 0x71,
-	0xa2, 0x38, 0xb9, 0x58, 0xfd, 0x17, 0xdc, 0xa8, 0xee, 0xe9, 0x91, 0xc6, 0xd6, 0xf8, 0x8b, 0xda,
-	0x72, 0x71, 0x72, 0x7f, 0xfc, 0x7e, 0xaf, 0xdf, 0x7b, 0xf3, 0xbe, 0x2c, 0x78, 0x3c, 0xf4, 0xc4,
-	0xcb, 0xc9, 0xa0, 0xed, 0xb0, 0xf1, 0xb6, 0xcb, 0x9c, 0x11, 0x8d, 0xb6, 0xf9, 0xd7, 0x24, 0x1a,
-	0x8f, 0x3c, 0xb1, 0x4d, 0x42, 0x6f, 0x9b, 0x0d, 0x7e, 0x45, 0x1d, 0xc1, 0xdb, 0x61, 0xc4, 0x04,
-	0x43, 0x28, 0x86, 0xb4, 0x13, 0x48, 0x7b, 0xfa, 0x83, 0xfa, 0xbb, 0xd7, 0x48, 0x10, 0xb3, 0x90,
-	0x6a, 0xfe, 0xb5, 0x58, 0x1e, 0x52, 0x27, 0xc1, 0x36, 0x87, 0x8c, 0x0d, 0x7d, 0xba, 0xad, 0x76,
-	0x83, 0xc9, 0xf1, 0xb6, 0xf0, 0xc6, 0x94, 0x0b, 0x32, 0x0e, 0x35, 0x60, 0x7d, 0xc8, 0x86, 0x4c,
-	0x2d, 0xb7, 0xe5, 0x4a, 0x9f, 0x3e, 0xbc, 0x48, 0x23, 0xc1, 0x4c, 0x5f, 0xfd, 0xe4, 0x8a, 0xd7,
-	0x17, 0xf0, 0xd0, 0x9f, 0x0c, 0xbd, 0x40, 0xff, 0x89, 0x89, 0xad, 0x3f, 0x1b, 0x60, 0x3e, 0xa7,
-	0x82, 0xa0, 0x9f, 0x42, 0x61, 0x4a, 0x23, 0xee, 0xb1, 0xc0, 0x32, 0xb6, 0x8c, 0x47, 0xe5, 0x27,
-	0xdf, 0x69, 0xaf, 0x7a, 0xa4, 0x7d, 0x14, 0x43, 0xba, 0xe6, 0xab, 0xb3, 0xe6, 0x3d, 0x9c, 0x30,
-	0xd0, 0x53, 0x00, 0x27, 0xa2, 0x44, 0x50, 0xd7, 0x26, 0xc2, 0xca, 0x29, 0x7e, 0xbd, 0x1d, 0xab,
-	0xdb, 0x4e, 0xde, 0x6f, 0x7f, 0x9e, 0x58, 0x89, 0x4b, 0x1a, 0xdd, 0x11, 0x92, 0x3a, 0x09, 0xdd,
-	0x84, 0xba, 0x76, 0x3d, 0x55, 0xa3, 0x3b, 0xa2, 0xf5, 0xa7, 0xfb, 0x60, 0x7e, 0xc6, 0x5c, 0x8a,
-	0x36, 0x20, 0xe7, 0xb9, 0x4a, 0xed, 0x52, 0x37, 0x3f, 0x3f, 0x6b, 0xe6, 0xfa, 0x3d, 0x9c, 0xf3,
-	0x5c, 0xf4, 0x04, 0xcc, 0x31, 0x15, 0x44, 0x2b, 0x64, 0x65, 0x19, 0x24, 0x6d, 0xd7, 0xd6, 0x28,
-	0x2c, 0xfa, 0x31, 0x98, 0xf2, 0x53, 0x69, 0x4d, 0x36, 0xb3, 0x38, 0xf2, 0xcd, 0xc3, 0x90, 0x3a,
-	0x09, 0x4f, 0xe2, 0xd1, 0x3e, 0x94, 0x5d, 0xca, 0x9d, 0xc8, 0x0b, 0x85, 0xf4, 0xa1, 0xa9, 0xe8,
-	0x6f, 0x5f, 0x46, 0xef, 0x2d, 0xa1, 0x38, 0xcd, 0x43, 0x3f, 0x83, 0x3c, 0x17, 0x44, 0x4c, 0xb8,
-	0x75, 0x5f, 0x49, 0x68, 0x5c, 0xaa, 0x80, 0x42, 0x69, 0x15, 0x34, 0x07, 0x7d, 0x0c, 0xb5, 0x31,
-	0x09, 0xc8, 0x90, 0x46, 0xb6, 0x96, 0x92, 0x57, 0x52, 0xbe, 0x97, 0x69, 0x7a, 0x8c, 0x8c, 0x05,
-	0xe1, 0xea, 0x38, 0xbd, 0x45, 0x7d, 0x00, 0x22, 0x04, 0x71, 0x5e, 0x8e, 0x69, 0x20, 0xac, 0x82,
-	0x92, 0xf2, 0x4e, 0xa6, 0x2e, 0x54, 0x7c, 0xcd, 0xa2, 0x51, 0x67, 0x01, 0xee, 0xe6, 0x2c, 0x03,
-	0xa7, 0xc8, 0xe8, 0x19, 0x94, 0x1d, 0x1a, 0x09, 0xef, 0xd8, 0x73, 0x88, 0xa0, 0x56, 0x51, 0xc9,
-	0x6a, 0x66, 0xc9, 0xda, 0x5b, 0xc2, 0xb4, 0x61, 0x69, 0x26, 0x7a, 0x0f, 0xcc, 0x88, 0xf9, 0xd4,
-	0x2a, 0x6d, 0x19, 0x8f, 0x6a, 0x97, 0x7f, 0x1a, 0xcc, 0x7c, 0x8a, 0x15, 0x52, 0x3e, 0xbd, 0x54,
-	0x84, 0x5b, 0xb0, 0xb5, 0x76, 0x63, 0x33, 0x70, 0x9a, 0x89, 0x5a, 0x50, 0x39, 0xfa, 0xea, 0xd3,
-	0xce, 0x67, 0x5f, 0xf4, 0x0e, 0x0e, 0x58, 0x24, 0xac, 0xf2, 0x96, 0xf1, 0xa8, 0x8a, 0xcf, 0x9d,
-	0xed, 0x6e, 0x9c, 0x9c, 0xb6, 0x10, 0x3c, 0x28, 0x1a, 0x0f, 0x0c, 0x15, 0x8b, 0xc6, 0x7b, 0xc6,
-	0x57, 0xc6, 0x2f, 0x8d, 0xd6, 0x1f, 0x4d, 0x28, 0x1c, 0xd2, 0x68, 0xea, 0x39, 0x6f, 0x36, 0x52,
-	0x9f, 0x9e, 0x8b, 0xd4, 0x4c, 0x87, 0xea, 0x67, 0x57, 0x82, 0x75, 0x07, 0x8a, 0x34, 0x70, 0x43,
-	0xe6, 0x05, 0x42, 0x47, 0x6a, 0xa6, 0x37, 0xf7, 0x35, 0x06, 0x2f, 0xd0, 0x68, 0x1f, 0xaa, 0x71,
-	0x02, 0xda, 0xe7, 0xc2, 0x74, 0x2b, 0x8b, 0xfe, 0x85, 0x02, 0xea, 0xf8, 0xaa, 0x4c, 0x52, 0x3b,
-	0xd4, 0x83, 0x6a, 0x18, 0xd1, 0xa9, 0xc7, 0x26, 0xdc, 0x56, 0x46, 0xe4, 0x6f, 0x64, 0x04, 0xae,
-	0x24, 0x2c, 0xb9, 0x43, 0xef, 0x40, 0x2d, 0xa4, 0x81, 0xeb, 0x05, 0x43, 0xdb, 0xa5, 0x3e, 0x15,
-	0x54, 0x05, 0x6a, 0x11, 0x57, 0xf5, 0x69, 0x4f, 0x1d, 0xa2, 0x9f, 0x43, 0x45, 0xbe, 0x61, 0x27,
-	0xf5, 0x0d, 0xae, 0xad, 0x6f, 0xb8, 0x2c, 0x09, 0x7a, 0x83, 0x5e, 0xc0, 0xb7, 0xce, 0x29, 0xbb,
-	0x10, 0x54, 0xbe, 0x5e, 0xd0, 0x5b, 0x69, 0x85, 0xf5, 0xe1, 0x2e, 0x3a, 0x39, 0x6d, 0xd5, 0xa0,
-	0x92, 0x8e, 0x94, 0xd6, 0xef, 0x73, 0x50, 0x4c, 0xfc, 0x8d, 0xde, 0xd7, 0x9f, 0xd6, 0xb8, 0xdc,
-	0xb9, 0x09, 0x56, 0xb9, 0x25, 0xfe, 0xaa, 0xef, 0xc3, 0xfd, 0x90, 0x45, 0x82, 0x5b, 0x39, 0x15,
-	0xe7, 0x99, 0xa5, 0x43, 0x46, 0xea, 0x1e, 0x0b, 0x8e, 0xbd, 0x21, 0x8e, 0xc1, 0xe8, 0x4b, 0x28,
-	0x4f, 0xbd, 0x48, 0x4c, 0x88, 0x6f, 0x7b, 0x21, 0xb7, 0xd6, 0x14, 0xf7, 0xfb, 0x57, 0x3d, 0xd9,
-	0x3e, 0x8a, 0xf1, 0xfd, 0x83, 0x6e, 0x6d, 0x7e, 0xd6, 0x84, 0xc5, 0x96, 0x63, 0xd0, 0xa2, 0xfa,
-	0x21, 0xaf, 0x3f, 0x87, 0xd2, 0xe2, 0x06, 0x3d, 0x06, 0x08, 0xe2, 0x14, 0xb3, 0x17, 0x09, 0x50,
-	0x9d, 0x9f, 0x35, 0x4b, 0x3a, 0xf1, 0xfa, 0x3d, 0x5c, 0xd2, 0x80, 0xbe, 0x8b, 0x10, 0x98, 0xc4,
-	0x75, 0x23, 0x95, 0x0e, 0x25, 0xac, 0xd6, 0xad, 0xdf, 0x15, 0xc0, 0xfc, 0x9c, 0xf0, 0xd1, 0x5d,
-	0x57, 0x7b, 0xf9, 0xe6, 0x4a, 0x02, 0x3d, 0x06, 0xe0, 0x71, 0x58, 0x4a, 0x73, 0xcc, 0xa5, 0x39,
-	0x3a, 0x58, 0xa5, 0x39, 0x1a, 0x10, 0x9b, 0xc3, 0x7d, 0x26, 0x54, 0xae, 0x98, 0x58, 0xad, 0xd1,
-	0xdb, 0x50, 0x08, 0x98, 0xab, 0xe8, 0x79, 0x45, 0x87, 0xf9, 0x59, 0x33, 0x2f, 0xeb, 0x57, 0xbf,
-	0x87, 0xf3, 0xf2, 0xaa, 0xef, 0xaa, 0xfa, 0x15, 0x04, 0x4c, 0x10, 0xd9, 0x1b, 0xb8, 0x2e, 0xc3,
-	0x99, 0x49, 0xd2, 0x59, 0xc2, 0x92, 0xd2, 0x99, 0x62, 0xa2, 0x23, 0x78, 0x2b, 0xd1, 0x37, 0x2d,
-	0xb0, 0x78, 0x1b, 0x81, 0x48, 0x4b, 0x48, 0xdd, 0xa4, 0xda, 0x55, 0xe9, 0xf2, 0x76, 0xa5, 0x3c,
-	0x98, 0xd5, 0xae, 0xba, 0x50, 0x75, 0x29, 0xf7, 0x22, 0xea, 0xaa, 0x6a, 0x42, 0x55, 0x66, 0xd6,
-	0x9e, 0x7c, 0xf7, 0x2a, 0x21, 0x14, 0x57, 0x34, 0x47, 0xed, 0x50, 0x07, 0x8a, 0x3a, 0x6e, 0xb8,
-	0x55, 0xbe, 0x4d, 0x7d, 0x5f, 0xd0, 0xce, 0x55, 0xc3, 0xca, 0xad, 0xaa, 0xe1, 0x53, 0x00, 0x9f,
-	0x0d, 0x6d, 0x37, 0xf2, 0xa6, 0x34, 0xb2, 0xaa, 0x7a, 0x78, 0xc9, 0xe0, 0xf6, 0x14, 0x02, 0x97,
-	0x7c, 0x36, 0x8c, 0x97, 0x2b, 0x45, 0xa9, 0x76, 0xcb, 0xa2, 0x44, 0xa0, 0x4e, 0x38, 0xf7, 0x86,
-	0x01, 0x75, 0xed, 0x21, 0x0d, 0x68, 0xe4, 0x39, 0x76, 0x44, 0x39, 0x9b, 0x44, 0x0e, 0xe5, 0xd6,
-	0x37, 0x94, 0x27, 0x32, 0xc7, 0x8f, 0x67, 0x31, 0x18, 0x6b, 0x2c, 0xb6, 0x12, 0x31, 0x17, 0x2e,
-	0xf8, 0x6e, 0xfd, 0xe4, 0xb4, 0xb5, 0x01, 0xeb, 0xe9, 0x32, 0xb5, 0x63, 0x7c, 0x64, 0x7c, 0x6c,
-	0x1c, 0x18, 0xad, 0xbf, 0xe6, 0xe0, 0x9b, 0x2b, 0x3e, 0x45, 0x3f, 0x82, 0x82, 0xf6, 0xea, 0x55,
-	0x43, 0xa4, 0xe6, 0xe1, 0x04, 0x8b, 0x36, 0xa1, 0x24, 0x53, 0x9c, 0x72, 0x4e, 0xe3, 0xe2, 0x55,
-	0xc2, 0xcb, 0x03, 0x64, 0x41, 0x81, 0xf8, 0x1e, 0x91, 0x77, 0x6b, 0xea, 0x2e, 0xd9, 0xa2, 0x09,
-	0x6c, 0xc4, 0xae, 0xb7, 0x97, 0xbd, 0xda, 0x66, 0xa1, 0xe0, 0x96, 0xa9, 0xec, 0xff, 0xf0, 0x46,
-	0x91, 0xa0, 0x3f, 0xce, 0xf2, 0xe0, 0x45, 0x28, 0xf8, 0x7e, 0x20, 0xa2, 0x19, 0x5e, 0x77, 0x33,
-	0xae, 0xea, 0xcf, 0xe0, 0xe1, 0xa5, 0x14, 0xf4, 0x00, 0xd6, 0x46, 0x74, 0x16, 0x97, 0x27, 0x2c,
-	0x97, 0x68, 0x1d, 0xee, 0x4f, 0x89, 0x3f, 0xa1, 0xba, 0x9a, 0xc5, 0x9b, 0xdd, 0xdc, 0x8e, 0xd1,
-	0xfa, 0x7b, 0x0e, 0x0a, 0x5a, 0x9d, 0xbb, 0x9e, 0x0c, 0xf4, 0xb3, 0x2b, 0x85, 0xed, 0x03, 0xa8,
-	0x68, 0x97, 0xc6, 0x19, 0x69, 0x5e, 0x1b, 0xd3, 0xe5, 0x18, 0x1f, 0x67, 0xe3, 0x07, 0x60, 0x7a,
-	0x21, 0x19, 0xeb, 0xa9, 0x20, 0xf3, 0xe5, 0xfe, 0x41, 0xe7, 0xf9, 0x8b, 0x30, 0x2e, 0x2c, 0xc5,
-	0xf9, 0x59, 0xd3, 0x94, 0x07, 0x58, 0xd1, 0x32, 0x1a, 0x7a, 0x3e, 0xa3, 0xa1, 0x67, 0xf6, 0xcf,
-	0xbf, 0xe5, 0xa1, 0xb0, 0xe7, 0x4f, 0xb8, 0xa0, 0xd1, 0x5d, 0xfb, 0x52, 0x3f, 0xbb, 0xe2, 0xcb,
-	0x3d, 0x28, 0x44, 0x8c, 0x09, 0xdb, 0x21, 0x57, 0xb9, 0x11, 0x33, 0x26, 0xf6, 0x3a, 0xdd, 0x9a,
-	0x24, 0xca, 0x16, 0x10, 0xef, 0x71, 0x5e, 0x52, 0xf7, 0x08, 0xfa, 0x12, 0x36, 0x92, 0xc6, 0x39,
-	0x60, 0x4c, 0x70, 0x11, 0x91, 0xd0, 0x1e, 0xd1, 0x99, 0x9c, 0xbc, 0xd6, 0x2e, 0x1b, 0xed, 0xf7,
-	0x03, 0x27, 0x9a, 0x29, 0x1f, 0x7f, 0x42, 0x67, 0x78, 0x5d, 0x0b, 0xe8, 0x26, 0xfc, 0x4f, 0xe8,
-	0x8c, 0xa3, 0x0f, 0x61, 0x93, 0x2e, 0x60, 0x52, 0xa2, 0xed, 0x93, 0xb1, 0x1c, 0x09, 0x6c, 0xc7,
-	0x67, 0xce, 0x48, 0x79, 0xde, 0xc4, 0x0f, 0x69, 0x5a, 0xd4, 0xa7, 0x31, 0x62, 0x4f, 0x02, 0x10,
-	0x07, 0x6b, 0xe0, 0x13, 0x67, 0xe4, 0x7b, 0x5c, 0xfe, 0xf7, 0x96, 0x9a, 0xd4, 0x65, 0x63, 0x91,
-	0xba, 0xed, 0x5c, 0xe1, 0xad, 0x76, 0x77, 0xc9, 0x4d, 0xcd, 0xfd, 0x3a, 0xf1, 0xbe, 0x3d, 0xc8,
-	0xbe, 0x45, 0x5d, 0x28, 0x4f, 0x02, 0xf9, 0x7c, 0xec, 0x83, 0xd2, 0x4d, 0x7d, 0x00, 0x31, 0x4b,
-	0x59, 0xbe, 0x09, 0xe6, 0xb1, 0x1c, 0x75, 0x64, 0xb7, 0x29, 0xc6, 0x31, 0xf8, 0x8b, 0xfe, 0xc1,
-	0x21, 0x56, 0xa7, 0xa8, 0x0d, 0xc8, 0xa5, 0xc7, 0x64, 0xe2, 0x8b, 0x4e, 0x5c, 0x82, 0x0e, 0x18,
-	0xf3, 0x55, 0x6b, 0x29, 0xe1, 0x8c, 0x1b, 0xd4, 0x00, 0xe0, 0x93, 0x41, 0x40, 0xc5, 0xa1, 0xf7,
-	0x1b, 0xaa, 0xfa, 0x47, 0x15, 0xa7, 0x4e, 0x56, 0xfe, 0x75, 0xa8, 0xae, 0xfe, 0xeb, 0x50, 0x9f,
-	0xc2, 0xe6, 0x55, 0xee, 0xc8, 0x28, 0x2a, 0x1f, 0xa5, 0x8b, 0x4a, 0xf9, 0xc9, 0xbb, 0x59, 0x1e,
-	0xc8, 0x16, 0x99, 0x2a, 0x40, 0x99, 0x89, 0xf4, 0x17, 0x03, 0xf2, 0x87, 0xd4, 0x89, 0xa8, 0x78,
-	0xa3, 0x79, 0xb4, 0x73, 0x2e, 0x8f, 0x1a, 0xd9, 0x83, 0xbe, 0x7c, 0x75, 0x25, 0x8d, 0xea, 0x50,
-	0xf4, 0x02, 0x41, 0xa3, 0x80, 0xf8, 0x2a, 0x8f, 0x8a, 0x78, 0xb1, 0xcf, 0x34, 0xe0, 0x0f, 0x06,
-	0xe4, 0xe3, 0x11, 0xf7, 0xae, 0x0d, 0x88, 0x5f, 0xbd, 0x68, 0x40, 0xa6, 0x92, 0xff, 0x31, 0xa0,
-	0x98, 0x74, 0xda, 0x37, 0xaa, 0xe6, 0x85, 0x91, 0x71, 0xed, 0x7f, 0x1e, 0x19, 0x11, 0x98, 0x23,
-	0x2f, 0xd0, 0xc3, 0x2d, 0x56, 0x6b, 0xd4, 0x86, 0x42, 0x48, 0x66, 0x3e, 0x23, 0xae, 0xae, 0xf0,
-	0xeb, 0x2b, 0xbf, 0xd4, 0x74, 0x82, 0x19, 0x4e, 0x40, 0xbb, 0xeb, 0x27, 0xa7, 0xad, 0x07, 0x50,
-	0x4b, 0x5b, 0xfe, 0xd2, 0x68, 0xfd, 0xd3, 0x80, 0xd2, 0xfe, 0xaf, 0x05, 0x0d, 0xd4, 0x20, 0xf3,
-	0x7f, 0x69, 0xfc, 0xd6, 0xea, 0xaf, 0x39, 0xa5, 0x73, 0x3f, 0xd4, 0x64, 0x7d, 0xd4, 0xae, 0xf5,
-	0xea, 0x75, 0xe3, 0xde, 0xbf, 0x5e, 0x37, 0xee, 0xfd, 0x76, 0xde, 0x30, 0x5e, 0xcd, 0x1b, 0xc6,
-	0x3f, 0xe6, 0x0d, 0xe3, 0xdf, 0xf3, 0x86, 0x31, 0xc8, 0x2b, 0xff, 0xfc, 0xf0, 0xbf, 0x01, 0x00,
-	0x00, 0xff, 0xff, 0xc3, 0x37, 0x09, 0x2f, 0x94, 0x14, 0x00, 0x00,
-}

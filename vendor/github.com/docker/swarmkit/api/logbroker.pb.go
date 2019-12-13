@@ -3,34 +3,37 @@
 
 package api
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/protobuf/gogoproto"
-import google_protobuf "github.com/gogo/protobuf/types"
-import _ "github.com/docker/swarmkit/protobuf/plugin"
-
-import deepcopy "github.com/docker/swarmkit/api/deepcopy"
-
-import context "golang.org/x/net/context"
-import grpc "google.golang.org/grpc"
-
-import raftselector "github.com/docker/swarmkit/manager/raftselector"
-import codes "google.golang.org/grpc/codes"
-import status "google.golang.org/grpc/status"
-import metadata "google.golang.org/grpc/metadata"
-import peer "google.golang.org/grpc/peer"
-import rafttime "time"
-
-import strings "strings"
-import reflect "reflect"
-
-import io "io"
+import (
+	context "context"
+	fmt "fmt"
+	github_com_docker_swarmkit_api_deepcopy "github.com/docker/swarmkit/api/deepcopy"
+	raftselector "github.com/docker/swarmkit/manager/raftselector"
+	_ "github.com/docker/swarmkit/protobuf/plugin"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	types "github.com/gogo/protobuf/types"
+	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	metadata "google.golang.org/grpc/metadata"
+	peer "google.golang.org/grpc/peer"
+	status "google.golang.org/grpc/status"
+	io "io"
+	math "math"
+	reflect "reflect"
+	strings "strings"
+	rafttime "time"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
 // LogStream defines the stream from which the log message came.
 type LogStream int32
@@ -46,6 +49,7 @@ var LogStream_name = map[int32]string{
 	1: "LOG_STREAM_STDOUT",
 	2: "LOG_STREAM_STDERR",
 }
+
 var LogStream_value = map[string]int32{
 	"LOG_STREAM_UNKNOWN": 0,
 	"LOG_STREAM_STDOUT":  1,
@@ -55,12 +59,15 @@ var LogStream_value = map[string]int32{
 func (x LogStream) String() string {
 	return proto.EnumName(LogStream_name, int32(x))
 }
-func (LogStream) EnumDescriptor() ([]byte, []int) { return fileDescriptorLogbroker, []int{0} }
+
+func (LogStream) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_d5aa8d24ac30376c, []int{0}
+}
 
 type LogSubscriptionOptions struct {
 	// Streams defines which log streams should be sent from the task source.
 	// Empty means send all the messages.
-	Streams []LogStream `protobuf:"varint,1,rep,name=streams,enum=docker.swarmkit.v1.LogStream" json:"streams,omitempty"`
+	Streams []LogStream `protobuf:"varint,1,rep,name=streams,proto3,enum=docker.swarmkit.v1.LogStream" json:"streams,omitempty"`
 	// Follow instructs the publisher to continue sending log messages as they
 	// are produced, after satisfying the initial query.
 	Follow bool `protobuf:"varint,2,opt,name=follow,proto3" json:"follow,omitempty"`
@@ -83,12 +90,40 @@ type LogSubscriptionOptions struct {
 	// Since indicates that only log messages produced after this timestamp
 	// should be sent.
 	// Note: can't use stdtime because this field is nullable.
-	Since *google_protobuf.Timestamp `protobuf:"bytes,4,opt,name=since" json:"since,omitempty"`
+	Since *types.Timestamp `protobuf:"bytes,4,opt,name=since,proto3" json:"since,omitempty"`
 }
 
-func (m *LogSubscriptionOptions) Reset()                    { *m = LogSubscriptionOptions{} }
-func (*LogSubscriptionOptions) ProtoMessage()               {}
-func (*LogSubscriptionOptions) Descriptor() ([]byte, []int) { return fileDescriptorLogbroker, []int{0} }
+func (m *LogSubscriptionOptions) Reset()      { *m = LogSubscriptionOptions{} }
+func (*LogSubscriptionOptions) ProtoMessage() {}
+func (*LogSubscriptionOptions) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d5aa8d24ac30376c, []int{0}
+}
+func (m *LogSubscriptionOptions) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *LogSubscriptionOptions) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_LogSubscriptionOptions.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *LogSubscriptionOptions) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LogSubscriptionOptions.Merge(m, src)
+}
+func (m *LogSubscriptionOptions) XXX_Size() int {
+	return m.Size()
+}
+func (m *LogSubscriptionOptions) XXX_DiscardUnknown() {
+	xxx_messageInfo_LogSubscriptionOptions.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_LogSubscriptionOptions proto.InternalMessageInfo
 
 // LogSelector will match logs from ANY of the defined parameters.
 //
@@ -96,14 +131,42 @@ func (*LogSubscriptionOptions) Descriptor() ([]byte, []int) { return fileDescrip
 // possible. For example, if they want to listen to all the tasks of a service,
 // they should use the service id, rather than specifying the individual tasks.
 type LogSelector struct {
-	ServiceIDs []string `protobuf:"bytes,1,rep,name=service_ids,json=serviceIds" json:"service_ids,omitempty"`
-	NodeIDs    []string `protobuf:"bytes,2,rep,name=node_ids,json=nodeIds" json:"node_ids,omitempty"`
-	TaskIDs    []string `protobuf:"bytes,3,rep,name=task_ids,json=taskIds" json:"task_ids,omitempty"`
+	ServiceIDs []string `protobuf:"bytes,1,rep,name=service_ids,json=serviceIds,proto3" json:"service_ids,omitempty"`
+	NodeIDs    []string `protobuf:"bytes,2,rep,name=node_ids,json=nodeIds,proto3" json:"node_ids,omitempty"`
+	TaskIDs    []string `protobuf:"bytes,3,rep,name=task_ids,json=taskIds,proto3" json:"task_ids,omitempty"`
 }
 
-func (m *LogSelector) Reset()                    { *m = LogSelector{} }
-func (*LogSelector) ProtoMessage()               {}
-func (*LogSelector) Descriptor() ([]byte, []int) { return fileDescriptorLogbroker, []int{1} }
+func (m *LogSelector) Reset()      { *m = LogSelector{} }
+func (*LogSelector) ProtoMessage() {}
+func (*LogSelector) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d5aa8d24ac30376c, []int{1}
+}
+func (m *LogSelector) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *LogSelector) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_LogSelector.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *LogSelector) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LogSelector.Merge(m, src)
+}
+func (m *LogSelector) XXX_Size() int {
+	return m.Size()
+}
+func (m *LogSelector) XXX_DiscardUnknown() {
+	xxx_messageInfo_LogSelector.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_LogSelector proto.InternalMessageInfo
 
 // LogContext marks the context from which a log message was generated.
 type LogContext struct {
@@ -112,9 +175,37 @@ type LogContext struct {
 	TaskID    string `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 }
 
-func (m *LogContext) Reset()                    { *m = LogContext{} }
-func (*LogContext) ProtoMessage()               {}
-func (*LogContext) Descriptor() ([]byte, []int) { return fileDescriptorLogbroker, []int{2} }
+func (m *LogContext) Reset()      { *m = LogContext{} }
+func (*LogContext) ProtoMessage() {}
+func (*LogContext) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d5aa8d24ac30376c, []int{2}
+}
+func (m *LogContext) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *LogContext) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_LogContext.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *LogContext) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LogContext.Merge(m, src)
+}
+func (m *LogContext) XXX_Size() int {
+	return m.Size()
+}
+func (m *LogContext) XXX_DiscardUnknown() {
+	xxx_messageInfo_LogContext.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_LogContext proto.InternalMessageInfo
 
 // LogAttr is an extra key/value pair that may be have been set by users
 type LogAttr struct {
@@ -122,47 +213,159 @@ type LogAttr struct {
 	Value string `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
 }
 
-func (m *LogAttr) Reset()                    { *m = LogAttr{} }
-func (*LogAttr) ProtoMessage()               {}
-func (*LogAttr) Descriptor() ([]byte, []int) { return fileDescriptorLogbroker, []int{3} }
+func (m *LogAttr) Reset()      { *m = LogAttr{} }
+func (*LogAttr) ProtoMessage() {}
+func (*LogAttr) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d5aa8d24ac30376c, []int{3}
+}
+func (m *LogAttr) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *LogAttr) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_LogAttr.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *LogAttr) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LogAttr.Merge(m, src)
+}
+func (m *LogAttr) XXX_Size() int {
+	return m.Size()
+}
+func (m *LogAttr) XXX_DiscardUnknown() {
+	xxx_messageInfo_LogAttr.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_LogAttr proto.InternalMessageInfo
 
 // LogMessage
 type LogMessage struct {
 	// Context identifies the source of the log message.
-	Context LogContext `protobuf:"bytes,1,opt,name=context" json:"context"`
+	Context LogContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context"`
 	// Timestamp is the time at which the message was generated.
 	// Note: can't use stdtime because this field is nullable.
-	Timestamp *google_protobuf.Timestamp `protobuf:"bytes,2,opt,name=timestamp" json:"timestamp,omitempty"`
+	Timestamp *types.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	// Stream identifies the stream of the log message, stdout or stderr.
 	Stream LogStream `protobuf:"varint,3,opt,name=stream,proto3,enum=docker.swarmkit.v1.LogStream" json:"stream,omitempty"`
 	// Data is the raw log message, as generated by the application.
 	Data []byte `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
 	// Attrs is a list of key value pairs representing additional log details
 	// that may have been returned from the logger
-	Attrs []LogAttr `protobuf:"bytes,5,rep,name=attrs" json:"attrs"`
+	Attrs []LogAttr `protobuf:"bytes,5,rep,name=attrs,proto3" json:"attrs"`
 }
 
-func (m *LogMessage) Reset()                    { *m = LogMessage{} }
-func (*LogMessage) ProtoMessage()               {}
-func (*LogMessage) Descriptor() ([]byte, []int) { return fileDescriptorLogbroker, []int{4} }
+func (m *LogMessage) Reset()      { *m = LogMessage{} }
+func (*LogMessage) ProtoMessage() {}
+func (*LogMessage) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d5aa8d24ac30376c, []int{4}
+}
+func (m *LogMessage) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *LogMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_LogMessage.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *LogMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LogMessage.Merge(m, src)
+}
+func (m *LogMessage) XXX_Size() int {
+	return m.Size()
+}
+func (m *LogMessage) XXX_DiscardUnknown() {
+	xxx_messageInfo_LogMessage.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_LogMessage proto.InternalMessageInfo
 
 type SubscribeLogsRequest struct {
 	// LogSelector describes the logs to which the subscriber is
-	Selector *LogSelector            `protobuf:"bytes,1,opt,name=selector" json:"selector,omitempty"`
-	Options  *LogSubscriptionOptions `protobuf:"bytes,2,opt,name=options" json:"options,omitempty"`
+	Selector *LogSelector            `protobuf:"bytes,1,opt,name=selector,proto3" json:"selector,omitempty"`
+	Options  *LogSubscriptionOptions `protobuf:"bytes,2,opt,name=options,proto3" json:"options,omitempty"`
 }
 
-func (m *SubscribeLogsRequest) Reset()                    { *m = SubscribeLogsRequest{} }
-func (*SubscribeLogsRequest) ProtoMessage()               {}
-func (*SubscribeLogsRequest) Descriptor() ([]byte, []int) { return fileDescriptorLogbroker, []int{5} }
+func (m *SubscribeLogsRequest) Reset()      { *m = SubscribeLogsRequest{} }
+func (*SubscribeLogsRequest) ProtoMessage() {}
+func (*SubscribeLogsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d5aa8d24ac30376c, []int{5}
+}
+func (m *SubscribeLogsRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SubscribeLogsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_SubscribeLogsRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *SubscribeLogsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SubscribeLogsRequest.Merge(m, src)
+}
+func (m *SubscribeLogsRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *SubscribeLogsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_SubscribeLogsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SubscribeLogsRequest proto.InternalMessageInfo
 
 type SubscribeLogsMessage struct {
-	Messages []LogMessage `protobuf:"bytes,1,rep,name=messages" json:"messages"`
+	Messages []LogMessage `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages"`
 }
 
-func (m *SubscribeLogsMessage) Reset()                    { *m = SubscribeLogsMessage{} }
-func (*SubscribeLogsMessage) ProtoMessage()               {}
-func (*SubscribeLogsMessage) Descriptor() ([]byte, []int) { return fileDescriptorLogbroker, []int{6} }
+func (m *SubscribeLogsMessage) Reset()      { *m = SubscribeLogsMessage{} }
+func (*SubscribeLogsMessage) ProtoMessage() {}
+func (*SubscribeLogsMessage) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d5aa8d24ac30376c, []int{6}
+}
+func (m *SubscribeLogsMessage) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SubscribeLogsMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_SubscribeLogsMessage.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *SubscribeLogsMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SubscribeLogsMessage.Merge(m, src)
+}
+func (m *SubscribeLogsMessage) XXX_Size() int {
+	return m.Size()
+}
+func (m *SubscribeLogsMessage) XXX_DiscardUnknown() {
+	xxx_messageInfo_SubscribeLogsMessage.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SubscribeLogsMessage proto.InternalMessageInfo
 
 // ListenSubscriptionsRequest is a placeholder to begin listening for
 // subscriptions.
@@ -172,8 +375,34 @@ type ListenSubscriptionsRequest struct {
 func (m *ListenSubscriptionsRequest) Reset()      { *m = ListenSubscriptionsRequest{} }
 func (*ListenSubscriptionsRequest) ProtoMessage() {}
 func (*ListenSubscriptionsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptorLogbroker, []int{7}
+	return fileDescriptor_d5aa8d24ac30376c, []int{7}
 }
+func (m *ListenSubscriptionsRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ListenSubscriptionsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ListenSubscriptionsRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ListenSubscriptionsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListenSubscriptionsRequest.Merge(m, src)
+}
+func (m *ListenSubscriptionsRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *ListenSubscriptionsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListenSubscriptionsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListenSubscriptionsRequest proto.InternalMessageInfo
 
 // SubscriptionMessage instructs the listener to start publishing messages for
 // the stream or end a subscription.
@@ -183,24 +412,52 @@ type SubscriptionMessage struct {
 	// ID identifies the subscription.
 	ID string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Selector defines which sources should be sent for the subscription.
-	Selector *LogSelector `protobuf:"bytes,2,opt,name=selector" json:"selector,omitempty"`
+	Selector *LogSelector `protobuf:"bytes,2,opt,name=selector,proto3" json:"selector,omitempty"`
 	// Options specify how the subscription should be satisfied.
-	Options *LogSubscriptionOptions `protobuf:"bytes,3,opt,name=options" json:"options,omitempty"`
+	Options *LogSubscriptionOptions `protobuf:"bytes,3,opt,name=options,proto3" json:"options,omitempty"`
 	// Close will be true if the node should shutdown the subscription with the
 	// provided identifier.
 	Close bool `protobuf:"varint,4,opt,name=close,proto3" json:"close,omitempty"`
 }
 
-func (m *SubscriptionMessage) Reset()                    { *m = SubscriptionMessage{} }
-func (*SubscriptionMessage) ProtoMessage()               {}
-func (*SubscriptionMessage) Descriptor() ([]byte, []int) { return fileDescriptorLogbroker, []int{8} }
+func (m *SubscriptionMessage) Reset()      { *m = SubscriptionMessage{} }
+func (*SubscriptionMessage) ProtoMessage() {}
+func (*SubscriptionMessage) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d5aa8d24ac30376c, []int{8}
+}
+func (m *SubscriptionMessage) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SubscriptionMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_SubscriptionMessage.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *SubscriptionMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SubscriptionMessage.Merge(m, src)
+}
+func (m *SubscriptionMessage) XXX_Size() int {
+	return m.Size()
+}
+func (m *SubscriptionMessage) XXX_DiscardUnknown() {
+	xxx_messageInfo_SubscriptionMessage.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SubscriptionMessage proto.InternalMessageInfo
 
 type PublishLogsMessage struct {
 	// SubscriptionID identifies which subscription the set of messages should
 	// be sent to. We can think of this as a "mail box" for the subscription.
 	SubscriptionID string `protobuf:"bytes,1,opt,name=subscription_id,json=subscriptionId,proto3" json:"subscription_id,omitempty"`
 	// Messages is the log message for publishing.
-	Messages []LogMessage `protobuf:"bytes,2,rep,name=messages" json:"messages"`
+	Messages []LogMessage `protobuf:"bytes,2,rep,name=messages,proto3" json:"messages"`
 	// Close is a boolean for whether or not the client has completed its log
 	// stream. When close is called, the manager can hang up the subscription.
 	// Any further logs from this subscription are an error condition. Any
@@ -208,18 +465,75 @@ type PublishLogsMessage struct {
 	Close bool `protobuf:"varint,3,opt,name=close,proto3" json:"close,omitempty"`
 }
 
-func (m *PublishLogsMessage) Reset()                    { *m = PublishLogsMessage{} }
-func (*PublishLogsMessage) ProtoMessage()               {}
-func (*PublishLogsMessage) Descriptor() ([]byte, []int) { return fileDescriptorLogbroker, []int{9} }
+func (m *PublishLogsMessage) Reset()      { *m = PublishLogsMessage{} }
+func (*PublishLogsMessage) ProtoMessage() {}
+func (*PublishLogsMessage) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d5aa8d24ac30376c, []int{9}
+}
+func (m *PublishLogsMessage) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *PublishLogsMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_PublishLogsMessage.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *PublishLogsMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PublishLogsMessage.Merge(m, src)
+}
+func (m *PublishLogsMessage) XXX_Size() int {
+	return m.Size()
+}
+func (m *PublishLogsMessage) XXX_DiscardUnknown() {
+	xxx_messageInfo_PublishLogsMessage.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PublishLogsMessage proto.InternalMessageInfo
 
 type PublishLogsResponse struct {
 }
 
-func (m *PublishLogsResponse) Reset()                    { *m = PublishLogsResponse{} }
-func (*PublishLogsResponse) ProtoMessage()               {}
-func (*PublishLogsResponse) Descriptor() ([]byte, []int) { return fileDescriptorLogbroker, []int{10} }
+func (m *PublishLogsResponse) Reset()      { *m = PublishLogsResponse{} }
+func (*PublishLogsResponse) ProtoMessage() {}
+func (*PublishLogsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d5aa8d24ac30376c, []int{10}
+}
+func (m *PublishLogsResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *PublishLogsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_PublishLogsResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *PublishLogsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PublishLogsResponse.Merge(m, src)
+}
+func (m *PublishLogsResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *PublishLogsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_PublishLogsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PublishLogsResponse proto.InternalMessageInfo
 
 func init() {
+	proto.RegisterEnum("docker.swarmkit.v1.LogStream", LogStream_name, LogStream_value)
 	proto.RegisterType((*LogSubscriptionOptions)(nil), "docker.swarmkit.v1.LogSubscriptionOptions")
 	proto.RegisterType((*LogSelector)(nil), "docker.swarmkit.v1.LogSelector")
 	proto.RegisterType((*LogContext)(nil), "docker.swarmkit.v1.LogContext")
@@ -231,7 +545,76 @@ func init() {
 	proto.RegisterType((*SubscriptionMessage)(nil), "docker.swarmkit.v1.SubscriptionMessage")
 	proto.RegisterType((*PublishLogsMessage)(nil), "docker.swarmkit.v1.PublishLogsMessage")
 	proto.RegisterType((*PublishLogsResponse)(nil), "docker.swarmkit.v1.PublishLogsResponse")
-	proto.RegisterEnum("docker.swarmkit.v1.LogStream", LogStream_name, LogStream_value)
+}
+
+func init() {
+	proto.RegisterFile("github.com/docker/swarmkit/api/logbroker.proto", fileDescriptor_d5aa8d24ac30376c)
+}
+
+var fileDescriptor_d5aa8d24ac30376c = []byte{
+	// 979 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x95, 0x41, 0x6f, 0x1b, 0x45,
+	0x14, 0xc7, 0x3d, 0xeb, 0xc4, 0x8e, 0x9f, 0x9b, 0xc4, 0x9d, 0xa4, 0x91, 0x65, 0xe8, 0xda, 0xda,
+	0xa2, 0x62, 0x45, 0x65, 0xdd, 0x1a, 0xa1, 0x22, 0x45, 0x42, 0xd4, 0xa4, 0x42, 0x16, 0x6e, 0x82,
+	0x26, 0x8e, 0xe0, 0x16, 0xad, 0xed, 0xe9, 0x76, 0xe5, 0xf5, 0x8e, 0xd9, 0x19, 0x27, 0x20, 0x71,
+	0xe0, 0x50, 0x24, 0x94, 0x03, 0xe2, 0x82, 0x04, 0x87, 0x9e, 0xe8, 0x05, 0x21, 0x71, 0xe1, 0xc6,
+	0x07, 0x40, 0x11, 0xa7, 0x1e, 0x7b, 0xb2, 0xe8, 0xe6, 0xce, 0x67, 0x40, 0x3b, 0xb3, 0x5e, 0x6f,
+	0xb0, 0x9d, 0xa2, 0x72, 0xb1, 0x67, 0x3c, 0xbf, 0xb7, 0xef, 0xff, 0xfe, 0xf3, 0xde, 0x1a, 0x4c,
+	0xdb, 0x11, 0x8f, 0x46, 0x1d, 0xb3, 0xcb, 0x06, 0xb5, 0x1e, 0xeb, 0xf6, 0xa9, 0x5f, 0xe3, 0x27,
+	0x96, 0x3f, 0xe8, 0x3b, 0xa2, 0x66, 0x0d, 0x9d, 0x9a, 0xcb, 0xec, 0x8e, 0xcf, 0xfa, 0xd4, 0x37,
+	0x87, 0x3e, 0x13, 0x0c, 0x63, 0x05, 0x99, 0x13, 0xc8, 0x3c, 0xbe, 0x53, 0xda, 0xb4, 0x99, 0xcd,
+	0xe4, 0x71, 0x2d, 0x5c, 0x29, 0xb2, 0x54, 0xb6, 0x19, 0xb3, 0x5d, 0x5a, 0x93, 0xbb, 0xce, 0xe8,
+	0x61, 0x4d, 0x38, 0x03, 0xca, 0x85, 0x35, 0x18, 0x46, 0xc0, 0xdd, 0x4b, 0x52, 0xc7, 0x41, 0x43,
+	0x77, 0x64, 0x3b, 0x5e, 0xf4, 0xa5, 0x02, 0x8d, 0xdf, 0x10, 0x6c, 0xb5, 0x98, 0x7d, 0x30, 0xea,
+	0xf0, 0xae, 0xef, 0x0c, 0x85, 0xc3, 0xbc, 0x7d, 0xf9, 0xc9, 0xf1, 0x0e, 0x64, 0xb9, 0xf0, 0xa9,
+	0x35, 0xe0, 0x45, 0x54, 0x49, 0x57, 0xd7, 0xea, 0xd7, 0xcd, 0x59, 0xc1, 0x66, 0x18, 0x2c, 0xa9,
+	0x86, 0x56, 0x48, 0x91, 0x49, 0x04, 0xde, 0x82, 0xcc, 0x43, 0xe6, 0xba, 0xec, 0xa4, 0xa8, 0x55,
+	0x50, 0x75, 0x85, 0x44, 0x3b, 0x8c, 0x61, 0x49, 0x58, 0x8e, 0x5b, 0x4c, 0x57, 0x50, 0x35, 0x4d,
+	0xe4, 0x1a, 0xdf, 0x86, 0x65, 0xee, 0x78, 0x5d, 0x5a, 0x5c, 0xaa, 0xa0, 0x6a, 0xbe, 0x5e, 0x32,
+	0x55, 0xb5, 0xe6, 0x44, 0xb8, 0xd9, 0x9e, 0x54, 0x4b, 0x14, 0x68, 0x7c, 0x8b, 0x20, 0x1f, 0x26,
+	0xa6, 0x2e, 0xed, 0x0a, 0xe6, 0xe3, 0x1a, 0xe4, 0x39, 0xf5, 0x8f, 0x9d, 0x2e, 0x3d, 0x72, 0x7a,
+	0x4a, 0x6e, 0xae, 0xb1, 0x16, 0x8c, 0xcb, 0x70, 0xa0, 0x7e, 0x6e, 0xee, 0x72, 0x02, 0x11, 0xd2,
+	0xec, 0x71, 0x7c, 0x13, 0x56, 0x3c, 0xd6, 0x53, 0xb4, 0x26, 0xe9, 0x7c, 0x30, 0x2e, 0x67, 0xf7,
+	0x58, 0x4f, 0xa2, 0xd9, 0xf0, 0x30, 0xe2, 0x84, 0xc5, 0xfb, 0x92, 0x4b, 0x4f, 0xb9, 0xb6, 0xc5,
+	0xfb, 0x92, 0x0b, 0x0f, 0x9b, 0x3d, 0x6e, 0x3c, 0x46, 0x00, 0x2d, 0x66, 0x7f, 0xc0, 0x3c, 0x41,
+	0x3f, 0x17, 0xf8, 0x16, 0xc0, 0x54, 0x4f, 0x11, 0x55, 0x50, 0x35, 0xd7, 0x58, 0x0d, 0xc6, 0xe5,
+	0x5c, 0x2c, 0x87, 0xe4, 0x62, 0x35, 0xf8, 0x06, 0x64, 0x23, 0x31, 0xd2, 0xac, 0x5c, 0x03, 0x82,
+	0x71, 0x39, 0xa3, 0xb4, 0x90, 0x8c, 0x92, 0x12, 0x42, 0x91, 0x12, 0xe9, 0x5d, 0x04, 0x29, 0x21,
+	0x24, 0xa3, 0x74, 0x18, 0x77, 0x20, 0xdb, 0x62, 0xf6, 0x3d, 0x21, 0x7c, 0x5c, 0x80, 0x74, 0x9f,
+	0x7e, 0xa1, 0x72, 0x93, 0x70, 0x89, 0x37, 0x61, 0xf9, 0xd8, 0x72, 0x47, 0x54, 0x25, 0x21, 0x6a,
+	0x63, 0x9c, 0x6a, 0x52, 0xf9, 0x03, 0xca, 0xb9, 0x65, 0x53, 0xfc, 0x1e, 0x64, 0xbb, 0xaa, 0x08,
+	0x19, 0x9a, 0xaf, 0xeb, 0x0b, 0x2e, 0x3d, 0x2a, 0xb5, 0xb1, 0x74, 0x36, 0x2e, 0xa7, 0xc8, 0x24,
+	0x08, 0xbf, 0x0b, 0xb9, 0xb8, 0x37, 0x65, 0xa2, 0xcb, 0xef, 0x73, 0x0a, 0xe3, 0x77, 0x20, 0xa3,
+	0x9a, 0x47, 0xd6, 0xf7, 0xb2, 0x6e, 0x23, 0x11, 0x1c, 0x36, 0x54, 0xcf, 0x12, 0x96, 0xec, 0x9d,
+	0x2b, 0x44, 0xae, 0xf1, 0x5d, 0x58, 0xb6, 0x84, 0xf0, 0x79, 0x71, 0xb9, 0x92, 0xae, 0xe6, 0xeb,
+	0xaf, 0x2d, 0x78, 0x52, 0xe8, 0x53, 0xa4, 0x5f, 0xf1, 0xc6, 0x8f, 0x08, 0x36, 0xa3, 0x51, 0xe8,
+	0xd0, 0x16, 0xb3, 0x39, 0xa1, 0x9f, 0x8d, 0x28, 0x17, 0x78, 0x07, 0x56, 0x78, 0xd4, 0x6c, 0x91,
+	0x2f, 0xe5, 0x45, 0xf2, 0x22, 0x8c, 0xc4, 0x01, 0x78, 0x17, 0xb2, 0x4c, 0xcd, 0x54, 0xe4, 0xc8,
+	0xf6, 0xa2, 0xd8, 0xd9, 0x29, 0x24, 0x93, 0x50, 0xe3, 0xd3, 0x7f, 0x49, 0x9b, 0xdc, 0xd8, 0xfb,
+	0xb0, 0x32, 0x50, 0x4b, 0xd5, 0xf8, 0x8b, 0xaf, 0x2c, 0x8a, 0x88, 0x4a, 0x8e, 0xa3, 0x8c, 0xd7,
+	0xa1, 0xd4, 0x72, 0xb8, 0xa0, 0x5e, 0x32, 0xff, 0xa4, 0x74, 0xe3, 0x0f, 0x04, 0x1b, 0xc9, 0x83,
+	0x49, 0xde, 0x2d, 0xd0, 0xe2, 0xde, 0xce, 0x04, 0xe3, 0xb2, 0xd6, 0xdc, 0x25, 0x9a, 0xd3, 0xbb,
+	0x60, 0x95, 0xf6, 0x3f, 0xac, 0x4a, 0xbf, 0xb2, 0x55, 0x61, 0xa7, 0x77, 0x5d, 0xc6, 0xd5, 0x0b,
+	0x65, 0x85, 0xa8, 0x8d, 0xf1, 0x33, 0x02, 0xfc, 0xf1, 0xa8, 0xe3, 0x3a, 0xfc, 0x51, 0xd2, 0xbf,
+	0x1d, 0x58, 0xe7, 0x89, 0x87, 0x4d, 0x07, 0x16, 0x07, 0xe3, 0xf2, 0x5a, 0x32, 0x4f, 0x73, 0x97,
+	0xac, 0x25, 0xd1, 0x66, 0xef, 0x82, 0xf9, 0xda, 0xab, 0x98, 0x3f, 0xd5, 0x9a, 0x4e, 0x6a, 0xbd,
+	0x06, 0x1b, 0x09, 0xa9, 0x84, 0xf2, 0x21, 0xf3, 0x38, 0xdd, 0x7e, 0x8a, 0x20, 0x17, 0x8f, 0x00,
+	0xbe, 0x05, 0xb8, 0xb5, 0xff, 0xe1, 0xd1, 0x41, 0x9b, 0xdc, 0xbf, 0xf7, 0xe0, 0xe8, 0x70, 0xef,
+	0xa3, 0xbd, 0xfd, 0x4f, 0xf6, 0x0a, 0xa9, 0xd2, 0xe6, 0xe9, 0x93, 0x4a, 0x21, 0xc6, 0x0e, 0xbd,
+	0xbe, 0xc7, 0x4e, 0x3c, 0xbc, 0x0d, 0x57, 0x13, 0xf4, 0x41, 0x7b, 0x77, 0xff, 0xb0, 0x5d, 0x40,
+	0xa5, 0x8d, 0xd3, 0x27, 0x95, 0xf5, 0x18, 0x3e, 0x10, 0x3d, 0x36, 0x12, 0xb3, 0xec, 0x7d, 0x42,
+	0x0a, 0xda, 0x2c, 0x4b, 0x7d, 0xbf, 0x74, 0xf5, 0x9b, 0x9f, 0xf4, 0xd4, 0xef, 0x4f, 0xf5, 0xa9,
+	0xb0, 0xfa, 0x63, 0x04, 0x4b, 0xa1, 0x6e, 0xfc, 0x25, 0xac, 0x5e, 0xe8, 0x59, 0x5c, 0x9d, 0xe7,
+	0xce, 0xbc, 0x89, 0x2b, 0xbd, 0x9c, 0x8c, 0x1c, 0x35, 0xae, 0xfd, 0xf9, 0xeb, 0xdf, 0x3f, 0x68,
+	0xeb, 0xb0, 0x2a, 0xc9, 0xb7, 0x06, 0x96, 0x67, 0xd9, 0xd4, 0xbf, 0x8d, 0xea, 0xbf, 0x68, 0xd2,
+	0xad, 0x86, 0xfc, 0xcf, 0xc5, 0xdf, 0x23, 0xd8, 0x98, 0xd3, 0xe6, 0xd8, 0x9c, 0x7b, 0x61, 0x0b,
+	0xe7, 0xa1, 0xf4, 0xe6, 0x25, 0xc2, 0x92, 0x03, 0x62, 0xdc, 0x90, 0xba, 0xae, 0xc3, 0x15, 0xa5,
+	0xeb, 0x84, 0xf9, 0x7d, 0xea, 0xcf, 0xa8, 0xc4, 0x5f, 0x23, 0xc8, 0x27, 0xee, 0x1a, 0xdf, 0x9c,
+	0xf7, 0xfc, 0xd9, 0xbe, 0x9d, 0xaf, 0x63, 0x4e, 0xd3, 0xfc, 0x27, 0x1d, 0x55, 0xd4, 0x78, 0xe3,
+	0xec, 0x85, 0x9e, 0x7a, 0xfe, 0x42, 0x4f, 0x7d, 0x15, 0xe8, 0xe8, 0x2c, 0xd0, 0xd1, 0xb3, 0x40,
+	0x47, 0x7f, 0x05, 0x3a, 0xfa, 0xee, 0x5c, 0x4f, 0x3d, 0x3b, 0xd7, 0x53, 0xcf, 0xcf, 0xf5, 0x54,
+	0x27, 0x23, 0x5f, 0xe2, 0x6f, 0xff, 0x13, 0x00, 0x00, 0xff, 0xff, 0x00, 0xba, 0x6b, 0x91, 0xec,
+	0x08, 0x00, 0x00,
 }
 
 type authenticatedWrapperLogsServer struct {
@@ -301,8 +684,8 @@ func (m *LogSubscriptionOptions) CopyFrom(src interface{}) {
 	}
 
 	if o.Since != nil {
-		m.Since = &google_protobuf.Timestamp{}
-		deepcopy.Copy(m.Since, o.Since)
+		m.Since = &types.Timestamp{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Since, o.Since)
 	}
 }
 
@@ -379,10 +762,10 @@ func (m *LogMessage) CopyFrom(src interface{}) {
 
 	o := src.(*LogMessage)
 	*m = *o
-	deepcopy.Copy(&m.Context, &o.Context)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Context, &o.Context)
 	if o.Timestamp != nil {
-		m.Timestamp = &google_protobuf.Timestamp{}
-		deepcopy.Copy(m.Timestamp, o.Timestamp)
+		m.Timestamp = &types.Timestamp{}
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Timestamp, o.Timestamp)
 	}
 	if o.Data != nil {
 		m.Data = make([]byte, len(o.Data))
@@ -391,7 +774,7 @@ func (m *LogMessage) CopyFrom(src interface{}) {
 	if o.Attrs != nil {
 		m.Attrs = make([]LogAttr, len(o.Attrs))
 		for i := range m.Attrs {
-			deepcopy.Copy(&m.Attrs[i], &o.Attrs[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(&m.Attrs[i], &o.Attrs[i])
 		}
 	}
 
@@ -412,11 +795,11 @@ func (m *SubscribeLogsRequest) CopyFrom(src interface{}) {
 	*m = *o
 	if o.Selector != nil {
 		m.Selector = &LogSelector{}
-		deepcopy.Copy(m.Selector, o.Selector)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Selector, o.Selector)
 	}
 	if o.Options != nil {
 		m.Options = &LogSubscriptionOptions{}
-		deepcopy.Copy(m.Options, o.Options)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Options, o.Options)
 	}
 }
 
@@ -436,7 +819,7 @@ func (m *SubscribeLogsMessage) CopyFrom(src interface{}) {
 	if o.Messages != nil {
 		m.Messages = make([]LogMessage, len(o.Messages))
 		for i := range m.Messages {
-			deepcopy.Copy(&m.Messages[i], &o.Messages[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(&m.Messages[i], &o.Messages[i])
 		}
 	}
 
@@ -467,11 +850,11 @@ func (m *SubscriptionMessage) CopyFrom(src interface{}) {
 	*m = *o
 	if o.Selector != nil {
 		m.Selector = &LogSelector{}
-		deepcopy.Copy(m.Selector, o.Selector)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Selector, o.Selector)
 	}
 	if o.Options != nil {
 		m.Options = &LogSubscriptionOptions{}
-		deepcopy.Copy(m.Options, o.Options)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Options, o.Options)
 	}
 }
 
@@ -491,7 +874,7 @@ func (m *PublishLogsMessage) CopyFrom(src interface{}) {
 	if o.Messages != nil {
 		m.Messages = make([]LogMessage, len(o.Messages))
 		for i := range m.Messages {
-			deepcopy.Copy(&m.Messages[i], &o.Messages[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(&m.Messages[i], &o.Messages[i])
 		}
 	}
 
@@ -516,8 +899,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for Logs service
-
+// LogsClient is the client API for Logs service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type LogsClient interface {
 	// SubscribeLogs starts a subscription with the specified selector and options.
 	//
@@ -537,7 +921,7 @@ func NewLogsClient(cc *grpc.ClientConn) LogsClient {
 }
 
 func (c *logsClient) SubscribeLogs(ctx context.Context, in *SubscribeLogsRequest, opts ...grpc.CallOption) (Logs_SubscribeLogsClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_Logs_serviceDesc.Streams[0], c.cc, "/docker.swarmkit.v1.Logs/SubscribeLogs", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Logs_serviceDesc.Streams[0], "/docker.swarmkit.v1.Logs/SubscribeLogs", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -568,8 +952,7 @@ func (x *logsSubscribeLogsClient) Recv() (*SubscribeLogsMessage, error) {
 	return m, nil
 }
 
-// Server API for Logs service
-
+// LogsServer is the server API for Logs service.
 type LogsServer interface {
 	// SubscribeLogs starts a subscription with the specified selector and options.
 	//
@@ -619,8 +1002,9 @@ var _Logs_serviceDesc = grpc.ServiceDesc{
 	Metadata: "github.com/docker/swarmkit/api/logbroker.proto",
 }
 
-// Client API for LogBroker service
-
+// LogBrokerClient is the client API for LogBroker service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type LogBrokerClient interface {
 	// ListenSubscriptions starts a subscription stream for the node. For each
 	// message received, the node should attempt to satisfy the subscription.
@@ -642,7 +1026,7 @@ func NewLogBrokerClient(cc *grpc.ClientConn) LogBrokerClient {
 }
 
 func (c *logBrokerClient) ListenSubscriptions(ctx context.Context, in *ListenSubscriptionsRequest, opts ...grpc.CallOption) (LogBroker_ListenSubscriptionsClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_LogBroker_serviceDesc.Streams[0], c.cc, "/docker.swarmkit.v1.LogBroker/ListenSubscriptions", opts...)
+	stream, err := c.cc.NewStream(ctx, &_LogBroker_serviceDesc.Streams[0], "/docker.swarmkit.v1.LogBroker/ListenSubscriptions", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -674,7 +1058,7 @@ func (x *logBrokerListenSubscriptionsClient) Recv() (*SubscriptionMessage, error
 }
 
 func (c *logBrokerClient) PublishLogs(ctx context.Context, opts ...grpc.CallOption) (LogBroker_PublishLogsClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_LogBroker_serviceDesc.Streams[1], c.cc, "/docker.swarmkit.v1.LogBroker/PublishLogs", opts...)
+	stream, err := c.cc.NewStream(ctx, &_LogBroker_serviceDesc.Streams[1], "/docker.swarmkit.v1.LogBroker/PublishLogs", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -707,8 +1091,7 @@ func (x *logBrokerPublishLogsClient) CloseAndRecv() (*PublishLogsResponse, error
 	return m, nil
 }
 
-// Server API for LogBroker service
-
+// LogBrokerServer is the server API for LogBroker service.
 type LogBrokerServer interface {
 	// ListenSubscriptions starts a subscription stream for the node. For each
 	// message received, the node should attempt to satisfy the subscription.
@@ -1547,6 +1930,9 @@ func (p *raftProxyLogBrokerServer) PublishLogs(stream LogBroker_PublishLogsServe
 }
 
 func (m *LogSubscriptionOptions) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if len(m.Streams) > 0 {
@@ -1568,6 +1954,9 @@ func (m *LogSubscriptionOptions) Size() (n int) {
 }
 
 func (m *LogSelector) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if len(m.ServiceIDs) > 0 {
@@ -1592,6 +1981,9 @@ func (m *LogSelector) Size() (n int) {
 }
 
 func (m *LogContext) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ServiceID)
@@ -1610,6 +2002,9 @@ func (m *LogContext) Size() (n int) {
 }
 
 func (m *LogAttr) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.Key)
@@ -1624,6 +2019,9 @@ func (m *LogAttr) Size() (n int) {
 }
 
 func (m *LogMessage) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = m.Context.Size()
@@ -1649,6 +2047,9 @@ func (m *LogMessage) Size() (n int) {
 }
 
 func (m *SubscribeLogsRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Selector != nil {
@@ -1663,6 +2064,9 @@ func (m *SubscribeLogsRequest) Size() (n int) {
 }
 
 func (m *SubscribeLogsMessage) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if len(m.Messages) > 0 {
@@ -1675,12 +2079,18 @@ func (m *SubscribeLogsMessage) Size() (n int) {
 }
 
 func (m *ListenSubscriptionsRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	return n
 }
 
 func (m *SubscriptionMessage) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.ID)
@@ -1702,6 +2112,9 @@ func (m *SubscriptionMessage) Size() (n int) {
 }
 
 func (m *PublishLogsMessage) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.SubscriptionID)
@@ -1721,6 +2134,9 @@ func (m *PublishLogsMessage) Size() (n int) {
 }
 
 func (m *PublishLogsResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	return n
@@ -1747,7 +2163,7 @@ func (this *LogSubscriptionOptions) String() string {
 		`Streams:` + fmt.Sprintf("%v", this.Streams) + `,`,
 		`Follow:` + fmt.Sprintf("%v", this.Follow) + `,`,
 		`Tail:` + fmt.Sprintf("%v", this.Tail) + `,`,
-		`Since:` + strings.Replace(fmt.Sprintf("%v", this.Since), "Timestamp", "google_protobuf.Timestamp", 1) + `,`,
+		`Since:` + strings.Replace(fmt.Sprintf("%v", this.Since), "Timestamp", "types.Timestamp", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -1793,7 +2209,7 @@ func (this *LogMessage) String() string {
 	}
 	s := strings.Join([]string{`&LogMessage{`,
 		`Context:` + strings.Replace(strings.Replace(this.Context.String(), "LogContext", "LogContext", 1), `&`, ``, 1) + `,`,
-		`Timestamp:` + strings.Replace(fmt.Sprintf("%v", this.Timestamp), "Timestamp", "google_protobuf.Timestamp", 1) + `,`,
+		`Timestamp:` + strings.Replace(fmt.Sprintf("%v", this.Timestamp), "Timestamp", "types.Timestamp", 1) + `,`,
 		`Stream:` + fmt.Sprintf("%v", this.Stream) + `,`,
 		`Data:` + fmt.Sprintf("%v", this.Data) + `,`,
 		`Attrs:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Attrs), "LogAttr", "LogAttr", 1), `&`, ``, 1) + `,`,
@@ -1888,7 +2304,7 @@ func (m *LogSubscriptionOptions) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -1914,7 +2330,7 @@ func (m *LogSubscriptionOptions) Unmarshal(dAtA []byte) error {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					v |= (LogStream(b) & 0x7F) << shift
+					v |= LogStream(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
@@ -1931,7 +2347,7 @@ func (m *LogSubscriptionOptions) Unmarshal(dAtA []byte) error {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					packedLen |= (int(b) & 0x7F) << shift
+					packedLen |= int(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
@@ -1940,8 +2356,15 @@ func (m *LogSubscriptionOptions) Unmarshal(dAtA []byte) error {
 					return ErrInvalidLengthLogbroker
 				}
 				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return ErrInvalidLengthLogbroker
+				}
 				if postIndex > l {
 					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				if elementCount != 0 && len(m.Streams) == 0 {
+					m.Streams = make([]LogStream, 0, elementCount)
 				}
 				for iNdEx < postIndex {
 					var v LogStream
@@ -1954,7 +2377,7 @@ func (m *LogSubscriptionOptions) Unmarshal(dAtA []byte) error {
 						}
 						b := dAtA[iNdEx]
 						iNdEx++
-						v |= (LogStream(b) & 0x7F) << shift
+						v |= LogStream(b&0x7F) << shift
 						if b < 0x80 {
 							break
 						}
@@ -1978,7 +2401,7 @@ func (m *LogSubscriptionOptions) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= (int(b) & 0x7F) << shift
+				v |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1998,7 +2421,7 @@ func (m *LogSubscriptionOptions) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Tail |= (int64(b) & 0x7F) << shift
+				m.Tail |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2017,7 +2440,7 @@ func (m *LogSubscriptionOptions) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2026,11 +2449,14 @@ func (m *LogSubscriptionOptions) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Since == nil {
-				m.Since = &google_protobuf.Timestamp{}
+				m.Since = &types.Timestamp{}
 			}
 			if err := m.Since.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
@@ -2043,6 +2469,9 @@ func (m *LogSubscriptionOptions) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthLogbroker
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthLogbroker
 			}
 			if (iNdEx + skippy) > l {
@@ -2072,7 +2501,7 @@ func (m *LogSelector) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2100,7 +2529,7 @@ func (m *LogSelector) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2110,6 +2539,9 @@ func (m *LogSelector) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2129,7 +2561,7 @@ func (m *LogSelector) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2139,6 +2571,9 @@ func (m *LogSelector) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2158,7 +2593,7 @@ func (m *LogSelector) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2168,6 +2603,9 @@ func (m *LogSelector) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2180,6 +2618,9 @@ func (m *LogSelector) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthLogbroker
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthLogbroker
 			}
 			if (iNdEx + skippy) > l {
@@ -2209,7 +2650,7 @@ func (m *LogContext) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2237,7 +2678,7 @@ func (m *LogContext) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2247,6 +2688,9 @@ func (m *LogContext) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2266,7 +2710,7 @@ func (m *LogContext) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2276,6 +2720,9 @@ func (m *LogContext) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2295,7 +2742,7 @@ func (m *LogContext) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2305,6 +2752,9 @@ func (m *LogContext) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2317,6 +2767,9 @@ func (m *LogContext) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthLogbroker
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthLogbroker
 			}
 			if (iNdEx + skippy) > l {
@@ -2346,7 +2799,7 @@ func (m *LogAttr) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2374,7 +2827,7 @@ func (m *LogAttr) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2384,6 +2837,9 @@ func (m *LogAttr) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2403,7 +2859,7 @@ func (m *LogAttr) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2413,6 +2869,9 @@ func (m *LogAttr) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2425,6 +2884,9 @@ func (m *LogAttr) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthLogbroker
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthLogbroker
 			}
 			if (iNdEx + skippy) > l {
@@ -2454,7 +2916,7 @@ func (m *LogMessage) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2482,7 +2944,7 @@ func (m *LogMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2491,6 +2953,9 @@ func (m *LogMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2512,7 +2977,7 @@ func (m *LogMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2521,11 +2986,14 @@ func (m *LogMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Timestamp == nil {
-				m.Timestamp = &google_protobuf.Timestamp{}
+				m.Timestamp = &types.Timestamp{}
 			}
 			if err := m.Timestamp.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
@@ -2545,7 +3013,7 @@ func (m *LogMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Stream |= (LogStream(b) & 0x7F) << shift
+				m.Stream |= LogStream(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2564,7 +3032,7 @@ func (m *LogMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				byteLen |= (int(b) & 0x7F) << shift
+				byteLen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2573,6 +3041,9 @@ func (m *LogMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2595,7 +3066,7 @@ func (m *LogMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2604,6 +3075,9 @@ func (m *LogMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2619,6 +3093,9 @@ func (m *LogMessage) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthLogbroker
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthLogbroker
 			}
 			if (iNdEx + skippy) > l {
@@ -2648,7 +3125,7 @@ func (m *SubscribeLogsRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2676,7 +3153,7 @@ func (m *SubscribeLogsRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2685,6 +3162,9 @@ func (m *SubscribeLogsRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2709,7 +3189,7 @@ func (m *SubscribeLogsRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2718,6 +3198,9 @@ func (m *SubscribeLogsRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2735,6 +3218,9 @@ func (m *SubscribeLogsRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthLogbroker
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthLogbroker
 			}
 			if (iNdEx + skippy) > l {
@@ -2764,7 +3250,7 @@ func (m *SubscribeLogsMessage) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2792,7 +3278,7 @@ func (m *SubscribeLogsMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2801,6 +3287,9 @@ func (m *SubscribeLogsMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2816,6 +3305,9 @@ func (m *SubscribeLogsMessage) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthLogbroker
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthLogbroker
 			}
 			if (iNdEx + skippy) > l {
@@ -2845,7 +3337,7 @@ func (m *ListenSubscriptionsRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2866,6 +3358,9 @@ func (m *ListenSubscriptionsRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthLogbroker
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthLogbroker
 			}
 			if (iNdEx + skippy) > l {
@@ -2895,7 +3390,7 @@ func (m *SubscriptionMessage) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2923,7 +3418,7 @@ func (m *SubscriptionMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2933,6 +3428,9 @@ func (m *SubscriptionMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2952,7 +3450,7 @@ func (m *SubscriptionMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2961,6 +3459,9 @@ func (m *SubscriptionMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2985,7 +3486,7 @@ func (m *SubscriptionMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2994,6 +3495,9 @@ func (m *SubscriptionMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3018,7 +3522,7 @@ func (m *SubscriptionMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= (int(b) & 0x7F) << shift
+				v |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3031,6 +3535,9 @@ func (m *SubscriptionMessage) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthLogbroker
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthLogbroker
 			}
 			if (iNdEx + skippy) > l {
@@ -3060,7 +3567,7 @@ func (m *PublishLogsMessage) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3088,7 +3595,7 @@ func (m *PublishLogsMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3098,6 +3605,9 @@ func (m *PublishLogsMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3117,7 +3627,7 @@ func (m *PublishLogsMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3126,6 +3636,9 @@ func (m *PublishLogsMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthLogbroker
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthLogbroker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3148,7 +3661,7 @@ func (m *PublishLogsMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= (int(b) & 0x7F) << shift
+				v |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3161,6 +3674,9 @@ func (m *PublishLogsMessage) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthLogbroker
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthLogbroker
 			}
 			if (iNdEx + skippy) > l {
@@ -3190,7 +3706,7 @@ func (m *PublishLogsResponse) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3211,6 +3727,9 @@ func (m *PublishLogsResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthLogbroker
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthLogbroker
 			}
 			if (iNdEx + skippy) > l {
@@ -3279,8 +3798,11 @@ func skipLogbroker(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			iNdEx += length
 			if length < 0 {
+				return 0, ErrInvalidLengthLogbroker
+			}
+			iNdEx += length
+			if iNdEx < 0 {
 				return 0, ErrInvalidLengthLogbroker
 			}
 			return iNdEx, nil
@@ -3311,6 +3833,9 @@ func skipLogbroker(dAtA []byte) (n int, err error) {
 					return 0, err
 				}
 				iNdEx = start + next
+				if iNdEx < 0 {
+					return 0, ErrInvalidLengthLogbroker
+				}
 			}
 			return iNdEx, nil
 		case 4:
@@ -3329,72 +3854,3 @@ var (
 	ErrInvalidLengthLogbroker = fmt.Errorf("proto: negative length found during unmarshaling")
 	ErrIntOverflowLogbroker   = fmt.Errorf("proto: integer overflow")
 )
-
-func init() {
-	proto.RegisterFile("github.com/docker/swarmkit/api/logbroker.proto", fileDescriptorLogbroker)
-}
-
-var fileDescriptorLogbroker = []byte{
-	// 966 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x95, 0x41, 0x6f, 0x1b, 0x45,
-	0x14, 0xc7, 0x3d, 0xeb, 0xc4, 0x8e, 0x9f, 0x9b, 0xc4, 0x9d, 0xa4, 0x91, 0x65, 0xa8, 0x6d, 0x6d,
-	0xa5, 0x62, 0x45, 0x65, 0xdd, 0x1a, 0xa1, 0x22, 0x45, 0x42, 0xd4, 0xb8, 0x42, 0x16, 0x6e, 0x82,
-	0xc6, 0x8e, 0xe0, 0x16, 0xad, 0xbd, 0xd3, 0xed, 0xca, 0xeb, 0x1d, 0xb3, 0x33, 0x4e, 0x40, 0xe2,
-	0xc0, 0xa1, 0x48, 0x28, 0x07, 0x6e, 0x48, 0x70, 0xe8, 0x89, 0x5e, 0x10, 0x12, 0x17, 0x6e, 0x7c,
-	0x00, 0x14, 0x71, 0xe2, 0xc8, 0xc9, 0xa2, 0xfb, 0x01, 0xf8, 0x0c, 0x68, 0x67, 0xd6, 0xeb, 0x0d,
-	0xb6, 0x53, 0x54, 0x2e, 0xf6, 0x8c, 0xe7, 0xf7, 0xf6, 0xfd, 0xdf, 0x7f, 0xde, 0x5b, 0x83, 0x61,
-	0x3b, 0xe2, 0xc9, 0xa4, 0x6f, 0x0c, 0xd8, 0xa8, 0x6e, 0xb1, 0xc1, 0x90, 0xfa, 0x75, 0x7e, 0x66,
-	0xfa, 0xa3, 0xa1, 0x23, 0xea, 0xe6, 0xd8, 0xa9, 0xbb, 0xcc, 0xee, 0xfb, 0x6c, 0x48, 0x7d, 0x63,
-	0xec, 0x33, 0xc1, 0x30, 0x56, 0x90, 0x31, 0x83, 0x8c, 0xd3, 0x7b, 0xa5, 0x5d, 0x9b, 0xd9, 0x4c,
-	0x1e, 0xd7, 0xc3, 0x95, 0x22, 0x4b, 0x15, 0x9b, 0x31, 0xdb, 0xa5, 0x75, 0xb9, 0xeb, 0x4f, 0x1e,
-	0xd7, 0x85, 0x33, 0xa2, 0x5c, 0x98, 0xa3, 0x71, 0x04, 0xdc, 0xbf, 0x22, 0x75, 0x1c, 0x34, 0x76,
-	0x27, 0xb6, 0xe3, 0x45, 0x5f, 0x2a, 0x50, 0xff, 0x05, 0xc1, 0x5e, 0x87, 0xd9, 0xdd, 0x49, 0x9f,
-	0x0f, 0x7c, 0x67, 0x2c, 0x1c, 0xe6, 0x1d, 0xc9, 0x4f, 0x8e, 0x0f, 0x20, 0xcb, 0x85, 0x4f, 0xcd,
-	0x11, 0x2f, 0xa2, 0x6a, 0xba, 0xb6, 0xd5, 0xb8, 0x69, 0x2c, 0x0a, 0x36, 0xc2, 0x60, 0x49, 0x35,
-	0xb5, 0x42, 0x8a, 0xcc, 0x22, 0xf0, 0x1e, 0x64, 0x1e, 0x33, 0xd7, 0x65, 0x67, 0x45, 0xad, 0x8a,
-	0x6a, 0x1b, 0x24, 0xda, 0x61, 0x0c, 0x6b, 0xc2, 0x74, 0xdc, 0x62, 0xba, 0x8a, 0x6a, 0x69, 0x22,
-	0xd7, 0xf8, 0x2e, 0xac, 0x73, 0xc7, 0x1b, 0xd0, 0xe2, 0x5a, 0x15, 0xd5, 0xf2, 0x8d, 0x92, 0xa1,
-	0xaa, 0x35, 0x66, 0xc2, 0x8d, 0xde, 0xac, 0x5a, 0xa2, 0x40, 0xfd, 0x1b, 0x04, 0xf9, 0x30, 0x31,
-	0x75, 0xe9, 0x40, 0x30, 0x1f, 0xd7, 0x21, 0xcf, 0xa9, 0x7f, 0xea, 0x0c, 0xe8, 0x89, 0x63, 0x29,
-	0xb9, 0xb9, 0xe6, 0x56, 0x30, 0xad, 0x40, 0x57, 0xfd, 0xdc, 0x6e, 0x71, 0x02, 0x11, 0xd2, 0xb6,
-	0x38, 0xbe, 0x0d, 0x1b, 0x1e, 0xb3, 0x14, 0xad, 0x49, 0x3a, 0x1f, 0x4c, 0x2b, 0xd9, 0x43, 0x66,
-	0x49, 0x34, 0x1b, 0x1e, 0x46, 0x9c, 0x30, 0xf9, 0x50, 0x72, 0xe9, 0x39, 0xd7, 0x33, 0xf9, 0x50,
-	0x72, 0xe1, 0x61, 0xdb, 0xe2, 0xfa, 0x53, 0x04, 0xd0, 0x61, 0xf6, 0xfb, 0xcc, 0x13, 0xf4, 0x33,
-	0x81, 0xef, 0x00, 0xcc, 0xf5, 0x14, 0x51, 0x15, 0xd5, 0x72, 0xcd, 0xcd, 0x60, 0x5a, 0xc9, 0xc5,
-	0x72, 0x48, 0x2e, 0x56, 0x83, 0x6f, 0x41, 0x36, 0x12, 0x23, 0xcd, 0xca, 0x35, 0x21, 0x98, 0x56,
-	0x32, 0x4a, 0x0b, 0xc9, 0x28, 0x29, 0x21, 0x14, 0x29, 0x91, 0xde, 0x45, 0x90, 0x12, 0x42, 0x32,
-	0x4a, 0x87, 0x7e, 0x0f, 0xb2, 0x1d, 0x66, 0x3f, 0x10, 0xc2, 0xc7, 0x05, 0x48, 0x0f, 0xe9, 0xe7,
-	0x2a, 0x37, 0x09, 0x97, 0x78, 0x17, 0xd6, 0x4f, 0x4d, 0x77, 0x42, 0x55, 0x12, 0xa2, 0x36, 0xfa,
-	0xb9, 0x26, 0x95, 0x3f, 0xa2, 0x9c, 0x9b, 0x36, 0xc5, 0xef, 0x42, 0x76, 0xa0, 0x8a, 0x90, 0xa1,
-	0xf9, 0x46, 0x79, 0xc5, 0xa5, 0x47, 0xa5, 0x36, 0xd7, 0x2e, 0xa6, 0x95, 0x14, 0x99, 0x05, 0xe1,
-	0x77, 0x20, 0x17, 0xf7, 0xa6, 0x4c, 0x74, 0xf5, 0x7d, 0xce, 0x61, 0xfc, 0x36, 0x64, 0x54, 0xf3,
-	0xc8, 0xfa, 0x5e, 0xd6, 0x6d, 0x24, 0x82, 0xc3, 0x86, 0xb2, 0x4c, 0x61, 0xca, 0xde, 0xb9, 0x46,
-	0xe4, 0x1a, 0xdf, 0x87, 0x75, 0x53, 0x08, 0x9f, 0x17, 0xd7, 0xab, 0xe9, 0x5a, 0xbe, 0xf1, 0xda,
-	0x8a, 0x27, 0x85, 0x3e, 0x45, 0xfa, 0x15, 0xaf, 0x7f, 0x8f, 0x60, 0x37, 0x1a, 0x85, 0x3e, 0xed,
-	0x30, 0x9b, 0x13, 0xfa, 0xe9, 0x84, 0x72, 0x81, 0x0f, 0x60, 0x83, 0x47, 0xcd, 0x16, 0xf9, 0x52,
-	0x59, 0x25, 0x2f, 0xc2, 0x48, 0x1c, 0x80, 0x5b, 0x90, 0x65, 0x6a, 0xa6, 0x22, 0x47, 0xf6, 0x57,
-	0xc5, 0x2e, 0x4e, 0x21, 0x99, 0x85, 0xea, 0x9f, 0xfc, 0x4b, 0xda, 0xec, 0xc6, 0xde, 0x83, 0x8d,
-	0x91, 0x5a, 0xaa, 0xc6, 0x5f, 0x7d, 0x65, 0x51, 0x44, 0x54, 0x72, 0x1c, 0xa5, 0xbf, 0x0e, 0xa5,
-	0x8e, 0xc3, 0x05, 0xf5, 0x92, 0xf9, 0x67, 0xa5, 0xeb, 0xbf, 0x21, 0xd8, 0x49, 0x1e, 0xcc, 0xf2,
-	0xee, 0x81, 0x16, 0xf7, 0x76, 0x26, 0x98, 0x56, 0xb4, 0x76, 0x8b, 0x68, 0x8e, 0x75, 0xc9, 0x2a,
-	0xed, 0x7f, 0x58, 0x95, 0x7e, 0x65, 0xab, 0xc2, 0x4e, 0x1f, 0xb8, 0x8c, 0xab, 0x17, 0xca, 0x06,
-	0x51, 0x1b, 0xfd, 0x47, 0x04, 0xf8, 0xa3, 0x49, 0xdf, 0x75, 0xf8, 0x93, 0xa4, 0x7f, 0x07, 0xb0,
-	0xcd, 0x13, 0x0f, 0x9b, 0x0f, 0x2c, 0x0e, 0xa6, 0x95, 0xad, 0x64, 0x9e, 0x76, 0x8b, 0x6c, 0x25,
-	0xd1, 0xb6, 0x75, 0xc9, 0x7c, 0xed, 0x55, 0xcc, 0x9f, 0x6b, 0x4d, 0x27, 0xb5, 0xde, 0x80, 0x9d,
-	0x84, 0x54, 0x42, 0xf9, 0x98, 0x79, 0x9c, 0xee, 0x3f, 0x47, 0x90, 0x8b, 0x47, 0x00, 0xdf, 0x01,
-	0xdc, 0x39, 0xfa, 0xe0, 0xa4, 0xdb, 0x23, 0x0f, 0x1f, 0x3c, 0x3a, 0x39, 0x3e, 0xfc, 0xf0, 0xf0,
-	0xe8, 0xe3, 0xc3, 0x42, 0xaa, 0xb4, 0x7b, 0xfe, 0xac, 0x5a, 0x88, 0xb1, 0x63, 0x6f, 0xe8, 0xb1,
-	0x33, 0x0f, 0xef, 0xc3, 0xf5, 0x04, 0xdd, 0xed, 0xb5, 0x8e, 0x8e, 0x7b, 0x05, 0x54, 0xda, 0x39,
-	0x7f, 0x56, 0xdd, 0x8e, 0xe1, 0xae, 0xb0, 0xd8, 0x44, 0x2c, 0xb2, 0x0f, 0x09, 0x29, 0x68, 0x8b,
-	0x2c, 0xf5, 0xfd, 0xd2, 0xf5, 0xaf, 0x7f, 0x28, 0xa7, 0x7e, 0x7d, 0x5e, 0x9e, 0x0b, 0x6b, 0x3c,
-	0x45, 0xb0, 0x16, 0xea, 0xc6, 0x5f, 0xc0, 0xe6, 0xa5, 0x9e, 0xc5, 0xb5, 0x65, 0xee, 0x2c, 0x9b,
-	0xb8, 0xd2, 0xcb, 0xc9, 0xc8, 0x51, 0xfd, 0xc6, 0xef, 0x3f, 0xff, 0xfd, 0x9d, 0xb6, 0x0d, 0x9b,
-	0x92, 0x7c, 0x73, 0x64, 0x7a, 0xa6, 0x4d, 0xfd, 0xbb, 0xa8, 0xf1, 0x93, 0x26, 0xdd, 0x6a, 0xca,
-	0xff, 0x5c, 0xfc, 0x2d, 0x82, 0x9d, 0x25, 0x6d, 0x8e, 0x8d, 0xa5, 0x17, 0xb6, 0x72, 0x1e, 0x4a,
-	0x6f, 0x5c, 0x21, 0x2c, 0x39, 0x20, 0xfa, 0x2d, 0xa9, 0xeb, 0x26, 0x5c, 0x53, 0xba, 0xce, 0x98,
-	0x3f, 0xa4, 0xfe, 0x82, 0x4a, 0xfc, 0x15, 0x82, 0x7c, 0xe2, 0xae, 0xf1, 0xed, 0x65, 0xcf, 0x5f,
-	0xec, 0xdb, 0xe5, 0x3a, 0x96, 0x34, 0xcd, 0x7f, 0xd2, 0x51, 0x43, 0xcd, 0xe2, 0xc5, 0x8b, 0x72,
-	0xea, 0xcf, 0x17, 0xe5, 0xd4, 0x97, 0x41, 0x19, 0x5d, 0x04, 0x65, 0xf4, 0x47, 0x50, 0x46, 0x7f,
-	0x05, 0x65, 0xd4, 0xcf, 0xc8, 0x17, 0xf7, 0x5b, 0xff, 0x04, 0x00, 0x00, 0xff, 0xff, 0x95, 0x7b,
-	0x3c, 0x04, 0xe0, 0x08, 0x00, 0x00,
-}
