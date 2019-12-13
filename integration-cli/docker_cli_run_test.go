@@ -28,7 +28,6 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/testutil"
@@ -3916,20 +3915,6 @@ func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *testing.T) {
 }
 
 func (s *DockerSuite) TestRunAttachFailedNoLeak(c *testing.T) {
-	if runtime.GOOS == "windows" {
-		// TODO @msabansal - https://github.com/moby/moby/issues/35023. Duplicate
-		// port mappings are not errored out on RS3 builds. Temporarily disabling
-		// this test pending further investigation. Note we parse kernel.GetKernelVersion
-		// rather than osversion.Build() as test binaries aren't manifested, so would
-		// otherwise report build 9200.
-		v, err := kernel.GetKernelVersion()
-		assert.NilError(c, err)
-		buildNumber, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
-		if buildNumber == osversion.RS3 {
-			c.Skip("Temporarily disabled on RS3 builds")
-		}
-	}
-
 	nroutines, err := getGoroutineNumber()
 	assert.NilError(c, err)
 
