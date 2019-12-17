@@ -1599,6 +1599,10 @@ func (daemon *Daemon) initCgroupsPath(path string) error {
 		return nil
 	}
 
+	if cgroups.IsCgroup2UnifiedMode() {
+		return fmt.Errorf("daemon-scoped cpu-rt-period and cpu-rt-runtime are not implemented for cgroup v2")
+	}
+
 	// Recursively create cgroup to ensure that the system and all parent cgroups have values set
 	// for the period and runtime as this limits what the children can be set to.
 	daemon.initCgroupsPath(filepath.Dir(path))
