@@ -403,7 +403,7 @@ func (fms *fileMetadataStore) Remove(layer ChainID, cache string) error {
 		return err
 	}
 	for _, f := range files {
-		if !strings.HasSuffix(f.Name(), "-removing") || !strings.HasPrefix(f.Name(), dgst.String()) {
+		if !strings.HasSuffix(f.Name(), "-removing") || !strings.HasPrefix(f.Name(), dgst.Encoded()) {
 			continue
 		}
 
