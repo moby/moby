@@ -65,11 +65,11 @@ func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *testing.T) {
 		}
 
 		payload := bytes.NewBufferString(`{"Tty":true}`)
-		conn, _, err := sockRequestHijack(http.MethodPost, fmt.Sprintf("/exec/%s/start", execID), payload, "application/json", request.DaemonHost())
+		wc, _, err := requestHijack(http.MethodPost, fmt.Sprintf("/exec/%s/start", execID), payload, "application/json", request.DaemonHost())
 		if err != nil {
 			return errors.Wrap(err, "failed to start the exec")
 		}
-		defer conn.Close()
+		defer wc.Close()
 
 		_, rc, err := request.Post(fmt.Sprintf("/exec/%s/resize?h=24&w=80", execID), request.ContentType("text/plain"))
 		if err != nil {

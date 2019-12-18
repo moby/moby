@@ -82,10 +82,6 @@ issues:
     - text: "SA1019: httputil.NewClientConn is deprecated"
       linters:
         - staticcheck
-    # FIXME temporarily suppress these. See #39927
-    - text: "SA1019: httputil.ClientConn is deprecated"
-      linters:
-        - staticcheck
     # FIXME temporarily suppress these (related to the ones above)
     - text: "SA1019: httputil.ErrPersistEOF is deprecated"
       linters:
