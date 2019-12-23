@@ -7,7 +7,7 @@ IFS=$'\n'
 files=( $(validate_diff --diff-filter=ACMR --name-only -- 'profiles/seccomp' || true) )
 unset IFS
 
-if [ ${#files[@]} -gt 0 ]; then
+if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ ${#files[@]} -gt 0 ]; then
 	# We run 'go generate' and see if we have a diff afterwards
 	go generate ./profiles/seccomp/ >/dev/null
 	# Let see if the working directory is clean
@@ -23,6 +23,6 @@ if [ ${#files[@]} -gt 0 ]; then
 		} >&2
 		false
 	else
-		echo 'Congratulations! Seccomp profile generation is done correctly.'
+		echo 'Congratulations!  Seccomp profile generation is done correctly.'
 	fi
 fi

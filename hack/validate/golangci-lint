@@ -17,6 +17,8 @@ elif ${PKG_CONFIG} 'libsystemd-journal' 2> /dev/null ; then
 	DOCKER_BUILDTAGS+=" journald journald_compat"
 fi
 
+echo -e "\n\033[0;36mINFO\033[0m Start validation with golang-ci-lint"
+
 # TODO use --out-format=junit-xml and store artifacts
 # shellcheck disable=SC2086
 GOGC=75 golangci-lint run \
