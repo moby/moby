@@ -26,7 +26,7 @@
 
 ARG CROSS="false"
 # IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
-ARG GO_VERSION=1.13.4
+ARG GO_VERSION=1.13.5
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_DIGEST=e508a17cfacc8fd39261d5b4e397df2b953690da577e2c987a47630cd0c42f8e
 
