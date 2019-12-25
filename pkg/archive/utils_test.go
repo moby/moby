@@ -1,4 +1,4 @@
-package archive
+package archive // import "github.com/docker/docker/pkg/archive"
 
 import (
 	"archive/tar"
@@ -16,7 +16,7 @@ var testUntarFns = map[string]func(string, io.Reader) error{
 		return Untar(r, dest, nil)
 	},
 	"applylayer": func(dest string, r io.Reader) error {
-		_, err := ApplyLayer(dest, Reader(r))
+		_, err := ApplyLayer(dest, r)
 		return err
 	},
 }

@@ -1,9 +1,8 @@
 // +build !exclude_graphdriver_overlay,linux
 
-package register
+package register // import "github.com/docker/docker/daemon/graphdriver/register"
 
 import (
 	// register the overlay graphdriver
 	_ "github.com/docker/docker/daemon/graphdriver/overlay"
-	_ "github.com/docker/docker/daemon/graphdriver/overlay2"
 )

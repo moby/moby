@@ -3,75 +3,79 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
+	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/go-check/check"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil/request"
+	"gotest.tools/assert"
 )
 
-func (s *DockerSuite) TestLogsApiWithStdout(c *check.C) {
+func (s *DockerSuite) TestLogsAPIWithStdout(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "-t", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 1; done")
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), checker.IsNil)
+	assert.NilError(c, waitRun(id))
 
 	type logOut struct {
 		out string
-		res *http.Response
 		err error
 	}
+
 	chLog := make(chan logOut)
+	res, body, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&timestamps=1", id))
+	assert.NilError(c, err)
+	assert.Equal(c, res.StatusCode, http.StatusOK)
 
 	go func() {
-		res, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&timestamps=1", id), nil, "")
-		if err != nil {
-			chLog <- logOut{"", nil, err}
-			return
-		}
 		defer body.Close()
 		out, err := bufio.NewReader(body).ReadString('\n')
 		if err != nil {
-			chLog <- logOut{"", nil, err}
+			chLog <- logOut{"", err}
 			return
 		}
-		chLog <- logOut{strings.TrimSpace(out), res, err}
+		chLog <- logOut{strings.TrimSpace(out), err}
 	}()
 
 	select {
 	case l := <-chLog:
-		c.Assert(l.err, checker.IsNil)
-		c.Assert(l.res.StatusCode, checker.Equals, http.StatusOK)
+		assert.NilError(c, l.err)
 		if !strings.HasSuffix(l.out, "hello") {
 			c.Fatalf("expected log output to container 'hello', but it does not")
 		}
-	case <-time.After(20 * time.Second):
+	case <-time.After(30 * time.Second):
 		c.Fatal("timeout waiting for logs to exit")
 	}
 }
 
-func (s *DockerSuite) TestLogsApiNoStdoutNorStderr(c *check.C) {
+func (s *DockerSuite) TestLogsAPINoStdoutNorStderr(c *testing.T) {
 	name := "logs_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	assert.NilError(c, err)
+	defer cli.Close()
 
-	status, body, err := sockRequest("GET", fmt.Sprintf("/containers/%s/logs", name), nil)
-	c.Assert(status, checker.Equals, http.StatusBadRequest)
-	c.Assert(err, checker.IsNil)
-
-	expected := "Bad parameters: you must choose at least one stream"
-	c.Assert(getErrorMessage(c, body), checker.Contains, expected)
+	_, err = cli.ContainerLogs(context.Background(), name, types.ContainerLogsOptions{})
+	assert.ErrorContains(c, err, "Bad parameters: you must choose at least one stream")
 }
 
 // Regression test for #12704
-func (s *DockerSuite) TestLogsApiFollowEmptyOutput(c *check.C) {
+func (s *DockerSuite) TestLogsAPIFollowEmptyOutput(c *testing.T) {
 	name := "logs_test"
 	t0 := time.Now()
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "sleep", "10")
 
-	_, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name), bytes.NewBuffer(nil), "")
+	_, body, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name))
 	t1 := time.Now()
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	body.Close()
 	elapsed := t1.Sub(t0).Seconds()
 	if elapsed > 20.0 {
@@ -79,9 +83,133 @@ func (s *DockerSuite) TestLogsApiFollowEmptyOutput(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestLogsApiContainerNotFound(c *check.C) {
+func (s *DockerSuite) TestLogsAPIContainerNotFound(c *testing.T) {
 	name := "nonExistentContainer"
-	resp, _, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name), bytes.NewBuffer(nil), "")
-	c.Assert(err, checker.IsNil)
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusNotFound)
+	resp, _, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name))
+	assert.NilError(c, err)
+	assert.Equal(c, resp.StatusCode, http.StatusNotFound)
+}
+
+func (s *DockerSuite) TestLogsAPIUntilFutureFollow(c *testing.T) {
+	testRequires(c, DaemonIsLinux)
+	name := "logsuntilfuturefollow"
+	dockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", "while true; do date +%s; sleep 1; done")
+	assert.NilError(c, waitRun(name))
+
+	untilSecs := 5
+	untilDur, err := time.ParseDuration(fmt.Sprintf("%ds", untilSecs))
+	assert.NilError(c, err)
+	until := daemonTime(c).Add(untilDur)
+
+	client, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	cfg := types.ContainerLogsOptions{Until: until.Format(time.RFC3339Nano), Follow: true, ShowStdout: true, Timestamps: true}
+	reader, err := client.ContainerLogs(context.Background(), name, cfg)
+	assert.NilError(c, err)
+
+	type logOut struct {
+		out string
+		err error
+	}
+
+	chLog := make(chan logOut)
+
+	go func() {
+		bufReader := bufio.NewReader(reader)
+		defer reader.Close()
+		for i := 0; i < untilSecs; i++ {
+			out, _, err := bufReader.ReadLine()
+			if err != nil {
+				if err == io.EOF {
+					return
+				}
+				chLog <- logOut{"", err}
+				return
+			}
+
+			chLog <- logOut{strings.TrimSpace(string(out)), err}
+		}
+	}()
+
+	for i := 0; i < untilSecs; i++ {
+		select {
+		case l := <-chLog:
+			assert.NilError(c, l.err)
+			i, err := strconv.ParseInt(strings.Split(l.out, " ")[1], 10, 64)
+			assert.NilError(c, err)
+			assert.Assert(c, time.Unix(i, 0).UnixNano() <= until.UnixNano())
+		case <-time.After(20 * time.Second):
+			c.Fatal("timeout waiting for logs to exit")
+		}
+	}
+}
+
+func (s *DockerSuite) TestLogsAPIUntil(c *testing.T) {
+	testRequires(c, MinimumAPIVersion("1.34"))
+	name := "logsuntil"
+	dockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; sleep 1; done")
+
+	client, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	extractBody := func(c *testing.T, cfg types.ContainerLogsOptions) []string {
+		reader, err := client.ContainerLogs(context.Background(), name, cfg)
+		assert.NilError(c, err)
+
+		actualStdout := new(bytes.Buffer)
+		actualStderr := ioutil.Discard
+		_, err = stdcopy.StdCopy(actualStdout, actualStderr, reader)
+		assert.NilError(c, err)
+
+		return strings.Split(actualStdout.String(), "\n")
+	}
+
+	// Get timestamp of second log line
+	allLogs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true})
+	assert.Assert(c, len(allLogs) >= 3)
+
+	t, err := time.Parse(time.RFC3339Nano, strings.Split(allLogs[1], " ")[0])
+	assert.NilError(c, err)
+	until := t.Format(time.RFC3339Nano)
+
+	// Get logs until the timestamp of second line, i.e. first two lines
+	logs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true, Until: until})
+
+	// Ensure log lines after cut-off are excluded
+	logsString := strings.Join(logs, "\n")
+	assert.Assert(c, !strings.Contains(logsString, "log3"), "unexpected log message returned, until=%v", until)
+}
+
+func (s *DockerSuite) TestLogsAPIUntilDefaultValue(c *testing.T) {
+	name := "logsuntildefaultval"
+	dockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; done")
+
+	client, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	extractBody := func(c *testing.T, cfg types.ContainerLogsOptions) []string {
+		reader, err := client.ContainerLogs(context.Background(), name, cfg)
+		assert.NilError(c, err)
+
+		actualStdout := new(bytes.Buffer)
+		actualStderr := ioutil.Discard
+		_, err = stdcopy.StdCopy(actualStdout, actualStderr, reader)
+		assert.NilError(c, err)
+
+		return strings.Split(actualStdout.String(), "\n")
+	}
+
+	// Get timestamp of second log line
+	allLogs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true})
+
+	// Test with default value specified and parameter omitted
+	defaultLogs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true, Until: "0"})
+	assert.DeepEqual(c, defaultLogs, allLogs)
 }

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 rm -rf "$DEST"
@@ -28,17 +28,17 @@ if [ -n "$DOCKER_PORT" ]; then
 	listen_port="${ports[-1]}"
 fi
 
-extra_params=""
+extra_params="$DOCKERD_ARGS"
 if [ "$DOCKER_REMAP_ROOT" ]; then
-	extra_params="--userns-remap $DOCKER_REMAP_ROOT"
+	extra_params="$extra_params --userns-remap $DOCKER_REMAP_ROOT"
 fi
 
 args="--debug \
 	--host tcp://0.0.0.0:${listen_port} --host unix:///var/run/docker.sock \
-	--storage-driver "$DOCKER_GRAPHDRIVER" \
-	--userland-proxy="$DOCKER_USERLANDPROXY" \
+	--storage-driver "${DOCKER_GRAPHDRIVER}" \
+	--userland-proxy="${DOCKER_USERLANDPROXY}" \
 	$storage_params \
 	$extra_params"
 
-echo dockerd $args
-exec dockerd $args
+echo dockerd ${args}
+exec dockerd ${args}

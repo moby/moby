@@ -1,12 +1,11 @@
 // +build !windows
 
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"fmt"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
+	"github.com/pkg/errors"
 )
 
 // Resolve Network SandboxID in case the container reuse another container's network stack
@@ -16,7 +15,7 @@ func (daemon *Daemon) getNetworkSandboxID(c *container.Container) (string, error
 		containerID := curr.HostConfig.NetworkMode.ConnectedContainer()
 		connected, err := daemon.GetContainer(containerID)
 		if err != nil {
-			return "", fmt.Errorf("Could not get container for %s", containerID)
+			return "", errors.Wrapf(err, "Could not get container for %s", containerID)
 		}
 		curr = connected
 	}
@@ -40,7 +39,7 @@ func (daemon *Daemon) getNetworkStats(c *container.Container) (map[string]types.
 	}
 
 	stats := make(map[string]types.NetworkStats)
-	// Convert libnetwork nw stats into engine-api stats
+	// Convert libnetwork nw stats into api stats
 	for ifName, ifStats := range lnstats {
 		stats[ifName] = types.NetworkStats{
 			RxBytes:   ifStats.RxBytes,

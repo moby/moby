@@ -1,44 +1,61 @@
-// +build experimental
-
-package graphdriver
+package graphdriver // import "github.com/docker/docker/daemon/graphdriver"
 
 import (
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/containerfs"
+	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/pkg/plugins"
 )
 
 type graphDriverProxy struct {
 	name   string
-	client pluginClient
+	p      plugingetter.CompatPlugin
+	caps   Capabilities
+	client *plugins.Client
 }
 
 type graphDriverRequest struct {
-	ID         string `json:",omitempty"`
-	Parent     string `json:",omitempty"`
-	MountLabel string `json:",omitempty"`
+	ID         string            `json:",omitempty"`
+	Parent     string            `json:",omitempty"`
+	MountLabel string            `json:",omitempty"`
+	StorageOpt map[string]string `json:",omitempty"`
 }
 
 type graphDriverResponse struct {
-	Err      string            `json:",omitempty"`
-	Dir      string            `json:",omitempty"`
-	Exists   bool              `json:",omitempty"`
-	Status   [][2]string       `json:",omitempty"`
-	Changes  []archive.Change  `json:",omitempty"`
-	Size     int64             `json:",omitempty"`
-	Metadata map[string]string `json:",omitempty"`
+	Err          string            `json:",omitempty"`
+	Dir          string            `json:",omitempty"`
+	Exists       bool              `json:",omitempty"`
+	Status       [][2]string       `json:",omitempty"`
+	Changes      []archive.Change  `json:",omitempty"`
+	Size         int64             `json:",omitempty"`
+	Metadata     map[string]string `json:",omitempty"`
+	Capabilities Capabilities      `json:",omitempty"`
 }
 
 type graphDriverInitRequest struct {
-	Home string
-	Opts []string
+	Home    string
+	Opts    []string        `json:"Opts"`
+	UIDMaps []idtools.IDMap `json:"UIDMaps"`
+	GIDMaps []idtools.IDMap `json:"GIDMaps"`
 }
 
-func (d *graphDriverProxy) Init(home string, opts []string) error {
+func (d *graphDriverProxy) Init(home string, opts []string, uidMaps, gidMaps []idtools.IDMap) error {
+	if !d.p.IsV1() {
+		if cp, ok := d.p.(plugingetter.CountedPlugin); ok {
+			// always acquire here, it will be cleaned up on daemon shutdown
+			cp.Acquire()
+		}
+	}
 	args := &graphDriverInitRequest{
-		Home: home,
-		Opts: opts,
+		Home:    home,
+		Opts:    opts,
+		UIDMaps: uidMaps,
+		GIDMaps: gidMaps,
 	}
 	var ret graphDriverResponse
 	if err := d.client.Call("GraphDriver.Init", args, &ret); err != nil {
@@ -47,37 +64,52 @@ func (d *graphDriverProxy) Init(home string, opts []string) error {
 	if ret.Err != "" {
 		return errors.New(ret.Err)
 	}
+	caps, err := d.fetchCaps()
+	if err != nil {
+		return err
+	}
+	d.caps = caps
 	return nil
+}
+
+func (d *graphDriverProxy) fetchCaps() (Capabilities, error) {
+	args := &graphDriverRequest{}
+	var ret graphDriverResponse
+	if err := d.client.Call("GraphDriver.Capabilities", args, &ret); err != nil {
+		if !plugins.IsNotFound(err) {
+			return Capabilities{}, err
+		}
+	}
+	return ret.Capabilities, nil
 }
 
 func (d *graphDriverProxy) String() string {
 	return d.name
 }
 
-func (d *graphDriverProxy) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
-	args := &graphDriverRequest{
-		ID:         id,
-		Parent:     parent,
-		MountLabel: mountLabel,
-	}
-	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.CreateReadWrite", args, &ret); err != nil {
-		return err
-	}
-	if ret.Err != "" {
-		return errors.New(ret.Err)
-	}
-	return nil
+func (d *graphDriverProxy) Capabilities() Capabilities {
+	return d.caps
 }
 
-func (d *graphDriverProxy) Create(id, parent, mountLabel string, storageOpt map[string]string) error {
+func (d *graphDriverProxy) CreateReadWrite(id, parent string, opts *CreateOpts) error {
+	return d.create("GraphDriver.CreateReadWrite", id, parent, opts)
+}
+
+func (d *graphDriverProxy) Create(id, parent string, opts *CreateOpts) error {
+	return d.create("GraphDriver.Create", id, parent, opts)
+}
+
+func (d *graphDriverProxy) create(method, id, parent string, opts *CreateOpts) error {
 	args := &graphDriverRequest{
-		ID:         id,
-		Parent:     parent,
-		MountLabel: mountLabel,
+		ID:     id,
+		Parent: parent,
+	}
+	if opts != nil {
+		args.MountLabel = opts.MountLabel
+		args.StorageOpt = opts.StorageOpt
 	}
 	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Create", args, &ret); err != nil {
+	if err := d.client.Call(method, args, &ret); err != nil {
 		return err
 	}
 	if ret.Err != "" {
@@ -98,20 +130,20 @@ func (d *graphDriverProxy) Remove(id string) error {
 	return nil
 }
 
-func (d *graphDriverProxy) Get(id, mountLabel string) (string, error) {
+func (d *graphDriverProxy) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	args := &graphDriverRequest{
 		ID:         id,
 		MountLabel: mountLabel,
 	}
 	var ret graphDriverResponse
 	if err := d.client.Call("GraphDriver.Get", args, &ret); err != nil {
-		return "", err
+		return nil, err
 	}
 	var err error
 	if ret.Err != "" {
 		err = errors.New(ret.Err)
 	}
-	return ret.Dir, err
+	return containerfs.NewLocalContainerFS(d.p.ScopedPath(ret.Dir)), err
 }
 
 func (d *graphDriverProxy) Put(id string) error {
@@ -159,6 +191,13 @@ func (d *graphDriverProxy) GetMetadata(id string) (map[string]string, error) {
 }
 
 func (d *graphDriverProxy) Cleanup() error {
+	if !d.p.IsV1() {
+		if cp, ok := d.p.(plugingetter.CountedPlugin); ok {
+			// always release
+			defer cp.Release()
+		}
+	}
+
 	args := &graphDriverRequest{}
 	var ret graphDriverResponse
 	if err := d.client.Call("GraphDriver.Cleanup", args, &ret); err != nil {
@@ -170,7 +209,7 @@ func (d *graphDriverProxy) Cleanup() error {
 	return nil
 }
 
-func (d *graphDriverProxy) Diff(id, parent string) (archive.Archive, error) {
+func (d *graphDriverProxy) Diff(id, parent string) (io.ReadCloser, error) {
 	args := &graphDriverRequest{
 		ID:     id,
 		Parent: parent,
@@ -179,7 +218,7 @@ func (d *graphDriverProxy) Diff(id, parent string) (archive.Archive, error) {
 	if err != nil {
 		return nil, err
 	}
-	return archive.Archive(body), nil
+	return body, nil
 }
 
 func (d *graphDriverProxy) Changes(id, parent string) ([]archive.Change, error) {
@@ -198,7 +237,7 @@ func (d *graphDriverProxy) Changes(id, parent string) ([]archive.Change, error) 
 	return ret.Changes, nil
 }
 
-func (d *graphDriverProxy) ApplyDiff(id, parent string, diff archive.Reader) (int64, error) {
+func (d *graphDriverProxy) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
 	var ret graphDriverResponse
 	if err := d.client.SendFile(fmt.Sprintf("GraphDriver.ApplyDiff?id=%s&parent=%s", id, parent), diff, &ret); err != nil {
 		return -1, err

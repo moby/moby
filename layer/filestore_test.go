@@ -1,4 +1,4 @@
-package layer
+package layer // import "github.com/docker/docker/layer"
 
 import (
 	"fmt"
@@ -10,7 +10,8 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/distribution/digest"
+	"github.com/docker/docker/pkg/stringid"
+	digest "github.com/opencontainers/go-digest"
 )
 
 func randomLayerID(seed int64) ChainID {
@@ -24,12 +25,12 @@ func newFileMetadataStore(t *testing.T) (*fileMetadataStore, string, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fms, err := NewFSMetadataStore(td)
+	fms, err := newFSMetadataStore(td)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return fms.(*fileMetadataStore), td, func() {
+	return fms, td, func() {
 		if err := os.RemoveAll(td); err != nil {
 			t.Logf("Failed to cleanup %q: %s", td, err)
 		}
@@ -100,5 +101,52 @@ func TestStartTransactionFailure(t *testing.T) {
 
 	if err := tx.Cancel(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetOrphan(t *testing.T) {
+	fms, td, cleanup := newFileMetadataStore(t)
+	defer cleanup()
+
+	layerRoot := filepath.Join(td, "sha256")
+	if err := os.MkdirAll(layerRoot, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err := fms.StartTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	layerid := randomLayerID(5)
+	err = tx.Commit(layerid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	layerPath := fms.getLayerDirectory(layerid)
+	if err := ioutil.WriteFile(filepath.Join(layerPath, "cache-id"), []byte(stringid.GenerateRandomID()), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	orphanLayers, err := fms.getOrphan()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(orphanLayers) != 0 {
+		t.Fatalf("Expected to have zero orphan layers")
+	}
+
+	layeridSplit := strings.Split(layerid.String(), ":")
+	newPath := filepath.Join(layerRoot, fmt.Sprintf("%s-%s-removing", layeridSplit[1], stringid.GenerateRandomID()))
+	err = os.Rename(layerPath, newPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	orphanLayers, err = fms.getOrphan()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(orphanLayers) != 1 {
+		t.Fatalf("Expected to have one orphan layer")
 	}
 }

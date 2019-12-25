@@ -1,7 +1,8 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -9,32 +10,32 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"golang.org/x/net/context"
+	"github.com/docker/docker/errdefs"
 )
 
 func TestContainerResizeError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerResize(context.Background(), "container_id", types.ResizeOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestContainerExecResizeError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerExecResize(context.Background(), "exec_id", types.ResizeOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestContainerResize(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, resizeTransport("/containers/container_id/resize")),
+		client: newMockClient(resizeTransport("/containers/container_id/resize")),
 	}
 
 	err := client.ContainerResize(context.Background(), "container_id", types.ResizeOptions{
@@ -48,7 +49,7 @@ func TestContainerResize(t *testing.T) {
 
 func TestContainerExecResize(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, resizeTransport("/exec/exec_id/resize")),
+		client: newMockClient(resizeTransport("/exec/exec_id/resize")),
 	}
 
 	err := client.ContainerExecResize(context.Background(), "exec_id", types.ResizeOptions{

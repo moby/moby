@@ -1,44 +1,44 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
 
-	"golang.org/x/net/context"
-
-	"encoding/json"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/errdefs"
 )
 
 func TestImageSearchAnyError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImageSearchStatusUnauthorizedError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusUnauthorized, "Unauthorized error")),
+		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	_, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Unauthorized error" {
-		t.Fatalf("expected an Unauthorized Error, got %v", err)
+	if !errdefs.IsUnauthorized(err) {
+		t.Fatalf("expected a Unauthorized Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImageSearchWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusUnauthorized, "Unauthorized error")),
+		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	privilegeFunc := func() (string, error) {
 		return "", fmt.Errorf("Error requesting privilege")
@@ -53,7 +53,7 @@ func TestImageSearchWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 
 func TestImageSearchWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusUnauthorized, "Unauthorized error")),
+		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	privilegeFunc := func() (string, error) {
 		return "a-auth-header", nil
@@ -61,15 +61,15 @@ func TestImageSearchWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.
 	_, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
-	if err == nil || err.Error() != "Error response from daemon: Unauthorized error" {
-		t.Fatalf("expected an Unauthorized Error, got %v", err)
+	if !errdefs.IsUnauthorized(err) {
+		t.Fatalf("expected a Unauthorized Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 	expectedURL := "/images/search"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -81,12 +81,12 @@ func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 				}, nil
 			}
 			if auth != "IAmValid" {
-				return nil, fmt.Errorf("Invalid auth header : expected %s, got %s", "IAmValid", auth)
+				return nil, fmt.Errorf("Invalid auth header : expected 'IAmValid', got %s", auth)
 			}
 			query := req.URL.Query()
 			term := query.Get("term")
 			if term != "some-image" {
-				return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", "some-image", term)
+				return nil, fmt.Errorf("term not set in URL query properly. Expected 'some-image', got %s", term)
 			}
 			content, err := json.Marshal([]registry.SearchResult{
 				{
@@ -113,7 +113,7 @@ func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(results) != 1 {
-		t.Fatalf("expected a result, got %v", results)
+		t.Fatalf("expected 1 result, got %v", results)
 	}
 }
 
@@ -126,14 +126,14 @@ func TestImageSearchWithoutErrors(t *testing.T) {
 	expectedFilters := `{"is-automated":{"true":true},"stars":{"3":true}}`
 
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
 			query := req.URL.Query()
 			term := query.Get("term")
 			if term != "some-image" {
-				return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", "some-image", term)
+				return nil, fmt.Errorf("term not set in URL query properly. Expected 'some-image', got %s", term)
 			}
 			filters := query.Get("filters")
 			if filters != expectedFilters {

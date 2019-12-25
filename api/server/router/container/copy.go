@@ -1,19 +1,29 @@
-package container
+package container // import "github.com/docker/docker/api/server/router/container"
 
 import (
+	"compress/flate"
+	"compress/gzip"
+	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
-	"golang.org/x/net/context"
+	"github.com/docker/docker/errdefs"
+	gddohttputil "github.com/golang/gddo/httputil"
 )
+
+type pathError struct{}
+
+func (pathError) Error() string {
+	return "Path cannot be empty"
+}
+
+func (pathError) InvalidParameter() {}
 
 // postContainersCopy is deprecated in favor of getContainersArchive.
 func (s *containerRouter) postContainersCopy(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -29,32 +39,25 @@ func (s *containerRouter) postContainersCopy(ctx context.Context, w http.Respons
 
 	cfg := types.CopyConfig{}
 	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
-		return err
+		if err == io.EOF {
+			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
+		}
+		return errdefs.InvalidParameter(err)
 	}
 
 	if cfg.Resource == "" {
-		return fmt.Errorf("Path cannot be empty")
+		return pathError{}
 	}
 
 	data, err := s.backend.ContainerCopy(vars["name"], cfg.Resource)
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "no such container") {
-			w.WriteHeader(http.StatusNotFound)
-			return nil
-		}
-		if os.IsNotExist(err) {
-			return fmt.Errorf("Could not find the file %s in container %s", cfg.Resource, vars["name"])
-		}
 		return err
 	}
 	defer data.Close()
 
 	w.Header().Set("Content-Type", "application/x-tar")
-	if _, err := io.Copy(w, data); err != nil {
-		return err
-	}
-
-	return nil
+	_, err = io.Copy(w, data)
+	return err
 }
 
 // // Encode the stat to JSON, base64 encode, and place in a header.
@@ -86,6 +89,29 @@ func (s *containerRouter) headContainersArchive(ctx context.Context, w http.Resp
 	return setContainerPathStatHeader(stat, w.Header())
 }
 
+func writeCompressedResponse(w http.ResponseWriter, r *http.Request, body io.Reader) error {
+	var cw io.Writer
+	switch gddohttputil.NegotiateContentEncoding(r, []string{"gzip", "deflate"}) {
+	case "gzip":
+		gw := gzip.NewWriter(w)
+		defer gw.Close()
+		cw = gw
+		w.Header().Set("Content-Encoding", "gzip")
+	case "deflate":
+		fw, err := flate.NewWriter(w, flate.DefaultCompression)
+		if err != nil {
+			return err
+		}
+		defer fw.Close()
+		cw = fw
+		w.Header().Set("Content-Encoding", "deflate")
+	default:
+		cw = w
+	}
+	_, err := io.Copy(cw, body)
+	return err
+}
+
 func (s *containerRouter) getContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v, err := httputils.ArchiveFormValues(r, vars)
 	if err != nil {
@@ -103,9 +129,7 @@ func (s *containerRouter) getContainersArchive(ctx context.Context, w http.Respo
 	}
 
 	w.Header().Set("Content-Type", "application/x-tar")
-	_, err = io.Copy(w, tarArchive)
-
-	return err
+	return writeCompressedResponse(w, r, tarArchive)
 }
 
 func (s *containerRouter) putContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -115,5 +139,7 @@ func (s *containerRouter) putContainersArchive(ctx context.Context, w http.Respo
 	}
 
 	noOverwriteDirNonDir := httputils.BoolValue(r, "noOverwriteDirNonDir")
-	return s.backend.ContainerExtractToDir(v.Name, v.Path, noOverwriteDirNonDir, r.Body)
+	copyUIDGID := httputils.BoolValue(r, "copyUIDGID")
+
+	return s.backend.ContainerExtractToDir(v.Name, v.Path, copyUIDGID, noOverwriteDirNonDir, r.Body)
 }

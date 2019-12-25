@@ -1,20 +1,21 @@
 // Package stringid provides helper functions for dealing with string identifiers
-package stringid
+package stringid // import "github.com/docker/docker/pkg/stringid"
 
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"io"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/docker/docker/pkg/random"
 )
 
 const shortLen = 12
 
-var validShortID = regexp.MustCompile("^[a-z0-9]{12}$")
+var (
+	validShortID = regexp.MustCompile("^[a-f0-9]{12}$")
+	validHex     = regexp.MustCompile(`^[a-f0-9]{64}$`)
+)
 
 // IsShortID determines if an arbitrary string *looks like* a short ID.
 func IsShortID(id string) bool {
@@ -35,14 +36,11 @@ func TruncateID(id string) string {
 	return id
 }
 
-func generateID(crypto bool) string {
+// GenerateRandomID returns a unique id.
+func GenerateRandomID() string {
 	b := make([]byte, 32)
-	r := random.Reader
-	if crypto {
-		r = rand.Reader
-	}
 	for {
-		if _, err := io.ReadFull(r, b); err != nil {
+		if _, err := rand.Read(b); err != nil {
 			panic(err) // This shouldn't happen
 		}
 		id := hex.EncodeToString(b)
@@ -56,14 +54,10 @@ func generateID(crypto bool) string {
 	}
 }
 
-// GenerateRandomID returns a unique id.
-func GenerateRandomID() string {
-	return generateID(true)
-}
-
-// GenerateNonCryptoID generates unique id without using cryptographically
-// secure sources of random.
-// It helps you to save entropy.
-func GenerateNonCryptoID() string {
-	return generateID(false)
+// ValidateID checks whether an ID string is a valid image ID.
+func ValidateID(id string) error {
+	if ok := validHex.MatchString(id); !ok {
+		return fmt.Errorf("image ID %q is invalid", id)
+	}
+	return nil
 }

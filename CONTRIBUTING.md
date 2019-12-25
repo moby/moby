@@ -1,14 +1,14 @@
-# Contributing to Docker
+# Contribute to the Moby Project
 
-Want to hack on Docker? Awesome!  We have a contributor's guide that explains
-[setting up a Docker development environment and the contribution
-process](https://docs.docker.com/opensource/project/who-written-for/). 
+Want to hack on the Moby Project? Awesome! We have a contributor's guide that explains
+[setting up a development environment and the contribution
+process](docs/contributing/). 
 
 [![Contributors guide](docs/static_files/contributors.png)](https://docs.docker.com/opensource/project/who-written-for/)
 
 This page contains information about reporting issues as well as some tips and
 guidelines useful to experienced open source contributors. Finally, make sure
-you read our [community guidelines](#docker-community-guidelines) before you
+you read our [community guidelines](#moby-community-guidelines) before you
 start participating.
 
 ## Topics
@@ -17,20 +17,20 @@ start participating.
 * [Design and Cleanup Proposals](#design-and-cleanup-proposals)
 * [Reporting Issues](#reporting-other-issues)
 * [Quick Contribution Tips and Guidelines](#quick-contribution-tips-and-guidelines)
-* [Community Guidelines](#docker-community-guidelines)
+* [Community Guidelines](#moby-community-guidelines)
 
 ## Reporting security issues
 
-The Docker maintainers take security seriously. If you discover a security
+The Moby maintainers take security seriously. If you discover a security
 issue, please bring it to their attention right away!
 
 Please **DO NOT** file a public issue, instead send your report privately to
 [security@docker.com](mailto:security@docker.com).
 
-Security reports are greatly appreciated and we will publicly thank you for it.
-We also like to send gifts&mdash;if you're into Docker schwag, make sure to let
-us know. We currently do not offer a paid security bounty program, but are not
-ruling it out in the future.
+Security reports are greatly appreciated and we will publicly thank you for it,
+although we keep your name confidential if you request it. We also like to send
+gifts&mdash;if you're into schwag, make sure to let us know. We currently do not
+offer a paid security bounty program, but are not ruling it out in the future.
 
 
 ## Reporting other issues
@@ -39,7 +39,7 @@ A great way to contribute to the project is to send a detailed report when you
 encounter an issue. We always appreciate a well-written, thorough bug report,
 and will thank you for it!
 
-Check that [our issue database](https://github.com/docker/docker/issues)
+Check that [our issue database](https://github.com/moby/moby/issues)
 doesn't already include that problem or suggestion before submitting an issue.
 If you find a match, you can use the "subscribe" button to get notified on
 updates. Do *not* leave random "+1" or "I have this too" comments, as they
@@ -66,7 +66,7 @@ This section gives the experienced contributor some tips and guidelines.
 
 Not sure if that typo is worth a pull request? Found a bug and know how to fix
 it? Do it! We will appreciate it. Any significant improvement should be
-documented as [a GitHub issue](https://github.com/docker/docker/issues) before
+documented as [a GitHub issue](https://github.com/moby/moby/issues) before
 anybody starts working on it.
 
 We are always thrilled to receive pull requests. We do our best to process them
@@ -83,11 +83,7 @@ contributions, see [the advanced contribution
 section](https://docs.docker.com/opensource/workflow/advanced-contributing/) in
 the contributors guide.
 
-We try hard to keep Docker lean and focused. Docker can't do everything for
-everybody. This means that we might decide against incorporating a new feature.
-However, there might be a way to implement that feature *on top of* Docker.
-
-### Talking to other Docker users and contributors
+### Connect with other Moby Project contributors
 
 <table class="tg">
   <col width="45%">
@@ -96,50 +92,27 @@ However, there might be a way to implement that feature *on top of* Docker.
     <td>Forums</td>
     <td>
       A public forum for users to discuss questions and explore current design patterns and
-      best practices about Docker and related projects in the Docker Ecosystem. To participate,
-      just log in with your Docker Hub account on <a href="https://forums.docker.com" target="_blank">https://forums.docker.com</a>.
+      best practices about all the Moby projects. To participate, log in with your Github
+      account or create an account at <a href="https://forums.mobyproject.org" target="_blank">https://forums.mobyproject.org</a>.
     </td>
   </tr>
   <tr>
-    <td>Internet&nbsp;Relay&nbsp;Chat&nbsp;(IRC)</td>
+    <td>Slack</td>
     <td>
       <p>
-        IRC a direct line to our most knowledgeable Docker users; we have
-        both the  <code>#docker</code> and <code>#docker-dev</code> group on
-        <strong>irc.freenode.net</strong>.
-        IRC is a rich chat protocol but it can overwhelm new users. You can search
-        <a href="https://botbot.me/freenode/docker/#" target="_blank">our chat archives</a>.
+        Register for the Docker Community Slack at
+	<a href="https://community.docker.com/registrations/groups/4316" target="_blank">https://community.docker.com/registrations/groups/4316</a>.
+        We use the #moby-project channel for general discussion, and there are separate channels for other Moby projects such as #containerd.
+	Archives are available at <a href="https://dockercommunity.slackarchive.io/" target="_blank">https://dockercommunity.slackarchive.io/</a>.
       </p>
-      <p>
-        Read our <a href="https://docs.docker.com/opensource/get-help/#irc-quickstart" target="_blank">IRC quickstart guide</a>
-        for an easy way to get started.
-      </p>
-    </td>
-  </tr>
-  <tr>
-    <td>Google Group</td>
-    <td>
-      The <a href="https://groups.google.com/forum/#!forum/docker-dev" target="_blank">docker-dev</a>
-      group is for contributors and other people contributing to the Docker project.
-      You can join them without a google account by sending an email to 
-      <a href="mailto:docker-dev+subscribe@googlegroups.com">docker-dev+subscribe@googlegroups.com</a>.
-      After receiving the join-request message, you can simply reply to that to confirm the subscribtion.
     </td>
   </tr>
   <tr>
     <td>Twitter</td>
     <td>
-      You can follow <a href="https://twitter.com/docker/" target="_blank">Docker's Twitter feed</a>
+      You can follow <a href="https://twitter.com/moby/" target="_blank">Moby Project Twitter feed</a>
       to get updates on our products. You can also tweet us questions or just
       share blogs or stories.
-    </td>
-  </tr>
-  <tr>
-    <td>Stack Overflow</td>
-    <td>
-      Stack Overflow has over 17000 Docker questions listed. We regularly
-      monitor <a href="https://stackoverflow.com/search?tab=newest&q=docker" target="_blank">Docker questions</a>
-      and so do many other knowledgeable Docker users.
     </td>
   </tr>
 </table>
@@ -155,10 +128,11 @@ Fork the repository and make changes on your fork in a feature branch:
 	your intentions, and name it XXXX-something where XXXX is the number of the
 	issue.
 
-Submit unit tests for your changes. Go has a great test framework built in; use
-it! Take a look at existing tests for inspiration. [Run the full test
-suite](https://docs.docker.com/opensource/project/test-and-docs/) on your branch before
-submitting a pull request.
+Submit tests for your changes. See [TESTING.md](./TESTING.md) for details.
+
+If your changes need integration tests, write them against the API. The `cli`
+integration tests are slowly either migrated to API tests or moved away as unit
+tests in `docker/cli` and end-to-end tests for Docker.
 
 Update the documentation when creating or modifying features. Test your
 documentation changes for clarity, concision, and correctness, as well as a
@@ -173,9 +147,63 @@ committing your changes. Most editors have plug-ins that do this automatically.
 Pull request descriptions should be as clear as possible and include a reference
 to all the issues that they address.
 
+### Successful Changes
+
+Before contributing large or high impact changes, make the effort to coordinate
+with the maintainers of the project before submitting a pull request. This
+prevents you from doing extra work that may or may not be merged.
+
+Large PRs that are just submitted without any prior communication are unlikely
+to be successful.
+
+While pull requests are the methodology for submitting changes to code, changes
+are much more likely to be accepted if they are accompanied by additional
+engineering work. While we don't define this explicitly, most of these goals
+are accomplished through communication of the design goals and subsequent
+solutions. Often times, it helps to first state the problem before presenting
+solutions.
+
+Typically, the best methods of accomplishing this are to submit an issue,
+stating the problem. This issue can include a problem statement and a
+checklist with requirements. If solutions are proposed, alternatives should be
+listed and eliminated. Even if the criteria for elimination of a solution is
+frivolous, say so.
+
+Larger changes typically work best with design documents. These are focused on
+providing context to the design at the time the feature was conceived and can
+inform future documentation contributions.
+
+### Commit Messages
+
 Commit messages must start with a capitalized and short summary (max. 50 chars)
 written in the imperative, followed by an optional, more detailed explanatory
 text which is separated from the summary by an empty line.
+
+Commit messages should follow best practices, including explaining the context
+of the problem and how it was solved, including in caveats or follow up changes
+required. They should tell the story of the change and provide readers
+understanding of what led to it.
+
+If you're lost about what this even means, please see [How to Write a Git
+Commit Message](http://chris.beams.io/posts/git-commit/) for a start.
+
+In practice, the best approach to maintaining a nice commit message is to
+leverage a `git add -p` and `git commit --amend` to formulate a solid
+changeset. This allows one to piece together a change, as information becomes
+available.
+
+If you squash a series of commits, don't just submit that. Re-write the commit
+message, as if the series of commits was a single stroke of brilliance.
+
+That said, there is no requirement to have a single commit for a PR, as long as
+each commit tells the story. For example, if there is a feature that requires a
+package, it might make sense to have the package in a separate commit then have
+a subsequent commit that uses it.
+
+Remember, you're telling part of the story with the commit message. Don't make
+your chapter weird.
+
+### Review
 
 Code review comments may be added to your pull request. Discuss, then make the
 suggested modifications and push additional commits to your feature branch. Post
@@ -197,10 +225,9 @@ calling it in another file constitute a single logical unit of work. The very
 high majority of submissions should have a single commit, so if in doubt: squash
 down to one.
 
-After every commit, [make sure the test suite passes]
-(https://docs.docker.com/opensource/project/test-and-docs/). Include documentation
-changes in the same pull request so that a revert would remove all traces of
-the feature or fix.
+After every commit, [make sure the test suite passes](./TESTING.md). Include
+documentation changes in the same pull request so that a revert would remove
+all traces of the feature or fix.
 
 Include an issue reference like `Closes #XXXX` or `Fixes #XXXX` in commits that
 close an issue. Including references automatically closes the issue on a merge.
@@ -212,15 +239,11 @@ Please see the [Coding Style](#coding-style) for further guidelines.
 
 ### Merge approval
 
-Docker maintainers use LGTM (Looks Good To Me) in comments on the code review to
-indicate acceptance.
+Moby maintainers use LGTM (Looks Good To Me) in comments on the code review to
+indicate acceptance, or use the Github review approval feature.
 
-A change requires LGTMs from an absolute majority of the maintainers of each
-component affected. For example, if a change affects `docs/` and `registry/`, it
-needs an absolute majority from the maintainers of `docs/` AND, separately, an
-absolute majority of the maintainers of `registry/`.
-
-For more details, see the [MAINTAINERS](MAINTAINERS) page.
+For an explanation of the review and approval process see the
+[REVIEWING](project/REVIEWING.md) page.
 
 ### Sign your work
 
@@ -234,8 +257,9 @@ Developer Certificate of Origin
 Version 1.1
 
 Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
-660 York Street, Suite 102,
-San Francisco, CA 94110 USA
+1 Letterman Drive
+Suite D4700
+San Francisco, CA, 94129
 
 Everyone is permitted to copy and distribute verbatim copies of this
 license document, but changing it is not allowed.
@@ -279,17 +303,46 @@ commit automatically with `git commit -s`.
 ### How can I become a maintainer?
 
 The procedures for adding new maintainers are explained in the 
-global [MAINTAINERS](https://github.com/docker/opensource/blob/master/MAINTAINERS)
-file in the [https://github.com/docker/opensource/](https://github.com/docker/opensource/)
-repository.
+[/project/GOVERNANCE.md](/project/GOVERNANCE.md)
+file in this repository.
 
 Don't forget: being a maintainer is a time investment. Make sure you
 will have time to make yourself available. You don't have to be a
 maintainer to make a difference on the project!
 
-## Docker community guidelines
+### Manage issues and pull requests using the Derek bot
 
-We want to keep the Docker community awesome, growing and collaborative. We need
+If you want to help label, assign, close or reopen issues or pull requests
+without commit rights, ask a maintainer to add your Github handle to the 
+`.DEREK.yml` file. [Derek](https://github.com/alexellis/derek) is a bot that extends
+Github's user permissions to help non-committers to manage issues and pull requests simply by commenting.
+
+For example:
+
+* Labels
+
+```
+Derek add label: kind/question
+Derek remove label: status/claimed
+```
+
+* Assign work
+
+```
+Derek assign: username
+Derek unassign: me
+```
+
+* Manage issues and PRs
+
+```
+Derek close
+Derek reopen
+```
+
+## Moby community guidelines
+
+We want to keep the Moby community awesome, growing and collaborative. We need
 your help to keep it that way. To help with this we've come up with some general
 guidelines for the community as a whole:
 
@@ -316,6 +369,11 @@ guidelines for the community as a whole:
   pull request. Instead of sending an email, GitHub mentions should be
   used to ping maintainers to review a pull request, a proposal or an
   issue.
+
+The open source governance for this repository is handled via the [Moby Technical Steering Committee (TSC)](https://github.com/moby/tsc)
+charter. For any concerns with the community process regarding technical contributions,
+please contact the TSC. More information on project governance is available in
+our [project/GOVERNANCE.md](/project/GOVERNANCE.md) document.
 
 ### Guideline violations — 3 strikes method
 

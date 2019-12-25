@@ -1,4 +1,4 @@
-package plugins
+package plugins // import "github.com/docker/docker/pkg/plugins"
 
 import (
 	"io/ioutil"
@@ -66,7 +66,7 @@ func TestFileSpecPlugin(t *testing.T) {
 			t.Fatalf("Expected plugin addr `%s`, got %s\n", c.addr, p.Addr)
 		}
 
-		if p.TLSConfig.InsecureSkipVerify != true {
+		if !p.TLSConfig.InsecureSkipVerify {
 			t.Fatalf("Expected TLS verification to be skipped")
 		}
 	}

@@ -7,7 +7,7 @@
 //
 // Utility functions which operate on pools should be added to this
 // package to allow them to be reused.
-package pools
+package pools // import "github.com/docker/docker/pkg/pools"
 
 import (
 	"bufio"
@@ -17,32 +17,29 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 )
 
+const buffer32K = 32 * 1024
+
 var (
 	// BufioReader32KPool is a pool which returns bufio.Reader with a 32K buffer.
-	BufioReader32KPool *BufioReaderPool
+	BufioReader32KPool = newBufioReaderPoolWithSize(buffer32K)
 	// BufioWriter32KPool is a pool which returns bufio.Writer with a 32K buffer.
-	BufioWriter32KPool *BufioWriterPool
+	BufioWriter32KPool = newBufioWriterPoolWithSize(buffer32K)
+	buffer32KPool      = newBufferPoolWithSize(buffer32K)
 )
-
-const buffer32K = 32 * 1024
 
 // BufioReaderPool is a bufio reader that uses sync.Pool.
 type BufioReaderPool struct {
-	pool *sync.Pool
-}
-
-func init() {
-	BufioReader32KPool = newBufioReaderPoolWithSize(buffer32K)
-	BufioWriter32KPool = newBufioWriterPoolWithSize(buffer32K)
+	pool sync.Pool
 }
 
 // newBufioReaderPoolWithSize is unexported because new pools should be
 // added here to be shared where required.
 func newBufioReaderPoolWithSize(size int) *BufioReaderPool {
-	pool := &sync.Pool{
-		New: func() interface{} { return bufio.NewReaderSize(nil, size) },
+	return &BufioReaderPool{
+		pool: sync.Pool{
+			New: func() interface{} { return bufio.NewReaderSize(nil, size) },
+		},
 	}
-	return &BufioReaderPool{pool: pool}
 }
 
 // Get returns a bufio.Reader which reads from r. The buffer size is that of the pool.
@@ -58,11 +55,31 @@ func (bufPool *BufioReaderPool) Put(b *bufio.Reader) {
 	bufPool.pool.Put(b)
 }
 
+type bufferPool struct {
+	pool sync.Pool
+}
+
+func newBufferPoolWithSize(size int) *bufferPool {
+	return &bufferPool{
+		pool: sync.Pool{
+			New: func() interface{} { s := make([]byte, size); return &s },
+		},
+	}
+}
+
+func (bp *bufferPool) Get() *[]byte {
+	return bp.pool.Get().(*[]byte)
+}
+
+func (bp *bufferPool) Put(b *[]byte) {
+	bp.pool.Put(b)
+}
+
 // Copy is a convenience wrapper which uses a buffer to avoid allocation in io.Copy.
 func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
-	buf := BufioReader32KPool.Get(src)
-	written, err = io.Copy(dst, buf)
-	BufioReader32KPool.Put(buf)
+	buf := buffer32KPool.Get()
+	written, err = io.CopyBuffer(dst, src, *buf)
+	buffer32KPool.Put(buf)
 	return
 }
 
@@ -80,16 +97,17 @@ func (bufPool *BufioReaderPool) NewReadCloserWrapper(buf *bufio.Reader, r io.Rea
 
 // BufioWriterPool is a bufio writer that uses sync.Pool.
 type BufioWriterPool struct {
-	pool *sync.Pool
+	pool sync.Pool
 }
 
 // newBufioWriterPoolWithSize is unexported because new pools should be
 // added here to be shared where required.
 func newBufioWriterPoolWithSize(size int) *BufioWriterPool {
-	pool := &sync.Pool{
-		New: func() interface{} { return bufio.NewWriterSize(nil, size) },
+	return &BufioWriterPool{
+		pool: sync.Pool{
+			New: func() interface{} { return bufio.NewWriterSize(nil, size) },
+		},
 	}
-	return &BufioWriterPool{pool: pool}
 }
 
 // Get returns a bufio.Writer which writes to w. The buffer size is that of the pool.

@@ -1,4 +1,4 @@
-package stdcopy
+package stdcopy // import "github.com/docker/docker/pkg/stdcopy"
 
 import (
 	"bytes"
@@ -16,14 +16,14 @@ func TestNewStdWriter(t *testing.T) {
 	}
 }
 
-func TestWriteWithUnitializedStdWriter(t *testing.T) {
+func TestWriteWithUninitializedStdWriter(t *testing.T) {
 	writer := stdWriter{
 		Writer: nil,
 		prefix: byte(Stdout),
 	}
 	n, err := writer.Write([]byte("Something here"))
 	if n != 0 || err == nil {
-		t.Fatalf("Should fail when given an uncomplete or uninitialized StdWriter")
+		t.Fatalf("Should fail when given an incomplete or uninitialized StdWriter")
 	}
 }
 
@@ -243,6 +243,35 @@ func TestStdCopyDetectsNotFullyWrittenFrames(t *testing.T) {
 	}
 	if err != io.ErrShortWrite {
 		t.Fatalf("Didn't get expected io.ErrShortWrite error")
+	}
+}
+
+// TestStdCopyReturnsErrorFromSystem tests that StdCopy correctly returns an
+// error, when that error is muxed into the Systemerr stream.
+func TestStdCopyReturnsErrorFromSystem(t *testing.T) {
+	// write in the basic messages, just so there's some fluff in there
+	stdOutBytes := []byte(strings.Repeat("o", startingBufLen))
+	stdErrBytes := []byte(strings.Repeat("e", startingBufLen))
+	buffer, err := getSrcBuffer(stdOutBytes, stdErrBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// add in an error message on the Systemerr stream
+	systemErrBytes := []byte(strings.Repeat("S", startingBufLen))
+	systemWriter := NewStdWriter(buffer, Systemerr)
+	_, err = systemWriter.Write(systemErrBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// now copy and demux. we should expect an error containing the string we
+	// wrote out
+	_, err = StdCopy(ioutil.Discard, ioutil.Discard, buffer)
+	if err == nil {
+		t.Fatal("expected error, got none")
+	}
+	if !strings.Contains(err.Error(), string(systemErrBytes)) {
+		t.Fatal("expected error to contain message")
 	}
 }
 

@@ -1,13 +1,13 @@
 // +build !windows
 
-package system
+package system // import "github.com/docker/docker/pkg/system"
 
 import (
-	"syscall"
+	"golang.org/x/sys/unix"
 )
 
 // Umask sets current process's file mode creation mask to newmask
 // and returns oldmask.
 func Umask(newmask int) (oldmask int, err error) {
-	return syscall.Umask(newmask), nil
+	return unix.Umask(newmask), nil
 }

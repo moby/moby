@@ -1,7 +1,8 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,24 +14,37 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-
-	"golang.org/x/net/context"
+	"github.com/docker/docker/errdefs"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
+
+func TestContainerLogsNotFoundError(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
+	}
+	_, err := client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{})
+	if !IsErrNotFound(err) {
+		t.Fatalf("expected a not found error, got %v", err)
+	}
+}
 
 func TestContainerLogsError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 	_, err = client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{
 		Since: "2006-01-02TZ",
 	})
-	if err == nil || !strings.Contains(err.Error(), `parsing time "2006-01-02TZ"`) {
-		t.Fatalf("expected a 'parsing time' error, got %v", err)
-	}
+	assert.Check(t, is.ErrorContains(err, `parsing time "2006-01-02TZ"`))
+	_, err = client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{
+		Until: "2006-01-02TZ",
+	})
+	assert.Check(t, is.ErrorContains(err, `parsing time "2006-01-02TZ"`))
 }
 
 func TestContainerLogs(t *testing.T) {
@@ -38,6 +52,7 @@ func TestContainerLogs(t *testing.T) {
 	cases := []struct {
 		options             types.ContainerLogsOptions
 		expectedQueryParams map[string]string
+		expectedError       string
 	}{
 		{
 			expectedQueryParams: map[string]string{
@@ -71,21 +86,44 @@ func TestContainerLogs(t *testing.T) {
 		},
 		{
 			options: types.ContainerLogsOptions{
-				// An complete invalid date, timestamp or go duration will be
-				// passed as is
-				Since: "invalid but valid",
+				// timestamp will be passed as is
+				Since: "1136073600.000000001",
 			},
 			expectedQueryParams: map[string]string{
 				"tail":  "",
-				"since": "invalid but valid",
+				"since": "1136073600.000000001",
 			},
+		},
+		{
+			options: types.ContainerLogsOptions{
+				// timestamp will be passed as is
+				Until: "1136073600.000000001",
+			},
+			expectedQueryParams: map[string]string{
+				"tail":  "",
+				"until": "1136073600.000000001",
+			},
+		},
+		{
+			options: types.ContainerLogsOptions{
+				// An complete invalid date will not be passed
+				Since: "invalid value",
+			},
+			expectedError: `invalid value for "since": failed to parse value as time or duration: "invalid value"`,
+		},
+		{
+			options: types.ContainerLogsOptions{
+				// An complete invalid date will not be passed
+				Until: "invalid value",
+			},
+			expectedError: `invalid value for "until": failed to parse value as time or duration: "invalid value"`,
 		},
 	}
 	for _, logCase := range cases {
 		client := &Client{
-			transport: newMockClient(nil, func(r *http.Request) (*http.Response, error) {
+			client: newMockClient(func(r *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(r.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
+					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, r.URL)
 				}
 				// Check query parameters
 				query := r.URL.Query()
@@ -102,17 +140,15 @@ func TestContainerLogs(t *testing.T) {
 			}),
 		}
 		body, err := client.ContainerLogs(context.Background(), "container_id", logCase.options)
-		if err != nil {
-			t.Fatal(err)
+		if logCase.expectedError != "" {
+			assert.Check(t, is.Error(err, logCase.expectedError))
+			continue
 		}
+		assert.NilError(t, err)
 		defer body.Close()
 		content, err := ioutil.ReadAll(body)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(content) != "response" {
-			t.Fatalf("expected response to contain 'response', got %s", string(content))
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Contains(string(content), "response"))
 	}
 }
 
@@ -120,7 +156,7 @@ func ExampleClient_ContainerLogs_withTimeout() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	client, _ := NewEnvClient()
+	client, _ := NewClientWithOpts(FromEnv)
 	reader, err := client.ContainerLogs(ctx, "container_id", types.ContainerLogsOptions{})
 	if err != nil {
 		log.Fatal(err)

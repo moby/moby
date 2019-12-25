@@ -1,4 +1,4 @@
-package layer
+package layer // import "github.com/docker/docker/layer"
 
 import (
 	"bytes"
@@ -10,17 +10,20 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/distribution/digest"
+	"github.com/containerd/continuity/driver"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/vfs"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
+	digest "github.com/opencontainers/go-digest"
 )
 
 func init() {
 	graphdriver.ApplyUncompressedLayer = archive.UnpackLayer
-	vfs.CopyWithTar = archive.CopyWithTar
+	defaultArchiver := archive.NewDefaultArchiver()
+	vfs.CopyDir = defaultArchiver.CopyWithTar
 }
 
 func newVFSGraphDriver(td string) (graphdriver.Driver, error) {
@@ -39,7 +42,8 @@ func newVFSGraphDriver(td string) (graphdriver.Driver, error) {
 		},
 	}
 
-	return graphdriver.GetDriver("vfs", td, nil, uidMap, gidMap)
+	options := graphdriver.Options{Root: td, UIDMaps: uidMap, GIDMaps: gidMap}
+	return graphdriver.GetDriver("vfs", nil, options)
 }
 
 func newTestGraphDriver(t *testing.T) (graphdriver.Driver, func()) {
@@ -65,11 +69,8 @@ func newTestStore(t *testing.T) (Store, string, func()) {
 	}
 
 	graph, graphcleanup := newTestGraphDriver(t)
-	fms, err := NewFSMetadataStore(td)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ls, err := NewStoreFromGraphDriver(fms, graph)
+
+	ls, err := newStoreFromGraphDriver(td, graph, runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,21 +81,21 @@ func newTestStore(t *testing.T) (Store, string, func()) {
 	}
 }
 
-type layerInit func(root string) error
+type layerInit func(root containerfs.ContainerFS) error
 
 func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 	containerID := stringid.GenerateRandomID()
-	mount, err := ls.CreateRWLayer(containerID, parent, "", nil, nil)
+	mount, err := ls.CreateRWLayer(containerID, parent, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	path, err := mount.Mount("")
+	pathFS, err := mount.Mount("")
 	if err != nil {
 		return nil, err
 	}
 
-	if err := layerFunc(path); err != nil {
+	if err := layerFunc(pathFS); err != nil {
 		return nil, err
 	}
 
@@ -121,7 +122,7 @@ func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 }
 
 type FileApplier interface {
-	ApplyFile(root string) error
+	ApplyFile(root containerfs.ContainerFS) error
 }
 
 type testFile struct {
@@ -138,25 +139,22 @@ func newTestFile(name string, content []byte, perm os.FileMode) FileApplier {
 	}
 }
 
-func (tf *testFile) ApplyFile(root string) error {
-	fullPath := filepath.Join(root, tf.name)
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+func (tf *testFile) ApplyFile(root containerfs.ContainerFS) error {
+	fullPath := root.Join(root.Path(), tf.name)
+	if err := root.MkdirAll(root.Dir(fullPath), 0755); err != nil {
 		return err
 	}
 	// Check if already exists
-	if stat, err := os.Stat(fullPath); err == nil && stat.Mode().Perm() != tf.permission {
-		if err := os.Chmod(fullPath, tf.permission); err != nil {
+	if stat, err := root.Stat(fullPath); err == nil && stat.Mode().Perm() != tf.permission {
+		if err := root.Lchmod(fullPath, tf.permission); err != nil {
 			return err
 		}
 	}
-	if err := ioutil.WriteFile(fullPath, tf.content, tf.permission); err != nil {
-		return err
-	}
-	return nil
+	return driver.WriteFile(root, fullPath, tf.content, tf.permission)
 }
 
 func initWithFiles(files ...FileApplier) layerInit {
-	return func(root string) error {
+	return func(root containerfs.ContainerFS) error {
 		for _, f := range files {
 			if err := f.ApplyFile(root); err != nil {
 				return err
@@ -171,10 +169,6 @@ func getCachedLayer(l Layer) *roLayer {
 		return rl.roLayer
 	}
 	return l.(*roLayer)
-}
-
-func getMountLayer(l RWLayer) *mountedLayer {
-	return l.(*referencedRWLayer).mountedLayer
 }
 
 func createMetadata(layers ...Layer) []Metadata {
@@ -230,7 +224,7 @@ func cacheID(l Layer) string {
 
 func assertLayerEqual(t *testing.T, l1, l2 Layer) {
 	if l1.ChainID() != l2.ChainID() {
-		t.Fatalf("Mismatched ID: %s vs %s", l1.ChainID(), l2.ChainID())
+		t.Fatalf("Mismatched ChainID: %s vs %s", l1.ChainID(), l2.ChainID())
 	}
 	if l1.DiffID() != l2.DiffID() {
 		t.Fatalf("Mismatched DiffID: %s vs %s", l1.DiffID(), l2.DiffID())
@@ -276,7 +270,7 @@ func TestMountAndRegister(t *testing.T) {
 	size, _ := layer.Size()
 	t.Logf("Layer size: %d", size)
 
-	mount2, err := ls.CreateRWLayer("new-test-mount", layer.ChainID(), "", nil, nil)
+	mount2, err := ls.CreateRWLayer("new-test-mount", layer.ChainID(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -286,7 +280,7 @@ func TestMountAndRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := ioutil.ReadFile(filepath.Join(path2, "testfile.txt"))
+	b, err := driver.ReadFile(path2, path2.Join(path2.Path(), "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -384,17 +378,17 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m, err := ls.CreateRWLayer("some-mount_name", layer3.ChainID(), "", nil, nil)
+	m, err := ls.CreateRWLayer("some-mount_name", layer3.ChainID(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	path, err := m.Mount("")
+	pathFS, err := m.Mount("")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(path, "testfile.txt"), []byte("nothing here"), 0644); err != nil {
+	if err := driver.WriteFile(pathFS, pathFS.Join(pathFS.Path(), "testfile.txt"), []byte("nothing here"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -402,7 +396,7 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ls2, err := NewStoreFromGraphDriver(ls.(*layerStore).store, ls.(*layerStore).driver)
+	ls2, err := newStoreFromGraphDriver(ls.(*layerStore).store.root, ls.(*layerStore).driver, runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -415,7 +409,7 @@ func TestStoreRestore(t *testing.T) {
 	assertLayerEqual(t, layer3b, layer3)
 
 	// Create again with same name, should return error
-	if _, err := ls2.CreateRWLayer("some-mount_name", layer3b.ChainID(), "", nil, nil); err == nil {
+	if _, err := ls2.CreateRWLayer("some-mount_name", layer3b.ChainID(), nil); err == nil {
 		t.Fatal("Expected error creating mount with same name")
 	} else if err != ErrMountNameConflict {
 		t.Fatal(err)
@@ -428,20 +422,20 @@ func TestStoreRestore(t *testing.T) {
 
 	if mountPath, err := m2.Mount(""); err != nil {
 		t.Fatal(err)
-	} else if path != mountPath {
-		t.Fatalf("Unexpected path %s, expected %s", mountPath, path)
+	} else if pathFS.Path() != mountPath.Path() {
+		t.Fatalf("Unexpected path %s, expected %s", mountPath.Path(), pathFS.Path())
 	}
 
 	if mountPath, err := m2.Mount(""); err != nil {
 		t.Fatal(err)
-	} else if path != mountPath {
-		t.Fatalf("Unexpected path %s, expected %s", mountPath, path)
+	} else if pathFS.Path() != mountPath.Path() {
+		t.Fatalf("Unexpected path %s, expected %s", mountPath.Path(), pathFS.Path())
 	}
 	if err := m2.Unmount(); err != nil {
 		t.Fatal(err)
 	}
 
-	b, err := ioutil.ReadFile(filepath.Join(path, "testfile.txt"))
+	b, err := driver.ReadFile(pathFS, pathFS.Join(pathFS.Path(), "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -616,7 +610,7 @@ func tarFromFiles(files ...FileApplier) ([]byte, error) {
 	defer os.RemoveAll(td)
 
 	for _, f := range files {
-		if err := f.ApplyFile(td); err != nil {
+		if err := f.ApplyFile(containerfs.NewLocalContainerFS(td)); err != nil {
 			return nil, err
 		}
 	}

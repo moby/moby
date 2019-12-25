@@ -1,7 +1,8 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,28 +10,28 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"golang.org/x/net/context"
+	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/errdefs"
 )
 
 func TestImageHistoryError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImageHistory(context.Background(), "nothing")
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server error, got %v", err)
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImageHistory(t *testing.T) {
 	expectedURL := "/images/image_id/history"
 	client := &Client{
-		transport: newMockClient(nil, func(r *http.Request) (*http.Response, error) {
+		client: newMockClient(func(r *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(r.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
 			}
-			b, err := json.Marshal([]types.ImageHistory{
+			b, err := json.Marshal([]image.HistoryResponseItem{
 				{
 					ID:   "image_id1",
 					Tags: []string{"tag1", "tag2"},

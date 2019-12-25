@@ -1,54 +1,54 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/errdefs"
 )
 
 func TestImagePullReferenceParseError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			return nil, nil
 		}),
 	}
 	// An empty reference is an invalid reference
 	_, err := client.ImagePull(context.Background(), "", types.ImagePullOptions{})
-	if err == nil || err.Error() != "repository name must have at least one component" {
+	if err == nil || !strings.Contains(err.Error(), "invalid reference format") {
 		t.Fatalf("expected an error, got %v", err)
 	}
 }
 
 func TestImagePullAnyError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImagePull(context.Background(), "myimage", types.ImagePullOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImagePullStatusUnauthorizedError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusUnauthorized, "Unauthorized error")),
+		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	_, err := client.ImagePull(context.Background(), "myimage", types.ImagePullOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Unauthorized error" {
-		t.Fatalf("expected an Unauthorized Error, got %v", err)
+	if !errdefs.IsUnauthorized(err) {
+		t.Fatalf("expected a Unauthorized Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImagePullWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusUnauthorized, "Unauthorized error")),
+		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	privilegeFunc := func() (string, error) {
 		return "", fmt.Errorf("Error requesting privilege")
@@ -63,7 +63,7 @@ func TestImagePullWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 
 func TestImagePullWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusUnauthorized, "Unauthorized error")),
+		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	privilegeFunc := func() (string, error) {
 		return "a-auth-header", nil
@@ -71,15 +71,15 @@ func TestImagePullWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T)
 	_, err := client.ImagePull(context.Background(), "myimage", types.ImagePullOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
-	if err == nil || err.Error() != "Error response from daemon: Unauthorized error" {
-		t.Fatalf("expected an Unauthorized Error, got %v", err)
+	if !errdefs.IsUnauthorized(err) {
+		t.Fatalf("expected a Unauthorized Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImagePullWithPrivilegedFuncNoError(t *testing.T) {
 	expectedURL := "/images/create"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -163,7 +163,7 @@ func TestImagePullWithoutErrors(t *testing.T) {
 	}
 	for _, pullCase := range pullCases {
 		client := &Client{
-			transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+			client: newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}

@@ -1,4 +1,4 @@
-package tarsum
+package tarsum // import "github.com/docker/docker/pkg/tarsum"
 
 import (
 	"io"

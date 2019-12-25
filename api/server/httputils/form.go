@@ -1,9 +1,7 @@
-package httputils
+package httputils // import "github.com/docker/docker/api/server/httputils"
 
 import (
-	"fmt"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -15,7 +13,7 @@ func BoolValue(r *http.Request, k string) bool {
 }
 
 // BoolValueOrDefault returns the default bool passed if the query param is
-// missing, otherwise it's just a proxy to boolValue above
+// missing, otherwise it's just a proxy to boolValue above.
 func BoolValueOrDefault(r *http.Request, k string, d bool) bool {
 	if _, ok := r.Form[k]; !ok {
 		return d
@@ -38,10 +36,7 @@ func Int64ValueOrZero(r *http.Request, k string) int64 {
 func Int64ValueOrDefault(r *http.Request, field string, def int64) (int64, error) {
 	if r.Form.Get(field) != "" {
 		value, err := strconv.ParseInt(r.Form.Get(field), 10, 64)
-		if err != nil {
-			return value, err
-		}
-		return value, nil
+		return value, err
 	}
 	return def, nil
 }
@@ -52,6 +47,16 @@ type ArchiveOptions struct {
 	Path string
 }
 
+type badParameterError struct {
+	param string
+}
+
+func (e badParameterError) Error() string {
+	return "bad parameter: " + e.param + "cannot be empty"
+}
+
+func (e badParameterError) InvalidParameter() {}
+
 // ArchiveFormValues parses form values and turns them into ArchiveOptions.
 // It fails if the archive name and path are not in the request.
 func ArchiveFormValues(r *http.Request, vars map[string]string) (ArchiveOptions, error) {
@@ -60,14 +65,12 @@ func ArchiveFormValues(r *http.Request, vars map[string]string) (ArchiveOptions,
 	}
 
 	name := vars["name"]
-	path := filepath.FromSlash(r.Form.Get("path"))
-
-	switch {
-	case name == "":
-		return ArchiveOptions{}, fmt.Errorf("bad parameter: 'name' cannot be empty")
-	case path == "":
-		return ArchiveOptions{}, fmt.Errorf("bad parameter: 'path' cannot be empty")
+	if name == "" {
+		return ArchiveOptions{}, badParameterError{"name"}
 	}
-
+	path := r.Form.Get("path")
+	if path == "" {
+		return ArchiveOptions{}, badParameterError{"path"}
+	}
 	return ArchiveOptions{name, path}, nil
 }

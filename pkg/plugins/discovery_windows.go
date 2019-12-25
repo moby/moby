@@ -1,4 +1,4 @@
-package plugins
+package plugins // import "github.com/docker/docker/pkg/plugins"
 
 import (
 	"os"

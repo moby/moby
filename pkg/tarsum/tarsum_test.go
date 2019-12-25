@@ -1,12 +1,12 @@
-package tarsum
+package tarsum // import "github.com/docker/docker/pkg/tarsum"
 
 import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"crypto/md5"
+	"crypto/md5" // #nosec G501
 	"crypto/rand"
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
@@ -16,6 +16,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 type testLayer struct {
@@ -62,46 +65,46 @@ var testLayers = []testLayer{
 		tarsum:   "tarsum+sha256:c66bd5ec9f87b8f4c6135ca37684618f486a3dd1d113b138d0a177bfa39c2571"},
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
-		tarsum:  "tarsum+sha256:8bf12d7e67c51ee2e8306cba569398b1b9f419969521a12ffb9d8875e8836738"},
+		tarsum:  "tarsum+sha256:75258b2c5dcd9adfe24ce71eeca5fc5019c7e669912f15703ede92b1a60cb11f"},
 	{
 		// this tar has two files with the same path
 		filename: "testdata/collision/collision-0.tar",
-		tarsum:   "tarsum+sha256:08653904a68d3ab5c59e65ef58c49c1581caa3c34744f8d354b3f575ea04424a"},
+		tarsum:   "tarsum+sha256:7cabb5e9128bb4a93ff867b9464d7c66a644ae51ea2e90e6ef313f3bef93f077"},
 	{
 		// this tar has the same two files (with the same path), but reversed order. ensuring is has different hash than above
 		filename: "testdata/collision/collision-1.tar",
-		tarsum:   "tarsum+sha256:b51c13fbefe158b5ce420d2b930eef54c5cd55c50a2ee4abdddea8fa9f081e0d"},
+		tarsum:   "tarsum+sha256:805fd393cfd58900b10c5636cf9bab48b2406d9b66523122f2352620c85dc7f9"},
 	{
 		// this tar has newer of collider-0.tar, ensuring is has different hash
 		filename: "testdata/collision/collision-2.tar",
-		tarsum:   "tarsum+sha256:381547080919bb82691e995508ae20ed33ce0f6948d41cafbeb70ce20c73ee8e"},
+		tarsum:   "tarsum+sha256:85d2b8389f077659d78aca898f9e632ed9161f553f144aef100648eac540147b"},
 	{
 		// this tar has newer of collider-1.tar, ensuring is has different hash
 		filename: "testdata/collision/collision-3.tar",
-		tarsum:   "tarsum+sha256:f886e431c08143164a676805205979cd8fa535dfcef714db5515650eea5a7c0f"},
+		tarsum:   "tarsum+sha256:cbe4dee79fe979d69c16c2bccd032e3205716a562f4a3c1ca1cbeed7b256eb19"},
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
-		tarsum:  "tarsum+md5:0d7529ec7a8360155b48134b8e599f53",
+		tarsum:  "tarsum+md5:3a6cdb475d90459ac0d3280703d17be2",
 		hash:    md5THash,
 	},
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
-		tarsum:  "tarsum+sha1:f1fee39c5925807ff75ef1925e7a23be444ba4df",
+		tarsum:  "tarsum+sha1:14b5e0d12a0c50a4281e86e92153fa06d55d00c6",
 		hash:    sha1Hash,
 	},
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
-		tarsum:  "tarsum+sha224:6319390c0b061d639085d8748b14cd55f697cf9313805218b21cf61c",
+		tarsum:  "tarsum+sha224:dd8925b7a4c71b13f3a68a0f9428a757c76b93752c398f272a9062d5",
 		hash:    sha224Hash,
 	},
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
-		tarsum:  "tarsum+sha384:a578ce3ce29a2ae03b8ed7c26f47d0f75b4fc849557c62454be4b5ffd66ba021e713b48ce71e947b43aab57afd5a7636",
+		tarsum:  "tarsum+sha384:e39e82f40005134bed13fb632d1a5f2aa4675c9ddb4a136fbcec202797e68d2f635e1200dee2e3a8d7f69d54d3f2fd27",
 		hash:    sha384Hash,
 	},
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
-		tarsum:  "tarsum+sha512:e9bfb90ca5a4dfc93c46ee061a5cf9837de6d2fdf82544d6460d3147290aecfabf7b5e415b9b6e72db9b8941f149d5d69fb17a394cbfaf2eac523bd9eae21855",
+		tarsum:  "tarsum+sha512:7c56de40b2d1ed3863ff25d83b59cdc8f53e67d1c01c3ee8f201f8e4dec3107da976d0c0ec9109c962a152b32699fe329b2dab13966020e400c32878a0761a7e",
 		hash:    sha512Hash,
 	},
 }
@@ -135,11 +138,12 @@ func sizedTar(opts sizedOptions) io.Reader {
 	defer tarW.Close()
 	for i := int64(0); i < opts.num; i++ {
 		err := tarW.WriteHeader(&tar.Header{
-			Name: fmt.Sprintf("/testdata%d", i),
-			Mode: 0755,
-			Uid:  0,
-			Gid:  0,
-			Size: opts.size,
+			Name:     fmt.Sprintf("/testdata%d", i),
+			Mode:     0755,
+			Uid:      0,
+			Gid:      0,
+			Size:     opts.size,
+			Typeflag: tar.TypeReg,
 		})
 		if err != nil {
 			return nil
@@ -222,17 +226,13 @@ func TestNewTarSumForLabel(t *testing.T) {
 func TestEmptyTar(t *testing.T) {
 	// Test without gzip.
 	ts, err := emptyTarSum(false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	zeroBlock := make([]byte, 1024)
 	buf := new(bytes.Buffer)
 
 	n, err := io.Copy(buf, ts)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	if n != int64(len(zeroBlock)) || !bytes.Equal(buf.Bytes(), zeroBlock) {
 		t.Fatalf("tarSum did not write the correct number of zeroed bytes: %d", n)
@@ -247,19 +247,16 @@ func TestEmptyTar(t *testing.T) {
 
 	// Test with gzip.
 	ts, err = emptyTarSum(true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 	buf.Reset()
 
-	n, err = io.Copy(buf, ts)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err = io.Copy(buf, ts)
+	assert.NilError(t, err)
 
 	bufgz := new(bytes.Buffer)
 	gz := gzip.NewWriter(bufgz)
 	n, err = io.Copy(gz, bytes.NewBuffer(zeroBlock))
+	assert.NilError(t, err)
 	gz.Close()
 	gzBytes := bufgz.Bytes()
 
@@ -279,10 +276,7 @@ func TestEmptyTar(t *testing.T) {
 	}
 
 	resultSum = ts.Sum(nil)
-
-	if resultSum != expectedSum {
-		t.Fatalf("expected [%s] but got [%s]", expectedSum, resultSum)
-	}
+	assert.Check(t, is.Equal(expectedSum, resultSum))
 }
 
 var (
@@ -443,7 +437,7 @@ func TestIteration(t *testing.T) {
 			[]byte(""),
 		},
 		{
-			"tarsum.dev+sha256:b38166c059e11fb77bef30bf16fba7584446e80fcc156ff46d47e36c5305d8ef",
+			"tarsum.dev+sha256:862964db95e0fa7e42836ae4caab3576ab1df8d275720a45bdd01a5a3730cc63",
 			VersionDev,
 			&tar.Header{
 				Name:     "another.txt",
@@ -459,7 +453,7 @@ func TestIteration(t *testing.T) {
 			[]byte("test"),
 		},
 		{
-			"tarsum.dev+sha256:4cc2e71ac5d31833ab2be9b4f7842a14ce595ec96a37af4ed08f87bc374228cd",
+			"tarsum.dev+sha256:4b1ba03544b49d96a32bacc77f8113220bd2f6a77e7e6d1e7b33cd87117d88e7",
 			VersionDev,
 			&tar.Header{
 				Name:     "xattrs.txt",
@@ -477,7 +471,7 @@ func TestIteration(t *testing.T) {
 			[]byte("test"),
 		},
 		{
-			"tarsum.dev+sha256:65f4284fa32c0d4112dd93c3637697805866415b570587e4fd266af241503760",
+			"tarsum.dev+sha256:410b602c898bd4e82e800050f89848fc2cf20fd52aa59c1ce29df76b878b84a6",
 			VersionDev,
 			&tar.Header{
 				Name:     "xattrs.txt",
@@ -495,7 +489,7 @@ func TestIteration(t *testing.T) {
 			[]byte("test"),
 		},
 		{
-			"tarsum+sha256:c12bb6f1303a9ddbf4576c52da74973c00d14c109bcfa76b708d5da1154a07fa",
+			"tarsum+sha256:b1f97eab73abd7593c245e51070f9fbdb1824c6b00a0b7a3d7f0015cd05e9e86",
 			Version0,
 			&tar.Header{
 				Name:     "xattrs.txt",

@@ -1,11 +1,8 @@
-// +build linux
-
 // Package gelf provides the log driver for forwarding server logs to
 // endpoints that support the Graylog Extended Log Format.
-package gelf
+package gelf // import "github.com/docker/docker/daemon/logger/gelf"
 
 import (
-	"bytes"
 	"compress/flate"
 	"encoding/json"
 	"fmt"
@@ -15,17 +12,17 @@ import (
 	"time"
 
 	"github.com/Graylog2/go-gelf/gelf"
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/urlutil"
+	"github.com/sirupsen/logrus"
 )
 
 const name = "gelf"
 
 type gelfLogger struct {
-	writer   *gelf.Writer
-	ctx      logger.Context
+	writer   gelf.Writer
+	info     logger.Info
 	hostname string
 	rawExtra json.RawMessage
 }
@@ -41,44 +38,46 @@ func init() {
 
 // New creates a gelf logger using the configuration passed in on the
 // context. The supported context configuration variable is gelf-address.
-func New(ctx logger.Context) (logger.Logger, error) {
+func New(info logger.Info) (logger.Logger, error) {
 	// parse gelf address
-	address, err := parseAddress(ctx.Config["gelf-address"])
+	address, err := parseAddress(info.Config["gelf-address"])
 	if err != nil {
 		return nil, err
 	}
 
 	// collect extra data for GELF message
-	hostname, err := ctx.Hostname()
+	hostname, err := info.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("gelf: cannot access hostname to set source field")
 	}
 
-	// remove trailing slash from container name
-	containerName := bytes.TrimLeft([]byte(ctx.ContainerName), "/")
-
 	// parse log tag
-	tag, err := loggerutils.ParseLogTag(ctx, loggerutils.DefaultTemplate)
+	tag, err := loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
 	if err != nil {
 		return nil, err
 	}
 
 	extra := map[string]interface{}{
-		"_container_id":   ctx.ContainerID,
-		"_container_name": string(containerName),
-		"_image_id":       ctx.ContainerImageID,
-		"_image_name":     ctx.ContainerImageName,
-		"_command":        ctx.Command(),
+		"_container_id":   info.ContainerID,
+		"_container_name": info.Name(),
+		"_image_id":       info.ContainerImageID,
+		"_image_name":     info.ContainerImageName,
+		"_command":        info.Command(),
 		"_tag":            tag,
-		"_created":        ctx.ContainerCreated,
+		"_created":        info.ContainerCreated,
 	}
 
-	extraAttrs := ctx.ExtraAttributes(func(key string) string {
+	extraAttrs, err := info.ExtraAttributes(func(key string) string {
 		if key[0] == '_' {
 			return key
 		}
 		return "_" + key
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
 	for k, v := range extraAttrs {
 		extra[k] = v
 	}
@@ -88,13 +87,61 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		return nil, err
 	}
 
-	// create new gelfWriter
-	gelfWriter, err := gelf.NewWriter(address)
+	var gelfWriter gelf.Writer
+	if address.Scheme == "udp" {
+		gelfWriter, err = newGELFUDPWriter(address.Host, info)
+		if err != nil {
+			return nil, err
+		}
+	} else if address.Scheme == "tcp" {
+		gelfWriter, err = newGELFTCPWriter(address.Host, info)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &gelfLogger{
+		writer:   gelfWriter,
+		info:     info,
+		hostname: hostname,
+		rawExtra: rawExtra,
+	}, nil
+}
+
+// create new TCP gelfWriter
+func newGELFTCPWriter(address string, info logger.Info) (gelf.Writer, error) {
+	gelfWriter, err := gelf.NewTCPWriter(address)
 	if err != nil {
 		return nil, fmt.Errorf("gelf: cannot connect to GELF endpoint: %s %v", address, err)
 	}
 
-	if v, ok := ctx.Config["gelf-compression-type"]; ok {
+	if v, ok := info.Config["gelf-tcp-max-reconnect"]; ok {
+		i, err := strconv.Atoi(v)
+		if err != nil || i < 0 {
+			return nil, fmt.Errorf("gelf-tcp-max-reconnect must be a positive integer")
+		}
+		gelfWriter.MaxReconnect = i
+	}
+
+	if v, ok := info.Config["gelf-tcp-reconnect-delay"]; ok {
+		i, err := strconv.Atoi(v)
+		if err != nil || i < 0 {
+			return nil, fmt.Errorf("gelf-tcp-reconnect-delay must be a positive integer")
+		}
+		gelfWriter.ReconnectDelay = time.Duration(i)
+	}
+
+	return gelfWriter, nil
+}
+
+// create new UDP gelfWriter
+func newGELFUDPWriter(address string, info logger.Info) (gelf.Writer, error) {
+	gelfWriter, err := gelf.NewUDPWriter(address)
+	if err != nil {
+		return nil, fmt.Errorf("gelf: cannot connect to GELF endpoint: %s %v", address, err)
+	}
+
+	if v, ok := info.Config["gelf-compression-type"]; ok {
 		switch v {
 		case "gzip":
 			gelfWriter.CompressionType = gelf.CompressGzip
@@ -107,7 +154,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		}
 	}
 
-	if v, ok := ctx.Config["gelf-compression-level"]; ok {
+	if v, ok := info.Config["gelf-compression-level"]; ok {
 		val, err := strconv.Atoi(v)
 		if err != nil {
 			return nil, fmt.Errorf("gelf: invalid compression level %s, err %v", v, err)
@@ -115,15 +162,14 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		gelfWriter.CompressionLevel = val
 	}
 
-	return &gelfLogger{
-		writer:   gelfWriter,
-		ctx:      ctx,
-		hostname: hostname,
-		rawExtra: rawExtra,
-	}, nil
+	return gelfWriter, nil
 }
 
 func (s *gelfLogger) Log(msg *logger.Message) error {
+	if len(msg.Line) == 0 {
+		return nil
+	}
+
 	level := gelf.LOG_INFO
 	if msg.Source == "stderr" {
 		level = gelf.LOG_ERR
@@ -134,9 +180,10 @@ func (s *gelfLogger) Log(msg *logger.Message) error {
 		Host:     s.hostname,
 		Short:    string(msg.Line),
 		TimeUnix: float64(msg.Timestamp.UnixNano()/int64(time.Millisecond)) / 1000.0,
-		Level:    level,
+		Level:    int32(level),
 		RawExtra: s.rawExtra,
 	}
+	logger.PutMessage(msg)
 
 	if err := s.writer.WriteMessage(&m); err != nil {
 		return fmt.Errorf("gelf: cannot send GELF message: %v", err)
@@ -154,56 +201,73 @@ func (s *gelfLogger) Name() string {
 
 // ValidateLogOpt looks for gelf specific log option gelf-address.
 func ValidateLogOpt(cfg map[string]string) error {
+	address, err := parseAddress(cfg["gelf-address"])
+	if err != nil {
+		return err
+	}
+
 	for key, val := range cfg {
 		switch key {
 		case "gelf-address":
 		case "tag":
 		case "labels":
+		case "labels-regex":
 		case "env":
+		case "env-regex":
 		case "gelf-compression-level":
+			if address.Scheme != "udp" {
+				return fmt.Errorf("compression is only supported on UDP")
+			}
 			i, err := strconv.Atoi(val)
 			if err != nil || i < flate.DefaultCompression || i > flate.BestCompression {
 				return fmt.Errorf("unknown value %q for log opt %q for gelf log driver", val, key)
 			}
 		case "gelf-compression-type":
+			if address.Scheme != "udp" {
+				return fmt.Errorf("compression is only supported on UDP")
+			}
 			switch val {
 			case "gzip", "zlib", "none":
 			default:
 				return fmt.Errorf("unknown value %q for log opt %q for gelf log driver", val, key)
+			}
+		case "gelf-tcp-max-reconnect", "gelf-tcp-reconnect-delay":
+			if address.Scheme != "tcp" {
+				return fmt.Errorf("%q is only valid for TCP", key)
+			}
+			i, err := strconv.Atoi(val)
+			if err != nil || i < 0 {
+				return fmt.Errorf("%q must be a positive integer", key)
 			}
 		default:
 			return fmt.Errorf("unknown log opt %q for gelf log driver", key)
 		}
 	}
 
-	if _, err := parseAddress(cfg["gelf-address"]); err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func parseAddress(address string) (string, error) {
+func parseAddress(address string) (*url.URL, error) {
 	if address == "" {
-		return "", nil
+		return nil, fmt.Errorf("gelf-address is a required parameter")
 	}
 	if !urlutil.IsTransportURL(address) {
-		return "", fmt.Errorf("gelf-address should be in form proto://address, got %v", address)
+		return nil, fmt.Errorf("gelf-address should be in form proto://address, got %v", address)
 	}
 	url, err := url.Parse(address)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// we support only udp
-	if url.Scheme != "udp" {
-		return "", fmt.Errorf("gelf: endpoint needs to be UDP")
+	if url.Scheme != "udp" && url.Scheme != "tcp" {
+		return nil, fmt.Errorf("gelf: endpoint needs to be TCP or UDP")
 	}
 
 	// get host and port
 	if _, _, err = net.SplitHostPort(url.Host); err != nil {
-		return "", fmt.Errorf("gelf: please provide gelf-address as udp://host:port")
+		return nil, fmt.Errorf("gelf: please provide gelf-address as proto://host:port")
 	}
 
-	return url.Host, nil
+	return url, nil
 }

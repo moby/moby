@@ -1,6 +1,6 @@
 // +build !windows
 
-package archive
+package archive // import "github.com/docker/docker/pkg/archive"
 
 import (
 	"path/filepath"

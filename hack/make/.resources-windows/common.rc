@@ -1,8 +1,8 @@
 // Application icon
-1 ICON "docker.ico"
+1 ICON "dockerd.ico"
 
 // Windows executable manifest
-1 24 /* RT_MANIFEST */ "docker.exe.manifest"
+1 24 /* RT_MANIFEST */ "dockerd.exe.manifest"
 
 // Version information
 1 VERSIONINFO

@@ -1,7 +1,8 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -9,24 +10,25 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/go-units"
+	"github.com/docker/docker/errdefs"
+	units "github.com/docker/go-units"
 )
 
 func TestImageBuildError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImageBuild(context.Background(), nil, types.ImageBuildOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImageBuild(t *testing.T) {
+	v1 := "value1"
+	v2 := "value2"
 	emptyRegistryConfig := "bnVsbA=="
 	buildCases := []struct {
 		buildOptions           types.ImageBuildOptions
@@ -105,13 +107,14 @@ func TestImageBuild(t *testing.T) {
 		},
 		{
 			buildOptions: types.ImageBuildOptions{
-				BuildArgs: map[string]string{
-					"ARG1": "value1",
-					"ARG2": "value2",
+				BuildArgs: map[string]*string{
+					"ARG1": &v1,
+					"ARG2": &v2,
+					"ARG3": nil,
 				},
 			},
 			expectedQueryParams: map[string]string{
-				"buildargs": `{"ARG1":"value1","ARG2":"value2"}`,
+				"buildargs": `{"ARG1":"value1","ARG2":"value2","ARG3":null}`,
 				"rm":        "0",
 			},
 			expectedTags:           []string{},
@@ -157,7 +160,7 @@ func TestImageBuild(t *testing.T) {
 	for _, buildCase := range buildCases {
 		expectedURL := "/build"
 		client := &Client{
-			transport: newMockClient(nil, func(r *http.Request) (*http.Response, error) {
+			client: newMockClient(func(r *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(r.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
 				}
@@ -167,8 +170,8 @@ func TestImageBuild(t *testing.T) {
 					return nil, fmt.Errorf("X-Registry-Config header not properly set in the request. Expected '%s', got %s", buildCase.expectedRegistryConfig, registryConfig)
 				}
 				contentType := r.Header.Get("Content-Type")
-				if contentType != "application/tar" {
-					return nil, fmt.Errorf("Content-type header not properly set in the request. Expected 'application/tar', got %s", contentType)
+				if contentType != "application/x-tar" {
+					return nil, fmt.Errorf("Content-type header not properly set in the request. Expected 'application/x-tar', got %s", contentType)
 				}
 
 				// Check query parameters
@@ -222,7 +225,7 @@ func TestGetDockerOS(t *testing.T) {
 		"Foo/v1.22 (bar)":        "",
 	}
 	for header, os := range cases {
-		g := GetDockerOS(header)
+		g := getDockerOS(header)
 		if g != os {
 			t.Fatalf("Expected %s, got %s", os, g)
 		}

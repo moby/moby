@@ -1,4 +1,4 @@
-package chrootarchive
+package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
 
 import (
 	"bytes"
@@ -16,13 +16,33 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
+	"gotest.tools/skip"
 )
 
 func init() {
 	reexec.Init()
 }
 
+var chrootArchiver = NewArchiver(nil)
+
+func TarUntar(src, dst string) error {
+	return chrootArchiver.TarUntar(src, dst)
+}
+
+func CopyFileWithTar(src, dst string) (err error) {
+	return chrootArchiver.CopyFileWithTar(src, dst)
+}
+
+func UntarPath(src, dst string) error {
+	return chrootArchiver.UntarPath(src, dst)
+}
+
+func CopyWithTar(src, dst string) error {
+	return chrootArchiver.CopyWithTar(src, dst)
+}
+
 func TestChrootTarUntar(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir, err := ioutil.TempDir("", "docker-TestChrootTarUntar")
 	if err != nil {
 		t.Fatal(err)
@@ -54,6 +74,7 @@ func TestChrootTarUntar(t *testing.T) {
 // gh#10426: Verify the fix for having a huge excludes list (like on `docker load` with large # of
 // local images)
 func TestChrootUntarWithHugeExcludesList(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir, err := ioutil.TempDir("", "docker-TestChrootUntarHugeExcludes")
 	if err != nil {
 		t.Fatal(err)
@@ -75,9 +96,9 @@ func TestChrootUntarWithHugeExcludesList(t *testing.T) {
 		t.Fatal(err)
 	}
 	options := &archive.TarOptions{}
-	//65534 entries of 64-byte strings ~= 4MB of environment space which should overflow
-	//on most systems when passed via environment or command line arguments
-	excludes := make([]string, 65534, 65534)
+	// 65534 entries of 64-byte strings ~= 4MB of environment space which should overflow
+	// on most systems when passed via environment or command line arguments
+	excludes := make([]string, 65534)
 	for i := 0; i < 65534; i++ {
 		excludes[i] = strings.Repeat(string(i), 64)
 	}
@@ -152,10 +173,8 @@ func compareFiles(src string, dest string) error {
 }
 
 func TestChrootTarUntarWithSymlink(t *testing.T) {
-	// TODO Windows: Figure out why this is failing
-	if runtime.GOOS == "windows" {
-		t.Skip("Failing on Windows")
-	}
+	skip.If(t, runtime.GOOS == "windows", "FIXME: figure out why this is failing")
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir, err := ioutil.TempDir("", "docker-TestChrootTarUntarWithSymlink")
 	if err != nil {
 		t.Fatal(err)
@@ -165,7 +184,7 @@ func TestChrootTarUntarWithSymlink(t *testing.T) {
 	if err := system.MkdirAll(src, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := prepareSourceDirectory(10, src, true); err != nil {
+	if _, err := prepareSourceDirectory(10, src, false); err != nil {
 		t.Fatal(err)
 	}
 	dest := filepath.Join(tmpdir, "dest")
@@ -178,10 +197,8 @@ func TestChrootTarUntarWithSymlink(t *testing.T) {
 }
 
 func TestChrootCopyWithTar(t *testing.T) {
-	// TODO Windows: Figure out why this is failing
-	if runtime.GOOS == "windows" {
-		t.Skip("Failing on Windows")
-	}
+	skip.If(t, runtime.GOOS == "windows", "FIXME: figure out why this is failing")
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir, err := ioutil.TempDir("", "docker-TestChrootCopyWithTar")
 	if err != nil {
 		t.Fatal(err)
@@ -228,6 +245,7 @@ func TestChrootCopyWithTar(t *testing.T) {
 }
 
 func TestChrootCopyFileWithTar(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir, err := ioutil.TempDir("", "docker-TestChrootCopyFileWithTar")
 	if err != nil {
 		t.Fatal(err)
@@ -271,10 +289,8 @@ func TestChrootCopyFileWithTar(t *testing.T) {
 }
 
 func TestChrootUntarPath(t *testing.T) {
-	// TODO Windows: Figure out why this is failing
-	if runtime.GOOS == "windows" {
-		t.Skip("Failing on Windows")
-	}
+	skip.If(t, runtime.GOOS == "windows", "FIXME: figure out why this is failing")
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir, err := ioutil.TempDir("", "docker-TestChrootUntarPath")
 	if err != nil {
 		t.Fatal(err)
@@ -284,7 +300,7 @@ func TestChrootUntarPath(t *testing.T) {
 	if err := system.MkdirAll(src, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := prepareSourceDirectory(10, src, true); err != nil {
+	if _, err := prepareSourceDirectory(10, src, false); err != nil {
 		t.Fatal(err)
 	}
 	dest := filepath.Join(tmpdir, "dest")
@@ -336,6 +352,7 @@ func (s *slowEmptyTarReader) Read(p []byte) (int, error) {
 }
 
 func TestChrootUntarEmptyArchiveFromSlowReader(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir, err := ioutil.TempDir("", "docker-TestChrootUntarEmptyArchiveFromSlowReader")
 	if err != nil {
 		t.Fatal(err)
@@ -352,6 +369,7 @@ func TestChrootUntarEmptyArchiveFromSlowReader(t *testing.T) {
 }
 
 func TestChrootApplyEmptyArchiveFromSlowReader(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir, err := ioutil.TempDir("", "docker-TestChrootApplyEmptyArchiveFromSlowReader")
 	if err != nil {
 		t.Fatal(err)
@@ -368,6 +386,7 @@ func TestChrootApplyEmptyArchiveFromSlowReader(t *testing.T) {
 }
 
 func TestChrootApplyDotDotFile(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir, err := ioutil.TempDir("", "docker-TestChrootApplyDotDotFile")
 	if err != nil {
 		t.Fatal(err)

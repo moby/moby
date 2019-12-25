@@ -2,14 +2,14 @@
 
 // Package kernel provides helper function to get, parse and compare kernel
 // versions for different platforms.
-package kernel
+package kernel // import "github.com/docker/docker/pkg/parsers/kernel"
 
 import (
 	"fmt"
 	"os/exec"
 	"strings"
 
-	"github.com/mattn/go-shellwords"
+	shellwords "github.com/mattn/go-shellwords"
 )
 
 // GetKernelVersion gets the current kernel version.

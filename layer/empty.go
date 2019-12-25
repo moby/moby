@@ -1,8 +1,9 @@
-package layer
+package layer // import "github.com/docker/docker/layer"
 
 import (
 	"archive/tar"
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -21,6 +22,13 @@ func (el *emptyLayer) TarStream() (io.ReadCloser, error) {
 	tarWriter := tar.NewWriter(buf)
 	tarWriter.Close()
 	return ioutil.NopCloser(buf), nil
+}
+
+func (el *emptyLayer) TarStreamFrom(p ChainID) (io.ReadCloser, error) {
+	if p == "" {
+		return el.TarStream()
+	}
+	return nil, fmt.Errorf("can't get parent tar stream of an empty layer")
 }
 
 func (el *emptyLayer) ChainID() ChainID {
@@ -45,4 +53,9 @@ func (el *emptyLayer) DiffSize() (size int64, err error) {
 
 func (el *emptyLayer) Metadata() (map[string]string, error) {
 	return make(map[string]string), nil
+}
+
+// IsEmpty returns true if the layer is an EmptyLayer
+func IsEmpty(diffID DiffID) bool {
+	return diffID == DigestSHA256EmptyTar
 }

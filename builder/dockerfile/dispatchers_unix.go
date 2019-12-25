@@ -1,18 +1,21 @@
 // +build !windows
 
-package dockerfile
+package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 )
 
-// normaliseWorkdir normalises a user requested working directory in a
-// platform sematically consistent way.
-func normaliseWorkdir(current string, requested string) (string, error) {
+// normalizeWorkdir normalizes a user requested working directory in a
+// platform semantically consistent way.
+func normalizeWorkdir(_ string, current string, requested string) (string, error) {
 	if requested == "" {
-		return "", fmt.Errorf("cannot normalise nothing")
+		return "", errors.New("cannot normalize nothing")
 	}
 	current = filepath.FromSlash(current)
 	requested = filepath.FromSlash(requested)
@@ -22,6 +25,12 @@ func normaliseWorkdir(current string, requested string) (string, error) {
 	return requested, nil
 }
 
-func errNotJSON(command, _ string) error {
-	return fmt.Errorf("%s requires the arguments to be in JSON form", command)
+// resolveCmdLine takes a command line arg set and optionally prepends a platform-specific
+// shell in front of it.
+func resolveCmdLine(cmd instructions.ShellDependantCmdLine, runConfig *container.Config, os, _, _ string) ([]string, bool) {
+	result := cmd.CmdLine
+	if cmd.PrependShell && result != nil {
+		result = append(getShell(runConfig, os), result...)
+	}
+	return result, false
 }

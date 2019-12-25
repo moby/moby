@@ -1,4 +1,4 @@
-package ioutils
+package ioutils // import "github.com/docker/docker/pkg/ioutils"
 
 import (
 	"bytes"
@@ -37,7 +37,7 @@ func TestAtomicWriteToFile(t *testing.T) {
 		t.Fatalf("Error reading from file: %v", err)
 	}
 
-	if bytes.Compare(actual, expected) != 0 {
+	if !bytes.Equal(actual, expected) {
 		t.Fatalf("Data mismatch, expected %q, got %q", expected, actual)
 	}
 
@@ -45,7 +45,7 @@ func TestAtomicWriteToFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error statting file: %v", err)
 	}
-	if expected := os.FileMode(testMode); st.Mode() != expected {
+	if expected := testMode; st.Mode() != expected {
 		t.Fatalf("Mode mismatched, expected %o, got %o", expected, st.Mode())
 	}
 }
@@ -85,7 +85,7 @@ func TestAtomicWriteSetCommit(t *testing.T) {
 		t.Fatalf("Error reading from file: %v", err)
 	}
 
-	if bytes.Compare(actual, expected) != 0 {
+	if !bytes.Equal(actual, expected) {
 		t.Fatalf("Data mismatch, expected %q, got %q", expected, actual)
 	}
 
@@ -93,7 +93,7 @@ func TestAtomicWriteSetCommit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error statting file: %v", err)
 	}
-	if expected := os.FileMode(testMode); st.Mode() != expected {
+	if expected := testMode; st.Mode() != expected {
 		t.Fatalf("Mode mismatched, expected %o, got %o", expected, st.Mode())
 	}
 

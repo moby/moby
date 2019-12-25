@@ -1,0 +1,16 @@
+# GitHub code owners
+# See https://help.github.com/articles/about-codeowners/
+#
+# KEEP THIS FILE SORTED. Order is important. Last match takes precedence.
+
+builder/**                              @tonistiigi
+contrib/mkimage/**                      @tianon
+daemon/graphdriver/devmapper/**         @rhvgoyal 
+daemon/graphdriver/lcow/**              @johnstep
+daemon/graphdriver/overlay/**           @dmcgowan
+daemon/graphdriver/overlay2/**          @dmcgowan
+daemon/graphdriver/windows/**           @johnstep
+daemon/logger/awslogs/**                @samuelkarp  
+hack/**                                 @tianon
+plugin/**                               @cpuguy83
+project/**                              @thaJeztah

@@ -1,4 +1,8 @@
-package swarm
+package swarm // import "github.com/docker/docker/api/types/swarm"
+
+import (
+	"github.com/docker/docker/api/types/network"
+)
 
 // Endpoint represents an endpoint.
 type Endpoint struct {
@@ -31,7 +35,22 @@ type PortConfig struct {
 	TargetPort uint32 `json:",omitempty"`
 	// PublishedPort is the port on the swarm hosts
 	PublishedPort uint32 `json:",omitempty"`
+	// PublishMode is the mode in which port is published
+	PublishMode PortConfigPublishMode `json:",omitempty"`
 }
+
+// PortConfigPublishMode represents the mode in which the port is to
+// be published.
+type PortConfigPublishMode string
+
+const (
+	// PortConfigPublishModeIngress is used for ports published
+	// for ingress load balancing using routing mesh.
+	PortConfigPublishModeIngress PortConfigPublishMode = "ingress"
+	// PortConfigPublishModeHost is used for ports published
+	// for direct host level access on the host where the task is running.
+	PortConfigPublishModeHost PortConfigPublishMode = "host"
+)
 
 // PortConfigProtocol represents the protocol of a port.
 type PortConfigProtocol string
@@ -43,6 +62,8 @@ const (
 	PortConfigProtocolTCP PortConfigProtocol = "tcp"
 	// PortConfigProtocolUDP UDP
 	PortConfigProtocolUDP PortConfigProtocol = "udp"
+	// PortConfigProtocolSCTP SCTP
+	PortConfigProtocolSCTP PortConfigProtocol = "sctp"
 )
 
 // EndpointVirtualIP represents the virtual ip of a port.
@@ -63,17 +84,21 @@ type Network struct {
 // NetworkSpec represents the spec of a network.
 type NetworkSpec struct {
 	Annotations
-	DriverConfiguration *Driver      `json:",omitempty"`
-	IPv6Enabled         bool         `json:",omitempty"`
-	Internal            bool         `json:",omitempty"`
-	Attachable          bool         `json:",omitempty"`
-	IPAMOptions         *IPAMOptions `json:",omitempty"`
+	DriverConfiguration *Driver                  `json:",omitempty"`
+	IPv6Enabled         bool                     `json:",omitempty"`
+	Internal            bool                     `json:",omitempty"`
+	Attachable          bool                     `json:",omitempty"`
+	Ingress             bool                     `json:",omitempty"`
+	IPAMOptions         *IPAMOptions             `json:",omitempty"`
+	ConfigFrom          *network.ConfigReference `json:",omitempty"`
+	Scope               string                   `json:",omitempty"`
 }
 
 // NetworkAttachmentConfig represents the configuration of a network attachment.
 type NetworkAttachmentConfig struct {
-	Target  string   `json:",omitempty"`
-	Aliases []string `json:",omitempty"`
+	Target     string            `json:",omitempty"`
+	Aliases    []string          `json:",omitempty"`
+	DriverOpts map[string]string `json:",omitempty"`
 }
 
 // NetworkAttachment represents a network attachment.
@@ -93,10 +118,4 @@ type IPAMConfig struct {
 	Subnet  string `json:",omitempty"`
 	Range   string `json:",omitempty"`
 	Gateway string `json:",omitempty"`
-}
-
-// Driver represents a network driver.
-type Driver struct {
-	Name    string            `json:",omitempty"`
-	Options map[string]string `json:",omitempty"`
 }

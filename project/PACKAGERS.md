@@ -73,7 +73,7 @@ To use the vendored dependencies, simply make sure the path to "./vendor" is
 included in `GOPATH` (or use `AUTO_GOPATH`, as explained below).
 
 If you would rather (or must, due to distro policy) package these dependencies
-yourself, take a look at "./hack/vendor.sh" for an easy-to-parse list of the
+yourself, take a look at "vendor.conf" for an easy-to-parse list of the
 exact version for each.
 
 NOTE: if you're not able to package the exact version (to the exact commit) of a
@@ -233,6 +233,27 @@ following:
 This will create "./bundles/$VERSION/dynbinary-client/docker-$VERSION", which for
 client-only builds is the important file to grab and install as appropriate.
 
+### Cross Compilation
+
+Limited cross compilation is supported due to requiring cgo for critical
+functionality (such as seccomp support).
+
+To cross compile run `make cross`. You can specify the platforms to target by
+setting the `DOCKER_CROSSPLATFORMS` environment variable to a list of platforms
+in the format `<GOOS>/<GOARCH>`. Specify multiple platforms by using a space
+in between each desired platform.
+
+For setting arm variants, you can specify the `GOARM` value by append `/v<GOARM>`
+to your `<GOOS>/arm`. Example:
+
+```
+make DOCKER_CROSSPLATFORMS=linux/arm/v7 cross
+```
+
+This will create a linux binary targeting arm 7.
+
+See `hack/make/.binary` for supported cross compliation platforms.
+
 ## System Dependencies
 
 ### Runtime Dependencies
@@ -292,7 +313,7 @@ appropriate for your distro's init script to live there too!).
 In general, Docker should be run as root, similar to the following:
 
 ```bash
-docker daemon
+dockerd
 ```
 
 Generally, a `DOCKER_OPTS` variable of some kind is available for adding more

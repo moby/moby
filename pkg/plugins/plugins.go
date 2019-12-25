@@ -11,7 +11,7 @@
 // The plugins need to implement an HTTP server and bind this to the UNIX socket
 // or the address specified in the spec files.
 // A handshake is send at /Plugin.Activate, and plugins are expected to return
-// a Manifest with a list of of Docker subsystems which this plugin implements.
+// a Manifest with a list of Docker subsystems which this plugin implements.
 //
 // In order to use a plugins, you can use the ``Get`` with the name of the
 // plugin and the subsystem it implements.
@@ -20,16 +20,19 @@
 //	if err != nil {
 //		return fmt.Errorf("Error looking up volume plugin example: %v", err)
 //	}
-package plugins
+package plugins // import "github.com/docker/docker/pkg/plugins"
 
 import (
 	"errors"
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/sirupsen/logrus"
 )
+
+// ProtocolSchemeHTTPV1 is the name of the protocol used for interacting with plugins using this package.
+const ProtocolSchemeHTTPV1 = "moby.plugins.http/v1"
 
 var (
 	// ErrNotImplements is returned if the plugin does not implement the requested driver.
@@ -41,9 +44,14 @@ type plugins struct {
 	plugins map[string]*Plugin
 }
 
+type extpointHandlers struct {
+	sync.RWMutex
+	extpointHandlers map[string][]func(string, *Client)
+}
+
 var (
-	storage          = plugins{plugins: make(map[string]*Plugin)}
-	extpointHandlers = make(map[string]func(string, *Client))
+	storage  = plugins{plugins: make(map[string]*Plugin)}
+	handlers = extpointHandlers{extpointHandlers: make(map[string][]func(string, *Client))}
 )
 
 // Manifest lists what a plugin implements.
@@ -65,12 +73,12 @@ type Plugin struct {
 	// Manifest of the plugin (see above)
 	Manifest *Manifest `json:"-"`
 
-	// error produced by activation
-	activateErr error
-	// specifies if the activation sequence is completed (not if it is successful or not)
-	activated bool
 	// wait for activation to finish
 	activateWait *sync.Cond
+	// error produced by activation
+	activateErr error
+	// keeps track of callback handlers run against this plugin
+	handlersRun bool
 }
 
 // Name returns the name of the plugin.
@@ -83,8 +91,13 @@ func (p *Plugin) Client() *Client {
 	return p.client
 }
 
-// IsLegacy returns true for legacy plugins and false otherwise.
-func (p *Plugin) IsLegacy() bool {
+// Protocol returns the protocol name/version used for plugins in this package.
+func (p *Plugin) Protocol() string {
+	return ProtocolSchemeHTTPV1
+}
+
+// IsV1 returns true for V1 plugins and false otherwise.
+func (p *Plugin) IsV1() bool {
 	return true
 }
 
@@ -101,17 +114,49 @@ func NewLocalPlugin(name, addr string) *Plugin {
 
 func (p *Plugin) activate() error {
 	p.activateWait.L.Lock()
-	if p.activated {
+
+	if p.activated() {
+		p.runHandlers()
 		p.activateWait.L.Unlock()
 		return p.activateErr
 	}
 
 	p.activateErr = p.activateWithLock()
-	p.activated = true
 
+	p.runHandlers()
 	p.activateWait.L.Unlock()
 	p.activateWait.Broadcast()
 	return p.activateErr
+}
+
+// runHandlers runs the registered handlers for the implemented plugin types
+// This should only be run after activation, and while the activation lock is held.
+func (p *Plugin) runHandlers() {
+	if !p.activated() {
+		return
+	}
+
+	handlers.RLock()
+	if !p.handlersRun {
+		for _, iface := range p.Manifest.Implements {
+			hdlrs, handled := handlers.extpointHandlers[iface]
+			if !handled {
+				continue
+			}
+			for _, handler := range hdlrs {
+				handler(p.name, p.client)
+			}
+		}
+		p.handlersRun = true
+	}
+	handlers.RUnlock()
+
+}
+
+// activated returns if the plugin has already been activated.
+// This should only be called with the activation lock held
+func (p *Plugin) activated() bool {
+	return p.Manifest != nil
 }
 
 func (p *Plugin) activateWithLock() error {
@@ -127,20 +172,12 @@ func (p *Plugin) activateWithLock() error {
 	}
 
 	p.Manifest = m
-
-	for _, iface := range m.Implements {
-		handler, handled := extpointHandlers[iface]
-		if !handled {
-			continue
-		}
-		handler(p.name, p.client)
-	}
 	return nil
 }
 
 func (p *Plugin) waitActive() error {
 	p.activateWait.L.Lock()
-	for !p.activated {
+	for !p.activated() && p.activateErr == nil {
 		p.activateWait.Wait()
 	}
 	p.activateWait.L.Unlock()
@@ -148,7 +185,7 @@ func (p *Plugin) waitActive() error {
 }
 
 func (p *Plugin) implements(kind string) bool {
-	if err := p.waitActive(); err != nil {
+	if p.Manifest == nil {
 		return false
 	}
 	for _, driver := range p.Manifest.Implements {
@@ -186,6 +223,10 @@ func loadWithRetry(name string, retry bool) (*Plugin, error) {
 		}
 
 		storage.Lock()
+		if pl, exists := storage.plugins[name]; exists {
+			storage.Unlock()
+			return pl, pl.activate()
+		}
 		storage.plugins[name] = pl
 		storage.Unlock()
 
@@ -213,11 +254,14 @@ func get(name string) (*Plugin, error) {
 
 // Get returns the plugin given the specified name and requested implementation.
 func Get(name, imp string) (*Plugin, error) {
+	if name == "" {
+		return nil, errors.New("Unable to find plugin without name")
+	}
 	pl, err := get(name)
 	if err != nil {
 		return nil, err
 	}
-	if pl.implements(imp) {
+	if err := pl.waitActive(); err == nil && pl.implements(imp) {
 		logrus.Debugf("%s implements: %s", name, imp)
 		return pl, nil
 	}
@@ -226,7 +270,26 @@ func Get(name, imp string) (*Plugin, error) {
 
 // Handle adds the specified function to the extpointHandlers.
 func Handle(iface string, fn func(string, *Client)) {
-	extpointHandlers[iface] = fn
+	handlers.Lock()
+	hdlrs, ok := handlers.extpointHandlers[iface]
+	if !ok {
+		hdlrs = []func(string, *Client){}
+	}
+
+	hdlrs = append(hdlrs, fn)
+	handlers.extpointHandlers[iface] = hdlrs
+
+	storage.Lock()
+	for _, p := range storage.plugins {
+		p.activateWait.L.Lock()
+		if p.activated() && p.implements(iface) {
+			p.handlersRun = false
+		}
+		p.activateWait.L.Unlock()
+	}
+	storage.Unlock()
+
+	handlers.Unlock()
 }
 
 // GetAll returns all the plugins for the specified implementation
@@ -244,7 +307,10 @@ func GetAll(imp string) ([]*Plugin, error) {
 	chPl := make(chan *plLoad, len(pluginNames))
 	var wg sync.WaitGroup
 	for _, name := range pluginNames {
-		if pl, ok := storage.plugins[name]; ok {
+		storage.Lock()
+		pl, ok := storage.plugins[name]
+		storage.Unlock()
+		if ok {
 			chPl <- &plLoad{pl, nil}
 			continue
 		}
@@ -266,7 +332,7 @@ func GetAll(imp string) ([]*Plugin, error) {
 			logrus.Error(pl.err)
 			continue
 		}
-		if pl.pl.implements(imp) {
+		if err := pl.pl.waitActive(); err == nil && pl.pl.implements(imp) {
 			out = append(out, pl.pl)
 		}
 	}

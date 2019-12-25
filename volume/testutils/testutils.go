@@ -1,8 +1,15 @@
-package testutils
+package testutils // import "github.com/docker/docker/volume/testutils"
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
+	"net/http"
+	"time"
 
+	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/volume"
 )
 
@@ -24,18 +31,22 @@ func (NoopVolume) Mount(_ string) (string, error) { return "noop", nil }
 // Unmount unmounts the volume from the container
 func (NoopVolume) Unmount(_ string) error { return nil }
 
-// Status proivdes low-level details about the volume
+// Status provides low-level details about the volume
 func (NoopVolume) Status() map[string]interface{} { return nil }
+
+// CreatedAt provides the time the volume (directory) was created at
+func (NoopVolume) CreatedAt() (time.Time, error) { return time.Now(), nil }
 
 // FakeVolume is a fake volume with a random name
 type FakeVolume struct {
 	name       string
 	driverName string
+	createdAt  time.Time
 }
 
 // NewFakeVolume creates a new fake volume for testing
 func NewFakeVolume(name string, driverName string) volume.Volume {
-	return FakeVolume{name: name, driverName: driverName}
+	return FakeVolume{name: name, driverName: driverName, createdAt: time.Now()}
 }
 
 // Name is the name of the volume
@@ -53,8 +64,15 @@ func (FakeVolume) Mount(_ string) (string, error) { return "fake", nil }
 // Unmount unmounts the volume from the container
 func (FakeVolume) Unmount(_ string) error { return nil }
 
-// Status proivdes low-level details about the volume
-func (FakeVolume) Status() map[string]interface{} { return nil }
+// Status provides low-level details about the volume
+func (FakeVolume) Status() map[string]interface{} {
+	return map[string]interface{}{"datakey": "datavalue"}
+}
+
+// CreatedAt provides the time the volume (directory) was created at
+func (f FakeVolume) CreatedAt() (time.Time, error) {
+	return f.createdAt, nil
+}
 
 // FakeDriver is a driver that generates fake volumes
 type FakeDriver struct {
@@ -113,4 +131,100 @@ func (d *FakeDriver) Get(name string) (volume.Volume, error) {
 // Scope returns the local scope
 func (*FakeDriver) Scope() string {
 	return "local"
+}
+
+type fakePlugin struct {
+	client *plugins.Client
+	name   string
+	refs   int
+}
+
+// MakeFakePlugin creates a fake plugin from the passed in driver
+// Note: currently only "Create" is implemented because that's all that's needed
+// so far. If you need it to test something else, add it here, but probably you
+// shouldn't need to use this except for very specific cases with v2 plugin handling.
+func MakeFakePlugin(d volume.Driver, l net.Listener) (plugingetter.CompatPlugin, error) {
+	c, err := plugins.NewClient(l.Addr().Network()+"://"+l.Addr().String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/VolumeDriver.Create", func(w http.ResponseWriter, r *http.Request) {
+		createReq := struct {
+			Name string
+			Opts map[string]string
+		}{}
+		if err := json.NewDecoder(r.Body).Decode(&createReq); err != nil {
+			fmt.Fprintf(w, `{"Err": "%s"}`, err.Error())
+			return
+		}
+		_, err := d.Create(createReq.Name, createReq.Opts)
+		if err != nil {
+			fmt.Fprintf(w, `{"Err": "%s"}`, err.Error())
+			return
+		}
+		w.Write([]byte("{}"))
+	})
+
+	go http.Serve(l, mux)
+	return &fakePlugin{client: c, name: d.Name()}, nil
+}
+
+func (p *fakePlugin) Client() *plugins.Client {
+	return p.client
+}
+
+func (p *fakePlugin) Name() string {
+	return p.name
+}
+
+func (p *fakePlugin) IsV1() bool {
+	return false
+}
+
+func (p *fakePlugin) ScopedPath(s string) string {
+	return s
+}
+
+type fakePluginGetter struct {
+	plugins map[string]plugingetter.CompatPlugin
+}
+
+// NewFakePluginGetter returns a plugin getter for fake plugins
+func NewFakePluginGetter(pls ...plugingetter.CompatPlugin) plugingetter.PluginGetter {
+	idx := make(map[string]plugingetter.CompatPlugin, len(pls))
+	for _, p := range pls {
+		idx[p.Name()] = p
+	}
+	return &fakePluginGetter{plugins: idx}
+}
+
+// This ignores the second argument since we only care about volume drivers here,
+// there shouldn't be any other kind of plugin in here
+func (g *fakePluginGetter) Get(name, _ string, mode int) (plugingetter.CompatPlugin, error) {
+	p, ok := g.plugins[name]
+	if !ok {
+		return nil, errors.New("not found")
+	}
+	p.(*fakePlugin).refs += mode
+	return p, nil
+}
+
+func (g *fakePluginGetter) GetAllByCap(capability string) ([]plugingetter.CompatPlugin, error) {
+	panic("GetAllByCap shouldn't be called")
+}
+
+func (g *fakePluginGetter) GetAllManagedPluginsByCap(capability string) []plugingetter.CompatPlugin {
+	panic("GetAllManagedPluginsByCap should not be called")
+}
+
+func (g *fakePluginGetter) Handle(capability string, callback func(string, *plugins.Client)) {
+	panic("Handle should not be called")
+}
+
+// FakeRefs checks ref count on a fake plugin.
+func FakeRefs(p plugingetter.CompatPlugin) int {
+	// this should panic if something other than a `*fakePlugin` is passed in
+	return p.(*fakePlugin).refs
 }

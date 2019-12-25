@@ -1,11 +1,13 @@
 // +build linux freebsd
 
-package system
+package system // import "github.com/docker/docker/pkg/system"
 
 import (
 	"os"
 	"syscall"
 	"testing"
+
+	"gotest.tools/assert"
 )
 
 // TestFromStatT tests fromStatT for a tempfile
@@ -15,11 +17,10 @@ func TestFromStatT(t *testing.T) {
 
 	stat := &syscall.Stat_t{}
 	err := syscall.Lstat(file, stat)
+	assert.NilError(t, err)
 
 	s, err := fromStatT(stat)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	if stat.Mode != s.Mode() {
 		t.Fatal("got invalid mode")

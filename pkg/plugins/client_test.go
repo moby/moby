@@ -1,17 +1,21 @@
-package plugins
+package plugins // import "github.com/docker/docker/pkg/plugins"
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/pkg/plugins/transport"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/pkg/errors"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 var (
@@ -31,37 +35,31 @@ func teardownRemotePluginServer() {
 	}
 }
 
-func testHTTPTimeout(t *testing.T, timeout, epsilon time.Duration) {
-	addr := setupRemotePluginServer()
-	defer teardownRemotePluginServer()
-	stop := make(chan struct{}) // we need this variable to stop the http server
-	mux.HandleFunc("/hang", func(w http.ResponseWriter, r *http.Request) {
-		<-stop
-	})
-	c, _ := NewClient(addr, &tlsconfig.Options{InsecureSkipVerify: true})
-	c.http.Timeout = timeout
-	begin := time.Now()
-	_, err := c.callWithRetry("hang", nil, false)
-	close(stop)
-	if err == nil || !strings.Contains(err.Error(), "request canceled") {
-		t.Fatalf("The request should be canceled %v", err)
-	}
-	elapsed := time.Now().Sub(begin)
-	if elapsed < timeout-epsilon || elapsed > timeout+epsilon {
-		t.Fatalf("elapsed time: got %v, expected %v (epsilon=%v)",
-			elapsed, timeout, epsilon)
-	}
-}
-
-func TestHTTPTimeout(t *testing.T) {
-	testHTTPTimeout(t, 5*time.Second, 500*time.Millisecond)
-}
-
 func TestFailedConnection(t *testing.T) {
 	c, _ := NewClient("tcp://127.0.0.1:1", &tlsconfig.Options{InsecureSkipVerify: true})
 	_, err := c.callWithRetry("Service.Method", nil, false)
 	if err == nil {
 		t.Fatal("Unexpected successful connection")
+	}
+}
+
+func TestFailOnce(t *testing.T) {
+	addr := setupRemotePluginServer()
+	defer teardownRemotePluginServer()
+
+	failed := false
+	mux.HandleFunc("/Test.FailOnce", func(w http.ResponseWriter, r *http.Request) {
+		if !failed {
+			failed = true
+			panic("Plugin not ready")
+		}
+	})
+
+	c, _ := NewClient(addr, &tlsconfig.Options{InsecureSkipVerify: true})
+	b := strings.NewReader("body")
+	_, err := c.callWithRetry("Test.FailOnce", b, true)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -72,7 +70,7 @@ func TestEchoInputOutput(t *testing.T) {
 	m := Manifest{[]string{"VolumeDriver", "NetworkDriver"}}
 
 	mux.HandleFunc("/Test.Echo", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
+		if r.Method != http.MethodPost {
 			t.Fatalf("Expected POST, got %s\n", r.Method)
 		}
 
@@ -89,9 +87,7 @@ func TestEchoInputOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !reflect.DeepEqual(output, m) {
-		t.Fatalf("Expected %v, was %v\n", m, output)
-	}
+	assert.Check(t, is.DeepEqual(m, output))
 	err = c.Call("Test.Echo", nil, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -158,4 +154,123 @@ func TestClientScheme(t *testing.T) {
 			t.Fatalf("URL scheme mismatch, expected %s, got %s", scheme, s)
 		}
 	}
+}
+
+func TestNewClientWithTimeout(t *testing.T) {
+	addr := setupRemotePluginServer()
+	defer teardownRemotePluginServer()
+
+	m := Manifest{[]string{"VolumeDriver", "NetworkDriver"}}
+
+	mux.HandleFunc("/Test.Echo", func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(time.Duration(600) * time.Millisecond)
+		io.Copy(w, r.Body)
+	})
+
+	// setting timeout of 500ms
+	timeout := time.Duration(500) * time.Millisecond
+	c, _ := NewClientWithTimeout(addr, &tlsconfig.Options{InsecureSkipVerify: true}, timeout)
+	var output Manifest
+	err := c.Call("Test.Echo", m, &output)
+	if err == nil {
+		t.Fatal("Expected timeout error")
+	}
+}
+
+func TestClientStream(t *testing.T) {
+	addr := setupRemotePluginServer()
+	defer teardownRemotePluginServer()
+
+	m := Manifest{[]string{"VolumeDriver", "NetworkDriver"}}
+	var output Manifest
+
+	mux.HandleFunc("/Test.Echo", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("Expected POST, got %s", r.Method)
+		}
+
+		header := w.Header()
+		header.Set("Content-Type", transport.VersionMimetype)
+
+		io.Copy(w, r.Body)
+	})
+
+	c, _ := NewClient(addr, &tlsconfig.Options{InsecureSkipVerify: true})
+	body, err := c.Stream("Test.Echo", m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer body.Close()
+	if err := json.NewDecoder(body).Decode(&output); err != nil {
+		t.Fatalf("Test.Echo: error reading plugin resp: %v", err)
+	}
+	assert.Check(t, is.DeepEqual(m, output))
+}
+
+func TestClientSendFile(t *testing.T) {
+	addr := setupRemotePluginServer()
+	defer teardownRemotePluginServer()
+
+	m := Manifest{[]string{"VolumeDriver", "NetworkDriver"}}
+	var output Manifest
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(m); err != nil {
+		t.Fatal(err)
+	}
+	mux.HandleFunc("/Test.Echo", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("Expected POST, got %s\n", r.Method)
+		}
+
+		header := w.Header()
+		header.Set("Content-Type", transport.VersionMimetype)
+
+		io.Copy(w, r.Body)
+	})
+
+	c, _ := NewClient(addr, &tlsconfig.Options{InsecureSkipVerify: true})
+	if err := c.SendFile("Test.Echo", &buf, &output); err != nil {
+		t.Fatal(err)
+	}
+	assert.Check(t, is.DeepEqual(m, output))
+}
+
+func TestClientWithRequestTimeout(t *testing.T) {
+	type timeoutError interface {
+		Timeout() bool
+	}
+
+	timeout := 1 * time.Millisecond
+	testHandler := func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(timeout + 1*time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(testHandler))
+	defer srv.Close()
+
+	client := &Client{http: srv.Client(), requestFactory: &testRequestWrapper{srv}}
+	_, err := client.callWithRetry("/Plugin.Hello", nil, false, WithRequestTimeout(timeout))
+	assert.Assert(t, is.ErrorContains(err, ""), "expected error")
+
+	err = errors.Cause(err)
+	assert.ErrorType(t, err, (*timeoutError)(nil))
+	assert.Equal(t, err.(timeoutError).Timeout(), true)
+}
+
+type testRequestWrapper struct {
+	*httptest.Server
+}
+
+func (w *testRequestWrapper) NewRequest(path string, data io.Reader) (*http.Request, error) {
+	req, err := http.NewRequest(http.MethodPost, path, data)
+	if err != nil {
+		return nil, err
+	}
+	u, err := url.Parse(w.Server.URL)
+	if err != nil {
+		return nil, err
+	}
+	req.URL = u
+	return req, nil
 }

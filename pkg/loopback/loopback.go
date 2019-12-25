@@ -1,13 +1,13 @@
-// +build linux
+// +build linux,cgo
 
-package loopback
+package loopback // import "github.com/docker/docker/pkg/loopback"
 
 import (
 	"fmt"
 	"os"
-	"syscall"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 func getLoopbackBackingFile(file *os.File) (uint64, uint64, error) {
@@ -16,7 +16,7 @@ func getLoopbackBackingFile(file *os.File) (uint64, uint64, error) {
 		logrus.Errorf("Error get loopback backing file: %s", err)
 		return 0, 0, ErrGetLoopbackBackingFile
 	}
-	return loopInfo.loDevice, loopInfo.loInode, nil
+	return loopInfo.Device, loopInfo.Inode, nil
 }
 
 // SetCapacity reloads the size for the loopback device.
@@ -31,12 +31,14 @@ func SetCapacity(file *os.File) error {
 // FindLoopDeviceFor returns a loopback device file for the specified file which
 // is backing file of a loop back device.
 func FindLoopDeviceFor(file *os.File) *os.File {
-	stat, err := file.Stat()
+	var stat unix.Stat_t
+	err := unix.Stat(file.Name(), &stat)
 	if err != nil {
 		return nil
 	}
-	targetInode := stat.Sys().(*syscall.Stat_t).Ino
-	targetDevice := stat.Sys().(*syscall.Stat_t).Dev
+	targetInode := stat.Ino
+	// the type is 32bit on mips
+	targetDevice := uint64(stat.Dev) // nolint: unconvert
 
 	for i := 0; true; i++ {
 		path := fmt.Sprintf("/dev/loop%d", i)

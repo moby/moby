@@ -1,16 +1,35 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
-[ -z "$KEEPDEST" ] && \
-	rm -rf "$DEST"
+copy_binaries() {
+	local dir="$1"
+	local hash="$2"
+	# Add nested executables to bundle dir so we have complete set of
+	# them available, but only if the native OS/ARCH is the same as the
+	# OS/ARCH of the build target
+	if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
+		return
+	fi
+	if [ ! -x /usr/local/bin/runc ]; then
+		return
+	fi
+	echo "Copying nested executables into $dir"
+	for file in containerd containerd-shim ctr runc docker-init docker-proxy rootlesskit rootlesskit-docker-proxy dockerd-rootless.sh; do
+		cp -f "$(command -v "$file")" "$dir/"
+		if [ "$hash" = "hash" ]; then
+			hash_files "$dir/$file"
+		fi
+	done
 
-(
-	source "${MAKEDIR}/.binary-setup"
-	export BINARY_SHORT_NAME="$DOCKER_DAEMON_BINARY_NAME"
-	export SOURCE_PATH='./cmd/dockerd'
-	source "${MAKEDIR}/.binary"
-	export BINARY_SHORT_NAME="$DOCKER_PROXY_BINARY_NAME"
-	export SOURCE_PATH='./vendor/src/github.com/docker/libnetwork/cmd/proxy'
-	source "${MAKEDIR}/.binary"
-	copy_containerd "$DEST" 'hash'
-)
+	# vpnkit is amd64 only
+	if command -v "vpnkit.$(uname -m)" 2>&1 >/dev/null; then
+		cp -f "$(command -v "vpnkit.$(uname -m)")" "$dir/vpnkit"
+		if [ "$hash" = "hash" ]; then
+			hash_files "$dir/vpnkit"
+		fi
+	fi
+}
+
+[ -z "$KEEPDEST" ] && rm -rf "$DEST"
+source "${MAKEDIR}/.binary"
+copy_binaries "$DEST" 'hash'

@@ -1,10 +1,10 @@
-package image
+package image // import "github.com/docker/docker/image"
 
 import (
 	"runtime"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/layer"
+	"github.com/sirupsen/logrus"
 )
 
 // TypeLayers is used for RootFS.Type for filesystems organized into layers.
@@ -32,6 +32,15 @@ func NewRootFS() *RootFS {
 // Append appends a new diffID to rootfs
 func (r *RootFS) Append(id layer.DiffID) {
 	r.DiffIDs = append(r.DiffIDs, id)
+}
+
+// Clone returns a copy of the RootFS
+func (r *RootFS) Clone() *RootFS {
+	newRoot := NewRootFS()
+	newRoot.Type = r.Type
+	newRoot.DiffIDs = make([]layer.DiffID, len(r.DiffIDs))
+	copy(newRoot.DiffIDs, r.DiffIDs)
+	return newRoot
 }
 
 // ChainID returns the ChainID for the top layer in RootFS.

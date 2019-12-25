@@ -1,4 +1,4 @@
-package archive
+package archive // import "github.com/docker/docker/pkg/archive"
 
 import (
 	"archive/tar"
@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/system"
+	"github.com/sirupsen/logrus"
 )
 
 // Errors used or returned by this file.
@@ -27,23 +27,23 @@ var (
 // path (from before being processed by utility functions from the path or
 // filepath stdlib packages) ends with a trailing `/.` or `/`. If the cleaned
 // path already ends in a `.` path segment, then another is not added. If the
-// clean path already ends in a path separator, then another is not added.
-func PreserveTrailingDotOrSeparator(cleanedPath, originalPath string) string {
+// clean path already ends in the separator, then another is not added.
+func PreserveTrailingDotOrSeparator(cleanedPath string, originalPath string, sep byte) string {
 	// Ensure paths are in platform semantics
-	cleanedPath = normalizePath(cleanedPath)
-	originalPath = normalizePath(originalPath)
+	cleanedPath = strings.Replace(cleanedPath, "/", string(sep), -1)
+	originalPath = strings.Replace(originalPath, "/", string(sep), -1)
 
 	if !specifiesCurrentDir(cleanedPath) && specifiesCurrentDir(originalPath) {
-		if !hasTrailingPathSeparator(cleanedPath) {
+		if !hasTrailingPathSeparator(cleanedPath, sep) {
 			// Add a separator if it doesn't already end with one (a cleaned
 			// path would only end in a separator if it is the root).
-			cleanedPath += string(filepath.Separator)
+			cleanedPath += string(sep)
 		}
 		cleanedPath += "."
 	}
 
-	if !hasTrailingPathSeparator(cleanedPath) && hasTrailingPathSeparator(originalPath) {
-		cleanedPath += string(filepath.Separator)
+	if !hasTrailingPathSeparator(cleanedPath, sep) && hasTrailingPathSeparator(originalPath, sep) {
+		cleanedPath += string(sep)
 	}
 
 	return cleanedPath
@@ -52,14 +52,14 @@ func PreserveTrailingDotOrSeparator(cleanedPath, originalPath string) string {
 // assertsDirectory returns whether the given path is
 // asserted to be a directory, i.e., the path ends with
 // a trailing '/' or `/.`, assuming a path separator of `/`.
-func assertsDirectory(path string) bool {
-	return hasTrailingPathSeparator(path) || specifiesCurrentDir(path)
+func assertsDirectory(path string, sep byte) bool {
+	return hasTrailingPathSeparator(path, sep) || specifiesCurrentDir(path)
 }
 
 // hasTrailingPathSeparator returns whether the given
 // path ends with the system's path separator character.
-func hasTrailingPathSeparator(path string) bool {
-	return len(path) > 0 && os.IsPathSeparator(path[len(path)-1])
+func hasTrailingPathSeparator(path string, sep byte) bool {
+	return len(path) > 0 && path[len(path)-1] == sep
 }
 
 // specifiesCurrentDir returns whether the given path specifies
@@ -72,10 +72,10 @@ func specifiesCurrentDir(path string) bool {
 // basename by first cleaning the path but preserves a trailing "." if the
 // original path specified the current directory.
 func SplitPathDirEntry(path string) (dir, base string) {
-	cleanedPath := filepath.Clean(normalizePath(path))
+	cleanedPath := filepath.Clean(filepath.FromSlash(path))
 
 	if specifiesCurrentDir(path) {
-		cleanedPath += string(filepath.Separator) + "."
+		cleanedPath += string(os.PathSeparator) + "."
 	}
 
 	return filepath.Dir(cleanedPath), filepath.Base(cleanedPath)
@@ -88,13 +88,13 @@ func SplitPathDirEntry(path string) (dir, base string) {
 // This function acts as a convenient wrapper around TarWithOptions, which
 // requires a directory as the source path. TarResource accepts either a
 // directory or a file path and correctly sets the Tar options.
-func TarResource(sourceInfo CopyInfo) (content Archive, err error) {
+func TarResource(sourceInfo CopyInfo) (content io.ReadCloser, err error) {
 	return TarResourceRebase(sourceInfo.Path, sourceInfo.RebaseName)
 }
 
 // TarResourceRebase is like TarResource but renames the first path element of
 // items in the resulting tar archive to match the given rebaseName if not "".
-func TarResourceRebase(sourcePath, rebaseName string) (content Archive, err error) {
+func TarResourceRebase(sourcePath, rebaseName string) (content io.ReadCloser, err error) {
 	sourcePath = normalizePath(sourcePath)
 	if _, err = os.Lstat(sourcePath); err != nil {
 		// Catches the case where the source does not exist or is not a
@@ -106,19 +106,24 @@ func TarResourceRebase(sourcePath, rebaseName string) (content Archive, err erro
 	// Separate the source path between its directory and
 	// the entry in that directory which we are archiving.
 	sourceDir, sourceBase := SplitPathDirEntry(sourcePath)
-
-	filter := []string{sourceBase}
+	opts := TarResourceRebaseOpts(sourceBase, rebaseName)
 
 	logrus.Debugf("copying %q from %q", sourceBase, sourceDir)
+	return TarWithOptions(sourceDir, opts)
+}
 
-	return TarWithOptions(sourceDir, &TarOptions{
+// TarResourceRebaseOpts does not preform the Tar, but instead just creates the rebase
+// parameters to be sent to TarWithOptions (the TarOptions struct)
+func TarResourceRebaseOpts(sourceBase string, rebaseName string) *TarOptions {
+	filter := []string{sourceBase}
+	return &TarOptions{
 		Compression:      Uncompressed,
 		IncludeFiles:     filter,
 		IncludeSourceDir: true,
 		RebaseNames: map[string]string{
 			sourceBase: rebaseName,
 		},
-	})
+	}
 }
 
 // CopyInfo holds basic info about the source
@@ -218,7 +223,7 @@ func CopyInfoDestinationPath(path string) (info CopyInfo, err error) {
 		// Ensure destination parent dir exists.
 		dstParent, _ := SplitPathDirEntry(path)
 
-		parentDirStat, err := os.Lstat(dstParent)
+		parentDirStat, err := os.Stat(dstParent)
 		if err != nil {
 			return CopyInfo{}, err
 		}
@@ -241,7 +246,7 @@ func CopyInfoDestinationPath(path string) (info CopyInfo, err error) {
 // contain the archived resource described by srcInfo, to the destination
 // described by dstInfo. Returns the possibly modified content archive along
 // with the path to the destination directory which it should be extracted to.
-func PrepareArchiveCopy(srcContent Reader, srcInfo, dstInfo CopyInfo) (dstDir string, content Archive, err error) {
+func PrepareArchiveCopy(srcContent io.Reader, srcInfo, dstInfo CopyInfo) (dstDir string, content io.ReadCloser, err error) {
 	// Ensure in platform semantics
 	srcInfo.Path = normalizePath(srcInfo.Path)
 	dstInfo.Path = normalizePath(dstInfo.Path)
@@ -281,7 +286,7 @@ func PrepareArchiveCopy(srcContent Reader, srcInfo, dstInfo CopyInfo) (dstDir st
 			srcBase = srcInfo.RebaseName
 		}
 		return dstDir, RebaseArchiveEntries(srcContent, srcBase, dstBase), nil
-	case assertsDirectory(dstInfo.Path):
+	case assertsDirectory(dstInfo.Path, os.PathSeparator):
 		// The destination does not exist and is asserted to be created as a
 		// directory, but the source content is not a directory. This is an
 		// error condition since you cannot create a directory from a file
@@ -304,7 +309,7 @@ func PrepareArchiveCopy(srcContent Reader, srcInfo, dstInfo CopyInfo) (dstDir st
 
 // RebaseArchiveEntries rewrites the given srcContent archive replacing
 // an occurrence of oldBase with newBase at the beginning of entry names.
-func RebaseArchiveEntries(srcContent Reader, oldBase, newBase string) Archive {
+func RebaseArchiveEntries(srcContent io.Reader, oldBase, newBase string) io.ReadCloser {
 	if oldBase == string(os.PathSeparator) {
 		// If oldBase specifies the root directory, use an empty string as
 		// oldBase instead so that newBase doesn't replace the path separator
@@ -331,7 +336,18 @@ func RebaseArchiveEntries(srcContent Reader, oldBase, newBase string) Archive {
 				return
 			}
 
+			// srcContent tar stream, as served by TarWithOptions(), is
+			// definitely in PAX format, but tar.Next() mistakenly guesses it
+			// as USTAR, which creates a problem: if the newBase is >100
+			// characters long, WriteHeader() returns an error like
+			// "archive/tar: cannot encode header: Format specifies USTAR; and USTAR cannot encode Name=...".
+			//
+			// To fix, set the format to PAX here. See docker/for-linux issue #484.
+			hdr.Format = tar.FormatPAX
 			hdr.Name = strings.Replace(hdr.Name, oldBase, newBase, 1)
+			if hdr.Typeflag == tar.TypeLink {
+				hdr.Linkname = strings.Replace(hdr.Linkname, oldBase, newBase, 1)
+			}
 
 			if err = rebasedTar.WriteHeader(hdr); err != nil {
 				w.CloseWithError(err)
@@ -348,6 +364,9 @@ func RebaseArchiveEntries(srcContent Reader, oldBase, newBase string) Archive {
 	return rebased
 }
 
+// TODO @gupta-ak. These might have to be changed in the future to be
+// continuity driver aware as well to support LCOW.
+
 // CopyResource performs an archive copy from the given source path to the
 // given destination path. The source path MUST exist and the destination
 // path's parent directory must exist.
@@ -362,8 +381,8 @@ func CopyResource(srcPath, dstPath string, followLink bool) error {
 	dstPath = normalizePath(dstPath)
 
 	// Clean the source and destination paths.
-	srcPath = PreserveTrailingDotOrSeparator(filepath.Clean(srcPath), srcPath)
-	dstPath = PreserveTrailingDotOrSeparator(filepath.Clean(dstPath), dstPath)
+	srcPath = PreserveTrailingDotOrSeparator(filepath.Clean(srcPath), srcPath, os.PathSeparator)
+	dstPath = PreserveTrailingDotOrSeparator(filepath.Clean(dstPath), dstPath, os.PathSeparator)
 
 	if srcInfo, err = CopyInfoSourcePath(srcPath, followLink); err != nil {
 		return err
@@ -380,7 +399,7 @@ func CopyResource(srcPath, dstPath string, followLink bool) error {
 
 // CopyTo handles extracting the given content whose
 // entries should be sourced from srcInfo to dstPath.
-func CopyTo(content Reader, srcInfo CopyInfo, dstPath string) error {
+func CopyTo(content io.Reader, srcInfo CopyInfo, dstPath string) error {
 	// The destination path need not exist, but CopyInfoDestinationPath will
 	// ensure that at least the parent directory exists.
 	dstInfo, err := CopyInfoDestinationPath(normalizePath(dstPath))
@@ -426,7 +445,8 @@ func ResolveHostSourcePath(path string, followLink bool) (resolvedPath, rebaseNa
 		// resolvedDirPath will have been cleaned (no trailing path separators) so
 		// we can manually join it with the base path element.
 		resolvedPath = resolvedDirPath + string(filepath.Separator) + basePath
-		if hasTrailingPathSeparator(path) && filepath.Base(path) != filepath.Base(resolvedPath) {
+		if hasTrailingPathSeparator(path, os.PathSeparator) &&
+			filepath.Base(path) != filepath.Base(resolvedPath) {
 			rebaseName = filepath.Base(path)
 		}
 	}
@@ -439,11 +459,13 @@ func GetRebaseName(path, resolvedPath string) (string, string) {
 	// linkTarget will have been cleaned (no trailing path separators and dot) so
 	// we can manually join it with them
 	var rebaseName string
-	if specifiesCurrentDir(path) && !specifiesCurrentDir(resolvedPath) {
+	if specifiesCurrentDir(path) &&
+		!specifiesCurrentDir(resolvedPath) {
 		resolvedPath += string(filepath.Separator) + "."
 	}
 
-	if hasTrailingPathSeparator(path) && !hasTrailingPathSeparator(resolvedPath) {
+	if hasTrailingPathSeparator(path, os.PathSeparator) &&
+		!hasTrailingPathSeparator(resolvedPath, os.PathSeparator) {
 		resolvedPath += string(filepath.Separator)
 	}
 

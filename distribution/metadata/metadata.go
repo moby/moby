@@ -1,4 +1,4 @@
-package metadata
+package metadata // import "github.com/docker/docker/distribution/metadata"
 
 import (
 	"io/ioutil"

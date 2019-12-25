@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package fsutil.types;
+
+option go_package = "types";
+
+import "stat.proto";
+
+message Packet {
+  enum PacketType {
+      PACKET_STAT = 0;
+      PACKET_REQ = 1;
+      PACKET_DATA = 2;
+      PACKET_FIN = 3;
+      PACKET_ERR = 4;
+    }
+  PacketType type = 1;
+  Stat stat = 2;
+  uint32 ID = 3;
+  bytes data = 4;
+}

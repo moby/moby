@@ -2,20 +2,13 @@ package main
 
 import (
 	"os/exec"
-	"runtime"
 	"strings"
+	"testing"
 
-	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/go-check/check"
+	"github.com/docker/docker/integration-cli/daemon"
+	testdaemon "github.com/docker/docker/testutil/daemon"
+	"gotest.tools/assert"
 )
-
-func init() {
-	// FIXME. Temporarily turning this off for Windows as GH16039 was breaking
-	// Windows to Linux CI @icecrime
-	if runtime.GOOS != "windows" {
-		check.Suite(newDockerHubPullSuite())
-	}
-}
 
 // DockerHubPullSuite provides an isolated daemon that doesn't have all the
 // images that are baked into our 'global' test environment daemon (e.g.,
@@ -25,7 +18,7 @@ func init() {
 // relative impact of each individual operation. As part of this suite, all
 // images are removed after each test.
 type DockerHubPullSuite struct {
-	d  *Daemon
+	d  *daemon.Daemon
 	ds *DockerSuite
 }
 
@@ -37,28 +30,26 @@ func newDockerHubPullSuite() *DockerHubPullSuite {
 }
 
 // SetUpSuite starts the suite daemon.
-func (s *DockerHubPullSuite) SetUpSuite(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	s.d = NewDaemon(c)
-	err := s.d.Start()
-	c.Assert(err, checker.IsNil, check.Commentf("starting push/pull test daemon: %v", err))
+func (s *DockerHubPullSuite) SetUpSuite(c *testing.T) {
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	s.d.Start(c)
 }
 
 // TearDownSuite stops the suite daemon.
-func (s *DockerHubPullSuite) TearDownSuite(c *check.C) {
+func (s *DockerHubPullSuite) TearDownSuite(c *testing.T) {
 	if s.d != nil {
-		err := s.d.Stop()
-		c.Assert(err, checker.IsNil, check.Commentf("stopping push/pull test daemon: %v", err))
+		s.d.Stop(c)
 	}
 }
 
 // SetUpTest declares that all tests of this suite require network.
-func (s *DockerHubPullSuite) SetUpTest(c *check.C) {
+func (s *DockerHubPullSuite) SetUpTest(c *testing.T) {
 	testRequires(c, Network)
 }
 
 // TearDownTest removes all images from the suite daemon.
-func (s *DockerHubPullSuite) TearDownTest(c *check.C) {
+func (s *DockerHubPullSuite) TearDownTest(c *testing.T) {
 	out := s.Cmd(c, "images", "-aq")
 	images := strings.Split(out, "\n")
 	images = append([]string{"rmi", "-f"}, images...)
@@ -68,9 +59,9 @@ func (s *DockerHubPullSuite) TearDownTest(c *check.C) {
 
 // Cmd executes a command against the suite daemon and returns the combined
 // output. The function fails the test when the command returns an error.
-func (s *DockerHubPullSuite) Cmd(c *check.C, name string, arg ...string) string {
+func (s *DockerHubPullSuite) Cmd(c *testing.T, name string, arg ...string) string {
 	out, err := s.CmdWithError(name, arg...)
-	c.Assert(err, checker.IsNil, check.Commentf("%q failed with errors: %s, %v", strings.Join(arg, " "), out, err))
+	assert.Assert(c, err == nil, "%q failed with errors: %s, %v", strings.Join(arg, " "), out, err)
 	return out
 }
 
@@ -84,7 +75,7 @@ func (s *DockerHubPullSuite) CmdWithError(name string, arg ...string) (string, e
 
 // MakeCmd returns an exec.Cmd command to run against the suite daemon.
 func (s *DockerHubPullSuite) MakeCmd(name string, arg ...string) *exec.Cmd {
-	args := []string{"--host", s.d.sock(), name}
+	args := []string{"--host", s.d.Sock(), name}
 	args = append(args, arg...)
 	return exec.Command(dockerBinary, args...)
 }

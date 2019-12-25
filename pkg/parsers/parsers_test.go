@@ -1,4 +1,4 @@
-package parsers
+package parsers // import "github.com/docker/docker/pkg/parsers"
 
 import (
 	"reflect"
@@ -66,5 +66,18 @@ func TestParseUintList(t *testing.T) {
 		if out, err := ParseUintList(v); err == nil {
 			t.Fatalf("Expected failure with %s but got %v", v, out)
 		}
+	}
+}
+
+func TestParseUintListMaximumLimits(t *testing.T) {
+	v := "10,1000"
+	if _, err := ParseUintListMaximum(v, 0); err != nil {
+		t.Fatalf("Expected not to fail, got %v", err)
+	}
+	if _, err := ParseUintListMaximum(v, 1000); err != nil {
+		t.Fatalf("Expected not to fail, got %v", err)
+	}
+	if out, err := ParseUintListMaximum(v, 100); err == nil {
+		t.Fatalf("Expected failure with %s but got %v", v, out)
 	}
 }

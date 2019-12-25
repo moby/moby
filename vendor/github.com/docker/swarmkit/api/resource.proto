@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package docker.swarmkit.v1;
+
+import "github.com/docker/swarmkit/api/types.proto";
+import "gogoproto/gogo.proto";
+import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
+
+// Allocator is the API provided by a manager group for agents to control the allocation of certain entities.
+//
+// API methods on this service are used only by agent nodes.
+service ResourceAllocator {
+	rpc AttachNetwork(AttachNetworkRequest) returns (AttachNetworkResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-worker" roles: "swarm-manager" };
+	};
+	rpc DetachNetwork(DetachNetworkRequest) returns (DetachNetworkResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-worker" roles: "swarm-manager" };
+	};
+}
+
+message AttachNetworkRequest {
+	NetworkAttachmentConfig config = 1;
+	string container_id = 2;
+}
+
+message AttachNetworkResponse {
+	string attachment_id = 1;
+}
+
+message DetachNetworkRequest {
+	string attachment_id = 1;
+}
+
+message DetachNetworkResponse {}

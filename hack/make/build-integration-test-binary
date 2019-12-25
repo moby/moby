@@ -1,11 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# required by https://github.com/AkihiroSuda/kube-moby-integration
 set -e
 
-rm -rf "$DEST"
-DEST="$DEST/../test-integration-cli"
+source hack/make/.integration-test-helpers
 
-if [ -z $DOCKER_INTEGRATION_TESTS_VERIFIED ]; then
-	source ${MAKEDIR}/.integration-test-helpers
-	ensure_test_dir integration-cli "$DEST/test.main"
-	export DOCKER_INTEGRATION_TESTS_VERIFIED=1
-fi
+build_test_suite_binaries

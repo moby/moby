@@ -1,4 +1,4 @@
-package filenotify
+package filenotify // import "github.com/docker/docker/pkg/filenotify"
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/fsnotify.v1"
+	"github.com/fsnotify/fsnotify"
 )
 
 func TestPollerAddRemove(t *testing.T) {
@@ -61,16 +61,18 @@ func TestPollerEvent(t *testing.T) {
 	default:
 	}
 
-	if err := ioutil.WriteFile(f.Name(), []byte("hello"), 644); err != nil {
+	if err := ioutil.WriteFile(f.Name(), []byte("hello"), 0600); err != nil {
 		t.Fatal(err)
 	}
+	assertFileMode(t, f.Name(), 0600)
 	if err := assertEvent(w, fsnotify.Write); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.Chmod(f.Name(), 600); err != nil {
+	if err := os.Chmod(f.Name(), 0644); err != nil {
 		t.Fatal(err)
 	}
+	assertFileMode(t, f.Name(), 0644)
 	if err := assertEvent(w, fsnotify.Chmod); err != nil {
 		t.Fatal(err)
 	}
@@ -103,12 +105,23 @@ func TestPollerClose(t *testing.T) {
 	}
 }
 
+func assertFileMode(t *testing.T, fileName string, mode uint32) {
+	t.Helper()
+	f, err := os.Stat(fileName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Mode() != os.FileMode(mode) {
+		t.Fatalf("expected file %s to have mode %#o, but got %#o", fileName, mode, f.Mode())
+	}
+}
+
 func assertEvent(w FileWatcher, eType fsnotify.Op) error {
 	var err error
 	select {
 	case e := <-w.Events():
 		if e.Op != eType {
-			err = fmt.Errorf("got wrong event type, expected %q: %v", eType, e)
+			err = fmt.Errorf("got wrong event type, expected %q: %v", eType, e.Op)
 		}
 	case e := <-w.Errors():
 		err = fmt.Errorf("got unexpected error waiting for events %v: %v", eType, e)

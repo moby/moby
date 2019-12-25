@@ -1,0 +1,138 @@
+syntax = "proto3";
+
+package moby.buildkit.v1.frontend;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "github.com/gogo/googleapis/google/rpc/status.proto";
+import "github.com/moby/buildkit/solver/pb/ops.proto";
+import "github.com/moby/buildkit/api/types/worker.proto";
+import "github.com/moby/buildkit/util/apicaps/pb/caps.proto";
+import "github.com/tonistiigi/fsutil/types/stat.proto";
+
+option (gogoproto.sizer_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+
+service LLBBridge {
+	// apicaps:CapResolveImage
+	rpc ResolveImageConfig(ResolveImageConfigRequest) returns (ResolveImageConfigResponse);
+	// apicaps:CapSolveBase
+	rpc Solve(SolveRequest) returns (SolveResponse);
+	// apicaps:CapReadFile
+	rpc ReadFile(ReadFileRequest) returns (ReadFileResponse);
+	// apicaps:CapReadDir
+	rpc ReadDir(ReadDirRequest) returns (ReadDirResponse);
+	// apicaps:CapStatFile
+	rpc StatFile(StatFileRequest) returns (StatFileResponse);
+	rpc Ping(PingRequest) returns (PongResponse);
+	rpc Return(ReturnRequest) returns (ReturnResponse);
+}
+
+message Result {
+	oneof result {
+		string ref = 1;
+		RefMap refs = 2;
+	}
+	map<string, bytes> metadata = 10;
+}
+
+message RefMap {
+	map<string, string> refs = 1;
+}
+
+message ReturnRequest {
+	Result result = 1;
+	google.rpc.Status error = 2;
+}
+
+message ReturnResponse {
+}
+
+message ResolveImageConfigRequest {
+	string Ref = 1;
+	pb.Platform Platform = 2;
+	string ResolveMode = 3;
+	string LogName = 4;
+}
+
+message ResolveImageConfigResponse {
+	string Digest = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	bytes Config = 2;
+}
+
+message SolveRequest {
+	pb.Definition Definition = 1;
+	string Frontend = 2;
+	map<string, string> FrontendOpt = 3;
+	// ImportCacheRefsDeprecated is deprecated in favor or the new Imports since BuildKit v0.4.0.
+        // When ImportCacheRefsDeprecated is set, the solver appends
+        // {.Type = "registry", .Attrs = {"ref": importCacheRef}}
+        // for each of the ImportCacheRefs entry to CacheImports for compatibility. (planned to be removed)
+	repeated string ImportCacheRefsDeprecated = 4;
+	bool allowResultReturn = 5;
+	
+	// apicaps.CapSolveInlineReturn deprecated
+	bool Final = 10;
+	bytes ExporterAttr = 11;
+	// CacheImports was added in BuildKit v0.4.0.
+	// apicaps:CapImportCaches
+	repeated CacheOptionsEntry CacheImports = 12;
+}
+
+// CacheOptionsEntry corresponds to the control.CacheOptionsEntry
+message CacheOptionsEntry {
+	string Type = 1;
+	map<string, string> Attrs = 2;
+}
+
+message SolveResponse {
+	// deprecated
+	string ref = 1; // can be used by readfile request
+	// deprecated
+/*	bytes ExporterAttr = 2;*/
+	
+	// these fields are returned when allowMapReturn was set
+	Result result = 3;
+}
+
+message ReadFileRequest {
+	string Ref = 1;
+	string FilePath = 2;
+	FileRange Range = 3;
+}
+
+message FileRange {
+	int64 Offset = 1;
+	int64 Length = 2;
+}
+
+message ReadFileResponse {
+	bytes Data = 1;
+}
+
+message ReadDirRequest {
+	string Ref = 1;
+	string DirPath = 2;
+	string IncludePattern = 3;
+}
+
+message ReadDirResponse {
+	repeated fsutil.types.Stat entries = 1;
+}
+
+message StatFileRequest {
+	string Ref = 1;
+	string Path = 2;
+}
+
+message StatFileResponse {
+	fsutil.types.Stat stat = 1;
+}
+
+message PingRequest{
+}
+message PongResponse{
+	repeated moby.buildkit.v1.apicaps.APICap FrontendAPICaps = 1 [(gogoproto.nullable) = false];
+	repeated moby.buildkit.v1.apicaps.APICap LLBCaps = 2 [(gogoproto.nullable) = false];
+	repeated moby.buildkit.v1.types.WorkerRecord Workers = 3;
+}

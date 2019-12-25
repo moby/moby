@@ -11,9 +11,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver/devmapper"
 	"github.com/docker/docker/pkg/devicemapper"
+	"github.com/sirupsen/logrus"
 )
 
 func usage() {
@@ -38,7 +38,7 @@ func byteSizeFromString(arg string) (int64, error) {
 
 	rest = strings.ToLower(strings.TrimSpace(rest))
 
-	var multiplier int64 = 1
+	var multiplier int64
 	switch rest {
 	case "":
 		multiplier = 1
@@ -90,14 +90,12 @@ func main() {
 		fmt.Printf("Sector size: %d\n", status.SectorSize)
 		fmt.Printf("Data use: %d of %d (%.1f %%)\n", status.Data.Used, status.Data.Total, 100.0*float64(status.Data.Used)/float64(status.Data.Total))
 		fmt.Printf("Metadata use: %d of %d (%.1f %%)\n", status.Metadata.Used, status.Metadata.Total, 100.0*float64(status.Metadata.Used)/float64(status.Metadata.Total))
-		break
 	case "list":
 		ids := devices.List()
 		sort.Strings(ids)
 		for _, id := range ids {
 			fmt.Println(id)
 		}
-		break
 	case "device":
 		if flag.NArg() < 2 {
 			usage()
@@ -113,7 +111,6 @@ func main() {
 		fmt.Printf("Size in Sectors: %d\n", status.SizeInSectors)
 		fmt.Printf("Mapped Sectors: %d\n", status.MappedSectors)
 		fmt.Printf("Highest Mapped Sector: %d\n", status.HighestMappedSector)
-		break
 	case "resize":
 		if flag.NArg() < 2 {
 			usage()
@@ -131,7 +128,6 @@ func main() {
 			os.Exit(1)
 		}
 
-		break
 	case "snap":
 		if flag.NArg() < 3 {
 			usage()
@@ -142,7 +138,6 @@ func main() {
 			fmt.Println("Can't create snap device: ", err)
 			os.Exit(1)
 		}
-		break
 	case "remove":
 		if flag.NArg() < 2 {
 			usage()
@@ -153,7 +148,6 @@ func main() {
 			fmt.Println("Can't remove device: ", err)
 			os.Exit(1)
 		}
-		break
 	case "mount":
 		if flag.NArg() < 3 {
 			usage()
@@ -161,16 +155,13 @@ func main() {
 
 		err := devices.MountDevice(args[1], args[2], "")
 		if err != nil {
-			fmt.Println("Can't create snap device: ", err)
+			fmt.Println("Can't mount device: ", err)
 			os.Exit(1)
 		}
-		break
 	default:
 		fmt.Printf("Unknown command %s\n", args[0])
 		usage()
 
 		os.Exit(1)
 	}
-
-	return
 }

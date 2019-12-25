@@ -1,17 +1,25 @@
-package cli
+package cli // import "github.com/docker/docker/cli"
 
 import (
 	"fmt"
 
+	"github.com/docker/docker/pkg/term"
 	"github.com/spf13/cobra"
 )
 
 // SetupRootCommand sets default usage, help, and error handling for the
 // root command.
 func SetupRootCommand(rootCmd *cobra.Command) {
+	cobra.AddTemplateFunc("hasSubCommands", hasSubCommands)
+	cobra.AddTemplateFunc("hasManagementSubCommands", hasManagementSubCommands)
+	cobra.AddTemplateFunc("operationSubCommands", operationSubCommands)
+	cobra.AddTemplateFunc("managementSubCommands", managementSubCommands)
+	cobra.AddTemplateFunc("wrappedFlagUsages", wrappedFlagUsages)
+
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.SetHelpTemplate(helpTemplate)
 	rootCmd.SetFlagErrorFunc(FlagErrorFunc)
+	rootCmd.SetVersionTemplate("Docker version {{.Version}}\n")
 
 	rootCmd.PersistentFlags().BoolP("help", "h", false, "Print usage")
 	rootCmd.PersistentFlags().MarkShorthandDeprecated("help", "please use --help")
@@ -21,7 +29,7 @@ func SetupRootCommand(rootCmd *cobra.Command) {
 // docker/docker/cli error messages
 func FlagErrorFunc(cmd *cobra.Command, err error) error {
 	if err == nil {
-		return err
+		return nil
 	}
 
 	usage := ""
@@ -34,23 +42,89 @@ func FlagErrorFunc(cmd *cobra.Command, err error) error {
 	}
 }
 
-var usageTemplate = `Usage:	{{if not .HasSubCommands}}{{.UseLine}}{{end}}{{if .HasSubCommands}}{{ .CommandPath}} COMMAND{{end}}
+func hasSubCommands(cmd *cobra.Command) bool {
+	return len(operationSubCommands(cmd)) > 0
+}
 
-{{ .Short | trim }}{{if gt .Aliases 0}}
+func hasManagementSubCommands(cmd *cobra.Command) bool {
+	return len(managementSubCommands(cmd)) > 0
+}
+
+func operationSubCommands(cmd *cobra.Command) []*cobra.Command {
+	var cmds []*cobra.Command
+	for _, sub := range cmd.Commands() {
+		if sub.IsAvailableCommand() && !sub.HasSubCommands() {
+			cmds = append(cmds, sub)
+		}
+	}
+	return cmds
+}
+
+func wrappedFlagUsages(cmd *cobra.Command) string {
+	width := 80
+	if ws, err := term.GetWinsize(0); err == nil {
+		width = int(ws.Width)
+	}
+	return cmd.Flags().FlagUsagesWrapped(width - 1)
+}
+
+func managementSubCommands(cmd *cobra.Command) []*cobra.Command {
+	var cmds []*cobra.Command
+	for _, sub := range cmd.Commands() {
+		if sub.IsAvailableCommand() && sub.HasSubCommands() {
+			cmds = append(cmds, sub)
+		}
+	}
+	return cmds
+}
+
+var usageTemplate = `Usage:
+
+{{- if not .HasSubCommands}}	{{.UseLine}}{{end}}
+{{- if .HasSubCommands}}	{{ .CommandPath}} COMMAND{{end}}
+
+{{ .Short | trim }}
+
+{{- if gt .Aliases 0}}
 
 Aliases:
-  {{.NameAndAliases}}{{end}}{{if .HasExample}}
+  {{.NameAndAliases}}
+
+{{- end}}
+{{- if .HasExample}}
 
 Examples:
-{{ .Example }}{{end}}{{if .HasFlags}}
+{{ .Example }}
+
+{{- end}}
+{{- if .HasAvailableFlags}}
 
 Options:
-{{.Flags.FlagUsages | trimRightSpace}}{{end}}{{ if .HasAvailableSubCommands}}
+{{ wrappedFlagUsages . | trimRightSpace}}
 
-Commands:{{range .Commands}}{{if .IsAvailableCommand}}
-  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{ if .HasSubCommands }}
+{{- end}}
+{{- if hasManagementSubCommands . }}
 
-Run '{{.CommandPath}} COMMAND --help' for more information on a command.{{end}}
+Management Commands:
+
+{{- range managementSubCommands . }}
+  {{rpad .Name .NamePadding }} {{.Short}}
+{{- end}}
+
+{{- end}}
+{{- if hasSubCommands .}}
+
+Commands:
+
+{{- range operationSubCommands . }}
+  {{rpad .Name .NamePadding }} {{.Short}}
+{{- end}}
+{{- end}}
+
+{{- if .HasSubCommands }}
+
+Run '{{.CommandPath}} COMMAND --help' for more information on a command.
+{{- end}}
 `
 
 var helpTemplate = `

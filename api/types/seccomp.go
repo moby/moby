@@ -1,4 +1,4 @@
-package types
+package types // import "github.com/docker/docker/api/types"
 
 // Seccomp represents the config for a seccomp profile for syscall restriction.
 type Seccomp struct {
@@ -10,7 +10,7 @@ type Seccomp struct {
 	Syscalls      []*Syscall     `json:"syscalls"`
 }
 
-// Architecture is used to represent an specific architecture
+// Architecture is used to represent a specific architecture
 // and its sub-architectures
 type Architecture struct {
 	Arch      Arch   `json:"architecture"`
@@ -77,8 +77,9 @@ type Arg struct {
 
 // Filter is used to conditionally apply Seccomp rules
 type Filter struct {
-	Caps   []string `json:"caps,omitempty"`
-	Arches []string `json:"arches,omitempty"`
+	Caps      []string `json:"caps,omitempty"`
+	Arches    []string `json:"arches,omitempty"`
+	MinKernel string   `json:"minKernel,omitempty"`
 }
 
 // Syscall is used to match a group of syscalls in Seccomp

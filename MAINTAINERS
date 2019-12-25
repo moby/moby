@@ -1,12 +1,14 @@
-# Docker maintainers file
+# Moby maintainers file
 #
-# This file describes who runs the docker/docker project and how.
-# This is a living document - if you see something out of date or missing, speak up!
+# This file describes the maintainer groups within the moby/moby project.
+# More detail on Moby project governance is available in the
+# project/GOVERNANCE.md file found in this repository.
 #
 # It is structured to be consumable by both humans and programs.
 # To extract its contents programmatically, use any TOML-compliant
 # parser.
 #
+# TODO(estesp): This file should not necessarily depend on docker/opensource
 # This file is compiled into the MAINTAINERS file in docker/opensource.
 #
 [Org]
@@ -21,48 +23,28 @@
 	# a subsystem, they are responsible for doing so and holding the
 	# subsystem maintainers accountable. If ownership is unclear, they are the de facto owners.
 
-	# For each release (including minor releases), a "release captain" is assigned from the
-	# pool of core maintainers. Rotation is encouraged across all maintainers, to ensure
-	# the release process is clear and up-to-date.
-
 		people = [
-			"aaronlehmann",
-			"aluzzardi",
+			"akihirosuda",
 			"anusha",
 			"coolljt0725",
 			"cpuguy83",
 			"crosbymichael",
-			"dnephin",
-			"duglin",
 			"estesp",
-			"icecrime",
-			"jhowardmsft",
+			"johnstep",
 			"justincormack",
-			"lk4d4",
-			"mavenugo",
+			"kolyshkin",
+			"lowenna",
 			"mhbauer",
-			"mlaventure",
-			"mrjana",
 			"runcom",
 			"stevvooe",
+			"thajeztah",
 			"tianon",
 			"tibor",
 			"tonistiigi",
 			"unclejack",
 			"vdemeester",
-			"vieux"
-		]
-
-	[Org."Docs maintainers"]
-
-	# TODO Describe the docs maintainers role.
-
-		people = [
-			"jamtur01",
-			"misty",
-			"moxiegirl",
-			"sven",
-			"thajeztah"
+			"vieux",
+			"yongtang"
 		]
 
 	[Org.Curators]
@@ -78,8 +60,13 @@
 	# - close an issue or pull request when it's inappropriate or off-topic
 
 		people = [
-			"mgoelzer",
+			"alexellis",
+			"andrewhsu",
+			"fntlnz",
+			"gianarb",
+			"olljanat",
 			"programmerq",
+			"ripcurld",
 			"thajeztah"
 		]
 
@@ -90,6 +77,22 @@
 	# Thank you!
 
 		people = [
+			# Aaron Lehmann was a maintainer for swarmkit, the registry, and the engine,
+			# and contributed many improvements, features, and bugfixes in those areas,
+			# among which "automated service rollbacks", templated secrets and configs,
+			# and resumable image layer downloads.
+			"aaronlehmann",
+
+			# Harald Albers is the mastermind behind the bash completion scripts for the
+			# Docker CLI. The completion scripts moved to the Docker CLI repository, so
+			# you can now find him perform his magic in the https://github.com/docker/cli repository.
+			"albers",
+
+			# Andrea Luzzardi started contributing to the Docker codebase in the "dotCloud"
+			# era, even before it was called "Docker". He is one of the architects of both
+			# Swarm and SwarmKit, and its integration into the Docker engine.
+			"aluzzardi",
+			
 			# David Calavera contributed many features to Docker, such as an improved
 			# event system, dynamic configuration reloading, volume plugins, fancy
 			# new templating options, and an external client credential store. As a
@@ -99,6 +102,19 @@
 			# and tweets as @calavera.
 			"calavera",
 
+			# Before becoming a maintainer, Daniel Nephin was a core contributor
+			# to "Fig" (now known as Docker Compose). As a maintainer for both the
+			# Engine and Docker CLI, Daniel contributed many features, among which
+			# the `docker stack` commands, allowing users to deploy their Docker
+			# Compose projects as a Swarm service.
+			"dnephin",
+
+			# Doug Davis contributed many features and fixes for the classic builder,
+			# such as "wildcard" copy, the dockerignore file, custom paths/names
+			# for the Dockerfile, as well as enhancements to the API and documentation.
+			# Follow Doug on Twitter, where he tweets as @duginabox.
+			"duglin",
+
 			# As a maintainer, Erik was responsible for the "builder", and
 			# started the first designs for the new networking model in
 			# Docker. Erik is now working on all kinds of plugins for Docker
@@ -106,6 +122,33 @@
 			# in his own repository https://github.com/erikh. You may
 			# still stumble into him in our issue tracker, or on IRC.
 			"erikh",
+
+			# Evan Hazlett is the creator of the Shipyard and Interlock open source projects,
+			# and the author of "Orca", which became the foundation of Docker Universal Control
+			# Plane (UCP). As a maintainer, Evan helped integrating SwarmKit (secrets, tasks)
+			# into the Docker engine.
+			"ehazlett",
+
+			# Arnaud Porterie (AKA "icecrime") was in charge of maintaining the maintainers.
+			# As a maintainer, he made life easier for contributors to the Docker open-source
+			# projects, bringing order in the chaos by designing a triage- and review workflow
+			# using labels (see https://icecrime.net/technology/a-structured-approach-to-labeling/),
+			# and automating the hell out of things with his buddies GordonTheTurtle and Poule
+			# (a chicken!).
+			# 
+			# A lesser-known fact is that he created the first commit in the libnetwork repository
+			# even though he didn't know anything about it. Some say, he's now selling stuff on
+			# the internet ;-)
+			"icecrime",
+
+			# After a false start with his first PR being rejected, James Turnbull became a frequent
+			# contributor to the documentation, and became a docs maintainer on December 5, 2013. As
+			# a maintainer, James lifted the docs to a higher standard, and introduced the community
+			# guidelines ("three strikes"). James is currently changing the world as CTO of https://www.empatico.org,
+			# meanwhile authoring various books that are worth checking out. You can find him on Twitter,
+			# rambling as @kartar, and although no longer active as a maintainer, he's always "game" to
+			# help out reviewing docs PRs, so you may still see him around in the repository.
+			"jamtur01",
 
 			# Jessica Frazelle, also known as the "Keyser Söze of containers",
 			# runs *everything* in containers. She started contributing to
@@ -117,12 +160,63 @@
 			# containers a lot more secure). Besides being a maintainer, she
 			# set up the CI infrastructure for the project, giving everyone
 			# something to shout at if a PR failed ("noooo Janky!").
-			# Jess is currently working on the DCOS security team at Mesosphere,
-			# and contributing to various open source projects.
 			# Be sure you don't miss her talks at a conference near you (a must-see),
 			# read her blog at https://blog.jessfraz.com (a must-read), and
-			# check out her open source projects on GitHub https://github.com/jfrazelle (a must-try).
-			"jfrazelle",
+			# check out her open source projects on GitHub https://github.com/jessfraz (a must-try).
+			"jessfraz",
+
+			# Alexander Morozov contributed many features to Docker, worked on the premise of 
+			# what later became containerd (and worked on that too), and made a "stupid" Go
+			# vendor tool specifically for docker/docker needs: vndr (https://github.com/LK4D4/vndr).
+			# Not many know that Alexander is a master negotiator, being able to change course
+			# of action with a single "Nope, we're not gonna do that".
+			"lk4d4",
+
+			# Madhu Venugopal was part of the SocketPlane team that joined Docker.
+			# As a maintainer, he was working with Jana for the Container Network
+			# Model (CNM) implemented through libnetwork, and the "routing mesh" powering
+			# Swarm mode networking.
+			"mavenugo",
+
+			# As a maintainer, Kenfe-Mickaël Laventure worked on the container runtime,
+			# integrating containerd 1.0 with the daemon, and adding support for custom
+			# OCI runtimes, as well as implementing the `docker prune` subcommands,
+			# which was a welcome feature to be added. You can keep up with Mickaél on
+			# Twitter (@kmlaventure).
+			"mlaventure",
+
+			# As a docs maintainer, Mary Anthony contributed greatly to the Docker
+			# docs. She wrote the Docker Contributor Guide and Getting Started
+			# Guides. She helped create a doc build system independent of
+			# docker/docker project, and implemented a new docs.docker.com theme and
+			# nav for 2015 Dockercon. Fun fact: the most inherited layer in DockerHub
+			# public repositories was originally referenced in
+			# maryatdocker/docker-whale back in May 2015.
+			"moxiegirl",
+
+			# Jana Radhakrishnan was part of the SocketPlane team that joined Docker.
+			# As a maintainer, he was the lead architect for the Container Network
+			# Model (CNM) implemented through libnetwork, and the "routing mesh" powering
+			# Swarm mode networking.
+			#
+			# Jana started new adventures in networking, but you can find him tweeting as @mrjana,
+			# coding on GitHub https://github.com/mrjana, and he may be hiding on the Docker Community
+			# slack channel :-)
+			"mrjana",
+
+			# Sven Dowideit became a well known person in the Docker ecosphere, building
+			# boot2docker, and became a regular contributor to the project, starting as
+			# early as October 2013 (https://github.com/docker/docker/pull/2119), to become
+			# a maintainer less than two months later (https://github.com/docker/docker/pull/3061).
+			#
+			# As a maintainer, Sven took on the task to convert the documentation from
+			# ReStructuredText to Markdown, migrate to Hugo for generating the docs, and
+			# writing tooling for building, testing, and publishing them.
+			#
+			# If you're not in the occasion to visit "the Australian office", you
+			# can keep up with Sven on Twitter (@SvenDowideit), his blog http://fosiki.com,
+			# and of course on GitHub.
+			"sven",
 
 			# Vincent "vbatts!" Batts made his first contribution to the project
 			# in November 2013, to become a maintainer a few months later, on
@@ -158,10 +252,30 @@
 	Email = "aaron.lehmann@docker.com"
 	GitHub = "aaronlehmann"
 
+	[people.alexellis]
+	Name = "Alex Ellis"
+	Email = "alexellis2@gmail.com"
+	GitHub = "alexellis"
+
+	[people.akihirosuda]
+	Name = "Akihiro Suda"
+	Email = "akihiro.suda.cz@hco.ntt.co.jp"
+	GitHub = "AkihiroSuda"
+
 	[people.aluzzardi]
 	Name = "Andrea Luzzardi"
 	Email = "al@docker.com"
 	GitHub = "aluzzardi"
+
+	[people.albers]
+	Name = "Harald Albers"
+	Email = "github@albersweb.de"
+	GitHub = "albers"
+
+	[people.andrewhsu]
+	Name = "Andrew Hsu"
+	Email = "andrewhsu@docker.com"
+	GitHub = "andrewhsu"
 
 	[people.anusha]
 	Name = "Anusha Ragunathan"
@@ -181,7 +295,7 @@
 	[people.cpuguy83]
 	Name = "Brian Goff"
 	Email = "cpuguy83@gmail.com"
-	Github = "cpuguy83"
+	GitHub = "cpuguy83"
 
 	[people.crosbymichael]
 	Name = "Michael Crosby"
@@ -198,6 +312,11 @@
 	Email = "dug@us.ibm.com"
 	GitHub = "duglin"
 
+	[people.ehazlett]
+	Name = "Evan Hazlett"
+	Email = "ejhazlett@gmail.com"
+	GitHub = "ehazlett"
+
 	[people.erikh]
 	Name = "Erik Hollensbe"
 	Email = "erik@docker.com"
@@ -208,9 +327,19 @@
 	Email = "estesp@linux.vnet.ibm.com"
 	GitHub = "estesp"
 
+	[people.fntlnz]
+	Name = "Lorenzo Fontana"
+	Email = "fontanalorenz@gmail.com"
+	GitHub = "fntlnz"
+
+	[people.gianarb]
+	Name = "Gianluca Arbezzano"
+	Email = "ga@thumpflow.com"
+	GitHub = "gianarb"
+
 	[people.icecrime]
 	Name = "Arnaud Porterie"
-	Email = "arnaud@docker.com"
+	Email = "icecrime@gmail.com"
 	GitHub = "icecrime"
 
 	[people.jamtur01]
@@ -218,49 +347,49 @@
 	Email = "james@lovedthanlost.net"
 	GitHub = "jamtur01"
 
-	[people.jhowardmsft]
-	Name = "John Howard"
-	Email = "jhoward@microsoft.com"
-	GitHub = "jhowardmsft"
-
-	[people.jfrazelle]
+	[people.jessfraz]
 	Name = "Jessie Frazelle"
 	Email = "jess@linux.com"
-	GitHub = "jfrazelle"
+	GitHub = "jessfraz"
+
+	[people.johnstep]
+	Name = "John Stephens"
+	Email = "johnstep@docker.com"
+	GitHub = "johnstep"
 
 	[people.justincormack]
 	Name = "Justin Cormack"
 	Email = "justin.cormack@docker.com"
 	GitHub = "justincormack"
 
+	[people.kolyshkin]
+	Name = "Kir Kolyshkin"
+	Email = "kolyshkin@gmail.com"
+	GitHub = "kolyshkin"
+
 	[people.lk4d4]
 	Name = "Alexander Morozov"
 	Email = "lk4d4@docker.com"
 	GitHub = "lk4d4"
+
+	[people.lowenna]
+	Name = "John Howard"
+	Email = "github@lowenna.com"
+	GitHub = "lowenna"
 
 	[people.mavenugo]
 	Name = "Madhu Venugopal"
 	Email = "madhu@docker.com"
 	GitHub = "mavenugo"
 
-	[people.mgoelzer]
-	Name = "Mike Goelzer"
-	Email = "mike.goelzer@docker.com"
-	GitHub = "mgoelzer"
-
 	[people.mhbauer]
 	Name = "Morgan Bauer"
 	Email = "mbauer@us.ibm.com"
 	GitHub = "mhbauer"
 
-	[people.misty]
-	Name = "Misty Stanley-Jones"
-	Email = "misty@docker.com"
-	GitHub = "mstanleyjones"
-
 	[people.mlaventure]
 	Name = "Kenfe-Mickaël Laventure"
-	Email = "mickael.laventure@docker.com"
+	Email = "mickael.laventure@gmail.com"
 	GitHub = "mlaventure"
 
 	[people.moxiegirl]
@@ -273,10 +402,20 @@
 	Email = "mrjana@docker.com"
 	GitHub = "mrjana"
 
+	[people.olljanat]
+	Name = "Olli Janatuinen"
+	Email = "olli.janatuinen@gmail.com"
+	GitHub = "olljanat"
+
 	[people.programmerq]
 	Name = "Jeff Anderson"
 	Email = "jeff@docker.com"
 	GitHub = "programmerq"
+
+	[people.ripcurld]
+	Name = "Boaz Shuster"
+	Email = "ripcurld.github@gmail.com"
+	GitHub = "ripcurld"
 
 	[people.runcom]
 	Name = "Antonio Murdaca"
@@ -342,3 +481,8 @@
 	Name = "Vishnu Kannan"
 	Email = "vishnuk@google.com"
 	GitHub = "vishh"
+
+	[people.yongtang]
+	Name = "Yong Tang"
+	Email = "yong.tang.github@outlook.com"
+	GitHub = "yongtang"

@@ -1,7 +1,8 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,17 +11,18 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"golang.org/x/net/context"
+	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/errdefs"
 )
 
 func TestVolumeCreateError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.VolumeCreate(context.Background(), types.VolumeCreateRequest{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
+	_, err := client.VolumeCreate(context.Background(), volumetypes.VolumeCreateBody{})
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
@@ -28,12 +30,12 @@ func TestVolumeCreate(t *testing.T) {
 	expectedURL := "/volumes/create"
 
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
 
-			if req.Method != "POST" {
+			if req.Method != http.MethodPost {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
 
@@ -52,7 +54,7 @@ func TestVolumeCreate(t *testing.T) {
 		}),
 	}
 
-	volume, err := client.VolumeCreate(context.Background(), types.VolumeCreateRequest{
+	volume, err := client.VolumeCreate(context.Background(), volumetypes.VolumeCreateBody{
 		Name:   "myvolume",
 		Driver: "mydriver",
 		DriverOpts: map[string]string{

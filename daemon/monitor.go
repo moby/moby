@@ -1,181 +1,213 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"errors"
-	"fmt"
-	"io"
-	"runtime"
+	"context"
 	"strconv"
+	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/daemon/exec"
-	"github.com/docker/docker/libcontainerd"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/container"
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
+	"github.com/docker/docker/restartmanager"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
-// StateChanged updates daemon state changes from containerd
-func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
-	c := daemon.containers.Get(id)
-	if c == nil {
-		return fmt.Errorf("no such container: %s", id)
+func (daemon *Daemon) setStateCounter(c *container.Container) {
+	switch c.StateString() {
+	case "paused":
+		stateCtr.set(c.ID, "paused")
+	case "running":
+		stateCtr.set(c.ID, "running")
+	default:
+		stateCtr.set(c.ID, "stopped")
+	}
+}
+
+// ProcessEvent is called by libcontainerd whenever an event occurs
+func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei libcontainerdtypes.EventInfo) error {
+	c, err := daemon.GetContainer(id)
+	if err != nil {
+		return errors.Wrapf(err, "could not find container %s", id)
 	}
 
-	switch e.State {
-	case libcontainerd.StateOOM:
+	switch e {
+	case libcontainerdtypes.EventOOM:
 		// StateOOM is Linux specific and should never be hit on Windows
-		if runtime.GOOS == "windows" {
-			return errors.New("Received StateOOM from libcontainerd on Windows. This should never happen.")
+		if isWindows {
+			return errors.New("received StateOOM from libcontainerd on Windows. This should never happen")
 		}
-		daemon.updateHealthMonitor(c)
-		daemon.LogContainerEvent(c, "oom")
-	case libcontainerd.StateExit:
-		// if containers AutoRemove flag is set, remove it after clean up
-		if c.HostConfig.AutoRemove {
-			defer func() {
-				if err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
-					logrus.Errorf("can't remove container %s: %v", c.ID, err)
-				}
-			}()
-		}
+
 		c.Lock()
 		defer c.Unlock()
-		c.Wait()
-		c.Reset(false)
-		c.SetStopped(platformConstructExitStatus(e))
-		attributes := map[string]string{
-			"exitCode": strconv.Itoa(int(e.ExitCode)),
-		}
 		daemon.updateHealthMonitor(c)
-		daemon.LogContainerEventWithAttributes(c, "die", attributes)
-		daemon.Cleanup(c)
-		// FIXME: here is race condition between two RUN instructions in Dockerfile
-		// because they share same runconfig and change image. Must be fixed
-		// in builder/builder.go
-		if err := c.ToDisk(); err != nil {
+		if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 			return err
 		}
-		return daemon.postRunProcessing(c, e)
-	case libcontainerd.StateRestart:
-		c.Lock()
-		defer c.Unlock()
-		c.Reset(false)
-		c.RestartCount++
-		c.SetRestarting(platformConstructExitStatus(e))
-		attributes := map[string]string{
-			"exitCode": strconv.Itoa(int(e.ExitCode)),
+
+		daemon.LogContainerEvent(c, "oom")
+	case libcontainerdtypes.EventExit:
+		if int(ei.Pid) == c.Pid {
+			c.Lock()
+			_, _, err := daemon.containerd.DeleteTask(context.Background(), c.ID)
+			if err != nil {
+				logrus.WithError(err).Warnf("failed to delete container %s from containerd", c.ID)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			c.StreamConfig.Wait(ctx)
+			cancel()
+			c.Reset(false)
+
+			exitStatus := container.ExitStatus{
+				ExitCode:  int(ei.ExitCode),
+				ExitedAt:  ei.ExitedAt,
+				OOMKilled: ei.OOMKilled,
+			}
+			restart, wait, err := c.RestartManager().ShouldRestart(ei.ExitCode, daemon.IsShuttingDown() || c.HasBeenManuallyStopped, time.Since(c.StartedAt))
+			if err == nil && restart {
+				c.RestartCount++
+				c.SetRestarting(&exitStatus)
+			} else {
+				if ei.Error != nil {
+					c.SetError(ei.Error)
+				}
+				c.SetStopped(&exitStatus)
+				defer daemon.autoRemove(c)
+			}
+			defer c.Unlock() // needs to be called before autoRemove
+
+			// cancel healthcheck here, they will be automatically
+			// restarted if/when the container is started again
+			daemon.stopHealthchecks(c)
+			attributes := map[string]string{
+				"exitCode": strconv.Itoa(int(ei.ExitCode)),
+			}
+			daemon.LogContainerEventWithAttributes(c, "die", attributes)
+			daemon.Cleanup(c)
+			daemon.setStateCounter(c)
+			cpErr := c.CheckpointTo(daemon.containersReplica)
+
+			if err == nil && restart {
+				go func() {
+					err := <-wait
+					if err == nil {
+						// daemon.netController is initialized when daemon is restoring containers.
+						// But containerStart will use daemon.netController segment.
+						// So to avoid panic at startup process, here must wait util daemon restore done.
+						daemon.waitForStartupDone()
+						if err = daemon.containerStart(c, "", "", false); err != nil {
+							logrus.Debugf("failed to restart container: %+v", err)
+						}
+					}
+					if err != nil {
+						c.Lock()
+						c.SetStopped(&exitStatus)
+						daemon.setStateCounter(c)
+						c.CheckpointTo(daemon.containersReplica)
+						c.Unlock()
+						defer daemon.autoRemove(c)
+						if err != restartmanager.ErrRestartCanceled {
+							logrus.Errorf("restartmanger wait error: %+v", err)
+						}
+					}
+				}()
+			}
+
+			return cpErr
 		}
-		daemon.LogContainerEventWithAttributes(c, "die", attributes)
-		daemon.updateHealthMonitor(c)
-		return c.ToDisk()
-	case libcontainerd.StateExitProcess:
-		c.Lock()
-		defer c.Unlock()
-		if execConfig := c.ExecCommands.Get(e.ProcessID); execConfig != nil {
-			ec := int(e.ExitCode)
+
+		exitCode := 127
+		if execConfig := c.ExecCommands.Get(ei.ProcessID); execConfig != nil {
+			ec := int(ei.ExitCode)
+			execConfig.Lock()
+			defer execConfig.Unlock()
 			execConfig.ExitCode = &ec
 			execConfig.Running = false
-			execConfig.Wait()
+
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			execConfig.StreamConfig.Wait(ctx)
+			cancel()
+
 			if err := execConfig.CloseStreams(); err != nil {
-				logrus.Errorf("%s: %s", c.ID, err)
+				logrus.Errorf("failed to cleanup exec %s streams: %s", c.ID, err)
 			}
 
 			// remove the exec command from the container's store only and not the
 			// daemon's store so that the exec command can be inspected.
-			c.ExecCommands.Delete(execConfig.ID)
-		} else {
-			logrus.Warnf("Ignoring StateExitProcess for %v but no exec command found", e)
-		}
-	case libcontainerd.StateStart, libcontainerd.StateRestore:
-		// Container is already locked in this case
-		c.SetRunning(int(e.Pid), e.State == libcontainerd.StateStart)
-		c.HasBeenManuallyStopped = false
-		c.HasBeenStartedBefore = true
-		if err := c.ToDisk(); err != nil {
-			c.Reset(false)
-			return err
-		}
-		daemon.initHealthMonitor(c)
-		daemon.LogContainerEvent(c, "start")
-	case libcontainerd.StatePause:
-		// Container is already locked in this case
-		c.Paused = true
-		if err := c.ToDisk(); err != nil {
-			return err
-		}
-		daemon.updateHealthMonitor(c)
-		daemon.LogContainerEvent(c, "pause")
-	case libcontainerd.StateResume:
-		// Container is already locked in this case
-		c.Paused = false
-		if err := c.ToDisk(); err != nil {
-			return err
-		}
-		daemon.updateHealthMonitor(c)
-		daemon.LogContainerEvent(c, "unpause")
-	}
+			c.ExecCommands.Delete(execConfig.ID, execConfig.Pid)
 
+			exitCode = ec
+		}
+		attributes := map[string]string{
+			"execID":   ei.ProcessID,
+			"exitCode": strconv.Itoa(exitCode),
+		}
+		daemon.LogContainerEventWithAttributes(c, "exec_die", attributes)
+	case libcontainerdtypes.EventStart:
+		c.Lock()
+		defer c.Unlock()
+
+		// This is here to handle start not generated by docker
+		if !c.Running {
+			c.SetRunning(int(ei.Pid), false)
+			c.HasBeenManuallyStopped = false
+			c.HasBeenStartedBefore = true
+			daemon.setStateCounter(c)
+
+			daemon.initHealthMonitor(c)
+
+			if err := c.CheckpointTo(daemon.containersReplica); err != nil {
+				return err
+			}
+			daemon.LogContainerEvent(c, "start")
+		}
+
+	case libcontainerdtypes.EventPaused:
+		c.Lock()
+		defer c.Unlock()
+
+		if !c.Paused {
+			c.Paused = true
+			daemon.setStateCounter(c)
+			daemon.updateHealthMonitor(c)
+			if err := c.CheckpointTo(daemon.containersReplica); err != nil {
+				return err
+			}
+			daemon.LogContainerEvent(c, "pause")
+		}
+	case libcontainerdtypes.EventResumed:
+		c.Lock()
+		defer c.Unlock()
+
+		if c.Paused {
+			c.Paused = false
+			daemon.setStateCounter(c)
+			daemon.updateHealthMonitor(c)
+
+			if err := c.CheckpointTo(daemon.containersReplica); err != nil {
+				return err
+			}
+			daemon.LogContainerEvent(c, "unpause")
+		}
+	}
 	return nil
 }
 
-// AttachStreams is called by libcontainerd to connect the stdio.
-func (daemon *Daemon) AttachStreams(id string, iop libcontainerd.IOPipe) error {
-	var (
-		s  *runconfig.StreamConfig
-		ec *exec.Config
-	)
-
-	c := daemon.containers.Get(id)
-	if c == nil {
-		var err error
-		ec, err = daemon.getExecConfig(id)
-		if err != nil {
-			return fmt.Errorf("no such exec/container: %s", id)
-		}
-		s = ec.StreamConfig
-	} else {
-		s = c.StreamConfig
-		if err := daemon.StartLogging(c); err != nil {
-			c.Reset(false)
-			return err
-		}
+func (daemon *Daemon) autoRemove(c *container.Container) {
+	c.Lock()
+	ar := c.HostConfig.AutoRemove
+	c.Unlock()
+	if !ar {
+		return
 	}
 
-	copyFunc := func(w io.Writer, r io.Reader) {
-		s.Add(1)
-		go func() {
-			if _, err := io.Copy(w, r); err != nil {
-				logrus.Errorf("%v stream copy error: %v", id, err)
-			}
-			s.Done()
-		}()
+	err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
+	if err == nil {
+		return
+	}
+	if c := daemon.containers.Get(c.ID); c == nil {
+		return
 	}
 
-	if iop.Stdout != nil {
-		copyFunc(s.Stdout(), iop.Stdout)
-	}
-	if iop.Stderr != nil {
-		copyFunc(s.Stderr(), iop.Stderr)
-	}
-
-	if stdin := s.Stdin(); stdin != nil {
-		if iop.Stdin != nil {
-			go func() {
-				io.Copy(iop.Stdin, stdin)
-				iop.Stdin.Close()
-			}()
-		}
-	} else {
-		//TODO(swernli): On Windows, not closing stdin when no tty is requested by the exec Config
-		// results in a hang. We should re-evaluate generalizing this fix for all OSes if
-		// we can determine that is the right thing to do more generally.
-		if (c != nil && !c.Config.Tty) || (ec != nil && !ec.Tty && runtime.GOOS == "windows") {
-			// tty is enabled, so dont close containerd's iopipe stdin.
-			if iop.Stdin != nil {
-				iop.Stdin.Close()
-			}
-		}
-	}
-
-	return nil
+	logrus.WithError(err).WithField("container", c.ID).Error("error removing container")
 }

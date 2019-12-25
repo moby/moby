@@ -1,14 +1,20 @@
-package swarm
+package swarm // import "github.com/docker/docker/api/types/swarm"
 
 // Node represents a node.
 type Node struct {
 	ID string
 	Meta
-
-	Spec          NodeSpec        `json:",omitempty"`
-	Description   NodeDescription `json:",omitempty"`
-	Status        NodeStatus      `json:",omitempty"`
-	ManagerStatus *ManagerStatus  `json:",omitempty"`
+	// Spec defines the desired state of the node as specified by the user.
+	// The system will honor this and will *never* modify it.
+	Spec NodeSpec `json:",omitempty"`
+	// Description encapsulates the properties of the Node as reported by the
+	// agent.
+	Description NodeDescription `json:",omitempty"`
+	// Status provides the current status of the node, as seen by the manager.
+	Status NodeStatus `json:",omitempty"`
+	// ManagerStatus provides the current status of the node's manager
+	// component, if the node is a manager.
+	ManagerStatus *ManagerStatus `json:",omitempty"`
 }
 
 // NodeSpec represents the spec of a node.
@@ -46,9 +52,10 @@ type NodeDescription struct {
 	Platform  Platform          `json:",omitempty"`
 	Resources Resources         `json:",omitempty"`
 	Engine    EngineDescription `json:",omitempty"`
+	TLSInfo   TLSInfo           `json:",omitempty"`
 }
 
-// Platform represents the platfrom (Arch/OS).
+// Platform represents the platform (Arch/OS).
 type Platform struct {
 	Architecture string `json:",omitempty"`
 	OS           string `json:",omitempty"`
@@ -71,6 +78,7 @@ type PluginDescription struct {
 type NodeStatus struct {
 	State   NodeState `json:",omitempty"`
 	Message string    `json:",omitempty"`
+	Addr    string    `json:",omitempty"`
 }
 
 // Reachability represents the reachability of a node.

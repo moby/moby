@@ -1,12 +1,35 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 rm -rf "$DEST"
 
-(
-	source "${MAKEDIR}/install-binary-client"
-)
+install_binary() {
+	local file="$1"
+	local target="${DOCKER_MAKE_INSTALL_PREFIX:=/usr/local}/bin/"
+	if [ "$(go env GOOS)" == "linux" ]; then
+		echo "Installing $(basename $file) to ${target}"
+		mkdir -p "$target"
+		cp -f -L "$file" "$target"
+	else
+		echo "Install is only supported on linux"
+		return 1
+	fi
+}
 
 (
-	source "${MAKEDIR}/install-binary-daemon"
+	DEST="$(dirname $DEST)/binary-daemon"
+	source "${MAKEDIR}/.binary-setup"
+	install_binary "${DEST}/${DOCKER_DAEMON_BINARY_NAME}"
+	install_binary "${DEST}/${DOCKER_RUNC_BINARY_NAME}"
+	install_binary "${DEST}/${DOCKER_CONTAINERD_BINARY_NAME}"
+	install_binary "${DEST}/${DOCKER_CONTAINERD_CTR_BINARY_NAME}"
+	install_binary "${DEST}/${DOCKER_CONTAINERD_SHIM_BINARY_NAME}"
+	install_binary "${DEST}/${DOCKER_PROXY_BINARY_NAME}"
+	install_binary "${DEST}/${DOCKER_INIT_BINARY_NAME}"
+	install_binary "${DEST}/${DOCKER_ROOTLESSKIT_BINARY_NAME}"
+	install_binary "${DEST}/${DOCKER_ROOTLESSKIT_DOCKER_PROXY_BINARY_NAME}"
+	install_binary "${DEST}/${DOCKER_DAEMON_ROOTLESS_SH_BINARY_NAME}"
+	if [ -f "${DEST}/${DOCKER_VPNKIT_BINARY_NAME}" ]; then
+		install_binary "${DEST}/${DOCKER_VPNKIT_BINARY_NAME}"
+	fi
 )

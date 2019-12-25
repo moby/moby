@@ -1,13 +1,17 @@
 // +build !autogen
 
 // Package dockerversion is auto-generated at build-time
-package dockerversion
+package dockerversion // import "github.com/docker/docker/dockerversion"
 
 // Default build-time variable for library-import.
-// This file is overridden on build with build-time informations.
-const (
-	GitCommit string = "library-import"
-	Version   string = "library-import"
-	BuildTime string = "library-import"
-	IAmStatic string = "library-import"
+// These variables are overridden on build with build-time information.
+var (
+	GitCommit             = "library-import"
+	Version               = "library-import"
+	BuildTime             = "library-import"
+	IAmStatic             = "library-import"
+	InitCommitID          = "library-import"
+	PlatformName          = ""
+	ProductName           = ""
+	DefaultProductLicense = ""
 )

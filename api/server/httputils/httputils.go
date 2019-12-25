@@ -1,22 +1,23 @@
-package httputils
+package httputils // import "github.com/docker/docker/api/server/httputils"
 
 import (
-	"encoding/json"
-	"fmt"
+	"context"
 	"io"
+	"mime"
 	"net/http"
 	"strings"
 
-	"golang.org/x/net/context"
-
-	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/errdefs"
+	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/status"
 )
 
 // APIVersionKey is the client's requested API version.
-const APIVersionKey = "api-version"
-
-// UAStringKey is used as key type for user-agent string in net/context struct
-const UAStringKey = "upstream-user-agent"
+type APIVersionKey struct{}
 
 // APIFunc is an adapter to allow the use of ordinary functions as Docker API endpoints.
 // Any function that has the appropriate signature can be registered as an API endpoint (e.g. getVersion).
@@ -30,7 +31,7 @@ func HijackConnection(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 		return nil, nil, err
 	}
 	// Flush the options to make sure the client sets the raw mode
-	conn.Write([]byte{})
+	_, _ = conn.Write([]byte{})
 	return conn, conn, nil
 }
 
@@ -40,9 +41,9 @@ func CloseStreams(streams ...interface{}) {
 		if tcpc, ok := stream.(interface {
 			CloseWrite() error
 		}); ok {
-			tcpc.CloseWrite()
+			_ = tcpc.CloseWrite()
 		} else if closer, ok := stream.(io.Closer); ok {
-			closer.Close()
+			_ = closer.Close()
 		}
 	}
 }
@@ -59,10 +60,10 @@ func CheckForJSON(r *http.Request) error {
 	}
 
 	// Otherwise it better be json
-	if api.MatchesContentType(ct, "application/json") {
+	if matchesContentType(ct, "application/json") {
 		return nil
 	}
-	return fmt.Errorf("Content-Type specified (%s) must be 'application/json'", ct)
+	return errdefs.InvalidParameter(errors.Errorf("Content-Type specified (%s) must be 'application/json'", ct))
 }
 
 // ParseForm ensures the request form is parsed even with invalid content types.
@@ -72,27 +73,52 @@ func ParseForm(r *http.Request) error {
 		return nil
 	}
 	if err := r.ParseForm(); err != nil && !strings.HasPrefix(err.Error(), "mime:") {
-		return err
+		return errdefs.InvalidParameter(err)
 	}
 	return nil
 }
 
-// WriteJSON writes the value v to the http response stream as json with standard json encoding.
-func WriteJSON(w http.ResponseWriter, code int, v interface{}) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	return json.NewEncoder(w).Encode(v)
-}
-
 // VersionFromContext returns an API version from the context using APIVersionKey.
 // It panics if the context value does not have version.Version type.
-func VersionFromContext(ctx context.Context) (ver string) {
+func VersionFromContext(ctx context.Context) string {
 	if ctx == nil {
-		return
+		return ""
 	}
-	val := ctx.Value(APIVersionKey)
-	if val == nil {
-		return
+
+	if val := ctx.Value(APIVersionKey{}); val != nil {
+		return val.(string)
 	}
-	return val.(string)
+
+	return ""
+}
+
+// MakeErrorHandler makes an HTTP handler that decodes a Docker error and
+// returns it in the response.
+func MakeErrorHandler(err error) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		statusCode := errdefs.GetHTTPErrorStatusCode(err)
+		vars := mux.Vars(r)
+		if apiVersionSupportsJSONErrors(vars["version"]) {
+			response := &types.ErrorResponse{
+				Message: err.Error(),
+			}
+			_ = WriteJSON(w, statusCode, response)
+		} else {
+			http.Error(w, status.Convert(err).Message(), statusCode)
+		}
+	}
+}
+
+func apiVersionSupportsJSONErrors(version string) bool {
+	const firstAPIVersionWithJSONErrors = "1.23"
+	return version == "" || versions.GreaterThan(version, firstAPIVersionWithJSONErrors)
+}
+
+// matchesContentType validates the content type against the expected one
+func matchesContentType(contentType, expectedType string) bool {
+	mimetype, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		logrus.Errorf("Error parsing media type: %s error: %v", contentType, err)
+	}
+	return err == nil && mimetype == expectedType
 }

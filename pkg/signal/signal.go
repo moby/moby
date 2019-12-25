@@ -1,6 +1,6 @@
 // Package signal provides helper functions for dealing with signals across
 // various operating systems.
-package signal
+package signal // import "github.com/docker/docker/pkg/signal"
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 
 // CatchAll catches all signals and relays them to the specified channel.
 func CatchAll(sigc chan os.Signal) {
-	handledSigs := []os.Signal{}
+	var handledSigs []os.Signal
 	for _, s := range SignalMap {
 		handledSigs = append(handledSigs, s)
 	}

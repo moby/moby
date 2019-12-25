@@ -1,4 +1,4 @@
-package types
+package types // import "github.com/docker/docker/api/types"
 
 import (
 	"bufio"
@@ -7,13 +7,25 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 )
 
 // CheckpointCreateOptions holds parameters to create a checkpoint from a container
 type CheckpointCreateOptions struct {
-	CheckpointID string
-	Exit         bool
+	CheckpointID  string
+	CheckpointDir string
+	Exit          bool
+}
+
+// CheckpointListOptions holds parameters to list checkpoints for a container
+type CheckpointListOptions struct {
+	CheckpointDir string
+}
+
+// CheckpointDeleteOptions holds parameters to delete a checkpoint from a container
+type CheckpointDeleteOptions struct {
+	CheckpointID  string
+	CheckpointDir string
 }
 
 // ContainerAttachOptions holds parameters to attach to a container.
@@ -23,6 +35,7 @@ type ContainerAttachOptions struct {
 	Stdout     bool
 	Stderr     bool
 	DetachKeys string
+	Logs       bool
 }
 
 // ContainerCommitOptions holds parameters to commit changes into a container.
@@ -41,18 +54,19 @@ type ContainerExecInspect struct {
 	ContainerID string
 	Running     bool
 	ExitCode    int
+	Pid         int
 }
 
 // ContainerListOptions holds parameters to list containers with.
 type ContainerListOptions struct {
-	Quiet  bool
-	Size   bool
-	All    bool
-	Latest bool
-	Since  string
-	Before string
-	Limit  int
-	Filter filters.Args
+	Quiet   bool
+	Size    bool
+	All     bool
+	Latest  bool
+	Since   string
+	Before  string
+	Limit   int
+	Filters filters.Args
 }
 
 // ContainerLogsOptions holds parameters to filter logs with.
@@ -60,6 +74,7 @@ type ContainerLogsOptions struct {
 	ShowStdout bool
 	ShowStderr bool
 	Since      string
+	Until      string
 	Timestamps bool
 	Follow     bool
 	Tail       string
@@ -75,16 +90,18 @@ type ContainerRemoveOptions struct {
 
 // ContainerStartOptions holds parameters to start containers.
 type ContainerStartOptions struct {
-	CheckpointID string
+	CheckpointID  string
+	CheckpointDir string
 }
 
 // CopyToContainerOptions holds information
 // about files to copy into a container
 type CopyToContainerOptions struct {
 	AllowOverwriteDirWithFile bool
+	CopyUIDGID                bool
 }
 
-// EventsOptions hold parameters to filter events with.
+// EventsOptions holds parameters to filter events with.
 type EventsOptions struct {
 	Since   string
 	Until   string
@@ -140,18 +157,56 @@ type ImageBuildOptions struct {
 	Memory         int64
 	MemorySwap     int64
 	CgroupParent   string
+	NetworkMode    string
 	ShmSize        int64
 	Dockerfile     string
 	Ulimits        []*units.Ulimit
-	BuildArgs      map[string]string
-	AuthConfigs    map[string]AuthConfig
-	Context        io.Reader
-	Labels         map[string]string
+	// BuildArgs needs to be a *string instead of just a string so that
+	// we can tell the difference between "" (empty string) and no value
+	// at all (nil). See the parsing of buildArgs in
+	// api/server/router/build/build_routes.go for even more info.
+	BuildArgs   map[string]*string
+	AuthConfigs map[string]AuthConfig
+	Context     io.Reader
+	Labels      map[string]string
 	// squash the resulting image's layers to the parent
 	// preserves the original image and creates a new one from the parent with all
 	// the changes applied to a single layer
 	Squash bool
+	// CacheFrom specifies images that are used for matching cache. Images
+	// specified here do not need to have a valid parent chain to match cache.
+	CacheFrom   []string
+	SecurityOpt []string
+	ExtraHosts  []string // List of extra hosts
+	Target      string
+	SessionID   string
+	Platform    string
+	// Version specifies the version of the unerlying builder to use
+	Version BuilderVersion
+	// BuildID is an optional identifier that can be passed together with the
+	// build request. The same identifier can be used to gracefully cancel the
+	// build with the cancel request.
+	BuildID string
+	// Outputs defines configurations for exporting build results. Only supported
+	// in BuildKit mode
+	Outputs []ImageBuildOutput
 }
+
+// ImageBuildOutput defines configuration for exporting a build result
+type ImageBuildOutput struct {
+	Type  string
+	Attrs map[string]string
+}
+
+// BuilderVersion sets the version of underlying builder to use
+type BuilderVersion string
+
+const (
+	// BuilderV1 is the first generation builder in docker daemon
+	BuilderV1 BuilderVersion = "1"
+	// BuilderBuildKit is builder based on moby/buildkit project
+	BuilderBuildKit = "2"
+)
 
 // ImageBuildResponse holds information
 // returned by a server after building
@@ -163,27 +218,28 @@ type ImageBuildResponse struct {
 
 // ImageCreateOptions holds information to create images.
 type ImageCreateOptions struct {
-	RegistryAuth string // RegistryAuth is the base64 encoded credentials for the registry
+	RegistryAuth string // RegistryAuth is the base64 encoded credentials for the registry.
+	Platform     string // Platform is the target platform of the image if it needs to be pulled from the registry.
 }
 
 // ImageImportSource holds source information for ImageImport
 type ImageImportSource struct {
-	Source     io.Reader // Source is the data to send to the server to create this image from (mutually exclusive with SourceName)
-	SourceName string    // SourceName is the name of the image to pull (mutually exclusive with Source)
+	Source     io.Reader // Source is the data to send to the server to create this image from. You must set SourceName to "-" to leverage this.
+	SourceName string    // SourceName is the name of the image to pull. Set to "-" to leverage the Source attribute.
 }
 
 // ImageImportOptions holds information to import images from the client host.
 type ImageImportOptions struct {
-	Tag     string   // Tag is the name to tag this image with. This attribute is deprecated.
-	Message string   // Message is the message to tag the image with
-	Changes []string // Changes are the raw changes to apply to this image
+	Tag      string   // Tag is the name to tag this image with. This attribute is deprecated.
+	Message  string   // Message is the message to tag the image with
+	Changes  []string // Changes are the raw changes to apply to this image
+	Platform string   // Platform is the target platform of the image
 }
 
 // ImageListOptions holds parameters to filter the list of images with.
 type ImageListOptions struct {
-	MatchName string
-	All       bool
-	Filters   filters.Args
+	All     bool
+	Filters filters.Args
 }
 
 // ImageLoadResponse returns information to the client about a load process.
@@ -198,6 +254,7 @@ type ImagePullOptions struct {
 	All           bool
 	RegistryAuth  string // RegistryAuth is the base64 encoded credentials for the registry
 	PrivilegeFunc RequestPrivilegeFunc
+	Platform      string
 }
 
 // RequestPrivilegeFunc is a function interface that
@@ -208,7 +265,7 @@ type ImagePullOptions struct {
 // if the privilege request fails.
 type RequestPrivilegeFunc func() (string, error)
 
-//ImagePushOptions holds information to push images.
+// ImagePushOptions holds information to push images.
 type ImagePushOptions ImagePullOptions
 
 // ImageRemoveOptions holds parameters to remove images.
@@ -229,25 +286,13 @@ type ImageSearchOptions struct {
 // It can be used to resize container ttys and
 // exec process ttys too.
 type ResizeOptions struct {
-	Height int
-	Width  int
-}
-
-// VersionResponse holds version information for the client and the server
-type VersionResponse struct {
-	Client *Version
-	Server *Version
-}
-
-// ServerOK returns true when the client could connect to the docker server
-// and parse the information received. It returns false otherwise.
-func (v VersionResponse) ServerOK() bool {
-	return v.Server != nil
+	Height uint
+	Width  uint
 }
 
 // NodeListOptions holds parameters to list nodes with.
 type NodeListOptions struct {
-	Filter filters.Args
+	Filters filters.Args
 }
 
 // NodeRemoveOptions holds parameters to remove nodes with.
@@ -262,14 +307,28 @@ type ServiceCreateOptions struct {
 	//
 	// This field follows the format of the X-Registry-Auth header.
 	EncodedRegistryAuth string
+
+	// QueryRegistry indicates whether the service update requires
+	// contacting a registry. A registry may be contacted to retrieve
+	// the image digest and manifest, which in turn can be used to update
+	// platform or other information about the service.
+	QueryRegistry bool
 }
 
 // ServiceCreateResponse contains the information returned to a client
-// on the  creation of a new service.
+// on the creation of a new service.
 type ServiceCreateResponse struct {
 	// ID is the ID of the created service.
 	ID string
+	// Warnings is a set of non-fatal warning messages to pass on to the user.
+	Warnings []string `json:",omitempty"`
 }
+
+// Values for RegistryAuthFrom in ServiceUpdateOptions
+const (
+	RegistryAuthFromSpec         = "spec"
+	RegistryAuthFromPreviousSpec = "previous-spec"
+)
 
 // ServiceUpdateOptions contains the options to be used for updating services.
 type ServiceUpdateOptions struct {
@@ -282,19 +341,79 @@ type ServiceUpdateOptions struct {
 	// TODO(stevvooe): Consider moving the version parameter of ServiceUpdate
 	// into this field. While it does open API users up to racy writes, most
 	// users may not need that level of consistency in practice.
+
+	// RegistryAuthFrom specifies where to find the registry authorization
+	// credentials if they are not given in EncodedRegistryAuth. Valid
+	// values are "spec" and "previous-spec".
+	RegistryAuthFrom string
+
+	// Rollback indicates whether a server-side rollback should be
+	// performed. When this is set, the provided spec will be ignored.
+	// The valid values are "previous" and "none". An empty value is the
+	// same as "none".
+	Rollback string
+
+	// QueryRegistry indicates whether the service update requires
+	// contacting a registry. A registry may be contacted to retrieve
+	// the image digest and manifest, which in turn can be used to update
+	// platform or other information about the service.
+	QueryRegistry bool
 }
 
-// ServiceListOptions holds parameters to list  services with.
+// ServiceListOptions holds parameters to list services with.
 type ServiceListOptions struct {
-	Filter filters.Args
+	Filters filters.Args
+
+	// Status indicates whether the server should include the service task
+	// count of running and desired tasks.
+	Status bool
 }
 
-// TaskListOptions holds parameters to list  tasks with.
+// ServiceInspectOptions holds parameters related to the "service inspect"
+// operation.
+type ServiceInspectOptions struct {
+	InsertDefaults bool
+}
+
+// TaskListOptions holds parameters to list tasks with.
 type TaskListOptions struct {
-	Filter filters.Args
+	Filters filters.Args
 }
 
 // PluginRemoveOptions holds parameters to remove plugins.
 type PluginRemoveOptions struct {
 	Force bool
+}
+
+// PluginEnableOptions holds parameters to enable plugins.
+type PluginEnableOptions struct {
+	Timeout int
+}
+
+// PluginDisableOptions holds parameters to disable plugins.
+type PluginDisableOptions struct {
+	Force bool
+}
+
+// PluginInstallOptions holds parameters to install a plugin.
+type PluginInstallOptions struct {
+	Disabled              bool
+	AcceptAllPermissions  bool
+	RegistryAuth          string // RegistryAuth is the base64 encoded credentials for the registry
+	RemoteRef             string // RemoteRef is the plugin name on the registry
+	PrivilegeFunc         RequestPrivilegeFunc
+	AcceptPermissionsFunc func(PluginPrivileges) (bool, error)
+	Args                  []string
+}
+
+// SwarmUnlockKeyResponse contains the response for Engine API:
+// GET /swarm/unlockkey
+type SwarmUnlockKeyResponse struct {
+	// UnlockKey is the unlock key in ASCII-armored format.
+	UnlockKey string
+}
+
+// PluginCreateOptions hold all options to plugin create.
+type PluginCreateOptions struct {
+	RepoName string
 }

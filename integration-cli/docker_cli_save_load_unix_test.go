@@ -3,19 +3,23 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
+	"testing"
+	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/go-check/check"
-	"github.com/kr/pty"
+	"github.com/creack/pty"
+	"github.com/docker/docker/integration-cli/cli/build"
+	"gotest.tools/assert"
+	"gotest.tools/icmd"
 )
 
 // save a repo and try to load it using stdout
-func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
+func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *testing.T) {
 	name := "test-save-and-load-repo-stdout"
 	dockerCmd(c, "run", "--name", name, "busybox", "true")
 
@@ -24,57 +28,53 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 	before = strings.TrimRight(before, "\n")
 
 	tmpFile, err := ioutil.TempFile("", "foobar-save-load-test.tar")
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	defer os.Remove(tmpFile.Name())
 
-	saveCmd := exec.Command(dockerBinary, "save", repoName)
-	saveCmd.Stdout = tmpFile
-
-	_, err = runCommand(saveCmd)
-	c.Assert(err, check.IsNil)
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "save", repoName},
+		Stdout:  tmpFile,
+	}).Assert(c, icmd.Success)
 
 	tmpFile, err = os.Open(tmpFile.Name())
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	defer tmpFile.Close()
 
 	deleteImages(repoName)
 
-	loadCmd := exec.Command(dockerBinary, "load")
-	loadCmd.Stdin = tmpFile
-
-	out, _, err := runCommandWithOutput(loadCmd)
-	c.Assert(err, check.IsNil, check.Commentf(out))
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "load"},
+		Stdin:   tmpFile,
+	}).Assert(c, icmd.Success)
 
 	after := inspectField(c, repoName, "Id")
 	after = strings.TrimRight(after, "\n")
 
-	c.Assert(after, check.Equals, before) //inspect is not the same after a save / load
+	assert.Equal(c, after, before, "inspect is not the same after a save / load")
 
 	deleteImages(repoName)
 
 	pty, tty, err := pty.Open()
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	cmd := exec.Command(dockerBinary, "save", repoName)
 	cmd.Stdin = tty
 	cmd.Stdout = tty
 	cmd.Stderr = tty
-	c.Assert(cmd.Start(), check.IsNil)
-	c.Assert(cmd.Wait(), check.NotNil) //did not break writing to a TTY
+	assert.NilError(c, cmd.Start())
+	assert.ErrorContains(c, cmd.Wait(), "", "did not break writing to a TTY")
 
 	buf := make([]byte, 1024)
 
 	n, err := pty.Read(buf)
-	c.Assert(err, check.IsNil) //could not read tty output
-	c.Assert(string(buf[:n]), checker.Contains, "Cowardly refusing", check.Commentf("help output is not being yielded", out))
+	assert.NilError(c, err, "could not read tty output")
+	assert.Assert(c, strings.Contains(string(buf[:n]), "cowardly refusing"), "help output is not being yielded")
 }
 
-func (s *DockerSuite) TestSaveAndLoadWithProgressBar(c *check.C) {
+func (s *DockerSuite) TestSaveAndLoadWithProgressBar(c *testing.T) {
 	name := "test-load"
-	_, err := buildImage(name, `
-	FROM busybox
+	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox
 	RUN touch aa
-	`, true)
-	c.Assert(err, check.IsNil)
+	`))
 
 	tmptar := name + ".tar"
 	dockerCmd(c, "save", "-o", tmptar, name)
@@ -84,5 +84,24 @@ func (s *DockerSuite) TestSaveAndLoadWithProgressBar(c *check.C) {
 	dockerCmd(c, "tag", "busybox", name)
 	out, _ := dockerCmd(c, "load", "-i", tmptar)
 	expected := fmt.Sprintf("The image %s:latest already exists, renaming the old one with ID", name)
-	c.Assert(out, checker.Contains, expected)
+	assert.Assert(c, strings.Contains(out, expected))
+}
+
+// fail because load didn't receive data from stdin
+func (s *DockerSuite) TestLoadNoStdinFail(c *testing.T) {
+	pty, tty, err := pty.Open()
+	assert.NilError(c, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, dockerBinary, "load")
+	cmd.Stdin = tty
+	cmd.Stdout = tty
+	cmd.Stderr = tty
+	assert.ErrorContains(c, cmd.Run(), "", "docker-load should fail")
+
+	buf := make([]byte, 1024)
+
+	n, err := pty.Read(buf)
+	assert.NilError(c, err) //could not read tty output
+	assert.Assert(c, strings.Contains(string(buf[:n]), "requested load from stdin, but stdin is empty"))
 }

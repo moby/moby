@@ -1,45 +1,59 @@
-package operatingsystem
+package operatingsystem // import "github.com/docker/docker/pkg/parsers/operatingsystem"
 
 import (
-	"syscall"
-	"unsafe"
-)
+	"fmt"
 
-// See https://code.google.com/p/go/source/browse/src/pkg/mime/type_windows.go?r=d14520ac25bf6940785aabb71f5be453a286f58c
-// for a similar sample
+	"github.com/Microsoft/hcsshim/osversion"
+	"golang.org/x/sys/windows/registry"
+)
 
 // GetOperatingSystem gets the name of the current operating system.
 func GetOperatingSystem() (string, error) {
+	os, err := withCurrentVersionRegistryKey(func(key registry.Key) (os string, err error) {
+		if os, _, err = key.GetStringValue("ProductName"); err != nil {
+			return "", err
+		}
 
-	var h syscall.Handle
+		releaseId, _, err := key.GetStringValue("ReleaseId")
+		if err != nil {
+			return
+		}
+		os = fmt.Sprintf("%s Version %s", os, releaseId)
 
-	// Default return value
-	ret := "Unknown Operating System"
+		buildNumber, _, err := key.GetStringValue("CurrentBuildNumber")
+		if err != nil {
+			return
+		}
+		ubr, _, err := key.GetIntegerValue("UBR")
+		if err != nil {
+			return
+		}
+		os = fmt.Sprintf("%s (OS Build %s.%d)", os, buildNumber, ubr)
 
-	if err := syscall.RegOpenKeyEx(syscall.HKEY_LOCAL_MACHINE,
-		syscall.StringToUTF16Ptr(`SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\`),
-		0,
-		syscall.KEY_READ,
-		&h); err != nil {
-		return ret, err
+		return
+	})
+
+	if os == "" {
+		// Default return value
+		os = "Unknown Operating System"
 	}
-	defer syscall.RegCloseKey(h)
 
-	var buf [1 << 10]uint16
-	var typ uint32
-	n := uint32(len(buf) * 2) // api expects array of bytes, not uint16
+	return os, err
+}
 
-	if err := syscall.RegQueryValueEx(h,
-		syscall.StringToUTF16Ptr("ProductName"),
-		nil,
-		&typ,
-		(*byte)(unsafe.Pointer(&buf[0])),
-		&n); err != nil {
-		return ret, err
+func withCurrentVersionRegistryKey(f func(registry.Key) (string, error)) (string, error) {
+	key, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.QUERY_VALUE)
+	if err != nil {
+		return "", err
 	}
-	ret = syscall.UTF16ToString(buf[:])
+	defer key.Close()
+	return f(key)
+}
 
-	return ret, nil
+// GetOperatingSystemVersion gets the version of the current operating system, as a string.
+func GetOperatingSystemVersion() (string, error) {
+	version := osversion.Get()
+	return fmt.Sprintf("%d.%d.%d", version.MajorVersion, version.MinorVersion, version.Build), nil
 }
 
 // IsContainerized returns true if we are running inside a container.

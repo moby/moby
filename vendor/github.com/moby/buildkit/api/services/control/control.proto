@@ -1,0 +1,149 @@
+syntax = "proto3";
+
+package moby.buildkit.v1;
+
+// The control API is currently considered experimental and may break in a backwards
+// incompatible way.
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "google/protobuf/timestamp.proto";
+import "github.com/moby/buildkit/solver/pb/ops.proto";
+import "github.com/moby/buildkit/api/types/worker.proto";
+
+option (gogoproto.sizer_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+
+service Control {
+	rpc DiskUsage(DiskUsageRequest) returns (DiskUsageResponse);
+	rpc Prune(PruneRequest) returns (stream UsageRecord);
+	rpc Solve(SolveRequest) returns (SolveResponse);
+	rpc Status(StatusRequest) returns (stream StatusResponse);
+	rpc Session(stream BytesMessage) returns (stream BytesMessage);
+	rpc ListWorkers(ListWorkersRequest) returns (ListWorkersResponse);
+	// rpc Info(InfoRequest) returns (InfoResponse);
+}
+
+message PruneRequest {
+	repeated string filter = 1;
+	bool all = 2;
+	int64 keepDuration = 3 [(gogoproto.nullable) = true];
+	int64 keepBytes = 4 [(gogoproto.nullable) = true];
+}
+
+message DiskUsageRequest {
+	repeated string filter = 1; 
+}
+
+message DiskUsageResponse {
+	repeated UsageRecord record = 1;
+}
+
+message UsageRecord {
+	string ID = 1;
+	bool Mutable = 2;
+	bool InUse = 3;
+	int64 Size = 4;
+	string Parent = 5;
+	google.protobuf.Timestamp CreatedAt = 6 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp LastUsedAt = 7 [(gogoproto.stdtime) = true];
+	int64 UsageCount = 8;
+	string Description = 9;
+	string RecordType = 10;
+	bool Shared = 11;
+}
+
+message SolveRequest {
+	string Ref = 1;
+	pb.Definition Definition = 2;
+	string Exporter = 3;
+	map<string, string> ExporterAttrs = 4;
+	string Session = 5;
+	string Frontend = 6;
+	map<string, string> FrontendAttrs = 7;
+	CacheOptions Cache = 8 [(gogoproto.nullable) = false];
+	repeated string Entitlements = 9 [(gogoproto.customtype) = "github.com/moby/buildkit/util/entitlements.Entitlement" ];
+}
+
+message CacheOptions {
+	// ExportRefDeprecated is deprecated in favor or the new Exports since BuildKit v0.4.0.
+	// When ExportRefDeprecated is set, the solver appends
+	// {.Type = "registry", .Attrs = ExportAttrs.add("ref", ExportRef)}
+	// to Exports for compatibility. (planned to be removed)
+	string ExportRefDeprecated = 1;
+	// ImportRefsDeprecated is deprecated in favor or the new Imports since BuildKit v0.4.0.
+	// When ImportRefsDeprecated is set, the solver appends
+	// {.Type = "registry", .Attrs = {"ref": importRef}}
+	// for each of the ImportRefs entry to Imports for compatibility. (planned to be removed)
+	repeated string ImportRefsDeprecated = 2;
+	// ExportAttrsDeprecated is deprecated since BuildKit v0.4.0.
+	// See the description of ExportRefDeprecated.
+	map<string, string> ExportAttrsDeprecated = 3;
+	// Exports was introduced in BuildKit v0.4.0.
+	repeated CacheOptionsEntry Exports = 4;
+	// Imports was introduced in BuildKit v0.4.0.
+	repeated CacheOptionsEntry Imports = 5;
+}
+
+message CacheOptionsEntry {
+	// Type is like "registry" or "local"
+	string Type = 1;
+	// Attrs are like mode=(min,max), ref=example.com:5000/foo/bar .
+	// See cache importer/exporter implementations' documentation.
+	map<string, string> Attrs = 2;
+}
+
+message SolveResponse {
+	map<string, string> ExporterResponse = 1;
+}
+
+message StatusRequest {
+	string Ref = 1;
+}
+
+message StatusResponse {
+	repeated Vertex vertexes = 1;
+	repeated VertexStatus statuses = 2;
+	repeated VertexLog logs = 3;
+}
+
+message Vertex {
+	string digest = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	repeated string inputs = 2 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	string name = 3;
+	bool cached = 4;
+	google.protobuf.Timestamp started = 5 [(gogoproto.stdtime) = true ];
+	google.protobuf.Timestamp completed = 6 [(gogoproto.stdtime) = true ];
+	string error = 7; // typed errors?
+}
+
+message VertexStatus {
+	string ID = 1;
+	string vertex = 2 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	string name = 3;
+	int64 current = 4;
+	int64 total = 5;
+	// TODO: add started, completed
+	google.protobuf.Timestamp timestamp = 6 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp started = 7 [(gogoproto.stdtime) = true ];
+	google.protobuf.Timestamp completed = 8 [(gogoproto.stdtime) = true ];
+}
+
+message VertexLog {
+	string vertex = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	google.protobuf.Timestamp timestamp = 2 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	int64 stream = 3;
+	bytes msg = 4;
+}
+
+message BytesMessage {
+	bytes data = 1;
+}
+
+message ListWorkersRequest {
+	repeated string filter = 1; // containerd style
+}
+
+message ListWorkersResponse {
+	repeated moby.buildkit.v1.types.WorkerRecord record = 1;
+}

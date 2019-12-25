@@ -1,5 +1,0 @@
-sudo: false
-language: go
-go:
-    - 1.5
-    - 1.6

@@ -1,0 +1,504 @@
+syntax = "proto3";
+
+package docker.swarmkit.v1;
+
+import "github.com/docker/swarmkit/api/types.proto";
+import "github.com/docker/swarmkit/api/specs.proto";
+import "google/protobuf/timestamp.proto";
+import "gogoproto/gogo.proto";
+import "google/protobuf/any.proto";
+import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
+
+// This file contains definitions for all first-class objects in the cluster
+// API. Such types typically have a corresponding specification, with the
+// naming XXXSpec, but not all.
+
+// Meta contains metadata about objects. Every object contains a meta field.
+message Meta {
+	// Version tracks the current version of the object.
+	Version version = 1 [(gogoproto.nullable) = false];
+
+	// Object timestamps.
+	// Note: can't use stdtime because these fields are nullable.
+	google.protobuf.Timestamp created_at = 2;
+	google.protobuf.Timestamp updated_at = 3;
+}
+
+// Node provides the internal node state as seen by the cluster.
+message Node {
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+			role: true
+			membership: true
+		}
+	};
+
+	// ID specifies the identity of the node.
+	string id = 1;
+
+	Meta meta = 2 [(gogoproto.nullable) = false];
+
+	// Spec defines the desired state of the node as specified by the user.
+	// The system will honor this and will *never* modify it.
+	NodeSpec spec = 3 [(gogoproto.nullable) = false];
+
+	// Description encapsulated the properties of the Node as reported by the
+	// agent.
+	NodeDescription description = 4;
+
+	// Status provides the current status of the node, as seen by the manager.
+	NodeStatus status = 5 [(gogoproto.nullable) = false];
+
+	// ManagerStatus provides the current status of the node's manager
+	// component, if the node is a manager.
+	ManagerStatus manager_status = 6;
+
+	// DEPRECATED: Use Attachments to find the ingress network
+	// The node attachment to the ingress network.
+	NetworkAttachment attachment = 7 [deprecated=true];
+
+	// Certificate is the TLS certificate issued for the node, if any.
+	Certificate certificate = 8 [(gogoproto.nullable) = false];
+
+	// Role is the *observed* role for this node. It differs from the
+	// desired role set in Node.Spec.Role because the role here is only
+	// updated after the Raft member list has been reconciled with the
+	// desired role from the spec.
+	//
+	// This field represents the current reconciled state. If an action is
+	// to be performed, first verify the role in the cert. This field only
+	// shows the privilege level that the CA would currently grant when
+	// issuing or renewing the node's certificate.
+	NodeRole role = 9;
+
+	// Attachments enumerates the network attachments for the node to set up an
+	// endpoint on the node to be used for load balancing. Each overlay
+	// network, including ingress network, will have an NetworkAttachment.
+	repeated NetworkAttachment attachments = 10;
+
+	// VXLANUDPPort specifies the UDP port for VXLAN traffic.
+	// This information is passed from cluster object to individual nodes.
+	uint32 VXLANUDPPort = 11;
+}
+
+message Service {
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+		}
+	};
+
+	string id = 1;
+
+	Meta meta = 2 [(gogoproto.nullable) = false];
+
+	ServiceSpec spec = 3 [(gogoproto.nullable) = false];
+
+	// SpecVersion versions Spec, to identify changes in the spec. Note that
+	// this is not directly comparable to the service's Version.
+	Version spec_version = 10;
+
+	// PreviousSpec is the previous service spec that was in place before
+	// "Spec".
+	ServiceSpec previous_spec = 6;
+
+	// PreviousSpecVersion versions PreviousSpec. Note that this is not
+	// directly comparable to the service's Version.
+	Version previous_spec_version = 11;
+
+	// Runtime state of service endpoint. This may be different
+	// from the spec version because the user may not have entered
+	// the optional fields like node_port or virtual_ip and it
+	// could be auto allocated by the system.
+	Endpoint endpoint = 4;
+
+	// UpdateStatus contains the status of an update, if one is in
+	// progress.
+	UpdateStatus update_status = 5;
+
+	// PendingDelete indicates that this service's deletion has been requested.
+	// Services, as well as all service-level resources, can only be deleted
+	// after all of the service's containers have properly shut down.
+	// When a user requests a deletion, we just flip this flag
+	// the deallocator will take it from there - it will start monitoring
+	// this service's tasks, and proceed to delete the service itself (and
+	// potentially its associated resources also marked for deletion) when
+	// all of its tasks are gone
+	bool pending_delete = 7;
+}
+
+// Endpoint specified all the network parameters required to
+// correctly discover and load balance a service
+message Endpoint {
+	EndpointSpec spec = 1;
+
+	// Runtime state of the exposed ports which may carry
+	// auto-allocated swarm ports in addition to the user
+	// configured information.
+	repeated PortConfig ports = 2;
+
+	// An endpoint attachment specifies the data that the process
+	// of attaching an endpoint to a network creates.
+
+	// VirtualIP specifies a set of networks this endpoint will be attached to
+	// and the IP addresses the target service will be made available under.
+	message VirtualIP {
+		// NetworkID for which this endpoint attachment was created.
+		string network_id = 1;
+
+		// A virtual IP is used to address this service in IP
+		// layer that the client can use to send requests to
+		// this service. A DNS A/AAAA query on the service
+		// name might return this IP to the client. This is
+		// strictly a logical IP and there may not be any
+		// interfaces assigned this IP address or any route
+		// created for this address.  More than one to
+		// accommodate for both IPv4 and IPv6
+		string addr = 2;
+	}
+
+	// VirtualIPs specifies the IP addresses under which this endpoint will be
+	// made available.
+	repeated VirtualIP virtual_ips = 3 [(gogoproto.customname) = "VirtualIPs"];
+}
+
+// Task specifies the parameters for implementing a Spec. A task is effectively
+// immutable and idempotent. Once it is dispatched to a node, it will not be
+// dispatched to another node.
+message Task {
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+			service_id: true
+			node_id: true
+			slot: true
+			desired_state: true
+		}
+	};
+
+	string id = 1;
+
+	Meta meta = 2 [(gogoproto.nullable) = false];
+
+	// Spec defines the desired state of the task as specified by the user.
+	// The system will honor this and will *never* modify it.
+	TaskSpec spec = 3 [(gogoproto.nullable) = false];
+
+	// SpecVersion is copied from Service, to identify which version of the
+	// spec this task has. Note that this is not directly comparable to the
+	// service's Version.
+	Version spec_version = 14;
+
+	// ServiceID indicates the service under which this task is orchestrated. This
+	// should almost always be set.
+	string service_id = 4;
+
+	// Slot is the service slot number for a task.
+	// For example, if a replicated service has replicas = 2, there will be a
+	// task with slot = 1, and another with slot = 2.
+	uint64 slot = 5;
+
+	// NodeID indicates the node to which the task is assigned. If this field
+	// is empty or not set, the task is unassigned.
+	string node_id = 6;
+
+	// Annotations defines the names and labels for the runtime, as set by
+	// the cluster manager.
+	//
+	// As backup, if this field has an empty name, the runtime will
+	// allocate a unique name for the actual container.
+	//
+	// NOTE(stevvooe): The preserves the ability for us to making naming
+	// decisions for tasks in orchestrator, albeit, this is left empty for now.
+	Annotations annotations = 7 [(gogoproto.nullable) = false];
+
+	// ServiceAnnotations is a direct copy of the service name and labels when
+	// this task is created.
+	//
+	// Labels set here will *not* be propagated to the runtime target, such as a
+	// container. Use labels on the runtime target for that purpose.
+	Annotations service_annotations = 8 [(gogoproto.nullable) = false];
+
+	TaskStatus status = 9 [(gogoproto.nullable) = false];
+
+	// DesiredState is the target state for the task. It is set to
+	// TaskStateRunning when a task is first created, and changed to
+	// TaskStateShutdown if the manager wants to terminate the task. This field
+	// is only written by the manager.
+	TaskState desired_state = 10;
+
+	// List of network attachments by the task.
+	repeated NetworkAttachment networks = 11;
+
+	// A copy of runtime state of service endpoint from Service
+	// object to be distributed to agents as part of the task.
+	Endpoint endpoint = 12;
+
+	// LogDriver specifies the selected log driver to use for the task. Agent
+	// processes should always favor the value in this field.
+	//
+	// If present in the TaskSpec, this will be a copy of that value. The
+	// orchestrator may choose to insert a value here, which should be honored,
+	// such a cluster default or policy-based value.
+	//
+	// If not present, the daemon's default will be used.
+	Driver log_driver = 13;
+
+	repeated GenericResource assigned_generic_resources = 15;
+}
+
+// NetworkAttachment specifies the network parameters of attachment to
+// a single network by an object such as task or node.
+message NetworkAttachment {
+	// Network state as a whole becomes part of the object so that
+	// it always is available for use in agents so that agents
+	// don't have any other dependency during execution.
+	Network network = 1;
+
+	// List of IPv4/IPv6 addresses that are assigned to the object
+	// as part of getting attached to this network.
+	repeated string addresses = 2;
+
+	// List of aliases by which a task is resolved in a network
+	repeated string aliases = 3;
+
+	// Map of all the driver attachment options for this network
+	map<string,string> driver_attachment_opts = 4;
+}
+
+message Network {
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+		}
+	};
+
+	string id = 1;
+
+	Meta meta = 2 [(gogoproto.nullable) = false];
+
+	NetworkSpec spec = 3 [(gogoproto.nullable) = false];
+
+	// Driver specific operational state provided by the network driver.
+	Driver driver_state = 4;
+
+	// Runtime state of IPAM options. This may not reflect the
+	// ipam options from NetworkSpec.
+	IPAMOptions ipam = 5 [(gogoproto.customname) = "IPAM"];
+
+	// PendingDelete indicates that this network's deletion has been requested.
+	// Services, as well as all service-level resources, can only be deleted
+	// after all the service's containers have properly shut down
+	// when a user requests a deletion, we just flip this flag
+	// the deallocator will take it from there
+	// PendingDelete indicates that this network's deletion has been requested.
+	// Services, as well as all service-level resources, can only be deleted
+	// after all of the service's containers have properly shut down.
+	// When a user requests a deletion of this network, we just flip this flag
+	// the deallocator will take it from there - it will start monitoring
+	// the services that still use this service, and proceed to delete
+	// this network when all of these services are gone
+	bool pending_delete = 6;
+}
+
+// Cluster provides global cluster settings.
+message Cluster {
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+		}
+	};
+
+	string id = 1;
+
+	Meta meta = 2 [(gogoproto.nullable) = false];
+
+	ClusterSpec spec = 3 [(gogoproto.nullable) = false];
+
+	// RootCA contains key material for the root CA.
+	RootCA root_ca = 4 [(gogoproto.nullable)=false, (gogoproto.customname) = "RootCA"];
+
+	// Symmetric encryption key distributed by the lead manager. Used by agents
+	// for securing network bootstrapping and communication.
+	repeated EncryptionKey network_bootstrap_keys = 5;
+
+	// Logical clock used to timestamp every key.  It allows other managers
+	// and agents to unambiguously identify the older key to be deleted when
+	// a new key is allocated on key rotation.
+	uint64 encryption_key_lamport_clock = 6;
+
+	// BlacklistedCertificates tracks certificates that should no longer
+	// be honored. It's a mapping from CN -> BlacklistedCertificate.
+	// swarm. Their certificates should effectively be blacklisted.
+	map<string, BlacklistedCertificate> blacklisted_certificates = 8;
+
+	// UnlockKeys defines the keys that lock node data at rest.  For example,
+	// this would contain the key encrypting key (KEK) that will encrypt the
+	// manager TLS keys at rest and the raft encryption keys at rest.
+	// If the key is empty, the node will be unlocked (will not require a key
+	// to start up from a shut down state).
+	repeated EncryptionKey unlock_keys = 9;
+
+	// FIPS specifies whether this cluster should be in FIPS mode.  This changes
+	// the format of the join tokens, and nodes that are not FIPS-enabled should
+	// reject joining the cluster.  Nodes that report themselves to be non-FIPS
+	// should be rejected from the cluster.
+	bool fips = 10 [(gogoproto.customname) = "FIPS"];
+
+	// This field specifies default subnet pools for global scope networks. If
+	// unspecified, Docker will use the predefined subnets as it works on older releases.
+	// Format Example : {"20.20.0.0/16",""20.20.0.0/16"}
+	repeated string defaultAddressPool = 11;
+
+	// This flag specifies the default subnet size of global scope networks by giving
+	// the length of the subnet masks for every such network
+	uint32 subnetSize = 12;
+
+	// VXLANUDPPort specifies the UDP port for VXLAN traffic.
+	uint32 VXLANUDPPort = 13;
+}
+
+// Secret represents a secret that should be passed to a container or a node,
+// and is immutable.
+message Secret {
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+		}
+	};
+
+	string id = 1;
+
+	Meta meta = 2 [(gogoproto.nullable) = false];
+
+	// Spec contains the actual secret data, as well as any context around the
+	// secret data that the user provides.
+	SecretSpec spec = 3  [(gogoproto.nullable) = false];
+
+	// Whether the secret is an internal secret (not set by a user) or not.
+	bool internal = 4;
+}
+
+// Config represents a set of configuration files that should be passed to a
+// container.
+message Config {
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+		}
+	};
+
+	string id = 1;
+
+	Meta meta = 2 [(gogoproto.nullable) = false];
+
+	// Spec contains the actual config data, as well as any context around the
+	// config data that the user provides.
+	ConfigSpec spec = 3  [(gogoproto.nullable) = false];
+}
+
+// Resource is a top-level object with externally defined content and indexing.
+// SwarmKit can serve as a store for these objects without understanding their
+// meanings.
+message Resource {
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+			kind: true
+		}
+	};
+
+	string id = 1 [(gogoproto.customname) = "ID"];
+
+	Meta meta = 2 [(gogoproto.nullable) = false];
+
+	Annotations annotations = 3 [(gogoproto.nullable) = false];
+
+	// Kind identifies this class of object. It is essentially a namespace
+	// to keep IDs or indices from colliding between unrelated Resource
+	// objects. This must correspond to the name of an Extension.
+	string kind = 4;
+
+	// Payload bytes. This data is not interpreted in any way by SwarmKit.
+	// By convention, it should be a marshalled protocol buffers message.
+	google.protobuf.Any payload = 5;
+}
+
+// Extension declares a type of "resource" object. This message provides some
+// metadata about the objects.
+message Extension {
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+		}
+	};
+
+	string id = 1 [(gogoproto.customname) = "ID"];
+
+	Meta meta = 2 [(gogoproto.nullable) = false];
+
+	Annotations annotations = 3 [(gogoproto.nullable) = false];
+
+	string description = 4;
+
+	// TODO(aaronl): Add optional indexing capabilities. It would be
+	// extremely useful be able to automatically introspect protobuf, json,
+	// etc. objects and automatically index them based on a schema and field
+	// paths defined here.
+	//
+	//oneof Schema {
+	//	google.protobuf.Descriptor protobuf = 1;
+	//	bytes json = 2;
+	//}
+	//
+	//Schema schema = 5;
+	//
+	// // Indices, with values expressed as Go templates.
+	//repeated IndexEntry index_templates = 6;
+}

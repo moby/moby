@@ -1,4 +1,4 @@
-package runconfig
+package runconfig // import "github.com/docker/docker/runconfig"
 
 import (
 	"bytes"
@@ -46,7 +46,7 @@ func TestDecodeContainerConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		c, h, _, err := DecodeContainerConfig(bytes.NewReader(b))
+		c, h, _, err := decodeContainerConfig(bytes.NewReader(b))
 		if err != nil {
 			t.Fatal(fmt.Errorf("Error parsing %s: %v", f, err))
 		}
@@ -70,9 +70,9 @@ func TestDecodeContainerConfig(t *testing.T) {
 // as to what level of container isolation is supported.
 func TestDecodeContainerConfigIsolation(t *testing.T) {
 
-	// An invalid isolation level
+	// An Invalid isolation level
 	if _, _, _, err := callDecodeContainerConfigIsolation("invalid"); err != nil {
-		if !strings.Contains(err.Error(), `invalid --isolation: "invalid"`) {
+		if !strings.Contains(err.Error(), `Invalid isolation: "invalid"`) {
 			t.Fatal(err)
 		}
 	}
@@ -94,7 +94,7 @@ func TestDecodeContainerConfigIsolation(t *testing.T) {
 		}
 	} else {
 		if _, _, _, err := callDecodeContainerConfigIsolation("process"); err != nil {
-			if !strings.Contains(err.Error(), `invalid --isolation: "process"`) {
+			if !strings.Contains(err.Error(), `Invalid isolation: "process"`) {
 				t.Fatal(err)
 			}
 		}
@@ -107,7 +107,7 @@ func TestDecodeContainerConfigIsolation(t *testing.T) {
 		}
 	} else {
 		if _, _, _, err := callDecodeContainerConfigIsolation("hyperv"); err != nil {
-			if !strings.Contains(err.Error(), `invalid --isolation: "hyperv"`) {
+			if !strings.Contains(err.Error(), `Invalid isolation: "hyperv"`) {
 				t.Fatal(err)
 			}
 		}
@@ -130,5 +130,5 @@ func callDecodeContainerConfigIsolation(isolation string) (*container.Config, *c
 	if b, err = json.Marshal(w); err != nil {
 		return nil, nil, nil, fmt.Errorf("Error on marshal %s", err.Error())
 	}
-	return DecodeContainerConfig(bytes.NewReader(b))
+	return decodeContainerConfig(bytes.NewReader(b))
 }

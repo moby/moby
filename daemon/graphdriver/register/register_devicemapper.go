@@ -1,6 +1,6 @@
-// +build !exclude_graphdriver_devicemapper,linux
+// +build !exclude_graphdriver_devicemapper,!static_build,linux
 
-package register
+package register // import "github.com/docker/docker/daemon/graphdriver/register"
 
 import (
 	// register the devmapper graphdriver

@@ -1,16 +1,16 @@
-package middleware
+package middleware // import "github.com/docker/docker/api/server/middleware"
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/pkg/ioutils"
-	"golang.org/x/net/context"
+	"github.com/sirupsen/logrus"
 )
 
 // DebugRequestMiddleware dumps the request to logger
@@ -18,7 +18,7 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		logrus.Debugf("Calling %s %s", r.Method, r.RequestURI)
 
-		if r.Method != "POST" {
+		if r.Method != http.MethodPost {
 			return handler(ctx, w, r, vars)
 		}
 		if err := httputils.CheckForJSON(r); err != nil {
@@ -61,10 +61,24 @@ func maskSecretKeys(inp interface{}) {
 		}
 		return
 	}
+
 	if form, ok := inp.(map[string]interface{}); ok {
+		scrub := []string{
+			// Note: The Data field contains the base64-encoded secret in 'secret'
+			// and 'config' create and update requests. Currently, no other POST
+			// API endpoints use a data field, so we scrub this field unconditionally.
+			// Change this handling to be conditional if a new endpoint is added
+			// in future where this field should not be scrubbed.
+			"data",
+			"jointoken",
+			"password",
+			"secret",
+			"signingcakey",
+			"unlockkey",
+		}
 	loop0:
 		for k, v := range form {
-			for _, m := range []string{"password", "secret", "jointoken"} {
+			for _, m := range scrub {
 				if strings.EqualFold(m, k) {
 					form[k] = "*****"
 					continue loop0

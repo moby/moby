@@ -1,4 +1,4 @@
-package local
+package local // import "github.com/docker/docker/volume/local"
 
 import (
 	"io/ioutil"
@@ -9,22 +9,36 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
+	"gotest.tools/skip"
 )
 
-func TestRemove(t *testing.T) {
-	// TODO Windows: Investigate why this test fails on Windows under CI
-	//               but passes locally.
-	if runtime.GOOS == "windows" {
-		t.Skip("Test failing on Windows CI")
+func TestGetAddress(t *testing.T) {
+	cases := map[string]string{
+		"addr=11.11.11.1":   "11.11.11.1",
+		" ":                 "",
+		"addr=":             "",
+		"addr=2001:db8::68": "2001:db8::68",
 	}
+	for name, success := range cases {
+		v := getAddress(name)
+		if v != success {
+			t.Errorf("Test case failed for %s actual: %s expected : %s", name, v, success)
+		}
+	}
+
+}
+
+func TestRemove(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "FIXME: investigate why this test fails on CI")
 	rootDir, err := ioutil.TempDir("", "local-volume-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(rootDir)
 
-	r, err := New(rootDir, 0, 0)
+	r, err := New(rootDir, idtools.Identity{UID: os.Geteuid(), GID: os.Getegid()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +80,7 @@ func TestInitializeWithVolumes(t *testing.T) {
 	}
 	defer os.RemoveAll(rootDir)
 
-	r, err := New(rootDir, 0, 0)
+	r, err := New(rootDir, idtools.Identity{UID: os.Geteuid(), GID: os.Getegid()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +90,7 @@ func TestInitializeWithVolumes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r, err = New(rootDir, 0, 0)
+	r, err = New(rootDir, idtools.Identity{UID: os.Geteuid(), GID: os.Getegid()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +112,7 @@ func TestCreate(t *testing.T) {
 	}
 	defer os.RemoveAll(rootDir)
 
-	r, err := New(rootDir, 0, 0)
+	r, err := New(rootDir, idtools.Identity{UID: os.Geteuid(), GID: os.Getegid()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +149,7 @@ func TestCreate(t *testing.T) {
 		}
 	}
 
-	r, err = New(rootDir, 0, 0)
+	_, err = New(rootDir, idtools.Identity{UID: os.Geteuid(), GID: os.Getegid()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,17 +178,15 @@ func TestValidateName(t *testing.T) {
 }
 
 func TestCreateWithOpts(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip()
-	}
-
+	skip.If(t, runtime.GOOS == "windows")
+	skip.If(t, os.Getuid() != 0, "requires mounts")
 	rootDir, err := ioutil.TempDir("", "local-volume-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(rootDir)
 
-	r, err := New(rootDir, 0, 0)
+	r, err := New(rootDir, idtools.Identity{UID: os.Geteuid(), GID: os.Getegid()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,33 +211,27 @@ func TestCreateWithOpts(t *testing.T) {
 		}
 	}()
 
-	mountInfos, err := mount.GetMounts()
+	mountInfos, err := mount.GetMounts(mount.SingleEntryFilter(dir))
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	var found bool
-	for _, info := range mountInfos {
-		if info.Mountpoint == dir {
-			found = true
-			if info.Fstype != "tmpfs" {
-				t.Fatalf("expected tmpfs mount, got %q", info.Fstype)
-			}
-			if info.Source != "tmpfs" {
-				t.Fatalf("expected tmpfs mount, got %q", info.Source)
-			}
-			if !strings.Contains(info.VfsOpts, "uid=1000") {
-				t.Fatalf("expected mount info to have uid=1000: %q", info.VfsOpts)
-			}
-			if !strings.Contains(info.VfsOpts, "size=1024k") {
-				t.Fatalf("expected mount info to have size=1024k: %q", info.VfsOpts)
-			}
-			break
-		}
+	if len(mountInfos) != 1 {
+		t.Fatalf("expected 1 mount, found %d: %+v", len(mountInfos), mountInfos)
 	}
 
-	if !found {
-		t.Fatal("mount not found")
+	info := mountInfos[0]
+	t.Logf("%+v", info)
+	if info.Fstype != "tmpfs" {
+		t.Fatalf("expected tmpfs mount, got %q", info.Fstype)
+	}
+	if info.Source != "tmpfs" {
+		t.Fatalf("expected tmpfs mount, got %q", info.Source)
+	}
+	if !strings.Contains(info.VfsOpts, "uid=1000") {
+		t.Fatalf("expected mount info to have uid=1000: %q", info.VfsOpts)
+	}
+	if !strings.Contains(info.VfsOpts, "size=1024k") {
+		t.Fatalf("expected mount info to have size=1024k: %q", info.VfsOpts)
 	}
 
 	if v.active.count != 1 {
@@ -255,7 +261,7 @@ func TestCreateWithOpts(t *testing.T) {
 		t.Fatal("expected mount to still be active")
 	}
 
-	r, err = New(rootDir, 0, 0)
+	r, err = New(rootDir, idtools.Identity{UID: 0, GID: 0})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,14 +276,14 @@ func TestCreateWithOpts(t *testing.T) {
 	}
 }
 
-func TestRealodNoOpts(t *testing.T) {
+func TestRelaodNoOpts(t *testing.T) {
 	rootDir, err := ioutil.TempDir("", "volume-test-reload-no-opts")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(rootDir)
 
-	r, err := New(rootDir, 0, 0)
+	r, err := New(rootDir, idtools.Identity{UID: os.Geteuid(), GID: os.Getegid()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,7 +295,7 @@ func TestRealodNoOpts(t *testing.T) {
 		t.Fatal(err)
 	}
 	// make sure a file with `null` (.e.g. empty opts map from older daemon) is ok
-	if err := ioutil.WriteFile(filepath.Join(rootDir, "test2"), []byte("null"), 600); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(rootDir, "test2"), []byte("null"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -297,7 +303,7 @@ func TestRealodNoOpts(t *testing.T) {
 		t.Fatal(err)
 	}
 	// make sure an empty opts file doesn't break us too
-	if err := ioutil.WriteFile(filepath.Join(rootDir, "test3"), nil, 600); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(rootDir, "test3"), nil, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -305,7 +311,7 @@ func TestRealodNoOpts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r, err = New(rootDir, 0, 0)
+	r, err = New(rootDir, idtools.Identity{UID: os.Geteuid(), GID: os.Getegid()})
 	if err != nil {
 		t.Fatal(err)
 	}

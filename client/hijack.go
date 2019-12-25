@@ -1,35 +1,20 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
+	"bufio"
+	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client/transport"
 	"github.com/docker/go-connections/sockets"
-	"golang.org/x/net/context"
+	"github.com/pkg/errors"
 )
-
-// tlsClientCon holds tls information and a dialed connection.
-type tlsClientCon struct {
-	*tls.Conn
-	rawConn net.Conn
-}
-
-func (c *tlsClientCon) CloseWrite() error {
-	// Go standard tls.Conn doesn't provide the CloseWrite() method so we do it
-	// on its underlying connection.
-	if conn, ok := c.rawConn.(types.CloseWriter); ok {
-		return conn.CloseWrite()
-	}
-	return nil
-}
 
 // postHijacked sends a POST request and hijacks the connection.
 func (cli *Client) postHijacked(ctx context.Context, path string, query url.Values, body interface{}, headers map[string][]string) (types.HijackedResponse, error) {
@@ -38,21 +23,53 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 		return types.HijackedResponse{}, err
 	}
 
-	req, err := cli.newRequest("POST", path, query, bodyEncoded, headers)
+	apiPath := cli.getAPIPath(ctx, path, query)
+	req, err := http.NewRequest(http.MethodPost, apiPath, bodyEncoded)
 	if err != nil {
 		return types.HijackedResponse{}, err
 	}
-	req.Host = cli.addr
+	req = cli.addHeaders(req, headers)
 
-	req.Header.Set("Connection", "Upgrade")
-	req.Header.Set("Upgrade", "tcp")
-
-	conn, err := dial(cli.proto, cli.addr, cli.transport.TLSConfig())
+	conn, err := cli.setupHijackConn(ctx, req, "tcp")
 	if err != nil {
-		if strings.Contains(err.Error(), "connection refused") {
-			return types.HijackedResponse{}, fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
-		}
 		return types.HijackedResponse{}, err
+	}
+
+	return types.HijackedResponse{Conn: conn, Reader: bufio.NewReader(conn)}, err
+}
+
+// DialHijack returns a hijacked connection with negotiated protocol proto.
+func (cli *Client) DialHijack(ctx context.Context, url, proto string, meta map[string][]string) (net.Conn, error) {
+	req, err := http.NewRequest(http.MethodPost, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req = cli.addHeaders(req, meta)
+
+	return cli.setupHijackConn(ctx, req, proto)
+}
+
+// fallbackDial is used when WithDialer() was not called.
+// See cli.Dialer().
+func fallbackDial(proto, addr string, tlsConfig *tls.Config) (net.Conn, error) {
+	if tlsConfig != nil && proto != "unix" && proto != "npipe" {
+		return tls.Dial(proto, addr, tlsConfig)
+	}
+	if proto == "npipe" {
+		return sockets.DialPipe(addr, 32*time.Second)
+	}
+	return net.Dial(proto, addr)
+}
+
+func (cli *Client) setupHijackConn(ctx context.Context, req *http.Request, proto string) (net.Conn, error) {
+	req.Host = cli.addr
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", proto)
+
+	dialer := cli.Dialer()
+	conn, err := dialer(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
 	}
 
 	// When we set up a TCP connection for hijack, there could be long periods
@@ -69,106 +86,60 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 	defer clientconn.Close()
 
 	// Server hijacks the connection, error 'connection closed' expected
-	_, err = clientconn.Do(req)
+	resp, err := clientconn.Do(req)
 
-	rwc, br := clientconn.Hijack()
-
-	return types.HijackedResponse{Conn: rwc, Reader: br}, err
-}
-
-func tlsDial(network, addr string, config *tls.Config) (net.Conn, error) {
-	return tlsDialWithDialer(new(net.Dialer), network, addr, config)
-}
-
-// We need to copy Go's implementation of tls.Dial (pkg/cryptor/tls/tls.go) in
-// order to return our custom tlsClientCon struct which holds both the tls.Conn
-// object _and_ its underlying raw connection. The rationale for this is that
-// we need to be able to close the write end of the connection when attaching,
-// which tls.Conn does not provide.
-func tlsDialWithDialer(dialer *net.Dialer, network, addr string, config *tls.Config) (net.Conn, error) {
-	// We want the Timeout and Deadline values from dialer to cover the
-	// whole process: TCP connection and TLS handshake. This means that we
-	// also need to start our own timers now.
-	timeout := dialer.Timeout
-
-	if !dialer.Deadline.IsZero() {
-		deadlineTimeout := dialer.Deadline.Sub(time.Now())
-		if timeout == 0 || deadlineTimeout < timeout {
-			timeout = deadlineTimeout
+	//nolint:staticcheck // ignore SA1019 for connecting to old (pre go1.8) daemons
+	if err != httputil.ErrPersistEOF {
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode != http.StatusSwitchingProtocols {
+			resp.Body.Close()
+			return nil, fmt.Errorf("unable to upgrade to %s, received %d", proto, resp.StatusCode)
 		}
 	}
 
-	var errChannel chan error
-
-	if timeout != 0 {
-		errChannel = make(chan error, 2)
-		time.AfterFunc(timeout, func() {
-			errChannel <- errors.New("")
-		})
-	}
-
-	proxyDialer, err := sockets.DialerFromEnvironment(dialer)
-	if err != nil {
-		return nil, err
-	}
-
-	rawConn, err := proxyDialer.Dial(network, addr)
-	if err != nil {
-		return nil, err
-	}
-	// When we set up a TCP connection for hijack, there could be long periods
-	// of inactivity (a long running command with no output) that in certain
-	// network setups may cause ECONNTIMEOUT, leaving the client in an unknown
-	// state. Setting TCP KeepAlive on the socket connection will prohibit
-	// ECONNTIMEOUT unless the socket connection truly is broken
-	if tcpConn, ok := rawConn.(*net.TCPConn); ok {
-		tcpConn.SetKeepAlive(true)
-		tcpConn.SetKeepAlivePeriod(30 * time.Second)
-	}
-
-	colonPos := strings.LastIndex(addr, ":")
-	if colonPos == -1 {
-		colonPos = len(addr)
-	}
-	hostname := addr[:colonPos]
-
-	// If no ServerName is set, infer the ServerName
-	// from the hostname we're connecting to.
-	if config.ServerName == "" {
-		// Make a copy to avoid polluting argument or default.
-		config = transport.TLSConfigClone(config)
-		config.ServerName = hostname
-	}
-
-	conn := tls.Client(rawConn, config)
-
-	if timeout == 0 {
-		err = conn.Handshake()
+	c, br := clientconn.Hijack()
+	if br.Buffered() > 0 {
+		// If there is buffered content, wrap the connection.  We return an
+		// object that implements CloseWrite iff the underlying connection
+		// implements it.
+		if _, ok := c.(types.CloseWriter); ok {
+			c = &hijackedConnCloseWriter{&hijackedConn{c, br}}
+		} else {
+			c = &hijackedConn{c, br}
+		}
 	} else {
-		go func() {
-			errChannel <- conn.Handshake()
-		}()
-
-		err = <-errChannel
+		br.Reset(nil)
 	}
 
-	if err != nil {
-		rawConn.Close()
-		return nil, err
-	}
-
-	// This is Docker difference with standard's crypto/tls package: returned a
-	// wrapper which holds both the TLS and raw connections.
-	return &tlsClientCon{conn, rawConn}, nil
+	return c, nil
 }
 
-func dial(proto, addr string, tlsConfig *tls.Config) (net.Conn, error) {
-	if tlsConfig != nil && proto != "unix" && proto != "npipe" {
-		// Notice this isn't Go standard's tls.Dial function
-		return tlsDial(proto, addr, tlsConfig)
-	}
-	if proto == "npipe" {
-		return sockets.DialPipe(addr, 32*time.Second)
-	}
-	return net.Dial(proto, addr)
+// hijackedConn wraps a net.Conn and is returned by setupHijackConn in the case
+// that a) there was already buffered data in the http layer when Hijack() was
+// called, and b) the underlying net.Conn does *not* implement CloseWrite().
+// hijackedConn does not implement CloseWrite() either.
+type hijackedConn struct {
+	net.Conn
+	r *bufio.Reader
+}
+
+func (c *hijackedConn) Read(b []byte) (int, error) {
+	return c.r.Read(b)
+}
+
+// hijackedConnCloseWriter is a hijackedConn which additionally implements
+// CloseWrite().  It is returned by setupHijackConn in the case that a) there
+// was already buffered data in the http layer when Hijack() was called, and b)
+// the underlying net.Conn *does* implement CloseWrite().
+type hijackedConnCloseWriter struct {
+	*hijackedConn
+}
+
+var _ types.CloseWriter = &hijackedConnCloseWriter{}
+
+func (c *hijackedConnCloseWriter) CloseWrite() error {
+	conn := c.Conn.(types.CloseWriter)
+	return conn.CloseWrite()
 }

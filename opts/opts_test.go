@@ -1,4 +1,4 @@
-package opts
+package opts // import "github.com/docker/docker/opts"
 
 import (
 	"fmt"
@@ -50,7 +50,7 @@ func TestMapOpts(t *testing.T) {
 		t.Errorf("max-size = %s != 1", tmpMap["max-size"])
 	}
 	if o.Set("dummy-val=3") == nil {
-		t.Errorf("validator is not being called")
+		t.Error("validator is not being called")
 	}
 }
 
@@ -93,12 +93,12 @@ func TestListOptsWithValidator(t *testing.T) {
 	// Re-using logOptsvalidator (used by MapOpts)
 	o := NewListOpts(logOptsValidator)
 	o.Set("foo")
-	if o.String() != "[]" {
-		t.Errorf("%s != []", o.String())
+	if o.String() != "" {
+		t.Errorf(`%s != ""`, o.String())
 	}
 	o.Set("foo=bar")
-	if o.String() != "[]" {
-		t.Errorf("%s != []", o.String())
+	if o.String() != "" {
+		t.Errorf(`%s != ""`, o.String())
 	}
 	o.Set("max-file=2")
 	if o.Len() != 1 {
@@ -111,8 +111,8 @@ func TestListOptsWithValidator(t *testing.T) {
 		t.Error("o.Get(\"baz\") == true")
 	}
 	o.Delete("max-file=2")
-	if o.String() != "[]" {
-		t.Errorf("%s != []", o.String())
+	if o.String() != "" {
+		t.Errorf(`%s != ""`, o.String())
 	}
 }
 
@@ -157,7 +157,7 @@ func TestValidateDNSSearch(t *testing.T) {
 		`foo.bar-.baz`,
 		`foo.-bar`,
 		`foo.-bar.baz`,
-		`foo.bar.baz.this.should.fail.on.long.name.beause.it.is.longer.thanisshouldbethis.should.fail.on.long.name.beause.it.is.longer.thanisshouldbethis.should.fail.on.long.name.beause.it.is.longer.thanisshouldbethis.should.fail.on.long.name.beause.it.is.longer.thanisshouldbe`,
+		`foo.bar.baz.this.should.fail.on.long.name.because.it.is.longer.thanitshouldbethis.should.fail.on.long.name.because.it.is.longer.thanitshouldbethis.should.fail.on.long.name.because.it.is.longer.thanitshouldbethis.should.fail.on.long.name.because.it.is.longer.thanitshouldbe`,
 	}
 
 	for _, domain := range valid {
@@ -228,5 +228,37 @@ func TestNamedMapOpts(t *testing.T) {
 	}
 	if _, exist := tmpMap["max-size"]; !exist {
 		t.Errorf("expected map-size to be in the values, got %v", tmpMap)
+	}
+}
+
+func TestParseLink(t *testing.T) {
+	name, alias, err := ParseLink("name:alias")
+	if err != nil {
+		t.Fatalf("Expected not to error out on a valid name:alias format but got: %v", err)
+	}
+	if name != "name" {
+		t.Fatalf("Link name should have been name, got %s instead", name)
+	}
+	if alias != "alias" {
+		t.Fatalf("Link alias should have been alias, got %s instead", alias)
+	}
+	// short format definition
+	name, alias, err = ParseLink("name")
+	if err != nil {
+		t.Fatalf("Expected not to error out on a valid name only format but got: %v", err)
+	}
+	if name != "name" {
+		t.Fatalf("Link name should have been name, got %s instead", name)
+	}
+	if alias != "name" {
+		t.Fatalf("Link alias should have been name, got %s instead", alias)
+	}
+	// empty string link definition is not allowed
+	if _, _, err := ParseLink(""); err == nil || !strings.Contains(err.Error(), "empty string specified for links") {
+		t.Fatalf("Expected error 'empty string specified for links' but got: %v", err)
+	}
+	// more than two colons are not allowed
+	if _, _, err := ParseLink("link:alias:wrong"); err == nil || !strings.Contains(err.Error(), "bad format for links: link:alias:wrong") {
+		t.Fatalf("Expected error 'bad format for links: link:alias:wrong' but got: %v", err)
 	}
 }

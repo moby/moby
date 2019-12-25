@@ -1,22 +1,21 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"net"
 	"os"
-	"syscall"
+	"path/filepath"
+	"time"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/libcontainerd"
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/pkg/system"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/windows"
 )
 
-var defaultDaemonConfigFile = os.Getenv("programdata") + string(os.PathSeparator) + "docker" + string(os.PathSeparator) + "config" + string(os.PathSeparator) + "daemon.json"
-
-// currentUserIsOwner checks whether the current user is the owner of the given
-// file.
-func currentUserIsOwner(f string) bool {
-	return false
+func getDefaultDaemonConfigFile() (string, error) {
+	return "", nil
 }
 
 // setDefaultUmask doesn't do anything on windows
@@ -24,12 +23,14 @@ func setDefaultUmask() error {
 	return nil
 }
 
-func getDaemonConfDir() string {
-	return os.Getenv("PROGRAMDATA") + `\docker\config`
+func getDaemonConfDir(root string) (string, error) {
+	return filepath.Join(root, `\config`), nil
 }
 
-// notifySystem sends a message to the host when the server is ready to be used
-func notifySystem() {
+// preNotifySystem sends a message to the host when the API is active, but before the daemon is
+func preNotifySystem() {
+	// start the service now to prevent timeouts waiting for daemon to start
+	// but still (eventually) complete all requests that are sent after this
 	if service != nil {
 		err := service.started()
 		if err != nil {
@@ -38,39 +39,40 @@ func notifySystem() {
 	}
 }
 
+// notifySystem sends a message to the host when the server is ready to be used
+func notifySystem() {
+}
+
 // notifyShutdown is called after the daemon shuts down but before the process exits.
 func notifyShutdown(err error) {
 	if service != nil {
+		if err != nil {
+			logrus.Fatal(err)
+		}
 		service.stopped(err)
 	}
+}
+
+func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
+	return nil, nil
 }
 
 // setupConfigReloadTrap configures a Win32 event to reload the configuration.
 func (cli *DaemonCli) setupConfigReloadTrap() {
 	go func() {
-		sa := syscall.SecurityAttributes{
+		sa := windows.SecurityAttributes{
 			Length: 0,
 		}
-		ev := "Global\\docker-daemon-config-" + fmt.Sprint(os.Getpid())
-		if h, _ := system.CreateEvent(&sa, false, false, ev); h != 0 {
-			logrus.Debugf("Config reload - waiting signal at %s", ev)
+		event := "Global\\docker-daemon-config-" + fmt.Sprint(os.Getpid())
+		ev, _ := windows.UTF16PtrFromString(event)
+		if h, _ := windows.CreateEvent(&sa, 0, 0, ev); h != 0 {
+			logrus.Debugf("Config reload - waiting signal at %s", event)
 			for {
-				syscall.WaitForSingleObject(h, syscall.INFINITE)
+				windows.WaitForSingleObject(h, windows.INFINITE)
 				cli.reloadConfig()
 			}
 		}
 	}()
-}
-
-func (cli *DaemonCli) getPlatformRemoteOptions() []libcontainerd.RemoteOption {
-	return nil
-}
-
-// getLibcontainerdRoot gets the root directory for libcontainerd to store its
-// state. The Windows libcontainerd implementation does not need to write a spec
-// or state to disk, so this is a no-op.
-func (cli *DaemonCli) getLibcontainerdRoot() string {
-	return ""
 }
 
 // getSwarmRunRoot gets the root directory for swarm to store runtime state
@@ -83,6 +85,11 @@ func allocateDaemonPort(addr string) error {
 	return nil
 }
 
-func wrapListeners(proto string, ls []net.Listener) []net.Listener {
-	return ls
+func newCgroupParent(config *config.Config) string {
+	return ""
+}
+
+func (cli *DaemonCli) initContainerD(_ context.Context) (func(time.Duration) error, error) {
+	system.InitContainerdRuntime(cli.Config.Experimental, cli.Config.ContainerdAddr)
+	return nil, nil
 }

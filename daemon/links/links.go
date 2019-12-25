@@ -1,4 +1,4 @@
-package links
+package links // import "github.com/docker/docker/daemon/links"
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// Link struct holds informations about parent/child linked container
+// Link struct holds information about parent/child linked container
 type Link struct {
 	// Parent container IP address
 	ParentIP string
@@ -43,7 +43,7 @@ func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.
 	}
 }
 
-// ToEnv creates a string's slice containing child container informations in
+// ToEnv creates a string's slice containing child container information in
 // the form of environment variables which will be later exported on container
 // startup.
 func (l *Link) ToEnv() []string {
@@ -56,7 +56,7 @@ func (l *Link) ToEnv() []string {
 		env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
 	}
 
-	//sort the ports so that we can bulk the continuous ports together
+	// sort the ports so that we can bulk the continuous ports together
 	nat.Sort(l.Ports, func(ip, jp nat.Port) bool {
 		// If the two ports have the same number, tcp takes priority
 		// Sort in desc order

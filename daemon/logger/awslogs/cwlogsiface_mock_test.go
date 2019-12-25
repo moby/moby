@@ -1,12 +1,23 @@
-package awslogs
+package awslogs // import "github.com/docker/docker/daemon/logger/awslogs"
 
-import "github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+import (
+	"fmt"
+
+	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+)
 
 type mockcwlogsclient struct {
+	createLogGroupArgument  chan *cloudwatchlogs.CreateLogGroupInput
+	createLogGroupResult    chan *createLogGroupResult
 	createLogStreamArgument chan *cloudwatchlogs.CreateLogStreamInput
 	createLogStreamResult   chan *createLogStreamResult
 	putLogEventsArgument    chan *cloudwatchlogs.PutLogEventsInput
 	putLogEventsResult      chan *putLogEventsResult
+}
+
+type createLogGroupResult struct {
+	successResult *cloudwatchlogs.CreateLogGroupOutput
+	errorResult   error
 }
 
 type createLogStreamResult struct {
@@ -21,6 +32,8 @@ type putLogEventsResult struct {
 
 func newMockClient() *mockcwlogsclient {
 	return &mockcwlogsclient{
+		createLogGroupArgument:  make(chan *cloudwatchlogs.CreateLogGroupInput, 1),
+		createLogGroupResult:    make(chan *createLogGroupResult, 1),
 		createLogStreamArgument: make(chan *cloudwatchlogs.CreateLogStreamInput, 1),
 		createLogStreamResult:   make(chan *createLogStreamResult, 1),
 		putLogEventsArgument:    make(chan *cloudwatchlogs.PutLogEventsInput, 1),
@@ -35,6 +48,12 @@ func newMockClientBuffered(buflen int) *mockcwlogsclient {
 		putLogEventsArgument:    make(chan *cloudwatchlogs.PutLogEventsInput, buflen),
 		putLogEventsResult:      make(chan *putLogEventsResult, buflen),
 	}
+}
+
+func (m *mockcwlogsclient) CreateLogGroup(input *cloudwatchlogs.CreateLogGroupInput) (*cloudwatchlogs.CreateLogGroupOutput, error) {
+	m.createLogGroupArgument <- input
+	output := <-m.createLogGroupResult
+	return output.successResult, output.errorResult
 }
 
 func (m *mockcwlogsclient) CreateLogStream(input *cloudwatchlogs.CreateLogStreamInput) (*cloudwatchlogs.CreateLogStreamOutput, error) {
@@ -52,7 +71,30 @@ func (m *mockcwlogsclient) PutLogEvents(input *cloudwatchlogs.PutLogEventsInput)
 		LogGroupName:  input.LogGroupName,
 		LogStreamName: input.LogStreamName,
 	}
+
+	// Intended mock output
 	output := <-m.putLogEventsResult
+
+	// Checked enforced limits in mock
+	totalBytes := 0
+	for _, evt := range events {
+		if evt.Message == nil {
+			continue
+		}
+		eventBytes := len([]byte(*evt.Message))
+		if eventBytes > maximumBytesPerEvent {
+			// exceeded per event message size limits
+			return nil, fmt.Errorf("maximum bytes per event exceeded: Event too large %d, max allowed: %d", eventBytes, maximumBytesPerEvent)
+		}
+		// total event bytes including overhead
+		totalBytes += eventBytes + perEventBytes
+	}
+
+	if totalBytes > maximumBytesPerPut {
+		// exceeded per put maximum size limit
+		return nil, fmt.Errorf("maximum bytes per put exceeded: Upload too large %d, max allowed: %d", totalBytes, maximumBytesPerPut)
+	}
+
 	return output.successResult, output.errorResult
 }
 

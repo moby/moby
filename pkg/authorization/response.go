@@ -1,4 +1,4 @@
-package authorization
+package authorization // import "github.com/docker/docker/pkg/authorization"
 
 import (
 	"bufio"
@@ -8,14 +8,13 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // ResponseModifier allows authorization plugins to read and modify the content of the http.response
 type ResponseModifier interface {
 	http.ResponseWriter
 	http.Flusher
-	http.CloseNotifier
 
 	// RawBody returns the current http content
 	RawBody() []byte
@@ -46,6 +45,8 @@ type ResponseModifier interface {
 func NewResponseModifier(rw http.ResponseWriter) ResponseModifier {
 	return &responseModifier{rw: rw, header: make(http.Header)}
 }
+
+const maxBufferSize = 64 * 1024
 
 // responseModifier is used as an adapter to http.ResponseWriter in order to manipulate and explore
 // the http request/response from docker daemon
@@ -116,11 +117,13 @@ func (rm *responseModifier) OverrideHeader(b []byte) error {
 
 // Write stores the byte array inside content
 func (rm *responseModifier) Write(b []byte) (int, error) {
-
 	if rm.hijacked {
 		return rm.rw.Write(b)
 	}
 
+	if len(rm.body)+len(b) > maxBufferSize {
+		rm.Flush()
+	}
 	rm.body = append(rm.body, b...)
 	return len(b), nil
 }
@@ -149,16 +152,6 @@ func (rm *responseModifier) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 		return nil, nil, fmt.Errorf("Internal response writer doesn't support the Hijacker interface")
 	}
 	return hijacker.Hijack()
-}
-
-// CloseNotify uses the internal close notify API of the wrapped http.ResponseWriter
-func (rm *responseModifier) CloseNotify() <-chan bool {
-	closeNotifier, ok := rm.rw.(http.CloseNotifier)
-	if !ok {
-		logrus.Error("Internal response writer doesn't support the CloseNotifier interface")
-		return nil
-	}
-	return closeNotifier.CloseNotify()
 }
 
 // Flush uses the internal flush API of the wrapped http.ResponseWriter
@@ -192,11 +185,14 @@ func (rm *responseModifier) FlushAll() error {
 	var err error
 	if len(rm.body) > 0 {
 		// Write body
-		_, err = rm.rw.Write(rm.body)
+		var n int
+		n, err = rm.rw.Write(rm.body)
+		// TODO(@cpuguy83): there is now a relatively small buffer limit, instead of discarding our buffer here and
+		// allocating again later this should just keep using the same buffer and track the buffer position (like a bytes.Buffer with a fixed size)
+		rm.body = rm.body[n:]
 	}
 
 	// Clean previous data
-	rm.body = nil
 	rm.statusCode = 0
 	rm.header = http.Header{}
 	return err

@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${SCRIPTDIR}/.validate"
+
+validate_vendor_diff(){
+	IFS=$'\n'
+	files=( $(validate_diff --diff-filter=ACMR --name-only -- 'vendor.conf' 'vendor/' || true) )
+	unset IFS
+
+	if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ ${#files[@]} -gt 0 ]; then
+		# recreate vendor/
+		vndr
+		# check if any files have changed
+		diffs="$(git status --porcelain -- vendor 2>/dev/null)"
+		mfiles="$(echo "$diffs" | awk '/^ M / {print $2}')"
+		if [ "$diffs" ]; then
+			{
+				echo 'The result of vndr differs'
+				echo
+				echo "$diffs"
+				echo
+				echo 'Please vendor your package with github.com/LK4D4/vndr.'
+				echo
+				if [ -n "$mfiles" ] ; then
+					git diff -- "$mfiles"
+				fi
+			} >&2
+			false
+		else
+			echo 'Congratulations! All vendoring changes are done the right way.'
+		fi
+	else
+		echo 'No vendor changes in diff.'
+	fi
+}
+
+# 1. make sure all the vendored packages are used
+# 2. make sure all the packages contain license information (just warning, because it can cause false-positive)
+validate_vendor_used() {
+	for f in $(mawk '/^[a-zA-Z0-9]/ { print $1 }' vendor.conf); do
+	if [ -d "vendor/$f" ]; then
+		found=$(echo "vendor/$f/"* | grep -iEc '/(LICENSE|COPYING)')
+		if [ "$found" -eq 0 ]; then
+		echo "WARNING: could not find copyright information for $f"
+		fi
+	else
+		echo "WARNING: $f is vendored but unused"
+	fi
+	done
+}
+
+validate_vendor_diff
+validate_vendor_used

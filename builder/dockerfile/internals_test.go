@@ -1,13 +1,25 @@
-package dockerfile
+package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
 	"fmt"
-	"strings"
+	"os"
+	"runtime"
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/containerfs"
+	"github.com/docker/go-connections/nat"
+	"github.com/opencontainers/go-digest"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
+	"gotest.tools/skip"
 )
 
 func TestEmptyDockerfile(t *testing.T) {
@@ -16,7 +28,7 @@ func TestEmptyDockerfile(t *testing.T) {
 
 	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, "", 0777)
 
-	readAndCheckDockerfile(t, "emptyDockefile", contextDir, "", "The Dockerfile (Dockerfile) cannot be empty")
+	readAndCheckDockerfile(t, "emptyDockerfile", contextDir, "", "the Dockerfile (Dockerfile) cannot be empty")
 }
 
 func TestSymlinkDockerfile(t *testing.T) {
@@ -38,7 +50,10 @@ func TestDockerfileOutsideTheBuildContext(t *testing.T) {
 	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
 	defer cleanup()
 
-	expectedError := "Forbidden path outside the build context"
+	expectedError := "Forbidden path outside the build context: ../../Dockerfile ()"
+	if runtime.GOOS == "windows" {
+		expectedError = "failed to resolve scoped path ../../Dockerfile ()"
+	}
 
 	readAndCheckDockerfile(t, "DockerfileOutsideTheBuildContext", contextDir, "../../Dockerfile", expectedError)
 }
@@ -53,11 +68,11 @@ func TestNonExistingDockerfile(t *testing.T) {
 }
 
 func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, expectedError string) {
-	tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
-
-	if err != nil {
-		t.Fatalf("Error when creating tar stream: %s", err)
+	if runtime.GOOS != "windows" {
+		skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	}
+	tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
+	assert.NilError(t, err)
 
 	defer func() {
 		if err = tarStream.Close(); err != nil {
@@ -65,31 +80,145 @@ func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, 
 		}
 	}()
 
-	context, err := builder.MakeTarSumContext(tarStream)
-
-	if err != nil {
-		t.Fatalf("Error when creating tar context: %s", err)
+	if dockerfilePath == "" { // handled in BuildWithContext
+		dockerfilePath = builder.DefaultDockerfileName
 	}
 
-	defer func() {
-		if err = context.Close(); err != nil {
-			t.Fatalf("Error when closing tar context: %s", err)
+	config := backend.BuildConfig{
+		Options: &types.ImageBuildOptions{Dockerfile: dockerfilePath},
+		Source:  tarStream,
+	}
+	_, _, err = remotecontext.Detect(config)
+	assert.Check(t, is.ErrorContains(err, expectedError))
+}
+
+func TestCopyRunConfig(t *testing.T) {
+	defaultEnv := []string{"foo=1"}
+	defaultCmd := []string{"old"}
+
+	var testcases = []struct {
+		doc       string
+		modifiers []runConfigModifier
+		expected  *container.Config
+	}{
+		{
+			doc:       "Set the command",
+			modifiers: []runConfigModifier{withCmd([]string{"new"})},
+			expected: &container.Config{
+				Cmd: []string{"new"},
+				Env: defaultEnv,
+			},
+		},
+		{
+			doc:       "Set the command to a comment",
+			modifiers: []runConfigModifier{withCmdComment("comment", runtime.GOOS)},
+			expected: &container.Config{
+				Cmd: append(defaultShellForOS(runtime.GOOS), "#(nop) ", "comment"),
+				Env: defaultEnv,
+			},
+		},
+		{
+			doc: "Set the command and env",
+			modifiers: []runConfigModifier{
+				withCmd([]string{"new"}),
+				withEnv([]string{"one", "two"}),
+			},
+			expected: &container.Config{
+				Cmd: []string{"new"},
+				Env: []string{"one", "two"},
+			},
+		},
+	}
+
+	for _, testcase := range testcases {
+		runConfig := &container.Config{
+			Cmd: defaultCmd,
+			Env: defaultEnv,
 		}
-	}()
-
-	options := &types.ImageBuildOptions{
-		Dockerfile: dockerfilePath,
+		runConfigCopy := copyRunConfig(runConfig, testcase.modifiers...)
+		assert.Check(t, is.DeepEqual(testcase.expected, runConfigCopy), testcase.doc)
+		// Assert the original was not modified
+		assert.Check(t, runConfig != runConfigCopy, testcase.doc)
 	}
 
-	b := &Builder{options: options, context: context}
+}
 
-	err = b.readDockerfile()
-
-	if err == nil {
-		t.Fatalf("No error when executing test: %s", testName)
+func fullMutableRunConfig() *container.Config {
+	return &container.Config{
+		Cmd: []string{"command", "arg1"},
+		Env: []string{"env1=foo", "env2=bar"},
+		ExposedPorts: nat.PortSet{
+			"1000/tcp": {},
+			"1001/tcp": {},
+		},
+		Volumes: map[string]struct{}{
+			"one": {},
+			"two": {},
+		},
+		Entrypoint: []string{"entry", "arg1"},
+		OnBuild:    []string{"first", "next"},
+		Labels: map[string]string{
+			"label1": "value1",
+			"label2": "value2",
+		},
+		Shell: []string{"shell", "-c"},
 	}
+}
 
-	if !strings.Contains(err.Error(), expectedError) {
-		t.Fatalf("Wrong error message. Should be \"%s\". Got \"%s\"", expectedError, err.Error())
+func TestDeepCopyRunConfig(t *testing.T) {
+	runConfig := fullMutableRunConfig()
+	copy := copyRunConfig(runConfig)
+	assert.Check(t, is.DeepEqual(fullMutableRunConfig(), copy))
+
+	copy.Cmd[1] = "arg2"
+	copy.Env[1] = "env2=new"
+	copy.ExposedPorts["10002"] = struct{}{}
+	copy.Volumes["three"] = struct{}{}
+	copy.Entrypoint[1] = "arg2"
+	copy.OnBuild[0] = "start"
+	copy.Labels["label3"] = "value3"
+	copy.Shell[0] = "sh"
+	assert.Check(t, is.DeepEqual(fullMutableRunConfig(), runConfig))
+}
+
+type MockRWLayer struct{}
+
+func (l *MockRWLayer) Release() error                { return nil }
+func (l *MockRWLayer) Root() containerfs.ContainerFS { return nil }
+func (l *MockRWLayer) Commit() (builder.ROLayer, error) {
+	return &MockROLayer{
+		diffID: layer.DiffID(digest.Digest("sha256:1234")),
+	}, nil
+}
+
+type MockROLayer struct {
+	diffID layer.DiffID
+}
+
+func (l *MockROLayer) Release() error                       { return nil }
+func (l *MockROLayer) NewRWLayer() (builder.RWLayer, error) { return nil, nil }
+func (l *MockROLayer) DiffID() layer.DiffID                 { return l.diffID }
+
+func getMockBuildBackend() builder.Backend {
+	return &MockBackend{}
+}
+
+func TestExportImage(t *testing.T) {
+	ds := newDispatchState(NewBuildArgs(map[string]*string{}))
+	layer := &MockRWLayer{}
+	parentImage := &image.Image{
+		V1Image: image.V1Image{
+			OS:           "linux",
+			Architecture: "arm64",
+			Variant:      "v8",
+		},
 	}
+	runConfig := &container.Config{}
+
+	b := &Builder{
+		imageSources: getMockImageSource(nil, nil, nil),
+		docker:       getMockBuildBackend(),
+	}
+	err := b.exportImage(ds, layer, parentImage, runConfig)
+	assert.NilError(t, err)
 }

@@ -1,10 +1,6 @@
 // +build !windows
 
-package registry
-
-import (
-	"github.com/spf13/pflag"
-)
+package registry // import "github.com/docker/docker/registry"
 
 var (
 	// CertsDir is the directory where certificates are stored
@@ -17,9 +13,4 @@ var (
 // which contain those characters (such as : on Windows)
 func cleanPath(s string) string {
 	return s
-}
-
-// installCliPlatformFlags handles any platform specific flags for the service.
-func (options *ServiceOptions) installCliPlatformFlags(flags *pflag.FlagSet) {
-	flags.BoolVar(&options.V2Only, "disable-legacy-registry", false, "Disable contacting legacy registries")
 }

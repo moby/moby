@@ -1,18 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
-	"net/http"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions/v1p20"
-	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/pkg/stringutils"
-	"github.com/go-check/check"
+	"github.com/docker/docker/client"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
-func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
+func (s *DockerSuite) TestInspectAPIContainerResponse(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -26,9 +27,9 @@ func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
 
 	var cases []acase
 
-	if daemonPlatform == "windows" {
+	if testEnv.OSType == "windows" {
 		cases = []acase{
-			{"v1.20", append(keysBase, "Mounts")},
+			{"v1.25", append(keysBase, "Mounts")},
 		}
 
 	} else {
@@ -43,20 +44,20 @@ func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
 
 		var inspectJSON map[string]interface{}
 		err := json.Unmarshal(body, &inspectJSON)
-		c.Assert(err, checker.IsNil, check.Commentf("Unable to unmarshal body for version %s", cs.version))
+		assert.NilError(c, err, "Unable to unmarshal body for version %s", cs.version)
 
 		for _, key := range cs.keys {
 			_, ok := inspectJSON[key]
-			c.Check(ok, checker.True, check.Commentf("%s does not exist in response for version %s", key, cs.version))
+			assert.Check(c, ok, "%s does not exist in response for version %s", key, cs.version)
 		}
 
 		//Issue #6830: type not properly converted to JSON/back
 		_, ok := inspectJSON["Path"].(bool)
-		c.Assert(ok, checker.False, check.Commentf("Path of `true` should not be converted to boolean `true` via JSON marshalling"))
+		assert.Assert(c, !ok, "Path of `true` should not be converted to boolean `true` via JSON marshalling")
 	}
 }
 
-func (s *DockerSuite) TestInspectApiContainerVolumeDriverLegacy(c *check.C) {
+func (s *DockerSuite) TestInspectAPIContainerVolumeDriverLegacy(c *testing.T) {
 	// No legacy implications for Windows
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
@@ -69,60 +70,56 @@ func (s *DockerSuite) TestInspectApiContainerVolumeDriverLegacy(c *check.C) {
 
 		var inspectJSON map[string]interface{}
 		err := json.Unmarshal(body, &inspectJSON)
-		c.Assert(err, checker.IsNil, check.Commentf("Unable to unmarshal body for version %s", version))
+		assert.NilError(c, err, "Unable to unmarshal body for version %s", version)
 
 		config, ok := inspectJSON["Config"]
-		c.Assert(ok, checker.True, check.Commentf("Unable to find 'Config'"))
+		assert.Assert(c, ok, "Unable to find 'Config'")
 		cfg := config.(map[string]interface{})
 		_, ok = cfg["VolumeDriver"]
-		c.Assert(ok, checker.True, check.Commentf("Api version %s expected to include VolumeDriver in 'Config'", version))
+		assert.Assert(c, ok, "API version %s expected to include VolumeDriver in 'Config'", version)
 	}
 }
 
-func (s *DockerSuite) TestInspectApiContainerVolumeDriver(c *check.C) {
+func (s *DockerSuite) TestInspectAPIContainerVolumeDriver(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "--volume-driver", "local", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	body := getInspectBody(c, "v1.21", cleanedContainerID)
+	body := getInspectBody(c, "v1.25", cleanedContainerID)
 
 	var inspectJSON map[string]interface{}
 	err := json.Unmarshal(body, &inspectJSON)
-	c.Assert(err, checker.IsNil, check.Commentf("Unable to unmarshal body for version 1.21"))
+	assert.NilError(c, err, "Unable to unmarshal body for version 1.25")
 
 	config, ok := inspectJSON["Config"]
-	c.Assert(ok, checker.True, check.Commentf("Unable to find 'Config'"))
+	assert.Assert(c, ok, "Unable to find 'Config'")
 	cfg := config.(map[string]interface{})
 	_, ok = cfg["VolumeDriver"]
-	c.Assert(ok, checker.False, check.Commentf("Api version 1.21 expected to not include VolumeDriver in 'Config'"))
+	assert.Assert(c, !ok, "API version 1.25 expected to not include VolumeDriver in 'Config'")
 
 	config, ok = inspectJSON["HostConfig"]
-	c.Assert(ok, checker.True, check.Commentf("Unable to find 'HostConfig'"))
+	assert.Assert(c, ok, "Unable to find 'HostConfig'")
 	cfg = config.(map[string]interface{})
 	_, ok = cfg["VolumeDriver"]
-	c.Assert(ok, checker.True, check.Commentf("Api version 1.21 expected to include VolumeDriver in 'HostConfig'"))
+	assert.Assert(c, ok, "API version 1.25 expected to include VolumeDriver in 'HostConfig'")
 }
 
-func (s *DockerSuite) TestInspectApiImageResponse(c *check.C) {
+func (s *DockerSuite) TestInspectAPIImageResponse(c *testing.T) {
 	dockerCmd(c, "tag", "busybox:latest", "busybox:mytag")
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	assert.NilError(c, err)
+	defer cli.Close()
 
-	endpoint := "/images/busybox/json"
-	status, body, err := sockRequest("GET", endpoint, nil)
+	imageJSON, _, err := cli.ImageInspectWithRaw(context.Background(), "busybox")
+	assert.NilError(c, err)
 
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusOK)
-
-	var imageJSON types.ImageInspect
-	err = json.Unmarshal(body, &imageJSON)
-	c.Assert(err, checker.IsNil, check.Commentf("Unable to unmarshal body for latest version"))
-	c.Assert(imageJSON.RepoTags, checker.HasLen, 2)
-
-	c.Assert(stringutils.InSlice(imageJSON.RepoTags, "busybox:latest"), checker.Equals, true)
-	c.Assert(stringutils.InSlice(imageJSON.RepoTags, "busybox:mytag"), checker.Equals, true)
+	assert.Check(c, len(imageJSON.RepoTags) == 2)
+	assert.Check(c, is.Contains(imageJSON.RepoTags, "busybox:latest"))
+	assert.Check(c, is.Contains(imageJSON.RepoTags, "busybox:mytag"))
 }
 
 // #17131, #17139, #17173
-func (s *DockerSuite) TestInspectApiEmptyFieldsInConfigPre121(c *check.C) {
+func (s *DockerSuite) TestInspectAPIEmptyFieldsInConfigPre121(c *testing.T) {
 	// Not relevant on Windows
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
@@ -135,18 +132,18 @@ func (s *DockerSuite) TestInspectApiEmptyFieldsInConfigPre121(c *check.C) {
 
 		var inspectJSON map[string]interface{}
 		err := json.Unmarshal(body, &inspectJSON)
-		c.Assert(err, checker.IsNil, check.Commentf("Unable to unmarshal body for version %s", version))
+		assert.NilError(c, err, "Unable to unmarshal body for version %s", version)
 		config, ok := inspectJSON["Config"]
-		c.Assert(ok, checker.True, check.Commentf("Unable to find 'Config'"))
+		assert.Assert(c, ok, "Unable to find 'Config'")
 		cfg := config.(map[string]interface{})
 		for _, f := range []string{"MacAddress", "NetworkDisabled", "ExposedPorts"} {
 			_, ok := cfg[f]
-			c.Check(ok, checker.True, check.Commentf("Api version %s expected to include %s in 'Config'", version, f))
+			assert.Check(c, ok, "API version %s expected to include %s in 'Config'", version, f)
 		}
 	}
 }
 
-func (s *DockerSuite) TestInspectApiBridgeNetworkSettings120(c *check.C) {
+func (s *DockerSuite) TestInspectAPIBridgeNetworkSettings120(c *testing.T) {
 	// Not relevant on Windows, and besides it doesn't have any bridge network settings
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
@@ -157,13 +154,13 @@ func (s *DockerSuite) TestInspectApiBridgeNetworkSettings120(c *check.C) {
 
 	var inspectJSON v1p20.ContainerJSON
 	err := json.Unmarshal(body, &inspectJSON)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	settings := inspectJSON.NetworkSettings
-	c.Assert(settings.IPAddress, checker.Not(checker.HasLen), 0)
+	assert.Assert(c, len(settings.IPAddress) != 0)
 }
 
-func (s *DockerSuite) TestInspectApiBridgeNetworkSettings121(c *check.C) {
+func (s *DockerSuite) TestInspectAPIBridgeNetworkSettings121(c *testing.T) {
 	// Windows doesn't have any bridge network settings
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
@@ -174,10 +171,10 @@ func (s *DockerSuite) TestInspectApiBridgeNetworkSettings121(c *check.C) {
 
 	var inspectJSON types.ContainerJSON
 	err := json.Unmarshal(body, &inspectJSON)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	settings := inspectJSON.NetworkSettings
-	c.Assert(settings.IPAddress, checker.Not(checker.HasLen), 0)
-	c.Assert(settings.Networks["bridge"], checker.Not(checker.IsNil))
-	c.Assert(settings.IPAddress, checker.Equals, settings.Networks["bridge"].IPAddress)
+	assert.Assert(c, len(settings.IPAddress) != 0)
+	assert.Assert(c, settings.Networks["bridge"] != nil)
+	assert.Equal(c, settings.IPAddress, settings.Networks["bridge"].IPAddress)
 }

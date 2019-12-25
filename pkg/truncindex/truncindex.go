@@ -1,7 +1,7 @@
 // Package truncindex provides a general 'index tree', used by Docker
 // in order to be able to reference containers by only a few unambiguous
 // characters of their id.
-package truncindex
+package truncindex // import "github.com/docker/docker/pkg/truncindex"
 
 import (
 	"errors"
@@ -77,10 +77,7 @@ func (idx *TruncIndex) addID(id string) error {
 func (idx *TruncIndex) Add(id string) error {
 	idx.Lock()
 	defer idx.Unlock()
-	if err := idx.addID(id); err != nil {
-		return err
-	}
-	return nil
+	return idx.addID(id)
 }
 
 // Delete removes an ID from the TruncIndex. If there are multiple IDs
@@ -111,7 +108,7 @@ func (idx *TruncIndex) Get(s string) (string, error) {
 		if id != "" {
 			// we haven't found the ID if there are two or more IDs
 			id = ""
-			return ErrAmbiguousPrefix{prefix: string(prefix)}
+			return ErrAmbiguousPrefix{prefix: s}
 		}
 		id = string(prefix)
 		return nil
@@ -128,8 +125,13 @@ func (idx *TruncIndex) Get(s string) (string, error) {
 	return "", ErrNotExist
 }
 
-// Iterate iterates over all stored IDs, and passes each of them to the given handler.
+// Iterate iterates over all stored IDs and passes each of them to the given
+// handler. Take care that the handler method does not call any public
+// method on truncindex as the internal locking is not reentrant/recursive
+// and will result in deadlock.
 func (idx *TruncIndex) Iterate(handler func(id string)) {
+	idx.Lock()
+	defer idx.Unlock()
 	idx.trie.Visit(func(prefix patricia.Prefix, item patricia.Item) error {
 		handler(string(prefix))
 		return nil

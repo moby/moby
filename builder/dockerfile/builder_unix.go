@@ -1,5 +1,7 @@
 // +build !windows
 
-package dockerfile
+package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
-var defaultShell = []string{"/bin/sh", "-c"}
+func defaultShellForOS(os string) []string {
+	return []string{"/bin/sh", "-c"}
+}

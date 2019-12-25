@@ -1,27 +1,24 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strconv"
-
-	"golang.org/x/net/context"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 )
 
-var headerRegexp = regexp.MustCompile(`\ADocker/.+\s\((.+)\)\z`)
-
 // ImageBuild sends request to the daemon to build images.
 // The Body in the response implement an io.ReadCloser and it's up to the caller to
 // close it.
 func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, options types.ImageBuildOptions) (types.ImageBuildResponse, error) {
-	query, err := imageBuildOptionsToQuery(options)
+	query, err := cli.imageBuildOptionsToQuery(options)
 	if err != nil {
 		return types.ImageBuildResponse{}, err
 	}
@@ -32,14 +29,15 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 		return types.ImageBuildResponse{}, err
 	}
 	headers.Add("X-Registry-Config", base64.URLEncoding.EncodeToString(buf))
-	headers.Set("Content-Type", "application/tar")
+
+	headers.Set("Content-Type", "application/x-tar")
 
 	serverResp, err := cli.postRaw(ctx, "/build", query, buildContext, headers)
 	if err != nil {
 		return types.ImageBuildResponse{}, err
 	}
 
-	osType := GetDockerOS(serverResp.header.Get("Server"))
+	osType := getDockerOS(serverResp.header.Get("Server"))
 
 	return types.ImageBuildResponse{
 		Body:   serverResp.body,
@@ -47,9 +45,11 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 	}, nil
 }
 
-func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, error) {
+func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, error) {
 	query := url.Values{
-		"t": options.Tags,
+		"t":           options.Tags,
+		"securityopt": options.SecurityOpt,
+		"extrahosts":  options.ExtraHosts,
 	}
 	if options.SuppressOutput {
 		query.Set("q", "1")
@@ -75,6 +75,9 @@ func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, erro
 	}
 
 	if options.Squash {
+		if err := cli.NewVersionError("1.25", "squash"); err != nil {
+			return query, err
+		}
 		query.Set("squash", "1")
 	}
 
@@ -83,6 +86,7 @@ func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, erro
 	}
 
 	query.Set("cpusetcpus", options.CPUSetCPUs)
+	query.Set("networkmode", options.NetworkMode)
 	query.Set("cpusetmems", options.CPUSetMems)
 	query.Set("cpushares", strconv.FormatInt(options.CPUShares, 10))
 	query.Set("cpuquota", strconv.FormatInt(options.CPUQuota, 10))
@@ -92,6 +96,7 @@ func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, erro
 	query.Set("cgroupparent", options.CgroupParent)
 	query.Set("shmsize", strconv.FormatInt(options.ShmSize, 10))
 	query.Set("dockerfile", options.Dockerfile)
+	query.Set("target", options.Target)
 
 	ulimitsJSON, err := json.Marshal(options.Ulimits)
 	if err != nil {
@@ -110,15 +115,32 @@ func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, erro
 		return query, err
 	}
 	query.Set("labels", string(labelsJSON))
-	return query, nil
-}
 
-// GetDockerOS returns the operating system based on the server header from the daemon.
-func GetDockerOS(serverHeader string) string {
-	var osType string
-	matches := headerRegexp.FindStringSubmatch(serverHeader)
-	if len(matches) > 0 {
-		osType = matches[1]
+	cacheFromJSON, err := json.Marshal(options.CacheFrom)
+	if err != nil {
+		return query, err
 	}
-	return osType
+	query.Set("cachefrom", string(cacheFromJSON))
+	if options.SessionID != "" {
+		query.Set("session", options.SessionID)
+	}
+	if options.Platform != "" {
+		if err := cli.NewVersionError("1.32", "platform"); err != nil {
+			return query, err
+		}
+		query.Set("platform", strings.ToLower(options.Platform))
+	}
+	if options.BuildID != "" {
+		query.Set("buildid", options.BuildID)
+	}
+	query.Set("version", string(options.Version))
+
+	if options.Outputs != nil {
+		outputsJSON, err := json.Marshal(options.Outputs)
+		if err != nil {
+			return query, err
+		}
+		query.Set("outputs", string(outputsJSON))
+	}
+	return query, nil
 }

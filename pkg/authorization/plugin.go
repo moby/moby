@@ -1,8 +1,9 @@
-package authorization
+package authorization // import "github.com/docker/docker/pkg/authorization"
 
 import (
 	"sync"
 
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 )
 
@@ -33,11 +34,24 @@ func newPlugins(names []string) []Plugin {
 	return plugins
 }
 
+var getter plugingetter.PluginGetter
+
+// SetPluginGetter sets the plugingetter
+func SetPluginGetter(pg plugingetter.PluginGetter) {
+	getter = pg
+}
+
+// GetPluginGetter gets the plugingetter
+func GetPluginGetter() plugingetter.PluginGetter {
+	return getter
+}
+
 // authorizationPlugin is an internal adapter to docker plugin system
 type authorizationPlugin struct {
-	plugin *plugins.Client
-	name   string
-	once   sync.Once
+	initErr error
+	plugin  *plugins.Client
+	name    string
+	once    sync.Once
 }
 
 func newAuthorizationPlugin(name string) Plugin {
@@ -46,6 +60,11 @@ func newAuthorizationPlugin(name string) Plugin {
 
 func (a *authorizationPlugin) Name() string {
 	return a.name
+}
+
+// Set the remote for an authz pluginv2
+func (a *authorizationPlugin) SetName(remote string) {
+	a.name = remote
 }
 
 func (a *authorizationPlugin) AuthZRequest(authReq *Request) (*Response, error) {
@@ -77,16 +96,23 @@ func (a *authorizationPlugin) AuthZResponse(authReq *Request) (*Response, error)
 // initPlugin initializes the authorization plugin if needed
 func (a *authorizationPlugin) initPlugin() error {
 	// Lazy loading of plugins
-	var err error
 	a.once.Do(func() {
 		if a.plugin == nil {
-			plugin, e := plugins.Get(a.name, AuthZApiImplements)
+			var plugin plugingetter.CompatPlugin
+			var e error
+
+			if pg := GetPluginGetter(); pg != nil {
+				plugin, e = pg.Get(a.name, AuthZApiImplements, plugingetter.Lookup)
+				a.SetName(plugin.Name())
+			} else {
+				plugin, e = plugins.Get(a.name, AuthZApiImplements)
+			}
 			if e != nil {
-				err = e
+				a.initErr = e
 				return
 			}
 			a.plugin = plugin.Client()
 		}
 	})
-	return err
+	return a.initErr
 }

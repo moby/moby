@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package moby.filesync.v1;
+
+option go_package = "auth";
+
+service Auth{
+  rpc Credentials(CredentialsRequest) returns (CredentialsResponse);
+}
+
+
+message CredentialsRequest {
+	string Host = 1;
+}
+
+message CredentialsResponse {
+	string Username = 1;
+	string Secret = 2;
+}

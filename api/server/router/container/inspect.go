@@ -1,10 +1,10 @@
-package container
+package container // import "github.com/docker/docker/api/server/router/container"
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/docker/docker/api/server/httputils"
-	"golang.org/x/net/context"
 )
 
 // getContainersByName inspects container's configuration and serializes it as json.

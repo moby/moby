@@ -1,5 +1,5 @@
 // Package v1p19 provides specific API types for the API version 1, patch 19.
-package v1p19
+package v1p19 // import "github.com/docker/docker/api/types/versions/v1p19"
 
 import (
 	"github.com/docker/docker/api/types"

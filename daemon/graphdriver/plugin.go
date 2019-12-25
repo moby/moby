@@ -1,32 +1,55 @@
-// +build experimental
-
-package graphdriver
+package graphdriver // import "github.com/docker/docker/daemon/graphdriver"
 
 import (
 	"fmt"
-	"io"
+	"path/filepath"
 
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
+	v2 "github.com/docker/docker/plugin/v2"
+	"github.com/pkg/errors"
 )
 
-type pluginClient interface {
-	// Call calls the specified method with the specified arguments for the plugin.
-	Call(string, interface{}, interface{}) error
-	// Stream calls the specified method with the specified arguments for the plugin and returns the response IO stream
-	Stream(string, interface{}) (io.ReadCloser, error)
-	// SendFile calls the specified method, and passes through the IO stream
-	SendFile(string, io.Reader, interface{}) error
-}
-
-func lookupPlugin(name, home string, opts []string) (Driver, error) {
-	pl, err := plugins.Get(name, "GraphDriver")
+func lookupPlugin(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
+	if !config.ExperimentalEnabled {
+		return nil, fmt.Errorf("graphdriver plugins are only supported with experimental mode")
+	}
+	pl, err := pg.Get(name, "GraphDriver", plugingetter.Acquire)
 	if err != nil {
 		return nil, fmt.Errorf("Error looking up graphdriver plugin %s: %v", name, err)
 	}
-	return newPluginDriver(name, home, opts, pl.Client())
+	return newPluginDriver(name, pl, config)
 }
 
-func newPluginDriver(name, home string, opts []string, c pluginClient) (Driver, error) {
-	proxy := &graphDriverProxy{name, c}
-	return proxy, proxy.Init(home, opts)
+func newPluginDriver(name string, pl plugingetter.CompatPlugin, config Options) (Driver, error) {
+	home := config.Root
+	if !pl.IsV1() {
+		if p, ok := pl.(*v2.Plugin); ok {
+			if p.PluginObj.Config.PropagatedMount != "" {
+				home = p.PluginObj.Config.PropagatedMount
+			}
+		}
+	}
+
+	var proxy *graphDriverProxy
+
+	switch pt := pl.(type) {
+	case plugingetter.PluginWithV1Client:
+		proxy = &graphDriverProxy{name, pl, Capabilities{}, pt.Client()}
+	case plugingetter.PluginAddr:
+		if pt.Protocol() != plugins.ProtocolSchemeHTTPV1 {
+			return nil, errors.Errorf("plugin protocol not supported: %s", pt.Protocol())
+		}
+		addr := pt.Addr()
+		client, err := plugins.NewClientWithTimeout(addr.Network()+"://"+addr.String(), nil, pt.Timeout())
+		if err != nil {
+			return nil, errors.Wrap(err, "error creating plugin client")
+		}
+		proxy = &graphDriverProxy{name, pl, Capabilities{}, client}
+	default:
+		return nil, errdefs.System(errors.Errorf("got unknown plugin type %T", pt))
+	}
+
+	return proxy, proxy.Init(filepath.Join(home, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
 }

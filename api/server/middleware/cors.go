@@ -1,10 +1,10 @@
-package middleware
+package middleware // import "github.com/docker/docker/api/server/middleware"
 
 import (
+	"context"
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
+	"github.com/sirupsen/logrus"
 )
 
 // CORSMiddleware injects CORS headers to each request

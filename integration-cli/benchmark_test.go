@@ -7,12 +7,12 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"testing"
 
-	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
-func (s *DockerSuite) BenchmarkConcurrentContainerActions(c *check.C) {
+func (s *DockerSuite) BenchmarkConcurrentContainerActions(c *testing.B) {
 	maxConcurrency := runtime.GOMAXPROCS(0)
 	numIterations := c.N
 	outerGroup := &sync.WaitGroup{}
@@ -28,7 +28,7 @@ func (s *DockerSuite) BenchmarkConcurrentContainerActions(c *check.C) {
 			go func() {
 				defer innerGroup.Done()
 				for i := 0; i < numIterations; i++ {
-					args := []string{"run", "-d", defaultSleepImage}
+					args := []string{"run", "-d", "busybox"}
 					args = append(args, sleepCommandForDaemonPlatform()...)
 					out, _, err := dockerCmdWithError(args...)
 					if err != nil {
@@ -90,6 +90,6 @@ func (s *DockerSuite) BenchmarkConcurrentContainerActions(c *check.C) {
 	close(chErr)
 
 	for err := range chErr {
-		c.Assert(err, checker.IsNil)
+		assert.NilError(c, err)
 	}
 }

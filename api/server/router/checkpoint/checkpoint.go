@@ -1,4 +1,4 @@
-package checkpoint
+package checkpoint // import "github.com/docker/docker/api/server/router/checkpoint"
 
 import (
 	"github.com/docker/docker/api/server/httputils"
@@ -25,4 +25,12 @@ func NewRouter(b Backend, decoder httputils.ContainerDecoder) router.Router {
 // Routes returns the available routers to the checkpoint controller
 func (r *checkpointRouter) Routes() []router.Route {
 	return r.routes
+}
+
+func (r *checkpointRouter) initRoutes() {
+	r.routes = []router.Route{
+		router.NewGetRoute("/containers/{name:.*}/checkpoints", r.getContainerCheckpoints, router.Experimental),
+		router.NewPostRoute("/containers/{name:.*}/checkpoints", r.postContainerCheckpoint, router.Experimental),
+		router.NewDeleteRoute("/containers/{name}/checkpoints/{checkpoint}", r.deleteContainerCheckpoint, router.Experimental),
+	}
 }

@@ -4,7 +4,7 @@
 
 // This code is a modified version of path/filepath/symlink.go from the Go standard library.
 
-package symlink
+package symlink // import "github.com/docker/docker/pkg/symlink"
 
 import (
 	"bytes"
@@ -40,7 +40,7 @@ func FollowSymlinkInScope(path, root string) (string, error) {
 //
 // Example:
 //   If /foo/bar -> /outside,
-//   FollowSymlinkInScope("/foo/bar", "/foo") == "/foo/outside" instead of "/oustide"
+//   FollowSymlinkInScope("/foo/bar", "/foo") == "/foo/outside" instead of "/outside"
 //
 // IMPORTANT: it is the caller's responsibility to call evalSymlinksInScope *after* relevant symlinks
 // are created and not to create subsequently, additional symlinks that could potentially make a

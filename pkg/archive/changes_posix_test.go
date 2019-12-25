@@ -1,4 +1,4 @@
-package archive
+package archive // import "github.com/docker/docker/pkg/archive"
 
 import (
 	"archive/tar"
@@ -20,7 +20,7 @@ func TestHardLinkOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	//defer os.RemoveAll(src)
+	defer os.RemoveAll(src)
 	for _, name := range names {
 		func() {
 			fh, err := os.Create(path.Join(src, name))
@@ -112,7 +112,7 @@ func (th tarHeaders) Less(i, j int) bool { return th[i].Name < th[j].Name }
 
 func walkHeaders(r io.Reader) ([]tar.Header, error) {
 	t := tar.NewReader(r)
-	headers := []tar.Header{}
+	var headers []tar.Header
 	for {
 		hdr, err := t.Next()
 		if err != nil {

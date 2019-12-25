@@ -1,0 +1,22 @@
+curators:
+  - aboch
+  - alexellis
+  - andrewhsu
+  - anonymuse
+  - arkodg
+  - chanwit
+  - ehazlett
+  - fntlnz
+  - gianarb
+  - kolyshkin
+  - mgoelzer
+  - olljanat
+  - programmerq
+  - rheinwein
+  - ripcurld0
+  - thajeztah
+
+features:
+  - comments
+  - pr_description_required
+

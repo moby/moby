@@ -1,6 +1,6 @@
 // +build linux
 
-package btrfs
+package btrfs // import "github.com/docker/docker/daemon/graphdriver/btrfs"
 
 import (
 	"os"
@@ -30,16 +30,18 @@ func TestBtrfsCreateSnap(t *testing.T) {
 
 func TestBtrfsSubvolDelete(t *testing.T) {
 	d := graphtest.GetDriver(t, "btrfs")
-	if err := d.CreateReadWrite("test", "", "", nil); err != nil {
+	if err := d.CreateReadWrite("test", "", nil); err != nil {
 		t.Fatal(err)
 	}
 	defer graphtest.PutDriver(t)
 
-	dir, err := d.Get("test", "")
+	dirFS, err := d.Get("test", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer d.Put("test")
+
+	dir := dirFS.Path()
 
 	if err := subvolCreate(dir, "subvoltest"); err != nil {
 		t.Fatal(err)

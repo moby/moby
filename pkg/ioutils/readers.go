@@ -1,25 +1,28 @@
-package ioutils
+package ioutils // import "github.com/docker/docker/pkg/ioutils"
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
-
-	"golang.org/x/net/context"
 )
 
-type readCloserWrapper struct {
+// ReadCloserWrapper wraps an io.Reader, and implements an io.ReadCloser
+// It calls the given callback function when closed. It should be constructed
+// with NewReadCloserWrapper
+type ReadCloserWrapper struct {
 	io.Reader
 	closer func() error
 }
 
-func (r *readCloserWrapper) Close() error {
+// Close calls back the passed closer function
+func (r *ReadCloserWrapper) Close() error {
 	return r.closer()
 }
 
 // NewReadCloserWrapper returns a new io.ReadCloser.
 func NewReadCloserWrapper(r io.Reader, closer func() error) io.ReadCloser {
-	return &readCloserWrapper{
+	return &ReadCloserWrapper{
 		Reader: r,
 		closer: closer,
 	}

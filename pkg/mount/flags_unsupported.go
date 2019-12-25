@@ -1,6 +1,6 @@
-// +build !linux,!freebsd freebsd,!cgo solaris,!cgo
+// +build !linux,!freebsd freebsd,!cgo
 
-package mount
+package mount // import "github.com/docker/docker/pkg/mount"
 
 // These flags are unsupported.
 const (
@@ -27,4 +27,5 @@ const (
 	STRICTATIME = 0
 	SYNCHRONOUS = 0
 	RDONLY      = 0
+	mntDetach   = 0
 )

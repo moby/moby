@@ -16,6 +16,9 @@ usage() {
 
 scriptDir="$(dirname "$(readlink -f "$BASH_SOURCE")")/mkimage"
 
+os=
+os=$(uname -o)
+
 optTemp=$(getopt --options '+d:t:c:hC' --longoptions 'dir:,tag:,compression:,no-compression,help' --name "$mkimg" -- "$@")
 eval set -- "$optTemp"
 unset optTemp

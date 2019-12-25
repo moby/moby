@@ -8,24 +8,31 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"testing"
 
-	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/go-check/check"
+	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/testutil/request"
+	"github.com/pkg/errors"
+	"gotest.tools/assert"
 )
 
-func (s *DockerSuite) TestExecResizeApiHeightWidthNoInt(c *check.C) {
+func (s *DockerSuite) TestExecResizeAPIHeightWidthNoInt(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
 
 	endpoint := "/exec/" + cleanedContainerID + "/resize?h=foo&w=bar"
-	status, _, err := sockRequest("POST", endpoint, nil)
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusInternalServerError)
+	res, _, err := request.Post(endpoint)
+	assert.NilError(c, err)
+	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
+		assert.Equal(c, res.StatusCode, http.StatusInternalServerError)
+	} else {
+		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
+	}
 }
 
 // Part of #14845
-func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *check.C) {
+func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *testing.T) {
 	name := "exec_resize_test"
 	dockerCmd(c, "run", "-d", "-i", "-t", "--name", name, "--restart", "always", "busybox", "/bin/sh")
 
@@ -35,43 +42,47 @@ func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *check.C) {
 			"Cmd":         []string{"/bin/sh"},
 		}
 		uri := fmt.Sprintf("/containers/%s/exec", name)
-		status, body, err := sockRequest("POST", uri, data)
+		res, body, err := request.Post(uri, request.JSONBody(data))
 		if err != nil {
 			return err
 		}
-		if status != http.StatusCreated {
-			return fmt.Errorf("POST %s is expected to return %d, got %d", uri, http.StatusCreated, status)
+		if res.StatusCode != http.StatusCreated {
+			return errors.Errorf("POST %s is expected to return %d, got %d", uri, http.StatusCreated, res.StatusCode)
 		}
 
+		buf, err := request.ReadBody(body)
+		assert.NilError(c, err)
+
 		out := map[string]string{}
-		err = json.Unmarshal(body, &out)
+		err = json.Unmarshal(buf, &out)
 		if err != nil {
-			return fmt.Errorf("ExecCreate returned invalid json. Error: %q", err.Error())
+			return errors.Wrap(err, "ExecCreate returned invalid json")
 		}
 
 		execID := out["Id"]
 		if len(execID) < 1 {
-			return fmt.Errorf("ExecCreate got invalid execID")
+			return errors.New("ExecCreate got invalid execID")
 		}
 
 		payload := bytes.NewBufferString(`{"Tty":true}`)
-		conn, _, err := sockRequestHijack("POST", fmt.Sprintf("/exec/%s/start", execID), payload, "application/json")
+		wc, _, err := requestHijack(http.MethodPost, fmt.Sprintf("/exec/%s/start", execID), payload, "application/json", request.DaemonHost())
 		if err != nil {
-			return fmt.Errorf("Failed to start the exec: %q", err.Error())
+			return errors.Wrap(err, "failed to start the exec")
 		}
-		defer conn.Close()
+		defer wc.Close()
 
-		_, rc, err := sockRequestRaw("POST", fmt.Sprintf("/exec/%s/resize?h=24&w=80", execID), nil, "text/plain")
-		// It's probably a panic of the daemon if io.ErrUnexpectedEOF is returned.
-		if err == io.ErrUnexpectedEOF {
-			return fmt.Errorf("The daemon might have crashed.")
+		_, rc, err := request.Post(fmt.Sprintf("/exec/%s/resize?h=24&w=80", execID), request.ContentType("text/plain"))
+		if err != nil {
+			// It's probably a panic of the daemon if io.ErrUnexpectedEOF is returned.
+			if err == io.ErrUnexpectedEOF {
+				return errors.New("the daemon might have crashed")
+			}
+			// Other error happened, should be reported.
+			return errors.Wrap(err, "failed to exec resize immediately after start")
 		}
 
-		if err == nil {
-			rc.Close()
-		}
+		rc.Close()
 
-		// We only interested in the io.ErrUnexpectedEOF error, so we return nil otherwise.
 		return nil
 	}
 

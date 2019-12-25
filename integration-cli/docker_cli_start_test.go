@@ -2,16 +2,21 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
+	"runtime"
+	"strconv"
 	"strings"
+	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/go-check/check"
+	"github.com/Microsoft/hcsshim/osversion"
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/pkg/parsers/kernel"
+	"gotest.tools/assert"
+	"gotest.tools/icmd"
 )
 
 // Regression test for https://github.com/docker/docker/issues/7843
-func (s *DockerSuite) TestStartAttachReturnsOnError(c *check.C) {
+func (s *DockerSuite) TestStartAttachReturnsOnError(c *testing.T) {
 	// Windows does not support link
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "test", "busybox")
@@ -19,7 +24,7 @@ func (s *DockerSuite) TestStartAttachReturnsOnError(c *check.C) {
 	// Expect this to fail because the above container is stopped, this is what we want
 	out, _, err := dockerCmdWithError("run", "--name", "test2", "--link", "test:test", "busybox")
 	// err shouldn't be nil because container test2 try to link to stopped container
-	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	assert.Assert(c, err != nil, "out: %s", out)
 
 	ch := make(chan error)
 	go func() {
@@ -33,30 +38,27 @@ func (s *DockerSuite) TestStartAttachReturnsOnError(c *check.C) {
 
 	select {
 	case err := <-ch:
-		c.Assert(err, check.IsNil)
+		assert.NilError(c, err)
 	case <-time.After(5 * time.Second):
 		c.Fatalf("Attach did not exit properly")
 	}
 }
 
 // gh#8555: Exit code should be passed through when using start -a
-func (s *DockerSuite) TestStartAttachCorrectExitCode(c *check.C) {
+func (s *DockerSuite) TestStartAttachCorrectExitCode(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "-d", "busybox", "sh", "-c", "sleep 2; exit 1")
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "sh", "-c", "sleep 2; exit 1").Stdout()
 	out = strings.TrimSpace(out)
 
 	// make sure the container has exited before trying the "start -a"
-	dockerCmd(c, "wait", out)
+	cli.DockerCmd(c, "wait", out)
 
-	startOut, exitCode, err := dockerCmdWithError("start", "-a", out)
-	// start command should fail
-	c.Assert(err, checker.NotNil, check.Commentf("startOut: %s", startOut))
-	// start -a did not respond with proper exit code
-	c.Assert(exitCode, checker.Equals, 1, check.Commentf("startOut: %s", startOut))
-
+	cli.Docker(cli.Args("start", "-a", out)).Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
 }
 
-func (s *DockerSuite) TestStartAttachSilent(c *check.C) {
+func (s *DockerSuite) TestStartAttachSilent(c *testing.T) {
 	name := "teststartattachcorrectexitcode"
 	dockerCmd(c, "run", "--name", name, "busybox", "echo", "test")
 
@@ -65,51 +67,49 @@ func (s *DockerSuite) TestStartAttachSilent(c *check.C) {
 
 	startOut, _ := dockerCmd(c, "start", "-a", name)
 	// start -a produced unexpected output
-	c.Assert(startOut, checker.Equals, "test\n")
+	assert.Equal(c, startOut, "test\n")
 }
 
-func (s *DockerSuite) TestStartRecordError(c *check.C) {
+func (s *DockerSuite) TestStartRecordError(c *testing.T) {
 	// TODO Windows CI: Requires further porting work. Should be possible.
 	testRequires(c, DaemonIsLinux)
 	// when container runs successfully, we should not have state.Error
 	dockerCmd(c, "run", "-d", "-p", "9999:9999", "--name", "test", "busybox", "top")
 	stateErr := inspectField(c, "test", "State.Error")
 	// Expected to not have state error
-	c.Assert(stateErr, checker.Equals, "")
+	assert.Equal(c, stateErr, "")
 
 	// Expect this to fail and records error because of ports conflict
 	out, _, err := dockerCmdWithError("run", "-d", "--name", "test2", "-p", "9999:9999", "busybox", "top")
 	// err shouldn't be nil because docker run will fail
-	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	assert.Assert(c, err != nil, "out: %s", out)
 
 	stateErr = inspectField(c, "test2", "State.Error")
-	c.Assert(stateErr, checker.Contains, "port is already allocated")
-
+	assert.Assert(c, strings.Contains(stateErr, "port is already allocated"))
 	// Expect the conflict to be resolved when we stop the initial container
 	dockerCmd(c, "stop", "test")
 	dockerCmd(c, "start", "test2")
 	stateErr = inspectField(c, "test2", "State.Error")
 	// Expected to not have state error but got one
-	c.Assert(stateErr, checker.Equals, "")
+	assert.Equal(c, stateErr, "")
 }
 
-func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
+func (s *DockerSuite) TestStartPausedContainer(c *testing.T) {
 	// Windows does not support pausing containers
-	testRequires(c, DaemonIsLinux)
-	defer unpauseAllContainers()
+	testRequires(c, IsPausable)
 
-	dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "top")
+	runSleepingContainer(c, "-d", "--name", "testing")
 
 	dockerCmd(c, "pause", "testing")
 
 	out, _, err := dockerCmdWithError("start", "testing")
 	// an error should have been shown that you cannot start paused container
-	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	assert.Assert(c, err != nil, "out: %s", out)
 	// an error should have been shown that you cannot start paused container
-	c.Assert(out, checker.Contains, "Cannot start a paused container, try unpause instead.")
+	assert.Assert(c, strings.Contains(strings.ToLower(out), "cannot start a paused container, try unpause instead"))
 }
 
-func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
+func (s *DockerSuite) TestStartMultipleContainers(c *testing.T) {
 	// Windows does not support --link
 	testRequires(c, DaemonIsLinux)
 	// run a container named 'parent' and create two container link to `parent`
@@ -124,7 +124,7 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 
 	out := inspectField(c, "parent", "State.Running")
 	// Container should be stopped
-	c.Assert(out, checker.Equals, "false")
+	assert.Equal(c, out, "false")
 
 	// start all the three containers, container `child_first` start first which should be failed
 	// container 'parent' start second and then start container 'child_second'
@@ -132,7 +132,7 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 	expErr := "failed to start containers: [child_first]"
 	out, _, err := dockerCmdWithError("start", "child_first", "parent", "child_second")
 	// err shouldn't be nil because start will fail
-	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	assert.Assert(c, err != nil, "out: %s", out)
 	// output does not correspond to what was expected
 	if !(strings.Contains(out, expOut) || strings.Contains(err.Error(), expErr)) {
 		c.Fatalf("Expected out: %v with err: %v  but got out: %v with err: %v", expOut, expErr, out, err)
@@ -141,11 +141,11 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 	for container, expected := range map[string]string{"parent": "true", "child_first": "false", "child_second": "true"} {
 		out := inspectField(c, container, "State.Running")
 		// Container running state wrong
-		c.Assert(out, checker.Equals, expected)
+		assert.Equal(c, out, expected)
 	}
 }
 
-func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
+func (s *DockerSuite) TestStartAttachMultipleContainers(c *testing.T) {
 	// run  multiple containers to test
 	for _, container := range []string{"test1", "test2", "test3"} {
 		runSleepingContainer(c, "--name", container)
@@ -160,40 +160,56 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 	for _, option := range []string{"-a", "-i", "-ai"} {
 		out, _, err := dockerCmdWithError("start", option, "test1", "test2", "test3")
 		// err shouldn't be nil because start will fail
-		c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+		assert.Assert(c, err != nil, "out: %s", out)
 		// output does not correspond to what was expected
-		c.Assert(out, checker.Contains, "You cannot start and attach multiple containers at once.")
+		assert.Assert(c, strings.Contains(out, "you cannot start and attach multiple containers at once"))
 	}
 
 	// confirm the state of all the containers be stopped
 	for container, expected := range map[string]string{"test1": "false", "test2": "false", "test3": "false"} {
 		out := inspectField(c, container, "State.Running")
 		// Container running state wrong
-		c.Assert(out, checker.Equals, expected)
+		assert.Equal(c, out, expected)
 	}
 }
 
 // Test case for #23716
-func (s *DockerSuite) TestStartAttachWithRename(c *check.C) {
+func (s *DockerSuite) TestStartAttachWithRename(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "create", "-t", "--name", "before", "busybox")
+	cli.DockerCmd(c, "create", "-t", "--name", "before", "busybox")
 	go func() {
-		c.Assert(waitRun("before"), checker.IsNil)
-		dockerCmd(c, "rename", "before", "after")
-		dockerCmd(c, "stop", "--time=2", "after")
+		cli.WaitRun(c, "before")
+		cli.DockerCmd(c, "rename", "before", "after")
+		cli.DockerCmd(c, "stop", "--time=2", "after")
 	}()
-	_, stderr, _, _ := runCommandWithStdoutStderr(exec.Command(dockerBinary, "start", "-a", "before"))
-	c.Assert(stderr, checker.Not(checker.Contains), "No such container")
+	// FIXME(vdemeester) the intent is not clear and potentially racey
+	result := cli.Docker(cli.Args("start", "-a", "before")).Assert(c, icmd.Expected{
+		ExitCode: 137,
+	})
+	assert.Assert(c, !strings.Contains(result.Stderr(), "No such container"))
 }
 
-func (s *DockerSuite) TestStartReturnCorrectExitCode(c *check.C) {
+func (s *DockerSuite) TestStartReturnCorrectExitCode(c *testing.T) {
+	// Note we parse kernel.GetKernelVersion rather than system.GetOSVersion
+	// as test binaries aren't manifested, so would otherwise report the wrong
+	// build number.
+	if runtime.GOOS == "windows" {
+		v, err := kernel.GetKernelVersion()
+		assert.NilError(c, err)
+		build, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
+		if build < osversion.RS3 {
+			c.Skip("FLAKY on Windows RS1, see #38521")
+		}
+	}
+
 	dockerCmd(c, "create", "--restart=on-failure:2", "--name", "withRestart", "busybox", "sh", "-c", "exit 11")
 	dockerCmd(c, "create", "--rm", "--name", "withRm", "busybox", "sh", "-c", "exit 12")
 
-	_, exitCode, err := dockerCmdWithError("start", "-a", "withRestart")
-	c.Assert(err, checker.NotNil)
-	c.Assert(exitCode, checker.Equals, 11)
-	_, exitCode, err = dockerCmdWithError("start", "-a", "withRm")
-	c.Assert(err, checker.NotNil)
-	c.Assert(exitCode, checker.Equals, 12)
+	out, exitCode, err := dockerCmdWithError("start", "-a", "withRestart")
+	assert.ErrorContains(c, err, "")
+	assert.Equal(c, exitCode, 11, fmt.Sprintf("out: %s", out))
+
+	out, exitCode, err = dockerCmdWithError("start", "-a", "withRm")
+	assert.ErrorContains(c, err, "")
+	assert.Equal(c, exitCode, 12, fmt.Sprintf("out: %s", out))
 }

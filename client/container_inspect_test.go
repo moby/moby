@@ -1,7 +1,8 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,35 +11,48 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"golang.org/x/net/context"
+	"github.com/docker/docker/errdefs"
+	"github.com/pkg/errors"
 )
 
 func TestContainerInspectError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
 	_, err := client.ContainerInspect(context.Background(), "nothing")
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestContainerInspectContainerNotFound(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusNotFound, "Server error")),
+		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 
 	_, err := client.ContainerInspect(context.Background(), "unknown")
-	if err == nil || !IsErrContainerNotFound(err) {
+	if err == nil || !IsErrNotFound(err) {
 		t.Fatalf("expected a containerNotFound error, got %v", err)
+	}
+}
+
+func TestContainerInspectWithEmptyID(t *testing.T) {
+	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			return nil, errors.New("should not make request")
+		}),
+	}
+	_, _, err := client.ContainerInspectWithRaw(context.Background(), "", true)
+	if !IsErrNotFound(err) {
+		t.Fatalf("Expected NotFoundError, got %v", err)
 	}
 }
 
 func TestContainerInspect(t *testing.T) {
 	expectedURL := "/containers/container_id/json"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -67,16 +81,16 @@ func TestContainerInspect(t *testing.T) {
 		t.Fatalf("expected `container_id`, got %s", r.ID)
 	}
 	if r.Image != "image" {
-		t.Fatalf("expected `image`, got %s", r.ID)
+		t.Fatalf("expected `image`, got %s", r.Image)
 	}
 	if r.Name != "name" {
-		t.Fatalf("expected `name`, got %s", r.ID)
+		t.Fatalf("expected `name`, got %s", r.Name)
 	}
 }
 
 func TestContainerInspectNode(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			content, err := json.Marshal(types.ContainerJSON{
 				ContainerJSONBase: &types.ContainerJSONBase{
 					ID:    "container_id",
@@ -107,10 +121,10 @@ func TestContainerInspectNode(t *testing.T) {
 		t.Fatalf("expected `container_id`, got %s", r.ID)
 	}
 	if r.Image != "image" {
-		t.Fatalf("expected `image`, got %s", r.ID)
+		t.Fatalf("expected `image`, got %s", r.Image)
 	}
 	if r.Name != "name" {
-		t.Fatalf("expected `name`, got %s", r.ID)
+		t.Fatalf("expected `name`, got %s", r.Name)
 	}
 	if r.Node.ID != "container_node_id" {
 		t.Fatalf("expected `container_node_id`, got %s", r.Node.ID)

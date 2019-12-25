@@ -1,6 +1,6 @@
 // Package urlutil provides helper function to check urls kind.
 // It supports http urls, git urls and transport url (tcp://, …)
-package urlutil
+package urlutil // import "github.com/docker/docker/pkg/urlutil"
 
 import (
 	"regexp"
@@ -9,7 +9,15 @@ import (
 
 var (
 	validPrefixes = map[string][]string{
-		"url":       {"http://", "https://"},
+		"url": {"http://", "https://"},
+
+		// The github.com/ prefix is a special case used to treat context-paths
+		// starting with `github.com` as a git URL if the given path does not
+		// exist locally. The "github.com/" prefix is kept for backward compatibility,
+		// and is a legacy feature.
+		//
+		// Going forward, no additional prefixes should be added, and users should
+		// be encouraged to use explicit URLs (https://github.com/user/repo.git) instead.
 		"git":       {"git://", "github.com/", "git@"},
 		"transport": {"tcp://", "tcp+tls://", "udp://", "unix://", "unixgram://"},
 	}
@@ -27,12 +35,6 @@ func IsGitURL(str string) bool {
 		return true
 	}
 	return checkURL(str, "git")
-}
-
-// IsGitTransport returns true if the provided str is a git transport by inspecting
-// the prefix of the string for known protocols used in git.
-func IsGitTransport(str string) bool {
-	return IsURL(str) || strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "git@")
 }
 
 // IsTransportURL returns true if the provided str is a transport (tcp, tcp+tls, udp, unix) URL.

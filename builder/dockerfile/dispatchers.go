@@ -1,4 +1,4 @@
-package dockerfile
+package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 // This file contains the dispatchers for each command. Note that
 // `nullDispatch` is not actually a command, but support for commands we parse
@@ -8,22 +8,27 @@ package dockerfile
 // package.
 
 import (
+	"bytes"
 	"fmt"
-	"regexp"
 	"runtime"
 	"sort"
-	"strconv"
 	"strings"
-	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/signal"
-	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-connections/nat"
+	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+	"github.com/moby/buildkit/frontend/dockerfile/parser"
+	"github.com/moby/buildkit/frontend/dockerfile/shell"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 )
 
 // ENV foo bar
@@ -31,254 +36,299 @@ import (
 // Sets the environment variable foo to bar, also makes interpolation
 // in the dockerfile available from the next statement on via ${foo}.
 //
-func env(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if len(args) == 0 {
-		return errAtLeastOneArgument("ENV")
-	}
+func dispatchEnv(d dispatchRequest, c *instructions.EnvCommand) error {
+	runConfig := d.state.runConfig
+	commitMessage := bytes.NewBufferString("ENV")
+	for _, e := range c.Env {
+		name := e.Key
+		newVar := e.String()
 
-	if len(args)%2 != 0 {
-		// should never get here, but just in case
-		return errTooManyArguments("ENV")
-	}
-
-	if err := b.flags.Parse(); err != nil {
-		return err
-	}
-
-	// TODO/FIXME/NOT USED
-	// Just here to show how to use the builder flags stuff within the
-	// context of a builder command. Will remove once we actually add
-	// a builder command to something!
-	/*
-		flBool1 := b.flags.AddBool("bool1", false)
-		flStr1 := b.flags.AddString("str1", "HI")
-
-		if err := b.flags.Parse(); err != nil {
-			return err
-		}
-
-		fmt.Printf("Bool1:%v\n", flBool1)
-		fmt.Printf("Str1:%v\n", flStr1)
-	*/
-
-	commitStr := "ENV"
-
-	for j := 0; j < len(args); j++ {
-		// name  ==> args[j]
-		// value ==> args[j+1]
-
-		if len(args[j]) == 0 {
-			return errBlankCommandNames("ENV")
-		}
-
-		newVar := args[j] + "=" + args[j+1] + ""
-		commitStr += " " + newVar
-
+		commitMessage.WriteString(" " + newVar)
 		gotOne := false
-		for i, envVar := range b.runConfig.Env {
+		for i, envVar := range runConfig.Env {
 			envParts := strings.SplitN(envVar, "=", 2)
-			if envParts[0] == args[j] {
-				b.runConfig.Env[i] = newVar
+			compareFrom := envParts[0]
+			if shell.EqualEnvKeys(compareFrom, name) {
+				runConfig.Env[i] = newVar
 				gotOne = true
 				break
 			}
 		}
 		if !gotOne {
-			b.runConfig.Env = append(b.runConfig.Env, newVar)
+			runConfig.Env = append(runConfig.Env, newVar)
 		}
-		j++
 	}
-
-	return b.commit("", b.runConfig.Cmd, commitStr)
+	return d.builder.commit(d.state, commitMessage.String())
 }
 
 // MAINTAINER some text <maybe@an.email.address>
 //
 // Sets the maintainer metadata.
-func maintainer(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if len(args) != 1 {
-		return errExactlyOneArgument("MAINTAINER")
-	}
+func dispatchMaintainer(d dispatchRequest, c *instructions.MaintainerCommand) error {
 
-	if err := b.flags.Parse(); err != nil {
-		return err
-	}
-
-	b.maintainer = args[0]
-	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("MAINTAINER %s", b.maintainer))
+	d.state.maintainer = c.Maintainer
+	return d.builder.commit(d.state, "MAINTAINER "+c.Maintainer)
 }
 
 // LABEL some json data describing the image
 //
 // Sets the Label variable foo to bar,
 //
-func label(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if len(args) == 0 {
-		return errAtLeastOneArgument("LABEL")
+func dispatchLabel(d dispatchRequest, c *instructions.LabelCommand) error {
+	if d.state.runConfig.Labels == nil {
+		d.state.runConfig.Labels = make(map[string]string)
 	}
-	if len(args)%2 != 0 {
-		// should never get here, but just in case
-		return errTooManyArguments("LABEL")
-	}
-
-	if err := b.flags.Parse(); err != nil {
-		return err
-	}
-
 	commitStr := "LABEL"
-
-	if b.runConfig.Labels == nil {
-		b.runConfig.Labels = map[string]string{}
+	for _, v := range c.Labels {
+		d.state.runConfig.Labels[v.Key] = v.Value
+		commitStr += " " + v.String()
 	}
-
-	for j := 0; j < len(args); j++ {
-		// name  ==> args[j]
-		// value ==> args[j+1]
-
-		if len(args[j]) == 0 {
-			return errBlankCommandNames("LABEL")
-		}
-
-		newVar := args[j] + "=" + args[j+1] + ""
-		commitStr += " " + newVar
-
-		b.runConfig.Labels[args[j]] = args[j+1]
-		j++
-	}
-	return b.commit("", b.runConfig.Cmd, commitStr)
+	return d.builder.commit(d.state, commitStr)
 }
 
 // ADD foo /path
 //
-// Add the file 'foo' to '/path'. Tarball and Remote URL (git, http) handling
+// Add the file 'foo' to '/path'. Tarball and Remote URL (http, https) handling
 // exist here. If you do not wish to have this automatic handling, use COPY.
 //
-func add(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if len(args) < 2 {
-		return errAtLeastTwoArguments("ADD")
-	}
+func dispatchAdd(d dispatchRequest, c *instructions.AddCommand) error {
+	downloader := newRemoteSourceDownloader(d.builder.Output, d.builder.Stdout)
+	copier := copierFromDispatchRequest(d, downloader, nil)
+	defer copier.Cleanup()
 
-	if err := b.flags.Parse(); err != nil {
+	copyInstruction, err := copier.createCopyInstruction(c.SourcesAndDest, "ADD")
+	if err != nil {
 		return err
 	}
+	copyInstruction.chownStr = c.Chown
+	copyInstruction.allowLocalDecompression = true
 
-	return b.runContextCommand(args, true, true, "ADD")
+	return d.builder.performCopy(d, copyInstruction)
 }
 
 // COPY foo /path
 //
 // Same as 'ADD' but without the tar and remote url handling.
 //
-func dispatchCopy(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if len(args) < 2 {
-		return errAtLeastTwoArguments("COPY")
+func dispatchCopy(d dispatchRequest, c *instructions.CopyCommand) error {
+	var im *imageMount
+	var err error
+	if c.From != "" {
+		im, err = d.getImageMount(c.From)
+		if err != nil {
+			return errors.Wrapf(err, "invalid from flag value %s", c.From)
+		}
 	}
-
-	if err := b.flags.Parse(); err != nil {
+	copier := copierFromDispatchRequest(d, errOnSourceDownload, im)
+	defer copier.Cleanup()
+	copyInstruction, err := copier.createCopyInstruction(c.SourcesAndDest, "COPY")
+	if err != nil {
 		return err
 	}
-
-	return b.runContextCommand(args, false, false, "COPY")
+	copyInstruction.chownStr = c.Chown
+	if c.From != "" && copyInstruction.chownStr == "" {
+		copyInstruction.preserveOwnership = true
+	}
+	return d.builder.performCopy(d, copyInstruction)
 }
 
-// FROM imagename
-//
-// This sets the image the dockerfile will build on top of.
-//
-func from(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if len(args) != 1 {
-		return errExactlyOneArgument("FROM")
+func (d *dispatchRequest) getImageMount(imageRefOrID string) (*imageMount, error) {
+	if imageRefOrID == "" {
+		// TODO: this could return the source in the default case as well?
+		return nil, nil
 	}
 
-	if err := b.flags.Parse(); err != nil {
+	var localOnly bool
+	stage, err := d.stages.get(imageRefOrID)
+	if err != nil {
+		return nil, err
+	}
+	if stage != nil {
+		imageRefOrID = stage.Image
+		localOnly = true
+	}
+	return d.builder.imageSources.Get(imageRefOrID, localOnly, d.builder.platform)
+}
+
+// FROM [--platform=platform] imagename[:tag | @digest] [AS build-stage-name]
+//
+func initializeStage(d dispatchRequest, cmd *instructions.Stage) error {
+	d.builder.imageProber.Reset()
+
+	var platform *specs.Platform
+	if v := cmd.Platform; v != "" {
+		v, err := d.getExpandedString(d.shlex, v)
+		if err != nil {
+			return errors.Wrapf(err, "failed to process arguments for platform %s", v)
+		}
+
+		p, err := platforms.Parse(v)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse platform %s", v)
+		}
+		if err := system.ValidatePlatform(p); err != nil {
+			return err
+		}
+		platform = &p
+	}
+
+	image, err := d.getFromImage(d.shlex, cmd.BaseName, platform)
+	if err != nil {
 		return err
 	}
+	state := d.state
+	if err := state.beginStage(cmd.Name, image); err != nil {
+		return err
+	}
+	if len(state.runConfig.OnBuild) > 0 {
+		triggers := state.runConfig.OnBuild
+		state.runConfig.OnBuild = nil
+		return dispatchTriggeredOnBuild(d, triggers)
+	}
+	return nil
+}
 
-	name := args[0]
+func dispatchTriggeredOnBuild(d dispatchRequest, triggers []string) error {
+	fmt.Fprintf(d.builder.Stdout, "# Executing %d build trigger", len(triggers))
+	if len(triggers) > 1 {
+		fmt.Fprint(d.builder.Stdout, "s")
+	}
+	fmt.Fprintln(d.builder.Stdout)
+	for _, trigger := range triggers {
+		d.state.updateRunConfig()
+		ast, err := parser.Parse(strings.NewReader(trigger))
+		if err != nil {
+			return err
+		}
+		if len(ast.AST.Children) != 1 {
+			return errors.New("onbuild trigger should be a single expression")
+		}
+		cmd, err := instructions.ParseCommand(ast.AST.Children[0])
+		if err != nil {
+			if instructions.IsUnknownInstruction(err) {
+				buildsFailed.WithValues(metricsUnknownInstructionError).Inc()
+			}
+			return err
+		}
+		err = dispatch(d, cmd)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-	var (
-		image builder.Image
-		err   error
-	)
+func (d *dispatchRequest) getExpandedString(shlex *shell.Lex, str string) (string, error) {
+	substitutionArgs := []string{}
+	for key, value := range d.state.buildArgs.GetAllMeta() {
+		substitutionArgs = append(substitutionArgs, key+"="+value)
+	}
 
-	// Windows cannot support a container with no base image.
+	name, err := shlex.ProcessWord(str, substitutionArgs)
+	if err != nil {
+		return "", err
+	}
+	return name, nil
+}
+
+func (d *dispatchRequest) getImageOrStage(name string, platform *specs.Platform) (builder.Image, error) {
+	var localOnly bool
+	if im, ok := d.stages.getByName(name); ok {
+		name = im.Image
+		localOnly = true
+	}
+
+	if platform == nil {
+		platform = d.builder.platform
+	}
+
+	// Windows cannot support a container with no base image unless it is LCOW.
 	if name == api.NoBaseImageSpecifier {
+		p := platforms.DefaultSpec()
+		if platform != nil {
+			p = *platform
+		}
+		imageImage := &image.Image{}
+		imageImage.OS = p.OS
+
+		// old windows scratch handling
+		// TODO: scratch should not have an os. It should be nil image.
+		// Windows supports scratch. What is not supported is running containers
+		// from it.
 		if runtime.GOOS == "windows" {
-			return fmt.Errorf("Windows does not support FROM scratch")
-		}
-		b.image = ""
-		b.noBaseImage = true
-	} else {
-		// TODO: don't use `name`, instead resolve it to a digest
-		if !b.options.PullParent {
-			image, err = b.docker.GetImageOnBuild(name)
-			// TODO: shouldn't we error out if error is different from "not found" ?
-		}
-		if image == nil {
-			image, err = b.docker.PullOnBuild(b.clientCtx, name, b.options.AuthConfigs, b.Output)
-			if err != nil {
-				return err
+			if platform == nil || platform.OS == "linux" {
+				if !system.LCOWSupported() {
+					return nil, errors.New("Linux containers are not supported on this system")
+				}
+				imageImage.OS = "linux"
+			} else if platform.OS == "windows" {
+				return nil, errors.New("Windows does not support FROM scratch")
+			} else {
+				return nil, errors.Errorf("platform %s is not supported", platforms.Format(p))
 			}
 		}
+		return builder.Image(imageImage), nil
+	}
+	imageMount, err := d.builder.imageSources.Get(name, localOnly, platform)
+	if err != nil {
+		return nil, err
+	}
+	return imageMount.Image(), nil
+}
+func (d *dispatchRequest) getFromImage(shlex *shell.Lex, basename string, platform *specs.Platform) (builder.Image, error) {
+	name, err := d.getExpandedString(shlex, basename)
+	if err != nil {
+		return nil, err
+	}
+	// Empty string is interpreted to FROM scratch by images.GetImageAndReleasableLayer,
+	// so validate expanded result is not empty.
+	if name == "" {
+		return nil, errors.Errorf("base name (%s) should not be blank", basename)
 	}
 
-	return b.processImageFrom(image)
+	return d.getImageOrStage(name, platform)
 }
 
-// ONBUILD RUN echo yo
-//
-// ONBUILD triggers run when the image is used in a FROM statement.
-//
-// ONBUILD handling has a lot of special-case functionality, the heading in
-// evaluator.go and comments around dispatch() in the same file explain the
-// special cases. search for 'OnBuild' in internals.go for additional special
-// cases.
-//
-func onbuild(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if len(args) == 0 {
-		return errAtLeastOneArgument("ONBUILD")
-	}
-
-	if err := b.flags.Parse(); err != nil {
-		return err
-	}
-
-	triggerInstruction := strings.ToUpper(strings.TrimSpace(args[0]))
-	switch triggerInstruction {
-	case "ONBUILD":
-		return fmt.Errorf("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
-	case "MAINTAINER", "FROM":
-		return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", triggerInstruction)
-	}
-
-	original = regexp.MustCompile(`(?i)^\s*ONBUILD\s*`).ReplaceAllString(original, "")
-
-	b.runConfig.OnBuild = append(b.runConfig.OnBuild, original)
-	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ONBUILD %s", original))
+func dispatchOnbuild(d dispatchRequest, c *instructions.OnbuildCommand) error {
+	d.state.runConfig.OnBuild = append(d.state.runConfig.OnBuild, c.Expression)
+	return d.builder.commit(d.state, "ONBUILD "+c.Expression)
 }
 
 // WORKDIR /tmp
 //
 // Set the working directory for future RUN/CMD/etc statements.
 //
-func workdir(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if len(args) != 1 {
-		return errExactlyOneArgument("WORKDIR")
-	}
-
-	err := b.flags.Parse()
+func dispatchWorkdir(d dispatchRequest, c *instructions.WorkdirCommand) error {
+	runConfig := d.state.runConfig
+	var err error
+	runConfig.WorkingDir, err = normalizeWorkdir(d.state.operatingSystem, runConfig.WorkingDir, c.Path)
 	if err != nil {
 		return err
 	}
 
-	// This is from the Dockerfile and will not necessarily be in platform
-	// specific semantics, hence ensure it is converted.
-	b.runConfig.WorkingDir, err = normaliseWorkdir(b.runConfig.WorkingDir, args[0])
-	if err != nil {
+	// For performance reasons, we explicitly do a create/mkdir now
+	// This avoids having an unnecessary expensive mount/unmount calls
+	// (on Windows in particular) during each container create.
+	// Prior to 1.13, the mkdir was deferred and not executed at this step.
+	if d.builder.disableCommit {
+		// Don't call back into the daemon if we're going through docker commit --change "WORKDIR /foo".
+		// We've already updated the runConfig and that's enough.
+		return nil
+	}
+
+	comment := "WORKDIR " + runConfig.WorkingDir
+	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment, d.state.operatingSystem))
+
+	containerID, err := d.builder.probeAndCreate(d.state, runConfigWithCommentCmd)
+	if err != nil || containerID == "" {
 		return err
 	}
 
-	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("WORKDIR %v", b.runConfig.WorkingDir))
+	if err := d.builder.docker.ContainerCreateWorkdir(containerID); err != nil {
+		return err
+	}
+
+	return d.builder.commitContainer(d.state, containerID, runConfigWithCommentCmd)
 }
 
 // RUN some command yo
@@ -287,117 +337,92 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 // the current SHELL which defaults to 'sh -c' under linux or 'cmd /S /C' under
 // Windows, in the event there is only one argument The difference in processing:
 //
-// RUN echo hi          # sh -c echo hi       (Linux)
+// RUN echo hi          # sh -c echo hi       (Linux and LCOW)
 // RUN echo hi          # cmd /S /C echo hi   (Windows)
 // RUN [ "echo", "hi" ] # echo hi
 //
-func run(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if b.image == "" && !b.noBaseImage {
-		return fmt.Errorf("Please provide a source image with `from` prior to run")
+func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
+	if !system.IsOSSupported(d.state.operatingSystem) {
+		return system.ErrNotSupportedOperatingSystem
+	}
+	stateRunConfig := d.state.runConfig
+	cmdFromArgs, argsEscaped := resolveCmdLine(c.ShellDependantCmdLine, stateRunConfig, d.state.operatingSystem, c.Name(), c.String())
+	buildArgs := d.state.buildArgs.FilterAllowed(stateRunConfig.Env)
+
+	saveCmd := cmdFromArgs
+	if len(buildArgs) > 0 {
+		saveCmd = prependEnvOnCmd(d.state.buildArgs, buildArgs, cmdFromArgs)
 	}
 
-	if err := b.flags.Parse(); err != nil {
+	runConfigForCacheProbe := copyRunConfig(stateRunConfig,
+		withCmd(saveCmd),
+		withArgsEscaped(argsEscaped),
+		withEntrypointOverride(saveCmd, nil))
+	if hit, err := d.builder.probeCache(d.state, runConfigForCacheProbe); err != nil || hit {
 		return err
 	}
 
-	args = handleJSONArgs(args, attributes)
+	runConfig := copyRunConfig(stateRunConfig,
+		withCmd(cmdFromArgs),
+		withArgsEscaped(argsEscaped),
+		withEnv(append(stateRunConfig.Env, buildArgs...)),
+		withEntrypointOverride(saveCmd, strslice.StrSlice{""}),
+		withoutHealthcheck())
 
-	if !attributes["json"] {
-		args = append(getShell(b.runConfig), args...)
-	}
-	config := &container.Config{
-		Cmd:   strslice.StrSlice(args),
-		Image: b.image,
-	}
-
-	// stash the cmd
-	cmd := b.runConfig.Cmd
-	if len(b.runConfig.Entrypoint) == 0 && len(b.runConfig.Cmd) == 0 {
-		b.runConfig.Cmd = config.Cmd
-	}
-
-	// stash the config environment
-	env := b.runConfig.Env
-
-	defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
-	defer func(env []string) { b.runConfig.Env = env }(env)
-
-	// derive the net build-time environment for this run. We let config
-	// environment override the build time environment.
-	// This means that we take the b.buildArgs list of env vars and remove
-	// any of those variables that are defined as part of the container. In other
-	// words, anything in b.Config.Env. What's left is the list of build-time env
-	// vars that we need to add to each RUN command - note the list could be empty.
-	//
-	// We don't persist the build time environment with container's config
-	// environment, but just sort and prepend it to the command string at time
-	// of commit.
-	// This helps with tracing back the image's actual environment at the time
-	// of RUN, without leaking it to the final image. It also aids cache
-	// lookup for same image built with same build time environment.
-	cmdBuildEnv := []string{}
-	configEnv := runconfigopts.ConvertKVStringsToMap(b.runConfig.Env)
-	for key, val := range b.options.BuildArgs {
-		if !b.isBuildArgAllowed(key) {
-			// skip build-args that are not in allowed list, meaning they have
-			// not been defined by an "ARG" Dockerfile command yet.
-			// This is an error condition but only if there is no "ARG" in the entire
-			// Dockerfile, so we'll generate any necessary errors after we parsed
-			// the entire file (see 'leftoverArgs' processing in evaluator.go )
-			continue
-		}
-		if _, ok := configEnv[key]; !ok {
-			cmdBuildEnv = append(cmdBuildEnv, fmt.Sprintf("%s=%s", key, val))
-		}
-	}
-
-	// derive the command to use for probeCache() and to commit in this container.
-	// Note that we only do this if there are any build-time env vars.  Also, we
-	// use the special argument "|#" at the start of the args array. This will
-	// avoid conflicts with any RUN command since commands can not
-	// start with | (vertical bar). The "#" (number of build envs) is there to
-	// help ensure proper cache matches. We don't want a RUN command
-	// that starts with "foo=abc" to be considered part of a build-time env var.
-	saveCmd := config.Cmd
-	if len(cmdBuildEnv) > 0 {
-		sort.Strings(cmdBuildEnv)
-		tmpEnv := append([]string{fmt.Sprintf("|%d", len(cmdBuildEnv))}, cmdBuildEnv...)
-		saveCmd = strslice.StrSlice(append(tmpEnv, saveCmd...))
-	}
-
-	b.runConfig.Cmd = saveCmd
-	hit, err := b.probeCache()
-	if err != nil {
-		return err
-	}
-	if hit {
-		return nil
-	}
-
-	// set Cmd manually, this is special case only for Dockerfiles
-	b.runConfig.Cmd = config.Cmd
-	// set build-time environment for 'run'.
-	b.runConfig.Env = append(b.runConfig.Env, cmdBuildEnv...)
-	// set config as already being escaped, this prevents double escaping on windows
-	b.runConfig.ArgsEscaped = true
-
-	logrus.Debugf("[BUILDER] Command to be executed: %v", b.runConfig.Cmd)
-
-	cID, err := b.create()
+	cID, err := d.builder.create(runConfig)
 	if err != nil {
 		return err
 	}
 
-	if err := b.run(cID); err != nil {
+	if err := d.builder.containerManager.Run(d.builder.clientCtx, cID, d.builder.Stdout, d.builder.Stderr); err != nil {
+		if err, ok := err.(*statusCodeError); ok {
+			// TODO: change error type, because jsonmessage.JSONError assumes HTTP
+			msg := fmt.Sprintf(
+				"The command '%s' returned a non-zero code: %d",
+				strings.Join(runConfig.Cmd, " "), err.StatusCode())
+			if err.Error() != "" {
+				msg = fmt.Sprintf("%s: %s", msg, err.Error())
+			}
+			return &jsonmessage.JSONError{
+				Message: msg,
+				Code:    err.StatusCode(),
+			}
+		}
 		return err
 	}
 
-	// revert to original config environment and set the command string to
-	// have the build-time env vars in it (if any) so that future cache look-ups
-	// properly match it.
-	b.runConfig.Env = env
-	b.runConfig.Cmd = saveCmd
-	return b.commit(cID, cmd, "run")
+	// Don't persist the argsEscaped value in the committed image. Use the original
+	// from previous build steps (only CMD and ENTRYPOINT persist this).
+	if d.state.operatingSystem == "windows" {
+		runConfigForCacheProbe.ArgsEscaped = stateRunConfig.ArgsEscaped
+	}
+
+	return d.builder.commitContainer(d.state, cID, runConfigForCacheProbe)
+}
+
+// Derive the command to use for probeCache() and to commit in this container.
+// Note that we only do this if there are any build-time env vars.  Also, we
+// use the special argument "|#" at the start of the args array. This will
+// avoid conflicts with any RUN command since commands can not
+// start with | (vertical bar). The "#" (number of build envs) is there to
+// help ensure proper cache matches. We don't want a RUN command
+// that starts with "foo=abc" to be considered part of a build-time env var.
+//
+// remove any unreferenced built-in args from the environment variables.
+// These args are transparent so resulting image should be the same regardless
+// of the value.
+func prependEnvOnCmd(buildArgs *BuildArgs, buildArgVars []string, cmd strslice.StrSlice) strslice.StrSlice {
+	var tmpBuildEnv []string
+	for _, env := range buildArgVars {
+		key := strings.SplitN(env, "=", 2)[0]
+		if buildArgs.IsReferencedOrNotBuiltin(key) {
+			tmpBuildEnv = append(tmpBuildEnv, env)
+		}
+	}
+
+	sort.Strings(tmpBuildEnv)
+	tmpEnv := append([]string{fmt.Sprintf("|%d", len(tmpBuildEnv))}, tmpBuildEnv...)
+	return strslice.StrSlice(append(tmpEnv, cmd...))
 }
 
 // CMD foo
@@ -405,47 +430,30 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 // Set the default command to run in the container (which may be empty).
 // Argument handling is the same as RUN.
 //
-func cmd(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if err := b.flags.Parse(); err != nil {
+func dispatchCmd(d dispatchRequest, c *instructions.CmdCommand) error {
+	runConfig := d.state.runConfig
+	cmd, argsEscaped := resolveCmdLine(c.ShellDependantCmdLine, runConfig, d.state.operatingSystem, c.Name(), c.String())
+
+	// We warn here as Windows shell processing operates differently to Linux.
+	// Linux:   /bin/sh -c "echo hello" world	--> hello
+	// Windows: cmd /s /c "echo hello" world	--> hello world
+	if d.state.operatingSystem == "windows" &&
+		len(runConfig.Entrypoint) > 0 &&
+		d.state.runConfig.ArgsEscaped != argsEscaped {
+		fmt.Fprintf(d.builder.Stderr, " ---> [Warning] Shell-form ENTRYPOINT and exec-form CMD may have unexpected results\n")
+	}
+
+	runConfig.Cmd = cmd
+	runConfig.ArgsEscaped = argsEscaped
+
+	if err := d.builder.commit(d.state, fmt.Sprintf("CMD %q", cmd)); err != nil {
 		return err
 	}
-
-	cmdSlice := handleJSONArgs(args, attributes)
-
-	if !attributes["json"] {
-		cmdSlice = append(getShell(b.runConfig), cmdSlice...)
-	}
-
-	b.runConfig.Cmd = strslice.StrSlice(cmdSlice)
-	// set config as already being escaped, this prevents double escaping on windows
-	b.runConfig.ArgsEscaped = true
-
-	if err := b.commit("", b.runConfig.Cmd, fmt.Sprintf("CMD %q", cmdSlice)); err != nil {
-		return err
-	}
-
-	if len(args) != 0 {
-		b.cmdSet = true
+	if len(c.ShellDependantCmdLine.CmdLine) != 0 {
+		d.state.cmdSet = true
 	}
 
 	return nil
-}
-
-// parseOptInterval(flag) is the duration of flag.Value, or 0 if
-// empty. An error is reported if the value is given and is not positive.
-func parseOptInterval(f *Flag) (time.Duration, error) {
-	s := f.Value
-	if s == "" {
-		return 0, nil
-	}
-	d, err := time.ParseDuration(s)
-	if err != nil {
-		return 0, err
-	}
-	if d <= 0 {
-		return 0, fmt.Errorf("Interval %#v must be positive", f.name)
-	}
-	return d, nil
 }
 
 // HEALTHCHECK foo
@@ -453,83 +461,16 @@ func parseOptInterval(f *Flag) (time.Duration, error) {
 // Set the default healthcheck command to run in the container (which may be empty).
 // Argument handling is the same as RUN.
 //
-func healthcheck(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if len(args) == 0 {
-		return errAtLeastOneArgument("HEALTHCHECK")
+func dispatchHealthcheck(d dispatchRequest, c *instructions.HealthCheckCommand) error {
+	runConfig := d.state.runConfig
+	if runConfig.Healthcheck != nil {
+		oldCmd := runConfig.Healthcheck.Test
+		if len(oldCmd) > 0 && oldCmd[0] != "NONE" {
+			fmt.Fprintf(d.builder.Stdout, "Note: overriding previous HEALTHCHECK: %v\n", oldCmd)
+		}
 	}
-	typ := strings.ToUpper(args[0])
-	args = args[1:]
-	if typ == "NONE" {
-		if len(args) != 0 {
-			return fmt.Errorf("HEALTHCHECK NONE takes no arguments")
-		}
-		test := strslice.StrSlice{typ}
-		b.runConfig.Healthcheck = &container.HealthConfig{
-			Test: test,
-		}
-	} else {
-		if b.runConfig.Healthcheck != nil {
-			oldCmd := b.runConfig.Healthcheck.Test
-			if len(oldCmd) > 0 && oldCmd[0] != "NONE" {
-				fmt.Fprintf(b.Stdout, "Note: overriding previous HEALTHCHECK: %v\n", oldCmd)
-			}
-		}
-
-		healthcheck := container.HealthConfig{}
-
-		flInterval := b.flags.AddString("interval", "")
-		flTimeout := b.flags.AddString("timeout", "")
-		flRetries := b.flags.AddString("retries", "")
-
-		if err := b.flags.Parse(); err != nil {
-			return err
-		}
-
-		switch typ {
-		case "CMD":
-			cmdSlice := handleJSONArgs(args, attributes)
-			if len(cmdSlice) == 0 {
-				return fmt.Errorf("Missing command after HEALTHCHECK CMD")
-			}
-
-			if !attributes["json"] {
-				typ = "CMD-SHELL"
-			}
-
-			healthcheck.Test = strslice.StrSlice(append([]string{typ}, cmdSlice...))
-		default:
-			return fmt.Errorf("Unknown type %#v in HEALTHCHECK (try CMD)", typ)
-		}
-
-		interval, err := parseOptInterval(flInterval)
-		if err != nil {
-			return err
-		}
-		healthcheck.Interval = interval
-
-		timeout, err := parseOptInterval(flTimeout)
-		if err != nil {
-			return err
-		}
-		healthcheck.Timeout = timeout
-
-		if flRetries.Value != "" {
-			retries, err := strconv.ParseInt(flRetries.Value, 10, 32)
-			if err != nil {
-				return err
-			}
-			if retries < 1 {
-				return fmt.Errorf("--retries must be at least 1 (not %d)", retries)
-			}
-			healthcheck.Retries = int(retries)
-		} else {
-			healthcheck.Retries = 0
-		}
-
-		b.runConfig.Healthcheck = &healthcheck
-	}
-
-	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("HEALTHCHECK %q", b.runConfig.Healthcheck))
+	runConfig.Healthcheck = c.Health
+	return d.builder.commit(d.state, fmt.Sprintf("HEALTHCHECK %q", runConfig.Healthcheck))
 }
 
 // ENTRYPOINT /usr/sbin/nginx
@@ -537,80 +478,66 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 // Set the entrypoint to /usr/sbin/nginx. Will accept the CMD as the arguments
 // to /usr/sbin/nginx. Uses the default shell if not in JSON format.
 //
-// Handles command processing similar to CMD and RUN, only b.runConfig.Entrypoint
-// is initialized at NewBuilder time instead of through argument parsing.
+// Handles command processing similar to CMD and RUN, only req.runConfig.Entrypoint
+// is initialized at newBuilder time instead of through argument parsing.
 //
-func entrypoint(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if err := b.flags.Parse(); err != nil {
-		return err
+func dispatchEntrypoint(d dispatchRequest, c *instructions.EntrypointCommand) error {
+	runConfig := d.state.runConfig
+	cmd, argsEscaped := resolveCmdLine(c.ShellDependantCmdLine, runConfig, d.state.operatingSystem, c.Name(), c.String())
+
+	// This warning is a little more complex than in dispatchCmd(), as the Windows base images (similar
+	// universally to almost every Linux image out there) have a single .Cmd field populated so that
+	// `docker run --rm image` starts the default shell which would typically be sh on Linux,
+	// or cmd on Windows. The catch to this is that if a dockerfile had `CMD ["c:\\windows\\system32\\cmd.exe"]`,
+	// we wouldn't be able to tell the difference. However, that would be highly unlikely, and besides, this
+	// is only trying to give a helpful warning of possibly unexpected results.
+	if d.state.operatingSystem == "windows" &&
+		d.state.runConfig.ArgsEscaped != argsEscaped &&
+		((len(runConfig.Cmd) == 1 && strings.ToLower(runConfig.Cmd[0]) != `c:\windows\system32\cmd.exe` && len(runConfig.Shell) == 0) || (len(runConfig.Cmd) > 1)) {
+		fmt.Fprintf(d.builder.Stderr, " ---> [Warning] Shell-form CMD and exec-form ENTRYPOINT may have unexpected results\n")
 	}
 
-	parsed := handleJSONArgs(args, attributes)
-
-	switch {
-	case attributes["json"]:
-		// ENTRYPOINT ["echo", "hi"]
-		b.runConfig.Entrypoint = strslice.StrSlice(parsed)
-	case len(parsed) == 0:
-		// ENTRYPOINT []
-		b.runConfig.Entrypoint = nil
-	default:
-		// ENTRYPOINT echo hi
-		b.runConfig.Entrypoint = strslice.StrSlice(append(getShell(b.runConfig), parsed[0]))
+	runConfig.Entrypoint = cmd
+	runConfig.ArgsEscaped = argsEscaped
+	if !d.state.cmdSet {
+		runConfig.Cmd = nil
 	}
 
-	// when setting the entrypoint if a CMD was not explicitly set then
-	// set the command to nil
-	if !b.cmdSet {
-		b.runConfig.Cmd = nil
-	}
-
-	if err := b.commit("", b.runConfig.Cmd, fmt.Sprintf("ENTRYPOINT %q", b.runConfig.Entrypoint)); err != nil {
-		return err
-	}
-
-	return nil
+	return d.builder.commit(d.state, fmt.Sprintf("ENTRYPOINT %q", runConfig.Entrypoint))
 }
 
 // EXPOSE 6667/tcp 7000/tcp
 //
 // Expose ports for links and port mappings. This all ends up in
-// b.runConfig.ExposedPorts for runconfig.
+// req.runConfig.ExposedPorts for runconfig.
 //
-func expose(b *Builder, args []string, attributes map[string]bool, original string) error {
-	portsTab := args
-
-	if len(args) == 0 {
-		return errAtLeastOneArgument("EXPOSE")
+func dispatchExpose(d dispatchRequest, c *instructions.ExposeCommand, envs []string) error {
+	// custom multi word expansion
+	// expose $FOO with FOO="80 443" is expanded as EXPOSE [80,443]. This is the only command supporting word to words expansion
+	// so the word processing has been de-generalized
+	ports := []string{}
+	for _, p := range c.Ports {
+		ps, err := d.shlex.ProcessWords(p, envs)
+		if err != nil {
+			return err
+		}
+		ports = append(ports, ps...)
 	}
+	c.Ports = ports
 
-	if err := b.flags.Parse(); err != nil {
-		return err
-	}
-
-	if b.runConfig.ExposedPorts == nil {
-		b.runConfig.ExposedPorts = make(nat.PortSet)
-	}
-
-	ports, _, err := nat.ParsePortSpecs(portsTab)
+	ps, _, err := nat.ParsePortSpecs(ports)
 	if err != nil {
 		return err
 	}
 
-	// instead of using ports directly, we build a list of ports and sort it so
-	// the order is consistent. This prevents cache burst where map ordering
-	// changes between builds
-	portList := make([]string, len(ports))
-	var i int
-	for port := range ports {
-		if _, exists := b.runConfig.ExposedPorts[port]; !exists {
-			b.runConfig.ExposedPorts[port] = struct{}{}
-		}
-		portList[i] = string(port)
-		i++
+	if d.state.runConfig.ExposedPorts == nil {
+		d.state.runConfig.ExposedPorts = make(nat.PortSet)
 	}
-	sort.Strings(portList)
-	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("EXPOSE %s", strings.Join(portList, " ")))
+	for p := range ps {
+		d.state.runConfig.ExposedPorts[p] = struct{}{}
+	}
+
+	return d.builder.commit(d.state, "EXPOSE "+strings.Join(c.Ports, " "))
 }
 
 // USER foo
@@ -618,161 +545,61 @@ func expose(b *Builder, args []string, attributes map[string]bool, original stri
 // Set the user to 'foo' for future commands and when running the
 // ENTRYPOINT/CMD at container run time.
 //
-func user(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if len(args) != 1 {
-		return errExactlyOneArgument("USER")
-	}
-
-	if err := b.flags.Parse(); err != nil {
-		return err
-	}
-
-	b.runConfig.User = args[0]
-	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("USER %v", args))
+func dispatchUser(d dispatchRequest, c *instructions.UserCommand) error {
+	d.state.runConfig.User = c.User
+	return d.builder.commit(d.state, fmt.Sprintf("USER %v", c.User))
 }
 
 // VOLUME /foo
 //
 // Expose the volume /foo for use. Will also accept the JSON array form.
 //
-func volume(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if len(args) == 0 {
-		return errAtLeastOneArgument("VOLUME")
+func dispatchVolume(d dispatchRequest, c *instructions.VolumeCommand) error {
+	if d.state.runConfig.Volumes == nil {
+		d.state.runConfig.Volumes = map[string]struct{}{}
 	}
-
-	if err := b.flags.Parse(); err != nil {
-		return err
-	}
-
-	if b.runConfig.Volumes == nil {
-		b.runConfig.Volumes = map[string]struct{}{}
-	}
-	for _, v := range args {
-		v = strings.TrimSpace(v)
+	for _, v := range c.Volumes {
 		if v == "" {
-			return fmt.Errorf("VOLUME specified can not be an empty string")
+			return errors.New("VOLUME specified can not be an empty string")
 		}
-		b.runConfig.Volumes[v] = struct{}{}
+		d.state.runConfig.Volumes[v] = struct{}{}
 	}
-	if err := b.commit("", b.runConfig.Cmd, fmt.Sprintf("VOLUME %v", args)); err != nil {
-		return err
-	}
-	return nil
+	return d.builder.commit(d.state, fmt.Sprintf("VOLUME %v", c.Volumes))
 }
 
 // STOPSIGNAL signal
 //
 // Set the signal that will be used to kill the container.
-func stopSignal(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if len(args) != 1 {
-		return errExactlyOneArgument("STOPSIGNAL")
-	}
+func dispatchStopSignal(d dispatchRequest, c *instructions.StopSignalCommand) error {
 
-	sig := args[0]
-	_, err := signal.ParseSignal(sig)
+	_, err := signal.ParseSignal(c.Signal)
 	if err != nil {
-		return err
+		return errdefs.InvalidParameter(err)
 	}
-
-	b.runConfig.StopSignal = sig
-	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("STOPSIGNAL %v", args))
+	d.state.runConfig.StopSignal = c.Signal
+	return d.builder.commit(d.state, fmt.Sprintf("STOPSIGNAL %v", c.Signal))
 }
 
 // ARG name[=value]
 //
 // Adds the variable foo to the trusted list of variables that can be passed
-// to builder using the --build-arg flag for expansion/subsitution or passing to 'run'.
+// to builder using the --build-arg flag for expansion/substitution or passing to 'run'.
 // Dockerfile author may optionally set a default value of this variable.
-func arg(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if len(args) != 1 {
-		return errExactlyOneArgument("ARG")
+func dispatchArg(d dispatchRequest, c *instructions.ArgCommand) error {
+
+	commitStr := "ARG " + c.Key
+	if c.Value != nil {
+		commitStr += "=" + *c.Value
 	}
 
-	var (
-		name       string
-		value      string
-		hasDefault bool
-	)
-
-	arg := args[0]
-	// 'arg' can just be a name or name-value pair. Note that this is different
-	// from 'env' that handles the split of name and value at the parser level.
-	// The reason for doing it differently for 'arg' is that we support just
-	// defining an arg and not assign it a value (while 'env' always expects a
-	// name-value pair). If possible, it will be good to harmonize the two.
-	if strings.Contains(arg, "=") {
-		parts := strings.SplitN(arg, "=", 2)
-		if len(parts[0]) == 0 {
-			return errBlankCommandNames("ARG")
-		}
-
-		name = parts[0]
-		value = parts[1]
-		hasDefault = true
-	} else {
-		name = arg
-		hasDefault = false
-	}
-	// add the arg to allowed list of build-time args from this step on.
-	b.allowedBuildArgs[name] = true
-
-	// If there is a default value associated with this arg then add it to the
-	// b.buildArgs if one is not already passed to the builder. The args passed
-	// to builder override the default value of 'arg'.
-	if _, ok := b.options.BuildArgs[name]; !ok && hasDefault {
-		b.options.BuildArgs[name] = value
-	}
-
-	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))
+	d.state.buildArgs.AddArg(c.Key, c.Value)
+	return d.builder.commit(d.state, commitStr)
 }
 
 // SHELL powershell -command
 //
 // Set the non-default shell to use.
-func shell(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if err := b.flags.Parse(); err != nil {
-		return err
-	}
-	shellSlice := handleJSONArgs(args, attributes)
-	switch {
-	case len(shellSlice) == 0:
-		// SHELL []
-		return errAtLeastOneArgument("SHELL")
-	case attributes["json"]:
-		// SHELL ["powershell", "-command"]
-		b.runConfig.Shell = strslice.StrSlice(shellSlice)
-	default:
-		// SHELL powershell -command - not JSON
-		return errNotJSON("SHELL", original)
-	}
-	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("SHELL %v", shellSlice))
-}
-
-func errAtLeastOneArgument(command string) error {
-	return fmt.Errorf("%s requires at least one argument", command)
-}
-
-func errExactlyOneArgument(command string) error {
-	return fmt.Errorf("%s requires exactly one argument", command)
-}
-
-func errAtLeastTwoArguments(command string) error {
-	return fmt.Errorf("%s requires at least two arguments", command)
-}
-
-func errBlankCommandNames(command string) error {
-	return fmt.Errorf("%s names can not be blank", command)
-}
-
-func errTooManyArguments(command string) error {
-	return fmt.Errorf("Bad input to %s, too many arguments", command)
-}
-
-// getShell is a helper function which gets the right shell for prefixing the
-// shell-form of RUN, ENTRYPOINT and CMD instructions
-func getShell(c *container.Config) []string {
-	if 0 == len(c.Shell) {
-		return defaultShell[:]
-	}
-	return c.Shell[:]
+func dispatchShell(d dispatchRequest, c *instructions.ShellCommand) error {
+	d.state.runConfig.Shell = c.Shell
+	return d.builder.commit(d.state, fmt.Sprintf("SHELL %v", d.state.runConfig.Shell))
 }

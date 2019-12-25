@@ -136,7 +136,7 @@ func TestParseWithMultipleFuncs(t *testing.T) {
 	}
 }
 
-func TestParseWithUnamedReturn(t *testing.T) {
+func TestParseWithUnnamedReturn(t *testing.T) {
 	_, err := Parse(testFixture, "Fooer4")
 	if !strings.HasSuffix(err.Error(), errBadReturn.Error()) {
 		t.Fatalf("expected ErrBadReturn, got %v", err)

@@ -2,33 +2,42 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"context"
 	"io"
 	"net"
 	"net/http"
 	"strings"
+	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/go-check/check"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil/request"
+	"github.com/docker/go-connections/sockets"
+	"github.com/pkg/errors"
 	"golang.org/x/net/websocket"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
-func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
+func (s *DockerSuite) TestGetContainersAttachWebsocket(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-dit", "busybox", "cat")
 
-	rwc, err := sockConn(time.Duration(10*time.Second), "")
-	c.Assert(err, checker.IsNil)
+	rwc, err := request.SockConn(10*time.Second, request.DaemonHost())
+	assert.NilError(c, err)
 
 	cleanedContainerID := strings.TrimSpace(out)
 	config, err := websocket.NewConfig(
 		"/containers/"+cleanedContainerID+"/attach/ws?stream=1&stdin=1&stdout=1&stderr=1",
 		"http://localhost",
 	)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	ws, err := websocket.NewClient(config, rwc)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer ws.Close()
 
 	expected := []byte("hello")
@@ -50,122 +59,234 @@ func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
 
 	select {
 	case err := <-inChan:
-		c.Assert(err, checker.IsNil)
+		assert.NilError(c, err)
 	case <-time.After(5 * time.Second):
 		c.Fatal("Timeout writing to ws")
 	}
 
 	select {
 	case err := <-outChan:
-		c.Assert(err, checker.IsNil)
+		assert.NilError(c, err)
 	case <-time.After(5 * time.Second):
 		c.Fatal("Timeout reading from ws")
 	}
 
-	c.Assert(actual, checker.DeepEquals, expected, check.Commentf("Websocket didn't return the expected data"))
+	assert.Assert(c, is.DeepEqual(actual, expected), "Websocket didn't return the expected data")
 }
 
 // regression gh14320
-func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *check.C) {
-	req, client, err := newRequestClient("POST", "/containers/doesnotexist/attach", nil, "", "")
-	c.Assert(err, checker.IsNil)
-
-	resp, err := client.Do(req)
+func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *testing.T) {
+	resp, _, err := request.Post("/containers/doesnotexist/attach")
+	assert.NilError(c, err)
 	// connection will shutdown, err should be "persistent connection closed"
-	c.Assert(err, checker.NotNil) // Server shutdown connection
-
-	body, err := readBody(resp.Body)
-	c.Assert(err, checker.IsNil)
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusNotFound)
+	assert.Equal(c, resp.StatusCode, http.StatusNotFound)
+	content, err := request.ReadBody(resp.Body)
+	assert.NilError(c, err)
 	expected := "No such container: doesnotexist\r\n"
-	c.Assert(string(body), checker.Equals, expected)
+	assert.Equal(c, string(content), expected)
 }
 
-func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *check.C) {
-	status, body, err := sockRequest("GET", "/containers/doesnotexist/attach/ws", nil)
-	c.Assert(status, checker.Equals, http.StatusNotFound)
-	c.Assert(err, checker.IsNil)
+func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *testing.T) {
+	res, body, err := request.Get("/containers/doesnotexist/attach/ws")
+	assert.Equal(c, res.StatusCode, http.StatusNotFound)
+	assert.NilError(c, err)
+	b, err := request.ReadBody(body)
+	assert.NilError(c, err)
 	expected := "No such container: doesnotexist"
-	c.Assert(getErrorMessage(c, body), checker.Contains, expected)
+	assert.Assert(c, strings.Contains(getErrorMessage(c, b), expected))
 }
 
-func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
+func (s *DockerSuite) TestPostContainersAttach(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
-	expectSuccess := func(conn net.Conn, br *bufio.Reader, stream string, tty bool) {
-		defer conn.Close()
+	expectSuccess := func(wc io.WriteCloser, br *bufio.Reader, stream string, tty bool) {
+		defer wc.Close()
 		expected := []byte("success")
-		_, err := conn.Write(expected)
-		c.Assert(err, checker.IsNil)
+		_, err := wc.Write(expected)
+		assert.NilError(c, err)
 
-		conn.SetReadDeadline(time.Now().Add(time.Second))
 		lenHeader := 0
 		if !tty {
 			lenHeader = 8
 		}
 		actual := make([]byte, len(expected)+lenHeader)
-		_, err = io.ReadFull(br, actual)
-		c.Assert(err, checker.IsNil)
+		_, err = readTimeout(br, actual, time.Second)
+		assert.NilError(c, err)
 		if !tty {
 			fdMap := map[string]byte{
 				"stdin":  0,
 				"stdout": 1,
 				"stderr": 2,
 			}
-			c.Assert(actual[0], checker.Equals, fdMap[stream])
+			assert.Equal(c, actual[0], fdMap[stream])
 		}
-		c.Assert(actual[lenHeader:], checker.DeepEquals, expected, check.Commentf("Attach didn't return the expected data from %s", stream))
+		assert.Assert(c, is.DeepEqual(actual[lenHeader:], expected), "Attach didn't return the expected data from %s", stream)
 	}
 
-	expectTimeout := func(conn net.Conn, br *bufio.Reader, stream string) {
-		defer conn.Close()
-		_, err := conn.Write([]byte{'t'})
-		c.Assert(err, checker.IsNil)
+	expectTimeout := func(wc io.WriteCloser, br *bufio.Reader, stream string) {
+		defer wc.Close()
+		_, err := wc.Write([]byte{'t'})
+		assert.NilError(c, err)
 
-		conn.SetReadDeadline(time.Now().Add(time.Second))
 		actual := make([]byte, 1)
-		_, err = io.ReadFull(br, actual)
-		opErr, ok := err.(*net.OpError)
-		c.Assert(ok, checker.Equals, true, check.Commentf("Error is expected to be *net.OpError, got %v", err))
-		c.Assert(opErr.Timeout(), checker.Equals, true, check.Commentf("Read from %s is expected to timeout", stream))
+		_, err = readTimeout(br, actual, time.Second)
+		assert.Assert(c, err.Error() == "Timeout", "Read from %s is expected to timeout", stream)
 	}
 
 	// Create a container that only emits stdout.
 	cid, _ := dockerCmd(c, "run", "-di", "busybox", "cat")
 	cid = strings.TrimSpace(cid)
+
 	// Attach to the container's stdout stream.
-	conn, br, err := sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain")
-	c.Assert(err, checker.IsNil)
+	wc, br, err := requestHijack(http.MethodPost, "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain", request.DaemonHost())
+	assert.NilError(c, err)
 	// Check if the data from stdout can be received.
-	expectSuccess(conn, br, "stdout", false)
+	expectSuccess(wc, br, "stdout", false)
+
 	// Attach to the container's stderr stream.
-	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain")
-	c.Assert(err, checker.IsNil)
+	wc, br, err = requestHijack(http.MethodPost, "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain", request.DaemonHost())
+	assert.NilError(c, err)
 	// Since the container only emits stdout, attaching to stderr should return nothing.
-	expectTimeout(conn, br, "stdout")
+	expectTimeout(wc, br, "stdout")
 
 	// Test the similar functions of the stderr stream.
 	cid, _ = dockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "cat >&2")
 	cid = strings.TrimSpace(cid)
-	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain")
-	c.Assert(err, checker.IsNil)
-	expectSuccess(conn, br, "stderr", false)
-	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain")
-	c.Assert(err, checker.IsNil)
-	expectTimeout(conn, br, "stderr")
+	wc, br, err = requestHijack(http.MethodPost, "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain", request.DaemonHost())
+	assert.NilError(c, err)
+	expectSuccess(wc, br, "stderr", false)
+	wc, br, err = requestHijack(http.MethodPost, "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain", request.DaemonHost())
+	assert.NilError(c, err)
+	expectTimeout(wc, br, "stderr")
 
 	// Test with tty.
 	cid, _ = dockerCmd(c, "run", "-dit", "busybox", "/bin/sh", "-c", "cat >&2")
 	cid = strings.TrimSpace(cid)
 	// Attach to stdout only.
-	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain")
-	c.Assert(err, checker.IsNil)
-	expectSuccess(conn, br, "stdout", true)
+	wc, br, err = requestHijack(http.MethodPost, "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain", request.DaemonHost())
+	assert.NilError(c, err)
+	expectSuccess(wc, br, "stdout", true)
 
 	// Attach without stdout stream.
-	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain")
-	c.Assert(err, checker.IsNil)
+	wc, br, err = requestHijack(http.MethodPost, "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain", request.DaemonHost())
+	assert.NilError(c, err)
 	// Nothing should be received because both the stdout and stderr of the container will be
 	// sent to the client as stdout when tty is enabled.
-	expectTimeout(conn, br, "stdout")
+	expectTimeout(wc, br, "stdout")
+
+	// Test the client API
+	client, err := client.NewClientWithOpts(client.FromEnv)
+	assert.NilError(c, err)
+	defer client.Close()
+
+	cid, _ = dockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "echo hello; cat")
+	cid = strings.TrimSpace(cid)
+
+	// Make sure we don't see "hello" if Logs is false
+	attachOpts := types.ContainerAttachOptions{
+		Stream: true,
+		Stdin:  true,
+		Stdout: true,
+		Stderr: true,
+		Logs:   false,
+	}
+
+	resp, err := client.ContainerAttach(context.Background(), cid, attachOpts)
+	assert.NilError(c, err)
+	expectSuccess(resp.Conn, resp.Reader, "stdout", false)
+
+	// Make sure we do see "hello" if Logs is true
+	attachOpts.Logs = true
+	resp, err = client.ContainerAttach(context.Background(), cid, attachOpts)
+	assert.NilError(c, err)
+
+	defer resp.Conn.Close()
+	resp.Conn.SetReadDeadline(time.Now().Add(time.Second))
+
+	_, err = resp.Conn.Write([]byte("success"))
+	assert.NilError(c, err)
+
+	var outBuf, errBuf bytes.Buffer
+	_, err = stdcopy.StdCopy(&outBuf, &errBuf, resp.Reader)
+	if err != nil && errors.Cause(err).(net.Error).Timeout() {
+		// ignore the timeout error as it is expected
+		err = nil
+	}
+	assert.NilError(c, err)
+	assert.Equal(c, errBuf.String(), "")
+	assert.Equal(c, outBuf.String(), "hello\nsuccess")
+}
+
+// requestHijack create a http requst to specified host with `Upgrade` header (with method
+// , contenttype, …), if receive a successful "101 Switching Protocols" response return
+// a `io.WriteCloser` and `bufio.Reader`
+func requestHijack(method, endpoint string, data io.Reader, ct, daemon string, modifiers ...func(*http.Request)) (io.WriteCloser, *bufio.Reader, error) {
+
+	hostURL, err := client.ParseHostURL(daemon)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "parse daemon host error")
+	}
+
+	req, err := http.NewRequest(method, endpoint, data)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "could not create new request")
+	}
+	req.URL.Scheme = "http"
+	req.URL.Host = hostURL.Host
+
+	for _, opt := range modifiers {
+		opt(req)
+	}
+
+	if ct != "" {
+		req.Header.Set("Content-Type", ct)
+	}
+
+	// must have Upgrade header
+	// server api return 101 Switching Protocols
+	req.Header.Set("Upgrade", "tcp")
+
+	// new client
+	// FIXME use testutil/request newHTTPClient
+	transport := &http.Transport{}
+	err = sockets.ConfigureTransport(transport, hostURL.Scheme, hostURL.Host)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "configure Transport error")
+	}
+
+	client := http.Client{
+		Transport: transport,
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "client.Do")
+	}
+
+	if !bodyIsWritable(resp) {
+		return nil, nil, errors.New("response.Body not writable")
+	}
+
+	return resp.Body.(io.WriteCloser), bufio.NewReader(resp.Body), nil
+}
+
+// bodyIsWritable check Response.Body is writable
+func bodyIsWritable(r *http.Response) bool {
+	_, ok := r.Body.(io.Writer)
+	return ok
+}
+
+// readTimeout read from io.Reader with timeout
+func readTimeout(r io.Reader, buf []byte, timeout time.Duration) (n int, err error) {
+	ch := make(chan bool)
+	go func() {
+		n, err = io.ReadFull(r, buf)
+		ch <- true
+	}()
+	select {
+	case <-ch:
+		return
+	case <-time.After(timeout):
+		return 0, errors.New("Timeout")
+	}
 }

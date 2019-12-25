@@ -1,15 +1,16 @@
-// +build experimental
-
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
-	"golang.org/x/net/context"
+	"context"
+	"io"
 )
 
 // PluginPush pushes a plugin to a registry
-func (cli *Client) PluginPush(ctx context.Context, name string, registryAuth string) error {
+func (cli *Client) PluginPush(ctx context.Context, name string, registryAuth string) (io.ReadCloser, error) {
 	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
 	resp, err := cli.post(ctx, "/plugins/"+name+"/push", nil, nil, headers)
-	ensureReaderClosed(resp)
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return resp.body, nil
 }

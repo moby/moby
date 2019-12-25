@@ -1,66 +1,106 @@
-package dockerfile
+package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
-	"fmt"
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/containerd/containerd/platforms"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/system"
+	"golang.org/x/sys/windows"
 )
 
-// normaliseDest normalises the destination of a COPY/ADD command in a
-// platform semantically consistent way.
-func normaliseDest(cmdName, workingDir, requested string) (string, error) {
-	dest := filepath.FromSlash(requested)
-	endsInSlash := strings.HasSuffix(dest, string(os.PathSeparator))
-
-	// We are guaranteed that the working directory is already consistent,
-	// However, Windows also has, for now, the limitation that ADD/COPY can
-	// only be done to the system drive, not any drives that might be present
-	// as a result of a bind mount.
-	//
-	// So... if the path requested is Linux-style absolute (/foo or \\foo),
-	// we assume it is the system drive. If it is a Windows-style absolute
-	// (DRIVE:\\foo), error if DRIVE is not C. And finally, ensure we
-	// strip any configured working directories drive letter so that it
-	// can be subsequently legitimately converted to a Windows volume-style
-	// pathname.
-
-	// Not a typo - filepath.IsAbs, not system.IsAbs on this next check as
-	// we only want to validate where the DriveColon part has been supplied.
-	if filepath.IsAbs(dest) {
-		if strings.ToUpper(string(dest[0])) != "C" {
-			return "", fmt.Errorf("Windows does not support %s with a destinations not on the system drive (C:)", cmdName)
-		}
-		dest = dest[2:] // Strip the drive letter
+func parseChownFlag(builder *Builder, state *dispatchState, chown, ctrRootPath string, identityMapping *idtools.IdentityMapping) (idtools.Identity, error) {
+	if builder.options.Platform == "windows" {
+		return getAccountIdentity(builder, chown, ctrRootPath, state)
 	}
 
-	// Cannot handle relative where WorkingDir is not the system drive.
-	if len(workingDir) > 0 {
-		if ((len(workingDir) > 1) && !system.IsAbs(workingDir[2:])) || (len(workingDir) == 1) {
-			return "", fmt.Errorf("Current WorkingDir %s is not platform consistent", workingDir)
-		}
-		if !system.IsAbs(dest) {
-			if string(workingDir[0]) != "C" {
-				return "", fmt.Errorf("Windows does not support %s with relative paths when WORKDIR is not the system drive", cmdName)
-			}
-			dest = filepath.Join(string(os.PathSeparator), workingDir[2:], dest)
-			// Make sure we preserve any trailing slash
-			if endsInSlash {
-				dest += string(os.PathSeparator)
-			}
-		}
-	}
-	return dest, nil
+	return identityMapping.RootPair(), nil
 }
 
-func containsWildcards(name string) bool {
-	for i := 0; i < len(name); i++ {
-		ch := name[i]
-		if ch == '*' || ch == '?' || ch == '[' {
-			return true
+func getAccountIdentity(builder *Builder, accountName string, ctrRootPath string, state *dispatchState) (idtools.Identity, error) {
+	// If this is potentially a string SID then attempt to convert it to verify
+	// this, otherwise continue looking for the account.
+	if strings.HasPrefix(accountName, "S-") || strings.HasPrefix(accountName, "s-") {
+		sid, err := windows.StringToSid(accountName)
+
+		if err == nil {
+			return idtools.Identity{SID: sid.String()}, nil
 		}
 	}
-	return false
+
+	// Attempt to obtain the SID using the name.
+	sid, _, accType, err := windows.LookupSID("", accountName)
+
+	// If this is a SID that is built-in and hence the same across all systems then use that.
+	if err == nil && (accType == windows.SidTypeAlias || accType == windows.SidTypeWellKnownGroup) {
+		return idtools.Identity{SID: sid.String()}, nil
+	}
+
+	// Check if the account name is one unique to containers.
+	if strings.EqualFold(accountName, "ContainerAdministrator") {
+		return idtools.Identity{SID: system.ContainerAdministratorSidString}, nil
+
+	} else if strings.EqualFold(accountName, "ContainerUser") {
+		return idtools.Identity{SID: system.ContainerUserSidString}, nil
+	}
+
+	// All other lookups failed, so therefore determine if the account in
+	// question exists in the container and if so, obtain its SID.
+	return lookupNTAccount(builder, accountName, state)
+}
+
+func lookupNTAccount(builder *Builder, accountName string, state *dispatchState) (idtools.Identity, error) {
+
+	source, _ := filepath.Split(os.Args[0])
+
+	target := "C:\\Docker"
+	targetExecutable := target + "\\containerutility.exe"
+
+	optionsPlatform, err := platforms.Parse(builder.options.Platform)
+	if err != nil {
+		return idtools.Identity{}, err
+	}
+
+	runConfig := copyRunConfig(state.runConfig,
+		withCmdCommentString("internal run to obtain NT account information.", optionsPlatform.OS))
+
+	runConfig.Cmd = []string{targetExecutable, "getaccountsid", accountName}
+
+	hostConfig := &container.HostConfig{Mounts: []mount.Mount{
+		{
+			Type:     mount.TypeBind,
+			Source:   source,
+			Target:   target,
+			ReadOnly: true,
+		},
+	},
+	}
+
+	container, err := builder.containerManager.Create(runConfig, hostConfig)
+	if err != nil {
+		return idtools.Identity{}, err
+	}
+
+	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
+
+	if err := builder.containerManager.Run(builder.clientCtx, container.ID, stdout, stderr); err != nil {
+		if err, ok := err.(*statusCodeError); ok {
+			return idtools.Identity{}, &jsonmessage.JSONError{
+				Message: stderr.String(),
+				Code:    err.StatusCode(),
+			}
+		}
+		return idtools.Identity{}, err
+	}
+
+	accountSid := stdout.String()
+
+	return idtools.Identity{SID: accountSid}, nil
 }

@@ -1,9 +1,8 @@
-package layer
+package layer // import "github.com/docker/docker/layer"
 
 import (
 	"bytes"
 	"compress/gzip"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -12,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
@@ -78,10 +76,10 @@ func TestLayerMigration(t *testing.T) {
 	}
 
 	graphID1 := stringid.GenerateRandomID()
-	if err := graph.Create(graphID1, "", "", nil); err != nil {
+	if err := graph.Create(graphID1, "", nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := graph.ApplyDiff(graphID1, "", archive.Reader(bytes.NewReader(tar1))); err != nil {
+	if _, err := graph.ApplyDiff(graphID1, "", bytes.NewReader(tar1)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -90,11 +88,8 @@ func TestLayerMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fms, err := NewFSMetadataStore(filepath.Join(td, "layers"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	ls, err := NewStoreFromGraphDriver(fms, graph)
+	root := filepath.Join(td, "layers")
+	ls, err := newStoreFromGraphDriver(root, graph, runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,10 +118,10 @@ func TestLayerMigration(t *testing.T) {
 	}
 
 	graphID2 := stringid.GenerateRandomID()
-	if err := graph.Create(graphID2, graphID1, "", nil); err != nil {
+	if err := graph.Create(graphID2, graphID1, nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := graph.ApplyDiff(graphID2, graphID1, archive.Reader(bytes.NewReader(tar2))); err != nil {
+	if _, err := graph.ApplyDiff(graphID2, graphID1, bytes.NewReader(tar2)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -165,10 +160,10 @@ func tarFromFilesInGraph(graph graphdriver.Driver, graphID, parentID string, fil
 		return nil, err
 	}
 
-	if err := graph.Create(graphID, parentID, "", nil); err != nil {
+	if err := graph.Create(graphID, parentID, nil); err != nil {
 		return nil, err
 	}
-	if _, err := graph.ApplyDiff(graphID, parentID, archive.Reader(bytes.NewReader(t))); err != nil {
+	if _, err := graph.ApplyDiff(graphID, parentID, bytes.NewReader(t)); err != nil {
 		return nil, err
 	}
 
@@ -218,11 +213,8 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fms, err := NewFSMetadataStore(filepath.Join(td, "layers"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	ls, err := NewStoreFromGraphDriver(fms, graph)
+	root := filepath.Join(td, "layers")
+	ls, err := newStoreFromGraphDriver(root, graph, runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,162 +266,4 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 	}
 
 	assertMetadata(t, metadata, createMetadata(layer2a))
-}
-
-func TestMountMigration(t *testing.T) {
-	// TODO Windows: Figure out why this is failing (obvious - paths... needs porting)
-	if runtime.GOOS == "windows" {
-		t.Skip("Failing on Windows")
-	}
-	ls, _, cleanup := newTestStore(t)
-	defer cleanup()
-
-	baseFiles := []FileApplier{
-		newTestFile("/root/.bashrc", []byte("# Boring configuration"), 0644),
-		newTestFile("/etc/profile", []byte("# Base configuration"), 0644),
-	}
-	initFiles := []FileApplier{
-		newTestFile("/etc/hosts", []byte{}, 0644),
-		newTestFile("/etc/resolv.conf", []byte{}, 0644),
-	}
-	mountFiles := []FileApplier{
-		newTestFile("/etc/hosts", []byte("localhost 127.0.0.1"), 0644),
-		newTestFile("/root/.bashrc", []byte("# Updated configuration"), 0644),
-		newTestFile("/root/testfile1.txt", []byte("nothing valuable"), 0644),
-	}
-
-	initTar, err := tarFromFiles(initFiles...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mountTar, err := tarFromFiles(mountFiles...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	graph := ls.(*layerStore).driver
-
-	layer1, err := createLayer(ls, "", initWithFiles(baseFiles...))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	graphID1 := layer1.(*referencedCacheLayer).cacheID
-
-	containerID := stringid.GenerateRandomID()
-	containerInit := fmt.Sprintf("%s-init", containerID)
-
-	if err := graph.Create(containerInit, graphID1, "", nil); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := graph.ApplyDiff(containerInit, graphID1, archive.Reader(bytes.NewReader(initTar))); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := graph.Create(containerID, containerInit, "", nil); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := graph.ApplyDiff(containerID, containerInit, archive.Reader(bytes.NewReader(mountTar))); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := ls.(*layerStore).CreateRWLayerByGraphID("migration-mount", containerID, layer1.ChainID()); err != nil {
-		t.Fatal(err)
-	}
-
-	rwLayer1, err := ls.GetRWLayer("migration-mount")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := rwLayer1.Mount(""); err != nil {
-		t.Fatal(err)
-	}
-
-	changes, err := rwLayer1.Changes()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if expected := 5; len(changes) != expected {
-		t.Logf("Changes %#v", changes)
-		t.Fatalf("Wrong number of changes %d, expected %d", len(changes), expected)
-	}
-
-	sortChanges(changes)
-
-	assertChange(t, changes[0], archive.Change{
-		Path: "/etc",
-		Kind: archive.ChangeModify,
-	})
-	assertChange(t, changes[1], archive.Change{
-		Path: "/etc/hosts",
-		Kind: archive.ChangeModify,
-	})
-	assertChange(t, changes[2], archive.Change{
-		Path: "/root",
-		Kind: archive.ChangeModify,
-	})
-	assertChange(t, changes[3], archive.Change{
-		Path: "/root/.bashrc",
-		Kind: archive.ChangeModify,
-	})
-	assertChange(t, changes[4], archive.Change{
-		Path: "/root/testfile1.txt",
-		Kind: archive.ChangeAdd,
-	})
-
-	if _, err := ls.CreateRWLayer("migration-mount", layer1.ChainID(), "", nil, nil); err == nil {
-		t.Fatal("Expected error creating mount with same name")
-	} else if err != ErrMountNameConflict {
-		t.Fatal(err)
-	}
-
-	rwLayer2, err := ls.GetRWLayer("migration-mount")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if getMountLayer(rwLayer1) != getMountLayer(rwLayer2) {
-		t.Fatal("Expected same layer from get with same name as from migrate")
-	}
-
-	if _, err := rwLayer2.Mount(""); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := rwLayer2.Mount(""); err != nil {
-		t.Fatal(err)
-	}
-
-	if metadata, err := ls.Release(layer1); err != nil {
-		t.Fatal(err)
-	} else if len(metadata) > 0 {
-		t.Fatalf("Expected no layers to be deleted, deleted %#v", metadata)
-	}
-
-	if err := rwLayer1.Unmount(); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := ls.ReleaseRWLayer(rwLayer1); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := rwLayer2.Unmount(); err != nil {
-		t.Fatal(err)
-	}
-	if err := rwLayer2.Unmount(); err != nil {
-		t.Fatal(err)
-	}
-	metadata, err := ls.ReleaseRWLayer(rwLayer2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(metadata) == 0 {
-		t.Fatal("Expected base layer to be deleted when deleting mount")
-	}
-
-	assertMetadata(t, metadata, createMetadata(layer1))
 }

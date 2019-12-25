@@ -1,14 +1,14 @@
 // +build linux
 
-package loopback
+package loopback // import "github.com/docker/docker/pkg/loopback"
 
 import (
 	"errors"
 	"fmt"
 	"os"
-	"syscall"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 // Loopback related errors
@@ -69,7 +69,7 @@ func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.Fil
 			loopFile.Close()
 
 			// If the error is EBUSY, then try the next loopback
-			if err != syscall.EBUSY {
+			if err != unix.EBUSY {
 				logrus.Errorf("Cannot set up loopback device %s: %s", target, err)
 				return nil, ErrAttachLoopbackDevice
 			}
@@ -116,10 +116,10 @@ func AttachLoopDevice(sparseName string) (loop *os.File, err error) {
 	}
 
 	// Set the status of the loopback device
-	loopInfo := &loopInfo64{
-		loFileName: stringToLoopName(loopFile.Name()),
-		loOffset:   0,
-		loFlags:    LoFlagsAutoClear,
+	loopInfo := &unix.LoopInfo64{
+		File_name: stringToLoopName(loopFile.Name()),
+		Offset:    0,
+		Flags:     LoFlagsAutoClear,
 	}
 
 	if err := ioctlLoopSetStatus64(loopFile.Fd(), loopInfo); err != nil {

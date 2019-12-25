@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# v0.7.1
+: ${ROOTLESSKIT_COMMIT:=76c4e26750da3986fa0e741464fbf0fcd55bea71}
+
+install_rootlesskit() {
+	case "$1" in
+	"dynamic")
+		install_rootlesskit_dynamic
+		return
+		;;
+	"")
+		export CGO_ENABLED=0
+		_install_rootlesskit
+		;;
+	*)
+		echo 'Usage: $0 [dynamic]'
+		;;
+	esac
+}
+
+install_rootlesskit_dynamic() {
+	export ROOTLESSKIT_LDFLAGS="-linkmode=external" install_rootlesskit
+	export BUILD_MODE="-buildmode=pie"
+	_install_rootlesskit
+}
+
+_install_rootlesskit() {
+	echo "Install rootlesskit version $ROOTLESSKIT_COMMIT"
+	git clone https://github.com/rootless-containers/rootlesskit.git "$GOPATH/src/github.com/rootless-containers/rootlesskit"
+	cd "$GOPATH/src/github.com/rootless-containers/rootlesskit"
+	git checkout -q "$ROOTLESSKIT_COMMIT"
+	for f in rootlesskit rootlesskit-docker-proxy; do
+		go build $BUILD_MODE -ldflags="$ROOTLESSKIT_LDFLAGS" -o "${PREFIX}/$f" github.com/rootless-containers/rootlesskit/cmd/$f
+	done
+}

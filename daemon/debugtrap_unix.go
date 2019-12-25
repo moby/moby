@@ -1,21 +1,27 @@
 // +build !windows
 
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"os"
 	"os/signal"
-	"syscall"
 
-	psignal "github.com/docker/docker/pkg/signal"
+	stackdump "github.com/docker/docker/pkg/signal"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
-func setupDumpStackTrap(_ string) {
+func (d *Daemon) setupDumpStackTrap(root string) {
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGUSR1)
+	signal.Notify(c, unix.SIGUSR1)
 	go func() {
 		for range c {
-			psignal.DumpStacks("")
+			path, err := stackdump.DumpStacks(root)
+			if err != nil {
+				logrus.WithError(err).Error("failed to write goroutines dump")
+			} else {
+				logrus.Infof("goroutine stacks written to %s", path)
+			}
 		}
 	}()
 }

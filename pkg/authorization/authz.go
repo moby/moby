@@ -1,15 +1,16 @@
-package authorization
+package authorization // import "github.com/docker/docker/pkg/authorization"
 
 import (
 	"bufio"
 	"bytes"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/sirupsen/logrus"
 )
 
 const maxBodySize = 1048576 // 1MB
@@ -20,7 +21,7 @@ const maxBodySize = 1048576 // 1MB
 // Authenticate Request:
 // Call authZ plugins with current REST request and AuthN response
 // Request contains full HTTP packet sent to the docker daemon
-// https://docs.docker.com/reference/api/docker_remote_api/
+// https://docs.docker.com/engine/reference/api/
 //
 // Authenticate Response:
 // Call authZ plugins with full info about current REST request, REST response and AuthN response
@@ -74,6 +75,13 @@ func (ctx *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 		RequestURI:      ctx.requestURI,
 		RequestBody:     body,
 		RequestHeaders:  headers(r.Header),
+	}
+
+	if r.TLS != nil {
+		for _, c := range r.TLS.PeerCertificates {
+			pc := PeerCertificate(*c)
+			ctx.authReq.RequestPeerCertificates = append(ctx.authReq.RequestPeerCertificates, &pc)
+		}
 	}
 
 	for _, plugin := range ctx.plugins {
@@ -146,12 +154,17 @@ func sendBody(url string, header http.Header) bool {
 	}
 
 	// body is sent only for text or json messages
-	return header.Get("Content-Type") == "application/json"
+	contentType, _, err := mime.ParseMediaType(header.Get("Content-Type"))
+	if err != nil {
+		return false
+	}
+
+	return contentType == "application/json"
 }
 
 // headers returns flatten version of the http headers excluding authorization
 func headers(header http.Header) map[string]string {
-	v := make(map[string]string, 0)
+	v := make(map[string]string)
 	for k, values := range header {
 		// Skip authorization headers
 		if strings.EqualFold(k, "Authorization") || strings.EqualFold(k, "X-Registry-Config") || strings.EqualFold(k, "X-Registry-Auth") {
@@ -169,10 +182,7 @@ type authorizationError struct {
 	error
 }
 
-// HTTPErrorStatusCode returns the authorization error status code (forbidden)
-func (e authorizationError) HTTPErrorStatusCode() int {
-	return http.StatusForbidden
-}
+func (authorizationError) Forbidden() {}
 
 func newAuthorizationError(plugin, msg string) authorizationError {
 	return authorizationError{error: fmt.Errorf("authorization denied by plugin %s: %s", plugin, msg)}

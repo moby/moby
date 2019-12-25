@@ -8,7 +8,7 @@ set -e
 }
 
 usage() {
-	printf >&2 '%s: [-r release] [-m mirror] [-s]  [-c additional repository]\n' "$0"
+	printf >&2 '%s: [-r release] [-m mirror] [-s] [-c additional repository] [-a arch]\n' "$0"
 	exit 1
 }
 
@@ -29,7 +29,7 @@ getapk() {
 }
 
 mkbase() {
-	$TMP/sbin/apk.static --repository $MAINREPO --update-cache --allow-untrusted \
+	$TMP/sbin/apk.static --repository $MAINREPO --no-cache --allow-untrusted \
 		--root $ROOTFS --initdb add alpine-base
 }
 
@@ -43,16 +43,16 @@ pack() {
 	id=$(tar --numeric-owner -C $ROOTFS -c . | docker import - alpine:$REL)
 
 	docker tag $id alpine:latest
-	docker run -i -t --rm alpine printf 'alpine:%s with id=%s created!\n' $REL $id
+	docker run --rm alpine printf 'alpine:%s with id=%s created!\n' $REL $id
 }
 
 save() {
-	[ $SAVE -eq 1 ] || return
+	[ $SAVE -eq 1 ] || return 0
 
 	tar --numeric-owner -C $ROOTFS -c . | xz > rootfs.tar.xz
 }
 
-while getopts "hr:m:s" opt; do
+while getopts "hr:m:sc:a:" opt; do
 	case $opt in
 		r)
 			REL=$OPTARG
@@ -64,7 +64,10 @@ while getopts "hr:m:s" opt; do
 			SAVE=1
 			;;
 		c)
-			ADDITIONALREPO=community
+			ADDITIONALREPO=$OPTARG
+			;;
+		a)
+			ARCH=$OPTARG
 			;;
 		*)
 			usage
@@ -76,7 +79,7 @@ REL=${REL:-edge}
 MIRROR=${MIRROR:-http://nl.alpinelinux.org/alpine}
 SAVE=${SAVE:-0}
 MAINREPO=$MIRROR/$REL/main
-ADDITIONALREPO=$MIRROR/$REL/community
+ADDITIONALREPO=$MIRROR/$REL/${ADDITIONALREPO:-community}
 ARCH=${ARCH:-$(uname -m)}
 
 tmp

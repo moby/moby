@@ -1,14 +1,14 @@
-package layer
+package layer // import "github.com/docker/docker/layer"
 
 import (
 	"io/ioutil"
-	"os"
-	"path/filepath"
 	"runtime"
 	"sort"
 	"testing"
 
+	"github.com/containerd/continuity/driver"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/containerfs"
 )
 
 func TestMountInit(t *testing.T) {
@@ -28,30 +28,33 @@ func TestMountInit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mountInit := func(root string) error {
+	mountInit := func(root containerfs.ContainerFS) error {
 		return initfile.ApplyFile(root)
 	}
 
-	m, err := ls.CreateRWLayer("fun-mount", layer.ChainID(), "", mountInit, nil)
+	rwLayerOpts := &CreateRWLayerOpts{
+		InitFunc: mountInit,
+	}
+	m, err := ls.CreateRWLayer("fun-mount", layer.ChainID(), rwLayerOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	path, err := m.Mount("")
+	pathFS, err := m.Mount("")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	f, err := os.Open(filepath.Join(path, "testfile.txt"))
+	fi, err := pathFS.Stat(pathFS.Join(pathFS.Path(), "testfile.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := pathFS.Open(pathFS.Join(pathFS.Path(), "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer f.Close()
-
-	fi, err := f.Stat()
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	b, err := ioutil.ReadAll(f)
 	if err != nil {
@@ -85,21 +88,24 @@ func TestMountSize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mountInit := func(root string) error {
+	mountInit := func(root containerfs.ContainerFS) error {
 		return newTestFile("file-init", contentInit, 0777).ApplyFile(root)
 	}
+	rwLayerOpts := &CreateRWLayerOpts{
+		InitFunc: mountInit,
+	}
 
-	m, err := ls.CreateRWLayer("mount-size", layer.ChainID(), "", mountInit, nil)
+	m, err := ls.CreateRWLayer("mount-size", layer.ChainID(), rwLayerOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	path, err := m.Mount("")
+	pathFS, err := m.Mount("")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(path, "file2"), content2, 0755); err != nil {
+	if err := driver.WriteFile(pathFS, pathFS.Join(pathFS.Path(), "file2"), content2, 0755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -134,37 +140,40 @@ func TestMountChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mountInit := func(root string) error {
+	mountInit := func(root containerfs.ContainerFS) error {
 		return initfile.ApplyFile(root)
 	}
+	rwLayerOpts := &CreateRWLayerOpts{
+		InitFunc: mountInit,
+	}
 
-	m, err := ls.CreateRWLayer("mount-changes", layer.ChainID(), "", mountInit, nil)
+	m, err := ls.CreateRWLayer("mount-changes", layer.ChainID(), rwLayerOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	path, err := m.Mount("")
+	pathFS, err := m.Mount("")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.Chmod(filepath.Join(path, "testfile1.txt"), 0755); err != nil {
+	if err := pathFS.Lchmod(pathFS.Join(pathFS.Path(), "testfile1.txt"), 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(path, "testfile1.txt"), []byte("mount data!"), 0755); err != nil {
+	if err := driver.WriteFile(pathFS, pathFS.Join(pathFS.Path(), "testfile1.txt"), []byte("mount data!"), 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.Remove(filepath.Join(path, "testfile2.txt")); err != nil {
+	if err := pathFS.Remove(pathFS.Join(pathFS.Path(), "testfile2.txt")); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.Chmod(filepath.Join(path, "testfile3.txt"), 0755); err != nil {
+	if err := pathFS.Lchmod(pathFS.Join(pathFS.Path(), "testfile3.txt"), 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(path, "testfile4.txt"), []byte("mount data!"), 0644); err != nil {
+	if err := driver.WriteFile(pathFS, pathFS.Join(pathFS.Path(), "testfile4.txt"), []byte("mount data!"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -195,6 +204,64 @@ func TestMountChanges(t *testing.T) {
 		Path: "/testfile4.txt",
 		Kind: archive.ChangeAdd,
 	})
+}
+
+func TestMountApply(t *testing.T) {
+	// TODO Windows: Figure out why this is failing
+	if runtime.GOOS == "windows" {
+		t.Skip("Failing on Windows")
+	}
+	ls, _, cleanup := newTestStore(t)
+	defer cleanup()
+
+	basefile := newTestFile("testfile.txt", []byte("base data!"), 0644)
+	newfile := newTestFile("newfile.txt", []byte("new data!"), 0755)
+
+	li := initWithFiles(basefile)
+	layer, err := createLayer(ls, "", li)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	di := initWithFiles(newfile)
+	diffLayer, err := createLayer(ls, "", di)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m, err := ls.CreateRWLayer("fun-mount", layer.ChainID(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := diffLayer.TarStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := m.ApplyDiff(r); err != nil {
+		t.Fatal(err)
+	}
+
+	pathFS, err := m.Mount("")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := pathFS.Open(pathFS.Join(pathFS.Path(), "newfile.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	b, err := ioutil.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected := "new data!"; string(b) != expected {
+		t.Fatalf("Unexpected test file contents %q, expected %q", string(b), expected)
+	}
 }
 
 func assertChange(t *testing.T, actual, expected archive.Change) {

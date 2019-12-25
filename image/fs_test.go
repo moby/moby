@@ -1,7 +1,6 @@
-package image
+package image // import "github.com/docker/docker/image"
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -11,79 +10,50 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/distribution/digest"
+	digest "github.com/opencontainers/go-digest"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
-func TestFSGetSet(t *testing.T) {
+func defaultFSStoreBackend(t *testing.T) (StoreBackend, func()) {
 	tmpdir, err := ioutil.TempDir("", "images-fs-store")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-	fs, err := NewFSStoreBackend(tmpdir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Check(t, err)
 
-	testGetSet(t, fs)
+	fsBackend, err := NewFSStoreBackend(tmpdir)
+	assert.Check(t, err)
+
+	return fsBackend, func() { os.RemoveAll(tmpdir) }
 }
 
 func TestFSGetInvalidData(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "images-fs-store")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-	fs, err := NewFSStoreBackend(tmpdir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	store, cleanup := defaultFSStoreBackend(t)
+	defer cleanup()
 
-	id, err := fs.Set([]byte("foobar"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	dgst, err := store.Set([]byte("foobar"))
+	assert.Check(t, err)
 
-	dgst := digest.Digest(id)
+	err = ioutil.WriteFile(filepath.Join(store.(*fs).root, contentDirName, string(dgst.Algorithm()), dgst.Hex()), []byte("foobar2"), 0600)
+	assert.Check(t, err)
 
-	if err := ioutil.WriteFile(filepath.Join(tmpdir, contentDirName, string(dgst.Algorithm()), dgst.Hex()), []byte("foobar2"), 0600); err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = fs.Get(id)
-	if err == nil {
-		t.Fatal("Expected get to fail after data modification.")
-	}
+	_, err = store.Get(dgst)
+	assert.Check(t, is.ErrorContains(err, "failed to verify"))
 }
 
 func TestFSInvalidSet(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "images-fs-store")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-	fs, err := NewFSStoreBackend(tmpdir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	store, cleanup := defaultFSStoreBackend(t)
+	defer cleanup()
 
 	id := digest.FromBytes([]byte("foobar"))
-	err = os.Mkdir(filepath.Join(tmpdir, contentDirName, string(id.Algorithm()), id.Hex()), 0700)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err := os.Mkdir(filepath.Join(store.(*fs).root, contentDirName, string(id.Algorithm()), id.Hex()), 0700)
+	assert.Check(t, err)
 
-	_, err = fs.Set([]byte("foobar"))
-	if err == nil {
-		t.Fatal("Expecting error from invalid filesystem data.")
-	}
+	_, err = store.Set([]byte("foobar"))
+	assert.Check(t, is.ErrorContains(err, "failed to write digest data"))
 }
 
 func TestFSInvalidRoot(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "images-fs-store")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Check(t, err)
 	defer os.RemoveAll(tmpdir)
 
 	tcases := []struct {
@@ -98,34 +68,29 @@ func TestFSInvalidRoot(t *testing.T) {
 		root := filepath.Join(tmpdir, tc.root)
 		filePath := filepath.Join(tmpdir, tc.invalidFile)
 		err := os.MkdirAll(filepath.Dir(filePath), 0700)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, err)
+
 		f, err := os.Create(filePath)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, err)
 		f.Close()
 
 		_, err = NewFSStoreBackend(root)
-		if err == nil {
-			t.Fatalf("Expected error from root %q and invlid file %q", tc.root, tc.invalidFile)
-		}
+		assert.Check(t, is.ErrorContains(err, "failed to create storage backend"))
 
 		os.RemoveAll(root)
 	}
 
 }
 
-func testMetadataGetSet(t *testing.T, store StoreBackend) {
+func TestFSMetadataGetSet(t *testing.T) {
+	store, cleanup := defaultFSStoreBackend(t)
+	defer cleanup()
+
 	id, err := store.Set([]byte("foo"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Check(t, err)
+
 	id2, err := store.Set([]byte("bar"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Check(t, err)
 
 	tcases := []struct {
 		id    digest.Digest
@@ -139,115 +104,49 @@ func testMetadataGetSet(t *testing.T, store StoreBackend) {
 
 	for _, tc := range tcases {
 		err = store.SetMetadata(tc.id, tc.key, tc.value)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Check(t, err)
 
 		actual, err := store.GetMetadata(tc.id, tc.key)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if bytes.Compare(actual, tc.value) != 0 {
-			t.Fatalf("Metadata expected %q, got %q", tc.value, actual)
-		}
+		assert.Check(t, err)
+
+		assert.Check(t, is.DeepEqual(tc.value, actual))
 	}
 
 	_, err = store.GetMetadata(id2, "tkey2")
-	if err == nil {
-		t.Fatal("Expected error for getting metadata for unknown key")
-	}
+	assert.Check(t, is.ErrorContains(err, "failed to read metadata"))
 
 	id3 := digest.FromBytes([]byte("baz"))
 	err = store.SetMetadata(id3, "tkey", []byte("tval"))
-	if err == nil {
-		t.Fatal("Expected error for setting metadata for unknown ID.")
-	}
+	assert.Check(t, is.ErrorContains(err, "failed to get digest"))
 
 	_, err = store.GetMetadata(id3, "tkey")
-	if err == nil {
-		t.Fatal("Expected error for getting metadata for unknown ID.")
-	}
-}
-
-func TestFSMetadataGetSet(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "images-fs-store")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-	fs, err := NewFSStoreBackend(tmpdir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	testMetadataGetSet(t, fs)
-}
-
-func TestFSDelete(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "images-fs-store")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-	fs, err := NewFSStoreBackend(tmpdir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	testDelete(t, fs)
-}
-
-func TestFSWalker(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "images-fs-store")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-	fs, err := NewFSStoreBackend(tmpdir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	testWalker(t, fs)
+	assert.Check(t, is.ErrorContains(err, "failed to get digest"))
 }
 
 func TestFSInvalidWalker(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "images-fs-store")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-	fs, err := NewFSStoreBackend(tmpdir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	store, cleanup := defaultFSStoreBackend(t)
+	defer cleanup()
 
-	fooID, err := fs.Set([]byte("foo"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	fooID, err := store.Set([]byte("foo"))
+	assert.Check(t, err)
 
-	if err := ioutil.WriteFile(filepath.Join(tmpdir, contentDirName, "sha256/foobar"), []byte("foobar"), 0600); err != nil {
-		t.Fatal(err)
-	}
+	err = ioutil.WriteFile(filepath.Join(store.(*fs).root, contentDirName, "sha256/foobar"), []byte("foobar"), 0600)
+	assert.Check(t, err)
 
 	n := 0
-	err = fs.Walk(func(id digest.Digest) error {
-		if id != fooID {
-			t.Fatalf("Invalid walker ID %q, expected %q", id, fooID)
-		}
+	err = store.Walk(func(id digest.Digest) error {
+		assert.Check(t, is.Equal(fooID, id))
 		n++
 		return nil
 	})
-	if err != nil {
-		t.Fatalf("Invalid data should not have caused walker error, got %v", err)
-	}
-	if n != 1 {
-		t.Fatalf("Expected 1 walk initialization, got %d", n)
-	}
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(1, n))
 }
 
-func testGetSet(t *testing.T, store StoreBackend) {
+func TestFSGetSet(t *testing.T) {
+	store, cleanup := defaultFSStoreBackend(t)
+	defer cleanup()
+
 	type tcase struct {
 		input    []byte
 		expected digest.Digest
@@ -258,99 +157,86 @@ func testGetSet(t *testing.T, store StoreBackend) {
 
 	randomInput := make([]byte, 8*1024)
 	_, err := rand.Read(randomInput)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// skipping use of digest pkg because its used by the implementation
+	assert.Check(t, err)
+
+	// skipping use of digest pkg because it is used by the implementation
 	h := sha256.New()
 	_, err = h.Write(randomInput)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Check(t, err)
+
 	tcases = append(tcases, tcase{
 		input:    randomInput,
 		expected: digest.Digest("sha256:" + hex.EncodeToString(h.Sum(nil))),
 	})
 
 	for _, tc := range tcases {
-		id, err := store.Set([]byte(tc.input))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if id != tc.expected {
-			t.Fatalf("Expected ID %q, got %q", tc.expected, id)
-		}
-	}
-
-	for _, emptyData := range [][]byte{nil, {}} {
-		_, err := store.Set(emptyData)
-		if err == nil {
-			t.Fatal("Expected error for nil input.")
-		}
+		id, err := store.Set(tc.input)
+		assert.Check(t, err)
+		assert.Check(t, is.Equal(tc.expected, id))
 	}
 
 	for _, tc := range tcases {
 		data, err := store.Get(tc.expected)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if bytes.Compare(data, tc.input) != 0 {
-			t.Fatalf("Expected data %q, got %q", tc.input, data)
-		}
+		assert.Check(t, err)
+		assert.Check(t, is.DeepEqual(tc.input, data))
 	}
+}
+
+func TestFSGetUnsetKey(t *testing.T) {
+	store, cleanup := defaultFSStoreBackend(t)
+	defer cleanup()
 
 	for _, key := range []digest.Digest{"foobar:abc", "sha256:abc", "sha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2a"} {
 		_, err := store.Get(key)
-		if err == nil {
-			t.Fatalf("Expected error for ID %q.", key)
-		}
+		assert.Check(t, is.ErrorContains(err, "failed to get digest"))
 	}
-
 }
 
-func testDelete(t *testing.T, store StoreBackend) {
+func TestFSGetEmptyData(t *testing.T) {
+	store, cleanup := defaultFSStoreBackend(t)
+	defer cleanup()
+
+	for _, emptyData := range [][]byte{nil, {}} {
+		_, err := store.Set(emptyData)
+		assert.Check(t, is.ErrorContains(err, "invalid empty data"))
+	}
+}
+
+func TestFSDelete(t *testing.T) {
+	store, cleanup := defaultFSStoreBackend(t)
+	defer cleanup()
+
 	id, err := store.Set([]byte("foo"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Check(t, err)
+
 	id2, err := store.Set([]byte("bar"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Check(t, err)
 
 	err = store.Delete(id)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Check(t, err)
 
 	_, err = store.Get(id)
-	if err == nil {
-		t.Fatalf("Expected getting deleted item %q to fail", id)
-	}
+	assert.Check(t, is.ErrorContains(err, "failed to get digest"))
+
 	_, err = store.Get(id2)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Check(t, err)
 
 	err = store.Delete(id2)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Check(t, err)
+
 	_, err = store.Get(id2)
-	if err == nil {
-		t.Fatalf("Expected getting deleted item %q to fail", id2)
-	}
+	assert.Check(t, is.ErrorContains(err, "failed to get digest"))
 }
 
-func testWalker(t *testing.T, store StoreBackend) {
+func TestFSWalker(t *testing.T) {
+	store, cleanup := defaultFSStoreBackend(t)
+	defer cleanup()
+
 	id, err := store.Set([]byte("foo"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Check(t, err)
+
 	id2, err := store.Set([]byte("bar"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Check(t, err)
 
 	tcases := make(map[digest.Digest]struct{})
 	tcases[id] = struct{}{}
@@ -361,24 +247,22 @@ func testWalker(t *testing.T, store StoreBackend) {
 		n++
 		return nil
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(2, n))
+	assert.Check(t, is.Len(tcases, 0))
+}
 
-	if n != 2 {
-		t.Fatalf("Expected 2 walk initializations, got %d", n)
-	}
-	if len(tcases) != 0 {
-		t.Fatalf("Expected empty unwalked set, got %+v", tcases)
-	}
+func TestFSWalkerStopOnError(t *testing.T) {
+	store, cleanup := defaultFSStoreBackend(t)
+	defer cleanup()
 
-	// stop on error
-	tcases = make(map[digest.Digest]struct{})
+	id, err := store.Set([]byte("foo"))
+	assert.Check(t, err)
+
+	tcases := make(map[digest.Digest]struct{})
 	tcases[id] = struct{}{}
 	err = store.Walk(func(id digest.Digest) error {
-		return errors.New("")
+		return errors.New("what")
 	})
-	if err == nil {
-		t.Fatalf("Exected error from walker.")
-	}
+	assert.Check(t, is.ErrorContains(err, "what"))
 }

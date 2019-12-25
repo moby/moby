@@ -1,10 +1,10 @@
-package tarexport
+package tarexport // import "github.com/docker/docker/image/tarexport"
 
 import (
 	"github.com/docker/distribution"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/reference"
+	refstore "github.com/docker/docker/reference"
 )
 
 const (
@@ -25,22 +25,22 @@ type manifestItem struct {
 
 type tarexporter struct {
 	is             image.Store
-	ls             layer.Store
-	rs             reference.Store
+	lss            map[string]layer.Store
+	rs             refstore.Store
 	loggerImgEvent LogImageEvent
 }
 
 // LogImageEvent defines interface for event generation related to image tar(load and save) operations
 type LogImageEvent interface {
-	//LogImageEvent generates an event related to an image operation
+	// LogImageEvent generates an event related to an image operation
 	LogImageEvent(imageID, refName, action string)
 }
 
-// NewTarExporter returns new ImageExporter for tar packages
-func NewTarExporter(is image.Store, ls layer.Store, rs reference.Store, loggerImgEvent LogImageEvent) image.Exporter {
+// NewTarExporter returns new Exporter for tar packages
+func NewTarExporter(is image.Store, lss map[string]layer.Store, rs refstore.Store, loggerImgEvent LogImageEvent) image.Exporter {
 	return &tarexporter{
 		is:             is,
-		ls:             ls,
+		lss:            lss,
 		rs:             rs,
 		loggerImgEvent: loggerImgEvent,
 	}

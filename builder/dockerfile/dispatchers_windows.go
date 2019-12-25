@@ -1,24 +1,75 @@
-package dockerfile
+package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/system"
+	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 )
 
-// normaliseWorkdir normalises a user requested working directory in a
-// platform sematically consistent way.
-func normaliseWorkdir(current string, requested string) (string, error) {
+var pattern = regexp.MustCompile(`^[a-zA-Z]:\.$`)
+
+// normalizeWorkdir normalizes a user requested working directory in a
+// platform semantically consistent way.
+func normalizeWorkdir(platform string, current string, requested string) (string, error) {
+	if platform == "" {
+		platform = "windows"
+	}
+	if platform == "windows" {
+		return normalizeWorkdirWindows(current, requested)
+	}
+	return normalizeWorkdirUnix(current, requested)
+}
+
+// normalizeWorkdirUnix normalizes a user requested working directory in a
+// platform semantically consistent way.
+func normalizeWorkdirUnix(current string, requested string) (string, error) {
 	if requested == "" {
-		return "", fmt.Errorf("cannot normalise nothing")
+		return "", errors.New("cannot normalize nothing")
+	}
+	current = strings.Replace(current, string(os.PathSeparator), "/", -1)
+	requested = strings.Replace(requested, string(os.PathSeparator), "/", -1)
+	if !path.IsAbs(requested) {
+		return path.Join(`/`, current, requested), nil
+	}
+	return requested, nil
+}
+
+// normalizeWorkdirWindows normalizes a user requested working directory in a
+// platform semantically consistent way.
+func normalizeWorkdirWindows(current string, requested string) (string, error) {
+	if requested == "" {
+		return "", errors.New("cannot normalize nothing")
 	}
 
-	current = filepath.FromSlash(current)
-	requested = filepath.FromSlash(requested)
+	// `filepath.Clean` will replace "" with "." so skip in that case
+	if current != "" {
+		current = filepath.Clean(current)
+	}
+	if requested != "" {
+		requested = filepath.Clean(requested)
+	}
+
+	// If either current or requested in Windows is:
+	// C:
+	// C:.
+	// then an error will be thrown as the definition for the above
+	// refers to `current directory on drive C:`
+	// Since filepath.Clean() will automatically normalize the above
+	// to `C:.`, we only need to check the last format
+	if pattern.MatchString(current) {
+		return "", fmt.Errorf("%s is not a directory. If you are specifying a drive letter, please add a trailing '\\'", current)
+	}
+	if pattern.MatchString(requested) {
+		return "", fmt.Errorf("%s is not a directory. If you are specifying a drive letter, please add a trailing '\\'", requested)
+	}
 
 	// Target semantics is C:\somefolder, specifically in the format:
 	// UPPERCASEDriveLetter-Colon-Backslash-FolderName. We are already
@@ -45,21 +96,46 @@ func normaliseWorkdir(current string, requested string) (string, error) {
 	return (strings.ToUpper(string(requested[0])) + requested[1:]), nil
 }
 
-func errNotJSON(command, original string) error {
-	// For Windows users, give a hint if it looks like it might contain
-	// a path which hasn't been escaped such as ["c:\windows\system32\prog.exe", "-param"],
-	// as JSON must be escaped. Unfortunate...
-	//
-	// Specifically looking for quote-driveletter-colon-backslash, there's no
-	// double backslash and a [] pair. No, this is not perfect, but it doesn't
-	// have to be. It's simply a hint to make life a little easier.
-	extra := ""
-	original = filepath.FromSlash(strings.ToLower(strings.Replace(strings.ToLower(original), strings.ToLower(command)+" ", "", -1)))
-	if len(regexp.MustCompile(`"[a-z]:\\.*`).FindStringSubmatch(original)) > 0 &&
-		!strings.Contains(original, `\\`) &&
-		strings.Contains(original, "[") &&
-		strings.Contains(original, "]") {
-		extra = fmt.Sprintf(`. It looks like '%s' includes a file path without an escaped back-slash. JSON requires back-slashes to be escaped such as ["c:\\path\\to\\file.exe", "/parameter"]`, original)
+// resolveCmdLine takes a command line arg set and optionally prepends a platform-specific
+// shell in front of it. It returns either an array of arguments and an indication that
+// the arguments are not yet escaped; Or, an array containing a single command line element
+// along with an indication that the arguments are escaped so the runtime shouldn't escape.
+//
+// A better solution could be made, but it would be exceptionally invasive throughout
+// many parts of the daemon which are coded assuming Linux args array only only, not taking
+// account of Windows-natural command line semantics and it's argv handling. Put another way,
+// while what is here is good-enough, it could be improved, but would be highly invasive.
+//
+// The commands when this function is called are RUN, ENTRYPOINT and CMD.
+func resolveCmdLine(cmd instructions.ShellDependantCmdLine, runConfig *container.Config, os, command, original string) ([]string, bool) {
+
+	// Make sure we return an empty array if there is no cmd.CmdLine
+	if len(cmd.CmdLine) == 0 {
+		return []string{}, runConfig.ArgsEscaped
 	}
-	return fmt.Errorf("%s requires the arguments to be in JSON form%s", command, extra)
+
+	if os == "windows" { // ie WCOW
+		if cmd.PrependShell {
+			// WCOW shell-form. Return a single-element array containing the original command line prepended with the shell.
+			// Also indicate that it has not been escaped (so will be passed through directly to HCS). Note that
+			// we go back to the original un-parsed command line in the dockerfile line, strip off both the command part of
+			// it (RUN/ENTRYPOINT/CMD), and also strip any leading white space. IOW, we deliberately ignore any prior parsing
+			// so as to ensure it is treated exactly as a command line. For those interested, `RUN mkdir "c:/foo"` is a particularly
+			// good example of why this is necessary if you fancy debugging how cmd.exe and its builtin mkdir works. (Windows
+			// doesn't have a mkdir.exe, and I'm guessing cmd.exe has some very long unavoidable and unchangeable historical
+			// design decisions over how both its built-in echo and mkdir are coded. Probably more too.)
+			original = original[len(command):]               // Strip off the command
+			original = strings.TrimLeft(original, " \t\v\n") // Strip of leading whitespace
+			return []string{strings.Join(getShell(runConfig, os), " ") + " " + original}, true
+		}
+
+		// WCOW JSON/"exec" form.
+		return cmd.CmdLine, false
+	}
+
+	// LCOW - use args as an array, same as LCOL.
+	if cmd.PrependShell && cmd.CmdLine != nil {
+		return append(getShell(runConfig, os), cmd.CmdLine...), false
+	}
+	return cmd.CmdLine, false
 }

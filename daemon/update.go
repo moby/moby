@@ -1,40 +1,33 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/errdefs"
+	"github.com/pkg/errors"
 )
 
 // ContainerUpdate updates configuration of the container
-func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig, validateHostname bool) (types.ContainerUpdateResponse, error) {
+func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateOKBody, error) {
 	var warnings []string
 
-	warnings, err := daemon.verifyContainerSettings(hostConfig, nil, true, validateHostname)
+	c, err := daemon.GetContainer(name)
 	if err != nil {
-		return types.ContainerUpdateResponse{Warnings: warnings}, err
+		return container.ContainerUpdateOKBody{Warnings: warnings}, err
+	}
+
+	warnings, err = daemon.verifyContainerSettings(c.OS, hostConfig, nil, true)
+	if err != nil {
+		return container.ContainerUpdateOKBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
 	if err := daemon.update(name, hostConfig); err != nil {
-		return types.ContainerUpdateResponse{Warnings: warnings}, err
+		return container.ContainerUpdateOKBody{Warnings: warnings}, err
 	}
 
-	return types.ContainerUpdateResponse{Warnings: warnings}, nil
-}
-
-// ContainerUpdateCmdOnBuild updates Path and Args for the container with ID cID.
-func (daemon *Daemon) ContainerUpdateCmdOnBuild(cID string, cmd []string) error {
-	if len(cmd) == 0 {
-		return nil
-	}
-	c, err := daemon.GetContainer(cID)
-	if err != nil {
-		return err
-	}
-	c.Path = cmd[0]
-	c.Args = cmd[1:]
-	return nil
+	return container.ContainerUpdateOKBody{Warnings: warnings}, nil
 }
 
 func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) error {
@@ -53,31 +46,42 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 		if restoreConfig {
 			container.Lock()
 			container.HostConfig = &backupHostConfig
-			container.ToDisk()
+			container.CheckpointTo(daemon.containersReplica)
 			container.Unlock()
 		}
 	}()
 
 	if container.RemovalInProgress || container.Dead {
-		return errCannotUpdate(container.ID, fmt.Errorf("Container is marked for removal and cannot be \"update\"."))
+		return errCannotUpdate(container.ID, fmt.Errorf("container is marked for removal and cannot be \"update\""))
 	}
 
+	container.Lock()
 	if err := container.UpdateContainer(hostConfig); err != nil {
 		restoreConfig = true
+		container.Unlock()
 		return errCannotUpdate(container.ID, err)
 	}
+	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
+		restoreConfig = true
+		container.Unlock()
+		return errCannotUpdate(container.ID, err)
+	}
+	container.Unlock()
 
 	// if Restart Policy changed, we need to update container monitor
-	container.UpdateMonitor(hostConfig.RestartPolicy)
+	if hostConfig.RestartPolicy.Name != "" {
+		container.UpdateMonitor(hostConfig.RestartPolicy)
+	}
 
 	// If container is not running, update hostConfig struct is enough,
 	// resources will be updated when the container is started again.
 	// If container is running (including paused), we need to update configs
 	// to the real world.
 	if container.IsRunning() && !container.IsRestarting() {
-		if err := daemon.containerd.UpdateResources(container.ID, toContainerdResources(hostConfig.Resources)); err != nil {
+		if err := daemon.containerd.UpdateResources(context.Background(), container.ID, toContainerdResources(hostConfig.Resources)); err != nil {
 			restoreConfig = true
-			return errCannotUpdate(container.ID, err)
+			// TODO: it would be nice if containerd responded with better errors here so we can classify this better.
+			return errCannotUpdate(container.ID, errdefs.System(err))
 		}
 	}
 
@@ -87,5 +91,5 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 }
 
 func errCannotUpdate(containerID string, err error) error {
-	return fmt.Errorf("Cannot update container %s: %v", containerID, err)
+	return errors.Wrap(err, "Cannot update container "+containerID)
 }

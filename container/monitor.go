@@ -1,9 +1,9 @@
-package container
+package container // import "github.com/docker/docker/container"
 
 import (
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -23,7 +23,7 @@ func (container *Container) Reset(lock bool) {
 
 	// Re-create a brand new stdin pipe once the container exited
 	if container.Config.OpenStdin {
-		container.NewInputPipes()
+		container.StreamConfig.NewInputPipes()
 	}
 
 	if container.LogDriver != nil {
@@ -33,8 +33,11 @@ func (container *Container) Reset(lock bool) {
 				container.LogCopier.Wait()
 				close(exit)
 			}()
+
+			timer := time.NewTimer(loggerCloseTimeout)
+			defer timer.Stop()
 			select {
-			case <-time.After(loggerCloseTimeout):
+			case <-timer.C:
 				logrus.Warn("Logger didn't exit in time: logs may be truncated")
 			case <-exit:
 			}

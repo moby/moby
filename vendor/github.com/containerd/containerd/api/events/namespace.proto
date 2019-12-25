@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package containerd.events;
+
+import weak "gogoproto/gogo.proto";
+import weak "github.com/containerd/containerd/protobuf/plugin/fieldpath.proto";
+
+option go_package = "github.com/containerd/containerd/api/events;events";
+option (containerd.plugin.fieldpath_all) = true;
+
+message NamespaceCreate {
+	string name = 1;
+	map<string, string> labels  = 2;
+}
+
+message NamespaceUpdate {
+	string name = 1;
+	map<string, string> labels  = 2;
+}
+
+message NamespaceDelete {
+	string name = 1;
+}

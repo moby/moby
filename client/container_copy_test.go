@@ -1,7 +1,8 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -10,24 +11,33 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/errdefs"
 )
 
 func TestContainerStatPathError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerStatPath(context.Background(), "container_id", "path")
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server error, got %v", err)
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
+	}
+}
+
+func TestContainerStatPathNotFoundError(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
+	}
+	_, err := client.ContainerStatPath(context.Background(), "container_id", "path")
+	if !IsErrNotFound(err) {
+		t.Fatalf("expected a not found error, got %v", err)
 	}
 }
 
 func TestContainerStatPathNoHeaderError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
@@ -44,11 +54,11 @@ func TestContainerStatPath(t *testing.T) {
 	expectedURL := "/containers/container_id/archive"
 	expectedPath := "path/to/file"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			if req.Method != "HEAD" {
+			if req.Method != http.MethodHead {
 				return nil, fmt.Errorf("expected HEAD method, got %s", req.Method)
 			}
 			query := req.URL.Query()
@@ -78,26 +88,37 @@ func TestContainerStatPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	if stat.Name != "name" {
-		t.Fatalf("expected container path stat name to be 'name', was '%s'", stat.Name)
+		t.Fatalf("expected container path stat name to be 'name', got '%s'", stat.Name)
 	}
 	if stat.Mode != 0700 {
-		t.Fatalf("expected container path stat mode to be 0700, was '%v'", stat.Mode)
+		t.Fatalf("expected container path stat mode to be 0700, got '%v'", stat.Mode)
 	}
 }
 
 func TestCopyToContainerError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), types.CopyToContainerOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server error, got %v", err)
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
+func TestCopyToContainerNotFoundError(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
+	}
+	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), types.CopyToContainerOptions{})
+	if !IsErrNotFound(err) {
+		t.Fatalf("expected a not found error, got %v", err)
+	}
+}
+
+// TODO TestCopyToContainerNotStatusOKError expects a non-error status-code ("204 No Content") to produce an error; verify if this is the desired behavior
 func TestCopyToContainerNotStatusOKError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusNoContent, "No content")),
+		client: newMockClient(errorMock(http.StatusNoContent, "No content")),
 	}
 	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), types.CopyToContainerOptions{})
 	if err == nil || err.Error() != "unexpected status code from daemon: 204" {
@@ -109,11 +130,11 @@ func TestCopyToContainer(t *testing.T) {
 	expectedURL := "/containers/container_id/archive"
 	expectedPath := "path/to/file"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			if req.Method != "PUT" {
+			if req.Method != http.MethodPut {
 				return nil, fmt.Errorf("expected PUT method, got %s", req.Method)
 			}
 			query := req.URL.Query()
@@ -153,17 +174,28 @@ func TestCopyToContainer(t *testing.T) {
 
 func TestCopyFromContainerError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server error, got %v", err)
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
+func TestCopyFromContainerNotFoundError(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
+	}
+	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
+	if !IsErrNotFound(err) {
+		t.Fatalf("expected a not found error, got %v", err)
+	}
+}
+
+// TODO TestCopyFromContainerNotStatusOKError expects a non-error status-code ("204 No Content") to produce an error; verify if this is the desired behavior
 func TestCopyFromContainerNotStatusOKError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusNoContent, "No content")),
+		client: newMockClient(errorMock(http.StatusNoContent, "No content")),
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
 	if err == nil || err.Error() != "unexpected status code from daemon: 204" {
@@ -173,7 +205,7 @@ func TestCopyFromContainerNotStatusOKError(t *testing.T) {
 
 func TestCopyFromContainerNoHeaderError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
@@ -190,12 +222,12 @@ func TestCopyFromContainer(t *testing.T) {
 	expectedURL := "/containers/container_id/archive"
 	expectedPath := "path/to/file"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			if req.Method != "GET" {
-				return nil, fmt.Errorf("expected PUT method, got %s", req.Method)
+			if req.Method != http.MethodGet {
+				return nil, fmt.Errorf("expected GET method, got %s", req.Method)
 			}
 			query := req.URL.Query()
 			path := query.Get("path")
@@ -226,10 +258,10 @@ func TestCopyFromContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 	if stat.Name != "name" {
-		t.Fatalf("expected container path stat name to be 'name', was '%s'", stat.Name)
+		t.Fatalf("expected container path stat name to be 'name', got '%s'", stat.Name)
 	}
 	if stat.Mode != 0700 {
-		t.Fatalf("expected container path stat mode to be 0700, was '%v'", stat.Mode)
+		t.Fatalf("expected container path stat mode to be 0700, got '%v'", stat.Mode)
 	}
 	content, err := ioutil.ReadAll(r)
 	if err != nil {

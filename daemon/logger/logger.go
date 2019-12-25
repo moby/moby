@@ -5,78 +5,70 @@
 // factory, which holds the contextual instance information that
 // allows multiple loggers of the same type to perform different
 // actions, such as logging to different locations.
-package logger
+package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
-	"errors"
-	"sort"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/api/types/backend"
 )
 
-// ErrReadLogsNotSupported is returned when the logger does not support reading logs.
-var ErrReadLogsNotSupported = errors.New("configured logging reader does not support reading")
+// ErrReadLogsNotSupported is returned when the underlying log driver does not support reading
+type ErrReadLogsNotSupported struct{}
+
+func (ErrReadLogsNotSupported) Error() string {
+	return "configured logging driver does not support reading"
+}
+
+// NotImplemented makes this error implement the `NotImplemented` interface from api/errdefs
+func (ErrReadLogsNotSupported) NotImplemented() {}
 
 const (
-	// TimeFormat is the time format used for timestamps sent to log readers.
-	TimeFormat           = jsonlog.RFC3339NanoFixed
 	logWatcherBufferSize = 4096
 )
 
-// Message is datastructure that represents piece of output produced by some
+var messagePool = &sync.Pool{New: func() interface{} { return &Message{Line: make([]byte, 0, 256)} }}
+
+// NewMessage returns a new message from the message sync.Pool
+func NewMessage() *Message {
+	return messagePool.Get().(*Message)
+}
+
+// PutMessage puts the specified message back n the message pool.
+// The message fields are reset before putting into the pool.
+func PutMessage(msg *Message) {
+	msg.reset()
+	messagePool.Put(msg)
+}
+
+// Message is data structure that represents piece of output produced by some
 // container.  The Line member is a slice of an array whose contents can be
 // changed after a log driver's Log() method returns.
-type Message struct {
-	Line      []byte
-	Source    string
-	Timestamp time.Time
-	Attrs     LogAttributes
-	Partial   bool
+//
+// Message is subtyped from backend.LogMessage because there is a lot of
+// internal complexity around the Message type that should not be exposed
+// to any package not explicitly importing the logger type.
+//
+// Any changes made to this struct must also be updated in the `reset` function
+type Message backend.LogMessage
+
+// reset sets the message back to default values
+// This is used when putting a message back into the message pool.
+// Any changes to the `Message` struct should be reflected here.
+func (m *Message) reset() {
+	m.Line = m.Line[:0]
+	m.Source = ""
+	m.Attrs = nil
+	m.PLogMetaData = nil
+
+	m.Err = nil
 }
 
-// CopyMessage creates a copy of the passed-in Message which will remain
-// unchanged if the original is changed.  Log drivers which buffer Messages
-// rather than dispatching them during their Log() method should use this
-// function to obtain a Message whose Line member's contents won't change.
-func CopyMessage(msg *Message) *Message {
-	m := new(Message)
-	m.Line = make([]byte, len(msg.Line))
-	copy(m.Line, msg.Line)
-	m.Source = msg.Source
-	m.Timestamp = msg.Timestamp
-	m.Partial = msg.Partial
-	m.Attrs = make(LogAttributes)
-	for k, v := range m.Attrs {
-		m.Attrs[k] = v
-	}
-	return m
-}
-
-// LogAttributes is used to hold the extra attributes available in the log message
-// Primarily used for converting the map type to string and sorting.
-type LogAttributes map[string]string
-type byKey []string
-
-func (s byKey) Len() int { return len(s) }
-func (s byKey) Less(i, j int) bool {
-	keyI := strings.Split(s[i], "=")
-	keyJ := strings.Split(s[j], "=")
-	return keyI[0] < keyJ[0]
-}
-func (s byKey) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-func (a LogAttributes) String() string {
-	var ss byKey
-	for k, v := range a {
-		ss = append(ss, k+"="+v)
-	}
-	sort.Sort(ss)
-	return strings.Join(ss, ",")
+// AsLogMessage returns a pointer to the message as a pointer to
+// backend.LogMessage, which is an identical type with a different purpose
+func (m *Message) AsLogMessage() *backend.LogMessage {
+	return (*backend.LogMessage)(m)
 }
 
 // Logger is the interface for docker logging drivers.
@@ -86,9 +78,17 @@ type Logger interface {
 	Close() error
 }
 
+// SizedLogger is the interface for logging drivers that can control
+// the size of buffer used for their messages.
+type SizedLogger interface {
+	Logger
+	BufSize() int
+}
+
 // ReadConfig is the configuration passed into ReadLogs.
 type ReadConfig struct {
 	Since  time.Time
+	Until  time.Time
 	Tail   int
 	Follow bool
 }
@@ -103,32 +103,60 @@ type LogReader interface {
 type LogWatcher struct {
 	// For sending log messages to a reader.
 	Msg chan *Message
-	// For sending error messages that occur while while reading logs.
-	Err           chan error
-	closeOnce     sync.Once
-	closeNotifier chan struct{}
+	// For sending error messages that occur while reading logs.
+	Err          chan error
+	producerOnce sync.Once
+	producerGone chan struct{}
+	consumerOnce sync.Once
+	consumerGone chan struct{}
 }
 
 // NewLogWatcher returns a new LogWatcher.
 func NewLogWatcher() *LogWatcher {
 	return &LogWatcher{
-		Msg:           make(chan *Message, logWatcherBufferSize),
-		Err:           make(chan error, 1),
-		closeNotifier: make(chan struct{}),
+		Msg:          make(chan *Message, logWatcherBufferSize),
+		Err:          make(chan error, 1),
+		producerGone: make(chan struct{}),
+		consumerGone: make(chan struct{}),
 	}
 }
 
-// Close notifies the underlying log reader to stop.
-func (w *LogWatcher) Close() {
+// ProducerGone notifies the underlying log reader that
+// the logs producer (a container) is gone.
+func (w *LogWatcher) ProducerGone() {
 	// only close if not already closed
-	w.closeOnce.Do(func() {
-		close(w.closeNotifier)
+	w.producerOnce.Do(func() {
+		close(w.producerGone)
 	})
 }
 
-// WatchClose returns a channel receiver that receives notification
-// when the watcher has been closed. This should only be called from
-// one goroutine.
-func (w *LogWatcher) WatchClose() <-chan struct{} {
-	return w.closeNotifier
+// WatchProducerGone returns a channel receiver that receives notification
+// once the logs producer (a container) is gone.
+func (w *LogWatcher) WatchProducerGone() <-chan struct{} {
+	return w.producerGone
 }
+
+// ConsumerGone notifies that the logs consumer is gone.
+func (w *LogWatcher) ConsumerGone() {
+	// only close if not already closed
+	w.consumerOnce.Do(func() {
+		close(w.consumerGone)
+	})
+}
+
+// WatchConsumerGone returns a channel receiver that receives notification
+// when the log watcher consumer is gone.
+func (w *LogWatcher) WatchConsumerGone() <-chan struct{} {
+	return w.consumerGone
+}
+
+// Capability defines the list of capabilities that a driver can implement
+// These capabilities are not required to be a logging driver, however do
+// determine how a logging driver can be used
+type Capability struct {
+	// Determines if a log driver can read back logs
+	ReadLogs bool
+}
+
+// MarshalFunc is a func that marshals a message into an arbitrary format
+type MarshalFunc func(*Message) ([]byte, error)

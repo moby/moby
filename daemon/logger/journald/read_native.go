@@ -1,6 +1,6 @@
 // +build linux,cgo,!static_build,journald,!journald_compat
 
-package journald
+package journald // import "github.com/docker/docker/daemon/logger/journald"
 
 // #cgo pkg-config: libsystemd
 import "C"

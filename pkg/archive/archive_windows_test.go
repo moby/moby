@@ -1,6 +1,6 @@
 // +build windows
 
-package archive
+package archive // import "github.com/docker/docker/pkg/archive"
 
 import (
 	"io/ioutil"
@@ -27,7 +27,7 @@ func TestCopyFileWithInvalidDest(t *testing.T) {
 		t.Fatal(err)
 	}
 	ioutil.WriteFile(src, []byte("content"), 0777)
-	err = CopyWithTar(src, dest)
+	err = defaultCopyWithTar(src, dest)
 	if err == nil {
 		t.Fatalf("archiver.CopyWithTar should throw an error on invalid dest.")
 	}
@@ -36,19 +36,14 @@ func TestCopyFileWithInvalidDest(t *testing.T) {
 func TestCanonicalTarNameForPath(t *testing.T) {
 	cases := []struct {
 		in, expected string
-		shouldFail   bool
 	}{
-		{"foo", "foo", false},
-		{"foo/bar", "___", true}, // unix-styled windows path must fail
-		{`foo\bar`, "foo/bar", false},
+		{"foo", "foo"},
+		{"foo/bar", "foo/bar"},
+		{`foo\bar`, "foo/bar"},
 	}
 	for _, v := range cases {
-		if out, err := CanonicalTarNameForPath(v.in); err != nil && !v.shouldFail {
-			t.Fatalf("cannot get canonical name for path: %s: %v", v.in, err)
-		} else if v.shouldFail && err == nil {
-			t.Fatalf("canonical path call should have failed with error. in=%s out=%s", v.in, out)
-		} else if !v.shouldFail && out != v.expected {
-			t.Fatalf("wrong canonical tar name. expected:%s got:%s", v.expected, out)
+		if CanonicalTarNameForPath(v.in) != v.expected {
+			t.Fatalf("wrong canonical tar name. expected:%s got:%s", v.expected, CanonicalTarNameForPath(v.in))
 		}
 	}
 }
@@ -65,10 +60,8 @@ func TestCanonicalTarName(t *testing.T) {
 		{`foo\bar`, true, "foo/bar/"},
 	}
 	for _, v := range cases {
-		if out, err := canonicalTarName(v.in, v.isDir); err != nil {
-			t.Fatalf("cannot get canonical name for path: %s: %v", v.in, err)
-		} else if out != v.expected {
-			t.Fatalf("wrong canonical tar name. expected:%s got:%s", v.expected, out)
+		if canonicalTarName(v.in, v.isDir) != v.expected {
+			t.Fatalf("wrong canonical tar name. expected:%s got:%s", v.expected, canonicalTarName(v.in, v.isDir))
 		}
 	}
 }
@@ -82,6 +75,8 @@ func TestChmodTarEntry(t *testing.T) {
 		{0644, 0755},
 		{0755, 0755},
 		{0444, 0555},
+		{0755 | os.ModeDir, 0755 | os.ModeDir},
+		{0755 | os.ModeSymlink, 0755 | os.ModeSymlink},
 	}
 	for _, v := range cases {
 		if out := chmodTarEntry(v.in); out != v.expected {

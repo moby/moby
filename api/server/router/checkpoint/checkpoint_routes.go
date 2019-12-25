@@ -1,14 +1,12 @@
-// +build experimental
-
-package checkpoint
+package checkpoint // import "github.com/docker/docker/api/server/router/checkpoint"
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
-	"golang.org/x/net/context"
 )
 
 func (s *checkpointRouter) postContainerCheckpoint(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -28,7 +26,7 @@ func (s *checkpointRouter) postContainerCheckpoint(ctx context.Context, w http.R
 		return err
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusCreated)
 	return nil
 }
 
@@ -37,7 +35,10 @@ func (s *checkpointRouter) getContainerCheckpoints(ctx context.Context, w http.R
 		return err
 	}
 
-	checkpoints, err := s.backend.CheckpointList(vars["name"])
+	checkpoints, err := s.backend.CheckpointList(vars["name"], types.CheckpointListOptions{
+		CheckpointDir: r.Form.Get("dir"),
+	})
+
 	if err != nil {
 		return err
 	}
@@ -50,7 +51,11 @@ func (s *checkpointRouter) deleteContainerCheckpoint(ctx context.Context, w http
 		return err
 	}
 
-	err := s.backend.CheckpointDelete(vars["name"], vars["checkpoint"])
+	err := s.backend.CheckpointDelete(vars["name"], types.CheckpointDeleteOptions{
+		CheckpointDir: r.Form.Get("dir"),
+		CheckpointID:  vars["checkpoint"],
+	})
+
 	if err != nil {
 		return err
 	}

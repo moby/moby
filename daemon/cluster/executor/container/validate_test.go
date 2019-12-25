@@ -1,4 +1,4 @@
-package container
+package container // import "github.com/docker/docker/daemon/cluster/executor/container"
 
 import (
 	"io/ioutil"
@@ -12,7 +12,7 @@ import (
 )
 
 func newTestControllerWithMount(m api.Mount) (*controller, error) {
-	return newController(&daemon.Daemon{}, &api.Task{
+	return newController(&daemon.Daemon{}, nil, nil, &api.Task{
 		ID:        stringid.GenerateRandomID(),
 		ServiceID: stringid.GenerateRandomID(),
 		Spec: api.TaskSpec{
@@ -26,7 +26,8 @@ func newTestControllerWithMount(m api.Mount) (*controller, error) {
 				},
 			},
 		},
-	})
+	}, nil,
+		nil)
 }
 
 func TestControllerValidateMountBind(t *testing.T) {
@@ -42,10 +43,10 @@ func TestControllerValidateMountBind(t *testing.T) {
 	// with non-existing source
 	if _, err := newTestControllerWithMount(api.Mount{
 		Type:   api.MountTypeBind,
-		Source: "/some-non-existing-host-path/",
+		Source: testAbsNonExistent,
 		Target: testAbsPath,
-	}); err == nil || !strings.Contains(err.Error(), "invalid bind mount source") {
-		t.Fatalf("expected  error, got: %v", err)
+	}); err != nil {
+		t.Fatalf("controller should not error at creation: %v", err)
 	}
 
 	// with proper source

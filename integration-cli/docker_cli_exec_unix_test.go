@@ -1,4 +1,4 @@
-// +build !windows,!test_no_exec
+// +build !windows
 
 package main
 
@@ -7,50 +7,54 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/go-check/check"
-	"github.com/kr/pty"
+	"github.com/creack/pty"
+	"gotest.tools/assert"
 )
 
 // regression test for #12546
-func (s *DockerSuite) TestExecInteractiveStdinClose(c *check.C) {
+func (s *DockerSuite) TestExecInteractiveStdinClose(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-itd", "busybox", "/bin/cat")
 	contID := strings.TrimSpace(out)
 
 	cmd := exec.Command(dockerBinary, "exec", "-i", contID, "echo", "-n", "hello")
 	p, err := pty.Start(cmd)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	b := bytes.NewBuffer(nil)
-	go io.Copy(b, p)
 
 	ch := make(chan error)
 	go func() { ch <- cmd.Wait() }()
 
 	select {
 	case err := <-ch:
-		c.Assert(err, checker.IsNil)
-		output := b.String()
-		c.Assert(strings.TrimSpace(output), checker.Equals, "hello")
+		assert.NilError(c, err)
+		io.Copy(b, p)
+		p.Close()
+		bs := b.Bytes()
+		bs = bytes.Trim(bs, "\x00")
+		output := string(bs[:])
+		assert.Equal(c, strings.TrimSpace(output), "hello")
 	case <-time.After(5 * time.Second):
+		p.Close()
 		c.Fatal("timed out running docker exec")
 	}
 }
 
-func (s *DockerSuite) TestExecTTY(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+func (s *DockerSuite) TestExecTTY(c *testing.T) {
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	dockerCmd(c, "run", "-d", "--name=test", "busybox", "sh", "-c", "echo hello > /foo && top")
 
 	cmd := exec.Command(dockerBinary, "exec", "-it", "test", "sh")
 	p, err := pty.Start(cmd)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer p.Close()
 
 	_, err = p.Write([]byte("cat /foo && exit\n"))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	chErr := make(chan error)
 	go func() {
@@ -58,36 +62,36 @@ func (s *DockerSuite) TestExecTTY(c *check.C) {
 	}()
 	select {
 	case err := <-chErr:
-		c.Assert(err, checker.IsNil)
+		assert.NilError(c, err)
 	case <-time.After(3 * time.Second):
 		c.Fatal("timeout waiting for exec to exit")
 	}
 
 	buf := make([]byte, 256)
 	read, err := p.Read(buf)
-	c.Assert(err, checker.IsNil)
-	c.Assert(bytes.Contains(buf, []byte("hello")), checker.Equals, true, check.Commentf(string(buf[:read])))
+	assert.NilError(c, err)
+	assert.Assert(c, bytes.Contains(buf, []byte("hello")), string(buf[:read]))
 }
 
-// Test the the TERM env var is set when -t is provided on exec
-func (s *DockerSuite) TestExecWithTERM(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+// Test the TERM env var is set when -t is provided on exec
+func (s *DockerSuite) TestExecWithTERM(c *testing.T) {
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	out, _ := dockerCmd(c, "run", "-id", "busybox", "/bin/cat")
 	contID := strings.TrimSpace(out)
 	cmd := exec.Command(dockerBinary, "exec", "-t", contID, "sh", "-c", "if [ -z $TERM ]; then exit 1; else exit 0; fi")
 	if err := cmd.Run(); err != nil {
-		c.Assert(err, checker.IsNil)
+		assert.NilError(c, err)
 	}
 }
 
 // Test that the TERM env var is not set on exec when -t is not provided, even if it was set
 // on run
-func (s *DockerSuite) TestExecWithNoTERM(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+func (s *DockerSuite) TestExecWithNoTERM(c *testing.T) {
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	out, _ := dockerCmd(c, "run", "-itd", "busybox", "/bin/cat")
 	contID := strings.TrimSpace(out)
 	cmd := exec.Command(dockerBinary, "exec", contID, "sh", "-c", "if [ -z $TERM ]; then exit 0; else exit 1; fi")
 	if err := cmd.Run(); err != nil {
-		c.Assert(err, checker.IsNil)
+		assert.NilError(c, err)
 	}
 }

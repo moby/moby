@@ -1,4 +1,4 @@
-package stringid
+package stringid // import "github.com/docker/docker/pkg/stringid"
 
 import (
 	"strings"
@@ -7,14 +7,6 @@ import (
 
 func TestGenerateRandomID(t *testing.T) {
 	id := GenerateRandomID()
-
-	if len(id) != 64 {
-		t.Fatalf("Id returned is incorrect: %s", id)
-	}
-}
-
-func TestGenerateNonCryptoID(t *testing.T) {
-	id := GenerateNonCryptoID()
 
 	if len(id) != 64 {
 		t.Fatalf("Id returned is incorrect: %s", id)

@@ -1,4 +1,4 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"testing"
@@ -14,31 +14,36 @@ import (
 func reset(c *container.Container) {
 	c.State = &container.State{}
 	c.State.Health = &container.Health{}
-	c.State.Health.Status = types.Starting
+	c.State.Health.SetStatus(types.Starting)
 }
 
 func TestNoneHealthcheck(t *testing.T) {
 	c := &container.Container{
-		CommonContainer: container.CommonContainer{
-			ID:   "container_id",
-			Name: "container_name",
-			Config: &containertypes.Config{
-				Image: "image_name",
-				Healthcheck: &containertypes.HealthConfig{
-					Test: []string{"NONE"},
-				},
+		ID:   "container_id",
+		Name: "container_name",
+		Config: &containertypes.Config{
+			Image: "image_name",
+			Healthcheck: &containertypes.HealthConfig{
+				Test: []string{"NONE"},
 			},
-			State: &container.State{},
 		},
+		State: &container.State{},
 	}
-	daemon := &Daemon{}
+	store, err := container.NewViewDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	daemon := &Daemon{
+		containersReplica: store,
+	}
 
 	daemon.initHealthMonitor(c)
 	if c.State.Health != nil {
-		t.Errorf("Expecting Health to be nil, but was not")
+		t.Error("Expecting Health to be nil, but was not")
 	}
 }
 
+// FIXME(vdemeester) This takes around 3s… This is *way* too long
 func TestHealthStates(t *testing.T) {
 	e := events.New()
 	_, l, _ := e.Subscribe()
@@ -57,17 +62,23 @@ func TestHealthStates(t *testing.T) {
 	}
 
 	c := &container.Container{
-		CommonContainer: container.CommonContainer{
-			ID:   "container_id",
-			Name: "container_name",
-			Config: &containertypes.Config{
-				Image: "image_name",
-			},
+		ID:   "container_id",
+		Name: "container_name",
+		Config: &containertypes.Config{
+			Image: "image_name",
 		},
 	}
-	daemon := &Daemon{
-		EventsService: e,
+
+	store, err := container.NewViewDB()
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	daemon := &Daemon{
+		EventsService:     e,
+		containersReplica: store,
+	}
+	muteLogs()
 
 	c.Config.Healthcheck = &containertypes.HealthConfig{
 		Retries: 1,
@@ -80,7 +91,7 @@ func TestHealthStates(t *testing.T) {
 			Start:    startTime,
 			End:      startTime,
 			ExitCode: exitCode,
-		})
+		}, nil)
 	}
 
 	// starting -> failed -> success -> failed
@@ -101,8 +112,8 @@ func TestHealthStates(t *testing.T) {
 
 	handleResult(c.State.StartedAt.Add(20*time.Second), 1)
 	handleResult(c.State.StartedAt.Add(40*time.Second), 1)
-	if c.State.Health.Status != types.Starting {
-		t.Errorf("Expecting starting, but got %#v\n", c.State.Health.Status)
+	if status := c.State.Health.Status(); status != types.Starting {
+		t.Errorf("Expecting starting, but got %#v\n", status)
 	}
 	if c.State.Health.FailingStreak != 2 {
 		t.Errorf("Expecting FailingStreak=2, but got %d\n", c.State.Health.FailingStreak)
@@ -110,6 +121,32 @@ func TestHealthStates(t *testing.T) {
 	handleResult(c.State.StartedAt.Add(60*time.Second), 1)
 	expect("health_status: unhealthy")
 
+	handleResult(c.State.StartedAt.Add(80*time.Second), 0)
+	expect("health_status: healthy")
+	if c.State.Health.FailingStreak != 0 {
+		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
+	}
+
+	// Test start period
+
+	reset(c)
+	c.Config.Healthcheck.Retries = 2
+	c.Config.Healthcheck.StartPeriod = 30 * time.Second
+
+	handleResult(c.State.StartedAt.Add(20*time.Second), 1)
+	if status := c.State.Health.Status(); status != types.Starting {
+		t.Errorf("Expecting starting, but got %#v\n", status)
+	}
+	if c.State.Health.FailingStreak != 0 {
+		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
+	}
+	handleResult(c.State.StartedAt.Add(50*time.Second), 1)
+	if status := c.State.Health.Status(); status != types.Starting {
+		t.Errorf("Expecting starting, but got %#v\n", status)
+	}
+	if c.State.Health.FailingStreak != 1 {
+		t.Errorf("Expecting FailingStreak=1, but got %d\n", c.State.Health.FailingStreak)
+	}
 	handleResult(c.State.StartedAt.Add(80*time.Second), 0)
 	expect("health_status: healthy")
 	if c.State.Health.FailingStreak != 0 {

@@ -1,0 +1,474 @@
+syntax = "proto3";
+
+package docker.swarmkit.v1;
+
+import "github.com/docker/swarmkit/api/types.proto";
+import "gogoproto/gogo.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/wrappers.proto";
+
+// Specs are container objects for user provided input. All creations and
+// updates are done through spec types. As a convention, user input from a spec
+// is never touched in created objects. This allows one to verify that the
+// users intent has not been modified.
+//
+// Put differently, spec types can be said to represent the desired state of
+// the system. In situations where modifications need to be made to a
+// particular component, API objects will either contain a copy of the spec
+// component or a different representation to reflect allocation or resolution.
+
+message NodeSpec {
+	Annotations annotations = 1 [(gogoproto.nullable) = false];
+
+	enum Membership {
+		option (gogoproto.goproto_enum_prefix) = false;
+
+		PENDING = 0 [(gogoproto.enumvalue_customname) = "NodeMembershipPending"];
+		ACCEPTED = 1 [(gogoproto.enumvalue_customname) = "NodeMembershipAccepted"];
+	}
+
+	enum Availability {
+		option (gogoproto.goproto_enum_prefix) = false;
+
+		// Active nodes.
+		ACTIVE = 0 [(gogoproto.enumvalue_customname) = "NodeAvailabilityActive"];
+
+		// Paused nodes won't be considered by the scheduler, preventing any
+		// further task to run on them.
+		PAUSE = 1 [(gogoproto.enumvalue_customname) = "NodeAvailabilityPause"];
+
+		// Drained nodes are paused and any task already running on them will
+		// be evicted.
+		DRAIN = 2 [(gogoproto.enumvalue_customname) = "NodeAvailabilityDrain"];
+	}
+
+	// DesiredRole defines the role the node should have.
+	NodeRole desired_role = 2;
+
+	// Membership controls the admission of the node into the cluster.
+	Membership membership = 3;
+
+	// Availability allows a user to control the current scheduling status of a
+	// node.
+	Availability availability = 4;
+}
+
+// ServiceSpec defines the properties of a service.
+//
+// A service instructs the cluster in orchestrating repeated instances of a
+// template, implemented as tasks. Based on the number of instances, scheduling
+// strategy and restart policy, a number of application-level behaviors can be
+// defined.
+message ServiceSpec {
+	Annotations annotations = 1 [(gogoproto.nullable) = false];
+
+	// Task defines the task template this service will spawn.
+	TaskSpec task = 2 [(gogoproto.nullable) = false];
+
+	oneof mode {
+		ReplicatedService replicated = 3;
+		GlobalService global = 4;
+	}
+
+	// Update contains settings which affect updates.
+	UpdateConfig update = 6;
+
+	// Rollback contains settings which affect rollbacks of updates.
+	UpdateConfig rollback = 9;
+
+	// ServiceSpec.Networks has been deprecated and is replaced by
+	// Networks field in Task (TaskSpec.Networks).
+	// This field (ServiceSpec.Networks) is kept for compatibility.
+	// In case TaskSpec.Networks does not exist, ServiceSpec.Networks
+	// is still honored if it exists.
+	repeated NetworkAttachmentConfig networks = 7 [deprecated=true];
+
+	// Service endpoint specifies the user provided configuration
+	// to properly discover and load balance a service.
+	EndpointSpec endpoint = 8;
+}
+
+// ReplicatedService sets the reconciliation target to certain number of replicas.
+message ReplicatedService {
+	uint64 replicas = 1;
+}
+
+// GlobalService represents global service.
+message GlobalService {
+	// Empty message for now.
+}
+
+message TaskSpec {
+	oneof runtime {
+		NetworkAttachmentSpec attachment = 8;
+		ContainerSpec container = 1;
+		GenericRuntimeSpec generic = 10;
+	}
+
+	// Resource requirements for the container.
+	ResourceRequirements resources = 2;
+
+	// RestartPolicy specifies what to do when a task fails or finishes.
+	RestartPolicy restart = 4;
+
+	// Placement specifies node selection constraints
+	Placement placement = 5;
+
+	// LogDriver specifies the log driver to use for the task. Any runtime will
+	// direct logs into the specified driver for the duration of the task.
+	Driver log_driver = 6;
+
+	// Networks specifies the list of network attachment
+	// configurations (which specify the network and per-network
+	// aliases) that this task spec is bound to.
+	repeated NetworkAttachmentConfig networks = 7;
+
+	// ForceUpdate is a counter that triggers an update even if no relevant
+	// parameters have been changed. We do this to allow forced restarts
+	// using the same reconciliation-based mechanism that performs rolling
+	// updates.
+	uint64 force_update = 9;
+
+	// ResourceReferences provides a generic way to specify resources that
+	// are used by this task, and should be sent down to agents along with
+	// the task. Inside the runtime field there may be more specific
+	// information about how to use the resource, but ResourceReferences
+	// establishes the relationship at the store level, and instructs the
+	// dispatcher to send the related objects.
+	//
+	// ResourceReferences is a list of ResourceReferences used by the task.
+	repeated ResourceReference resource_references = 11 [(gogoproto.nullable) = false];
+}
+
+message ResourceReference {
+	string resource_id = 1;
+	ResourceType resource_type = 2;
+}
+
+message GenericRuntimeSpec {
+	string kind = 1;
+	google.protobuf.Any payload = 2;
+}
+
+// NetworkAttachmentSpec specifies runtime parameters required to attach
+// a container to a network.
+message NetworkAttachmentSpec {
+	// ContainerID specifies a unique ID of the container for which
+	// this attachment is for.
+	string container_id = 1;
+}
+
+
+// Container specifies runtime parameters for a container.
+message ContainerSpec {
+	// image defines the image reference, as specified in the
+	// distribution/reference package. This may include a registry host, name,
+	// tag or digest.
+	//
+	// The field will be directly passed to the engine pulling. Well-behaved
+	// service definitions will used immutable references, either through tags
+	// that don't change or verifiable digests.
+	string image = 1;
+
+	// Labels defines labels to be added to the container at creation time. If
+	// collisions with system labels occur, these labels will be overridden.
+	//
+	// This field *must* remain compatible with the Labels field of
+	// Annotations.
+	map<string, string> labels = 2;
+
+	// Command to run the the container. The first element is a path to the
+	// executable and the following elements are treated as arguments.
+	//
+	// If command is empty, execution will fall back to the image's entrypoint.
+	//
+	// Command should only be used when overriding entrypoint.
+	repeated string command = 3;
+
+	// Args specifies arguments provided to the image's entrypoint.
+	//
+	// If Command and Args are provided, Args will be appended to Command.
+	repeated string args = 4;
+
+	// Hostname specifies the hostname that will be set on containers created by docker swarm.
+	// All containers for a given service will have the same hostname
+	string hostname = 14;
+
+	// Env specifies the environment variables for the container in NAME=VALUE
+	// format. These must be compliant with  [IEEE Std
+	// 1003.1-2001](http://pubs.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html).
+	repeated string env = 5;
+
+	// Dir defines the working directory to set for the container process.
+	string dir = 6;
+
+	// User specifies the user that should be employed to run the container.
+	//
+	// Note that the primary group may be specified by appending the group name
+	// or id to the user name, separated by a `:`. This syntax is
+	// `<user>:<group>`.
+	string user = 7;
+
+	// Groups specifies supplementary groups available to the user.
+	repeated string groups = 11;
+
+	// Privileges specifies security configuration/permissions.
+	Privileges privileges = 22;
+
+	// Init declares that a custom init will be running inside the container, if null, use the daemon's configured settings
+	google.protobuf.BoolValue init = 23;
+
+	// TTY declares that a TTY should be attached to the standard streams,
+	// including stdin if it is still open.
+	bool tty = 13 [(gogoproto.customname) = "TTY"];
+
+	// OpenStdin declares that the standard input (stdin) should be open.
+	bool open_stdin = 18;
+
+	// ReadOnly declares that the container root filesystem is read-only.
+	// This only impacts the root filesystem, not additional mounts (including
+	// tmpfs). For additional mounts that are not part of the initial rootfs,
+	// they will be decided by the modes passed in the mount definition.
+	bool read_only = 19;
+
+	// StopSignal defines the signal to stop the container.
+	string stop_signal = 20;
+
+	repeated Mount mounts = 8 [(gogoproto.nullable) = false];
+
+	// StopGracePeriod the grace period for stopping the container before
+	// forcefully killing the container.
+	// Note: Can't use stdduration here because this needs to be nullable.
+	google.protobuf.Duration stop_grace_period = 9;
+
+	// PullOptions allows one to parameterize an image pull.
+	message PullOptions {
+		// RegistryAuth is the registry auth token obtained from the client, required
+		// to pull private images. This is the unmodified JSON used as part of
+		// the `X-Registry-Auth` header.
+		// TODO(nishanttotla): This field will later be deprecated
+		string registry_auth = 64;
+	}
+
+	// PullOptions parameterize the behavior of image pulls.
+	PullOptions pull_options = 10;
+
+	// SecretReference contains references to zero or more secrets that
+	// will be exposed to the container.
+	repeated SecretReference secrets = 12;
+
+	// ConfigReference contains references to zero or more configs that
+	// will be exposed to the container.
+	repeated ConfigReference configs = 21;
+
+	// Hosts allow additional entries to be specified in /etc/hosts
+	// that associates IP addresses with hostnames.
+	// Detailed documentation is available in:
+	// http://man7.org/linux/man-pages/man5/hosts.5.html
+	//   IP_address canonical_hostname [aliases...]
+	//
+	// The format of the Hosts in swarmkit follows the same as
+	// above.
+	// This is different from `docker run --add-host <hostname>:<ip>`
+	// where format is `<hostname>:<ip>`
+	repeated string hosts = 17;
+
+	// DNSConfig specifies DNS related configurations in resolver configuration file (resolv.conf)
+	// Detailed documentation is available in:
+	// http://man7.org/linux/man-pages/man5/resolv.conf.5.html
+	// TODO: domain is not supported yet
+	message DNSConfig {
+		// Nameservers specifies the IP addresses of the name servers
+		repeated string nameservers = 1;
+
+		// Search specifies the search list for host-name lookup
+		repeated string search = 2;
+
+		// Options allows certain internal resolver variables to be modified
+		repeated string options = 3;
+	}
+
+	// DNSConfig allows one to specify DNS related configuration in resolv.conf
+	DNSConfig dns_config = 15 [(gogoproto.customname) = "DNSConfig"];
+
+	// Healthcheck describes how to check the container is healthy. If the
+	// container is considered unhealthy, it will be destroyed, its creating
+	// task will exit and a new task will be rescheduled elsewhere. A container
+	// is considered unhealthy after `Retries` number of consecutive failures.
+	HealthConfig healthcheck = 16;
+
+	enum Isolation {
+		option (gogoproto.goproto_enum_prefix) = false;
+
+		// ISOLATION_DEFAULT uses whatever default value from the container runtime
+		ISOLATION_DEFAULT = 0 [(gogoproto.enumvalue_customname) = "ContainerIsolationDefault"];
+
+		// ISOLATION_PROCESS forces windows container isolation
+		ISOLATION_PROCESS = 1 [(gogoproto.enumvalue_customname) = "ContainerIsolationProcess"];
+
+		// ISOLATION_HYPERV forces Hyper-V isolation
+		ISOLATION_HYPERV = 2 [(gogoproto.enumvalue_customname) = "ContainerIsolationHyperV"];
+	}
+
+	// Isolation defines the isolation level for windows containers (default, process, hyperv).
+	// Runtimes that don't support it ignore that field
+	Isolation isolation = 24;
+
+	// PidsLimit prevents from OS resource damage by applications inside the container
+	// using fork bomb attack.
+	int64 pidsLimit = 25;
+
+	// Sysctls sets namespaced kernel parameters (sysctls) in the container. This
+	// option is equivalent to passing --sysctl to docker run.
+	//
+	// Note that while options are subject to the same restrictions as arguments
+	// passed to the --sysctl flag on docker run, those options are not further
+	// validated to ensure that they are safe or sensible in a clustered
+	// environment.
+	//
+	// Additionally, sysctls are not validated for support in the underlying
+	// daemon. For information about supported options, refer to the
+	// documentation at:
+	//
+	// https://docs.docker.com/engine/reference/commandline/run/#configure-namespaced-kernel-parameters-sysctls-at-runtime
+	map<string, string> sysctls = 26;
+
+	// Capabilities is the list of Linux capabilities to be available for container (this overrides the default set of capabilities)
+	repeated string capabilities = 27;
+}
+
+// EndpointSpec defines the properties that can be configured to
+// access and loadbalance the service.
+message EndpointSpec {
+	// ResolutionMode specifies the mode of resolution to use for
+	// internal loadbalancing between tasks which are all within
+	// the cluster. This is sometimes calls east-west data path.
+	enum ResolutionMode {
+		option (gogoproto.goproto_enum_prefix) = false;
+
+		// VIP resolution mode specifies that the
+		// service resolves to a logical IP and the requests
+		// are sent to that logical IP. Packets hitting that
+		// logical IP are load balanced to a chosen backend.
+		VIP = 0 [(gogoproto.enumvalue_customname) = "ResolutionModeVirtualIP"];
+
+		// DNSRR resolution mode specifies that the
+		// service directly gets resolved to one of the
+		// backend IP and the client directly initiates a
+		// request towards the actual backend. This requires
+		// that the client does not cache the DNS responses
+		// when the DNS response TTL is 0.
+		DNSRR = 1 [(gogoproto.enumvalue_customname) = "ResolutionModeDNSRoundRobin"];
+	}
+
+	ResolutionMode mode = 1;
+
+	// List of exposed ports that this service is accessible from
+	// external to the cluster.
+	repeated PortConfig ports = 2;
+}
+
+// NetworkSpec specifies user defined network parameters.
+message NetworkSpec {
+	Annotations annotations = 1 [(gogoproto.nullable) = false];
+
+	// DriverConfig specific configuration consumed by the network driver.
+	Driver driver_config = 2;
+
+	// IPv6Enabled enables support for IPv6 on the network.
+	bool ipv6_enabled = 3;
+
+	// internal restricts external access to the network. This may be
+	// accomplished by disabling the default gateway or through other means.
+	bool internal = 4;
+
+	IPAMOptions ipam = 5 [(gogoproto.customname) = "IPAM"];
+
+	// Attachable allows external(to swarm) entities to manually
+	// attach to this network. With this flag enabled, external
+	// entities such as containers running in an worker node in
+	// the cluster can manually attach to this network and access
+	// the services attached to this network. If this flag is not
+	// enabled(default case) no manual attachment to this network
+	// can happen.
+	bool attachable = 6;
+
+	// Ingress indicates this network will provide the routing-mesh.
+	// In older versions, the network providing the routing mesh was
+	// swarm internally created only and it was identified by the name
+	// "ingress" and the label "com.docker.swarm.internal": "true".
+	bool ingress = 7;
+
+	// ConfigFrom is the source of the configuration for this network.
+	oneof config_from {
+		// Network is the name of a network that provides the network
+		// specific configuration for this network, locally on the node
+		// where this network is being plumbed.
+		string network = 8;
+	}
+
+}
+
+// ClusterSpec specifies global cluster settings.
+message ClusterSpec {
+	Annotations annotations = 1 [(gogoproto.nullable) = false];
+
+	// DEPRECATED: AcceptancePolicy defines the certificate issuance policy.
+	// Acceptance policy is no longer customizable, and secrets have been
+	// replaced with join tokens.
+	AcceptancePolicy acceptance_policy = 2 [deprecated=true, (gogoproto.nullable) = false];
+
+	// Orchestration defines cluster-level orchestration settings.
+	OrchestrationConfig orchestration = 3 [(gogoproto.nullable) = false];
+
+	// Raft defines the cluster's raft settings.
+	RaftConfig raft = 4 [(gogoproto.nullable) = false];
+
+	// Dispatcher defines cluster-level dispatcher settings.
+	DispatcherConfig dispatcher = 5 [(gogoproto.nullable) = false];
+
+	// CAConfig defines cluster-level certificate authority settings.
+	CAConfig ca_config = 6 [(gogoproto.nullable) = false, (gogoproto.customname) = "CAConfig"];
+
+	// TaskDefaults specifies the default values to use for task creation.
+	TaskDefaults task_defaults = 7 [(gogoproto.nullable) = false];
+
+	// EncryptionConfig defines the cluster's encryption settings.
+	EncryptionConfig encryption_config = 8 [(gogoproto.nullable) = false];
+}
+
+// SecretSpec specifies a user-provided secret.
+message SecretSpec {
+	Annotations annotations = 1 [(gogoproto.nullable) = false];
+
+	// Data is the secret payload - the maximum size is 500KB (that is, 500*1024 bytes)
+	bytes data = 2;
+
+	// Templating controls whether and how to evaluate the secret payload as
+	// a template. If it is not set, no templating is used.
+	//
+	// The currently recognized values are:
+	// - golang: Go templating
+	Driver templating = 3;
+
+	// Driver is the the secret driver that is used to store the specified secret
+	Driver driver = 4;
+}
+
+// ConfigSpec specifies user-provided configuration files.
+message ConfigSpec {
+	Annotations annotations = 1 [(gogoproto.nullable) = false];
+
+	// Data is the config payload - the maximum size is 500KB (that is, 500*1024 bytes)
+	// TODO(aaronl): Do we want to revise this to include multiple payloads in a single
+	// ConfigSpec? Define this to be a tar? etc...
+	bytes data = 2;
+
+	// Templating controls whether and how to evaluate the secret payload as
+	// a template. If it is not set, no templating is used.
+	//
+	// The currently recognized values are:
+	// - golang: Go templating
+	Driver templating = 3;
+}

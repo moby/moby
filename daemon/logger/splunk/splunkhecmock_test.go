@@ -1,13 +1,15 @@
-package splunk
+package splunk // import "github.com/docker/docker/daemon/logger/splunk"
 
 import (
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
+	"sync"
 	"testing"
 )
 
@@ -29,8 +31,10 @@ type HTTPEventCollectorMock struct {
 	tcpAddr     *net.TCPAddr
 	tcpListener *net.TCPListener
 
+	mu                  sync.Mutex
 	token               string
 	simulateServerError bool
+	blockingCtx         context.Context
 
 	test *testing.T
 
@@ -55,6 +59,18 @@ func NewHTTPEventCollectorMock(t *testing.T) *HTTPEventCollectorMock {
 		connectionVerified:  false}
 }
 
+func (hec *HTTPEventCollectorMock) simulateErr(b bool) {
+	hec.mu.Lock()
+	hec.simulateServerError = b
+	hec.mu.Unlock()
+}
+
+func (hec *HTTPEventCollectorMock) withBlock(ctx context.Context) {
+	hec.mu.Lock()
+	hec.blockingCtx = ctx
+	hec.mu.Unlock()
+}
+
 func (hec *HTTPEventCollectorMock) URL() string {
 	return "http://" + hec.tcpListener.Addr().String()
 }
@@ -72,7 +88,16 @@ func (hec *HTTPEventCollectorMock) ServeHTTP(writer http.ResponseWriter, request
 
 	hec.numOfRequests++
 
-	if hec.simulateServerError {
+	hec.mu.Lock()
+	simErr := hec.simulateServerError
+	ctx := hec.blockingCtx
+	hec.mu.Unlock()
+
+	if ctx != nil {
+		<-hec.blockingCtx.Done()
+	}
+
+	if simErr {
 		if request.Body != nil {
 			defer request.Body.Close()
 		}

@@ -1,4 +1,4 @@
-package progress
+package progress // import "github.com/docker/docker/pkg/progress"
 
 import (
 	"fmt"
@@ -15,6 +15,11 @@ type Progress struct {
 	Action  string
 	Current int64
 	Total   int64
+
+	// If true, don't show xB/yB
+	HideCounts bool
+	// If not empty, use units instead of bytes for counts
+	Units string
 
 	// Aux contains extra information not presented to the user, such as
 	// digests for push signing.
@@ -34,6 +39,10 @@ type Output interface {
 type chanOutput chan<- Progress
 
 func (out chanOutput) WriteProgress(p Progress) error {
+	// FIXME: workaround for panic in #37735
+	defer func() {
+		recover()
+	}()
 	out <- p
 	return nil
 }
@@ -42,6 +51,17 @@ func (out chanOutput) WriteProgress(p Progress) error {
 // supplied channel.
 func ChanOutput(progressChan chan<- Progress) Output {
 	return chanOutput(progressChan)
+}
+
+type discardOutput struct{}
+
+func (discardOutput) WriteProgress(Progress) error {
+	return nil
+}
+
+// DiscardOutput returns an Output that discards progress
+func DiscardOutput() Output {
+	return discardOutput{}
 }
 
 // Update is a convenience function to write a progress update to the channel.

@@ -1,7 +1,8 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,16 +11,16 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"golang.org/x/net/context"
+	"github.com/docker/docker/errdefs"
 )
 
 func TestContainerCommitError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerCommit(context.Background(), "nothing", types.ContainerCommitOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
@@ -34,7 +35,7 @@ func TestContainerCommit(t *testing.T) {
 	expectedChanges := []string{"change1", "change2"}
 
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -67,7 +68,7 @@ func TestContainerCommit(t *testing.T) {
 			if len(changes) != len(expectedChanges) {
 				return nil, fmt.Errorf("expected container changes size to be '%d', got %d", len(expectedChanges), len(changes))
 			}
-			b, err := json.Marshal(types.ContainerCommitResponse{
+			b, err := json.Marshal(types.IDResponse{
 				ID: "new_container_id",
 			})
 			if err != nil {
@@ -91,6 +92,6 @@ func TestContainerCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 	if r.ID != "new_container_id" {
-		t.Fatalf("expected `container_id`, got %s", r.ID)
+		t.Fatalf("expected `new_container_id`, got %s", r.ID)
 	}
 }

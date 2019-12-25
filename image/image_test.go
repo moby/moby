@@ -1,10 +1,17 @@
-package image
+package image // import "github.com/docker/docker/image"
 
 import (
 	"encoding/json"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/layer"
+	"github.com/google/go-cmp/cmp"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 const sampleImageJSON = `{
@@ -17,22 +24,15 @@ const sampleImageJSON = `{
 	}
 }`
 
-func TestJSON(t *testing.T) {
+func TestNewFromJSON(t *testing.T) {
 	img, err := NewFromJSON([]byte(sampleImageJSON))
-	if err != nil {
-		t.Fatal(err)
-	}
-	rawJSON := img.RawJSON()
-	if string(rawJSON) != sampleImageJSON {
-		t.Fatalf("Raw JSON of config didn't match: expected %+v, got %v", sampleImageJSON, rawJSON)
-	}
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(sampleImageJSON, string(img.RawJSON())))
 }
 
-func TestInvalidJSON(t *testing.T) {
+func TestNewFromJSONWithInvalidJSON(t *testing.T) {
 	_, err := NewFromJSON([]byte("{}"))
-	if err == nil {
-		t.Fatal("Expected JSON parse error")
-	}
+	assert.Check(t, is.Error(err, "invalid image JSON, no RootFS key"))
 }
 
 func TestMarshalKeyOrder(t *testing.T) {
@@ -43,9 +43,7 @@ func TestMarshalKeyOrder(t *testing.T) {
 			Architecture: "c",
 		},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Check(t, err)
 
 	expectedOrder := []string{"architecture", "author", "comment"}
 	var indexes []int
@@ -56,4 +54,72 @@ func TestMarshalKeyOrder(t *testing.T) {
 	if !sort.IntsAreSorted(indexes) {
 		t.Fatal("invalid key order in JSON: ", string(b))
 	}
+}
+
+func TestImage(t *testing.T) {
+	cid := "50a16564e727"
+	config := &container.Config{
+		Hostname:   "hostname",
+		Domainname: "domain",
+		User:       "root",
+	}
+	os := runtime.GOOS
+
+	img := &Image{
+		V1Image: V1Image{
+			Config: config,
+		},
+		computedID: ID(cid),
+	}
+
+	assert.Check(t, is.Equal(cid, img.ImageID()))
+	assert.Check(t, is.Equal(cid, img.ID().String()))
+	assert.Check(t, is.Equal(os, img.OperatingSystem()))
+	assert.Check(t, is.DeepEqual(config, img.RunConfig()))
+}
+
+func TestImageOSNotEmpty(t *testing.T) {
+	os := "os"
+	img := &Image{
+		V1Image: V1Image{
+			OS: os,
+		},
+		OSVersion: "osversion",
+	}
+	assert.Check(t, is.Equal(os, img.OperatingSystem()))
+}
+
+func TestNewChildImageFromImageWithRootFS(t *testing.T) {
+	rootFS := NewRootFS()
+	rootFS.Append(layer.DiffID("ba5e"))
+	parent := &Image{
+		RootFS: rootFS,
+		History: []History{
+			NewHistory("a", "c", "r", false),
+		},
+	}
+	childConfig := ChildConfig{
+		DiffID:  layer.DiffID("abcdef"),
+		Author:  "author",
+		Comment: "comment",
+		ContainerConfig: &container.Config{
+			Cmd: []string{"echo", "foo"},
+		},
+		Config: &container.Config{},
+	}
+
+	newImage := NewChildImage(parent, childConfig, "platform")
+	expectedDiffIDs := []layer.DiffID{layer.DiffID("ba5e"), layer.DiffID("abcdef")}
+	assert.Check(t, is.DeepEqual(expectedDiffIDs, newImage.RootFS.DiffIDs))
+	assert.Check(t, is.Equal(childConfig.Author, newImage.Author))
+	assert.Check(t, is.DeepEqual(childConfig.Config, newImage.Config))
+	assert.Check(t, is.DeepEqual(*childConfig.ContainerConfig, newImage.ContainerConfig))
+	assert.Check(t, is.Equal("platform", newImage.OS))
+	assert.Check(t, is.DeepEqual(childConfig.Config, newImage.Config))
+
+	assert.Check(t, is.Len(newImage.History, 2))
+	assert.Check(t, is.Equal(childConfig.Comment, newImage.History[1].Comment))
+
+	assert.Check(t, !cmp.Equal(parent.RootFS.DiffIDs, newImage.RootFS.DiffIDs),
+		"RootFS should be copied not mutated")
 }

@@ -1,119 +1,117 @@
-Docker Engine Roadmap
-=====================
+Moby Project Roadmap
+====================
 
 ### How should I use this document?
 
 This document provides description of items that the project decided to prioritize. This should
-serve as a reference point for Docker contributors to understand where the project is going, and
-help determine if a contribution could be conflicting with some longer terms plans.
+serve as a reference point for Moby contributors to understand where the project is going, and
+help determine if a contribution could be conflicting with some longer term plans.
 
 The fact that a feature isn't listed here doesn't mean that a patch for it will automatically be
-refused (except for those mentioned as "frozen features" below)! We are always happy to receive
-patches for new cool features we haven't thought about, or didn't judge priority. Please however
-understand that such patches might take longer for us to review.
+refused! We are always happy to receive patches for new cool features we haven't thought about,
+or didn't judge to be a priority. Please however understand that such patches might take longer
+for us to review.
 
 ### How can I help?
 
-Short term objectives are listed in the [wiki](https://github.com/docker/docker/wiki) and described
-in [Issues](https://github.com/docker/docker/issues?q=is%3Aopen+is%3Aissue+label%3Aroadmap). Our
+Short term objectives are listed in
+[Issues](https://github.com/moby/moby/issues?q=is%3Aopen+is%3Aissue+label%3Aroadmap). Our
 goal is to split down the workload in such way that anybody can jump in and help. Please comment on
-issues if you want to take it to avoid duplicating effort! Similarly, if a maintainer is already
-assigned on an issue you'd like to participate in, pinging him on IRC or GitHub to offer your help is
+issues if you want to work on it to avoid duplicating effort! Similarly, if a maintainer is already
+assigned on an issue you'd like to participate in, pinging him on GitHub to offer your help is
 the best way to go.
 
 ### How can I add something to the roadmap?
 
-The roadmap process is new to the Docker Engine: we are only beginning to structure and document the
+The roadmap process is new to the Moby Project: we are only beginning to structure and document the
 project objectives. Our immediate goal is to be more transparent, and work with our community to
 focus our efforts on fewer prioritized topics.
 
 We hope to offer in the near future a process allowing anyone to propose a topic to the roadmap, but
-we are not quite there yet. For the time being, the BDFL remains the keeper of the roadmap, and we
-won't be accepting pull requests adding or removing items from this file.
+we are not quite there yet. For the time being, it is best to discuss with the maintainers on an
+issue, in the Slack channel, or in person at the Moby Summits that happen every few months.
 
 # 1. Features and refactoring
 
 ## 1.1 Runtime improvements
 
-We recently introduced [`runC`](https://runc.io) as a standalone low-level tool for container
-execution. The initial goal was to integrate runC as a replacement in the Engine for the traditional
-default libcontainer `execdriver`, but the Engine internals were not ready for this.
+Over time we have accumulated a lot of functionality in the container runtime
+aspect of Moby while also growing in other areas. Much of the container runtime
+pieces are now duplicated work available in other, lower level components such
+as [containerd](https://containerd.io).
 
-As runC continued evolving, and the OCI specification along with it, we created
-[`containerd`](https://containerd.tools/), a daemon to control and monitor multiple `runC`. This is
-the new target for Engine integration, as it can entirely replace the whole `execdriver`
-architecture, and container monitoring along with it.
+Moby currently only utilizes containerd for basic runtime state management, e.g. starting
+and stopping a container, which is what the pre-containerd 1.0 daemon provided.
+Now that containerd is a full-fledged container runtime which supports full
+container life-cycle management, we would like to start relying more on containerd
+and removing the bits in Moby which are now duplicated. This will necessitate
+a significant effort to refactor and even remove large parts of Moby's codebase.
 
-Docker Engine will rely on a long-running `containerd` companion daemon for all container execution
-related operations. This could open the door in the future for Engine restarts without interrupting
-running containers.
+Tracking issues:
 
-## 1.2 Plugins improvements
+- [#38043](https://github.com/moby/moby/issues/38043) Proposal: containerd image integration
 
-Docker Engine 1.7.0 introduced plugin support, initially for the use cases of volumes and networks
-extensions. The plugin infrastructure was kept minimal as we were collecting use cases and real
-world feedback before optimizing for any particular workflow.
+## 1.2 Image Builder
 
-In the future, we'd like plugins to become first class citizens, and encourage an ecosystem of
-plugins. This implies in particular making it trivially easy to distribute plugins as containers
-through any Registry instance, as well as solving the commonly heard pain points of plugins needing
-to be treated as somewhat special (being active at all time, started before any other user
-containers, and not as easily dismissed).
+Work is ongoing to integrate [BuildKit](https://github.com/moby/buildkit) into
+Moby and replace the "v0" build implementation. Buildkit offers better cache
+management, parallelizable build steps, and better extensibility while also
+keeping builds portable, a chief tenent of Moby's builder.
 
-## 1.3 Internal decoupling
+Upon completion of this effort, users will have a builder that performs better
+while also being more extensible, enabling users to provide their own custom
+syntax which can be either Dockerfile-like or something completely different.
 
-A lot of work has been done in trying to decouple the Docker Engine's internals. In particular, the
-API implementation has been refactored and ongoing work is happening to move the code to a separate
-repository ([`docker/engine-api`](https://github.com/docker/engine-api)), and the Builder side of
-the daemon is now [fully independent](https://github.com/docker/docker/tree/master/builder) while
-still residing in the same repository.
+See [buildpacks on buildkit](https://github.com/tonistiigi/buildkit-pack) as an
+example of this extensibility.
 
-We are exploring ways to go further with that decoupling, capitalizing on the work introduced by the
-runtime renovation and plugins improvement efforts. Indeed, the combination of `containerd` support
-with the concept of "special" containers opens the door for bootstrapping more Engine internals
-using the same facilities.
+New features for the builder and Dockerfile should be implemented first in the
+BuildKit backend using an external Dockerfile implementation from the container
+images. This allows everyone to test and evaluate the feature without upgrading
+their daemon. New features should go to the experimental channel first, and can be
+part of the `docker/dockerfile:experimental` image. From there they graduate to
+`docker/dockerfile:latest` and binary releases. The Dockerfile frontend source
+code is temporarily located at
+[https://github.com/moby/buildkit/tree/master/frontend/dockerfile](https://github.com/moby/buildkit/tree/master/frontend/dockerfile)
+with separate new features defined with go build tags.
 
-## 1.4 Cluster capable Engine
+Tracking issues:
 
-The community has been pushing for a more cluster capable Docker Engine, and a huge effort was spent
-adding features such as multihost networking, and node discovery down at the Engine level. Yet, the
-Engine is currently incapable of taking scheduling decisions alone, and continues relying on Swarm
-for that.
+- [#32925](https://github.com/moby/moby/issues/32925) discussion: builder future: buildkit
 
-We plan to complete this effort and make Engine fully cluster capable. Multiple instances of the
-Docker Engine being already capable of discovering each other and establish overlay networking for
-their container to communicate, the next step is for a given Engine to gain ability to dispatch work
-to another node in the cluster. This will be introduced in a backward compatible way, such that a
-`docker run` invocation on a particular node remains fully deterministic.
+## 1.3 Rootless Mode
 
-# 2 Frozen features
+Running the daemon requires elevated privileges for many tasks. We would like to
+support running the daemon as a normal, unprivileged user without requiring `suid`
+binaries.
 
-## 2.1 Docker exec
+Tracking issues:
 
-We won't accept patches expanding the surface of `docker exec`, which we intend to keep as a
-*debugging* feature, as well as being strongly dependent on the Runtime ingredient effort.
+- [#37375](https://github.com/moby/moby/issues/37375) Proposal: allow running `dockerd` as an unprivileged user (aka rootless mode)
 
-## 2.2 Remote Registry Operations
+## 1.4 Testing
 
-A large amount of work is ongoing in the area of image distribution and provenance. This includes
-moving to the V2 Registry API and heavily refactoring the code that powers these features. The
-desired result is more secure, reliable and easier to use image distribution.
+Moby has many tests, both unit and integration. Moby needs more tests which can
+cover the full spectrum functionality and edge cases out there.
 
-Part of the problem with this part of the code base is the lack of a stable and flexible interface.
-If new features are added that access the registry without solidifying these interfaces, achieving
-feature parity will continue to be elusive. While we get a handle on this situation, we are imposing
-a moratorium on new code that accesses the Registry API in commands that don't already make remote
-calls.
+Tests in the `integration-cli` folder should also be migrated into (both in
+location and style) the `integration` folder. These newer tests are simpler to
+run in isolation, simpler to read, simpler to write, and more fully exercise the
+API. Meanwhile tests of the docker CLI should generally live in docker/cli.
 
-Currently, only the following commands cause interaction with a remote registry:
+Tracking issues:
 
-  - push
-  - pull
-  - run
-  - build
-  - search
-  - login
+- [#32866](https://github.com/moby/moby/issues/32866) Replace integration-cli suite with API test suite
 
-In the interest of stabilizing the registry access model during this ongoing work, we are not
-accepting additions to other commands that will cause remote interaction with the Registry API. This
-moratorium will lift when the goals of the distribution project have been met.
+## 1.5 Internal decoupling
+
+A lot of work has been done in trying to decouple Moby internals. This process of creating
+standalone projects with a well defined function that attract a dedicated community should continue.
+As well as integrating `containerd` we would like to integrate [BuildKit](https://github.com/moby/buildkit)
+as the next standalone component.
+We see gRPC as the natural communication layer between decoupled components.
+
+In addition to pushing out large components into other projects, much of the
+internal code structure, and in particular the
+["Daemon"](https://godoc.org/github.com/docker/docker/daemon#Daemon) object,
+should be split into smaller, more manageable, and more testable components.

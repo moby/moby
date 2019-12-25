@@ -1,9 +1,11 @@
-package layer
+package layer // import "github.com/docker/docker/layer"
 
 import (
 	"io"
+	"sync"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/containerfs"
 )
 
 type mountedLayer struct {
@@ -11,9 +13,9 @@ type mountedLayer struct {
 	mountID    string
 	initID     string
 	parent     *roLayer
-	path       string
 	layerStore *layerStore
 
+	sync.Mutex
 	references map[RWLayer]*referencedRWLayer
 }
 
@@ -28,11 +30,7 @@ func (ml *mountedLayer) cacheParent() string {
 }
 
 func (ml *mountedLayer) TarStream() (io.ReadCloser, error) {
-	archiver, err := ml.layerStore.driver.Diff(ml.mountID, ml.cacheParent())
-	if err != nil {
-		return nil, err
-	}
-	return archiver, nil
+	return ml.layerStore.driver.Diff(ml.mountID, ml.cacheParent())
 }
 
 func (ml *mountedLayer) Name() string {
@@ -65,16 +63,24 @@ func (ml *mountedLayer) getReference() RWLayer {
 	ref := &referencedRWLayer{
 		mountedLayer: ml,
 	}
+	ml.Lock()
 	ml.references[ref] = ref
+	ml.Unlock()
 
 	return ref
 }
 
 func (ml *mountedLayer) hasReferences() bool {
-	return len(ml.references) > 0
+	ml.Lock()
+	ret := len(ml.references) > 0
+	ml.Unlock()
+
+	return ret
 }
 
 func (ml *mountedLayer) deleteReference(ref RWLayer) error {
+	ml.Lock()
+	defer ml.Unlock()
 	if _, ok := ml.references[ref]; !ok {
 		return ErrLayerNotRetained
 	}
@@ -84,7 +90,9 @@ func (ml *mountedLayer) deleteReference(ref RWLayer) error {
 
 func (ml *mountedLayer) retakeReference(r RWLayer) {
 	if ref, ok := r.(*referencedRWLayer); ok {
+		ml.Lock()
 		ml.references[ref] = ref
+		ml.Unlock()
 	}
 }
 
@@ -92,7 +100,7 @@ type referencedRWLayer struct {
 	*mountedLayer
 }
 
-func (rl *referencedRWLayer) Mount(mountLabel string) (string, error) {
+func (rl *referencedRWLayer) Mount(mountLabel string) (containerfs.ContainerFS, error) {
 	return rl.layerStore.driver.Get(rl.mountedLayer.mountID, mountLabel)
 }
 
@@ -100,4 +108,9 @@ func (rl *referencedRWLayer) Mount(mountLabel string) (string, error) {
 // Callers should only call `Unmount` once per call to `Mount`, even on error.
 func (rl *referencedRWLayer) Unmount() error {
 	return rl.layerStore.driver.Put(rl.mountedLayer.mountID)
+}
+
+// ApplyDiff applies specified diff to the layer
+func (rl *referencedRWLayer) ApplyDiff(diff io.Reader) (int64, error) {
+	return rl.layerStore.driver.ApplyDiff(rl.mountID, rl.cacheParent(), diff)
 }

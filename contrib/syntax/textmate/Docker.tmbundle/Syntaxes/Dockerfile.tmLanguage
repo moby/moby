@@ -16,6 +16,23 @@
 				<key>1</key>
 				<dict>
 					<key>name</key>
+					<string>keyword.other.special-method.dockerfile</string>
+				</dict>
+				<key>2</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.other.special-method.dockerfile</string>
+				</dict>
+			</dict>
+			<key>match</key>
+			<string>^\s*\b(?i:(FROM))\b.*?\b(?i:(AS))\b</string>
+		</dict>
+		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
 					<string>keyword.control.dockerfile</string>
 				</dict>
 				<key>2</key>
@@ -25,7 +42,7 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>^\s*(?:(ONBUILD)\s+)?(ADD|ARG|CMD|COPY|ENTRYPOINT|ENV|EXPOSE|FROM|HEALTHCHECK|LABEL|MAINTAINER|RUN|SHELL|STOPSIGNAL|USER|VOLUME|WORKDIR)\s</string>
+			<string>^\s*(?i:(ONBUILD)\s+)?(?i:(ADD|ARG|CMD|COPY|ENTRYPOINT|ENV|EXPOSE|FROM|HEALTHCHECK|LABEL|MAINTAINER|RUN|SHELL|STOPSIGNAL|USER|VOLUME|WORKDIR))\s</string>
 		</dict>
 		<dict>
 			<key>captures</key>
@@ -42,7 +59,7 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>^\s*(?:(ONBUILD)\s+)?(CMD|ENTRYPOINT)\s</string>
+			<string>^\s*(?i:(ONBUILD)\s+)?(?i:(CMD|ENTRYPOINT))\s</string>
 		</dict>
 		<dict>
 			<key>begin</key>

@@ -1,7 +1,8 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,32 +12,33 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-
-	"golang.org/x/net/context"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/errdefs"
 )
 
 func TestContainerWaitError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	code, err := client.ContainerWait(context.Background(), "nothing")
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
-	}
-	if code != -1 {
-		t.Fatalf("expected a status code equal to '-1', got %d", code)
+	resultC, errC := client.ContainerWait(context.Background(), "nothing", "")
+	select {
+	case result := <-resultC:
+		t.Fatalf("expected to not get a wait result, got %d", result.StatusCode)
+	case err := <-errC:
+		if !errdefs.IsSystem(err) {
+			t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
+		}
 	}
 }
 
 func TestContainerWait(t *testing.T) {
 	expectedURL := "/containers/container_id/wait"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			b, err := json.Marshal(types.ContainerWaitResponse{
+			b, err := json.Marshal(container.ContainerWaitOKBody{
 				StatusCode: 15,
 			})
 			if err != nil {
@@ -49,12 +51,14 @@ func TestContainerWait(t *testing.T) {
 		}),
 	}
 
-	code, err := client.ContainerWait(context.Background(), "container_id")
-	if err != nil {
+	resultC, errC := client.ContainerWait(context.Background(), "container_id", "")
+	select {
+	case err := <-errC:
 		t.Fatal(err)
-	}
-	if code != 15 {
-		t.Fatalf("expected a status code equal to '15', got %d", code)
+	case result := <-resultC:
+		if result.StatusCode != 15 {
+			t.Fatalf("expected a status code equal to '15', got %d", result.StatusCode)
+		}
 	}
 }
 
@@ -62,9 +66,9 @@ func ExampleClient_ContainerWait_withTimeout() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	client, _ := NewEnvClient()
-	_, err := client.ContainerWait(ctx, "container_id")
-	if err != nil {
+	client, _ := NewClientWithOpts(FromEnv)
+	_, errC := client.ContainerWait(ctx, "container_id", "")
+	if err := <-errC; err != nil {
 		log.Fatal(err)
 	}
 }

@@ -30,7 +30,7 @@ docker run --rm -it --privileged \
 Sh\*t happens. We know. Below are steps to get out of any "hash-sum mismatch" or
 "gpg sig error" or the likes error that might happen to the apt repo.
 
-**NOTE:** These are apt repo specific, have had no experimence with anything similar
+**NOTE:** These are apt repo specific, have had no experience with anything similar
 happening to the yum repo in the past so you can rest easy.
 
 For each step listed below, move on to the next if the previous didn't work.

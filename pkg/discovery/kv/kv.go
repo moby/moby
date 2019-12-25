@@ -1,4 +1,4 @@
-package kv
+package kv // import "github.com/docker/docker/pkg/discovery/kv"
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/libkv"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/libkv/store/consul"
 	"github.com/docker/libkv/store/etcd"
 	"github.com/docker/libkv/store/zookeeper"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -73,7 +73,7 @@ func (s *Discovery) Initialize(uris string, heartbeat time.Duration, ttl time.Du
 
 	var config *store.Config
 	if clusterOpts["kv.cacertfile"] != "" && clusterOpts["kv.certfile"] != "" && clusterOpts["kv.keyfile"] != "" {
-		logrus.Infof("Initializing discovery with TLS")
+		logrus.Info("Initializing discovery with TLS")
 		tlsConfig, err := tlsconfig.Client(tlsconfig.Options{
 			CAFile:   clusterOpts["kv.cacertfile"],
 			CertFile: clusterOpts["kv.certfile"],
@@ -93,7 +93,7 @@ func (s *Discovery) Initialize(uris string, heartbeat time.Duration, ttl time.Du
 			TLS: tlsConfig,
 		}
 	} else {
-		logrus.Infof("Initializing discovery without TLS")
+		logrus.Info("Initializing discovery without TLS")
 	}
 
 	// Creates a new store, will ignore options given

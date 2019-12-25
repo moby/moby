@@ -1,10 +1,9 @@
 // Package aaparser is a convenience package interacting with `apparmor_parser`.
-package aaparser
+package aaparser // import "github.com/docker/docker/pkg/aaparser"
 
 import (
 	"fmt"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -23,14 +22,12 @@ func GetVersion() (int, error) {
 	return parseVersion(output)
 }
 
-// LoadProfile runs `apparmor_parser -r` on a specified apparmor profile to
-// replace the profile.
+// LoadProfile runs `apparmor_parser -Kr` on a specified apparmor profile to
+// replace the profile. The `-K` is necessary to make sure that apparmor_parser
+// doesn't try to write to a read-only filesystem.
 func LoadProfile(profilePath string) error {
-	_, err := cmd("-r", filepath.Dir(profilePath))
-	if err != nil {
-		return err
-	}
-	return nil
+	_, err := cmd("", "-Kr", profilePath)
+	return err
 }
 
 // cmd runs `apparmor_parser` with the passed arguments.
@@ -40,7 +37,7 @@ func cmd(dir string, arg ...string) (string, error) {
 
 	output, err := c.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("running `%s %s` failed with output: %s\nerror: %v", c.Path, strings.Join(c.Args, " "), string(output), err)
+		return "", fmt.Errorf("running `%s %s` failed with output: %s\nerror: %v", c.Path, strings.Join(c.Args, " "), output, err)
 	}
 
 	return string(output), nil

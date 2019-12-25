@@ -1,8 +1,7 @@
-package plugins
+package plugins // import "github.com/docker/docker/pkg/plugins"
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -10,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/pkg/errors"
 )
 
 var (
@@ -28,30 +29,52 @@ func newLocalRegistry() localRegistry {
 // Scan scans all the plugin paths and returns all the names it found
 func Scan() ([]string, error) {
 	var names []string
-	if err := filepath.Walk(socketsPath, func(path string, fi os.FileInfo, err error) error {
-		if err != nil {
-			return nil
+	dirEntries, err := ioutil.ReadDir(socketsPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, errors.Wrap(err, "error reading dir entries")
+	}
+
+	for _, fi := range dirEntries {
+		if fi.IsDir() {
+			fi, err = os.Stat(filepath.Join(socketsPath, fi.Name(), fi.Name()+".sock"))
+			if err != nil {
+				continue
+			}
 		}
 
 		if fi.Mode()&os.ModeSocket != 0 {
-			name := strings.TrimSuffix(fi.Name(), filepath.Ext(fi.Name()))
-			names = append(names, name)
+			names = append(names, strings.TrimSuffix(filepath.Base(fi.Name()), filepath.Ext(fi.Name())))
 		}
-		return nil
-	}); err != nil {
-		return nil, err
 	}
 
-	for _, path := range specsPaths {
-		if err := filepath.Walk(path, func(p string, fi os.FileInfo, err error) error {
-			if err != nil || fi.IsDir() {
-				return nil
+	for _, p := range specsPaths {
+		dirEntries, err := ioutil.ReadDir(p)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, errors.Wrap(err, "error reading dir entries")
+		}
+
+		for _, fi := range dirEntries {
+			if fi.IsDir() {
+				infos, err := ioutil.ReadDir(filepath.Join(p, fi.Name()))
+				if err != nil {
+					continue
+				}
+
+				for _, info := range infos {
+					if strings.TrimSuffix(info.Name(), filepath.Ext(info.Name())) == fi.Name() {
+						fi = info
+						break
+					}
+				}
 			}
-			name := strings.TrimSuffix(fi.Name(), filepath.Ext(fi.Name()))
-			names = append(names, name)
-			return nil
-		}); err != nil {
-			return nil, err
+
+			ext := filepath.Ext(fi.Name())
+			switch ext {
+			case ".spec", ".json":
+				plugin := strings.TrimSuffix(fi.Name(), ext)
+				names = append(names, plugin)
+			default:
+			}
 		}
 	}
 	return names, nil
@@ -81,7 +104,7 @@ func (l *localRegistry) Plugin(name string) (*Plugin, error) {
 			return readPluginInfo(name, p)
 		}
 	}
-	return nil, ErrNotFound
+	return nil, errors.Wrapf(ErrNotFound, "could not find plugin %s in v1 plugin registry", name)
 }
 
 func readPluginInfo(name, path string) (*Plugin, error) {

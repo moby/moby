@@ -1,28 +1,25 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
+	"context"
 	"encoding/json"
-	"net/http"
 	"net/url"
 
 	"github.com/docker/docker/api/types"
-	"golang.org/x/net/context"
+	"github.com/docker/docker/api/types/registry"
 )
 
 // RegistryLogin authenticates the docker server with a given docker registry.
-// It returns UnauthorizerError when the authentication fails.
-func (cli *Client) RegistryLogin(ctx context.Context, auth types.AuthConfig) (types.AuthResponse, error) {
+// It returns unauthorizedError when the authentication fails.
+func (cli *Client) RegistryLogin(ctx context.Context, auth types.AuthConfig) (registry.AuthenticateOKBody, error) {
 	resp, err := cli.post(ctx, "/auth", url.Values{}, auth, nil)
+	defer ensureReaderClosed(resp)
 
-	if resp.statusCode == http.StatusUnauthorized {
-		return types.AuthResponse{}, unauthorizedError{err}
-	}
 	if err != nil {
-		return types.AuthResponse{}, err
+		return registry.AuthenticateOKBody{}, err
 	}
 
-	var response types.AuthResponse
+	var response registry.AuthenticateOKBody
 	err = json.NewDecoder(resp.body).Decode(&response)
-	ensureReaderClosed(resp)
 	return response, err
 }

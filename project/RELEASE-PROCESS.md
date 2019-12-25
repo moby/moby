@@ -45,7 +45,7 @@ defined by a ROADMAP.md file at the root of the repository).
 - The earlier a PR is opened, the more time the maintainers have to review. For
 example, if a PR is opened the day before the freeze date, it’s very unlikely
 that it will be merged for the release.
-- Constant communication with the maintainers (mailing-list, IRC, Github issues,
+- Constant communication with the maintainers (mailing-list, IRC, GitHub issues,
 etc.) allows to get early feedback on the design before getting into the
 implementation, which usually reduces the time needed to discuss a changeset.
 - If the code is commented, fully tested and by extension follows every single
