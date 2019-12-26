@@ -264,7 +264,7 @@ func getHugepageResources(config containertypes.Resources) []specs.LinuxHugepage
 	for _, hugepage := range config.HugepageLimits {
 		hugepages = append(hugepages, specs.LinuxHugepageLimit{
 			Pagesize: hugepage.PageSize,
-			Limit:    hugepage.Limit,
+			Limit:    uint64(hugepage.Limit),
 		})
 	}
 
@@ -568,6 +568,24 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 	}
 	if !memsAvailable {
 		return warnings, fmt.Errorf("Requested memory nodes are not available - requested %s, available: %s", resources.CpusetMems, sysInfo.Mems)
+	}
+
+	// hugetlb subsystem checks and adjustments
+	if resources.HugepageLimits != nil {
+		if len(sysInfo.HugetlbLimits) == 0 {
+			warnings = append(warnings, "Your kernel does not support hugetlb limit. --hugetlb-limit discarded.")
+			resources.HugepageLimits = []containertypes.HugepageLimit{}
+		} else {
+			validHugepageLimits := []containertypes.HugepageLimit{}
+			for _, hpl := range resources.HugepageLimits {
+				if _, exist := sysInfo.HugetlbLimits[hpl.PageSize]; !exist {
+					warnings = append(warnings, "Your kernel does not has %v hugepage.", hpl.PageSize)
+				} else {
+					validHugepageLimits = append(validHugepageLimits, hpl)
+				}
+			}
+			resources.HugepageLimits = validHugepageLimits
+		}
 	}
 
 	// blkio subsystem checks and adjustments

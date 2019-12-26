@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 
+	units "github.com/docker/go-units"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -44,6 +45,7 @@ func New(quiet bool) *SysInfo {
 			applyCPUCgroupInfo,
 			applyBlkioCgroupInfo,
 			applyCPUSetCgroupInfo,
+			applyHugetlbCgroupInfo,
 			applyPIDSCgroupInfo,
 			applyDevicesCgroupInfo,
 		}...)
@@ -211,6 +213,24 @@ func applyCPUSetCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
 	return warnings
 }
 
+// applyHugetlbCgroupInfo reads the cpuset information from the cpuset cgroup mount point.
+func applyHugetlbCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
+	var (
+		warnings      []string
+		hugetlbLimits = map[string]bool{}
+	)
+	hugepageSizes, err := getHugePageSizes()
+	if err != nil {
+		warnings = append(warnings, "Cannot read directory /sys/kernel/mm/hugepages")
+		return warnings
+	}
+	for _, pageSize := range hugepageSizes {
+		hugetlbLimits[pageSize] = true
+	}
+	info.HugetlbLimits = hugetlbLimits
+	return warnings
+}
+
 // applyPIDSCgroupInfo reads the pids information from the pids cgroup mount point.
 func applyPIDSCgroupInfo(info *SysInfo, _ map[string]string) []string {
 	var warnings []string
@@ -284,4 +304,24 @@ func readProcBool(path string) bool {
 		return false
 	}
 	return strings.TrimSpace(string(val)) == "1"
+}
+
+func getHugePageSizes() ([]string, error) {
+	var (
+		pageSizes []string
+		sizeList  = []string{"B", "KB", "MB", "GB", "TB", "PB"}
+	)
+	files, err := ioutil.ReadDir("/sys/kernel/mm/hugepages")
+	if err != nil {
+		return nil, err
+	}
+	for _, st := range files {
+		nameArray := strings.Split(st.Name(), "-")
+		pageSize, err := units.RAMInBytes(nameArray[1])
+		if err != nil {
+			return nil, err
+		}
+		pageSizes = append(pageSizes, units.CustomSize("%g%s", float64(pageSize), 1024.0, sizeList))
+	}
+	return pageSizes, nil
 }

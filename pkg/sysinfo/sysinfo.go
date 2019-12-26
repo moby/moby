@@ -1,6 +1,8 @@
 package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
 
-import "github.com/docker/docker/pkg/parsers"
+import (
+	"github.com/docker/docker/pkg/parsers"
+)
 
 // SysInfo stores information about which features a kernel supports.
 // TODO Windows: Factor out platform specific capabilities.
@@ -11,6 +13,7 @@ type SysInfo struct {
 	Seccomp bool
 
 	cgroupMemInfo
+	cgroupHugetlbInfo
 	cgroupCPUInfo
 	cgroupBlkioInfo
 	cgroupCpusetInfo
@@ -101,6 +104,11 @@ type cgroupCpusetInfo struct {
 
 	// Available Cpuset's memory nodes
 	Mems string
+}
+
+type cgroupHugetlbInfo struct {
+	// Whether hugetlb limit is supported or not
+	HugetlbLimits map[string]bool
 }
 
 type cgroupPids struct {

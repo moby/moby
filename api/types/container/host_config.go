@@ -292,7 +292,7 @@ type HugepageLimit struct {
 	// The values of <unit-prefix> are intended to be parsed using base 1024("1KB" = 1024, "1MB" = 1048576, etc).
 	PageSize string
 	// limit in bytes of hugepagesize HugeTLB usage.
-	Limit uint64
+	Limit int64
 }
 
 // RestartPolicy represents the restart policies of the container.
