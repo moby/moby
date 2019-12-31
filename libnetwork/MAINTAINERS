@@ -11,6 +11,7 @@
 [Org]
 	[Org."Core maintainers"]
 		people = [
+			"arkodg",
 			"euanh",
 			"fcrisciani",
 			"mavenugo",
@@ -24,6 +25,11 @@
 # in the people section.
 
 	# ADD YOURSELF HERE IN ALPHABETICAL ORDER
+
+	[people.arkodg]
+	Name = "Arko Dasgupta"
+	Email = "arko.dasgupta@docker.com"
+	GitHub = "arkodg"
 
 	[people.euanh]
 	Name = "Euan Harris"
