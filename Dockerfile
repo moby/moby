@@ -353,10 +353,10 @@ FROM scratch AS binary
 COPY --from=build-binary /build/bundles/ /
 
 FROM scratch AS dynbinary
-COPY --from=build-dynbinary /build/ /
+COPY --from=build-dynbinary /build/bundles/ /
 
 FROM scratch AS cross
-COPY --from=build-cross /build/ /
+COPY --from=build-cross /build/bundles/ /
 
 FROM dev AS final
 COPY . /go/src/github.com/docker/docker
