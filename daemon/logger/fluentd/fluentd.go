@@ -54,6 +54,7 @@ const (
 	maxRetriesKey         = "fluentd-max-retries"
 	asyncConnectKey       = "fluentd-async-connect"
 	subSecondPrecisionKey = "fluentd-sub-second-precision"
+	requestAckKey = "fluentd-request-ack"
 )
 
 func init() {
@@ -118,6 +119,13 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
+	requestAck := false
+	if info.Config[requestAckKey] != "" {
+		if requestAck, err = strconv.ParseBool(info.Config[requestAckKey]); err != nil {
+			return nil, err
+		}
+	}
+
 	subSecondPrecision := false
 	if info.Config[subSecondPrecisionKey] != "" {
 		if subSecondPrecision, err = strconv.ParseBool(info.Config[subSecondPrecisionKey]); err != nil {
@@ -135,6 +143,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		MaxRetry:           maxRetries,
 		Async:              asyncConnect,
 		SubSecondPrecision: subSecondPrecision,
+		RequestAck:         requestAck,
 	}
 
 	logrus.WithField("container", info.ContainerID).WithField("config", fluentConfig).
@@ -199,6 +208,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case retryWaitKey:
 		case maxRetriesKey:
 		case asyncConnectKey:
+		case requestAckKey:
 		case subSecondPrecisionKey:
 			// Accepted
 		default:
