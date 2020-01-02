@@ -826,11 +826,6 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 					logrus.WithField("container", c.ID).Warnf("path in container %s already exists in privileged mode", deviceMapping.PathInContainer)
 					continue
 				}
-				// check if the path exists in the container. need to create a device only if the
-				// path does not exists.
-				if _, err := os.Stat(deviceMapping.PathInContainer); !os.IsNotExist(err) {
-					return errors.Errorf("container device path: %s must be different from any host device path for privileged mode containers", deviceMapping.PathInContainer)
-				}
 				d, _, err := oci.DevicesFromPath(deviceMapping.PathOnHost, deviceMapping.PathInContainer, "rwm")
 				if err != nil {
 					return err
