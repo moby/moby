@@ -275,6 +275,7 @@ func validateHostConfig(hostConfig *containertypes.HostConfig, platform string) 
 	if hostConfig == nil {
 		return nil
 	}
+
 	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
 		return errors.Errorf("can't create 'AutoRemove' container with restart policy")
 	}

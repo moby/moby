@@ -805,6 +805,7 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		// Build lists of devices allowed and created within the container.
 		var devs []specs.LinuxDevice
 		devPermissions := s.Linux.Resources.Devices
+
 		if c.HostConfig.Privileged && !rsystem.RunningInUserNS() {
 			hostDevices, err := devices.HostDevices()
 			if err != nil {
@@ -813,6 +814,25 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			for _, d := range hostDevices {
 				devs = append(devs, oci.Device(d))
 			}
+
+			// adding device mappings in privileged containers
+			for _, deviceMapping := range c.HostConfig.Devices {
+				// issue a warning that custom cgroup permissions are ignored in privileged mode
+				if deviceMapping.CgroupPermissions != "rwm" {
+					logrus.WithField("container", c.ID).Warnf("custom %s permissions for device %s are ignored in privileged mode", deviceMapping.CgroupPermissions, deviceMapping.PathOnHost)
+				}
+				// issue a warning that the device path already exists via /dev mounting in privileged mode
+				if deviceMapping.PathOnHost == deviceMapping.PathInContainer {
+					logrus.WithField("container", c.ID).Warnf("path in container %s already exists in privileged mode", deviceMapping.PathInContainer)
+					continue
+				}
+				d, _, err := oci.DevicesFromPath(deviceMapping.PathOnHost, deviceMapping.PathInContainer, "rwm")
+				if err != nil {
+					return err
+				}
+				devs = append(devs, d...)
+			}
+
 			devPermissions = []specs.LinuxDeviceCgroup{
 				{
 					Allow:  true,
