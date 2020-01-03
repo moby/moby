@@ -3717,44 +3717,6 @@ definitions:
           on Windows.
         type: "string"
         example: "/var/lib/docker"
-      SystemStatus:
-        description: |
-          Status information about this node (standalone Swarm API).
-
-          <p><br /></p>
-
-          > **Note**: The information returned in this field is only propagated
-          > by the Swarm standalone API, and is empty (`null`) when using
-          > built-in swarm mode.
-        type: "array"
-        items:
-          type: "array"
-          items:
-            type: "string"
-        example:
-          - ["Role", "primary"]
-          - ["State", "Healthy"]
-          - ["Strategy", "spread"]
-          - ["Filters", "health, port, containerslots, dependency, affinity, constraint, whitelist"]
-          - ["Nodes", "2"]
-          - [" swarm-agent-00", "192.168.99.102:2376"]
-          - ["  └ ID", "5CT6:FBGO:RVGO:CZL4:PB2K:WCYN:2JSV:KSHH:GGFW:QOPG:6J5Q:IOZ2|192.168.99.102:2376"]
-          - ["  └ Status", "Healthy"]
-          - ["  └ Containers", "1 (1 Running, 0 Paused, 0 Stopped)"]
-          - ["  └ Reserved CPUs", "0 / 1"]
-          - ["  └ Reserved Memory", "0 B / 1.021 GiB"]
-          - ["  └ Labels", "kernelversion=4.4.74-boot2docker, operatingsystem=Boot2Docker 17.06.0-ce (TCL 7.2); HEAD : 0672754 - Thu Jun 29 00:06:31 UTC 2017, ostype=linux, provider=virtualbox, storagedriver=aufs"]
-          - ["  └ UpdatedAt", "2017-08-09T10:03:46Z"]
-          - ["  └ ServerVersion", "17.06.0-ce"]
-          - [" swarm-manager", "192.168.99.101:2376"]
-          - ["  └ ID", "TAMD:7LL3:SEF7:LW2W:4Q2X:WVFH:RTXX:JSYS:XY2P:JEHL:ZMJK:JGIW|192.168.99.101:2376"]
-          - ["  └ Status", "Healthy"]
-          - ["  └ Containers", "2 (2 Running, 0 Paused, 0 Stopped)"]
-          - ["  └ Reserved CPUs", "0 / 1"]
-          - ["  └ Reserved Memory", "0 B / 1.021 GiB"]
-          - ["  └ Labels", "kernelversion=4.4.74-boot2docker, operatingsystem=Boot2Docker 17.06.0-ce (TCL 7.2); HEAD : 0672754 - Thu Jun 29 00:06:31 UTC 2017, ostype=linux, provider=virtualbox, storagedriver=aufs"]
-          - ["  └ UpdatedAt", "2017-08-09T10:04:11Z"]
-          - ["  └ ServerVersion", "17.06.0-ce"]
       Plugins:
         $ref: "#/definitions/PluginsInfo"
       MemoryLimit:

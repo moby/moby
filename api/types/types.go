@@ -154,7 +154,7 @@ type Info struct {
 	Images             int
 	Driver             string
 	DriverStatus       [][2]string
-	SystemStatus       [][2]string // SystemStatus is only propagated by the Swarm standalone API
+	SystemStatus       [][2]string `json:",omitempty"` // SystemStatus is only propagated by the Swarm standalone API
 	Plugins            PluginsInfo
 	MemoryLimit        bool
 	SwapLimit          bool
