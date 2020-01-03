@@ -4942,9 +4942,6 @@ paths:
                 type: "string"
               LogPath:
                 type: "string"
-              Node:
-                description: "TODO"
-                type: "object"
               Name:
                 type: "string"
               RestartCount:
