@@ -88,6 +88,8 @@ func TestContainerInspect(t *testing.T) {
 	}
 }
 
+// TestContainerInspectNode tests that the "Node" field is included in the "inspect"
+// output. This information is only present when connected to a Swarm standalone API.
 func TestContainerInspectNode(t *testing.T) {
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
