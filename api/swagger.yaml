@@ -3643,6 +3643,67 @@ definitions:
       Spec:
         $ref: "#/definitions/ConfigSpec"
 
+  ContainerState:
+    description: |
+      ContainerState stores container's running state. It's part of ContainerJSONBase
+      and will be returned by the "inspect" command.
+    type: "object"
+    properties:
+      Status:
+        description: |
+          String representation of the container state. Can be one of "created",
+          "running", "paused", "restarting", "removing", "exited", or "dead".
+        type: "string"
+        enum: ["created", "running", "paused", "restarting", "removing", "exited", "dead"]
+        example: "running"
+      Running:
+        description: |
+          Whether this container is running.
+
+          Note that a running container can be _paused_. The `Running` and `Paused`
+          booleans are not mutually exclusive:
+
+          When pausing a container (on Linux), the freezer cgroup is used to suspend
+          all processes in the container. Freezing the process requires the process to
+          be running. As a result, paused containers are both `Running` _and_ `Paused`.
+
+          Use the `Status` field instead to determine if a container's state is "running".
+        type: "boolean"
+        example: true
+      Paused:
+        description: "Whether this container is paused."
+        type: "boolean"
+        example: false
+      Restarting:
+        description: "Whether this container is restarting."
+        type: "boolean"
+        example: false
+      OOMKilled:
+        description: "Whether this container has been killed because it ran out of memory."
+        type: "boolean"
+        example: false
+      Dead:
+        type: "boolean"
+        example: false
+      Pid:
+        description: "The process ID of this container"
+        type: "integer"
+        example: 1234
+      ExitCode:
+        description: "The last exit code of this container"
+        type: "integer"
+        example: 0
+      Error:
+        type: "string"
+      StartedAt:
+        description: "The time when this container was last started."
+        type: "string"
+        example: "2020-01-06T09:06:59.461876391Z"
+      FinishedAt:
+        description: "The time when this container last exited."
+        type: "string"
+        example: "2020-01-06T09:07:59.461876391Z"
+
   SystemInfo:
     type: "object"
     properties:
@@ -4885,52 +4946,8 @@ paths:
                 items:
                   type: "string"
               State:
-                description: "The state of the container."
-                type: "object"
-                properties:
-                  Status:
-                    description: |
-                      The status of the container. For example, `"running"` or `"exited"`.
-                    type: "string"
-                    enum: ["created", "running", "paused", "restarting", "removing", "exited", "dead"]
-                  Running:
-                    description: |
-                      Whether this container is running.
-
-                      Note that a running container can be _paused_. The `Running` and `Paused`
-                      booleans are not mutually exclusive:
-
-                      When pausing a container (on Linux), the freezer cgroup is used to suspend
-                      all processes in the container. Freezing the process requires the process to
-                      be running. As a result, paused containers are both `Running` _and_ `Paused`.
-
-                      Use the `Status` field instead to determine if a container's state is "running".
-                    type: "boolean"
-                  Paused:
-                    description: "Whether this container is paused."
-                    type: "boolean"
-                  Restarting:
-                    description: "Whether this container is restarting."
-                    type: "boolean"
-                  OOMKilled:
-                    description: "Whether this container has been killed because it ran out of memory."
-                    type: "boolean"
-                  Dead:
-                    type: "boolean"
-                  Pid:
-                    description: "The process ID of this container"
-                    type: "integer"
-                  ExitCode:
-                    description: "The last exit code of this container"
-                    type: "integer"
-                  Error:
-                    type: "string"
-                  StartedAt:
-                    description: "The time when this container was last started."
-                    type: "string"
-                  FinishedAt:
-                    description: "The time when this container last exited."
-                    type: "string"
+                x-nullable: true
+                $ref: "#/definitions/ContainerState"
               Image:
                 description: "The container's image"
                 type: "string"
