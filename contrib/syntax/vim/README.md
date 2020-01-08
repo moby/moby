@@ -3,28 +3,9 @@ dockerfile.vim
 
 Syntax highlighting for Dockerfiles
 
-Installation
-------------
-With [pathogen](https://github.com/tpope/vim-pathogen), the usual way...
+-------------------------------------------------------------------------------
 
-With [Vundle](https://github.com/gmarik/Vundle.vim)
+dockerfile.vim has been merged into upstream vim, and has therefore been deleted
+from here.  You can find the canonical version [here][1].
 
-    Plugin 'moby/moby' , {'rtp': '/contrib/syntax/vim/'}
-
-With [vim-plug](https://github.com/junegunn/vim-plug)
-
-    Plug 'moby/moby' , {'rtp': '/contrib/syntax/vim/'}
-
-Features
---------
-
-The syntax highlighting includes:
-
-* The directives (e.g. `FROM`)
-* Strings
-* Comments
-
-License
--------
-
-BSD, short and sweet
+[1]: https://github.com/vim/vim/blob/master/runtime/syntax/dockerfile.vim
