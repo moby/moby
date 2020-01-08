@@ -28,15 +28,27 @@ type Timer interface {
 
 // LabeledTimer is a timer that must have label values populated before use.
 type LabeledTimer interface {
-	WithValues(labels ...string) Timer
+	WithValues(labels ...string) *labeledTimerObserver
 }
 
 type labeledTimer struct {
 	m *prometheus.HistogramVec
 }
 
-func (lt *labeledTimer) WithValues(labels ...string) Timer {
-	return &timer{m: lt.m.WithLabelValues(labels...)}
+type labeledTimerObserver struct {
+	m prometheus.Observer
+}
+
+func (lbo *labeledTimerObserver) Update(duration time.Duration) {
+	lbo.m.Observe(duration.Seconds())
+}
+
+func (lbo *labeledTimerObserver) UpdateSince(since time.Time) {
+	lbo.m.Observe(time.Since(since).Seconds())
+}
+
+func (lt *labeledTimer) WithValues(labels ...string) *labeledTimerObserver {
+	return &labeledTimerObserver{m: lt.m.WithLabelValues(labels...)}
 }
 
 func (lt *labeledTimer) Describe(c chan<- *prometheus.Desc) {
@@ -48,7 +60,7 @@ func (lt *labeledTimer) Collect(c chan<- prometheus.Metric) {
 }
 
 type timer struct {
-	m prometheus.Histogram
+	m prometheus.Observer
 }
 
 func (t *timer) Update(duration time.Duration) {
@@ -60,9 +72,14 @@ func (t *timer) UpdateSince(since time.Time) {
 }
 
 func (t *timer) Describe(c chan<- *prometheus.Desc) {
-	t.m.Describe(c)
+	c <- t.m.(prometheus.Metric).Desc()
 }
 
 func (t *timer) Collect(c chan<- prometheus.Metric) {
-	t.m.Collect(c)
+	// Are there any observers that don't implement Collector? It is really
+	// unclear what the point of the upstream change was, but we'll let this
+	// panic if we get an observer that doesn't implement collector. In this
+	// case, we should almost always see metricVec objects, so this should
+	// never panic.
+	t.m.(prometheus.Collector).Collect(c)
 }
