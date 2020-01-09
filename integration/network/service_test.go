@@ -417,6 +417,16 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	assert.NilError(t, err)
 	t.Logf("%s: NetworkInspect: %+v", t.Name(), out)
 	assert.Assert(t, len(out.IPAM.Config) > 0)
+	// As of docker/swarmkit#2890, the ingress network uses the default address
+	// pool (whereas before, the subnet for the ingress network was hard-coded.
+	// This means that the ingress network gets the subnet 20.20.0.0/24, and
+	// the network we just created gets subnet 20.20.1.0/24.
+	assert.Equal(t, out.IPAM.Config[0].Subnet, "20.20.1.0/24")
+
+	// Also inspect ingress network and make sure its in the same subnet
+	out, err = cli.NetworkInspect(ctx, "ingress", types.NetworkInspectOptions{Verbose: true})
+	assert.NilError(t, err)
+	assert.Assert(t, len(out.IPAM.Config) > 0)
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "20.20.0.0/24")
 
 	err = cli.ServiceRemove(ctx, serviceID)

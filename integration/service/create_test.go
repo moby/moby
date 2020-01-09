@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"strings"
 	"testing"
 	"time"
 
@@ -115,9 +116,33 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	err = client.ServiceRemove(context.Background(), serviceID2)
 	assert.NilError(t, err)
 
+	// we can't just wait on no tasks for the service, counter-intuitively.
+	// Tasks may briefly exist but not show up, if they are are in the process
+	// of being deallocated. To avoid this case, we should retry network remove
+	// a few times, to give tasks time to be deallcoated
 	poll.WaitOn(t, swarm.NoTasksForService(ctx, client, serviceID2), swarm.ServicePoll)
 
-	err = client.NetworkRemove(context.Background(), overlayID)
+	for retry := 0; retry < 5; retry++ {
+		err = client.NetworkRemove(context.Background(), overlayID)
+		// TODO(dperny): using strings.Contains for error checking is awful,
+		// but so is the fact that swarm functions don't return errdefs errors.
+		// I don't have time at this moment to fix the latter, so I guess I'll
+		// go with the former.
+		//
+		// The full error we're looking for is something like this:
+		//
+		// Error response from daemon: rpc error: code = FailedPrecondition desc = network %v is in use by task %v
+		//
+		// The safest way to catch this, I think, will be to match on "is in
+		// use by", as this is an uninterrupted string that best identifies
+		// this error.
+		if err == nil || !strings.Contains(err.Error(), "is in use by") {
+			// if there is no error, or the error isn't this kind of error,
+			// then we'll break the loop body, and either fail the test or
+			// continue.
+			break
+		}
+	}
 	assert.NilError(t, err)
 
 	poll.WaitOn(t, network.IsRemoved(context.Background(), client, overlayID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
