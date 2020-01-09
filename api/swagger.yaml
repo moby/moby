@@ -618,6 +618,71 @@ definitions:
         description: "Start period for the container to initialize before starting health-retries countdown in nanoseconds. It should be 0 or at least 1000000 (1 ms). 0 means inherit."
         type: "integer"
 
+  Health:
+    description: |
+      Health stores information about the container's healthcheck results.
+    type: "object"
+    properties:
+      Status:
+        description: |
+          Status is one of `none`, `starting`, `healthy` or `unhealthy`
+
+          - "none"      Indicates there is no healthcheck
+          - "starting"  Starting indicates that the container is not yet ready
+          - "healthy"   Healthy indicates that the container is running correctly
+          - "unhealthy" Unhealthy indicates that the container has a problem
+        type: "string"
+        enum:
+          - "none"
+          - "starting"
+          - "healthy"
+          - "unhealthy"
+        example: "healthy"
+      FailingStreak:
+        description: "FailingStreak is the number of consecutive failures"
+        type: "integer"
+        example: 0
+      Log:
+        type: "array"
+        description: |
+          Log contains the last few results (oldest first)
+        items:
+          x-nullable: true
+          $ref: "#/definitions/HealthcheckResult"
+
+  HealthcheckResult:
+    description: |
+      HealthcheckResult stores information about a single run of a healthcheck probe
+    type: "object"
+    properties:
+      Start:
+        description: |
+          Date and time at which this check started in
+          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
+        type: "string"
+        format: "date-time"
+        example: "2020-01-04T10:44:24.496525531Z"
+      End:
+        description: |
+          Date and time at which this check ended in
+          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
+        type: "string"
+        format: "dateTime"
+        example: "2020-01-04T10:45:21.364524523Z"
+      ExitCode:
+        description: |
+          ExitCode meanings:
+
+          - `0` healthy
+          - `1` unhealthy
+          - `2` reserved (considered unhealthy)
+          - other values: error running probe
+        type: "integer"
+        example: 0
+      Output:
+        description: "Output from last check"
+        type: "string"
+
   HostConfig:
     description: "Container configuration that depends on the host we are running on"
     allOf:
@@ -3643,6 +3708,70 @@ definitions:
       Spec:
         $ref: "#/definitions/ConfigSpec"
 
+  ContainerState:
+    description: |
+      ContainerState stores container's running state. It's part of ContainerJSONBase
+      and will be returned by the "inspect" command.
+    type: "object"
+    properties:
+      Status:
+        description: |
+          String representation of the container state. Can be one of "created",
+          "running", "paused", "restarting", "removing", "exited", or "dead".
+        type: "string"
+        enum: ["created", "running", "paused", "restarting", "removing", "exited", "dead"]
+        example: "running"
+      Running:
+        description: |
+          Whether this container is running.
+
+          Note that a running container can be _paused_. The `Running` and `Paused`
+          booleans are not mutually exclusive:
+
+          When pausing a container (on Linux), the freezer cgroup is used to suspend
+          all processes in the container. Freezing the process requires the process to
+          be running. As a result, paused containers are both `Running` _and_ `Paused`.
+
+          Use the `Status` field instead to determine if a container's state is "running".
+        type: "boolean"
+        example: true
+      Paused:
+        description: "Whether this container is paused."
+        type: "boolean"
+        example: false
+      Restarting:
+        description: "Whether this container is restarting."
+        type: "boolean"
+        example: false
+      OOMKilled:
+        description: "Whether this container has been killed because it ran out of memory."
+        type: "boolean"
+        example: false
+      Dead:
+        type: "boolean"
+        example: false
+      Pid:
+        description: "The process ID of this container"
+        type: "integer"
+        example: 1234
+      ExitCode:
+        description: "The last exit code of this container"
+        type: "integer"
+        example: 0
+      Error:
+        type: "string"
+      StartedAt:
+        description: "The time when this container was last started."
+        type: "string"
+        example: "2020-01-06T09:06:59.461876391Z"
+      FinishedAt:
+        description: "The time when this container last exited."
+        type: "string"
+        example: "2020-01-06T09:07:59.461876391Z"
+      Health:
+        x-nullable: true
+        $ref: "#/definitions/Health"
+
   SystemInfo:
     type: "object"
     properties:
@@ -4885,52 +5014,8 @@ paths:
                 items:
                   type: "string"
               State:
-                description: "The state of the container."
-                type: "object"
-                properties:
-                  Status:
-                    description: |
-                      The status of the container. For example, `"running"` or `"exited"`.
-                    type: "string"
-                    enum: ["created", "running", "paused", "restarting", "removing", "exited", "dead"]
-                  Running:
-                    description: |
-                      Whether this container is running.
-
-                      Note that a running container can be _paused_. The `Running` and `Paused`
-                      booleans are not mutually exclusive:
-
-                      When pausing a container (on Linux), the freezer cgroup is used to suspend
-                      all processes in the container. Freezing the process requires the process to
-                      be running. As a result, paused containers are both `Running` _and_ `Paused`.
-
-                      Use the `Status` field instead to determine if a container's state is "running".
-                    type: "boolean"
-                  Paused:
-                    description: "Whether this container is paused."
-                    type: "boolean"
-                  Restarting:
-                    description: "Whether this container is restarting."
-                    type: "boolean"
-                  OOMKilled:
-                    description: "Whether this container has been killed because it ran out of memory."
-                    type: "boolean"
-                  Dead:
-                    type: "boolean"
-                  Pid:
-                    description: "The process ID of this container"
-                    type: "integer"
-                  ExitCode:
-                    description: "The last exit code of this container"
-                    type: "integer"
-                  Error:
-                    type: "string"
-                  StartedAt:
-                    description: "The time when this container was last started."
-                    type: "string"
-                  FinishedAt:
-                    description: "The time when this container last exited."
-                    type: "string"
+                x-nullable: true
+                $ref: "#/definitions/ContainerState"
               Image:
                 description: "The container's image"
                 type: "string"
@@ -5002,6 +5087,8 @@ paths:
                 Domainname: ""
                 Env:
                   - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+                Healthcheck:
+                  Test: ["CMD-SHELL", "exit 0"]
                 Hostname: "ba033ac44011"
                 Image: "ubuntu"
                 Labels:
@@ -5113,6 +5200,14 @@ paths:
                 Error: ""
                 ExitCode: 9
                 FinishedAt: "2015-01-06T15:47:32.080254511Z"
+                Health:
+                  Status: "healthy"
+                  FailingStreak: 0
+                  Log:
+                    - Start: "2019-12-22T10:59:05.6385933Z"
+                      End: "2019-12-22T10:59:05.8078452Z"
+                      ExitCode: 0
+                      Output: ""
                 OOMKilled: false
                 Dead: false
                 Paused: false
