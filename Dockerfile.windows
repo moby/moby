@@ -236,6 +236,25 @@ RUN `
   Write-Host 'INFO: Setting up busybox symlinks ...'; `
   C:\busybox\busybox.exe --list ^|ForEach-Object {$nul = cmd /c mklink C:\busybox\$_.exe busybox.exe}
 
+FROM base AS gotestsum
+ARG GOTESTSUM_COMMIT
+
+RUN `
+  Function Install-GoTestSum() { `
+    $Env:GO111MODULE = 'on'; `
+    $tmpGobin = "${Env:GOBIN_TMP}"; `
+    $Env:GOBIN = """${Env:GOPATH}`\bin"""; `
+    Write-Host "INFO: Installing gotestsum version $Env:GOTESTSUM_VERSION in $Env:GOBIN"; `
+    &go install "gotest.tools/gotestsum@${Env:GOTESTSUM_VERSION}"; `
+    $Env:GOBIN = "${tmpGobin}"; `
+    $Env:GO111MODULE = 'off'; `
+    if ($LASTEXITCODE -ne 0) {  `
+      Throw '"gotestsum install failed..."'; `
+    } `
+  } `
+  `
+  Install-GoTestSum
+
 # The number of build steps below are explicitly minimised to improve performance.
 FROM base
 
@@ -264,22 +283,6 @@ ARG GOTESTSUM_COMMIT
 ENV GOTESTSUM_COMMIT=${GOTESTSUM_COMMIT}
 
 RUN `
-  Function Install-GoTestSum() { `
-    $Env:GO111MODULE = 'on'; `
-    $tmpGobin = "${Env:GOBIN_TMP}"; `
-    $Env:GOBIN = """${Env:GOPATH}`\bin"""; `
-    Write-Host "INFO: Installing gotestsum version $Env:GOTESTSUM_VERSION in $Env:GOBIN"; `
-    &go install "gotest.tools/gotestsum@${Env:GOTESTSUM_VERSION}"; `
-    $Env:GOBIN = "${tmpGobin}"; `
-    $Env:GO111MODULE = 'off'; `
-    if ($LASTEXITCODE -ne 0) {  `
-      Throw '"gotestsum install failed..."'; `
-    } `
-  } `
-  `
-  Install-GoTestSum
-
-RUN `
   Function Install-GoWinres() { `
     $Env:GO111MODULE = 'on'; `
     $tmpGobin = "${Env:GOBIN_TMP}"; `
@@ -304,6 +307,7 @@ WORKDIR ${GOPATH}\src\github.com\docker\docker
 # Copy compiler and busybox
 COPY --from=compiler C:\gcc C:\gcc
 COPY --from=busybox C:\busybox C:\busybox
+COPY --from=gotestsum "${GOPATH}\bin\gotestsum.exe" "${GOPATH}\bin\gotestsum.exe"
 
 # Copy the sources into the container
 COPY . .
