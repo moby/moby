@@ -67,6 +67,7 @@
 			"olljanat",
 			"programmerq",
 			"ripcurld",
+			"samwhited",
 			"thajeztah"
 		]
 
@@ -421,6 +422,11 @@
 	Name = "Antonio Murdaca"
 	Email = "runcom@redhat.com"
 	GitHub = "runcom"
+
+	[people.samwhited]
+	Name = "Sam Whited"
+	Email = "sam@samwhited.com"
+	GitHub = "samwhited"
 
 	[people.shykes]
 	Name = "Solomon Hykes"
