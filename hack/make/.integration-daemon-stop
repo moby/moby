@@ -21,7 +21,7 @@ if [ ! "$(go env GOOS)" = 'windows' ]; then
 		if [ -e "/sys/module/apparmor/parameters/enabled" ] && [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
 			(
 				[ -n "$TESTDEBUG" ] && set -x
-				/etc/init.d/apparmor stop
+				/etc/init.d/apparmor stop || true
 			)
 		fi
 	fi
