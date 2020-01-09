@@ -6,7 +6,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_DIGEST=e508a17cfacc8fd39261d5b4e397df2b953690da577e2c987a47630cd0c42f8e
 ARG DOCKER_BUILDTAGS="apparmor seccomp selinux"
 
-FROM golang:${GO_VERSION}-stretch AS base
+FROM golang:${GO_VERSION}-buster AS base
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 ARG APT_MIRROR
 RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/apt/sources.list \
@@ -113,9 +113,9 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-false-aptlib,target=/var/lib
     --mount=type=cache,sharing=locked,id=moby-cross-false-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
             binutils-mingw-w64 \
-            btrfs-tools \
             g++-mingw-w64-x86-64 \
             libapparmor-dev \
+            libbtrfs-dev \
             libdevmapper-dev \
             libseccomp-dev \
             libsystemd-dev \
@@ -163,7 +163,7 @@ ARG CONTAINERD_COMMIT
 RUN --mount=type=cache,sharing=locked,id=moby-containerd-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-containerd-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
-            btrfs-tools
+            libbtrfs-dev
 ENV INSTALL_BINARY_NAME=containerd
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
@@ -283,6 +283,11 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             xz-utils \
             zip
 
+
+# Switch to use iptables instead of nftables (to match the host machine)
+RUN update-alternatives --set iptables  /usr/sbin/iptables-legacy  || true \
+ && update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy || true \
+ && update-alternatives --set arptables /usr/sbin/arptables-legacy || true
 
 RUN pip3 install yamllint==1.16.0
 
