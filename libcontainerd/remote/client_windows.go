@@ -16,7 +16,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const runtimeName = "io.containerd.runhcs.v1"
+const (
+	runtimeName       = "io.containerd.runhcs.v1"
+	shimV2RuntimeName = runtimeName
+)
 
 func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {
 	switch pd := i.(type) {

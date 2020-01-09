@@ -364,10 +364,15 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 
 	// Set default cgroup namespace mode, if unset for container
 	if hostConfig.CgroupnsMode.IsEmpty() {
-		if hostConfig.Privileged {
+		// for cgroup v2: unshare cgroupns even for privileged containers
+		// https://github.com/containers/libpod/pull/4374#issuecomment-549776387
+		if hostConfig.Privileged && !cgroups.IsCgroup2UnifiedMode() {
 			hostConfig.CgroupnsMode = containertypes.CgroupnsMode("host")
 		} else {
-			m := config.DefaultCgroupNamespaceMode
+			m := "host"
+			if cgroups.IsCgroup2UnifiedMode() {
+				m = "private"
+			}
 			if daemon.configStore != nil {
 				m = daemon.configStore.CgroupNamespaceMode
 			}
@@ -708,8 +713,8 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 			warnings = append(warnings, "Your kernel does not support cgroup namespaces.  Cgroup namespace setting discarded.")
 		}
 
-		if hostConfig.Privileged {
-			return warnings, fmt.Errorf("privileged mode is incompatible with private cgroup namespaces.  You must run the container in the host cgroup namespace when running privileged mode")
+		if hostConfig.Privileged && !cgroups.IsCgroup2UnifiedMode() {
+			return warnings, fmt.Errorf("privileged mode is incompatible with private cgroup namespaces on cgroup v1 host.  You must run the container in the host cgroup namespace when running privileged mode")
 		}
 	}
 
@@ -1594,6 +1599,10 @@ func (daemon *Daemon) initCgroupsPath(path string) error {
 		return nil
 	}
 
+	if cgroups.IsCgroup2UnifiedMode() {
+		return fmt.Errorf("daemon-scoped cpu-rt-period and cpu-rt-runtime are not implemented for cgroup v2")
+	}
+
 	// Recursively create cgroup to ensure that the system and all parent cgroups have values set
 	// for the period and runtime as this limits what the children can be set to.
 	daemon.initCgroupsPath(filepath.Dir(path))
@@ -1638,4 +1647,8 @@ func (daemon *Daemon) setupSeccompProfile() error {
 		daemon.seccompProfile = b
 	}
 	return nil
+}
+
+func (daemon *Daemon) useShimV2() bool {
+	return cgroups.IsCgroup2UnifiedMode()
 }

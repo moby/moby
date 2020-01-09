@@ -23,6 +23,7 @@ import (
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/runtime/linux/runctypes"
+	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/containerd/typeurl"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/queue"
@@ -45,21 +46,27 @@ type client struct {
 	logger   *logrus.Entry
 	ns       string
 
-	backend libcontainerdtypes.Backend
-	eventQ  queue.Queue
-	oomMu   sync.Mutex
-	oom     map[string]bool
+	backend         libcontainerdtypes.Backend
+	eventQ          queue.Queue
+	oomMu           sync.Mutex
+	oom             map[string]bool
+	useShimV2       bool
+	v2runcoptionsMu sync.Mutex
+	// v2runcoptions is used for copying options specified on Create() to Start()
+	v2runcoptions map[string]v2runcoptions.Options
 }
 
 // NewClient creates a new libcontainerd client from a containerd client
-func NewClient(ctx context.Context, cli *containerd.Client, stateDir, ns string, b libcontainerdtypes.Backend) (libcontainerdtypes.Client, error) {
+func NewClient(ctx context.Context, cli *containerd.Client, stateDir, ns string, b libcontainerdtypes.Backend, useShimV2 bool) (libcontainerdtypes.Client, error) {
 	c := &client{
-		client:   cli,
-		stateDir: stateDir,
-		logger:   logrus.WithField("module", "libcontainerd").WithField("namespace", ns),
-		ns:       ns,
-		backend:  b,
-		oom:      make(map[string]bool),
+		client:        cli,
+		stateDir:      stateDir,
+		logger:        logrus.WithField("module", "libcontainerd").WithField("namespace", ns),
+		ns:            ns,
+		backend:       b,
+		oom:           make(map[string]bool),
+		useShimV2:     useShimV2,
+		v2runcoptions: make(map[string]v2runcoptions.Options),
 	}
 
 	go c.processEventStream(ctx, ns)
@@ -126,9 +133,13 @@ func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, run
 	bdir := c.bundleDir(id)
 	c.logger.WithField("bundle", bdir).WithField("root", ociSpec.Root.Path).Debug("bundle dir created")
 
+	rt := runtimeName
+	if c.useShimV2 {
+		rt = shimV2RuntimeName
+	}
 	newOpts := []containerd.NewContainerOpts{
 		containerd.WithSpec(ociSpec),
-		containerd.WithRuntime(runtimeName, runtimeOptions),
+		containerd.WithRuntime(rt, runtimeOptions),
 		WithBundle(bdir, ociSpec),
 	}
 	opts = append(opts, newOpts...)
@@ -139,6 +150,13 @@ func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, run
 			return errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
 		}
 		return wrapError(err)
+	}
+	if c.useShimV2 {
+		if x, ok := runtimeOptions.(*v2runcoptions.Options); ok {
+			c.v2runcoptionsMu.Lock()
+			c.v2runcoptions[id] = *x
+			c.v2runcoptionsMu.Unlock()
+		}
 	}
 	return nil
 }
@@ -200,11 +218,26 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 
 	if runtime.GOOS != "windows" {
 		taskOpts = append(taskOpts, func(_ context.Context, _ *containerd.Client, info *containerd.TaskInfo) error {
-			info.Options = &runctypes.CreateOptions{
-				IoUid:       uint32(uid),
-				IoGid:       uint32(gid),
-				NoPivotRoot: os.Getenv("DOCKER_RAMDISK") != "",
+			if c.useShimV2 {
+				// For v2, we need to inherit options specified on Create
+				c.v2runcoptionsMu.Lock()
+				opts, ok := c.v2runcoptions[id]
+				c.v2runcoptionsMu.Unlock()
+				if !ok {
+					opts = v2runcoptions.Options{}
+				}
+				opts.IoUid = uint32(uid)
+				opts.IoGid = uint32(gid)
+				opts.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
+				info.Options = &opts
+			} else {
+				info.Options = &runctypes.CreateOptions{
+					IoUid:       uint32(uid),
+					IoGid:       uint32(gid),
+					NoPivotRoot: os.Getenv("DOCKER_RAMDISK") != "",
+				}
 			}
+
 			return nil
 		})
 	} else {
@@ -466,6 +499,9 @@ func (c *client) Delete(ctx context.Context, containerID string) error {
 	c.oomMu.Lock()
 	delete(c.oom, containerID)
 	c.oomMu.Unlock()
+	c.v2runcoptionsMu.Lock()
+	delete(c.v2runcoptions, containerID)
+	c.v2runcoptionsMu.Unlock()
 	if os.Getenv("LIBCONTAINERD_NOCLEAN") != "1" {
 		if err := os.RemoveAll(bundle); err != nil {
 			c.logger.WithError(err).WithFields(logrus.Fields{

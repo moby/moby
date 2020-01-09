@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/containerd/runtime/linux/runctypes"
+	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
@@ -42,6 +43,20 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 	path, err := daemon.getRuntimeScript(container)
 	if err != nil {
 		return nil, err
+	}
+	if daemon.useShimV2() {
+		opts := &v2runcoptions.Options{
+			BinaryName: path,
+			Root: filepath.Join(daemon.configStore.ExecRoot,
+				fmt.Sprintf("runtime-%s", container.HostConfig.Runtime)),
+		}
+
+		if UsingSystemd(daemon.configStore) {
+			opts.SystemdCgroup = true
+		}
+
+		return opts, nil
+
 	}
 	opts := &runctypes.RuncOptions{
 		Runtime: path,

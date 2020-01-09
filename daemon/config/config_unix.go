@@ -11,8 +11,6 @@ import (
 )
 
 const (
-	// DefaultCgroupNamespaceMode is the default for a container's CgroupnsMode, if not set otherwise
-	DefaultCgroupNamespaceMode = "host" // TODO: change to private
 	// DefaultIpcMode is default for container's IpcMode, if not set otherwise
 	DefaultIpcMode = "private"
 )
