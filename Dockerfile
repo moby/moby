@@ -514,4 +514,20 @@ FROM scratch AS cross
 COPY --from=build-cross /build/bundles/ /
 
 FROM dev AS final
+# These build-args are used by hack/make/.go-autogen. We "bake" then into
+# environment variables, so that they are also available in `make shell`
+ARG DOCKER_GITCOMMIT=HEAD
+ENV DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT}
+ARG VERSION
+ENV VERSION=${VERSION}
+ARG PLATFORM
+ENV PLATFORM=${PLATFORM}
+ARG PRODUCT
+ENV PRODUCT=${PRODUCT}
+ARG DEFAULT_PRODUCT_LICENSE
+ENV DEFAULT_PRODUCT_LICENSE=${DEFAULT_PRODUCT_LICENSE}
+ARG DOCKER_BUILDTAGS
+ENV DOCKER_BUILDTAGS="${DOCKER_BUILDTAGS}"
+ARG TINI_COMMIT
+ENV TINI_COMMIT=${TINI_COMMIT}
 COPY . /go/src/github.com/docker/docker
