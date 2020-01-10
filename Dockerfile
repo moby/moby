@@ -37,42 +37,44 @@ RUN mkdir -p /usr/src/criu \
     && make PREFIX=/build/ install-criu
 
 FROM base AS registry
-# Install two versions of the registry. The first is an older version that
-# only supports schema1 manifests. The second is a newer version that supports
-# both. This allows integration-cli tests to cover push/pull with both schema1
-# and schema2 manifests.
+WORKDIR /go/src/github.com/docker/distribution
+# Install two versions of the registry. The first one is a recent version that
+# supports both schema 1 and 2 manifests. The second one is an older version that
+# only supports schema1 manifests. This allows integration-cli tests to cover
+# push/pull with both schema1 and schema2 manifests.
+# The old version of the registry is not working on arm64, so installation is
+# skipped on that architecture.
 ENV REGISTRY_COMMIT_SCHEMA1 ec87e9b6971d831f0eff752ddb54fb64693e51cd
 ENV REGISTRY_COMMIT 47a064d4195a9b56133891bbb13620c3ac83a827
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=tmpfs,target=/go/src/ \
         set -x \
-        && export GOPATH="$(mktemp -d)" \
-        && git clone https://github.com/docker/distribution.git "$GOPATH/src/github.com/docker/distribution" \
-        && (cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT") \
-        && GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
+        && git clone https://github.com/docker/distribution.git . \
+        && git checkout -q "$REGISTRY_COMMIT" \
+        && GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
            go build -buildmode=pie -o /build/registry-v2 github.com/docker/distribution/cmd/registry \
         && case $(dpkg --print-architecture) in \
-               amd64|ppc64*|s390x) \
-               (cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT_SCHEMA1"); \
-               GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"; \
+               amd64|armhf|ppc64*|s390x) \
+               git checkout -q "$REGISTRY_COMMIT_SCHEMA1"; \
+               GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"; \
                    go build -buildmode=pie -o /build/registry-v2-schema1 github.com/docker/distribution/cmd/registry; \
                 ;; \
-           esac \
-        && rm -rf "$GOPATH"
+           esac
 
 FROM base AS swagger
+WORKDIR $GOPATH/src/github.com/go-swagger/go-swagger
 # Install go-swagger for validating swagger.yaml
 # This is https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix
 # TODO: move to under moby/ or fix upstream go-swagger to work for us.
 ENV GO_SWAGGER_COMMIT 5793aa66d4b4112c2602c716516e24710e4adbb5
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=tmpfs,target=/go/src/ \
         set -x \
-        && export GOPATH="$(mktemp -d)" \
-        && git clone https://github.com/kolyshkin/go-swagger.git "$GOPATH/src/github.com/go-swagger/go-swagger" \
-        && (cd "$GOPATH/src/github.com/go-swagger/go-swagger" && git checkout -q "$GO_SWAGGER_COMMIT") \
-        && go build -o /build/swagger github.com/go-swagger/go-swagger/cmd/swagger \
-        && rm -rf "$GOPATH"
+        && git clone https://github.com/kolyshkin/go-swagger.git . \
+        && git checkout -q "$GO_SWAGGER_COMMIT" \
+        && go build -o /build/swagger github.com/go-swagger/go-swagger/cmd/swagger
 
 FROM base AS frozen-images
 ARG DEBIAN_FRONTEND
