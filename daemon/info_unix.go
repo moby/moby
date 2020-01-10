@@ -72,7 +72,9 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 			v.InitCommit.ID = "N/A"
 		} else {
 			v.InitCommit.ID = commit
-			v.InitCommit.Expected = dockerversion.InitCommitID[0:len(commit)]
+			if len(dockerversion.InitCommitID) > len(commit) {
+				v.InitCommit.Expected = dockerversion.InitCommitID[0:len(commit)]
+			}
 		}
 	} else {
 		logrus.Warnf("failed to retrieve %s version: %s", defaultInitBinary, err)
