@@ -37,10 +37,12 @@ RUN mkdir -p /usr/src/criu \
     && make PREFIX=/build/ install-criu
 
 FROM base AS registry
-# Install two versions of the registry. The first is an older version that
-# only supports schema1 manifests. The second is a newer version that supports
-# both. This allows integration-cli tests to cover push/pull with both schema1
-# and schema2 manifests.
+# Install two versions of the registry. The first one is a recent version that
+# supports both schema 1 and 2 manifests. The second one is an older version that
+# only supports schema1 manifests. This allows integration-cli tests to cover
+# push/pull with both schema1 and schema2 manifests.
+# The old version of the registry is not working on arm64, so installation is
+# skipped on that architecture.
 ENV REGISTRY_COMMIT_SCHEMA1 ec87e9b6971d831f0eff752ddb54fb64693e51cd
 ENV REGISTRY_COMMIT 47a064d4195a9b56133891bbb13620c3ac83a827
 RUN --mount=type=cache,target=/root/.cache/go-build \
@@ -52,7 +54,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         && GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
            go build -buildmode=pie -o /build/registry-v2 github.com/docker/distribution/cmd/registry \
         && case $(dpkg --print-architecture) in \
-               amd64|ppc64*|s390x) \
+               amd64|armhf|ppc64*|s390x) \
                (cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT_SCHEMA1"); \
                GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"; \
                    go build -buildmode=pie -o /build/registry-v2-schema1 github.com/docker/distribution/cmd/registry; \
