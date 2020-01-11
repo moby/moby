@@ -1018,7 +1018,9 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *config.Co
 		ipamV6Conf     *libnetwork.IpamConf
 	)
 
-	if config.BridgeConfig.FixedCIDRv6 != "" {
+	if config.BridgeConfig.EnableIPv6 && config.BridgeConfig.FixedCIDRv6 == "" {
+		return errdefs.InvalidParameter(errors.New("IPv6 is enabled for the default bridge, but no subnet is configured. Specify an IPv6 subnet using --fixed-cidr-v6"))
+	} else if config.BridgeConfig.FixedCIDRv6 != "" {
 		_, fCIDRv6, err := net.ParseCIDR(config.BridgeConfig.FixedCIDRv6)
 		if err != nil {
 			return err
