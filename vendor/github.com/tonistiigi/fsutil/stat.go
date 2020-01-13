@@ -49,6 +49,9 @@ func mkstat(path, relpath string, fi os.FileInfo, inodemap map[uint64]string) (*
 		stat.Mode = noPermPart | permPart
 	}
 
+	// Clear the socket bit since archive/tar.FileInfoHeader does not handle it
+	stat.Mode &^= uint32(os.ModeSocket)
+
 	return stat, nil
 }
 

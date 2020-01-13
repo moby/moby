@@ -5,6 +5,7 @@ import (
 	"hash"
 	"os"
 
+	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil/types"
 )
 
@@ -25,9 +26,14 @@ func GetWalkerFn(root string) walkerFn {
 				return err
 			}
 
+			stat, ok := f.Sys().(*types.Stat)
+			if !ok {
+				return errors.Errorf("%T invalid file without stat information", f.Sys())
+			}
+
 			p := &currentPath{
 				path: path,
-				f:    f,
+				stat: stat,
 			}
 
 			select {
