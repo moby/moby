@@ -62,6 +62,8 @@ func (r *responseWriterDelegator) WriteHeader(code int) {
 }
 
 func (r *responseWriterDelegator) Write(b []byte) (int, error) {
+	// If applicable, call WriteHeader here so that observeWriteHeader is
+	// handled appropriately.
 	if !r.wroteHeader {
 		r.WriteHeader(http.StatusOK)
 	}
@@ -82,12 +84,19 @@ func (d closeNotifierDelegator) CloseNotify() <-chan bool {
 	return d.ResponseWriter.(http.CloseNotifier).CloseNotify()
 }
 func (d flusherDelegator) Flush() {
+	// If applicable, call WriteHeader here so that observeWriteHeader is
+	// handled appropriately.
+	if !d.wroteHeader {
+		d.WriteHeader(http.StatusOK)
+	}
 	d.ResponseWriter.(http.Flusher).Flush()
 }
 func (d hijackerDelegator) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return d.ResponseWriter.(http.Hijacker).Hijack()
 }
 func (d readerFromDelegator) ReadFrom(re io.Reader) (int64, error) {
+	// If applicable, call WriteHeader here so that observeWriteHeader is
+	// handled appropriately.
 	if !d.wroteHeader {
 		d.WriteHeader(http.StatusOK)
 	}

@@ -9,7 +9,7 @@ This is the [Go](http://golang.org) client library for
 instrumenting application code, and one for creating clients that talk to the
 Prometheus HTTP API.
 
-__This library requires Go1.9 or later.__
+__This library requires Go1.9 or later.__ The minimum required patch releases for older Go versions are Go1.9.7 and Go1.10.3.
 
 ## Important note about releases and stability
 
