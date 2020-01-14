@@ -51,7 +51,7 @@ RUN hack/make.sh build-integration-test-binary
 RUN mkdir -p /build/tests && find . -name test.main -exec cp --parents '{}' /build/tests \;
 
 ## Generate testing image
-FROM alpine:3.10 as runner
+FROM alpine:3.11 as runner
 
 ENV DOCKER_REMOTE_DAEMON=1
 ENV DOCKER_INTEGRATION_DAEMON_DEST=/
