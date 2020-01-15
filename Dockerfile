@@ -144,22 +144,20 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/
 FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
 FROM base AS tomlv
-ENV INSTALL_BINARY_NAME=tomlv
 ARG TOMLV_COMMIT
 COPY hack/dockerfile/install/install.sh ./install.sh
-COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+COPY hack/dockerfile/install/tomlv.installer ./
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
+        PREFIX=/build ./install.sh tomlv
 
 FROM base AS vndr
-ENV INSTALL_BINARY_NAME=vndr
 ARG VNDR_COMMIT
 COPY hack/dockerfile/install/install.sh ./install.sh
-COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+COPY hack/dockerfile/install/vndr.installer ./
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
+        PREFIX=/build ./install.sh vndr
 
 FROM dev-base AS containerd
 ARG DEBIAN_FRONTEND
@@ -168,68 +166,61 @@ RUN --mount=type=cache,sharing=locked,id=moby-containerd-aptlib,target=/var/lib/
     --mount=type=cache,sharing=locked,id=moby-containerd-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
             libbtrfs-dev
-ENV INSTALL_BINARY_NAME=containerd
 COPY hack/dockerfile/install/install.sh ./install.sh
-COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+COPY hack/dockerfile/install/containerd.installer ./
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
+        PREFIX=/build ./install.sh containerd
 
 FROM dev-base AS proxy
-ENV INSTALL_BINARY_NAME=proxy
 ARG LIBNETWORK_COMMIT
 COPY hack/dockerfile/install/install.sh ./install.sh
-COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+COPY hack/dockerfile/install/proxy.installer ./
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
+        PREFIX=/build ./install.sh proxy
 
 FROM base AS golangci_lint
-ENV INSTALL_BINARY_NAME=golangci_lint
 ARG GOLANGCI_LINT_COMMIT
 COPY hack/dockerfile/install/install.sh ./install.sh
-COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+COPY hack/dockerfile/install/golangci_lint.installer ./
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
+        PREFIX=/build ./install.sh golangci_lint
 
 FROM base AS gotestsum
-ENV INSTALL_BINARY_NAME=gotestsum
 ARG GOTESTSUM_COMMIT
 COPY hack/dockerfile/install/install.sh ./install.sh
-COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+COPY hack/dockerfile/install/gotestsum.installer ./
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
+        PREFIX=/build ./install.sh gotestsum
 
 FROM base AS shfmt
-ENV INSTALL_BINARY_NAME=shfmt
 ARG SHFMT_COMMIT
 COPY hack/dockerfile/install/install.sh ./install.sh
-COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+COPY hack/dockerfile/install/shfmt.installer ./
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
+        PREFIX=/build ./install.sh shfmt
 
 FROM dev-base AS dockercli
-ENV INSTALL_BINARY_NAME=dockercli
 ARG DOCKERCLI_CHANNEL
 ARG DOCKERCLI_VERSION
 COPY hack/dockerfile/install/install.sh ./install.sh
-COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+COPY hack/dockerfile/install/dockercli.installer ./
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
+        PREFIX=/build ./install.sh dockercli
 
 FROM runtime-dev AS runc
-ENV INSTALL_BINARY_NAME=runc
 ARG RUNC_COMMIT
 ARG RUNC_BUILDTAGS
 COPY hack/dockerfile/install/install.sh ./install.sh
-COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+COPY hack/dockerfile/install/runc.installer ./
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
+        PREFIX=/build ./install.sh runc
 
 FROM dev-base AS tini
 ARG DEBIAN_FRONTEND
@@ -240,20 +231,18 @@ RUN --mount=type=cache,sharing=locked,id=moby-tini-aptlib,target=/var/lib/apt \
             cmake \
             vim-common
 COPY hack/dockerfile/install/install.sh ./install.sh
-ENV INSTALL_BINARY_NAME=tini
-COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+COPY hack/dockerfile/install/tini.installer ./
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
+        PREFIX=/build ./install.sh tini
 
 FROM dev-base AS rootlesskit
-ENV INSTALL_BINARY_NAME=rootlesskit
 ARG ROOTLESSKIT_COMMIT
 COPY hack/dockerfile/install/install.sh ./install.sh
-COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+COPY hack/dockerfile/install/rootlesskit.installer ./
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
+        PREFIX=/build/ ./install.sh rootlesskit
 COPY ./contrib/dockerd-rootless.sh /build
 
 FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit
