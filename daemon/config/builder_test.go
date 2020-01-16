@@ -3,7 +3,7 @@ package config
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types/filters"
+	"github.com/moby/moby/api/types/filters"
 	"github.com/google/go-cmp/cmp"
 	"gotest.tools/assert"
 	"gotest.tools/fs"

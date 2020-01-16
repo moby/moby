@@ -1,7 +1,7 @@
 // Package jsonfilelog provides the default Logger implementation for
 // Docker logging. This logger logs to files on the host server in the
 // JSON format.
-package jsonfilelog // import "github.com/docker/docker/daemon/logger/jsonfilelog"
+package jsonfilelog // import "github.com/moby/moby/daemon/logger/jsonfilelog"
 
 import (
 	"bytes"
@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/jsonfilelog/jsonlog"
-	"github.com/docker/docker/daemon/logger/loggerutils"
+	"github.com/moby/moby/daemon/logger"
+	"github.com/moby/moby/daemon/logger/jsonfilelog/jsonlog"
+	"github.com/moby/moby/daemon/logger/loggerutils"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"

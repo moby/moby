@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	distref "github.com/docker/distribution/reference"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/reference"
+	"github.com/moby/moby/image"
+	"github.com/moby/moby/layer"
+	"github.com/moby/moby/reference"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	digest "github.com/opencontainers/go-digest"

@@ -1,4 +1,4 @@
-package mount // import "github.com/docker/docker/pkg/mount"
+package mount // import "github.com/moby/moby/pkg/mount"
 
 import (
 	"golang.org/x/sys/unix"

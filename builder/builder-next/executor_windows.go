@@ -5,8 +5,8 @@ import (
 	"errors"
 	"io"
 
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/moby/daemon/config"
+	"github.com/moby/moby/pkg/idtools"
 	"github.com/docker/libnetwork"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/executor"

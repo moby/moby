@@ -1,4 +1,4 @@
-package dockerfile // import "github.com/docker/docker/builder/dockerfile"
+package dockerfile // import "github.com/moby/moby/builder/dockerfile"
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/containerd/containerd/platforms"
-	"github.com/docker/docker/builder"
-	"github.com/docker/docker/image"
+	"github.com/moby/moby/builder"
+	"github.com/moby/moby/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/assert"
 )

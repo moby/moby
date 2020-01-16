@@ -1,4 +1,4 @@
-package listeners // import "github.com/docker/docker/daemon/listeners"
+package listeners // import "github.com/moby/moby/daemon/listeners"
 
 import (
 	"crypto/tls"
@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/coreos/go-systemd/activation"
-	"github.com/docker/docker/pkg/homedir"
+	"github.com/moby/moby/pkg/homedir"
 	"github.com/docker/go-connections/sockets"
 	"github.com/sirupsen/logrus"
 )

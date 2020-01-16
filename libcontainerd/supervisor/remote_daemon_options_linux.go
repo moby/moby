@@ -1,4 +1,4 @@
-package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
+package supervisor // import "github.com/moby/moby/libcontainerd/supervisor"
 
 // WithOOMScore defines the oom_score_adj to set for the containerd process.
 func WithOOMScore(score int) DaemonOpt {

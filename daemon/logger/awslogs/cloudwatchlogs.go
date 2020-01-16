@@ -1,5 +1,5 @@
 // Package awslogs provides the logdriver for forwarding container logs to Amazon CloudWatch Logs
-package awslogs // import "github.com/docker/docker/daemon/logger/awslogs"
+package awslogs // import "github.com/moby/moby/daemon/logger/awslogs"
 
 import (
 	"fmt"
@@ -20,9 +20,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/loggerutils"
-	"github.com/docker/docker/dockerversion"
+	"github.com/moby/moby/daemon/logger"
+	"github.com/moby/moby/daemon/logger/loggerutils"
+	"github.com/moby/moby/dockerversion"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

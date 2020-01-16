@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/moby/layer"
+	"github.com/moby/moby/pkg/ioutils"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"golang.org/x/sync/errgroup"

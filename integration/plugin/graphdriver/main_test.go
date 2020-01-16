@@ -1,12 +1,12 @@
-package graphdriver // import "github.com/docker/docker/integration/plugin/graphdriver"
+package graphdriver // import "github.com/moby/moby/integration/plugin/graphdriver"
 
 import (
 	"fmt"
 	"os"
 	"testing"
 
-	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/docker/testutil/environment"
+	"github.com/moby/moby/pkg/reexec"
+	"github.com/moby/moby/testutil/environment"
 )
 
 var (

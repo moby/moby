@@ -1,11 +1,11 @@
-package plugin // import "github.com/docker/docker/plugin"
+package plugin // import "github.com/moby/moby/plugin"
 
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/plugingetter"
-	v2 "github.com/docker/docker/plugin/v2"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/pkg/plugingetter"
+	v2 "github.com/moby/moby/plugin/v2"
 )
 
 func TestFilterByCapNeg(t *testing.T) {

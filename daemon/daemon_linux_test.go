@@ -1,6 +1,6 @@
 // +build linux
 
-package daemon // import "github.com/docker/docker/daemon"
+package daemon // import "github.com/moby/moby/daemon"
 
 import (
 	"io/ioutil"
@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/pkg/mount"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/daemon/config"
+	"github.com/moby/moby/pkg/mount"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )

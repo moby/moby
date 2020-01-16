@@ -1,10 +1,10 @@
-package daemon // import "github.com/docker/docker/daemon"
+package daemon // import "github.com/moby/moby/daemon"
 
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/errdefs"
 	"gotest.tools/assert"
 )
 

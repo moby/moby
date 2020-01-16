@@ -1,11 +1,11 @@
-package daemon // import "github.com/docker/docker/daemon"
+package daemon // import "github.com/moby/moby/daemon"
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/errdefs"
 	"github.com/pkg/errors"
 )
 

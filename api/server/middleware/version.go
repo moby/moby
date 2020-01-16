@@ -1,4 +1,4 @@
-package middleware // import "github.com/docker/docker/api/server/middleware"
+package middleware // import "github.com/moby/moby/api/server/middleware"
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"runtime"
 
-	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/moby/moby/api/server/httputils"
+	"github.com/moby/moby/api/types/versions"
 )
 
 // VersionMiddleware is a middleware that

@@ -1,8 +1,8 @@
-package config // import "github.com/docker/docker/daemon/config"
+package config // import "github.com/moby/moby/daemon/config"
 
 import (
-	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/daemon/cluster/convert"
+	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/daemon/cluster/convert"
 	"github.com/docker/swarmkit/api/genericresource"
 )
 

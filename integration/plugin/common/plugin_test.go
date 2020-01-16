@@ -1,10 +1,10 @@
-package common // import "github.com/docker/docker/integration/plugin/common"
+package common // import "github.com/moby/moby/integration/plugin/common"
 
 import (
 	"net/http"
 	"testing"
 
-	"github.com/docker/docker/testutil/request"
+	"github.com/moby/moby/testutil/request"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )

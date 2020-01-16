@@ -1,11 +1,11 @@
-package layer // import "github.com/docker/docker/layer"
+package layer // import "github.com/moby/moby/layer"
 
 import (
 	"io"
 	"sync"
 
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/containerfs"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/containerfs"
 )
 
 type mountedLayer struct {

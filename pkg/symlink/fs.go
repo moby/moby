@@ -4,7 +4,7 @@
 
 // This code is a modified version of path/filepath/symlink.go from the Go standard library.
 
-package symlink // import "github.com/docker/docker/pkg/symlink"
+package symlink // import "github.com/moby/moby/pkg/symlink"
 
 import (
 	"bytes"
@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/system"
 )
 
 // FollowSymlinkInScope is a wrapper around evalSymlinksInScope that returns an

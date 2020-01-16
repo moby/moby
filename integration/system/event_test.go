@@ -1,4 +1,4 @@
-package system // import "github.com/docker/docker/integration/system"
+package system // import "github.com/moby/moby/integration/system"
 
 import (
 	"context"
@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/testutil/request"
-	req "github.com/docker/docker/testutil/request"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/strslice"
+	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/integration/internal/container"
+	"github.com/moby/moby/pkg/jsonmessage"
+	"github.com/moby/moby/testutil/request"
+	req "github.com/moby/moby/testutil/request"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/skip"

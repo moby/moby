@@ -1,4 +1,4 @@
-package plugins // import "github.com/docker/docker/pkg/plugins"
+package plugins // import "github.com/moby/moby/pkg/plugins"
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/plugins/transport"
+	"github.com/moby/moby/pkg/plugins/transport"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/pkg/errors"
 	"gotest.tools/assert"

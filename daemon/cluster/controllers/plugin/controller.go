@@ -1,4 +1,4 @@
-package plugin // import "github.com/docker/docker/daemon/cluster/controllers/plugin"
+package plugin // import "github.com/moby/moby/daemon/cluster/controllers/plugin"
 
 import (
 	"context"
@@ -7,11 +7,11 @@ import (
 	"net/http"
 
 	"github.com/docker/distribution/reference"
-	enginetypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/swarm/runtime"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/plugin"
-	v2 "github.com/docker/docker/plugin/v2"
+	enginetypes "github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/swarm/runtime"
+	"github.com/moby/moby/errdefs"
+	"github.com/moby/moby/plugin"
+	v2 "github.com/moby/moby/plugin/v2"
 	"github.com/docker/swarmkit/api"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"

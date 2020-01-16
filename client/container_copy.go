@@ -1,4 +1,4 @@
-package client // import "github.com/docker/docker/client"
+package client // import "github.com/moby/moby/client"
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	"github.com/moby/moby/api/types"
 )
 
 // ContainerStatPath returns Stat information about a path inside the container filesystem.

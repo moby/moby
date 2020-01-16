@@ -1,6 +1,6 @@
 // +build !linux
 
-package v2 // import "github.com/docker/docker/plugin/v2"
+package v2 // import "github.com/moby/moby/plugin/v2"
 
 import (
 	"errors"

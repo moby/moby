@@ -1,6 +1,6 @@
 // +build !windows
 
-package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
+package chrootarchive // import "github.com/moby/moby/pkg/chrootarchive"
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/docker/docker/pkg/reexec"
+	"github.com/moby/moby/pkg/reexec"
 )
 
 func init() {

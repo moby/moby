@@ -1,6 +1,6 @@
 // +build linux
 
-package overlayutils // import "github.com/docker/docker/daemon/graphdriver/overlayutils"
+package overlayutils // import "github.com/moby/moby/daemon/graphdriver/overlayutils"
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/moby/moby/daemon/graphdriver"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"

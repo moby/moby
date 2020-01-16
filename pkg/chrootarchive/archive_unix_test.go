@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/moby/pkg/archive"
 	"golang.org/x/sys/unix"
 	"gotest.tools/assert"
 )

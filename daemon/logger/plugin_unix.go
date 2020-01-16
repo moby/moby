@@ -1,6 +1,6 @@
 // +build linux freebsd
 
-package logger // import "github.com/docker/docker/daemon/logger"
+package logger // import "github.com/moby/moby/daemon/logger"
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package opts // import "github.com/docker/docker/opts"
+package opts // import "github.com/moby/moby/opts"
 
 // DefaultHost constant defines the default host string used by docker on Windows
 var DefaultHost = "npipe://" + DefaultNamedPipe

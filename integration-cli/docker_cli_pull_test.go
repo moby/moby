@@ -262,14 +262,14 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *testing.T) {
 	assert.ErrorContains(c, err, "", "image was pulled after client disconnected")
 }
 
-// Regression test for https://github.com/docker/docker/issues/26429
+// Regression test for https://github.com/moby/moby/issues/26429
 func (s *DockerSuite) TestPullLinuxImageFailsOnWindows(c *testing.T) {
 	testRequires(c, DaemonIsWindows, Network)
 	_, _, err := dockerCmdWithError("pull", "ubuntu")
 	assert.ErrorContains(c, err, "no matching manifest for windows")
 }
 
-// Regression test for https://github.com/docker/docker/issues/28892
+// Regression test for https://github.com/moby/moby/issues/28892
 func (s *DockerSuite) TestPullWindowsImageFailsOnLinux(c *testing.T) {
 	testRequires(c, DaemonIsLinux, Network)
 	_, _, err := dockerCmdWithError("pull", "mcr.microsoft.com/windows/servercore:ltsc2019")

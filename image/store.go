@@ -1,4 +1,4 @@
-package image // import "github.com/docker/docker/image"
+package image // import "github.com/moby/moby/image"
 
 import (
 	"encoding/json"
@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/docker/distribution/digestset"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/layer"
+	"github.com/moby/moby/pkg/system"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"

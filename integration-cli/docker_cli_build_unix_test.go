@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/testutil/fakecontext"
+	"github.com/moby/moby/integration-cli/cli"
+	"github.com/moby/moby/integration-cli/cli/build"
+	"github.com/moby/moby/testutil/fakecontext"
 	units "github.com/docker/go-units"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"

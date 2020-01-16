@@ -1,4 +1,4 @@
-package system // import "github.com/docker/docker/pkg/system"
+package system // import "github.com/moby/moby/pkg/system"
 
 import (
 	"io/ioutil"
@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/mount"
+	"github.com/moby/moby/pkg/mount"
 	"gotest.tools/skip"
 )
 

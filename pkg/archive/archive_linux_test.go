@@ -1,4 +1,4 @@
-package archive // import "github.com/docker/docker/pkg/archive"
+package archive // import "github.com/moby/moby/pkg/archive"
 
 import (
 	"fmt"
@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/reexec"
+	"github.com/moby/moby/pkg/system"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"

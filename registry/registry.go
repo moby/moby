@@ -1,5 +1,5 @@
 // Package registry contains client primitives to interact with a remote Docker registry.
-package registry // import "github.com/docker/docker/registry"
+package registry // import "github.com/moby/moby/registry"
 
 import (
 	"crypto/tls"
@@ -17,8 +17,8 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/sirupsen/logrus"
 
-	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/rootless"
+	"github.com/moby/moby/pkg/homedir"
+	"github.com/moby/moby/rootless"
 )
 
 var (

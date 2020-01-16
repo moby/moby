@@ -1,10 +1,10 @@
-package streamformatter // import "github.com/docker/docker/pkg/streamformatter"
+package streamformatter // import "github.com/moby/moby/pkg/streamformatter"
 
 import (
 	"encoding/json"
 	"io"
 
-	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/moby/moby/pkg/jsonmessage"
 )
 
 type streamWriter struct {

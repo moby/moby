@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/moby/moby/integration-cli/cli/build"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )

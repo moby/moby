@@ -1,7 +1,7 @@
-package network // import "github.com/docker/docker/api/types/network"
+package network // import "github.com/moby/moby/api/types/network"
 import (
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/errdefs"
 )
 
 // Address represents an IP address

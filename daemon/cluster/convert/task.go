@@ -1,9 +1,9 @@
-package convert // import "github.com/docker/docker/daemon/cluster/convert"
+package convert // import "github.com/moby/moby/daemon/cluster/convert"
 
 import (
 	"strings"
 
-	types "github.com/docker/docker/api/types/swarm"
+	types "github.com/moby/moby/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
 )

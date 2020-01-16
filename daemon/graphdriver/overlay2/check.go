@@ -1,6 +1,6 @@
 // +build linux
 
-package overlay2 // import "github.com/docker/docker/daemon/graphdriver/overlay2"
+package overlay2 // import "github.com/moby/moby/daemon/graphdriver/overlay2"
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/system"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )

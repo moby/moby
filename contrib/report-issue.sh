@@ -1,11 +1,11 @@
 #!/bin/sh
 
 # This is a convenience script for reporting issues that include a base
-# template of information. See https://github.com/docker/docker/pull/8845
+# template of information. See https://github.com/moby/moby/pull/8845
 
 set -e
 
-DOCKER_ISSUE_URL=${DOCKER_ISSUE_URL:-"https://github.com/docker/docker/issues/new"}
+DOCKER_ISSUE_URL=${DOCKER_ISSUE_URL:-"https://github.com/moby/moby/issues/new"}
 DOCKER_ISSUE_NAME_PREFIX=${DOCKER_ISSUE_NAME_PREFIX:-"Report: "}
 DOCKER=${DOCKER:-"docker"}
 DOCKER_COMMAND="${DOCKER}"

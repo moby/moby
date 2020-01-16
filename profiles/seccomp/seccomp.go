@@ -1,14 +1,14 @@
 // +build linux
 
-package seccomp // import "github.com/docker/docker/profiles/seccomp"
+package seccomp // import "github.com/moby/moby/profiles/seccomp"
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/pkg/parsers/kernel"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	libseccomp "github.com/seccomp/libseccomp-golang"
 )

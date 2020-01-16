@@ -1,13 +1,13 @@
 // +build !windows
 
-package macvlan // import "github.com/docker/docker/integration/network/macvlan"
+package macvlan // import "github.com/moby/moby/integration/network/macvlan"
 
 import (
 	"fmt"
 	"os"
 	"testing"
 
-	"github.com/docker/docker/testutil/environment"
+	"github.com/moby/moby/testutil/environment"
 )
 
 var testEnv *environment.Execution

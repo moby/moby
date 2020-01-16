@@ -113,5 +113,5 @@ We see gRPC as the natural communication layer between decoupled components.
 
 In addition to pushing out large components into other projects, much of the
 internal code structure, and in particular the
-["Daemon"](https://godoc.org/github.com/docker/docker/daemon#Daemon) object,
+["Daemon"](https://godoc.org/github.com/moby/moby/daemon#Daemon) object,
 should be split into smaller, more manageable, and more testable components.

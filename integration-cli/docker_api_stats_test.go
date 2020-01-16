@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/testutil/request"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/testutil/request"
 	"gotest.tools/assert"
 )
 

@@ -12,9 +12,9 @@ import (
 
 	winio "github.com/Microsoft/go-winio"
 	"github.com/Microsoft/hcsshim/osversion"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )

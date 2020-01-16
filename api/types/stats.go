@@ -1,6 +1,6 @@
 // Package types is used for API stability in the types and response to the
 // consumers of the API stats endpoint.
-package types // import "github.com/docker/docker/api/types"
+package types // import "github.com/moby/moby/api/types"
 
 import "time"
 

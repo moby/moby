@@ -1,4 +1,4 @@
-package container // import "github.com/docker/docker/integration/container"
+package container // import "github.com/moby/moby/integration/container"
 
 import (
 	"context"
@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	mounttypes "github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/testutil/request"
+	"github.com/moby/moby/api/types"
+	mounttypes "github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/integration/internal/container"
+	"github.com/moby/moby/testutil/request"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/poll"

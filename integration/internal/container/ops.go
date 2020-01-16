@@ -3,10 +3,10 @@ package container
 import (
 	"fmt"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	mounttypes "github.com/docker/docker/api/types/mount"
-	networktypes "github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/strslice"
+	containertypes "github.com/moby/moby/api/types/container"
+	mounttypes "github.com/moby/moby/api/types/mount"
+	networktypes "github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/strslice"
 	"github.com/docker/go-connections/nat"
 )
 

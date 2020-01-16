@@ -1,4 +1,4 @@
-package opts // import "github.com/docker/docker/opts"
+package opts // import "github.com/moby/moby/opts"
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/pkg/homedir"
+	"github.com/moby/moby/pkg/homedir"
 )
 
 var (

@@ -1,4 +1,4 @@
-package time // import "github.com/docker/docker/api/types/time"
+package time // import "github.com/moby/moby/api/types/time"
 
 import (
 	"testing"

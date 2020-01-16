@@ -1,4 +1,4 @@
-package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
+package supervisor // import "github.com/moby/moby/libcontainerd/supervisor"
 
 // WithRemoteAddr sets the external containerd socket to connect to.
 func WithRemoteAddr(addr string) DaemonOpt {

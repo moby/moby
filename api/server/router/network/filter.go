@@ -1,1 +1,1 @@
-package network // import "github.com/docker/docker/api/server/router/network"
+package network // import "github.com/moby/moby/api/server/router/network"

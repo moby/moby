@@ -1,11 +1,11 @@
-package daemon // import "github.com/docker/docker/daemon"
+package daemon // import "github.com/moby/moby/daemon"
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
+	libcontainerdtypes "github.com/moby/moby/libcontainerd/types"
 )
 
 // ContainerResize changes the size of the TTY of the process running

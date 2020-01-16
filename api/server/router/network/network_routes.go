@@ -1,4 +1,4 @@
-package network // import "github.com/docker/docker/api/server/router/network"
+package network // import "github.com/moby/moby/api/server/router/network"
 
 import (
 	"context"
@@ -8,12 +8,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/api/server/httputils"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/errdefs"
 	"github.com/docker/libnetwork"
 	netconst "github.com/docker/libnetwork/datastore"
 	"github.com/pkg/errors"

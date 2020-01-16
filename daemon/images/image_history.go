@@ -1,13 +1,13 @@
-package images // import "github.com/docker/docker/daemon/images"
+package images // import "github.com/moby/moby/daemon/images"
 
 import (
 	"fmt"
 	"time"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/layer"
+	"github.com/moby/moby/pkg/system"
 )
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image

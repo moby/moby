@@ -1,4 +1,4 @@
-package dockerignore // import "github.com/docker/docker/builder/dockerignore"
+package dockerignore // import "github.com/moby/moby/builder/dockerignore"
 
 import (
 	"fmt"

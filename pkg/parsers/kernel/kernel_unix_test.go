@@ -1,6 +1,6 @@
 // +build !windows
 
-package kernel // import "github.com/docker/docker/pkg/parsers/kernel"
+package kernel // import "github.com/moby/moby/pkg/parsers/kernel"
 
 import (
 	"fmt"

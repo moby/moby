@@ -1,6 +1,6 @@
 // +build windows
 
-package lcow // import "github.com/docker/docker/daemon/graphdriver/lcow"
+package lcow // import "github.com/moby/moby/daemon/graphdriver/lcow"
 
 import (
 	"errors"

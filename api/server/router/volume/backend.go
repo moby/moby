@@ -1,12 +1,12 @@
-package volume // import "github.com/docker/docker/api/server/router/volume"
+package volume // import "github.com/moby/moby/api/server/router/volume"
 
 import (
 	"context"
 
-	"github.com/docker/docker/volume/service/opts"
+	"github.com/moby/moby/volume/service/opts"
 	// TODO return types need to be refactored into pkg
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/filters"
 )
 
 // Backend is the methods that need to be implemented to provide

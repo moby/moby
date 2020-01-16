@@ -1,6 +1,6 @@
 // +build !windows
 
-package daemon // import "github.com/docker/docker/daemon"
+package daemon // import "github.com/moby/moby/daemon"
 
 import (
 	"fmt"
@@ -9,8 +9,8 @@ import (
 
 	"github.com/containerd/containerd/runtime/linux/runctypes"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/errdefs"
 	"github.com/pkg/errors"
 )
 

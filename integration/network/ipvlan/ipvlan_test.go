@@ -1,6 +1,6 @@
 // +build !windows
 
-package ipvlan // import "github.com/docker/docker/integration/network/ipvlan"
+package ipvlan // import "github.com/moby/moby/integration/network/ipvlan"
 
 import (
 	"context"
@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	dclient "github.com/docker/docker/client"
-	"github.com/docker/docker/integration/internal/container"
-	net "github.com/docker/docker/integration/internal/network"
-	n "github.com/docker/docker/integration/network"
-	"github.com/docker/docker/testutil/daemon"
+	dclient "github.com/moby/moby/client"
+	"github.com/moby/moby/integration/internal/container"
+	net "github.com/moby/moby/integration/internal/network"
+	n "github.com/moby/moby/integration/network"
+	"github.com/moby/moby/testutil/daemon"
 	"gotest.tools/assert"
 	"gotest.tools/skip"
 )

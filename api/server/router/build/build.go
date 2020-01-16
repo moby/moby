@@ -1,8 +1,8 @@
-package build // import "github.com/docker/docker/api/server/router/build"
+package build // import "github.com/moby/moby/api/server/router/build"
 
 import (
-	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/types"
+	"github.com/moby/moby/api/server/router"
+	"github.com/moby/moby/api/types"
 )
 
 // buildRouter is a router to talk with the build controller

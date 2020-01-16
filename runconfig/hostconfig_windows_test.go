@@ -1,11 +1,11 @@
 // +build windows
 
-package runconfig // import "github.com/docker/docker/runconfig"
+package runconfig // import "github.com/moby/moby/runconfig"
 
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types/container"
 )
 
 func TestValidatePrivileged(t *testing.T) {

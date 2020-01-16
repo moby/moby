@@ -5,9 +5,9 @@ package main
 import (
 	"os/exec"
 
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/opts"
-	"github.com/docker/docker/rootless"
+	"github.com/moby/moby/daemon/config"
+	"github.com/moby/moby/opts"
+	"github.com/moby/moby/rootless"
 	units "github.com/docker/go-units"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/pkg/errors"

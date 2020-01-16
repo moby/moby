@@ -1,11 +1,11 @@
 // +build linux freebsd
 
-package config // import "github.com/docker/docker/daemon/config"
+package config // import "github.com/moby/moby/daemon/config"
 
 import (
 	"net"
 
-	"github.com/docker/docker/api/types"
+	"github.com/moby/moby/api/types"
 )
 
 // CommonUnixConfig defines configuration of a docker daemon that is

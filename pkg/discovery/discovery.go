@@ -1,4 +1,4 @@
-package discovery // import "github.com/docker/docker/pkg/discovery"
+package discovery // import "github.com/moby/moby/pkg/discovery"
 
 import (
 	"errors"

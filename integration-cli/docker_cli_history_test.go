@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/moby/moby/integration-cli/cli/build"
 	"gotest.tools/assert"
 	"gotest.tools/assert/cmp"
 )

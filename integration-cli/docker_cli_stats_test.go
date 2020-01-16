@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration-cli/cli"
+	"github.com/moby/moby/integration-cli/cli"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )

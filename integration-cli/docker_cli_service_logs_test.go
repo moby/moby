@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/daemon"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
 	"gotest.tools/poll"

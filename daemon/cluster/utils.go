@@ -1,4 +1,4 @@
-package cluster // import "github.com/docker/docker/daemon/cluster"
+package cluster // import "github.com/moby/moby/daemon/cluster"
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/moby/pkg/ioutils"
 )
 
 func loadPersistentState(root string) (*nodeStartConfig, error) {

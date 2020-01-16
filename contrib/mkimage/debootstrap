@@ -126,7 +126,7 @@ if [ -d "$rootfsDir/etc/apt/apt.conf.d" ]; then
 		Dir::Cache::srcpkgcache "";
 
 		# Note that we do realize this isn't the ideal way to do this, and are always
-		# open to better suggestions (https://github.com/docker/docker/issues).
+		# open to better suggestions (https://github.com/moby/moby/issues).
 	EOF
 
 	# remove apt-cache translations for fast "apt-get update"

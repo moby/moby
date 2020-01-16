@@ -1,7 +1,7 @@
 package daemon
 
 import (
-	"github.com/docker/docker/testutil/environment"
+	"github.com/moby/moby/testutil/environment"
 )
 
 // Option is used to configure a daemon.

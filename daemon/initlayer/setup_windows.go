@@ -1,8 +1,8 @@
-package initlayer // import "github.com/docker/docker/daemon/initlayer"
+package initlayer // import "github.com/moby/moby/daemon/initlayer"
 
 import (
-	"github.com/docker/docker/pkg/containerfs"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/moby/pkg/containerfs"
+	"github.com/moby/moby/pkg/idtools"
 )
 
 // Setup populates a directory with mountpoints suitable

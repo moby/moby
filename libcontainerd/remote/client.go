@@ -1,4 +1,4 @@
-package remote // import "github.com/docker/docker/libcontainerd/remote"
+package remote // import "github.com/moby/moby/libcontainerd/remote"
 
 import (
 	"context"
@@ -25,10 +25,10 @@ import (
 	"github.com/containerd/containerd/runtime/linux/runctypes"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/containerd/typeurl"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/libcontainerd/queue"
-	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/moby/errdefs"
+	"github.com/moby/moby/libcontainerd/queue"
+	libcontainerdtypes "github.com/moby/moby/libcontainerd/types"
+	"github.com/moby/moby/pkg/ioutils"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"

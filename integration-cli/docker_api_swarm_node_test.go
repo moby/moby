@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/daemon"
 	"gotest.tools/assert"
 	"gotest.tools/poll"
 )

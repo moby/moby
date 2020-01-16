@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/moby/integration-cli/cli/build"
+	"github.com/moby/moby/pkg/stringid"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/icmd"

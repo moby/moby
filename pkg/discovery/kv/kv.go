@@ -1,4 +1,4 @@
-package kv // import "github.com/docker/docker/pkg/discovery/kv"
+package kv // import "github.com/moby/moby/pkg/discovery/kv"
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/discovery"
+	"github.com/moby/moby/pkg/discovery"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"

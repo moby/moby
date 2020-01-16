@@ -1,4 +1,4 @@
-package container // import "github.com/docker/docker/integration/container"
+package container // import "github.com/moby/moby/integration/container"
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/testutil/daemon"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/integration/internal/container"
+	"github.com/moby/moby/testutil/daemon"
 	"golang.org/x/sys/unix"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"

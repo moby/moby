@@ -1,4 +1,4 @@
-package container // import "github.com/docker/docker/daemon/cluster/executor/container"
+package container // import "github.com/moby/moby/daemon/cluster/executor/container"
 
 import (
 	"context"
@@ -12,15 +12,15 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/backend"
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/events"
-	containerpkg "github.com/docker/docker/container"
-	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/daemon/cluster/convert"
-	executorpkg "github.com/docker/docker/daemon/cluster/executor"
-	volumeopts "github.com/docker/docker/volume/service/opts"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/backend"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/events"
+	containerpkg "github.com/moby/moby/container"
+	"github.com/moby/moby/daemon"
+	"github.com/moby/moby/daemon/cluster/convert"
+	executorpkg "github.com/moby/moby/daemon/cluster/executor"
+	volumeopts "github.com/moby/moby/volume/service/opts"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -482,7 +482,7 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 		}
 		// print since as this formatted string because the docker container
 		// logs interface expects it like this.
-		// see github.com/docker/docker/api/types/time.ParseTimestamps
+		// see github.com/moby/moby/api/types/time.ParseTimestamps
 		apiOptions.Since = fmt.Sprintf("%d.%09d", since.Unix(), int64(since.Nanosecond()))
 	}
 

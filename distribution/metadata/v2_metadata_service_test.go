@@ -1,4 +1,4 @@
-package metadata // import "github.com/docker/docker/distribution/metadata"
+package metadata // import "github.com/moby/moby/distribution/metadata"
 
 import (
 	"encoding/hex"
@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/docker/docker/layer"
+	"github.com/moby/moby/layer"
 	digest "github.com/opencontainers/go-digest"
 )
 

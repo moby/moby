@@ -1,4 +1,4 @@
-package dockerfile // import "github.com/docker/docker/builder/dockerfile"
+package dockerfile // import "github.com/moby/moby/builder/dockerfile"
 
 import (
 	"errors"
@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/pkg/system"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 )
 

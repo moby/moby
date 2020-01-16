@@ -1,11 +1,11 @@
-package xfer // import "github.com/docker/docker/distribution/xfer"
+package xfer // import "github.com/moby/moby/distribution/xfer"
 
 import (
 	"context"
 	"runtime"
 	"sync"
 
-	"github.com/docker/docker/pkg/progress"
+	"github.com/moby/moby/pkg/progress"
 )
 
 // DoNotRetry is an error wrapper indicating that the error cannot be resolved

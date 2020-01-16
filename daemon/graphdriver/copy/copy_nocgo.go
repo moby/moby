@@ -1,6 +1,6 @@
 // +build linux,!cgo
 
-package copy // import "github.com/docker/docker/daemon/graphdriver/copy"
+package copy // import "github.com/moby/moby/daemon/graphdriver/copy"
 
 import (
 	"os"

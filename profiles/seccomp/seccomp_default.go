@@ -1,9 +1,9 @@
 // +build linux,seccomp
 
-package seccomp // import "github.com/docker/docker/profiles/seccomp"
+package seccomp // import "github.com/moby/moby/profiles/seccomp"
 
 import (
-	"github.com/docker/docker/api/types"
+	"github.com/moby/moby/api/types"
 	"golang.org/x/sys/unix"
 )
 

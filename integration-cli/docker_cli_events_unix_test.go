@@ -15,7 +15,7 @@ import (
 	"unicode"
 
 	"github.com/creack/pty"
-	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/moby/moby/integration-cli/cli/build"
 	"golang.org/x/sys/unix"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"

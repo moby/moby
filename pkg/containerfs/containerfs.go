@@ -1,4 +1,4 @@
-package containerfs // import "github.com/docker/docker/pkg/containerfs"
+package containerfs // import "github.com/moby/moby/pkg/containerfs"
 
 import (
 	"path/filepath"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/containerd/continuity/driver"
 	"github.com/containerd/continuity/pathdriver"
-	"github.com/docker/docker/pkg/symlink"
+	"github.com/moby/moby/pkg/symlink"
 )
 
 // ContainerFS is that represents a root file system

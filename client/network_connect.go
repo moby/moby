@@ -1,10 +1,10 @@
-package client // import "github.com/docker/docker/client"
+package client // import "github.com/moby/moby/client"
 
 import (
 	"context"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/network"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/network"
 )
 
 // NetworkConnect connects a container to an existent network in the docker host.

@@ -1,11 +1,11 @@
-package common // import "github.com/docker/docker/integration/plugin/common"
+package common // import "github.com/moby/moby/integration/plugin/common"
 
 import (
 	"fmt"
 	"os"
 	"testing"
 
-	"github.com/docker/docker/testutil/environment"
+	"github.com/moby/moby/testutil/environment"
 )
 
 var testEnv *environment.Execution

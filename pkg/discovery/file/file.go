@@ -1,4 +1,4 @@
-package file // import "github.com/docker/docker/pkg/discovery/file"
+package file // import "github.com/moby/moby/pkg/discovery/file"
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/discovery"
+	"github.com/moby/moby/pkg/discovery"
 )
 
 // Discovery is exported

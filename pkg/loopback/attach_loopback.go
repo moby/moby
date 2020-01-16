@@ -1,6 +1,6 @@
 // +build linux
 
-package loopback // import "github.com/docker/docker/pkg/loopback"
+package loopback // import "github.com/moby/moby/pkg/loopback"
 
 import (
 	"errors"

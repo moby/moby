@@ -1,4 +1,4 @@
-package container // import "github.com/docker/docker/integration/container"
+package container // import "github.com/moby/moby/integration/container"
 
 import (
 	"context"
@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/integration/internal/container"
-	net "github.com/docker/docker/integration/internal/network"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/integration/internal/container"
+	net "github.com/moby/moby/integration/internal/network"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/poll"

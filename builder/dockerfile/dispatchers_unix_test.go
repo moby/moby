@@ -1,6 +1,6 @@
 // +build !windows
 
-package dockerfile // import "github.com/docker/docker/builder/dockerfile"
+package dockerfile // import "github.com/moby/moby/builder/dockerfile"
 
 import (
 	"runtime"

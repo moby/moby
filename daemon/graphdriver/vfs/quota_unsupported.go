@@ -1,8 +1,8 @@
 // +build !linux
 
-package vfs // import "github.com/docker/docker/daemon/graphdriver/vfs"
+package vfs // import "github.com/moby/moby/daemon/graphdriver/vfs"
 
-import "github.com/docker/docker/daemon/graphdriver/quota"
+import "github.com/moby/moby/daemon/graphdriver/quota"
 
 type driverQuota struct {
 }

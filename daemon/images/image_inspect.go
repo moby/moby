@@ -1,13 +1,13 @@
-package images // import "github.com/docker/docker/daemon/images"
+package images // import "github.com/moby/moby/daemon/images"
 
 import (
 	"time"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/image"
+	"github.com/moby/moby/layer"
+	"github.com/moby/moby/pkg/system"
 	"github.com/pkg/errors"
 )
 

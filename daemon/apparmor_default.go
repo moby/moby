@@ -1,11 +1,11 @@
 // +build linux
 
-package daemon // import "github.com/docker/docker/daemon"
+package daemon // import "github.com/moby/moby/daemon"
 
 import (
 	"fmt"
 
-	aaprofile "github.com/docker/docker/profiles/apparmor"
+	aaprofile "github.com/moby/moby/profiles/apparmor"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 )
 

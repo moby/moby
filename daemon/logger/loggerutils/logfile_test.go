@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/pkg/tailfile"
+	"github.com/moby/moby/daemon/logger"
+	"github.com/moby/moby/pkg/tailfile"
 	"gotest.tools/assert"
 )
 

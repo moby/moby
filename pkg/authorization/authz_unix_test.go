@@ -3,7 +3,7 @@
 // TODO Windows: This uses a Unix socket for testing. This might be possible
 // to port to Windows using a named pipe instead.
 
-package authorization // import "github.com/docker/docker/pkg/authorization"
+package authorization // import "github.com/moby/moby/pkg/authorization"
 
 import (
 	"bytes"
@@ -18,7 +18,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/moby/moby/pkg/plugins"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/gorilla/mux"
 )

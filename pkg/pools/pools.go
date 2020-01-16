@@ -7,14 +7,14 @@
 //
 // Utility functions which operate on pools should be added to this
 // package to allow them to be reused.
-package pools // import "github.com/docker/docker/pkg/pools"
+package pools // import "github.com/moby/moby/pkg/pools"
 
 import (
 	"bufio"
 	"io"
 	"sync"
 
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/moby/pkg/ioutils"
 )
 
 const buffer32K = 32 * 1024

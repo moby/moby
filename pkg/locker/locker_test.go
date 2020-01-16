@@ -1,4 +1,4 @@
-package locker // import "github.com/docker/docker/pkg/locker"
+package locker // import "github.com/moby/moby/pkg/locker"
 
 import (
 	"math/rand"

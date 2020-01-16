@@ -1,4 +1,4 @@
-package middleware // import "github.com/docker/docker/api/server/middleware"
+package middleware // import "github.com/moby/moby/api/server/middleware"
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/api/server/httputils"
+	"github.com/moby/moby/api/server/httputils"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )

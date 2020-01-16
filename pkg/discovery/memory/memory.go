@@ -1,10 +1,10 @@
-package memory // import "github.com/docker/docker/pkg/discovery/memory"
+package memory // import "github.com/moby/moby/pkg/discovery/memory"
 
 import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/pkg/discovery"
+	"github.com/moby/moby/pkg/discovery"
 )
 
 // Discovery implements a discovery backend that keeps

@@ -1,4 +1,4 @@
-package remotecontext // import "github.com/docker/docker/builder/remotecontext"
+package remotecontext // import "github.com/moby/moby/builder/remotecontext"
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/docker/docker/builder"
+	"github.com/moby/moby/builder"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/fs"

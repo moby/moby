@@ -1,9 +1,9 @@
-package images // import "github.com/docker/docker/daemon/images"
+package images // import "github.com/moby/moby/daemon/images"
 
 import (
 	"io"
 
-	"github.com/docker/docker/image/tarexport"
+	"github.com/moby/moby/image/tarexport"
 )
 
 // ExportImage exports a list of images to the given output stream. The

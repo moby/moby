@@ -1,6 +1,6 @@
 // +build !linux
 
-package archive // import "github.com/docker/docker/pkg/archive"
+package archive // import "github.com/moby/moby/pkg/archive"
 
 import (
 	"syscall"

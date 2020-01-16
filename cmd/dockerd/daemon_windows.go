@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/libcontainerd/supervisor"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/daemon/config"
+	"github.com/moby/moby/libcontainerd/supervisor"
+	"github.com/moby/moby/pkg/system"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 )

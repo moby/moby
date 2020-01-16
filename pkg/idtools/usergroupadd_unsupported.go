@@ -1,6 +1,6 @@
 // +build !linux
 
-package idtools // import "github.com/docker/docker/pkg/idtools"
+package idtools // import "github.com/moby/moby/pkg/idtools"
 
 import "fmt"
 

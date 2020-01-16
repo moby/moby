@@ -1,4 +1,4 @@
-package authorization // import "github.com/docker/docker/pkg/authorization"
+package authorization // import "github.com/moby/moby/pkg/authorization"
 
 import (
 	"net/http"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/moby/moby/pkg/plugingetter"
 	"gotest.tools/assert"
 )
 
