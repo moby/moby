@@ -98,8 +98,8 @@ func (sb *sandbox) buildHostsFile() error {
 	return etchosts.Build(sb.config.hostsPath, "", sb.config.hostName, sb.config.domainName, extraContent)
 }
 
-func (sb *sandbox) updateHostsFile(ifaceIP string) error {
-	if ifaceIP == "" {
+func (sb *sandbox) updateHostsFile(ifaceIPs []string) error {
+	if ifaceIPs == nil || len(ifaceIPs) == 0 {
 		return nil
 	}
 
@@ -120,7 +120,10 @@ func (sb *sandbox) updateHostsFile(ifaceIP string) error {
 		mhost = fmt.Sprintf("%s %s", fqdn, parts[0])
 	}
 
-	extraContent := []etchosts.Record{{Hosts: mhost, IP: ifaceIP}}
+	var extraContent []etchosts.Record
+	for _, ip := range ifaceIPs {
+		extraContent = append(extraContent, etchosts.Record{Hosts: mhost, IP: ip})
+	}
 
 	sb.addHostsEntries(extraContent)
 	return nil
