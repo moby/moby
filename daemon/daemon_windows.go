@@ -3,7 +3,9 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 	"fmt"
+	"math"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/Microsoft/hcsshim"
@@ -40,9 +42,10 @@ const (
 	windowsMaxCPUPercent = 100
 )
 
-// Windows doesn't really have rlimits.
+// Windows containers are much larger than Linux containers and each of them
+// have > 20 system processes which why we use much smaller parallelism value.
 func adjustParallelLimit(n int, limit int) int {
-	return limit
+	return int(math.Max(1, math.Floor(float64(runtime.NumCPU())*.8)))
 }
 
 // Windows has no concept of an execution state directory. So use config.Root here.
