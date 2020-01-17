@@ -10,7 +10,7 @@ validate_vendor_diff(){
 
 	if [ ${#files[@]} -gt 0 ]; then
 		# recreate vendor/
-		vndr
+		vndr -whitelist=^archive/tar
 		# check if any files have changed
 		diffs="$(git status --porcelain -- vendor 2>/dev/null)"
 		if [ "$diffs" ]; then

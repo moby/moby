@@ -25,6 +25,7 @@
 #
 
 ARG CROSS="false"
+# IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
 ARG GO_VERSION=1.12.17
 ARG DEBIAN_FRONTEND=noninteractive
 
