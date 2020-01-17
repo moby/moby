@@ -91,14 +91,6 @@ elif ${PKG_CONFIG} 'libsystemd-journal' 2> /dev/null ; then
 	DOCKER_BUILDTAGS+=" journald journald_compat"
 fi
 
-# test whether "btrfs/version.h" exists and apply btrfs_noversion appropriately
-if \
-	command -v gcc &> /dev/null \
-	&& ! gcc -E - -o /dev/null &> /dev/null <<<'#include <btrfs/version.h>' \
-; then
-	DOCKER_BUILDTAGS+=' btrfs_noversion'
-fi
-
 # test whether "libdevmapper.h" is new enough to support deferred remove
 # functionality. We favour libdm_dlsym_deferred_remove over
 # libdm_no_deferred_remove in dynamic cases because the binary could be shipped
