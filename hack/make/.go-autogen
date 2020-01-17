@@ -6,7 +6,7 @@ source hack/dockerfile/install/runc.installer
 source hack/dockerfile/install/tini.installer
 source hack/dockerfile/install/containerd.installer
 
-LDFLAGS="${LDFALGS} \
+LDFLAGS="${LDFLAGS} \
 	-X github.com/docker/docker/dockerversion.Version=${VERSION} \
 	-X github.com/docker/docker/dockerversion.GitCommit=${GITCOMMIT} \
 	-X github.com/docker/docker/dockerversion.BuildTime=${BUILDTIME} \
