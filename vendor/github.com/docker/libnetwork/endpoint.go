@@ -498,11 +498,14 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) (err error) {
 	}
 
 	if doUpdateHostsFile(n, sb) {
-		address := ""
-		if ip := ep.getFirstInterfaceAddress(); ip != nil {
-			address = ip.String()
+		var addresses []string
+		if ip := ep.getFirstInterfaceIPv4Address(); ip != nil {
+			addresses = append(addresses, ip.String())
 		}
-		if err = sb.updateHostsFile(address); err != nil {
+		if ip := ep.getFirstInterfaceIPv6Address(); ip != nil {
+			addresses = append(addresses, ip.String())
+		}
+		if err = sb.updateHostsFile(addresses); err != nil {
 			return err
 		}
 	}
@@ -912,12 +915,23 @@ func (ep *endpoint) getSandbox() (*sandbox, bool) {
 	return ps, ok
 }
 
-func (ep *endpoint) getFirstInterfaceAddress() net.IP {
+func (ep *endpoint) getFirstInterfaceIPv4Address() net.IP {
 	ep.Lock()
 	defer ep.Unlock()
 
 	if ep.iface.addr != nil {
 		return ep.iface.addr.IP
+	}
+
+	return nil
+}
+
+func (ep *endpoint) getFirstInterfaceIPv6Address() net.IP {
+	ep.Lock()
+	defer ep.Unlock()
+
+	if ep.iface.addrv6 != nil {
+		return ep.iface.addrv6.IP
 	}
 
 	return nil

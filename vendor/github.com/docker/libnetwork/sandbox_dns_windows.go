@@ -18,7 +18,7 @@ func (sb *sandbox) setupResolutionFiles() error {
 func (sb *sandbox) restorePath() {
 }
 
-func (sb *sandbox) updateHostsFile(ifaceIP string) error {
+func (sb *sandbox) updateHostsFile(ifaceIP []string) error {
 	return nil
 }
 
