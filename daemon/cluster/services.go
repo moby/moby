@@ -91,6 +91,10 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 				mode = "global"
 			case *swarmapi.ServiceSpec_Replicated:
 				mode = "replicated"
+			case *swarmapi.ServiceSpec_ReplicatedJob:
+				mode = "replicatedjob"
+			case *swarmapi.ServiceSpec_GlobalJob:
+				mode = "globaljob"
 			}
 
 			if !options.Filters.ExactMatch("mode", mode) {
@@ -131,8 +135,9 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 		serviceMap := map[string]*types.ServiceStatus{}
 		for _, status := range resp.Statuses {
 			serviceMap[status.ServiceID] = &types.ServiceStatus{
-				RunningTasks: status.RunningTasks,
-				DesiredTasks: status.DesiredTasks,
+				RunningTasks:   status.RunningTasks,
+				DesiredTasks:   status.DesiredTasks,
+				CompletedTasks: status.CompletedTasks,
 			}
 		}
 

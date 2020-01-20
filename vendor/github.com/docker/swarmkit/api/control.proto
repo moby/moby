@@ -433,6 +433,13 @@ message ListServiceStatusesResponse {
 		// request time. This may be larger than desired tasks if, for example, a
 		// service has been scaled down.
 		uint64 running_tasks = 3;
+
+		// CompletedTasks is the number of tasks in state Completed, if this
+		// service is in mode ReplicatedJob or GlobalJob. This must be
+		// cross-referenced with the service type, because the default value of 0
+		// may mean that a service is not in a Job mode, or it may mean the Job has
+		// yet to complete any Tasks.
+		uint64 completed_tasks = 4;
 	}
 
 	repeated ServiceStatus statuses = 1;

@@ -65,5 +65,11 @@ func TaskFromGRPC(t swarmapi.Task) (types.Task, error) {
 		})
 	}
 
+	if t.JobIteration != nil {
+		task.JobIteration = &types.Version{
+			Index: t.JobIteration.Index,
+		}
+	}
+
 	return task, nil
 }

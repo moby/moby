@@ -44,6 +44,15 @@ func ServiceFromGRPC(s swarmapi.Service) (types.Service, error) {
 	service.CreatedAt, _ = gogotypes.TimestampFromProto(s.Meta.CreatedAt)
 	service.UpdatedAt, _ = gogotypes.TimestampFromProto(s.Meta.UpdatedAt)
 
+	if s.JobStatus != nil {
+		service.JobStatus = &types.JobStatus{
+			JobIteration: types.Version{
+				Index: s.JobStatus.JobIteration.Index,
+			},
+		}
+		service.JobStatus.LastExecution, _ = gogotypes.TimestampFromProto(s.JobStatus.LastExecution)
+	}
+
 	// UpdateStatus
 	if s.UpdateStatus != nil {
 		service.UpdateStatus = &types.UpdateStatus{}
@@ -131,6 +140,13 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) (*types.ServiceSpec, error)
 		convertedSpec.Mode.Replicated = &types.ReplicatedService{
 			Replicas: &t.Replicated.Replicas,
 		}
+	case *swarmapi.ServiceSpec_ReplicatedJob:
+		convertedSpec.Mode.ReplicatedJob = &types.ReplicatedJob{
+			MaxConcurrent:    &t.ReplicatedJob.MaxConcurrent,
+			TotalCompletions: &t.ReplicatedJob.TotalCompletions,
+		}
+	case *swarmapi.ServiceSpec_GlobalJob:
+		convertedSpec.Mode.GlobalJob = &types.GlobalJob{}
 	}
 
 	return convertedSpec, nil
@@ -283,13 +299,51 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 	}
 
 	// Mode
-	if s.Mode.Global != nil && s.Mode.Replicated != nil {
-		return swarmapi.ServiceSpec{}, fmt.Errorf("cannot specify both replicated mode and global mode")
+	numModes := 0
+	if s.Mode.Global != nil {
+		numModes++
+	}
+	if s.Mode.Replicated != nil {
+		numModes++
+	}
+	if s.Mode.ReplicatedJob != nil {
+		numModes++
+	}
+	if s.Mode.GlobalJob != nil {
+		numModes++
+	}
+
+	if numModes > 1 {
+		return swarmapi.ServiceSpec{}, fmt.Errorf("must specify only one service mode")
 	}
 
 	if s.Mode.Global != nil {
 		spec.Mode = &swarmapi.ServiceSpec_Global{
 			Global: &swarmapi.GlobalService{},
+		}
+	} else if s.Mode.GlobalJob != nil {
+		spec.Mode = &swarmapi.ServiceSpec_GlobalJob{
+			GlobalJob: &swarmapi.GlobalJob{},
+		}
+	} else if s.Mode.ReplicatedJob != nil {
+		// if the service is a replicated job, we have two different kinds of
+		// values that might need to be defaulted.
+
+		r := &swarmapi.ReplicatedJob{}
+		if s.Mode.ReplicatedJob.MaxConcurrent != nil {
+			r.MaxConcurrent = *s.Mode.ReplicatedJob.MaxConcurrent
+		} else {
+			r.MaxConcurrent = 1
+		}
+
+		if s.Mode.ReplicatedJob.TotalCompletions != nil {
+			r.TotalCompletions = *s.Mode.ReplicatedJob.TotalCompletions
+		} else {
+			r.TotalCompletions = r.MaxConcurrent
+		}
+
+		spec.Mode = &swarmapi.ServiceSpec_ReplicatedJob{
+			ReplicatedJob: r,
 		}
 	} else if s.Mode.Replicated != nil && s.Mode.Replicated.Replicas != nil {
 		spec.Mode = &swarmapi.ServiceSpec_Replicated{

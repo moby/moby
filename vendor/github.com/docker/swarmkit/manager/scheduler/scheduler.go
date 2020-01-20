@@ -74,9 +74,10 @@ func (s *Scheduler) setupTasksList(tx store.ReadTx) error {
 			continue
 		}
 
-		// Also ignore tasks that have not yet been assigned but desired state is beyond TaskStateRunning
-		// This can happen if you update, delete or scale down a service before its tasks were assigned.
-		if t.Status.State == api.TaskStatePending && t.DesiredState > api.TaskStateRunning {
+		// Also ignore tasks that have not yet been assigned but desired state
+		// is beyond TaskStateCompleted. This can happen if you update, delete
+		// or scale down a service before its tasks were assigned.
+		if t.Status.State == api.TaskStatePending && t.DesiredState > api.TaskStateCompleted {
 			continue
 		}
 

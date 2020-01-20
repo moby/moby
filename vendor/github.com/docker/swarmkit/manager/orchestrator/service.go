@@ -28,6 +28,26 @@ func IsGlobalService(service *api.Service) bool {
 	return ok
 }
 
+// IsReplicatedJob returns true if the service is a replicated job.
+func IsReplicatedJob(service *api.Service) bool {
+	if service == nil {
+		return false
+	}
+
+	_, ok := service.Spec.GetMode().(*api.ServiceSpec_ReplicatedJob)
+	return ok
+}
+
+// IsGlobalJob returns true if the service is a global job.
+func IsGlobalJob(service *api.Service) bool {
+	if service == nil {
+		return false
+	}
+
+	_, ok := service.Spec.GetMode().(*api.ServiceSpec_GlobalJob)
+	return ok
+}
+
 // SetServiceTasksRemove sets the desired state of tasks associated with a service
 // to REMOVE, so that they can be properly shut down by the agent and later removed
 // by the task reaper.
