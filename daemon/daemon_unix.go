@@ -579,10 +579,9 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 			validHugepageLimits := []containertypes.HugepageLimit{}
 			for _, hpl := range resources.HugepageLimits {
 				if _, exist := sysInfo.HugetlbLimits[hpl.PageSize]; !exist {
-					warnings = append(warnings, "Your kernel does not has %v hugepage.", hpl.PageSize)
-				} else {
-					validHugepageLimits = append(validHugepageLimits, hpl)
+					return warnings, fmt.Errorf("Your kernel does not have %s hugepage", hpl.PageSize)
 				}
+				validHugepageLimits = append(validHugepageLimits, hpl)
 			}
 			resources.HugepageLimits = validHugepageLimits
 		}
