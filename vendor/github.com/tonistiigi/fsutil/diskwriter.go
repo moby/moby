@@ -194,7 +194,7 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 
 	if isRegularFile {
 		if dw.opt.AsyncDataCb != nil {
-			dw.requestAsyncFileData(p, destPath, fi)
+			dw.requestAsyncFileData(p, destPath, fi, &statCopy)
 		}
 	} else {
 		return dw.processChange(kind, p, fi, nil)
@@ -203,7 +203,7 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 	return nil
 }
 
-func (dw *DiskWriter) requestAsyncFileData(p, dest string, fi os.FileInfo) {
+func (dw *DiskWriter) requestAsyncFileData(p, dest string, fi os.FileInfo, st *types.Stat) {
 	// todo: limit worker threads
 	dw.eg.Go(func() error {
 		if err := dw.processChange(ChangeKindAdd, p, fi, &lazyFileWriter{
@@ -211,7 +211,7 @@ func (dw *DiskWriter) requestAsyncFileData(p, dest string, fi os.FileInfo) {
 		}); err != nil {
 			return err
 		}
-		return chtimes(dest, fi.ModTime().UnixNano()) // TODO: parent dirs
+		return chtimes(dest, st.ModTime) // TODO: parent dirs
 	})
 }
 
