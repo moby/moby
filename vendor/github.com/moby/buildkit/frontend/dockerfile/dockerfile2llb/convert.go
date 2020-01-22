@@ -345,9 +345,10 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 			opt.copyImage = DefaultCopyImage
 		}
 
-		if err = dispatchOnBuild(d, d.image.Config.OnBuild, opt); err != nil {
+		if err = dispatchOnBuildTriggers(d, d.image.Config.OnBuild, opt); err != nil {
 			return nil, nil, err
 		}
+		d.image.Config.OnBuild = nil
 
 		for _, cmd := range d.commands {
 			if err := dispatch(d, cmd, opt); err != nil {
@@ -586,7 +587,7 @@ type command struct {
 	sources []*dispatchState
 }
 
-func dispatchOnBuild(d *dispatchState, triggers []string, opt dispatchOpt) error {
+func dispatchOnBuildTriggers(d *dispatchState, triggers []string, opt dispatchOpt) error {
 	for _, trigger := range triggers {
 		ast, err := parser.Parse(strings.NewReader(trigger))
 		if err != nil {

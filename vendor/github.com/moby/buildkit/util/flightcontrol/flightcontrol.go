@@ -116,7 +116,9 @@ func newCall(fn func(ctx context.Context) (interface{}, error)) *call {
 
 func (c *call) run() {
 	defer c.closeProgressWriter()
-	v, err := c.fn(c.ctx)
+	ctx, cancel := context.WithCancel(c.ctx)
+	defer cancel()
+	v, err := c.fn(ctx)
 	c.mu.Lock()
 	c.result = v
 	c.err = err
