@@ -618,6 +618,71 @@ definitions:
         description: "Start period for the container to initialize before starting health-retries countdown in nanoseconds. It should be 0 or at least 1000000 (1 ms). 0 means inherit."
         type: "integer"
 
+  Health:
+    description: |
+      Health stores information about the container's healthcheck results.
+    type: "object"
+    properties:
+      Status:
+        description: |
+          Status is one of `none`, `starting`, `healthy` or `unhealthy`
+
+          - "none"      Indicates there is no healthcheck
+          - "starting"  Starting indicates that the container is not yet ready
+          - "healthy"   Healthy indicates that the container is running correctly
+          - "unhealthy" Unhealthy indicates that the container has a problem
+        type: "string"
+        enum:
+          - "none"
+          - "starting"
+          - "healthy"
+          - "unhealthy"
+        example: "healthy"
+      FailingStreak:
+        description: "FailingStreak is the number of consecutive failures"
+        type: "integer"
+        example: 0
+      Log:
+        type: "array"
+        description: |
+          Log contains the last few results (oldest first)
+        items:
+          x-nullable: true
+          $ref: "#/definitions/HealthcheckResult"
+
+  HealthcheckResult:
+    description: |
+      HealthcheckResult stores information about a single run of a healthcheck probe
+    type: "object"
+    properties:
+      Start:
+        description: |
+          Date and time at which this check started in
+          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
+        type: "string"
+        format: "date-time"
+        example: "2020-01-04T10:44:24.496525531Z"
+      End:
+        description: |
+          Date and time at which this check ended in
+          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
+        type: "string"
+        format: "dateTime"
+        example: "2020-01-04T10:45:21.364524523Z"
+      ExitCode:
+        description: |
+          ExitCode meanings:
+
+          - `0` healthy
+          - `1` unhealthy
+          - `2` reserved (considered unhealthy)
+          - other values: error running probe
+        type: "integer"
+        example: 0
+      Output:
+        description: "Output from last check"
+        type: "string"
+
   HostConfig:
     description: "Container configuration that depends on the host we are running on"
     allOf:
@@ -628,12 +693,44 @@ definitions:
           Binds:
             type: "array"
             description: |
-              A list of volume bindings for this container. Each volume binding is a string in one of these forms:
+              A list of volume bindings for this container. Each volume binding
+              is a string in one of these forms:
 
-              - `host-src:container-dest` to bind-mount a host path into the container. Both `host-src`, and `container-dest` must be an _absolute_ path.
-              - `host-src:container-dest:ro` to make the bind mount read-only inside the container. Both `host-src`, and `container-dest` must be an _absolute_ path.
-              - `volume-name:container-dest` to bind-mount a volume managed by a volume driver into the container. `container-dest` must be an _absolute_ path.
-              - `volume-name:container-dest:ro` to mount the volume read-only inside the container.  `container-dest` must be an _absolute_ path.
+              - `host-src:container-dest[:options]` to bind-mount a host path
+                into the container. Both `host-src`, and `container-dest` must
+                be an _absolute_ path.
+              - `volume-name:container-dest[:options]` to bind-mount a volume
+                managed by a volume driver into the container. `container-dest`
+                must be an _absolute_ path.
+
+              `options` is an optional, comma-delimited list of:
+
+              - `nocopy` disables automatic copying of data from the container
+                path to the volume. The `nocopy` flag only applies to named volumes.
+              - `[ro|rw]` mounts a volume read-only or read-write, respectively.
+                If omitted or set to `rw`, volumes are mounted read-write.
+              - `[z|Z]` applies SELinux labels to allow or deny multiple containers
+                to read and write to the same volume.
+                  - `z`: a _shared_ content label is applied to the content. This
+                    label indicates that multiple containers can share the volume
+                    content, for both reading and writing.
+                  - `Z`: a _private unshared_ label is applied to the content.
+                    This label indicates that only the current container can use
+                    a private volume. Labeling systems such as SELinux require
+                    proper labels to be placed on volume content that is mounted
+                    into a container. Without a label, the security system can
+                    prevent a container's processes from using the content. By
+                    default, the labels set by the host operating system are not
+                    modified.
+              - `[[r]shared|[r]slave|[r]private]` specifies mount
+                [propagation behavior](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt).
+                This only applies to bind-mounted volumes, not internal volumes
+                or named volumes. Mount propagation requires the source mount
+                point (the location where the source directory is mounted in the
+                host operating system) to have the correct propagation properties.
+                For shared volumes, the source mount point must be set to `shared`.
+                For slave volumes, the mount must be set to either `shared` or
+                `slave`.
             items:
               type: "string"
           ContainerIDFile:
@@ -2970,16 +3067,10 @@ definitions:
         description: "Runtime is the type of runtime specified for the task executor."
         type: "string"
       Networks:
+        description: "Specifies which networks the service should attach to."
         type: "array"
         items:
-          type: "object"
-          properties:
-            Target:
-              type: "string"
-            Aliases:
-              type: "array"
-              items:
-                type: "string"
+          $ref: "#/definitions/NetworkAttachmentConfig"
       LogDriver:
         description: "Specifies the log driver to use for tasks created from this spec. If not present, the default one for the swarm will be used, finally falling back to the engine default if not specified."
         type: "object"
@@ -3225,17 +3316,11 @@ definitions:
               - "stop-first"
               - "start-first"
       Networks:
-        description: "Array of network names or IDs to attach the service to."
+        description: "Specifies which networks the service should attach to."
         type: "array"
         items:
-          type: "object"
-          properties:
-            Target:
-              type: "string"
-            Aliases:
-              type: "array"
-              items:
-                type: "string"
+          $ref: "#/definitions/NetworkAttachmentConfig"
+
       EndpointSpec:
         $ref: "#/definitions/EndpointSpec"
 
@@ -3280,8 +3365,8 @@ definitions:
     type: "object"
     properties:
       Mode:
-        description: "The mode of resolution to use for internal load balancing
-      between tasks."
+        description: |
+          The mode of resolution to use for internal load balancing between tasks.
         type: "string"
         enum:
           - "vip"
@@ -3608,6 +3693,70 @@ definitions:
         format: "dateTime"
       Spec:
         $ref: "#/definitions/ConfigSpec"
+
+  ContainerState:
+    description: |
+      ContainerState stores container's running state. It's part of ContainerJSONBase
+      and will be returned by the "inspect" command.
+    type: "object"
+    properties:
+      Status:
+        description: |
+          String representation of the container state. Can be one of "created",
+          "running", "paused", "restarting", "removing", "exited", or "dead".
+        type: "string"
+        enum: ["created", "running", "paused", "restarting", "removing", "exited", "dead"]
+        example: "running"
+      Running:
+        description: |
+          Whether this container is running.
+
+          Note that a running container can be _paused_. The `Running` and `Paused`
+          booleans are not mutually exclusive:
+
+          When pausing a container (on Linux), the freezer cgroup is used to suspend
+          all processes in the container. Freezing the process requires the process to
+          be running. As a result, paused containers are both `Running` _and_ `Paused`.
+
+          Use the `Status` field instead to determine if a container's state is "running".
+        type: "boolean"
+        example: true
+      Paused:
+        description: "Whether this container is paused."
+        type: "boolean"
+        example: false
+      Restarting:
+        description: "Whether this container is restarting."
+        type: "boolean"
+        example: false
+      OOMKilled:
+        description: "Whether this container has been killed because it ran out of memory."
+        type: "boolean"
+        example: false
+      Dead:
+        type: "boolean"
+        example: false
+      Pid:
+        description: "The process ID of this container"
+        type: "integer"
+        example: 1234
+      ExitCode:
+        description: "The last exit code of this container"
+        type: "integer"
+        example: 0
+      Error:
+        type: "string"
+      StartedAt:
+        description: "The time when this container was last started."
+        type: "string"
+        example: "2020-01-06T09:06:59.461876391Z"
+      FinishedAt:
+        description: "The time when this container last exited."
+        type: "string"
+        example: "2020-01-06T09:07:59.461876391Z"
+      Health:
+        x-nullable: true
+        $ref: "#/definitions/Health"
 
   SystemInfo:
     type: "object"
@@ -4407,6 +4556,24 @@ definitions:
           IP address and ports at which this node can be reached.
         type: "string"
 
+  NetworkAttachmentConfig:
+    description: "Specifies how a service should be attached to a particular network."
+    type: "object"
+    properties:
+      Target:
+        description: "The target network for attachment. Must be a network name or ID."
+        type: "string"
+      Aliases:
+        description: "Discoverable alternate names for the service on this network."
+        type: "array"
+        items:
+          type: "string"
+      DriverOpts:
+        description: "Driver attachment options for the network target"
+        type: "object"
+        additionalProperties:
+          type: "string"
+
 paths:
   /containers/json:
     get:
@@ -4822,52 +4989,8 @@ paths:
                 items:
                   type: "string"
               State:
-                description: "The state of the container."
-                type: "object"
-                properties:
-                  Status:
-                    description: |
-                      The status of the container. For example, `"running"` or `"exited"`.
-                    type: "string"
-                    enum: ["created", "running", "paused", "restarting", "removing", "exited", "dead"]
-                  Running:
-                    description: |
-                      Whether this container is running.
-
-                      Note that a running container can be _paused_. The `Running` and `Paused`
-                      booleans are not mutually exclusive:
-
-                      When pausing a container (on Linux), the cgroups freezer is used to suspend
-                      all processes in the container. Freezing the process requires the process to
-                      be running. As a result, paused containers are both `Running` _and_ `Paused`.
-
-                      Use the `Status` field instead to determine if a container's state is "running".
-                    type: "boolean"
-                  Paused:
-                    description: "Whether this container is paused."
-                    type: "boolean"
-                  Restarting:
-                    description: "Whether this container is restarting."
-                    type: "boolean"
-                  OOMKilled:
-                    description: "Whether this container has been killed because it ran out of memory."
-                    type: "boolean"
-                  Dead:
-                    type: "boolean"
-                  Pid:
-                    description: "The process ID of this container"
-                    type: "integer"
-                  ExitCode:
-                    description: "The last exit code of this container"
-                    type: "integer"
-                  Error:
-                    type: "string"
-                  StartedAt:
-                    description: "The time when this container was last started."
-                    type: "string"
-                  FinishedAt:
-                    description: "The time when this container last exited."
-                    type: "string"
+                x-nullable: true
+                $ref: "#/definitions/ContainerState"
               Image:
                 description: "The container's image"
                 type: "string"
@@ -4887,6 +5010,8 @@ paths:
               RestartCount:
                 type: "integer"
               Driver:
+                type: "string"
+              Platform:
                 type: "string"
               MountLabel:
                 type: "string"
@@ -4937,6 +5062,8 @@ paths:
                 Domainname: ""
                 Env:
                   - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+                Healthcheck:
+                  Test: ["CMD-SHELL", "exit 0"]
                 Hostname: "ba033ac44011"
                 Image: "ubuntu"
                 Labels:
@@ -5048,6 +5175,14 @@ paths:
                 Error: ""
                 ExitCode: 9
                 FinishedAt: "2015-01-06T15:47:32.080254511Z"
+                Health:
+                  Status: "healthy"
+                  FailingStreak: 0
+                  Log:
+                    - Start: "2019-12-22T10:59:05.6385933Z"
+                      End: "2019-12-22T10:59:05.8078452Z"
+                      ExitCode: 0
+                      Output: ""
                 OOMKilled: false
                 Dead: false
                 Paused: false
@@ -5507,8 +5642,6 @@ paths:
           description: "no error"
         304:
           description: "container already started"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such container"
           schema:
@@ -5540,8 +5673,6 @@ paths:
           description: "no error"
         304:
           description: "container already stopped"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such container"
           schema:
@@ -5732,9 +5863,9 @@ paths:
     post:
       summary: "Pause a container"
       description: |
-        Use the cgroups freezer to suspend all processes in a container.
+        Use the freezer cgroup to suspend all processes in a container.
 
-        Traditionally, when suspending a process the `SIGSTOP` signal is used, which is observable by the process being suspended. With the cgroups freezer the process is unaware, and unable to capture, that it is being suspended, and subsequently resumed.
+        Traditionally, when suspending a process the `SIGSTOP` signal is used, which is observable by the process being suspended. With the freezer cgroup the process is unaware, and unable to capture, that it is being suspended, and subsequently resumed.
       operationId: "ContainerPause"
       responses:
         204:
@@ -6457,10 +6588,11 @@ paths:
           type: "string"
         - name: "networkmode"
           in: "query"
-          description: "Sets the networking mode for the run commands during
-        build. Supported standard values are: `bridge`, `host`, `none`, and
-        `container:<name|id>`. Any other value is taken as a custom network's
-        name to which this container should connect to."
+          description: |
+            Sets the networking mode for the run commands during build. Supported
+            standard values are: `bridge`, `host`, `none`, and `container:<name|id>`.
+            Any other value is taken as a custom network's name or ID to which this
+            container should connect to.
           type: "string"
         - name: "Content-type"
           in: "header"
@@ -6604,6 +6736,10 @@ paths:
         - name: "tag"
           in: "query"
           description: "Tag or digest. If empty when pulling an image, this causes all tags for the given image to be pulled."
+          type: "string"
+        - name: "message"
+          in: "query"
+          description: "Set commit message for imported image."
           type: "string"
         - name: "inputImage"
           in: "body"
@@ -9549,17 +9685,19 @@ paths:
           type: "integer"
         - name: "registryAuthFrom"
           in: "query"
+          description: |
+            If the `X-Registry-Auth` header is not specified, this parameter
+            indicates where to find registry authorization credentials.
           type: "string"
-          description: "If the X-Registry-Auth header is not specified, this
-  parameter indicates where to find registry authorization credentials. The
-  valid values are `spec` and `previous-spec`."
+          enum: ["spec", "previous-spec"]
           default: "spec"
         - name: "rollback"
           in: "query"
+          description: |
+            Set to this parameter to `previous` to cause a server-side rollback
+            to the previous service spec. The supplied spec will be ignored in
+            this case.
           type: "string"
-          description: "Set to this parameter to `previous` to cause a
-  server-side rollback to the previous service spec. The supplied spec will be
-  ignored in this case."
         - name: "X-Registry-Auth"
           in: "header"
           description: "A base64-encoded auth configuration for pulling from private registries. [See the authentication section for details.](#section/Authentication)"
