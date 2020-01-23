@@ -35,6 +35,7 @@ func (h *reqBodyHandler) newRequest(rc io.ReadCloser) (string, func()) {
 		h.mu.Lock()
 		delete(h.requests, id)
 		h.mu.Unlock()
+		rc.Close()
 	}
 }
 
