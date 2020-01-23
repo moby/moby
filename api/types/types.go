@@ -154,7 +154,7 @@ type Info struct {
 	Images             int
 	Driver             string
 	DriverStatus       [][2]string
-	SystemStatus       [][2]string
+	SystemStatus       [][2]string `json:",omitempty"` // SystemStatus is only propagated by the Swarm standalone API
 	Plugins            PluginsInfo
 	MemoryLimit        bool
 	SwapLimit          bool
@@ -318,7 +318,7 @@ type ContainerState struct {
 }
 
 // ContainerNode stores information about the node that a container
-// is running on.  It's only available in Docker Swarm
+// is running on.  It's only used by the Docker Swarm standalone API
 type ContainerNode struct {
 	ID        string
 	IPAddress string `json:"IP"`
@@ -342,7 +342,7 @@ type ContainerJSONBase struct {
 	HostnamePath    string
 	HostsPath       string
 	LogPath         string
-	Node            *ContainerNode `json:",omitempty"`
+	Node            *ContainerNode `json:",omitempty"` // Node is only propagated by Docker Swarm standalone API
 	Name            string
 	RestartCount    int
 	Driver          string

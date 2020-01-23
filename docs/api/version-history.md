@@ -31,6 +31,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /info` now  returns an `OSVersion` field, containing the operating system's
   version. This change is not versioned, and affects all API versions if the daemon
   has this patch.
+* `GET /info` no longer returns the `SystemStatus` field if it does not have a
+  value set. This change is not versioned, and affects all API versions if the
+  daemon has this patch.
 * `GET /services` now accepts query parameter `status`. When set `true`,
   services returned will include `ServiceStatus`, which provides Desired,
   Running, and Completed task counts for the service.
