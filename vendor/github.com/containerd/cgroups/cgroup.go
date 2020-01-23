@@ -25,6 +25,7 @@ import (
 	"strings"
 	"sync"
 
+	v1 "github.com/containerd/cgroups/stats/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
@@ -246,7 +247,7 @@ func (c *cgroup) Delete() error {
 }
 
 // Stat returns the current metrics for the cgroup
-func (c *cgroup) Stat(handlers ...ErrorHandler) (*Metrics, error) {
+func (c *cgroup) Stat(handlers ...ErrorHandler) (*v1.Metrics, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.err != nil {
@@ -256,10 +257,10 @@ func (c *cgroup) Stat(handlers ...ErrorHandler) (*Metrics, error) {
 		handlers = append(handlers, errPassthrough)
 	}
 	var (
-		stats = &Metrics{
-			CPU: &CPUStat{
-				Throttling: &Throttle{},
-				Usage:      &CPUUsage{},
+		stats = &v1.Metrics{
+			CPU: &v1.CPUStat{
+				Throttling: &v1.Throttle{},
+				Usage:      &v1.CPUUsage{},
 			},
 		}
 		wg   = &sync.WaitGroup{}
@@ -497,6 +498,9 @@ func (c *cgroup) MoveTo(destination Cgroup) error {
 		}
 		for _, p := range processes {
 			if err := destination.Add(p); err != nil {
+				if strings.Contains(err.Error(), "no such process") {
+					continue
+				}
 				return err
 			}
 		}

@@ -27,19 +27,48 @@ import (
 	"strings"
 	"syscall"
 
-	"golang.org/x/sys/unix"
-
+	v1 "github.com/containerd/cgroups/stats/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"golang.org/x/sys/unix"
 )
 
-func NewMemory(root string) *memoryController {
-	return &memoryController{
-		root: filepath.Join(root, string(Memory)),
+// NewMemory returns a Memory controller given the root folder of cgroups.
+// It may optionally accept other configuration options, such as IgnoreModules(...)
+func NewMemory(root string, options ...func(*memoryController)) *memoryController {
+	mc := &memoryController{
+		root:    filepath.Join(root, string(Memory)),
+		ignored: map[string]struct{}{},
+	}
+	for _, opt := range options {
+		opt(mc)
+	}
+	return mc
+}
+
+// IgnoreModules configure the memory controller to not read memory metrics for some
+// module names (e.g. passing "memsw" would avoid all the memory.memsw.* entries)
+func IgnoreModules(names ...string) func(*memoryController) {
+	return func(mc *memoryController) {
+		for _, name := range names {
+			mc.ignored[name] = struct{}{}
+		}
+	}
+}
+
+// OptionalSwap allows the memory controller to not fail if cgroups is not accounting
+// Swap memory (there are no memory.memsw.* entries)
+func OptionalSwap() func(*memoryController) {
+	return func(mc *memoryController) {
+		_, err := os.Stat(filepath.Join(mc.root, "memory.memsw.usage_in_bytes"))
+		if os.IsNotExist(err) {
+			mc.ignored["memsw"] = struct{}{}
+		}
 	}
 }
 
 type memoryController struct {
-	root string
+	root    string
+	ignored map[string]struct{}
 }
 
 func (m *memoryController) Name() Name {
@@ -97,24 +126,24 @@ func (m *memoryController) Update(path string, resources *specs.LinuxResources) 
 	return m.set(path, settings)
 }
 
-func (m *memoryController) Stat(path string, stats *Metrics) error {
+func (m *memoryController) Stat(path string, stats *v1.Metrics) error {
 	f, err := os.Open(filepath.Join(m.Path(path), "memory.stat"))
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	stats.Memory = &MemoryStat{
-		Usage:     &MemoryEntry{},
-		Swap:      &MemoryEntry{},
-		Kernel:    &MemoryEntry{},
-		KernelTCP: &MemoryEntry{},
+	stats.Memory = &v1.MemoryStat{
+		Usage:     &v1.MemoryEntry{},
+		Swap:      &v1.MemoryEntry{},
+		Kernel:    &v1.MemoryEntry{},
+		KernelTCP: &v1.MemoryEntry{},
 	}
 	if err := m.parseStats(f, stats.Memory); err != nil {
 		return err
 	}
 	for _, t := range []struct {
 		module string
-		entry  *MemoryEntry
+		entry  *v1.MemoryEntry
 	}{
 		{
 			module: "",
@@ -133,6 +162,9 @@ func (m *memoryController) Stat(path string, stats *Metrics) error {
 			entry:  stats.Memory.KernelTCP,
 		},
 	} {
+		if _, ok := m.ignored[t.module]; ok {
+			continue
+		}
 		for _, tt := range []struct {
 			name  string
 			value *uint64
@@ -197,7 +229,7 @@ func writeEventFD(root string, cfd, efd uintptr) error {
 	return err
 }
 
-func (m *memoryController) parseStats(r io.Reader, stat *MemoryStat) error {
+func (m *memoryController) parseStats(r io.Reader, stat *v1.MemoryStat) error {
 	var (
 		raw  = make(map[string]uint64)
 		sc   = bufio.NewScanner(r)
@@ -280,6 +312,10 @@ func getMemorySettings(resources *specs.LinuxResources) []memorySettings {
 		{
 			name:  "limit_in_bytes",
 			value: mem.Limit,
+		},
+		{
+			name:  "soft_limit_in_bytes",
+			value: mem.Reservation,
 		},
 		{
 			name:  "memsw.limit_in_bytes",

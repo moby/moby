@@ -82,8 +82,8 @@ func UnixCli() bool {
 
 func Network() bool {
 	// Set a timeout on the GET at 15s
-	var timeout = time.Duration(15 * time.Second)
-	var url = "https://hub.docker.com"
+	const timeout = 15 * time.Second
+	const url = "https://hub.docker.com"
 
 	client := http.Client{
 		Timeout: timeout,

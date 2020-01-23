@@ -18,13 +18,13 @@ func unescapeBackslashSemicolonParens(s string) string {
 	ret := re.ReplaceAll([]byte(s), []byte(";"))
 
 	re = regexp.MustCompile(`\\\(`)
-	ret = re.ReplaceAll([]byte(ret), []byte("("))
+	ret = re.ReplaceAll(ret, []byte("("))
 
 	re = regexp.MustCompile(`\\\)`)
-	ret = re.ReplaceAll([]byte(ret), []byte(")"))
+	ret = re.ReplaceAll(ret, []byte(")"))
 
 	re = regexp.MustCompile(`\\\\`)
-	ret = re.ReplaceAll([]byte(ret), []byte(`\`))
+	ret = re.ReplaceAll(ret, []byte(`\`))
 
 	return string(ret)
 }

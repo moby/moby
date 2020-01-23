@@ -65,7 +65,7 @@ func countLogLines(d *daemon.Daemon, name string) func(*testing.T) (interface{},
 			return 0, "Empty stdout"
 		}
 		lines := strings.Split(strings.TrimSpace(result.Stdout()), "\n")
-		return len(lines), fmt.Sprintf("output, %q", string(result.Stdout()))
+		return len(lines), fmt.Sprintf("output, %q", result.Stdout())
 	}
 }
 

@@ -50,7 +50,7 @@ func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *testing.T) {
 	}
 
 	assert.NilError(c, json.NewDecoder(strings.NewReader(out)).Decode(&mounts))
-	assert.Equal(c, len(mounts), 1, string(out))
+	assert.Equal(c, len(mounts), 1, out)
 	assert.Equal(c, mounts[0].Name, "my-volume")
 	assert.Equal(c, mounts[0].Driver, "customvolumedriver")
 }

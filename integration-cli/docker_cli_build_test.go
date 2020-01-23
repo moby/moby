@@ -2082,7 +2082,7 @@ CMD ["cat", "/foo"]`),
 	}).Assert(c, icmd.Success)
 
 	res := inspectField(c, name, "Config.Cmd")
-	assert.Equal(c, strings.TrimSpace(string(res)), `[cat /foo]`)
+	assert.Equal(c, strings.TrimSpace(res), `[cat /foo]`)
 }
 
 // FIXME(vdemeester) migrate to docker/cli tests (unit or e2e)
