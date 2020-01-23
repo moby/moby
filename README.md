@@ -35,6 +35,52 @@ The Moby project is not intended as a location for support or feature requests f
 The releases are supported by the maintainers, community and users, on a best efforts basis only, and are not intended for customers who want enterprise or commercial support; Docker EE is the appropriate product for these use cases.
 
 -----
+## How to use Moby:
+The major release for containerd, with added support for CRI, the Kubernetes Container Runtime Interface. The old cri-containerd binary is now deprecated, and this project’s code has been merged in containerd as a containerd plugin.
+
+The containerd 1.1 CRI plugin allows connecting the containerd daemon directly to a Kubernetes kubelet to be used as the container runtime. The CRI GRPC interface listens on the same socket as the containerd GRPC interface and runs in the same process.
+
+If you are using Docker, this version of containerd will be used in the next major release of Docker.
+
+Serverless frameworks running on top of container platforms such as Docker are a great way to build and deploy cloud native applications.
+
+Introduction to the Fn project :
+Fn is an event-driven, open source, functions-as-a-service compute platform that you can run anywhere.
+
+Introducing BuildKit:
+BuildKit is a new project under the Moby umbrella for building and packaging software using containers. It’s a new codebase meant to replace the internals of the current build features in the Moby Engine.
+
+## Components of Moby
+
+A library of containerized components for all vital aspects of a container system:
+OS
+container runtime
+orchestration
+infrastructure management
+networking
+storage
+security
+build
+image distribution, etc.
+
+## Not recommended for User who:
+
+Moby is NOT recommended for the following use cases:
+Application developers looking for an easy way to run their applications in containers. We recommend Docker CE instead.
+Enterprise IT and development teams looking for a ready-to-use, commercially supported container platform. We recommend Docker EE instead.
+Anyone curious about containers and looking for an easy way to learn. We recommend the docker.com website instead
+
+## List of Moby Projects:
+1. infrakitGo: A toolkit for creating and managing declarative, self-healing infrastructure.
+2. containerdGo: An open and reliable container runtimehttps://containerd.io
+3. runcGo: CLI tool for spawning and running containers according to the OCI specificationhttps://www.opencontainers.org/
+4. notaryGo: Created by theupdateframeworkStar, Notary is a project that allows anyone to have trust over arbitrary collections of data
+5. linuxkit: A toolkit for building secure, portable and lean operating systems for containers
+6. datakit: Connect processes into powerful data pipelines with a simple git-like filesystem interface
+7. vpnkit: A toolkit for embedding VPN capabilities in your application
+8. swarmkit: A toolkit for orchestrating distributed systems at any scale. It includes primitives for node discovery, raft-based consensus, task scheduling and more.
+9. hyperkitC: A toolkit for embedding hypervisor capabilities in your application
+10. distribution: The Docker toolset to pack, ship, store, and deliver content
 
 Legal
 =====
