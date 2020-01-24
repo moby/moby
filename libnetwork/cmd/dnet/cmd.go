@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/codegangsta/cli"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libnetwork/client"
+	"github.com/urfave/cli"
 )
 
 var (
