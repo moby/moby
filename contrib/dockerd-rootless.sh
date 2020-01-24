@@ -3,8 +3,6 @@
 #
 # Usage: dockerd-rootless.sh --experimental [DOCKERD_OPTIONS]
 # Currently, specifying --experimental is mandatory.
-# Also, to expose ports, you need to specify
-# --userland-proxy-path=/path/to/rootlesskit-docker-proxy
 #
 # External dependencies:
 # * newuidmap and newgidmap needs to be installed.
