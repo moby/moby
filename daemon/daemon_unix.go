@@ -932,6 +932,19 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 		removeDefaultBridgeInterface()
 	}
 
+	// Set HostGatewayIP to the default bridge's IP  if it is empty
+	if daemon.configStore.HostGatewayIP == nil && controller != nil {
+		if n, err := controller.NetworkByName("bridge"); err == nil {
+			v4Info, v6Info := n.Info().IpamInfo()
+			var gateway net.IP
+			if len(v4Info) > 0 {
+				gateway = v4Info[0].Gateway.IP
+			} else if len(v6Info) > 0 {
+				gateway = v6Info[0].Gateway.IP
+			}
+			daemon.configStore.HostGatewayIP = gateway
+		}
+	}
 	return controller, nil
 }
 
