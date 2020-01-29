@@ -146,14 +146,16 @@ func (c *copier) prepareTargetDir(srcFollowed, src, destPath string, copyDirCont
 	return destPath, nil
 }
 
-type ChownOpt struct {
+type User struct {
 	Uid, Gid int
 }
+
+type Chowner func(*User) (*User, error)
 
 type XAttrErrorHandler func(dst, src, xattrKey string, err error) error
 
 type CopyInfo struct {
-	Chown             *ChownOpt
+	Chown             Chowner
 	Utime             *time.Time
 	AllowWildcards    bool
 	Mode              *int
@@ -172,7 +174,9 @@ func WithCopyInfo(ci CopyInfo) func(*CopyInfo) {
 
 func WithChown(uid, gid int) Opt {
 	return func(ci *CopyInfo) {
-		ci.Chown = &ChownOpt{Uid: uid, Gid: gid}
+		ci.Chown = func(*User) (*User, error) {
+			return &User{Uid: uid, Gid: gid}, nil
+		}
 	}
 }
 
@@ -194,14 +198,14 @@ func AllowXAttrErrors(ci *CopyInfo) {
 }
 
 type copier struct {
-	chown             *ChownOpt
+	chown             Chowner
 	utime             *time.Time
 	mode              *int
 	inodes            map[uint64]string
 	xattrErrorHandler XAttrErrorHandler
 }
 
-func newCopier(chown *ChownOpt, tm *time.Time, mode *int, xeh XAttrErrorHandler) *copier {
+func newCopier(chown Chowner, tm *time.Time, mode *int, xeh XAttrErrorHandler) *copier {
 	if xeh == nil {
 		xeh = func(dst, src, key string, err error) error {
 			return err
