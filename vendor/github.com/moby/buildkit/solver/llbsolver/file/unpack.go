@@ -12,7 +12,7 @@ import (
 	copy "github.com/tonistiigi/fsutil/copy"
 )
 
-func unpack(ctx context.Context, srcRoot string, src string, destRoot string, dest string, user *copy.ChownOpt, tm *time.Time) (bool, error) {
+func unpack(ctx context.Context, srcRoot string, src string, destRoot string, dest string, ch copy.Chowner, tm *time.Time) (bool, error) {
 	src, err := fs.RootPath(srcRoot, src)
 	if err != nil {
 		return false, err
@@ -25,7 +25,7 @@ func unpack(ctx context.Context, srcRoot string, src string, destRoot string, de
 	if err != nil {
 		return false, err
 	}
-	if err := copy.MkdirAll(dest, 0755, user, tm); err != nil {
+	if err := copy.MkdirAll(dest, 0755, ch, tm); err != nil {
 		return false, err
 	}
 
