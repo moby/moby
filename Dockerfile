@@ -25,7 +25,7 @@
 #
 
 ARG CROSS="false"
-ARG GO_VERSION=1.12.15
+ARG GO_VERSION=1.12.16
 ARG DEBIAN_FRONTEND=noninteractive
 
 FROM golang:${GO_VERSION}-stretch AS base
