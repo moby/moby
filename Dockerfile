@@ -354,6 +354,7 @@ FROM binary-base AS build-cross
 ARG DOCKER_CROSSPLATFORMS
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=bind,target=/go/src/github.com/docker/docker \
+    --mount=type=tmpfs,target=/go/src/github.com/docker/docker/autogen \
         hack/make.sh cross
 
 FROM scratch AS binary

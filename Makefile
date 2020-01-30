@@ -172,7 +172,14 @@ cross: ## cross build the binaries for darwin, freebsd and\nwindows
 
 cross: BUILD_OPTS += --build-arg CROSS=true --build-arg DOCKER_CROSSPLATFORMS
 
-binary dynbinary cross: buildx
+# This is only used to work around read-only bind mounts of the source code into
+# binary build targets. We end up mounting a tmpfs over autogen which allows us
+# to write build-time generated assets even though the source is mounted read-only
+# ...But in order to do so, this dir needs to already exist.
+autogen:
+	mkdir -p autogen
+
+binary dynbinary cross: buildx autogen
 	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
 
 build: target = --target=final
