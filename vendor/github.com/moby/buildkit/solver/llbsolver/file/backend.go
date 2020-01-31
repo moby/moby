@@ -26,33 +26,58 @@ func timestampToTime(ts int64) *time.Time {
 	return &tm
 }
 
-func mapUser(user *copy.ChownOpt, idmap *idtools.IdentityMapping) (*copy.ChownOpt, error) {
-	if idmap == nil || user == nil {
-		return user, nil
+func mapUserToChowner(user *copy.User, idmap *idtools.IdentityMapping) (copy.Chowner, error) {
+	if user == nil {
+		return func(old *copy.User) (*copy.User, error) {
+			if old == nil {
+				if idmap == nil {
+					return nil, nil
+				}
+				old = &copy.User{} // root
+			}
+			if idmap != nil {
+				identity, err := idmap.ToHost(idtools.Identity{
+					UID: old.Uid,
+					GID: old.Gid,
+				})
+				if err != nil {
+					return nil, err
+				}
+				return &copy.User{Uid: identity.UID, Gid: identity.GID}, nil
+			}
+			return old, nil
+		}, nil
 	}
-	identity, err := idmap.ToHost(idtools.Identity{
-		UID: user.Uid,
-		GID: user.Gid,
-	})
-	if err != nil {
-		return nil, err
+	u := *user
+	if idmap != nil {
+		identity, err := idmap.ToHost(idtools.Identity{
+			UID: user.Uid,
+			GID: user.Gid,
+		})
+		if err != nil {
+			return nil, err
+		}
+		u.Uid = identity.UID
+		u.Gid = identity.GID
 	}
-	return &copy.ChownOpt{Uid: identity.UID, Gid: identity.GID}, nil
+	return func(*copy.User) (*copy.User, error) {
+		return &u, nil
+	}, nil
 }
 
-func mkdir(ctx context.Context, d string, action pb.FileActionMkDir, user *copy.ChownOpt, idmap *idtools.IdentityMapping) error {
+func mkdir(ctx context.Context, d string, action pb.FileActionMkDir, user *copy.User, idmap *idtools.IdentityMapping) error {
 	p, err := fs.RootPath(d, filepath.Join(filepath.Join("/", action.Path)))
 	if err != nil {
 		return err
 	}
 
-	user, err = mapUser(user, idmap)
+	ch, err := mapUserToChowner(user, idmap)
 	if err != nil {
 		return err
 	}
 
 	if action.MakeParents {
-		if err := copy.MkdirAll(p, os.FileMode(action.Mode)&0777, user, timestampToTime(action.Timestamp)); err != nil {
+		if err := copy.MkdirAll(p, os.FileMode(action.Mode)&0777, ch, timestampToTime(action.Timestamp)); err != nil {
 			return err
 		}
 	} else {
@@ -62,7 +87,7 @@ func mkdir(ctx context.Context, d string, action pb.FileActionMkDir, user *copy.
 			}
 			return err
 		}
-		if err := copy.Chown(p, user); err != nil {
+		if err := copy.Chown(p, nil, ch); err != nil {
 			return err
 		}
 		if err := copy.Utimes(p, timestampToTime(action.Timestamp)); err != nil {
@@ -73,13 +98,13 @@ func mkdir(ctx context.Context, d string, action pb.FileActionMkDir, user *copy.
 	return nil
 }
 
-func mkfile(ctx context.Context, d string, action pb.FileActionMkFile, user *copy.ChownOpt, idmap *idtools.IdentityMapping) error {
+func mkfile(ctx context.Context, d string, action pb.FileActionMkFile, user *copy.User, idmap *idtools.IdentityMapping) error {
 	p, err := fs.RootPath(d, filepath.Join(filepath.Join("/", action.Path)))
 	if err != nil {
 		return err
 	}
 
-	user, err = mapUser(user, idmap)
+	ch, err := mapUserToChowner(user, idmap)
 	if err != nil {
 		return err
 	}
@@ -88,7 +113,7 @@ func mkfile(ctx context.Context, d string, action pb.FileActionMkFile, user *cop
 		return err
 	}
 
-	if err := copy.Chown(p, user); err != nil {
+	if err := copy.Chown(p, nil, ch); err != nil {
 		return err
 	}
 
@@ -115,7 +140,7 @@ func rm(ctx context.Context, d string, action pb.FileActionRm) error {
 	return nil
 }
 
-func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *copy.ChownOpt, idmap *idtools.IdentityMapping) error {
+func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *copy.User, idmap *idtools.IdentityMapping) error {
 	srcPath := cleanPath(action.Src)
 	destPath := cleanPath(action.Dest)
 
@@ -134,14 +159,14 @@ func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *
 		return nil
 	}
 
-	u, err := mapUser(u, idmap)
+	ch, err := mapUserToChowner(u, idmap)
 	if err != nil {
 		return err
 	}
 
 	opt := []copy.Opt{
 		func(ci *copy.CopyInfo) {
-			ci.Chown = u
+			ci.Chown = ch
 			ci.Utime = timestampToTime(action.Timestamp)
 			if m := int(action.Mode); m != -1 {
 				ci.Mode = &m
@@ -154,7 +179,7 @@ func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *
 
 	if !action.AllowWildcard {
 		if action.AttemptUnpackDockerCompatibility {
-			if ok, err := unpack(ctx, src, srcPath, dest, destPath, u, timestampToTime(action.Timestamp)); err != nil {
+			if ok, err := unpack(ctx, src, srcPath, dest, destPath, ch, timestampToTime(action.Timestamp)); err != nil {
 				return err
 			} else if ok {
 				return nil
@@ -177,7 +202,7 @@ func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *
 
 	for _, s := range m {
 		if action.AttemptUnpackDockerCompatibility {
-			if ok, err := unpack(ctx, src, s, dest, destPath, u, timestampToTime(action.Timestamp)); err != nil {
+			if ok, err := unpack(ctx, src, s, dest, destPath, ch, timestampToTime(action.Timestamp)); err != nil {
 				return err
 			} else if ok {
 				continue

@@ -9,6 +9,6 @@ import (
 	copy "github.com/tonistiigi/fsutil/copy"
 )
 
-func readUser(chopt *pb.ChownOpt, mu, mg fileoptypes.Mount) (*copy.ChownOpt, error) {
+func readUser(chopt *pb.ChownOpt, mu, mg fileoptypes.Mount) (*copy.User, error) {
 	return nil, errors.New("only implemented in linux")
 }

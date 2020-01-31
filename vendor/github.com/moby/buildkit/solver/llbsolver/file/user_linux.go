@@ -12,11 +12,11 @@ import (
 	copy "github.com/tonistiigi/fsutil/copy"
 )
 
-func readUser(chopt *pb.ChownOpt, mu, mg fileoptypes.Mount) (*copy.ChownOpt, error) {
+func readUser(chopt *pb.ChownOpt, mu, mg fileoptypes.Mount) (*copy.User, error) {
 	if chopt == nil {
 		return nil, nil
 	}
-	var us copy.ChownOpt
+	var us copy.User
 	if chopt.User != nil {
 		switch u := chopt.User.User.(type) {
 		case *pb.UserOpt_ByName:
