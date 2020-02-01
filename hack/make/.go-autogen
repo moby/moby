@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-rm -rf autogen
+rm -rf autogen/*
 
 source hack/dockerfile/install/runc.installer
 source hack/dockerfile/install/tini.installer
