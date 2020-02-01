@@ -816,29 +816,44 @@ func (s *DockerSuite) TestPsListContainersFilterPorts(c *testing.T) {
 	out, _ = dockerCmd(c, "run", "-d", "--expose=8080", "busybox", "top")
 	id2 := strings.TrimSpace(out)
 
+	out, _ = dockerCmd(c, "run", "-d", "-p", "1090:90", "busybox", "top")
+	id3 := strings.TrimSpace(out)
+
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q")
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id1))
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id2))
+	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id3))
+
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=80-8080/udp")
 	assert.Assert(c, strings.TrimSpace(out) != id1)
 	assert.Assert(c, strings.TrimSpace(out) != id2)
+	assert.Assert(c, strings.TrimSpace(out) != id3)
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=8081")
 	assert.Assert(c, strings.TrimSpace(out) != id1)
 	assert.Assert(c, strings.TrimSpace(out) != id2)
+	assert.Assert(c, strings.TrimSpace(out) != id3)
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=80-81")
-	assert.Equal(c, strings.TrimSpace(out), id1)
+	assert.Assert(c, strings.TrimSpace(out) != id1)
 	assert.Assert(c, strings.TrimSpace(out) != id2)
+	assert.Assert(c, strings.TrimSpace(out) != id3)
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=80/tcp")
 	assert.Equal(c, strings.TrimSpace(out), id1)
 	assert.Assert(c, strings.TrimSpace(out) != id2)
+	assert.Assert(c, strings.TrimSpace(out) != id3)
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=1090")
+	assert.Assert(c, strings.TrimSpace(out) != id1)
+	assert.Assert(c, strings.TrimSpace(out) != id2)
+	assert.Equal(c, strings.TrimSpace(out), id3)
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=8080/tcp")
 	out = RemoveOutputForExistingElements(out, existingContainers)
 	assert.Assert(c, strings.TrimSpace(out) != id1)
 	assert.Equal(c, strings.TrimSpace(out), id2)
+	assert.Assert(c, strings.TrimSpace(out) != id3)
 }
 
 func (s *DockerSuite) TestPsNotShowLinknamesOfDeletedContainer(c *testing.T) {
