@@ -2,6 +2,7 @@ package container
 
 import (
 	"fmt"
+	"strings"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
@@ -77,12 +78,12 @@ func WithMount(m mounttypes.Mount) func(*TestContainerConfig) {
 }
 
 // WithVolume sets the volume of the container
-func WithVolume(name string) func(*TestContainerConfig) {
+func WithVolume(target string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		if c.Config.Volumes == nil {
 			c.Config.Volumes = map[string]struct{}{}
 		}
-		c.Config.Volumes[name] = struct{}{}
+		c.Config.Volumes[target] = struct{}{}
 	}
 }
 
@@ -90,6 +91,22 @@ func WithVolume(name string) func(*TestContainerConfig) {
 func WithBind(src, target string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		c.HostConfig.Binds = append(c.HostConfig.Binds, fmt.Sprintf("%s:%s", src, target))
+	}
+}
+
+// WithTmpfs sets a target path in the container to a tmpfs
+func WithTmpfs(target string) func(config *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		if c.HostConfig.Tmpfs == nil {
+			c.HostConfig.Tmpfs = make(map[string]string)
+		}
+
+		spec := strings.SplitN(target, ":", 2)
+		var opts string
+		if len(spec) > 1 {
+			opts = spec[1]
+		}
+		c.HostConfig.Tmpfs[spec[0]] = opts
 	}
 }
 
