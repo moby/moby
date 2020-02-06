@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/client/metadata"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/signer/v4"
+	"github.com/aws/aws-sdk-go/private/protocol"
 	"github.com/aws/aws-sdk-go/private/protocol/jsonrpc"
 )
 
@@ -29,8 +30,9 @@ var initRequest func(*request.Request)
 
 // Service information constants
 const (
-	ServiceName = "logs"      // Service endpoint prefix API calls made to.
-	EndpointsID = ServiceName // Service ID for Regions and Endpoints metadata.
+	ServiceName = "logs"            // Name of service.
+	EndpointsID = ServiceName       // ID to lookup a service endpoint with.
+	ServiceID   = "CloudWatch Logs" // ServiceID is a unique identifier of a specific service.
 )
 
 // New creates a new instance of the CloudWatchLogs client with a session.
@@ -38,6 +40,8 @@ const (
 // aws.Config parameter to add your extra config.
 //
 // Example:
+//     mySession := session.Must(session.NewSession())
+//
 //     // Create a CloudWatchLogs client from just a session.
 //     svc := cloudwatchlogs.New(mySession)
 //
@@ -45,18 +49,20 @@ const (
 //     svc := cloudwatchlogs.New(mySession, aws.NewConfig().WithRegion("us-west-2"))
 func New(p client.ConfigProvider, cfgs ...*aws.Config) *CloudWatchLogs {
 	c := p.ClientConfig(EndpointsID, cfgs...)
-	return newClient(*c.Config, c.Handlers, c.Endpoint, c.SigningRegion, c.SigningName)
+	return newClient(*c.Config, c.Handlers, c.PartitionID, c.Endpoint, c.SigningRegion, c.SigningName)
 }
 
 // newClient creates, initializes and returns a new service client instance.
-func newClient(cfg aws.Config, handlers request.Handlers, endpoint, signingRegion, signingName string) *CloudWatchLogs {
+func newClient(cfg aws.Config, handlers request.Handlers, partitionID, endpoint, signingRegion, signingName string) *CloudWatchLogs {
 	svc := &CloudWatchLogs{
 		Client: client.New(
 			cfg,
 			metadata.ClientInfo{
 				ServiceName:   ServiceName,
+				ServiceID:     ServiceID,
 				SigningName:   signingName,
 				SigningRegion: signingRegion,
+				PartitionID:   partitionID,
 				Endpoint:      endpoint,
 				APIVersion:    "2014-03-28",
 				JSONVersion:   "1.1",
@@ -71,7 +77,9 @@ func newClient(cfg aws.Config, handlers request.Handlers, endpoint, signingRegio
 	svc.Handlers.Build.PushBackNamed(jsonrpc.BuildHandler)
 	svc.Handlers.Unmarshal.PushBackNamed(jsonrpc.UnmarshalHandler)
 	svc.Handlers.UnmarshalMeta.PushBackNamed(jsonrpc.UnmarshalMetaHandler)
-	svc.Handlers.UnmarshalError.PushBackNamed(jsonrpc.UnmarshalErrorHandler)
+	svc.Handlers.UnmarshalError.PushBackNamed(
+		protocol.NewUnmarshalErrorHandler(jsonrpc.NewUnmarshalTypedError(exceptionFromCode)).NamedHandler(),
+	)
 
 	// Run custom client initialization if present
 	if initClient != nil {
