@@ -338,6 +338,7 @@ COPY --from=runc        /build/ /usr/local/bin/
 COPY --from=containerd  /build/ /usr/local/bin/
 COPY --from=rootlesskit /build/ /usr/local/bin/
 COPY --from=proxy       /build/ /usr/local/bin/
+COPY --from=vpnkit      /vpnkit /usr/local/bin/vpnkit.x86_64
 WORKDIR /go/src/github.com/docker/docker
 
 FROM binary-base AS build-binary
