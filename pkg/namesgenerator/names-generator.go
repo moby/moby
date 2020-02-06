@@ -137,7 +137,7 @@ var (
 
 		// Virginia Apgar - an American anesthesiologist, the inventor of the Apgar Score, a way to quickly assess the health of a newborn child. https://en.wikipedia.org/wiki/Virginia_Apgar
 		"apgar",
-		
+
 		// Archimedes was a physicist, engineer and mathematician who invented too many things to list them here. https://en.wikipedia.org/wiki/Archimedes
 		"archimedes",
 
@@ -680,6 +680,9 @@ var (
 		// Srinivasa Ramanujan - Indian mathematician and autodidact who made extraordinary contributions to mathematical analysis, number theory, infinite series, and continued fractions. - https://en.wikipedia.org/wiki/Srinivasa_Ramanujan
 		"ramanujan",
 
+		// Marian Adam Rejewski - Polish mathematician and cryptologist who (together with Jerzy Rozycki and Henryk Zygalski) solved the German military Enigma cipher machine. https://en.wikipedia.org/wiki/Marian_Rejewski
+		"rejewski",
+
 		// Sally Kristen Ride was an American physicist and astronaut. She was the first American woman in space, and the youngest American astronaut. https://en.wikipedia.org/wiki/Sally_Ride
 		"ride",
 
@@ -700,6 +703,9 @@ var (
 
 		// Rosalind Franklin - British biophysicist and X-ray crystallographer whose research was critical to the understanding of DNA - https://en.wikipedia.org/wiki/Rosalind_Franklin
 		"rosalind",
+
+		// Jerzy Witold Rozycki - Polish mathematician and cryptologist who (together with Marian Rejewski and Henryk Zygalski) solved the German military Enigma cipher machine. https://en.wikipedia.org/wiki/Jerzy_R%C3%B3%C5%BCycki
+		"rozycki",
 
 		// Vera Rubin - American astronomer who pioneered work on galaxy rotation rates. https://en.wikipedia.org/wiki/Vera_Rubin
 		"rubin",
@@ -838,6 +844,9 @@ var (
 
 		// Nikolay Yegorovich Zhukovsky (Russian: Никола́й Его́рович Жуко́вский, January 17 1847 – March 17, 1921) was a Russian scientist, mathematician and engineer, and a founding father of modern aero- and hydrodynamics. Whereas contemporary scientists scoffed at the idea of human flight, Zhukovsky was the first to undertake the study of airflow. He is often called the Father of Russian Aviation. https://en.wikipedia.org/wiki/Nikolay_Yegorovich_Zhukovsky
 		"zhukovsky",
+
+		// Henryk Zygalski - Polish mathematician and cryptologist who (together with Marian Rejewski and Jerzy Rozycki) solved the German military Enigma cipher machine. https://en.wikipedia.org/wiki/Henryk_Zygalski
+		"zygalski",
 	}
 )
 
