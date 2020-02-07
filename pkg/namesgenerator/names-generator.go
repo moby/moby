@@ -147,6 +147,9 @@ var (
 		// Aryabhata - Ancient Indian mathematician-astronomer during 476-550 CE https://en.wikipedia.org/wiki/Aryabhata
 		"aryabhata",
 
+		// Barbara S. Askins - American chemist who invented a method to enhance underexposed photographic negatives (used by NASA and the medical industry). https://en.wikipedia.org/wiki/Barbara_Askins
+		"askins",
+
 		// Wanda Austin - Wanda Austin is the President and CEO of The Aerospace Corporation, a leading architect for the US security space programs. https://en.wikipedia.org/wiki/Wanda_Austin
 		"austin",
 
@@ -515,6 +518,9 @@ var (
 		// Sophie Kowalevski - Russian mathematician responsible for important original contributions to analysis, differential equations and mechanics - https://en.wikipedia.org/wiki/Sofia_Kovalevskaya
 		"kowalevski",
 
+		// Stephanie Louise Kwolek - American chemist who invented Kevlar. https://en.wikipedia.org/wiki/Stephanie_Kwolek
+		"kwolek",
+
 		// Marie-Jeanne de Lalande - French astronomer, mathematician and cataloguer of stars - https://en.wikipedia.org/wiki/Marie-Jeanne_de_Lalande
 		"lalande",
 
@@ -605,14 +611,17 @@ var (
 		// Gordon Earle Moore - American engineer, Silicon Valley founding father, author of Moore's law. https://en.wikipedia.org/wiki/Gordon_Moore
 		"moore",
 
+		// Mary Sherman Morgan - American rocket fuel scientist who invented the liquid rocket fuel Hydyne. https://en.wikipedia.org/wiki/Mary_Sherman_Morgan
+		"morgan",
+
 		// Samuel Morse - contributed to the invention of a single-wire telegraph system based on European telegraphs and was a co-developer of the Morse code - https://en.wikipedia.org/wiki/Samuel_Morse
 		"morse",
 
-		// Ian Murdock - founder of the Debian project - https://en.wikipedia.org/wiki/Ian_Murdock
-		"murdock",
-
 		// May-Britt Moser - Nobel prize winner neuroscientist who contributed to the discovery of grid cells in the brain. https://en.wikipedia.org/wiki/May-Britt_Moser
 		"moser",
+
+		// Ian Murdock - founder of the Debian project - https://en.wikipedia.org/wiki/Ian_Murdock
+		"murdock",
 
 		// John Napier of Merchiston - Scottish landowner known as an astronomer, mathematician and physicist. Best known for his discovery of logarithms. https://en.wikipedia.org/wiki/John_Napier
 		"napier",
