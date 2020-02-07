@@ -29,10 +29,10 @@ import (
 	remoteipam "github.com/docker/libnetwork/ipams/remote/api"
 	"github.com/docker/swarmkit/ca/keyutils"
 	"github.com/vishvananda/netlink"
-	"gotest.tools/assert"
-	"gotest.tools/fs"
-	"gotest.tools/icmd"
-	"gotest.tools/poll"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/fs"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
 )
 
 func (s *DockerSwarmSuite) TestSwarmUpdate(c *testing.T) {

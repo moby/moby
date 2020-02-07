@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/opencontainers/go-digest"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 const (

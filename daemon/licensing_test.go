@@ -5,7 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/dockerversion"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestFillLicense(t *testing.T) {

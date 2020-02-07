@@ -3,8 +3,8 @@ package term // import "github.com/docker/docker/pkg/term"
 import (
 	"testing"
 
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestToBytes(t *testing.T) {

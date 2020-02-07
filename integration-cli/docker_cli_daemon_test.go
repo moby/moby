@@ -38,9 +38,9 @@ import (
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
 	"golang.org/x/sys/unix"
-	"gotest.tools/assert"
-	"gotest.tools/icmd"
-	"gotest.tools/poll"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
 )
 
 const containerdSocket = "/var/run/docker/containerd/containerd.sock"

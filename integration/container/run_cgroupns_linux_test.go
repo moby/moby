@@ -10,10 +10,10 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/requirement"
 	"github.com/docker/docker/testutil/daemon"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/poll"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
 )
 
 // Gets the value of the cgroup namespace for pid 1 of a container

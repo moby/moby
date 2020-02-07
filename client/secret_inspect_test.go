@@ -13,8 +13,8 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestSecretInspectUnsupported(t *testing.T) {

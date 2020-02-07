@@ -5,7 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	swarmapi "github.com/docker/swarmkit/api"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestIsolationConversion(t *testing.T) {

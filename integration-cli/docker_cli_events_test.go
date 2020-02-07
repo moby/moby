@@ -20,9 +20,9 @@ import (
 	eventstestutils "github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
 )
 
 func (s *DockerSuite) TestEventsTimestampFormats(c *testing.T) {

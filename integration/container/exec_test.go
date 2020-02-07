@@ -10,9 +10,9 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 // TestExecWithCloseStdin adds case for moby#37870 issue.

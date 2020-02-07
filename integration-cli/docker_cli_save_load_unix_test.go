@@ -14,8 +14,8 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"gotest.tools/assert"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
 )
 
 // save a repo and try to load it using stdout

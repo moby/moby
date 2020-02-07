@@ -8,8 +8,8 @@ import (
 
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/pkg/errors"
-	"gotest.tools/assert"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
 )
 
 // Daemon represents a Docker daemon for the testing framework.

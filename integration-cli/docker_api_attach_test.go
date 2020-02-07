@@ -18,8 +18,8 @@ import (
 	"github.com/docker/go-connections/sockets"
 	"github.com/pkg/errors"
 	"golang.org/x/net/websocket"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func (s *DockerSuite) TestGetContainersAttachWebsocket(c *testing.T) {

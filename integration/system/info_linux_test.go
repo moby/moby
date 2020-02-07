@@ -11,9 +11,9 @@ import (
 
 	"github.com/docker/docker/testutil/daemon"
 	req "github.com/docker/docker/testutil/request"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 func TestInfoBinaryCommits(t *testing.T) {

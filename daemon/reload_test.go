@@ -14,8 +14,8 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/libnetwork"
 	"github.com/sirupsen/logrus"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 // muteLogs suppresses logs that are generated during the test

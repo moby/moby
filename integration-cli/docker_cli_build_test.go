@@ -27,9 +27,9 @@ import (
 	"github.com/docker/docker/testutil/fakestorage"
 	"github.com/moby/buildkit/frontend/dockerfile/command"
 	digest "github.com/opencontainers/go-digest"
-	"gotest.tools/assert"
-	"gotest.tools/assert/cmp"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
 )
 
 func (s *DockerSuite) TestBuildJSONEmptyRun(c *testing.T) {
@@ -657,7 +657,7 @@ func (s *DockerSuite) TestBuildCopyWildcard(c *testing.T) {
 			"file2.txt":                     "test2",
 			"dir/nested_file":               "nested file",
 			"dir/nested_dir/nest_nest_file": "2 times nested",
-			"dirt":                          "dirty",
+			"dirt": "dirty",
 		}))
 	defer ctx.Close()
 

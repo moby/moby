@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // #9860 Make sure attach ends when container ends (with no errors)

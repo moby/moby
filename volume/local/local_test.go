@@ -11,7 +11,7 @@ import (
 
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
-	"gotest.tools/skip"
+	"gotest.tools/v3/skip"
 )
 
 func TestGetAddress(t *testing.T) {

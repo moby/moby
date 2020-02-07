@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 type EtcReleaseParsingTest struct {

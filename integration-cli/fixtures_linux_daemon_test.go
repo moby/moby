@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/testutil/fixtures/load"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func ensureSyscallTest(c *testing.T) {

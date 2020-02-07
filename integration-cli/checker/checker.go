@@ -5,8 +5,8 @@ package checker // import "github.com/docker/docker/integration-cli/checker"
 import (
 	"fmt"
 
-	"gotest.tools/assert"
-	"gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 )
 
 // Compare defines the interface to compare values

@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // Hook up gocheck into the "go test" runner.

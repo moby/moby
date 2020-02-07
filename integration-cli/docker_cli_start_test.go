@@ -11,8 +11,8 @@ import (
 	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"gotest.tools/assert"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
 )
 
 // Regression test for https://github.com/docker/docker/issues/7843

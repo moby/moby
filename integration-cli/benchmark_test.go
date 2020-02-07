@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func (s *DockerSuite) BenchmarkConcurrentContainerActions(c *testing.B) {

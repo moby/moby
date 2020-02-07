@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/client"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func (s *DockerSuite) TestPluginLogDriver(c *testing.T) {

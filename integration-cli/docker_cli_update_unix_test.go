@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/testutil/request"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func (s *DockerSuite) TestUpdateRunningContainer(c *testing.T) {

@@ -26,8 +26,8 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/sysinfo"
-	"gotest.tools/assert"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
 )
 
 // #6509

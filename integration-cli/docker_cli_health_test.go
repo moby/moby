@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func waitForHealthStatus(c *testing.T, name string, prev string, expected string) {

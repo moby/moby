@@ -14,8 +14,8 @@ import (
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
-	"gotest.tools/assert"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 )
 
 // setupOverlayTestDir creates files in a directory with overlay whiteouts

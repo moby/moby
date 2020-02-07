@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // Try all of the test cases from the archive package which implements the

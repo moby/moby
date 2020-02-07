@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/daemon/exec"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestExecSetPlatformOpt(t *testing.T) {

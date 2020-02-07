@@ -3,8 +3,8 @@ package middleware // import "github.com/docker/docker/api/server/middleware"
 import (
 	"testing"
 
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestMaskSecretKeys(t *testing.T) {

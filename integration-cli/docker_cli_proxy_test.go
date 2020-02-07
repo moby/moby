@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"gotest.tools/assert"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
 )
 
 func (s *DockerSuite) TestCLIProxyDisableProxyUnixSock(c *testing.T) {

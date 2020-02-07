@@ -17,8 +17,8 @@ import (
 	"github.com/creack/pty"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"golang.org/x/sys/unix"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 // #5979

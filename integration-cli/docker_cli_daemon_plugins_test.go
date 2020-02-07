@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"golang.org/x/sys/unix"
-	"gotest.tools/assert"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
 )
 
 // TestDaemonRestartWithPluginEnabled tests state restore for an enabled plugin

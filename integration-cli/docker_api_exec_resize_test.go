@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/testutil/request"
 	"github.com/pkg/errors"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func (s *DockerSuite) TestExecResizeAPIHeightWidthNoInt(c *testing.T) {

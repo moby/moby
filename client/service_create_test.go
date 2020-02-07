@@ -16,8 +16,8 @@ import (
 	"github.com/docker/docker/errdefs"
 	digest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestServiceCreateError(t *testing.T) {

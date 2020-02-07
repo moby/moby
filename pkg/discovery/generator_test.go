@@ -2,7 +2,7 @@ package discovery // import "github.com/docker/docker/pkg/discovery"
 import (
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func (s *DiscoverySuite) TestGeneratorNotGenerate(c *testing.T) {

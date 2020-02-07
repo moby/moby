@@ -12,7 +12,7 @@ import (
 
 	eventstestutils "github.com/docker/docker/daemon/events/testutils"
 	"github.com/sirupsen/logrus"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // eventMatcher is a function that tries to match an event input.

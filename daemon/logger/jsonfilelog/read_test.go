@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
-	"gotest.tools/assert"
-	"gotest.tools/fs"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/fs"
 )
 
 func BenchmarkJSONFileLoggerReadLogs(b *testing.B) {

@@ -7,9 +7,9 @@ import (
 	"github.com/docker/docker/api/types"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration/internal/swarm"
-	"gotest.tools/assert"
-	"gotest.tools/poll"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
 )
 
 // The file jobs_test.go contains tests that verify that services which are in
@@ -104,7 +104,7 @@ func TestUpdateReplicatedJob(t *testing.T) {
 	id := swarm.CreateService(t, d,
 		swarm.ServiceWithMode(swarmtypes.ServiceMode{
 			ReplicatedJob: &swarmtypes.ReplicatedJob{
-				// use the default, empty values.
+			// use the default, empty values.
 			},
 		}),
 		// run "true" so the task exits with 0

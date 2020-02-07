@@ -3,7 +3,7 @@ package daemon
 import (
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestMaskURLCredentials(t *testing.T) {

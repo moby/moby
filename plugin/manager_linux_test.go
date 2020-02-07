@@ -15,7 +15,7 @@ import (
 	v2 "github.com/docker/docker/plugin/v2"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"gotest.tools/skip"
+	"gotest.tools/v3/skip"
 )
 
 func TestManagerWithPluginMounts(t *testing.T) {

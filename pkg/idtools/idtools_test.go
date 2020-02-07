@@ -3,7 +3,7 @@ package idtools // import "github.com/docker/docker/pkg/idtools"
 import (
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestCreateIDMapOrder(t *testing.T) {

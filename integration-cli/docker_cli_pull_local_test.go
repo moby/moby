@@ -16,8 +16,8 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/integration-cli/cli/build"
 	digest "github.com/opencontainers/go-digest"
-	"gotest.tools/assert"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
 )
 
 // testPullImageWithAliases pulls a specific image tag and verifies that any aliases (i.e., other

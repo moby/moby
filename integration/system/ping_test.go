@@ -7,8 +7,8 @@ import (
 
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/testutil/request"
-	"gotest.tools/assert"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 )
 
 func TestPingCacheHeaders(t *testing.T) {

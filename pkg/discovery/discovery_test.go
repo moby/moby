@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/internal/test/suite"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // Hook up gocheck into the "go test" runner.

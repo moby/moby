@@ -12,8 +12,8 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/mount"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 const mountsFixture = `142 78 0:38 / / rw,relatime - aufs none rw,si=573b861da0b3a05b,dio

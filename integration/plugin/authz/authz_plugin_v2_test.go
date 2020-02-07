@@ -16,8 +16,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/requirement"
-	"gotest.tools/assert"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 )
 
 var (

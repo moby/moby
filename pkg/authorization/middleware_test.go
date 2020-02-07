@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/plugingetter"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestMiddleware(t *testing.T) {
