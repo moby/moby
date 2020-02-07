@@ -1,6 +1,6 @@
 #!/bin/sh
 
-: "${VNDR_COMMIT:=d385c05e4c23b602dd16b3d2a1a6c710919bf02f}" # v0.1.0
+: "${VNDR_COMMIT:=85886e1ac99b8d96590e6e0d9f075dc7a711d132}" # v0.1.1
 
 install_vndr() {
 	echo "Install vndr version $VNDR_COMMIT"
