@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 )
 
@@ -28,6 +29,10 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
+	}
+
+	if config.Stream && config.OneShot {
+		return errdefs.InvalidParameter(errors.New("cannot have stream=true and one-shot=true"))
 	}
 
 	// If the container is either not running or restarting and requires no stream, return an empty stats.
@@ -63,7 +68,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	updates := daemon.subscribeToContainerStats(container)
 	defer daemon.unsubscribeToContainerStats(container, updates)
 
-	noStreamFirstFrame := true
+	noStreamFirstFrame := !config.OneShot
 	for {
 		select {
 		case v, ok := <-updates:

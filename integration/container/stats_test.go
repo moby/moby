@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"reflect"
 	"testing"
 	"time"
 
@@ -33,10 +34,23 @@ func TestStats(t *testing.T) {
 	assert.NilError(t, err)
 	defer resp.Body.Close()
 
-	var v *types.Stats
+	var v types.Stats
 	err = json.NewDecoder(resp.Body).Decode(&v)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(int64(v.MemoryStats.Limit), info.MemTotal))
+	assert.Check(t, !reflect.DeepEqual(v.PreCPUStats, types.CPUStats{}))
+	err = json.NewDecoder(resp.Body).Decode(&v)
+	assert.Assert(t, is.ErrorContains(err, ""), io.EOF)
+
+	resp, err = client.ContainerStatsOneShot(ctx, cID)
+	assert.NilError(t, err)
+	defer resp.Body.Close()
+
+	v = types.Stats{}
+	err = json.NewDecoder(resp.Body).Decode(&v)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(int64(v.MemoryStats.Limit), info.MemTotal))
+	assert.Check(t, is.DeepEqual(v.PreCPUStats, types.CPUStats{}))
 	err = json.NewDecoder(resp.Body).Decode(&v)
 	assert.Assert(t, is.ErrorContains(err, ""), io.EOF)
 }

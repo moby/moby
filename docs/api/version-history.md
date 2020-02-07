@@ -57,6 +57,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   service.
 * `GET /tasks/{id}` now includes `JobIteration` on the task if spawned from a
   job-mode service.
+* `GET /containers/{id}/stats` now accepts a query param (`one-shot`) which, when used with `stream=false` fetches a
+  single set of stats instead of waiting for two collection cycles to have 2 CPU stats over a 1 second period.
 
 ## v1.40 API changes
 

@@ -5685,6 +5685,11 @@ paths:
           description: "Stream the output. If false, the stats will be output once and then it will disconnect."
           type: "boolean"
           default: true
+        - name: "one-shot"
+          in: "query"
+          description: "Only get a single stat instead of waiting for 2 cycles. Must be used with stream=false"
+          type: "boolean"
+          default: false
       tags: ["Container"]
   /containers/{id}/resize:
     post:
