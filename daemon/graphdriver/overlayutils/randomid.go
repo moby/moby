@@ -1,6 +1,6 @@
 // +build linux
 
-package overlay2 // import "github.com/docker/docker/daemon/graphdriver/overlay2"
+package overlayutils // import "github.com/docker/docker/daemon/graphdriver/overlayutils"
 
 import (
 	"crypto/rand"
@@ -11,11 +11,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
-// generateID creates a new random string identifier with the given length
-func generateID(l int) string {
+// GenerateID creates a new random string identifier with the given length
+func GenerateID(l int, logger *logrus.Entry) string {
 	const (
 		// ensures we backoff for less than 450ms total. Use the following to
 		// select new value, in units of 10ms:

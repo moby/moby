@@ -1,36 +1,33 @@
 // +build linux
 
-package overlay2 // import "github.com/docker/docker/daemon/graphdriver/overlay2"
+package fuseoverlayfs // import "github.com/docker/docker/daemon/graphdriver/fuse-overlayfs"
 
 import (
+	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
-	"github.com/docker/docker/daemon/graphdriver/quota"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/directory"
-	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/system"
-	units "github.com/docker/go-units"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -40,35 +37,9 @@ var (
 	untar = chrootarchive.UntarUncompressed
 )
 
-// This backend uses the overlay union filesystem for containers
-// with diff directories for each layer.
-
-// This version of the overlay driver requires at least kernel
-// 4.0.0 in order to support mounting multiple diff directories.
-
-// Each container/image has at least a "diff" directory and "link" file.
-// If there is also a "lower" file when there are diff layers
-// below as well as "merged" and "work" directories. The "diff" directory
-// has the upper layer of the overlay and is used to capture any
-// changes to the layer. The "lower" file contains all the lower layer
-// mounts separated by ":" and ordered from uppermost to lowermost
-// layers. The overlay itself is mounted in the "merged" directory,
-// and the "work" dir is needed for overlay to work.
-
-// The "link" file for each layer contains a unique string for the layer.
-// Under the "l" directory at the root there will be a symbolic link
-// with that unique string pointing the "diff" directory for the layer.
-// The symbolic links are used to reference lower layers in the "lower"
-// file and on mount. The links are used to shorten the total length
-// of a layer reference without requiring changes to the layer identifier
-// or root directory. Mounts are always done relative to root and
-// referencing the symbolic links in order to ensure the number of
-// lower directories can fit in a single page for making the mount
-// syscall. A hard upper limit of 128 lower layers is enforced to ensure
-// that mounts do not fail due to length.
-
 const (
-	driverName    = "overlay2"
+	driverName    = "fuse-overlayfs"
+	binary        = "fuse-overlayfs"
 	linkDir       = "l"
 	diffDirName   = "diff"
 	workDirName   = "work"
@@ -86,34 +57,19 @@ const (
 	idLength = 26
 )
 
-type overlayOptions struct {
-	overrideKernelCheck bool
-	quota               quota.Quota
-}
-
 // Driver contains information about the home directory and the list of active
 // mounts that are created using this driver.
 type Driver struct {
-	home          string
-	uidMaps       []idtools.IDMap
-	gidMaps       []idtools.IDMap
-	ctr           *graphdriver.RefCounter
-	quotaCtl      *quota.Control
-	options       overlayOptions
-	naiveDiff     graphdriver.DiffDriver
-	supportsDType bool
-	locker        *locker.Locker
+	home      string
+	uidMaps   []idtools.IDMap
+	gidMaps   []idtools.IDMap
+	ctr       *graphdriver.RefCounter
+	naiveDiff graphdriver.DiffDriver
+	locker    *locker.Locker
 }
 
 var (
-	logger                = logrus.WithField("storage-driver", "overlay2")
-	backingFs             = "<unknown>"
-	projectQuotaSupported = false
-
-	useNaiveDiffLock sync.Once
-	useNaiveDiffOnly bool
-
-	indexOff string
+	logger = logrus.WithField("storage-driver", driverName)
 )
 
 func init() {
@@ -126,35 +82,12 @@ func init() {
 // If an overlay filesystem is not supported over an existing filesystem then
 // the error graphdriver.ErrIncompatibleFS is returned.
 func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
-	opts, err := parseOptions(options)
-	if err != nil {
-		return nil, err
-	}
-
-	// Perform feature detection on /var/lib/docker/overlay2 if it's an existing directory.
-	// This covers situations where /var/lib/docker/overlay2 is a mount, and on a different
-	// filesystem than /var/lib/docker.
-	// If the path does not exist, fall back to using /var/lib/docker for feature detection.
-	testdir := home
-	if _, err := os.Stat(testdir); os.IsNotExist(err) {
-		testdir = filepath.Dir(testdir)
-	}
-
-	if err := overlayutils.SupportsOverlay(testdir, true); err != nil {
+	if _, err := exec.LookPath(binary); err != nil {
 		logger.Error(err)
 		return nil, graphdriver.ErrNotSupported
 	}
-
-	supportsDType, err := fsutils.SupportsDType(testdir)
-	if err != nil {
-		return nil, err
-	}
-	if !supportsDType {
-		if !graphdriver.IsInitialized(home) {
-			return nil, overlayutils.ErrDTypeNotSupported("overlay2", backingFs)
-		}
-		// allow running without d_type only for existing setups (#27443)
-		logger.Warn(overlayutils.ErrDTypeNotSupported("overlay2", backingFs))
+	if !kernel.CheckKernelVersion(4, 18, 0) {
+		return nil, graphdriver.ErrNotSupported
 	}
 
 	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
@@ -167,80 +100,16 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	}
 
 	d := &Driver{
-		home:          home,
-		uidMaps:       uidMaps,
-		gidMaps:       gidMaps,
-		ctr:           graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicOverlay)),
-		supportsDType: supportsDType,
-		locker:        locker.New(),
-		options:       *opts,
+		home:    home,
+		uidMaps: uidMaps,
+		gidMaps: gidMaps,
+		ctr:     graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicFUSE)),
+		locker:  locker.New(),
 	}
 
 	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps)
 
-	if backingFs == "xfs" {
-		// Try to enable project quota support over xfs.
-		if d.quotaCtl, err = quota.NewControl(home); err == nil {
-			projectQuotaSupported = true
-		} else if opts.quota.Size > 0 {
-			return nil, fmt.Errorf("Storage option overlay2.size not supported. Filesystem does not support Project Quota: %v", err)
-		}
-	} else if opts.quota.Size > 0 {
-		// if xfs is not the backing fs then error out if the storage-opt overlay2.size is used.
-		return nil, fmt.Errorf("Storage Option overlay2.size only supported for backingFS XFS. Found %v", backingFs)
-	}
-
-	// figure out whether "index=off" option is recognized by the kernel
-	_, err = os.Stat("/sys/module/overlay/parameters/index")
-	switch {
-	case err == nil:
-		indexOff = "index=off,"
-	case os.IsNotExist(err):
-		// old kernel, no index -- do nothing
-	default:
-		logger.Warnf("Unable to detect whether overlay kernel module supports index parameter: %s", err)
-	}
-
-	logger.Debugf("backingFs=%s, projectQuotaSupported=%v, indexOff=%q", backingFs, projectQuotaSupported, indexOff)
-
 	return d, nil
-}
-
-func parseOptions(options []string) (*overlayOptions, error) {
-	o := &overlayOptions{}
-	for _, option := range options {
-		key, val, err := parsers.ParseKeyValueOpt(option)
-		if err != nil {
-			return nil, err
-		}
-		key = strings.ToLower(key)
-		switch key {
-		case "overlay2.override_kernel_check":
-			o.overrideKernelCheck, err = strconv.ParseBool(val)
-			if err != nil {
-				return nil, err
-			}
-		case "overlay2.size":
-			size, err := units.RAMInBytes(val)
-			if err != nil {
-				return nil, err
-			}
-			o.quota.Size = uint64(size)
-		default:
-			return nil, fmt.Errorf("overlay2: unknown option %s", key)
-		}
-	}
-	return o, nil
-}
-
-func useNaiveDiff(home string) bool {
-	useNaiveDiffLock.Do(func() {
-		if err := doesSupportNativeDiff(home); err != nil {
-			logger.Warnf("Not using native diff for overlay2, this may cause degraded performance for building images: %v", err)
-			useNaiveDiffOnly = true
-		}
-	})
-	return useNaiveDiffOnly
 }
 
 func (d *Driver) String() string {
@@ -250,11 +119,7 @@ func (d *Driver) String() string {
 // Status returns current driver information in a two dimensional string array.
 // Output contains "Backing Filesystem" used in this implementation.
 func (d *Driver) Status() [][2]string {
-	return [][2]string{
-		{"Backing Filesystem", backingFs},
-		{"Supports d_type", strconv.FormatBool(d.supportsDType)},
-		{"Native Overlay Diff", strconv.FormatBool(!useNaiveDiff(d.home))},
-	}
+	return [][2]string{}
 }
 
 // GetMetadata returns metadata about the overlay driver such as the LowerDir,
@@ -292,23 +157,9 @@ func (d *Driver) Cleanup() error {
 // CreateReadWrite creates a layer that is writable for use as a container
 // file system.
 func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts) error {
-	if opts != nil && len(opts.StorageOpt) != 0 && !projectQuotaSupported {
-		return fmt.Errorf("--storage-opt is supported only for overlay over xfs with 'pquota' mount option")
+	if opts != nil && len(opts.StorageOpt) != 0 {
+		return fmt.Errorf("--storage-opt is not supported")
 	}
-
-	if opts == nil {
-		opts = &graphdriver.CreateOpts{
-			StorageOpt: map[string]string{},
-		}
-	}
-
-	if _, ok := opts.StorageOpt["size"]; !ok {
-		if opts.StorageOpt == nil {
-			opts.StorageOpt = map[string]string{}
-		}
-		opts.StorageOpt["size"] = strconv.FormatUint(d.options.quota.Size, 10)
-	}
-
 	return d.create(id, parent, opts)
 }
 
@@ -316,9 +167,7 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 // The parent filesystem is used to configure these directories for the overlay.
 func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr error) {
 	if opts != nil && len(opts.StorageOpt) != 0 {
-		if _, ok := opts.StorageOpt["size"]; ok {
-			return fmt.Errorf("--storage-opt size is only supported for ReadWrite Layers")
-		}
+		return fmt.Errorf("--storage-opt is not supported")
 	}
 	return d.create(id, parent, opts)
 }
@@ -347,17 +196,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 	}()
 
 	if opts != nil && len(opts.StorageOpt) > 0 {
-		driver := &Driver{}
-		if err := d.parseStorageOpt(opts.StorageOpt, driver); err != nil {
-			return err
-		}
-
-		if driver.options.quota.Size > 0 {
-			// Set container disk quota limit
-			if err := d.quotaCtl.SetQuota(dir, driver.options.quota); err != nil {
-				return err
-			}
-		}
+		return fmt.Errorf("--storage-opt is not supported")
 	}
 
 	if err := idtools.MkdirAndChown(path.Join(dir, diffDirName), 0755, root); err != nil {
@@ -394,26 +233,6 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 	if lower != "" {
 		if err := ioutil.WriteFile(path.Join(dir, lowerFile), []byte(lower), 0666); err != nil {
 			return err
-		}
-	}
-
-	return nil
-}
-
-// Parse overlay storage options
-func (d *Driver) parseStorageOpt(storageOpt map[string]string, driver *Driver) error {
-	// Read size to set the disk project quota per container
-	for key, val := range storageOpt {
-		key := strings.ToLower(key)
-		switch key {
-		case "size":
-			size, err := units.RAMInBytes(val)
-			if err != nil {
-				return err
-			}
-			driver.options.quota.Size = uint64(size)
-		default:
-			return fmt.Errorf("Unknown option %s", key)
 		}
 	}
 
@@ -516,8 +335,10 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	defer func() {
 		if retErr != nil {
 			if c := d.ctr.Decrement(mergedDir); c <= 0 {
-				if mntErr := unix.Unmount(mergedDir, 0); mntErr != nil {
-					logger.Errorf("error unmounting %v: %v", mergedDir, mntErr)
+				if unmounted := fusermountU(mergedDir); !unmounted {
+					if mntErr := unix.Unmount(mergedDir, 0); mntErr != nil {
+						logger.Errorf("error unmounting %v: %v", mergedDir, mntErr)
+					}
 				}
 				// Cleanup the created merged directory; see the comment in Put's rmdir
 				if rmErr := unix.Rmdir(mergedDir); rmErr != nil && !os.IsNotExist(rmErr) {
@@ -542,13 +363,12 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 
 	var opts string
 	if readonly {
-		opts = indexOff + "lowerdir=" + diffDir + ":" + strings.Join(absLowers, ":")
+		opts = "lowerdir=" + diffDir + ":" + strings.Join(absLowers, ":")
 	} else {
-		opts = indexOff + "lowerdir=" + strings.Join(absLowers, ":") + ",upperdir=" + diffDir + ",workdir=" + workDir
+		opts = "lowerdir=" + strings.Join(absLowers, ":") + ",upperdir=" + diffDir + ",workdir=" + workDir
 	}
 
 	mountData := label.FormatMountLabel(opts, mountLabel)
-	mount := unix.Mount
 	mountTarget := mergedDir
 
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
@@ -559,39 +379,16 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 		return nil, err
 	}
 
-	pageSize := unix.Getpagesize()
-
-	// Use relative paths and mountFrom when the mount data has exceeded
-	// the page size. The mount syscall fails if the mount data cannot
-	// fit within a page and relative links make the mount data much
-	// smaller at the expense of requiring a fork exec to chroot.
-	if len(mountData) > pageSize {
-		if readonly {
-			opts = indexOff + "lowerdir=" + path.Join(id, diffDirName) + ":" + string(lowers)
-		} else {
-			opts = indexOff + "lowerdir=" + string(lowers) + ",upperdir=" + path.Join(id, diffDirName) + ",workdir=" + path.Join(id, workDirName)
+	mountProgram := exec.Command(binary, "-o", mountData, mountTarget)
+	mountProgram.Dir = d.home
+	var b bytes.Buffer
+	mountProgram.Stderr = &b
+	if err = mountProgram.Run(); err != nil {
+		output := b.String()
+		if output == "" {
+			output = "<stderr empty>"
 		}
-		mountData = label.FormatMountLabel(opts, mountLabel)
-		if len(mountData) > pageSize {
-			return nil, fmt.Errorf("cannot mount layer, mount label too large %d", len(mountData))
-		}
-
-		mount = func(source string, target string, mType string, flags uintptr, label string) error {
-			return mountFrom(d.home, source, target, mType, flags, label)
-		}
-		mountTarget = path.Join(id, mergedDirName)
-	}
-
-	if err := mount("overlay", mountTarget, "overlay", 0, mountData); err != nil {
-		return nil, fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
-	}
-
-	if !readonly {
-		// chown "workdir/work" to the remapped root UID/GID. Overlay fs inside a
-		// user namespace requires this to move a directory from lower to upper.
-		if err := os.Chown(path.Join(workDir, workDirName), rootUID, rootGID); err != nil {
-			return nil, err
-		}
+		return nil, errors.Wrapf(err, "using mount program %s: %s", binary, output)
 	}
 
 	return containerfs.NewLocalContainerFS(mergedDir), nil
@@ -617,8 +414,10 @@ func (d *Driver) Put(id string) error {
 	if count := d.ctr.Decrement(mountpoint); count > 0 {
 		return nil
 	}
-	if err := unix.Unmount(mountpoint, unix.MNT_DETACH); err != nil {
-		logger.Debugf("Failed to unmount %s overlay: %s - %v", id, mountpoint, err)
+	if unmounted := fusermountU(mountpoint); !unmounted {
+		if err := unix.Unmount(mountpoint, unix.MNT_DETACH); err != nil {
+			logger.Debugf("Failed to unmount %s overlay: %s - %v", id, mountpoint, err)
+		}
 	}
 	// Remove the mountpoint here. Removing the mountpoint (in newer kernels)
 	// will cause all other instances of this mount in other mount namespaces
@@ -672,9 +471,10 @@ func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64
 	logger.Debugf("Applying tar in %s", applyDir)
 	// Overlay doesn't need the parent id to apply the diff
 	if err := untar(diff, applyDir, &archive.TarOptions{
-		UIDMaps:        d.uidMaps,
-		GIDMaps:        d.gidMaps,
-		WhiteoutFormat: archive.OverlayWhiteoutFormat,
+		UIDMaps: d.uidMaps,
+		GIDMaps: d.gidMaps,
+		// Use AUFS whiteout format: https://github.com/containers/storage/blob/39a8d5ed9843844eafb5d2ba6e6a7510e0126f40/drivers/overlay/overlay.go#L1084-L1089
+		WhiteoutFormat: archive.AUFSWhiteoutFormat,
 		InUserNS:       rsystem.RunningInUserNS(),
 	}); err != nil {
 		return 0, err
@@ -693,31 +493,45 @@ func (d *Driver) getDiffPath(id string) string {
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
 func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
-	if useNaiveDiff(d.home) || !d.isParent(id, parent) {
-		return d.naiveDiff.DiffSize(id, parent)
-	}
-	return directory.Size(context.TODO(), d.getDiffPath(id))
+	return d.naiveDiff.DiffSize(id, parent)
 }
 
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
 func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
-	if useNaiveDiff(d.home) || !d.isParent(id, parent) {
-		return d.naiveDiff.Diff(id, parent)
-	}
-
-	diffPath := d.getDiffPath(id)
-	logger.Debugf("Tar with options on %s", diffPath)
-	return archive.TarWithOptions(diffPath, &archive.TarOptions{
-		Compression:    archive.Uncompressed,
-		UIDMaps:        d.uidMaps,
-		GIDMaps:        d.gidMaps,
-		WhiteoutFormat: archive.OverlayWhiteoutFormat,
-	})
+	return d.naiveDiff.Diff(id, parent)
 }
 
 // Changes produces a list of changes between the specified layer and its
 // parent layer. If parent is "", then all changes will be ADD changes.
 func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 	return d.naiveDiff.Changes(id, parent)
+}
+
+// fusermountU is from https://github.com/containers/storage/blob/39a8d5ed9843844eafb5d2ba6e6a7510e0126f40/drivers/overlay/overlay.go#L1016-L1040
+func fusermountU(mountpoint string) (unmounted bool) {
+	// Attempt to unmount the FUSE mount using either fusermount or fusermount3.
+	// If they fail, fallback to unix.Unmount
+	for _, v := range []string{"fusermount3", "fusermount"} {
+		err := exec.Command(v, "-u", mountpoint).Run()
+		if err != nil && !os.IsNotExist(err) {
+			logrus.Debugf("Error unmounting %s with %s - %v", mountpoint, v, err)
+		}
+		if err == nil {
+			unmounted = true
+			break
+		}
+	}
+	// If fusermount|fusermount3 failed to unmount the FUSE file system, make sure all
+	// pending changes are propagated to the file system
+	if !unmounted {
+		fd, err := unix.Open(mountpoint, unix.O_DIRECTORY, 0)
+		if err == nil {
+			if err := unix.Syncfs(fd); err != nil {
+				logrus.Debugf("Error Syncfs(%s) - %v", mountpoint, err)
+			}
+			unix.Close(fd)
+		}
+	}
+	return
 }
