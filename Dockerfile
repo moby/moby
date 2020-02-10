@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.1.3-experimental
 
 ARG CROSS="false"
+ARG SYSTEMD="false"
 ARG GO_VERSION=1.13.8
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_DIGEST=e508a17cfacc8fd39261d5b4e397df2b953690da577e2c987a47630cd0c42f8e
@@ -248,7 +249,7 @@ COPY ./contrib/dockerd-rootless.sh /build
 FROM djs55/vpnkit@sha256:${VPNKIT_DIGEST} AS vpnkit
 
 # TODO: Some of this is only really needed for testing, it would be nice to split this up
-FROM runtime-dev AS dev
+FROM runtime-dev AS dev-systemd-false
 ARG DEBIAN_FRONTEND
 RUN groupadd -r docker
 RUN useradd --create-home --gid docker unprivilegeduser
@@ -317,6 +318,19 @@ VOLUME /var/lib/docker
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
 
+FROM dev-systemd-false AS dev-systemd-true
+RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-dev-aptcache,target=/var/cache/apt \
+        apt-get update && apt-get install -y --no-install-recommends \
+            dbus \
+            dbus-user-session \
+            systemd \
+            systemd-sysv
+RUN mkdir -p hack \
+  && curl -o hack/dind-systemd https://raw.githubusercontent.com/AkihiroSuda/containerized-systemd/b70bac0daeea120456764248164c21684ade7d0d/docker-entrypoint.sh \
+  && chmod +x hack/dind-systemd
+ENTRYPOINT ["hack/dind-systemd"]
+
 FROM runtime-dev AS binary-base
 ARG DOCKER_GITCOMMIT=HEAD
 ENV DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT}
@@ -368,5 +382,5 @@ COPY --from=build-dynbinary /build/bundles/ /
 FROM scratch AS cross
 COPY --from=build-cross /build/bundles/ /
 
-FROM dev AS final
+FROM dev-systemd-${SYSTEMD} AS final
 COPY . /go/src/github.com/docker/docker
