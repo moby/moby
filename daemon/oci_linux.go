@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -84,8 +85,26 @@ func WithLibnetwork(daemon *Daemon, c *container.Container) coci.SpecOpts {
 }
 
 // WithRootless sets the spec to the rootless configuration
-func WithRootless(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
-	return specconv.ToRootless(s)
+func WithRootless(daemon *Daemon) coci.SpecOpts {
+	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		var v2Controllers []string
+		if daemon.getCgroupDriver() == cgroupSystemdDriver {
+			if !cgroups.IsCgroup2UnifiedMode() {
+				return errors.New("rootless systemd driver doesn't support cgroup v1")
+			}
+			rootlesskitParentEUID := os.Getenv("ROOTLESSKIT_PARENT_EUID")
+			if rootlesskitParentEUID == "" {
+				return errors.New("$ROOTLESSKIT_PARENT_EUID is not set (requires RootlessKit v0.8.0)")
+			}
+			controllersPath := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%s.slice/cgroup.controllers", rootlesskitParentEUID)
+			controllersFile, err := ioutil.ReadFile(controllersPath)
+			if err != nil {
+				return err
+			}
+			v2Controllers = strings.Fields(string(controllersFile))
+		}
+		return specconv.ToRootless(s, v2Controllers)
+	}
 }
 
 // WithOOMScore sets the oom score
@@ -760,6 +779,9 @@ func WithCgroups(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		useSystemd := UsingSystemd(daemon.configStore)
 		if useSystemd {
 			parent = "system.slice"
+			if daemon.configStore.Rootless {
+				parent = "user.slice"
+			}
 		}
 
 		if c.HostConfig.CgroupParent != "" {
@@ -985,7 +1007,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 		opts = append(opts, coci.WithReadonlyPaths(c.HostConfig.ReadonlyPaths))
 	}
 	if daemon.configStore.Rootless {
-		opts = append(opts, WithRootless)
+		opts = append(opts, WithRootless(daemon))
 	}
 	return &s, coci.ApplyOpts(context.Background(), nil, &containers.Container{
 		ID: c.ID,

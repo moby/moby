@@ -599,15 +599,13 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 }
 
 func (daemon *Daemon) getCgroupDriver() string {
+	if UsingSystemd(daemon.configStore) {
+		return cgroupSystemdDriver
+	}
 	if daemon.Rootless() {
 		return cgroupNoneDriver
 	}
-	cgroupDriver := cgroupFsDriver
-
-	if UsingSystemd(daemon.configStore) {
-		cgroupDriver = cgroupSystemdDriver
-	}
-	return cgroupDriver
+	return cgroupFsDriver
 }
 
 // getCD gets the raw value of the native.cgroupdriver option, if set.
