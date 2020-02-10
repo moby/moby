@@ -43,7 +43,7 @@ func TestReadAll(t *testing.T) {
 	}
 
 	if len(di) != 7 {
-		t.Fatalf("Expected 5 entries, got %v", len(di))
+		t.Fatalf("Expected 7 entries, got %v", len(di))
 	}
 	if di[0] != "test1" {
 		t.Fatal("First element is not test1")
@@ -64,6 +64,6 @@ func TestReadAll(t *testing.T) {
 		t.Fatalf("Sixth element is not !, but %s", di[5])
 	}
 	if di[6] != "!" {
-		t.Fatalf("Sixth element is not !, but %s", di[6])
+		t.Fatalf("Seventh element is not !, but %s", di[6])
 	}
 }
