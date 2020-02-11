@@ -231,10 +231,12 @@ func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
-	filterParam := r.Form.Get("filter")
-	// FIXME(vdemeester) This has been deprecated in 1.13, and is target for removal for v17.12
-	if filterParam != "" {
-		imageFilters.Add("reference", filterParam)
+	version := httputils.VersionFromContext(ctx)
+	if versions.LessThan(version, "1.41") {
+		filterParam := r.Form.Get("filter")
+		if filterParam != "" {
+			imageFilters.Add("reference", filterParam)
+		}
 	}
 
 	images, err := s.backend.Images(imageFilters, httputils.BoolValue(r, "all"), false)
