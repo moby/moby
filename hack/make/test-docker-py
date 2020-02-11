@@ -9,6 +9,10 @@ source hack/make/.integration-test-helpers
 #: exit status 128
 : "${DOCKER_PY_COMMIT:=4.2.0}"
 
+# Override the API version used to make sure all tests are run
+# TODO remove this or unset this after https://github.com/docker/docker-py/pull/2512 is merged
+: "${DOCKER_PY_TEST_API_VERSION:=1.39}"
+
 # custom options to pass py.test
 #
 # This option can be used to temporarily skip flaky tests (using the `--deselect`
@@ -54,7 +58,7 @@ source hack/make/.integration-test-helpers
 	(
 		[ -n "${TESTDEBUG}" ] && set -x
 		# shellcheck disable=SC2086,SC2140
-		exec docker run --rm ${run_opts} --mount type=bind,"src=${ABS_DEST}","dst=/src/${DEST}" "${docker_py_image}" pytest ${PY_TEST_OPTIONS} tests/integration
+		exec docker run --rm ${run_opts} -e DOCKER_TEST_API_VERSION="${DOCKER_PY_TEST_API_VERSION}" --mount type=bind,"src=${ABS_DEST}","dst=/src/${DEST}" "${docker_py_image}" pytest ${PY_TEST_OPTIONS} tests/integration
 	)
 	bundle .integration-daemon-stop
 ) 2>&1 | tee -a "$DEST/test.log"
