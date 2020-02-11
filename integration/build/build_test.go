@@ -38,8 +38,8 @@ func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 			RUN exit 0
 			RUN exit 0`,
 			numberOfIntermediateContainers: 2,
-			rm:      false,
-			forceRm: false,
+			rm:                             false,
+			forceRm:                        false,
 		},
 		{
 			name: "successful build with remove",
@@ -47,8 +47,8 @@ func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 			RUN exit 0
 			RUN exit 0`,
 			numberOfIntermediateContainers: 0,
-			rm:      true,
-			forceRm: false,
+			rm:                             true,
+			forceRm:                        false,
 		},
 		{
 			name: "successful build with remove and force remove",
@@ -56,8 +56,8 @@ func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 			RUN exit 0
 			RUN exit 0`,
 			numberOfIntermediateContainers: 0,
-			rm:      true,
-			forceRm: true,
+			rm:                             true,
+			forceRm:                        true,
 		},
 		{
 			name: "failed build with no removal",
@@ -65,8 +65,8 @@ func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 			RUN exit 0
 			RUN exit 1`,
 			numberOfIntermediateContainers: 2,
-			rm:      false,
-			forceRm: false,
+			rm:                             false,
+			forceRm:                        false,
 		},
 		{
 			name: "failed build with remove",
@@ -74,8 +74,8 @@ func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 			RUN exit 0
 			RUN exit 1`,
 			numberOfIntermediateContainers: 1,
-			rm:      true,
-			forceRm: false,
+			rm:                             true,
+			forceRm:                        false,
 		},
 		{
 			name: "failed build with remove and force remove",
@@ -83,8 +83,8 @@ func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 			RUN exit 0
 			RUN exit 1`,
 			numberOfIntermediateContainers: 0,
-			rm:      true,
-			forceRm: true,
+			rm:                             true,
+			forceRm:                        true,
 		},
 	}
 

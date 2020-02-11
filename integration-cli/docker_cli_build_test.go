@@ -657,7 +657,7 @@ func (s *DockerSuite) TestBuildCopyWildcard(c *testing.T) {
 			"file2.txt":                     "test2",
 			"dir/nested_file":               "nested file",
 			"dir/nested_dir/nest_nest_file": "2 times nested",
-			"dirt": "dirty",
+			"dirt":                          "dirty",
 		}))
 	defer ctx.Close()
 

@@ -46,7 +46,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 
 	layerStores := make(map[string]layer.Store)
 	layerStores[runtime.GOOS], _ = layer.NewStoreFromOptions(layer.StoreOptions{
-		Root: d.Root,
+		Root:                      d.Root,
 		MetadataStorePathTemplate: filepath.Join(d.RootDir(), "image", "%s", "layerdb"),
 		GraphDriver:               d.StorageDriver(),
 		GraphDriverOptions:        nil,
