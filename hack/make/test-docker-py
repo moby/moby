@@ -14,7 +14,8 @@ source hack/make/.integration-test-helpers
 # This option can be used to temporarily skip flaky tests (using the `--deselect`
 # flag) until they are fixed upstream. For example:
 # --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream
-: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml}"
+# TODO re-enable test after https://github.com/docker/docker-py/issues/2513 has been resolved
+: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream}"
 (
 	bundle .integration-daemon-start
 
