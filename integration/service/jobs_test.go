@@ -104,7 +104,7 @@ func TestUpdateReplicatedJob(t *testing.T) {
 	id := swarm.CreateService(t, d,
 		swarm.ServiceWithMode(swarmtypes.ServiceMode{
 			ReplicatedJob: &swarmtypes.ReplicatedJob{
-			// use the default, empty values.
+				// use the default, empty values.
 			},
 		}),
 		// run "true" so the task exits with 0
