@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"golang.org/x/sys/unix"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func cleanupNetworkNamespace(t testing.TB, d *Daemon) {

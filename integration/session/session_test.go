@@ -6,9 +6,9 @@ import (
 
 	"github.com/docker/docker/api/types/versions"
 	req "github.com/docker/docker/testutil/request"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 func TestSessionCreate(t *testing.T) {

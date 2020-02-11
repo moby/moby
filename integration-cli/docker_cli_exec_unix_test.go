@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // regression test for #12546

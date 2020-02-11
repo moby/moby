@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/nat"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 var testEnv *environment.Execution

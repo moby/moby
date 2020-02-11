@@ -9,10 +9,10 @@ import (
 	"github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/opts"
 	"github.com/spf13/pflag"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/fs"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/fs"
+	"gotest.tools/v3/skip"
 )
 
 func TestDaemonConfigurationNotFound(t *testing.T) {

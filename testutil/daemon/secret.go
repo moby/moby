@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // SecretConstructor defines a swarm secret constructor

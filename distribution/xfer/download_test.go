@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
 	digest "github.com/opencontainers/go-digest"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 const maxDownloadConcurrency = 3

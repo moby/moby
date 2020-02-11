@@ -18,9 +18,9 @@ import (
 	"github.com/docker/docker/integration-cli/daemon"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	"golang.org/x/sys/unix"
-	"gotest.tools/assert"
-	"gotest.tools/icmd"
-	"gotest.tools/poll"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
 )
 
 func setPortConfig(portConfig []swarm.PortConfig) testdaemon.ServiceConstructor {

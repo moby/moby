@@ -28,8 +28,8 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
-	"gotest.tools/assert"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
 )
 
 const dummyNetworkDriver = "dummy-network-driver"

@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert/cmp"
 )
 
 // IsNetworkAvailable provides a comparison to check if a docker network is available

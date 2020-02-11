@@ -25,7 +25,7 @@ import (
 	"github.com/docker/docker/testutil/fakestorage"
 	"github.com/docker/docker/testutil/fixtures/plugin"
 	"github.com/docker/docker/testutil/registry"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 const (

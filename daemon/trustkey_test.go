@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/fs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/fs"
 )
 
 // LoadOrCreateTrustKey

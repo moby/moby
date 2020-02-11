@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/volume"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 const volumePluginName = "test-external-volume-driver"

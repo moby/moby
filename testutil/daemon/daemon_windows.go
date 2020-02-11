@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"golang.org/x/sys/windows"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // SignalDaemonDump sends a signal to the daemon to write a dump file

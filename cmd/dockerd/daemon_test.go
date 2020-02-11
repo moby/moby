@@ -6,9 +6,9 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/fs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/fs"
 )
 
 func defaultOptions(t *testing.T, configFile string) *daemonOptions {

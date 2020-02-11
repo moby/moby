@@ -22,8 +22,8 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
-	"gotest.tools/assert"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 )
 
 // This is a regression test for #38488
@@ -46,7 +46,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 
 	layerStores := make(map[string]layer.Store)
 	layerStores[runtime.GOOS], _ = layer.NewStoreFromOptions(layer.StoreOptions{
-		Root:                      d.Root,
+		Root: d.Root,
 		MetadataStorePathTemplate: filepath.Join(d.RootDir(), "image", "%s", "layerdb"),
 		GraphDriver:               d.StorageDriver(),
 		GraphDriverOptions:        nil,

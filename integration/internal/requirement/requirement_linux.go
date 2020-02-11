@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/icmd"
 )
 
 // CgroupNamespacesEnabled checks if cgroup namespaces are enabled on this host

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // RequiresRoot skips tests that require root, unless the test.root flag has

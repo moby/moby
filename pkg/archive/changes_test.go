@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/system"
-	"gotest.tools/assert"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 )
 
 func max(x, y int) int {
