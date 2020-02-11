@@ -25,6 +25,7 @@ type Plugin struct {
 
 	Config   digest.Digest
 	Blobsums []digest.Digest
+	Manifest digest.Digest
 
 	modifyRuntimeSpec func(*specs.Spec)
 
