@@ -1212,6 +1212,7 @@ pipeline {
                     }
                     post {
                         always {
+                            junit testResults: 'bundles/junit-report-*.xml', allowEmptyResults: true
                             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.zip') {
                                 powershell '''
                                 cd $env:WORKSPACE
@@ -1219,7 +1220,7 @@ pipeline {
                                 Write-Host -ForegroundColor Green "Creating ${bundleName}-bundles.zip"
 
                                 # archiveArtifacts does not support env-vars to , so save the artifacts in a fixed location
-                                Compress-Archive -Path "bundles/CIDUT.out", "bundles/CIDUT.err", -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
+                                Compress-Archive -Path "bundles/CIDUT.out", "bundles/CIDUT.err", "bundles/junit-report-*.xml" -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.zip', allowEmptyArchive: true
