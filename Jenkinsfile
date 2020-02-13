@@ -970,7 +970,7 @@ pipeline {
                         TESTRUN_DRIVE          = 'd'
                         TESTRUN_SUBDIR         = "CI"
                         WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
-                        WINDOWS_BASE_IMAGE_TAG = '10.0.17763.973' // TODO switch back to using ltsc2019 once the image is fixed
+                        WINDOWS_BASE_IMAGE_TAG = 'ltsc2019'
                     }
                     agent {
                         node {
