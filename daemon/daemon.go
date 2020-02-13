@@ -16,7 +16,6 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -1038,12 +1037,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	// Discovery is only enabled when the daemon is launched with an address to advertise.  When
-	// initialized, the daemon is registered and we can store the discovery backend as it's read-only
-	if err := d.initDiscovery(config); err != nil {
-		return nil, err
-	}
-
 	sysInfo := sysinfo.New(false)
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
 	// on Linux.
@@ -1366,26 +1359,6 @@ func (daemon *Daemon) IsShuttingDown() bool {
 	return daemon.shutdown
 }
 
-// initDiscovery initializes the discovery watcher for this daemon.
-func (daemon *Daemon) initDiscovery(conf *config.Config) error {
-	advertise, err := config.ParseClusterAdvertiseSettings(conf.ClusterStore, conf.ClusterAdvertise)
-	if err != nil {
-		if err == discovery.ErrDiscoveryDisabled {
-			return nil
-		}
-		return err
-	}
-
-	conf.ClusterAdvertise = advertise
-	discoveryWatcher, err := discovery.Init(conf.ClusterStore, conf.ClusterAdvertise, conf.ClusterOpts)
-	if err != nil {
-		return fmt.Errorf("discovery initialization failed (%v)", err)
-	}
-
-	daemon.discoveryWatcher = discoveryWatcher
-	return nil
-}
-
 func isBridgeNetworkDisabled(conf *config.Config) bool {
 	return conf.BridgeConfig.Iface == config.DisableNetworkBridge
 }
@@ -1405,24 +1378,8 @@ func (daemon *Daemon) networkOptions(dconfig *config.Config, pg plugingetter.Plu
 	options = append(options, nwconfig.OptionDefaultDriver(string(dd)))
 	options = append(options, nwconfig.OptionDefaultNetwork(dn))
 
-	if strings.TrimSpace(dconfig.ClusterStore) != "" {
-		kv := strings.Split(dconfig.ClusterStore, "://")
-		if len(kv) != 2 {
-			return nil, errors.New("kv store daemon config must be of the form KV-PROVIDER://KV-URL")
-		}
-		options = append(options, nwconfig.OptionKVProvider(kv[0]))
-		options = append(options, nwconfig.OptionKVProviderURL(kv[1]))
-	}
-	if len(dconfig.ClusterOpts) > 0 {
-		options = append(options, nwconfig.OptionKVOpts(dconfig.ClusterOpts))
-	}
-
 	if daemon.discoveryWatcher != nil {
 		options = append(options, nwconfig.OptionDiscoveryWatcher(daemon.discoveryWatcher))
-	}
-
-	if dconfig.ClusterAdvertise != "" {
-		options = append(options, nwconfig.OptionDiscoveryAddress(dconfig.ClusterAdvertise))
 	}
 
 	options = append(options, nwconfig.OptionLabels(dconfig.Labels))

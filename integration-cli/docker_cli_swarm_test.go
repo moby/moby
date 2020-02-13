@@ -138,36 +138,6 @@ func (s *DockerSwarmSuite) TestSwarmInitIPv6(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "Swarm: active"))
 }
 
-func (s *DockerSwarmSuite) TestSwarmInitUnspecifiedAdvertiseAddr(c *testing.T) {
-	d := s.AddDaemon(c, false, false)
-	out, err := d.Cmd("swarm", "init", "--advertise-addr", "0.0.0.0")
-	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "advertise address must be a non-zero IP address"))
-}
-
-func (s *DockerSwarmSuite) TestSwarmIncompatibleDaemon(c *testing.T) {
-	// init swarm mode and stop a daemon
-	d := s.AddDaemon(c, true, true)
-	info := d.SwarmInfo(c)
-	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateActive)
-	d.Stop(c)
-
-	// start a daemon with --cluster-store and --cluster-advertise
-	err := d.StartWithError("--cluster-store=consul://consuladdr:consulport/some/path", "--cluster-advertise=1.1.1.1:2375")
-	assert.ErrorContains(c, err, "")
-	content, err := d.ReadLogFile()
-	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(string(content), "--cluster-store and --cluster-advertise daemon configurations are incompatible with swarm mode"))
-	// start a daemon with --live-restore
-	err = d.StartWithError("--live-restore")
-	assert.ErrorContains(c, err, "")
-	content, err = d.ReadLogFile()
-	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(string(content), "--live-restore daemon configuration is incompatible with swarm mode"))
-	// restart for teardown
-	d.StartNode(c)
-}
-
 func (s *DockerSwarmSuite) TestSwarmServiceTemplatingHostname(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 	hostname, err := d.Cmd("node", "inspect", "--format", "{{.Description.Hostname}}", "self")

@@ -8,14 +8,11 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"reflect"
 	"strings"
 	"sync"
 
-	daemondiscovery "github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/registry"
 	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
@@ -54,12 +51,11 @@ const (
 // Use this to differentiate these options
 // with others like the ones in CommonTLSOptions.
 var flatOptions = map[string]bool{
-	"cluster-store-opts": true,
-	"log-opts":           true,
-	"runtimes":           true,
-	"default-ulimits":    true,
-	"features":           true,
-	"builder":            true,
+	"log-opts":        true,
+	"runtimes":        true,
+	"default-ulimits": true,
+	"features":        true,
+	"builder":         true,
 }
 
 // skipValidateOptions contains configuration keys
@@ -156,23 +152,6 @@ type CommonConfig struct {
 	// alive upon daemon shutdown/start
 	LiveRestoreEnabled bool `json:"live-restore,omitempty"`
 
-	// ClusterStore is the storage backend used for the cluster information. It is used by both
-	// multihost networking (to store networks and endpoints information) and by the node discovery
-	// mechanism.
-	// Deprecated: host-discovery and overlay networks with external k/v stores are deprecated
-	ClusterStore string `json:"cluster-store,omitempty"`
-
-	// ClusterOpts is used to pass options to the discovery package for tuning libkv settings, such
-	// as TLS configuration settings.
-	// Deprecated: host-discovery and overlay networks with external k/v stores are deprecated
-	ClusterOpts map[string]string `json:"cluster-store-opts,omitempty"`
-
-	// ClusterAdvertise is the network endpoint that the Engine advertises for the purpose of node
-	// discovery. This should be a 'host:port' combination on which that daemon instance is
-	// reachable by other hosts.
-	// Deprecated: host-discovery and overlay networks with external k/v stores are deprecated
-	ClusterAdvertise string `json:"cluster-advertise,omitempty"`
-
 	// MaxConcurrentDownloads is the maximum number of downloads that
 	// may take place at a time for each pull.
 	MaxConcurrentDownloads *int `json:"max-concurrent-downloads,omitempty"`
@@ -267,24 +246,7 @@ func (conf *Config) IsValueSet(name string) bool {
 func New() *Config {
 	config := Config{}
 	config.LogConfig.Config = make(map[string]string)
-	config.ClusterOpts = make(map[string]string)
 	return &config
-}
-
-// ParseClusterAdvertiseSettings parses the specified advertise settings
-func ParseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (string, error) {
-	if clusterAdvertise == "" {
-		return "", daemondiscovery.ErrDiscoveryDisabled
-	}
-	if clusterStore == "" {
-		return "", errors.New("invalid cluster configuration. --cluster-advertise must be accompanied by --cluster-store configuration")
-	}
-
-	advertise, err := discovery.ParseAdvertise(clusterAdvertise)
-	if err != nil {
-		return "", errors.Wrap(err, "discovery advertise parsing failed")
-	}
-	return advertise, nil
 }
 
 // GetConflictFreeLabels validates Labels for conflict
@@ -588,19 +550,4 @@ func ValidateMaxDownloadAttempts(config *Config) error {
 		return fmt.Errorf("invalid max download attempts: %d", *config.MaxDownloadAttempts)
 	}
 	return nil
-}
-
-// ModifiedDiscoverySettings returns whether the discovery configuration has been modified or not.
-func ModifiedDiscoverySettings(config *Config, backendType, advertise string, clusterOpts map[string]string) bool {
-	if config.ClusterStore != backendType || config.ClusterAdvertise != advertise {
-		return true
-	}
-
-	if (config.ClusterOpts == nil && clusterOpts == nil) ||
-		(config.ClusterOpts == nil && len(clusterOpts) == 0) ||
-		(len(config.ClusterOpts) == 0 && clusterOpts == nil) {
-		return false
-	}
-
-	return !reflect.DeepEqual(config.ClusterOpts, clusterOpts)
 }
