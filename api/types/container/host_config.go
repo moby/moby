@@ -284,7 +284,7 @@ type DeviceMapping struct {
 	CgroupPermissions string
 }
 
-// HugepageLimit corresponds to the file`hugetlb.<hugepagesize>.limit_in_byte` in container level cgroup.
+// HugepageLimit corresponds to the file`hugetlb.<hugepagesize>.limit_in_bytes` in container level cgroup.
 // For example, `PageSize=1GB`, `Limit=1073741824` means setting `1073741824` bytes to hugetlb.1GB.limit_in_bytes.
 type HugepageLimit struct {
 	// The value of PageSize has the format <size><unit-prefix>B (2MB, 1GB),
