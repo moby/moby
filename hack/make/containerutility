@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-CONTAINER_UTILITY_COMMIT=e004a1415a433447369e315b9d7df357102be0d2 # v0.9.0
+: "${CONTAINER_UTILITY_COMMIT:=aa1ba87e99b68e0113bd27ec26c60b88f9d4ccd9}"
 
 (
 	git clone https://github.com/docker/windows-container-utility.git "$GOPATH/src/github.com/docker/windows-container-utility"
