@@ -8,13 +8,6 @@ set -e
 	cd "$GOPATH/src/github.com/docker/windows-container-utility"
 	git checkout -q "$CONTAINER_UTILITY_COMMIT"
 
-	# TODO remove this temporary fix once https://github.com/docker/windows-container-utility/pull/2 is merged
-	sed -i \
-		-e 's|-nostdinc ||g' \
-		-e 's|-I/usr/lib/gcc/x86_64-w64-mingw32/6.3-win32/include ||g' \
-		-e 's|-I/usr/x86_64-w64-mingw32/include ||g' \
-		"$GOPATH/src/github.com/docker/windows-container-utility/Makefile"
-
 	echo Building: ${DEST}/containerutility.exe
 
 	(
