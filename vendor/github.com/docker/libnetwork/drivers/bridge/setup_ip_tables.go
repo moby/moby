@@ -121,11 +121,11 @@ func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInt
 			return setupInternalNetworkRules(config.BridgeName, maskedAddrv4, config.EnableICC, false)
 		})
 	} else {
-		if err = setupIPTablesInternal(config.BridgeName, maskedAddrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
+		if err = setupIPTablesInternal(config.HostIP, config.BridgeName, maskedAddrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
 			return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
 		}
 		n.registerIptCleanFunc(func() error {
-			return setupIPTablesInternal(config.BridgeName, maskedAddrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, false)
+			return setupIPTablesInternal(config.HostIP, config.BridgeName, maskedAddrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, false)
 		})
 		natChain, filterChain, _, _, err := n.getDriverChains()
 		if err != nil {
@@ -166,15 +166,28 @@ type iptRule struct {
 	args    []string
 }
 
-func setupIPTablesInternal(bridgeIface string, addr net.Addr, icc, ipmasq, hairpin, enable bool) error {
+func setupIPTablesInternal(hostIP net.IP, bridgeIface string, addr net.Addr, icc, ipmasq, hairpin, enable bool) error {
 
 	var (
 		address   = addr.String()
-		natRule   = iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: []string{"-s", address, "!", "-o", bridgeIface, "-j", "MASQUERADE"}}
-		hpNatRule = iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", bridgeIface, "-j", "MASQUERADE"}}
 		skipDNAT  = iptRule{table: iptables.Nat, chain: DockerChain, preArgs: []string{"-t", "nat"}, args: []string{"-i", bridgeIface, "-j", "RETURN"}}
 		outRule   = iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}}
+		natArgs   []string
+		hpNatArgs []string
 	)
+	// if hostIP is set use this address as the src-ip during SNAT
+	if hostIP != nil {
+		hostAddr := hostIP.String()
+		natArgs = []string{"-s", address, "!", "-o", bridgeIface, "-j", "SNAT", "--to-source", hostAddr}
+		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", bridgeIface, "-j", "SNAT", "--to-source", hostAddr}
+		// Else use MASQUERADE which picks the src-ip based on NH from the route table
+	} else {
+		natArgs = []string{"-s", address, "!", "-o", bridgeIface, "-j", "MASQUERADE"}
+		hpNatArgs = []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", bridgeIface, "-j", "MASQUERADE"}
+	}
+
+	natRule := iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: natArgs}
+	hpNatRule := iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: hpNatArgs}
 
 	// Set NAT.
 	if ipmasq {
