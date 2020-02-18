@@ -540,8 +540,14 @@ func xfsSupported() error {
 		return err // error text is descriptive enough
 	}
 
-	// Check if kernel supports xfs filesystem or not.
-	exec.Command("modprobe", "xfs").Run()
+	mountTarget, err := ioutil.TempDir("", "supportsXFS")
+	if err != nil {
+		return errors.Wrapf(err, "error checking for xfs support")
+	}
+
+	/* The mounting will fail--after the module has been loaded.*/
+	defer os.RemoveAll(mountTarget)
+	unix.Mount("none", mountTarget, "xfs", 0, "")
 
 	f, err := os.Open("/proc/filesystems")
 	if err != nil {

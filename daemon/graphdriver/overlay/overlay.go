@@ -3,12 +3,10 @@
 package overlay // import "github.com/docker/docker/daemon/graphdriver/overlay"
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -124,10 +122,6 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 
-	if err := supportsOverlay(); err != nil {
-		return nil, graphdriver.ErrNotSupported
-	}
-
 	// Perform feature detection on /var/lib/docker/overlay if it's an existing directory.
 	// This covers situations where /var/lib/docker/overlay is a mount, and on a different
 	// filesystem than /var/lib/docker.
@@ -137,18 +131,9 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		testdir = filepath.Dir(testdir)
 	}
 
-	fsMagic, err := graphdriver.GetFSMagic(testdir)
-	if err != nil {
-		return nil, err
-	}
-	if fsName, ok := graphdriver.FsNames[fsMagic]; ok {
-		backingFs = fsName
-	}
-
-	switch fsMagic {
-	case graphdriver.FsMagicAufs, graphdriver.FsMagicBtrfs, graphdriver.FsMagicEcryptfs, graphdriver.FsMagicNfsFs, graphdriver.FsMagicOverlay, graphdriver.FsMagicZfs:
-		logrus.WithField("storage-driver", "overlay").Errorf("'overlay' is not supported over %s", backingFs)
-		return nil, graphdriver.ErrIncompatibleFS
+	if err := overlayutils.SupportsOverlay(testdir, false); err != nil {
+		logrus.WithField("storage-driver", "overlay").Error(err)
+		return nil, graphdriver.ErrNotSupported
 	}
 
 	supportsDType, err := fsutils.SupportsDType(testdir)
@@ -198,27 +183,6 @@ func parseOptions(options []string) (*overlayOptions, error) {
 		}
 	}
 	return o, nil
-}
-
-func supportsOverlay() error {
-	// We can try to modprobe overlay first before looking at
-	// proc/filesystems for when overlay is supported
-	exec.Command("modprobe", "overlay").Run()
-
-	f, err := os.Open("/proc/filesystems")
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	s := bufio.NewScanner(f)
-	for s.Scan() {
-		if s.Text() == "nodev\toverlay" {
-			return nil
-		}
-	}
-	logrus.WithField("storage-driver", "overlay").Error("'overlay' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlay support loaded.")
-	return graphdriver.ErrNotSupported
 }
 
 func (d *Driver) String() string {
