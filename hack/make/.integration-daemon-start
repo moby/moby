@@ -63,6 +63,26 @@ if [ "$DOCKER_EXPERIMENTAL" ]; then
 	extra_params="$extra_params --experimental"
 fi
 
+dockerd="dockerd"
+if [ -n "$DOCKER_ROOTLESS" ]; then
+	if [ -z "$DOCKER_EXPERIMENTAL" ]; then
+		echo >&2 '# DOCKER_ROOTLESS requires DOCKER_EXPERIMENTAL to be set'
+		exit 1
+	fi
+	if [ -z "$TEST_SKIP_INTEGRATION_CLI" ]; then
+		echo >&2 '# DOCKER_ROOTLESS requires TEST_SKIP_INTEGRATION_CLI to be set'
+		exit 1
+	fi
+	ln -sf "$(command -v vpnkit."$(uname -m)")" /usr/local/bin/vpnkit
+	user="unprivilegeduser"
+	uid=$(id -u $user)
+	# shellcheck disable=SC2174
+	mkdir -p -m 700 "/tmp/docker-${uid}"
+	chown "$user" "/tmp/docker-${uid}"
+	chmod -R o+w "$DEST"
+	dockerd="sudo -u $user -E -E XDG_RUNTIME_DIR=/tmp/docker-${uid} -E HOME=/home/${user} -E PATH=$PATH -- dockerd-rootless.sh"
+fi
+
 if [ -z "$DOCKER_TEST_HOST" ]; then
 	# Start apparmor if it is enabled
 	if [ -e "/sys/module/apparmor/parameters/enabled" ] && [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
@@ -81,7 +101,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		echo "Starting dockerd"
 		[ -n "$TESTDEBUG" ] && set -x
 		exec \
-			dockerd --debug \
+			${dockerd} --debug \
 			--host "$DOCKER_HOST" \
 			--storage-driver "$DOCKER_GRAPHDRIVER" \
 			--pidfile "$DEST/docker.pid" \

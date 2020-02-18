@@ -20,6 +20,7 @@ import (
 
 func TestPause(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows" && testEnv.DaemonInfo.Isolation == "process")
+	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
 
 	defer setupTest(t)()
 	client := testEnv.APIClient()
@@ -67,6 +68,7 @@ func TestPauseFailsOnWindowsServerContainers(t *testing.T) {
 func TestPauseStopPausedContainer(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.31"), "broken in earlier versions")
+	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
 	defer setupTest(t)()
 	client := testEnv.APIClient()
 	ctx := context.Background()

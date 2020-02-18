@@ -16,6 +16,7 @@ import (
 )
 
 func TestStats(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
 	skip.If(t, !testEnv.DaemonInfo.MemoryLimit)
 
 	defer setupTest(t)()

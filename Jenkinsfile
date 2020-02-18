@@ -11,6 +11,7 @@ pipeline {
         booleanParam(name: 'unit_validate', defaultValue: true, description: 'amd64 (x86_64) unit tests and vendor check')
         booleanParam(name: 'validate_force', defaultValue: false, description: 'force validation steps to be run, even if no changes were detected')
         booleanParam(name: 'amd64', defaultValue: true, description: 'amd64 (x86_64) Build/Test')
+        booleanParam(name: 'rootless', defaultValue: true, description: 'amd64 (x86_64) Build/Test (Rootless mode)')
         booleanParam(name: 'arm64', defaultValue: true, description: 'ARM (arm64) Build/Test')
         booleanParam(name: 's390x', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
         booleanParam(name: 'ppc64le', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
@@ -380,6 +381,94 @@ pipeline {
                         }
                     }
                 }
+                stage('rootless') {
+                    when {
+                        beforeAgent true
+                        expression { params.rootless }
+                    }
+                    agent { label 'amd64 && ubuntu-1804 && overlay2' }
+                    stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
+                            }
+                        }
+                        stage("Build dev image") {
+                            steps {
+                                sh '''
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                '''
+                            }
+                        }
+                        stage("Integration tests") {
+                            environment {
+                                DOCKER_EXPERIMENTAL = '1'
+                                DOCKER_ROOTLESS = '1'
+                                TEST_SKIP_INTEGRATION_CLI = '1'
+                            }
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  -e DOCKER_EXPERIMENTAL \
+                                  -e DOCKER_ROOTLESS \
+                                  -e TEST_SKIP_INTEGRATION_CLI \
+                                  -e TIMEOUT \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh \
+                                    dynbinary \
+                                    test-integration
+                                '''
+                            }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                                }
+                            }
+                        }
+                    }
+
+                    post {
+                        always {
+                            sh '''
+                            echo "Ensuring container killed."
+                            docker rm -vf docker-pr$BUILD_NUMBER || true
+                            '''
+
+                            sh '''
+                            echo "Chowning /workspace to jenkins user"
+                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
+                            '''
+
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                sh '''
+                                bundleName=amd64-rootless
+                                echo "Creating ${bundleName}-bundles.tar.gz"
+                                # exclude overlay2 directories
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                '''
+
+                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
+                            }
+                        }
+                        cleanup {
+                            sh 'make clean'
+                            deleteDir()
+                        }
+                    }
+                }
+
                 stage('s390x') {
                     when {
                         beforeAgent true
