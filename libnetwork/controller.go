@@ -59,13 +59,11 @@ import (
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drvregistry"
-	"github.com/docker/docker/libnetwork/hostdiscovery"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
@@ -157,28 +155,26 @@ type SandboxWalker func(sb Sandbox) bool
 type sandboxTable map[string]*sandbox
 
 type controller struct {
-	id                     string
-	drvRegistry            *drvregistry.DrvRegistry
-	sandboxes              sandboxTable
-	cfg                    *config.Config
-	stores                 []datastore.DataStore
-	discovery              hostdiscovery.HostDiscovery
-	extKeyListener         net.Listener
-	watchCh                chan *endpoint
-	unWatchCh              chan *endpoint
-	svcRecords             map[string]svcInfo
-	nmap                   map[string]*netWatch
-	serviceBindings        map[serviceKey]*service
-	defOsSbox              osl.Sandbox
-	ingressSandbox         *sandbox
-	sboxOnce               sync.Once
-	agent                  *agent
-	networkLocker          *locker.Locker
-	agentInitDone          chan struct{}
-	agentStopDone          chan struct{}
-	keys                   []*types.EncryptionKey
-	clusterConfigAvailable bool
-	DiagnosticServer       *diagnostic.Server
+	id               string
+	drvRegistry      *drvregistry.DrvRegistry
+	sandboxes        sandboxTable
+	cfg              *config.Config
+	stores           []datastore.DataStore
+	extKeyListener   net.Listener
+	watchCh          chan *endpoint
+	unWatchCh        chan *endpoint
+	svcRecords       map[string]svcInfo
+	nmap             map[string]*netWatch
+	serviceBindings  map[serviceKey]*service
+	defOsSbox        osl.Sandbox
+	ingressSandbox   *sandbox
+	sboxOnce         sync.Once
+	agent            *agent
+	networkLocker    *locker.Locker
+	agentInitDone    chan struct{}
+	agentStopDone    chan struct{}
+	keys             []*types.EncryptionKey
+	DiagnosticServer *diagnostic.Server
 	sync.Mutex
 }
 
@@ -229,14 +225,6 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 	}
 
 	c.drvRegistry = drvRegistry
-
-	if c.cfg != nil && c.cfg.Cluster.Watcher != nil {
-		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
-			// Failing to initialize discovery is a bad situation to be in.
-			// But it cannot fail creating the Controller
-			logrus.Errorf("Failed to Initialize Discovery : %v", err)
-		}
-	}
 
 	c.WalkNetworks(populateSpecial)
 
@@ -524,13 +512,6 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 		}
 		return false
 	})
-
-	if c.discovery == nil && c.cfg.Cluster.Watcher != nil {
-		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
-			logrus.Errorf("Failed to Initialize Discovery after configuration update: %v", err)
-		}
-	}
-
 	return nil
 }
 
@@ -575,45 +556,6 @@ func (c *controller) clusterHostID() string {
 	}
 	addr := strings.Split(c.cfg.Cluster.Address, ":")
 	return addr[0]
-}
-
-func (c *controller) isNodeAlive(node string) bool {
-	if c.discovery == nil {
-		return false
-	}
-
-	nodes := c.discovery.Fetch()
-	for _, n := range nodes {
-		if n.String() == node {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (c *controller) initDiscovery(watcher discovery.Watcher) error {
-	if c.cfg == nil {
-		return fmt.Errorf("discovery initialization requires a valid configuration")
-	}
-
-	c.discovery = hostdiscovery.NewHostDiscovery(watcher)
-	return c.discovery.Watch(c.activeCallback, c.hostJoinCallback, c.hostLeaveCallback)
-}
-
-func (c *controller) activeCallback() {
-	ds := c.getStore(datastore.GlobalScope)
-	if ds != nil && !ds.Active() {
-		ds.RestartWatch()
-	}
-}
-
-func (c *controller) hostJoinCallback(nodes []net.IP) {
-	c.processNodeDiscovery(nodes, true)
-}
-
-func (c *controller) hostLeaveCallback(nodes []net.IP) {
-	c.processNodeDiscovery(nodes, false)
 }
 
 func (c *controller) processNodeDiscovery(nodes []net.IP, add bool) {
@@ -690,14 +632,6 @@ func (c *controller) GetPluginGetter() plugingetter.PluginGetter {
 }
 
 func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
-	c.Lock()
-	hd := c.discovery
-	c.Unlock()
-
-	if hd != nil {
-		c.pushNodeDiscovery(driver, capability, hd.Fetch(), true)
-	}
-
 	c.agentDriverNotify(driver)
 	return nil
 }
