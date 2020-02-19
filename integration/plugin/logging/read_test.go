@@ -2,13 +2,11 @@ package logging
 
 import (
 	"bytes"
-	"testing"
-
 	"context"
-
-	"time"
-
+	"runtime"
 	"strings"
+	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -19,6 +17,9 @@ import (
 
 // TestReadPluginNoRead tests that reads are supported even if the plugin isn't capable.
 func TestReadPluginNoRead(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("no unix domain sockets on Windows")
+	}
 	t.Parallel()
 	d := daemon.New(t)
 	d.StartWithBusybox(t, "--iptables=false")
