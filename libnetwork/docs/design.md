@@ -1,7 +1,6 @@
 Design
 ======
 
-The vision and goals of libnetwork are highlighted in [roadmap](../ROADMAP.md).
 This document describes how libnetwork has been designed in order to achieve this.
 Requirements for individual releases can be found on the [Project Page](https://github.com/docker/libnetwork/wiki).
 
