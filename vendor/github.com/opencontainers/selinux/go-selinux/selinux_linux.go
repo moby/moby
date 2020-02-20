@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -19,6 +18,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 
@@ -289,7 +289,10 @@ func SetFileLabel(fpath string, label string) error {
 	if fpath == "" {
 		return ErrEmptyPath
 	}
-	return lsetxattr(fpath, xattrNameSelinux, []byte(label), 0)
+	if err := lsetxattr(fpath, xattrNameSelinux, []byte(label), 0); err != nil {
+		return errors.Wrapf(err, "failed to set file label on %s", fpath)
+	}
+	return nil
 }
 
 // FileLabel returns the SELinux label for this path or returns an error.
@@ -370,7 +373,10 @@ func writeCon(fpath string, val string) error {
 	} else {
 		_, err = out.Write(nil)
 	}
-	return err
+	if err != nil {
+		return errors.Wrapf(err, "failed to set %s on procfs", fpath)
+	}
+	return nil
 }
 
 /*
