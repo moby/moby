@@ -1,19 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-CONTAINER_UTILITY_COMMIT=e004a1415a433447369e315b9d7df357102be0d2 # v0.9.0
+: "${CONTAINER_UTILITY_COMMIT:=aa1ba87e99b68e0113bd27ec26c60b88f9d4ccd9}"
 
 (
 	git clone https://github.com/docker/windows-container-utility.git "$GOPATH/src/github.com/docker/windows-container-utility"
 	cd "$GOPATH/src/github.com/docker/windows-container-utility"
 	git checkout -q "$CONTAINER_UTILITY_COMMIT"
-
-	# TODO remove this temporary fix once https://github.com/docker/windows-container-utility/pull/2 is merged
-	sed -i \
-		-e 's|-nostdinc ||g' \
-		-e 's|-I/usr/lib/gcc/x86_64-w64-mingw32/6.3-win32/include ||g' \
-		-e 's|-I/usr/x86_64-w64-mingw32/include ||g' \
-		"$GOPATH/src/github.com/docker/windows-container-utility/Makefile"
 
 	echo Building: ${DEST}/containerutility.exe
 
