@@ -18,10 +18,10 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/codegangsta/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/urfave/cli"
 
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/term"

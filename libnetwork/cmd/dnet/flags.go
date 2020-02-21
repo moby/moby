@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/codegangsta/cli"
 	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli"
 )
 
 var (
