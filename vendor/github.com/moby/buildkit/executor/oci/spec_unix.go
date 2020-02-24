@@ -18,7 +18,7 @@ import (
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/pb"
-	"github.com/moby/buildkit/util/entitlements"
+	"github.com/moby/buildkit/util/entitlements/security"
 	"github.com/moby/buildkit/util/network"
 	"github.com/moby/buildkit/util/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -38,7 +38,7 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 		ctx = namespaces.WithNamespace(ctx, "buildkit")
 	}
 	if meta.SecurityMode == pb.SecurityMode_INSECURE {
-		opts = append(opts, entitlements.WithInsecureSpec())
+		opts = append(opts, security.WithInsecureSpec())
 	} else if system.SeccompSupported() && meta.SecurityMode == pb.SecurityMode_SANDBOX {
 		opts = append(opts, seccomp.WithDefaultProfile())
 	}

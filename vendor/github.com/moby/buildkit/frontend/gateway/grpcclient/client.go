@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gogo/googleapis/google/rpc"
+	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	pb "github.com/moby/buildkit/frontend/gateway/pb"
 	opspb "github.com/moby/buildkit/solver/pb"
@@ -68,15 +69,15 @@ func current() (GrpcClient, error) {
 	return New(ctx, opts(), sessionID(), product(), pb.NewLLBBridgeClient(conn), workers())
 }
 
-func convertRef(ref client.Reference) (string, error) {
+func convertRef(ref client.Reference) (*pb.Ref, error) {
 	if ref == nil {
-		return "", nil
+		return &pb.Ref{}, nil
 	}
 	r, ok := ref.(*reference)
 	if !ok {
-		return "", errors.Errorf("invalid return reference type %T", ref)
+		return nil, errors.Errorf("invalid return reference type %T", ref)
 	}
-	return r.id, nil
+	return &pb.Ref{Id: r.id, Def: r.def}, nil
 }
 
 func RunFromEnvironment(ctx context.Context, f client.BuildFunc) error {
@@ -105,22 +106,43 @@ func (c *grpcClient) Run(ctx context.Context, f client.BuildFunc) (retError erro
 					Metadata: res.Metadata,
 				}
 				if res.Refs != nil {
-					m := map[string]string{}
-					for k, r := range res.Refs {
-						id, err := convertRef(r)
-						if err != nil {
-							retError = err
-							continue
+					if c.caps.Supports(pb.CapProtoRefArray) == nil {
+						m := map[string]*pb.Ref{}
+						for k, r := range res.Refs {
+							pbRef, err := convertRef(r)
+							if err != nil {
+								retError = err
+								continue
+							}
+							m[k] = pbRef
 						}
-						m[k] = id
+						pbRes.Result = &pb.Result_Refs{Refs: &pb.RefMap{Refs: m}}
+					} else {
+						// Server doesn't support the new wire format for refs, so we construct
+						// a deprecated result ref map.
+						m := map[string]string{}
+						for k, r := range res.Refs {
+							pbRef, err := convertRef(r)
+							if err != nil {
+								retError = err
+								continue
+							}
+							m[k] = pbRef.Id
+						}
+						pbRes.Result = &pb.Result_RefsDeprecated{RefsDeprecated: &pb.RefMapDeprecated{Refs: m}}
 					}
-					pbRes.Result = &pb.Result_Refs{Refs: &pb.RefMap{Refs: m}}
 				} else {
-					id, err := convertRef(res.Ref)
+					pbRef, err := convertRef(res.Ref)
 					if err != nil {
 						retError = err
 					} else {
-						pbRes.Result = &pb.Result_Ref{Ref: id}
+						if c.caps.Supports(pb.CapProtoRefArray) == nil {
+							pbRes.Result = &pb.Result_Ref{Ref: pbRef}
+						} else {
+							// Server doesn't support the new wire format for refs, so we construct
+							// a deprecated result ref.
+							pbRes.Result = &pb.Result_RefDeprecated{RefDeprecated: pbRef.Id}
+						}
 					}
 				}
 				if retError == nil {
@@ -280,10 +302,12 @@ func (c *grpcClient) Solve(ctx context.Context, creq client.SolveRequest) (*clie
 	}
 
 	req := &pb.SolveRequest{
-		Definition:        creq.Definition,
-		Frontend:          creq.Frontend,
-		FrontendOpt:       creq.FrontendOpt,
-		AllowResultReturn: true,
+		Definition:          creq.Definition,
+		Frontend:            creq.Frontend,
+		FrontendOpt:         creq.FrontendOpt,
+		FrontendInputs:      creq.FrontendInputs,
+		AllowResultReturn:   true,
+		AllowResultArrayRef: true,
 		// old API
 		ImportCacheRefsDeprecated: legacyRegistryCacheImports,
 		// new API
@@ -310,15 +334,34 @@ func (c *grpcClient) Solve(ctx context.Context, creq client.SolveRequest) (*clie
 	} else {
 		res.Metadata = resp.Result.Metadata
 		switch pbRes := resp.Result.Result.(type) {
-		case *pb.Result_Ref:
-			if id := pbRes.Ref; id != "" {
+		case *pb.Result_RefDeprecated:
+			if id := pbRes.RefDeprecated; id != "" {
 				res.SetRef(&reference{id: id, c: c})
 			}
-		case *pb.Result_Refs:
-			for k, v := range pbRes.Refs.Refs {
+		case *pb.Result_RefsDeprecated:
+			for k, v := range pbRes.RefsDeprecated.Refs {
 				ref := &reference{id: v, c: c}
 				if v == "" {
 					ref = nil
+				}
+				res.AddRef(k, ref)
+			}
+		case *pb.Result_Ref:
+			if pbRes.Ref.Id != "" {
+				ref, err := newReference(c, pbRes.Ref)
+				if err != nil {
+					return nil, err
+				}
+				res.SetRef(ref)
+			}
+		case *pb.Result_Refs:
+			for k, v := range pbRes.Refs.Refs {
+				var ref *reference
+				if v.Id != "" {
+					ref, err = newReference(c, v)
+					if err != nil {
+						return nil, err
+					}
 				}
 				res.AddRef(k, ref)
 			}
@@ -328,7 +371,7 @@ func (c *grpcClient) Solve(ctx context.Context, creq client.SolveRequest) (*clie
 	return res, nil
 }
 
-func (c *grpcClient) ResolveImageConfig(ctx context.Context, ref string, opt client.ResolveImageConfigOpt) (digest.Digest, []byte, error) {
+func (c *grpcClient) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt) (digest.Digest, []byte, error) {
 	var p *opspb.Platform
 	if platform := opt.Platform; platform != nil {
 		p = &opspb.Platform{
@@ -357,9 +400,56 @@ func (c *grpcClient) BuildOpts() client.BuildOpts {
 	}
 }
 
+func (c *grpcClient) Inputs(ctx context.Context) (map[string]llb.State, error) {
+	err := c.caps.Supports(pb.CapFrontendInputs)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.client.Inputs(ctx, &pb.InputsRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	inputs := make(map[string]llb.State)
+	for key, def := range resp.Definitions {
+		op, err := llb.NewDefinitionOp(def)
+		if err != nil {
+			return nil, err
+		}
+		inputs[key] = llb.NewState(op)
+	}
+	return inputs, nil
+
+}
+
 type reference struct {
-	id string
-	c  *grpcClient
+	c      *grpcClient
+	id     string
+	def    *opspb.Definition
+	output llb.Output
+}
+
+func newReference(c *grpcClient, ref *pb.Ref) (*reference, error) {
+	return &reference{c: c, id: ref.Id, def: ref.Def}, nil
+}
+
+func (r *reference) ToState() (st llb.State, err error) {
+	err = r.c.caps.Supports(pb.CapReferenceOutput)
+	if err != nil {
+		return st, err
+	}
+
+	if r.def == nil {
+		return st, errors.Errorf("gateway did not return reference with definition")
+	}
+
+	defop, err := llb.NewDefinitionOp(r.def)
+	if err != nil {
+		return st, err
+	}
+
+	return llb.NewState(defop), nil
 }
 
 func (r *reference) ReadFile(ctx context.Context, req client.ReadRequest) ([]byte, error) {

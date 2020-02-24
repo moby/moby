@@ -26,18 +26,33 @@ service LLBBridge {
 	rpc StatFile(StatFileRequest) returns (StatFileResponse);
 	rpc Ping(PingRequest) returns (PongResponse);
 	rpc Return(ReturnRequest) returns (ReturnResponse);
+	// apicaps:CapFrontendInputs
+	rpc Inputs(InputsRequest) returns (InputsResponse);
 }
 
 message Result {
 	oneof result {
-		string ref = 1;
-		RefMap refs = 2;
+    		// Deprecated non-array refs.
+		string refDeprecated = 1;
+		RefMapDeprecated refsDeprecated = 2;
+
+		Ref ref = 3;
+		RefMap refs = 4;
 	}
 	map<string, bytes> metadata = 10;
 }
 
-message RefMap {
+message RefMapDeprecated {
 	map<string, string> refs = 1;
+}
+
+message Ref {
+	string id = 1;
+	pb.Definition def = 2;
+}
+
+message RefMap {
+	map<string, Ref> refs = 1;
 }
 
 message ReturnRequest {
@@ -46,6 +61,13 @@ message ReturnRequest {
 }
 
 message ReturnResponse {
+}
+
+message InputsRequest {
+}
+
+message InputsResponse {
+    map<string, pb.Definition> Definitions = 1;
 }
 
 message ResolveImageConfigRequest {
@@ -70,6 +92,7 @@ message SolveRequest {
         // for each of the ImportCacheRefs entry to CacheImports for compatibility. (planned to be removed)
 	repeated string ImportCacheRefsDeprecated = 4;
 	bool allowResultReturn = 5;
+	bool allowResultArrayRef = 6;
 	
 	// apicaps.CapSolveInlineReturn deprecated
 	bool Final = 10;
@@ -77,6 +100,9 @@ message SolveRequest {
 	// CacheImports was added in BuildKit v0.4.0.
 	// apicaps:CapImportCaches
 	repeated CacheOptionsEntry CacheImports = 12;
+
+	// apicaps:CapFrontendInputs
+	map<string, pb.Definition> FrontendInputs = 13;
 }
 
 // CacheOptionsEntry corresponds to the control.CacheOptionsEntry

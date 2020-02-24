@@ -297,7 +297,7 @@ func parseBuildStageName(args []string) (string, error) {
 	case len(args) == 3 && strings.EqualFold(args[1], "as"):
 		stageName = strings.ToLower(args[2])
 		if ok, _ := regexp.MatchString("^[a-z][a-z0-9-_\\.]*$", stageName); !ok {
-			return "", errors.Errorf("invalid name for build stage: %q, name can't start with a number or contain symbols", stageName)
+			return "", errors.Errorf("invalid name for build stage: %q, name can't start with a number or contain symbols", args[2])
 		}
 	case len(args) != 1:
 		return "", errors.New("FROM requires either one or three arguments")

@@ -23,12 +23,12 @@ import (
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/client"
+	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/exporter"
 	localexporter "github.com/moby/buildkit/exporter/local"
 	tarexporter "github.com/moby/buildkit/exporter/tar"
 	"github.com/moby/buildkit/frontend"
-	gw "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver"
@@ -183,7 +183,7 @@ func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *se
 }
 
 // ResolveImageConfig returns image config for an image
-func (w *Worker) ResolveImageConfig(ctx context.Context, ref string, opt gw.ResolveImageConfigOpt, sm *session.Manager) (digest.Digest, []byte, error) {
+func (w *Worker) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager) (digest.Digest, []byte, error) {
 	// ImageSource is typically source/containerimage
 	resolveImageConfig, ok := w.ImageSource.(resolveImageConfig)
 	if !ok {
@@ -477,7 +477,7 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 }
 
 type resolveImageConfig interface {
-	ResolveImageConfig(ctx context.Context, ref string, opt gw.ResolveImageConfigOpt, sm *session.Manager) (digest.Digest, []byte, error)
+	ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager) (digest.Digest, []byte, error)
 }
 
 type emptyProvider struct {

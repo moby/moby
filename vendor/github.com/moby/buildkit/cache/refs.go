@@ -254,7 +254,10 @@ func (cr *cacheRecord) Mount(ctx context.Context, readonly bool) (snapshot.Mount
 func (cr *cacheRecord) remove(ctx context.Context, removeSnapshot bool) error {
 	delete(cr.cm.records, cr.ID())
 	if cr.parent != nil {
-		if err := cr.parent.release(ctx); err != nil {
+		cr.parent.mu.Lock()
+		err := cr.parent.release(ctx)
+		cr.parent.mu.Unlock()
+		if err != nil {
 			return err
 		}
 	}

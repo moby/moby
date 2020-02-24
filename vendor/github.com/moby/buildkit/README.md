@@ -45,7 +45,7 @@ You don't need to read this document unless you want to use the full-featured st
     - [Building a Dockerfile using external frontend:](#building-a-dockerfile-using-external-frontend)
     - [Building a Dockerfile with experimental features like `RUN --mount=type=(bind|cache|tmpfs|secret|ssh)`](#building-a-dockerfile-with-experimental-features-like-run---mounttypebindcachetmpfssecretssh)
   - [Output](#output)
-    - [Registry](#registry)
+    - [Image/Registry](#imageregistry)
     - [Local directory](#local-directory)
     - [Docker tarball](#docker-tarball)
     - [OCI tarball](#oci-tarball)
@@ -85,6 +85,7 @@ BuildKit is used by the following projects:
 -   [Rio](https://github.com/rancher/rio)
 -   [PouchContainer](https://github.com/alibaba/pouch)
 -   [Docker buildx](https://github.com/docker/buildx)
+-   [Okteto Cloud](https://okteto.com/)
 
 ## Quick start
 
@@ -94,7 +95,7 @@ BuildKit is composed of the `buildkitd` daemon and the `buildctl` client.
 While the `buildctl` client is available for Linux, macOS, and Windows, the `buildkitd` daemon is only available for Linux currently.
 
 The `buildkitd` daemon requires the following components to be installed:
--   [runc](https://github.com/opencontainers/runc)
+-   [runc](https://github.com/opencontainers/runc) or [crun](https://github.com/containers/crun)
 -   [containerd](https://github.com/containerd/containerd) (if you want to use containerd worker)
 
 The latest binaries of BuildKit are available [here](https://github.com/moby/buildkit/releases) for Linux, macOS, and Windows.
@@ -124,6 +125,11 @@ We are open to adding more backends.
 
 The buildkitd daemon listens gRPC API on `/run/buildkit/buildkitd.sock` by default, but you can also use TCP sockets.
 See [Expose BuildKit as a TCP service](#expose-buildkit-as-a-tcp-service).
+
+:information_source: Notice to Fedora 31 users:
+
+* As runc still does not work on cgroup v2 environment like Fedora 31, you need to substitute runc with crun. Run `rm -f $(which buildkit-runc) && ln -s $(which crun) /usr/local/bin/buildkit-runc` .
+* If you want to use runc, you need to configure the system to use cgroup v1. Run `sudo grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=0"` and reboot.
 
 ### Exploring LLB
 
@@ -193,7 +199,7 @@ See [`frontend/dockerfile/docs/experimental.md`](frontend/dockerfile/docs/experi
 
 By default, the build result and intermediate cache will only remain internally in BuildKit. An output needs to be specified to retrieve the result.
 
-#### Registry
+#### Image/Registry
 
 ```bash
 buildctl build ... --output type=image,name=docker.io/username/image,push=true
@@ -208,6 +214,18 @@ buildctl build ...\
   --export-cache type=inline \
   --import-cache type=registry,ref=docker.io/username/image
 ```
+
+Keys supported by image output:
+* `name=[value]`: image name
+* `push=true`: push after creating the image
+* `push-by-digest=true`: push unnamed image
+* `registry.insecure=true`: push to insecure HTTP registry
+* `oci-mediatypes=true`: use OCI mediatypes in configuration JSON instead of Docker's
+* `unpack=true`: unpack image after creation (for use with containerd)
+* `dangling-name-prefix=[value]`: name image with `prefix@<digest>` , used for anonymous images
+* `name-canonical=true`: add additional canonical name `name@<digest>`
+* `compression=[uncompressed,gzip]`: choose compression type for layer, gzip is default value
+
 
 If credentials are required, `buildctl` will attempt to read Docker configuration file `$DOCKER_CONFIG/config.json`.
 `$DOCKER_CONFIG` defaults to `~/.docker`.
@@ -322,13 +340,10 @@ buildctl build ... \
 
 ```bash
 buildctl build ... --export-cache type=local,dest=path/to/output-dir
-buildctl build ... --import-cache type=local,src=path/to/input-dir,digest=sha256:deadbeef
+buildctl build ... --import-cache type=local,src=path/to/input-dir
 ```
 
 The directory layout conforms to OCI Image Spec v1.0.
-
-Currently, you need to specify the `digest` of the manifest list to import for `local` cache importer. 
-This is planned to default to the digest of "latest" tag in `index.json` in future.
 
 #### `--export-cache` options
 -   `type`: `inline`, `registry`, or `local`
@@ -341,7 +356,8 @@ This is planned to default to the digest of "latest" tag in `index.json` in futu
 -   `type`: `registry` or `local`. Use `registry` to import `inline` cache.
 -   `ref=docker.io/user/image:tag`: reference for `registry` cache importer
 -   `src=path/to/input-dir`: directory for `local` cache importer
--   `digest=sha256:deadbeef`: digest of the manifest list to import for `local` cache importer. 
+-   `digest=sha256:deadbeef`: digest of the manifest list to import for `local` cache importer.
+    Defaults to the digest of "latest" tag in `index.json`
 
 ### Consistent hashing
 

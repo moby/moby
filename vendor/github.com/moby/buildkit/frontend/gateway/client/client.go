@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 
+	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
 	digest "github.com/opencontainers/go-digest"
@@ -12,11 +13,13 @@ import (
 
 type Client interface {
 	Solve(ctx context.Context, req SolveRequest) (*Result, error)
-	ResolveImageConfig(ctx context.Context, ref string, opt ResolveImageConfigOpt) (digest.Digest, []byte, error)
+	ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt) (digest.Digest, []byte, error)
 	BuildOpts() BuildOpts
+	Inputs(ctx context.Context) (map[string]llb.State, error)
 }
 
 type Reference interface {
+	ToState() (llb.State, error)
 	ReadFile(ctx context.Context, req ReadRequest) ([]byte, error)
 	StatFile(ctx context.Context, req StatRequest) (*fstypes.Stat, error)
 	ReadDir(ctx context.Context, req ReadDirRequest) ([]*fstypes.Stat, error)
@@ -43,10 +46,11 @@ type StatRequest struct {
 
 // SolveRequest is same as frontend.SolveRequest but avoiding dependency
 type SolveRequest struct {
-	Definition   *pb.Definition
-	Frontend     string
-	FrontendOpt  map[string]string
-	CacheImports []CacheOptionsEntry
+	Definition     *pb.Definition
+	Frontend       string
+	FrontendOpt    map[string]string
+	FrontendInputs map[string]*pb.Definition
+	CacheImports   []CacheOptionsEntry
 }
 
 type CacheOptionsEntry struct {
@@ -67,10 +71,4 @@ type BuildOpts struct {
 	Product   string
 	LLBCaps   apicaps.CapSet
 	Caps      apicaps.CapSet
-}
-
-type ResolveImageConfigOpt struct {
-	Platform    *specs.Platform
-	ResolveMode string
-	LogName     string
 }

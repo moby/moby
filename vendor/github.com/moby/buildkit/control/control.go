@@ -274,10 +274,11 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 	}
 
 	resp, err := c.solver.Solve(ctx, req.Ref, frontend.SolveRequest{
-		Frontend:     req.Frontend,
-		Definition:   req.Definition,
-		FrontendOpt:  req.FrontendAttrs,
-		CacheImports: cacheImports,
+		Frontend:       req.Frontend,
+		Definition:     req.Definition,
+		FrontendOpt:    req.FrontendAttrs,
+		FrontendInputs: req.FrontendInputs,
+		CacheImports:   cacheImports,
 	}, llbsolver.ExporterRequest{
 		Exporter:        expi,
 		CacheExporter:   cacheExporter,

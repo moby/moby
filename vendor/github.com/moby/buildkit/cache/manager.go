@@ -111,7 +111,7 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispec.Descriptor, 
 	if parent != nil {
 		pInfo := parent.Info()
 		if pInfo.ChainID == "" || pInfo.BlobChainID == "" {
-			return nil, errors.Errorf("failed to get ref by blob on non-adressable parent")
+			return nil, errors.Errorf("failed to get ref by blob on non-addressable parent")
 		}
 		chainID = imagespecidentity.ChainID([]digest.Digest{pInfo.ChainID, chainID})
 		blobChainID = imagespecidentity.ChainID([]digest.Digest{pInfo.BlobChainID, blobChainID})

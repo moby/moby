@@ -28,7 +28,7 @@ import (
 	pkgprogress "github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/reference"
 	"github.com/moby/buildkit/cache"
-	gw "github.com/moby/buildkit/frontend/gateway/client"
+	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/auth"
 	"github.com/moby/buildkit/source"
@@ -150,7 +150,7 @@ func (is *imageSource) resolveRemote(ctx context.Context, ref string, platform *
 	return typed.dgst, typed.dt, nil
 }
 
-func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string, opt gw.ResolveImageConfigOpt, sm *session.Manager) (digest.Digest, []byte, error) {
+func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager) (digest.Digest, []byte, error) {
 	resolveMode, err := source.ParseImageResolveMode(opt.ResolveMode)
 	if err != nil {
 		return "", nil, err
@@ -304,7 +304,7 @@ func (p *puller) resolve(ctx context.Context) error {
 				_ = resolveProgressDone(err)
 				return
 			}
-			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), gw.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: resolveModeToString(p.src.ResolveMode)}, p.sm)
+			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), llb.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: resolveModeToString(p.src.ResolveMode)}, p.sm)
 			if err != nil {
 				p.resolveErr = err
 				_ = resolveProgressDone(err)

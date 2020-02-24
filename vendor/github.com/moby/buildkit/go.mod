@@ -1,23 +1,25 @@
 module github.com/moby/buildkit
 
-go 1.11
+go 1.12
 
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/Microsoft/go-winio v0.4.14
+	github.com/Microsoft/hcsshim v0.8.5 // indirect
 	github.com/apache/thrift v0.0.0-20161221203622-b2a4d4ae21c7 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20160425231609-f8ad88b59a58 // indirect
 	github.com/containerd/cgroups v0.0.0-20190717030353-c4b9ac5c7601 // indirect
 	github.com/containerd/console v0.0.0-20181022165439-0650fd9eeb50
 	github.com/containerd/containerd v1.4.0-0.20191014053712-acdcf13d5eaf
-	github.com/containerd/continuity v0.0.0-20190827140505-75bee3e2ccb6
+	github.com/containerd/continuity v0.0.0-20200107194136-26c1120b8d41
 	github.com/containerd/fifo v0.0.0-20190816180239-bda0ff6ed73c // indirect
 	github.com/containerd/go-cni v0.0.0-20190813230227-49fbd9b210f3
 	github.com/containerd/go-runc v0.0.0-20190911050354-e029b79d8cda
 	github.com/containerd/ttrpc v0.0.0-20190828172938-92c8520ef9f8 // indirect
 	github.com/containerd/typeurl v0.0.0-20180627222232-a93fcdb778cd // indirect
 	github.com/containernetworking/cni v0.7.1 // indirect
-	github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a
+	github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a // indirect
+	github.com/coreos/go-systemd/v22 v22.0.0
 	github.com/docker/cli v0.0.0-20190321234815-f40f9c240ab0
 	github.com/docker/distribution v2.7.1-0.20190205005809-0d3efadf0154+incompatible
 	github.com/docker/docker v1.14.0-0.20190319215453-e7b5f7dbe98c
@@ -53,9 +55,9 @@ require (
 	github.com/prometheus/procfs v0.0.3 // indirect
 	github.com/serialx/hashring v0.0.0-20190422032157-8b2912629002
 	github.com/sirupsen/logrus v1.4.1
-	github.com/stretchr/testify v1.3.0
+	github.com/stretchr/testify v1.4.0
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
-	github.com/tonistiigi/fsutil v0.0.0-20190819224149-3d2716dd0a4d
+	github.com/tonistiigi/fsutil v0.0.0-20200128191323-6c909ab392c1
 	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea
 	github.com/uber/jaeger-client-go v0.0.0-20180103221425-e02c85f9069e
 	github.com/uber/jaeger-lib v1.2.1 // indirect
@@ -63,7 +65,7 @@ require (
 	github.com/vishvananda/netlink v1.0.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20180720170159-13995c7128cc // indirect
 	go.etcd.io/bbolt v1.3.3
-	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
+	golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6
 	golang.org/x/net v0.0.0-20190522155817-f3200d17e092
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/sys v0.0.0-20190812073006-9eafafc0a87e
