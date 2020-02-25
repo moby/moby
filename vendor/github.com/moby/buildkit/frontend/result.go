@@ -1,14 +1,16 @@
 package frontend
 
-import "github.com/moby/buildkit/solver"
+import (
+	"github.com/moby/buildkit/solver"
+)
 
 type Result struct {
-	Ref      solver.CachedResult
-	Refs     map[string]solver.CachedResult
+	Ref      solver.ResultProxy
+	Refs     map[string]solver.ResultProxy
 	Metadata map[string][]byte
 }
 
-func (r *Result) EachRef(fn func(solver.CachedResult) error) (err error) {
+func (r *Result) EachRef(fn func(solver.ResultProxy) error) (err error) {
 	if r.Ref != nil {
 		err = fn(r.Ref)
 	}

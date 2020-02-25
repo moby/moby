@@ -128,6 +128,15 @@ func (gwf *GatewayForwarder) Return(ctx context.Context, req *gwapi.ReturnReques
 	return res, err
 }
 
+func (gwf *GatewayForwarder) Inputs(ctx context.Context, req *gwapi.InputsRequest) (*gwapi.InputsResponse, error) {
+	fwd, err := gwf.lookupForwarder(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "forwarding Inputs")
+	}
+	res, err := fwd.Inputs(ctx, req)
+	return res, err
+}
+
 func (gwf *GatewayForwarder) ReadDir(ctx context.Context, req *gwapi.ReadDirRequest) (*gwapi.ReadDirResponse, error) {
 	fwd, err := gwf.lookupForwarder(ctx)
 	if err != nil {

@@ -87,6 +87,9 @@ func (cm *combinedCacheManager) Load(ctx context.Context, rec *CacheRecord) (res
 			}
 		}
 	}
+	if len(results) == 0 { // TODO: handle gracefully
+		return nil, errors.Errorf("failed to load deleted cache")
+	}
 	return results[0].Result, nil
 }
 

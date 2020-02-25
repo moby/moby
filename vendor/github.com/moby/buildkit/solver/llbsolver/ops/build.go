@@ -132,5 +132,10 @@ func (b *buildOp) Exec(ctx context.Context, inputs []solver.Result) (outputs []s
 		r.Release(context.TODO())
 	}
 
-	return []solver.Result{newRes.Ref}, err
+	r, err := newRes.Ref.Result(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return []solver.Result{r}, err
 }

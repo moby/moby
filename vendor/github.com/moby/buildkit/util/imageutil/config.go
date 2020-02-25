@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
+	"github.com/containerd/containerd/remotes/docker"
 	"github.com/moby/buildkit/util/leaseutil"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -152,7 +153,7 @@ func childrenConfigHandler(provider content.Provider, platform platforms.MatchCo
 			} else {
 				descs = append(descs, index.Manifests...)
 			}
-		case images.MediaTypeDockerSchema2Config, specs.MediaTypeImageConfig:
+		case images.MediaTypeDockerSchema2Config, specs.MediaTypeImageConfig, docker.LegacyConfigMediaType:
 			// childless data types.
 			return nil, nil
 		default:

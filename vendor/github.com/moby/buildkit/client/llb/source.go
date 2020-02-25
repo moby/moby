@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/docker/distribution/reference"
-	gw "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
 	digest "github.com/opencontainers/go-digest"
@@ -119,7 +118,7 @@ func Image(ref string, opts ...ImageOption) State {
 		src.err = err
 	}
 	if info.metaResolver != nil {
-		_, dt, err := info.metaResolver.ResolveImageConfig(context.TODO(), ref, gw.ResolveImageConfigOpt{
+		_, dt, err := info.metaResolver.ResolveImageConfig(context.TODO(), ref, ResolveImageConfigOpt{
 			Platform:    info.Constraints.Platform,
 			ResolveMode: info.resolveMode.String(),
 		})
