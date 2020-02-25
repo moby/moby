@@ -535,3 +535,50 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 		})
 	}
 }
+
+// Make sure that anonymous volumes can be overritten by tmpfs
+// https://github.com/moby/moby/issues/40446
+func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "windows does not support tmpfs")
+	defer setupTest(t)()
+	client := testEnv.APIClient()
+	ctx := context.Background()
+
+	id := ctr.Create(ctx, t, client,
+		ctr.WithVolume("/foo"),
+		ctr.WithTmpfs("/foo"),
+		ctr.WithVolume("/bar"),
+		ctr.WithTmpfs("/bar:size=999"),
+		ctr.WithCmd("/bin/sh", "-c", "mount | grep '/foo' | grep tmpfs && mount | grep '/bar' | grep tmpfs"),
+	)
+
+	defer func() {
+		err := client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
+		assert.NilError(t, err)
+	}()
+
+	inspect, err := client.ContainerInspect(ctx, id)
+	assert.NilError(t, err)
+	// tmpfs do not currently get added to inspect.Mounts
+	// Normally an anoynmous volume would, except now tmpfs should prevent that.
+	assert.Assert(t, is.Len(inspect.Mounts, 0))
+
+	chWait, chErr := client.ContainerWait(ctx, id, container.WaitConditionNextExit)
+	assert.NilError(t, client.ContainerStart(ctx, id, types.ContainerStartOptions{}))
+
+	timeout := time.NewTimer(30 * time.Second)
+	defer timeout.Stop()
+
+	select {
+	case <-timeout.C:
+		t.Fatal("timeout waiting for container to exit")
+	case status := <-chWait:
+		var errMsg string
+		if status.Error != nil {
+			errMsg = status.Error.Message
+		}
+		assert.Equal(t, int(status.StatusCode), 0, errMsg)
+	case err := <-chErr:
+		assert.NilError(t, err)
+	}
+}
