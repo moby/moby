@@ -128,7 +128,7 @@ func (s *DockerSuite) TestLogsFollowStopped(c *testing.T) {
 	logsCmd := exec.Command(dockerBinary, "logs", "-f", id)
 	assert.NilError(c, logsCmd.Start())
 
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	go func() {
 		errChan <- logsCmd.Wait()
 		close(errChan)

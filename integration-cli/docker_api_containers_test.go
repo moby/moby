@@ -338,7 +338,7 @@ func (s *DockerSuite) TestGetStoppedContainerStats(c *testing.T) {
 	name := "statscontainer"
 	dockerCmd(c, "create", "--name", name, "busybox", "ps")
 
-	chResp := make(chan error)
+	chResp := make(chan error, 1)
 
 	// We expect an immediate response, but if it's not immediate, the test would hang, so put it in a goroutine
 	// below we'll check this on a timeout.

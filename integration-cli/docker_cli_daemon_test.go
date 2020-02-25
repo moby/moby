@@ -1246,7 +1246,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartKillWait(c *testing.T) {
 
 	s.d.Restart(c)
 
-	errchan := make(chan error)
+	errchan := make(chan error, 1)
 	go func() {
 		if out, err := s.d.Cmd("wait", containerID); err != nil {
 			errchan <- fmt.Errorf("%v:\n%s", err, out)
@@ -1599,15 +1599,17 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPausedContainer(c *testing.T) {
 	}
 	s.d.Restart(c)
 
-	errchan := make(chan error)
+	errchan := make(chan error, 1)
 	go func() {
 		out, err := s.d.Cmd("start", "test")
 		if err != nil {
 			errchan <- fmt.Errorf("%v:\n%s", err, out)
+			return
 		}
 		name := strings.TrimSpace(out)
 		if name != "test" {
 			errchan <- fmt.Errorf("Paused container start error on docker daemon restart, expected 'test' but got '%s'", name)
+			return
 		}
 		close(errchan)
 	}()

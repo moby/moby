@@ -51,7 +51,7 @@ func (s *DockerSuite) TestEventsRedirectStdout(c *testing.T) {
 func (s *DockerSuite) TestEventsOOMDisableFalse(c *testing.T) {
 	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, swapMemorySupport, NotPpc64le)
 
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	go func() {
 		defer close(errChan)
 		out, exitCode, _ := dockerCmdWithError("run", "--name", "oomFalse", "-m", "10MB", "busybox", "sh", "-c", "x=a; while true; do x=$x$x$x$x; done")
@@ -81,7 +81,7 @@ func (s *DockerSuite) TestEventsOOMDisableFalse(c *testing.T) {
 func (s *DockerSuite) TestEventsOOMDisableTrue(c *testing.T) {
 	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, NotArm, swapMemorySupport, NotPpc64le)
 
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	observer, err := newEventObserver(c)
 	assert.NilError(c, err)
 	err = observer.Start()

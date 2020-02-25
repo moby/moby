@@ -1764,7 +1764,7 @@ func (s *DockerSuite) TestRunExitOnStdinClose(c *testing.T) {
 	if err := stdin.Close(); err != nil {
 		c.Fatal(err)
 	}
-	finish := make(chan error)
+	finish := make(chan error, 1)
 	go func() {
 		finish <- runCmd.Wait()
 		close(finish)
@@ -2522,7 +2522,7 @@ func (s *DockerSuite) TestRunPortFromDockerRangeInUse(c *testing.T) {
 }
 
 func (s *DockerSuite) TestRunTTYWithPipe(c *testing.T) {
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	go func() {
 		defer close(errChan)
 
@@ -2809,7 +2809,7 @@ func (s *DockerSuite) TestRunPIDHostWithChildIsKillable(c *testing.T) {
 
 	assert.Assert(c, waitRun(name) == nil)
 
-	errchan := make(chan error)
+	errchan := make(chan error, 1)
 	go func() {
 		if out, _, err := dockerCmdWithError("kill", name); err != nil {
 			errchan <- fmt.Errorf("%v:\n%s", err, out)
@@ -3621,7 +3621,7 @@ func (s *DockerSuite) TestRunStdinBlockedAfterContainerExit(c *testing.T) {
 	cmd.Stderr = stdout
 	assert.Assert(c, cmd.Start() == nil)
 
-	waitChan := make(chan error)
+	waitChan := make(chan error, 1)
 	go func() {
 		waitChan <- cmd.Wait()
 	}()

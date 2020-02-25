@@ -566,13 +566,14 @@ func (d *Daemon) ReloadConfig() error {
 		return errors.New("daemon is not running")
 	}
 
-	errCh := make(chan error)
+	errCh := make(chan error, 1)
 	started := make(chan struct{})
 	go func() {
 		_, body, err := request.Get("/events", request.Host(d.Sock()))
 		close(started)
 		if err != nil {
 			errCh <- err
+			return
 		}
 		defer body.Close()
 		dec := json.NewDecoder(body)

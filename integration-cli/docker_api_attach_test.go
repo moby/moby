@@ -43,14 +43,14 @@ func (s *DockerSuite) TestGetContainersAttachWebsocket(c *testing.T) {
 	expected := []byte("hello")
 	actual := make([]byte, len(expected))
 
-	outChan := make(chan error)
+	outChan := make(chan error, 1)
 	go func() {
 		_, err := io.ReadFull(ws, actual)
 		outChan <- err
 		close(outChan)
 	}()
 
-	inChan := make(chan error)
+	inChan := make(chan error, 1)
 	go func() {
 		_, err := ws.Write(expected)
 		inChan <- err
@@ -278,7 +278,7 @@ func bodyIsWritable(r *http.Response) bool {
 
 // readTimeout read from io.Reader with timeout
 func readTimeout(r io.Reader, buf []byte, timeout time.Duration) (n int, err error) {
-	ch := make(chan bool)
+	ch := make(chan bool, 1)
 	go func() {
 		n, err = io.ReadFull(r, buf)
 		ch <- true

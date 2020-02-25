@@ -53,7 +53,7 @@ func TestExecWithCloseStdin(t *testing.T) {
 		resCh  = make(chan struct {
 			content string
 			err     error
-		})
+		}, 1)
 	)
 
 	go func() {

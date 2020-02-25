@@ -490,7 +490,7 @@ func (s *DockerSuite) TestBuildAddSingleFileToWorkdir(c *testing.T) {
 		}))
 	defer ctx.Close()
 
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	go func() {
 		errChan <- buildImage(name, build.WithExternalBuildContext(ctx)).Error
 		close(errChan)
@@ -833,7 +833,7 @@ COPY test_file .`),
 		}))
 	defer ctx.Close()
 
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	go func() {
 		errChan <- buildImage(name, build.WithExternalBuildContext(ctx)).Error
 		close(errChan)
