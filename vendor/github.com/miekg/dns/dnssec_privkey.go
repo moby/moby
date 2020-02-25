@@ -13,6 +13,8 @@ import (
 
 const format = "Private-key-format: v1.3\n"
 
+var bigIntOne = big.NewInt(1)
+
 // PrivateKeyString converts a PrivateKey to a string. This string has the same
 // format as the private-key-file of BIND9 (Private-key-format: v1.3).
 // It needs some info from the key (the algorithm), so its a method of the DNSKEY
@@ -31,12 +33,11 @@ func (r *DNSKEY) PrivateKeyString(p crypto.PrivateKey) string {
 		prime2 := toBase64(p.Primes[1].Bytes())
 		// Calculate Exponent1/2 and Coefficient as per: http://en.wikipedia.org/wiki/RSA#Using_the_Chinese_remainder_algorithm
 		// and from: http://code.google.com/p/go/issues/detail?id=987
-		one := big.NewInt(1)
-		p1 := big.NewInt(0).Sub(p.Primes[0], one)
-		q1 := big.NewInt(0).Sub(p.Primes[1], one)
-		exp1 := big.NewInt(0).Mod(p.D, p1)
-		exp2 := big.NewInt(0).Mod(p.D, q1)
-		coeff := big.NewInt(0).ModInverse(p.Primes[1], p.Primes[0])
+		p1 := new(big.Int).Sub(p.Primes[0], bigIntOne)
+		q1 := new(big.Int).Sub(p.Primes[1], bigIntOne)
+		exp1 := new(big.Int).Mod(p.D, p1)
+		exp2 := new(big.Int).Mod(p.D, q1)
+		coeff := new(big.Int).ModInverse(p.Primes[1], p.Primes[0])
 
 		exponent1 := toBase64(exp1.Bytes())
 		exponent2 := toBase64(exp2.Bytes())
@@ -82,7 +83,7 @@ func (r *DNSKEY) PrivateKeyString(p crypto.PrivateKey) string {
 			"Public_value(y): " + pub + "\n"
 
 	case ed25519.PrivateKey:
-		private := toBase64(p[:32])
+		private := toBase64(p.Seed())
 		return format +
 			"Algorithm: " + algorithm + "\n" +
 			"PrivateKey: " + private + "\n"

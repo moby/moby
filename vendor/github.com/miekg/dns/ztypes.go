@@ -13,6 +13,7 @@ var TypeToRR = map[uint16]func() RR{
 	TypeAAAA:       func() RR { return new(AAAA) },
 	TypeAFSDB:      func() RR { return new(AFSDB) },
 	TypeANY:        func() RR { return new(ANY) },
+	TypeAPL:        func() RR { return new(APL) },
 	TypeAVC:        func() RR { return new(AVC) },
 	TypeCAA:        func() RR { return new(CAA) },
 	TypeCDNSKEY:    func() RR { return new(CDNSKEY) },
@@ -54,6 +55,7 @@ var TypeToRR = map[uint16]func() RR{
 	TypeNSEC:       func() RR { return new(NSEC) },
 	TypeNSEC3:      func() RR { return new(NSEC3) },
 	TypeNSEC3PARAM: func() RR { return new(NSEC3PARAM) },
+	TypeNULL:       func() RR { return new(NULL) },
 	TypeOPENPGPKEY: func() RR { return new(OPENPGPKEY) },
 	TypeOPT:        func() RR { return new(OPT) },
 	TypePTR:        func() RR { return new(PTR) },
@@ -86,6 +88,7 @@ var TypeToString = map[uint16]string{
 	TypeAAAA:       "AAAA",
 	TypeAFSDB:      "AFSDB",
 	TypeANY:        "ANY",
+	TypeAPL:        "APL",
 	TypeATMA:       "ATMA",
 	TypeAVC:        "AVC",
 	TypeAXFR:       "AXFR",
@@ -168,6 +171,7 @@ func (rr *A) Header() *RR_Header          { return &rr.Hdr }
 func (rr *AAAA) Header() *RR_Header       { return &rr.Hdr }
 func (rr *AFSDB) Header() *RR_Header      { return &rr.Hdr }
 func (rr *ANY) Header() *RR_Header        { return &rr.Hdr }
+func (rr *APL) Header() *RR_Header        { return &rr.Hdr }
 func (rr *AVC) Header() *RR_Header        { return &rr.Hdr }
 func (rr *CAA) Header() *RR_Header        { return &rr.Hdr }
 func (rr *CDNSKEY) Header() *RR_Header    { return &rr.Hdr }
@@ -209,6 +213,7 @@ func (rr *NSAPPTR) Header() *RR_Header    { return &rr.Hdr }
 func (rr *NSEC) Header() *RR_Header       { return &rr.Hdr }
 func (rr *NSEC3) Header() *RR_Header      { return &rr.Hdr }
 func (rr *NSEC3PARAM) Header() *RR_Header { return &rr.Hdr }
+func (rr *NULL) Header() *RR_Header       { return &rr.Hdr }
 func (rr *OPENPGPKEY) Header() *RR_Header { return &rr.Hdr }
 func (rr *OPT) Header() *RR_Header        { return &rr.Hdr }
 func (rr *PTR) Header() *RR_Header        { return &rr.Hdr }
@@ -236,144 +241,157 @@ func (rr *URI) Header() *RR_Header        { return &rr.Hdr }
 func (rr *X25) Header() *RR_Header        { return &rr.Hdr }
 
 // len() functions
-func (rr *A) len() int {
-	l := rr.Hdr.len()
-	l += net.IPv4len // A
+func (rr *A) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	if len(rr.A) != 0 {
+		l += net.IPv4len
+	}
 	return l
 }
-func (rr *AAAA) len() int {
-	l := rr.Hdr.len()
-	l += net.IPv6len // AAAA
+func (rr *AAAA) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	if len(rr.AAAA) != 0 {
+		l += net.IPv6len
+	}
 	return l
 }
-func (rr *AFSDB) len() int {
-	l := rr.Hdr.len()
+func (rr *AFSDB) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // Subtype
-	l += len(rr.Hostname) + 1
+	l += domainNameLen(rr.Hostname, off+l, compression, false)
 	return l
 }
-func (rr *ANY) len() int {
-	l := rr.Hdr.len()
+func (rr *ANY) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	return l
 }
-func (rr *AVC) len() int {
-	l := rr.Hdr.len()
+func (rr *APL) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	for _, x := range rr.Prefixes {
+		l += x.len()
+	}
+	return l
+}
+func (rr *AVC) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	for _, x := range rr.Txt {
 		l += len(x) + 1
 	}
 	return l
 }
-func (rr *CAA) len() int {
-	l := rr.Hdr.len()
+func (rr *CAA) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l++ // Flag
 	l += len(rr.Tag) + 1
 	l += len(rr.Value)
 	return l
 }
-func (rr *CERT) len() int {
-	l := rr.Hdr.len()
+func (rr *CERT) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // Type
 	l += 2 // KeyTag
 	l++    // Algorithm
 	l += base64.StdEncoding.DecodedLen(len(rr.Certificate))
 	return l
 }
-func (rr *CNAME) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Target) + 1
+func (rr *CNAME) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.Target, off+l, compression, true)
 	return l
 }
-func (rr *DHCID) len() int {
-	l := rr.Hdr.len()
+func (rr *DHCID) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += base64.StdEncoding.DecodedLen(len(rr.Digest))
 	return l
 }
-func (rr *DNAME) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Target) + 1
+func (rr *DNAME) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.Target, off+l, compression, false)
 	return l
 }
-func (rr *DNSKEY) len() int {
-	l := rr.Hdr.len()
+func (rr *DNSKEY) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // Flags
 	l++    // Protocol
 	l++    // Algorithm
 	l += base64.StdEncoding.DecodedLen(len(rr.PublicKey))
 	return l
 }
-func (rr *DS) len() int {
-	l := rr.Hdr.len()
+func (rr *DS) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // KeyTag
 	l++    // Algorithm
 	l++    // DigestType
-	l += len(rr.Digest)/2 + 1
+	l += len(rr.Digest) / 2
 	return l
 }
-func (rr *EID) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Endpoint)/2 + 1
+func (rr *EID) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += len(rr.Endpoint) / 2
 	return l
 }
-func (rr *EUI48) len() int {
-	l := rr.Hdr.len()
+func (rr *EUI48) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 6 // Address
 	return l
 }
-func (rr *EUI64) len() int {
-	l := rr.Hdr.len()
+func (rr *EUI64) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 8 // Address
 	return l
 }
-func (rr *GID) len() int {
-	l := rr.Hdr.len()
+func (rr *GID) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 4 // Gid
 	return l
 }
-func (rr *GPOS) len() int {
-	l := rr.Hdr.len()
+func (rr *GPOS) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += len(rr.Longitude) + 1
 	l += len(rr.Latitude) + 1
 	l += len(rr.Altitude) + 1
 	return l
 }
-func (rr *HINFO) len() int {
-	l := rr.Hdr.len()
+func (rr *HINFO) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += len(rr.Cpu) + 1
 	l += len(rr.Os) + 1
 	return l
 }
-func (rr *HIP) len() int {
-	l := rr.Hdr.len()
+func (rr *HIP) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l++    // HitLength
 	l++    // PublicKeyAlgorithm
 	l += 2 // PublicKeyLength
 	l += len(rr.Hit) / 2
 	l += base64.StdEncoding.DecodedLen(len(rr.PublicKey))
 	for _, x := range rr.RendezvousServers {
-		l += len(x) + 1
+		l += domainNameLen(x, off+l, compression, false)
 	}
 	return l
 }
-func (rr *KX) len() int {
-	l := rr.Hdr.len()
+func (rr *KX) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // Preference
-	l += len(rr.Exchanger) + 1
+	l += domainNameLen(rr.Exchanger, off+l, compression, false)
 	return l
 }
-func (rr *L32) len() int {
-	l := rr.Hdr.len()
-	l += 2           // Preference
-	l += net.IPv4len // Locator32
+func (rr *L32) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += 2 // Preference
+	if len(rr.Locator32) != 0 {
+		l += net.IPv4len
+	}
 	return l
 }
-func (rr *L64) len() int {
-	l := rr.Hdr.len()
+func (rr *L64) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // Preference
 	l += 8 // Locator64
 	return l
 }
-func (rr *LOC) len() int {
-	l := rr.Hdr.len()
+func (rr *LOC) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l++    // Version
 	l++    // Size
 	l++    // HorizPre
@@ -383,89 +401,89 @@ func (rr *LOC) len() int {
 	l += 4 // Altitude
 	return l
 }
-func (rr *LP) len() int {
-	l := rr.Hdr.len()
+func (rr *LP) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // Preference
-	l += len(rr.Fqdn) + 1
+	l += domainNameLen(rr.Fqdn, off+l, compression, false)
 	return l
 }
-func (rr *MB) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Mb) + 1
+func (rr *MB) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.Mb, off+l, compression, true)
 	return l
 }
-func (rr *MD) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Md) + 1
+func (rr *MD) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.Md, off+l, compression, true)
 	return l
 }
-func (rr *MF) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Mf) + 1
+func (rr *MF) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.Mf, off+l, compression, true)
 	return l
 }
-func (rr *MG) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Mg) + 1
+func (rr *MG) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.Mg, off+l, compression, true)
 	return l
 }
-func (rr *MINFO) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Rmail) + 1
-	l += len(rr.Email) + 1
+func (rr *MINFO) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.Rmail, off+l, compression, true)
+	l += domainNameLen(rr.Email, off+l, compression, true)
 	return l
 }
-func (rr *MR) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Mr) + 1
+func (rr *MR) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.Mr, off+l, compression, true)
 	return l
 }
-func (rr *MX) len() int {
-	l := rr.Hdr.len()
+func (rr *MX) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // Preference
-	l += len(rr.Mx) + 1
+	l += domainNameLen(rr.Mx, off+l, compression, true)
 	return l
 }
-func (rr *NAPTR) len() int {
-	l := rr.Hdr.len()
+func (rr *NAPTR) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // Order
 	l += 2 // Preference
 	l += len(rr.Flags) + 1
 	l += len(rr.Service) + 1
 	l += len(rr.Regexp) + 1
-	l += len(rr.Replacement) + 1
+	l += domainNameLen(rr.Replacement, off+l, compression, false)
 	return l
 }
-func (rr *NID) len() int {
-	l := rr.Hdr.len()
+func (rr *NID) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // Preference
 	l += 8 // NodeID
 	return l
 }
-func (rr *NIMLOC) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Locator)/2 + 1
+func (rr *NIMLOC) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += len(rr.Locator) / 2
 	return l
 }
-func (rr *NINFO) len() int {
-	l := rr.Hdr.len()
+func (rr *NINFO) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	for _, x := range rr.ZSData {
 		l += len(x) + 1
 	}
 	return l
 }
-func (rr *NS) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Ns) + 1
+func (rr *NS) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.Ns, off+l, compression, true)
 	return l
 }
-func (rr *NSAPPTR) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Ptr) + 1
+func (rr *NSAPPTR) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.Ptr, off+l, compression, false)
 	return l
 }
-func (rr *NSEC3PARAM) len() int {
-	l := rr.Hdr.len()
+func (rr *NSEC3PARAM) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l++    // Hash
 	l++    // Flags
 	l += 2 // Iterations
@@ -473,44 +491,49 @@ func (rr *NSEC3PARAM) len() int {
 	l += len(rr.Salt) / 2
 	return l
 }
-func (rr *OPENPGPKEY) len() int {
-	l := rr.Hdr.len()
+func (rr *NULL) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += len(rr.Data)
+	return l
+}
+func (rr *OPENPGPKEY) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += base64.StdEncoding.DecodedLen(len(rr.PublicKey))
 	return l
 }
-func (rr *PTR) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Ptr) + 1
+func (rr *PTR) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.Ptr, off+l, compression, true)
 	return l
 }
-func (rr *PX) len() int {
-	l := rr.Hdr.len()
+func (rr *PX) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // Preference
-	l += len(rr.Map822) + 1
-	l += len(rr.Mapx400) + 1
+	l += domainNameLen(rr.Map822, off+l, compression, false)
+	l += domainNameLen(rr.Mapx400, off+l, compression, false)
 	return l
 }
-func (rr *RFC3597) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Rdata)/2 + 1
+func (rr *RFC3597) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += len(rr.Rdata) / 2
 	return l
 }
-func (rr *RKEY) len() int {
-	l := rr.Hdr.len()
+func (rr *RKEY) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // Flags
 	l++    // Protocol
 	l++    // Algorithm
 	l += base64.StdEncoding.DecodedLen(len(rr.PublicKey))
 	return l
 }
-func (rr *RP) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Mbox) + 1
-	l += len(rr.Txt) + 1
+func (rr *RP) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.Mbox, off+l, compression, false)
+	l += domainNameLen(rr.Txt, off+l, compression, false)
 	return l
 }
-func (rr *RRSIG) len() int {
-	l := rr.Hdr.len()
+func (rr *RRSIG) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // TypeCovered
 	l++    // Algorithm
 	l++    // Labels
@@ -518,28 +541,28 @@ func (rr *RRSIG) len() int {
 	l += 4 // Expiration
 	l += 4 // Inception
 	l += 2 // KeyTag
-	l += len(rr.SignerName) + 1
+	l += domainNameLen(rr.SignerName, off+l, compression, false)
 	l += base64.StdEncoding.DecodedLen(len(rr.Signature))
 	return l
 }
-func (rr *RT) len() int {
-	l := rr.Hdr.len()
+func (rr *RT) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // Preference
-	l += len(rr.Host) + 1
+	l += domainNameLen(rr.Host, off+l, compression, false)
 	return l
 }
-func (rr *SMIMEA) len() int {
-	l := rr.Hdr.len()
+func (rr *SMIMEA) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l++ // Usage
 	l++ // Selector
 	l++ // MatchingType
-	l += len(rr.Certificate)/2 + 1
+	l += len(rr.Certificate) / 2
 	return l
 }
-func (rr *SOA) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Ns) + 1
-	l += len(rr.Mbox) + 1
+func (rr *SOA) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.Ns, off+l, compression, true)
+	l += domainNameLen(rr.Mbox, off+l, compression, true)
 	l += 4 // Serial
 	l += 4 // Refresh
 	l += 4 // Retry
@@ -547,45 +570,45 @@ func (rr *SOA) len() int {
 	l += 4 // Minttl
 	return l
 }
-func (rr *SPF) len() int {
-	l := rr.Hdr.len()
+func (rr *SPF) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	for _, x := range rr.Txt {
 		l += len(x) + 1
 	}
 	return l
 }
-func (rr *SRV) len() int {
-	l := rr.Hdr.len()
+func (rr *SRV) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // Priority
 	l += 2 // Weight
 	l += 2 // Port
-	l += len(rr.Target) + 1
+	l += domainNameLen(rr.Target, off+l, compression, false)
 	return l
 }
-func (rr *SSHFP) len() int {
-	l := rr.Hdr.len()
+func (rr *SSHFP) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l++ // Algorithm
 	l++ // Type
-	l += len(rr.FingerPrint)/2 + 1
+	l += len(rr.FingerPrint) / 2
 	return l
 }
-func (rr *TA) len() int {
-	l := rr.Hdr.len()
+func (rr *TA) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // KeyTag
 	l++    // Algorithm
 	l++    // DigestType
-	l += len(rr.Digest)/2 + 1
+	l += len(rr.Digest) / 2
 	return l
 }
-func (rr *TALINK) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.PreviousName) + 1
-	l += len(rr.NextName) + 1
+func (rr *TALINK) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.PreviousName, off+l, compression, false)
+	l += domainNameLen(rr.NextName, off+l, compression, false)
 	return l
 }
-func (rr *TKEY) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Algorithm) + 1
+func (rr *TKEY) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.Algorithm, off+l, compression, false)
 	l += 4 // Inception
 	l += 4 // Expiration
 	l += 2 // Mode
@@ -596,17 +619,17 @@ func (rr *TKEY) len() int {
 	l += len(rr.OtherData) / 2
 	return l
 }
-func (rr *TLSA) len() int {
-	l := rr.Hdr.len()
+func (rr *TLSA) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l++ // Usage
 	l++ // Selector
 	l++ // MatchingType
-	l += len(rr.Certificate)/2 + 1
+	l += len(rr.Certificate) / 2
 	return l
 }
-func (rr *TSIG) len() int {
-	l := rr.Hdr.len()
-	l += len(rr.Algorithm) + 1
+func (rr *TSIG) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.Algorithm, off+l, compression, false)
 	l += 6 // TimeSigned
 	l += 2 // Fudge
 	l += 2 // MACSize
@@ -617,32 +640,32 @@ func (rr *TSIG) len() int {
 	l += len(rr.OtherData) / 2
 	return l
 }
-func (rr *TXT) len() int {
-	l := rr.Hdr.len()
+func (rr *TXT) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	for _, x := range rr.Txt {
 		l += len(x) + 1
 	}
 	return l
 }
-func (rr *UID) len() int {
-	l := rr.Hdr.len()
+func (rr *UID) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 4 // Uid
 	return l
 }
-func (rr *UINFO) len() int {
-	l := rr.Hdr.len()
+func (rr *UINFO) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += len(rr.Uinfo) + 1
 	return l
 }
-func (rr *URI) len() int {
-	l := rr.Hdr.len()
+func (rr *URI) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += 2 // Priority
 	l += 2 // Weight
 	l += len(rr.Target)
 	return l
 }
-func (rr *X25) len() int {
-	l := rr.Hdr.len()
+func (rr *X25) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
 	l += len(rr.PSDNAddress) + 1
 	return l
 }
@@ -659,6 +682,13 @@ func (rr *AFSDB) copy() RR {
 }
 func (rr *ANY) copy() RR {
 	return &ANY{rr.Hdr}
+}
+func (rr *APL) copy() RR {
+	Prefixes := make([]APLPrefix, len(rr.Prefixes))
+	for i := range rr.Prefixes {
+		Prefixes[i] = rr.Prefixes[i].copy()
+	}
+	return &APL{rr.Hdr, Prefixes}
 }
 func (rr *AVC) copy() RR {
 	Txt := make([]string, len(rr.Txt))
@@ -783,12 +813,17 @@ func (rr *NSEC3) copy() RR {
 func (rr *NSEC3PARAM) copy() RR {
 	return &NSEC3PARAM{rr.Hdr, rr.Hash, rr.Flags, rr.Iterations, rr.SaltLength, rr.Salt}
 }
+func (rr *NULL) copy() RR {
+	return &NULL{rr.Hdr, rr.Data}
+}
 func (rr *OPENPGPKEY) copy() RR {
 	return &OPENPGPKEY{rr.Hdr, rr.PublicKey}
 }
 func (rr *OPT) copy() RR {
 	Option := make([]EDNS0, len(rr.Option))
-	copy(Option, rr.Option)
+	for i, e := range rr.Option {
+		Option[i] = e.copy()
+	}
 	return &OPT{rr.Hdr, Option}
 }
 func (rr *PTR) copy() RR {
