@@ -20,15 +20,13 @@ func ReadFromSessionUDP(conn *net.UDPConn, b []byte) (int, *SessionUDP, error) {
 	if err != nil {
 		return n, nil, err
 	}
-	session := &SessionUDP{raddr.(*net.UDPAddr)}
-	return n, session, err
+	return n, &SessionUDP{raddr.(*net.UDPAddr)}, err
 }
 
 // WriteToSessionUDP acts just like net.UDPConn.WriteTo(), but uses a *SessionUDP instead of a net.Addr.
 // TODO(fastest963): Once go1.10 is released, use WriteMsgUDP.
 func WriteToSessionUDP(conn *net.UDPConn, b []byte, session *SessionUDP) (int, error) {
-	n, err := conn.WriteTo(b, session.raddr)
-	return n, err
+	return conn.WriteTo(b, session.raddr)
 }
 
 // TODO(fastest963): Once go1.10 is released and we can use *MsgUDP methods
