@@ -32,12 +32,14 @@ func TestMain(m *testing.M) {
 }
 
 func launchNode(t *testing.T, conf Config) *NetworkDB {
+	t.Helper()
 	db, err := New(&conf)
 	assert.NilError(t, err)
 	return db
 }
 
 func createNetworkDBInstances(t *testing.T, num int, namePrefix string, conf *Config) []*NetworkDB {
+	t.Helper()
 	var dbs []*NetworkDB
 	for i := 0; i < num; i++ {
 		localConfig := *conf
@@ -67,7 +69,8 @@ func createNetworkDBInstances(t *testing.T, num int, namePrefix string, conf *Co
 	return dbs
 }
 
-func closeNetworkDBInstances(dbs []*NetworkDB) {
+func closeNetworkDBInstances(t *testing.T, dbs []*NetworkDB) {
+	t.Helper()
 	log.Print("Closing DB instances...")
 	for _, db := range dbs {
 		db.Close()
@@ -75,6 +78,7 @@ func closeNetworkDBInstances(dbs []*NetworkDB) {
 }
 
 func (db *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool) {
+	t.Helper()
 	for i := 0; i < 80; i++ {
 		db.RLock()
 		_, ok := db.nodes[node]
@@ -94,6 +98,7 @@ func (db *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool
 }
 
 func (db *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string, present bool) {
+	t.Helper()
 	for i := 0; i < 80; i++ {
 		db.RLock()
 		nn, nnok := db.networks[node]
@@ -118,6 +123,7 @@ func (db *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string
 }
 
 func (db *NetworkDB) verifyEntryExistence(t *testing.T, tname, nid, key, value string, present bool) {
+	t.Helper()
 	n := 80
 	for i := 0; i < n; i++ {
 		entry, err := db.getEntry(tname, nid, key)
@@ -142,6 +148,7 @@ func (db *NetworkDB) verifyEntryExistence(t *testing.T, tname, nid, key, value s
 }
 
 func testWatch(t *testing.T, ch chan events.Event, ev interface{}, tname, nid, key, value string) {
+	t.Helper()
 	select {
 	case rcvdEv := <-ch:
 		assert.Check(t, is.Equal(fmt.Sprintf("%T", rcvdEv), fmt.Sprintf("%T", ev)))
@@ -169,7 +176,7 @@ func testWatch(t *testing.T, ch chan events.Event, ev interface{}, tname, nid, k
 
 func TestNetworkDBSimple(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
-	closeNetworkDBInstances(dbs)
+	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBJoinLeaveNetwork(t *testing.T) {
@@ -184,7 +191,7 @@ func TestNetworkDBJoinLeaveNetwork(t *testing.T) {
 	assert.NilError(t, err)
 
 	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", false)
-	closeNetworkDBInstances(dbs)
+	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBJoinLeaveNetworks(t *testing.T) {
@@ -227,7 +234,7 @@ func TestNetworkDBJoinLeaveNetworks(t *testing.T) {
 		dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, fmt.Sprintf("network1%d", i), false)
 	}
 
-	closeNetworkDBInstances(dbs)
+	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBCRUDTableEntry(t *testing.T) {
@@ -257,7 +264,7 @@ func TestNetworkDBCRUDTableEntry(t *testing.T) {
 
 	dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "", false)
 
-	closeNetworkDBInstances(dbs)
+	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBCRUDTableEntries(t *testing.T) {
@@ -325,7 +332,7 @@ func TestNetworkDBCRUDTableEntries(t *testing.T) {
 		assert.NilError(t, err)
 	}
 
-	closeNetworkDBInstances(dbs)
+	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBNodeLeave(t *testing.T) {
@@ -373,7 +380,7 @@ func TestNetworkDBWatch(t *testing.T) {
 	testWatch(t, ch.C, DeleteEvent{}, "test_table", "network1", "test_key", "")
 
 	cancel()
-	closeNetworkDBInstances(dbs)
+	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBBulkSync(t *testing.T) {
@@ -404,7 +411,7 @@ func TestNetworkDBBulkSync(t *testing.T) {
 		assert.NilError(t, err)
 	}
 
-	closeNetworkDBInstances(dbs)
+	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBCRUDMediumCluster(t *testing.T) {
@@ -460,7 +467,7 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 		assert.Check(t, is.Contains(err.Error(), "deleted and pending garbage collection"), err)
 	}
 
-	closeNetworkDBInstances(dbs)
+	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
@@ -543,7 +550,7 @@ func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[1].networkNodes["network1"]), dbs[1].networkNodes["network1"])
 	}
 
-	closeNetworkDBInstances(dbs)
+	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBGarbageCollection(t *testing.T) {
@@ -594,7 +601,7 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 		assert.Check(t, is.Equal(0, dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber), "entries should had been garbage collected")
 	}
 
-	closeNetworkDBInstances(dbs)
+	closeNetworkDBInstances(t, dbs)
 }
 
 func TestFindNode(t *testing.T) {
@@ -642,7 +649,7 @@ func TestFindNode(t *testing.T) {
 	assert.Check(t, is.Equal(nodeNotFound, currState))
 	assert.Check(t, is.Nil(m))
 
-	closeNetworkDBInstances(dbs)
+	closeNetworkDBInstances(t, dbs)
 }
 
 func TestChangeNodeState(t *testing.T) {
@@ -712,7 +719,7 @@ func TestChangeNodeState(t *testing.T) {
 	assert.Check(t, is.Len(dbs[0].failedNodes, 0))
 	assert.Check(t, is.Len(dbs[0].leftNodes, 3))
 
-	closeNetworkDBInstances(dbs)
+	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNodeReincarnation(t *testing.T) {
@@ -747,7 +754,7 @@ func TestNodeReincarnation(t *testing.T) {
 	assert.Check(t, is.Len(dbs[0].failedNodes, 0))
 	assert.Check(t, is.Len(dbs[0].leftNodes, 3))
 
-	closeNetworkDBInstances(dbs)
+	closeNetworkDBInstances(t, dbs)
 }
 
 func TestParallelCreate(t *testing.T) {
@@ -776,7 +783,7 @@ func TestParallelCreate(t *testing.T) {
 	// Only 1 write should have succeeded
 	assert.Check(t, is.Equal(int32(1), success))
 
-	closeNetworkDBInstances(dbs)
+	closeNetworkDBInstances(t, dbs)
 }
 
 func TestParallelDelete(t *testing.T) {
@@ -808,7 +815,7 @@ func TestParallelDelete(t *testing.T) {
 	// Only 1 write should have succeeded
 	assert.Check(t, is.Equal(int32(1), success))
 
-	closeNetworkDBInstances(dbs)
+	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBIslands(t *testing.T) {
@@ -902,5 +909,5 @@ func TestNetworkDBIslands(t *testing.T) {
 		return poll.Success()
 	}
 	poll.WaitOn(t, check, poll.WithDelay(10*time.Second), poll.WithTimeout(120*time.Second))
-	closeNetworkDBInstances(dbs)
+	closeNetworkDBInstances(t, dbs)
 }
