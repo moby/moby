@@ -51,7 +51,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install CRIU for checkpoint/restore support
-ENV CRIU_VERSION 3.12
+ENV CRIU_VERSION 3.13
 RUN mkdir -p /usr/src/criu \
     && curl -sSL https://github.com/checkpoint-restore/criu/archive/v${CRIU_VERSION}.tar.gz | tar -C /usr/src/criu/ -xz --strip-components=1 \
     && cd /usr/src/criu \
