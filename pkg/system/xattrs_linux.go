@@ -10,24 +10,23 @@ func Lgetxattr(path string, attr string) ([]byte, error) {
 	dest := make([]byte, 128)
 	sz, errno := unix.Lgetxattr(path, attr, dest)
 
-	switch {
-	case errno == unix.ENODATA:
-		return nil, nil
-	case errno == unix.ERANGE:
-		// 128 byte array might just not be good enough. A dummy buffer is used
-		// to get the real size of the xattrs on disk
+	for errno == unix.ERANGE {
+		// Buffer too small, use zero-sized buffer to get the actual size
 		sz, errno = unix.Lgetxattr(path, attr, []byte{})
 		if errno != nil {
 			return nil, errno
 		}
 		dest = make([]byte, sz)
 		sz, errno = unix.Lgetxattr(path, attr, dest)
-		if errno != nil {
-			return nil, errno
-		}
+	}
+
+	switch {
+	case errno == unix.ENODATA:
+		return nil, nil
 	case errno != nil:
 		return nil, errno
 	}
+
 	return dest[:sz], nil
 }
 
