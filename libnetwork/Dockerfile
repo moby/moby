@@ -1,6 +1,6 @@
 ARG GO_VERSION=1.12.12
 
-FROM golang:${GO_VERSION}-stretch as dev
+FROM golang:${GO_VERSION}-buster as dev
 RUN apt-get update && apt-get -y install iptables \
 		protobuf-compiler
 
