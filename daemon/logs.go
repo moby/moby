@@ -11,6 +11,7 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/logger"
+	logcache "github.com/docker/docker/daemon/logger/loggerutils/cache"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -190,6 +191,8 @@ func (daemon *Daemon) mergeAndVerifyLogConfig(cfg *containertypes.LogConfig) err
 		}
 	}
 
+	logcache.MergeDefaultLogConfig(cfg.Config, daemon.defaultLogConfig.Config)
+
 	return logger.ValidateLogOpts(cfg.Type, cfg.Config)
 }
 
@@ -204,6 +207,7 @@ func (daemon *Daemon) setupDefaultLogConfig() error {
 		Type:   config.LogConfig.Type,
 		Config: config.LogConfig.Config,
 	}
+
 	logrus.Debugf("Using default logging driver %s", daemon.defaultLogConfig.Type)
 	return nil
 }

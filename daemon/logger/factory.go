@@ -143,6 +143,10 @@ func ValidateLogOpts(name string, cfg map[string]string) error {
 		}
 	}
 
+	if err := validateExternal(cfg); err != nil {
+		return err
+	}
+
 	if !factory.driverRegistered(name) {
 		return fmt.Errorf("logger: no log driver named '%s' is registered", name)
 	}
