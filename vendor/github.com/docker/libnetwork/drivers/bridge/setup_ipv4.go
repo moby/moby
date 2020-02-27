@@ -27,22 +27,24 @@ func selectIPv4Address(addresses []netlink.Addr, selector *net.IPNet) (netlink.A
 }
 
 func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
-	addrv4List, _, err := i.addresses()
-	if err != nil {
-		return fmt.Errorf("failed to retrieve bridge interface addresses: %v", err)
-	}
-
-	addrv4, _ := selectIPv4Address(addrv4List, config.AddressIPv4)
-
-	if !types.CompareIPNet(addrv4.IPNet, config.AddressIPv4) {
-		if addrv4.IPNet != nil {
-			if err := i.nlh.AddrDel(i.Link, &addrv4); err != nil {
-				return fmt.Errorf("failed to remove current ip address from bridge: %v", err)
-			}
+	if !config.InhibitIPv4 {
+		addrv4List, _, err := i.addresses()
+		if err != nil {
+			return fmt.Errorf("failed to retrieve bridge interface addresses: %v", err)
 		}
-		logrus.Debugf("Assigning address to bridge interface %s: %s", config.BridgeName, config.AddressIPv4)
-		if err := i.nlh.AddrAdd(i.Link, &netlink.Addr{IPNet: config.AddressIPv4}); err != nil {
-			return &IPv4AddrAddError{IP: config.AddressIPv4, Err: err}
+
+		addrv4, _ := selectIPv4Address(addrv4List, config.AddressIPv4)
+
+		if !types.CompareIPNet(addrv4.IPNet, config.AddressIPv4) {
+			if addrv4.IPNet != nil {
+				if err := i.nlh.AddrDel(i.Link, &addrv4); err != nil {
+					return fmt.Errorf("failed to remove current ip address from bridge: %v", err)
+				}
+			}
+			logrus.Debugf("Assigning address to bridge interface %s: %s", config.BridgeName, config.AddressIPv4)
+			if err := i.nlh.AddrAdd(i.Link, &netlink.Addr{IPNet: config.AddressIPv4}); err != nil {
+				return &IPv4AddrAddError{IP: config.AddressIPv4, Err: err}
+			}
 		}
 	}
 
