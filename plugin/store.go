@@ -188,9 +188,7 @@ func (ps *Store) GetAllByCap(capability string) ([]plugingetter.CompatPlugin, er
 	 * bypassing the daemon. For such tests, this check is necessary.
 	 */
 	if ps != nil {
-		ps.RLock()
 		result = ps.getAllByCap(capability)
-		ps.RUnlock()
 	}
 
 	// Lookup with legacy model
