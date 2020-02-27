@@ -40,12 +40,6 @@ func (d *Daemon) RestartNode(t testing.TB) {
 	d.Start(t, startArgs...)
 }
 
-// StartAndSwarmInit starts the daemon (with busybox) and init the swarm
-func (d *Daemon) StartAndSwarmInit(t testing.TB) {
-	d.StartNodeWithBusybox(t)
-	d.SwarmInit(t, swarm.InitRequest{})
-}
-
 // StartAndSwarmJoin starts the daemon (with busybox) and join the specified swarm as worker or manager
 func (d *Daemon) StartAndSwarmJoin(t testing.TB, leader *Daemon, manager bool) {
 	t.Helper()

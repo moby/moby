@@ -29,7 +29,6 @@ import (
 // statuses get correctly associated with the right services.
 func TestServiceListWithStatuses(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	// statuses were added in API version 1.41
 	skip.If(t, versions.LessThan(testEnv.DaemonInfo.ServerVersion, "1.41"))
 	defer setupTest(t)()

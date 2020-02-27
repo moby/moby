@@ -237,11 +237,6 @@ func (d *Daemon) StorageDriver() string {
 	return d.storageDriver
 }
 
-// Sock returns the socket path of the daemon
-func (d *Daemon) Sock() string {
-	return fmt.Sprintf("unix://" + d.sockPath())
-}
-
 func (d *Daemon) sockPath() string {
 	return filepath.Join(SockRoot, d.id+".sock")
 }
@@ -520,23 +515,6 @@ func (d *Daemon) DumpStackAndQuit() {
 		return
 	}
 	SignalDaemonDump(d.cmd.Process.Pid)
-}
-
-// Stop will send a SIGINT every second and wait for the daemon to stop.
-// If it times out, a SIGKILL is sent.
-// Stop will not delete the daemon directory. If a purged daemon is needed,
-// instantiate a new one with NewDaemon.
-// If an error occurs while starting the daemon, the test will fail.
-func (d *Daemon) Stop(t testing.TB) {
-	t.Helper()
-	err := d.StopWithError()
-	if err != nil {
-		if err != errDaemonNotStarted {
-			t.Fatalf("[%s] error while stopping the daemon: %v", d.id, err)
-		} else {
-			t.Logf("[%s] daemon is not started", d.id)
-		}
-	}
 }
 
 // StopWithError will send a SIGINT every second and wait for the daemon to stop.

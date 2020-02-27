@@ -11,10 +11,8 @@ import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil/daemon"
-	"github.com/docker/docker/testutil/environment"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 // ServicePoll tweaks the pollSettings for `service`
@@ -48,20 +46,6 @@ func ContainerPoll(config *poll.Settings) {
 	}
 }
 
-// NewSwarm creates a swarm daemon for testing
-func NewSwarm(t *testing.T, testEnv *environment.Execution, ops ...daemon.Option) *daemon.Daemon {
-	t.Helper()
-	skip.If(t, testEnv.IsRemoteDaemon)
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
-	if testEnv.DaemonInfo.ExperimentalBuild {
-		ops = append(ops, daemon.WithExperimental())
-	}
-	d := daemon.New(t, ops...)
-	d.StartAndSwarmInit(t)
-	return d
-}
-
 // ServiceSpecOpt is used with `CreateService` to pass in service spec modifiers
 type ServiceSpecOpt func(*swarmtypes.ServiceSpec)
 
@@ -83,7 +67,11 @@ func CreateServiceSpec(t *testing.T, opts ...ServiceSpecOpt) swarmtypes.ServiceS
 	t.Helper()
 	var spec swarmtypes.ServiceSpec
 	ServiceWithImage("busybox:latest")(&spec)
-	ServiceWithCommand([]string{"/bin/top"})(&spec)
+	cmd := []string{"/bin/top"}
+	if runtime.GOOS == "windows" {
+		cmd = []string{"sleep", "240"}
+	}
+	ServiceWithCommand(cmd)(&spec)
 	ServiceWithReplicas(1)(&spec)
 
 	for _, o := range opts {

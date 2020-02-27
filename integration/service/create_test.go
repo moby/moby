@@ -77,7 +77,6 @@ func inspectServiceContainer(t *testing.T, client client.APIClient, serviceID st
 }
 
 func TestCreateServiceMultipleTimes(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
@@ -150,7 +149,6 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 }
 
 func TestCreateServiceConflict(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
@@ -192,7 +190,6 @@ func TestCreateServiceMaxReplicas(t *testing.T) {
 }
 
 func TestCreateWithDuplicateNetworkNames(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
@@ -201,8 +198,12 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	ctx := context.Background()
 
 	name := "foo_" + t.Name()
-	n1 := network.CreateNoError(ctx, t, client, name, network.WithDriver("bridge"))
-	n2 := network.CreateNoError(ctx, t, client, name, network.WithDriver("bridge"))
+	driver := "bridge"
+	if testEnv.DaemonInfo.OSType == "windows" {
+		driver = "nat"
+	}
+	n1 := network.CreateNoError(ctx, t, client, name, network.WithDriver(driver))
+	n2 := network.CreateNoError(ctx, t, client, name, network.WithDriver(driver))
 
 	// Duplicates with name but with different driver
 	n3 := network.CreateNoError(ctx, t, client, name, network.WithDriver("overlay"))

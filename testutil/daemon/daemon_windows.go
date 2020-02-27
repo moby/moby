@@ -1,11 +1,13 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strconv"
 	"testing"
 
+	"github.com/docker/docker/api/types/filters"
 	"golang.org/x/sys/windows"
 	"gotest.tools/v3/assert"
 )
@@ -35,4 +37,19 @@ func (d *Daemon) CgroupNamespace(t testing.TB) string {
 }
 
 func setsid(cmd *exec.Cmd) {
+}
+
+// Sock returns host of the daemon started by hack\ci\windows.ps1
+func (d *Daemon) Sock() string {
+	return fmt.Sprintf("tcp://127.0.0.1:2357")
+}
+
+// On Windows we do not stop daemon but instead of just cleanup daemon
+func (d *Daemon) Stop(t testing.TB) {
+	// c.SwarmLeave(context.Background(), true)
+	c := d.NewClientT(t)
+	_, _ = c.ContainersPrune(context.Background(), filters.NewArgs())
+	_, _ = c.ImagesPrune(context.Background(), filters.NewArgs())
+	_, _ = c.NetworksPrune(context.Background(), filters.NewArgs())
+	_, _ = c.VolumesPrune(context.Background(), filters.NewArgs())
 }

@@ -18,7 +18,6 @@ import (
 )
 
 func TestServiceUpdateLabel(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
@@ -74,7 +73,6 @@ func TestServiceUpdateLabel(t *testing.T) {
 }
 
 func TestServiceUpdateSecrets(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
@@ -136,7 +134,6 @@ func TestServiceUpdateSecrets(t *testing.T) {
 }
 
 func TestServiceUpdateConfigs(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
@@ -198,7 +195,6 @@ func TestServiceUpdateConfigs(t *testing.T) {
 }
 
 func TestServiceUpdateNetwork(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
@@ -256,7 +252,6 @@ func TestServiceUpdatePidsLimit(t *testing.T) {
 		t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.41"),
 		"setting pidslimit for services is not supported before api v1.41",
 	)
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	tests := []struct {
 		name      string
 		pidsLimit int64

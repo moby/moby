@@ -875,12 +875,44 @@ Try {
         }
     }
 
+    # Create loopback adapter for swarm integration tests if does not exist
+    if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
+        if (!(Get-NetAdapter -Name "eth0" -ErrorAction:SilentlyContinue)) {
+            $currentPATH = $env:PATH
+            $currentTEMP = $env:TEMP
+            Write-Host -ForegroundColor Green "INFO: Creating loopback adapter eth0"
+            Install-Module -Name LoopbackAdapter -Force
+            Import-Module -Name LoopbackAdapter
+            $nic = New-LoopbackAdapter -Name "eth0" -Force
+            Set-NetIPInterface -InterfaceIndex $nic.ifIndex -InterfaceMetric "254" -WeakHostReceive Enabled -WeakHostSend Enabled -DHCP Disabled
+            New-NetIPAddress -InterfaceIndex $nic.ifIndex -IPAddress "192.168.255.87" -PrefixLength 24
+            Disable-NetAdapterBinding -Name "eth0" -ComponentID ms_tcpip6 -PassThru
+
+            # LoopbackAdapter module overrides PATH and TEMP variables so restore them back
+            $env:PATH = $currentPATH
+            $env:TEMP = $currentTEMP
+        }
+    }
+
+    # Enable swarm mode. Needed for WCOW integration tests
+    if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
+        if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
+            Write-Host -ForegroundColor Green "INFO: Enabling swarm mode"
+            $ErrorActionPreference = "SilentlyContinue"
+            $(& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" swarm init --advertise-addr 192.168.255.87 | Out-Host)
+            $ErrorActionPreference = "Stop"
+            if (-not($LastExitCode -eq 0)) {
+                Throw "ERROR: Failed to enable swarm mode"
+            }
+        }
+    }
+
     # Run the WCOW integration tests unless SKIP_INTEGRATION_TESTS is defined
     if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
         if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
             Write-Host -ForegroundColor Cyan "INFO: Running integration tests at $(Get-Date)..."
             $ErrorActionPreference = "SilentlyContinue"
-    
+
             # Location of the daemon under test.
             $env:OrigDOCKER_HOST="$env:DOCKER_HOST"
     
@@ -1083,6 +1115,12 @@ Finally {
 
     Set-Location "$env:SOURCES_DRIVE\$env:SOURCES_SUBDIR" -ErrorAction SilentlyContinue
     Nuke-Everything
+
+    # Remove temporary loopback adapter
+    if (Get-NetAdapter -Name "eth0" -ErrorAction:SilentlyContinue) {
+        Write-Host -ForegroundColor Green "INFO: Remove loopback adapter eth0"
+        Remove-LoopbackAdapter -Name "eth0" -Force -ErrorAction:SilentlyContinue
+    }
 
     # Restore the TEMP path
     if ($null -ne $TEMPORIG) { $env:TEMP="$TEMPORIG" }

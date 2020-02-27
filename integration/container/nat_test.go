@@ -21,7 +21,6 @@ import (
 )
 
 func TestNetworkNat(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	skip.If(t, testEnv.IsRemoteDaemon)
 
 	defer setupTest(t)()

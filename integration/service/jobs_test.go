@@ -19,7 +19,6 @@ import (
 // mode ReplicatedJob
 func TestCreateJob(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)
 

@@ -18,12 +18,9 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 func TestSecretInspect(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
@@ -46,8 +43,6 @@ func TestSecretInspect(t *testing.T) {
 }
 
 func TestSecretList(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
@@ -127,8 +122,6 @@ func createSecret(ctx context.Context, t *testing.T, client client.APIClient, na
 }
 
 func TestSecretsCreateAndDelete(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
@@ -175,8 +168,6 @@ func TestSecretsCreateAndDelete(t *testing.T) {
 }
 
 func TestSecretsUpdate(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
@@ -227,7 +218,6 @@ func TestSecretsUpdate(t *testing.T) {
 }
 
 func TestTemplatedSecret(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
@@ -327,18 +317,19 @@ func TestTemplatedSecret(t *testing.T) {
 		"this is a config\n"
 	assertAttachedStream(t, attach, expect)
 
-	attach = swarm.ExecTask(t, d, tasks[0], types.ExecConfig{
-		Cmd:          []string{"mount"},
-		AttachStdout: true,
-		AttachStderr: true,
-	})
-	assertAttachedStream(t, attach, "tmpfs on /run/secrets/templated_secret type tmpfs")
+	// Windows implementation does not use tmpfs
+	if testEnv.OSType != "windows" {
+		attach = swarm.ExecTask(t, d, tasks[0], types.ExecConfig{
+			Cmd:          []string{"mount"},
+			AttachStdout: true,
+			AttachStderr: true,
+		})
+		assertAttachedStream(t, attach, "tmpfs on /run/secrets/templated_secret type tmpfs")
+	}
 }
 
 // Test case for 28884
 func TestSecretCreateResolve(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)

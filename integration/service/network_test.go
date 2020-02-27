@@ -11,11 +11,9 @@ import (
 	"github.com/docker/docker/integration/internal/swarm"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 func TestDockerNetworkConnectAlias(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
@@ -77,7 +75,6 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 }
 
 func TestDockerNetworkReConnect(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)

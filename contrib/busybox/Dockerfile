@@ -27,4 +27,5 @@ RUN powershell \
 
 RUN setx /M PATH "C:\bin;%PATH%"
 RUN powershell busybox.exe --list ^|%{$nul = cmd /c mklink C:\bin\$_.exe busybox.exe}
+RUN mkdir C:\run && mklink /D C:\run\secrets C:\ProgramData\Docker\secrets
 CMD ["sh"]
