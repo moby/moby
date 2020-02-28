@@ -102,6 +102,10 @@ func TestExec(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
+	inspect, err := client.ContainerExecInspect(ctx, id.ID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(inspect.ExecID, id.ID))
+
 	resp, err := client.ContainerExecAttach(ctx, id.ID,
 		types.ExecStartCheck{
 			Detach: false,
