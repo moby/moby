@@ -58,6 +58,8 @@ type Image interface {
 	IsUnpacked(context.Context, string) (bool, error)
 	// ContentStore provides a content store which contains image blob data
 	ContentStore() content.Store
+	// Metadata returns the underlying image metadata
+	Metadata() images.Image
 }
 
 type usageOptions struct {
@@ -128,6 +130,10 @@ type image struct {
 
 	i        images.Image
 	platform platforms.MatchComparer
+}
+
+func (i *image) Metadata() images.Image {
+	return i.i
 }
 
 func (i *image) Name() string {

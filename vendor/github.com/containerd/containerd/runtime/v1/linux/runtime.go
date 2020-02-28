@@ -62,6 +62,9 @@ const (
 	configFilename = "config.json"
 	defaultRuntime = "runc"
 	defaultShim    = "containerd-shim"
+
+	// cleanupTimeout is default timeout for cleanup operations
+	cleanupTimeout = 1 * time.Minute
 )
 
 func init() {
@@ -212,7 +215,10 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 	}
 	defer func() {
 		if err != nil {
-			if kerr := s.KillShim(ctx); kerr != nil {
+			deferCtx, deferCancel := context.WithTimeout(
+				namespaces.WithNamespace(context.TODO(), namespace), cleanupTimeout)
+			defer deferCancel()
+			if kerr := s.KillShim(deferCtx); kerr != nil {
 				log.G(ctx).WithError(err).Error("failed to kill shim")
 			}
 		}

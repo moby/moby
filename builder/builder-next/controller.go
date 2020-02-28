@@ -162,7 +162,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, errors.Errorf("snapshotter doesn't support differ")
 	}
 
-	p, err := parsePlatforms(binfmt_misc.SupportedPlatforms())
+	p, err := parsePlatforms(binfmt_misc.SupportedPlatforms(true))
 	if err != nil {
 		return nil, err
 	}

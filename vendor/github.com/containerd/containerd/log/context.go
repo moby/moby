@@ -18,7 +18,6 @@ package log
 
 import (
 	"context"
-	"sync/atomic"
 
 	"github.com/sirupsen/logrus"
 )
@@ -38,22 +37,9 @@ type (
 	loggerKey struct{}
 )
 
-// TraceLevel is the log level for tracing. Trace level is lower than debug level,
-// and is usually used to trace detailed behavior of the program.
-const TraceLevel = logrus.Level(uint32(logrus.DebugLevel + 1))
-
 // RFC3339NanoFixed is time.RFC3339Nano with nanoseconds padded using zeros to
 // ensure the formatted time is always the same number of characters.
 const RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
-
-// ParseLevel takes a string level and returns the Logrus log level constant.
-// It supports trace level.
-func ParseLevel(lvl string) (logrus.Level, error) {
-	if lvl == "trace" {
-		return TraceLevel, nil
-	}
-	return logrus.ParseLevel(lvl)
-}
 
 // WithLogger returns a new context with the provided logger. Use in
 // combination with logger.WithField(s) for great effect.
@@ -71,20 +57,4 @@ func GetLogger(ctx context.Context) *logrus.Entry {
 	}
 
 	return logger.(*logrus.Entry)
-}
-
-// Trace logs a message at level Trace with the log entry passed-in.
-func Trace(e *logrus.Entry, args ...interface{}) {
-	level := logrus.Level(atomic.LoadUint32((*uint32)(&e.Logger.Level)))
-	if level >= TraceLevel {
-		e.Debug(args...)
-	}
-}
-
-// Tracef logs a message at level Trace with the log entry passed-in.
-func Tracef(e *logrus.Entry, format string, args ...interface{}) {
-	level := logrus.Level(atomic.LoadUint32((*uint32)(&e.Logger.Level)))
-	if level >= TraceLevel {
-		e.Debugf(format, args...)
-	}
 }

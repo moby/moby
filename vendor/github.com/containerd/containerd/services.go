@@ -20,6 +20,7 @@ import (
 	containersapi "github.com/containerd/containerd/api/services/containers/v1"
 	"github.com/containerd/containerd/api/services/diff/v1"
 	imagesapi "github.com/containerd/containerd/api/services/images/v1"
+	introspectionapi "github.com/containerd/containerd/api/services/introspection/v1"
 	namespacesapi "github.com/containerd/containerd/api/services/namespaces/v1"
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/containers"
@@ -27,19 +28,21 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/services/introspection"
 	"github.com/containerd/containerd/snapshots"
 )
 
 type services struct {
-	contentStore   content.Store
-	imageStore     images.Store
-	containerStore containers.Store
-	namespaceStore namespaces.Store
-	snapshotters   map[string]snapshots.Snapshotter
-	taskService    tasks.TasksClient
-	diffService    DiffService
-	eventService   EventService
-	leasesService  leases.Manager
+	contentStore         content.Store
+	imageStore           images.Store
+	containerStore       containers.Store
+	namespaceStore       namespaces.Store
+	snapshotters         map[string]snapshots.Snapshotter
+	taskService          tasks.TasksClient
+	diffService          DiffService
+	eventService         EventService
+	leasesService        leases.Manager
+	introspectionService introspection.Service
 }
 
 // ServicesOpt allows callers to set options on the services
@@ -108,5 +111,12 @@ func WithNamespaceService(namespaceService namespacesapi.NamespacesClient) Servi
 func WithLeasesService(leasesService leases.Manager) ServicesOpt {
 	return func(s *services) {
 		s.leasesService = leasesService
+	}
+}
+
+// WithIntrospectionService sets the introspection service.
+func WithIntrospectionService(in introspectionapi.IntrospectionClient) ServicesOpt {
+	return func(s *services) {
+		s.introspectionService = introspection.NewIntrospectionServiceFromClient(in)
 	}
 }

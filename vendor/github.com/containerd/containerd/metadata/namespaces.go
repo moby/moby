@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/identifiers"
 	l "github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/pkg/errors"
@@ -41,7 +42,7 @@ func (s *namespaceStore) Create(ctx context.Context, namespace string, labels ma
 		return err
 	}
 
-	if err := namespaces.Validate(namespace); err != nil {
+	if err := identifiers.Validate(namespace); err != nil {
 		return err
 	}
 

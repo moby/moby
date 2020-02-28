@@ -147,9 +147,6 @@ func (s *createdCheckpointState) Start(ctx context.Context) error {
 	p := s.p
 	sio := p.stdio
 
-	p.pid.Lock()
-	defer p.pid.Unlock()
-
 	var (
 		err    error
 		socket *runc.Socket
@@ -189,7 +186,7 @@ func (s *createdCheckpointState) Start(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve OCI runtime container pid")
 	}
-	p.pid.pid = pid
+	p.pid = pid
 	return s.transition("running")
 }
 

@@ -34,7 +34,10 @@ var (
 
 var ErrNotFound = errors.New("not found")
 
-// Register a type with the base url of the type
+// Register a type with a base URL for JSON marshaling. When the MarshalAny and
+// UnmarshalAny functions are called they will treat the Any type value as JSON.
+// To use protocol buffers for handling the Any value the proto.Register
+// function should be used instead of this function.
 func Register(v interface{}, args ...string) {
 	var (
 		t = tryDereference(v)
@@ -51,7 +54,7 @@ func Register(v interface{}, args ...string) {
 	registry[t] = p
 }
 
-// TypeURL returns the type url for a registred type
+// TypeURL returns the type url for a registred type.
 func TypeURL(v interface{}) (string, error) {
 	mu.Lock()
 	u, ok := registry[tryDereference(v)]
@@ -67,7 +70,7 @@ func TypeURL(v interface{}) (string, error) {
 	return u, nil
 }
 
-// Is returns true if the type of the Any is the same as v
+// Is returns true if the type of the Any is the same as v.
 func Is(any *types.Any, v interface{}) bool {
 	// call to check that v is a pointer
 	tryDereference(v)
@@ -111,17 +114,21 @@ func MarshalAny(v interface{}) (*types.Any, error) {
 	}, nil
 }
 
-// UnmarshalAny unmarshals the any type into a concrete type
+// UnmarshalAny unmarshals the any type into a concrete type.
 func UnmarshalAny(any *types.Any) (interface{}, error) {
-	t, err := getTypeByUrl(any.TypeUrl)
+	return UnmarshalByTypeURL(any.TypeUrl, any.Value)
+}
+
+func UnmarshalByTypeURL(typeURL string, value []byte) (interface{}, error) {
+	t, err := getTypeByUrl(typeURL)
 	if err != nil {
 		return nil, err
 	}
 	v := reflect.New(t.t).Interface()
 	if t.isProto {
-		err = proto.Unmarshal(any.Value, v.(proto.Message))
+		err = proto.Unmarshal(value, v.(proto.Message))
 	} else {
-		err = json.Unmarshal(any.Value, v)
+		err = json.Unmarshal(value, v)
 	}
 	return v, err
 }

@@ -42,13 +42,13 @@ var (
 	identifierRe = regexp.MustCompile(reAnchor(alphanum + reGroup(separators+reGroup(alphanum)) + "*"))
 )
 
-// Validate return nil if the string s is a valid identifier.
+// Validate returns nil if the string s is a valid identifier.
 //
-// identifiers must be valid domain names according to RFC 1035, section 2.3.1.  To
-// enforce case insensitivity, all characters must be lower case.
+// identifiers are similar to the domain name rules according to RFC 1035, section 2.3.1. However
+// rules in this package are relaxed to allow numerals to follow period (".") and mixed case is
+// allowed.
 //
-// In general, identifiers that pass this validation, should be safe for use as
-// a domain names or filesystem path component.
+// In general identifiers that pass this validation should be safe for use as filesystem path components.
 func Validate(s string) error {
 	if len(s) == 0 {
 		return errors.Wrapf(errdefs.ErrInvalidArgument, "identifier must not be empty")

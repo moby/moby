@@ -1,6 +1,6 @@
 package main
 
-import systemdDaemon "github.com/coreos/go-systemd/daemon"
+import systemdDaemon "github.com/coreos/go-systemd/v22/daemon"
 
 // preNotifySystem sends a message to the host when the API is active, but before the daemon is
 func preNotifySystem() {

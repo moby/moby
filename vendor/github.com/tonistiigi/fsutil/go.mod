@@ -6,7 +6,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/docker v0.0.0-20180531152204-71cd53e4a197
 	github.com/docker/go-units v0.3.1 // indirect
-	github.com/gogo/protobuf v1.0.0
+	github.com/gogo/protobuf v1.3.1
 	github.com/google/go-cmp v0.2.0 // indirect
 	github.com/gotestyourself/gotestyourself v2.2.0+incompatible // indirect
 	github.com/onsi/ginkgo v1.7.0 // indirect
@@ -24,3 +24,5 @@ require (
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
 	gotest.tools v2.1.0+incompatible // indirect
 )
+
+go 1.13

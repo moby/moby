@@ -96,16 +96,21 @@ func getCPUVariant() string {
 		return ""
 	}
 
-	switch variant {
-	case "8", "AArch64":
-		variant = "v8"
-	case "7", "7M", "?(12)", "?(13)", "?(14)", "?(15)", "?(16)", "?(17)":
+	switch strings.ToLower(variant) {
+	case "8", "aarch64":
+		// special case: if running a 32-bit userspace on aarch64, the variant should be "v7"
+		if runtime.GOARCH == "arm" {
+			variant = "v7"
+		} else {
+			variant = "v8"
+		}
+	case "7", "7m", "?(12)", "?(13)", "?(14)", "?(15)", "?(16)", "?(17)":
 		variant = "v7"
-	case "6", "6TEJ":
+	case "6", "6tej":
 		variant = "v6"
-	case "5", "5T", "5TE", "5TEJ":
+	case "5", "5t", "5te", "5tej":
 		variant = "v5"
-	case "4", "4T":
+	case "4", "4t":
 		variant = "v4"
 	case "3":
 		variant = "v3"

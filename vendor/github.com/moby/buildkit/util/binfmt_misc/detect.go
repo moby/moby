@@ -5,41 +5,72 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd/platforms"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 )
 
-var once sync.Once
+var mu sync.Mutex
 var arr []string
 
-func SupportedPlatforms() []string {
-	once.Do(func() {
-		def := defaultPlatform()
-		arr = append(arr, def)
-		if p := "linux/amd64"; def != p && amd64Supported() == nil {
-			arr = append(arr, p)
-		}
-		if p := "linux/arm64"; def != p && arm64Supported() == nil {
-			arr = append(arr, p)
-		}
-		if p := "linux/riscv64"; def != p && riscv64Supported() == nil {
-			arr = append(arr, p)
-		}
-		if p := "linux/ppc64le"; def != p && ppc64leSupported() == nil {
-			arr = append(arr, p)
-		}
-		if p := "linux/s390x"; def != p && s390xSupported() == nil {
-			arr = append(arr, p)
-		}
-		if p := "linux/386"; def != p && i386Supported() == nil {
-			arr = append(arr, p)
-		}
-		if !strings.HasPrefix(def, "linux/arm/") && armSupported() == nil {
-			arr = append(arr, "linux/arm/v7", "linux/arm/v6")
-		} else if def == "linux/arm/v7" {
-			arr = append(arr, "linux/arm/v6")
-		}
-	})
+func SupportedPlatforms(noCache bool) []string {
+	mu.Lock()
+	defer mu.Unlock()
+	if !noCache && arr != nil {
+		return arr
+	}
+	def := defaultPlatform()
+	arr = append([]string{}, def)
+	if p := "linux/amd64"; def != p && amd64Supported() == nil {
+		arr = append(arr, p)
+	}
+	if p := "linux/arm64"; def != p && arm64Supported() == nil {
+		arr = append(arr, p)
+	}
+	if p := "linux/riscv64"; def != p && riscv64Supported() == nil {
+		arr = append(arr, p)
+	}
+	if p := "linux/ppc64le"; def != p && ppc64leSupported() == nil {
+		arr = append(arr, p)
+	}
+	if p := "linux/s390x"; def != p && s390xSupported() == nil {
+		arr = append(arr, p)
+	}
+	if p := "linux/386"; def != p && i386Supported() == nil {
+		arr = append(arr, p)
+	}
+	if !strings.HasPrefix(def, "linux/arm/") && armSupported() == nil {
+		arr = append(arr, "linux/arm/v7", "linux/arm/v6")
+	} else if def == "linux/arm/v7" {
+		arr = append(arr, "linux/arm/v6")
+	}
 	return arr
+}
+
+func Check(pp specs.Platform) bool {
+	p := platforms.Format(pp)
+	if p == "linux/amd64" && amd64Supported() == nil {
+		return true
+	}
+	if p == "linux/arm64" && arm64Supported() == nil {
+		return true
+	}
+	if p == "linux/riscv64" && riscv64Supported() == nil {
+		return true
+	}
+	if p == "linux/ppc64le" && ppc64leSupported() == nil {
+		return true
+	}
+	if p == "linux/s390x" && s390xSupported() == nil {
+		return true
+	}
+	if p == "linux/386" && i386Supported() == nil {
+		return true
+	}
+	if !strings.HasPrefix(p, "linux/arm/") && armSupported() == nil {
+		return true
+	}
+
+	return false
 }
 
 //WarnIfUnsupported validates the platforms and show warning message if there is,

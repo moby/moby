@@ -11,8 +11,11 @@ import (
 	github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
 	types1 "github.com/gogo/protobuf/types"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
 )
@@ -26,7 +29,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type ApplyRequest struct {
 	// Diff is the descriptor of the diff to be extracted
@@ -51,7 +54,7 @@ func (m *ApplyRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_ApplyRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -93,7 +96,7 @@ func (m *ApplyResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error
 		return xxx_messageInfo_ApplyResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -146,7 +149,7 @@ func (m *DiffRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) 
 		return xxx_messageInfo_DiffRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -186,7 +189,7 @@ func (m *DiffResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_DiffResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -313,6 +316,17 @@ type DiffServer interface {
 	Diff(context.Context, *DiffRequest) (*DiffResponse, error)
 }
 
+// UnimplementedDiffServer can be embedded to have forward compatible implementations.
+type UnimplementedDiffServer struct {
+}
+
+func (*UnimplementedDiffServer) Apply(ctx context.Context, req *ApplyRequest) (*ApplyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Apply not implemented")
+}
+func (*UnimplementedDiffServer) Diff(ctx context.Context, req *DiffRequest) (*DiffResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Diff not implemented")
+}
+
 func RegisterDiffServer(s *grpc.Server, srv DiffServer) {
 	s.RegisterService(&_Diff_serviceDesc, srv)
 }
@@ -373,7 +387,7 @@ var _Diff_serviceDesc = grpc.ServiceDesc{
 func (m *ApplyRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -381,70 +395,78 @@ func (m *ApplyRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *ApplyRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ApplyRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Diff != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintDiff(dAtA, i, uint64(m.Diff.Size()))
-		n1, err := m.Diff.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n1
-	}
-	if len(m.Mounts) > 0 {
-		for _, msg := range m.Mounts {
-			dAtA[i] = 0x12
-			i++
-			i = encodeVarintDiff(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
 	if len(m.Payloads) > 0 {
-		for k, _ := range m.Payloads {
-			dAtA[i] = 0x1a
-			i++
+		for k := range m.Payloads {
 			v := m.Payloads[k]
-			msgSize := 0
+			baseI := i
 			if v != nil {
-				msgSize = v.Size()
-				msgSize += 1 + sovDiff(uint64(msgSize))
-			}
-			mapSize := 1 + len(k) + sovDiff(uint64(len(k))) + msgSize
-			i = encodeVarintDiff(dAtA, i, uint64(mapSize))
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintDiff(dAtA, i, uint64(len(k)))
-			i += copy(dAtA[i:], k)
-			if v != nil {
+				{
+					size, err := v.MarshalToSizedBuffer(dAtA[:i])
+					if err != nil {
+						return 0, err
+					}
+					i -= size
+					i = encodeVarintDiff(dAtA, i, uint64(size))
+				}
+				i--
 				dAtA[i] = 0x12
-				i++
-				i = encodeVarintDiff(dAtA, i, uint64(v.Size()))
-				n2, err := v.MarshalTo(dAtA[i:])
+			}
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintDiff(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintDiff(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x1a
+		}
+	}
+	if len(m.Mounts) > 0 {
+		for iNdEx := len(m.Mounts) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Mounts[iNdEx].MarshalToSizedBuffer(dAtA[:i])
 				if err != nil {
 					return 0, err
 				}
-				i += n2
+				i -= size
+				i = encodeVarintDiff(dAtA, i, uint64(size))
 			}
+			i--
+			dAtA[i] = 0x12
 		}
 	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+	if m.Diff != nil {
+		{
+			size, err := m.Diff.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintDiff(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *ApplyResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -452,30 +474,38 @@ func (m *ApplyResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *ApplyResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ApplyResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Applied != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintDiff(dAtA, i, uint64(m.Applied.Size()))
-		n3, err := m.Applied.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n3
-	}
 	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	return i, nil
+	if m.Applied != nil {
+		{
+			size, err := m.Applied.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintDiff(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *DiffRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -483,73 +513,87 @@ func (m *DiffRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *DiffRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *DiffRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Left) > 0 {
-		for _, msg := range m.Left {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintDiff(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if len(m.Right) > 0 {
-		for _, msg := range m.Right {
-			dAtA[i] = 0x12
-			i++
-			i = encodeVarintDiff(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if len(m.MediaType) > 0 {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintDiff(dAtA, i, uint64(len(m.MediaType)))
-		i += copy(dAtA[i:], m.MediaType)
-	}
-	if len(m.Ref) > 0 {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintDiff(dAtA, i, uint64(len(m.Ref)))
-		i += copy(dAtA[i:], m.Ref)
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
 	if len(m.Labels) > 0 {
-		for k, _ := range m.Labels {
-			dAtA[i] = 0x2a
-			i++
+		for k := range m.Labels {
 			v := m.Labels[k]
-			mapSize := 1 + len(k) + sovDiff(uint64(len(k))) + 1 + len(v) + sovDiff(uint64(len(v)))
-			i = encodeVarintDiff(dAtA, i, uint64(mapSize))
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintDiff(dAtA, i, uint64(len(k)))
-			i += copy(dAtA[i:], k)
-			dAtA[i] = 0x12
-			i++
+			baseI := i
+			i -= len(v)
+			copy(dAtA[i:], v)
 			i = encodeVarintDiff(dAtA, i, uint64(len(v)))
-			i += copy(dAtA[i:], v)
+			i--
+			dAtA[i] = 0x12
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintDiff(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintDiff(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x2a
 		}
 	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+	if len(m.Ref) > 0 {
+		i -= len(m.Ref)
+		copy(dAtA[i:], m.Ref)
+		i = encodeVarintDiff(dAtA, i, uint64(len(m.Ref)))
+		i--
+		dAtA[i] = 0x22
 	}
-	return i, nil
+	if len(m.MediaType) > 0 {
+		i -= len(m.MediaType)
+		copy(dAtA[i:], m.MediaType)
+		i = encodeVarintDiff(dAtA, i, uint64(len(m.MediaType)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Right) > 0 {
+		for iNdEx := len(m.Right) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Right[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintDiff(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if len(m.Left) > 0 {
+		for iNdEx := len(m.Left) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Left[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintDiff(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *DiffResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -557,34 +601,44 @@ func (m *DiffResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *DiffResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *DiffResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Diff != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintDiff(dAtA, i, uint64(m.Diff.Size()))
-		n4, err := m.Diff.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n4
-	}
 	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	return i, nil
+	if m.Diff != nil {
+		{
+			size, err := m.Diff.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintDiff(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x1a
+	}
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintDiff(dAtA []byte, offset int, v uint64) int {
+	offset -= sovDiff(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 func (m *ApplyRequest) Size() (n int) {
 	if m == nil {
@@ -694,14 +748,7 @@ func (m *DiffResponse) Size() (n int) {
 }
 
 func sovDiff(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozDiff(x uint64) (n int) {
 	return sovDiff(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -710,6 +757,11 @@ func (this *ApplyRequest) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForMounts := "[]*Mount{"
+	for _, f := range this.Mounts {
+		repeatedStringForMounts += strings.Replace(fmt.Sprintf("%v", f), "Mount", "types.Mount", 1) + ","
+	}
+	repeatedStringForMounts += "}"
 	keysForPayloads := make([]string, 0, len(this.Payloads))
 	for k, _ := range this.Payloads {
 		keysForPayloads = append(keysForPayloads, k)
@@ -722,7 +774,7 @@ func (this *ApplyRequest) String() string {
 	mapStringForPayloads += "}"
 	s := strings.Join([]string{`&ApplyRequest{`,
 		`Diff:` + strings.Replace(fmt.Sprintf("%v", this.Diff), "Descriptor", "types.Descriptor", 1) + `,`,
-		`Mounts:` + strings.Replace(fmt.Sprintf("%v", this.Mounts), "Mount", "types.Mount", 1) + `,`,
+		`Mounts:` + repeatedStringForMounts + `,`,
 		`Payloads:` + mapStringForPayloads + `,`,
 		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
 		`}`,
@@ -744,6 +796,16 @@ func (this *DiffRequest) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForLeft := "[]*Mount{"
+	for _, f := range this.Left {
+		repeatedStringForLeft += strings.Replace(fmt.Sprintf("%v", f), "Mount", "types.Mount", 1) + ","
+	}
+	repeatedStringForLeft += "}"
+	repeatedStringForRight := "[]*Mount{"
+	for _, f := range this.Right {
+		repeatedStringForRight += strings.Replace(fmt.Sprintf("%v", f), "Mount", "types.Mount", 1) + ","
+	}
+	repeatedStringForRight += "}"
 	keysForLabels := make([]string, 0, len(this.Labels))
 	for k, _ := range this.Labels {
 		keysForLabels = append(keysForLabels, k)
@@ -755,8 +817,8 @@ func (this *DiffRequest) String() string {
 	}
 	mapStringForLabels += "}"
 	s := strings.Join([]string{`&DiffRequest{`,
-		`Left:` + strings.Replace(fmt.Sprintf("%v", this.Left), "Mount", "types.Mount", 1) + `,`,
-		`Right:` + strings.Replace(fmt.Sprintf("%v", this.Right), "Mount", "types.Mount", 1) + `,`,
+		`Left:` + repeatedStringForLeft + `,`,
+		`Right:` + repeatedStringForRight + `,`,
 		`MediaType:` + fmt.Sprintf("%v", this.MediaType) + `,`,
 		`Ref:` + fmt.Sprintf("%v", this.Ref) + `,`,
 		`Labels:` + mapStringForLabels + `,`,
@@ -1533,6 +1595,7 @@ func (m *DiffResponse) Unmarshal(dAtA []byte) error {
 func skipDiff(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -1564,10 +1627,8 @@ func skipDiff(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -1588,55 +1649,30 @@ func skipDiff(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthDiff
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthDiff
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowDiff
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipDiff(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthDiff
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupDiff
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthDiff
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthDiff = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowDiff   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthDiff        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowDiff          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupDiff = fmt.Errorf("proto: unexpected end of group")
 )

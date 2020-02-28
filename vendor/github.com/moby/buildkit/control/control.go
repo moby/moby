@@ -373,7 +373,7 @@ func (c *Controller) ListWorkers(ctx context.Context, r *controlapi.ListWorkersR
 		resp.Record = append(resp.Record, &apitypes.WorkerRecord{
 			ID:        w.ID(),
 			Labels:    w.Labels(),
-			Platforms: pb.PlatformsFromSpec(w.Platforms()),
+			Platforms: pb.PlatformsFromSpec(w.Platforms(true)),
 			GCPolicy:  toPBGCPolicy(w.GCPolicy()),
 		})
 	}

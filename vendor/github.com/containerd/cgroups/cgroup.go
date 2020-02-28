@@ -67,6 +67,7 @@ func New(hierarchy Hierarchy, path Path, resources *specs.LinuxResources, opts .
 }
 
 // Load will load an existing cgroup and allow it to be controlled
+// All static path should not include `/sys/fs/cgroup/` prefix, it should start with your own cgroups name
 func Load(hierarchy Hierarchy, path Path, opts ...InitOpts) (Cgroup, error) {
 	config := newInitConfig()
 	for _, o := range opts {

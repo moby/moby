@@ -21,6 +21,7 @@ service Snapshots {
 	rpc Update(UpdateSnapshotRequest) returns (UpdateSnapshotResponse);
 	rpc List(ListSnapshotsRequest) returns (stream ListSnapshotsResponse);
 	rpc Usage(UsageRequest) returns (UsageResponse);
+	rpc Cleanup(CleanupRequest) returns (google.protobuf.Empty);
 }
 
 message PrepareSnapshotRequest {
@@ -133,6 +134,18 @@ message UpdateSnapshotResponse {
 
 message ListSnapshotsRequest{
 	string snapshotter = 1;
+
+	// Filters contains one or more filters using the syntax defined in the
+	// containerd filter package.
+	//
+	// The returned result will be those that match any of the provided
+	// filters. Expanded, images that match the following will be
+	// returned:
+	//
+	//   filters[0] or filters[1] or ... or filters[n-1] or filters[n]
+	//
+	// If filters is zero-length or nil, all items will be returned.
+	repeated string filters = 2;
 }
 
 message ListSnapshotsResponse {
@@ -147,4 +160,8 @@ message UsageRequest {
 message UsageResponse {
 	int64 size = 1;
 	int64 inodes = 2;
+}
+
+message CleanupRequest {
+	string snapshotter = 1;
 }

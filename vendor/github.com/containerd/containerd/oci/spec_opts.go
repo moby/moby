@@ -439,7 +439,7 @@ func WithHostLocaltime(_ context.Context, _ Client, _ *containers.Container, s *
 
 // WithUserNamespace sets the uid and gid mappings for the task
 // this can be called multiple times to add more mappings to the generated spec
-func WithUserNamespace(container, host, size uint32) SpecOpts {
+func WithUserNamespace(uidMap, gidMap []specs.LinuxIDMapping) SpecOpts {
 	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
 		var hasUserns bool
 		setLinux(s)
@@ -454,13 +454,8 @@ func WithUserNamespace(container, host, size uint32) SpecOpts {
 				Type: specs.UserNamespace,
 			})
 		}
-		mapping := specs.LinuxIDMapping{
-			ContainerID: container,
-			HostID:      host,
-			Size:        size,
-		}
-		s.Linux.UIDMappings = append(s.Linux.UIDMappings, mapping)
-		s.Linux.GIDMappings = append(s.Linux.GIDMappings, mapping)
+		s.Linux.UIDMappings = append(s.Linux.UIDMappings, uidMap...)
+		s.Linux.GIDMappings = append(s.Linux.GIDMappings, gidMap...)
 		return nil
 	}
 }

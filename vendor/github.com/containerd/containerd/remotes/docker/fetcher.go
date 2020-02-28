@@ -95,41 +95,49 @@ func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.R
 			images.MediaTypeDockerSchema1Manifest,
 			ocispec.MediaTypeImageManifest, ocispec.MediaTypeImageIndex:
 
+			var firstErr error
 			for _, host := range r.hosts {
 				req := r.request(host, http.MethodGet, "manifests", desc.Digest.String())
 
 				rc, err := r.open(ctx, req, desc.MediaType, offset)
 				if err != nil {
-					if errdefs.IsNotFound(err) {
-						continue // try another host
+					// Store the error for referencing later
+					if firstErr == nil {
+						firstErr = err
 					}
-
-					return nil, err
+					continue // try another host
 				}
 
 				return rc, nil
 			}
+
+			return nil, firstErr
 		}
 
 		// Finally use blobs endpoints
+		var firstErr error
 		for _, host := range r.hosts {
 			req := r.request(host, http.MethodGet, "blobs", desc.Digest.String())
 
 			rc, err := r.open(ctx, req, desc.MediaType, offset)
 			if err != nil {
-				if errdefs.IsNotFound(err) {
-					continue // try another host
+				// Store the error for referencing later
+				if firstErr == nil {
+					firstErr = err
 				}
-
-				return nil, err
+				continue // try another host
 			}
 
 			return rc, nil
 		}
 
-		return nil, errors.Wrapf(errdefs.ErrNotFound,
-			"could not fetch content descriptor %v (%v) from remote",
-			desc.Digest, desc.MediaType)
+		if errdefs.IsNotFound(firstErr) {
+			firstErr = errors.Wrapf(errdefs.ErrNotFound,
+				"could not fetch content descriptor %v (%v) from remote",
+				desc.Digest, desc.MediaType)
+		}
+
+		return nil, firstErr
 
 	})
 }

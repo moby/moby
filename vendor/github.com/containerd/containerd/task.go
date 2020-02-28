@@ -159,7 +159,7 @@ type Task interface {
 	// Pids returns a list of system specific process ids inside the task
 	Pids(context.Context) ([]ProcessInfo, error)
 	// Checkpoint serializes the runtime and memory information of a task into an
-	// OCI Index that can be push and pulled from a remote resource.
+	// OCI Index that can be pushed and pulled from a remote resource.
 	//
 	// Additional software like CRIU maybe required to checkpoint and restore tasks
 	// NOTE: Checkpoint supports to dump task information to a directory, in this way,

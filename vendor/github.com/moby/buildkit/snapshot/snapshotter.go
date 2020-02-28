@@ -29,7 +29,7 @@ type Snapshotter interface {
 	Usage(ctx context.Context, key string) (snapshots.Usage, error)
 	Commit(ctx context.Context, name, key string, opts ...snapshots.Opt) error
 	Remove(ctx context.Context, key string) error
-	Walk(ctx context.Context, fn func(context.Context, snapshots.Info) error) error
+	Walk(ctx context.Context, fn snapshots.WalkFunc, filters ...string) error
 	Close() error
 	IdentityMapping() *idtools.IdentityMapping
 }
