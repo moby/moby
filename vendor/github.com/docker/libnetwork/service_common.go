@@ -369,9 +369,11 @@ func (c *controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 	// sandboxes in the network only if the vip is valid.
 	if entries == 0 {
 		// The network may well have been deleted before the last
-		// of the service bindings.  That's ok, because removing
-		// the network sandbox implicitly removes the backend
-		// service bindings.
+		// of the service bindings.  That's ok on Linux because
+		// removing the network sandbox implicitly removes the
+		// backend service bindings.  Windows VFP cleanup requires
+		// calling cleanupServiceBindings on the network prior to
+		// deleting the network, performed by network.delete.
 		n, err := c.NetworkByID(nID)
 		if err == nil {
 			n.(*network).rmLBBackend(ip, lb, rmService, fullRemove)

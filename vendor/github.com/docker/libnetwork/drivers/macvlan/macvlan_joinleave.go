@@ -39,38 +39,49 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("could not find endpoint with id %s", eid)
 	}
 	// parse and match the endpoint address with the available v4 subnets
-	if len(n.config.Ipv4Subnets) > 0 {
-		s := n.getSubnetforIPv4(ep.addr)
-		if s == nil {
-			return fmt.Errorf("could not find a valid ipv4 subnet for endpoint %s", eid)
+	if !n.config.Internal {
+		if len(n.config.Ipv4Subnets) > 0 {
+			s := n.getSubnetforIPv4(ep.addr)
+			if s == nil {
+				return fmt.Errorf("could not find a valid ipv4 subnet for endpoint %s", eid)
+			}
+			v4gw, _, err := net.ParseCIDR(s.GwIP)
+			if err != nil {
+				return fmt.Errorf("gateway %s is not a valid ipv4 address: %v", s.GwIP, err)
+			}
+			err = jinfo.SetGateway(v4gw)
+			if err != nil {
+				return err
+			}
+			logrus.Debugf("Macvlan Endpoint Joined with IPv4_Addr: %s, Gateway: %s, MacVlan_Mode: %s, Parent: %s",
+				ep.addr.IP.String(), v4gw.String(), n.config.MacvlanMode, n.config.Parent)
 		}
-		v4gw, _, err := net.ParseCIDR(s.GwIP)
-		if err != nil {
-			return fmt.Errorf("gateway %s is not a valid ipv4 address: %v", s.GwIP, err)
+		// parse and match the endpoint address with the available v6 subnets
+		if len(n.config.Ipv6Subnets) > 0 {
+			s := n.getSubnetforIPv6(ep.addrv6)
+			if s == nil {
+				return fmt.Errorf("could not find a valid ipv6 subnet for endpoint %s", eid)
+			}
+			v6gw, _, err := net.ParseCIDR(s.GwIP)
+			if err != nil {
+				return fmt.Errorf("gateway %s is not a valid ipv6 address: %v", s.GwIP, err)
+			}
+			err = jinfo.SetGatewayIPv6(v6gw)
+			if err != nil {
+				return err
+			}
+			logrus.Debugf("Macvlan Endpoint Joined with IPv6_Addr: %s Gateway: %s MacVlan_Mode: %s, Parent: %s",
+				ep.addrv6.IP.String(), v6gw.String(), n.config.MacvlanMode, n.config.Parent)
 		}
-		err = jinfo.SetGateway(v4gw)
-		if err != nil {
-			return err
+	} else {
+		if len(n.config.Ipv4Subnets) > 0 {
+			logrus.Debugf("Macvlan Endpoint Joined with IPv4_Addr: %s, MacVlan_Mode: %s, Parent: %s",
+				ep.addr.IP.String(), n.config.MacvlanMode, n.config.Parent)
 		}
-		logrus.Debugf("Macvlan Endpoint Joined with IPv4_Addr: %s, Gateway: %s, MacVlan_Mode: %s, Parent: %s",
-			ep.addr.IP.String(), v4gw.String(), n.config.MacvlanMode, n.config.Parent)
-	}
-	// parse and match the endpoint address with the available v6 subnets
-	if len(n.config.Ipv6Subnets) > 0 {
-		s := n.getSubnetforIPv6(ep.addrv6)
-		if s == nil {
-			return fmt.Errorf("could not find a valid ipv6 subnet for endpoint %s", eid)
+		if len(n.config.Ipv6Subnets) > 0 {
+			logrus.Debugf("Macvlan Endpoint Joined with IPv6_Addr: %s MacVlan_Mode: %s, Parent: %s",
+				ep.addrv6.IP.String(), n.config.MacvlanMode, n.config.Parent)
 		}
-		v6gw, _, err := net.ParseCIDR(s.GwIP)
-		if err != nil {
-			return fmt.Errorf("gateway %s is not a valid ipv6 address: %v", s.GwIP, err)
-		}
-		err = jinfo.SetGatewayIPv6(v6gw)
-		if err != nil {
-			return err
-		}
-		logrus.Debugf("Macvlan Endpoint Joined with IPv6_Addr: %s Gateway: %s MacVlan_Mode: %s, Parent: %s",
-			ep.addrv6.IP.String(), v6gw.String(), n.config.MacvlanMode, n.config.Parent)
 	}
 	iNames := jinfo.InterfaceName()
 	err = iNames.SetNames(vethName, containerVethPrefix)
