@@ -119,12 +119,8 @@ func assert(
 		return true
 
 	case error:
-		// Handle nil structs which implement error as a nil error
-		if reflect.ValueOf(check).IsNil() {
-			return true
-		}
-		msg := "error is not nil: "
-		t.Log(format.WithCustomMessage(failureMessage+msg+check.Error(), msgAndArgs...))
+		msg := failureMsgFromError(check)
+		t.Log(format.WithCustomMessage(failureMessage+msg, msgAndArgs...))
 
 	case cmp.Comparison:
 		success = runComparison(t, argSelector, check, msgAndArgs...)
@@ -177,6 +173,15 @@ func logFailureFromBool(t TestingT, msgAndArgs ...interface{}) {
 	}
 
 	t.Log(format.WithCustomMessage(failureMessage+msg, msgAndArgs...))
+}
+
+func failureMsgFromError(err error) string {
+	// Handle errors with non-nil types
+	v := reflect.ValueOf(err)
+	if v.Kind() == reflect.Ptr && v.IsNil() {
+		return fmt.Sprintf("error is not nil: error has type %T", err)
+	}
+	return "error is not nil: " + err.Error()
 }
 
 func boolFailureMessage(expr ast.Expr) (string, error) {
