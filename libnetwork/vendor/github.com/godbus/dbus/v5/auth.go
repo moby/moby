@@ -77,7 +77,7 @@ func (conn *Conn) Auth(methods []Auth) error {
 		for _, m := range methods {
 			if name, data, status := m.FirstData(); bytes.Equal(v, name) {
 				var ok bool
-				err = authWriteLine(conn.transport, []byte("AUTH"), []byte(v), data)
+				err = authWriteLine(conn.transport, []byte("AUTH"), v, data)
 				if err != nil {
 					return err
 				}
@@ -116,7 +116,6 @@ func (conn *Conn) Auth(methods []Auth) error {
 						return err
 					}
 					go conn.inWorker()
-					go conn.outWorker()
 					return nil
 				}
 			}
@@ -128,7 +127,7 @@ func (conn *Conn) Auth(methods []Auth) error {
 // tryAuth tries to authenticate with m as the mechanism, using state as the
 // initial authState and in for reading input. It returns (nil, true) on
 // success, (nil, false) on a REJECTED and (someErr, false) if some other
-// error occured.
+// error occurred.
 func (conn *Conn) tryAuth(m Auth, state authState, in *bufio.Reader) (error, bool) {
 	for {
 		s, err := authReadLine(in)

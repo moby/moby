@@ -17,11 +17,16 @@ type Variant struct {
 // MakeVariant converts the given value to a Variant. It panics if v cannot be
 // represented as a D-Bus type.
 func MakeVariant(v interface{}) Variant {
-	return Variant{SignatureOf(v), v}
+	return MakeVariantWithSignature(v, SignatureOf(v))
+}
+
+// MakeVariantWithSignature converts the given value to a Variant.
+func MakeVariantWithSignature(v interface{}, s Signature) Variant {
+	return Variant{s, v}
 }
 
 // ParseVariant parses the given string as a variant as described at
-// https://developer.gnome.org/glib/unstable/gvariant-text.html. If sig is not
+// https://developer.gnome.org/glib/stable/gvariant-text.html. If sig is not
 // empty, it is taken to be the expected signature for the variant.
 func ParseVariant(s string, sig Signature) (Variant, error) {
 	tokens := varLex(s)
@@ -124,7 +129,7 @@ func (v Variant) Signature() Signature {
 }
 
 // String returns the string representation of the underlying value of v as
-// described at https://developer.gnome.org/glib/unstable/gvariant-text.html.
+// described at https://developer.gnome.org/glib/stable/gvariant-text.html.
 func (v Variant) String() string {
 	s, unamb := v.format()
 	if !unamb {

@@ -1,7 +1,6 @@
 package dbus
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"reflect"
@@ -9,32 +8,29 @@ import (
 )
 
 var (
-	errmsgInvalidArg = Error{
+	ErrMsgInvalidArg = Error{
 		"org.freedesktop.DBus.Error.InvalidArgs",
 		[]interface{}{"Invalid type / number of args"},
 	}
-	errmsgNoObject = Error{
+	ErrMsgNoObject = Error{
 		"org.freedesktop.DBus.Error.NoSuchObject",
 		[]interface{}{"No such object"},
 	}
-	errmsgUnknownMethod = Error{
+	ErrMsgUnknownMethod = Error{
 		"org.freedesktop.DBus.Error.UnknownMethod",
 		[]interface{}{"Unknown / invalid method"},
 	}
+	ErrMsgUnknownInterface = Error{
+		"org.freedesktop.DBus.Error.UnknownInterface",
+		[]interface{}{"Object does not implement the interface"},
+	}
 )
 
-// exportedObj represents an exported object. It stores a precomputed
-// method table that represents the methods exported on the bus.
-type exportedObj struct {
-	methods map[string]reflect.Value
-
-	// Whether or not this export is for the entire subtree
-	includeSubtree bool
-}
-
-func (obj exportedObj) Method(name string) (reflect.Value, bool) {
-	out, exists := obj.methods[name]
-	return out, exists
+func MakeFailedError(err error) *Error {
+	return &Error{
+		"org.freedesktop.DBus.Error.Failed",
+		[]interface{}{err.Error()},
+	}
 }
 
 // Sender is a type which can be used in exported methods to receive the message
@@ -63,7 +59,7 @@ func getMethods(in interface{}, mapping map[string]string) map[string]reflect.Va
 		// only track valid methods must return *Error as last arg
 		// and must be exported
 		if t.NumOut() == 0 ||
-			t.Out(t.NumOut()-1) != reflect.TypeOf(&errmsgInvalidArg) ||
+			t.Out(t.NumOut()-1) != reflect.TypeOf(&ErrMsgInvalidArg) ||
 			methtype.PkgPath != "" {
 			continue
 		}
@@ -73,119 +69,12 @@ func getMethods(in interface{}, mapping map[string]string) map[string]reflect.Va
 	return methods
 }
 
-// searchHandlers will look through all registered handlers looking for one
-// to handle the given path. If a verbatim one isn't found, it will check for
-// a subtree registration for the path as well.
-func (conn *Conn) searchHandlers(path ObjectPath) (map[string]exportedObj, bool) {
-	conn.handlersLck.RLock()
-	defer conn.handlersLck.RUnlock()
+func standardMethodArgumentDecode(m Method, sender string, msg *Message, body []interface{}) ([]interface{}, error) {
+	pointers := make([]interface{}, m.NumArguments())
+	decode := make([]interface{}, 0, len(body))
 
-	handlers, ok := conn.handlers[path]
-	if ok {
-		return handlers, ok
-	}
-
-	// If handlers weren't found for this exact path, look for a matching subtree
-	// registration
-	handlers = make(map[string]exportedObj)
-	path = path[:strings.LastIndex(string(path), "/")]
-	for len(path) > 0 {
-		var subtreeHandlers map[string]exportedObj
-		subtreeHandlers, ok = conn.handlers[path]
-		if ok {
-			for iface, handler := range subtreeHandlers {
-				// Only include this handler if it registered for the subtree
-				if handler.includeSubtree {
-					handlers[iface] = handler
-				}
-			}
-
-			break
-		}
-
-		path = path[:strings.LastIndex(string(path), "/")]
-	}
-
-	return handlers, ok
-}
-
-// handleCall handles the given method call (i.e. looks if it's one of the
-// pre-implemented ones and searches for a corresponding handler if not).
-func (conn *Conn) handleCall(msg *Message) {
-	name := msg.Headers[FieldMember].value.(string)
-	path := msg.Headers[FieldPath].value.(ObjectPath)
-	ifaceName, hasIface := msg.Headers[FieldInterface].value.(string)
-	sender, hasSender := msg.Headers[FieldSender].value.(string)
-	serial := msg.serial
-	if ifaceName == "org.freedesktop.DBus.Peer" {
-		switch name {
-		case "Ping":
-			conn.sendReply(sender, serial)
-		case "GetMachineId":
-			conn.sendReply(sender, serial, conn.uuid)
-		default:
-			conn.sendError(errmsgUnknownMethod, sender, serial)
-		}
-		return
-	} else if ifaceName == "org.freedesktop.DBus.Introspectable" && name == "Introspect" {
-		if _, ok := conn.handlers[path]; !ok {
-			subpath := make(map[string]struct{})
-			var xml bytes.Buffer
-			xml.WriteString("<node>")
-			for h, _ := range conn.handlers {
-				p := string(path)
-				if p != "/" {
-					p += "/"
-				}
-				if strings.HasPrefix(string(h), p) {
-					node_name := strings.Split(string(h[len(p):]), "/")[0]
-					subpath[node_name] = struct{}{}
-				}
-			}
-			for s, _ := range subpath {
-				xml.WriteString("\n\t<node name=\"" + s + "\"/>")
-			}
-			xml.WriteString("\n</node>")
-			conn.sendReply(sender, serial, xml.String())
-			return
-		}
-	}
-	if len(name) == 0 {
-		conn.sendError(errmsgUnknownMethod, sender, serial)
-	}
-
-	// Find the exported handler (if any) for this path
-	handlers, ok := conn.searchHandlers(path)
-	if !ok {
-		conn.sendError(errmsgNoObject, sender, serial)
-		return
-	}
-
-	var m reflect.Value
-	var exists bool
-	if hasIface {
-		iface := handlers[ifaceName]
-		m, exists = iface.Method(name)
-	} else {
-		for _, v := range handlers {
-			m, exists = v.Method(name)
-			if exists {
-				break
-			}
-		}
-	}
-
-	if !exists {
-		conn.sendError(errmsgUnknownMethod, sender, serial)
-		return
-	}
-
-	t := m.Type()
-	vs := msg.Body
-	pointers := make([]interface{}, t.NumIn())
-	decode := make([]interface{}, 0, len(vs))
-	for i := 0; i < t.NumIn(); i++ {
-		tp := t.In(i)
+	for i := 0; i < m.NumArguments(); i++ {
+		tp := reflect.TypeOf(m.ArgumentValue(i))
 		val := reflect.New(tp)
 		pointers[i] = val.Interface()
 		if tp == reflect.TypeOf((*Sender)(nil)).Elem() {
@@ -197,26 +86,73 @@ func (conn *Conn) handleCall(msg *Message) {
 		}
 	}
 
-	if len(decode) != len(vs) {
-		conn.sendError(errmsgInvalidArg, sender, serial)
+	if len(decode) != len(body) {
+		return nil, ErrMsgInvalidArg
+	}
+
+	if err := Store(body, decode...); err != nil {
+		return nil, ErrMsgInvalidArg
+	}
+
+	return pointers, nil
+}
+
+func (conn *Conn) decodeArguments(m Method, sender string, msg *Message) ([]interface{}, error) {
+	if decoder, ok := m.(ArgumentDecoder); ok {
+		return decoder.DecodeArguments(conn, sender, msg, msg.Body)
+	}
+	return standardMethodArgumentDecode(m, sender, msg, msg.Body)
+}
+
+// handleCall handles the given method call (i.e. looks if it's one of the
+// pre-implemented ones and searches for a corresponding handler if not).
+func (conn *Conn) handleCall(msg *Message) {
+	name := msg.Headers[FieldMember].value.(string)
+	path := msg.Headers[FieldPath].value.(ObjectPath)
+	ifaceName, _ := msg.Headers[FieldInterface].value.(string)
+	sender, hasSender := msg.Headers[FieldSender].value.(string)
+	serial := msg.serial
+	if ifaceName == "org.freedesktop.DBus.Peer" {
+		switch name {
+		case "Ping":
+			conn.sendReply(sender, serial)
+		case "GetMachineId":
+			conn.sendReply(sender, serial, conn.uuid)
+		default:
+			conn.sendError(ErrMsgUnknownMethod, sender, serial)
+		}
+		return
+	}
+	if len(name) == 0 {
+		conn.sendError(ErrMsgUnknownMethod, sender, serial)
+	}
+
+	object, ok := conn.handler.LookupObject(path)
+	if !ok {
+		conn.sendError(ErrMsgNoObject, sender, serial)
 		return
 	}
 
-	if err := Store(vs, decode...); err != nil {
-		conn.sendError(errmsgInvalidArg, sender, serial)
+	iface, exists := object.LookupInterface(ifaceName)
+	if !exists {
+		conn.sendError(ErrMsgUnknownInterface, sender, serial)
 		return
 	}
 
-	// Extract parameters
-	params := make([]reflect.Value, len(pointers))
-	for i := 0; i < len(pointers); i++ {
-		params[i] = reflect.ValueOf(pointers[i]).Elem()
+	m, exists := iface.LookupMethod(name)
+	if !exists {
+		conn.sendError(ErrMsgUnknownMethod, sender, serial)
+		return
+	}
+	args, err := conn.decodeArguments(m, sender, msg)
+	if err != nil {
+		conn.sendError(err, sender, serial)
+		return
 	}
 
-	// Call method
-	ret := m.Call(params)
-	if em := ret[t.NumOut()-1].Interface().(*Error); em != nil {
-		conn.sendError(*em, sender, serial)
+	ret, err := m.Call(args...)
+	if err != nil {
+		conn.sendError(err, sender, serial)
 		return
 	}
 
@@ -229,18 +165,13 @@ func (conn *Conn) handleCall(msg *Message) {
 			reply.Headers[FieldDestination] = msg.Headers[FieldSender]
 		}
 		reply.Headers[FieldReplySerial] = MakeVariant(msg.serial)
-		reply.Body = make([]interface{}, len(ret)-1)
-		for i := 0; i < len(ret)-1; i++ {
-			reply.Body[i] = ret[i].Interface()
+		reply.Body = make([]interface{}, len(ret))
+		for i := 0; i < len(ret); i++ {
+			reply.Body[i] = ret[i]
 		}
-		if len(ret) != 1 {
-			reply.Headers[FieldSignature] = MakeVariant(SignatureOf(reply.Body...))
-		}
-		conn.outLck.RLock()
-		if !conn.closed {
-			conn.out <- reply
-		}
-		conn.outLck.RUnlock()
+		reply.Headers[FieldSignature] = MakeVariant(SignatureOf(reply.Body...))
+
+		conn.sendMessageAndIfClosed(reply, nil)
 	}
 }
 
@@ -273,12 +204,14 @@ func (conn *Conn) Emit(path ObjectPath, name string, values ...interface{}) erro
 	if len(values) > 0 {
 		msg.Headers[FieldSignature] = MakeVariant(SignatureOf(values...))
 	}
-	conn.outLck.RLock()
-	defer conn.outLck.RUnlock()
-	if conn.closed {
+
+	var closed bool
+	conn.sendMessageAndIfClosed(msg, func() {
+		closed = true
+	})
+	if closed {
 		return ErrClosed
 	}
-	conn.out <- msg
 	return nil
 }
 
@@ -375,7 +308,7 @@ func (conn *Conn) exportMethodTable(methods map[string]interface{}, path ObjectP
 		t := rval.Type()
 		// only track valid methods must return *Error as last arg
 		if t.NumOut() == 0 ||
-			t.Out(t.NumOut()-1) != reflect.TypeOf(&errmsgInvalidArg) {
+			t.Out(t.NumOut()-1) != reflect.TypeOf(&ErrMsgInvalidArg) {
 			continue
 		}
 		out[name] = rval
@@ -383,38 +316,49 @@ func (conn *Conn) exportMethodTable(methods map[string]interface{}, path ObjectP
 	return conn.export(out, path, iface, includeSubtree)
 }
 
+func (conn *Conn) unexport(h *defaultHandler, path ObjectPath, iface string) error {
+	if h.PathExists(path) {
+		obj := h.objects[path]
+		obj.DeleteInterface(iface)
+		if len(obj.interfaces) == 0 {
+			h.DeleteObject(path)
+		}
+	}
+	return nil
+}
+
 // exportWithMap is the worker function for all exports/registrations.
 func (conn *Conn) export(methods map[string]reflect.Value, path ObjectPath, iface string, includeSubtree bool) error {
+	h, ok := conn.handler.(*defaultHandler)
+	if !ok {
+		return fmt.Errorf(
+			`dbus: export only allowed on the default hander handler have %T"`,
+			conn.handler)
+	}
+
 	if !path.IsValid() {
 		return fmt.Errorf(`dbus: Invalid path name: "%s"`, path)
 	}
 
-	conn.handlersLck.Lock()
-	defer conn.handlersLck.Unlock()
-
 	// Remove a previous export if the interface is nil
 	if methods == nil {
-		if _, ok := conn.handlers[path]; ok {
-			delete(conn.handlers[path], iface)
-			if len(conn.handlers[path]) == 0 {
-				delete(conn.handlers, path)
-			}
-		}
-
-		return nil
+		return conn.unexport(h, path, iface)
 	}
 
 	// If this is the first handler for this path, make a new map to hold all
 	// handlers for this path.
-	if _, ok := conn.handlers[path]; !ok {
-		conn.handlers[path] = make(map[string]exportedObj)
+	if !h.PathExists(path) {
+		h.AddObject(path, newExportedObject())
+	}
+
+	exportedMethods := make(map[string]Method)
+	for name, method := range methods {
+		exportedMethods[name] = exportedMethod{method}
 	}
 
 	// Finally, save this handler
-	conn.handlers[path][iface] = exportedObj{
-		methods:        methods,
-		includeSubtree: includeSubtree,
-	}
+	obj := h.objects[path]
+	obj.AddInterface(iface, newExportedIntf(exportedMethods, includeSubtree))
 
 	return nil
 }
