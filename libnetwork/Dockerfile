@@ -1,4 +1,4 @@
-ARG GO_VERSION=1.12.17
+ARG GO_VERSION=1.13.8
 
 FROM golang:${GO_VERSION}-buster as dev
 RUN apt-get update && apt-get -y install iptables \

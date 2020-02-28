@@ -130,8 +130,8 @@ func TestSequenceEqual(t *testing.T) {
 
 		{&sequence{block: 0x12345678, count: 8, next: nil}, &sequence{block: 0x12345678, count: 8}, true},
 		{&sequence{block: 0x12345678, count: 8, next: nil}, &sequence{block: 0x12345678, count: 9}, false},
-		{&sequence{block: 0x12345678, count: 1, next: &sequence{block: 0XFFFFFFFF, count: 1}}, &sequence{block: 0x12345678, count: 1}, false},
-		{&sequence{block: 0x12345678, count: 1}, &sequence{block: 0x12345678, count: 1, next: &sequence{block: 0XFFFFFFFF, count: 1}}, false},
+		{&sequence{block: 0x12345678, count: 1, next: &sequence{block: 0xFFFFFFFF, count: 1}}, &sequence{block: 0x12345678, count: 1}, false},
+		{&sequence{block: 0x12345678, count: 1}, &sequence{block: 0x12345678, count: 1, next: &sequence{block: 0xFFFFFFFF, count: 1}}, false},
 	}
 
 	for n, i := range input {
@@ -484,7 +484,7 @@ func TestSerializeDeserialize(t *testing.T) {
 func getTestSequence() *sequence {
 	// Returns a custom sequence of 1024 * 32 bits
 	return &sequence{
-		block: 0XFFFFFFFF,
+		block: 0xFFFFFFFF,
 		count: 100,
 		next: &sequence{
 			block: 0xFFFFFFFE,
@@ -493,22 +493,22 @@ func getTestSequence() *sequence {
 				block: 0xFF000000,
 				count: 10,
 				next: &sequence{
-					block: 0XFFFFFFFF,
+					block: 0xFFFFFFFF,
 					count: 50,
 					next: &sequence{
-						block: 0XFFFFFFFC,
+						block: 0xFFFFFFFC,
 						count: 1,
 						next: &sequence{
 							block: 0xFF800000,
 							count: 1,
 							next: &sequence{
-								block: 0XFFFFFFFF,
+								block: 0xFFFFFFFF,
 								count: 87,
 								next: &sequence{
 									block: 0x0,
 									count: 150,
 									next: &sequence{
-										block: 0XFFFFFFFF,
+										block: 0xFFFFFFFF,
 										count: 200,
 										next: &sequence{
 											block: 0x0000FFFF,
@@ -517,7 +517,7 @@ func getTestSequence() *sequence {
 												block: 0x0,
 												count: 399,
 												next: &sequence{
-													block: 0XFFFFFFFF,
+													block: 0xFFFFFFFF,
 													count: 23,
 													next: &sequence{
 														block: 0x1,
