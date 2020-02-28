@@ -33,6 +33,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 			// API handlers to finish before shutting down the node.
 			c.mu.Lock()
 			if !c.nr.nodeState.IsManager() {
+				c.mu.Unlock()
 				return "", errSwarmNotManager
 			}
 			c.mu.Unlock()
