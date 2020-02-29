@@ -276,6 +276,9 @@ func validateHostConfig(hostConfig *containertypes.HostConfig) (warnings []strin
 			return warnings, err
 		}
 	}
+	if len(hostConfig.PortBindings) > 0 && hostConfig.NetworkMode.IsHost() {
+		return errors.New("cannot bind ports in host network mode")
+	}
 	if err := validatePortBindings(hostConfig.PortBindings); err != nil {
 		return warnings, err
 	}
