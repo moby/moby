@@ -176,7 +176,11 @@ func (c *Cluster) GetService(input string, insertDefaults bool) (swarm.Service, 
 func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRegistry bool) (*swarm.ServiceCreateResponse, error) {
 	var resp *swarm.ServiceCreateResponse
 	err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
-		err := c.populateNetworkID(ctx, state.controlClient, &s)
+		err := validateServiceSpec(&s)
+		if err != nil {
+			return err
+		}
+		err = c.populateNetworkID(ctx, state.controlClient, &s)
 		if err != nil {
 			return err
 		}
@@ -278,7 +282,11 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 	var resp *swarm.ServiceUpdateResponse
 
 	err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
-		err := c.populateNetworkID(ctx, state.controlClient, &spec)
+		err := validateServiceSpec(&spec)
+		if err != nil {
+			return err
+		}
+		err = c.populateNetworkID(ctx, state.controlClient, &spec)
 		if err != nil {
 			return err
 		}
@@ -661,4 +669,16 @@ func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authC
 // formatting is hardcoded, but could me made smarter in the future
 func digestWarning(image string) string {
 	return fmt.Sprintf("image %s could not be accessed on a registry to record\nits digest. Each node will access %s independently,\npossibly leading to different nodes running different\nversions of the image.\n", image, image)
+}
+
+// validateServiceSpec validates that there are no published ports in network host mode
+func validateServiceSpec(s *swarm.ServiceSpec) error {
+	if len(s.EndpointSpec.Ports) > 0 {
+		for _, network := range s.TaskTemplate.Networks {
+			if network.Target == "host" {
+				return errdefs.Conflict(errors.New("cannot bind ports in host network mode"))
+			}
+		}
+	}
+	return nil
 }
