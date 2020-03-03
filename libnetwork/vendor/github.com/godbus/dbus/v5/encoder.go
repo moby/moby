@@ -60,7 +60,7 @@ func (enc *encoder) binwrite(v interface{}) {
 	}
 }
 
-// Encode encodes the given values to the underyling reader. All written values
+// Encode encodes the given values to the underlying reader. All written values
 // are aligned properly as required by the D-Bus spec.
 func (enc *encoder) Encode(vs ...interface{}) (err error) {
 	defer func() {
@@ -96,10 +96,10 @@ func (enc *encoder) encode(v reflect.Value, depth int) {
 	case reflect.Uint16:
 		enc.binwrite(uint16(v.Uint()))
 		enc.pos += 2
-	case reflect.Int32:
+	case reflect.Int, reflect.Int32:
 		enc.binwrite(int32(v.Int()))
 		enc.pos += 4
-	case reflect.Uint32:
+	case reflect.Uint, reflect.Uint32:
 		enc.binwrite(uint32(v.Uint()))
 		enc.pos += 4
 	case reflect.Int64:
@@ -202,6 +202,8 @@ func (enc *encoder) encode(v reflect.Value, depth int) {
 			panic(err)
 		}
 		enc.pos += length
+	case reflect.Interface:
+		enc.encode(reflect.ValueOf(MakeVariant(v.Interface())), depth)
 	default:
 		panic(InvalidTypeError{v.Type()})
 	}
