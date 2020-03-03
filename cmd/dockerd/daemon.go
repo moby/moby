@@ -85,7 +85,6 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	if cli.Config, err = loadDaemonCliConfig(opts); err != nil {
 		return err
 	}
-	warnOnDeprecatedConfigOptions(cli.Config)
 
 	if err := configureDaemonLogs(cli.Config); err != nil {
 		return err
@@ -443,18 +442,6 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	}
 
 	return conf, nil
-}
-
-func warnOnDeprecatedConfigOptions(config *config.Config) {
-	if config.ClusterAdvertise != "" {
-		logrus.Warn(`The "cluster-advertise" option is deprecated. To be removed soon.`)
-	}
-	if config.ClusterStore != "" {
-		logrus.Warn(`The "cluster-store" option is deprecated. To be removed soon.`)
-	}
-	if len(config.ClusterOpts) > 0 {
-		logrus.Warn(`The "cluster-store-opt" option is deprecated. To be removed soon.`)
-	}
 }
 
 func initRouter(opts routerOptions) {
