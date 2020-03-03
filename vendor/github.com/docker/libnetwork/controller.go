@@ -52,7 +52,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
@@ -64,7 +63,6 @@ import (
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drvregistry"
-	"github.com/docker/libnetwork/hostdiscovery"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/osl"
@@ -160,7 +158,6 @@ type controller struct {
 	sandboxes              sandboxTable
 	cfg                    *config.Config
 	stores                 []datastore.DataStore
-	discovery              hostdiscovery.HostDiscovery
 	extKeyListener         net.Listener
 	watchCh                chan *endpoint
 	unWatchCh              chan *endpoint
@@ -227,14 +224,6 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 	}
 
 	c.drvRegistry = drvRegistry
-
-	if c.cfg != nil && c.cfg.Cluster.Watcher != nil {
-		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
-			// Failing to initialize discovery is a bad situation to be in.
-			// But it cannot fail creating the Controller
-			logrus.Errorf("Failed to Initialize Discovery : %v", err)
-		}
-	}
 
 	c.WalkNetworks(populateSpecial)
 
@@ -521,13 +510,6 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 		}
 		return false
 	})
-
-	if c.discovery == nil && c.cfg.Cluster.Watcher != nil {
-		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
-			logrus.Errorf("Failed to Initialize Discovery after configuration update: %v", err)
-		}
-	}
-
 	return nil
 }
 
@@ -557,13 +539,6 @@ func (c *controller) BuiltinIPAMDrivers() []string {
 	return drivers
 }
 
-func (c *controller) validateHostDiscoveryConfig() bool {
-	if c.cfg == nil || c.cfg.Cluster.Discovery == "" || c.cfg.Cluster.Address == "" {
-		return false
-	}
-	return true
-}
-
 func (c *controller) clusterHostID() string {
 	c.Lock()
 	defer c.Unlock()
@@ -572,30 +547,6 @@ func (c *controller) clusterHostID() string {
 	}
 	addr := strings.Split(c.cfg.Cluster.Address, ":")
 	return addr[0]
-}
-
-func (c *controller) isNodeAlive(node string) bool {
-	if c.discovery == nil {
-		return false
-	}
-
-	nodes := c.discovery.Fetch()
-	for _, n := range nodes {
-		if n.String() == node {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (c *controller) initDiscovery(watcher discovery.Watcher) error {
-	if c.cfg == nil {
-		return fmt.Errorf("discovery initialization requires a valid configuration")
-	}
-
-	c.discovery = hostdiscovery.NewHostDiscovery(watcher)
-	return c.discovery.Watch(c.activeCallback, c.hostJoinCallback, c.hostLeaveCallback)
 }
 
 func (c *controller) activeCallback() {
@@ -687,14 +638,6 @@ func (c *controller) GetPluginGetter() plugingetter.PluginGetter {
 }
 
 func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
-	c.Lock()
-	hd := c.discovery
-	c.Unlock()
-
-	if hd != nil {
-		c.pushNodeDiscovery(driver, capability, hd.Fetch(), true)
-	}
-
 	c.agentDriverNotify(driver)
 	return nil
 }
