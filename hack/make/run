@@ -21,7 +21,6 @@ if [ -n "$DOCKER_STORAGE_OPTS" ]; then
 	unset IFS
 fi
 
-
 listen_port=2375
 if [ -n "$DOCKER_PORT" ]; then
 	IFS=':' read -r -a ports <<< "$DOCKER_PORT"

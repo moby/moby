@@ -20,9 +20,18 @@ installversion=
 mirror=
 while true; do
 	case "$1" in
-		-v|--version) installversion="$2" ; shift 2 ;;
-		-m|--mirror) mirror="$2" ; shift 2 ;;
-		--) shift ; break ;;
+		-v | --version)
+			installversion="$2"
+			shift 2
+			;;
+		-m | --mirror)
+			mirror="$2"
+			shift 2
+			;;
+		--)
+			shift
+			break
+			;;
 	esac
 done
 

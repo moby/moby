@@ -16,66 +16,65 @@ function urlencode() {
 	# urlencode <string>
 
 	local length="${#1}"
-	for (( i = 0; i < length; i++ )); do
-			local c="${1:i:1}"
-			case $c in
-					[a-zA-Z0-9.~_-]) printf "$c" ;;
-					*) printf '%%%02X' "'$c"
-			esac
+	for ((i = 0; i < length; i++)); do
+		local c="${1:i:1}"
+		case $c in
+			[a-zA-Z0-9.~_-]) printf "$c" ;;
+			*) printf '%%%02X' "'$c" ;;
+		esac
 	done
 }
 
 function template() {
-# this should always match the template from CONTRIBUTING.md
+	# this should always match the template from CONTRIBUTING.md
 	cat <<- EOM
-	Description of problem:
+		Description of problem:
 
 
-	\`docker version\`:
-	`${DOCKER_COMMAND} -D version`
+		\`docker version\`:
+		$(${DOCKER_COMMAND} -D version)
 
 
-	\`docker info\`:
-	`${DOCKER_COMMAND} -D info`
+		\`docker info\`:
+		$(${DOCKER_COMMAND} -D info)
 
 
-	\`uname -a\`:
-	`uname -a`
+		\`uname -a\`:
+		$(uname -a)
 
 
-	Environment details (AWS, VirtualBox, physical, etc.):
+		Environment details (AWS, VirtualBox, physical, etc.):
 
 
-	How reproducible:
+		How reproducible:
 
 
-	Steps to Reproduce:
-	1.
-	2.
-	3.
+		Steps to Reproduce:
+		1.
+		2.
+		3.
 
 
-	Actual Results:
+		Actual Results:
 
 
-	Expected Results:
+		Expected Results:
 
 
-	Additional info:
+		Additional info:
 
 
 	EOM
 }
 
 function format_issue_url() {
-	if [ ${#@} -ne 2 ] ; then
+	if [ ${#@} -ne 2 ]; then
 		return 1
 	fi
 	local issue_name=$(urlencode "${DOCKER_ISSUE_NAME_PREFIX}${1}")
 	local issue_body=$(urlencode "${2}")
 	echo "${DOCKER_ISSUE_URL}?title=${issue_name}&body=${issue_body}"
 }
-
 
 echo -ne "Do you use \`sudo\` to call docker? [y|N]: "
 read -r -n 1 use_sudo
@@ -91,7 +90,7 @@ echo ""
 
 issue_url=$(format_issue_url "${issue_title}" "$(template)")
 
-if which xdg-open 2>/dev/null >/dev/null ; then
+if which xdg-open 2> /dev/null > /dev/null; then
 	echo -ne "Would like to launch this report in your browser? [Y|n]: "
 	read -r -n 1 launch_now
 	echo ""
@@ -102,4 +101,3 @@ if which xdg-open 2>/dev/null >/dev/null ; then
 fi
 
 echo "If you would like to manually open the url, you can open this link if your browser: ${issue_url}"
-

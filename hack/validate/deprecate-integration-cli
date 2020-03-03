@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Check that no new tests are being added to integration-cli
 
-export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPTDIR}/.validate"
 
 new_tests=$(
-	validate_diff --diff-filter=ACMR --unified=0 -- 'integration-cli/*_api_*.go' 'integration-cli/*_cli_*.go' |
-	grep -E '^\+func (.*) Test' || true
+	validate_diff --diff-filter=ACMR --unified=0 -- 'integration-cli/*_api_*.go' 'integration-cli/*_cli_*.go' \
+		| grep -E '^\+func (.*) Test' || true
 )
 
 if [ -n "$new_tests" ]; then

@@ -37,6 +37,7 @@ source hack/make/.integration-test-helpers
 			echo "WARN: Skipping test-docker-py: connecting to docker daemon using ${docker_host_scheme} (${DOCKER_HOST}) not supported"
 			bundle .integration-daemon-stop
 			return 0
+			;;
 	esac
 
 	docker_py_image="docker-sdk-python3:${DOCKER_PY_COMMIT}"

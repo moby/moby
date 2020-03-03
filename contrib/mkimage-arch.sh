@@ -7,12 +7,12 @@ set -e
 # reset umask to default
 umask 022
 
-hash pacstrap &>/dev/null || {
+hash pacstrap &> /dev/null || {
 	echo "Could not find pacstrap. Run pacman -S arch-install-scripts"
 	exit 1
 }
 
-hash expect &>/dev/null || {
+hash expect &> /dev/null || {
 	echo "Could not find expect. Run pacman -S expect"
 	exit 1
 }
@@ -64,7 +64,7 @@ PKGIGNORE=(
 
 PKGREMOVE=(
 	gawk
-	haveged 
+	haveged
 	less
 	linux-libre
 	linux-libre-firmware
@@ -79,7 +79,7 @@ PKGREMOVE="${PKGREMOVE[*]}"
 arch="$(uname -m)"
 case "$arch" in
 	armv*)
-		if pacman -Q archlinuxarm-keyring >/dev/null 2>&1; then
+		if pacman -Q archlinuxarm-keyring > /dev/null 2>&1; then
 			pacman-key --init
 			pacman-key --populate archlinuxarm
 		else
@@ -107,7 +107,7 @@ esac
 
 export PACMAN_MIRRORLIST
 
-expect <<EOF
+expect << EOF
 	set send_slow {1 .1}
 	proc send {ignore arg} {
 		sleep .1

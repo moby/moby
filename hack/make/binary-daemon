@@ -22,7 +22,7 @@ copy_binaries() {
 	done
 
 	# vpnkit is amd64 only
-	if command -v "vpnkit.$(uname -m)" 2>&1 >/dev/null; then
+	if command -v "vpnkit.$(uname -m)" 2>&1 > /dev/null; then
 		cp -f "$(command -v "vpnkit.$(uname -m)")" "$dir/vpnkit"
 		if [ "$hash" = "hash" ]; then
 			hash_files "$dir/vpnkit"

@@ -109,9 +109,8 @@ rh_status() {
 }
 
 rh_status_q() {
-	rh_status >/dev/null 2>&1
+	rh_status > /dev/null 2>&1
 }
-
 
 check_for_cleanup() {
 	if [ -f ${pidfile} ]; then
@@ -141,13 +140,14 @@ case "$1" in
 	status)
 		rh_status
 		;;
-	condrestart|try-restart)
+	condrestart | try-restart)
 		rh_status_q || exit 0
 		restart
 		;;
 	*)
 		echo $"Usage: $0 {start|stop|status|restart|condrestart|try-restart|reload|force-reload}"
 		exit 2
+		;;
 esac
 
 exit $?

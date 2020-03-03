@@ -5,17 +5,17 @@
 
 install_rootlesskit() {
 	case "$1" in
-	"dynamic")
-		install_rootlesskit_dynamic
-		return
-		;;
-	"")
-		export CGO_ENABLED=0
-		_install_rootlesskit
-		;;
-	*)
-		echo 'Usage: $0 [dynamic]'
-		;;
+		"dynamic")
+			install_rootlesskit_dynamic
+			return
+			;;
+		"")
+			export CGO_ENABLED=0
+			_install_rootlesskit
+			;;
+		*)
+			echo 'Usage: $0 [dynamic]'
+			;;
 	esac
 }
 
