@@ -17,6 +17,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.41](https://docs.docker.com/engine/api/v1.41/) documentation
 
+* The `ClusterStore` and `ClusterAdvertise` fields in `GET /info` are deprecated
+  and are now omitted if they contain an empty value. This change is not versioned,
+  and affects all API versions if the daemon has this patch.
 * The `filter` (singular) query parameter, which was deprecated in favor of the
   `filters` option in Docker 1.13, has now been removed from the `GET /images/json`
   endpoint. The parameter remains available when using API version 1.40 or below.
