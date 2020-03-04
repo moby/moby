@@ -22,7 +22,7 @@ start_pre() {
 }
 
 reload() {
-        ebegin "Reloading ${RC_SVCNAME}"
-        start-stop-daemon --signal HUP --pidfile "${pidfile}"
-        eend $? "Failed to stop ${RC_SVCNAME}"
+	ebegin "Reloading ${RC_SVCNAME}"
+	start-stop-daemon --signal HUP --pidfile "${pidfile}"
+	eend $? "Failed to stop ${RC_SVCNAME}"
 }

@@ -15,7 +15,7 @@ fi
 	bundle .integration-daemon-setup
 
 	testexit=0
-	( repeat run_test_integration ) || testexit=$?
+	(repeat run_test_integration) || testexit=$?
 
 	# Always run cleanup, even if the subshell fails
 	bundle .integration-daemon-stop

@@ -58,7 +58,7 @@ if [ "$DOCKER_REMAP_ROOT" ]; then
 fi
 
 # example usage: DOCKER_EXPERIMENTAL=1
-if [  "$DOCKER_EXPERIMENTAL" ]; then
+if [ "$DOCKER_EXPERIMENTAL" ]; then
 	echo >&2 '# DOCKER_EXPERIMENTAL is set: starting daemon with experimental features enabled! '
 	extra_params="$extra_params --experimental"
 fi
@@ -88,7 +88,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 			--userland-proxy="$DOCKER_USERLANDPROXY" \
 			${storage_params} \
 			${extra_params} \
-				&> "$DEST/docker.log"
+			&> "$DEST/docker.log"
 	) &
 else
 	export DOCKER_HOST="$DOCKER_TEST_HOST"
@@ -98,7 +98,7 @@ fi
 tries=60
 echo "INFO: Waiting for daemon to start..."
 while ! ${TEST_CLIENT_BINARY} version &> /dev/null; do
-	(( tries-- ))
+	((tries--))
 	if [ $tries -le 0 ]; then
 		printf "\n"
 		if [ -z "$DOCKER_HOST" ]; then

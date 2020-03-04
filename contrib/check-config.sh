@@ -43,7 +43,7 @@ is_set_as_module() {
 color() {
 	local codes=()
 	if [ "$1" = 'bold' ]; then
-		codes=( "${codes[@]}" '1' )
+		codes=("${codes[@]}" '1')
 		shift
 	fi
 	if [ "$#" -gt 0 ]; then
@@ -60,7 +60,7 @@ color() {
 			white) code=37 ;;
 		esac
 		if [ "$code" ]; then
-			codes=( "${codes[@]}" "$code" )
+			codes=("${codes[@]}" "$code")
 		fi
 	fi
 	local IFS=';'
@@ -98,12 +98,13 @@ check_flag() {
 
 check_flags() {
 	for flag in "$@"; do
-		echo -n "- "; check_flag "$flag"
+		echo -n "- "
+		check_flag "$flag"
 	done
 }
 
 check_command() {
-	if command -v "$1" >/dev/null 2>&1; then
+	if command -v "$1" > /dev/null 2>&1; then
 		wrap_good "$1 command" 'available'
 	else
 		wrap_bad "$1 command" 'missing'
@@ -121,7 +122,7 @@ check_device() {
 }
 
 check_distro_userns() {
-	source /etc/os-release 2>/dev/null || /bin/true
+	source /etc/os-release 2> /dev/null || /bin/true
 	if [[ "${ID}" =~ ^(centos|rhel)$ && "${VERSION_ID}" =~ ^7 ]]; then
 		# this is a CentOS7 or RHEL7 system
 		grep -q "user_namespace.enable=1" /proc/cmdline || {
@@ -156,7 +157,7 @@ echo 'Generally Necessary:'
 echo -n '- '
 cgroupSubsystemDir="$(awk '/[, ](cpu|cpuacct|cpuset|devices|freezer|memory)[, ]/ && $3 == "cgroup" { print $2 }' /proc/mounts | head -n1)"
 cgroupDir="$(dirname "$cgroupSubsystemDir")"
-if [ -d "$cgroupDir/cpu" ] || [ -d "$cgroupDir/cpuacct" ] || [ -d "$cgroupDir/cpuset" ] || [  -d "$cgroupDir/devices" ] || [ -d "$cgroupDir/freezer" ] || [ -d "$cgroupDir/memory" ]; then
+if [ -d "$cgroupDir/cpu" ] || [ -d "$cgroupDir/cpuacct" ] || [ -d "$cgroupDir/cpuset" ] || [ -d "$cgroupDir/devices" ] || [ -d "$cgroupDir/freezer" ] || [ -d "$cgroupDir/memory" ]; then
 	echo "$(wrap_good 'cgroup hierarchy' 'properly mounted') [$cgroupDir]"
 else
 	if [ "$cgroupSubsystemDir" ]; then
@@ -168,7 +169,7 @@ else
 	echo "    $(wrap_color '(see https://github.com/tianon/cgroupfs-mount)' yellow)"
 fi
 
-if [ "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" = 'Y' ]; then
+if [ "$(cat /sys/module/apparmor/parameters/enabled 2> /dev/null)" = 'Y' ]; then
 	echo -n '- '
 	if command -v apparmor_parser &> /dev/null; then
 		wrap_good 'apparmor' 'enabled and tools installed'
@@ -199,8 +200,8 @@ flags=(
 	POSIX_MQUEUE
 )
 check_flags "${flags[@]}"
-if [ "$kernelMajor" -lt 4 ] || ( [ "$kernelMajor" -eq 4 ] && [ "$kernelMinor" -lt 8 ] ); then
-        check_flags DEVPTS_MULTIPLE_INSTANCES
+if [ "$kernelMajor" -lt 4 ] || ([ "$kernelMajor" -eq 4 ] && [ "$kernelMinor" -lt 8 ]); then
+	check_flags DEVPTS_MULTIPLE_INSTANCES
 fi
 
 echo
@@ -228,12 +229,15 @@ echo 'Optional Features:'
 }
 {
 	if is_set LEGACY_VSYSCALL_NATIVE; then
-		echo -n "- "; wrap_bad "CONFIG_LEGACY_VSYSCALL_NATIVE" 'enabled'
+		echo -n "- "
+		wrap_bad "CONFIG_LEGACY_VSYSCALL_NATIVE" 'enabled'
 		echo "    $(wrap_color '(dangerous, provides an ASLR-bypassing target with usable ROP gadgets.)' bold black)"
 	elif is_set LEGACY_VSYSCALL_EMULATE; then
-		echo -n "- "; wrap_good "CONFIG_LEGACY_VSYSCALL_EMULATE" 'enabled'
+		echo -n "- "
+		wrap_good "CONFIG_LEGACY_VSYSCALL_EMULATE" 'enabled'
 	elif is_set LEGACY_VSYSCALL_NONE; then
-		echo -n "- "; wrap_bad "CONFIG_LEGACY_VSYSCALL_NONE" 'enabled'
+		echo -n "- "
+		wrap_bad "CONFIG_LEGACY_VSYSCALL_NONE" 'enabled'
 		echo "    $(wrap_color '(containers using eglibc <= 2.13 will not work. Switch to' bold black)"
 		echo "    $(wrap_color ' "CONFIG_VSYSCALL_[NATIVE|EMULATE]" or use "vsyscall=[native|emulate]"' bold black)"
 		echo "    $(wrap_color ' on kernel command line. Note that this will disable ASLR for the,' bold black)"
@@ -245,15 +249,15 @@ echo 'Optional Features:'
 	fi
 }
 
-if [ "$kernelMajor" -lt 4 ] || ( [ "$kernelMajor" -eq 4 ] && [ "$kernelMinor" -le 5 ] ); then
+if [ "$kernelMajor" -lt 4 ] || ([ "$kernelMajor" -eq 4 ] && [ "$kernelMinor" -le 5 ]); then
 	check_flags MEMCG_KMEM
 fi
 
-if [ "$kernelMajor" -lt 3 ] || ( [ "$kernelMajor" -eq 3 ] && [ "$kernelMinor" -le 18 ] ); then
+if [ "$kernelMajor" -lt 3 ] || ([ "$kernelMajor" -eq 3 ] && [ "$kernelMinor" -le 18 ]); then
 	check_flags RESOURCE_COUNTERS
 fi
 
-if [ "$kernelMajor" -lt 3 ] || ( [ "$kernelMajor" -eq 3 ] && [ "$kernelMinor" -le 13 ] ); then
+if [ "$kernelMajor" -lt 3 ] || ([ "$kernelMajor" -eq 3 ] && [ "$kernelMinor" -le 13 ]); then
 	netprio=NETPRIO_CGROUP
 else
 	netprio=CGROUP_NET_PRIO
@@ -270,7 +274,7 @@ flags=(
 	IP_VS_NFCT
 	IP_VS_PROTO_TCP
 	IP_VS_PROTO_UDP
- 	IP_VS_RR
+	IP_VS_RR
 )
 check_flags "${flags[@]}"
 
@@ -295,7 +299,7 @@ echo "  - \"$(wrap_color 'overlay' blue)\":"
 check_flags VXLAN BRIDGE_VLAN_FILTERING | sed 's/^/    /'
 echo '      Optional (for encrypted networks):'
 check_flags CRYPTO CRYPTO_AEAD CRYPTO_GCM CRYPTO_SEQIV CRYPTO_GHASH \
-            XFRM XFRM_USER XFRM_ALGO INET_ESP INET_XFRM_MODE_TRANSPORT | sed 's/^/      /'
+	XFRM XFRM_USER XFRM_ALGO INET_ESP INET_XFRM_MODE_TRANSPORT | sed 's/^/      /'
 echo "  - \"$(wrap_color 'ipvlan' blue)\":"
 check_flags IPVLAN | sed 's/^/    /'
 echo "  - \"$(wrap_color 'macvlan' blue)\":"
@@ -334,9 +338,12 @@ check_flags OVERLAY_FS | sed 's/^/    /'
 EXITCODE=0
 
 echo "  - \"$(wrap_color 'zfs' blue)\":"
-echo -n "    - "; check_device /dev/zfs
-echo -n "    - "; check_command zfs
-echo -n "    - "; check_command zpool
+echo -n "    - "
+check_device /dev/zfs
+echo -n "    - "
+check_command zfs
+echo -n "    - "
+check_command zpool
 [ "$EXITCODE" = 0 ] && STORAGE=0
 EXITCODE=0
 
@@ -345,8 +352,7 @@ EXITCODE=$CODE
 
 echo
 
-check_limit_over()
-{
+check_limit_over() {
 	if [ "$(cat "$1")" -le "$2" ]; then
 		wrap_bad "- $1" "$(cat "$1")"
 		wrap_color "    This should be set to at least $2, for example set: sysctl -w kernel/keys/root_maxkeys=1000000" bold black

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPTDIR}/.validate"
 
 IFS=$'\n'
-files=( $(validate_diff --diff-filter=ACMR --name-only -- 'api/types/' 'api/swagger.yaml' || true) )
+files=($(validate_diff --diff-filter=ACMR --name-only -- 'api/types/' 'api/swagger.yaml' || true))
 unset IFS
 
 if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ ${#files[@]} -gt 0 ]; then

@@ -2,7 +2,7 @@
 #
 # Run default validation, exclude vendor because it's slow
 
-export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 . "${SCRIPTDIR}"/dco
 . "${SCRIPTDIR}"/default-seccomp
@@ -14,3 +14,4 @@ export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 . "${SCRIPTDIR}"/changelog-date-descending
 . "${SCRIPTDIR}"/deprecate-integration-cli
 . "${SCRIPTDIR}"/golangci-lint
+. "${SCRIPTDIR}"/shfmt

@@ -46,7 +46,7 @@ fi
 
 check_init() {
 	# see also init_is_upstart in /lib/lsb/init-functions (which isn't available in Ubuntu 12.04, or we'd use it directly)
-	if [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | grep -q upstart; then
+	if [ -x /sbin/initctl ] && /sbin/initctl version 2> /dev/null | grep -q upstart; then
 		log_failure_msg "$DOCKER_DESC is managed via upstart, try using service $BASE $1"
 		exit 1
 	fi
@@ -85,7 +85,7 @@ cgroupfs_mount() {
 case "$1" in
 	start)
 		check_init
-		
+
 		fail_unless_root
 
 		cgroupfs_mount
@@ -110,9 +110,9 @@ case "$1" in
 			--pidfile "$DOCKER_SSD_PIDFILE" \
 			--make-pidfile \
 			-- \
-				-p "$DOCKER_PIDFILE" \
-				$DOCKER_OPTS \
-					>> "$DOCKER_LOGFILE" 2>&1
+			-p "$DOCKER_PIDFILE" \
+			$DOCKER_OPTS \
+			>> "$DOCKER_LOGFILE" 2>&1
 		log_end_msg $?
 		;;
 
@@ -131,7 +131,7 @@ case "$1" in
 	restart)
 		check_init
 		fail_unless_root
-		docker_pid=`cat "$DOCKER_SSD_PIDFILE" 2>/dev/null`
+		docker_pid=$(cat "$DOCKER_SSD_PIDFILE" 2> /dev/null)
 		[ -n "$docker_pid" ] \
 			&& ps -p $docker_pid > /dev/null 2>&1 \
 			&& $0 stop

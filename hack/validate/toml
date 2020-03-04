@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 
-export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPTDIR}/.validate"
 
 IFS=$'\n'
-files=( $(validate_diff --diff-filter=ACMR --name-only -- 'MAINTAINERS' || true) )
+files=($(validate_diff --diff-filter=ACMR --name-only -- 'MAINTAINERS' || true))
 unset IFS
 
 badFiles=()
 for f in "${files[@]}"; do
 	# we use "git show" here to validate that what's committed has valid TOML syntax
-	if ! git show "$VALIDATE_HEAD:$f" | tomlv /proc/self/fd/0 ; then
-		badFiles+=( "$f" )
+	if ! git show "$VALIDATE_HEAD:$f" | tomlv /proc/self/fd/0; then
+		badFiles+=("$f")
 	fi
 done
 

@@ -5,9 +5,9 @@
 
 set -e
 
-die () {
-    echo >&2 "$@"
-    exit 1
+die() {
+	echo >&2 "$@"
+	exit 1
 }
 
 [ "$#" -eq 1 ] || die "1 argument(s) required, $# provided. Usage: ./mkimage-crux.sh /path/to/iso"
@@ -33,15 +33,15 @@ export PATH="$TMP/usr/bin:$PATH"
 mkdir -p $ROOTFS/var/lib/pkg
 touch $ROOTFS/var/lib/pkg/db
 for pkg in $CRUX/crux/core/*; do
-    pkgadd -r $ROOTFS $pkg
+	pkgadd -r $ROOTFS $pkg
 done
 
 # Remove agetty and inittab config
 if (grep agetty ${ROOTFS}/etc/inittab 2>&1 > /dev/null); then
-    echo "Removing agetty from /etc/inittab ..."
-    chroot ${ROOTFS} sed -i -e "/agetty/d" /etc/inittab
-    chroot ${ROOTFS} sed -i -e "/shutdown/d" /etc/inittab
-    chroot ${ROOTFS} sed -i -e "/^$/N;/^\n$/d" /etc/inittab
+	echo "Removing agetty from /etc/inittab ..."
+	chroot ${ROOTFS} sed -i -e "/agetty/d" /etc/inittab
+	chroot ${ROOTFS} sed -i -e "/shutdown/d" /etc/inittab
+	chroot ${ROOTFS} sed -i -e "/^$/N;/^\n$/d" /etc/inittab
 fi
 
 # Remove kernel source

@@ -2,7 +2,10 @@
 
 if [ ! "$(go env GOOS)" = 'windows' ]; then
 	for pidFile in $(find "$DEST" -name docker.pid); do
-		pid=$([ -n "$TESTDEBUG" ] && set -x; cat "$pidFile")
+		pid=$(
+			[ -n "$TESTDEBUG" ] && set -x
+			cat "$pidFile"
+		)
 		(
 			[ -n "$TESTDEBUG" ] && set -x
 			kill "$pid"
@@ -26,7 +29,7 @@ if [ ! "$(go env GOOS)" = 'windows' ]; then
 		fi
 	fi
 else
-	# Note this script is not actionable on Windows to Linux CI. Instead the 
+	# Note this script is not actionable on Windows to Linux CI. Instead the
 	# DIND daemon under test is torn down by the Jenkins tear-down script
 	echo "INFO: Not stopping daemon on Windows CI"
 fi

@@ -1,6 +1,5 @@
 #!/bin/sh
 
-
 # containerd is also pinned in vendor.conf. When updating the binary
 # version you may also need to update the vendor version to pick up bug
 # fixes or new APIs.

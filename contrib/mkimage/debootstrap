@@ -22,7 +22,7 @@ shift
 
 before=()
 while [ $# -gt 0 ] && [[ "$1" == -* ]]; do
-	before+=( "$1" )
+	before+=("$1")
 	shift
 done
 
@@ -62,7 +62,7 @@ rootfs_chroot() {
 
 # prevent init scripts from running during install/update
 echo >&2 "+ echo exit 101 > '$rootfsDir/usr/sbin/policy-rc.d'"
-cat > "$rootfsDir/usr/sbin/policy-rc.d" <<-'EOF'
+cat > "$rootfsDir/usr/sbin/policy-rc.d" <<- 'EOF'
 	#!/bin/sh
 
 	# For most Docker users, "apt-get install" only happens during "docker build",
@@ -82,7 +82,10 @@ chmod +x "$rootfsDir/usr/sbin/policy-rc.d"
 )
 
 # shrink a little, since apt makes us cache-fat (wheezy: ~157.5MB vs ~120MB)
-( set -x; rootfs_chroot apt-get clean )
+(
+	set -x
+	rootfs_chroot apt-get clean
+)
 
 # this file is one APT creates to make sure we don't "autoremove" our currently
 # in-use kernel, which doesn't really apply to debootstraps/Docker images that
@@ -93,7 +96,7 @@ rm -f "$rootfsDir/etc/apt/apt.conf.d/01autoremove-kernels"
 if strings "$rootfsDir/usr/bin/dpkg" | grep -q unsafe-io; then
 	# force dpkg not to call sync() after package extraction (speeding up installs)
 	echo >&2 "+ echo force-unsafe-io > '$rootfsDir/etc/dpkg/dpkg.cfg.d/docker-apt-speedup'"
-	cat > "$rootfsDir/etc/dpkg/dpkg.cfg.d/docker-apt-speedup" <<-'EOF'
+	cat > "$rootfsDir/etc/dpkg/dpkg.cfg.d/docker-apt-speedup" <<- 'EOF'
 		# For most Docker users, package installs happen during "docker build", which
 		# doesn't survive power loss and gets restarted clean afterwards anyhow, so
 		# this minor tweak gives us a nice speedup (much nicer on spinning disks,
@@ -107,7 +110,7 @@ if [ -d "$rootfsDir/etc/apt/apt.conf.d" ]; then
 	# _keep_ us lean by effectively running "apt-get clean" after every install
 	aptGetClean='"rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true";'
 	echo >&2 "+ cat > '$rootfsDir/etc/apt/apt.conf.d/docker-clean'"
-	cat > "$rootfsDir/etc/apt/apt.conf.d/docker-clean" <<-EOF
+	cat > "$rootfsDir/etc/apt/apt.conf.d/docker-clean" <<- EOF
 		# Since for most Docker users, package installs happen in "docker build" steps,
 		# they essentially become individual layers due to the way Docker handles
 		# layering, especially using CoW filesystems.  What this means for us is that
@@ -131,7 +134,7 @@ if [ -d "$rootfsDir/etc/apt/apt.conf.d" ]; then
 
 	# remove apt-cache translations for fast "apt-get update"
 	echo >&2 "+ echo Acquire::Languages 'none' > '$rootfsDir/etc/apt/apt.conf.d/docker-no-languages'"
-	cat > "$rootfsDir/etc/apt/apt.conf.d/docker-no-languages" <<-'EOF'
+	cat > "$rootfsDir/etc/apt/apt.conf.d/docker-no-languages" <<- 'EOF'
 		# In Docker, we don't often need the "Translations" files, so we're just wasting
 		# time and space by downloading them, and this inhibits that.  For users that do
 		# need them, it's a simple matter to delete this file and "apt-get update". :)
@@ -140,7 +143,7 @@ if [ -d "$rootfsDir/etc/apt/apt.conf.d" ]; then
 	EOF
 
 	echo >&2 "+ echo Acquire::GzipIndexes 'true' > '$rootfsDir/etc/apt/apt.conf.d/docker-gzip-indexes'"
-	cat > "$rootfsDir/etc/apt/apt.conf.d/docker-gzip-indexes" <<-'EOF'
+	cat > "$rootfsDir/etc/apt/apt.conf.d/docker-gzip-indexes" <<- 'EOF'
 		# Since Docker users using "RUN apt-get update && apt-get install -y ..." in
 		# their Dockerfiles don't go delete the lists files afterwards, we want them to
 		# be as small as possible on-disk, so we explicitly request "gz" versions and
@@ -156,7 +159,7 @@ if [ -d "$rootfsDir/etc/apt/apt.conf.d" ]; then
 
 	# update "autoremove" configuration to be aggressive about removing suggests deps that weren't manually installed
 	echo >&2 "+ echo Apt::AutoRemove::SuggestsImportant 'false' > '$rootfsDir/etc/apt/apt.conf.d/docker-autoremove-suggests'"
-	cat > "$rootfsDir/etc/apt/apt.conf.d/docker-autoremove-suggests" <<-'EOF'
+	cat > "$rootfsDir/etc/apt/apt.conf.d/docker-autoremove-suggests" <<- 'EOF'
 		# Since Docker users are looking for the smallest possible final images, the
 		# following emerges as a very common pattern:
 

@@ -59,13 +59,13 @@ while [ $# -gt 0 ]; do
 	fi
 
 	IFS=','
-	ancestry=( ${ancestryJson//[\[\] \"]/} )
+	ancestry=(${ancestryJson//[\[\] \"]/})
 	unset IFS
 
 	if [ -s "$dir/tags-$imageFile.tmp" ]; then
 		echo -n ', ' >> "$dir/tags-$imageFile.tmp"
 	else
-		images=( "${images[@]}" "$image" )
+		images=("${images[@]}" "$image")
 	fi
 	echo -n '"'"$tag"'": "'"$imageId"'"' >> "$dir/tags-$imageFile.tmp"
 
