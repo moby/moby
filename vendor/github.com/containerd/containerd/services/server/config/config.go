@@ -28,6 +28,8 @@ import (
 	"github.com/containerd/containerd/plugin"
 )
 
+// NOTE: Any new map fields added also need to be handled in mergeConfig.
+
 // Config provides containerd configuration data for the server
 type Config struct {
 	// Version of the config file
@@ -319,6 +321,10 @@ func mergeConfig(to, from *Config) error {
 
 	for k, v := range from.ProxyPlugins {
 		to.ProxyPlugins[k] = v
+	}
+
+	for k, v := range from.Timeouts {
+		to.Timeouts[k] = v
 	}
 
 	return nil

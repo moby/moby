@@ -112,6 +112,10 @@ err := control.MoveTo(destination)
 subCgroup, err := control.New("child", resources)
 ```
 
+### Attention
+
+All static path should not include `/sys/fs/cgroup/` prefix, it should start with your own cgroups name
+
 ## Project details
 
 Cgroups is a containerd sub-project, licensed under the [Apache 2.0 license](./LICENSE).

@@ -8,6 +8,7 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/source"
+	"github.com/moby/buildkit/util/binfmt_misc"
 	"github.com/moby/buildkit/util/entitlements"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -104,7 +105,11 @@ func RuntimePlatforms(p []specs.Platform) LoadOpt {
 				}
 			}
 			if !found {
-				return errors.Errorf("runtime execution on platform %s not supported", platforms.Format(specs.Platform{OS: op.Platform.OS, Architecture: op.Platform.Architecture, Variant: op.Platform.Variant}))
+				if !binfmt_misc.Check(normalizedPlatform) {
+					return errors.Errorf("runtime execution on platform %s not supported", platforms.Format(specs.Platform{OS: op.Platform.OS, Architecture: op.Platform.Architecture, Variant: op.Platform.Variant}))
+				} else {
+					pp = append(pp, normalizedPlatform)
+				}
 			}
 		}
 		return nil

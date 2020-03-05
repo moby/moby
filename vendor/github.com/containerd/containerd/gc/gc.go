@@ -172,7 +172,7 @@ func ConcurrentMark(ctx context.Context, root <-chan Node, refs func(context.Con
 	return seen, nil
 }
 
-// Sweep removes all nodes returned through the channel which are not in
+// Sweep removes all nodes returned through the slice which are not in
 // the reachable set by calling the provided remove function.
 func Sweep(reachable map[Node]struct{}, all []Node, remove func(Node) error) error {
 	// All black objects are now reachable, and all white objects are

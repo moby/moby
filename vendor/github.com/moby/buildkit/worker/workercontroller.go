@@ -70,7 +70,7 @@ func (c *Controller) WorkerInfos() []client.WorkerInfo {
 		out = append(out, client.WorkerInfo{
 			ID:        w.ID(),
 			Labels:    w.Labels(),
-			Platforms: w.Platforms(),
+			Platforms: w.Platforms(true),
 		})
 	}
 	return out

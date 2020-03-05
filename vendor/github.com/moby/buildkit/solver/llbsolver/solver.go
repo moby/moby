@@ -66,7 +66,7 @@ func New(wc *worker.Controller, f map[string]frontend.Frontend, cache solver.Cac
 	if err != nil {
 		return nil, err
 	}
-	s.platforms = w.Platforms()
+	s.platforms = w.Platforms(false)
 
 	s.solver = solver.NewSolver(solver.SolverOpt{
 		ResolveOpFunc: s.resolver(),

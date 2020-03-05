@@ -3,6 +3,7 @@
 [![GoDoc](https://godoc.org/github.com/containerd/containerd?status.svg)](https://godoc.org/github.com/containerd/containerd)
 [![Build Status](https://travis-ci.org/containerd/containerd.svg?branch=master)](https://travis-ci.org/containerd/containerd)
 [![Windows Build Status](https://ci.appveyor.com/api/projects/status/github/containerd/containerd?branch=master&svg=true)](https://ci.appveyor.com/project/mlaventure/containerd-3g73f?branch=master)
+![](https://github.com/containerd/containerd/workflows/Nightly/badge.svg)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Fcontainerd%2Fcontainerd.svg?type=shield)](https://app.fossa.io/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Fcontainerd%2Fcontainerd?ref=badge_shield)
 [![Go Report Card](https://goreportcard.com/badge/github.com/containerd/containerd)](https://goreportcard.com/report/github.com/containerd/containerd)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1271/badge)](https://bestpractices.coreinfrastructure.org/projects/1271)
@@ -24,6 +25,12 @@ See how to build containerd from source at [BUILDING](BUILDING.md).
 
 If you are interested in trying out containerd see our example at [Getting Started](docs/getting-started.md).
 
+## Nightly builds
+
+There are nightly builds available for download [here](https://github.com/containerd/containerd/actions?query=workflow%3ANightly).
+Binaries are generated from `master` branch every night for `Linux` and `Windows`.
+
+Please be aware: nightly builds might have critical bugs, it's not recommended for use in prodution and no support provided.
 
 ## Runtime Requirements
 
@@ -220,23 +227,23 @@ architectures, such as [Canonical's Ubuntu packaging](https://launchpad.net/ubun
 
 #### Enabling command auto-completion
 
-Starting with containerd 1.4, the urfave client feature for auto-creation of bash
-autocompletion data is enabled. To use the autocomplete feature in your shell, source
-the autocomplete/bash_autocomplete file in your .bashrc file while setting the `PROG`
-variable to `ctr`:
+Starting with containerd 1.4, the urfave client feature for auto-creation of bash and zsh
+autocompletion data is enabled. To use the autocomplete feature in a bash shell for example, source
+the autocomplete/ctr file in your `.bashrc`, or manually like:
 
 ```
-$ PROG=ctr source vendor/github.com/urfave/cli/autocomplete/bash_autocomplete
+$ source ./contrib/autocomplete/ctr
 ```
 
-#### Distribution of `ctr` autocomplete for bash
+#### Distribution of `ctr` autocomplete for bash and zsh
 
-Copy `vendor/github.com/urfave/cli/autocomplete/bash_autocomplete` into
-`/etc/bash_completion.d/` and rename it to `ctr`.
+For bash, copy the `contrib/autocomplete/ctr` script into
+`/etc/bash_completion.d/` and rename it to `ctr`. The `zsh_autocomplete`
+file is also available and can be used similarly for zsh users.
 
 Provide documentation to users to `source` this file into their shell if
 you don't place the autocomplete file in a location where it is automatically
-loaded for user's bash shell environment.
+loaded for the user's shell environment.
 
 ### Communication
 
@@ -258,7 +265,7 @@ __If you are reporting a security issue, please reach out discreetly at security
 
 ## Licenses
 
-The containerd codebase is released under the [Apache 2.0 license](LICENSE.code).
+The containerd codebase is released under the [Apache 2.0 license](LICENSE).
 The README.md file, and files in the "docs" folder are licensed under the
 Creative Commons Attribution 4.0 International License. You may obtain a
 copy of the license, titled CC-BY-4.0, at http://creativecommons.org/licenses/by/4.0/.

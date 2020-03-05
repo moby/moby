@@ -3,19 +3,19 @@
 
 package auth
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-
-import strings "strings"
-import reflect "reflect"
-
 import (
-	context "golang.org/x/net/context"
+	context "context"
+	fmt "fmt"
+	proto "github.com/gogo/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
+	io "io"
+	math "math"
+	math_bits "math/bits"
+	reflect "reflect"
+	strings "strings"
 )
-
-import io "io"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -26,7 +26,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type CredentialsRequest struct {
 	Host string `protobuf:"bytes,1,opt,name=Host,proto3" json:"Host,omitempty"`
@@ -35,7 +35,7 @@ type CredentialsRequest struct {
 func (m *CredentialsRequest) Reset()      { *m = CredentialsRequest{} }
 func (*CredentialsRequest) ProtoMessage() {}
 func (*CredentialsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_auth_0215b2f0213c0d57, []int{0}
+	return fileDescriptor_8bbd6f3875b0e874, []int{0}
 }
 func (m *CredentialsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -45,15 +45,15 @@ func (m *CredentialsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, 
 		return xxx_messageInfo_CredentialsRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
 		return b[:n], nil
 	}
 }
-func (dst *CredentialsRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CredentialsRequest.Merge(dst, src)
+func (m *CredentialsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CredentialsRequest.Merge(m, src)
 }
 func (m *CredentialsRequest) XXX_Size() int {
 	return m.Size()
@@ -79,7 +79,7 @@ type CredentialsResponse struct {
 func (m *CredentialsResponse) Reset()      { *m = CredentialsResponse{} }
 func (*CredentialsResponse) ProtoMessage() {}
 func (*CredentialsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_auth_0215b2f0213c0d57, []int{1}
+	return fileDescriptor_8bbd6f3875b0e874, []int{1}
 }
 func (m *CredentialsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -89,15 +89,15 @@ func (m *CredentialsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte,
 		return xxx_messageInfo_CredentialsResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
 		return b[:n], nil
 	}
 }
-func (dst *CredentialsResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CredentialsResponse.Merge(dst, src)
+func (m *CredentialsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CredentialsResponse.Merge(m, src)
 }
 func (m *CredentialsResponse) XXX_Size() int {
 	return m.Size()
@@ -126,6 +126,28 @@ func init() {
 	proto.RegisterType((*CredentialsRequest)(nil), "moby.filesync.v1.CredentialsRequest")
 	proto.RegisterType((*CredentialsResponse)(nil), "moby.filesync.v1.CredentialsResponse")
 }
+
+func init() { proto.RegisterFile("auth.proto", fileDescriptor_8bbd6f3875b0e874) }
+
+var fileDescriptor_8bbd6f3875b0e874 = []byte{
+	// 233 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x4a, 0x2c, 0x2d, 0xc9,
+	0xd0, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x12, 0xc8, 0xcd, 0x4f, 0xaa, 0xd4, 0x4b, 0xcb, 0xcc,
+	0x49, 0x2d, 0xae, 0xcc, 0x4b, 0xd6, 0x2b, 0x33, 0x54, 0xd2, 0xe0, 0x12, 0x72, 0x2e, 0x4a, 0x4d,
+	0x49, 0xcd, 0x2b, 0xc9, 0x4c, 0xcc, 0x29, 0x0e, 0x4a, 0x2d, 0x2c, 0x4d, 0x2d, 0x2e, 0x11, 0x12,
+	0xe2, 0x62, 0xf1, 0xc8, 0x2f, 0x2e, 0x91, 0x60, 0x54, 0x60, 0xd4, 0xe0, 0x0c, 0x02, 0xb3, 0x95,
+	0x3c, 0xb9, 0x84, 0x51, 0x54, 0x16, 0x17, 0xe4, 0xe7, 0x15, 0xa7, 0x0a, 0x49, 0x71, 0x71, 0x84,
+	0x16, 0xa7, 0x16, 0xe5, 0x25, 0xe6, 0xa6, 0x42, 0x95, 0xc3, 0xf9, 0x42, 0x62, 0x5c, 0x6c, 0xc1,
+	0xa9, 0xc9, 0x45, 0xa9, 0x25, 0x12, 0x4c, 0x60, 0x19, 0x28, 0xcf, 0x28, 0x89, 0x8b, 0xc5, 0xb1,
+	0xb4, 0x24, 0x43, 0x28, 0x8a, 0x8b, 0x1b, 0xc9, 0x48, 0x21, 0x15, 0x3d, 0x74, 0xe7, 0xe9, 0x61,
+	0xba, 0x4d, 0x4a, 0x95, 0x80, 0x2a, 0x88, 0xbb, 0x9c, 0xac, 0x2e, 0x3c, 0x94, 0x63, 0xb8, 0xf1,
+	0x50, 0x8e, 0xe1, 0xc3, 0x43, 0x39, 0xc6, 0x86, 0x47, 0x72, 0x8c, 0x2b, 0x1e, 0xc9, 0x31, 0x9e,
+	0x78, 0x24, 0xc7, 0x78, 0xe1, 0x91, 0x1c, 0xe3, 0x83, 0x47, 0x72, 0x8c, 0x2f, 0x1e, 0xc9, 0x31,
+	0x7c, 0x78, 0x24, 0xc7, 0x38, 0xe1, 0xb1, 0x1c, 0xc3, 0x85, 0xc7, 0x72, 0x0c, 0x37, 0x1e, 0xcb,
+	0x31, 0x44, 0xb1, 0x80, 0x02, 0x2b, 0x89, 0x0d, 0x1c, 0x5a, 0xc6, 0x80, 0x00, 0x00, 0x00, 0xff,
+	0xff, 0x64, 0x61, 0x71, 0x59, 0x3b, 0x01, 0x00, 0x00,
+}
+
 func (this *CredentialsRequest) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
@@ -244,6 +266,14 @@ type AuthServer interface {
 	Credentials(context.Context, *CredentialsRequest) (*CredentialsResponse, error)
 }
 
+// UnimplementedAuthServer can be embedded to have forward compatible implementations.
+type UnimplementedAuthServer struct {
+}
+
+func (*UnimplementedAuthServer) Credentials(ctx context.Context, req *CredentialsRequest) (*CredentialsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Credentials not implemented")
+}
+
 func RegisterAuthServer(s *grpc.Server, srv AuthServer) {
 	s.RegisterService(&_Auth_serviceDesc, srv)
 }
@@ -282,7 +312,7 @@ var _Auth_serviceDesc = grpc.ServiceDesc{
 func (m *CredentialsRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -290,23 +320,29 @@ func (m *CredentialsRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *CredentialsRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *CredentialsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.Host) > 0 {
-		dAtA[i] = 0xa
-		i++
+		i -= len(m.Host)
+		copy(dAtA[i:], m.Host)
 		i = encodeVarintAuth(dAtA, i, uint64(len(m.Host)))
-		i += copy(dAtA[i:], m.Host)
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *CredentialsResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -314,33 +350,42 @@ func (m *CredentialsResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *CredentialsResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *CredentialsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Username) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintAuth(dAtA, i, uint64(len(m.Username)))
-		i += copy(dAtA[i:], m.Username)
-	}
 	if len(m.Secret) > 0 {
-		dAtA[i] = 0x12
-		i++
+		i -= len(m.Secret)
+		copy(dAtA[i:], m.Secret)
 		i = encodeVarintAuth(dAtA, i, uint64(len(m.Secret)))
-		i += copy(dAtA[i:], m.Secret)
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if len(m.Username) > 0 {
+		i -= len(m.Username)
+		copy(dAtA[i:], m.Username)
+		i = encodeVarintAuth(dAtA, i, uint64(len(m.Username)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintAuth(dAtA []byte, offset int, v uint64) int {
+	offset -= sovAuth(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 func (m *CredentialsRequest) Size() (n int) {
 	if m == nil {
@@ -373,14 +418,7 @@ func (m *CredentialsResponse) Size() (n int) {
 }
 
 func sovAuth(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozAuth(x uint64) (n int) {
 	return sovAuth(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -429,7 +467,7 @@ func (m *CredentialsRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -457,7 +495,7 @@ func (m *CredentialsRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -467,6 +505,9 @@ func (m *CredentialsRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthAuth
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAuth
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -479,6 +520,9 @@ func (m *CredentialsRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthAuth
 			}
 			if (iNdEx + skippy) > l {
@@ -508,7 +552,7 @@ func (m *CredentialsResponse) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -536,7 +580,7 @@ func (m *CredentialsResponse) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -546,6 +590,9 @@ func (m *CredentialsResponse) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthAuth
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAuth
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -565,7 +612,7 @@ func (m *CredentialsResponse) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -575,6 +622,9 @@ func (m *CredentialsResponse) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthAuth
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAuth
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -587,6 +637,9 @@ func (m *CredentialsResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthAuth
 			}
 			if (iNdEx + skippy) > l {
@@ -604,6 +657,7 @@ func (m *CredentialsResponse) Unmarshal(dAtA []byte) error {
 func skipAuth(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -635,10 +689,8 @@ func skipAuth(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -655,74 +707,34 @@ func skipAuth(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			iNdEx += length
 			if length < 0 {
 				return 0, ErrInvalidLengthAuth
 			}
-			return iNdEx, nil
+			iNdEx += length
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowAuth
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipAuth(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupAuth
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthAuth
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthAuth = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowAuth   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthAuth        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowAuth          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupAuth = fmt.Errorf("proto: unexpected end of group")
 )
-
-func init() { proto.RegisterFile("auth.proto", fileDescriptor_auth_0215b2f0213c0d57) }
-
-var fileDescriptor_auth_0215b2f0213c0d57 = []byte{
-	// 233 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x4a, 0x2c, 0x2d, 0xc9,
-	0xd0, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x12, 0xc8, 0xcd, 0x4f, 0xaa, 0xd4, 0x4b, 0xcb, 0xcc,
-	0x49, 0x2d, 0xae, 0xcc, 0x4b, 0xd6, 0x2b, 0x33, 0x54, 0xd2, 0xe0, 0x12, 0x72, 0x2e, 0x4a, 0x4d,
-	0x49, 0xcd, 0x2b, 0xc9, 0x4c, 0xcc, 0x29, 0x0e, 0x4a, 0x2d, 0x2c, 0x4d, 0x2d, 0x2e, 0x11, 0x12,
-	0xe2, 0x62, 0xf1, 0xc8, 0x2f, 0x2e, 0x91, 0x60, 0x54, 0x60, 0xd4, 0xe0, 0x0c, 0x02, 0xb3, 0x95,
-	0x3c, 0xb9, 0x84, 0x51, 0x54, 0x16, 0x17, 0xe4, 0xe7, 0x15, 0xa7, 0x0a, 0x49, 0x71, 0x71, 0x84,
-	0x16, 0xa7, 0x16, 0xe5, 0x25, 0xe6, 0xa6, 0x42, 0x95, 0xc3, 0xf9, 0x42, 0x62, 0x5c, 0x6c, 0xc1,
-	0xa9, 0xc9, 0x45, 0xa9, 0x25, 0x12, 0x4c, 0x60, 0x19, 0x28, 0xcf, 0x28, 0x89, 0x8b, 0xc5, 0xb1,
-	0xb4, 0x24, 0x43, 0x28, 0x8a, 0x8b, 0x1b, 0xc9, 0x48, 0x21, 0x15, 0x3d, 0x74, 0xe7, 0xe9, 0x61,
-	0xba, 0x4d, 0x4a, 0x95, 0x80, 0x2a, 0x88, 0xbb, 0x9c, 0xac, 0x2e, 0x3c, 0x94, 0x63, 0xb8, 0xf1,
-	0x50, 0x8e, 0xe1, 0xc3, 0x43, 0x39, 0xc6, 0x86, 0x47, 0x72, 0x8c, 0x2b, 0x1e, 0xc9, 0x31, 0x9e,
-	0x78, 0x24, 0xc7, 0x78, 0xe1, 0x91, 0x1c, 0xe3, 0x83, 0x47, 0x72, 0x8c, 0x2f, 0x1e, 0xc9, 0x31,
-	0x7c, 0x78, 0x24, 0xc7, 0x38, 0xe1, 0xb1, 0x1c, 0xc3, 0x85, 0xc7, 0x72, 0x0c, 0x37, 0x1e, 0xcb,
-	0x31, 0x44, 0xb1, 0x80, 0x02, 0x2b, 0x89, 0x0d, 0x1c, 0x5a, 0xc6, 0x80, 0x00, 0x00, 0x00, 0xff,
-	0xff, 0x64, 0x61, 0x71, 0x59, 0x3b, 0x01, 0x00, 0x00,
-}

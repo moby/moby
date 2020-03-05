@@ -27,6 +27,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker/schema1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -62,15 +63,18 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (_ Ima
 	defer done(ctx)
 
 	var unpacks int32
+	var unpackEg *errgroup.Group
+	var unpackWrapper func(f images.Handler) images.Handler
+
 	if pullCtx.Unpack {
 		// unpacker only supports schema 2 image, for schema 1 this is noop.
 		u, err := c.newUnpacker(ctx, pullCtx)
 		if err != nil {
 			return nil, errors.Wrap(err, "create unpacker")
 		}
-		unpackWrapper, eg := u.handlerWrapper(ctx, &unpacks)
+		unpackWrapper, unpackEg = u.handlerWrapper(ctx, &unpacks)
 		defer func() {
-			if err := eg.Wait(); err != nil {
+			if err := unpackEg.Wait(); err != nil {
 				if retErr == nil {
 					retErr = errors.Wrap(err, "unpack")
 				}
@@ -81,11 +85,27 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (_ Ima
 			if wrapper == nil {
 				return unpackWrapper(h)
 			}
-			return wrapper(unpackWrapper(h))
+			return unpackWrapper(wrapper(h))
 		}
 	}
 
 	img, err := c.fetch(ctx, pullCtx, ref, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	// NOTE(fuweid): unpacker defers blobs download. before create image
+	// record in ImageService, should wait for unpacking(including blobs
+	// download).
+	if pullCtx.Unpack {
+		if unpackEg != nil {
+			if err := unpackEg.Wait(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	img, err = c.createNewImage(ctx, img)
 	if err != nil {
 		return nil, err
 	}
@@ -201,12 +221,14 @@ func (c *Client) fetch(ctx context.Context, rCtx *RemoteContext, ref string, lim
 		}
 	}
 
-	img := images.Image{
+	return images.Image{
 		Name:   name,
 		Target: desc,
 		Labels: rCtx.Labels,
-	}
+	}, nil
+}
 
+func (c *Client) createNewImage(ctx context.Context, img images.Image) (images.Image, error) {
 	is := c.ImageService()
 	for {
 		if created, err := is.Create(ctx, img); err != nil {

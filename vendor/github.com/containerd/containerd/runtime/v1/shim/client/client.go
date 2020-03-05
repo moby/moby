@@ -40,6 +40,7 @@ import (
 
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/pkg/dialer"
 	v1 "github.com/containerd/containerd/runtime/v1"
 	"github.com/containerd/containerd/runtime/v1/shim"
 	shimapi "github.com/containerd/containerd/runtime/v1/shim/v1"
@@ -228,7 +229,7 @@ func connect(address string, d func(string, time.Duration) (net.Conn, error)) (n
 
 func annonDialer(address string, timeout time.Duration) (net.Conn, error) {
 	address = strings.TrimPrefix(address, "unix://")
-	return net.DialTimeout("unix", "\x00"+address, timeout)
+	return dialer.Dialer("\x00"+address, timeout)
 }
 
 // WithConnect connects to an existing shim

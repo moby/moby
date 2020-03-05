@@ -22,6 +22,7 @@ import (
 
 	"github.com/docker/docker/pkg/fileutils"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/defaults"
@@ -887,6 +888,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	registerMetricsPluginCallback(d.PluginStore, metricsSockPath)
 
+	backoffConfig := backoff.DefaultConfig
+	backoffConfig.MaxDelay = 3 * time.Second
+	connParams := grpc.ConnectParams{
+		Backoff: backoffConfig,
+	}
 	gopts := []grpc.DialOption{
 		// WithBlock makes sure that the following containerd request
 		// is reliable.
@@ -907,7 +913,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		grpc.WithBlock(),
 
 		grpc.WithInsecure(),
-		grpc.WithBackoffMaxDelay(3 * time.Second),
+		grpc.WithConnectParams(connParams),
 		grpc.WithContextDialer(dialer.ContextDialer),
 
 		// TODO(stevvooe): We may need to allow configuration of this on the client.

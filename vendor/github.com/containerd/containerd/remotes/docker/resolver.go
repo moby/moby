@@ -286,7 +286,11 @@ func (r *dockerResolver) Resolve(ctx context.Context, ref string) (string, ocisp
 				if errors.Cause(err) == ErrInvalidAuthorization {
 					err = errors.Wrapf(err, "pull access denied, repository does not exist or may require authorization")
 				}
-				return "", ocispec.Descriptor{}, err
+				// Store the error for referencing later
+				if lastErr == nil {
+					lastErr = err
+				}
+				continue // try another host
 			}
 			resp.Body.Close() // don't care about body contents.
 

@@ -17,7 +17,6 @@
 package filters
 
 import (
-	"fmt"
 	"unicode"
 	"unicode/utf8"
 )
@@ -64,6 +63,7 @@ type scanner struct {
 	pos   int
 	ppos  int // bounds the current rune in the string
 	value bool
+	err   string
 }
 
 func (s *scanner) init(input string) {
@@ -82,12 +82,14 @@ func (s *scanner) next() rune {
 	s.ppos += w
 	if r == utf8.RuneError {
 		if w > 0 {
+			s.error("rune error")
 			return tokenIllegal
 		}
 		return tokenEOF
 	}
 
 	if r == 0 {
+		s.error("unexpected null")
 		return tokenIllegal
 	}
 
@@ -114,7 +116,9 @@ chomp:
 	case ch == tokenEOF:
 	case ch == tokenIllegal:
 	case isQuoteRune(ch):
-		s.scanQuoted(ch)
+		if !s.scanQuoted(ch) {
+			return pos, tokenIllegal, s.input[pos:s.ppos]
+		}
 		return pos, tokenQuoted, s.input[pos:s.ppos]
 	case isSeparatorRune(ch):
 		s.value = false
@@ -172,54 +176,64 @@ func (s *scanner) scanValue() {
 	}
 }
 
-func (s *scanner) scanQuoted(quote rune) {
+func (s *scanner) scanQuoted(quote rune) bool {
+	var illegal bool
 	ch := s.next() // read character after quote
 	for ch != quote {
 		if ch == '\n' || ch < 0 {
-			s.error("literal not terminated")
-			return
+			s.error("quoted literal not terminated")
+			return false
 		}
 		if ch == '\\' {
-			ch = s.scanEscape(quote)
+			var legal bool
+			ch, legal = s.scanEscape(quote)
+			if !legal {
+				illegal = true
+			}
 		} else {
 			ch = s.next()
 		}
 	}
+	return !illegal
 }
 
-func (s *scanner) scanEscape(quote rune) rune {
-	ch := s.next() // read character after '/'
+func (s *scanner) scanEscape(quote rune) (ch rune, legal bool) {
+	ch = s.next() // read character after '/'
 	switch ch {
 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
 		// nothing to do
 		ch = s.next()
+		legal = true
 	case '0', '1', '2', '3', '4', '5', '6', '7':
-		ch = s.scanDigits(ch, 8, 3)
+		ch, legal = s.scanDigits(ch, 8, 3)
 	case 'x':
-		ch = s.scanDigits(s.next(), 16, 2)
+		ch, legal = s.scanDigits(s.next(), 16, 2)
 	case 'u':
-		ch = s.scanDigits(s.next(), 16, 4)
+		ch, legal = s.scanDigits(s.next(), 16, 4)
 	case 'U':
-		ch = s.scanDigits(s.next(), 16, 8)
+		ch, legal = s.scanDigits(s.next(), 16, 8)
 	default:
-		s.error("illegal char escape")
+		s.error("illegal escape sequence")
 	}
-	return ch
+	return
 }
 
-func (s *scanner) scanDigits(ch rune, base, n int) rune {
+func (s *scanner) scanDigits(ch rune, base, n int) (rune, bool) {
 	for n > 0 && digitVal(ch) < base {
 		ch = s.next()
 		n--
 	}
 	if n > 0 {
-		s.error("illegal char escape")
+		s.error("illegal numeric escape sequence")
+		return ch, false
 	}
-	return ch
+	return ch, true
 }
 
 func (s *scanner) error(msg string) {
-	fmt.Println("error fixme", msg)
+	if s.err == "" {
+		s.err = msg
+	}
 }
 
 func digitVal(ch rune) int {

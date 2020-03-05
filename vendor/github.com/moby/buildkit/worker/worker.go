@@ -21,7 +21,8 @@ type Worker interface {
 	// ID needs to be unique in the cluster
 	ID() string
 	Labels() map[string]string
-	Platforms() []specs.Platform
+	Platforms(noCache bool) []specs.Platform
+
 	GCPolicy() []client.PruneInfo
 	LoadRef(id string, hidden bool) (cache.ImmutableRef, error)
 	// ResolveOp resolves Vertex.Sys() to Op implementation.

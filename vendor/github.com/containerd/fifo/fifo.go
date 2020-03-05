@@ -23,8 +23,8 @@ import (
 	"sync"
 	"syscall"
 
+	"context"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 type fifo struct {

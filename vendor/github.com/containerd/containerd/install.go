@@ -21,8 +21,9 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 
-	introspectionapi "github.com/containerd/containerd/api/services/introspection/v1"
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/content"
@@ -48,6 +49,15 @@ func (c *Client) Install(ctx context.Context, image Image, opts ...InstallOpts) 
 	if err != nil {
 		return err
 	}
+
+	var binDir, libDir string
+	if runtime.GOOS == "windows" {
+		binDir = "Files\\bin"
+		libDir = "Files\\lib"
+	} else {
+		binDir = "bin"
+		libDir = "lib"
+	}
 	for _, layer := range manifest.Layers {
 		ra, err := cs.ReaderAt(ctx, layer)
 		if err != nil {
@@ -60,9 +70,14 @@ func (c *Client) Install(ctx context.Context, image Image, opts ...InstallOpts) 
 		}
 		if _, err := archive.Apply(ctx, path, r, archive.WithFilter(func(hdr *tar.Header) (bool, error) {
 			d := filepath.Dir(hdr.Name)
-			result := d == "bin"
+			result := d == binDir
+
 			if config.Libs {
-				result = result || d == "lib"
+				result = result || d == libDir
+			}
+
+			if runtime.GOOS == "windows" {
+				hdr.Name = strings.Replace(hdr.Name, "Files", "", 1)
 			}
 			if result && !config.Replace {
 				if _, err := os.Lstat(filepath.Join(path, hdr.Name)); err == nil {
@@ -83,11 +98,8 @@ func (c *Client) getInstallPath(ctx context.Context, config InstallConfig) (stri
 	if config.Path != "" {
 		return config.Path, nil
 	}
-	resp, err := c.IntrospectionService().Plugins(ctx, &introspectionapi.PluginsRequest{
-		Filters: []string{
-			"id==opt",
-		},
-	})
+	filters := []string{"id==opt"}
+	resp, err := c.IntrospectionService().Plugins(ctx, filters)
 	if err != nil {
 		return "", err
 	}

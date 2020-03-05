@@ -225,7 +225,7 @@ func validateTopic(topic string) error {
 }
 
 func validateEnvelope(envelope *events.Envelope) error {
-	if err := namespaces.Validate(envelope.Namespace); err != nil {
+	if err := identifiers.Validate(envelope.Namespace); err != nil {
 		return errors.Wrapf(err, "event envelope has invalid namespace")
 	}
 

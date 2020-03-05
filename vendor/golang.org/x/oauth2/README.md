@@ -16,57 +16,16 @@ Or you can manually git clone the repository to
 
 See godoc for further documentation and examples.
 
-* [godoc.org/golang.org/x/oauth2](http://godoc.org/golang.org/x/oauth2)
-* [godoc.org/golang.org/x/oauth2/google](http://godoc.org/golang.org/x/oauth2/google)
+* [godoc.org/golang.org/x/oauth2](https://godoc.org/golang.org/x/oauth2)
+* [godoc.org/golang.org/x/oauth2/google](https://godoc.org/golang.org/x/oauth2/google)
 
+## Policy for new packages
 
-## App Engine
-
-In change 96e89be (March 2015), we removed the `oauth2.Context2` type in favor
-of the [`context.Context`](https://golang.org/x/net/context#Context) type from
-the `golang.org/x/net/context` package
-
-This means it's no longer possible to use the "Classic App Engine"
-`appengine.Context` type with the `oauth2` package. (You're using
-Classic App Engine if you import the package `"appengine"`.)
-
-To work around this, you may use the new `"google.golang.org/appengine"`
-package. This package has almost the same API as the `"appengine"` package,
-but it can be fetched with `go get` and used on "Managed VMs" and well as
-Classic App Engine.
-
-See the [new `appengine` package's readme](https://github.com/golang/appengine#updating-a-go-app-engine-app)
-for information on updating your app.
-
-If you don't want to update your entire app to use the new App Engine packages,
-you may use both sets of packages in parallel, using only the new packages
-with the `oauth2` package.
-
-```go
-import (
-	"golang.org/x/net/context"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	newappengine "google.golang.org/appengine"
-	newurlfetch "google.golang.org/appengine/urlfetch"
-
-	"appengine"
-)
-
-func handler(w http.ResponseWriter, r *http.Request) {
-	var c appengine.Context = appengine.NewContext(r)
-	c.Infof("Logging a message with the old package")
-
-	var ctx context.Context = newappengine.NewContext(r)
-	client := &http.Client{
-		Transport: &oauth2.Transport{
-			Source: google.AppEngineTokenSource(ctx, "scope"),
-			Base:   &newurlfetch.Transport{Context: ctx},
-		},
-	}
-	client.Get("...")
-}
-```
+We no longer accept new provider-specific packages in this repo if all
+they do is add a single endpoint variable. If you just want to add a
+single endpoint, add it to the
+[godoc.org/golang.org/x/oauth2/endpoints](https://godoc.org/golang.org/x/oauth2/endpoints)
+package.
 
 ## Report Issues / Send Patches
 

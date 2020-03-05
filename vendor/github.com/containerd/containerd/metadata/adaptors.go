@@ -24,6 +24,7 @@ import (
 	"github.com/containerd/containerd/filters"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
+	"github.com/containerd/containerd/snapshots"
 )
 
 func adaptImage(o interface{}) filters.Adaptor {
@@ -133,6 +134,34 @@ func adaptLease(lease leases.Lease) filters.Adaptor {
 			return lease.ID, len(lease.ID) > 0
 		case "labels":
 			return checkMap(fieldpath[1:], lease.Labels)
+		}
+
+		return "", false
+	})
+}
+
+func adaptSnapshot(info snapshots.Info) filters.Adaptor {
+	return filters.AdapterFunc(func(fieldpath []string) (string, bool) {
+		if len(fieldpath) == 0 {
+			return "", false
+		}
+
+		switch fieldpath[0] {
+		case "kind":
+			switch info.Kind {
+			case snapshots.KindActive:
+				return "active", true
+			case snapshots.KindView:
+				return "view", true
+			case snapshots.KindCommitted:
+				return "committed", true
+			}
+		case "name":
+			return info.Name, true
+		case "parent":
+			return info.Parent, true
+		case "labels":
+			return checkMap(fieldpath[1:], info.Labels)
 		}
 
 		return "", false

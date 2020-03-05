@@ -96,7 +96,6 @@ func (e *execProcess) setExited(status int) {
 	e.status = status
 	e.exited = time.Now()
 	e.parent.Platform.ShutdownConsole(context.Background(), e.console)
-	e.pid.set(StoppedPID)
 	close(e.waitBlock)
 }
 
@@ -147,7 +146,7 @@ func (e *execProcess) kill(ctx context.Context, sig uint32, _ bool) error {
 	switch {
 	case pid == 0:
 		return errors.Wrap(errdefs.ErrFailedPrecondition, "process not created")
-	case pid < 0:
+	case !e.exited.IsZero():
 		return errors.Wrapf(errdefs.ErrNotFound, "process already finished")
 	default:
 		if err := unix.Kill(pid, syscall.Signal(sig)); err != nil {

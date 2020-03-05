@@ -130,6 +130,14 @@ func WithPullUnpack(_ *Client, c *RemoteContext) error {
 	return nil
 }
 
+// WithUnpackOpts is used to add unpack options to the unpacker.
+func WithUnpackOpts(opts []UnpackOpt) RemoteOpt {
+	return func(_ *Client, c *RemoteContext) error {
+		c.UnpackOpts = append(c.UnpackOpts, opts...)
+		return nil
+	}
+}
+
 // WithPullSnapshotter specifies snapshotter name used for unpacking
 func WithPullSnapshotter(snapshotterName string) RemoteOpt {
 	return func(_ *Client, c *RemoteContext) error {

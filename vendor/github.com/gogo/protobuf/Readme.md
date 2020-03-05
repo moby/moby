@@ -17,6 +17,18 @@ This code generation is used to achieve:
 Keeping track of how up to date gogoprotobuf is relative to golang/protobuf is done in this
 <a href="https://github.com/gogo/protobuf/issues/191">issue</a>
 
+## Release v1.3.0
+
+The project has updated to release v1.3.0. Check out the release notes <a href="https://github.com/gogo/protobuf/releases/tag/v1.3.0">here</a>.
+
+With this new release comes a new internal library version. This means any newly generated *pb.go files generated with the v1.3.0 library will not be compatible with the old library version (v1.2.1). However, current *pb.go files (generated with v1.2.1) should still work with the new library.
+
+Please make sure you manage your dependencies correctly when upgrading your project. If you are still using v1.2.1 and you update your dependencies, one of which could include a new *pb.go (generated with v1.3.0), you could get a compile time error.
+
+Our upstream repo, golang/protobuf, also had to go through this process in order to update their library version.
+Here is a link explaining <a href="https://github.com/golang/protobuf/issues/763#issuecomment-442434870">hermetic builds</a>.
+
+
 ## Users
 
 These projects use gogoprotobuf:
@@ -49,6 +61,8 @@ These projects use gogoprotobuf:
   - <a href="https://github.com/spacemeshos/go-spacemesh">go-spacemesh</a>
   - <a href="https://github.com/weaveworks/cortex">cortex</a> - <a href="https://github.com/weaveworks/cortex/blob/fee02a59729d3771ef888f7bf0fd050e1197c56e/pkg/ingester/client/cortex.proto">sample proto file</a>
   - <a href="http://skywalking.apache.org/">Apache SkyWalking APM</a> - Istio telemetry receiver based on Mixer bypass protocol
+  - <a href="https://github.com/hyperledger/burrow">Hyperledger Burrow</a> - a permissioned DLT framework
+  - <a href="https://github.com/iov-one/weave">IOV Weave</a> - a blockchain framework - <a href="https://github.com/iov-one/weave/tree/23f9856f1e316f93cb3d45d92c4c6a0c4810f6bf/spec/gogo">sample proto files</a>
 
 Please let us know if you are using gogoprotobuf by posting on our <a href="https://groups.google.com/forum/#!topic/gogoprotobuf/Brw76BxmFpQ">GoogleGroup</a>.
 

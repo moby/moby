@@ -22,6 +22,7 @@ import (
 	"sort"
 
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -226,6 +227,7 @@ func FilterPlatforms(f HandlerFunc, m platforms.Matcher) HandlerFunc {
 // The results will be ordered according to the comparison operator and
 // use the ordering in the manifests for equal matches.
 // A limit of 0 or less is considered no limit.
+// A not found error is returned if no manifest is matched.
 func LimitManifests(f HandlerFunc, m platforms.MatchComparer, n int) HandlerFunc {
 	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		children, err := f(ctx, desc)
@@ -245,8 +247,13 @@ func LimitManifests(f HandlerFunc, m platforms.MatchComparer, n int) HandlerFunc
 				return m.Less(*children[i].Platform, *children[j].Platform)
 			})
 
-			if n > 0 && len(children) > n {
-				children = children[:n]
+			if n > 0 {
+				if len(children) == 0 {
+					return children, errors.Wrap(errdefs.ErrNotFound, "no match for platform in manifest")
+				}
+				if len(children) > n {
+					children = children[:n]
+				}
 			}
 		default:
 			// only limit manifests from an index

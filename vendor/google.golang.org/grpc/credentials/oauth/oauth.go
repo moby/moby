@@ -42,6 +42,9 @@ func (ts TokenSource) GetRequestMetadata(ctx context.Context, uri ...string) (ma
 	if err != nil {
 		return nil, err
 	}
+	if err = credentials.CheckSecurityLevel(ctx, credentials.PrivacyAndIntegrity); err != nil {
+		return nil, fmt.Errorf("unable to transfer TokenSource PerRPCCredentials: %v", err)
+	}
 	return map[string]string{
 		"authorization": token.Type() + " " + token.AccessToken,
 	}, nil
@@ -79,6 +82,9 @@ func (j jwtAccess) GetRequestMetadata(ctx context.Context, uri ...string) (map[s
 	if err != nil {
 		return nil, err
 	}
+	if err = credentials.CheckSecurityLevel(ctx, credentials.PrivacyAndIntegrity); err != nil {
+		return nil, fmt.Errorf("unable to transfer jwtAccess PerRPCCredentials: %v", err)
+	}
 	return map[string]string{
 		"authorization": token.Type() + " " + token.AccessToken,
 	}, nil
@@ -99,6 +105,9 @@ func NewOauthAccess(token *oauth2.Token) credentials.PerRPCCredentials {
 }
 
 func (oa oauthAccess) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+	if err := credentials.CheckSecurityLevel(ctx, credentials.PrivacyAndIntegrity); err != nil {
+		return nil, fmt.Errorf("unable to transfer oauthAccess PerRPCCredentials: %v", err)
+	}
 	return map[string]string{
 		"authorization": oa.token.Type() + " " + oa.token.AccessToken,
 	}, nil
@@ -132,6 +141,9 @@ func (s *serviceAccount) GetRequestMetadata(ctx context.Context, uri ...string) 
 		if err != nil {
 			return nil, err
 		}
+	}
+	if err := credentials.CheckSecurityLevel(ctx, credentials.PrivacyAndIntegrity); err != nil {
+		return nil, fmt.Errorf("unable to transfer serviceAccount PerRPCCredentials: %v", err)
 	}
 	return map[string]string{
 		"authorization": s.t.Type() + " " + s.t.AccessToken,
