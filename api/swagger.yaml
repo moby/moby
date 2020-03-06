@@ -4186,7 +4186,7 @@ definitions:
 
           <p><br /></p>
 
-          > **Note**: This field is only propagated when using standalone Swarm
+          > **Deprecated**: This field is only propagated when using standalone Swarm
           > mode, and overlay networking using an external k/v store. Overlay
           > networks with Swarm mode enabled use the built-in raft store, and
           > this field will be empty.
@@ -4200,7 +4200,7 @@ definitions:
 
           <p><br /></p>
 
-          > **Note**: This field is only propagated when using standalone Swarm
+          > **Deprecated**: This field is only propagated when using standalone Swarm
           > mode, and overlay networking using an external k/v store. Overlay
           > networks with Swarm mode enabled use the built-in raft store, and
           > this field will be empty.
