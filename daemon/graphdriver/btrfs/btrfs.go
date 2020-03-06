@@ -830,7 +830,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 
 	if opts != nil {
 		if storageSize != ^C.__u64(0) {
-			if err := idtools.MkdirAllAndChown(d.quotasDir(), 0700, idtools.IDPair{UID: rootUID, GID: rootGID}); err != nil {
+			if err := idtools.MkdirAllAndChown(d.quotasDir(), 0700, idtools.Identity{UID: rootUID, GID: rootGID}); err != nil {
 				return err
 			}
 			subvolQuota := d.quotasDirID(id)

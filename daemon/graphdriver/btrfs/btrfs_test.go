@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver/graphtest"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/opencontainers/selinux/go-selinux/label"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // This avoids creating a new driver for each test if all tests are run
