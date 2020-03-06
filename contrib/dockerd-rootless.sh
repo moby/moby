@@ -82,6 +82,7 @@ if [ -z $_DOCKERD_ROOTLESS_CHILD ]; then
 		--slirp4netns-seccomp=$DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP \
 		--disable-host-loopback --port-driver=builtin \
 		--copy-up=/etc --copy-up=/run \
+		--propagation=rslave \
 		$DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS \
 		$0 $@
 else
