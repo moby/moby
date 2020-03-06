@@ -4,7 +4,7 @@ ARG CROSS="false"
 ARG SYSTEMD="false"
 ARG GO_VERSION=1.13.8
 ARG DEBIAN_FRONTEND=noninteractive
-ARG VPNKIT_DIGEST=e508a17cfacc8fd39261d5b4e397df2b953690da577e2c987a47630cd0c42f8e
+ARG VPNKIT_VERSION=0.4.0
 ARG DOCKER_BUILDTAGS="apparmor seccomp selinux"
 
 FROM golang:${GO_VERSION}-buster AS base
@@ -255,7 +255,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 COPY ./contrib/dockerd-rootless.sh /build
 
-FROM djs55/vpnkit@sha256:${VPNKIT_DIGEST} AS vpnkit
+FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit
 
 # TODO: Some of this is only really needed for testing, it would be nice to split this up
 FROM runtime-dev AS dev-systemd-false
