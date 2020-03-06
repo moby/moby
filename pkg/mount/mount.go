@@ -144,9 +144,7 @@ func RecursiveUnmount(target string) error {
 		err = unmount(m.Mountpoint, mntDetach)
 		if err != nil {
 			if i == len(mounts)-1 { // last mount
-				if mounted, e := Mounted(m.Mountpoint); e != nil || mounted {
-					return err
-				}
+				return err
 			} else {
 				// This is some submount, we can ignore this error for now, the final unmount will fail if this is a real problem
 				logrus.WithError(err).Warnf("Failed to unmount submount %s", m.Mountpoint)
