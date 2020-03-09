@@ -148,7 +148,9 @@ func TestKillDifferentUserContainer(t *testing.T) {
 }
 
 func TestInspectOomKilledTrue(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows" || !testEnv.DaemonInfo.MemoryLimit || !testEnv.DaemonInfo.SwapLimit)
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
+	skip.If(t, !testEnv.DaemonInfo.MemoryLimit || !testEnv.DaemonInfo.SwapLimit)
 
 	defer setupTest(t)()
 	ctx := context.Background()

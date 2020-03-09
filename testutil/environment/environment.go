@@ -162,6 +162,11 @@ func (e *Execution) IsUserNamespace() bool {
 	return root != ""
 }
 
+// IsRootless returns whether the rootless mode is enabled
+func (e *Execution) IsRootless() bool {
+	return os.Getenv("DOCKER_ROOTLESS") != ""
+}
+
 // HasExistingImage checks whether there is an image with the given reference.
 // Note that this is done by filtering and then checking whether there were any
 // results -- so ambiguous references might result in false-positives.

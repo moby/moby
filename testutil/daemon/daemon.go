@@ -151,6 +151,10 @@ func New(t testing.TB, ops ...Option) *Daemon {
 
 	assert.Check(t, dest != "", "Please set the DOCKER_INTEGRATION_DAEMON_DEST or the DEST environment variable")
 
+	if os.Getenv("DOCKER_ROOTLESS") != "" {
+		t.Skip("github.com/docker/docker/testutil/daemon.Daemon doesn't support DOCKER_ROOTLESS")
+	}
+
 	d, err := NewDaemon(dest, ops...)
 	assert.NilError(t, err, "could not create daemon at %q", dest)
 
@@ -227,6 +231,9 @@ func (d *Daemon) Cleanup(t testing.TB) {
 // Start starts the daemon and return once it is ready to receive requests.
 func (d *Daemon) Start(t testing.TB, args ...string) {
 	t.Helper()
+	if os.Getenv("DOCKER_ROOTLESS") != "" {
+		t.Skip("github.com/docker/docker/testutil/daemon.Daemon doesn't support DOCKER_ROOTLESS")
+	}
 	if err := d.StartWithError(args...); err != nil {
 		t.Fatalf("[%s] failed to start daemon with arguments %v : %v", d.id, d.args, err)
 	}

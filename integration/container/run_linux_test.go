@@ -20,6 +20,7 @@ import (
 func TestKernelTCPMemory(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "skip test from new feature")
+	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
 	skip.If(t, !testEnv.DaemonInfo.KernelMemoryTCP)
 
 	defer setupTest(t)()
@@ -56,6 +57,11 @@ func TestNISDomainname(t *testing.T) {
 	// `foobar.baz.cyphar.com` as hostname.
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "skip test from new feature")
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	// Rootless supports custom Hostname but doesn't support custom Domainname
+	//  OCI runtime create failed: container_linux.go:349: starting container process caused "process_linux.go:449: container init caused \
+	//  "write sysctl key kernel.domainname: open /proc/sys/kernel/domainname: permission denied\"": unknown.
+	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support setting Domainname (TODO: https://github.com/moby/moby/issues/40632)")
 
 	defer setupTest(t)()
 	client := testEnv.APIClient()

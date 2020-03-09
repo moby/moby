@@ -261,7 +261,9 @@ FROM djs55/vpnkit@sha256:${VPNKIT_DIGEST} AS vpnkit
 FROM runtime-dev AS dev-systemd-false
 ARG DEBIAN_FRONTEND
 RUN groupadd -r docker
-RUN useradd --create-home --gid docker unprivilegeduser
+RUN useradd --create-home --gid docker unprivilegeduser \
+ && mkdir -p /home/unprivilegeduser/.local/share/docker \
+ && chown -R unprivilegeduser /home/unprivilegeduser
 # Let us use a .bashrc file
 RUN ln -sfv /go/src/github.com/docker/docker/.bashrc ~/.bashrc
 # Activate bash completion and include Docker's completion if mounted with DOCKER_BASH_COMPLETION_PATH
@@ -288,7 +290,9 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             python3-pip \
             python3-setuptools \
             python3-wheel \
+            sudo \
             thin-provisioning-tools \
+            uidmap \
             vim \
             vim-common \
             xfsprogs \
@@ -325,6 +329,7 @@ ARG DOCKER_BUILDTAGS
 ENV DOCKER_BUILDTAGS="${DOCKER_BUILDTAGS}"
 WORKDIR /go/src/github.com/docker/docker
 VOLUME /var/lib/docker
+VOLUME /home/unprivilegeduser/.local/share/docker
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
 

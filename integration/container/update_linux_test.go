@@ -19,6 +19,7 @@ import (
 
 func TestUpdateMemory(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
 	skip.If(t, !testEnv.DaemonInfo.MemoryLimit)
 	skip.If(t, !testEnv.DaemonInfo.SwapLimit)
 
@@ -68,6 +69,7 @@ func TestUpdateMemory(t *testing.T) {
 }
 
 func TestUpdateCPUQuota(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
 	defer setupTest(t)()
 	client := testEnv.APIClient()
 	ctx := context.Background()
@@ -106,6 +108,7 @@ func TestUpdateCPUQuota(t *testing.T) {
 
 func TestUpdatePidsLimit(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
 	skip.If(t, !testEnv.DaemonInfo.PidsLimit)
 
 	defer setupTest(t)()

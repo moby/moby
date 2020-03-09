@@ -16,6 +16,7 @@ import (
 
 func TestLinksEtcHostsContentMatch(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of /etc/hosts")
 
 	hosts, err := ioutil.ReadFile("/etc/hosts")
 	skip.If(t, os.IsNotExist(err))
