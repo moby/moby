@@ -105,7 +105,7 @@ func Mount(device, target, mType, options string) error {
 	return mount(device, target, mType, uintptr(flag), data)
 }
 
-// Mount will mount filesystem according to the specified configuration.
+// ForceMount will mount filesystem according to the specified configuration.
 // Options must be specified like the mount or fstab unix commands:
 // "opt1=val1,opt2=val2". See flags.go for supported option flags.
 //
