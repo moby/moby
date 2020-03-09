@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
@@ -172,14 +171,10 @@ func testIpvlanL2InternalMode(client dclient.APIClient) func(*testing.T) {
 		id1 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
 		id2 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
 
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		_, err := container.Exec(timeoutCtx, client, id1, []string{"ping", "-c", "1", "-w", "1", "8.8.8.8"})
-		// FIXME(vdemeester) check the time of error ?
-		assert.Check(t, err != nil)
-		assert.Check(t, timeoutCtx.Err() == context.DeadlineExceeded)
+		result, _ := container.Exec(ctx, client, id1, []string{"ping", "-c", "1", "8.8.8.8"})
+		assert.Check(t, strings.Contains(result.Combined(), "Network is unreachable"))
 
-		_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
+		_, err := container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
 		assert.NilError(t, err)
 	}
 }
@@ -230,14 +225,10 @@ func testIpvlanL3InternalMode(client dclient.APIClient) func(*testing.T) {
 			container.WithIPv4(netName, "172.28.230.10"),
 		)
 
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		_, err := container.Exec(timeoutCtx, client, id1, []string{"ping", "-c", "1", "-w", "1", "8.8.8.8"})
-		// FIXME(vdemeester) check the time of error ?
-		assert.Check(t, err != nil)
-		assert.Check(t, timeoutCtx.Err() == context.DeadlineExceeded)
+		result, _ := container.Exec(ctx, client, id1, []string{"ping", "-c", "1", "8.8.8.8"})
+		assert.Check(t, strings.Contains(result.Combined(), "Network is unreachable"))
 
-		_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
+		_, err := container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
 		assert.NilError(t, err)
 	}
 }
