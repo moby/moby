@@ -67,21 +67,17 @@ func fixPermissionsWindows(source, destination, SID string) error {
 	sddlString := system.SddlAdministratorsLocalSystem
 	sddlString += "(A;OICI;GRGWGXRCWDSD;;;" + SID + ")"
 
-	securityDescriptor, err := winio.SddlToSecurityDescriptor(sddlString)
+	securityDescriptor, err := windows.SecurityDescriptorFromString(sddlString)
 	if err != nil {
 		return err
 	}
 
-	var daclPresent uint32
-	var daclDefaulted uint32
-	var dacl *byte
-
-	err = system.GetSecurityDescriptorDacl(&securityDescriptor[0], &daclPresent, &dacl, &daclDefaulted)
+	dacl, _, err := securityDescriptor.DACL()
 	if err != nil {
 		return err
 	}
 
-	return system.SetNamedSecurityInfo(windows.StringToUTF16Ptr(destination), windows.SE_FILE_OBJECT, windows.OWNER_SECURITY_INFORMATION|windows.DACL_SECURITY_INFORMATION, sid, nil, dacl, nil)
+	return windows.SetNamedSecurityInfo(destination, windows.SE_FILE_OBJECT, windows.OWNER_SECURITY_INFORMATION|windows.DACL_SECURITY_INFORMATION, sid, nil, dacl, nil)
 }
 
 func validateCopySourcePath(imageSource *imageMount, origPath, platform string) error {
