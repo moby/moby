@@ -104,29 +104,6 @@ func Unmount(_ string) error {
 	return nil
 }
 
-// CommandLineToArgv wraps the Windows syscall to turn a commandline into an argument array.
-func CommandLineToArgv(commandLine string) ([]string, error) {
-	var argc int32
-
-	argsPtr, err := windows.UTF16PtrFromString(commandLine)
-	if err != nil {
-		return nil, err
-	}
-
-	argv, err := windows.CommandLineToArgv(argsPtr, &argc)
-	if err != nil {
-		return nil, err
-	}
-	defer windows.LocalFree(windows.Handle(uintptr(unsafe.Pointer(argv))))
-
-	newArgs := make([]string, argc)
-	for i, v := range (*argv)[:argc] {
-		newArgs[i] = windows.UTF16ToString((*v)[:])
-	}
-
-	return newArgs, nil
-}
-
 // HasWin32KSupport determines whether containers that depend on win32k can
 // run on this machine. Win32k is the driver used to implement windowing.
 func HasWin32KSupport() bool {
