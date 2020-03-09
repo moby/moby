@@ -130,12 +130,10 @@ func mkdirWithACL(name string, sddl string) error {
 // by the daemon. This SHOULD be treated as absolute from a docker processing
 // perspective.
 func IsAbs(path string) bool {
-	if !filepath.IsAbs(path) {
-		if !strings.HasPrefix(path, string(os.PathSeparator)) {
-			return false
-		}
+	if filepath.IsAbs(path) || strings.HasPrefix(path, string(os.PathSeparator)) {
+		return true
 	}
-	return true
+	return false
 }
 
 // The origin of the functions below here are the golang OS and windows packages,
