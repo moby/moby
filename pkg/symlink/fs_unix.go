@@ -13,3 +13,5 @@ func evalSymlinks(path string) (string, error) {
 func isDriveOrRoot(p string) bool {
 	return p == string(filepath.Separator)
 }
+
+var isAbs = filepath.IsAbs

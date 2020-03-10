@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/pkg/longpath"
 	"golang.org/x/sys/windows"
 )
 
@@ -77,7 +76,10 @@ func evalSymlinks(path string) (string, error) {
 	return filepath.Clean(p), nil
 }
 
-const utf8RuneSelf = 0x80
+const (
+	utf8RuneSelf   = 0x80
+	longPathPrefix = `\\?\`
+)
 
 func walkSymlinks(path string) (string, error) {
 	const maxIter = 255
@@ -92,8 +94,8 @@ func walkSymlinks(path string) (string, error) {
 
 		// A path beginning with `\\?\` represents the root, so automatically
 		// skip that part and begin processing the next segment.
-		if strings.HasPrefix(path, longpath.Prefix) {
-			b.WriteString(longpath.Prefix)
+		if strings.HasPrefix(path, longPathPrefix) {
+			b.WriteString(longPathPrefix)
 			path = path[4:]
 			continue
 		}
@@ -123,7 +125,7 @@ func walkSymlinks(path string) (string, error) {
 
 		// If this is the first segment after the long path prefix, accept the
 		// current segment as a volume root or UNC share and move on to the next.
-		if b.String() == longpath.Prefix {
+		if b.String() == longPathPrefix {
 			b.WriteString(p)
 			b.WriteRune(filepath.Separator)
 			continue
@@ -146,7 +148,7 @@ func walkSymlinks(path string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if filepath.IsAbs(dest) || os.IsPathSeparator(dest[0]) {
+		if isAbs(dest) {
 			b.Reset()
 		}
 		path = dest + string(filepath.Separator) + path
@@ -164,6 +166,20 @@ func isDriveOrRoot(p string) bool {
 		if p[length-1] == ':' && (('a' <= p[length-2] && p[length-2] <= 'z') || ('A' <= p[length-2] && p[length-2] <= 'Z')) {
 			return true
 		}
+	}
+	return false
+}
+
+// isAbs is a platform-specific wrapper for filepath.IsAbs. On Windows,
+// golang filepath.IsAbs does not consider a path \windows\system32 as absolute
+// as it doesn't start with a drive-letter/colon combination. However, in
+// docker we need to verify things such as WORKDIR /windows/system32 in
+// a Dockerfile (which gets translated to \windows\system32 when being processed
+// by the daemon. This SHOULD be treated as absolute from a docker processing
+// perspective.
+func isAbs(path string) bool {
+	if filepath.IsAbs(path) || strings.HasPrefix(path, string(os.PathSeparator)) {
+		return true
 	}
 	return false
 }
