@@ -265,7 +265,7 @@ pipeline {
                                 sh '''
                                 # todo: include ip_vs in base image
                                 sudo modprobe ip_vs
-                
+
                                 docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
@@ -275,7 +275,7 @@ pipeline {
                                 sh '''#!/bin/bash
                                 # bash is needed so 'jobs -p' works properly
                                 # it also accepts setting inline envvars for functions without explicitly exporting
- 
+
                                 run_tests() {
                                         [ -n "$TESTDEBUG" ] && rm= || rm=--rm;
                                         docker run $rm -t --privileged \
@@ -375,9 +375,7 @@ pipeline {
                         beforeAgent true
                         expression { params.s390x }
                     }
-                    agent { label 's390x-ubuntu-1604' }
-                    // s390x machines run on Docker 18.06, and buildkit has some bugs on that version
-                    environment { DOCKER_BUILDKIT = '0' }
+                    agent { label 's390x-ubuntu-1804' }
 
                     stages {
                         stage("Print info") {
@@ -483,9 +481,7 @@ pipeline {
                         not { changeRequest() }
                         expression { params.s390x }
                     }
-                    agent { label 's390x-ubuntu-1604' }
-                    // s390x machines run on Docker 18.06, and buildkit has some bugs on that version
-                    environment { DOCKER_BUILDKIT = '0' }
+                    agent { label 's390x-ubuntu-1804' }
 
                     stages {
                         stage("Print info") {
