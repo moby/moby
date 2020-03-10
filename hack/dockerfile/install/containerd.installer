@@ -31,5 +31,6 @@ install_containerd() {
 
 	cp bin/containerd "${PREFIX}/containerd"
 	cp bin/containerd-shim "${PREFIX}/containerd-shim"
+	cp bin/containerd-shim-runc-v2 "${PREFIX}/containerd-shim-runc-v2"
 	cp bin/ctr "${PREFIX}/ctr"
 }
