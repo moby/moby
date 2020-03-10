@@ -4,7 +4,7 @@
 # updating the binary version, consider updating github.com/docker/libnetwork
 # in vendor.conf accordingly
 
-: "${LIBNETWORK_COMMIT:=d530ef9889078f4aeccd3806bb7c5d6c6da25346}"
+: "${LIBNETWORK_COMMIT:=77c37962e6aae965b80ccefe936936a0f5ae759b}"
 
 install_proxy() {
 	case "$1" in
