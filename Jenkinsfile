@@ -474,13 +474,7 @@ pipeline {
                         beforeAgent true
                         expression { params.s390x }
                     }
-                    agent { label 's390x-ubuntu-1604' }
-                    // s390x machines run on Docker 18.06, and buildkit has some
-                    // bugs on that version. Build and use buildx instead.
-                    environment {
-                        USE_BUILDX      = '1'
-                        DOCKER_BUILDKIT = '0'
-                    }
+                    agent { label 's390x-ubuntu-1804' }
 
                     stages {
                         stage("Print info") {
@@ -497,8 +491,7 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                make bundles/buildx
-                                bundles/buildx build --load --force-rm --build-arg APT_MIRROR=${APT_MIRROR} -t docker:${GIT_COMMIT} .
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
@@ -587,13 +580,7 @@ pipeline {
                         not { changeRequest() }
                         expression { params.s390x }
                     }
-                    agent { label 's390x-ubuntu-1604' }
-                    // s390x machines run on Docker 18.06, and buildkit has some
-                    // bugs on that version. Build and use buildx instead.
-                    environment {
-                        USE_BUILDX      = '1'
-                        DOCKER_BUILDKIT = '0'
-                    }
+                    agent { label 's390x-ubuntu-1804' }
 
                     stages {
                         stage("Print info") {
@@ -610,8 +597,7 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                make bundles/buildx
-                                bundles/buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
