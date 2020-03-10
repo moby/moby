@@ -39,10 +39,6 @@ fi
 dockerd="dockerd"
 socket=/var/run/docker.sock
 if [ -n "$DOCKER_ROOTLESS" ]; then
-	if [ -z "$DOCKER_EXPERIMENTAL" ]; then
-		echo >&2 '# DOCKER_ROOTLESS requires DOCKER_EXPERIMENTAL to be set'
-		exit 1
-	fi
 	user="unprivilegeduser"
 	uid=$(id -u $user)
 	# shellcheck disable=SC2174

@@ -1,8 +1,7 @@
 #!/bin/sh
 # dockerd-rootless.sh executes dockerd in rootless mode.
 #
-# Usage: dockerd-rootless.sh --experimental [DOCKERD_OPTIONS]
-# Currently, specifying --experimental is mandatory.
+# Usage: dockerd-rootless.sh [DOCKERD_OPTIONS]
 #
 # External dependencies:
 # * newuidmap and newgidmap needs to be installed.
@@ -11,7 +10,7 @@
 #   slirp4netns is used by default if installed. Otherwise fallsback to VPNKit.
 #   The default value can be overridden with $DOCKERD_ROOTLESS_ROOTLESSKIT_NET=(slirp4netns|vpnkit|lxc-user-nic)
 #
-# See the documentation for the further information.
+# See the documentation for the further information: https://docs.docker.com/engine/security/rootless/
 
 set -e -x
 if ! [ -w $XDG_RUNTIME_DIR ]; then
