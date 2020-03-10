@@ -4047,6 +4047,13 @@ definitions:
         enum: ["cgroupfs", "systemd", "none"]
         default: "cgroupfs"
         example: "cgroupfs"
+      CgroupVersion:
+        description: |
+          The version of the cgroup.
+        type: "string"
+        enum: ["1", "2"]
+        default: "1"
+        example: "1"
       NEventsListener:
         description: "Number of event listeners subscribed."
         type: "integer"

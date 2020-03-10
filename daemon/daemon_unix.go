@@ -644,7 +644,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	if hostConfig == nil {
 		return nil, nil
 	}
-	sysInfo := sysinfo.New(true)
+	sysInfo := daemon.RawSysInfo(true)
 
 	w, err := verifyPlatformContainerResources(&hostConfig.Resources, sysInfo, update)
 
@@ -1745,7 +1745,7 @@ func (daemon *Daemon) initCgroupsPath(path string) error {
 	}
 
 	path = filepath.Join(mnt, root, path)
-	sysInfo := sysinfo.New(true)
+	sysInfo := daemon.RawSysInfo(true)
 	if err := maybeCreateCPURealTimeFile(sysInfo.CPURealtimePeriod, daemon.configStore.CPURealtimePeriod, "cpu.rt_period_us", path); err != nil {
 		return err
 	}
@@ -1778,4 +1778,17 @@ func (daemon *Daemon) setupSeccompProfile() error {
 
 func (daemon *Daemon) useShimV2() bool {
 	return cgroups.IsCgroup2UnifiedMode()
+}
+
+// RawSysInfo returns *sysinfo.SysInfo .
+func (daemon *Daemon) RawSysInfo(quiet bool) *sysinfo.SysInfo {
+	var opts []sysinfo.Opt
+	if daemon.getCgroupDriver() == cgroupSystemdDriver {
+		rootlesskitParentEUID := os.Getenv("ROOTLESSKIT_PARENT_EUID")
+		if rootlesskitParentEUID != "" {
+			groupPath := fmt.Sprintf("/user.slice/user-%s.slice", rootlesskitParentEUID)
+			opts = append(opts, sysinfo.WithCgroup2GroupPath(groupPath))
+		}
+	}
+	return sysinfo.New(quiet, opts...)
 }

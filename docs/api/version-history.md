@@ -17,6 +17,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.41](https://docs.docker.com/engine/api/v1.41/) documentation
 
+* `GET /info` now returns an `CgroupVersion` field, containing the cgroup version.
 * `POST /services/create` and `POST /services/{id}/update` now supports `BindOptions.NonRecursive`.
 * The `ClusterStore` and `ClusterAdvertise` fields in `GET /info` are deprecated
   and are now omitted if they contain an empty value. This change is not versioned,

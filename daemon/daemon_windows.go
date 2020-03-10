@@ -657,3 +657,8 @@ func setupResolvConf(config *config.Config) {
 func (daemon *Daemon) useShimV2() bool {
 	return true
 }
+
+// RawSysInfo returns *sysinfo.SysInfo .
+func (daemon *Daemon) RawSysInfo(quiet bool) *sysinfo.SysInfo {
+	return sysinfo.New(quiet)
+}

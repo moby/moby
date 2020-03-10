@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
+	"github.com/docker/docker/pkg/sysinfo"
 )
 
 type f struct {
@@ -46,7 +47,7 @@ func TestDecodeContainerConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		c, h, _, err := decodeContainerConfig(bytes.NewReader(b))
+		c, h, _, err := decodeContainerConfig(bytes.NewReader(b), sysinfo.New(true))
 		if err != nil {
 			t.Fatal(fmt.Errorf("Error parsing %s: %v", f, err))
 		}
@@ -130,5 +131,5 @@ func callDecodeContainerConfigIsolation(isolation string) (*container.Config, *c
 	if b, err = json.Marshal(w); err != nil {
 		return nil, nil, nil, fmt.Errorf("Error on marshal %s", err.Error())
 	}
-	return decodeContainerConfig(bytes.NewReader(b))
+	return decodeContainerConfig(bytes.NewReader(b), sysinfo.New(true))
 }

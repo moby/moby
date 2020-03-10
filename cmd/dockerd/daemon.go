@@ -45,6 +45,7 @@ import (
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin"
 	"github.com/docker/docker/rootless"
@@ -456,7 +457,11 @@ func warnOnDeprecatedConfigOptions(config *config.Config) {
 }
 
 func initRouter(opts routerOptions) {
-	decoder := runconfig.ContainerDecoder{}
+	decoder := runconfig.ContainerDecoder{
+		GetSysInfo: func() *sysinfo.SysInfo {
+			return opts.daemon.RawSysInfo(true)
+		},
+	}
 
 	routers := []router.Router{
 		// we need to add the checkpoint router before the container router or the DELETE gets masked
