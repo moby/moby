@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
@@ -204,11 +205,11 @@ func supportsOverlay(dir string) error {
 		}
 	}
 	mOpts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lower, upper, work)
-	if err := syscall.Mount("overlay", merged, "overlay", uintptr(0), mOpts); err != nil {
-		return errors.Wrapf(err, "failed to mount overlay (%s) on %s", mOpts, merged)
+	if err := mount.Mount("overlay", merged, "overlay", mOpts); err != nil {
+		return err
 	}
-	if err := syscall.Unmount(merged, 0); err != nil {
-		return errors.Wrapf(err, "failed to unmount %s", merged)
+	if err := mount.Unmount(merged); err != nil {
+		return err
 	}
 	return nil
 }
