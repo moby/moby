@@ -791,6 +791,10 @@ func verifyDaemonSettings(conf *config.Config) error {
 		}
 	}
 
+	if conf.Rootless && UsingSystemd(conf) && !cgroups.IsCgroup2UnifiedMode() {
+		return fmt.Errorf("exec-opt native.cgroupdriver=systemd requires cgroup v2 for rootless mode")
+	}
+
 	if conf.DefaultRuntime == "" {
 		conf.DefaultRuntime = config.StockRuntimeName
 	}
