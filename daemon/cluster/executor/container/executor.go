@@ -47,10 +47,7 @@ func NewExecutor(b executorpkg.Backend, p plugin.Backend, i executorpkg.ImageBac
 
 // Describe returns the underlying node description from the docker client.
 func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
-	info, err := e.backend.SystemInfo()
-	if err != nil {
-		return nil, err
-	}
+	info := e.backend.SystemInfo()
 
 	plugins := map[api.PluginDescription]struct{}{}
 	addPlugins := func(typ string, names []string) {

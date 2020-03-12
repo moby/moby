@@ -44,10 +44,8 @@ func (s *systemRouter) pingHandler(ctx context.Context, w http.ResponseWriter, r
 }
 
 func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	info, err := s.backend.SystemInfo()
-	if err != nil {
-		return err
-	}
+	info := s.backend.SystemInfo()
+
 	if s.cluster != nil {
 		info.Swarm = s.cluster.Info()
 		info.Warnings = append(info.Warnings, info.Swarm.Warnings...)
