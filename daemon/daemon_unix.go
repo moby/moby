@@ -838,25 +838,14 @@ func overlaySupportsSelinux() (bool, error) {
 	}
 	defer f.Close()
 
-	var symAddr, symType, symName, text string
-
 	s := bufio.NewScanner(f)
 	for s.Scan() {
-		if err := s.Err(); err != nil {
-			return false, err
-		}
-
-		text = s.Text()
-		if _, err := fmt.Sscanf(text, "%s %s %s", &symAddr, &symType, &symName); err != nil {
-			return false, fmt.Errorf("Scanning '%s' failed: %s", text, err)
-		}
-
-		// Check for presence of symbol security_inode_copy_up.
-		if symName == "security_inode_copy_up" {
+		if strings.HasSuffix(s.Text(), " security_inode_copy_up") {
 			return true, nil
 		}
 	}
-	return false, nil
+
+	return false, s.Err()
 }
 
 // configureKernelSecuritySupport configures and validates security support for the kernel
