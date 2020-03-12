@@ -69,7 +69,7 @@ const (
 247 35 253:35 / /var/lib/docker/devicemapper/mnt/5fec11304b6f4713fea7b6ccdcc1adc0a1966187f590fe25a8227428a8df275d rw,relatime shared:229 - ext4 /dev/mapper/docker-253:2-425882-5fec11304b6f4713fea7b6ccdcc1adc0a1966187f590fe25a8227428a8df275d rw,seclabel,discard,stripe=16,data=ordered
 31 21 0:23 / /DATA/foo_bla_bla rw,relatime - cifs //foo/BLA\040BLA\040BLA/ rw,sec=ntlm,cache=loose,unc=\\foo\BLA BLA BLA,username=my_login,domain=mydomain.com,uid=12345678,forceuid,gid=12345678,forcegid,addr=10.1.30.10,file_mode=0755,dir_mode=0755,nounix,rsize=61440,wsize=65536,actimeo=1`
 
-	ubuntuMountInfo = `15 20 0:14 / /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw
+	ubuntuMountinfo = `15 20 0:14 / /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw
 16 20 0:3 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw
 17 20 0:5 / /dev rw,relatime - devtmpfs udev rw,size=1015140k,nr_inodes=253785,mode=755
 18 17 0:11 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=000
@@ -436,7 +436,7 @@ func TestParseFedoraMountinfo(t *testing.T) {
 }
 
 func TestParseUbuntuMountinfo(t *testing.T) {
-	r := bytes.NewBuffer([]byte(ubuntuMountInfo))
+	r := bytes.NewBuffer([]byte(ubuntuMountinfo))
 	_, err := parseInfoFile(r, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -553,4 +553,17 @@ func TestParseMountinfoFilters(t *testing.T) {
 	assert.NilError(t, err)
 	// there should be 4 results returned: /sys/fs/cgroup/cpu,cpuacct /sys/fs/cgroup /sys /
 	assert.Equal(t, 4, len(infos))
+}
+
+func BenchmarkParseMountinfo(b *testing.B) {
+	buf := []byte(fedoraMountinfo + "\n" + ubuntuMountinfo + "\n" + gentooMountinfo)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r := bytes.NewReader(buf)
+		_, err := parseInfoFile(r, PrefixFilter("/sys"))
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }
