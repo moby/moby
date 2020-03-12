@@ -3,7 +3,6 @@ package mount // import "github.com/docker/docker/pkg/mount"
 import (
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -40,44 +39,6 @@ func (e *mountError) Error() string {
 // Cause returns the underlying cause of the error
 func (e *mountError) Cause() error {
 	return e.err
-}
-
-// FilterFunc is a type defining a callback function
-// to filter out unwanted entries. It takes a pointer
-// to an Info struct (not fully populated, currently
-// only Mountpoint is filled in), and returns two booleans:
-//  - skip: true if the entry should be skipped
-//  - stop: true if parsing should be stopped after the entry
-type FilterFunc func(*Info) (skip, stop bool)
-
-// PrefixFilter discards all entries whose mount points
-// do not start with a prefix specified
-func PrefixFilter(prefix string) FilterFunc {
-	return func(m *Info) (bool, bool) {
-		skip := !strings.HasPrefix(m.Mountpoint, prefix)
-		return skip, false
-	}
-}
-
-// SingleEntryFilter looks for a specific entry
-func SingleEntryFilter(mp string) FilterFunc {
-	return func(m *Info) (bool, bool) {
-		if m.Mountpoint == mp {
-			return false, true // don't skip, stop now
-		}
-		return true, false // skip, keep going
-	}
-}
-
-// ParentsFilter returns all entries whose mount points
-// can be parents of a path specified, discarding others.
-// For example, given `/var/lib/docker/something`, entries
-// like `/var/lib/docker`, `/var` and `/` are returned.
-func ParentsFilter(path string) FilterFunc {
-	return func(m *Info) (bool, bool) {
-		skip := !strings.HasPrefix(path, m.Mountpoint)
-		return skip, false
-	}
 }
 
 // GetMounts retrieves a list of mounts for the current running process,
