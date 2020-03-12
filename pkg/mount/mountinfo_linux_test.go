@@ -535,6 +535,8 @@ func TestParseMountinfoFilters(t *testing.T) {
 		{PrefixFilter("nonexistent"), 0},
 		// 4 entries: /sys/fs/cgroup/cpu,cpuacct /sys/fs/cgroup /sys /
 		{ParentsFilter("/sys/fs/cgroup/cpu,cpuacct"), 4},
+		{FstypeFilter("pstore"), 1},
+		{FstypeFilter("proc", "sysfs"), 2},
 	}
 
 	var r bytes.Reader
