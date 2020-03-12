@@ -148,7 +148,7 @@ func lookupZfsDataset(rootdir string) (string, error) {
 	}
 	wantedDev := stat.Dev
 
-	mounts, err := mount.GetMounts(nil)
+	mounts, err := mount.GetMounts(mount.FstypeFilter("zfs"))
 	if err != nil {
 		return "", err
 	}
@@ -158,7 +158,7 @@ func lookupZfsDataset(rootdir string) (string, error) {
 			continue // may fail on fuse file systems
 		}
 
-		if stat.Dev == wantedDev && m.Fstype == "zfs" {
+		if stat.Dev == wantedDev {
 			return m.Source, nil
 		}
 	}
