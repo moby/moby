@@ -567,3 +567,87 @@ func BenchmarkParseMountinfo(b *testing.B) {
 		}
 	}
 }
+
+func TestParseMountinfoExtraCases(t *testing.T) {
+	testcases := []struct {
+		name  string
+		entry string
+		valid bool
+		exp   *Info
+	}{
+		{
+			name:  "perfectly normal",
+			entry: `251 15 0:3573 / /mnt/point rw,relatime - aufs none rw`,
+			valid: true,
+		},
+		{
+			name:  "not enough fields 1",
+			entry: `251 15 0:3573 / /mnt/point rw,relatime aufs none rw`,
+			valid: false,
+		},
+		{
+			name:  "not enough fields 2",
+			entry: `251 15 0:3573 / /mnt/point rw,relatime - aufs none`,
+			valid: false,
+		},
+		{
+			name:  "no separator 1",
+			entry: `251 15 0:3573 / /mnt/point rw,relatime shared:1 aufs none rw`,
+			valid: false,
+		},
+		{
+			name:  "not enough post-separator fields",
+			entry: `251 15 0:3573 / /mnt/point rw,relatime some extra fields - aufs none`,
+			valid: false,
+		},
+		{
+			name:  "extra fields at the end", // which we currently discard
+			entry: `251 15 0:3573 / /mnt/point rw,relatime - aufs none rw,unc=buggy but we cope`,
+			valid: true,
+			exp:   &Info{Mountpoint: "/mnt/point", Fstype: "aufs", Source: "none"},
+		},
+		{
+			name:  "one optional field",
+			entry: `251 15 0:3573 / /mnt/point rw,relatime shared:123 - aufs none rw`,
+			valid: true,
+			exp:   &Info{Mountpoint: "/mnt/point", Fstype: "aufs", Source: "none", Optional: "shared:123 extra:tag what:ever"},
+		},
+		{
+			name:  "extra optional fields", // which we carefully gather
+			entry: `251 15 0:3573 / /mnt/point rw,relatime shared:123 extra:tag what:ever key:value - aufs none rw`,
+			valid: true,
+			exp:   &Info{Mountpoint: "/mnt/point", Fstype: "aufs", Source: "none", Optional: "shared:123 extra:tag what:ever"},
+		},
+	}
+
+	for _, tc := range testcases {
+		r := bytes.NewBufferString(tc.entry)
+		info, err := parseInfoFile(r, nil)
+		if !tc.valid {
+			if err == nil {
+				t.Errorf("case %q: expected error, got nil", tc.name)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("case %q: expected no error, got %v", tc.name, err)
+			continue
+		}
+		if len(info) != 1 {
+			t.Errorf("case %q: expected 1 result, got %d", tc.name, len(info))
+		}
+		if tc.exp == nil {
+			continue
+		}
+		i := info[0]
+		if tc.exp.Mountpoint != "" && tc.exp.Mountpoint != i.Mountpoint {
+			t.Errorf("case %q: expected mp %s, got %s", tc.name, tc.exp.Mountpoint, i.Mountpoint)
+		}
+		if tc.exp.Fstype != "" && tc.exp.Fstype != i.Fstype {
+			t.Errorf("case %q: expected fs %s, got %s", tc.name, tc.exp.Fstype, i.Fstype)
+		}
+		if tc.exp.Source != "" && tc.exp.Source != i.Source {
+			t.Errorf("case %q: expected src %s, got %s", tc.name, tc.exp.Source, i.Source)
+		}
+	}
+}

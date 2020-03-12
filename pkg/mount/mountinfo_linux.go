@@ -36,6 +36,12 @@ func parseInfoFile(r io.Reader, filter FilterFunc) ([]*Info, error) {
 		   (9) filesystem type:  name of filesystem of the form "type[.subtype]"
 		   (10) mount source:  filesystem specific information or "none"
 		   (11) super options:  per super block options
+
+		   In other words, we have:
+		    * 6 mandatory fields	(1)..(6)
+		    * 0 or more optional fields	(7)
+		    * a separator field		(8)
+		    * 3 mandatory fields	(9)..(11)
 		*/
 
 		text := s.Text()
@@ -46,7 +52,43 @@ func parseInfoFile(r io.Reader, filter FilterFunc) ([]*Info, error) {
 			return nil, fmt.Errorf("Parsing '%s' failed: not enough fields (%d)", text, numFields)
 		}
 
+		// separator field
+		sepIdx := numFields - 4
+		// In Linux <= 3.9 mounting a cifs with spaces in a share
+		// name (like "//srv/My Docs") _may_ end up having a space
+		// in the last field of mountinfo (like "unc=//serv/My Docs").
+		// Since kernel 3.10-rc1, cifs option "unc=" is ignored,
+		// so spaces should not appear.
+		//
+		// Check for a separator, and work around the spaces bug
+		for fields[sepIdx] != "-" {
+			sepIdx--
+			if sepIdx == 5 {
+				return nil, errors.Errorf("Parsing '%s' failed: missing - separator", text)
+			}
+		}
+
 		p := &Info{}
+
+		// Fill in the fields that a filter might check
+		// (currently just the Mountpoint)
+		p.Mountpoint, err = strconv.Unquote(`"` + fields[4] + `"`)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Parsing '%s' failed: unable to unquote mount point field", fields[4])
+		}
+
+		// Run a filter soon so we can skip parsing/adding entries
+		// the caller is not interested in
+		var skip, stop bool
+		if filter != nil {
+			skip, stop = filter(p)
+			if skip {
+				continue
+			}
+		}
+
+		// Fill in the rest of the fields
+
 		// ignore any numbers parsing errors, as there should not be any
 		p.ID, _ = strconv.Atoi(fields[0])
 		p.Parent, _ = strconv.Atoi(fields[1])
@@ -62,52 +104,21 @@ func parseInfoFile(r io.Reader, filter FilterFunc) ([]*Info, error) {
 			return nil, errors.Wrapf(err, "Parsing '%s' failed: unable to unquote root field", fields[3])
 		}
 
-		p.Mountpoint, err = strconv.Unquote(`"` + fields[4] + `"`)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Parsing '%s' failed: unable to unquote mount point field", fields[4])
-		}
 		p.Opts = fields[5]
 
-		var skip, stop bool
-		if filter != nil {
-			// filter out entries we're not interested in
-			skip, stop = filter(p)
-			if skip {
-				continue
-			}
+		// zero or more optional fields
+		switch {
+		case sepIdx == 6:
+			// zero, do nothing
+		case sepIdx == 7:
+			p.Optional = fields[6]
+		default:
+			p.Optional = strings.Join(fields[6:sepIdx-1], " ")
 		}
 
-		// one or more optional fields, when a separator (-)
-		i := 6
-		for ; i < numFields && fields[i] != "-"; i++ {
-			switch i {
-			case 6:
-				p.Optional = fields[6]
-			default:
-				/* NOTE there might be more optional fields before the such as
-				   fields[7]...fields[N] (where N < sepIndex), although
-				   as of Linux kernel 4.15 the only known ones are
-				   mount propagation flags in fields[6]. The correct
-				   behavior is to ignore any unknown optional fields.
-				*/
-			}
-		}
-		if i == numFields {
-			return nil, fmt.Errorf("Parsing '%s' failed: missing separator ('-')", text)
-		}
-
-		// There should be 3 fields after the separator...
-		if i+4 > numFields {
-			return nil, fmt.Errorf("Parsing '%s' failed: not enough fields after a separator", text)
-		}
-		// ... but in Linux <= 3.9 mounting a cifs with spaces in a share name
-		// (like "//serv/My Documents") _may_ end up having a space in the last field
-		// of mountinfo (like "unc=//serv/My Documents"). Since kernel 3.10-rc1, cifs
-		// option unc= is ignored,  so a space should not appear. In here we ignore
-		// those "extra" fields caused by extra spaces.
-		p.Fstype = fields[i+1]
-		p.Source = fields[i+2]
-		p.VfsOpts = fields[i+3]
+		p.Fstype = fields[sepIdx+1]
+		p.Source = fields[sepIdx+2]
+		p.VfsOpts = fields[sepIdx+3]
 
 		out = append(out, p)
 		if stop {
