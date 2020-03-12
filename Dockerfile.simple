@@ -8,6 +8,7 @@
 ARG GO_VERSION=1.12.17
 
 FROM golang:${GO_VERSION}-stretch
+ENV GO111MODULE=off
 
 # allow replacing httpredir or deb mirror
 ARG APT_MIRROR=deb.debian.org

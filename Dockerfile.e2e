@@ -1,7 +1,7 @@
 ARG GO_VERSION=1.12.17
 
 FROM golang:${GO_VERSION}-alpine AS base
-
+ENV GO111MODULE=off
 RUN apk --no-cache add \
     bash \
     btrfs-progs-dev \
