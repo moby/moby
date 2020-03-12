@@ -5,8 +5,6 @@ package mount // import "github.com/docker/docker/pkg/mount"
 import (
 	"bytes"
 	"testing"
-
-	"gotest.tools/v3/assert"
 )
 
 const (
@@ -526,33 +524,31 @@ func TestParseMountinfoWithSpaces(t *testing.T) {
 }
 
 func TestParseMountinfoFilters(t *testing.T) {
-	r := bytes.NewReader([]byte(fedoraMountinfo))
+	cases := []struct {
+		filter FilterFunc
+		expLen int
+	}{
+		{SingleEntryFilter("/sys/fs/cgroup"), 1},
+		{SingleEntryFilter("nonexistent"), 0},
+		// 18 entries with /sys prefix in fedoraMountinfo
+		{PrefixFilter("/sys"), 18},
+		{PrefixFilter("nonexistent"), 0},
+		// 4 entries: /sys/fs/cgroup/cpu,cpuacct /sys/fs/cgroup /sys /
+		{ParentsFilter("/sys/fs/cgroup/cpu,cpuacct"), 4},
+	}
 
-	infos, err := parseInfoFile(r, SingleEntryFilter("/sys/fs/cgroup"))
-	assert.NilError(t, err)
-	assert.Equal(t, 1, len(infos))
-
-	r.Reset([]byte(fedoraMountinfo))
-	infos, err = parseInfoFile(r, SingleEntryFilter("nonexistent"))
-	assert.NilError(t, err)
-	assert.Equal(t, 0, len(infos))
-
-	r.Reset([]byte(fedoraMountinfo))
-	infos, err = parseInfoFile(r, PrefixFilter("/sys"))
-	assert.NilError(t, err)
-	// there are 18 entries starting with /sys in fedoraMountinfo
-	assert.Equal(t, 18, len(infos))
-
-	r.Reset([]byte(fedoraMountinfo))
-	infos, err = parseInfoFile(r, PrefixFilter("nonexistent"))
-	assert.NilError(t, err)
-	assert.Equal(t, 0, len(infos))
-
-	r.Reset([]byte(fedoraMountinfo))
-	infos, err = parseInfoFile(r, ParentsFilter("/sys/fs/cgroup/cpu,cpuacct"))
-	assert.NilError(t, err)
-	// there should be 4 results returned: /sys/fs/cgroup/cpu,cpuacct /sys/fs/cgroup /sys /
-	assert.Equal(t, 4, len(infos))
+	var r bytes.Reader
+	for _, tc := range cases {
+		r.Reset([]byte(fedoraMountinfo))
+		infos, err := parseInfoFile(&r, tc.filter)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		if len(infos) != tc.expLen {
+			t.Errorf("unexpected len %d, expected %d", len(infos), tc.expLen)
+		}
+	}
 }
 
 func BenchmarkParseMountinfo(b *testing.B) {
