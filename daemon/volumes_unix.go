@@ -12,8 +12,8 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/fileutils"
-	"github.com/docker/docker/pkg/mount"
 	volumemounts "github.com/docker/docker/volume/mounts"
+	"github.com/moby/sys/mount"
 )
 
 // setupMounts iterates through each of the mount points for a container and

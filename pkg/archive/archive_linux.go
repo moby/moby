@@ -10,8 +10,8 @@ import (
 	"syscall"
 
 	"github.com/containerd/continuity/fs"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/system"
+	"github.com/moby/sys/mount"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )

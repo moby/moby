@@ -27,7 +27,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/testutil"
@@ -35,6 +34,8 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
+	"github.com/moby/sys/mount"
+	"github.com/moby/sys/mountinfo"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 )
@@ -1438,7 +1439,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *testing.T) {
 	// This test case is meant to test monitoring resolv.conf when it is
 	// a regular file not a bind mounc. So we unmount resolv.conf and replace
 	// it with a file containing the original settings.
-	mounted, err := mount.Mounted("/etc/resolv.conf")
+	mounted, err := mountinfo.Mounted("/etc/resolv.conf")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -3789,7 +3790,7 @@ func (s *DockerSuite) TestRunVolumesMountedAsShared(c *testing.T) {
 	dockerCmd(c, "run", "--privileged", "-v", fmt.Sprintf("%s:/volume-dest:shared", tmpDir), "busybox", "mount", "--bind", "/volume-dest/mnt1", "/volume-dest/mnt1")
 
 	// Make sure a bind mount under a shared volume propagated to host.
-	if mounted, _ := mount.Mounted(path.Join(tmpDir, "mnt1")); !mounted {
+	if mounted, _ := mountinfo.Mounted(path.Join(tmpDir, "mnt1")); !mounted {
 		c.Fatalf("Bind mount under shared volume did not propagate to host")
 	}
 

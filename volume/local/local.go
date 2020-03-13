@@ -16,8 +16,9 @@ import (
 	"github.com/docker/docker/daemon/names"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/volume"
+	"github.com/moby/sys/mount"
+	"github.com/moby/sys/mountinfo"
 	"github.com/pkg/errors"
 )
 
@@ -335,7 +336,7 @@ func (v *localVolume) Unmount(id string) error {
 func (v *localVolume) unmount() error {
 	if v.opts != nil {
 		if err := mount.Unmount(v.path); err != nil {
-			if mounted, mErr := mount.Mounted(v.path); mounted || mErr != nil {
+			if mounted, mErr := mountinfo.Mounted(v.path); mounted || mErr != nil {
 				return errdefs.System(err)
 			}
 		}

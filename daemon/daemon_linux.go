@@ -9,8 +9,9 @@ import (
 	"strings"
 
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/libnetwork/resolvconf"
+	"github.com/moby/sys/mount"
+	"github.com/moby/sys/mountinfo"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -75,7 +76,7 @@ func (daemon *Daemon) cleanupMounts() error {
 		return err
 	}
 
-	info, err := mount.GetMounts(mount.SingleEntryFilter(daemon.root))
+	info, err := mountinfo.GetMounts(mountinfo.SingleEntryFilter(daemon.root))
 	if err != nil {
 		return errors.Wrap(err, "error reading mount table for cleanup")
 	}
@@ -122,7 +123,7 @@ func getCleanPatterns(id string) (regexps []*regexp.Regexp) {
 	return
 }
 
-func shouldUnmountRoot(root string, info *mount.Info) bool {
+func shouldUnmountRoot(root string, info *mountinfo.Info) bool {
 	if !strings.HasSuffix(root, info.Root) {
 		return false
 	}

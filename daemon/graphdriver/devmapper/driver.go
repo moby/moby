@@ -14,8 +14,8 @@ import (
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/locker"
-	"github.com/docker/docker/pkg/mount"
 	units "github.com/docker/go-units"
+	"github.com/moby/sys/mount"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )

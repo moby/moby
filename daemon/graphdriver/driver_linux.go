@@ -1,7 +1,7 @@
 package graphdriver // import "github.com/docker/docker/daemon/graphdriver"
 
 import (
-	"github.com/docker/docker/pkg/mount"
+	"github.com/moby/sys/mountinfo"
 	"golang.org/x/sys/unix"
 )
 
@@ -113,7 +113,7 @@ type defaultChecker struct {
 }
 
 func (c *defaultChecker) IsMounted(path string) bool {
-	m, _ := mount.Mounted(path)
+	m, _ := mountinfo.Mounted(path)
 	return m
 }
 

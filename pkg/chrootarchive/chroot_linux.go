@@ -6,7 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/pkg/mount"
+	"github.com/moby/sys/mount"
+	"github.com/moby/sys/mountinfo"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"golang.org/x/sys/unix"
 )
@@ -36,7 +37,7 @@ func chroot(path string) (err error) {
 		return err
 	}
 
-	if mounted, _ := mount.Mounted(path); !mounted {
+	if mounted, _ := mountinfo.Mounted(path); !mounted {
 		if err := mount.Mount(path, path, "bind", "rbind,rw"); err != nil {
 			return realChroot(path)
 		}
