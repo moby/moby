@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"os/exec"
 	"strconv"
 	"testing"
 
@@ -29,4 +30,7 @@ func cleanupNetworkNamespace(_ testing.TB, _ *Daemon) {}
 func (d *Daemon) CgroupNamespace(t testing.TB) string {
 	assert.Assert(t, false)
 	return "cgroup namespaces are not supported on Windows"
+}
+
+func setsid(cmd *exec.Cmd) {
 }
