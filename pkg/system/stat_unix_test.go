@@ -31,7 +31,7 @@ func TestFromStatT(t *testing.T) {
 	if stat.Gid != s.GID() {
 		t.Fatal("got invalid gid")
 	}
-	if stat.Rdev != s.Rdev() {
+	if uint64(stat.Rdev) != s.Rdev() {
 		t.Fatal("got invalid rdev")
 	}
 	if stat.Mtim != s.Mtim() {
