@@ -1,18 +1,23 @@
 package mount // import "github.com/docker/docker/pkg/mount"
 
+// Deprecated: this package is not maintained and will be removed.
+// Use github.com/moby/sys/mount and github.com/moby/sys/mountinfo instead.
+
 import (
 	sysmount "github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 )
 
+// Deprecated: use github.com/moby/sys/mount instead.
 //nolint:golint
 var (
 	Mount            = sysmount.Mount
-	ForceMount       = sysmount.Mount // Deprecated: use Mount instead.
+	ForceMount       = sysmount.Mount // a deprecated synonym
 	Unmount          = sysmount.Unmount
 	RecursiveUnmount = sysmount.RecursiveUnmount
 )
 
+// Deprecated: use github.com/moby/sys/mount instead.
 //nolint:golint
 const (
 	RDONLY      = sysmount.RDONLY
@@ -39,15 +44,18 @@ const (
 	STRICTATIME = sysmount.STRICTATIME
 )
 
+// Deprecated: use github.com/moby/sys/mount instead.
 //nolint:golint
 var MergeTmpfsOptions = sysmount.MergeTmpfsOptions
 
+// Deprecated: use github.com/moby/sys/mountinfo instead.
 //nolint:golint
 type (
 	FilterFunc = mountinfo.FilterFunc
 	Info       = mountinfo.Info
 )
 
+// Deprecated: use github.com/moby/sys/mountinfo instead.
 //nolint:golint
 var (
 	Mounted   = mountinfo.Mounted

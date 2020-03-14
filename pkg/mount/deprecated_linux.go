@@ -4,6 +4,7 @@ import (
 	sysmount "github.com/moby/sys/mount"
 )
 
+// Deprecated: use github.com/moby/sys/mount instead.
 //nolint:golint
 var (
 	MakeMount       = sysmount.MakeMount
