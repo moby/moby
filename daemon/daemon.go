@@ -1475,22 +1475,11 @@ func (daemon *Daemon) PluginGetter() *plugin.Store {
 
 // CreateDaemonRoot creates the root for the daemon
 func CreateDaemonRoot(config *config.Config) error {
-	// get the canonical path to the Docker root directory
-	var realRoot string
-	if _, err := os.Stat(config.Root); err != nil && os.IsNotExist(err) {
-		realRoot = config.Root
-	} else {
-		realRoot, err = fileutils.ReadSymlinkedDirectory(config.Root)
-		if err != nil {
-			return fmt.Errorf("Unable to get the full path to root (%s): %s", config.Root, err)
-		}
-	}
-
 	idMapping, err := setupRemappedRoot(config)
 	if err != nil {
 		return err
 	}
-	return setupDaemonRoot(config, realRoot, idMapping.RootPair())
+	return setupDaemonRoot(config, idMapping.RootPair())
 }
 
 // checkpointAndSave grabs a container lock to safely call container.CheckpointTo
