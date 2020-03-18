@@ -466,7 +466,7 @@ func TestEndpointAuthorizeTokenBasic(t *testing.T) {
 		},
 	})
 
-	authenicate1 := fmt.Sprintf("Basic realm=localhost")
+	authenicate1 := "Basic realm=localhost"
 	basicCheck := func(a string) bool {
 		return a == fmt.Sprintf("Basic %s", basicAuth(username, password))
 	}
@@ -546,7 +546,7 @@ func TestEndpointAuthorizeTokenBasicWithExpiresIn(t *testing.T) {
 		},
 	})
 
-	authenicate1 := fmt.Sprintf("Basic realm=localhost")
+	authenicate1 := "Basic realm=localhost"
 	tokenExchanges := 0
 	basicCheck := func(a string) bool {
 		tokenExchanges = tokenExchanges + 1
@@ -706,7 +706,7 @@ func TestEndpointAuthorizeTokenBasicWithExpiresInAndIssuedAt(t *testing.T) {
 		},
 	})
 
-	authenicate1 := fmt.Sprintf("Basic realm=localhost")
+	authenicate1 := "Basic realm=localhost"
 	tokenExchanges := 0
 	basicCheck := func(a string) bool {
 		tokenExchanges = tokenExchanges + 1
@@ -835,7 +835,7 @@ func TestEndpointAuthorizeBasic(t *testing.T) {
 
 	username := "user1"
 	password := "funSecretPa$$word"
-	authenicate := fmt.Sprintf("Basic realm=localhost")
+	authenicate := "Basic realm=localhost"
 	validCheck := func(a string) bool {
 		return a == fmt.Sprintf("Basic %s", basicAuth(username, password))
 	}
