@@ -29,10 +29,11 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   capability,
   owner /** rw,
   @{DOCKER_GRAPH_PATH}/** rwl,
-  @{DOCKER_GRAPH_PATH}/linkgraph.db k,
   @{DOCKER_GRAPH_PATH}/network/files/boltdb.db k,
   @{DOCKER_GRAPH_PATH}/network/files/local-kv.db k,
-  @{DOCKER_GRAPH_PATH}/[0-9]*.[0-9]*/linkgraph.db k,
+  # For user namespaces:
+  @{DOCKER_GRAPH_PATH}/[0-9]*.[0-9]*/network/files/boltdb.db k,
+  @{DOCKER_GRAPH_PATH}/[0-9]*.[0-9]*/network/files/local-kv.db k,
 
   # For non-root client use:
   /dev/urandom r,
