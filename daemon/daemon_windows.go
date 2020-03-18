@@ -556,7 +556,7 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 			CPUUsage: types.CPUUsage{
 				TotalUsage:        hcss.Processor.TotalRuntime100ns,
 				UsageInKernelmode: hcss.Processor.RuntimeKernel100ns,
-				UsageInUsermode:   hcss.Processor.RuntimeKernel100ns,
+				UsageInUsermode:   hcss.Processor.RuntimeUser100ns,
 			},
 		}
 
