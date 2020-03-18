@@ -793,7 +793,7 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket, nsPath string) {
 		return
 	}
 	for {
-		msgs, err := nlSock.Receive()
+		msgs, _, err := nlSock.Receive()
 		if err != nil {
 			n.Lock()
 			nlFd := nlSock.GetFd()
