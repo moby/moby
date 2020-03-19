@@ -161,7 +161,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 	if err := i.pullImageWithReference(ctx, ref, platform, nil, pullRegistryAuth, output); err != nil {
 		return nil, err
 	}
-	return i.GetImage(name)
+	return i.GetImage(name, platform)
 }
 
 // GetImageAndReleasableLayer returns an image and releaseable layer for a reference or ID.
@@ -184,7 +184,7 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 	}
 
 	if opts.PullOption != backend.PullOptionForcePull {
-		image, err := i.GetImage(refOrID)
+		image, err := i.GetImage(refOrID, opts.Platform)
 		if err != nil && opts.PullOption == backend.PullOptionNoPull {
 			return nil, nil, err
 		}

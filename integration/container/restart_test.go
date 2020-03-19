@@ -76,7 +76,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 					defer d.Stop(t)
 					ctx := context.Background()
 
-					resp, err := client.ContainerCreate(ctx, c.config, c.hostConfig, nil, "")
+					resp, err := client.ContainerCreate(ctx, c.config, c.hostConfig, nil, nil, "")
 					assert.NilError(t, err)
 					defer client.ContainerRemove(ctx, resp.ID, types.ContainerRemoveOptions{Force: true})
 

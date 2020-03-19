@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
@@ -17,6 +18,7 @@ import (
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/testutil/request"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -57,6 +59,7 @@ func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 				&container.Config{Image: tc.image},
 				&container.HostConfig{},
 				&network.NetworkingConfig{},
+				nil,
 				"",
 			)
 			assert.Check(t, is.ErrorContains(err, tc.expectedError))
@@ -81,6 +84,7 @@ func TestCreateLinkToNonExistingContainer(t *testing.T) {
 			Links: []string{"no-such-container"},
 		},
 		&network.NetworkingConfig{},
+		nil,
 		"",
 	)
 	assert.Check(t, is.ErrorContains(err, "could not get container for no-such-container"))
@@ -120,6 +124,7 @@ func TestCreateWithInvalidEnv(t *testing.T) {
 				},
 				&container.HostConfig{},
 				&network.NetworkingConfig{},
+				nil,
 				"",
 			)
 			assert.Check(t, is.ErrorContains(err, tc.expectedError))
@@ -166,6 +171,7 @@ func TestCreateTmpfsMountsTarget(t *testing.T) {
 				Tmpfs: map[string]string{tc.target: ""},
 			},
 			&network.NetworkingConfig{},
+			nil,
 			"",
 		)
 		assert.Check(t, is.ErrorContains(err, tc.expectedError))
@@ -235,6 +241,7 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 			&config,
 			&hc,
 			&network.NetworkingConfig{},
+			nil,
 			name,
 		)
 		assert.NilError(t, err)
@@ -361,6 +368,7 @@ func TestCreateWithCapabilities(t *testing.T) {
 				&container.Config{Image: "busybox"},
 				&tc.hostConfig,
 				&network.NetworkingConfig{},
+				nil,
 				"",
 			)
 			if tc.expectedError == "" {
@@ -439,6 +447,7 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 			&config,
 			&hc,
 			&network.NetworkingConfig{},
+			nil,
 			name,
 		)
 		assert.NilError(t, err)
@@ -522,7 +531,7 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 				cfg.Healthcheck.StartPeriod = tc.startPeriod
 			}
 
-			resp, err := client.ContainerCreate(ctx, &cfg, &container.HostConfig{}, nil, "")
+			resp, err := client.ContainerCreate(ctx, &cfg, &container.HostConfig{}, nil, nil, "")
 			assert.Check(t, is.Equal(len(resp.Warnings), 0))
 
 			if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
@@ -580,4 +589,35 @@ func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
 	case err := <-chErr:
 		assert.NilError(t, err)
 	}
+}
+
+// Test that if the referenced image platform does not match the requested platform on container create that we get an
+// error.
+func TestCreateDifferentPlatform(t *testing.T) {
+	defer setupTest(t)()
+	c := testEnv.APIClient()
+	ctx := context.Background()
+
+	img, _, err := c.ImageInspectWithRaw(ctx, "busybox:latest")
+	assert.NilError(t, err)
+	assert.Assert(t, img.Architecture != "")
+
+	t.Run("different os", func(t *testing.T) {
+		p := specs.Platform{
+			OS:           img.Os + "DifferentOS",
+			Architecture: img.Architecture,
+			Variant:      img.Variant,
+		}
+		_, err := c.ContainerCreate(ctx, &containertypes.Config{Image: "busybox:latest"}, &containertypes.HostConfig{}, nil, &p, "")
+		assert.Assert(t, client.IsErrNotFound(err), err)
+	})
+	t.Run("different cpu arch", func(t *testing.T) {
+		p := specs.Platform{
+			OS:           img.Os,
+			Architecture: img.Architecture + "DifferentArch",
+			Variant:      img.Variant,
+		}
+		_, err := c.ContainerCreate(ctx, &containertypes.Config{Image: "busybox:latest"}, &containertypes.HostConfig{}, nil, &p, "")
+		assert.Assert(t, client.IsErrNotFound(err), err)
+	})
 }

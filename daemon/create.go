@@ -60,7 +60,7 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 
 	os := runtime.GOOS
 	if opts.params.Config.Image != "" {
-		img, err := daemon.imageService.GetImage(opts.params.Config.Image)
+		img, err := daemon.imageService.GetImage(opts.params.Config.Image, opts.params.Platform)
 		if err == nil {
 			os = img.OS
 		}
@@ -114,7 +114,7 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 
 	os := runtime.GOOS
 	if opts.params.Config.Image != "" {
-		img, err = daemon.imageService.GetImage(opts.params.Config.Image)
+		img, err = daemon.imageService.GetImage(opts.params.Config.Image, opts.params.Platform)
 		if err != nil {
 			return nil, err
 		}

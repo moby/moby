@@ -65,7 +65,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsBindNamedPipe(c *testing.T) {
 				},
 			},
 		},
-		nil, name)
+		nil, nil, name)
 	assert.NilError(c, err)
 
 	err = client.ContainerStart(ctx, name, types.ContainerStartOptions{})

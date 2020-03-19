@@ -14,7 +14,7 @@ import (
 // LookupImage looks up an image by name and returns it as an ImageInspect
 // structure.
 func (i *ImageService) LookupImage(name string) (*types.ImageInspect, error) {
-	img, err := i.GetImage(name)
+	img, err := i.GetImage(name, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "no such image: %s", name)
 	}
