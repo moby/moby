@@ -173,7 +173,7 @@ for all graphdrivers are built in.
 
 To disable btrfs:
 ```bash
-export DOCKER_BUILDTAGS='exclude_graphdriver_btrfs'
+export DOCKER_BUILDTAGS='no_btrfs'
 ```
 
 To disable devicemapper:

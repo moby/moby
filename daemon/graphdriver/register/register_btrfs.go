@@ -1,4 +1,4 @@
-// +build !exclude_graphdriver_btrfs,linux
+// +build !exclude_graphdriver_btrfs,linux linux,!no_btrfs
 
 package register // import "github.com/docker/docker/daemon/graphdriver/register"
 
