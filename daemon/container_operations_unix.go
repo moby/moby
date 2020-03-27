@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -352,6 +353,20 @@ func killProcessDirectly(cntr *container.Container) error {
 				e := errNoSuchProcess{pid, 9}
 				logrus.Debug(e)
 				return e
+			}
+
+			// In case there were some exceptions(e.g., state of zombie and D)
+			if system.IsProcessAlive(pid) {
+
+				// Since we can not kill a zombie pid, add zombie check here
+				isZombie, err := system.IsProcessZombie(pid)
+				if err != nil {
+					logrus.Warnf("Container %s state is invalid", stringid.TruncateID(cntr.ID))
+					return err
+				}
+				if isZombie {
+					return errdefs.System(errors.Errorf("container %s PID %d is zombie and can not be killed. Use the --init option when creating containers to run an init inside the container that forwards signals and reaps processes", stringid.TruncateID(cntr.ID), pid))
+				}
 			}
 		}
 	}
