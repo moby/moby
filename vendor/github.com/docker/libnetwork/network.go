@@ -1088,6 +1088,10 @@ func (n *network) delete(force bool, rmLBEndpoint bool) error {
 	// Cleanup the service discovery for this network
 	c.cleanupServiceDiscovery(n.ID())
 
+	// Cleanup the load balancer. On Windows this call is required
+	// to remove remote loadbalancers in VFP.
+	c.cleanupServiceBindings(n.ID())
+
 removeFromStore:
 	// deleteFromStore performs an atomic delete operation and the
 	// network.epCnt will help prevent any possible
