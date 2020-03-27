@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
+	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -344,6 +345,17 @@ func killProcessDirectly(cntr *container.Container) error {
 	if status.Err() != nil {
 		// Ensure that we don't kill ourselves
 		if pid := cntr.GetPID(); pid != 0 {
+
+			// since we can not kill a zombie pid, add zombie check here
+			isZombie, err := system.IsProcessZombie(pid)
+			if err != nil {
+				logrus.Warning("Container %s state is invalid", stringid.TruncateID(cntr.ID))
+				return err
+			}
+			if isZombie {
+				return fmt.Errorf("container %s PID %d is zombie, can not be killed", stringid.TruncateID(cntr.ID), pid)
+			}
+
 			logrus.Infof("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", stringid.TruncateID(cntr.ID))
 			if err := unix.Kill(pid, 9); err != nil {
 				if err != unix.ESRCH {
