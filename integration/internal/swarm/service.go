@@ -53,6 +53,7 @@ func NewSwarm(t *testing.T, testEnv *environment.Execution, ops ...daemon.Option
 	t.Helper()
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
 	if testEnv.DaemonInfo.ExperimentalBuild {
 		ops = append(ops, daemon.WithExperimental())
 	}

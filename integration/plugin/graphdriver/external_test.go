@@ -48,6 +48,7 @@ func TestExternalGraphDriver(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, !requirement.HasHubConnectivity(t))
+	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support external graph driver")
 
 	// Setup plugin(s)
 	ec := make(map[string]*graphEventsCounter)

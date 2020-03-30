@@ -5,8 +5,10 @@ package daemon // import "github.com/docker/docker/testutil/daemon"
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"golang.org/x/sys/unix"
@@ -45,4 +47,11 @@ func SignalDaemonDump(pid int) {
 
 func signalDaemonReload(pid int) error {
 	return unix.Kill(pid, unix.SIGHUP)
+}
+
+func setsid(cmd *exec.Cmd) {
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	cmd.SysProcAttr.Setsid = true
 }

@@ -1,6 +1,8 @@
 package daemon
 
 import (
+	"os/user"
+
 	"github.com/docker/docker/testutil/environment"
 )
 
@@ -100,5 +102,16 @@ func WithEnvironment(e environment.Execution) Option {
 func WithStorageDriver(driver string) Option {
 	return func(d *Daemon) {
 		d.storageDriver = driver
+	}
+}
+
+// WithRootlessUser sets the daemon to be rootless
+func WithRootlessUser(username string) Option {
+	return func(d *Daemon) {
+		u, err := user.Lookup(username)
+		if err != nil {
+			panic(err)
+		}
+		d.rootlessUser = u
 	}
 }

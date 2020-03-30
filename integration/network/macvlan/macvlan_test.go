@@ -19,6 +19,7 @@ import (
 func TestDockerNetworkMacvlanPersistance(t *testing.T) {
 	// verify the driver automatically provisions the 802.1q link (dm-dummy0.60)
 	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
 	d := daemon.New(t)
 	d.StartWithBusybox(t)
@@ -41,6 +42,7 @@ func TestDockerNetworkMacvlanPersistance(t *testing.T) {
 
 func TestDockerNetworkMacvlan(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
 	for _, tc := range []struct {
 		name string

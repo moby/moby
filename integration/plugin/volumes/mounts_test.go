@@ -18,6 +18,7 @@ import (
 func TestPluginWithDevMounts(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.IsRootless)
 	t.Parallel()
 
 	d := daemon.New(t)
