@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"path"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -41,6 +42,7 @@ import (
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
 )
 
@@ -114,7 +116,7 @@ func (is *imageSource) getCredentialsFromSession(ctx context.Context, sm *sessio
 	}
 }
 
-func (is *imageSource) resolveLocal(refStr string) ([]byte, error) {
+func (is *imageSource) resolveLocal(refStr string) (*image.Image, error) {
 	ref, err := distreference.ParseNormalizedNamed(refStr)
 	if err != nil {
 		return nil, err
@@ -127,7 +129,7 @@ func (is *imageSource) resolveLocal(refStr string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return img.RawJSON(), nil
+	return img, nil
 }
 
 func (is *imageSource) resolveRemote(ctx context.Context, ref string, platform *ocispec.Platform, sm *session.Manager) (digest.Digest, []byte, error) {
@@ -174,9 +176,16 @@ func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string, opt l
 		// default == prefer local, but in the future could be smarter
 		fallthrough
 	case source.ResolveModePreferLocal:
-		dt, err := is.resolveLocal(ref)
+		img, err := is.resolveLocal(ref)
 		if err == nil {
-			return "", dt, err
+			if img.Architecture != opt.Platform.Architecture || img.Variant != opt.Platform.Variant || img.OS != opt.Platform.OS {
+				logrus.WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, checking remote",
+					path.Join(opt.Platform.OS, opt.Platform.Architecture, opt.Platform.Variant),
+					path.Join(img.OS, img.Architecture, img.Variant),
+				)
+			} else {
+				return "", img.RawJSON(), err
+			}
 		}
 		// fallback to remote
 		return is.resolveRemote(ctx, ref, opt.Platform, sm)
@@ -261,9 +270,17 @@ func (p *puller) resolveLocal() {
 		}
 
 		if p.src.ResolveMode == source.ResolveModeDefault || p.src.ResolveMode == source.ResolveModePreferLocal {
-			dt, err := p.is.resolveLocal(p.src.Reference.String())
+			ref := p.src.Reference.String()
+			img, err := p.is.resolveLocal(ref)
 			if err == nil {
-				p.config = dt
+				if img.Architecture != p.platform.Architecture || img.Variant != p.platform.Variant || img.OS != p.platform.OS {
+					logrus.WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, not resolving",
+						path.Join(p.platform.OS, p.platform.Architecture, p.platform.Variant),
+						path.Join(img.OS, img.Architecture, img.Variant),
+					)
+				} else {
+					p.config = img.RawJSON()
+				}
 			}
 		}
 	})
