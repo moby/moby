@@ -188,10 +188,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 
 		logrus.Warnf("failed to upload schema2 manifest: %v - falling back to schema1", err)
 
-		msg := fmt.Sprintf("[DEPRECATION NOTICE] registry v2 schema1 support will be removed in an upcoming release. Please contact admins of the %s registry NOW to avoid future disruption. More information at https://docs.docker.com/registry/spec/deprecated-schema-v1/", reference.Domain(ref))
-		logrus.Warn(msg)
-		progress.Message(p.config.ProgressOutput, "", msg)
-
+		// Note: this fallback is deprecated, see log messages below
 		manifestRef, err := reference.WithTag(p.repo.Named(), ref.Tag())
 		if err != nil {
 			return err
@@ -205,6 +202,11 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 		if _, err = manSvc.Put(ctx, manifest, putOptions...); err != nil {
 			return err
 		}
+
+		// schema2 failed but schema1 succeeded
+		msg := fmt.Sprintf("[DEPRECATION NOTICE] registry v2 schema1 support will be removed in an upcoming release. Please contact admins of the %s registry NOW to avoid future disruption. More information at https://docs.docker.com/registry/spec/deprecated-schema-v1/", reference.Domain(ref))
+		logrus.Warn(msg)
+		progress.Message(p.config.ProgressOutput, "", msg)
 	}
 
 	var canonicalManifest []byte
