@@ -98,9 +98,9 @@ func WithStart(binary, address, daemonAddress, cgroup string, debug bool, exitHa
 			cmd.Wait()
 			exitHandler()
 			if stdoutLog != nil {
-				stderrLog.Close()
+				stdoutLog.Close()
 			}
-			if stdoutLog != nil {
+			if stderrLog != nil {
 				stderrLog.Close()
 			}
 		}()
