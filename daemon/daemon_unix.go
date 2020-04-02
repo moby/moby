@@ -17,6 +17,7 @@ import (
 	"time"
 
 	statsV1 "github.com/containerd/cgroups/stats/v1"
+	statsV2 "github.com/containerd/cgroups/v2/stats"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/blkiodev"
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
@@ -1446,6 +1447,17 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 	s := &types.StatsJSON{}
 	s.Read = cs.Read
 	stats := cs.Metrics
+	switch t := stats.(type) {
+	case *statsV1.Metrics:
+		return daemon.statsV1(s, t)
+	case *statsV2.Metrics:
+		return daemon.statsV2(s, t)
+	default:
+		return nil, errors.Errorf("unexpected type of metrics %+v", t)
+	}
+}
+
+func (daemon *Daemon) statsV1(s *types.StatsJSON, stats *statsV1.Metrics) (*types.StatsJSON, error) {
 	if stats.Blkio != nil {
 		s.BlkioStats = types.BlkioStats{
 			IoServiceBytesRecursive: copyBlkioEntry(stats.Blkio.IoServiceBytesRecursive),
@@ -1523,6 +1535,104 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 			}
 		}
 
+		// if the container does not set memory limit, use the machineMemory
+		if s.MemoryStats.Limit > daemon.machineMemory && daemon.machineMemory > 0 {
+			s.MemoryStats.Limit = daemon.machineMemory
+		}
+	}
+
+	if stats.Pids != nil {
+		s.PidsStats = types.PidsStats{
+			Current: stats.Pids.Current,
+			Limit:   stats.Pids.Limit,
+		}
+	}
+
+	return s, nil
+}
+
+func (daemon *Daemon) statsV2(s *types.StatsJSON, stats *statsV2.Metrics) (*types.StatsJSON, error) {
+	if stats.Io != nil {
+		var isbr []types.BlkioStatEntry
+		for _, re := range stats.Io.Usage {
+			isbr = append(isbr,
+				types.BlkioStatEntry{
+					Major: re.Major,
+					Minor: re.Minor,
+					Op:    "read",
+					Value: re.Rbytes,
+				},
+				types.BlkioStatEntry{
+					Major: re.Major,
+					Minor: re.Minor,
+					Op:    "write",
+					Value: re.Wbytes,
+				},
+			)
+		}
+		s.BlkioStats = types.BlkioStats{
+			IoServiceBytesRecursive: isbr,
+			// Other fields are unsupported
+		}
+	}
+
+	if stats.CPU != nil {
+		s.CPUStats = types.CPUStats{
+			CPUUsage: types.CPUUsage{
+				TotalUsage: stats.CPU.UsageUsec * 1000,
+				// PercpuUsage is not supported
+				UsageInKernelmode: stats.CPU.SystemUsec * 1000,
+				UsageInUsermode:   stats.CPU.UserUsec * 1000,
+			},
+			ThrottlingData: types.ThrottlingData{
+				Periods:          stats.CPU.NrPeriods,
+				ThrottledPeriods: stats.CPU.NrThrottled,
+				ThrottledTime:    stats.CPU.ThrottledUsec * 1000,
+			},
+		}
+	}
+
+	if stats.Memory != nil {
+		raw := make(map[string]uint64)
+		raw["anon"] = stats.Memory.Anon
+		raw["file"] = stats.Memory.File
+		raw["kernel_stack"] = stats.Memory.KernelStack
+		raw["slab"] = stats.Memory.Slab
+		raw["sock"] = stats.Memory.Sock
+		raw["shmem"] = stats.Memory.Shmem
+		raw["file_mapped"] = stats.Memory.FileMapped
+		raw["file_dirty"] = stats.Memory.FileDirty
+		raw["file_writeback"] = stats.Memory.FileWriteback
+		raw["anon_thp"] = stats.Memory.AnonThp
+		raw["inactive_anon"] = stats.Memory.InactiveAnon
+		raw["active_anon"] = stats.Memory.ActiveAnon
+		raw["inactive_file"] = stats.Memory.InactiveFile
+		raw["active_file"] = stats.Memory.ActiveFile
+		raw["unevictable"] = stats.Memory.Unevictable
+		raw["slab_reclaimable"] = stats.Memory.SlabReclaimable
+		raw["slab_unreclaimable"] = stats.Memory.SlabUnreclaimable
+		raw["pgfault"] = stats.Memory.Pgfault
+		raw["pgmajfault"] = stats.Memory.Pgmajfault
+		raw["workingset_refault"] = stats.Memory.WorkingsetRefault
+		raw["workingset_activate"] = stats.Memory.WorkingsetActivate
+		raw["workingset_nodereclaim"] = stats.Memory.WorkingsetNodereclaim
+		raw["pgrefill"] = stats.Memory.Pgrefill
+		raw["pgscan"] = stats.Memory.Pgscan
+		raw["pgsteal"] = stats.Memory.Pgsteal
+		raw["pgactivate"] = stats.Memory.Pgactivate
+		raw["pgdeactivate"] = stats.Memory.Pgdeactivate
+		raw["pglazyfree"] = stats.Memory.Pglazyfree
+		raw["pglazyfreed"] = stats.Memory.Pglazyfreed
+		raw["thp_fault_alloc"] = stats.Memory.ThpFaultAlloc
+		raw["thp_collapse_alloc"] = stats.Memory.ThpCollapseAlloc
+		s.MemoryStats = types.MemoryStats{
+			// Stats is not compatible with v1
+			Stats: raw,
+			Usage: stats.Memory.Usage,
+			// MaxUsage is not supported
+			Limit: stats.Memory.UsageLimit,
+			// TODO: Failcnt
+		}
 		// if the container does not set memory limit, use the machineMemory
 		if s.MemoryStats.Limit > daemon.machineMemory && daemon.machineMemory > 0 {
 			s.MemoryStats.Limit = daemon.machineMemory

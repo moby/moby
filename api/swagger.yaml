@@ -5564,6 +5564,12 @@ paths:
         If either `precpu_stats.online_cpus` or `cpu_stats.online_cpus` is
         nil then for compatibility with older daemons the length of the
         corresponding `cpu_usage.percpu_usage` array should be used.
+
+        On a cgroup v2 host, the following fields are not set
+        * `blkio_stats`: all fields other than `io_service_bytes_recursive`
+        * `cpu_stats`: `cpu_usage.percpu_usage`
+        * `memory_stats`: `max_usage` and `failcnt`
+        Also, `memory_stats.stats` fields are incompatible with cgroup v1.
       operationId: "ContainerStats"
       produces: ["application/json"]
       responses:
