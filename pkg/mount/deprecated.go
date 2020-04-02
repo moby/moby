@@ -46,13 +46,18 @@ const (
 
 // Deprecated: use github.com/moby/sys/mount instead.
 //nolint:golint
-var MergeTmpfsOptions = sysmount.MergeTmpfsOptions
+var (
+	MergeTmpfsOptions = sysmount.MergeTmpfsOptions
+)
 
-// Deprecated: use github.com/moby/sys/mountinfo instead.
 //nolint:golint
 type (
+	// FilterFunc is a type.
+	// Deprecated: use github.com/moby/sys/mountinfo instead.
 	FilterFunc = mountinfo.FilterFunc
-	Info       = mountinfo.Info
+	// Info is a type.
+	// Deprecated: use github.com/moby/sys/mountinfo instead.
+	Info = mountinfo.Info // Info is deprecated
 )
 
 // Deprecated: use github.com/moby/sys/mountinfo instead.
