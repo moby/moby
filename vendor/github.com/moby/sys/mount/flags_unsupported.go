@@ -1,6 +1,6 @@
 // +build !linux,!freebsd freebsd,!cgo
 
-package mount // import "github.com/docker/docker/pkg/mount"
+package mount
 
 // These flags are unsupported.
 const (
@@ -22,7 +22,6 @@ const (
 	RSLAVE      = 0
 	RBIND       = 0
 	RELATIME    = 0
-	RELATIVE    = 0
 	REMOUNT     = 0
 	STRICTATIME = 0
 	SYNCHRONOUS = 0

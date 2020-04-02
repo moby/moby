@@ -1,12 +1,17 @@
 // +build !windows,!linux,!freebsd freebsd,!cgo
 
-package mount // import "github.com/docker/docker/pkg/mount"
+package mountinfo
 
 import (
 	"fmt"
+	"io"
 	"runtime"
 )
 
-func parseMountTable(f FilterFunc) ([]*Info, error) {
+func parseMountTable(_ FilterFunc) ([]*Info, error) {
 	return nil, fmt.Errorf("mount.parseMountTable is not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+}
+
+func parseInfoFile(_ io.Reader, f FilterFunc) ([]*Info, error) {
+	return parseMountTable(f)
 }

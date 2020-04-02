@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/mount"
+	"github.com/moby/sys/mount"
 	"github.com/pkg/errors"
 )
 
