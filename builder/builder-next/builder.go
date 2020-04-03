@@ -240,7 +240,9 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		}
 
 		defer func() {
+			b.mu.Lock()
 			delete(b.jobs, buildID)
+			b.mu.Unlock()
 		}()
 	}
 
