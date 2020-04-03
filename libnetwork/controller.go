@@ -979,6 +979,10 @@ func (c *controller) reservePools() {
 			continue
 		}
 		for _, ep := range epl {
+			if ep.Iface() == nil {
+				logrus.Warnf("endpoint interface is empty for %q (%s)", ep.Name(), ep.ID())
+				continue
+			}
 			if err := ep.assignAddress(ipam, true, ep.Iface().AddressIPv6() != nil); err != nil {
 				logrus.Warnf("Failed to reserve current address for endpoint %q (%s) on network %q (%s)",
 					ep.Name(), ep.ID(), n.Name(), n.ID())

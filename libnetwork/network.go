@@ -1329,7 +1329,7 @@ func (n *network) EndpointByID(id string) (Endpoint, error) {
 func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool) {
 	var ipv6 net.IP
 	epName := ep.Name()
-	if iface := ep.Iface(); iface.Address() != nil {
+	if iface := ep.Iface(); iface != nil && iface.Address() != nil {
 		myAliases := ep.MyAliases()
 		if iface.AddressIPv6() != nil {
 			ipv6 = iface.AddressIPv6().IP
