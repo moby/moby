@@ -408,7 +408,6 @@ pipeline {
                         }
                         stage("Integration tests") {
                             environment {
-                                DOCKER_EXPERIMENTAL = '1'
                                 DOCKER_ROOTLESS = '1'
                                 TEST_SKIP_INTEGRATION_CLI = '1'
                             }
