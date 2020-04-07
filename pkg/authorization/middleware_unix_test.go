@@ -18,7 +18,7 @@ func TestMiddlewareWrapHandler(t *testing.T) {
 	server.start()
 	defer server.stop()
 
-	authZPlugin := createTestPlugin(t)
+	authZPlugin := createTestPlugin(t, server.socketAddress())
 	pluginNames := []string{authZPlugin.name}
 
 	var pluginGetter plugingetter.PluginGetter
