@@ -65,10 +65,6 @@ fi
 
 dockerd="dockerd"
 if [ -n "$DOCKER_ROOTLESS" ]; then
-	if [ -z "$DOCKER_EXPERIMENTAL" ]; then
-		echo >&2 '# DOCKER_ROOTLESS requires DOCKER_EXPERIMENTAL to be set'
-		exit 1
-	fi
 	if [ -z "$TEST_SKIP_INTEGRATION_CLI" ]; then
 		echo >&2 '# DOCKER_ROOTLESS requires TEST_SKIP_INTEGRATION_CLI to be set'
 		exit 1

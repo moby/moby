@@ -102,20 +102,18 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	if cli.Config.Experimental {
 		logrus.Warn("Running experimental build")
-		if cli.Config.IsRootless() {
-			logrus.Warn("Running in rootless mode. Cgroups, AppArmor, and CRIU are disabled.")
-		}
-		if rootless.RunningWithRootlessKit() {
-			logrus.Info("Running with RootlessKit integration")
-			if !cli.Config.IsRootless() {
-				return fmt.Errorf("rootless mode needs to be enabled for running with RootlessKit")
-			}
-		}
-	} else {
-		if cli.Config.IsRootless() {
-			return fmt.Errorf("rootless mode is supported only when running in experimental mode")
+	}
+
+	if cli.Config.IsRootless() {
+		logrus.Warn("Running in rootless mode. This mode has feature limitations.")
+	}
+	if rootless.RunningWithRootlessKit() {
+		logrus.Info("Running with RootlessKit integration")
+		if !cli.Config.IsRootless() {
+			return fmt.Errorf("rootless mode needs to be enabled for running with RootlessKit")
 		}
 	}
+
 	// return human-friendly error before creating files
 	if runtime.GOOS == "linux" && os.Geteuid() != 0 {
 		return fmt.Errorf("dockerd needs to be started with root. To see how to run dockerd in rootless mode with unprivileged user, see the documentation")

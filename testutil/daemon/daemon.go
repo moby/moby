@@ -204,7 +204,7 @@ func New(t testing.TB, ops ...Option) *Daemon {
 				t.Skip("DOCKER_ROOTLESS doesn't support DOCKER_USERLANDPROXY=false")
 			}
 		}
-		ops = append(ops, WithRootlessUser("unprivilegeduser"), WithExperimental())
+		ops = append(ops, WithRootlessUser("unprivilegeduser"))
 	}
 
 	d, err := NewDaemon(dest, ops...)
