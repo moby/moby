@@ -16,6 +16,32 @@ import (
 	"gotest.tools/assert"
 )
 
+type testDecoder struct {
+	rdr     io.Reader
+	scanner *bufio.Scanner
+}
+
+func (d *testDecoder) Decode() (*logger.Message, error) {
+	if d.scanner == nil {
+		d.scanner = bufio.NewScanner(d.rdr)
+	}
+	if !d.scanner.Scan() {
+		return nil, d.scanner.Err()
+	}
+	// some comment
+	return &logger.Message{Line: d.scanner.Bytes(), Timestamp: time.Now()}, nil
+}
+
+func (d *testDecoder) Reset(rdr io.Reader) {
+	d.rdr = rdr
+	d.scanner = bufio.NewScanner(rdr)
+}
+
+func (d *testDecoder) Close() {
+	d.rdr = nil
+	d.scanner = nil
+}
+
 func TestTailFiles(t *testing.T) {
 	s1 := strings.NewReader("Hello.\nMy name is Inigo Montoya.\n")
 	s2 := strings.NewReader("I'm serious.\nDon't call me Shirley!\n")
@@ -23,27 +49,18 @@ func TestTailFiles(t *testing.T) {
 
 	files := []SizeReaderAt{s1, s2, s3}
 	watcher := logger.NewLogWatcher()
-	createDecoder := func(r io.Reader) func() (*logger.Message, error) {
-		scanner := bufio.NewScanner(r)
-		return func() (*logger.Message, error) {
-			if !scanner.Scan() {
-				return nil, scanner.Err()
-			}
-			// some comment
-			return &logger.Message{Line: scanner.Bytes(), Timestamp: time.Now()}, nil
-		}
-	}
 
 	tailReader := func(ctx context.Context, r SizeReaderAt, lines int) (io.Reader, int, error) {
 		return tailfile.NewTailReader(ctx, r, lines)
 	}
+	dec := &testDecoder{}
 
 	for desc, config := range map[string]logger.ReadConfig{} {
 		t.Run(desc, func(t *testing.T) {
 			started := make(chan struct{})
 			go func() {
 				close(started)
-				tailFiles(files, watcher, createDecoder, tailReader, config)
+				tailFiles(files, watcher, dec, tailReader, config)
 			}()
 			<-started
 		})
@@ -53,7 +70,7 @@ func TestTailFiles(t *testing.T) {
 	started := make(chan struct{})
 	go func() {
 		close(started)
-		tailFiles(files, watcher, createDecoder, tailReader, config)
+		tailFiles(files, watcher, dec, tailReader, config)
 	}()
 	<-started
 
@@ -78,6 +95,15 @@ func TestTailFiles(t *testing.T) {
 	}
 }
 
+type dummyDecoder struct{}
+
+func (dummyDecoder) Decode() (*logger.Message, error) {
+	return &logger.Message{}, nil
+}
+
+func (dummyDecoder) Close()          {}
+func (dummyDecoder) Reset(io.Reader) {}
+
 func TestFollowLogsConsumerGone(t *testing.T) {
 	lw := logger.NewLogWatcher()
 
@@ -88,16 +114,12 @@ func TestFollowLogsConsumerGone(t *testing.T) {
 		os.Remove(f.Name())
 	}()
 
-	makeDecoder := func(rdr io.Reader) func() (*logger.Message, error) {
-		return func() (*logger.Message, error) {
-			return &logger.Message{}, nil
-		}
-	}
+	dec := dummyDecoder{}
 
 	followLogsDone := make(chan struct{})
 	var since, until time.Time
 	go func() {
-		followLogs(f, lw, make(chan interface{}), makeDecoder, since, until)
+		followLogs(f, lw, make(chan interface{}), dec, since, until)
 		close(followLogsDone)
 	}()
 
@@ -119,6 +141,18 @@ func TestFollowLogsConsumerGone(t *testing.T) {
 	}
 }
 
+type dummyWrapper struct {
+	dummyDecoder
+	fn func() error
+}
+
+func (d *dummyWrapper) Decode() (*logger.Message, error) {
+	if err := d.fn(); err != nil {
+		return nil, err
+	}
+	return d.dummyDecoder.Decode()
+}
+
 func TestFollowLogsProducerGone(t *testing.T) {
 	lw := logger.NewLogWatcher()
 
@@ -127,25 +161,25 @@ func TestFollowLogsProducerGone(t *testing.T) {
 	defer os.Remove(f.Name())
 
 	var sent, received, closed int
-	makeDecoder := func(rdr io.Reader) func() (*logger.Message, error) {
-		return func() (*logger.Message, error) {
-			if closed == 1 {
-				closed++
-				t.Logf("logDecode() closed after sending %d messages\n", sent)
-				return nil, io.EOF
-			} else if closed > 1 {
-				t.Fatal("logDecode() called after closing!")
-				return nil, io.EOF
-			}
+	dec := &dummyWrapper{fn: func() error {
+		switch closed {
+		case 0:
 			sent++
-			return &logger.Message{}, nil
+			return nil
+		case 1:
+			closed++
+			t.Logf("logDecode() closed after sending %d messages\n", sent)
+			return io.EOF
+		default:
+			t.Fatal("logDecode() called after closing!")
+			return io.EOF
 		}
-	}
+	}}
 	var since, until time.Time
 
 	followLogsDone := make(chan struct{})
 	go func() {
-		followLogs(f, lw, make(chan interface{}), makeDecoder, since, until)
+		followLogs(f, lw, make(chan interface{}), dec, since, until)
 		close(followLogsDone)
 	}()
 
