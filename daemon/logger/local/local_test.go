@@ -1,20 +1,17 @@
 package local
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
-
-	"bytes"
-	"fmt"
-
-	"strings"
-
-	"io"
 
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/plugins/logdriver"
