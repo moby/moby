@@ -187,15 +187,6 @@ autogen:
 binary dynbinary cross: buildx autogen
 	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
 
-build: target = --target=final
-ifdef USE_BUILDX
-build: bundles buildx
-	$(BUILD_CMD) $(BUILD_OPTS) $(BUILD_CROSS) $(target) -t "$(DOCKER_IMAGE)" .
-else
-build: bundles ## This is a legacy target and you should probably use something else.
-	$(BUILD_CMD) $(BUILD_OPTS) -t "$(DOCKER_IMAGE)" $(BUILD_CROSS) $(target) .
-endif
-
 bundles:
 	mkdir bundles
 
@@ -215,19 +206,19 @@ install: ## install the linux binaries
 run: build ## run the docker daemon in a container
 	$(DOCKER_RUN_DOCKER) sh -c "KEEPBUNDLE=1 hack/make.sh install-binary run"
  
-.PHONY: build_shell
+.PHONY: build
 ifeq ($(BIND_DIR), .)
-build_shell: shell_target := --target=dev
+build: shell_target := --target=dev
 else
-build_shell: shell_target := --target=final
+build: shell_target := --target=final
 endif
 ifdef USE_BUILDX
-build_shell: buildx_load := --load
+build: buildx_load := --load
 endif
-build_shell: buildx
+build: buildx
 	$(BUILD_CMD) $(BUILD_OPTS) $(shell_target) $(buildx_load) $(BUILD_CROSS) -t "$(DOCKER_IMAGE)" .
 
-shell: build_shell  ## start a shell inside the build env
+shell: build  ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash
 
 test: build test-unit ## run the unit, integration and docker-py tests
