@@ -178,7 +178,7 @@ func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string, opt l
 	case source.ResolveModePreferLocal:
 		img, err := is.resolveLocal(ref)
 		if err == nil {
-			if img.Architecture != opt.Platform.Architecture || img.Variant != opt.Platform.Variant || img.OS != opt.Platform.OS {
+			if !platformMatches(img, opt.Platform) {
 				logrus.WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, checking remote",
 					path.Join(opt.Platform.OS, opt.Platform.Architecture, opt.Platform.Variant),
 					path.Join(img.OS, img.Architecture, img.Variant),
@@ -273,7 +273,7 @@ func (p *puller) resolveLocal() {
 			ref := p.src.Reference.String()
 			img, err := p.is.resolveLocal(ref)
 			if err == nil {
-				if img.Architecture != p.platform.Architecture || img.Variant != p.platform.Variant || img.OS != p.platform.OS {
+				if !platformMatches(img, &p.platform) {
 					logrus.WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, not resolving",
 						path.Join(p.platform.OS, p.platform.Architecture, p.platform.Variant),
 						path.Join(img.OS, img.Architecture, img.Variant),
@@ -946,4 +946,14 @@ func ensureManifestRequested(ctx context.Context, res remotes.Resolver, ref stri
 	if atomic.LoadInt64(&cr.counter) == 0 {
 		res.Resolve(ctx, ref)
 	}
+}
+
+func platformMatches(img *image.Image, p *ocispec.Platform) bool {
+	if img.Architecture != p.Architecture {
+		return false
+	}
+	if img.Variant != "" && img.Variant != p.Variant {
+		return false
+	}
+	return img.OS == p.OS
 }
