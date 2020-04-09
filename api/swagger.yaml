@@ -5086,7 +5086,7 @@ paths:
                 x-nullable: true
                 $ref: "#/definitions/ContainerState"
               Image:
-                description: "The container's image"
+                description: "The container's image ID"
                 type: "string"
               ResolvConfPath:
                 type: "string"
