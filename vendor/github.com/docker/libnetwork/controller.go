@@ -67,6 +67,7 @@ import (
 	"github.com/docker/libnetwork/hostdiscovery"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 	"github.com/pkg/errors"
@@ -252,6 +253,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		return nil, err
 	}
 
+	setupArrangeUserFilterRule(c)
 	return c, nil
 }
 
@@ -909,8 +911,7 @@ addToStore:
 		arrangeIngressFilterRule()
 		c.Unlock()
 	}
-
-	c.arrangeUserFilterRule()
+	arrangeUserFilterRule()
 
 	return network, nil
 }
@@ -979,6 +980,10 @@ func (c *controller) reservePools() {
 			continue
 		}
 		for _, ep := range epl {
+			if ep.Iface() == nil {
+				logrus.Warnf("endpoint interface is empty for %q (%s)", ep.Name(), ep.ID())
+				continue
+			}
 			if err := ep.assignAddress(ipam, true, ep.Iface().AddressIPv6() != nil); err != nil {
 				logrus.Warnf("Failed to reserve current address for endpoint %q (%s) on network %q (%s)",
 					ep.Name(), ep.ID(), n.Name(), n.ID())
@@ -1362,4 +1367,28 @@ func (c *controller) IsDiagnosticEnabled() bool {
 	c.Lock()
 	defer c.Unlock()
 	return c.DiagnosticServer.IsDiagnosticEnabled()
+}
+
+func (c *controller) iptablesEnabled() bool {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.cfg == nil {
+		return false
+	}
+	// parse map cfg["bridge"]["generic"]["EnableIPTable"]
+	cfgBridge, ok := c.cfg.Daemon.DriverCfg["bridge"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	cfgGeneric, ok := cfgBridge[netlabel.GenericData].(options.Generic)
+	if !ok {
+		return false
+	}
+	enabled, ok := cfgGeneric["EnableIPTables"].(bool)
+	if !ok {
+		// unless user explicitly stated, assume iptable is enabled
+		enabled = true
+	}
+	return enabled
 }
