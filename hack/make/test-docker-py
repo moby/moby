@@ -10,12 +10,13 @@ source hack/make/.integration-test-helpers
 : "${DOCKER_PY_COMMIT:=4.2.0}"
 
 # custom options to pass py.test
+# TODO remove these skip once we update to a docker-py version that has https://github.com/docker/docker-py/pull/2549: CreateContainerTest::test_invalid_log_driver_raises_exception
 #
 # This option can be used to temporarily skip flaky tests (using the `--deselect`
 # flag) until they are fixed upstream. For example:
 # --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream
 # TODO re-enable test after https://github.com/docker/docker-py/issues/2513 has been resolved
-: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream}"
+: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_invalid_log_driver_raises_exception}"
 (
 	bundle .integration-daemon-start
 
