@@ -26,6 +26,24 @@ var (
 	ErrAlreadyExists = errors.New("Image already exists")
 )
 
+// HostCertsDir returns the config directory for a specific host
+func HostCertsDir(hostname string) (string, error) {
+	certsDir := CertsDir
+
+	if rootless.RunningWithRootlessKit() {
+		configHome, err := homedir.GetConfigHome()
+		if err != nil {
+			return "", err
+		}
+
+		certsDir = filepath.Join(configHome, "docker/certs.d")
+	}
+
+	hostDir := filepath.Join(certsDir, cleanPath(hostname))
+
+	return hostDir, nil
+}
+
 func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 	// PreferredServerCipherSuites should have no effect
 	tlsConfig := tlsconfig.ServerDefault()
@@ -33,18 +51,10 @@ func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 	tlsConfig.InsecureSkipVerify = !isSecure
 
 	if isSecure && CertsDir != "" {
-		certsDir := CertsDir
-
-		if rootless.RunningWithRootlessKit() {
-			configHome, err := homedir.GetConfigHome()
-			if err != nil {
-				return nil, err
-			}
-
-			certsDir = filepath.Join(configHome, "docker/certs.d")
+		hostDir, err := HostCertsDir(hostname)
+		if err != nil {
+			return nil, err
 		}
-
-		hostDir := filepath.Join(certsDir, cleanPath(hostname))
 
 		logrus.Debugf("hostDir: %s", hostDir)
 		if err := ReadCertsDirectory(tlsConfig, hostDir); err != nil {

@@ -462,7 +462,11 @@ type dispatchOpt struct {
 func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 	if ex, ok := cmd.Command.(instructions.SupportsSingleWordExpansion); ok {
 		err := ex.Expand(func(word string) (string, error) {
-			return opt.shlex.ProcessWord(word, d.state.Env())
+			env, err := d.state.Env(context.TODO())
+			if err != nil {
+				return "", err
+			}
+			return opt.shlex.ProcessWord(word, env)
 		})
 		if err != nil {
 			return err
@@ -626,7 +630,10 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 	if c.PrependShell {
 		args = withShell(d.image, args)
 	}
-	env := d.state.Env()
+	env, err := d.state.Env(context.TODO())
+	if err != nil {
+		return err
+	}
 	opt := []llb.RunOption{llb.Args(args), dfCmd(c)}
 	if d.ignoreCache {
 		opt = append(opt, llb.IgnoreCache)
@@ -661,7 +668,11 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 	shlex.RawQuotes = true
 	shlex.SkipUnsetEnv = true
 
-	opt = append(opt, llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(&shlex, c.String(), env)), d.prefixPlatform, d.state.GetPlatform())))
+	pl, err := d.state.GetPlatform(context.TODO())
+	if err != nil {
+		return err
+	}
+	opt = append(opt, llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(&shlex, c.String(), env)), d.prefixPlatform, pl)))
 	for _, h := range dopt.extraHosts {
 		opt = append(opt, llb.AddExtraHost(h.Host, h.IP))
 	}
@@ -687,7 +698,11 @@ func dispatchWorkdir(d *dispatchState, c *instructions.WorkdirCommand, commit bo
 			if d.platform != nil {
 				platform = *d.platform
 			}
-			d.state = d.state.File(llb.Mkdir(wd, 0755, mkdirOpt...), llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, c.String(), d.state.Env())), d.prefixPlatform, &platform)))
+			env, err := d.state.Env(context.TODO())
+			if err != nil {
+				return err
+			}
+			d.state = d.state.File(llb.Mkdir(wd, 0755, mkdirOpt...), llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, c.String(), env)), d.prefixPlatform, &platform)))
 			withLayer = true
 		}
 		return commitToHistory(&d.image, "WORKDIR "+wd, withLayer, nil)
@@ -696,7 +711,11 @@ func dispatchWorkdir(d *dispatchState, c *instructions.WorkdirCommand, commit bo
 }
 
 func dispatchCopyFileOp(d *dispatchState, c instructions.SourcesAndDest, sourceState llb.State, isAddCommand bool, cmdToPrint fmt.Stringer, chown string, opt dispatchOpt) error {
-	dest := path.Join("/", pathRelativeToWorkingDir(d.state, c.Dest()))
+	pp, err := pathRelativeToWorkingDir(d.state, c.Dest())
+	if err != nil {
+		return err
+	}
+	dest := path.Join("/", pp)
 	if c.Dest() == "." || c.Dest() == "" || c.Dest()[len(c.Dest())-1] == filepath.Separator {
 		dest += string(filepath.Separator)
 	}
@@ -772,7 +791,12 @@ func dispatchCopyFileOp(d *dispatchState, c instructions.SourcesAndDest, sourceS
 		platform = *d.platform
 	}
 
-	fileOpt := []llb.ConstraintsOpt{llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, cmdToPrint.String(), d.state.Env())), d.prefixPlatform, &platform))}
+	env, err := d.state.Env(context.TODO())
+	if err != nil {
+		return err
+	}
+
+	fileOpt := []llb.ConstraintsOpt{llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, cmdToPrint.String(), env)), d.prefixPlatform, &platform))}
 	if d.ignoreCache {
 		fileOpt = append(fileOpt, llb.IgnoreCache)
 	}
@@ -787,8 +811,11 @@ func dispatchCopy(d *dispatchState, c instructions.SourcesAndDest, sourceState l
 	}
 
 	img := llb.Image(opt.copyImage, llb.MarkImageInternal, llb.Platform(opt.buildPlatforms[0]), WithInternalName("helper image for file operations"))
-
-	dest := path.Join(".", pathRelativeToWorkingDir(d.state, c.Dest()))
+	pp, err := pathRelativeToWorkingDir(d.state, c.Dest())
+	if err != nil {
+		return err
+	}
+	dest := path.Join(".", pp)
 	if c.Dest() == "." || c.Dest() == "" || c.Dest()[len(c.Dest())-1] == filepath.Separator {
 		dest += string(filepath.Separator)
 	}
@@ -861,7 +888,12 @@ func dispatchCopy(d *dispatchState, c instructions.SourcesAndDest, sourceState l
 		platform = *d.platform
 	}
 
-	runOpt := []llb.RunOption{llb.Args(args), llb.Dir("/dest"), llb.ReadonlyRootFS(), dfCmd(cmdToPrint), llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, cmdToPrint.String(), d.state.Env())), d.prefixPlatform, &platform))}
+	env, err := d.state.Env(context.TODO())
+	if err != nil {
+		return err
+	}
+
+	runOpt := []llb.RunOption{llb.Args(args), llb.Dir("/dest"), llb.ReadonlyRootFS(), dfCmd(cmdToPrint), llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, cmdToPrint.String(), env)), d.prefixPlatform, &platform))}
 	if d.ignoreCache {
 		runOpt = append(runOpt, llb.IgnoreCache)
 	}
@@ -936,8 +968,12 @@ func dispatchHealthcheck(d *dispatchState, c *instructions.HealthCheckCommand) e
 
 func dispatchExpose(d *dispatchState, c *instructions.ExposeCommand, shlex *shell.Lex) error {
 	ports := []string{}
+	env, err := d.state.Env(context.TODO())
+	if err != nil {
+		return err
+	}
 	for _, p := range c.Ports {
-		ps, err := shlex.ProcessWords(p, d.state.Env())
+		ps, err := shlex.ProcessWords(p, env)
 		if err != nil {
 			return err
 		}
@@ -1018,11 +1054,15 @@ func dispatchArg(d *dispatchState, c *instructions.ArgCommand, metaArgs []instru
 	return commitToHistory(&d.image, commitStr, false, nil)
 }
 
-func pathRelativeToWorkingDir(s llb.State, p string) string {
+func pathRelativeToWorkingDir(s llb.State, p string) (string, error) {
 	if path.IsAbs(p) {
-		return p
+		return p, nil
 	}
-	return path.Join(s.GetDir(), p)
+	dir, err := s.GetDir(context.TODO())
+	if err != nil {
+		return "", err
+	}
+	return path.Join(dir, p), nil
 }
 
 func splitWildcards(name string) (string, string) {

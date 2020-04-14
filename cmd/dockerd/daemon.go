@@ -292,7 +292,7 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		Dist:                d.DistributionServices(),
 		NetworkController:   d.NetworkController(),
 		DefaultCgroupParent: cgroupParent,
-		ResolverOpt:         d.NewResolveOptionsFunc(),
+		RegistryHosts:       d.RegistryHosts(),
 		BuilderConfig:       config.Builder,
 		Rootless:            d.Rootless(),
 		IdentityMapping:     d.IdentityMapping(),

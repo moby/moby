@@ -119,7 +119,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		MetadataStore:   dist.V2MetadataService,
 		ImageStore:      dist.ImageStore,
 		ReferenceStore:  dist.ReferenceStore,
-		ResolverOpt:     opt.ResolverOpt,
+		RegistryHosts:   opt.RegistryHosts,
 		LayerStore:      dist.LayerStore,
 	})
 	if err != nil {
@@ -210,7 +210,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		Frontends:        frontends,
 		CacheKeyStorage:  cacheStorage,
 		ResolveCacheImporterFuncs: map[string]remotecache.ResolveCacheImporterFunc{
-			"registry": localinlinecache.ResolveCacheImporterFunc(opt.SessionManager, opt.ResolverOpt, store, dist.ReferenceStore, dist.ImageStore),
+			"registry": localinlinecache.ResolveCacheImporterFunc(opt.SessionManager, opt.RegistryHosts, store, dist.ReferenceStore, dist.ImageStore),
 			"local":    localremotecache.ResolveCacheImporterFunc(opt.SessionManager),
 		},
 		ResolveCacheExporterFuncs: map[string]remotecache.ResolveCacheExporterFunc{

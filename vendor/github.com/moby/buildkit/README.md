@@ -128,7 +128,7 @@ See [Expose BuildKit as a TCP service](#expose-buildkit-as-a-tcp-service).
 
 :information_source: Notice to Fedora 31 users:
 
-* As runc still does not work on cgroup v2 environment like Fedora 31, you need to substitute runc with crun. Run `rm -f $(which buildkit-runc) && ln -s $(which crun) /usr/local/bin/buildkit-runc` .
+* As runc still does not work on cgroup v2 environment like Fedora 31, you need to substitute runc with crun. Run `buildkitd` with `--oci-worker-binary=crun`.
 * If you want to use runc, you need to configure the system to use cgroup v1. Run `sudo grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=0"` and reboot.
 
 ### Exploring LLB
@@ -205,8 +205,8 @@ By default, the build result and intermediate cache will only remain internally 
 buildctl build ... --output type=image,name=docker.io/username/image,push=true
 ```
 
-To export and import the cache along with the image, you need to specify `--export-cache type=inline` and `--import-cache type=registry,ref=...`.
-See [Export cache](#export-cache).
+To export the cache embed with the image and pushing them to registry together, type `registry` is required to import the cache, you should specify `--export-cache type=inline` and `--import-cache type=registry,ref=...`. To export the cache to a local directy, you should specify `--export-cache type=local`.
+Details in [Export cache](#export-cache).
 
 ```bash
 buildctl build ...\
@@ -357,7 +357,8 @@ The directory layout conforms to OCI Image Spec v1.0.
 -   `ref=docker.io/user/image:tag`: reference for `registry` cache importer
 -   `src=path/to/input-dir`: directory for `local` cache importer
 -   `digest=sha256:deadbeef`: digest of the manifest list to import for `local` cache importer.
-    Defaults to the digest of "latest" tag in `index.json`
+-   `tag=customtag`: custom tag of image for `local` cache importer.
+    Defaults to the digest of "latest" tag in `index.json` is for digest, not for tag
 
 ### Consistent hashing
 

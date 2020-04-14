@@ -1,6 +1,7 @@
 package llb
 
 import (
+	"context"
 	_ "crypto/sha256"
 	"os"
 	"path"
@@ -52,7 +53,7 @@ type CopyInput interface {
 }
 
 type subAction interface {
-	toProtoAction(string, pb.InputIndex) pb.IsFileAction
+	toProtoAction(context.Context, string, pb.InputIndex) (pb.IsFileAction, error)
 }
 
 type FileAction struct {
@@ -146,7 +147,7 @@ type fileActionMkdir struct {
 	info MkdirInfo
 }
 
-func (a *fileActionMkdir) toProtoAction(parent string, base pb.InputIndex) pb.IsFileAction {
+func (a *fileActionMkdir) toProtoAction(ctx context.Context, parent string, base pb.InputIndex) (pb.IsFileAction, error) {
 	return &pb.FileAction_Mkdir{
 		Mkdir: &pb.FileActionMkDir{
 			Path:        normalizePath(parent, a.file, false),
@@ -155,7 +156,7 @@ func (a *fileActionMkdir) toProtoAction(parent string, base pb.InputIndex) pb.Is
 			Owner:       a.info.ChownOpt.marshal(base),
 			Timestamp:   marshalTime(a.info.CreatedTime),
 		},
-	}
+	}, nil
 }
 
 type MkdirOption interface {
@@ -315,7 +316,7 @@ type fileActionMkfile struct {
 	info MkfileInfo
 }
 
-func (a *fileActionMkfile) toProtoAction(parent string, base pb.InputIndex) pb.IsFileAction {
+func (a *fileActionMkfile) toProtoAction(ctx context.Context, parent string, base pb.InputIndex) (pb.IsFileAction, error) {
 	return &pb.FileAction_Mkfile{
 		Mkfile: &pb.FileActionMkFile{
 			Path:      normalizePath(parent, a.file, false),
@@ -324,7 +325,7 @@ func (a *fileActionMkfile) toProtoAction(parent string, base pb.InputIndex) pb.I
 			Owner:     a.info.ChownOpt.marshal(base),
 			Timestamp: marshalTime(a.info.CreatedTime),
 		},
-	}
+	}, nil
 }
 
 func Rm(p string, opts ...RmOption) *FileAction {
@@ -379,14 +380,14 @@ type fileActionRm struct {
 	info RmInfo
 }
 
-func (a *fileActionRm) toProtoAction(parent string, base pb.InputIndex) pb.IsFileAction {
+func (a *fileActionRm) toProtoAction(ctx context.Context, parent string, base pb.InputIndex) (pb.IsFileAction, error) {
 	return &pb.FileAction_Rm{
 		Rm: &pb.FileActionRm{
 			Path:          normalizePath(parent, a.file, false),
 			AllowNotFound: a.info.AllowNotFound,
 			AllowWildcard: a.info.AllowWildcard,
 		},
-	}
+	}, nil
 }
 
 func Copy(input CopyInput, src, dest string, opts ...CopyOption) *FileAction {
@@ -448,9 +449,13 @@ type fileActionCopy struct {
 	info  CopyInfo
 }
 
-func (a *fileActionCopy) toProtoAction(parent string, base pb.InputIndex) pb.IsFileAction {
+func (a *fileActionCopy) toProtoAction(ctx context.Context, parent string, base pb.InputIndex) (pb.IsFileAction, error) {
+	src, err := a.sourcePath(ctx)
+	if err != nil {
+		return nil, err
+	}
 	c := &pb.FileActionCopy{
-		Src:                              a.sourcePath(),
+		Src:                              src,
 		Dest:                             normalizePath(parent, a.dest, true),
 		Owner:                            a.info.ChownOpt.marshal(base),
 		AllowWildcard:                    a.info.AllowWildcard,
@@ -468,19 +473,27 @@ func (a *fileActionCopy) toProtoAction(parent string, base pb.InputIndex) pb.IsF
 	}
 	return &pb.FileAction_Copy{
 		Copy: c,
-	}
+	}, nil
 }
 
-func (c *fileActionCopy) sourcePath() string {
+func (c *fileActionCopy) sourcePath(ctx context.Context) (string, error) {
 	p := path.Clean(c.src)
 	if !path.IsAbs(p) {
 		if c.state != nil {
-			p = path.Join("/", c.state.GetDir(), p)
+			dir, err := c.state.GetDir(ctx)
+			if err != nil {
+				return "", err
+			}
+			p = path.Join("/", dir, p)
 		} else if c.fas != nil {
-			p = path.Join("/", c.fas.state.GetDir(), p)
+			dir, err := c.fas.state.GetDir(ctx)
+			if err != nil {
+				return "", err
+			}
+			p = path.Join("/", dir, p)
 		}
 	}
-	return p
+	return p, nil
 }
 
 type CreatedTime time.Time
@@ -517,7 +530,7 @@ type FileOp struct {
 	isValidated bool
 }
 
-func (f *FileOp) Validate() error {
+func (f *FileOp) Validate(context.Context) error {
 	if f.isValidated {
 		return nil
 	}
@@ -529,14 +542,16 @@ func (f *FileOp) Validate() error {
 }
 
 type marshalState struct {
+	ctx     context.Context
 	visited map[*FileAction]*fileActionState
 	inputs  []*pb.Input
 	actions []*fileActionState
 }
 
-func newMarshalState() *marshalState {
+func newMarshalState(ctx context.Context) *marshalState {
 	return &marshalState{
 		visited: map[*FileAction]*fileActionState{},
+		ctx:     ctx,
 	}
 }
 
@@ -552,7 +567,7 @@ type fileActionState struct {
 }
 
 func (ms *marshalState) addInput(st *fileActionState, c *Constraints, o Output) (pb.InputIndex, error) {
-	inp, err := o.ToInput(c)
+	inp, err := o.ToInput(ms.ctx, c)
 	if err != nil {
 		return 0, err
 	}
@@ -634,11 +649,11 @@ func (ms *marshalState) add(fa *FileAction, c *Constraints) (*fileActionState, e
 	return st, nil
 }
 
-func (f *FileOp) Marshal(c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, error) {
+func (f *FileOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, error) {
 	if f.Cached(c) {
 		return f.Load()
 	}
-	if err := f.Validate(); err != nil {
+	if err := f.Validate(ctx); err != nil {
 		return "", nil, nil, err
 	}
 
@@ -651,7 +666,7 @@ func (f *FileOp) Marshal(c *Constraints) (digest.Digest, []byte, *pb.OpMetadata,
 		File: pfo,
 	}
 
-	state := newMarshalState()
+	state := newMarshalState(ctx)
 	_, err := state.add(f.action, c)
 	if err != nil {
 		return "", nil, nil, err
@@ -666,14 +681,22 @@ func (f *FileOp) Marshal(c *Constraints) (digest.Digest, []byte, *pb.OpMetadata,
 
 		var parent string
 		if st.fa.state != nil {
-			parent = st.fa.state.GetDir()
+			parent, err = st.fa.state.GetDir(ctx)
+			if err != nil {
+				return "", nil, nil, err
+			}
+		}
+
+		action, err := st.action.toProtoAction(ctx, parent, st.base)
+		if err != nil {
+			return "", nil, nil, err
 		}
 
 		pfo.Actions = append(pfo.Actions, &pb.FileAction{
 			Input:          getIndex(st.input, len(state.inputs), st.inputRelative),
 			SecondaryInput: getIndex(st.input2, len(state.inputs), st.input2Relative),
 			Output:         output,
-			Action:         st.action.toProtoAction(parent, st.base),
+			Action:         action,
 		})
 	}
 

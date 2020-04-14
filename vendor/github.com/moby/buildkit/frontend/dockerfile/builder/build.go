@@ -139,7 +139,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		buildContext = st
 	} else if httpPrefix.MatchString(opts[localNameContext]) {
 		httpContext := llb.HTTP(opts[localNameContext], llb.Filename("context"), dockerfile2llb.WithInternalName("load remote build context"))
-		def, err := httpContext.Marshal(marshalOpts...)
+		def, err := httpContext.Marshal(ctx, marshalOpts...)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to marshal httpcontext")
 		}
@@ -221,7 +221,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		}
 	}
 
-	def, err := src.Marshal(marshalOpts...)
+	def, err := src.Marshal(ctx, marshalOpts...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to marshal local source")
 	}
@@ -271,7 +271,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 				)
 				dockerignoreState = &st
 			}
-			def, err := dockerignoreState.Marshal(marshalOpts...)
+			def, err := dockerignoreState.Marshal(ctx, marshalOpts...)
 			if err != nil {
 				return err
 			}
@@ -363,7 +363,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 					return errors.Wrapf(err, "failed to create LLB definition")
 				}
 
-				def, err := st.Marshal()
+				def, err := st.Marshal(ctx)
 				if err != nil {
 					return errors.Wrapf(err, "failed to marshal LLB definition")
 				}
@@ -456,9 +456,29 @@ func forwardGateway(ctx context.Context, c client.Client, ref string, cmdline st
 	}
 	opts["cmdline"] = cmdline
 	opts["source"] = ref
+
+	gwcaps := c.BuildOpts().Caps
+	var frontendInputs map[string]*pb.Definition
+	if (&gwcaps).Supports(gwpb.CapFrontendInputs) == nil {
+		inputs, err := c.Inputs(ctx)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get frontend inputs")
+		}
+
+		frontendInputs = make(map[string]*pb.Definition)
+		for name, state := range inputs {
+			def, err := state.Marshal(ctx)
+			if err != nil {
+				return nil, err
+			}
+			frontendInputs[name] = def.ToPB()
+		}
+	}
+
 	return c.Solve(ctx, client.SolveRequest{
-		Frontend:    "gateway.v0",
-		FrontendOpt: opts,
+		Frontend:       "gateway.v0",
+		FrontendOpt:    opts,
+		FrontendInputs: frontendInputs,
 	})
 }
 

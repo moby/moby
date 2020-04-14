@@ -18,13 +18,13 @@ import (
 type StateOption func(State) State
 
 type Output interface {
-	ToInput(*Constraints) (*pb.Input, error)
-	Vertex() Vertex
+	ToInput(context.Context, *Constraints) (*pb.Input, error)
+	Vertex(context.Context) Vertex
 }
 
 type Vertex interface {
-	Validate() error
-	Marshal(*Constraints) (digest.Digest, []byte, *pb.OpMetadata, error)
+	Validate(context.Context) error
+	Marshal(context.Context, *Constraints) (digest.Digest, []byte, *pb.OpMetadata, error)
 	Output() Output
 	Inputs() []Output
 }
@@ -32,17 +32,18 @@ type Vertex interface {
 func NewState(o Output) State {
 	s := State{
 		out: o,
-		ctx: context.Background(),
-	}
-	s = dir("/")(s)
+	}.Dir("/")
 	s = s.ensurePlatform()
 	return s
 }
 
 type State struct {
-	out  Output
-	ctx  context.Context
-	opts []ConstraintsOpt
+	out   Output
+	prev  *State
+	key   interface{}
+	value func(context.Context) (interface{}, error)
+	opts  []ConstraintsOpt
+	async *asyncState
 }
 
 func (s State) ensurePlatform() State {
@@ -57,14 +58,48 @@ func (s State) ensurePlatform() State {
 }
 
 func (s State) WithValue(k, v interface{}) State {
+	return s.withValue(k, func(context.Context) (interface{}, error) {
+		return v, nil
+	})
+}
+
+func (s State) withValue(k interface{}, v func(context.Context) (interface{}, error)) State {
 	return State{
-		out: s.out,
-		ctx: context.WithValue(s.ctx, k, v),
+		out:   s.Output(),
+		prev:  &s, // doesn't need to be original pointer
+		key:   k,
+		value: v,
 	}
 }
 
-func (s State) Value(k interface{}) interface{} {
-	return s.ctx.Value(k)
+func (s State) Value(ctx context.Context, k interface{}) (interface{}, error) {
+	return s.getValue(k)(ctx)
+}
+
+func (s State) getValue(k interface{}) func(context.Context) (interface{}, error) {
+	if s.key == k {
+		return s.value
+	}
+	if s.async != nil {
+		return func(ctx context.Context) (interface{}, error) {
+			err := s.async.Do(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return s.async.target.getValue(k)(ctx)
+		}
+	}
+	if s.prev == nil {
+		return nilValue
+	}
+	return s.prev.getValue(k)
+}
+
+func (s State) Async(f func(context.Context, State) (State, error)) State {
+	s2 := State{
+		async: &asyncState{f: f, prev: s},
+	}
+	return s2
 }
 
 func (s State) SetMarshalDefaults(co ...ConstraintsOpt) State {
@@ -72,11 +107,11 @@ func (s State) SetMarshalDefaults(co ...ConstraintsOpt) State {
 	return s
 }
 
-func (s State) Marshal(co ...ConstraintsOpt) (*Definition, error) {
+func (s State) Marshal(ctx context.Context, co ...ConstraintsOpt) (*Definition, error) {
 	def := &Definition{
 		Metadata: make(map[digest.Digest]pb.OpMetadata, 0),
 	}
-	if s.Output() == nil {
+	if s.Output() == nil || s.Output().Vertex(ctx) == nil {
 		return def, nil
 	}
 
@@ -89,11 +124,11 @@ func (s State) Marshal(co ...ConstraintsOpt) (*Definition, error) {
 		o.SetConstraintsOption(c)
 	}
 
-	def, err := marshal(s.Output().Vertex(), def, map[digest.Digest]struct{}{}, map[Vertex]struct{}{}, c)
+	def, err := marshal(ctx, s.Output().Vertex(ctx), def, map[digest.Digest]struct{}{}, map[Vertex]struct{}{}, c)
 	if err != nil {
 		return def, err
 	}
-	inp, err := s.Output().ToInput(c)
+	inp, err := s.Output().ToInput(ctx, c)
 	if err != nil {
 		return def, err
 	}
@@ -128,19 +163,19 @@ func (s State) Marshal(co ...ConstraintsOpt) (*Definition, error) {
 	return def, nil
 }
 
-func marshal(v Vertex, def *Definition, cache map[digest.Digest]struct{}, vertexCache map[Vertex]struct{}, c *Constraints) (*Definition, error) {
+func marshal(ctx context.Context, v Vertex, def *Definition, cache map[digest.Digest]struct{}, vertexCache map[Vertex]struct{}, c *Constraints) (*Definition, error) {
 	if _, ok := vertexCache[v]; ok {
 		return def, nil
 	}
 	for _, inp := range v.Inputs() {
 		var err error
-		def, err = marshal(inp.Vertex(), def, cache, vertexCache, c)
+		def, err = marshal(ctx, inp.Vertex(ctx), def, cache, vertexCache, c)
 		if err != nil {
 			return def, err
 		}
 	}
 
-	dgst, dt, opMeta, err := v.Marshal(c)
+	dgst, dt, opMeta, err := v.Marshal(ctx, c)
 	if err != nil {
 		return def, err
 	}
@@ -156,18 +191,22 @@ func marshal(v Vertex, def *Definition, cache map[digest.Digest]struct{}, vertex
 	return def, nil
 }
 
-func (s State) Validate() error {
-	return s.Output().Vertex().Validate()
+func (s State) Validate(ctx context.Context) error {
+	return s.Output().Vertex(ctx).Validate(ctx)
 }
 
 func (s State) Output() Output {
+	if s.async != nil {
+		return s.async.Output()
+	}
 	return s.out
 }
 
 func (s State) WithOutput(o Output) State {
+	prev := s
 	s = State{
-		out: o,
-		ctx: s.ctx,
+		out:  o,
+		prev: &prev,
 	}
 	s = s.ensurePlatform()
 	return s
@@ -200,24 +239,10 @@ func (s State) WithImageConfig(c []byte) (State, error) {
 
 func (s State) Run(ro ...RunOption) ExecState {
 	ei := &ExecInfo{State: s}
-	if p := s.GetPlatform(); p != nil {
-		ei.Constraints.Platform = p
-	}
 	for _, o := range ro {
 		o.SetRunOption(ei)
 	}
-	meta := Meta{
-		Args:       getArgs(ei.State),
-		Cwd:        getDir(ei.State),
-		Env:        getEnv(ei.State),
-		User:       getUser(ei.State),
-		ProxyEnv:   ei.ProxyEnv,
-		ExtraHosts: getExtraHosts(ei.State),
-		Network:    getNetwork(ei.State),
-		Security:   getSecurity(ei.State),
-	}
-
-	exec := NewExecOp(s.Output(), meta, ei.ReadonlyRootFS, ei.Constraints)
+	exec := NewExecOp(ei.State, ei.ProxyEnv, ei.ReadonlyRootFS, ei.Constraints)
 	for _, m := range ei.Mounts {
 		exec.AddMount(m.Target, m.Source, m.Opts...)
 	}
@@ -240,65 +265,74 @@ func (s State) File(a *FileAction, opts ...ConstraintsOpt) State {
 }
 
 func (s State) AddEnv(key, value string) State {
-	return addEnvf(key, value, false)(s)
+	return AddEnv(key, value)(s)
 }
 
 func (s State) AddEnvf(key, value string, v ...interface{}) State {
-	return addEnvf(key, value, true, v...)(s)
+	return AddEnvf(key, value, v...)(s)
 }
 
 func (s State) Dir(str string) State {
-	return dirf(str, false)(s)
+	return Dir(str)(s)
 }
 func (s State) Dirf(str string, v ...interface{}) State {
-	return dirf(str, true, v...)(s)
+	return Dirf(str, v...)(s)
 }
 
-func (s State) GetEnv(key string) (string, bool) {
-	return getEnv(s).Get(key)
+func (s State) GetEnv(ctx context.Context, key string) (string, bool, error) {
+	env, err := getEnv(s)(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	v, ok := env.Get(key)
+	return v, ok, nil
 }
 
-func (s State) Env() []string {
-	return getEnv(s).ToArray()
+func (s State) Env(ctx context.Context) ([]string, error) {
+	env, err := getEnv(s)(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return env.ToArray(), nil
 }
 
-func (s State) GetDir() string {
-	return getDir(s)
+func (s State) GetDir(ctx context.Context) (string, error) {
+	return getDir(s)(ctx)
 }
 
-func (s State) GetArgs() []string {
-	return getArgs(s)
+func (s State) GetArgs(ctx context.Context) ([]string, error) {
+	return getArgs(s)(ctx)
 }
 
 func (s State) Reset(s2 State) State {
-	return reset(s2)(s)
+	return Reset(s2)(s)
 }
 
 func (s State) User(v string) State {
-	return user(v)(s)
+	return User(v)(s)
 }
 
 func (s State) Platform(p specs.Platform) State {
 	return platform(p)(s)
 }
 
-func (s State) GetPlatform() *specs.Platform {
-	return getPlatform(s)
+func (s State) GetPlatform(ctx context.Context) (*specs.Platform, error) {
+	return getPlatform(s)(ctx)
 }
 
 func (s State) Network(n pb.NetMode) State {
-	return network(n)(s)
+	return Network(n)(s)
 }
 
-func (s State) GetNetwork() pb.NetMode {
-	return getNetwork(s)
+func (s State) GetNetwork(ctx context.Context) (pb.NetMode, error) {
+	return getNetwork(s)(ctx)
 }
 func (s State) Security(n pb.SecurityMode) State {
-	return security(n)(s)
+	return Security(n)(s)
 }
 
-func (s State) GetSecurity() pb.SecurityMode {
-	return getSecurity(s)
+func (s State) GetSecurity(ctx context.Context) (pb.SecurityMode, error) {
+	return getSecurity(s)(ctx)
 }
 
 func (s State) With(so ...StateOption) State {
@@ -321,7 +355,7 @@ type output struct {
 	platform *specs.Platform
 }
 
-func (o *output) ToInput(c *Constraints) (*pb.Input, error) {
+func (o *output) ToInput(ctx context.Context, c *Constraints) (*pb.Input, error) {
 	if o.err != nil {
 		return nil, o.err
 	}
@@ -333,14 +367,14 @@ func (o *output) ToInput(c *Constraints) (*pb.Input, error) {
 			return nil, err
 		}
 	}
-	dgst, _, _, err := o.vertex.Marshal(c)
+	dgst, _, _, err := o.vertex.Marshal(ctx, c)
 	if err != nil {
 		return nil, err
 	}
 	return &pb.Input{Digest: dgst, Index: index}, nil
 }
 
-func (o *output) Vertex() Vertex {
+func (o *output) Vertex(context.Context) Vertex {
 	return o.vertex
 }
 
@@ -512,4 +546,8 @@ func Require(filters ...string) ConstraintsOpt {
 			c.WorkerConstraints = append(c.WorkerConstraints, f)
 		}
 	})
+}
+
+func nilValue(context.Context) (interface{}, error) {
+	return nil, nil
 }

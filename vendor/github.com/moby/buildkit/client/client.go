@@ -11,6 +11,8 @@ import (
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client/connhelper"
+	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/session/grpchijack"
 	"github.com/moby/buildkit/util/appdefaults"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
@@ -78,6 +80,10 @@ func New(ctx context.Context, address string, opts ...ClientOpt) (*Client, error
 
 func (c *Client) controlClient() controlapi.ControlClient {
 	return controlapi.NewControlClient(c.conn)
+}
+
+func (c *Client) Dialer() session.Dialer {
+	return grpchijack.Dialer(c.controlClient())
 }
 
 func (c *Client) Close() error {

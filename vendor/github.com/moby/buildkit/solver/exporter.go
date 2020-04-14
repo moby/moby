@@ -20,11 +20,12 @@ func addBacklinks(t CacheExporterTarget, rec CacheExporterRecord, cm *cacheManag
 	if rec == nil {
 		var ok bool
 		rec, ok = bkm[id]
-		if ok {
+		if ok && rec != nil {
 			return rec, nil
 		}
 		_ = ok
 	}
+	bkm[id] = nil
 	if err := cm.backend.WalkBacklinks(id, func(id string, link CacheInfoLink) error {
 		if rec == nil {
 			rec = t.Add(link.Digest)
@@ -37,7 +38,9 @@ func addBacklinks(t CacheExporterTarget, rec CacheExporterRecord, cm *cacheManag
 				return err
 			}
 		}
-		rec.LinkFrom(r, int(link.Input), link.Selector.String())
+		if r != nil {
+			rec.LinkFrom(r, int(link.Input), link.Selector.String())
+		}
 		return nil
 	}); err != nil {
 		return nil, err
@@ -66,6 +69,7 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 	if t.Visited(e) {
 		return e.res, nil
 	}
+	t.Visit(e)
 
 	deps := e.k.Deps()
 
@@ -177,7 +181,6 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 	}
 
 	e.res = allRec
-	t.Visit(e)
 
 	return e.res, nil
 }

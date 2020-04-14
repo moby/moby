@@ -135,7 +135,7 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 
 		src := llb.Image(sourceRef.String(), &markTypeFrontend{})
 
-		def, err := src.Marshal()
+		def, err := src.Marshal(ctx)
 		if err != nil {
 			return nil, err
 		}

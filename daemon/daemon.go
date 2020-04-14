@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"net"
 	"net/url"
 	"os"
@@ -28,7 +27,6 @@ import (
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
@@ -42,8 +40,8 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	bkconfig "github.com/moby/buildkit/cmd/buildkitd/config"
 	"github.com/moby/buildkit/util/resolver"
-	"github.com/moby/buildkit/util/tracing"
 	"github.com/sirupsen/logrus"
 
 	// register graph drivers
@@ -153,63 +151,46 @@ func (daemon *Daemon) Features() *map[string]bool {
 	return &daemon.configStore.Features
 }
 
-// NewResolveOptionsFunc returns a call back function to resolve "registry-mirrors" and
-// "insecure-registries" for buildkit
-func (daemon *Daemon) NewResolveOptionsFunc() resolver.ResolveOptionsFunc {
-	return func(ref string) docker.ResolverOptions {
-		var (
-			registryKey = "docker.io"
-			mirrors     = make([]string, len(daemon.configStore.Mirrors))
-			m           = map[string]resolver.RegistryConf{}
-		)
-		// must trim "https://" or "http://" prefix
-		for i, v := range daemon.configStore.Mirrors {
-			if uri, err := url.Parse(v); err == nil {
-				v = uri.Host
-			}
-			mirrors[i] = v
+// RegistryHosts returns registry configuration in containerd resolvers format
+func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
+	var (
+		registryKey = "docker.io"
+		mirrors     = make([]string, len(daemon.configStore.Mirrors))
+		m           = map[string]bkconfig.RegistryConfig{}
+	)
+	// must trim "https://" or "http://" prefix
+	for i, v := range daemon.configStore.Mirrors {
+		if uri, err := url.Parse(v); err == nil {
+			v = uri.Host
 		}
-		// set "registry-mirrors"
-		m[registryKey] = resolver.RegistryConf{Mirrors: mirrors}
-		// set "insecure-registries"
-		for _, v := range daemon.configStore.InsecureRegistries {
-			if uri, err := url.Parse(v); err == nil {
-				v = uri.Host
-			}
-			plainHTTP := true
-			m[v] = resolver.RegistryConf{
-				PlainHTTP: &plainHTTP,
-			}
-		}
-		def := docker.ResolverOptions{
-			Client: tracing.DefaultClient,
-		}
-
-		parsed, err := reference.ParseNormalizedNamed(ref)
-		if err != nil {
-			return def
-		}
-		host := reference.Domain(parsed)
-
-		c, ok := m[host]
-		if !ok {
-			return def
-		}
-
-		if len(c.Mirrors) > 0 {
-			// TODO ResolverOptions.Host is deprecated; ResolverOptions.Hosts should be used
-			def.Host = func(string) (string, error) {
-				return c.Mirrors[rand.Intn(len(c.Mirrors))], nil
-			}
-		}
-
-		// TODO ResolverOptions.PlainHTTP is deprecated; ResolverOptions.Hosts should be used
-		if c.PlainHTTP != nil {
-			def.PlainHTTP = *c.PlainHTTP
-		}
-
-		return def
+		mirrors[i] = v
 	}
+	// set mirrors for default registry
+	m[registryKey] = bkconfig.RegistryConfig{Mirrors: mirrors}
+
+	for _, v := range daemon.configStore.InsecureRegistries {
+		u, err := url.Parse(v)
+		c := bkconfig.RegistryConfig{}
+		if err == nil {
+			v = u.Host
+			t := true
+			if u.Scheme == "http" {
+				c.PlainHTTP = &t
+			} else {
+				c.Insecure = &t
+			}
+		}
+		m[v] = c
+	}
+
+	for k, v := range m {
+		if d, err := registry.HostCertsDir(k); err == nil {
+			v.TLSConfigDir = []string{d}
+			m[k] = v
+		}
+	}
+
+	return resolver.NewRegistryConfig(m)
 }
 
 func (daemon *Daemon) restore() error {

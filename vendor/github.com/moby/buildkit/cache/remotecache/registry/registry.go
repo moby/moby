@@ -2,15 +2,12 @@ package registry
 
 import (
 	"context"
-	"time"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/distribution/reference"
 	"github.com/moby/buildkit/cache/remotecache"
 	"github.com/moby/buildkit/session"
-	"github.com/moby/buildkit/session/auth"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/resolver"
 	"github.com/opencontainers/go-digest"
@@ -34,13 +31,13 @@ const (
 	attrRef = "ref"
 )
 
-func ResolveCacheExporterFunc(sm *session.Manager, resolverOpt resolver.ResolveOptionsFunc) remotecache.ResolveCacheExporterFunc {
+func ResolveCacheExporterFunc(sm *session.Manager, hosts docker.RegistryHosts) remotecache.ResolveCacheExporterFunc {
 	return func(ctx context.Context, attrs map[string]string) (remotecache.Exporter, error) {
 		ref, err := canonicalizeRef(attrs[attrRef])
 		if err != nil {
 			return nil, err
 		}
-		remote := newRemoteResolver(ctx, resolverOpt, sm, ref)
+		remote := resolver.New(ctx, hosts, sm)
 		pusher, err := remote.Pusher(ctx, ref)
 		if err != nil {
 			return nil, err
@@ -49,13 +46,13 @@ func ResolveCacheExporterFunc(sm *session.Manager, resolverOpt resolver.ResolveO
 	}
 }
 
-func ResolveCacheImporterFunc(sm *session.Manager, cs content.Store, resolverOpt resolver.ResolveOptionsFunc) remotecache.ResolveCacheImporterFunc {
+func ResolveCacheImporterFunc(sm *session.Manager, cs content.Store, hosts docker.RegistryHosts) remotecache.ResolveCacheImporterFunc {
 	return func(ctx context.Context, attrs map[string]string) (remotecache.Importer, specs.Descriptor, error) {
 		ref, err := canonicalizeRef(attrs[attrRef])
 		if err != nil {
 			return nil, specs.Descriptor{}, err
 		}
-		remote := newRemoteResolver(ctx, resolverOpt, sm, ref)
+		remote := resolver.New(ctx, hosts, sm)
 		xref, desc, err := remote.Resolve(ctx, ref)
 		if err != nil {
 			return nil, specs.Descriptor{}, err
@@ -96,28 +93,4 @@ func (dsl *withDistributionSourceLabel) SetDistributionSourceAnnotation(desc oci
 	}
 	desc.Annotations["containerd.io/distribution.source.ref"] = dsl.ref
 	return desc
-}
-
-func newRemoteResolver(ctx context.Context, resolverOpt resolver.ResolveOptionsFunc, sm *session.Manager, ref string) remotes.Resolver {
-	opt := resolverOpt(ref)
-	opt.Credentials = getCredentialsFunc(ctx, sm)
-	return docker.NewResolver(opt)
-}
-
-func getCredentialsFunc(ctx context.Context, sm *session.Manager) func(string) (string, string, error) {
-	id := session.FromContext(ctx)
-	if id == "" {
-		return nil
-	}
-	return func(host string) (string, string, error) {
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		caller, err := sm.Get(timeoutCtx, id)
-		if err != nil {
-			return "", "", err
-		}
-
-		return auth.CredentialsFunc(context.TODO(), caller)(host)
-	}
 }
