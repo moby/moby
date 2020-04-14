@@ -36,9 +36,8 @@ fi
 
 	# We'll need buildctl available for several tests, so make sure we're using
 	# the same version that we're testing everyting else against.
-	go build -mod=vendor ./cmd/buildkitd
-	go build -mod=vendor ./cmd/buildctl
-	mv buildkitd buildctl /usr/local/bin
+	go build ./cmd/buildctl
+	mv buildctl /usr/local/bin
 
 	# -parallel=1 is needed because tests may create or remove iptables rules and
 	# there is no isolation.
