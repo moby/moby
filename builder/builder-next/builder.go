@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
@@ -26,7 +27,6 @@ import (
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/entitlements"
-	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -70,7 +70,7 @@ type Opt struct {
 	Dist                images.DistributionServices
 	NetworkController   libnetwork.NetworkController
 	DefaultCgroupParent string
-	ResolverOpt         resolver.ResolveOptionsFunc
+	RegistryHosts       docker.RegistryHosts
 	BuilderConfig       config.BuilderConfig
 	Rootless            bool
 	IdentityMapping     *idtools.IdentityMapping

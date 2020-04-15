@@ -3,6 +3,7 @@ module github.com/moby/buildkit
 go 1.13
 
 require (
+	github.com/AkihiroSuda/containerd-fuse-overlayfs v0.0.0-20200220082720-bb896865146c
 	github.com/BurntSushi/toml v0.3.1
 	github.com/Microsoft/go-winio v0.4.15-0.20190919025122-fc70bd9a86b5
 	github.com/Microsoft/hcsshim v0.8.7 // indirect
@@ -23,13 +24,12 @@ require (
 	github.com/docker/docker v0.0.0
 	github.com/docker/docker-credential-helpers v0.6.0 // indirect
 	github.com/docker/go-connections v0.3.0
-	github.com/docker/go-events v0.0.0-20170721190031-9461782956ad // indirect
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20200226230617-d8334ccdb9be
 	github.com/gofrs/flock v0.7.0
 	github.com/gogo/googleapis v1.3.2
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.3.3
-	github.com/google/go-cmp v0.3.0
+	github.com/google/go-cmp v0.3.1
 	github.com/google/shlex v0.0.0-20150127133951-6f45313302b9
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
@@ -54,7 +54,7 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.4.0
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
-	github.com/tonistiigi/fsutil v0.0.0-20200225063759-013a9fe6aee2
+	github.com/tonistiigi/fsutil v0.0.0-20200326231323-c2c7d7b0e144
 	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea
 	github.com/uber/jaeger-client-go v0.0.0-20180103221425-e02c85f9069e
 	github.com/uber/jaeger-lib v1.2.1 // indirect

@@ -74,6 +74,12 @@ type Transport struct {
 	http.RoundTripper
 }
 
+func NewTransport(rt http.RoundTripper) http.RoundTripper {
+	return &Transport{
+		RoundTripper: &nethttp.Transport{RoundTripper: rt},
+	}
+}
+
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	span := opentracing.SpanFromContext(req.Context())
 	if span == nil { // no tracer connected with either request or transport

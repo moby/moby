@@ -1,6 +1,9 @@
 package llb
 
 import (
+	"context"
+	"sync"
+
 	"github.com/moby/buildkit/solver/pb"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -13,6 +16,7 @@ import (
 // LLB state can be reconstructed from the definition.
 type DefinitionOp struct {
 	MarshalCache
+	mu        sync.Mutex
 	ops       map[digest.Digest]*pb.Op
 	defs      map[digest.Digest][]byte
 	metas     map[digest.Digest]pb.OpMetadata
@@ -25,6 +29,7 @@ type DefinitionOp struct {
 func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
 	ops := make(map[digest.Digest]*pb.Op)
 	defs := make(map[digest.Digest][]byte)
+	platforms := make(map[digest.Digest]*specs.Platform)
 
 	var dgst digest.Digest
 	for _, dt := range def.Def {
@@ -35,6 +40,13 @@ func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
 		dgst = digest.FromBytes(dt)
 		ops[dgst] = &op
 		defs[dgst] = dt
+
+		var platform *specs.Platform
+		if op.Platform != nil {
+			spec := op.Platform.Spec()
+			platform = &spec
+		}
+		platforms[dgst] = platform
 	}
 
 	var index pb.OutputIndex
@@ -47,25 +59,28 @@ func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
 		ops:       ops,
 		defs:      defs,
 		metas:     def.Metadata,
-		platforms: make(map[digest.Digest]*specs.Platform),
+		platforms: platforms,
 		dgst:      dgst,
 		index:     index,
 	}, nil
 }
 
-func (d *DefinitionOp) ToInput(c *Constraints) (*pb.Input, error) {
-	return d.Output().ToInput(c)
+func (d *DefinitionOp) ToInput(ctx context.Context, c *Constraints) (*pb.Input, error) {
+	return d.Output().ToInput(ctx, c)
 }
 
-func (d *DefinitionOp) Vertex() Vertex {
+func (d *DefinitionOp) Vertex(context.Context) Vertex {
 	return d
 }
 
-func (d *DefinitionOp) Validate() error {
+func (d *DefinitionOp) Validate(context.Context) error {
 	// Scratch state has no digest, ops or metas.
 	if d.dgst == "" {
 		return nil
 	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	if len(d.ops) == 0 || len(d.defs) == 0 || len(d.metas) == 0 {
 		return errors.Errorf("invalid definition op with no ops %d %d", len(d.ops), len(d.metas))
@@ -95,14 +110,17 @@ func (d *DefinitionOp) Validate() error {
 	return nil
 }
 
-func (d *DefinitionOp) Marshal(c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, error) {
+func (d *DefinitionOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, error) {
 	if d.dgst == "" {
 		return "", nil, nil, errors.Errorf("cannot marshal empty definition op")
 	}
 
-	if err := d.Validate(); err != nil {
+	if err := d.Validate(ctx); err != nil {
 		return "", nil, nil, err
 	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	meta := d.metas[d.dgst]
 	return d.dgst, d.defs[d.dgst], &meta, nil
@@ -114,7 +132,11 @@ func (d *DefinitionOp) Output() Output {
 		return nil
 	}
 
-	return &output{vertex: d, platform: d.platform(), getIndex: func() (pb.OutputIndex, error) {
+	d.mu.Lock()
+	platform := d.platforms[d.dgst]
+	d.mu.Unlock()
+
+	return &output{vertex: d, platform: platform, getIndex: func() (pb.OutputIndex, error) {
 		return d.index, nil
 	}}
 }
@@ -126,7 +148,11 @@ func (d *DefinitionOp) Inputs() []Output {
 
 	var inputs []Output
 
+	d.mu.Lock()
 	op := d.ops[d.dgst]
+	platform := d.platforms[d.dgst]
+	d.mu.Unlock()
+
 	for _, input := range op.Inputs {
 		vtx := &DefinitionOp{
 			ops:       d.ops,
@@ -136,26 +162,10 @@ func (d *DefinitionOp) Inputs() []Output {
 			dgst:      input.Digest,
 			index:     input.Index,
 		}
-		inputs = append(inputs, &output{vertex: vtx, platform: d.platform(), getIndex: func() (pb.OutputIndex, error) {
+		inputs = append(inputs, &output{vertex: vtx, platform: platform, getIndex: func() (pb.OutputIndex, error) {
 			return pb.OutputIndex(vtx.index), nil
 		}})
 	}
 
 	return inputs
-}
-
-func (d *DefinitionOp) platform() *specs.Platform {
-	platform, ok := d.platforms[d.dgst]
-	if ok {
-		return platform
-	}
-
-	op := d.ops[d.dgst]
-	if op.Platform != nil {
-		spec := op.Platform.Spec()
-		platform = &spec
-	}
-
-	d.platforms[d.dgst] = platform
-	return platform
 }

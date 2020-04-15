@@ -31,13 +31,11 @@ import (
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/session"
-	"github.com/moby/buildkit/session/auth"
 	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/imageutil"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/resolver"
-	"github.com/moby/buildkit/util/tracing"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -54,7 +52,7 @@ type SourceOpt struct {
 	DownloadManager distribution.RootFSDownloadManager
 	MetadataStore   metadata.V2MetadataService
 	ImageStore      image.Store
-	ResolverOpt     resolver.ResolveOptionsFunc
+	RegistryHosts   docker.RegistryHosts
 	LayerStore      layer.Store
 }
 
@@ -78,42 +76,13 @@ func (is *imageSource) ID() string {
 	return source.DockerImageScheme
 }
 
-func (is *imageSource) getResolver(ctx context.Context, rfn resolver.ResolveOptionsFunc, ref string, sm *session.Manager) remotes.Resolver {
+func (is *imageSource) getResolver(ctx context.Context, hosts docker.RegistryHosts, ref string, sm *session.Manager) remotes.Resolver {
 	if res := is.resolverCache.Get(ctx, ref); res != nil {
 		return res
 	}
-
-	opt := docker.ResolverOptions{
-		Client: tracing.DefaultClient,
-	}
-	if rfn != nil {
-		opt = rfn(ref)
-	}
-	opt.Credentials = is.getCredentialsFromSession(ctx, sm)
-	r := docker.NewResolver(opt)
+	r := resolver.New(ctx, hosts, sm)
 	r = is.resolverCache.Add(ctx, ref, r)
 	return r
-}
-
-func (is *imageSource) getCredentialsFromSession(ctx context.Context, sm *session.Manager) func(string) (string, string, error) {
-	id := session.FromContext(ctx)
-	if id == "" {
-		// can be removed after containerd/containerd#2812
-		return func(string) (string, string, error) {
-			return "", "", nil
-		}
-	}
-	return func(host string) (string, string, error) {
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		caller, err := sm.Get(timeoutCtx, id)
-		if err != nil {
-			return "", "", err
-		}
-
-		return auth.CredentialsFunc(tracing.ContextWithSpanFromContext(context.TODO(), ctx), caller)(host)
-	}
 }
 
 func (is *imageSource) resolveLocal(refStr string) (*image.Image, error) {
@@ -138,7 +107,7 @@ func (is *imageSource) resolveRemote(ctx context.Context, ref string, platform *
 		dt   []byte
 	}
 	res, err := is.g.Do(ctx, ref, func(ctx context.Context) (interface{}, error) {
-		dgst, dt, err := imageutil.Config(ctx, ref, is.getResolver(ctx, is.ResolverOpt, ref, sm), is.ContentStore, nil, platform)
+		dgst, dt, err := imageutil.Config(ctx, ref, is.getResolver(ctx, is.RegistryHosts, ref, sm), is.ContentStore, nil, platform)
 		if err != nil {
 			return nil, err
 		}
@@ -208,7 +177,7 @@ func (is *imageSource) Resolve(ctx context.Context, id source.Identifier, sm *se
 	p := &puller{
 		src:      imageIdentifier,
 		is:       is,
-		resolver: is.getResolver(ctx, is.ResolverOpt, imageIdentifier.Reference.String(), sm),
+		resolver: is.getResolver(ctx, is.RegistryHosts, imageIdentifier.Reference.String(), sm),
 		platform: platform,
 		sm:       sm,
 	}

@@ -115,6 +115,12 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 	}
 
 	var ex ExportEntry
+	if len(opt.Exports) > 1 {
+		return nil, errors.New("currently only single Exports can be specified")
+	}
+	if len(opt.Exports) == 1 {
+		ex = opt.Exports[0]
+	}
 
 	if !opt.SessionPreInitialized {
 		if len(syncedDirs) > 0 {
@@ -123,13 +129,6 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 
 		for _, a := range opt.Session {
 			s.Allow(a)
-		}
-
-		if len(opt.Exports) > 1 {
-			return nil, errors.New("currently only single Exports can be specified")
-		}
-		if len(opt.Exports) == 1 {
-			ex = opt.Exports[0]
 		}
 
 		switch ex.Type {
@@ -192,7 +191,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 
 		frontendInputs := make(map[string]*pb.Definition)
 		for key, st := range opt.FrontendInputs {
-			def, err := st.Marshal()
+			def, err := st.Marshal(ctx)
 			if err != nil {
 				return err
 			}
@@ -435,13 +434,13 @@ func parseCacheOptions(opt SolveOpt) (*cacheOptions, error) {
 					continue
 				}
 				for _, m := range idx.Manifests {
-					if m.Annotations[ocispec.AnnotationRefName] == "latest" {
+					if (m.Annotations[ocispec.AnnotationRefName] == "latest" && attrs["tag"] == "") || (attrs["tag"] != "" && m.Annotations[ocispec.AnnotationRefName] == attrs["tag"]) {
 						attrs["digest"] = string(m.Digest)
 						break
 					}
 				}
 				if attrs["digest"] == "" {
-					return nil, errors.New("local cache importer requires either explicit digest or \"latest\" tag on index.json")
+					return nil, errors.New("local cache importer requires either explicit digest, \"latest\" tag or custom tag on index.json")
 				}
 			}
 			contentStores["local:"+csDir] = cs
