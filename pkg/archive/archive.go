@@ -95,6 +95,8 @@ const (
 	Gzip
 	// Xz is xz compression algorithm.
 	Xz
+	// Zstd is the zstandard compression algorithm
+	Zstd
 )
 
 const (
@@ -139,6 +141,7 @@ func DetectCompression(source []byte) Compression {
 		Bzip2: {0x42, 0x5A, 0x68},
 		Gzip:  {0x1F, 0x8B, 0x08},
 		Xz:    {0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00},
+		Zstd:  {0x28, 0xB5, 0x2F, 0xFD},
 	} {
 		if len(source) < len(m) {
 			logrus.Debug("Len too short")
@@ -149,6 +152,11 @@ func DetectCompression(source []byte) Compression {
 		}
 	}
 	return Uncompressed
+}
+
+func zstdDecompress(ctx context.Context, archive io.Reader) (io.ReadCloser, error) {
+	args := []string{"zstd", "-d", "-q", "-c"}
+	return cmdStream(exec.CommandContext(ctx, args[0], args[1:]...), archive)
 }
 
 func xzDecompress(ctx context.Context, archive io.Reader) (io.ReadCloser, error) {
@@ -224,6 +232,15 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 			return nil, err
 		}
 		readBufWrapper := p.NewReadCloserWrapper(buf, xzReader)
+		return wrapReadCloser(readBufWrapper, cancel), nil
+	case Zstd:
+		ctx, cancel := context.WithCancel(context.Background())
+		zstdReader, err := zstdDecompress(ctx, buf)
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+		readBufWrapper := p.NewReadCloserWrapper(buf, zstdReader)
 		return wrapReadCloser(readBufWrapper, cancel), nil
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
