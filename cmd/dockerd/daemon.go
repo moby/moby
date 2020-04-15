@@ -11,7 +11,6 @@ import (
 	"time"
 
 	containerddefaults "github.com/containerd/containerd/defaults"
-	"github.com/docker/distribution/uuid"
 	"github.com/docker/docker/api"
 	apiserver "github.com/docker/docker/api/server"
 	buildbackend "github.com/docker/docker/api/server/backend/build"
@@ -76,9 +75,6 @@ func NewDaemonCli() *DaemonCli {
 func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	stopc := make(chan bool)
 	defer close(stopc)
-
-	// warn from uuid package when running the daemon
-	uuid.Loggerf = logrus.Warnf
 
 	opts.SetDefaultOptions(opts.flags)
 
