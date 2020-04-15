@@ -135,10 +135,10 @@ func WithApparmor(c *container.Container) coci.SpecOpts {
 			} else if c.HostConfig.Privileged {
 				appArmorProfile = unconfinedAppArmorProfile
 			} else {
-				appArmorProfile = defaultApparmorProfile
+				appArmorProfile = defaultAppArmorProfile
 			}
 
-			if appArmorProfile == defaultApparmorProfile {
+			if appArmorProfile == defaultAppArmorProfile {
 				// Unattended upgrades and other fun services can unload AppArmor
 				// profiles inadvertently. Since we cannot store our profile in
 				// /etc/apparmor.d, nor can we practically add other ways of
@@ -290,7 +290,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 				setNamespace(s, nsUser)
 			}
 		case ipcMode.IsHost():
-			oci.RemoveNamespace(s, specs.LinuxNamespaceType("ipc"))
+			oci.RemoveNamespace(s, "ipc")
 		case ipcMode.IsEmpty():
 			// A container was created by an older version of the daemon.
 			// The default behavior used to be what is now called "shareable".
@@ -304,28 +304,32 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 
 		// pid
 		if c.HostConfig.PidMode.IsContainer() {
-			ns := specs.LinuxNamespace{Type: "pid"}
 			pc, err := daemon.getPidContainer(c)
 			if err != nil {
 				return err
 			}
-			ns.Path = fmt.Sprintf("/proc/%d/ns/pid", pc.State.GetPID())
+			ns := specs.LinuxNamespace{
+				Type: "pid",
+				Path: fmt.Sprintf("/proc/%d/ns/pid", pc.State.GetPID()),
+			}
 			setNamespace(s, ns)
 			if userNS {
 				// to share a PID namespace, they must also share a user namespace
-				nsUser := specs.LinuxNamespace{Type: "user"}
-				nsUser.Path = fmt.Sprintf("/proc/%d/ns/user", pc.State.GetPID())
+				nsUser := specs.LinuxNamespace{
+					Type: "user",
+					Path: fmt.Sprintf("/proc/%d/ns/user", pc.State.GetPID()),
+				}
 				setNamespace(s, nsUser)
 			}
 		} else if c.HostConfig.PidMode.IsHost() {
-			oci.RemoveNamespace(s, specs.LinuxNamespaceType("pid"))
+			oci.RemoveNamespace(s, "pid")
 		} else {
 			ns := specs.LinuxNamespace{Type: "pid"}
 			setNamespace(s, ns)
 		}
 		// uts
 		if c.HostConfig.UTSMode.IsHost() {
-			oci.RemoveNamespace(s, specs.LinuxNamespaceType("uts"))
+			oci.RemoveNamespace(s, "uts")
 			s.Hostname = ""
 		}
 
@@ -393,9 +397,9 @@ const (
 	slavePropagationOption  = "master:"
 )
 
-// hasMountinfoOption checks if any of the passed any of the given option values
+// hasMountInfoOption checks if any of the passed any of the given option values
 // are set in the passed in option string.
-func hasMountinfoOption(opts string, vals ...string) bool {
+func hasMountInfoOption(opts string, vals ...string) bool {
 	for _, opt := range strings.Split(opts, " ") {
 		for _, val := range vals {
 			if strings.HasPrefix(opt, val) {
@@ -413,7 +417,7 @@ func ensureShared(path string) error {
 		return err
 	}
 	// Make sure source mount point is shared.
-	if !hasMountinfoOption(optionalOpts, sharedPropagationOption) {
+	if !hasMountInfoOption(optionalOpts, sharedPropagationOption) {
 		return errors.Errorf("path %s is mounted on %s but it is not a shared mount", path, sourceMount)
 	}
 	return nil
@@ -426,7 +430,7 @@ func ensureSharedOrSlave(path string) error {
 		return err
 	}
 
-	if !hasMountinfoOption(optionalOpts, sharedPropagationOption, slavePropagationOption) {
+	if !hasMountInfoOption(optionalOpts, sharedPropagationOption, slavePropagationOption) {
 		return errors.Errorf("path %s is mounted on %s but it is not a shared or slave mount", path, sourceMount)
 	}
 	return nil

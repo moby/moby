@@ -69,8 +69,8 @@ func setupContainerWithName(t *testing.T, name string, daemon *Daemon) *containe
 }
 
 func containerListContainsName(containers []*types.Container, name string) bool {
-	for _, container := range containers {
-		for _, containerName := range container.Names {
+	for _, ctr := range containers {
+		for _, containerName := range ctr.Names {
 			if containerName == name {
 				return true
 			}

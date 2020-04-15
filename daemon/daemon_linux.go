@@ -39,7 +39,7 @@ func (daemon *Daemon) cleanupMountsFromReaderByID(reader io.Reader, id string, u
 	if daemon.root == "" {
 		return nil
 	}
-	var errors []string
+	var errs []string
 
 	regexps := getCleanPatterns(id)
 	sc := bufio.NewScanner(reader)
@@ -50,7 +50,7 @@ func (daemon *Daemon) cleanupMountsFromReaderByID(reader io.Reader, id string, u
 					if p.MatchString(mnt) {
 						if err := unmount(mnt); err != nil {
 							logrus.Error(err)
-							errors = append(errors, err.Error())
+							errs = append(errs, err.Error())
 						}
 					}
 				}
@@ -62,8 +62,8 @@ func (daemon *Daemon) cleanupMountsFromReaderByID(reader io.Reader, id string, u
 		return err
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf("Error cleaning up mounts:\n%v", strings.Join(errors, "\n"))
+	if len(errs) > 0 {
+		return fmt.Errorf("Error cleaning up mounts:\n%v", strings.Join(errs, "\n"))
 	}
 
 	logrus.Debugf("Cleaning up old mountid %v: done.", id)
@@ -127,7 +127,7 @@ func shouldUnmountRoot(root string, info *mountinfo.Info) bool {
 	if !strings.HasSuffix(root, info.Root) {
 		return false
 	}
-	return hasMountinfoOption(info.Optional, sharedPropagationOption)
+	return hasMountInfoOption(info.Optional, sharedPropagationOption)
 }
 
 // setupResolvConf sets the appropriate resolv.conf file if not specified

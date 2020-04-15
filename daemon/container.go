@@ -92,20 +92,20 @@ func (daemon *Daemon) containerRoot(id string) string {
 // Load reads the contents of a container from disk
 // This is typically done at startup.
 func (daemon *Daemon) load(id string) (*container.Container, error) {
-	container := daemon.newBaseContainer(id)
+	ctr := daemon.newBaseContainer(id)
 
-	if err := container.FromDisk(); err != nil {
+	if err := ctr.FromDisk(); err != nil {
 		return nil, err
 	}
-	if err := label.ReserveLabel(container.ProcessLabel); err != nil {
+	if err := label.ReserveLabel(ctr.ProcessLabel); err != nil {
 		return nil, err
 	}
 
-	if container.ID != id {
-		return container, fmt.Errorf("Container %s is stored at %s", container.ID, id)
+	if ctr.ID != id {
+		return ctr, fmt.Errorf("Container %s is stored at %s", ctr.ID, id)
 	}
 
-	return container, nil
+	return ctr, nil
 }
 
 // Register makes a container object usable by the daemon as <container.ID>

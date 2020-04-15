@@ -24,11 +24,11 @@ type fakeContainerGetter struct {
 }
 
 func (f *fakeContainerGetter) GetContainer(cid string) (*container.Container, error) {
-	container, ok := f.containers[cid]
+	ctr, ok := f.containers[cid]
 	if !ok {
 		return nil, errors.New("container not found")
 	}
-	return container, nil
+	return ctr, nil
 }
 
 // Unix test as uses settings which are not available on Windows
@@ -138,85 +138,85 @@ func TestAdjustCPUSharesNoAdjustment(t *testing.T) {
 
 // Unix test as uses settings which are not available on Windows
 func TestParseSecurityOptWithDeprecatedColon(t *testing.T) {
-	container := &container.Container{}
-	config := &containertypes.HostConfig{}
+	ctr := &container.Container{}
+	cfg := &containertypes.HostConfig{}
 
 	// test apparmor
-	config.SecurityOpt = []string{"apparmor=test_profile"}
-	if err := parseSecurityOpt(container, config); err != nil {
+	cfg.SecurityOpt = []string{"apparmor=test_profile"}
+	if err := parseSecurityOpt(ctr, cfg); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
-	if container.AppArmorProfile != "test_profile" {
-		t.Fatalf("Unexpected AppArmorProfile, expected: \"test_profile\", got %q", container.AppArmorProfile)
+	if ctr.AppArmorProfile != "test_profile" {
+		t.Fatalf("Unexpected AppArmorProfile, expected: \"test_profile\", got %q", ctr.AppArmorProfile)
 	}
 
 	// test seccomp
 	sp := "/path/to/seccomp_test.json"
-	config.SecurityOpt = []string{"seccomp=" + sp}
-	if err := parseSecurityOpt(container, config); err != nil {
+	cfg.SecurityOpt = []string{"seccomp=" + sp}
+	if err := parseSecurityOpt(ctr, cfg); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
-	if container.SeccompProfile != sp {
-		t.Fatalf("Unexpected AppArmorProfile, expected: %q, got %q", sp, container.SeccompProfile)
+	if ctr.SeccompProfile != sp {
+		t.Fatalf("Unexpected AppArmorProfile, expected: %q, got %q", sp, ctr.SeccompProfile)
 	}
 
 	// test valid label
-	config.SecurityOpt = []string{"label=user:USER"}
-	if err := parseSecurityOpt(container, config); err != nil {
+	cfg.SecurityOpt = []string{"label=user:USER"}
+	if err := parseSecurityOpt(ctr, cfg); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
 
 	// test invalid label
-	config.SecurityOpt = []string{"label"}
-	if err := parseSecurityOpt(container, config); err == nil {
+	cfg.SecurityOpt = []string{"label"}
+	if err := parseSecurityOpt(ctr, cfg); err == nil {
 		t.Fatal("Expected parseSecurityOpt error, got nil")
 	}
 
 	// test invalid opt
-	config.SecurityOpt = []string{"test"}
-	if err := parseSecurityOpt(container, config); err == nil {
+	cfg.SecurityOpt = []string{"test"}
+	if err := parseSecurityOpt(ctr, cfg); err == nil {
 		t.Fatal("Expected parseSecurityOpt error, got nil")
 	}
 }
 
 func TestParseSecurityOpt(t *testing.T) {
-	container := &container.Container{}
-	config := &containertypes.HostConfig{}
+	ctr := &container.Container{}
+	cfg := &containertypes.HostConfig{}
 
 	// test apparmor
-	config.SecurityOpt = []string{"apparmor=test_profile"}
-	if err := parseSecurityOpt(container, config); err != nil {
+	cfg.SecurityOpt = []string{"apparmor=test_profile"}
+	if err := parseSecurityOpt(ctr, cfg); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
-	if container.AppArmorProfile != "test_profile" {
-		t.Fatalf("Unexpected AppArmorProfile, expected: \"test_profile\", got %q", container.AppArmorProfile)
+	if ctr.AppArmorProfile != "test_profile" {
+		t.Fatalf("Unexpected AppArmorProfile, expected: \"test_profile\", got %q", ctr.AppArmorProfile)
 	}
 
 	// test seccomp
 	sp := "/path/to/seccomp_test.json"
-	config.SecurityOpt = []string{"seccomp=" + sp}
-	if err := parseSecurityOpt(container, config); err != nil {
+	cfg.SecurityOpt = []string{"seccomp=" + sp}
+	if err := parseSecurityOpt(ctr, cfg); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
-	if container.SeccompProfile != sp {
-		t.Fatalf("Unexpected SeccompProfile, expected: %q, got %q", sp, container.SeccompProfile)
+	if ctr.SeccompProfile != sp {
+		t.Fatalf("Unexpected SeccompProfile, expected: %q, got %q", sp, ctr.SeccompProfile)
 	}
 
 	// test valid label
-	config.SecurityOpt = []string{"label=user:USER"}
-	if err := parseSecurityOpt(container, config); err != nil {
+	cfg.SecurityOpt = []string{"label=user:USER"}
+	if err := parseSecurityOpt(ctr, cfg); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
 
 	// test invalid label
-	config.SecurityOpt = []string{"label"}
-	if err := parseSecurityOpt(container, config); err == nil {
+	cfg.SecurityOpt = []string{"label"}
+	if err := parseSecurityOpt(ctr, cfg); err == nil {
 		t.Fatal("Expected parseSecurityOpt error, got nil")
 	}
 
 	// test invalid opt
-	config.SecurityOpt = []string{"test"}
-	if err := parseSecurityOpt(container, config); err == nil {
+	cfg.SecurityOpt = []string{"test"}
+	if err := parseSecurityOpt(ctr, cfg); err == nil {
 		t.Fatal("Expected parseSecurityOpt error, got nil")
 	}
 }
@@ -225,28 +225,28 @@ func TestParseNNPSecurityOptions(t *testing.T) {
 	daemon := &Daemon{
 		configStore: &config.Config{NoNewPrivileges: true},
 	}
-	container := &container.Container{}
-	config := &containertypes.HostConfig{}
+	ctr := &container.Container{}
+	cfg := &containertypes.HostConfig{}
 
 	// test NNP when "daemon:true" and "no-new-privileges=false""
-	config.SecurityOpt = []string{"no-new-privileges=false"}
+	cfg.SecurityOpt = []string{"no-new-privileges=false"}
 
-	if err := daemon.parseSecurityOpt(container, config); err != nil {
+	if err := daemon.parseSecurityOpt(ctr, cfg); err != nil {
 		t.Fatalf("Unexpected daemon.parseSecurityOpt error: %v", err)
 	}
-	if container.NoNewPrivileges {
-		t.Fatalf("container.NoNewPrivileges should be FALSE: %v", container.NoNewPrivileges)
+	if ctr.NoNewPrivileges {
+		t.Fatalf("container.NoNewPrivileges should be FALSE: %v", ctr.NoNewPrivileges)
 	}
 
 	// test NNP when "daemon:false" and "no-new-privileges=true""
 	daemon.configStore.NoNewPrivileges = false
-	config.SecurityOpt = []string{"no-new-privileges=true"}
+	cfg.SecurityOpt = []string{"no-new-privileges=true"}
 
-	if err := daemon.parseSecurityOpt(container, config); err != nil {
+	if err := daemon.parseSecurityOpt(ctr, cfg); err != nil {
 		t.Fatalf("Unexpected daemon.parseSecurityOpt error: %v", err)
 	}
-	if !container.NoNewPrivileges {
-		t.Fatalf("container.NoNewPrivileges should be TRUE: %v", container.NoNewPrivileges)
+	if !ctr.NoNewPrivileges {
+		t.Fatalf("container.NoNewPrivileges should be TRUE: %v", ctr.NoNewPrivileges)
 	}
 }
 

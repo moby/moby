@@ -40,10 +40,10 @@ func (daemon *Daemon) execSetPlatformOpt(c *container.Container, ec *exec.Config
 			// profiles. Privileged configuration of the container is inherited
 			appArmorProfile = unconfinedAppArmorProfile
 		} else {
-			appArmorProfile = defaultApparmorProfile
+			appArmorProfile = defaultAppArmorProfile
 		}
 
-		if appArmorProfile == defaultApparmorProfile {
+		if appArmorProfile == defaultAppArmorProfile {
 			// Unattended upgrades and other fun services can unload AppArmor
 			// profiles inadvertently. Since we cannot store our profile in
 			// /etc/apparmor.d, nor can we practically add other ways of

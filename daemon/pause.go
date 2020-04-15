@@ -10,11 +10,11 @@ import (
 
 // ContainerPause pauses a container
 func (daemon *Daemon) ContainerPause(name string) error {
-	container, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
-	return daemon.containerPause(container)
+	return daemon.containerPause(ctr)
 }
 
 // containerPause pauses the container execution without stopping the process.

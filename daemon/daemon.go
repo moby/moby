@@ -994,8 +994,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	lgrMap := make(map[string]image.LayerGetReleaser)
-	for os, ls := range layerStores {
-		lgrMap[os] = ls
+	for los, ls := range layerStores {
+		lgrMap[los] = ls
 	}
 	imageStore, err := image.NewImageStore(ifs, lgrMap)
 	if err != nil {

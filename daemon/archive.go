@@ -49,17 +49,17 @@ func archivePath(i interface{}, src string, opts *archive.TarOptions, root strin
 // ContainerCopy performs a deprecated operation of archiving the resource at
 // the specified path in the container identified by the given name.
 func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, error) {
-	container, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
 
 	// Make sure an online file-system operation is permitted.
-	if err := daemon.isOnlineFSOperationPermitted(container); err != nil {
+	if err := daemon.isOnlineFSOperationPermitted(ctr); err != nil {
 		return nil, errdefs.System(err)
 	}
 
-	data, err := daemon.containerCopy(container, res)
+	data, err := daemon.containerCopy(ctr, res)
 	if err == nil {
 		return data, nil
 	}
@@ -73,17 +73,17 @@ func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, err
 // ContainerStatPath stats the filesystem resource at the specified path in the
 // container identified by the given name.
 func (daemon *Daemon) ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error) {
-	container, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
 
 	// Make sure an online file-system operation is permitted.
-	if err := daemon.isOnlineFSOperationPermitted(container); err != nil {
+	if err := daemon.isOnlineFSOperationPermitted(ctr); err != nil {
 		return nil, errdefs.System(err)
 	}
 
-	stat, err = daemon.containerStatPath(container, path)
+	stat, err = daemon.containerStatPath(ctr, path)
 	if err == nil {
 		return stat, nil
 	}
@@ -98,17 +98,17 @@ func (daemon *Daemon) ContainerStatPath(name string, path string) (stat *types.C
 // specified path in the container identified by the given name. Returns a
 // tar archive of the resource and whether it was a directory or a single file.
 func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
-	container, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// Make sure an online file-system operation is permitted.
-	if err := daemon.isOnlineFSOperationPermitted(container); err != nil {
+	if err := daemon.isOnlineFSOperationPermitted(ctr); err != nil {
 		return nil, nil, errdefs.System(err)
 	}
 
-	content, stat, err = daemon.containerArchivePath(container, path)
+	content, stat, err = daemon.containerArchivePath(ctr, path)
 	if err == nil {
 		return content, stat, nil
 	}
@@ -126,17 +126,17 @@ func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io
 // be an error if unpacking the given content would cause an existing directory
 // to be replaced with a non-directory and vice versa.
 func (daemon *Daemon) ContainerExtractToDir(name, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error {
-	container, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
 
 	// Make sure an online file-system operation is permitted.
-	if err := daemon.isOnlineFSOperationPermitted(container); err != nil {
+	if err := daemon.isOnlineFSOperationPermitted(ctr); err != nil {
 		return errdefs.System(err)
 	}
 
-	err = daemon.containerExtractToDir(container, path, copyUIDGID, noOverwriteDirNonDir, content)
+	err = daemon.containerExtractToDir(ctr, path, copyUIDGID, noOverwriteDirNonDir, content)
 	if err == nil {
 		return nil
 	}
@@ -433,7 +433,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 		basePath = d
 		filter = []string{f}
 	}
-	archive, err := archivePath(driver, basePath, &archive.TarOptions{
+	archv, err := archivePath(driver, basePath, &archive.TarOptions{
 		Compression:  archive.Uncompressed,
 		IncludeFiles: filter,
 	}, container.BaseFS.Path())
@@ -441,8 +441,8 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 		return nil, err
 	}
 
-	reader := ioutils.NewReadCloserWrapper(archive, func() error {
-		err := archive.Close()
+	reader := ioutils.NewReadCloserWrapper(archv, func() error {
+		err := archv.Close()
 		container.DetachAndUnmount(daemon.LogVolumeEvent)
 		daemon.Unmount(container)
 		container.Unlock()
