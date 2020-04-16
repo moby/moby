@@ -278,10 +278,15 @@ func reconcileTaskState(ctx context.Context, w *worker, assignments []*api.Assig
 
 	removeTaskAssignment := func(taskID string) error {
 		ctx := log.WithLogger(ctx, log.G(ctx).WithField("task.id", taskID))
-		if err := SetTaskAssignment(tx, taskID, false); err != nil {
-			log.G(ctx).WithError(err).Error("error setting task assignment in database")
+		// if a task is no longer assigned, then we do not have to keep track
+		// of it. a task will only be unassigned when it is deleted on the
+		// manager. instead of SetTaskAssginment to true, we'll just remove the
+		// task now.
+		if err := DeleteTask(tx, taskID); err != nil {
+			log.G(ctx).WithError(err).Error("error removing de-assigned task")
+			return err
 		}
-		return err
+		return nil
 	}
 
 	// If this was a complete set of assignments, we're going to remove all the remaining
@@ -500,6 +505,21 @@ func (w *worker) newTaskManager(ctx context.Context, tx *bolt.Tx, task *api.Task
 // updateTaskStatus reports statuses to listeners, read lock must be held.
 func (w *worker) updateTaskStatus(ctx context.Context, tx *bolt.Tx, taskID string, status *api.TaskStatus) error {
 	if err := PutTaskStatus(tx, taskID, status); err != nil {
+		// we shouldn't fail to put a task status. however, there exists the
+		// possibility of a race in which we try to put a task status after the
+		// task has been deleted. because this whole contraption is a careful
+		// dance of too-tightly-coupled concurrent parts, fixing tht race is
+		// fraught with hazards. instead, we'll recognize that it can occur,
+		// log the error, and then ignore it.
+		if err == errTaskUnknown {
+			// log at info level. debug logging in docker is already really
+			// verbose, so many people disable it. the race that causes this
+			// behavior should be very rare, but if it occurs, we should know
+			// about it, because if there is some case where it is _not_ rare,
+			// then knowing about it will go a long way toward debugging.
+			log.G(ctx).Info("attempted to update status for a task that has been removed")
+			return nil
+		}
 		log.G(ctx).WithError(err).Error("failed writing status to disk")
 		return err
 	}
