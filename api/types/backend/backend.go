@@ -73,6 +73,7 @@ type LogSelector struct {
 // behavior of a backend.ContainerStats() call.
 type ContainerStatsConfig struct {
 	Stream    bool
+	OneShot   bool
 	OutStream io.Writer
 	Version   string
 }

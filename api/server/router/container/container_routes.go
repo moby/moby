@@ -105,9 +105,14 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 	if !stream {
 		w.Header().Set("Content-Type", "application/json")
 	}
+	var oneShot bool
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.41") {
+		oneShot = httputils.BoolValueOrDefault(r, "one-shot", false)
+	}
 
 	config := &backend.ContainerStatsConfig{
 		Stream:    stream,
+		OneShot:   oneShot,
 		OutStream: w,
 		Version:   httputils.VersionFromContext(ctx),
 	}
