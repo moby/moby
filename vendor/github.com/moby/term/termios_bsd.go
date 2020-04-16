@@ -1,6 +1,6 @@
 // +build darwin freebsd openbsd netbsd
 
-package term // import "github.com/docker/docker/pkg/term"
+package term
 
 import (
 	"unsafe"
@@ -14,13 +14,11 @@ const (
 )
 
 // Termios is the Unix API for terminal I/O.
-// Deprecated: use github.com/moby/term.Termios
 type Termios unix.Termios
 
 // MakeRaw put the terminal connected to the given file descriptor into raw
 // mode and returns the previous state of the terminal so that it can be
 // restored.
-// Deprecated: use github.com/moby/term.MakeRaw
 func MakeRaw(fd uintptr) (*State, error) {
 	var oldState State
 	if _, _, err := unix.Syscall(unix.SYS_IOCTL, fd, getTermios, uintptr(unsafe.Pointer(&oldState.termios))); err != 0 {

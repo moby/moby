@@ -1,6 +1,6 @@
 // +build windows
 
-package windowsconsole // import "github.com/docker/docker/pkg/term/windows"
+package windowsconsole // import "github.com/moby/term/windows"
 
 import (
 	"bytes"
@@ -30,7 +30,6 @@ type ansiReader struct {
 
 // NewAnsiReader returns an io.ReadCloser that provides VT100 terminal emulation on top of a
 // Windows console input handle.
-// Deprecated: use github.com/moby/term/windows.NewAnsiReader
 func NewAnsiReader(nFile int) io.ReadCloser {
 	initLogger()
 	file, fd := winterm.GetStdFile(nFile)

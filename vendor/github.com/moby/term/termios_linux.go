@@ -1,4 +1,4 @@
-package term // import "github.com/docker/docker/pkg/term"
+package term
 
 import (
 	"golang.org/x/sys/unix"
@@ -10,13 +10,11 @@ const (
 )
 
 // Termios is the Unix API for terminal I/O.
-// Deprecated: use github.com/moby/term.Termios
 type Termios unix.Termios
 
 // MakeRaw put the terminal connected to the given file descriptor into raw
 // mode and returns the previous state of the terminal so that it can be
 // restored.
-// Deprecated: use github.com/moby/term.MakeRaw
 func MakeRaw(fd uintptr) (*State, error) {
 	termios, err := unix.IoctlGetTermios(int(fd), getTermios)
 	if err != nil {

@@ -1,13 +1,12 @@
 // +build !windows
 
-package term // import "github.com/docker/docker/pkg/term"
+package term
 
 import (
 	"golang.org/x/sys/unix"
 )
 
 // GetWinsize returns the window size based on the specified file descriptor.
-// Deprecated: use github.com/moby/term.GetWinsize
 func GetWinsize(fd uintptr) (*Winsize, error) {
 	uws, err := unix.IoctlGetWinsize(int(fd), unix.TIOCGWINSZ)
 	ws := &Winsize{Height: uws.Row, Width: uws.Col, x: uws.Xpixel, y: uws.Ypixel}
@@ -15,7 +14,6 @@ func GetWinsize(fd uintptr) (*Winsize, error) {
 }
 
 // SetWinsize tries to set the specified window size for the specified file descriptor.
-// Deprecated: use github.com/moby/term.GetWinsize
 func SetWinsize(fd uintptr, ws *Winsize) error {
 	uws := &unix.Winsize{Row: ws.Height, Col: ws.Width, Xpixel: ws.x, Ypixel: ws.y}
 	return unix.IoctlSetWinsize(int(fd), unix.TIOCSWINSZ, uws)
