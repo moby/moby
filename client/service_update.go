@@ -52,9 +52,7 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 			if img, imgPlatforms, err := imageDigestAndPlatforms(ctx, cli, service.TaskTemplate.ContainerSpec.Image, options.EncodedRegistryAuth); err != nil {
 				resolveWarning = digestWarning(service.TaskTemplate.ContainerSpec.Image)
 			} else {
-				if img != "" {
-					service.TaskTemplate.ContainerSpec.Image = img
-				}
+				service.TaskTemplate.ContainerSpec.Image = img
 				if len(imgPlatforms) > 0 {
 					if service.TaskTemplate.Placement == nil {
 						service.TaskTemplate.Placement = &swarm.Placement{}
@@ -71,9 +69,7 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 			if img, imgPlatforms, err := imageDigestAndPlatforms(ctx, cli, service.TaskTemplate.PluginSpec.Remote, options.EncodedRegistryAuth); err != nil {
 				resolveWarning = digestWarning(service.TaskTemplate.PluginSpec.Remote)
 			} else {
-				if img != "" {
-					service.TaskTemplate.PluginSpec.Remote = img
-				}
+				service.TaskTemplate.PluginSpec.Remote = img
 				if len(imgPlatforms) > 0 {
 					if service.TaskTemplate.Placement == nil {
 						service.TaskTemplate.Placement = &swarm.Placement{}

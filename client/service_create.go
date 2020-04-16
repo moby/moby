@@ -44,9 +44,7 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 			if img, imgPlatforms, err := imageDigestAndPlatforms(ctx, cli, service.TaskTemplate.ContainerSpec.Image, options.EncodedRegistryAuth); err != nil {
 				resolveWarning = digestWarning(service.TaskTemplate.ContainerSpec.Image)
 			} else {
-				if img != "" {
-					service.TaskTemplate.ContainerSpec.Image = img
-				}
+				service.TaskTemplate.ContainerSpec.Image = img
 				if len(imgPlatforms) > 0 {
 					if service.TaskTemplate.Placement == nil {
 						service.TaskTemplate.Placement = &swarm.Placement{}
@@ -63,9 +61,7 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 			if img, imgPlatforms, err := imageDigestAndPlatforms(ctx, cli, service.TaskTemplate.PluginSpec.Remote, options.EncodedRegistryAuth); err != nil {
 				resolveWarning = digestWarning(service.TaskTemplate.PluginSpec.Remote)
 			} else {
-				if img != "" {
-					service.TaskTemplate.PluginSpec.Remote = img
-				}
+				service.TaskTemplate.PluginSpec.Remote = img
 				if len(imgPlatforms) > 0 {
 					if service.TaskTemplate.Placement == nil {
 						service.TaskTemplate.Placement = &swarm.Placement{}
@@ -123,7 +119,7 @@ func imageDigestAndPlatforms(ctx context.Context, cli DistributionAPIClient, ima
 
 // imageWithDigestString takes an image string and a digest, and updates
 // the image string if it didn't originally contain a digest. It returns
-// an empty string if there are no updates.
+// image unmodified in other situations.
 func imageWithDigestString(image string, dgst digest.Digest) string {
 	namedRef, err := reference.ParseNormalizedNamed(image)
 	if err == nil {
@@ -135,7 +131,7 @@ func imageWithDigestString(image string, dgst digest.Digest) string {
 			}
 		}
 	}
-	return ""
+	return image
 }
 
 // imageWithTagString takes an image string, and returns a tagged image
