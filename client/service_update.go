@@ -49,34 +49,14 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 			service.TaskTemplate.ContainerSpec.Image = taggedImg
 		}
 		if options.QueryRegistry {
-			if img, imgPlatforms, err := imageDigestAndPlatforms(ctx, cli, service.TaskTemplate.ContainerSpec.Image, options.EncodedRegistryAuth); err != nil {
-				resolveWarning = digestWarning(service.TaskTemplate.ContainerSpec.Image)
-			} else {
-				service.TaskTemplate.ContainerSpec.Image = img
-				if len(imgPlatforms) > 0 {
-					if service.TaskTemplate.Placement == nil {
-						service.TaskTemplate.Placement = &swarm.Placement{}
-					}
-					service.TaskTemplate.Placement.Platforms = imgPlatforms
-				}
-			}
+			resolveWarning = resolveContainerSpecImage(ctx, cli, &service.TaskTemplate, options.EncodedRegistryAuth)
 		}
 	case service.TaskTemplate.PluginSpec != nil:
 		if taggedImg := imageWithTagString(service.TaskTemplate.PluginSpec.Remote); taggedImg != "" {
 			service.TaskTemplate.PluginSpec.Remote = taggedImg
 		}
 		if options.QueryRegistry {
-			if img, imgPlatforms, err := imageDigestAndPlatforms(ctx, cli, service.TaskTemplate.PluginSpec.Remote, options.EncodedRegistryAuth); err != nil {
-				resolveWarning = digestWarning(service.TaskTemplate.PluginSpec.Remote)
-			} else {
-				service.TaskTemplate.PluginSpec.Remote = img
-				if len(imgPlatforms) > 0 {
-					if service.TaskTemplate.Placement == nil {
-						service.TaskTemplate.Placement = &swarm.Placement{}
-					}
-					service.TaskTemplate.Placement.Platforms = imgPlatforms
-				}
-			}
+			resolveWarning = resolvePluginSpecRemote(ctx, cli, &service.TaskTemplate, options.EncodedRegistryAuth)
 		}
 	}
 

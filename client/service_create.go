@@ -41,34 +41,14 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 			service.TaskTemplate.ContainerSpec.Image = taggedImg
 		}
 		if options.QueryRegistry {
-			if img, imgPlatforms, err := imageDigestAndPlatforms(ctx, cli, service.TaskTemplate.ContainerSpec.Image, options.EncodedRegistryAuth); err != nil {
-				resolveWarning = digestWarning(service.TaskTemplate.ContainerSpec.Image)
-			} else {
-				service.TaskTemplate.ContainerSpec.Image = img
-				if len(imgPlatforms) > 0 {
-					if service.TaskTemplate.Placement == nil {
-						service.TaskTemplate.Placement = &swarm.Placement{}
-					}
-					service.TaskTemplate.Placement.Platforms = imgPlatforms
-				}
-			}
+			resolveWarning = resolveContainerSpecImage(ctx, cli, &service.TaskTemplate, options.EncodedRegistryAuth)
 		}
 	case service.TaskTemplate.PluginSpec != nil:
 		if taggedImg := imageWithTagString(service.TaskTemplate.PluginSpec.Remote); taggedImg != "" {
 			service.TaskTemplate.PluginSpec.Remote = taggedImg
 		}
 		if options.QueryRegistry {
-			if img, imgPlatforms, err := imageDigestAndPlatforms(ctx, cli, service.TaskTemplate.PluginSpec.Remote, options.EncodedRegistryAuth); err != nil {
-				resolveWarning = digestWarning(service.TaskTemplate.PluginSpec.Remote)
-			} else {
-				service.TaskTemplate.PluginSpec.Remote = img
-				if len(imgPlatforms) > 0 {
-					if service.TaskTemplate.Placement == nil {
-						service.TaskTemplate.Placement = &swarm.Placement{}
-					}
-					service.TaskTemplate.Placement.Platforms = imgPlatforms
-				}
-			}
+			resolveWarning = resolvePluginSpecRemote(ctx, cli, &service.TaskTemplate, options.EncodedRegistryAuth)
 		}
 	}
 
@@ -84,6 +64,38 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 	}
 
 	return response, err
+}
+
+func resolveContainerSpecImage(ctx context.Context, cli DistributionAPIClient, taskSpec *swarm.TaskSpec, encodedAuth string) string {
+	var warning string
+	if img, imgPlatforms, err := imageDigestAndPlatforms(ctx, cli, taskSpec.ContainerSpec.Image, encodedAuth); err != nil {
+		warning = digestWarning(taskSpec.ContainerSpec.Image)
+	} else {
+		taskSpec.ContainerSpec.Image = img
+		if len(imgPlatforms) > 0 {
+			if taskSpec.Placement == nil {
+				taskSpec.Placement = &swarm.Placement{}
+			}
+			taskSpec.Placement.Platforms = imgPlatforms
+		}
+	}
+	return warning
+}
+
+func resolvePluginSpecRemote(ctx context.Context, cli DistributionAPIClient, taskSpec *swarm.TaskSpec, encodedAuth string) string {
+	var warning string
+	if img, imgPlatforms, err := imageDigestAndPlatforms(ctx, cli, taskSpec.PluginSpec.Remote, encodedAuth); err != nil {
+		warning = digestWarning(taskSpec.PluginSpec.Remote)
+	} else {
+		taskSpec.PluginSpec.Remote = img
+		if len(imgPlatforms) > 0 {
+			if taskSpec.Placement == nil {
+				taskSpec.Placement = &swarm.Placement{}
+			}
+			taskSpec.Placement.Platforms = imgPlatforms
+		}
+	}
+	return warning
 }
 
 func imageDigestAndPlatforms(ctx context.Context, cli DistributionAPIClient, image, encodedAuth string) (string, []swarm.Platform, error) {
