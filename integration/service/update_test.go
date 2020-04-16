@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
@@ -246,6 +248,91 @@ func TestServiceUpdateNetwork(t *testing.T) {
 
 	err = cli.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
+}
+
+// TestServiceUpdatePidsLimit tests creating and updating a service with PidsLimit
+func TestServiceUpdatePidsLimit(t *testing.T) {
+	skip.If(
+		t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.41"),
+		"setting pidslimit for services is not supported before api v1.41",
+	)
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	tests := []struct {
+		name      string
+		pidsLimit int64
+		expected  int64
+	}{
+		{
+			name:      "create service with PidsLimit 300",
+			pidsLimit: 300,
+			expected:  300,
+		},
+		{
+			name:      "unset PidsLimit to 0",
+			pidsLimit: 0,
+			expected:  0,
+		},
+		{
+			name:      "update PidsLimit to 100",
+			pidsLimit: 100,
+			expected:  100,
+		},
+	}
+
+	defer setupTest(t)()
+	d := swarm.NewSwarm(t, testEnv)
+	defer d.Stop(t)
+	cli := d.NewClientT(t)
+	defer func() { _ = cli.Close() }()
+	ctx := context.Background()
+	var (
+		serviceID string
+		service   swarmtypes.Service
+	)
+	for i, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if i == 0 {
+				serviceID = swarm.CreateService(t, d, swarm.ServiceWithPidsLimit(tc.pidsLimit))
+			} else {
+				service = getService(t, cli, serviceID)
+				service.Spec.TaskTemplate.ContainerSpec.PidsLimit = tc.pidsLimit
+				_, err := cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
+				assert.NilError(t, err)
+				poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
+			}
+
+			poll.WaitOn(t, swarm.RunningTasksCount(cli, serviceID, 1), swarm.ServicePoll)
+			service = getService(t, cli, serviceID)
+			container := getServiceTaskContainer(ctx, t, cli, serviceID)
+			assert.Equal(t, service.Spec.TaskTemplate.ContainerSpec.PidsLimit, tc.expected)
+			if tc.expected == 0 {
+				if container.HostConfig.Resources.PidsLimit != nil {
+					t.Fatalf("Expected container.HostConfig.Resources.PidsLimit to be nil")
+				}
+			} else {
+				assert.Assert(t, container.HostConfig.Resources.PidsLimit != nil)
+				assert.Equal(t, *container.HostConfig.Resources.PidsLimit, tc.expected)
+			}
+		})
+	}
+
+	err := cli.ServiceRemove(ctx, serviceID)
+	assert.NilError(t, err)
+}
+
+func getServiceTaskContainer(ctx context.Context, t *testing.T, cli client.APIClient, serviceID string) types.ContainerJSON {
+	t.Helper()
+	filter := filters.NewArgs()
+	filter.Add("service", serviceID)
+	filter.Add("desired-state", "running")
+	tasks, err := cli.TaskList(ctx, types.TaskListOptions{Filters: filter})
+	assert.NilError(t, err)
+	assert.Assert(t, len(tasks) > 0)
+
+	ctr, err := cli.ContainerInspect(ctx, tasks[0].Status.ContainerStatus.ContainerID)
+	assert.NilError(t, err)
+	assert.Equal(t, ctr.State.Running, true)
+	return ctr
 }
 
 func getService(t *testing.T, cli client.ServiceAPIClient, serviceID string) swarmtypes.Service {

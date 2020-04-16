@@ -72,6 +72,7 @@ type ContainerSpec struct {
 	Secrets      []*SecretReference  `json:",omitempty"`
 	Configs      []*ConfigReference  `json:",omitempty"`
 	Isolation    container.Isolation `json:",omitempty"`
+	PidsLimit    int64               `json:",omitempty"`
 	Sysctls      map[string]string   `json:",omitempty"`
 	Capabilities []string            `json:",omitempty"`
 }
