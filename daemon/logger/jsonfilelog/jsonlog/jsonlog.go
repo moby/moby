@@ -21,5 +21,7 @@ func (jl *JSONLog) Reset() {
 	jl.Log = ""
 	jl.Stream = ""
 	jl.Created = time.Time{}
-	jl.Attrs = make(map[string]string)
+	for k := range jl.Attrs {
+		delete(jl.Attrs, k)
+	}
 }
