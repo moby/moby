@@ -23,6 +23,7 @@ type ansiWriter struct {
 
 // NewAnsiWriter returns an io.Writer that provides VT100 terminal emulation on top of a
 // Windows console output handle.
+// Deprecated: use github.com/moby/term/windows.NewAnsiWriter
 func NewAnsiWriter(nFile int) io.Writer {
 	initLogger()
 	file, fd := winterm.GetStdFile(nFile)

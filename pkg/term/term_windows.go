@@ -11,11 +11,13 @@ import (
 )
 
 // State holds the console mode for the terminal.
+// Deprecated: use github.com/moby/term.State
 type State struct {
 	mode uint32
 }
 
 // Winsize is used for window size.
+// Deprecated: use github.com/moby/term.Winsize
 type Winsize struct {
 	Height uint16
 	Width  uint16
@@ -25,6 +27,7 @@ type Winsize struct {
 var vtInputSupported bool
 
 // StdStreams returns the standard streams (stdin, stdout, stderr).
+// Deprecated: use github.com/moby/term.StdStreams
 func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 	// Turn on VT handling on all std handles, if possible. This might
 	// fail, in which case we will fall back to terminal emulation.
@@ -88,11 +91,13 @@ func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 }
 
 // GetFdInfo returns the file descriptor for an os.File and indicates whether the file represents a terminal.
+// Deprecated: use github.com/moby/term.GetFdInfo
 func GetFdInfo(in interface{}) (uintptr, bool) {
 	return windowsconsole.GetHandleInfo(in)
 }
 
 // GetWinsize returns the window size based on the specified file descriptor.
+// Deprecated: use github.com/moby/term.GetWinsize
 func GetWinsize(fd uintptr) (*Winsize, error) {
 	info, err := winterm.GetConsoleScreenBufferInfo(fd)
 	if err != nil {
@@ -108,17 +113,20 @@ func GetWinsize(fd uintptr) (*Winsize, error) {
 }
 
 // IsTerminal returns true if the given file descriptor is a terminal.
+// Deprecated: use github.com/moby/term.IsTerminal
 func IsTerminal(fd uintptr) bool {
 	return windowsconsole.IsConsole(fd)
 }
 
 // RestoreTerminal restores the terminal connected to the given file descriptor
 // to a previous state.
+// Deprecated: use github.com/moby/term.RestoreTerminal
 func RestoreTerminal(fd uintptr, state *State) error {
 	return winterm.SetConsoleMode(fd, state.mode)
 }
 
 // SaveState saves the state of the terminal connected to the given file descriptor.
+// Deprecated: use github.com/moby/term.SaveState
 func SaveState(fd uintptr) (*State, error) {
 	mode, e := winterm.GetConsoleMode(fd)
 	if e != nil {
@@ -130,6 +138,7 @@ func SaveState(fd uintptr) (*State, error) {
 
 // DisableEcho disables echo for the terminal connected to the given file descriptor.
 // -- See https://msdn.microsoft.com/en-us/library/windows/desktop/ms683462(v=vs.85).aspx
+// Deprecated: use github.com/moby/term.DisableEcho
 func DisableEcho(fd uintptr, state *State) error {
 	mode := state.mode
 	mode &^= winterm.ENABLE_ECHO_INPUT
@@ -147,6 +156,7 @@ func DisableEcho(fd uintptr, state *State) error {
 // SetRawTerminal puts the terminal connected to the given file descriptor into
 // raw mode and returns the previous state. On UNIX, this puts both the input
 // and output into raw mode. On Windows, it only puts the input into raw mode.
+// Deprecated: use github.com/moby/term.SetRawTerminal
 func SetRawTerminal(fd uintptr) (*State, error) {
 	state, err := MakeRaw(fd)
 	if err != nil {
@@ -161,6 +171,7 @@ func SetRawTerminal(fd uintptr) (*State, error) {
 // SetRawTerminalOutput puts the output of terminal connected to the given file
 // descriptor into raw mode. On UNIX, this does nothing and returns nil for the
 // state. On Windows, it disables LF -> CRLF translation.
+// Deprecated: use github.com/moby/term.SetRawTerminalOutput
 func SetRawTerminalOutput(fd uintptr) (*State, error) {
 	state, err := SaveState(fd)
 	if err != nil {
@@ -175,6 +186,7 @@ func SetRawTerminalOutput(fd uintptr) (*State, error) {
 
 // MakeRaw puts the terminal (Windows Console) connected to the given file descriptor into raw
 // mode and returns the previous state of the terminal so that it can be restored.
+// Deprecated: use github.com/moby/term.MakeRaw
 func MakeRaw(fd uintptr) (*State, error) {
 	state, err := SaveState(fd)
 	if err != nil {

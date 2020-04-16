@@ -42,6 +42,7 @@ var ASCII = []string{
 }
 
 // ToBytes converts a string representing a suite of key-sequence to the corresponding ASCII code.
+// Deprecated: use github.com/moby/term.ToBytes
 func ToBytes(keys string) ([]byte, error) {
 	codes := []byte{}
 next:

@@ -1,8 +1,11 @@
 // +build windows
-// These files implement ANSI-aware input and output streams for use by the Docker Windows client.
-// When asked for the set of standard streams (e.g., stdin, stdout, stderr), the code will create
-// and return pseudo-streams that convert ANSI sequences to / from Windows Console API calls.
 
+// Package windowsconsole implements ANSI-aware input and output streams for use
+// by the Docker Windows client. When asked for the set of standard streams (e.g.,
+// stdin, stdout, stderr), the code will create and return pseudo-streams that
+// convert ANSI sequences to / from Windows Console API calls.
+//
+// Deprecated: use github.com/moby/term/windows instead
 package windowsconsole // import "github.com/docker/docker/pkg/term/windows"
 
 import (

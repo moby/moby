@@ -30,6 +30,7 @@ type ansiReader struct {
 
 // NewAnsiReader returns an io.ReadCloser that provides VT100 terminal emulation on top of a
 // Windows console input handle.
+// Deprecated: use github.com/moby/term/windows.NewAnsiReader
 func NewAnsiReader(nFile int) io.ReadCloser {
 	initLogger()
 	file, fd := winterm.GetStdFile(nFile)

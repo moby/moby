@@ -6,6 +6,7 @@ import (
 
 // EscapeError is special error which returned by a TTY proxy reader's Read()
 // method in case its detach escape sequence is read.
+// Deprecated: use github.com/moby/term.EscapeError
 type EscapeError struct{}
 
 func (EscapeError) Error() string {
@@ -25,6 +26,7 @@ type escapeProxy struct {
 // NewEscapeProxy returns a new TTY proxy reader which wraps the given reader
 // and detects when the specified escape keys are read, in which case the Read
 // method will return an error of type EscapeError.
+// Deprecated: use github.com/moby/term.NewEscapeProxy
 func NewEscapeProxy(r io.Reader, escapeKeys []byte) io.Reader {
 	return &escapeProxy{
 		escapeKeys: escapeKeys,

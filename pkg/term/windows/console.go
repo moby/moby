@@ -9,6 +9,7 @@ import (
 )
 
 // GetHandleInfo returns file descriptor and bool indicating whether the file is a console.
+// Deprecated: use github.com/moby/term/windows.GetHandleInfo
 func GetHandleInfo(in interface{}) (uintptr, bool) {
 	switch t := in.(type) {
 	case *ansiReader:
@@ -29,6 +30,7 @@ func GetHandleInfo(in interface{}) (uintptr, bool) {
 
 // IsConsole returns true if the given file descriptor is a Windows Console.
 // The code assumes that GetConsoleMode will return an error for file descriptors that are not a console.
+// Deprecated: use github.com/moby/term/windows.IsConsole
 func IsConsole(fd uintptr) bool {
 	_, e := winterm.GetConsoleMode(fd)
 	return e == nil
