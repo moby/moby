@@ -111,7 +111,7 @@ type GetTailReaderFunc func(ctx context.Context, f SizeReaderAt, nLogLines int) 
 
 // NewLogFile creates new LogFile
 func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, marshaller logger.MarshalFunc, decodeFunc makeDecoderFunc, perms os.FileMode, getTailReader GetTailReaderFunc) (*LogFile, error) {
-	log, err := os.OpenFile(logPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, perms)
+	log, err := openFile(logPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, perms)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func (w *LogFile) checkCapacityAndRotate() error {
 			w.rotateMu.Unlock()
 			return err
 		}
-		file, err := os.OpenFile(fname, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, w.perms)
+		file, err := openFile(fname, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, w.perms)
 		if err != nil {
 			w.rotateMu.Unlock()
 			return err
@@ -250,7 +250,7 @@ func compressFile(fileName string, lastTimestamp time.Time) {
 		}
 	}()
 
-	outFile, err := os.OpenFile(fileName+".gz", os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0640)
+	outFile, err := openFile(fileName+".gz", os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0640)
 	if err != nil {
 		logrus.Errorf("Failed to open or create gzip log file: %v", err)
 		return
@@ -451,7 +451,7 @@ func decompressfile(fileName, destFileName string, since time.Time) (*os.File, e
 		return nil, nil
 	}
 
-	rs, err := os.OpenFile(destFileName, os.O_CREATE|os.O_RDWR, 0640)
+	rs, err := openFile(destFileName, os.O_CREATE|os.O_RDWR, 0640)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating file for copying decompressed log stream")
 	}
