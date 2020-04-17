@@ -253,9 +253,9 @@ func TestClientWithRequestTimeout(t *testing.T) {
 	_, err := client.callWithRetry("/Plugin.Hello", nil, false, WithRequestTimeout(timeout))
 	assert.Assert(t, is.ErrorContains(err, ""), "expected error")
 
-	err = errors.Cause(err)
-	assert.ErrorType(t, err, (*timeoutError)(nil))
-	assert.Equal(t, err.(timeoutError).Timeout(), true)
+	var tErr timeoutError
+	assert.Assert(t, errors.As(err, &tErr))
+	assert.Assert(t, tErr.Timeout())
 }
 
 type testRequestWrapper struct {

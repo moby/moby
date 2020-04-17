@@ -77,11 +77,11 @@ func TestGet(t *testing.T) {
 
 	// check negative case where plugin fruit doesn't implement banana
 	_, err = Get("fruit", "banana")
-	assert.Equal(t, errors.Cause(err), ErrNotImplements)
+	assert.Assert(t, errors.Is(err, ErrNotImplements))
 
 	// check negative case where plugin vegetable doesn't exist
 	_, err = Get("vegetable", "potato")
-	assert.Equal(t, errors.Cause(err), ErrNotFound)
+	assert.Assert(t, errors.Is(err, ErrNotFound))
 }
 
 func TestPluginWithNoManifest(t *testing.T) {

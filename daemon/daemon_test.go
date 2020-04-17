@@ -312,7 +312,8 @@ func TestValidateContainerIsolation(t *testing.T) {
 func TestFindNetworkErrorType(t *testing.T) {
 	d := Daemon{}
 	_, err := d.FindNetwork("fakeNet")
-	_, ok := errors.Cause(err).(libnetwork.ErrNoSuchNetwork)
+	var nsn libnetwork.ErrNoSuchNetwork
+	ok := errors.As(err, &nsn)
 	if !errdefs.IsNotFound(err) || !ok {
 		t.Error("The FindNetwork method MUST always return an error that implements the NotFound interface and is ErrNoSuchNetwork")
 	}

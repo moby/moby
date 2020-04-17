@@ -324,7 +324,7 @@ func (a *Driver) Remove(id string) error {
 	// way (so that docker doesn't find it anymore) before doing removal of
 	// the whole tree.
 	if err := atomicRemove(mountpoint); err != nil {
-		if errors.Cause(err) == unix.EBUSY {
+		if errors.Is(err, unix.EBUSY) {
 			logger.WithField("dir", mountpoint).WithError(err).Warn("error performing atomic remove due to EBUSY")
 		}
 		return errors.Wrapf(err, "could not remove mountpoint for id %s", id)

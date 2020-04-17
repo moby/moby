@@ -222,12 +222,17 @@ func (c *containerAdapter) createNetworks(ctx context.Context) error {
 }
 
 func (c *containerAdapter) removeNetworks(ctx context.Context) error {
+	var (
+		activeEndpointsError *libnetwork.ActiveEndpointsError
+		errNoSuchNetwork     libnetwork.ErrNoSuchNetwork
+	)
+
 	for name, v := range c.container.networksAttachments {
 		if err := c.backend.DeleteManagedNetwork(v.Network.ID); err != nil {
-			switch errors.Cause(err).(type) {
-			case *libnetwork.ActiveEndpointsError:
+			switch {
+			case errors.As(err, &activeEndpointsError):
 				continue
-			case libnetwork.ErrNoSuchNetwork:
+			case errors.As(err, &errNoSuchNetwork):
 				continue
 			default:
 				log.G(ctx).Errorf("network %s remove failed: %v", name, err)

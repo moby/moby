@@ -62,7 +62,7 @@ func newArchiveRemote(rc io.ReadCloser, dockerfilePath string) (builder.Source, 
 func withDockerfileFromContext(c modifiableContext, dockerfilePath string) (builder.Source, *parser.Result, error) {
 	df, err := openAt(c, dockerfilePath)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			if dockerfilePath == builder.DefaultDockerfileName {
 				lowercase := strings.ToLower(dockerfilePath)
 				if _, err := StatAt(c, lowercase); err == nil {
