@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"net/url"
+	"strings"
+
+	"github.com/docker/docker/api/types"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -35,6 +38,12 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 		query.Set("name", containerName)
 	}
 
+	resolvedImage, err := cli.getImage(ctx, config)
+	if err != nil {
+		return response, err
+	}
+	config.Image = resolvedImage
+
 	body := configWrapper{
 		Config:           config,
 		HostConfig:       hostConfig,
@@ -49,4 +58,40 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 
 	err = json.NewDecoder(serverResp.body).Decode(&response)
 	return response, err
+}
+
+func (cli *Client) getImage(ctx context.Context, config *container.Config) (string, error) {
+	allImages, err := cli.ImageList(ctx, types.ImageListOptions{
+		All: true,
+	})
+
+	if err != nil {
+		return "", err
+	}
+	// Split the image name and tag. For example if the image provided is  d2a6510f3d9c:latest1, image name will  be d2a6510f3d9c and tag will be latest1.
+	// By default, tag is "latest".
+	imageData := strings.Split(config.Image, ":")
+	resolvedImageName, resolvedImageTag := imageData[0], "latest"
+	if len(imageData) > 1 {
+		resolvedImageTag = imageData[1]
+	}
+	for _, image := range allImages {
+		// We check here if the image is SHA256 Image ID format.
+		if strings.HasPrefix(strings.Split(image.ID, ":")[1], resolvedImageName) {
+			// If SHA format, then check for the tag if present. By default, "latest" tag is considered,
+			for _, repoTag := range image.RepoTags {
+				if strings.Split(repoTag, ":")[1] == resolvedImageTag {
+					return repoTag, nil
+				}
+			}
+		}
+		if len(image.RepoTags) > 0 {
+			for _, tag := range image.RepoTags {
+				if tag == config.Image {
+					return config.Image, nil
+				}
+			}
+		}
+	}
+	return config.Image, nil
 }
