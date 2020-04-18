@@ -349,6 +349,10 @@ var (
 
 		// Richard Feynman was a key contributor to quantum mechanics and particle physics. https://en.wikipedia.org/wiki/Richard_Feynman
 		"feynman",
+		
+		// Thomas Flowers was an English engineer with the British General Post Office. During World War II, Flowers designed and built Colossus, the world's first programmable electronic computer, to help solve encrypted German messages.
+		
+		"flowers",
 
 		// Benjamin Franklin is famous for his experiments in electricity and the invention of the lightning rod.
 		"franklin",
