@@ -38,11 +38,13 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 		query.Set("name", containerName)
 	}
 
-	resolvedImage, err := cli.getImage(ctx, config)
-	if err != nil {
-		return response, err
+	if config != nil {
+		resolvedImage, err := cli.getImage(ctx, config)
+		if err != nil {
+			return response, err
+		}
+		config.Image = resolvedImage
 	}
-	config.Image = resolvedImage
 
 	body := configWrapper{
 		Config:           config,
