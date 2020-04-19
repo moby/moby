@@ -300,21 +300,21 @@ func (d *Driver) Cleanup() error {
 // CreateReadWrite creates a layer that is writable for use as a container
 // file system.
 func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts) error {
-	if opts != nil && len(opts.StorageOpt) != 0 && !projectQuotaSupported {
-		return fmt.Errorf("--storage-opt is supported only for overlay over xfs with 'pquota' mount option")
-	}
-
 	if opts == nil {
 		opts = &graphdriver.CreateOpts{
-			StorageOpt: map[string]string{},
+			StorageOpt: make(map[string]string),
 		}
+	} else if opts.StorageOpt == nil {
+		opts.StorageOpt = make(map[string]string)
 	}
 
-	if _, ok := opts.StorageOpt["size"]; !ok {
-		if opts.StorageOpt == nil {
-			opts.StorageOpt = map[string]string{}
-		}
+	// Merge daemon default config.
+	if _, ok := opts.StorageOpt["size"]; !ok && d.options.quota.Size != 0 {
 		opts.StorageOpt["size"] = strconv.FormatUint(d.options.quota.Size, 10)
+	}
+
+	if _, ok := opts.StorageOpt["size"]; ok && !projectQuotaSupported {
+		return fmt.Errorf("--storage-opt is supported only for overlay over xfs with 'pquota' mount option")
 	}
 
 	return d.create(id, parent, opts)
