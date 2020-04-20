@@ -191,6 +191,12 @@ NOTE: if you need to set more than one build tag, space separate them:
 export DOCKER_BUILDTAGS='apparmor selinux exclude_graphdriver_aufs'
 ```
 
+### LCOW (Linux Containers On Windows)
+
+LCOW is an experimental feature on Windows, and requires the daemon to run with
+experimental features enabled. Use the `no_lcow` build tag to disable the LCOW
+feature at compile time, 
+
 ### Static Daemon
 
 If it is feasible within the constraints of your distribution, you should
