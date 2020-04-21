@@ -711,10 +711,6 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		if !sysInfo.CgroupNamespaces {
 			warnings = append(warnings, "Your kernel does not support cgroup namespaces.  Cgroup namespace setting discarded.")
 		}
-
-		if hostConfig.Privileged && !cgroups.IsCgroup2UnifiedMode() {
-			return warnings, fmt.Errorf("privileged mode is incompatible with private cgroup namespaces on cgroup v1 host.  You must run the container in the host cgroup namespace when running privileged mode")
-		}
 	}
 
 	return warnings, nil

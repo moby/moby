@@ -114,9 +114,8 @@ func TestCgroupNamespacesRunPrivilegedAndPrivate(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
 
-	// Running with both privileged and cgroupns=private is not allowed
-	errStr := "privileged mode is incompatible with private cgroup namespaces on cgroup v1 host.  You must run the container in the host cgroup namespace when running privileged mode"
-	testCreateFailureWithCgroupNs(t, "private", errStr, container.WithPrivileged(true), container.WithCgroupnsMode("private"))
+	containerCgroup, daemonCgroup := testRunWithCgroupNs(t, "private", container.WithPrivileged(true), container.WithCgroupnsMode("private"))
+	assert.Assert(t, daemonCgroup != containerCgroup)
 }
 
 func TestCgroupNamespacesRunInvalidMode(t *testing.T) {
