@@ -635,7 +635,23 @@ func VerifyCgroupDriver(config *config.Config) error {
 
 // UsingSystemd returns true if cli option includes native.cgroupdriver=systemd
 func UsingSystemd(config *config.Config) bool {
-	return getCD(config) == cgroupSystemdDriver
+	if getCD(config) == cgroupSystemdDriver {
+		return true
+	}
+	// On cgroup v2 hosts, default to systemd driver
+	if getCD(config) == "" && cgroups.IsCgroup2UnifiedMode() && IsRunningSystemd() {
+		return true
+	}
+	return false
+}
+
+// IsRunningSystemd is from https://github.com/opencontainers/runc/blob/46be7b612e2533c494e6a251111de46d8e286ed5/libcontainer/cgroups/systemd/common.go#L27-L33
+func IsRunningSystemd() bool {
+	fi, err := os.Lstat("/run/systemd/system")
+	if err != nil {
+		return false
+	}
+	return fi.IsDir()
 }
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
