@@ -1,12 +1,14 @@
 package plugin // import "github.com/docker/docker/plugin"
 
 import (
+	"context"
 	"encoding/json"
 	"net"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/containerd/containerd/content"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/initlayer"
 	"github.com/docker/docker/errdefs"
@@ -17,6 +19,7 @@ import (
 	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/moby/sys/mount"
 	digest "github.com/opencontainers/go-digest"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -213,7 +216,7 @@ func (pm *Manager) Shutdown() {
 	}
 }
 
-func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest digest.Digest, blobsums []digest.Digest, tmpRootFSDir string, privileges *types.PluginPrivileges) (err error) {
+func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest, manifestDigest digest.Digest, blobsums []digest.Digest, tmpRootFSDir string, privileges *types.PluginPrivileges) (err error) {
 	config, err := pm.setupNewPlugin(configDigest, blobsums, privileges)
 	if err != nil {
 		return err
@@ -261,19 +264,22 @@ func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest digest.Digest, blobs
 	}
 
 	p.PluginObj.Config = config
+	p.Manifest = manifestDigest
 	err = pm.save(p)
 	return errors.Wrap(err, "error saving upgraded plugin config")
 }
 
 func (pm *Manager) setupNewPlugin(configDigest digest.Digest, blobsums []digest.Digest, privileges *types.PluginPrivileges) (types.PluginConfig, error) {
-	configRC, err := pm.blobStore.Get(configDigest)
+	configRA, err := pm.blobStore.ReaderAt(context.TODO(), specs.Descriptor{Digest: configDigest})
 	if err != nil {
 		return types.PluginConfig{}, err
 	}
-	defer configRC.Close()
+	defer configRA.Close()
+
+	configR := content.NewReader(configRA)
 
 	var config types.PluginConfig
-	dec := json.NewDecoder(configRC)
+	dec := json.NewDecoder(configR)
 	if err := dec.Decode(&config); err != nil {
 		return types.PluginConfig{}, errors.Wrapf(err, "failed to parse config")
 	}
@@ -292,7 +298,7 @@ func (pm *Manager) setupNewPlugin(configDigest digest.Digest, blobsums []digest.
 }
 
 // createPlugin creates a new plugin. take lock before calling.
-func (pm *Manager) createPlugin(name string, configDigest digest.Digest, blobsums []digest.Digest, rootFSDir string, privileges *types.PluginPrivileges, opts ...CreateOpt) (p *v2.Plugin, err error) {
+func (pm *Manager) createPlugin(name string, configDigest, manifestDigest digest.Digest, blobsums []digest.Digest, rootFSDir string, privileges *types.PluginPrivileges, opts ...CreateOpt) (p *v2.Plugin, err error) {
 	if err := pm.config.Store.validateName(name); err != nil { // todo: this check is wrong. remove store
 		return nil, errdefs.InvalidParameter(err)
 	}
@@ -310,6 +316,7 @@ func (pm *Manager) createPlugin(name string, configDigest digest.Digest, blobsum
 		},
 		Config:   configDigest,
 		Blobsums: blobsums,
+		Manifest: manifestDigest,
 	}
 	p.InitEmptySettings()
 	for _, o := range opts {

@@ -1,6 +1,7 @@
 package plugin // import "github.com/docker/docker/plugin"
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -12,10 +13,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/content/local"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pubsub"
@@ -72,7 +73,7 @@ type Manager struct {
 	mu        sync.RWMutex // protects cMap
 	muGC      sync.RWMutex // protects blobstore deletions
 	cMap      map[*v2.Plugin]*controller
-	blobStore *basicBlobStore
+	blobStore content.Store
 	publisher *pubsub.Publisher
 	executor  Executor
 }
@@ -117,9 +118,9 @@ func NewManager(config ManagerConfig) (*Manager, error) {
 		return nil, err
 	}
 
-	manager.blobStore, err = newBasicBlobStore(filepath.Join(manager.config.Root, "storage/blobs"))
+	manager.blobStore, err = local.NewStore(filepath.Join(manager.config.Root, "storage"))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error creating plugin blob store")
 	}
 
 	manager.cMap = make(map[*v2.Plugin]*controller)
@@ -305,7 +306,15 @@ func (pm *Manager) GC() {
 		}
 	}
 
-	pm.blobStore.gc(whitelist)
+	ctx := context.TODO()
+	pm.blobStore.Walk(ctx, func(info content.Info) error {
+		_, ok := whitelist[info.Digest]
+		if ok {
+			return nil
+		}
+
+		return pm.blobStore.Delete(ctx, info.Digest)
+	})
 }
 
 type logHook struct{ id string }
@@ -356,29 +365,4 @@ func isEqualPrivilege(a, b types.PluginPrivilege) bool {
 	}
 
 	return reflect.DeepEqual(a.Value, b.Value)
-}
-
-func configToRootFS(c []byte) (*image.RootFS, error) {
-	var pluginConfig types.PluginConfig
-	if err := json.Unmarshal(c, &pluginConfig); err != nil {
-		return nil, err
-	}
-	// validation for empty rootfs is in distribution code
-	if pluginConfig.Rootfs == nil {
-		return nil, nil
-	}
-
-	return rootFSFromPlugin(pluginConfig.Rootfs), nil
-}
-
-func rootFSFromPlugin(pluginfs *types.PluginConfigRootfs) *image.RootFS {
-	rootFS := image.RootFS{
-		Type:    pluginfs.Type,
-		DiffIDs: make([]layer.DiffID, len(pluginfs.DiffIds)),
-	}
-	for i := range pluginfs.DiffIds {
-		rootFS.DiffIDs[i] = layer.DiffID(pluginfs.DiffIds[i])
-	}
-
-	return &rootFS
 }
