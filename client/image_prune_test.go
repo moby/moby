@@ -51,6 +51,7 @@ func TestImagesPrune(t *testing.T) {
 		{
 			filters: filters.Args{},
 			expectedQueryParams: map[string]string{
+				"since":   "",
 				"until":   "",
 				"filter":  "",
 				"filters": "",
@@ -59,6 +60,7 @@ func TestImagesPrune(t *testing.T) {
 		{
 			filters: danglingFilters,
 			expectedQueryParams: map[string]string{
+				"since":   "",
 				"until":   "",
 				"filter":  "",
 				"filters": `{"dangling":{"true":true}}`,
@@ -68,6 +70,7 @@ func TestImagesPrune(t *testing.T) {
 			filters: noDanglingFilters,
 			expectedQueryParams: map[string]string{
 				"until":   "",
+				"since":   "",
 				"filter":  "",
 				"filters": `{"dangling":{"false":true}}`,
 			},
@@ -75,6 +78,7 @@ func TestImagesPrune(t *testing.T) {
 		{
 			filters: labelFilters,
 			expectedQueryParams: map[string]string{
+				"since":   "",
 				"until":   "",
 				"filter":  "",
 				"filters": `{"dangling":{"true":true},"label":{"label1=foo":true,"label2!=bar":true}}`,

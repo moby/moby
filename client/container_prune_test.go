@@ -40,9 +40,18 @@ func TestContainersPrune(t *testing.T) {
 	noDanglingFilters := filters.NewArgs()
 	noDanglingFilters.Add("dangling", "false")
 
+	danglingSinceFilters := filters.NewArgs()
+	danglingSinceFilters.Add("dangling", "true")
+	danglingSinceFilters.Add("since", "2016-12-15T18:00")
+
 	danglingUntilFilters := filters.NewArgs()
 	danglingUntilFilters.Add("dangling", "true")
 	danglingUntilFilters.Add("until", "2016-12-15T14:00")
+
+	danglingSinceUntilFilters := filters.NewArgs()
+	danglingSinceUntilFilters.Add("dangling", "true")
+	danglingSinceUntilFilters.Add("since", "2016-12-15T18:00")
+	danglingSinceUntilFilters.Add("until", "2016-12-15T14:00")
 
 	labelFilters := filters.NewArgs()
 	labelFilters.Add("dangling", "true")
@@ -56,6 +65,7 @@ func TestContainersPrune(t *testing.T) {
 		{
 			filters: filters.Args{},
 			expectedQueryParams: map[string]string{
+				"since":   "",
 				"until":   "",
 				"filter":  "",
 				"filters": "",
@@ -64,22 +74,43 @@ func TestContainersPrune(t *testing.T) {
 		{
 			filters: danglingFilters,
 			expectedQueryParams: map[string]string{
+				"since":   "",
 				"until":   "",
 				"filter":  "",
 				"filters": `{"dangling":{"true":true}}`,
 			},
 		},
 		{
+			filters: danglingSinceFilters,
+			expectedQueryParams: map[string]string{
+				"since":   "",
+				"until":   "",
+				"filter":  "",
+				"filters": `{"dangling":{"true":true},"since":{"2016-12-15T18:00":true}}`,
+			},
+		},
+		{
 			filters: danglingUntilFilters,
 			expectedQueryParams: map[string]string{
+				"since":   "",
 				"until":   "",
 				"filter":  "",
 				"filters": `{"dangling":{"true":true},"until":{"2016-12-15T14:00":true}}`,
 			},
 		},
 		{
+			filters: danglingSinceUntilFilters,
+			expectedQueryParams: map[string]string{
+				"since":   "",
+				"until":   "",
+				"filter":  "",
+				"filters": `{"dangling":{"true":true},"since":{"2016-12-15T18:00":true},"until":{"2016-12-15T14:00":true}}`,
+			},
+		},
+		{
 			filters: noDanglingFilters,
 			expectedQueryParams: map[string]string{
+				"since":   "",
 				"until":   "",
 				"filter":  "",
 				"filters": `{"dangling":{"false":true}}`,
@@ -88,6 +119,7 @@ func TestContainersPrune(t *testing.T) {
 		{
 			filters: labelFilters,
 			expectedQueryParams: map[string]string{
+				"since":   "",
 				"until":   "",
 				"filter":  "",
 				"filters": `{"dangling":{"true":true},"label":{"label1=foo":true,"label2!=bar":true}}`,

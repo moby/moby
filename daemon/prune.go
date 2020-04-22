@@ -25,12 +25,14 @@ var (
 	containersAcceptedFilters = map[string]bool{
 		"label":  true,
 		"label!": true,
+		"since":  true,
 		"until":  true,
 	}
 
 	networksAcceptedFilters = map[string]bool{
 		"label":  true,
 		"label!": true,
+		"since":  true,
 		"until":  true,
 	}
 )
@@ -50,7 +52,8 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 		return nil, err
 	}
 
-	until, err := getUntilFromPruneFilters(pruneFilters)
+	since, until, err := getSinceAndUntilFilters(pruneFilters)
+
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +68,9 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 		}
 
 		if !c.IsRunning() {
+			if !since.IsZero() && c.Created.Before(since) {
+				continue
+			}
 			if !until.IsZero() && c.Created.After(until) {
 				continue
 			}
@@ -92,7 +98,7 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filters.Args) *types.NetworksPruneReport {
 	rep := &types.NetworksPruneReport{}
 
-	until, _ := getUntilFromPruneFilters(pruneFilters)
+	since, until, _ := getSinceAndUntilFilters(pruneFilters)
 
 	// When the function returns true, the walk will stop.
 	l := func(nw libnetwork.Network) bool {
@@ -103,6 +109,9 @@ func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filte
 		default:
 		}
 		if nw.Info().ConfigOnly() {
+			return false
+		}
+		if !since.IsZero() && nw.Info().Created().Before(since) {
 			return false
 		}
 		if !until.IsZero() && nw.Info().Created().After(until) {
@@ -133,7 +142,7 @@ func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filte
 func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
 	rep := &types.NetworksPruneReport{}
 
-	until, _ := getUntilFromPruneFilters(pruneFilters)
+	since, until, _ := getSinceAndUntilFilters(pruneFilters)
 
 	cluster := daemon.GetCluster()
 
@@ -153,6 +162,9 @@ func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters fil
 		default:
 			if nw.Ingress {
 				// Routing-mesh network removal has to be explicitly invoked by user
+				continue
+			}
+			if !since.IsZero() && nw.Created.Before(since) {
 				continue
 			}
 			if !until.IsZero() && nw.Created.After(until) {
@@ -192,7 +204,7 @@ func (daemon *Daemon) NetworksPrune(ctx context.Context, pruneFilters filters.Ar
 		return nil, err
 	}
 
-	if _, err := getUntilFromPruneFilters(pruneFilters); err != nil {
+	if _, _, err := getSinceAndUntilFilters(pruneFilters); err != nil {
 		return nil, err
 	}
 
@@ -214,25 +226,34 @@ func (daemon *Daemon) NetworksPrune(ctx context.Context, pruneFilters filters.Ar
 	return rep, nil
 }
 
-func getUntilFromPruneFilters(pruneFilters filters.Args) (time.Time, error) {
-	until := time.Time{}
-	if !pruneFilters.Contains("until") {
-		return until, nil
-	}
-	untilFilters := pruneFilters.Get("until")
-	if len(untilFilters) > 1 {
-		return until, fmt.Errorf("more than one until filter specified")
-	}
-	ts, err := timetypes.GetTimestamp(untilFilters[0], time.Now())
+func getSinceAndUntilFilters(pruneFilters filters.Args) (time.Time, time.Time, error) {
+	since, err := getTimeFilters(pruneFilters, "since")
 	if err != nil {
-		return until, err
+		return since, time.Time{}, err
+	}
+	until, err := getTimeFilters(pruneFilters, "until")
+	return since, until, err
+}
+
+func getTimeFilters(pruneFilters filters.Args, filter string) (time.Time, error) {
+	t := time.Time{}
+	if !pruneFilters.Contains(filter) {
+		return t, nil
+	}
+	filters := pruneFilters.Get(filter)
+	if len(filters) > 1 {
+		return t, fmt.Errorf("more than one %s filter specified", filter)
+	}
+	ts, err := timetypes.GetTimestamp(filters[0], time.Now())
+	if err != nil {
+		return t, err
 	}
 	seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
 	if err != nil {
-		return until, err
+		return t, err
 	}
-	until = time.Unix(seconds, nanoseconds)
-	return until, nil
+	t = time.Unix(seconds, nanoseconds)
+	return t, nil
 }
 
 func matchLabels(pruneFilters filters.Args, labels map[string]string) bool {
