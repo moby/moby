@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/term"
+	"github.com/moby/term"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

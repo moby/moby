@@ -1,6 +1,6 @@
 // +build windows
 
-package windowsconsole // import "github.com/docker/docker/pkg/term/windows"
+package windowsconsole // import "github.com/moby/term/windows"
 
 import (
 	"os"

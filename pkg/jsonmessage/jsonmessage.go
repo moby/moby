@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/term"
 	units "github.com/docker/go-units"
+	"github.com/moby/term"
 	"github.com/morikuni/aec"
 )
 
