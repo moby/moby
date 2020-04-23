@@ -1,0 +1,23 @@
+FROM alpine AS base
+RUN apk add --no-cache attr
+
+FROM base AS testdata
+
+# Create a test-file and set a whitelisted extended attribute. Verify the attribute is set
+RUN mkdir -p /testdir && touch /testdir/testfile \
+ && setfattr -n user.pax.flags -v ok /testdir/testfile \
+ && test "$(getfattr -n user.pax.flags --only-values testdir/testfile)" = "ok" || { echo "failed to set xattr 'user.pax.flags'"; exit 1; }
+
+# Verify the attribute is preserved in the image
+FROM testdata AS original
+RUN test "$(getfattr -n user.pax.flags --only-values testdir/testfile)" = "ok" || { echo "xattr 'user.pax.flags' was not preserved on original file"; exit 1; }
+
+# Verify the attribute is preserved when (recursively) copying a directory
+FROM base AS copy_dir
+COPY --from=testdata /testdir /testdir-copy
+RUN test "$(getfattr -n user.pax.flags --only-values testdir-copy/testfile)" = "ok" || { echo "xattr 'user.pax.flags' was not preserved on copied directory"; exit 1; }
+
+# Verify the attribute is preserved when copying a file
+FROM base AS copy_file
+COPY --from=testdata /testdir/testfile /testfile-copy
+RUN test "$(getfattr -n user.pax.flags --only-values testfile-copy)" = "ok" || { echo "xattr 'user.pax.flags' was not preserved on copied file"; exit 1; }

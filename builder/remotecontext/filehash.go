@@ -24,7 +24,7 @@ func NewFileHash(path, name string, fi os.FileInfo) (hash.Hash, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := archive.ReadSecurityXattrToTarHeader(path, hdr); err != nil {
+	if err := archive.ReadWhitelistedXattrToTarHeader(path, hdr); err != nil {
 		return nil, err
 	}
 	tsh := &tarsumHash{hdr: hdr, Hash: sha256.New()}

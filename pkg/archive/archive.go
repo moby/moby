@@ -399,15 +399,48 @@ func fillGo18FileTypeBits(mode int64, fi os.FileInfo) int64 {
 	return mode
 }
 
-// ReadSecurityXattrToTarHeader reads security.capability xattr from filesystem
+// ReadWhitelistedXattrToTarHeader reads whitelisted xattrs from filesystem
 // to a tar header
-func ReadSecurityXattrToTarHeader(path string, hdr *tar.Header) error {
-	capability, _ := system.Lgetxattr(path, "security.capability")
-	if capability != nil {
-		hdr.Xattrs = make(map[string]string)
-		hdr.Xattrs["security.capability"] = string(capability)
+func ReadWhitelistedXattrToTarHeader(path string, hdr *tar.Header) error {
+	whitelist := []string{"user.pax.", "security."}
+
+	xattrs, err := getXattrByPrefix(path, whitelist...)
+	if err != nil {
+		return err
+	}
+
+	if len(xattrs) == 0 {
+		return nil
+	}
+
+	hdr.Xattrs = make(map[string]string, len(xattrs))
+
+	for _, name := range xattrs {
+		xattr, _ := system.Lgetxattr(path, name)
+		if xattr != nil {
+			hdr.Xattrs[name] = string(xattr)
+		}
 	}
 	return nil
+}
+
+func getXattrByPrefix(path string, prefixes ...string) ([]string, error) {
+	var xattrs []string
+
+	allXattrs, err := system.Llistxattr(path)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, name := range allXattrs {
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(name, prefix) {
+				xattrs = append(xattrs, name)
+			}
+		}
+	}
+
+	return xattrs, nil
 }
 
 type tarWhiteoutConverter interface {
@@ -473,7 +506,7 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	if err != nil {
 		return err
 	}
-	if err := ReadSecurityXattrToTarHeader(path, hdr); err != nil {
+	if err := ReadWhitelistedXattrToTarHeader(path, hdr); err != nil {
 		return err
 	}
 
