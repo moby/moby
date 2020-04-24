@@ -115,6 +115,10 @@ const (
 	modeISSOCK = 0140000 // Socket
 )
 
+const (
+	paxSchilyXattr = "SCHILY.xattrs."
+)
+
 // IsArchivePath checks if the (possibly compressed) file at the given path
 // starts with a tar file header.
 func IsArchivePath(path string) bool {
@@ -414,11 +418,15 @@ func ReadWhitelistedXattrToTarHeader(path string, hdr *tar.Header) error {
 	}
 
 	hdr.Xattrs = make(map[string]string, len(xattrs))
+	if hdr.PAXRecords == nil {
+		hdr.PAXRecords = make(map[string]string, len(xattrs))
+	}
 
 	for _, name := range xattrs {
 		xattr, _ := system.Lgetxattr(path, name)
 		if xattr != nil {
 			hdr.Xattrs[name] = string(xattr)
+			hdr.PAXRecords[paxSchilyXattr+name] = string(xattr)
 		}
 	}
 	return nil
@@ -690,8 +698,14 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 	}
 
+	var xattrs map[string]string
+	if hdr.Xattrs != nil {
+		xattrs = hdr.Xattrs
+	} else if hdr.PAXRecords != nil {
+		xattrs = getPAXSchilyXattr(hdr.PAXRecords)
+	}
 	var errors []string
-	for key, value := range hdr.Xattrs {
+	for key, value := range xattrs {
 		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
 			if err == syscall.ENOTSUP || err == syscall.EPERM {
 				// We ignore errors here because not all graphdrivers support
@@ -744,6 +758,22 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 	}
 	return nil
+}
+
+// getPAXSchilyXattr copies extended attributes from "SCHILY.xattrs" namespace
+// in PAXRecords and returns them as a new map, where key is xattr name and
+// value is xattr value
+func getPAXSchilyXattr(PAXRecords map[string]string) map[string]string {
+	schilyXattrs := make(map[string]string)
+
+	for key, value := range PAXRecords {
+		if strings.HasPrefix(key, paxSchilyXattr) {
+			key = key[len(paxSchilyXattr):]
+			schilyXattrs[key] = value
+		}
+	}
+
+	return schilyXattrs
 }
 
 // Tar creates an archive from the directory at `path`, and returns it as a
