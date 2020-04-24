@@ -11,10 +11,6 @@ on NULL pointer dereference).
 
 For much more details, see https://github.com/golang/go/issues/23265
 
-This is ultimately fixed in Go 1.11 (provided that "osusergo" build tag
-is set (see https://github.com/golang/go/commit/62f0127d81). In the
-meantime, let's use this fork.
-
 Signed-off-by: Kir Kolyshkin <kolyshkin@gmail.com>
 ---
  src/archive/tar/stat_unix.go | 26 +++-----------------------
