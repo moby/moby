@@ -596,7 +596,7 @@ func (ep *endpoint) deleteDriverInfoFromCluster() error {
 }
 
 func (ep *endpoint) addServiceInfoToCluster(sb *sandbox) error {
-	if ep.isAnonymous() && len(ep.myAliases) == 0 || ep.Iface().Address() == nil {
+	if ep.isAnonymous() && len(ep.myAliases) == 0 || ep.Iface() == nil || ep.Iface().Address() == nil {
 		return nil
 	}
 
@@ -719,7 +719,7 @@ func (ep *endpoint) deleteServiceInfoFromCluster(sb *sandbox, fullRemove bool, m
 		}
 	}
 
-	if ep.Iface().Address() != nil {
+	if ep.Iface() != nil && ep.Iface().Address() != nil {
 		if ep.svcID != "" {
 			// This is a task part of a service
 			var ingressPorts []*PortConfig
