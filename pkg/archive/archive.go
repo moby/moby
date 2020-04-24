@@ -1197,6 +1197,10 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 			hdr.Name = filepath.Base(dst)
 			hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
 
+			if err := ReadWhitelistedXattrToTarHeader(src, hdr); err != nil {
+				return err
+			}
+
 			if err := remapIDs(archiver.IDMapping, hdr); err != nil {
 				return err
 			}
