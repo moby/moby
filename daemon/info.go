@@ -28,7 +28,7 @@ import (
 func (daemon *Daemon) SystemInfo() *types.Info {
 	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_info"))()
 
-	sysInfo := sysinfo.New(true)
+	sysInfo := daemon.RawSysInfo(true)
 	cRunning, cPaused, cStopped := stateCtr.get()
 
 	v := &types.Info{
@@ -47,7 +47,6 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
 		LoggingDriver:      daemon.defaultLogConfig.Type,
-		CgroupDriver:       daemon.getCgroupDriver(),
 		NEventsListener:    daemon.EventsService.SubscribersCount(),
 		KernelVersion:      kernelVersion(),
 		OperatingSystem:    operatingSystem(),

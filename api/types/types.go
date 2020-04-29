@@ -175,6 +175,7 @@ type Info struct {
 	SystemTime         string
 	LoggingDriver      string
 	CgroupDriver       string
+	CgroupVersion      string `json:",omitempty"`
 	NEventsListener    int
 	KernelVersion      string
 	OperatingSystem    string

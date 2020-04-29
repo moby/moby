@@ -30,6 +30,9 @@ type SysInfo struct {
 
 	// Whether the cgroup has the mountpoint of "devices" or not
 	CgroupDevicesEnabled bool
+
+	// Whether the cgroup is in unified mode (v2).
+	CgroupUnified bool
 }
 
 type cgroupMemInfo struct {
