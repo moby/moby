@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.1.3-experimental
+# syntax=docker/dockerfile:1.1.7-experimental
 
 ARG CROSS="false"
 ARG SYSTEMD="false"
