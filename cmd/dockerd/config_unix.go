@@ -64,7 +64,7 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "Default address pools for node specific local networks")
 	// rootless needs to be explicitly specified for running "rootful" dockerd in rootless dockerd (#38702)
 	// Note that defaultUserlandProxyPath and honorXDG are configured according to the value of rootless.RunningWithRootlessKit, not the value of --rootless.
-	flags.BoolVar(&conf.Rootless, "rootless", rootless.RunningWithRootlessKit(), "Enable rootless mode; typically used with RootlessKit (experimental)")
+	flags.BoolVar(&conf.Rootless, "rootless", rootless.RunningWithRootlessKit(), "Enable rootless mode; typically used with RootlessKit")
 	defaultCgroupNamespaceMode := "host"
 	if cgroups.IsCgroup2UnifiedMode() {
 		defaultCgroupNamespaceMode = "private"
