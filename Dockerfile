@@ -259,6 +259,16 @@ COPY ./contrib/dockerd-rootless.sh /build
 
 FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit
 
+FROM dev-base AS dockerd-rootless-setuptool
+ENV INSTALL_BINARY_NAME=dockerd_rootless_setuptool
+COPY hack/dockerfile/install/install.sh ./install.sh
+COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+ENV TMP_GOPATH=/go
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=bind,target=/go/src/github.com/docker/docker \
+        PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
+
 # TODO: Some of this is only really needed for testing, it would be nice to split this up
 FROM runtime-dev AS dev-systemd-false
 ARG DEBIAN_FRONTEND
@@ -326,6 +336,7 @@ COPY --from=containerd    /build/ /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
 COPY --from=vpnkit        /vpnkit /usr/local/bin/vpnkit.x86_64
 COPY --from=proxy         /build/ /usr/local/bin/
+COPY --from=dockerd-rootless-setuptool /build/ /usr/local/bin/
 ENV PATH=/usr/local/cli:$PATH
 ARG DOCKER_BUILDTAGS
 ENV DOCKER_BUILDTAGS="${DOCKER_BUILDTAGS}"

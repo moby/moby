@@ -1,0 +1,28 @@
+#!/bin/sh
+
+install_dockerd_rootless_setuptool() {
+	case "$1" in
+		"dynamic")
+			install_dockerd_rootless_setuptool_dynamic
+			return
+			;;
+		"")
+			export CGO_ENABLED=0
+			_install_dockerd_rootless_setuptool
+			;;
+		*)
+			echo 'Usage: $0 [dynamic]'
+			;;
+	esac
+}
+
+install_dockerd_rootless_setuptool_dynamic() {
+	export DOCKERD_ROOTLESS_SETUPTOOL_LDFLAGS="-linkmode=external" install_dockerd_rootless_setuptool
+	export BUILD_MODE="-buildmode=pie"
+	_install_dockerd_rootless_setuptool
+}
+
+_install_dockerd_rootless_setuptool() {
+	echo "Install dockerd-rootless-setuptool"
+	go build $BUILD_MODE -ldflags="$DOCKERD_ROOTLESS_SETUPTOOL_LDFLAGS" -o "${PREFIX}/dockerd-rootless-setuptool" github.com/docker/docker/contrib/dockerd-rootless-setuptool
+}
