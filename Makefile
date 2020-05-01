@@ -151,8 +151,10 @@ BUILD_OPTS := ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} ${DOCKER_BUILD_OPTS} -f "
 ifdef USE_BUILDX
 BUILD_OPTS += $(BUILDX_BUILD_EXTRA_OPTS)
 BUILD_CMD := $(BUILDX) build
+PRUNE_CMD := $(BUILDX) prune
 else
 BUILD_CMD := $(DOCKER) build
+PRUNE_CMD := $(DOCKER) builder prune
 endif
 
 # This is used for the legacy "build" target and anything still depending on it
@@ -179,13 +181,16 @@ autogen:
 	mkdir -p autogen
 
 binary: buildx autogen ## build statically linked linux binaries
+	$(PRUNE_CMD) --force --filter until=12h
 	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
 
 dynbinary: buildx autogen ## build dynamically linked linux binaries
+	$(PRUNE_CMD) --force --filter until=12h
 	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
 
 cross: BUILD_OPTS += --build-arg CROSS=true --build-arg DOCKER_CROSSPLATFORMS
 cross: buildx autogen ## cross build the binaries for darwin, freebsd and\nwindows
+	$(PRUNE_CMD) --force --filter until=12h
 	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
 
 bundles:
@@ -217,6 +222,7 @@ ifdef USE_BUILDX
 build: buildx_load := --load
 endif
 build: buildx
+	$(PRUNE_CMD) --force --filter until=12h
 	$(BUILD_CMD) $(BUILD_OPTS) $(shell_target) $(buildx_load) $(BUILD_CROSS) -t "$(DOCKER_IMAGE)" .
 
 shell: build  ## start a shell inside the build env
