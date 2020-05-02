@@ -746,6 +746,7 @@ definitions:
     description: |
       Health stores information about the container's healthcheck results.
     type: "object"
+    x-nullable: true
     properties:
       Status:
         description: |
@@ -771,13 +772,13 @@ definitions:
         description: |
           Log contains the last few results (oldest first)
         items:
-          x-nullable: true
           $ref: "#/definitions/HealthcheckResult"
 
   HealthcheckResult:
     description: |
       HealthcheckResult stores information about a single run of a healthcheck probe
     type: "object"
+    x-nullable: true
     properties:
       Start:
         description: |
@@ -4217,6 +4218,7 @@ definitions:
       ContainerState stores container's running state. It's part of ContainerJSONBase
       and will be returned by the "inspect" command.
     type: "object"
+    x-nullable: true
     properties:
       Status:
         description: |
@@ -4274,7 +4276,6 @@ definitions:
         type: "string"
         example: "2020-01-06T09:07:59.461876391Z"
       Health:
-        x-nullable: true
         $ref: "#/definitions/Health"
 
   SystemVersion:
@@ -5787,7 +5788,6 @@ paths:
                 items:
                   type: "string"
               State:
-                x-nullable: true
                 $ref: "#/definitions/ContainerState"
               Image:
                 description: "The container's image ID"
