@@ -264,7 +264,7 @@ swagger-docs: ## preview the API documentation
 	@docker run --rm -v $(PWD)/api/swagger.yaml:/usr/share/nginx/html/swagger.yaml \
 		-e 'REDOC_OPTIONS=hide-hostname="true" lazy-rendering' \
 		-p $(SWAGGER_DOCS_PORT):80 \
-		bfirsh/redoc:1.6.2
+		bfirsh/redoc:1.14.0
 
 .PHONY: buildx
 ifdef USE_BUILDX
