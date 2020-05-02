@@ -248,13 +248,31 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 // There is never more than one monitor thread running per container at a time.
 func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe) {
 	probeInterval := timeoutWithDefault(c.Config.Healthcheck.Interval, defaultProbeInterval)
+	startInterval := timeoutWithDefault(c.Config.Healthcheck.StartInterval, defaultProbeInterval)
+	startPeriod := timeoutWithDefault(c.Config.Healthcheck.StartPeriod, defaultStartPeriod)
 
-	intervalTimer := time.NewTimer(probeInterval)
+	c.Lock()
+	started := c.State.StartedAt
+	c.Unlock()
+
+	getInterval := func() time.Duration {
+		if time.Since(started) >= startPeriod {
+			return probeInterval
+		}
+		c.Lock()
+		status := c.Health.Health.Status
+		c.Unlock()
+
+		if status == types.Starting {
+			return startInterval
+		}
+		return probeInterval
+	}
+
+	intervalTimer := time.NewTimer(getInterval())
 	defer intervalTimer.Stop()
 
 	for {
-		intervalTimer.Reset(probeInterval)
-
 		select {
 		case <-stop:
 			log.G(context.TODO()).Debugf("Stop healthcheck monitoring for container %s (received while idle)", c.ID)
@@ -296,6 +314,7 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 				cancelProbe()
 			}
 		}
+		intervalTimer.Reset(getInterval())
 	}
 }
 

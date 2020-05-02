@@ -541,6 +541,14 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 				bo.CreateMountpoint = false
 			}
 		}
+
+	}
+
+	if hostConfig != nil && versions.LessThan(version, "1.44") {
+		if config.Healthcheck != nil {
+			// StartInterval was added in API 1.44
+			config.Healthcheck.StartInterval = 0
+		}
 	}
 
 	if hostConfig != nil && versions.GreaterThanOrEqualTo(version, "1.42") {
