@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	// Longest healthcheck probe output message to store. Longer messages will be truncated.
-	maxOutputLen = 4096
+	// Default longest healthcheck probe output message to store. Longer messages will be truncated.
+	defaultMaxOutputLen = 4096
 
 	// Default interval between probe runs (from the end of the first to the start of the second).
 	// Also the time before the first probe.
@@ -92,7 +92,7 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 	}
 	d.LogContainerEventWithAttributes(cntr, "exec_create: "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " "), attributes)
 
-	output := &limitedBuffer{}
+	output := &limitedBuffer{limit: defaultMaxOutputLen}
 	err = d.ContainerExecStart(ctx, execConfig.ID, nil, output, output)
 	if err != nil {
 		return nil, err
@@ -327,6 +327,7 @@ func (daemon *Daemon) stopHealthchecks(c *container.Container) {
 // Buffer up to maxOutputLen bytes. Further data is discarded.
 type limitedBuffer struct {
 	buf       bytes.Buffer
+	limit     int
 	mu        sync.Mutex
 	truncated bool // indicates that data has been lost
 }
@@ -338,7 +339,7 @@ func (b *limitedBuffer) Write(data []byte) (int, error) {
 
 	bufLen := b.buf.Len()
 	dataLen := len(data)
-	keep := min(maxOutputLen-bufLen, dataLen)
+	keep := min(b.limit - bufLen, dataLen)
 	if keep > 0 {
 		b.buf.Write(data[:keep])
 	}

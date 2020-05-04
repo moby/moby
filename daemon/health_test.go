@@ -152,4 +152,11 @@ func TestHealthStates(t *testing.T) {
 	if c.State.Health.FailingStreak != 0 {
 		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
 	}
+
+	// Test buffer size
+
+	reset(c)
+	c.Config.Healthcheck.BufferSize = 4096
+
+	// TODO: implement buffer size tests
 }

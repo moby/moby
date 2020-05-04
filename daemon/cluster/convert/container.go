@@ -436,6 +436,7 @@ func healthConfigFromGRPC(h *swarmapi.HealthConfig) *container.HealthConfig {
 		Timeout:     timeout,
 		Retries:     int(h.Retries),
 		StartPeriod: startPeriod,
+		BufferSize : int(h.BufferSize),
 	}
 }
 
@@ -446,6 +447,7 @@ func healthConfigToGRPC(h *container.HealthConfig) *swarmapi.HealthConfig {
 		Timeout:     gogotypes.DurationProto(h.Timeout),
 		Retries:     int32(h.Retries),
 		StartPeriod: gogotypes.DurationProto(h.StartPeriod),
+		BufferSize:  int32(h.BufferSize),
 	}
 }
 

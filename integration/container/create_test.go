@@ -466,6 +466,7 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 		timeout     time.Duration
 		retries     int
 		startPeriod time.Duration
+		bufferSize  int
 		expectedErr string
 	}{
 		{
@@ -504,6 +505,13 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 			startPeriod: 100 * time.Microsecond,
 			expectedErr: fmt.Sprintf("StartPeriod in Healthcheck cannot be less than %s", container.MinimumDuration),
 		},
+		{
+			doc:         "test invalid BufferSize in Healthcheck: less than 0",
+			interval:    time.Second,
+			timeout:     time.Second,
+			bufferSize:  -10,
+			expectedErr: "BufferSize in Healthcheck cannot be negative",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -520,6 +528,9 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 			}
 			if tc.startPeriod != 0 {
 				cfg.Healthcheck.StartPeriod = tc.startPeriod
+			}
+			if tc.bufferSize != 0 {
+				cfg.Healthcheck.BufferSize = tc.bufferSize
 			}
 
 			resp, err := client.ContainerCreate(ctx, &cfg, &container.HostConfig{}, nil, "")

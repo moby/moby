@@ -347,6 +347,7 @@ func (c *containerConfig) healthcheck() *enginecontainer.HealthConfig {
 		Timeout:     timeout,
 		Retries:     int(hcSpec.Retries),
 		StartPeriod: startPeriod,
+		BufferSize:  int(hcSpec.BufferSize),
 	}
 }
 

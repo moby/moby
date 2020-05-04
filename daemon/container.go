@@ -343,6 +343,9 @@ func validateHealthCheck(healthConfig *containertypes.HealthConfig) error {
 	if healthConfig.StartPeriod != 0 && healthConfig.StartPeriod < containertypes.MinimumDuration {
 		return errors.Errorf("StartPeriod in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
 	}
+	if healthConfig.BufferSize < 0 {
+		return errors.Errorf("BufferSize in Healthcheck cannot be negative")
+	}
 	return nil
 }
 
