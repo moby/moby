@@ -28,7 +28,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
+func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool, tag string) error {
 	var progressOutput progress.Output
 	if !quiet {
 		progressOutput = streamformatter.NewJSONProgressOutput(outStream, false)
@@ -129,6 +129,11 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		imageIDsStr += fmt.Sprintf("Loaded image ID: %s\n", imgID)
 
 		imageRefCount = 0
+		// add a tag from CLI like the last tag for manifest
+		// TODO: but it's working only for one image in *.tgz file
+		if tag != "" {
+			m.RepoTags = append(m.RepoTags, tag)
+		}
 		for _, repoTag := range m.RepoTags {
 			named, err := reference.ParseNormalizedNamed(repoTag)
 			if err != nil {

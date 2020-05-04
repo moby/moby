@@ -11,12 +11,14 @@ import (
 // ImageLoad loads an image in the docker host from the client host.
 // It's up to the caller to close the io.ReadCloser in the
 // ImageLoadResponse returned by this function.
-func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, quiet bool) (types.ImageLoadResponse, error) {
+func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, quiet bool, tag string) (types.ImageLoadResponse, error) {
 	v := url.Values{}
 	v.Set("quiet", "0")
 	if quiet {
 		v.Set("quiet", "1")
 	}
+	v.Set("t", tag)
+
 	headers := map[string][]string{"Content-Type": {"application/x-tar"}}
 	resp, err := cli.postRaw(ctx, "/images/load", v, input, headers)
 	if err != nil {
