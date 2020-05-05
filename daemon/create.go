@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
-	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -247,7 +247,7 @@ func (daemon *Daemon) generateSecurityOpt(hostConfig *containertypes.HostConfig)
 	pidMode := hostConfig.PidMode
 	privileged := hostConfig.Privileged
 	if ipcMode.IsHost() || pidMode.IsHost() || privileged {
-		return toHostConfigSelinuxLabels(label.DisableSecOpt()), nil
+		return toHostConfigSelinuxLabels(selinux.DisableSecOpt()), nil
 	}
 
 	var ipcLabel []string
@@ -259,7 +259,7 @@ func (daemon *Daemon) generateSecurityOpt(hostConfig *containertypes.HostConfig)
 		if err != nil {
 			return nil, err
 		}
-		ipcLabel, err = label.DupSecOpt(c.ProcessLabel)
+		ipcLabel, err = selinux.DupSecOpt(c.ProcessLabel)
 		if err != nil {
 			return nil, err
 		}
@@ -273,7 +273,7 @@ func (daemon *Daemon) generateSecurityOpt(hostConfig *containertypes.HostConfig)
 			return nil, err
 		}
 
-		pidLabel, err = label.DupSecOpt(c.ProcessLabel)
+		pidLabel, err = selinux.DupSecOpt(c.ProcessLabel)
 		if err != nil {
 			return nil, err
 		}
