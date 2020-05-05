@@ -89,6 +89,8 @@ type User struct {
 	UID uint32 `json:"uid" platform:"linux,solaris"`
 	// GID is the group id.
 	GID uint32 `json:"gid" platform:"linux,solaris"`
+	// Umask is the umask for the init process.
+	Umask uint32 `json:"umask,omitempty" platform:"linux,solaris"`
 	// AdditionalGids are additional group ids set for the container's process.
 	AdditionalGids []uint32 `json:"additionalGids,omitempty" platform:"linux,solaris"`
 	// Username is the user name.
@@ -123,13 +125,26 @@ type Hook struct {
 	Timeout *int     `json:"timeout,omitempty"`
 }
 
+// Hooks specifies a command that is run in the container at a particular event in the lifecycle of a container
 // Hooks for container setup and teardown
 type Hooks struct {
-	// Prestart is a list of hooks to be run before the container process is executed.
+	// Prestart is Deprecated. Prestart is a list of hooks to be run before the container process is executed.
+	// It is called in the Runtime Namespace
 	Prestart []Hook `json:"prestart,omitempty"`
+	// CreateRuntime is a list of hooks to be run after the container has been created but before pivot_root or any equivalent operation has been called
+	// It is called in the Runtime Namespace
+	CreateRuntime []Hook `json:"createRuntime,omitempty"`
+	// CreateContainer is a list of hooks to be run after the container has been created but before pivot_root or any equivalent operation has been called
+	// It is called in the Container Namespace
+	CreateContainer []Hook `json:"createContainer,omitempty"`
+	// StartContainer is a list of hooks to be run after the start operation is called but before the container process is started
+	// It is called in the Container Namespace
+	StartContainer []Hook `json:"startContainer,omitempty"`
 	// Poststart is a list of hooks to be run after the container process is started.
+	// It is called in the Runtime Namespace
 	Poststart []Hook `json:"poststart,omitempty"`
 	// Poststop is a list of hooks to be run after the container process exits.
+	// It is called in the Runtime Namespace
 	Poststop []Hook `json:"poststop,omitempty"`
 }
 
@@ -165,6 +180,8 @@ type Linux struct {
 	// IntelRdt contains Intel Resource Director Technology (RDT) information for
 	// handling resource constraints (e.g., L3 cache, memory bandwidth) for the container
 	IntelRdt *LinuxIntelRdt `json:"intelRdt,omitempty"`
+	// Personality contains configuration for the Linux personality syscall
+	Personality *LinuxPersonality `json:"personality,omitempty"`
 }
 
 // LinuxNamespace is the configuration for a Linux namespace
@@ -183,17 +200,17 @@ const (
 	// PIDNamespace for isolating process IDs
 	PIDNamespace LinuxNamespaceType = "pid"
 	// NetworkNamespace for isolating network devices, stacks, ports, etc
-	NetworkNamespace = "network"
+	NetworkNamespace LinuxNamespaceType = "network"
 	// MountNamespace for isolating mount points
-	MountNamespace = "mount"
+	MountNamespace LinuxNamespaceType = "mount"
 	// IPCNamespace for isolating System V IPC, POSIX message queues
-	IPCNamespace = "ipc"
+	IPCNamespace LinuxNamespaceType = "ipc"
 	// UTSNamespace for isolating hostname and NIS domain name
-	UTSNamespace = "uts"
+	UTSNamespace LinuxNamespaceType = "uts"
 	// UserNamespace for isolating user and group IDs
-	UserNamespace = "user"
+	UserNamespace LinuxNamespaceType = "user"
 	// CgroupNamespace for isolating cgroup hierarchies
-	CgroupNamespace = "cgroup"
+	CgroupNamespace LinuxNamespaceType = "cgroup"
 )
 
 // LinuxIDMapping specifies UID/GID mappings
@@ -219,6 +236,7 @@ type POSIXRlimit struct {
 // LinuxHugepageLimit structure corresponds to limiting kernel hugepages
 type LinuxHugepageLimit struct {
 	// Pagesize is the hugepage size
+	// Format: "<size><unit-prefix>B' (e.g. 64KB, 2MB, 1GB, etc.)
 	Pagesize string `json:"pageSize"`
 	// Limit is the limit of "hugepagesize" hugetlb usage
 	Limit uint64 `json:"limit"`
@@ -290,6 +308,8 @@ type LinuxMemory struct {
 	Swappiness *uint64 `json:"swappiness,omitempty"`
 	// DisableOOMKiller disables the OOM killer for out of memory conditions
 	DisableOOMKiller *bool `json:"disableOOMKiller,omitempty"`
+	// Enables hierarchical memory accounting
+	UseHierarchy *bool `json:"useHierarchy,omitempty"`
 }
 
 // LinuxCPU for Linux cgroup 'cpu' resource management
@@ -384,6 +404,28 @@ type LinuxDeviceCgroup struct {
 	Minor *int64 `json:"minor,omitempty"`
 	// Cgroup access permissions format, rwm.
 	Access string `json:"access,omitempty"`
+}
+
+// LinuxPersonalityDomain refers to a personality domain.
+type LinuxPersonalityDomain string
+
+// LinuxPersonalityFlag refers to an additional personality flag. None are currently defined.
+type LinuxPersonalityFlag string
+
+// Define domain and flags for Personality
+const (
+	// PerLinux is the standard Linux personality
+	PerLinux LinuxPersonalityDomain = "LINUX"
+	// PerLinux32 sets personality to 32 bit
+	PerLinux32 LinuxPersonalityDomain = "LINUX32"
+)
+
+// LinuxPersonality represents the Linux personality syscall input
+type LinuxPersonality struct {
+	// Domain for the personality
+	Domain LinuxPersonalityDomain `json:"domain"`
+	// Additional flags
+	Flags []LinuxPersonalityFlag `json:"flags,omitempty"`
 }
 
 // Solaris contains platform-specific configuration for Solaris application containers.
@@ -555,11 +597,15 @@ type VMImage struct {
 type LinuxSeccomp struct {
 	DefaultAction LinuxSeccompAction `json:"defaultAction"`
 	Architectures []Arch             `json:"architectures,omitempty"`
+	Flags         []LinuxSeccompFlag `json:"flags,omitempty"`
 	Syscalls      []LinuxSyscall     `json:"syscalls,omitempty"`
 }
 
 // Arch used for additional architectures
 type Arch string
+
+// LinuxSeccompFlag is a flag to pass to seccomp(2).
+type LinuxSeccompFlag string
 
 // Additional architectures permitted to be used for system calls
 // By default only the native architecture of the kernel is permitted
@@ -594,6 +640,7 @@ const (
 	ActErrno LinuxSeccompAction = "SCMP_ACT_ERRNO"
 	ActTrace LinuxSeccompAction = "SCMP_ACT_TRACE"
 	ActAllow LinuxSeccompAction = "SCMP_ACT_ALLOW"
+	ActLog   LinuxSeccompAction = "SCMP_ACT_LOG"
 )
 
 // LinuxSeccompOperator used to match syscall arguments in Seccomp
