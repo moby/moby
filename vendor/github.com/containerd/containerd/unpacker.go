@@ -72,7 +72,13 @@ func (c *Client) newUnpacker(ctx context.Context, rCtx *RemoteContext) (*unpacke
 	}, nil
 }
 
-func (u *unpacker) unpack(ctx context.Context, h images.Handler, config ocispec.Descriptor, layers []ocispec.Descriptor) error {
+func (u *unpacker) unpack(
+	ctx context.Context,
+	rCtx *RemoteContext,
+	h images.Handler,
+	config ocispec.Descriptor,
+	layers []ocispec.Descriptor,
+) error {
 	p, err := content.ReadBlob(ctx, u.c.ContentStore(), config)
 	if err != nil {
 		return err
@@ -123,17 +129,17 @@ EachLayer:
 			labels = make(map[string]string)
 		}
 		labels[labelSnapshotRef] = chainID
-		labelOpt := snapshots.WithLabels(labels)
 
 		var (
 			key    string
 			mounts []mount.Mount
+			opts   = append(rCtx.SnapshotterOpts, snapshots.WithLabels(labels))
 		)
 
 		for try := 1; try <= 3; try++ {
 			// Prepare snapshot with from parent, label as root
 			key = fmt.Sprintf("extract-%s %s", uniquePart(), chainID)
-			mounts, err = sn.Prepare(ctx, key, parent.String(), labelOpt)
+			mounts, err = sn.Prepare(ctx, key, parent.String(), opts...)
 			if err != nil {
 				if errdefs.IsAlreadyExists(err) {
 					if _, err := sn.Stat(ctx, chainID); err != nil {
@@ -201,7 +207,7 @@ EachLayer:
 			return errors.Errorf("wrong diff id calculated on extraction %q", diffIDs[i])
 		}
 
-		if err = sn.Commit(ctx, chainID, key, labelOpt); err != nil {
+		if err = sn.Commit(ctx, chainID, key, opts...); err != nil {
 			abort()
 			if errdefs.IsAlreadyExists(err) {
 				continue
@@ -259,7 +265,7 @@ func (u *unpacker) fetch(ctx context.Context, h images.Handler, layers []ocispec
 			if u.limiter != nil {
 				u.limiter.Release(1)
 			}
-			if err != nil && errors.Cause(err) != images.ErrSkipDesc {
+			if err != nil && !errors.Is(err, images.ErrSkipDesc) {
 				return err
 			}
 			close(done[i])
@@ -271,7 +277,11 @@ func (u *unpacker) fetch(ctx context.Context, h images.Handler, layers []ocispec
 	return eg.Wait()
 }
 
-func (u *unpacker) handlerWrapper(uctx context.Context, unpacks *int32) (func(images.Handler) images.Handler, *errgroup.Group) {
+func (u *unpacker) handlerWrapper(
+	uctx context.Context,
+	rCtx *RemoteContext,
+	unpacks *int32,
+) (func(images.Handler) images.Handler, *errgroup.Group) {
 	eg, uctx := errgroup.WithContext(uctx)
 	return func(f images.Handler) images.Handler {
 		var (
@@ -313,7 +323,7 @@ func (u *unpacker) handlerWrapper(uctx context.Context, unpacks *int32) (func(im
 				if len(l) > 0 {
 					atomic.AddInt32(unpacks, 1)
 					eg.Go(func() error {
-						return u.unpack(uctx, f, desc, l)
+						return u.unpack(uctx, rCtx, f, desc, l)
 					})
 				}
 			}

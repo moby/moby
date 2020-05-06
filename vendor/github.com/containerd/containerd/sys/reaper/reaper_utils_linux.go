@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package sys
+package reaper
 
 import (
 	"unsafe"
@@ -22,22 +22,9 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// If arg2 is nonzero, set the "child subreaper" attribute of the
-// calling process; if arg2 is zero, unset the attribute.  When a
-// process is marked as a child subreaper, all of the children
-// that it creates, and their descendants, will be marked as
-// having a subreaper.  In effect, a subreaper fulfills the role
-// of init(1) for its descendant processes.  Upon termination of
-// a process that is orphaned (i.e., its immediate parent has
-// already terminated) and marked as having a subreaper, the
-// nearest still living ancestor subreaper will receive a SIGCHLD
-// signal and be able to wait(2) on the process to discover its
-// termination status.
-const setChildSubreaper = 36
-
 // SetSubreaper sets the value i as the subreaper setting for the calling process
 func SetSubreaper(i int) error {
-	return unix.Prctl(setChildSubreaper, uintptr(i), 0, 0, 0)
+	return unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, uintptr(i), 0, 0, 0)
 }
 
 // GetSubreaper returns the subreaper setting for the calling process

@@ -22,6 +22,8 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes"
+	"github.com/containerd/containerd/snapshots"
+
 	"google.golang.org/grpc"
 )
 
@@ -138,10 +140,11 @@ func WithUnpackOpts(opts []UnpackOpt) RemoteOpt {
 	}
 }
 
-// WithPullSnapshotter specifies snapshotter name used for unpacking
-func WithPullSnapshotter(snapshotterName string) RemoteOpt {
+// WithPullSnapshotter specifies snapshotter name used for unpacking.
+func WithPullSnapshotter(snapshotterName string, opts ...snapshots.Opt) RemoteOpt {
 	return func(_ *Client, c *RemoteContext) error {
 		c.Snapshotter = snapshotterName
+		c.SnapshotterOpts = opts
 		return nil
 	}
 }

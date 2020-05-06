@@ -62,7 +62,7 @@ func (p *Process) State(ctx context.Context) (runtime.State, error) {
 		ID: p.id,
 	})
 	if err != nil {
-		if errors.Cause(err) != ttrpc.ErrClosed {
+		if !errors.Is(err, ttrpc.ErrClosed) {
 			return runtime.State{}, errdefs.FromGRPC(err)
 		}
 

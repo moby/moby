@@ -25,11 +25,11 @@ import (
 
 // WithLease attaches a lease on the context
 func (c *Client) WithLease(ctx context.Context, opts ...leases.Opt) (context.Context, func(context.Context) error, error) {
+	nop := func(context.Context) error { return nil }
+
 	_, ok := leases.FromContext(ctx)
 	if ok {
-		return ctx, func(context.Context) error {
-			return nil
-		}, nil
+		return ctx, nop, nil
 	}
 
 	ls := c.LeasesService()
@@ -44,7 +44,7 @@ func (c *Client) WithLease(ctx context.Context, opts ...leases.Opt) (context.Con
 
 	l, err := ls.Create(ctx, opts...)
 	if err != nil {
-		return nil, nil, err
+		return ctx, nop, err
 	}
 
 	ctx = leases.WithLease(ctx, l.ID)

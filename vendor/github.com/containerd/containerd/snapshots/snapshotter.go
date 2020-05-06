@@ -355,10 +355,17 @@ type Cleaner interface {
 // Opt allows setting mutable snapshot properties on creation
 type Opt func(info *Info) error
 
-// WithLabels adds labels to a created snapshot
+// WithLabels appends labels to a created snapshot
 func WithLabels(labels map[string]string) Opt {
 	return func(info *Info) error {
-		info.Labels = labels
+		if info.Labels == nil {
+			info.Labels = make(map[string]string)
+		}
+
+		for k, v := range labels {
+			info.Labels[k] = v
+		}
+
 		return nil
 	}
 }

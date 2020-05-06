@@ -129,7 +129,7 @@ func applyLayers(ctx context.Context, layers []Layer, chain []digest.Digest, sn 
 		mounts, err = sn.Prepare(ctx, key, parent.String(), opts...)
 		if err != nil {
 			if errdefs.IsNotFound(err) && len(layers) > 1 {
-				if err := applyLayers(ctx, layers[:len(layers)-1], chain[:len(chain)-1], sn, a, nil, applyOpts); err != nil {
+				if err := applyLayers(ctx, layers[:len(layers)-1], chain[:len(chain)-1], sn, a, opts, applyOpts); err != nil {
 					if !errdefs.IsAlreadyExists(err) {
 						return err
 					}

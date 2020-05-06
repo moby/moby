@@ -32,6 +32,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/runtime/v2/runc/options"
+	"github.com/containerd/containerd/sys"
 	"github.com/containerd/typeurl"
 	prototypes "github.com/gogo/protobuf/types"
 	ver "github.com/opencontainers/image-spec/specs-go"
@@ -422,29 +423,37 @@ func attachExistingIO(response *tasks.GetResponse, ioAttach cio.Attach) (cio.IO,
 
 // loadFifos loads the containers fifos
 func loadFifos(response *tasks.GetResponse) *cio.FIFOSet {
-	path := getFifoDir([]string{
+	fifos := []string{
 		response.Process.Stdin,
 		response.Process.Stdout,
 		response.Process.Stderr,
-	})
-	closer := func() error {
-		return os.RemoveAll(path)
 	}
+	closer := func() error {
+		var (
+			err  error
+			dirs = map[string]struct{}{}
+		)
+		for _, fifo := range fifos {
+			if isFifo, _ := sys.IsFifo(fifo); isFifo {
+				if rerr := os.Remove(fifo); err == nil {
+					err = rerr
+				}
+				dirs[filepath.Dir(fifo)] = struct{}{}
+			}
+		}
+		for dir := range dirs {
+			// we ignore errors here because we don't
+			// want to remove the directory if it isn't
+			// empty
+			os.Remove(dir)
+		}
+		return err
+	}
+
 	return cio.NewFIFOSet(cio.Config{
 		Stdin:    response.Process.Stdin,
 		Stdout:   response.Process.Stdout,
 		Stderr:   response.Process.Stderr,
 		Terminal: response.Process.Terminal,
 	}, closer)
-}
-
-// getFifoDir looks for any non-empty path for a stdio fifo
-// and returns the dir for where it is located
-func getFifoDir(paths []string) string {
-	for _, p := range paths {
-		if p != "" {
-			return filepath.Dir(p)
-		}
-	}
-	return ""
 }
