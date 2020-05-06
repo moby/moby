@@ -92,7 +92,7 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 	}
 	d.LogContainerEventWithAttributes(cntr, "exec_create: "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " "), attributes)
 
-	output := &limitedBuffer{limit: defaultMaxOutputLen}
+	output := &limitedBuffer{limit: cntr.Config.Healthcheck.BufferSize}
 	err = d.ContainerExecStart(ctx, execConfig.ID, nil, output, output)
 	if err != nil {
 		return nil, err
