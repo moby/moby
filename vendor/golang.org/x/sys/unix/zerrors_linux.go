@@ -890,6 +890,7 @@ const (
 	IPPROTO_IP                                  = 0x0
 	IPPROTO_IPIP                                = 0x4
 	IPPROTO_IPV6                                = 0x29
+	IPPROTO_L2TP                                = 0x73
 	IPPROTO_MH                                  = 0x87
 	IPPROTO_MPLS                                = 0x89
 	IPPROTO_MTP                                 = 0x5c
