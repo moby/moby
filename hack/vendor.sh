@@ -12,4 +12,4 @@ if ! hash vndr; then
 	exit 1
 fi
 
-vndr "$@"
+vndr -whitelist=^archive/tar "$@"
