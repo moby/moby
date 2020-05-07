@@ -216,6 +216,9 @@ var (
 		// Walter Houser Brattain co-invented the transistor - https://en.wikipedia.org/wiki/Walter_Houser_Brattain
 		"brattain",
 
+		// Harriet Brooks - Canadian Nuclear Physicist. Famous for her research on nuclear transmutations and radioactivity. Among the first persons to discover radon and to try to determine its atomic mass. https://en.wikipedia.org/wiki/Harriet_Brooks
+		"brooks",
+
 		// Emmett Brown invented time travel. https://en.wikipedia.org/wiki/Emmett_Brown (thanks Brian Goff)
 		"brown",
 
