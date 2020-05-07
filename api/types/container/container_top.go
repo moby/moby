@@ -10,7 +10,9 @@ package container // import "github.com/docker/docker/api/types/container"
 // swagger:model ContainerTopOKBody
 type ContainerTopOKBody struct {
 
-	// Each process running in the container, where each is process is an array of values corresponding to the titles
+	// Each process running in the container, where each is process
+	// is an array of values corresponding to the titles.
+	//
 	// Required: true
 	Processes [][]string `json:"Processes"`
 
