@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/pkg/pubsub"
 	"github.com/docker/docker/pkg/tailfile"
 	"gotest.tools/assert"
 )
@@ -200,4 +201,67 @@ func TestFollowLogsProducerGone(t *testing.T) {
 		t.Fatal("consumer should not have exited")
 	default:
 	}
+}
+
+func TestCheckCapacityAndRotate(t *testing.T) {
+	dir, err := ioutil.TempDir("", t.Name())
+	assert.NilError(t, err)
+	defer os.RemoveAll(dir)
+
+	f, err := ioutil.TempFile(dir, "log")
+	assert.NilError(t, err)
+
+	l := &LogFile{
+		f:            f,
+		capacity:     5,
+		maxFiles:     3,
+		compress:     true,
+		notifyRotate: pubsub.NewPublisher(0, 1),
+		perms:        0600,
+		marshal: func(msg *logger.Message) ([]byte, error) {
+			return msg.Line, nil
+		},
+	}
+	defer l.Close()
+
+	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
+
+	dStringer := dirStringer{dir}
+
+	_, err = os.Stat(f.Name() + ".1")
+	assert.Assert(t, os.IsNotExist(err), dStringer)
+
+	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
+	_, err = os.Stat(f.Name() + ".1")
+	assert.NilError(t, err, dStringer)
+
+	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
+	_, err = os.Stat(f.Name() + ".1")
+	assert.NilError(t, err, dStringer)
+	_, err = os.Stat(f.Name() + ".2.gz")
+	assert.NilError(t, err, dStringer)
+
+	// Now let's simulate a failed rotation where the file was able to be closed but something else happened elsewhere
+	// down the line.
+	// We want to make sure that we can recover in the case that `l.f` was closed while attempting a rotation.
+	l.f.Close()
+	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
+}
+
+type dirStringer struct {
+	d string
+}
+
+func (d dirStringer) String() string {
+	ls, err := ioutil.ReadDir(d.d)
+	if err != nil {
+		return ""
+	}
+	var s strings.Builder
+	s.WriteString("\n")
+
+	for _, fi := range ls {
+		s.WriteString(fi.Name() + "\n")
+	}
+	return s.String()
 }
