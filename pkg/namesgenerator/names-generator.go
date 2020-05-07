@@ -162,6 +162,9 @@ var (
 		// Jean Bartik, born Betty Jean Jennings, was one of the original programmers for the ENIAC computer. https://en.wikipedia.org/wiki/Jean_Bartik
 		"bartik",
 
+		// Clara Barton - Founder of the American Red Cross, hospital nurse during the American Civil War, and civil rights advocate. https://en.wikipedia.org/wiki/Clara_Barton
+		"barton",
+
 		// Laura Bassi, the world's first female professor https://en.wikipedia.org/wiki/Laura_Bassi
 		"bassi",
 
