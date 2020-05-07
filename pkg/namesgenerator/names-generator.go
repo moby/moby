@@ -374,6 +374,9 @@ var (
 		// Marie-Sophie Germain - French mathematician, physicist and philosopher. Known for her work on elasticity theory, number theory and philosophy. https://en.wikipedia.org/wiki/Sophie_Germain
 		"germain",
 
+		// Maria Goeppert Mayer - German-American theoretical physicist and Nobel Laureate in Physics. Known for her discovery of the nuclear shell model of the atomic nucleus. https://en.wikipedia.org/wiki/Maria_Goeppert_Mayer
+		"goeppert",
+
 		// Adele Goldberg, was one of the designers and developers of the Smalltalk language. https://en.wikipedia.org/wiki/Adele_Goldberg_(computer_scientist)
 		"goldberg",
 
