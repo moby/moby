@@ -1,109 +1,77 @@
-// +build !selinux !linux
-
 package label
 
-// InitLabels returns the process label and file labels to be used within
-// the container.  A list of options can be passed into this function to alter
-// the labels.
-func InitLabels(options []string) (string, string, error) {
-	return "", "", nil
-}
+import (
+	"github.com/opencontainers/selinux/go-selinux"
+)
 
-func ROMountLabel() string {
-	return ""
-}
+// Deprecated: use selinux.ROFileLabel
+var ROMountLabel = selinux.ROFileLabel
 
-func GenLabels(options string) (string, string, error) {
-	return "", "", nil
-}
+// SetProcessLabel takes a process label and tells the kernel to assign the
+// label to the next program executed by the current process.
+// Deprecated: use selinux.SetExecLabel
+var SetProcessLabel = selinux.SetExecLabel
 
-func FormatMountLabel(src string, mountLabel string) string {
-	return src
-}
+// ProcessLabel returns the process label that the kernel will assign
+// to the next program executed by the current process.  If "" is returned
+// this indicates that the default labeling will happen for the process.
+// Deprecated: use selinux.ExecLabel
+var ProcessLabel = selinux.ExecLabel
 
-func SetProcessLabel(processLabel string) error {
-	return nil
-}
+// SetSocketLabel takes a process label and tells the kernel to assign the
+// label to the next socket that gets created
+// Deprecated: use selinux.SetSocketLabel
+var SetSocketLabel = selinux.SetSocketLabel
 
-func ProcessLabel() (string, error) {
-	return "", nil
-}
+// SocketLabel retrieves the current default socket label setting
+// Deprecated: use selinux.SocketLabel
+var SocketLabel = selinux.SocketLabel
 
-func SetSocketLabel(processLabel string) error {
-	return nil
-}
+// SetKeyLabel takes a process label and tells the kernel to assign the
+// label to the next kernel keyring that gets created
+// Deprecated: use selinux.SetKeyLabel
+var SetKeyLabel = selinux.SetKeyLabel
 
-func SocketLabel() (string, error) {
-	return "", nil
-}
+// KeyLabel retrieves the current default kernel keyring label setting
+// Deprecated: use selinux.KeyLabel
+var KeyLabel = selinux.KeyLabel
 
-func SetKeyLabel(processLabel string) error {
-	return nil
-}
+// FileLabel returns the label for specified path
+// Deprecated: use selinux.FileLabel
+var FileLabel = selinux.FileLabel
 
-func KeyLabel() (string, error) {
-	return "", nil
-}
+// PidLabel will return the label of the process running with the specified pid
+// Deprecated: use selinux.PidLabel
+var PidLabel = selinux.PidLabel
 
-func FileLabel(path string) (string, error) {
-	return "", nil
-}
-
-func SetFileLabel(path string, fileLabel string) error {
-	return nil
-}
-
-func SetFileCreateLabel(fileLabel string) error {
-	return nil
-}
-
-func Relabel(path string, fileLabel string, shared bool) error {
-	return nil
-}
-
-func PidLabel(pid int) (string, error) {
-	return "", nil
-}
-
+// Init initialises the labeling system
 func Init() {
+	selinux.GetEnabled()
 }
 
-// ClearLabels clears all reserved labels
-func ClearLabels() {
-	return
-}
+// ClearLabels will clear all reserved labels
+// Deprecated: use selinux.ClearLabels
+var ClearLabels = selinux.ClearLabels
 
+// ReserveLabel will record the fact that the MCS label has already been used.
+// This will prevent InitLabels from using the MCS label in a newly created
+// container
+// Deprecated: use selinux.ReserveLabel
 func ReserveLabel(label string) error {
+	selinux.ReserveLabel(label)
 	return nil
 }
 
+// ReleaseLabel will remove the reservation of the MCS label.
+// This will allow InitLabels to use the MCS label in a newly created
+// containers
+// Deprecated: use selinux.ReleaseLabel
 func ReleaseLabel(label string) error {
+	selinux.ReleaseLabel(label)
 	return nil
 }
 
 // DupSecOpt takes a process label and returns security options that
 // can be used to set duplicate labels on future container processes
-func DupSecOpt(src string) ([]string, error) {
-	return nil, nil
-}
-
-// DisableSecOpt returns a security opt that can disable labeling
-// support for future container processes
-func DisableSecOpt() []string {
-	return nil
-}
-
-// Validate checks that the label does not include unexpected options
-func Validate(label string) error {
-	return nil
-}
-
-// RelabelNeeded checks whether the user requested a relabel
-func RelabelNeeded(label string) bool {
-	return false
-}
-
-// IsShared checks that the label includes a "shared" mark
-func IsShared(label string) bool {
-	return false
-}
+// Deprecated: use selinux.DupSecOpt
+var DupSecOpt = selinux.DupSecOpt

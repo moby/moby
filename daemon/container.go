@@ -23,7 +23,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/docker/go-connections/nat"
-	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -97,9 +97,7 @@ func (daemon *Daemon) load(id string) (*container.Container, error) {
 	if err := ctr.FromDisk(); err != nil {
 		return nil, err
 	}
-	if err := label.ReserveLabel(ctr.ProcessLabel); err != nil {
-		return nil, err
-	}
+	selinux.ReserveLabel(ctr.ProcessLabel)
 
 	if ctr.ID != id {
 		return ctr, fmt.Errorf("Container %s is stored at %s", ctr.ID, id)
