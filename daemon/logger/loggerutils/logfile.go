@@ -428,7 +428,7 @@ func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []*os.File, 
 			})
 
 			if err != nil {
-				if !os.IsNotExist(errors.Cause(err)) {
+				if !errors.Is(err, os.ErrNotExist) {
 					return nil, errors.Wrap(err, "error getting reference to decompressed log file")
 				}
 				continue
@@ -533,7 +533,7 @@ func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, dec Decoder, ge
 	for {
 		msg, err := dec.Decode()
 		if err != nil {
-			if errors.Cause(err) != io.EOF {
+			if !errors.Is(err, io.EOF) {
 				watcher.Err <- err
 			}
 			return
@@ -633,7 +633,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 
 	oldSize := int64(-1)
 	handleDecodeErr := func(err error) error {
-		if errors.Cause(err) != io.EOF {
+		if !errors.Is(err, io.EOF) {
 			return err
 		}
 

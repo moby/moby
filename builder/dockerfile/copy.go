@@ -591,7 +591,7 @@ func endsInSlash(driver containerfs.Driver, path string) bool {
 func isExistingDirectory(point *copyEndpoint) (bool, error) {
 	destStat, err := point.driver.Stat(point.path)
 	switch {
-	case os.IsNotExist(err):
+	case errors.Is(err, os.ErrNotExist):
 		return false, nil
 	case err != nil:
 		return false, err

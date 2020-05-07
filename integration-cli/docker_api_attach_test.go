@@ -207,8 +207,9 @@ func (s *DockerSuite) TestPostContainersAttach(c *testing.T) {
 	assert.NilError(c, err)
 
 	var outBuf, errBuf bytes.Buffer
+	var nErr net.Error
 	_, err = stdcopy.StdCopy(&outBuf, &errBuf, resp.Reader)
-	if err != nil && errors.Cause(err).(net.Error).Timeout() {
+	if errors.As(err, &nErr) && nErr.Timeout() {
 		// ignore the timeout error as it is expected
 		err = nil
 	}

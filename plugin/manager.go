@@ -172,7 +172,7 @@ func handleLoadError(err error, id string) {
 		return
 	}
 	logger := logrus.WithError(err).WithField("id", id)
-	if os.IsNotExist(errors.Cause(err)) {
+	if errors.Is(err, os.ErrNotExist) {
 		// Likely some error while removing on an older version of docker
 		logger.Warn("missing plugin config, skipping: this may be caused due to a failed remove and requires manual cleanup.")
 		return

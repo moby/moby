@@ -190,7 +190,7 @@ func (container *Container) UnmountIpcMount() error {
 	if shmPath == "" {
 		return nil
 	}
-	if err = mount.Unmount(shmPath); err != nil && !os.IsNotExist(errors.Cause(err)) {
+	if err = mount.Unmount(shmPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	return nil
@@ -395,7 +395,7 @@ func (container *Container) DetachAndUnmount(volumeEventLog func(name, action st
 // are not supported
 func ignoreUnsupportedXAttrs() fs.CopyDirOpt {
 	xeh := func(dst, src, xattrKey string, err error) error {
-		if errors.Cause(err) != syscall.ENOTSUP {
+		if !errors.Is(err, syscall.ENOTSUP) {
 			return err
 		}
 		return nil

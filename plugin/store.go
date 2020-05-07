@@ -153,7 +153,8 @@ func (ps *Store) Get(name, capability string, mode int) (plugingetter.CompatPlug
 			// but we should error out right away
 			return nil, errDisabled(name)
 		}
-		if _, ok := errors.Cause(err).(errNotFound); !ok {
+		var ierr errNotFound
+		if !errors.As(err, &ierr) {
 			return nil, err
 		}
 	}
@@ -166,7 +167,7 @@ func (ps *Store) Get(name, capability string, mode int) (plugingetter.CompatPlug
 	if err == nil {
 		return p, nil
 	}
-	if errors.Cause(err) == plugins.ErrNotFound {
+	if errors.Is(err, plugins.ErrNotFound) {
 		return nil, errNotFound(name)
 	}
 	return nil, errors.Wrap(errdefs.System(err), "legacy plugin")

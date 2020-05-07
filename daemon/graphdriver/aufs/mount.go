@@ -42,18 +42,14 @@ func Unmount(target string) error {
 	var err error
 	for i := 0; i < retries; i++ {
 		err = mount.Unmount(target)
-		switch errors.Cause(err) {
-		case nil:
-			return nil
-		case unix.EBUSY:
+		if err != nil && errors.Is(err, unix.EBUSY) {
 			logger.Debugf("aufs unmount %s failed with EBUSY (retrying %d/%d)", target, i+1, retries)
 			time.Sleep(100 * time.Millisecond)
 			continue // try again
-		default:
-			// any other error is fatal
-			return err
 		}
+		break
 	}
 
+	// either no error occurred, or another error
 	return err
 }

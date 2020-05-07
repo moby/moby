@@ -347,7 +347,7 @@ func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
 	c.mu.Unlock()
 
 	if err := <-nr.Ready(); err != nil {
-		if errors.Cause(err) == errSwarmLocked {
+		if errors.Is(err, errSwarmLocked) {
 			return invalidUnlockKey{}
 		}
 		return errors.Errorf("swarm component could not be started: %v", err)
@@ -371,7 +371,7 @@ func (c *Cluster) Leave(force bool) error {
 
 	c.mu.Unlock()
 
-	if errors.Cause(state.err) == errSwarmLocked && !force {
+	if errors.Is(state.err, errSwarmLocked) && !force {
 		// leave a locked swarm without --force is not allowed
 		return errors.WithStack(notAvailableError("Swarm is encrypted and locked. Please unlock it first or use `--force` to ignore this message."))
 	}

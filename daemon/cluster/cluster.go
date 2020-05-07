@@ -353,7 +353,7 @@ func (c *Cluster) currentNodeState() nodeState {
 // Call with read lock.
 func (c *Cluster) errNoManager(st nodeState) error {
 	if st.swarmNode == nil {
-		if errors.Cause(st.err) == errSwarmLocked {
+		if errors.Is(st.err, errSwarmLocked) {
 			return errSwarmLocked
 		}
 		if st.err == errSwarmCertificatesExpired {
