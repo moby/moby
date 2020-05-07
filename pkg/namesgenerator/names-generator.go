@@ -545,6 +545,9 @@ var (
 		// Inge Lehmann - Danish seismologist and geophysicist. Known for discovering in 1936 that the Earth has a solid inner core inside a molten outer core. https://en.wikipedia.org/wiki/Inge_Lehmann
 		"lehmann",
 
+		// Leucippus - Believed to be the founder of the Atomist school of philosophy. Mentor to Democritus. https://en.wikipedia.org/wiki/Leucippus
+		"leucippus",
+
 		// Daniel Lewin - Mathematician, Akamai co-founder, soldier, 9/11 victim-- Developed optimization techniques for routing traffic on the internet. Died attempting to stop the 9-11 hijackers. https://en.wikipedia.org/wiki/Daniel_Lewin
 		"lewin",
 
