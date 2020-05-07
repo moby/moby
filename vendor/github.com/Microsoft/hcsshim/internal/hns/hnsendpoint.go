@@ -173,6 +173,27 @@ func (endpoint *HNSEndpoint) ApplyACLPolicy(policies ...*ACLPolicy) error {
 	return err
 }
 
+// ApplyProxyPolicy applies a set of Proxy Policies on the Endpoint
+func (endpoint *HNSEndpoint) ApplyProxyPolicy(policies ...*ProxyPolicy) error {
+	operation := "ApplyProxyPolicy"
+	title := "hcsshim::HNSEndpoint::" + operation
+	logrus.Debugf(title+" id=%s", endpoint.Id)
+
+	for _, policy := range policies {
+		if policy == nil {
+			continue
+		}
+		jsonString, err := json.Marshal(policy)
+		if err != nil {
+			return err
+		}
+		endpoint.Policies = append(endpoint.Policies, jsonString)
+	}
+
+	_, err := endpoint.Update()
+	return err
+}
+
 // ContainerAttach attaches an endpoint to container
 func (endpoint *HNSEndpoint) ContainerAttach(containerID string, compartmentID uint16) error {
 	operation := "ContainerAttach"
