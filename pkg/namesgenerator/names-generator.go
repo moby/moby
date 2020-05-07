@@ -542,6 +542,9 @@ var (
 		// Ada Lovelace invented the first algorithm. https://en.wikipedia.org/wiki/Ada_Lovelace (thanks James Turnbull)
 		"lovelace",
 
+		// Lucretius - ancient greek philosopher whose ideas about the natural world were early precursors to Darwin's Theory of Evolution. Also a proponent of Atomism and Empiricism. https://en.wikipedia.org/wiki/Lucretius
+		"lucretius",
+
 		// Auguste and Louis Lumière - the first filmmakers in history - https://en.wikipedia.org/wiki/Auguste_and_Louis_Lumi%C3%A8re
 		"lumiere",
 
