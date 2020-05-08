@@ -58,6 +58,8 @@ func DefaultProfile() *types.Seccomp {
 				"chmod",
 				"chown",
 				"chown32",
+				"clock_adjtime",
+				"clock_adjtime64",
 				"clock_getres",
 				"clock_getres_time64",
 				"clock_gettime",
