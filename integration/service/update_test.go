@@ -295,7 +295,13 @@ func TestServiceUpdatePidsLimit(t *testing.T) {
 				serviceID = swarm.CreateService(t, d, swarm.ServiceWithPidsLimit(tc.pidsLimit))
 			} else {
 				service = getService(t, cli, serviceID)
-				service.Spec.TaskTemplate.ContainerSpec.PidsLimit = tc.pidsLimit
+				if service.Spec.TaskTemplate.Resources == nil {
+					service.Spec.TaskTemplate.Resources = &swarmtypes.ResourceRequirements{}
+				}
+				if service.Spec.TaskTemplate.Resources.Limits == nil {
+					service.Spec.TaskTemplate.Resources.Limits = &swarmtypes.Limit{}
+				}
+				service.Spec.TaskTemplate.Resources.Limits.Pids = tc.pidsLimit
 				_, err := cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 				assert.NilError(t, err)
 				poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
@@ -304,7 +310,7 @@ func TestServiceUpdatePidsLimit(t *testing.T) {
 			poll.WaitOn(t, swarm.RunningTasksCount(cli, serviceID, 1), swarm.ServicePoll)
 			service = getService(t, cli, serviceID)
 			container := getServiceTaskContainer(ctx, t, cli, serviceID)
-			assert.Equal(t, service.Spec.TaskTemplate.ContainerSpec.PidsLimit, tc.expected)
+			assert.Equal(t, service.Spec.TaskTemplate.Resources.Limits.Pids, tc.expected)
 			if tc.expected == 0 {
 				if container.HostConfig.Resources.PidsLimit != nil {
 					t.Fatalf("Expected container.HostConfig.Resources.PidsLimit to be nil")

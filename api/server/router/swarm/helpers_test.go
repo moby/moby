@@ -17,8 +17,7 @@ func TestAdjustForAPIVersion(t *testing.T) {
 	spec := &swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Sysctls:   expectedSysctls,
-				PidsLimit: 300,
+				Sysctls: expectedSysctls,
 				Privileges: &swarm.Privileges{
 					CredentialSpec: &swarm.CredentialSpec{
 						Config: "someconfig",
@@ -44,6 +43,11 @@ func TestAdjustForAPIVersion(t *testing.T) {
 			Placement: &swarm.Placement{
 				MaxReplicas: 222,
 			},
+			Resources: &swarm.ResourceRequirements{
+				Limits: &swarm.Limit{
+					Pids: 300,
+				},
+			},
 		},
 	}
 
@@ -55,10 +59,10 @@ func TestAdjustForAPIVersion(t *testing.T) {
 		t.Error("Sysctls was stripped from spec")
 	}
 
-	if spec.TaskTemplate.ContainerSpec.PidsLimit == 0 {
+	if spec.TaskTemplate.Resources.Limits.Pids == 0 {
 		t.Error("PidsLimit was stripped from spec")
 	}
-	if spec.TaskTemplate.ContainerSpec.PidsLimit != 300 {
+	if spec.TaskTemplate.Resources.Limits.Pids != 300 {
 		t.Error("PidsLimit did not preserve the value from spec")
 	}
 
@@ -80,7 +84,7 @@ func TestAdjustForAPIVersion(t *testing.T) {
 		t.Error("Sysctls was not stripped from spec")
 	}
 
-	if spec.TaskTemplate.ContainerSpec.PidsLimit != 0 {
+	if spec.TaskTemplate.Resources.Limits.Pids != 0 {
 		t.Error("PidsLimit was not stripped from spec")
 	}
 

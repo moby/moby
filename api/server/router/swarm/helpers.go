@@ -97,10 +97,13 @@ func adjustForAPIVersion(cliVersion string, service *swarm.ServiceSpec) {
 	}
 	if versions.LessThan(cliVersion, "1.41") {
 		if service.TaskTemplate.ContainerSpec != nil {
-			// Capabilities and PidsLimit for docker swarm services weren't
+			// Capabilities for docker swarm services weren't
 			// supported before API version 1.41
 			service.TaskTemplate.ContainerSpec.Capabilities = nil
-			service.TaskTemplate.ContainerSpec.PidsLimit = 0
+		}
+		if service.TaskTemplate.Resources != nil && service.TaskTemplate.Resources.Limits != nil {
+			// Limits.Pids  not supported before API version 1.41
+			service.TaskTemplate.Resources.Limits.Pids = 0
 		}
 
 		// jobs were only introduced in API version 1.41. Nil out both Job
