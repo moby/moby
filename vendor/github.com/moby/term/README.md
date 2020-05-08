@@ -1,6 +1,6 @@
 # term - utilities for dealing with terminals
 
-![](https://github.com/moby/term/workflows/.github/workflows/test.yml/badge.svg) [![GoDoc](https://godoc.org/github.com/moby/term?status.svg)](https://godoc.org/github.com/moby/term) [![Go Report Card](https://goreportcard.com/badge/github.com/moby/term)](https://goreportcard.com/report/github.com/moby/term)
+![Test](https://github.com/moby/term/workflows/Test/badge.svg) [![GoDoc](https://godoc.org/github.com/moby/term?status.svg)](https://godoc.org/github.com/moby/term) [![Go Report Card](https://goreportcard.com/badge/github.com/moby/term)](https://goreportcard.com/report/github.com/moby/term)
 
 term provides structures and helper functions to work with terminal (state, sizes).
 

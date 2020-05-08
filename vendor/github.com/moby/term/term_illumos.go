@@ -1,4 +1,4 @@
-// +build !windows,!illumos,!solaris
+//+build solaris illumos
 
 // Package term provides structures and helper functions to work with
 // terminal (state, sizes).
