@@ -162,7 +162,7 @@ func testConcurrentPush(c *testing.T) {
 	}
 
 	// Push tags, in parallel
-	results := make(chan error)
+	results := make(chan error, len(repos))
 
 	for _, repo := range repos {
 		go func(repo string) {

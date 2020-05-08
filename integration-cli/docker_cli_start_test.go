@@ -26,7 +26,7 @@ func (s *DockerSuite) TestStartAttachReturnsOnError(c *testing.T) {
 	// err shouldn't be nil because container test2 try to link to stopped container
 	assert.Assert(c, err != nil, "out: %s", out)
 
-	ch := make(chan error)
+	ch := make(chan error, 1)
 	go func() {
 		// Attempt to start attached to the container that won't start
 		// This should return an error immediately since the container can't be started

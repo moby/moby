@@ -47,7 +47,7 @@ func TestContinueAfterPluginCrash(t *testing.T) {
 	attach, err := client.ContainerAttach(context.Background(), id, types.ContainerAttachOptions{Stream: true, Stdout: true})
 	assert.NilError(t, err)
 
-	chErr := make(chan error)
+	chErr := make(chan error, 1)
 	go func() {
 		defer close(chErr)
 		rdr := bufio.NewReader(attach.Reader)

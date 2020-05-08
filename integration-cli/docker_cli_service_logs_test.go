@@ -177,6 +177,8 @@ func (s *DockerSwarmSuite) TestServiceLogsFollow(c *testing.T) {
 	// Make sure pipe is written to
 	ch := make(chan *logMessage)
 	done := make(chan struct{})
+	stop := make(chan struct{})
+	defer close(stop)
 	go func() {
 		reader := bufio.NewReader(r)
 		for {
@@ -184,6 +186,8 @@ func (s *DockerSwarmSuite) TestServiceLogsFollow(c *testing.T) {
 			msg.data, _, msg.err = reader.ReadLine()
 			select {
 			case ch <- msg:
+			case <-stop:
+				return
 			case <-done:
 				return
 			}

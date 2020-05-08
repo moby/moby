@@ -102,7 +102,7 @@ func (s *DockerSuite) TestAttachTTYWithoutStdin(c *testing.T) {
 	id := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(id))
 
-	done := make(chan error)
+	done := make(chan error, 1)
 	go func() {
 		defer close(done)
 

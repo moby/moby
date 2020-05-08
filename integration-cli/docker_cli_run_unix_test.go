@@ -40,7 +40,7 @@ func (s *DockerSuite) TestRunRedirectStdout(c *testing.T) {
 		cmd.Stdout = tty
 		cmd.Stderr = tty
 		assert.NilError(c, cmd.Start())
-		ch := make(chan error)
+		ch := make(chan error, 1)
 		go func() {
 			ch <- cmd.Wait()
 			close(ch)
@@ -122,7 +122,7 @@ func (s *DockerSuite) TestRunAttachDetach(c *testing.T) {
 	_, err = cpty.Write([]byte{17})
 	assert.NilError(c, err)
 
-	ch := make(chan struct{})
+	ch := make(chan struct{}, 1)
 	go func() {
 		cmd.Wait()
 		ch <- struct{}{}
@@ -188,7 +188,7 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *testing.T) {
 		c.Fatal(err)
 	}
 
-	ch := make(chan struct{})
+	ch := make(chan struct{}, 1)
 	go func() {
 		cmd.Wait()
 		ch <- struct{}{}
@@ -304,7 +304,7 @@ func (s *DockerSuite) TestRunAttachDetachFromConfig(c *testing.T) {
 		c.Fatal(err)
 	}
 
-	ch := make(chan struct{})
+	ch := make(chan struct{}, 1)
 	go func() {
 		cmd.Wait()
 		ch <- struct{}{}
@@ -387,7 +387,7 @@ func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *testing.T) {
 		c.Fatal(err)
 	}
 
-	ch := make(chan struct{})
+	ch := make(chan struct{}, 1)
 	go func() {
 		cmd.Wait()
 		ch <- struct{}{}
@@ -615,7 +615,7 @@ func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceWriteIOps(c *testing.T
 
 func (s *DockerSuite) TestRunOOMExitCode(c *testing.T) {
 	testRequires(c, memoryLimitSupport, swapMemorySupport, NotPpc64le)
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	go func() {
 		defer close(errChan)
 		// memory limit lower than 8MB will raise an error of "device or resource busy" from docker-runc.

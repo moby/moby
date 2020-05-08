@@ -82,8 +82,8 @@ func testConcurrentPullWholeRepo(c *testing.T) {
 	dockerCmd(c, args...)
 
 	// Run multiple re-pulls concurrently
-	results := make(chan error)
 	numPulls := 3
+	results := make(chan error, numPulls)
 
 	for i := 0; i != numPulls; i++ {
 		go func() {
@@ -120,8 +120,8 @@ func testConcurrentFailingPull(c *testing.T) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
 	// Run multiple pulls concurrently
-	results := make(chan error)
 	numPulls := 3
+	results := make(chan error, numPulls)
 
 	for i := 0; i != numPulls; i++ {
 		go func() {
@@ -170,7 +170,7 @@ func testConcurrentPullMultipleTags(c *testing.T) {
 	dockerCmd(c, args...)
 
 	// Re-pull individual tags, in parallel
-	results := make(chan error)
+	results := make(chan error, len(repos))
 
 	for _, repo := range repos {
 		go func(repo string) {

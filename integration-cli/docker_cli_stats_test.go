@@ -26,7 +26,7 @@ func (s *DockerSuite) TestStatsNoStream(c *testing.T) {
 		err error
 	}
 
-	ch := make(chan output)
+	ch := make(chan output, 1)
 	go func() {
 		out, err := statsCmd.Output()
 		ch <- output{out, err}
