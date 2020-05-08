@@ -113,6 +113,7 @@ func HasWin32KSupport() bool {
 	return ntuserApiset.Load() == nil
 }
 
+// Deprecated: use golang.org/x/sys/windows.SetNamedSecurityInfo()
 func SetNamedSecurityInfo(objectName *uint16, objectType uint32, securityInformation uint32, sidOwner *windows.SID, sidGroup *windows.SID, dacl *byte, sacl *byte) (result error) {
 	r0, _, _ := syscall.Syscall9(procSetNamedSecurityInfo.Addr(), 7, uintptr(unsafe.Pointer(objectName)), uintptr(objectType), uintptr(securityInformation), uintptr(unsafe.Pointer(sidOwner)), uintptr(unsafe.Pointer(sidGroup)), uintptr(unsafe.Pointer(dacl)), uintptr(unsafe.Pointer(sacl)), 0, 0)
 	if r0 != 0 {
@@ -121,6 +122,7 @@ func SetNamedSecurityInfo(objectName *uint16, objectType uint32, securityInforma
 	return
 }
 
+// Deprecated: uses golang.org/x/sys/windows.SecurityDescriptorFromString() and golang.org/x/sys/windows.SECURITY_DESCRIPTOR.DACL()
 func GetSecurityDescriptorDacl(securityDescriptor *byte, daclPresent *uint32, dacl **byte, daclDefaulted *uint32) (result error) {
 	r1, _, e1 := syscall.Syscall6(procGetSecurityDescriptorDacl.Addr(), 4, uintptr(unsafe.Pointer(securityDescriptor)), uintptr(unsafe.Pointer(daclPresent)), uintptr(unsafe.Pointer(dacl)), uintptr(unsafe.Pointer(daclDefaulted)), 0, 0)
 	if r1 == 0 {
