@@ -205,8 +205,8 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	cli.d = d
 
-	if err := cli.startMetricsServer(cli.Config.MetricsAddress); err != nil {
-		return err
+	if err := startMetricsServer(cli.Config.MetricsAddress); err != nil {
+		return errors.Wrap(err, "failed to start metrics server")
 	}
 
 	c, err := createAndStartCluster(cli, d)
