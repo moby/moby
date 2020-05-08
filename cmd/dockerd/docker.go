@@ -93,7 +93,7 @@ func main() {
 	if err != nil {
 		onError(err)
 	}
-	cmd.SetOutput(stdout)
+	cmd.SetOut(stdout)
 	if err := cmd.Execute(); err != nil {
 		onError(err)
 	}
