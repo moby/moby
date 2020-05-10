@@ -113,7 +113,7 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun
 			return
 		}
 		err = label.Relabel(sourcePath, mountLabel, label.IsShared(m.Mode))
-		if err == syscall.ENOTSUP {
+		if errors.Is(err, syscall.ENOTSUP) {
 			err = nil
 		}
 		if err != nil {
