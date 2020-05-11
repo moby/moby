@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	distref "github.com/docker/distribution/reference"
+	distref "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/reference"

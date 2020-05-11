@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/distribution/reference"
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/sirupsen/logrus"
 )

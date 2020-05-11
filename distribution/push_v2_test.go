@@ -7,9 +7,10 @@ import (
 	"reflect"
 	"testing"
 
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/reference"
+	distref "github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution/metadata"
@@ -637,7 +638,15 @@ type mockRepo struct {
 
 var _ distribution.Repository = &mockRepo{}
 
-func (m *mockRepo) Named() reference.Named {
+// Named() must return a distref.Named here, not containerd's Named interface;
+// while both interfaces are identical, Golang considers it an incompatible
+// type otherwise:
+//
+//	distribution/push_v2_test.go:404:4: cannot use repo (type *mockRepo) as type distribution.Repository in field value:
+//	*mockRepo does not implement distribution.Repository (wrong type for Named method)
+//	have Named() docker.Named
+//	want Named() "github.com/docker/docker/vendor/github.com/docker/distribution/reference".Named
+func (m *mockRepo) Named() distref.Named {
 	m.t.Fatalf("Named() not implemented")
 	return nil
 }

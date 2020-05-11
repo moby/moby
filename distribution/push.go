@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/docker/distribution/reference"
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/sirupsen/logrus"
 )
