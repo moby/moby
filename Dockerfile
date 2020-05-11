@@ -234,6 +234,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
         PREFIX=/build /tmp/install/install.sh rootlesskit
 COPY ./contrib/dockerd-rootless.sh /build
+COPY ./contrib/dockerd-rootless-setuptool.sh /build
 
 FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit
 
