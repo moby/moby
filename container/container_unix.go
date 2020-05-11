@@ -20,7 +20,6 @@ import (
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/sys/unix"
 )
 
 const (
@@ -147,7 +146,7 @@ func (container *Container) CopyImagePathContent(v volume.Volume, destination st
 			logrus.Warnf("error while unmounting volume %s: %v", v.Name(), err)
 		}
 	}()
-	if err := label.Relabel(path, container.MountLabel, true); err != nil && err != unix.ENOTSUP {
+	if err := label.Relabel(path, container.MountLabel, true); err != nil && !errors.Is(err, syscall.ENOTSUP) {
 		return err
 	}
 	return copyExistingContents(rootfs, path)
