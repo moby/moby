@@ -19,6 +19,9 @@ const (
 	CapReadDir                 apicaps.CapID = "readdir"
 	CapStatFile                apicaps.CapID = "statfile"
 	CapImportCaches            apicaps.CapID = "importcaches"
+
+	// CapGatewaySolveMetadata can be used to check if solve calls from gateway reliably return metadata
+	CapGatewaySolveMetadata apicaps.CapID = "gateway.solve.metadata"
 )
 
 func init() {
@@ -89,6 +92,13 @@ func init() {
 	Caps.Init(apicaps.Cap{
 		ID:      CapImportCaches,
 		Name:    "import caches",
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapGatewaySolveMetadata,
+		Name:    "gateway metadata",
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})

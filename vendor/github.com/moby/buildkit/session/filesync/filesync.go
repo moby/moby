@@ -255,7 +255,7 @@ func (sp *fsSyncTarget) Register(server *grpc.Server) {
 	RegisterFileSendServer(server, sp)
 }
 
-func (sp *fsSyncTarget) DiffCopy(stream FileSend_DiffCopyServer) error {
+func (sp *fsSyncTarget) DiffCopy(stream FileSend_DiffCopyServer) (err error) {
 	if sp.outdir != "" {
 		return syncTargetDiffCopy(stream, sp.outdir)
 	}
@@ -277,7 +277,12 @@ func (sp *fsSyncTarget) DiffCopy(stream FileSend_DiffCopyServer) error {
 	if wc == nil {
 		return status.Errorf(codes.AlreadyExists, "target already exists")
 	}
-	defer wc.Close()
+	defer func() {
+		err1 := wc.Close()
+		if err != nil {
+			err = err1
+		}
+	}()
 	return writeTargetFile(stream, wc)
 }
 

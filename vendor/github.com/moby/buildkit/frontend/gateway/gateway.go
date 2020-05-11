@@ -460,7 +460,9 @@ func (lbf *llbBridgeForwarder) Solve(ctx context.Context, req *pb.SolveRequest) 
 		return nil, errors.Errorf("solve did not return default result")
 	}
 
-	pbRes := &pb.Result{}
+	pbRes := &pb.Result{
+		Metadata: res.Metadata,
+	}
 	var defaultID string
 
 	lbf.mu.Lock()
