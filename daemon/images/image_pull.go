@@ -8,8 +8,8 @@ import (
 
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/namespaces"
+	reference "github.com/containerd/containerd/reference/docker"
 	dist "github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution"

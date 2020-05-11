@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/containerd/containerd"
-	"github.com/docker/distribution/reference"
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/opencontainers/go-digest"

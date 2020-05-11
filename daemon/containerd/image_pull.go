@@ -7,8 +7,8 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/platforms"
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"

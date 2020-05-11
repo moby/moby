@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/docker/distribution/reference"
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/docker/api"
 	refstore "github.com/docker/docker/reference"
 	"github.com/opencontainers/go-digest"

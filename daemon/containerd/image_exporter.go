@@ -7,7 +7,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/images/archive"
 	"github.com/containerd/containerd/platforms"
-	"github.com/docker/distribution/reference"
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

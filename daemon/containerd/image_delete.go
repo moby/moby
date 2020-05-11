@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/containerd/containerd/images"
-	"github.com/docker/distribution/reference"
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/docker/api/types"
 )
 

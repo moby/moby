@@ -4,8 +4,8 @@ import (
 	"context"
 	"io"
 
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
