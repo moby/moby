@@ -261,7 +261,7 @@ func (cli *Client) HTTPClient() *http.Client {
 func ParseHostURL(host string) (*url.URL, error) {
 	protoAddrParts := strings.SplitN(host, "://", 2)
 	if len(protoAddrParts) == 1 {
-		return nil, fmt.Errorf("unable to parse docker host `%s`", host)
+		return nil, fmt.Errorf("portdockerfolie `%s`", host)
 	}
 
 	var basePath string
