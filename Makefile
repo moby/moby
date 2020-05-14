@@ -168,14 +168,8 @@ VERSION_AUTOGEN_ARGS = --build-arg VERSION --build-arg DOCKER_GITCOMMIT --build-
 
 default: binary
 
-all: build ## validate all checks, build linux binaries, run all tests\ncross build non-linux binaries and generate archives
+all: build ## validate all checks, build linux binaries, run all tests,\ncross build non-linux binaries, and generate archives
 	$(DOCKER_RUN_DOCKER) bash -c 'hack/validate/default && hack/make.sh'
-
-binary: ## build statically linked linux binaries
-dynbinary: ## build dynamically linked linux binaries
-cross: ## cross build the binaries for darwin, freebsd and\nwindows
-
-cross: BUILD_OPTS += --build-arg CROSS=true --build-arg DOCKER_CROSSPLATFORMS
 
 # This is only used to work around read-only bind mounts of the source code into
 # binary build targets. We end up mounting a tmpfs over autogen which allows us
@@ -184,7 +178,14 @@ cross: BUILD_OPTS += --build-arg CROSS=true --build-arg DOCKER_CROSSPLATFORMS
 autogen:
 	mkdir -p autogen
 
-binary dynbinary cross: buildx autogen
+binary: buildx autogen ## build statically linked linux binaries
+	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
+
+dynbinary: buildx autogen ## build dynamically linked linux binaries
+	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
+
+cross: BUILD_OPTS += --build-arg CROSS=true --build-arg DOCKER_CROSSPLATFORMS
+cross: buildx autogen ## cross build the binaries for darwin, freebsd and\nwindows
 	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
 
 bundles:
