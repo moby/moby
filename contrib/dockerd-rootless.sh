@@ -7,7 +7,7 @@
 # External dependencies:
 # * newuidmap and newgidmap needs to be installed.
 # * /etc/subuid and /etc/subgid needs to be configured for the current user.
-# * Either one of slirp4netns (v0.3+), VPNKit, lxc-user-nic needs to be installed.
+# * Either one of slirp4netns (>= v0.4.0), VPNKit, lxc-user-nic needs to be installed.
 #   slirp4netns is used by default if installed. Otherwise fallsback to VPNKit.
 #   The default value can be overridden with $DOCKERD_ROOTLESS_ROOTLESSKIT_NET=(slirp4netns|vpnkit|lxc-user-nic)
 #
@@ -37,27 +37,27 @@ fi
 
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_NET:=}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_MTU:=}"
-# if slirp4netns v0.4.0+ is installed, slirp4netns is hardened using sandbox (mount namespace) and seccomp
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX:=auto}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP:=auto}"
 net=$DOCKERD_ROOTLESS_ROOTLESSKIT_NET
 mtu=$DOCKERD_ROOTLESS_ROOTLESSKIT_MTU
 if [ -z $net ]; then
 	if which slirp4netns >/dev/null 2>&1; then
-		if slirp4netns --help | grep -- --disable-host-loopback; then
+		# If --netns-type is present in --help, slirp4netns is >= v0.4.0.
+		if slirp4netns --help | grep -qw -- --netns-type; then
 			net=slirp4netns
 			if [ -z $mtu ]; then
 				mtu=65520
 			fi
 		else
-			echo "slirp4netns does not support --disable-host-loopback. Falling back to VPNKit."
+			echo "slirp4netns found but seems older than v0.4.0. Falling back to VPNKit."
 		fi
 	fi
 	if [ -z $net ]; then
 		if which vpnkit >/dev/null 2>&1; then
 			net=vpnkit
 		else
-			echo "Either slirp4netns (v0.3+) or vpnkit needs to be installed"
+			echo "Either slirp4netns (>= v0.4.0) or vpnkit needs to be installed"
 			exit 1
 		fi
 	fi
