@@ -152,7 +152,9 @@ func mknodChar0Overlay(cleansedOriginalPath string) error {
 	if err := ioutil.WriteFile(lowerDummy, []byte{}, 0600); err != nil {
 		return errors.Wrapf(err, "failed to create a dummy lower file %s", lowerDummy)
 	}
-	mOpts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lower, upper, work)
+	// lowerdir needs ":" to be escaped: https://github.com/moby/moby/issues/40939#issuecomment-627098286
+	lowerEscaped := strings.ReplaceAll(lower, ":", "\\:")
+	mOpts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerEscaped, upper, work)
 	if err := mount.Mount("overlay", merged, "overlay", mOpts); err != nil {
 		return err
 	}
@@ -236,7 +238,9 @@ func createDirWithOverlayOpaque(tmp string) (string, error) {
 	if err := os.MkdirAll(lowerDummy, 0700); err != nil {
 		return "", errors.Wrapf(err, "failed to create a dummy lower directory %s", lowerDummy)
 	}
-	mOpts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lower, upper, work)
+	// lowerdir needs ":" to be escaped: https://github.com/moby/moby/issues/40939#issuecomment-627098286
+	lowerEscaped := strings.ReplaceAll(lower, ":", "\\:")
+	mOpts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerEscaped, upper, work)
 	if err := mount.Mount("overlay", merged, "overlay", mOpts); err != nil {
 		return "", err
 	}
