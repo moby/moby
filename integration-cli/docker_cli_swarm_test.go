@@ -1454,17 +1454,17 @@ func (s *DockerSwarmSuite) TestSwarmManagerAddress(c *testing.T) {
 	d3 := s.AddDaemon(c, true, false)
 
 	// Manager Addresses will always show Node 1's address
-	expectedOutput := fmt.Sprintf("Manager Addresses:\n  127.0.0.1:%d\n", d1.SwarmPort)
+	expectedOutput := fmt.Sprintf("127.0.0.1:%d", d1.SwarmPort)
 
-	out, err := d1.Cmd("info")
+	out, err := d1.Cmd("info", "--format", "{{ (index .Swarm.RemoteManagers 0).Addr }}")
 	assert.NilError(c, err, out)
 	assert.Assert(c, strings.Contains(out, expectedOutput), out)
 
-	out, err = d2.Cmd("info")
+	out, err = d2.Cmd("info", "--format", "{{ (index .Swarm.RemoteManagers 0).Addr }}")
 	assert.NilError(c, err, out)
 	assert.Assert(c, strings.Contains(out, expectedOutput), out)
 
-	out, err = d3.Cmd("info")
+	out, err = d3.Cmd("info", "--format", "{{ (index .Swarm.RemoteManagers 0).Addr }}")
 	assert.NilError(c, err, out)
 	assert.Assert(c, strings.Contains(out, expectedOutput), out)
 }
