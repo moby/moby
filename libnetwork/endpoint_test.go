@@ -51,7 +51,7 @@ fe90::2	somehost.example.com somehost
 		t.Fatal(err)
 	}
 
-	if err := ep1.Join(sbx, JoinOptionPriority(ep1, 1)); err != nil {
+	if err := ep1.Join(sbx, JoinOptionPriority(1)); err != nil {
 		t.Fatal(err)
 	}
 

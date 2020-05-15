@@ -1055,7 +1055,7 @@ func CreateOptionLoadBalancer() EndpointOption {
 
 // JoinOptionPriority function returns an option setter for priority option to
 // be passed to the endpoint.Join() method.
-func JoinOptionPriority(ep Endpoint, prio int) EndpointOption {
+func JoinOptionPriority(prio int) EndpointOption {
 	return func(ep *endpoint) {
 		// ep lock already acquired
 		c := ep.network.getController()
