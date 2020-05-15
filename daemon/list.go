@@ -551,23 +551,19 @@ func includeContainerInList(container *container.Snapshot, ctx *listContext) ite
 		}
 	}
 
-	if len(ctx.publish) > 0 {
-		shouldSkip := true
-		for port := range ctx.publish {
-			if _, ok := container.PortBindings[port]; ok {
+	if len(ctx.expose) > 0 || len(ctx.publish) > 0 {
+		var (
+			shouldSkip    bool = true
+			publishedPort nat.Port
+			exposedPort   nat.Port
+		)
+		for _, port := range container.Ports {
+			publishedPort = nat.Port(fmt.Sprintf("%d/%s", port.PublicPort, port.Type))
+			exposedPort = nat.Port(fmt.Sprintf("%d/%s", port.PrivatePort, port.Type))
+			if ok := ctx.publish[publishedPort]; ok {
 				shouldSkip = false
 				break
-			}
-		}
-		if shouldSkip {
-			return excludeContainer
-		}
-	}
-
-	if len(ctx.expose) > 0 {
-		shouldSkip := true
-		for port := range ctx.expose {
-			if _, ok := container.ExposedPorts[port]; ok {
+			} else if ok := ctx.expose[exposedPort]; ok {
 				shouldSkip = false
 				break
 			}
