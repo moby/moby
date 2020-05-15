@@ -74,7 +74,7 @@ func (r *Route) Match(req *http.Request, match *RouteMatch) bool {
 		return false
 	}
 
-	if match.MatchErr == ErrMethodMismatch {
+	if match.MatchErr == ErrMethodMismatch && r.handler != nil {
 		// We found a route which matches request method, clear MatchErr
 		match.MatchErr = nil
 		// Then override the mis-matched handler
@@ -412,11 +412,30 @@ func (r *Route) Queries(pairs ...string) *Route {
 type schemeMatcher []string
 
 func (m schemeMatcher) Match(r *http.Request, match *RouteMatch) bool {
-	return matchInArray(m, r.URL.Scheme)
+	scheme := r.URL.Scheme
+	// https://golang.org/pkg/net/http/#Request
+	// "For [most] server requests, fields other than Path and RawQuery will be
+	// empty."
+	// Since we're an http muxer, the scheme is either going to be http or https
+	// though, so we can just set it based on the tls termination state.
+	if scheme == "" {
+		if r.TLS == nil {
+			scheme = "http"
+		} else {
+			scheme = "https"
+		}
+	}
+	return matchInArray(m, scheme)
 }
 
 // Schemes adds a matcher for URL schemes.
 // It accepts a sequence of schemes to be matched, e.g.: "http", "https".
+// If the request's URL has a scheme set, it will be matched against.
+// Generally, the URL scheme will only be set if a previous handler set it,
+// such as the ProxyHeaders handler from gorilla/handlers.
+// If unset, the scheme will be determined based on the request's TLS
+// termination state.
+// The first argument to Schemes will be used when constructing a route URL.
 func (r *Route) Schemes(schemes ...string) *Route {
 	for k, v := range schemes {
 		schemes[k] = strings.ToLower(v)
@@ -493,14 +512,21 @@ func (r *Route) Subrouter() *Router {
 // This also works for host variables:
 //
 //     r := mux.NewRouter()
-//     r.Host("{subdomain}.domain.com").
-//       HandleFunc("/articles/{category}/{id:[0-9]+}", ArticleHandler).
+//     r.HandleFunc("/articles/{category}/{id:[0-9]+}", ArticleHandler).
+//       Host("{subdomain}.domain.com").
 //       Name("article")
 //
 //     // url.String() will be "http://news.domain.com/articles/technology/42"
 //     url, err := r.Get("article").URL("subdomain", "news",
 //                                      "category", "technology",
 //                                      "id", "42")
+//
+// The scheme of the resulting url will be the first argument that was passed to Schemes:
+//
+//     // url.String() will be "https://example.com"
+//     r := mux.NewRouter()
+//     url, err := r.Host("example.com")
+//                  .Schemes("https", "http").URL()
 //
 // All variables defined in the route are required, and their values must
 // conform to the corresponding patterns.
@@ -635,7 +661,7 @@ func (r *Route) GetQueriesRegexp() ([]string, error) {
 	if r.regexp.queries == nil {
 		return nil, errors.New("mux: route doesn't have queries")
 	}
-	var queries []string
+	queries := make([]string, 0, len(r.regexp.queries))
 	for _, query := range r.regexp.queries {
 		queries = append(queries, query.regexp.String())
 	}
@@ -654,7 +680,7 @@ func (r *Route) GetQueriesTemplates() ([]string, error) {
 	if r.regexp.queries == nil {
 		return nil, errors.New("mux: route doesn't have queries")
 	}
-	var queries []string
+	queries := make([]string, 0, len(r.regexp.queries))
 	for _, query := range r.regexp.queries {
 		queries = append(queries, query.template)
 	}
