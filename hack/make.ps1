@@ -94,7 +94,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 $pushed=$False  # To restore the directory if we have temporarily pushed to one.
-Set-Variable GOTESTSUM_LOCATION -option Constant -value "$env:GOPATH/src/gotest.tools/gotestsum"
+Set-Variable GOTESTSUM_LOCATION -option Constant -value "$env:GOPATH/bin/"
 
 # Utility function to get the commit ID of the repository
 Function Get-GitCommit() {

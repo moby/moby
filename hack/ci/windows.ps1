@@ -528,11 +528,7 @@ Try {
             Throw "ERROR: Failed to docker cp the daemon binary (dockerd.exe) to $env:TEMP\binary"
         }
 
-        $GotestsumBinRelLocationInContainer="src\gotest.tools\gotestsum\gotestsum.exe"
-        if (-not($LastExitCode -eq 0)) {
-            Throw "ERROR: Failed to docker cp the gotestsum binary (gotestsum.exe) to $env:TEMP\binary"
-        }
-        docker cp "$COMMITHASH`:c`:\gopath\$GotestsumBinRelLocationInContainer" $env:TEMP\binary\
+        docker cp "$COMMITHASH`:c`:\gopath\bin\gotestsum.exe" $env:TEMP\binary\
         if (-not (Test-Path "$env:TEMP\binary\gotestsum.exe")) {
             Throw "ERROR: gotestsum.exe not found...." `
         }

@@ -262,29 +262,16 @@ RUN `
 RUN `
   Function Build-GoTestSum() { `
     Write-Host "INFO: Building gotestsum version $Env:GOTESTSUM_COMMIT in $Env:GOPATH"; `
-    $optsForGet = @('"get"', '"-d"', '"gotest.tools/gotestsum"'); `
-    &go $optsForGet; `
-    $savedExitCode = $LASTEXITCODE; `
-    if ($savedExitCode -ne 0) {  `
+    $env:GO111MODULE = 'on'; `
+    &go get -d "gotest.tools/gotestsum@${Env:GOTESTSUM_COMMIT}"; `
+    $env:GO111MODULE = 'off'; `
+    if ($LASTEXITCODE -ne 0) {  `
       Throw '"Failed getting gotestsum sources..."'  `
     }; `
-    Write-Host "INFO:     Sources obtained for gotestsum..."; `
-    $GotestsumPath=Join-Path -Path $Env:GOPATH -ChildPath "src\gotest.tools\gotestsum"; `
-    Push-Location $GotestsumPath; `
-    $optsForCheckout = @('"checkout"', '"-q"', """$Env:GOTESTSUM_COMMIT"""); `
-    &git $optsForCheckout; `
-    $savedExitCode = $LASTEXITCODE; `
-    if ($savedExitCode -eq 0) { `
-      Write-Host "INFO:     Checkout done for gotestsum..."; `
-      $optsForBuild = @('"build"', '"-buildmode=exe"'); `
-      &go $optsForBuild; `
-      $savedExitCode = $LASTEXITCODE; `
-    } else { `
-      Throw '"gotestsum checkout failed..."'; `
-    } `
-    Pop-Location; `
-    `
-    if ($savedExitCode -ne 0) {  `
+    $env:GO111MODULE = 'on'; `
+    &go build -buildmode=exe -o "${Env:GOPATH}\bin\gotestsum.exe" gotest.tools/gotestsum; `
+    $env:GO111MODULE = 'off'; `
+    if ($LASTEXITCODE -ne 0) {  `
       Throw '"gotestsum build failed..."'; `
     } `
     Write-Host "INFO:     Build done for gotestsum..."; `
