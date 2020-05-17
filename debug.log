@@ -1,0 +1,1051 @@
+Sorry, try again.
+time="2020-05-17T02:07:49.407257643-05:00" level=info msg="Starting up"
+time="2020-05-17T02:07:49.407333107-05:00" level=warning msg="Running experimental build"
+time="2020-05-17T02:07:49.407995760-05:00" level=warning msg="insecure registry https://csce-6snvrz2.cs.tamu.edu:5000 should not contain 'https://' and 'https://' has been removed from the insecure registry config"
+time="2020-05-17T02:07:49.409207207-05:00" level=info msg="parsed scheme: \"unix\"" module=grpc
+time="2020-05-17T02:07:49.409225430-05:00" level=info msg="scheme \"unix\" not registered, fallback to default scheme" module=grpc
+time="2020-05-17T02:07:49.409243807-05:00" level=info msg="ccResolverWrapper: sending update to cc: {[{unix:///run/containerd/containerd.sock 0  <nil>}] <nil>}" module=grpc
+time="2020-05-17T02:07:49.409259019-05:00" level=info msg="ClientConn switching balancer to \"pick_first\"" module=grpc
+time="2020-05-17T02:07:49.410154832-05:00" level=info msg="parsed scheme: \"unix\"" module=grpc
+time="2020-05-17T02:07:49.410178933-05:00" level=info msg="scheme \"unix\" not registered, fallback to default scheme" module=grpc
+time="2020-05-17T02:07:49.410201071-05:00" level=info msg="ccResolverWrapper: sending update to cc: {[{unix:///run/containerd/containerd.sock 0  <nil>}] <nil>}" module=grpc
+time="2020-05-17T02:07:49.410214569-05:00" level=info msg="ClientConn switching balancer to \"pick_first\"" module=grpc
+time="2020-05-17T02:07:49.876061510-05:00" level=info msg="[graphdriver] using prior storage driver: overlay2"
+time="2020-05-17T02:07:50.202176251-05:00" level=warning msg="Your kernel does not support swap memory limit"
+time="2020-05-17T02:07:50.202244465-05:00" level=warning msg="Your kernel does not support cgroup rt period"
+time="2020-05-17T02:07:50.202272104-05:00" level=warning msg="Your kernel does not support cgroup rt runtime"
+time="2020-05-17T02:07:50.202711770-05:00" level=info msg="Loading containers: start."
+time="2020-05-17T02:07:50.203336793-05:00" level=error msg="Failed to load container 9e7e0893e9cbe4f2c56fcd1424d563cdeb2963ec18fdb45dd52ea2c01e69ed98: open /var/lib/docker/containers/9e7e0893e9cbe4f2c56fcd1424d563cdeb2963ec18fdb45dd52ea2c01e69ed98/config.v2.json: no such file or directory"
+time="2020-05-17T02:07:50.206084747-05:00" level=error msg="Failed to load container mount 2e89045391abb0713f5f925bf53ddc8e39f30684eac20b6f5a2646ea455a5bc6: mount does not exist"
+time="2020-05-17T02:07:50.206090152-05:00" level=error msg="Failed to load container mount 846aaa1cb26d5a2cc9afab5db03e7c3d95f8002106399af55f887d1bd62dad7f: mount does not exist"
+time="2020-05-17T02:07:50.206319359-05:00" level=error msg="Failed to load container mount 6a4a5b196c05a41bcd733216a950035182b6e306e2d1a9e3fab64e47c99bf7f6: mount does not exist"
+time="2020-05-17T02:07:51.464000370-05:00" level=info msg="Default bridge (docker0) is assigned with an IP address 172.17.0.0/16. Daemon option --bip can be used to set a preferred IP address"
+time="2020-05-17T02:07:51.809789867-05:00" level=info msg="Loading containers: done."
+time="2020-05-17T02:07:52.112399864-05:00" level=info msg="Docker daemon" commit=428afea graphdriver(s)=overlay2 version=dev
+time="2020-05-17T02:07:52.125595320-05:00" level=info msg="parsed scheme: \"\"" module=grpc
+time="2020-05-17T02:07:52.125618018-05:00" level=info msg="scheme \"\" not registered, fallback to default scheme" module=grpc
+time="2020-05-17T02:07:52.125724532-05:00" level=info msg="ccResolverWrapper: sending update to cc: {[{128.194.130.177:2377 0  <nil>}] <nil>}" module=grpc
+time="2020-05-17T02:07:52.125737395-05:00" level=info msg="ClientConn switching balancer to \"pick_first\"" module=grpc
+time="2020-05-17T02:07:52.125757257-05:00" level=info msg="manager selected by agent for new session: {m8gjzw2te2rchaqv7mext736x 128.194.130.177:2377}" module=node/agent node.id=x0my91xx39v97yot531mxzv19
+time="2020-05-17T02:07:52.125867733-05:00" level=info msg="waiting 0s before registering session" module=node/agent node.id=x0my91xx39v97yot531mxzv19
+time="2020-05-17T02:07:54.481598055-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T02:07:54.481730746-05:00" level=info msg="Initializing Libnetwork Agent Listen-Addr=0.0.0.0 Local-addr=128.194.130.157 Adv-addr=128.194.130.157 Data-addr= Remote-addr-list=[128.194.130.177] MTU=1500"
+time="2020-05-17T02:07:54.481678711-05:00" level=info msg="Daemon has completed initialization"
+time="2020-05-17T02:07:54.481936097-05:00" level=info msg="New memberlist node - Node:localhost will use memberlist nodeID:dd20f65772f2 with config:&{NodeID:dd20f65772f2 Hostname:localhost BindAddr:0.0.0.0 AdvertiseAddr:128.194.130.157 BindPort:0 Keys:[[138 48 82 128 243 32 11 109 41 251 253 44 3 210 107 193] [138 33 50 241 229 121 37 161 191 169 134 91 203 182 210 200] [252 91 227 215 185 139 33 152 4 197 48 172 190 175 57 91]] PacketBufferSize:1400 reapEntryInterval:1800000000000 reapNetworkInterval:1825000000000 StatsPrintPeriod:5m0s HealthPrintPeriod:1m0s}"
+time="2020-05-17T02:07:54.483112833-05:00" level=info msg="Node dd20f65772f2/128.194.130.157, joined gossip cluster"
+time="2020-05-17T02:07:54.483295484-05:00" level=info msg="Node dd20f65772f2/128.194.130.157, added to nodes list"
+time="2020-05-17T02:07:54.484085850-05:00" level=info msg="The new bootstrap node list is:[128.194.130.177]"
+time="2020-05-17T02:07:54.586747485-05:00" level=info msg="Node b86f477bcdce/128.194.130.177, joined gossip cluster"
+time="2020-05-17T02:07:54.586874787-05:00" level=info msg="Node b86f477bcdce/128.194.130.177, added to nodes list"
+time="2020-05-17T02:07:56.111099050-05:00" level=error msg="Could not open netlink handle during vni population for ns /var/run/docker/netns/1-mvn3wrk1uf: failed to set into network namespace 22 while creating netlink socket: invalid argument"
+time="2020-05-17T02:07:56.799451729-05:00" level=info msg="API listen on /var/run/docker.sock"
+time="2020-05-17T02:07:56.885732427-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T02:07:57.065014922-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T02:07:57.065739260-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:07:57.066246457-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:07:57.066706302-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:07:57.066782792-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T02:07:57.067180041-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:07:57.067246356-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T02:11:16.710291915-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T02:11:18.721543178-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T02:11:19.027728112-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T02:11:19.027941508-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:11:19.028048801-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:11:19.028152333-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:11:19.690740229-05:00" level=warning msg="Error getting v2 registry: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: http: server gave HTTP response to HTTPS client"
+time="2020-05-17T02:11:19.690776812-05:00" level=info msg="Attempting next endpoint for pull after error: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: http: server gave HTTP response to HTTPS client"
+time="2020-05-17T02:11:19.769980834-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T02:11:19.770118620-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:11:19.770139121-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+Current time:  2020-05-17 02:11:20.062315231 -0500 CDT m=+210.675423852, Starting the download of the layers.
+2020-05-17 02:11:20.144703296 -0500 CDT m=+210.757811820 --->	  Waiting for top download.
+2020-05-17 02:11:20.342368567 -0500 CDT m=+210.955477054 --->	 Time to download the layer: 197.541688ms
+2020-05-17 02:11:20.342426721 -0500 CDT m=+210.955535141 --->	 Reporting from makeDownloadFunc. Time to download content: 197.603201ms
+2020-05-17 02:11:20.651630279 -0500 CDT m=+211.264738812 --->	 Time to download the layer: 506.807522ms
+2020-05-17 02:11:20.651685698 -0500 CDT m=+211.264794094 --->	 Reporting from makeDownloadFunc. Time to download content: 506.866918ms
+2020-05-17 02:11:20.845294195 -0500 CDT m=+211.458402734 --->	 Time to download the layer: 193.574152ms
+2020-05-17 02:11:20.845376478 -0500 CDT m=+211.458484914 --->	 Reporting from makeDownloadFunc. Time to download content: 700.3697ms
+2020-05-17 02:11:20.942596907 -0500 CDT m=+211.555705472 --->	 Time to download the layer: 600.139632ms
+2020-05-17 02:11:20.942650749 -0500 CDT m=+211.555759149 --->	 Reporting from makeDownloadFunc. Time to download content: 797.840099ms
+2020-05-17 02:11:21.040703136 -0500 CDT m=+211.653811682 --->	 Time to download the layer: 195.289323ms
+2020-05-17 02:11:21.040760342 -0500 CDT m=+211.653868721 --->	 Reporting from makeDownloadFunc. Time to download content: 896.040979ms
+2020-05-17 02:11:21.126388536 -0500 CDT m=+211.739497103 --->	 Time to download the layer: 183.697983ms
+2020-05-17 02:11:21.126445393 -0500 CDT m=+211.739553801 --->	 Reporting from makeDownloadFunc. Time to download content: 981.691208ms
+2020-05-17 02:11:21.230339604 -0500 CDT m=+211.843448143 --->	 Time to download the layer: 189.549081ms
+2020-05-17 02:11:21.23039549 -0500 CDT m=+211.843503910 --->	 Reporting from makeDownloadFunc. Time to download content: 1.08561424s
+2020-05-17 02:11:21.31110022 -0500 CDT m=+211.924208782 --->	 Time to download the layer: 184.626116ms
+2020-05-17 02:11:21.31116837 -0500 CDT m=+211.924276760 --->	 Reporting from makeDownloadFunc. Time to download content: 1.166440989s
+2020-05-17 02:11:21.417867929 -0500 CDT m=+212.030976505 --->	 Time to download the layer: 187.441403ms
+2020-05-17 02:11:21.417939571 -0500 CDT m=+212.031048060 --->	 Reporting from makeDownloadFunc. Time to download content: 1.273155746s
+2020-05-17 02:11:21.418146835 -0500 CDT m=+212.031255367 --->	 Time to download the layer: 1.273593158s
+2020-05-17 02:11:21.418188861 -0500 CDT m=+212.031297293 --->	 Reporting from makeDownloadFunc. Time to download content: 1.273640342s
+2020-05-17 02:11:21.499205309 -0500 CDT m=+212.112313841 --->	 Time to download the layer: 188.006124ms
+2020-05-17 02:11:21.499267163 -0500 CDT m=+212.112375543 --->	 Reporting from makeDownloadFunc. Time to download content: 1.354552881s
+2020-05-17 02:11:21.605313469 -0500 CDT m=+212.218421824 --->	 Time to download the layer: 187.340951ms
+2020-05-17 02:11:21.605548915 -0500 CDT m=+212.218657277 --->	 Reporting from makeDownloadFunc. Time to download content: 1.460716397s
+2020-05-17 02:11:21.60581674 -0500 CDT m=+212.218925076 --->	 Time to download the layer: 187.564306ms
+2020-05-17 02:11:21.605828654 -0500 CDT m=+212.218936974 --->	 Reporting from makeDownloadFunc. Time to download content: 1.460959345s
+2020-05-17 02:11:22.559920077 -0500 CDT m=+213.173028611 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 2.415371906s.
+2020-05-17 02:11:22.560444222 -0500 CDT m=+213.173552735 --->	  Closing running status of channel.
+2020-05-17 02:11:22.560514528 -0500 CDT m=+213.173622901 --->	  Wait for parent download lasted for: 1.908808256s
+2020-05-17 02:11:22.971770397 -0500 CDT m=+213.584878928 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 2.826951962s.
+2020-05-17 02:11:22.971874446 -0500 CDT m=+213.584982876 --->	  Closing running status of channel.
+2020-05-17 02:11:22.971913908 -0500 CDT m=+213.585022340 --->	  Wait for parent download lasted for: 2.629465897s
+2020-05-17 02:11:23.399489616 -0500 CDT m=+214.012598159 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 3.254666699s.
+2020-05-17 02:11:23.399617672 -0500 CDT m=+214.012726114 --->	  Closing running status of channel.
+2020-05-17 02:11:23.399653854 -0500 CDT m=+214.012762273 --->	  Wait for parent download lasted for: 2.456973163s
+2020-05-17 02:11:23.920094472 -0500 CDT m=+214.533203005 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 3.775284244s.
+2020-05-17 02:11:23.920197291 -0500 CDT m=+214.533305732 --->	  Closing running status of channel.
+2020-05-17 02:11:25.815678974 -0500 CDT m=+216.428787507 --->	  Closing running status of channel.
+2020-05-17 02:11:25.815799305 -0500 CDT m=+216.428907918 --->	  Wait for parent download lasted for: 4.970396654s
+2020-05-17 02:11:26.227505732 -0500 CDT m=+216.840614265 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 6.082499272s.
+2020-05-17 02:11:26.227604135 -0500 CDT m=+216.840712554 --->	  Closing running status of channel.
+2020-05-17 02:11:26.227667433 -0500 CDT m=+216.840775849 --->	  Wait for parent download lasted for: 5.186886465s
+2020-05-17 02:11:26.613473274 -0500 CDT m=+217.226581815 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 6.468754288s.
+2020-05-17 02:11:26.613577524 -0500 CDT m=+217.226685956 --->	  Closing running status of channel.
+2020-05-17 02:11:26.613646352 -0500 CDT m=+217.226754730 --->	  Wait for parent download lasted for: 5.487181011s
+2020-05-17 02:11:27.100283163 -0500 CDT m=+217.713391696 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 6.955529397s.
+2020-05-17 02:11:27.100378183 -0500 CDT m=+217.713486564 --->	  Closing running status of channel.
+2020-05-17 02:11:27.100446036 -0500 CDT m=+217.713554434 --->	  Wait for parent download lasted for: 5.870028857s
+2020-05-17 02:11:27.570181345 -0500 CDT m=+218.183289908 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 7.425400622s.
+2020-05-17 02:11:27.570744941 -0500 CDT m=+218.183853490 --->	  Closing running status of channel.
+2020-05-17 02:11:27.570887607 -0500 CDT m=+218.183996143 --->	  Wait for parent download lasted for: 6.259698279s
+2020-05-17 02:11:27.981798807 -0500 CDT m=+218.594907369 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 7.837071899s.
+2020-05-17 02:11:27.981892061 -0500 CDT m=+218.595000483 --->	  Closing running status of channel.
+2020-05-17 02:11:27.981935996 -0500 CDT m=+218.595044383 --->	  Wait for parent download lasted for: 6.563973439s
+2020-05-17 02:11:28.509925209 -0500 CDT m=+219.123033782 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 8.365141834s.
+2020-05-17 02:11:28.510035875 -0500 CDT m=+219.123144320 --->	  Closing running status of channel.
+2020-05-17 02:11:28.510085444 -0500 CDT m=+219.123193832 --->	  Wait for parent download lasted for: 7.010797267s
+2020-05-17 02:11:28.938715103 -0500 CDT m=+219.551823664 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 8.794001294s.
+2020-05-17 02:11:28.938807158 -0500 CDT m=+219.551915604 --->	  Closing running status of channel.
+2020-05-17 02:11:28.938850524 -0500 CDT m=+219.551958919 --->	  Wait for parent download lasted for: 7.333289922s
+2020-05-17 02:11:29.358391267 -0500 CDT m=+219.971499802 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 9.213559431s.
+2020-05-17 02:11:29.358469355 -0500 CDT m=+219.971577785 --->	  Closing running status of channel.
+2020-05-17 02:11:29.358506289 -0500 CDT m=+219.971614675 --->	  Wait for parent download lasted for: 7.752672534s
+2020-05-17 02:11:29.886930246 -0500 CDT m=+220.500038809 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 9.742061588s.
+2020-05-17 02:11:29.887018119 -0500 CDT m=+220.500126573 --->	  Closing running status of channel.
+2020-05-17 02:11:29.887055007 -0500 CDT m=+220.500163394 --->	  Top download downlaoded.
+2020-05-17 02:11:29.887095816 -0500 CDT m=+220.500204212 --->	  Downlaoded image in time: 9.824681158s
+time="2020-05-17T02:12:42.025754754-05:00" level=info msg="Container 19f8f22105e9af0ff7d69635717f908ef4a35c20c51c5cebd790d43763a4d283 failed to exit within 10 seconds of signal 15 - using the force"
+time="2020-05-17T02:12:42.241180868-05:00" level=info msg="ignoring event" module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2020-05-17T02:12:42.242294297-05:00" level=warning msg="rmServiceBinding 65312f97d196033fb4e40afe8257485d4a20deadf4ff78d300c13dbbbbab3441 possible transient state ok:false entries:0 set:false "
+time="2020-05-17T02:12:44.016294679-05:00" level=warning msg="Error (Unable to complete atomic operation, key modified) deleting object [endpoint mvn3wrk1uf4jf0wubu0fayhnh b68e8b25b9527f61f04c72be6ace435d8cfb37bde8641c149b39d4eb979bdcbb], retrying...."
+time="2020-05-17T02:12:44.954390673-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T02:12:46.149869373-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T02:12:46.275168638-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T02:12:46.275831880-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:12:46.276356176-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:12:46.276839535-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:12:46.276924681-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T02:12:46.277378883-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:12:46.277457666-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T02:12:54.483599143-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:3 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:12:54.483734256-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:13:02.472865202-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T02:13:04.969734580-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T02:13:05.270284723-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T02:13:05.270961267-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:13:05.271435548-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:13:05.271916098-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:13:08.049536521-05:00" level=warning msg="Error getting v2 registry: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: http: server gave HTTP response to HTTPS client"
+time="2020-05-17T02:13:08.049561608-05:00" level=info msg="Attempting next endpoint for pull after error: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: http: server gave HTTP response to HTTPS client"
+Current time:  2020-05-17 02:13:08.367208558 -0500 CDT m=+318.980317117, Starting the download of the layers.
+time="2020-05-17T02:13:08.838359367-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T02:13:08.838486110-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:13:08.838503683-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T02:14:17.206030896-05:00" level=info msg="Layer sha256:74c46167f5f4439f3099b064980a8ce78c100204d28d32b66a6fc29b595bed27 cleaned up"
+time="2020-05-17T02:14:17.206054668-05:00" level=info msg="Layer sha256:7ea4cb33f8598dbbbd7b60e061f60523f1242d68b76428296b2bd7d735397332 cleaned up"
+time="2020-05-17T02:14:17.206062897-05:00" level=info msg="Layer sha256:4f1a49ec1dffc729a67f7ed18b595a8bf0a9b939e997a0777615360a12fdd754 cleaned up"
+time="2020-05-17T02:14:17.206069141-05:00" level=info msg="Layer sha256:d71838371587784302caeffb6e9dc2ac8a5df3570e4fece52e13a0e7cd2c5628 cleaned up"
+time="2020-05-17T02:14:17.206074979-05:00" level=info msg="Layer sha256:fb53c83d19c2fa9615a46f41c3e7ac2e93200ec938ba7e79d0bd547e780b56e7 cleaned up"
+time="2020-05-17T02:14:17.206080980-05:00" level=info msg="Layer sha256:0a82eac6953f571bcd343f0fd32d5c4436358a13bbc179ffde24b3cd2b5d53e1 cleaned up"
+time="2020-05-17T02:14:17.206086627-05:00" level=info msg="Layer sha256:f6be03b48fed1e0c692bd85f2109f502fd164f320d00deea2bce21a5ae0e6bab cleaned up"
+time="2020-05-17T02:14:17.206092206-05:00" level=info msg="Layer sha256:6e44bc4ecec666d3a8ede5d8b031a9373107d8a6f12dd2b45d6c6769bf56255c cleaned up"
+time="2020-05-17T02:14:17.206097968-05:00" level=info msg="Layer sha256:2a270e78d3edf763581b318f6f684f070b56638557bebac37fc53c35de67fe10 cleaned up"
+time="2020-05-17T02:14:17.206103468-05:00" level=info msg="Layer sha256:22f75816baa08804acc893e7564ffdaca9d824f16c83920b8d51fba3df7d3c18 cleaned up"
+time="2020-05-17T02:14:17.206108981-05:00" level=info msg="Layer sha256:24a51511e5afe38614c2c8bc2f66a3ae12da1d6d00c9c83da7020f48f37ea04b cleaned up"
+time="2020-05-17T02:14:17.206114698-05:00" level=info msg="Layer sha256:edad02f7dbd16f2256665cfdcb298d5850a17bf262d2f6806c5a8949ae9a9f58 cleaned up"
+time="2020-05-17T02:14:17.206120398-05:00" level=info msg="Layer sha256:9ea2239dea5ae98162e1640dd4aeba635ee3ce91b433351baa3f372ade61bfc0 cleaned up"
+time="2020-05-17T02:14:17.206125831-05:00" level=info msg="Layer sha256:4ed5c151d3d9ee1708355a9c56f85df79875481819c950ff348cd3c670e66cfd cleaned up"
+time="2020-05-17T02:14:17.206131375-05:00" level=info msg="Layer sha256:77cae8ab23bf486355d1b3191259705374f4a11d483b24964d2f729dd8c076a0 cleaned up"
+2020-05-17 02:14:17.206150404 -0500 CDT m=+387.819258733 --->	  Waiting for top download.
+2020-05-17 02:14:17.687091191 -0500 CDT m=+388.300199655 --->	 Time to download the layer: 480.71115ms
+2020-05-17 02:14:17.687150838 -0500 CDT m=+388.300259208 --->	 Reporting from makeDownloadFunc. Time to download content: 480.771007ms
+2020-05-17 02:14:17.746014436 -0500 CDT m=+388.359122840 --->	 Time to download the layer: 539.812085ms
+2020-05-17 02:14:17.746072307 -0500 CDT m=+388.359180691 --->	 Reporting from makeDownloadFunc. Time to download content: 539.871032ms
+2020-05-17 02:14:17.843122584 -0500 CDT m=+388.456231094 --->	 Time to download the layer: 155.94051ms
+2020-05-17 02:14:17.843241626 -0500 CDT m=+388.456350016 --->	 Reporting from makeDownloadFunc. Time to download content: 636.789081ms
+2020-05-17 02:14:18.007441119 -0500 CDT m=+388.620549647 --->	 Time to download the layer: 164.159601ms
+2020-05-17 02:14:18.007499359 -0500 CDT m=+388.620607748 --->	 Reporting from makeDownloadFunc. Time to download content: 801.043224ms
+2020-05-17 02:14:18.170495386 -0500 CDT m=+388.783603961 --->	 Time to download the layer: 162.967694ms
+2020-05-17 02:14:18.170570511 -0500 CDT m=+388.783678896 --->	 Reporting from makeDownloadFunc. Time to download content: 964.108037ms
+2020-05-17 02:14:18.315799033 -0500 CDT m=+388.928907437 --->	 Time to download the layer: 569.412138ms
+2020-05-17 02:14:18.316313922 -0500 CDT m=+388.929422403 --->	 Reporting from makeDownloadFunc. Time to download content: 1.109869679s
+2020-05-17 02:14:18.332120202 -0500 CDT m=+388.945228751 --->	 Time to download the layer: 161.517809ms
+2020-05-17 02:14:18.33223268 -0500 CDT m=+388.945341054 --->	 Reporting from makeDownloadFunc. Time to download content: 1.125998075s
+2020-05-17 02:14:18.442924348 -0500 CDT m=+389.056032869 --->	 Time to download the layer: 1.236643072s
+2020-05-17 02:14:18.442983576 -0500 CDT m=+389.056091963 --->	 Reporting from makeDownloadFunc. Time to download content: 1.236702478s
+2020-05-17 02:14:18.479882084 -0500 CDT m=+389.092990625 --->	 Time to download the layer: 163.522841ms
+2020-05-17 02:14:18.479943548 -0500 CDT m=+389.093051991 --->	 Reporting from makeDownloadFunc. Time to download content: 1.273700091s
+2020-05-17 02:14:18.481776052 -0500 CDT m=+389.094884543 --->	 Time to download the layer: 149.509288ms
+2020-05-17 02:14:18.481855384 -0500 CDT m=+389.094963843 --->	 Reporting from makeDownloadFunc. Time to download content: 1.275605878s
+2020-05-17 02:14:18.609944718 -0500 CDT m=+389.223053284 --->	 Time to download the layer: 128.052036ms
+2020-05-17 02:14:18.610013705 -0500 CDT m=+389.223122109 --->	 Reporting from makeDownloadFunc. Time to download content: 1.403748514s
+2020-05-17 02:14:18.610267835 -0500 CDT m=+389.223376234 --->	 Time to download the layer: 167.254059ms
+2020-05-17 02:14:18.61030961 -0500 CDT m=+389.223417995 --->	 Reporting from makeDownloadFunc. Time to download content: 1.404054577s
+2020-05-17 02:14:19.383245729 -0500 CDT m=+389.996354219 --->	 Time to download the layer: 773.199352ms
+2020-05-17 02:14:19.383306577 -0500 CDT m=+389.996414947 --->	 Reporting from makeDownloadFunc. Time to download content: 2.177035414s
+2020-05-17 02:14:19.521303405 -0500 CDT m=+390.134411896 --->	 Time to download the layer: 1.041328256s
+2020-05-17 02:14:19.521381017 -0500 CDT m=+390.134489396 --->	 Reporting from makeDownloadFunc. Time to download content: 2.315120997s
+2020-05-17 02:14:19.696172392 -0500 CDT m=+390.309280956 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 2.48997166s.
+2020-05-17 02:14:19.696417801 -0500 CDT m=+390.309526262 --->	  Closing running status of channel.
+2020-05-17 02:14:19.696485469 -0500 CDT m=+390.309593860 --->	  Wait for parent download lasted for: 1.25348186s
+2020-05-17 02:14:20.73859328 -0500 CDT m=+391.351701809 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 3.532312539s.
+2020-05-17 02:14:20.738689751 -0500 CDT m=+391.351798179 --->	  Closing running status of channel.
+2020-05-17 02:14:20.738727418 -0500 CDT m=+391.351835798 --->	  Wait for parent download lasted for: 3.051554772s
+2020-05-17 02:14:21.142406506 -0500 CDT m=+391.755515037 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 3.936027135s.
+2020-05-17 02:14:21.142487543 -0500 CDT m=+391.755595969 --->	  Closing running status of channel.
+2020-05-17 02:14:21.142525197 -0500 CDT m=+391.755633578 --->	  Wait for parent download lasted for: 3.299258857s
+2020-05-17 02:14:21.637414233 -0500 CDT m=+392.250522777 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 4.430962269s.
+2020-05-17 02:14:21.638066441 -0500 CDT m=+392.251175014 --->	  Closing running status of channel.
+2020-05-17 02:14:21.638152654 -0500 CDT m=+392.251261072 --->	  Wait for parent download lasted for: 3.321803711s
+2020-05-17 02:14:22.148800455 -0500 CDT m=+392.761908996 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 4.942356458s.
+2020-05-17 02:14:22.148876833 -0500 CDT m=+392.761985269 --->	  Closing running status of channel.
+2020-05-17 02:14:24.352656299 -0500 CDT m=+394.965764830 --->	  Closing running status of channel.
+2020-05-17 02:14:24.352805705 -0500 CDT m=+394.965914239 --->	  Wait for parent download lasted for: 6.345286841s
+2020-05-17 02:14:24.763840042 -0500 CDT m=+395.376948576 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 7.557384326s.
+2020-05-17 02:14:24.76394047 -0500 CDT m=+395.377048944 --->	  Closing running status of channel.
+2020-05-17 02:14:24.764010784 -0500 CDT m=+395.377119200 --->	  Wait for parent download lasted for: 6.593418756s
+2020-05-17 02:14:25.225477111 -0500 CDT m=+395.838585652 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 8.019015115s.
+2020-05-17 02:14:25.225557047 -0500 CDT m=+395.838665475 --->	  Closing running status of channel.
+2020-05-17 02:14:25.225631842 -0500 CDT m=+395.838740409 --->	  Wait for parent download lasted for: 6.893374967s
+2020-05-17 02:14:25.628929805 -0500 CDT m=+396.242038351 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 8.4226957s.
+2020-05-17 02:14:25.629027571 -0500 CDT m=+396.242136042 --->	  Closing running status of channel.
+2020-05-17 02:14:25.629092279 -0500 CDT m=+396.242200683 --->	  Wait for parent download lasted for: 7.149127114s
+2020-05-17 02:14:26.090067631 -0500 CDT m=+396.703176159 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 8.883824497s.
+2020-05-17 02:14:26.090158808 -0500 CDT m=+396.703267189 --->	  Closing running status of channel.
+2020-05-17 02:14:26.090262714 -0500 CDT m=+396.703371188 --->	  Wait for parent download lasted for: 7.6083868s
+2020-05-17 02:14:26.601662597 -0500 CDT m=+397.214771129 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 9.395413455s.
+2020-05-17 02:14:26.601774861 -0500 CDT m=+397.214883240 --->	  Closing running status of channel.
+2020-05-17 02:14:26.601851593 -0500 CDT m=+397.214959965 --->	  Wait for parent download lasted for: 7.99152305s
+2020-05-17 02:14:27.071228548 -0500 CDT m=+397.684337077 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 9.864974333s.
+2020-05-17 02:14:27.071923098 -0500 CDT m=+397.685031633 --->	  Closing running status of channel.
+2020-05-17 02:14:27.072037931 -0500 CDT m=+397.685146451 --->	  Wait for parent download lasted for: 7.550631352s
+2020-05-17 02:14:28.035066169 -0500 CDT m=+398.648174734 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 10.828806672s.
+2020-05-17 02:14:28.035180314 -0500 CDT m=+398.648288775 --->	  Closing running status of channel.
+2020-05-17 02:14:28.035243218 -0500 CDT m=+398.648351616 --->	  Wait for parent download lasted for: 9.425206523s
+2020-05-17 02:14:28.438666887 -0500 CDT m=+399.051775447 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 11.232402252s.
+2020-05-17 02:14:28.439153971 -0500 CDT m=+399.052262523 --->	  Closing running status of channel.
+2020-05-17 02:14:28.439237062 -0500 CDT m=+399.052345499 --->	  Wait for parent download lasted for: 9.055910297s
+2020-05-17 02:14:29.226735635 -0500 CDT m=+399.839844167 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 12.020464857s.
+2020-05-17 02:14:29.227340834 -0500 CDT m=+399.840449399 --->	  Closing running status of channel.
+2020-05-17 02:14:29.227421548 -0500 CDT m=+399.840529921 --->	  Top download downlaoded.
+2020-05-17 02:14:29.227458734 -0500 CDT m=+399.840567124 --->	  Downlaoded image in time: 1m20.860161861s
+time="2020-05-17T02:17:54.483833194-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:17:54.484068684-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:false netPeers:2 entries:21 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:22:02.114245720-05:00" level=info msg="Container a55117d6f0b471016621dd77b34ba4cebf4980e9be2a0b29665a513f536b6e3b failed to exit within 10 seconds of signal 15 - using the force"
+time="2020-05-17T02:22:02.254815312-05:00" level=info msg="ignoring event" module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2020-05-17T02:22:02.255275669-05:00" level=warning msg="rmServiceBinding de42d2a71c9edb5738a8a4dde9b450e33e2a8241c34fed7e2b3cfc203504dab2 possible transient state ok:false entries:0 set:false "
+time="2020-05-17T02:22:03.949850605-05:00" level=warning msg="Error (Unable to complete atomic operation, key modified) deleting object [endpoint mvn3wrk1uf4jf0wubu0fayhnh 59730a5d673b644411a3d75246deb18883ee3fac09b3919ea0723be01221ef57], retrying...."
+time="2020-05-17T02:22:06.378337753-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T02:22:07.505896144-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T02:22:07.625692298-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T02:22:07.626337716-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:22:07.626817530-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:22:07.627254616-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:22:07.627332042-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T02:22:07.627728488-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:22:07.627792907-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T02:22:54.683590723-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:22:54.683727492-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:6 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:27:54.883790335-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:27:54.883974011-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:6 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:32:55.083630978-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:32:55.083765137-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:6 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:35:17.021233114-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T02:35:19.144469835-05:00" level=warning msg="Error getting v2 registry: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: http: server gave HTTP response to HTTPS client"
+time="2020-05-17T02:35:19.144564058-05:00" level=info msg="Attempting next endpoint for pull after error: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: http: server gave HTTP response to HTTPS client"
+Current time:  2020-05-17 02:35:19.462765919 -0500 CDT m=+1650.075874273, Starting the download of the layers.
+2020-05-17 02:35:19.462883011 -0500 CDT m=+1650.075991353 --->	  Waiting for top download.
+2020-05-17 02:35:19.939679485 -0500 CDT m=+1650.552788020 --->	 Time to download the layer: 476.67806ms
+2020-05-17 02:35:19.939741901 -0500 CDT m=+1650.552850299 --->	 Reporting from makeDownloadFunc. Time to download content: 476.740592ms
+2020-05-17 02:35:20.007836697 -0500 CDT m=+1650.620945096 --->	 Time to download the layer: 544.878352ms
+2020-05-17 02:35:20.007887752 -0500 CDT m=+1650.620996128 --->	 Reporting from makeDownloadFunc. Time to download content: 544.930135ms
+2020-05-17 02:35:20.105482888 -0500 CDT m=+1650.718591249 --->	 Time to download the layer: 165.711389ms
+2020-05-17 02:35:20.105523013 -0500 CDT m=+1650.718631386 --->	 Reporting from makeDownloadFunc. Time to download content: 642.469239ms
+2020-05-17 02:35:20.267883274 -0500 CDT m=+1650.880991842 --->	 Time to download the layer: 162.34392ms
+2020-05-17 02:35:20.267949136 -0500 CDT m=+1650.881057541 --->	 Reporting from makeDownloadFunc. Time to download content: 804.963191ms
+2020-05-17 02:35:20.432484141 -0500 CDT m=+1651.045592685 --->	 Time to download the layer: 164.502795ms
+2020-05-17 02:35:20.432582138 -0500 CDT m=+1651.045690583 --->	 Reporting from makeDownloadFunc. Time to download content: 969.685988ms
+2020-05-17 02:35:20.45015854 -0500 CDT m=+1651.063267015 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 987.201153ms.
+2020-05-17 02:35:20.450237151 -0500 CDT m=+1651.063345526 --->	  Closing running status of channel.
+2020-05-17 02:35:20.580402753 -0500 CDT m=+1651.193511320 --->	 Time to download the layer: 572.439663ms
+2020-05-17 02:35:20.580483234 -0500 CDT m=+1651.193591624 --->	 Reporting from makeDownloadFunc. Time to download content: 1.117518604s
+2020-05-17 02:35:20.594562741 -0500 CDT m=+1651.207671284 --->	 Time to download the layer: 161.948424ms
+2020-05-17 02:35:20.594614738 -0500 CDT m=+1651.207723126 --->	 Reporting from makeDownloadFunc. Time to download content: 1.131690879s
+2020-05-17 02:35:20.709935931 -0500 CDT m=+1651.323044431 --->	 Time to download the layer: 1.246950152s
+2020-05-17 02:35:20.709990079 -0500 CDT m=+1651.323098511 --->	 Reporting from makeDownloadFunc. Time to download content: 1.247004516s
+2020-05-17 02:35:20.710013972 -0500 CDT m=+1651.323122348 --->	  Wait for parent download lasted for: 2.472µs
+2020-05-17 02:35:20.745682112 -0500 CDT m=+1651.358790629 --->	 Time to download the layer: 165.165929ms
+2020-05-17 02:35:20.745684685 -0500 CDT m=+1651.358793210 --->	 Time to download the layer: 151.041808ms
+2020-05-17 02:35:20.745759479 -0500 CDT m=+1651.358867927 --->	 Reporting from makeDownloadFunc. Time to download content: 1.282811198s
+2020-05-17 02:35:20.745823096 -0500 CDT m=+1651.358931481 --->	 Reporting from makeDownloadFunc. Time to download content: 1.282883832s
+2020-05-17 02:35:20.87576756 -0500 CDT m=+1651.488875923 --->	 Time to download the layer: 129.886829ms
+2020-05-17 02:35:20.875792511 -0500 CDT m=+1651.488900835 --->	 Reporting from makeDownloadFunc. Time to download content: 1.412884959s
+2020-05-17 02:35:20.877445348 -0500 CDT m=+1651.490553685 --->	 Time to download the layer: 167.374688ms
+2020-05-17 02:35:20.877461447 -0500 CDT m=+1651.490569765 --->	 Reporting from makeDownloadFunc. Time to download content: 1.414559119s
+2020-05-17 02:35:21.662289819 -0500 CDT m=+1652.275398216 --->	 Time to download the layer: 786.486542ms
+2020-05-17 02:35:21.662348711 -0500 CDT m=+1652.275457086 --->	 Reporting from makeDownloadFunc. Time to download content: 2.199436761s
+2020-05-17 02:35:21.772184962 -0500 CDT m=+1652.385293499 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 2.309199742s.
+2020-05-17 02:35:21.772261862 -0500 CDT m=+1652.385370235 --->	  Closing running status of channel.
+2020-05-17 02:35:21.772298006 -0500 CDT m=+1652.385406383 --->	  Wait for parent download lasted for: 1.832535144s
+2020-05-17 02:35:21.79197166 -0500 CDT m=+1652.405080138 --->	 Time to download the layer: 1.046182078s
+2020-05-17 02:35:21.792068995 -0500 CDT m=+1652.405177441 --->	 Reporting from makeDownloadFunc. Time to download content: 2.329168066s
+2020-05-17 02:35:22.251282093 -0500 CDT m=+1652.864390655 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 2.788281249s.
+2020-05-17 02:35:22.251384661 -0500 CDT m=+1652.864493050 --->	  Closing running status of channel.
+2020-05-17 02:35:22.251462545 -0500 CDT m=+1652.864570934 --->	  Wait for parent download lasted for: 2.145930115s
+2020-05-17 02:35:22.712967773 -0500 CDT m=+1653.326076336 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 3.249914725s.
+2020-05-17 02:35:22.713060324 -0500 CDT m=+1653.326168768 --->	  Closing running status of channel.
+2020-05-17 02:35:22.7131346 -0500 CDT m=+1653.326243001 --->	  Wait for parent download lasted for: 2.132628216s
+2020-05-17 02:35:23.149418874 -0500 CDT m=+1653.762527419 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 3.686454673s.
+2020-05-17 02:35:23.14950842 -0500 CDT m=+1653.762616892 --->	  Closing running status of channel.
+2020-05-17 02:35:25.444830384 -0500 CDT m=+1656.057938918 --->	  Closing running status of channel.
+2020-05-17 02:35:25.444945716 -0500 CDT m=+1656.058054298 --->	  Wait for parent download lasted for: 5.17697431s
+2020-05-17 02:35:25.873009144 -0500 CDT m=+1656.486117522 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 6.410023165s.
+2020-05-17 02:35:25.873048717 -0500 CDT m=+1656.486157072 --->	  Closing running status of channel.
+2020-05-17 02:35:25.873077399 -0500 CDT m=+1656.486185721 --->	  Wait for parent download lasted for: 5.440472411s
+2020-05-17 02:35:26.3004818 -0500 CDT m=+1656.913590147 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 6.837585476s.
+2020-05-17 02:35:26.300609413 -0500 CDT m=+1656.913717753 --->	  Closing running status of channel.
+2020-05-17 02:35:26.300630519 -0500 CDT m=+1656.913738829 --->	  Wait for parent download lasted for: 5.705995703s
+2020-05-17 02:35:26.829272673 -0500 CDT m=+1657.442381209 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 7.366349235s.
+2020-05-17 02:35:26.829418285 -0500 CDT m=+1657.442526876 --->	  Closing running status of channel.
+2020-05-17 02:35:26.829505625 -0500 CDT m=+1657.442614094 --->	  Wait for parent download lasted for: 6.083633436s
+2020-05-17 02:35:27.266113493 -0500 CDT m=+1657.879222027 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 7.803174703s.
+2020-05-17 02:35:27.266209133 -0500 CDT m=+1657.879317549 --->	  Closing running status of channel.
+2020-05-17 02:35:27.26627035 -0500 CDT m=+1657.879378719 --->	  Wait for parent download lasted for: 6.520489557s
+2020-05-17 02:35:27.693764091 -0500 CDT m=+1658.306872621 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 8.230816127s.
+2020-05-17 02:35:27.693848309 -0500 CDT m=+1658.306956688 --->	  Closing running status of channel.
+2020-05-17 02:35:27.693918682 -0500 CDT m=+1658.307027055 --->	  Wait for parent download lasted for: 6.816451266s
+2020-05-17 02:35:28.113402735 -0500 CDT m=+1658.726511267 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 8.650501011s.
+2020-05-17 02:35:28.113505445 -0500 CDT m=+1658.726613883 --->	  Closing running status of channel.
+2020-05-17 02:35:28.113592574 -0500 CDT m=+1658.726701147 --->	  Wait for parent download lasted for: 6.321496436s
+2020-05-17 02:35:29.102368816 -0500 CDT m=+1659.715477348 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 9.639468317s.
+2020-05-17 02:35:29.102476353 -0500 CDT m=+1659.715584785 --->	  Closing running status of channel.
+2020-05-17 02:35:29.102539786 -0500 CDT m=+1659.715648163 --->	  Wait for parent download lasted for: 8.226740084s
+2020-05-17 02:35:29.522200764 -0500 CDT m=+1660.135309298 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 10.059293809s.
+2020-05-17 02:35:29.52231055 -0500 CDT m=+1660.135418992 --->	  Closing running status of channel.
+2020-05-17 02:35:29.522375434 -0500 CDT m=+1660.135483805 --->	  Wait for parent download lasted for: 7.860005s
+2020-05-17 02:35:30.343504437 -0500 CDT m=+1660.956612967 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 10.880593298s.
+2020-05-17 02:35:30.343609957 -0500 CDT m=+1660.956718617 --->	  Closing running status of channel.
+2020-05-17 02:35:30.343665512 -0500 CDT m=+1660.956773889 --->	  Top download downlaoded.
+2020-05-17 02:35:30.343706062 -0500 CDT m=+1660.956814440 --->	  Downlaoded image in time: 10.880913394s
+time="2020-05-17T02:35:47.096565818-05:00" level=error msg="Bulk sync to node b86f477bcdce timed out"
+time="2020-05-17T02:35:48.077890195-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T02:35:48.189579392-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T02:35:48.190399972-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:35:48.190884363-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:35:48.191326687-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:35:48.404873011-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T02:35:48.404994823-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:35:48.405010734-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T02:36:38.573162813-05:00" level=info msg="Container 0227569df2262c128c174209a1451b568f3de74e5b906a0e669141b9d6c86d4b failed to exit within 10 seconds of signal 15 - using the force"
+time="2020-05-17T02:36:38.738533815-05:00" level=info msg="ignoring event" module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2020-05-17T02:36:38.738958820-05:00" level=warning msg="rmServiceBinding 102f6d9712e9690680cb08fd7832cf3c7a2f26e07a5bec6042ec4c591418d8a8 possible transient state ok:false entries:0 set:false "
+time="2020-05-17T02:36:40.000837543-05:00" level=warning msg="Health check for container 0227569df2262c128c174209a1451b568f3de74e5b906a0e669141b9d6c86d4b error: No such exec instance: f722989a23b1d004d62709c9332f2fa8bb77c572e3c325f9510fbcb7c0b0e93c"
+time="2020-05-17T02:36:40.390247958-05:00" level=warning msg="Error (Unable to complete atomic operation, key modified) deleting object [endpoint mvn3wrk1uf4jf0wubu0fayhnh 426d6b9f13fe74356c4a99c67633baf146a298d81cb5b4e77c24e57d823ce7d2], retrying...."
+time="2020-05-17T02:36:46.279587729-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T02:36:47.529916504-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T02:36:47.683551592-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T02:36:47.684341981-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:36:47.684862424-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:36:47.685327719-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:36:47.685455593-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T02:36:47.685930046-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:36:47.686016273-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T02:37:55.283571402-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:37:55.283711588-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:9 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:42:55.483759796-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:42:55.483945948-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:6 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:43:20.409033245-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T02:43:22.333742435-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T02:43:22.545453570-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T02:43:22.545644701-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:43:22.545759931-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:43:22.545871252-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:43:23.394433026-05:00" level=warning msg="Error getting v2 registry: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: http: server gave HTTP response to HTTPS client"
+time="2020-05-17T02:43:23.394470304-05:00" level=info msg="Attempting next endpoint for pull after error: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: http: server gave HTTP response to HTTPS client"
+time="2020-05-17T02:43:23.560130727-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T02:43:23.560282934-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:43:23.560306321-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+Current time:  2020-05-17 02:43:23.759828129 -0500 CDT m=+2134.372936665, Starting the download of the layers.
+2020-05-17 02:43:23.76023894 -0500 CDT m=+2134.373347432 --->	  Waiting for top download.
+2020-05-17 02:43:24.260350614 -0500 CDT m=+2134.873459071 --->	 Time to download the layer: 500.179476ms
+2020-05-17 02:43:24.260405818 -0500 CDT m=+2134.873514191 --->	 Reporting from makeDownloadFunc. Time to download content: 500.239979ms
+2020-05-17 02:43:24.362263976 -0500 CDT m=+2134.975372528 --->	 Time to download the layer: 601.796097ms
+2020-05-17 02:43:24.362325988 -0500 CDT m=+2134.975434376 --->	 Reporting from makeDownloadFunc. Time to download content: 601.859715ms
+2020-05-17 02:43:24.455043182 -0500 CDT m=+2135.068151568 --->	 Time to download the layer: 194.602217ms
+2020-05-17 02:43:24.455106719 -0500 CDT m=+2135.068215099 --->	 Reporting from makeDownloadFunc. Time to download content: 694.82215ms
+2020-05-17 02:43:24.646535206 -0500 CDT m=+2135.259643740 --->	 Time to download the layer: 191.383904ms
+2020-05-17 02:43:24.646607175 -0500 CDT m=+2135.259715603 --->	 Reporting from makeDownloadFunc. Time to download content: 886.333682ms
+2020-05-17 02:43:24.804344388 -0500 CDT m=+2135.417452893 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 1.043878356s.
+2020-05-17 02:43:24.804416851 -0500 CDT m=+2135.417525298 --->	  Closing running status of channel.
+2020-05-17 02:43:24.830489274 -0500 CDT m=+2135.443597818 --->	 Time to download the layer: 183.85109ms
+2020-05-17 02:43:24.83057138 -0500 CDT m=+2135.443679757 --->	 Reporting from makeDownloadFunc. Time to download content: 1.070283487s
+2020-05-17 02:43:24.957566743 -0500 CDT m=+2135.570675312 --->	 Time to download the layer: 595.149859ms
+2020-05-17 02:43:24.957621292 -0500 CDT m=+2135.570729677 --->	 Reporting from makeDownloadFunc. Time to download content: 1.197305965s
+2020-05-17 02:43:25.011164789 -0500 CDT m=+2135.624273354 --->	 Time to download the layer: 180.560391ms
+2020-05-17 02:43:25.011240427 -0500 CDT m=+2135.624348809 --->	 Reporting from makeDownloadFunc. Time to download content: 1.250922976s
+2020-05-17 02:43:25.083658291 -0500 CDT m=+2135.696766813 --->	 Time to download the layer: 1.323230459s
+2020-05-17 02:43:25.083734867 -0500 CDT m=+2135.696843248 --->	 Reporting from makeDownloadFunc. Time to download content: 1.323310145s
+2020-05-17 02:43:25.083758109 -0500 CDT m=+2135.696866483 --->	  Wait for parent download lasted for: 2.203µs
+2020-05-17 02:43:25.138333109 -0500 CDT m=+2135.751441611 --->	 Time to download the layer: 180.681406ms
+2020-05-17 02:43:25.138398952 -0500 CDT m=+2135.751507324 --->	 Reporting from makeDownloadFunc. Time to download content: 1.378054952s
+2020-05-17 02:43:25.138706294 -0500 CDT m=+2135.751814719 --->	 Time to download the layer: 127.432838ms
+2020-05-17 02:43:25.138752143 -0500 CDT m=+2135.751860519 --->	 Reporting from makeDownloadFunc. Time to download content: 1.378387378s
+2020-05-17 02:43:25.273713608 -0500 CDT m=+2135.886821931 --->	 Time to download the layer: 134.933617ms
+2020-05-17 02:43:25.273733726 -0500 CDT m=+2135.886842038 --->	 Reporting from makeDownloadFunc. Time to download content: 1.513376761s
+2020-05-17 02:43:25.274683377 -0500 CDT m=+2135.887791724 --->	 Time to download the layer: 190.895819ms
+2020-05-17 02:43:25.274696088 -0500 CDT m=+2135.887804399 --->	 Reporting from makeDownloadFunc. Time to download content: 1.514309634s
+2020-05-17 02:43:26.066085561 -0500 CDT m=+2136.679194056 --->	 Time to download the layer: 792.343363ms
+2020-05-17 02:43:26.06614099 -0500 CDT m=+2136.679249392 --->	 Reporting from makeDownloadFunc. Time to download content: 2.305761254s
+2020-05-17 02:43:26.177930828 -0500 CDT m=+2136.791039339 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 2.417506426s.
+2020-05-17 02:43:26.177998036 -0500 CDT m=+2136.791106470 --->	  Closing running status of channel.
+2020-05-17 02:43:26.178046839 -0500 CDT m=+2136.791155258 --->	  Wait for parent download lasted for: 1.9176207s
+2020-05-17 02:43:26.205947099 -0500 CDT m=+2136.819055656 --->	 Time to download the layer: 1.067515314s
+2020-05-17 02:43:26.206006988 -0500 CDT m=+2136.819115361 --->	 Reporting from makeDownloadFunc. Time to download content: 2.445670518s
+2020-05-17 02:43:26.665468625 -0500 CDT m=+2137.278577156 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 2.905303214s.
+2020-05-17 02:43:26.665554634 -0500 CDT m=+2137.278663011 --->	  Closing running status of channel.
+2020-05-17 02:43:26.665620848 -0500 CDT m=+2137.278729225 --->	  Wait for parent download lasted for: 2.210484843s
+2020-05-17 02:43:27.135187576 -0500 CDT m=+2137.748296111 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 3.374903452s.
+2020-05-17 02:43:27.135283221 -0500 CDT m=+2137.748391650 --->	  Closing running status of channel.
+2020-05-17 02:43:27.13535192 -0500 CDT m=+2137.748460300 --->	  Wait for parent download lasted for: 2.177710176s
+2020-05-17 02:43:27.554809016 -0500 CDT m=+2138.167917548 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 3.794494087s.
+2020-05-17 02:43:27.554933116 -0500 CDT m=+2138.168041496 --->	  Closing running status of channel.
+2020-05-17 02:43:29.825562869 -0500 CDT m=+2140.438671402 --->	  Closing running status of channel.
+2020-05-17 02:43:29.825665448 -0500 CDT m=+2140.438773981 --->	  Wait for parent download lasted for: 5.179037381s
+2020-05-17 02:43:30.253875832 -0500 CDT m=+2140.866984360 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 6.493602763s.
+2020-05-17 02:43:30.253967144 -0500 CDT m=+2140.867075617 --->	  Closing running status of channel.
+2020-05-17 02:43:30.254036562 -0500 CDT m=+2140.867144950 --->	  Wait for parent download lasted for: 5.423441599s
+2020-05-17 02:43:30.681599168 -0500 CDT m=+2141.294707702 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 6.921311669s.
+2020-05-17 02:43:30.681699578 -0500 CDT m=+2141.294807953 --->	  Closing running status of channel.
+2020-05-17 02:43:30.681784743 -0500 CDT m=+2141.294893307 --->	  Wait for parent download lasted for: 5.670522261s
+2020-05-17 02:43:31.085010298 -0500 CDT m=+2141.698118827 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 7.32469325s.
+2020-05-17 02:43:31.085732057 -0500 CDT m=+2141.698840571 --->	  Closing running status of channel.
+2020-05-17 02:43:31.088507975 -0500 CDT m=+2141.701616374 --->	  Wait for parent download lasted for: 5.950086287s
+2020-05-17 02:43:31.554731928 -0500 CDT m=+2142.167840457 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 7.794388315s.
+2020-05-17 02:43:31.555284574 -0500 CDT m=+2142.168393095 --->	  Closing running status of channel.
+2020-05-17 02:43:31.555362644 -0500 CDT m=+2142.168471017 --->	  Wait for parent download lasted for: 6.416590946s
+2020-05-17 02:43:31.974152377 -0500 CDT m=+2142.587260911 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 8.213788127s.
+2020-05-17 02:43:31.974677267 -0500 CDT m=+2142.587785784 --->	  Closing running status of channel.
+2020-05-17 02:43:31.974756241 -0500 CDT m=+2142.587864610 --->	  Wait for parent download lasted for: 6.70005526s
+2020-05-17 02:43:32.393909964 -0500 CDT m=+2143.007018498 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 8.633524134s.
+2020-05-17 02:43:32.394527657 -0500 CDT m=+2143.007636192 --->	  Closing running status of channel.
+2020-05-17 02:43:32.394622147 -0500 CDT m=+2143.007730520 --->	  Wait for parent download lasted for: 6.188593634s
+2020-05-17 02:43:33.434160611 -0500 CDT m=+2144.047269178 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 9.673824557s.
+2020-05-17 02:43:33.434259894 -0500 CDT m=+2144.047368344 --->	  Closing running status of channel.
+2020-05-17 02:43:33.434321431 -0500 CDT m=+2144.047429820 --->	  Wait for parent download lasted for: 8.160582643s
+2020-05-17 02:43:33.853956485 -0500 CDT m=+2144.467065019 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 10.093600159s.
+2020-05-17 02:43:33.854041957 -0500 CDT m=+2144.467150387 --->	  Closing running status of channel.
+2020-05-17 02:43:33.854111734 -0500 CDT m=+2144.467220105 --->	  Wait for parent download lasted for: 7.787949589s
+2020-05-17 02:43:34.592947752 -0500 CDT m=+2145.206056313 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 10.832568456s.
+2020-05-17 02:43:34.593047658 -0500 CDT m=+2145.206156101 --->	  Closing running status of channel.
+2020-05-17 02:43:34.593112491 -0500 CDT m=+2145.206221025 --->	  Top download downlaoded.
+2020-05-17 02:43:34.593202291 -0500 CDT m=+2145.206310707 --->	  Downlaoded image in time: 10.83328606s
+time="2020-05-17T02:47:55.683449548-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:47:55.683527926-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:false netPeers:2 entries:24 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:52:55.683902350-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:52:55.684116049-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:false netPeers:2 entries:21 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:57:55.883802803-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:57:55.883993765-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:false netPeers:2 entries:21 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T02:59:15.540871282-05:00" level=warning msg="Error getting v2 registry: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: http: server gave HTTP response to HTTPS client"
+time="2020-05-17T02:59:15.540972698-05:00" level=info msg="Attempting next endpoint for pull after error: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: http: server gave HTTP response to HTTPS client"
+time="2020-05-17T02:59:36.332964703-05:00" level=info msg="Container 7042257634ef97f8bfffba2a05f81f2c6eb0afd84228e5974b4b2488c547eb59 failed to exit within 10 seconds of signal 15 - using the force"
+time="2020-05-17T02:59:36.503186974-05:00" level=info msg="ignoring event" module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2020-05-17T02:59:36.503545042-05:00" level=warning msg="rmServiceBinding 5d35adb5cb07eba1d3cb31f4cb26d243a3deda085fed82ffe56c23bec037d2b3 possible transient state ok:false entries:0 set:false "
+time="2020-05-17T02:59:52.656482745-05:00" level=info msg="Container 0a0264a2da40714652b83910438d8cc96c34dfa38a3f19051cb79d40e85f5859 failed to exit within 10 seconds of signal 15 - using the force"
+time="2020-05-17T02:59:52.851620395-05:00" level=info msg="ignoring event" module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2020-05-17T02:59:52.852262803-05:00" level=warning msg="rmServiceBinding 0d96e5a6853e977e78c5c708b3c0475f4ceb6dc81c44c963673f1042c1babadd possible transient state ok:false entries:0 set:false "
+time="2020-05-17T02:59:54.230737514-05:00" level=warning msg="Health check for container 0a0264a2da40714652b83910438d8cc96c34dfa38a3f19051cb79d40e85f5859 error: No such exec instance: f49c7e95230c512b7006bd661484dcf895c7c7feb34f0929cbd395b69618dc87"
+time="2020-05-17T02:59:54.581745678-05:00" level=warning msg="Error (Unable to complete atomic operation, key modified) deleting object [endpoint mvn3wrk1uf4jf0wubu0fayhnh 3ae159ae687fb132d4e6892b5d4eddc9503fae6b550b6551e7f3ffdf3379bf5d], retrying...."
+time="2020-05-17T02:59:54.937626682-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T02:59:56.137768391-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T02:59:56.248860791-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T02:59:56.249581628-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:59:56.250075328-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:59:56.250510263-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:59:56.250607815-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T02:59:56.251020311-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T02:59:56.251085650-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T03:02:56.083852245-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:02:56.084021611-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:8 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:07:56.283777436-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:07:56.283943358-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:5 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:12:56.483796086-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:5 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:12:56.483957978-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:15:18.415180073-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T03:15:20.449808949-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T03:15:20.636042773-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T03:15:20.636261977-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T03:15:20.636374118-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T03:15:20.636475919-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T03:15:21.356235431-05:00" level=warning msg="Error getting v2 registry: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: http: server gave HTTP response to HTTPS client"
+time="2020-05-17T03:15:21.356287995-05:00" level=info msg="Attempting next endpoint for pull after error: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: http: server gave HTTP response to HTTPS client"
+time="2020-05-17T03:15:21.536156848-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T03:15:21.536292060-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T03:15:21.536311964-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+Current time:  2020-05-17 03:15:21.672839221 -0500 CDT m=+4052.285947765, Starting the download of the layers.
+2020-05-17 03:15:21.673262933 -0500 CDT m=+4052.286371359 --->	  Waiting for top download.
+2020-05-17 03:15:22.14530449 -0500 CDT m=+4052.758413022 --->	 Time to download the layer: 471.835226ms
+2020-05-17 03:15:22.145382103 -0500 CDT m=+4052.758490558 --->	 Reporting from makeDownloadFunc. Time to download content: 471.916674ms
+2020-05-17 03:15:22.2055287 -0500 CDT m=+4052.818637217 --->	 Time to download the layer: 532.317161ms
+2020-05-17 03:15:22.206238043 -0500 CDT m=+4052.819346597 --->	 Reporting from makeDownloadFunc. Time to download content: 533.03071ms
+2020-05-17 03:15:22.309757173 -0500 CDT m=+4052.922865627 --->	 Time to download the layer: 164.339877ms
+2020-05-17 03:15:22.309821247 -0500 CDT m=+4052.922929621 --->	 Reporting from makeDownloadFunc. Time to download content: 636.160344ms
+2020-05-17 03:15:22.47429654 -0500 CDT m=+4053.087405106 --->	 Time to download the layer: 164.440265ms
+2020-05-17 03:15:22.474358749 -0500 CDT m=+4053.087467133 --->	 Reporting from makeDownloadFunc. Time to download content: 800.64678ms
+2020-05-17 03:15:22.636515496 -0500 CDT m=+4053.249624032 --->	 Time to download the layer: 162.124491ms
+2020-05-17 03:15:22.636586116 -0500 CDT m=+4053.249694493 --->	 Reporting from makeDownloadFunc. Time to download content: 962.857499ms
+2020-05-17 03:15:22.662430241 -0500 CDT m=+4053.275538780 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 989.222961ms.
+2020-05-17 03:15:22.66249864 -0500 CDT m=+4053.275607021 --->	  Closing running status of channel.
+2020-05-17 03:15:22.77246417 -0500 CDT m=+4053.385572704 --->	 Time to download the layer: 566.123653ms
+2020-05-17 03:15:22.772573176 -0500 CDT m=+4053.385681547 --->	 Reporting from makeDownloadFunc. Time to download content: 1.098889818s
+2020-05-17 03:15:22.798765522 -0500 CDT m=+4053.411874028 --->	 Time to download the layer: 162.147653ms
+2020-05-17 03:15:22.798815433 -0500 CDT m=+4053.411923820 --->	 Reporting from makeDownloadFunc. Time to download content: 1.125250421s
+2020-05-17 03:15:22.918979707 -0500 CDT m=+4053.532088275 --->	 Time to download the layer: 1.245665243s
+2020-05-17 03:15:22.919037088 -0500 CDT m=+4053.532145461 --->	 Reporting from makeDownloadFunc. Time to download content: 1.24572478s
+2020-05-17 03:15:22.919062966 -0500 CDT m=+4053.532171344 --->	  Wait for parent download lasted for: 2.633µs
+2020-05-17 03:15:22.937338318 -0500 CDT m=+4053.550446850 --->	 Time to download the layer: 164.728676ms
+2020-05-17 03:15:22.937417262 -0500 CDT m=+4053.550525779 --->	 Reporting from makeDownloadFunc. Time to download content: 1.263821295s
+2020-05-17 03:15:22.93777204 -0500 CDT m=+4053.550880555 --->	 Time to download the layer: 138.927646ms
+2020-05-17 03:15:22.937814347 -0500 CDT m=+4053.550922746 --->	 Reporting from makeDownloadFunc. Time to download content: 1.264194466s
+2020-05-17 03:15:23.083964862 -0500 CDT m=+4053.697073250 --->	 Time to download the layer: 164.848112ms
+2020-05-17 03:15:23.083998234 -0500 CDT m=+4053.697106592 --->	 Reporting from makeDownloadFunc. Time to download content: 1.410383635s
+2020-05-17 03:15:23.089977429 -0500 CDT m=+4053.703085785 --->	 Time to download the layer: 152.527634ms
+2020-05-17 03:15:23.090005505 -0500 CDT m=+4053.703113845 --->	 Reporting from makeDownloadFunc. Time to download content: 1.416350245s
+2020-05-17 03:15:24.018086441 -0500 CDT m=+4054.631194974 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 2.344774475s.
+2020-05-17 03:15:24.01817159 -0500 CDT m=+4054.631280019 --->	  Closing running status of channel.
+2020-05-17 03:15:24.018229048 -0500 CDT m=+4054.631337425 --->	  Wait for parent download lasted for: 1.872821897s
+2020-05-17 03:15:24.50538259 -0500 CDT m=+4055.118491069 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 2.831917472s.
+2020-05-17 03:15:24.505457735 -0500 CDT m=+4055.118566107 --->	  Closing running status of channel.
+2020-05-17 03:15:24.505515913 -0500 CDT m=+4055.118624288 --->	  Wait for parent download lasted for: 2.195673617s
+2020-05-17 03:15:24.768593117 -0500 CDT m=+4055.381701634 --->	 Time to download the layer: 1.830751199s
+2020-05-17 03:15:24.768654235 -0500 CDT m=+4055.381762634 --->	 Reporting from makeDownloadFunc. Time to download content: 3.094969384s
+2020-05-17 03:15:24.951009129 -0500 CDT m=+4055.564117661 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 3.277348603s.
+2020-05-17 03:15:24.951098436 -0500 CDT m=+4055.564206809 --->	  Closing running status of channel.
+2020-05-17 03:15:24.951167125 -0500 CDT m=+4055.564275499 --->	  Wait for parent download lasted for: 2.178567526s
+2020-05-17 03:15:25.462262628 -0500 CDT m=+4056.075371161 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 3.78857981s.
+2020-05-17 03:15:25.462359517 -0500 CDT m=+4056.075467899 --->	  Closing running status of channel.
+2020-05-17 03:15:27.616453648 -0500 CDT m=+4058.229562178 --->	  Closing running status of channel.
+2020-05-17 03:15:27.616575841 -0500 CDT m=+4058.229684378 --->	  Wait for parent download lasted for: 5.142194821s
+2020-05-17 03:15:28.077974239 -0500 CDT m=+4058.691082772 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 6.404262625s.
+2020-05-17 03:15:28.078513335 -0500 CDT m=+4058.691621904 --->	  Closing running status of channel.
+2020-05-17 03:15:28.078589031 -0500 CDT m=+4058.691697400 --->	  Wait for parent download lasted for: 5.441980641s
+2020-05-17 03:15:28.480708431 -0500 CDT m=+4059.093816963 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 6.806980289s.
+2020-05-17 03:15:28.480800738 -0500 CDT m=+4059.093909113 --->	  Closing running status of channel.
+2020-05-17 03:15:28.480866899 -0500 CDT m=+4059.093975277 --->	  Wait for parent download lasted for: 5.682030875s
+2020-05-17 03:15:28.934085727 -0500 CDT m=+4059.547194261 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 7.260521227s.
+2020-05-17 03:15:28.934200456 -0500 CDT m=+4059.547308880 --->	  Closing running status of channel.
+2020-05-17 03:15:28.934283478 -0500 CDT m=+4059.547391922 --->	  Wait for parent download lasted for: 5.996844423s
+2020-05-17 03:15:29.36396497 -0500 CDT m=+4059.977073502 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 7.690369269s.
+2020-05-17 03:15:29.364051981 -0500 CDT m=+4059.977160357 --->	  Closing running status of channel.
+2020-05-17 03:15:29.364119929 -0500 CDT m=+4059.977228313 --->	  Wait for parent download lasted for: 6.426286309s
+2020-05-17 03:15:29.791730561 -0500 CDT m=+4060.404839096 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 8.118111111s.
+2020-05-17 03:15:29.791833803 -0500 CDT m=+4060.404942229 --->	  Closing running status of channel.
+2020-05-17 03:15:29.791909363 -0500 CDT m=+4060.405017738 --->	  Wait for parent download lasted for: 6.707893789s
+2020-05-17 03:15:30.252821956 -0500 CDT m=+4060.865930490 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 8.579207833s.
+2020-05-17 03:15:30.252913994 -0500 CDT m=+4060.866022461 --->	  Closing running status of channel.
+2020-05-17 03:15:30.253007022 -0500 CDT m=+4060.866115410 --->	  Wait for parent download lasted for: 7.162990567s
+2020-05-17 03:15:30.705723668 -0500 CDT m=+4061.318832013 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 9.032068476s.
+2020-05-17 03:15:30.705752069 -0500 CDT m=+4061.318860385 --->	  Closing running status of channel.
+2020-05-17 03:15:30.705772678 -0500 CDT m=+4061.318881006 --->	  Wait for parent download lasted for: 5.937096924s
+2020-05-17 03:15:35.481927326 -0500 CDT m=+4066.095035859 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 13.808242778s.
+2020-05-17 03:15:35.482023954 -0500 CDT m=+4066.095132331 --->	  Closing running status of channel.
+2020-05-17 03:15:35.482079346 -0500 CDT m=+4066.095187730 --->	  Top download downlaoded.
+2020-05-17 03:15:35.482118713 -0500 CDT m=+4066.095227101 --->	  Downlaoded image in time: 13.80919022s
+time="2020-05-17T03:16:42.910285676-05:00" level=info msg="Container 68cc92245bd63132e3fe293196f15bac622b9cd570d7e55f95e56d79d3fabc3b failed to exit within 10 seconds of signal 15 - using the force"
+time="2020-05-17T03:16:43.093197183-05:00" level=info msg="ignoring event" module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2020-05-17T03:16:43.093817993-05:00" level=warning msg="rmServiceBinding 650ab259bb0ccf2723e7640921abd422a7c7be39aae4ea5b8ccbe61f6cac4a69 possible transient state ok:false entries:0 set:false "
+time="2020-05-17T03:16:44.871076516-05:00" level=warning msg="Error (Unable to complete atomic operation, key modified) deleting object [endpoint mvn3wrk1uf4jf0wubu0fayhnh d834ade3fa5c12b0f4cb2fb9ce80f63825c7a8bca7241652a87fe927029782f8], retrying...."
+time="2020-05-17T03:16:45.446723334-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T03:16:46.589912512-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T03:16:46.713279206-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T03:16:46.714032427-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T03:16:46.714522298-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T03:16:46.714953036-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T03:16:46.715029757-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T03:16:46.715525316-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T03:16:46.715592639-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T03:17:56.683771605-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:17:56.683938038-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:8 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:22:56.883561800-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:8 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:22:56.883702563-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:27:57.083568686-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:8 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:27:57.083708438-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:32:57.083801946-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:32:57.083969283-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:3 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:37:57.283915960-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:37:57.284089839-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:3 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:42:57.483767769-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:42:57.483938072-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:3 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:45:14.154836567-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T03:45:16.233481674-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T03:45:16.477632716-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T03:45:16.477912541-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T03:45:16.478025744-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T03:45:16.478166322-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T03:45:17.182150063-05:00" level=warning msg="Error getting v2 registry: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: http: server gave HTTP response to HTTPS client"
+time="2020-05-17T03:45:17.182182979-05:00" level=info msg="Attempting next endpoint for pull after error: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: http: server gave HTTP response to HTTPS client"
+time="2020-05-17T03:45:17.325437667-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T03:45:17.325567301-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T03:45:17.325587878-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+Current time:  2020-05-17 03:45:17.526449541 -0500 CDT m=+5848.139558058, Starting the download of the layers.
+2020-05-17 03:45:17.526902698 -0500 CDT m=+5848.140011161 --->	  Waiting for top download.
+2020-05-17 03:45:18.020659088 -0500 CDT m=+5848.633767656 --->	 Time to download the layer: 493.704277ms
+2020-05-17 03:45:18.020719103 -0500 CDT m=+5848.633827488 --->	 Reporting from makeDownloadFunc. Time to download content: 493.76604ms
+2020-05-17 03:45:18.072656314 -0500 CDT m=+5848.685764730 --->	 Time to download the layer: 545.899274ms
+2020-05-17 03:45:18.072708292 -0500 CDT m=+5848.685816668 --->	 Reporting from makeDownloadFunc. Time to download content: 545.957076ms
+2020-05-17 03:45:18.205538272 -0500 CDT m=+5848.818646637 --->	 Time to download the layer: 184.787435ms
+2020-05-17 03:45:18.205822821 -0500 CDT m=+5848.818931174 --->	 Reporting from makeDownloadFunc. Time to download content: 678.442299ms
+2020-05-17 03:45:18.392320873 -0500 CDT m=+5849.005429406 --->	 Time to download the layer: 184.386246ms
+2020-05-17 03:45:18.392384175 -0500 CDT m=+5849.005492554 --->	 Reporting from makeDownloadFunc. Time to download content: 864.931203ms
+2020-05-17 03:45:18.570840274 -0500 CDT m=+5849.183948731 --->	 Time to download the layer: 498.062209ms
+2020-05-17 03:45:18.570900154 -0500 CDT m=+5849.184008529 --->	 Reporting from makeDownloadFunc. Time to download content: 1.04349078s
+2020-05-17 03:45:18.574612452 -0500 CDT m=+5849.187720986 --->	 Time to download the layer: 182.197509ms
+2020-05-17 03:45:18.574763499 -0500 CDT m=+5849.187871950 --->	 Reporting from makeDownloadFunc. Time to download content: 1.047322749s
+2020-05-17 03:45:18.576215026 -0500 CDT m=+5849.189323547 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 1.04946438s.
+2020-05-17 03:45:18.576273675 -0500 CDT m=+5849.189382108 --->	  Closing running status of channel.
+2020-05-17 03:45:18.633836749 -0500 CDT m=+5849.246945188 --->	 Time to download the layer: 1.107032481s
+2020-05-17 03:45:18.633890181 -0500 CDT m=+5849.246998580 --->	 Reporting from makeDownloadFunc. Time to download content: 1.107089314s
+2020-05-17 03:45:18.63391299 -0500 CDT m=+5849.247021362 --->	  Wait for parent download lasted for: 2.224µs
+2020-05-17 03:45:18.757456259 -0500 CDT m=+5849.370564630 --->	 Time to download the layer: 123.495406ms
+2020-05-17 03:45:18.757482617 -0500 CDT m=+5849.370590951 --->	 Reporting from makeDownloadFunc. Time to download content: 1.230135356s
+2020-05-17 03:45:18.759398312 -0500 CDT m=+5849.372506660 --->	 Time to download the layer: 188.467368ms
+2020-05-17 03:45:18.7594172 -0500 CDT m=+5849.372525529 --->	 Reporting from makeDownloadFunc. Time to download content: 1.232118442s
+2020-05-17 03:45:18.759737335 -0500 CDT m=+5849.372845731 --->	 Time to download the layer: 184.935784ms
+2020-05-17 03:45:18.759758102 -0500 CDT m=+5849.372866423 --->	 Reporting from makeDownloadFunc. Time to download content: 1.232449643s
+2020-05-17 03:45:18.945569204 -0500 CDT m=+5849.558677533 --->	 Time to download the layer: 186.140142ms
+2020-05-17 03:45:18.945589818 -0500 CDT m=+5849.558698133 --->	 Reporting from makeDownloadFunc. Time to download content: 1.418262051s
+2020-05-17 03:45:18.94563174 -0500 CDT m=+5849.558740050 --->	 Time to download the layer: 188.137162ms
+2020-05-17 03:45:18.945639594 -0500 CDT m=+5849.558747904 --->	 Reporting from makeDownloadFunc. Time to download content: 1.418264881s
+2020-05-17 03:45:20.380477508 -0500 CDT m=+5850.993586024 --->	 Time to download the layer: 1.620702614s
+2020-05-17 03:45:20.380538808 -0500 CDT m=+5850.993647190 --->	 Reporting from makeDownloadFunc. Time to download content: 2.853188571s
+2020-05-17 03:45:20.66589214 -0500 CDT m=+5851.279000641 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 3.139091551s.
+2020-05-17 03:45:20.665971567 -0500 CDT m=+5851.279079942 --->	  Closing running status of channel.
+2020-05-17 03:45:20.666005393 -0500 CDT m=+5851.279113766 --->	  Wait for parent download lasted for: 2.645264695s
+2020-05-17 03:45:21.169493811 -0500 CDT m=+5851.782602349 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 3.642541212s.
+2020-05-17 03:45:21.169585886 -0500 CDT m=+5851.782694315 --->	  Closing running status of channel.
+2020-05-17 03:45:21.169652441 -0500 CDT m=+5851.782760815 --->	  Wait for parent download lasted for: 2.961725187s
+2020-05-17 03:45:21.613928659 -0500 CDT m=+5852.227037194 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 4.086548616s.
+2020-05-17 03:45:21.614035093 -0500 CDT m=+5852.227143540 --->	  Closing running status of channel.
+2020-05-17 03:45:21.614119213 -0500 CDT m=+5852.227227656 --->	  Wait for parent download lasted for: 3.043198011s
+2020-05-17 03:45:22.100535014 -0500 CDT m=+5852.713643544 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 4.573126002s.
+2020-05-17 03:45:22.101047045 -0500 CDT m=+5852.714155554 --->	  Closing running status of channel.
+2020-05-17 03:45:22.736988358 -0500 CDT m=+5853.350096893 --->	  Closing running status of channel.
+2020-05-17 03:45:22.737080498 -0500 CDT m=+5853.350189076 --->	  Wait for parent download lasted for: 4.344675903s
+2020-05-17 03:45:23.156595158 -0500 CDT m=+5853.769703693 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 5.629142549s.
+2020-05-17 03:45:23.156687009 -0500 CDT m=+5853.769795435 --->	  Closing running status of channel.
+2020-05-17 03:45:23.156737789 -0500 CDT m=+5853.769846352 --->	  Wait for parent download lasted for: 4.58194601s
+2020-05-17 03:45:23.626559464 -0500 CDT m=+5854.239667997 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 6.099119008s.
+2020-05-17 03:45:23.626657189 -0500 CDT m=+5854.239765621 --->	  Closing running status of channel.
+2020-05-17 03:45:23.626702961 -0500 CDT m=+5854.239811334 --->	  Wait for parent download lasted for: 4.867277577s
+2020-05-17 03:45:24.055156312 -0500 CDT m=+5854.668264845 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 6.527858124s.
+2020-05-17 03:45:24.055796499 -0500 CDT m=+5854.668905071 --->	  Closing running status of channel.
+2020-05-17 03:45:24.0558963 -0500 CDT m=+5854.669004674 --->	  Wait for parent download lasted for: 5.296124465s
+2020-05-17 03:45:24.457856303 -0500 CDT m=+5855.070964844 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 6.930548459s.
+2020-05-17 03:45:24.457956024 -0500 CDT m=+5855.071064452 --->	  Closing running status of channel.
+2020-05-17 03:45:24.457985415 -0500 CDT m=+5855.071093785 --->	  Wait for parent download lasted for: 5.700495064s
+2020-05-17 03:45:24.986320612 -0500 CDT m=+5855.599429147 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 7.458974056s.
+2020-05-17 03:45:24.986423772 -0500 CDT m=+5855.599532151 --->	  Closing running status of channel.
+2020-05-17 03:45:24.986508303 -0500 CDT m=+5855.599616803 --->	  Wait for parent download lasted for: 6.040865568s
+2020-05-17 03:45:25.472748376 -0500 CDT m=+5856.085856906 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 7.945374344s.
+2020-05-17 03:45:25.47284145 -0500 CDT m=+5856.085949839 --->	  Closing running status of channel.
+2020-05-17 03:45:25.472905976 -0500 CDT m=+5856.086014355 --->	  Wait for parent download lasted for: 6.52731152s
+2020-05-17 03:45:25.951306777 -0500 CDT m=+5856.564415309 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 8.423979749s.
+2020-05-17 03:45:25.951427885 -0500 CDT m=+5856.564536277 --->	  Closing running status of channel.
+2020-05-17 03:45:25.951532794 -0500 CDT m=+5856.564641206 --->	  Wait for parent download lasted for: 5.570970873s
+2020-05-17 03:45:30.18859876 -0500 CDT m=+5860.801707101 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 12.66124853s.
+2020-05-17 03:45:30.188629211 -0500 CDT m=+5860.801737528 --->	  Closing running status of channel.
+2020-05-17 03:45:30.188646817 -0500 CDT m=+5860.801755134 --->	  Top download downlaoded.
+2020-05-17 03:45:30.188676196 -0500 CDT m=+5860.801784508 --->	  Downlaoded image in time: 12.662141445s
+time="2020-05-17T03:46:32.091314226-05:00" level=info msg="Container b48ea8c6240893a2c91dcc6533ac7a297f616ded98ce9b2834ae5149c437edd2 failed to exit within 10 seconds of signal 15 - using the force"
+time="2020-05-17T03:46:32.513577044-05:00" level=info msg="ignoring event" module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2020-05-17T03:46:32.514993469-05:00" level=warning msg="rmServiceBinding 492297fdb60ca4abb75b8014946bc62e463dd234e3ffa1ae9e39f791924cdc14 possible transient state ok:false entries:0 set:false "
+time="2020-05-17T03:46:33.822851033-05:00" level=warning msg="Health check for container b48ea8c6240893a2c91dcc6533ac7a297f616ded98ce9b2834ae5149c437edd2 error: No such exec instance: 7ea8bf6e13f1bc6b2647505a8831611c98f198af59216316c94de6929d4a0e64"
+time="2020-05-17T03:46:34.258422501-05:00" level=warning msg="Error (Unable to complete atomic operation, key modified) deleting object [endpoint mvn3wrk1uf4jf0wubu0fayhnh c563b3386fd311a272747adf8a26d0c5cef3d1ff3e91ccbf73eb1e0d539b8074], retrying...."
+time="2020-05-17T03:46:34.583820952-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T03:46:35.769913155-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T03:46:35.892100431-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T03:46:35.892786229-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T03:46:35.893252821-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T03:46:35.893731468-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T03:46:35.893813122-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T03:46:35.894227522-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T03:46:35.894295563-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T03:47:57.683774391-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:3 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:47:57.683934064-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:52:57.883588849-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:52:57.883725640-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:3 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:57:58.083783996-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T03:57:58.083964674-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:3 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:02:58.283768944-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:02:58.283942866-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:3 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:04:40.647708455-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T04:04:42.741799367-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T04:04:42.952272182-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T04:04:42.952466633-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:42.952578283-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:42.952680777-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:43.545788625-05:00" level=warning msg="Error getting v2 registry: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:43.545894411-05:00" level=info msg="Attempting next endpoint for pull after error: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:43.647384168-05:00" level=warning msg="Error getting v2 registry: Get http://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:43.647412190-05:00" level=info msg="Attempting next endpoint for pull after error: Get http://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:43.647442811-05:00" level=error msg="pulling image failed" error="Get http://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused" module=node/agent/taskmanager node.id=x0my91xx39v97yot531mxzv19 service.id=pk2lg9jlnrke6ldzhk5b7dp2j task.id=pmk6t70i52cyw8hbu3krm5egs
+time="2020-05-17T04:04:43.648120645-05:00" level=error msg="fatal task error" error="No such image: csce-6snvrz2.cs.tamu.edu:5000/verybignode:latest" module=node/agent/taskmanager node.id=x0my91xx39v97yot531mxzv19 service.id=pk2lg9jlnrke6ldzhk5b7dp2j task.id=pmk6t70i52cyw8hbu3krm5egs
+time="2020-05-17T04:04:43.741702618-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:04:43.741823001-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:43.741840274-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:04:43.860060339-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T04:04:43.958635586-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T04:04:44.427011654-05:00" level=warning msg="Error getting v2 registry: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:44.427122561-05:00" level=info msg="Attempting next endpoint for pull after error: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:44.529004324-05:00" level=warning msg="Error getting v2 registry: Get http://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:44.529040286-05:00" level=info msg="Attempting next endpoint for pull after error: Get http://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:44.529072329-05:00" level=error msg="pulling image failed" error="Get http://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused" module=node/agent/taskmanager node.id=x0my91xx39v97yot531mxzv19 service.id=pk2lg9jlnrke6ldzhk5b7dp2j task.id=m6g63wqc2cy65y2fxqfv006ha
+time="2020-05-17T04:04:44.530080468-05:00" level=error msg="fatal task error" error="No such image: csce-6snvrz2.cs.tamu.edu:5000/verybignode:latest" module=node/agent/taskmanager node.id=x0my91xx39v97yot531mxzv19 service.id=pk2lg9jlnrke6ldzhk5b7dp2j task.id=m6g63wqc2cy65y2fxqfv006ha
+time="2020-05-17T04:04:44.696571127-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T04:04:45.161951071-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T04:04:45.279287467-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T04:04:45.279966046-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:45.281414482-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:46.441559028-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T04:04:46.579540349-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T04:04:46.580233449-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:46.580339271-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:04:46.581805092-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:46.581902969-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:04:47.769939362-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T04:04:47.921563023-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T04:04:47.922280872-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:47.922803767-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:47.923428454-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:47.923537980-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:04:47.923985894-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:47.924060820-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:04:47.924504302-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:47.924962901-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:47.925446814-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:47.925532039-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:04:47.926097295-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:47.926186075-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:04:48.976449575-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T04:04:49.461274439-05:00" level=warning msg="Error getting v2 registry: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:49.461403938-05:00" level=info msg="Attempting next endpoint for pull after error: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:49.563614664-05:00" level=warning msg="Error getting v2 registry: Get http://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:49.563717436-05:00" level=info msg="Attempting next endpoint for pull after error: Get http://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:49.563829713-05:00" level=error msg="pulling image failed" error="Get http://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused" module=node/agent/taskmanager node.id=x0my91xx39v97yot531mxzv19 service.id=pk2lg9jlnrke6ldzhk5b7dp2j task.id=1oppr82ksed58sbt6shtx9gz5
+time="2020-05-17T04:04:49.564547918-05:00" level=error msg="fatal task error" error="No such image: csce-6snvrz2.cs.tamu.edu:5000/verybignode:latest" module=node/agent/taskmanager node.id=x0my91xx39v97yot531mxzv19 service.id=pk2lg9jlnrke6ldzhk5b7dp2j task.id=1oppr82ksed58sbt6shtx9gz5
+time="2020-05-17T04:04:49.698523971-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T04:04:50.297693228-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T04:04:50.405284342-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T04:04:50.406064128-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:50.407940667-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:51.741922836-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T04:04:51.847182205-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T04:04:51.847851700-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:51.847960709-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:04:51.848667337-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:51.848755231-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:04:51.849200417-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:51.849668895-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:51.850103225-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:51.850199249-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:04:51.850647272-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:51.850713953-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:04:54.110160268-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T04:04:54.578346365-05:00" level=warning msg="Error getting v2 registry: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:54.578444702-05:00" level=info msg="Attempting next endpoint for pull after error: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:54.680604059-05:00" level=warning msg="Error getting v2 registry: Get http://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:54.680702970-05:00" level=info msg="Attempting next endpoint for pull after error: Get http://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:54.680785925-05:00" level=error msg="pulling image failed" error="Get http://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused" module=node/agent/taskmanager node.id=x0my91xx39v97yot531mxzv19 service.id=pk2lg9jlnrke6ldzhk5b7dp2j task.id=tdtumtsptdyauabhgpo4gs17q
+time="2020-05-17T04:04:54.683469805-05:00" level=error msg="fatal task error" error="No such image: csce-6snvrz2.cs.tamu.edu:5000/verybignode:latest" module=node/agent/taskmanager node.id=x0my91xx39v97yot531mxzv19 service.id=pk2lg9jlnrke6ldzhk5b7dp2j task.id=tdtumtsptdyauabhgpo4gs17q
+time="2020-05-17T04:04:54.861998185-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T04:04:55.417707666-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T04:04:55.531072509-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T04:04:55.531743283-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:55.533392415-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:56.697901839-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T04:04:56.889580062-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T04:04:56.890197578-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:56.890296827-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:04:56.890822563-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:56.890911916-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:04:56.891352140-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:56.891784611-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:56.892204285-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:56.892278684-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:04:56.892675185-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:04:56.892743463-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:04:59.369587271-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T04:04:59.837284118-05:00" level=warning msg="Error getting v2 registry: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:59.837398423-05:00" level=info msg="Attempting next endpoint for pull after error: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:59.939287062-05:00" level=warning msg="Error getting v2 registry: Get http://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:59.939373773-05:00" level=info msg="Attempting next endpoint for pull after error: Get http://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:04:59.939480304-05:00" level=error msg="pulling image failed" error="Get http://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused" module=node/agent/taskmanager node.id=x0my91xx39v97yot531mxzv19 service.id=pk2lg9jlnrke6ldzhk5b7dp2j task.id=1lx4zxahs0q2rtjxrv0fani6r
+time="2020-05-17T04:04:59.941270840-05:00" level=error msg="fatal task error" error="No such image: csce-6snvrz2.cs.tamu.edu:5000/verybignode:latest" module=node/agent/taskmanager node.id=x0my91xx39v97yot531mxzv19 service.id=pk2lg9jlnrke6ldzhk5b7dp2j task.id=1lx4zxahs0q2rtjxrv0fani6r
+time="2020-05-17T04:05:00.066352271-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T04:05:00.713918644-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T04:05:00.823818843-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T04:05:00.824869384-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:05:00.825322714-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:05:01.961809276-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T04:05:02.082320528-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T04:05:02.083017452-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:05:02.083135197-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:05:02.083627361-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:05:02.083696111-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:05:02.084261318-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:05:02.084760201-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:05:02.085224947-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:05:02.085306092-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:05:02.085768901-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:05:02.085844871-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:05:04.411064621-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T04:05:04.897137732-05:00" level=warning msg="Error getting v2 registry: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+time="2020-05-17T04:05:04.897235173-05:00" level=info msg="Attempting next endpoint for pull after error: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: dial tcp 128.194.130.177:5000: connect: connection refused"
+Current time:  2020-05-17 04:05:05.218345198 -0500 CDT m=+7035.831453724, Starting the download of the layers.
+2020-05-17 04:05:05.218795437 -0500 CDT m=+7035.831903983 --->	  Waiting for top download.
+time="2020-05-17T04:05:05.617718317-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+2020-05-17 04:05:05.692133349 -0500 CDT m=+7036.305241929 --->	 Time to download the layer: 473.261532ms
+2020-05-17 04:05:05.692189501 -0500 CDT m=+7036.305297917 --->	 Reporting from makeDownloadFunc. Time to download content: 473.319282ms
+time="2020-05-17T04:05:05.732822505-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T04:05:05.733408233-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:05:05.733885845-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:05:05.734322154-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:05:05.734423353-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:05:05.734852049-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:05:05.735385173-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+2020-05-17 04:05:05.750402599 -0500 CDT m=+7036.363511062 --->	 Time to download the layer: 531.751075ms
+2020-05-17 04:05:05.750453745 -0500 CDT m=+7036.363562116 --->	 Reporting from makeDownloadFunc. Time to download content: 531.806818ms
+2020-05-17 04:05:05.860185168 -0500 CDT m=+7036.473293604 --->	 Time to download the layer: 167.878665ms
+2020-05-17 04:05:05.860276649 -0500 CDT m=+7036.473385103 --->	 Reporting from makeDownloadFunc. Time to download content: 641.065974ms
+2020-05-17 04:05:06.026801821 -0500 CDT m=+7036.639910358 --->	 Time to download the layer: 166.490192ms
+2020-05-17 04:05:06.026862928 -0500 CDT m=+7036.639971310 --->	 Reporting from makeDownloadFunc. Time to download content: 807.464301ms
+2020-05-17 04:05:06.193447506 -0500 CDT m=+7036.806555851 --->	 Time to download the layer: 166.551963ms
+2020-05-17 04:05:06.193469597 -0500 CDT m=+7036.806577928 --->	 Reporting from makeDownloadFunc. Time to download content: 974.058368ms
+2020-05-17 04:05:06.227082828 -0500 CDT m=+7036.840191181 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 1.008435847s.
+2020-05-17 04:05:06.227125763 -0500 CDT m=+7036.840234083 --->	  Closing running status of channel.
+2020-05-17 04:05:06.260588921 -0500 CDT m=+7036.873697267 --->	 Time to download the layer: 1.041859782s
+2020-05-17 04:05:06.260604658 -0500 CDT m=+7036.873712972 --->	 Reporting from makeDownloadFunc. Time to download content: 1.041879454s
+2020-05-17 04:05:06.260610344 -0500 CDT m=+7036.873718658 --->	  Wait for parent download lasted for: 742ns
+2020-05-17 04:05:06.283321864 -0500 CDT m=+7036.896430215 --->	 Time to download the layer: 532.802374ms
+2020-05-17 04:05:06.283342532 -0500 CDT m=+7036.896450842 --->	 Reporting from makeDownloadFunc. Time to download content: 1.064017437s
+2020-05-17 04:05:06.353376597 -0500 CDT m=+7036.966484923 --->	 Time to download the layer: 159.898253ms
+2020-05-17 04:05:06.353396156 -0500 CDT m=+7036.966504467 --->	 Reporting from makeDownloadFunc. Time to download content: 1.134157183s
+2020-05-17 04:05:06.422327954 -0500 CDT m=+7037.035436285 --->	 Time to download the layer: 138.976541ms
+2020-05-17 04:05:06.422348029 -0500 CDT m=+7037.035456339 --->	 Reporting from makeDownloadFunc. Time to download content: 1.203051427s
+2020-05-17 04:05:06.422826536 -0500 CDT m=+7037.035934855 --->	 Time to download the layer: 162.191676ms
+2020-05-17 04:05:06.422838534 -0500 CDT m=+7037.035946847 --->	 Reporting from makeDownloadFunc. Time to download content: 1.20356691s
+2020-05-17 04:05:06.517156967 -0500 CDT m=+7037.130265302 --->	 Time to download the layer: 163.752625ms
+2020-05-17 04:05:06.517177702 -0500 CDT m=+7037.130286026 --->	 Reporting from makeDownloadFunc. Time to download content: 1.297886113s
+2020-05-17 04:05:06.586607349 -0500 CDT m=+7037.199715685 --->	 Time to download the layer: 164.250338ms
+2020-05-17 04:05:06.586628943 -0500 CDT m=+7037.199737279 --->	 Reporting from makeDownloadFunc. Time to download content: 1.367285707s
+2020-05-17 04:05:07.249187317 -0500 CDT m=+7037.862295858 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 2.030462792s.
+2020-05-17 04:05:07.249261555 -0500 CDT m=+7037.862369992 --->	  Closing running status of channel.
+2020-05-17 04:05:07.2492861 -0500 CDT m=+7037.862394513 --->	  Wait for parent download lasted for: 1.556989805s
+2020-05-17 04:05:08.005666133 -0500 CDT m=+7038.618774706 --->	 Time to download the layer: 1.582821366s
+2020-05-17 04:05:08.005724598 -0500 CDT m=+7038.618832975 --->	 Reporting from makeDownloadFunc. Time to download content: 2.786365275s
+2020-05-17 04:05:08.154135955 -0500 CDT m=+7038.767244488 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 2.935266082s.
+2020-05-17 04:05:08.154220354 -0500 CDT m=+7038.767328763 --->	  Closing running status of channel.
+2020-05-17 04:05:08.154280903 -0500 CDT m=+7038.767389283 --->	  Wait for parent download lasted for: 2.293987139s
+2020-05-17 04:05:08.632324369 -0500 CDT m=+7039.245432901 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 3.413114057s.
+2020-05-17 04:05:08.632432496 -0500 CDT m=+7039.245540924 --->	  Closing running status of channel.
+2020-05-17 04:05:08.632496124 -0500 CDT m=+7039.245604499 --->	  Wait for parent download lasted for: 2.349148653s
+2020-05-17 04:05:09.08554646 -0500 CDT m=+7039.698654993 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 3.866222008s.
+2020-05-17 04:05:09.085641193 -0500 CDT m=+7039.698749687 --->	  Closing running status of channel.
+2020-05-17 04:05:11.999124543 -0500 CDT m=+7042.612233079 --->	  Closing running status of channel.
+2020-05-17 04:05:11.999263318 -0500 CDT m=+7042.612371857 --->	  Wait for parent download lasted for: 5.972377656s
+2020-05-17 04:05:12.460444029 -0500 CDT m=+7043.073552563 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 7.24104583s.
+2020-05-17 04:05:12.460538687 -0500 CDT m=+7043.073647116 --->	  Closing running status of channel.
+2020-05-17 04:05:12.460584647 -0500 CDT m=+7043.073693027 --->	  Wait for parent download lasted for: 6.267110004s
+2020-05-17 04:05:12.896689194 -0500 CDT m=+7043.509797621 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 7.677278275s.
+2020-05-17 04:05:12.896743621 -0500 CDT m=+7043.509851988 --->	  Closing running status of channel.
+2020-05-17 04:05:12.896767628 -0500 CDT m=+7043.509875979 --->	  Wait for parent download lasted for: 6.543366506s
+2020-05-17 04:05:13.367328992 -0500 CDT m=+7043.980437525 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 8.148090634s.
+2020-05-17 04:05:13.36743346 -0500 CDT m=+7043.980541886 --->	  Closing running status of channel.
+2020-05-17 04:05:13.367504425 -0500 CDT m=+7043.980612885 --->	  Wait for parent download lasted for: 6.944661805s
+2020-05-17 04:05:13.803291198 -0500 CDT m=+7044.416399729 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 8.584020237s.
+2020-05-17 04:05:13.803383927 -0500 CDT m=+7044.416492327 --->	  Closing running status of channel.
+2020-05-17 04:05:13.803445371 -0500 CDT m=+7044.416553868 --->	  Wait for parent download lasted for: 7.381091983s
+2020-05-17 04:05:14.223516935 -0500 CDT m=+7044.836625464 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 9.004221191s.
+2020-05-17 04:05:14.223610879 -0500 CDT m=+7044.836719252 --->	  Closing running status of channel.
+2020-05-17 04:05:14.223677923 -0500 CDT m=+7044.836786304 --->	  Wait for parent download lasted for: 7.706494983s
+2020-05-17 04:05:14.684932757 -0500 CDT m=+7045.298041318 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 9.465641804s.
+2020-05-17 04:05:14.685033291 -0500 CDT m=+7045.298141687 --->	  Closing running status of channel.
+2020-05-17 04:05:14.68507852 -0500 CDT m=+7045.298186909 --->	  Wait for parent download lasted for: 8.0984442s
+2020-05-17 04:05:15.12185262 -0500 CDT m=+7045.734961182 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 9.902510051s.
+2020-05-17 04:05:15.121947352 -0500 CDT m=+7045.735055802 --->	  Closing running status of channel.
+2020-05-17 04:05:15.121990479 -0500 CDT m=+7045.735098863 --->	  Wait for parent download lasted for: 7.116242251s
+2020-05-17 04:05:19.430111042 -0500 CDT m=+7050.043219549 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 14.210752116s.
+2020-05-17 04:05:19.430620918 -0500 CDT m=+7050.043729430 --->	  Closing running status of channel.
+2020-05-17 04:05:19.430691668 -0500 CDT m=+7050.043800033 --->	  Top download downlaoded.
+2020-05-17 04:05:19.430727731 -0500 CDT m=+7050.043836094 --->	  Downlaoded image in time: 14.212296524s
+time="2020-05-17T04:07:58.483440322-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:07:58.483495188-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:false netPeers:2 entries:21 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:12:27.863544620-05:00" level=warning msg="failed to deactivate service binding for container verybignode.1.pmk6t70i52cyw8hbu3krm5egs" error="No such container: verybignode.1.pmk6t70i52cyw8hbu3krm5egs" module=node/agent node.id=x0my91xx39v97yot531mxzv19
+time="2020-05-17T04:12:27.863581976-05:00" level=warning msg="failed to deactivate service binding for container verybignode.1.m6g63wqc2cy65y2fxqfv006ha" error="No such container: verybignode.1.m6g63wqc2cy65y2fxqfv006ha" module=node/agent node.id=x0my91xx39v97yot531mxzv19
+time="2020-05-17T04:12:27.863549606-05:00" level=warning msg="failed to deactivate service binding for container verybignode.1.tdtumtsptdyauabhgpo4gs17q" error="No such container: verybignode.1.tdtumtsptdyauabhgpo4gs17q" module=node/agent node.id=x0my91xx39v97yot531mxzv19
+time="2020-05-17T04:12:27.863568032-05:00" level=warning msg="failed to deactivate service binding for container verybignode.1.1oppr82ksed58sbt6shtx9gz5" error="No such container: verybignode.1.1oppr82ksed58sbt6shtx9gz5" module=node/agent node.id=x0my91xx39v97yot531mxzv19
+time="2020-05-17T04:12:27.863559627-05:00" level=warning msg="failed to deactivate service binding for container verybignode.1.1lx4zxahs0q2rtjxrv0fani6r" error="No such container: verybignode.1.1lx4zxahs0q2rtjxrv0fani6r" module=node/agent node.id=x0my91xx39v97yot531mxzv19
+time="2020-05-17T04:12:40.787214428-05:00" level=info msg="Container 1246d4141dc6d7936a4821e647a1bee879dd7585b46f9f7b6f7a6ddf7a829d25 failed to exit within 10 seconds of signal 15 - using the force"
+time="2020-05-17T04:12:40.956633481-05:00" level=info msg="ignoring event" module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2020-05-17T04:12:40.957297461-05:00" level=warning msg="rmServiceBinding 2ad44b0f252304aad21f00d6eb3fd2b0b48045fe7dc82c560a3fb9232cc6ddbf possible transient state ok:false entries:0 set:false "
+time="2020-05-17T04:12:42.864656797-05:00" level=warning msg="Error (Unable to complete atomic operation, key modified) deleting object [endpoint mvn3wrk1uf4jf0wubu0fayhnh 7a80c139341b20f156402ff1df2a2d7cea04413bd48bcb68fc323f246fa64ef6], retrying...."
+time="2020-05-17T04:12:43.610835510-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T04:12:44.817718125-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T04:12:44.923657770-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T04:12:44.924323269-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:12:44.924830301-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:12:44.925284139-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:12:44.925381769-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:12:44.925823579-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:12:44.925890571-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:12:58.483571271-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:6 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:12:58.483709103-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:17:58.683627481-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:17:58.683771265-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:3 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:22:58.883573203-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:22:58.883718116-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:3 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:24:59.429797529-05:00" level=info msg="Layer sha256:d8e63c3271c9a232ca23bd3c63b8456054c11cca3ec4a6feffad93458efa8b6e cleaned up"
+time="2020-05-17T04:24:59.429879566-05:00" level=info msg="Layer sha256:7b0efe0862f08e66b935f01ea5238dc8cfee3327efc47f8c1e169196da8d30eb cleaned up"
+time="2020-05-17T04:24:59.429913727-05:00" level=info msg="Layer sha256:1b840c669713158d5ecc42f9b94f93568d7c0c656831e9fcbb62bf990267e6a7 cleaned up"
+time="2020-05-17T04:24:59.429945044-05:00" level=info msg="Layer sha256:a643e177971cff65725a038935fcdb0fda908588ee0d991a6d27433f7569af1a cleaned up"
+time="2020-05-17T04:24:59.429964790-05:00" level=info msg="Layer sha256:d6f9a4c535e046f3760ec2ddf36ac122c1c7cfb11045d3ae384e65e41f445478 cleaned up"
+time="2020-05-17T04:24:59.429970275-05:00" level=info msg="Layer sha256:69a10c10d9dfc004e1eb0e950c02a7a1863abf0cc9344dff4bd7e8770cbd9fe4 cleaned up"
+time="2020-05-17T04:24:59.429975641-05:00" level=info msg="Layer sha256:463ab97d7ba1db8f62a51c0ee9ce0120d3300a147191ae59b75877ebda871207 cleaned up"
+time="2020-05-17T04:24:59.429981343-05:00" level=info msg="Layer sha256:566d87e217f0a008f6d5f1f30295cdaaf8692749f75bbdb389bc097208a3b27b cleaned up"
+time="2020-05-17T04:24:59.429986621-05:00" level=info msg="Layer sha256:59b73c8ab37abb4904ba73532711009dbb53443e4df0b5003736fff539b3c352 cleaned up"
+time="2020-05-17T04:24:59.429991932-05:00" level=info msg="Layer sha256:005c9ee0819ca65b239152d4e2aaf72095fcb8339234de6d8c1fedb1cf945948 cleaned up"
+time="2020-05-17T04:24:59.429997145-05:00" level=info msg="Layer sha256:edad02f7dbd16f2256665cfdcb298d5850a17bf262d2f6806c5a8949ae9a9f58 cleaned up"
+time="2020-05-17T04:24:59.430002444-05:00" level=info msg="Layer sha256:9ea2239dea5ae98162e1640dd4aeba635ee3ce91b433351baa3f372ade61bfc0 cleaned up"
+time="2020-05-17T04:24:59.430012125-05:00" level=info msg="Layer sha256:4ed5c151d3d9ee1708355a9c56f85df79875481819c950ff348cd3c670e66cfd cleaned up"
+time="2020-05-17T04:24:59.430017831-05:00" level=info msg="Layer sha256:77cae8ab23bf486355d1b3191259705374f4a11d483b24964d2f729dd8c076a0 cleaned up"
+time="2020-05-17T04:26:59.870986270-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T04:27:02.057728465-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T04:27:02.312983930-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T04:27:02.313179710-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:27:02.313292609-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:27:02.313403980-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:27:02.964141533-05:00" level=warning msg="Error getting v2 registry: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: http: server gave HTTP response to HTTPS client"
+time="2020-05-17T04:27:02.964199092-05:00" level=info msg="Attempting next endpoint for pull after error: Get https://csce-6snvrz2.cs.tamu.edu:5000/v2/: http: server gave HTTP response to HTTPS client"
+time="2020-05-17T04:27:03.130174908-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:27:03.130358271-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:27:03.130388218-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+Current time:  2020-05-17 04:27:03.279326347 -0500 CDT m=+8353.892434868, Starting the download of the layers.
+2020-05-17 04:27:03.27974213 -0500 CDT m=+8353.892850625 --->	  Waiting for top download.
+2020-05-17 04:27:03.760240101 -0500 CDT m=+8354.373348493 --->	 Time to download the layer: 480.443587ms
+2020-05-17 04:27:03.760295594 -0500 CDT m=+8354.373403968 --->	 Reporting from makeDownloadFunc. Time to download content: 480.501056ms
+2020-05-17 04:27:03.817174469 -0500 CDT m=+8354.430282893 --->	 Time to download the layer: 537.443973ms
+2020-05-17 04:27:03.817769599 -0500 CDT m=+8354.430878056 --->	 Reporting from makeDownloadFunc. Time to download content: 538.042836ms
+2020-05-17 04:27:03.929513905 -0500 CDT m=+8354.542622282 --->	 Time to download the layer: 169.187448ms
+2020-05-17 04:27:03.92954579 -0500 CDT m=+8354.542654147 --->	 Reporting from makeDownloadFunc. Time to download content: 649.393485ms
+2020-05-17 04:27:04.088672863 -0500 CDT m=+8354.701781399 --->	 Time to download the layer: 159.104301ms
+2020-05-17 04:27:04.088735129 -0500 CDT m=+8354.701843506 --->	 Reporting from makeDownloadFunc. Time to download content: 808.490765ms
+2020-05-17 04:27:04.255206225 -0500 CDT m=+8354.868314806 --->	 Time to download the layer: 166.441487ms
+2020-05-17 04:27:04.255266348 -0500 CDT m=+8354.868374721 --->	 Reporting from makeDownloadFunc. Time to download content: 975.008357ms
+2020-05-17 04:27:04.286778953 -0500 CDT m=+8354.899887475 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 1.007052406s.
+2020-05-17 04:27:04.286851912 -0500 CDT m=+8354.899960339 --->	  Closing running status of channel.
+2020-05-17 04:27:04.32195781 -0500 CDT m=+8354.935066334 --->	 Time to download the layer: 1.042206594s
+2020-05-17 04:27:04.322014819 -0500 CDT m=+8354.935123194 --->	 Reporting from makeDownloadFunc. Time to download content: 1.042267935s
+2020-05-17 04:27:04.322037777 -0500 CDT m=+8354.935146149 --->	  Wait for parent download lasted for: 2.346µs
+2020-05-17 04:27:04.353231183 -0500 CDT m=+8354.966339577 --->	 Time to download the layer: 530.392439ms
+2020-05-17 04:27:04.3532599 -0500 CDT m=+8354.966368225 --->	 Reporting from makeDownloadFunc. Time to download content: 1.073017386s
+2020-05-17 04:27:04.416795535 -0500 CDT m=+8355.029903863 --->	 Time to download the layer: 161.499046ms
+2020-05-17 04:27:04.416813836 -0500 CDT m=+8355.029922147 --->	 Reporting from makeDownloadFunc. Time to download content: 1.136645388s
+2020-05-17 04:27:04.487026296 -0500 CDT m=+8355.100134627 --->	 Time to download the layer: 164.93692ms
+2020-05-17 04:27:04.487046331 -0500 CDT m=+8355.100154648 --->	 Reporting from makeDownloadFunc. Time to download content: 1.206847405s
+2020-05-17 04:27:04.487114619 -0500 CDT m=+8355.100222936 --->	 Time to download the layer: 133.840072ms
+2020-05-17 04:27:04.487125721 -0500 CDT m=+8355.100234034 --->	 Reporting from makeDownloadFunc. Time to download content: 1.206904304s
+2020-05-17 04:27:04.581270262 -0500 CDT m=+8355.194378602 --->	 Time to download the layer: 164.44819ms
+2020-05-17 04:27:04.581289152 -0500 CDT m=+8355.194397464 --->	 Reporting from makeDownloadFunc. Time to download content: 1.301097688s
+2020-05-17 04:27:04.652689029 -0500 CDT m=+8355.265797359 --->	 Time to download the layer: 165.634446ms
+2020-05-17 04:27:04.652898453 -0500 CDT m=+8355.266006784 --->	 Reporting from makeDownloadFunc. Time to download content: 1.372677263s
+2020-05-17 04:27:05.300787451 -0500 CDT m=+8355.913895987 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 2.021040904s.
+2020-05-17 04:27:05.300869607 -0500 CDT m=+8355.913978033 --->	  Closing running status of channel.
+2020-05-17 04:27:05.3009223 -0500 CDT m=+8355.914030674 --->	  Wait for parent download lasted for: 1.54060541s
+2020-05-17 04:27:05.796479951 -0500 CDT m=+8356.409588474 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 2.516685741s.
+2020-05-17 04:27:05.796554373 -0500 CDT m=+8356.409662759 --->	  Closing running status of channel.
+2020-05-17 04:27:05.796589148 -0500 CDT m=+8356.409697522 --->	  Wait for parent download lasted for: 1.867027885s
+2020-05-17 04:27:06.046893566 -0500 CDT m=+8356.660002096 --->	 Time to download the layer: 1.559760813s
+2020-05-17 04:27:06.046950862 -0500 CDT m=+8356.660059281 --->	 Reporting from makeDownloadFunc. Time to download content: 2.766729876s
+2020-05-17 04:27:06.258812219 -0500 CDT m=+8356.871920755 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 2.978660448s.
+2020-05-17 04:27:06.258903526 -0500 CDT m=+8356.872011906 --->	  Closing running status of channel.
+2020-05-17 04:27:06.258938779 -0500 CDT m=+8356.872047191 --->	  Wait for parent download lasted for: 1.905669979s
+2020-05-17 04:27:06.695368377 -0500 CDT m=+8357.308476911 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 3.415126441s.
+2020-05-17 04:27:06.695868662 -0500 CDT m=+8357.308977176 --->	  Closing running status of channel.
+2020-05-17 04:27:09.433190992 -0500 CDT m=+8360.046299524 --->	  Closing running status of channel.
+2020-05-17 04:27:09.433312274 -0500 CDT m=+8360.046420648 --->	  Wait for parent download lasted for: 5.344556809s
+2020-05-17 04:27:09.861771937 -0500 CDT m=+8360.474880467 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 6.581528016s.
+2020-05-17 04:27:09.861868408 -0500 CDT m=+8360.474976830 --->	  Closing running status of channel.
+2020-05-17 04:27:09.861937921 -0500 CDT m=+8360.475046339 --->	  Wait for parent download lasted for: 5.606650348s
+2020-05-17 04:27:10.297657031 -0500 CDT m=+8360.910765563 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 7.017399462s.
+2020-05-17 04:27:10.298206078 -0500 CDT m=+8360.911314592 --->	  Closing running status of channel.
+2020-05-17 04:27:10.298293883 -0500 CDT m=+8360.911402253 --->	  Wait for parent download lasted for: 5.881474812s
+2020-05-17 04:27:10.726205433 -0500 CDT m=+8361.339313966 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 7.446037585s.
+2020-05-17 04:27:10.726309484 -0500 CDT m=+8361.339418019 --->	  Closing running status of channel.
+2020-05-17 04:27:10.726401405 -0500 CDT m=+8361.339509862 --->	  Wait for parent download lasted for: 6.239350243s
+2020-05-17 04:27:11.137807686 -0500 CDT m=+8361.750916217 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 7.857609412s.
+2020-05-17 04:27:11.137891228 -0500 CDT m=+8361.750999609 --->	  Closing running status of channel.
+2020-05-17 04:27:11.137963686 -0500 CDT m=+8361.751072064 --->	  Wait for parent download lasted for: 6.650833444s
+2020-05-17 04:27:11.616104027 -0500 CDT m=+8362.229212580 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 8.33588338s.
+2020-05-17 04:27:11.61620905 -0500 CDT m=+8362.229317478 --->	  Closing running status of channel.
+2020-05-17 04:27:11.616302964 -0500 CDT m=+8362.229411441 --->	  Wait for parent download lasted for: 7.035008549s
+2020-05-17 04:27:12.04461014 -0500 CDT m=+8362.657718674 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 8.764419427s.
+2020-05-17 04:27:12.044757576 -0500 CDT m=+8362.657865953 --->	  Closing running status of channel.
+2020-05-17 04:27:12.044848961 -0500 CDT m=+8362.657957511 --->	  Wait for parent download lasted for: 7.391660926s
+2020-05-17 04:27:12.464397216 -0500 CDT m=+8363.077505774 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 9.184176632s.
+2020-05-17 04:27:12.464492129 -0500 CDT m=+8363.077600571 --->	  Closing running status of channel.
+2020-05-17 04:27:12.464561527 -0500 CDT m=+8363.077669921 --->	  Wait for parent download lasted for: 6.417589621s
+2020-05-17 04:27:16.621964799 -0500 CDT m=+8367.235073286 --->	 Reporting from makeDownloadFunc. Time to finish downloadFunc 13.341744064s.
+2020-05-17 04:27:16.622043503 -0500 CDT m=+8367.235151906 --->	  Closing running status of channel.
+2020-05-17 04:27:16.622092108 -0500 CDT m=+8367.235200485 --->	  Top download downlaoded.
+2020-05-17 04:27:16.622122694 -0500 CDT m=+8367.235231063 --->	  Downlaoded image in time: 13.342711657s
+time="2020-05-17T04:27:58.883807313-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:27:58.883997645-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:false netPeers:2 entries:21 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:32:59.083781343-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:32:59.083973137-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:false netPeers:2 entries:21 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:37:59.283781037-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:37:59.284000457-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:false netPeers:2 entries:21 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:42:59.483568276-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:42:59.483630209-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:false netPeers:2 entries:18 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:44:06.343994518-05:00" level=info msg="Container 03260e8ba3e0e828803cf2dc0375ce049054dddf82f26feb825f17be2f2e719c failed to exit within 10 seconds of signal 15 - using the force"
+time="2020-05-17T04:44:06.515637173-05:00" level=info msg="ignoring event" module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2020-05-17T04:44:06.516010372-05:00" level=warning msg="rmServiceBinding 4e36490df88a8f15e9b8c5412287e8a63de4e2394764e2233259de68fc8024bf possible transient state ok:false entries:0 set:false "
+time="2020-05-17T04:44:08.270013318-05:00" level=warning msg="Error (Unable to complete atomic operation, key modified) deleting object [endpoint mvn3wrk1uf4jf0wubu0fayhnh 9a4afe62ef124d5fe4f0a13d2952e30fa5ae82cc8dcf919816029d9f3283cd2b], retrying...."
+time="2020-05-17T04:44:08.534917483-05:00" level=info msg="initialized VXLAN UDP port to 4789 "
+time="2020-05-17T04:44:09.725705871-05:00" level=error msg="moving interface ov-001000-pj52d to host ns failed, invalid argument, after config error error setting interface \"ov-001000-pj52d\" IP to 10.0.0.1/24: cannot program address 10.0.0.1/24 in sandbox interface because it conflicts with existing route {Ifindex: 2 Dst: 10.0.0.0/24 Src: 10.0.0.1 Gw: <nil> Flags: [] Table: 254}"
+time="2020-05-17T04:44:09.853878107-05:00" level=error msg="Failed creating ingress network: network sandbox join failed: subnet sandbox join failed for \"10.0.0.0/24\": error creating vxlan interface: file exists"
+time="2020-05-17T04:44:09.854692749-05:00" level=error msg="failed adding service binding for 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 epRec:{func_prometheus.1.yw7bqd9eeslo2xdc8psyidgx3 func_prometheus l9vftv4727d62gfhihbplm3hh 10.0.0.3 10.0.0.6 [&PortConfig{Name:,Protocol:TCP,TargetPort:9090,PublishedPort:9090,}] [] [322e1af970ba] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:44:09.855171065-05:00" level=error msg="failed adding container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:44:09.855598733-05:00" level=error msg="failed adding service binding for fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 epRec:{func_gateway.1.s1q4uj5tvxtzd7a66b3z5erwg func_gateway t0443bydsyrn0ptr7v9ithw5x 10.0.0.5 10.0.0.15 [&PortConfig{Name:,Protocol:TCP,TargetPort:8080,PublishedPort:8080,}] [] [b0e034748577] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:44:09.855676537-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_prometheus 57362b5f62bfececfbf6f731e62a35b403b6b50053996cb9f12a1c4687208d38 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:44:09.856076225-05:00" level=error msg="failed removing container name resolution for df354c7677573e127dc26e4452ff530d00a8c5a0916febbab54516e36a29c4b8 epRec:{ingress-endpoint   <nil> 10.0.0.2 [] [] [] false} err:network pj52d1c4x7eu0yni960aj7tog not found"
+time="2020-05-17T04:44:09.856145120-05:00" level=warning msg="rmServiceBinding handleEpTableEvent func_gateway fe8c2b3bbf3da8e58e524f37821e3fad13e7d53b4e71c280eb09a15d4ce555e0 aborted c.serviceBindings[skey] !ok"
+time="2020-05-17T04:47:45.086492039-05:00" level=info msg="Got signal to reload configuration, reloading from: /etc/docker/daemon.json"
+time="2020-05-17T04:47:45.086922779-05:00" level=warning msg="insecure registry https://csce-6snvrz2.cs.tamu.edu:5000 should not contain 'https://' and 'https://' has been removed from the insecure registry config"
+time="2020-05-17T04:47:45.087118573-05:00" level=info msg="Reloaded configuration: {\"mtu\":1500,\"pidfile\":\"/var/run/docker.pid\",\"data-root\":\"/var/lib/docker\",\"exec-root\":\"/var/run/docker\",\"group\":\"docker\",\"deprecated-key-path\":\"/etc/docker/key.json\",\"max-concurrent-downloads\":3,\"max-concurrent-uploads\":5,\"max-download-attempts\":5,\"shutdown-timeout\":15,\"hosts\":[\"unix:///var/run/docker.sock\"],\"log-level\":\"info\",\"swarm-default-advertise-addr\":\"\",\"swarm-raft-heartbeat-tick\":0,\"swarm-raft-election-tick\":0,\"metrics-addr\":\"\",\"log-driver\":\"json-file\",\"ip\":\"0.0.0.0\",\"icc\":true,\"iptables\":true,\"ip-forward\":true,\"ip-masq\":true,\"userland-proxy\":true,\"default-address-pools\":{},\"network-control-plane-mtu\":1500,\"insecure-registries\":[\"https://csce-6snvrz2.cs.tamu.edu:5000\"],\"experimental\":true,\"containerd\":\"/run/containerd/containerd.sock\",\"builder\":{\"GC\":{},\"Entitlements\":{}},\"containerd-namespace\":\"moby\",\"containerd-plugin-namespace\":\"plugins.moby\",\"runtimes\":{\"runc\":{\"path\":\"runc\"}},\"default-runtime\":\"runc\",\"oom-score-adjust\":-500,\"default-shm-size\":67108864,\"default-ipc-mode\":\"private\",\"default-cgroupns-mode\":\"host\",\"resolv-conf\":\"/etc/resolv.conf\"}"
+time="2020-05-17T04:47:59.683618275-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:47:59.683749101-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:3 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:52:59.883624756-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:52:59.883780343-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:3 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:57:30.742241748-05:00" level=info msg="Got signal to reload configuration, reloading from: /etc/docker/daemon.json"
+time="2020-05-17T04:57:30.743311415-05:00" level=warning msg="insecure registry https://csce-6snvrz2.cs.tamu.edu:5000 should not contain 'https://' and 'https://' has been removed from the insecure registry config"
+time="2020-05-17T04:57:30.743947608-05:00" level=info msg="Reloaded configuration: {\"mtu\":1500,\"pidfile\":\"/var/run/docker.pid\",\"data-root\":\"/var/lib/docker\",\"exec-root\":\"/var/run/docker\",\"group\":\"docker\",\"deprecated-key-path\":\"/etc/docker/key.json\",\"max-concurrent-downloads\":3,\"max-concurrent-uploads\":5,\"max-download-attempts\":5,\"shutdown-timeout\":15,\"hosts\":[\"unix:///var/run/docker.sock\"],\"log-level\":\"info\",\"swarm-default-advertise-addr\":\"\",\"swarm-raft-heartbeat-tick\":0,\"swarm-raft-election-tick\":0,\"metrics-addr\":\"\",\"log-driver\":\"json-file\",\"ip\":\"0.0.0.0\",\"icc\":true,\"iptables\":true,\"ip-forward\":true,\"ip-masq\":true,\"userland-proxy\":true,\"default-address-pools\":{},\"network-control-plane-mtu\":1500,\"insecure-registries\":[\"https://csce-6snvrz2.cs.tamu.edu:5000\"],\"experimental\":true,\"containerd\":\"/run/containerd/containerd.sock\",\"builder\":{\"GC\":{},\"Entitlements\":{}},\"containerd-namespace\":\"moby\",\"containerd-plugin-namespace\":\"plugins.moby\",\"runtimes\":{\"runc\":{\"path\":\"runc\"}},\"default-runtime\":\"runc\",\"oom-score-adjust\":-500,\"default-shm-size\":67108864,\"default-ipc-mode\":\"private\",\"default-cgroupns-mode\":\"host\",\"resolv-conf\":\"/etc/resolv.conf\"}"
+time="2020-05-17T04:57:59.883891296-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T04:57:59.884042138-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:3 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T05:03:00.083638335-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T05:03:00.083786287-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:3 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T05:08:00.283806771-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T05:08:00.283953501-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:3 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T05:13:00.483776639-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:pj52d1c4x7eu0yni960aj7tog leaving:true netPeers:1 entries:0 Queue qLen:0 netMsg/s:0"
+time="2020-05-17T05:13:00.483926625-05:00" level=info msg="NetworkDB stats localhost(dd20f65772f2) - netID:mvn3wrk1uf4jf0wubu0fayhnh leaving:true netPeers:1 entries:3 Queue qLen:0 netMsg/s:0"
