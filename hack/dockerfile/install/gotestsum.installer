@@ -2,10 +2,10 @@
 
 : ${GOTESTSUM_COMMIT:=v0.3.5}
 
-install_gotestsum() {
-	echo "Installing gotestsum version $GOTESTSUM_COMMIT"
-	go get -d gotest.tools/gotestsum
-	cd "$GOPATH/src/gotest.tools/gotestsum"
-	git checkout -q "$GOTESTSUM_COMMIT"
+install_gotestsum() (
+	set -e
+	export GO111MODULE=on
+	go get -d "gotest.tools/gotestsum@${GOTESTSUM_COMMIT}"
 	go build -buildmode=pie -o "${PREFIX}/gotestsum" 'gotest.tools/gotestsum'
-}
+
+)
