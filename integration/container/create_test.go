@@ -559,7 +559,7 @@ func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
 	inspect, err := client.ContainerInspect(ctx, id)
 	assert.NilError(t, err)
 	// tmpfs do not currently get added to inspect.Mounts
-	// Normally an anoynmous volume would, except now tmpfs should prevent that.
+	// Normally an anonymous volume would, except now tmpfs should prevent that.
 	assert.Assert(t, is.Len(inspect.Mounts, 0))
 
 	chWait, chErr := client.ContainerWait(ctx, id, container.WaitConditionNextExit)
