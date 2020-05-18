@@ -6,6 +6,7 @@ import (
 	"context"
 	"io"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -38,10 +39,11 @@ func TestImportExtremelyLargeImageWorks(t *testing.T) {
 	err := tw.Close()
 	assert.NilError(t, err)
 	imageRdr := io.MultiReader(&tarBuffer, io.LimitReader(testutil.DevZero, 8*1024*1024*1024))
+	reference := strings.ToLower(t.Name()) + ":v42"
 
 	_, err = client.ImageImport(context.Background(),
 		types.ImageImportSource{Source: imageRdr, SourceName: "-"},
-		"test1234:v42",
+		reference,
 		types.ImageImportOptions{})
 	assert.NilError(t, err)
 }

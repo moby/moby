@@ -2,6 +2,7 @@ package image // import "github.com/docker/docker/integration/image"
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -19,7 +20,7 @@ func TestImagesFilterMultiReference(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	name := "images_filter_multi_reference"
+	name := strings.ToLower(t.Name())
 	repoTags := []string{
 		name + ":v1",
 		name + ":v2",

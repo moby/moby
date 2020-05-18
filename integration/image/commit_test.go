@@ -2,6 +2,7 @@ package image // import "github.com/docker/docker/integration/image"
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -20,10 +21,11 @@ func TestCommitInheritsEnv(t *testing.T) {
 	ctx := context.Background()
 
 	cID1 := container.Create(ctx, t, client)
+	imgName := strings.ToLower(t.Name())
 
 	commitResp1, err := client.ContainerCommit(ctx, cID1, types.ContainerCommitOptions{
 		Changes:   []string{"ENV PATH=/bin"},
-		Reference: "test-commit-image",
+		Reference: imgName,
 	})
 	assert.NilError(t, err)
 
@@ -37,7 +39,7 @@ func TestCommitInheritsEnv(t *testing.T) {
 
 	commitResp2, err := client.ContainerCommit(ctx, cID2, types.ContainerCommitOptions{
 		Changes:   []string{"ENV PATH=/usr/bin:$PATH"},
-		Reference: "test-commit-image",
+		Reference: imgName,
 	})
 	assert.NilError(t, err)
 
