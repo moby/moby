@@ -207,19 +207,20 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 	defer source.Close()
 
 	apiclient := testEnv.APIClient()
+	imgName := strings.ToLower(t.Name())
 	resp, err := apiclient.ImageBuild(ctx,
 		source.AsTarReader(t),
 		types.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
-			Tags:        []string{"build1"},
+			Tags:        []string{imgName},
 		})
 	assert.NilError(t, err)
 	_, err = io.Copy(ioutil.Discard, resp.Body)
 	resp.Body.Close()
 	assert.NilError(t, err)
 
-	image, _, err := apiclient.ImageInspectWithRaw(ctx, "build1")
+	image, _, err := apiclient.ImageInspectWithRaw(ctx, imgName)
 	assert.NilError(t, err)
 
 	expected := "/foo/sub2"
@@ -234,7 +235,7 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 func TestBuildLabelWithTargets(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "test added after 1.38")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
-	bldName := "build-a"
+	imgName := strings.ToLower(t.Name() + "-a")
 	testLabels := map[string]string{
 		"foo":  "bar",
 		"dead": "beef",
@@ -260,7 +261,7 @@ func TestBuildLabelWithTargets(t *testing.T) {
 		types.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
-			Tags:        []string{bldName},
+			Tags:        []string{imgName},
 			Labels:      testLabels,
 			Target:      "target-a",
 		})
@@ -269,7 +270,7 @@ func TestBuildLabelWithTargets(t *testing.T) {
 	resp.Body.Close()
 	assert.NilError(t, err)
 
-	image, _, err := apiclient.ImageInspectWithRaw(ctx, bldName)
+	image, _, err := apiclient.ImageInspectWithRaw(ctx, imgName)
 	assert.NilError(t, err)
 
 	testLabels["label-a"] = "inline-a"
@@ -280,14 +281,14 @@ func TestBuildLabelWithTargets(t *testing.T) {
 	}
 
 	// For `target-b` build
-	bldName = "build-b"
+	imgName = strings.ToLower(t.Name() + "-b")
 	delete(testLabels, "label-a")
 	resp, err = apiclient.ImageBuild(ctx,
 		source.AsTarReader(t),
 		types.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
-			Tags:        []string{bldName},
+			Tags:        []string{imgName},
 			Labels:      testLabels,
 			Target:      "target-b",
 		})
@@ -296,7 +297,7 @@ func TestBuildLabelWithTargets(t *testing.T) {
 	resp.Body.Close()
 	assert.NilError(t, err)
 
-	image, _, err = apiclient.ImageInspectWithRaw(ctx, bldName)
+	image, _, err = apiclient.ImageInspectWithRaw(ctx, imgName)
 	assert.NilError(t, err)
 
 	testLabels["label-b"] = "inline-b"
@@ -581,7 +582,7 @@ func TestBuildPreserveOwnership(t *testing.T) {
 
 	ctx := context.Background()
 
-	dockerfile, err := ioutil.ReadFile("testdata/Dockerfile.testBuildPreserveOwnership")
+	dockerfile, err := ioutil.ReadFile("testdata/Dockerfile." + t.Name())
 	assert.NilError(t, err)
 
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(string(dockerfile)))
