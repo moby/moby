@@ -695,8 +695,7 @@
 			"names": [
 				"delete_module",
 				"init_module",
-				"finit_module",
-				"query_module"
+				"finit_module"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"args": [],
