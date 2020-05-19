@@ -190,6 +190,17 @@ func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 		}
 	}
 
+	certsDir := registry.CertsDir()
+	if fis, err := ioutil.ReadDir(certsDir); err == nil {
+		for _, fi := range fis {
+			if _, ok := m[fi.Name()]; !ok {
+				m[fi.Name()] = bkconfig.RegistryConfig{
+					TLSConfigDir: []string{filepath.Join(certsDir, fi.Name())},
+				}
+			}
+		}
+	}
+
 	return resolver.NewRegistryConfig(m)
 }
 
