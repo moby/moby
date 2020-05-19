@@ -187,6 +187,7 @@ func DefaultProfile() *types.Seccomp {
 				"lstat",
 				"lstat64",
 				"madvise",
+				"membarrier",
 				"memfd_create",
 				"mincore",
 				"mkdir",
