@@ -3,6 +3,7 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,7 +29,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	cID := container.Run(ctx, t, client, container.WithCmd("true"))
 	poll.WaitOn(t, container.IsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
 
-	reference := "repo/testexp:v1"
+	reference := "repo/" + strings.ToLower(t.Name()) + ":v1"
 	exportResp, err := client.ContainerExport(ctx, cID)
 	assert.NilError(t, err)
 	importResp, err := client.ImageImport(ctx, types.ImageImportSource{

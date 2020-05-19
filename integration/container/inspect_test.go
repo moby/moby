@@ -3,6 +3,7 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,7 +23,7 @@ func TestInspectCpusetInConfigPre120(t *testing.T) {
 	client := request.NewAPIClient(t, client.WithVersion("1.19"))
 	ctx := context.Background()
 
-	name := "cpusetinconfig-pre120-" + t.Name()
+	name := strings.ToLower(t.Name())
 	// Create container with up to-date-API
 	container.Run(ctx, t, request.NewAPIClient(t), container.WithName(name),
 		container.WithCmd("true"),

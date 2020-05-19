@@ -48,7 +48,7 @@ func TestBuildSquashParent(t *testing.T) {
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
 	defer source.Close()
 
-	name := "test"
+	name := strings.ToLower(t.Name())
 	resp, err := client.ImageBuild(ctx,
 		source.AsTarReader(t),
 		types.ImageBuildOptions{
