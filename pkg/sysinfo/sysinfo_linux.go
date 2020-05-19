@@ -239,11 +239,11 @@ func applyCPUSetCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
 }
 
 // applyPIDSCgroupInfo reads the pids information from the pids cgroup mount point.
-func applyPIDSCgroupInfo(info *SysInfo, _ map[string]string) []string {
+func applyPIDSCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
 	var warnings []string
-	_, err := cgroups.FindCgroupMountpoint("", "pids")
-	if err != nil {
-		warnings = append(warnings, err.Error())
+	_, ok := cgMounts["pids"]
+	if !ok {
+		warnings = append(warnings, "Unable to find pids cgroup in mounts")
 		return warnings
 	}
 	info.PidsLimit = true
