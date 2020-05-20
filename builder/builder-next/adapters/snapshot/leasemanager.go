@@ -6,6 +6,7 @@ import (
 
 	"github.com/containerd/containerd/leases"
 	"github.com/sirupsen/logrus"
+	bolt "go.etcd.io/bbolt"
 )
 
 type sLM struct {
@@ -99,6 +100,15 @@ func (l *sLM) addRef(lID, sID string) {
 
 	if load {
 		l.s.getLayer(sID, true)
+		if _, ok := l.s.chainID(sID); ok {
+			l.s.db.Update(func(tx *bolt.Tx) error {
+				b, err := tx.CreateBucketIfNotExists([]byte(lID))
+				if err != nil {
+					return err
+				}
+				return b.Put(keyChainID, []byte(sID))
+			})
+		}
 	}
 }
 

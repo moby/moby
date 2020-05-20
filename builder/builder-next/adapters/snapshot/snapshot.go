@@ -167,10 +167,11 @@ func (s *snapshotter) getLayer(key string, withCommitted bool) (layer.Layer, err
 				s.mu.Unlock()
 				return nil, errors.WithStack(err)
 			}
+			s.mu.Unlock()
 			if id == "" {
-				s.mu.Unlock()
 				return nil, nil
 			}
+			return s.getLayer(string(id), withCommitted)
 		}
 		var err error
 		l, err = s.opt.LayerStore.Get(id)
