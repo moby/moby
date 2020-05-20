@@ -219,25 +219,19 @@ This will create a static binary under
 the file "./VERSION". This binary is usually installed somewhere like
 "/usr/bin/docker".
 
-### Dynamic Daemon / Client-only Binary
-
-If you are only interested in a Docker client binary, you can build using:
-
-```bash
-./hack/make.sh binary-client
-```
+### Dynamic Daemon
 
 If you need to (due to distro policy, distro library availability, or for other
-reasons) create a dynamically compiled daemon binary, or if you are only
-interested in creating a client binary for Docker, use something similar to the
+reasons) create a dynamically compiled daemon binary use something similar to the
 following:
 
 ```bash
-./hack/make.sh dynbinary-client
+./hack/make.sh dynbinary
 ```
+### Client
 
-This will create "./bundles/$VERSION/dynbinary-client/docker-$VERSION", which for
-client-only builds is the important file to grab and install as appropriate.
+`docker` client is not included in this repo.
+See [`github.com/docker/cli`](https://github.com/docker/cli).
 
 ### Cross Compilation
 
