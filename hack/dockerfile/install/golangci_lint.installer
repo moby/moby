@@ -13,7 +13,7 @@ install_golangci_lint() {
 	commitDate="$(git show -s --format=%cd)"
 
 	go build \
-		-buildmode=pie \
+		${GO_BUILDMODE} \
 		-ldflags "-s -w -X \"main.version=${version}\" -X \"main.commit=${commit}\" -X \"main.date=${commitDate}\"" \
 		-o "${PREFIX}/golangci-lint" "github.com/golangci/golangci-lint/cmd/golangci-lint"
 }

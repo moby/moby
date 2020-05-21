@@ -26,5 +26,5 @@ build_dockercli() {
 	git checkout -q "v$DOCKERCLI_VERSION"
 	mkdir -p "$GOPATH/src/github.com/docker"
 	mv components/cli "$GOPATH/src/github.com/docker/cli"
-	go build -buildmode=pie -o "${PREFIX}/docker" "github.com/docker/cli/cmd/docker"
+	go build ${GO_BUILDMODE} -o "${PREFIX}/docker" "github.com/docker/cli/cmd/docker"
 }

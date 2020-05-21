@@ -7,5 +7,5 @@ install_shfmt() {
 	git clone https://github.com/mvdan/sh.git "$GOPATH/src/github.com/mvdan/sh"
 	cd "$GOPATH/src/github.com/mvdan/sh" || exit 1
 	git checkout -q "$SHFMT_COMMIT"
-	GO111MODULE=on go build -buildmode=pie -v -o "${PREFIX}/shfmt" ./cmd/shfmt
+	GO111MODULE=on go build ${GO_BUILDMODE} -v -o "${PREFIX}/shfmt" ./cmd/shfmt
 }

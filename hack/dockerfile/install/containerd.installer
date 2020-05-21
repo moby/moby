@@ -13,7 +13,7 @@ install_containerd() (
 	git checkout -q "$CONTAINERD_COMMIT"
 
 	export BUILDTAGS='netgo osusergo static_build'
-	export EXTRA_FLAGS='-buildmode=pie'
+	export EXTRA_FLAGS=${GO_BUILDMODE}
 	export EXTRA_LDFLAGS='-extldflags "-fno-PIC -static"'
 
 	# Reset build flags to nothing if we want a dynbinary
