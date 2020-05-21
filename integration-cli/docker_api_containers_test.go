@@ -523,7 +523,7 @@ func (s *DockerSuite) TestContainerAPIBadPort(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, "")
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, "")
 	assert.ErrorContains(c, err, `invalid port specification: "aa80"`)
 }
 
@@ -537,7 +537,7 @@ func (s *DockerSuite) TestContainerAPICreate(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	container, err := cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, "")
+	container, err := cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 
 	out, _ := dockerCmd(c, "start", "-a", container.ID)
@@ -550,7 +550,7 @@ func (s *DockerSuite) TestContainerAPICreateEmptyConfig(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &containertypes.Config{}, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, "")
+	_, err = cli.ContainerCreate(context.Background(), &containertypes.Config{}, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, "")
 
 	expected := "No command specified"
 	assert.ErrorContains(c, err, expected)
@@ -574,7 +574,7 @@ func (s *DockerSuite) TestContainerAPICreateMultipleNetworksConfig(c *testing.T)
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networkingConfig, "")
+	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networkingConfig, nil, "")
 	msg := err.Error()
 	// network name order in error message is not deterministic
 	assert.Assert(c, strings.Contains(msg, "Container cannot be connected to network endpoints"))
@@ -609,7 +609,7 @@ func UtilCreateNetworkMode(c *testing.T, networkMode containertypes.NetworkMode)
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	container, err := cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, "")
+	container, err := cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
@@ -636,7 +636,7 @@ func (s *DockerSuite) TestContainerAPICreateWithCpuSharesCpuset(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	container, err := cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, "")
+	container, err := cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
@@ -948,7 +948,7 @@ func (s *DockerSuite) TestContainerAPIStart(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, name)
+	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, name)
 	assert.NilError(c, err)
 
 	err = cli.ContainerStart(context.Background(), name, types.ContainerStartOptions{})
@@ -1272,7 +1272,7 @@ func (s *DockerSuite) TestPostContainerAPICreateWithStringOrSliceEntrypoint(c *t
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, "echotest")
+	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, "echotest")
 	assert.NilError(c, err)
 	out, _ := dockerCmd(c, "start", "-a", "echotest")
 	assert.Equal(c, strings.TrimSpace(out), "hello world")
@@ -1299,7 +1299,7 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCmd(c *testing.T)
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, "echotest")
+	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, "echotest")
 	assert.NilError(c, err)
 	out, _ := dockerCmd(c, "start", "-a", "echotest")
 	assert.Equal(c, strings.TrimSpace(out), "hello world")
@@ -1342,7 +1342,7 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCapAddDrop(c *tes
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config2, &hostConfig, &networktypes.NetworkingConfig{}, "capaddtest1")
+	_, err = cli.ContainerCreate(context.Background(), &config2, &hostConfig, &networktypes.NetworkingConfig{}, nil, "capaddtest1")
 	assert.NilError(c, err)
 }
 
@@ -1356,7 +1356,7 @@ func (s *DockerSuite) TestContainerAPICreateNoHostConfig118(c *testing.T) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("v1.18"))
 	assert.NilError(c, err)
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, "")
+	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 }
 
@@ -1407,7 +1407,7 @@ func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *testing.T
 	}
 	name := "wrong-cpuset-cpus"
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig1, &networktypes.NetworkingConfig{}, name)
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig1, &networktypes.NetworkingConfig{}, nil, name)
 	expected := "Invalid value 1-42,, for cpuset cpus"
 	assert.ErrorContains(c, err, expected)
 
@@ -1417,7 +1417,7 @@ func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *testing.T
 		},
 	}
 	name = "wrong-cpuset-mems"
-	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig2, &networktypes.NetworkingConfig{}, name)
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig2, &networktypes.NetworkingConfig{}, nil, name)
 	expected = "Invalid value 42-3,1-- for cpuset mems"
 	assert.ErrorContains(c, err, expected)
 }
@@ -1436,7 +1436,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeNegative(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, "")
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, "")
 	assert.ErrorContains(c, err, "SHM size can not be less than 0")
 }
 
@@ -1453,7 +1453,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *testin
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	container, err := cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, "")
+	container, err := cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
@@ -1480,7 +1480,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeOmitted(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	container, err := cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, "")
+	container, err := cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
@@ -1511,7 +1511,7 @@ func (s *DockerSuite) TestPostContainersCreateWithShmSize(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	container, err := cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, "")
+	container, err := cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
@@ -1537,7 +1537,7 @@ func (s *DockerSuite) TestPostContainersCreateMemorySwappinessHostConfigOmitted(
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	container, err := cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, "")
+	container, err := cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
@@ -1568,7 +1568,7 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *tes
 	defer cli.Close()
 
 	name := "oomscoreadj-over"
-	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, name)
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, name)
 
 	expected := "Invalid value 1001, range for oom score adj is [-1000, 1000]"
 	assert.ErrorContains(c, err, expected)
@@ -1578,7 +1578,7 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *tes
 	}
 
 	name = "oomscoreadj-low"
-	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, name)
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, name)
 
 	expected = "Invalid value -1001, range for oom score adj is [-1000, 1000]"
 	assert.ErrorContains(c, err, expected)
@@ -1610,7 +1610,7 @@ func (s *DockerSuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, name)
+	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, name)
 	assert.NilError(c, err)
 
 	err = cli.ContainerStart(context.Background(), name, types.ContainerStartOptions{})
@@ -1926,7 +1926,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 	for i, x := range cases {
 		x := x
 		c.Run(fmt.Sprintf("case %d", i), func(c *testing.T) {
-			_, err = apiClient.ContainerCreate(context.Background(), &x.config, &x.hostConfig, &networktypes.NetworkingConfig{}, "")
+			_, err = apiClient.ContainerCreate(context.Background(), &x.config, &x.hostConfig, &networktypes.NetworkingConfig{}, nil, "")
 			if len(x.msg) > 0 {
 				assert.ErrorContains(c, err, x.msg, "%v", cases[i].config)
 			} else {
@@ -1959,7 +1959,7 @@ func (s *DockerSuite) TestContainerAPICreateMountsBindRead(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, "test")
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, "test")
 	assert.NilError(c, err)
 
 	out, _ := dockerCmd(c, "start", "-a", "test")
@@ -2106,6 +2106,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 				&containertypes.Config{Image: testImg},
 				&containertypes.HostConfig{Mounts: []mounttypes.Mount{x.spec}},
 				&networktypes.NetworkingConfig{},
+				nil,
 				"")
 			assert.NilError(c, err)
 
@@ -2213,7 +2214,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsTmpfs(c *testing.T) {
 			Mounts: []mounttypes.Mount{x.cfg},
 		}
 
-		_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, cName)
+		_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, cName)
 		assert.NilError(c, err)
 		out, _ := dockerCmd(c, "start", "-a", cName)
 		for _, option := range x.expectedOptions {

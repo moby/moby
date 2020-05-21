@@ -66,7 +66,7 @@ func testIpcNonePrivateShareable(t *testing.T, mode string, mustBeMounted bool, 
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	resp, err := client.ContainerCreate(ctx, &cfg, &hostCfg, nil, "")
+	resp, err := client.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 
@@ -138,7 +138,7 @@ func testIpcContainer(t *testing.T, donorMode string, mustWork bool) {
 	client := testEnv.APIClient()
 
 	// create and start the "donor" container
-	resp, err := client.ContainerCreate(ctx, &cfg, &hostCfg, nil, "")
+	resp, err := client.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 	name1 := resp.ID
@@ -148,7 +148,7 @@ func testIpcContainer(t *testing.T, donorMode string, mustWork bool) {
 
 	// create and start the second container
 	hostCfg.IpcMode = containertypes.IpcMode("container:" + name1)
-	resp, err = client.ContainerCreate(ctx, &cfg, &hostCfg, nil, "")
+	resp, err = client.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 	name2 := resp.ID
@@ -204,7 +204,7 @@ func TestAPIIpcModeHost(t *testing.T) {
 	ctx := context.Background()
 
 	client := testEnv.APIClient()
-	resp, err := client.ContainerCreate(ctx, &cfg, &hostCfg, nil, "")
+	resp, err := client.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 	name := resp.ID
@@ -241,7 +241,7 @@ func testDaemonIpcPrivateShareable(t *testing.T, mustBeShared bool, arg ...strin
 	}
 	ctx := context.Background()
 
-	resp, err := c.ContainerCreate(ctx, &cfg, &containertypes.HostConfig{}, nil, "")
+	resp, err := c.ContainerCreate(ctx, &cfg, &containertypes.HostConfig{}, nil, nil, "")
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 

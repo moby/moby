@@ -578,7 +578,7 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *testing
 			},
 		},
 	}
-	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &network.NetworkingConfig{}, "app")
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &network.NetworkingConfig{}, nil, "app")
 
 	assert.NilError(c, err)
 

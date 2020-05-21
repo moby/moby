@@ -54,6 +54,7 @@ func TestReadPluginNoRead(t *testing.T) {
 				cfg,
 				&container.HostConfig{LogConfig: container.LogConfig{Type: "test"}},
 				nil,
+				nil,
 				"",
 			)
 			assert.Assert(t, err)
