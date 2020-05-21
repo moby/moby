@@ -146,6 +146,19 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) err
 		return errors.New("Could not program chain, missing chain name")
 	}
 
+	// Either add or remove the interface from the firewalld zone
+	if firewalldRunning {
+		if enable {
+			if err := AddInterfaceFirewalld(bridgeName); err != nil {
+				return err
+			}
+		} else {
+			if err := DelInterfaceFirewalld(bridgeName); err != nil {
+				return err
+			}
+		}
+	}
+
 	switch c.Table {
 	case Nat:
 		preroute := []string{
