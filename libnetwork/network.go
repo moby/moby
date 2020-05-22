@@ -1181,7 +1181,8 @@ func (n *network) createEndpoint(name string, options ...EndpointOption) (Endpoi
 	ep.locator = n.getController().clusterHostID()
 	ep.network, err = ep.getNetworkFromStore()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get network during CreateEndpoint: %v", err)
+		logrus.Errorf("failed to get network during CreateEndpoint: %v", err)
+		return nil, err
 	}
 	n = ep.network
 
