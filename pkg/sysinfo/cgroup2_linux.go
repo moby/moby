@@ -90,10 +90,8 @@ func applyCPUCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, _ stri
 		return warnings
 	}
 	info.CPUShares = true
-	info.CPUCfsPeriod = true
-	info.CPUCfsQuota = true
-	info.CPURealtimePeriod = false
-	info.CPURealtimeRuntime = false
+	info.CPUCfs = true
+	info.CPURealtime = false
 	return warnings
 }
 

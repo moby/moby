@@ -505,8 +505,8 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 	if resources.NanoCPUs > 0 && resources.CPUQuota > 0 {
 		return warnings, fmt.Errorf("Conflicting options: Nano CPUs and CPU Quota cannot both be set")
 	}
-	if resources.NanoCPUs > 0 && (!sysInfo.CPUCfsPeriod || !sysInfo.CPUCfsQuota) {
-		return warnings, fmt.Errorf("NanoCPUs can not be set, as your kernel does not support CPU cfs period/quota or the cgroup is not mounted")
+	if resources.NanoCPUs > 0 && !sysInfo.CPUCfs {
+		return warnings, fmt.Errorf("NanoCPUs can not be set, as your kernel does not support CPU CFS scheduler or the cgroup is not mounted")
 	}
 	// The highest precision we could get on Linux is 0.001, by setting
 	//   cpu.cfs_period_us=1000ms
@@ -523,16 +523,13 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 		warnings = append(warnings, "Your kernel does not support CPU shares or the cgroup is not mounted. Shares discarded.")
 		resources.CPUShares = 0
 	}
-	if resources.CPUPeriod > 0 && !sysInfo.CPUCfsPeriod {
-		warnings = append(warnings, "Your kernel does not support CPU cfs period or the cgroup is not mounted. Period discarded.")
+	if (resources.CPUPeriod != 0 || resources.CPUQuota != 0) && !sysInfo.CPUCfs {
+		warnings = append(warnings, "Your kernel does not support CPU CFS scheduler. CPU period/quota discarded.")
 		resources.CPUPeriod = 0
+		resources.CPUQuota = 0
 	}
 	if resources.CPUPeriod != 0 && (resources.CPUPeriod < 1000 || resources.CPUPeriod > 1000000) {
 		return warnings, fmt.Errorf("CPU cfs period can not be less than 1ms (i.e. 1000) or larger than 1s (i.e. 1000000)")
-	}
-	if resources.CPUQuota > 0 && !sysInfo.CPUCfsQuota {
-		warnings = append(warnings, "Your kernel does not support CPU cfs quota or the cgroup is not mounted. Quota discarded.")
-		resources.CPUQuota = 0
 	}
 	if resources.CPUQuota > 0 && resources.CPUQuota < 1000 {
 		return warnings, fmt.Errorf("CPU cfs quota can not be less than 1ms (i.e. 1000)")
@@ -1726,10 +1723,10 @@ func (daemon *Daemon) initCgroupsPath(path string) error {
 
 	path = filepath.Join(mnt, root, path)
 	sysInfo := daemon.RawSysInfo(true)
-	if err := maybeCreateCPURealTimeFile(sysInfo.CPURealtimePeriod, daemon.configStore.CPURealtimePeriod, "cpu.rt_period_us", path); err != nil {
+	if err := maybeCreateCPURealTimeFile(sysInfo.CPURealtime, daemon.configStore.CPURealtimePeriod, "cpu.rt_period_us", path); err != nil {
 		return err
 	}
-	return maybeCreateCPURealTimeFile(sysInfo.CPURealtimeRuntime, daemon.configStore.CPURealtimeRuntime, "cpu.rt_runtime_us", path)
+	return maybeCreateCPURealTimeFile(sysInfo.CPURealtime, daemon.configStore.CPURealtimeRuntime, "cpu.rt_runtime_us", path)
 }
 
 func maybeCreateCPURealTimeFile(sysinfoPresent bool, configValue int64, file string, path string) error {
