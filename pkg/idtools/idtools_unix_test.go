@@ -321,12 +321,7 @@ func TestNewIDMappings(t *testing.T) {
 	tempUser, err := user.Lookup(tempUser)
 	assert.Check(t, err)
 
-	gids, err := tempUser.GroupIds()
-	assert.Check(t, err)
-	group, err := user.LookupGroupId(gids[0])
-	assert.Check(t, err)
-
-	idMapping, err := NewIdentityMapping(tempUser.Username, group.Name)
+	idMapping, err := NewIdentityMapping(tempUser.Username)
 	assert.Check(t, err)
 
 	rootUID, rootGID, err := GetRootUIDGID(idMapping.UIDs(), idMapping.GIDs())

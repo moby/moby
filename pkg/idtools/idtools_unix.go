@@ -8,12 +8,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 
 	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runc/libcontainer/user"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -228,4 +230,49 @@ func lazyChown(p string, uid, gid int, stat *system.StatT) error {
 		return nil
 	}
 	return os.Chown(p, uid, gid)
+}
+
+// NewIdentityMapping takes a requested username and
+// using the data from /etc/sub{uid,gid} ranges, creates the
+// proper uid and gid remapping ranges for that user/group pair
+func NewIdentityMapping(username string) (*IdentityMapping, error) {
+	usr, err := LookupUser(username)
+	if err != nil {
+		return nil, fmt.Errorf("Could not get user for username %s: %v", username, err)
+	}
+
+	uid := strconv.Itoa(usr.Uid)
+
+	subuidRangesWithUserName, err := parseSubuid(username)
+	if err != nil {
+		return nil, err
+	}
+	subgidRangesWithUserName, err := parseSubgid(username)
+	if err != nil {
+		return nil, err
+	}
+
+	subuidRangesWithUID, err := parseSubuid(uid)
+	if err != nil {
+		return nil, err
+	}
+	subgidRangesWithUID, err := parseSubgid(uid)
+	if err != nil {
+		return nil, err
+	}
+
+	subuidRanges := append(subuidRangesWithUserName, subuidRangesWithUID...)
+	subgidRanges := append(subgidRangesWithUserName, subgidRangesWithUID...)
+
+	if len(subuidRanges) == 0 {
+		return nil, errors.Errorf("no subuid ranges found for user %q", username)
+	}
+	if len(subgidRanges) == 0 {
+		return nil, errors.Errorf("no subgid ranges found for user %q", username)
+	}
+
+	return &IdentityMapping{
+		uids: createIDMap(subuidRanges),
+		gids: createIDMap(subgidRanges),
+	}, nil
 }
