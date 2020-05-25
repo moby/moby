@@ -509,7 +509,7 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 	}
 }
 
-func (daemon *Daemon) allocateNetwork(container *container.Container) error {
+func (daemon *Daemon) allocateNetwork(container *container.Container) (retErr error) {
 	start := time.Now()
 	controller := daemon.netController
 
@@ -577,7 +577,7 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 			}
 			updateSandboxNetworkSettings(container, sb)
 			defer func() {
-				if err != nil {
+				if retErr != nil {
 					sb.Delete()
 				}
 			}()
