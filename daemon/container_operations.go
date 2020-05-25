@@ -527,12 +527,14 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 }
 
 func (daemon *Daemon) allocateNetwork(container *container.Container) (retErr error) {
-	start := time.Now()
-	controller := daemon.netController
-
 	if daemon.netController == nil {
 		return nil
 	}
+
+	var (
+		start      = time.Now()
+		controller = daemon.netController
+	)
 
 	// Cleanup any stale sandbox left over due to ungraceful daemon shutdown
 	if err := controller.SandboxDestroy(container.ID); err != nil {
