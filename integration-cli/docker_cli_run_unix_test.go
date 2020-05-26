@@ -1252,12 +1252,13 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetBindService(c *testing.T
 	// test that a root user has default capability CAP_NET_BIND_SERVICE
 	dockerCmd(c, "run", "syscall-test", "socket-test")
 	// test that non root user does not have default capability CAP_NET_BIND_SERVICE
-	icmd.RunCommand(dockerBinary, "run", "--user", "1000:1000", "syscall-test", "socket-test").Assert(c, icmd.Expected{
+	// as we allow this via sysctl, also tweak the sysctl back to default
+	icmd.RunCommand(dockerBinary, "run", "--user", "1000:1000", "--sysctl", "net.ipv4.ip_unprivileged_port_start=1024", "syscall-test", "socket-test").Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Permission denied",
 	})
 	// test that root user can drop default capability CAP_NET_BIND_SERVICE
-	icmd.RunCommand(dockerBinary, "run", "--cap-drop", "net_bind_service", "syscall-test", "socket-test").Assert(c, icmd.Expected{
+	icmd.RunCommand(dockerBinary, "run", "--cap-drop", "net_bind_service", "--sysctl", "net.ipv4.ip_unprivileged_port_start=1024", "syscall-test", "socket-test").Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Permission denied",
 	})
