@@ -1,6 +1,8 @@
 package label
 
 import (
+	"fmt"
+
 	"github.com/opencontainers/selinux/go-selinux"
 )
 
@@ -46,7 +48,7 @@ var PidLabel = selinux.PidLabel
 
 // Init initialises the labeling system
 func Init() {
-	selinux.GetEnabled()
+	_ = selinux.GetEnabled()
 }
 
 // ClearLabels will clear all reserved labels
@@ -75,3 +77,21 @@ func ReleaseLabel(label string) error {
 // can be used to set duplicate labels on future container processes
 // Deprecated: use selinux.DupSecOpt
 var DupSecOpt = selinux.DupSecOpt
+
+// FormatMountLabel returns a string to be used by the mount command.
+// The format of this string will be used to alter the labeling of the mountpoint.
+// The string returned is suitable to be used as the options field of the mount command.
+// If you need to have additional mount point options, you can pass them in as
+// the first parameter.  Second parameter is the label that you wish to apply
+// to all content in the mount point.
+func FormatMountLabel(src, mountLabel string) string {
+	if mountLabel != "" {
+		switch src {
+		case "":
+			src = fmt.Sprintf("context=%q", mountLabel)
+		default:
+			src = fmt.Sprintf("%s,context=%q", src, mountLabel)
+		}
+	}
+	return src
+}
