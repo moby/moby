@@ -21,7 +21,7 @@ install_rootlesskit() {
 
 install_rootlesskit_dynamic() {
 	export ROOTLESSKIT_LDFLAGS="-linkmode=external" install_rootlesskit
-	export BUILD_MODE="-buildmode=pie"
+	export BUILD_MODE=${GO_BUILDMODE}
 	_install_rootlesskit
 }
 
