@@ -188,3 +188,91 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 		nr -= frameSize + stdWriterPrefixLen
 	}
 }
+
+// StdCopyMix is a modified version of io.Copy and it is different from StdCopy.
+// StdCopyMix is used for deserializing binary dockerlogs
+
+// As it reads from `src`, StdCopyMix will write to `dstout` only.
+//
+// StdCopyMix will read until it hits EOF on `src`. It will then return a nil error.
+// In other words: if `err` is non nil, it indicates a real underlying error.
+//
+// `written` will hold the total number of bytes written to `dstout` only.
+func StdCopyMix(dstout io.Writer, src io.Reader) (written int64, err error) {
+	var (
+		buf       = make([]byte, startingBufLen)
+		bufLen    = len(buf)
+		nr, nw    int
+		er, ew    error
+		frameSize int
+	)
+
+	for {
+		// Make sure we have at least a full header
+		for nr < stdWriterPrefixLen {
+			var nr2 int
+			nr2, er = src.Read(buf[nr:])
+			nr += nr2
+			if er == io.EOF {
+				if nr < stdWriterPrefixLen {
+					return written, nil
+				}
+				break
+			}
+			if er != nil {
+				return 0, er
+			}
+		}
+
+		stream := StdType(buf[stdWriterFdIndex])
+
+		// Retrieve the size of the frame
+		frameSize = int(binary.BigEndian.Uint32(buf[stdWriterSizeIndex : stdWriterSizeIndex+4]))
+
+		// Check if the buffer is big enough to read the frame.
+		// Extend it if necessary.
+		if frameSize+stdWriterPrefixLen > bufLen {
+			buf = append(buf, make([]byte, frameSize+stdWriterPrefixLen-bufLen+1)...)
+			bufLen = len(buf)
+		}
+
+		// While the amount of bytes read is less than the size of the frame + header, we keep reading
+		for nr < frameSize+stdWriterPrefixLen {
+			var nr2 int
+			nr2, er = src.Read(buf[nr:])
+			nr += nr2
+			if er == io.EOF {
+				if nr < frameSize+stdWriterPrefixLen {
+					return written, nil
+				}
+				break
+			}
+			if er != nil {
+				return 0, er
+			}
+		}
+
+		// we might have an error from the source mixed up in our multiplexed
+		// stream. if we do, return it.
+		if stream == Systemerr {
+			return written, fmt.Errorf("error from daemon in stream: %s", string(buf[stdWriterPrefixLen:frameSize+stdWriterPrefixLen]))
+		}
+
+		// Write the retrieved frame (without header)
+		nw, ew = dstout.Write(buf[stdWriterPrefixLen : frameSize+stdWriterPrefixLen])
+		if ew != nil {
+			return 0, ew
+		}
+
+		// If the frame has not been fully written: error
+		if nw != frameSize {
+			return 0, io.ErrShortWrite
+		}
+		written += int64(nw)
+
+		// Move the rest of the buffer to the beginning
+		copy(buf, buf[frameSize+stdWriterPrefixLen:])
+		// Move the index
+		nr -= frameSize + stdWriterPrefixLen
+	}
+}
