@@ -599,7 +599,6 @@ func DefaultProfile() *types.Seccomp {
 				"delete_module",
 				"init_module",
 				"finit_module",
-				"query_module",
 			},
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
