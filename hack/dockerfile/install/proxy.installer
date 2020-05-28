@@ -3,7 +3,7 @@
 # LIBNETWORK_COMMIT is used to build the docker-userland-proxy binary. When
 # updating the binary version, consider updating github.com/docker/libnetwork
 # in vendor.conf accordingly
-: ${LIBNETWORK_COMMIT:=0941c3f409260d5f05cfa6fc68420d8ad45ee483} # bump_19.03 branch
+: ${LIBNETWORK_COMMIT:=71d4d82a5ce50453b1121d95544f0a2ae95bef9b} # bump_19.03 branch
 
 install_proxy() {
 	case "$1" in
