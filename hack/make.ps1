@@ -320,10 +320,19 @@ Function Run-UnitTests() {
     $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/man"
     $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/integration"
     $pkgList = $pkgList -replace "`r`n", " "
-    $goTestCommand = "$GOTESTSUM_LOCATION\gotestsum.exe --format=standard-quiet --jsonfile=bundles\go-test-report-unit-tests.json --junitfile=bundles\junit-report-unit-tests.xml -- " + $raceParm + " -cover -ldflags -w -a """ + "-test.timeout=10m" + """ $pkgList"
-    Write-Host "INFO: Invoking unit tests run with $goTestCommand"
-    Invoke-Expression $goTestCommand
-    if ($LASTEXITCODE -ne 0) { Throw "Unit tests failed" }
+
+    $goTestArg = "--format=standard-verbose --jsonfile=bundles\go-test-report-unit-tests.json --junitfile=bundles\junit-report-unit-tests.xml -- " + $raceParm + " -cover -ldflags -w -a """ + "-test.timeout=10m" + """ $pkgList"
+    Write-Host "INFO: Invoking unit tests run with $GOTESTSUM_LOCATION\gotestsum.exe $goTestArg"
+    $pinfo = New-Object System.Diagnostics.ProcessStartInfo
+    $pinfo.FileName = "$GOTESTSUM_LOCATION\gotestsum.exe"
+    $pinfo.WorkingDirectory = "$($PWD.Path)"
+    $pinfo.UseShellExecute = $false
+    $pinfo.Arguments = $goTestArg
+    $p = New-Object System.Diagnostics.Process
+    $p.StartInfo = $pinfo
+    $p.Start() | Out-Null
+    $p.WaitForExit()
+    if ($p.ExitCode -ne 0) { Throw "Unit tests failed" }
 }
 
 # Run the integration tests
@@ -353,19 +362,13 @@ Function Run-IntegrationTests() {
         $pinfo = New-Object System.Diagnostics.ProcessStartInfo
         $pinfo.FileName = "gotestsum.exe"
         $pinfo.WorkingDirectory = "$($PWD.Path)"
-        $pinfo.RedirectStandardError = $true
         $pinfo.UseShellExecute = $false
-        $pinfo.Arguments = "--format=standard-quiet --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- $env:INTEGRATION_TESTFLAGS"
+        $pinfo.Arguments = "--format=standard-verbose --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- $env:INTEGRATION_TESTFLAGS"
         $p = New-Object System.Diagnostics.Process
         $p.StartInfo = $pinfo
         $p.Start() | Out-Null
         $p.WaitForExit()
-        $err = $p.StandardError.ReadToEnd()
-        if (($LASTEXITCODE -ne 0) -and ($err -notlike "*warning: no tests to run*")) {
-            Throw "Integration tests failed: $err"
-        } else {
-            Write-Host "$err"
-        }
+        if ($p.ExitCode -ne 0) { Throw "Integration tests failed" }
     }
 }
 
@@ -506,7 +509,7 @@ Catch [Exception] {
     Write-Host -ForegroundColor Red  "     \/        \/             \/     \/ "
     Write-Host
 
-    Throw $_
+    exit 1
 }
 Finally {
     Pop-Location # As we pushed to the root of the repo as the very first thing
