@@ -286,6 +286,7 @@ pipeline {
                                 sh '''#!/bin/bash
                                 # bash is needed so 'jobs -p' works properly
                                 # it also accepts setting inline envvars for functions without explicitly exporting
+                                set -x
 
                                 run_tests() {
                                         [ -n "$TESTDEBUG" ] && rm= || rm=--rm;
@@ -335,7 +336,6 @@ pipeline {
                                 # integration-cli second set
                                 TEST_INTEGRATION_DEST=3 CONTAINER_NAME=${CONTAINER_NAME}-3 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-test.run Test(DockerSwarmSuite|DockerDaemonSuite|DockerExternalVolumeSuite)/" run_tests &
 
-                                set +x
                                 c=0
                                 for job in $(jobs -p); do
                                         wait ${job} || c=$?
