@@ -1020,12 +1020,7 @@ func (c *controller) addNetwork(n *network) error {
 func (c *controller) Networks() []Network {
 	var list []Network
 
-	networks, err := c.getNetworksFromStore()
-	if err != nil {
-		logrus.Error(err)
-	}
-
-	for _, n := range networks {
+	for _, n := range c.getNetworksFromStore() {
 		if n.inDelete {
 			continue
 		}
