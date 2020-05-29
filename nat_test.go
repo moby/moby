@@ -1,9 +1,8 @@
 package nat
 
 import (
+	"reflect"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestParsePort(t *testing.T) {
@@ -175,7 +174,9 @@ func TestSplitProtoPort(t *testing.T) {
 
 func TestParsePortSpecFull(t *testing.T) {
 	portMappings, err := ParsePortSpec("0.0.0.0:1234-1235:3333-3334/tcp")
-	assert.Nil(t, err)
+	if err != nil {
+		t.Fatalf("expected nil error, got: %v", err)
+	}
 
 	expected := []PortMapping{
 		{
@@ -194,12 +195,16 @@ func TestParsePortSpecFull(t *testing.T) {
 		},
 	}
 
-	assert.Equal(t, expected, portMappings)
+	if !reflect.DeepEqual(expected, portMappings) {
+		t.Fatalf("wrong port mappings: got=%v, want=%v", portMappings, expected)
+	}
 }
 
 func TestPartPortSpecIPV6(t *testing.T) {
 	portMappings, err := ParsePortSpec("[2001:4860:0:2001::68]::333")
-	assert.Nil(t, err)
+	if err != nil {
+		t.Fatalf("expected nil error, got: %v", err)
+	}
 
 	expected := []PortMapping{
 		{
@@ -210,12 +215,16 @@ func TestPartPortSpecIPV6(t *testing.T) {
 			},
 		},
 	}
-	assert.Equal(t, expected, portMappings)
+	if !reflect.DeepEqual(expected, portMappings) {
+		t.Fatalf("wrong port mappings: got=%v, want=%v", portMappings, expected)
+	}
 }
 
 func TestPartPortSpecIPV6WithHostPort(t *testing.T) {
 	portMappings, err := ParsePortSpec("[::1]:80:80")
-	assert.Nil(t, err)
+	if err != nil {
+		t.Fatalf("expected nil error, got: %v", err)
+	}
 
 	expected := []PortMapping{
 		{
@@ -226,7 +235,9 @@ func TestPartPortSpecIPV6WithHostPort(t *testing.T) {
 			},
 		},
 	}
-	assert.Equal(t, expected, portMappings)
+	if !reflect.DeepEqual(expected, portMappings) {
+		t.Fatalf("wrong port mappings: got=%v, want=%v", portMappings, expected)
+	}
 }
 
 func TestParsePortSpecs(t *testing.T) {
