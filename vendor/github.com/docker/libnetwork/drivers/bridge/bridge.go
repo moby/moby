@@ -679,6 +679,12 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 	bridgeAlreadyExists := bridgeIface.exists()
 	if !bridgeAlreadyExists {
 		bridgeSetup.queueStep(setupDevice)
+		bridgeSetup.queueStep(setupDefaultSysctl)
+	}
+
+	// For the default bridge, set expected sysctls
+	if config.DefaultBridge {
+		bridgeSetup.queueStep(setupDefaultSysctl)
 	}
 
 	// Even if a bridge exists try to setup IPv4.
