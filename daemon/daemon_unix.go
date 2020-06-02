@@ -142,10 +142,11 @@ func getCPUResources(config containertypes.Resources) (*specs.LinuxCPU, error) {
 	if config.CPUShares < 0 {
 		return nil, fmt.Errorf("shares: invalid argument")
 	}
-	if config.CPUShares >= 0 {
+	if config.CPUShares > 0 {
 		shares := uint64(config.CPUShares)
 		cpu.Shares = &shares
 	}
+	// cpu.Shares is kept nil if config.CPUShares == 0
 
 	if config.CpusetCpus != "" {
 		cpu.Cpus = config.CpusetCpus
