@@ -85,9 +85,6 @@ func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, e
 			if ok {
 				if a.Arch == seccompArch {
 					newConfig.Architectures = append(newConfig.Architectures, specs.Arch(a.Arch))
-					for _, sa := range a.SubArches {
-						newConfig.Architectures = append(newConfig.Architectures, specs.Arch(sa))
-					}
 					break
 				}
 			}
