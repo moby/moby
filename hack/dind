@@ -25,6 +25,17 @@ if ! mountpoint -q /tmp; then
 	mount -t tmpfs none /tmp
 fi
 
+# cgroup v2: enable nesting
+if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
+	# move the init process (PID 1) from the root group to the /init group,
+	# otherwise writing subtree_control fails with EBUSY.
+	mkdir -p /sys/fs/cgroup/init
+	echo 1 > /sys/fs/cgroup/init/cgroup.procs
+	# enable controllers
+	sed -e 's/ / +/g' -e 's/^/+/' < /sys/fs/cgroup/cgroup.controllers \
+		> /sys/fs/cgroup/cgroup.subtree_control
+fi
+
 if [ $# -gt 0 ]; then
 	exec "$@"
 fi
