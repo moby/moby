@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
@@ -201,6 +202,24 @@ func ServiceWithPidsLimit(limit int64) ServiceSpecOpt {
 	return func(spec *swarmtypes.ServiceSpec) {
 		ensureContainerSpec(spec)
 		spec.TaskTemplate.ContainerSpec.PidsLimit = limit
+	}
+}
+
+// ServiceWithRestartAttempts sets the RestartAttempts option of the service's ContainerSpec.
+func ServiceWithRestartAttempts(n uint64) ServiceSpecOpt {
+	return func(spec *swarmtypes.ServiceSpec) {
+		attempts := new(uint64)
+		*attempts = n
+		restartPolicy := swarmtypes.RestartPolicy{MaxAttempts: attempts}
+		spec.TaskTemplate.RestartPolicy = &restartPolicy
+	}
+}
+
+// ServiceWithHealthCheck sets the health-check option of the service's ContainerSpec.
+func ServiceWithHealthCheck(healthConfig *container.HealthConfig) ServiceSpecOpt {
+	return func(spec *swarmtypes.ServiceSpec) {
+		ensureContainerSpec(spec)
+		spec.TaskTemplate.ContainerSpec.Healthcheck = healthConfig
 	}
 }
 
