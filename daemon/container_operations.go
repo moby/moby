@@ -947,6 +947,14 @@ func (daemon *Daemon) tryDetachContainerFromClusterNetwork(network libnetwork.Ne
 			}
 		}
 	}
+	if daemon.clusterProvider != nil && network.Info().Dynamic() && !network.Info().Ingress() {
+		if err := daemon.DeleteManagedNetwork(network.ID()); err != nil {
+			var activeEndpointsError *libnetwork.ActiveEndpointsError
+			if !errors.As(err, &activeEndpointsError) {
+				logrus.WithError(err).Warnf("error deleting network %s", network.ID())
+			}
+		}
+	}
 	attributes := map[string]string{
 		"container": container.ID,
 	}

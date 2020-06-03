@@ -217,7 +217,8 @@ func (r *controller) Start(ctx context.Context) error {
 
 				continue
 			}
-
+			log.G(ctx).WithError(err).Debugf("Removing networks after container %s failed to start.", r.adapter.container.name())
+			r.adapter.removeNetworks(ctx)
 			return errors.Wrap(err, "starting container failed")
 		}
 
@@ -228,6 +229,9 @@ func (r *controller) Start(ctx context.Context) error {
 	if ctnr.Config == nil || ctnr.Config.Healthcheck == nil || len(ctnr.Config.Healthcheck.Test) == 0 || ctnr.Config.Healthcheck.Test[0] == "NONE" {
 		if err := r.adapter.activateServiceBinding(); err != nil {
 			log.G(ctx).WithError(err).Errorf("failed to activate service binding for container %s which has no healthcheck config", r.adapter.container.name())
+			if serr := r.adapter.shutdown(ctx); serr != nil {
+				log.G(ctx).WithError(serr).Errorf("failed to shutdown container %s", r.adapter.container.name())
+			}
 			return err
 		}
 		return nil
@@ -268,6 +272,9 @@ func (r *controller) Start(ctx context.Context) error {
 			case "health_status: healthy":
 				if err := r.adapter.activateServiceBinding(); err != nil {
 					log.G(ctx).WithError(err).Errorf("failed to activate service binding for container %s after healthy event", r.adapter.container.name())
+					if serr := r.adapter.shutdown(ctx); serr != nil {
+						log.G(ctx).WithError(serr).Errorf("failed to shutdown container %s", r.adapter.container.name())
+					}
 					return err
 				}
 				return nil
@@ -371,14 +378,6 @@ func (r *controller) Shutdown(ctx context.Context) error {
 
 	if err := r.adapter.shutdown(ctx); err != nil {
 		if !(isUnknownContainer(err) || isStoppedContainer(err)) {
-			return err
-		}
-	}
-
-	// Try removing networks referenced in this task in case this
-	// task is the last one referencing it
-	if err := r.adapter.removeNetworks(ctx); err != nil {
-		if !isUnknownContainer(err) {
 			return err
 		}
 	}
