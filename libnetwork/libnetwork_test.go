@@ -10,7 +10,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork"
@@ -88,6 +87,11 @@ func getPortMapping() []types.PortBinding {
 		{Proto: types.TCP, Port: uint16(320), HostPort: uint16(32000), HostPortEnd: uint16(32999)},
 		{Proto: types.UDP, Port: uint16(420), HostPort: uint16(42000), HostPortEnd: uint16(42001)},
 	}
+}
+
+func isNotFound(err error) bool {
+	_, ok := (err).(types.NotFoundError)
+	return ok
 }
 
 func TestNull(t *testing.T) {
@@ -210,7 +214,7 @@ func TestUnknownDriver(t *testing.T) {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
 
-	if !errdefs.IsNotFound(err) {
+	if !isNotFound(err) {
 		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
 	}
 }
@@ -222,7 +226,7 @@ func TestNilRemoteDriver(t *testing.T) {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
 
-	if !errdefs.IsNotFound(err) {
+	if !isNotFound(err) {
 		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
 	}
 }
@@ -1405,7 +1409,7 @@ func TestValidRemoteDriver(t *testing.T) {
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err != nil {
 		// Only fail if we could not find the plugin driver
-		if errdefs.IsNotFound(err) {
+		if isNotFound(err) {
 			t.Fatal(err)
 		}
 		return
