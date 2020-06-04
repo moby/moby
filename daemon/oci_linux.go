@@ -716,6 +716,14 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	}
 }
 
+// sysctlExists checks if a sysctl exists; runc will error if we add any that do not actually
+// exist, so do not add the default ones if running on an old kernel.
+func sysctlExists(s string) bool {
+	f := filepath.Join("/proc", "sys", strings.Replace(s, ".", "/", -1))
+	_, err := os.Stat(f)
+	return err == nil
+}
+
 // WithCommonOptions sets common docker options
 func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
@@ -767,6 +775,23 @@ func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 
 		s.Hostname = c.Config.Hostname
 		setLinuxDomainname(c, s)
+
+		// Add default sysctls that are generally safe and useful; currently we
+		// grant the capabilities to allow these anyway. You can override if
+		// you want to restore the original behaviour.
+		// We do not set network sysctls if network namespace is host, or if we are
+		// joining an existing namespace, only if we create a new net namespace.
+		if c.HostConfig.NetworkMode.IsPrivate() {
+			// We cannot set up ping socket support in a user namespace
+			if !c.HostConfig.UsernsMode.IsPrivate() && sysctlExists("net.ipv4.ping_group_range") {
+				// allow unprivileged ICMP echo sockets without CAP_NET_RAW
+				s.Linux.Sysctl["net.ipv4.ping_group_range"] = "0 2147483647"
+			}
+			// allow opening any port less than 1024 without CAP_NET_BIND_SERVICE
+			if sysctlExists("net.ipv4.ip_unprivileged_port_start") {
+				s.Linux.Sysctl["net.ipv4.ip_unprivileged_port_start"] = "0"
+			}
+		}
 
 		return nil
 	}

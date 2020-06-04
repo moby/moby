@@ -114,7 +114,9 @@ func TestSysctlOverride(t *testing.T) {
 			Domainname: "baz.cyphar.com",
 		},
 		HostConfig: &containertypes.HostConfig{
-			Sysctls: map[string]string{},
+			NetworkMode: "bridge",
+			Sysctls:     map[string]string{},
+			UsernsMode:  "host",
 		},
 	}
 	d := setupFakeDaemon(t, c)
@@ -125,15 +127,51 @@ func TestSysctlOverride(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, s.Hostname, "foobar")
 	assert.Equal(t, s.Linux.Sysctl["kernel.domainname"], c.Config.Domainname)
+	if sysctlExists("net.ipv4.ip_unprivileged_port_start") {
+		assert.Equal(t, s.Linux.Sysctl["net.ipv4.ip_unprivileged_port_start"], "0")
+	}
+	if sysctlExists("net.ipv4.ping_group_range") {
+		assert.Equal(t, s.Linux.Sysctl["net.ipv4.ping_group_range"], "0 2147483647")
+	}
 
 	// Set an explicit sysctl.
 	c.HostConfig.Sysctls["kernel.domainname"] = "foobar.net"
 	assert.Assert(t, c.HostConfig.Sysctls["kernel.domainname"] != c.Config.Domainname)
+	c.HostConfig.Sysctls["net.ipv4.ip_unprivileged_port_start"] = "1024"
 
 	s, err = d.createSpec(c)
 	assert.NilError(t, err)
 	assert.Equal(t, s.Hostname, "foobar")
 	assert.Equal(t, s.Linux.Sysctl["kernel.domainname"], c.HostConfig.Sysctls["kernel.domainname"])
+	assert.Equal(t, s.Linux.Sysctl["net.ipv4.ip_unprivileged_port_start"], c.HostConfig.Sysctls["net.ipv4.ip_unprivileged_port_start"])
+}
+
+// TestSysctlOverrideHost ensures that any implicit network sysctls are not set
+// with host networking
+func TestSysctlOverrideHost(t *testing.T) {
+	c := &container.Container{
+		Config: &containertypes.Config{},
+		HostConfig: &containertypes.HostConfig{
+			NetworkMode: "host",
+			Sysctls:     map[string]string{},
+			UsernsMode:  "host",
+		},
+	}
+	d := setupFakeDaemon(t, c)
+	defer cleanupFakeContainer(c)
+
+	// Ensure that the implicit sysctl is not set
+	s, err := d.createSpec(c)
+	assert.NilError(t, err)
+	assert.Equal(t, s.Linux.Sysctl["net.ipv4.ip_unprivileged_port_start"], "")
+	assert.Equal(t, s.Linux.Sysctl["net.ipv4.ping_group_range"], "")
+
+	// Set an explicit sysctl.
+	c.HostConfig.Sysctls["net.ipv4.ip_unprivileged_port_start"] = "1024"
+
+	s, err = d.createSpec(c)
+	assert.NilError(t, err)
+	assert.Equal(t, s.Linux.Sysctl["net.ipv4.ip_unprivileged_port_start"], c.HostConfig.Sysctls["net.ipv4.ip_unprivileged_port_start"])
 }
 
 func TestGetSourceMount(t *testing.T) {
