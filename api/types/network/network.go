@@ -1,7 +1,6 @@
 package network // import "github.com/docker/docker/api/types/network"
 import (
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/errdefs"
 )
 
 // Address represents an IP address
@@ -123,5 +122,5 @@ var acceptedFilters = map[string]bool{
 
 // ValidateFilters validates the list of filter args with the available filters.
 func ValidateFilters(filter filters.Args) error {
-	return errdefs.InvalidParameter(filter.Validate(acceptedFilters))
+	return filter.Validate(acceptedFilters)
 }
