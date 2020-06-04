@@ -91,8 +91,6 @@ import (
 	"strings"
 	"text/tabwriter"
 	"time"
-
-	"github.com/docker/docker/pkg/homedir"
 )
 
 // ErrHelp is the error returned if the flag -help is invoked but no such flag is defined.
@@ -538,7 +536,7 @@ func isZeroValue(value string) bool {
 // otherwise, the default values of all defined flags in the set.
 func (fs *FlagSet) PrintDefaults() {
 	writer := tabwriter.NewWriter(fs.Out(), 20, 1, 3, ' ', 0)
-	home := homedir.Get()
+	home, _ := os.UserHomeDir()
 
 	// Don't substitute when HOME is /
 	if runtime.GOOS != "windows" && home == "/" {
@@ -561,7 +559,7 @@ func (fs *FlagSet) PrintDefaults() {
 			val := flag.DefValue
 
 			if home != "" && strings.HasPrefix(val, home) {
-				val = homedir.GetShortcutString() + val[len(home):]
+				val = getShortcutString() + val[len(home):]
 			}
 
 			if isZeroValue(val) {
@@ -577,6 +575,13 @@ func (fs *FlagSet) PrintDefaults() {
 		}
 	})
 	writer.Flush()
+}
+
+func getShortcutString() string {
+	if runtime.GOOS == "windows" {
+		return "%USERPROFILE%"
+	}
+	return "~"
 }
 
 // PrintDefaults prints to standard error the default values of all defined command-line flags.
