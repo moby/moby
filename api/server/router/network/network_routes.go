@@ -30,7 +30,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 	}
 
 	if err := network.ValidateFilters(filter); err != nil {
-		return err
+		return errdefs.InvalidParameter(err)
 	}
 
 	var list []types.NetworkResource
