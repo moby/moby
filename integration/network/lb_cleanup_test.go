@@ -3,13 +3,14 @@ package network // import "github.com/docker/docker/integration/network"
 import (
 	"context"
 	"errors"
-	"fmt"
 	"runtime"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
@@ -19,6 +20,27 @@ import (
 	"gotest.tools/v3/skip"
 )
 
+type serviceOpts struct {
+	name         string
+	network      string
+	cmd          []string
+	replicas     uint64
+	healthConfig *container.HealthConfig
+	mounts       []mount.Mount
+}
+
+func newServiceOpts() *serviceOpts {
+	return &serviceOpts{
+		name:     "test_node_lb_cleanup",
+		network:  getTestNetName(),
+		replicas: uint64(1),
+	}
+}
+
+func getTestNetName() string {
+	return "ol_test_net"
+}
+
 func pollSetting(config *poll.Settings) {
 	config.Timeout = 100 * time.Second
 	config.Delay = 100 * time.Millisecond
@@ -27,37 +49,39 @@ func pollSetting(config *poll.Settings) {
 	}
 }
 
-func createService(t *testing.T, d *daemon.Daemon, cmd []string, net, serviceName string) (serviceID string) {
-	replicas := uint64(1)
-	serviceID = swarm.CreateService(t, d,
-		swarm.ServiceWithReplicas(replicas),
-		swarm.ServiceWithName(serviceName),
-		swarm.ServiceWithNetwork(net),
-		swarm.ServiceWithCommand(cmd),
-		swarm.ServiceWithRestartAttempts(uint64(1)),
-	)
+func createService(t *testing.T, d *daemon.Daemon, o *serviceOpts) (serviceID string) {
+	opts := []swarm.ServiceSpecOpt{
+		swarm.ServiceWithReplicas(o.replicas),
+		swarm.ServiceWithName(o.name),
+		swarm.ServiceWithNetwork(o.network),
+		swarm.ServiceWithCommand(o.cmd),
+	}
+	if o.healthConfig != nil {
+		opts = append(opts, swarm.ServiceWithHealthCheck(o.healthConfig))
+	}
+	if o.mounts != nil {
+		opts = append(opts, swarm.ServiceWithMount(o.mounts))
+	}
+
+	attempts := new(uint64)
+	*attempts = uint64(1)
+	delay := new(time.Duration)
+	*delay = time.Second
+	restartPolicy := &swarmtypes.RestartPolicy{
+		MaxAttempts: attempts,
+		Delay:       delay,
+	}
+	opts = append(opts, swarm.ServiceWithRestartPolicy(restartPolicy))
+
+	serviceID = swarm.CreateService(t, d, opts...)
 	return
 }
 
-func createServiceWithHealthCheck(t *testing.T, d *daemon.Daemon, cmd []string,
-	net, serviceName string, healthConfig *container.HealthConfig) (serviceID string) {
-	replicas := uint64(1)
-	serviceID = swarm.CreateService(t, d,
-		swarm.ServiceWithReplicas(replicas),
-		swarm.ServiceWithName(serviceName),
-		swarm.ServiceWithNetwork(net),
-		swarm.ServiceWithCommand(cmd),
-		swarm.ServiceWithRestartAttempts(uint64(1)),
-		swarm.ServiceWithHealthCheck(healthConfig),
-	)
-	return
-}
-
-func checkNetworkRemoved(ctx context.Context, t *testing.T, c *client.Client, net string) error {
+func checkNetworkRemoved(ctx context.Context, t *testing.T, c *client.Client) error {
 	// network removal is asynchronous, retry testing at most 30 secs.
-	for count := 0; count < 6; count++ {
-		time.Sleep(5 * time.Second)
-		nr, err := c.NetworkInspect(ctx, net, types.NetworkInspectOptions{})
+	for count := 0; count < 10; count++ {
+		time.Sleep(3 * time.Second)
+		nr, err := c.NetworkInspect(ctx, getTestNetName(), types.NetworkInspectOptions{})
 		assert.NilError(t, err)
 		if nr.Containers == nil {
 			return nil
@@ -66,87 +90,99 @@ func checkNetworkRemoved(ctx context.Context, t *testing.T, c *client.Client, ne
 	return errors.New("assertNetworkRemoved failed")
 }
 
-func testNormalService(t *testing.T, d *daemon.Daemon, c *client.Client, net string) {
-	fmt.Println("Running testNormalService ...")
-	ctx := context.Background()
-	cmd := []string{"sleep", "3d"}
-	serviceID := createService(t, d, cmd, net, "testNormalService")
+func testNormalService(ctx context.Context, t *testing.T, d *daemon.Daemon, c *client.Client) {
+	o := newServiceOpts()
+	o.cmd = []string{"sleep", "3d"}
+	serviceID := createService(t, d, o)
 	poll.WaitOn(t, swarm.RunningTasksCount(c, serviceID, uint64(1)), pollSetting)
 	err := c.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
-	err = checkNetworkRemoved(ctx, t, c, net)
+	err = checkNetworkRemoved(ctx, t, c)
 	assert.NilError(t, err)
 }
 
-func testStartServiceFail(t *testing.T, d *daemon.Daemon, c *client.Client, net string) {
-	fmt.Println("Running testStartServiceFail ...")
-	ctx := context.Background()
-	cmd := []string{"non-existing-file"}
-	serviceID := createService(t, d, cmd, net, "testStartServiceFail")
+func testServiceStartFail(ctx context.Context, t *testing.T, d *daemon.Daemon, c *client.Client) {
+	o := newServiceOpts()
+	o.cmd = []string{"non-existing-file"}
+	serviceID := createService(t, d, o)
 	poll.WaitOn(t, swarm.FailedTasksCount(c, serviceID, uint64(2)), pollSetting)
-	err := checkNetworkRemoved(ctx, t, c, net)
+	err := checkNetworkRemoved(ctx, t, c)
 	assert.NilError(t, err)
 	err = c.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
 }
 
-func testServiceCompletion(t *testing.T, d *daemon.Daemon, c *client.Client, net string) {
-	fmt.Println("Running testServiceCompletion ...")
-	ctx := context.Background()
-	cmd := []string{"true"}
-	serviceID := createService(t, d, cmd, net, "testServiceCompletion")
+func testServiceCompletion(ctx context.Context, t *testing.T, d *daemon.Daemon, c *client.Client) {
+	o := newServiceOpts()
+	o.cmd = []string{"true"}
+	serviceID := createService(t, d, o)
 	poll.WaitOn(t, swarm.CompletedTasksCount(c, serviceID, uint64(2)), pollSetting)
-	err := checkNetworkRemoved(ctx, t, c, net)
+	err := checkNetworkRemoved(ctx, t, c)
 	assert.NilError(t, err)
 	err = c.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
 }
 
-func testServiceExitFail(t *testing.T, d *daemon.Daemon, c *client.Client, net string) {
-	fmt.Println("Running testServiceExitFail ...")
-	ctx := context.Background()
-	cmd := []string{"false"}
-	serviceID := createService(t, d, cmd, net, "testServiceExitFail")
+func testServiceExitFail(ctx context.Context, t *testing.T, d *daemon.Daemon, c *client.Client) {
+	o := newServiceOpts()
+	o.cmd = []string{"false"}
+	serviceID := createService(t, d, o)
 	poll.WaitOn(t, swarm.FailedTasksCount(c, serviceID, uint64(2)), pollSetting)
-	err := checkNetworkRemoved(ctx, t, c, net)
+	err := checkNetworkRemoved(ctx, t, c)
 	assert.NilError(t, err)
 	err = c.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
 }
 
-func testServiceHealthCheckFail(t *testing.T, d *daemon.Daemon, c *client.Client, net string) {
-	fmt.Println("Running testServiceHealthCheckFail ...")
-	ctx := context.Background()
-	cmd := []string{"sleep", "3d"}
-	healthConfig := container.HealthConfig{
+func testServiceHealthCheckFail(ctx context.Context, t *testing.T, d *daemon.Daemon, c *client.Client) {
+	o := newServiceOpts()
+	o.cmd = []string{"sleep", "3d"}
+	o.healthConfig = &container.HealthConfig{
 		Test:        []string{"CMD-SHELL", "false"},
 		Interval:    time.Second,
 		Timeout:     time.Second,
 		StartPeriod: time.Second,
 		Retries:     1,
 	}
-	serviceID := createServiceWithHealthCheck(t, d, cmd, net, "testServiceHealthCheckFail", &healthConfig)
+	serviceID := createService(t, d, o)
 	poll.WaitOn(t, swarm.FailedTasksCount(c, serviceID, uint64(2)), pollSetting)
-	err := checkNetworkRemoved(ctx, t, c, net)
+	err := checkNetworkRemoved(ctx, t, c)
 	assert.NilError(t, err)
 	err = c.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
 }
 
-func testServiceHealthCheckExitEarly(t *testing.T, d *daemon.Daemon, c *client.Client, net string) {
-	fmt.Println("Running testServiceHealthCheckExitEarly ...")
-	ctx := context.Background()
-	cmd := []string{"sleep", "1s"}
-	healthConfig := container.HealthConfig{
+func testServiceHealthCheckExitEarly(ctx context.Context, t *testing.T, d *daemon.Daemon, c *client.Client) {
+	o := newServiceOpts()
+	o.cmd = []string{"sleep", "1s"}
+	o.healthConfig = &container.HealthConfig{
 		Test:        []string{"CMD-SHELL", "false"},
 		Interval:    time.Second,
 		Timeout:     time.Second,
 		StartPeriod: time.Second,
 		Retries:     3,
 	}
-	serviceID := createServiceWithHealthCheck(t, d, cmd, net, "testServiceHealthCheckExitEarly", &healthConfig)
+	serviceID := createService(t, d, o)
 	poll.WaitOn(t, swarm.CompletedTasksCount(c, serviceID, uint64(2)), pollSetting)
-	err := checkNetworkRemoved(ctx, t, c, net)
+	err := checkNetworkRemoved(ctx, t, c)
+	assert.NilError(t, err)
+	err = c.ServiceRemove(ctx, serviceID)
+	assert.NilError(t, err)
+}
+
+func testServiceInvalidMount(ctx context.Context, t *testing.T, d *daemon.Daemon, c *client.Client) {
+	o := newServiceOpts()
+	o.cmd = []string{"sleep", "3d"}
+	o.mounts = []mount.Mount{
+		{
+			Type:   mount.TypeBind,
+			Source: "/non-existing",
+			Target: "/ttt",
+		},
+	}
+	serviceID := createService(t, d, o)
+	poll.WaitOn(t, swarm.RejectedTasksCount(c, serviceID, uint64(2)), pollSetting)
+	err := checkNetworkRemoved(ctx, t, c)
 	assert.NilError(t, err)
 	err = c.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
@@ -164,16 +200,17 @@ func TestNodeLBCleanup(t *testing.T) {
 	ctx := context.Background()
 
 	// create an overlay network
-	net := "ol_" + t.Name()
+	net := getTestNetName()
 	netID := network.CreateNoError(ctx, t, c, net,
 		network.WithDriver("overlay"))
 
-	testNormalService(t, d, c, net)
-	testStartServiceFail(t, d, c, net)
-	testServiceCompletion(t, d, c, net)
-	testServiceExitFail(t, d, c, net)
-	testServiceHealthCheckFail(t, d, c, net)
-	testServiceHealthCheckExitEarly(t, d, c, net)
+	t.Run("testNormalService", func(t *testing.T) { testNormalService(ctx, t, d, c) })
+	t.Run("testServiceStartFail", func(t *testing.T) { testServiceStartFail(ctx, t, d, c) })
+	t.Run("testServiceCompletion", func(t *testing.T) { testServiceCompletion(ctx, t, d, c) })
+	t.Run("testServiceExitFail", func(t *testing.T) { testServiceExitFail(ctx, t, d, c) })
+	t.Run("testServiceHealthCheckFail", func(t *testing.T) { testServiceHealthCheckFail(ctx, t, d, c) })
+	t.Run("testServiceHealthCheckExitEarly", func(t *testing.T) { testServiceHealthCheckExitEarly(ctx, t, d, c) })
+	t.Run("testServiceInvalidMount", func(t *testing.T) { testServiceInvalidMount(ctx, t, d, c) })
 
 	err := c.NetworkRemove(ctx, netID)
 	assert.NilError(t, err)

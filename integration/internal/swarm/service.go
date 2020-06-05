@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/mount"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil/daemon"
@@ -205,21 +206,26 @@ func ServiceWithPidsLimit(limit int64) ServiceSpecOpt {
 	}
 }
 
-// ServiceWithRestartAttempts sets the RestartAttempts option of the service's ContainerSpec.
-func ServiceWithRestartAttempts(n uint64) ServiceSpecOpt {
+// ServiceWithRestartPolicy sets the RestartPolicy option of the service's ContainerSpec.
+func ServiceWithRestartPolicy(restartPolicy *swarmtypes.RestartPolicy) ServiceSpecOpt {
 	return func(spec *swarmtypes.ServiceSpec) {
-		attempts := new(uint64)
-		*attempts = n
-		restartPolicy := swarmtypes.RestartPolicy{MaxAttempts: attempts}
-		spec.TaskTemplate.RestartPolicy = &restartPolicy
+		spec.TaskTemplate.RestartPolicy = restartPolicy
 	}
 }
 
-// ServiceWithHealthCheck sets the health-check option of the service's ContainerSpec.
+// ServiceWithHealthCheck sets the HealthCheck option of the service's ContainerSpec.
 func ServiceWithHealthCheck(healthConfig *container.HealthConfig) ServiceSpecOpt {
 	return func(spec *swarmtypes.ServiceSpec) {
 		ensureContainerSpec(spec)
 		spec.TaskTemplate.ContainerSpec.Healthcheck = healthConfig
+	}
+}
+
+// ServiceWithMount sets the mount option of the service's ContainerSpec.
+func ServiceWithMount(m []mount.Mount) ServiceSpecOpt {
+	return func(spec *swarmtypes.ServiceSpec) {
+		ensureContainerSpec(spec)
+		spec.TaskTemplate.ContainerSpec.Mounts = m
 	}
 }
 

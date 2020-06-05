@@ -164,7 +164,7 @@ func JobComplete(client client.CommonAPIClient, service swarmtypes.Service) func
 	}
 }
 
-// FailedTasksCount verifies there are `instances` tasks running for `serviceID`
+// FailedTasksCount verifies there are `instances` tasks failed for `serviceID`
 func FailedTasksCount(client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		filter := filters.NewArgs()
@@ -193,7 +193,7 @@ func FailedTasksCount(client client.ServiceAPIClient, serviceID string, instance
 	}
 }
 
-// CompletedTasksCount verifies there are `instances` tasks running for `serviceID`
+// CompletedTasksCount verifies there are `instances` tasks completed for `serviceID`
 func CompletedTasksCount(client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		filter := filters.NewArgs()
@@ -218,6 +218,35 @@ func CompletedTasksCount(client client.ServiceAPIClient, serviceID string, insta
 			return poll.Success()
 		default:
 			return poll.Continue("waiting for %v more tasks to complete.", (instances - completed))
+		}
+	}
+}
+
+// RejectedTasksCount verifies there are `instances` tasks rejected for `serviceID`
+func RejectedTasksCount(client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
+	return func(log poll.LogT) poll.Result {
+		filter := filters.NewArgs()
+		filter.Add("service", serviceID)
+		tasks, err := client.TaskList(context.Background(), types.TaskListOptions{
+			Filters: filter,
+		})
+		if err != nil {
+			return poll.Error(err)
+		}
+
+		var rejected uint64
+		for _, task := range tasks {
+			switch task.Status.State {
+			case swarmtypes.TaskStateRejected:
+				rejected++
+			}
+		}
+
+		switch {
+		case rejected == instances:
+			return poll.Success()
+		default:
+			return poll.Continue("waiting for %v more tasks to be rejected.", (instances - rejected))
 		}
 	}
 }

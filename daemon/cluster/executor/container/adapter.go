@@ -349,6 +349,7 @@ func (c *containerAdapter) checkMounts() error {
 
 func (c *containerAdapter) start(ctx context.Context) error {
 	if err := c.checkMounts(); err != nil {
+		c.removeNetworks(ctx)
 		return err
 	}
 

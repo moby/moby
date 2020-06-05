@@ -97,7 +97,7 @@ func (r *controller) Update(ctx context.Context, t *api.Task) error {
 // Prepare creates a container and ensures the image is pulled.
 //
 // If the container has already be created, exec.ErrTaskPrepared is returned.
-func (r *controller) Prepare(ctx context.Context) error {
+func (r *controller) Prepare(ctx context.Context) (retErr error) {
 	if err := r.checkClosed(); err != nil {
 		return err
 	}
@@ -120,6 +120,12 @@ func (r *controller) Prepare(ctx context.Context) error {
 	if err := r.adapter.waitNodeAttachments(waitNodeAttachmentsContext); err != nil {
 		return err
 	}
+
+	defer func() {
+		if retErr != nil {
+			r.adapter.removeNetworks(ctx)
+		}
+	}()
 
 	// Make sure all the networks that the task needs are created.
 	if err := r.adapter.createNetworks(ctx); err != nil {
@@ -217,8 +223,6 @@ func (r *controller) Start(ctx context.Context) error {
 
 				continue
 			}
-			log.G(ctx).WithError(err).Debugf("Removing networks after container %s failed to start.", r.adapter.container.name())
-			r.adapter.removeNetworks(ctx)
 			return errors.Wrap(err, "starting container failed")
 		}
 
