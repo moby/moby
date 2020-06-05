@@ -91,11 +91,18 @@ type TaskSpec struct {
 	Runtime RuntimeType `json:",omitempty"`
 }
 
-// Resources represents resources (CPU/Memory).
+// Resources represents resources (CPU/Memory) which can be advertised by a
+// node and requested to be reserved for a task.
 type Resources struct {
 	NanoCPUs         int64             `json:",omitempty"`
 	MemoryBytes      int64             `json:",omitempty"`
 	GenericResources []GenericResource `json:",omitempty"`
+}
+
+// Limit describes limits on resources which can be requested by a task.
+type Limit struct {
+	NanoCPUs    int64 `json:",omitempty"`
+	MemoryBytes int64 `json:",omitempty"`
 }
 
 // GenericResource represents a "user defined" resource which can
@@ -125,7 +132,7 @@ type DiscreteGenericResource struct {
 
 // ResourceRequirements represents resources requirements.
 type ResourceRequirements struct {
-	Limits       *Resources `json:",omitempty"`
+	Limits       *Limit     `json:",omitempty"`
 	Reservations *Resources `json:",omitempty"`
 }
 

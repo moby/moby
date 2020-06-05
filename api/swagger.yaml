@@ -625,6 +625,20 @@ definitions:
         type: "integer"
         format: "int64"
 
+  Limit:
+    description: |
+      An object describing a limit on resources which can be requested by a task.
+    type: "object"
+    properties:
+      NanoCPUs:
+        type: "integer"
+        format: "int64"
+        example: 4000000000
+      MemoryBytes:
+        type: "integer"
+        format: "int64"
+        example: 8272408576
+
   ResourceObject:
     description: |
       An object describing the resources which can be advertised by a node and
@@ -3262,7 +3276,7 @@ definitions:
         properties:
           Limits:
             description: "Define resources limits."
-            $ref: "#/definitions/ResourceObject"
+            $ref: "#/definitions/Limit"
           Reservation:
             description: "Define resources reservation."
             $ref: "#/definitions/ResourceObject"
