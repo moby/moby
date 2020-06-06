@@ -132,6 +132,10 @@ func New(info logger.Info) (logger.Logger, error) {
 }
 
 func (s *syslogger) Log(msg *logger.Message) error {
+	if len(msg.Line) == 0 {
+		return nil
+	}
+
 	line := string(msg.Line)
 	source := msg.Source
 	logger.PutMessage(msg)
