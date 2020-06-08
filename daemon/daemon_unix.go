@@ -1223,36 +1223,15 @@ func setupRemappedRoot(config *config.Config) (*idtools.IdentityMapping, error) 
 			logrus.Warn("User namespaces: root cannot be remapped with itself; user namespaces are OFF")
 			return &idtools.IdentityMapping{}, nil
 		}
-		logrus.Infof("User namespaces: ID ranges will be mapped to subuid/subgid ranges of: %s:%s", username, groupname)
+		logrus.Infof("User namespaces: ID ranges will be mapped to subuid/subgid ranges of: %s", username)
 		// update remapped root setting now that we have resolved them to actual names
 		config.RemappedRoot = fmt.Sprintf("%s:%s", username, groupname)
 
-		// try with username:groupname, uid:groupname, username:gid, uid:gid,
-		// but keep the original error message (err)
-		mappings, err := idtools.NewIdentityMapping(username, groupname)
-		if err == nil {
-			return mappings, nil
-		}
-		user, lookupErr := idtools.LookupUser(username)
-		if lookupErr != nil {
+		mappings, err := idtools.NewIdentityMapping(username)
+		if err != nil {
 			return nil, errors.Wrap(err, "Can't create ID mappings")
 		}
-		logrus.Infof("Can't create ID mappings with username:groupname %s:%s, try uid:groupname %d:%s", username, groupname, user.Uid, groupname)
-		mappings, lookupErr = idtools.NewIdentityMapping(fmt.Sprintf("%d", user.Uid), groupname)
-		if lookupErr == nil {
-			return mappings, nil
-		}
-		logrus.Infof("Can't create ID mappings with uid:groupname %d:%s, try username:gid %s:%d", user.Uid, groupname, username, user.Gid)
-		mappings, lookupErr = idtools.NewIdentityMapping(username, fmt.Sprintf("%d", user.Gid))
-		if lookupErr == nil {
-			return mappings, nil
-		}
-		logrus.Infof("Can't create ID mappings with username:gid %s:%d, try uid:gid %d:%d", username, user.Gid, user.Uid, user.Gid)
-		mappings, lookupErr = idtools.NewIdentityMapping(fmt.Sprintf("%d", user.Uid), fmt.Sprintf("%d", user.Gid))
-		if lookupErr == nil {
-			return mappings, nil
-		}
-		return nil, errors.Wrap(err, "Can't create ID mappings")
+		return mappings, nil
 	}
 	return &idtools.IdentityMapping{}, nil
 }
