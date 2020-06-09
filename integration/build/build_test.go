@@ -378,7 +378,7 @@ RUN cat somefile`
 
 	imageIDs, err := getImageIDsFromBuild(out.Bytes())
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(3, len(imageIDs)))
+	assert.Assert(t, is.Equal(3, len(imageIDs)))
 
 	image, _, err := apiclient.ImageInspectWithRaw(context.Background(), imageIDs[2])
 	assert.NilError(t, err)
