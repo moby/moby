@@ -103,6 +103,7 @@ type Resources struct {
 type Limit struct {
 	NanoCPUs    int64 `json:",omitempty"`
 	MemoryBytes int64 `json:",omitempty"`
+	Pids        int64 `json:",omitempty"`
 }
 
 // GenericResource represents a "user defined" resource which can

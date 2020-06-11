@@ -196,11 +196,11 @@ func ServiceWithCapabilities(Capabilities []string) ServiceSpecOpt {
 	}
 }
 
-// ServiceWithPidsLimit sets the PidsLimit option of the service's ContainerSpec.
+// ServiceWithPidsLimit sets the PidsLimit option of the service's Resources.Limits.
 func ServiceWithPidsLimit(limit int64) ServiceSpecOpt {
 	return func(spec *swarmtypes.ServiceSpec) {
-		ensureContainerSpec(spec)
-		spec.TaskTemplate.ContainerSpec.PidsLimit = limit
+		ensureResources(spec)
+		spec.TaskTemplate.Resources.Limits.Pids = limit
 	}
 }
 
@@ -233,6 +233,18 @@ func ExecTask(t *testing.T, d *daemon.Daemon, task swarmtypes.Task, config types
 	attach, err := client.ContainerExecAttach(ctx, resp.ID, startCheck)
 	assert.NilError(t, err, "error attaching to exec")
 	return attach
+}
+
+func ensureResources(spec *swarmtypes.ServiceSpec) {
+	if spec.TaskTemplate.Resources == nil {
+		spec.TaskTemplate.Resources = &swarmtypes.ResourceRequirements{}
+	}
+	if spec.TaskTemplate.Resources.Limits == nil {
+		spec.TaskTemplate.Resources.Limits = &swarmtypes.Limit{}
+	}
+	if spec.TaskTemplate.Resources.Reservations == nil {
+		spec.TaskTemplate.Resources.Reservations = &swarmtypes.Resources{}
+	}
 }
 
 func ensureContainerSpec(spec *swarmtypes.ServiceSpec) {

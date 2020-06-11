@@ -193,6 +193,10 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 			if err != nil {
 				return swarmapi.ServiceSpec{}, err
 			}
+			if s.TaskTemplate.Resources != nil && s.TaskTemplate.Resources.Limits != nil {
+				// TODO remove this (or keep for backward compat) once SwarmKit API moved PidsLimit into Resources
+				containerSpec.PidsLimit = s.TaskTemplate.Resources.Limits.Pids
+			}
 			spec.Task.Runtime = &swarmapi.TaskSpec_Container{Container: containerSpec}
 		} else {
 			// If the ContainerSpec is nil, we can't set the task runtime
@@ -396,15 +400,31 @@ func GenericResourcesFromGRPC(genericRes []*swarmapi.GenericResource) []types.Ge
 	return generic
 }
 
-func resourcesFromGRPC(res *swarmapi.ResourceRequirements) *types.ResourceRequirements {
+// resourcesFromGRPC creates a ResourceRequirements from the GRPC TaskSpec.
+// We currently require the whole TaskSpec to be passed, because PidsLimit
+// is returned as part of the container spec, instead of Resources
+// TODO move PidsLimit to Resources in the Swarm API
+func resourcesFromGRPC(ts *swarmapi.TaskSpec) *types.ResourceRequirements {
 	var resources *types.ResourceRequirements
-	if res != nil {
-		resources = &types.ResourceRequirements{}
+
+	if cs := ts.GetContainer(); cs != nil && cs.PidsLimit != 0 {
+		resources = &types.ResourceRequirements{
+			Limits: &types.Limit{
+				Pids: cs.PidsLimit,
+			},
+		}
+	}
+	if ts.Resources != nil {
+		if resources == nil {
+			resources = &types.ResourceRequirements{}
+		}
+		res := ts.Resources
 		if res.Limits != nil {
-			resources.Limits = &types.Limit{
-				NanoCPUs:    res.Limits.NanoCPUs,
-				MemoryBytes: res.Limits.MemoryBytes,
+			if resources.Limits == nil {
+				resources.Limits = &types.Limit{}
 			}
+			resources.Limits.NanoCPUs = res.Limits.NanoCPUs
+			resources.Limits.MemoryBytes = res.Limits.MemoryBytes
 		}
 		if res.Reservations != nil {
 			resources.Reservations = &types.Resources{
@@ -441,6 +461,7 @@ func resourcesToGRPC(res *types.ResourceRequirements) *swarmapi.ResourceRequirem
 	if res != nil {
 		reqs = &swarmapi.ResourceRequirements{}
 		if res.Limits != nil {
+			// TODO add PidsLimit once Swarm API has been updated to move it into Limits
 			reqs.Limits = &swarmapi.Resources{
 				NanoCPUs:    res.Limits.NanoCPUs,
 				MemoryBytes: res.Limits.MemoryBytes,
@@ -657,7 +678,7 @@ func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) (types.TaskSpec, error) {
 	}
 
 	t := types.TaskSpec{
-		Resources:     resourcesFromGRPC(taskSpec.Resources),
+		Resources:     resourcesFromGRPC(&taskSpec),
 		RestartPolicy: restartPolicyFromGRPC(taskSpec.Restart),
 		Placement:     placementFromGRPC(taskSpec.Placement),
 		LogDriver:     driverFromGRPC(taskSpec.LogDriver),
