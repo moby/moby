@@ -64,7 +64,7 @@ func Handlers(handlers ...Handler) HandlerFunc {
 		for _, handler := range handlers {
 			ch, err := handler.Handle(ctx, desc)
 			if err != nil {
-				if errors.Cause(err) == ErrStopHandler {
+				if errors.Is(err, ErrStopHandler) {
 					break
 				}
 				return nil, err
@@ -87,7 +87,7 @@ func Walk(ctx context.Context, handler Handler, descs ...ocispec.Descriptor) err
 
 		children, err := handler.Handle(ctx, desc)
 		if err != nil {
-			if errors.Cause(err) == ErrSkipDesc {
+			if errors.Is(err, ErrSkipDesc) {
 				continue // don't traverse the children.
 			}
 			return err
@@ -136,7 +136,7 @@ func Dispatch(ctx context.Context, handler Handler, limiter *semaphore.Weighted,
 				limiter.Release(1)
 			}
 			if err != nil {
-				if errors.Cause(err) == ErrSkipDesc {
+				if errors.Is(err, ErrSkipDesc) {
 					return nil // don't traverse the children.
 				}
 				return err

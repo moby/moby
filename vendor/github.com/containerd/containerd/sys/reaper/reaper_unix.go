@@ -23,9 +23,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/sys"
 	runc "github.com/containerd/go-runc"
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
 // ErrNoSuchProcess is returned when the process no longer exists
@@ -60,7 +60,7 @@ func (s *subscriber) do(fn func()) {
 // all exited processes and close their wait channels
 func Reap() error {
 	now := time.Now()
-	exits, err := sys.Reap(false)
+	exits, err := reap(false)
 	for _, e := range exits {
 		done := Default.notify(runc.Exit{
 			Timestamp: now,
@@ -199,4 +199,50 @@ func stop(timer *time.Timer, recv bool) {
 	if !timer.Stop() && recv {
 		<-timer.C
 	}
+}
+
+// exit is the wait4 information from an exited process
+type exit struct {
+	Pid    int
+	Status int
+}
+
+// reap reaps all child processes for the calling process and returns their
+// exit information
+func reap(wait bool) (exits []exit, err error) {
+	var (
+		ws  unix.WaitStatus
+		rus unix.Rusage
+	)
+	flag := unix.WNOHANG
+	if wait {
+		flag = 0
+	}
+	for {
+		pid, err := unix.Wait4(-1, &ws, flag, &rus)
+		if err != nil {
+			if err == unix.ECHILD {
+				return exits, nil
+			}
+			return exits, err
+		}
+		if pid <= 0 {
+			return exits, nil
+		}
+		exits = append(exits, exit{
+			Pid:    pid,
+			Status: exitStatus(ws),
+		})
+	}
+}
+
+const exitSignalOffset = 128
+
+// exitStatus returns the correct exit status for a process based on if it
+// was signaled or exited cleanly
+func exitStatus(status unix.WaitStatus) int {
+	if status.Signaled() {
+		return exitSignalOffset + int(status.Signal())
+	}
+	return status.ExitStatus()
 }

@@ -361,7 +361,7 @@ func createTarFile(ctx context.Context, path, extractDir string, hdr *tar.Header
 		if strings.HasPrefix(key, paxSchilyXattr) {
 			key = key[len(paxSchilyXattr):]
 			if err := setxattr(path, key, value); err != nil {
-				if errors.Cause(err) == syscall.ENOTSUP {
+				if errors.Is(err, syscall.ENOTSUP) {
 					log.G(ctx).WithError(err).Warnf("ignored xattr %s in archive", key)
 					continue
 				}

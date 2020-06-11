@@ -44,7 +44,7 @@ var (
 
 // IsSkipPlugin returns true if the error is skipping the plugin
 func IsSkipPlugin(err error) bool {
-	return errors.Cause(err) == ErrSkipPlugin
+	return errors.Is(err, ErrSkipPlugin)
 }
 
 // Type is the type of the plugin

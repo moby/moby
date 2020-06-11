@@ -226,7 +226,7 @@ func WithContainerExtension(name string, extension interface{}) NewContainerOpts
 
 		any, err := typeurl.MarshalAny(extension)
 		if err != nil {
-			if errors.Cause(err) == typeurl.ErrNotFound {
+			if errors.Is(err, typeurl.ErrNotFound) {
 				return errors.Wrapf(err, "extension %q is not registered with the typeurl package, see `typeurl.Register`", name)
 			}
 			return errors.Wrap(err, "error marshalling extension")

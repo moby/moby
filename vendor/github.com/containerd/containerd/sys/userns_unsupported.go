@@ -1,4 +1,4 @@
-// +build linux
+// +build !linux
 
 /*
    Copyright The containerd Authors.
@@ -18,16 +18,8 @@
 
 package sys
 
-import "golang.org/x/sys/unix"
-
-// EpollCreate1 is an alias for unix.EpollCreate1
-// Deprecated: use golang.org/x/sys/unix.EpollCreate1
-var EpollCreate1 = unix.EpollCreate1
-
-// EpollCtl is an alias for unix.EpollCtl
-// Deprecated: use golang.org/x/sys/unix.EpollCtl
-var EpollCtl = unix.EpollCtl
-
-// EpollWait is an alias for unix.EpollWait
-// Deprecated: use golang.org/x/sys/unix.EpollWait
-var EpollWait = unix.EpollWait
+// RunningInUserNS is a stub for non-Linux systems
+// Always returns false
+func RunningInUserNS() bool {
+	return false
+}

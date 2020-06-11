@@ -22,12 +22,11 @@ import (
 	"archive/tar"
 	"os"
 	"strings"
-	"sync"
 	"syscall"
 
+	"github.com/containerd/containerd/sys"
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/continuity/sysx"
-	"github.com/opencontainers/runc/libcontainer/system"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
@@ -84,21 +83,11 @@ func mkdir(path string, perm os.FileMode) error {
 	return os.Chmod(path, perm)
 }
 
-var (
-	inUserNS bool
-	nsOnce   sync.Once
-)
-
-func setInUserNS() {
-	inUserNS = system.RunningInUserNS()
-}
-
 func skipFile(hdr *tar.Header) bool {
 	switch hdr.Typeflag {
 	case tar.TypeBlock, tar.TypeChar:
 		// cannot create a device if running in user namespace
-		nsOnce.Do(setInUserNS)
-		return inUserNS
+		return sys.RunningInUserNS()
 	default:
 		return false
 	}
@@ -125,7 +114,7 @@ func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
 func handleLChmod(hdr *tar.Header, path string, hdrInfo os.FileInfo) error {
 	if hdr.Typeflag == tar.TypeLink {
 		if fi, err := os.Lstat(hdr.Linkname); err == nil && (fi.Mode()&os.ModeSymlink == 0) {
-			if err := os.Chmod(path, hdrInfo.Mode()); err != nil {
+			if err := os.Chmod(path, hdrInfo.Mode()); err != nil && !os.IsNotExist(err) {
 				return err
 			}
 		}

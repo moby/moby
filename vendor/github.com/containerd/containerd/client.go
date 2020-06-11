@@ -58,7 +58,6 @@ import (
 	"github.com/containerd/containerd/snapshots"
 	snproxy "github.com/containerd/containerd/snapshots/proxy"
 	"github.com/containerd/typeurl"
-	"github.com/gogo/protobuf/types"
 	ptypes "github.com/gogo/protobuf/types"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -318,6 +317,9 @@ type RemoteContext struct {
 
 	// Snapshotter used for unpacking
 	Snapshotter string
+
+	// SnapshotterOpts are additional options to be passed to a snapshotter during pull
+	SnapshotterOpts []snapshots.Opt
 
 	// Labels to be applied to the created image
 	Labels map[string]string
@@ -720,7 +722,7 @@ func (c *Client) Server(ctx context.Context) (ServerInfo, error) {
 	}
 	c.connMu.Unlock()
 
-	response, err := c.IntrospectionService().Server(ctx, &types.Empty{})
+	response, err := c.IntrospectionService().Server(ctx, &ptypes.Empty{})
 	if err != nil {
 		return ServerInfo{}, err
 	}

@@ -119,3 +119,64 @@ func deviceFromPath(path, permissions string) (*specs.LinuxDevice, error) {
 		GID:      &stat.Gid,
 	}, nil
 }
+
+// WithMemorySwap sets the container's swap in bytes
+func WithMemorySwap(swap int64) SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		setResources(s)
+		if s.Linux.Resources.Memory == nil {
+			s.Linux.Resources.Memory = &specs.LinuxMemory{}
+		}
+		s.Linux.Resources.Memory.Swap = &swap
+		return nil
+	}
+}
+
+// WithPidsLimit sets the container's pid limit or maximum
+func WithPidsLimit(limit int64) SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		setResources(s)
+		if s.Linux.Resources.Pids == nil {
+			s.Linux.Resources.Pids = &specs.LinuxPids{}
+		}
+		s.Linux.Resources.Pids.Limit = limit
+		return nil
+	}
+}
+
+// WithCPUShares sets the container's cpu shares
+func WithCPUShares(shares uint64) SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		setCPU(s)
+		s.Linux.Resources.CPU.Shares = &shares
+		return nil
+	}
+}
+
+// WithCPUs sets the container's cpus/cores for use by the container
+func WithCPUs(cpus string) SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		setCPU(s)
+		s.Linux.Resources.CPU.Cpus = cpus
+		return nil
+	}
+}
+
+// WithCPUsMems sets the container's cpu mems for use by the container
+func WithCPUsMems(mems string) SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		setCPU(s)
+		s.Linux.Resources.CPU.Mems = mems
+		return nil
+	}
+}
+
+// WithCPUCFS sets the container's Completely fair scheduling (CFS) quota and period
+func WithCPUCFS(quota int64, period uint64) SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		setCPU(s)
+		s.Linux.Resources.CPU.Quota = &quota
+		s.Linux.Resources.CPU.Period = &period
+		return nil
+	}
+}

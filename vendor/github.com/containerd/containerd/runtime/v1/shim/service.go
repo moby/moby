@@ -503,67 +503,59 @@ func (s *Service) processExits() {
 	}
 }
 
-func (s *Service) allProcesses() []process.Process {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	res := make([]process.Process, 0, len(s.processes))
-	for _, p := range s.processes {
-		res = append(res, p)
-	}
-	return res
-}
-
 func (s *Service) checkProcesses(e runc.Exit) {
-	for _, p := range s.allProcesses() {
-		if p.Pid() != e.Pid {
-			continue
+	var p process.Process
+	s.mu.Lock()
+	for _, proc := range s.processes {
+		if proc.Pid() == e.Pid {
+			p = proc
+			break
 		}
-
-		if ip, ok := p.(*process.Init); ok {
-			shouldKillAll, err := shouldKillAllOnExit(s.bundle)
-			if err != nil {
-				log.G(s.context).WithError(err).Error("failed to check shouldKillAll")
-			}
-
-			// Ensure all children are killed
-			if shouldKillAll {
-				if err := ip.KillAll(s.context); err != nil {
-					log.G(s.context).WithError(err).WithField("id", ip.ID()).
-						Error("failed to kill init's children")
-				}
-			}
-		}
-
-		p.SetExited(e.Status)
-		s.events <- &eventstypes.TaskExit{
-			ContainerID: s.id,
-			ID:          p.ID(),
-			Pid:         uint32(e.Pid),
-			ExitStatus:  uint32(e.Status),
-			ExitedAt:    p.ExitedAt(),
-		}
+	}
+	s.mu.Unlock()
+	if p == nil {
+		log.G(s.context).Infof("process with id:%d wasn't found", e.Pid)
 		return
 	}
+	if ip, ok := p.(*process.Init); ok {
+		// Ensure all children are killed
+		if shouldKillAllOnExit(s.context, s.bundle) {
+			if err := ip.KillAll(s.context); err != nil {
+				log.G(s.context).WithError(err).WithField("id", ip.ID()).
+					Error("failed to kill init's children")
+			}
+		}
+	}
+
+	p.SetExited(e.Status)
+	s.events <- &eventstypes.TaskExit{
+		ContainerID: s.id,
+		ID:          p.ID(),
+		Pid:         uint32(e.Pid),
+		ExitStatus:  uint32(e.Status),
+		ExitedAt:    p.ExitedAt(),
+	}
 }
 
-func shouldKillAllOnExit(bundlePath string) (bool, error) {
+func shouldKillAllOnExit(ctx context.Context, bundlePath string) bool {
 	var bundleSpec specs.Spec
 	bundleConfigContents, err := ioutil.ReadFile(filepath.Join(bundlePath, "config.json"))
 	if err != nil {
-		return false, err
+		log.G(ctx).WithError(err).Error("shouldKillAllOnExit: failed to read config.json")
+		return true
 	}
-	json.Unmarshal(bundleConfigContents, &bundleSpec)
-
+	if err := json.Unmarshal(bundleConfigContents, &bundleSpec); err != nil {
+		log.G(ctx).WithError(err).Error("shouldKillAllOnExit: failed to unmarshal bundle json")
+		return true
+	}
 	if bundleSpec.Linux != nil {
 		for _, ns := range bundleSpec.Linux.Namespaces {
 			if ns.Type == specs.PIDNamespace && ns.Path == "" {
-				return false, nil
+				return false
 			}
 		}
 	}
-
-	return true, nil
+	return true
 }
 
 func (s *Service) getContainerPids(ctx context.Context, id string) ([]uint32, error) {

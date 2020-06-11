@@ -115,8 +115,8 @@ func (w *writer) Commit(ctx context.Context, size int64, expected digest.Digest,
 	}
 
 	var (
-		ingest = filepath.Join(w.path, "data")
-		target = w.s.blobPath(dgst)
+		ingest    = filepath.Join(w.path, "data")
+		target, _ = w.s.blobPath(dgst) // ignore error because we calculated this dgst
 	)
 
 	// make sure parent directories of blob exist
