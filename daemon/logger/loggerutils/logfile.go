@@ -87,7 +87,7 @@ type LogFile struct {
 	compress        bool       // whether old versions of log files are compressed
 	lastTimestamp   time.Time  // timestamp of the last log
 	filesRefCounter refCounter // keep reference-counted of decompressed files
-	notifyRotate    *pubsub.Publisher
+	notifyReaders   *pubsub.Publisher
 	marshal         logger.MarshalFunc
 	createDecoder   MakeDecoderFn
 	getTailReader   GetTailReaderFunc
@@ -141,7 +141,7 @@ func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, mar
 		maxFiles:        maxFiles,
 		compress:        compress,
 		filesRefCounter: refCounter{counter: make(map[string]int)},
-		notifyRotate:    pubsub.NewPublisher(0, 1),
+		notifyReaders:   pubsub.NewPublisher(0, 1),
 		marshal:         marshaller,
 		createDecoder:   decodeFunc,
 		perms:           perms,
@@ -167,7 +167,7 @@ func (w *LogFile) WriteLogEntry(msg *logger.Message) error {
 
 	if err := w.checkCapacityAndRotate(); err != nil {
 		w.mu.Unlock()
-		return err
+		return errors.Wrap(err, "error rotating log file")
 	}
 
 	n, err := w.f.Write(b)
@@ -175,22 +175,25 @@ func (w *LogFile) WriteLogEntry(msg *logger.Message) error {
 		w.currentSize += int64(n)
 		w.lastTimestamp = msg.Timestamp
 	}
+
 	w.mu.Unlock()
-	return err
+	return errors.Wrap(err, "error writing log entry")
 }
 
 func (w *LogFile) checkCapacityAndRotate() (retErr error) {
 	if w.capacity == -1 {
 		return nil
 	}
-
 	if w.currentSize < w.capacity {
 		return nil
 	}
 
 	w.rotateMu.Lock()
+	noCompress := w.maxFiles <= 1 || !w.compress
 	defer func() {
-		if retErr != nil || w.maxFiles <= 1 || !w.compress {
+		// If we aren't going to run the goroutine to compress the log file, then we need to unlock in this function.
+		// Otherwise the lock will be released in the goroutine that handles compression.
+		if retErr != nil || noCompress {
 			w.rotateMu.Unlock()
 		}
 	}()
@@ -204,17 +207,33 @@ func (w *LogFile) checkCapacityAndRotate() (retErr error) {
 	}
 
 	if err := rotate(fname, w.maxFiles, w.compress); err != nil {
-		return err
+		logrus.WithError(err).Warn("Error rotating log file, log data may have been lost")
+	} else {
+		var renameErr error
+		for i := 0; i < 10; i++ {
+			if renameErr = os.Rename(fname, fname+".1"); renameErr != nil && !os.IsNotExist(renameErr) {
+				logrus.WithError(renameErr).WithField("file", fname).Debug("Error rotating current container log file, evicting readers and retrying")
+				w.notifyReaders.Publish(renameErr)
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+			break
+		}
+		if renameErr != nil {
+			logrus.WithError(renameErr).Error("Error renaming current log file")
+		}
 	}
+
 	file, err := openFile(fname, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, w.perms)
 	if err != nil {
 		return err
 	}
 	w.f = file
 	w.currentSize = 0
-	w.notifyRotate.Publish(struct{}{})
 
-	if w.maxFiles <= 1 || !w.compress {
+	w.notifyReaders.Publish(struct{}{})
+
+	if noCompress {
 		return nil
 	}
 
@@ -249,13 +268,10 @@ func rotate(name string, maxFiles int, compress bool) error {
 	for i := maxFiles - 1; i > 1; i-- {
 		toPath := name + "." + strconv.Itoa(i) + extension
 		fromPath := name + "." + strconv.Itoa(i-1) + extension
+		logrus.WithField("source", fromPath).WithField("target", toPath).Trace("Rotating log file")
 		if err := os.Rename(fromPath, toPath); err != nil && !os.IsNotExist(err) {
 			return err
 		}
-	}
-
-	if err := os.Rename(name, name+".1"); err != nil && !os.IsNotExist(err) {
-		return err
 	}
 
 	return nil
@@ -272,9 +288,11 @@ func compressFile(fileName string, lastTimestamp time.Time) (retErr error) {
 	}
 	defer func() {
 		file.Close()
-		err := os.Remove(fileName)
-		if err != nil && !os.IsNotExist(err) {
-			retErr = errors.Wrap(err, "failed to remove source log file")
+		if retErr == nil {
+			err := os.Remove(fileName)
+			if err != nil && !os.IsNotExist(err) {
+				retErr = errors.Wrap(err, "failed to remove source log file")
+			}
 		}
 	}()
 
@@ -354,6 +372,12 @@ func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher)
 		return
 	}
 
+	notifyEvict := w.notifyReaders.SubscribeTopicWithBuffer(func(i interface{}) bool {
+		_, ok := i.(error)
+		return ok
+	}, 1)
+	defer w.notifyReaders.Evict(notifyEvict)
+
 	if config.Tail != 0 {
 		// TODO(@cpuguy83): Instead of opening every file, only get the files which
 		// are needed to tail.
@@ -392,9 +416,11 @@ func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher)
 			readers = append(readers, currentChunk)
 		}
 
-		tailFiles(readers, watcher, dec, w.getTailReader, config)
+		ok := tailFiles(readers, watcher, dec, w.getTailReader, config, notifyEvict)
 		closeFiles()
-
+		if !ok {
+			return
+		}
 		w.mu.RLock()
 	}
 
@@ -404,9 +430,13 @@ func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher)
 	}
 	w.mu.RUnlock()
 
-	notifyRotate := w.notifyRotate.Subscribe()
-	defer w.notifyRotate.Evict(notifyRotate)
-	followLogs(currentFile, watcher, notifyRotate, dec, config.Since, config.Until)
+	notifyRotate := w.notifyReaders.SubscribeTopic(func(i interface{}) bool {
+		_, ok := i.(struct{})
+		return ok
+	})
+	defer w.notifyReaders.Evict(notifyRotate)
+
+	followLogs(currentFile, watcher, notifyRotate, notifyEvict, dec, config.Since, config.Until)
 }
 
 func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []*os.File, err error) {
@@ -512,16 +542,25 @@ func newSectionReader(f *os.File) (*io.SectionReader, error) {
 	return io.NewSectionReader(f, 0, size), nil
 }
 
-func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, dec Decoder, getTailReader GetTailReaderFunc, config logger.ReadConfig) {
+func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, dec Decoder, getTailReader GetTailReaderFunc, config logger.ReadConfig, notifyEvict <-chan interface{}) (cont bool) {
 	nLines := config.Tail
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	cont = true
 	// TODO(@cpuguy83): we should plumb a context through instead of dealing with `WatchClose()` here.
 	go func() {
 		select {
+		case err := <-notifyEvict:
+			if err != nil {
+				watcher.Err <- err.(error)
+				cont = false
+				cancel()
+			}
 		case <-ctx.Done():
 		case <-watcher.WatchConsumerGone():
+			cont = false
 			cancel()
 		}
 	}()
@@ -569,7 +608,7 @@ func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, dec Decoder, ge
 	}
 }
 
-func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan interface{}, dec Decoder, since, until time.Time) {
+func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate, notifyEvict chan interface{}, dec Decoder, since, until time.Time) {
 	dec.Reset(f)
 
 	name := f.Name()
@@ -580,6 +619,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 	}
 	defer func() {
 		f.Close()
+		dec.Close()
 		fileWatcher.Close()
 	}()
 
@@ -607,8 +647,22 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 
 	errRetry := errors.New("retry")
 	errDone := errors.New("done")
+
+	handleMustClose := func(evictErr error) {
+		f.Close()
+		dec.Close()
+		logWatcher.Err <- errors.Wrap(err, "log reader evicted due to errors")
+		logrus.WithField("file", f.Name()).Error("Log reader notified that it must re-open log file, some log data may not be streamed to the client.")
+	}
+
 	waitRead := func() error {
 		select {
+		case e := <-notifyEvict:
+			if e != nil {
+				err := e.(error)
+				handleMustClose(err)
+			}
+			return errDone
 		case e := <-fileWatcher.Events():
 			switch e.Op {
 			case fsnotify.Write:
@@ -682,6 +736,14 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 
 	// main loop
 	for {
+		select {
+		case err := <-notifyEvict:
+			if err != nil {
+				handleMustClose(err.(error))
+			}
+			return
+		default:
+		}
 		msg, err := dec.Decode()
 		if err != nil {
 			if err := handleDecodeErr(err); err != nil {
@@ -705,6 +767,13 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 		}
 		// send the message, unless the consumer is gone
 		select {
+		case e := <-notifyEvict:
+			if e != nil {
+				err := e.(error)
+				logrus.WithError(err).Debug("Reader evicted while sending log message")
+				logWatcher.Err <- err
+			}
+			return
 		case logWatcher.Msg <- msg:
 		case <-logWatcher.WatchConsumerGone():
 			return

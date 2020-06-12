@@ -1,8 +1,10 @@
-package loggerutils
+package loggerutils // import "github.com/docker/docker/daemon/logger/loggerutils"
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -10,6 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"text/tabwriter"
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
@@ -64,7 +67,7 @@ func TestTailFiles(t *testing.T) {
 			started := make(chan struct{})
 			go func() {
 				close(started)
-				tailFiles(files, watcher, dec, tailReader, config)
+				tailFiles(files, watcher, dec, tailReader, config, make(chan interface{}))
 			}()
 			<-started
 		})
@@ -74,7 +77,7 @@ func TestTailFiles(t *testing.T) {
 	started := make(chan struct{})
 	go func() {
 		close(started)
-		tailFiles(files, watcher, dec, tailReader, config)
+		tailFiles(files, watcher, dec, tailReader, config, make(chan interface{}))
 	}()
 	<-started
 
@@ -123,7 +126,7 @@ func TestFollowLogsConsumerGone(t *testing.T) {
 	followLogsDone := make(chan struct{})
 	var since, until time.Time
 	go func() {
-		followLogs(f, lw, make(chan interface{}), dec, since, until)
+		followLogs(f, lw, make(chan interface{}), make(chan interface{}), dec, since, until)
 		close(followLogsDone)
 	}()
 
@@ -184,7 +187,7 @@ func TestFollowLogsProducerGone(t *testing.T) {
 
 	followLogsDone := make(chan struct{})
 	go func() {
-		followLogs(f, lw, make(chan interface{}), dec, since, until)
+		followLogs(f, lw, make(chan interface{}), make(chan interface{}), dec, since, until)
 		close(followLogsDone)
 	}()
 
@@ -251,21 +254,30 @@ func TestCheckCapacityAndRotate(t *testing.T) {
 	assert.NilError(t, err)
 
 	l := &LogFile{
-		f:            f,
-		capacity:     5,
-		maxFiles:     3,
-		compress:     true,
-		notifyRotate: pubsub.NewPublisher(0, 1),
-		perms:        0600,
+		f:               f,
+		capacity:        5,
+		maxFiles:        3,
+		compress:        true,
+		notifyReaders:   pubsub.NewPublisher(0, 1),
+		perms:           0600,
+		filesRefCounter: refCounter{counter: make(map[string]int)},
+		getTailReader: func(ctx context.Context, r SizeReaderAt, lines int) (io.Reader, int, error) {
+			return tailfile.NewTailReader(ctx, r, lines)
+		},
+		createDecoder: func(io.Reader) Decoder {
+			return dummyDecoder{}
+		},
 		marshal: func(msg *logger.Message) ([]byte, error) {
 			return msg.Line, nil
 		},
 	}
 	defer l.Close()
 
+	ls := dirStringer{dir}
+
 	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
 	_, err = os.Stat(f.Name() + ".1")
-	assert.Assert(t, os.IsNotExist(err), dirStringer{dir})
+	assert.Assert(t, os.IsNotExist(err), ls)
 
 	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
 	poll.WaitOn(t, checkFileExists(f.Name()+".1.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
@@ -274,11 +286,48 @@ func TestCheckCapacityAndRotate(t *testing.T) {
 	poll.WaitOn(t, checkFileExists(f.Name()+".1.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
 	poll.WaitOn(t, checkFileExists(f.Name()+".2.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
 
-	// Now let's simulate a failed rotation where the file was able to be closed but something else happened elsewhere
-	// down the line.
-	// We want to make sure that we can recover in the case that `l.f` was closed while attempting a rotation.
-	l.f.Close()
-	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
+	t.Run("closed log file", func(t *testing.T) {
+		// Now let's simulate a failed rotation where the file was able to be closed but something else happened elsewhere
+		// down the line.
+		// We want to make sure that we can recover in the case that `l.f` was closed while attempting a rotation.
+		l.f.Close()
+		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
+		assert.NilError(t, os.Remove(f.Name()+".2.gz"))
+	})
+
+	t.Run("with log reader", func(t *testing.T) {
+		// Make sure rotate works with an active reader
+		lw := logger.NewLogWatcher()
+		defer lw.ConsumerGone()
+		go l.ReadLogs(logger.ReadConfig{Follow: true, Tail: 1000}, lw)
+
+		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world 0!")}), ls)
+		// make sure the log reader is primed
+		waitForMsg(t, lw, 30*time.Second)
+
+		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world 1!")}), ls)
+		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world 2!")}), ls)
+		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world 3!")}), ls)
+		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world 4!")}), ls)
+		poll.WaitOn(t, checkFileExists(f.Name()+".2.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
+	})
+}
+
+func waitForMsg(t *testing.T, lw *logger.LogWatcher, timeout time.Duration) {
+	t.Helper()
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case <-lw.Msg:
+	case <-lw.WatchProducerGone():
+		t.Fatal("log producer gone before log message arrived")
+	case err := <-lw.Err:
+		assert.NilError(t, err)
+	case <-timer.C:
+		t.Fatal("timeout waiting for log message")
+	}
 }
 
 type dirStringer struct {
@@ -290,13 +339,18 @@ func (d dirStringer) String() string {
 	if err != nil {
 		return ""
 	}
-	var s strings.Builder
-	s.WriteString("\n")
+	buf := bytes.NewBuffer(nil)
+	tw := tabwriter.NewWriter(buf, 1, 8, 1, '\t', 0)
+	buf.WriteString("\n")
+
+	btw := bufio.NewWriter(tw)
 
 	for _, fi := range ls {
-		s.WriteString(fi.Name() + "\n")
+		btw.WriteString(fmt.Sprintf("%s\t%s\t%dB\t%s\n", fi.Name(), fi.Mode(), fi.Size(), fi.ModTime()))
 	}
-	return s.String()
+	btw.Flush()
+	tw.Flush()
+	return buf.String()
 }
 
 func checkFileExists(name string) poll.Check {
