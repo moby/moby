@@ -24,7 +24,9 @@ usage() {
 dir="$1" # dir for building tar in
 shift || usage 1 >&2
 
-[ $# -gt 0 -a "$dir" ] || usage 2 >&2
+if ! [ $# -gt 0 ] && [ "$dir" ]; then
+	usage 2 >&2
+fi
 mkdir -p "$dir"
 
 # hacky workarounds for Bash 3 support (no associative arrays)
@@ -37,7 +39,7 @@ doNotGenerateManifestJson=
 # bash v4 on Windows CI requires CRLF separator
 newlineIFS=$'\n'
 if [ "$(go env GOHOSTOS)" = 'windows' ]; then
-	major=$(echo ${BASH_VERSION%%[^0.9]} | cut -d. -f1)
+	major=$(echo "${BASH_VERSION%%[^0.9]}" | cut -d. -f1)
 	if [ "$major" -ge 4 ]; then
 		newlineIFS=$'\r\n'
 	fi
@@ -59,7 +61,8 @@ fetch_blob() {
 	shift
 	local curlArgs=("$@")
 
-	local curlHeaders="$(
+	local curlHeaders
+	curlHeaders="$(
 		curl -S "${curlArgs[@]}" \
 			-H "Authorization: Bearer $token" \
 			"$registryBase/v2/$image/blobs/$digest" \
@@ -70,7 +73,8 @@ fetch_blob() {
 	if grep -qE "^HTTP/[0-9].[0-9] 3" <<< "$curlHeaders"; then
 		rm -f "$targetFile"
 
-		local blobRedirect="$(echo "$curlHeaders" | awk -F ': ' 'tolower($1) == "location" { print $2; exit }')"
+		local blobRedirect
+		blobRedirect="$(echo "$curlHeaders" | awk -F ': ' 'tolower($1) == "location" { print $2; exit }')"
 		if [ -z "$blobRedirect" ]; then
 			echo >&2 "error: failed fetching '$image' blob '$digest'"
 			echo "$curlHeaders" | head -1 >&2
@@ -88,15 +92,18 @@ handle_single_manifest_v2() {
 	local manifestJson="$1"
 	shift
 
-	local configDigest="$(echo "$manifestJson" | jq --raw-output '.config.digest')"
+	local configDigest
+	configDigest="$(echo "$manifestJson" | jq --raw-output '.config.digest')"
 	local imageId="${configDigest#*:}" # strip off "sha256:"
 
 	local configFile="$imageId.json"
 	fetch_blob "$token" "$image" "$configDigest" "$dir/$configFile" -s
 
-	local layersFs="$(echo "$manifestJson" | jq --raw-output --compact-output '.layers[]')"
+	local layersFs
+	layersFs="$(echo "$manifestJson" | jq --raw-output --compact-output '.layers[]')"
 	local IFS="$newlineIFS"
-	local layers=($layersFs)
+	local layers
+	mapfile -t layers <<< "$layersFs"
 	unset IFS
 
 	echo "Downloading '$imageIdentifier' (${#layers[@]} layers)..."
@@ -105,8 +112,10 @@ handle_single_manifest_v2() {
 	for i in "${!layers[@]}"; do
 		local layerMeta="${layers[$i]}"
 
-		local layerMediaType="$(echo "$layerMeta" | jq --raw-output '.mediaType')"
-		local layerDigest="$(echo "$layerMeta" | jq --raw-output '.digest')"
+		local layerMediaType
+		layerMediaType="$(echo "$layerMeta" | jq --raw-output '.mediaType')"
+		local layerDigest
+		layerDigest="$(echo "$layerMeta" | jq --raw-output '.digest')"
 
 		# save the previous layer's ID
 		local parentId="$layerId"
@@ -118,8 +127,10 @@ handle_single_manifest_v2() {
 		echo '1.0' > "$dir/$layerId/VERSION"
 
 		if [ ! -s "$dir/$layerId/json" ]; then
-			local parentJson="$(printf ', parent: "%s"' "$parentId")"
-			local addJson="$(printf '{ id: "%s"%s }' "$layerId" "${parentId:+$parentJson}")"
+			local parentJson
+			parentJson="$(printf ', parent: "%s"' "$parentId")"
+			local addJson
+			addJson="$(printf '{ id: "%s"%s }' "$layerId" "${parentId:+$parentJson}")"
 			# this starter JSON is taken directly from Docker's own "docker save" output for unimportant layers
 			jq "$addJson + ." > "$dir/$layerId/json" <<- 'EOJSON'
 				{
@@ -159,7 +170,8 @@ handle_single_manifest_v2() {
 					echo "skipping existing ${layerId:0:12}"
 					continue
 				fi
-				local token="$(curl -fsSL "$authBase/token?service=$authService&scope=repository:$image:pull" | jq --raw-output '.token')"
+				local token
+				token="$(curl -fsSL "$authBase/token?service=$authService&scope=repository:$image:pull" | jq --raw-output '.token')"
 				fetch_blob "$token" "$image" "$layerDigest" "$dir/$layerTar" --progress-bar
 				;;
 
@@ -174,10 +186,12 @@ handle_single_manifest_v2() {
 	imageId="$layerId"
 
 	# munge the top layer image manifest to have the appropriate image configuration for older daemons
-	local imageOldConfig="$(jq --raw-output --compact-output '{ id: .id } + if .parent then { parent: .parent } else {} end' "$dir/$imageId/json")"
+	local imageOldConfig
+	imageOldConfig="$(jq --raw-output --compact-output '{ id: .id } + if .parent then { parent: .parent } else {} end' "$dir/$imageId/json")"
 	jq --raw-output "$imageOldConfig + del(.history, .rootfs)" "$dir/$configFile" > "$dir/$imageId/json"
 
-	local manifestJsonEntry="$(
+	local manifestJsonEntry
+	manifestJsonEntry="$(
 		echo '{}' | jq --raw-output '. + {
 			Config: "'"$configFile"'",
 			RepoTags: ["'"${image#library\/}:$tag"'"],
@@ -232,7 +246,7 @@ while [ $# -gt 0 ]; do
 				application/vnd.docker.distribution.manifest.list.v2+json)
 					layersFs="$(echo "$manifestJson" | jq --raw-output --compact-output '.manifests[]')"
 					IFS="$newlineIFS"
-					layers=($layersFs)
+					mapfile -t layers <<< "$layersFs"
 					unset IFS
 
 					found=""
@@ -278,7 +292,7 @@ while [ $# -gt 0 ]; do
 
 			layersFs="$(echo "$manifestJson" | jq --raw-output '.fsLayers | .[] | .blobSum')"
 			IFS="$newlineIFS"
-			layers=($layersFs)
+			mapfile -t layers <<< "$layersFs"
 			unset IFS
 
 			history="$(echo "$manifestJson" | jq '.history | [.[] | .v1Compatibility]')"
