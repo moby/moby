@@ -63,7 +63,7 @@ func setupDefaultSysctl(config *networkConfiguration, i *bridgeInterface) error 
 		return nil
 	}
 	if err := ioutil.WriteFile(sysPath, []byte{'0', '\n'}, 0644); err != nil {
-		return fmt.Errorf("libnetwork: Unable to disable IPv6 router advertisement: %v", err)
+		logrus.WithError(err).Warn("unable to disable IPv6 router advertisement")
 	}
 	return nil
 }
