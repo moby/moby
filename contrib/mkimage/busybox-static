@@ -2,6 +2,7 @@
 set -e
 
 rootfsDir="$1"
+[ "$rootfsDir" = "/" ] && exit 5  # prevent erasure of your working system....
 shift
 
 busybox="$(which busybox 2> /dev/null || true)"
@@ -17,17 +18,17 @@ if ! ldd "$busybox" 2>&1 | grep -q 'not a dynamic executable'; then
 fi
 
 mkdir -p "$rootfsDir/bin"
-rm -f "$rootfsDir/bin/busybox" # just in case
+# rm -f "$rootfsDir/bin/busybox" # uncomment if u dont trust unclean directory.... just in case
 cp "$busybox" "$rootfsDir/bin/busybox"
 
 (
 	cd "$rootfsDir"
 
 	IFS=$'\n'
-	modules=($(bin/busybox --list-modules))
+	modules=$((bin/busybox --list-modules))
 	unset IFS
-
-	for module in "${modules[@]}"; do
+	cd ./bin 
+	for module in "${modules}"; do
 		mkdir -p "$(dirname "$module")"
 		ln -sf /bin/busybox "$module"
 	done
