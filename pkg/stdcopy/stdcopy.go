@@ -81,7 +81,7 @@ func NewStdWriter(w io.Writer, t StdType) io.Writer {
 	}
 }
 
-// StdCopy is a modified version of io.Copy.
+// StdCopy is a modified version of io.Copy.(When the container turns on the tty, StdCopy and io.Copy() are the same function)
 //
 // StdCopy will demultiplex `src`, assuming that it contains two streams,
 // previously multiplexed together using a StdWriter instance.
@@ -91,6 +91,8 @@ func NewStdWriter(w io.Writer, t StdType) io.Writer {
 // In other words: if `err` is non nil, it indicates a real underlying error.
 //
 // `written` will hold the total number of bytes written to `dstout` and `dsterr`.
+//
+// when container turns on tty,StdCopy will not demultiplex `src`, direct copy of content to 'dstout'
 func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error) {
 	var (
 		buf       = make([]byte, startingBufLen)
@@ -135,7 +137,21 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 			// to outstream if Systemerr is the stream
 			out = nil
 		default:
-			return 0, fmt.Errorf("Unrecognized input header: %d", buf[stdWriterFdIndex])
+			// If container turn on tty,it will come here
+			nw,ew = dstout.Write(buf)
+
+			if nil != ew {
+				return 0, ew
+			}
+
+			temNr,er :=  io.Copy(dstout,src)
+			if nil != er {
+				return 0, er
+			}
+
+			written = int64(nw) + temNr
+
+			return written, nil
 		}
 
 		// Retrieve the size of the frame
