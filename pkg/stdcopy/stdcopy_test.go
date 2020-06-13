@@ -114,6 +114,24 @@ func TestStdCopyWriteAndRead(t *testing.T) {
 	}
 }
 
+func TestStdCopyWriteAndReadTtyStream(t *testing.T) {
+	stdOutBytes := []byte(strings.Repeat("o", startingBufLen))
+	srcInput := new(bytes.Buffer)
+
+	writtenum, err := srcInput.Write(stdOutBytes)
+
+	t.Logf("write %d bytes",writtenum)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	written, err := StdCopy(ioutil.Discard, ioutil.Discard, srcInput)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Skipf("read %d bytes",written)
+}
+
 type customReader struct {
 	n            int
 	err          error
