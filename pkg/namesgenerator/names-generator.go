@@ -427,6 +427,9 @@ var (
 
 		// Jaroslav Heyrovský was the inventor of the polarographic method, father of the electroanalytical method, and recipient of the Nobel Prize in 1959. His main field of work was polarography. https://en.wikipedia.org/wiki/Jaroslav_Heyrovsk%C3%BD
 		"heyrovsky",
+		
+		// Peter Ware Higgs is a British theoretical physicist, Emeritus Professor in the University of Edinburgh, Nobel Prize laureate for his work on the mass of subatomic particles and boson theorist named after him. https://en.wikipedia.org/wiki/Peter_Higgs
+		"higgs",
 
 		// Dorothy Hodgkin was a British biochemist, credited with the development of protein crystallography. She was awarded the Nobel Prize in Chemistry in 1964. https://en.wikipedia.org/wiki/Dorothy_Hodgkin
 		"hodgkin",
