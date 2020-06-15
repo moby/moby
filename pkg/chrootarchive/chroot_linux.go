@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/containerd/containerd/sys"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"golang.org/x/sys/unix"
 )
 
@@ -20,7 +20,7 @@ import (
 // This is similar to how libcontainer sets up a container's rootfs
 func chroot(path string) (err error) {
 	// if the engine is running in a user namespace we need to use actual chroot
-	if rsystem.RunningInUserNS() {
+	if sys.RunningInUserNS() {
 		return realChroot(path)
 	}
 	if err := unix.Unshare(unix.CLONE_NEWNS); err != nil {

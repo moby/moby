@@ -13,10 +13,10 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
 )
 
 type applyLayerResponse struct {
@@ -36,7 +36,7 @@ func applyLayer() {
 	runtime.LockOSThread()
 	flag.Parse()
 
-	inUserns := rsystem.RunningInUserNS()
+	inUserns := sys.RunningInUserNS()
 	if err := chroot(flag.Arg(0)); err != nil {
 		fatal(err)
 	}
@@ -95,7 +95,7 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 	}
 	if options == nil {
 		options = &archive.TarOptions{}
-		if rsystem.RunningInUserNS() {
+		if sys.RunningInUserNS() {
 			options.InUserNS = true
 		}
 	}
