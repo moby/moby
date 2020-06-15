@@ -9,10 +9,10 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/sys/mount"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
@@ -30,7 +30,7 @@ import (
 //     └── f1 # whiteout, 0644
 func setupOverlayTestDir(t *testing.T, src string) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	skip.If(t, rsystem.RunningInUserNS(), "skipping test that requires initial userns (trusted.overlay.opaque xattr cannot be set in userns, even with Ubuntu kernel)")
+	skip.If(t, sys.RunningInUserNS(), "skipping test that requires initial userns (trusted.overlay.opaque xattr cannot be set in userns, even with Ubuntu kernel)")
 	// Create opaque directory containing single file and permission 0700
 	err := os.Mkdir(filepath.Join(src, "d1"), 0700)
 	assert.NilError(t, err)
@@ -248,7 +248,7 @@ func isOpaque(dir string) error {
 
 func TestReexecUserNSOverlayWhiteoutConverter(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	skip.If(t, rsystem.RunningInUserNS(), "skipping test that requires initial userns")
+	skip.If(t, sys.RunningInUserNS(), "skipping test that requires initial userns")
 	if err := supportsUserNSOverlay(); err != nil {
 		t.Skipf("skipping test that requires kernel support for overlay-in-userns: %v", err)
 	}

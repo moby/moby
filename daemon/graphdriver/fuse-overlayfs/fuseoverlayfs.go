@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/pkg/archive"
@@ -25,7 +26,6 @@ import (
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/sys/mount"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -475,7 +475,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64
 		GIDMaps: d.gidMaps,
 		// Use AUFS whiteout format: https://github.com/containers/storage/blob/39a8d5ed9843844eafb5d2ba6e6a7510e0126f40/drivers/overlay/overlay.go#L1084-L1089
 		WhiteoutFormat: archive.AUFSWhiteoutFormat,
-		InUserNS:       rsystem.RunningInUserNS(),
+		InUserNS:       sys.RunningInUserNS(),
 	}); err != nil {
 		return 0, err
 	}

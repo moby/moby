@@ -10,9 +10,9 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"golang.org/x/sys/unix"
 )
 
@@ -81,7 +81,7 @@ func getFileUIDGID(stat interface{}) (idtools.Identity, error) {
 // handleTarTypeBlockCharFifo is an OS-specific helper function used by
 // createTarFile to handle the following types of header: Block; Char; Fifo
 func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
-	if rsystem.RunningInUserNS() {
+	if sys.RunningInUserNS() {
 		// cannot create a device if running in user namespace
 		return nil
 	}

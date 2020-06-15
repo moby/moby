@@ -14,6 +14,7 @@ import (
 
 	"github.com/containerd/containerd/containers"
 	coci "github.com/containerd/containerd/oci"
+	"github.com/containerd/containerd/sys"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	daemonconfig "github.com/docker/docker/daemon/config"
@@ -28,7 +29,6 @@ import (
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/devices"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/runc/libcontainer/user"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -857,7 +857,7 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		var devs []specs.LinuxDevice
 		devPermissions := s.Linux.Resources.Devices
 
-		if c.HostConfig.Privileged && !rsystem.RunningInUserNS() {
+		if c.HostConfig.Privileged && !sys.RunningInUserNS() {
 			hostDevices, err := devices.HostDevices()
 			if err != nil {
 				return err

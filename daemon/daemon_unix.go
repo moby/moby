@@ -18,6 +18,7 @@ import (
 
 	statsV1 "github.com/containerd/cgroups/stats/v1"
 	statsV2 "github.com/containerd/cgroups/v2/stats"
+	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/blkiodev"
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
@@ -44,7 +45,6 @@ import (
 	lntypes "github.com/docker/libnetwork/types"
 	"github.com/moby/sys/mount"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
@@ -1668,7 +1668,7 @@ func setMayDetachMounts() error {
 		// Setting may_detach_mounts does not work in an
 		// unprivileged container. Ignore the error, but log
 		// it if we appear not to be in that situation.
-		if !rsystem.RunningInUserNS() {
+		if !sys.RunningInUserNS() {
 			logrus.Debugf("Permission denied writing %q to /proc/sys/fs/may_detach_mounts", "1")
 		}
 		return nil
@@ -1688,7 +1688,7 @@ func setupOOMScoreAdj(score int) error {
 		// Setting oom_score_adj does not work in an
 		// unprivileged container. Ignore the error, but log
 		// it if we appear not to be in that situation.
-		if !rsystem.RunningInUserNS() {
+		if !sys.RunningInUserNS() {
 			logrus.Debugf("Permission denied writing %q to /proc/self/oom_score_adj", stringScore)
 		}
 		return nil
