@@ -81,7 +81,7 @@ func (e *ExecOp) AddMount(target string, source Output, opt ...MountOption) Outp
 		}
 		m.output = o
 	}
-	e.Store(nil, nil, nil)
+	e.Store(nil, nil, nil, nil)
 	e.isValidated = false
 	return m.output
 }
@@ -124,12 +124,12 @@ func (e *ExecOp) Validate(ctx context.Context) error {
 	return nil
 }
 
-func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, error) {
+func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
 	if e.Cached(c) {
 		return e.Load()
 	}
 	if err := e.Validate(ctx); err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
 	// make sure mounts are sorted
 	sort.Slice(e.mounts, func(i, j int) bool {
@@ -138,7 +138,7 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 
 	env, err := getEnv(e.base)(ctx)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
 
 	if len(e.ssh) > 0 {
@@ -161,17 +161,17 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 
 	args, err := getArgs(e.base)(ctx)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
 
 	cwd, err := getDir(e.base)(ctx)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
 
 	user, err := getUser(e.base)(ctx)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
 
 	meta := &pb.Meta{
@@ -182,7 +182,7 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 	}
 	extraHosts, err := getExtraHosts(e.base)(ctx)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
 	if len(extraHosts) > 0 {
 		hosts := make([]*pb.HostIP, len(extraHosts))
@@ -194,12 +194,12 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 
 	network, err := getNetwork(e.base)(ctx)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
 
 	security, err := getSecurity(e.base)(ctx)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
 
 	peo := &pb.ExecOp{
@@ -252,7 +252,7 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 	if e.constraints.Platform == nil {
 		p, err := getPlatform(e.base)(ctx)
 		if err != nil {
-			return "", nil, nil, err
+			return "", nil, nil, nil, err
 		}
 		e.constraints.Platform = p
 	}
@@ -267,11 +267,11 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 		inputIndex := pb.InputIndex(len(pop.Inputs))
 		if m.source != nil {
 			if m.tmpfs {
-				return "", nil, nil, errors.Errorf("tmpfs mounts must use scratch")
+				return "", nil, nil, nil, errors.Errorf("tmpfs mounts must use scratch")
 			}
 			inp, err := m.source.ToInput(ctx, c)
 			if err != nil {
-				return "", nil, nil, err
+				return "", nil, nil, nil, err
 			}
 
 			newInput := true
@@ -356,9 +356,9 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 
 	dt, err := pop.Marshal()
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
-	e.Store(dt, md, c)
+	e.Store(dt, md, e.constraints.SourceLocations, c)
 	return e.Load()
 }
 
@@ -388,7 +388,7 @@ func (e *ExecOp) getMountIndexFn(m *mount) func() (pb.OutputIndex, error) {
 
 		i := 0
 		for _, m2 := range e.mounts {
-			if m2.noOutput || m2.readonly || m2.cacheID != "" {
+			if m2.noOutput || m2.readonly || m2.tmpfs || m2.cacheID != "" {
 				continue
 			}
 			if m == m2 {

@@ -649,12 +649,12 @@ func (ms *marshalState) add(fa *FileAction, c *Constraints) (*fileActionState, e
 	return st, nil
 }
 
-func (f *FileOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, error) {
+func (f *FileOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
 	if f.Cached(c) {
 		return f.Load()
 	}
 	if err := f.Validate(ctx); err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
 
 	addCap(&f.constraints, pb.CapFileBase)
@@ -669,7 +669,7 @@ func (f *FileOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 	state := newMarshalState(ctx)
 	_, err := state.add(f.action, c)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
 	pop.Inputs = state.inputs
 
@@ -683,13 +683,13 @@ func (f *FileOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 		if st.fa.state != nil {
 			parent, err = st.fa.state.GetDir(ctx)
 			if err != nil {
-				return "", nil, nil, err
+				return "", nil, nil, nil, err
 			}
 		}
 
 		action, err := st.action.toProtoAction(ctx, parent, st.base)
 		if err != nil {
-			return "", nil, nil, err
+			return "", nil, nil, nil, err
 		}
 
 		pfo.Actions = append(pfo.Actions, &pb.FileAction{
@@ -702,9 +702,9 @@ func (f *FileOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 
 	dt, err := pop.Marshal()
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
-	f.Store(dt, md, c)
+	f.Store(dt, md, f.constraints.SourceLocations, c)
 	return f.Load()
 }
 

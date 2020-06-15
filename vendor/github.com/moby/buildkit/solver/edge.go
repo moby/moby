@@ -26,12 +26,13 @@ func (t edgeStatusType) String() string {
 
 func newEdge(ed Edge, op activeOp, index *edgeIndex) *edge {
 	e := &edge{
-		edge:         ed,
-		op:           op,
-		depRequests:  map[pipe.Receiver]*dep{},
-		keyMap:       map[string]struct{}{},
-		cacheRecords: map[string]*CacheRecord{},
-		index:        index,
+		edge:               ed,
+		op:                 op,
+		depRequests:        map[pipe.Receiver]*dep{},
+		keyMap:             map[string]struct{}{},
+		cacheRecords:       map[string]*CacheRecord{},
+		cacheRecordsLoaded: map[string]struct{}{},
+		index:              index,
 	}
 	return e
 }
@@ -44,14 +45,16 @@ type edge struct {
 	depRequests map[pipe.Receiver]*dep
 	deps        []*dep
 
-	cacheMapReq     pipe.Receiver
-	cacheMapDone    bool
-	cacheMapIndex   int
-	cacheMapDigests []digest.Digest
-	execReq         pipe.Receiver
-	err             error
-	cacheRecords    map[string]*CacheRecord
-	keyMap          map[string]struct{}
+	cacheMapReq        pipe.Receiver
+	cacheMapDone       bool
+	cacheMapIndex      int
+	cacheMapDigests    []digest.Digest
+	execReq            pipe.Receiver
+	execCacheLoad      bool
+	err                error
+	cacheRecords       map[string]*CacheRecord
+	cacheRecordsLoaded map[string]struct{}
+	keyMap             map[string]struct{}
 
 	noCacheMatchPossible      bool
 	allDepsCompletedCacheFast bool
@@ -425,7 +428,11 @@ func (e *edge) processUpdate(upt pipe.Receiver) (depChanged bool) {
 	if upt == e.execReq && upt.Status().Completed {
 		if err := upt.Status().Err; err != nil {
 			e.execReq = nil
-			if !upt.Status().Canceled && e.err == nil {
+			if e.execCacheLoad {
+				for k := range e.cacheRecordsLoaded {
+					delete(e.cacheRecords, k)
+				}
+			} else if !upt.Status().Canceled && e.err == nil {
 				e.err = err
 			}
 		} else {
@@ -561,7 +568,9 @@ func (e *edge) recalcCurrentState() {
 		}
 
 		for _, r := range records {
-			e.cacheRecords[r.ID] = r
+			if _, ok := e.cacheRecordsLoaded[r.ID]; !ok {
+				e.cacheRecords[r.ID] = r
+			}
 		}
 
 		e.keys = append(e.keys, e.makeExportable(mergedKey, records))
@@ -821,6 +830,7 @@ func (e *edge) execIfPossible(f *pipeFactory) bool {
 			return true
 		}
 		e.execReq = f.NewFuncRequest(e.loadCache)
+		e.execCacheLoad = true
 		for req := range e.depRequests {
 			req.Cancel()
 		}
@@ -831,6 +841,7 @@ func (e *edge) execIfPossible(f *pipeFactory) bool {
 			return true
 		}
 		e.execReq = f.NewFuncRequest(e.execOp)
+		e.execCacheLoad = false
 		return true
 	}
 	return false
@@ -851,6 +862,7 @@ func (e *edge) loadCache(ctx context.Context) (interface{}, error) {
 	}
 
 	rec := getBestResult(recs)
+	e.cacheRecordsLoaded[rec.ID] = struct{}{}
 
 	logrus.Debugf("load cache for %s with %s", e.edge.Vertex.Name(), rec.ID)
 	res, err := e.op.LoadCache(ctx, rec)

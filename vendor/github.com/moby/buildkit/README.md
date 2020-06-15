@@ -86,6 +86,7 @@ BuildKit is used by the following projects:
 -   [PouchContainer](https://github.com/alibaba/pouch)
 -   [Docker buildx](https://github.com/docker/buildx)
 -   [Okteto Cloud](https://okteto.com/)
+-   [Earthly earthfiles](https://github.com/vladaionescu/earthly)
 
 ## Quick start
 
@@ -148,6 +149,7 @@ Currently, the following high-level languages has been implemented for LLB:
 -   [Buildpacks](https://github.com/tonistiigi/buildkit-pack)
 -   [Mockerfile](https://matt-rickard.com/building-a-new-dockerfile-frontend/)
 -   [Gockerfile](https://github.com/po3rin/gockerfile)
+-   [bldr (Pkgfile)](https://github.com/talos-systems/bldr/)
 -   (open a PR to add your own language)
 
 ### Exploring Dockerfiles

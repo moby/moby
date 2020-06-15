@@ -13,7 +13,7 @@ import (
 	"github.com/containerd/containerd/snapshots"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/snapshot"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -56,7 +56,7 @@ func migrateChainID(si *metadata.StorageItem, all map[string]*metadata.StorageIt
 func MigrateV2(ctx context.Context, from, to string, cs content.Store, s snapshot.Snapshotter, lm leases.Manager) error {
 	_, err := os.Stat(to)
 	if err != nil {
-		if !os.IsNotExist(errors.Cause(err)) {
+		if !errors.Is(err, os.ErrNotExist) {
 			return errors.WithStack(err)
 		}
 	} else {
@@ -65,7 +65,7 @@ func MigrateV2(ctx context.Context, from, to string, cs content.Store, s snapsho
 
 	_, err = os.Stat(from)
 	if err != nil {
-		if !os.IsNotExist(errors.Cause(err)) {
+		if !errors.Is(err, os.ErrNotExist) {
 			return errors.WithStack(err)
 		}
 		return nil
@@ -180,7 +180,7 @@ func MigrateV2(ctx context.Context, from, to string, cs content.Store, s snapsho
 		})
 		if err != nil {
 			// if we are running the migration twice
-			if errdefs.IsAlreadyExists(err) {
+			if errors.Is(err, errdefs.ErrAlreadyExists) {
 				continue
 			}
 			return errors.Wrap(err, "failed to create lease")
@@ -205,19 +205,22 @@ func MigrateV2(ctx context.Context, from, to string, cs content.Store, s snapsho
 
 	// remove old root labels
 	for _, item := range byID {
-		if _, err := s.Update(ctx, snapshots.Info{
-			Name: getSnapshotID(item),
-		}, "labels.containerd.io/gc.root"); err != nil {
-			if !errdefs.IsNotFound(errors.Cause(err)) {
-				return err
-			}
-		}
-
-		if blob := getBlob(item); blob != "" {
-			if _, err := cs.Update(ctx, content.Info{
-				Digest: digest.Digest(blob),
+		em := getEqualMutable(item)
+		if em == "" {
+			if _, err := s.Update(ctx, snapshots.Info{
+				Name: getSnapshotID(item),
 			}, "labels.containerd.io/gc.root"); err != nil {
-				return err
+				if !errors.Is(err, errdefs.ErrNotFound) {
+					return err
+				}
+			}
+
+			if blob := getBlob(item); blob != "" {
+				if _, err := cs.Update(ctx, content.Info{
+					Digest: digest.Digest(blob),
+				}, "labels.containerd.io/gc.root"); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -228,7 +231,7 @@ func MigrateV2(ctx context.Context, from, to string, cs content.Store, s snapsho
 			if _, err := s.Update(ctx, snapshots.Info{
 				Name: info.Name,
 			}, "labels.containerd.io/gc.root"); err != nil {
-				if !errdefs.IsNotFound(errors.Cause(err)) {
+				if !errors.Is(err, errdefs.ErrNotFound) {
 					return err
 				}
 			}

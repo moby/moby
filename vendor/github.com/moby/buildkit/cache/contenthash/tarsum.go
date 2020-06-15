@@ -39,7 +39,7 @@ func v1TarHeaderSelect(h *tar.Header) (orderedHeaders [][2]string) {
 	// Get extended attributes.
 	xAttrKeys := make([]string, len(h.Xattrs))
 	for k := range h.Xattrs {
-		if !strings.HasPrefix(k, "security.") && !strings.HasPrefix(k, "system.") {
+		if k == "security.capability" || !strings.HasPrefix(k, "security.") && !strings.HasPrefix(k, "system.") {
 			xAttrKeys = append(xAttrKeys, k)
 		}
 	}

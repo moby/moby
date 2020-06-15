@@ -1,4 +1,5 @@
-// Package connhelper provides helpers for connecting to a remote daemon host with custom logic.
+// Package connhelper provides helpers for connecting to a remote daemon host
+// with custom logic.
 package connhelper
 
 import (

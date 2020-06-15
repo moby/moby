@@ -16,7 +16,7 @@ import (
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/snapshot"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	imagespecidentity "github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -143,7 +143,7 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispec.Descriptor, 
 
 	for _, si := range sis {
 		ref, err := cm.get(ctx, si.ID(), opts...)
-		if err != nil && errors.Cause(err) != errNotFound {
+		if err != nil && !IsNotFound(err) {
 			return nil, errors.Wrapf(err, "failed to get record %s by blobchainid", si.ID())
 		}
 		if p != nil {
@@ -160,7 +160,7 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispec.Descriptor, 
 	var link ImmutableRef
 	for _, si := range sis {
 		ref, err := cm.get(ctx, si.ID(), opts...)
-		if err != nil && errors.Cause(err) != errNotFound {
+		if err != nil && !IsNotFound(err) {
 			return nil, errors.Wrapf(err, "failed to get record %s by chainid", si.ID())
 		}
 		link = ref
@@ -338,7 +338,7 @@ func (cm *cacheManager) getRecord(ctx context.Context, id string, opts ...RefOpt
 		mutable, err := cm.getRecord(ctx, mutableID)
 		if err != nil {
 			// check loading mutable deleted record from disk
-			if errors.Cause(err) == errNotFound {
+			if IsNotFound(err) {
 				cm.md.Clear(id)
 			}
 			return nil, err
@@ -906,12 +906,8 @@ func (cm *cacheManager) DiskUsage(ctx context.Context, opt client.DiskUsageInfo)
 	return du, nil
 }
 
-func IsLocked(err error) bool {
-	return errors.Cause(err) == ErrLocked
-}
-
 func IsNotFound(err error) bool {
-	return errors.Cause(err) == errNotFound
+	return errors.Is(err, errNotFound)
 }
 
 type RefOption interface{}

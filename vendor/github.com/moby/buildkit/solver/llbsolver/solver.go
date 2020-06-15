@@ -20,7 +20,6 @@ import (
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -43,7 +42,6 @@ type Solver struct {
 	eachWorker                func(func(worker.Worker) error) error
 	frontends                 map[string]frontend.Frontend
 	resolveCacheImporterFuncs map[string]remotecache.ResolveCacheImporterFunc
-	platforms                 []specs.Platform
 	gatewayForwarder          *controlgateway.GatewayForwarder
 	sm                        *session.Manager
 	entitlements              []string
@@ -60,13 +58,6 @@ func New(wc *worker.Controller, f map[string]frontend.Frontend, cache solver.Cac
 		sm:                        sm,
 		entitlements:              ents,
 	}
-
-	// executing is currently only allowed on default worker
-	w, err := wc.GetDefault()
-	if err != nil {
-		return nil, err
-	}
-	s.platforms = w.Platforms(false)
 
 	s.solver = solver.NewSolver(solver.SolverOpt{
 		ResolveOpFunc: s.resolver(),
@@ -93,7 +84,6 @@ func (s *Solver) Bridge(b solver.Builder) frontend.FrontendLLBBridge {
 		eachWorker:                s.eachWorker,
 		resolveCacheImporterFuncs: s.resolveCacheImporterFuncs,
 		cms:                       map[string]solver.CacheManager{},
-		platforms:                 s.platforms,
 		sm:                        s.sm,
 	}
 }

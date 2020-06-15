@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package errdefs;
+
+import "github.com/moby/buildkit/solver/pb/ops.proto";
+
+message Vertex {
+	string digest = 1;
+}
+
+message Source {
+	pb.SourceInfo info = 1;
+	repeated pb.Range ranges = 2;
+}

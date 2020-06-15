@@ -395,7 +395,7 @@ func (s *snapshotter) View(ctx context.Context, key, parent string, opts ...snap
 }
 
 func (s *snapshotter) Walk(context.Context, snapshots.WalkFunc, ...string) error {
-	return errors.Errorf("not-implemented")
+	return nil
 }
 
 func (s *snapshotter) Update(ctx context.Context, info snapshots.Info, fieldpaths ...string) (snapshots.Info, error) {

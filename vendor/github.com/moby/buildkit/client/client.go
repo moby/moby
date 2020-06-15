@@ -8,12 +8,14 @@ import (
 	"net"
 	"time"
 
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client/connhelper"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/grpchijack"
 	"github.com/moby/buildkit/util/appdefaults"
+	"github.com/moby/buildkit/util/grpcerrors"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -31,6 +33,10 @@ func New(ctx context.Context, address string, opts ...ClientOpt) (*Client, error
 	gopts := []grpc.DialOption{}
 	needDialer := true
 	needWithInsecure := true
+
+	var unary []grpc.UnaryClientInterceptor
+	var stream []grpc.StreamClientInterceptor
+
 	for _, o := range opts {
 		if _, ok := o.(*withFailFast); ok {
 			gopts = append(gopts, grpc.FailOnNonTempDialError(true))
@@ -44,9 +50,8 @@ func New(ctx context.Context, address string, opts ...ClientOpt) (*Client, error
 			needWithInsecure = false
 		}
 		if wt, ok := o.(*withTracer); ok {
-			gopts = append(gopts,
-				grpc.WithUnaryInterceptor(otgrpc.OpenTracingClientInterceptor(wt.tracer, otgrpc.LogPayloads())),
-				grpc.WithStreamInterceptor(otgrpc.OpenTracingStreamClientInterceptor(wt.tracer)))
+			unary = append(unary, otgrpc.OpenTracingClientInterceptor(wt.tracer, otgrpc.LogPayloads()))
+			stream = append(stream, otgrpc.OpenTracingStreamClientInterceptor(wt.tracer))
 		}
 		if wd, ok := o.(*withDialer); ok {
 			gopts = append(gopts, grpc.WithDialer(wd.dialer))
@@ -68,6 +73,22 @@ func New(ctx context.Context, address string, opts ...ClientOpt) (*Client, error
 	if address == "" {
 		address = appdefaults.Address
 	}
+
+	unary = append(unary, grpcerrors.UnaryClientInterceptor)
+	stream = append(stream, grpcerrors.StreamClientInterceptor)
+
+	if len(unary) == 1 {
+		gopts = append(gopts, grpc.WithUnaryInterceptor(unary[0]))
+	} else if len(unary) > 1 {
+		gopts = append(gopts, grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unary...)))
+	}
+
+	if len(stream) == 1 {
+		gopts = append(gopts, grpc.WithStreamInterceptor(stream[0]))
+	} else if len(stream) > 1 {
+		gopts = append(gopts, grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(stream...)))
+	}
+
 	conn, err := grpc.DialContext(ctx, address, gopts...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to dial %q . make sure buildkitd is running", address)

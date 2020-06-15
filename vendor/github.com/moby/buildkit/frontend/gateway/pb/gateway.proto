@@ -32,7 +32,7 @@ service LLBBridge {
 
 message Result {
 	oneof result {
-    		// Deprecated non-array refs.
+		// Deprecated non-array refs.
 		string refDeprecated = 1;
 		RefMapDeprecated refsDeprecated = 2;
 
@@ -67,7 +67,7 @@ message InputsRequest {
 }
 
 message InputsResponse {
-    map<string, pb.Definition> Definitions = 1;
+	map<string, pb.Definition> Definitions = 1;
 }
 
 message ResolveImageConfigRequest {
@@ -87,9 +87,9 @@ message SolveRequest {
 	string Frontend = 2;
 	map<string, string> FrontendOpt = 3;
 	// ImportCacheRefsDeprecated is deprecated in favor or the new Imports since BuildKit v0.4.0.
-        // When ImportCacheRefsDeprecated is set, the solver appends
-        // {.Type = "registry", .Attrs = {"ref": importCacheRef}}
-        // for each of the ImportCacheRefs entry to CacheImports for compatibility. (planned to be removed)
+	// When ImportCacheRefsDeprecated is set, the solver appends
+	// {.Type = "registry", .Attrs = {"ref": importCacheRef}}
+	// for each of the ImportCacheRefs entry to CacheImports for compatibility. (planned to be removed)
 	repeated string ImportCacheRefsDeprecated = 4;
 	bool allowResultReturn = 5;
 	bool allowResultArrayRef = 6;

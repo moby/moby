@@ -5,8 +5,10 @@ import (
 	"net"
 	"strings"
 
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"github.com/moby/buildkit/identity"
+	"github.com/moby/buildkit/util/grpcerrors"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -45,13 +47,29 @@ type Session struct {
 func NewSession(ctx context.Context, name, sharedKey string) (*Session, error) {
 	id := identity.NewID()
 
+	var unary []grpc.UnaryServerInterceptor
+	var stream []grpc.StreamServerInterceptor
+
 	serverOpts := []grpc.ServerOption{}
 	if span := opentracing.SpanFromContext(ctx); span != nil {
 		tracer := span.Tracer()
-		serverOpts = []grpc.ServerOption{
-			grpc.StreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(span.Tracer(), traceFilter())),
-			grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(tracer, traceFilter())),
-		}
+		unary = append(unary, otgrpc.OpenTracingServerInterceptor(tracer, traceFilter()))
+		stream = append(stream, otgrpc.OpenTracingStreamServerInterceptor(span.Tracer(), traceFilter()))
+	}
+
+	unary = append(unary, grpcerrors.UnaryServerInterceptor)
+	stream = append(stream, grpcerrors.StreamServerInterceptor)
+
+	if len(unary) == 1 {
+		serverOpts = append(serverOpts, grpc.UnaryInterceptor(unary[0]))
+	} else if len(unary) > 1 {
+		serverOpts = append(serverOpts, grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unary...)))
+	}
+
+	if len(stream) == 1 {
+		serverOpts = append(serverOpts, grpc.StreamInterceptor(stream[0]))
+	} else if len(stream) > 1 {
+		serverOpts = append(serverOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(stream...)))
 	}
 
 	s := &Session{

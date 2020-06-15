@@ -72,7 +72,7 @@ func (gs *gitSource) mountRemote(ctx context.Context, remote string) (target str
 	for _, si := range sis {
 		remoteRef, err = gs.cache.GetMutable(ctx, si.ID())
 		if err != nil {
-			if cache.IsLocked(err) {
+			if errors.Is(err, cache.ErrLocked) {
 				// should never really happen as no other function should access this metadata, but lets be graceful
 				logrus.Warnf("mutable ref for %s  %s was locked: %v", remote, si.ID(), err)
 				continue

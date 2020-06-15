@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -60,6 +61,7 @@ type ConvertOpt struct {
 	OverrideCopyImage string
 	LLBCaps           *apicaps.CapSet
 	ContextLocalName  string
+	SourceMap         *llb.SourceMap
 }
 
 func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State, *Image, error) {
@@ -110,10 +112,10 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 	for i, st := range stages {
 		name, err := shlex.ProcessWordWithMap(st.BaseName, metaArgsToMap(optMetaArgs))
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, parser.WithLocation(err, st.Location)
 		}
 		if name == "" {
-			return nil, nil, errors.Errorf("base name (%s) should not be blank", st.BaseName)
+			return nil, nil, parser.WithLocation(errors.Errorf("base name (%s) should not be blank", st.BaseName), st.Location)
 		}
 		st.BaseName = name
 
@@ -132,12 +134,12 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 		if v := st.Platform; v != "" {
 			v, err := shlex.ProcessWordWithMap(v, metaArgsToMap(optMetaArgs))
 			if err != nil {
-				return nil, nil, errors.Wrapf(err, "failed to process arguments for platform %s", v)
+				return nil, nil, parser.WithLocation(errors.Wrapf(err, "failed to process arguments for platform %s", v), st.Location)
 			}
 
 			p, err := platforms.Parse(v)
 			if err != nil {
-				return nil, nil, errors.Wrapf(err, "failed to parse platform %s", v)
+				return nil, nil, parser.WithLocation(errors.Wrapf(err, "failed to parse platform %s", v), st.Location)
 			}
 			ds.platform = &p
 		}
@@ -204,7 +206,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 	}
 
 	if has, state := hasCircularDependency(allDispatchStates.states); has {
-		return nil, nil, fmt.Errorf("circular dependency detected on stage: %s", state.stageName)
+		return nil, nil, errors.Errorf("circular dependency detected on stage: %s", state.stageName)
 	}
 
 	if len(allDispatchStates.states) == 1 {
@@ -225,7 +227,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 				eg.Go(func() error {
 					ref, err := reference.ParseNormalizedNamed(d.stage.BaseName)
 					if err != nil {
-						return errors.Wrapf(err, "failed to parse stage name %q", d.stage.BaseName)
+						return parser.WithLocation(errors.Wrapf(err, "failed to parse stage name %q", d.stage.BaseName), d.stage.Location)
 					}
 					platform := d.platform
 					if platform == nil {
@@ -278,7 +280,13 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 					if isScratch {
 						d.state = llb.Scratch()
 					} else {
-						d.state = llb.Image(d.stage.BaseName, dfCmd(d.stage.SourceCode), llb.Platform(*platform), opt.ImageResolveMode, llb.WithCustomName(prefixCommand(d, "FROM "+d.stage.BaseName, opt.PrefixPlatform, platform)))
+						d.state = llb.Image(d.stage.BaseName,
+							dfCmd(d.stage.SourceCode),
+							llb.Platform(*platform),
+							opt.ImageResolveMode,
+							llb.WithCustomName(prefixCommand(d, "FROM "+d.stage.BaseName, opt.PrefixPlatform, platform)),
+							location(opt.SourceMap, d.stage.Location),
+						)
 					}
 					d.platform = platform
 					return nil
@@ -316,12 +324,12 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 		}
 		if d.image.Config.WorkingDir != "" {
 			if err = dispatchWorkdir(d, &instructions.WorkdirCommand{Path: d.image.Config.WorkingDir}, false, nil); err != nil {
-				return nil, nil, err
+				return nil, nil, parser.WithLocation(err, d.stage.Location)
 			}
 		}
 		if d.image.Config.User != "" {
 			if err = dispatchUser(d, &instructions.UserCommand{User: d.image.Config.User}, false); err != nil {
-				return nil, nil, err
+				return nil, nil, parser.WithLocation(err, d.stage.Location)
 			}
 		}
 		d.state = d.state.Network(opt.ForceNetMode)
@@ -340,19 +348,20 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 			extraHosts:        opt.ExtraHosts,
 			copyImage:         opt.OverrideCopyImage,
 			llbCaps:           opt.LLBCaps,
+			sourceMap:         opt.SourceMap,
 		}
 		if opt.copyImage == "" {
 			opt.copyImage = DefaultCopyImage
 		}
 
 		if err = dispatchOnBuildTriggers(d, d.image.Config.OnBuild, opt); err != nil {
-			return nil, nil, err
+			return nil, nil, parser.WithLocation(err, d.stage.Location)
 		}
 		d.image.Config.OnBuild = nil
 
 		for _, cmd := range d.commands {
 			if err := dispatch(d, cmd, opt); err != nil {
-				return nil, nil, err
+				return nil, nil, parser.WithLocation(err, cmd.Location())
 			}
 		}
 
@@ -421,7 +430,7 @@ func toCommand(ic instructions.Command, allDispatchStates *dispatchStates) (comm
 				stn, ok = allDispatchStates.findStateByName(c.From)
 				if !ok {
 					stn = &dispatchState{
-						stage:        instructions.Stage{BaseName: c.From},
+						stage:        instructions.Stage{BaseName: c.From, Location: ic.Location()},
 						deps:         make(map[*dispatchState]struct{}),
 						unregistered: true,
 					}
@@ -457,6 +466,7 @@ type dispatchOpt struct {
 	extraHosts        []llb.HostIP
 	copyImage         string
 	llbCaps           *apicaps.CapSet
+	sourceMap         *llb.SourceMap
 }
 
 func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
@@ -484,7 +494,7 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 	case *instructions.WorkdirCommand:
 		err = dispatchWorkdir(d, c, true, &opt)
 	case *instructions.AddCommand:
-		err = dispatchCopy(d, c.SourcesAndDest, opt.buildContext, true, c, c.Chown, opt)
+		err = dispatchCopy(d, c.SourcesAndDest, opt.buildContext, true, c, c.Chown, c.Chmod, c.Location(), opt)
 		if err == nil {
 			for _, src := range c.Sources() {
 				if !strings.HasPrefix(src, "http://") && !strings.HasPrefix(src, "https://") {
@@ -519,7 +529,7 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 		if len(cmd.sources) != 0 {
 			l = cmd.sources[0].state
 		}
-		err = dispatchCopy(d, c.SourcesAndDest, l, false, c, c.Chown, opt)
+		err = dispatchCopy(d, c.SourcesAndDest, l, false, c, c.Chown, c.Chmod, c.Location(), opt)
 		if err == nil && len(cmd.sources) == 0 {
 			for _, src := range c.Sources() {
 				d.ctxPaths[path.Join("/", filepath.ToSlash(src))] = struct{}{}
@@ -634,7 +644,7 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 	if err != nil {
 		return err
 	}
-	opt := []llb.RunOption{llb.Args(args), dfCmd(c)}
+	opt := []llb.RunOption{llb.Args(args), dfCmd(c), location(dopt.sourceMap, c.Location())}
 	if d.ignoreCache {
 		opt = append(opt, llb.IgnoreCache)
 	}
@@ -702,7 +712,10 @@ func dispatchWorkdir(d *dispatchState, c *instructions.WorkdirCommand, commit bo
 			if err != nil {
 				return err
 			}
-			d.state = d.state.File(llb.Mkdir(wd, 0755, mkdirOpt...), llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, c.String(), env)), d.prefixPlatform, &platform)))
+			d.state = d.state.File(llb.Mkdir(wd, 0755, mkdirOpt...),
+				llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, c.String(), env)), d.prefixPlatform, &platform)),
+				location(opt.sourceMap, c.Location()),
+			)
 			withLayer = true
 		}
 		return commitToHistory(&d.image, "WORKDIR "+wd, withLayer, nil)
@@ -710,7 +723,7 @@ func dispatchWorkdir(d *dispatchState, c *instructions.WorkdirCommand, commit bo
 	return nil
 }
 
-func dispatchCopyFileOp(d *dispatchState, c instructions.SourcesAndDest, sourceState llb.State, isAddCommand bool, cmdToPrint fmt.Stringer, chown string, opt dispatchOpt) error {
+func dispatchCopyFileOp(d *dispatchState, c instructions.SourcesAndDest, sourceState llb.State, isAddCommand bool, cmdToPrint fmt.Stringer, chown string, chmod string, loc []parser.Range, opt dispatchOpt) error {
 	pp, err := pathRelativeToWorkingDir(d.state, c.Dest())
 	if err != nil {
 		return err
@@ -724,6 +737,15 @@ func dispatchCopyFileOp(d *dispatchState, c instructions.SourcesAndDest, sourceS
 
 	if chown != "" {
 		copyOpt = append(copyOpt, llb.WithUser(chown))
+	}
+
+	var mode *os.FileMode
+	if chmod != "" {
+		p, err := strconv.ParseUint(chmod, 8, 32)
+		if err == nil {
+			perm := os.FileMode(p)
+			mode = &perm
+		}
 	}
 
 	commitMessage := bytes.NewBufferString("")
@@ -768,6 +790,7 @@ func dispatchCopyFileOp(d *dispatchState, c instructions.SourcesAndDest, sourceS
 			}
 		} else {
 			opts := append([]llb.CopyOption{&llb.CopyInfo{
+				Mode:                mode,
 				FollowSymlinks:      true,
 				CopyDirContentsOnly: true,
 				AttemptUnpack:       isAddCommand,
@@ -796,7 +819,10 @@ func dispatchCopyFileOp(d *dispatchState, c instructions.SourcesAndDest, sourceS
 		return err
 	}
 
-	fileOpt := []llb.ConstraintsOpt{llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, cmdToPrint.String(), env)), d.prefixPlatform, &platform))}
+	fileOpt := []llb.ConstraintsOpt{
+		llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, cmdToPrint.String(), env)), d.prefixPlatform, &platform)),
+		location(opt.sourceMap, loc),
+	}
 	if d.ignoreCache {
 		fileOpt = append(fileOpt, llb.IgnoreCache)
 	}
@@ -805,9 +831,16 @@ func dispatchCopyFileOp(d *dispatchState, c instructions.SourcesAndDest, sourceS
 	return commitToHistory(&d.image, commitMessage.String(), true, &d.state)
 }
 
-func dispatchCopy(d *dispatchState, c instructions.SourcesAndDest, sourceState llb.State, isAddCommand bool, cmdToPrint fmt.Stringer, chown string, opt dispatchOpt) error {
+func dispatchCopy(d *dispatchState, c instructions.SourcesAndDest, sourceState llb.State, isAddCommand bool, cmdToPrint fmt.Stringer, chown string, chmod string, loc []parser.Range, opt dispatchOpt) error {
 	if useFileOp(opt.buildArgValues, opt.llbCaps) {
-		return dispatchCopyFileOp(d, c, sourceState, isAddCommand, cmdToPrint, chown, opt)
+		return dispatchCopyFileOp(d, c, sourceState, isAddCommand, cmdToPrint, chown, chmod, loc, opt)
+	}
+
+	if chmod != "" {
+		if opt.llbCaps != nil && opt.llbCaps.Supports(pb.CapFileBase) != nil {
+			return errors.Wrap(opt.llbCaps.Supports(pb.CapFileBase), "chmod is not supported")
+		}
+		return errors.New("chmod is not supported")
 	}
 
 	img := llb.Image(opt.copyImage, llb.MarkImageInternal, llb.Platform(opt.buildPlatforms[0]), WithInternalName("helper image for file operations"))
@@ -893,7 +926,14 @@ func dispatchCopy(d *dispatchState, c instructions.SourcesAndDest, sourceState l
 		return err
 	}
 
-	runOpt := []llb.RunOption{llb.Args(args), llb.Dir("/dest"), llb.ReadonlyRootFS(), dfCmd(cmdToPrint), llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, cmdToPrint.String(), env)), d.prefixPlatform, &platform))}
+	runOpt := []llb.RunOption{
+		llb.Args(args),
+		llb.Dir("/dest"),
+		llb.ReadonlyRootFS(),
+		dfCmd(cmdToPrint),
+		llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, cmdToPrint.String(), env)), d.prefixPlatform, &platform)),
+		location(opt.sourceMap, loc),
+	}
 	if d.ignoreCache {
 		runOpt = append(runOpt, llb.IgnoreCache)
 	}
@@ -1360,4 +1400,21 @@ func useFileOp(args map[string]string, caps *apicaps.CapSet) bool {
 		}
 	}
 	return enabled && caps != nil && caps.Supports(pb.CapFileBase) == nil
+}
+
+func location(sm *llb.SourceMap, locations []parser.Range) llb.ConstraintsOpt {
+	loc := make([]*pb.Range, 0, len(locations))
+	for _, l := range locations {
+		loc = append(loc, &pb.Range{
+			Start: pb.Position{
+				Line:      int32(l.Start.Line),
+				Character: int32(l.Start.Character),
+			},
+			End: pb.Position{
+				Line:      int32(l.End.Line),
+				Character: int32(l.End.Character),
+			},
+		})
+	}
+	return sm.Location(loc)
 }
