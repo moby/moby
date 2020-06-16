@@ -44,7 +44,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 	if err != nil {
 		return nil, err
 	}
-	if daemon.useShimV2() {
+	if !daemon.disableShimV2 {
 		opts := &v2runcoptions.Options{
 			BinaryName: path,
 			Root: filepath.Join(daemon.configStore.ExecRoot,

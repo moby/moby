@@ -15,6 +15,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -129,6 +130,8 @@ type Daemon struct {
 
 	attachmentStore       network.AttachmentStore
 	attachableNetworkLock *locker.Locker
+
+	disableShimV2 bool
 }
 
 // StoreHosts stores the addresses the daemon is listening on
@@ -920,6 +923,23 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 	}
 
+	sysInfo := d.RawSysInfo(false)
+	if env := os.Getenv("MOBY_DISABLE_SHIM_V2"); env != "" {
+		// MOBY_DISABLE_SHIM_V2 is deprecated from its birth.
+		// MOBY_DISABLE_SHIM_V2 is just added as a workaround for potential regression issues.
+		logrus.Warn("environment variable MOBY_DISABLE_SHIM_V2 is intended for debugging purposes, and planned to be removed in a future release")
+		d.disableShimV2, err = strconv.ParseBool(env)
+		if err != nil {
+			return nil, errors.Errorf("environment variable MOBY_DISABLE_SHIM_V2 has wrong value %q: %v", env, err)
+		}
+		if d.disableShimV2 && runtime.GOOS != "linux" {
+			logrus.Warn("environment variable MOBY_DISABLE_SHIM_V2 is ignored on non-Linux")
+		}
+		if d.disableShimV2 && sysInfo.CgroupUnified {
+			return nil, errors.New("environment variable MOBY_DISABLE_SHIM_V2 is not supported on cgroup v2 hosts")
+		}
+	}
+
 	createPluginExec := func(m *plugin.Manager) (plugin.Executor, error) {
 		var pluginCli *containerd.Client
 
@@ -932,7 +952,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			}
 		}
 
-		return pluginexec.New(ctx, getPluginExecRoot(config.Root), pluginCli, config.ContainerdPluginNamespace, m, d.useShimV2())
+		return pluginexec.New(ctx, getPluginExecRoot(config.Root), pluginCli, config.ContainerdPluginNamespace, m, !d.disableShimV2)
 	}
 
 	// Plugin system initialization should happen before restore. Do not change order.
@@ -1037,7 +1057,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	sysInfo := d.RawSysInfo(false)
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
 	// on Linux.
 	if runtime.GOOS == "linux" && !sysInfo.CgroupDevicesEnabled && !sys.RunningInUserNS() {
@@ -1081,7 +1100,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	go d.execCommandGC()
 
-	d.containerd, err = libcontainerd.NewClient(ctx, d.containerdCli, filepath.Join(config.ExecRoot, "containerd"), config.ContainerdNamespace, d, d.useShimV2())
+	d.containerd, err = libcontainerd.NewClient(ctx, d.containerdCli, filepath.Join(config.ExecRoot, "containerd"), config.ContainerdNamespace, d, !d.disableShimV2)
 	if err != nil {
 		return nil, err
 	}

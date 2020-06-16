@@ -1756,10 +1756,6 @@ func (daemon *Daemon) setupSeccompProfile() error {
 	return nil
 }
 
-func (daemon *Daemon) useShimV2() bool {
-	return cgroups.IsCgroup2UnifiedMode()
-}
-
 // RawSysInfo returns *sysinfo.SysInfo .
 func (daemon *Daemon) RawSysInfo(quiet bool) *sysinfo.SysInfo {
 	var opts []sysinfo.Opt
