@@ -103,8 +103,7 @@ func (c *controller) getNetworkFromStore(nid string) (*network, error) {
 		}
 		return n, nil
 	}
-
-	return nil, fmt.Errorf("network %s not found", nid)
+	return nil, ErrNoSuchNetwork(nid)
 }
 
 func (c *controller) getNetworksForScope(scope string) ([]*network, error) {
