@@ -94,7 +94,7 @@ func (p *v2Pusher) pushV2Repository(ctx context.Context) (err error) {
 		return errors.New("cannot push a digest reference")
 	}
 
-	// Pull all tags
+	// Push all tags
 	pushed := 0
 	for _, association := range p.config.ReferenceStore.ReferencesByName(p.ref) {
 		if namedTagged, isNamedTagged := association.Ref.(reference.NamedTagged); isNamedTagged {
