@@ -31,5 +31,5 @@ func TestDaemonDNSFallback(t *testing.T) {
 	cid := container.Run(ctx, t, c, container.WithNetworkMode("test"), container.WithCmd("nslookup", "docker.com"))
 	defer c.ContainerRemove(ctx, cid, types.ContainerRemoveOptions{Force: true})
 
-	poll.WaitOn(t, container.IsSuccessful(ctx, c, cid), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(2*time.Second))
+	poll.WaitOn(t, container.IsSuccessful(ctx, c, cid), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(4*time.Second))
 }
