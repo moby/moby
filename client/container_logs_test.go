@@ -149,6 +149,29 @@ func TestContainerLogs(t *testing.T) {
 	}
 }
 
+func TestContainerLogsString(t *testing.T) {
+	container := "container_id"
+	ctx := context.Background()
+
+	cli, err := NewClientWithOpts(FromEnv)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cli.NegotiateAPIVersion(ctx)
+
+	temOption := types.ContainerLogsOptions{
+		ShowStdout:true,
+		ShowStderr:true,
+	}
+
+	logStr, err := cli.ContainerLogsString(ctx,container,temOption)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println(logStr)
+}
+
 func ExampleClient_ContainerLogs_withTimeout() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

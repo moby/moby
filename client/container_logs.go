@@ -1,7 +1,9 @@
 package client // import "github.com/docker/docker/client"
 
 import (
+	"bytes"
 	"context"
+	"github.com/docker/docker/pkg/stdcopy"
 	"io"
 	"net/url"
 	"time"
@@ -78,3 +80,45 @@ func (cli *Client) ContainerLogs(ctx context.Context, container string, options 
 	}
 	return resp.body, nil
 }
+
+// containerLogsString returns container logs as a string.
+//
+// Regardless of whether the container carries the tty flag, it can convert the
+// container log stream into a string that does not contain garbled characters.
+//
+// containerLogsString is an encapsulation of containerLogs, but it can return
+// container logs of type string.
+//
+// If you want to distribute logs to stdout and stderr, please call ContainerLogs directly
+func (cli *Client) ContainerLogsString(ctx context.Context, container string, options types.ContainerLogsOptions) (string, error) {
+	containerInfo,err := cli.ContainerInspect(ctx,container)
+	if nil != err {
+		return "",err
+	}
+
+	content, err := cli.ContainerLogs(ctx, container,options)
+	if  nil != err{
+		return "",err
+	}
+	defer content.Close()
+
+	stdOut := new(bytes.Buffer)
+
+	// Handle container logs with tty flag
+	if containerInfo.Config.Tty{
+		_, err = io.Copy(stdOut,content)
+		if err != nil {
+			return "",err
+		}
+	}else {
+		// Handle container logs without the tty flag
+		_, err = stdcopy.StdCopy(stdOut,stdOut, content)
+		if err != nil {
+			return "",err
+		}
+	}
+
+	return stdOut.String(),nil
+}
+
+
