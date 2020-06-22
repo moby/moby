@@ -95,8 +95,8 @@ init() {
 			ERROR "- or simply log back in as the desired unprivileged user (ssh works for remote machines, machinectl shell works for local machines)"
 			exit 1
 		fi
-		export XDG_RUNTIME_DIR="/tmp/docker-$(id -u)"
-		mkdir -p "$XDG_RUNTIME_DIR"
+		export XDG_RUNTIME_DIR="$HOME/.docker/run"
+		mkdir -p -m 700 "$XDG_RUNTIME_DIR"
 		XDG_RUNTIME_DIR_CREATED=1
 	fi
 
@@ -343,6 +343,7 @@ cmd_entrypoint_install() {
 	INFO "Make sure the following environment variables are set (or add them to ~/.bashrc):"
 	echo
 	if [ -n "$XDG_RUNTIME_DIR_CREATED" ]; then
+		echo "# WARNING: systemd not found. You have to remove XDG_RUNTIME_DIR manually on every logout."
 		echo "export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}"
 	fi
 	echo "export PATH=${BIN}:\$PATH"
