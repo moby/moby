@@ -181,7 +181,8 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 
 **--default-cgroupns-mode**="**host**|**private**"
   Set the default cgroup namespace mode for newly created containers. The argument
-  can either be **host** or **private**. If unset, this defaults to `host`.
+  can either be **host** or **private**. If unset, this defaults to `host` on cgroup v1,
+`private` on cgroup v2.
 
 **--default-gateway**=""
   IPv4 address of the container default gateway; this address must be part of
@@ -833,7 +834,8 @@ option is available.
 The `native.cgroupdriver` option specifies the management of the container's
 cgroups. You can only specify `cgroupfs` or `systemd`. If you specify
 `systemd` and it is not available, the system errors out. If you omit the
-`native.cgroupdriver` option,` cgroupfs` is used.
+`native.cgroupdriver` option,` cgroupfs` is used on cgroup v1 hosts, `systemd`
+is used on cgroup v2 hosts with systemd available.
 
 This example sets the `cgroupdriver` to `systemd`:
 
