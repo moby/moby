@@ -1245,6 +1245,14 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetgid(c *testing.T) {
 
 // TODO CAP_SETPCAP
 
+// sysctlExists checks if a sysctl exists; runc will error if we add any that do not actually
+// exist, so do not add the default ones if running on an old kernel.
+func sysctlExists(s string) bool {
+	f := filepath.Join("/proc", "sys", strings.Replace(s, ".", "/", -1))
+	_, err := os.Stat(f)
+	return err == nil
+}
+
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetBindService(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
@@ -1253,12 +1261,22 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetBindService(c *testing.T
 	dockerCmd(c, "run", "syscall-test", "socket-test")
 	// test that non root user does not have default capability CAP_NET_BIND_SERVICE
 	// as we allow this via sysctl, also tweak the sysctl back to default
-	icmd.RunCommand(dockerBinary, "run", "--user", "1000:1000", "--sysctl", "net.ipv4.ip_unprivileged_port_start=1024", "syscall-test", "socket-test").Assert(c, icmd.Expected{
+	args := []string{"run", "--user", "1000:1000"}
+	if sysctlExists("net.ipv4.ip_unprivileged_port_start") {
+		args = append(args, "--sysctl", "net.ipv4.ip_unprivileged_port_start=1024")
+	}
+	args = append(args, "syscall-test", "socket-test")
+	icmd.RunCommand(dockerBinary, args...).Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Permission denied",
 	})
 	// test that root user can drop default capability CAP_NET_BIND_SERVICE
-	icmd.RunCommand(dockerBinary, "run", "--cap-drop", "net_bind_service", "--sysctl", "net.ipv4.ip_unprivileged_port_start=1024", "syscall-test", "socket-test").Assert(c, icmd.Expected{
+	args = []string{"run", "--cap-drop", "net_bind_service"}
+	if sysctlExists("net.ipv4.ip_unprivileged_port_start") {
+		args = append(args, "--sysctl", "net.ipv4.ip_unprivileged_port_start=1024")
+	}
+	args = append(args, "syscall-test", "socket-test")
+	icmd.RunCommand(dockerBinary, args...).Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Permission denied",
 	})
