@@ -89,9 +89,9 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 
 	if v.CgroupDriver == cgroupNoneDriver {
 		if v.CgroupVersion == "2" {
-			v.Warnings = append(v.Warnings, "WARNING: Running in rootless-mode without cgroup. To enable cgroup in rootless-mode, you need to set exec-opt \"native.cgroupdriver=systemd\".")
+			v.Warnings = append(v.Warnings, "WARNING: Running in rootless-mode without cgroups. Systemd is required to enable cgroups in rootless-mode.")
 		} else {
-			v.Warnings = append(v.Warnings, "WARNING: Running in rootless-mode without cgroup. To enable cgroup in rootless-mode, you need to boot the system in cgroup v2 mode and set exec-opt \"native.cgroupdriver=systemd\".")
+			v.Warnings = append(v.Warnings, "WARNING: Running in rootless-mode without cgroups. To enable cgroups in rootless-mode, you need to boot the system in cgroup v2 mode.")
 		}
 	} else {
 		if !v.MemoryLimit {
