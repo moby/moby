@@ -8,7 +8,6 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/source"
-	"github.com/moby/buildkit/util/binfmt_misc"
 	"github.com/moby/buildkit/util/entitlements"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -69,12 +68,8 @@ func WithCacheSources(cms []solver.CacheManager) LoadOpt {
 	}
 }
 
-func RuntimePlatforms(p []specs.Platform) LoadOpt {
+func NormalizeRuntimePlatforms() LoadOpt {
 	var defaultPlatform *pb.Platform
-	pp := make([]specs.Platform, len(p))
-	for i := range p {
-		pp[i] = platforms.Normalize(p[i])
-	}
 	return func(op *pb.Op, _ *pb.OpMetadata, opt *solver.VertexOptions) error {
 		if op.Platform == nil {
 			if defaultPlatform == nil {
@@ -96,22 +91,6 @@ func RuntimePlatforms(p []specs.Platform) LoadOpt {
 			Variant:      normalizedPlatform.Variant,
 		}
 
-		if _, ok := op.Op.(*pb.Op_Exec); ok {
-			var found bool
-			for _, pp := range pp {
-				if pp.OS == op.Platform.OS && pp.Architecture == op.Platform.Architecture && pp.Variant == op.Platform.Variant {
-					found = true
-					break
-				}
-			}
-			if !found {
-				if !binfmt_misc.Check(normalizedPlatform) {
-					return errors.Errorf("runtime execution on platform %s not supported", platforms.Format(specs.Platform{OS: op.Platform.OS, Architecture: op.Platform.Architecture, Variant: op.Platform.Variant}))
-				} else {
-					pp = append(pp, normalizedPlatform)
-				}
-			}
-		}
 		return nil
 	}
 }

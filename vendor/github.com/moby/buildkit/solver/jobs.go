@@ -9,6 +9,7 @@ import (
 
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/solver/errdefs"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/tracing"
@@ -53,6 +54,7 @@ type state struct {
 
 	vtx          Vertex
 	clientVertex client.Vertex
+	origDigest   digest.Digest // original LLB digest. TODO: probably better to use string ID so this isn't needed
 
 	mu    sync.Mutex
 	op    *sharedOp
@@ -318,6 +320,7 @@ func (jl *Solver) loadUnlocked(v, parent Vertex, j *Job, cache map[Vertex]Vertex
 			mainCache:    jl.opts.DefaultCache,
 			cache:        map[string]CacheManager{},
 			solver:       jl,
+			origDigest:   origVtx.Digest(),
 		}
 		jl.actives[dgst] = st
 	}
@@ -564,7 +567,10 @@ func (s *sharedOp) LoadCache(ctx context.Context, rec *CacheRecord) (Result, err
 	return res, err
 }
 
-func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, f ResultBasedCacheFunc, res Result) (digest.Digest, error) {
+func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, f ResultBasedCacheFunc, res Result) (dgst digest.Digest, err error) {
+	defer func() {
+		err = errdefs.WrapVertex(err, s.st.origDigest)
+	}()
 	key, err := s.g.Do(ctx, fmt.Sprintf("slow-compute-%d", index), func(ctx context.Context) (interface{}, error) {
 		s.slowMu.Lock()
 		// TODO: add helpers for these stored values
@@ -609,7 +615,10 @@ func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, f ResultBased
 	return key.(digest.Digest), nil
 }
 
-func (s *sharedOp) CacheMap(ctx context.Context, index int) (*cacheMapResp, error) {
+func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp, err error) {
+	defer func() {
+		err = errdefs.WrapVertex(err, s.st.origDigest)
+	}()
 	op, err := s.getOp()
 	if err != nil {
 		return nil, err
@@ -665,6 +674,9 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (*cacheMapResp, erro
 }
 
 func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result, exporters []ExportableCacheKey, err error) {
+	defer func() {
+		err = errdefs.WrapVertex(err, s.st.origDigest)
+	}()
 	op, err := s.getOp()
 	if err != nil {
 		return nil, nil, err

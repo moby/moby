@@ -1,11 +1,12 @@
 package instructions
 
 import (
-	"errors"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
+	"github.com/moby/buildkit/frontend/dockerfile/parser"
+	"github.com/pkg/errors"
 )
 
 // KeyValuePair represent an arbitrary named value (useful in slice instead of map[string] string to preserve ordering)
@@ -35,6 +36,7 @@ func (kvpo *KeyValuePairOptional) ValueString() string {
 // Command is implemented by every command present in a dockerfile
 type Command interface {
 	Name() string
+	Location() []parser.Range
 }
 
 // KeyValuePairs is a slice of KeyValuePair
@@ -42,8 +44,9 @@ type KeyValuePairs []KeyValuePair
 
 // withNameAndCode is the base of every command in a Dockerfile (String() returns its source code)
 type withNameAndCode struct {
-	code string
-	name string
+	code     string
+	name     string
+	location []parser.Range
 }
 
 func (c *withNameAndCode) String() string {
@@ -55,8 +58,13 @@ func (c *withNameAndCode) Name() string {
 	return c.name
 }
 
+// Location of the command in source
+func (c *withNameAndCode) Location() []parser.Range {
+	return c.location
+}
+
 func newWithNameAndCode(req parseRequest) withNameAndCode {
-	return withNameAndCode{code: strings.TrimSpace(req.original), name: req.command}
+	return withNameAndCode{code: strings.TrimSpace(req.original), name: req.command, location: req.location}
 }
 
 // SingleWordExpander is a provider for variable expansion where 1 word => 1 output
@@ -180,10 +188,16 @@ type AddCommand struct {
 	withNameAndCode
 	SourcesAndDest
 	Chown string
+	Chmod string
 }
 
 // Expand variables
 func (c *AddCommand) Expand(expander SingleWordExpander) error {
+	expandedChown, err := expander(c.Chown)
+	if err != nil {
+		return err
+	}
+	c.Chown = expandedChown
 	return expandSliceInPlace(c.SourcesAndDest, expander)
 }
 
@@ -196,6 +210,7 @@ type CopyCommand struct {
 	SourcesAndDest
 	From  string
 	Chown string
+	Chmod string
 }
 
 // Expand variables
@@ -400,6 +415,7 @@ type Stage struct {
 	BaseName   string
 	SourceCode string
 	Platform   string
+	Location   []parser.Range
 }
 
 // AddCommand to the stage
@@ -419,7 +435,7 @@ func IsCurrentStage(s []Stage, name string) bool {
 // CurrentStage return the last stage in a slice
 func CurrentStage(s []Stage) (*Stage, error) {
 	if len(s) == 0 {
-		return nil, errors.New("No build stage in current context")
+		return nil, errors.New("no build stage in current context")
 	}
 	return &s[len(s)-1], nil
 }

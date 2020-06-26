@@ -4,9 +4,8 @@ import (
 	"context"
 
 	"github.com/moby/buildkit/session"
-	"github.com/pkg/errors"
+	"github.com/moby/buildkit/util/grpcerrors"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func CredentialsFunc(ctx context.Context, c session.Caller) func(string) (string, string, error) {
@@ -17,10 +16,10 @@ func CredentialsFunc(ctx context.Context, c session.Caller) func(string) (string
 			Host: host,
 		})
 		if err != nil {
-			if st, ok := status.FromError(errors.Cause(err)); ok && st.Code() == codes.Unimplemented {
+			if grpcerrors.Code(err) == codes.Unimplemented {
 				return "", "", nil
 			}
-			return "", "", errors.WithStack(err)
+			return "", "", err
 		}
 		return resp.Username, resp.Secret, nil
 	}

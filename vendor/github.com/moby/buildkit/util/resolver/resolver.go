@@ -50,7 +50,7 @@ func fillInsecureOpts(host string, c config.RegistryConfig, h *docker.RegistryHo
 func loadTLSConfig(c config.RegistryConfig) (*tls.Config, error) {
 	for _, d := range c.TLSConfigDir {
 		fs, err := ioutil.ReadDir(d)
-		if err != nil && !os.IsNotExist(err) && !os.IsPermission(err) {
+		if err != nil && !errors.Is(err, os.ErrNotExist) && !errors.Is(err, os.ErrPermission) {
 			return nil, errors.WithStack(err)
 		}
 		for _, f := range fs {

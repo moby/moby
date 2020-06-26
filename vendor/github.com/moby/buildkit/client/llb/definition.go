@@ -20,6 +20,7 @@ type DefinitionOp struct {
 	ops       map[digest.Digest]*pb.Op
 	defs      map[digest.Digest][]byte
 	metas     map[digest.Digest]pb.OpMetadata
+	sources   map[digest.Digest][]*SourceLocation
 	platforms map[digest.Digest]*specs.Platform
 	dgst      digest.Digest
 	index     pb.OutputIndex
@@ -49,6 +50,38 @@ func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
 		platforms[dgst] = platform
 	}
 
+	srcs := map[digest.Digest][]*SourceLocation{}
+
+	if def.Source != nil {
+		sourceMaps := make([]*SourceMap, len(def.Source.Infos))
+		for i, info := range def.Source.Infos {
+			var st *State
+			sdef := info.Definition
+			if sdef != nil {
+				op, err := NewDefinitionOp(sdef)
+				if err != nil {
+					return nil, err
+				}
+				state := NewState(op)
+				st = &state
+			}
+			sourceMaps[i] = NewSourceMap(st, info.Filename, info.Data)
+		}
+
+		for dgst, locs := range def.Source.Locations {
+			for _, loc := range locs.Locations {
+				if loc.SourceIndex < 0 || int(loc.SourceIndex) >= len(sourceMaps) {
+					return nil, errors.Errorf("failed to find source map with index %d", loc.SourceIndex)
+				}
+
+				srcs[digest.Digest(dgst)] = append(srcs[digest.Digest(dgst)], &SourceLocation{
+					SourceMap: sourceMaps[int(loc.SourceIndex)],
+					Ranges:    loc.Ranges,
+				})
+			}
+		}
+	}
+
 	var index pb.OutputIndex
 	if dgst != "" {
 		index = ops[dgst].Inputs[0].Index
@@ -59,6 +92,7 @@ func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
 		ops:       ops,
 		defs:      defs,
 		metas:     def.Metadata,
+		sources:   srcs,
 		platforms: platforms,
 		dgst:      dgst,
 		index:     index,
@@ -110,20 +144,20 @@ func (d *DefinitionOp) Validate(context.Context) error {
 	return nil
 }
 
-func (d *DefinitionOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, error) {
+func (d *DefinitionOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
 	if d.dgst == "" {
-		return "", nil, nil, errors.Errorf("cannot marshal empty definition op")
+		return "", nil, nil, nil, errors.Errorf("cannot marshal empty definition op")
 	}
 
 	if err := d.Validate(ctx); err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	meta := d.metas[d.dgst]
-	return d.dgst, d.defs[d.dgst], &meta, nil
+	return d.dgst, d.defs[d.dgst], &meta, d.sources[d.dgst], nil
 
 }
 

@@ -35,7 +35,7 @@ func (g *Group) Do(ctx context.Context, key string, fn func(ctx context.Context)
 	var backoff time.Duration
 	for {
 		v, err = g.do(ctx, key, fn)
-		if err == nil || errors.Cause(err) != errRetry {
+		if err == nil || !errors.Is(err, errRetry) {
 			return v, err
 		}
 		// backoff logic

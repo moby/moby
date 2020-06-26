@@ -3,7 +3,7 @@ package specconv
 import (
 	"strings"
 
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // ToRootless converts spec to be compatible with "rootless" runc.

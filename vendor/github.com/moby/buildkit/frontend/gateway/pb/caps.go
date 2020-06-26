@@ -32,6 +32,9 @@ const (
 	// CapFrontendInputs is a capability to request frontend inputs from the
 	// LLBBridge GRPC server.
 	CapFrontendInputs apicaps.CapID = "frontend.inputs"
+
+	// CapGatewaySolveMetadata can be used to check if solve calls from gateway reliably return metadata
+	CapGatewaySolveMetadata apicaps.CapID = "gateway.solve.metadata"
 )
 
 func init() {
@@ -123,6 +126,13 @@ func init() {
 	Caps.Init(apicaps.Cap{
 		ID:      CapFrontendInputs,
 		Name:    "frontend inputs",
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapGatewaySolveMetadata,
+		Name:    "gateway metadata",
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})

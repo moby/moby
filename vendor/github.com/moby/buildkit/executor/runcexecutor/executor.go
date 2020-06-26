@@ -23,6 +23,7 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
 	rootlessspecconv "github.com/moby/buildkit/util/rootless/specconv"
+	"github.com/moby/buildkit/util/stack"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -302,7 +303,7 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 		case <-ctx.Done():
 			return errors.Wrapf(ctx.Err(), err.Error())
 		default:
-			return err
+			return stack.Enable(err)
 		}
 	}
 

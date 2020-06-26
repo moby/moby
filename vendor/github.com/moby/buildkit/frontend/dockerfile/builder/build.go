@@ -19,8 +19,10 @@ import (
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend/dockerfile/dockerfile2llb"
+	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	gwpb "github.com/moby/buildkit/frontend/gateway/pb"
+	"github.com/moby/buildkit/solver/errdefs"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -226,6 +228,8 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		return nil, errors.Wrapf(err, "failed to marshal local source")
 	}
 
+	var sourceMap *llb.SourceMap
+
 	eg, ctx2 := errgroup.WithContext(ctx)
 	var dtDockerfile []byte
 	var dtDockerignore []byte
@@ -249,6 +253,9 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		if err != nil {
 			return errors.Wrapf(err, "failed to read dockerfile")
 		}
+
+		sourceMap = llb.NewSourceMap(&src, filename, dtDockerfile)
+		sourceMap.Definition = def
 
 		dt, err := ref.ReadFile(ctx2, client.ReadRequest{
 			Filename: filename + ".dockerignore",
@@ -310,9 +317,13 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 	}
 
 	if _, ok := opts["cmdline"]; !ok {
-		ref, cmdline, ok := dockerfile2llb.DetectSyntax(bytes.NewBuffer(dtDockerfile))
+		ref, cmdline, loc, ok := dockerfile2llb.DetectSyntax(bytes.NewBuffer(dtDockerfile))
 		if ok {
-			return forwardGateway(ctx, c, ref, cmdline)
+			res, err := forwardGateway(ctx, c, ref, cmdline)
+			if err != nil && len(errdefs.Sources(err)) == 0 {
+				return nil, wrapSource(err, sourceMap, loc)
+			}
+			return res, err
 		}
 	}
 
@@ -338,7 +349,13 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 
 	for i, tp := range targetPlatforms {
 		func(i int, tp *specs.Platform) {
-			eg.Go(func() error {
+			eg.Go(func() (err error) {
+				defer func() {
+					var el *parser.ErrorLocation
+					if errors.As(err, &el) {
+						err = wrapSource(err, sourceMap, el.Location)
+					}
+				}()
 				st, img, err := dockerfile2llb.Dockerfile2LLB(ctx, dtDockerfile, dockerfile2llb.ConvertOpt{
 					Target:            opts[keyTarget],
 					MetaResolver:      c,
@@ -357,6 +374,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 					ForceNetMode:      defaultNetMode,
 					OverrideCopyImage: opts[keyOverrideCopyImage],
 					LLBCaps:           &caps,
+					SourceMap:         sourceMap,
 				})
 
 				if err != nil {
@@ -638,4 +656,31 @@ func scopeToSubDir(c *llb.State, fileop bool, dir string) *llb.State {
 	unpack.AddMount("/src", *c, llb.Readonly)
 	bc := unpack.AddMount("/out", llb.Scratch())
 	return &bc
+}
+
+func wrapSource(err error, sm *llb.SourceMap, ranges []parser.Range) error {
+	if sm == nil {
+		return err
+	}
+	s := errdefs.Source{
+		Info: &pb.SourceInfo{
+			Data:       sm.Data,
+			Filename:   sm.Filename,
+			Definition: sm.Definition.ToPB(),
+		},
+		Ranges: make([]*pb.Range, 0, len(ranges)),
+	}
+	for _, r := range ranges {
+		s.Ranges = append(s.Ranges, &pb.Range{
+			Start: pb.Position{
+				Line:      int32(r.Start.Line),
+				Character: int32(r.Start.Character),
+			},
+			End: pb.Position{
+				Line:      int32(r.End.Line),
+				Character: int32(r.End.Character),
+			},
+		})
+	}
+	return errdefs.WithSource(err, s)
 }

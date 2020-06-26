@@ -61,7 +61,7 @@ func (as *asyncState) Do(ctx context.Context) error {
 		if err != nil {
 			select {
 			case <-ctx.Done():
-				if errors.Cause(err) == ctx.Err() {
+				if errors.Is(err, ctx.Err()) {
 					return res, err
 				}
 			default:
@@ -85,8 +85,8 @@ type errVertex struct {
 func (v *errVertex) Validate(context.Context) error {
 	return v.err
 }
-func (v *errVertex) Marshal(context.Context, *Constraints) (digest.Digest, []byte, *pb.OpMetadata, error) {
-	return "", nil, nil, v.err
+func (v *errVertex) Marshal(context.Context, *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
+	return "", nil, nil, nil, v.err
 }
 func (v *errVertex) Output() Output {
 	return nil

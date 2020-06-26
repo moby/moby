@@ -14,21 +14,24 @@ import (
 type Definition struct {
 	Def      [][]byte
 	Metadata map[digest.Digest]pb.OpMetadata
+	Source   *pb.Source
 }
 
 func (def *Definition) ToPB() *pb.Definition {
-	md := make(map[digest.Digest]pb.OpMetadata)
+	md := make(map[digest.Digest]pb.OpMetadata, len(def.Metadata))
 	for k, v := range def.Metadata {
 		md[k] = v
 	}
 	return &pb.Definition{
 		Def:      def.Def,
+		Source:   def.Source,
 		Metadata: md,
 	}
 }
 
 func (def *Definition) FromPB(x *pb.Definition) {
 	def.Def = x.Def
+	def.Source = x.Source
 	def.Metadata = make(map[digest.Digest]pb.OpMetadata)
 	for k, v := range x.Metadata {
 		def.Metadata[k] = v
@@ -95,18 +98,20 @@ type MarshalCache struct {
 	digest      digest.Digest
 	dt          []byte
 	md          *pb.OpMetadata
+	srcs        []*SourceLocation
 	constraints *Constraints
 }
 
 func (mc *MarshalCache) Cached(c *Constraints) bool {
 	return mc.dt != nil && mc.constraints == c
 }
-func (mc *MarshalCache) Load() (digest.Digest, []byte, *pb.OpMetadata, error) {
-	return mc.digest, mc.dt, mc.md, nil
+func (mc *MarshalCache) Load() (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
+	return mc.digest, mc.dt, mc.md, mc.srcs, nil
 }
-func (mc *MarshalCache) Store(dt []byte, md *pb.OpMetadata, c *Constraints) {
+func (mc *MarshalCache) Store(dt []byte, md *pb.OpMetadata, srcs []*SourceLocation, c *Constraints) {
 	mc.digest = digest.FromBytes(dt)
 	mc.dt = dt
 	mc.md = md
 	mc.constraints = c
+	mc.srcs = srcs
 }

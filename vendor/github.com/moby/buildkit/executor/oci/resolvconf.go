@@ -10,6 +10,7 @@ import (
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
 	"github.com/moby/buildkit/util/flightcontrol"
+	"github.com/pkg/errors"
 )
 
 var g flightcontrol.Group
@@ -34,7 +35,7 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.Identity
 		if !generate {
 			fi, err := os.Stat(p)
 			if err != nil {
-				if !os.IsNotExist(err) {
+				if !errors.Is(err, os.ErrNotExist) {
 					return "", err
 				}
 				generate = true
@@ -42,7 +43,7 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.Identity
 			if !generate {
 				fiMain, err := os.Stat(resolvconf.Path())
 				if err != nil {
-					if !os.IsNotExist(err) {
+					if !errors.Is(err, os.ErrNotExist) {
 						return nil, err
 					}
 					if lastNotEmpty {
@@ -64,7 +65,7 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.Identity
 		var dt []byte
 		f, err := resolvconfGet()
 		if err != nil {
-			if !os.IsNotExist(err) {
+			if !errors.Is(err, os.ErrNotExist) {
 				return "", err
 			}
 		} else {
