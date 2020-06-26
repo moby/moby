@@ -94,6 +94,6 @@ else
 	[ $_DOCKERD_ROOTLESS_CHILD = 1 ]
 	# remove the symlinks for the existing files in the parent namespace if any,
 	# so that we can create our own files in our mount namespace.
-	rm -f /run/docker /run/xtables.lock
+	rm -f /run/docker /run/containerd /run/xtables.lock
 	exec dockerd $@
 fi
