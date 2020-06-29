@@ -621,3 +621,18 @@ func TestCreateDifferentPlatform(t *testing.T) {
 		assert.Assert(t, client.IsErrNotFound(err), err)
 	})
 }
+
+func TestCreateVolumesFromNonExistingContainer(t *testing.T) {
+	defer setupTest(t)()
+	cli := testEnv.APIClient()
+
+	_, err := cli.ContainerCreate(
+		context.Background(),
+		&container.Config{Image: "busybox"},
+		&container.HostConfig{VolumesFrom: []string{"nosuchcontainer"}},
+		nil,
+		nil,
+		"",
+	)
+	assert.Check(t, errdefs.IsInvalidParameter(err))
+}
