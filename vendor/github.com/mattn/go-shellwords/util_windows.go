@@ -1,4 +1,4 @@
-// +build windows,go1.6
+// +build windows
 
 package shellwords
 
@@ -10,7 +10,10 @@ import (
 )
 
 func shellRun(line, dir string) (string, error) {
-	shell := os.Getenv("COMSPEC")
+	var shell string
+	if shell = os.Getenv("COMSPEC"); shell == "" {
+		shell = "cmd"
+	}
 	cmd := exec.Command(shell, "/c", line)
 	if dir != "" {
 		cmd.Dir = dir
