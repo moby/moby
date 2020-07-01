@@ -15,7 +15,7 @@ fi
 usage() {
 	echo "usage: $0 dir image[:tag][@image-id] ..."
 	echo "   ie: $0 /tmp/hello-world hello-world"
-	echo "       $0 /tmp/debian-jessie debian:jessie"
+	echo "       $0 /tmp/debian-buster debian:buster"
 	echo "       $0 /tmp/old-hello-world hello-world@ef872312fe1bbc5e05aae626791a47ee9b032efa8f3bda39cc0be7b56bfe59b9"
 	echo "       $0 /tmp/old-debian debian:latest@f6fab3b798be3174f45aa1eb731f8182705555f89c9026d8c1ef230cbf8301dd"
 	[ -z "$1" ] || exit "$1"
