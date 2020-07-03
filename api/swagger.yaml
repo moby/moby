@@ -5332,6 +5332,14 @@ paths:
                   - {}
                 BlkioDeviceWriteIOps:
                   - {}
+                DeviceRequests:
+                  - Driver: "nvidia"
+                    Count: -1
+                    DeviceIDs": ["0", "1", "GPU-fef8089b-4820-abfc-e83e-94318197576e"]
+                    Capabilities: [["gpu", "nvidia", "compute"]]
+                    Options:
+                      property1: "string"
+                      property2: "string"
                 MemorySwappiness: 60
                 OomKillDisable: false
                 OomScoreAdj: 500
@@ -5582,6 +5590,14 @@ paths:
                 CpuRealtimePeriod: 1000000
                 CpuRealtimeRuntime: 10000
                 Devices: []
+                DeviceRequests:
+                  - Driver: "nvidia"
+                    Count: -1
+                    DeviceIDs": ["0", "1", "GPU-fef8089b-4820-abfc-e83e-94318197576e"]
+                    Capabilities: [["gpu", "nvidia", "compute"]]
+                    Options:
+                      property1: "string"
+                      property2: "string"
                 IpcMode: ""
                 LxcConf: []
                 Memory: 0
