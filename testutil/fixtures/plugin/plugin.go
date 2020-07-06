@@ -91,6 +91,7 @@ func CreateInRegistry(ctx context.Context, repo string, auth *types.AuthConfig, 
 	}
 
 	var cfg Config
+	cfg.PluginConfig = &types.PluginConfig{}
 	for _, o := range opts {
 		o(&cfg)
 	}
