@@ -78,6 +78,7 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 	daemon.fillPluginsInfo(v)
 	daemon.fillSecurityOptions(v, sysInfo)
 	daemon.fillLicense(v)
+	daemon.fillDefaultAddressPools(v)
 
 	if v.DefaultRuntime == config.LinuxV1RuntimeName {
 		v.Warnings = append(v.Warnings, fmt.Sprintf("Configured default runtime %q is deprecated and will be removed in the next release.", config.LinuxV1RuntimeName))
@@ -226,6 +227,15 @@ func (daemon *Daemon) fillAPIInfo(v *types.Info) {
 			v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: API is accessible on https://%s without TLS client verification.%s", addr, warn))
 			continue
 		}
+	}
+}
+
+func (daemon *Daemon) fillDefaultAddressPools(v *types.Info) {
+	for _, pool := range daemon.configStore.DefaultAddressPools.Value() {
+		v.DefaultAddressPools = append(v.DefaultAddressPools, types.NetworkAddressPool{
+			Base: pool.Base,
+			Size: pool.Size,
+		})
 	}
 }
 

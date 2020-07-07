@@ -4676,6 +4676,25 @@ definitions:
           such as number of nodes, and expiration are included.
         type: "string"
         example: "Community Engine"
+      DefaultAddressPools:
+        description: |
+          List of custom default address pools for local networks, which can be
+          specified in the daemon.json file or dockerd option.
+
+          Example: a Base "10.10.0.0/16" with Size 24 will define the set of 256
+          10.10.[0-255].0/24 address pools.
+        type: "array"
+        items:
+          type: "object"
+          properties:
+            Base:
+              description: "The network address in CIDR format"
+              type: "string"
+              example: "10.10.0.0/16"
+            Size:
+              description: "The network pool size"
+              type: "integer"
+              example: "24"
       Warnings:
         description: |
           List of warnings / informational messages about missing features, or
