@@ -65,8 +65,10 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *testing.T) {
 	assert.Check(c, is.Equal(spec.CAConfig.NodeCertExpiry, 30*time.Hour))
 
 	// passing an external CA (this is without starting a root rotation) does not fail
-	cli.Docker(cli.Args("swarm", "update", "--external-ca", "protocol=cfssl,url=https://something.org",
-		"--external-ca", "protocol=cfssl,url=https://somethingelse.org,cacert=fixtures/https/ca.pem"),
+	cli.Docker(cli.Args("swarm", "update",
+		"--ca-cert", "fixtures/https/ca.pem",
+		"--external-ca", "protocol=cfssl,url=https://something.org",
+		"--external-ca", "protocol=cfssl,url=https://somethingelse.org"),
 		cli.Daemon(d)).Assert(c, icmd.Success)
 
 	expected, err := os.ReadFile("fixtures/https/ca.pem")
@@ -89,7 +91,8 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *testing.T) {
 	tempFile := fs.NewFile(c, "testfile", fs.WithContent("fakecert"))
 
 	result := cli.Docker(cli.Args("swarm", "update",
-		"--external-ca", fmt.Sprintf("protocol=cfssl,url=https://something.org,cacert=%s", tempFile.Path())),
+		"--ca-cert", tempFile.Path(),
+		"--external-ca", "protocol=cfssl,url=https://something.org"),
 		cli.Daemon(d))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 125,
@@ -109,17 +112,23 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *testing.T) {
 	// passing an invalid external CA fails
 	tempFile := fs.NewFile(c, "testfile", fs.WithContent("fakecert"))
 
-	result := cli.Docker(cli.Args("swarm", "init", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s",
-		"--external-ca", fmt.Sprintf("protocol=cfssl,url=https://somethingelse.org,cacert=%s", tempFile.Path())),
+	result := cli.Docker(cli.Args("swarm", "init",
+		"--cert-expiry", "30h",
+		"--dispatcher-heartbeat", "11s",
+		"--ca-cert", fmt.Sprintf("%s", tempFile.Path()),
+		"--external-ca", fmt.Sprintf("protocol=cfssl,url=https://somethingelse.org")),
 		cli.Daemon(d))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 125,
 		Err:      "must be in PEM format",
 	})
 
-	cli.Docker(cli.Args("swarm", "init", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s",
+	cli.Docker(cli.Args("swarm", "init",
+		"--cert-expiry", "30h",
+		"--dispatcher-heartbeat", "11s",
+		"--ca-cert", "fixtures/https/ca.pem",
 		"--external-ca", "protocol=cfssl,url=https://something.org",
-		"--external-ca", "protocol=cfssl,url=https://somethingelse.org,cacert=fixtures/https/ca.pem"),
+		"--external-ca", "protocol=cfssl,url=https://somethingelse.org"),
 		cli.Daemon(d)).Assert(c, icmd.Success)
 
 	expected, err := os.ReadFile("fixtures/https/ca.pem")
