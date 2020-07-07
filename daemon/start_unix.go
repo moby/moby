@@ -3,70 +3,35 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"fmt"
-	"os/exec"
-	"path/filepath"
-
-	"github.com/containerd/containerd/runtime/linux/runctypes"
-	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
-func (daemon *Daemon) getRuntimeScript(container *container.Container) (string, error) {
-	name := container.HostConfig.Runtime
-	rt := daemon.configStore.GetRuntime(name)
-	if rt == nil {
-		return "", errdefs.InvalidParameter(errors.Errorf("no such runtime '%s'", name))
-	}
-
-	if len(rt.Args) > 0 {
-		// First check that the target exist, as using it in a script won't
-		// give us the right error
-		if _, err := exec.LookPath(rt.Path); err != nil {
-			return "", translateContainerdStartErr(container.Path, container.SetExitCode, err)
-		}
-		return filepath.Join(daemon.configStore.Root, "runtimes", name), nil
-	}
-	return rt.Path, nil
-}
-
 // getLibcontainerdCreateOptions callers must hold a lock on the container
-func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Container) (interface{}, error) {
+func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Container) (string, interface{}, error) {
 	// Ensure a runtime has been assigned to this container
 	if container.HostConfig.Runtime == "" {
 		container.HostConfig.Runtime = daemon.configStore.GetDefaultRuntimeName()
 		container.CheckpointTo(daemon.containersReplica)
 	}
 
-	path, err := daemon.getRuntimeScript(container)
-	if err != nil {
-		return nil, err
-	}
-	if daemon.useShimV2() {
-		opts := &v2runcoptions.Options{
-			BinaryName: path,
-			Root: filepath.Join(daemon.configStore.ExecRoot,
-				fmt.Sprintf("runtime-%s", container.HostConfig.Runtime)),
+	rt := daemon.configStore.GetRuntime(container.HostConfig.Runtime)
+	if rt.Shim == nil {
+		p, err := daemon.rewriteRuntimePath(container.HostConfig.Runtime, rt.Path, rt.Args)
+		if err != nil {
+			return "", nil, translateContainerdStartErr(container.Path, container.SetExitCode, err)
 		}
-
-		if UsingSystemd(daemon.configStore) {
-			opts.SystemdCgroup = true
+		rt.Shim = getShimConfig(daemon.configStore, p)
+	}
+	if rt.Shim.Binary == linuxShimV1 {
+		if cgroups.IsCgroup2UnifiedMode() {
+			return "", nil, errdefs.InvalidParameter(errors.Errorf("runtime %q is not supported while cgroups v2 (unified hierarchy) is being used", container.HostConfig.Runtime))
 		}
-
-		return opts, nil
-
-	}
-	opts := &runctypes.RuncOptions{
-		Runtime: path,
-		RuntimeRoot: filepath.Join(daemon.configStore.ExecRoot,
-			fmt.Sprintf("runtime-%s", container.HostConfig.Runtime)),
+		logrus.Warnf("Configured runtime %q is deprecated and will be removed in the next release", container.HostConfig.Runtime)
 	}
 
-	if UsingSystemd(daemon.configStore) {
-		opts.SystemdCgroup = true
-	}
-
-	return opts, nil
+	return rt.Shim.Binary, rt.Shim.Opts, nil
 }

@@ -175,7 +175,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		}
 	}
 
-	createOptions, err := daemon.getLibcontainerdCreateOptions(container)
+	shim, createOptions, err := daemon.getLibcontainerdCreateOptions(container)
 	if err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		return err
 	}
 
-	err = daemon.containerd.Create(ctx, container.ID, spec, createOptions, withImageName(imageRef.String()))
+	err = daemon.containerd.Create(ctx, container.ID, spec, shim, createOptions, withImageName(imageRef.String()))
 	if err != nil {
 		if errdefs.IsConflict(err) {
 			logrus.WithError(err).WithField("container", container.ID).Error("Container not cleaned up from containerd from previous run")
@@ -196,7 +196,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 			if err := daemon.containerd.Delete(ctx, container.ID); err != nil && !errdefs.IsNotFound(err) {
 				logrus.WithError(err).WithField("container", container.ID).Error("Error cleaning up stale containerd container object")
 			}
-			err = daemon.containerd.Create(ctx, container.ID, spec, createOptions, withImageName(imageRef.String()))
+			err = daemon.containerd.Create(ctx, container.ID, spec, shim, createOptions, withImageName(imageRef.String()))
 		}
 		if err != nil {
 			return translateContainerdStartErr(container.Path, container.SetExitCode, err)

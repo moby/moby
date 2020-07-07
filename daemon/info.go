@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli/debug"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/fileutils"
@@ -77,6 +78,10 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 	daemon.fillPluginsInfo(v)
 	daemon.fillSecurityOptions(v, sysInfo)
 	daemon.fillLicense(v)
+
+	if v.DefaultRuntime == config.LinuxV1RuntimeName {
+		v.Warnings = append(v.Warnings, fmt.Sprintf("Configured default runtime %q is deprecated and will be removed in the next release.", config.LinuxV1RuntimeName))
+	}
 
 	return v
 }
