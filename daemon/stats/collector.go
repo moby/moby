@@ -19,9 +19,6 @@ type Collector struct {
 	interval   time.Duration
 	publishers map[*container.Container]*pubsub.Publisher
 	bufReader  *bufio.Reader
-
-	// The following fields are not set on Windows currently.
-	clockTicksPerSecond uint64
 }
 
 // NewCollector creates a stats collector that will poll the supervisor with the specified interval
@@ -33,9 +30,6 @@ func NewCollector(supervisor supervisor, interval time.Duration) *Collector {
 		bufReader:  bufio.NewReaderSize(nil, 128),
 	}
 	s.cond = sync.NewCond(&s.m)
-
-	platformNewStatsCollector(s)
-
 	return s
 }
 
