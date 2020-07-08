@@ -8,17 +8,17 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/opencontainers/runc/libcontainer/system"
 	"golang.org/x/sys/unix"
 )
 
-// platformNewStatsCollector performs platform specific initialisation of the
-// Collector structure.
-func platformNewStatsCollector(s *Collector) {
-	s.clockTicksPerSecond = uint64(system.GetClockTicks())
-}
-
-const nanoSecondsPerSecond = 1e9
+const (
+	// The value comes from `C.sysconf(C._SC_CLK_TCK)`, and
+	// on Linux it's a constant which is safe to be hard coded,
+	// so we can avoid using cgo here. For details, see:
+	// https://github.com/containerd/cgroups/pull/12
+	clockTicksPerSecond  = 100
+	nanoSecondsPerSecond = 1e9
+)
 
 // getSystemCPUUsage returns the host system's cpu usage in
 // nanoseconds. An error is returned if the format of the underlying
@@ -59,7 +59,7 @@ func (s *Collector) getSystemCPUUsage() (uint64, error) {
 				totalClockTicks += v
 			}
 			return (totalClockTicks * nanoSecondsPerSecond) /
-				s.clockTicksPerSecond, nil
+				clockTicksPerSecond, nil
 		}
 	}
 	return 0, fmt.Errorf("invalid stat format. Error trying to parse the '/proc/stat' file")
