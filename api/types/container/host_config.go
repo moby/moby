@@ -405,6 +405,7 @@ type HostConfig struct {
 	CapDrop         strslice.StrSlice // List of kernel capabilities to remove from the container
 	Capabilities    []string          `json:"Capabilities"` // List of kernel capabilities to be available for container (this overrides the default set)
 	CgroupnsMode    CgroupnsMode      // Cgroup namespace mode to use for the container
+	Devices         []DeviceMapping   `json:",omitempty"` // List of the devices to map to the container
 	DNS             []string          `json:"Dns"`        // List of DNS server to lookup
 	DNSOptions      []string          `json:"DnsOptions"` // List of DNSOption to look for
 	DNSSearch       []string          `json:"DnsSearch"`  // List of DNSSearch to look for
