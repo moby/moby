@@ -68,8 +68,8 @@ const (
 	linuxMinCPUShares = 2
 	linuxMaxCPUShares = 262144
 	platformSupported = true
-	// It's not kernel limit, we want this 4M limit to supply a reasonable functional container
-	linuxMinMemory = 4194304
+	// It's not kernel limit, we want this 6M limit to account for overhead during startup, and to supply a reasonable functional container
+	linuxMinMemory = 6291456
 	// constants for remapped root settings
 	defaultIDSpecifier = "default"
 	defaultRemappedID  = "dockremap"
@@ -433,7 +433,7 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 
 	// memory subsystem checks and adjustments
 	if resources.Memory != 0 && resources.Memory < linuxMinMemory {
-		return warnings, fmt.Errorf("Minimum memory limit allowed is 4MB")
+		return warnings, fmt.Errorf("Minimum memory limit allowed is 6MB")
 	}
 	if resources.Memory > 0 && !sysInfo.MemoryLimit {
 		warnings = append(warnings, "Your kernel does not support memory limit capabilities or the cgroup is not mounted. Limitation discarded.")

@@ -871,7 +871,7 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *testing.T) {
 	} else {
 		assert.Assert(c, res.StatusCode != http.StatusOK)
 	}
-	assert.Assert(c, strings.Contains(string(b), "Minimum memory limit allowed is 4MB"))
+	assert.Assert(c, strings.Contains(string(b), "Minimum memory limit allowed is 6MB"))
 }
 
 func (s *DockerSuite) TestContainerAPIRename(c *testing.T) {

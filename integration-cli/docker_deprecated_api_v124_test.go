@@ -175,7 +175,7 @@ func (s *DockerSuite) TestDeprecatedStartWithTooLowMemoryLimit(c *testing.T) {
 	} else {
 		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	}
-	assert.Assert(c, is.Contains(string(b), "Minimum memory limit allowed is 4MB"))
+	assert.Assert(c, is.Contains(string(b), "Minimum memory limit allowed is 6MB"))
 }
 
 // #14640
