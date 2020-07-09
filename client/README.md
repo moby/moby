@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	cli, err := client.NewEnvClient()
 	if err != nil {
 		panic(err)
 	}
