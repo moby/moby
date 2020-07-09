@@ -1236,6 +1236,42 @@ definitions:
         items:
           type: "string"
 
+  NetworkingConfig:
+    description: |
+      NetworkingConfig represents the container's networking configuration for
+      each of its interfaces.
+      It is used for the networking configs specified in the `docker create`
+      and `docker network connect` commands.
+    type: "object"
+    properties:
+      EndpointsConfig:
+        description: |
+          A mapping of network name to endpoint configuration for that network.
+        type: "object"
+        additionalProperties:
+          $ref: "#/definitions/EndpointSettings"
+    example:
+      # putting an example here, instead of using the example values from
+      # /definitions/EndpointSettings, because containers/create currently
+      # does not support attaching to multiple networks, so the example request
+      # would be confusing if it showed that multiple networks can be contained
+      # in the EndpointsConfig.
+      # TODO remove once we support multiple networks on container create (see https://github.com/moby/moby/blob/07e6b843594e061f82baa5fa23c2ff7d536c2a05/daemon/create.go#L323)
+      EndpointsConfig:
+        isolated_nw:
+          IPAMConfig:
+            IPv4Address: "172.20.30.33"
+            IPv6Address: "2001:db8:abcd::3033"
+            LinkLocalIPs:
+              - "169.254.34.68"
+              - "fe80::3468"
+          Links:
+            - "container_1"
+            - "container_2"
+          Aliases:
+            - "server_x"
+            - "server_y"
+
   NetworkSettings:
     description: "NetworkSettings exposes the network settings in the API"
     type: "object"
@@ -5234,16 +5270,7 @@ paths:
                   HostConfig:
                     $ref: "#/definitions/HostConfig"
                   NetworkingConfig:
-                    description: "This container's networking configuration."
-                    type: "object"
-                    properties:
-                      EndpointsConfig:
-                        description: |
-                          A mapping of network name to endpoint configuration
-                          for that network.
-                        type: "object"
-                        additionalProperties:
-                          $ref: "#/definitions/EndpointSettings"
+                    $ref: "#/definitions/NetworkingConfig"
             example:
               Hostname: ""
               Domainname: ""
@@ -5305,6 +5332,14 @@ paths:
                   - {}
                 BlkioDeviceWriteIOps:
                   - {}
+                DeviceRequests:
+                  - Driver: "nvidia"
+                    Count: -1
+                    DeviceIDs": ["0", "1", "GPU-fef8089b-4820-abfc-e83e-94318197576e"]
+                    Capabilities: [["gpu", "nvidia", "compute"]]
+                    Options:
+                      property1: "string"
+                      property2: "string"
                 MemorySwappiness: 60
                 OomKillDisable: false
                 OomScoreAdj: 500
@@ -5555,6 +5590,14 @@ paths:
                 CpuRealtimePeriod: 1000000
                 CpuRealtimeRuntime: 10000
                 Devices: []
+                DeviceRequests:
+                  - Driver: "nvidia"
+                    Count: -1
+                    DeviceIDs": ["0", "1", "GPU-fef8089b-4820-abfc-e83e-94318197576e"]
+                    Capabilities: [["gpu", "nvidia", "compute"]]
+                    Options:
+                      property1: "string"
+                      property2: "string"
                 IpcMode: ""
                 LxcConf: []
                 Memory: 0
