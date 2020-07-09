@@ -124,6 +124,25 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 		if v.CgroupVersion == "2" {
 			v.Warnings = append(v.Warnings, "WARNING: Support for cgroup v2 is experimental")
 		}
+		// TODO add fields for these options in types.Info
+		if !sysInfo.BlkioWeight {
+			v.Warnings = append(v.Warnings, "WARNING: No blkio weight support")
+		}
+		if !sysInfo.BlkioWeightDevice {
+			v.Warnings = append(v.Warnings, "WARNING: No blkio weight_device support")
+		}
+		if !sysInfo.BlkioReadBpsDevice {
+			v.Warnings = append(v.Warnings, "WARNING: No blkio throttle.read_bps_device support")
+		}
+		if !sysInfo.BlkioWriteBpsDevice {
+			v.Warnings = append(v.Warnings, "WARNING: No blkio throttle.write_bps_device support")
+		}
+		if !sysInfo.BlkioReadIOpsDevice {
+			v.Warnings = append(v.Warnings, "WARNING: No blkio throttle.read_iops_device support")
+		}
+		if !sysInfo.BlkioWriteIOpsDevice {
+			v.Warnings = append(v.Warnings, "WARNING: No blkio throttle.write_iops_device support")
+		}
 	}
 	if !v.IPv4Forwarding {
 		v.Warnings = append(v.Warnings, "WARNING: IPv4 forwarding is disabled")
