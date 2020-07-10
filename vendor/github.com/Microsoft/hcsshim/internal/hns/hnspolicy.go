@@ -17,6 +17,7 @@ const (
 	OutboundNat          PolicyType = "OutBoundNAT"
 	ExternalLoadBalancer PolicyType = "ELB"
 	Route                PolicyType = "ROUTE"
+	Proxy                PolicyType = "PROXY"
 )
 
 type NatPolicy struct {
@@ -58,6 +59,15 @@ type OutboundNatPolicy struct {
 	VIP          string   `json:"VIP,omitempty"`
 	Exceptions   []string `json:"ExceptionList,omitempty"`
 	Destinations []string `json:",omitempty"`
+}
+
+type ProxyPolicy struct {
+	Type          PolicyType `json:"Type"`
+	IP            string     `json:",omitempty"`
+	Port          string     `json:",omitempty"`
+	ExceptionList []string   `json:",omitempty"`
+	Destination   string     `json:",omitempty"`
+	OutboundNat   bool       `json:",omitempty"`
 }
 
 type ActionType string

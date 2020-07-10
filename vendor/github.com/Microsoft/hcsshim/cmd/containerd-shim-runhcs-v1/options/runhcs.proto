@@ -46,6 +46,23 @@ message Options {
 	// boot_files_root_path is the path to the directory containing the LCOW
 	// kernel and root FS files.
 	string boot_files_root_path = 7;
+
+	// vm_processor_count is the default number of processors to create for the
+	// hypervisor isolated utility vm.
+	//
+	// The platform default if omitted is 2, unless the host only has a single
+	// core in which case it is 1.
+	int32 vm_processor_count = 8;
+
+	// vm_memory_size_in_mb is the default amount of memory to assign to the
+	// hypervisor isolated utility vm.
+	//
+	// The platform default is 1024MB if omitted.
+	int32 vm_memory_size_in_mb = 9;
+
+	// GPUVHDPath is the path to the gpu vhd to add to the uvm
+	// when a container requests a gpu
+	string GPUVHDPath = 10; 
 }
 
 // ProcessDetails contains additional information about a process. This is the additional
