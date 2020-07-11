@@ -798,6 +798,7 @@ var (
 		"wescoff",
 
 		// Jim Weirich - early contributor and member of the Ruby community, educator, speaker, and creator of the Rake task and build automation tool. https://en.wikipedia.org/wiki/Jim_Weirich
+		"weirich",
 
 		// Sylvia B. Wilbur - British computer scientist who helped develop the ARPANET, was one of the first to exchange email in the UK and a leading researcher in computer-supported collaborative work. https://en.wikipedia.org/wiki/Sylvia_Wilbur
 		"wilbur",
