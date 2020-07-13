@@ -4,8 +4,9 @@ import (
 	"os/exec"
 	"syscall"
 
-	"github.com/docker/docker/pkg/mount"
+	"github.com/moby/sys/mount"
 	"github.com/pkg/errors"
+	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/sys/unix"
 )
 
@@ -38,4 +39,19 @@ func setupMountNS() error {
 		return errors.Wrap(err, "error remounting /proc")
 	}
 	return nil
+}
+
+const allCapTypes = capability.CAPS | capability.BOUNDS | capability.AMBS
+
+func dropCapabilities() error {
+	cap, err := capability.NewPid2(0)
+	if err != nil {
+		return errors.Wrap(err, "error getting capabilities")
+	}
+
+	cap.Clear(allCapTypes)
+	// CAP_SYS_ADMIN is required for setting xattrs.
+	cap.Set(allCapTypes, capability.CAP_CHOWN, capability.CAP_FOWNER, capability.CAP_SYS_ADMIN)
+
+	return cap.Apply(allCapTypes)
 }

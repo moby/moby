@@ -46,6 +46,10 @@ func applyLayer() {
 		fatal(err)
 	}
 
+	if err := dropCapabilities(); err != nil {
+		fatal(err)
+	}
+
 	// We need to be able to set any perms
 	oldmask, err := system.Umask(0)
 	defer system.Umask(oldmask)

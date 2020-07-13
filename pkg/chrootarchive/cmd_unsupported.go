@@ -10,3 +10,7 @@ func configureSysProc(cmd *exec.Cmd) {
 func setupMountNS() error {
 	return nil
 }
+
+func dropCapabilities() error {
+	return nil
+}

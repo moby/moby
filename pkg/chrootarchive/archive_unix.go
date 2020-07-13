@@ -51,6 +51,10 @@ func untar() {
 		fatal(err)
 	}
 
+	if err := dropCapabilities(); err != nil {
+		fatal(err)
+	}
+
 	if err := archive.Unpack(os.Stdin, dst, &options); err != nil {
 		fatal(err)
 	}
@@ -144,6 +148,10 @@ func tar() {
 
 	if err := realChroot(root); err != nil {
 		fatal(err)
+	}
+
+	if err := dropCapabilities(); err != nil {
+		fatal(errors.Wrap(err, "error dropping capabilities"))
 	}
 
 	var options archive.TarOptions
