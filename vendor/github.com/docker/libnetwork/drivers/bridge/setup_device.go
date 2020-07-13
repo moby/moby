@@ -2,6 +2,9 @@ package bridge
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/libnetwork/netutils"
@@ -47,6 +50,22 @@ func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 	}
 
 	return err
+}
+
+func setupDefaultSysctl(config *networkConfiguration, i *bridgeInterface) error {
+	// Disable IPv6 router advertisements originating on the bridge
+	sysPath := filepath.Join("/proc/sys/net/ipv6/conf/", config.BridgeName, "accept_ra")
+	if _, err := os.Stat(sysPath); err != nil {
+		logrus.
+			WithField("bridge", config.BridgeName).
+			WithField("syspath", sysPath).
+			Info("failed to read ipv6 net.ipv6.conf.<bridge>.accept_ra")
+		return nil
+	}
+	if err := ioutil.WriteFile(sysPath, []byte{'0', '\n'}, 0644); err != nil {
+		logrus.WithError(err).Warn("unable to disable IPv6 router advertisement")
+	}
+	return nil
 }
 
 // SetupDeviceUp ups the given bridge interface.
