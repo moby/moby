@@ -3,12 +3,11 @@ package containerd // import "github.com/docker/docker/plugin/executor/container
 import (
 	"context"
 	"io"
-	"path/filepath"
 	"sync"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
-	"github.com/containerd/containerd/runtime/linux/runctypes"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
@@ -26,13 +25,14 @@ type ExitHandler interface {
 }
 
 // New creates a new containerd plugin executor
-func New(ctx context.Context, rootDir string, cli *containerd.Client, ns string, exitHandler ExitHandler, useShimV2 bool) (*Executor, error) {
+func New(ctx context.Context, rootDir string, cli *containerd.Client, ns string, exitHandler ExitHandler, runtime types.Runtime) (*Executor, error) {
 	e := &Executor{
 		rootDir:     rootDir,
 		exitHandler: exitHandler,
+		runtime:     runtime,
 	}
 
-	client, err := libcontainerd.NewClient(ctx, cli, rootDir, ns, e, useShimV2)
+	client, err := libcontainerd.NewClient(ctx, cli, rootDir, ns, e)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating containerd exec client")
 	}
@@ -45,6 +45,7 @@ type Executor struct {
 	rootDir     string
 	client      libcontainerdtypes.Client
 	exitHandler ExitHandler
+	runtime     types.Runtime
 }
 
 // deleteTaskAndContainer deletes plugin task and then plugin container from containerd
@@ -66,11 +67,8 @@ func deleteTaskAndContainer(ctx context.Context, cli libcontainerdtypes.Client, 
 
 // Create creates a new container
 func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error {
-	opts := runctypes.RuncOptions{
-		RuntimeRoot: filepath.Join(e.rootDir, "runtime-root"),
-	}
 	ctx := context.Background()
-	err := e.client.Create(ctx, id, &spec, &opts)
+	err := e.client.Create(ctx, id, &spec, e.runtime.Shim.Binary, e.runtime.Shim.Opts)
 	if err != nil {
 		status, err2 := e.client.Status(ctx, id)
 		if err2 != nil {
@@ -82,7 +80,7 @@ func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteClo
 				if err2 := e.client.Delete(ctx, id); err2 != nil && !errdefs.IsNotFound(err2) {
 					logrus.WithError(err2).WithField("plugin", id).Error("Error cleaning up containerd container")
 				}
-				err = e.client.Create(ctx, id, &spec, &opts)
+				err = e.client.Create(ctx, id, &spec, e.runtime.Shim.Binary, e.runtime.Shim.Opts)
 			}
 		}
 

@@ -36,9 +36,6 @@ const (
 	// maximum number of attempts that
 	// may take place at a time for each pull when the connection is lost.
 	DefaultDownloadAttempts = 5
-	// StockRuntimeName is the reserved name/alias used to represent the
-	// OCI runtime being shipped with the docker daemon package.
-	StockRuntimeName = "runc"
 	// DefaultShmSize is the default value for container's shm size
 	DefaultShmSize = int64(67108864)
 	// DefaultNetworkMtu is the default value for network MTU
@@ -47,7 +44,23 @@ const (
 	DisableNetworkBridge = "none"
 	// DefaultInitBinary is the name of the default init binary
 	DefaultInitBinary = "docker-init"
+
+	// StockRuntimeName is the reserved name/alias used to represent the
+	// OCI runtime being shipped with the docker daemon package.
+	StockRuntimeName = "runc"
+	// LinuxV1RuntimeName is the runtime used to specify the containerd v1 shim with the runc binary
+	// Note this is different than io.containerd.runc.v1 which would be the v1 shim using the v2 shim API.
+	// This is specifically for the v1 shim using the v1 shim API.
+	LinuxV1RuntimeName = "io.containerd.runtime.v1.linux"
+	// LinuxV2RuntimeName is the runtime used to specify the containerd v2 runc shim
+	LinuxV2RuntimeName = "io.containerd.runc.v2"
 )
+
+var builtinRuntimes = map[string]bool{
+	StockRuntimeName:   true,
+	LinuxV1RuntimeName: true,
+	LinuxV2RuntimeName: true,
+}
 
 // flatOptions contains configuration keys
 // that MUST NOT be parsed as deep structures.
@@ -571,10 +584,12 @@ func Validate(config *Config) error {
 		return err
 	}
 
-	if defaultRuntime := config.GetDefaultRuntimeName(); defaultRuntime != "" && defaultRuntime != StockRuntimeName {
-		runtimes := config.GetAllRuntimes()
-		if _, ok := runtimes[defaultRuntime]; !ok {
-			return fmt.Errorf("specified default runtime '%s' does not exist", defaultRuntime)
+	if defaultRuntime := config.GetDefaultRuntimeName(); defaultRuntime != "" {
+		if !builtinRuntimes[defaultRuntime] {
+			runtimes := config.GetAllRuntimes()
+			if _, ok := runtimes[defaultRuntime]; !ok {
+				return fmt.Errorf("specified default runtime '%s' does not exist", defaultRuntime)
+			}
 		}
 	}
 

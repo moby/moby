@@ -48,7 +48,7 @@ func (daemon *Daemon) reloadPlatform(conf *config.Config, attributes map[string]
 		if runtimeList.Len() > 0 {
 			runtimeList.WriteRune(' ')
 		}
-		runtimeList.WriteString(fmt.Sprintf("%s:%s", name, rt))
+		runtimeList.WriteString(fmt.Sprintf("%s:%s", name, rt.Path))
 	}
 
 	attributes["runtimes"] = runtimeList.String()

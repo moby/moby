@@ -511,6 +511,16 @@ type Checkpoint struct {
 type Runtime struct {
 	Path string   `json:"path"`
 	Args []string `json:"runtimeArgs,omitempty"`
+
+	// This is exposed here only for internal use
+	// It is not currently supported to specify custom shim configs
+	Shim *ShimConfig `json:"-"`
+}
+
+// ShimConfig is used by runtime to configure containerd shims
+type ShimConfig struct {
+	Binary string
+	Opts   interface{}
 }
 
 // DiskUsage contains response of Engine API:
