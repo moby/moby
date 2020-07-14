@@ -63,7 +63,7 @@ func TestEnsureRemoveAllWithMount(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	done := make(chan struct{})
+	done := make(chan struct{}, 1)
 	go func() {
 		err = EnsureRemoveAll(dir1)
 		close(done)
