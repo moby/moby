@@ -298,17 +298,17 @@ func (pm *Manager) GC() {
 	pm.muGC.Lock()
 	defer pm.muGC.Unlock()
 
-	whitelist := make(map[digest.Digest]struct{})
+	used := make(map[digest.Digest]struct{})
 	for _, p := range pm.config.Store.GetAll() {
-		whitelist[p.Config] = struct{}{}
+		used[p.Config] = struct{}{}
 		for _, b := range p.Blobsums {
-			whitelist[b] = struct{}{}
+			used[b] = struct{}{}
 		}
 	}
 
 	ctx := context.TODO()
 	pm.blobStore.Walk(ctx, func(info content.Info) error {
-		_, ok := whitelist[info.Digest]
+		_, ok := used[info.Digest]
 		if ok {
 			return nil
 		}
