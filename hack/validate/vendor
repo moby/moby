@@ -5,12 +5,13 @@ source "${SCRIPTDIR}/.validate"
 
 validate_vendor_diff(){
 	IFS=$'\n'
+	# shellcheck disable=SC2207
 	files=( $(validate_diff --diff-filter=ACMR --name-only -- 'vendor.conf' 'vendor/' || true) )
 	unset IFS
 
 	if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ ${#files[@]} -gt 0 ]; then
 		# recreate vendor/
-		vndr -whitelist=^archive/tar
+		./hack/vendor.sh
 		# check if any files have changed
 		diffs="$(git status --porcelain -- vendor 2>/dev/null)"
 		mfiles="$(echo "$diffs" | awk '/^ M / {print $2}')"
