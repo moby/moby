@@ -262,7 +262,7 @@ func rotate(name string, maxFiles int, compress bool) error {
 }
 
 func compressFile(fileName string, lastTimestamp time.Time) (retErr error) {
-	file, err := os.Open(fileName)
+	file, err := open(fileName)
 	if err != nil {
 		if os.IsNotExist(err) {
 			logrus.WithField("file", fileName).WithError(err).Debug("Could not open log file to compress")
@@ -336,7 +336,7 @@ func (w *LogFile) Close() error {
 // TODO: Consider a different implementation which can effectively follow logs under frequent rotations.
 func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher) {
 	w.mu.RLock()
-	currentFile, err := os.Open(w.f.Name())
+	currentFile, err := open(w.f.Name())
 	if err != nil {
 		w.mu.RUnlock()
 		watcher.Err <- err
@@ -429,7 +429,7 @@ func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []*os.File, 
 	}()
 
 	for i := w.maxFiles; i > 1; i-- {
-		f, err := os.Open(fmt.Sprintf("%s.%d", w.f.Name(), i-1))
+		f, err := open(fmt.Sprintf("%s.%d", w.f.Name(), i-1))
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return nil, errors.Wrap(err, "error opening rotated log file")
@@ -439,7 +439,7 @@ func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []*os.File, 
 			decompressedFileName := fileName + tmpLogfileSuffix
 			tmpFile, err := w.filesRefCounter.GetReference(decompressedFileName, func(refFileName string, exists bool) (*os.File, error) {
 				if exists {
-					return os.Open(refFileName)
+					return open(refFileName)
 				}
 				return decompressfile(fileName, refFileName, config.Since)
 			})
@@ -465,7 +465,7 @@ func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []*os.File, 
 }
 
 func decompressfile(fileName, destFileName string, since time.Time) (*os.File, error) {
-	cf, err := os.Open(fileName)
+	cf, err := open(fileName)
 	if err != nil {
 		return nil, errors.Wrap(err, "error opening file for decompression")
 	}
@@ -590,7 +590,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 
 		// retry when the file doesn't exist
 		for retries := 0; retries <= 5; retries++ {
-			f, err = os.Open(name)
+			f, err = open(name)
 			if err == nil || !os.IsNotExist(err) {
 				break
 			}

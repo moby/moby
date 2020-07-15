@@ -8,6 +8,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+func open(name string) (*os.File, error) {
+	return openFile(name, os.O_RDONLY, 0)
+}
+
 func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
 	if name == "" {
 		return nil, &os.PathError{Op: "open", Path: name, Err: syscall.ENOENT}
