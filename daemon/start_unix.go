@@ -24,7 +24,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 		if err != nil {
 			return "", nil, translateContainerdStartErr(container.Path, container.SetExitCode, err)
 		}
-		rt.Shim = getShimConfig(daemon.configStore, p)
+		rt.Shim = defaultV2ShimConfig(daemon.configStore, p)
 	}
 	if rt.Shim.Binary == linuxShimV1 {
 		if cgroups.IsCgroup2UnifiedMode() {

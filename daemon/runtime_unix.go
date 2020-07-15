@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -34,16 +33,9 @@ func configureRuntimes(conf *config.Config) {
 	if conf.Runtimes == nil {
 		conf.Runtimes = make(map[string]types.Runtime)
 	}
-	conf.Runtimes[config.StockRuntimeName] = types.Runtime{Path: defaultRuntimeName, Shim: getShimConfig(conf, defaultRuntimeName)}
 	conf.Runtimes[config.LinuxV1RuntimeName] = types.Runtime{Path: defaultRuntimeName, Shim: defaultV1ShimConfig(conf, defaultRuntimeName)}
 	conf.Runtimes[config.LinuxV2RuntimeName] = types.Runtime{Path: defaultRuntimeName, Shim: defaultV2ShimConfig(conf, defaultRuntimeName)}
-}
-
-func getShimConfig(conf *config.Config, runtimePath string) *types.ShimConfig {
-	if cgroups.IsCgroup2UnifiedMode() {
-		return defaultV2ShimConfig(conf, runtimePath)
-	}
-	return defaultV1ShimConfig(conf, runtimePath)
+	conf.Runtimes[config.StockRuntimeName] = conf.Runtimes[config.LinuxV2RuntimeName]
 }
 
 func defaultV2ShimConfig(conf *config.Config, runtimePath string) *types.ShimConfig {
