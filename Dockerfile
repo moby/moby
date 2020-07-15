@@ -280,6 +280,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             libnl-3-200 \
             libprotobuf-c1 \
             net-tools \
+            patch \
             pigz \
             python3-pip \
             python3-setuptools \
