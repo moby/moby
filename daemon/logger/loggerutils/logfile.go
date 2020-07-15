@@ -68,7 +68,7 @@ func (rc *refCounter) Dereference(fileName string) error {
 	if rc.counter[fileName] <= 0 {
 		delete(rc.counter, fileName)
 		err := os.Remove(fileName)
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 	}
@@ -179,44 +179,53 @@ func (w *LogFile) WriteLogEntry(msg *logger.Message) error {
 	return err
 }
 
-func (w *LogFile) checkCapacityAndRotate() error {
+func (w *LogFile) checkCapacityAndRotate() (retErr error) {
 	if w.capacity == -1 {
 		return nil
 	}
 
-	if w.currentSize >= w.capacity {
-		w.rotateMu.Lock()
-		fname := w.f.Name()
-		if err := w.f.Close(); err != nil {
-			// if there was an error during a prior rotate, the file could already be closed
-			if !errors.Is(err, os.ErrClosed) {
-				w.rotateMu.Unlock()
-				return errors.Wrap(err, "error closing file")
-			}
-		}
-		if err := rotate(fname, w.maxFiles, w.compress); err != nil {
-			w.rotateMu.Unlock()
-			return err
-		}
-		file, err := openFile(fname, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, w.perms)
-		if err != nil {
-			w.rotateMu.Unlock()
-			return err
-		}
-		w.f = file
-		w.currentSize = 0
-		w.notifyRotate.Publish(struct{}{})
-
-		if w.maxFiles <= 1 || !w.compress {
-			w.rotateMu.Unlock()
-			return nil
-		}
-
-		go func() {
-			compressFile(fname+".1", w.lastTimestamp)
-			w.rotateMu.Unlock()
-		}()
+	if w.currentSize < w.capacity {
+		return nil
 	}
+
+	w.rotateMu.Lock()
+	defer func() {
+		if retErr != nil || w.maxFiles <= 1 || !w.compress {
+			w.rotateMu.Unlock()
+		}
+	}()
+
+	fname := w.f.Name()
+	if err := w.f.Close(); err != nil {
+		// if there was an error during a prior rotate, the file could already be closed
+		if !errors.Is(err, os.ErrClosed) {
+			return errors.Wrap(err, "error closing file")
+		}
+	}
+
+	if err := rotate(fname, w.maxFiles, w.compress); err != nil {
+		return err
+	}
+	file, err := openFile(fname, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, w.perms)
+	if err != nil {
+		return err
+	}
+	w.f = file
+	w.currentSize = 0
+	w.notifyRotate.Publish(struct{}{})
+
+	if w.maxFiles <= 1 || !w.compress {
+		return nil
+	}
+
+	ts := w.lastTimestamp
+
+	go func() {
+		if err := compressFile(fname+".1", ts); err != nil {
+			logrus.WithError(err).Error("Error compressing log file after rotation")
+		}
+		w.rotateMu.Unlock()
+	}()
 
 	return nil
 }
@@ -252,29 +261,33 @@ func rotate(name string, maxFiles int, compress bool) error {
 	return nil
 }
 
-func compressFile(fileName string, lastTimestamp time.Time) {
+func compressFile(fileName string, lastTimestamp time.Time) (retErr error) {
 	file, err := os.Open(fileName)
 	if err != nil {
-		logrus.Errorf("Failed to open log file: %v", err)
-		return
+		if os.IsNotExist(err) {
+			logrus.WithField("file", fileName).WithError(err).Debug("Could not open log file to compress")
+			return nil
+		}
+		return errors.Wrap(err, "failed to open log file")
 	}
 	defer func() {
 		file.Close()
 		err := os.Remove(fileName)
-		if err != nil {
-			logrus.Errorf("Failed to remove source log file: %v", err)
+		if err != nil && !os.IsNotExist(err) {
+			retErr = errors.Wrap(err, "failed to remove source log file")
 		}
 	}()
 
 	outFile, err := openFile(fileName+".gz", os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0640)
 	if err != nil {
-		logrus.Errorf("Failed to open or create gzip log file: %v", err)
-		return
+		return errors.Wrap(err, "failed to open or create gzip log file")
 	}
 	defer func() {
 		outFile.Close()
-		if err != nil {
-			os.Remove(fileName + ".gz")
+		if retErr != nil {
+			if err := os.Remove(fileName + ".gz"); err != nil && !os.IsExist(err) {
+				logrus.WithError(err).Error("Error cleaning up after failed log compression")
+			}
 		}
 	}()
 
@@ -292,9 +305,10 @@ func compressFile(fileName string, lastTimestamp time.Time) {
 
 	_, err = pools.Copy(compressWriter, file)
 	if err != nil {
-		logrus.WithError(err).WithField("module", "container.logs").WithField("file", fileName).Error("Error compressing log file")
-		return
+		return errors.Wrapf(err, "error compressing log file %s", fileName)
 	}
+
+	return nil
 }
 
 // MaxFiles return maximum number of files
@@ -309,7 +323,7 @@ func (w *LogFile) Close() error {
 	if w.closed {
 		return nil
 	}
-	if err := w.f.Close(); err != nil {
+	if err := w.f.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
 		return err
 	}
 	w.closed = true
@@ -358,7 +372,7 @@ func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher)
 				if strings.HasSuffix(fileName, tmpLogfileSuffix) {
 					err := w.filesRefCounter.Dereference(fileName)
 					if err != nil {
-						logrus.Errorf("Failed to dereference the log file %q: %v", fileName, err)
+						logrus.WithError(err).WithField("file", fileName).Error("Failed to dereference the log file")
 					}
 				}
 			}
