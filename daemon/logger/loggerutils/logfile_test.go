@@ -231,11 +231,11 @@ func TestCheckCapacityAndRotate(t *testing.T) {
 	assert.Assert(t, os.IsNotExist(err), dirStringer{dir})
 
 	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
-	poll.WaitOn(t, checkFileExists(f.Name()+".1"), poll.WithTimeout(30*time.Second))
+	poll.WaitOn(t, checkFileExists(f.Name()+".1.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
 
 	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
-	poll.WaitOn(t, checkFileExists(f.Name()+".1"), poll.WithTimeout(30*time.Second))
-	poll.WaitOn(t, checkFileExists(f.Name()+".2.gz"), poll.WithTimeout(30*time.Second))
+	poll.WaitOn(t, checkFileExists(f.Name()+".1.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
+	poll.WaitOn(t, checkFileExists(f.Name()+".2.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
 
 	// Now let's simulate a failed rotation where the file was able to be closed but something else happened elsewhere
 	// down the line.
