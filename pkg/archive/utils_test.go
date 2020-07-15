@@ -141,7 +141,7 @@ func testBreakout(untarFn string, tmpdir string, headers []*tar.Header) error {
 	// that any file whose content matches exactly victim/hello, managed somehow
 	// to access victim/hello.
 	return filepath.Walk(dest, func(path string, info os.FileInfo, err error) error {
-		if info.IsDir() {
+		if info != nil && info.IsDir() {
 			if err != nil {
 				// skip directory if error
 				return filepath.SkipDir

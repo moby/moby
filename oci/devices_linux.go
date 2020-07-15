@@ -62,7 +62,7 @@ func DevicesFromPath(pathOnHost, pathInContainer, cgroupPermissions string) (dev
 
 			// mount the internal devices recursively
 			// TODO check if additional errors should be handled or logged
-			_ = filepath.Walk(resolvedPathOnHost, func(dpath string, f os.FileInfo, _ error) error {
+			_ = filepath.Walk(resolvedPathOnHost, func(dpath string, _ os.FileInfo, _ error) error {
 				childDevice, e := devices.DeviceFromPath(dpath, cgroupPermissions)
 				if e != nil {
 					// ignore the device

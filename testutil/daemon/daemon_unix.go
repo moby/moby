@@ -23,7 +23,7 @@ func cleanupNetworkNamespace(t testing.TB, d *Daemon) {
 	// cleaned up when a new daemon is instantiated with a
 	// new exec root.
 	netnsPath := filepath.Join(d.execRoot, "netns")
-	filepath.Walk(netnsPath, func(path string, info os.FileInfo, err error) error {
+	filepath.Walk(netnsPath, func(path string, _ os.FileInfo, _ error) error {
 		if err := unix.Unmount(path, unix.MNT_DETACH); err != nil && err != unix.EINVAL && err != unix.ENOENT {
 			t.Logf("[%s] unmount of %s failed: %v", d.id, path, err)
 		}

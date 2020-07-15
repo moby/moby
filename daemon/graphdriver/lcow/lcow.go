@@ -140,8 +140,8 @@ type layerDetails struct {
 
 // deletefiles is a helper function for initialisation where we delete any
 // left-over scratch files in case we were previously forcibly terminated.
-func deletefiles(path string, f os.FileInfo, err error) error {
-	if strings.HasSuffix(f.Name(), ".vhdx") {
+func deletefiles(path string, f os.FileInfo, _ error) error {
+	if f != nil && strings.HasSuffix(f.Name(), ".vhdx") {
 		logrus.Warnf("lcowdriver: init: deleting stale scratch file %s", path)
 		return os.Remove(path)
 	}

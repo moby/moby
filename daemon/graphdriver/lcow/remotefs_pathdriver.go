@@ -141,7 +141,7 @@ func (l *lcowfs) Walk(root string, walkFn filepath.WalkFunc) error {
 func (l *lcowfs) walk(path string, info os.FileInfo, walkFn filepath.WalkFunc) error {
 	err := walkFn(path, info, nil)
 	if err != nil {
-		if info.IsDir() && err == filepath.SkipDir {
+		if info != nil && info.IsDir() && err == filepath.SkipDir {
 			return nil
 		}
 		return err
