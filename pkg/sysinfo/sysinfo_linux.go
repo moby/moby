@@ -144,27 +144,17 @@ func applyCPUCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
 
 	info.CPUShares = cgroupEnabled(mountPoint, "cpu.shares")
 	if !info.CPUShares {
-		warnings = append(warnings, "Your kernel does not support cgroup cpu shares")
+		warnings = append(warnings, "Your kernel does not support CPU shares")
 	}
 
-	info.CPUCfsPeriod = cgroupEnabled(mountPoint, "cpu.cfs_period_us")
-	if !info.CPUCfsPeriod {
-		warnings = append(warnings, "Your kernel does not support cgroup cfs period")
+	info.CPUCfs = cgroupEnabled(mountPoint, "cpu.cfs_quota_us")
+	if !info.CPUCfs {
+		warnings = append(warnings, "Your kernel does not support CPU CFS scheduler")
 	}
 
-	info.CPUCfsQuota = cgroupEnabled(mountPoint, "cpu.cfs_quota_us")
-	if !info.CPUCfsQuota {
-		warnings = append(warnings, "Your kernel does not support cgroup cfs quotas")
-	}
-
-	info.CPURealtimePeriod = cgroupEnabled(mountPoint, "cpu.rt_period_us")
-	if !info.CPURealtimePeriod {
-		warnings = append(warnings, "Your kernel does not support cgroup rt period")
-	}
-
-	info.CPURealtimeRuntime = cgroupEnabled(mountPoint, "cpu.rt_runtime_us")
-	if !info.CPURealtimeRuntime {
-		warnings = append(warnings, "Your kernel does not support cgroup rt runtime")
+	info.CPURealtime = cgroupEnabled(mountPoint, "cpu.rt_period_us")
+	if !info.CPURealtime {
+		warnings = append(warnings, "Your kernel does not support CPU realtime scheduler")
 	}
 
 	return warnings

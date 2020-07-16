@@ -85,12 +85,8 @@ func validateResources(hc *container.HostConfig, si *sysinfo.SysInfo) error {
 		return nil
 	}
 
-	if hc.Resources.CPURealtimePeriod > 0 && !si.CPURealtimePeriod {
-		return fmt.Errorf("Your kernel does not support cgroup cpu real-time period")
-	}
-
-	if hc.Resources.CPURealtimeRuntime > 0 && !si.CPURealtimeRuntime {
-		return fmt.Errorf("Your kernel does not support cgroup cpu real-time runtime")
+	if (hc.Resources.CPURealtimePeriod != 0 || hc.Resources.CPURealtimeRuntime != 0) && !si.CPURealtime {
+		return fmt.Errorf("Your kernel does not support CPU real-time scheduler")
 	}
 
 	if hc.Resources.CPURealtimePeriod != 0 && hc.Resources.CPURealtimeRuntime != 0 && hc.Resources.CPURealtimeRuntime > hc.Resources.CPURealtimePeriod {
