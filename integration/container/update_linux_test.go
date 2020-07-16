@@ -53,19 +53,34 @@ func TestUpdateMemory(t *testing.T) {
 	assert.Check(t, is.Equal(setMemory, inspect.HostConfig.Memory))
 	assert.Check(t, is.Equal(setMemorySwap, inspect.HostConfig.MemorySwap))
 
+	memoryFile := "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+	if testEnv.DaemonInfo.CgroupVersion == "2" {
+		memoryFile = "/sys/fs/cgroup/memory.max"
+	}
 	res, err := container.Exec(ctx, client, cID,
-		[]string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"})
+		[]string{"cat", memoryFile})
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(res.Stderr(), 0))
 	assert.Equal(t, 0, res.ExitCode)
 	assert.Check(t, is.Equal(strconv.FormatInt(setMemory, 10), strings.TrimSpace(res.Stdout())))
 
-	res, err = container.Exec(ctx, client, cID,
-		[]string{"cat", "/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes"})
-	assert.NilError(t, err)
-	assert.Assert(t, is.Len(res.Stderr(), 0))
-	assert.Equal(t, 0, res.ExitCode)
-	assert.Check(t, is.Equal(strconv.FormatInt(setMemorySwap, 10), strings.TrimSpace(res.Stdout())))
+	// see ConvertMemorySwapToCgroupV2Value() for the convention:
+	// https://github.com/opencontainers/runc/commit/c86be8a2c118ca7bad7bbe9eaf106c659a83940d
+	if testEnv.DaemonInfo.CgroupVersion == "2" {
+		res, err = container.Exec(ctx, client, cID,
+			[]string{"cat", "/sys/fs/cgroup/memory.swap.max"})
+		assert.NilError(t, err)
+		assert.Assert(t, is.Len(res.Stderr(), 0))
+		assert.Equal(t, 0, res.ExitCode)
+		assert.Check(t, is.Equal(strconv.FormatInt(setMemorySwap-setMemory, 10), strings.TrimSpace(res.Stdout())))
+	} else {
+		res, err = container.Exec(ctx, client, cID,
+			[]string{"cat", "/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes"})
+		assert.NilError(t, err)
+		assert.Assert(t, is.Len(res.Stderr(), 0))
+		assert.Equal(t, 0, res.ExitCode)
+		assert.Check(t, is.Equal(strconv.FormatInt(setMemorySwap, 10), strings.TrimSpace(res.Stdout())))
+	}
 }
 
 func TestUpdateCPUQuota(t *testing.T) {
@@ -85,24 +100,53 @@ func TestUpdateCPUQuota(t *testing.T) {
 		{desc: "a lower value", update: 10000},
 		{desc: "unset value", update: -1},
 	} {
-		_, err := client.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
-			Resources: containertypes.Resources{
-				CPUQuota: test.update,
-			},
-		})
-		assert.NilError(t, err)
+		if testEnv.DaemonInfo.CgroupVersion == "2" {
+			// On v2, specifying CPUQuota without CPUPeriod is currently broken:
+			// https://github.com/opencontainers/runc/issues/2456
+			// As a workaround we set them together.
+			_, err := client.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
+				Resources: containertypes.Resources{
+					CPUQuota:  test.update,
+					CPUPeriod: 100000,
+				},
+			})
+			assert.NilError(t, err)
+		} else {
+			_, err := client.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
+				Resources: containertypes.Resources{
+					CPUQuota: test.update,
+				},
+			})
+			assert.NilError(t, err)
+		}
 
 		inspect, err := client.ContainerInspect(ctx, cID)
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(test.update, inspect.HostConfig.CPUQuota))
 
-		res, err := container.Exec(ctx, client, cID,
-			[]string{"/bin/cat", "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"})
-		assert.NilError(t, err)
-		assert.Assert(t, is.Len(res.Stderr(), 0))
-		assert.Equal(t, 0, res.ExitCode)
+		if testEnv.DaemonInfo.CgroupVersion == "2" {
+			res, err := container.Exec(ctx, client, cID,
+				[]string{"/bin/cat", "/sys/fs/cgroup/cpu.max"})
+			assert.NilError(t, err)
+			assert.Assert(t, is.Len(res.Stderr(), 0))
+			assert.Equal(t, 0, res.ExitCode)
 
-		assert.Check(t, is.Equal(strconv.FormatInt(test.update, 10), strings.TrimSpace(res.Stdout())))
+			quotaPeriodPair := strings.Fields(res.Stdout())
+			quota := quotaPeriodPair[0]
+			if test.update == -1 {
+				assert.Check(t, is.Equal("max", quota))
+			} else {
+				assert.Check(t, is.Equal(strconv.FormatInt(test.update, 10), quota))
+			}
+		} else {
+			res, err := container.Exec(ctx, client, cID,
+				[]string{"/bin/cat", "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"})
+			assert.NilError(t, err)
+			assert.Assert(t, is.Len(res.Stderr(), 0))
+			assert.Equal(t, 0, res.ExitCode)
+
+			assert.Check(t, is.Equal(strconv.FormatInt(test.update, 10), strings.TrimSpace(res.Stdout())))
+		}
 	}
 }
 
@@ -160,7 +204,11 @@ func TestUpdatePidsLimit(t *testing.T) {
 			ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 			defer cancel()
 
-			res, err := container.Exec(ctx, c, cID, []string{"cat", "/sys/fs/cgroup/pids/pids.max"})
+			pidsFile := "/sys/fs/cgroup/pids/pids.max"
+			if testEnv.DaemonInfo.CgroupVersion == "2" {
+				pidsFile = "/sys/fs/cgroup/pids.max"
+			}
+			res, err := container.Exec(ctx, c, cID, []string{"cat", pidsFile})
 			assert.NilError(t, err)
 			assert.Assert(t, is.Len(res.Stderr(), 0))
 
