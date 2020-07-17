@@ -99,6 +99,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 		if errdefs.IsNotFound(err) {
 			unpause = false
 			logrus.WithError(err).WithField("container", container.ID).WithField("action", "kill").Debug("container kill failed because of 'container not found' or 'no such process'")
+			go daemon.handleContainerExit(container, nil)
 		} else {
 			return errors.Wrapf(err, "Cannot kill container %s", container.ID)
 		}
