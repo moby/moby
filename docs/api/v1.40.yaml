@@ -7712,8 +7712,6 @@ paths:
                 type: "string"
               KernelVersion:
                 type: "string"
-              Experimental:
-                type: "boolean"
               BuildTime:
                 type: "string"
           examples:
@@ -7727,7 +7725,6 @@ paths:
               ApiVersion: "1.27"
               MinAPIVersion: "1.12"
               BuildTime: "2016-06-14T07:09:13.444803460+00:00"
-              Experimental: true
         500:
           description: "server error"
           schema:
