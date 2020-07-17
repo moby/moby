@@ -5,6 +5,7 @@ import (
 	"io"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // WriteV1TarsumHeaders writes a tar header to a writer in V1 tarsum format.
@@ -38,7 +39,9 @@ func v1TarHeaderSelect(h *tar.Header) (orderedHeaders [][2]string) {
 	// Get extended attributes.
 	xAttrKeys := make([]string, len(h.Xattrs))
 	for k := range h.Xattrs {
-		xAttrKeys = append(xAttrKeys, k)
+		if k == "security.capability" || !strings.HasPrefix(k, "security.") && !strings.HasPrefix(k, "system.") {
+			xAttrKeys = append(xAttrKeys, k)
+		}
 	}
 	sort.Strings(xAttrKeys)
 
