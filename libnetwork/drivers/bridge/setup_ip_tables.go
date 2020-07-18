@@ -162,7 +162,7 @@ func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInt
 		return err
 	}
 
-	if !driverConfig.EnableIPv6 || i.bridgeIPv6 == nil {
+	if !driverConfig.EnableIP6Tables || i.bridgeIPv6 == nil {
 		return nil
 	}
 

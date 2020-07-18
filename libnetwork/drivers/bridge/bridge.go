@@ -57,8 +57,8 @@ type iptablesCleanFuncs []iptableCleanFunc
 type configuration struct {
 	EnableIPForwarding  bool
 	EnableIPTables      bool
+	EnableIP6Tables     bool
 	EnableUserlandProxy bool
-	EnableIPv6          bool
 	UserlandProxyPath   string
 }
 
@@ -376,7 +376,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 		}
 
 		removeIPChains(iptables.IPv4)
-		if config.EnableIPv6 {
+		if config.EnableIP6Tables {
 			removeIPChains(iptables.IPv6)
 		}
 
@@ -384,7 +384,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 		if err != nil {
 			return err
 		}
-		if config.EnableIPv6 {
+		if config.EnableIP6Tables {
 			natChainV6, filterChainV6, isolationChain1V6, isolationChain2V6, err = setupIPChains(config, iptables.IPv6)
 			if err != nil {
 				return err
@@ -408,7 +408,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 			logrus.Warn(err)
 			return err
 		}
-		if config.EnableIPv6 {
+		if config.EnableIP6Tables {
 			iptable := iptables.GetIptable(iptables.IPv6)
 			if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
 				logrus.Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
