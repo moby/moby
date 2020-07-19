@@ -21,7 +21,7 @@ func configureIPForwarding(enable bool) error {
 	return ioutil.WriteFile(ipv4ForwardConf, []byte{val, '\n'}, ipv4ForwardConfPerm)
 }
 
-func setupIPForwarding(enableIPTables bool) error {
+func setupIPForwarding(enableIPTables bool, enableIP6Tables bool) error {
 	// Get current IPv4 forward setup
 	ipv4ForwardData, err := ioutil.ReadFile(ipv4ForwardConf)
 	if err != nil {
@@ -53,5 +53,14 @@ func setupIPForwarding(enableIPTables bool) error {
 			}
 		})
 	}
+
+	// add only iptables rules - forwarding is handled by setupIPv6Forwarding in setup_ipv6
+	if enableIP6Tables {
+		iptable := iptables.GetIptable(iptables.IPv6)
+		if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
+			logrus.Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
+		}
+	}
+
 	return nil
 }

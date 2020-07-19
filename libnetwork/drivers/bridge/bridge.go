@@ -396,23 +396,19 @@ func (d *driver) configure(option map[string]interface{}) error {
 			logrus.Debugf("Recreating iptables chains on firewall reload")
 			setupIPChains(config, iptables.IPv4)
 		})
-		iptables.OnReloaded(func() {
-			logrus.Debugf("Recreating ip6tables chains on firewall reload")
-			setupIPChains(config, iptables.IPv6)
-		})
+		if config.EnableIP6Tables {
+			iptables.OnReloaded(func() {
+				logrus.Debugf("Recreating ip6tables chains on firewall reload")
+				setupIPChains(config, iptables.IPv6)
+			})
+		}
 	}
 
 	if config.EnableIPForwarding {
-		err = setupIPForwarding(config.EnableIPTables)
+		err = setupIPForwarding(config.EnableIPTables, config.EnableIP6Tables)
 		if err != nil {
 			logrus.Warn(err)
 			return err
-		}
-		if config.EnableIP6Tables {
-			iptable := iptables.GetIptable(iptables.IPv6)
-			if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
-				logrus.Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
-			}
 		}
 	}
 
