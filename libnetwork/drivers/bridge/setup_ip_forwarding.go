@@ -60,6 +60,12 @@ func setupIPForwarding(enableIPTables bool, enableIP6Tables bool) error {
 		if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
 			logrus.Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
 		}
+		iptables.OnReloaded(func() {
+			logrus.Debug("Setting the default DROP policy on firewall reload")
+			if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
+				logrus.Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
+			}
+		})
 	}
 
 	return nil
