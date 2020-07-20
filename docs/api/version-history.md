@@ -17,7 +17,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.41](https://docs.docker.com/engine/api/v1.41/) documentation
 
-* `GET /info` now returns an `CgroupVersion` field, containing the cgroup version.
+* `GET /info` now returns a `CgroupVersion` field, containing the cgroup version.
+* `GET /info` now returns a `DefaultAddressPools` field, containing a list of
+  custom default address pools for local networks, which can be specified in the
+  `daemon.json` file or `--default-address-pool` dockerd option.
 * `POST /services/create` and `POST /services/{id}/update` now supports `BindOptions.NonRecursive`.
 * The `ClusterStore` and `ClusterAdvertise` fields in `GET /info` are deprecated
   and are now omitted if they contain an empty value. This change is not versioned,
