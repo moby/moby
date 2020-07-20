@@ -14,7 +14,7 @@ import (
 func loadXattr(origpath string, stat *types.Stat) error {
 	xattrs, err := sysx.LListxattr(origpath)
 	if err != nil {
-		if errors.Cause(err) == syscall.ENOTSUP {
+		if errors.Is(err, syscall.ENOTSUP) {
 			return nil
 		}
 		return errors.Wrapf(err, "failed to xattr %s", origpath)

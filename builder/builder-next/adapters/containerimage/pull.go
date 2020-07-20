@@ -56,15 +56,16 @@ type SourceOpt struct {
 	LayerStore      layer.Store
 }
 
-type imageSource struct {
+// Source is the source implementation for accessing container images
+type Source struct {
 	SourceOpt
 	g             flightcontrol.Group
 	resolverCache *resolverCache
 }
 
 // NewSource creates a new image source
-func NewSource(opt SourceOpt) (source.Source, error) {
-	is := &imageSource{
+func NewSource(opt SourceOpt) (*Source, error) {
+	is := &Source{
 		SourceOpt:     opt,
 		resolverCache: newResolverCache(),
 	}
@@ -72,20 +73,22 @@ func NewSource(opt SourceOpt) (source.Source, error) {
 	return is, nil
 }
 
-func (is *imageSource) ID() string {
+// ID returns image scheme identifier
+func (is *Source) ID() string {
 	return source.DockerImageScheme
 }
 
-func (is *imageSource) getResolver(ctx context.Context, hosts docker.RegistryHosts, ref string, sm *session.Manager) remotes.Resolver {
-	if res := is.resolverCache.Get(ctx, ref); res != nil {
+func (is *Source) getResolver(hosts docker.RegistryHosts, ref string, sm *session.Manager, g session.Group) remotes.Resolver {
+	if res := is.resolverCache.Get(ref, g); res != nil {
 		return res
 	}
-	r := resolver.New(ctx, hosts, sm)
-	r = is.resolverCache.Add(ctx, ref, r)
+	auth := resolver.NewSessionAuthenticator(sm, g)
+	r := resolver.New(hosts, auth)
+	r = is.resolverCache.Add(ref, auth, r, g)
 	return r
 }
 
-func (is *imageSource) resolveLocal(refStr string) (*image.Image, error) {
+func (is *Source) resolveLocal(refStr string) (*image.Image, error) {
 	ref, err := distreference.ParseNormalizedNamed(refStr)
 	if err != nil {
 		return nil, err
@@ -101,13 +104,13 @@ func (is *imageSource) resolveLocal(refStr string) (*image.Image, error) {
 	return img, nil
 }
 
-func (is *imageSource) resolveRemote(ctx context.Context, ref string, platform *ocispec.Platform, sm *session.Manager) (digest.Digest, []byte, error) {
+func (is *Source) resolveRemote(ctx context.Context, ref string, platform *ocispec.Platform, sm *session.Manager, g session.Group) (digest.Digest, []byte, error) {
 	type t struct {
 		dgst digest.Digest
 		dt   []byte
 	}
 	res, err := is.g.Do(ctx, ref, func(ctx context.Context) (interface{}, error) {
-		dgst, dt, err := imageutil.Config(ctx, ref, is.getResolver(ctx, is.RegistryHosts, ref, sm), is.ContentStore, nil, platform)
+		dgst, dt, err := imageutil.Config(ctx, ref, is.getResolver(is.RegistryHosts, ref, sm, g), is.ContentStore, nil, platform)
 		if err != nil {
 			return nil, err
 		}
@@ -121,14 +124,15 @@ func (is *imageSource) resolveRemote(ctx context.Context, ref string, platform *
 	return typed.dgst, typed.dt, nil
 }
 
-func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager) (digest.Digest, []byte, error) {
+// ResolveImageConfig returns image config for an image
+func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager, g session.Group) (digest.Digest, []byte, error) {
 	resolveMode, err := source.ParseImageResolveMode(opt.ResolveMode)
 	if err != nil {
 		return "", nil, err
 	}
 	switch resolveMode {
 	case source.ResolveModeForcePull:
-		dgst, dt, err := is.resolveRemote(ctx, ref, opt.Platform, sm)
+		dgst, dt, err := is.resolveRemote(ctx, ref, opt.Platform, sm, g)
 		// TODO: pull should fallback to local in case of failure to allow offline behavior
 		// the fallback doesn't work currently
 		return dgst, dt, err
@@ -157,13 +161,14 @@ func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string, opt l
 			}
 		}
 		// fallback to remote
-		return is.resolveRemote(ctx, ref, opt.Platform, sm)
+		return is.resolveRemote(ctx, ref, opt.Platform, sm, g)
 	}
 	// should never happen
 	return "", nil, fmt.Errorf("builder cannot resolve image %s: invalid mode %q", ref, opt.ResolveMode)
 }
 
-func (is *imageSource) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager) (source.SourceInstance, error) {
+// Resolve returns access to pulling for an identifier
+func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager) (source.SourceInstance, error) {
 	imageIdentifier, ok := id.(*source.ImageIdentifier)
 	if !ok {
 		return nil, errors.Errorf("invalid image identifier %v", id)
@@ -175,9 +180,9 @@ func (is *imageSource) Resolve(ctx context.Context, id source.Identifier, sm *se
 	}
 
 	p := &puller{
-		src:      imageIdentifier,
-		is:       is,
-		resolver: is.getResolver(ctx, is.RegistryHosts, imageIdentifier.Reference.String(), sm),
+		src: imageIdentifier,
+		is:  is,
+		//resolver: is.getResolver(is.RegistryHosts, imageIdentifier.Reference.String(), sm, g),
 		platform: platform,
 		sm:       sm,
 	}
@@ -185,17 +190,27 @@ func (is *imageSource) Resolve(ctx context.Context, id source.Identifier, sm *se
 }
 
 type puller struct {
-	is               *imageSource
+	is               *Source
 	resolveOnce      sync.Once
 	resolveLocalOnce sync.Once
 	src              *source.ImageIdentifier
 	desc             ocispec.Descriptor
 	ref              string
 	resolveErr       error
-	resolver         remotes.Resolver
+	resolverInstance remotes.Resolver
+	resolverOnce     sync.Once
 	config           []byte
 	platform         ocispec.Platform
 	sm               *session.Manager
+}
+
+func (p *puller) resolver(g session.Group) remotes.Resolver {
+	p.resolverOnce.Do(func() {
+		if p.resolverInstance == nil {
+			p.resolverInstance = p.is.getResolver(p.is.RegistryHosts, p.src.Reference.String(), p.sm, g)
+		}
+	})
+	return p.resolverInstance
 }
 
 func (p *puller) mainManifestKey(dgst digest.Digest, platform ocispec.Platform) (digest.Digest, error) {
@@ -255,7 +270,7 @@ func (p *puller) resolveLocal() {
 	})
 }
 
-func (p *puller) resolve(ctx context.Context) error {
+func (p *puller) resolve(ctx context.Context, g session.Group) error {
 	p.resolveOnce.Do(func() {
 		resolveProgressDone := oneOffProgress(ctx, "resolve "+p.src.Reference.String())
 
@@ -267,7 +282,7 @@ func (p *puller) resolve(ctx context.Context) error {
 		}
 
 		if p.desc.Digest == "" && p.config == nil {
-			origRef, desc, err := p.resolver.Resolve(ctx, ref.String())
+			origRef, desc, err := p.resolver(g).Resolve(ctx, ref.String())
 			if err != nil {
 				p.resolveErr = err
 				_ = resolveProgressDone(err)
@@ -290,7 +305,7 @@ func (p *puller) resolve(ctx context.Context) error {
 				_ = resolveProgressDone(err)
 				return
 			}
-			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), llb.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: resolveModeToString(p.src.ResolveMode)}, p.sm)
+			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), llb.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: resolveModeToString(p.src.ResolveMode)}, p.sm, g)
 			if err != nil {
 				p.resolveErr = err
 				_ = resolveProgressDone(err)
@@ -304,7 +319,7 @@ func (p *puller) resolve(ctx context.Context) error {
 	return p.resolveErr
 }
 
-func (p *puller) CacheKey(ctx context.Context, index int) (string, bool, error) {
+func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (string, bool, error) {
 	p.resolveLocal()
 
 	if p.desc.Digest != "" && index == 0 {
@@ -323,7 +338,7 @@ func (p *puller) CacheKey(ctx context.Context, index int) (string, bool, error) 
 		return k, true, nil
 	}
 
-	if err := p.resolve(ctx); err != nil {
+	if err := p.resolve(ctx, g); err != nil {
 		return "", false, err
 	}
 
@@ -364,9 +379,9 @@ func (p *puller) getRef(ctx context.Context, diffIDs []layer.DiffID, opts ...cac
 	}, parent, opts...)
 }
 
-func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
+func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.ImmutableRef, error) {
 	p.resolveLocal()
-	if err := p.resolve(ctx); err != nil {
+	if err := p.resolve(ctx, g); err != nil {
 		return nil, err
 	}
 
@@ -404,7 +419,7 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 		<-progressDone
 	}()
 
-	fetcher, err := p.resolver.Fetcher(ctx, p.ref)
+	fetcher, err := p.resolver(g).Fetcher(ctx, p.ref)
 	if err != nil {
 		stopProgress()
 		return nil, err
@@ -414,7 +429,7 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 	// workaround for GCR bug that requires a request to manifest endpoint for authentication to work.
 	// if current resolver has not used manifests do a dummy request.
 	// in most cases resolver should be cached and extra request is not needed.
-	ensureManifestRequested(ctx, p.resolver, p.ref)
+	ensureManifestRequested(ctx, p.resolver(g), p.ref)
 
 	var (
 		schema1Converter *schema1.Converter
@@ -578,7 +593,7 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 
 // Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error)
 type layerDescriptor struct {
-	is      *imageSource
+	is      *Source
 	fetcher remotes.Fetcher
 	desc    ocispec.Descriptor
 	diffID  layer.DiffID
@@ -839,6 +854,7 @@ type cachedResolver struct {
 	counter int64 // needs to be 64bit aligned for 32bit systems
 	timeout time.Time
 	remotes.Resolver
+	auth *resolver.SessionAuthenticator
 }
 
 func (cr *cachedResolver) Resolve(ctx context.Context, ref string) (name string, desc ocispec.Descriptor, err error) {
@@ -846,19 +862,21 @@ func (cr *cachedResolver) Resolve(ctx context.Context, ref string) (name string,
 	return cr.Resolver.Resolve(ctx, ref)
 }
 
-func (r *resolverCache) Add(ctx context.Context, ref string, resolver remotes.Resolver) remotes.Resolver {
+func (r *resolverCache) Add(ref string, auth *resolver.SessionAuthenticator, resolver remotes.Resolver, g session.Group) *cachedResolver {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	ref = r.repo(ref) + "-" + session.FromContext(ctx)
+	ref = r.repo(ref)
 
 	cr, ok := r.m[ref]
 	cr.timeout = time.Now().Add(time.Minute)
 	if ok {
+		cr.auth.AddSession(g)
 		return &cr
 	}
 
 	cr.Resolver = resolver
+	cr.auth = auth
 	r.m[ref] = cr
 	return &cr
 }
@@ -871,17 +889,18 @@ func (r *resolverCache) repo(refStr string) string {
 	return ref.Name()
 }
 
-func (r *resolverCache) Get(ctx context.Context, ref string) remotes.Resolver {
+func (r *resolverCache) Get(ref string, g session.Group) *cachedResolver {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	ref = r.repo(ref) + "-" + session.FromContext(ctx)
+	ref = r.repo(ref)
 
 	cr, ok := r.m[ref]
-	if !ok {
-		return nil
+	if ok {
+		cr.auth.AddSession(g)
+		return &cr
 	}
-	return &cr
+	return nil
 }
 
 func (r *resolverCache) clean(now time.Time) {

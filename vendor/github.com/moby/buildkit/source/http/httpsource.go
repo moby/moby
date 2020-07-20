@@ -64,7 +64,7 @@ type httpSourceHandler struct {
 	src      source.HttpIdentifier
 	refID    string
 	cacheKey digest.Digest
-	client   *http.Client
+	sm       *session.Manager
 }
 
 func (hs *httpSource) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager) (source.SourceInstance, error) {
@@ -73,13 +73,15 @@ func (hs *httpSource) Resolve(ctx context.Context, id source.Identifier, sm *ses
 		return nil, errors.Errorf("invalid http identifier %v", id)
 	}
 
-	sessionID := session.FromContext(ctx)
-
 	return &httpSourceHandler{
 		src:        *httpIdentifier,
 		httpSource: hs,
-		client:     &http.Client{Transport: newTransport(hs.transport, sm, sessionID)},
+		sm:         sm,
 	}, nil
+}
+
+func (hs *httpSourceHandler) client(g session.Group) *http.Client {
+	return &http.Client{Transport: newTransport(hs.transport, hs.sm, g)}
 }
 
 // urlHash is internal hash the etag is stored by that doesn't leak outside
@@ -120,7 +122,7 @@ func (hs *httpSourceHandler) formatCacheKey(filename string, dgst digest.Digest,
 	return digest.FromBytes(dt)
 }
 
-func (hs *httpSourceHandler) CacheKey(ctx context.Context, index int) (string, bool, error) {
+func (hs *httpSourceHandler) CacheKey(ctx context.Context, g session.Group, index int) (string, bool, error) {
 	if hs.src.Checksum != "" {
 		hs.cacheKey = hs.src.Checksum
 		return hs.formatCacheKey(getFileName(hs.src.URL, hs.src.Filename, nil), hs.src.Checksum, "").String(), true, nil
@@ -172,12 +174,14 @@ func (hs *httpSourceHandler) CacheKey(ctx context.Context, index int) (string, b
 		}
 	}
 
+	client := hs.client(g)
+
 	// Some servers seem to have trouble supporting If-None-Match properly even
 	// though they return ETag-s. So first, optionally try a HEAD request with
 	// manual ETag value comparison.
 	if len(m) > 0 {
 		req.Method = "HEAD"
-		resp, err := hs.client.Do(req)
+		resp, err := client.Do(req)
 		if err == nil {
 			if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotModified {
 				respETag := resp.Header.Get("ETag")
@@ -203,7 +207,7 @@ func (hs *httpSourceHandler) CacheKey(ctx context.Context, index int) (string, b
 		req.Method = "GET"
 	}
 
-	resp, err := hs.client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", false, err
 	}
@@ -366,7 +370,7 @@ func (hs *httpSourceHandler) save(ctx context.Context, resp *http.Response) (ref
 	return ref, dgst, nil
 }
 
-func (hs *httpSourceHandler) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
+func (hs *httpSourceHandler) Snapshot(ctx context.Context, g session.Group) (cache.ImmutableRef, error) {
 	if hs.refID != "" {
 		ref, err := hs.cache.Get(ctx, hs.refID)
 		if err == nil {
@@ -380,7 +384,9 @@ func (hs *httpSourceHandler) Snapshot(ctx context.Context) (cache.ImmutableRef, 
 	}
 	req = req.WithContext(ctx)
 
-	resp, err := hs.client.Do(req)
+	client := hs.client(g)
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}

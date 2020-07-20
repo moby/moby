@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
+	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/util/imageutil"
 	"github.com/moby/buildkit/worker"
@@ -21,7 +22,7 @@ import (
 )
 
 // ResolveCacheImporterFunc returns importer and descriptor.
-type ResolveCacheImporterFunc func(ctx context.Context, attrs map[string]string) (Importer, ocispec.Descriptor, error)
+type ResolveCacheImporterFunc func(ctx context.Context, g session.Group, attrs map[string]string) (Importer, ocispec.Descriptor, error)
 
 type Importer interface {
 	Resolve(ctx context.Context, desc ocispec.Descriptor, id string, w worker.Worker) (solver.CacheManager, error)

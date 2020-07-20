@@ -12,7 +12,7 @@ import (
 )
 
 func (j *Job) Status(ctx context.Context, ch chan *client.SolveStatus) error {
-	vs := &vertexStream{cache: map[digest.Digest]*client.Vertex{}}
+	vs := &vertexStream{cache: map[digest.Digest]*client.Vertex{}, wasCached: make(map[digest.Digest]struct{})}
 	pr := j.pr.Reader(ctx)
 	defer func() {
 		if enc := vs.encore(); len(enc) > 0 {
@@ -72,7 +72,8 @@ func (j *Job) Status(ctx context.Context, ch chan *client.SolveStatus) error {
 }
 
 type vertexStream struct {
-	cache map[digest.Digest]*client.Vertex
+	cache     map[digest.Digest]*client.Vertex
+	wasCached map[digest.Digest]struct{}
 }
 
 func (vs *vertexStream) append(v client.Vertex) []*client.Vertex {
@@ -91,8 +92,23 @@ func (vs *vertexStream) append(v client.Vertex) []*client.Vertex {
 			}
 		}
 	}
+	if v.Cached {
+		vs.markCached(v.Digest)
+	}
+
 	vcopy := v
 	return append(out, &vcopy)
+}
+
+func (vs *vertexStream) markCached(dgst digest.Digest) {
+	if v, ok := vs.cache[dgst]; ok {
+		if _, ok := vs.wasCached[dgst]; !ok {
+			for _, inp := range v.Inputs {
+				vs.markCached(inp)
+			}
+		}
+		vs.wasCached[dgst] = struct{}{}
+	}
 }
 
 func (vs *vertexStream) encore() []*client.Vertex {
@@ -101,7 +117,9 @@ func (vs *vertexStream) encore() []*client.Vertex {
 		if v.Started != nil && v.Completed == nil {
 			now := time.Now()
 			v.Completed = &now
-			v.Error = context.Canceled.Error()
+			if _, ok := vs.wasCached[v.Digest]; !ok && v.Error == "" {
+				v.Error = context.Canceled.Error()
+			}
 			out = append(out, v)
 		}
 	}

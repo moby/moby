@@ -128,13 +128,17 @@ func (c *item) LinkFrom(rec solver.CacheExporterRecord, index int, selector stri
 	c.links[index][link{src: src, selector: selector}] = struct{}{}
 }
 
-func (c *item) walkAllResults(fn func(i *item) error) error {
+func (c *item) walkAllResults(fn func(i *item) error, visited map[*item]struct{}) error {
+	if _, ok := visited[c]; ok {
+		return nil
+	}
+	visited[c] = struct{}{}
 	if err := fn(c); err != nil {
 		return err
 	}
 	for _, links := range c.links {
 		for l := range links {
-			if err := l.src.walkAllResults(fn); err != nil {
+			if err := l.src.walkAllResults(fn, visited); err != nil {
 				return err
 			}
 		}

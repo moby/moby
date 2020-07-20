@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/moby/buildkit/util/network"
 	rootlessspecconv "github.com/moby/buildkit/util/rootless/specconv"
 	"github.com/moby/buildkit/util/stack"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -59,6 +61,8 @@ type runcExecutor struct {
 	noPivot          bool
 	dns              *oci.DNSConfig
 	oomScoreAdj      *int
+	running          map[string]chan error
+	mu               sync.Mutex
 }
 
 func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Executor, error) {
@@ -119,11 +123,32 @@ func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Ex
 		noPivot:          opt.NoPivot,
 		dns:              opt.DNS,
 		oomScoreAdj:      opt.OOMScoreAdj,
+		running:          make(map[string]chan error),
 	}
 	return w, nil
 }
 
-func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.Mountable, mounts []executor.Mount, stdin io.ReadCloser, stdout, stderr io.WriteCloser) error {
+func (w *runcExecutor) Run(ctx context.Context, id string, root cache.Mountable, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (err error) {
+	meta := process.Meta
+
+	startedOnce := sync.Once{}
+	done := make(chan error, 1)
+	w.mu.Lock()
+	w.running[id] = done
+	w.mu.Unlock()
+	defer func() {
+		w.mu.Lock()
+		delete(w.running, id)
+		w.mu.Unlock()
+		done <- err
+		close(done)
+		if started != nil {
+			startedOnce.Do(func() {
+				close(started)
+			})
+		}
+	}()
+
 	provider, ok := w.networkProviders[meta.NetMode]
 	if !ok {
 		return errors.Errorf("unknown network mode %s", meta.NetMode)
@@ -164,7 +189,9 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 		defer release()
 	}
 
-	id := identity.NewID()
+	if id == "" {
+		id = identity.NewID()
+	}
 	bundle := filepath.Join(w.root, id)
 
 	if err := os.Mkdir(bundle, 0711); err != nil {
@@ -245,6 +272,7 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 		}
 	}
 
+	spec.Process.Terminal = meta.Tty
 	spec.Process.OOMScoreAdj = w.oomScoreAdj
 	if w.rootless {
 		if err := rootlessspecconv.ToRootless(spec); err != nil {
@@ -260,7 +288,7 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 	runCtx, cancelRun := context.WithCancel(context.Background())
 	defer cancelRun()
 
-	done := make(chan struct{})
+	ended := make(chan struct{})
 	go func() {
 		for {
 			select {
@@ -279,21 +307,27 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 				timeout()
 				select {
 				case <-time.After(50 * time.Millisecond):
-				case <-done:
+				case <-ended:
 					return
 				}
-			case <-done:
+			case <-ended:
 				return
 			}
 		}
 	}()
 
 	logrus.Debugf("> creating %s %v", id, meta.Args)
+	// this is a cheat, we have not actually started, but as close as we can get with runc for now
+	if started != nil {
+		startedOnce.Do(func() {
+			close(started)
+		})
+	}
 	status, err := w.runc.Run(runCtx, id, bundle, &runc.CreateOpts{
-		IO:      &forwardIO{stdin: stdin, stdout: stdout, stderr: stderr},
+		IO:      &forwardIO{stdin: process.Stdin, stdout: process.Stdout, stderr: process.Stderr},
 		NoPivot: w.noPivot,
 	})
-	close(done)
+	close(ended)
 
 	if status != 0 || err != nil {
 		if err == nil {
@@ -308,6 +342,74 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 	}
 
 	return nil
+}
+
+func (w *runcExecutor) Exec(ctx context.Context, id string, process executor.ProcessInfo) error {
+	// first verify the container is running, if we get an error assume the container
+	// is in the process of being created and check again every 100ms or until
+	// context is canceled.
+	var state *runc.Container
+	for {
+		w.mu.Lock()
+		done, ok := w.running[id]
+		w.mu.Unlock()
+		if !ok {
+			return errors.Errorf("container %s not found", id)
+		}
+
+		state, _ = w.runc.State(ctx, id)
+		if state != nil && state.Status == "running" {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case err, ok := <-done:
+			if !ok || err == nil {
+				return errors.Errorf("container %s has stopped", id)
+			}
+			return errors.Wrapf(err, "container %s has exited with error", id)
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+
+	// load default process spec (for Env, Cwd etc) from bundle
+	f, err := os.Open(filepath.Join(state.Bundle, "config.json"))
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	defer f.Close()
+
+	spec := &specs.Spec{}
+	if err := json.NewDecoder(f).Decode(spec); err != nil {
+		return err
+	}
+
+	if process.Meta.User != "" {
+		uid, gid, sgids, err := oci.GetUser(ctx, state.Rootfs, process.Meta.User)
+		if err != nil {
+			return err
+		}
+		spec.Process.User = specs.User{
+			UID:            uid,
+			GID:            gid,
+			AdditionalGids: sgids,
+		}
+	}
+
+	spec.Process.Terminal = process.Meta.Tty
+	spec.Process.Args = process.Meta.Args
+	if process.Meta.Cwd != "" {
+		spec.Process.Cwd = process.Meta.Cwd
+	}
+
+	if len(process.Meta.Env) > 0 {
+		spec.Process.Env = process.Meta.Env
+	}
+
+	return w.runc.Exec(ctx, id, *spec.Process, &runc.ExecOpts{
+		IO: &forwardIO{stdin: process.Stdin, stdout: process.Stdout, stderr: process.Stderr},
+	})
 }
 
 type forwardIO struct {

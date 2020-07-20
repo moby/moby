@@ -23,7 +23,7 @@ type ResolveOpFunc func(Vertex, Builder) (Op, error)
 
 type Builder interface {
 	Build(ctx context.Context, e Edge) (CachedResult, error)
-	Context(ctx context.Context) context.Context
+	InContext(ctx context.Context, f func(ctx context.Context, g session.Group) error) error
 	EachValue(ctx context.Context, key string, fn func(interface{}) error) error
 }
 
@@ -67,32 +67,69 @@ type state struct {
 	solver    *Solver
 }
 
-func (s *state) getSessionID() string {
-	// TODO: connect with sessionmanager to avoid getting dropped sessions
-	s.mu.Lock()
-	for j := range s.jobs {
-		if j.SessionID != "" {
-			s.mu.Unlock()
-			return j.SessionID
-		}
-	}
-	parents := map[digest.Digest]struct{}{}
-	for p := range s.parents {
-		parents[p] = struct{}{}
-	}
-	s.mu.Unlock()
+func (s *state) SessionIterator() session.Iterator {
+	return s.sessionIterator()
+}
 
-	for p := range parents {
-		s.solver.mu.Lock()
-		pst, ok := s.solver.actives[p]
-		s.solver.mu.Unlock()
-		if ok {
-			if sessionID := pst.getSessionID(); sessionID != "" {
-				return sessionID
+func (s *state) sessionIterator() *sessionGroup {
+	return &sessionGroup{state: s, visited: map[string]struct{}{}}
+}
+
+type sessionGroup struct {
+	*state
+	visited map[string]struct{}
+	parents []session.Iterator
+	mode    int
+}
+
+func (g *sessionGroup) NextSession() string {
+	if g.mode == 0 {
+		g.mu.Lock()
+		for j := range g.jobs {
+			if j.SessionID != "" {
+				if _, ok := g.visited[j.SessionID]; ok {
+					continue
+				}
+				g.visited[j.SessionID] = struct{}{}
+				g.mu.Unlock()
+				return j.SessionID
 			}
 		}
+		g.mu.Unlock()
+		g.mode = 1
 	}
-	return ""
+	if g.mode == 1 {
+		parents := map[digest.Digest]struct{}{}
+		g.mu.Lock()
+		for p := range g.state.parents {
+			parents[p] = struct{}{}
+		}
+		g.mu.Unlock()
+
+		for p := range parents {
+			g.solver.mu.Lock()
+			pst, ok := g.solver.actives[p]
+			g.solver.mu.Unlock()
+			if ok {
+				gg := pst.sessionIterator()
+				gg.visited = g.visited
+				g.parents = append(g.parents, gg)
+			}
+		}
+		g.mode = 2
+	}
+
+	for {
+		if len(g.parents) == 0 {
+			return ""
+		}
+		p := g.parents[0]
+		id := p.NextSession()
+		if id != "" {
+			return id
+		}
+		g.parents = g.parents[1:]
+	}
 }
 
 func (s *state) builder() *subBuilder {
@@ -172,9 +209,8 @@ func (sb *subBuilder) Build(ctx context.Context, e Edge) (CachedResult, error) {
 	return res, nil
 }
 
-func (sb *subBuilder) Context(ctx context.Context) context.Context {
-	ctx = session.NewContext(ctx, sb.state.getSessionID())
-	return opentracing.ContextWithSpan(progress.WithProgress(ctx, sb.mpw), sb.mspan)
+func (sb *subBuilder) InContext(ctx context.Context, f func(context.Context, session.Group) error) error {
+	return f(opentracing.ContextWithSpan(progress.WithProgress(ctx, sb.mpw), sb.mspan), sb.state)
 }
 
 func (sb *subBuilder) EachValue(ctx context.Context, key string, fn func(interface{}) error) error {
@@ -480,9 +516,8 @@ func (j *Job) Discard() error {
 	return nil
 }
 
-func (j *Job) Context(ctx context.Context) context.Context {
-	ctx = session.NewContext(ctx, j.SessionID)
-	return progress.WithProgress(ctx, j.pw)
+func (j *Job) InContext(ctx context.Context, f func(context.Context, session.Group) error) error {
+	return f(progress.WithProgress(ctx, j.pw), session.NewGroup(j.SessionID))
 }
 
 func (j *Job) SetValue(key string, v interface{}) {
@@ -631,7 +666,6 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp,
 			return nil, s.cacheErr
 		}
 		ctx = opentracing.ContextWithSpan(progress.WithProgress(ctx, s.st.mpw), s.st.mspan)
-		ctx = session.NewContext(ctx, s.st.getSessionID())
 		if len(s.st.vtx.Inputs()) == 0 {
 			// no cache hit. start evaluating the node
 			span, ctx := tracing.StartSpan(ctx, "cache request: "+s.st.vtx.Name())
@@ -641,7 +675,7 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp,
 				notifyCompleted(ctx, &s.st.clientVertex, retErr, false)
 			}()
 		}
-		res, done, err := op.CacheMap(ctx, len(s.cacheRes))
+		res, done, err := op.CacheMap(ctx, s.st, len(s.cacheRes))
 		complete := true
 		if err != nil {
 			select {
@@ -687,7 +721,6 @@ func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result,
 		}
 
 		ctx = opentracing.ContextWithSpan(progress.WithProgress(ctx, s.st.mpw), s.st.mspan)
-		ctx = session.NewContext(ctx, s.st.getSessionID())
 
 		// no cache hit. start evaluating the node
 		span, ctx := tracing.StartSpan(ctx, s.st.vtx.Name())
@@ -697,7 +730,7 @@ func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result,
 			notifyCompleted(ctx, &s.st.clientVertex, retErr, false)
 		}()
 
-		res, err := op.Exec(ctx, inputs)
+		res, err := op.Exec(ctx, s.st, inputs)
 		complete := true
 		if err != nil {
 			select {

@@ -6,13 +6,14 @@ import (
 
 	"github.com/moby/buildkit/cache/remotecache"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
+	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 )
 
 func ResolveCacheExporterFunc() remotecache.ResolveCacheExporterFunc {
-	return func(ctx context.Context, _ map[string]string) (remotecache.Exporter, error) {
+	return func(ctx context.Context, _ session.Group, _ map[string]string) (remotecache.Exporter, error) {
 		return NewExporter(), nil
 	}
 }
@@ -72,7 +73,7 @@ func (ce *exporter) ExportForLayers(layers []digest.Digest) ([]byte, error) {
 		return nil, nil
 	}
 
-	cache := map[digest.Digest]int{}
+	cache := map[int]int{}
 
 	// reorder layers based on the order in the image
 	for i, r := range cfg.Records {
@@ -93,14 +94,14 @@ func (ce *exporter) ExportForLayers(layers []digest.Digest) ([]byte, error) {
 	return dt, nil
 }
 
-func getSortedLayerIndex(idx int, layers []v1.CacheLayer, cache map[digest.Digest]int) int {
+func getSortedLayerIndex(idx int, layers []v1.CacheLayer, cache map[int]int) int {
 	if idx == -1 {
 		return -1
 	}
 	l := layers[idx]
-	if i, ok := cache[l.Blob]; ok {
+	if i, ok := cache[idx]; ok {
 		return i
 	}
-	cache[l.Blob] = getSortedLayerIndex(l.ParentIndex, layers, cache) + 1
-	return cache[l.Blob]
+	cache[idx] = getSortedLayerIndex(l.ParentIndex, layers, cache) + 1
+	return cache[idx]
 }
