@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strings"
 
 	"github.com/docker/libnetwork/types"
 	"github.com/ishidawataru/sctp"
@@ -151,7 +150,7 @@ func (n *bridgeNetwork) releasePort(bnd types.PortBinding) error {
 
 	portmapper := n.portMapper
 
-	if strings.ContainsAny(host.String(), "]") == true {
+	if bnd.HostIP.To4() == nil {
 		portmapper = n.portMapperV6
 	}
 

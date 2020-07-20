@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strings"
 
 	"github.com/docker/libnetwork/iptables"
 	"github.com/sirupsen/logrus"
@@ -226,7 +225,7 @@ type iptRule struct {
 	args    []string
 }
 
-func setupIPTablesInternal(hostIP net.IP, bridgeIface string, addr net.Addr, icc, ipmasq, hairpin, enable bool) error {
+func setupIPTablesInternal(hostIP net.IP, bridgeIface string, addr *net.IPNet, icc, ipmasq, hairpin, enable bool) error {
 
 	var (
 		address   = addr.String()
@@ -251,7 +250,7 @@ func setupIPTablesInternal(hostIP net.IP, bridgeIface string, addr net.Addr, icc
 
 	ipVersion := iptables.IPv4
 
-	if strings.Contains(address, ":") {
+	if addr.IP.To4() == nil {
 		ipVersion = iptables.IPv6
 	}
 
@@ -422,7 +421,7 @@ func removeIPChains(version iptables.IPVersion) {
 	}
 }
 
-func setupInternalNetworkRules(bridgeIface string, addr net.Addr, icc, insert bool) error {
+func setupInternalNetworkRules(bridgeIface string, addr *net.IPNet, icc, insert bool) error {
 	var (
 		inDropRule  = iptRule{table: iptables.Filter, chain: IsolationChain1, args: []string{"-i", bridgeIface, "!", "-d", addr.String(), "-j", "DROP"}}
 		outDropRule = iptRule{table: iptables.Filter, chain: IsolationChain1, args: []string{"-o", bridgeIface, "!", "-s", addr.String(), "-j", "DROP"}}
@@ -430,7 +429,7 @@ func setupInternalNetworkRules(bridgeIface string, addr net.Addr, icc, insert bo
 
 	version := iptables.IPv4
 
-	if strings.Contains(addr.String(), ":") {
+	if addr.IP.To4() == nil {
 		version = iptables.IPv6
 	}
 
