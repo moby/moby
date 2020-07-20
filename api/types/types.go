@@ -203,20 +203,27 @@ type Info struct {
 	// LiveRestoreEnabled determines whether containers should be kept
 	// running when the daemon is shutdown or upon daemon start if
 	// running containers are detected
-	LiveRestoreEnabled bool
-	Isolation          container.Isolation
-	InitBinary         string
-	ContainerdCommit   Commit
-	RuncCommit         Commit
-	InitCommit         Commit
-	SecurityOptions    []string
-	ProductLicense     string `json:",omitempty"`
-	Warnings           []string
+	LiveRestoreEnabled  bool
+	Isolation           container.Isolation
+	InitBinary          string
+	ContainerdCommit    Commit
+	RuncCommit          Commit
+	InitCommit          Commit
+	SecurityOptions     []string
+	ProductLicense      string `json:",omitempty"`
+	DefaultAddressPools []NetworkAddressPool
+	Warnings            []string
 }
 
 // KeyValue holds a key/value pair
 type KeyValue struct {
 	Key, Value string
+}
+
+// NetworkAddressPool is a temp struct used by Info struct
+type NetworkAddressPool struct {
+	Base string
+	Size int
 }
 
 // SecurityOpt contains the name and options of a security option
