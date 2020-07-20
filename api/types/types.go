@@ -210,8 +210,8 @@ type Info struct {
 	RuncCommit          Commit
 	InitCommit          Commit
 	SecurityOptions     []string
-	ProductLicense      string `json:",omitempty"`
-	DefaultAddressPools []NetworkAddressPool
+	ProductLicense      string               `json:",omitempty"`
+	DefaultAddressPools []NetworkAddressPool `json:",omitempty"`
 	Warnings            []string
 }
 
