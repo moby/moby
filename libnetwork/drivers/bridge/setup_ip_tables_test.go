@@ -131,7 +131,7 @@ func assertBridgeConfig(config *networkConfiguration, br *bridgeInterface, d *dr
 	nw.driver = d
 
 	// Attempt programming of ip tables.
-	err := nw.setupIPTables(config, br)
+	err := nw.setupIP4Tables(config, br)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

@@ -95,7 +95,44 @@ func setupIPChains(config *configuration, version iptables.IPVersion) (*iptables
 	return natChain, filterChain, isolationChain1, isolationChain2, nil
 }
 
-func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInterface) error {
+func (n *bridgeNetwork) setupIP4Tables(config *networkConfiguration, i *bridgeInterface) error {
+	d := n.driver
+	d.Lock()
+	driverConfig := d.config
+	d.Unlock()
+
+	// Sanity check.
+	if !driverConfig.EnableIPTables {
+		return errors.New("Cannot program chains, EnableIPTable is disabled")
+	}
+
+	maskedAddrv4 := &net.IPNet{
+		IP:   i.bridgeIPv4.IP.Mask(i.bridgeIPv4.Mask),
+		Mask: i.bridgeIPv4.Mask,
+	}
+	return n.setupIPTables(iptables.IPv4, maskedAddrv4, config, i)
+}
+
+func (n *bridgeNetwork) setupIP6Tables(config *networkConfiguration, i *bridgeInterface) error {
+	d := n.driver
+	d.Lock()
+	driverConfig := d.config
+	d.Unlock()
+
+	// Sanity check.
+	if !driverConfig.EnableIP6Tables {
+		return errors.New("Cannot program chains, EnableIP6Tables is disabled")
+	}
+
+	maskedAddrv6 := &net.IPNet{
+		IP:   i.bridgeIPv6.IP.Mask(i.bridgeIPv6.Mask),
+		Mask: i.bridgeIPv6.Mask,
+	}
+
+	return n.setupIPTables(iptables.IPv6, maskedAddrv6, config, i)
+}
+
+func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *net.IPNet, config *networkConfiguration, i *bridgeInterface) error {
 	var err error
 
 	d := n.driver
@@ -103,36 +140,26 @@ func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInt
 	driverConfig := d.config
 	d.Unlock()
 
-	// Sanity check.
-	if driverConfig.EnableIPTables == false {
-		return errors.New("Cannot program chains, EnableIPTable is disabled")
-	}
-
 	// Pickup this configuration option from driver
 	hairpinMode := !driverConfig.EnableUserlandProxy
 
-	maskedAddrv4 := &net.IPNet{
-		IP:   i.bridgeIPv4.IP.Mask(i.bridgeIPv4.Mask),
-		Mask: i.bridgeIPv4.Mask,
-	}
-
-	iptable := iptables.GetIptable(iptables.IPv4)
+	iptable := iptables.GetIptable(ipVersion)
 
 	if config.Internal {
-		if err = setupInternalNetworkRules(config.BridgeName, maskedAddrv4, config.EnableICC, true); err != nil {
+		if err = setupInternalNetworkRules(config.BridgeName, maskedAddr, config.EnableICC, true); err != nil {
 			return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
 		}
 		n.registerIptCleanFunc(func() error {
-			return setupInternalNetworkRules(config.BridgeName, maskedAddrv4, config.EnableICC, false)
+			return setupInternalNetworkRules(config.BridgeName, maskedAddr, config.EnableICC, false)
 		})
 	} else {
-		if err = setupIPTablesInternal(config.HostIP, config.BridgeName, maskedAddrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
+		if err = setupIPTablesInternal(config.HostIP, config.BridgeName, maskedAddr, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
 			return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
 		}
 		n.registerIptCleanFunc(func() error {
-			return setupIPTablesInternal(config.HostIP, config.BridgeName, maskedAddrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, false)
+			return setupIPTablesInternal(config.HostIP, config.BridgeName, maskedAddr, config.EnableICC, config.EnableIPMasquerade, hairpinMode, false)
 		})
-		natChain, filterChain, _, _, err := n.getDriverChains(iptables.IPv4)
+		natChain, filterChain, _, _, err := n.getDriverChains(ipVersion)
 		if err != nil {
 			return fmt.Errorf("Failed to setup IP tables, cannot acquire chain info %s", err.Error())
 		}
@@ -157,65 +184,7 @@ func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInt
 	d.Lock()
 	err = iptable.EnsureJumpRule("FORWARD", IsolationChain1)
 	d.Unlock()
-	if err != nil {
-		return err
-	}
-
-	if !driverConfig.EnableIP6Tables || i.bridgeIPv6 == nil {
-		return nil
-	}
-
-	maskedAddrv6 := &net.IPNet{
-		IP:   i.bridgeIPv6.IP.Mask(i.bridgeIPv6.Mask),
-		Mask: i.bridgeIPv6.Mask,
-	}
-
-	iptable = iptables.GetIptable(iptables.IPv6)
-
-	if config.Internal {
-		if err = setupInternalNetworkRules(config.BridgeName, maskedAddrv6, config.EnableICC, true); err != nil {
-			return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
-		}
-		n.registerIptCleanFunc(func() error {
-			return setupInternalNetworkRules(config.BridgeName, maskedAddrv6, config.EnableICC, false)
-		})
-	} else {
-		if err = setupIPTablesInternal(nil, config.BridgeName, maskedAddrv6, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
-			return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
-		}
-		n.registerIptCleanFunc(func() error {
-			return setupIPTablesInternal(nil, config.BridgeName, maskedAddrv6, config.EnableICC, config.EnableIPMasquerade, hairpinMode, false)
-		})
-		natChainV6, filterChainV6, _, _, err := n.getDriverChains(iptables.IPv6)
-		if err != nil {
-			return fmt.Errorf("Failed to setup IP tables, cannot acquire chain info %s", err.Error())
-		}
-
-		err = iptable.ProgramChain(natChainV6, config.BridgeName, hairpinMode, true)
-		if err != nil {
-			return fmt.Errorf("Failed to program NAT chain: %s", err.Error())
-		}
-
-		err = iptable.ProgramChain(filterChainV6, config.BridgeName, hairpinMode, true)
-		if err != nil {
-			return fmt.Errorf("Failed to program FILTER chain: %s", err.Error())
-		}
-
-		n.registerIptCleanFunc(func() error {
-			return iptable.ProgramChain(filterChainV6, config.BridgeName, hairpinMode, false)
-		})
-
-		n.portMapperV6.SetIptablesChain(natChainV6, n.getNetworkBridgeName())
-	}
-
-	d.Lock()
-	err = iptable.EnsureJumpRule("FORWARD", IsolationChain1)
-	d.Unlock()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 type iptRule struct {

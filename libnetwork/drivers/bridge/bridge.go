@@ -764,11 +764,16 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		{!d.config.EnableUserlandProxy, setupLoopbackAddressesRouting},
 
 		// Setup IPTables.
-		{d.config.EnableIPTables, network.setupIPTables},
+		{d.config.EnableIPTables, network.setupIP4Tables},
+
+		// Setup IP6Tables.
+		{d.config.EnableIP6Tables, network.setupIP6Tables},
 
 		//We want to track firewalld configuration so that
 		//if it is started/reloaded, the rules can be applied correctly
 		{d.config.EnableIPTables, network.setupFirewalld},
+		// same for IPv6
+		{d.config.EnableIP6Tables, network.setupFirewalld6},
 
 		// Setup DefaultGatewayIPv4
 		{config.DefaultGatewayIPv4 != nil, setupGatewayIPv4},
