@@ -323,7 +323,7 @@ func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 
 // Install/Removes the iptables rules needed to isolate this network
 // from each of the other networks
-func (n *bridgeNetwork) isolateNetwork(version iptables.IPVersion, others []*bridgeNetwork, enable bool) error {
+func (n *bridgeNetwork) isolateNetwork(others []*bridgeNetwork, enable bool) error {
 	n.Lock()
 	thisConfig := n.config
 	n.Unlock()
@@ -333,7 +333,14 @@ func (n *bridgeNetwork) isolateNetwork(version iptables.IPVersion, others []*bri
 	}
 
 	// Install the rules to isolate this network against each of the other networks
-	return setINC(version, thisConfig.BridgeName, enable)
+	if n.driver.config.EnableIP6Tables {
+		err := setINC(iptables.IPv6, thisConfig.BridgeName, enable)
+		if err != nil {
+			return err
+		}
+	}
+
+	return setINC(iptables.IPv4, thisConfig.BridgeName, enable)
 }
 
 func (d *driver) configure(option map[string]interface{}) error {
@@ -707,8 +714,8 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 
 	// Add inter-network communication rules.
 	setupNetworkIsolationRules := func(config *networkConfiguration, i *bridgeInterface) error {
-		if err := network.isolateNetwork(iptables.IPv4, networkList, true); err != nil {
-			if err = network.isolateNetwork(iptables.IPv4, networkList, false); err != nil {
+		if err := network.isolateNetwork(networkList, true); err != nil {
+			if err = network.isolateNetwork(networkList, false); err != nil {
 				logrus.Warnf("Failed on removing the inter-network iptables rules on cleanup: %v", err)
 			}
 			return err
@@ -716,7 +723,7 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		// register the cleanup function
 		network.registerIptCleanFunc(func() error {
 			nwList := d.getNetworks()
-			return network.isolateNetwork(iptables.IPv4, nwList, false)
+			return network.isolateNetwork(nwList, false)
 		})
 		return nil
 	}
