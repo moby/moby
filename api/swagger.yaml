@@ -5861,6 +5861,16 @@ paths:
         If either `precpu_stats.online_cpus` or `cpu_stats.online_cpus` is
         nil then for compatibility with older daemons the length of the
         corresponding `cpu_usage.percpu_usage` array should be used.
+
+        To calculate the values shown by the `stats` command of the docker cli tool
+        the following formulas can be used:
+        * used_memory = `memory_stats.usage - memory_stats.stats.cache`
+        * available_memory = `memory_stats.limit`
+        * Memory usage % = `(used_memory / available_memory) * 100.0`
+        * cpu_delta = `cpu_stats.cpu_usage.total_usage - precpu_stats.cpu_usage.total_usage`
+        * system_cpu_delta = `cpu_stats.system_cpu_usage - precpu_stats.system_cpu_usage`
+        * number_cpus = `lenght(cpu_stats.cpu_usage.percpu_usage)` or `cpu_stats.online_cpus`
+        * CPU usage % = `(cpu_delta / system_cpu_delta) * number_cpus * 100.0`
       operationId: "ContainerStats"
       produces: ["application/json"]
       responses:
