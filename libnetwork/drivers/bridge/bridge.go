@@ -375,27 +375,20 @@ func (d *driver) configure(option map[string]interface{}) error {
 		return &ErrInvalidDriverConfig{}
 	}
 
-	if config.EnableIPTables {
+	if config.EnableIPTables || config.EnableIP6Tables {
 		if _, err := os.Stat("/proc/sys/net/bridge"); err != nil {
 			if out, err := exec.Command("modprobe", "-va", "bridge", "br_netfilter").CombinedOutput(); err != nil {
 				logrus.Warnf("Running modprobe bridge br_netfilter failed with message: %s, error: %v", out, err)
 			}
 		}
+	}
 
+	if config.EnableIPTables {
 		removeIPChains(iptables.IPv4)
-		if config.EnableIP6Tables {
-			removeIPChains(iptables.IPv6)
-		}
 
 		natChain, filterChain, isolationChain1, isolationChain2, err = setupIPChains(config, iptables.IPv4)
 		if err != nil {
 			return err
-		}
-		if config.EnableIP6Tables {
-			natChainV6, filterChainV6, isolationChain1V6, isolationChain2V6, err = setupIPChains(config, iptables.IPv6)
-			if err != nil {
-				return err
-			}
 		}
 
 		// Make sure on firewall reload, first thing being re-played is chains creation
@@ -403,12 +396,21 @@ func (d *driver) configure(option map[string]interface{}) error {
 			logrus.Debugf("Recreating iptables chains on firewall reload")
 			setupIPChains(config, iptables.IPv4)
 		})
-		if config.EnableIP6Tables {
-			iptables.OnReloaded(func() {
-				logrus.Debugf("Recreating ip6tables chains on firewall reload")
-				setupIPChains(config, iptables.IPv6)
-			})
+	}
+
+	if config.EnableIP6Tables {
+		removeIPChains(iptables.IPv6)
+
+		natChainV6, filterChainV6, isolationChain1V6, isolationChain2V6, err = setupIPChains(config, iptables.IPv6)
+		if err != nil {
+			return err
 		}
+
+		// Make sure on firewall reload, first thing being re-played is chains creation
+		iptables.OnReloaded(func() {
+			logrus.Debugf("Recreating ip6tables chains on firewall reload")
+			setupIPChains(config, iptables.IPv6)
+		})
 	}
 
 	if config.EnableIPForwarding {
