@@ -62,7 +62,7 @@ var (
 	initOnce            sync.Once
 )
 
-// IPTable defines struct with IPVersion and few other members are added later
+// IPTable defines struct with IPVersion
 type IPTable struct {
 	Version IPVersion
 }
