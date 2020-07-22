@@ -340,7 +340,10 @@ func (n *bridgeNetwork) isolateNetwork(others []*bridgeNetwork, enable bool) err
 		}
 	}
 
-	return setINC(iptables.IPv4, thisConfig.BridgeName, enable)
+	if n.driver.config.EnableIPTables {
+		return setINC(iptables.IPv4, thisConfig.BridgeName, enable)
+	}
+	return nil
 }
 
 func (d *driver) configure(option map[string]interface{}) error {
