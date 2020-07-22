@@ -375,6 +375,7 @@
 				"uname",
 				"unlink",
 				"unlinkat",
+				"unshare",
 				"utime",
 				"utimensat",
 				"utimensat_time64",
@@ -601,8 +602,7 @@
 				"setns",
 				"syslog",
 				"umount",
-				"umount2",
-				"unshare"
+				"umount2"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"args": [],
