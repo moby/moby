@@ -26,23 +26,28 @@ func (n *bridgeNetwork) allocatePorts(ep *bridgeEndpoint, reqDefBindIP net.IP, u
 		defHostIP = reqDefBindIP
 	}
 
-	var pb []types.PortBinding
-
-	if ep.addrv6 != nil {
-		pb, _ = n.allocatePortsInternal(ep.extConnConfig.PortBindings, ep.addrv6.IP, defaultBindingIPV6, ulPxyEnabled, nil)
+	// IPv4 port binding including user land proxy
+	pb, err := n.allocatePortsInternal(ep.extConnConfig.PortBindings, ep.addr.IP, defHostIP, ulPxyEnabled)
+	if err != nil {
+		return nil, err
 	}
 
-	return n.allocatePortsInternal(ep.extConnConfig.PortBindings, ep.addr.IP, defHostIP, ulPxyEnabled, pb)
+	// IPv6 port binding excluding user land proxy
+	if n.driver.config.EnableIP6Tables && ep.addrv6 != nil {
+		pbv6, err := n.allocatePortsInternal(ep.extConnConfig.PortBindings, ep.addrv6.IP, defaultBindingIPV6, false)
+		if err != nil {
+			// ensure we clear the previous allocated IPv4 ports
+			n.releasePortsInternal(pb)
+			return nil, err
+		}
+
+		pb = append(pb, pbv6...)
+	}
+	return pb, nil
 }
 
-func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool, existingPortBindings []types.PortBinding) ([]types.PortBinding, error) {
-
-	bs := existingPortBindings
-
-	if existingPortBindings == nil {
-		bs = make([]types.PortBinding, 0, len(bindings))
-	}
-
+func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
+	bs := make([]types.PortBinding, 0, len(bindings))
 	for _, c := range bindings {
 		b := c.GetCopy()
 		if err := n.allocatePort(&b, containerIP, defHostIP, ulPxyEnabled); err != nil {

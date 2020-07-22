@@ -160,7 +160,7 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 	cleanup := func() error {
 		// need to undo the iptables rules before we return
 		m.userlandProxy.Stop()
-		if hostIP.To4() != nil {
+		if hostIP.To4() != nil || hostIP.To16() != nil {
 			pm.DeleteForwardingTableEntry(m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
 			if err := pm.Allocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
 				return err
@@ -170,13 +170,11 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		return nil
 	}
 
-	if hostIP.To4() != nil {
-		if err := m.userlandProxy.Start(); err != nil {
-			if err := cleanup(); err != nil {
-				return nil, fmt.Errorf("Error during port allocation cleanup: %v", err)
-			}
-			return nil, err
+	if err := m.userlandProxy.Start(); err != nil {
+		if err := cleanup(); err != nil {
+			return nil, fmt.Errorf("Error during port allocation cleanup: %v", err)
 		}
+		return nil, err
 	}
 
 	pm.currentMappings[key] = m
