@@ -220,6 +220,7 @@ func (cs *cacheResultStorage) LoadWithParents(ctx context.Context, res solver.Ca
 
 	m := map[string]solver.Result{}
 
+	visited := make(map[*item]struct{})
 	if err := v.walkAllResults(func(i *item) error {
 		if i.result == nil {
 			return nil
@@ -236,7 +237,7 @@ func (cs *cacheResultStorage) LoadWithParents(ctx context.Context, res solver.Ca
 			m[id] = worker.NewWorkerRefResult(ref, cs.w)
 		}
 		return nil
-	}); err != nil {
+	}, visited); err != nil {
 		for _, v := range m {
 			v.Release(context.TODO())
 		}

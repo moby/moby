@@ -164,7 +164,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 			},
 		})
 		if err != nil {
-			return nil, errors.Errorf("failed to read downloaded context")
+			return nil, errors.Wrapf(err, "failed to read downloaded context")
 		}
 		if isArchive(dt) {
 			if fileop {

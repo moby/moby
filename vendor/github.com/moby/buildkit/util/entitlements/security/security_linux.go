@@ -7,7 +7,7 @@ import (
 
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/oci"
-	"github.com/opencontainers/runc/libcontainer/system"
+	"github.com/containerd/containerd/sys"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -81,7 +81,7 @@ func WithInsecureSpec() oci.SpecOpts {
 			},
 		}
 
-		if !system.RunningInUserNS() {
+		if !sys.RunningInUserNS() {
 			// Devices automatically mounted on insecure mode
 			s.Linux.Devices = append(s.Linux.Devices, []specs.LinuxDevice{
 				// Writes to this come out as printk's, reads export the buffered printk records. (dmesg)

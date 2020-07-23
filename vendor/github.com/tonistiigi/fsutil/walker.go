@@ -219,12 +219,5 @@ func trimUntilIndex(str, sep string, count int) string {
 }
 
 func isNotExist(err error) bool {
-	err = errors.Cause(err)
-	if os.IsNotExist(err) {
-		return true
-	}
-	if pe, ok := err.(*os.PathError); ok {
-		err = pe.Err
-	}
-	return err == syscall.ENOTDIR
+	return errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENOTDIR)
 }

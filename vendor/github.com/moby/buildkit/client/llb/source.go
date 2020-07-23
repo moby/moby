@@ -215,7 +215,10 @@ func Git(remote, ref string, opts ...GitOption) State {
 		id += "#" + ref
 	}
 
-	gi := &GitInfo{}
+	gi := &GitInfo{
+		AuthHeaderSecret: "GIT_AUTH_HEADER",
+		AuthTokenSecret:  "GIT_AUTH_TOKEN",
+	}
 	for _, o := range opts {
 		o.SetGitOption(gi)
 	}
@@ -227,6 +230,14 @@ func Git(remote, ref string, opts ...GitOption) State {
 	if url != "" {
 		attrs[pb.AttrFullRemoteURL] = url
 		addCap(&gi.Constraints, pb.CapSourceGitFullURL)
+	}
+	if gi.AuthTokenSecret != "" {
+		attrs[pb.AttrAuthTokenSecret] = gi.AuthTokenSecret
+		addCap(&gi.Constraints, pb.CapSourceGitHttpAuth)
+	}
+	if gi.AuthHeaderSecret != "" {
+		attrs[pb.AttrAuthHeaderSecret] = gi.AuthHeaderSecret
+		addCap(&gi.Constraints, pb.CapSourceGitHttpAuth)
 	}
 
 	addCap(&gi.Constraints, pb.CapSourceGit)
@@ -246,12 +257,26 @@ func (fn gitOptionFunc) SetGitOption(gi *GitInfo) {
 
 type GitInfo struct {
 	constraintsWrapper
-	KeepGitDir bool
+	KeepGitDir       bool
+	AuthTokenSecret  string
+	AuthHeaderSecret string
 }
 
 func KeepGitDir() GitOption {
 	return gitOptionFunc(func(gi *GitInfo) {
 		gi.KeepGitDir = true
+	})
+}
+
+func AuthTokenSecret(v string) GitOption {
+	return gitOptionFunc(func(gi *GitInfo) {
+		gi.AuthTokenSecret = v
+	})
+}
+
+func AuthHeaderSecret(v string) GitOption {
+	return gitOptionFunc(func(gi *GitInfo) {
+		gi.AuthHeaderSecret = v
 	})
 }
 

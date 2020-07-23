@@ -17,6 +17,7 @@ import (
 
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/moby/buildkit/cache"
@@ -37,7 +38,6 @@ import (
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/opencontainers/runc/libcontainer/system"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"
@@ -94,7 +94,7 @@ func cloneExecOp(old *pb.ExecOp) pb.ExecOp {
 	return n
 }
 
-func (e *execOp) CacheMap(ctx context.Context, index int) (*solver.CacheMap, bool, error) {
+func (e *execOp) CacheMap(ctx context.Context, g session.Group, index int) (*solver.CacheMap, bool, error) {
 	op := cloneExecOp(e.op)
 	for i := range op.Meta.ExtraHosts {
 		h := op.Meta.ExtraHosts[i]
@@ -331,30 +331,26 @@ func (g *cacheRefGetter) getRefCacheDirNoCache(ctx context.Context, key string, 
 	return mRef, nil
 }
 
-func (e *execOp) getSSHMountable(ctx context.Context, m *pb.Mount) (cache.Mountable, error) {
-	sessionID := session.FromContext(ctx)
-	if sessionID == "" {
-		return nil, errors.New("could not access local files without session")
-	}
-
-	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	caller, err := e.sm.Get(timeoutCtx, sessionID)
+func (e *execOp) getSSHMountable(ctx context.Context, m *pb.Mount, g session.Group) (cache.Mountable, error) {
+	var caller session.Caller
+	err := e.sm.Any(ctx, g, func(ctx context.Context, _ string, c session.Caller) error {
+		if err := sshforward.CheckSSHID(ctx, c, m.SSHOpt.ID); err != nil {
+			if m.SSHOpt.Optional {
+				return nil
+			}
+			if grpcerrors.Code(err) == codes.Unimplemented {
+				return errors.Errorf("no SSH key %q forwarded from the client", m.SSHOpt.ID)
+			}
+			return err
+		}
+		caller = c
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	if err := sshforward.CheckSSHID(ctx, caller, m.SSHOpt.ID); err != nil {
-		if m.SSHOpt.Optional {
-			return nil, nil
-		}
-		if grpcerrors.Code(err) == codes.Unimplemented {
-			return nil, errors.Errorf("no SSH key %q forwarded from the client", m.SSHOpt.ID)
-		}
-		return nil, err
-	}
-
+	// because ssh socket remains active, to actually handle session disconnecting ssh error
+	// should restart the whole exec with new session
 	return &sshMount{mount: m, caller: caller, idmap: e.cm.IdentityMapping()}, nil
 }
 
@@ -385,6 +381,7 @@ func (sm *sshMountInstance) Mount() ([]mount.Mount, func() error, error) {
 			GID: gid,
 		})
 		if err != nil {
+			cancel()
 			return nil, nil, err
 		}
 		uid = identity.UID
@@ -421,7 +418,7 @@ func (sm *sshMountInstance) IdentityMapping() *idtools.IdentityMapping {
 	return sm.idmap
 }
 
-func (e *execOp) getSecretMountable(ctx context.Context, m *pb.Mount) (cache.Mountable, error) {
+func (e *execOp) getSecretMountable(ctx context.Context, m *pb.Mount, g session.Group) (cache.Mountable, error) {
 	if m.SecretOpt == nil {
 		return nil, errors.Errorf("invalid sercet mount options")
 	}
@@ -431,28 +428,21 @@ func (e *execOp) getSecretMountable(ctx context.Context, m *pb.Mount) (cache.Mou
 	if id == "" {
 		return nil, errors.Errorf("secret ID missing from mount options")
 	}
-
-	sessionID := session.FromContext(ctx)
-	if sessionID == "" {
-		return nil, errors.New("could not access local files without session")
-	}
-
-	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	caller, err := e.sm.Get(timeoutCtx, sessionID)
-	if err != nil {
-		return nil, err
-	}
-
-	dt, err := secrets.GetSecret(ctx, caller, id)
-	if err != nil {
-		if errors.Is(err, secrets.ErrNotFound) && m.SecretOpt.Optional {
-			return nil, nil
+	var dt []byte
+	var err error
+	err = e.sm.Any(ctx, g, func(ctx context.Context, _ string, caller session.Caller) error {
+		dt, err = secrets.GetSecret(ctx, caller, id)
+		if err != nil {
+			if errors.Is(err, secrets.ErrNotFound) && m.SecretOpt.Optional {
+				return nil
+			}
+			return err
 		}
+		return nil
+	})
+	if err != nil || dt == nil {
 		return nil, err
 	}
-
 	return &secretMount{mount: m, data: dt, idmap: e.cm.IdentityMapping()}, nil
 }
 
@@ -492,7 +482,7 @@ func (sm *secretMountInstance) Mount() ([]mount.Mount, func() error, error) {
 		Options: []string{"nodev", "nosuid", "noexec", fmt.Sprintf("uid=%d,gid=%d", os.Geteuid(), os.Getegid())},
 	}
 
-	if system.RunningInUserNS() {
+	if sys.RunningInUserNS() {
 		tmpMount.Options = nil
 	}
 
@@ -562,7 +552,7 @@ func addDefaultEnvvar(env []string, k, v string) []string {
 	return append(env, k+"="+v)
 }
 
-func (e *execOp) Exec(ctx context.Context, inputs []solver.Result) ([]solver.Result, error) {
+func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Result) ([]solver.Result, error) {
 	var mounts []executor.Mount
 	var root cache.Mountable
 	var readonlyRootFS bool
@@ -651,7 +641,7 @@ func (e *execOp) Exec(ctx context.Context, inputs []solver.Result) ([]solver.Res
 			mountable = newTmpfs(e.cm.IdentityMapping())
 
 		case pb.MountType_SECRET:
-			secretMount, err := e.getSecretMountable(ctx, m)
+			secretMount, err := e.getSecretMountable(ctx, m, g)
 			if err != nil {
 				return nil, err
 			}
@@ -661,7 +651,7 @@ func (e *execOp) Exec(ctx context.Context, inputs []solver.Result) ([]solver.Res
 			mountable = secretMount
 
 		case pb.MountType_SSH:
-			sshMount, err := e.getSSHMountable(ctx, m)
+			sshMount, err := e.getSSHMountable(ctx, m, g)
 			if err != nil {
 				return nil, err
 			}
@@ -742,7 +732,7 @@ func (e *execOp) Exec(ctx context.Context, inputs []solver.Result) ([]solver.Res
 	defer stdout.Close()
 	defer stderr.Close()
 
-	if err := e.exec.Exec(ctx, meta, root, mounts, nil, stdout, stderr); err != nil {
+	if err := e.exec.Run(ctx, "", root, mounts, executor.ProcessInfo{Meta: meta, Stdin: nil, Stdout: stdout, Stderr: stderr}, nil); err != nil {
 		return nil, errors.Wrapf(err, "executor failed running %v", meta.Args)
 	}
 

@@ -3,7 +3,6 @@ package llbsolver
 import (
 	"context"
 	"fmt"
-	"io"
 	"strings"
 	"sync"
 	"time"
@@ -60,12 +59,12 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 			func(cmID string, im gw.CacheOptionsEntry) {
 				cm = newLazyCacheManager(cmID, func() (solver.CacheManager, error) {
 					var cmNew solver.CacheManager
-					if err := inVertexContext(b.builder.Context(context.TODO()), "importing cache manifest from "+cmID, "", func(ctx context.Context) error {
+					if err := inBuilderContext(context.TODO(), b.builder, "importing cache manifest from "+cmID, "", func(ctx context.Context, g session.Group) error {
 						resolveCI, ok := b.resolveCacheImporterFuncs[im.Type]
 						if !ok {
 							return errors.Errorf("unknown cache importer: %s", im.Type)
 						}
-						ci, desc, err := resolveCI(ctx, im.Attrs)
+						ci, desc, err := resolveCI(ctx, g, im.Attrs)
 						if err != nil {
 							return err
 						}
@@ -120,7 +119,7 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 	return res, err
 }
 
-func (b *llbBridge) Solve(ctx context.Context, req frontend.SolveRequest) (res *frontend.Result, err error) {
+func (b *llbBridge) Solve(ctx context.Context, req frontend.SolveRequest, sid string) (res *frontend.Result, err error) {
 	if req.Definition != nil && req.Definition.Def != nil && req.Frontend != "" {
 		return nil, errors.New("cannot solve with both Definition and Frontend specified")
 	}
@@ -132,7 +131,7 @@ func (b *llbBridge) Solve(ctx context.Context, req frontend.SolveRequest) (res *
 		if !ok {
 			return nil, errors.Errorf("invalid frontend: %s", req.Frontend)
 		}
-		res, err = f.Solve(ctx, b, req.FrontendOpt, req.FrontendInputs)
+		res, err = f.Solve(ctx, b, req.FrontendOpt, req.FrontendInputs, sid)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to solve with frontend %s", req.Frontend)
 		}
@@ -246,13 +245,24 @@ func (rp *resultProxy) Result(ctx context.Context) (res solver.CachedResult, err
 	return nil, err
 }
 
-func (s *llbBridge) Exec(ctx context.Context, meta executor.Meta, root cache.ImmutableRef, stdin io.ReadCloser, stdout, stderr io.WriteCloser) (err error) {
+func (s *llbBridge) Run(ctx context.Context, id string, root cache.Mountable, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (err error) {
 	w, err := s.resolveWorker()
 	if err != nil {
 		return err
 	}
-	span, ctx := tracing.StartSpan(ctx, strings.Join(meta.Args, " "))
-	err = w.Exec(ctx, meta, root, stdin, stdout, stderr)
+	span, ctx := tracing.StartSpan(ctx, strings.Join(process.Meta.Args, " "))
+	err = w.Executor().Run(ctx, id, root, mounts, process, started)
+	tracing.FinishWithError(span, err)
+	return err
+}
+
+func (s *llbBridge) Exec(ctx context.Context, id string, process executor.ProcessInfo) (err error) {
+	w, err := s.resolveWorker()
+	if err != nil {
+		return err
+	}
+	span, ctx := tracing.StartSpan(ctx, strings.Join(process.Meta.Args, " "))
+	err = w.Executor().Exec(ctx, id, process)
 	tracing.FinishWithError(span, err)
 	return err
 }
@@ -271,8 +281,8 @@ func (s *llbBridge) ResolveImageConfig(ctx context.Context, ref string, opt llb.
 	} else {
 		id += platforms.Format(*platform)
 	}
-	err = inVertexContext(s.builder.Context(ctx), opt.LogName, id, func(ctx context.Context) error {
-		dgst, config, err = w.ResolveImageConfig(ctx, ref, opt, s.sm)
+	err = inBuilderContext(ctx, s.builder, opt.LogName, id, func(ctx context.Context, g session.Group) error {
+		dgst, config, err = w.ResolveImageConfig(ctx, ref, opt, s.sm, g)
 		return err
 	})
 	return dgst, config, err

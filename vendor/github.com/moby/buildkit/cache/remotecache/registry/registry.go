@@ -32,12 +32,12 @@ const (
 )
 
 func ResolveCacheExporterFunc(sm *session.Manager, hosts docker.RegistryHosts) remotecache.ResolveCacheExporterFunc {
-	return func(ctx context.Context, attrs map[string]string) (remotecache.Exporter, error) {
+	return func(ctx context.Context, g session.Group, attrs map[string]string) (remotecache.Exporter, error) {
 		ref, err := canonicalizeRef(attrs[attrRef])
 		if err != nil {
 			return nil, err
 		}
-		remote := resolver.New(ctx, hosts, sm)
+		remote := resolver.New(hosts, resolver.NewSessionAuthenticator(sm, g))
 		pusher, err := remote.Pusher(ctx, ref)
 		if err != nil {
 			return nil, err
@@ -47,12 +47,12 @@ func ResolveCacheExporterFunc(sm *session.Manager, hosts docker.RegistryHosts) r
 }
 
 func ResolveCacheImporterFunc(sm *session.Manager, cs content.Store, hosts docker.RegistryHosts) remotecache.ResolveCacheImporterFunc {
-	return func(ctx context.Context, attrs map[string]string) (remotecache.Importer, specs.Descriptor, error) {
+	return func(ctx context.Context, g session.Group, attrs map[string]string) (remotecache.Importer, specs.Descriptor, error) {
 		ref, err := canonicalizeRef(attrs[attrRef])
 		if err != nil {
 			return nil, specs.Descriptor{}, err
 		}
-		remote := resolver.New(ctx, hosts, sm)
+		remote := resolver.New(hosts, resolver.NewSessionAuthenticator(sm, g))
 		xref, desc, err := remote.Resolve(ctx, ref)
 		if err != nil {
 			return nil, specs.Descriptor{}, err

@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
+	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/progress"
@@ -19,7 +20,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ResolveCacheExporterFunc func(ctx context.Context, attrs map[string]string) (Exporter, error)
+type ResolveCacheExporterFunc func(ctx context.Context, g session.Group, attrs map[string]string) (Exporter, error)
 
 func oneOffProgress(ctx context.Context, id string) func(err error) error {
 	pw, _, _ := progress.FromContext(ctx)

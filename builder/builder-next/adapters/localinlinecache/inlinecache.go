@@ -27,11 +27,11 @@ func ResolveCacheImporterFunc(sm *session.Manager, resolverFunc docker.RegistryH
 
 	upstream := registryremotecache.ResolveCacheImporterFunc(sm, cs, resolverFunc)
 
-	return func(ctx context.Context, attrs map[string]string) (remotecache.Importer, specs.Descriptor, error) {
+	return func(ctx context.Context, group session.Group, attrs map[string]string) (remotecache.Importer, specs.Descriptor, error) {
 		if dt, err := tryImportLocal(rs, is, attrs["ref"]); err == nil {
 			return newLocalImporter(dt), specs.Descriptor{}, nil
 		}
-		return upstream(ctx, attrs)
+		return upstream(ctx, group, attrs)
 	}
 }
 

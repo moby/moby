@@ -15,8 +15,8 @@ type Source interface {
 }
 
 type SourceInstance interface {
-	CacheKey(ctx context.Context, index int) (string, bool, error)
-	Snapshot(ctx context.Context) (cache.ImmutableRef, error)
+	CacheKey(ctx context.Context, g session.Group, index int) (string, bool, error)
+	Snapshot(ctx context.Context, g session.Group) (cache.ImmutableRef, error)
 }
 
 type Manager struct {

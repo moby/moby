@@ -11,7 +11,6 @@ import (
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	gwpb "github.com/moby/buildkit/frontend/gateway/pb"
-	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	opspb "github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
@@ -20,12 +19,12 @@ import (
 	fstypes "github.com/tonistiigi/fsutil/types"
 )
 
-func llbBridgeToGatewayClient(ctx context.Context, llbBridge frontend.FrontendLLBBridge, opts map[string]string, inputs map[string]*opspb.Definition, workerInfos []clienttypes.WorkerInfo) (*bridgeClient, error) {
+func llbBridgeToGatewayClient(ctx context.Context, llbBridge frontend.FrontendLLBBridge, opts map[string]string, inputs map[string]*opspb.Definition, workerInfos []clienttypes.WorkerInfo, sid string) (*bridgeClient, error) {
 	return &bridgeClient{
 		opts:              opts,
 		inputs:            inputs,
 		FrontendLLBBridge: llbBridge,
-		sid:               session.FromContext(ctx),
+		sid:               sid,
 		workerInfos:       workerInfos,
 		final:             map[*ref]struct{}{},
 	}, nil
@@ -50,7 +49,7 @@ func (c *bridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*cli
 		FrontendOpt:    req.FrontendOpt,
 		FrontendInputs: req.FrontendInputs,
 		CacheImports:   req.CacheImports,
-	})
+	}, c.sid)
 	if err != nil {
 		return nil, err
 	}

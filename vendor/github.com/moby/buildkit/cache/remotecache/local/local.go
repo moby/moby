@@ -22,13 +22,13 @@ const (
 
 // ResolveCacheExporterFunc for "local" cache exporter.
 func ResolveCacheExporterFunc(sm *session.Manager) remotecache.ResolveCacheExporterFunc {
-	return func(ctx context.Context, attrs map[string]string) (remotecache.Exporter, error) {
+	return func(ctx context.Context, g session.Group, attrs map[string]string) (remotecache.Exporter, error) {
 		store := attrs[attrDest]
 		if store == "" {
 			return nil, errors.New("local cache exporter requires dest")
 		}
 		csID := contentStoreIDPrefix + store
-		cs, err := getContentStore(ctx, sm, csID)
+		cs, err := getContentStore(ctx, sm, g, csID)
 		if err != nil {
 			return nil, err
 		}
@@ -38,7 +38,7 @@ func ResolveCacheExporterFunc(sm *session.Manager) remotecache.ResolveCacheExpor
 
 // ResolveCacheImporterFunc for "local" cache importer.
 func ResolveCacheImporterFunc(sm *session.Manager) remotecache.ResolveCacheImporterFunc {
-	return func(ctx context.Context, attrs map[string]string) (remotecache.Importer, specs.Descriptor, error) {
+	return func(ctx context.Context, g session.Group, attrs map[string]string) (remotecache.Importer, specs.Descriptor, error) {
 		dgstStr := attrs[attrDigest]
 		if dgstStr == "" {
 			return nil, specs.Descriptor{}, errors.New("local cache importer requires explicit digest")
@@ -49,7 +49,7 @@ func ResolveCacheImporterFunc(sm *session.Manager) remotecache.ResolveCacheImpor
 			return nil, specs.Descriptor{}, errors.New("local cache importer requires src")
 		}
 		csID := contentStoreIDPrefix + store
-		cs, err := getContentStore(ctx, sm, csID)
+		cs, err := getContentStore(ctx, sm, g, csID)
 		if err != nil {
 			return nil, specs.Descriptor{}, err
 		}
@@ -67,8 +67,9 @@ func ResolveCacheImporterFunc(sm *session.Manager) remotecache.ResolveCacheImpor
 	}
 }
 
-func getContentStore(ctx context.Context, sm *session.Manager, storeID string) (content.Store, error) {
-	sessionID := session.FromContext(ctx)
+func getContentStore(ctx context.Context, sm *session.Manager, g session.Group, storeID string) (content.Store, error) {
+	// TODO: to ensure correct session is detected, new api for finding if storeID is supported is needed
+	sessionID := g.SessionIterator().NextSession()
 	if sessionID == "" {
 		return nil, errors.New("local cache exporter/importer requires session")
 	}
