@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/strslice"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
@@ -492,12 +493,13 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	ctx := context.Background()
 
 	// store the map we're going to be using everywhere.
-	expectedCapabilities := []string{"CAP_NET_RAW", "CAP_SYS_CHROOT"}
+	capAdd := []string{"CAP_SYS_CHROOT"}
+	capDrop := []string{"CAP_NET_RAW"}
 
 	// Create the service with the capabilities options
 	var instances uint64 = 1
 	serviceID := swarm.CreateService(t, d,
-		swarm.ServiceWithCapabilities(expectedCapabilities),
+		swarm.ServiceWithCapabilities(capAdd, capDrop),
 	)
 
 	// wait for the service to converge to 1 running task as expected
@@ -529,15 +531,16 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	// verify that the container has the capabilities option set
 	ctnr, err := client.ContainerInspect(ctx, tasks[0].Status.ContainerStatus.ContainerID)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, ctnr.HostConfig.Capabilities, expectedCapabilities)
+	assert.DeepEqual(t, ctnr.HostConfig.CapAdd, strslice.StrSlice(capAdd))
+	assert.DeepEqual(t, ctnr.HostConfig.CapDrop, strslice.StrSlice(capDrop))
 
 	// verify that the task has the capabilities option set in the task object
-	assert.DeepEqual(t, tasks[0].Spec.ContainerSpec.Capabilities, expectedCapabilities)
+	assert.DeepEqual(t, tasks[0].Spec.ContainerSpec.CapabilityAdd, capAdd)
+	assert.DeepEqual(t, tasks[0].Spec.ContainerSpec.CapabilityDrop, capDrop)
 
 	// verify that the service also has the capabilities set in the spec.
 	service, _, err := client.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
-	assert.DeepEqual(t,
-		service.Spec.TaskTemplate.ContainerSpec.Capabilities, expectedCapabilities,
-	)
+	assert.DeepEqual(t, service.Spec.TaskTemplate.ContainerSpec.CapabilityAdd, capAdd)
+	assert.DeepEqual(t, service.Spec.TaskTemplate.ContainerSpec.CapabilityDrop, capDrop)
 }

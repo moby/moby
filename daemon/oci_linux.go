@@ -162,7 +162,6 @@ func WithCapabilities(c *container.Container) coci.SpecOpts {
 			caps.DefaultCapabilities(),
 			c.HostConfig.CapAdd,
 			c.HostConfig.CapDrop,
-			c.HostConfig.Capabilities,
 			c.HostConfig.Privileged,
 		)
 		if err != nil {

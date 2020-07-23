@@ -189,10 +189,11 @@ func ServiceWithSysctls(sysctls map[string]string) ServiceSpecOpt {
 }
 
 // ServiceWithCapabilities sets the Capabilities option of the service's ContainerSpec.
-func ServiceWithCapabilities(Capabilities []string) ServiceSpecOpt {
+func ServiceWithCapabilities(add []string, drop []string) ServiceSpecOpt {
 	return func(spec *swarmtypes.ServiceSpec) {
 		ensureContainerSpec(spec)
-		spec.TaskTemplate.ContainerSpec.Capabilities = Capabilities
+		spec.TaskTemplate.ContainerSpec.CapabilityAdd = add
+		spec.TaskTemplate.ContainerSpec.CapabilityDrop = drop
 	}
 }
 
