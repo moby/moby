@@ -663,6 +663,71 @@ definitions:
           1000000 (1 ms). 0 means inherit.
         type: "integer"
 
+  Health:
+    description: |
+      Health stores information about the container's healthcheck results.
+    type: "object"
+    properties:
+      Status:
+        description: |
+          Status is one of `none`, `starting`, `healthy` or `unhealthy`
+
+          - "none"      Indicates there is no healthcheck
+          - "starting"  Starting indicates that the container is not yet ready
+          - "healthy"   Healthy indicates that the container is running correctly
+          - "unhealthy" Unhealthy indicates that the container has a problem
+        type: "string"
+        enum:
+          - "none"
+          - "starting"
+          - "healthy"
+          - "unhealthy"
+        example: "healthy"
+      FailingStreak:
+        description: "FailingStreak is the number of consecutive failures"
+        type: "integer"
+        example: 0
+      Log:
+        type: "array"
+        description: |
+          Log contains the last few results (oldest first)
+        items:
+          x-nullable: true
+          $ref: "#/definitions/HealthcheckResult"
+
+  HealthcheckResult:
+    description: |
+      HealthcheckResult stores information about a single run of a healthcheck probe
+    type: "object"
+    properties:
+      Start:
+        description: |
+          Date and time at which this check started in
+          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
+        type: "string"
+        format: "date-time"
+        example: "2020-01-04T10:44:24.496525531Z"
+      End:
+        description: |
+          Date and time at which this check ended in
+          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
+        type: "string"
+        format: "dateTime"
+        example: "2020-01-04T10:45:21.364524523Z"
+      ExitCode:
+        description: |
+          ExitCode meanings:
+
+          - `0` healthy
+          - `1` unhealthy
+          - `2` reserved (considered unhealthy)
+          - other values: error running probe
+        type: "integer"
+        example: 0
+      Output:
+        description: "Output from last check"
+        type: "string"
+
   HostConfig:
     description: "Container configuration that depends on the host we are running on"
     allOf:
@@ -1077,6 +1142,42 @@ definitions:
         type: "array"
         items:
           type: "string"
+
+  NetworkingConfig:
+    description: |
+      NetworkingConfig represents the container's networking configuration for
+      each of its interfaces.
+      It is used for the networking configs specified in the `docker create`
+      and `docker network connect` commands.
+    type: "object"
+    properties:
+      EndpointsConfig:
+        description: |
+          A mapping of network name to endpoint configuration for that network.
+        type: "object"
+        additionalProperties:
+          $ref: "#/definitions/EndpointSettings"
+    example:
+      # putting an example here, instead of using the example values from
+      # /definitions/EndpointSettings, because containers/create currently
+      # does not support attaching to multiple networks, so the example request
+      # would be confusing if it showed that multiple networks can be contained
+      # in the EndpointsConfig.
+      # TODO remove once we support multiple networks on container create (see https://github.com/moby/moby/blob/07e6b843594e061f82baa5fa23c2ff7d536c2a05/daemon/create.go#L323)
+      EndpointsConfig:
+        isolated_nw:
+          IPAMConfig:
+            IPv4Address: "172.20.30.33"
+            IPv6Address: "2001:db8:abcd::3033"
+            LinkLocalIPs:
+              - "169.254.34.68"
+              - "fe80::3468"
+          Links:
+            - "container_1"
+            - "container_2"
+          Aliases:
+            - "server_x"
+            - "server_y"
 
   NetworkSettings:
     description: "NetworkSettings exposes the network settings in the API"
@@ -3165,14 +3266,7 @@ definitions:
         description: "Specifies which networks the service should attach to."
         type: "array"
         items:
-          type: "object"
-          properties:
-            Target:
-              type: "string"
-            Aliases:
-              type: "array"
-              items:
-                type: "string"
+          $ref: "#/definitions/NetworkAttachmentConfig"
       LogDriver:
         description: |
           Specifies the log driver to use for tasks created from this spec. If
@@ -3449,14 +3543,8 @@ definitions:
         description: "Specifies which networks the service should attach to."
         type: "array"
         items:
-          type: "object"
-          properties:
-            Target:
-              type: "string"
-            Aliases:
-              type: "array"
-              items:
-                type: "string"
+          $ref: "#/definitions/NetworkAttachmentConfig"
+
       EndpointSpec:
         $ref: "#/definitions/EndpointSpec"
 
@@ -3833,6 +3921,71 @@ definitions:
         format: "dateTime"
       Spec:
         $ref: "#/definitions/ConfigSpec"
+
+  ContainerState:
+    description: |
+      ContainerState stores container's running state. It's part of ContainerJSONBase
+      and will be returned by the "inspect" command.
+    type: "object"
+    properties:
+      Status:
+        description: |
+          String representation of the container state. Can be one of "created",
+          "running", "paused", "restarting", "removing", "exited", or "dead".
+        type: "string"
+        enum: ["created", "running", "paused", "restarting", "removing", "exited", "dead"]
+        example: "running"
+      Running:
+        description: |
+          Whether this container is running.
+
+          Note that a running container can be _paused_. The `Running` and `Paused`
+          booleans are not mutually exclusive:
+
+          When pausing a container (on Linux), the freezer cgroup is used to suspend
+          all processes in the container. Freezing the process requires the process to
+          be running. As a result, paused containers are both `Running` _and_ `Paused`.
+
+          Use the `Status` field instead to determine if a container's state is "running".
+        type: "boolean"
+        example: true
+      Paused:
+        description: "Whether this container is paused."
+        type: "boolean"
+        example: false
+      Restarting:
+        description: "Whether this container is restarting."
+        type: "boolean"
+        example: false
+      OOMKilled:
+        description: |
+          Whether this container has been killed because it ran out of memory.
+        type: "boolean"
+        example: false
+      Dead:
+        type: "boolean"
+        example: false
+      Pid:
+        description: "The process ID of this container"
+        type: "integer"
+        example: 1234
+      ExitCode:
+        description: "The last exit code of this container"
+        type: "integer"
+        example: 0
+      Error:
+        type: "string"
+      StartedAt:
+        description: "The time when this container was last started."
+        type: "string"
+        example: "2020-01-06T09:06:59.461876391Z"
+      FinishedAt:
+        description: "The time when this container last exited."
+        type: "string"
+        example: "2020-01-06T09:07:59.461876391Z"
+      Health:
+        x-nullable: true
+        $ref: "#/definitions/Health"
 
   SystemInfo:
     type: "object"
@@ -4634,6 +4787,28 @@ definitions:
           IP address and ports at which this node can be reached.
         type: "string"
 
+  NetworkAttachmentConfig:
+    description: |
+      Specifies how a service should be attached to a particular network.
+    type: "object"
+    properties:
+      Target:
+        description: |
+          The target network for attachment. Must be a network name or ID.
+        type: "string"
+      Aliases:
+        description: |
+          Discoverable alternate names for the service on this network.
+        type: "array"
+        items:
+          type: "string"
+      DriverOpts:
+        description: |
+          Driver attachment options for the network target.
+        type: "object"
+        additionalProperties:
+          type: "string"
+
 paths:
   /containers/json:
     get:
@@ -4861,16 +5036,7 @@ paths:
                   HostConfig:
                     $ref: "#/definitions/HostConfig"
                   NetworkingConfig:
-                    description: "This container's networking configuration."
-                    type: "object"
-                    properties:
-                      EndpointsConfig:
-                        description: |
-                          A mapping of network name to endpoint configuration
-                          for that network.
-                        type: "object"
-                        additionalProperties:
-                          $ref: "#/definitions/EndpointSettings"
+                    $ref: "#/definitions/NetworkingConfig"
             example:
               Hostname: ""
               Domainname: ""
@@ -5063,54 +5229,10 @@ paths:
                 items:
                   type: "string"
               State:
-                description: "The state of the container."
-                type: "object"
-                properties:
-                  Status:
-                    description: |
-                      The status of the container. For example, `"running"` or `"exited"`.
-                    type: "string"
-                    enum: ["created", "running", "paused", "restarting", "removing", "exited", "dead"]
-                  Running:
-                    description: |
-                      Whether this container is running.
-
-                      Note that a running container can be _paused_. The `Running` and `Paused`
-                      booleans are not mutually exclusive:
-
-                      When pausing a container (on Linux), the cgroups freezer is used to suspend
-                      all processes in the container. Freezing the process requires the process to
-                      be running. As a result, paused containers are both `Running` _and_ `Paused`.
-
-                      Use the `Status` field instead to determine if a container's state is "running".
-                    type: "boolean"
-                  Paused:
-                    description: "Whether this container is paused."
-                    type: "boolean"
-                  Restarting:
-                    description: "Whether this container is restarting."
-                    type: "boolean"
-                  OOMKilled:
-                    description: "Whether this container has been killed because it ran out of memory."
-                    type: "boolean"
-                  Dead:
-                    type: "boolean"
-                  Pid:
-                    description: "The process ID of this container"
-                    type: "integer"
-                  ExitCode:
-                    description: "The last exit code of this container"
-                    type: "integer"
-                  Error:
-                    type: "string"
-                  StartedAt:
-                    description: "The time when this container was last started."
-                    type: "string"
-                  FinishedAt:
-                    description: "The time when this container last exited."
-                    type: "string"
+                x-nullable: true
+                $ref: "#/definitions/ContainerState"
               Image:
-                description: "The container's image"
+                description: "The container's image ID"
                 type: "string"
               ResolvConfPath:
                 type: "string"
@@ -5180,6 +5302,8 @@ paths:
                 Domainname: ""
                 Env:
                   - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+                Healthcheck:
+                  Test: ["CMD-SHELL", "exit 0"]
                 Hostname: "ba033ac44011"
                 Image: "ubuntu"
                 Labels:
@@ -5291,6 +5415,14 @@ paths:
                 Error: ""
                 ExitCode: 9
                 FinishedAt: "2015-01-06T15:47:32.080254511Z"
+                Health:
+                  Status: "healthy"
+                  FailingStreak: 0
+                  Log:
+                    - Start: "2019-12-22T10:59:05.6385933Z"
+                      End: "2019-12-22T10:59:05.8078452Z"
+                      ExitCode: 0
+                      Output: ""
                 OOMKilled: false
                 Dead: false
                 Paused: false
@@ -5591,6 +5723,16 @@ paths:
         If either `precpu_stats.online_cpus` or `cpu_stats.online_cpus` is
         nil then for compatibility with older daemons the length of the
         corresponding `cpu_usage.percpu_usage` array should be used.
+
+        To calculate the values shown by the `stats` command of the docker cli tool
+        the following formulas can be used:
+        * used_memory = `memory_stats.usage - memory_stats.stats.cache`
+        * available_memory = `memory_stats.limit`
+        * Memory usage % = `(used_memory / available_memory) * 100.0`
+        * cpu_delta = `cpu_stats.cpu_usage.total_usage - precpu_stats.cpu_usage.total_usage`
+        * system_cpu_delta = `cpu_stats.system_cpu_usage - precpu_stats.system_cpu_usage`
+        * number_cpus = `lenght(cpu_stats.cpu_usage.percpu_usage)` or `cpu_stats.online_cpus`
+        * CPU usage % = `(cpu_delta / system_cpu_delta) * number_cpus * 100.0`
       operationId: "ContainerStats"
       produces: ["application/json"]
       responses:
@@ -5762,8 +5904,6 @@ paths:
           description: "no error"
         304:
           description: "container already started"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such container"
           schema:
@@ -5798,8 +5938,6 @@ paths:
           description: "no error"
         304:
           description: "container already stopped"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such container"
           schema:
@@ -6923,6 +7061,10 @@ paths:
         - name: "tag"
           in: "query"
           description: "Tag or digest. If empty when pulling an image, this causes all tags for the given image to be pulled."
+          type: "string"
+        - name: "message"
+          in: "query"
+          description: "Set commit message for imported image."
           type: "string"
         - name: "inputImage"
           in: "body"
