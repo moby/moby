@@ -34,6 +34,7 @@ func (n *bridgeNetwork) allocatePorts(ep *bridgeEndpoint, reqDefBindIP net.IP, u
 
 	// IPv6 port binding excluding user land proxy
 	if n.driver.config.EnableIP6Tables && ep.addrv6 != nil {
+		// TODO IPv6 custom default binding IP
 		pbv6, err := n.allocatePortsInternal(ep.extConnConfig.PortBindings, ep.addrv6.IP, defaultBindingIPV6, false)
 		if err != nil {
 			// ensure we clear the previous allocated IPv4 ports

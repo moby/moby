@@ -210,6 +210,7 @@ func programMangle(vni uint32, add bool) (err error) {
 		action = "install"
 	)
 
+	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
 
 	if add == iptable.Exists(iptables.Mangle, chain, rule...) {
@@ -241,6 +242,7 @@ func programInput(vni uint32, add bool) (err error) {
 		msg        = "add"
 	)
 
+	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
 
 	if !add {

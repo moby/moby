@@ -26,6 +26,7 @@ func arrangeUserFilterRule() {
 	if ctrl == nil || !ctrl.iptablesEnabled() {
 		return
 	}
+	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
 	_, err := iptable.NewChain(userChain, iptables.Filter, false)
 	if err != nil {

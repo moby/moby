@@ -302,7 +302,7 @@ func filterPortConfigs(ingressPorts []*PortConfig, isDelete bool) []*PortConfig 
 }
 
 func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) error {
-
+	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
 
 	addDelOpt := "-I"
@@ -464,6 +464,7 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 // This chain has the rules to allow access to the published ports for swarm tasks
 // from local bridge networks and docker_gwbridge (ie:taks on other swarm networks)
 func arrangeIngressFilterRule() {
+	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
 	if iptable.ExistChain(ingressChain, iptables.Filter) {
 		if iptable.Exists(iptables.Filter, "FORWARD", "-j", ingressChain) {
@@ -610,6 +611,7 @@ func invokeFWMarker(path string, vip net.IP, fwMark uint32, ingressPorts []*Port
 
 // Firewall marker reexec function.
 func fwMarker() {
+	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -716,6 +718,7 @@ func addRedirectRules(path string, eIP *net.IPNet, ingressPorts []*PortConfig) e
 
 // Redirector reexec function.
 func redirector() {
+	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()

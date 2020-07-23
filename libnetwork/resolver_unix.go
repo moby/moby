@@ -57,6 +57,7 @@ func reexecSetupResolver() {
 		os.Exit(3)
 	}
 
+	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
 
 	// insert outputChain and postroutingchain
