@@ -1566,11 +1566,15 @@ func (daemon *Daemon) statsV2(s *types.StatsJSON, stats *statsV2.Metrics) (*type
 			Usage: stats.Memory.Usage,
 			// MaxUsage is not supported
 			Limit: stats.Memory.UsageLimit,
-			// TODO: Failcnt
 		}
 		// if the container does not set memory limit, use the machineMemory
 		if s.MemoryStats.Limit > daemon.machineMemory && daemon.machineMemory > 0 {
 			s.MemoryStats.Limit = daemon.machineMemory
+		}
+		if stats.MemoryEvents != nil {
+			// Failcnt is set to the "oom" field of the "memory.events" file.
+			// See https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
+			s.MemoryStats.Failcnt = stats.MemoryEvents.Oom
 		}
 	}
 
