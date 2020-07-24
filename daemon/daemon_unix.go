@@ -465,6 +465,12 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 	if resources.Memory > 0 && resources.MemoryReservation > 0 && resources.Memory < resources.MemoryReservation {
 		return warnings, fmt.Errorf("Minimum memory limit can not be less than memory reservation limit, see usage")
 	}
+	if resources.KernelMemory > 0 {
+		// Kernel memory limit is not supported on cgroup v2.
+		// Even on cgroup v1, kernel memory limit (`kmem.limit_in_bytes`) has been deprecated since kernel 5.4.
+		// https://github.com/torvalds/linux/commit/0158115f702b0ba208ab0b5adf44cae99b3ebcc7
+		warnings = append(warnings, "Specifying a kernel memory limit is deprecated and will be removed in a future release.")
+	}
 	if resources.KernelMemory > 0 && !sysInfo.KernelMemory {
 		warnings = append(warnings, "Your kernel does not support kernel memory limit capabilities or the cgroup is not mounted. Limitation discarded.")
 		resources.KernelMemory = 0
