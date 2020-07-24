@@ -18,7 +18,6 @@ package cgroups
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -169,7 +168,7 @@ func (c *cgroup) add(process Process) error {
 		if err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(
+		if err := retryingWriteFile(
 			filepath.Join(s.Path(p), cgroupProcs),
 			[]byte(strconv.Itoa(process.Pid)),
 			defaultFilePerm,
@@ -199,7 +198,7 @@ func (c *cgroup) addTask(process Process) error {
 		if err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(
+		if err := retryingWriteFile(
 			filepath.Join(s.Path(p), cgroupTasks),
 			[]byte(strconv.Itoa(process.Pid)),
 			defaultFilePerm,
@@ -217,7 +216,7 @@ func (c *cgroup) Delete() error {
 	if c.err != nil {
 		return c.err
 	}
-	var errors []string
+	var errs []string
 	for _, s := range c.subsystems {
 		if d, ok := s.(deleter); ok {
 			sp, err := c.path(s.Name())
@@ -225,7 +224,7 @@ func (c *cgroup) Delete() error {
 				return err
 			}
 			if err := d.Delete(sp); err != nil {
-				errors = append(errors, string(s.Name()))
+				errs = append(errs, string(s.Name()))
 			}
 			continue
 		}
@@ -236,12 +235,12 @@ func (c *cgroup) Delete() error {
 			}
 			path := p.Path(sp)
 			if err := remove(path); err != nil {
-				errors = append(errors, path)
+				errs = append(errs, path)
 			}
 		}
 	}
-	if len(errors) > 0 {
-		return fmt.Errorf("cgroups: unable to remove paths %s", strings.Join(errors, ", "))
+	if len(errs) > 0 {
+		return fmt.Errorf("cgroups: unable to remove paths %s", strings.Join(errs, ", "))
 	}
 	c.err = ErrCgroupDeleted
 	return nil
@@ -458,7 +457,26 @@ func (c *cgroup) OOMEventFD() (uintptr, error) {
 	if err != nil {
 		return 0, err
 	}
-	return s.(*memoryController).OOMEventFD(sp)
+	return s.(*memoryController).memoryEvent(sp, OOMEvent())
+}
+
+// RegisterMemoryEvent allows the ability to register for all v1 memory cgroups
+// notifications.
+func (c *cgroup) RegisterMemoryEvent(event MemoryEvent) (uintptr, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.err != nil {
+		return 0, c.err
+	}
+	s := c.getSubsystem(Memory)
+	if s == nil {
+		return 0, ErrMemoryNotSupported
+	}
+	sp, err := c.path(Memory)
+	if err != nil {
+		return 0, err
+	}
+	return s.(*memoryController).memoryEvent(sp, event)
 }
 
 // State returns the state of the cgroup and its processes

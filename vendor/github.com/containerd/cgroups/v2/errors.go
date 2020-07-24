@@ -44,7 +44,3 @@ func IgnoreNotExist(err error) error {
 	}
 	return err
 }
-
-func errPassthrough(err error) error {
-	return err
-}

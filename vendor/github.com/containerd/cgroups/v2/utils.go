@@ -28,9 +28,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/godbus/dbus/v5"
-
 	"github.com/containerd/cgroups/v2/stats"
+	"github.com/godbus/dbus/v5"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -85,6 +84,9 @@ func parseCgroupProcsFile(path string) ([]uint64, error) {
 			out = append(out, pid)
 		}
 	}
+	if err := s.Err(); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -101,14 +103,6 @@ func parseKV(raw string) (string, interface{}, error) {
 	default:
 		return "", 0, ErrInvalidFormat
 	}
-}
-
-func readUint(path string) (uint64, error) {
-	v, err := ioutil.ReadFile(path)
-	if err != nil {
-		return 0, err
-	}
-	return parseUint(strings.TrimSpace(string(v)), 10, 64)
 }
 
 func parseUint(s string, base, bitSize int) (uint64, error) {
@@ -144,9 +138,6 @@ func parseCgroupFromReader(r io.Reader) (string, error) {
 		s = bufio.NewScanner(r)
 	)
 	for s.Scan() {
-		if err := s.Err(); err != nil {
-			return "", err
-		}
 		var (
 			text  = s.Text()
 			parts = strings.SplitN(text, ":", 3)
@@ -158,6 +149,9 @@ func parseCgroupFromReader(r io.Reader) (string, error) {
 		if parts[0] == "0" && parts[1] == "" {
 			return parts[2], nil
 		}
+	}
+	if err := s.Err(); err != nil {
+		return "", err
 	}
 	return "", fmt.Errorf("cgroup path not found")
 }
@@ -175,7 +169,7 @@ func ToResources(spec *specs.LinuxResources) *Resources {
 			Mems: cpu.Mems,
 		}
 		if shares := cpu.Shares; shares != nil {
-			convertedWeight := (1 + ((*shares-2)*9999)/262142)
+			convertedWeight := 1 + ((*shares-2)*9999)/262142
 			resources.CPU.Weight = &convertedWeight
 		}
 		if period := cpu.Period; period != nil {
@@ -298,8 +292,8 @@ func readIoStats(path string) []*stats.IOEntry {
 			Major: major,
 			Minor: minor,
 		}
-		for _, stats := range parts {
-			keyPairValue := strings.Split(stats, "=")
+		for _, s := range parts {
+			keyPairValue := strings.Split(s, "=")
 			if len(keyPairValue) != 2 {
 				continue
 			}

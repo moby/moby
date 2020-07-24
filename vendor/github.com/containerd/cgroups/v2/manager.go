@@ -18,26 +18,22 @@ package v2
 
 import (
 	"bufio"
-	"fmt"
 	"io/ioutil"
 	"math"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/containerd/cgroups/v2/stats"
+	systemdDbus "github.com/coreos/go-systemd/v22/dbus"
 	"github.com/godbus/dbus/v5"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-
-	systemdDbus "github.com/coreos/go-systemd/v22/dbus"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -49,12 +45,7 @@ const (
 
 var (
 	canDelegate bool
-	once        sync.Once
 )
-
-type cgValuer interface {
-	Values() []Value
-}
 
 type Event struct {
 	Low     uint64
@@ -149,11 +140,21 @@ func (c *Value) write(path string, perm os.FileMode) error {
 	default:
 		return ErrInvalidFormat
 	}
-	return ioutil.WriteFile(
-		filepath.Join(path, c.filename),
-		data,
-		perm,
-	)
+
+	// Retry writes on EINTR; see:
+	//    https://github.com/golang/go/issues/38033
+	for {
+		err := ioutil.WriteFile(
+			filepath.Join(path, c.filename),
+			data,
+			perm,
+		)
+		if err == nil {
+			return nil
+		} else if !errors.Is(err, syscall.EINTR) {
+			return err
+		}
+	}
 }
 
 func writeValues(path string, values []Value) error {
@@ -166,6 +167,9 @@ func writeValues(path string, values []Value) error {
 }
 
 func NewManager(mountpoint string, group string, resources *Resources) (*Manager, error) {
+	if resources == nil {
+		return nil, errors.New("resources reference is nil")
+	}
 	if err := VerifyGroupPath(group); err != nil {
 		return nil, err
 	}
@@ -256,7 +260,7 @@ func (c *Manager) ToggleControllers(controllers []string, t ControllerToggle) er
 	// Note that /sys/fs/cgroup/foo/bar/baz/cgroup.subtree_control does not need to be written.
 	split := strings.Split(c.path, "/")
 	var lastErr error
-	for i, _ := range split {
+	for i := range split {
 		f := strings.Join(split[:i], "/")
 		if !strings.HasPrefix(f, c.unifiedMountpoint) || f == c.path {
 			continue
@@ -359,8 +363,7 @@ func (c *Manager) Stat() (*stats.Metrics, error) {
 	for _, controller := range controllers {
 		switch controller {
 		case "cpu", "memory":
-			filename := fmt.Sprintf("%s.stat", controller)
-			if err := readKVStatsFile(c.path, filename, out); err != nil {
+			if err := readKVStatsFile(c.path, controller+".stat", out); err != nil {
 				if os.IsNotExist(err) {
 					continue
 				}
@@ -373,6 +376,12 @@ func (c *Manager) Stat() (*stats.Metrics, error) {
 			if os.IsNotExist(err) {
 				continue
 			}
+			return nil, err
+		}
+	}
+	memoryEvents := make(map[string]interface{})
+	if err := readKVStatsFile(c.path, "memory.events", memoryEvents); err != nil {
+		if !os.IsNotExist(err) {
 			return nil, err
 		}
 	}
@@ -427,7 +436,15 @@ func (c *Manager) Stat() (*stats.Metrics, error) {
 		SwapUsage:             getStatFileContentUint64(filepath.Join(c.path, "memory.swap.current")),
 		SwapLimit:             getStatFileContentUint64(filepath.Join(c.path, "memory.swap.max")),
 	}
-
+	if len(memoryEvents) > 0 {
+		metrics.MemoryEvents = &stats.MemoryEvents{
+			Low:     getUint64Value("low", memoryEvents),
+			High:    getUint64Value("high", memoryEvents),
+			Max:     getUint64Value("max", memoryEvents),
+			Oom:     getUint64Value("oom", memoryEvents),
+			OomKill: getUint64Value("oom_kill", memoryEvents),
+		}
+	}
 	metrics.Io = &stats.IOStat{Usage: readIoStats(c.path)}
 	metrics.Rdma = &stats.RdmaStat{
 		Current: rdmaStats(filepath.Join(c.path, "rdma.current")),
@@ -496,16 +513,13 @@ func readKVStatsFile(path string, file string, out map[string]interface{}) error
 
 	s := bufio.NewScanner(f)
 	for s.Scan() {
-		if err := s.Err(); err != nil {
-			return err
-		}
 		name, value, err := parseKV(s.Text())
 		if err != nil {
 			return errors.Wrapf(err, "error while parsing %s (line=%q)", filepath.Join(path, file), s.Text())
 		}
 		out[name] = value
 	}
-	return nil
+	return s.Err()
 }
 
 func (c *Manager) Freeze() error {
@@ -575,15 +589,44 @@ func (c *Manager) waitForEvents(ec chan<- Event, errCh chan<- error) {
 			errCh <- err
 			return
 		}
-		var out map[string]interface{}
 		if bytesRead >= syscall.SizeofInotifyEvent {
-			if err := readKVStatsFile(c.path, "memory.events", out); err != nil {
-				e := Event{
-					High:    out["high"].(uint64),
-					Low:     out["low"].(uint64),
-					Max:     out["max"].(uint64),
-					OOM:     out["oom"].(uint64),
-					OOMKill: out["oom_kill"].(uint64),
+			out := make(map[string]interface{})
+			if err := readKVStatsFile(c.path, "memory.events", out); err == nil {
+				e := Event{}
+				if v, ok := out["high"]; ok {
+					e.High, ok = v.(uint64)
+					if !ok {
+						errCh <- errors.Errorf("cannot convert high to uint64: %+v", v)
+						return
+					}
+				}
+				if v, ok := out["low"]; ok {
+					e.Low, ok = v.(uint64)
+					if !ok {
+						errCh <- errors.Errorf("cannot convert low to uint64: %+v", v)
+						return
+					}
+				}
+				if v, ok := out["max"]; ok {
+					e.Max, ok = v.(uint64)
+					if !ok {
+						errCh <- errors.Errorf("cannot convert max to uint64: %+v", v)
+						return
+					}
+				}
+				if v, ok := out["oom"]; ok {
+					e.OOM, ok = v.(uint64)
+					if !ok {
+						errCh <- errors.Errorf("cannot convert oom to uint64: %+v", v)
+						return
+					}
+				}
+				if v, ok := out["oom_kill"]; ok {
+					e.OOMKill, ok = v.(uint64)
+					if !ok {
+						errCh <- errors.Errorf("cannot convert oom_kill to uint64: %+v", v)
+						return
+					}
 				}
 				ec <- e
 			} else {
@@ -627,7 +670,7 @@ func NewSystemd(slice, group string, pid int, resources *Resources) (*Manager, e
 	defer conn.Close()
 
 	properties := []systemdDbus.Property{
-		systemdDbus.PropDescription(fmt.Sprintf("cgroup %s", group)),
+		systemdDbus.PropDescription("cgroup " + group),
 		newSystemdProperty("DefaultDependencies", false),
 		newSystemdProperty("MemoryAccounting", true),
 		newSystemdProperty("CPUAccounting", true),

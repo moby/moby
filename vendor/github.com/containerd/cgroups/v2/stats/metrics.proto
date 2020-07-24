@@ -11,6 +11,7 @@ message Metrics {
 	RdmaStat rdma = 5;
 	IOStat io = 6;
 	repeated HugeTlbStat hugetlb = 7;
+	MemoryEvents memory_events = 8;
 }
 
 message PidsStat {
@@ -63,6 +64,14 @@ message MemoryStat {
 	uint64 usage_limit = 33;
 	uint64 swap_usage = 34;
 	uint64 swap_limit = 35;
+}
+
+message MemoryEvents {
+	uint64 low = 1;
+	uint64 high = 2;
+	uint64 max = 3;
+	uint64 oom = 4;
+	uint64 oom_kill = 5;
 }
 
 message RdmaStat {
