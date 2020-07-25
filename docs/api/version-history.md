@@ -17,6 +17,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.41](https://docs.docker.com/engine/api/v1.41/) documentation
 
+* `GET /events` now returns `prune` events after pruning resources have completed.
+  Prune events are returned for `container`, `network`, `volume`, `image`, and
+  `builder`, and have a `reclaimed` attribute, indicating the amount of space
+  reclaimed (in bytes).
 * `GET /info` now returns a `CgroupVersion` field, containing the cgroup version.
 * `GET /info` now returns a `DefaultAddressPools` field, containing a list of
   custom default address pools for local networks, which can be specified in the

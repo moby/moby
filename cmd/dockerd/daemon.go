@@ -299,7 +299,7 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		return opts, err
 	}
 
-	bb, err := buildbackend.NewBackend(d.ImageService(), manager, bk)
+	bb, err := buildbackend.NewBackend(d.ImageService(), manager, bk, d.EventsService)
 	if err != nil {
 		return opts, errors.Wrap(err, "failed to create buildmanager")
 	}
