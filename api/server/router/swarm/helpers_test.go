@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/go-units"
 )
 
 func TestAdjustForAPIVersion(t *testing.T) {
@@ -37,6 +38,13 @@ func TestAdjustForAPIVersion(t *testing.T) {
 						Runtime:    &swarm.ConfigReferenceRuntimeTarget{},
 						ConfigID:   "configRuntime",
 						ConfigName: "configRuntime",
+					},
+				},
+				Ulimits: []*units.Ulimit{
+					{
+						Name: "nofile",
+						Soft: 100,
+						Hard: 200,
 					},
 				},
 			},
@@ -78,6 +86,10 @@ func TestAdjustForAPIVersion(t *testing.T) {
 		t.Error("MaxReplicas was stripped from spec")
 	}
 
+	if len(spec.TaskTemplate.ContainerSpec.Ulimits) == 0 {
+		t.Error("Ulimits were stripped from spec")
+	}
+
 	// next, does calling this with an earlier version correctly strip fields?
 	adjustForAPIVersion("1.29", spec)
 	if spec.TaskTemplate.ContainerSpec.Sysctls != nil {
@@ -98,6 +110,10 @@ func TestAdjustForAPIVersion(t *testing.T) {
 
 	if spec.TaskTemplate.Placement.MaxReplicas != 0 {
 		t.Error("MaxReplicas was not stripped from spec")
+	}
+
+	if len(spec.TaskTemplate.ContainerSpec.Ulimits) != 0 {
+		t.Error("Ulimits were not stripped from spec")
 	}
 
 }

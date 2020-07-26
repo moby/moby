@@ -21,6 +21,7 @@ import (
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/go-connections/nat"
+	"github.com/docker/go-units"
 	netconst "github.com/docker/libnetwork/datastore"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -436,6 +437,15 @@ func (c *containerConfig) resources() enginecontainer.Resources {
 	pidsLimit := c.spec().PidsLimit
 	if pidsLimit > 0 {
 		resources.PidsLimit = &pidsLimit
+	}
+
+	resources.Ulimits = make([]*units.Ulimit, len(c.spec().Ulimits))
+	for i, ulimit := range c.spec().Ulimits {
+		resources.Ulimits[i] = &units.Ulimit{
+			Name: ulimit.Name,
+			Soft: ulimit.Soft,
+			Hard: ulimit.Hard,
+		}
 	}
 
 	// If no limits are specified let the engine use its defaults.
