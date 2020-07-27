@@ -1874,12 +1874,24 @@ definitions:
       Shared:
         type: "boolean"
       Size:
+        description: |
+          Amount of disk space used by the build cache (in bytes).
         type: "integer"
       CreatedAt:
-        type: "integer"
+        description: |
+          Date and time at which the build cache was created in
+          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
+        type: "string"
+        format: "dateTime"
+        example: "2016-08-18T10:44:24.496525531Z"
       LastUsedAt:
-        type: "integer"
+        description: |
+          Date and time at which the build cache was last used in
+          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
+        type: "string"
+        format: "dateTime"
         x-nullable: true
+        example: "2017-08-09T07:09:37.632105588Z"
       UsageCount:
         type: "integer"
 
