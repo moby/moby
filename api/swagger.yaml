@@ -906,15 +906,6 @@ definitions:
               $ref: "#/definitions/Mount"
 
           # Applicable to UNIX platforms
-          Capabilities:
-            type: "array"
-            description: |
-              A list of kernel capabilities to be available for container (this
-              overrides the default set).
-
-              Conflicts with options 'CapAdd' and 'CapDrop'"
-            items:
-              type: "string"
           CapAdd:
             type: "array"
             description: |
@@ -3288,11 +3279,11 @@ definitions:
             additionalProperties:
               type: "string"
           # This option is not used by Windows containers
-          Capabilities:
+          CapabilityAdd:
             type: "array"
             description: |
-              A list of kernel capabilities to be available for container (this
-              overrides the default set).
+              A list of kernel capabilities to add to the default set
+              for the container.
             items:
               type: "string"
             example:
@@ -3300,6 +3291,15 @@ definitions:
               - "CAP_SYS_ADMIN"
               - "CAP_SYS_CHROOT"
               - "CAP_SYSLOG"
+          CapabilityDrop:
+            type: "array"
+            description: |
+              A list of kernel capabilities to drop from the default set
+              for the container.
+            items:
+              type: "string"
+            example:
+              - "CAP_NET_RAW"
       NetworkAttachmentSpec:
         description: |
           Read-only spec type for non-swarm containers attached to swarm overlay

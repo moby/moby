@@ -360,7 +360,8 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		Isolation:      c.isolation(),
 		Init:           c.init(),
 		Sysctls:        c.spec().Sysctls,
-		Capabilities:   c.spec().Capabilities,
+		CapAdd:         c.spec().CapabilityAdd,
+		CapDrop:        c.spec().CapabilityDrop,
 	}
 
 	if c.spec().DNSConfig != nil {
