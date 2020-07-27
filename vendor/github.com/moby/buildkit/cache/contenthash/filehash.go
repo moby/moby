@@ -40,6 +40,9 @@ func NewFileHash(path string, fi os.FileInfo) (hash.Hash, error) {
 }
 
 func NewFromStat(stat *fstypes.Stat) (hash.Hash, error) {
+	// Clear the socket bit since archive/tar.FileInfoHeader does not handle it
+	stat.Mode &^= uint32(os.ModeSocket)
+
 	fi := &statInfo{stat}
 	hdr, err := tar.FileInfoHeader(fi, stat.Linkname)
 	if err != nil {
