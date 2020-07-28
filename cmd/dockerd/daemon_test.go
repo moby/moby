@@ -112,7 +112,7 @@ func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
 	assert.Assert(t, loadedConfig != nil)
-	assert.Check(t, is.Equal(loadedConfig.TLS, true))
+	assert.Check(t, is.Equal(*loadedConfig.TLS, true))
 }
 
 func TestLoadDaemonCliConfigWithExplicitTLSVerifyFalse(t *testing.T) {
@@ -125,7 +125,7 @@ func TestLoadDaemonCliConfigWithExplicitTLSVerifyFalse(t *testing.T) {
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
 	assert.Assert(t, loadedConfig != nil)
-	assert.Check(t, loadedConfig.TLS)
+	assert.Check(t, *loadedConfig.TLS)
 }
 
 func TestLoadDaemonCliConfigWithoutTLSVerify(t *testing.T) {
@@ -138,7 +138,7 @@ func TestLoadDaemonCliConfigWithoutTLSVerify(t *testing.T) {
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
 	assert.Assert(t, loadedConfig != nil)
-	assert.Check(t, !loadedConfig.TLS)
+	assert.Check(t, loadedConfig.TLS == nil)
 }
 
 func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
