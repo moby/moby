@@ -100,9 +100,6 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 		if !v.SwapLimit {
 			v.Warnings = append(v.Warnings, "WARNING: No swap limit support")
 		}
-		if !v.KernelMemory {
-			v.Warnings = append(v.Warnings, "WARNING: No kernel memory limit support")
-		}
 		if !v.KernelMemoryTCP {
 			v.Warnings = append(v.Warnings, "WARNING: No kernel memory TCP limit support")
 		}

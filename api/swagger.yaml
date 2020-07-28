@@ -528,7 +528,13 @@ definitions:
         items:
           $ref: "#/definitions/DeviceRequest"
       KernelMemory:
-        description: "Kernel memory limit in bytes."
+        description: |
+          Kernel memory limit in bytes.
+
+          <p><br /></p>
+
+          > **Deprecated**: This field is deprecated as the kernel 5.4 deprecated
+          > `kmem.limit_in_bytes`.
         type: "integer"
         format: "int64"
         example: 209715200
@@ -4430,7 +4436,13 @@ definitions:
         type: "boolean"
         example: true
       KernelMemory:
-        description: "Indicates if the host has kernel memory limit support enabled."
+        description: |
+          Indicates if the host has kernel memory limit support enabled.
+
+          <p><br /></p>
+
+          > **Deprecated**: This field is deprecated as the kernel 5.4 deprecated
+          > `kmem.limit_in_bytes`.
         type: "boolean"
         example: true
       CpuCfsPeriod:
