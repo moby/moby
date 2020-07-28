@@ -3999,6 +3999,103 @@ definitions:
         x-nullable: true
         $ref: "#/definitions/Health"
 
+  SystemVersion:
+    type: "object"
+    description: |
+      Response of Engine API: GET "/version"
+    properties:
+      Platform:
+        type: "object"
+        required: [Name]
+        properties:
+          Name:
+            type: "string"
+      Components:
+        type: "array"
+        description: |
+          Information about system components
+        items:
+          type: "object"
+          x-go-name: ComponentVersion
+          required: [Name, Version]
+          properties:
+            Name:
+              description: |
+                Name of the component
+              type: "string"
+              example: "Engine"
+            Version:
+              description: |
+                Version of the component
+              type: "string"
+              x-nullable: false
+              example: "19.03.12"
+            Details:
+              description: |
+                Key/value pairs of strings with additional information about the
+                component. These values are intended for informational purposes
+                only, and their content is not defined, and not part of the API
+                specification.
+
+                These messages can be printed by the client as information to the user.
+              type: "object"
+              x-nullable: true
+      Version:
+        description: "The version of the daemon"
+        type: "string"
+        example: "19.03.12"
+      ApiVersion:
+        description: |
+          The default (and highest) API version that is supported by the daemon
+        type: "string"
+        example: "1.40"
+      MinAPIVersion:
+        description: |
+          The minimum API version that is supported by the daemon
+        type: "string"
+        example: "1.12"
+      GitCommit:
+        description: |
+          The Git commit of the source code that was used to build the daemon
+        type: "string"
+        example: "48a66213fe"
+      GoVersion:
+        description: |
+          The version Go used to compile the daemon, and the version of the Go
+          runtime in use.
+        type: "string"
+        example: "go1.13.14"
+      Os:
+        description: |
+          The operating system that the daemon is running on ("linux" or "windows")
+        type: "string"
+        example: "linux"
+      Arch:
+        description: |
+          The architecture that the daemon is running on
+        type: "string"
+        example: "amd64"
+      KernelVersion:
+        description: |
+          The kernel version (`uname -r`) that the daemon is running on.
+
+          This field is omitted when empty.
+        type: "string"
+        example: "4.19.76-linuxkit"
+      Experimental:
+        description: |
+          Indicates if the daemon is started with experimental features enabled.
+
+          This field is omitted when empty / false.
+        type: "boolean"
+        example: true
+      BuildTime:
+        description: |
+          The date and time that the daemon was compiled.
+        type: "string"
+        example: "2020-06-22T15:49:27.000000000+00:00"
+
+
   SystemInfo:
     type: "object"
     properties:
@@ -7593,63 +7690,7 @@ paths:
         200:
           description: "no error"
           schema:
-            type: "object"
-            title: "SystemVersionResponse"
-            properties:
-              Platform:
-                type: "object"
-                required: [Name]
-                properties:
-                  Name:
-                    type: "string"
-              Components:
-                type: "array"
-                items:
-                  type: "object"
-                  x-go-name: ComponentVersion
-                  required: [Name, Version]
-                  properties:
-                    Name:
-                      type: "string"
-                    Version:
-                      type: "string"
-                      x-nullable: false
-                    Details:
-                      type: "object"
-                      x-nullable: true
-
-              Version:
-                type: "string"
-              ApiVersion:
-                type: "string"
-              MinAPIVersion:
-                type: "string"
-              GitCommit:
-                type: "string"
-              GoVersion:
-                type: "string"
-              Os:
-                type: "string"
-              Arch:
-                type: "string"
-              KernelVersion:
-                type: "string"
-              Experimental:
-                type: "boolean"
-              BuildTime:
-                type: "string"
-          examples:
-            application/json:
-              Version: "17.04.0"
-              Os: "linux"
-              KernelVersion: "3.19.0-23-generic"
-              GoVersion: "go1.7.5"
-              GitCommit: "deadbee"
-              Arch: "amd64"
-              ApiVersion: "1.27"
-              MinAPIVersion: "1.12"
-              BuildTime: "2016-06-14T07:09:13.444803460+00:00"
-              Experimental: true
+            $ref: "#/definitions/SystemVersion"
         500:
           description: "server error"
           schema:
