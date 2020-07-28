@@ -1021,7 +1021,7 @@ type ContainerSpec struct {
 	Sysctls map[string]string `protobuf:"bytes,26,rep,name=sysctls,proto3" json:"sysctls,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// CapabilityAdd sets the list of capabilities to add to the default capability list
 	CapabilityAdd []string `protobuf:"bytes,27,rep,name=capability_add,json=capabilityAdd,proto3" json:"capability_add,omitempty"`
-	// CapabilityAdd sets the list of capabilities to drop from the default capability list
+	// CapabilityDrop sets the list of capabilities to drop from the default capability list
 	CapabilityDrop []string `protobuf:"bytes,28,rep,name=capability_drop,json=capabilityDrop,proto3" json:"capability_drop,omitempty"`
 }
 

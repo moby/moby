@@ -358,7 +358,7 @@ message ContainerSpec {
 
 	// CapabilityAdd sets the list of capabilities to add to the default capability list
 	repeated string capability_add = 27;
-	// CapabilityAdd sets the list of capabilities to drop from the default capability list
+	// CapabilityDrop sets the list of capabilities to drop from the default capability list
 	repeated string capability_drop = 28;
 }
 
