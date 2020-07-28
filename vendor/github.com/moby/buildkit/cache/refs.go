@@ -123,7 +123,10 @@ func (cr *cacheRecord) Size(ctx context.Context) (int64, error) {
 		cr.mu.Unlock()
 		return usage.Size, nil
 	})
-	return s.(int64), err
+	if err != nil {
+		return 0, err
+	}
+	return s.(int64), nil
 }
 
 func (cr *cacheRecord) Parent() ImmutableRef {
