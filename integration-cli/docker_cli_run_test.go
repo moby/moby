@@ -1403,7 +1403,7 @@ func (s *DockerSuite) TestRunNonRootUserResolvName(c *testing.T) {
 	// Not applicable on Windows as Windows does not support --user
 	testRequires(c, testEnv.IsLocalDaemon, Network, DaemonIsLinux, NotArm)
 
-	dockerCmd(c, "run", "--name=testperm", "--user=nobody", "busybox", "nslookup", "apt.dockerproject.org")
+	dockerCmd(c, "run", "--name=testperm", "--user=nobody", "busybox", "nslookup", "example.com")
 
 	cID := getIDByName(c, "testperm")
 
