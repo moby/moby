@@ -42,7 +42,7 @@ type Transfer interface {
 	Close()
 	Done() <-chan struct{}
 	Released() <-chan struct{}
-	Broadcast(masterProgressChan <-chan progress.Progress)
+	Broadcast(mainProgressChan <-chan progress.Progress)
 }
 
 type transfer struct {
@@ -66,7 +66,7 @@ type transfer struct {
 	// the transfer is no longer tracked by the transfer manager.
 	released chan struct{}
 
-	// broadcastDone is true if the master progress channel has closed.
+	// broadcastDone is true if the main progress channel has closed.
 	broadcastDone bool
 	// closed is true if Close has been called
 	closed bool
@@ -95,14 +95,14 @@ func NewTransfer() Transfer {
 }
 
 // Broadcast copies the progress and error output to all viewers.
-func (t *transfer) Broadcast(masterProgressChan <-chan progress.Progress) {
+func (t *transfer) Broadcast(mainProgressChan <-chan progress.Progress) {
 	for {
 		var (
 			p  progress.Progress
 			ok bool
 		)
 		select {
-		case p, ok = <-masterProgressChan:
+		case p, ok = <-mainProgressChan:
 		default:
 			// We've depleted the channel, so now we can handle
 			// reads on broadcastSyncChan to let detaching watchers
@@ -110,7 +110,7 @@ func (t *transfer) Broadcast(masterProgressChan <-chan progress.Progress) {
 			select {
 			case <-t.broadcastSyncChan:
 				continue
-			case p, ok = <-masterProgressChan:
+			case p, ok = <-mainProgressChan:
 			}
 		}
 
@@ -353,10 +353,10 @@ func (tm *transferManager) Transfer(key string, xferFunc DoFunc, progressOutput 
 		tm.waitingTransfers = append(tm.waitingTransfers, start)
 	}
 
-	masterProgressChan := make(chan progress.Progress)
-	xfer := xferFunc(masterProgressChan, start, inactive)
+	mainProgressChan := make(chan progress.Progress)
+	xfer := xferFunc(mainProgressChan, start, inactive)
 	watcher := xfer.Watch(progressOutput)
-	go xfer.Broadcast(masterProgressChan)
+	go xfer.Broadcast(mainProgressChan)
 	tm.transfers[key] = xfer
 
 	// When the transfer is finished, remove from the map.

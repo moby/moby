@@ -40,7 +40,7 @@ func arches() []types.Architecture {
 	}
 }
 
-// DefaultProfile defines the whitelist for the default seccomp profile.
+// DefaultProfile defines the allowed syscalls for the default seccomp profile.
 func DefaultProfile() *types.Seccomp {
 	syscalls := []*types.Syscall{
 		{

@@ -14,7 +14,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-var pathBlacklist = map[string]bool{
+var pathDenyList = map[string]bool{
 	"c:\\":        true,
 	"c:\\windows": true,
 }
@@ -98,7 +98,7 @@ func validateCopySourcePath(imageSource *imageMount, origPath, platform string) 
 			p = filepath.Join("c:\\", p)
 		}
 	}
-	if _, blacklisted := pathBlacklist[p]; blacklisted {
+	if _, ok := pathDenyList[p]; ok {
 		return errors.New("copy from c:\\ or c:\\windows is not allowed on windows")
 	}
 	return nil
