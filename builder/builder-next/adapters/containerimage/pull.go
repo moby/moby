@@ -151,7 +151,7 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 	case source.ResolveModePreferLocal:
 		img, err := is.resolveLocal(ref)
 		if err == nil {
-			if !platformMatches(img, opt.Platform) {
+			if opt.Platform != nil && !platformMatches(img, opt.Platform) {
 				logrus.WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, checking remote",
 					path.Join(opt.Platform.OS, opt.Platform.Architecture, opt.Platform.Variant),
 					path.Join(img.OS, img.Architecture, img.Variant),
