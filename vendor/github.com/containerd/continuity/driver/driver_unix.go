@@ -131,8 +131,3 @@ func (d *driver) LSetxattr(path string, attrMap map[string][]byte) error {
 func (d *driver) DeviceInfo(fi os.FileInfo) (maj uint64, min uint64, err error) {
 	return devices.DeviceInfo(fi)
 }
-
-// Readlink was forked on Windows to fix a Golang bug, use the "os" package here
-func (d *driver) Readlink(p string) (string, error) {
-	return os.Readlink(p)
-}
