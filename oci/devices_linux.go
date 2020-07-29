@@ -25,10 +25,9 @@ func Device(d *configs.Device) specs.LinuxDevice {
 }
 
 func deviceCgroup(d *configs.Device) specs.LinuxDeviceCgroup {
-	t := string(d.Type)
 	return specs.LinuxDeviceCgroup{
 		Allow:  true,
-		Type:   t,
+		Type:   string(d.Type),
 		Major:  &d.Major,
 		Minor:  &d.Minor,
 		Access: d.Permissions,
