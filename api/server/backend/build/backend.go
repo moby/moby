@@ -3,12 +3,15 @@ package build // import "github.com/docker/docker/api/server/backend/build"
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/builder"
 	buildkit "github.com/docker/docker/builder/builder-next"
+	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
@@ -31,11 +34,12 @@ type Backend struct {
 	builder        Builder
 	imageComponent ImageComponent
 	buildkit       *buildkit.Builder
+	eventsService  *daemonevents.Events
 }
 
 // NewBackend creates a new build backend from components
-func NewBackend(components ImageComponent, builder Builder, buildkit *buildkit.Builder) (*Backend, error) {
-	return &Backend{imageComponent: components, builder: builder, buildkit: buildkit}, nil
+func NewBackend(components ImageComponent, builder Builder, buildkit *buildkit.Builder, es *daemonevents.Events) (*Backend, error) {
+	return &Backend{imageComponent: components, builder: builder, buildkit: buildkit, eventsService: es}, nil
 }
 
 // RegisterGRPC registers buildkit controller to the grpc server.
@@ -100,6 +104,11 @@ func (b *Backend) PruneCache(ctx context.Context, opts types.BuildCachePruneOpti
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prune build cache")
 	}
+	b.eventsService.Log("prune", events.BuilderEventType, events.Actor{
+		Attributes: map[string]string{
+			"reclaimed": strconv.FormatInt(buildCacheSize, 10),
+		},
+	})
 	return &types.BuildCachePruneReport{SpaceReclaimed: uint64(buildCacheSize), CachesDeleted: cacheIDs}, nil
 }
 
