@@ -1,6 +1,6 @@
 module github.com/containerd/continuity
 
-go 1.11
+go 1.13
 
 require (
 	bazil.org/fuse v0.0.0-20160811212531-371fbbdaa898

@@ -32,6 +32,7 @@ func DeviceInfo(fi os.FileInfo) (uint64, uint64, error) {
 		return 0, 0, fmt.Errorf("cannot extract device from os.FileInfo")
 	}
 
+	//nolint:unconvert
 	dev := uint64(sys.Rdev)
 	return uint64(unix.Major(dev)), uint64(unix.Minor(dev)), nil
 }
