@@ -30,7 +30,7 @@ func deviceCgroup(d *configs.Device) specs.LinuxDeviceCgroup {
 		Type:   string(d.Type),
 		Major:  &d.Major,
 		Minor:  &d.Minor,
-		Access: d.Permissions,
+		Access: string(d.Permissions),
 	}
 }
 

@@ -75,6 +75,8 @@ const (
 	FFDLY                            = 0x8000
 	FLUSHO                           = 0x1000
 	FPSIMD_MAGIC                     = 0x46508001
+	FS_IOC_ENABLE_VERITY             = 0x40806685
+	FS_IOC_GETFLAGS                  = 0x80086601
 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x400c6615
 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x40106614
 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x800c6613

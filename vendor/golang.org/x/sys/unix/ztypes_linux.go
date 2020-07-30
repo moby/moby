@@ -2291,3 +2291,20 @@ const (
 	DEVLINK_DPIPE_HEADER_IPV4                 = 0x1
 	DEVLINK_DPIPE_HEADER_IPV6                 = 0x2
 )
+
+type FsverityDigest struct {
+	Algorithm uint16
+	Size      uint16
+}
+
+type FsverityEnableArg struct {
+	Version        uint32
+	Hash_algorithm uint32
+	Block_size     uint32
+	Salt_size      uint32
+	Salt_ptr       uint64
+	Sig_size       uint32
+	_              uint32
+	Sig_ptr        uint64
+	_              [11]uint64
+}

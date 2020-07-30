@@ -671,6 +671,7 @@ const (
 	FS_IOC_ADD_ENCRYPTION_KEY                   = 0xc0506617
 	FS_IOC_GET_ENCRYPTION_KEY_STATUS            = 0xc080661a
 	FS_IOC_GET_ENCRYPTION_POLICY_EX             = 0xc0096616
+	FS_IOC_MEASURE_VERITY                       = 0xc0046686
 	FS_IOC_REMOVE_ENCRYPTION_KEY                = 0xc0406618
 	FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS      = 0xc0406619
 	FS_KEY_DESCRIPTOR_SIZE                      = 0x8
@@ -683,6 +684,9 @@ const (
 	FS_POLICY_FLAGS_PAD_8                       = 0x1
 	FS_POLICY_FLAGS_PAD_MASK                    = 0x3
 	FS_POLICY_FLAGS_VALID                       = 0xf
+	FS_VERITY_FL                                = 0x100000
+	FS_VERITY_HASH_ALG_SHA256                   = 0x1
+	FS_VERITY_HASH_ALG_SHA512                   = 0x2
 	FUTEXFS_SUPER_MAGIC                         = 0xbad1dea
 	F_ADD_SEALS                                 = 0x409
 	F_DUPFD                                     = 0x0
