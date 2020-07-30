@@ -23,7 +23,7 @@ import (
 )
 
 // SyscallConn provides raw access to the fifo's underlying filedescrptor.
-// See syscall.Conn for guarentees provided by this interface.
+// See syscall.Conn for guarantees provided by this interface.
 func (f *fifo) SyscallConn() (syscall.RawConn, error) {
 	// deterministic check for closed
 	select {

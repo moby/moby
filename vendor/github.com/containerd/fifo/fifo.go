@@ -17,13 +17,13 @@
 package fifo
 
 import (
+	"context"
 	"io"
 	"os"
 	"runtime"
 	"sync"
 	"syscall"
 
-	"context"
 	"github.com/pkg/errors"
 )
 

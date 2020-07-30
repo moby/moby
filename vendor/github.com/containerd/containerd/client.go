@@ -351,6 +351,10 @@ type RemoteContext struct {
 
 	// AllMetadata downloads all manifests and known-configuration files
 	AllMetadata bool
+
+	// ChildLabelMap sets the labels used to reference child objects in the content
+	// store. By default, all GC reference labels will be set for all fetched content.
+	ChildLabelMap func(ocispec.Descriptor) []string
 }
 
 func defaultRemoteContext() *RemoteContext {

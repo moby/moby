@@ -81,11 +81,11 @@ func parseInfoFile(r io.Reader) ([]Info, error) {
 		p.Major, _ = strconv.Atoi(mm[0])
 		p.Minor, _ = strconv.Atoi(mm[1])
 
-		p.Root, err = strconv.Unquote(`"` + fields[3] + `"`)
+		p.Root, err = strconv.Unquote(`"` + strings.Replace(fields[3], `"`, `\"`, -1) + `"`)
 		if err != nil {
 			return nil, errors.Wrapf(err, "parsing '%s' failed: unable to unquote root field", fields[3])
 		}
-		p.Mountpoint, err = strconv.Unquote(`"` + fields[4] + `"`)
+		p.Mountpoint, err = strconv.Unquote(`"` + strings.Replace(fields[4], `"`, `\"`, -1) + `"`)
 		if err != nil {
 			return nil, errors.Wrapf(err, "parsing '%s' failed: unable to unquote mount point field", fields[4])
 		}

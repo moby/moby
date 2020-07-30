@@ -450,6 +450,9 @@ func (r *dockerBase) request(host RegistryHost, method string, ps ...string) *re
 	for key, value := range r.header {
 		header[key] = append(header[key], value...)
 	}
+	for key, value := range host.Header {
+		header[key] = append(header[key], value...)
+	}
 	parts := append([]string{"/", host.Path, r.namespace}, ps...)
 	p := path.Join(parts...)
 	// Join strips trailing slash, re-add ending "/" if included

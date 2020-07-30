@@ -324,21 +324,31 @@ func (c *Client) signalShim(ctx context.Context, sig syscall.Signal) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-c.waitForExit(pid):
+	case <-c.waitForExit(ctx, pid):
 		return nil
 	}
 }
 
-func (c *Client) waitForExit(pid int) <-chan struct{} {
-	c.exitOnce.Do(func() {
+func (c *Client) waitForExit(ctx context.Context, pid int) <-chan struct{} {
+	go c.exitOnce.Do(func() {
+		defer close(c.exitCh)
+
+		ticker := time.NewTicker(10 * time.Millisecond)
+		defer ticker.Stop()
+
 		for {
 			// use kill(pid, 0) here because the shim could have been reparented
 			// and we are no longer able to waitpid(pid, ...) on the shim
 			if err := unix.Kill(pid, 0); err == unix.ESRCH {
-				close(c.exitCh)
 				return
 			}
-			time.Sleep(10 * time.Millisecond)
+
+			select {
+			case <-ticker.C:
+			case <-ctx.Done():
+				log.G(ctx).WithField("pid", pid).Warn("timed out while waiting for shim to exit")
+				return
+			}
 		}
 	})
 	return c.exitCh

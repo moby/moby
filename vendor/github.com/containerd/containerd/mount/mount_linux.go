@@ -363,10 +363,34 @@ func (m *Mount) mountWithHelper(helperBinary, typePrefix, target string) error {
 		args = append(args, "-o", o)
 	}
 	args = append(args, "-t", strings.TrimPrefix(m.Type, typePrefix))
-	cmd := exec.Command(helperBinary, args...)
-	out, err := cmd.CombinedOutput()
+
+	infoBeforeMount, err := Lookup(target)
 	if err != nil {
-		return errors.Wrapf(err, "mount helper [%s %v] failed: %q", helperBinary, args, string(out))
+		return err
 	}
-	return nil
+
+	// cmd.CombinedOutput() may intermittently return ECHILD because of our signal handling in shim.
+	// See #4387 and wait(2).
+	const retriesOnECHILD = 10
+	for i := 0; i < retriesOnECHILD; i++ {
+		cmd := exec.Command(helperBinary, args...)
+		out, err := cmd.CombinedOutput()
+		if err == nil {
+			return nil
+		}
+		if !errors.Is(err, unix.ECHILD) {
+			return errors.Wrapf(err, "mount helper [%s %v] failed: %q", helperBinary, args, string(out))
+		}
+		// We got ECHILD, we are not sure whether the mount was successful.
+		// If the mount ID has changed, we are sure we got some new mount, but still not sure it is fully completed.
+		// So we attempt to unmount the new mount before retrying.
+		infoAfterMount, err := Lookup(target)
+		if err != nil {
+			return err
+		}
+		if infoAfterMount.ID != infoBeforeMount.ID {
+			_ = unmount(target, 0)
+		}
+	}
+	return errors.Errorf("mount helper [%s %v] failed with ECHILD (retired %d times)", helperBinary, args, retriesOnECHILD)
 }

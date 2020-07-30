@@ -27,7 +27,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/containerd/console"
@@ -39,6 +38,7 @@ import (
 	google_protobuf "github.com/gogo/protobuf/types"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
 // Init represents an initial process for a container
@@ -87,7 +87,7 @@ func NewRunc(root, path, namespace, runtime, criu string, systemd bool) *runc.Ru
 		Command:       runtime,
 		Log:           filepath.Join(path, "log.json"),
 		LogFormat:     runc.JSON,
-		PdeathSignal:  syscall.SIGKILL,
+		PdeathSignal:  unix.SIGKILL,
 		Root:          filepath.Join(root, namespace),
 		Criu:          criu,
 		SystemdCgroup: systemd,
@@ -176,7 +176,7 @@ func (p *Init) Create(ctx context.Context, r *CreateConfig) error {
 }
 
 func (p *Init) openStdin(path string) error {
-	sc, err := fifo.OpenFifo(context.Background(), path, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
+	sc, err := fifo.OpenFifo(context.Background(), path, unix.O_WRONLY|unix.O_NONBLOCK, 0)
 	if err != nil {
 		return errors.Wrapf(err, "failed to open stdin fifo %s", path)
 	}
@@ -361,7 +361,7 @@ func (p *Init) KillAll(ctx context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	err := p.runtime.Kill(ctx, p.id, int(syscall.SIGKILL), &runc.KillOpts{
+	err := p.runtime.Kill(ctx, p.id, int(unix.SIGKILL), &runc.KillOpts{
 		All: true,
 	})
 	return p.runtimeError(err, "OCI runtime killall failed")

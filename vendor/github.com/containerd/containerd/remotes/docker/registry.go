@@ -70,6 +70,7 @@ type RegistryHost struct {
 	Scheme       string
 	Path         string
 	Capabilities HostCapabilities
+	Header       http.Header
 }
 
 // RegistryHosts fetches the registry hosts for a given namespace,

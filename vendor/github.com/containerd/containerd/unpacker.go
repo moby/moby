@@ -178,13 +178,13 @@ EachLayer:
 				fetchC[i] = make(chan struct{})
 			}
 
-			go func() {
+			go func(i int) {
 				err := u.fetch(ctx, h, layers[i:], fetchC)
 				if err != nil {
 					fetchErr <- err
 				}
 				close(fetchErr)
-			}()
+			}(i)
 		}
 
 		select {

@@ -362,7 +362,7 @@ func Children(ctx context.Context, provider content.Provider, desc ocispec.Descr
 			// childless data types.
 			return nil, nil
 		}
-		log.G(ctx).Warnf("encountered unknown type %v; children may not be fetched", desc.MediaType)
+		log.G(ctx).Debugf("encountered unknown type %v; children may not be fetched", desc.MediaType)
 	}
 
 	return descs, nil

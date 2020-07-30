@@ -290,6 +290,7 @@ func (c *container) NewTask(ctx context.Context, ioCreate cio.Creator, opts ...N
 		client: c.client,
 		io:     i,
 		id:     c.id,
+		c:      c,
 	}
 	if info.Checkpoint != nil {
 		request.Checkpoint = info.Checkpoint
@@ -407,6 +408,7 @@ func (c *container) loadTask(ctx context.Context, ioAttach cio.Attach) (Task, er
 		io:     i,
 		id:     response.Process.ID,
 		pid:    response.Process.Pid,
+		c:      c,
 	}
 	return t, nil
 }

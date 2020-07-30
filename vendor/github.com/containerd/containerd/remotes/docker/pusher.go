@@ -235,7 +235,7 @@ func (p dockerPusher) Push(ctx context.Context, desc ocispec.Descriptor) (conten
 
 	go func() {
 		defer close(respC)
-		resp, err = req.do(ctx)
+		resp, err := req.do(ctx)
 		if err != nil {
 			pr.CloseWithError(err)
 			return
