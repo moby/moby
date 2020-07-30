@@ -80,6 +80,10 @@ keywords: "API, Docker, rcli, REST, documentation"
   single set of stats instead of waiting for two collection cycles to have 2 CPU stats over a 1 second period.
 * The `KernelMemory` field in `HostConfig.Resources` is now deprecated.
 * The `KernelMemory` field in `Info` is now deprecated.
+* `GET /services` now returns `Ulimits` as part of `ContainerSpec`.
+* `GET /services/{id}` now returns `Ulimits` as part of `ContainerSpec`.
+* `POST /services/create` now accepts `Ulimits` as part of `ContainerSpec`.
+* `POST /services/{id}/update` now accepts `Ulimits` as part of `ContainerSpec`.
 
 ## v1.40 API changes
 

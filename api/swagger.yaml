@@ -3306,6 +3306,22 @@ definitions:
               type: "string"
             example:
               - "CAP_NET_RAW"
+          Ulimits:
+            description: |
+              A list of resource limits to set in the container. For example: `{"Name": "nofile", "Soft": 1024, "Hard": 2048}`"
+            type: "array"
+            items:
+              type: "object"
+              properties:
+                Name:
+                  description: "Name of ulimit"
+                  type: "string"
+                Soft:
+                  description: "Soft limit"
+                  type: "integer"
+                Hard:
+                  description: "Hard limit"
+                  type: "integer"
       NetworkAttachmentSpec:
         description: |
           Read-only spec type for non-swarm containers attached to swarm overlay
