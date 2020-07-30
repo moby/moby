@@ -82,6 +82,9 @@ type Cgroup interface {
 	Thaw() error
 	// OOMEventFD returns the memory subsystem's event fd for OOM events
 	OOMEventFD() (uintptr, error)
+	// RegisterMemoryEvent returns the memory subsystems event fd for whatever memory event was
+	// registered for. Can alternatively register for the oom event with this method.
+	RegisterMemoryEvent(MemoryEvent) (uintptr, error)
 	// State returns the cgroups current state
 	State() State
 	// Subsystems returns all the subsystems in the cgroup

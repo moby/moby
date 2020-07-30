@@ -20,7 +20,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -30,6 +29,128 @@ import (
 	v1 "github.com/containerd/cgroups/stats/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
+)
+
+// MemoryEvent is an interface that V1 memory Cgroup notifications implement. Arg returns the
+// file name whose fd should be written to "cgroups.event_control". EventFile returns the name of
+// the file that supports the notification api e.g. "memory.usage_in_bytes".
+type MemoryEvent interface {
+	Arg() string
+	EventFile() string
+}
+
+type memoryThresholdEvent struct {
+	threshold uint64
+	swap      bool
+}
+
+// MemoryThresholdEvent returns a new memory threshold event to be used with RegisterMemoryEvent.
+// If swap is true, the event will be registered using memory.memsw.usage_in_bytes
+func MemoryThresholdEvent(threshold uint64, swap bool) MemoryEvent {
+	return &memoryThresholdEvent{
+		threshold,
+		swap,
+	}
+}
+
+func (m *memoryThresholdEvent) Arg() string {
+	return strconv.FormatUint(m.threshold, 10)
+}
+
+func (m *memoryThresholdEvent) EventFile() string {
+	if m.swap {
+		return "memory.memsw.usage_in_bytes"
+	}
+	return "memory.usage_in_bytes"
+}
+
+type oomEvent struct{}
+
+// OOMEvent returns a new oom event to be used with RegisterMemoryEvent.
+func OOMEvent() MemoryEvent {
+	return &oomEvent{}
+}
+
+func (oom *oomEvent) Arg() string {
+	return ""
+}
+
+func (oom *oomEvent) EventFile() string {
+	return "memory.oom_control"
+}
+
+type memoryPressureEvent struct {
+	pressureLevel MemoryPressureLevel
+	hierarchy     EventNotificationMode
+}
+
+// MemoryPressureEvent returns a new memory pressure event to be used with RegisterMemoryEvent.
+func MemoryPressureEvent(pressureLevel MemoryPressureLevel, hierarchy EventNotificationMode) MemoryEvent {
+	return &memoryPressureEvent{
+		pressureLevel,
+		hierarchy,
+	}
+}
+
+func (m *memoryPressureEvent) Arg() string {
+	return string(m.pressureLevel) + "," + string(m.hierarchy)
+}
+
+func (m *memoryPressureEvent) EventFile() string {
+	return "memory.pressure_level"
+}
+
+// MemoryPressureLevel corresponds to the memory pressure levels defined
+// for memory cgroups.
+type MemoryPressureLevel string
+
+// The three memory pressure levels are as follows.
+//  - The "low" level means that the system is reclaiming memory for new
+//    allocations. Monitoring this reclaiming activity might be useful for
+//    maintaining cache level. Upon notification, the program (typically
+//    "Activity Manager") might analyze vmstat and act in advance (i.e.
+//    prematurely shutdown unimportant services).
+//  - The "medium" level means that the system is experiencing medium memory
+//    pressure, the system might be making swap, paging out active file caches,
+//    etc. Upon this event applications may decide to further analyze
+//    vmstat/zoneinfo/memcg or internal memory usage statistics and free any
+//    resources that can be easily reconstructed or re-read from a disk.
+//  - The "critical" level means that the system is actively thrashing, it is
+//    about to out of memory (OOM) or even the in-kernel OOM killer is on its
+//    way to trigger. Applications should do whatever they can to help the
+//    system. It might be too late to consult with vmstat or any other
+//    statistics, so it is advisable to take an immediate action.
+//    "https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt" Section 11
+const (
+	LowPressure      MemoryPressureLevel = "low"
+	MediumPressure   MemoryPressureLevel = "medium"
+	CriticalPressure MemoryPressureLevel = "critical"
+)
+
+// EventNotificationMode corresponds to the notification modes
+// for the memory cgroups pressure level notifications.
+type EventNotificationMode string
+
+// There are three optional modes that specify different propagation behavior:
+//  - "default": this is the default behavior specified above. This mode is the
+//    same as omitting the optional mode parameter, preserved by backwards
+//    compatibility.
+//  - "hierarchy": events always propagate up to the root, similar to the default
+//    behavior, except that propagation continues regardless of whether there are
+//    event listeners at each level, with the "hierarchy" mode. In the above
+//    example, groups A, B, and C will receive notification of memory pressure.
+//  - "local": events are pass-through, i.e. they only receive notifications when
+//    memory pressure is experienced in the memcg for which the notification is
+//    registered. In the above example, group C will receive notification if
+//    registered for "local" notification and the group experiences memory
+//    pressure. However, group B will never receive notification, regardless if
+//    there is an event listener for group C or not, if group B is registered for
+//    local notification.
+//    "https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt" Section 11
+const (
+	DefaultMode   EventNotificationMode = "default"
+	LocalMode     EventNotificationMode = "local"
+	HierarchyMode EventNotificationMode = "hierarchy"
 )
 
 // NewMemory returns a Memory controller given the root folder of cgroups.
@@ -92,7 +213,7 @@ func (m *memoryController) Create(path string, resources *specs.LinuxResources) 
 		// until a limit is set on the cgroup and limit cannot be set once the
 		// cgroup has children, or if there are already tasks in the cgroup.
 		for _, i := range []int64{1, -1} {
-			if err := ioutil.WriteFile(
+			if err := retryingWriteFile(
 				filepath.Join(m.Path(path), "memory.kmem.limit_in_bytes"),
 				[]byte(strconv.FormatInt(i, 10)),
 				defaultFilePerm,
@@ -201,34 +322,6 @@ func (m *memoryController) Stat(path string, stats *v1.Metrics) error {
 	return nil
 }
 
-func (m *memoryController) OOMEventFD(path string) (uintptr, error) {
-	root := m.Path(path)
-	f, err := os.Open(filepath.Join(root, "memory.oom_control"))
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-	fd, _, serr := unix.RawSyscall(unix.SYS_EVENTFD2, 0, unix.EFD_CLOEXEC, 0)
-	if serr != 0 {
-		return 0, serr
-	}
-	if err := writeEventFD(root, f.Fd(), fd); err != nil {
-		unix.Close(int(fd))
-		return 0, err
-	}
-	return fd, nil
-}
-
-func writeEventFD(root string, cfd, efd uintptr) error {
-	f, err := os.OpenFile(filepath.Join(root, "cgroup.event_control"), os.O_WRONLY, 0)
-	if err != nil {
-		return err
-	}
-	_, err = f.WriteString(fmt.Sprintf("%d %d", efd, cfd))
-	f.Close()
-	return err
-}
-
 func (m *memoryController) parseStats(r io.Reader, stat *v1.MemoryStat) error {
 	var (
 		raw  = make(map[string]uint64)
@@ -236,15 +329,15 @@ func (m *memoryController) parseStats(r io.Reader, stat *v1.MemoryStat) error {
 		line int
 	)
 	for sc.Scan() {
-		if err := sc.Err(); err != nil {
-			return err
-		}
 		key, v, err := parseKV(sc.Text())
 		if err != nil {
 			return fmt.Errorf("%d: %v", line, err)
 		}
 		raw[key] = v
 		line++
+	}
+	if err := sc.Err(); err != nil {
+		return err
 	}
 	stat.Cache = raw["cache"]
 	stat.RSS = raw["rss"]
@@ -284,8 +377,8 @@ func (m *memoryController) parseStats(r io.Reader, stat *v1.MemoryStat) error {
 func (m *memoryController) set(path string, settings []memorySettings) error {
 	for _, t := range settings {
 		if t.value != nil {
-			if err := ioutil.WriteFile(
-				filepath.Join(m.Path(path), fmt.Sprintf("memory.%s", t.name)),
+			if err := retryingWriteFile(
+				filepath.Join(m.Path(path), "memory."+t.name),
 				[]byte(strconv.FormatInt(*t.value, 10)),
 				defaultFilePerm,
 			); err != nil {
@@ -358,4 +451,25 @@ func getOomControlValue(mem *specs.LinuxMemory) *int64 {
 		return &i
 	}
 	return nil
+}
+
+func (m *memoryController) memoryEvent(path string, event MemoryEvent) (uintptr, error) {
+	root := m.Path(path)
+	efd, err := unix.Eventfd(0, unix.EFD_CLOEXEC)
+	if err != nil {
+		return 0, err
+	}
+	evtFile, err := os.Open(filepath.Join(root, event.EventFile()))
+	if err != nil {
+		unix.Close(efd)
+		return 0, err
+	}
+	defer evtFile.Close()
+	data := fmt.Sprintf("%d %d %s", efd, evtFile.Fd(), event.Arg())
+	evctlPath := filepath.Join(root, "cgroup.event_control")
+	if err := retryingWriteFile(evctlPath, []byte(data), 0700); err != nil {
+		unix.Close(efd)
+		return 0, err
+	}
+	return uintptr(efd), nil
 }

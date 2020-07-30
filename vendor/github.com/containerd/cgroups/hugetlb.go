@@ -17,7 +17,6 @@
 package cgroups
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -57,7 +56,7 @@ func (h *hugetlbController) Create(path string, resources *specs.LinuxResources)
 		return err
 	}
 	for _, limit := range resources.HugepageLimits {
-		if err := ioutil.WriteFile(
+		if err := retryingWriteFile(
 			filepath.Join(h.Path(path), strings.Join([]string{"hugetlb", limit.Pagesize, "limit_in_bytes"}, ".")),
 			[]byte(strconv.FormatUint(limit.Limit, 10)),
 			defaultFilePerm,

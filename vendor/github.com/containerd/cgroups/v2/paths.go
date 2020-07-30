@@ -29,7 +29,7 @@ func NestedGroupPath(suffix string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(string(path), suffix), nil
+	return filepath.Join(path, suffix), nil
 }
 
 // PidGroupPath will return the correct cgroup paths for an existing process running inside a cgroup
