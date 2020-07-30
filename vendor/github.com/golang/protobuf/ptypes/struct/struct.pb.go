@@ -302,7 +302,9 @@ func init() {
 	proto.RegisterType((*ListValue)(nil), "google.protobuf.ListValue")
 }
 
-func init() { proto.RegisterFile("google/protobuf/struct.proto", fileDescriptor_df322afd6c9fb402) }
+func init() {
+	proto.RegisterFile("google/protobuf/struct.proto", fileDescriptor_df322afd6c9fb402)
+}
 
 var fileDescriptor_df322afd6c9fb402 = []byte{
 	// 417 bytes of a gzipped FileDescriptorProto
