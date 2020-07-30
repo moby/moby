@@ -53,12 +53,16 @@ func (r *responseWriterDelegator) Written() int64 {
 }
 
 func (r *responseWriterDelegator) WriteHeader(code int) {
+	if r.observeWriteHeader != nil && !r.wroteHeader {
+		// Only call observeWriteHeader for the 1st time. It's a bug if
+		// WriteHeader is called more than once, but we want to protect
+		// against it here. Note that we still delegate the WriteHeader
+		// to the original ResponseWriter to not mask the bug from it.
+		r.observeWriteHeader(code)
+	}
 	r.status = code
 	r.wroteHeader = true
 	r.ResponseWriter.WriteHeader(code)
-	if r.observeWriteHeader != nil {
-		r.observeWriteHeader(code)
-	}
 }
 
 func (r *responseWriterDelegator) Write(b []byte) (int, error) {

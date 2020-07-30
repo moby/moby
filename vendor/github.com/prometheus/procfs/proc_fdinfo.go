@@ -16,6 +16,7 @@ package procfs
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"regexp"
 
 	"github.com/prometheus/procfs/internal/util"
@@ -23,10 +24,11 @@ import (
 
 // Regexp variables
 var (
-	rPos     = regexp.MustCompile(`^pos:\s+(\d+)$`)
-	rFlags   = regexp.MustCompile(`^flags:\s+(\d+)$`)
-	rMntID   = regexp.MustCompile(`^mnt_id:\s+(\d+)$`)
-	rInotify = regexp.MustCompile(`^inotify`)
+	rPos          = regexp.MustCompile(`^pos:\s+(\d+)$`)
+	rFlags        = regexp.MustCompile(`^flags:\s+(\d+)$`)
+	rMntID        = regexp.MustCompile(`^mnt_id:\s+(\d+)$`)
+	rInotify      = regexp.MustCompile(`^inotify`)
+	rInotifyParts = regexp.MustCompile(`^inotify\s+wd:([0-9a-f]+)\s+ino:([0-9a-f]+)\s+sdev:([0-9a-f]+)(?:\s+mask:([0-9a-f]+))?`)
 )
 
 // ProcFDInfo contains represents file descriptor information.
@@ -96,15 +98,21 @@ type InotifyInfo struct {
 
 // InotifyInfo constructor. Only available on kernel 3.8+.
 func parseInotifyInfo(line string) (*InotifyInfo, error) {
-	r := regexp.MustCompile(`^inotify\s+wd:([0-9a-f]+)\s+ino:([0-9a-f]+)\s+sdev:([0-9a-f]+)\s+mask:([0-9a-f]+)`)
-	m := r.FindStringSubmatch(line)
-	i := &InotifyInfo{
-		WD:   m[1],
-		Ino:  m[2],
-		Sdev: m[3],
-		Mask: m[4],
+	m := rInotifyParts.FindStringSubmatch(line)
+	if len(m) >= 4 {
+		var mask string
+		if len(m) == 5 {
+			mask = m[4]
+		}
+		i := &InotifyInfo{
+			WD:   m[1],
+			Ino:  m[2],
+			Sdev: m[3],
+			Mask: mask,
+		}
+		return i, nil
 	}
-	return i, nil
+	return nil, errors.New("invalid inode entry: " + line)
 }
 
 // ProcFDInfos represents a list of ProcFDInfo structs.

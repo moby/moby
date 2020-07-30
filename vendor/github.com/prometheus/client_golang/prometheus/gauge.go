@@ -123,7 +123,7 @@ func (g *gauge) Sub(val float64) {
 
 func (g *gauge) Write(out *dto.Metric) error {
 	val := math.Float64frombits(atomic.LoadUint64(&g.valBits))
-	return populateMetric(GaugeValue, val, g.labelPairs, out)
+	return populateMetric(GaugeValue, val, g.labelPairs, nil, out)
 }
 
 // GaugeVec is a Collector that bundles a set of Gauges that all share the same

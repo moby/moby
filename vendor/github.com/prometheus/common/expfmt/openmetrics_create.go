@@ -1,4 +1,4 @@
-// Copyright 2014 The Prometheus Authors
+// Copyright 2020 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -15,60 +15,53 @@ package expfmt
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"strconv"
 	"strings"
-	"sync"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/prometheus/common/model"
 
 	dto "github.com/prometheus/client_model/go"
 )
 
-// enhancedWriter has all the enhanced write functions needed here. bufio.Writer
-// implements it.
-type enhancedWriter interface {
-	io.Writer
-	WriteRune(r rune) (n int, err error)
-	WriteString(s string) (n int, err error)
-	WriteByte(c byte) error
-}
-
-const (
-	initialNumBufSize = 24
-)
-
-var (
-	bufPool = sync.Pool{
-		New: func() interface{} {
-			return bufio.NewWriter(ioutil.Discard)
-		},
-	}
-	numBufPool = sync.Pool{
-		New: func() interface{} {
-			b := make([]byte, 0, initialNumBufSize)
-			return &b
-		},
-	}
-)
-
-// MetricFamilyToText converts a MetricFamily proto message into text format and
-// writes the resulting lines to 'out'. It returns the number of bytes written
-// and any error encountered. The output will have the same order as the input,
-// no further sorting is performed. Furthermore, this function assumes the input
-// is already sanitized and does not perform any sanity checks. If the input
-// contains duplicate metrics or invalid metric or label names, the conversion
-// will result in invalid text format output.
+// MetricFamilyToOpenMetrics converts a MetricFamily proto message into the
+// OpenMetrics text format and writes the resulting lines to 'out'. It returns
+// the number of bytes written and any error encountered. The output will have
+// the same order as the input, no further sorting is performed. Furthermore,
+// this function assumes the input is already sanitized and does not perform any
+// sanity checks. If the input contains duplicate metrics or invalid metric or
+// label names, the conversion will result in invalid text format output.
 //
-// This method fulfills the type 'prometheus.encoder'.
-func MetricFamilyToText(out io.Writer, in *dto.MetricFamily) (written int, err error) {
-	// Fail-fast checks.
-	if len(in.Metric) == 0 {
-		return 0, fmt.Errorf("MetricFamily has no metrics: %s", in)
-	}
+// This function fulfills the type 'expfmt.encoder'.
+//
+// Note that OpenMetrics requires a final `# EOF` line. Since this function acts
+// on individual metric families, it is the responsibility of the caller to
+// append this line to 'out' once all metric families have been written.
+// Conveniently, this can be done by calling FinalizeOpenMetrics.
+//
+// The output should be fully OpenMetrics compliant. However, there are a few
+// missing features and peculiarities to avoid complications when switching from
+// Prometheus to OpenMetrics or vice versa:
+//
+// - Counters are expected to have the `_total` suffix in their metric name. In
+//   the output, the suffix will be truncated from the `# TYPE` and `# HELP`
+//   line. A counter with a missing `_total` suffix is not an error. However,
+//   its type will be set to `unknown` in that case to avoid invalid OpenMetrics
+//   output.
+//
+// - No support for the following (optional) features: `# UNIT` line, `_created`
+//   line, info type, stateset type, gaugehistogram type.
+//
+// - The size of exemplar labels is not checked (i.e. it's possible to create
+//   exemplars that are larger than allowed by the OpenMetrics specification).
+//
+// - The value of Counters is not checked. (OpenMetrics doesn't allow counters
+//   with a `NaN` value.)
+func MetricFamilyToOpenMetrics(out io.Writer, in *dto.MetricFamily) (written int, err error) {
 	name := in.GetName()
 	if name == "" {
 		return 0, fmt.Errorf("MetricFamily has no name: %s", in)
@@ -90,7 +83,14 @@ func MetricFamilyToText(out io.Writer, in *dto.MetricFamily) (written int, err e
 		}()
 	}
 
-	var n int
+	var (
+		n          int
+		metricType = in.GetType()
+		shortName  = name
+	)
+	if metricType == dto.MetricType_COUNTER && strings.HasSuffix(shortName, "_total") {
+		shortName = name[:len(name)-6]
+	}
 
 	// Comments, first HELP, then TYPE.
 	if in.Help != nil {
@@ -99,7 +99,7 @@ func MetricFamilyToText(out io.Writer, in *dto.MetricFamily) (written int, err e
 		if err != nil {
 			return
 		}
-		n, err = w.WriteString(name)
+		n, err = w.WriteString(shortName)
 		written += n
 		if err != nil {
 			return
@@ -109,7 +109,7 @@ func MetricFamilyToText(out io.Writer, in *dto.MetricFamily) (written int, err e
 		if err != nil {
 			return
 		}
-		n, err = writeEscapedString(w, *in.Help, false)
+		n, err = writeEscapedString(w, *in.Help, true)
 		written += n
 		if err != nil {
 			return
@@ -125,21 +125,24 @@ func MetricFamilyToText(out io.Writer, in *dto.MetricFamily) (written int, err e
 	if err != nil {
 		return
 	}
-	n, err = w.WriteString(name)
+	n, err = w.WriteString(shortName)
 	written += n
 	if err != nil {
 		return
 	}
-	metricType := in.GetType()
 	switch metricType {
 	case dto.MetricType_COUNTER:
-		n, err = w.WriteString(" counter\n")
+		if strings.HasSuffix(name, "_total") {
+			n, err = w.WriteString(" counter\n")
+		} else {
+			n, err = w.WriteString(" unknown\n")
+		}
 	case dto.MetricType_GAUGE:
 		n, err = w.WriteString(" gauge\n")
 	case dto.MetricType_SUMMARY:
 		n, err = w.WriteString(" summary\n")
 	case dto.MetricType_UNTYPED:
-		n, err = w.WriteString(" untyped\n")
+		n, err = w.WriteString(" unknown\n")
 	case dto.MetricType_HISTOGRAM:
 		n, err = w.WriteString(" histogram\n")
 	default:
@@ -159,9 +162,13 @@ func MetricFamilyToText(out io.Writer, in *dto.MetricFamily) (written int, err e
 					"expected counter in metric %s %s", name, metric,
 				)
 			}
-			n, err = writeSample(
+			// Note that we have ensured above that either the name
+			// ends on `_total` or that the rendered type is
+			// `unknown`. Therefore, no `_total` must be added here.
+			n, err = writeOpenMetricsSample(
 				w, name, "", metric, "", 0,
-				metric.Counter.GetValue(),
+				metric.Counter.GetValue(), 0, false,
+				metric.Counter.Exemplar,
 			)
 		case dto.MetricType_GAUGE:
 			if metric.Gauge == nil {
@@ -169,9 +176,10 @@ func MetricFamilyToText(out io.Writer, in *dto.MetricFamily) (written int, err e
 					"expected gauge in metric %s %s", name, metric,
 				)
 			}
-			n, err = writeSample(
+			n, err = writeOpenMetricsSample(
 				w, name, "", metric, "", 0,
-				metric.Gauge.GetValue(),
+				metric.Gauge.GetValue(), 0, false,
+				nil,
 			)
 		case dto.MetricType_UNTYPED:
 			if metric.Untyped == nil {
@@ -179,9 +187,10 @@ func MetricFamilyToText(out io.Writer, in *dto.MetricFamily) (written int, err e
 					"expected untyped in metric %s %s", name, metric,
 				)
 			}
-			n, err = writeSample(
+			n, err = writeOpenMetricsSample(
 				w, name, "", metric, "", 0,
-				metric.Untyped.GetValue(),
+				metric.Untyped.GetValue(), 0, false,
+				nil,
 			)
 		case dto.MetricType_SUMMARY:
 			if metric.Summary == nil {
@@ -190,27 +199,30 @@ func MetricFamilyToText(out io.Writer, in *dto.MetricFamily) (written int, err e
 				)
 			}
 			for _, q := range metric.Summary.Quantile {
-				n, err = writeSample(
+				n, err = writeOpenMetricsSample(
 					w, name, "", metric,
 					model.QuantileLabel, q.GetQuantile(),
-					q.GetValue(),
+					q.GetValue(), 0, false,
+					nil,
 				)
 				written += n
 				if err != nil {
 					return
 				}
 			}
-			n, err = writeSample(
+			n, err = writeOpenMetricsSample(
 				w, name, "_sum", metric, "", 0,
-				metric.Summary.GetSampleSum(),
+				metric.Summary.GetSampleSum(), 0, false,
+				nil,
 			)
 			written += n
 			if err != nil {
 				return
 			}
-			n, err = writeSample(
+			n, err = writeOpenMetricsSample(
 				w, name, "_count", metric, "", 0,
-				float64(metric.Summary.GetSampleCount()),
+				0, metric.Summary.GetSampleCount(), true,
+				nil,
 			)
 		case dto.MetricType_HISTOGRAM:
 			if metric.Histogram == nil {
@@ -220,10 +232,11 @@ func MetricFamilyToText(out io.Writer, in *dto.MetricFamily) (written int, err e
 			}
 			infSeen := false
 			for _, b := range metric.Histogram.Bucket {
-				n, err = writeSample(
+				n, err = writeOpenMetricsSample(
 					w, name, "_bucket", metric,
 					model.BucketLabel, b.GetUpperBound(),
-					float64(b.GetCumulativeCount()),
+					0, b.GetCumulativeCount(), true,
+					b.Exemplar,
 				)
 				written += n
 				if err != nil {
@@ -234,27 +247,30 @@ func MetricFamilyToText(out io.Writer, in *dto.MetricFamily) (written int, err e
 				}
 			}
 			if !infSeen {
-				n, err = writeSample(
+				n, err = writeOpenMetricsSample(
 					w, name, "_bucket", metric,
 					model.BucketLabel, math.Inf(+1),
-					float64(metric.Histogram.GetSampleCount()),
+					0, metric.Histogram.GetSampleCount(), true,
+					nil,
 				)
 				written += n
 				if err != nil {
 					return
 				}
 			}
-			n, err = writeSample(
+			n, err = writeOpenMetricsSample(
 				w, name, "_sum", metric, "", 0,
-				metric.Histogram.GetSampleSum(),
+				metric.Histogram.GetSampleSum(), 0, false,
+				nil,
 			)
 			written += n
 			if err != nil {
 				return
 			}
-			n, err = writeSample(
+			n, err = writeOpenMetricsSample(
 				w, name, "_count", metric, "", 0,
-				float64(metric.Histogram.GetSampleCount()),
+				0, metric.Histogram.GetSampleCount(), true,
+				nil,
 			)
 		default:
 			return written, fmt.Errorf(
@@ -269,17 +285,24 @@ func MetricFamilyToText(out io.Writer, in *dto.MetricFamily) (written int, err e
 	return
 }
 
-// writeSample writes a single sample in text format to w, given the metric
-// name, the metric proto message itself, optionally an additional label name
-// with a float64 value (use empty string as label name if not required), and
-// the value. The function returns the number of bytes written and any error
-// encountered.
-func writeSample(
+// FinalizeOpenMetrics writes the final `# EOF\n` line required by OpenMetrics.
+func FinalizeOpenMetrics(w io.Writer) (written int, err error) {
+	return w.Write([]byte("# EOF\n"))
+}
+
+// writeOpenMetricsSample writes a single sample in OpenMetrics text format to
+// w, given the metric name, the metric proto message itself, optionally an
+// additional label name with a float64 value (use empty string as label name if
+// not required), the value (optionally as float64 or uint64, determined by
+// useIntValue), and optionally an exemplar (use nil if not required). The
+// function returns the number of bytes written and any error encountered.
+func writeOpenMetricsSample(
 	w enhancedWriter,
 	name, suffix string,
 	metric *dto.Metric,
 	additionalLabelName string, additionalLabelValue float64,
-	value float64,
+	floatValue float64, intValue uint64, useIntValue bool,
+	exemplar *dto.Exemplar,
 ) (int, error) {
 	var written int
 	n, err := w.WriteString(name)
@@ -294,7 +317,7 @@ func writeSample(
 			return written, err
 		}
 	}
-	n, err = writeLabelPairs(
+	n, err = writeOpenMetricsLabelPairs(
 		w, metric.Label, additionalLabelName, additionalLabelValue,
 	)
 	written += n
@@ -306,7 +329,11 @@ func writeSample(
 	if err != nil {
 		return written, err
 	}
-	n, err = writeFloat(w, value)
+	if useIntValue {
+		n, err = writeUint(w, intValue)
+	} else {
+		n, err = writeOpenMetricsFloat(w, floatValue)
+	}
 	written += n
 	if err != nil {
 		return written, err
@@ -317,7 +344,15 @@ func writeSample(
 		if err != nil {
 			return written, err
 		}
-		n, err = writeInt(w, *metric.TimestampMs)
+		// TODO(beorn7): Format this directly without converting to a float first.
+		n, err = writeOpenMetricsFloat(w, float64(*metric.TimestampMs)/1000)
+		written += n
+		if err != nil {
+			return written, err
+		}
+	}
+	if exemplar != nil {
+		n, err = writeExemplar(w, exemplar)
 		written += n
 		if err != nil {
 			return written, err
@@ -331,14 +366,9 @@ func writeSample(
 	return written, nil
 }
 
-// writeLabelPairs converts a slice of LabelPair proto messages plus the
-// explicitly given additional label pair into text formatted as required by the
-// text format and writes it to 'w'. An empty slice in combination with an empty
-// string 'additionalLabelName' results in nothing being written. Otherwise, the
-// label pairs are written, escaped as required by the text format, and enclosed
-// in '{...}'. The function returns the number of bytes written and any error
-// encountered.
-func writeLabelPairs(
+// writeOpenMetricsLabelPairs works like writeOpenMetrics but formats the float
+// in OpenMetrics style.
+func writeOpenMetricsLabelPairs(
 	w enhancedWriter,
 	in []*dto.LabelPair,
 	additionalLabelName string, additionalLabelValue float64,
@@ -394,7 +424,7 @@ func writeLabelPairs(
 		if err != nil {
 			return written, err
 		}
-		n, err = writeFloat(w, additionalLabelValue)
+		n, err = writeOpenMetricsFloat(w, additionalLabelValue)
 		written += n
 		if err != nil {
 			return written, err
@@ -413,31 +443,62 @@ func writeLabelPairs(
 	return written, nil
 }
 
-// writeEscapedString replaces '\' by '\\', new line character by '\n', and - if
-// includeDoubleQuote is true - '"' by '\"'.
-var (
-	escaper       = strings.NewReplacer("\\", `\\`, "\n", `\n`)
-	quotedEscaper = strings.NewReplacer("\\", `\\`, "\n", `\n`, "\"", `\"`)
-)
-
-func writeEscapedString(w enhancedWriter, v string, includeDoubleQuote bool) (int, error) {
-	if includeDoubleQuote {
-		return quotedEscaper.WriteString(w, v)
+// writeExemplar writes the provided exemplar in OpenMetrics format to w. The
+// function returns the number of bytes written and any error encountered.
+func writeExemplar(w enhancedWriter, e *dto.Exemplar) (int, error) {
+	written := 0
+	n, err := w.WriteString(" # ")
+	written += n
+	if err != nil {
+		return written, err
 	}
-	return escaper.WriteString(w, v)
+	n, err = writeOpenMetricsLabelPairs(w, e.Label, "", 0)
+	written += n
+	if err != nil {
+		return written, err
+	}
+	err = w.WriteByte(' ')
+	written++
+	if err != nil {
+		return written, err
+	}
+	n, err = writeOpenMetricsFloat(w, e.GetValue())
+	written += n
+	if err != nil {
+		return written, err
+	}
+	if e.Timestamp != nil {
+		err = w.WriteByte(' ')
+		written++
+		if err != nil {
+			return written, err
+		}
+		ts, err := ptypes.Timestamp((*e).Timestamp)
+		if err != nil {
+			return written, err
+		}
+		// TODO(beorn7): Format this directly from components of ts to
+		// avoid overflow/underflow and precision issues of the float
+		// conversion.
+		n, err = writeOpenMetricsFloat(w, float64(ts.UnixNano())/1e9)
+		written += n
+		if err != nil {
+			return written, err
+		}
+	}
+	return written, nil
 }
 
-// writeFloat is equivalent to fmt.Fprint with a float64 argument but hardcodes
-// a few common cases for increased efficiency. For non-hardcoded cases, it uses
-// strconv.AppendFloat to avoid allocations, similar to writeInt.
-func writeFloat(w enhancedWriter, f float64) (int, error) {
+// writeOpenMetricsFloat works like writeFloat but appends ".0" if the resulting
+// number would otherwise contain neither a "." nor an "e".
+func writeOpenMetricsFloat(w enhancedWriter, f float64) (int, error) {
 	switch {
 	case f == 1:
-		return 1, w.WriteByte('1')
+		return w.WriteString("1.0")
 	case f == 0:
-		return 1, w.WriteByte('0')
+		return w.WriteString("0.0")
 	case f == -1:
-		return w.WriteString("-1")
+		return w.WriteString("-1.0")
 	case math.IsNaN(f):
 		return w.WriteString("NaN")
 	case math.IsInf(f, +1):
@@ -447,18 +508,19 @@ func writeFloat(w enhancedWriter, f float64) (int, error) {
 	default:
 		bp := numBufPool.Get().(*[]byte)
 		*bp = strconv.AppendFloat((*bp)[:0], f, 'g', -1, 64)
+		if !bytes.ContainsAny(*bp, "e.") {
+			*bp = append(*bp, '.', '0')
+		}
 		written, err := w.Write(*bp)
 		numBufPool.Put(bp)
 		return written, err
 	}
 }
 
-// writeInt is equivalent to fmt.Fprint with an int64 argument but uses
-// strconv.AppendInt with a byte slice taken from a sync.Pool to avoid
-// allocations.
-func writeInt(w enhancedWriter, i int64) (int, error) {
+// writeUint is like writeInt just for uint64.
+func writeUint(w enhancedWriter, u uint64) (int, error) {
 	bp := numBufPool.Get().(*[]byte)
-	*bp = strconv.AppendInt((*bp)[:0], i, 10)
+	*bp = strconv.AppendUint((*bp)[:0], u, 10)
 	written, err := w.Write(*bp)
 	numBufPool.Put(bp)
 	return written, err

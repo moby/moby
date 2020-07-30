@@ -29,10 +29,10 @@ import (
 // is described in the following man page.
 // http://man7.org/linux/man-pages/man5/proc.5.html
 type MountInfo struct {
-	// Unique Id for the mount
-	MountId int
-	// The Id of the parent mount
-	ParentId int
+	// Unique ID for the mount
+	MountID int
+	// The ID of the parent mount
+	ParentID int
 	// The value of `st_dev` for the files on this FS
 	MajorMinorVer string
 	// The pathname of the directory in the FS that forms
@@ -96,11 +96,11 @@ func parseMountInfoString(mountString string) (*MountInfo, error) {
 		SuperOptions:   mountOptionsParser(mountInfo[mountInfoLength-1]),
 	}
 
-	mount.MountId, err = strconv.Atoi(mountInfo[0])
+	mount.MountID, err = strconv.Atoi(mountInfo[0])
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse mount ID")
 	}
-	mount.ParentId, err = strconv.Atoi(mountInfo[1])
+	mount.ParentID, err = strconv.Atoi(mountInfo[1])
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse parent ID")
 	}

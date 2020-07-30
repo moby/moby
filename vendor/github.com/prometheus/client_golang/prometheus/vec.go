@@ -91,6 +91,18 @@ func (m *metricVec) Delete(labels Labels) bool {
 	return m.metricMap.deleteByHashWithLabels(h, labels, m.curry)
 }
 
+// Without explicit forwarding of Describe, Collect, Reset, those methods won't
+// show up in GoDoc.
+
+// Describe implements Collector.
+func (m *metricVec) Describe(ch chan<- *Desc) { m.metricMap.Describe(ch) }
+
+// Collect implements Collector.
+func (m *metricVec) Collect(ch chan<- Metric) { m.metricMap.Collect(ch) }
+
+// Reset deletes all metrics in this vector.
+func (m *metricVec) Reset() { m.metricMap.Reset() }
+
 func (m *metricVec) curryWith(labels Labels) (*metricVec, error) {
 	var (
 		newCurry []curriedLabelValue
