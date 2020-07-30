@@ -640,6 +640,7 @@ func (ep *endpoint) addServiceInfoToCluster(sb *sandbox) error {
 		if n.ingress {
 			ingressPorts = ep.ingressPorts
 		}
+		ep.myAliases = append(ep.myAliases, sb.config.hostName)
 		if err := c.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), name, ep.virtualIP, ingressPorts, ep.svcAliases, ep.myAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
 			return err
 		}
