@@ -995,7 +995,7 @@ func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *testing.T) {
 		c.Fatalf("expected `ulimit -n` to be `43`, got: %s", nofile)
 	}
 	if nproc != "2048" {
-		c.Fatalf("expected `ulimit -p` to be 2048, got: %s", nproc)
+		c.Fatalf("expected `ulimit -u` to be 2048, got: %s", nproc)
 	}
 }
 
