@@ -11,9 +11,10 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/pkg/mount"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"github.com/moby/sys/mount"
+	"github.com/moby/sys/mountinfo"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 const mountsFixture = `142 78 0:38 / / rw,relatime - aufs none rw,si=573b861da0b3a05b,dio
@@ -123,25 +124,25 @@ func TestShouldUnmountRoot(t *testing.T) {
 	for _, test := range []struct {
 		desc   string
 		root   string
-		info   *mount.Info
+		info   *mountinfo.Info
 		expect bool
 	}{
 		{
 			desc:   "root is at /",
 			root:   "/docker",
-			info:   &mount.Info{Root: "/docker", Mountpoint: "/docker"},
+			info:   &mountinfo.Info{Root: "/docker", Mountpoint: "/docker"},
 			expect: true,
 		},
 		{
 			desc:   "root is at in a submount from `/`",
 			root:   "/foo/docker",
-			info:   &mount.Info{Root: "/docker", Mountpoint: "/foo/docker"},
+			info:   &mountinfo.Info{Root: "/docker", Mountpoint: "/foo/docker"},
 			expect: true,
 		},
 		{
 			desc:   "root is mounted in from a parent mount namespace same root dir", // dind is an example of this
 			root:   "/docker",
-			info:   &mount.Info{Root: "/docker/volumes/1234657/_data", Mountpoint: "/docker"},
+			info:   &mountinfo.Info{Root: "/docker/volumes/1234657/_data", Mountpoint: "/docker"},
 			expect: false,
 		},
 	} {
@@ -172,7 +173,7 @@ func TestShouldUnmountRoot(t *testing.T) {
 
 func checkMounted(t *testing.T, p string, expect bool) {
 	t.Helper()
-	mounted, err := mount.Mounted(p)
+	mounted, err := mountinfo.Mounted(p)
 	assert.Check(t, err)
 	assert.Check(t, mounted == expect, "expected %v, actual %v", expect, mounted)
 }

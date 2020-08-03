@@ -32,13 +32,13 @@ func TestAuthZRequestPluginError(t *testing.T) {
 	server.start()
 	defer server.stop()
 
-	authZPlugin := createTestPlugin(t)
+	authZPlugin := createTestPlugin(t, server.socketAddress())
 
 	request := Request{
 		User:           "user",
 		RequestBody:    []byte("sample body"),
 		RequestURI:     "www.authz.com/auth",
-		RequestMethod:  "GET",
+		RequestMethod:  http.MethodGet,
 		RequestHeaders: map[string]string{"header": "value"},
 	}
 	server.replayResponse = Response{
@@ -63,13 +63,13 @@ func TestAuthZRequestPlugin(t *testing.T) {
 	server.start()
 	defer server.stop()
 
-	authZPlugin := createTestPlugin(t)
+	authZPlugin := createTestPlugin(t, server.socketAddress())
 
 	request := Request{
 		User:           "user",
 		RequestBody:    []byte("sample body"),
 		RequestURI:     "www.authz.com/auth",
-		RequestMethod:  "GET",
+		RequestMethod:  http.MethodGet,
 		RequestHeaders: map[string]string{"header": "value"},
 	}
 	server.replayResponse = Response{
@@ -95,7 +95,7 @@ func TestAuthZResponsePlugin(t *testing.T) {
 	server.start()
 	defer server.stop()
 
-	authZPlugin := createTestPlugin(t)
+	authZPlugin := createTestPlugin(t, server.socketAddress())
 
 	request := Request{
 		User:        "user",
@@ -262,13 +262,8 @@ func TestResponseModifierOverride(t *testing.T) {
 }
 
 // createTestPlugin creates a new sample authorization plugin
-func createTestPlugin(t *testing.T) *authorizationPlugin {
-	pwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	client, err := plugins.NewClient("unix:///"+path.Join(pwd, pluginAddress), &tlsconfig.Options{InsecureSkipVerify: true})
+func createTestPlugin(t *testing.T, socketAddress string) *authorizationPlugin {
+	client, err := plugins.NewClient("unix:///"+socketAddress, &tlsconfig.Options{InsecureSkipVerify: true})
 	if err != nil {
 		t.Fatalf("Failed to create client %v", err)
 	}
@@ -285,12 +280,23 @@ type authZPluginTestServer struct {
 	// response stores the response sent from the plugin to the daemon
 	replayResponse Response
 	server         *httptest.Server
+	tmpDir         string
+}
+
+func (t *authZPluginTestServer) socketAddress() string {
+	return path.Join(t.tmpDir, pluginAddress)
 }
 
 // start starts the test server that implements the plugin
 func (t *authZPluginTestServer) start() {
+	var err error
+	t.tmpDir, err = ioutil.TempDir("", "authz")
+	if err != nil {
+		t.t.Fatal(err)
+	}
+
 	r := mux.NewRouter()
-	l, err := net.Listen("unix", pluginAddress)
+	l, err := net.Listen("unix", t.socketAddress())
 	if err != nil {
 		t.t.Fatal(err)
 	}
@@ -311,7 +317,7 @@ func (t *authZPluginTestServer) start() {
 // stop stops the test server that implements the plugin
 func (t *authZPluginTestServer) stop() {
 	t.server.Close()
-	os.Remove(pluginAddress)
+	_ = os.RemoveAll(t.tmpDir)
 	if t.listener != nil {
 		t.listener.Close()
 	}

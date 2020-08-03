@@ -100,10 +100,18 @@ func (r *remoteNamespaces) List(ctx context.Context) ([]string, error) {
 	return namespaces, nil
 }
 
-func (r *remoteNamespaces) Delete(ctx context.Context, namespace string) error {
-	var req api.DeleteNamespaceRequest
-
-	req.Name = namespace
+func (r *remoteNamespaces) Delete(ctx context.Context, namespace string, opts ...namespaces.DeleteOpts) error {
+	i := namespaces.DeleteInfo{
+		Name: namespace,
+	}
+	for _, o := range opts {
+		if err := o(ctx, &i); err != nil {
+			return err
+		}
+	}
+	req := api.DeleteNamespaceRequest{
+		Name: namespace,
+	}
 	_, err := r.client.Delete(ctx, &req)
 	if err != nil {
 		return errdefs.FromGRPC(err)

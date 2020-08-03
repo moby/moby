@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/Microsoft/hcsshim/osversion"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
@@ -28,7 +29,7 @@ const (
 
 func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 
-	img, err := daemon.imageService.GetImage(string(c.ImageID))
+	img, err := daemon.imageService.GetImage(string(c.ImageID), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +276,7 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 		if isHyperV {
 			return errors.New("device assignment is not supported for HyperV containers")
 		}
-		if system.GetOSVersion().Build < 17763 {
+		if osversion.Build() < osversion.RS5 {
 			return errors.New("device assignment requires Windows builds RS5 (17763+) or later")
 		}
 		for _, deviceMapping := range c.HostConfig.Devices {
@@ -389,7 +390,7 @@ func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spe
 	// Note these are against the UVM.
 	setResourcesInSpec(c, s, true) // LCOW is Hyper-V only
 
-	capabilities, err := caps.TweakCapabilities(oci.DefaultCapabilities(), c.HostConfig.CapAdd, c.HostConfig.CapDrop, c.HostConfig.Capabilities, c.HostConfig.Privileged)
+	capabilities, err := caps.TweakCapabilities(caps.DefaultCapabilities(), c.HostConfig.CapAdd, c.HostConfig.CapDrop, c.HostConfig.Privileged)
 	if err != nil {
 		return fmt.Errorf("linux spec capabilities: %v", err)
 	}

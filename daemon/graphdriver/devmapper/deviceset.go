@@ -24,10 +24,10 @@ import (
 	"github.com/docker/docker/pkg/dmesg"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/loopback"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	units "github.com/docker/go-units"
+	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -119,7 +119,7 @@ type DeviceSet struct {
 	deletionWorkerTicker  *time.Ticker
 	uidMaps               []idtools.IDMap
 	gidMaps               []idtools.IDMap
-	minFreeSpacePercent   uint32 //min free space percentage in thinpool
+	minFreeSpacePercent   uint32 // min free space percentage in thinpool
 	xfsNospaceRetries     string // max retries when xfs receives ENOSPC
 	lvmSetupConfig        directLVMConfig
 }
@@ -1692,8 +1692,8 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 		}
 	}
 
-	//create the root dir of the devmapper driver ownership to match this
-	//daemon's remapped root uid/gid so containers can start properly
+	// create the root dir of the devmapper driver ownership to match this
+	// daemon's remapped root uid/gid so containers can start properly
 	uid, gid, err := idtools.GetRootUIDGID(devices.uidMaps, devices.gidMaps)
 	if err != nil {
 		return err

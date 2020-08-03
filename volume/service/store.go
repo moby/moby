@@ -743,8 +743,8 @@ func lookupVolume(ctx context.Context, store *drivers.Store, driverName, volumeN
 	}
 	v, err := vd.Get(volumeName)
 	if err != nil {
-		err = errors.Cause(err)
-		if _, ok := err.(net.Error); ok {
+		var nErr net.Error
+		if errors.As(err, &nErr) {
 			if v != nil {
 				volumeName = v.Name()
 				driverName = v.DriverName()

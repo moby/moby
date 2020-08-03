@@ -10,8 +10,8 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/sysinfo"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestCgroupnsModeTest(t *testing.T) {
@@ -240,46 +240,41 @@ func TestDecodeHostConfig(t *testing.T) {
 
 func TestValidateResources(t *testing.T) {
 	type resourceTest struct {
-		ConfigCPURealtimePeriod   int64
-		ConfigCPURealtimeRuntime  int64
-		SysInfoCPURealtimePeriod  bool
-		SysInfoCPURealtimeRuntime bool
-		ErrorExpected             bool
-		FailureMsg                string
+		ConfigCPURealtimePeriod  int64
+		ConfigCPURealtimeRuntime int64
+		SysInfoCPURealtime       bool
+		ErrorExpected            bool
+		FailureMsg               string
 	}
 
 	tests := []resourceTest{
 		{
-			ConfigCPURealtimePeriod:   1000,
-			ConfigCPURealtimeRuntime:  1000,
-			SysInfoCPURealtimePeriod:  true,
-			SysInfoCPURealtimeRuntime: true,
-			ErrorExpected:             false,
-			FailureMsg:                "Expected valid configuration",
+			ConfigCPURealtimePeriod:  1000,
+			ConfigCPURealtimeRuntime: 1000,
+			SysInfoCPURealtime:       true,
+			ErrorExpected:            false,
+			FailureMsg:               "Expected valid configuration",
 		},
 		{
-			ConfigCPURealtimePeriod:   5000,
-			ConfigCPURealtimeRuntime:  5000,
-			SysInfoCPURealtimePeriod:  false,
-			SysInfoCPURealtimeRuntime: true,
-			ErrorExpected:             true,
-			FailureMsg:                "Expected failure when cpu-rt-period is set but kernel doesn't support it",
+			ConfigCPURealtimePeriod:  5000,
+			ConfigCPURealtimeRuntime: 5000,
+			SysInfoCPURealtime:       false,
+			ErrorExpected:            true,
+			FailureMsg:               "Expected failure when cpu-rt-period is set but kernel doesn't support it",
 		},
 		{
-			ConfigCPURealtimePeriod:   5000,
-			ConfigCPURealtimeRuntime:  5000,
-			SysInfoCPURealtimePeriod:  true,
-			SysInfoCPURealtimeRuntime: false,
-			ErrorExpected:             true,
-			FailureMsg:                "Expected failure when cpu-rt-runtime is set but kernel doesn't support it",
+			ConfigCPURealtimePeriod:  5000,
+			ConfigCPURealtimeRuntime: 5000,
+			SysInfoCPURealtime:       false,
+			ErrorExpected:            true,
+			FailureMsg:               "Expected failure when cpu-rt-runtime is set but kernel doesn't support it",
 		},
 		{
-			ConfigCPURealtimePeriod:   5000,
-			ConfigCPURealtimeRuntime:  10000,
-			SysInfoCPURealtimePeriod:  true,
-			SysInfoCPURealtimeRuntime: false,
-			ErrorExpected:             true,
-			FailureMsg:                "Expected failure when cpu-rt-runtime is greater than cpu-rt-period",
+			ConfigCPURealtimePeriod:  5000,
+			ConfigCPURealtimeRuntime: 10000,
+			SysInfoCPURealtime:       true,
+			ErrorExpected:            true,
+			FailureMsg:               "Expected failure when cpu-rt-runtime is greater than cpu-rt-period",
 		},
 	}
 
@@ -289,8 +284,7 @@ func TestValidateResources(t *testing.T) {
 		hc.Resources.CPURealtimeRuntime = rt.ConfigCPURealtimeRuntime
 
 		var si sysinfo.SysInfo
-		si.CPURealtimePeriod = rt.SysInfoCPURealtimePeriod
-		si.CPURealtimeRuntime = rt.SysInfoCPURealtimeRuntime
+		si.CPURealtime = rt.SysInfoCPURealtime
 
 		if err := validateResources(&hc, &si); (err != nil) != rt.ErrorExpected {
 			t.Fatal(rt.FailureMsg, err)

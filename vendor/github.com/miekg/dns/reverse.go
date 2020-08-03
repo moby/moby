@@ -12,6 +12,20 @@ var StringToOpcode = reverseInt(OpcodeToString)
 // StringToRcode is a map of rcodes to strings.
 var StringToRcode = reverseInt(RcodeToString)
 
+func init() {
+	// Preserve previous NOTIMP typo, see github.com/miekg/dns/issues/733.
+	StringToRcode["NOTIMPL"] = RcodeNotImplemented
+}
+
+// StringToAlgorithm is the reverse of AlgorithmToString.
+var StringToAlgorithm = reverseInt8(AlgorithmToString)
+
+// StringToHash is a map of names to hash IDs.
+var StringToHash = reverseInt8(HashToString)
+
+// StringToCertType is the reverseof CertTypeToString.
+var StringToCertType = reverseInt16(CertTypeToString)
+
 // Reverse a map
 func reverseInt8(m map[uint8]string) map[string]uint8 {
 	n := make(map[string]uint8, len(m))

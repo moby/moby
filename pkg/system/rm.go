@@ -5,7 +5,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/pkg/mount"
+	"github.com/moby/sys/mount"
 	"github.com/pkg/errors"
 )
 
@@ -63,12 +63,8 @@ func EnsureRemoveAll(dir string) error {
 			return err
 		}
 
-		if mounted, _ := mount.Mounted(pe.Path); mounted {
-			if e := mount.Unmount(pe.Path); e != nil {
-				if mounted, _ := mount.Mounted(pe.Path); mounted {
-					return errors.Wrapf(e, "error while removing %s", dir)
-				}
-			}
+		if e := mount.Unmount(pe.Path); e != nil {
+			return errors.Wrapf(e, "error while removing %s", dir)
 		}
 
 		if exitOnErr[pe.Path] == maxRetry {

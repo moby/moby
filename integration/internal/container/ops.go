@@ -2,12 +2,14 @@ package container
 
 import (
 	"fmt"
+	"strings"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // WithName sets the name of the container
@@ -77,12 +79,12 @@ func WithMount(m mounttypes.Mount) func(*TestContainerConfig) {
 }
 
 // WithVolume sets the volume of the container
-func WithVolume(name string) func(*TestContainerConfig) {
+func WithVolume(target string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		if c.Config.Volumes == nil {
 			c.Config.Volumes = map[string]struct{}{}
 		}
-		c.Config.Volumes[name] = struct{}{}
+		c.Config.Volumes[target] = struct{}{}
 	}
 }
 
@@ -90,6 +92,22 @@ func WithVolume(name string) func(*TestContainerConfig) {
 func WithBind(src, target string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		c.HostConfig.Binds = append(c.HostConfig.Binds, fmt.Sprintf("%s:%s", src, target))
+	}
+}
+
+// WithTmpfs sets a target path in the container to a tmpfs
+func WithTmpfs(target string) func(config *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		if c.HostConfig.Tmpfs == nil {
+			c.HostConfig.Tmpfs = make(map[string]string)
+		}
+
+		spec := strings.SplitN(target, ":", 2)
+		var opts string
+		if len(spec) > 1 {
+			opts = spec[1]
+		}
+		c.HostConfig.Tmpfs[spec[0]] = opts
 	}
 }
 
@@ -178,5 +196,20 @@ func WithCgroupnsMode(mode string) func(*TestContainerConfig) {
 			c.HostConfig = &containertypes.HostConfig{}
 		}
 		c.HostConfig.CgroupnsMode = containertypes.CgroupnsMode(mode)
+	}
+}
+
+// WithExtraHost sets the user defined IP:Host mappings in the container's
+// /etc/hosts file
+func WithExtraHost(extraHost string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.ExtraHosts = append(c.HostConfig.ExtraHosts, extraHost)
+	}
+}
+
+// WithPlatform specifies the desired platform the image should have.
+func WithPlatform(p *specs.Platform) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.Platform = p
 	}
 }

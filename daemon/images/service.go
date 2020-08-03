@@ -184,7 +184,7 @@ func (i *ImageService) GraphDriverForOS(os string) string {
 func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer, containerOS string) error {
 	metadata, err := i.layerStores[containerOS].ReleaseRWLayer(rwlayer)
 	layer.LogReleaseMetadata(metadata)
-	if err != nil && err != layer.ErrMountDoesNotExist && !os.IsNotExist(errors.Cause(err)) {
+	if err != nil && !errors.Is(err, layer.ErrMountDoesNotExist) && !errors.Is(err, os.ErrNotExist) {
 		return errors.Wrapf(err, "driver %q failed to remove root filesystem",
 			i.layerStores[containerOS].DriverName())
 	}

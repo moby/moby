@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // ServiceConstructor defines a swarm service constructor function

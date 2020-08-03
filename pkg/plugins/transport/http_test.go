@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"testing"
 
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestHTTPTransport(t *testing.T) {
@@ -17,5 +17,5 @@ func TestHTTPTransport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Check(t, is.Equal("POST", request.Method))
+	assert.Check(t, is.Equal(http.MethodPost, request.Method))
 }

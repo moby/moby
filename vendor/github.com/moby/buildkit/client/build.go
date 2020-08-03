@@ -103,3 +103,8 @@ func (g *gatewayClientForBuild) Return(ctx context.Context, in *gatewayapi.Retur
 	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
 	return g.gateway.Return(ctx, in, opts...)
 }
+
+func (g *gatewayClientForBuild) Inputs(ctx context.Context, in *gatewayapi.InputsRequest, opts ...grpc.CallOption) (*gatewayapi.InputsResponse, error) {
+	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
+	return g.gateway.Inputs(ctx, in, opts...)
+}

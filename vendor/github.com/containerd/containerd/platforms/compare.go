@@ -29,11 +29,48 @@ type MatchComparer interface {
 // Only returns a match comparer for a single platform
 // using default resolution logic for the platform.
 //
+// For ARMv8, will also match ARMv7, ARMv6 and ARMv5 (for 32bit runtimes)
 // For ARMv7, will also match ARMv6 and ARMv5
 // For ARMv6, will also match ARMv5
 func Only(platform specs.Platform) MatchComparer {
 	platform = Normalize(platform)
 	if platform.Architecture == "arm" {
+		if platform.Variant == "v8" {
+			return orderedPlatformComparer{
+				matchers: []Matcher{
+					&matcher{
+						Platform: platform,
+					},
+					&matcher{
+						Platform: specs.Platform{
+							Architecture: platform.Architecture,
+							OS:           platform.OS,
+							OSVersion:    platform.OSVersion,
+							OSFeatures:   platform.OSFeatures,
+							Variant:      "v7",
+						},
+					},
+					&matcher{
+						Platform: specs.Platform{
+							Architecture: platform.Architecture,
+							OS:           platform.OS,
+							OSVersion:    platform.OSVersion,
+							OSFeatures:   platform.OSFeatures,
+							Variant:      "v6",
+						},
+					},
+					&matcher{
+						Platform: specs.Platform{
+							Architecture: platform.Architecture,
+							OS:           platform.OS,
+							OSVersion:    platform.OSVersion,
+							OSFeatures:   platform.OSFeatures,
+							Variant:      "v5",
+						},
+					},
+				},
+			}
+		}
 		if platform.Variant == "v7" {
 			return orderedPlatformComparer{
 				matchers: []Matcher{

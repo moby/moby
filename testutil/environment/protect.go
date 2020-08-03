@@ -7,10 +7,10 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	dclient "github.com/docker/docker/client"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
-var frozenImages = []string{"busybox:latest", "busybox:glibc", "hello-world:frozen", "debian:jessie"}
+var frozenImages = []string{"busybox:latest", "busybox:glibc", "hello-world:frozen", "debian:buster"}
 
 type protectedElements struct {
 	containers map[string]struct{}

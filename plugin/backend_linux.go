@@ -2,6 +2,7 @@ package plugin // import "github.com/docker/docker/plugin"
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -11,28 +12,28 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
+	"time"
 
+	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/remotes"
+	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/distribution"
-	progressutils "github.com/docker/docker/distribution/utils"
-	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
 	v2 "github.com/docker/docker/plugin/v2"
-	refstore "github.com/docker/docker/reference"
+	"github.com/moby/sys/mount"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -98,64 +99,6 @@ func (pm *Manager) Inspect(refOrID string) (tp *types.Plugin, err error) {
 	return &p.PluginObj, nil
 }
 
-func (pm *Manager) pull(ctx context.Context, ref reference.Named, config *distribution.ImagePullConfig, outStream io.Writer) error {
-	if outStream != nil {
-		// Include a buffer so that slow client connections don't affect
-		// transfer performance.
-		progressChan := make(chan progress.Progress, 100)
-
-		writesDone := make(chan struct{})
-
-		defer func() {
-			close(progressChan)
-			<-writesDone
-		}()
-
-		var cancelFunc context.CancelFunc
-		ctx, cancelFunc = context.WithCancel(ctx)
-
-		go func() {
-			progressutils.WriteDistributionProgress(cancelFunc, outStream, progressChan)
-			close(writesDone)
-		}()
-
-		config.ProgressOutput = progress.ChanOutput(progressChan)
-	} else {
-		config.ProgressOutput = progress.DiscardOutput()
-	}
-	return distribution.Pull(ctx, ref, config)
-}
-
-type tempConfigStore struct {
-	config       []byte
-	configDigest digest.Digest
-}
-
-func (s *tempConfigStore) Put(c []byte) (digest.Digest, error) {
-	dgst := digest.FromBytes(c)
-
-	s.config = c
-	s.configDigest = dgst
-
-	return dgst, nil
-}
-
-func (s *tempConfigStore) Get(d digest.Digest) ([]byte, error) {
-	if d != s.configDigest {
-		return nil, errNotFound("digest not found")
-	}
-	return s.config, nil
-}
-
-func (s *tempConfigStore) RootFSFromConfig(c []byte) (*image.RootFS, error) {
-	return configToRootFS(c)
-}
-
-func (s *tempConfigStore) PlatformFromConfig(c []byte) (*specs.Platform, error) {
-	// TODO: LCOW/Plugins. This will need revisiting. For now use the runtime OS
-	return &specs.Platform{OS: runtime.GOOS}, nil
-}
-
 func computePrivileges(c types.PluginConfig) types.PluginPrivileges {
 	var privileges types.PluginPrivileges
 	if c.Network.Type != "null" && c.Network.Type != "bridge" && c.Network.Type != "" {
@@ -217,37 +160,53 @@ func computePrivileges(c types.PluginConfig) types.PluginPrivileges {
 
 // Privileges pulls a plugin config and computes the privileges required to install it.
 func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHeader http.Header, authConfig *types.AuthConfig) (types.PluginPrivileges, error) {
-	// create image store instance
-	cs := &tempConfigStore{}
+	var (
+		config     types.PluginConfig
+		configSeen bool
+	)
 
-	// DownloadManager not defined because only pulling configuration.
-	pluginPullConfig := &distribution.ImagePullConfig{
-		Config: distribution.Config{
-			MetaHeaders:      metaHeader,
-			AuthConfig:       authConfig,
-			RegistryService:  pm.config.RegistryService,
-			ImageEventLogger: func(string, string, string) {},
-			ImageStore:       cs,
-		},
-		Schema2Types: distribution.PluginTypes,
+	h := func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
+		switch desc.MediaType {
+		case schema2.MediaTypeManifest, specs.MediaTypeImageManifest:
+			data, err := content.ReadBlob(ctx, pm.blobStore, desc)
+			if err != nil {
+				return nil, errors.Wrapf(err, "error reading image manifest from blob store for %s", ref)
+			}
+
+			var m specs.Manifest
+			if err := json.Unmarshal(data, &m); err != nil {
+				return nil, errors.Wrapf(err, "error unmarshaling image manifest for %s", ref)
+			}
+			return []specs.Descriptor{m.Config}, nil
+		case schema2.MediaTypePluginConfig:
+			configSeen = true
+			data, err := content.ReadBlob(ctx, pm.blobStore, desc)
+			if err != nil {
+				return nil, errors.Wrapf(err, "error reading plugin config from blob store for %s", ref)
+			}
+
+			if err := json.Unmarshal(data, &config); err != nil {
+				return nil, errors.Wrapf(err, "error unmarshaling plugin config for %s", ref)
+			}
+		}
+
+		return nil, nil
 	}
 
-	if err := pm.pull(ctx, ref, pluginPullConfig, nil); err != nil {
-		return nil, err
+	if err := pm.fetch(ctx, ref, authConfig, progress.DiscardOutput(), metaHeader, images.HandlerFunc(h)); err != nil {
+		return types.PluginPrivileges{}, nil
 	}
 
-	if cs.config == nil {
-		return nil, errors.New("no configuration pulled")
-	}
-	var config types.PluginConfig
-	if err := json.Unmarshal(cs.config, &config); err != nil {
-		return nil, errdefs.System(err)
+	if !configSeen {
+		return types.PluginPrivileges{}, errors.Errorf("did not find plugin config for specified reference %s", ref)
 	}
 
 	return computePrivileges(config), nil
 }
 
 // Upgrade upgrades a plugin
+//
+// TODO: replace reference package usage with simpler url.Parse semantics
 func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *types.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer) (err error) {
 	p, err := pm.config.Store.GetV2Plugin(name)
 	if err != nil {
@@ -258,44 +217,35 @@ func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string
 		return errors.Wrap(enabledError(p.Name()), "plugin must be disabled before upgrading")
 	}
 
-	pm.muGC.RLock()
-	defer pm.muGC.RUnlock()
-
 	// revalidate because Pull is public
 	if _, err := reference.ParseNormalizedNamed(name); err != nil {
 		return errors.Wrapf(errdefs.InvalidParameter(err), "failed to parse %q", name)
 	}
 
+	pm.muGC.RLock()
+	defer pm.muGC.RUnlock()
+
 	tmpRootFSDir, err := ioutil.TempDir(pm.tmpDir(), ".rootfs")
 	if err != nil {
-		return errors.Wrap(errdefs.System(err), "error preparing upgrade")
-	}
-	defer os.RemoveAll(tmpRootFSDir)
-
-	dm := &downloadManager{
-		tmpDir:    tmpRootFSDir,
-		blobStore: pm.blobStore,
+		return errors.Wrap(err, "error creating tmp dir for plugin rootfs")
 	}
 
-	pluginPullConfig := &distribution.ImagePullConfig{
-		Config: distribution.Config{
-			MetaHeaders:      metaHeader,
-			AuthConfig:       authConfig,
-			RegistryService:  pm.config.RegistryService,
-			ImageEventLogger: pm.config.LogPluginEvent,
-			ImageStore:       dm,
-		},
-		DownloadManager: dm, // todo: reevaluate if possible to substitute distribution/xfer dependencies instead
-		Schema2Types:    distribution.PluginTypes,
-	}
+	var md fetchMeta
 
-	err = pm.pull(ctx, ref, pluginPullConfig, outStream)
-	if err != nil {
-		go pm.GC()
+	ctx, cancel := context.WithCancel(ctx)
+	out, waitProgress := setupProgressOutput(outStream, cancel)
+	defer waitProgress()
+
+	if err := pm.fetch(ctx, ref, authConfig, out, metaHeader, storeFetchMetadata(&md), childrenHandler(pm.blobStore), applyLayer(pm.blobStore, tmpRootFSDir, out)); err != nil {
+		return err
+	}
+	pm.config.LogPluginEvent(reference.FamiliarString(ref), name, "pull")
+
+	if err := validateFetchedMetadata(md); err != nil {
 		return err
 	}
 
-	if err := pm.upgradePlugin(p, dm.configDigest, dm.blobs, tmpRootFSDir, &privileges); err != nil {
+	if err := pm.upgradePlugin(p, md.config, md.manifest, md.blobs, tmpRootFSDir, &privileges); err != nil {
 		return err
 	}
 	p.PluginObj.PluginReference = ref.String()
@@ -303,6 +253,8 @@ func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string
 }
 
 // Pull pulls a plugin, check if the correct privileges are provided and install the plugin.
+//
+// TODO: replace reference package usage with simpler url.Parse semantics
 func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *types.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer, opts ...CreateOpt) (err error) {
 	pm.muGC.RLock()
 	defer pm.muGC.RUnlock()
@@ -320,30 +272,22 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 
 	tmpRootFSDir, err := ioutil.TempDir(pm.tmpDir(), ".rootfs")
 	if err != nil {
-		return errors.Wrap(errdefs.System(err), "error preparing pull")
+		return errors.Wrap(errdefs.System(err), "error preparing upgrade")
 	}
 	defer os.RemoveAll(tmpRootFSDir)
 
-	dm := &downloadManager{
-		tmpDir:    tmpRootFSDir,
-		blobStore: pm.blobStore,
-	}
+	var md fetchMeta
 
-	pluginPullConfig := &distribution.ImagePullConfig{
-		Config: distribution.Config{
-			MetaHeaders:      metaHeader,
-			AuthConfig:       authConfig,
-			RegistryService:  pm.config.RegistryService,
-			ImageEventLogger: pm.config.LogPluginEvent,
-			ImageStore:       dm,
-		},
-		DownloadManager: dm, // todo: reevaluate if possible to substitute distribution/xfer dependencies instead
-		Schema2Types:    distribution.PluginTypes,
-	}
+	ctx, cancel := context.WithCancel(ctx)
+	out, waitProgress := setupProgressOutput(outStream, cancel)
+	defer waitProgress()
 
-	err = pm.pull(ctx, ref, pluginPullConfig, outStream)
-	if err != nil {
-		go pm.GC()
+	if err := pm.fetch(ctx, ref, authConfig, out, metaHeader, storeFetchMetadata(&md), childrenHandler(pm.blobStore), applyLayer(pm.blobStore, tmpRootFSDir, out)); err != nil {
+		return err
+	}
+	pm.config.LogPluginEvent(reference.FamiliarString(ref), name, "pull")
+
+	if err := validateFetchedMetadata(md); err != nil {
 		return err
 	}
 
@@ -354,12 +298,14 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 	optsList = append(optsList, opts...)
 	optsList = append(optsList, refOpt)
 
-	p, err := pm.createPlugin(name, dm.configDigest, dm.blobs, tmpRootFSDir, &privileges, optsList...)
+	// TODO: tmpRootFSDir is empty but should have layers in it
+	p, err := pm.createPlugin(name, md.config, md.manifest, md.blobs, tmpRootFSDir, &privileges, optsList...)
 	if err != nil {
 		return err
 	}
 
 	pm.publisher.Publish(EventCreate{Plugin: p.PluginObj})
+
 	return nil
 }
 
@@ -404,7 +350,7 @@ next:
 	return out, nil
 }
 
-// Push pushes a plugin to the store.
+// Push pushes a plugin to the registry.
 func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header, authConfig *types.AuthConfig, outStream io.Writer) error {
 	p, err := pm.config.Store.GetV2Plugin(name)
 	if err != nil {
@@ -416,201 +362,197 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 		return errors.Wrapf(err, "plugin has invalid name %v for push", p.Name())
 	}
 
-	var po progress.Output
-	if outStream != nil {
-		// Include a buffer so that slow client connections don't affect
-		// transfer performance.
-		progressChan := make(chan progress.Progress, 100)
+	statusTracker := docker.NewInMemoryTracker()
 
-		writesDone := make(chan struct{})
-
-		defer func() {
-			close(progressChan)
-			<-writesDone
-		}()
-
-		var cancelFunc context.CancelFunc
-		ctx, cancelFunc = context.WithCancel(ctx)
-
-		go func() {
-			progressutils.WriteDistributionProgress(cancelFunc, outStream, progressChan)
-			close(writesDone)
-		}()
-
-		po = progress.ChanOutput(progressChan)
-	} else {
-		po = progress.DiscardOutput()
-	}
-
-	// TODO: replace these with manager
-	is := &pluginConfigStore{
-		pm:     pm,
-		plugin: p,
-	}
-	lss := make(map[string]distribution.PushLayerProvider)
-	lss[runtime.GOOS] = &pluginLayerProvider{
-		pm:     pm,
-		plugin: p,
-	}
-	rs := &pluginReference{
-		name:     ref,
-		pluginID: p.Config,
-	}
-
-	uploadManager := xfer.NewLayerUploadManager(3)
-
-	imagePushConfig := &distribution.ImagePushConfig{
-		Config: distribution.Config{
-			MetaHeaders:      metaHeader,
-			AuthConfig:       authConfig,
-			ProgressOutput:   po,
-			RegistryService:  pm.config.RegistryService,
-			ReferenceStore:   rs,
-			ImageEventLogger: pm.config.LogPluginEvent,
-			ImageStore:       is,
-			RequireSchema2:   true,
-		},
-		ConfigMediaType: schema2.MediaTypePluginConfig,
-		LayerStores:     lss,
-		UploadManager:   uploadManager,
-	}
-
-	return distribution.Push(ctx, ref, imagePushConfig)
-}
-
-type pluginReference struct {
-	name     reference.Named
-	pluginID digest.Digest
-}
-
-func (r *pluginReference) References(id digest.Digest) []reference.Named {
-	if r.pluginID != id {
-		return nil
-	}
-	return []reference.Named{r.name}
-}
-
-func (r *pluginReference) ReferencesByName(ref reference.Named) []refstore.Association {
-	return []refstore.Association{
-		{
-			Ref: r.name,
-			ID:  r.pluginID,
-		},
-	}
-}
-
-func (r *pluginReference) Get(ref reference.Named) (digest.Digest, error) {
-	if r.name.String() != ref.String() {
-		return digest.Digest(""), refstore.ErrDoesNotExist
-	}
-	return r.pluginID, nil
-}
-
-func (r *pluginReference) AddTag(ref reference.Named, id digest.Digest, force bool) error {
-	// Read only, ignore
-	return nil
-}
-func (r *pluginReference) AddDigest(ref reference.Canonical, id digest.Digest, force bool) error {
-	// Read only, ignore
-	return nil
-}
-func (r *pluginReference) Delete(ref reference.Named) (bool, error) {
-	// Read only, ignore
-	return false, nil
-}
-
-type pluginConfigStore struct {
-	pm     *Manager
-	plugin *v2.Plugin
-}
-
-func (s *pluginConfigStore) Put([]byte) (digest.Digest, error) {
-	return digest.Digest(""), errors.New("cannot store config on push")
-}
-
-func (s *pluginConfigStore) Get(d digest.Digest) ([]byte, error) {
-	if s.plugin.Config != d {
-		return nil, errors.New("plugin not found")
-	}
-	rwc, err := s.pm.blobStore.Get(d)
+	resolver, err := pm.newResolver(ctx, statusTracker, authConfig, metaHeader, false)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	defer rwc.Close()
-	return ioutil.ReadAll(rwc)
-}
 
-func (s *pluginConfigStore) RootFSFromConfig(c []byte) (*image.RootFS, error) {
-	return configToRootFS(c)
-}
+	pusher, err := resolver.Pusher(ctx, ref.String())
+	if err != nil {
 
-func (s *pluginConfigStore) PlatformFromConfig(c []byte) (*specs.Platform, error) {
-	// TODO: LCOW/Plugins. This will need revisiting. For now use the runtime OS
-	return &specs.Platform{OS: runtime.GOOS}, nil
-}
+		return errors.Wrap(err, "error creating plugin pusher")
+	}
 
-type pluginLayerProvider struct {
-	pm     *Manager
-	plugin *v2.Plugin
-}
+	pj := newPushJobs(statusTracker)
 
-func (p *pluginLayerProvider) Get(id layer.ChainID) (distribution.PushLayer, error) {
-	rootFS := rootFSFromPlugin(p.plugin.PluginObj.Config.Rootfs)
-	var i int
-	for i = 1; i <= len(rootFS.DiffIDs); i++ {
-		if layer.CreateChainID(rootFS.DiffIDs[:i]) == id {
-			break
+	ctx, cancel := context.WithCancel(ctx)
+	out, waitProgress := setupProgressOutput(outStream, cancel)
+	defer waitProgress()
+
+	progressHandler := images.HandlerFunc(func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
+		logrus.WithField("mediaType", desc.MediaType).WithField("digest", desc.Digest.String()).Debug("Preparing to push plugin layer")
+		id := stringid.TruncateID(desc.Digest.String())
+		pj.add(remotes.MakeRefKey(ctx, desc), id)
+		progress.Update(out, id, "Preparing")
+		return nil, nil
+	})
+
+	desc, err := pm.getManifestDescriptor(ctx, p)
+	if err != nil {
+		return errors.Wrap(err, "error reading plugin manifest")
+	}
+
+	progress.Messagef(out, "", "The push refers to repository [%s]", reference.FamiliarName(ref))
+
+	// TODO: If a layer already exists on the registry, the progress output just says "Preparing"
+	go func() {
+		timer := time.NewTimer(100 * time.Millisecond)
+		defer timer.Stop()
+		if !timer.Stop() {
+			<-timer.C
+		}
+		var statuses []contentStatus
+		for {
+			timer.Reset(100 * time.Millisecond)
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+				statuses = pj.status()
+			}
+
+			for _, s := range statuses {
+				out.WriteProgress(progress.Progress{ID: s.Ref, Current: s.Offset, Total: s.Total, Action: s.Status, LastUpdate: s.Offset == s.Total})
+			}
+		}
+	}()
+
+	// Make sure we can authenticate the request since the auth scope for plugin repos is different than a normal repo.
+	ctx = docker.WithScope(ctx, scope(ref, true))
+	if err := remotes.PushContent(ctx, pusher, desc, pm.blobStore, nil, func(h images.Handler) images.Handler {
+		return images.Handlers(progressHandler, h)
+	}); err != nil {
+		// Try fallback to http.
+		// This is needed because the containerd pusher will only attempt the first registry config we pass, which would
+		// typically be https.
+		// If there are no http-only host configs found we'll error out anyway.
+		resolver, _ := pm.newResolver(ctx, statusTracker, authConfig, metaHeader, true)
+		if resolver != nil {
+			pusher, _ := resolver.Pusher(ctx, ref.String())
+			if pusher != nil {
+				logrus.WithField("ref", ref).Debug("Re-attmpting push with http-fallback")
+				err2 := remotes.PushContent(ctx, pusher, desc, pm.blobStore, nil, func(h images.Handler) images.Handler {
+					return images.Handlers(progressHandler, h)
+				})
+				if err2 == nil {
+					err = nil
+				} else {
+					logrus.WithError(err2).WithField("ref", ref).Debug("Error while attempting push with http-fallback")
+				}
+			}
+		}
+		if err != nil {
+			return errors.Wrap(err, "error pushing plugin")
 		}
 	}
-	if i > len(rootFS.DiffIDs) {
-		return nil, errors.New("layer not found")
+
+	// For blobs that already exist in the registry we need to make sure to update the progress otherwise it will just say "pending"
+	// TODO: How to check if the layer already exists? Is it worth it?
+	for _, j := range pj.jobs {
+		progress.Update(out, pj.names[j], "Upload complete")
 	}
-	return &pluginLayer{
-		pm:      p.pm,
-		diffIDs: rootFS.DiffIDs[:i],
-		blobs:   p.plugin.Blobsums[:i],
-	}, nil
+
+	// Signal the client for content trust verification
+	progress.Aux(out, types.PushResult{Tag: ref.(reference.Tagged).Tag(), Digest: desc.Digest.String(), Size: int(desc.Size)})
+
+	return nil
 }
 
-type pluginLayer struct {
-	pm      *Manager
-	diffIDs []layer.DiffID
-	blobs   []digest.Digest
+// manifest wraps an OCI manifest, because...
+// Historically the registry does not support plugins unless the media type on the manifest is specifically schema2.MediaTypeManifest
+// So the OCI manifest media type is not supported.
+// Additionally, there is extra validation for the docker schema2 manifest than there is a mediatype set on the manifest itself
+// even though this is set on the descriptor
+// The OCI types do not have this field.
+type manifest struct {
+	specs.Manifest
+	MediaType string `json:"mediaType,omitempty"`
 }
 
-func (l *pluginLayer) ChainID() layer.ChainID {
-	return layer.CreateChainID(l.diffIDs)
-}
+func buildManifest(ctx context.Context, s content.Manager, config digest.Digest, layers []digest.Digest) (manifest, error) {
+	var m manifest
+	m.MediaType = images.MediaTypeDockerSchema2Manifest
+	m.SchemaVersion = 2
 
-func (l *pluginLayer) DiffID() layer.DiffID {
-	return l.diffIDs[len(l.diffIDs)-1]
-}
-
-func (l *pluginLayer) Parent() distribution.PushLayer {
-	if len(l.diffIDs) == 1 {
-		return nil
+	configInfo, err := s.Info(ctx, config)
+	if err != nil {
+		return m, errors.Wrapf(err, "error reading plugin config content for digest %s", config)
 	}
-	return &pluginLayer{
-		pm:      l.pm,
-		diffIDs: l.diffIDs[:len(l.diffIDs)-1],
-		blobs:   l.blobs[:len(l.diffIDs)-1],
+	m.Config = specs.Descriptor{
+		MediaType: mediaTypePluginConfig,
+		Size:      configInfo.Size,
+		Digest:    configInfo.Digest,
 	}
+
+	for _, l := range layers {
+		info, err := s.Info(ctx, l)
+		if err != nil {
+			return m, errors.Wrapf(err, "error fetching info for content digest %s", l)
+		}
+		m.Layers = append(m.Layers, specs.Descriptor{
+			MediaType: specs.MediaTypeImageLayerGzip, // TODO: This is assuming everything is a gzip compressed layer, but that may not be true.
+			Digest:    l,
+			Size:      info.Size,
+		})
+	}
+	return m, nil
 }
 
-func (l *pluginLayer) Open() (io.ReadCloser, error) {
-	return l.pm.blobStore.Get(l.blobs[len(l.diffIDs)-1])
+// getManifestDescriptor gets the OCI descriptor for a manifest
+// It will generate a manifest if one does not exist
+func (pm *Manager) getManifestDescriptor(ctx context.Context, p *v2.Plugin) (specs.Descriptor, error) {
+	logger := logrus.WithField("plugin", p.Name()).WithField("digest", p.Manifest)
+	if p.Manifest != "" {
+		info, err := pm.blobStore.Info(ctx, p.Manifest)
+		if err == nil {
+			desc := specs.Descriptor{
+				Size:      info.Size,
+				Digest:    info.Digest,
+				MediaType: images.MediaTypeDockerSchema2Manifest,
+			}
+			return desc, nil
+		}
+		logger.WithError(err).Debug("Could not find plugin manifest in content store")
+	} else {
+		logger.Info("Plugin does not have manifest digest")
+	}
+	logger.Info("Building a new plugin manifest")
+
+	manifest, err := buildManifest(ctx, pm.blobStore, p.Config, p.Blobsums)
+	if err != nil {
+		return specs.Descriptor{}, err
+	}
+
+	desc, err := writeManifest(ctx, pm.blobStore, &manifest)
+	if err != nil {
+		return desc, err
+	}
+
+	if err := pm.save(p); err != nil {
+		logger.WithError(err).Error("Could not save plugin with manifest digest")
+	}
+	return desc, nil
 }
 
-func (l *pluginLayer) Size() (int64, error) {
-	return l.pm.blobStore.Size(l.blobs[len(l.diffIDs)-1])
-}
+func writeManifest(ctx context.Context, cs content.Store, m *manifest) (specs.Descriptor, error) {
+	platform := platforms.DefaultSpec()
+	desc := specs.Descriptor{
+		MediaType: images.MediaTypeDockerSchema2Manifest,
+		Platform:  &platform,
+	}
+	data, err := json.Marshal(m)
+	if err != nil {
+		return desc, errors.Wrap(err, "error encoding manifest")
+	}
+	desc.Digest = digest.FromBytes(data)
+	desc.Size = int64(len(data))
 
-func (l *pluginLayer) MediaType() string {
-	return schema2.MediaTypeLayer
-}
-
-func (l *pluginLayer) Release() {
-	// Nothing needs to be release, no references held
+	if err := content.WriteBlob(ctx, cs, remotes.MakeRefKey(ctx, desc), bytes.NewReader(data), desc); err != nil {
+		return desc, errors.Wrap(err, "error writing plugin manifest")
+	}
+	return desc, nil
 }
 
 // Remove deletes plugin's root directory.
@@ -700,14 +642,14 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	var configJSON []byte
 	rootFS := splitConfigRootFSFromTar(tarCtx, &configJSON)
 
-	rootFSBlob, err := pm.blobStore.New()
+	rootFSBlob, err := pm.blobStore.Writer(ctx, content.WithRef(name))
 	if err != nil {
 		return err
 	}
 	defer rootFSBlob.Close()
+
 	gzw := gzip.NewWriter(rootFSBlob)
-	layerDigester := digest.Canonical.Digester()
-	rootFSReader := io.TeeReader(rootFS, io.MultiWriter(gzw, layerDigester.Hash()))
+	rootFSReader := io.TeeReader(rootFS, gzw)
 
 	if err := chrootarchive.Untar(rootFSReader, tmpRootFSDir, nil); err != nil {
 		return err
@@ -736,8 +678,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
-	rootFSBlobsum, err := rootFSBlob.Commit()
-	if err != nil {
+	if err := rootFSBlob.Commit(ctx, 0, ""); err != nil {
 		return err
 	}
 	defer func() {
@@ -748,12 +689,12 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 
 	config.Rootfs = &types.PluginConfigRootfs{
 		Type:    "layers",
-		DiffIds: []string{layerDigester.Digest().String()},
+		DiffIds: []string{rootFSBlob.Digest().String()},
 	}
 
 	config.DockerVersion = dockerversion.Version
 
-	configBlob, err := pm.blobStore.New()
+	configBlob, err := pm.blobStore.Writer(ctx, content.WithRef(name+"-config.json"))
 	if err != nil {
 		return err
 	}
@@ -761,12 +702,23 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	if err := json.NewEncoder(configBlob).Encode(config); err != nil {
 		return errors.Wrap(err, "error encoding json config")
 	}
-	configBlobsum, err := configBlob.Commit()
-	if err != nil {
+	if err := configBlob.Commit(ctx, 0, ""); err != nil {
 		return err
 	}
 
-	p, err := pm.createPlugin(name, configBlobsum, []digest.Digest{rootFSBlobsum}, tmpRootFSDir, nil)
+	configDigest := configBlob.Digest()
+	layers := []digest.Digest{rootFSBlob.Digest()}
+
+	manifest, err := buildManifest(ctx, pm.blobStore, configDigest, layers)
+	if err != nil {
+		return err
+	}
+	desc, err := writeManifest(ctx, pm.blobStore, &manifest)
+	if err != nil {
+		return
+	}
+
+	p, err := pm.createPlugin(name, configDigest, desc.Digest, layers, tmpRootFSDir, nil)
 	if err != nil {
 		return err
 	}

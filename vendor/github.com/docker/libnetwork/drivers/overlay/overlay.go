@@ -378,7 +378,7 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 			}
 		}
 		if err := d.updateKeys(newKey, priKey, delKey); err != nil {
-			logrus.Warn(err)
+			return err
 		}
 	default:
 	}

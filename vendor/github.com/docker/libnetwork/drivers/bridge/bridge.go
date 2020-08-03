@@ -68,9 +68,11 @@ type networkConfiguration struct {
 	EnableIPv6           bool
 	EnableIPMasquerade   bool
 	EnableICC            bool
+	InhibitIPv4          bool
 	Mtu                  int
 	DefaultBindingIP     net.IP
 	DefaultBridge        bool
+	HostIP               net.IP
 	ContainerIfacePrefix string
 	// Internal fields set after ipam data parsing
 	AddressIPv4        *net.IPNet
@@ -243,6 +245,10 @@ func (c *networkConfiguration) fromLabels(labels map[string]string) error {
 			if c.EnableICC, err = strconv.ParseBool(value); err != nil {
 				return parseErr(label, value, err.Error())
 			}
+		case InhibitIPv4:
+			if c.InhibitIPv4, err = strconv.ParseBool(value); err != nil {
+				return parseErr(label, value, err.Error())
+			}
 		case DefaultBridge:
 			if c.DefaultBridge, err = strconv.ParseBool(value); err != nil {
 				return parseErr(label, value, err.Error())
@@ -253,6 +259,10 @@ func (c *networkConfiguration) fromLabels(labels map[string]string) error {
 			}
 		case netlabel.ContainerIfacePrefix:
 			c.ContainerIfacePrefix = value
+		case netlabel.HostIP:
+			if c.HostIP = net.ParseIP(value); c.HostIP == nil {
+				return parseErr(label, value, "nil ip")
+			}
 		}
 	}
 
@@ -679,6 +689,12 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 	bridgeAlreadyExists := bridgeIface.exists()
 	if !bridgeAlreadyExists {
 		bridgeSetup.queueStep(setupDevice)
+		bridgeSetup.queueStep(setupDefaultSysctl)
+	}
+
+	// For the default bridge, set expected sysctls
+	if config.DefaultBridge {
+		bridgeSetup.queueStep(setupDefaultSysctl)
 	}
 
 	// Even if a bridge exists try to setup IPv4.
@@ -699,7 +715,7 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 
 		// We ensure that the bridge has the expectedIPv4 and IPv6 addresses in
 		// the case of a previously existing device.
-		{bridgeAlreadyExists, setupVerifyAndReconcile},
+		{bridgeAlreadyExists && !config.InhibitIPv4, setupVerifyAndReconcile},
 
 		// Enable IPv6 Forwarding
 		{enableIPv6Forwarding, setupIPv6Forwarding},

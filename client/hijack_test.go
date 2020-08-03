@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/pkg/errors"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestTLSCloseWriter(t *testing.T) {
@@ -25,13 +25,13 @@ func TestTLSCloseWriter(t *testing.T) {
 		defer close(chErr)
 		if err := httputils.ParseForm(req); err != nil {
 			chErr <- errors.Wrap(err, "error parsing form")
-			http.Error(w, err.Error(), 500)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		r, rw, err := httputils.HijackConnection(w)
 		if err != nil {
 			chErr <- errors.Wrap(err, "error hijacking connection")
-			http.Error(w, err.Error(), 500)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		defer r.Close()

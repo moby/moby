@@ -21,6 +21,7 @@ import (
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/go-connections/nat"
+	"github.com/docker/go-units"
 	netconst "github.com/docker/libnetwork/datastore"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -281,7 +282,9 @@ func convertMount(m api.Mount) enginemount.Mount {
 	}
 
 	if m.BindOptions != nil {
-		mount.BindOptions = &enginemount.BindOptions{}
+		mount.BindOptions = &enginemount.BindOptions{
+			NonRecursive: m.BindOptions.NonRecursive,
+		}
 		switch m.BindOptions.Propagation {
 		case api.MountPropagationRPrivate:
 			mount.BindOptions.Propagation = enginemount.PropagationRPrivate
@@ -358,7 +361,8 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		Isolation:      c.isolation(),
 		Init:           c.init(),
 		Sysctls:        c.spec().Sysctls,
-		Capabilities:   c.spec().Capabilities,
+		CapAdd:         c.spec().CapabilityAdd,
+		CapDrop:        c.spec().CapabilityDrop,
 	}
 
 	if c.spec().DNSConfig != nil {
@@ -428,6 +432,21 @@ func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volumetypes.Vol
 
 func (c *containerConfig) resources() enginecontainer.Resources {
 	resources := enginecontainer.Resources{}
+
+	// set pids limit
+	pidsLimit := c.spec().PidsLimit
+	if pidsLimit > 0 {
+		resources.PidsLimit = &pidsLimit
+	}
+
+	resources.Ulimits = make([]*units.Ulimit, len(c.spec().Ulimits))
+	for i, ulimit := range c.spec().Ulimits {
+		resources.Ulimits[i] = &units.Ulimit{
+			Name: ulimit.Name,
+			Soft: ulimit.Soft,
+			Hard: ulimit.Hard,
+		}
+	}
 
 	// If no limits are specified let the engine use its defaults.
 	//

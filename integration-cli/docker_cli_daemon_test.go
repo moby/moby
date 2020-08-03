@@ -32,15 +32,15 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/mount"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	units "github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
+	"github.com/moby/sys/mount"
 	"golang.org/x/sys/unix"
-	"gotest.tools/assert"
-	"gotest.tools/icmd"
-	"gotest.tools/poll"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
 )
 
 const containerdSocket = "/var/run/docker/containerd/containerd.sock"
@@ -213,7 +213,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithInvalidBasesize(c *testing.T) {
 	s.d.Start(c)
 
 	oldBasesizeBytes := getBaseDeviceSize(c, s.d)
-	var newBasesizeBytes int64 = 1073741824 //1GB in bytes
+	var newBasesizeBytes int64 = 1073741824 // 1GB in bytes
 
 	if newBasesizeBytes < oldBasesizeBytes {
 		err := s.d.RestartWithError("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
@@ -234,7 +234,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithIncreasedBasesize(c *testing.T)
 
 	oldBasesizeBytes := getBaseDeviceSize(c, s.d)
 
-	var newBasesizeBytes int64 = 53687091200 //50GB in bytes
+	var newBasesizeBytes int64 = 53687091200 // 50GB in bytes
 
 	if newBasesizeBytes < oldBasesizeBytes {
 		c.Skip(fmt.Sprintf("New base device size (%v) must be greater than (%s)", units.HumanSize(float64(newBasesizeBytes)), units.HumanSize(float64(oldBasesizeBytes))))
@@ -572,16 +572,16 @@ func (s *DockerDaemonSuite) TestDaemonKeyGeneration(c *testing.T) {
 // Note that this explicitly tests the conflict of {-b,--bridge} and {--bip} options as the means
 // to get a daemon init failure; no other tests for -b/--bip conflict are therefore required
 func (s *DockerDaemonSuite) TestDaemonExitOnFailure(c *testing.T) {
-	//attempt to start daemon with incorrect flags (we know -b and --bip conflict)
+	// attempt to start daemon with incorrect flags (we know -b and --bip conflict)
 	if err := s.d.StartWithError("--bridge", "nosuchbridge", "--bip", "1.1.1.1"); err != nil {
-		//verify we got the right error
-		if !strings.Contains(err.Error(), "Daemon exited") {
+		// verify we got the right error
+		if !strings.Contains(err.Error(), "daemon exited") {
 			c.Fatalf("Expected daemon not to start, got %v", err)
 		}
 		// look in the log and make sure we got the message that daemon is shutting down
 		icmd.RunCommand("grep", "failed to start daemon", s.d.LogFileName()).Assert(c, icmd.Success)
 	} else {
-		//if we didn't get an error and the daemon is running, this is a failure
+		// if we didn't get an error and the daemon is running, this is a failure
 		c.Fatal("Conflicting options should cause the daemon to error out with a failure")
 	}
 }
@@ -697,7 +697,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithBridgeIPChange(c *testing.T) {
 
 	s.d.Start(c, "--bip", bridgeIP)
 
-	//check if the iptables contains new bridgeIP MASQUERADE rule
+	// check if the iptables contains new bridgeIP MASQUERADE rule
 	ipTablesSearchString := bridgeIPNet.String()
 	icmd.RunCommand("iptables", "-t", "nat", "-nvL").Assert(c, icmd.Expected{
 		Out: ipTablesSearchString,
@@ -957,7 +957,7 @@ func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *testing.T) {
 
 	s.d.StartWithBusybox(c, "--default-ulimit", "nofile=42:42", "--default-ulimit", "nproc=1024:1024")
 
-	out, err := s.d.Cmd("run", "--ulimit", "nproc=2048", "--name=test", "busybox", "/bin/sh", "-c", "echo $(ulimit -n); echo $(ulimit -p)")
+	out, err := s.d.Cmd("run", "--ulimit", "nproc=2048", "--name=test", "busybox", "/bin/sh", "-c", "echo $(ulimit -n); echo $(ulimit -u)")
 	if err != nil {
 		c.Fatal(err, out)
 	}
@@ -973,7 +973,7 @@ func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *testing.T) {
 		c.Fatalf("expected `ulimit -n` to be `42`, got: %s", nofile)
 	}
 	if nproc != "2048" {
-		c.Fatalf("expected `ulimit -p` to be 2048, got: %s", nproc)
+		c.Fatalf("expected `ulimit -u` to be 2048, got: %s", nproc)
 	}
 
 	// Now restart daemon with a new default
@@ -1203,7 +1203,7 @@ func (s *DockerDaemonSuite) TestDaemonWithWrongkey(c *testing.T) {
 		c.Fatalf("Error Unmarshal: %s", err)
 	}
 
-	//replace config.Kid with the fake value
+	// replace config.Kid with the fake value
 	config.Kid = "VSAJ:FUYR:X3H2:B2VZ:KZ6U:CJD5:K7BX:ZXHY:UZXT:P4FT:MJWG:HRJ4"
 
 	// NEW Data-Struct to byte[]
@@ -1246,7 +1246,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartKillWait(c *testing.T) {
 
 	s.d.Restart(c)
 
-	errchan := make(chan error)
+	errchan := make(chan error, 1)
 	go func() {
 		if out, err := s.d.Cmd("wait", containerID); err != nil {
 			errchan <- fmt.Errorf("%v:\n%s", err, out)
@@ -1599,15 +1599,17 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPausedContainer(c *testing.T) {
 	}
 	s.d.Restart(c)
 
-	errchan := make(chan error)
+	errchan := make(chan error, 1)
 	go func() {
 		out, err := s.d.Cmd("start", "test")
 		if err != nil {
 			errchan <- fmt.Errorf("%v:\n%s", err, out)
+			return
 		}
 		name := strings.TrimSpace(out)
 		if name != "test" {
 			errchan <- fmt.Errorf("Paused container start error on docker daemon restart, expected 'test' but got '%s'", name)
+			return
 		}
 		close(errchan)
 	}()
@@ -1768,7 +1770,7 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 	defer mount.Unmount(testDir)
 
 	// create a 3MiB image (with a 2MiB ext4 fs) and mount it as graph root
-	// Why in a container? Because `mount` sometimes behaves weirdly and often fails outright on this test in debian:jessie (which is what the test suite runs under if run from the Makefile)
+	// Why in a container? Because `mount` sometimes behaves weirdly and often fails outright on this test in debian:buster (which is what the test suite runs under if run from the Makefile)
 	dockerCmd(c, "run", "--rm", "-v", testDir+":/test", "busybox", "sh", "-c", "dd of=/test/testfs.img bs=1M seek=3 count=0")
 	icmd.RunCommand("mkfs.ext4", "-F", filepath.Join(testDir, "testfs.img")).Assert(c, icmd.Success)
 

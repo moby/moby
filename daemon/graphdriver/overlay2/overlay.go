@@ -3,7 +3,6 @@
 package overlay2 // import "github.com/docker/docker/daemon/graphdriver/overlay2"
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -16,6 +15,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/daemon/graphdriver/quota"
@@ -26,12 +26,10 @@ import (
 	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/locker"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/system"
 	units "github.com/docker/go-units"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -133,16 +131,6 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 
-	if err := supportsOverlay(); err != nil {
-		return nil, graphdriver.ErrNotSupported
-	}
-
-	// require kernel 4.0.0 to ensure multiple lower dirs are supported
-	v, err := kernel.GetKernelVersion()
-	if err != nil {
-		return nil, err
-	}
-
 	// Perform feature detection on /var/lib/docker/overlay2 if it's an existing directory.
 	// This covers situations where /var/lib/docker/overlay2 is a mount, and on a different
 	// filesystem than /var/lib/docker.
@@ -150,6 +138,11 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	testdir := home
 	if _, err := os.Stat(testdir); os.IsNotExist(err) {
 		testdir = filepath.Dir(testdir)
+	}
+
+	if err := overlayutils.SupportsOverlay(testdir, true); err != nil {
+		logger.Error(err)
+		return nil, graphdriver.ErrNotSupported
 	}
 
 	fsMagic, err := graphdriver.GetFSMagic(testdir)
@@ -160,32 +153,6 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		backingFs = fsName
 	}
 
-	switch fsMagic {
-	case graphdriver.FsMagicAufs, graphdriver.FsMagicEcryptfs, graphdriver.FsMagicNfsFs, graphdriver.FsMagicOverlay, graphdriver.FsMagicZfs:
-		logger.Errorf("'overlay2' is not supported over %s", backingFs)
-		return nil, graphdriver.ErrIncompatibleFS
-	case graphdriver.FsMagicBtrfs:
-		// Support for OverlayFS on BTRFS was added in kernel 4.7
-		// See https://btrfs.wiki.kernel.org/index.php/Changelog
-		if kernel.CompareKernelVersion(*v, kernel.VersionInfo{Kernel: 4, Major: 7, Minor: 0}) < 0 {
-			if !opts.overrideKernelCheck {
-				logger.Errorf("'overlay2' requires kernel 4.7 to use on %s", backingFs)
-				return nil, graphdriver.ErrIncompatibleFS
-			}
-			logger.Warn("Using pre-4.7.0 kernel for overlay2 on btrfs, may require kernel update")
-		}
-	}
-
-	if kernel.CompareKernelVersion(*v, kernel.VersionInfo{Kernel: 4, Major: 0, Minor: 0}) < 0 {
-		if opts.overrideKernelCheck {
-			logger.Warn("Using pre-4.0.0 kernel for overlay2, mount failures may require kernel update")
-		} else {
-			if err := supportsMultipleLowerDir(testdir); err != nil {
-				logger.Debugf("Multiple lower dirs not supported: %v", err)
-				return nil, graphdriver.ErrNotSupported
-			}
-		}
-	}
 	supportsDType, err := fsutils.SupportsDType(testdir)
 	if err != nil {
 		return nil, err
@@ -274,33 +241,6 @@ func parseOptions(options []string) (*overlayOptions, error) {
 	return o, nil
 }
 
-func supportsOverlay() error {
-	// Access overlay filesystem so that Linux loads it (if possible).
-	mountTarget, err := ioutil.TempDir("", "supportsOverlay2")
-	if err != nil {
-		logrus.WithError(err).WithField("storage-driver", "overlay2").Error("could not create temporary directory, so assuming that 'overlay' is not supported")
-		return graphdriver.ErrNotSupported
-	}
-	/* The mounting will fail--after the module has been loaded.*/
-	defer os.RemoveAll(mountTarget)
-	unix.Mount("overlay", mountTarget, "overlay", 0, "")
-
-	f, err := os.Open("/proc/filesystems")
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	s := bufio.NewScanner(f)
-	for s.Scan() {
-		if s.Text() == "nodev\toverlay" {
-			return nil
-		}
-	}
-	logger.Error("'overlay' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlay support loaded.")
-	return graphdriver.ErrNotSupported
-}
-
 func useNaiveDiff(home string) bool {
 	useNaiveDiffLock.Do(func() {
 		if err := doesSupportNativeDiff(home); err != nil {
@@ -360,21 +300,21 @@ func (d *Driver) Cleanup() error {
 // CreateReadWrite creates a layer that is writable for use as a container
 // file system.
 func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts) error {
-	if opts != nil && len(opts.StorageOpt) != 0 && !projectQuotaSupported {
-		return fmt.Errorf("--storage-opt is supported only for overlay over xfs with 'pquota' mount option")
-	}
-
 	if opts == nil {
 		opts = &graphdriver.CreateOpts{
-			StorageOpt: map[string]string{},
+			StorageOpt: make(map[string]string),
 		}
+	} else if opts.StorageOpt == nil {
+		opts.StorageOpt = make(map[string]string)
 	}
 
-	if _, ok := opts.StorageOpt["size"]; !ok {
-		if opts.StorageOpt == nil {
-			opts.StorageOpt = map[string]string{}
-		}
+	// Merge daemon default config.
+	if _, ok := opts.StorageOpt["size"]; !ok && d.options.quota.Size != 0 {
 		opts.StorageOpt["size"] = strconv.FormatUint(d.options.quota.Size, 10)
+	}
+
+	if _, ok := opts.StorageOpt["size"]; ok && !projectQuotaSupported {
+		return fmt.Errorf("--storage-opt is supported only for overlay over xfs with 'pquota' mount option")
 	}
 
 	return d.create(id, parent, opts)
@@ -432,7 +372,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return err
 	}
 
-	lid := generateID(idLength)
+	lid := overlayutils.GenerateID(idLength, logger)
 	if err := os.Symlink(path.Join("..", id, diffDirName), path.Join(d.home, linkDir, lid)); err != nil {
 		return err
 	}
@@ -743,7 +683,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64
 		UIDMaps:        d.uidMaps,
 		GIDMaps:        d.gidMaps,
 		WhiteoutFormat: archive.OverlayWhiteoutFormat,
-		InUserNS:       rsystem.RunningInUserNS(),
+		InUserNS:       sys.RunningInUserNS(),
 	}); err != nil {
 		return 0, err
 	}

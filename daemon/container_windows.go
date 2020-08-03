@@ -4,6 +4,6 @@ import (
 	"github.com/docker/docker/container"
 )
 
-func (daemon *Daemon) saveApparmorConfig(container *container.Container) error {
+func (daemon *Daemon) saveAppArmorConfig(container *container.Container) error {
 	return nil
 }

@@ -12,9 +12,10 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestNetworkInspectError(t *testing.T) {
@@ -23,7 +24,9 @@ func TestNetworkInspectError(t *testing.T) {
 	}
 
 	_, err := client.NetworkInspect(context.Background(), "nothing", types.NetworkInspectOptions{})
-	assert.Check(t, is.Error(err, "Error response from daemon: Server error"))
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
+	}
 }
 
 func TestNetworkInspectNotFoundError(t *testing.T) {
@@ -55,7 +58,7 @@ func TestNetworkInspect(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			if req.Method != "GET" {
+			if req.Method != http.MethodGet {
 				return nil, fmt.Errorf("expected GET method, got %s", req.Method)
 			}
 

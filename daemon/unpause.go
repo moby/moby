@@ -10,33 +10,33 @@ import (
 
 // ContainerUnpause unpauses a container
 func (daemon *Daemon) ContainerUnpause(name string) error {
-	container, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
-	return daemon.containerUnpause(container)
+	return daemon.containerUnpause(ctr)
 }
 
 // containerUnpause resumes the container execution after the container is paused.
-func (daemon *Daemon) containerUnpause(container *container.Container) error {
-	container.Lock()
-	defer container.Unlock()
+func (daemon *Daemon) containerUnpause(ctr *container.Container) error {
+	ctr.Lock()
+	defer ctr.Unlock()
 
 	// We cannot unpause the container which is not paused
-	if !container.Paused {
-		return fmt.Errorf("Container %s is not paused", container.ID)
+	if !ctr.Paused {
+		return fmt.Errorf("Container %s is not paused", ctr.ID)
 	}
 
-	if err := daemon.containerd.Resume(context.Background(), container.ID); err != nil {
-		return fmt.Errorf("Cannot unpause container %s: %s", container.ID, err)
+	if err := daemon.containerd.Resume(context.Background(), ctr.ID); err != nil {
+		return fmt.Errorf("Cannot unpause container %s: %s", ctr.ID, err)
 	}
 
-	container.Paused = false
-	daemon.setStateCounter(container)
-	daemon.updateHealthMonitor(container)
-	daemon.LogContainerEvent(container, "unpause")
+	ctr.Paused = false
+	daemon.setStateCounter(ctr)
+	daemon.updateHealthMonitor(ctr)
+	daemon.LogContainerEvent(ctr, "unpause")
 
-	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
+	if err := ctr.CheckpointTo(daemon.containersReplica); err != nil {
 		logrus.WithError(err).Warn("could not save container to disk")
 	}
 

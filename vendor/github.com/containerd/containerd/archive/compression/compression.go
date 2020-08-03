@@ -180,7 +180,7 @@ func DecompressStream(archive io.Reader) (DecompressReadCloser, error) {
 	}
 }
 
-// CompressStream compresseses the dest with specified compression algorithm.
+// CompressStream compresses the dest with specified compression algorithm.
 func CompressStream(dest io.Writer, compression Compression) (io.WriteCloser, error) {
 	switch compression {
 	case Uncompressed:

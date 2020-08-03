@@ -14,13 +14,13 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/system"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/fs"
-	"gotest.tools/poll"
-	"gotest.tools/skip"
+	"github.com/moby/sys/mount"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/fs"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
 )
 
 func TestContainerNetworkMountsNoChown(t *testing.T) {
@@ -63,7 +63,7 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 	assert.NilError(t, err)
 	defer cli.Close()
 
-	ctrCreate, err := cli.ContainerCreate(ctx, &config, &hostConfig, &network.NetworkingConfig{}, "")
+	ctrCreate, err := cli.ContainerCreate(ctx, &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
 	assert.NilError(t, err)
 	// container will exit immediately because of no tty, but we only need the start sequence to test the condition
 	err = cli.ContainerStart(ctx, ctrCreate.ID, types.ContainerStartOptions{})
@@ -174,7 +174,7 @@ func TestMountDaemonRoot(t *testing.T) {
 					c, err := client.ContainerCreate(ctx, &containertypes.Config{
 						Image: "busybox",
 						Cmd:   []string{"true"},
-					}, hc, nil, "")
+					}, hc, nil, nil, "")
 
 					if err != nil {
 						if test.expected != "" {
@@ -214,6 +214,7 @@ func TestMountDaemonRoot(t *testing.T) {
 func TestContainerBindMountNonRecursive(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "BindOptions.NonRecursive requires API v1.40")
+	skip.If(t, testEnv.IsRootless, "cannot be tested because RootlessKit executes the daemon in private mount namespace (https://github.com/rootless-containers/rootlesskit/issues/97)")
 
 	defer setupTest(t)()
 

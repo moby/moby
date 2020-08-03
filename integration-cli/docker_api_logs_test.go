@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil/request"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func (s *DockerSuite) TestLogsAPIWithStdout(c *testing.T) {
@@ -30,7 +30,7 @@ func (s *DockerSuite) TestLogsAPIWithStdout(c *testing.T) {
 		err error
 	}
 
-	chLog := make(chan logOut)
+	chLog := make(chan logOut, 1)
 	res, body, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&timestamps=1", id))
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusOK)
@@ -116,6 +116,8 @@ func (s *DockerSuite) TestLogsAPIUntilFutureFollow(c *testing.T) {
 	}
 
 	chLog := make(chan logOut)
+	stop := make(chan struct{})
+	defer close(stop)
 
 	go func() {
 		bufReader := bufio.NewReader(reader)
@@ -126,11 +128,20 @@ func (s *DockerSuite) TestLogsAPIUntilFutureFollow(c *testing.T) {
 				if err == io.EOF {
 					return
 				}
-				chLog <- logOut{"", err}
+				select {
+				case <-stop:
+					return
+				case chLog <- logOut{"", err}:
+				}
+
 				return
 			}
 
-			chLog <- logOut{strings.TrimSpace(string(out)), err}
+			select {
+			case <-stop:
+				return
+			case chLog <- logOut{strings.TrimSpace(string(out)), err}:
+			}
 		}
 	}()
 

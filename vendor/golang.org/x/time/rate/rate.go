@@ -6,6 +6,7 @@
 package rate
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"sync"
@@ -212,19 +213,8 @@ func (lim *Limiter) ReserveN(now time.Time, n int) *Reservation {
 	return &r
 }
 
-// contextContext is a temporary(?) copy of the context.Context type
-// to support both Go 1.6 using golang.org/x/net/context and Go 1.7+
-// with the built-in context package. If people ever stop using Go 1.6
-// we can remove this.
-type contextContext interface {
-	Deadline() (deadline time.Time, ok bool)
-	Done() <-chan struct{}
-	Err() error
-	Value(key interface{}) interface{}
-}
-
 // Wait is shorthand for WaitN(ctx, 1).
-func (lim *Limiter) wait(ctx contextContext) (err error) {
+func (lim *Limiter) Wait(ctx context.Context) (err error) {
 	return lim.WaitN(ctx, 1)
 }
 
@@ -232,8 +222,13 @@ func (lim *Limiter) wait(ctx contextContext) (err error) {
 // It returns an error if n exceeds the Limiter's burst size, the Context is
 // canceled, or the expected wait time exceeds the Context's Deadline.
 // The burst limit is ignored if the rate limit is Inf.
-func (lim *Limiter) waitN(ctx contextContext, n int) (err error) {
-	if n > lim.burst && lim.limit != Inf {
+func (lim *Limiter) WaitN(ctx context.Context, n int) (err error) {
+	lim.mu.Lock()
+	burst := lim.burst
+	limit := lim.limit
+	lim.mu.Unlock()
+
+	if n > burst && limit != Inf {
 		return fmt.Errorf("rate: Wait(n=%d) exceeds limiter's burst %d", n, lim.burst)
 	}
 	// Check if ctx is already cancelled
@@ -289,6 +284,23 @@ func (lim *Limiter) SetLimitAt(now time.Time, newLimit Limit) {
 	lim.last = now
 	lim.tokens = tokens
 	lim.limit = newLimit
+}
+
+// SetBurst is shorthand for SetBurstAt(time.Now(), newBurst).
+func (lim *Limiter) SetBurst(newBurst int) {
+	lim.SetBurstAt(time.Now(), newBurst)
+}
+
+// SetBurstAt sets a new burst size for the limiter.
+func (lim *Limiter) SetBurstAt(now time.Time, newBurst int) {
+	lim.mu.Lock()
+	defer lim.mu.Unlock()
+
+	now, _, tokens := lim.advance(now)
+
+	lim.last = now
+	lim.tokens = tokens
+	lim.burst = newBurst
 }
 
 // reserveN is a helper method for AllowN, ReserveN, and WaitN.
@@ -380,5 +392,9 @@ func (limit Limit) durationFromTokens(tokens float64) time.Duration {
 // tokensFromDuration is a unit conversion function from a time duration to the number of tokens
 // which could be accumulated during that duration at a rate of limit tokens per second.
 func (limit Limit) tokensFromDuration(d time.Duration) float64 {
-	return d.Seconds() * float64(limit)
+	// Split the integer and fractional parts ourself to minimize rounding errors.
+	// See golang.org/issues/34861.
+	sec := float64(d/time.Second) * float64(limit)
+	nsec := float64(d%time.Second) * float64(limit)
+	return sec + nsec/1e9
 }

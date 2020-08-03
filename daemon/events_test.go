@@ -15,7 +15,7 @@ func TestLogContainerEventCopyLabels(t *testing.T) {
 	_, l, _ := e.Subscribe()
 	defer e.Evict(l)
 
-	container := &container.Container{
+	ctr := &container.Container{
 		ID:   "container_id",
 		Name: "container_name",
 		Config: &containertypes.Config{
@@ -29,10 +29,10 @@ func TestLogContainerEventCopyLabels(t *testing.T) {
 	daemon := &Daemon{
 		EventsService: e,
 	}
-	daemon.LogContainerEvent(container, "create")
+	daemon.LogContainerEvent(ctr, "create")
 
-	if _, mutated := container.Config.Labels["image"]; mutated {
-		t.Fatalf("Expected to not mutate the container labels, got %q", container.Config.Labels)
+	if _, mutated := ctr.Config.Labels["image"]; mutated {
+		t.Fatalf("Expected to not mutate the container labels, got %q", ctr.Config.Labels)
 	}
 
 	validateTestAttributes(t, l, map[string]string{
@@ -46,7 +46,7 @@ func TestLogContainerEventWithAttributes(t *testing.T) {
 	_, l, _ := e.Subscribe()
 	defer e.Evict(l)
 
-	container := &container.Container{
+	ctr := &container.Container{
 		ID:   "container_id",
 		Name: "container_name",
 		Config: &containertypes.Config{
@@ -63,7 +63,7 @@ func TestLogContainerEventWithAttributes(t *testing.T) {
 		"node": "2",
 		"foo":  "bar",
 	}
-	daemon.LogContainerEventWithAttributes(container, "create", attributes)
+	daemon.LogContainerEventWithAttributes(ctr, "create", attributes)
 
 	validateTestAttributes(t, l, map[string]string{
 		"node": "1",

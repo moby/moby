@@ -9,8 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestServiceRemoveError(t *testing.T) {
@@ -19,7 +20,9 @@ func TestServiceRemoveError(t *testing.T) {
 	}
 
 	err := client.ServiceRemove(context.Background(), "service_id")
-	assert.Check(t, is.Error(err, "Error response from daemon: Server error"))
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
+	}
 }
 
 func TestServiceRemoveNotFoundError(t *testing.T) {
@@ -40,7 +43,7 @@ func TestServiceRemove(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			if req.Method != "DELETE" {
+			if req.Method != http.MethodDelete {
 				return nil, fmt.Errorf("expected DELETE method, got %s", req.Method)
 			}
 			return &http.Response{

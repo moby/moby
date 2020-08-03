@@ -5,7 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"gotest.tools/poll"
+	"gotest.tools/v3/poll"
 )
 
 // IsRemoved verifies the network is removed.

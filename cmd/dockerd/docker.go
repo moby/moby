@@ -9,9 +9,9 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/rootless"
 	"github.com/moby/buildkit/util/apicaps"
+	"github.com/moby/term"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -93,7 +93,7 @@ func main() {
 	if err != nil {
 		onError(err)
 	}
-	cmd.SetOutput(stdout)
+	cmd.SetOut(stdout)
 	if err := cmd.Execute(); err != nil {
 		onError(err)
 	}

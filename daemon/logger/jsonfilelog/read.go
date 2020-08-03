@@ -60,35 +60,65 @@ func decodeLogLine(dec *json.Decoder, l *jsonlog.JSONLog) (*logger.Message, erro
 	return msg, nil
 }
 
-// decodeFunc is used to create a decoder for the log file reader
-func decodeFunc(rdr io.Reader) func() (*logger.Message, error) {
-	l := &jsonlog.JSONLog{}
-	dec := json.NewDecoder(rdr)
-	return func() (msg *logger.Message, err error) {
-		for retries := 0; retries < maxJSONDecodeRetry; retries++ {
-			msg, err = decodeLogLine(dec, l)
-			if err == nil || err == io.EOF {
-				break
-			}
+type decoder struct {
+	rdr io.Reader
+	dec *json.Decoder
+	jl  *jsonlog.JSONLog
+}
 
-			logrus.WithError(err).WithField("retries", retries).Warn("got error while decoding json")
-			// try again, could be due to a an incomplete json object as we read
-			if _, ok := err.(*json.SyntaxError); ok {
-				dec = json.NewDecoder(rdr)
-				continue
-			}
+func (d *decoder) Reset(rdr io.Reader) {
+	d.rdr = rdr
+	d.dec = nil
+	if d.jl != nil {
+		d.jl.Reset()
+	}
+}
 
-			// io.ErrUnexpectedEOF is returned from json.Decoder when there is
-			// remaining data in the parser's buffer while an io.EOF occurs.
-			// If the json logger writes a partial json log entry to the disk
-			// while at the same time the decoder tries to decode it, the race condition happens.
-			if err == io.ErrUnexpectedEOF {
-				reader := io.MultiReader(dec.Buffered(), rdr)
-				dec = json.NewDecoder(reader)
-				continue
-			}
+func (d *decoder) Close() {
+	d.dec = nil
+	d.rdr = nil
+	d.jl = nil
+}
+
+func (d *decoder) Decode() (msg *logger.Message, err error) {
+	if d.dec == nil {
+		d.dec = json.NewDecoder(d.rdr)
+	}
+	if d.jl == nil {
+		d.jl = &jsonlog.JSONLog{}
+	}
+	for retries := 0; retries < maxJSONDecodeRetry; retries++ {
+		msg, err = decodeLogLine(d.dec, d.jl)
+		if err == nil || err == io.EOF {
+			break
 		}
-		return msg, err
+
+		logrus.WithError(err).WithField("retries", retries).Warn("got error while decoding json")
+		// try again, could be due to a an incomplete json object as we read
+		if _, ok := err.(*json.SyntaxError); ok {
+			d.dec = json.NewDecoder(d.rdr)
+			continue
+		}
+
+		// io.ErrUnexpectedEOF is returned from json.Decoder when there is
+		// remaining data in the parser's buffer while an io.EOF occurs.
+		// If the json logger writes a partial json log entry to the disk
+		// while at the same time the decoder tries to decode it, the race condition happens.
+		if err == io.ErrUnexpectedEOF {
+			d.rdr = io.MultiReader(d.dec.Buffered(), d.rdr)
+			d.dec = json.NewDecoder(d.rdr)
+			continue
+		}
+	}
+	return msg, err
+}
+
+// decodeFunc is used to create a decoder for the log file reader
+func decodeFunc(rdr io.Reader) loggerutils.Decoder {
+	return &decoder{
+		rdr: rdr,
+		dec: nil,
+		jl:  nil,
 	}
 }
 

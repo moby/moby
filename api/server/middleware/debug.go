@@ -18,7 +18,7 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		logrus.Debugf("Calling %s %s", r.Method, r.RequestURI)
 
-		if r.Method != "POST" {
+		if r.Method != http.MethodPost {
 			return handler(ctx, w, r, vars)
 		}
 		if err := httputils.CheckForJSON(r); err != nil {

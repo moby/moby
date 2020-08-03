@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
@@ -100,11 +101,12 @@ func (iface *lnInterface) Set(s *specs.Spec) {
 		logrus.WithError(iface.err).Error("failed to set networking spec")
 		return
 	}
+	shortNetCtlrID := stringid.TruncateID(iface.provider.NetworkController.ID())
 	// attach netns to bridge within the container namespace, using reexec in a prestart hook
 	s.Hooks = &specs.Hooks{
 		Prestart: []specs.Hook{{
 			Path: filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe"),
-			Args: []string{"libnetwork-setkey", "-exec-root=" + iface.provider.Config().Daemon.ExecRoot, iface.sbx.ContainerID(), iface.provider.NetworkController.ID()},
+			Args: []string{"libnetwork-setkey", "-exec-root=" + iface.provider.Config().Daemon.ExecRoot, iface.sbx.ContainerID(), shortNetCtlrID},
 		}},
 	}
 }

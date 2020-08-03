@@ -32,7 +32,7 @@ func chtimes(path string, atime, mtime time.Time) error {
 	utimes[1] = unix.NsecToTimespec(mtime.UnixNano())
 
 	if err := unix.UtimesNanoAt(unix.AT_FDCWD, path, utimes[0:], unix.AT_SYMLINK_NOFOLLOW); err != nil {
-		return errors.Wrap(err, "failed call to UtimesNanoAt")
+		return errors.Wrapf(err, "failed call to UtimesNanoAt for %s", path)
 	}
 
 	return nil

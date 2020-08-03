@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/mount"
-	"gotest.tools/skip"
+	"github.com/moby/sys/mountinfo"
+	"gotest.tools/v3/skip"
 )
 
 func TestGetAddress(t *testing.T) {
@@ -211,7 +211,7 @@ func TestCreateWithOpts(t *testing.T) {
 		}
 	}()
 
-	mountInfos, err := mount.GetMounts(mount.SingleEntryFilter(dir))
+	mountInfos, err := mountinfo.GetMounts(mountinfo.SingleEntryFilter(dir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,7 +253,7 @@ func TestCreateWithOpts(t *testing.T) {
 		t.Fatalf("Expected active mount count to be 1, got %d", v.active.count)
 	}
 
-	mounted, err := mount.Mounted(v.path)
+	mounted, err := mountinfo.Mounted(v.path)
 	if err != nil {
 		t.Fatal(err)
 	}

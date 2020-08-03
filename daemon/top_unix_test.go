@@ -4,6 +4,8 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"testing"
+
+	"gotest.tools/v3/assert"
 )
 
 func TestContainerTopValidatePSArgs(t *testing.T) {
@@ -22,14 +24,14 @@ func TestContainerTopValidatePSArgs(t *testing.T) {
 		"":                          false,
 	}
 	for psArgs, errExpected := range tests {
-		err := validatePSArgs(psArgs)
-		t.Logf("tested %q, got err=%v", psArgs, err)
-		if errExpected && err == nil {
-			t.Fatalf("expected error, got %v (%q)", err, psArgs)
-		}
-		if !errExpected && err != nil {
-			t.Fatalf("expected nil, got %v (%q)", err, psArgs)
-		}
+		t.Run(psArgs, func(t *testing.T) {
+			err := validatePSArgs(psArgs)
+			if errExpected {
+				assert.ErrorContains(t, err, "", "psArgs: %q", psArgs)
+			} else {
+				assert.NilError(t, err, "psArgs: %q", psArgs)
+			}
+		})
 	}
 }
 
@@ -39,41 +41,59 @@ func TestContainerTopParsePSOutput(t *testing.T) {
 		pids        []uint32
 		errExpected bool
 	}{
-		{[]byte(`  PID COMMAND
+		{
+			output: []byte(`  PID COMMAND
    42 foo
    43 bar
 		- -
   100 baz
-`), []uint32{42, 43}, false},
-		{[]byte(`  UID COMMAND
+`),
+			pids:        []uint32{42, 43},
+			errExpected: false,
+		},
+		{
+			output: []byte(`  UID COMMAND
    42 foo
    43 bar
 		- -
   100 baz
-`), []uint32{42, 43}, true},
+`),
+			pids:        []uint32{42, 43},
+			errExpected: true,
+		},
 		// unicode space (U+2003, 0xe2 0x80 0x83)
-		{[]byte(` PID COMMAND
+		{
+			output: []byte(` PID COMMAND
    42 foo
    43 bar
 		- -
   100 baz
-`), []uint32{42, 43}, true},
+`),
+			pids:        []uint32{42, 43},
+			errExpected: true,
+		},
 		// the first space is U+2003, the second one is ascii.
-		{[]byte(` PID COMMAND
+		{
+			output: []byte(` PID COMMAND
    42 foo
    43 bar
   100 baz
-`), []uint32{42, 43}, true},
+`),
+			pids:        []uint32{42, 43},
+			errExpected: true,
+		},
 	}
 
-	for _, f := range tests {
-		_, err := parsePSOutput(f.output, f.pids)
-		t.Logf("tested %q, got err=%v", string(f.output), err)
-		if f.errExpected && err == nil {
-			t.Fatalf("expected error, got %v (%q)", err, string(f.output))
-		}
-		if !f.errExpected && err != nil {
-			t.Fatalf("expected nil, got %v (%q)", err, string(f.output))
-		}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(string(tc.output), func(t *testing.T) {
+			_, err := parsePSOutput(tc.output, tc.pids)
+			if tc.errExpected && err == nil {
+				t.Fatalf("expected error, got %v (%q)", err, string(tc.output))
+			}
+			if !tc.errExpected && err != nil {
+				t.Fatalf("expected nil, got %v (%q)", err, string(tc.output))
+			}
+		})
 	}
 }

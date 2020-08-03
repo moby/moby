@@ -1,0 +1,24 @@
+package distribution
+
+import (
+	"context"
+	"testing"
+
+	"github.com/docker/docker/internal/test/request"
+	"gotest.tools/v3/assert"
+)
+
+// tagging a named image in a new unprefixed repo should work
+func TestUnknownManifest(t *testing.T) {
+	defer setupTest(t)()
+	client := request.NewAPIClient(t)
+	ctx := context.Background()
+
+	// By name
+	insp, err := client.DistributionInspect(ctx, "nosuchimage:latest", "")
+	assert.NilError(t, err)
+	assert.Equal(t, insp.Descriptor, nil)
+
+	//err = client.ImageTag(ctx, insp.ID, "testfoobarbaz")
+	//assert.NilError(t, err)
+}

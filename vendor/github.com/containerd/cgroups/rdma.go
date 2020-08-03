@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 
+	v1 "github.com/containerd/cgroups/stats/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -66,7 +67,7 @@ func (p *rdmaController) Create(path string, resources *specs.LinuxResources) er
 
 	for device, limit := range resources.Rdma {
 		if device != "" && (limit.HcaHandles != nil || limit.HcaObjects != nil) {
-			return ioutil.WriteFile(
+			return retryingWriteFile(
 				filepath.Join(p.Path(path), "rdma.max"),
 				[]byte(createCmdString(device, &limit)),
 				defaultFilePerm,
@@ -80,7 +81,7 @@ func (p *rdmaController) Update(path string, resources *specs.LinuxResources) er
 	return p.Create(path, resources)
 }
 
-func parseRdmaKV(raw string, entry *RdmaEntry) {
+func parseRdmaKV(raw string, entry *v1.RdmaEntry) {
 	var value uint64
 	var err error
 
@@ -103,13 +104,13 @@ func parseRdmaKV(raw string, entry *RdmaEntry) {
 	}
 }
 
-func toRdmaEntry(strEntries []string) []*RdmaEntry {
-	var rdmaEntries []*RdmaEntry
+func toRdmaEntry(strEntries []string) []*v1.RdmaEntry {
+	var rdmaEntries []*v1.RdmaEntry
 	for i := range strEntries {
 		parts := strings.Fields(strEntries[i])
 		switch len(parts) {
 		case 3:
-			entry := new(RdmaEntry)
+			entry := new(v1.RdmaEntry)
 			entry.Device = parts[0]
 			parseRdmaKV(parts[1], entry)
 			parseRdmaKV(parts[2], entry)
@@ -122,7 +123,7 @@ func toRdmaEntry(strEntries []string) []*RdmaEntry {
 	return rdmaEntries
 }
 
-func (p *rdmaController) Stat(path string, stats *Metrics) error {
+func (p *rdmaController) Stat(path string, stats *v1.Metrics) error {
 
 	currentData, err := ioutil.ReadFile(filepath.Join(p.Path(path), "rdma.current"))
 	if err != nil {
@@ -145,7 +146,7 @@ func (p *rdmaController) Stat(path string, stats *Metrics) error {
 	currentEntries := toRdmaEntry(currentPerDevices)
 	maxEntries := toRdmaEntry(maxPerDevices)
 
-	stats.Rdma = &RdmaStat{
+	stats.Rdma = &v1.RdmaStat{
 		Current: currentEntries,
 		Limit:   maxEntries,
 	}

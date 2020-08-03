@@ -28,10 +28,37 @@ func findCgroupMountpoints() (map[string]string, error) {
 
 type infoCollector func(info *SysInfo, cgMounts map[string]string) (warnings []string)
 
+type opts struct {
+	cg2GroupPath string
+}
+
+// Opt for New().
+type Opt func(*opts)
+
+// WithCgroup2GroupPath specifies the cgroup v2 group path to inspect availability
+// of the controllers.
+//
+// WithCgroup2GroupPath is expected to be used for rootless mode with systemd driver.
+//
+// e.g. g = "/user.slice/user-1000.slice/user@1000.service"
+func WithCgroup2GroupPath(g string) Opt {
+	return func(o *opts) {
+		o.cg2GroupPath = path.Clean(g)
+	}
+}
+
 // New returns a new SysInfo, using the filesystem to detect which features
 // the kernel supports. If `quiet` is `false` warnings are printed in logs
 // whenever an error occurs or misconfigurations are present.
-func New(quiet bool) *SysInfo {
+func New(quiet bool, options ...Opt) *SysInfo {
+	var opts opts
+	for _, o := range options {
+		o(&opts)
+	}
+	if cgroups.IsCgroup2UnifiedMode() {
+		return newV2(quiet, &opts)
+	}
+
 	var ops []infoCollector
 	var warnings []string
 	sysInfo := &SysInfo{}
@@ -68,7 +95,7 @@ func New(quiet bool) *SysInfo {
 	return sysInfo
 }
 
-// applyMemoryCgroupInfo reads the memory information from the memory cgroup mount point.
+// applyMemoryCgroupInfo adds the memory cgroup controller information to the info.
 func applyMemoryCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
 	var warnings []string
 	mountPoint, ok := cgMounts["memory"]
@@ -106,7 +133,7 @@ func applyMemoryCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
 	return warnings
 }
 
-// applyCPUCgroupInfo reads the cpu information from the cpu cgroup mount point.
+// applyCPUCgroupInfo adds the cpu cgroup controller information to the info.
 func applyCPUCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
 	var warnings []string
 	mountPoint, ok := cgMounts["cpu"]
@@ -117,33 +144,23 @@ func applyCPUCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
 
 	info.CPUShares = cgroupEnabled(mountPoint, "cpu.shares")
 	if !info.CPUShares {
-		warnings = append(warnings, "Your kernel does not support cgroup cpu shares")
+		warnings = append(warnings, "Your kernel does not support CPU shares")
 	}
 
-	info.CPUCfsPeriod = cgroupEnabled(mountPoint, "cpu.cfs_period_us")
-	if !info.CPUCfsPeriod {
-		warnings = append(warnings, "Your kernel does not support cgroup cfs period")
+	info.CPUCfs = cgroupEnabled(mountPoint, "cpu.cfs_quota_us")
+	if !info.CPUCfs {
+		warnings = append(warnings, "Your kernel does not support CPU CFS scheduler")
 	}
 
-	info.CPUCfsQuota = cgroupEnabled(mountPoint, "cpu.cfs_quota_us")
-	if !info.CPUCfsQuota {
-		warnings = append(warnings, "Your kernel does not support cgroup cfs quotas")
-	}
-
-	info.CPURealtimePeriod = cgroupEnabled(mountPoint, "cpu.rt_period_us")
-	if !info.CPURealtimePeriod {
-		warnings = append(warnings, "Your kernel does not support cgroup rt period")
-	}
-
-	info.CPURealtimeRuntime = cgroupEnabled(mountPoint, "cpu.rt_runtime_us")
-	if !info.CPURealtimeRuntime {
-		warnings = append(warnings, "Your kernel does not support cgroup rt runtime")
+	info.CPURealtime = cgroupEnabled(mountPoint, "cpu.rt_period_us")
+	if !info.CPURealtime {
+		warnings = append(warnings, "Your kernel does not support CPU realtime scheduler")
 	}
 
 	return warnings
 }
 
-// applyBlkioCgroupInfo reads the blkio information from the blkio cgroup mount point.
+// applyBlkioCgroupInfo adds the blkio cgroup controller information to the info.
 func applyBlkioCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
 	var warnings []string
 	mountPoint, ok := cgMounts["blkio"]
@@ -184,7 +201,7 @@ func applyBlkioCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
 	return warnings
 }
 
-// applyCPUSetCgroupInfo reads the cpuset information from the cpuset cgroup mount point.
+// applyCPUSetCgroupInfo adds the cpuset cgroup controller information to the info.
 func applyCPUSetCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
 	var warnings []string
 	mountPoint, ok := cgMounts["cpuset"]
@@ -211,19 +228,19 @@ func applyCPUSetCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
 	return warnings
 }
 
-// applyPIDSCgroupInfo reads the pids information from the pids cgroup mount point.
-func applyPIDSCgroupInfo(info *SysInfo, _ map[string]string) []string {
+// applyPIDSCgroupInfo adds whether the pids cgroup controller is available to the info.
+func applyPIDSCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
 	var warnings []string
-	_, err := cgroups.FindCgroupMountpoint("", "pids")
-	if err != nil {
-		warnings = append(warnings, err.Error())
+	_, ok := cgMounts["pids"]
+	if !ok {
+		warnings = append(warnings, "Unable to find pids cgroup in mounts")
 		return warnings
 	}
 	info.PidsLimit = true
 	return warnings
 }
 
-// applyDevicesCgroupInfo reads the pids information from the devices cgroup mount point.
+// applyDevicesCgroupInfo adds whether the devices cgroup controller is available to the info.
 func applyDevicesCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
 	var warnings []string
 	_, ok := cgMounts["devices"]
@@ -240,7 +257,7 @@ func applyNetworkingInfo(info *SysInfo, _ map[string]string) []string {
 	return warnings
 }
 
-// applyAppArmorInfo adds AppArmor information to the info.
+// applyAppArmorInfo adds whether AppArmor is enabled to the info.
 func applyAppArmorInfo(info *SysInfo, _ map[string]string) []string {
 	var warnings []string
 	if _, err := os.Stat("/sys/kernel/security/apparmor"); !os.IsNotExist(err) {
@@ -251,7 +268,7 @@ func applyAppArmorInfo(info *SysInfo, _ map[string]string) []string {
 	return warnings
 }
 
-// applyCgroupNsInfo adds cgroup namespace information to the info.
+// applyCgroupNsInfo adds whether cgroupns is enabled to the info.
 func applyCgroupNsInfo(info *SysInfo, _ map[string]string) []string {
 	var warnings []string
 	if _, err := os.Stat("/proc/self/ns/cgroup"); !os.IsNotExist(err) {

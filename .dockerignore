@@ -1,6 +1,6 @@
-bundles
-.gopath
-vendor/pkg
-.go-pkg-cache
 .git
+.go-pkg-cache
+.gopath
+bundles
+vendor/pkg
 

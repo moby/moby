@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 // TestPingFail tests that when a server sends a non-successful response that we
@@ -90,11 +90,11 @@ func TestPingHeadFallback(t *testing.T) {
 	}{
 		{
 			status:   http.StatusOK,
-			expected: "HEAD",
+			expected: http.MethodHead,
 		},
 		{
 			status:   http.StatusInternalServerError,
-			expected: "HEAD",
+			expected: http.MethodHead,
 		},
 		{
 			status:   http.StatusNotFound,

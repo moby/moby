@@ -34,12 +34,12 @@ func TestBindDaemonRoot(t *testing.T) {
 				"source is /":       "/",
 			} {
 				t.Run(desc, func(t *testing.T) {
-					mount := mount.Mount{
+					mnt := mount.Mount{
 						Type:        mount.TypeBind,
 						Source:      source,
 						BindOptions: test.opts,
 					}
-					needsProp, err := d.validateBindDaemonRoot(mount)
+					needsProp, err := d.validateBindDaemonRoot(mnt)
 					if (err != nil) != test.err {
 						t.Fatalf("expected err=%v, got: %v", test.err, err)
 					}

@@ -11,7 +11,7 @@ import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/pkg/signal"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestContainerStopSignal(t *testing.T) {

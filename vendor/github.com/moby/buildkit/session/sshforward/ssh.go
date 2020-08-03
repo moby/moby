@@ -49,7 +49,7 @@ func (s *server) run(ctx context.Context, l net.Listener, id string) error {
 				return err
 			}
 
-			go Copy(ctx, conn, stream)
+			go Copy(ctx, conn, stream, stream.CloseSend)
 		}
 	})
 
@@ -74,6 +74,10 @@ func MountSSHSocket(ctx context.Context, c session.Caller, opt SocketOpt) (sockP
 			os.RemoveAll(dir)
 		}
 	}()
+
+	if err := os.Chmod(dir, 0711); err != nil {
+		return "", nil, errors.WithStack(err)
+	}
 
 	sockPath = filepath.Join(dir, "ssh_auth_sock")
 

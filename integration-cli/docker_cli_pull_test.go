@@ -9,8 +9,8 @@ import (
 	"time"
 
 	digest "github.com/opencontainers/go-digest"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 // TestPullFromCentralRegistry pulls an image from the central registry and verifies that the client

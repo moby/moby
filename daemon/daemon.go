@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"net"
 	"net/url"
 	"os"
@@ -22,12 +21,13 @@ import (
 
 	"github.com/docker/docker/pkg/fileutils"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/docker/distribution/reference"
+	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
@@ -41,8 +41,8 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	bkconfig "github.com/moby/buildkit/cmd/buildkitd/config"
 	"github.com/moby/buildkit/util/resolver"
-	"github.com/moby/buildkit/util/tracing"
 	"github.com/sirupsen/logrus"
 
 	// register graph drivers
@@ -57,7 +57,6 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/plugin"
@@ -74,7 +73,9 @@ import (
 )
 
 // ContainersNamespace is the name of the namespace used for users containers
-const ContainersNamespace = "moby"
+const (
+	ContainersNamespace = "moby"
+)
 
 var (
 	errSystemNotSupported = errors.New("the Docker daemon is not supported on this platform")
@@ -150,58 +151,57 @@ func (daemon *Daemon) Features() *map[string]bool {
 	return &daemon.configStore.Features
 }
 
-// NewResolveOptionsFunc returns a call back function to resolve "registry-mirrors" and
-// "insecure-registries" for buildkit
-func (daemon *Daemon) NewResolveOptionsFunc() resolver.ResolveOptionsFunc {
-	return func(ref string) docker.ResolverOptions {
-		var (
-			registryKey = "docker.io"
-			mirrors     = make([]string, len(daemon.configStore.Mirrors))
-			m           = map[string]resolver.RegistryConf{}
-		)
-		// must trim "https://" or "http://" prefix
-		for i, v := range daemon.configStore.Mirrors {
-			if uri, err := url.Parse(v); err == nil {
-				v = uri.Host
-			}
-			mirrors[i] = v
+// RegistryHosts returns registry configuration in containerd resolvers format
+func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
+	var (
+		registryKey = "docker.io"
+		mirrors     = make([]string, len(daemon.configStore.Mirrors))
+		m           = map[string]bkconfig.RegistryConfig{}
+	)
+	// must trim "https://" or "http://" prefix
+	for i, v := range daemon.configStore.Mirrors {
+		if uri, err := url.Parse(v); err == nil {
+			v = uri.Host
 		}
-		// set "registry-mirrors"
-		m[registryKey] = resolver.RegistryConf{Mirrors: mirrors}
-		// set "insecure-registries"
-		for _, v := range daemon.configStore.InsecureRegistries {
-			if uri, err := url.Parse(v); err == nil {
-				v = uri.Host
-			}
-			m[v] = resolver.RegistryConf{
-				PlainHTTP: true,
-			}
-		}
-		def := docker.ResolverOptions{
-			Client: tracing.DefaultClient,
-		}
-
-		parsed, err := reference.ParseNormalizedNamed(ref)
-		if err != nil {
-			return def
-		}
-		host := reference.Domain(parsed)
-
-		c, ok := m[host]
-		if !ok {
-			return def
-		}
-
-		if len(c.Mirrors) > 0 {
-			def.Host = func(string) (string, error) {
-				return c.Mirrors[rand.Intn(len(c.Mirrors))], nil
-			}
-		}
-
-		def.PlainHTTP = c.PlainHTTP
-
-		return def
+		mirrors[i] = v
 	}
+	// set mirrors for default registry
+	m[registryKey] = bkconfig.RegistryConfig{Mirrors: mirrors}
+
+	for _, v := range daemon.configStore.InsecureRegistries {
+		u, err := url.Parse(v)
+		c := bkconfig.RegistryConfig{}
+		if err == nil {
+			v = u.Host
+			t := true
+			if u.Scheme == "http" {
+				c.PlainHTTP = &t
+			} else {
+				c.Insecure = &t
+			}
+		}
+		m[v] = c
+	}
+
+	for k, v := range m {
+		if d, err := registry.HostCertsDir(k); err == nil {
+			v.TLSConfigDir = []string{d}
+			m[k] = v
+		}
+	}
+
+	certsDir := registry.CertsDir()
+	if fis, err := ioutil.ReadDir(certsDir); err == nil {
+		for _, fi := range fis {
+			if _, ok := m[fi.Name()]; !ok {
+				m[fi.Name()] = bkconfig.RegistryConfig{
+					TLSConfigDir: []string{filepath.Join(certsDir, fi.Name())},
+				}
+			}
+		}
+	}
+
+	return resolver.NewRegistryConfig(m)
 }
 
 func (daemon *Daemon) restore() error {
@@ -341,10 +341,11 @@ func (daemon *Daemon) restore() error {
 					return
 				}
 			} else if !daemon.configStore.LiveRestoreEnabled {
-				if err := daemon.kill(c, c.StopSignal()); err != nil && !errdefs.IsNotFound(err) {
+				if err := daemon.shutdownContainer(c); err != nil && !errdefs.IsNotFound(err) {
 					logrus.WithError(err).WithField("container", c.ID).Error("error shutting down container")
 					return
 				}
+				c.ResetRestartManager(false)
 			}
 
 			if c.IsRunning() || c.IsPaused() {
@@ -770,7 +771,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
 	}
-	if runtime.GOOS == "windows" {
+	if isWindows {
 		if _, err := os.Stat(realTmp); err != nil && os.IsNotExist(err) {
 			if err := system.MkdirAll(realTmp, 0700); err != nil {
 				return nil, fmt.Errorf("Unable to create the TempDir (%s): %s", realTmp, err)
@@ -787,6 +788,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		PluginStore: pluginStore,
 		startupDone: make(chan struct{}),
 	}
+
 	// Ensure the daemon is properly shutdown if there is a failure during
 	// initialization
 	defer func() {
@@ -841,7 +843,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	if runtime.GOOS == "windows" {
+	if isWindows {
 		if err := system.MkdirAll(filepath.Join(config.Root, "credentialspecs"), 0); err != nil {
 			return nil, err
 		}
@@ -855,7 +857,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// initialization of the layerstore through driver priority order for example.
 	d.graphDrivers = make(map[string]string)
 	layerStores := make(map[string]layer.Store)
-	if runtime.GOOS == "windows" {
+	if isWindows {
 		d.graphDrivers[runtime.GOOS] = "windowsfilter"
 		if system.LCOWSupported() {
 			d.graphDrivers["linux"] = "lcow"
@@ -879,10 +881,33 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	registerMetricsPluginCallback(d.PluginStore, metricsSockPath)
 
+	backoffConfig := backoff.DefaultConfig
+	backoffConfig.MaxDelay = 3 * time.Second
+	connParams := grpc.ConnectParams{
+		Backoff: backoffConfig,
+	}
 	gopts := []grpc.DialOption{
+		// WithBlock makes sure that the following containerd request
+		// is reliable.
+		//
+		// NOTE: In one edge case with high load pressure, kernel kills
+		// dockerd, containerd and containerd-shims caused by OOM.
+		// When both dockerd and containerd restart, but containerd
+		// will take time to recover all the existing containers. Before
+		// containerd serving, dockerd will failed with gRPC error.
+		// That bad thing is that restore action will still ignore the
+		// any non-NotFound errors and returns running state for
+		// already stopped container. It is unexpected behavior. And
+		// we need to restart dockerd to make sure that anything is OK.
+		//
+		// It is painful. Add WithBlock can prevent the edge case. And
+		// n common case, the containerd will be serving in shortly.
+		// It is not harm to add WithBlock for containerd connection.
+		grpc.WithBlock(),
+
 		grpc.WithInsecure(),
-		grpc.WithBackoffMaxDelay(3 * time.Second),
-		grpc.WithDialer(dialer.Dialer),
+		grpc.WithConnectParams(connParams),
+		grpc.WithContextDialer(dialer.ContextDialer),
 
 		// TODO(stevvooe): We may need to allow configuration of this on the client.
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
@@ -907,7 +932,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			}
 		}
 
-		return pluginexec.New(ctx, getPluginExecRoot(config.Root), pluginCli, config.ContainerdPluginNamespace, m)
+		var rt types.Runtime
+		if runtime := config.GetRuntime(config.GetDefaultRuntimeName()); runtime != nil {
+			rt = *runtime
+		}
+		return pluginexec.New(ctx, getPluginExecRoot(config.Root), pluginCli, config.ContainerdPluginNamespace, m, rt)
 	}
 
 	// Plugin system initialization should happen before restore. Do not change order.
@@ -961,8 +990,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	lgrMap := make(map[string]image.LayerGetReleaser)
-	for os, ls := range layerStores {
-		lgrMap[os] = ls
+	for los, ls := range layerStores {
+		lgrMap[los] = ls
 	}
 	imageStore, err := image.NewImageStore(ifs, lgrMap)
 	if err != nil {
@@ -1012,10 +1041,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	sysInfo := sysinfo.New(false)
+	sysInfo := d.RawSysInfo(false)
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
 	// on Linux.
-	if runtime.GOOS == "linux" && !sysInfo.CgroupDevicesEnabled {
+	if runtime.GOOS == "linux" && !sysInfo.CgroupDevicesEnabled && !sys.RunningInUserNS() {
 		return nil, errors.New("Devices cgroup isn't mounted")
 	}
 
@@ -1066,8 +1095,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	close(d.startupDone)
 
-	// FIXME: this method never returns an error
-	info, _ := d.SystemInfo()
+	info := d.SystemInfo()
 
 	engineInfo.WithValues(
 		dockerversion.Version,

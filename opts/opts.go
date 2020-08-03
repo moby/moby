@@ -254,12 +254,23 @@ func validateDomain(val string) (string, error) {
 	return "", fmt.Errorf("%s is not a valid domain", val)
 }
 
-// ValidateLabel validates that the specified string is a valid label, and returns it.
+// ValidateLabel validates that the specified string is a valid label,
+// it does not use the reserved namespaces com.docker.*, io.docker.*, org.dockerproject.*
+// and returns it.
 // Labels are in the form on key=value.
 func ValidateLabel(val string) (string, error) {
 	if strings.Count(val, "=") < 1 {
 		return "", fmt.Errorf("bad attribute format: %s", val)
 	}
+
+	lowered := strings.ToLower(val)
+	if strings.HasPrefix(lowered, "com.docker.") || strings.HasPrefix(lowered, "io.docker.") ||
+		strings.HasPrefix(lowered, "org.dockerproject.") {
+		return "", fmt.Errorf(
+			"label %s is not allowed: the namespaces com.docker.*, io.docker.*, and org.dockerproject.* are reserved for internal use",
+			val)
+	}
+
 	return val, nil
 }
 

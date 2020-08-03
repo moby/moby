@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package stack;
+
+message Stack {
+    repeated Frame frames = 1;
+    repeated string cmdline = 2;
+    int32 pid = 3;
+    string version = 4;
+    string revision = 5;
+}
+
+message Frame {
+    string Name = 1;
+    string File = 2;
+    int32 Line = 3;
+}

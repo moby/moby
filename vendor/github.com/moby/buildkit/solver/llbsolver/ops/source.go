@@ -57,12 +57,12 @@ func (s *sourceOp) instance(ctx context.Context) (source.SourceInstance, error) 
 	return s.src, nil
 }
 
-func (s *sourceOp) CacheMap(ctx context.Context, index int) (*solver.CacheMap, bool, error) {
+func (s *sourceOp) CacheMap(ctx context.Context, g session.Group, index int) (*solver.CacheMap, bool, error) {
 	src, err := s.instance(ctx)
 	if err != nil {
 		return nil, false, err
 	}
-	k, done, err := src.CacheKey(ctx, index)
+	k, done, err := src.CacheKey(ctx, g, index)
 	if err != nil {
 		return nil, false, err
 	}
@@ -79,12 +79,12 @@ func (s *sourceOp) CacheMap(ctx context.Context, index int) (*solver.CacheMap, b
 	}, done, nil
 }
 
-func (s *sourceOp) Exec(ctx context.Context, _ []solver.Result) (outputs []solver.Result, err error) {
+func (s *sourceOp) Exec(ctx context.Context, g session.Group, _ []solver.Result) (outputs []solver.Result, err error) {
 	src, err := s.instance(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ref, err := src.Snapshot(ctx)
+	ref, err := src.Snapshot(ctx, g)
 	if err != nil {
 		return nil, err
 	}

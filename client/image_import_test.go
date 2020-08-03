@@ -19,11 +19,8 @@ func TestImageImportError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImageImport(context.Background(), types.ImageImportSource{}, "image:tag", types.ImageImportOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server error, got %v", err)
-	}
 	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %T", err)
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 

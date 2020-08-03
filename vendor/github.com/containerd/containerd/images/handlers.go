@@ -22,6 +22,7 @@ import (
 	"sort"
 
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -63,7 +64,7 @@ func Handlers(handlers ...Handler) HandlerFunc {
 		for _, handler := range handlers {
 			ch, err := handler.Handle(ctx, desc)
 			if err != nil {
-				if errors.Cause(err) == ErrStopHandler {
+				if errors.Is(err, ErrStopHandler) {
 					break
 				}
 				return nil, err
@@ -86,7 +87,7 @@ func Walk(ctx context.Context, handler Handler, descs ...ocispec.Descriptor) err
 
 		children, err := handler.Handle(ctx, desc)
 		if err != nil {
-			if errors.Cause(err) == ErrSkipDesc {
+			if errors.Is(err, ErrSkipDesc) {
 				continue // don't traverse the children.
 			}
 			return err
@@ -117,7 +118,7 @@ func Walk(ctx context.Context, handler Handler, descs ...ocispec.Descriptor) err
 //
 // If any handler returns an error, the dispatch session will be canceled.
 func Dispatch(ctx context.Context, handler Handler, limiter *semaphore.Weighted, descs ...ocispec.Descriptor) error {
-	eg, ctx := errgroup.WithContext(ctx)
+	eg, ctx2 := errgroup.WithContext(ctx)
 	for _, desc := range descs {
 		desc := desc
 
@@ -126,22 +127,23 @@ func Dispatch(ctx context.Context, handler Handler, limiter *semaphore.Weighted,
 				return err
 			}
 		}
+
 		eg.Go(func() error {
 			desc := desc
 
-			children, err := handler.Handle(ctx, desc)
+			children, err := handler.Handle(ctx2, desc)
 			if limiter != nil {
 				limiter.Release(1)
 			}
 			if err != nil {
-				if errors.Cause(err) == ErrSkipDesc {
+				if errors.Is(err, ErrSkipDesc) {
 					return nil // don't traverse the children.
 				}
 				return err
 			}
 
 			if len(children) > 0 {
-				return Dispatch(ctx, handler, limiter, children...)
+				return Dispatch(ctx2, handler, limiter, children...)
 			}
 
 			return nil
@@ -225,6 +227,7 @@ func FilterPlatforms(f HandlerFunc, m platforms.Matcher) HandlerFunc {
 // The results will be ordered according to the comparison operator and
 // use the ordering in the manifests for equal matches.
 // A limit of 0 or less is considered no limit.
+// A not found error is returned if no manifest is matched.
 func LimitManifests(f HandlerFunc, m platforms.MatchComparer, n int) HandlerFunc {
 	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		children, err := f(ctx, desc)
@@ -244,8 +247,13 @@ func LimitManifests(f HandlerFunc, m platforms.MatchComparer, n int) HandlerFunc
 				return m.Less(*children[i].Platform, *children[j].Platform)
 			})
 
-			if n > 0 && len(children) > n {
-				children = children[:n]
+			if n > 0 {
+				if len(children) == 0 {
+					return children, errors.Wrap(errdefs.ErrNotFound, "no match for platform in manifest")
+				}
+				if len(children) > n {
+					children = children[:n]
+				}
 			}
 		default:
 			// only limit manifests from an index

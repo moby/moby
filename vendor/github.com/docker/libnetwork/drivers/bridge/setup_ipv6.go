@@ -70,7 +70,7 @@ func setupBridgeIPv6(config *networkConfiguration, i *bridgeInterface) error {
 		Dst:       config.AddressIPv6,
 	})
 	if err != nil && !os.IsExist(err) {
-		logrus.Errorf("Could not add route to IPv6 network %s via device %s", config.AddressIPv6.String(), config.BridgeName)
+		logrus.Errorf("Could not add route to IPv6 network %s via device %s: %s", config.AddressIPv6.String(), config.BridgeName, err)
 	}
 
 	return nil

@@ -2,6 +2,7 @@ package service // import "github.com/docker/docker/volume/service"
 
 import (
 	"context"
+	"strconv"
 	"sync/atomic"
 
 	"github.com/docker/docker/api/types"
@@ -238,6 +239,9 @@ func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*types
 		rep.SpaceReclaimed += uint64(vSize)
 		rep.VolumesDeleted = append(rep.VolumesDeleted, v.Name())
 	}
+	s.eventLogger.LogVolumeEvent("", "prune", map[string]string{
+		"reclaimed": strconv.FormatInt(int64(rep.SpaceReclaimed), 10),
+	})
 	return rep, nil
 }
 

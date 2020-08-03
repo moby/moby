@@ -27,17 +27,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var unpigzPath string
-
-func init() {
-	if path, err := exec.LookPath("unpigz"); err != nil {
-		logrus.Debug("unpigz binary not found in PATH, falling back to go gzip library")
-	} else {
-		logrus.Debugf("Using unpigz binary found at path %s", path)
-		unpigzPath = path
-	}
-}
-
 type (
 	// Compression is the state represents if compressed or not.
 	Compression int
@@ -158,18 +147,29 @@ func xzDecompress(ctx context.Context, archive io.Reader) (io.ReadCloser, error)
 }
 
 func gzDecompress(ctx context.Context, buf io.Reader) (io.ReadCloser, error) {
-	if unpigzPath == "" {
+	noPigzEnv := os.Getenv("MOBY_DISABLE_PIGZ")
+	var noPigz bool
+
+	if noPigzEnv != "" {
+		var err error
+		noPigz, err = strconv.ParseBool(noPigzEnv)
+		if err != nil {
+			logrus.WithError(err).Warn("invalid value in MOBY_DISABLE_PIGZ env var")
+		}
+	}
+
+	if noPigz {
+		logrus.Debugf("Use of pigz is disabled due to MOBY_DISABLE_PIGZ=%s", noPigzEnv)
 		return gzip.NewReader(buf)
 	}
 
-	disablePigzEnv := os.Getenv("MOBY_DISABLE_PIGZ")
-	if disablePigzEnv != "" {
-		if disablePigz, err := strconv.ParseBool(disablePigzEnv); err != nil {
-			return nil, err
-		} else if disablePigz {
-			return gzip.NewReader(buf)
-		}
+	unpigzPath, err := exec.LookPath("unpigz")
+	if err != nil {
+		logrus.Debugf("unpigz binary not found, falling back to go gzip library")
+		return gzip.NewReader(buf)
 	}
+
+	logrus.Debugf("Using %s to decompress", unpigzPath)
 
 	return cmdStream(exec.CommandContext(ctx, unpigzPath, "-d", "-c"), buf)
 }
@@ -442,7 +442,7 @@ func newTarAppender(idMapping *idtools.IdentityMapping, writer io.Writer, chownO
 }
 
 // canonicalTarName provides a platform-independent and consistent posix-style
-//path for files and directories to be archived regardless of the platform.
+// path for files and directories to be archived regardless of the platform.
 func canonicalTarName(name string, isDir bool) string {
 	name = CanonicalTarNameForPath(name)
 
@@ -495,13 +495,13 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		}
 	}
 
-	//check whether the file is overlayfs whiteout
-	//if yes, skip re-mapping container ID mappings.
+	// check whether the file is overlayfs whiteout
+	// if yes, skip re-mapping container ID mappings.
 	isOverlayWhiteout := fi.Mode()&os.ModeCharDevice != 0 && hdr.Devmajor == 0 && hdr.Devminor == 0
 
-	//handle re-mapping container ID mappings back to host ID mappings before
-	//writing tar headers/files. We skip whiteout files because they were written
-	//by the kernel and already have proper ownership relative to the host
+	// handle re-mapping container ID mappings back to host ID mappings before
+	// writing tar headers/files. We skip whiteout files because they were written
+	// by the kernel and already have proper ownership relative to the host
 	if !isOverlayWhiteout && !strings.HasPrefix(filepath.Base(hdr.Name), WhiteoutPrefix) && !ta.IdentityMapping.Empty() {
 		fileIDPair, err := getFileUIDGID(fi.Sys())
 		if err != nil {

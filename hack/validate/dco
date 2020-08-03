@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPTDIR}/.validate"
 
 adds=$(validate_diff --numstat | awk '{ s += $1 } END { print s }')
@@ -24,7 +24,7 @@ check_dco() {
 if [ ${adds} -eq 0 -a ${dels} -eq 0 ]; then
 	echo '0 adds, 0 deletions; nothing to validate! :)'
 else
-	commits=( $(validate_log --format='format:%H%n') )
+	commits=($(validate_log --format='format:%H%n'))
 	badCommits=()
 	for commit in "${commits[@]}"; do
 		if [ -z "$(git log -1 --format='format:' --name-status "$commit")" ]; then
@@ -32,7 +32,7 @@ else
 			continue
 		fi
 		if ! git log -1 --format='format:%B' "$commit" | check_dco; then
-			badCommits+=( "$commit" )
+			badCommits+=("$commit")
 		fi
 	done
 	if [ ${#badCommits[@]} -eq 0 ]; then

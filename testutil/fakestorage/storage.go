@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/nat"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 var testEnv *environment.Execution
@@ -155,7 +155,7 @@ COPY . /static`); err != nil {
 	// Start the container
 	b, err := c.ContainerCreate(context.Background(), &containertypes.Config{
 		Image: image,
-	}, &containertypes.HostConfig{}, nil, container)
+	}, &containertypes.HostConfig{}, nil, nil, container)
 	assert.NilError(t, err)
 	err = c.ContainerStart(context.Background(), b.ID, types.ContainerStartOptions{})
 	assert.NilError(t, err)

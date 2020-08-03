@@ -35,7 +35,7 @@ func (g *Group) Do(ctx context.Context, key string, fn func(ctx context.Context)
 	var backoff time.Duration
 	for {
 		v, err = g.do(ctx, key, fn)
-		if err == nil || errors.Cause(err) != errRetry {
+		if err == nil || !errors.Is(err, errRetry) {
 			return v, err
 		}
 		// backoff logic
@@ -116,7 +116,9 @@ func newCall(fn func(ctx context.Context) (interface{}, error)) *call {
 
 func (c *call) run() {
 	defer c.closeProgressWriter()
-	v, err := c.fn(c.ctx)
+	ctx, cancel := context.WithCancel(c.ctx)
+	defer cancel()
+	v, err := c.fn(ctx)
 	c.mu.Lock()
 	c.result = v
 	c.err = err

@@ -11,14 +11,15 @@ import (
 
 // Define constants for native driver
 const (
-	defaultApparmorProfile = "docker-default"
+	unconfinedAppArmorProfile = "unconfined"
+	defaultAppArmorProfile    = "docker-default"
 )
 
 func ensureDefaultAppArmorProfile() error {
 	if apparmor.IsEnabled() {
-		loaded, err := aaprofile.IsLoaded(defaultApparmorProfile)
+		loaded, err := aaprofile.IsLoaded(defaultAppArmorProfile)
 		if err != nil {
-			return fmt.Errorf("Could not check if %s AppArmor profile was loaded: %s", defaultApparmorProfile, err)
+			return fmt.Errorf("Could not check if %s AppArmor profile was loaded: %s", defaultAppArmorProfile, err)
 		}
 
 		// Nothing to do.
@@ -27,8 +28,8 @@ func ensureDefaultAppArmorProfile() error {
 		}
 
 		// Load the profile.
-		if err := aaprofile.InstallDefault(defaultApparmorProfile); err != nil {
-			return fmt.Errorf("AppArmor enabled on system but the %s profile could not be loaded: %s", defaultApparmorProfile, err)
+		if err := aaprofile.InstallDefault(defaultAppArmorProfile); err != nil {
+			return fmt.Errorf("AppArmor enabled on system but the %s profile could not be loaded: %s", defaultAppArmorProfile, err)
 		}
 	}
 

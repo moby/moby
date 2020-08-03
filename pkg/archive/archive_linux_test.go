@@ -9,13 +9,14 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"github.com/moby/sys/mount"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
-	"gotest.tools/assert"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 )
 
 // setupOverlayTestDir creates files in a directory with overlay whiteouts
@@ -29,7 +30,7 @@ import (
 //     └── f1 # whiteout, 0644
 func setupOverlayTestDir(t *testing.T, src string) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	skip.If(t, rsystem.RunningInUserNS(), "skipping test that requires initial userns (trusted.overlay.opaque xattr cannot be set in userns, even with Ubuntu kernel)")
+	skip.If(t, sys.RunningInUserNS(), "skipping test that requires initial userns (trusted.overlay.opaque xattr cannot be set in userns, even with Ubuntu kernel)")
 	// Create opaque directory containing single file and permission 0700
 	err := os.Mkdir(filepath.Join(src, "d1"), 0700)
 	assert.NilError(t, err)
@@ -204,11 +205,11 @@ func supportsOverlay(dir string) error {
 		}
 	}
 	mOpts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lower, upper, work)
-	if err := syscall.Mount("overlay", merged, "overlay", uintptr(0), mOpts); err != nil {
-		return errors.Wrapf(err, "failed to mount overlay (%s) on %s", mOpts, merged)
+	if err := mount.Mount("overlay", merged, "overlay", mOpts); err != nil {
+		return err
 	}
-	if err := syscall.Unmount(merged, 0); err != nil {
-		return errors.Wrapf(err, "failed to unmount %s", merged)
+	if err := mount.Unmount(merged); err != nil {
+		return err
 	}
 	return nil
 }
@@ -247,7 +248,7 @@ func isOpaque(dir string) error {
 
 func TestReexecUserNSOverlayWhiteoutConverter(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	skip.If(t, rsystem.RunningInUserNS(), "skipping test that requires initial userns")
+	skip.If(t, sys.RunningInUserNS(), "skipping test that requires initial userns")
 	if err := supportsUserNSOverlay(); err != nil {
 		t.Skipf("skipping test that requires kernel support for overlay-in-userns: %v", err)
 	}

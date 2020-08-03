@@ -130,7 +130,7 @@ type Matcher interface {
 // specification. The returned matcher only looks for equality based on os,
 // architecture and variant.
 //
-// One may implement their own matcher if this doesn't provide the the required
+// One may implement their own matcher if this doesn't provide the required
 // functionality.
 //
 // Applications should opt to use `Match` over directly parsing specifiers.
@@ -189,9 +189,8 @@ func Parse(specifier string) (specs.Platform, error) {
 		if isKnownOS(p.OS) {
 			// picks a default architecture
 			p.Architecture = runtime.GOARCH
-			if p.Architecture == "arm" {
-				// TODO(stevvooe): Resolve arm variant, if not v6 (default)
-				return specs.Platform{}, errors.Wrapf(errdefs.ErrNotImplemented, "arm support not fully implemented")
+			if p.Architecture == "arm" && cpuVariant != "v7" {
+				p.Variant = cpuVariant
 			}
 
 			return p, nil

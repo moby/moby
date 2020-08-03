@@ -38,9 +38,15 @@ var (
 	gpmChan            = make(chan chan struct{})
 	prefix             = defaultPrefix
 	loadBalancerConfig = map[string]*kernel.OSValue{
+		// disables any special handling on port reuse of existing IPVS connection table entries
+		// more info: https://github.com/torvalds/linux/blob/master/Documentation/networking/ipvs-sysctl.txt#L25:1
+		"net.ipv4.vs.conn_reuse_mode": {Value: "0", CheckFn: nil},
 		// expires connection from the IPVS connection table when the backend is not available
 		// more info: https://github.com/torvalds/linux/blob/master/Documentation/networking/ipvs-sysctl.txt#L126:1
 		"net.ipv4.vs.expire_nodest_conn": {Value: "1", CheckFn: nil},
+		// expires persistent connections to destination servers with weights set to 0
+		// more info: https://github.com/torvalds/linux/blob/master/Documentation/networking/ipvs-sysctl.txt#L144:1
+		"net.ipv4.vs.expire_quiescent_template": {Value: "1", CheckFn: nil},
 	}
 )
 

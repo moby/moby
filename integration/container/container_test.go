@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/testutil/request"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestContainerInvalidJSON(t *testing.T) {

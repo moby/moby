@@ -14,7 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var supportsSeccomp = true
+const supportsSeccomp = true
 
 // WithSeccomp sets the seccomp profile
 func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {

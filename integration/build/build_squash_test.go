@@ -14,9 +14,9 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 func TestBuildSquashParent(t *testing.T) {
@@ -48,7 +48,7 @@ func TestBuildSquashParent(t *testing.T) {
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
 	defer source.Close()
 
-	name := "test"
+	name := strings.ToLower(t.Name())
 	resp, err := client.ImageBuild(ctx,
 		source.AsTarReader(t),
 		types.ImageBuildOptions{

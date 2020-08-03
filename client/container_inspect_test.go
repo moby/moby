@@ -21,11 +21,8 @@ func TestContainerInspectError(t *testing.T) {
 	}
 
 	_, err := client.ContainerInspect(context.Background(), "nothing")
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
-	}
 	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %T", err)
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
@@ -91,6 +88,8 @@ func TestContainerInspect(t *testing.T) {
 	}
 }
 
+// TestContainerInspectNode tests that the "Node" field is included in the "inspect"
+// output. This information is only present when connected to a Swarm standalone API.
 func TestContainerInspectNode(t *testing.T) {
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {

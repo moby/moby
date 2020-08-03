@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/volume"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 const volumePluginName = "test-external-volume-driver"
@@ -365,7 +365,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverLookupNotBlocked(c *
 	defer os.RemoveAll(specPath)
 
 	chCmd1 := make(chan struct{})
-	chCmd2 := make(chan error)
+	chCmd2 := make(chan error, 1)
 	cmd1 := exec.Command(dockerBinary, "volume", "create", "-d", "down-driver")
 	cmd2 := exec.Command(dockerBinary, "volume", "create")
 
@@ -398,7 +398,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverRetryNotImmediatelyE
 	s.d.StartWithBusybox(c)
 	driverName := "test-external-volume-driver-retry"
 
-	errchan := make(chan error)
+	errchan := make(chan error, 1)
 	started := make(chan struct{})
 	go func() {
 		close(started)

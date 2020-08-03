@@ -1,6 +1,8 @@
 package router // import "github.com/docker/docker/api/server/router"
 
 import (
+	"net/http"
+
 	"github.com/docker/docker/api/server/httputils"
 )
 
@@ -42,30 +44,30 @@ func NewRoute(method, path string, handler httputils.APIFunc, opts ...RouteWrapp
 
 // NewGetRoute initializes a new route with the http method GET.
 func NewGetRoute(path string, handler httputils.APIFunc, opts ...RouteWrapper) Route {
-	return NewRoute("GET", path, handler, opts...)
+	return NewRoute(http.MethodGet, path, handler, opts...)
 }
 
 // NewPostRoute initializes a new route with the http method POST.
 func NewPostRoute(path string, handler httputils.APIFunc, opts ...RouteWrapper) Route {
-	return NewRoute("POST", path, handler, opts...)
+	return NewRoute(http.MethodPost, path, handler, opts...)
 }
 
 // NewPutRoute initializes a new route with the http method PUT.
 func NewPutRoute(path string, handler httputils.APIFunc, opts ...RouteWrapper) Route {
-	return NewRoute("PUT", path, handler, opts...)
+	return NewRoute(http.MethodPut, path, handler, opts...)
 }
 
 // NewDeleteRoute initializes a new route with the http method DELETE.
 func NewDeleteRoute(path string, handler httputils.APIFunc, opts ...RouteWrapper) Route {
-	return NewRoute("DELETE", path, handler, opts...)
+	return NewRoute(http.MethodDelete, path, handler, opts...)
 }
 
 // NewOptionsRoute initializes a new route with the http method OPTIONS.
 func NewOptionsRoute(path string, handler httputils.APIFunc, opts ...RouteWrapper) Route {
-	return NewRoute("OPTIONS", path, handler, opts...)
+	return NewRoute(http.MethodOptions, path, handler, opts...)
 }
 
 // NewHeadRoute initializes a new route with the http method HEAD.
 func NewHeadRoute(path string, handler httputils.APIFunc, opts ...RouteWrapper) Route {
-	return NewRoute("HEAD", path, handler, opts...)
+	return NewRoute(http.MethodHead, path, handler, opts...)
 }

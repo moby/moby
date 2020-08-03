@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/mount"
-	"gotest.tools/skip"
+	"github.com/moby/sys/mount"
+	"gotest.tools/v3/skip"
 )
 
 func TestEnsureRemoveAllNotExist(t *testing.T) {
@@ -63,7 +63,7 @@ func TestEnsureRemoveAllWithMount(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	done := make(chan struct{})
+	done := make(chan struct{}, 1)
 	go func() {
 		err = EnsureRemoveAll(dir1)
 		close(done)

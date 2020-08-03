@@ -9,7 +9,7 @@
 set -e
 
 usage() {
-    cat <<EOOPTS
+	cat << EOOPTS
 $(basename $0) [OPTIONS] <name>
 OPTIONS:
   -p "<packages>"  The list of packages to install in the container.
@@ -21,7 +21,7 @@ OPTIONS:
   -t <tag>         Specify Tag information.
                    default is reffered at /etc/{redhat,system}-release
 EOOPTS
-    exit 1
+	exit 1
 }
 
 # option defaults
@@ -35,38 +35,38 @@ install_groups=()
 install_packages=()
 version=
 while getopts ":y:p:g:t:h" opt; do
-    case $opt in
-        y)
-            yum_config=$OPTARG
-            ;;
-        h)
-            usage
-            ;;
-        p)
-            install_packages+=("$OPTARG")
-            ;;
-        g)
-            install_groups+=("$OPTARG")
-            ;;
-        t)
-            version="$OPTARG"
-            ;;
-        \?)
-            echo "Invalid option: -$OPTARG"
-            usage
-            ;;
-    esac
+	case $opt in
+		y)
+			yum_config=$OPTARG
+			;;
+		h)
+			usage
+			;;
+		p)
+			install_packages+=("$OPTARG")
+			;;
+		g)
+			install_groups+=("$OPTARG")
+			;;
+		t)
+			version="$OPTARG"
+			;;
+		\?)
+			echo "Invalid option: -$OPTARG"
+			usage
+			;;
+	esac
 done
 shift $((OPTIND - 1))
 name=$1
 
 if [[ -z $name ]]; then
-    usage
+	usage
 fi
 
 # default to Core group if not specified otherwise
 if [ ${#install_groups[*]} -eq 0 ]; then
-   install_groups=('Core')
+	install_groups=('Core')
 fi
 
 target=$(mktemp -d --tmpdir $(basename $0).XXXXXX)
@@ -91,21 +91,19 @@ if [ -d /etc/yum/vars ]; then
 	cp -a /etc/yum/vars "$target"/etc/yum/
 fi
 
-if [[ -n "$install_groups" ]];
-then
-    yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
-        --setopt=group_package_types=mandatory -y groupinstall "${install_groups[@]}"
+if [[ -n "$install_groups" ]]; then
+	yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
+		--setopt=group_package_types=mandatory -y groupinstall "${install_groups[@]}"
 fi
 
-if [[ -n "$install_packages" ]];
-then
-    yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
-        --setopt=group_package_types=mandatory -y install "${install_packages[@]}"
+if [[ -n "$install_packages" ]]; then
+	yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
+		--setopt=group_package_types=mandatory -y install "${install_packages[@]}"
 fi
 
 yum -c "$yum_config" --installroot="$target" -y clean all
 
-cat > "$target"/etc/sysconfig/network <<EOF
+cat > "$target"/etc/sysconfig/network << EOF
 NETWORKING=yes
 HOSTNAME=localhost.localdomain
 EOF
@@ -129,18 +127,17 @@ rm -rf "$target"/etc/ld.so.cache "$target"/var/cache/ldconfig
 mkdir -p --mode=0755 "$target"/var/cache/ldconfig
 
 if [ -z "$version" ]; then
-    for file in "$target"/etc/{redhat,system}-release
-    do
-        if [ -r "$file" ]; then
-            version="$(sed 's/^[^0-9\]*\([0-9.]\+\).*$/\1/' "$file")"
-            break
-        fi
-    done
+	for file in "$target"/etc/{redhat,system}-release; do
+		if [ -r "$file" ]; then
+			version="$(sed 's/^[^0-9\]*\([0-9.]\+\).*$/\1/' "$file")"
+			break
+		fi
+	done
 fi
 
 if [ -z "$version" ]; then
-    echo >&2 "warning: cannot autodetect OS version, using '$name' as tag"
-    version=$name
+	echo >&2 "warning: cannot autodetect OS version, using '$name' as tag"
+	version=$name
 fi
 
 tar --numeric-owner -c -C "$target" . | docker import - $name:$version

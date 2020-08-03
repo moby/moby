@@ -30,6 +30,9 @@ type SysInfo struct {
 
 	// Whether the cgroup has the mountpoint of "devices" or not
 	CgroupDevicesEnabled bool
+
+	// Whether the cgroup is in unified mode (v2).
+	CgroupUnified bool
 }
 
 type cgroupMemInfo struct {
@@ -59,17 +62,11 @@ type cgroupCPUInfo struct {
 	// Whether CPU shares is supported or not
 	CPUShares bool
 
-	// Whether CPU CFS(Completely Fair Scheduler) period is supported or not
-	CPUCfsPeriod bool
+	// Whether CPU CFS (Completely Fair Scheduler) is supported
+	CPUCfs bool
 
-	// Whether CPU CFS(Completely Fair Scheduler) quota is supported or not
-	CPUCfsQuota bool
-
-	// Whether CPU real-time period is supported or not
-	CPURealtimePeriod bool
-
-	// Whether CPU real-time runtime is supported or not
-	CPURealtimeRuntime bool
+	// Whether CPU real-time scheduler is supported
+	CPURealtime bool
 }
 
 type cgroupBlkioInfo struct {

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestSerialization(t *testing.T) {
@@ -14,7 +14,7 @@ func TestSerialization(t *testing.T) {
 	)
 
 	q.Append("aaa", func() {
-		//simulate a long time task
+		// simulate a long time task
 		time.Sleep(10 * time.Millisecond)
 		assert.Equal(t, serialization, 1)
 		serialization = 2

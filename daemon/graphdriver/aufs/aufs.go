@@ -35,6 +35,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -42,9 +43,8 @@ import (
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/locker"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/system"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -177,7 +177,7 @@ func supportsAufs() error {
 	// proc/filesystems for when aufs is supported
 	exec.Command("modprobe", "aufs").Run()
 
-	if rsystem.RunningInUserNS() {
+	if sys.RunningInUserNS() {
 		return ErrAufsNested
 	}
 
@@ -324,7 +324,7 @@ func (a *Driver) Remove(id string) error {
 	// way (so that docker doesn't find it anymore) before doing removal of
 	// the whole tree.
 	if err := atomicRemove(mountpoint); err != nil {
-		if errors.Cause(err) == unix.EBUSY {
+		if errors.Is(err, unix.EBUSY) {
 			logger.WithField("dir", mountpoint).WithError(err).Warn("error performing atomic remove due to EBUSY")
 		}
 		return errors.Wrapf(err, "could not remove mountpoint for id %s", id)

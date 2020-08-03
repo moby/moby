@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/server/httputils"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestVersionMiddlewareVersion(t *testing.T) {
@@ -25,7 +25,7 @@ func TestVersionMiddlewareVersion(t *testing.T) {
 	m := NewVersionMiddleware(defaultVersion, defaultVersion, minVersion)
 	h := m.WrapHandler(handler)
 
-	req, _ := http.NewRequest("GET", "/containers/json", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/containers/json", nil)
 	resp := httptest.NewRecorder()
 	ctx := context.Background()
 
@@ -76,7 +76,7 @@ func TestVersionMiddlewareWithErrorsReturnsHeaders(t *testing.T) {
 	m := NewVersionMiddleware(defaultVersion, defaultVersion, minVersion)
 	h := m.WrapHandler(handler)
 
-	req, _ := http.NewRequest("GET", "/containers/json", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/containers/json", nil)
 	resp := httptest.NewRecorder()
 	ctx := context.Background()
 

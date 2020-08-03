@@ -9,13 +9,14 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/testutil/daemon"
-	"gotest.tools/assert"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 )
 
 func TestDaemonRestartKillContainers(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support live-restore")
 	type testCase struct {
 		desc       string
 		config     *container.Config
@@ -76,7 +77,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 					defer d.Stop(t)
 					ctx := context.Background()
 
-					resp, err := client.ContainerCreate(ctx, c.config, c.hostConfig, nil, "")
+					resp, err := client.ContainerCreate(ctx, c.config, c.hostConfig, nil, nil, "")
 					assert.NilError(t, err)
 					defer client.ContainerRemove(ctx, resp.ID, types.ContainerRemoveOptions{Force: true})
 

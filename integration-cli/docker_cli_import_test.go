@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/integration-cli/cli"
-	"gotest.tools/assert"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
 )
 
 func (s *DockerSuite) TestImportDisplay(c *testing.T) {

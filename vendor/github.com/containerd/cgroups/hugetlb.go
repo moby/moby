@@ -17,12 +17,12 @@
 package cgroups
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	v1 "github.com/containerd/cgroups/stats/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -56,7 +56,7 @@ func (h *hugetlbController) Create(path string, resources *specs.LinuxResources)
 		return err
 	}
 	for _, limit := range resources.HugepageLimits {
-		if err := ioutil.WriteFile(
+		if err := retryingWriteFile(
 			filepath.Join(h.Path(path), strings.Join([]string{"hugetlb", limit.Pagesize, "limit_in_bytes"}, ".")),
 			[]byte(strconv.FormatUint(limit.Limit, 10)),
 			defaultFilePerm,
@@ -67,7 +67,7 @@ func (h *hugetlbController) Create(path string, resources *specs.LinuxResources)
 	return nil
 }
 
-func (h *hugetlbController) Stat(path string, stats *Metrics) error {
+func (h *hugetlbController) Stat(path string, stats *v1.Metrics) error {
 	for _, size := range h.sizes {
 		s, err := h.readSizeStat(path, size)
 		if err != nil {
@@ -78,8 +78,8 @@ func (h *hugetlbController) Stat(path string, stats *Metrics) error {
 	return nil
 }
 
-func (h *hugetlbController) readSizeStat(path, size string) (*HugetlbStat, error) {
-	s := HugetlbStat{
+func (h *hugetlbController) readSizeStat(path, size string) (*v1.HugetlbStat, error) {
+	s := v1.HugetlbStat{
 		Pagesize: size,
 	}
 	for _, t := range []struct {

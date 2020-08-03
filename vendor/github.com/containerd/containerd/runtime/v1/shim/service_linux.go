@@ -55,6 +55,7 @@ func (p *linuxPlatform) CopyConsole(ctx context.Context, console console.Console
 			io.CopyBuffer(epollConsole, in, *bp)
 			// we need to shutdown epollConsole when pipe broken
 			epollConsole.Shutdown(p.epoller.CloseConsole)
+			epollConsole.Close()
 		}()
 	}
 
@@ -73,9 +74,8 @@ func (p *linuxPlatform) CopyConsole(ctx context.Context, console console.Console
 		p := bufPool.Get().(*[]byte)
 		defer bufPool.Put(p)
 		io.CopyBuffer(outw, epollConsole, *p)
-		epollConsole.Close()
-		outr.Close()
 		outw.Close()
+		outr.Close()
 		wg.Done()
 	}()
 	cwg.Wait()

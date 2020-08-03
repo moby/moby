@@ -96,49 +96,79 @@ func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (io
 	return io.NewSectionReader(r, offset, size), found, nil
 }
 
-func decodeFunc(rdr io.Reader) func() (*logger.Message, error) {
-	proto := &logdriver.LogEntry{}
-	buf := make([]byte, initialBufSize)
+type decoder struct {
+	rdr   io.Reader
+	proto *logdriver.LogEntry
+	buf   []byte
+}
 
-	return func() (*logger.Message, error) {
-		var (
-			read int
-			err  error
-		)
+func (d *decoder) Decode() (*logger.Message, error) {
+	if d.proto == nil {
+		d.proto = &logdriver.LogEntry{}
+	} else {
+		resetProto(d.proto)
+	}
+	if d.buf == nil {
+		d.buf = make([]byte, initialBufSize)
+	}
+	var (
+		read int
+		err  error
+	)
 
-		resetProto(proto)
-
-		for i := 0; i < maxDecodeRetry; i++ {
-			var n int
-			n, err = io.ReadFull(rdr, buf[read:encodeBinaryLen])
-			if err != nil {
-				if err != io.ErrUnexpectedEOF {
-					return nil, errors.Wrap(err, "error reading log message length")
-				}
-				read += n
-				continue
+	for i := 0; i < maxDecodeRetry; i++ {
+		var n int
+		n, err = io.ReadFull(d.rdr, d.buf[read:encodeBinaryLen])
+		if err != nil {
+			if err != io.ErrUnexpectedEOF {
+				return nil, errors.Wrap(err, "error reading log message length")
 			}
 			read += n
-			break
+			continue
 		}
-		if err != nil {
-			return nil, errors.Wrapf(err, "could not read log message length: read: %d, expected: %d", read, encodeBinaryLen)
-		}
-
-		msgLen := int(binary.BigEndian.Uint32(buf[:read]))
-
-		if len(buf) < msgLen+encodeBinaryLen {
-			buf = make([]byte, msgLen+encodeBinaryLen)
-		} else {
-			if msgLen <= initialBufSize {
-				buf = buf[:initialBufSize]
-			} else {
-				buf = buf[:msgLen+encodeBinaryLen]
-			}
-		}
-
-		return decodeLogEntry(rdr, proto, buf, msgLen)
+		read += n
+		break
 	}
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not read log message length: read: %d, expected: %d", read, encodeBinaryLen)
+	}
+
+	msgLen := int(binary.BigEndian.Uint32(d.buf[:read]))
+
+	if len(d.buf) < msgLen+encodeBinaryLen {
+		d.buf = make([]byte, msgLen+encodeBinaryLen)
+	} else {
+		if msgLen <= initialBufSize {
+			d.buf = d.buf[:initialBufSize]
+		} else {
+			d.buf = d.buf[:msgLen+encodeBinaryLen]
+		}
+	}
+
+	return decodeLogEntry(d.rdr, d.proto, d.buf, msgLen)
+}
+
+func (d *decoder) Reset(rdr io.Reader) {
+	d.rdr = rdr
+	if d.proto != nil {
+		resetProto(d.proto)
+	}
+	if d.buf != nil {
+		d.buf = d.buf[:initialBufSize]
+	}
+}
+
+func (d *decoder) Close() {
+	d.buf = d.buf[:0]
+	d.buf = nil
+	if d.proto != nil {
+		resetProto(d.proto)
+	}
+	d.rdr = nil
+}
+
+func decodeFunc(rdr io.Reader) loggerutils.Decoder {
+	return &decoder{rdr: rdr}
 }
 
 func decodeLogEntry(rdr io.Reader, proto *logdriver.LogEntry, buf []byte, msgLen int) (*logger.Message, error) {

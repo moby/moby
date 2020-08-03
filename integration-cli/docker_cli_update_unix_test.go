@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/testutil/request"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func (s *DockerSuite) TestUpdateRunningContainer(c *testing.T) {
@@ -108,7 +108,7 @@ func (s *DockerSuite) TestUpdateContainerInvalidValue(c *testing.T) {
 	dockerCmd(c, "run", "-d", "--name", name, "-m", "300M", "busybox", "true")
 	out, _, err := dockerCmdWithError("update", "-m", "2M", name)
 	assert.ErrorContains(c, err, "")
-	expected := "Minimum memory limit allowed is 4MB"
+	expected := "Minimum memory limit allowed is 6MB"
 	assert.Assert(c, strings.Contains(out, expected))
 }
 

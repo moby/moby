@@ -25,7 +25,7 @@ import (
 	"github.com/docker/docker/testutil/fakestorage"
 	"github.com/docker/docker/testutil/fixtures/plugin"
 	"github.com/docker/docker/testutil/registry"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 const (
@@ -349,6 +349,7 @@ func (s *DockerSwarmSuite) SetUpTest(c *testing.T) {
 }
 
 func (s *DockerSwarmSuite) AddDaemon(c *testing.T, joinSwarm, manager bool) *daemon.Daemon {
+	c.Helper()
 	d := daemon.New(c, dockerBinary, dockerdBinary,
 		testdaemon.WithEnvironment(testEnv.Execution),
 		testdaemon.WithSwarmPort(defaultSwarmPort+s.portIndex),

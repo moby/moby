@@ -46,11 +46,17 @@ const (
 	ResourceIngest
 )
 
+const (
+	resourceContentFlat  = ResourceContent | 0x20
+	resourceSnapshotFlat = ResourceSnapshot | 0x20
+)
+
 var (
 	labelGCRoot       = []byte("containerd.io/gc.root")
 	labelGCSnapRef    = []byte("containerd.io/gc.ref.snapshot.")
 	labelGCContentRef = []byte("containerd.io/gc.ref.content")
 	labelGCExpire     = []byte("containerd.io/gc.expire")
+	labelGCFlat       = []byte("containerd.io/gc.flat")
 )
 
 func scanRoots(ctx context.Context, tx *bolt.Tx, nc chan<- gc.Node) error {
@@ -90,6 +96,7 @@ func scanRoots(ctx context.Context, tx *bolt.Tx, nc chan<- gc.Node) error {
 					return nil
 				}
 				libkt := lbkt.Bucket(k)
+				var flat bool
 
 				if lblbkt := libkt.Bucket(bucketKeyObjectLabels); lblbkt != nil {
 					if expV := lblbkt.Get(labelGCExpire); expV != nil {
@@ -102,6 +109,10 @@ func scanRoots(ctx context.Context, tx *bolt.Tx, nc chan<- gc.Node) error {
 							return nil
 						}
 					}
+
+					if flatV := lblbkt.Get(labelGCFlat); flatV != nil {
+						flat = true
+					}
 				}
 
 				fn(gcnode(ResourceLease, ns, string(k)))
@@ -111,14 +122,24 @@ func scanRoots(ctx context.Context, tx *bolt.Tx, nc chan<- gc.Node) error {
 				// no need to allow the lookup to be recursive, handling here
 				// therefore reduces the number of database seeks.
 
+				ctype := ResourceContent
+				if flat {
+					ctype = resourceContentFlat
+				}
+
 				cbkt := libkt.Bucket(bucketKeyObjectContent)
 				if cbkt != nil {
 					if err := cbkt.ForEach(func(k, v []byte) error {
-						fn(gcnode(ResourceContent, ns, string(k)))
+						fn(gcnode(ctype, ns, string(k)))
 						return nil
 					}); err != nil {
 						return err
 					}
+				}
+
+				stype := ResourceSnapshot
+				if flat {
+					stype = resourceSnapshotFlat
 				}
 
 				sbkt := libkt.Bucket(bucketKeyObjectSnapshots)
@@ -130,7 +151,7 @@ func scanRoots(ctx context.Context, tx *bolt.Tx, nc chan<- gc.Node) error {
 						snbkt := sbkt.Bucket(sk)
 
 						return snbkt.ForEach(func(k, v []byte) error {
-							fn(gcnode(ResourceSnapshot, ns, fmt.Sprintf("%s/%s", sk, k)))
+							fn(gcnode(stype, ns, fmt.Sprintf("%s/%s", sk, k)))
 							return nil
 						})
 					}); err != nil {
@@ -257,7 +278,8 @@ func scanRoots(ctx context.Context, tx *bolt.Tx, nc chan<- gc.Node) error {
 }
 
 func references(ctx context.Context, tx *bolt.Tx, node gc.Node, fn func(gc.Node)) error {
-	if node.Type == ResourceContent {
+	switch node.Type {
+	case ResourceContent:
 		bkt := getBucket(tx, bucketKeyVersion, []byte(node.Namespace), bucketKeyObjectContent, bucketKeyObjectBlob, []byte(node.Key))
 		if bkt == nil {
 			// Node may be created from dead edge
@@ -265,7 +287,7 @@ func references(ctx context.Context, tx *bolt.Tx, node gc.Node, fn func(gc.Node)
 		}
 
 		return sendLabelRefs(node.Namespace, bkt, fn)
-	} else if node.Type == ResourceSnapshot {
+	case ResourceSnapshot, resourceSnapshotFlat:
 		parts := strings.SplitN(node.Key, "/", 2)
 		if len(parts) != 2 {
 			return errors.Errorf("invalid snapshot gc key %s", node.Key)
@@ -280,11 +302,16 @@ func references(ctx context.Context, tx *bolt.Tx, node gc.Node, fn func(gc.Node)
 		}
 
 		if pv := bkt.Get(bucketKeyParent); len(pv) > 0 {
-			fn(gcnode(ResourceSnapshot, node.Namespace, fmt.Sprintf("%s/%s", ss, pv)))
+			fn(gcnode(node.Type, node.Namespace, fmt.Sprintf("%s/%s", ss, pv)))
+		}
+
+		// Do not send labeled references for flat snapshot refs
+		if node.Type == resourceSnapshotFlat {
+			return nil
 		}
 
 		return sendLabelRefs(node.Namespace, bkt, fn)
-	} else if node.Type == ResourceIngest {
+	case ResourceIngest:
 		// Send expected value
 		bkt := getBucket(tx, bucketKeyVersion, []byte(node.Namespace), bucketKeyObjectContent, bucketKeyObjectIngests, []byte(node.Key))
 		if bkt == nil {

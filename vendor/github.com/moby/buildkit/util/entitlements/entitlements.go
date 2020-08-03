@@ -43,7 +43,7 @@ func WhiteList(allowed, supported []Entitlement) (Set, error) {
 		}
 		if supported != nil {
 			if !supm.Allowed(e) {
-				return nil, errors.Errorf("entitlement %s is not allowed", e)
+				return nil, errors.Errorf("granting entitlement %s is not allowed by build daemon configuration", e)
 			}
 		}
 		m[e] = struct{}{}

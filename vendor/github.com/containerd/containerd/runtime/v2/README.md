@@ -183,7 +183,7 @@ Current supported schemes for logging are:
 * file - Linux & Windows
 * npipe - Windows
 
-Binary logging has the abilty to forward a container's STDIO to an external binary for consumption.
+Binary logging has the ability to forward a container's STDIO to an external binary for consumption.
 A sample logging driver that forwards the container's STDOUT and STDERR to `journald` is:
 
 ```go
@@ -227,9 +227,6 @@ func copy(wg *sync.WaitGroup, r io.Reader, pri journal.Priority, vars map[string
 	defer wg.Done()
 	s := bufio.NewScanner(r)
 	for s.Scan() {
-		if s.Err() != nil {
-			return
-		}
 		journal.Send(s.Text(), pri, vars)
 	}
 }

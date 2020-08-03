@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/docker/docker/pkg/term"
+	"github.com/moby/term"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -27,15 +27,15 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 		}
 	}
 
-	container, err := daemon.GetContainer(prefixOrName)
+	ctr, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
 	}
-	if container.IsPaused() {
+	if ctr.IsPaused() {
 		err := fmt.Errorf("container %s is paused, unpause the container before attach", prefixOrName)
 		return errdefs.Conflict(err)
 	}
-	if container.IsRestarting() {
+	if ctr.IsRestarting() {
 		err := fmt.Errorf("container %s is restarting, wait until the container is running", prefixOrName)
 		return errdefs.Conflict(err)
 	}
@@ -44,11 +44,11 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 		UseStdin:   c.UseStdin,
 		UseStdout:  c.UseStdout,
 		UseStderr:  c.UseStderr,
-		TTY:        container.Config.Tty,
-		CloseStdin: container.Config.StdinOnce,
+		TTY:        ctr.Config.Tty,
+		CloseStdin: ctr.Config.StdinOnce,
 		DetachKeys: keys,
 	}
-	container.StreamConfig.AttachStreams(&cfg)
+	ctr.StreamConfig.AttachStreams(&cfg)
 
 	inStream, outStream, errStream, err := c.GetStreams()
 	if err != nil {
@@ -56,7 +56,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 	}
 	defer inStream.Close()
 
-	if !container.Config.Tty && c.MuxStreams {
+	if !ctr.Config.Tty && c.MuxStreams {
 		errStream = stdcopy.NewStdWriter(errStream, stdcopy.Stderr)
 		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
 	}
@@ -71,7 +71,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 		cfg.Stderr = errStream
 	}
 
-	if err := daemon.containerAttach(container, &cfg, c.Logs, c.Stream); err != nil {
+	if err := daemon.containerAttach(ctr, &cfg, c.Logs, c.Stream); err != nil {
 		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
 	}
 	return nil
@@ -79,7 +79,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 
 // ContainerAttachRaw attaches the provided streams to the container's stdio
 func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadCloser, stdout, stderr io.Writer, doStream bool, attached chan struct{}) error {
-	container, err := daemon.GetContainer(prefixOrName)
+	ctr, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
 	}
@@ -87,10 +87,10 @@ func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadClose
 		UseStdin:   stdin != nil,
 		UseStdout:  stdout != nil,
 		UseStderr:  stderr != nil,
-		TTY:        container.Config.Tty,
-		CloseStdin: container.Config.StdinOnce,
+		TTY:        ctr.Config.Tty,
+		CloseStdin: ctr.Config.StdinOnce,
 	}
-	container.StreamConfig.AttachStreams(&cfg)
+	ctr.StreamConfig.AttachStreams(&cfg)
 	close(attached)
 	if cfg.UseStdin {
 		cfg.Stdin = stdin
@@ -102,7 +102,7 @@ func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadClose
 		cfg.Stderr = stderr
 	}
 
-	return daemon.containerAttach(container, &cfg, false, doStream)
+	return daemon.containerAttach(ctr, &cfg, false, doStream)
 }
 
 func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.AttachConfig, logs, doStream bool) error {
@@ -176,7 +176,8 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 	ctx := c.InitAttachContext()
 	err := <-c.StreamConfig.CopyStreams(ctx, cfg)
 	if err != nil {
-		if _, ok := errors.Cause(err).(term.EscapeError); ok || err == context.Canceled {
+		var ierr term.EscapeError
+		if errors.Is(err, context.Canceled) || errors.As(err, &ierr) {
 			daemon.LogContainerEvent(c, "detach")
 		} else {
 			logrus.Errorf("attach failed with error: %v", err)

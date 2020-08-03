@@ -20,17 +20,14 @@ package sys
 
 import "golang.org/x/sys/unix"
 
-// EpollCreate1 directly calls unix.EpollCreate1
-func EpollCreate1(flag int) (int, error) {
-	return unix.EpollCreate1(flag)
-}
+// EpollCreate1 is an alias for unix.EpollCreate1
+// Deprecated: use golang.org/x/sys/unix.EpollCreate1
+var EpollCreate1 = unix.EpollCreate1
 
-// EpollCtl directly calls unix.EpollCtl
-func EpollCtl(epfd int, op int, fd int, event *unix.EpollEvent) error {
-	return unix.EpollCtl(epfd, op, fd, event)
-}
+// EpollCtl is an alias for unix.EpollCtl
+// Deprecated: use golang.org/x/sys/unix.EpollCtl
+var EpollCtl = unix.EpollCtl
 
-// EpollWait directly calls unix.EpollWait
-func EpollWait(epfd int, events []unix.EpollEvent, msec int) (int, error) {
-	return unix.EpollWait(epfd, events, msec)
-}
+// EpollWait is an alias for unix.EpollWait
+// Deprecated: use golang.org/x/sys/unix.EpollWait
+var EpollWait = unix.EpollWait

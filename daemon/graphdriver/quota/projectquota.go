@@ -1,4 +1,4 @@
-// +build linux,!exclude_disk_quota
+// +build linux,!exclude_disk_quota,cgo
 
 //
 // projectquota.go - implements XFS project quota controls
@@ -57,7 +57,7 @@ import (
 	"path/filepath"
 	"unsafe"
 
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"github.com/containerd/containerd/sys"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -90,7 +90,7 @@ func NewControl(basePath string) (*Control, error) {
 	// If we are running in a user namespace quota won't be supported for
 	// now since makeBackingFsDev() will try to mknod().
 	//
-	if rsystem.RunningInUserNS() {
+	if sys.RunningInUserNS() {
 		return nil, ErrQuotaNotSupported
 	}
 

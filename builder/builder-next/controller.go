@@ -1,13 +1,17 @@
 package buildkit
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/containerd/containerd/content/local"
+	ctdmetadata "github.com/containerd/containerd/metadata"
 	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
 	"github.com/docker/docker/builder/builder-next/adapters/localinlinecache"
 	"github.com/docker/docker/builder/builder-next/adapters/snapshot"
@@ -28,13 +32,15 @@ import (
 	dockerfile "github.com/moby/buildkit/frontend/dockerfile/builder"
 	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/frontend/gateway/forwarder"
-	"github.com/moby/buildkit/snapshot/blobmapping"
+	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
 	"github.com/moby/buildkit/solver/bboltcachestorage"
 	"github.com/moby/buildkit/util/binfmt_misc"
 	"github.com/moby/buildkit/util/entitlements"
+	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/worker"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	bolt "go.etcd.io/bbolt"
 )
 
 func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
@@ -54,34 +60,42 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, errors.Errorf("could not access graphdriver")
 	}
 
-	sbase, err := snapshot.NewSnapshotter(snapshot.Opt{
-		GraphDriver:     driver,
-		LayerStore:      dist.LayerStore,
-		Root:            root,
-		IdentityMapping: opt.IdentityMapping,
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	store, err := local.NewStore(filepath.Join(root, "content"))
 	if err != nil {
 		return nil, err
 	}
-	store = &contentStoreNoLabels{store}
 
-	md, err := metadata.NewStore(filepath.Join(root, "metadata.db"))
+	db, err := bolt.Open(filepath.Join(root, "containerdmeta.db"), 0644, nil)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	mdb := ctdmetadata.NewDB(db, store, map[string]snapshots.Snapshotter{})
+
+	store = containerdsnapshot.NewContentStore(mdb.ContentStore(), "buildkit")
+
+	lm := leaseutil.WithNamespace(ctdmetadata.NewLeaseManager(mdb), "buildkit")
+
+	snapshotter, lm, err := snapshot.NewSnapshotter(snapshot.Opt{
+		GraphDriver:     driver,
+		LayerStore:      dist.LayerStore,
+		Root:            root,
+		IdentityMapping: opt.IdentityMapping,
+	}, lm)
 	if err != nil {
 		return nil, err
 	}
 
-	snapshotter := blobmapping.NewSnapshotter(blobmapping.Opt{
-		Content:       store,
-		Snapshotter:   sbase,
-		MetadataStore: md,
-	})
+	if err := cache.MigrateV2(context.Background(), filepath.Join(root, "metadata.db"), filepath.Join(root, "metadata_v2.db"), store, snapshotter, lm); err != nil {
+		return nil, err
+	}
 
-	layerGetter, ok := sbase.(imagerefchecker.LayerGetter)
+	md, err := metadata.NewStore(filepath.Join(root, "metadata_v2.db"))
+	if err != nil {
+		return nil, err
+	}
+
+	layerGetter, ok := snapshotter.(imagerefchecker.LayerGetter)
 	if !ok {
 		return nil, errors.Errorf("snapshotter does not implement layergetter")
 	}
@@ -95,6 +109,8 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		Snapshotter:     snapshotter,
 		MetadataStore:   md,
 		PruneRefChecker: refChecker,
+		LeaseManager:    lm,
+		ContentStore:    store,
 	})
 	if err != nil {
 		return nil, err
@@ -107,7 +123,8 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		MetadataStore:   dist.V2MetadataService,
 		ImageStore:      dist.ImageStore,
 		ReferenceStore:  dist.ReferenceStore,
-		ResolverOpt:     opt.ResolverOpt,
+		RegistryHosts:   opt.RegistryHosts,
+		LayerStore:      dist.LayerStore,
 	})
 	if err != nil {
 		return nil, err
@@ -120,7 +137,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, err
 	}
 
-	differ, ok := sbase.(containerimageexp.Differ)
+	differ, ok := snapshotter.(containerimageexp.Differ)
 	if !ok {
 		return nil, errors.Errorf("snapshotter doesn't support differ")
 	}
@@ -144,14 +161,22 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, errors.Wrap(err, "could not get builder GC policy")
 	}
 
-	layers, ok := sbase.(mobyworker.LayerAccess)
+	layers, ok := snapshotter.(mobyworker.LayerAccess)
 	if !ok {
 		return nil, errors.Errorf("snapshotter doesn't support differ")
 	}
 
-	p, err := parsePlatforms(binfmt_misc.SupportedPlatforms())
+	p, err := parsePlatforms(binfmt_misc.SupportedPlatforms(true))
 	if err != nil {
 		return nil, err
+	}
+
+	leases, err := lm.List(context.TODO(), "labels.\"buildkit/lease.temporary\"")
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range leases {
+		lm.Delete(context.TODO(), l)
 	}
 
 	wopt := mobyworker.Opt{
@@ -189,7 +214,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		Frontends:        frontends,
 		CacheKeyStorage:  cacheStorage,
 		ResolveCacheImporterFuncs: map[string]remotecache.ResolveCacheImporterFunc{
-			"registry": localinlinecache.ResolveCacheImporterFunc(opt.SessionManager, opt.ResolverOpt, dist.ReferenceStore, dist.ImageStore),
+			"registry": localinlinecache.ResolveCacheImporterFunc(opt.SessionManager, opt.RegistryHosts, store, dist.ReferenceStore, dist.ImageStore),
 			"local":    localremotecache.ResolveCacheImporterFunc(opt.SessionManager),
 		},
 		ResolveCacheExporterFuncs: map[string]remotecache.ResolveCacheExporterFunc{
@@ -229,7 +254,7 @@ func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, er
 				gcPolicy[i], err = toBuildkitPruneInfo(types.BuildCachePruneOptions{
 					All:         p.All,
 					KeepStorage: b,
-					Filters:     p.Filter,
+					Filters:     filters.Args(p.Filter),
 				})
 				if err != nil {
 					return nil, err

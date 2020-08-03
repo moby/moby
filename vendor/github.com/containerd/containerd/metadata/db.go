@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/containerd/containerd/content"
@@ -75,10 +76,16 @@ type DB struct {
 	// sweep phases without preventing read transactions.
 	wlock sync.RWMutex
 
-	// dirty flags and lock keeps track of datastores which have had deletions
-	// since the last garbage collection. These datastores will will be garbage
-	// collected during the next garbage collection.
-	dirtyL  sync.Mutex
+	// dirty flag indicates that references have been removed which require
+	// a garbage collection to ensure the database is clean. This tracks
+	// the number of dirty operations. This should be updated and read
+	// atomically if outside of wlock.Lock.
+	dirty uint32
+
+	// dirtySS and dirtyCS flags keeps track of datastores which have had
+	// deletions since the last garbage collection. These datastores will
+	// be garbage collected during the next garbage collection. These
+	// should only be updated inside of a write transaction or wlock.Lock.
 	dirtySS map[string]struct{}
 	dirtyCS bool
 
@@ -162,7 +169,7 @@ func (m *DB) Init(ctx context.Context) error {
 			}
 		}
 
-		// Previous version fo database found
+		// Previous version of database found
 		if schema != "v0" {
 			updates := migrations[i:]
 
@@ -237,12 +244,10 @@ func (m *DB) Update(fn func(*bolt.Tx) error) error {
 	defer m.wlock.RUnlock()
 	err := m.db.Update(fn)
 	if err == nil {
-		m.dirtyL.Lock()
-		dirty := m.dirtyCS || len(m.dirtySS) > 0
+		dirty := atomic.LoadUint32(&m.dirty) > 0
 		for _, fn := range m.mutationCallbacks {
 			fn(dirty)
 		}
-		m.dirtyL.Unlock()
 	}
 
 	return err
@@ -254,9 +259,9 @@ func (m *DB) Update(fn func(*bolt.Tx) error) error {
 // The callback function is an argument for whether a deletion has occurred
 // since the last garbage collection.
 func (m *DB) RegisterMutationCallback(fn func(bool)) {
-	m.dirtyL.Lock()
+	m.wlock.Lock()
 	m.mutationCallbacks = append(m.mutationCallbacks, fn)
-	m.dirtyL.Unlock()
+	m.wlock.Unlock()
 }
 
 // GCStats holds the duration for the different phases of the garbage collector
@@ -281,8 +286,6 @@ func (m *DB) GarbageCollect(ctx context.Context) (gc.Stats, error) {
 		m.wlock.Unlock()
 		return nil, err
 	}
-
-	m.dirtyL.Lock()
 
 	if err := m.db.Update(func(tx *bolt.Tx) error {
 		ctx, cancel := context.WithCancel(ctx)
@@ -309,13 +312,15 @@ func (m *DB) GarbageCollect(ctx context.Context) (gc.Stats, error) {
 
 		return nil
 	}); err != nil {
-		m.dirtyL.Unlock()
 		m.wlock.Unlock()
 		return nil, err
 	}
 
 	var stats GCStats
 	var wg sync.WaitGroup
+
+	// reset dirty, no need for atomic inside of wlock.Lock
+	m.dirty = 0
 
 	if len(m.dirtySS) > 0 {
 		var sl sync.Mutex
@@ -348,8 +353,6 @@ func (m *DB) GarbageCollect(ctx context.Context) (gc.Stats, error) {
 		}()
 		m.dirtyCS = false
 	}
-
-	m.dirtyL.Unlock()
 
 	stats.MetaD = time.Since(t1)
 	m.wlock.Unlock()

@@ -10,13 +10,16 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/containers"
-
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
-const runtimeName = "io.containerd.runhcs.v1"
+const (
+	runtimeName       = "io.containerd.runhcs.v1"
+	shimV2RuntimeName = runtimeName
+)
 
 func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {
 	switch pd := i.(type) {
@@ -46,6 +49,16 @@ func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOp
 		}
 		c.Labels[DockerContainerBundlePath] = bundleDir
 		return os.MkdirAll(bundleDir, 0755)
+	}
+}
+
+func withLogLevel(level logrus.Level) containerd.NewTaskOpts {
+	// Make sure we set the runhcs options to debug if we are at debug level.
+	return func(_ context.Context, _ *containerd.Client, info *containerd.TaskInfo) error {
+		if level == logrus.DebugLevel {
+			info.Options = &options.Options{Debug: true}
+		}
+		return nil
 	}
 }
 

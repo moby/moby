@@ -13,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options"
 	"github.com/containerd/containerd"
 	apievents "github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/api/types"
@@ -24,11 +23,11 @@ import (
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/runtime/linux/runctypes"
+	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/containerd/typeurl"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/queue"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
-
 	"github.com/docker/docker/pkg/ioutils"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -47,21 +46,25 @@ type client struct {
 	logger   *logrus.Entry
 	ns       string
 
-	backend libcontainerdtypes.Backend
-	eventQ  queue.Queue
-	oomMu   sync.Mutex
-	oom     map[string]bool
+	backend         libcontainerdtypes.Backend
+	eventQ          queue.Queue
+	oomMu           sync.Mutex
+	oom             map[string]bool
+	v2runcoptionsMu sync.Mutex
+	// v2runcoptions is used for copying options specified on Create() to Start()
+	v2runcoptions map[string]v2runcoptions.Options
 }
 
 // NewClient creates a new libcontainerd client from a containerd client
 func NewClient(ctx context.Context, cli *containerd.Client, stateDir, ns string, b libcontainerdtypes.Backend) (libcontainerdtypes.Client, error) {
 	c := &client{
-		client:   cli,
-		stateDir: stateDir,
-		logger:   logrus.WithField("module", "libcontainerd").WithField("namespace", ns),
-		ns:       ns,
-		backend:  b,
-		oom:      make(map[string]bool),
+		client:        cli,
+		stateDir:      stateDir,
+		logger:        logrus.WithField("module", "libcontainerd").WithField("namespace", ns),
+		ns:            ns,
+		backend:       b,
+		oom:           make(map[string]bool),
+		v2runcoptions: make(map[string]v2runcoptions.Options),
 	}
 
 	go c.processEventStream(ctx, ns)
@@ -124,13 +127,13 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio libcontaine
 	}, nil
 }
 
-func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) error {
+func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) error {
 	bdir := c.bundleDir(id)
 	c.logger.WithField("bundle", bdir).WithField("root", ociSpec.Root.Path).Debug("bundle dir created")
 
 	newOpts := []containerd.NewContainerOpts{
 		containerd.WithSpec(ociSpec),
-		containerd.WithRuntime(runtimeName, runtimeOptions),
+		containerd.WithRuntime(shim, runtimeOptions),
 		WithBundle(bdir, ociSpec),
 	}
 	opts = append(opts, newOpts...)
@@ -141,6 +144,11 @@ func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, run
 			return errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
 		}
 		return wrapError(err)
+	}
+	if x, ok := runtimeOptions.(*v2runcoptions.Options); ok {
+		c.v2runcoptionsMu.Lock()
+		c.v2runcoptions[id] = *x
+		c.v2runcoptionsMu.Unlock()
 	}
 	return nil
 }
@@ -192,6 +200,36 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 	}
 	bundle := labels[DockerContainerBundlePath]
 	uid, gid := getSpecUser(spec)
+
+	taskOpts := []containerd.NewTaskOpts{
+		func(_ context.Context, _ *containerd.Client, info *containerd.TaskInfo) error {
+			info.Checkpoint = cp
+			return nil
+		},
+	}
+
+	if runtime.GOOS != "windows" {
+		taskOpts = append(taskOpts, func(_ context.Context, _ *containerd.Client, info *containerd.TaskInfo) error {
+			c.v2runcoptionsMu.Lock()
+			opts, ok := c.v2runcoptions[id]
+			c.v2runcoptionsMu.Unlock()
+			if ok {
+				opts.IoUid = uint32(uid)
+				opts.IoGid = uint32(gid)
+				info.Options = &opts
+			} else {
+				info.Options = &runctypes.CreateOptions{
+					IoUid:       uint32(uid),
+					IoGid:       uint32(gid),
+					NoPivotRoot: os.Getenv("DOCKER_RAMDISK") != "",
+				}
+			}
+			return nil
+		})
+	} else {
+		taskOpts = append(taskOpts, withLogLevel(c.logger.Level))
+	}
+
 	t, err = ctr.NewTask(ctx,
 		func(id string) (cio.IO, error) {
 			fifos := newFIFOSet(bundle, libcontainerdtypes.InitProcessName, withStdin, spec.Process.Terminal)
@@ -199,22 +237,8 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 			rio, err = c.createIO(fifos, id, libcontainerdtypes.InitProcessName, stdinCloseSync, attachStdio)
 			return rio, err
 		},
-		func(_ context.Context, _ *containerd.Client, info *containerd.TaskInfo) error {
-			info.Checkpoint = cp
-			if runtime.GOOS != "windows" {
-				info.Options = &runctypes.CreateOptions{
-					IoUid:       uint32(uid),
-					IoGid:       uint32(gid),
-					NoPivotRoot: os.Getenv("DOCKER_RAMDISK") != "",
-				}
-			} else {
-				// Make sure we set the runhcs options to debug if we are at debug level.
-				if c.logger.Level == logrus.DebugLevel {
-					info.Options = &options.Options{Debug: true}
-				}
-			}
-			return nil
-		})
+		taskOpts...,
+	)
 	if err != nil {
 		close(stdinCloseSync)
 		if rio != nil {
@@ -461,6 +485,9 @@ func (c *client) Delete(ctx context.Context, containerID string) error {
 	c.oomMu.Lock()
 	delete(c.oom, containerID)
 	c.oomMu.Unlock()
+	c.v2runcoptionsMu.Lock()
+	delete(c.v2runcoptions, containerID)
+	c.v2runcoptionsMu.Unlock()
 	if os.Getenv("LIBCONTAINERD_NOCLEAN") != "1" {
 		if err := os.RemoveAll(bundle); err != nil {
 			c.logger.WithError(err).WithFields(logrus.Fields{

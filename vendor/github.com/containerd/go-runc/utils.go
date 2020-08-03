@@ -57,6 +57,10 @@ func getBuf() *bytes.Buffer {
 }
 
 func putBuf(b *bytes.Buffer) {
+	if b == nil {
+		return
+	}
+
 	b.Reset()
 	bytesBufferPool.Put(b)
 }

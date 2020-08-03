@@ -27,10 +27,9 @@ import (
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/swarmkit/ca"
-	"github.com/pkg/errors"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/poll"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 )
 
 var defaultReconciliationTimeout = 30 * time.Second
@@ -323,7 +322,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *testing.T) {
 			followers = nil
 			for _, d := range nodes {
 				n := d.GetNode(c, d.NodeID(), func(err error) bool {
-					if strings.Contains(errors.Cause(err).Error(), context.DeadlineExceeded.Error()) || strings.Contains(err.Error(), "swarm does not have a leader") {
+					if strings.Contains(err.Error(), context.DeadlineExceeded.Error()) || strings.Contains(err.Error(), "swarm does not have a leader") {
 						lastErr = err
 						return true
 					}

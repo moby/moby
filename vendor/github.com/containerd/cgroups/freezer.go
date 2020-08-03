@@ -50,7 +50,7 @@ func (f *freezerController) Thaw(path string) error {
 }
 
 func (f *freezerController) changeState(path string, state State) error {
-	return ioutil.WriteFile(
+	return retryingWriteFile(
 		filepath.Join(f.root, path, "freezer.state"),
 		[]byte(strings.ToUpper(string(state))),
 		defaultFilePerm,

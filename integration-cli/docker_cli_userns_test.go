@@ -15,7 +15,7 @@ import (
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // user namespaces test: run daemon with remapped root setting

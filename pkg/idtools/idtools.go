@@ -114,31 +114,6 @@ type IdentityMapping struct {
 	gids []IDMap
 }
 
-// NewIdentityMapping takes a requested user and group name and
-// using the data from /etc/sub{uid,gid} ranges, creates the
-// proper uid and gid remapping ranges for that user/group pair
-func NewIdentityMapping(username, groupname string) (*IdentityMapping, error) {
-	subuidRanges, err := parseSubuid(username)
-	if err != nil {
-		return nil, err
-	}
-	subgidRanges, err := parseSubgid(groupname)
-	if err != nil {
-		return nil, err
-	}
-	if len(subuidRanges) == 0 {
-		return nil, fmt.Errorf("No subuid ranges found for user %q", username)
-	}
-	if len(subgidRanges) == 0 {
-		return nil, fmt.Errorf("No subgid ranges found for group %q", groupname)
-	}
-
-	return &IdentityMapping{
-		uids: createIDMap(subuidRanges),
-		gids: createIDMap(subgidRanges),
-	}, nil
-}
-
 // NewIDMappingsFromMaps creates a new mapping from two slices
 // Deprecated: this is a temporary shim while transitioning to IDMapping
 func NewIDMappingsFromMaps(uids []IDMap, gids []IDMap) *IdentityMapping {
@@ -236,10 +211,6 @@ func parseSubidFile(path, username string) (ranges, error) {
 
 	s := bufio.NewScanner(subidFile)
 	for s.Scan() {
-		if err := s.Err(); err != nil {
-			return rangeList, err
-		}
-
 		text := strings.TrimSpace(s.Text())
 		if text == "" || strings.HasPrefix(text, "#") {
 			continue
@@ -260,5 +231,6 @@ func parseSubidFile(path, username string) (ranges, error) {
 			rangeList = append(rangeList, subIDRange{startid, length})
 		}
 	}
-	return rangeList, nil
+
+	return rangeList, s.Err()
 }

@@ -3,39 +3,40 @@
 
 package api
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/protobuf/gogoproto"
-import _ "github.com/docker/swarmkit/protobuf/plugin"
-import _ "github.com/gogo/protobuf/types"
-
-import time "time"
-
-import deepcopy "github.com/docker/swarmkit/api/deepcopy"
-
-import context "golang.org/x/net/context"
-import grpc "google.golang.org/grpc"
-
-import types "github.com/gogo/protobuf/types"
-
-import raftselector "github.com/docker/swarmkit/manager/raftselector"
-import codes "google.golang.org/grpc/codes"
-import status "google.golang.org/grpc/status"
-import metadata "google.golang.org/grpc/metadata"
-import peer "google.golang.org/grpc/peer"
-import rafttime "time"
-
-import strings "strings"
-import reflect "reflect"
-
-import io "io"
+import (
+	context "context"
+	fmt "fmt"
+	github_com_docker_swarmkit_api_deepcopy "github.com/docker/swarmkit/api/deepcopy"
+	raftselector "github.com/docker/swarmkit/manager/raftselector"
+	_ "github.com/docker/swarmkit/protobuf/plugin"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	_ "github.com/gogo/protobuf/types"
+	github_com_gogo_protobuf_types "github.com/gogo/protobuf/types"
+	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	metadata "google.golang.org/grpc/metadata"
+	peer "google.golang.org/grpc/peer"
+	status "google.golang.org/grpc/status"
+	io "io"
+	math "math"
+	reflect "reflect"
+	strings "strings"
+	rafttime "time"
+	time "time"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 var _ = time.Kitchen
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
 type AssignmentChange_AssignmentAction int32
 
@@ -48,6 +49,7 @@ var AssignmentChange_AssignmentAction_name = map[int32]string{
 	0: "UPDATE",
 	1: "REMOVE",
 }
+
 var AssignmentChange_AssignmentAction_value = map[string]int32{
 	"UPDATE": 0,
 	"REMOVE": 1,
@@ -56,8 +58,9 @@ var AssignmentChange_AssignmentAction_value = map[string]int32{
 func (x AssignmentChange_AssignmentAction) String() string {
 	return proto.EnumName(AssignmentChange_AssignmentAction_name, int32(x))
 }
+
 func (AssignmentChange_AssignmentAction) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptorDispatcher, []int{10, 0}
+	return fileDescriptor_71002346457e55a8, []int{10, 0}
 }
 
 // AssignmentType specifies whether this assignment message carries
@@ -73,6 +76,7 @@ var AssignmentsMessage_Type_name = map[int32]string{
 	0: "COMPLETE",
 	1: "INCREMENTAL",
 }
+
 var AssignmentsMessage_Type_value = map[string]int32{
 	"COMPLETE":    0,
 	"INCREMENTAL": 1,
@@ -81,13 +85,14 @@ var AssignmentsMessage_Type_value = map[string]int32{
 func (x AssignmentsMessage_Type) String() string {
 	return proto.EnumName(AssignmentsMessage_Type_name, int32(x))
 }
+
 func (AssignmentsMessage_Type) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptorDispatcher, []int{11, 0}
+	return fileDescriptor_71002346457e55a8, []int{11, 0}
 }
 
 // SessionRequest starts a session.
 type SessionRequest struct {
-	Description *NodeDescription `protobuf:"bytes,1,opt,name=description" json:"description,omitempty"`
+	Description *NodeDescription `protobuf:"bytes,1,opt,name=description,proto3" json:"description,omitempty"`
 	// SessionID can be provided to attempt resuming an existing session. If the
 	// SessionID is empty or invalid, a new SessionID will be assigned.
 	//
@@ -95,9 +100,37 @@ type SessionRequest struct {
 	SessionID string `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 }
 
-func (m *SessionRequest) Reset()                    { *m = SessionRequest{} }
-func (*SessionRequest) ProtoMessage()               {}
-func (*SessionRequest) Descriptor() ([]byte, []int) { return fileDescriptorDispatcher, []int{0} }
+func (m *SessionRequest) Reset()      { *m = SessionRequest{} }
+func (*SessionRequest) ProtoMessage() {}
+func (*SessionRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_71002346457e55a8, []int{0}
+}
+func (m *SessionRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SessionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_SessionRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *SessionRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SessionRequest.Merge(m, src)
+}
+func (m *SessionRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *SessionRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_SessionRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SessionRequest proto.InternalMessageInfo
 
 // SessionMessage instructs an agent on various actions as part of the current
 // session. An agent should act immediately on the contents.
@@ -147,55 +180,165 @@ type SessionMessage struct {
 	// directly in the RPC message set.
 	SessionID string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// Node identifies the registering node.
-	Node *Node `protobuf:"bytes,2,opt,name=node" json:"node,omitempty"`
+	Node *Node `protobuf:"bytes,2,opt,name=node,proto3" json:"node,omitempty"`
 	// Managers provides a weight list of alternative dispatchers
-	Managers []*WeightedPeer `protobuf:"bytes,3,rep,name=managers" json:"managers,omitempty"`
+	Managers []*WeightedPeer `protobuf:"bytes,3,rep,name=managers,proto3" json:"managers,omitempty"`
 	// Symmetric encryption key distributed by the lead manager. Used by agents
 	// for securing network bootstrapping and communication.
-	NetworkBootstrapKeys []*EncryptionKey `protobuf:"bytes,4,rep,name=network_bootstrap_keys,json=networkBootstrapKeys" json:"network_bootstrap_keys,omitempty"`
+	NetworkBootstrapKeys []*EncryptionKey `protobuf:"bytes,4,rep,name=network_bootstrap_keys,json=networkBootstrapKeys,proto3" json:"network_bootstrap_keys,omitempty"`
 	// Which root certificates to trust
 	RootCA []byte `protobuf:"bytes,5,opt,name=RootCA,proto3" json:"RootCA,omitempty"`
 }
 
-func (m *SessionMessage) Reset()                    { *m = SessionMessage{} }
-func (*SessionMessage) ProtoMessage()               {}
-func (*SessionMessage) Descriptor() ([]byte, []int) { return fileDescriptorDispatcher, []int{1} }
+func (m *SessionMessage) Reset()      { *m = SessionMessage{} }
+func (*SessionMessage) ProtoMessage() {}
+func (*SessionMessage) Descriptor() ([]byte, []int) {
+	return fileDescriptor_71002346457e55a8, []int{1}
+}
+func (m *SessionMessage) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SessionMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_SessionMessage.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *SessionMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SessionMessage.Merge(m, src)
+}
+func (m *SessionMessage) XXX_Size() int {
+	return m.Size()
+}
+func (m *SessionMessage) XXX_DiscardUnknown() {
+	xxx_messageInfo_SessionMessage.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SessionMessage proto.InternalMessageInfo
 
 // HeartbeatRequest provides identifying properties for a single heartbeat.
 type HeartbeatRequest struct {
 	SessionID string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 }
 
-func (m *HeartbeatRequest) Reset()                    { *m = HeartbeatRequest{} }
-func (*HeartbeatRequest) ProtoMessage()               {}
-func (*HeartbeatRequest) Descriptor() ([]byte, []int) { return fileDescriptorDispatcher, []int{2} }
+func (m *HeartbeatRequest) Reset()      { *m = HeartbeatRequest{} }
+func (*HeartbeatRequest) ProtoMessage() {}
+func (*HeartbeatRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_71002346457e55a8, []int{2}
+}
+func (m *HeartbeatRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *HeartbeatRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_HeartbeatRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *HeartbeatRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HeartbeatRequest.Merge(m, src)
+}
+func (m *HeartbeatRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *HeartbeatRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_HeartbeatRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_HeartbeatRequest proto.InternalMessageInfo
 
 type HeartbeatResponse struct {
 	// Period is the duration to wait before sending the next heartbeat.
 	// Well-behaved agents should update this on every heartbeat round trip.
-	Period time.Duration `protobuf:"bytes,1,opt,name=period,stdduration" json:"period"`
+	Period time.Duration `protobuf:"bytes,1,opt,name=period,proto3,stdduration" json:"period"`
 }
 
-func (m *HeartbeatResponse) Reset()                    { *m = HeartbeatResponse{} }
-func (*HeartbeatResponse) ProtoMessage()               {}
-func (*HeartbeatResponse) Descriptor() ([]byte, []int) { return fileDescriptorDispatcher, []int{3} }
+func (m *HeartbeatResponse) Reset()      { *m = HeartbeatResponse{} }
+func (*HeartbeatResponse) ProtoMessage() {}
+func (*HeartbeatResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_71002346457e55a8, []int{3}
+}
+func (m *HeartbeatResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *HeartbeatResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_HeartbeatResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *HeartbeatResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HeartbeatResponse.Merge(m, src)
+}
+func (m *HeartbeatResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *HeartbeatResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_HeartbeatResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_HeartbeatResponse proto.InternalMessageInfo
 
 type UpdateTaskStatusRequest struct {
 	// Tasks should contain all statuses for running tasks. Only the status
 	// field must be set. The spec is not required.
 	SessionID string                                      `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	Updates   []*UpdateTaskStatusRequest_TaskStatusUpdate `protobuf:"bytes,3,rep,name=updates" json:"updates,omitempty"`
+	Updates   []*UpdateTaskStatusRequest_TaskStatusUpdate `protobuf:"bytes,3,rep,name=updates,proto3" json:"updates,omitempty"`
 }
 
 func (m *UpdateTaskStatusRequest) Reset()      { *m = UpdateTaskStatusRequest{} }
 func (*UpdateTaskStatusRequest) ProtoMessage() {}
 func (*UpdateTaskStatusRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptorDispatcher, []int{4}
+	return fileDescriptor_71002346457e55a8, []int{4}
 }
+func (m *UpdateTaskStatusRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *UpdateTaskStatusRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_UpdateTaskStatusRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *UpdateTaskStatusRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UpdateTaskStatusRequest.Merge(m, src)
+}
+func (m *UpdateTaskStatusRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *UpdateTaskStatusRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UpdateTaskStatusRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UpdateTaskStatusRequest proto.InternalMessageInfo
 
 type UpdateTaskStatusRequest_TaskStatusUpdate struct {
 	TaskID string      `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	Status *TaskStatus `protobuf:"bytes,2,opt,name=status" json:"status,omitempty"`
+	Status *TaskStatus `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 }
 
 func (m *UpdateTaskStatusRequest_TaskStatusUpdate) Reset() {
@@ -203,8 +346,34 @@ func (m *UpdateTaskStatusRequest_TaskStatusUpdate) Reset() {
 }
 func (*UpdateTaskStatusRequest_TaskStatusUpdate) ProtoMessage() {}
 func (*UpdateTaskStatusRequest_TaskStatusUpdate) Descriptor() ([]byte, []int) {
-	return fileDescriptorDispatcher, []int{4, 0}
+	return fileDescriptor_71002346457e55a8, []int{4, 0}
 }
+func (m *UpdateTaskStatusRequest_TaskStatusUpdate) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *UpdateTaskStatusRequest_TaskStatusUpdate) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_UpdateTaskStatusRequest_TaskStatusUpdate.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *UpdateTaskStatusRequest_TaskStatusUpdate) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UpdateTaskStatusRequest_TaskStatusUpdate.Merge(m, src)
+}
+func (m *UpdateTaskStatusRequest_TaskStatusUpdate) XXX_Size() int {
+	return m.Size()
+}
+func (m *UpdateTaskStatusRequest_TaskStatusUpdate) XXX_DiscardUnknown() {
+	xxx_messageInfo_UpdateTaskStatusRequest_TaskStatusUpdate.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UpdateTaskStatusRequest_TaskStatusUpdate proto.InternalMessageInfo
 
 type UpdateTaskStatusResponse struct {
 }
@@ -212,34 +381,144 @@ type UpdateTaskStatusResponse struct {
 func (m *UpdateTaskStatusResponse) Reset()      { *m = UpdateTaskStatusResponse{} }
 func (*UpdateTaskStatusResponse) ProtoMessage() {}
 func (*UpdateTaskStatusResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptorDispatcher, []int{5}
+	return fileDescriptor_71002346457e55a8, []int{5}
 }
+func (m *UpdateTaskStatusResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *UpdateTaskStatusResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_UpdateTaskStatusResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *UpdateTaskStatusResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UpdateTaskStatusResponse.Merge(m, src)
+}
+func (m *UpdateTaskStatusResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *UpdateTaskStatusResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UpdateTaskStatusResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UpdateTaskStatusResponse proto.InternalMessageInfo
 
 type TasksRequest struct {
 	SessionID string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 }
 
-func (m *TasksRequest) Reset()                    { *m = TasksRequest{} }
-func (*TasksRequest) ProtoMessage()               {}
-func (*TasksRequest) Descriptor() ([]byte, []int) { return fileDescriptorDispatcher, []int{6} }
+func (m *TasksRequest) Reset()      { *m = TasksRequest{} }
+func (*TasksRequest) ProtoMessage() {}
+func (*TasksRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_71002346457e55a8, []int{6}
+}
+func (m *TasksRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TasksRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_TasksRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *TasksRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TasksRequest.Merge(m, src)
+}
+func (m *TasksRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *TasksRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_TasksRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TasksRequest proto.InternalMessageInfo
 
 type TasksMessage struct {
 	// Tasks is the set of tasks that should be running on the node.
 	// Tasks outside of this set running on the node should be terminated.
-	Tasks []*Task `protobuf:"bytes,1,rep,name=tasks" json:"tasks,omitempty"`
+	Tasks []*Task `protobuf:"bytes,1,rep,name=tasks,proto3" json:"tasks,omitempty"`
 }
 
-func (m *TasksMessage) Reset()                    { *m = TasksMessage{} }
-func (*TasksMessage) ProtoMessage()               {}
-func (*TasksMessage) Descriptor() ([]byte, []int) { return fileDescriptorDispatcher, []int{7} }
+func (m *TasksMessage) Reset()      { *m = TasksMessage{} }
+func (*TasksMessage) ProtoMessage() {}
+func (*TasksMessage) Descriptor() ([]byte, []int) {
+	return fileDescriptor_71002346457e55a8, []int{7}
+}
+func (m *TasksMessage) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TasksMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_TasksMessage.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *TasksMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TasksMessage.Merge(m, src)
+}
+func (m *TasksMessage) XXX_Size() int {
+	return m.Size()
+}
+func (m *TasksMessage) XXX_DiscardUnknown() {
+	xxx_messageInfo_TasksMessage.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TasksMessage proto.InternalMessageInfo
 
 type AssignmentsRequest struct {
 	SessionID string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 }
 
-func (m *AssignmentsRequest) Reset()                    { *m = AssignmentsRequest{} }
-func (*AssignmentsRequest) ProtoMessage()               {}
-func (*AssignmentsRequest) Descriptor() ([]byte, []int) { return fileDescriptorDispatcher, []int{8} }
+func (m *AssignmentsRequest) Reset()      { *m = AssignmentsRequest{} }
+func (*AssignmentsRequest) ProtoMessage() {}
+func (*AssignmentsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_71002346457e55a8, []int{8}
+}
+func (m *AssignmentsRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AssignmentsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AssignmentsRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AssignmentsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AssignmentsRequest.Merge(m, src)
+}
+func (m *AssignmentsRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *AssignmentsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_AssignmentsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AssignmentsRequest proto.InternalMessageInfo
 
 type Assignment struct {
 	// Types that are valid to be assigned to Item:
@@ -249,9 +528,37 @@ type Assignment struct {
 	Item isAssignment_Item `protobuf_oneof:"item"`
 }
 
-func (m *Assignment) Reset()                    { *m = Assignment{} }
-func (*Assignment) ProtoMessage()               {}
-func (*Assignment) Descriptor() ([]byte, []int) { return fileDescriptorDispatcher, []int{9} }
+func (m *Assignment) Reset()      { *m = Assignment{} }
+func (*Assignment) ProtoMessage() {}
+func (*Assignment) Descriptor() ([]byte, []int) {
+	return fileDescriptor_71002346457e55a8, []int{9}
+}
+func (m *Assignment) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Assignment) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Assignment.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Assignment) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Assignment.Merge(m, src)
+}
+func (m *Assignment) XXX_Size() int {
+	return m.Size()
+}
+func (m *Assignment) XXX_DiscardUnknown() {
+	xxx_messageInfo_Assignment.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Assignment proto.InternalMessageInfo
 
 type isAssignment_Item interface {
 	isAssignment_Item()
@@ -260,13 +567,13 @@ type isAssignment_Item interface {
 }
 
 type Assignment_Task struct {
-	Task *Task `protobuf:"bytes,1,opt,name=task,oneof"`
+	Task *Task `protobuf:"bytes,1,opt,name=task,proto3,oneof"`
 }
 type Assignment_Secret struct {
-	Secret *Secret `protobuf:"bytes,2,opt,name=secret,oneof"`
+	Secret *Secret `protobuf:"bytes,2,opt,name=secret,proto3,oneof"`
 }
 type Assignment_Config struct {
-	Config *Config `protobuf:"bytes,3,opt,name=config,oneof"`
+	Config *Config `protobuf:"bytes,3,opt,name=config,proto3,oneof"`
 }
 
 func (*Assignment_Task) isAssignment_Item()   {}
@@ -374,17 +681,17 @@ func _Assignment_OneofSizer(msg proto.Message) (n int) {
 	switch x := m.Item.(type) {
 	case *Assignment_Task:
 		s := proto.Size(x.Task)
-		n += proto.SizeVarint(1<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *Assignment_Secret:
 		s := proto.Size(x.Secret)
-		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *Assignment_Config:
 		s := proto.Size(x.Config)
-		n += proto.SizeVarint(3<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case nil:
@@ -395,13 +702,41 @@ func _Assignment_OneofSizer(msg proto.Message) (n int) {
 }
 
 type AssignmentChange struct {
-	Assignment *Assignment                       `protobuf:"bytes,1,opt,name=assignment" json:"assignment,omitempty"`
+	Assignment *Assignment                       `protobuf:"bytes,1,opt,name=assignment,proto3" json:"assignment,omitempty"`
 	Action     AssignmentChange_AssignmentAction `protobuf:"varint,2,opt,name=action,proto3,enum=docker.swarmkit.v1.AssignmentChange_AssignmentAction" json:"action,omitempty"`
 }
 
-func (m *AssignmentChange) Reset()                    { *m = AssignmentChange{} }
-func (*AssignmentChange) ProtoMessage()               {}
-func (*AssignmentChange) Descriptor() ([]byte, []int) { return fileDescriptorDispatcher, []int{10} }
+func (m *AssignmentChange) Reset()      { *m = AssignmentChange{} }
+func (*AssignmentChange) ProtoMessage() {}
+func (*AssignmentChange) Descriptor() ([]byte, []int) {
+	return fileDescriptor_71002346457e55a8, []int{10}
+}
+func (m *AssignmentChange) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AssignmentChange) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AssignmentChange.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AssignmentChange) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AssignmentChange.Merge(m, src)
+}
+func (m *AssignmentChange) XXX_Size() int {
+	return m.Size()
+}
+func (m *AssignmentChange) XXX_DiscardUnknown() {
+	xxx_messageInfo_AssignmentChange.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AssignmentChange proto.InternalMessageInfo
 
 type AssignmentsMessage struct {
 	Type AssignmentsMessage_Type `protobuf:"varint,1,opt,name=type,proto3,enum=docker.swarmkit.v1.AssignmentsMessage_Type" json:"type,omitempty"`
@@ -416,14 +751,44 @@ type AssignmentsMessage struct {
 	// against missed messages.
 	ResultsIn string `protobuf:"bytes,3,opt,name=results_in,json=resultsIn,proto3" json:"results_in,omitempty"`
 	// AssignmentChange is a set of changes to apply on this node.
-	Changes []*AssignmentChange `protobuf:"bytes,4,rep,name=changes" json:"changes,omitempty"`
+	Changes []*AssignmentChange `protobuf:"bytes,4,rep,name=changes,proto3" json:"changes,omitempty"`
 }
 
-func (m *AssignmentsMessage) Reset()                    { *m = AssignmentsMessage{} }
-func (*AssignmentsMessage) ProtoMessage()               {}
-func (*AssignmentsMessage) Descriptor() ([]byte, []int) { return fileDescriptorDispatcher, []int{11} }
+func (m *AssignmentsMessage) Reset()      { *m = AssignmentsMessage{} }
+func (*AssignmentsMessage) ProtoMessage() {}
+func (*AssignmentsMessage) Descriptor() ([]byte, []int) {
+	return fileDescriptor_71002346457e55a8, []int{11}
+}
+func (m *AssignmentsMessage) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AssignmentsMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AssignmentsMessage.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AssignmentsMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AssignmentsMessage.Merge(m, src)
+}
+func (m *AssignmentsMessage) XXX_Size() int {
+	return m.Size()
+}
+func (m *AssignmentsMessage) XXX_DiscardUnknown() {
+	xxx_messageInfo_AssignmentsMessage.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AssignmentsMessage proto.InternalMessageInfo
 
 func init() {
+	proto.RegisterEnum("docker.swarmkit.v1.AssignmentChange_AssignmentAction", AssignmentChange_AssignmentAction_name, AssignmentChange_AssignmentAction_value)
+	proto.RegisterEnum("docker.swarmkit.v1.AssignmentsMessage_Type", AssignmentsMessage_Type_name, AssignmentsMessage_Type_value)
 	proto.RegisterType((*SessionRequest)(nil), "docker.swarmkit.v1.SessionRequest")
 	proto.RegisterType((*SessionMessage)(nil), "docker.swarmkit.v1.SessionMessage")
 	proto.RegisterType((*HeartbeatRequest)(nil), "docker.swarmkit.v1.HeartbeatRequest")
@@ -437,8 +802,78 @@ func init() {
 	proto.RegisterType((*Assignment)(nil), "docker.swarmkit.v1.Assignment")
 	proto.RegisterType((*AssignmentChange)(nil), "docker.swarmkit.v1.AssignmentChange")
 	proto.RegisterType((*AssignmentsMessage)(nil), "docker.swarmkit.v1.AssignmentsMessage")
-	proto.RegisterEnum("docker.swarmkit.v1.AssignmentChange_AssignmentAction", AssignmentChange_AssignmentAction_name, AssignmentChange_AssignmentAction_value)
-	proto.RegisterEnum("docker.swarmkit.v1.AssignmentsMessage_Type", AssignmentsMessage_Type_name, AssignmentsMessage_Type_value)
+}
+
+func init() {
+	proto.RegisterFile("github.com/docker/swarmkit/api/dispatcher.proto", fileDescriptor_71002346457e55a8)
+}
+
+var fileDescriptor_71002346457e55a8 = []byte{
+	// 1019 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x55, 0xcf, 0x4f, 0x1b, 0x47,
+	0x18, 0xf5, 0x18, 0xb3, 0xe0, 0xcf, 0x84, 0xba, 0xa3, 0x88, 0xba, 0x96, 0xb2, 0xb8, 0x4b, 0x82,
+	0x50, 0x43, 0xd7, 0xa9, 0xfb, 0xeb, 0x50, 0x44, 0x8b, 0xb1, 0x25, 0xac, 0x04, 0x82, 0x06, 0x92,
+	0x1c, 0xd1, 0x7a, 0x77, 0xb2, 0x6c, 0x8d, 0x77, 0xb6, 0x3b, 0xe3, 0xa4, 0x3e, 0x54, 0xea, 0xa1,
+	0x91, 0xaa, 0x9e, 0xa2, 0x9e, 0x90, 0xaa, 0xfe, 0x0b, 0x55, 0xff, 0x0c, 0xd4, 0x53, 0x8e, 0x39,
+	0xd1, 0xc6, 0xdc, 0xfb, 0x07, 0xf4, 0x54, 0xed, 0xec, 0xac, 0xed, 0x12, 0x1b, 0x0c, 0x27, 0x7b,
+	0x67, 0xde, 0x7b, 0xf3, 0xf6, 0x7d, 0xdf, 0x7e, 0x03, 0x65, 0xd7, 0x13, 0x87, 0x9d, 0xa6, 0x69,
+	0xb3, 0x76, 0xd9, 0x61, 0x76, 0x8b, 0x86, 0x65, 0xfe, 0xdc, 0x0a, 0xdb, 0x2d, 0x4f, 0x94, 0xad,
+	0xc0, 0x2b, 0x3b, 0x1e, 0x0f, 0x2c, 0x61, 0x1f, 0xd2, 0xd0, 0x0c, 0x42, 0x26, 0x18, 0xc6, 0x31,
+	0xca, 0x4c, 0x50, 0xe6, 0xb3, 0x8f, 0x8b, 0x1f, 0x5e, 0x22, 0x22, 0xba, 0x01, 0xe5, 0x31, 0xbf,
+	0xb8, 0x7a, 0x09, 0x96, 0x35, 0xbf, 0xa1, 0xb6, 0x48, 0xd0, 0x37, 0x5d, 0xe6, 0x32, 0xf9, 0xb7,
+	0x1c, 0xfd, 0x53, 0xab, 0x5f, 0x5c, 0xa0, 0x21, 0x11, 0xcd, 0xce, 0xd3, 0x72, 0x70, 0xd4, 0x71,
+	0x3d, 0x5f, 0xfd, 0x28, 0xa2, 0xee, 0x32, 0xe6, 0x1e, 0xd1, 0x01, 0xc8, 0xe9, 0x84, 0x96, 0xf0,
+	0x98, 0xda, 0x37, 0x5e, 0x20, 0x98, 0xdf, 0xa3, 0x9c, 0x7b, 0xcc, 0x27, 0xf4, 0xdb, 0x0e, 0xe5,
+	0x02, 0xd7, 0x21, 0xe7, 0x50, 0x6e, 0x87, 0x5e, 0x10, 0xe1, 0x0a, 0xa8, 0x84, 0x56, 0x72, 0x95,
+	0x25, 0xf3, 0xed, 0x14, 0xcc, 0x1d, 0xe6, 0xd0, 0xda, 0x00, 0x4a, 0x86, 0x79, 0x78, 0x15, 0x80,
+	0xc7, 0xc2, 0x07, 0x9e, 0x53, 0x48, 0x97, 0xd0, 0x4a, 0xb6, 0x7a, 0xa3, 0x77, 0xba, 0x98, 0x55,
+	0xc7, 0x35, 0x6a, 0x24, 0xab, 0x00, 0x0d, 0xc7, 0xf8, 0x35, 0xdd, 0xf7, 0xb1, 0x4d, 0x39, 0xb7,
+	0x5c, 0x7a, 0x4e, 0x00, 0x5d, 0x2c, 0x80, 0x57, 0x21, 0xe3, 0x33, 0x87, 0xca, 0x83, 0x72, 0x95,
+	0xc2, 0x38, 0xbb, 0x44, 0xa2, 0xf0, 0x1a, 0xcc, 0xb6, 0x2d, 0xdf, 0x72, 0x69, 0xc8, 0x0b, 0x53,
+	0xa5, 0xa9, 0x95, 0x5c, 0xa5, 0x34, 0x8a, 0xf1, 0x84, 0x7a, 0xee, 0xa1, 0xa0, 0xce, 0x2e, 0xa5,
+	0x21, 0xe9, 0x33, 0xf0, 0x13, 0x58, 0xf0, 0xa9, 0x78, 0xce, 0xc2, 0xd6, 0x41, 0x93, 0x31, 0xc1,
+	0x45, 0x68, 0x05, 0x07, 0x2d, 0xda, 0xe5, 0x85, 0x8c, 0xd4, 0xfa, 0x60, 0x94, 0x56, 0xdd, 0xb7,
+	0xc3, 0xae, 0x8c, 0xe6, 0x3e, 0xed, 0x92, 0x9b, 0x4a, 0xa0, 0x9a, 0xf0, 0xef, 0xd3, 0x2e, 0xc7,
+	0x0b, 0xa0, 0x11, 0xc6, 0xc4, 0xe6, 0x46, 0x61, 0xba, 0x84, 0x56, 0xe6, 0x88, 0x7a, 0x32, 0xbe,
+	0x86, 0xfc, 0x16, 0xb5, 0x42, 0xd1, 0xa4, 0x96, 0x48, 0xca, 0x74, 0xa5, 0x78, 0x8c, 0x5d, 0x78,
+	0x77, 0x48, 0x81, 0x07, 0xcc, 0xe7, 0x14, 0x7f, 0x09, 0x5a, 0x40, 0x43, 0x8f, 0x39, 0xaa, 0xc8,
+	0xef, 0x9b, 0x71, 0xb7, 0x98, 0x49, 0xb7, 0x98, 0x35, 0xd5, 0x2d, 0xd5, 0xd9, 0x93, 0xd3, 0xc5,
+	0xd4, 0xf1, 0x5f, 0x8b, 0x88, 0x28, 0x8a, 0xf1, 0x32, 0x0d, 0xef, 0x3d, 0x0a, 0x1c, 0x4b, 0xd0,
+	0x7d, 0x8b, 0xb7, 0xf6, 0x84, 0x25, 0x3a, 0xfc, 0x5a, 0xde, 0xf0, 0x63, 0x98, 0xe9, 0x48, 0xa1,
+	0xa4, 0x16, 0x6b, 0xa3, 0xf2, 0x1b, 0x73, 0x96, 0x39, 0x58, 0x89, 0x11, 0x24, 0x11, 0x2b, 0x32,
+	0xc8, 0x9f, 0xdf, 0xc4, 0x4b, 0x30, 0x23, 0x2c, 0xde, 0x1a, 0xd8, 0x82, 0xde, 0xe9, 0xa2, 0x16,
+	0xc1, 0x1a, 0x35, 0xa2, 0x45, 0x5b, 0x0d, 0x07, 0x7f, 0x0e, 0x1a, 0x97, 0x24, 0xd5, 0x4d, 0xfa,
+	0x28, 0x3f, 0x43, 0x4e, 0x14, 0xda, 0x28, 0x42, 0xe1, 0x6d, 0x97, 0x71, 0xd6, 0xc6, 0x1a, 0xcc,
+	0x45, 0xab, 0xd7, 0x8b, 0xc8, 0x58, 0x57, 0xec, 0xe4, 0xdb, 0x30, 0x61, 0x3a, 0xf2, 0xca, 0x0b,
+	0x48, 0x06, 0x56, 0x18, 0x67, 0x90, 0xc4, 0x30, 0xa3, 0x0a, 0x78, 0x83, 0x73, 0xcf, 0xf5, 0xdb,
+	0xd4, 0x17, 0xd7, 0xf4, 0xf0, 0x07, 0x02, 0x18, 0x88, 0x60, 0x13, 0x32, 0x91, 0xb6, 0x6a, 0x9d,
+	0xb1, 0x0e, 0xb6, 0x52, 0x44, 0xe2, 0xf0, 0xa7, 0xa0, 0x71, 0x6a, 0x87, 0x54, 0xa8, 0x50, 0x8b,
+	0xa3, 0x18, 0x7b, 0x12, 0xb1, 0x95, 0x22, 0x0a, 0x1b, 0xb1, 0x6c, 0xe6, 0x3f, 0xf5, 0xdc, 0xc2,
+	0xd4, 0x78, 0xd6, 0xa6, 0x44, 0x44, 0xac, 0x18, 0x5b, 0xd5, 0x20, 0xe3, 0x09, 0xda, 0x36, 0x5e,
+	0xa4, 0x21, 0x3f, 0xb0, 0xbc, 0x79, 0x68, 0xf9, 0x2e, 0xc5, 0xeb, 0x00, 0x56, 0x7f, 0x4d, 0xd9,
+	0x1f, 0x59, 0xe1, 0x01, 0x93, 0x0c, 0x31, 0xf0, 0x36, 0x68, 0x96, 0x2d, 0x47, 0x63, 0xf4, 0x22,
+	0xf3, 0x95, 0xcf, 0x2e, 0xe6, 0xc6, 0xa7, 0x0e, 0x2d, 0x6c, 0x48, 0x32, 0x51, 0x22, 0x46, 0x73,
+	0xd8, 0x62, 0xbc, 0x87, 0x97, 0x41, 0x7b, 0xb4, 0x5b, 0xdb, 0xd8, 0xaf, 0xe7, 0x53, 0xc5, 0xe2,
+	0xcf, 0xbf, 0x95, 0x16, 0xce, 0x23, 0x54, 0x37, 0x2f, 0x83, 0x46, 0xea, 0xdb, 0x0f, 0x1f, 0xd7,
+	0xf3, 0x68, 0x34, 0x8e, 0xd0, 0x36, 0x7b, 0x46, 0x8d, 0x7f, 0xd1, 0xff, 0xea, 0x9f, 0x74, 0xd1,
+	0x57, 0x90, 0x89, 0x2e, 0x2a, 0x99, 0xc1, 0x7c, 0xe5, 0xee, 0xc5, 0xef, 0x91, 0xb0, 0xcc, 0xfd,
+	0x6e, 0x40, 0x89, 0x24, 0xe2, 0x5b, 0x00, 0x56, 0x10, 0x1c, 0x79, 0x94, 0x1f, 0x08, 0x16, 0xcf,
+	0x78, 0x92, 0x55, 0x2b, 0xfb, 0x2c, 0xda, 0x0e, 0x29, 0xef, 0x1c, 0x09, 0x7e, 0xe0, 0xf9, 0xb2,
+	0x80, 0x59, 0x92, 0x55, 0x2b, 0x0d, 0x1f, 0xaf, 0xc3, 0x8c, 0x2d, 0xc3, 0x49, 0xe6, 0xe6, 0xed,
+	0x49, 0x92, 0x24, 0x09, 0xc9, 0xb8, 0x03, 0x99, 0xc8, 0x0b, 0x9e, 0x83, 0xd9, 0xcd, 0x87, 0xdb,
+	0xbb, 0x0f, 0xea, 0x51, 0x5e, 0xf8, 0x1d, 0xc8, 0x35, 0x76, 0x36, 0x49, 0x7d, 0xbb, 0xbe, 0xb3,
+	0xbf, 0xf1, 0x20, 0x8f, 0x2a, 0xc7, 0xd3, 0x00, 0xb5, 0xfe, 0xa5, 0x8e, 0xbf, 0x83, 0x19, 0xd5,
+	0xde, 0xd8, 0x18, 0xdd, 0x82, 0xc3, 0xb7, 0x61, 0xf1, 0x22, 0x8c, 0x4a, 0xc4, 0x58, 0xfa, 0xf3,
+	0xf7, 0x7f, 0x8e, 0xd3, 0xb7, 0x60, 0x4e, 0x62, 0x3e, 0x8a, 0xe6, 0x3a, 0x0d, 0xe1, 0x46, 0xfc,
+	0xa4, 0x6e, 0x8d, 0x7b, 0x08, 0x7f, 0x0f, 0xd9, 0xfe, 0x0c, 0xc6, 0x23, 0xdf, 0xf5, 0xfc, 0x90,
+	0x2f, 0xde, 0xb9, 0x04, 0xa5, 0x86, 0xcb, 0x24, 0x06, 0xf0, 0x2f, 0x08, 0xf2, 0xe7, 0xc7, 0x13,
+	0xbe, 0x7b, 0x85, 0x51, 0x5b, 0x5c, 0x9d, 0x0c, 0x7c, 0x15, 0x53, 0x1d, 0x98, 0x96, 0x83, 0x0d,
+	0x97, 0xc6, 0x0d, 0x90, 0xfe, 0xe9, 0xe3, 0x11, 0x49, 0x1d, 0x96, 0x27, 0x38, 0xf1, 0xa7, 0x34,
+	0xba, 0x87, 0xf0, 0x8f, 0x08, 0x72, 0x43, 0xad, 0x8d, 0x97, 0x2f, 0xe9, 0xfd, 0xc4, 0xc3, 0xf2,
+	0x64, 0xdf, 0xc8, 0x84, 0x1d, 0x51, 0xbd, 0x7d, 0xf2, 0x46, 0x4f, 0xbd, 0x7e, 0xa3, 0xa7, 0x7e,
+	0xe8, 0xe9, 0xe8, 0xa4, 0xa7, 0xa3, 0x57, 0x3d, 0x1d, 0xfd, 0xdd, 0xd3, 0xd1, 0xcb, 0x33, 0x3d,
+	0xf5, 0xea, 0x4c, 0x4f, 0xbd, 0x3e, 0xd3, 0x53, 0x4d, 0x4d, 0x5e, 0xc7, 0x9f, 0xfc, 0x17, 0x00,
+	0x00, 0xff, 0xff, 0xa9, 0xc4, 0x36, 0xaa, 0xba, 0x0a, 0x00, 0x00,
 }
 
 type authenticatedWrapperDispatcherServer struct {
@@ -508,7 +943,7 @@ func (m *SessionRequest) CopyFrom(src interface{}) {
 	*m = *o
 	if o.Description != nil {
 		m.Description = &NodeDescription{}
-		deepcopy.Copy(m.Description, o.Description)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Description, o.Description)
 	}
 }
 
@@ -527,13 +962,13 @@ func (m *SessionMessage) CopyFrom(src interface{}) {
 	*m = *o
 	if o.Node != nil {
 		m.Node = &Node{}
-		deepcopy.Copy(m.Node, o.Node)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Node, o.Node)
 	}
 	if o.Managers != nil {
 		m.Managers = make([]*WeightedPeer, len(o.Managers))
 		for i := range m.Managers {
 			m.Managers[i] = &WeightedPeer{}
-			deepcopy.Copy(m.Managers[i], o.Managers[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Managers[i], o.Managers[i])
 		}
 	}
 
@@ -541,7 +976,7 @@ func (m *SessionMessage) CopyFrom(src interface{}) {
 		m.NetworkBootstrapKeys = make([]*EncryptionKey, len(o.NetworkBootstrapKeys))
 		for i := range m.NetworkBootstrapKeys {
 			m.NetworkBootstrapKeys[i] = &EncryptionKey{}
-			deepcopy.Copy(m.NetworkBootstrapKeys[i], o.NetworkBootstrapKeys[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.NetworkBootstrapKeys[i], o.NetworkBootstrapKeys[i])
 		}
 	}
 
@@ -579,7 +1014,7 @@ func (m *HeartbeatResponse) CopyFrom(src interface{}) {
 
 	o := src.(*HeartbeatResponse)
 	*m = *o
-	deepcopy.Copy(&m.Period, &o.Period)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Period, &o.Period)
 }
 
 func (m *UpdateTaskStatusRequest) Copy() *UpdateTaskStatusRequest {
@@ -599,7 +1034,7 @@ func (m *UpdateTaskStatusRequest) CopyFrom(src interface{}) {
 		m.Updates = make([]*UpdateTaskStatusRequest_TaskStatusUpdate, len(o.Updates))
 		for i := range m.Updates {
 			m.Updates[i] = &UpdateTaskStatusRequest_TaskStatusUpdate{}
-			deepcopy.Copy(m.Updates[i], o.Updates[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Updates[i], o.Updates[i])
 		}
 	}
 
@@ -620,7 +1055,7 @@ func (m *UpdateTaskStatusRequest_TaskStatusUpdate) CopyFrom(src interface{}) {
 	*m = *o
 	if o.Status != nil {
 		m.Status = &TaskStatus{}
-		deepcopy.Copy(m.Status, o.Status)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Status, o.Status)
 	}
 }
 
@@ -666,7 +1101,7 @@ func (m *TasksMessage) CopyFrom(src interface{}) {
 		m.Tasks = make([]*Task, len(o.Tasks))
 		for i := range m.Tasks {
 			m.Tasks[i] = &Task{}
-			deepcopy.Copy(m.Tasks[i], o.Tasks[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Tasks[i], o.Tasks[i])
 		}
 	}
 
@@ -706,19 +1141,19 @@ func (m *Assignment) CopyFrom(src interface{}) {
 			v := Assignment_Task{
 				Task: &Task{},
 			}
-			deepcopy.Copy(v.Task, o.GetTask())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Task, o.GetTask())
 			m.Item = &v
 		case *Assignment_Secret:
 			v := Assignment_Secret{
 				Secret: &Secret{},
 			}
-			deepcopy.Copy(v.Secret, o.GetSecret())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Secret, o.GetSecret())
 			m.Item = &v
 		case *Assignment_Config:
 			v := Assignment_Config{
 				Config: &Config{},
 			}
-			deepcopy.Copy(v.Config, o.GetConfig())
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Config, o.GetConfig())
 			m.Item = &v
 		}
 	}
@@ -740,7 +1175,7 @@ func (m *AssignmentChange) CopyFrom(src interface{}) {
 	*m = *o
 	if o.Assignment != nil {
 		m.Assignment = &Assignment{}
-		deepcopy.Copy(m.Assignment, o.Assignment)
+		github_com_docker_swarmkit_api_deepcopy.Copy(m.Assignment, o.Assignment)
 	}
 }
 
@@ -761,7 +1196,7 @@ func (m *AssignmentsMessage) CopyFrom(src interface{}) {
 		m.Changes = make([]*AssignmentChange, len(o.Changes))
 		for i := range m.Changes {
 			m.Changes[i] = &AssignmentChange{}
-			deepcopy.Copy(m.Changes[i], o.Changes[i])
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Changes[i], o.Changes[i])
 		}
 	}
 
@@ -775,8 +1210,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for Dispatcher service
-
+// DispatcherClient is the client API for Dispatcher service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type DispatcherClient interface {
 	// Session starts an agent session with the dispatcher. The session is
 	// started after the first SessionMessage is received.
@@ -818,7 +1254,7 @@ func NewDispatcherClient(cc *grpc.ClientConn) DispatcherClient {
 }
 
 func (c *dispatcherClient) Session(ctx context.Context, in *SessionRequest, opts ...grpc.CallOption) (Dispatcher_SessionClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_Dispatcher_serviceDesc.Streams[0], c.cc, "/docker.swarmkit.v1.Dispatcher/Session", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Dispatcher_serviceDesc.Streams[0], "/docker.swarmkit.v1.Dispatcher/Session", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -851,7 +1287,7 @@ func (x *dispatcherSessionClient) Recv() (*SessionMessage, error) {
 
 func (c *dispatcherClient) Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error) {
 	out := new(HeartbeatResponse)
-	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.Dispatcher/Heartbeat", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/docker.swarmkit.v1.Dispatcher/Heartbeat", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -860,15 +1296,16 @@ func (c *dispatcherClient) Heartbeat(ctx context.Context, in *HeartbeatRequest, 
 
 func (c *dispatcherClient) UpdateTaskStatus(ctx context.Context, in *UpdateTaskStatusRequest, opts ...grpc.CallOption) (*UpdateTaskStatusResponse, error) {
 	out := new(UpdateTaskStatusResponse)
-	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.Dispatcher/UpdateTaskStatus", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/docker.swarmkit.v1.Dispatcher/UpdateTaskStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
+// Deprecated: Do not use.
 func (c *dispatcherClient) Tasks(ctx context.Context, in *TasksRequest, opts ...grpc.CallOption) (Dispatcher_TasksClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_Dispatcher_serviceDesc.Streams[1], c.cc, "/docker.swarmkit.v1.Dispatcher/Tasks", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Dispatcher_serviceDesc.Streams[1], "/docker.swarmkit.v1.Dispatcher/Tasks", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -900,7 +1337,7 @@ func (x *dispatcherTasksClient) Recv() (*TasksMessage, error) {
 }
 
 func (c *dispatcherClient) Assignments(ctx context.Context, in *AssignmentsRequest, opts ...grpc.CallOption) (Dispatcher_AssignmentsClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_Dispatcher_serviceDesc.Streams[2], c.cc, "/docker.swarmkit.v1.Dispatcher/Assignments", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Dispatcher_serviceDesc.Streams[2], "/docker.swarmkit.v1.Dispatcher/Assignments", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -931,8 +1368,7 @@ func (x *dispatcherAssignmentsClient) Recv() (*AssignmentsMessage, error) {
 	return m, nil
 }
 
-// Server API for Dispatcher service
-
+// DispatcherServer is the server API for Dispatcher service.
 type DispatcherServer interface {
 	// Session starts an agent session with the dispatcher. The session is
 	// started after the first SessionMessage is received.
@@ -1240,8 +1676,8 @@ func (m *HeartbeatResponse) MarshalTo(dAtA []byte) (int, error) {
 	_ = l
 	dAtA[i] = 0xa
 	i++
-	i = encodeVarintDispatcher(dAtA, i, uint64(types.SizeOfStdDuration(m.Period)))
-	n3, err := types.StdDurationMarshalTo(m.Period, dAtA[i:])
+	i = encodeVarintDispatcher(dAtA, i, uint64(github_com_gogo_protobuf_types.SizeOfStdDuration(m.Period)))
+	n3, err := github_com_gogo_protobuf_types.StdDurationMarshalTo(m.Period, dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
@@ -1868,6 +2304,9 @@ func (p *raftProxyDispatcherServer) Assignments(r *AssignmentsRequest, stream Di
 }
 
 func (m *SessionRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Description != nil {
@@ -1882,6 +2321,9 @@ func (m *SessionRequest) Size() (n int) {
 }
 
 func (m *SessionMessage) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.SessionID)
@@ -1912,6 +2354,9 @@ func (m *SessionMessage) Size() (n int) {
 }
 
 func (m *HeartbeatRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.SessionID)
@@ -1922,14 +2367,20 @@ func (m *HeartbeatRequest) Size() (n int) {
 }
 
 func (m *HeartbeatResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
-	l = types.SizeOfStdDuration(m.Period)
+	l = github_com_gogo_protobuf_types.SizeOfStdDuration(m.Period)
 	n += 1 + l + sovDispatcher(uint64(l))
 	return n
 }
 
 func (m *UpdateTaskStatusRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.SessionID)
@@ -1946,6 +2397,9 @@ func (m *UpdateTaskStatusRequest) Size() (n int) {
 }
 
 func (m *UpdateTaskStatusRequest_TaskStatusUpdate) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.TaskID)
@@ -1960,12 +2414,18 @@ func (m *UpdateTaskStatusRequest_TaskStatusUpdate) Size() (n int) {
 }
 
 func (m *UpdateTaskStatusResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	return n
 }
 
 func (m *TasksRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.SessionID)
@@ -1976,6 +2436,9 @@ func (m *TasksRequest) Size() (n int) {
 }
 
 func (m *TasksMessage) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if len(m.Tasks) > 0 {
@@ -1988,6 +2451,9 @@ func (m *TasksMessage) Size() (n int) {
 }
 
 func (m *AssignmentsRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.SessionID)
@@ -1998,6 +2464,9 @@ func (m *AssignmentsRequest) Size() (n int) {
 }
 
 func (m *Assignment) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Item != nil {
@@ -2007,6 +2476,9 @@ func (m *Assignment) Size() (n int) {
 }
 
 func (m *Assignment_Task) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Task != nil {
@@ -2016,6 +2488,9 @@ func (m *Assignment_Task) Size() (n int) {
 	return n
 }
 func (m *Assignment_Secret) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Secret != nil {
@@ -2025,6 +2500,9 @@ func (m *Assignment_Secret) Size() (n int) {
 	return n
 }
 func (m *Assignment_Config) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Config != nil {
@@ -2034,6 +2512,9 @@ func (m *Assignment_Config) Size() (n int) {
 	return n
 }
 func (m *AssignmentChange) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Assignment != nil {
@@ -2047,6 +2528,9 @@ func (m *AssignmentChange) Size() (n int) {
 }
 
 func (m *AssignmentsMessage) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	if m.Type != 0 {
@@ -2122,7 +2606,7 @@ func (this *HeartbeatResponse) String() string {
 		return "nil"
 	}
 	s := strings.Join([]string{`&HeartbeatResponse{`,
-		`Period:` + strings.Replace(strings.Replace(this.Period.String(), "Duration", "google_protobuf1.Duration", 1), `&`, ``, 1) + `,`,
+		`Period:` + strings.Replace(strings.Replace(this.Period.String(), "Duration", "types.Duration", 1), `&`, ``, 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2275,7 +2759,7 @@ func (m *SessionRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2303,7 +2787,7 @@ func (m *SessionRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2312,6 +2796,9 @@ func (m *SessionRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2336,7 +2823,7 @@ func (m *SessionRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2346,6 +2833,9 @@ func (m *SessionRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2358,6 +2848,9 @@ func (m *SessionRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthDispatcher
 			}
 			if (iNdEx + skippy) > l {
@@ -2387,7 +2880,7 @@ func (m *SessionMessage) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2415,7 +2908,7 @@ func (m *SessionMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2425,6 +2918,9 @@ func (m *SessionMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2444,7 +2940,7 @@ func (m *SessionMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2453,6 +2949,9 @@ func (m *SessionMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2477,7 +2976,7 @@ func (m *SessionMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2486,6 +2985,9 @@ func (m *SessionMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2508,7 +3010,7 @@ func (m *SessionMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2517,6 +3019,9 @@ func (m *SessionMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2539,7 +3044,7 @@ func (m *SessionMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				byteLen |= (int(b) & 0x7F) << shift
+				byteLen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2548,6 +3053,9 @@ func (m *SessionMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2563,6 +3071,9 @@ func (m *SessionMessage) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthDispatcher
 			}
 			if (iNdEx + skippy) > l {
@@ -2592,7 +3103,7 @@ func (m *HeartbeatRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2620,7 +3131,7 @@ func (m *HeartbeatRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2630,6 +3141,9 @@ func (m *HeartbeatRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2642,6 +3156,9 @@ func (m *HeartbeatRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthDispatcher
 			}
 			if (iNdEx + skippy) > l {
@@ -2671,7 +3188,7 @@ func (m *HeartbeatResponse) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2699,7 +3216,7 @@ func (m *HeartbeatResponse) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2708,10 +3225,13 @@ func (m *HeartbeatResponse) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := types.StdDurationUnmarshal(&m.Period, dAtA[iNdEx:postIndex]); err != nil {
+			if err := github_com_gogo_protobuf_types.StdDurationUnmarshal(&m.Period, dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -2722,6 +3242,9 @@ func (m *HeartbeatResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthDispatcher
 			}
 			if (iNdEx + skippy) > l {
@@ -2751,7 +3274,7 @@ func (m *UpdateTaskStatusRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2779,7 +3302,7 @@ func (m *UpdateTaskStatusRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2789,6 +3312,9 @@ func (m *UpdateTaskStatusRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2808,7 +3334,7 @@ func (m *UpdateTaskStatusRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2817,6 +3343,9 @@ func (m *UpdateTaskStatusRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2832,6 +3361,9 @@ func (m *UpdateTaskStatusRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthDispatcher
 			}
 			if (iNdEx + skippy) > l {
@@ -2861,7 +3393,7 @@ func (m *UpdateTaskStatusRequest_TaskStatusUpdate) Unmarshal(dAtA []byte) error 
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2889,7 +3421,7 @@ func (m *UpdateTaskStatusRequest_TaskStatusUpdate) Unmarshal(dAtA []byte) error 
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2899,6 +3431,9 @@ func (m *UpdateTaskStatusRequest_TaskStatusUpdate) Unmarshal(dAtA []byte) error 
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2918,7 +3453,7 @@ func (m *UpdateTaskStatusRequest_TaskStatusUpdate) Unmarshal(dAtA []byte) error 
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2927,6 +3462,9 @@ func (m *UpdateTaskStatusRequest_TaskStatusUpdate) Unmarshal(dAtA []byte) error 
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -2944,6 +3482,9 @@ func (m *UpdateTaskStatusRequest_TaskStatusUpdate) Unmarshal(dAtA []byte) error 
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthDispatcher
 			}
 			if (iNdEx + skippy) > l {
@@ -2973,7 +3514,7 @@ func (m *UpdateTaskStatusResponse) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -2994,6 +3535,9 @@ func (m *UpdateTaskStatusResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthDispatcher
 			}
 			if (iNdEx + skippy) > l {
@@ -3023,7 +3567,7 @@ func (m *TasksRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3051,7 +3595,7 @@ func (m *TasksRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3061,6 +3605,9 @@ func (m *TasksRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3073,6 +3620,9 @@ func (m *TasksRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthDispatcher
 			}
 			if (iNdEx + skippy) > l {
@@ -3102,7 +3652,7 @@ func (m *TasksMessage) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3130,7 +3680,7 @@ func (m *TasksMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3139,6 +3689,9 @@ func (m *TasksMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3154,6 +3707,9 @@ func (m *TasksMessage) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthDispatcher
 			}
 			if (iNdEx + skippy) > l {
@@ -3183,7 +3739,7 @@ func (m *AssignmentsRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3211,7 +3767,7 @@ func (m *AssignmentsRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3221,6 +3777,9 @@ func (m *AssignmentsRequest) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3233,6 +3792,9 @@ func (m *AssignmentsRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthDispatcher
 			}
 			if (iNdEx + skippy) > l {
@@ -3262,7 +3824,7 @@ func (m *Assignment) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3290,7 +3852,7 @@ func (m *Assignment) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3299,6 +3861,9 @@ func (m *Assignment) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3322,7 +3887,7 @@ func (m *Assignment) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3331,6 +3896,9 @@ func (m *Assignment) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3354,7 +3922,7 @@ func (m *Assignment) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3363,6 +3931,9 @@ func (m *Assignment) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3379,6 +3950,9 @@ func (m *Assignment) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthDispatcher
 			}
 			if (iNdEx + skippy) > l {
@@ -3408,7 +3982,7 @@ func (m *AssignmentChange) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3436,7 +4010,7 @@ func (m *AssignmentChange) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3445,6 +4019,9 @@ func (m *AssignmentChange) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3469,7 +4046,7 @@ func (m *AssignmentChange) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Action |= (AssignmentChange_AssignmentAction(b) & 0x7F) << shift
+				m.Action |= AssignmentChange_AssignmentAction(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3481,6 +4058,9 @@ func (m *AssignmentChange) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthDispatcher
 			}
 			if (iNdEx + skippy) > l {
@@ -3510,7 +4090,7 @@ func (m *AssignmentsMessage) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -3538,7 +4118,7 @@ func (m *AssignmentsMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Type |= (AssignmentsMessage_Type(b) & 0x7F) << shift
+				m.Type |= AssignmentsMessage_Type(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3557,7 +4137,7 @@ func (m *AssignmentsMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3567,6 +4147,9 @@ func (m *AssignmentsMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3586,7 +4169,7 @@ func (m *AssignmentsMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3596,6 +4179,9 @@ func (m *AssignmentsMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3615,7 +4201,7 @@ func (m *AssignmentsMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3624,6 +4210,9 @@ func (m *AssignmentsMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthDispatcher
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -3639,6 +4228,9 @@ func (m *AssignmentsMessage) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthDispatcher
 			}
 			if (iNdEx + skippy) > l {
@@ -3707,8 +4299,11 @@ func skipDispatcher(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			iNdEx += length
 			if length < 0 {
+				return 0, ErrInvalidLengthDispatcher
+			}
+			iNdEx += length
+			if iNdEx < 0 {
 				return 0, ErrInvalidLengthDispatcher
 			}
 			return iNdEx, nil
@@ -3739,6 +4334,9 @@ func skipDispatcher(dAtA []byte) (n int, err error) {
 					return 0, err
 				}
 				iNdEx = start + next
+				if iNdEx < 0 {
+					return 0, ErrInvalidLengthDispatcher
+				}
 			}
 			return iNdEx, nil
 		case 4:
@@ -3757,74 +4355,3 @@ var (
 	ErrInvalidLengthDispatcher = fmt.Errorf("proto: negative length found during unmarshaling")
 	ErrIntOverflowDispatcher   = fmt.Errorf("proto: integer overflow")
 )
-
-func init() {
-	proto.RegisterFile("github.com/docker/swarmkit/api/dispatcher.proto", fileDescriptorDispatcher)
-}
-
-var fileDescriptorDispatcher = []byte{
-	// 1007 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x55, 0x4f, 0x6f, 0xe3, 0x44,
-	0x1c, 0xcd, 0xa4, 0xa9, 0xdb, 0xfc, 0xd2, 0x2d, 0x61, 0xb4, 0x2a, 0xc6, 0xd2, 0xa6, 0xc1, 0x65,
-	0xab, 0x8a, 0x2d, 0xce, 0x12, 0xfe, 0x1d, 0xa8, 0x0a, 0x4d, 0x13, 0xa9, 0xd1, 0x6e, 0xbb, 0xd5,
-	0xb4, 0xbb, 0x7b, 0xac, 0x1c, 0x7b, 0xd6, 0x35, 0x69, 0x3c, 0xc6, 0x33, 0xd9, 0x25, 0x07, 0x24,
-	0x0e, 0xac, 0x84, 0x38, 0x21, 0x4e, 0x95, 0x10, 0x5f, 0x01, 0xf1, 0x31, 0x2a, 0x4e, 0x1c, 0x39,
-	0x15, 0x36, 0x1f, 0x80, 0x0f, 0xc0, 0x09, 0x79, 0x3c, 0x4e, 0x42, 0x37, 0x69, 0xd3, 0x9e, 0x12,
-	0xcf, 0xbc, 0xf7, 0xe6, 0xf9, 0xfd, 0x7e, 0xfe, 0x0d, 0x54, 0x3c, 0x5f, 0x1c, 0x77, 0x5b, 0x96,
-	0xc3, 0x3a, 0x15, 0x97, 0x39, 0x6d, 0x1a, 0x55, 0xf8, 0x0b, 0x3b, 0xea, 0xb4, 0x7d, 0x51, 0xb1,
-	0x43, 0xbf, 0xe2, 0xfa, 0x3c, 0xb4, 0x85, 0x73, 0x4c, 0x23, 0x2b, 0x8c, 0x98, 0x60, 0x18, 0x27,
-	0x28, 0x2b, 0x45, 0x59, 0xcf, 0x3f, 0x30, 0xde, 0xbb, 0x42, 0x44, 0xf4, 0x42, 0xca, 0x13, 0xbe,
-	0xb1, 0x7e, 0x05, 0x96, 0xb5, 0xbe, 0xa4, 0x8e, 0x48, 0xd1, 0xb7, 0x3d, 0xe6, 0x31, 0xf9, 0xb7,
-	0x12, 0xff, 0x53, 0xab, 0x9f, 0x5e, 0xa2, 0x21, 0x11, 0xad, 0xee, 0xb3, 0x4a, 0x78, 0xd2, 0xf5,
-	0xfc, 0x40, 0xfd, 0x28, 0x62, 0xc9, 0x63, 0xcc, 0x3b, 0xa1, 0x43, 0x90, 0xdb, 0x8d, 0x6c, 0xe1,
-	0x33, 0xb5, 0x6f, 0xbe, 0x44, 0xb0, 0x78, 0x40, 0x39, 0xf7, 0x59, 0x40, 0xe8, 0x57, 0x5d, 0xca,
-	0x05, 0x6e, 0x40, 0xc1, 0xa5, 0xdc, 0x89, 0xfc, 0x30, 0xc6, 0xe9, 0xa8, 0x8c, 0xd6, 0x0a, 0xd5,
-	0x15, 0xeb, 0xf5, 0x14, 0xac, 0x3d, 0xe6, 0xd2, 0xfa, 0x10, 0x4a, 0x46, 0x79, 0x78, 0x1d, 0x80,
-	0x27, 0xc2, 0x47, 0xbe, 0xab, 0x67, 0xcb, 0x68, 0x2d, 0x5f, 0xbb, 0xd5, 0x3f, 0x5f, 0xce, 0xab,
-	0xe3, 0x9a, 0x75, 0x92, 0x57, 0x80, 0xa6, 0x6b, 0xfe, 0x9c, 0x1d, 0xf8, 0xd8, 0xa5, 0x9c, 0xdb,
-	0x1e, 0xbd, 0x20, 0x80, 0x2e, 0x17, 0xc0, 0xeb, 0x90, 0x0b, 0x98, 0x4b, 0xe5, 0x41, 0x85, 0xaa,
-	0x3e, 0xc9, 0x2e, 0x91, 0x28, 0xbc, 0x01, 0xf3, 0x1d, 0x3b, 0xb0, 0x3d, 0x1a, 0x71, 0x7d, 0xa6,
-	0x3c, 0xb3, 0x56, 0xa8, 0x96, 0xc7, 0x31, 0x9e, 0x52, 0xdf, 0x3b, 0x16, 0xd4, 0xdd, 0xa7, 0x34,
-	0x22, 0x03, 0x06, 0x7e, 0x0a, 0x4b, 0x01, 0x15, 0x2f, 0x58, 0xd4, 0x3e, 0x6a, 0x31, 0x26, 0xb8,
-	0x88, 0xec, 0xf0, 0xa8, 0x4d, 0x7b, 0x5c, 0xcf, 0x49, 0xad, 0x77, 0xc6, 0x69, 0x35, 0x02, 0x27,
-	0xea, 0xc9, 0x68, 0x1e, 0xd0, 0x1e, 0xb9, 0xad, 0x04, 0x6a, 0x29, 0xff, 0x01, 0xed, 0x71, 0xbc,
-	0x04, 0x1a, 0x61, 0x4c, 0x6c, 0x6f, 0xe9, 0xb3, 0x65, 0xb4, 0xb6, 0x40, 0xd4, 0x93, 0xf9, 0x05,
-	0x14, 0x77, 0xa8, 0x1d, 0x89, 0x16, 0xb5, 0x45, 0x5a, 0xa6, 0x6b, 0xc5, 0x63, 0xee, 0xc3, 0x9b,
-	0x23, 0x0a, 0x3c, 0x64, 0x01, 0xa7, 0xf8, 0x33, 0xd0, 0x42, 0x1a, 0xf9, 0xcc, 0x55, 0x45, 0x7e,
-	0xdb, 0x4a, 0xba, 0xc5, 0x4a, 0xbb, 0xc5, 0xaa, 0xab, 0x6e, 0xa9, 0xcd, 0x9f, 0x9d, 0x2f, 0x67,
-	0x4e, 0xff, 0x5a, 0x46, 0x44, 0x51, 0xcc, 0x1f, 0xb3, 0xf0, 0xd6, 0xe3, 0xd0, 0xb5, 0x05, 0x3d,
-	0xb4, 0x79, 0xfb, 0x40, 0xd8, 0xa2, 0xcb, 0x6f, 0xe4, 0x0d, 0x3f, 0x81, 0xb9, 0xae, 0x14, 0x4a,
-	0x6b, 0xb1, 0x31, 0x2e, 0xbf, 0x09, 0x67, 0x59, 0xc3, 0x95, 0x04, 0x41, 0x52, 0x31, 0x83, 0x41,
-	0xf1, 0xe2, 0x26, 0x5e, 0x81, 0x39, 0x61, 0xf3, 0xf6, 0xd0, 0x16, 0xf4, 0xcf, 0x97, 0xb5, 0x18,
-	0xd6, 0xac, 0x13, 0x2d, 0xde, 0x6a, 0xba, 0xf8, 0x13, 0xd0, 0xb8, 0x24, 0xa9, 0x6e, 0x2a, 0x8d,
-	0xf3, 0x33, 0xe2, 0x44, 0xa1, 0x4d, 0x03, 0xf4, 0xd7, 0x5d, 0x26, 0x59, 0x9b, 0x1b, 0xb0, 0x10,
-	0xaf, 0xde, 0x2c, 0x22, 0x73, 0x53, 0xb1, 0xd3, 0x6f, 0xc3, 0x82, 0xd9, 0xd8, 0x2b, 0xd7, 0x91,
-	0x0c, 0x4c, 0x9f, 0x64, 0x90, 0x24, 0x30, 0xb3, 0x06, 0x78, 0x8b, 0x73, 0xdf, 0x0b, 0x3a, 0x34,
-	0x10, 0x37, 0xf4, 0xf0, 0x1b, 0x02, 0x18, 0x8a, 0x60, 0x0b, 0x72, 0xb1, 0xb6, 0x6a, 0x9d, 0x89,
-	0x0e, 0x76, 0x32, 0x44, 0xe2, 0xf0, 0x47, 0xa0, 0x71, 0xea, 0x44, 0x54, 0xa8, 0x50, 0x8d, 0x71,
-	0x8c, 0x03, 0x89, 0xd8, 0xc9, 0x10, 0x85, 0x8d, 0x59, 0x0e, 0x0b, 0x9e, 0xf9, 0x9e, 0x3e, 0x33,
-	0x99, 0xb5, 0x2d, 0x11, 0x31, 0x2b, 0xc1, 0xd6, 0x34, 0xc8, 0xf9, 0x82, 0x76, 0xcc, 0x97, 0x59,
-	0x28, 0x0e, 0x2d, 0x6f, 0x1f, 0xdb, 0x81, 0x47, 0xf1, 0x26, 0x80, 0x3d, 0x58, 0x53, 0xf6, 0xc7,
-	0x56, 0x78, 0xc8, 0x24, 0x23, 0x0c, 0xbc, 0x0b, 0x9a, 0xed, 0xc8, 0xd1, 0x18, 0xbf, 0xc8, 0x62,
-	0xf5, 0xe3, 0xcb, 0xb9, 0xc9, 0xa9, 0x23, 0x0b, 0x5b, 0x92, 0x4c, 0x94, 0x88, 0xd9, 0x1a, 0xb5,
-	0x98, 0xec, 0xe1, 0x55, 0xd0, 0x1e, 0xef, 0xd7, 0xb7, 0x0e, 0x1b, 0xc5, 0x8c, 0x61, 0xfc, 0xf0,
-	0x4b, 0x79, 0xe9, 0x22, 0x42, 0x75, 0xf3, 0x2a, 0x68, 0xa4, 0xb1, 0xfb, 0xe8, 0x49, 0xa3, 0x88,
-	0xc6, 0xe3, 0x08, 0xed, 0xb0, 0xe7, 0xd4, 0xfc, 0x17, 0xfd, 0xaf, 0xfe, 0x69, 0x17, 0x7d, 0x0e,
-	0xb9, 0xf8, 0xa2, 0x92, 0x19, 0x2c, 0x56, 0xef, 0x5d, 0xfe, 0x1e, 0x29, 0xcb, 0x3a, 0xec, 0x85,
-	0x94, 0x48, 0x22, 0xbe, 0x03, 0x60, 0x87, 0xe1, 0x89, 0x4f, 0xf9, 0x91, 0x60, 0xc9, 0x8c, 0x27,
-	0x79, 0xb5, 0x72, 0xc8, 0xe2, 0xed, 0x88, 0xf2, 0xee, 0x89, 0xe0, 0x47, 0x7e, 0x20, 0x0b, 0x98,
-	0x27, 0x79, 0xb5, 0xd2, 0x0c, 0xf0, 0x26, 0xcc, 0x39, 0x32, 0x9c, 0x74, 0x6e, 0xbe, 0x3b, 0x4d,
-	0x92, 0x24, 0x25, 0x99, 0x77, 0x21, 0x17, 0x7b, 0xc1, 0x0b, 0x30, 0xbf, 0xfd, 0x68, 0x77, 0xff,
-	0x61, 0x23, 0xce, 0x0b, 0xbf, 0x01, 0x85, 0xe6, 0xde, 0x36, 0x69, 0xec, 0x36, 0xf6, 0x0e, 0xb7,
-	0x1e, 0x16, 0x51, 0xf5, 0x74, 0x16, 0xa0, 0x3e, 0xb8, 0xd4, 0xf1, 0xd7, 0x30, 0xa7, 0xda, 0x1b,
-	0x9b, 0xe3, 0x5b, 0x70, 0xf4, 0x36, 0x34, 0x2e, 0xc3, 0xa8, 0x44, 0xcc, 0x95, 0xdf, 0x7f, 0xfd,
-	0xe7, 0x34, 0x7b, 0x07, 0x16, 0x24, 0xe6, 0xfd, 0x78, 0xae, 0xd3, 0x08, 0x6e, 0x25, 0x4f, 0xea,
-	0xd6, 0xb8, 0x8f, 0xf0, 0x37, 0x90, 0x1f, 0xcc, 0x60, 0x3c, 0xf6, 0x5d, 0x2f, 0x0e, 0x79, 0xe3,
-	0xee, 0x15, 0x28, 0x35, 0x5c, 0xa6, 0x31, 0x80, 0x7f, 0x42, 0x50, 0xbc, 0x38, 0x9e, 0xf0, 0xbd,
-	0x6b, 0x8c, 0x5a, 0x63, 0x7d, 0x3a, 0xf0, 0x75, 0x4c, 0x75, 0x61, 0x56, 0x0e, 0x36, 0x5c, 0x9e,
-	0x34, 0x40, 0x06, 0xa7, 0x4f, 0x46, 0xa4, 0x75, 0x58, 0x9d, 0xe2, 0xc4, 0xef, 0xb3, 0xe8, 0x3e,
-	0xc2, 0xdf, 0x21, 0x28, 0x8c, 0xb4, 0x36, 0x5e, 0xbd, 0xa2, 0xf7, 0x53, 0x0f, 0xab, 0xd3, 0x7d,
-	0x23, 0x53, 0x76, 0x44, 0x4d, 0x3f, 0x7b, 0x55, 0xca, 0xfc, 0xf9, 0xaa, 0x94, 0xf9, 0xb6, 0x5f,
-	0x42, 0x67, 0xfd, 0x12, 0xfa, 0xa3, 0x5f, 0x42, 0x7f, 0xf7, 0x4b, 0xa8, 0xa5, 0xc9, 0x2b, 0xf8,
-	0xc3, 0xff, 0x02, 0x00, 0x00, 0xff, 0xff, 0xe0, 0xf0, 0x6a, 0xcb, 0xae, 0x0a, 0x00, 0x00,
-}

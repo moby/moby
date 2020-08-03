@@ -11,11 +11,20 @@ import (
 
 // ContainerDecoder implements httputils.ContainerDecoder
 // calling DecodeContainerConfig.
-type ContainerDecoder struct{}
+type ContainerDecoder struct {
+	GetSysInfo func() *sysinfo.SysInfo
+}
 
 // DecodeConfig makes ContainerDecoder to implement httputils.ContainerDecoder
 func (r ContainerDecoder) DecodeConfig(src io.Reader) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
-	return decodeContainerConfig(src)
+	var si *sysinfo.SysInfo
+	if r.GetSysInfo != nil {
+		si = r.GetSysInfo()
+	} else {
+		si = sysinfo.New(true)
+	}
+
+	return decodeContainerConfig(src, si)
 }
 
 // DecodeHostConfig makes ContainerDecoder to implement httputils.ContainerDecoder
@@ -27,7 +36,7 @@ func (r ContainerDecoder) DecodeHostConfig(src io.Reader) (*container.HostConfig
 // struct and returns both a Config and a HostConfig struct
 // Be aware this function is not checking whether the resulted structs are nil,
 // it's your business to do so
-func decodeContainerConfig(src io.Reader) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
+func decodeContainerConfig(src io.Reader, si *sysinfo.SysInfo) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
 	var w ContainerConfigWrapper
 
 	decoder := json.NewDecoder(src)
@@ -63,7 +72,7 @@ func decodeContainerConfig(src io.Reader) (*container.Config, *container.HostCon
 	}
 
 	// Validate Resources
-	if err := validateResources(hc, sysinfo.New(true)); err != nil {
+	if err := validateResources(hc, si); err != nil {
 		return nil, nil, nil, err
 	}
 

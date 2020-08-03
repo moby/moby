@@ -6,9 +6,9 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/requirement"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 // Test case for GitHub 22244
@@ -23,6 +23,7 @@ func TestLoginFailsWithBadCredentials(t *testing.T) {
 		Password: "no-password",
 	}
 	_, err := client.RegistryLogin(context.Background(), config)
-	expected := "Error response from daemon: Get https://registry-1.docker.io/v2/: unauthorized: incorrect username or password"
-	assert.Check(t, is.Error(err, expected))
+	assert.Assert(t, err != nil)
+	assert.Check(t, is.ErrorContains(err, "unauthorized: incorrect username or password"))
+	assert.Check(t, is.ErrorContains(err, "https://registry-1.docker.io/v2/"))
 }

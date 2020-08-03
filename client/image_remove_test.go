@@ -11,8 +11,9 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestImageRemoveError(t *testing.T) {
@@ -21,7 +22,9 @@ func TestImageRemoveError(t *testing.T) {
 	}
 
 	_, err := client.ImageRemove(context.Background(), "image_id", types.ImageRemoveOptions{})
-	assert.Check(t, is.Error(err, "Error response from daemon: Server error"))
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
+	}
 }
 
 func TestImageRemoveImageNotFound(t *testing.T) {
@@ -63,7 +66,7 @@ func TestImageRemove(t *testing.T) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
-				if req.Method != "DELETE" {
+				if req.Method != http.MethodDelete {
 					return nil, fmt.Errorf("expected DELETE method, got %s", req.Method)
 				}
 				query := req.URL.Query()

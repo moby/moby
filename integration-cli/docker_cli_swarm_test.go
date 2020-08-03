@@ -29,10 +29,10 @@ import (
 	remoteipam "github.com/docker/libnetwork/ipams/remote/api"
 	"github.com/docker/swarmkit/ca/keyutils"
 	"github.com/vishvananda/netlink"
-	"gotest.tools/assert"
-	"gotest.tools/fs"
-	"gotest.tools/icmd"
-	"gotest.tools/poll"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/fs"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
 )
 
 func (s *DockerSwarmSuite) TestSwarmUpdate(c *testing.T) {
@@ -1459,17 +1459,17 @@ func (s *DockerSwarmSuite) TestSwarmManagerAddress(c *testing.T) {
 	d3 := s.AddDaemon(c, true, false)
 
 	// Manager Addresses will always show Node 1's address
-	expectedOutput := fmt.Sprintf("Manager Addresses:\n  127.0.0.1:%d\n", d1.SwarmPort)
+	expectedOutput := fmt.Sprintf("127.0.0.1:%d", d1.SwarmPort)
 
-	out, err := d1.Cmd("info")
+	out, err := d1.Cmd("info", "--format", "{{ (index .Swarm.RemoteManagers 0).Addr }}")
 	assert.NilError(c, err, out)
 	assert.Assert(c, strings.Contains(out, expectedOutput), out)
 
-	out, err = d2.Cmd("info")
+	out, err = d2.Cmd("info", "--format", "{{ (index .Swarm.RemoteManagers 0).Addr }}")
 	assert.NilError(c, err, out)
 	assert.Assert(c, strings.Contains(out, expectedOutput), out)
 
-	out, err = d3.Cmd("info")
+	out, err = d3.Cmd("info", "--format", "{{ (index .Swarm.RemoteManagers 0).Addr }}")
 	assert.NilError(c, err, out)
 	assert.Assert(c, strings.Contains(out, expectedOutput), out)
 }
@@ -1527,19 +1527,17 @@ func (s *DockerSwarmSuite) TestSwarmNetworkCreateDup(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 	drivers := []string{"bridge", "overlay"}
 	for i, driver1 := range drivers {
-		nwName := fmt.Sprintf("network-test-%d", i)
 		for _, driver2 := range drivers {
-			c.Logf("Creating a network named %q with %q, then %q",
-				nwName, driver1, driver2)
-			out, err := d.Cmd("network", "create", "--driver", driver1, nwName)
-			assert.NilError(c, err, "out: %v", out)
-			out, err = d.Cmd("network", "create", "--driver", driver2, nwName)
-			assert.Assert(c, strings.Contains(out, fmt.Sprintf("network with name %s already exists", nwName)), out)
-			assert.ErrorContains(c, err, "")
-			c.Logf("As expected, the attempt to network %q with %q failed: %s",
-				nwName, driver2, out)
-			out, err = d.Cmd("network", "rm", nwName)
-			assert.NilError(c, err, "out: %v", out)
+			c.Run(fmt.Sprintf("driver %s then %s", driver1, driver2), func(c *testing.T) {
+				nwName := fmt.Sprintf("network-test-%d", i)
+				out, err := d.Cmd("network", "create", "--driver", driver1, nwName)
+				assert.NilError(c, err, "out: %v", out)
+				out, err = d.Cmd("network", "create", "--driver", driver2, nwName)
+				assert.Assert(c, strings.Contains(out, fmt.Sprintf("network with name %s already exists", nwName)), out)
+				assert.ErrorContains(c, err, "")
+				out, err = d.Cmd("network", "rm", nwName)
+				assert.NilError(c, err, "out: %v", out)
+			})
 		}
 	}
 }

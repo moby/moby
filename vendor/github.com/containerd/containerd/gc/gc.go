@@ -30,6 +30,11 @@ import (
 // ResourceType represents type of resource at a node
 type ResourceType uint8
 
+// ResourceMax represents the max resource.
+// Upper bits are stripped out during the mark phase, allowing the upper 3 bits
+// to be used by the caller reference function.
+const ResourceMax = ResourceType(0x1F)
+
 // Node presents a resource which has a type and key,
 // this node can be used to lookup other nodes.
 type Node struct {
@@ -80,6 +85,8 @@ func Tricolor(roots []Node, refs func(ref Node) ([]Node, error)) (map[Node]struc
 			}
 		}
 
+		// strip bits above max resource type
+		id.Type = id.Type & ResourceMax
 		// mark as black when done
 		reachable[id] = struct{}{}
 	}
@@ -165,7 +172,7 @@ func ConcurrentMark(ctx context.Context, root <-chan Node, refs func(context.Con
 	return seen, nil
 }
 
-// Sweep removes all nodes returned through the channel which are not in
+// Sweep removes all nodes returned through the slice which are not in
 // the reachable set by calling the provided remove function.
 func Sweep(reachable map[Node]struct{}, all []Node, remove func(Node) error) error {
 	// All black objects are now reachable, and all white objects are

@@ -311,6 +311,26 @@ func (sw *shellWord) processDollar() (string, error) {
 			return fmt.Sprintf("${%s}", name), nil
 		}
 		return value, nil
+	case '?':
+		word, _, err := sw.processStopOn('}')
+		if err != nil {
+			if sw.scanner.Peek() == scanner.EOF {
+				return "", errors.New("syntax error: missing '}'")
+			}
+			return "", err
+		}
+		newValue, found := sw.getEnv(name)
+		if !found {
+			if sw.skipUnsetEnv {
+				return fmt.Sprintf("${%s?%s}", name, word), nil
+			}
+			message := "is not allowed to be unset"
+			if word != "" {
+				message = word
+			}
+			return "", errors.Errorf("%s: %s", name, message)
+		}
+		return newValue, nil
 	case ':':
 		// Special ${xx:...} format processing
 		// Yes it allows for recursive $'s in the ... spot
@@ -346,6 +366,26 @@ func (sw *shellWord) processDollar() (string, error) {
 				return fmt.Sprintf("${%s:%s%s}", name, string(modifier), word), nil
 			}
 
+			return newValue, nil
+
+		case '?':
+			if !found {
+				if sw.skipUnsetEnv {
+					return fmt.Sprintf("${%s:%s%s}", name, string(modifier), word), nil
+				}
+				message := "is not allowed to be unset"
+				if word != "" {
+					message = word
+				}
+				return "", errors.Errorf("%s: %s", name, message)
+			}
+			if newValue == "" {
+				message := "is not allowed to be empty"
+				if word != "" {
+					message = word
+				}
+				return "", errors.Errorf("%s: %s", name, message)
+			}
 			return newValue, nil
 
 		default:

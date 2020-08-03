@@ -57,7 +57,7 @@ func Exec(ctx context.Context, cli client.APIClient, id string, cmd []string) (E
 
 	// read the output
 	var outBuf, errBuf bytes.Buffer
-	outputDone := make(chan error)
+	outputDone := make(chan error, 1)
 
 	go func() {
 		// StdCopy demultiplexes the stream into two buffers

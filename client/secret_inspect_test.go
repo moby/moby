@@ -13,8 +13,8 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestSecretInspectUnsupported(t *testing.T) {
@@ -33,11 +33,8 @@ func TestSecretInspectError(t *testing.T) {
 	}
 
 	_, _, err := client.SecretInspectWithRaw(context.Background(), "nothing")
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
-	}
 	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %T", err)
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 

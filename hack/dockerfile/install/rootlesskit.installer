@@ -1,27 +1,27 @@
 #!/bin/sh
 
-# v0.7.0
-ROOTLESSKIT_COMMIT=791ac8cb209a107505cd1ca5ddf23a49913e176c
+# v0.10.0
+: ${ROOTLESSKIT_COMMIT:=f766387c3b360bc6dc6c2f353e9e630cf2c6ee86}
 
 install_rootlesskit() {
 	case "$1" in
-	"dynamic")
-		install_rootlesskit_dynamic
-		return
-		;;
-	"")
-		export CGO_ENABLED=0
-		_install_rootlesskit
-		;;
-	*)
-		echo 'Usage: $0 [dynamic]'
-		;;
+		"dynamic")
+			install_rootlesskit_dynamic
+			return
+			;;
+		"")
+			export CGO_ENABLED=0
+			_install_rootlesskit
+			;;
+		*)
+			echo 'Usage: $0 [dynamic]'
+			;;
 	esac
 }
 
 install_rootlesskit_dynamic() {
 	export ROOTLESSKIT_LDFLAGS="-linkmode=external" install_rootlesskit
-	export BUILD_MODE="-buildmode=pie"
+	export BUILD_MODE=${GO_BUILDMODE}
 	_install_rootlesskit
 }
 

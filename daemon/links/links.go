@@ -56,7 +56,7 @@ func (l *Link) ToEnv() []string {
 		env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
 	}
 
-	//sort the ports so that we can bulk the continuous ports together
+	// sort the ports so that we can bulk the continuous ports together
 	nat.Sort(l.Ports, func(ip, jp nat.Port) bool {
 		// If the two ports have the same number, tcp takes priority
 		// Sort in desc order

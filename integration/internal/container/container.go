@@ -9,7 +9,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	"gotest.tools/assert"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	"gotest.tools/v3/assert"
 )
 
 // TestContainerConfig holds container configuration struct that
@@ -19,6 +20,7 @@ type TestContainerConfig struct {
 	Config           *container.Config
 	HostConfig       *container.HostConfig
 	NetworkingConfig *network.NetworkingConfig
+	Platform         *specs.Platform
 }
 
 // create creates a container with the specified options
@@ -41,7 +43,7 @@ func create(ctx context.Context, t *testing.T, client client.APIClient, ops ...f
 		op(config)
 	}
 
-	return client.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Name)
+	return client.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
 }
 
 // Create creates a container with the specified options, asserting that there was no error

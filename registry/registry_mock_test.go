@@ -97,19 +97,19 @@ func init() {
 	r := mux.NewRouter()
 
 	// /v1/
-	r.HandleFunc("/v1/_ping", handlerGetPing).Methods("GET")
-	r.HandleFunc("/v1/images/{image_id:[^/]+}/{action:json|layer|ancestry}", handlerGetImage).Methods("GET")
-	r.HandleFunc("/v1/images/{image_id:[^/]+}/{action:json|layer|checksum}", handlerPutImage).Methods("PUT")
-	r.HandleFunc("/v1/repositories/{repository:.+}/tags", handlerGetDeleteTags).Methods("GET", "DELETE")
-	r.HandleFunc("/v1/repositories/{repository:.+}/tags/{tag:.+}", handlerGetTag).Methods("GET")
-	r.HandleFunc("/v1/repositories/{repository:.+}/tags/{tag:.+}", handlerPutTag).Methods("PUT")
-	r.HandleFunc("/v1/users{null:.*}", handlerUsers).Methods("GET", "POST", "PUT")
-	r.HandleFunc("/v1/repositories/{repository:.+}{action:/images|/}", handlerImages).Methods("GET", "PUT", "DELETE")
-	r.HandleFunc("/v1/repositories/{repository:.+}/auth", handlerAuth).Methods("PUT")
-	r.HandleFunc("/v1/search", handlerSearch).Methods("GET")
+	r.HandleFunc("/v1/_ping", handlerGetPing).Methods(http.MethodGet)
+	r.HandleFunc("/v1/images/{image_id:[^/]+}/{action:json|layer|ancestry}", handlerGetImage).Methods(http.MethodGet)
+	r.HandleFunc("/v1/images/{image_id:[^/]+}/{action:json|layer|checksum}", handlerPutImage).Methods(http.MethodPut)
+	r.HandleFunc("/v1/repositories/{repository:.+}/tags", handlerGetDeleteTags).Methods(http.MethodGet, http.MethodDelete)
+	r.HandleFunc("/v1/repositories/{repository:.+}/tags/{tag:.+}", handlerGetTag).Methods(http.MethodGet)
+	r.HandleFunc("/v1/repositories/{repository:.+}/tags/{tag:.+}", handlerPutTag).Methods(http.MethodPut)
+	r.HandleFunc("/v1/users{null:.*}", handlerUsers).Methods(http.MethodGet, http.MethodPost, http.MethodPut)
+	r.HandleFunc("/v1/repositories/{repository:.+}{action:/images|/}", handlerImages).Methods(http.MethodGet, http.MethodPut, http.MethodDelete)
+	r.HandleFunc("/v1/repositories/{repository:.+}/auth", handlerAuth).Methods(http.MethodPut)
+	r.HandleFunc("/v1/search", handlerSearch).Methods(http.MethodGet)
 
 	// /v2/
-	r.HandleFunc("/v2/version", handlerGetPing).Methods("GET")
+	r.HandleFunc("/v2/version", handlerGetPing).Methods(http.MethodGet)
 
 	testHTTPServer = httptest.NewServer(handlerAccessLog(r))
 	testHTTPSServer = httptest.NewTLSServer(handlerAccessLog(r))
@@ -268,7 +268,7 @@ func requiresAuth(w http.ResponseWriter, r *http.Request) bool {
 		value := fmt.Sprintf("FAKE-SESSION-%d", time.Now().UnixNano())
 		cookie := &http.Cookie{Name: "session", Value: value, MaxAge: 3600}
 		http.SetCookie(w, cookie)
-		//FIXME(sam): this should be sent only on Index routes
+		// FIXME(sam): this should be sent only on Index routes
 		value = fmt.Sprintf("FAKE-TOKEN-%d", time.Now().UnixNano())
 		w.Header().Add("X-Docker-Token", value)
 	}
@@ -281,12 +281,12 @@ func requiresAuth(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	w.Header().Add("WWW-Authenticate", "token")
-	apiError(w, "Wrong auth", 401)
+	apiError(w, "Wrong auth", http.StatusUnauthorized)
 	return false
 }
 
 func handlerGetPing(w http.ResponseWriter, r *http.Request) {
-	writeResponse(w, true, 200)
+	writeResponse(w, true, http.StatusOK)
 }
 
 func handlerGetImage(w http.ResponseWriter, r *http.Request) {
@@ -323,17 +323,17 @@ func handlerPutImage(w http.ResponseWriter, r *http.Request) {
 	}
 	if checksum := r.Header.Get("X-Docker-Checksum"); checksum != "" {
 		if checksum != layer["checksum_simple"] && checksum != layer["checksum_tarsum"] {
-			apiError(w, "Wrong checksum", 400)
+			apiError(w, "Wrong checksum", http.StatusBadRequest)
 			return
 		}
 	}
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		apiError(w, fmt.Sprintf("Error: %s", err), 500)
+		apiError(w, fmt.Sprintf("Error: %s", err), http.StatusInternalServerError)
 		return
 	}
 	layer[action] = string(body)
-	writeResponse(w, true, 200)
+	writeResponse(w, true, http.StatusOK)
 }
 
 func handlerGetDeleteTags(w http.ResponseWriter, r *http.Request) {
@@ -342,20 +342,20 @@ func handlerGetDeleteTags(w http.ResponseWriter, r *http.Request) {
 	}
 	repositoryName, err := reference.WithName(mux.Vars(r)["repository"])
 	if err != nil {
-		apiError(w, "Could not parse repository", 400)
+		apiError(w, "Could not parse repository", http.StatusBadRequest)
 		return
 	}
 	tags, exists := testRepositories[repositoryName.String()]
 	if !exists {
-		apiError(w, "Repository not found", 404)
+		apiError(w, "Repository not found", http.StatusNotFound)
 		return
 	}
-	if r.Method == "DELETE" {
+	if r.Method == http.MethodDelete {
 		delete(testRepositories, repositoryName.String())
-		writeResponse(w, true, 200)
+		writeResponse(w, true, http.StatusOK)
 		return
 	}
-	writeResponse(w, tags, 200)
+	writeResponse(w, tags, http.StatusOK)
 }
 
 func handlerGetTag(w http.ResponseWriter, r *http.Request) {
@@ -365,21 +365,21 @@ func handlerGetTag(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	repositoryName, err := reference.WithName(vars["repository"])
 	if err != nil {
-		apiError(w, "Could not parse repository", 400)
+		apiError(w, "Could not parse repository", http.StatusBadRequest)
 		return
 	}
 	tagName := vars["tag"]
 	tags, exists := testRepositories[repositoryName.String()]
 	if !exists {
-		apiError(w, "Repository not found", 404)
+		apiError(w, "Repository not found", http.StatusNotFound)
 		return
 	}
 	tag, exists := tags[tagName]
 	if !exists {
-		apiError(w, "Tag not found", 404)
+		apiError(w, "Tag not found", http.StatusNotFound)
 		return
 	}
-	writeResponse(w, tag, 200)
+	writeResponse(w, tag, http.StatusOK)
 }
 
 func handlerPutTag(w http.ResponseWriter, r *http.Request) {
@@ -389,7 +389,7 @@ func handlerPutTag(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	repositoryName, err := reference.WithName(vars["repository"])
 	if err != nil {
-		apiError(w, "Could not parse repository", 400)
+		apiError(w, "Could not parse repository", http.StatusBadRequest)
 		return
 	}
 	tagName := vars["tag"]
@@ -401,15 +401,15 @@ func handlerPutTag(w http.ResponseWriter, r *http.Request) {
 	tagValue := ""
 	readJSON(r, tagValue)
 	tags[tagName] = tagValue
-	writeResponse(w, true, 200)
+	writeResponse(w, true, http.StatusOK)
 }
 
 func handlerUsers(w http.ResponseWriter, r *http.Request) {
-	code := 200
-	if r.Method == "POST" {
-		code = 201
-	} else if r.Method == "PUT" {
-		code = 204
+	code := http.StatusOK
+	if r.Method == http.MethodPost {
+		code = http.StatusCreated
+	} else if r.Method == http.MethodPut {
+		code = http.StatusNoContent
 	}
 	writeResponse(w, "", code)
 }
@@ -418,16 +418,16 @@ func handlerImages(w http.ResponseWriter, r *http.Request) {
 	u, _ := url.Parse(testHTTPServer.URL)
 	w.Header().Add("X-Docker-Endpoints", fmt.Sprintf("%s 	,  %s ", u.Host, "test.example.com"))
 	w.Header().Add("X-Docker-Token", fmt.Sprintf("FAKE-SESSION-%d", time.Now().UnixNano()))
-	if r.Method == "PUT" {
+	if r.Method == http.MethodPut {
 		if strings.HasSuffix(r.URL.Path, "images") {
-			writeResponse(w, "", 204)
+			writeResponse(w, "", http.StatusNoContent)
 			return
 		}
-		writeResponse(w, "", 200)
+		writeResponse(w, "", http.StatusOK)
 		return
 	}
-	if r.Method == "DELETE" {
-		writeResponse(w, "", 204)
+	if r.Method == http.MethodDelete {
+		writeResponse(w, "", http.StatusNoContent)
 		return
 	}
 	var images []map[string]string
@@ -438,11 +438,11 @@ func handlerImages(w http.ResponseWriter, r *http.Request) {
 		image["Tag"] = "latest"
 		images = append(images, image)
 	}
-	writeResponse(w, images, 200)
+	writeResponse(w, images, http.StatusOK)
 }
 
 func handlerAuth(w http.ResponseWriter, r *http.Request) {
-	writeResponse(w, "OK", 200)
+	writeResponse(w, "OK", http.StatusOK)
 }
 
 func handlerSearch(w http.ResponseWriter, r *http.Request) {
@@ -451,7 +451,7 @@ func handlerSearch(w http.ResponseWriter, r *http.Request) {
 		NumResults: 1,
 		Results:    []registrytypes.SearchResult{{Name: "fakeimage", StarCount: 42}},
 	}
-	writeResponse(w, result, 200)
+	writeResponse(w, result, http.StatusOK)
 }
 
 func TestPing(t *testing.T) {
@@ -459,7 +459,7 @@ func TestPing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertEqual(t, res.StatusCode, 200, "")
+	assertEqual(t, res.StatusCode, http.StatusOK, "")
 	assertEqual(t, res.Header.Get("X-Docker-Registry-Config"), "mock",
 		"This is not a Mocked Registry")
 }

@@ -68,7 +68,7 @@ func withROBind(src, dest string) func(m []specs.Mount) ([]specs.Mount, error) {
 			Destination: dest,
 			Type:        "bind",
 			Source:      src,
-			Options:     []string{"rbind", "ro"},
+			Options:     []string{"nosuid", "noexec", "nodev", "rbind", "ro"},
 		})
 		return m, nil
 	}

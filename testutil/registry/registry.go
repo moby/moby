@@ -2,6 +2,7 @@ package registry // import "github.com/docker/docker/testutil/registry"
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -11,7 +12,7 @@ import (
 	"time"
 
 	"github.com/opencontainers/go-digest"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 const (
@@ -40,6 +41,8 @@ type Config struct {
 	auth        string
 	tokenURL    string
 	registryURL string
+	stdout      io.Writer
+	stderr      io.Writer
 }
 
 // NewV2 creates a v2 registry server
@@ -109,6 +112,8 @@ http:
 		binary = V2binarySchema1
 	}
 	cmd := exec.Command(binary, confPath)
+	cmd.Stdout = c.stdout
+	cmd.Stderr = c.stderr
 	if err := cmd.Start(); err != nil {
 		// FIXME(vdemeester) use a defer/clean func
 		os.RemoveAll(tmp)

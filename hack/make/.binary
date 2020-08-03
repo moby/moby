@@ -38,58 +38,58 @@ hash_files() {
 }
 
 (
-export GOGC=${DOCKER_BUILD_GOGC:-1000}
+	export GOGC=${DOCKER_BUILD_GOGC:-1000}
 
-if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
-	# must be cross-compiling!
+	if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
+		# must be cross-compiling!
+		case "$(go env GOOS)/$(go env GOARCH)" in
+			windows/amd64)
+				export CC="${CC:-x86_64-w64-mingw32-gcc}"
+				export CGO_ENABLED=1
+				;;
+			linux/arm)
+				case "${GOARM}" in
+					5 | "")
+						export CC="${CC:-arm-linux-gnueabi-gcc}"
+						export CGO_ENABLED=1
+						;;
+					7)
+						export CC="${CC:-arm-linux-gnueabihf-gcc}"
+						export CGO_ENABLED=1
+						;;
+				esac
+				;;
+			linux/arm64)
+				export CC="${CC:-aarch64-linux-gnu-gcc}"
+				export CGO_ENABLED=1
+				;;
+			linux/amd64)
+				export CC="${CC:-x86_64-linux-gnu-gcc}"
+				export CGO_ENABLED=1
+				;;
+		esac
+	fi
+
+	# -buildmode=pie is not supported on Windows and Linux on mips and riscv64.
 	case "$(go env GOOS)/$(go env GOARCH)" in
-		windows/amd64)
-			export CC="${CC:-x86_64-w64-mingw32-gcc}"
-			export CGO_ENABLED=1
-			;;
-		linux/arm)
-			case "${GOARM}" in
-			5|"")
-				export CC="${CC:-arm-linux-gnueabi-gcc}"
-				export CGO_ENABLED=1
-				;;
-			7)
-				export CC="${CC:-arm-linux-gnueabihf-gcc}"
-				export CGO_ENABLED=1
-				;;
-			esac
-			;;
-		linux/arm64)
-			export CC="${CC:-aarch64-linux-gnu-gcc}"
-			export CGO_ENABLED=1
-			;;
-		linux/amd64)
-			export CC="${CC:-x86_64-linux-gnu-gcc}"
-			export CGO_ENABLED=1
+		windows/* | linux/mips* | linux/riscv*) ;;
+
+		*)
+			BUILDFLAGS+=("-buildmode=pie")
 			;;
 	esac
-fi
 
-# -buildmode=pie is not supported on Windows and Linux on mips.
-case "$(go env GOOS)/$(go env GOARCH)" in
-	windows/*|linux/mips*)
-		;;
-	*)
-		BUILDFLAGS+=( "-buildmode=pie" )
-		;;
-esac
-
-echo "Building: $DEST/$BINARY_FULLNAME"
-echo "GOOS=\"${GOOS}\" GOARCH=\"${GOARCH}\" GOARM=\"${GOARM}\""
-go build \
-	-o "$DEST/$BINARY_FULLNAME" \
-	"${BUILDFLAGS[@]}" \
-	-ldflags "
+	echo "Building: $DEST/$BINARY_FULLNAME"
+	echo "GOOS=\"${GOOS}\" GOARCH=\"${GOARCH}\" GOARM=\"${GOARM}\""
+	go build \
+		-o "$DEST/$BINARY_FULLNAME" \
+		"${BUILDFLAGS[@]}" \
+		-ldflags "
 		$LDFLAGS
 		$LDFLAGS_STATIC_DOCKER
 		$DOCKER_LDFLAGS
 	" \
-	${GO_PACKAGE}
+		${GO_PACKAGE}
 )
 
 echo "Created binary: $DEST/$BINARY_FULLNAME"

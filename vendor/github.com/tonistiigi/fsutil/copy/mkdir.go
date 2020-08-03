@@ -4,9 +4,18 @@ import (
 	"os"
 	"syscall"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
-func Chown(p string, user *ChownOpt) error {
+func Chown(p string, old *User, fn Chowner) error {
+	if fn == nil {
+		return nil
+	}
+	user, err := fn(old)
+	if err != nil {
+		return errors.WithStack(err)
+	}
 	if user != nil {
 		if err := os.Lchown(p, user.Uid, user.Gid); err != nil {
 			return err
@@ -16,7 +25,7 @@ func Chown(p string, user *ChownOpt) error {
 }
 
 // MkdirAll is forked os.MkdirAll
-func MkdirAll(path string, perm os.FileMode, user *ChownOpt, tm *time.Time) error {
+func MkdirAll(path string, perm os.FileMode, user Chowner, tm *time.Time) error {
 	// Fast path: if we can tell whether path is a directory or file, stop with success or error.
 	dir, err := os.Stat(path)
 	if err == nil {
@@ -62,7 +71,7 @@ func MkdirAll(path string, perm os.FileMode, user *ChownOpt, tm *time.Time) erro
 		return err
 	}
 
-	if err := Chown(path, user); err != nil {
+	if err := Chown(path, nil, user); err != nil {
 		return err
 	}
 

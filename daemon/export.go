@@ -3,7 +3,6 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"fmt"
 	"io"
-	"runtime"
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
@@ -15,26 +14,26 @@ import (
 // ContainerExport writes the contents of the container to the given
 // writer. An error is returned if the container cannot be found.
 func (daemon *Daemon) ContainerExport(name string, out io.Writer) error {
-	container, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
 
-	if runtime.GOOS == "windows" && container.OS == "windows" {
+	if isWindows && ctr.OS == "windows" {
 		return fmt.Errorf("the daemon on this operating system does not support exporting Windows containers")
 	}
 
-	if container.IsDead() {
-		err := fmt.Errorf("You cannot export container %s which is Dead", container.ID)
+	if ctr.IsDead() {
+		err := fmt.Errorf("You cannot export container %s which is Dead", ctr.ID)
 		return errdefs.Conflict(err)
 	}
 
-	if container.IsRemovalInProgress() {
-		err := fmt.Errorf("You cannot export container %s which is being removed", container.ID)
+	if ctr.IsRemovalInProgress() {
+		err := fmt.Errorf("You cannot export container %s which is being removed", ctr.ID)
 		return errdefs.Conflict(err)
 	}
 
-	data, err := daemon.containerExport(container)
+	data, err := daemon.containerExport(ctr)
 	if err != nil {
 		return fmt.Errorf("Error exporting container %s: %v", name, err)
 	}
@@ -66,7 +65,7 @@ func (daemon *Daemon) containerExport(container *container.Container) (arch io.R
 		return nil, err
 	}
 
-	archive, err := archivePath(basefs, basefs.Path(), &archive.TarOptions{
+	archv, err := archivePath(basefs, basefs.Path(), &archive.TarOptions{
 		Compression: archive.Uncompressed,
 		UIDMaps:     daemon.idMapping.UIDs(),
 		GIDMaps:     daemon.idMapping.GIDs(),
@@ -75,8 +74,8 @@ func (daemon *Daemon) containerExport(container *container.Container) (arch io.R
 		rwlayer.Unmount()
 		return nil, err
 	}
-	arch = ioutils.NewReadCloserWrapper(archive, func() error {
-		err := archive.Close()
+	arch = ioutils.NewReadCloserWrapper(archv, func() error {
+		err := archv.Close()
 		rwlayer.Unmount()
 		daemon.imageService.ReleaseLayer(rwlayer, container.OS)
 		return err

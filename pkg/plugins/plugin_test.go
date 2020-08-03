@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/pkg/plugins/transport"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/pkg/errors"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 const (
@@ -77,11 +77,11 @@ func TestGet(t *testing.T) {
 
 	// check negative case where plugin fruit doesn't implement banana
 	_, err = Get("fruit", "banana")
-	assert.Equal(t, errors.Cause(err), ErrNotImplements)
+	assert.Assert(t, errors.Is(err, ErrNotImplements))
 
 	// check negative case where plugin vegetable doesn't exist
 	_, err = Get("vegetable", "potato")
-	assert.Equal(t, errors.Cause(err), ErrNotFound)
+	assert.Assert(t, errors.Is(err, ErrNotFound))
 }
 
 func TestPluginWithNoManifest(t *testing.T) {
@@ -95,7 +95,7 @@ func TestPluginWithNoManifest(t *testing.T) {
 	}
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
+		if r.Method != http.MethodPost {
 			t.Fatalf("Expected POST, got %s\n", r.Method)
 		}
 

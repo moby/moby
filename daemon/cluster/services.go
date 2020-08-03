@@ -77,6 +77,12 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 
 	services := make([]types.Service, 0, len(r.Services))
 
+	// if the  user requests the service statuses, we'll store the IDs needed
+	// in this slice
+	var serviceIDs []string
+	if options.Status {
+		serviceIDs = make([]string, 0, len(r.Services))
+	}
 	for _, service := range r.Services {
 		if options.Filters.Contains("mode") {
 			var mode string
@@ -85,17 +91,68 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 				mode = "global"
 			case *swarmapi.ServiceSpec_Replicated:
 				mode = "replicated"
+			case *swarmapi.ServiceSpec_ReplicatedJob:
+				mode = "replicatedjob"
+			case *swarmapi.ServiceSpec_GlobalJob:
+				mode = "globaljob"
 			}
 
 			if !options.Filters.ExactMatch("mode", mode) {
 				continue
 			}
 		}
+		if options.Status {
+			serviceIDs = append(serviceIDs, service.ID)
+		}
 		svcs, err := convert.ServiceFromGRPC(*service)
 		if err != nil {
 			return nil, err
 		}
 		services = append(services, svcs)
+	}
+
+	if options.Status {
+		// Listing service statuses is a separate call because, while it is the
+		// most common UI operation, it is still just a UI operation, and it
+		// would be improper to include this data in swarm's Service object.
+		// We pay the cost with some complexity here, but this is still way
+		// more efficient than marshalling and unmarshalling all the JSON
+		// needed to list tasks and get this data otherwise client-side
+		resp, err := state.controlClient.ListServiceStatuses(
+			ctx,
+			&swarmapi.ListServiceStatusesRequest{Services: serviceIDs},
+			grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// we'll need to match up statuses in the response with the services in
+		// the list operation. if we did this by operating on two lists, the
+		// result would be quadratic. instead, make a mapping of service IDs to
+		// service statuses so that this is roughly linear. additionally,
+		// convert the status response to an engine api service status here.
+		serviceMap := map[string]*types.ServiceStatus{}
+		for _, status := range resp.Statuses {
+			serviceMap[status.ServiceID] = &types.ServiceStatus{
+				RunningTasks:   status.RunningTasks,
+				DesiredTasks:   status.DesiredTasks,
+				CompletedTasks: status.CompletedTasks,
+			}
+		}
+
+		// because this is a list of values and not pointers, make sure we
+		// actually alter the value when iterating.
+		for i, service := range services {
+			// the return value of the ListServiceStatuses operation is
+			// guaranteed to contain a value in the response for every argument
+			// in the request, so we can safely do this assignment. and even if
+			// it wasn't, and the service ID was for some reason absent from
+			// this map, the resulting value of service.Status would just be
+			// nil -- the same thing it was before
+			service.ServiceStatus = serviceMap[service.ID]
+			services[i] = service
+		}
 	}
 
 	return services, nil

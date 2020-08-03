@@ -64,44 +64,44 @@ message Field {
   // Basic field types.
   enum Kind {
     // Field type unknown.
-    TYPE_UNKNOWN        = 0;
+    TYPE_UNKNOWN = 0;
     // Field type double.
-    TYPE_DOUBLE         = 1;
+    TYPE_DOUBLE = 1;
     // Field type float.
-    TYPE_FLOAT          = 2;
+    TYPE_FLOAT = 2;
     // Field type int64.
-    TYPE_INT64          = 3;
+    TYPE_INT64 = 3;
     // Field type uint64.
-    TYPE_UINT64         = 4;
+    TYPE_UINT64 = 4;
     // Field type int32.
-    TYPE_INT32          = 5;
+    TYPE_INT32 = 5;
     // Field type fixed64.
-    TYPE_FIXED64        = 6;
+    TYPE_FIXED64 = 6;
     // Field type fixed32.
-    TYPE_FIXED32        = 7;
+    TYPE_FIXED32 = 7;
     // Field type bool.
-    TYPE_BOOL           = 8;
+    TYPE_BOOL = 8;
     // Field type string.
-    TYPE_STRING         = 9;
+    TYPE_STRING = 9;
     // Field type group. Proto2 syntax only, and deprecated.
-    TYPE_GROUP          = 10;
+    TYPE_GROUP = 10;
     // Field type message.
-    TYPE_MESSAGE        = 11;
+    TYPE_MESSAGE = 11;
     // Field type bytes.
-    TYPE_BYTES          = 12;
+    TYPE_BYTES = 12;
     // Field type uint32.
-    TYPE_UINT32         = 13;
+    TYPE_UINT32 = 13;
     // Field type enum.
-    TYPE_ENUM           = 14;
+    TYPE_ENUM = 14;
     // Field type sfixed32.
-    TYPE_SFIXED32       = 15;
+    TYPE_SFIXED32 = 15;
     // Field type sfixed64.
-    TYPE_SFIXED64       = 16;
+    TYPE_SFIXED64 = 16;
     // Field type sint32.
-    TYPE_SINT32         = 17;
+    TYPE_SINT32 = 17;
     // Field type sint64.
-    TYPE_SINT64         = 18;
-  };
+    TYPE_SINT64 = 18;
+  }
 
   // Whether a field is optional, required, or repeated.
   enum Cardinality {

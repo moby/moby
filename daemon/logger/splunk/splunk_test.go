@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
-	"gotest.tools/assert"
-	"gotest.tools/env"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/env"
 )
 
 // Validate options
@@ -105,7 +105,7 @@ func TestNewWithProxy(t *testing.T) {
 	proxyFunc := splunkLogger.transport.Proxy
 	assert.Assert(t, proxyFunc != nil)
 
-	req, err := http.NewRequest("GET", splunkURL, nil)
+	req, err := http.NewRequest(http.MethodGet, splunkURL, nil)
 	assert.NilError(t, err)
 
 	proxyURL, err := proxyFunc(req)

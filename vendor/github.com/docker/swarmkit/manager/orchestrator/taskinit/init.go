@@ -23,7 +23,7 @@ type InitHandler interface {
 
 // CheckTasks fixes tasks in the store before orchestrator runs. The previous leader might
 // not have finished processing their updates and left them in an inconsistent state.
-func CheckTasks(ctx context.Context, s *store.MemoryStore, readTx store.ReadTx, initHandler InitHandler, startSupervisor *restart.Supervisor) error {
+func CheckTasks(ctx context.Context, s *store.MemoryStore, readTx store.ReadTx, initHandler InitHandler, startSupervisor restart.SupervisorInterface) error {
 	instances := make(map[orchestrator.SlotTuple][]*api.Task)
 	err := s.Batch(func(batch *store.Batch) error {
 		tasks, err := store.FindTasks(readTx, store.All)
@@ -59,7 +59,7 @@ func CheckTasks(ctx context.Context, s *store.MemoryStore, readTx store.ReadTx, 
 
 			// desired state ready is a transient state that it should be started.
 			// however previous leader may not have started it, retry start here
-			if t.DesiredState != api.TaskStateReady || t.Status.State > api.TaskStateRunning {
+			if t.DesiredState != api.TaskStateReady || t.Status.State > api.TaskStateCompleted {
 				continue
 			}
 			restartDelay, _ := gogotypes.DurationFromProto(defaults.Service.Task.Restart.Delay)

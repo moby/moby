@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package io.containerd.cgroups.v2;
+
+ import "gogoproto/gogo.proto";
+
+message Metrics {
+	PidsStat pids = 1;
+	CPUStat cpu = 2 [(gogoproto.customname) = "CPU"];
+	MemoryStat memory = 4;
+	RdmaStat rdma = 5;
+	IOStat io = 6;
+	repeated HugeTlbStat hugetlb = 7;
+	MemoryEvents memory_events = 8;
+}
+
+message PidsStat {
+	uint64 current = 1;
+	uint64 limit = 2;
+}
+
+message CPUStat {
+	uint64 usage_usec  = 1;
+	uint64 user_usec = 2;
+	uint64 system_usec = 3;
+	uint64 nr_periods = 4;
+	uint64 nr_throttled = 5;
+	uint64 throttled_usec = 6;
+}
+
+message MemoryStat {
+	uint64 anon = 1;
+	uint64 file = 2;
+	uint64 kernel_stack = 3;
+	uint64 slab = 4;
+	uint64 sock = 5;
+	uint64 shmem = 6;
+	uint64 file_mapped = 7;
+	uint64 file_dirty = 8;
+	uint64 file_writeback = 9;
+	uint64 anon_thp = 10;
+	uint64 inactive_anon = 11;
+	uint64 active_anon = 12;
+	uint64 inactive_file = 13;
+	uint64 active_file = 14;
+	uint64 unevictable = 15;
+	uint64 slab_reclaimable = 16;
+	uint64 slab_unreclaimable = 17;
+	uint64 pgfault = 18;
+	uint64 pgmajfault = 19;
+	uint64 workingset_refault = 20;
+	uint64 workingset_activate = 21;
+	uint64 workingset_nodereclaim = 22;
+	uint64 pgrefill = 23;
+	uint64 pgscan = 24;
+	uint64 pgsteal = 25;
+	uint64 pgactivate = 26;
+	uint64 pgdeactivate = 27;
+	uint64 pglazyfree = 28;
+	uint64 pglazyfreed = 29;
+	uint64 thp_fault_alloc = 30;
+	uint64 thp_collapse_alloc = 31;
+	uint64 usage = 32;
+	uint64 usage_limit = 33;
+	uint64 swap_usage = 34;
+	uint64 swap_limit = 35;
+}
+
+message MemoryEvents {
+	uint64 low = 1;
+	uint64 high = 2;
+	uint64 max = 3;
+	uint64 oom = 4;
+	uint64 oom_kill = 5;
+}
+
+message RdmaStat {
+	repeated RdmaEntry current = 1;
+	repeated RdmaEntry limit = 2;
+}
+
+message RdmaEntry {
+	string device = 1;
+	uint32 hca_handles = 2;
+	uint32 hca_objects = 3;
+}
+
+message IOStat {
+	repeated IOEntry usage = 1;
+}
+
+message IOEntry {
+	uint64 major = 1;
+	uint64 minor = 2;
+	uint64 rbytes = 3;
+	uint64 wbytes = 4;
+	uint64 rios = 5;
+	uint64 wios = 6;
+}
+
+message HugeTlbStat {
+	uint64 current = 1;
+	uint64 max = 2;
+	string pagesize = 3;
+}

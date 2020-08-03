@@ -22,8 +22,8 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
-	"gotest.tools/assert"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 )
 
 // This is a regression test for #38488
@@ -34,6 +34,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	// daemon for remove image layer.
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
+	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support overlay2 on most distros")
 
 	// Create daemon with overlay2 graphdriver because vfs uses disk differently
 	// and this test case would not work with it.
@@ -110,4 +111,10 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	i.Cleanup()
 	_, err = os.Stat(data["UpperDir"])
 	assert.Assert(t, os.IsNotExist(err))
+
+	// Make sure that removal pending layers does not exist on layerdb either
+	layerdbItems, _ := ioutil.ReadDir(filepath.Join(d.RootDir(), "/image/overlay2/layerdb/sha256"))
+	for _, folder := range layerdbItems {
+		assert.Equal(t, false, strings.HasSuffix(folder.Name(), "-removing"))
+	}
 }

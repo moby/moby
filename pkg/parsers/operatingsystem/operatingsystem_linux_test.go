@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 type EtcReleaseParsingTest struct {
@@ -20,26 +20,6 @@ type EtcReleaseParsingTest struct {
 
 func TestGetOperatingSystem(t *testing.T) {
 	tests := []EtcReleaseParsingTest{
-		{
-			content: `PRETTY_NAME=Source Mage GNU/Linux
-PRETTY_NAME=Ubuntu 14.04.LTS`,
-			expectedErr: "PRETTY_NAME needs to be enclosed by quotes if they have spaces: Source Mage GNU/Linux",
-		},
-		{
-			content: `PRETTY_NAME="Ubuntu Linux
-PRETTY_NAME=Ubuntu 14.04.LTS`,
-			expectedErr: "PRETTY_NAME is invalid: invalid command line string",
-		},
-		{
-			content: `PRETTY_NAME=Ubuntu'
-PRETTY_NAME=Ubuntu 14.04.LTS`,
-			expectedErr: "PRETTY_NAME is invalid: invalid command line string",
-		},
-		{
-			content: `PRETTY_NAME'
-PRETTY_NAME=Ubuntu 14.04.LTS`,
-			expectedErr: "PRETTY_NAME needs to be enclosed by quotes if they have spaces: Ubuntu 14.04.LTS",
-		},
 		{
 			content: `NAME="Ubuntu"
 PRETTY_NAME_AGAIN="Ubuntu 14.04.LTS"
@@ -111,12 +91,6 @@ PRETTY_NAME="Source Mage"`,
 
 func TestGetOperatingSystemVersion(t *testing.T) {
 	tests := []EtcReleaseParsingTest{
-		{
-			name: "invalid version id",
-			content: `VERSION_ID="18.04
-VERSION_ID=18.04`,
-			expectedErr: "VERSION_ID is invalid: invalid command line string",
-		},
 		{
 			name: "ubuntu 14.04",
 			content: `NAME="Ubuntu"

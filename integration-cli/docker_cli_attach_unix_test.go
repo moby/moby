@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // #9860 Make sure attach ends when container ends (with no errors)
@@ -33,7 +33,7 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *testing.T) {
 	err = attachCmd.Start()
 	assert.NilError(c, err)
 
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	go func() {
 		time.Sleep(300 * time.Millisecond)
 		defer close(errChan)
@@ -68,7 +68,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *testing.T) {
 	cmd.Stdout = tty
 	cmd.Stderr = tty
 
-	cmdExit := make(chan error)
+	cmdExit := make(chan error, 1)
 	go func() {
 		cmdExit <- cmd.Run()
 		close(cmdExit)

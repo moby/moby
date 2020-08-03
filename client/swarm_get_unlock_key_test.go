@@ -11,8 +11,9 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestSwarmGetUnlockKeyError(t *testing.T) {
@@ -21,7 +22,9 @@ func TestSwarmGetUnlockKeyError(t *testing.T) {
 	}
 
 	_, err := client.SwarmGetUnlockKey(context.Background())
-	assert.Check(t, is.ErrorContains(err, "Error response from daemon: Server error"))
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
+	}
 }
 
 func TestSwarmGetUnlockKey(t *testing.T) {
@@ -33,7 +36,7 @@ func TestSwarmGetUnlockKey(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			if req.Method != "GET" {
+			if req.Method != http.MethodGet {
 				return nil, fmt.Errorf("expected GET method, got %s", req.Method)
 			}
 

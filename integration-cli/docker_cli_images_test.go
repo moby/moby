@@ -13,9 +13,9 @@ import (
 
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
 )
 
 func (s *DockerSuite) TestImagesEnsureImageIsListed(c *testing.T) {
@@ -242,10 +242,10 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *testing.T) 
 	assert.Equal(c, strings.Count(out, imageID), 1)
 
 	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=false")
-	//dangling=false would not include dangling images
+	// dangling=false would not include dangling images
 	assert.Assert(c, !strings.Contains(out, imageID))
 	out, _ = dockerCmd(c, "images")
-	//docker images still include dangling images
+	// docker images still include dangling images
 	assert.Assert(c, strings.Contains(out, imageID))
 }
 

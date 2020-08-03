@@ -51,7 +51,10 @@ func copyFileInfo(fi os.FileInfo, name string) error {
 		}
 	}
 
-	timespec := []unix.Timespec{unix.Timespec(StatAtime(st)), unix.Timespec(StatMtime(st))}
+	timespec := []unix.Timespec{
+		unix.NsecToTimespec(syscall.TimespecToNsec(StatAtime(st))),
+		unix.NsecToTimespec(syscall.TimespecToNsec(StatMtime(st))),
+	}
 	if err := unix.UtimesNanoAt(unix.AT_FDCWD, name, timespec, unix.AT_SYMLINK_NOFOLLOW); err != nil {
 		return errors.Wrapf(err, "failed to utime %s", name)
 	}

@@ -15,6 +15,15 @@ if [ -z "$TMP_GOPATH" ]; then
 else
 	export GOPATH="$TMP_GOPATH"
 fi
+case "$(go env GOARCH)" in
+	mips* | ppc64)
+		# pie build mode is not supported on mips architectures
+		export GO_BUILDMODE=""
+		;;
+	*)
+		export GO_BUILDMODE="-buildmode=pie"
+		;;
+esac
 
 dir="$(dirname $0)"
 

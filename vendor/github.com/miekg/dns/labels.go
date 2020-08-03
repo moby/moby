@@ -16,7 +16,7 @@ func SplitDomainName(s string) (labels []string) {
 	fqdnEnd := 0 // offset of the final '.' or the length of the name
 	idx := Split(s)
 	begin := 0
-	if s[len(s)-1] == '.' {
+	if IsFqdn(s) {
 		fqdnEnd = len(s) - 1
 	} else {
 		fqdnEnd = len(s)
@@ -28,16 +28,13 @@ func SplitDomainName(s string) (labels []string) {
 	case 1:
 		// no-op
 	default:
-		end := 0
-		for i := 1; i < len(idx); i++ {
-			end = idx[i]
+		for _, end := range idx[1:] {
 			labels = append(labels, s[begin:end-1])
 			begin = end
 		}
 	}
 
-	labels = append(labels, s[begin:fqdnEnd])
-	return labels
+	return append(labels, s[begin:fqdnEnd])
 }
 
 // CompareDomainName compares the names s1 and s2 and
@@ -129,20 +126,23 @@ func Split(s string) []int {
 // The bool end is true when the end of the string has been reached.
 // Also see PrevLabel.
 func NextLabel(s string, offset int) (i int, end bool) {
-	quote := false
+	if s == "" {
+		return 0, true
+	}
 	for i = offset; i < len(s)-1; i++ {
-		switch s[i] {
-		case '\\':
-			quote = !quote
-		default:
-			quote = false
-		case '.':
-			if quote {
-				quote = !quote
-				continue
-			}
-			return i + 1, false
+		if s[i] != '.' {
+			continue
 		}
+		j := i - 1
+		for j >= 0 && s[j] == '\\' {
+			j--
+		}
+
+		if (j-i)%2 == 0 {
+			continue
+		}
+
+		return i + 1, false
 	}
 	return i + 1, true
 }
@@ -152,17 +152,38 @@ func NextLabel(s string, offset int) (i int, end bool) {
 // The bool start is true when the start of the string has been overshot.
 // Also see NextLabel.
 func PrevLabel(s string, n int) (i int, start bool) {
+	if s == "" {
+		return 0, true
+	}
 	if n == 0 {
 		return len(s), false
 	}
-	lab := Split(s)
-	if lab == nil {
-		return 0, true
+
+	l := len(s) - 1
+	if s[l] == '.' {
+		l--
 	}
-	if n > len(lab) {
-		return 0, true
+
+	for ; l >= 0 && n > 0; l-- {
+		if s[l] != '.' {
+			continue
+		}
+		j := l - 1
+		for j >= 0 && s[j] == '\\' {
+			j--
+		}
+
+		if (j-l)%2 == 0 {
+			continue
+		}
+
+		n--
+		if n == 0 {
+			return l + 1, false
+		}
 	}
-	return lab[len(lab)-n], false
+
+	return 0, n > 1
 }
 
 // equal compares a and b while ignoring case. It returns true when equal otherwise false.
@@ -178,10 +199,10 @@ func equal(a, b string) bool {
 		ai := a[i]
 		bi := b[i]
 		if ai >= 'A' && ai <= 'Z' {
-			ai |= ('a' - 'A')
+			ai |= 'a' - 'A'
 		}
 		if bi >= 'A' && bi <= 'Z' {
-			bi |= ('a' - 'A')
+			bi |= 'a' - 'A'
 		}
 		if ai != bi {
 			return false

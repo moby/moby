@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 )
 
@@ -21,20 +22,25 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	// Engine API version (used for backwards compatibility)
 	apiVersion := config.Version
 
-	if runtime.GOOS == "windows" && versions.LessThan(apiVersion, "1.21") {
+	if isWindows && versions.LessThan(apiVersion, "1.21") {
 		return errors.New("API versions pre v1.21 do not support stats on Windows")
 	}
 
-	container, err := daemon.GetContainer(prefixOrName)
+	ctr, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
 	}
 
+	if config.Stream && config.OneShot {
+		return errdefs.InvalidParameter(errors.New("cannot have stream=true and one-shot=true"))
+	}
+
 	// If the container is either not running or restarting and requires no stream, return an empty stats.
-	if (!container.IsRunning() || container.IsRestarting()) && !config.Stream {
+	if (!ctr.IsRunning() || ctr.IsRestarting()) && !config.Stream {
 		return json.NewEncoder(config.OutStream).Encode(&types.StatsJSON{
-			Name: container.Name,
-			ID:   container.ID})
+			Name: ctr.Name,
+			ID:   ctr.ID,
+		})
 	}
 
 	outStream := config.OutStream
@@ -49,8 +55,8 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	var preRead time.Time
 	getStatJSON := func(v interface{}) *types.StatsJSON {
 		ss := v.(types.StatsJSON)
-		ss.Name = container.Name
-		ss.ID = container.ID
+		ss.Name = ctr.Name
+		ss.ID = ctr.ID
 		ss.PreCPUStats = preCPUStats
 		ss.PreRead = preRead
 		preCPUStats = ss.CPUStats
@@ -60,10 +66,10 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 
 	enc := json.NewEncoder(outStream)
 
-	updates := daemon.subscribeToContainerStats(container)
-	defer daemon.unsubscribeToContainerStats(container, updates)
+	updates := daemon.subscribeToContainerStats(ctr)
+	defer daemon.unsubscribeToContainerStats(ctr, updates)
 
-	noStreamFirstFrame := true
+	noStreamFirstFrame := !config.OneShot
 	for {
 		select {
 		case v, ok := <-updates:

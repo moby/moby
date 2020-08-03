@@ -7,10 +7,10 @@ import (
 	"github.com/moby/buildkit/cache"
 	cacheutil "github.com/moby/buildkit/cache/util"
 	clienttypes "github.com/moby/buildkit/client"
+	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	gwpb "github.com/moby/buildkit/frontend/gateway/pb"
-	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	opspb "github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
@@ -19,11 +19,12 @@ import (
 	fstypes "github.com/tonistiigi/fsutil/types"
 )
 
-func llbBridgeToGatewayClient(ctx context.Context, llbBridge frontend.FrontendLLBBridge, opts map[string]string, workerInfos []clienttypes.WorkerInfo) (*bridgeClient, error) {
+func llbBridgeToGatewayClient(ctx context.Context, llbBridge frontend.FrontendLLBBridge, opts map[string]string, inputs map[string]*opspb.Definition, workerInfos []clienttypes.WorkerInfo, sid string) (*bridgeClient, error) {
 	return &bridgeClient{
 		opts:              opts,
+		inputs:            inputs,
 		FrontendLLBBridge: llbBridge,
-		sid:               session.FromContext(ctx),
+		sid:               sid,
 		workerInfos:       workerInfos,
 		final:             map[*ref]struct{}{},
 	}, nil
@@ -33,6 +34,7 @@ type bridgeClient struct {
 	frontend.FrontendLLBBridge
 	mu           sync.Mutex
 	opts         map[string]string
+	inputs       map[string]*opspb.Definition
 	final        map[*ref]struct{}
 	sid          string
 	exporterAttr map[string][]byte
@@ -42,11 +44,12 @@ type bridgeClient struct {
 
 func (c *bridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*client.Result, error) {
 	res, err := c.FrontendLLBBridge.Solve(ctx, frontend.SolveRequest{
-		Definition:   req.Definition,
-		Frontend:     req.Frontend,
-		FrontendOpt:  req.FrontendOpt,
-		CacheImports: req.CacheImports,
-	})
+		Definition:     req.Definition,
+		Frontend:       req.Frontend,
+		FrontendOpt:    req.FrontendOpt,
+		FrontendInputs: req.FrontendInputs,
+		CacheImports:   req.CacheImports,
+	}, c.sid)
 	if err != nil {
 		return nil, err
 	}
@@ -54,12 +57,18 @@ func (c *bridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*cli
 	cRes := &client.Result{}
 	c.mu.Lock()
 	for k, r := range res.Refs {
-		rr := &ref{r}
+		rr, err := newRef(r)
+		if err != nil {
+			return nil, err
+		}
 		c.refs = append(c.refs, rr)
 		cRes.AddRef(k, rr)
 	}
 	if r := res.Ref; r != nil {
-		rr := &ref{r}
+		rr, err := newRef(r)
+		if err != nil {
+			return nil, err
+		}
 		c.refs = append(c.refs, rr)
 		cRes.SetRef(rr)
 	}
@@ -88,6 +97,18 @@ func (c *bridgeClient) BuildOpts() client.BuildOpts {
 	}
 }
 
+func (c *bridgeClient) Inputs(ctx context.Context) (map[string]llb.State, error) {
+	inputs := make(map[string]llb.State)
+	for key, def := range c.inputs {
+		defop, err := llb.NewDefinitionOp(def)
+		if err != nil {
+			return nil, err
+		}
+		inputs[key] = llb.NewState(defop)
+	}
+	return inputs, nil
+}
+
 func (c *bridgeClient) toFrontendResult(r *client.Result) (*frontend.Result, error) {
 	if r == nil {
 		return nil, nil
@@ -96,14 +117,14 @@ func (c *bridgeClient) toFrontendResult(r *client.Result) (*frontend.Result, err
 	res := &frontend.Result{}
 
 	if r.Refs != nil {
-		res.Refs = make(map[string]solver.CachedResult, len(r.Refs))
+		res.Refs = make(map[string]solver.ResultProxy, len(r.Refs))
 		for k, r := range r.Refs {
 			rr, ok := r.(*ref)
 			if !ok {
 				return nil, errors.Errorf("invalid reference type for forward %T", r)
 			}
 			c.final[rr] = struct{}{}
-			res.Refs[k] = rr.CachedResult
+			res.Refs[k] = rr.ResultProxy
 		}
 	}
 	if r := r.Ref; r != nil {
@@ -112,7 +133,7 @@ func (c *bridgeClient) toFrontendResult(r *client.Result) (*frontend.Result, err
 			return nil, errors.Errorf("invalid reference type for forward %T", r)
 		}
 		c.final[rr] = struct{}{}
-		res.Ref = rr.CachedResult
+		res.Ref = rr.ResultProxy
 	}
 	res.Metadata = r.Metadata
 
@@ -130,11 +151,23 @@ func (c *bridgeClient) discard(err error) {
 }
 
 type ref struct {
-	solver.CachedResult
+	solver.ResultProxy
+}
+
+func newRef(r solver.ResultProxy) (*ref, error) {
+	return &ref{ResultProxy: r}, nil
+}
+
+func (r *ref) ToState() (st llb.State, err error) {
+	defop, err := llb.NewDefinitionOp(r.Definition())
+	if err != nil {
+		return st, err
+	}
+	return llb.NewState(defop), nil
 }
 
 func (r *ref) ReadFile(ctx context.Context, req client.ReadRequest) ([]byte, error) {
-	ref, err := r.getImmutableRef()
+	ref, err := r.getImmutableRef(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +184,7 @@ func (r *ref) ReadFile(ctx context.Context, req client.ReadRequest) ([]byte, err
 }
 
 func (r *ref) ReadDir(ctx context.Context, req client.ReadDirRequest) ([]*fstypes.Stat, error) {
-	ref, err := r.getImmutableRef()
+	ref, err := r.getImmutableRef(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -163,17 +196,21 @@ func (r *ref) ReadDir(ctx context.Context, req client.ReadDirRequest) ([]*fstype
 }
 
 func (r *ref) StatFile(ctx context.Context, req client.StatRequest) (*fstypes.Stat, error) {
-	ref, err := r.getImmutableRef()
+	ref, err := r.getImmutableRef(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return cacheutil.StatFile(ctx, ref, req.Path)
 }
 
-func (r *ref) getImmutableRef() (cache.ImmutableRef, error) {
-	ref, ok := r.CachedResult.Sys().(*worker.WorkerRef)
+func (r *ref) getImmutableRef(ctx context.Context) (cache.ImmutableRef, error) {
+	rr, err := r.ResultProxy.Result(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ref, ok := rr.Sys().(*worker.WorkerRef)
 	if !ok {
-		return nil, errors.Errorf("invalid ref: %T", r.CachedResult.Sys())
+		return nil, errors.Errorf("invalid ref: %T", rr.Sys())
 	}
 	return ref.ImmutableRef, nil
 }

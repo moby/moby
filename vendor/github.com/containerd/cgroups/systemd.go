@@ -17,13 +17,12 @@
 package cgroups
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
 
-	systemdDbus "github.com/coreos/go-systemd/dbus"
-	"github.com/godbus/dbus"
+	systemdDbus "github.com/coreos/go-systemd/v22/dbus"
+	"github.com/godbus/dbus/v5"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -78,7 +77,7 @@ func (s *SystemdController) Name() Name {
 	return SystemdDbus
 }
 
-func (s *SystemdController) Create(path string, resources *specs.LinuxResources) error {
+func (s *SystemdController) Create(path string, _ *specs.LinuxResources) error {
 	conn, err := systemdDbus.New()
 	if err != nil {
 		return err
@@ -105,7 +104,7 @@ func (s *SystemdController) Create(path string, resources *specs.LinuxResources)
 	}
 	once.Do(checkDelegate)
 	properties := []systemdDbus.Property{
-		systemdDbus.PropDescription(fmt.Sprintf("cgroup %s", name)),
+		systemdDbus.PropDescription("cgroup " + name),
 		systemdDbus.PropWants(slice),
 		newProperty("DefaultDependencies", false),
 		newProperty("MemoryAccounting", true),
@@ -148,10 +147,6 @@ func newProperty(name string, units interface{}) systemdDbus.Property {
 		Name:  name,
 		Value: dbus.MakeVariant(units),
 	}
-}
-
-func unitName(name string) string {
-	return fmt.Sprintf("%s.slice", name)
 }
 
 func splitName(path string) (slice string, unit string) {

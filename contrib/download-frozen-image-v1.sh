@@ -15,7 +15,7 @@ fi
 usage() {
 	echo "usage: $0 dir image[:tag][@image-id] ..."
 	echo "   ie: $0 /tmp/hello-world hello-world"
-	echo "       $0 /tmp/debian-jessie debian:jessie"
+	echo "       $0 /tmp/debian-buster debian:buster"
 	echo "       $0 /tmp/old-hello-world hello-world@ef872312fe1bbc5e05aae626791a47ee9b032efa8f3bda39cc0be7b56bfe59b9"
 	echo "       $0 /tmp/old-debian debian:latest@f6fab3b798be3174f45aa1eb731f8182705555f89c9026d8c1ef230cbf8301dd"
 	[ -z "$1" ] || exit "$1"
@@ -59,13 +59,13 @@ while [ $# -gt 0 ]; do
 	fi
 
 	IFS=','
-	ancestry=( ${ancestryJson//[\[\] \"]/} )
+	ancestry=(${ancestryJson//[\[\] \"]/})
 	unset IFS
 
 	if [ -s "$dir/tags-$imageFile.tmp" ]; then
 		echo -n ', ' >> "$dir/tags-$imageFile.tmp"
 	else
-		images=( "${images[@]}" "$image" )
+		images=("${images[@]}" "$image")
 	fi
 	echo -n '"'"$tag"'": "'"$imageId"'"' >> "$dir/tags-$imageFile.tmp"
 
@@ -84,7 +84,7 @@ while [ $# -gt 0 ]; do
 			echo "skipping existing ${imageId:0:12}"
 			continue
 		fi
-		curl -SL --progress -H "Authorization: Token $token" "https://registry-1.docker.io/v1/images/$imageId/layer" -o "$dir/$imageId/layer.tar" # -C -
+		curl -SL --progress-bar -H "Authorization: Token $token" "https://registry-1.docker.io/v1/images/$imageId/layer" -o "$dir/$imageId/layer.tar" # -C -
 	done
 	echo
 done

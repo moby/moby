@@ -3,6 +3,7 @@ syntax = "proto3";
 package containerd.services.diff.v1;
 
 import weak "gogoproto/gogo.proto";
+import "google/protobuf/any.proto";
 import "github.com/containerd/containerd/api/types/mount.proto";
 import "github.com/containerd/containerd/api/types/descriptor.proto";
 
@@ -25,6 +26,8 @@ message ApplyRequest {
 	containerd.types.Descriptor diff = 1;
 
 	repeated containerd.types.Mount mounts = 2;
+
+	map<string, google.protobuf.Any> payloads = 3;
 }
 
 message ApplyResponse {

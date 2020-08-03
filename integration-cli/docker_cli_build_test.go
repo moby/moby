@@ -27,9 +27,9 @@ import (
 	"github.com/docker/docker/testutil/fakestorage"
 	"github.com/moby/buildkit/frontend/dockerfile/command"
 	digest "github.com/opencontainers/go-digest"
-	"gotest.tools/assert"
-	"gotest.tools/assert/cmp"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
 )
 
 func (s *DockerSuite) TestBuildJSONEmptyRun(c *testing.T) {
@@ -490,7 +490,7 @@ func (s *DockerSuite) TestBuildAddSingleFileToWorkdir(c *testing.T) {
 		}))
 	defer ctx.Close()
 
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	go func() {
 		errChan <- buildImage(name, build.WithExternalBuildContext(ctx)).Error
 		close(errChan)
@@ -833,7 +833,7 @@ COPY test_file .`),
 		}))
 	defer ctx.Close()
 
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	go func() {
 		errChan <- buildImage(name, build.WithExternalBuildContext(ctx)).Error
 		close(errChan)
@@ -6103,7 +6103,7 @@ func (s *DockerSuite) TestBuildLineErrorOnBuild(c *testing.T) {
   ONBUILD
   `)).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "Dockerfile parse error line 2: ONBUILD requires at least one argument",
+		Err:      "parse error line 2: ONBUILD requires at least one argument",
 	})
 }
 
@@ -6117,7 +6117,7 @@ func (s *DockerSuite) TestBuildLineErrorUnknownInstruction(c *testing.T) {
   ERROR
   `)).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "Dockerfile parse error line 3: unknown instruction: NOINSTRUCTION",
+		Err:      "parse error line 3: unknown instruction: NOINSTRUCTION",
 	})
 }
 
@@ -6134,7 +6134,7 @@ func (s *DockerSuite) TestBuildLineErrorWithEmptyLines(c *testing.T) {
   CMD ["/bin/init"]
   `)).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "Dockerfile parse error line 6: unknown instruction: NOINSTRUCTION",
+		Err:      "parse error line 6: unknown instruction: NOINSTRUCTION",
 	})
 }
 
@@ -6148,7 +6148,7 @@ func (s *DockerSuite) TestBuildLineErrorWithComments(c *testing.T) {
   NOINSTRUCTION echo ba
   `)).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "Dockerfile parse error line 5: unknown instruction: NOINSTRUCTION",
+		Err:      "parse error line 5: unknown instruction: NOINSTRUCTION",
 	})
 }
 

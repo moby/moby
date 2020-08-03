@@ -95,12 +95,12 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 	for _, v := range hostConfig.VolumesFrom {
 		containerID, mode, err := parser.ParseVolumesFrom(v)
 		if err != nil {
-			return err
+			return errdefs.InvalidParameter(err)
 		}
 
 		c, err := daemon.GetContainer(containerID)
 		if err != nil {
-			return err
+			return errdefs.InvalidParameter(err)
 		}
 
 		for _, m := range c.MountPoints {

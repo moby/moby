@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/testutil/request"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // #19100 This is a deprecated feature test, it should be removed in Docker 1.12

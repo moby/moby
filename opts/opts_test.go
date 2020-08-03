@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestValidateIPAddress(t *testing.T) {
@@ -174,19 +177,94 @@ func TestValidateDNSSearch(t *testing.T) {
 }
 
 func TestValidateLabel(t *testing.T) {
-	if _, err := ValidateLabel("label"); err == nil || err.Error() != "bad attribute format: label" {
-		t.Fatalf("Expected an error [bad attribute format: label], go %v", err)
+	testCases := []struct {
+		name           string
+		label          string
+		expectedResult string
+		expectedErr    string
+	}{
+		{
+			name:        "lable with bad attribute format",
+			label:       "label",
+			expectedErr: "bad attribute format: label",
+		},
+		{
+			name:           "label with general format",
+			label:          "key1=value1",
+			expectedResult: "key1=value1",
+		},
+		{
+			name:           "label with more than one =",
+			label:          "key1=value1=value2",
+			expectedResult: "key1=value1=value2",
+		},
+		{
+			name:           "label with one more",
+			label:          "key1=value1=value2=value3",
+			expectedResult: "key1=value1=value2=value3",
+		},
+		{
+			name:           "label with no reserved com.docker.*",
+			label:          "com.dockerpsychnotreserved.label=value",
+			expectedResult: "com.dockerpsychnotreserved.label=value",
+		},
+		{
+			name:           "label with no reserved io.docker.*",
+			label:          "io.dockerproject.not=reserved",
+			expectedResult: "io.dockerproject.not=reserved",
+		},
+		{
+			name:           "label with no reserved org.dockerproject.*",
+			label:          "org.docker.not=reserved",
+			expectedResult: "org.docker.not=reserved",
+		},
+		{
+			name:        "label with reserved com.docker.*",
+			label:       "com.docker.feature=enabled",
+			expectedErr: "label com.docker.feature=enabled is not allowed: the namespaces com.docker.*, io.docker.*, and org.dockerproject.* are reserved for internal use",
+		},
+		{
+			name:        "label with reserved upcase com.docker.* ",
+			label:       "COM.docker.feature=enabled",
+			expectedErr: "label COM.docker.feature=enabled is not allowed: the namespaces com.docker.*, io.docker.*, and org.dockerproject.* are reserved for internal use",
+		},
+		{
+			name:        "label with reserved io.docker.*",
+			label:       "io.docker.configuration=0",
+			expectedErr: "label io.docker.configuration=0 is not allowed: the namespaces com.docker.*, io.docker.*, and org.dockerproject.* are reserved for internal use",
+		},
+		{
+			name:        "label with reserved upcase io.docker.*",
+			label:       "io.DOCKER.CONFIGURATion=0",
+			expectedErr: "label io.DOCKER.CONFIGURATion=0 is not allowed: the namespaces com.docker.*, io.docker.*, and org.dockerproject.* are reserved for internal use",
+		},
+		{
+			name:        "label with reserved org.dockerproject.*",
+			label:       "org.dockerproject.setting=on",
+			expectedErr: "label org.dockerproject.setting=on is not allowed: the namespaces com.docker.*, io.docker.*, and org.dockerproject.* are reserved for internal use",
+		},
+		{
+			name:        "label with reserved upcase org.dockerproject.*",
+			label:       "Org.Dockerproject.Setting=on",
+			expectedErr: "label Org.Dockerproject.Setting=on is not allowed: the namespaces com.docker.*, io.docker.*, and org.dockerproject.* are reserved for internal use",
+		},
 	}
-	if actual, err := ValidateLabel("key1=value1"); err != nil || actual != "key1=value1" {
-		t.Fatalf("Expected [key1=value1], got [%v,%v]", actual, err)
-	}
-	// Validate it's working with more than one =
-	if actual, err := ValidateLabel("key1=value1=value2"); err != nil {
-		t.Fatalf("Expected [key1=value1=value2], got [%v,%v]", actual, err)
-	}
-	// Validate it's working with one more
-	if actual, err := ValidateLabel("key1=value1=value2=value3"); err != nil {
-		t.Fatalf("Expected [key1=value1=value2=value2], got [%v,%v]", actual, err)
+
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			result, err := ValidateLabel(testCase.label)
+
+			if testCase.expectedErr != "" {
+				assert.Error(t, err, testCase.expectedErr)
+			} else {
+				assert.NilError(t, err)
+			}
+			if testCase.expectedResult != "" {
+				assert.Check(t, is.Equal(result, testCase.expectedResult))
+			}
+		})
+
 	}
 }
 

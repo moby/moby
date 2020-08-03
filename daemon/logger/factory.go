@@ -41,7 +41,11 @@ func ListDrivers() []string {
 }
 
 func (lf *logdriverFactory) register(name string, c Creator) error {
-	if lf.driverRegistered(name) {
+	registered, err := lf.driverRegistered(name)
+	if err != nil {
+		return err
+	}
+	if registered {
 		return fmt.Errorf("logger: log driver named '%s' is already registered", name)
 	}
 
@@ -51,18 +55,22 @@ func (lf *logdriverFactory) register(name string, c Creator) error {
 	return nil
 }
 
-func (lf *logdriverFactory) driverRegistered(name string) bool {
+func (lf *logdriverFactory) driverRegistered(name string) (bool, error) {
 	lf.m.Lock()
 	_, ok := lf.registry[name]
 	lf.m.Unlock()
 	if !ok {
 		if pluginGetter != nil { // this can be nil when the init functions are running
-			if l, _ := getPlugin(name, plugingetter.Lookup); l != nil {
-				return true
+			l, err := getPlugin(name, plugingetter.Lookup)
+			if err != nil {
+				return false, err
+			}
+			if l != nil {
+				return true, nil
 			}
 		}
 	}
-	return ok
+	return ok, nil
 }
 
 func (lf *logdriverFactory) registerLogOptValidator(name string, l LogOptValidator) error {
@@ -143,7 +151,15 @@ func ValidateLogOpts(name string, cfg map[string]string) error {
 		}
 	}
 
-	if !factory.driverRegistered(name) {
+	if err := validateExternal(cfg); err != nil {
+		return err
+	}
+
+	registered, err := factory.driverRegistered(name)
+	if err != nil {
+		return err
+	}
+	if !registered {
 		return fmt.Errorf("logger: no log driver named '%s' is registered", name)
 	}
 

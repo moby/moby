@@ -7,19 +7,20 @@ source hack/make/.integration-test-helpers
 # TODO docker 17.06 cli client used in CI fails to build using a sha;
 # unable to prepare context: unable to 'git clone' to temporary context directory: error fetching: error: no such remote ref ead0bb9e08c13dd3d1712759491eee06bf5a5602
 #: exit status 128
-: "${DOCKER_PY_COMMIT:=4.1.0}"
+: "${DOCKER_PY_COMMIT:=4.2.2}"
+
+# Override the API version used to make sure all tests are run
+# TODO remove this or unset this after https://github.com/docker/docker-py/pull/2512 is merged
+: "${DOCKER_PY_TEST_API_VERSION:=1.39}"
 
 # custom options to pass py.test
-# TODO remove these skip once we update to a docker-py version that has https://github.com/docker/docker-py/pull/2369, https://github.com/docker/docker-py/pull/2380, https://github.com/docker/docker-py/pull/2382
-: "${PY_TEST_OPTIONS:=\
---deselect=tests/integration/api_swarm_test.py::SwarmTest::test_init_swarm_data_path_addr \
---deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream \
---deselect=tests/integration/api_exec_test.py::ExecTest::test_detach_with_arg \
---deselect=tests/integration/api_exec_test.py::ExecDemuxTest::test_exec_command_tty_stream_no_demux \
---deselect=tests/integration/api_build_test.py::BuildTest::test_build_invalid_platform \
---deselect=tests/integration/api_image_test.py::PullImageTest::test_pull_invalid_platform \
---junitxml=${DEST}/junit-report.xml \
-}"
+# TODO remove these skip once we update to a docker-py version that has https://github.com/docker/docker-py/pull/2624: CreateContainerTest::test_invalid_log_driver_raises_exception
+#
+# This option can be used to temporarily skip flaky tests (using the `--deselect`
+# flag) until they are fixed upstream. For example:
+# --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream
+# TODO re-enable test after https://github.com/docker/docker-py/issues/2513 has been resolved
+: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_invalid_log_driver_raises_exception}"
 (
 	bundle .integration-daemon-start
 
@@ -41,6 +42,7 @@ source hack/make/.integration-test-helpers
 			echo "WARN: Skipping test-docker-py: connecting to docker daemon using ${docker_host_scheme} (${DOCKER_HOST}) not supported"
 			bundle .integration-daemon-stop
 			return 0
+			;;
 	esac
 
 	docker_py_image="docker-sdk-python3:${DOCKER_PY_COMMIT}"
@@ -59,7 +61,7 @@ source hack/make/.integration-test-helpers
 	(
 		[ -n "${TESTDEBUG}" ] && set -x
 		# shellcheck disable=SC2086,SC2140
-		exec docker run --rm ${run_opts} --mount type=bind,"src=${ABS_DEST}","dst=/src/${DEST}" "${docker_py_image}" pytest ${PY_TEST_OPTIONS} tests/integration
+		exec docker run --rm ${run_opts} -e DOCKER_TEST_API_VERSION="${DOCKER_PY_TEST_API_VERSION}" --mount type=bind,"src=${ABS_DEST}","dst=/src/${DEST}" "${docker_py_image}" pytest ${PY_TEST_OPTIONS} tests/integration
 	)
 	bundle .integration-daemon-stop
 ) 2>&1 | tee -a "$DEST/test.log"

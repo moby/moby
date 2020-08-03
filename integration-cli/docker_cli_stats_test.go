@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/cli"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func (s *DockerSuite) TestStatsNoStream(c *testing.T) {
@@ -26,7 +26,7 @@ func (s *DockerSuite) TestStatsNoStream(c *testing.T) {
 		err error
 	}
 
-	ch := make(chan output)
+	ch := make(chan output, 1)
 	go func() {
 		out, err := statsCmd.Output()
 		ch <- output{out, err}

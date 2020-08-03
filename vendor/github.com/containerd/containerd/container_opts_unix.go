@@ -28,7 +28,6 @@ import (
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/platforms"
 	"github.com/opencontainers/image-spec/identity"
 )
 
@@ -45,18 +44,23 @@ func WithRemappedSnapshotView(id string, i Image, uid, gid uint32) NewContainerO
 
 func withRemappedSnapshotBase(id string, i Image, uid, gid uint32, readonly bool) NewContainerOpts {
 	return func(ctx context.Context, client *Client, c *containers.Container) error {
-		diffIDs, err := i.(*image).i.RootFS(ctx, client.ContentStore(), platforms.Default())
+		diffIDs, err := i.(*image).i.RootFS(ctx, client.ContentStore(), client.platform)
 		if err != nil {
 			return err
 		}
 
-		setSnapshotterIfEmpty(ctx, client, c)
-
 		var (
-			snapshotter = client.SnapshotService(c.Snapshotter)
-			parent      = identity.ChainID(diffIDs).String()
-			usernsID    = fmt.Sprintf("%s-%d-%d", parent, uid, gid)
+			parent   = identity.ChainID(diffIDs).String()
+			usernsID = fmt.Sprintf("%s-%d-%d", parent, uid, gid)
 		)
+		c.Snapshotter, err = client.resolveSnapshotterName(ctx, c.Snapshotter)
+		if err != nil {
+			return err
+		}
+		snapshotter, err := client.getSnapshotter(ctx, c.Snapshotter)
+		if err != nil {
+			return err
+		}
 		if _, err := snapshotter.Stat(ctx, usernsID); err == nil {
 			if _, err := snapshotter.Prepare(ctx, id, usernsID); err == nil {
 				c.SnapshotKey = id

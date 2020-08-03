@@ -14,7 +14,7 @@ copy_binaries() {
 		return
 	fi
 	echo "Copying nested executables into $dir"
-	for file in containerd containerd-shim ctr runc docker-init docker-proxy rootlesskit rootlesskit-docker-proxy dockerd-rootless.sh; do
+	for file in containerd containerd-shim containerd-shim-runc-v2 ctr runc docker-init docker-proxy rootlesskit rootlesskit-docker-proxy dockerd-rootless.sh dockerd-rootless-setuptool.sh; do
 		cp -f "$(command -v "$file")" "$dir/"
 		if [ "$hash" = "hash" ]; then
 			hash_files "$dir/$file"
@@ -22,7 +22,7 @@ copy_binaries() {
 	done
 
 	# vpnkit is amd64 only
-	if command -v "vpnkit.$(uname -m)" 2>&1 >/dev/null; then
+	if command -v "vpnkit.$(uname -m)" 2>&1 > /dev/null; then
 		cp -f "$(command -v "vpnkit.$(uname -m)")" "$dir/vpnkit"
 		if [ "$hash" = "hash" ]; then
 			hash_files "$dir/vpnkit"

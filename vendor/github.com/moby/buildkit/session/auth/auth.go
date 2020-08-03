@@ -4,24 +4,32 @@ import (
 	"context"
 
 	"github.com/moby/buildkit/session"
-	"github.com/pkg/errors"
+	"github.com/moby/buildkit/util/grpcerrors"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
-func CredentialsFunc(ctx context.Context, c session.Caller) func(string) (string, string, error) {
+func CredentialsFunc(sm *session.Manager, g session.Group) func(string) (string, string, error) {
 	return func(host string) (string, string, error) {
-		client := NewAuthClient(c.Conn())
+		var user, secret string
+		err := sm.Any(context.TODO(), g, func(ctx context.Context, _ string, c session.Caller) error {
+			client := NewAuthClient(c.Conn())
 
-		resp, err := client.Credentials(ctx, &CredentialsRequest{
-			Host: host,
+			resp, err := client.Credentials(ctx, &CredentialsRequest{
+				Host: host,
+			})
+			if err != nil {
+				if grpcerrors.Code(err) == codes.Unimplemented {
+					return nil
+				}
+				return err
+			}
+			user = resp.Username
+			secret = resp.Secret
+			return nil
 		})
 		if err != nil {
-			if st, ok := status.FromError(errors.Cause(err)); ok && st.Code() == codes.Unimplemented {
-				return "", "", nil
-			}
-			return "", "", errors.WithStack(err)
+			return "", "", err
 		}
-		return resp.Username, resp.Secret, nil
+		return user, secret, nil
 	}
 }

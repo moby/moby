@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/identity"
+	"github.com/pkg/errors"
 )
 
 const hostsContent = `
@@ -41,7 +42,7 @@ func makeHostsFile(stateDir string, extraHosts []executor.HostIP, idmap *idtools
 	if err == nil {
 		return "", func() {}, nil
 	}
-	if !os.IsNotExist(err) {
+	if !errors.Is(err, os.ErrNotExist) {
 		return "", nil, err
 	}
 

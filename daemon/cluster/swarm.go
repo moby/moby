@@ -33,6 +33,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 			// API handlers to finish before shutting down the node.
 			c.mu.Lock()
 			if !c.nr.nodeState.IsManager() {
+				c.mu.Unlock()
 				return "", errSwarmNotManager
 			}
 			c.mu.Unlock()
@@ -93,7 +94,6 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		}
 	}
 
-	//Validate Default Address Pool input
 	if err := validateDefaultAddrPool(req.DefaultAddrPool, req.SubnetSize); err != nil {
 		return "", err
 	}
@@ -347,7 +347,7 @@ func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
 	c.mu.Unlock()
 
 	if err := <-nr.Ready(); err != nil {
-		if errors.Cause(err) == errSwarmLocked {
+		if errors.Is(err, errSwarmLocked) {
 			return invalidUnlockKey{}
 		}
 		return errors.Errorf("swarm component could not be started: %v", err)
@@ -371,7 +371,7 @@ func (c *Cluster) Leave(force bool) error {
 
 	c.mu.Unlock()
 
-	if errors.Cause(state.err) == errSwarmLocked && !force {
+	if errors.Is(state.err, errSwarmLocked) && !force {
 		// leave a locked swarm without --force is not allowed
 		return errors.WithStack(notAvailableError("Swarm is encrypted and locked. Please unlock it first or use `--force` to ignore this message."))
 	}

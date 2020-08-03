@@ -21,7 +21,6 @@ if [ -n "$DOCKER_STORAGE_OPTS" ]; then
 	unset IFS
 fi
 
-
 listen_port=2375
 if [ -n "$DOCKER_PORT" ]; then
 	IFS=':' read -r -a ports <<< "$DOCKER_PORT"
@@ -33,12 +32,29 @@ if [ "$DOCKER_REMAP_ROOT" ]; then
 	extra_params="$extra_params --userns-remap $DOCKER_REMAP_ROOT"
 fi
 
+if [ -n "$DOCKER_EXPERIMENTAL" ]; then
+	extra_params="$extra_params --experimental"
+fi
+
+dockerd="dockerd"
+socket=/var/run/docker.sock
+if [ -n "$DOCKER_ROOTLESS" ]; then
+	user="unprivilegeduser"
+	uid=$(id -u $user)
+	# shellcheck disable=SC2174
+	mkdir -p -m 700 "/tmp/docker-${uid}"
+	chown $user "/tmp/docker-${uid}"
+	dockerd="sudo -u $user -E XDG_RUNTIME_DIR=/tmp/docker-${uid} -E HOME=/home/${user} -- dockerd-rootless.sh"
+	socket=/tmp/docker-${uid}/docker.sock
+fi
+
 args="--debug \
-	--host tcp://0.0.0.0:${listen_port} --host unix:///var/run/docker.sock \
+	--host "tcp://0.0.0.0:${listen_port}" --host "unix://${socket}" \
 	--storage-driver "${DOCKER_GRAPHDRIVER}" \
 	--userland-proxy="${DOCKER_USERLANDPROXY}" \
 	$storage_params \
 	$extra_params"
 
-echo dockerd ${args}
-exec dockerd ${args}
+echo "${dockerd} ${args}"
+# shellcheck disable=SC2086
+exec "${dockerd}" ${args}

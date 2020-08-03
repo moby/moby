@@ -21,6 +21,7 @@ type parseRequest struct {
 	attributes map[string]bool
 	flags      *BFlags
 	original   string
+	location   []parser.Range
 }
 
 var parseRunPreHooks []func(*RunCommand, parseRequest) error
@@ -48,11 +49,15 @@ func newParseRequestFromNode(node *parser.Node) parseRequest {
 		attributes: node.Attributes,
 		original:   node.Original,
 		flags:      NewBFlagsWithArgs(node.Flags),
+		location:   node.Location(),
 	}
 }
 
 // ParseInstruction converts an AST to a typed instruction (either a command or a build stage beginning when encountering a `FROM` statement)
-func ParseInstruction(node *parser.Node) (interface{}, error) {
+func ParseInstruction(node *parser.Node) (v interface{}, err error) {
+	defer func() {
+		err = parser.WithLocation(err, node.Location())
+	}()
 	req := newParseRequestFromNode(node)
 	switch node.Value {
 	case command.Env:
@@ -105,7 +110,7 @@ func ParseCommand(node *parser.Node) (Command, error) {
 	if c, ok := s.(Command); ok {
 		return c, nil
 	}
-	return nil, errors.Errorf("%T is not a command type", s)
+	return nil, parser.WithLocation(errors.Errorf("%T is not a command type", s), node.Location())
 }
 
 // UnknownInstruction represents an error occurring when a command is unresolvable
@@ -118,25 +123,17 @@ func (e *UnknownInstruction) Error() string {
 	return fmt.Sprintf("unknown instruction: %s", strings.ToUpper(e.Instruction))
 }
 
-// IsUnknownInstruction checks if the error is an UnknownInstruction or a parseError containing an UnknownInstruction
-func IsUnknownInstruction(err error) bool {
-	_, ok := err.(*UnknownInstruction)
-	if !ok {
-		var pe *parseError
-		if pe, ok = err.(*parseError); ok {
-			_, ok = pe.inner.(*UnknownInstruction)
-		}
-	}
-	return ok
-}
-
 type parseError struct {
 	inner error
 	node  *parser.Node
 }
 
 func (e *parseError) Error() string {
-	return fmt.Sprintf("Dockerfile parse error line %d: %v", e.node.StartLine, e.inner.Error())
+	return fmt.Sprintf("dockerfile parse error line %d: %v", e.node.StartLine, e.inner.Error())
+}
+
+func (e *parseError) Unwrap() error {
+	return e.inner
 }
 
 // Parse a Dockerfile into a collection of buildable stages.
@@ -160,11 +157,11 @@ func Parse(ast *parser.Node) (stages []Stage, metaArgs []ArgCommand, err error) 
 		case Command:
 			stage, err := CurrentStage(stages)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, parser.WithLocation(err, n.Location())
 			}
 			stage.AddCommand(c)
 		default:
-			return nil, nil, errors.Errorf("%T is not a command type", cmd)
+			return nil, nil, parser.WithLocation(errors.Errorf("%T is not a command type", cmd), n.Location())
 		}
 
 	}
@@ -242,6 +239,7 @@ func parseAdd(req parseRequest) (*AddCommand, error) {
 		return nil, errNoDestinationArgument("ADD")
 	}
 	flChown := req.flags.AddString("chown", "")
+	flChmod := req.flags.AddString("chmod", "")
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
@@ -249,6 +247,7 @@ func parseAdd(req parseRequest) (*AddCommand, error) {
 		SourcesAndDest:  SourcesAndDest(req.args),
 		withNameAndCode: newWithNameAndCode(req),
 		Chown:           flChown.Value,
+		Chmod:           flChmod.Value,
 	}, nil
 }
 
@@ -258,6 +257,7 @@ func parseCopy(req parseRequest) (*CopyCommand, error) {
 	}
 	flChown := req.flags.AddString("chown", "")
 	flFrom := req.flags.AddString("from", "")
+	flChmod := req.flags.AddString("chmod", "")
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
@@ -266,6 +266,7 @@ func parseCopy(req parseRequest) (*CopyCommand, error) {
 		From:            flFrom.Value,
 		withNameAndCode: newWithNameAndCode(req),
 		Chown:           flChown.Value,
+		Chmod:           flChmod.Value,
 	}, nil
 }
 
@@ -287,6 +288,7 @@ func parseFrom(req parseRequest) (*Stage, error) {
 		SourceCode: code,
 		Commands:   []Command{},
 		Platform:   flPlatform.Value,
+		Location:   req.location,
 	}, nil
 
 }
@@ -297,7 +299,7 @@ func parseBuildStageName(args []string) (string, error) {
 	case len(args) == 3 && strings.EqualFold(args[1], "as"):
 		stageName = strings.ToLower(args[2])
 		if ok, _ := regexp.MatchString("^[a-z][a-z0-9-_\\.]*$", stageName); !ok {
-			return "", errors.Errorf("invalid name for build stage: %q, name can't start with a number or contain symbols", stageName)
+			return "", errors.Errorf("invalid name for build stage: %q, name can't start with a number or contain symbols", args[2])
 		}
 	case len(args) != 1:
 		return "", errors.New("FROM requires either one or three arguments")

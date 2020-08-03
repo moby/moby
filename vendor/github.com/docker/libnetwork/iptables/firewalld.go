@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/godbus/dbus"
+	dbus "github.com/godbus/dbus/v5"
 	"github.com/sirupsen/logrus"
 )
 
@@ -19,20 +19,46 @@ const (
 	// Ebtables point to bridge table
 	Ebtables IPV = "eb"
 )
+
 const (
-	dbusInterface = "org.fedoraproject.FirewallD1"
-	dbusPath      = "/org/fedoraproject/FirewallD1"
+	dbusInterface  = "org.fedoraproject.FirewallD1"
+	dbusPath       = "/org/fedoraproject/FirewallD1"
+	dbusConfigPath = "/org/fedoraproject/FirewallD1/config"
+	dockerZone     = "docker"
 )
 
 // Conn is a connection to firewalld dbus endpoint.
 type Conn struct {
-	sysconn *dbus.Conn
-	sysobj  dbus.BusObject
-	signal  chan *dbus.Signal
+	sysconn    *dbus.Conn
+	sysObj     dbus.BusObject
+	sysConfObj dbus.BusObject
+	signal     chan *dbus.Signal
+}
+
+// ZoneSettings holds the firewalld zone settings, documented in
+// https://firewalld.org/documentation/man-pages/firewalld.dbus.html
+type ZoneSettings struct {
+	version            string
+	name               string
+	description        string
+	unused             bool
+	target             string
+	services           []string
+	ports              [][]interface{}
+	icmpBlocks         []string
+	masquerade         bool
+	forwardPorts       [][]interface{}
+	interfaces         []string
+	sourceAddresses    []string
+	richRules          []string
+	protocols          []string
+	sourcePorts        [][]interface{}
+	icmpBlockInversion bool
 }
 
 var (
-	connection       *Conn
+	connection *Conn
+
 	firewalldRunning bool      // is Firewalld service running
 	onReloaded       []*func() // callbacks when Firewalld has been reloaded
 )
@@ -51,6 +77,9 @@ func FirewalldInit() error {
 	}
 	if connection != nil {
 		go signalHandler()
+		if err := setupDockerZone(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -76,8 +105,8 @@ func (c *Conn) initConnection() error {
 	}
 
 	// This never fails, even if the service is not running atm.
-	c.sysobj = c.sysconn.Object(dbusInterface, dbus.ObjectPath(dbusPath))
-
+	c.sysObj = c.sysconn.Object(dbusInterface, dbus.ObjectPath(dbusPath))
+	c.sysConfObj = c.sysconn.Object(dbusInterface, dbus.ObjectPath(dbusConfigPath))
 	rule := fmt.Sprintf("type='signal',path='%s',interface='%s',sender='%s',member='Reloaded'",
 		dbusPath, dbusInterface, dbusInterface)
 	c.sysconn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
@@ -150,7 +179,7 @@ func checkRunning() bool {
 	var err error
 
 	if connection != nil {
-		err = connection.sysobj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
+		err = connection.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
 		return err == nil
 	}
 	return false
@@ -160,8 +189,115 @@ func checkRunning() bool {
 func Passthrough(ipv IPV, args ...string) ([]byte, error) {
 	var output string
 	logrus.Debugf("Firewalld passthrough: %s, %s", ipv, args)
-	if err := connection.sysobj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output); err != nil {
+	if err := connection.sysObj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output); err != nil {
 		return nil, err
 	}
 	return []byte(output), nil
+}
+
+// getDockerZoneSettings converts the ZoneSettings struct into a interface slice
+func getDockerZoneSettings() []interface{} {
+	settings := ZoneSettings{
+		version:     "1.0",
+		name:        dockerZone,
+		description: "zone for docker bridge network interfaces",
+		target:      "ACCEPT",
+	}
+	slice := []interface{}{
+		settings.version,
+		settings.name,
+		settings.description,
+		settings.unused,
+		settings.target,
+		settings.services,
+		settings.ports,
+		settings.icmpBlocks,
+		settings.masquerade,
+		settings.forwardPorts,
+		settings.interfaces,
+		settings.sourceAddresses,
+		settings.richRules,
+		settings.protocols,
+		settings.sourcePorts,
+		settings.icmpBlockInversion,
+	}
+	return slice
+
+}
+
+// setupDockerZone creates a zone called docker in firewalld which includes docker interfaces to allow
+// container networking
+func setupDockerZone() error {
+	var zones []string
+	// Check if zone exists
+	if err := connection.sysObj.Call(dbusInterface+".zone.getZones", 0).Store(&zones); err != nil {
+		return err
+	}
+	if contains(zones, dockerZone) {
+		logrus.Infof("Firewalld: %s zone already exists, returning", dockerZone)
+		return nil
+	}
+	logrus.Debugf("Firewalld: creating %s zone", dockerZone)
+
+	settings := getDockerZoneSettings()
+	// Permanent
+	if err := connection.sysConfObj.Call(dbusInterface+".config.addZone", 0, dockerZone, settings).Err; err != nil {
+		return err
+	}
+	// Reload for change to take effect
+	if err := connection.sysObj.Call(dbusInterface+".reload", 0).Err; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AddInterfaceFirewalld adds the interface to the trusted zone
+func AddInterfaceFirewalld(intf string) error {
+	var intfs []string
+	// Check if interface is already added to the zone
+	if err := connection.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
+		return err
+	}
+	// Return if interface is already part of the zone
+	if contains(intfs, intf) {
+		logrus.Infof("Firewalld: interface %s already part of %s zone, returning", intf, dockerZone)
+		return nil
+	}
+
+	logrus.Debugf("Firewalld: adding %s interface to %s zone", intf, dockerZone)
+	// Runtime
+	if err := connection.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
+		return err
+	}
+	return nil
+}
+
+// DelInterfaceFirewalld removes the interface from the trusted zone
+func DelInterfaceFirewalld(intf string) error {
+	var intfs []string
+	// Check if interface is part of the zone
+	if err := connection.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
+		return err
+	}
+	// Remove interface if it exists
+	if !contains(intfs, intf) {
+		return fmt.Errorf("Firewalld: unable to find interface %s in %s zone", intf, dockerZone)
+	}
+
+	logrus.Debugf("Firewalld: removing %s interface from %s zone", intf, dockerZone)
+	// Runtime
+	if err := connection.sysObj.Call(dbusInterface+".zone.removeInterface", 0, dockerZone, intf).Err; err != nil {
+		return err
+	}
+	return nil
+}
+
+func contains(list []string, val string) bool {
+	for _, v := range list {
+		if v == val {
+			return true
+		}
+	}
+	return false
 }

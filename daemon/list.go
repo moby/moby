@@ -317,7 +317,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 	if psFilters.Contains("ancestor") {
 		ancestorFilter = true
 		psFilters.WalkValues("ancestor", func(ancestor string) error {
-			img, err := daemon.imageService.GetImage(ancestor)
+			img, err := daemon.imageService.GetImage(ancestor, nil)
 			if err != nil {
 				logrus.Warnf("Error while looking up for image %v", ancestor)
 				return nil
@@ -388,7 +388,7 @@ func portOp(key string, filter map[nat.Port]bool) func(value string) error {
 		if strings.Contains(value, ":") {
 			return fmt.Errorf("filter for '%s' should not contain ':': %s", key, value)
 		}
-		//support two formats, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
+		// support two formats, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
 		proto, port := nat.SplitProtoPort(value)
 		start, end, err := nat.ParsePortRange(port)
 		if err != nil {
@@ -551,23 +551,19 @@ func includeContainerInList(container *container.Snapshot, ctx *listContext) ite
 		}
 	}
 
-	if len(ctx.publish) > 0 {
-		shouldSkip := true
-		for port := range ctx.publish {
-			if _, ok := container.PortBindings[port]; ok {
+	if len(ctx.expose) > 0 || len(ctx.publish) > 0 {
+		var (
+			shouldSkip    bool = true
+			publishedPort nat.Port
+			exposedPort   nat.Port
+		)
+		for _, port := range container.Ports {
+			publishedPort = nat.Port(fmt.Sprintf("%d/%s", port.PublicPort, port.Type))
+			exposedPort = nat.Port(fmt.Sprintf("%d/%s", port.PrivatePort, port.Type))
+			if ok := ctx.publish[publishedPort]; ok {
 				shouldSkip = false
 				break
-			}
-		}
-		if shouldSkip {
-			return excludeContainer
-		}
-	}
-
-	if len(ctx.expose) > 0 {
-		shouldSkip := true
-		for port := range ctx.expose {
-			if _, ok := container.ExposedPorts[port]; ok {
+			} else if ok := ctx.expose[exposedPort]; ok {
 				shouldSkip = false
 				break
 			}
@@ -585,7 +581,7 @@ func (daemon *Daemon) refreshImage(s *container.Snapshot, ctx *listContext) (*ty
 	c := s.Container
 	image := s.Image // keep the original ref if still valid (hasn't changed)
 	if image != s.ImageID {
-		img, err := daemon.imageService.GetImage(image)
+		img, err := daemon.imageService.GetImage(image, nil)
 		if _, isDNE := err.(images.ErrImageDoesNotExist); err != nil && !isDNE {
 			return nil, err
 		}

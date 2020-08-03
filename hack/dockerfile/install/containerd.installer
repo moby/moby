@@ -1,36 +1,31 @@
 #!/bin/sh
-
+set -e
 
 # containerd is also pinned in vendor.conf. When updating the binary
 # version you may also need to update the vendor version to pick up bug
 # fixes or new APIs.
-CONTAINERD_COMMIT=b34a5c8af56e510852c35414db4c1f4fa6172339 # v1.2.10
+: "${CONTAINERD_COMMIT:=be75852b8d7849474a20192f9ed1bf34fdd454f1}" # v1.3.6
 
-install_containerd() {
+install_containerd() (
 	echo "Install containerd version $CONTAINERD_COMMIT"
 	git clone https://github.com/containerd/containerd.git "$GOPATH/src/github.com/containerd/containerd"
 	cd "$GOPATH/src/github.com/containerd/containerd"
 	git checkout -q "$CONTAINERD_COMMIT"
 
-	(
+	export BUILDTAGS='netgo osusergo static_build'
+	export EXTRA_FLAGS=${GO_BUILDMODE}
+	export EXTRA_LDFLAGS='-extldflags "-fno-PIC -static"'
 
-		export BUILDTAGS='netgo osusergo static_build'
-		export EXTRA_FLAGS='-buildmode=pie'
-		export EXTRA_LDFLAGS='-extldflags "-fno-PIC -static"'
+	# Reset build flags to nothing if we want a dynbinary
+	if [ "$1" = "dynamic" ]; then
+		export BUILDTAGS=''
+		export EXTRA_FLAGS=''
+		export EXTRA_LDFLAGS=''
+	fi
+	make
 
-		# Reset build flags to nothing if we want a dynbinary
-		if [ "$1" = "dynamic" ]; then
-			export BUILDTAGS=''
-			export EXTRA_FLAGS=''
-			export EXTRA_LDFLAGS=''
-		fi
-
-		make
-	)
-
-	mkdir -p "${PREFIX}"
-
-	cp bin/containerd "${PREFIX}/containerd"
-	cp bin/containerd-shim "${PREFIX}/containerd-shim"
-	cp bin/ctr "${PREFIX}/ctr"
-}
+	install -D bin/containerd "${PREFIX}/containerd"
+	install -D bin/containerd-shim "${PREFIX}/containerd-shim"
+	install -D bin/containerd-shim-runc-v2 "${PREFIX}/containerd-shim-runc-v2"
+	install -D bin/ctr "${PREFIX}/ctr"
+)

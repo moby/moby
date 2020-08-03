@@ -21,6 +21,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/containerd/containerd/log"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
@@ -30,9 +31,8 @@ func FMountat(dirfd uintptr, source, target, fstype string, flags uintptr, data 
 	var (
 		sourceP, targetP, fstypeP, dataP *byte
 		pid                              uintptr
-		ws                               unix.WaitStatus
 		err                              error
-		errno                            syscall.Errno
+		errno, status                    syscall.Errno
 	)
 
 	sourceP, err = syscall.BytePtrFromString(source)
@@ -60,37 +60,62 @@ func FMountat(dirfd uintptr, source, target, fstype string, flags uintptr, data 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
+	var pipefds [2]int
+	if err := syscall.Pipe2(pipefds[:], syscall.O_CLOEXEC); err != nil {
+		return errors.Wrap(err, "failed to open pipe")
+	}
+
+	defer func() {
+		// close both ends of the pipe in a deferred function, since open file
+		// descriptor table is shared with child
+		syscall.Close(pipefds[0])
+		syscall.Close(pipefds[1])
+	}()
+
 	pid, errno = forkAndMountat(dirfd,
 		uintptr(unsafe.Pointer(sourceP)),
 		uintptr(unsafe.Pointer(targetP)),
 		uintptr(unsafe.Pointer(fstypeP)),
 		flags,
-		uintptr(unsafe.Pointer(dataP)))
+		uintptr(unsafe.Pointer(dataP)),
+		pipefds[1],
+	)
 
 	if errno != 0 {
 		return errors.Wrap(errno, "failed to fork thread")
 	}
 
-	_, err = unix.Wait4(int(pid), &ws, 0, nil)
-	for err == syscall.EINTR {
-		_, err = unix.Wait4(int(pid), &ws, 0, nil)
-	}
+	defer func() {
+		_, err := unix.Wait4(int(pid), nil, 0, nil)
+		for err == syscall.EINTR {
+			_, err = unix.Wait4(int(pid), nil, 0, nil)
+		}
 
-	if err != nil {
-		return errors.Wrapf(err, "failed to find pid=%d process", pid)
-	}
+		if err != nil {
+			log.L.WithError(err).Debugf("failed to find pid=%d process", pid)
+		}
+	}()
 
-	errno = syscall.Errno(ws.ExitStatus())
+	_, _, errno = syscall.RawSyscall(syscall.SYS_READ,
+		uintptr(pipefds[0]),
+		uintptr(unsafe.Pointer(&status)),
+		unsafe.Sizeof(status))
 	if errno != 0 {
-		return errors.Wrap(errno, "failed to mount")
+		return errors.Wrap(errno, "failed to read pipe")
 	}
+
+	if status != 0 {
+		return errors.Wrap(status, "failed to mount")
+	}
+
 	return nil
 }
 
 // forkAndMountat will fork thread, change working dir and mount.
 //
 // precondition: the runtime OS thread must be locked.
-func forkAndMountat(dirfd uintptr, source, target, fstype, flags, data uintptr) (pid uintptr, errno syscall.Errno) {
+func forkAndMountat(dirfd uintptr, source, target, fstype, flags, data uintptr, pipefd int) (pid uintptr, errno syscall.Errno) {
+
 	// block signal during clone
 	beforeFork()
 
@@ -114,6 +139,7 @@ func forkAndMountat(dirfd uintptr, source, target, fstype, flags, data uintptr) 
 	_, _, errno = syscall.RawSyscall6(syscall.SYS_MOUNT, source, target, fstype, flags, data, 0)
 
 childerr:
+	_, _, errno = syscall.RawSyscall(syscall.SYS_WRITE, uintptr(pipefd), uintptr(unsafe.Pointer(&errno)), unsafe.Sizeof(errno))
 	syscall.RawSyscall(syscall.SYS_EXIT, uintptr(errno), 0, 0)
 	panic("unreachable")
 }

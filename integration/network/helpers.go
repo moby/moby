@@ -11,8 +11,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"gotest.tools/assert/cmp"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
 )
 
 // CreateMasterDummy creates a dummy network interface

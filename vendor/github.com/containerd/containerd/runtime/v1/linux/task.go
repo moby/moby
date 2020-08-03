@@ -84,11 +84,19 @@ func (t *Task) Namespace() string {
 	return t.namespace
 }
 
+// PID of the task
+func (t *Task) PID() uint32 {
+	return uint32(t.pid)
+}
+
 // Delete the task and return the exit status
 func (t *Task) Delete(ctx context.Context) (*runtime.Exit, error) {
-	rsp, err := t.shim.Delete(ctx, empty)
-	if err != nil && !errdefs.IsNotFound(err) {
-		return nil, errdefs.FromGRPC(err)
+	rsp, shimErr := t.shim.Delete(ctx, empty)
+	if shimErr != nil {
+		shimErr = errdefs.FromGRPC(shimErr)
+		if !errdefs.IsNotFound(shimErr) {
+			return nil, shimErr
+		}
 	}
 	t.tasks.Delete(ctx, t.id)
 	if err := t.shim.KillShim(ctx); err != nil {
@@ -96,6 +104,9 @@ func (t *Task) Delete(ctx context.Context) (*runtime.Exit, error) {
 	}
 	if err := t.bundle.Delete(); err != nil {
 		log.G(ctx).WithError(err).Error("failed to delete bundle")
+	}
+	if shimErr != nil {
+		return nil, shimErr
 	}
 	t.events.Publish(ctx, runtime.TaskDeleteEventTopic, &eventstypes.TaskDelete{
 		ContainerID: t.id,
@@ -124,11 +135,15 @@ func (t *Task) Start(ctx context.Context) error {
 	t.pid = int(r.Pid)
 	if !hasCgroup {
 		cg, err := cgroups.Load(cgroups.V1, cgroups.PidPath(t.pid))
-		if err != nil {
+		if err != nil && err != cgroups.ErrCgroupDeleted {
 			return err
 		}
 		t.mu.Lock()
-		t.cg = cg
+		if err == cgroups.ErrCgroupDeleted {
+			t.cg = nil
+		} else {
+			t.cg = cg
+		}
 		t.mu.Unlock()
 	}
 	t.events.Publish(ctx, runtime.TaskStartEventTopic, &eventstypes.TaskStart{
@@ -144,7 +159,7 @@ func (t *Task) State(ctx context.Context) (runtime.State, error) {
 		ID: t.id,
 	})
 	if err != nil {
-		if errors.Cause(err) != ttrpc.ErrClosed {
+		if !errors.Is(err, ttrpc.ErrClosed) {
 			return runtime.State{}, errdefs.FromGRPC(err)
 		}
 		return runtime.State{}, errdefs.ErrNotFound

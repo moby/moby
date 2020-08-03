@@ -26,7 +26,15 @@ type CreateOpt func(*Config)
 // create the plugin with.
 type Config struct {
 	*types.PluginConfig
-	binPath string
+	binPath        string
+	RegistryConfig registry.ServiceOptions
+}
+
+// WithInsecureRegistry specifies that the given registry can skip host-key checking as well as fall back to plain http
+func WithInsecureRegistry(url string) CreateOpt {
+	return func(cfg *Config) {
+		cfg.RegistryConfig.InsecureRegistries = append(cfg.RegistryConfig.InsecureRegistries, url)
+	}
 }
 
 // WithBinary is a CreateOpt to set an custom binary to create the plugin with.
@@ -82,6 +90,11 @@ func CreateInRegistry(ctx context.Context, repo string, auth *types.AuthConfig, 
 		return errors.Wrap(err, "error creating plugin root")
 	}
 
+	var cfg Config
+	for _, o := range opts {
+		o(&cfg)
+	}
+
 	tar, err := makePluginBundle(inPath, opts...)
 	if err != nil {
 		return err
@@ -92,7 +105,7 @@ func CreateInRegistry(ctx context.Context, repo string, auth *types.AuthConfig, 
 		return nil, nil
 	}
 
-	regService, err := registry.NewService(registry.ServiceOptions{})
+	regService, err := registry.NewService(cfg.RegistryConfig)
 	if err != nil {
 		return err
 	}

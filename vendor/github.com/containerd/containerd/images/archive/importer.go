@@ -22,12 +22,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"path"
 
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	digest "github.com/opencontainers/go-digest"
@@ -36,6 +38,22 @@ import (
 	"github.com/pkg/errors"
 )
 
+type importOpts struct {
+	compress bool
+}
+
+// ImportOpt is an option for importing an OCI index
+type ImportOpt func(*importOpts) error
+
+// WithImportCompression compresses uncompressed layers on import.
+// This is used for import formats which do not include the manifest.
+func WithImportCompression() ImportOpt {
+	return func(io *importOpts) error {
+		io.compress = true
+		return nil
+	}
+}
+
 // ImportIndex imports an index from a tar archive image bundle
 // - implements Docker v1.1, v1.2 and OCI v1.
 // - prefers OCI v1 when provided
@@ -43,8 +61,7 @@ import (
 // - normalizes Docker references and adds as OCI ref name
 //      e.g. alpine:latest -> docker.io/library/alpine:latest
 // - existing OCI reference names are untouched
-// - TODO: support option to compress layers on ingest
-func ImportIndex(ctx context.Context, store content.Store, reader io.Reader) (ocispec.Descriptor, error) {
+func ImportIndex(ctx context.Context, store content.Store, reader io.Reader, opts ...ImportOpt) (ocispec.Descriptor, error) {
 	var (
 		tr = tar.NewReader(reader)
 
@@ -56,7 +73,15 @@ func ImportIndex(ctx context.Context, store content.Store, reader io.Reader) (oc
 		}
 		symlinks = make(map[string]string)
 		blobs    = make(map[string]ocispec.Descriptor)
+		iopts    importOpts
 	)
+
+	for _, o := range opts {
+		if err := o(&iopts); err != nil {
+			return ocispec.Descriptor{}, err
+		}
+	}
+
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -99,7 +124,7 @@ func ImportIndex(ctx context.Context, store content.Store, reader io.Reader) (oc
 	}
 
 	// If OCI layout was given, interpret the tar as an OCI layout.
-	// When not provided, the layout of the tar will be interpretted
+	// When not provided, the layout of the tar will be interpreted
 	// as Docker v1.1 or v1.2.
 	if ociLayout.Version != "" {
 		if ociLayout.Version != ocispec.ImageLayoutVersion {
@@ -137,22 +162,26 @@ func ImportIndex(ctx context.Context, store content.Store, reader io.Reader) (oc
 		if !ok {
 			return ocispec.Descriptor{}, errors.Errorf("image config %q not found", mfst.Config)
 		}
-		config.MediaType = ocispec.MediaTypeImageConfig
+		config.MediaType = images.MediaTypeDockerSchema2Config
 
-		layers, err := resolveLayers(ctx, store, mfst.Layers, blobs)
+		layers, err := resolveLayers(ctx, store, mfst.Layers, blobs, iopts.compress)
 		if err != nil {
 			return ocispec.Descriptor{}, errors.Wrap(err, "failed to resolve layers")
 		}
 
-		manifest := ocispec.Manifest{
-			Versioned: specs.Versioned{
-				SchemaVersion: 2,
-			},
-			Config: config,
-			Layers: layers,
+		manifest := struct {
+			SchemaVersion int                  `json:"schemaVersion"`
+			MediaType     string               `json:"mediaType"`
+			Config        ocispec.Descriptor   `json:"config"`
+			Layers        []ocispec.Descriptor `json:"layers"`
+		}{
+			SchemaVersion: 2,
+			MediaType:     images.MediaTypeDockerSchema2Manifest,
+			Config:        config,
+			Layers:        layers,
 		}
 
-		desc, err := writeManifest(ctx, store, manifest, ocispec.MediaTypeImageManifest)
+		desc, err := writeManifest(ctx, store, manifest, manifest.MediaType)
 		if err != nil {
 			return ocispec.Descriptor{}, errors.Wrap(err, "write docker manifest")
 		}
@@ -181,7 +210,8 @@ func ImportIndex(ctx context.Context, store content.Store, reader io.Reader) (oc
 				}
 
 				mfstdesc.Annotations = map[string]string{
-					ocispec.AnnotationRefName: normalized,
+					images.AnnotationImageName: normalized,
+					ocispec.AnnotationRefName:  ociReferenceName(normalized),
 				}
 
 				idx.Manifests = append(idx.Manifests, mfstdesc)
@@ -210,34 +240,116 @@ func onUntarBlob(ctx context.Context, r io.Reader, store content.Ingester, size 
 	return dgstr.Digest(), nil
 }
 
-func resolveLayers(ctx context.Context, store content.Store, layerFiles []string, blobs map[string]ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-	var layers []ocispec.Descriptor
-	for _, f := range layerFiles {
+func resolveLayers(ctx context.Context, store content.Store, layerFiles []string, blobs map[string]ocispec.Descriptor, compress bool) ([]ocispec.Descriptor, error) {
+	layers := make([]ocispec.Descriptor, len(layerFiles))
+	descs := map[digest.Digest]*ocispec.Descriptor{}
+	filters := []string{}
+	for i, f := range layerFiles {
 		desc, ok := blobs[f]
 		if !ok {
 			return nil, errors.Errorf("layer %q not found", f)
 		}
+		layers[i] = desc
+		descs[desc.Digest] = &layers[i]
+		filters = append(filters, "labels.\"containerd.io/uncompressed\"=="+desc.Digest.String())
+	}
 
+	err := store.Walk(ctx, func(info content.Info) error {
+		dgst, ok := info.Labels["containerd.io/uncompressed"]
+		if ok {
+			desc := descs[digest.Digest(dgst)]
+			if desc != nil {
+				desc.MediaType = images.MediaTypeDockerSchema2LayerGzip
+				desc.Digest = info.Digest
+				desc.Size = info.Size
+			}
+		}
+		return nil
+	}, filters...)
+	if err != nil {
+		return nil, errors.Wrap(err, "failure checking for compressed blobs")
+	}
+
+	for i, desc := range layers {
+		if desc.MediaType != "" {
+			continue
+		}
 		// Open blob, resolve media type
 		ra, err := store.ReaderAt(ctx, desc)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to open %q (%s)", f, desc.Digest)
+			return nil, errors.Wrapf(err, "failed to open %q (%s)", layerFiles[i], desc.Digest)
 		}
 		s, err := compression.DecompressStream(content.NewReader(ra))
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to detect compression for %q", f)
+			return nil, errors.Wrapf(err, "failed to detect compression for %q", layerFiles[i])
 		}
 		if s.GetCompression() == compression.Uncompressed {
-			// TODO: Support compressing and writing back to content store
-			desc.MediaType = ocispec.MediaTypeImageLayer
+			if compress {
+				ref := fmt.Sprintf("compress-blob-%s-%s", desc.Digest.Algorithm().String(), desc.Digest.Encoded())
+				labels := map[string]string{
+					"containerd.io/uncompressed": desc.Digest.String(),
+				}
+				layers[i], err = compressBlob(ctx, store, s, ref, content.WithLabels(labels))
+				if err != nil {
+					s.Close()
+					return nil, err
+				}
+				layers[i].MediaType = images.MediaTypeDockerSchema2LayerGzip
+			} else {
+				layers[i].MediaType = images.MediaTypeDockerSchema2Layer
+			}
 		} else {
-			desc.MediaType = ocispec.MediaTypeImageLayerGzip
+			layers[i].MediaType = images.MediaTypeDockerSchema2LayerGzip
 		}
 		s.Close()
 
-		layers = append(layers, desc)
 	}
 	return layers, nil
+}
+
+func compressBlob(ctx context.Context, cs content.Store, r io.Reader, ref string, opts ...content.Opt) (desc ocispec.Descriptor, err error) {
+	w, err := content.OpenWriter(ctx, cs, content.WithRef(ref))
+	if err != nil {
+		return ocispec.Descriptor{}, errors.Wrap(err, "failed to open writer")
+	}
+
+	defer func() {
+		w.Close()
+		if err != nil {
+			cs.Abort(ctx, ref)
+		}
+	}()
+	if err := w.Truncate(0); err != nil {
+		return ocispec.Descriptor{}, errors.Wrap(err, "failed to truncate writer")
+	}
+
+	cw, err := compression.CompressStream(w, compression.Gzip)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	if _, err := io.Copy(cw, r); err != nil {
+		return ocispec.Descriptor{}, err
+	}
+	if err := cw.Close(); err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	cst, err := w.Status()
+	if err != nil {
+		return ocispec.Descriptor{}, errors.Wrap(err, "failed to get writer status")
+	}
+
+	desc.Digest = w.Digest()
+	desc.Size = cst.Offset
+
+	if err := w.Commit(ctx, desc.Size, desc.Digest, opts...); err != nil {
+		if !errdefs.IsAlreadyExists(err) {
+			return ocispec.Descriptor{}, errors.Wrap(err, "failed to commit")
+		}
+	}
+
+	return desc, nil
 }
 
 func writeManifest(ctx context.Context, cs content.Ingester, manifest interface{}, mediaType string) (ocispec.Descriptor, error) {

@@ -167,7 +167,19 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 		return errdefs.InvalidParameter(err)
 	}
 
-	services, err := sr.backend.GetServices(basictypes.ServiceListOptions{Filters: filter})
+	// the status query parameter is only support in API versions >= 1.41. If
+	// the client is using a lesser version, ignore the parameter.
+	cliVersion := httputils.VersionFromContext(ctx)
+	var status bool
+	if value := r.URL.Query().Get("status"); value != "" && !versions.LessThan(cliVersion, "1.41") {
+		var err error
+		status, err = strconv.ParseBool(value)
+		if err != nil {
+			return errors.Wrapf(errdefs.InvalidParameter(err), "invalid value for status: %s", value)
+		}
+	}
+
+	services, err := sr.backend.GetServices(basictypes.ServiceListOptions{Filters: filter, Status: status})
 	if err != nil {
 		logrus.Errorf("Error getting services: %v", err)
 		return err
@@ -178,14 +190,20 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 
 func (sr *swarmRouter) getService(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var insertDefaults bool
+
 	if value := r.URL.Query().Get("insertDefaults"); value != "" {
 		var err error
 		insertDefaults, err = strconv.ParseBool(value)
 		if err != nil {
-			err := fmt.Errorf("invalid value for insertDefaults: %s", value)
 			return errors.Wrapf(errdefs.InvalidParameter(err), "invalid value for insertDefaults: %s", value)
 		}
 	}
+
+	// you may note that there is no code here to handle the "status" query
+	// parameter, as in getServices. the Status field is not supported when
+	// retrieving an individual service because the Backend API changes
+	// required to accommodate it would be too disruptive, and because that
+	// field is so rarely needed as part of an individual service inspection.
 
 	service, err := sr.backend.GetService(vars["id"], insertDefaults)
 	if err != nil {
@@ -207,15 +225,13 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 
 	// Get returns "" if the header does not exist
 	encodedAuth := r.Header.Get("X-Registry-Auth")
-	cliVersion := r.Header.Get("version")
 	queryRegistry := false
-	if cliVersion != "" {
-		if versions.LessThan(cliVersion, "1.30") {
+	if v := httputils.VersionFromContext(ctx); v != "" {
+		if versions.LessThan(v, "1.30") {
 			queryRegistry = true
 		}
-		adjustForAPIVersion(cliVersion, &service)
+		adjustForAPIVersion(v, &service)
 	}
-
 	resp, err := sr.backend.CreateService(service, encodedAuth, queryRegistry)
 	if err != nil {
 		logrus.Errorf("Error creating service %s: %v", service.Name, err)
@@ -247,13 +263,12 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 	flags.EncodedRegistryAuth = r.Header.Get("X-Registry-Auth")
 	flags.RegistryAuthFrom = r.URL.Query().Get("registryAuthFrom")
 	flags.Rollback = r.URL.Query().Get("rollback")
-	cliVersion := r.Header.Get("version")
 	queryRegistry := false
-	if cliVersion != "" {
-		if versions.LessThan(cliVersion, "1.30") {
+	if v := httputils.VersionFromContext(ctx); v != "" {
+		if versions.LessThan(v, "1.30") {
 			queryRegistry = true
 		}
-		adjustForAPIVersion(cliVersion, &service)
+		adjustForAPIVersion(v, &service)
 	}
 
 	resp, err := sr.backend.UpdateService(vars["id"], version, service, flags, queryRegistry)

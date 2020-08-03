@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/containerd/containerd/errdefs"
@@ -249,19 +250,16 @@ func (s *imageStore) Delete(ctx context.Context, name string, opts ...images.Del
 			return errors.Wrapf(errdefs.ErrNotFound, "image %q", name)
 		}
 
-		err = bkt.DeleteBucket([]byte(name))
-		if err == bolt.ErrBucketNotFound {
-			return errors.Wrapf(errdefs.ErrNotFound, "image %q", name)
+		if err = bkt.DeleteBucket([]byte(name)); err != nil {
+			if err == bolt.ErrBucketNotFound {
+				err = errors.Wrapf(errdefs.ErrNotFound, "image %q", name)
+			}
+			return err
 		}
 
-		// A reference to a piece of content has been removed,
-		// mark content store as dirty for triggering garbage
-		// collection
-		s.db.dirtyL.Lock()
-		s.db.dirtyCS = true
-		s.db.dirtyL.Unlock()
+		atomic.AddUint32(&s.db.dirty, 1)
 
-		return err
+		return nil
 	})
 }
 

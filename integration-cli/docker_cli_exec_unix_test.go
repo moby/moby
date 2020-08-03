@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // regression test for #12546
@@ -26,7 +26,7 @@ func (s *DockerSuite) TestExecInteractiveStdinClose(c *testing.T) {
 
 	b := bytes.NewBuffer(nil)
 
-	ch := make(chan error)
+	ch := make(chan error, 1)
 	go func() { ch <- cmd.Wait() }()
 
 	select {
@@ -56,7 +56,7 @@ func (s *DockerSuite) TestExecTTY(c *testing.T) {
 	_, err = p.Write([]byte("cat /foo && exit\n"))
 	assert.NilError(c, err)
 
-	chErr := make(chan error)
+	chErr := make(chan error, 1)
 	go func() {
 		chErr <- cmd.Wait()
 	}()

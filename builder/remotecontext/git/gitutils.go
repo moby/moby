@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/symlink"
-	"github.com/docker/docker/pkg/urlutil"
 	"github.com/pkg/errors"
 )
 
@@ -135,7 +134,7 @@ func fetchArgs(remoteURL string, ref string) []string {
 // Check if a given git URL supports a shallow git clone,
 // i.e. it is a non-HTTP server or a smart HTTP server.
 func supportsShallowClone(remoteURL string) bool {
-	if urlutil.IsURL(remoteURL) {
+	if scheme := getScheme(remoteURL); scheme == "http" || scheme == "https" {
 		// Check if the HTTP server is smart
 
 		// Smart servers must correctly respond to a query for the git-upload-pack service
@@ -205,5 +204,24 @@ func git(args ...string) ([]byte, error) {
 // isGitTransport returns true if the provided str is a git transport by inspecting
 // the prefix of the string for known protocols used in git.
 func isGitTransport(str string) bool {
-	return urlutil.IsURL(str) || strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "git@")
+	if strings.HasPrefix(str, "git@") {
+		return true
+	}
+
+	switch getScheme(str) {
+	case "git", "http", "https", "ssh":
+		return true
+	}
+
+	return false
+}
+
+// getScheme returns addresses' scheme in lowercase, or an empty
+// string in case address is an invalid URL.
+func getScheme(address string) string {
+	u, err := url.Parse(address)
+	if err != nil {
+		return ""
+	}
+	return u.Scheme
 }

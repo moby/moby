@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
-	"gotest.tools/assert"
-	"gotest.tools/fs"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/fs"
 )
 
 func BenchmarkJSONFileLoggerReadLogs(b *testing.B) {
@@ -75,19 +75,21 @@ func TestEncodeDecode(t *testing.T) {
 	assert.Assert(t, marshalMessage(m2, nil, buf))
 	assert.Assert(t, marshalMessage(m3, nil, buf))
 
-	decode := decodeFunc(buf)
-	msg, err := decode()
+	dec := decodeFunc(buf)
+	defer dec.Close()
+
+	msg, err := dec.Decode()
 	assert.NilError(t, err)
 	assert.Assert(t, string(msg.Line) == "hello 1\n", string(msg.Line))
 
-	msg, err = decode()
+	msg, err = dec.Decode()
 	assert.NilError(t, err)
 	assert.Assert(t, string(msg.Line) == "hello 2\n")
 
-	msg, err = decode()
+	msg, err = dec.Decode()
 	assert.NilError(t, err)
 	assert.Assert(t, string(msg.Line) == "hello 3\n")
 
-	_, err = decode()
+	_, err = dec.Decode()
 	assert.Assert(t, err == io.EOF)
 }

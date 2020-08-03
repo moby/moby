@@ -97,9 +97,21 @@ func adjustForAPIVersion(cliVersion string, service *swarm.ServiceSpec) {
 	}
 	if versions.LessThan(cliVersion, "1.41") {
 		if service.TaskTemplate.ContainerSpec != nil {
-			// Capabilities for docker swarm services weren't supported before
-			// API version 1.41
-			service.TaskTemplate.ContainerSpec.Capabilities = nil
+			// Capabilities and Ulimits for docker swarm services weren't
+			// supported before API version 1.41
+			service.TaskTemplate.ContainerSpec.CapabilityAdd = nil
+			service.TaskTemplate.ContainerSpec.CapabilityDrop = nil
+			service.TaskTemplate.ContainerSpec.Ulimits = nil
 		}
+		if service.TaskTemplate.Resources != nil && service.TaskTemplate.Resources.Limits != nil {
+			// Limits.Pids  not supported before API version 1.41
+			service.TaskTemplate.Resources.Limits.Pids = 0
+		}
+
+		// jobs were only introduced in API version 1.41. Nil out both Job
+		// modes; if the service is one of these modes and subsequently has no
+		// mode, then something down the pipe will thrown an error.
+		service.Mode.ReplicatedJob = nil
+		service.Mode.GlobalJob = nil
 	}
 }

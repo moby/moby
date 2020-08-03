@@ -25,9 +25,9 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/testutil/environment"
-	"gotest.tools/assert"
-	"gotest.tools/poll"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
 )
 
 const (
@@ -178,7 +178,7 @@ func TestAuthZPluginAPIDenyResponse(t *testing.T) {
 	conn, err := net.DialTimeout(daemonURL.Scheme, daemonURL.Path, time.Second*10)
 	assert.NilError(t, err)
 	c := httputil.NewClientConn(conn, nil)
-	req, err := http.NewRequest("GET", "/version", nil)
+	req, err := http.NewRequest(http.MethodGet, "/version", nil)
 	assert.NilError(t, err)
 	resp, err := c.Do(req)
 
@@ -477,7 +477,7 @@ func TestAuthZPluginHeader(t *testing.T) {
 	conn, err := net.DialTimeout(daemonURL.Scheme, daemonURL.Path, time.Second*10)
 	assert.NilError(t, err)
 	client := httputil.NewClientConn(conn, nil)
-	req, err := http.NewRequest("GET", "/version", nil)
+	req, err := http.NewRequest(http.MethodGet, "/version", nil)
 	assert.NilError(t, err)
 	resp, err := client.Do(req)
 	assert.NilError(t, err)

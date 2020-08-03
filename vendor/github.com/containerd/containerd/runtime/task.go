@@ -33,6 +33,7 @@ type TaskInfo struct {
 
 // Process is a runtime object for an executing process inside a container
 type Process interface {
+	// ID of the process
 	ID() string
 	// State returns the process state
 	State(context.Context) (State, error)
@@ -54,6 +55,8 @@ type Process interface {
 type Task interface {
 	Process
 
+	// PID of the process
+	PID() uint32
 	// Namespace that the task exists in
 	Namespace() string
 	// Pause pauses the container process

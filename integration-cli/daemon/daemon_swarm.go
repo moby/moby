@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // CheckServiceTasksInState returns the number of tasks with a matching state,

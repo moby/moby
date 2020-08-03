@@ -17,8 +17,6 @@ autogen/
 bundles/
 cmd/dockerd/dockerd
 contrib/builder/rpm/*/changelog
-dockerversion/version_autogen.go
-dockerversion/version_autogen_unix.go
 vendor/pkg/
 go-test-report.json
 profile.out

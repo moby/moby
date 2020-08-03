@@ -19,6 +19,7 @@ package cgroups
 import (
 	"os"
 
+	v1 "github.com/containerd/cgroups/stats/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -68,7 +69,7 @@ type Cgroup interface {
 	// subsystems are moved one at a time
 	MoveTo(Cgroup) error
 	// Stat returns the stats for all subsystems in the cgroup
-	Stat(...ErrorHandler) (*Metrics, error)
+	Stat(...ErrorHandler) (*v1.Metrics, error)
 	// Update updates all the subsystems with the provided resource changes
 	Update(resources *specs.LinuxResources) error
 	// Processes returns all the processes in a select subsystem for the cgroup
@@ -81,6 +82,9 @@ type Cgroup interface {
 	Thaw() error
 	// OOMEventFD returns the memory subsystem's event fd for OOM events
 	OOMEventFD() (uintptr, error)
+	// RegisterMemoryEvent returns the memory subsystems event fd for whatever memory event was
+	// registered for. Can alternatively register for the oom event with this method.
+	RegisterMemoryEvent(MemoryEvent) (uintptr, error)
 	// State returns the cgroups current state
 	State() State
 	// Subsystems returns all the subsystems in the cgroup

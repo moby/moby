@@ -55,7 +55,14 @@ func ReadBlob(ctx context.Context, provider Provider, desc ocispec.Descriptor) (
 
 	p := make([]byte, ra.Size())
 
-	_, err = ra.ReadAt(p, 0)
+	n, err := ra.ReadAt(p, 0)
+	if err == io.EOF {
+		if int64(n) != ra.Size() {
+			err = io.ErrUnexpectedEOF
+		} else {
+			err = nil
+		}
+	}
 	return p, err
 }
 
@@ -160,6 +167,28 @@ func CopyReaderAt(cw Writer, ra ReaderAt, n int64) error {
 
 	_, err = copyWithBuffer(cw, io.NewSectionReader(ra, ws.Offset, n))
 	return err
+}
+
+// CopyReader copies to a writer from a given reader, returning
+// the number of bytes copied.
+// Note: if the writer has a non-zero offset, the total number
+// of bytes read may be greater than those copied if the reader
+// is not an io.Seeker.
+// This copy does not commit the writer.
+func CopyReader(cw Writer, r io.Reader) (int64, error) {
+	ws, err := cw.Status()
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to get status")
+	}
+
+	if ws.Offset > 0 {
+		r, err = seekReader(r, ws.Offset, 0)
+		if err != nil {
+			return 0, errors.Wrapf(err, "unable to resume write to %v", ws.Ref)
+		}
+	}
+
+	return copyWithBuffer(cw, r)
 }
 
 // seekReader attempts to seek the reader to the given offset, either by

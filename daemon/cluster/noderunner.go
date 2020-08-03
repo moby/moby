@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -104,7 +103,7 @@ func (n *nodeRunner) Start(conf nodeStartConfig) error {
 
 func (n *nodeRunner) start(conf nodeStartConfig) error {
 	var control string
-	if runtime.GOOS == "windows" {
+	if isWindows {
 		control = `\\.\pipe\` + controlSocket
 	} else {
 		control = filepath.Join(n.cluster.runtimeRoot, controlSocket)
@@ -328,7 +327,7 @@ func (n *nodeRunner) State() nodeState {
 	ns := n.nodeState
 
 	if ns.err != nil || n.cancelReconnect != nil {
-		if errors.Cause(ns.err) == errSwarmLocked {
+		if errors.Is(ns.err, errSwarmLocked) {
 			ns.status = types.LocalNodeStateLocked
 		} else {
 			ns.status = types.LocalNodeStateError

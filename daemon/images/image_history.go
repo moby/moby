@@ -14,7 +14,7 @@ import (
 // name by walking the image lineage.
 func (i *ImageService) ImageHistory(name string) ([]*image.HistoryResponseItem, error) {
 	start := time.Now()
-	img, err := i.GetImage(name)
+	img, err := i.GetImage(name, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (i *ImageService) ImageHistory(name string) ([]*image.HistoryResponseItem, 
 		if id == "" {
 			break
 		}
-		histImg, err = i.GetImage(id.String())
+		histImg, err = i.GetImage(id.String(), nil)
 		if err != nil {
 			break
 		}

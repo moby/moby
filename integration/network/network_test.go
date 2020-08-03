@@ -10,17 +10,20 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/request"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/skip"
 )
 
 func TestRunContainerWithBridgeNone(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, IsUserNamespace())
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
 	d := daemon.New(t)
 	d.StartWithBusybox(t, "-b", "none")
@@ -88,4 +91,30 @@ func TestNetworkInvalidJSON(t *testing.T) {
 			assert.Check(t, is.Contains(string(buf), "got EOF while reading request body"))
 		})
 	}
+}
+
+func TestHostIPv4BridgeLabel(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
+	d := daemon.New(t)
+	d.Start(t)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+	ctx := context.Background()
+
+	ipv4SNATAddr := "172.0.0.172"
+	// Create a bridge network with --opt com.docker.network.host_ipv4=172.0.0.172
+	bridgeName := "hostIPv4Bridge"
+	network.CreateNoError(ctx, t, c, bridgeName,
+		network.WithDriver("bridge"),
+		network.WithOption("com.docker.network.host_ipv4", ipv4SNATAddr),
+		network.WithOption("com.docker.network.bridge.name", bridgeName),
+	)
+	out, err := c.NetworkInspect(ctx, bridgeName, types.NetworkInspectOptions{Verbose: true})
+	assert.NilError(t, err)
+	assert.Assert(t, len(out.IPAM.Config) > 0)
+	// Make sure the SNAT rule exists
+	icmd.RunCommand("iptables", "-t", "nat", "-C", "POSTROUTING", "-s", out.IPAM.Config[0].Subnet, "!", "-o", bridgeName, "-j", "SNAT", "--to-source", ipv4SNATAddr).Assert(t, icmd.Success)
 }

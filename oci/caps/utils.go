@@ -117,17 +117,11 @@ func ValidateCapabilities(caps []string) error {
 
 // TweakCapabilities tweaks capabilities by adding, dropping, or overriding
 // capabilities in the basics capabilities list.
-func TweakCapabilities(basics, adds, drops, capabilities []string, privileged bool) ([]string, error) {
+func TweakCapabilities(basics, adds, drops []string, privileged bool) ([]string, error) {
 	switch {
 	case privileged:
 		// Privileged containers get all capabilities
 		return GetAllCapabilities(), nil
-	case capabilities != nil:
-		// Use custom set of capabilities
-		if err := ValidateCapabilities(capabilities); err != nil {
-			return nil, err
-		}
-		return capabilities, nil
 	case len(adds) == 0 && len(drops) == 0:
 		// Nothing to tweak; we're done
 		return basics, nil

@@ -3,13 +3,15 @@
 
 package moby_buildkit_v1_types
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/protobuf/gogoproto"
-import pb "github.com/moby/buildkit/solver/pb"
-
-import io "io"
+import (
+	fmt "fmt"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	pb "github.com/moby/buildkit/solver/pb"
+	io "io"
+	math "math"
+	math_bits "math/bits"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -20,7 +22,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type WorkerRecord struct {
 	ID                   string            `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
@@ -36,7 +38,7 @@ func (m *WorkerRecord) Reset()         { *m = WorkerRecord{} }
 func (m *WorkerRecord) String() string { return proto.CompactTextString(m) }
 func (*WorkerRecord) ProtoMessage()    {}
 func (*WorkerRecord) Descriptor() ([]byte, []int) {
-	return fileDescriptor_worker_1d0a62be5114ecbf, []int{0}
+	return fileDescriptor_e4ff6184b07e587a, []int{0}
 }
 func (m *WorkerRecord) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -46,15 +48,15 @@ func (m *WorkerRecord) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_WorkerRecord.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
 		return b[:n], nil
 	}
 }
-func (dst *WorkerRecord) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_WorkerRecord.Merge(dst, src)
+func (m *WorkerRecord) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WorkerRecord.Merge(m, src)
 }
 func (m *WorkerRecord) XXX_Size() int {
 	return m.Size()
@@ -107,7 +109,7 @@ func (m *GCPolicy) Reset()         { *m = GCPolicy{} }
 func (m *GCPolicy) String() string { return proto.CompactTextString(m) }
 func (*GCPolicy) ProtoMessage()    {}
 func (*GCPolicy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_worker_1d0a62be5114ecbf, []int{1}
+	return fileDescriptor_e4ff6184b07e587a, []int{1}
 }
 func (m *GCPolicy) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -117,15 +119,15 @@ func (m *GCPolicy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_GCPolicy.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
 		return b[:n], nil
 	}
 }
-func (dst *GCPolicy) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GCPolicy.Merge(dst, src)
+func (m *GCPolicy) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GCPolicy.Merge(m, src)
 }
 func (m *GCPolicy) XXX_Size() int {
 	return m.Size()
@@ -169,10 +171,40 @@ func init() {
 	proto.RegisterMapType((map[string]string)(nil), "moby.buildkit.v1.types.WorkerRecord.LabelsEntry")
 	proto.RegisterType((*GCPolicy)(nil), "moby.buildkit.v1.types.GCPolicy")
 }
+
+func init() { proto.RegisterFile("worker.proto", fileDescriptor_e4ff6184b07e587a) }
+
+var fileDescriptor_e4ff6184b07e587a = []byte{
+	// 355 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x91, 0xc1, 0x4e, 0xea, 0x40,
+	0x14, 0x86, 0x6f, 0x5b, 0x2e, 0x97, 0x0e, 0xcd, 0x8d, 0x99, 0x18, 0xd3, 0x10, 0x83, 0x84, 0x15,
+	0x0b, 0x9d, 0xa2, 0x6e, 0xd4, 0xb8, 0x42, 0x8c, 0x92, 0xb8, 0x20, 0xb3, 0x71, 0xdd, 0x81, 0x01,
+	0x9b, 0x0e, 0x9c, 0xc9, 0x74, 0x8a, 0xf6, 0x39, 0x7c, 0x29, 0x96, 0x3e, 0x81, 0x31, 0x3c, 0x89,
+	0x99, 0x29, 0x08, 0x26, 0xba, 0x3b, 0xff, 0x9f, 0xff, 0xfb, 0xe7, 0x9c, 0x0c, 0x0a, 0x9e, 0x41,
+	0xa5, 0x5c, 0x11, 0xa9, 0x40, 0x03, 0x3e, 0x98, 0x01, 0x2b, 0x08, 0xcb, 0x13, 0x31, 0x4e, 0x13,
+	0x4d, 0x16, 0xa7, 0x44, 0x17, 0x92, 0x67, 0x8d, 0x93, 0x69, 0xa2, 0x9f, 0x72, 0x46, 0x46, 0x30,
+	0x8b, 0xa6, 0x30, 0x85, 0xc8, 0xc6, 0x59, 0x3e, 0xb1, 0xca, 0x0a, 0x3b, 0x95, 0x35, 0x8d, 0xe3,
+	0x9d, 0xb8, 0x69, 0x8c, 0x36, 0x8d, 0x51, 0x06, 0x62, 0xc1, 0x55, 0x24, 0x59, 0x04, 0x32, 0x2b,
+	0xd3, 0xed, 0x57, 0x17, 0x05, 0x8f, 0x76, 0x0b, 0xca, 0x47, 0xa0, 0xc6, 0xf8, 0x3f, 0x72, 0x07,
+	0xfd, 0xd0, 0x69, 0x39, 0x1d, 0x9f, 0xba, 0x83, 0x3e, 0xbe, 0x47, 0xd5, 0x87, 0x98, 0x71, 0x91,
+	0x85, 0x6e, 0xcb, 0xeb, 0xd4, 0xcf, 0xba, 0xe4, 0xe7, 0x35, 0xc9, 0x6e, 0x0b, 0x29, 0x91, 0xdb,
+	0xb9, 0x56, 0x05, 0x5d, 0xf3, 0xb8, 0x8b, 0x7c, 0x29, 0x62, 0x3d, 0x01, 0x35, 0xcb, 0x42, 0xcf,
+	0x96, 0x05, 0x44, 0x32, 0x32, 0x5c, 0x9b, 0xbd, 0xca, 0xf2, 0xfd, 0xe8, 0x0f, 0xdd, 0x86, 0xf0,
+	0x35, 0xaa, 0xdd, 0xdd, 0x0c, 0x41, 0x24, 0xa3, 0x22, 0xac, 0x58, 0xa0, 0xf5, 0xdb, 0xeb, 0x9b,
+	0x1c, 0xfd, 0x22, 0x1a, 0x97, 0xa8, 0xbe, 0xb3, 0x06, 0xde, 0x43, 0x5e, 0xca, 0x8b, 0xf5, 0x65,
+	0x66, 0xc4, 0xfb, 0xe8, 0xef, 0x22, 0x16, 0x39, 0x0f, 0x5d, 0xeb, 0x95, 0xe2, 0xca, 0xbd, 0x70,
+	0xda, 0x2f, 0xdb, 0x87, 0x0d, 0x17, 0x0b, 0x61, 0xb9, 0x1a, 0x35, 0x23, 0x6e, 0xa3, 0x20, 0xe5,
+	0x5c, 0xf6, 0x73, 0x15, 0xeb, 0x04, 0xe6, 0x16, 0xf7, 0xe8, 0x37, 0x0f, 0x1f, 0x22, 0xdf, 0xe8,
+	0x5e, 0xa1, 0xb9, 0x39, 0xd6, 0x04, 0xb6, 0x06, 0x0e, 0xd1, 0xbf, 0x49, 0x22, 0x34, 0x57, 0x99,
+	0xbd, 0xcb, 0xa7, 0x1b, 0xd9, 0x0b, 0x96, 0xab, 0xa6, 0xf3, 0xb6, 0x6a, 0x3a, 0x1f, 0xab, 0xa6,
+	0xc3, 0xaa, 0xf6, 0x93, 0xce, 0x3f, 0x03, 0x00, 0x00, 0xff, 0xff, 0xfc, 0x79, 0x52, 0x6a, 0x29,
+	0x02, 0x00, 0x00,
+}
+
 func (m *WorkerRecord) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -180,67 +212,80 @@ func (m *WorkerRecord) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *WorkerRecord) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *WorkerRecord) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.ID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintWorker(dAtA, i, uint64(len(m.ID)))
-		i += copy(dAtA[i:], m.ID)
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if len(m.Labels) > 0 {
-		for k, _ := range m.Labels {
-			dAtA[i] = 0x12
-			i++
-			v := m.Labels[k]
-			mapSize := 1 + len(k) + sovWorker(uint64(len(k))) + 1 + len(v) + sovWorker(uint64(len(v)))
-			i = encodeVarintWorker(dAtA, i, uint64(mapSize))
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintWorker(dAtA, i, uint64(len(k)))
-			i += copy(dAtA[i:], k)
-			dAtA[i] = 0x12
-			i++
-			i = encodeVarintWorker(dAtA, i, uint64(len(v)))
-			i += copy(dAtA[i:], v)
+	if len(m.GCPolicy) > 0 {
+		for iNdEx := len(m.GCPolicy) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.GCPolicy[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintWorker(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x22
 		}
 	}
 	if len(m.Platforms) > 0 {
-		for _, msg := range m.Platforms {
+		for iNdEx := len(m.Platforms) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Platforms[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintWorker(dAtA, i, uint64(size))
+			}
+			i--
 			dAtA[i] = 0x1a
-			i++
-			i = encodeVarintWorker(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
 		}
 	}
-	if len(m.GCPolicy) > 0 {
-		for _, msg := range m.GCPolicy {
-			dAtA[i] = 0x22
-			i++
-			i = encodeVarintWorker(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
+	if len(m.Labels) > 0 {
+		for k := range m.Labels {
+			v := m.Labels[k]
+			baseI := i
+			i -= len(v)
+			copy(dAtA[i:], v)
+			i = encodeVarintWorker(dAtA, i, uint64(len(v)))
+			i--
+			dAtA[i] = 0x12
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintWorker(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintWorker(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x12
 		}
 	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+	if len(m.ID) > 0 {
+		i -= len(m.ID)
+		copy(dAtA[i:], m.ID)
+		i = encodeVarintWorker(dAtA, i, uint64(len(m.ID)))
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *GCPolicy) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -248,59 +293,61 @@ func (m *GCPolicy) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GCPolicy) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GCPolicy) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.Filters) > 0 {
+		for iNdEx := len(m.Filters) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Filters[iNdEx])
+			copy(dAtA[i:], m.Filters[iNdEx])
+			i = encodeVarintWorker(dAtA, i, uint64(len(m.Filters[iNdEx])))
+			i--
+			dAtA[i] = 0x22
+		}
+	}
+	if m.KeepBytes != 0 {
+		i = encodeVarintWorker(dAtA, i, uint64(m.KeepBytes))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.KeepDuration != 0 {
+		i = encodeVarintWorker(dAtA, i, uint64(m.KeepDuration))
+		i--
+		dAtA[i] = 0x10
+	}
 	if m.All {
-		dAtA[i] = 0x8
-		i++
+		i--
 		if m.All {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
 		}
-		i++
+		i--
+		dAtA[i] = 0x8
 	}
-	if m.KeepDuration != 0 {
-		dAtA[i] = 0x10
-		i++
-		i = encodeVarintWorker(dAtA, i, uint64(m.KeepDuration))
-	}
-	if m.KeepBytes != 0 {
-		dAtA[i] = 0x18
-		i++
-		i = encodeVarintWorker(dAtA, i, uint64(m.KeepBytes))
-	}
-	if len(m.Filters) > 0 {
-		for _, s := range m.Filters {
-			dAtA[i] = 0x22
-			i++
-			l = len(s)
-			for l >= 1<<7 {
-				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
-				l >>= 7
-				i++
-			}
-			dAtA[i] = uint8(l)
-			i++
-			i += copy(dAtA[i:], s)
-		}
-	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
-	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintWorker(dAtA []byte, offset int, v uint64) int {
+	offset -= sovWorker(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 func (m *WorkerRecord) Size() (n int) {
 	if m == nil {
@@ -366,14 +413,7 @@ func (m *GCPolicy) Size() (n int) {
 }
 
 func sovWorker(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozWorker(x uint64) (n int) {
 	return sovWorker(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -393,7 +433,7 @@ func (m *WorkerRecord) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -421,7 +461,7 @@ func (m *WorkerRecord) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -431,6 +471,9 @@ func (m *WorkerRecord) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWorker
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWorker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -450,7 +493,7 @@ func (m *WorkerRecord) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -459,6 +502,9 @@ func (m *WorkerRecord) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWorker
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWorker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -479,7 +525,7 @@ func (m *WorkerRecord) Unmarshal(dAtA []byte) error {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					wire |= (uint64(b) & 0x7F) << shift
+					wire |= uint64(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
@@ -496,7 +542,7 @@ func (m *WorkerRecord) Unmarshal(dAtA []byte) error {
 						}
 						b := dAtA[iNdEx]
 						iNdEx++
-						stringLenmapkey |= (uint64(b) & 0x7F) << shift
+						stringLenmapkey |= uint64(b&0x7F) << shift
 						if b < 0x80 {
 							break
 						}
@@ -506,6 +552,9 @@ func (m *WorkerRecord) Unmarshal(dAtA []byte) error {
 						return ErrInvalidLengthWorker
 					}
 					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthWorker
+					}
 					if postStringIndexmapkey > l {
 						return io.ErrUnexpectedEOF
 					}
@@ -522,7 +571,7 @@ func (m *WorkerRecord) Unmarshal(dAtA []byte) error {
 						}
 						b := dAtA[iNdEx]
 						iNdEx++
-						stringLenmapvalue |= (uint64(b) & 0x7F) << shift
+						stringLenmapvalue |= uint64(b&0x7F) << shift
 						if b < 0x80 {
 							break
 						}
@@ -532,6 +581,9 @@ func (m *WorkerRecord) Unmarshal(dAtA []byte) error {
 						return ErrInvalidLengthWorker
 					}
 					postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+					if postStringIndexmapvalue < 0 {
+						return ErrInvalidLengthWorker
+					}
 					if postStringIndexmapvalue > l {
 						return io.ErrUnexpectedEOF
 					}
@@ -568,7 +620,7 @@ func (m *WorkerRecord) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -577,6 +629,9 @@ func (m *WorkerRecord) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWorker
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWorker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -599,7 +654,7 @@ func (m *WorkerRecord) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -608,6 +663,9 @@ func (m *WorkerRecord) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWorker
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWorker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -623,6 +681,9 @@ func (m *WorkerRecord) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthWorker
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthWorker
 			}
 			if (iNdEx + skippy) > l {
@@ -653,7 +714,7 @@ func (m *GCPolicy) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -681,7 +742,7 @@ func (m *GCPolicy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= (int(b) & 0x7F) << shift
+				v |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -701,7 +762,7 @@ func (m *GCPolicy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.KeepDuration |= (int64(b) & 0x7F) << shift
+				m.KeepDuration |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -720,7 +781,7 @@ func (m *GCPolicy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.KeepBytes |= (int64(b) & 0x7F) << shift
+				m.KeepBytes |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -739,7 +800,7 @@ func (m *GCPolicy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -749,6 +810,9 @@ func (m *GCPolicy) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthWorker
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthWorker
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -761,6 +825,9 @@ func (m *GCPolicy) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthWorker
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthWorker
 			}
 			if (iNdEx + skippy) > l {
@@ -779,6 +846,7 @@ func (m *GCPolicy) Unmarshal(dAtA []byte) error {
 func skipWorker(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -810,10 +878,8 @@ func skipWorker(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -830,82 +896,34 @@ func skipWorker(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			iNdEx += length
 			if length < 0 {
 				return 0, ErrInvalidLengthWorker
 			}
-			return iNdEx, nil
+			iNdEx += length
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowWorker
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipWorker(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupWorker
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthWorker
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthWorker = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowWorker   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthWorker        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowWorker          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupWorker = fmt.Errorf("proto: unexpected end of group")
 )
-
-func init() { proto.RegisterFile("worker.proto", fileDescriptor_worker_1d0a62be5114ecbf) }
-
-var fileDescriptor_worker_1d0a62be5114ecbf = []byte{
-	// 355 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x91, 0xc1, 0x4e, 0xea, 0x40,
-	0x14, 0x86, 0x6f, 0x5b, 0x2e, 0x97, 0x0e, 0xcd, 0x8d, 0x99, 0x18, 0xd3, 0x10, 0x83, 0x84, 0x15,
-	0x0b, 0x9d, 0xa2, 0x6e, 0xd4, 0xb8, 0x42, 0x8c, 0x92, 0xb8, 0x20, 0xb3, 0x71, 0xdd, 0x81, 0x01,
-	0x9b, 0x0e, 0x9c, 0xc9, 0x74, 0x8a, 0xf6, 0x39, 0x7c, 0x29, 0x96, 0x3e, 0x81, 0x31, 0x3c, 0x89,
-	0x99, 0x29, 0x08, 0x26, 0xba, 0x3b, 0xff, 0x9f, 0xff, 0xfb, 0xe7, 0x9c, 0x0c, 0x0a, 0x9e, 0x41,
-	0xa5, 0x5c, 0x11, 0xa9, 0x40, 0x03, 0x3e, 0x98, 0x01, 0x2b, 0x08, 0xcb, 0x13, 0x31, 0x4e, 0x13,
-	0x4d, 0x16, 0xa7, 0x44, 0x17, 0x92, 0x67, 0x8d, 0x93, 0x69, 0xa2, 0x9f, 0x72, 0x46, 0x46, 0x30,
-	0x8b, 0xa6, 0x30, 0x85, 0xc8, 0xc6, 0x59, 0x3e, 0xb1, 0xca, 0x0a, 0x3b, 0x95, 0x35, 0x8d, 0xe3,
-	0x9d, 0xb8, 0x69, 0x8c, 0x36, 0x8d, 0x51, 0x06, 0x62, 0xc1, 0x55, 0x24, 0x59, 0x04, 0x32, 0x2b,
-	0xd3, 0xed, 0x57, 0x17, 0x05, 0x8f, 0x76, 0x0b, 0xca, 0x47, 0xa0, 0xc6, 0xf8, 0x3f, 0x72, 0x07,
-	0xfd, 0xd0, 0x69, 0x39, 0x1d, 0x9f, 0xba, 0x83, 0x3e, 0xbe, 0x47, 0xd5, 0x87, 0x98, 0x71, 0x91,
-	0x85, 0x6e, 0xcb, 0xeb, 0xd4, 0xcf, 0xba, 0xe4, 0xe7, 0x35, 0xc9, 0x6e, 0x0b, 0x29, 0x91, 0xdb,
-	0xb9, 0x56, 0x05, 0x5d, 0xf3, 0xb8, 0x8b, 0x7c, 0x29, 0x62, 0x3d, 0x01, 0x35, 0xcb, 0x42, 0xcf,
-	0x96, 0x05, 0x44, 0x32, 0x32, 0x5c, 0x9b, 0xbd, 0xca, 0xf2, 0xfd, 0xe8, 0x0f, 0xdd, 0x86, 0xf0,
-	0x35, 0xaa, 0xdd, 0xdd, 0x0c, 0x41, 0x24, 0xa3, 0x22, 0xac, 0x58, 0xa0, 0xf5, 0xdb, 0xeb, 0x9b,
-	0x1c, 0xfd, 0x22, 0x1a, 0x97, 0xa8, 0xbe, 0xb3, 0x06, 0xde, 0x43, 0x5e, 0xca, 0x8b, 0xf5, 0x65,
-	0x66, 0xc4, 0xfb, 0xe8, 0xef, 0x22, 0x16, 0x39, 0x0f, 0x5d, 0xeb, 0x95, 0xe2, 0xca, 0xbd, 0x70,
-	0xda, 0x2f, 0xdb, 0x87, 0x0d, 0x17, 0x0b, 0x61, 0xb9, 0x1a, 0x35, 0x23, 0x6e, 0xa3, 0x20, 0xe5,
-	0x5c, 0xf6, 0x73, 0x15, 0xeb, 0x04, 0xe6, 0x16, 0xf7, 0xe8, 0x37, 0x0f, 0x1f, 0x22, 0xdf, 0xe8,
-	0x5e, 0xa1, 0xb9, 0x39, 0xd6, 0x04, 0xb6, 0x06, 0x0e, 0xd1, 0xbf, 0x49, 0x22, 0x34, 0x57, 0x99,
-	0xbd, 0xcb, 0xa7, 0x1b, 0xd9, 0x0b, 0x96, 0xab, 0xa6, 0xf3, 0xb6, 0x6a, 0x3a, 0x1f, 0xab, 0xa6,
-	0xc3, 0xaa, 0xf6, 0x93, 0xce, 0x3f, 0x03, 0x00, 0x00, 0xff, 0xff, 0xfc, 0x79, 0x52, 0x6a, 0x29,
-	0x02, 0x00, 0x00,
-}

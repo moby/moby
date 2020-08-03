@@ -77,8 +77,7 @@ func (e *imageExporterInstance) Name() string {
 	return "exporting to image"
 }
 
-func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source) (map[string]string, error) {
-
+func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source, sessionID string) (map[string]string, error) {
 	if len(inp.Refs) > 1 {
 		return nil, fmt.Errorf("exporting multiple references to image store is currently unsupported")
 	}

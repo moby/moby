@@ -5,25 +5,27 @@ package daemon // import "github.com/docker/docker/testutil/daemon"
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"golang.org/x/sys/unix"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
-func cleanupNetworkNamespace(t testing.TB, execRoot string) {
+func cleanupNetworkNamespace(t testing.TB, d *Daemon) {
 	t.Helper()
 	// Cleanup network namespaces in the exec root of this
 	// daemon because this exec root is specific to this
 	// daemon instance and has no chance of getting
 	// cleaned up when a new daemon is instantiated with a
 	// new exec root.
-	netnsPath := filepath.Join(execRoot, "netns")
+	netnsPath := filepath.Join(d.execRoot, "netns")
 	filepath.Walk(netnsPath, func(path string, info os.FileInfo, err error) error {
 		if err := unix.Unmount(path, unix.MNT_DETACH); err != nil && err != unix.EINVAL && err != unix.ENOENT {
-			t.Logf("unmount of %s failed: %v", path, err)
+			t.Logf("[%s] unmount of %s failed: %v", d.id, path, err)
 		}
 		os.Remove(path)
 		return nil
@@ -45,4 +47,11 @@ func SignalDaemonDump(pid int) {
 
 func signalDaemonReload(pid int) error {
 	return unix.Kill(pid, unix.SIGHUP)
+}
+
+func setsid(cmd *exec.Cmd) {
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	cmd.SysProcAttr.Setsid = true
 }

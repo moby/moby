@@ -29,10 +29,10 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/system"
 	units "github.com/docker/go-units"
+	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -134,7 +134,7 @@ func parseOptions(opt []string) (btrfsOptions, bool, error) {
 
 // Driver contains information about the filesystem mounted.
 type Driver struct {
-	//root of the file system
+	// root of the file system
 	home         string
 	uidMaps      []idtools.IDMap
 	gidMaps      []idtools.IDMap
@@ -606,7 +606,7 @@ func (d *Driver) parseStorageOpt(storageOpt map[string]string, driver *Driver) e
 
 // Set btrfs storage size
 func (d *Driver) setStorageSize(dir string, driver *Driver) error {
-	if driver.options.size <= 0 {
+	if driver.options.size == 0 {
 		return fmt.Errorf("btrfs: invalid storage size: %s", units.HumanSize(float64(driver.options.size)))
 	}
 	if d.options.minSpace > 0 && driver.options.size < d.options.minSpace {

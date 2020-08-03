@@ -33,7 +33,7 @@ func loginV1(authConfig *types.AuthConfig, apiEndpoint APIEndpoint, userAgent st
 		return "", "", errdefs.System(errors.New("server Error: Server Address not set"))
 	}
 
-	req, err := http.NewRequest("GET", serverAddress+"users/", nil)
+	req, err := http.NewRequest(http.MethodGet, serverAddress+"users/", nil)
 	if err != nil {
 		return "", "", err
 	}
@@ -140,7 +140,7 @@ func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent strin
 	}
 
 	endpointStr := strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
-	req, err := http.NewRequest("GET", endpointStr, nil)
+	req, err := http.NewRequest(http.MethodGet, endpointStr, nil)
 	if err != nil {
 		if !foundV2 {
 			err = fallbackError{err: err}
@@ -262,7 +262,7 @@ func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.M
 		Timeout:   15 * time.Second,
 	}
 	endpointStr := strings.TrimRight(endpoint.String(), "/") + "/v2/"
-	req, err := http.NewRequest("GET", endpointStr, nil)
+	req, err := http.NewRequest(http.MethodGet, endpointStr, nil)
 	if err != nil {
 		return nil, false, err
 	}

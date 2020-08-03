@@ -15,15 +15,15 @@ import (
 // stop. Returns an error if the container cannot be found, or if
 // there is an underlying error at any stage of the restart.
 func (daemon *Daemon) ContainerRestart(name string, seconds *int) error {
-	container, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
 	if seconds == nil {
-		stopTimeout := container.StopTimeout()
+		stopTimeout := ctr.StopTimeout()
 		seconds = &stopTimeout
 	}
-	if err := daemon.containerRestart(container, *seconds); err != nil {
+	if err := daemon.containerRestart(ctr, *seconds); err != nil {
 		return fmt.Errorf("Cannot restart container %s: %v", name, err)
 	}
 	return nil

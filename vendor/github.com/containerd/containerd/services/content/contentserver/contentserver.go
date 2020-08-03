@@ -115,7 +115,7 @@ func (s *service) List(req *api.ListContentRequest, session api.Content_ListServ
 
 		return nil
 	}, req.Filters...); err != nil {
-		return err
+		return errdefs.ToGRPC(err)
 	}
 
 	if len(buffer) > 0 {

@@ -3,16 +3,17 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/request"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/poll"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
 )
 
 func TestInspectCpusetInConfigPre120(t *testing.T) {
@@ -22,7 +23,7 @@ func TestInspectCpusetInConfigPre120(t *testing.T) {
 	client := request.NewAPIClient(t, client.WithVersion("1.19"))
 	ctx := context.Background()
 
-	name := "cpusetinconfig-pre120-" + t.Name()
+	name := strings.ToLower(t.Name())
 	// Create container with up to-date-API
 	container.Run(ctx, t, request.NewAPIClient(t), container.WithName(name),
 		container.WithCmd("true"),

@@ -14,10 +14,7 @@ func (r *SMIMEA) Sign(usage, selector, matchingType int, cert *x509.Certificate)
 	r.MatchingType = uint8(matchingType)
 
 	r.Certificate, err = CertificateToDANE(r.Selector, r.MatchingType, cert)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // Verify verifies a SMIMEA record against an SSL certificate. If it is OK

@@ -15,7 +15,6 @@ import (
 func (ls *layerStore) ChecksumForGraphID(id, parent, oldTarDataPath, newTarDataPath string) (diffID DiffID, size int64, err error) {
 	defer func() {
 		if err != nil {
-			logrus.Debugf("could not get checksum for %q with tar-split: %q", id, err)
 			diffID, size, err = ls.checksumForGraphIDNoTarsplit(id, parent, newTarDataPath)
 		}
 	}()

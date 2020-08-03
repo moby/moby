@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/Microsoft/hcsshim"
+	"github.com/Microsoft/hcsshim/osversion"
 	opengcs "github.com/Microsoft/opengcs/client"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
@@ -116,43 +117,43 @@ func (c *client) Version(ctx context.Context) (containerd.Version, error) {
 // Isolation=Process example:
 //
 // {
-//	"SystemType": "Container",
-//	"Name": "5e0055c814a6005b8e57ac59f9a522066e0af12b48b3c26a9416e23907698776",
-//	"Owner": "docker",
-//	"VolumePath": "\\\\\\\\?\\\\Volume{66d1ef4c-7a00-11e6-8948-00155ddbef9d}",
-//	"IgnoreFlushesDuringBoot": true,
-//	"LayerFolderPath": "C:\\\\control\\\\windowsfilter\\\\5e0055c814a6005b8e57ac59f9a522066e0af12b48b3c26a9416e23907698776",
-//	"Layers": [{
-//		"ID": "18955d65-d45a-557b-bf1c-49d6dfefc526",
-//		"Path": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c"
-//	}],
-//	"HostName": "5e0055c814a6",
-//	"MappedDirectories": [],
-//	"HvPartition": false,
-//	"EndpointList": ["eef2649d-bb17-4d53-9937-295a8efe6f2c"],
-//}
+// 	"SystemType": "Container",
+// 	"Name": "5e0055c814a6005b8e57ac59f9a522066e0af12b48b3c26a9416e23907698776",
+// 	"Owner": "docker",
+// 	"VolumePath": "\\\\\\\\?\\\\Volume{66d1ef4c-7a00-11e6-8948-00155ddbef9d}",
+// 	"IgnoreFlushesDuringBoot": true,
+// 	"LayerFolderPath": "C:\\\\control\\\\windowsfilter\\\\5e0055c814a6005b8e57ac59f9a522066e0af12b48b3c26a9416e23907698776",
+// 	"Layers": [{
+// 		"ID": "18955d65-d45a-557b-bf1c-49d6dfefc526",
+// 		"Path": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c"
+// 	}],
+// 	"HostName": "5e0055c814a6",
+// 	"MappedDirectories": [],
+// 	"HvPartition": false,
+// 	"EndpointList": ["eef2649d-bb17-4d53-9937-295a8efe6f2c"],
+// }
 //
 // Isolation=Hyper-V example:
 //
-//{
-//	"SystemType": "Container",
-//	"Name": "475c2c58933b72687a88a441e7e0ca4bd72d76413c5f9d5031fee83b98f6045d",
-//	"Owner": "docker",
-//	"IgnoreFlushesDuringBoot": true,
-//	"Layers": [{
-//		"ID": "18955d65-d45a-557b-bf1c-49d6dfefc526",
-//		"Path": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c"
-//	}],
-//	"HostName": "475c2c58933b",
-//	"MappedDirectories": [],
-//	"HvPartition": true,
-//	"EndpointList": ["e1bb1e61-d56f-405e-b75d-fd520cefa0cb"],
-//	"DNSSearchList": "a.com,b.com,c.com",
-//	"HvRuntime": {
-//		"ImagePath": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c\\\\UtilityVM"
-//	},
-//}
-func (c *client) Create(_ context.Context, id string, spec *specs.Spec, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) error {
+// {
+// 	"SystemType": "Container",
+// 	"Name": "475c2c58933b72687a88a441e7e0ca4bd72d76413c5f9d5031fee83b98f6045d",
+// 	"Owner": "docker",
+// 	"IgnoreFlushesDuringBoot": true,
+// 	"Layers": [{
+// 		"ID": "18955d65-d45a-557b-bf1c-49d6dfefc526",
+// 		"Path": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c"
+// 	}],
+// 	"HostName": "475c2c58933b",
+// 	"MappedDirectories": [],
+// 	"HvPartition": true,
+// 	"EndpointList": ["e1bb1e61-d56f-405e-b75d-fd520cefa0cb"],
+// 	"DNSSearchList": "a.com,b.com,c.com",
+// 	"HvRuntime": {
+// 		"ImagePath": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c\\\\UtilityVM"
+// 	},
+// }
+func (c *client) Create(_ context.Context, id string, spec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) error {
 	if ctr := c.getContainer(id); ctr != nil {
 		return errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
 	}
@@ -318,7 +319,7 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 		}
 	}
 	configuration.MappedDirectories = mds
-	if len(mps) > 0 && system.GetOSVersion().Build < 16299 { // RS3
+	if len(mps) > 0 && osversion.Build() < osversion.RS3 {
 		return errors.New("named pipe mounts are not supported on this version of Windows")
 	}
 	configuration.MappedPipes = mps
@@ -328,7 +329,7 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 		if configuration.HvPartition {
 			return errors.New("device assignment is not supported for HyperV containers")
 		}
-		if system.GetOSVersion().Build < 17763 { // RS5
+		if osversion.Build() < osversion.RS5 {
 			return errors.New("device assignment requires Windows builds RS5 (17763+) or later")
 		}
 		for _, d := range spec.Windows.Devices {
@@ -519,7 +520,7 @@ func (c *client) createLinux(id string, spec *specs.Spec, runtimeOptions interfa
 				ReadOnly:          readonly,
 			}
 			// If we are 1803/RS4+ enable LinuxMetadata support by default
-			if system.GetOSVersion().Build >= 17134 {
+			if osversion.Build() >= osversion.RS4 {
 				md.LinuxMetadata = true
 			}
 			mds = append(mds, md)

@@ -36,11 +36,8 @@ func TestImagePushAnyError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImagePush(context.Background(), "myimage", types.ImagePushOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
-	}
 	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %T", err)
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
@@ -49,8 +46,8 @@ func TestImagePushStatusUnauthorizedError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	_, err := client.ImagePush(context.Background(), "myimage", types.ImagePushOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Unauthorized error" {
-		t.Fatalf("expected an Unauthorized Error, got %v", err)
+	if !errdefs.IsUnauthorized(err) {
+		t.Fatalf("expected a Unauthorized Error, got %[1]T: %[1]v", err)
 	}
 }
 
@@ -79,8 +76,8 @@ func TestImagePushWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T)
 	_, err := client.ImagePush(context.Background(), "myimage", types.ImagePushOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
-	if err == nil || err.Error() != "Error response from daemon: Unauthorized error" {
-		t.Fatalf("expected an Unauthorized Error, got %v", err)
+	if !errdefs.IsUnauthorized(err) {
+		t.Fatalf("expected a Unauthorized Error, got %[1]T: %[1]v", err)
 	}
 }
 
@@ -134,50 +131,70 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 func TestImagePushWithoutErrors(t *testing.T) {
 	expectedOutput := "hello world"
 	expectedURLFormat := "/images/%s/push"
-	pullCases := []struct {
+	testCases := []struct {
+		all           bool
 		reference     string
 		expectedImage string
 		expectedTag   string
 	}{
 		{
+			all:           false,
+			reference:     "myimage",
+			expectedImage: "myimage",
+			expectedTag:   "latest",
+		},
+		{
+			all:           false,
+			reference:     "myimage:tag",
+			expectedImage: "myimage",
+			expectedTag:   "tag",
+		},
+		{
+			all:           true,
 			reference:     "myimage",
 			expectedImage: "myimage",
 			expectedTag:   "",
 		},
 		{
-			reference:     "myimage:tag",
+			all:           true,
+			reference:     "myimage:anything",
 			expectedImage: "myimage",
-			expectedTag:   "tag",
+			expectedTag:   "",
 		},
 	}
-	for _, pullCase := range pullCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
-				expectedURL := fmt.Sprintf(expectedURLFormat, pullCase.expectedImage)
-				if !strings.HasPrefix(req.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-				}
-				query := req.URL.Query()
-				tag := query.Get("tag")
-				if tag != pullCase.expectedTag {
-					return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", pullCase.expectedTag, tag)
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       ioutil.NopCloser(bytes.NewReader([]byte(expectedOutput))),
-				}, nil
-			}),
-		}
-		resp, err := client.ImagePush(context.Background(), pullCase.reference, types.ImagePushOptions{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		body, err := ioutil.ReadAll(resp)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(body) != expectedOutput {
-			t.Fatalf("expected '%s', got %s", expectedOutput, string(body))
-		}
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(fmt.Sprintf("%s,all-tags=%t", tc.reference, tc.all), func(t *testing.T) {
+			client := &Client{
+				client: newMockClient(func(req *http.Request) (*http.Response, error) {
+					expectedURL := fmt.Sprintf(expectedURLFormat, tc.expectedImage)
+					if !strings.HasPrefix(req.URL.Path, expectedURL) {
+						return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+					}
+					query := req.URL.Query()
+					tag := query.Get("tag")
+					if tag != tc.expectedTag {
+						return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", tc.expectedTag, tag)
+					}
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       ioutil.NopCloser(bytes.NewReader([]byte(expectedOutput))),
+					}, nil
+				}),
+			}
+			resp, err := client.ImagePush(context.Background(), tc.reference, types.ImagePushOptions{
+				All: tc.all,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			body, err := ioutil.ReadAll(resp)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(body) != expectedOutput {
+				t.Fatalf("expected '%s', got %s", expectedOutput, string(body))
+			}
+		})
 	}
 }

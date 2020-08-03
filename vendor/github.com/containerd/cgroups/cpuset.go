@@ -26,7 +26,7 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func NewCputset(root string) *cpusetController {
+func NewCpuset(root string) *cpusetController {
 	return &cpusetController{
 		root: filepath.Join(root, string(Cpuset)),
 	}
@@ -69,8 +69,8 @@ func (c *cpusetController) Create(path string, resources *specs.LinuxResources) 
 			},
 		} {
 			if t.value != "" {
-				if err := ioutil.WriteFile(
-					filepath.Join(c.Path(path), fmt.Sprintf("cpuset.%s", t.name)),
+				if err := retryingWriteFile(
+					filepath.Join(c.Path(path), "cpuset."+t.name),
 					[]byte(t.value),
 					defaultFilePerm,
 				); err != nil {
@@ -134,7 +134,7 @@ func (c *cpusetController) copyIfNeeded(current, parent string) error {
 		return err
 	}
 	if isEmpty(currentCpus) {
-		if err := ioutil.WriteFile(
+		if err := retryingWriteFile(
 			filepath.Join(current, "cpuset.cpus"),
 			parentCpus,
 			defaultFilePerm,
@@ -143,7 +143,7 @@ func (c *cpusetController) copyIfNeeded(current, parent string) error {
 		}
 	}
 	if isEmpty(currentMems) {
-		if err := ioutil.WriteFile(
+		if err := retryingWriteFile(
 			filepath.Join(current, "cpuset.mems"),
 			parentMems,
 			defaultFilePerm,

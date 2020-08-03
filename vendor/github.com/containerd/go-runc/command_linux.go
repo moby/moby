@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 )
 
@@ -32,10 +33,24 @@ func (r *Runc) command(context context.Context, args ...string) *exec.Cmd {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: r.Setpgid,
 	}
-	cmd.Env = os.Environ()
+	cmd.Env = filterEnv(os.Environ(), "NOTIFY_SOCKET") // NOTIFY_SOCKET introduces a special behavior in runc but should only be set if invoked from systemd
 	if r.PdeathSignal != 0 {
 		cmd.SysProcAttr.Pdeathsig = r.PdeathSignal
 	}
 
 	return cmd
+}
+
+func filterEnv(in []string, names ...string) []string {
+	out := make([]string, 0, len(in))
+loop0:
+	for _, v := range in {
+		for _, k := range names {
+			if strings.HasPrefix(v, k+"=") {
+				continue loop0
+			}
+		}
+		out = append(out, v)
+	}
+	return out
 }

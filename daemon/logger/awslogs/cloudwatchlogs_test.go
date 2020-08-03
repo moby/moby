@@ -22,8 +22,8 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/dockerversion"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 const (
@@ -345,7 +345,7 @@ func TestLogNonBlockingBufferFull(t *testing.T) {
 		logNonBlocking: true,
 	}
 	stream.messages <- &logger.Message{}
-	errorCh := make(chan error)
+	errorCh := make(chan error, 1)
 	started := make(chan bool)
 	go func() {
 		started <- true

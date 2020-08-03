@@ -9,8 +9,8 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/daemon"
 
-	"gotest.tools/assert"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 )
 
 // hasSystemd checks whether the host was booted with systemd as its init
@@ -38,7 +38,7 @@ func TestCgroupDriverSystemdMemoryLimit(t *testing.T) {
 	d.StartWithBusybox(t, "--exec-opt", "native.cgroupdriver=systemd", "--iptables=false")
 	defer d.Stop(t)
 
-	const mem = 64 * 1024 * 1024 // 64 MB
+	const mem = int64(64 * 1024 * 1024) // 64 MB
 
 	ctx := context.Background()
 	ctrID := container.Create(ctx, t, c, func(ctr *container.TestContainerConfig) {

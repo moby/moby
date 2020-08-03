@@ -18,6 +18,7 @@ package cgroups
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -25,13 +26,60 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	units "github.com/docker/go-units"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"golang.org/x/sys/unix"
 )
 
-var isUserNS = runningInUserNS()
+var (
+	isUserNS  = runningInUserNS()
+	checkMode sync.Once
+	cgMode    CGMode
+)
+
+const unifiedMountpoint = "/sys/fs/cgroup"
+
+// CGMode is the cgroups mode of the host system
+type CGMode int
+
+const (
+	// Unavailable cgroup mountpoint
+	Unavailable CGMode = iota
+	// Legacy cgroups v1
+	Legacy
+	// Hybrid with cgroups v1 and v2 controllers mounted
+	Hybrid
+	// Unified with only cgroups v2 mounted
+	Unified
+)
+
+// Mode returns the cgroups mode running on the host
+func Mode() CGMode {
+	checkMode.Do(func() {
+		var st unix.Statfs_t
+		if err := unix.Statfs(unifiedMountpoint, &st); err != nil {
+			cgMode = Unavailable
+			return
+		}
+		switch st.Type {
+		case unix.CGROUP2_SUPER_MAGIC:
+			cgMode = Unified
+		default:
+			cgMode = Legacy
+			if err := unix.Statfs(filepath.Join(unifiedMountpoint, "unified"), &st); err != nil {
+				return
+			}
+			if st.Type == unix.CGROUP2_SUPER_MAGIC {
+				cgMode = Hybrid
+			}
+		}
+	})
+	return cgMode
+}
 
 // runningInUserNS detects whether we are currently running in a user namespace.
 // Copied from github.com/lxc/lxd/shared/util.go
@@ -75,7 +123,7 @@ func defaults(root string) ([]Subsystem, error) {
 		NewNetCls(root),
 		NewNetPrio(root),
 		NewPerfEvent(root),
-		NewCputset(root),
+		NewCpuset(root),
 		NewCpu(root),
 		NewCpuacct(root),
 		NewMemory(root),
@@ -135,6 +183,10 @@ func readPids(path string, subsystem Name) ([]Process, error) {
 			})
 		}
 	}
+	if err := s.Err(); err != nil {
+		// failed to read all pids?
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -162,13 +214,16 @@ func readTasksPids(path string, subsystem Name) ([]Task, error) {
 			})
 		}
 	}
+	if err := s.Err(); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
 func hugePageSizes() ([]string, error) {
 	var (
 		pageSizes []string
-		sizeList  = []string{"B", "kB", "MB", "GB", "TB", "PB"}
+		sizeList  = []string{"B", "KB", "MB", "GB", "TB", "PB"}
 	)
 	files, err := ioutil.ReadDir("/sys/kernel/mm/hugepages")
 	if err != nil {
@@ -240,9 +295,6 @@ func parseCgroupFromReader(r io.Reader) (map[string]string, error) {
 		s       = bufio.NewScanner(r)
 	)
 	for s.Scan() {
-		if err := s.Err(); err != nil {
-			return nil, err
-		}
 		var (
 			text  = s.Text()
 			parts = strings.SplitN(text, ":", 3)
@@ -256,6 +308,9 @@ func parseCgroupFromReader(r io.Reader) (map[string]string, error) {
 			}
 		}
 	}
+	if err := s.Err(); err != nil {
+		return nil, err
+	}
 	return cgroups, nil
 }
 
@@ -267,15 +322,22 @@ func getCgroupDestination(subsystem string) (string, error) {
 	defer f.Close()
 	s := bufio.NewScanner(f)
 	for s.Scan() {
-		if err := s.Err(); err != nil {
-			return "", err
+		fields := strings.Split(s.Text(), " ")
+		if len(fields) < 10 {
+			// broken mountinfo?
+			continue
 		}
-		fields := strings.Fields(s.Text())
+		if fields[len(fields)-3] != "cgroup" {
+			continue
+		}
 		for _, opt := range strings.Split(fields[len(fields)-1], ",") {
 			if opt == subsystem {
 				return fields[3], nil
 			}
 		}
+	}
+	if err := s.Err(); err != nil {
+		return "", err
 	}
 	return "", ErrNoCgroupMountDestination
 }
@@ -320,5 +382,18 @@ func cleanPath(path string) string {
 	if !filepath.IsAbs(path) {
 		path, _ = filepath.Rel(string(os.PathSeparator), filepath.Clean(string(os.PathSeparator)+path))
 	}
-	return filepath.Clean(path)
+	return path
+}
+
+func retryingWriteFile(path string, data []byte, mode os.FileMode) error {
+	// Retry writes on EINTR; see:
+	//    https://github.com/golang/go/issues/38033
+	for {
+		err := ioutil.WriteFile(path, data, mode)
+		if err == nil {
+			return nil
+		} else if !errors.Is(err, syscall.EINTR) {
+			return err
+		}
+	}
 }

@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/testutil/fixtures/load"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func ensureSyscallTest(c *testing.T) {
@@ -49,7 +49,7 @@ func ensureSyscallTest(c *testing.T) {
 
 	dockerFile := filepath.Join(tmp, "Dockerfile")
 	content := []byte(`
-	FROM debian:jessie
+	FROM debian:buster
 	COPY . /usr/bin/
 	`)
 	err = ioutil.WriteFile(dockerFile, content, 0600)
@@ -65,7 +65,7 @@ func ensureSyscallTest(c *testing.T) {
 }
 
 func ensureSyscallTestBuild(c *testing.T) {
-	err := load.FrozenImagesLinux(testEnv.APIClient(), "buildpack-deps:jessie")
+	err := load.FrozenImagesLinux(testEnv.APIClient(), "buildpack-deps:buster")
 	assert.NilError(c, err)
 
 	var buildArgs []string
@@ -103,7 +103,7 @@ func ensureNNPTest(c *testing.T) {
 
 	dockerfile := filepath.Join(tmp, "Dockerfile")
 	content := `
-	FROM debian:jessie
+	FROM debian:buster
 	COPY . /usr/bin
 	RUN chmod +s /usr/bin/nnp-test
 	`
@@ -120,7 +120,7 @@ func ensureNNPTest(c *testing.T) {
 }
 
 func ensureNNPTestBuild(c *testing.T) {
-	err := load.FrozenImagesLinux(testEnv.APIClient(), "buildpack-deps:jessie")
+	err := load.FrozenImagesLinux(testEnv.APIClient(), "buildpack-deps:buster")
 	assert.NilError(c, err)
 
 	var buildArgs []string

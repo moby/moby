@@ -80,31 +80,12 @@ func (c *controller) getStores() []datastore.DataStore {
 }
 
 func (c *controller) getNetworkFromStore(nid string) (*network, error) {
-	for _, store := range c.getStores() {
-		n := &network{id: nid, ctrlr: c}
-		err := store.GetObject(datastore.Key(n.Key()...), n)
-		// Continue searching in the next store if the key is not found in this store
-		if err != nil {
-			if err != datastore.ErrKeyNotFound {
-				logrus.Debugf("could not find network %s: %v", nid, err)
-			}
-			continue
+	for _, n := range c.getNetworksFromStore() {
+		if n.id == nid {
+			return n, nil
 		}
-
-		ec := &endpointCnt{n: n}
-		err = store.GetObject(datastore.Key(ec.Key()...), ec)
-		if err != nil && !n.inDelete {
-			return nil, fmt.Errorf("could not find endpoint count for network %s: %v", n.Name(), err)
-		}
-
-		n.epCnt = ec
-		if n.scope == "" {
-			n.scope = store.Scope()
-		}
-		return n, nil
 	}
-
-	return nil, fmt.Errorf("network %s not found", nid)
+	return nil, ErrNoSuchNetwork(nid)
 }
 
 func (c *controller) getNetworksForScope(scope string) ([]*network, error) {
@@ -143,12 +124,11 @@ func (c *controller) getNetworksForScope(scope string) ([]*network, error) {
 	return nl, nil
 }
 
-func (c *controller) getNetworksFromStore() ([]*network, error) {
+func (c *controller) getNetworksFromStore() []*network {
 	var nl []*network
 
 	for _, store := range c.getStores() {
-		kvol, err := store.List(datastore.Key(datastore.NetworkKeyPrefix),
-			&network{ctrlr: c})
+		kvol, err := store.List(datastore.Key(datastore.NetworkKeyPrefix), &network{ctrlr: c})
 		// Continue searching in the next store if no keys found in this store
 		if err != nil {
 			if err != datastore.ErrKeyNotFound {
@@ -158,10 +138,8 @@ func (c *controller) getNetworksFromStore() ([]*network, error) {
 		}
 
 		kvep, err := store.Map(datastore.Key(epCntKeyPrefix), &endpointCnt{})
-		if err != nil {
-			if err != datastore.ErrKeyNotFound {
-				logrus.Warnf("failed to get endpoint_count map for scope %s: %v", store.Scope(), err)
-			}
+		if err != nil && err != datastore.ErrKeyNotFound {
+			logrus.Warnf("failed to get endpoint_count map for scope %s: %v", store.Scope(), err)
 		}
 
 		for _, kvo := range kvol {
@@ -183,7 +161,7 @@ func (c *controller) getNetworksFromStore() ([]*network, error) {
 		}
 	}
 
-	return nl, nil
+	return nl
 }
 
 func (n *network) getEndpointFromStore(eid string) (*endpoint, error) {
@@ -470,13 +448,7 @@ func (c *controller) startWatch() {
 }
 
 func (c *controller) networkCleanup() {
-	networks, err := c.getNetworksFromStore()
-	if err != nil {
-		logrus.Warnf("Could not retrieve networks from store(s) during network cleanup: %v", err)
-		return
-	}
-
-	for _, n := range networks {
+	for _, n := range c.getNetworksFromStore() {
 		if n.inDelete {
 			logrus.Infof("Removing stale network %s (%s)", n.Name(), n.ID())
 			if err := n.delete(true, true); err != nil {

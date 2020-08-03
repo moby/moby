@@ -15,10 +15,11 @@ import (
 	"github.com/docker/docker/daemon/links"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
+	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -61,33 +62,33 @@ func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]s
 func (daemon *Daemon) getIpcContainer(id string) (*container.Container, error) {
 	errMsg := "can't join IPC of container " + id
 	// Check the container exists
-	container, err := daemon.GetContainer(id)
+	ctr, err := daemon.GetContainer(id)
 	if err != nil {
 		return nil, errors.Wrap(err, errMsg)
 	}
 	// Check the container is running and not restarting
-	if err := daemon.checkContainer(container, containerIsRunning, containerIsNotRestarting); err != nil {
+	if err := daemon.checkContainer(ctr, containerIsRunning, containerIsNotRestarting); err != nil {
 		return nil, errors.Wrap(err, errMsg)
 	}
 	// Check the container ipc is shareable
-	if st, err := os.Stat(container.ShmPath); err != nil || !st.IsDir() {
+	if st, err := os.Stat(ctr.ShmPath); err != nil || !st.IsDir() {
 		if err == nil || os.IsNotExist(err) {
 			return nil, errors.New(errMsg + ": non-shareable IPC (hint: use IpcMode:shareable for the donor container)")
 		}
 		// stat() failed?
-		return nil, errors.Wrap(err, errMsg+": unexpected error from stat "+container.ShmPath)
+		return nil, errors.Wrap(err, errMsg+": unexpected error from stat "+ctr.ShmPath)
 	}
 
-	return container, nil
+	return ctr, nil
 }
 
-func (daemon *Daemon) getPidContainer(container *container.Container) (*container.Container, error) {
-	containerID := container.HostConfig.PidMode.Container()
-	container, err := daemon.GetContainer(containerID)
+func (daemon *Daemon) getPidContainer(ctr *container.Container) (*container.Container, error) {
+	containerID := ctr.HostConfig.PidMode.Container()
+	ctr, err := daemon.GetContainer(containerID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot join PID of a non running container: %s", containerID)
 	}
-	return container, daemon.checkContainer(container, containerIsRunning, containerIsNotRestarting)
+	return ctr, daemon.checkContainer(ctr, containerIsRunning, containerIsNotRestarting)
 }
 
 func containerIsRunning(c *container.Container) error {
@@ -353,6 +354,20 @@ func killProcessDirectly(cntr *container.Container) error {
 				logrus.Debug(e)
 				return e
 			}
+
+			// In case there were some exceptions(e.g., state of zombie and D)
+			if system.IsProcessAlive(pid) {
+
+				// Since we can not kill a zombie pid, add zombie check here
+				isZombie, err := system.IsProcessZombie(pid)
+				if err != nil {
+					logrus.Warnf("Container %s state is invalid", stringid.TruncateID(cntr.ID))
+					return err
+				}
+				if isZombie {
+					return errdefs.System(errors.Errorf("container %s PID %d is zombie and can not be killed. Use the --init option when creating containers to run an init inside the container that forwards signals and reaps processes", stringid.TruncateID(cntr.ID), pid))
+				}
+			}
 		}
 	}
 	return nil
@@ -376,13 +391,65 @@ func serviceDiscoveryOnDefaultNetwork() bool {
 func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container, sboxOptions *[]libnetwork.SandboxOption) error {
 	var err error
 
-	if container.HostConfig.NetworkMode.IsHost() {
-		// Point to the host files, so that will be copied into the container running in host mode
-		*sboxOptions = append(*sboxOptions, libnetwork.OptionOriginHostsPath("/etc/hosts"))
-	}
+	// Set the correct paths for /etc/hosts and /etc/resolv.conf, based on the
+	// networking-mode of the container. Note that containers with "container"
+	// networking are already handled in "initializeNetworking()" before we reach
+	// this function, so do not have to be accounted for here.
+	switch {
+	case container.HostConfig.NetworkMode.IsHost():
+		// In host-mode networking, the container does not have its own networking
+		// namespace, so both `/etc/hosts` and `/etc/resolv.conf` should be the same
+		// as on the host itself. The container gets a copy of these files, but they
+		// may be symlinked, so resolve the original path first.
+		etcHosts, err := filepath.EvalSymlinks("/etc/hosts")
+		if err != nil {
+			return err
+		}
+		resolvConf, err := filepath.EvalSymlinks("/etc/resolv.conf")
+		if err != nil {
+			return err
+		}
 
-	// Copy the host's resolv.conf for the container (/etc/resolv.conf or /run/systemd/resolve/resolv.conf)
-	*sboxOptions = append(*sboxOptions, libnetwork.OptionOriginResolvConfPath(daemon.configStore.GetResolvConf()))
+		*sboxOptions = append(
+			*sboxOptions,
+			libnetwork.OptionOriginHostsPath(etcHosts),
+			libnetwork.OptionOriginResolvConfPath(resolvConf),
+		)
+	case container.HostConfig.NetworkMode.IsUserDefined():
+		// The container uses a user-defined network. We use the embedded DNS
+		// server for container name resolution and to act as a DNS forwarder
+		// for external DNS resolution.
+		// We parse the DNS server(s) that are defined in /etc/resolv.conf on
+		// the host, which may be a local DNS server (for example, if DNSMasq or
+		// systemd-resolvd are in use). The embedded DNS server forwards DNS
+		// resolution to the DNS server configured on the host, which in itself
+		// may act as a forwarder for external DNS servers.
+		// If systemd-resolvd is used, the "upstream" DNS servers can be found in
+		// /run/systemd/resolve/resolv.conf. We do not query those DNS servers
+		// directly, as they can be dynamically reconfigured.
+		resolvConf, err := filepath.EvalSymlinks("/etc/resolv.conf")
+		if err != nil {
+			return err
+		}
+		*sboxOptions = append(*sboxOptions, libnetwork.OptionOriginResolvConfPath(resolvConf))
+	default:
+		// For other situations, such as the default bridge network, container
+		// discovery / name resolution is handled through /etc/hosts, and no
+		// embedded DNS server is available. Without the embedded DNS, we
+		// cannot use local DNS servers on the host (for example, if DNSMasq or
+		// systemd-resolvd is used). If systemd-resolvd is used, we try to
+		// determine the external DNS servers that are used on the host.
+		// This situation is not ideal, because DNS servers configured in the
+		// container are not updated after the container is created, but the
+		// DNS servers on the host can be dynamically updated.
+		//
+		// Copy the host's resolv.conf for the container (/run/systemd/resolve/resolv.conf or /etc/resolv.conf)
+		resolvConf, err := filepath.EvalSymlinks(daemon.configStore.GetResolvConf())
+		if err != nil {
+			return err
+		}
+		*sboxOptions = append(*sboxOptions, libnetwork.OptionOriginResolvConfPath(resolvConf))
+	}
 
 	container.HostsPath, err = container.GetRootResourcePath("hosts")
 	if err != nil {

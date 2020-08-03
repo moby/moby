@@ -10,9 +10,9 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 // TestExecWithCloseStdin adds case for moby#37870 issue.
@@ -53,7 +53,7 @@ func TestExecWithCloseStdin(t *testing.T) {
 		resCh  = make(chan struct {
 			content string
 			err     error
-		})
+		}, 1)
 	)
 
 	go func() {
@@ -101,6 +101,10 @@ func TestExec(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
+
+	inspect, err := client.ContainerExecInspect(ctx, id.ID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(inspect.ExecID, id.ID))
 
 	resp, err := client.ContainerExecAttach(ctx, id.ID,
 		types.ExecStartCheck{

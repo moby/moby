@@ -8,6 +8,7 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
 )
@@ -21,7 +22,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type RuncOptions struct {
 	Runtime              string   `protobuf:"bytes,1,opt,name=runtime,proto3" json:"runtime,omitempty"`
@@ -46,7 +47,7 @@ func (m *RuncOptions) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) 
 		return xxx_messageInfo_RuncOptions.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -97,7 +98,7 @@ func (m *CreateOptions) XXX_Marshal(b []byte, deterministic bool) ([]byte, error
 		return xxx_messageInfo_CreateOptions.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -144,7 +145,7 @@ func (m *CheckpointOptions) XXX_Marshal(b []byte, deterministic bool) ([]byte, e
 		return xxx_messageInfo_CheckpointOptions.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -183,7 +184,7 @@ func (m *ProcessDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return xxx_messageInfo_ProcessDetails.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -258,7 +259,7 @@ var fileDescriptor_d20e2ba8b3cc58b9 = []byte{
 func (m *RuncOptions) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -266,48 +267,57 @@ func (m *RuncOptions) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *RuncOptions) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *RuncOptions) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Runtime) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintRunc(dAtA, i, uint64(len(m.Runtime)))
-		i += copy(dAtA[i:], m.Runtime)
-	}
-	if len(m.RuntimeRoot) > 0 {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintRunc(dAtA, i, uint64(len(m.RuntimeRoot)))
-		i += copy(dAtA[i:], m.RuntimeRoot)
-	}
-	if len(m.CriuPath) > 0 {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintRunc(dAtA, i, uint64(len(m.CriuPath)))
-		i += copy(dAtA[i:], m.CriuPath)
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
 	if m.SystemdCgroup {
-		dAtA[i] = 0x20
-		i++
+		i--
 		if m.SystemdCgroup {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
 		}
-		i++
+		i--
+		dAtA[i] = 0x20
 	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+	if len(m.CriuPath) > 0 {
+		i -= len(m.CriuPath)
+		copy(dAtA[i:], m.CriuPath)
+		i = encodeVarintRunc(dAtA, i, uint64(len(m.CriuPath)))
+		i--
+		dAtA[i] = 0x1a
 	}
-	return i, nil
+	if len(m.RuntimeRoot) > 0 {
+		i -= len(m.RuntimeRoot)
+		copy(dAtA[i:], m.RuntimeRoot)
+		i = encodeVarintRunc(dAtA, i, uint64(len(m.RuntimeRoot)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Runtime) > 0 {
+		i -= len(m.Runtime)
+		copy(dAtA[i:], m.Runtime)
+		i = encodeVarintRunc(dAtA, i, uint64(len(m.Runtime)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *CreateOptions) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -315,129 +325,133 @@ func (m *CreateOptions) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *CreateOptions) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *CreateOptions) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.NoPivotRoot {
-		dAtA[i] = 0x8
-		i++
-		if m.NoPivotRoot {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.OpenTcp {
-		dAtA[i] = 0x10
-		i++
-		if m.OpenTcp {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
+	if len(m.CriuImagePath) > 0 {
+		i -= len(m.CriuImagePath)
+		copy(dAtA[i:], m.CriuImagePath)
+		i = encodeVarintRunc(dAtA, i, uint64(len(m.CriuImagePath)))
+		i--
+		dAtA[i] = 0x6a
 	}
-	if m.ExternalUnixSockets {
-		dAtA[i] = 0x18
-		i++
-		if m.ExternalUnixSockets {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
+	if len(m.CriuWorkPath) > 0 {
+		i -= len(m.CriuWorkPath)
+		copy(dAtA[i:], m.CriuWorkPath)
+		i = encodeVarintRunc(dAtA, i, uint64(len(m.CriuWorkPath)))
+		i--
+		dAtA[i] = 0x62
 	}
-	if m.Terminal {
-		dAtA[i] = 0x20
-		i++
-		if m.Terminal {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
+	if m.IoGid != 0 {
+		i = encodeVarintRunc(dAtA, i, uint64(m.IoGid))
+		i--
+		dAtA[i] = 0x58
 	}
-	if m.FileLocks {
-		dAtA[i] = 0x28
-		i++
-		if m.FileLocks {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
+	if m.IoUid != 0 {
+		i = encodeVarintRunc(dAtA, i, uint64(m.IoUid))
+		i--
+		dAtA[i] = 0x50
 	}
-	if len(m.EmptyNamespaces) > 0 {
-		for _, s := range m.EmptyNamespaces {
-			dAtA[i] = 0x32
-			i++
-			l = len(s)
-			for l >= 1<<7 {
-				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
-				l >>= 7
-				i++
-			}
-			dAtA[i] = uint8(l)
-			i++
-			i += copy(dAtA[i:], s)
-		}
-	}
-	if len(m.CgroupsMode) > 0 {
-		dAtA[i] = 0x3a
-		i++
-		i = encodeVarintRunc(dAtA, i, uint64(len(m.CgroupsMode)))
-		i += copy(dAtA[i:], m.CgroupsMode)
+	if len(m.ShimCgroup) > 0 {
+		i -= len(m.ShimCgroup)
+		copy(dAtA[i:], m.ShimCgroup)
+		i = encodeVarintRunc(dAtA, i, uint64(len(m.ShimCgroup)))
+		i--
+		dAtA[i] = 0x4a
 	}
 	if m.NoNewKeyring {
-		dAtA[i] = 0x40
-		i++
+		i--
 		if m.NoNewKeyring {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
 		}
-		i++
+		i--
+		dAtA[i] = 0x40
 	}
-	if len(m.ShimCgroup) > 0 {
-		dAtA[i] = 0x4a
-		i++
-		i = encodeVarintRunc(dAtA, i, uint64(len(m.ShimCgroup)))
-		i += copy(dAtA[i:], m.ShimCgroup)
+	if len(m.CgroupsMode) > 0 {
+		i -= len(m.CgroupsMode)
+		copy(dAtA[i:], m.CgroupsMode)
+		i = encodeVarintRunc(dAtA, i, uint64(len(m.CgroupsMode)))
+		i--
+		dAtA[i] = 0x3a
 	}
-	if m.IoUid != 0 {
-		dAtA[i] = 0x50
-		i++
-		i = encodeVarintRunc(dAtA, i, uint64(m.IoUid))
+	if len(m.EmptyNamespaces) > 0 {
+		for iNdEx := len(m.EmptyNamespaces) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.EmptyNamespaces[iNdEx])
+			copy(dAtA[i:], m.EmptyNamespaces[iNdEx])
+			i = encodeVarintRunc(dAtA, i, uint64(len(m.EmptyNamespaces[iNdEx])))
+			i--
+			dAtA[i] = 0x32
+		}
 	}
-	if m.IoGid != 0 {
-		dAtA[i] = 0x58
-		i++
-		i = encodeVarintRunc(dAtA, i, uint64(m.IoGid))
+	if m.FileLocks {
+		i--
+		if m.FileLocks {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x28
 	}
-	if len(m.CriuWorkPath) > 0 {
-		dAtA[i] = 0x62
-		i++
-		i = encodeVarintRunc(dAtA, i, uint64(len(m.CriuWorkPath)))
-		i += copy(dAtA[i:], m.CriuWorkPath)
+	if m.Terminal {
+		i--
+		if m.Terminal {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x20
 	}
-	if len(m.CriuImagePath) > 0 {
-		dAtA[i] = 0x6a
-		i++
-		i = encodeVarintRunc(dAtA, i, uint64(len(m.CriuImagePath)))
-		i += copy(dAtA[i:], m.CriuImagePath)
+	if m.ExternalUnixSockets {
+		i--
+		if m.ExternalUnixSockets {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x18
 	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+	if m.OpenTcp {
+		i--
+		if m.OpenTcp {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x10
 	}
-	return i, nil
+	if m.NoPivotRoot {
+		i--
+		if m.NoPivotRoot {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *CheckpointOptions) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -445,103 +459,106 @@ func (m *CheckpointOptions) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *CheckpointOptions) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *CheckpointOptions) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Exit {
-		dAtA[i] = 0x8
-		i++
-		if m.Exit {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.OpenTcp {
-		dAtA[i] = 0x10
-		i++
-		if m.OpenTcp {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
+	if len(m.ImagePath) > 0 {
+		i -= len(m.ImagePath)
+		copy(dAtA[i:], m.ImagePath)
+		i = encodeVarintRunc(dAtA, i, uint64(len(m.ImagePath)))
+		i--
+		dAtA[i] = 0x4a
 	}
-	if m.ExternalUnixSockets {
-		dAtA[i] = 0x18
-		i++
-		if m.ExternalUnixSockets {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
+	if len(m.WorkPath) > 0 {
+		i -= len(m.WorkPath)
+		copy(dAtA[i:], m.WorkPath)
+		i = encodeVarintRunc(dAtA, i, uint64(len(m.WorkPath)))
+		i--
+		dAtA[i] = 0x42
 	}
-	if m.Terminal {
-		dAtA[i] = 0x20
-		i++
-		if m.Terminal {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
+	if len(m.CgroupsMode) > 0 {
+		i -= len(m.CgroupsMode)
+		copy(dAtA[i:], m.CgroupsMode)
+		i = encodeVarintRunc(dAtA, i, uint64(len(m.CgroupsMode)))
+		i--
+		dAtA[i] = 0x3a
+	}
+	if len(m.EmptyNamespaces) > 0 {
+		for iNdEx := len(m.EmptyNamespaces) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.EmptyNamespaces[iNdEx])
+			copy(dAtA[i:], m.EmptyNamespaces[iNdEx])
+			i = encodeVarintRunc(dAtA, i, uint64(len(m.EmptyNamespaces[iNdEx])))
+			i--
+			dAtA[i] = 0x32
 		}
-		i++
 	}
 	if m.FileLocks {
-		dAtA[i] = 0x28
-		i++
+		i--
 		if m.FileLocks {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
 		}
-		i++
+		i--
+		dAtA[i] = 0x28
 	}
-	if len(m.EmptyNamespaces) > 0 {
-		for _, s := range m.EmptyNamespaces {
-			dAtA[i] = 0x32
-			i++
-			l = len(s)
-			for l >= 1<<7 {
-				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
-				l >>= 7
-				i++
-			}
-			dAtA[i] = uint8(l)
-			i++
-			i += copy(dAtA[i:], s)
+	if m.Terminal {
+		i--
+		if m.Terminal {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
 		}
+		i--
+		dAtA[i] = 0x20
 	}
-	if len(m.CgroupsMode) > 0 {
-		dAtA[i] = 0x3a
-		i++
-		i = encodeVarintRunc(dAtA, i, uint64(len(m.CgroupsMode)))
-		i += copy(dAtA[i:], m.CgroupsMode)
+	if m.ExternalUnixSockets {
+		i--
+		if m.ExternalUnixSockets {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x18
 	}
-	if len(m.WorkPath) > 0 {
-		dAtA[i] = 0x42
-		i++
-		i = encodeVarintRunc(dAtA, i, uint64(len(m.WorkPath)))
-		i += copy(dAtA[i:], m.WorkPath)
+	if m.OpenTcp {
+		i--
+		if m.OpenTcp {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x10
 	}
-	if len(m.ImagePath) > 0 {
-		dAtA[i] = 0x4a
-		i++
-		i = encodeVarintRunc(dAtA, i, uint64(len(m.ImagePath)))
-		i += copy(dAtA[i:], m.ImagePath)
+	if m.Exit {
+		i--
+		if m.Exit {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x8
 	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
-	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *ProcessDetails) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -549,30 +566,39 @@ func (m *ProcessDetails) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *ProcessDetails) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ProcessDetails) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.ExecID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintRunc(dAtA, i, uint64(len(m.ExecID)))
-		i += copy(dAtA[i:], m.ExecID)
-	}
 	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	return i, nil
+	if len(m.ExecID) > 0 {
+		i -= len(m.ExecID)
+		copy(dAtA[i:], m.ExecID)
+		i = encodeVarintRunc(dAtA, i, uint64(len(m.ExecID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintRunc(dAtA []byte, offset int, v uint64) int {
+	offset -= sovRunc(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 func (m *RuncOptions) Size() (n int) {
 	if m == nil {
@@ -721,14 +747,7 @@ func (m *ProcessDetails) Size() (n int) {
 }
 
 func sovRunc(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozRunc(x uint64) (n int) {
 	return sovRunc(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -1721,6 +1740,7 @@ func (m *ProcessDetails) Unmarshal(dAtA []byte) error {
 func skipRunc(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -1752,10 +1772,8 @@ func skipRunc(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -1776,55 +1794,30 @@ func skipRunc(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthRunc
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthRunc
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowRunc
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipRunc(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthRunc
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupRunc
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthRunc
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthRunc = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowRunc   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthRunc        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowRunc          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupRunc = fmt.Errorf("proto: unexpected end of group")
 )

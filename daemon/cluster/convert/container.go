@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	types "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/go-units"
 	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
@@ -18,26 +19,28 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 		return nil
 	}
 	containerSpec := &types.ContainerSpec{
-		Image:        c.Image,
-		Labels:       c.Labels,
-		Command:      c.Command,
-		Args:         c.Args,
-		Hostname:     c.Hostname,
-		Env:          c.Env,
-		Dir:          c.Dir,
-		User:         c.User,
-		Groups:       c.Groups,
-		StopSignal:   c.StopSignal,
-		TTY:          c.TTY,
-		OpenStdin:    c.OpenStdin,
-		ReadOnly:     c.ReadOnly,
-		Hosts:        c.Hosts,
-		Secrets:      secretReferencesFromGRPC(c.Secrets),
-		Configs:      configReferencesFromGRPC(c.Configs),
-		Isolation:    IsolationFromGRPC(c.Isolation),
-		Init:         initFromGRPC(c.Init),
-		Sysctls:      c.Sysctls,
-		Capabilities: c.Capabilities,
+		Image:          c.Image,
+		Labels:         c.Labels,
+		Command:        c.Command,
+		Args:           c.Args,
+		Hostname:       c.Hostname,
+		Env:            c.Env,
+		Dir:            c.Dir,
+		User:           c.User,
+		Groups:         c.Groups,
+		StopSignal:     c.StopSignal,
+		TTY:            c.TTY,
+		OpenStdin:      c.OpenStdin,
+		ReadOnly:       c.ReadOnly,
+		Hosts:          c.Hosts,
+		Secrets:        secretReferencesFromGRPC(c.Secrets),
+		Configs:        configReferencesFromGRPC(c.Configs),
+		Isolation:      IsolationFromGRPC(c.Isolation),
+		Init:           initFromGRPC(c.Init),
+		Sysctls:        c.Sysctls,
+		CapabilityAdd:  c.CapabilityAdd,
+		CapabilityDrop: c.CapabilityDrop,
+		Ulimits:        ulimitsFromGRPC(c.Ulimits),
 	}
 
 	if c.DNSConfig != nil {
@@ -78,7 +81,8 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 
 		if m.BindOptions != nil {
 			mount.BindOptions = &mounttypes.BindOptions{
-				Propagation: mounttypes.Propagation(strings.ToLower(swarmapi.Mount_BindOptions_MountPropagation_name[int32(m.BindOptions.Propagation)])),
+				Propagation:  mounttypes.Propagation(strings.ToLower(swarmapi.Mount_BindOptions_MountPropagation_name[int32(m.BindOptions.Propagation)])),
+				NonRecursive: m.BindOptions.NonRecursive,
 			}
 		}
 
@@ -245,25 +249,27 @@ func configReferencesFromGRPC(sr []*swarmapi.ConfigReference) []*types.ConfigRef
 
 func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 	containerSpec := &swarmapi.ContainerSpec{
-		Image:        c.Image,
-		Labels:       c.Labels,
-		Command:      c.Command,
-		Args:         c.Args,
-		Hostname:     c.Hostname,
-		Env:          c.Env,
-		Dir:          c.Dir,
-		User:         c.User,
-		Groups:       c.Groups,
-		StopSignal:   c.StopSignal,
-		TTY:          c.TTY,
-		OpenStdin:    c.OpenStdin,
-		ReadOnly:     c.ReadOnly,
-		Hosts:        c.Hosts,
-		Secrets:      secretReferencesToGRPC(c.Secrets),
-		Isolation:    isolationToGRPC(c.Isolation),
-		Init:         initToGRPC(c.Init),
-		Sysctls:      c.Sysctls,
-		Capabilities: c.Capabilities,
+		Image:          c.Image,
+		Labels:         c.Labels,
+		Command:        c.Command,
+		Args:           c.Args,
+		Hostname:       c.Hostname,
+		Env:            c.Env,
+		Dir:            c.Dir,
+		User:           c.User,
+		Groups:         c.Groups,
+		StopSignal:     c.StopSignal,
+		TTY:            c.TTY,
+		OpenStdin:      c.OpenStdin,
+		ReadOnly:       c.ReadOnly,
+		Hosts:          c.Hosts,
+		Secrets:        secretReferencesToGRPC(c.Secrets),
+		Isolation:      isolationToGRPC(c.Isolation),
+		Init:           initToGRPC(c.Init),
+		Sysctls:        c.Sysctls,
+		CapabilityAdd:  c.CapabilityAdd,
+		CapabilityDrop: c.CapabilityDrop,
+		Ulimits:        ulimitsToGRPC(c.Ulimits),
 	}
 
 	if c.DNSConfig != nil {
@@ -331,9 +337,11 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 			}
 
 			if m.BindOptions.NonRecursive {
-				// TODO(AkihiroSuda): NonRecursive is unsupported for Swarm-mode now because of mutual vendoring
-				// across moby and swarmkit. Will be available soon after the moby PR gets merged.
-				return nil, fmt.Errorf("invalid NonRecursive: %q", m.BindOptions.Propagation)
+				if mount.BindOptions == nil {
+					// the propagation defaults to rprivate
+					mount.BindOptions = &swarmapi.Mount_BindOptions{}
+				}
+				mount.BindOptions.NonRecursive = m.BindOptions.NonRecursive
 			}
 		}
 
@@ -465,4 +473,32 @@ func isolationToGRPC(i container.Isolation) swarmapi.ContainerSpec_Isolation {
 		return swarmapi.ContainerIsolationProcess
 	}
 	return swarmapi.ContainerIsolationDefault
+}
+
+func ulimitsFromGRPC(u []*swarmapi.ContainerSpec_Ulimit) []*units.Ulimit {
+	ulimits := make([]*units.Ulimit, len(u))
+
+	for i, ulimit := range u {
+		ulimits[i] = &units.Ulimit{
+			Name: ulimit.Name,
+			Soft: ulimit.Soft,
+			Hard: ulimit.Hard,
+		}
+	}
+
+	return ulimits
+}
+
+func ulimitsToGRPC(u []*units.Ulimit) []*swarmapi.ContainerSpec_Ulimit {
+	ulimits := make([]*swarmapi.ContainerSpec_Ulimit, len(u))
+
+	for i, ulimit := range u {
+		ulimits[i] = &swarmapi.ContainerSpec_Ulimit{
+			Name: ulimit.Name,
+			Soft: ulimit.Soft,
+			Hard: ulimit.Hard,
+		}
+	}
+
+	return ulimits
 }

@@ -11,6 +11,7 @@ import (
 	_ "github.com/docker/docker/daemon/logger/jsonfilelog"
 	_ "github.com/docker/docker/daemon/logger/local"
 	_ "github.com/docker/docker/daemon/logger/logentries"
+	_ "github.com/docker/docker/daemon/logger/loggerutils/cache"
 	_ "github.com/docker/docker/daemon/logger/splunk"
 	_ "github.com/docker/docker/daemon/logger/syslog"
 )

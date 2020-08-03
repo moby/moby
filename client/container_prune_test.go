@@ -12,8 +12,9 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestContainersPruneError(t *testing.T) {
@@ -25,7 +26,9 @@ func TestContainersPruneError(t *testing.T) {
 	filters := filters.NewArgs()
 
 	_, err := client.ContainersPrune(context.Background(), filters)
-	assert.Check(t, is.Error(err, "Error response from daemon: Server error"))
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
+	}
 }
 
 func TestContainersPrune(t *testing.T) {

@@ -150,8 +150,12 @@ type LoadedResult struct {
 	CacheKey    *CacheKey
 }
 
-func (c *cacheManager) filterResults(m map[string]Result, ck *CacheKey) (results []LoadedResult, err error) {
+func (c *cacheManager) filterResults(m map[string]Result, ck *CacheKey, visited map[string]struct{}) (results []LoadedResult, err error) {
 	id := c.getID(ck)
+	if _, ok := visited[id]; ok {
+		return nil, nil
+	}
+	visited[id] = struct{}{}
 	if err := c.backend.WalkResults(id, func(cr CacheResult) error {
 		res, ok := m[id]
 		if ok {
@@ -170,7 +174,7 @@ func (c *cacheManager) filterResults(m map[string]Result, ck *CacheKey) (results
 	}
 	for _, keys := range ck.Deps() {
 		for _, key := range keys {
-			res, err := c.filterResults(m, key.CacheKey.CacheKey)
+			res, err := c.filterResults(m, key.CacheKey.CacheKey, visited)
 			if err != nil {
 				for _, r := range results {
 					r.Result.Release(context.TODO())
@@ -207,7 +211,7 @@ func (c *cacheManager) LoadWithParents(ctx context.Context, rec *CacheRecord) ([
 		return nil, err
 	}
 
-	results, err := c.filterResults(m, rec.key)
+	results, err := c.filterResults(m, rec.key, map[string]struct{}{})
 	if err != nil {
 		for _, r := range m {
 			r.Release(context.TODO())

@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/cli"
-	"gotest.tools/assert"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
 )
 
 const attachWait = 5 * time.Second
@@ -102,7 +102,7 @@ func (s *DockerSuite) TestAttachTTYWithoutStdin(c *testing.T) {
 	id := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(id))
 
-	done := make(chan error)
+	done := make(chan error, 1)
 	go func() {
 		defer close(done)
 

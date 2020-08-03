@@ -19,13 +19,13 @@ tmp() {
 }
 
 apkv() {
-	curl -sSL $MAINREPO/$ARCH/APKINDEX.tar.gz | tar -Oxz |
-		grep --text '^P:apk-tools-static$' -A1 | tail -n1 | cut -d: -f2
+	curl -sSL $MAINREPO/$ARCH/APKINDEX.tar.gz | tar -Oxz \
+		| grep --text '^P:apk-tools-static$' -A1 | tail -n1 | cut -d: -f2
 }
 
 getapk() {
-	curl -sSL $MAINREPO/$ARCH/apk-tools-static-$(apkv).apk |
-		tar -xz -C $TMP sbin/apk.static
+	curl -sSL $MAINREPO/$ARCH/apk-tools-static-$(apkv).apk \
+		| tar -xz -C $TMP sbin/apk.static
 }
 
 mkbase() {

@@ -4,7 +4,7 @@ set -e
 rootfsDir="$1"
 shift
 
-busybox="$(which busybox 2>/dev/null || true)"
+busybox="$(which busybox 2> /dev/null || true)"
 if [ -z "$busybox" ]; then
 	echo >&2 'error: busybox: not found'
 	echo >&2 '  install it with your distribution "busybox-static" package'
@@ -24,7 +24,7 @@ cp "$busybox" "$rootfsDir/bin/busybox"
 	cd "$rootfsDir"
 
 	IFS=$'\n'
-	modules=( $(bin/busybox --list-modules) )
+	modules=($(bin/busybox --list-modules))
 	unset IFS
 
 	for module in "${modules[@]}"; do

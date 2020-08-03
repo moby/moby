@@ -24,14 +24,27 @@ var (
 	ErrAlreadyExists = errors.New("Image already exists")
 )
 
+// HostCertsDir returns the config directory for a specific host
+func HostCertsDir(hostname string) (string, error) {
+	certsDir := CertsDir()
+
+	hostDir := filepath.Join(certsDir, cleanPath(hostname))
+
+	return hostDir, nil
+}
+
 func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 	// PreferredServerCipherSuites should have no effect
 	tlsConfig := tlsconfig.ServerDefault()
 
 	tlsConfig.InsecureSkipVerify = !isSecure
 
-	if isSecure && CertsDir != "" {
-		hostDir := filepath.Join(CertsDir, cleanPath(hostname))
+	if isSecure && CertsDir() != "" {
+		hostDir, err := HostCertsDir(hostname)
+		if err != nil {
+			return nil, err
+		}
+
 		logrus.Debugf("hostDir: %s", hostDir)
 		if err := ReadCertsDirectory(tlsConfig, hostDir); err != nil {
 			return nil, err

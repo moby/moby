@@ -16,10 +16,10 @@ import (
 
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork/iptables"
-	"github.com/docker/libnetwork/ipvs"
 	"github.com/docker/libnetwork/ns"
 	"github.com/gogo/protobuf/proto"
 	"github.com/ishidawataru/sctp"
+	"github.com/moby/ipvs"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"

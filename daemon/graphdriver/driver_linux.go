@@ -1,7 +1,7 @@
 package graphdriver // import "github.com/docker/docker/daemon/graphdriver"
 
 import (
-	"github.com/docker/docker/pkg/mount"
+	"github.com/moby/sys/mountinfo"
 	"golang.org/x/sys/unix"
 )
 
@@ -44,11 +44,13 @@ const (
 	FsMagicZfs = FsMagic(0x2fc12fc1)
 	// FsMagicOverlay filesystem id for overlay
 	FsMagicOverlay = FsMagic(0x794C7630)
+	// FsMagicFUSE filesystem id for FUSE
+	FsMagicFUSE = FsMagic(0x65735546)
 )
 
 var (
 	// List of drivers that should be used in an order
-	priority = "btrfs,zfs,overlay2,aufs,overlay,devicemapper,vfs"
+	priority = "btrfs,zfs,overlay2,fuse-overlayfs,aufs,overlay,devicemapper,vfs"
 
 	// FsNames maps filesystem id to name of the filesystem.
 	FsNames = map[FsMagic]string{
@@ -58,6 +60,7 @@ var (
 		FsMagicEcryptfs:    "ecryptfs",
 		FsMagicExtfs:       "extfs",
 		FsMagicF2fs:        "f2fs",
+		FsMagicFUSE:        "fuse",
 		FsMagicGPFS:        "gpfs",
 		FsMagicJffs2Fs:     "jffs2",
 		FsMagicJfs:         "jfs",
@@ -110,7 +113,7 @@ type defaultChecker struct {
 }
 
 func (c *defaultChecker) IsMounted(path string) bool {
-	m, _ := mount.Mounted(path)
+	m, _ := mountinfo.Mounted(path)
 	return m
 }
 

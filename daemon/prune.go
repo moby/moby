@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"sync/atomic"
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/errdefs"
@@ -84,7 +86,9 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 			rep.ContainersDeleted = append(rep.ContainersDeleted, c.ID)
 		}
 	}
-
+	daemon.EventsService.Log("prune", events.ContainerEventType, events.Actor{
+		Attributes: map[string]string{"reclaimed": strconv.FormatUint(rep.SpaceReclaimed, 10)},
+	})
 	return rep, nil
 }
 
@@ -210,7 +214,9 @@ func (daemon *Daemon) NetworksPrune(ctx context.Context, pruneFilters filters.Ar
 		return rep, nil
 	default:
 	}
-
+	daemon.EventsService.Log("prune", events.NetworkEventType, events.Actor{
+		Attributes: map[string]string{"reclaimed": "0"},
+	})
 	return rep, nil
 }
 

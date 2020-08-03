@@ -145,7 +145,7 @@ func (n NetworkMode) ConnectedContainer() string {
 	return ""
 }
 
-//UserDefined indicates user-created network
+// UserDefined indicates user-created network
 func (n NetworkMode) UserDefined() string {
 	if n.IsUserDefined() {
 		return string(n)
@@ -361,7 +361,7 @@ type Resources struct {
 	Devices              []DeviceMapping // List of devices to map inside the container
 	DeviceCgroupRules    []string        // List of rule to be added to the device cgroup
 	DeviceRequests       []DeviceRequest // List of device requests for device drivers
-	KernelMemory         int64           // Kernel memory limit (in bytes)
+	KernelMemory         int64           // Kernel memory limit (in bytes), Deprecated: kernel 5.4 deprecated kmem.limit_in_bytes
 	KernelMemoryTCP      int64           // Hard limit for kernel TCP buffer memory (in bytes)
 	MemoryReservation    int64           // Memory soft limit (in bytes)
 	MemorySwap           int64           // Total memory usage (memory + swap); set `-1` to enable unlimited swap
@@ -403,7 +403,6 @@ type HostConfig struct {
 	// Applicable to UNIX platforms
 	CapAdd          strslice.StrSlice // List of kernel capabilities to add to the container
 	CapDrop         strslice.StrSlice // List of kernel capabilities to remove from the container
-	Capabilities    []string          `json:"Capabilities"` // List of kernel capabilities to be available for container (this overrides the default set)
 	CgroupnsMode    CgroupnsMode      // Cgroup namespace mode to use for the container
 	DNS             []string          `json:"Dns"`        // List of DNS server to lookup
 	DNSOptions      []string          `json:"DnsOptions"` // List of DNSOption to look for

@@ -7,15 +7,17 @@ DOCKER_BUILDX_CLI_PLUGIN_PATH ?= ~/.docker/cli-plugins/docker-buildx
 BUILDX ?= $(shell if [ -x "$(DOCKER_BUILDX_CLI_PLUGIN_PATH)" ]; then echo $(DOCKER_BUILDX_CLI_PLUGIN_PATH); fi)
 endif
 
+ifndef USE_BUILDX
+DOCKER_BUILDKIT := 1
+export DOCKER_BUILDKIT
+endif
+
 BUILDX ?= bundles/buildx
 DOCKER ?= docker
 
 # set the graph driver as the current graphdriver if not set
 DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info 2>&1 | grep "Storage Driver" | sed 's/.*: //'))
 export DOCKER_GRAPHDRIVER
-
-# enable/disable cross-compile
-DOCKER_CROSS ?= false
 
 # get OS/Arch of docker engine
 DOCKER_OSARCH := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKER_ENGINE_OSARCH}')
@@ -59,10 +61,12 @@ DOCKER_ENVS := \
 	-e DOCKER_LDFLAGS \
 	-e DOCKER_PORT \
 	-e DOCKER_REMAP_ROOT \
+	-e DOCKER_ROOTLESS \
 	-e DOCKER_STORAGE_OPTS \
 	-e DOCKER_TEST_HOST \
 	-e DOCKER_USERLANDPROXY \
 	-e DOCKERD_ARGS \
+	-e TEST_FORCE_VALIDATE \
 	-e TEST_INTEGRATION_DIR \
 	-e TEST_SKIP_INTEGRATION \
 	-e TEST_SKIP_INTEGRATION_CLI \
@@ -138,35 +142,51 @@ endif
 
 DOCKER_RUN_DOCKER := $(DOCKER_FLAGS) "$(DOCKER_IMAGE)"
 
+DOCKER_BUILD_ARGS += --build-arg=GO_VERSION
+ifdef DOCKER_SYSTEMD
+DOCKER_BUILD_ARGS += --build-arg=SYSTEMD=true
+endif
+
+BUILD_OPTS := ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} ${DOCKER_BUILD_OPTS} -f "$(DOCKERFILE)"
+ifdef USE_BUILDX
+BUILD_OPTS += $(BUILDX_BUILD_EXTRA_OPTS)
+BUILD_CMD := $(BUILDX) build
+else
+BUILD_CMD := $(DOCKER) build
+endif
+
+# This is used for the legacy "build" target and anything still depending on it
+BUILD_CROSS =
+ifdef DOCKER_CROSS
+BUILD_CROSS = --build-arg CROSS=$(DOCKER_CROSS)
+endif
+ifdef DOCKER_CROSSPLATFORMS
+BUILD_CROSS = --build-arg CROSS=true
+endif
+
+VERSION_AUTOGEN_ARGS = --build-arg VERSION --build-arg DOCKER_GITCOMMIT --build-arg PRODUCT --build-arg PLATFORM --build-arg DEFAULT_PRODUCT_LICENSE
+
 default: binary
 
-all: build ## validate all checks, build linux binaries, run all tests\ncross build non-linux binaries and generate archives
+all: build ## validate all checks, build linux binaries, run all tests,\ncross build non-linux binaries, and generate archives
 	$(DOCKER_RUN_DOCKER) bash -c 'hack/validate/default && hack/make.sh'
 
-binary: DOCKER_BUILD_ARGS += --output=bundles/ --target=binary
-binary: build ## build the linux binaries
+# This is only used to work around read-only bind mounts of the source code into
+# binary build targets. We end up mounting a tmpfs over autogen which allows us
+# to write build-time generated assets even though the source is mounted read-only
+# ...But in order to do so, this dir needs to already exist.
+autogen:
+	mkdir -p autogen
 
-dynbinary: DOCKER_BUILD_ARGS += --output=bundles/ --target=dynbinary
-dynbinary: build ## build the linux dynbinaries
+binary: buildx autogen ## build statically linked linux binaries
+	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
 
-cross: DOCKER_BUILD_ARGS += --output=bundles/ --target=cross --build-arg DOCKER_CROSSPLATFORMS=$(DOCKER_CROSSPLATFORMS)
-cross: DOCKER_CROSS := true
-cross: build ## cross build the binaries for darwin, freebsd and\nwindows
+dynbinary: buildx autogen ## build dynamically linked linux binaries
+	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
 
-ifdef DOCKER_CROSSPLATFORMS
-build: DOCKER_CROSS := true
-endif
-build: DOCKER_BUILD_ARGS += --build-arg=CROSS=$(DOCKER_CROSS)
-ifdef GO_VERSION
-build: DOCKER_BUILD_ARGS += --build-arg=GO_VERSION=$(GO_VERSION)
-endif
-ifdef USE_BUILDX
-build: bundles buildx 
-	$(BUILDX) build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} ${DOCKER_BUILD_OPTS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" $(BUILDX_BUILD_EXTRA_OPTS) .
-else
-build: bundles
-	$(DOCKER) build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} ${DOCKER_BUILD_OPTS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
-endif
+cross: BUILD_OPTS += --build-arg CROSS=true --build-arg DOCKER_CROSSPLATFORMS
+cross: buildx autogen ## cross build the binaries for darwin, freebsd and\nwindows
+	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
 
 bundles:
 	mkdir bundles
@@ -186,9 +206,19 @@ install: ## install the linux binaries
 
 run: build ## run the docker daemon in a container
 	$(DOCKER_RUN_DOCKER) sh -c "KEEPBUNDLE=1 hack/make.sh install-binary run"
+ 
+.PHONY: build
+ifeq ($(BIND_DIR), .)
+build: shell_target := --target=dev
+else
+build: shell_target := --target=final
+endif
+ifdef USE_BUILDX
+build: buildx_load := --load
+endif
+build: buildx
+	$(BUILD_CMD) $(BUILD_OPTS) $(shell_target) $(buildx_load) $(BUILD_CROSS) -t "$(DOCKER_IMAGE)" .
 
-shell: DOCKER_BUILD_ARGS += --target=dev
-shell: BUILDX_BUILD_EXTRA_OPTS += --load
 shell: build  ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash
 
@@ -237,22 +267,28 @@ swagger-docs: ## preview the API documentation
 		bfirsh/redoc:1.6.2
 
 .PHONY: buildx
+ifdef USE_BUILDX
 ifeq ($(BUILDX), bundles/buildx)
-buildx: bundles/buildx # build buildx cli tool
-else
-buildx:
+buildx: bundles/buildx ## build buildx cli tool
+endif
 endif
 
-bundles/buildx: BUILDX_DOCKERFILE ?= Dockerfile.buildx
-bundles/buildx: BUILDX_COMMIT ?= v0.3.0
+# This intentionally is not using the `--output` flag from the docker CLI, which
+# is a buildkit option. The idea here being that if buildx is being used, it's
+# because buildkit is not supported natively
 bundles/buildx: bundles ## build buildx CLI tool
-	# This intetionally is not using the `--output` flag from the docker CLI which is a buildkit option
-	# The idea here being that if buildx is being used, it's because buildkit is not supported natively
-	docker build -f $(BUILDX_DOCKERFILE) -t "moby-buildx:$(BUILDX_COMMIT)" \
+	docker build -f $${BUILDX_DOCKERFILE:-Dockerfile.buildx} -t "moby-buildx:$${BUILDX_COMMIT:-latest}" \
 		--build-arg BUILDX_COMMIT \
 		--build-arg BUILDX_REPO \
 		--build-arg GOOS=$$(if [ -n "$(GOOS)" ]; then echo $(GOOS); else go env GOHOSTOS || uname | awk '{print tolower($$0)}' || true; fi) \
 		--build-arg GOARCH=$$(if [ -n "$(GOARCH)" ]; then echo $(GOARCH); else go env GOHOSTARCH || true; fi) \
-		. && \
-		id=$$(docker create moby-buildx:$(BUILDX_COMMIT)); \
-		if [ -n "$${id}" ]; then docker cp $${id}:/usr/bin/buildx $@ && touch $@; docker rm -f $${id}; fi
+		.
+
+	id=$$(docker create moby-buildx:$${BUILDX_COMMIT:-latest}); \
+	if [ -n "$${id}" ]; then \
+		docker cp $${id}:/usr/bin/buildx $@ \
+		&& touch $@; \
+		docker rm -f $${id}; \
+	fi
+
+	$@ version

@@ -12,14 +12,15 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/request"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/poll"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
 )
 
 func TestPause(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows" && testEnv.DaemonInfo.Isolation == "process")
+	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
 
 	defer setupTest(t)()
 	client := testEnv.APIClient()
@@ -67,6 +68,7 @@ func TestPauseFailsOnWindowsServerContainers(t *testing.T) {
 func TestPauseStopPausedContainer(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.31"), "broken in earlier versions")
+	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
 	defer setupTest(t)()
 	client := testEnv.APIClient()
 	ctx := context.Background()

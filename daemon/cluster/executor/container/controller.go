@@ -204,9 +204,10 @@ func (r *controller) Start(ctx context.Context) error {
 		return exec.ErrTaskStarted
 	}
 
+	var lnErr libnetwork.ErrNoSuchNetwork
 	for {
 		if err := r.adapter.start(ctx); err != nil {
-			if _, ok := errors.Cause(err).(libnetwork.ErrNoSuchNetwork); ok {
+			if errors.As(err, &lnErr) {
 				// Retry network creation again if we
 				// failed because some of the networks
 				// were not found.

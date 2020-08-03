@@ -117,15 +117,13 @@ func sameFile(f1, f2 *currentPath) (bool, error) {
 		// If the timestamp may have been truncated in both of the
 		// files, check content of file to determine difference
 		if t1.Nanosecond() == 0 && t2.Nanosecond() == 0 {
-			var eq bool
 			if (f1.f.Mode() & os.ModeSymlink) == os.ModeSymlink {
-				eq, err = compareSymlinkTarget(f1.fullPath, f2.fullPath)
-			} else if f1.f.Size() > 0 {
-				eq, err = compareFileContent(f1.fullPath, f2.fullPath)
+				return compareSymlinkTarget(f1.fullPath, f2.fullPath)
 			}
-			if err != nil || !eq {
-				return eq, err
+			if f1.f.Size() == 0 { // if file sizes are zero length, the files are the same by definition
+				return true, nil
 			}
+			return compareFileContent(f1.fullPath, f2.fullPath)
 		} else if t1.Nanosecond() != t2.Nanosecond() {
 			return false, nil
 		}

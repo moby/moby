@@ -62,10 +62,9 @@ func Scan(text string) (*events.Message, error) {
 		attrs[kv[0]] = kv[1]
 	}
 
-	tu := time.Unix(t, tn)
 	return &events.Message{
 		Time:     t,
-		TimeNano: tu.UnixNano(),
+		TimeNano: time.Unix(t, tn).UnixNano(),
 		Type:     md["eventType"],
 		Action:   md["action"],
 		Actor: events.Actor{

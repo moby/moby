@@ -4,6 +4,7 @@ package containerd.services.introspection.v1;
 
 import "github.com/containerd/containerd/api/types/platform.proto";
 import "google/rpc/status.proto";
+import "google/protobuf/empty.proto";
 import weak "gogoproto/gogo.proto";
 
 option go_package = "github.com/containerd/containerd/api/services/introspection/v1;introspection";
@@ -14,6 +15,8 @@ service Introspection {
 	// Clients can use this to detect features and capabilities when using
 	// containerd.
 	rpc Plugins(PluginsRequest) returns (PluginsResponse);
+	// Server returns information about the containerd server
+	rpc Server(google.protobuf.Empty) returns (ServerResponse);
 }
 
 message Plugin {
@@ -78,4 +81,8 @@ message PluginsRequest {
 
 message PluginsResponse {
 	repeated Plugin plugins = 1 [(gogoproto.nullable) = false];
+}
+
+message ServerResponse {
+	string uuid = 1 [(gogoproto.customname) = "UUID"];
 }

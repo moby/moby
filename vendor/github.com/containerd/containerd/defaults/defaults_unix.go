@@ -32,4 +32,6 @@ const (
 	// DefaultFIFODir is the default location used by client-side cio library
 	// to store FIFOs.
 	DefaultFIFODir = "/run/containerd/fifo"
+	// DefaultRuntime is the default linux runtime
+	DefaultRuntime = "io.containerd.runc.v2"
 )

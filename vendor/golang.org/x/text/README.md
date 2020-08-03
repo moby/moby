@@ -66,7 +66,7 @@ To update a Unicode version run
 
     UNICODE_VERSION=x.x.x go generate
 
-where `x.x.x` must correspond to a directory in http://www.unicode.org/Public/.
+where `x.x.x` must correspond to a directory in https://www.unicode.org/Public/.
 If this version is newer than the version in core it will also update the
 relevant packages there. The idna package in x/net will always be updated.
 
@@ -75,7 +75,7 @@ To update a CLDR version run
     CLDR_VERSION=version go generate
 
 where `version` must correspond to a directory in
-http://www.unicode.org/Public/cldr/.
+https://www.unicode.org/Public/cldr/.
 
 Note that the code gets adapted over time to changes in the data and that
 backwards compatibility is not maintained.
@@ -89,5 +89,5 @@ This repository uses Gerrit for code changes. To learn how to submit changes to
 this repository, see https://golang.org/doc/contribute.html.
 
 The main issue tracker for the image repository is located at
-https://github.com/golang/go/issues. Prefix your issue with "x/image:" in the
+https://github.com/golang/go/issues. Prefix your issue with "x/text:" in the
 subject line, so it is easy to find.

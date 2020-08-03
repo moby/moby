@@ -30,7 +30,7 @@ type ContainerAttachConfig struct {
 // expectation is for the logger endpoints to assemble the chunks using this
 // metadata.
 type PartialLogMetaData struct {
-	Last    bool   //true if this message is last of a partial
+	Last    bool   // true if this message is last of a partial
 	ID      string // identifies group of messages comprising a single record
 	Ordinal int    // ordering of message in partial group
 }
@@ -73,6 +73,7 @@ type LogSelector struct {
 // behavior of a backend.ContainerStats() call.
 type ContainerStatsConfig struct {
 	Stream    bool
+	OneShot   bool
 	OutStream io.Writer
 	Version   string
 }

@@ -52,7 +52,7 @@ type Client interface {
 
 	Restore(ctx context.Context, containerID string, attachStdio StdioCallback) (alive bool, pid int, p Process, err error)
 
-	Create(ctx context.Context, containerID string, spec *specs.Spec, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) error
+	Create(ctx context.Context, containerID string, spec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) error
 	Start(ctx context.Context, containerID, checkpointDir string, withStdin bool, attachStdio StdioCallback) (pid int, err error)
 	SignalProcess(ctx context.Context, containerID, processID string, signal int) error
 	Exec(ctx context.Context, containerID, processID string, spec *specs.Process, withStdin bool, attachStdio StdioCallback) (int, error)

@@ -69,7 +69,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 
 	var beforeFilter, sinceFilter *image.Image
 	err = imageFilters.WalkValues("before", func(value string) error {
-		beforeFilter, err = i.GetImage(value)
+		beforeFilter, err = i.GetImage(value, nil)
 		return err
 	})
 	if err != nil {
@@ -77,7 +77,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 	}
 
 	err = imageFilters.WalkValues("since", func(value string) error {
-		sinceFilter, err = i.GetImage(value)
+		sinceFilter, err = i.GetImage(value, nil)
 		return err
 	})
 	if err != nil {
@@ -171,7 +171,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 			if all || len(i.imageStore.Children(id)) == 0 {
 
 				if imageFilters.Contains("dangling") && !danglingOnly {
-					//dangling=false case, so dangling image is not needed
+					// dangling=false case, so dangling image is not needed
 					continue
 				}
 				if imageFilters.Contains("reference") { // skip images with no references if filtering by reference

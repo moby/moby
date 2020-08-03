@@ -12,9 +12,9 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/daemon"
 	"golang.org/x/sys/unix"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 // This is a regression test for #36145
@@ -30,6 +30,7 @@ import (
 func TestContainerStartOnDaemonRestart(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.IsRootless)
 	t.Parallel()
 
 	d := daemon.New(t)
@@ -119,4 +120,49 @@ func TestDaemonRestartIpcMode(t *testing.T) {
 	inspect, err = c.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(string(inspect.HostConfig.IpcMode), "shareable"))
+}
+
+// TestDaemonHostGatewayIP verifies that when a magic string "host-gateway" is passed
+// to ExtraHosts (--add-host) instead of an IP address, its value is set to
+// 1. Daemon config flag value specified by host-gateway-ip or
+// 2. IP of the default bridge network
+// and is added to the /etc/hosts file
+func TestDaemonHostGatewayIP(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
+	t.Parallel()
+
+	// Verify the IP in /etc/hosts is same as host-gateway-ip
+	d := daemon.New(t)
+	// Verify the IP in /etc/hosts is same as the default bridge's IP
+	d.StartWithBusybox(t)
+	c := d.NewClientT(t)
+	ctx := context.Background()
+	cID := container.Run(ctx, t, c,
+		container.WithExtraHost("host.docker.internal:host-gateway"),
+	)
+	res, err := container.Exec(ctx, c, cID, []string{"cat", "/etc/hosts"})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(res.Stderr(), 0))
+	assert.Equal(t, 0, res.ExitCode)
+	inspect, err := c.NetworkInspect(ctx, "bridge", types.NetworkInspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, is.Contains(res.Stdout(), inspect.IPAM.Config[0].Gateway))
+	c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+	d.Stop(t)
+
+	// Verify the IP in /etc/hosts is same as host-gateway-ip
+	d.StartWithBusybox(t, "--host-gateway-ip=6.7.8.9")
+	cID = container.Run(ctx, t, c,
+		container.WithExtraHost("host.docker.internal:host-gateway"),
+	)
+	res, err = container.Exec(ctx, c, cID, []string{"cat", "/etc/hosts"})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(res.Stderr(), 0))
+	assert.Equal(t, 0, res.ExitCode)
+	assert.Check(t, is.Contains(res.Stdout(), "6.7.8.9"))
+	c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+	d.Stop(t)
+
 }

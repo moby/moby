@@ -6,20 +6,20 @@ import (
 	"context"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
 	n "github.com/docker/docker/integration/network"
 	"github.com/docker/docker/testutil/daemon"
-	"gotest.tools/assert"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 )
 
 func TestDockerNetworkMacvlanPersistance(t *testing.T) {
 	// verify the driver automatically provisions the 802.1q link (dm-dummy0.60)
 	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
 	d := daemon.New(t)
 	d.StartWithBusybox(t)
@@ -42,6 +42,7 @@ func TestDockerNetworkMacvlanPersistance(t *testing.T) {
 
 func TestDockerNetworkMacvlan(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
 	for _, tc := range []struct {
 		name string
@@ -164,14 +165,10 @@ func testMacvlanInternalMode(client client.APIClient) func(*testing.T) {
 		id1 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
 		id2 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
 
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		_, err := container.Exec(timeoutCtx, client, id1, []string{"ping", "-c", "1", "-w", "1", "8.8.8.8"})
-		// FIXME(vdemeester) check the time of error ?
-		assert.Check(t, err != nil)
-		assert.Check(t, timeoutCtx.Err() == context.DeadlineExceeded)
+		result, _ := container.Exec(ctx, client, id1, []string{"ping", "-c", "1", "8.8.8.8"})
+		assert.Check(t, strings.Contains(result.Combined(), "Network is unreachable"))
 
-		_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
+		_, err := container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
 		assert.Check(t, err == nil)
 	}
 }

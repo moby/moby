@@ -22,6 +22,7 @@ import (
 
 	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/snapshots"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -31,6 +32,13 @@ import (
 // the content creation and the provided snapshotter and mount differ are used
 // for calculating the diff. The descriptor for the layer diff is returned.
 func CreateDiff(ctx context.Context, snapshotID string, sn snapshots.Snapshotter, d diff.Comparer, opts ...diff.Opt) (ocispec.Descriptor, error) {
+	// dctx is used to handle cleanup things just in case the param ctx
+	// has been canceled, which causes that the defer cleanup fails.
+	dctx := context.Background()
+	if ns, ok := namespaces.Namespace(ctx); ok {
+		dctx = namespaces.WithNamespace(dctx, ns)
+	}
+
 	info, err := sn.Stat(ctx, snapshotID)
 	if err != nil {
 		return ocispec.Descriptor{}, err
@@ -41,7 +49,7 @@ func CreateDiff(ctx context.Context, snapshotID string, sn snapshots.Snapshotter
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}
-	defer sn.Remove(ctx, lowerKey)
+	defer sn.Remove(dctx, lowerKey)
 
 	var upper []mount.Mount
 	if info.Kind == snapshots.KindActive {
@@ -55,7 +63,7 @@ func CreateDiff(ctx context.Context, snapshotID string, sn snapshots.Snapshotter
 		if err != nil {
 			return ocispec.Descriptor{}, err
 		}
-		defer sn.Remove(ctx, upperKey)
+		defer sn.Remove(dctx, upperKey)
 	}
 
 	return d.Compare(ctx, lower, upper, opts...)

@@ -83,7 +83,7 @@ hour. To run the test suite, do the following:
     * cross-compiles all the binaries for the various operating systems
     * runs all the tests in the system
 
-    It can take approximate one hour to run all the tests. The time depends
+    It can take approximately one hour to run all the tests. The time depends
     on your host performance. The default timeout is 60 minutes, which is
     defined in `hack/make.sh` (`${TIMEOUT:=60m}`). You can modify the timeout
     value on the basis of your host performance. When they complete
@@ -208,7 +208,7 @@ run a Bash terminal on Windows.
     ```
 
 4.  Set `DOCKER_TEST_HOST` to the `tcp://IP_ADDRESS:2376` value; substitute your
-    Linux machines actual IP address. For example:
+    Linux machine's actual IP address. For example:
 
     ```bash
     $ export DOCKER_TEST_HOST=tcp://213.124.23.200:2376

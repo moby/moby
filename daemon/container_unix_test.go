@@ -9,7 +9,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/go-connections/nat"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // TestContainerWarningHostAndPublishPorts that a warning is returned when setting network mode to host and specifying published ports.
@@ -24,6 +24,7 @@ func TestContainerWarningHostAndPublishPorts(t *testing.T) {
 			"8080": []nat.PortBinding{{HostPort: "8989"}},
 		}, warnings: []string{"Published ports are discarded when using host network mode"}},
 	}
+	muteLogs()
 
 	for _, tc := range testCases {
 		hostConfig := &containertypes.HostConfig{

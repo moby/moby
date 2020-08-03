@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/poll"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 )
 
 func (s *DockerSuite) TestRestartStoppedContainer(c *testing.T) {

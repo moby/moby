@@ -48,12 +48,12 @@ func newInitConfig() *InitConfig {
 type InitCheck func(Subsystem, Path, error) error
 
 // AllowAny allows any subsystem errors to be skipped
-func AllowAny(s Subsystem, p Path, err error) error {
+func AllowAny(_ Subsystem, _ Path, _ error) error {
 	return ErrIgnoreSubsystem
 }
 
 // RequireDevices requires the device subsystem but no others
-func RequireDevices(s Subsystem, p Path, err error) error {
+func RequireDevices(s Subsystem, _ Path, _ error) error {
 	if s.Name() == Devices {
 		return ErrDevicesRequired
 	}

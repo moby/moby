@@ -11,6 +11,7 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/logger"
+	logcache "github.com/docker/docker/daemon/logger/loggerutils/cache"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -32,20 +33,20 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 	if !(config.ShowStdout || config.ShowStderr) {
 		return nil, false, errdefs.InvalidParameter(errors.New("You must choose at least one stream"))
 	}
-	container, err := daemon.GetContainer(containerName)
+	ctr, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return nil, false, err
 	}
 
-	if container.RemovalInProgress || container.Dead {
+	if ctr.RemovalInProgress || ctr.Dead {
 		return nil, false, errdefs.Conflict(errors.New("can not get logs from container which is dead or marked for removal"))
 	}
 
-	if container.HostConfig.LogConfig.Type == "none" {
+	if ctr.HostConfig.LogConfig.Type == "none" {
 		return nil, false, logger.ErrReadLogsNotSupported{}
 	}
 
-	cLog, cLogCreated, err := daemon.getLogger(container)
+	cLog, cLogCreated, err := daemon.getLogger(ctr)
 	if err != nil {
 		return nil, false, err
 	}
@@ -156,7 +157,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 			}
 		}
 	}()
-	return messageChan, container.Config.Tty, nil
+	return messageChan, ctr.Config.Tty, nil
 }
 
 func (daemon *Daemon) getLogger(container *container.Container) (l logger.Logger, created bool, err error) {
@@ -190,6 +191,8 @@ func (daemon *Daemon) mergeAndVerifyLogConfig(cfg *containertypes.LogConfig) err
 		}
 	}
 
+	logcache.MergeDefaultLogConfig(cfg.Config, daemon.defaultLogConfig.Config)
+
 	return logger.ValidateLogOpts(cfg.Type, cfg.Config)
 }
 
@@ -204,6 +207,7 @@ func (daemon *Daemon) setupDefaultLogConfig() error {
 		Type:   config.LogConfig.Type,
 		Config: config.LogConfig.Config,
 	}
+
 	logrus.Debugf("Using default logging driver %s", daemon.defaultLogConfig.Type)
 	return nil
 }

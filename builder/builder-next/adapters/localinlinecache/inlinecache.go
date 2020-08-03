@@ -7,6 +7,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/remotes/docker"
 	distreference "github.com/docker/distribution/reference"
 	imagestore "github.com/docker/docker/image"
 	"github.com/docker/docker/reference"
@@ -15,7 +16,6 @@ import (
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
-	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -23,15 +23,15 @@ import (
 )
 
 // ResolveCacheImporterFunc returns a resolver function for local inline cache
-func ResolveCacheImporterFunc(sm *session.Manager, resolverOpt resolver.ResolveOptionsFunc, rs reference.Store, is imagestore.Store) remotecache.ResolveCacheImporterFunc {
+func ResolveCacheImporterFunc(sm *session.Manager, resolverFunc docker.RegistryHosts, cs content.Store, rs reference.Store, is imagestore.Store) remotecache.ResolveCacheImporterFunc {
 
-	upstream := registryremotecache.ResolveCacheImporterFunc(sm, resolverOpt)
+	upstream := registryremotecache.ResolveCacheImporterFunc(sm, cs, resolverFunc)
 
-	return func(ctx context.Context, attrs map[string]string) (remotecache.Importer, specs.Descriptor, error) {
+	return func(ctx context.Context, group session.Group, attrs map[string]string) (remotecache.Importer, specs.Descriptor, error) {
 		if dt, err := tryImportLocal(rs, is, attrs["ref"]); err == nil {
 			return newLocalImporter(dt), specs.Descriptor{}, nil
 		}
-		return upstream(ctx, attrs)
+		return upstream(ctx, group, attrs)
 	}
 }
 

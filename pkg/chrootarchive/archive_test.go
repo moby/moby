@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
-	"gotest.tools/skip"
+	"gotest.tools/v3/skip"
 )
 
 func init() {
@@ -96,10 +96,11 @@ func TestChrootUntarWithHugeExcludesList(t *testing.T) {
 		t.Fatal(err)
 	}
 	options := &archive.TarOptions{}
-	//65534 entries of 64-byte strings ~= 4MB of environment space which should overflow
-	//on most systems when passed via environment or command line arguments
+	// 65534 entries of 64-byte strings ~= 4MB of environment space which should overflow
+	// on most systems when passed via environment or command line arguments
 	excludes := make([]string, 65534)
-	for i := 0; i < 65534; i++ {
+	var i rune
+	for i = 0; i < 65534; i++ {
 		excludes[i] = strings.Repeat(string(i), 64)
 	}
 	options.ExcludePatterns = excludes

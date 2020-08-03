@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil/fixtures/load"
 	"github.com/pkg/errors"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // Execution contains information about the current test execution and daemon
@@ -160,6 +160,11 @@ func (e *Execution) APIClient() client.APIClient {
 func (e *Execution) IsUserNamespace() bool {
 	root := os.Getenv("DOCKER_REMAP_ROOT")
 	return root != ""
+}
+
+// IsRootless returns whether the rootless mode is enabled
+func (e *Execution) IsRootless() bool {
+	return os.Getenv("DOCKER_ROOTLESS") != ""
 }
 
 // HasExistingImage checks whether there is an image with the given reference.

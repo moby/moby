@@ -69,6 +69,8 @@ message ServiceSpec {
 	oneof mode {
 		ReplicatedService replicated = 3;
 		GlobalService global = 4;
+		ReplicatedJob replicated_job = 10;
+		GlobalJob global_job = 11;
 	}
 
 	// Update contains settings which affect updates.
@@ -96,6 +98,26 @@ message ReplicatedService {
 
 // GlobalService represents global service.
 message GlobalService {
+	// Empty message for now.
+}
+
+// ReplicatedJob is a certain type of one-off job which executes many Tasks in
+// parallel until the specified number of Tasks have succeeded.
+message ReplicatedJob {
+	// MaxConcurrent indicates the maximum number of Tasks that should be
+	// executing simultaneously at any given time.
+	uint64 max_concurrent = 1;
+
+	// TotalCompletions sets the total number of Tasks desired to run to
+	// completion. This is also the absolute maximum number of Tasks that will
+	// be executed in parallel. That is, if this number is smaller than
+	// MaxConcurrent, only this many replicas will run.
+	uint64 total_completions = 2;
+}
+
+// GlobalJob is a type of one-off job which executes one Task on every node
+// matching the service's placement constraints.
+message GlobalJob {
 	// Empty message for now.
 }
 
@@ -334,8 +356,20 @@ message ContainerSpec {
 	// https://docs.docker.com/engine/reference/commandline/run/#configure-namespaced-kernel-parameters-sysctls-at-runtime
 	map<string, string> sysctls = 26;
 
-	// Capabilities is the list of Linux capabilities to be available for container (this overrides the default set of capabilities)
-	repeated string capabilities = 27;
+	// CapabilityAdd sets the list of capabilities to add to the default capability list
+	repeated string capability_add = 27;
+	// CapabilityDrop sets the list of capabilities to drop from the default capability list
+	repeated string capability_drop = 28;
+
+	message Ulimit {
+		string name = 1;
+		int64 soft = 2;
+		int64 hard = 3;
+	}
+
+	// Ulimits defines the list of ulimits to set in the container. This option
+	// is equivalent to passing --ulimit to docker run.
+	repeated Ulimit ulimits = 29;
 }
 
 // EndpointSpec defines the properties that can be configured to

@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/pkg/errors"
-	"gotest.tools/skip"
+	"gotest.tools/v3/skip"
 )
 
 const (
@@ -38,7 +38,7 @@ func TestCloseRootDirectory(t *testing.T) {
 
 	_, err = os.Stat(src.Root().Path())
 
-	if !os.IsNotExist(err) {
+	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("Directory should not exist at this point")
 	}
 }
@@ -131,7 +131,7 @@ func TestRemoveDirectory(t *testing.T) {
 	}
 
 	_, err = src.Root().Stat(src.Root().Join(src.Root().Path(), relativePath))
-	if !os.IsNotExist(errors.Cause(err)) {
+	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("Directory should not exist at this point: %+v ", err)
 	}
 }

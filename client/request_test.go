@@ -12,8 +12,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 // TestSetHostHeader should set fake host for local communications, set real host
@@ -73,7 +73,7 @@ func TestSetHostHeader(t *testing.T) {
 			basePath: hostURL.Path,
 		}
 
-		_, err = client.sendRequest(context.Background(), "GET", testURL, nil, nil, nil)
+		_, err = client.sendRequest(context.Background(), http.MethodGet, testURL, nil, nil, nil)
 		assert.NilError(t, err)
 	}
 }
@@ -86,11 +86,8 @@ func TestPlainTextError(t *testing.T) {
 		client: newMockClient(plainTextErrorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerList(context.Background(), types.ContainerListOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
-	}
 	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %T", err)
+		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 

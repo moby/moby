@@ -57,8 +57,6 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 	// if parent interface not specified, create a dummy type link to use named dummy+net_id
 	if config.Parent == "" {
 		config.Parent = getDummyName(stringid.TruncateID(config.ID))
-		// empty parent and --internal are handled the same. Set here to update k/v
-		config.Internal = true
 	}
 	foundExisting, err := d.createNetwork(config)
 	if err != nil {
@@ -95,19 +93,17 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 		}
 	}
 	if !parentExists(config.Parent) {
-		// if the --internal flag is set, create a dummy link
-		if config.Internal {
-			err := createDummyLink(config.Parent, getDummyName(stringid.TruncateID(config.ID)))
+		// Create a dummy link if a dummy name is set for parent
+		if dummyName := getDummyName(stringid.TruncateID(config.ID)); dummyName == config.Parent {
+			err := createDummyLink(config.Parent, dummyName)
 			if err != nil {
 				return false, err
 			}
 			config.CreatedSlaveLink = true
 
 			// notify the user in logs they have limited communications
-			if config.Parent == getDummyName(stringid.TruncateID(config.ID)) {
-				logrus.Debugf("Empty -o parent= and --internal flags limit communications to other containers inside of network: %s",
-					config.Parent)
-			}
+			logrus.Debugf("Empty -o parent= flags limit communications to other containers inside of network: %s",
+				config.Parent)
 		} else {
 			// if the subinterface parent_iface.vlan_id checks do not pass, return err.
 			//  a valid example is 'eth0.10' for a parent iface 'eth0' with a vlan id '10'
@@ -194,12 +190,9 @@ func parseNetworkOptions(id string, option options.Generic) (*configuration, err
 			return nil, err
 		}
 	}
-	// setting the parent to "" will trigger an isolated network dummy parent link
 	if val, ok := option[netlabel.Internal]; ok {
 		if internal, ok := val.(bool); ok && internal {
 			config.Internal = true
-			// empty --parent= and --internal are handled the same.
-			config.Parent = ""
 		}
 	}
 	return config, nil

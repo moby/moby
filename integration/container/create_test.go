@@ -10,17 +10,18 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/oci"
-	"github.com/docker/docker/testutil/request"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/poll"
-	"gotest.tools/skip"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
 )
 
 func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
@@ -57,6 +58,7 @@ func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 				&container.Config{Image: tc.image},
 				&container.HostConfig{},
 				&network.NetworkingConfig{},
+				nil,
 				"",
 			)
 			assert.Check(t, is.ErrorContains(err, tc.expectedError))
@@ -81,6 +83,7 @@ func TestCreateLinkToNonExistingContainer(t *testing.T) {
 			Links: []string{"no-such-container"},
 		},
 		&network.NetworkingConfig{},
+		nil,
 		"",
 	)
 	assert.Check(t, is.ErrorContains(err, "could not get container for no-such-container"))
@@ -120,6 +123,7 @@ func TestCreateWithInvalidEnv(t *testing.T) {
 				},
 				&container.HostConfig{},
 				&network.NetworkingConfig{},
+				nil,
 				"",
 			)
 			assert.Check(t, is.ErrorContains(err, tc.expectedError))
@@ -166,6 +170,7 @@ func TestCreateTmpfsMountsTarget(t *testing.T) {
 				Tmpfs: map[string]string{tc.target: ""},
 			},
 			&network.NetworkingConfig{},
+			nil,
 			"",
 		)
 		assert.Check(t, is.ErrorContains(err, tc.expectedError))
@@ -235,6 +240,7 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 			&config,
 			&hc,
 			&network.NetworkingConfig{},
+			nil,
 			name,
 		)
 		assert.NilError(t, err)
@@ -248,132 +254,6 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 		poll.WaitOn(t, ctr.IsInState(ctx, client, c.ID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 		checkInspect(t, ctx, name, tc.expected)
-	}
-}
-
-func TestCreateWithCapabilities(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME: test should be able to run on LCOW")
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "Capabilities was added in API v1.40")
-
-	defer setupTest(t)()
-	ctx := context.Background()
-	clientNew := request.NewAPIClient(t)
-	clientOld := request.NewAPIClient(t, client.WithVersion("1.39"))
-
-	testCases := []struct {
-		doc           string
-		hostConfig    container.HostConfig
-		expected      []string
-		expectedError string
-		oldClient     bool
-	}{
-		{
-			doc:        "no capabilities",
-			hostConfig: container.HostConfig{},
-		},
-		{
-			doc: "empty capabilities",
-			hostConfig: container.HostConfig{
-				Capabilities: []string{},
-			},
-			expected: []string{},
-		},
-		{
-			doc: "valid capabilities",
-			hostConfig: container.HostConfig{
-				Capabilities: []string{"CAP_NET_RAW", "CAP_SYS_CHROOT"},
-			},
-			expected: []string{"CAP_NET_RAW", "CAP_SYS_CHROOT"},
-		},
-		{
-			doc: "invalid capabilities",
-			hostConfig: container.HostConfig{
-				Capabilities: []string{"NET_RAW"},
-			},
-			expectedError: `invalid Capabilities: unknown capability: "NET_RAW"`,
-		},
-		{
-			doc: "duplicate capabilities",
-			hostConfig: container.HostConfig{
-				Capabilities: []string{"CAP_SYS_NICE", "CAP_SYS_NICE"},
-			},
-			expected: []string{"CAP_SYS_NICE", "CAP_SYS_NICE"},
-		},
-		{
-			doc: "capabilities API v1.39",
-			hostConfig: container.HostConfig{
-				Capabilities: []string{"CAP_NET_RAW", "CAP_SYS_CHROOT"},
-			},
-			expected:  nil,
-			oldClient: true,
-		},
-		{
-			doc: "empty capadd",
-			hostConfig: container.HostConfig{
-				Capabilities: []string{"CAP_NET_ADMIN"},
-				CapAdd:       []string{},
-			},
-			expected: []string{"CAP_NET_ADMIN"},
-		},
-		{
-			doc: "empty capdrop",
-			hostConfig: container.HostConfig{
-				Capabilities: []string{"CAP_NET_ADMIN"},
-				CapDrop:      []string{},
-			},
-			expected: []string{"CAP_NET_ADMIN"},
-		},
-		{
-			doc: "capadd capdrop",
-			hostConfig: container.HostConfig{
-				CapAdd:  []string{"SYS_NICE", "CAP_SYS_NICE"},
-				CapDrop: []string{"SYS_NICE", "CAP_SYS_NICE"},
-			},
-		},
-		{
-			doc: "conflict with capadd",
-			hostConfig: container.HostConfig{
-				Capabilities: []string{"CAP_NET_ADMIN"},
-				CapAdd:       []string{"SYS_NICE"},
-			},
-			expectedError: `conflicting options: Capabilities and CapAdd`,
-		},
-		{
-			doc: "conflict with capdrop",
-			hostConfig: container.HostConfig{
-				Capabilities: []string{"CAP_NET_ADMIN"},
-				CapDrop:      []string{"NET_RAW"},
-			},
-			expectedError: `conflicting options: Capabilities and CapDrop`,
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.doc, func(t *testing.T) {
-			t.Parallel()
-			client := clientNew
-			if tc.oldClient {
-				client = clientOld
-			}
-
-			c, err := client.ContainerCreate(context.Background(),
-				&container.Config{Image: "busybox"},
-				&tc.hostConfig,
-				&network.NetworkingConfig{},
-				"",
-			)
-			if tc.expectedError == "" {
-				assert.NilError(t, err)
-				ci, err := client.ContainerInspect(ctx, c.ID)
-				assert.NilError(t, err)
-				assert.Check(t, ci.HostConfig != nil)
-				assert.DeepEqual(t, tc.expected, ci.HostConfig.Capabilities)
-			} else {
-				assert.ErrorContains(t, err, tc.expectedError)
-				assert.Check(t, errdefs.IsInvalidParameter(err))
-			}
-		})
 	}
 }
 
@@ -439,6 +319,7 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 			&config,
 			&hc,
 			&network.NetworkingConfig{},
+			nil,
 			name,
 		)
 		assert.NilError(t, err)
@@ -522,7 +403,7 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 				cfg.Healthcheck.StartPeriod = tc.startPeriod
 			}
 
-			resp, err := client.ContainerCreate(ctx, &cfg, &container.HostConfig{}, nil, "")
+			resp, err := client.ContainerCreate(ctx, &cfg, &container.HostConfig{}, nil, nil, "")
 			assert.Check(t, is.Equal(len(resp.Warnings), 0))
 
 			if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
@@ -533,4 +414,97 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 			assert.ErrorContains(t, err, tc.expectedErr)
 		})
 	}
+}
+
+// Make sure that anonymous volumes can be overritten by tmpfs
+// https://github.com/moby/moby/issues/40446
+func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "windows does not support tmpfs")
+	defer setupTest(t)()
+	client := testEnv.APIClient()
+	ctx := context.Background()
+
+	id := ctr.Create(ctx, t, client,
+		ctr.WithVolume("/foo"),
+		ctr.WithTmpfs("/foo"),
+		ctr.WithVolume("/bar"),
+		ctr.WithTmpfs("/bar:size=999"),
+		ctr.WithCmd("/bin/sh", "-c", "mount | grep '/foo' | grep tmpfs && mount | grep '/bar' | grep tmpfs"),
+	)
+
+	defer func() {
+		err := client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
+		assert.NilError(t, err)
+	}()
+
+	inspect, err := client.ContainerInspect(ctx, id)
+	assert.NilError(t, err)
+	// tmpfs do not currently get added to inspect.Mounts
+	// Normally an anonymous volume would, except now tmpfs should prevent that.
+	assert.Assert(t, is.Len(inspect.Mounts, 0))
+
+	chWait, chErr := client.ContainerWait(ctx, id, container.WaitConditionNextExit)
+	assert.NilError(t, client.ContainerStart(ctx, id, types.ContainerStartOptions{}))
+
+	timeout := time.NewTimer(30 * time.Second)
+	defer timeout.Stop()
+
+	select {
+	case <-timeout.C:
+		t.Fatal("timeout waiting for container to exit")
+	case status := <-chWait:
+		var errMsg string
+		if status.Error != nil {
+			errMsg = status.Error.Message
+		}
+		assert.Equal(t, int(status.StatusCode), 0, errMsg)
+	case err := <-chErr:
+		assert.NilError(t, err)
+	}
+}
+
+// Test that if the referenced image platform does not match the requested platform on container create that we get an
+// error.
+func TestCreateDifferentPlatform(t *testing.T) {
+	defer setupTest(t)()
+	c := testEnv.APIClient()
+	ctx := context.Background()
+
+	img, _, err := c.ImageInspectWithRaw(ctx, "busybox:latest")
+	assert.NilError(t, err)
+	assert.Assert(t, img.Architecture != "")
+
+	t.Run("different os", func(t *testing.T) {
+		p := specs.Platform{
+			OS:           img.Os + "DifferentOS",
+			Architecture: img.Architecture,
+			Variant:      img.Variant,
+		}
+		_, err := c.ContainerCreate(ctx, &containertypes.Config{Image: "busybox:latest"}, &containertypes.HostConfig{}, nil, &p, "")
+		assert.Assert(t, client.IsErrNotFound(err), err)
+	})
+	t.Run("different cpu arch", func(t *testing.T) {
+		p := specs.Platform{
+			OS:           img.Os,
+			Architecture: img.Architecture + "DifferentArch",
+			Variant:      img.Variant,
+		}
+		_, err := c.ContainerCreate(ctx, &containertypes.Config{Image: "busybox:latest"}, &containertypes.HostConfig{}, nil, &p, "")
+		assert.Assert(t, client.IsErrNotFound(err), err)
+	})
+}
+
+func TestCreateVolumesFromNonExistingContainer(t *testing.T) {
+	defer setupTest(t)()
+	cli := testEnv.APIClient()
+
+	_, err := cli.ContainerCreate(
+		context.Background(),
+		&container.Config{Image: "busybox"},
+		&container.HostConfig{VolumesFrom: []string{"nosuchcontainer"}},
+		nil,
+		nil,
+		"",
+	)
+	assert.Check(t, errdefs.IsInvalidParameter(err))
 }

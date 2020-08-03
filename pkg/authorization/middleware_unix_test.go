@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/plugingetter"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestMiddlewareWrapHandler(t *testing.T) {
@@ -18,7 +18,7 @@ func TestMiddlewareWrapHandler(t *testing.T) {
 	server.start()
 	defer server.stop()
 
-	authZPlugin := createTestPlugin(t)
+	authZPlugin := createTestPlugin(t, server.socketAddress())
 	pluginNames := []string{authZPlugin.name}
 
 	var pluginGetter plugingetter.PluginGetter
@@ -34,7 +34,7 @@ func TestMiddlewareWrapHandler(t *testing.T) {
 	assert.Assert(t, mdHandler != nil)
 
 	addr := "www.example.com/auth"
-	req, _ := http.NewRequest("GET", addr, nil)
+	req, _ := http.NewRequest(http.MethodGet, addr, nil)
 	req.RequestURI = addr
 	req.Header.Add("header", "value")
 

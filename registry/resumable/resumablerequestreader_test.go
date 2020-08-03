@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestResumableRequestHeaderSimpleErrors(t *testing.T) {
@@ -23,7 +23,7 @@ func TestResumableRequestHeaderSimpleErrors(t *testing.T) {
 	client := &http.Client{}
 
 	var req *http.Request
-	req, err := http.NewRequest("GET", ts.URL, nil)
+	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
 	assert.NilError(t, err)
 
 	resreq := &requestReader{}
@@ -44,7 +44,7 @@ func TestResumableRequestHeaderNotTooMuchFailures(t *testing.T) {
 	client := &http.Client{}
 
 	var badReq *http.Request
-	badReq, err := http.NewRequest("GET", "I'm not an url", nil)
+	badReq, err := http.NewRequest(http.MethodGet, "I'm not an url", nil)
 	assert.NilError(t, err)
 
 	resreq := &requestReader{
@@ -64,7 +64,7 @@ func TestResumableRequestHeaderTooMuchFailures(t *testing.T) {
 	client := &http.Client{}
 
 	var badReq *http.Request
-	badReq, err := http.NewRequest("GET", "I'm not an url", nil)
+	badReq, err := http.NewRequest(http.MethodGet, "I'm not an url", nil)
 	assert.NilError(t, err)
 
 	resreq := &requestReader{
@@ -75,9 +75,10 @@ func TestResumableRequestHeaderTooMuchFailures(t *testing.T) {
 	}
 	defer resreq.Close()
 
-	expectedError := `Get I%27m%20not%20an%20url: unsupported protocol scheme ""`
 	read, err := resreq.Read([]byte{})
-	assert.Check(t, is.Error(err, expectedError))
+	assert.Assert(t, err != nil)
+	assert.Check(t, is.ErrorContains(err, "unsupported protocol scheme"))
+	assert.Check(t, is.ErrorContains(err, "I%27m%20not%20an%20url"))
 	assert.Check(t, is.Equal(0, read))
 }
 
@@ -92,14 +93,14 @@ func (errorReaderCloser) Read(p []byte) (n int, err error) {
 // If an unknown error is encountered, return 0, nil and log it
 func TestResumableRequestReaderWithReadError(t *testing.T) {
 	var req *http.Request
-	req, err := http.NewRequest("GET", "", nil)
+	req, err := http.NewRequest(http.MethodGet, "", nil)
 	assert.NilError(t, err)
 
 	client := &http.Client{}
 
 	response := &http.Response{
 		Status:        "500 Internal Server",
-		StatusCode:    500,
+		StatusCode:    http.StatusInternalServerError,
 		ContentLength: 0,
 		Close:         true,
 		Body:          errorReaderCloser{},
@@ -123,14 +124,14 @@ func TestResumableRequestReaderWithReadError(t *testing.T) {
 
 func TestResumableRequestReaderWithEOFWith416Response(t *testing.T) {
 	var req *http.Request
-	req, err := http.NewRequest("GET", "", nil)
+	req, err := http.NewRequest(http.MethodGet, "", nil)
 	assert.NilError(t, err)
 
 	client := &http.Client{}
 
 	response := &http.Response{
 		Status:        "416 Requested Range Not Satisfiable",
-		StatusCode:    416,
+		StatusCode:    http.StatusRequestedRangeNotSatisfiable,
 		ContentLength: 0,
 		Close:         true,
 		Body:          ioutil.NopCloser(strings.NewReader("")),
@@ -159,7 +160,7 @@ func TestResumableRequestReaderWithServerDoesntSupportByteRanges(t *testing.T) {
 	defer ts.Close()
 
 	var req *http.Request
-	req, err := http.NewRequest("GET", ts.URL, nil)
+	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
 	assert.NilError(t, err)
 
 	client := &http.Client{}
@@ -185,7 +186,7 @@ func TestResumableRequestReaderWithZeroTotalSize(t *testing.T) {
 	defer ts.Close()
 
 	var req *http.Request
-	req, err := http.NewRequest("GET", ts.URL, nil)
+	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
 	assert.NilError(t, err)
 
 	client := &http.Client{}
@@ -210,7 +211,7 @@ func TestResumableRequestReader(t *testing.T) {
 	defer ts.Close()
 
 	var req *http.Request
-	req, err := http.NewRequest("GET", ts.URL, nil)
+	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
 	assert.NilError(t, err)
 
 	client := &http.Client{}
@@ -236,7 +237,7 @@ func TestResumableRequestReaderWithInitialResponse(t *testing.T) {
 	defer ts.Close()
 
 	var req *http.Request
-	req, err := http.NewRequest("GET", ts.URL, nil)
+	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
 	assert.NilError(t, err)
 
 	client := &http.Client{}

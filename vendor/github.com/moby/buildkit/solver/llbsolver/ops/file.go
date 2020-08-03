@@ -12,6 +12,7 @@ import (
 
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
+	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/solver/llbsolver/file"
@@ -47,7 +48,7 @@ func NewFileOp(v solver.Vertex, op *pb.Op_File, cm cache.Manager, md *metadata.S
 	}, nil
 }
 
-func (f *fileOp) CacheMap(ctx context.Context, index int) (*solver.CacheMap, bool, error) {
+func (f *fileOp) CacheMap(ctx context.Context, g session.Group, index int) (*solver.CacheMap, bool, error) {
 	selectors := map[int]map[llbsolver.Selector]struct{}{}
 	invalidSelectors := map[int]struct{}{}
 
@@ -141,7 +142,7 @@ func (f *fileOp) CacheMap(ctx context.Context, index int) (*solver.CacheMap, boo
 	return cm, true, nil
 }
 
-func (f *fileOp) Exec(ctx context.Context, inputs []solver.Result) ([]solver.Result, error) {
+func (f *fileOp) Exec(ctx context.Context, g session.Group, inputs []solver.Result) ([]solver.Result, error) {
 	inpRefs := make([]fileoptypes.Ref, 0, len(inputs))
 	for _, inp := range inputs {
 		workerRef, ok := inp.Sys().(*worker.WorkerRef)

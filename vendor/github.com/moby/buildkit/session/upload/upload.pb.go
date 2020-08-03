@@ -3,21 +3,20 @@
 
 package upload
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-
-import bytes "bytes"
-
-import strings "strings"
-import reflect "reflect"
-
 import (
-	context "golang.org/x/net/context"
+	bytes "bytes"
+	context "context"
+	fmt "fmt"
+	proto "github.com/gogo/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
+	io "io"
+	math "math"
+	math_bits "math/bits"
+	reflect "reflect"
+	strings "strings"
 )
-
-import io "io"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -28,7 +27,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // BytesMessage contains a chunk of byte data
 type BytesMessage struct {
@@ -38,7 +37,7 @@ type BytesMessage struct {
 func (m *BytesMessage) Reset()      { *m = BytesMessage{} }
 func (*BytesMessage) ProtoMessage() {}
 func (*BytesMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_upload_0898dc79ebc86e9c, []int{0}
+	return fileDescriptor_91b94b655bd2a7e5, []int{0}
 }
 func (m *BytesMessage) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -48,15 +47,15 @@ func (m *BytesMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_BytesMessage.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
 		return b[:n], nil
 	}
 }
-func (dst *BytesMessage) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_BytesMessage.Merge(dst, src)
+func (m *BytesMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BytesMessage.Merge(m, src)
 }
 func (m *BytesMessage) XXX_Size() int {
 	return m.Size()
@@ -77,6 +76,25 @@ func (m *BytesMessage) GetData() []byte {
 func init() {
 	proto.RegisterType((*BytesMessage)(nil), "moby.upload.v1.BytesMessage")
 }
+
+func init() { proto.RegisterFile("upload.proto", fileDescriptor_91b94b655bd2a7e5) }
+
+var fileDescriptor_91b94b655bd2a7e5 = []byte{
+	// 179 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x29, 0x2d, 0xc8, 0xc9,
+	0x4f, 0x4c, 0xd1, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0xe2, 0xcb, 0xcd, 0x4f, 0xaa, 0xd4, 0x83,
+	0x0a, 0x95, 0x19, 0x2a, 0x29, 0x71, 0xf1, 0x38, 0x55, 0x96, 0xa4, 0x16, 0xfb, 0xa6, 0x16, 0x17,
+	0x27, 0xa6, 0xa7, 0x0a, 0x09, 0x71, 0xb1, 0xa4, 0x24, 0x96, 0x24, 0x4a, 0x30, 0x2a, 0x30, 0x6a,
+	0xf0, 0x04, 0x81, 0xd9, 0x46, 0x01, 0x5c, 0x6c, 0xa1, 0x60, 0x0d, 0x42, 0x6e, 0x5c, 0x2c, 0x01,
+	0xa5, 0x39, 0x39, 0x42, 0x32, 0x7a, 0xa8, 0xc6, 0xe8, 0x21, 0x9b, 0x21, 0x85, 0x57, 0x56, 0x83,
+	0xd1, 0x80, 0xd1, 0xc9, 0xe6, 0xc2, 0x43, 0x39, 0x86, 0x1b, 0x0f, 0xe5, 0x18, 0x3e, 0x3c, 0x94,
+	0x63, 0x6c, 0x78, 0x24, 0xc7, 0xb8, 0xe2, 0x91, 0x1c, 0xe3, 0x89, 0x47, 0x72, 0x8c, 0x17, 0x1e,
+	0xc9, 0x31, 0x3e, 0x78, 0x24, 0xc7, 0xf8, 0xe2, 0x91, 0x1c, 0xc3, 0x87, 0x47, 0x72, 0x8c, 0x13,
+	0x1e, 0xcb, 0x31, 0x5c, 0x78, 0x2c, 0xc7, 0x70, 0xe3, 0xb1, 0x1c, 0x43, 0x14, 0x1b, 0xc4, 0xc4,
+	0x24, 0x36, 0xb0, 0x57, 0x8c, 0x01, 0x01, 0x00, 0x00, 0xff, 0xff, 0x12, 0xf2, 0xfc, 0xb4, 0xda,
+	0x00, 0x00, 0x00,
+}
+
 func (this *BytesMessage) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
@@ -179,6 +197,14 @@ type UploadServer interface {
 	Pull(Upload_PullServer) error
 }
 
+// UnimplementedUploadServer can be embedded to have forward compatible implementations.
+type UnimplementedUploadServer struct {
+}
+
+func (*UnimplementedUploadServer) Pull(srv Upload_PullServer) error {
+	return status.Errorf(codes.Unimplemented, "method Pull not implemented")
+}
+
 func RegisterUploadServer(s *grpc.Server, srv UploadServer) {
 	s.RegisterService(&_Upload_serviceDesc, srv)
 }
@@ -227,7 +253,7 @@ var _Upload_serviceDesc = grpc.ServiceDesc{
 func (m *BytesMessage) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -235,27 +261,35 @@ func (m *BytesMessage) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *BytesMessage) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *BytesMessage) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.Data) > 0 {
-		dAtA[i] = 0xa
-		i++
+		i -= len(m.Data)
+		copy(dAtA[i:], m.Data)
 		i = encodeVarintUpload(dAtA, i, uint64(len(m.Data)))
-		i += copy(dAtA[i:], m.Data)
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintUpload(dAtA []byte, offset int, v uint64) int {
+	offset -= sovUpload(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 func (m *BytesMessage) Size() (n int) {
 	if m == nil {
@@ -271,14 +305,7 @@ func (m *BytesMessage) Size() (n int) {
 }
 
 func sovUpload(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozUpload(x uint64) (n int) {
 	return sovUpload(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -316,7 +343,7 @@ func (m *BytesMessage) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -344,7 +371,7 @@ func (m *BytesMessage) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				byteLen |= (int(b) & 0x7F) << shift
+				byteLen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -353,6 +380,9 @@ func (m *BytesMessage) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthUpload
 			}
 			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthUpload
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -370,6 +400,9 @@ func (m *BytesMessage) Unmarshal(dAtA []byte) error {
 			if skippy < 0 {
 				return ErrInvalidLengthUpload
 			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthUpload
+			}
 			if (iNdEx + skippy) > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -385,6 +418,7 @@ func (m *BytesMessage) Unmarshal(dAtA []byte) error {
 func skipUpload(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -416,10 +450,8 @@ func skipUpload(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -436,71 +468,34 @@ func skipUpload(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			iNdEx += length
 			if length < 0 {
 				return 0, ErrInvalidLengthUpload
 			}
-			return iNdEx, nil
+			iNdEx += length
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowUpload
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipUpload(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupUpload
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthUpload
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthUpload = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowUpload   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthUpload        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowUpload          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupUpload = fmt.Errorf("proto: unexpected end of group")
 )
-
-func init() { proto.RegisterFile("upload.proto", fileDescriptor_upload_0898dc79ebc86e9c) }
-
-var fileDescriptor_upload_0898dc79ebc86e9c = []byte{
-	// 179 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x29, 0x2d, 0xc8, 0xc9,
-	0x4f, 0x4c, 0xd1, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0xe2, 0xcb, 0xcd, 0x4f, 0xaa, 0xd4, 0x83,
-	0x0a, 0x95, 0x19, 0x2a, 0x29, 0x71, 0xf1, 0x38, 0x55, 0x96, 0xa4, 0x16, 0xfb, 0xa6, 0x16, 0x17,
-	0x27, 0xa6, 0xa7, 0x0a, 0x09, 0x71, 0xb1, 0xa4, 0x24, 0x96, 0x24, 0x4a, 0x30, 0x2a, 0x30, 0x6a,
-	0xf0, 0x04, 0x81, 0xd9, 0x46, 0x01, 0x5c, 0x6c, 0xa1, 0x60, 0x0d, 0x42, 0x6e, 0x5c, 0x2c, 0x01,
-	0xa5, 0x39, 0x39, 0x42, 0x32, 0x7a, 0xa8, 0xc6, 0xe8, 0x21, 0x9b, 0x21, 0x85, 0x57, 0x56, 0x83,
-	0xd1, 0x80, 0xd1, 0xc9, 0xe6, 0xc2, 0x43, 0x39, 0x86, 0x1b, 0x0f, 0xe5, 0x18, 0x3e, 0x3c, 0x94,
-	0x63, 0x6c, 0x78, 0x24, 0xc7, 0xb8, 0xe2, 0x91, 0x1c, 0xe3, 0x89, 0x47, 0x72, 0x8c, 0x17, 0x1e,
-	0xc9, 0x31, 0x3e, 0x78, 0x24, 0xc7, 0xf8, 0xe2, 0x91, 0x1c, 0xc3, 0x87, 0x47, 0x72, 0x8c, 0x13,
-	0x1e, 0xcb, 0x31, 0x5c, 0x78, 0x2c, 0xc7, 0x70, 0xe3, 0xb1, 0x1c, 0x43, 0x14, 0x1b, 0xc4, 0xc4,
-	0x24, 0x36, 0xb0, 0x57, 0x8c, 0x01, 0x01, 0x00, 0x00, 0xff, 0xff, 0x12, 0xf2, 0xfc, 0xb4, 0xda,
-	0x00, 0x00, 0x00,
-}

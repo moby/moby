@@ -8,11 +8,12 @@ import (
 
 	"github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/opts"
+	"github.com/docker/libnetwork/ipamutils"
 	"github.com/spf13/pflag"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/fs"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/fs"
+	"gotest.tools/v3/skip"
 )
 
 func TestDaemonConfigurationNotFound(t *testing.T) {
@@ -153,6 +154,48 @@ func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
 	}
 }
 
+// Test for #40711
+func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
+	emptyConfigFile := fs.NewFile(t, "config", fs.WithContent(`{}`))
+	defer emptyConfigFile.Remove()
+	configFile := fs.NewFile(t, "config", fs.WithContent(`{"default-address-pools":[{"base": "10.123.0.0/16", "size": 24 }]}`))
+	defer configFile.Remove()
+
+	expected := []*ipamutils.NetworkToSplit{{Base: "10.123.0.0/16", Size: 24}}
+
+	t.Run("empty config file", func(t *testing.T) {
+		var conf = Config{}
+		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
+		flags.Set("default-address-pool", "base=10.123.0.0/16,size=24")
+
+		config, err := MergeDaemonConfigurations(&conf, flags, emptyConfigFile.Path())
+		assert.NilError(t, err)
+		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected)
+	})
+
+	t.Run("config file", func(t *testing.T) {
+		var conf = Config{}
+		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
+
+		config, err := MergeDaemonConfigurations(&conf, flags, configFile.Path())
+		assert.NilError(t, err)
+		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected)
+	})
+
+	t.Run("with conflicting options", func(t *testing.T) {
+		var conf = Config{}
+		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
+		flags.Set("default-address-pool", "base=10.123.0.0/16,size=24")
+
+		_, err := MergeDaemonConfigurations(&conf, flags, configFile.Path())
+		assert.ErrorContains(t, err, "the following directives are specified both as a flag and in the configuration file")
+		assert.ErrorContains(t, err, "default-address-pools")
+	})
+}
+
 func TestFindConfigurationConflictsWithUnknownKeys(t *testing.T) {
 	config := map[string]interface{}{"tls-verify": "true"}
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
@@ -185,40 +228,6 @@ func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "hosts: (from flag: [unix:///var/run/docker.sock], from file: tcp://127.0.0.1:2345)") {
 		t.Fatalf("expected hosts conflict, got %v", err)
-	}
-}
-
-func TestValidateReservedNamespaceLabels(t *testing.T) {
-	for _, validLabels := range [][]string{
-		nil, // no error if there are no labels
-		{ // no error if there aren't any reserved namespace labels
-			"hello=world",
-			"label=me",
-		},
-		{ // only reserved namespaces that end with a dot are invalid
-			"com.dockerpsychnotreserved.label=value",
-			"io.dockerproject.not=reserved",
-			"org.docker.not=reserved",
-		},
-	} {
-		assert.Check(t, ValidateReservedNamespaceLabels(validLabels))
-	}
-
-	for _, invalidLabel := range []string{
-		"com.docker.feature=enabled",
-		"io.docker.configuration=0",
-		"org.dockerproject.setting=on",
-		// casing doesn't matter
-		"COM.docker.feature=enabled",
-		"io.DOCKER.CONFIGURATION=0",
-		"Org.Dockerproject.Setting=on",
-	} {
-		err := ValidateReservedNamespaceLabels([]string{
-			"valid=label",
-			invalidLabel,
-			"another=valid",
-		})
-		assert.Check(t, is.ErrorContains(err, invalidLabel))
 	}
 }
 

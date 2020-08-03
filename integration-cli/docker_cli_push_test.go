@@ -13,8 +13,8 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"gotest.tools/assert"
-	"gotest.tools/icmd"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
 )
 
 // Pushing an image to a private registry.
@@ -162,7 +162,7 @@ func testConcurrentPush(c *testing.T) {
 	}
 
 	// Push tags, in parallel
-	results := make(chan error)
+	results := make(chan error, len(repos))
 
 	for _, repo := range repos {
 		go func(repo string) {

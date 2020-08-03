@@ -120,7 +120,7 @@ func (this *uint32Reader) ReadMsg(msg proto.Message) error {
 	if length < 0 || length > this.maxSize {
 		return io.ErrShortBuffer
 	}
-	if length >= len(this.buf) {
+	if length > len(this.buf) {
 		this.buf = make([]byte, length)
 	}
 	_, err := io.ReadFull(this.r, this.buf[:length])

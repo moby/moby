@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/moby/buildkit/cache"
+	digest "github.com/opencontainers/go-digest"
 )
 
 // LayerGetter abstracts away the snapshotter
@@ -57,7 +58,7 @@ type checker struct {
 	cache  map[string]bool
 }
 
-func (c *checker) Exists(key string) bool {
+func (c *checker) Exists(key string, chain []digest.Digest) bool {
 	if c.opt.ImageStore == nil {
 		return false
 	}

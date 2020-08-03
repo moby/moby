@@ -89,12 +89,25 @@ type LogFile struct {
 	filesRefCounter refCounter // keep reference-counted of decompressed files
 	notifyRotate    *pubsub.Publisher
 	marshal         logger.MarshalFunc
-	createDecoder   makeDecoderFunc
+	createDecoder   MakeDecoderFn
 	getTailReader   GetTailReaderFunc
 	perms           os.FileMode
 }
 
-type makeDecoderFunc func(rdr io.Reader) func() (*logger.Message, error)
+// MakeDecoderFn creates a decoder
+type MakeDecoderFn func(rdr io.Reader) Decoder
+
+// Decoder is for reading logs
+// It is created by the log reader by calling the `MakeDecoderFunc`
+type Decoder interface {
+	// Reset resets the decoder
+	// Reset is called for certain events, such as log rotations
+	Reset(io.Reader)
+	// Decode decodes the next log messeage from the stream
+	Decode() (*logger.Message, error)
+	// Close signals to the decoder that it can release whatever resources it was using.
+	Close()
+}
 
 // SizeReaderAt defines a ReaderAt that also reports its size.
 // This is used for tailing log files.
@@ -110,13 +123,13 @@ type SizeReaderAt interface {
 type GetTailReaderFunc func(ctx context.Context, f SizeReaderAt, nLogLines int) (rdr io.Reader, nLines int, err error)
 
 // NewLogFile creates new LogFile
-func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, marshaller logger.MarshalFunc, decodeFunc makeDecoderFunc, perms os.FileMode, getTailReader GetTailReaderFunc) (*LogFile, error) {
+func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, marshaller logger.MarshalFunc, decodeFunc MakeDecoderFn, perms os.FileMode, getTailReader GetTailReaderFunc) (*LogFile, error) {
 	log, err := openFile(logPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, perms)
 	if err != nil {
 		return nil, err
 	}
 
-	size, err := log.Seek(0, os.SEEK_END)
+	size, err := log.Seek(0, io.SeekEnd)
 	if err != nil {
 		return nil, err
 	}
@@ -175,8 +188,11 @@ func (w *LogFile) checkCapacityAndRotate() error {
 		w.rotateMu.Lock()
 		fname := w.f.Name()
 		if err := w.f.Close(); err != nil {
-			w.rotateMu.Unlock()
-			return errors.Wrap(err, "error closing file")
+			// if there was an error during a prior rotate, the file could already be closed
+			if !errors.Is(err, os.ErrClosed) {
+				w.rotateMu.Unlock()
+				return errors.Wrap(err, "error closing file")
+			}
 		}
 		if err := rotate(fname, w.maxFiles, w.compress); err != nil {
 			w.rotateMu.Unlock()
@@ -314,6 +330,9 @@ func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher)
 	}
 	defer currentFile.Close()
 
+	dec := w.createDecoder(nil)
+	defer dec.Close()
+
 	currentChunk, err := newSectionReader(currentFile)
 	if err != nil {
 		w.mu.RUnlock()
@@ -359,7 +378,7 @@ func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher)
 			readers = append(readers, currentChunk)
 		}
 
-		tailFiles(readers, watcher, w.createDecoder, w.getTailReader, config)
+		tailFiles(readers, watcher, dec, w.getTailReader, config)
 		closeFiles()
 
 		w.mu.RLock()
@@ -373,7 +392,7 @@ func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher)
 
 	notifyRotate := w.notifyRotate.Subscribe()
 	defer w.notifyRotate.Evict(notifyRotate)
-	followLogs(currentFile, watcher, notifyRotate, w.createDecoder, config.Since, config.Until)
+	followLogs(currentFile, watcher, notifyRotate, dec, config.Since, config.Until)
 }
 
 func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []*os.File, err error) {
@@ -412,7 +431,7 @@ func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []*os.File, 
 			})
 
 			if err != nil {
-				if !os.IsNotExist(errors.Cause(err)) {
+				if !errors.Is(err, os.ErrNotExist) {
 					return nil, errors.Wrap(err, "error getting reference to decompressed log file")
 				}
 				continue
@@ -472,14 +491,14 @@ func decompressfile(fileName, destFileName string, since time.Time) (*os.File, e
 func newSectionReader(f *os.File) (*io.SectionReader, error) {
 	// seek to the end to get the size
 	// we'll leave this at the end of the file since section reader does not advance the reader
-	size, err := f.Seek(0, os.SEEK_END)
+	size, err := f.Seek(0, io.SeekEnd)
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting current file size")
 	}
 	return io.NewSectionReader(f, 0, size), nil
 }
 
-func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, createDecoder makeDecoderFunc, getTailReader GetTailReaderFunc, config logger.ReadConfig) {
+func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, dec Decoder, getTailReader GetTailReaderFunc, config logger.ReadConfig) {
 	nLines := config.Tail
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -512,11 +531,12 @@ func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, createDecoder m
 	}
 
 	rdr := io.MultiReader(readers...)
-	decodeLogLine := createDecoder(rdr)
+	dec.Reset(rdr)
+
 	for {
-		msg, err := decodeLogLine()
+		msg, err := dec.Decode()
 		if err != nil {
-			if errors.Cause(err) != io.EOF {
+			if !errors.Is(err, io.EOF) {
 				watcher.Err <- err
 			}
 			return
@@ -535,8 +555,8 @@ func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, createDecoder m
 	}
 }
 
-func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan interface{}, createDecoder makeDecoderFunc, since, until time.Time) {
-	decodeLogLine := createDecoder(f)
+func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan interface{}, dec Decoder, since, until time.Time) {
+	dec.Reset(f)
 
 	name := f.Name()
 	fileWatcher, err := watchFile(name)
@@ -567,7 +587,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 		if err := fileWatcher.Add(name); err != nil {
 			return err
 		}
-		decodeLogLine = createDecoder(f)
+		dec.Reset(f)
 		return nil
 	}
 
@@ -578,7 +598,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 		case e := <-fileWatcher.Events():
 			switch e.Op {
 			case fsnotify.Write:
-				decodeLogLine = createDecoder(f)
+				dec.Reset(f)
 				return nil
 			case fsnotify.Rename, fsnotify.Remove:
 				select {
@@ -616,7 +636,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 
 	oldSize := int64(-1)
 	handleDecodeErr := func(err error) error {
-		if errors.Cause(err) != io.EOF {
+		if !errors.Is(err, io.EOF) {
 			return err
 		}
 
@@ -648,7 +668,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 
 	// main loop
 	for {
-		msg, err := decodeLogLine()
+		msg, err := dec.Decode()
 		if err != nil {
 			if err := handleDecodeErr(err); err != nil {
 				if err == errDone {

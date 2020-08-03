@@ -32,50 +32,50 @@ func (daemon *Daemon) ContainerInspect(name string, size bool, version string) (
 // ContainerInspectCurrent returns low-level information about a
 // container in a most recent api version.
 func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.ContainerJSON, error) {
-	container, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
 
-	container.Lock()
+	ctr.Lock()
 
-	base, err := daemon.getInspectData(container)
+	base, err := daemon.getInspectData(ctr)
 	if err != nil {
-		container.Unlock()
+		ctr.Unlock()
 		return nil, err
 	}
 
 	apiNetworks := make(map[string]*networktypes.EndpointSettings)
-	for name, epConf := range container.NetworkSettings.Networks {
+	for name, epConf := range ctr.NetworkSettings.Networks {
 		if epConf.EndpointSettings != nil {
 			// We must make a copy of this pointer object otherwise it can race with other operations
 			apiNetworks[name] = epConf.EndpointSettings.Copy()
 		}
 	}
 
-	mountPoints := container.GetMountPoints()
+	mountPoints := ctr.GetMountPoints()
 	networkSettings := &types.NetworkSettings{
 		NetworkSettingsBase: types.NetworkSettingsBase{
-			Bridge:                 container.NetworkSettings.Bridge,
-			SandboxID:              container.NetworkSettings.SandboxID,
-			HairpinMode:            container.NetworkSettings.HairpinMode,
-			LinkLocalIPv6Address:   container.NetworkSettings.LinkLocalIPv6Address,
-			LinkLocalIPv6PrefixLen: container.NetworkSettings.LinkLocalIPv6PrefixLen,
-			SandboxKey:             container.NetworkSettings.SandboxKey,
-			SecondaryIPAddresses:   container.NetworkSettings.SecondaryIPAddresses,
-			SecondaryIPv6Addresses: container.NetworkSettings.SecondaryIPv6Addresses,
+			Bridge:                 ctr.NetworkSettings.Bridge,
+			SandboxID:              ctr.NetworkSettings.SandboxID,
+			HairpinMode:            ctr.NetworkSettings.HairpinMode,
+			LinkLocalIPv6Address:   ctr.NetworkSettings.LinkLocalIPv6Address,
+			LinkLocalIPv6PrefixLen: ctr.NetworkSettings.LinkLocalIPv6PrefixLen,
+			SandboxKey:             ctr.NetworkSettings.SandboxKey,
+			SecondaryIPAddresses:   ctr.NetworkSettings.SecondaryIPAddresses,
+			SecondaryIPv6Addresses: ctr.NetworkSettings.SecondaryIPv6Addresses,
 		},
-		DefaultNetworkSettings: daemon.getDefaultNetworkSettings(container.NetworkSettings.Networks),
+		DefaultNetworkSettings: daemon.getDefaultNetworkSettings(ctr.NetworkSettings.Networks),
 		Networks:               apiNetworks,
 	}
 
-	ports := make(nat.PortMap, len(container.NetworkSettings.Ports))
-	for k, pm := range container.NetworkSettings.Ports {
+	ports := make(nat.PortMap, len(ctr.NetworkSettings.Ports))
+	for k, pm := range ctr.NetworkSettings.Ports {
 		ports[k] = pm
 	}
 	networkSettings.NetworkSettingsBase.Ports = ports
 
-	container.Unlock()
+	ctr.Unlock()
 
 	if size {
 		sizeRw, sizeRootFs := daemon.imageService.GetContainerLayerSize(base.ID)
@@ -86,7 +86,7 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 	return &types.ContainerJSON{
 		ContainerJSONBase: base,
 		Mounts:            mountPoints,
-		Config:            container.Config,
+		Config:            ctr.Config,
 		NetworkSettings:   networkSettings,
 	}, nil
 }
@@ -214,7 +214,7 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 		return nil, errExecNotFound(id)
 	}
 
-	if container := daemon.containers.Get(e.ContainerID); container == nil {
+	if ctr := daemon.containers.Get(e.ContainerID); ctr == nil {
 		return nil, errExecNotFound(id)
 	}
 

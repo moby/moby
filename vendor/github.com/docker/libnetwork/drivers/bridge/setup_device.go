@@ -2,6 +2,9 @@ package bridge
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/libnetwork/netutils"
@@ -35,19 +38,34 @@ func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 		setMac = kv.Kernel > 3 || (kv.Kernel == 3 && kv.Major >= 3)
 	}
 
+	if setMac {
+		hwAddr := netutils.GenerateRandomMAC()
+		i.Link.Attrs().HardwareAddr = hwAddr
+		logrus.Debugf("Setting bridge mac address to %s", hwAddr)
+	}
+
 	if err = i.nlh.LinkAdd(i.Link); err != nil {
 		logrus.Debugf("Failed to create bridge %s via netlink. Trying ioctl", config.BridgeName)
 		return ioctlCreateBridge(config.BridgeName, setMac)
 	}
 
-	if setMac {
-		hwAddr := netutils.GenerateRandomMAC()
-		if err = i.nlh.LinkSetHardwareAddr(i.Link, hwAddr); err != nil {
-			return fmt.Errorf("failed to set bridge mac-address %s : %s", hwAddr, err.Error())
-		}
-		logrus.Debugf("Setting bridge mac address to %s", hwAddr)
-	}
 	return err
+}
+
+func setupDefaultSysctl(config *networkConfiguration, i *bridgeInterface) error {
+	// Disable IPv6 router advertisements originating on the bridge
+	sysPath := filepath.Join("/proc/sys/net/ipv6/conf/", config.BridgeName, "accept_ra")
+	if _, err := os.Stat(sysPath); err != nil {
+		logrus.
+			WithField("bridge", config.BridgeName).
+			WithField("syspath", sysPath).
+			Info("failed to read ipv6 net.ipv6.conf.<bridge>.accept_ra")
+		return nil
+	}
+	if err := ioutil.WriteFile(sysPath, []byte{'0', '\n'}, 0644); err != nil {
+		logrus.WithError(err).Warn("unable to disable IPv6 router advertisement")
+	}
+	return nil
 }
 
 // SetupDeviceUp ups the given bridge interface.

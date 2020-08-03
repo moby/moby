@@ -12,10 +12,10 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/icmd"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/skip"
 )
 
 func (s *DockerSuite) TestPsListContainersBase(c *testing.T) {
@@ -755,7 +755,7 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 	// skip header
 	lines = lines[1:]
 
-	//ps output should have both the containers
+	// ps output should have both the containers
 	assert.Equal(c, len(RemoveLinesForExistingElements(lines, existing)), 2)
 
 	// Making sure onbridgenetwork and onnonenetwork is on the output
@@ -816,29 +816,44 @@ func (s *DockerSuite) TestPsListContainersFilterPorts(c *testing.T) {
 	out, _ = dockerCmd(c, "run", "-d", "--expose=8080", "busybox", "top")
 	id2 := strings.TrimSpace(out)
 
+	out, _ = dockerCmd(c, "run", "-d", "-p", "1090:90", "busybox", "top")
+	id3 := strings.TrimSpace(out)
+
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q")
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id1))
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id2))
+	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id3))
+
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=80-8080/udp")
 	assert.Assert(c, strings.TrimSpace(out) != id1)
 	assert.Assert(c, strings.TrimSpace(out) != id2)
+	assert.Assert(c, strings.TrimSpace(out) != id3)
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=8081")
 	assert.Assert(c, strings.TrimSpace(out) != id1)
 	assert.Assert(c, strings.TrimSpace(out) != id2)
+	assert.Assert(c, strings.TrimSpace(out) != id3)
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=80-81")
-	assert.Equal(c, strings.TrimSpace(out), id1)
+	assert.Assert(c, strings.TrimSpace(out) != id1)
 	assert.Assert(c, strings.TrimSpace(out) != id2)
+	assert.Assert(c, strings.TrimSpace(out) != id3)
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=80/tcp")
 	assert.Equal(c, strings.TrimSpace(out), id1)
 	assert.Assert(c, strings.TrimSpace(out) != id2)
+	assert.Assert(c, strings.TrimSpace(out) != id3)
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=1090")
+	assert.Assert(c, strings.TrimSpace(out) != id1)
+	assert.Assert(c, strings.TrimSpace(out) != id2)
+	assert.Equal(c, strings.TrimSpace(out), id3)
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=8080/tcp")
 	out = RemoveOutputForExistingElements(out, existingContainers)
 	assert.Assert(c, strings.TrimSpace(out) != id1)
 	assert.Equal(c, strings.TrimSpace(out), id2)
+	assert.Assert(c, strings.TrimSpace(out) != id3)
 }
 
 func (s *DockerSuite) TestPsNotShowLinknamesOfDeletedContainer(c *testing.T) {

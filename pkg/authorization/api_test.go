@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestPeerCertificateMarshalJSON(t *testing.T) {
@@ -46,7 +46,7 @@ func TestPeerCertificateMarshalJSON(t *testing.T) {
 
 	var certs = []*x509.Certificate{cert}
 	addr := "www.authz.com/auth"
-	req, err := http.NewRequest("GET", addr, nil)
+	req, err := http.NewRequest(http.MethodGet, addr, nil)
 	assert.NilError(t, err)
 
 	req.RequestURI = addr

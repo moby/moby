@@ -2,12 +2,13 @@ package swarm
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	"gotest.tools/poll"
+	"gotest.tools/v3/poll"
 )
 
 // NoTasksForService verifies that there are no more tasks for the given service
@@ -79,6 +80,86 @@ func RunningTasksCount(client client.ServiceAPIClient, serviceID string, instanc
 			return poll.Success()
 		default:
 			return poll.Continue("running task count at %d waiting for %d (total tasks: %d)", running, instances, len(tasks))
+		}
+	}
+}
+
+// JobComplete is a poll function for determining that a ReplicatedJob is
+// completed additionally, while polling, it verifies that the job never
+// exceeds MaxConcurrent running tasks
+func JobComplete(client client.CommonAPIClient, service swarmtypes.Service) func(log poll.LogT) poll.Result {
+	filter := filters.NewArgs()
+	filter.Add("service", service.ID)
+
+	var jobIteration swarmtypes.Version
+	if service.JobStatus != nil {
+		jobIteration = service.JobStatus.JobIteration
+	}
+
+	maxRaw := service.Spec.Mode.ReplicatedJob.MaxConcurrent
+	totalRaw := service.Spec.Mode.ReplicatedJob.TotalCompletions
+
+	max := int(*maxRaw)
+	total := int(*totalRaw)
+
+	previousResult := ""
+
+	return func(log poll.LogT) poll.Result {
+		tasks, err := client.TaskList(context.Background(), types.TaskListOptions{
+			Filters: filter,
+		})
+
+		if err != nil {
+			poll.Error(err)
+		}
+
+		var running int
+		var completed int
+
+		var runningSlot []int
+		var runningID []string
+
+		for _, task := range tasks {
+			// make sure the task has the same job iteration
+			if task.JobIteration == nil || task.JobIteration.Index != jobIteration.Index {
+				continue
+			}
+			switch task.Status.State {
+			case swarmtypes.TaskStateRunning:
+				running++
+				runningSlot = append(runningSlot, task.Slot)
+				runningID = append(runningID, task.ID)
+			case swarmtypes.TaskStateComplete:
+				completed++
+			}
+		}
+
+		switch {
+		case running > max:
+			return poll.Error(fmt.Errorf(
+				"number of running tasks (%v) exceeds max (%v)", running, max,
+			))
+		case (completed + running) > total:
+			return poll.Error(fmt.Errorf(
+				"number of tasks exceeds total (%v), %v running and %v completed",
+				total, running, completed,
+			))
+		case completed == total && running == 0:
+			return poll.Success()
+		default:
+			newRes := fmt.Sprintf(
+				"Completed: %2d Running: %v\n\t%v",
+				completed, runningSlot, runningID,
+			)
+			if newRes == previousResult {
+			} else {
+				previousResult = newRes
+			}
+
+			return poll.Continue(
+				"Job not yet finished, %v completed and %v running out of %v total",
+				completed, running, total,
+			)
 		}
 	}
 }

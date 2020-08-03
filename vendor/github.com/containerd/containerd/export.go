@@ -20,26 +20,12 @@ import (
 	"context"
 	"io"
 
-	"github.com/containerd/containerd/images/oci"
-
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
+	"github.com/containerd/containerd/images/archive"
 )
 
-// Export exports an image to a Tar stream.
-// OCI format is used by default.
-// It is up to caller to put "org.opencontainers.image.ref.name" annotation to desc.
-// TODO(AkihiroSuda): support exporting multiple descriptors at once to a single archive stream.
-func (c *Client) Export(ctx context.Context, desc ocispec.Descriptor, opts ...oci.V1ExporterOpt) (io.ReadCloser, error) {
-
-	exporter, err := oci.ResolveV1ExportOpt(opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	pr, pw := io.Pipe()
-	go func() {
-		pw.CloseWithError(errors.Wrap(exporter.Export(ctx, c.ContentStore(), desc, pw), "export failed"))
-	}()
-	return pr, nil
+// Export exports images to a Tar stream.
+// The tar archive is in OCI format with a Docker compatible manifest
+// when a single target platform is given.
+func (c *Client) Export(ctx context.Context, w io.Writer, opts ...archive.ExportOpt) error {
+	return archive.Export(ctx, c.ContentStore(), w, opts...)
 }

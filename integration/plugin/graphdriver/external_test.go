@@ -22,9 +22,9 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/testutil/daemon"
-	"gotest.tools/assert"
-	is "gotest.tools/assert/cmp"
-	"gotest.tools/skip"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 type graphEventsCounter struct {
@@ -48,6 +48,7 @@ func TestExternalGraphDriver(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, !requirement.HasHubConnectivity(t))
+	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support external graph driver")
 
 	// Setup plugin(s)
 	ec := make(map[string]*graphEventsCounter)

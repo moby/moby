@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/containerd/containerd/content"
@@ -221,9 +222,8 @@ func (cs *contentStore) Delete(ctx context.Context, dgst digest.Digest) error {
 		}
 
 		// Mark content store as dirty for triggering garbage collection
-		cs.db.dirtyL.Lock()
+		atomic.AddUint32(&cs.db.dirty, 1)
 		cs.db.dirtyCS = true
-		cs.db.dirtyL.Unlock()
 
 		return nil
 	})
@@ -567,6 +567,8 @@ func (nw *namespacedWriter) createAndCopy(ctx context.Context, desc ocispec.Desc
 }
 
 func (nw *namespacedWriter) Commit(ctx context.Context, size int64, expected digest.Digest, opts ...content.Opt) error {
+	ctx = namespaces.WithNamespace(ctx, nw.namespace)
+
 	nw.l.RLock()
 	defer nw.l.RUnlock()
 
@@ -635,11 +637,11 @@ func (nw *namespacedWriter) commit(ctx context.Context, tx *bolt.Tx, size int64,
 			return "", errors.Wrapf(errdefs.ErrFailedPrecondition, "%q failed size validation: %v != %v", nw.ref, status.Offset, size)
 		}
 		size = status.Offset
-		actual = nw.w.Digest()
 
 		if err := nw.w.Commit(ctx, size, expected); err != nil && !errdefs.IsAlreadyExists(err) {
 			return "", err
 		}
+		actual = nw.w.Digest()
 	}
 
 	bkt, err := createBlobBucket(tx, nw.namespace, actual)

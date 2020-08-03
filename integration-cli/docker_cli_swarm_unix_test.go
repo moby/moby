@@ -10,8 +10,8 @@ import (
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
-	"gotest.tools/assert"
-	"gotest.tools/poll"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/poll"
 )
 
 func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *testing.T) {

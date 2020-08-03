@@ -49,7 +49,7 @@ type Container struct {
 	// This property is required and immutable.
 	Runtime RuntimeInfo
 
-	// Spec should carry the the runtime specification used to implement the
+	// Spec should carry the runtime specification used to implement the
 	// container.
 	//
 	// This field is required but mutable.
