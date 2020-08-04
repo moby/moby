@@ -245,19 +245,11 @@ func LogURI(uri *url.URL) Creator {
 // BinaryIO forwards container STDOUT|STDERR directly to a logging binary
 func BinaryIO(binary string, args map[string]string) Creator {
 	return func(_ string) (IO, error) {
-		binary = filepath.Clean(binary)
-		if !strings.HasPrefix(binary, "/") {
-			return nil, errors.New("absolute path needed")
+		uri, err := LogURIGenerator("binary", binary, args)
+		if err != nil {
+			return nil, err
 		}
-		uri := &url.URL{
-			Scheme: "binary",
-			Path:   binary,
-		}
-		q := uri.Query()
-		for k, v := range args {
-			q.Set(k, v)
-		}
-		uri.RawQuery = q.Encode()
+
 		res := uri.String()
 		return &logURI{
 			config: Config{
@@ -272,14 +264,11 @@ func BinaryIO(binary string, args map[string]string) Creator {
 // If the log file already exists, the logs will be appended to the file.
 func LogFile(path string) Creator {
 	return func(_ string) (IO, error) {
-		path = filepath.Clean(path)
-		if !strings.HasPrefix(path, "/") {
-			return nil, errors.New("absolute path needed")
+		uri, err := LogURIGenerator("file", path, nil)
+		if err != nil {
+			return nil, err
 		}
-		uri := &url.URL{
-			Scheme: "file",
-			Path:   path,
-		}
+
 		res := uri.String()
 		return &logURI{
 			config: Config{
@@ -288,6 +277,30 @@ func LogFile(path string) Creator {
 			},
 		}, nil
 	}
+}
+
+// LogURIGenerator is the helper to generate log uri with specific scheme.
+func LogURIGenerator(scheme string, path string, args map[string]string) (*url.URL, error) {
+	path = filepath.Clean(path)
+	if !strings.HasPrefix(path, "/") {
+		return nil, errors.New("absolute path needed")
+	}
+
+	uri := &url.URL{
+		Scheme: scheme,
+		Path:   path,
+	}
+
+	if len(args) == 0 {
+		return uri, nil
+	}
+
+	q := uri.Query()
+	for k, v := range args {
+		q.Set(k, v)
+	}
+	uri.RawQuery = q.Encode()
+	return uri, nil
 }
 
 type logURI struct {

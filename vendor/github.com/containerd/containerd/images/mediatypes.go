@@ -23,6 +23,7 @@ import (
 
 	"github.com/containerd/containerd/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 )
 
 // mediatype definitions for image components handled in containerd.
@@ -81,7 +82,7 @@ func DiffCompression(ctx context.Context, mediaType string) (string, error) {
 		}
 		return "", nil
 	default:
-		return "", errdefs.ErrNotImplemented
+		return "", errors.Wrapf(errdefs.ErrNotImplemented, "unrecognised mediatype %s", mediaType)
 	}
 }
 
@@ -123,4 +124,32 @@ func IsKnownConfig(mt string) bool {
 		return true
 	}
 	return false
+}
+
+// ChildGCLabels returns the label for a given descriptor to reference it
+func ChildGCLabels(desc ocispec.Descriptor) []string {
+	mt := desc.MediaType
+	if IsKnownConfig(mt) {
+		return []string{"containerd.io/gc.ref.content.config"}
+	}
+
+	switch mt {
+	case MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
+		return []string{"containerd.io/gc.ref.content.m."}
+	}
+
+	if IsLayerType(mt) {
+		return []string{"containerd.io/gc.ref.content.l."}
+	}
+
+	return []string{"containerd.io/gc.ref.content."}
+}
+
+// ChildGCLabelsFilterLayers returns the labels for a given descriptor to
+// reference it, skipping layer media types
+func ChildGCLabelsFilterLayers(desc ocispec.Descriptor) []string {
+	if IsLayerType(desc.MediaType) {
+		return nil
+	}
+	return ChildGCLabels(desc)
 }

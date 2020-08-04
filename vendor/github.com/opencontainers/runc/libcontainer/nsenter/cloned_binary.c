@@ -1,6 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-2.1-or-later
 /*
  * Copyright (C) 2019 Aleksa Sarai <cyphar@cyphar.com>
  * Copyright (C) 2019 SUSE LLC
+ *
+ * This work is dual licensed under the following licenses. You may use,
+ * redistribute, and/or modify the work under the conditions of either (or
+ * both) licenses.
+ *
+ * === Apache-2.0 ===
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +20,23 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * === LGPL-2.1-or-later ===
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library. If not, see
+ * <https://www.gnu.org/licenses/>.
+ *
  */
 
 #define _GNU_SOURCE
@@ -95,8 +119,10 @@ static int is_self_cloned(void)
 	struct statfs fsbuf = {};
 
 	fd = open("/proc/self/exe", O_RDONLY|O_CLOEXEC);
-	if (fd < 0)
+	if (fd < 0) {
+		fprintf(stderr, "you have no read access to runc binary file\n");
 		return -ENOTRECOVERABLE;
+	}
 
 	/*
 	 * Is the binary a fully-sealed memfd? We don't need CLONED_BINARY_ENV for

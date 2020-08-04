@@ -381,7 +381,7 @@ func (b *binaryIO) cancel() error {
 		return result.ErrorOrNil()
 	}
 
-	done := make(chan error)
+	done := make(chan error, 1)
 	go func() {
 		done <- b.cmd.Wait()
 	}()

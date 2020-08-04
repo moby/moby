@@ -203,24 +203,26 @@ func (i *image) Usage(ctx context.Context, opts ...UsageOpt) (int64, error) {
 				desc.Size = info.Size
 			}
 
-			for k, v := range info.Labels {
-				const prefix = "containerd.io/gc.ref.snapshot."
-				if !strings.HasPrefix(k, prefix) {
-					continue
-				}
-
-				sn := i.client.SnapshotService(k[len(prefix):])
-				if sn == nil {
-					continue
-				}
-
-				u, err := sn.Usage(ctx, v)
-				if err != nil {
-					if !errdefs.IsNotFound(err) && !errdefs.IsInvalidArgument(err) {
-						return nil, err
+			if config.snapshots {
+				for k, v := range info.Labels {
+					const prefix = "containerd.io/gc.ref.snapshot."
+					if !strings.HasPrefix(k, prefix) {
+						continue
 					}
-				} else {
-					usage += u.Size
+
+					sn := i.client.SnapshotService(k[len(prefix):])
+					if sn == nil {
+						continue
+					}
+
+					u, err := sn.Usage(ctx, v)
+					if err != nil {
+						if !errdefs.IsNotFound(err) && !errdefs.IsInvalidArgument(err) {
+							return nil, err
+						}
+					} else {
+						usage += u.Size
+					}
 				}
 			}
 		}

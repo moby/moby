@@ -35,6 +35,7 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/rootfs"
 	"github.com/containerd/containerd/runtime/linux/runctypes"
@@ -175,16 +176,24 @@ type Task interface {
 	// For the built in Linux runtime, github.com/containerd/cgroups.Metrics
 	// are returned in protobuf format
 	Metrics(context.Context) (*types.Metric, error)
+	// Spec returns the current OCI specification for the task
+	Spec(context.Context) (*oci.Spec, error)
 }
 
 var _ = (Task)(&task{})
 
 type task struct {
 	client *Client
+	c      Container
 
 	io  cio.IO
 	id  string
 	pid uint32
+}
+
+// Spec returns the current OCI specification for the task
+func (t *task) Spec(ctx context.Context) (*oci.Spec, error) {
+	return t.c.Spec(ctx)
 }
 
 // ID of the task

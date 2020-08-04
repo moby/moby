@@ -159,7 +159,7 @@ func (c *Client) fetch(ctx context.Context, rCtx *RemoteContext, ref string, lim
 		// Get all the children for a descriptor
 		childrenHandler := images.ChildrenHandler(store)
 		// Set any children labels for that content
-		childrenHandler = images.SetChildrenLabels(store, childrenHandler)
+		childrenHandler = images.SetChildrenMappedLabels(store, childrenHandler, rCtx.ChildLabelMap)
 		if rCtx.AllMetadata {
 			// Filter manifests by platforms but allow to handle manifest
 			// and configuration for not-target platforms

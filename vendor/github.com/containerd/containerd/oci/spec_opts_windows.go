@@ -52,7 +52,7 @@ func WithWindowsIgnoreFlushesDuringBoot() SpecOpts {
 	}
 }
 
-// WithWindowNetworksAllowUnqualifiedDNSQuery sets `Windows.IgnoreFlushesDuringBoot`.
+// WithWindowNetworksAllowUnqualifiedDNSQuery sets `Windows.Network.AllowUnqualifiedDNSQuery`.
 func WithWindowNetworksAllowUnqualifiedDNSQuery() SpecOpts {
 	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
 		if s.Windows == nil {

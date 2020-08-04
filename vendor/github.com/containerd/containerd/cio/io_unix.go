@@ -132,7 +132,7 @@ func openFifos(ctx context.Context, fifos *FIFOSet) (pipes, error) {
 			}
 		}()
 	}
-	if fifos.Stderr != "" {
+	if !fifos.Terminal && fifos.Stderr != "" {
 		if f.Stderr, err = fifo.OpenFifo(ctx, fifos.Stderr, syscall.O_RDONLY|syscall.O_CREAT|syscall.O_NONBLOCK, 0700); err != nil {
 			return f, errors.Wrapf(err, "failed to open stderr fifo")
 		}

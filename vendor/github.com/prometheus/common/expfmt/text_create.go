@@ -423,9 +423,8 @@ var (
 func writeEscapedString(w enhancedWriter, v string, includeDoubleQuote bool) (int, error) {
 	if includeDoubleQuote {
 		return quotedEscaper.WriteString(w, v)
-	} else {
-		return escaper.WriteString(w, v)
 	}
+	return escaper.WriteString(w, v)
 }
 
 // writeFloat is equivalent to fmt.Fprint with a float64 argument but hardcodes
