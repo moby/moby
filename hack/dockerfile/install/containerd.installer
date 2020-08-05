@@ -4,7 +4,7 @@ set -e
 # containerd is also pinned in vendor.conf. When updating the binary
 # version you may also need to update the vendor version to pick up bug
 # fixes or new APIs.
-: "${CONTAINERD_COMMIT:=be75852b8d7849474a20192f9ed1bf34fdd454f1}" # v1.3.6
+: "${CONTAINERD_COMMIT:=8fba4e9a7d01810a393d5d25a3621dc101981175}" # v1.3.7
 
 install_containerd() (
 	echo "Install containerd version $CONTAINERD_COMMIT"
