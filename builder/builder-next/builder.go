@@ -353,11 +353,17 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		}
 	}
 
+	frontEnd := "dockerfile.v0"
+	if syntax := opt.Options.BuildArgs["BUILDKIT_SYNTAX"]; syntax != nil {
+		frontendAttrs["source"] = *syntax
+		frontEnd = "gateway.v0"
+	}
+
 	req := &controlapi.SolveRequest{
 		Ref:           id,
 		Exporter:      exporterName,
 		ExporterAttrs: exporterAttrs,
-		Frontend:      "dockerfile.v0",
+		Frontend:      frontEnd,
 		FrontendAttrs: frontendAttrs,
 		Session:       opt.Options.SessionID,
 		Cache:         cache,
