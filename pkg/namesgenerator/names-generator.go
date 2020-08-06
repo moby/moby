@@ -17,7 +17,6 @@ var (
 		"beautiful",
 		"blissful",
 		"bold",
-		"boring",
 		"brave",
 		"busy",
 		"charming",
@@ -841,9 +840,6 @@ var (
 func GetRandomName(retry int) string {
 begin:
 	name := fmt.Sprintf("%s_%s", left[rand.Intn(len(left))], right[rand.Intn(len(right))])
-	if name == "boring_wozniak" /* Steve Wozniak is not boring */ {
-		goto begin
-	}
 
 	if retry > 0 {
 		name = fmt.Sprintf("%s%d", name, rand.Intn(10))
