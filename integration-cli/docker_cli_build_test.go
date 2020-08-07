@@ -2189,18 +2189,13 @@ func (s *DockerSuite) TestBuildEntrypointRunCleanup(c *testing.T) {
 
 func (s *DockerSuite) TestBuildAddFileNotFound(c *testing.T) {
 	name := "testbuildaddnotfound"
-	expected := "foo: no such file or directory"
-
-	if testEnv.OSType == "windows" {
-		expected = "foo: The system cannot find the file specified"
-	}
 
 	buildImage(name, build.WithBuildContext(c,
 		build.WithFile("Dockerfile", `FROM `+minimalBaseImage()+`
         ADD foo /usr/local/bar`),
 		build.WithFile("bar", "hello"))).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      expected,
+		Err:      "stat foo: file does not exist",
 	})
 }
 

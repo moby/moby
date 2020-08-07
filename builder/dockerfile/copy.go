@@ -242,6 +242,8 @@ func (o *copier) calcCopyInfo(origPath string, allowWildcards bool) ([]copyInfo,
 	// Deal with the single file case
 	copyInfo, err := copyInfoForFile(o.source, origPath)
 	switch {
+	case imageSource == nil && errors.Is(err, os.ErrNotExist):
+		return nil, errors.Wrapf(err, "file not found in build context or excluded by .dockerignore")
 	case err != nil:
 		return nil, err
 	case copyInfo.hash != "":
@@ -315,6 +317,10 @@ func (o *copier) copyWithWildcards(origPath string) ([]copyInfo, error) {
 func copyInfoForFile(source builder.Source, path string) (copyInfo, error) {
 	fi, err := remotecontext.StatAt(source, path)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			// return the relative path in the error, which is more user-friendly than the full path to the tmp-dir
+			return copyInfo{}, errors.WithStack(&os.PathError{Op: "stat", Path: path, Err: os.ErrNotExist})
+		}
 		return copyInfo{}, err
 	}
 
