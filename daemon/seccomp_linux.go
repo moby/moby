@@ -22,18 +22,18 @@ func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		var profile *specs.LinuxSeccomp
 		var err error
 
+		if c.SeccompProfile == "unconfined" {
+			return nil
+		}
 		if c.HostConfig.Privileged {
 			return nil
 		}
-
 		if !daemon.seccompEnabled {
-			if c.SeccompProfile != "" && c.SeccompProfile != "unconfined" {
+			if c.SeccompProfile != "" {
 				return fmt.Errorf("seccomp is not enabled in your kernel, cannot run a custom seccomp profile")
 			}
 			logrus.Warn("seccomp is not enabled in your kernel, running container without default profile")
 			c.SeccompProfile = "unconfined"
-		}
-		if c.SeccompProfile == "unconfined" {
 			return nil
 		}
 		if c.SeccompProfile != "" {
