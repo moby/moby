@@ -25,9 +25,6 @@ func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		if c.SeccompProfile == "unconfined" {
 			return nil
 		}
-		if c.HostConfig.Privileged {
-			return nil
-		}
 		if !daemon.seccompEnabled {
 			if c.SeccompProfile != "" {
 				return fmt.Errorf("seccomp is not enabled in your kernel, cannot run a custom seccomp profile")
@@ -42,6 +39,9 @@ func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {
 				return err
 			}
 		} else {
+			if c.HostConfig.Privileged {
+				return nil
+			}
 			if daemon.seccompProfile != nil {
 				profile, err = seccomp.LoadProfile(string(daemon.seccompProfile), s)
 				if err != nil {

@@ -43,7 +43,7 @@ func TestWithSeccomp(t *testing.T) {
 			outSpec: doci.DefaultLinuxSpec(),
 		},
 		{
-			comment: "privileged container w/ custom profile runs unconfined",
+			comment: "privileged container w/ custom profile honours profile",
 			daemon: &Daemon{
 				seccompEnabled: true,
 			},
@@ -53,8 +53,16 @@ func TestWithSeccomp(t *testing.T) {
 					Privileged: true,
 				},
 			},
-			inSpec:  doci.DefaultLinuxSpec(),
-			outSpec: doci.DefaultLinuxSpec(),
+			inSpec: doci.DefaultLinuxSpec(),
+			outSpec: func() coci.Spec {
+				s := doci.DefaultLinuxSpec()
+				profile := &specs.LinuxSeccomp{
+					DefaultAction: specs.LinuxSeccompAction("SCMP_ACT_LOG"),
+				}
+				s.Linux.Seccomp = profile
+				return s
+			}(),
+			err: nil,
 		},
 		{
 			comment: "privileged container w/ default runs unconfined",
