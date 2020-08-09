@@ -1,6 +1,6 @@
 // +build linux,exclude_disk_quota linux,!cgo !linux
 
-package quota // import "github.com/docker/docker/daemon/graphdriver/quota"
+package quota // import "github.com/docker/docker/quota"
 
 func NewControl(basePath string) (*Control, error) {
 	return nil, ErrQuotaNotSupported
