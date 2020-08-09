@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/quota"
+	units "github.com/docker/go-units"
 	"github.com/moby/sys/mount"
 	"github.com/pkg/errors"
 )
@@ -26,10 +28,12 @@ var (
 		"type":   {}, // specify the filesystem type for mount, e.g. nfs
 		"o":      {}, // generic mount options
 		"device": {}, // device to mount from
+		"size":   {}, // quota size limit
 	}
-	mandatoryOpts = map[string]struct{}{
-		"device": {},
-		"type":   {},
+	mandatoryOpts = map[string][]string{
+		"device": []string{"type"},
+		"type":   []string{"device"},
+		"o":      []string{"device", "type"},
 	}
 )
 
@@ -37,10 +41,11 @@ type optsConfig struct {
 	MountType   string
 	MountOpts   string
 	MountDevice string
+	Quota       quota.Quota
 }
 
 func (o *optsConfig) String() string {
-	return fmt.Sprintf("type='%s' device='%s' o='%s'", o.MountType, o.MountDevice, o.MountOpts)
+	return fmt.Sprintf("type='%s' device='%s' o='%s' size='%d'", o.MountType, o.MountDevice, o.MountOpts, o.Quota.Size)
 }
 
 // scopedPath verifies that the path where the volume is located
@@ -63,14 +68,24 @@ func setOpts(v *localVolume, opts map[string]string) error {
 	if len(opts) == 0 {
 		return nil
 	}
-	if err := validateOpts(opts); err != nil {
+	err := validateOpts(opts)
+	if err != nil {
 		return err
 	}
-
 	v.opts = &optsConfig{
 		MountType:   opts["type"],
 		MountOpts:   opts["o"],
 		MountDevice: opts["device"],
+	}
+	if val, ok := opts["size"]; ok {
+		size, err := units.RAMInBytes(val)
+		if err != nil {
+			return err
+		}
+		if size > 0 && v.quotaCtl == nil {
+			return errdefs.InvalidParameter(errors.Errorf("quota size requested but no quota support"))
+		}
+		v.opts.Quota.Size = uint64(size)
 	}
 	return nil
 }
@@ -84,12 +99,26 @@ func validateOpts(opts map[string]string) error {
 			return errdefs.InvalidParameter(errors.Errorf("invalid option: %q", opt))
 		}
 	}
-	for opt := range mandatoryOpts {
-		if _, ok := opts[opt]; !ok {
-			return errdefs.InvalidParameter(errors.Errorf("missing required option: %q", opt))
+	for opt, reqopts := range mandatoryOpts {
+		if _, ok := opts[opt]; ok {
+			for _, reqopt := range reqopts {
+				if _, ok := opts[reqopt]; !ok {
+					return errdefs.InvalidParameter(errors.Errorf("missing required option: %q", reqopt))
+				}
+			}
 		}
 	}
 	return nil
+}
+
+func (v *localVolume) needsMount() bool {
+	if v.opts == nil {
+		return false
+	}
+	if v.opts.MountDevice != "" || v.opts.MountType != "" {
+		return true
+	}
+	return false
 }
 
 func (v *localVolume) mount() error {
@@ -109,6 +138,23 @@ func (v *localVolume) mount() error {
 	}
 	err := mount.Mount(v.opts.MountDevice, v.path, v.opts.MountType, mountOpts)
 	return errors.Wrap(err, "failed to mount local volume")
+}
+
+func (v *localVolume) postMount() error {
+	if v.opts == nil {
+		return nil
+	}
+	if v.opts.Quota.Size > 0 {
+		if v.quotaCtl != nil {
+			err := v.quotaCtl.SetQuota(v.path, v.opts.Quota)
+			if err != nil {
+				return err
+			}
+		} else {
+			return fmt.Errorf("size quota requested for volume but no quota support")
+		}
+	}
+	return nil
 }
 
 func (v *localVolume) CreatedAt() (time.Time, error) {
