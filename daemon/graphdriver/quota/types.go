@@ -14,6 +14,5 @@ type Quota struct {
 type Control struct {
 	backingFsBlockDev string
 	sync.RWMutex      // protect nextProjectID and quotas map
-	nextProjectID     uint32
 	quotas            map[string]uint32
 }
