@@ -6,119 +6,45 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
-	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/fs"
 )
 
 // 10MB
 const testQuotaSize = 10 * 1024 * 1024
-const imageSize = 64 * 1024 * 1024
 
 func TestBlockDev(t *testing.T) {
-	mkfs, err := exec.LookPath("mkfs.xfs")
-	if err != nil {
-		t.Skip("mkfs.xfs not found in PATH")
+	if msg, ok := CanTestQuota(); !ok {
+		t.Skip(msg)
 	}
 
-	// create a sparse image
-	imageFile, err := ioutil.TempFile("", "xfs-image")
+	// get sparse xfs test image
+	imageFileName, err := PrepareQuotaTestImage(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	imageFileName := imageFile.Name()
 	defer os.Remove(imageFileName)
-	if _, err = imageFile.Seek(imageSize-1, 0); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = imageFile.Write([]byte{0}); err != nil {
-		t.Fatal(err)
-	}
-	if err = imageFile.Close(); err != nil {
-		t.Fatal(err)
-	}
 
-	// The reason for disabling these options is sometimes people run with a newer userspace
-	// than kernelspace
-	out, err := exec.Command(mkfs, "-m", "crc=0,finobt=0", imageFileName).CombinedOutput()
-	if len(out) > 0 {
-		t.Log(string(out))
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Run("testBlockDevQuotaDisabled", wrapMountTest(imageFileName, false, testBlockDevQuotaDisabled))
-	t.Run("testBlockDevQuotaEnabled", wrapMountTest(imageFileName, true, testBlockDevQuotaEnabled))
-	t.Run("testSmallerThanQuota", wrapMountTest(imageFileName, true, wrapQuotaTest(testSmallerThanQuota)))
-	t.Run("testBiggerThanQuota", wrapMountTest(imageFileName, true, wrapQuotaTest(testBiggerThanQuota)))
-	t.Run("testRetrieveQuota", wrapMountTest(imageFileName, true, wrapQuotaTest(testRetrieveQuota)))
+	t.Run("testBlockDevQuotaDisabled", WrapMountTest(imageFileName, false, testBlockDevQuotaDisabled))
+	t.Run("testBlockDevQuotaEnabled", WrapMountTest(imageFileName, true, testBlockDevQuotaEnabled))
+	t.Run("testSmallerThanQuota", WrapMountTest(imageFileName, true, WrapQuotaTest(testSmallerThanQuota)))
+	t.Run("testBiggerThanQuota", WrapMountTest(imageFileName, true, WrapQuotaTest(testBiggerThanQuota)))
+	t.Run("testRetrieveQuota", WrapMountTest(imageFileName, true, WrapQuotaTest(testRetrieveQuota)))
 }
 
-func wrapMountTest(imageFileName string, enableQuota bool, testFunc func(t *testing.T, mountPoint, backingFsDev string)) func(*testing.T) {
-	return func(t *testing.T) {
-		mountOptions := "loop"
-
-		if enableQuota {
-			mountOptions = mountOptions + ",prjquota"
-		}
-
-		mountPointDir := fs.NewDir(t, "xfs-mountPoint")
-		defer mountPointDir.Remove()
-		mountPoint := mountPointDir.Path()
-
-		out, err := exec.Command("mount", "-o", mountOptions, imageFileName, mountPoint).CombinedOutput()
-		if err != nil {
-			_, err := os.Stat("/proc/fs/xfs")
-			if os.IsNotExist(err) {
-				t.Skip("no /proc/fs/xfs")
-			}
-		}
-
-		assert.NilError(t, err, "mount failed: %s", out)
-
-		defer func() {
-			assert.NilError(t, unix.Unmount(mountPoint, 0))
-		}()
-
-		backingFsDev, err := makeBackingFsDev(mountPoint)
-		assert.NilError(t, err)
-
-		testFunc(t, mountPoint, backingFsDev)
-	}
-}
-
-func testBlockDevQuotaDisabled(t *testing.T, mountPoint, backingFsDev string) {
+func testBlockDevQuotaDisabled(t *testing.T, mountPoint, backingFsDev, testDir string) {
 	hasSupport, err := hasQuotaSupport(backingFsDev)
 	assert.NilError(t, err)
 	assert.Check(t, !hasSupport)
 }
 
-func testBlockDevQuotaEnabled(t *testing.T, mountPoint, backingFsDev string) {
+func testBlockDevQuotaEnabled(t *testing.T, mountPoint, backingFsDev, testDir string) {
 	hasSupport, err := hasQuotaSupport(backingFsDev)
 	assert.NilError(t, err)
 	assert.Check(t, hasSupport)
-}
-
-func wrapQuotaTest(testFunc func(t *testing.T, ctrl *Control, mountPoint, testDir, testSubDir string)) func(t *testing.T, mountPoint, backingFsDev string) {
-	return func(t *testing.T, mountPoint, backingFsDev string) {
-		testDir, err := ioutil.TempDir(mountPoint, "per-test")
-		assert.NilError(t, err)
-		defer os.RemoveAll(testDir)
-
-		ctrl, err := NewControl(testDir)
-		assert.NilError(t, err)
-
-		testSubDir, err := ioutil.TempDir(testDir, "quota-test")
-		assert.NilError(t, err)
-		testFunc(t, ctrl, mountPoint, testDir, testSubDir)
-	}
-
 }
 
 func testSmallerThanQuota(t *testing.T, ctrl *Control, homeDir, testDir, testSubDir string) {
