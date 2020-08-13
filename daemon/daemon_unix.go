@@ -187,7 +187,7 @@ func getBlkioWeightDevices(config containertypes.Resources) ([]specs.LinuxWeight
 
 	for _, weightDevice := range config.BlkioWeightDevice {
 		if err := unix.Stat(weightDevice.Path, &stat); err != nil {
-			return nil, err
+			return nil, errors.WithStack(&os.PathError{Op: "stat", Path: weightDevice.Path, Err: err})
 		}
 		weight := weightDevice.Weight
 		d := specs.LinuxWeightDevice{Weight: &weight}
@@ -260,7 +260,7 @@ func getBlkioThrottleDevices(devs []*blkiodev.ThrottleDevice) ([]specs.LinuxThro
 
 	for _, d := range devs {
 		if err := unix.Stat(d.Path, &stat); err != nil {
-			return nil, err
+			return nil, errors.WithStack(&os.PathError{Op: "stat", Path: d.Path, Err: err})
 		}
 		d := specs.LinuxThrottleDevice{Rate: d.Rate}
 		// the type is 32bit on mips
