@@ -17,7 +17,6 @@ autogen/
 bundles/
 cmd/dockerd/dockerd
 contrib/builder/rpm/*/changelog
-vendor/pkg/
 go-test-report.json
 profile.out
 junit-report.xml
