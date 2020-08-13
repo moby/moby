@@ -50,7 +50,7 @@ func TestDockerfileOutsideTheBuildContext(t *testing.T) {
 	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
 	defer cleanup()
 
-	expectedError := "Forbidden path outside the build context: ../../Dockerfile ()"
+	expectedError := "path outside the build context: ../../Dockerfile ()"
 	if runtime.GOOS == "windows" {
 		expectedError = "failed to resolve scoped path ../../Dockerfile ()"
 	}
