@@ -1,6 +1,6 @@
 #!/bin/sh
 
-: ${TINI_COMMIT:=fec3683b971d9c3ef73f284f176672c44b448662} # v0.18.0
+: ${TINI_COMMIT:=de40ad007797e0dcd8b7126f27bb87401d224240} # v0.19.0
 
 install_tini() {
 	echo "Install tini version $TINI_COMMIT"
