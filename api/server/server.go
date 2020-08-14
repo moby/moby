@@ -32,10 +32,11 @@ type Config struct {
 
 // Server contains instance details for the server
 type Server struct {
-	cfg         *Config
-	servers     []*HTTPServer
-	routers     []router.Router
-	middlewares []middleware.Middleware
+	cfg            *Config
+	servers        []*HTTPServer
+	routers        []router.Router
+	middlewares    []middleware.Middleware
+	listenerClosed bool
 }
 
 // New returns a new instance of the server based on the specified configuration.
@@ -67,6 +68,7 @@ func (s *Server) Accept(addr string, listeners ...net.Listener) {
 
 // Close closes servers and thus stop receiving requests
 func (s *Server) Close() {
+	s.listenerClosed = true
 	for _, srv := range s.servers {
 		if err := srv.Close(); err != nil {
 			logrus.Error(err)
@@ -119,6 +121,11 @@ func (s *HTTPServer) Close() error {
 
 func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Daemon is about to shutdown, server can't do api requets any more.
+		if s.listenerClosed {
+			return
+		}
+
 		// Define the context that we'll pass around to share info
 		// like the docker-request-id.
 		//
