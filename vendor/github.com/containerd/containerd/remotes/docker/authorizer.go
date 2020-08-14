@@ -273,7 +273,7 @@ func (ah *authHandler) doBearerAuth(ctx context.Context) (string, error) {
 	// copy common tokenOptions
 	to := ah.common
 
-	to.scopes = getTokenScopes(ctx, to.scopes)
+	to.scopes = GetTokenScopes(ctx, to.scopes)
 
 	// Docs: https://docs.docker.com/registry/spec/auth/scope
 	scoped := strings.Join(to.scopes, " ")

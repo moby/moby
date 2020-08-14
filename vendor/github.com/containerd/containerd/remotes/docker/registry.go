@@ -73,6 +73,15 @@ type RegistryHost struct {
 	Header       http.Header
 }
 
+func (h RegistryHost) isProxy(refhost string) bool {
+	if refhost != h.Host {
+		if refhost != "docker.io" || h.Host != "registry-1.docker.io" {
+			return true
+		}
+	}
+	return false
+}
+
 // RegistryHosts fetches the registry hosts for a given namespace,
 // provided by the host component of an distribution image reference.
 type RegistryHosts func(string) ([]RegistryHost, error)
