@@ -5,14 +5,17 @@ import (
 	"os"
 	"runtime"
 	"testing"
+
+	"gotest.tools/v3/assert"
 )
 
 func TestValidateEnv(t *testing.T) {
-	testcase := []struct {
+	type testCase struct {
 		value    string
 		expected string
 		err      error
-	}{
+	}
+	tests := []testCase{
 		{
 			value:    "a",
 			expected: "a",
@@ -51,7 +54,11 @@ func TestValidateEnv(t *testing.T) {
 		},
 		{
 			value: "=a",
-			err:   fmt.Errorf(fmt.Sprintf("invalid environment variable: %s", "=a")),
+			err:   fmt.Errorf("invalid environment variable: =a"),
+		},
+		{
+			value:    "PATH=",
+			expected: "PATH=",
 		},
 		{
 			value:    "PATH=something",
@@ -83,42 +90,30 @@ func TestValidateEnv(t *testing.T) {
 		},
 		{
 			value: "=",
-			err:   fmt.Errorf(fmt.Sprintf("invalid environment variable: %s", "=")),
+			err:   fmt.Errorf("invalid environment variable: ="),
 		},
 	}
 
-	// Environment variables are case in-sensitive on Windows
 	if runtime.GOOS == "windows" {
-		tmp := struct {
-			value    string
-			expected string
-			err      error
-		}{
+		// Environment variables are case in-sensitive on Windows
+		tests = append(tests, testCase{
 			value:    "PaTh",
 			expected: fmt.Sprintf("PaTh=%v", os.Getenv("PATH")),
 			err:      nil,
-		}
-		testcase = append(testcase, tmp)
+		})
 	}
 
-	for _, r := range testcase {
-		actual, err := ValidateEnv(r.value)
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.value, func(t *testing.T) {
+			actual, err := ValidateEnv(tc.value)
 
-		if err != nil {
-			if r.err == nil {
-				t.Fatalf("Expected err is nil, got err[%v]", err)
+			if tc.err == nil {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tc.err.Error())
 			}
-			if err.Error() != r.err.Error() {
-				t.Fatalf("Expected err[%v], got err[%v]", r.err, err)
-			}
-		}
-
-		if err == nil && r.err != nil {
-			t.Fatalf("Expected err[%v], but err is nil", r.err)
-		}
-
-		if actual != r.expected {
-			t.Fatalf("Expected [%v], got [%v]", r.expected, actual)
-		}
+			assert.Equal(t, actual, tc.expected)
+		})
 	}
 }
