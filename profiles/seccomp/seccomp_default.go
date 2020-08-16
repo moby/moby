@@ -219,6 +219,7 @@ func DefaultProfile() *types.Seccomp {
 				"_newselect",
 				"open",
 				"openat",
+				"openat2",
 				"pause",
 				"pipe",
 				"pipe2",
