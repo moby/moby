@@ -43,19 +43,21 @@ type imageMeta struct {
 
 type store struct {
 	sync.RWMutex
-	lss       map[string]LayerGetReleaser
-	images    map[ID]*imageMeta
-	fs        StoreBackend
-	digestSet *digestset.Set
+	lss        map[string]LayerGetReleaser
+	images     map[ID]*imageMeta
+	imageCache map[ID]*Image
+	fs         StoreBackend
+	digestSet  *digestset.Set
 }
 
 // NewImageStore returns new store object for given set of layer stores
 func NewImageStore(fs StoreBackend, lss map[string]LayerGetReleaser) (Store, error) {
 	is := &store{
-		lss:       lss,
-		images:    make(map[ID]*imageMeta),
-		fs:        fs,
-		digestSet: digestset.NewSet(),
+		lss:        lss,
+		images:     make(map[ID]*imageMeta),
+		imageCache: make(map[ID]*Image),
+		fs:         fs,
+		digestSet:  digestset.NewSet(),
 	}
 
 	// load all current images and retain layers
@@ -68,7 +70,7 @@ func NewImageStore(fs StoreBackend, lss map[string]LayerGetReleaser) (Store, err
 
 func (is *store) restore() error {
 	err := is.fs.Walk(func(dgst digest.Digest) error {
-		img, err := is.Get(IDFromDigest(dgst))
+		img, err := is.doGet(IDFromDigest(dgst))
 		if err != nil {
 			logrus.Errorf("invalid image %v, %v", dgst, err)
 			return nil
@@ -172,8 +174,10 @@ func (is *store) Create(config []byte) (ID, error) {
 		children: make(map[ID]struct{}),
 	}
 
+	is.imageCache[imageID] = &img
 	is.images[imageID] = imageMeta
 	if err := is.digestSet.Add(imageID.Digest()); err != nil {
+		delete(is.imageCache, imageID)
 		delete(is.images, imageID)
 		return "", err
 	}
@@ -201,6 +205,26 @@ func (is *store) Search(term string) (ID, error) {
 }
 
 func (is *store) Get(id ID) (*Image, error) {
+	is.Lock()
+	if img, ok := is.imageCache[id]; ok {
+		is.Unlock()
+		return img, nil
+	}
+	is.Unlock()
+
+	img, err := is.doGet(id)
+	if err != nil {
+		return nil, err
+	}
+
+	is.Lock()
+	defer is.Unlock()
+	is.imageCache[id] = img
+
+	return is.doGet(id)
+}
+
+func (is *store) doGet(id ID) (*Image, error) {
 	// todo: Check if image is in images
 	// todo: Detect manual insertions and start using them
 	config, err := is.fs.Get(id.Digest())
@@ -230,7 +254,7 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 	if imageMeta == nil {
 		return nil, fmt.Errorf("unrecognized image ID %s", id.String())
 	}
-	img, err := is.Get(id)
+	img, err := is.doGet(id)
 	if err != nil {
 		return nil, fmt.Errorf("unrecognized image %s, %v", id.String(), err)
 	}
@@ -247,6 +271,11 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 	if err := is.digestSet.Remove(id.Digest()); err != nil {
 		logrus.Errorf("error removing %s from digest set: %q", id, err)
 	}
+
+	if _, ok := is.imageCache[id]; ok {
+		delete(is.imageCache, id)
+	}
+
 	delete(is.images, id)
 	is.fs.Delete(id.Digest())
 
@@ -329,7 +358,7 @@ func (is *store) imagesMap(all bool) map[ID]*Image {
 		if !all && len(is.children(id)) > 0 {
 			continue
 		}
-		img, err := is.Get(id)
+		img, err := is.doGet(id)
 		if err != nil {
 			logrus.Errorf("invalid image access: %q, error: %q", id, err)
 			continue
