@@ -45,7 +45,7 @@ var errCancelled = errors.New("build cancelled")
 // Run a container by ID
 func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr io.Writer) (err error) {
 	attached := make(chan struct{})
-	errCh := make(chan error)
+	errCh := make(chan error, 1)
 	go func() {
 		errCh <- c.backend.ContainerAttachRaw(cID, nil, stdout, stderr, true, attached)
 	}()
