@@ -72,8 +72,8 @@ func contextWithAppendPullRepositoryScope(ctx context.Context, repo string) cont
 	return WithScope(ctx, fmt.Sprintf("repository:%s:pull", repo))
 }
 
-// getTokenScopes returns deduplicated and sorted scopes from ctx.Value(tokenScopesKey{}) and common scopes.
-func getTokenScopes(ctx context.Context, common []string) []string {
+// GetTokenScopes returns deduplicated and sorted scopes from ctx.Value(tokenScopesKey{}) and common scopes.
+func GetTokenScopes(ctx context.Context, common []string) []string {
 	var scopes []string
 	if x := ctx.Value(tokenScopesKey{}); x != nil {
 		scopes = append(scopes, x.([]string)...)
