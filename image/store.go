@@ -329,6 +329,7 @@ func (is *store) imagesMap(all bool) map[ID]*Image {
 		if !all && len(is.children(id)) > 0 {
 			continue
 		}
+
 		img, err := is.Get(id)
 		if err != nil {
 			logrus.Errorf("invalid image access: %q, error: %q", id, err)
