@@ -399,21 +399,11 @@ func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container
 	case container.HostConfig.NetworkMode.IsHost():
 		// In host-mode networking, the container does not have its own networking
 		// namespace, so both `/etc/hosts` and `/etc/resolv.conf` should be the same
-		// as on the host itself. The container gets a copy of these files, but they
-		// may be symlinked, so resolve the original path first.
-		etcHosts, err := filepath.EvalSymlinks("/etc/hosts")
-		if err != nil {
-			return err
-		}
-		resolvConf, err := filepath.EvalSymlinks("/etc/resolv.conf")
-		if err != nil {
-			return err
-		}
-
+		// as on the host itself. The container gets a copy of these files.
 		*sboxOptions = append(
 			*sboxOptions,
-			libnetwork.OptionOriginHostsPath(etcHosts),
-			libnetwork.OptionOriginResolvConfPath(resolvConf),
+			libnetwork.OptionOriginHostsPath("/etc/hosts"),
+			libnetwork.OptionOriginResolvConfPath("/etc/resolv.conf"),
 		)
 	case container.HostConfig.NetworkMode.IsUserDefined():
 		// The container uses a user-defined network. We use the embedded DNS
@@ -427,11 +417,10 @@ func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container
 		// If systemd-resolvd is used, the "upstream" DNS servers can be found in
 		// /run/systemd/resolve/resolv.conf. We do not query those DNS servers
 		// directly, as they can be dynamically reconfigured.
-		resolvConf, err := filepath.EvalSymlinks("/etc/resolv.conf")
-		if err != nil {
-			return err
-		}
-		*sboxOptions = append(*sboxOptions, libnetwork.OptionOriginResolvConfPath(resolvConf))
+		*sboxOptions = append(
+			*sboxOptions,
+			libnetwork.OptionOriginResolvConfPath("/etc/resolv.conf"),
+		)
 	default:
 		// For other situations, such as the default bridge network, container
 		// discovery / name resolution is handled through /etc/hosts, and no
@@ -444,11 +433,10 @@ func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container
 		// DNS servers on the host can be dynamically updated.
 		//
 		// Copy the host's resolv.conf for the container (/run/systemd/resolve/resolv.conf or /etc/resolv.conf)
-		resolvConf, err := filepath.EvalSymlinks(daemon.configStore.GetResolvConf())
-		if err != nil {
-			return err
-		}
-		*sboxOptions = append(*sboxOptions, libnetwork.OptionOriginResolvConfPath(resolvConf))
+		*sboxOptions = append(
+			*sboxOptions,
+			libnetwork.OptionOriginResolvConfPath(daemon.configStore.GetResolvConf()),
+		)
 	}
 
 	container.HostsPath, err = container.GetRootResourcePath("hosts")
