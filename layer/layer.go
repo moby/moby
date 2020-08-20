@@ -10,12 +10,15 @@
 package layer // import "github.com/docker/docker/layer"
 
 import (
+	"bytes"
 	"errors"
 	"io"
+	"sync"
 
 	"github.com/docker/distribution"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/containerfs"
+	"github.com/hashicorp/golang-lru/simplelru"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 )
@@ -55,6 +58,11 @@ var (
 	// ErrNotSupported is used when the action is not supported
 	// on the current host operating system.
 	ErrNotSupported = errors.New("not support on this host operating system")
+
+	// LayerChainIDCacheSize is the size of layer chain id cache.
+	LayerChainIDCacheSize = 1024 * 1024
+
+	layerChainIDCache *chainIDCache
 )
 
 // ChainID is the content-addressable ID of a layer.
@@ -71,6 +79,29 @@ type DiffID digest.Digest
 // String returns a string rendition of a layer DiffID
 func (diffID DiffID) String() string {
 	return string(diffID)
+}
+
+// chianIDCache wrap around simple.LRUCache to make it thread safe.
+type chainIDCache struct {
+	sync.RWMutex
+	cache simplelru.LRUCache
+}
+
+func (c *chainIDCache) Add(key string, id ChainID) {
+	c.Lock()
+	c.cache.Add(key, id)
+	c.Unlock()
+}
+
+func (c *chainIDCache) Get(key string) (ChainID, bool) {
+	c.RLock()
+	id, ok := c.cache.Get(key)
+	c.RUnlock()
+	if ok {
+		return id.(ChainID), true
+	}
+
+	return "", false
 }
 
 // TarStreamer represents an object which may
@@ -204,9 +235,28 @@ type DescribableStore interface {
 	RegisterWithDescriptor(io.Reader, ChainID, distribution.Descriptor) (Layer, error)
 }
 
+// chainIDCacheKey compute cache key by concating all diffIDs
+func chainIDCacheKey(dgsts []DiffID) string {
+	// TODO is't possible that differents dgsts return same keys?
+	var kbuf bytes.Buffer
+	for _, dgst := range dgsts {
+		kbuf.WriteString(dgst.String())
+	}
+
+	return kbuf.String()
+}
+
 // CreateChainID returns ID for a layerDigest slice
 func CreateChainID(dgsts []DiffID) ChainID {
-	return createChainIDFromParent("", dgsts...)
+	key := chainIDCacheKey(dgsts)
+	if chainID, ok := layerChainIDCache.Get(key); ok {
+		return chainID
+	}
+
+	chainID := createChainIDFromParent("", dgsts...)
+	layerChainIDCache.Add(key, chainID)
+
+	return chainID
 }
 
 func createChainIDFromParent(parent ChainID, dgsts ...DiffID) ChainID {
@@ -236,5 +286,16 @@ func ReleaseAndLog(ls Store, l Layer) {
 func LogReleaseMetadata(metadatas []Metadata) {
 	for _, metadata := range metadatas {
 		logrus.Infof("Layer %s cleaned up", metadata.ChainID)
+	}
+}
+
+func init() {
+	cache, err := simplelru.NewLRU(LayerChainIDCacheSize, nil)
+	if err != nil {
+		logrus.Panicf("Error creating CahinID cache: %v", err)
+	}
+
+	layerChainIDCache = &chainIDCache{
+		cache: cache,
 	}
 }
