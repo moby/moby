@@ -1,4 +1,4 @@
-// +build linux
+//go:generate go run -tags 'seccomp' generate.go
 
 package seccomp // import "github.com/docker/docker/profiles/seccomp"
 
@@ -6,14 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
-	libseccomp "github.com/seccomp/libseccomp-golang"
 )
-
-//go:generate go run -tags 'seccomp' generate.go
 
 // GetDefaultProfile returns the default seccomp profile.
 func GetDefaultProfile(rs *specs.Spec) (*specs.LinuxSeccomp, error) {
@@ -29,14 +27,40 @@ func LoadProfile(body string, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 	return setupSeccomp(&config, rs)
 }
 
+// libseccomp string => seccomp arch
 var nativeToSeccomp = map[string]types.Arch{
+	"x86":         types.ArchX86,
 	"amd64":       types.ArchX86_64,
+	"arm":         types.ArchARM,
 	"arm64":       types.ArchAARCH64,
 	"mips64":      types.ArchMIPS64,
 	"mips64n32":   types.ArchMIPS64N32,
 	"mipsel64":    types.ArchMIPSEL64,
-	"mipsel64n32": types.ArchMIPSEL64N32,
+	"mips3l64n32": types.ArchMIPSEL64N32,
+	"mipsle":      types.ArchMIPSEL,
+	"ppc":         types.ArchPPC,
+	"ppc64":       types.ArchPPC64,
+	"ppc64le":     types.ArchPPC64LE,
+	"s390":        types.ArchS390,
 	"s390x":       types.ArchS390X,
+}
+
+// GOARCH => libseccomp string
+var goToNative = map[string]string{
+	"386":         "x86",
+	"amd64":       "amd64",
+	"arm":         "arm",
+	"arm64":       "arm64",
+	"mips64":      "mips64",
+	"mips64p32":   "mips64n32",
+	"mips64le":    "mipsel64",
+	"mips64p32le": "mips3l64n32",
+	"mipsle":      "mipsel",
+	"ppc":         "ppc",
+	"ppc64":       "ppc64",
+	"ppc64le":     "ppc64le",
+	"s390":        "s390",
+	"s390x":       "s390x",
 }
 
 // inSlice tests whether a string is contained in a slice of strings or not.
@@ -62,12 +86,6 @@ func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, e
 
 	newConfig := &specs.LinuxSeccomp{}
 
-	var arch string
-	var native, err = libseccomp.GetNativeArch()
-	if err == nil {
-		arch = native.String()
-	}
-
 	if len(config.Architectures) != 0 && len(config.ArchMap) != 0 {
 		return nil, errors.New("'architectures' and 'archMap' were specified in the seccomp profile, use either 'architectures' or 'archMap'")
 	}
@@ -79,17 +97,17 @@ func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, e
 		}
 	}
 
-	if len(config.ArchMap) != 0 {
+	arch := goToNative[runtime.GOARCH]
+	seccompArch, archExists := nativeToSeccomp[arch]
+
+	if len(config.ArchMap) != 0 && archExists {
 		for _, a := range config.ArchMap {
-			seccompArch, ok := nativeToSeccomp[arch]
-			if ok {
-				if a.Arch == seccompArch {
-					newConfig.Architectures = append(newConfig.Architectures, specs.Arch(a.Arch))
-					for _, sa := range a.SubArches {
-						newConfig.Architectures = append(newConfig.Architectures, specs.Arch(sa))
-					}
-					break
+			if a.Arch == seccompArch {
+				newConfig.Architectures = append(newConfig.Architectures, specs.Arch(a.Arch))
+				for _, sa := range a.SubArches {
+					newConfig.Architectures = append(newConfig.Architectures, specs.Arch(sa))
 				}
+				break
 			}
 		}
 	}
