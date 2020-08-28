@@ -8,13 +8,29 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_VERSION=0.4.0
 ARG DOCKER_BUILDTAGS="apparmor seccomp selinux"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-buster"
+ARG BASE_IMAGE="debian:buster-slim"
 
-FROM ${GOLANG_IMAGE} AS base
+FROM ${GOLANG_IMAGE} AS go
+
+FROM ${BASE_IMAGE} AS base
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 ARG APT_MIRROR
 RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/apt/sources.list \
  && sed -ri "s/(security).debian.org/${APT_MIRROR:-security.debian.org}/g" /etc/apt/sources.list
+ENV PATH=/usr/local/go/bin:${PATH}
 ENV GO111MODULE=off
+ENV GOPATH=/go
+RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-criu-aptcache,target=/var/cache/apt \
+    apt-get update && apt-get install -y  --no-install-recommends \
+        ca-certificates \
+        curl \
+        gcc \
+        git \
+        libtool \
+        make \
+        pkg-config \
+        procps
 
 FROM base AS criu
 ARG DEBIAN_FRONTEND
@@ -52,6 +68,7 @@ ENV REGISTRY_COMMIT 47a064d4195a9b56133891bbb13620c3ac83a827
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ \
+    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         set -x \
         && git clone https://github.com/docker/distribution.git . \
         && git checkout -q "$REGISTRY_COMMIT" \
@@ -74,6 +91,7 @@ ENV GO_SWAGGER_COMMIT 5e6cb12f7c82ce78e45ba71fa6cb1928094db050
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ \
+    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         set -x \
         && git clone https://github.com/kolyshkin/go-swagger.git . \
         && git checkout -q "$GO_SWAGGER_COMMIT" \
@@ -88,12 +106,13 @@ RUN --mount=type=cache,sharing=locked,id=moby-frozen-images-aptlib,target=/var/l
            jq
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image-v2.sh /
-RUN /download-frozen-image-v2.sh /build \
-        buildpack-deps:buster@sha256:d0abb4b1e5c664828b93e8b6ac84d10bce45ee469999bef88304be04a2709491 \
-        busybox:latest@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209 \
-        busybox:glibc@sha256:1f81263701cddf6402afe9f33fca0266d9fff379e59b1748f33d3072da71ee85 \
-        debian:buster@sha256:46d659005ca1151087efa997f1039ae45a7bf7a2cbbe2d17d3dcbda632a3ee9a \
-        hello-world:latest@sha256:d58e752213a51785838f9eed2b7a498ffa1cb3aa7f946dda11af39286c3db9a9
+RUN --mount=from=go,source=/usr/local/go,target=/usr/local/go \
+        /download-frozen-image-v2.sh /build \
+            buildpack-deps:buster@sha256:d0abb4b1e5c664828b93e8b6ac84d10bce45ee469999bef88304be04a2709491 \
+            busybox:latest@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209 \
+            busybox:glibc@sha256:1f81263701cddf6402afe9f33fca0266d9fff379e59b1748f33d3072da71ee85 \
+            debian:buster@sha256:46d659005ca1151087efa997f1039ae45a7bf7a2cbbe2d17d3dcbda632a3ee9a \
+            hello-world:latest@sha256:d58e752213a51785838f9eed2b7a498ffa1cb3aa7f946dda11af39286c3db9a9
 # See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
 
 FROM base AS cross-false
@@ -124,7 +143,8 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-false-aptlib,target=/var/lib
             libdevmapper-dev \
             libseccomp-dev \
             libsystemd-dev \
-            libudev-dev
+            libudev-dev \
+            pkg-config
 
 FROM --platform=linux/amd64 runtime-dev-cross-false AS runtime-dev-cross-true
 ARG DEBIAN_FRONTEND
@@ -149,6 +169,7 @@ ARG TOMLV_COMMIT
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
+    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         PREFIX=/build /tmp/install/install.sh tomlv
 
 FROM base AS vndr
@@ -156,18 +177,21 @@ ARG VNDR_COMMIT
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
+    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         PREFIX=/build /tmp/install/install.sh vndr
 
 FROM dev-base AS containerd
 ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,sharing=locked,id=moby-containerd-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-containerd-aptcache,target=/var/cache/apt \
+    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         apt-get update && apt-get install -y --no-install-recommends \
             libbtrfs-dev
 ARG CONTAINERD_COMMIT
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
+    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         PREFIX=/build /tmp/install/install.sh containerd
 
 FROM dev-base AS proxy
@@ -175,6 +199,7 @@ ARG LIBNETWORK_COMMIT
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
+    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         PREFIX=/build /tmp/install/install.sh proxy
 
 FROM base AS golangci_lint
@@ -182,6 +207,7 @@ ARG GOLANGCI_LINT_COMMIT
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
+    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         PREFIX=/build /tmp/install/install.sh golangci_lint
 
 FROM base AS gotestsum
@@ -189,6 +215,7 @@ ARG GOTESTSUM_COMMIT
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
+    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         PREFIX=/build /tmp/install/install.sh gotestsum
 
 FROM base AS shfmt
@@ -196,6 +223,7 @@ ARG SHFMT_COMMIT
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
+    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         PREFIX=/build /tmp/install/install.sh shfmt
 
 FROM dev-base AS dockercli
@@ -204,6 +232,7 @@ ARG DOCKERCLI_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
+    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         PREFIX=/build /tmp/install/install.sh dockercli
 
 FROM runtime-dev AS runc
@@ -212,6 +241,7 @@ ARG RUNC_BUILDTAGS
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
+    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         PREFIX=/build /tmp/install/install.sh runc
 
 FROM dev-base AS tini
@@ -232,6 +262,7 @@ ARG ROOTLESSKIT_COMMIT
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
+    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         PREFIX=/build /tmp/install/install.sh rootlesskit
 COPY ./contrib/dockerd-rootless.sh /build
 COPY ./contrib/dockerd-rootless-setuptool.sh /build
@@ -260,7 +291,9 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             aufs-tools \
             bash-completion \
             bzip2 \
+            iproute2 \
             iptables \
+            iputils-ping \
             jq \
             libcap2-bin \
             libnet1 \
@@ -328,6 +361,8 @@ RUN mkdir -p hack \
 ENTRYPOINT ["hack/dind-systemd"]
 
 FROM dev-systemd-${SYSTEMD} AS dev
+COPY --from=go            /usr/local/go /usr/local/go
+
 
 FROM runtime-dev AS binary-base
 ARG DOCKER_GITCOMMIT=HEAD
@@ -357,11 +392,13 @@ WORKDIR /go/src/github.com/docker/docker
 FROM binary-base AS build-binary
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=bind,target=/go/src/github.com/docker/docker \
+    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         hack/make.sh binary
 
 FROM binary-base AS build-dynbinary
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=bind,target=/go/src/github.com/docker/docker \
+    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         hack/make.sh dynbinary
 
 FROM binary-base AS build-cross
@@ -369,6 +406,7 @@ ARG DOCKER_CROSSPLATFORMS
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=bind,target=/go/src/github.com/docker/docker \
     --mount=type=tmpfs,target=/go/src/github.com/docker/docker/autogen \
+    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         hack/make.sh cross
 
 FROM scratch AS binary
