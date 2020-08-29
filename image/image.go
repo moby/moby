@@ -78,6 +78,18 @@ type Image struct {
 	computedID ID
 }
 
+// Meta store image meta info
+type Meta struct {
+	ID      ID
+	Parent  ID
+	OS      string
+	Created time.Time
+	Labels  map[string]string
+	Layer   layer.Layer
+
+	children map[ID]struct{}
+}
+
 // RawJSON returns the immutable JSON associated with the image.
 func (img *Image) RawJSON() []byte {
 	return img.rawJSON

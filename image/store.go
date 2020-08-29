@@ -25,6 +25,8 @@ type Store interface {
 	SetLastUpdated(id ID) error
 	GetLastUpdated(id ID) (time.Time, error)
 	Children(id ID) []ID
+	MetaMap() map[ID]*Meta
+	HeadsMeta() map[ID]*Meta
 	Map() map[ID]*Image
 	Heads() map[ID]*Image
 	Len() int
@@ -36,15 +38,10 @@ type LayerGetReleaser interface {
 	Release(layer.Layer) ([]layer.Metadata, error)
 }
 
-type imageMeta struct {
-	layer    layer.Layer
-	children map[ID]struct{}
-}
-
 type store struct {
 	sync.RWMutex
 	lss       map[string]LayerGetReleaser
-	images    map[ID]*imageMeta
+	images    map[ID]*Meta
 	fs        StoreBackend
 	digestSet *digestset.Set
 }
@@ -53,7 +50,7 @@ type store struct {
 func NewImageStore(fs StoreBackend, lss map[string]LayerGetReleaser) (Store, error) {
 	is := &store{
 		lss:       lss,
-		images:    make(map[ID]*imageMeta),
+		images:    make(map[ID]*Meta),
 		fs:        fs,
 		digestSet: digestset.NewSet(),
 	}
@@ -64,6 +61,23 @@ func NewImageStore(fs StoreBackend, lss map[string]LayerGetReleaser) (Store, err
 	}
 
 	return is, nil
+}
+
+func metaFromImage(img *Image, l layer.Layer) *Meta {
+	meta := &Meta{
+		ID:       img.ID(),
+		Parent:   img.Parent,
+		Created:  img.Created,
+		OS:       img.OperatingSystem(),
+		Layer:    l,
+		children: make(map[ID]struct{}),
+	}
+
+	if img.Config != nil {
+		meta.Labels = img.Config.Labels
+	}
+
+	return meta
 }
 
 func (is *store) restore() error {
@@ -92,11 +106,7 @@ func (is *store) restore() error {
 			return err
 		}
 
-		imageMeta := &imageMeta{
-			layer:    l,
-			children: make(map[ID]struct{}),
-		}
-
+		imageMeta := metaFromImage(img, l)
 		is.images[IDFromDigest(dgst)] = imageMeta
 
 		return nil
@@ -167,11 +177,8 @@ func (is *store) Create(config []byte) (ID, error) {
 		}
 	}
 
-	imageMeta := &imageMeta{
-		layer:    l,
-		children: make(map[ID]struct{}),
-	}
-
+	imageMeta := metaFromImage(&img, l)
+	imageMeta.ID = imageID
 	is.images[imageID] = imageMeta
 	if err := is.digestSet.Add(imageID.Digest()); err != nil {
 		delete(is.images, imageID)
@@ -250,8 +257,8 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 	delete(is.images, id)
 	is.fs.Delete(id.Digest())
 
-	if imageMeta.layer != nil {
-		return is.lss[img.OperatingSystem()].Release(imageMeta.layer)
+	if imageMeta.Layer != nil {
+		return is.lss[img.OperatingSystem()].Release(imageMeta.Layer)
 	}
 	return nil, nil
 }
@@ -317,6 +324,30 @@ func (is *store) Heads() map[ID]*Image {
 
 func (is *store) Map() map[ID]*Image {
 	return is.imagesMap(true)
+}
+
+func (is *store) HeadsMeta() map[ID]*Meta {
+	return is.metaMap(false)
+}
+
+func (is *store) MetaMap() map[ID]*Meta {
+	return is.metaMap(true)
+}
+
+func (is *store) metaMap(all bool) map[ID]*Meta {
+	is.RLock()
+	defer is.RUnlock()
+
+	metas := make(map[ID]*Meta)
+	for id := range is.images {
+		if !all && len(is.children(id)) > 0 {
+			continue
+		}
+
+		metas[id] = is.images[id]
+	}
+
+	return metas
 }
 
 func (is *store) imagesMap(all bool) map[ID]*Image {
