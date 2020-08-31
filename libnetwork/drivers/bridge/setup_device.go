@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -14,8 +13,6 @@ import (
 
 // SetupDevice create a new bridge interface/
 func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
-	var setMac bool
-
 	// We only attempt to create the bridge when the requested device name is
 	// the default one.
 	if config.BridgeName != DefaultBridgeName && config.DefaultBridge {
@@ -29,27 +26,17 @@ func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 		},
 	}
 
-	// Only set the bridge's MAC address if the kernel version is > 3.3, as it
-	// was not supported before that.
-	kv, err := kernel.GetKernelVersion()
-	if err != nil {
-		logrus.Errorf("Failed to check kernel versions: %v. Will not assign a MAC address to the bridge interface", err)
-	} else {
-		setMac = kv.Kernel > 3 || (kv.Kernel == 3 && kv.Major >= 3)
-	}
+	// Set the bridge's MAC address. Requires kernel version 3.3 or up.
+	hwAddr := netutils.GenerateRandomMAC()
+	i.Link.Attrs().HardwareAddr = hwAddr
+	logrus.Debugf("Setting bridge mac address to %s", hwAddr)
 
-	if setMac {
-		hwAddr := netutils.GenerateRandomMAC()
-		i.Link.Attrs().HardwareAddr = hwAddr
-		logrus.Debugf("Setting bridge mac address to %s", hwAddr)
-	}
-
-	if err = i.nlh.LinkAdd(i.Link); err != nil {
+	if err := i.nlh.LinkAdd(i.Link); err != nil {
 		logrus.Debugf("Failed to create bridge %s via netlink. Trying ioctl", config.BridgeName)
-		return ioctlCreateBridge(config.BridgeName, setMac)
+		return ioctlCreateBridge(config.BridgeName, hwAddr.String())
 	}
 
-	return err
+	return nil
 }
 
 func setupDefaultSysctl(config *networkConfiguration, i *bridgeInterface) error {
