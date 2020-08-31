@@ -127,7 +127,7 @@ type Dialer struct {
 	// establishing the transport connection.
 	ProxyDial func(context.Context, string, string) (net.Conn, error)
 
-	// AuthMethods specifies the list of request authention
+	// AuthMethods specifies the list of request authentication
 	// methods.
 	// If empty, SOCKS client requests only AuthMethodNotRequired.
 	AuthMethods []AuthMethod
@@ -224,6 +224,7 @@ func (d *Dialer) Dial(network, address string) (net.Conn, error) {
 		return nil, &net.OpError{Op: d.cmd.String(), Net: network, Source: proxy, Addr: dst, Err: err}
 	}
 	if _, err := d.DialWithConn(context.Background(), c, network, address); err != nil {
+		c.Close()
 		return nil, err
 	}
 	return c, nil
