@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !linux
-// +build ppc64 ppc64le
+// +build darwin,arm64,!go1.12
 
-package cpu
+package unix
 
-const cacheLineSize = 128
-
-func doinit() {}
+func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+	return 0, ENOSYS
+}
