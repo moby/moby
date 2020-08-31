@@ -8,7 +8,7 @@ import (
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 const (

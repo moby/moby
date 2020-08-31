@@ -1,4 +1,4 @@
-package source // import "gotest.tools/internal/source"
+package source // import "gotest.tools/v3/internal/source"
 
 import (
 	"bytes"
@@ -92,7 +92,9 @@ func nodePosition(fileset *token.FileSet, node ast.Node) token.Position {
 	return fileset.Position(node.Pos())
 }
 
-var goVersionBefore19 = func() bool {
+// GoVersionLessThan returns true if runtime.Version() is semantically less than
+// version 1.minor.
+func GoVersionLessThan(minor int64) bool {
 	version := runtime.Version()
 	// not a release version
 	if !strings.HasPrefix(version, "go") {
@@ -103,9 +105,11 @@ var goVersionBefore19 = func() bool {
 	if len(parts) < 2 {
 		return false
 	}
-	minor, err := strconv.ParseInt(parts[1], 10, 32)
-	return err == nil && parts[0] == "1" && minor < 9
-}()
+	actual, err := strconv.ParseInt(parts[1], 10, 32)
+	return err == nil && parts[0] == "1" && actual < minor
+}
+
+var goVersionBefore19 = GoVersionLessThan(9)
 
 func getCallExprArgs(node ast.Node) ([]ast.Expr, error) {
 	visitor := &callExprVisitor{}

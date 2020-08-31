@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"go/ast"
 
-	"gotest.tools/assert/cmp"
-	"gotest.tools/internal/format"
-	"gotest.tools/internal/source"
+	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/internal/format"
+	"gotest.tools/v3/internal/source"
 )
 
 func runComparison(

@@ -1,5 +1,5 @@
 /*Package cmp provides Comparisons for Assert and Check*/
-package cmp // import "gotest.tools/assert/cmp"
+package cmp // import "gotest.tools/v3/assert/cmp"
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/google/go-cmp/cmp"
-	"gotest.tools/internal/format"
+	"gotest.tools/v3/internal/format"
 )
 
 // Comparison is a function which compares values and returns ResultSuccess if
@@ -16,11 +16,12 @@ import (
 // Result will contain a message about why it failed.
 type Comparison func() Result
 
-// DeepEqual compares two values using google/go-cmp (http://bit.do/go-cmp)
+// DeepEqual compares two values using google/go-cmp
+// (https://godoc.org/github.com/google/go-cmp/cmp)
 // and succeeds if the values are equal.
 //
 // The comparison can be customized using comparison Options.
-// Package https://godoc.org/gotest.tools/assert/opt provides some additional
+// Package http://gotest.tools/assert/opt provides some additional
 // commonly used Options.
 func DeepEqual(x, y interface{}, opts ...cmp.Option) Comparison {
 	return func() (result Result) {
@@ -103,10 +104,10 @@ func Equal(x, y interface{}) Comparison {
 			return multiLineDiffResult(diff)
 		}
 		return ResultFailureTemplate(`
-			{{- .Data.x}} (
+			{{- printf "%v" .Data.x}} (
 				{{- with callArg 0 }}{{ formatNode . }} {{end -}}
 				{{- printf "%T" .Data.x -}}
-			) != {{ .Data.y}} (
+			) != {{ printf "%v" .Data.y}} (
 				{{- with callArg 1 }}{{ formatNode . }} {{end -}}
 				{{- printf "%T" .Data.y -}}
 			)`,
@@ -241,10 +242,12 @@ func ErrorContains(err error, substring string) Comparison {
 	}
 }
 
+type causer interface {
+	Cause() error
+}
+
 func formatErrorMessage(err error) string {
-	if _, ok := err.(interface {
-		Cause() error
-	}); ok {
+	if _, ok := err.(causer); ok {
 		return fmt.Sprintf("%q\n%+v", err, err)
 	}
 	// This error was not wrapped with github.com/pkg/errors
@@ -283,10 +286,16 @@ func isNil(obj interface{}, msgFunc func(reflect.Value) string) Comparison {
 // ErrorType succeeds if err is not nil and is of the expected type.
 //
 // Expected can be one of:
-// a func(error) bool which returns true if the error is the expected type,
-// an instance of (or a pointer to) a struct of the expected type,
-// a pointer to an interface the error is expected to implement,
-// a reflect.Type of the expected struct or interface.
+//   func(error) bool
+// Function should return true if the error is the expected type.
+//   type struct{}, type &struct{}
+// A struct or a pointer to a struct.
+// Fails if the error is not of the same type as expected.
+//   type &interface{}
+// A pointer to an interface type.
+// Fails if err does not implement the interface.
+//   reflect.Type
+// Fails if err does not implement the reflect.Type
 func ErrorType(err error, expected interface{}) Comparison {
 	return func() Result {
 		switch expectedType := expected.(type) {
