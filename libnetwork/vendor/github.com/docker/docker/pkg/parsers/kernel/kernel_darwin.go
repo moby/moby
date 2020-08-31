@@ -8,49 +8,51 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
-
-	"github.com/mattn/go-shellwords"
 )
 
 // GetKernelVersion gets the current kernel version.
 func GetKernelVersion() (*VersionInfo, error) {
-	release, err := getRelease()
+	osName, err := getSPSoftwareDataType()
 	if err != nil {
 		return nil, err
 	}
-
+	release, err := getRelease(osName)
+	if err != nil {
+		return nil, err
+	}
 	return ParseRelease(release)
 }
 
 // getRelease uses `system_profiler SPSoftwareDataType` to get OSX kernel version
-func getRelease() (string, error) {
+func getRelease(osName string) (string, error) {
+	var release string
+	data := strings.Split(osName, "\n")
+	for _, line := range data {
+		if !strings.Contains(line, "Kernel Version") {
+			continue
+		}
+		// It has the format like '      Kernel Version: Darwin 14.5.0'
+		content := strings.SplitN(line, ":", 2)
+		if len(content) != 2 {
+			return "", fmt.Errorf("Kernel Version is invalid")
+		}
+
+		prettyNames := strings.SplitN(strings.TrimSpace(content[1]), " ", 2)
+
+		if len(prettyNames) != 2 {
+			return "", fmt.Errorf("Kernel Version needs to be 'Darwin x.x.x' ")
+		}
+		release = prettyNames[1]
+	}
+
+	return release, nil
+}
+
+func getSPSoftwareDataType() (string, error) {
 	cmd := exec.Command("system_profiler", "SPSoftwareDataType")
 	osName, err := cmd.Output()
 	if err != nil {
 		return "", err
 	}
-
-	var release string
-	data := strings.Split(string(osName), "\n")
-	for _, line := range data {
-		if strings.Contains(line, "Kernel Version") {
-			// It has the format like '      Kernel Version: Darwin 14.5.0'
-			content := strings.SplitN(line, ":", 2)
-			if len(content) != 2 {
-				return "", fmt.Errorf("Kernel Version is invalid")
-			}
-
-			prettyNames, err := shellwords.Parse(content[1])
-			if err != nil {
-				return "", fmt.Errorf("Kernel Version is invalid: %s", err.Error())
-			}
-
-			if len(prettyNames) != 2 {
-				return "", fmt.Errorf("Kernel Version needs to be 'Darwin x.x.x' ")
-			}
-			release = prettyNames[1]
-		}
-	}
-
-	return release, nil
+	return string(osName), nil
 }

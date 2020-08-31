@@ -254,6 +254,9 @@ func get(name string) (*Plugin, error) {
 
 // Get returns the plugin given the specified name and requested implementation.
 func Get(name, imp string) (*Plugin, error) {
+	if name == "" {
+		return nil, errors.New("Unable to find plugin without name")
+	}
 	pl, err := get(name)
 	if err != nil {
 		return nil, err

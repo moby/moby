@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libnetwork/client"
+	"github.com/moby/term"
 	"github.com/urfave/cli"
 )
 
