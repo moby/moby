@@ -164,22 +164,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/
 
 FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
-FROM base AS tomlv
-ARG TOMLV_COMMIT
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
-    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
-        PREFIX=/build /tmp/install/install.sh tomlv
-
-FROM base AS vndr
-ARG VNDR_COMMIT
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
-    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
-        PREFIX=/build /tmp/install/install.sh vndr
-
 FROM dev-base AS containerd
 ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,sharing=locked,id=moby-containerd-aptlib,target=/var/lib/apt \
@@ -202,14 +186,6 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         PREFIX=/build /tmp/install/install.sh proxy
 
-FROM base AS golangci_lint
-ARG GOLANGCI_LINT_COMMIT
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
-    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
-        PREFIX=/build /tmp/install/install.sh golangci_lint
-
 FROM base AS gotestsum
 ARG GOTESTSUM_COMMIT
 RUN --mount=type=cache,target=/root/.cache/go-build \
@@ -217,14 +193,6 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
     --mount=from=go,source=/usr/local/go,target=/usr/local/go \
         PREFIX=/build /tmp/install/install.sh gotestsum
-
-FROM base AS shfmt
-ARG SHFMT_COMMIT
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
-    --mount=from=go,source=/usr/local/go,target=/usr/local/go \
-        PREFIX=/build /tmp/install/install.sh shfmt
 
 FROM dev-base AS dockercli
 ARG DOCKERCLI_CHANNEL
@@ -325,14 +293,10 @@ RUN pip3 install yamllint==1.16.0
 COPY --from=dockercli     /build/ /usr/local/cli
 COPY --from=frozen-images /build/ /docker-frozen-images
 COPY --from=swagger       /build/ /usr/local/bin/
-COPY --from=tomlv         /build/ /usr/local/bin/
 COPY --from=tini          /build/ /usr/local/bin/
 COPY --from=registry      /build/ /usr/local/bin/
 COPY --from=criu          /build/ /usr/local/
-COPY --from=vndr          /build/ /usr/local/bin/
 COPY --from=gotestsum     /build/ /usr/local/bin/
-COPY --from=golangci_lint /build/ /usr/local/bin/
-COPY --from=shfmt         /build/ /usr/local/bin/
 COPY --from=runc          /build/ /usr/local/bin/
 COPY --from=containerd    /build/ /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
