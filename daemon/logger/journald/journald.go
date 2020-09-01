@@ -6,6 +6,7 @@ package journald // import "github.com/docker/docker/daemon/logger/journald"
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
 	"unicode"
 
@@ -105,8 +106,13 @@ func (s *journald) Log(msg *logger.Message) error {
 	for k, v := range s.vars {
 		vars[k] = v
 	}
-	if msg.PLogMetaData != nil && !msg.PLogMetaData.Last {
-		vars["CONTAINER_PARTIAL_MESSAGE"] = "true"
+	if msg.PLogMetaData != nil {
+		vars["CONTAINER_PARTIAL_ID"] = msg.PLogMetaData.ID
+		vars["CONTAINER_PARTIAL_ORDINAL"] = strconv.Itoa(msg.PLogMetaData.Ordinal)
+		vars["CONTAINER_PARTIAL_LAST"] = strconv.FormatBool(msg.PLogMetaData.Last)
+		if !msg.PLogMetaData.Last {
+			vars["CONTAINER_PARTIAL_MESSAGE"] = "true"
+		}
 	}
 
 	line := string(msg.Line)
