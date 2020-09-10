@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/pkg/locker"
+	"github.com/moby/locker"
 )
 
 type important struct {
