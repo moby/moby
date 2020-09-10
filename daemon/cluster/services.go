@@ -53,7 +53,7 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 
 	if len(options.Filters.Get("runtime")) == 0 {
 		// Default to using the container runtime filter
-		options.Filters.Add("runtime", string(types.RuntimeContainer))
+		options.Filters.Add("runtime", types.RuntimeContainer)
 	}
 
 	filters := &swarmapi.ListServicesRequest_Filters{
@@ -200,7 +200,7 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string, queryRe
 		// handle other runtimes here
 		case *swarmapi.TaskSpec_Generic:
 			switch serviceSpec.Task.GetGeneric().Kind {
-			case string(types.RuntimePlugin):
+			case types.RuntimePlugin:
 				if !c.config.Backend.HasExperimental() {
 					return fmt.Errorf("runtime type %q only supported in experimental", types.RuntimePlugin)
 				}
@@ -309,7 +309,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 			return fmt.Errorf("invalid task spec: spec type %q not supported", types.RuntimeNetworkAttachment)
 		case *swarmapi.TaskSpec_Generic:
 			switch serviceSpec.Task.GetGeneric().Kind {
-			case string(types.RuntimePlugin):
+			case types.RuntimePlugin:
 				if spec.TaskTemplate.PluginSpec == nil {
 					return errors.New("plugin spec must be set")
 				}

@@ -336,7 +336,7 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 		if err := httputils.ParseForm(r); err != nil {
 			return err
 		}
-		switch container.WaitCondition(r.Form.Get("condition")) {
+		switch r.Form.Get("condition") {
 		case container.WaitConditionNextExit:
 			waitCondition = containerpkg.WaitConditionNextExit
 		case container.WaitConditionRemoved:

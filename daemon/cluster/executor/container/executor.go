@@ -225,7 +225,7 @@ func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
 			return ctlr, err
 		}
 		switch runtimeKind {
-		case string(swarmtypes.RuntimePlugin):
+		case swarmtypes.RuntimePlugin:
 			if !e.backend.HasExperimental() {
 				return ctlr, fmt.Errorf("runtime type %q only supported in experimental", swarmtypes.RuntimePlugin)
 			}

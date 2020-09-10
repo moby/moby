@@ -7,7 +7,7 @@ import (
 )
 
 // TaskState represents the state of a task.
-type TaskState string
+type TaskState = string
 
 const (
 	// TaskStateNew NEW
@@ -171,7 +171,7 @@ type RestartPolicy struct {
 }
 
 // RestartPolicyCondition represents when to restart.
-type RestartPolicyCondition string
+type RestartPolicyCondition = string
 
 const (
 	// RestartPolicyConditionNone NONE

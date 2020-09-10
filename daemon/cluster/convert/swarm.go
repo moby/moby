@@ -63,7 +63,7 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 
 	for _, ca := range c.Spec.CAConfig.ExternalCAs {
 		swarm.Spec.CAConfig.ExternalCAs = append(swarm.Spec.CAConfig.ExternalCAs, &types.ExternalCA{
-			Protocol: types.ExternalCAProtocol(strings.ToLower(ca.Protocol.String())),
+			Protocol: strings.ToLower(ca.Protocol.String()),
 			URL:      ca.URL,
 			Options:  ca.Options,
 			CACert:   string(ca.CACert),
@@ -132,7 +132,7 @@ func MergeSwarmSpecToGRPC(s types.Spec, spec swarmapi.ClusterSpec) (swarmapi.Clu
 	spec.CAConfig.ForceRotate = s.CAConfig.ForceRotate
 
 	for _, ca := range s.CAConfig.ExternalCAs {
-		protocol, ok := swarmapi.ExternalCA_CAProtocol_value[strings.ToUpper(string(ca.Protocol))]
+		protocol, ok := swarmapi.ExternalCA_CAProtocol_value[strings.ToUpper(ca.Protocol)]
 		if !ok {
 			return swarmapi.ClusterSpec{}, fmt.Errorf("invalid protocol: %q", ca.Protocol)
 		}

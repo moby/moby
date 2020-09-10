@@ -10,7 +10,7 @@ import (
 )
 
 // EventType represents a possible event from libcontainerd
-type EventType string
+type EventType = string
 
 // Event constants used when reporting events
 const (

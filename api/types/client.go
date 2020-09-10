@@ -199,7 +199,7 @@ type ImageBuildOutput struct {
 }
 
 // BuilderVersion sets the version of underlying builder to use
-type BuilderVersion string
+type BuilderVersion = string
 
 const (
 	// BuilderV1 is the first generation builder in docker daemon

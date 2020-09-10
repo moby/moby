@@ -78,7 +78,7 @@ func (container *Container) NetworkMounts() []Mount {
 				Source:      container.ResolvConfPath,
 				Destination: "/etc/resolv.conf",
 				Writable:    writable,
-				Propagation: string(parser.DefaultPropagationMode()),
+				Propagation: parser.DefaultPropagationMode(),
 			})
 		}
 	}
@@ -96,7 +96,7 @@ func (container *Container) NetworkMounts() []Mount {
 				Source:      container.HostnamePath,
 				Destination: "/etc/hostname",
 				Writable:    writable,
-				Propagation: string(parser.DefaultPropagationMode()),
+				Propagation: parser.DefaultPropagationMode(),
 			})
 		}
 	}
@@ -114,7 +114,7 @@ func (container *Container) NetworkMounts() []Mount {
 				Source:      container.HostsPath,
 				Destination: "/etc/hosts",
 				Writable:    writable,
-				Propagation: string(parser.DefaultPropagationMode()),
+				Propagation: parser.DefaultPropagationMode(),
 			})
 		}
 	}
@@ -212,7 +212,7 @@ func (container *Container) IpcMounts() []Mount {
 		Source:      container.ShmPath,
 		Destination: "/dev/shm",
 		Writable:    true,
-		Propagation: string(parser.DefaultPropagationMode()),
+		Propagation: parser.DefaultPropagationMode(),
 	})
 
 	return mounts

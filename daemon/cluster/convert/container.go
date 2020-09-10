@@ -75,13 +75,13 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 		mount := mounttypes.Mount{
 			Target:   m.Target,
 			Source:   m.Source,
-			Type:     mounttypes.Type(strings.ToLower(swarmapi.Mount_MountType_name[int32(m.Type)])),
+			Type:     strings.ToLower(swarmapi.Mount_MountType_name[int32(m.Type)]),
 			ReadOnly: m.ReadOnly,
 		}
 
 		if m.BindOptions != nil {
 			mount.BindOptions = &mounttypes.BindOptions{
-				Propagation:  mounttypes.Propagation(strings.ToLower(swarmapi.Mount_BindOptions_MountPropagation_name[int32(m.BindOptions.Propagation)])),
+				Propagation:  strings.ToLower(swarmapi.Mount_BindOptions_MountPropagation_name[int32(m.BindOptions.Propagation)]),
 				NonRecursive: m.BindOptions.NonRecursive,
 			}
 		}
@@ -323,16 +323,16 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 			ReadOnly: m.ReadOnly,
 		}
 
-		if mountType, ok := swarmapi.Mount_MountType_value[strings.ToUpper(string(m.Type))]; ok {
+		if mountType, ok := swarmapi.Mount_MountType_value[strings.ToUpper(m.Type)]; ok {
 			mount.Type = swarmapi.Mount_MountType(mountType)
-		} else if string(m.Type) != "" {
+		} else if m.Type != "" {
 			return nil, fmt.Errorf("invalid MountType: %q", m.Type)
 		}
 
 		if m.BindOptions != nil {
-			if mountPropagation, ok := swarmapi.Mount_BindOptions_MountPropagation_value[strings.ToUpper(string(m.BindOptions.Propagation))]; ok {
+			if mountPropagation, ok := swarmapi.Mount_BindOptions_MountPropagation_value[strings.ToUpper(m.BindOptions.Propagation)]; ok {
 				mount.BindOptions = &swarmapi.Mount_BindOptions{Propagation: swarmapi.Mount_BindOptions_MountPropagation(mountPropagation)}
-			} else if string(m.BindOptions.Propagation) != "" {
+			} else if m.BindOptions.Propagation != "" {
 				return nil, fmt.Errorf("invalid MountPropagation: %q", m.BindOptions.Propagation)
 			}
 

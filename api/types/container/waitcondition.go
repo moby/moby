@@ -2,7 +2,7 @@ package container // import "github.com/docker/docker/api/types/container"
 
 // WaitCondition is a type used to specify a container state for which
 // to wait.
-type WaitCondition string
+type WaitCondition = string
 
 // Possible WaitCondition Values.
 //

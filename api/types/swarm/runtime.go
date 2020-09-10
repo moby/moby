@@ -1,10 +1,10 @@
 package swarm // import "github.com/docker/docker/api/types/swarm"
 
 // RuntimeType is the type of runtime used for the TaskSpec
-type RuntimeType string
+type RuntimeType = string
 
 // RuntimeURL is the proto type url
-type RuntimeURL string
+type RuntimeURL = string
 
 const (
 	// RuntimeContainer is the container based runtime

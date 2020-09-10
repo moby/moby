@@ -136,14 +136,14 @@ func ValidateLogOpts(name string, cfg map[string]string) error {
 		return nil
 	}
 
-	switch containertypes.LogMode(cfg["mode"]) {
+	switch cfg["mode"] {
 	case containertypes.LogModeBlocking, containertypes.LogModeNonBlock, containertypes.LogModeUnset:
 	default:
 		return fmt.Errorf("logger: logging mode not supported: %s", cfg["mode"])
 	}
 
 	if s, ok := cfg["max-buffer-size"]; ok {
-		if containertypes.LogMode(cfg["mode"]) != containertypes.LogModeNonBlock {
+		if cfg["mode"] != containertypes.LogModeNonBlock {
 			return fmt.Errorf("logger: max-buffer-size option is only supported with 'mode=%s'", containertypes.LogModeNonBlock)
 		}
 		if _, err := units.RAMInBytes(s); err != nil {

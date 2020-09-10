@@ -23,11 +23,11 @@ func TaskFromGRPC(t swarmapi.Task) (types.Task, error) {
 		NodeID:      t.NodeID,
 		Spec:        taskSpec,
 		Status: types.TaskStatus{
-			State:   types.TaskState(strings.ToLower(t.Status.State.String())),
+			State:   strings.ToLower(t.Status.State.String()),
 			Message: t.Status.Message,
 			Err:     t.Status.Err,
 		},
-		DesiredState:     types.TaskState(strings.ToLower(t.DesiredState.String())),
+		DesiredState:     strings.ToLower(t.DesiredState.String()),
 		GenericResources: GenericResourcesFromGRPC(t.AssignedGenericResources),
 	}
 
@@ -58,8 +58,8 @@ func TaskFromGRPC(t swarmapi.Task) (types.Task, error) {
 	for _, p := range t.Status.PortStatus.Ports {
 		task.Status.PortStatus.Ports = append(task.Status.PortStatus.Ports, types.PortConfig{
 			Name:          p.Name,
-			Protocol:      types.PortConfigProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(p.Protocol)])),
-			PublishMode:   types.PortConfigPublishMode(strings.ToLower(swarmapi.PortConfig_PublishMode_name[int32(p.PublishMode)])),
+			Protocol:      strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(p.Protocol)]),
+			PublishMode:   strings.ToLower(swarmapi.PortConfig_PublishMode_name[int32(p.PublishMode)]),
 			TargetPort:    p.TargetPort,
 			PublishedPort: p.PublishedPort,
 		})

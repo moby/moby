@@ -133,7 +133,7 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 	if options.BuildID != "" {
 		query.Set("buildid", options.BuildID)
 	}
-	query.Set("version", string(options.Version))
+	query.Set("version", options.Version)
 
 	if options.Outputs != nil {
 		outputsJSON, err := json.Marshal(options.Outputs)

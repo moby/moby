@@ -322,7 +322,7 @@ func (rp *RestartPolicy) IsSame(tp *RestartPolicy) bool {
 
 // LogMode is a type to define the available modes for logging
 // These modes affect how logs are handled when log messages start piling up.
-type LogMode string
+type LogMode = string
 
 // Available logging modes
 const (

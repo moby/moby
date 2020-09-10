@@ -108,7 +108,7 @@ func TestContainerLogPathSetForRingLogger(t *testing.T) {
 			LogConfig: container.LogConfig{
 				Type: jsonfilelog.Name,
 				Config: map[string]string{
-					"mode": string(container.LogModeNonBlock),
+					"mode": container.LogModeNonBlock,
 				},
 			},
 		},

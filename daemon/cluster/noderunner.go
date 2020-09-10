@@ -147,7 +147,7 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		PluginGetter:     n.cluster.config.Backend.PluginGetter(),
 	}
 	if conf.availability != "" {
-		avail, ok := swarmapi.NodeSpec_Availability_value[strings.ToUpper(string(conf.availability))]
+		avail, ok := swarmapi.NodeSpec_Availability_value[strings.ToUpper(conf.availability)]
 		if !ok {
 			return fmt.Errorf("invalid Availability: %q", conf.availability)
 		}

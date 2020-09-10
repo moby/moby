@@ -59,7 +59,7 @@ func parsePingResponse(cli *Client, resp serverResponse) (types.Ping, error) {
 		ping.Experimental = true
 	}
 	if bv := resp.header.Get("Builder-Version"); bv != "" {
-		ping.BuilderVersion = types.BuilderVersion(bv)
+		ping.BuilderVersion = bv
 	}
 	err := cli.checkResponseErr(resp)
 	return ping, errdefs.FromStatusCode(err, resp.statusCode)

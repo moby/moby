@@ -438,7 +438,7 @@ func (p *windowsParser) ParseVolumesFrom(spec string) (string, string, error) {
 }
 
 func (p *windowsParser) DefaultPropagationMode() mount.Propagation {
-	return mount.Propagation("")
+	return ""
 }
 
 func (p *windowsParser) ConvertTmpfsOptions(opt *mount.TmpfsOptions, readOnly bool) (string, error) {

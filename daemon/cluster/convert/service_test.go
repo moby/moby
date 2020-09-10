@@ -35,18 +35,11 @@ func TestServiceConvertFromGRPCRuntimeContainer(t *testing.T) {
 	}
 
 	svc, err := ServiceFromGRPC(gs)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if svc.Spec.TaskTemplate.Runtime != swarmtypes.RuntimeContainer {
-		t.Fatalf("expected type %s; received %T", swarmtypes.RuntimeContainer, svc.Spec.TaskTemplate.Runtime)
-	}
+	assert.NilError(t, err)
+	assert.Equal(t, svc.Spec.TaskTemplate.Runtime, swarmtypes.RuntimeContainer)
 }
 
 func TestServiceConvertFromGRPCGenericRuntimePlugin(t *testing.T) {
-	kind := string(swarmtypes.RuntimePlugin)
-	url := swarmtypes.RuntimeURLPlugin
 	gs := swarmapi.Service{
 		Meta: swarmapi.Meta{
 			Version: swarmapi.Version{
@@ -62,9 +55,9 @@ func TestServiceConvertFromGRPCGenericRuntimePlugin(t *testing.T) {
 			Task: swarmapi.TaskSpec{
 				Runtime: &swarmapi.TaskSpec_Generic{
 					Generic: &swarmapi.GenericRuntimeSpec{
-						Kind: kind,
+						Kind: swarmtypes.RuntimePlugin,
 						Payload: &google_protobuf3.Any{
-							TypeUrl: string(url),
+							TypeUrl: swarmtypes.RuntimeURLPlugin,
 						},
 					},
 				},
@@ -73,13 +66,8 @@ func TestServiceConvertFromGRPCGenericRuntimePlugin(t *testing.T) {
 	}
 
 	svc, err := ServiceFromGRPC(gs)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if svc.Spec.TaskTemplate.Runtime != swarmtypes.RuntimePlugin {
-		t.Fatalf("expected type %s; received %T", swarmtypes.RuntimePlugin, svc.Spec.TaskTemplate.Runtime)
-	}
+	assert.NilError(t, err)
+	assert.Equal(t, svc.Spec.TaskTemplate.Runtime, swarmtypes.RuntimePlugin)
 }
 
 func TestServiceConvertToGRPCGenericRuntimePlugin(t *testing.T) {
@@ -102,10 +90,7 @@ func TestServiceConvertToGRPCGenericRuntimePlugin(t *testing.T) {
 	if !ok {
 		t.Fatal("expected type swarmapi.TaskSpec_Generic")
 	}
-
-	if v.Generic.Payload.TypeUrl != string(swarmtypes.RuntimeURLPlugin) {
-		t.Fatalf("expected url %s; received %s", swarmtypes.RuntimeURLPlugin, v.Generic.Payload.TypeUrl)
-	}
+	assert.Equal(t, v.Generic.Payload.TypeUrl, swarmtypes.RuntimeURLPlugin)
 }
 
 func TestServiceConvertToGRPCContainerRuntime(t *testing.T) {

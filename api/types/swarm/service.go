@@ -50,7 +50,7 @@ type ServiceMode struct {
 }
 
 // UpdateState is the state of a service update.
-type UpdateState string
+type UpdateState = string
 
 const (
 	// UpdateStateUpdating is the updating state.

@@ -411,7 +411,7 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 		return nil, err
 	}
 
-	if containertypes.LogMode(cfg.Config["mode"]) == containertypes.LogModeNonBlock {
+	if cfg.Config["mode"] == containertypes.LogModeNonBlock {
 		bufferSize := int64(-1)
 		if s, exists := cfg.Config["max-buffer-size"]; exists {
 			bufferSize, err = units.RAMInBytes(s)

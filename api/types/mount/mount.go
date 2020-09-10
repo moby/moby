@@ -5,7 +5,7 @@ import (
 )
 
 // Type represents the type of a mount.
-type Type string
+type Type = string
 
 // Type constants
 const (
@@ -36,7 +36,7 @@ type Mount struct {
 }
 
 // Propagation represents the propagation of a mount.
-type Propagation string
+type Propagation = string
 
 const (
 	// PropagationRPrivate RPRIVATE
@@ -64,7 +64,7 @@ var Propagations = []Propagation{
 }
 
 // Consistency represents the consistency requirements of a mount.
-type Consistency string
+type Consistency = string
 
 const (
 	// ConsistencyFull guarantees bind mount-like consistency

@@ -111,7 +111,7 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) (*types.ServiceSpec, error)
 		taskTemplate.Runtime = types.RuntimeContainer
 	case *swarmapi.TaskSpec_Generic:
 		switch t.Generic.Kind {
-		case string(types.RuntimePlugin):
+		case types.RuntimePlugin:
 			taskTemplate.Runtime = types.RuntimePlugin
 		default:
 			return nil, fmt.Errorf("unknown task runtime type: %s", t.Generic.Payload.TypeUrl)
@@ -216,9 +216,9 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 			}
 			spec.Task.Runtime = &swarmapi.TaskSpec_Generic{
 				Generic: &swarmapi.GenericRuntimeSpec{
-					Kind: string(types.RuntimePlugin),
+					Kind: types.RuntimePlugin,
 					Payload: &gogotypes.Any{
-						TypeUrl: string(types.RuntimeURLPlugin),
+						TypeUrl: types.RuntimeURLPlugin,
 						Value:   pluginSpec,
 					},
 				},
@@ -289,13 +289,13 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 
 		spec.Endpoint = &swarmapi.EndpointSpec{}
 
-		spec.Endpoint.Mode = swarmapi.EndpointSpec_ResolutionMode(swarmapi.EndpointSpec_ResolutionMode_value[strings.ToUpper(string(s.EndpointSpec.Mode))])
+		spec.Endpoint.Mode = swarmapi.EndpointSpec_ResolutionMode(swarmapi.EndpointSpec_ResolutionMode_value[strings.ToUpper(s.EndpointSpec.Mode)])
 
 		for _, portConfig := range s.EndpointSpec.Ports {
 			spec.Endpoint.Ports = append(spec.Endpoint.Ports, &swarmapi.PortConfig{
 				Name:          portConfig.Name,
-				Protocol:      swarmapi.PortConfig_Protocol(swarmapi.PortConfig_Protocol_value[strings.ToUpper(string(portConfig.Protocol))]),
-				PublishMode:   swarmapi.PortConfig_PublishMode(swarmapi.PortConfig_PublishMode_value[strings.ToUpper(string(portConfig.PublishMode))]),
+				Protocol:      swarmapi.PortConfig_Protocol(swarmapi.PortConfig_Protocol_value[strings.ToUpper(portConfig.Protocol)]),
+				PublishMode:   swarmapi.PortConfig_PublishMode(swarmapi.PortConfig_PublishMode_value[strings.ToUpper(portConfig.PublishMode)]),
 				TargetPort:    portConfig.TargetPort,
 				PublishedPort: portConfig.PublishedPort,
 			})
@@ -522,7 +522,7 @@ func restartPolicyToGRPC(p *types.RestartPolicy) (*swarmapi.RestartPolicy, error
 		case types.RestartPolicyConditionAny:
 			rp.Condition = swarmapi.RestartOnAny
 		default:
-			if string(p.Condition) != "" {
+			if p.Condition != "" {
 				return nil, fmt.Errorf("invalid RestartCondition: %q", p.Condition)
 			}
 			rp.Condition = swarmapi.RestartOnAny
@@ -696,7 +696,7 @@ func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) (types.TaskSpec, error) {
 		g := taskSpec.GetGeneric()
 		if g != nil {
 			switch g.Kind {
-			case string(types.RuntimePlugin):
+			case types.RuntimePlugin:
 				var p runtime.PluginSpec
 				if err := proto.Unmarshal(g.Payload.Value, &p); err != nil {
 					return t, errors.Wrap(err, "error unmarshalling plugin spec")

@@ -25,7 +25,7 @@ type NodeSpec struct {
 }
 
 // NodeRole represents the role of a node.
-type NodeRole string
+type NodeRole = string
 
 const (
 	// NodeRoleWorker WORKER
@@ -35,7 +35,7 @@ const (
 )
 
 // NodeAvailability represents the availability of a node.
-type NodeAvailability string
+type NodeAvailability = string
 
 const (
 	// NodeAvailabilityActive ACTIVE
@@ -82,7 +82,7 @@ type NodeStatus struct {
 }
 
 // Reachability represents the reachability of a node.
-type Reachability string
+type Reachability = string
 
 const (
 	// ReachabilityUnknown UNKNOWN
@@ -101,7 +101,7 @@ type ManagerStatus struct {
 }
 
 // NodeState represents the state of a node.
-type NodeState string
+type NodeState = string
 
 const (
 	// NodeStateUnknown UNKNOWN

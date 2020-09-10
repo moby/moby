@@ -18,7 +18,7 @@ type EndpointSpec struct {
 }
 
 // ResolutionMode represents a resolution mode.
-type ResolutionMode string
+type ResolutionMode = string
 
 const (
 	// ResolutionModeVIP VIP
@@ -41,7 +41,7 @@ type PortConfig struct {
 
 // PortConfigPublishMode represents the mode in which the port is to
 // be published.
-type PortConfigPublishMode string
+type PortConfigPublishMode = string
 
 const (
 	// PortConfigPublishModeIngress is used for ports published
@@ -53,7 +53,7 @@ const (
 )
 
 // PortConfigProtocol represents the protocol of a port.
-type PortConfigProtocol string
+type PortConfigProtocol = string
 
 const (
 	// TODO(stevvooe): These should be used generally, not just for PortConfig.

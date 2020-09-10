@@ -14,11 +14,11 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 	node := types.Node{
 		ID: n.ID,
 		Spec: types.NodeSpec{
-			Role:         types.NodeRole(strings.ToLower(n.Spec.DesiredRole.String())),
-			Availability: types.NodeAvailability(strings.ToLower(n.Spec.Availability.String())),
+			Role:         strings.ToLower(n.Spec.DesiredRole.String()),
+			Availability: strings.ToLower(n.Spec.Availability.String()),
 		},
 		Status: types.NodeStatus{
-			State:   types.NodeState(strings.ToLower(n.Status.State.String())),
+			State:   strings.ToLower(n.Status.State.String()),
 			Message: n.Status.Message,
 			Addr:    n.Status.Addr,
 		},
@@ -62,7 +62,7 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 	if n.ManagerStatus != nil {
 		node.ManagerStatus = &types.ManagerStatus{
 			Leader:       n.ManagerStatus.Leader,
-			Reachability: types.Reachability(strings.ToLower(n.ManagerStatus.Reachability.String())),
+			Reachability: strings.ToLower(n.ManagerStatus.Reachability.String()),
 			Addr:         n.ManagerStatus.Addr,
 		}
 	}
@@ -78,13 +78,13 @@ func NodeSpecToGRPC(s types.NodeSpec) (swarmapi.NodeSpec, error) {
 			Labels: s.Labels,
 		},
 	}
-	if role, ok := swarmapi.NodeRole_value[strings.ToUpper(string(s.Role))]; ok {
+	if role, ok := swarmapi.NodeRole_value[strings.ToUpper(s.Role)]; ok {
 		spec.DesiredRole = swarmapi.NodeRole(role)
 	} else {
 		return swarmapi.NodeSpec{}, fmt.Errorf("invalid Role: %q", s.Role)
 	}
 
-	if availability, ok := swarmapi.NodeSpec_Availability_value[strings.ToUpper(string(s.Availability))]; ok {
+	if availability, ok := swarmapi.NodeSpec_Availability_value[strings.ToUpper(s.Availability)]; ok {
 		spec.Availability = swarmapi.NodeSpec_Availability(availability)
 	} else {
 		return swarmapi.NodeSpec{}, fmt.Errorf("invalid Availability: %q", s.Availability)

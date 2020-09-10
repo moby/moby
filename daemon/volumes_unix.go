@@ -57,7 +57,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 				Source:      path,
 				Destination: m.Destination,
 				Writable:    m.RW,
-				Propagation: string(m.Propagation),
+				Propagation: m.Propagation,
 			}
 			if m.Spec.Type == mounttypes.TypeBind && m.Spec.BindOptions != nil {
 				mnt.NonRecursive = m.Spec.BindOptions.NonRecursive
@@ -68,7 +68,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 					"container":   c.ID,
 					"destination": m.Destination,
 					"read/write":  strconv.FormatBool(m.RW),
-					"propagation": string(m.Propagation),
+					"propagation": m.Propagation,
 				}
 				daemon.LogVolumeEvent(m.Volume.Name(), "mount", attributes)
 			}

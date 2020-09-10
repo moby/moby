@@ -589,7 +589,7 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			if m.Source == "tmpfs" {
 				data := m.Data
 				parser := volumemounts.NewParser("linux")
-				options := []string{"noexec", "nosuid", "nodev", string(parser.DefaultPropagationMode())}
+				options := []string{"noexec", "nosuid", "nodev", parser.DefaultPropagationMode()}
 				if data != "" {
 					options = append(options, strings.Split(data, ",")...)
 				}

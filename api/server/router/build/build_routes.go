@@ -163,7 +163,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 }
 
 func parseVersion(s string) (types.BuilderVersion, error) {
-	switch types.BuilderVersion(s) {
+	switch s {
 	case types.BuilderV1:
 		return types.BuilderV1, nil
 	case types.BuilderBuildKit:

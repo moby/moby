@@ -127,7 +127,7 @@ type CAConfig struct {
 }
 
 // ExternalCAProtocol represents type of external CA.
-type ExternalCAProtocol string
+type ExternalCAProtocol = string
 
 // ExternalCAProtocolCFSSL CFSSL
 const ExternalCAProtocolCFSSL ExternalCAProtocol = "cfssl"
@@ -180,7 +180,7 @@ type UnlockRequest struct {
 }
 
 // LocalNodeState represents the state of the local node.
-type LocalNodeState string
+type LocalNodeState = string
 
 const (
 	// LocalNodeStateInactive INACTIVE
