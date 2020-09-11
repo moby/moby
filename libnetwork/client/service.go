@@ -9,7 +9,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/stringid"
 	flag "github.com/docker/libnetwork/client/mflag"
 	"github.com/docker/libnetwork/netutils"
@@ -164,7 +163,7 @@ func parseServiceName(name string) (string, string) {
 // CmdServicePublish handles service create UI
 func (cli *NetworkCli) CmdServicePublish(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "publish", "SERVICE[.NETWORK]", "Publish a new service on a network", false)
-	flAlias := opts.NewListOpts(netutils.ValidateAlias)
+	flAlias := flag.NewListOpts(netutils.ValidateAlias)
 	cmd.Var(&flAlias, []string{"-alias"}, "Add alias to self")
 	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
@@ -326,7 +325,7 @@ func (cli *NetworkCli) CmdServiceInfo(chain string, args ...string) error {
 // CmdServiceAttach handles service attach UI
 func (cli *NetworkCli) CmdServiceAttach(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "attach", "CONTAINER SERVICE[.NETWORK]", "Sets a container as a service backend", false)
-	flAlias := opts.NewListOpts(netutils.ValidateAlias)
+	flAlias := flag.NewListOpts(netutils.ValidateAlias)
 	cmd.Var(&flAlias, []string{"-alias"}, "Add alias for another container")
 	cmd.Require(flag.Min, 2)
 	err := cmd.ParseFlags(args, true)

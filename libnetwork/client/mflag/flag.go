@@ -1278,3 +1278,44 @@ func Merge(dest *FlagSet, flagsets ...*FlagSet) error {
 func (fs *FlagSet) IsEmpty() bool {
 	return len(fs.actual) == 0
 }
+
+// ListOpts holds a list of values and a validation function.
+type ListOpts struct {
+	values    *[]string
+	validator func(val string) (string, error)
+}
+
+// NewListOpts creates a new ListOpts with the specified validator.
+func NewListOpts(validator func(val string) (string, error)) ListOpts {
+	var values []string
+	return ListOpts{
+		values:    &values,
+		validator: validator,
+	}
+}
+
+func (opts *ListOpts) String() string {
+	if len(*opts.values) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%v", *opts.values)
+}
+
+// Set validates if needed the input value and adds it to the
+// internal slice.
+func (opts *ListOpts) Set(value string) error {
+	if opts.validator != nil {
+		v, err := opts.validator(value)
+		if err != nil {
+			return err
+		}
+		value = v
+	}
+	*opts.values = append(*opts.values, value)
+	return nil
+}
+
+// GetAll returns the values of slice.
+func (opts *ListOpts) GetAll() []string {
+	return *opts.values
+}
