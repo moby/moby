@@ -59,6 +59,7 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.Int64Var(&conf.CPURealtimePeriod, "cpu-rt-period", 0, "Limit the CPU real-time period in microseconds for the parent cgroup for all containers")
 	flags.Int64Var(&conf.CPURealtimeRuntime, "cpu-rt-runtime", 0, "Limit the CPU real-time runtime in microseconds for the parent cgroup for all containers")
 	flags.StringVar(&conf.SeccompProfile, "seccomp-profile", "", "Path to seccomp profile")
+	flags.StringVar(&conf.AppArmorProfile, "apparmor-profile", "", "Path to apparmor profile")
 	flags.Var(&conf.ShmSize, "default-shm-size", "Default shm size for containers")
 	flags.BoolVar(&conf.NoNewPrivileges, "no-new-privileges", false, "Set no-new-privileges by default for new containers")
 	flags.StringVar(&conf.IpcMode, "default-ipc-mode", config.DefaultIpcMode, `Default mode for containers ipc ("shareable" | "private")`)

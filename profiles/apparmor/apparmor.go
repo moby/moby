@@ -14,6 +14,8 @@ import (
 	"github.com/docker/docker/pkg/aaparser"
 )
 
+//go:generate go run generate.go
+
 var (
 	// profileDirectory is the file store for apparmor profiles and macros.
 	profileDirectory = "/etc/apparmor.d"
@@ -33,46 +35,16 @@ type profileData struct {
 	Version int
 }
 
-// generateDefault creates an apparmor profile from ProfileData.
-func (p *profileData) generateDefault(out io.Writer) error {
-	compiled, err := template.New("apparmor_profile").Parse(baseTemplate)
-	if err != nil {
-		return err
-	}
-
-	if macroExists("tunables/global") {
-		p.Imports = append(p.Imports, "#include <tunables/global>")
-	} else {
-		p.Imports = append(p.Imports, "@{PROC}=/proc/")
-	}
-
-	if macroExists("abstractions/base") {
-		p.InnerImports = append(p.InnerImports, "#include <abstractions/base>")
-	}
-
-	ver, err := aaparser.GetVersion()
-	if err != nil {
-		return err
-	}
-	p.Version = ver
-
-	return compiled.Execute(out, p)
-}
-
 // macrosExists checks if the passed macro exists.
 func macroExists(m string) bool {
 	_, err := os.Stat(path.Join(profileDirectory, m))
 	return err == nil
 }
 
-// InstallDefault generates a default profile in a temp directory determined by
-// os.TempDir(), then loads the profile into the kernel using 'apparmor_parser'.
-func InstallDefault(name string) error {
-	p := profileData{
-		Name: name,
-	}
-
-	// Figure out the daemon profile.
+// execute evaluates the given profile using the provided profileData, filling
+// in any fields with auto-detected data.
+func (p *profileData) execute(tmpl *template.Template, out io.Writer) error {
+	// Figure out the daemon profile name.
 	currentProfile, err := ioutil.ReadFile("/proc/self/attr/current")
 	if err != nil {
 		// If we couldn't get the daemon profile, assume we are running
@@ -91,6 +63,35 @@ func InstallDefault(name string) error {
 	}
 	p.DaemonProfile = daemonProfile
 
+	// Fill the imports with the correct system defaults.
+	if macroExists("tunables/global") {
+		p.Imports = append(p.Imports, "#include <tunables/global>")
+	} else {
+		p.Imports = append(p.Imports, "@{PROC}=/proc/")
+	}
+	if macroExists("abstractions/base") {
+		p.InnerImports = append(p.InnerImports, "#include <abstractions/base>")
+	}
+
+	// Fill the apparmor_parser version.
+	ver, err := aaparser.GetVersion()
+	if err != nil {
+		return err
+	}
+	p.Version = ver
+
+	return tmpl.Execute(out, p)
+}
+
+// InstallCustom installs a custom apparmor profile with the given name. The
+// final profile is not saved to disk, because writing profiles to
+// /etc/apparmor.d/ can lead to containers becoming unconfined on host package
+// upgrades.
+func InstallCustom(tmpl *template.Template, name string) error {
+	p := profileData{
+		Name: name,
+	}
+
 	// Install to a temporary directory.
 	f, err := ioutil.TempFile("", name)
 	if err != nil {
@@ -101,11 +102,21 @@ func InstallDefault(name string) error {
 	defer f.Close()
 	defer os.Remove(profilePath)
 
-	if err := p.generateDefault(f); err != nil {
+	if err := p.execute(tmpl, f); err != nil {
 		return err
 	}
 
 	return aaparser.LoadProfile(profilePath)
+}
+
+// InstallDefault is a wrapper around InstallCustom which uses the built-in
+// default AppArmor profile.
+func InstallDefault(name string) error {
+	defaultTemplate, err := template.New("apparmor_profile").Parse(baseTemplate)
+	if err != nil {
+		return err
+	}
+	return InstallCustom(defaultTemplate, name)
 }
 
 // IsLoaded checks if a profile with the given name has been loaded into the

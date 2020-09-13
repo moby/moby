@@ -14,6 +14,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/containerd/cgroups"
@@ -1700,6 +1701,25 @@ func (daemon *Daemon) setupSeccompProfile() error {
 			return fmt.Errorf("opening seccomp profile (%s) failed: %v", daemon.configStore.SeccompProfile, err)
 		}
 		daemon.seccompProfile = b
+	}
+	return nil
+}
+
+func (daemon *Daemon) setupAppArmorProfile() error {
+	if daemon.configStore.AppArmorProfile != "" {
+		daemon.appArmorProfilePath = daemon.configStore.AppArmorProfile
+		b, err := ioutil.ReadFile(daemon.appArmorProfilePath)
+		if err != nil {
+			return fmt.Errorf("opening AppArmor profile (%s) failed: %v", daemon.appArmorProfilePath, err)
+		}
+		tmpl, err := template.New("apparmor_profile").Option("missingkey=error").Parse(string(b))
+		if err != nil {
+			return fmt.Errorf("parsing AppArmor profile (%s) failed: %v", daemon.appArmorProfilePath, err)
+		}
+		daemon.appArmorProfile = tmpl
+	}
+	if err := daemon.installDefaultAppArmorProfile(); err != nil {
+		return fmt.Errorf("loading default AppArmor profile failed: %v", err)
 	}
 	return nil
 }

@@ -34,6 +34,7 @@ type Config struct {
 	Init                 bool                     `json:"init,omitempty"`
 	InitPath             string                   `json:"init-path,omitempty"`
 	SeccompProfile       string                   `json:"seccomp-profile,omitempty"`
+	AppArmorProfile      string                   `json:"apparmor-profile,omitempty"`
 	ShmSize              opts.MemBytes            `json:"default-shm-size,omitempty"`
 	NoNewPrivileges      bool                     `json:"no-new-privileges,omitempty"`
 	IpcMode              string                   `json:"default-ipc-mode,omitempty"`

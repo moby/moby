@@ -5,6 +5,7 @@
 export SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 . "${SCRIPTDIR}"/dco
+. "${SCRIPTDIR}"/default-apparmor
 . "${SCRIPTDIR}"/default-seccomp
 . "${SCRIPTDIR}"/pkg-imports
 . "${SCRIPTDIR}"/swagger

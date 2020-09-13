@@ -10,7 +10,7 @@ import (
 func (daemon *Daemon) saveAppArmorConfig(container *container.Container) error {
 	container.AppArmorProfile = "" // we don't care about the previous value.
 
-	if !daemon.apparmorEnabled {
+	if !daemon.appArmorEnabled {
 		return nil // if apparmor is disabled there is nothing to do here.
 	}
 

@@ -1,15 +1,4 @@
-// +build linux
 
-package apparmor // import "github.com/docker/docker/profiles/apparmor"
-
-// NOTE: This profile is replicated in containerd and libpod. If you make a
-//       change to this profile, please make follow-up PRs to those projects so
-//       that these rules can be synchronised (because any issue with this
-//       profile will likely affect libpod and containerd).
-// TODO: Move this to a common project so we can maintain it in one spot.
-
-// baseTemplate defines the default apparmor profile for containers.
-const baseTemplate = `
 # NOTE: This profile is a Go template, which is necessary for the container
 #       runtime to be able to effectively handle different distributions. If
 #       you plan to modify and this template, be aware that some of these
@@ -89,11 +78,4 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   # suppress ptrace denials when using 'docker ps' or using 'ps' inside a container
   ptrace (trace,read,tracedby,readby) peer={{.Name}},
 {{end}}
-}
-`
-
-// BaseTemplate returns the string form of the default AppArmor profile
-// template.
-func BaseTemplate() string {
-	return baseTemplate
 }

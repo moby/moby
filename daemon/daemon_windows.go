@@ -647,6 +647,10 @@ func (daemon *Daemon) setupSeccompProfile() error {
 	return nil
 }
 
+func (daemon *Daemon) setupAppArmorProfile() error {
+	return nil
+}
+
 func (daemon *Daemon) loadRuntimes() error {
 	return nil
 }
