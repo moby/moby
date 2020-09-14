@@ -1,3 +1,5 @@
+// +build freebsd netbsd
+
 package system // import "github.com/docker/docker/pkg/system"
 
 import "syscall"
