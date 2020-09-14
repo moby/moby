@@ -395,12 +395,12 @@ func testGraphDriverPull(c client.APIClient, d *daemon.Daemon) func(*testing.T) 
 		defer d.Stop(t)
 		ctx := context.Background()
 
-		r, err := c.ImagePull(ctx, "busybox:latest@sha256:bbc3a03235220b170ba48a157dd097dd1379299370e1ed99ce976df0355d24f0", types.ImagePullOptions{})
+		r, err := c.ImagePull(ctx, "busybox:latest@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209", types.ImagePullOptions{})
 		assert.NilError(t, err)
 		_, err = io.Copy(ioutil.Discard, r)
 		assert.NilError(t, err)
 
-		container.Run(ctx, t, c, container.WithImage("busybox:latest@sha256:bbc3a03235220b170ba48a157dd097dd1379299370e1ed99ce976df0355d24f0"))
+		container.Run(ctx, t, c, container.WithImage("busybox:latest@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209"))
 	}
 }
 
