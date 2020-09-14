@@ -2,7 +2,6 @@ package listeners // import "github.com/docker/docker/daemon/listeners"
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net"
 	"os"
 	"strconv"
@@ -10,6 +9,7 @@ import (
 	"github.com/coreos/go-systemd/v22/activation"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/go-connections/sockets"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -44,7 +44,7 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) ([]net.Listene
 		}
 		l, err := sockets.NewUnixSocket(addr, gid)
 		if err != nil {
-			return nil, fmt.Errorf("can't create unix socket %s: %v", addr, err)
+			return nil, errors.Wrapf(err, "can't create unix socket %s", addr)
 		}
 		if _, err := homedir.StickRuntimeDirContents([]string{addr}); err != nil {
 			// StickRuntimeDirContents returns nil error if XDG_RUNTIME_DIR is just unset
@@ -52,7 +52,7 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) ([]net.Listene
 		}
 		ls = append(ls, l)
 	default:
-		return nil, fmt.Errorf("invalid protocol format: %q", proto)
+		return nil, errors.Errorf("invalid protocol format: %q", proto)
 	}
 
 	return ls, nil
@@ -76,7 +76,7 @@ func listenFD(addr string, tlsConfig *tls.Config) ([]net.Listener, error) {
 	}
 
 	if len(listeners) == 0 {
-		return nil, fmt.Errorf("no sockets found via socket activation: make sure the service was started by systemd")
+		return nil, errors.New("no sockets found via socket activation: make sure the service was started by systemd")
 	}
 
 	// default to all fds just like unix:// and tcp://
@@ -86,21 +86,21 @@ func listenFD(addr string, tlsConfig *tls.Config) ([]net.Listener, error) {
 
 	fdNum, err := strconv.Atoi(addr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse systemd fd address: should be a number: %v", addr)
+		return nil, errors.Errorf("failed to parse systemd fd address: should be a number: %v", addr)
 	}
 	fdOffset := fdNum - 3
 	if len(listeners) < fdOffset+1 {
-		return nil, fmt.Errorf("too few socket activated files passed in by systemd")
+		return nil, errors.New("too few socket activated files passed in by systemd")
 	}
 	if listeners[fdOffset] == nil {
-		return nil, fmt.Errorf("failed to listen on systemd activated file: fd %d", fdOffset+3)
+		return nil, errors.Errorf("failed to listen on systemd activated file: fd %d", fdOffset+3)
 	}
 	for i, ls := range listeners {
 		if i == fdOffset || ls == nil {
 			continue
 		}
 		if err := ls.Close(); err != nil {
-			return nil, fmt.Errorf("failed to close systemd activated file: fd %d: %v", fdOffset+3, err)
+			return nil, errors.Wrapf(err, "failed to close systemd activated file: fd %d", fdOffset+3)
 		}
 	}
 	return []net.Listener{listeners[fdOffset]}, nil
