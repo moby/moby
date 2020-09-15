@@ -18,7 +18,7 @@ pipeline {
         booleanParam(name: 'ppc64le', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
         booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
         booleanParam(name: 'windowsRS5', defaultValue: true, description: 'Windows 2019 (RS5) Build/Test')
-        booleanParam(name: 'windows1903', defaultValue: true, description: 'Windows 1903 (SAC) Build/Test')
+        booleanParam(name: 'windows2022', defaultValue: true, description: 'Windows 2022 (SAC) Build/Test')
         booleanParam(name: 'dco', defaultValue: true, description: 'Run the DCO check')
     }
     environment {
@@ -1170,10 +1170,10 @@ pipeline {
                         }
                     }
                 }
-                stage('windows-1903') {
+                stage('win-2022') {
                     when {
                         beforeAgent true
-                        expression { params.windows1903 }
+                        expression { params.windows2022 }
                     }
                     environment {
                         DOCKER_BUILDKIT        = '0'
@@ -1184,12 +1184,12 @@ pipeline {
                         TESTRUN_DRIVE          = 'd'
                         TESTRUN_SUBDIR         = "CI"
                         WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
-                        WINDOWS_BASE_IMAGE_TAG = '1903'
+                        WINDOWS_BASE_IMAGE_TAG = '2022'
                     }
                     agent {
                         node {
                             customWorkspace 'd:\\gopath\\src\\github.com\\docker\\docker'
-                            label 'windows-1903'
+                            label 'windows-2022'
                         }
                     }
                     stages {
@@ -1216,7 +1216,7 @@ pipeline {
                             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.zip') {
                                 powershell '''
                                 cd $env:WORKSPACE
-                                $bundleName="windows-1903-integration"
+                                $bundleName="win-2022-integration"
                                 Write-Host -ForegroundColor Green "Creating ${bundleName}-bundles.zip"
 
                                 # archiveArtifacts does not support env-vars to , so save the artifacts in a fixed location
