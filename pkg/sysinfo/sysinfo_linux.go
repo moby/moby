@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/sirupsen/logrus"
@@ -277,16 +278,24 @@ func applyCgroupNsInfo(info *SysInfo, _ map[string]string) []string {
 	return warnings
 }
 
+var (
+	seccompOnce    sync.Once
+	seccompEnabled bool
+)
+
 // applySeccompInfo checks if Seccomp is supported, via CONFIG_SECCOMP.
 func applySeccompInfo(info *SysInfo, _ map[string]string) []string {
 	var warnings []string
-	// Check if Seccomp is supported, via CONFIG_SECCOMP.
-	if err := unix.Prctl(unix.PR_GET_SECCOMP, 0, 0, 0, 0); err != unix.EINVAL {
-		// Make sure the kernel has CONFIG_SECCOMP_FILTER.
-		if err := unix.Prctl(unix.PR_SET_SECCOMP, unix.SECCOMP_MODE_FILTER, 0, 0, 0); err != unix.EINVAL {
-			info.Seccomp = true
+	seccompOnce.Do(func() {
+		// Check if Seccomp is supported, via CONFIG_SECCOMP.
+		if err := unix.Prctl(unix.PR_GET_SECCOMP, 0, 0, 0, 0); err != unix.EINVAL {
+			// Make sure the kernel has CONFIG_SECCOMP_FILTER.
+			if err := unix.Prctl(unix.PR_SET_SECCOMP, unix.SECCOMP_MODE_FILTER, 0, 0, 0); err != unix.EINVAL {
+				seccompEnabled = true
+			}
 		}
-	}
+	})
+	info.Seccomp = seccompEnabled
 	return warnings
 }
 
