@@ -40,7 +40,6 @@ func TestNetworkNat(t *testing.T) {
 }
 
 func TestNetworkLocalhostTCPNat(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	skip.If(t, testEnv.IsRemoteDaemon)
 
 	defer setupTest(t)()

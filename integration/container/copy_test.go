@@ -22,7 +22,6 @@ import (
 
 func TestCopyFromContainerPathDoesNotExist(t *testing.T) {
 	defer setupTest(t)()
-	skip.If(t, testEnv.OSType == "windows")
 
 	ctx := context.Background()
 	apiclient := testEnv.APIClient()
@@ -48,7 +47,6 @@ func TestCopyFromContainerPathIsNotDir(t *testing.T) {
 
 func TestCopyToContainerPathDoesNotExist(t *testing.T) {
 	defer setupTest(t)()
-	skip.If(t, testEnv.OSType == "windows")
 
 	ctx := context.Background()
 	apiclient := testEnv.APIClient()

@@ -85,7 +85,6 @@ func TestExecWithCloseStdin(t *testing.T) {
 
 func TestExec(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.35"), "broken in earlier versions")
-	skip.If(t, testEnv.OSType == "windows", "FIXME. Probably needs to wait for container to be in running state.")
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := testEnv.APIClient()
@@ -118,7 +117,11 @@ func TestExec(t *testing.T) {
 	assert.NilError(t, err)
 	out := string(r)
 	assert.NilError(t, err)
-	assert.Assert(t, is.Contains(out, "PWD=/tmp"), "exec command not running in expected /tmp working directory")
+	expected := "PWD=/tmp"
+	if testEnv.OSType == "windows" {
+		expected = "PWD=C:/tmp"
+	}
+	assert.Assert(t, is.Contains(out, expected), "exec command not running in expected /tmp working directory")
 	assert.Assert(t, is.Contains(out, "FOO=BAR"), "exec command not running with expected environment variable FOO")
 }
 
