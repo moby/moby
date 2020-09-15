@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -67,22 +68,24 @@ func WithStart(binary, address, daemonAddress, cgroup string, debug bool, exitHa
 		}
 		defer f.Close()
 
-		var stdoutLog io.ReadWriteCloser
-		var stderrLog io.ReadWriteCloser
-		if debug {
-			stdoutLog, err = v1.OpenShimStdoutLog(ctx, config.WorkDir)
-			if err != nil {
-				return nil, nil, errors.Wrapf(err, "failed to create stdout log")
-			}
-
-			stderrLog, err = v1.OpenShimStderrLog(ctx, config.WorkDir)
-			if err != nil {
-				return nil, nil, errors.Wrapf(err, "failed to create stderr log")
-			}
-
-			go io.Copy(os.Stdout, stdoutLog)
-			go io.Copy(os.Stderr, stderrLog)
+		stdoutCopy := ioutil.Discard
+		stderrCopy := ioutil.Discard
+		stdoutLog, err := v1.OpenShimStdoutLog(ctx, config.WorkDir)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "failed to create stdout log")
 		}
+
+		stderrLog, err := v1.OpenShimStderrLog(ctx, config.WorkDir)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "failed to create stderr log")
+		}
+		if debug {
+			stdoutCopy = os.Stdout
+			stderrCopy = os.Stderr
+		}
+
+		go io.Copy(stdoutCopy, stdoutLog)
+		go io.Copy(stderrCopy, stderrLog)
 
 		cmd, err := newCommand(binary, daemonAddress, debug, config, f, stdoutLog, stderrLog)
 		if err != nil {
