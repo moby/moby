@@ -3633,7 +3633,7 @@ definitions:
         example: 4
       MemTotal:
         description: |
-          Total amount of physical memory available on the host, in kilobytes (kB).
+          Total amount of physical memory available on the host, in bytes.
         type: "integer"
         format: "int64"
         example: 2095882240
