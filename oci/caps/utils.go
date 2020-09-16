@@ -8,18 +8,24 @@ import (
 	"github.com/syndtr/gocapability/capability"
 )
 
-var capabilityList Capabilities
+var (
+	allCaps        []string
+	capabilityList Capabilities
+)
 
 func init() {
 	last := capability.CAP_LAST_CAP
 	rawCaps := capability.List()
+	allCaps = make([]string, min(int(last+1), len(rawCaps)))
 	capabilityList = make(Capabilities, min(int(last+1), len(rawCaps)))
 	for i, c := range rawCaps {
 		if c > last {
 			continue
 		}
+		capName := "CAP_" + strings.ToUpper(c.String())
+		allCaps[i] = capName
 		capabilityList[i] = &CapabilityMapping{
-			Key:   "CAP_" + strings.ToUpper(c.String()),
+			Key:   capName,
 			Value: c,
 		}
 	}
@@ -52,11 +58,7 @@ func (c *CapabilityMapping) String() string {
 
 // GetAllCapabilities returns all of the capabilities
 func GetAllCapabilities() []string {
-	output := make([]string, len(capabilityList))
-	for i, c := range capabilityList {
-		output[i] = c.String()
-	}
-	return output
+	return allCaps
 }
 
 // inSlice tests whether a string is contained in a slice of strings or not.
@@ -78,7 +80,6 @@ const allCapabilities = "ALL"
 func NormalizeLegacyCapabilities(caps []string) ([]string, error) {
 	var normalized []string
 
-	valids := GetAllCapabilities()
 	for _, c := range caps {
 		c = strings.ToUpper(c)
 		if c == allCapabilities {
@@ -88,7 +89,7 @@ func NormalizeLegacyCapabilities(caps []string) ([]string, error) {
 		if !strings.HasPrefix(c, "CAP_") {
 			c = "CAP_" + c
 		}
-		if !inSlice(valids, c) {
+		if !inSlice(allCaps, c) {
 			return nil, errdefs.InvalidParameter(fmt.Errorf("unknown capability: %q", c))
 		}
 		normalized = append(normalized, c)
