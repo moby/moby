@@ -12,17 +12,24 @@ var capabilityList Capabilities
 
 func init() {
 	last := capability.CAP_LAST_CAP
-	for _, c := range capability.List() {
+	rawCaps := capability.List()
+	capabilityList = make(Capabilities, min(int(last+1), len(rawCaps)))
+	for i, c := range rawCaps {
 		if c > last {
 			continue
 		}
-		capabilityList = append(capabilityList,
-			&CapabilityMapping{
-				Key:   "CAP_" + strings.ToUpper(c.String()),
-				Value: c,
-			},
-		)
+		capabilityList[i] = &CapabilityMapping{
+			Key:   "CAP_" + strings.ToUpper(c.String()),
+			Value: c,
+		}
 	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 type (
