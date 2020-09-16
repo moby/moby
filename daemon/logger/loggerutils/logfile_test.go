@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/pubsub"
 	"github.com/docker/docker/pkg/tailfile"
 	"gotest.tools/assert"
+	"gotest.tools/poll"
 )
 
 func TestTailFiles(t *testing.T) {
@@ -225,21 +227,15 @@ func TestCheckCapacityAndRotate(t *testing.T) {
 	defer l.Close()
 
 	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
-
-	dStringer := dirStringer{dir}
-
 	_, err = os.Stat(f.Name() + ".1")
-	assert.Assert(t, os.IsNotExist(err), dStringer)
+	assert.Assert(t, os.IsNotExist(err), dirStringer{dir})
 
 	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
-	_, err = os.Stat(f.Name() + ".1")
-	assert.NilError(t, err, dStringer)
+	poll.WaitOn(t, checkFileExists(f.Name()+".1.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
 
 	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
-	_, err = os.Stat(f.Name() + ".1")
-	assert.NilError(t, err, dStringer)
-	_, err = os.Stat(f.Name() + ".2.gz")
-	assert.NilError(t, err, dStringer)
+	poll.WaitOn(t, checkFileExists(f.Name()+".1.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
+	poll.WaitOn(t, checkFileExists(f.Name()+".2.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
 
 	// Now let's simulate a failed rotation where the file was able to be closed but something else happened elsewhere
 	// down the line.
@@ -264,4 +260,19 @@ func (d dirStringer) String() string {
 		s.WriteString(fi.Name() + "\n")
 	}
 	return s.String()
+}
+
+func checkFileExists(name string) poll.Check {
+	return func(t poll.LogT) poll.Result {
+		_, err := os.Stat(name)
+		switch {
+		case err == nil:
+			return poll.Success()
+		case os.IsNotExist(err):
+			return poll.Continue("waiting for %s to exist", name)
+		default:
+			t.Logf("%s", dirStringer{filepath.Dir(name)})
+			return poll.Error(err)
+		}
+	}
 }
