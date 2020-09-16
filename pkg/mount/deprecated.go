@@ -69,5 +69,5 @@ var (
 	PrefixFilter      = mountinfo.PrefixFilter
 	SingleEntryFilter = mountinfo.SingleEntryFilter
 	ParentsFilter     = mountinfo.ParentsFilter
-	FstypeFilter      = mountinfo.FstypeFilter
+	FstypeFilter      = mountinfo.FSTypeFilter
 )

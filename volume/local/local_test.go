@@ -221,17 +221,17 @@ func TestCreateWithOpts(t *testing.T) {
 
 	info := mountInfos[0]
 	t.Logf("%+v", info)
-	if info.Fstype != "tmpfs" {
-		t.Fatalf("expected tmpfs mount, got %q", info.Fstype)
+	if info.FSType != "tmpfs" {
+		t.Fatalf("expected tmpfs mount, got %q", info.FSType)
 	}
 	if info.Source != "tmpfs" {
 		t.Fatalf("expected tmpfs mount, got %q", info.Source)
 	}
-	if !strings.Contains(info.VfsOpts, "uid=1000") {
-		t.Fatalf("expected mount info to have uid=1000: %q", info.VfsOpts)
+	if !strings.Contains(info.VFSOptions, "uid=1000") {
+		t.Fatalf("expected mount info to have uid=1000: %q", info.VFSOptions)
 	}
-	if !strings.Contains(info.VfsOpts, "size=1024k") {
-		t.Fatalf("expected mount info to have size=1024k: %q", info.VfsOpts)
+	if !strings.Contains(info.VFSOptions, "size=1024k") {
+		t.Fatalf("expected mount info to have size=1024k: %q", info.VFSOptions)
 	}
 
 	if v.active.count != 1 {

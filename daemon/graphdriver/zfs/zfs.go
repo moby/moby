@@ -159,7 +159,7 @@ func lookupZfsDataset(rootdir string) (string, error) {
 			continue // may fail on fuse file systems
 		}
 
-		if stat.Dev == wantedDev && m.Fstype == "zfs" {
+		if stat.Dev == wantedDev && m.FSType == "zfs" {
 			return m.Source, nil
 		}
 	}
