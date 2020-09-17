@@ -1038,6 +1038,7 @@ Finally {
 
     # Save the daemon under test log
     if ($daemonStarted -eq 1) {
+        Set-Location "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker"
         Write-Host -ForegroundColor Green "INFO: Saving daemon under test log ($env:TEMP\dut.out) to bundles\CIDUT.out"
         Copy-Item  "$env:TEMP\dut.out" "bundles\CIDUT.out" -Force -ErrorAction SilentlyContinue
         Write-Host -ForegroundColor Green "INFO: Saving daemon under test log ($env:TEMP\dut.err) to bundles\CIDUT.err"
