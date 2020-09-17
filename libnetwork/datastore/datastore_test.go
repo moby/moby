@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/libnetwork/options"
 	_ "github.com/docker/libnetwork/testutils"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 var dummyKey = "dummy"

@@ -203,8 +203,8 @@ type ExponentialBackoffConfig struct {
 // ExponentialBackoff implements random backoff with exponentially increasing
 // bounds as the number consecutive failures increase.
 type ExponentialBackoff struct {
+	failures uint64 // consecutive failure counter (needs to be 64-bit aligned)
 	config   ExponentialBackoffConfig
-	failures uint64 // consecutive failure counter.
 }
 
 // NewExponentialBackoff returns an exponential backoff strategy with the

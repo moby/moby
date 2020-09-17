@@ -61,7 +61,7 @@ func Trap(cleanup func(), logger interface {
 					DumpStacks("")
 					logger.Info("Forcing docker daemon shutdown without cleanup on SIGQUIT")
 				}
-				//for the SIGINT/TERM, and SIGQUIT non-clean shutdown case, exit with 128 + signal #
+				// for the SIGINT/TERM, and SIGQUIT non-clean shutdown case, exit with 128 + signal #
 				os.Exit(128 + int(sig.(syscall.Signal)))
 			}(sig)
 		}

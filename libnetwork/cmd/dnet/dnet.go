@@ -11,20 +11,18 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/docker/docker/opts"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/urfave/cli"
-
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/api"
 	"github.com/docker/libnetwork/cluster"
@@ -36,7 +34,9 @@ import (
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
 	"github.com/gorilla/mux"
+	"github.com/moby/term"
 	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli"
 )
 
 const (
@@ -416,7 +416,7 @@ func startTestDriver() error {
 }
 
 func newDnetConnection(val string) (*dnetConnection, error) {
-	url, err := opts.ParseHost(false, false, val)
+	url, err := parseHost(val)
 	if err != nil {
 		return nil, err
 	}
@@ -429,6 +429,75 @@ func newDnetConnection(val string) (*dnetConnection, error) {
 	}
 
 	return &dnetConnection{protoAddrParts[0], protoAddrParts[1], &NetworkOrchestration{}, make(chan cluster.ConfigEventType, 10)}, nil
+}
+
+const (
+	defaultUnixSocket = "unix:///var/run/docker.sock"
+	defaultTCPHost    = "tcp://localhost:2375"
+)
+
+// parseHost and set defaults for a Daemon host string.
+func parseHost(val string) (string, error) {
+	host := strings.TrimSpace(val)
+	if host == "" {
+		return defaultUnixSocket, nil
+	}
+
+	addrParts := strings.SplitN(host, "://", 2)
+	if len(addrParts) == 1 && addrParts[0] != "" {
+		addrParts = []string{"tcp", addrParts[0]}
+	}
+	if addrParts[0] != "tcp" {
+		return "", errors.New("dnet currently only supports tcp transport")
+	}
+
+	return parseTCPAddr(addrParts[1], defaultTCPHost)
+}
+
+// parseTCPAddr parses and validates that the specified address is a valid TCP
+// address. It returns a formatted TCP address, either using the address parsed
+// from tryAddr, or the contents of defaultAddr if tryAddr is a blank string.
+// tryAddr is expected to have already been Trim()'d
+// defaultAddr must be in the full `tcp://host:port` form
+func parseTCPAddr(tryAddr string, defaultAddr string) (string, error) {
+	if tryAddr == "" || tryAddr == "tcp://" {
+		return defaultAddr, nil
+	}
+	addr := strings.TrimPrefix(tryAddr, "tcp://")
+	if strings.Contains(addr, "://") || addr == "" {
+		return "", fmt.Errorf("Invalid proto, expected tcp: %s", tryAddr)
+	}
+
+	defaultAddr = strings.TrimPrefix(defaultAddr, "tcp://")
+	defaultHost, defaultPort, err := net.SplitHostPort(defaultAddr)
+	if err != nil {
+		return "", err
+	}
+	u, err := url.Parse("tcp://" + addr)
+	if err != nil {
+		return "", err
+	}
+	host, port, err := net.SplitHostPort(u.Host)
+	if err != nil {
+		// try port addition once
+		host, port, err = net.SplitHostPort(net.JoinHostPort(u.Host, defaultPort))
+	}
+	if err != nil {
+		return "", fmt.Errorf("Invalid bind address format: %s", tryAddr)
+	}
+
+	if host == "" {
+		host = defaultHost
+	}
+	if port == "" {
+		port = defaultPort
+	}
+	p, err := strconv.Atoi(port)
+	if err != nil && p == 0 {
+		return "", fmt.Errorf("Invalid bind address format: %s", tryAddr)
+	}
+
+	return fmt.Sprintf("tcp://%s%s", net.JoinHostPort(host, port), u.Path), nil
 }
 
 func (d *dnetConnection) httpCall(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, http.Header, int, error) {
