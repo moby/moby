@@ -36,7 +36,7 @@ all-local: build-local check-local clean
 # builder builds the libnetworkbuild container.  All wrapper targets
 # must depend on this to ensure that the container exists.
 builder:
-	docker build -t ${build_image} --build-arg=GO_VERSION ${dockerbuildargs}
+	DOCKER_BUILDKIT=1 docker build --progress=plain  -t ${build_image} --build-arg=GO_VERSION ${dockerbuildargs}
 
 build: builder
 	@echo "🐳 $@"
@@ -53,10 +53,10 @@ build-local:
 build-images:
 	@echo "🐳 $@"
 	cp cmd/diagnostic/daemon.json ./bin
-	docker build -f cmd/diagnostic/Dockerfile.client -t dockereng/network-diagnostic:onlyclient bin/
-	docker build -f cmd/diagnostic/Dockerfile.dind -t dockereng/network-diagnostic:17.12-dind bin/
-	docker build -f cmd/networkdb-test/Dockerfile -t dockereng/e2e-networkdb:master bin/
-	docker build -t dockereng/network-diagnostic:support.sh support/
+	DOCKER_BUILDKIT=1 docker build --progress=plain  -f cmd/diagnostic/Dockerfile.client -t dockereng/network-diagnostic:onlyclient bin/
+	DOCKER_BUILDKIT=1 docker build --progress=plain  -f cmd/diagnostic/Dockerfile.dind -t dockereng/network-diagnostic:17.12-dind bin/
+	DOCKER_BUILDKIT=1 docker build --progress=plain  -f cmd/networkdb-test/Dockerfile -t dockereng/e2e-networkdb:master bin/
+	DOCKER_BUILDKIT=1 docker build --progress=plain  -t dockereng/network-diagnostic:support.sh support/
 
 push-images: build-images
 	@echo "🐳 $@"
