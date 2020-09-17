@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/docker/docker/pkg/system"
+	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/windows"
 	"github.com/docker/libnetwork/netlabel"
@@ -34,7 +34,7 @@ var (
 	//Server 2016 (RS1) does not support concurrent add/delete of endpoints.  Therefore, we need
 	//to use this mutex and serialize the add/delete of endpoints on RS1.
 	endpointMu   sync.Mutex
-	windowsBuild = system.GetOSVersion().Build
+	windowsBuild = osversion.Build()
 )
 
 func validateID(nid, eid string) error {
@@ -155,7 +155,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	hnsEndpoint.Policies = append(hnsEndpoint.Policies, paPolicy)
 
-	if system.GetOSVersion().Build > 16236 {
+	if osversion.Build() > 16236 {
 		natPolicy, err := json.Marshal(hcsshim.PaPolicy{
 			Type: "OutBoundNAT",
 		})

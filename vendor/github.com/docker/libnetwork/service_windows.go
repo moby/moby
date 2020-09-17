@@ -4,7 +4,7 @@ import (
 	"net"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/docker/docker/pkg/system"
+	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/sirupsen/logrus"
 )
 
@@ -27,7 +27,7 @@ func (n *network) addLBBackend(ip net.IP, lb *loadBalancer) {
 	vip := lb.vip
 	ingressPorts := lb.service.ingressPorts
 
-	if system.GetOSVersion().Build > 16236 {
+	if osversion.Build() > 16236 {
 		lb.Lock()
 		defer lb.Unlock()
 		//find the load balancer IP for the network.
@@ -128,7 +128,7 @@ func (n *network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 		return
 	}
 
-	if system.GetOSVersion().Build > 16236 {
+	if osversion.Build() > 16236 {
 		if numEnabledBackends(lb) > 0 {
 			//Reprogram HNS (actually VFP) with the existing backends.
 			n.addLBBackend(ip, lb)
