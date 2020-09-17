@@ -29,6 +29,8 @@ KillMode=process
 Restart=on-failure
 StartLimitBurst=3
 StartLimitInterval=60s
+# ensure to cleanup pid file when the daemon stops
+PIDFile=/var/run/docker.pid
 
 [Install]
 WantedBy=multi-user.target
