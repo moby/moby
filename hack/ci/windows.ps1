@@ -9,12 +9,6 @@
 $ErrorActionPreference = 'Stop'
 $StartTime=Get-Date
 
-# Put up top to be blindingly obvious. The production jenkins.dockerproject.org Linux-container 
-# CI job is "Docker-PRs-LoW-RS3". Force into LCOW mode for this run, or not.
-if ($env:BUILD_TAG -match "-LoW") { $env:LCOW_MODE=1 }
-if ($env:BUILD_TAG -match "-WoW") { $env:LCOW_MODE="" }
-
-
 Write-Host -ForegroundColor Red "DEBUG: print all environment variables to check how Jenkins runs this script"
 $allArgs = [Environment]::GetCommandLineArgs()
 Write-Host -ForegroundColor Red $allArgs
@@ -67,7 +61,6 @@ Write-Host -ForegroundColor Red "-----------------------------------------------
 #   DOCKER_STORAGE_OPTS       comma-separated list of optional storage driver options for the daemon under test
 #                             examples:
 #                             DOCKER_STORAGE_OPTS="size=40G"
-#                             DOCKER_STORAGE_OPTS="lcow.globalmode=false,lcow.kernel=kernel.efi"
 #
 #    SKIP_VALIDATION_TESTS    if defined skips the validation tests
 #
@@ -99,11 +92,6 @@ Write-Host -ForegroundColor Red "-----------------------------------------------
 #
 #    WINDOWS_BASE_IMAGE_TAG   if defined, uses that as the tag name for the base image.
 #                             if no set, defaults to latest
-#
-#    LCOW_BASIC_MODE          if defined, does very basic LCOW verification. Ultimately we 
-#                             want to run the entire CI suite from docker, but that's a way off.
-#                            
-#    LCOW_MODE                if defined, runs the entire CI suite
 #                            
 # -------------------------------------------------------------------------------------------
 #
@@ -613,7 +601,7 @@ Try {
     }
 
     # Arguments: Allow setting optional storage-driver options
-    # example usage: DOCKER_STORAGE_OPTS="lcow.globalmode=false,lcow.kernel=kernel.efi"
+    # example usage: DOCKER_STORAGE_OPTS="size=40G"
     if (-not ("$env:DOCKER_STORAGE_OPTS" -eq "")) {
         Write-Host -ForegroundColor Green "INFO: Running the daemon under test with storage-driver options ${env:DOCKER_STORAGE_OPTS}"
         $env:DOCKER_STORAGE_OPTS.Split(",") | ForEach {
@@ -628,11 +616,6 @@ Try {
     Write-Host -ForegroundColor Green "INFO: Args: $dutArgs"
     New-Item -ItemType Directory $env:TEMP\daemon -ErrorAction SilentlyContinue  | Out-Null
 
-    # In LCOW mode, for now we need to set an environment variable before starting the daemon under test
-    if (($null -ne $env:LCOW_MODE) -or ($null -ne $env:LCOW_BASIC_MODE)) {
-        $env:LCOW_SUPPORTED=1
-    }
-
     # Cannot fathom why, but always writes to stderr....
     Start-Process "$env:TEMP\binary\dockerd-$COMMITHASH" `
                   -ArgumentList $dutArgs `
@@ -640,12 +623,6 @@ Try {
                   -RedirectStandardError "$env:TEMP\dut.err" 
     Write-Host -ForegroundColor Green "INFO: Process started successfully."
     $daemonStarted=1
-
-    # In LCOW mode, turn off that variable
-    if (($null -ne $env:LCOW_MODE) -or ($null -ne $env:LCOW_BASIC_MODE)) {
-        $env:LCOW_SUPPORTED=""
-    }
-
 
     # Start tailing the daemon under test if the command is installed
     if ($null -ne (Get-Command "tail" -ErrorAction SilentlyContinue)) {
@@ -706,9 +683,6 @@ Try {
     }
     Write-Host
 
-    # Don't need Windows images when in LCOW mode.
-    if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
-
         # Default to windowsservercore for the base image used for the tests. The "docker" image
         # and the control daemon use microsoft/windowsservercore regardless. This is *JUST* for the tests.
         if ($null -eq $env:WINDOWS_BASE_IMAGE) {
@@ -762,7 +736,6 @@ Try {
         $dutimgVersion = $(&"$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" inspect "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG" --format "{{.OsVersion}}")
         $ErrorActionPreference = "Stop"
         Write-Host -ForegroundColor Green $("INFO: Version of $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG is '"+$dutimgVersion+"'")
-    }
 
     # Run the validation tests unless SKIP_VALIDATION_TESTS is defined.
     if ($null -eq $env:SKIP_VALIDATION_TESTS) {
@@ -778,9 +751,7 @@ Try {
         Write-Host -ForegroundColor Magenta "WARN: Skipping validation tests"
     }
 
-    # Note the unit tests won't work in LCOW mode as I turned off loading the base images above.
     # Run the unit tests inside a container unless SKIP_UNIT_TESTS is defined
-    if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
         if ($null -eq $env:SKIP_UNIT_TESTS) {
             $ContainerNameForUnitTests = $COMMITHASH + "_UnitTests"
             Write-Host -ForegroundColor Cyan "INFO: Running unit tests at $(Get-Date)..."
@@ -811,10 +782,8 @@ Try {
         } else {
             Write-Host -ForegroundColor Magenta "WARN: Skipping unit tests"
         }
-    }
 
     # Add the Windows busybox image. Needed for WCOW integration tests
-    if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
         if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
             Write-Host -ForegroundColor Green "INFO: Building busybox"
             $ErrorActionPreference = "SilentlyContinue"
@@ -834,10 +803,8 @@ Try {
             }
             Write-Host
         }
-    }
 
     # Run the WCOW integration tests unless SKIP_INTEGRATION_TESTS is defined
-    if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
         if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
             Write-Host -ForegroundColor Cyan "INFO: Running integration tests at $(Get-Date)..."
             $ErrorActionPreference = "SilentlyContinue"
@@ -900,71 +867,6 @@ Try {
         } else {
             Write-Host -ForegroundColor Magenta "WARN: Skipping integration tests"
         }
-    } else {
-        # The LCOW version of the tests here
-        if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
-            Write-Host -ForegroundColor Cyan "INFO: Running LCOW tests at $(Get-Date)..."
-
-            $ErrorActionPreference = "SilentlyContinue"
-    
-            # Location of the daemon under test.
-            $env:OrigDOCKER_HOST="$env:DOCKER_HOST"
-
-            # Make sure we are pointing at the DUT
-            $env:DOCKER_HOST=$DASHH_CUT  
-            Write-Host -ForegroundColor Green "INFO: DOCKER_HOST at $DASHH_CUT"
-
-            # Force to use the test binaries, not the host ones.
-            $env:PATH="$env:TEMP\binary;$env:PATH;"  
-
-            if ($null -ne $env:LCOW_BASIC_MODE) {
-                $wc = New-Object net.webclient
-                try {
-                    Write-Host -ForegroundColor green "INFO: Downloading latest execution script..."
-                    $wc.Downloadfile("https://raw.githubusercontent.com/kevpar/docker-w2wCIScripts/master/runCI/lcowbasicvalidation.ps1", "$env:TEMP\binary\lcowbasicvalidation.ps1")
-                } 
-                catch [System.Net.WebException]
-                {
-                    Throw ("Failed to download: $_")
-                }
-
-                # Explicit to not use measure-command otherwise don't get output as it goes
-                $ErrorActionPreference = "Stop"
-                $start=(Get-Date); Invoke-Expression "powershell $env:TEMP\binary\lcowbasicvalidation.ps1"; $lec=$lastExitCode; $Duration=New-Timespan -Start $start -End (Get-Date)
-                $Duration=New-Timespan -Start $start -End (Get-Date)
-                Write-Host  -ForegroundColor Green "INFO: LCOW tests ended at $(Get-Date). Duration`:$Duration"
-                if ($lec -ne 0) {
-                    Throw "LCOW validation tests failed"
-                }
-            } else {
-                #https://blogs.technet.microsoft.com/heyscriptingguy/2011/09/20/solve-problems-with-external-command-lines-in-powershell/ is useful to see tokenising
-                $c = "go test "
-                $c += "`"-test.v`" "
-                if ($null -ne $env:INTEGRATION_TEST_NAME) { # Makes is quicker for debugging to be able to run only a subset of the integration tests
-                    $c += "`"-test.run`" "
-                    $c += "`"$env:INTEGRATION_TEST_NAME`" "
-                    Write-Host -ForegroundColor Magenta "WARN: Only running LCOW integration tests matching $env:INTEGRATION_TEST_NAME"
-                }
-                $c += "`"-tags`" " + "`"autogen`" "
-                $c += "`"-test.timeout`" " + "`"200m`" "
-
-                Write-Host -ForegroundColor Green "INFO: LCOW Integration tests being run from the host:"
-                Set-Location "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\integration-cli"
-                Write-Host -ForegroundColor Green "INFO: $c"
-                Write-Host -ForegroundColor Green "INFO: DOCKER_HOST at $DASHH_CUT"
-                # Explicit to not use measure-command otherwise don't get output as it goes
-                $start=(Get-Date); Invoke-Expression $c; $Duration=New-Timespan -Start $start -End (Get-Date)
-
-            }
-            $ErrorActionPreference = "Stop"
-            if (-not($LastExitCode -eq 0)) {
-                Throw "ERROR: Integration tests failed at $(Get-Date). Duration`:$Duration"
-            }
-            Write-Host  -ForegroundColor Green "INFO: Integration tests ended at $(Get-Date). Duration`:$Duration"
-        } else {
-            Write-Host -ForegroundColor Magenta "WARN: Skipping LCOW tests"
-        }
-    }
 
     # Docker info now to get counts (after or if jjh/containercounts is merged)
     if ($daemonStarted -eq 1) {
