@@ -514,7 +514,7 @@ func (s *Service) checkProcesses(e runc.Exit) {
 	}
 	s.mu.Unlock()
 	if p == nil {
-		log.G(s.context).Infof("process with id:%d wasn't found", e.Pid)
+		log.G(s.context).Debugf("process with id:%d wasn't found", e.Pid)
 		return
 	}
 	if ip, ok := p.(*process.Init); ok {
