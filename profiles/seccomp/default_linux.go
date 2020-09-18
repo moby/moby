@@ -3,38 +3,39 @@
 package seccomp // import "github.com/docker/docker/profiles/seccomp"
 
 import (
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
 )
 
 func arches() []Architecture {
 	return []Architecture{
 		{
-			Arch:      ArchX86_64,
-			SubArches: []Arch{ArchX86, ArchX32},
+			Arch:      specs.ArchX86_64,
+			SubArches: []specs.Arch{specs.ArchX86, specs.ArchX32},
 		},
 		{
-			Arch:      ArchAARCH64,
-			SubArches: []Arch{ArchARM},
+			Arch:      specs.ArchAARCH64,
+			SubArches: []specs.Arch{specs.ArchARM},
 		},
 		{
-			Arch:      ArchMIPS64,
-			SubArches: []Arch{ArchMIPS, ArchMIPS64N32},
+			Arch:      specs.ArchMIPS64,
+			SubArches: []specs.Arch{specs.ArchMIPS, specs.ArchMIPS64N32},
 		},
 		{
-			Arch:      ArchMIPS64N32,
-			SubArches: []Arch{ArchMIPS, ArchMIPS64},
+			Arch:      specs.ArchMIPS64N32,
+			SubArches: []specs.Arch{specs.ArchMIPS, specs.ArchMIPS64},
 		},
 		{
-			Arch:      ArchMIPSEL64,
-			SubArches: []Arch{ArchMIPSEL, ArchMIPSEL64N32},
+			Arch:      specs.ArchMIPSEL64,
+			SubArches: []specs.Arch{specs.ArchMIPSEL, specs.ArchMIPSEL64N32},
 		},
 		{
-			Arch:      ArchMIPSEL64N32,
-			SubArches: []Arch{ArchMIPSEL, ArchMIPSEL64},
+			Arch:      specs.ArchMIPSEL64N32,
+			SubArches: []specs.Arch{specs.ArchMIPSEL, specs.ArchMIPSEL64},
 		},
 		{
-			Arch:      ArchS390X,
-			SubArches: []Arch{ArchS390},
+			Arch:      specs.ArchS390X,
+			SubArches: []specs.Arch{specs.ArchS390},
 		},
 	}
 }
@@ -381,68 +382,68 @@ func DefaultProfile() *Seccomp {
 				"write",
 				"writev",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 		},
 		{
 			Names:  []string{"ptrace"},
-			Action: ActAllow,
+			Action: specs.ActAllow,
 			Includes: Filter{
 				MinKernel: "4.8",
 			},
 		},
 		{
 			Names:  []string{"personality"},
-			Action: ActAllow,
-			Args: []*Arg{
+			Action: specs.ActAllow,
+			Args: []*specs.LinuxSeccompArg{
 				{
 					Index: 0,
 					Value: 0x0,
-					Op:    OpEqualTo,
+					Op:    specs.OpEqualTo,
 				},
 			},
 		},
 		{
 			Names:  []string{"personality"},
-			Action: ActAllow,
-			Args: []*Arg{
+			Action: specs.ActAllow,
+			Args: []*specs.LinuxSeccompArg{
 				{
 					Index: 0,
 					Value: 0x0008,
-					Op:    OpEqualTo,
+					Op:    specs.OpEqualTo,
 				},
 			},
 		},
 		{
 			Names:  []string{"personality"},
-			Action: ActAllow,
-			Args: []*Arg{
+			Action: specs.ActAllow,
+			Args: []*specs.LinuxSeccompArg{
 				{
 					Index: 0,
 					Value: 0x20000,
-					Op:    OpEqualTo,
+					Op:    specs.OpEqualTo,
 				},
 			},
 		},
 		{
 			Names:  []string{"personality"},
-			Action: ActAllow,
-			Args: []*Arg{
+			Action: specs.ActAllow,
+			Args: []*specs.LinuxSeccompArg{
 				{
 					Index: 0,
 					Value: 0x20008,
-					Op:    OpEqualTo,
+					Op:    specs.OpEqualTo,
 				},
 			},
 		},
 		{
 			Names:  []string{"personality"},
-			Action: ActAllow,
-			Args: []*Arg{
+			Action: specs.ActAllow,
+			Args: []*specs.LinuxSeccompArg{
 				{
 					Index: 0,
 					Value: 0xffffffff,
-					Op:    OpEqualTo,
+					Op:    specs.OpEqualTo,
 				},
 			},
 		},
@@ -450,8 +451,8 @@ func DefaultProfile() *Seccomp {
 			Names: []string{
 				"sync_file_range2",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Arches: []string{"ppc64le"},
 			},
@@ -465,8 +466,8 @@ func DefaultProfile() *Seccomp {
 				"cacheflush",
 				"set_tls",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Arches: []string{"arm", "arm64"},
 			},
@@ -475,8 +476,8 @@ func DefaultProfile() *Seccomp {
 			Names: []string{
 				"arch_prctl",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Arches: []string{"amd64", "x32"},
 			},
@@ -485,8 +486,8 @@ func DefaultProfile() *Seccomp {
 			Names: []string{
 				"modify_ldt",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Arches: []string{"amd64", "x32", "x86"},
 			},
@@ -497,8 +498,8 @@ func DefaultProfile() *Seccomp {
 				"s390_pci_mmio_write",
 				"s390_runtime_instr",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Arches: []string{"s390", "s390x"},
 			},
@@ -507,8 +508,8 @@ func DefaultProfile() *Seccomp {
 			Names: []string{
 				"open_by_handle_at",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Caps: []string{"CAP_DAC_READ_SEARCH"},
 			},
@@ -531,8 +532,8 @@ func DefaultProfile() *Seccomp {
 				"umount2",
 				"unshare",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Caps: []string{"CAP_SYS_ADMIN"},
 			},
@@ -541,13 +542,13 @@ func DefaultProfile() *Seccomp {
 			Names: []string{
 				"clone",
 			},
-			Action: ActAllow,
-			Args: []*Arg{
+			Action: specs.ActAllow,
+			Args: []*specs.LinuxSeccompArg{
 				{
 					Index:    0,
 					Value:    unix.CLONE_NEWNS | unix.CLONE_NEWUTS | unix.CLONE_NEWIPC | unix.CLONE_NEWUSER | unix.CLONE_NEWPID | unix.CLONE_NEWNET | unix.CLONE_NEWCGROUP,
 					ValueTwo: 0,
-					Op:       OpMaskedEqual,
+					Op:       specs.OpMaskedEqual,
 				},
 			},
 			Excludes: Filter{
@@ -559,13 +560,13 @@ func DefaultProfile() *Seccomp {
 			Names: []string{
 				"clone",
 			},
-			Action: ActAllow,
-			Args: []*Arg{
+			Action: specs.ActAllow,
+			Args: []*specs.LinuxSeccompArg{
 				{
 					Index:    1,
 					Value:    unix.CLONE_NEWNS | unix.CLONE_NEWUTS | unix.CLONE_NEWIPC | unix.CLONE_NEWUSER | unix.CLONE_NEWPID | unix.CLONE_NEWNET | unix.CLONE_NEWCGROUP,
 					ValueTwo: 0,
-					Op:       OpMaskedEqual,
+					Op:       specs.OpMaskedEqual,
 				},
 			},
 			Comment: "s390 parameter ordering for clone is different",
@@ -580,8 +581,8 @@ func DefaultProfile() *Seccomp {
 			Names: []string{
 				"reboot",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Caps: []string{"CAP_SYS_BOOT"},
 			},
@@ -590,8 +591,8 @@ func DefaultProfile() *Seccomp {
 			Names: []string{
 				"chroot",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Caps: []string{"CAP_SYS_CHROOT"},
 			},
@@ -602,8 +603,8 @@ func DefaultProfile() *Seccomp {
 				"init_module",
 				"finit_module",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Caps: []string{"CAP_SYS_MODULE"},
 			},
@@ -612,8 +613,8 @@ func DefaultProfile() *Seccomp {
 			Names: []string{
 				"acct",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Caps: []string{"CAP_SYS_PACCT"},
 			},
@@ -625,8 +626,8 @@ func DefaultProfile() *Seccomp {
 				"process_vm_writev",
 				"ptrace",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Caps: []string{"CAP_SYS_PTRACE"},
 			},
@@ -636,8 +637,8 @@ func DefaultProfile() *Seccomp {
 				"iopl",
 				"ioperm",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Caps: []string{"CAP_SYS_RAWIO"},
 			},
@@ -648,8 +649,8 @@ func DefaultProfile() *Seccomp {
 				"stime",
 				"clock_settime",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Caps: []string{"CAP_SYS_TIME"},
 			},
@@ -658,8 +659,8 @@ func DefaultProfile() *Seccomp {
 			Names: []string{
 				"vhangup",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Caps: []string{"CAP_SYS_TTY_CONFIG"},
 			},
@@ -670,8 +671,8 @@ func DefaultProfile() *Seccomp {
 				"mbind",
 				"set_mempolicy",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Caps: []string{"CAP_SYS_NICE"},
 			},
@@ -680,8 +681,8 @@ func DefaultProfile() *Seccomp {
 			Names: []string{
 				"syslog",
 			},
-			Action: ActAllow,
-			Args:   []*Arg{},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
 			Includes: Filter{
 				Caps: []string{"CAP_SYSLOG"},
 			},
@@ -689,7 +690,7 @@ func DefaultProfile() *Seccomp {
 	}
 
 	return &Seccomp{
-		DefaultAction: ActErrno,
+		DefaultAction: specs.ActErrno,
 		ArchMap:       arches(),
 		Syscalls:      syscalls,
 	}

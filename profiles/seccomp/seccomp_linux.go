@@ -27,21 +27,21 @@ func LoadProfile(body string, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 }
 
 // libseccomp string => seccomp arch
-var nativeToSeccomp = map[string]Arch{
-	"x86":         ArchX86,
-	"amd64":       ArchX86_64,
-	"arm":         ArchARM,
-	"arm64":       ArchAARCH64,
-	"mips64":      ArchMIPS64,
-	"mips64n32":   ArchMIPS64N32,
-	"mipsel64":    ArchMIPSEL64,
-	"mips3l64n32": ArchMIPSEL64N32,
-	"mipsle":      ArchMIPSEL,
-	"ppc":         ArchPPC,
-	"ppc64":       ArchPPC64,
-	"ppc64le":     ArchPPC64LE,
-	"s390":        ArchS390,
-	"s390x":       ArchS390X,
+var nativeToSeccomp = map[string]specs.Arch{
+	"x86":         specs.ArchX86,
+	"amd64":       specs.ArchX86_64,
+	"arm":         specs.ArchARM,
+	"arm64":       specs.ArchAARCH64,
+	"mips64":      specs.ArchMIPS64,
+	"mips64n32":   specs.ArchMIPS64N32,
+	"mipsel64":    specs.ArchMIPSEL64,
+	"mips3l64n32": specs.ArchMIPSEL64N32,
+	"mipsle":      specs.ArchMIPSEL,
+	"ppc":         specs.ArchPPC,
+	"ppc64":       specs.ArchPPC64,
+	"ppc64le":     specs.ArchPPC64LE,
+	"s390":        specs.ArchS390,
+	"s390x":       specs.ArchS390X,
 }
 
 // GOARCH => libseccomp string
@@ -91,9 +91,7 @@ func setupSeccomp(config *Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) 
 
 	// if config.Architectures == 0 then libseccomp will figure out the architecture to use
 	if len(config.Architectures) != 0 {
-		for _, a := range config.Architectures {
-			newConfig.Architectures = append(newConfig.Architectures, specs.Arch(a))
-		}
+		newConfig.Architectures = config.Architectures
 	}
 
 	arch := goToNative[runtime.GOARCH]
@@ -102,16 +100,14 @@ func setupSeccomp(config *Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) 
 	if len(config.ArchMap) != 0 && archExists {
 		for _, a := range config.ArchMap {
 			if a.Arch == seccompArch {
-				newConfig.Architectures = append(newConfig.Architectures, specs.Arch(a.Arch))
-				for _, sa := range a.SubArches {
-					newConfig.Architectures = append(newConfig.Architectures, specs.Arch(sa))
-				}
+				newConfig.Architectures = append(newConfig.Architectures, a.Arch)
+				newConfig.Architectures = append(newConfig.Architectures, a.SubArches...)
 				break
 			}
 		}
 	}
 
-	newConfig.DefaultAction = specs.LinuxSeccompAction(config.DefaultAction)
+	newConfig.DefaultAction = config.DefaultAction
 
 Loop:
 	// Loop through all syscall blocks and convert them to libcontainer format after filtering them
@@ -169,22 +165,15 @@ Loop:
 	return newConfig, nil
 }
 
-func createSpecsSyscall(names []string, action Action, args []*Arg) specs.LinuxSyscall {
+func createSpecsSyscall(names []string, action specs.LinuxSeccompAction, args []*specs.LinuxSeccompArg) specs.LinuxSyscall {
 	newCall := specs.LinuxSyscall{
 		Names:  names,
-		Action: specs.LinuxSeccompAction(action),
+		Action: action,
 	}
 
 	// Loop through all the arguments of the syscall and convert them
 	for _, arg := range args {
-		newArg := specs.LinuxSeccompArg{
-			Index:    arg.Index,
-			Value:    arg.Value,
-			ValueTwo: arg.ValueTwo,
-			Op:       specs.LinuxSeccompOperator(arg.Op),
-		}
-
-		newCall.Args = append(newCall.Args, newArg)
+		newCall.Args = append(newCall.Args, *arg)
 	}
 	return newCall
 }
