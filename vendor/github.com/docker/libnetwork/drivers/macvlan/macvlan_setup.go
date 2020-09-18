@@ -11,9 +11,7 @@ import (
 )
 
 const (
-	dummyPrefix      = "dm-" // macvlan prefix for dummy parent interface
-	macvlanKernelVer = 3     // minimum macvlan kernel support
-	macvlanMajorVer  = 9     // minimum macvlan major kernel support
+	dummyPrefix = "dm-" // macvlan prefix for dummy parent interface
 )
 
 // Create the macvlan slave specifying the source name

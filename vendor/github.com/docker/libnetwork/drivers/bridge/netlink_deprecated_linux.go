@@ -7,8 +7,6 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
-
-	"github.com/docker/libnetwork/netutils"
 )
 
 const (
@@ -106,7 +104,7 @@ func ioctlSetMacAddress(name, addr string) error {
 	return nil
 }
 
-func ioctlCreateBridge(name string, setMacAddr bool) error {
+func ioctlCreateBridge(name, macAddr string) error {
 	if len(name) >= ifNameSize {
 		return fmt.Errorf("Interface name %s too long", name)
 	}
@@ -124,8 +122,5 @@ func ioctlCreateBridge(name string, setMacAddr bool) error {
 	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(s), ioctlBrAdd, uintptr(unsafe.Pointer(nameBytePtr))); err != 0 {
 		return err
 	}
-	if setMacAddr {
-		return ioctlSetMacAddress(name, netutils.GenerateRandomMAC().String())
-	}
-	return nil
+	return ioctlSetMacAddress(name, macAddr)
 }
