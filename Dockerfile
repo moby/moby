@@ -7,7 +7,9 @@ ARG GO_VERSION=1.13.15
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_VERSION=0.4.0
 ARG DOCKER_BUILDTAGS="apparmor seccomp selinux"
-ARG GOLANG_IMAGE="golang:${GO_VERSION}-buster"
+
+ARG BASE_DEBIAN_DISTRO="buster"
+ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
 FROM ${GOLANG_IMAGE} AS base
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
@@ -79,12 +81,13 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         && git checkout -q "$GO_SWAGGER_COMMIT" \
         && go build -o /build/swagger github.com/go-swagger/go-swagger/cmd/swagger
 
-FROM base AS frozen-images
+FROM debian:${BASE_DEBIAN_DISTRO} AS frozen-images
 ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,sharing=locked,id=moby-frozen-images-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-frozen-images-aptcache,target=/var/cache/apt \
        apt-get update && apt-get install -y --no-install-recommends \
            ca-certificates \
+           curl \
            jq
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image-v2.sh /
