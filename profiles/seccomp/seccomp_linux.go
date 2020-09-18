@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
@@ -20,7 +19,7 @@ func GetDefaultProfile(rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 
 // LoadProfile takes a json string and decodes the seccomp profile.
 func LoadProfile(body string, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
-	var config types.Seccomp
+	var config Seccomp
 	if err := json.Unmarshal([]byte(body), &config); err != nil {
 		return nil, fmt.Errorf("Decoding seccomp profile failed: %v", err)
 	}
@@ -28,21 +27,21 @@ func LoadProfile(body string, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 }
 
 // libseccomp string => seccomp arch
-var nativeToSeccomp = map[string]types.Arch{
-	"x86":         types.ArchX86,
-	"amd64":       types.ArchX86_64,
-	"arm":         types.ArchARM,
-	"arm64":       types.ArchAARCH64,
-	"mips64":      types.ArchMIPS64,
-	"mips64n32":   types.ArchMIPS64N32,
-	"mipsel64":    types.ArchMIPSEL64,
-	"mips3l64n32": types.ArchMIPSEL64N32,
-	"mipsle":      types.ArchMIPSEL,
-	"ppc":         types.ArchPPC,
-	"ppc64":       types.ArchPPC64,
-	"ppc64le":     types.ArchPPC64LE,
-	"s390":        types.ArchS390,
-	"s390x":       types.ArchS390X,
+var nativeToSeccomp = map[string]Arch{
+	"x86":         ArchX86,
+	"amd64":       ArchX86_64,
+	"arm":         ArchARM,
+	"arm64":       ArchAARCH64,
+	"mips64":      ArchMIPS64,
+	"mips64n32":   ArchMIPS64N32,
+	"mipsel64":    ArchMIPSEL64,
+	"mips3l64n32": ArchMIPSEL64N32,
+	"mipsle":      ArchMIPSEL,
+	"ppc":         ArchPPC,
+	"ppc64":       ArchPPC64,
+	"ppc64le":     ArchPPC64LE,
+	"s390":        ArchS390,
+	"s390x":       ArchS390X,
 }
 
 // GOARCH => libseccomp string
@@ -74,7 +73,7 @@ func inSlice(slice []string, s string) bool {
 	return false
 }
 
-func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
+func setupSeccomp(config *Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 	if config == nil {
 		return nil, nil
 	}
@@ -170,7 +169,7 @@ Loop:
 	return newConfig, nil
 }
 
-func createSpecsSyscall(names []string, action types.Action, args []*types.Arg) specs.LinuxSyscall {
+func createSpecsSyscall(names []string, action Action, args []*Arg) specs.LinuxSyscall {
 	newCall := specs.LinuxSyscall{
 		Names:  names,
 		Action: specs.LinuxSeccompAction(action),
