@@ -12,7 +12,6 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/moby/sys/mount"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -253,7 +252,7 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 		logrus.Warnf("%s cleanup: failed to unmount secrets: %s", container.ID, err)
 	}
 
-	if err := mount.RecursiveUnmount(container.Root); err != nil {
+	if err := recursiveUnmount(container.Root); err != nil {
 		logrus.WithError(err).WithField("container", container.ID).Warn("Error while cleaning up container resource mounts.")
 	}
 

@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/quota"
 	units "github.com/docker/go-units"
 	"github.com/moby/sys/mount"
+	"github.com/moby/sys/mountinfo"
 	"github.com/pkg/errors"
 )
 
@@ -111,6 +112,10 @@ func validateOpts(opts map[string]string) error {
 	return nil
 }
 
+func unmount(path string) {
+	_ = mount.Unmount(path)
+}
+
 func (v *localVolume) needsMount() bool {
 	if v.opts == nil {
 		return false
@@ -153,6 +158,18 @@ func (v *localVolume) postMount() error {
 		} else {
 			return fmt.Errorf("size quota requested for volume but no quota support")
 		}
+	}
+	return nil
+}
+
+func (v *localVolume) unmount() error {
+	if v.needsMount() {
+		if err := mount.Unmount(v.path); err != nil {
+			if mounted, mErr := mountinfo.Mounted(v.path); mounted || mErr != nil {
+				return errdefs.System(err)
+			}
+		}
+		v.active.mounted = false
 	}
 	return nil
 }
