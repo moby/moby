@@ -205,6 +205,7 @@ RUN `
       Throw ("Failed to download " + $source) `
       }`
     } else { `
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; `
       $webClient = New-Object System.Net.WebClient; `
       $webClient.DownloadFile($source, $target); `
     } `
