@@ -20,6 +20,15 @@ $allArgs = [Environment]::GetCommandLineArgs()
 Write-Host -ForegroundColor Red $allArgs
 Write-Host -ForegroundColor Red "----------------------------------------------------------------------------"
 
+# Trying to understand how CI servers have been build...
+ipconfig /all
+ping $env:COMPUTERNAME -4
+Get-NetAdapter
+cat c:\windows\system32\drivers\etc\hosts
+Get-NetFirewallProfile
+(Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
+
+exit 1
 # -------------------------------------------------------------------------------------------
 # When executed, we rely on four variables being set in the environment:
 #
