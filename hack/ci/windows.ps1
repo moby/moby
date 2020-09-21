@@ -179,6 +179,13 @@ Function Nuke-Everything {
             }
         }
 
+        # Kill any spurious containerd.
+        $pids=$(get-process | where-object {$_.ProcessName -like 'containerd'}).id
+        foreach ($p in $pids) {
+            Write-Host "INFO: Killing containerd with PID $p"
+            Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
+        }
+
         Stop-Process -name "cc1" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
         Stop-Process -name "link" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
         Stop-Process -name "compile" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
@@ -521,6 +528,15 @@ Try {
             Throw "ERROR: gotestsum.exe not found...." `
         }
 
+        docker cp "$COMMITHASH`:c`:\containerd\bin\containerd.exe" $env:TEMP\binary\
+        if (-not (Test-Path "$env:TEMP\binary\containerd.exe")) {
+            Throw "ERROR: containerd.exe not found...." `
+        }
+        docker cp "$COMMITHASH`:c`:\containerd\bin\containerd-shim-runhcs-v1.exe" $env:TEMP\binary\
+        if (-not (Test-Path "$env:TEMP\binary\containerd-shim-runhcs-v1.exe")) {
+            Throw "ERROR: containerd-shim-runhcs-v1.exe not found...." `
+        }
+
         $ErrorActionPreference = "Stop"
 
         # Copy the built dockerd.exe to dockerd-$COMMITHASH.exe so that easily spotted in task manager.
@@ -594,6 +610,12 @@ Try {
         $dutArgs += "-D"
     }
 
+    # Arguments: Are we starting the daemon under test in containerd mode?
+    if (-not ("$env:DOCKER_WINDOWS_CONTAINERD_RUNTIME" -eq "")) {
+        Write-Host -ForegroundColor Green "INFO: Running the daemon under test in containerd mode"
+        $dutArgs += "--containerd \\.\pipe\containerd-containerd"
+    }
+
     # Arguments: Are we starting the daemon under test with Hyper-V containers as the default isolation?
     if (-not ("$env:DOCKER_DUT_HYPERV" -eq "")) {
         Write-Host -ForegroundColor Green "INFO: Running the daemon under test with Hyper-V containers as the default"
@@ -615,6 +637,15 @@ Try {
     Write-Host -ForegroundColor Green "INFO: Starting a daemon under test..."
     Write-Host -ForegroundColor Green "INFO: Args: $dutArgs"
     New-Item -ItemType Directory $env:TEMP\daemon -ErrorAction SilentlyContinue  | Out-Null
+
+    # Start containerd first
+    if (-not ("$env:DOCKER_WINDOWS_CONTAINERD_RUNTIME" -eq "")) {
+        Start-Process "$env:TEMP\binary\containerd.exe" `
+                    -ArgumentList "--log-level debug" `
+                    -RedirectStandardOutput "$env:TEMP\containerd.out" `
+                    -RedirectStandardError "$env:TEMP\containerd.err"
+        Write-Host -ForegroundColor Green "INFO: Containerd started successfully."
+    }
 
     # Cannot fathom why, but always writes to stderr....
     Start-Process "$env:TEMP\binary\dockerd-$COMMITHASH" `
@@ -943,6 +974,15 @@ Finally {
         Copy-Item  "$env:TEMP\dut.out" "bundles\CIDUT.out" -Force -ErrorAction SilentlyContinue
         Write-Host -ForegroundColor Green "INFO: Saving daemon under test log ($env:TEMP\dut.err) to bundles\CIDUT.err"
         Copy-Item  "$env:TEMP\dut.err" "bundles\CIDUT.err" -Force -ErrorAction SilentlyContinue
+
+        Write-Host -ForegroundColor Green "INFO: Saving containerd logs to bundles"
+        if (Test-Path -Path "$env:TEMP\containerd.out") {
+            Copy-Item "$env:TEMP\containerd.out" "bundles\containerd.out" -Force -ErrorAction SilentlyContinue
+            Copy-Item "$env:TEMP\containerd.err" "bundles\containerd.err" -Force -ErrorAction SilentlyContinue
+        } else {
+            "" | Out-File -FilePath "bundles\containerd.out"
+            "" | Out-File -FilePath "bundles\containerd.err"
+        }
     }
 
     Set-Location "$env:SOURCES_DRIVE\$env:SOURCES_SUBDIR" -ErrorAction SilentlyContinue
