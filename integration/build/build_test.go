@@ -22,7 +22,6 @@ import (
 )
 
 func TestBuildWithRemoveAndForceRemove(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 
 	cases := []struct {
@@ -189,7 +188,6 @@ func TestBuildMultiStageCopy(t *testing.T) {
 
 func TestBuildMultiStageParentConfig(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.35"), "broken in earlier versions")
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	dockerfile := `
 		FROM busybox AS stage0
 		ENV WHO=parent
@@ -341,7 +339,6 @@ func TestBuildWithEmptyLayers(t *testing.T) {
 // #35652
 func TestBuildMultiStageOnBuild(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.33"), "broken in earlier versions")
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	// test both metadata and layer based commands as they may be implemented differently
 	dockerfile := `FROM busybox AS stage1
@@ -448,7 +445,6 @@ COPY bar /`
 // docker/for-linux#135
 // #35641
 func TestBuildMultiStageLayerLeak(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.37"), "broken in earlier versions")
 	ctx := context.TODO()
 	defer setupTest(t)()

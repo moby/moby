@@ -30,7 +30,6 @@ func TestKillContainerInvalidSignal(t *testing.T) {
 }
 
 func TestKillContainer(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "TODO Windows: FIXME. No SIGWINCH")
 	defer setupTest(t)()
 	client := testEnv.APIClient()
 
@@ -38,27 +37,32 @@ func TestKillContainer(t *testing.T) {
 		doc    string
 		signal string
 		status string
+		skipOs string
 	}{
 		{
 			doc:    "no signal",
 			signal: "",
 			status: "exited",
+			skipOs: "",
 		},
 		{
 			doc:    "non killing signal",
 			signal: "SIGWINCH",
 			status: "running",
+			skipOs: "windows",
 		},
 		{
 			doc:    "killing signal",
 			signal: "SIGTERM",
 			status: "exited",
+			skipOs: "",
 		},
 	}
 
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
+			skip.If(t, testEnv.OSType == tc.skipOs, "Windows does not support SIGWINCH")
 			ctx := context.Background()
 			id := container.Run(ctx, t, client)
 			err := client.ContainerKill(ctx, id, tc.signal)

@@ -17,7 +17,6 @@ import (
 )
 
 func TestResize(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	client := testEnv.APIClient()
 	ctx := context.Background()

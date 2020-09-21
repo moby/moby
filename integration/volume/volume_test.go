@@ -16,7 +16,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 func TestVolumesCreateAndList(t *testing.T) {
@@ -61,7 +60,6 @@ func TestVolumesCreateAndList(t *testing.T) {
 }
 
 func TestVolumesRemove(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	client := testEnv.APIClient()
 	ctx := context.Background()
