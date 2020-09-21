@@ -995,7 +995,7 @@ func (c *client) Pause(_ context.Context, containerID string) error {
 	}
 
 	if ctr.ociSpec.Windows.HyperV == nil {
-		return errors.New("cannot pause Windows Server Containers")
+		return errors.New("not implemented")
 	}
 
 	ctr.Lock()

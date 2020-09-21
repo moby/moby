@@ -12,7 +12,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 	// Set the runtime options to debug regardless of current logging level.
 	if system.ContainerdRuntimeSupported() {
 		opts := &options.Options{Debug: true}
-		return "", opts, nil
+		return "io.containerd.runhcs.v1", opts, nil
 	}
 
 	// TODO (containerd) - Probably need to revisit LCOW options here

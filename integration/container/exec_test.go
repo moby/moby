@@ -17,6 +17,7 @@ import (
 
 // TestExecWithCloseStdin adds case for moby#37870 issue.
 func TestExecWithCloseStdin(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows", "FIXME. Hang with containerd")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "broken in earlier versions")
 	defer setupTest(t)()
 

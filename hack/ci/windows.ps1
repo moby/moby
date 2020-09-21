@@ -142,6 +142,8 @@ $FinallyColour="Cyan"
 #$env:WINDOWS_BASE_IMAGE=""
 #$env:SKIP_COPY_GO="yes"
 #$env:INTEGRATION_TESTFLAGS="-test.v"
+$env:DOCKER_DUT_EXPERIMENTAL="yes"
+$env:DOCKER_WINDOWS_CONTAINERD_RUNTIME=1
 
 Function Nuke-Everything {
     $ErrorActionPreference = 'SilentlyContinue'
@@ -189,6 +191,13 @@ Function Nuke-Everything {
                 }
                 Remove-Item "$env:TEMP\docker.pid" -force -ErrorAction SilentlyContinue
             }
+        }
+
+        # Kill any spurious containerd.
+        $pids=$(get-process | where-object {$_.ProcessName -like 'containerd'}).id
+        foreach ($p in $pids) {
+            Write-Host "INFO: Killing daemon with PID $p"
+            Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
         }
 
         Stop-Process -name "cc1" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
@@ -533,6 +542,15 @@ Try {
             Throw "ERROR: gotestsum.exe not found...." `
         }
 
+        docker cp "$COMMITHASH`:c`:\containerd\bin\containerd.exe" $env:TEMP\binary\
+        if (-not (Test-Path "$env:TEMP\binary\containerd.exe")) {
+            Throw "ERROR: containerd.exe not found...." `
+        }
+        docker cp "$COMMITHASH`:c`:\containerd\bin\containerd-shim-runhcs-v1.exe" $env:TEMP\binary\
+        if (-not (Test-Path "$env:TEMP\binary\containerd-shim-runhcs-v1.exe")) {
+            Throw "ERROR: containerd-shim-runhcs-v1.exe not found...." `
+        }
+
         $ErrorActionPreference = "Stop"
 
         # Copy the built dockerd.exe to dockerd-$COMMITHASH.exe so that easily spotted in task manager.
@@ -606,6 +624,18 @@ Try {
         $dutArgs += "-D"
     }
 
+    # Arguments: Are we starting the daemon under test in experimental mode?
+    if (-not ("$env:DOCKER_DUT_EXPERIMENTAL" -eq "")) {
+        Write-Host -ForegroundColor Green "INFO: Running the daemon under test in experimental mode"
+        $dutArgs += "--experimental"
+    }
+
+    # Arguments: Are we starting the daemon under test in ContainerD mode?
+    if (-not ("$env:DOCKER_WINDOWS_CONTAINERD_RUNTIME" -eq "")) {
+        Write-Host -ForegroundColor Green "INFO: Running the daemon under test in ContainerD mode"
+        $dutArgs += "--containerd \\.\pipe\containerd-containerd"
+    }
+
     # Arguments: Are we starting the daemon under test with Hyper-V containers as the default isolation?
     if (-not ("$env:DOCKER_DUT_HYPERV" -eq "")) {
         Write-Host -ForegroundColor Green "INFO: Running the daemon under test with Hyper-V containers as the default"
@@ -631,6 +661,15 @@ Try {
     # In LCOW mode, for now we need to set an environment variable before starting the daemon under test
     if (($null -ne $env:LCOW_MODE) -or ($null -ne $env:LCOW_BASIC_MODE)) {
         $env:LCOW_SUPPORTED=1
+    }
+
+    # Start containerd first
+    if (-not ("$env:DOCKER_WINDOWS_CONTAINERD_RUNTIME" -eq "")) {
+        Start-Process "$env:TEMP\binary\containerd.exe" `
+                    -ArgumentList "--log-level debug" `
+                    -RedirectStandardOutput "$env:TEMP\containerd.out" `
+                    -RedirectStandardError "$env:TEMP\containerd.err"
+        Write-Host -ForegroundColor Green "INFO: ContainerD started successfully."
     }
 
     # Cannot fathom why, but always writes to stderr....

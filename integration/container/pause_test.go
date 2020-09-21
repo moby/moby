@@ -62,7 +62,7 @@ func TestPauseFailsOnWindowsServerContainers(t *testing.T) {
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerPause(ctx, cID)
-	assert.Check(t, is.ErrorContains(err, "cannot pause Windows Server Containers"))
+	assert.Check(t, is.ErrorContains(err, "not implemented"))
 }
 
 func TestPauseStopPausedContainer(t *testing.T) {

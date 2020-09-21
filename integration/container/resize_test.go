@@ -21,7 +21,7 @@ func TestResize(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(ctx, t, client)
+	cID := container.Run(ctx, t, client, container.WithTty(true))
 
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
