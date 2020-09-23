@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var userlandProxyCommandName = "docker-proxy"
+const userlandProxyCommandName = "docker-proxy"
 
 func newProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.IP, containerPort int, proxyPath string) (userlandProxy, error) {
 	path := proxyPath
