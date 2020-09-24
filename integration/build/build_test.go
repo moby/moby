@@ -484,15 +484,22 @@ RUN [ ! -f foo ]
 }
 
 // #37581
+// #40444 (Windows Containers only)
 func TestBuildWithHugeFile(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows")
 	ctx := context.TODO()
 	defer setupTest(t)()
 
 	dockerfile := `FROM busybox
-# create a sparse file with size over 8GB
+`
+
+	if testEnv.DaemonInfo.OSType == "windows" {
+		dockerfile += `# create a file with size of 8GB
+RUN powershell "fsutil.exe file createnew bigfile.txt 8589934592 ; dir bigfile.txt"`
+	} else {
+		dockerfile += `# create a sparse file with size over 8GB
 RUN for g in $(seq 0 8); do dd if=/dev/urandom of=rnd bs=1K count=1 seek=$((1024*1024*g)) status=none; done && \
     ls -la rnd && du -sk rnd`
+	}
 
 	buf := bytes.NewBuffer(nil)
 	w := tar.NewWriter(buf)
