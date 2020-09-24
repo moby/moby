@@ -35,7 +35,6 @@ var (
 	defaultIP          = net.ParseIP("0.0.0.0")
 	once               sync.Once
 	instance           *PortAllocator
-	createInstance     = func() { instance = newInstance() }
 )
 
 // ErrPortAlreadyAllocated is the returned error information when a requested port is already being used
@@ -99,7 +98,9 @@ func Get() *PortAllocator {
 	// the OS so that it can have up to date view of the OS port allocation.
 	// When this happens singleton behavior will be removed. Clients do not
 	// need to worry about this, they will not see a change in behavior.
-	once.Do(createInstance)
+	once.Do(func() {
+		instance = newInstance()
+	})
 	return instance
 }
 
@@ -199,15 +200,10 @@ func (p *PortAllocator) SetPortRange(portBegin, portEnd int) error {
 	var err error
 	if portBegin == 0 && portEnd == 0 {
 		begin, end = getDefaultPortRange()
-
-	} else {
-		begin, end, err = sanitizePortRange(portBegin, portEnd)
-		if err != nil {
-			return err
-		}
+	} else if begin, end, err = sanitizePortRange(portBegin, portEnd); err != nil {
+		return err
 	}
-	logrus.Debugf("Setting up port allocator to range %v-%v, current %v-%v",
-		begin, end, p.Begin, p.End)
+	logrus.Debugf("Setting up port allocator to range %v-%v, current %v-%v", begin, end, p.Begin, p.End)
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	if p.Begin == begin && p.End == end {
