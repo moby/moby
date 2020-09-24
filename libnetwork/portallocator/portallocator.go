@@ -110,6 +110,7 @@ func getDefaultPortRange() (int, int) {
 		start, end, err = sanitizePortRange(start, end)
 	}
 	if err != nil {
+		logrus.WithError(err).Infof("falling back to default port range %d-%d", defaultPortRangeStart, defaultPortRangeEnd)
 		start, end = defaultPortRangeStart, defaultPortRangeEnd
 	}
 	return start, end
