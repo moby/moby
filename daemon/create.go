@@ -153,6 +153,10 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 		return nil, errdefs.InvalidParameter(err)
 	}
 
+	if daemon.configStore.Capabilities != nil && opts.params.HostConfig.Capabilities == nil {
+		opts.params.HostConfig.Capabilities = daemon.configStore.Capabilities
+	}
+
 	if ctr, err = daemon.newContainer(opts.params.Name, os, opts.params.Config, opts.params.HostConfig, imgID, opts.managed); err != nil {
 		return nil, err
 	}
