@@ -219,11 +219,11 @@ func (daemon *Daemon) fillAPIInfo(v *types.Info) {
 		if proto != "tcp" {
 			continue
 		}
-		if !cfg.TLS {
+		if cfg.TLS == nil || !*cfg.TLS {
 			v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: API is accessible on http://%s without encryption.%s", addr, warn))
 			continue
 		}
-		if !cfg.TLSVerify {
+		if cfg.TLSVerify == nil || !*cfg.TLSVerify {
 			v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: API is accessible on https://%s without TLS client verification.%s", addr, warn))
 			continue
 		}
