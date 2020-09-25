@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/docker/docker/pkg/parsers/kernel"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -176,20 +175,4 @@ func createSpecsSyscall(names []string, action specs.LinuxSeccompAction, args []
 		newCall.Args = append(newCall.Args, *arg)
 	}
 	return newCall
-}
-
-var currentKernelVersion *kernel.VersionInfo
-
-func kernelGreaterEqualThan(v string) (bool, error) {
-	version, err := kernel.ParseRelease(v)
-	if err != nil {
-		return false, err
-	}
-	if currentKernelVersion == nil {
-		currentKernelVersion, err = kernel.GetKernelVersion()
-		if err != nil {
-			return false, err
-		}
-	}
-	return kernel.CompareKernelVersion(*version, *currentKernelVersion) <= 0, nil
 }
