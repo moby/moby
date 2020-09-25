@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
@@ -20,7 +19,7 @@ func GetDefaultProfile(rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 
 // LoadProfile takes a json string and decodes the seccomp profile.
 func LoadProfile(body string, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
-	var config types.Seccomp
+	var config Seccomp
 	if err := json.Unmarshal([]byte(body), &config); err != nil {
 		return nil, fmt.Errorf("Decoding seccomp profile failed: %v", err)
 	}
@@ -28,21 +27,21 @@ func LoadProfile(body string, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 }
 
 // libseccomp string => seccomp arch
-var nativeToSeccomp = map[string]types.Arch{
-	"x86":         types.ArchX86,
-	"amd64":       types.ArchX86_64,
-	"arm":         types.ArchARM,
-	"arm64":       types.ArchAARCH64,
-	"mips64":      types.ArchMIPS64,
-	"mips64n32":   types.ArchMIPS64N32,
-	"mipsel64":    types.ArchMIPSEL64,
-	"mips3l64n32": types.ArchMIPSEL64N32,
-	"mipsle":      types.ArchMIPSEL,
-	"ppc":         types.ArchPPC,
-	"ppc64":       types.ArchPPC64,
-	"ppc64le":     types.ArchPPC64LE,
-	"s390":        types.ArchS390,
-	"s390x":       types.ArchS390X,
+var nativeToSeccomp = map[string]specs.Arch{
+	"x86":         specs.ArchX86,
+	"amd64":       specs.ArchX86_64,
+	"arm":         specs.ArchARM,
+	"arm64":       specs.ArchAARCH64,
+	"mips64":      specs.ArchMIPS64,
+	"mips64n32":   specs.ArchMIPS64N32,
+	"mipsel64":    specs.ArchMIPSEL64,
+	"mips3l64n32": specs.ArchMIPSEL64N32,
+	"mipsle":      specs.ArchMIPSEL,
+	"ppc":         specs.ArchPPC,
+	"ppc64":       specs.ArchPPC64,
+	"ppc64le":     specs.ArchPPC64LE,
+	"s390":        specs.ArchS390,
+	"s390x":       specs.ArchS390X,
 }
 
 // GOARCH => libseccomp string
@@ -74,7 +73,7 @@ func inSlice(slice []string, s string) bool {
 	return false
 }
 
-func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
+func setupSeccomp(config *Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 	if config == nil {
 		return nil, nil
 	}
@@ -92,9 +91,7 @@ func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, e
 
 	// if config.Architectures == 0 then libseccomp will figure out the architecture to use
 	if len(config.Architectures) != 0 {
-		for _, a := range config.Architectures {
-			newConfig.Architectures = append(newConfig.Architectures, specs.Arch(a))
-		}
+		newConfig.Architectures = config.Architectures
 	}
 
 	arch := goToNative[runtime.GOARCH]
@@ -103,16 +100,14 @@ func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, e
 	if len(config.ArchMap) != 0 && archExists {
 		for _, a := range config.ArchMap {
 			if a.Arch == seccompArch {
-				newConfig.Architectures = append(newConfig.Architectures, specs.Arch(a.Arch))
-				for _, sa := range a.SubArches {
-					newConfig.Architectures = append(newConfig.Architectures, specs.Arch(sa))
-				}
+				newConfig.Architectures = append(newConfig.Architectures, a.Arch)
+				newConfig.Architectures = append(newConfig.Architectures, a.SubArches...)
 				break
 			}
 		}
 	}
 
-	newConfig.DefaultAction = specs.LinuxSeccompAction(config.DefaultAction)
+	newConfig.DefaultAction = config.DefaultAction
 
 Loop:
 	// Loop through all syscall blocks and convert them to libcontainer format after filtering them
@@ -170,22 +165,15 @@ Loop:
 	return newConfig, nil
 }
 
-func createSpecsSyscall(names []string, action types.Action, args []*types.Arg) specs.LinuxSyscall {
+func createSpecsSyscall(names []string, action specs.LinuxSeccompAction, args []*specs.LinuxSeccompArg) specs.LinuxSyscall {
 	newCall := specs.LinuxSyscall{
 		Names:  names,
-		Action: specs.LinuxSeccompAction(action),
+		Action: action,
 	}
 
 	// Loop through all the arguments of the syscall and convert them
 	for _, arg := range args {
-		newArg := specs.LinuxSeccompArg{
-			Index:    arg.Index,
-			Value:    arg.Value,
-			ValueTwo: arg.ValueTwo,
-			Op:       specs.LinuxSeccompOperator(arg.Op),
-		}
-
-		newCall.Args = append(newCall.Args, newArg)
+		newCall.Args = append(newCall.Args, *arg)
 	}
 	return newCall
 }

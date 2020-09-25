@@ -416,7 +416,6 @@
 				{
 					"index": 0,
 					"value": 0,
-					"valueTwo": 0,
 					"op": "SCMP_CMP_EQ"
 				}
 			],
@@ -433,7 +432,6 @@
 				{
 					"index": 0,
 					"value": 8,
-					"valueTwo": 0,
 					"op": "SCMP_CMP_EQ"
 				}
 			],
@@ -450,7 +448,6 @@
 				{
 					"index": 0,
 					"value": 131072,
-					"valueTwo": 0,
 					"op": "SCMP_CMP_EQ"
 				}
 			],
@@ -467,7 +464,6 @@
 				{
 					"index": 0,
 					"value": 131080,
-					"valueTwo": 0,
 					"op": "SCMP_CMP_EQ"
 				}
 			],
@@ -484,7 +480,6 @@
 				{
 					"index": 0,
 					"value": 4294967295,
-					"valueTwo": 0,
 					"op": "SCMP_CMP_EQ"
 				}
 			],
@@ -625,7 +620,6 @@
 				{
 					"index": 0,
 					"value": 2114060288,
-					"valueTwo": 0,
 					"op": "SCMP_CMP_MASKED_EQ"
 				}
 			],
@@ -650,7 +644,6 @@
 				{
 					"index": 1,
 					"value": 2114060288,
-					"valueTwo": 0,
 					"op": "SCMP_CMP_MASKED_EQ"
 				}
 			],
