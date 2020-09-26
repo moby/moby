@@ -157,7 +157,14 @@ func readUserFile(c *container.Container, p string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return os.Open(fp)
+	fh, err := os.Open(fp)
+	if err != nil {
+		// This is needed because a nil *os.File is different to a nil
+		// io.ReadCloser and this causes GetExecUser to not detect that the
+		// container file is missing.
+		return nil, err
+	}
+	return fh, nil
 }
 
 func getUser(c *container.Container, username string) (uint32, uint32, []uint32, error) {
