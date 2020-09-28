@@ -20,6 +20,19 @@ func TestLoadProfile(t *testing.T) {
 	}
 }
 
+// TestLoadLegacyProfile tests loading a seccomp profile in the old format
+// (before https://github.com/docker/docker/pull/24510)
+func TestLoadLegacyProfile(t *testing.T) {
+	f, err := ioutil.ReadFile("fixtures/default-old-format.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rs := oci.DefaultSpec()
+	if _, err := LoadProfile(string(f), &rs); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestLoadDefaultProfile(t *testing.T) {
 	f, err := ioutil.ReadFile("default.json")
 	if err != nil {
