@@ -8,7 +8,7 @@ set -eo pipefail
 # debian                           latest              f6fab3b798be3174f45aa1eb731f8182705555f89c9026d8c1ef230cbf8301dd   10 weeks ago        85.1 MB
 
 # check if essential commands are in our PATH
-for cmd in curl jq go; do
+for cmd in curl jq; do
 	if ! command -v $cmd &> /dev/null; then
 		echo >&2 "error: \"$cmd\" not found!"
 		exit 1
@@ -36,13 +36,11 @@ manifestJsonEntries=()
 doNotGenerateManifestJson=
 # repositories[busybox]='"latest": "...", "ubuntu-14.04": "..."'
 
-# bash v4 on Windows CI requires CRLF separator
+# bash v4 on Windows CI requires CRLF separator... and linux doesn't seem to care either way
 newlineIFS=$'\n'
-if [ "$(go env GOHOSTOS)" = 'windows' ]; then
-	major=$(echo "${BASH_VERSION%%[^0.9]}" | cut -d. -f1)
-	if [ "$major" -ge 4 ]; then
-		newlineIFS=$'\r\n'
-	fi
+major=$(echo "${BASH_VERSION%%[^0.9]}" | cut -d. -f1)
+if [ "$major" -ge 4 ]; then
+	newlineIFS=$'\r\n'
 fi
 
 registryBase='https://registry-1.docker.io'
@@ -201,6 +199,68 @@ handle_single_manifest_v2() {
 	manifestJsonEntries=("${manifestJsonEntries[@]}" "$manifestJsonEntry")
 }
 
+get_target_arch() {
+	if [ -n "${TARGETARCH:-}" ]; then
+		echo "${TARGETARCH}"
+		return 0
+	fi
+
+	if type go > /dev/null; then
+		go env GOARCH
+		return 0
+	fi
+
+	if type dpkg > /dev/null; then
+		debArch="$(dpkg --print-architecture)"
+		case "${debArch}" in
+			armel | armhf)
+				echo "arm"
+				return 0
+				;;
+			*64el)
+				echo "${debArch%el}le"
+				return 0
+				;;
+			*)
+				echo "${debArch}"
+				return 0
+				;;
+		esac
+	fi
+
+	if type uname > /dev/null; then
+		uArch="$(uname -m)"
+		case "${uArch}" in
+			x86_64)
+				echo amd64
+				return 0
+				;;
+			arm | armv[0-9]*)
+				echo arm
+				return 0
+				;;
+			aarch64)
+				echo arm64
+				return 0
+				;;
+			mips*)
+				echo >&2 "I see you are running on mips but I don't know how to determine endianness yet, so I cannot select a correct arch to fetch."
+				echo >&2 "Consider installing \"go\" on the system which I can use to determine the correct arch or specify it explictly by setting TARGETARCH"
+				exit 1
+				;;
+			*)
+				echo "${uArch}"
+				return 0
+				;;
+		esac
+
+	fi
+
+	# default value
+	echo >&2 "Unable to determine CPU arch, falling back to amd64. You can specify a target arch by setting TARGETARCH"
+	echo amd64
+}
+
 while [ $# -gt 0 ]; do
 	imageTag="$1"
 	shift
@@ -250,11 +310,12 @@ while [ $# -gt 0 ]; do
 					unset IFS
 
 					found=""
+					targetArch="$(get_target_arch)"
 					# parse first level multi-arch manifest
 					for i in "${!layers[@]}"; do
 						layerMeta="${layers[$i]}"
 						maniArch="$(echo "$layerMeta" | jq --raw-output '.platform.architecture')"
-						if [ "$maniArch" = "$(go env GOARCH)" ]; then
+						if [ "$maniArch" = "${targetArch}" ]; then
 							digest="$(echo "$layerMeta" | jq --raw-output '.digest')"
 							# get second level single manifest
 							submanifestJson="$(
