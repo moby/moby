@@ -12,14 +12,10 @@ import (
 
 func (daemon *Daemon) execSetPlatformOpt(c *container.Container, ec *exec.Config, p *specs.Process) error {
 	if len(ec.User) > 0 {
-		uid, gid, additionalGids, err := getUser(c, ec.User)
+		var err error
+		p.User, err = getUser(c, ec.User)
 		if err != nil {
 			return err
-		}
-		p.User = specs.User{
-			UID:            uid,
-			GID:            gid,
-			AdditionalGids: additionalGids,
 		}
 	}
 	if ec.Privileged {

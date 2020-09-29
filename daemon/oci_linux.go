@@ -3,7 +3,6 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -171,64 +170,42 @@ func WithCapabilities(c *container.Container) coci.SpecOpts {
 	}
 }
 
-func readUserFile(c *container.Container, p string) (io.ReadCloser, error) {
-	fp, err := c.GetResourcePath(p)
+func resourcePath(c *container.Container, getPath func() (string, error)) (string, error) {
+	p, err := getPath()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	fh, err := os.Open(fp)
-	if err != nil {
-		// This is needed because a nil *os.File is different to a nil
-		// io.ReadCloser and this causes GetExecUser to not detect that the
-		// container file is missing.
-		return nil, err
-	}
-	return fh, nil
+	return c.GetResourcePath(p)
 }
 
-func getUser(c *container.Container, username string) (uint32, uint32, []uint32, error) {
-	passwdPath, err := user.GetPasswdPath()
+func getUser(c *container.Container, username string) (specs.User, error) {
+	var usr specs.User
+	passwdPath, err := resourcePath(c, user.GetPasswdPath)
 	if err != nil {
-		return 0, 0, nil, err
+		return usr, err
 	}
-	groupPath, err := user.GetGroupPath()
+	groupPath, err := resourcePath(c, user.GetGroupPath)
 	if err != nil {
-		return 0, 0, nil, err
+		return usr, err
 	}
-	passwdFile, err := readUserFile(c, passwdPath)
-	if err == nil {
-		defer passwdFile.Close()
+	execUser, err := user.GetExecUserPath(username, nil, passwdPath, groupPath)
+	if err != nil {
+		return usr, err
 	}
-	groupFile, err := readUserFile(c, groupPath)
-	if err == nil {
-		defer groupFile.Close()
-	}
+	usr.UID = uint32(execUser.Uid)
+	usr.GID = uint32(execUser.Gid)
 
-	execUser, err := user.GetExecUser(username, nil, passwdFile, groupFile)
-	if err != nil {
-		return 0, 0, nil, err
-	}
-
-	// todo: fix this double read by a change to libcontainer/user pkg
-	groupFile, err = readUserFile(c, groupPath)
-	if err == nil {
-		defer groupFile.Close()
-	}
 	var addGroups []int
 	if len(c.HostConfig.GroupAdd) > 0 {
-		addGroups, err = user.GetAdditionalGroups(c.HostConfig.GroupAdd, groupFile)
+		addGroups, err = user.GetAdditionalGroupsPath(c.HostConfig.GroupAdd, groupPath)
 		if err != nil {
-			return 0, 0, nil, err
+			return usr, err
 		}
 	}
-	uid := uint32(execUser.Uid)
-	gid := uint32(execUser.Gid)
-	sgids := append(execUser.Sgids, addGroups...)
-	var additionalGids []uint32
-	for _, g := range sgids {
-		additionalGids = append(additionalGids, uint32(g))
+	for _, g := range append(execUser.Sgids, addGroups...) {
+		usr.AdditionalGids = append(usr.AdditionalGids, uint32(g))
 	}
-	return uid, gid, additionalGids, nil
+	return usr, nil
 }
 
 func setNamespace(s *specs.Spec, ns specs.LinuxNamespace) {
@@ -1023,14 +1000,9 @@ func WithSysctls(c *container.Container) coci.SpecOpts {
 // WithUser sets the container's user
 func WithUser(c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
-		uid, gid, additionalGids, err := getUser(c, c.Config.User)
-		if err != nil {
-			return err
-		}
-		s.Process.User.UID = uid
-		s.Process.User.GID = gid
-		s.Process.User.AdditionalGids = additionalGids
-		return nil
+		var err error
+		s.Process.User, err = getUser(c, c.Config.User)
+		return err
 	}
 }
 
