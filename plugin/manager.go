@@ -144,7 +144,7 @@ func (pm *Manager) HandleExitEvent(id string) error {
 		return err
 	}
 
-	if err := os.RemoveAll(filepath.Join(pm.config.ExecRoot, id)); err != nil && !os.IsNotExist(err) {
+	if err := os.RemoveAll(filepath.Join(pm.config.ExecRoot, id)); err != nil {
 		logrus.WithError(err).WithField("id", id).Error("Could not remove plugin bundle dir")
 	}
 
