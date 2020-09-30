@@ -53,6 +53,7 @@ func init() {
 }
 
 type gcplogs struct {
+	client    *logging.Client
 	logger    *logging.Logger
 	instance  *instanceInfo
 	container *containerInfo
@@ -169,6 +170,7 @@ func New(info logger.Info) (logger.Logger, error) {
 	}
 
 	l := &gcplogs{
+		client: c,
 		logger: lg,
 		container: &containerInfo{
 			Name:      info.ContainerName,
@@ -236,7 +238,7 @@ func (l *gcplogs) Log(m *logger.Message) error {
 
 func (l *gcplogs) Close() error {
 	l.logger.Flush()
-	return nil
+	return l.client.Close()
 }
 
 func (l *gcplogs) Name() string {
