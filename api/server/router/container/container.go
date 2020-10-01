@@ -10,13 +10,15 @@ type containerRouter struct {
 	backend Backend
 	decoder httputils.ContainerDecoder
 	routes  []router.Route
+	cgroup2 bool
 }
 
 // NewRouter initializes a new container router
-func NewRouter(b Backend, decoder httputils.ContainerDecoder) router.Router {
+func NewRouter(b Backend, decoder httputils.ContainerDecoder, cgroup2 bool) router.Router {
 	r := &containerRouter{
 		backend: b,
 		decoder: decoder,
+		cgroup2: cgroup2,
 	}
 	r.initRoutes()
 	return r
