@@ -3,10 +3,12 @@
 package seccomp // import "github.com/docker/docker/profiles/seccomp"
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"testing"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"gotest.tools/v3/assert"
 )
 
 func TestLoadProfile(t *testing.T) {
@@ -42,6 +44,27 @@ func TestLoadDefaultProfile(t *testing.T) {
 	if _, err := LoadProfile(string(f), &rs); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestUnmarshalDefaultProfile(t *testing.T) {
+	expected := DefaultProfile()
+	if expected == nil {
+		t.Skip("seccomp not supported")
+	}
+
+	f, err := ioutil.ReadFile("default.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var profile Seccomp
+	err = json.Unmarshal(f, &profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.DeepEqual(t, expected.Architectures, profile.Architectures)
+	assert.DeepEqual(t, expected.ArchMap, profile.ArchMap)
+	assert.DeepEqual(t, expected.DefaultAction, profile.DefaultAction)
+	assert.DeepEqual(t, expected.Syscalls, profile.Syscalls)
 }
 
 func TestLoadConditional(t *testing.T) {
