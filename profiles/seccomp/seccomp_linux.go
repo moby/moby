@@ -123,8 +123,8 @@ Loop:
 				}
 			}
 		}
-		if call.Excludes.MinKernel != "" {
-			if ok, err := kernelGreaterEqualThan(call.Excludes.MinKernel); err != nil {
+		if call.Excludes.MinKernel != nil {
+			if ok, err := kernelGreaterEqualThan(*call.Excludes.MinKernel); err != nil {
 				return nil, err
 			} else if ok {
 				continue Loop
@@ -142,8 +142,8 @@ Loop:
 				}
 			}
 		}
-		if call.Includes.MinKernel != "" {
-			if ok, err := kernelGreaterEqualThan(call.Includes.MinKernel); err != nil {
+		if call.Includes.MinKernel != nil {
+			if ok, err := kernelGreaterEqualThan(*call.Includes.MinKernel); err != nil {
 				return nil, err
 			} else if !ok {
 				continue Loop

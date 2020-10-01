@@ -389,7 +389,7 @@ func DefaultProfile() *Seccomp {
 			Names:  []string{"ptrace"},
 			Action: specs.ActAllow,
 			Includes: Filter{
-				MinKernel: "4.8",
+				MinKernel: &KernelVersion{4, 8},
 			},
 		},
 		{
