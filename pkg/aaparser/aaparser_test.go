@@ -59,6 +59,20 @@ Copyright 2009-2012 Canonical Ltd.
 `,
 			version: 314159,
 		},
+		{
+			output: `AppArmor parser version 3.0.0-beta1
+Copyright (C) 1999-2008 Novell Inc.
+Copyright 2009-2018 Canonical Ltd.
+`,
+			version: 300000,
+		},
+		{
+			output: `AppArmor parser version 3.0.0-beta1-foo-bar
+Copyright (C) 1999-2008 Novell Inc.
+Copyright 2009-2018 Canonical Ltd.
+`,
+			version: 300000,
+		},
 	}
 
 	for _, v := range versions {
