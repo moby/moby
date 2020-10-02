@@ -34,9 +34,9 @@ var (
 // mechanism to load these defaults from a common repository/config shared by
 // all supported languages. Likely a serialized protobuf of these defaults.
 
-// Predefined views may be subscribed to collect data for the above measures.
+// Predefined views may be registered to collect data for the above measures.
 // As always, you may also define your own custom views over measures collected by this
-// package. These are declared as a convenience only; none are subscribed by
+// package. These are declared as a convenience only; none are registered by
 // default.
 var (
 	ServerReceivedBytesPerRPCView = &view.View{

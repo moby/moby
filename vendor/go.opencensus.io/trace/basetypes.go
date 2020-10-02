@@ -59,6 +59,11 @@ func Int64Attribute(key string, value int64) Attribute {
 	return Attribute{key: key, value: value}
 }
 
+// Float64Attribute returns a float64-valued attribute.
+func Float64Attribute(key string, value float64) Attribute {
+	return Attribute{key: key, value: value}
+}
+
 // StringAttribute returns a string-valued attribute.
 func StringAttribute(key string, value string) Attribute {
 	return Attribute{key: key, value: value}
@@ -71,8 +76,8 @@ type LinkType int32
 // LinkType values.
 const (
 	LinkTypeUnspecified LinkType = iota // The relationship of the two spans is unknown.
-	LinkTypeChild                       // The current span is a child of the linked span.
-	LinkTypeParent                      // The current span is the parent of the linked span.
+	LinkTypeChild                       // The linked span is a child of the current span.
+	LinkTypeParent                      // The linked span is the parent of the current span.
 )
 
 // Link represents a reference from one span to another span.

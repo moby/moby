@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2016 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,16 +25,19 @@
 package logging
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/internal/version"
@@ -44,7 +47,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	structpb "github.com/golang/protobuf/ptypes/struct"
 	tspb "github.com/golang/protobuf/ptypes/timestamp"
-	"golang.org/x/net/context"
 	"google.golang.org/api/option"
 	"google.golang.org/api/support/bundler"
 	mrpb "google.golang.org/genproto/googleapis/api/monitoredres"
@@ -53,13 +55,13 @@ import (
 )
 
 const (
-	// Scope for reading from the logging service.
+	// ReadScope is the scope for reading from the logging service.
 	ReadScope = "https://www.googleapis.com/auth/logging.read"
 
-	// Scope for writing to the logging service.
+	// WriteScope is the scope for writing to the logging service.
 	WriteScope = "https://www.googleapis.com/auth/logging.write"
 
-	// Scope for administrative actions on the logging service.
+	// AdminScope is the scope for administrative actions on the logging service.
 	AdminScope = "https://www.googleapis.com/auth/logging.admin"
 )
 
@@ -234,7 +236,7 @@ type Logger struct {
 	// Options
 	commonResource *mrpb.MonitoredResource
 	commonLabels   map[string]string
-	writeTimeout   time.Duration
+	ctxFunc        func() (context.Context, func())
 }
 
 // A LoggerOption is a configuration option for a Logger.
@@ -274,12 +276,17 @@ func detectResource() *mrpb.MonitoredResource {
 		if err != nil {
 			return
 		}
+		name, err := metadata.InstanceName()
+		if err != nil {
+			return
+		}
 		detectedResource.pb = &mrpb.MonitoredResource{
 			Type: "gce_instance",
 			Labels: map[string]string{
-				"project_id":  projectID,
-				"instance_id": id,
-				"zone":        zone,
+				"project_id":    projectID,
+				"instance_id":   id,
+				"instance_name": name,
+				"zone":          zone,
 			},
 		}
 	})
@@ -398,6 +405,23 @@ type bufferedByteLimit int
 
 func (b bufferedByteLimit) set(l *Logger) { l.bundler.BufferedByteLimit = int(b) }
 
+// ContextFunc is a function that will be called to obtain a context.Context for the
+// WriteLogEntries RPC executed in the background for calls to Logger.Log. The
+// default is a function that always returns context.Background. The second return
+// value of the function is a function to call after the RPC completes.
+//
+// The function is not used for calls to Logger.LogSync, since the caller can pass
+// in the context directly.
+//
+// This option is EXPERIMENTAL. It may be changed or removed.
+func ContextFunc(f func() (ctx context.Context, afterCall func())) LoggerOption {
+	return contextFunc(f)
+}
+
+type contextFunc func() (ctx context.Context, afterCall func())
+
+func (c contextFunc) set(l *Logger) { l.ctxFunc = c }
+
 // Logger returns a Logger that will write entries with the given log ID, such as
 // "syslog". A log ID must be less than 512 characters long and can only
 // include the following characters: upper and lower case alphanumeric
@@ -412,6 +436,7 @@ func (c *Client) Logger(logID string, opts ...LoggerOption) *Logger {
 		client:         c,
 		logName:        internal.LogPath(c.parent, logID),
 		commonResource: r,
+		ctxFunc:        func() (context.Context, func()) { return context.Background(), nil },
 	}
 	l.bundler = bundler.NewBundler(&logpb.LogEntry{}, func(entries interface{}) {
 		l.writeLogEntries(entries.([]*logpb.LogEntry))
@@ -578,6 +603,17 @@ type Entry struct {
 	// if any. If it contains a relative resource name, the name is assumed to
 	// be relative to //tracing.googleapis.com.
 	Trace string
+
+	// ID of the span within the trace associated with the log entry.
+	// The ID is a 16-character hexadecimal encoding of an 8-byte array.
+	SpanID string
+
+	// If set, symbolizes that this request was sampled.
+	TraceSampled bool
+
+	// Optional. Source code location information associated with the log entry,
+	// if any.
+	SourceLocation *logpb.LogEntrySourceLocation
 }
 
 // HTTPRequest contains an http.Request as well as additional
@@ -631,7 +667,7 @@ func fromHTTPRequest(r *HTTPRequest) *logtypepb.HttpRequest {
 	u.Fragment = ""
 	pb := &logtypepb.HttpRequest{
 		RequestMethod:                  r.Request.Method,
-		RequestUrl:                     u.String(),
+		RequestUrl:                     fixUTF8(u.String()),
 		RequestSize:                    r.RequestSize,
 		Status:                         int32(r.Status),
 		ResponseSize:                   r.ResponseSize,
@@ -646,6 +682,27 @@ func fromHTTPRequest(r *HTTPRequest) *logtypepb.HttpRequest {
 		pb.Latency = ptypes.DurationProto(r.Latency)
 	}
 	return pb
+}
+
+// fixUTF8 is a helper that fixes an invalid UTF-8 string by replacing
+// invalid UTF-8 runes with the Unicode replacement character (U+FFFD).
+// See Issue https://github.com/googleapis/google-cloud-go/issues/1383.
+func fixUTF8(s string) string {
+	if utf8.ValidString(s) {
+		return s
+	}
+
+	// Otherwise time to build the sequence.
+	buf := new(bytes.Buffer)
+	buf.Grow(len(s))
+	for _, r := range s {
+		if utf8.ValidRune(r) {
+			buf.WriteRune(r)
+		} else {
+			buf.WriteRune('\uFFFD')
+		}
+	}
+	return buf.String()
 }
 
 // toProtoStruct converts v, which must marshal into a JSON object,
@@ -713,7 +770,7 @@ func jsonValueToStructValue(v interface{}) *structpb.Value {
 // Prefer Log for most uses.
 // TODO(jba): come up with a better name (LogNow?) or eliminate.
 func (l *Logger) LogSync(ctx context.Context, e Entry) error {
-	ent, err := toLogEntry(e)
+	ent, err := l.toLogEntry(e)
 	if err != nil {
 		return err
 	}
@@ -728,7 +785,7 @@ func (l *Logger) LogSync(ctx context.Context, e Entry) error {
 
 // Log buffers the Entry for output to the logging service. It never blocks.
 func (l *Logger) Log(e Entry) {
-	ent, err := toLogEntry(e)
+	ent, err := l.toLogEntry(e)
 	if err != nil {
 		l.client.error(err)
 		return
@@ -756,11 +813,15 @@ func (l *Logger) writeLogEntries(entries []*logpb.LogEntry) {
 		Labels:   l.commonLabels,
 		Entries:  entries,
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), defaultWriteTimeout)
+	ctx, afterCall := l.ctxFunc()
+	ctx, cancel := context.WithTimeout(ctx, defaultWriteTimeout)
 	defer cancel()
 	_, err := l.client.client.WriteLogEntries(ctx, req)
 	if err != nil {
 		l.client.error(err)
+	}
+	if afterCall != nil {
+		afterCall()
 	}
 }
 
@@ -771,14 +832,38 @@ func (l *Logger) writeLogEntries(entries []*logpb.LogEntry) {
 // (for example by calling SetFlags or SetPrefix).
 func (l *Logger) StandardLogger(s Severity) *log.Logger { return l.stdLoggers[s] }
 
-func trunc32(i int) int32 {
-	if i > math.MaxInt32 {
-		i = math.MaxInt32
+var reCloudTraceContext = regexp.MustCompile(`([a-f\d]+)/([a-f\d]+);o=(\d)`)
+
+func deconstructXCloudTraceContext(s string) (traceID, spanID string, traceSampled bool) {
+	// As per the format described at https://cloud.google.com/trace/docs/troubleshooting#force-trace
+	//    "X-Cloud-Trace-Context: TRACE_ID/SPAN_ID;o=TRACE_TRUE"
+	// for example:
+	//    "X-Cloud-Trace-Context: 105445aa7843bc8bf206b120001000/0;o=1"
+	//
+	// We expect:
+	//   * traceID:         "105445aa7843bc8bf206b120001000"
+	//   * spanID:          ""
+	//   * traceSampled:    true
+	matches := reCloudTraceContext.FindAllStringSubmatch(s, -1)
+	if len(matches) != 1 {
+		return
 	}
-	return int32(i)
+
+	sub := matches[0]
+	if len(sub) != 4 {
+		return
+	}
+
+	traceID, spanID = sub[1], sub[2]
+	if spanID == "0" {
+		spanID = ""
+	}
+	traceSampled = sub[3] == "1"
+
+	return
 }
 
-func toLogEntry(e Entry) (*logpb.LogEntry, error) {
+func (l *Logger) toLogEntry(e Entry) (*logpb.LogEntry, error) {
 	if e.LogName != "" {
 		return nil, errors.New("logging: Entry.LogName should be not be set when writing")
 	}
@@ -790,15 +875,37 @@ func toLogEntry(e Entry) (*logpb.LogEntry, error) {
 	if err != nil {
 		return nil, err
 	}
+	if e.Trace == "" && e.HTTPRequest != nil && e.HTTPRequest.Request != nil {
+		traceHeader := e.HTTPRequest.Request.Header.Get("X-Cloud-Trace-Context")
+		if traceHeader != "" {
+			// Set to a relative resource name, as described at
+			// https://cloud.google.com/appengine/docs/flexible/go/writing-application-logs.
+			traceID, spanID, traceSampled := deconstructXCloudTraceContext(traceHeader)
+			if traceID != "" {
+				e.Trace = fmt.Sprintf("%s/traces/%s", l.client.parent, traceID)
+			}
+			if e.SpanID == "" {
+				e.SpanID = spanID
+			}
+
+			// If we previously hadn't set TraceSampled, let's retrieve it
+			// from the HTTP request's header, as per:
+			//   https://cloud.google.com/trace/docs/troubleshooting#force-trace
+			e.TraceSampled = e.TraceSampled || traceSampled
+		}
+	}
 	ent := &logpb.LogEntry{
-		Timestamp:   ts,
-		Severity:    logtypepb.LogSeverity(e.Severity),
-		InsertId:    e.InsertID,
-		HttpRequest: fromHTTPRequest(e.HTTPRequest),
-		Operation:   e.Operation,
-		Labels:      e.Labels,
-		Trace:       e.Trace,
-		Resource:    e.Resource,
+		Timestamp:      ts,
+		Severity:       logtypepb.LogSeverity(e.Severity),
+		InsertId:       e.InsertID,
+		HttpRequest:    fromHTTPRequest(e.HTTPRequest),
+		Operation:      e.Operation,
+		Labels:         e.Labels,
+		Trace:          e.Trace,
+		SpanId:         e.SpanID,
+		Resource:       e.Resource,
+		SourceLocation: e.SourceLocation,
+		TraceSampled:   e.TraceSampled,
 	}
 	switch p := e.Payload.(type) {
 	case string:
