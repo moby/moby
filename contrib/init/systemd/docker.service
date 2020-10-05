@@ -42,6 +42,7 @@ Delegate=yes
 
 # kill only the docker process, not all processes in the cgroup
 KillMode=process
+OOMScoreAdjust=-500
 
 [Install]
 WantedBy=multi-user.target
