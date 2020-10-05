@@ -7,8 +7,8 @@ https://docs.docker.com/engine/reference/api/
 Usage
 
 You use the library by creating a client object and calling methods on it. The
-client can be created either from environment variables with NewEnvClient, or
-configured manually with NewClient.
+client can be created either from environment variables with NewClientWithOpts(client.FromEnv),
+or configured manually with NewClient().
 
 For example, to list running containers (the equivalent of "docker ps"):
 
