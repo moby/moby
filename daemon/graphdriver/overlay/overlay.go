@@ -156,12 +156,8 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		logrus.WithField("storage-driver", "overlay").Warn(overlayutils.ErrDTypeNotSupported("overlay", backingFs))
 	}
 
-	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
-	if err != nil {
-		return nil, err
-	}
 	// Create the driver home dir
-	if err := idtools.MkdirAllAndChown(home, 0700, idtools.Identity{UID: rootUID, GID: rootGID}); err != nil {
+	if err := idtools.MkdirAllAndChown(home, 0701, idtools.CurrentIdentity()); err != nil {
 		return nil, err
 	}
 
@@ -265,10 +261,11 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 	}
 	root := idtools.Identity{UID: rootUID, GID: rootGID}
 
-	if err := idtools.MkdirAllAndChown(path.Dir(dir), 0700, root); err != nil {
+	currentID := idtools.CurrentIdentity()
+	if err := idtools.MkdirAllAndChown(path.Dir(dir), 0701, currentID); err != nil {
 		return err
 	}
-	if err := idtools.MkdirAndChown(dir, 0700, root); err != nil {
+	if err := idtools.MkdirAndChown(dir, 0701, currentID); err != nil {
 		return err
 	}
 
@@ -281,6 +278,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 
 	// Toplevel images are just a "root" dir
 	if parent == "" {
+		// This must be 0755 otherwise unprivileged users will in the container will not be able to read / in the container
 		return idtools.MkdirAndChown(path.Join(dir, "root"), 0755, root)
 	}
 
@@ -301,7 +299,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		if err := idtools.MkdirAndChown(path.Join(dir, "work"), 0700, root); err != nil {
 			return err
 		}
-		return ioutil.WriteFile(path.Join(dir, "lower-id"), []byte(parent), 0666)
+		return ioutil.WriteFile(path.Join(dir, "lower-id"), []byte(parent), 0600)
 	}
 
 	// Otherwise, copy the upper and the lower-id from the parent
@@ -311,7 +309,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return err
 	}
 
-	if err := ioutil.WriteFile(path.Join(dir, "lower-id"), lowerID, 0666); err != nil {
+	if err := ioutil.WriteFile(path.Join(dir, "lower-id"), lowerID, 0600); err != nil {
 		return err
 	}
 
