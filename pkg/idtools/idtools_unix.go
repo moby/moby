@@ -40,7 +40,7 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 		}
 
 		// short-circuit--we were called with an existing directory and chown was requested
-		return lazyChown(path, owner.UID, owner.GID, stat)
+		return setPermissions(path, mode, owner.UID, owner.GID, stat)
 	}
 
 	if os.IsNotExist(err) {
@@ -71,7 +71,7 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 	// even if it existed, we will chown the requested path + any subpaths that
 	// didn't exist when we called MkdirAll
 	for _, pathComponent := range paths {
-		if err := lazyChown(pathComponent, owner.UID, owner.GID, nil); err != nil {
+		if err := setPermissions(pathComponent, mode, owner.UID, owner.GID, nil); err != nil {
 			return err
 		}
 	}
@@ -213,14 +213,20 @@ func callGetent(database, key string) (io.Reader, error) {
 	return bytes.NewReader(out), nil
 }
 
-// lazyChown performs a chown only if the uid/gid don't match what's requested
+// setPermissions performs a chown/chmod only if the uid/gid don't match what's requested
 // Normally a Chown is a no-op if uid/gid match, but in some cases this can still cause an error, e.g. if the
 // dir is on an NFS share, so don't call chown unless we absolutely must.
-func lazyChown(p string, uid, gid int, stat *system.StatT) error {
+// Likewise for setting permissions.
+func setPermissions(p string, mode os.FileMode, uid, gid int, stat *system.StatT) error {
 	if stat == nil {
 		var err error
 		stat, err = system.Stat(p)
 		if err != nil {
+			return err
+		}
+	}
+	if os.FileMode(stat.Mode()).Perm() != mode.Perm() {
+		if err := os.Chmod(p, mode.Perm()); err != nil {
 			return err
 		}
 	}
