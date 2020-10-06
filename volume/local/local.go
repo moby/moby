@@ -50,7 +50,7 @@ type activeMount struct {
 func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 	rootDirectory := filepath.Join(scope, volumesPathName)
 
-	if err := idtools.MkdirAllAndChown(rootDirectory, 0700, rootIdentity); err != nil {
+	if err := idtools.MkdirAllAndChown(rootDirectory, 0701, idtools.CurrentIdentity()); err != nil {
 		return nil, err
 	}
 
@@ -153,8 +153,15 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 	}
 
 	path := r.DataPath(name)
+	volRoot := filepath.Dir(path)
+	// Root dir does not need to be accessed by the remapped root
+	if err := idtools.MkdirAllAndChown(volRoot, 0701, idtools.CurrentIdentity()); err != nil {
+		return nil, errors.Wrapf(errdefs.System(err), "error while creating volume root path '%s'", volRoot)
+	}
+
+	// Remapped root does need access to the data path
 	if err := idtools.MkdirAllAndChown(path, 0755, r.rootIdentity); err != nil {
-		return nil, errors.Wrapf(errdefs.System(err), "error while creating volume path '%s'", path)
+		return nil, errors.Wrapf(errdefs.System(err), "error while creating volume data path '%s'", path)
 	}
 
 	var err error

@@ -466,5 +466,5 @@ func (daemon *Daemon) setupContainerMountsRoot(c *container.Container) error {
 	if err != nil {
 		return err
 	}
-	return idtools.MkdirAllAndChown(p, 0700, daemon.idMapping.RootPair())
+	return idtools.MkdirAllAndChown(p, 0701, idtools.CurrentIdentity())
 }
