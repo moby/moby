@@ -1,6 +1,6 @@
 # flock
 [![TravisCI Build Status](https://img.shields.io/travis/gofrs/flock/master.svg?style=flat)](https://travis-ci.org/gofrs/flock)
-[![GoDoc](https://img.shields.io/badge/godoc-go--flock-blue.svg?style=flat)](https://godoc.org/github.com/gofrs/flock)
+[![GoDoc](https://img.shields.io/badge/godoc-flock-blue.svg?style=flat)](https://godoc.org/github.com/gofrs/flock)
 [![License](https://img.shields.io/badge/license-BSD_3--Clause-brightgreen.svg?style=flat)](https://github.com/gofrs/flock/blob/master/LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gofrs/flock)](https://goreportcard.com/report/github.com/gofrs/flock)
 

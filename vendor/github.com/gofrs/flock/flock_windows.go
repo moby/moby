@@ -46,6 +46,7 @@ func (f *Flock) lock(locked *bool, flag uint32) error {
 		if err := f.setFh(); err != nil {
 			return err
 		}
+		defer f.ensureFhState()
 	}
 
 	if _, errNo := lockFileEx(syscall.Handle(f.fh.Fd()), flag, 0, 1, 0, &syscall.Overlapped{}); errNo > 0 {
@@ -122,6 +123,7 @@ func (f *Flock) try(locked *bool, flag uint32) (bool, error) {
 		if err := f.setFh(); err != nil {
 			return false, err
 		}
+		defer f.ensureFhState()
 	}
 
 	_, errNo := lockFileEx(syscall.Handle(f.fh.Fd()), flag|winLockfileFailImmediately, 0, 1, 0, &syscall.Overlapped{})

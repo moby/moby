@@ -125,3 +125,11 @@ func (f *Flock) setFh() error {
 	f.fh = fh
 	return nil
 }
+
+// ensure the file handle is closed if no lock is held
+func (f *Flock) ensureFhState() {
+	if !f.l && !f.r && f.fh != nil {
+		f.fh.Close()
+		f.fh = nil
+	}
+}
