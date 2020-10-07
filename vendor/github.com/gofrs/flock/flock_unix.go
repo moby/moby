@@ -51,6 +51,7 @@ func (f *Flock) lock(locked *bool, flag int) error {
 		if err := f.setFh(); err != nil {
 			return err
 		}
+		defer f.ensureFhState()
 	}
 
 	if err := syscall.Flock(int(f.fh.Fd()), flag); err != nil {
@@ -142,6 +143,7 @@ func (f *Flock) try(locked *bool, flag int) (bool, error) {
 		if err := f.setFh(); err != nil {
 			return false, err
 		}
+		defer f.ensureFhState()
 	}
 
 	var retried bool
