@@ -83,16 +83,8 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 		// unclean shutdown). This is a no-op on windows
 		unmount(v.path)
 
-		if b, err := os.ReadFile(filepath.Join(v.rootPath, "opts.json")); err == nil {
-			opts := optsConfig{}
-			if err := json.Unmarshal(b, &opts); err != nil {
-				return nil, errors.Wrapf(err, "error while unmarshaling volume options for volume: %s", name)
-			}
-			// Make sure this isn't an empty optsConfig.
-			// This could be empty due to buggy behavior in older versions of Docker.
-			if !reflect.DeepEqual(opts, optsConfig{}) {
-				v.opts = &opts
-			}
+		if err := v.loadOpts(); err != nil {
+			return nil, err
 		}
 		r.volumes[name] = v
 	}
@@ -341,6 +333,26 @@ func (v *localVolume) Unmount(id string) error {
 }
 
 func (v *localVolume) Status() map[string]interface{} {
+	return nil
+}
+
+func (v *localVolume) loadOpts() error {
+	b, err := os.ReadFile(filepath.Join(v.rootPath, "opts.json"))
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			logrus.WithError(err).Warnf("error while loading volume options for volume: %s", v.name)
+		}
+		return nil
+	}
+	opts := optsConfig{}
+	if err := json.Unmarshal(b, &opts); err != nil {
+		return errors.Wrapf(err, "error while unmarshaling volume options for volume: %s", v.name)
+	}
+	// Make sure this isn't an empty optsConfig.
+	// This could be empty due to buggy behavior in older versions of Docker.
+	if !reflect.DeepEqual(opts, optsConfig{}) {
+		v.opts = &opts
+	}
 	return nil
 }
 
