@@ -169,18 +169,8 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 		}
 	}()
 
-	if len(opts) != 0 {
-		if err = v.setOpts(opts); err != nil {
-			return nil, err
-		}
-		var b []byte
-		b, err = json.Marshal(v.opts)
-		if err != nil {
-			return nil, err
-		}
-		if err = os.WriteFile(filepath.Join(v.rootPath, "opts.json"), b, 0600); err != nil {
-			return nil, errdefs.System(errors.Wrap(err, "error while persisting volume options"))
-		}
+	if err = v.setOpts(opts); err != nil {
+		return nil, err
 	}
 
 	r.volumes[name] = v
@@ -349,6 +339,19 @@ func (v *localVolume) Unmount(id string) error {
 }
 
 func (v *localVolume) Status() map[string]interface{} {
+	return nil
+}
+
+func (v *localVolume) saveOpts() error {
+	var b []byte
+	b, err := json.Marshal(v.opts)
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(filepath.Join(v.rootPath, "opts.json"), b, 0600)
+	if err != nil {
+		return errdefs.System(errors.Wrap(err, "error while persisting volume options"))
+	}
 	return nil
 }
 

@@ -96,7 +96,7 @@ func (v *localVolume) setOpts(opts map[string]string) error {
 		}
 		v.opts.Quota.Size = uint64(size)
 	}
-	return nil
+	return v.saveOpts()
 }
 
 func unmount(path string) {
