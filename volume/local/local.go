@@ -71,7 +71,7 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 			continue
 		}
 
-		name := filepath.Base(d.Name())
+		name := d.Name()
 		v := &localVolume{
 			driverName: r.Name(),
 			name:       name,
