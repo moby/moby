@@ -78,6 +78,11 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 			path:       filepath.Join(r.path, name, volumeDataPathName),
 			quotaCtl:   r.quotaCtl,
 		}
+
+		// unmount anything that may still be mounted (for example, from an
+		// unclean shutdown). This is a no-op on windows
+		unmount(v.path)
+
 		if b, err := os.ReadFile(filepath.Join(v.rootPath, "opts.json")); err == nil {
 			opts := optsConfig{}
 			if err := json.Unmarshal(b, &opts); err != nil {
@@ -88,9 +93,6 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 			if !reflect.DeepEqual(opts, optsConfig{}) {
 				v.opts = &opts
 			}
-			// unmount anything that may still be mounted (for example, from an
-			// unclean shutdown). This is a no-op on windows
-			unmount(v.path)
 		}
 		r.volumes[name] = v
 	}
