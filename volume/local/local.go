@@ -78,7 +78,6 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 			path:       r.DataPath(name),
 			quotaCtl:   r.quotaCtl,
 		}
-		r.volumes[name] = v
 		if b, err := os.ReadFile(filepath.Join(r.path, name, "opts.json")); err == nil {
 			opts := optsConfig{}
 			if err := json.Unmarshal(b, &opts); err != nil {
@@ -93,6 +92,7 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 			// unclean shutdown). This is a no-op on windows
 			unmount(v.path)
 		}
+		r.volumes[name] = v
 	}
 
 	return r, nil
