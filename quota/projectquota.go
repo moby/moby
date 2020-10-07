@@ -9,7 +9,7 @@
 //       for both xfs/ext4 for kernel version >= v4.5
 //
 
-package quota // import "github.com/docker/docker/daemon/graphdriver/quota"
+package quota // import "github.com/docker/docker/quota"
 
 /*
 #include <stdlib.h>
@@ -55,6 +55,7 @@ import (
 	"io/ioutil"
 	"path"
 	"path/filepath"
+	"sync"
 	"unsafe"
 
 	"github.com/containerd/containerd/sys"
@@ -62,6 +63,33 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
+
+type pquotaState struct {
+	sync.Mutex
+	nextProjectID uint32
+}
+
+var pquotaStateInst *pquotaState
+var pquotaStateOnce sync.Once
+
+// getPquotaState - get global pquota state tracker instance
+func getPquotaState() *pquotaState {
+	pquotaStateOnce.Do(func() {
+		pquotaStateInst = &pquotaState{
+			nextProjectID: 1,
+		}
+	})
+	return pquotaStateInst
+}
+
+// registerBasePath - register a new base path and update nextProjectID
+func (state *pquotaState) updateMinProjID(minProjectID uint32) {
+	state.Lock()
+	defer state.Unlock()
+	if state.nextProjectID <= minProjectID {
+		state.nextProjectID = minProjectID + 1
+	}
+}
 
 // NewControl - initialize project quota support.
 // Test to make sure that quota can be set on a test dir and find
@@ -115,11 +143,11 @@ func NewControl(basePath string) (*Control, error) {
 	//
 	// Get project id of parent dir as minimal id to be used by driver
 	//
-	minProjectID, err := getProjectID(basePath)
+	baseProjectID, err := getProjectID(basePath)
 	if err != nil {
 		return nil, err
 	}
-	minProjectID++
+	minProjectID := baseProjectID + 1
 
 	//
 	// Test if filesystem supports project quotas by trying to set
@@ -134,19 +162,24 @@ func NewControl(basePath string) (*Control, error) {
 
 	q := Control{
 		backingFsBlockDev: backingFsBlockDev,
-		nextProjectID:     minProjectID + 1,
 		quotas:            make(map[string]uint32),
 	}
 
 	//
+	// update minimum project ID
+	//
+	state := getPquotaState()
+	state.updateMinProjID(minProjectID)
+
+	//
 	// get first project id to be used for next container
 	//
-	err = q.findNextProjectID(basePath)
+	err = q.findNextProjectID(basePath, baseProjectID)
 	if err != nil {
 		return nil, err
 	}
 
-	logrus.Debugf("NewControl(%s): nextProjectID = %d", basePath, q.nextProjectID)
+	logrus.Debugf("NewControl(%s): nextProjectID = %d", basePath, state.nextProjectID)
 	return &q, nil
 }
 
@@ -157,19 +190,24 @@ func (q *Control) SetQuota(targetPath string, quota Quota) error {
 	projectID, ok := q.quotas[targetPath]
 	q.RUnlock()
 	if !ok {
-		q.Lock()
-		projectID = q.nextProjectID
+		state := getPquotaState()
+		state.Lock()
+		projectID = state.nextProjectID
 
 		//
 		// assign project id to new container directory
 		//
 		err := setProjectID(targetPath, projectID)
 		if err != nil {
-			q.Unlock()
+			state.Unlock()
 			return err
 		}
+
+		state.nextProjectID++
+		state.Unlock()
+
+		q.Lock()
 		q.quotas[targetPath] = projectID
-		q.nextProjectID++
 		q.Unlock()
 	}
 
@@ -279,9 +317,25 @@ func setProjectID(targetPath string, projectID uint32) error {
 
 // findNextProjectID - find the next project id to be used for containers
 // by scanning driver home directory to find used project ids
-func (q *Control) findNextProjectID(home string) error {
-	q.Lock()
-	defer q.Unlock()
+func (q *Control) findNextProjectID(home string, baseID uint32) error {
+	state := getPquotaState()
+	state.Lock()
+	defer state.Unlock()
+
+	checkProjID := func(path string) (uint32, error) {
+		projid, err := getProjectID(path)
+		if err != nil {
+			return projid, err
+		}
+		if projid > 0 {
+			q.quotas[path] = projid
+		}
+		if state.nextProjectID <= projid {
+			state.nextProjectID = projid + 1
+		}
+		return projid, nil
+	}
+
 	files, err := ioutil.ReadDir(home)
 	if err != nil {
 		return errors.Errorf("read directory failed: %s", home)
@@ -291,15 +345,26 @@ func (q *Control) findNextProjectID(home string) error {
 			continue
 		}
 		path := filepath.Join(home, file.Name())
-		projid, err := getProjectID(path)
+		projid, err := checkProjID(path)
 		if err != nil {
 			return err
 		}
-		if projid > 0 {
-			q.quotas[path] = projid
+		if projid > 0 && projid != baseID {
+			continue
 		}
-		if q.nextProjectID <= projid {
-			q.nextProjectID = projid + 1
+		subfiles, err := ioutil.ReadDir(path)
+		if err != nil {
+			return errors.Errorf("read directory failed: %s", path)
+		}
+		for _, subfile := range subfiles {
+			if !subfile.IsDir() {
+				continue
+			}
+			subpath := filepath.Join(path, subfile.Name())
+			_, err := checkProjID(subpath)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

@@ -1,6 +1,4 @@
-// +build linux
-
-package quota // import "github.com/docker/docker/daemon/graphdriver/quota"
+package quota // import "github.com/docker/docker/quota"
 
 import "sync"
 
@@ -14,6 +12,5 @@ type Quota struct {
 type Control struct {
 	backingFsBlockDev string
 	sync.RWMutex      // protect nextProjectID and quotas map
-	nextProjectID     uint32
 	quotas            map[string]uint32
 }

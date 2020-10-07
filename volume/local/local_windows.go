@@ -32,7 +32,15 @@ func setOpts(v *localVolume, opts map[string]string) error {
 	return nil
 }
 
+func (v *localVolume) needsMount() bool {
+	return false
+}
+
 func (v *localVolume) mount() error {
+	return nil
+}
+
+func (v *localVolume) postMount() error {
 	return nil
 }
 
