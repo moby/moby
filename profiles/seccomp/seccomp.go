@@ -21,9 +21,16 @@ type Architecture struct {
 
 // Filter is used to conditionally apply Seccomp rules
 type Filter struct {
-	Caps      []string `json:"caps,omitempty"`
-	Arches    []string `json:"arches,omitempty"`
-	MinKernel string   `json:"minKernel,omitempty"`
+	Caps   []string `json:"caps,omitempty"`
+	Arches []string `json:"arches,omitempty"`
+
+	// MinKernel describes the minimum kernel version the rule must be applied
+	// on, in the format "<kernel version>.<major revision>" (e.g. "3.12").
+	//
+	// When matching the kernel version of the host, minor revisions, and distro-
+	// specific suffixes are ignored, which means that "3.12.25-gentoo", "3.12-1-amd64",
+	// "3.12", and "3.12-rc5" are considered equal (kernel 3, major revision 12).
+	MinKernel string `json:"minKernel,omitempty"`
 }
 
 // Syscall is used to match a group of syscalls in Seccomp
