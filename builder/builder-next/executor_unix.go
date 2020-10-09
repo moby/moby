@@ -24,7 +24,7 @@ import (
 
 const networkName = "bridge"
 
-func newExecutor(root, cgroupParent string, net libnetwork.NetworkController, dnsConfig *oci.DNSConfig, rootless bool, idmap *idtools.IdentityMapping) (executor.Executor, error) {
+func newExecutor(root, cgroupParent string, net libnetwork.NetworkController, dnsConfig *oci.DNSConfig, rootless bool, idmap *idtools.IdentityMapping, apparmorProfile string) (executor.Executor, error) {
 	networkProviders := map[pb.NetMode]network.Provider{
 		pb.NetMode_UNSET: &bridgeProvider{NetworkController: net, Root: filepath.Join(root, "net")},
 		pb.NetMode_HOST:  network.NewHostProvider(),
@@ -38,6 +38,7 @@ func newExecutor(root, cgroupParent string, net libnetwork.NetworkController, dn
 		NoPivot:             os.Getenv("DOCKER_RAMDISK") != "",
 		IdentityMapping:     idmap,
 		DNS:                 dnsConfig,
+		ApparmorProfile:     apparmorProfile,
 	}, networkProviders)
 }
 

@@ -75,6 +75,7 @@ type Opt struct {
 	Rootless            bool
 	IdentityMapping     *idtools.IdentityMapping
 	DNSConfig           config.DNSConfig
+	ApparmorProfile     string
 }
 
 // Builder can build using BuildKit backend
