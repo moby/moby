@@ -528,6 +528,9 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unv
 	// to top-most, so that the downloads slice gets ordered correctly.
 	for i := len(verifiedManifest.FSLayers) - 1; i >= 0; i-- {
 		blobSum := verifiedManifest.FSLayers[i].BlobSum
+		if err = blobSum.Validate(); err != nil {
+			return "", "", errors.Wrapf(err, "could not validate layer digest %q", blobSum)
+		}
 
 		var throwAway struct {
 			ThrowAway bool `json:"throwaway,omitempty"`
@@ -626,6 +629,9 @@ func (p *v2Puller) pullSchema2Layers(ctx context.Context, target distribution.De
 	// Note that the order of this loop is in the direction of bottom-most
 	// to top-most, so that the downloads slice gets ordered correctly.
 	for _, d := range layers {
+		if err := d.Digest.Validate(); err != nil {
+			return "", errors.Wrapf(err, "could not validate layer digest %q", d.Digest)
+		}
 		layerDescriptor := &v2LayerDescriptor{
 			digest:            d.Digest,
 			repo:              p.repo,
