@@ -524,6 +524,9 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 	layers := make([]xfer.DownloadDescriptor, 0, len(mfst.Layers))
 
 	for i, desc := range mfst.Layers {
+		if err := desc.Digest.Validate(); err != nil {
+			return nil, errors.Wrap(err, "layer digest could not be validated")
+		}
 		ongoing.add(desc)
 		layers = append(layers, &layerDescriptor{
 			desc:    desc,
