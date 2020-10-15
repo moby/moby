@@ -510,17 +510,6 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 			}
 			platform = &p
 		}
-		defaultPlatform := platforms.DefaultSpec()
-		if platform == nil {
-			platform = &defaultPlatform
-		}
-		if platform.OS == "" {
-			platform.OS = defaultPlatform.OS
-		}
-		if platform.Architecture == "" {
-			platform.Architecture = defaultPlatform.Architecture
-			platform.Variant = defaultPlatform.Variant
-		}
 	}
 
 	if hostConfig != nil && hostConfig.PidsLimit != nil && *hostConfig.PidsLimit <= 0 {

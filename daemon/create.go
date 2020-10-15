@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
@@ -16,6 +17,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -59,8 +61,10 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 	}
 
 	os := runtime.GOOS
+	var img *image.Image
 	if opts.params.Config.Image != "" {
-		img, err := daemon.imageService.GetImage(opts.params.Config.Image, opts.params.Platform)
+		var err error
+		img, err = daemon.imageService.GetImage(opts.params.Config.Image, opts.params.Platform)
 		if err == nil {
 			os = img.OS
 		}
@@ -75,6 +79,19 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 	warnings, err := daemon.verifyContainerSettings(os, opts.params.HostConfig, opts.params.Config, false)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, errdefs.InvalidParameter(err)
+	}
+
+	if img != nil && opts.params.Platform == nil {
+		p := platforms.DefaultSpec()
+		imgPlat := v1.Platform{
+			OS:           img.OS,
+			Architecture: img.Architecture,
+			Variant:      img.Variant,
+		}
+
+		if !platforms.Only(p).Match(imgPlat) {
+			warnings = append(warnings, fmt.Sprintf("The requested image's platform (%s) does not match the detected host platform (%s) and no specific platform was requested", platforms.Format(imgPlat), platforms.Format(p)))
+		}
 	}
 
 	err = verifyNetworkingConfig(opts.params.NetworkingConfig)
