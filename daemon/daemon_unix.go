@@ -1636,6 +1636,9 @@ func setMayDetachMounts() error {
 }
 
 func setupOOMScoreAdj(score int) error {
+	if score == 0 {
+		return nil
+	}
 	f, err := os.OpenFile("/proc/self/oom_score_adj", os.O_WRONLY, 0)
 	if err != nil {
 		return err
