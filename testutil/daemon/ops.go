@@ -115,3 +115,10 @@ func WithRootlessUser(username string) Option {
 		d.rootlessUser = u
 	}
 }
+
+// WithOOMScoreAdjust sets OOM score for the daemon
+func WithOOMScoreAdjust(score int) Option {
+	return func(d *Daemon) {
+		d.OOMScoreAdjust = score
+	}
+}

@@ -88,6 +88,7 @@ type Daemon struct {
 	DefaultAddrPool []string
 	SubnetSize      uint32
 	DataPathPort    uint32
+	OOMScoreAdjust  int
 	// cached information
 	CachedInfo types.Info
 }
@@ -206,6 +207,7 @@ func New(t testing.TB, ops ...Option) *Daemon {
 		}
 		ops = append(ops, WithRootlessUser("unprivilegeduser"))
 	}
+	ops = append(ops, WithOOMScoreAdjust(-500))
 
 	d, err := NewDaemon(dest, ops...)
 	assert.NilError(t, err, "could not create daemon at %q", dest)
