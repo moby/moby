@@ -5,7 +5,7 @@ coverage:
     patch:
       default:
         target: 50%
-        only_pulls: true
+        #only_pulls: true
     # project will give us the diff in the total code coverage between a commit
     # and its parent
     project:
