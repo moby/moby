@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/oci/caps"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/libnetwork"
@@ -172,6 +173,37 @@ func TestSysctlOverrideHost(t *testing.T) {
 	s, err = d.createSpec(c)
 	assert.NilError(t, err)
 	assert.Equal(t, s.Linux.Sysctl["net.ipv4.ip_unprivileged_port_start"], c.HostConfig.Sysctls["net.ipv4.ip_unprivileged_port_start"])
+}
+
+//Test case of the default capabilities.
+func TestDefaultCapabilitiesSe(t *testing.T) {
+	c := &container.Container{
+		Config:     &containertypes.Config{},
+		HostConfig: &containertypes.HostConfig{},
+	}
+	d := setupFakeDaemon(t, c)
+	defer cleanupFakeContainer(c)
+
+	s, err := d.createSpec(c)
+	assert.NilError(t, err)
+
+	assert.Equal(t, len(s.Process.Capabilities.Effective), len(caps.DefaultCapabilities()))
+}
+
+//Test both cases of the default capabilities.
+func TestDefaultCapabilitiesSe2(t *testing.T) {
+	c := &container.Container{
+		Config:     &containertypes.Config{},
+		HostConfig: &containertypes.HostConfig{},
+	}
+	d := setupFakeDaemon(t, c)
+	defer cleanupFakeContainer(c)
+	d.configStore.DefaultCapabilities = []string{"CAP_KILL"}
+
+	s, err := d.createSpec(c)
+	assert.NilError(t, err)
+
+	assert.Equal(t, len(s.Process.Capabilities.Effective), 1)
 }
 
 func TestGetSourceMount(t *testing.T) {

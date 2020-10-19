@@ -924,12 +924,6 @@ definitions:
               A list of kernel capabilities to drop from the container.
             items:
               type: "string"
-          Capabilities:
-            type: "array"
-            description: |
-              A list of kernel capabilities to add by default.
-            items:
-              type: "string"
           CgroupnsMode:
             type: "string"
             enum:
