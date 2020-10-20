@@ -508,3 +508,23 @@ func TestCreateVolumesFromNonExistingContainer(t *testing.T) {
 	)
 	assert.Check(t, errdefs.IsInvalidParameter(err))
 }
+
+// Test that we can create a container from an image that is for a different platform even if a platform was not specified
+// This is for the regression detailed here: https://github.com/moby/moby/issues/41552
+func TestCreatePlatformSpecificImageNoPlatform(t *testing.T) {
+	defer setupTest(t)()
+
+	skip.If(t, testEnv.DaemonInfo.Architecture == "arm", "test only makes sense to run on non-arm systems")
+	skip.If(t, testEnv.OSType != "linux", "test image is only available on linux")
+	cli := testEnv.APIClient()
+
+	_, err := cli.ContainerCreate(
+		context.Background(),
+		&container.Config{Image: "arm32v7/hello-world"},
+		&container.HostConfig{},
+		nil,
+		nil,
+		"",
+	)
+	assert.NilError(t, err)
+}
