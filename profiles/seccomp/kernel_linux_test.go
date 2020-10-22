@@ -13,7 +13,7 @@ func TestGetKernelVersion(t *testing.T) {
 	if version == nil {
 		t.Fatal("version is nil")
 	}
-	if version.kernel == 0 {
+	if version.Kernel == 0 {
 		t.Fatal("no kernel version")
 	}
 }
@@ -22,18 +22,19 @@ func TestGetKernelVersion(t *testing.T) {
 func TestParseRelease(t *testing.T) {
 	tests := []struct {
 		in          string
-		out         kernelVersion
+		out         KernelVersion
 		expectedErr error
 	}{
-		{in: "3.8", out: kernelVersion{kernel: 3, major: 8}},
-		{in: "3.8.0", out: kernelVersion{kernel: 3, major: 8}},
-		{in: "3.8.0-19-generic", out: kernelVersion{kernel: 3, major: 8}},
-		{in: "3.4.54.longterm-1", out: kernelVersion{kernel: 3, major: 4}},
-		{in: "3.10.0-862.2.3.el7.x86_64", out: kernelVersion{kernel: 3, major: 10}},
-		{in: "3.12.8tag", out: kernelVersion{kernel: 3, major: 12}},
-		{in: "3.12-1-amd64", out: kernelVersion{kernel: 3, major: 12}},
-		{in: "3.12foobar", out: kernelVersion{kernel: 3, major: 12}},
-		{in: "99.999.999-19-generic", out: kernelVersion{kernel: 99, major: 999}},
+		{in: "3.8", out: KernelVersion{Kernel: 3, Major: 8}},
+		{in: "3.8.0", out: KernelVersion{Kernel: 3, Major: 8}},
+		{in: "3.8.0-19-generic", out: KernelVersion{Kernel: 3, Major: 8}},
+		{in: "3.4.54.longterm-1", out: KernelVersion{Kernel: 3, Major: 4}},
+		{in: "3.10.0-862.2.3.el7.x86_64", out: KernelVersion{Kernel: 3, Major: 10}},
+		{in: "3.12.8tag", out: KernelVersion{Kernel: 3, Major: 12}},
+		{in: "3.12-1-amd64", out: KernelVersion{Kernel: 3, Major: 12}},
+		{in: "3.12foobar", out: KernelVersion{Kernel: 3, Major: 12}},
+		{in: "99.999.999-19-generic", out: KernelVersion{Kernel: 99, Major: 999}},
+		{in: "", expectedErr: fmt.Errorf(`failed to parse kernel version "": EOF`)},
 		{in: "3", expectedErr: fmt.Errorf(`failed to parse kernel version "3": unexpected EOF`)},
 		{in: "3.", expectedErr: fmt.Errorf(`failed to parse kernel version "3.": EOF`)},
 		{in: "3a", expectedErr: fmt.Errorf(`failed to parse kernel version "3a": input does not match format`)},
@@ -66,8 +67,8 @@ func TestParseRelease(t *testing.T) {
 			if version == nil {
 				t.Fatal("version is nil")
 			}
-			if version.kernel != tc.out.kernel || version.major != tc.out.major {
-				t.Fatalf("expected: %d.%d, got: %d.%d", tc.out.kernel, tc.out.major, version.kernel, version.major)
+			if version.Kernel != tc.out.Kernel || version.Major != tc.out.Major {
+				t.Fatalf("expected: %d.%d, got: %d.%d", tc.out.Kernel, tc.out.Major, version.Kernel, version.Major)
 			}
 		})
 	}
@@ -82,33 +83,33 @@ func TestKernelGreaterEqualThan(t *testing.T) {
 
 	tests := []struct {
 		doc      string
-		in       string
+		in       KernelVersion
 		expected bool
 	}{
 		{
 			doc:      "same version",
-			in:       fmt.Sprintf("%d.%d", v.kernel, v.major),
+			in:       KernelVersion{v.Kernel, v.Major},
 			expected: true,
 		},
 		{
 			doc:      "kernel minus one",
-			in:       fmt.Sprintf("%d.%d", v.kernel-1, v.major),
+			in:       KernelVersion{v.Kernel - 1, v.Major},
 			expected: true,
 		},
 		{
 			doc:      "kernel plus one",
-			in:       fmt.Sprintf("%d.%d", v.kernel+1, v.major),
+			in:       KernelVersion{v.Kernel + 1, v.Major},
 			expected: false,
 		},
 		{
 			doc:      "major plus one",
-			in:       fmt.Sprintf("%d.%d", v.kernel, v.major+1),
+			in:       KernelVersion{v.Kernel, v.Major + 1},
 			expected: false,
 		},
 	}
 	for _, tc := range tests {
 		tc := tc
-		t.Run(tc.doc+": "+tc.in, func(t *testing.T) {
+		t.Run(tc.doc+": "+tc.in.String(), func(t *testing.T) {
 			ok, err := kernelGreaterEqualThan(tc.in)
 			if err != nil {
 				t.Fatal("unexpected error:", err)

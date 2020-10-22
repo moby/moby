@@ -5,6 +5,7 @@ package seccomp // import "github.com/docker/docker/profiles/seccomp"
 import (
 	"encoding/json"
 	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -65,6 +66,58 @@ func TestUnmarshalDefaultProfile(t *testing.T) {
 	assert.DeepEqual(t, expected.ArchMap, profile.ArchMap)
 	assert.DeepEqual(t, expected.DefaultAction, profile.DefaultAction)
 	assert.DeepEqual(t, expected.Syscalls, profile.Syscalls)
+}
+
+func TestMarshalUnmarshalFilter(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		in    string
+		out   string
+		error bool
+	}{
+		{in: `{"arches":["s390x"],"minKernel":3}`, error: true},
+		{in: `{"arches":["s390x"],"minKernel":3.12}`, error: true},
+		{in: `{"arches":["s390x"],"minKernel":true}`, error: true},
+		{in: `{"arches":["s390x"],"minKernel":"0.0"}`, error: true},
+		{in: `{"arches":["s390x"],"minKernel":"3"}`, error: true},
+		{in: `{"arches":["s390x"],"minKernel":".3"}`, error: true},
+		{in: `{"arches":["s390x"],"minKernel":"3."}`, error: true},
+		{in: `{"arches":["s390x"],"minKernel":"true"}`, error: true},
+		{in: `{"arches":["s390x"],"minKernel":"3.12.1\""}`, error: true},
+		{in: `{"arches":["s390x"],"minKernel":"4.15abc"}`, error: true},
+		{in: `{"arches":["s390x"],"minKernel":null}`, out: `{"arches":["s390x"]}`},
+		{in: `{"arches":["s390x"],"minKernel":""}`, out: `{"arches":["s390x"],"minKernel":""}`}, // FIXME: try to fix omitempty for this
+		{in: `{"arches":["s390x"],"minKernel":"0.5"}`, out: `{"arches":["s390x"],"minKernel":"0.5"}`},
+		{in: `{"arches":["s390x"],"minKernel":"0.50"}`, out: `{"arches":["s390x"],"minKernel":"0.50"}`},
+		{in: `{"arches":["s390x"],"minKernel":"5.0"}`, out: `{"arches":["s390x"],"minKernel":"5.0"}`},
+		{in: `{"arches":["s390x"],"minKernel":"50.0"}`, out: `{"arches":["s390x"],"minKernel":"50.0"}`},
+		{in: `{"arches":["s390x"],"minKernel":"4.15"}`, out: `{"arches":["s390x"],"minKernel":"4.15"}`},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.in, func(t *testing.T) {
+			var filter Filter
+			err := json.Unmarshal([]byte(tc.in), &filter)
+			if tc.error {
+				if err == nil {
+					t.Fatal("expected an error")
+				} else if !strings.Contains(err.Error(), "invalid kernel version") {
+					t.Fatal("unexpected error:", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			out, err := json.Marshal(filter)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(out) != tc.out {
+				t.Fatalf("expected %s, got %s", tc.out, string(out))
+			}
+		})
+	}
 }
 
 func TestLoadConditional(t *testing.T) {

@@ -1,6 +1,13 @@
 package seccomp // import "github.com/docker/docker/profiles/seccomp"
 
-import "github.com/opencontainers/runtime-spec/specs-go"
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/opencontainers/runtime-spec/specs-go"
+)
 
 // Seccomp represents the config for a seccomp profile for syscall restriction.
 type Seccomp struct {
@@ -30,7 +37,7 @@ type Filter struct {
 	// When matching the kernel version of the host, minor revisions, and distro-
 	// specific suffixes are ignored, which means that "3.12.25-gentoo", "3.12-1-amd64",
 	// "3.12", and "3.12-rc5" are considered equal (kernel 3, major revision 12).
-	MinKernel string `json:"minKernel,omitempty"`
+	MinKernel *KernelVersion `json:"minKernel,omitempty"`
 }
 
 // Syscall is used to match a group of syscalls in Seccomp
@@ -42,4 +49,53 @@ type Syscall struct {
 	Comment  string                   `json:"comment"`
 	Includes Filter                   `json:"includes"`
 	Excludes Filter                   `json:"excludes"`
+}
+
+// KernelVersion holds information about the kernel.
+type KernelVersion struct {
+	Kernel uint64 // Version of the Kernel (i.e., the "4" in "4.1.2-generic")
+	Major  uint64 // Major revision of the Kernel (i.e., the "1" in "4.1.2-generic")
+}
+
+// String implements fmt.Stringer for KernelVersion
+func (k *KernelVersion) String() string {
+	if k.Kernel > 0 || k.Major > 0 {
+		return fmt.Sprintf("%d.%d", k.Kernel, k.Major)
+	}
+	return ""
+}
+
+// MarshalJSON implements json.Unmarshaler for KernelVersion
+func (k *KernelVersion) MarshalJSON() ([]byte, error) {
+	return json.Marshal(k.String())
+}
+
+// UnmarshalJSON implements json.Marshaler for KernelVersion
+func (k *KernelVersion) UnmarshalJSON(version []byte) error {
+	var (
+		ver string
+		err error
+	)
+
+	// make sure we have a string
+	if err = json.Unmarshal(version, &ver); err != nil {
+		return fmt.Errorf(`invalid kernel version: %s, expected "<kernel>.<major>": %v`, string(version), err)
+	}
+	if ver == "" {
+		return nil
+	}
+	parts := strings.SplitN(ver, ".", 3)
+	if len(parts) != 2 {
+		return fmt.Errorf(`invalid kernel version: %s, expected "<kernel>.<major>"`, string(version))
+	}
+	if k.Kernel, err = strconv.ParseUint(parts[0], 10, 8); err != nil {
+		return fmt.Errorf(`invalid kernel version: %s, expected "<kernel>.<major>": %v`, string(version), err)
+	}
+	if k.Major, err = strconv.ParseUint(parts[1], 10, 8); err != nil {
+		return fmt.Errorf(`invalid kernel version: %s, expected "<kernel>.<major>": %v`, string(version), err)
+	}
+	if k.Kernel == 0 && k.Major == 0 {
+		return fmt.Errorf(`invalid kernel version: %s, expected "<kernel>.<major>": version cannot be 0.0`, string(version))
+	}
+	return nil
 }
