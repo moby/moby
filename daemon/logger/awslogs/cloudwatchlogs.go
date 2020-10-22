@@ -458,13 +458,7 @@ func (l *logStream) createLogGroup() error {
 		LogGroupName: aws.String(l.logGroupName),
 	}); err != nil {
 		if awsErr, ok := err.(awserr.Error); ok {
-			fields := logrus.Fields{
-				"errorCode":      awsErr.Code(),
-				"message":        awsErr.Message(),
-				"origError":      awsErr.OrigErr(),
-				"logGroupName":   l.logGroupName,
-				"logCreateGroup": l.logCreateGroup,
-			}
+			fields := l.getLogrusFields(awsErr)
 			if awsErr.Code() == resourceAlreadyExistsCode {
 				// Allow creation to succeed
 				logrus.WithFields(fields).Info("Log group already exists")
@@ -488,13 +482,7 @@ func (l *logStream) createLogStream() error {
 
 	if err != nil {
 		if awsErr, ok := err.(awserr.Error); ok {
-			fields := logrus.Fields{
-				"errorCode":     awsErr.Code(),
-				"message":       awsErr.Message(),
-				"origError":     awsErr.OrigErr(),
-				"logGroupName":  l.logGroupName,
-				"logStreamName": l.logStreamName,
-			}
+			fields := l.getLogrusFields(awsErr)
 			if awsErr.Code() == resourceAlreadyExistsCode {
 				// Allow creation to succeed
 				logrus.WithFields(fields).Info("Log stream already exists")
@@ -662,30 +650,24 @@ func (l *logStream) publishBatch(batch *eventBatch) {
 	cwEvents := unwrapEvents(batch.events())
 
 	nextSequenceToken, err := l.putLogEvents(cwEvents, l.sequenceToken)
+	if err != nil {
+		// retry on error
+		if nextSequenceToken == nil {
+			// if we didnt get a sequence token back from the first failed request
+			nextSequenceToken, err = l.putLogEvents(cwEvents, l.sequenceToken)
+		} else {
+			// if we did get a sequence token back from the first failed request
+			nextSequenceToken, err = l.putLogEvents(cwEvents, nextSequenceToken)
+		}
+	}
 
 	if err != nil {
 		if awsErr, ok := err.(awserr.Error); ok {
-			if awsErr.Code() == dataAlreadyAcceptedCode {
-				// already submitted, just grab the correct sequence token
-				parts := strings.Split(awsErr.Message(), " ")
-				nextSequenceToken = &parts[len(parts)-1]
-				logrus.WithFields(logrus.Fields{
-					"errorCode":     awsErr.Code(),
-					"message":       awsErr.Message(),
-					"logGroupName":  l.logGroupName,
-					"logStreamName": l.logStreamName,
-				}).Info("Data already accepted, ignoring error")
-				err = nil
-			} else if awsErr.Code() == invalidSequenceTokenCode {
-				// sequence code is bad, grab the correct one and retry
-				parts := strings.Split(awsErr.Message(), " ")
-				token := parts[len(parts)-1]
-				nextSequenceToken, err = l.putLogEvents(cwEvents, &token)
-			}
+			logrus.WithFields(l.getLogrusFields(awsErr)).Error(
+				fmt.Sprintf("Failed to put log events, dropping batch of %d events", len(cwEvents)))
+		} else {
+			logrus.Error(err)
 		}
-	}
-	if err != nil {
-		logrus.Error(err)
 	} else {
 		l.sequenceToken = nextSequenceToken
 	}
@@ -702,17 +684,32 @@ func (l *logStream) putLogEvents(events []*cloudwatchlogs.InputLogEvent, sequenc
 	resp, err := l.client.PutLogEvents(input)
 	if err != nil {
 		if awsErr, ok := err.(awserr.Error); ok {
-			logrus.WithFields(logrus.Fields{
-				"errorCode":     awsErr.Code(),
-				"message":       awsErr.Message(),
-				"origError":     awsErr.OrigErr(),
-				"logGroupName":  l.logGroupName,
-				"logStreamName": l.logStreamName,
-			}).Error("Failed to put log events")
+			if awsErr.Code() == dataAlreadyAcceptedCode {
+				// already submitted, just grab the correct sequence token
+				parts := strings.Split(awsErr.Message(), " ")
+				nextSequenceToken := &parts[len(parts)-1]
+				logrus.WithFields(l.getLogrusFields(awsErr)).Info("Data already accepted, ignoring error")
+				return nextSequenceToken, nil
+			} else if awsErr.Code() == invalidSequenceTokenCode {
+				// sequence code is bad, grab the correct one for retry
+				parts := strings.Split(awsErr.Message(), " ")
+				nextSequenceToken := &parts[len(parts)-1]
+				return nextSequenceToken, err
+			}
 		}
 		return nil, err
 	}
 	return resp.NextSequenceToken, nil
+}
+
+func (l *logStream) getLogrusFields(awsErr awserr.Error) logrus.Fields {
+	return logrus.Fields{
+		"errorCode":     awsErr.Code(),
+		"message":       awsErr.Message(),
+		"origError":     awsErr.OrigErr(),
+		"logGroupName":  l.logGroupName,
+		"logStreamName": l.logStreamName,
+	}
 }
 
 // ValidateLogOpt looks for awslogs-specific log options awslogs-region, awslogs-endpoint
