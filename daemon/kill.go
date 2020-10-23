@@ -169,9 +169,12 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 		return err
 	}
 
-	// Wait for exit with no timeout.
-	// Ignore returned status.
-	<-container.Wait(context.Background(), containerpkg.WaitConditionNotRunning)
+	// wait for container to exit one last time, if it doesn't then kill didnt work, so return error
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if status := <-container.Wait(ctx, containerpkg.WaitConditionNotRunning); status.Err() != nil {
+		return status.Err()
+	}
 
 	return nil
 }

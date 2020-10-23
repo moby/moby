@@ -78,9 +78,12 @@ func (daemon *Daemon) containerStop(container *containerpkg.Container, seconds i
 		logrus.Infof("Container %v failed to exit within %d seconds of signal %d - using the force", container.ID, seconds, stopSignal)
 		// 3. If it doesn't, then send SIGKILL
 		if err := daemon.Kill(container); err != nil {
-			// Wait without a timeout, ignore result.
-			<-container.Wait(context.Background(), containerpkg.WaitConditionNotRunning)
-			logrus.Warn(err) // Don't return error because we only care that container is stopped, not what function stopped it
+			logrus.WithError(err).WithField("container", container.ID).Error("Error killing the container")
+			ctx2, cancel2 := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel2()
+			if status := <-container.Wait(ctx2, containerpkg.WaitConditionNotRunning); status.Err() != nil {
+				return errors.New("tried to kill container, but did not receive an exit event")
+			}
 		}
 	}
 
