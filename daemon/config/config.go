@@ -144,7 +144,7 @@ type CommonConfig struct {
 	AuthorizationPlugins  []string                  `json:"authorization-plugins,omitempty"` // AuthorizationPlugins holds list of authorization plugins
 	AutoRestart           bool                      `json:"-"`
 	Context               map[string][]string       `json:"-"`
-	DefaultCapabilities   []string                  `json:"capabilities,omitempty"`
+	DefaultCapabilities   []string                  `json:"default-capabilities,omitempty"`
 	DisableBridge         bool                      `json:"-"`
 	ExecOptions           []string                  `json:"exec-opts,omitempty"`
 	GraphDriver           string                    `json:"storage-driver,omitempty"`
