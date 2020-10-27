@@ -8023,7 +8023,7 @@ paths:
             API-Version:
               type: "string"
               description: "Max API Version the server supports"
-            BuildKit-Version:
+            Builder-Version:
               type: "string"
               description: "Default version of docker image builder"
             Docker-Experimental:
@@ -8062,7 +8062,7 @@ paths:
             API-Version:
               type: "string"
               description: "Max API Version the server supports"
-            BuildKit-Version:
+            Builder-Version:
               type: "string"
               description: "Default version of docker image builder"
             Docker-Experimental:
