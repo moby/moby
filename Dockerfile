@@ -30,7 +30,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
             libprotobuf-c-dev \
             libprotobuf-dev \
             protobuf-c-compiler \
-            protobuf-compiler \
+            protobuf-compiler  \
             python-protobuf
 
 # Install CRIU for checkpoint/restore support
