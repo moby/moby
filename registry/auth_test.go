@@ -20,20 +20,6 @@ func buildAuthConfigs() map[string]types.AuthConfig {
 	return authConfigs
 }
 
-func TestSameAuthDataPostSave(t *testing.T) {
-	authConfigs := buildAuthConfigs()
-	authConfig := authConfigs["testIndex"]
-	if authConfig.Username != "docker-user" {
-		t.Fail()
-	}
-	if authConfig.Password != "docker-pass" {
-		t.Fail()
-	}
-	if authConfig.Auth != "" {
-		t.Fail()
-	}
-}
-
 func TestResolveAuthConfigIndexServer(t *testing.T) {
 	authConfigs := buildAuthConfigs()
 	indexConfig := authConfigs[IndexServer]

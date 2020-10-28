@@ -108,36 +108,35 @@ func (s *DefaultService) LoadInsecureRegistries(registries []string) error {
 // It can be used to verify the validity of a client's credentials.
 func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig, userAgent string) (status, token string, err error) {
 	// TODO Use ctx when searching for repositories
-	serverAddress := authConfig.ServerAddress
-	if serverAddress == "" {
-		serverAddress = IndexServer
-	}
-	if !strings.HasPrefix(serverAddress, "https://") && !strings.HasPrefix(serverAddress, "http://") {
-		serverAddress = "https://" + serverAddress
-	}
-	u, err := url.Parse(serverAddress)
-	if err != nil {
-		return "", "", errdefs.InvalidParameter(errors.Errorf("unable to parse server address: %v", err))
+	var registryHostName = IndexHostname
+
+	if authConfig.ServerAddress != "" {
+		serverAddress := authConfig.ServerAddress
+		if !strings.HasPrefix(serverAddress, "https://") && !strings.HasPrefix(serverAddress, "http://") {
+			serverAddress = "https://" + serverAddress
+		}
+		u, err := url.Parse(serverAddress)
+		if err != nil {
+			return "", "", errdefs.InvalidParameter(errors.Errorf("unable to parse server address: %v", err))
+		}
+		registryHostName = u.Host
 	}
 
-	endpoints, err := s.LookupPushEndpoints(u.Host)
+	// Lookup endpoints for authentication using "LookupPushEndpoints", which
+	// excludes mirrors to prevent sending credentials of the upstream registry
+	// to a mirror.
+	endpoints, err := s.LookupPushEndpoints(registryHostName)
 	if err != nil {
 		return "", "", errdefs.InvalidParameter(err)
 	}
 
 	for _, endpoint := range endpoints {
-		login := loginV2
-		if endpoint.Version == APIVersion1 {
-			login = loginV1
-		}
-
-		status, token, err = login(authConfig, endpoint, userAgent)
+		status, token, err = loginV2(authConfig, endpoint, userAgent)
 		if err == nil {
 			return
 		}
 		if fErr, ok := err.(fallbackError); ok {
-			err = fErr.err
-			logrus.Infof("Error logging in to %s endpoint, trying next endpoint: %v", endpoint.Version, err)
+			logrus.WithError(fErr.err).Infof("Error logging in to endpoint, trying next endpoint")
 			continue
 		}
 
@@ -150,18 +149,13 @@ func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 // splitReposSearchTerm breaks a search term into an index name and remote name
 func splitReposSearchTerm(reposName string) (string, string) {
 	nameParts := strings.SplitN(reposName, "/", 2)
-	var indexName, remoteName string
 	if len(nameParts) == 1 || (!strings.Contains(nameParts[0], ".") &&
 		!strings.Contains(nameParts[0], ":") && nameParts[0] != "localhost") {
-		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
-		// 'docker.io'
-		indexName = IndexName
-		remoteName = reposName
-	} else {
-		indexName = nameParts[0]
-		remoteName = nameParts[1]
+		// This is a Docker Hub repository (ex: samalba/hipache or ubuntu),
+		// use the default Docker Hub registry (docker.io)
+		return IndexName, reposName
 	}
-	return indexName, remoteName
+	return nameParts[0], nameParts[1]
 }
 
 // Search queries the public registry for images matching the specified
@@ -184,7 +178,7 @@ func (s *DefaultService) Search(ctx context.Context, term string, limit int, aut
 	}
 
 	// *TODO: Search multiple indexes.
-	endpoint, err := NewV1Endpoint(index, userAgent, http.Header(headers))
+	endpoint, err := NewV1Endpoint(index, userAgent, headers)
 	if err != nil {
 		return nil, err
 	}
@@ -228,13 +222,8 @@ func (s *DefaultService) Search(ctx context.Context, term string, limit int, aut
 	r := newSession(client, authConfig, endpoint)
 
 	if index.Official {
-		localName := remoteName
-		if strings.HasPrefix(localName, "library/") {
-			// If pull "library/foo", it's stored locally under "foo"
-			localName = strings.SplitN(localName, "/", 2)[1]
-		}
-
-		return r.SearchRepositories(localName, limit)
+		// If pull "library/foo", it's stored locally under "foo"
+		remoteName = strings.TrimPrefix(remoteName, "library/")
 	}
 	return r.SearchRepositories(remoteName, limit)
 }
@@ -259,6 +248,7 @@ type APIEndpoint struct {
 }
 
 // ToV1Endpoint returns a V1 API endpoint based on the APIEndpoint
+// Deprecated: this function is deprecated and will be removed in a future update
 func (e APIEndpoint) ToV1Endpoint(userAgent string, metaHeaders http.Header) *V1Endpoint {
 	return newV1Endpoint(*e.URL, e.TLSConfig, userAgent, metaHeaders)
 }
@@ -280,24 +270,22 @@ func (s *DefaultService) tlsConfigForMirror(mirrorURL *url.URL) (*tls.Config, er
 	return s.tlsConfig(mirrorURL.Host)
 }
 
-// LookupPullEndpoints creates a list of endpoints to try to pull from, in order of preference.
-// It gives preference to v2 endpoints over v1, mirrors over the actual
-// registry, and HTTPS over plain HTTP.
+// LookupPullEndpoints creates a list of v2 endpoints to try to pull from, in order of preference.
+// It gives preference to mirrors over the actual registry, and HTTPS over plain HTTP.
 func (s *DefaultService) LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.lookupEndpoints(hostname)
+	return s.lookupV2Endpoints(hostname)
 }
 
-// LookupPushEndpoints creates a list of endpoints to try to push to, in order of preference.
-// It gives preference to v2 endpoints over v1, and HTTPS over plain HTTP.
-// Mirrors are not included.
+// LookupPushEndpoints creates a list of v2 endpoints to try to push to, in order of preference.
+// It gives preference to HTTPS over plain HTTP. Mirrors are not included.
 func (s *DefaultService) LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	allEndpoints, err := s.lookupEndpoints(hostname)
+	allEndpoints, err := s.lookupV2Endpoints(hostname)
 	if err == nil {
 		for _, endpoint := range allEndpoints {
 			if !endpoint.Mirror {
@@ -306,8 +294,4 @@ func (s *DefaultService) LookupPushEndpoints(hostname string) (endpoints []APIEn
 		}
 	}
 	return endpoints, err
-}
-
-func (s *DefaultService) lookupEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
-	return s.lookupV2Endpoints(hostname)
 }

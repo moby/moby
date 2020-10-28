@@ -26,7 +26,7 @@ type serviceConfig struct {
 	registrytypes.ServiceConfig
 }
 
-var (
+const (
 	// DefaultNamespace is the default namespace
 	DefaultNamespace = "docker.io"
 	// DefaultRegistryVersionHeader is the name of the default HTTP header
@@ -39,28 +39,25 @@ var (
 	IndexServer = "https://" + IndexHostname + "/v1/"
 	// IndexName is the name of the index
 	IndexName = "docker.io"
+)
 
+var (
 	// DefaultV2Registry is the URI of the default v2 registry
 	DefaultV2Registry = &url.URL{
 		Scheme: "https",
 		Host:   "registry-1.docker.io",
 	}
-)
 
-var (
 	// ErrInvalidRepositoryName is an error returned if the repository name did
 	// not have the correct form
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 
 	emptyServiceConfig, _ = newServiceConfig(ServiceOptions{})
-)
+	validHostPortRegex    = regexp.MustCompile(`^` + reference.DomainRegexp.String() + `$`)
 
-var (
-	validHostPortRegex = regexp.MustCompile(`^` + reference.DomainRegexp.String() + `$`)
+	// for mocking in unit tests
+	lookupIP = net.LookupIP
 )
-
-// for mocking in unit tests
-var lookupIP = net.LookupIP
 
 // newServiceConfig returns a new instance of ServiceConfig
 func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
