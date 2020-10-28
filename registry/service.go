@@ -108,22 +108,24 @@ func (s *DefaultService) LoadInsecureRegistries(registries []string) error {
 // It can be used to verify the validity of a client's credentials.
 func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig, userAgent string) (status, token string, err error) {
 	// TODO Use ctx when searching for repositories
-	serverAddress := authConfig.ServerAddress
-	if serverAddress == "" {
-		serverAddress = IndexServer
-	}
-	if !strings.HasPrefix(serverAddress, "https://") && !strings.HasPrefix(serverAddress, "http://") {
-		serverAddress = "https://" + serverAddress
-	}
-	u, err := url.Parse(serverAddress)
-	if err != nil {
-		return "", "", errdefs.InvalidParameter(errors.Errorf("unable to parse server address: %v", err))
+	var registryHostName = IndexHostname
+
+	if authConfig.ServerAddress != "" {
+		serverAddress := authConfig.ServerAddress
+		if !strings.HasPrefix(serverAddress, "https://") && !strings.HasPrefix(serverAddress, "http://") {
+			serverAddress = "https://" + serverAddress
+		}
+		u, err := url.Parse(serverAddress)
+		if err != nil {
+			return "", "", errdefs.InvalidParameter(errors.Errorf("unable to parse server address: %v", err))
+		}
+		registryHostName = u.Host
 	}
 
 	// Lookup endpoints for authentication using "LookupPushEndpoints", which
 	// excludes mirrors to prevent sending credentials of the upstream registry
 	// to a mirror.
-	endpoints, err := s.LookupPushEndpoints(u.Host)
+	endpoints, err := s.LookupPushEndpoints(registryHostName)
 	if err != nil {
 		return "", "", errdefs.InvalidParameter(err)
 	}
