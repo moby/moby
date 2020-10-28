@@ -1,10 +1,8 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -15,15 +13,6 @@ import (
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
-)
-
-var (
-	token = []string{"fake-token"}
-)
-
-const (
-	imageID = "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d"
-	REPO    = "foo42/bar"
 )
 
 func spawnTestRegistrySession(t *testing.T) *Session {
@@ -50,7 +39,7 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 	// Because we know that the client's transport is an `*authTransport` we simply cast it,
 	// in order to set the internal cached token to the fake token, and thus send that fake token
 	// upon every subsequent requests.
-	r.client.Transport.(*authTransport).token = token
+	r.client.Transport.(*authTransport).token = []string{"fake-token"}
 	return r
 }
 
@@ -145,153 +134,6 @@ func TestEndpoint(t *testing.T) {
 		index.Name = address
 		_, err := NewV1Endpoint(index, "", nil)
 		checkNotEqual(t, err, nil, "Expected error while expanding bad endpoint")
-	}
-}
-
-func TestGetRemoteHistory(t *testing.T) {
-	r := spawnTestRegistrySession(t)
-	hist, err := r.GetRemoteHistory(imageID, makeURL("/v1/"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertEqual(t, len(hist), 2, "Expected 2 images in history")
-	assertEqual(t, hist[0], imageID, "Expected "+imageID+"as first ancestry")
-	assertEqual(t, hist[1], "77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
-		"Unexpected second ancestry")
-}
-
-func TestLookupRemoteImage(t *testing.T) {
-	r := spawnTestRegistrySession(t)
-	err := r.LookupRemoteImage(imageID, makeURL("/v1/"))
-	assertEqual(t, err, nil, "Expected error of remote lookup to nil")
-	if err := r.LookupRemoteImage("abcdef", makeURL("/v1/")); err == nil {
-		t.Fatal("Expected error of remote lookup to not nil")
-	}
-}
-
-func TestGetRemoteImageJSON(t *testing.T) {
-	r := spawnTestRegistrySession(t)
-	json, size, err := r.GetRemoteImageJSON(imageID, makeURL("/v1/"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertEqual(t, size, int64(154), "Expected size 154")
-	if len(json) == 0 {
-		t.Fatal("Expected non-empty json")
-	}
-
-	_, _, err = r.GetRemoteImageJSON("abcdef", makeURL("/v1/"))
-	if err == nil {
-		t.Fatal("Expected image not found error")
-	}
-}
-
-func TestGetRemoteImageLayer(t *testing.T) {
-	r := spawnTestRegistrySession(t)
-	data, err := r.GetRemoteImageLayer(imageID, makeURL("/v1/"), 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if data == nil {
-		t.Fatal("Expected non-nil data result")
-	}
-
-	_, err = r.GetRemoteImageLayer("abcdef", makeURL("/v1/"), 0)
-	if err == nil {
-		t.Fatal("Expected image not found error")
-	}
-}
-
-func TestGetRemoteTag(t *testing.T) {
-	r := spawnTestRegistrySession(t)
-	repoRef, err := reference.ParseNormalizedNamed(REPO)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tag, err := r.GetRemoteTag([]string{makeURL("/v1/")}, repoRef, "test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertEqual(t, tag, imageID, "Expected tag test to map to "+imageID)
-
-	bazRef, err := reference.ParseNormalizedNamed("foo42/baz")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = r.GetRemoteTag([]string{makeURL("/v1/")}, bazRef, "foo")
-	if err != ErrRepoNotFound {
-		t.Fatal("Expected ErrRepoNotFound error when fetching tag for bogus repo")
-	}
-}
-
-func TestGetRemoteTags(t *testing.T) {
-	r := spawnTestRegistrySession(t)
-	repoRef, err := reference.ParseNormalizedNamed(REPO)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tags, err := r.GetRemoteTags([]string{makeURL("/v1/")}, repoRef)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertEqual(t, len(tags), 2, "Expected two tags")
-	assertEqual(t, tags["latest"], imageID, "Expected tag latest to map to "+imageID)
-	assertEqual(t, tags["test"], imageID, "Expected tag test to map to "+imageID)
-
-	bazRef, err := reference.ParseNormalizedNamed("foo42/baz")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = r.GetRemoteTags([]string{makeURL("/v1/")}, bazRef)
-	if err != ErrRepoNotFound {
-		t.Fatal("Expected ErrRepoNotFound error when fetching tags for bogus repo")
-	}
-}
-
-func TestGetRepositoryData(t *testing.T) {
-	r := spawnTestRegistrySession(t)
-	parsedURL, err := url.Parse(makeURL("/v1/"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	host := "http://" + parsedURL.Host + "/v1/"
-	repoRef, err := reference.ParseNormalizedNamed(REPO)
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err := r.GetRepositoryData(repoRef)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertEqual(t, len(data.ImgList), 2, "Expected 2 images in ImgList")
-	assertEqual(t, len(data.Endpoints), 2,
-		fmt.Sprintf("Expected 2 endpoints in Endpoints, found %d instead", len(data.Endpoints)))
-	assertEqual(t, data.Endpoints[0], host,
-		fmt.Sprintf("Expected first endpoint to be %s but found %s instead", host, data.Endpoints[0]))
-	assertEqual(t, data.Endpoints[1], "http://test.example.com/v1/",
-		fmt.Sprintf("Expected first endpoint to be http://test.example.com/v1/ but found %s instead", data.Endpoints[1]))
-
-}
-
-func TestPushImageJSONRegistry(t *testing.T) {
-	r := spawnTestRegistrySession(t)
-	imgData := &ImgData{
-		ID:       "77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
-		Checksum: "sha256:1ac330d56e05eef6d438586545ceff7550d3bdcb6b19961f12c5ba714ee1bb37",
-	}
-
-	err := r.PushImageJSONRegistry(imgData, []byte{0x42, 0xdf, 0x0}, makeURL("/v1/"))
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestPushImageLayerRegistry(t *testing.T) {
-	r := spawnTestRegistrySession(t)
-	layer := strings.NewReader("")
-	_, _, err := r.PushImageLayerRegistry(imageID, layer, makeURL("/v1/"), []byte{})
-	if err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -698,50 +540,6 @@ func TestMirrorEndpointLookup(t *testing.T) {
 	}
 	if !containsMirror(pullAPIEndpoints) {
 		t.Fatal("Pull endpoint should contain mirror")
-	}
-}
-
-func TestPushRegistryTag(t *testing.T) {
-	r := spawnTestRegistrySession(t)
-	repoRef, err := reference.ParseNormalizedNamed(REPO)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = r.PushRegistryTag(repoRef, imageID, "stable", makeURL("/v1/"))
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestPushImageJSONIndex(t *testing.T) {
-	r := spawnTestRegistrySession(t)
-	imgData := []*ImgData{
-		{
-			ID:       "77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
-			Checksum: "sha256:1ac330d56e05eef6d438586545ceff7550d3bdcb6b19961f12c5ba714ee1bb37",
-		},
-		{
-			ID:       "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d",
-			Checksum: "sha256:bea7bf2e4bacd479344b737328db47b18880d09096e6674165533aa994f5e9f2",
-		},
-	}
-	repoRef, err := reference.ParseNormalizedNamed(REPO)
-	if err != nil {
-		t.Fatal(err)
-	}
-	repoData, err := r.PushImageJSONIndex(repoRef, imgData, false, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if repoData == nil {
-		t.Fatal("Expected RepositoryData object")
-	}
-	repoData, err = r.PushImageJSONIndex(repoRef, imgData, true, []string{r.indexEndpoint.String()})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if repoData == nil {
-		t.Fatal("Expected RepositoryData object")
 	}
 }
 
