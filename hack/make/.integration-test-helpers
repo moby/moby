@@ -16,6 +16,7 @@ source "${MAKEDIR}/.go-autogen"
 : "${TEST_REPEAT:=1}"
 : "${TESTFLAGS:=}"
 : "${TESTDEBUG:=}"
+: "${GOCACHE:=$(go env GOCACHE)}"
 
 setup_integration_test_filter() {
 	if [ -z "${TEST_FILTER}" ]; then
@@ -149,6 +150,7 @@ test_env() {
 			DOCKER_REMOTE_DAEMON="$DOCKER_REMOTE_DAEMON" \
 			DOCKER_ROOTLESS="$DOCKER_ROOTLESS" \
 			DOCKERFILE="$DOCKERFILE" \
+			GOCACHE="$GOCACHE" \
 			GOPATH="$GOPATH" \
 			GOTRACEBACK=all \
 			HOME="$ABS_DEST/fake-HOME" \
