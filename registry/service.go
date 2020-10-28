@@ -149,18 +149,13 @@ func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 // splitReposSearchTerm breaks a search term into an index name and remote name
 func splitReposSearchTerm(reposName string) (string, string) {
 	nameParts := strings.SplitN(reposName, "/", 2)
-	var indexName, remoteName string
 	if len(nameParts) == 1 || (!strings.Contains(nameParts[0], ".") &&
 		!strings.Contains(nameParts[0], ":") && nameParts[0] != "localhost") {
-		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
-		// 'docker.io'
-		indexName = IndexName
-		remoteName = reposName
-	} else {
-		indexName = nameParts[0]
-		remoteName = nameParts[1]
+		// This is a Docker Hub repository (ex: samalba/hipache or ubuntu),
+		// use the default Docker Hub registry (docker.io)
+		return IndexName, reposName
 	}
-	return indexName, remoteName
+	return nameParts[0], nameParts[1]
 }
 
 // Search queries the public registry for images matching the specified
@@ -183,7 +178,7 @@ func (s *DefaultService) Search(ctx context.Context, term string, limit int, aut
 	}
 
 	// *TODO: Search multiple indexes.
-	endpoint, err := NewV1Endpoint(index, userAgent, http.Header(headers))
+	endpoint, err := NewV1Endpoint(index, userAgent, headers)
 	if err != nil {
 		return nil, err
 	}
@@ -227,13 +222,8 @@ func (s *DefaultService) Search(ctx context.Context, term string, limit int, aut
 	r := newSession(client, authConfig, endpoint)
 
 	if index.Official {
-		localName := remoteName
-		if strings.HasPrefix(localName, "library/") {
-			// If pull "library/foo", it's stored locally under "foo"
-			localName = strings.SplitN(localName, "/", 2)[1]
-		}
-
-		return r.SearchRepositories(localName, limit)
+		// If pull "library/foo", it's stored locally under "foo"
+		remoteName = strings.TrimPrefix(remoteName, "library/")
 	}
 	return r.SearchRepositories(remoteName, limit)
 }
