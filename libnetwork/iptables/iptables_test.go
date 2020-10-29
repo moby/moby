@@ -21,20 +21,22 @@ func TestNewChain(t *testing.T) {
 	var err error
 
 	bridgeName = "lo"
-	natChain, err = NewChain(chainName, Nat, false)
+	iptable := GetIptable(IPv4)
+
+	natChain, err = iptable.NewChain(chainName, Nat, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ProgramChain(natChain, bridgeName, false, true)
+	err = iptable.ProgramChain(natChain, bridgeName, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	filterChain, err = NewChain(chainName, Filter, false)
+	filterChain, err = iptable.NewChain(chainName, Filter, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ProgramChain(filterChain, bridgeName, false, true)
+	err = iptable.ProgramChain(filterChain, bridgeName, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,6 +50,8 @@ func TestForward(t *testing.T) {
 	proto := "tcp"
 
 	bridgeName := "lo"
+	iptable := GetIptable(IPv4)
+
 	err := natChain.Forward(Insert, ip, port, proto, dstAddr, dstPort, bridgeName)
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +66,7 @@ func TestForward(t *testing.T) {
 		"!", "-i", bridgeName,
 	}
 
-	if !Exists(natChain.Table, natChain.Name, dnatRule...) {
+	if !iptable.Exists(natChain.Table, natChain.Name, dnatRule...) {
 		t.Fatal("DNAT rule does not exist")
 	}
 
@@ -75,7 +79,7 @@ func TestForward(t *testing.T) {
 		"-j", "ACCEPT",
 	}
 
-	if !Exists(filterChain.Table, filterChain.Name, filterRule...) {
+	if !iptable.Exists(filterChain.Table, filterChain.Name, filterRule...) {
 		t.Fatal("filter rule does not exist")
 	}
 
@@ -87,7 +91,7 @@ func TestForward(t *testing.T) {
 		"-j", "MASQUERADE",
 	}
 
-	if !Exists(natChain.Table, "POSTROUTING", masqRule...) {
+	if !iptable.Exists(natChain.Table, "POSTROUTING", masqRule...) {
 		t.Fatal("MASQUERADE rule does not exist")
 	}
 }
@@ -96,6 +100,7 @@ func TestLink(t *testing.T) {
 	var err error
 
 	bridgeName := "lo"
+	iptable := GetIptable(IPv4)
 	ip1 := net.ParseIP("192.168.1.1")
 	ip2 := net.ParseIP("192.168.1.2")
 	port := 1234
@@ -115,7 +120,7 @@ func TestLink(t *testing.T) {
 		"--dport", strconv.Itoa(port),
 		"-j", "ACCEPT"}
 
-	if !Exists(filterChain.Table, filterChain.Name, rule1...) {
+	if !iptable.Exists(filterChain.Table, filterChain.Name, rule1...) {
 		t.Fatal("rule1 does not exist")
 	}
 
@@ -128,7 +133,7 @@ func TestLink(t *testing.T) {
 		"--sport", strconv.Itoa(port),
 		"-j", "ACCEPT"}
 
-	if !Exists(filterChain.Table, filterChain.Name, rule2...) {
+	if !iptable.Exists(filterChain.Table, filterChain.Name, rule2...) {
 		t.Fatal("rule2 does not exist")
 	}
 }
@@ -137,18 +142,19 @@ func TestPrerouting(t *testing.T) {
 	args := []string{
 		"-i", "lo",
 		"-d", "192.168.1.1"}
+	iptable := GetIptable(IPv4)
 
 	err := natChain.Prerouting(Insert, args...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !Exists(natChain.Table, "PREROUTING", args...) {
+	if !iptable.Exists(natChain.Table, "PREROUTING", args...) {
 		t.Fatal("rule does not exist")
 	}
 
 	delRule := append([]string{"-D", "PREROUTING", "-t", string(Nat)}, args...)
-	if _, err = Raw(delRule...); err != nil {
+	if _, err = iptable.Raw(delRule...); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -157,19 +163,20 @@ func TestOutput(t *testing.T) {
 	args := []string{
 		"-o", "lo",
 		"-d", "192.168.1.1"}
+	iptable := GetIptable(IPv4)
 
 	err := natChain.Output(Insert, args...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !Exists(natChain.Table, "OUTPUT", args...) {
+	if !iptable.Exists(natChain.Table, "OUTPUT", args...) {
 		t.Fatal("rule does not exist")
 	}
 
 	delRule := append([]string{"-D", "OUTPUT", "-t",
 		string(natChain.Table)}, args...)
-	if _, err = Raw(delRule...); err != nil {
+	if _, err = iptable.Raw(delRule...); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -222,12 +229,14 @@ func TestCleanup(t *testing.T) {
 		string(Delete), "FORWARD",
 		"-o", bridgeName,
 		"-j", filterChain.Name}
-	if _, err = Raw(link...); err != nil {
+	iptable := GetIptable(IPv4)
+
+	if _, err = iptable.Raw(link...); err != nil {
 		t.Fatal(err)
 	}
 	filterChain.Remove()
 
-	err = RemoveExistingChain(chainName, Nat)
+	err = iptable.RemoveExistingChain(chainName, Nat)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,20 +254,22 @@ func TestExistsRaw(t *testing.T) {
 	testChain1 := "ABCD"
 	testChain2 := "EFGH"
 
-	_, err := NewChain(testChain1, Filter, false)
+	iptable := GetIptable(IPv4)
+
+	_, err := iptable.NewChain(testChain1, Filter, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		RemoveExistingChain(testChain1, Filter)
+		iptable.RemoveExistingChain(testChain1, Filter)
 	}()
 
-	_, err = NewChain(testChain2, Filter, false)
+	_, err = iptable.NewChain(testChain2, Filter, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		RemoveExistingChain(testChain2, Filter)
+		iptable.RemoveExistingChain(testChain2, Filter)
 	}()
 
 	// Test detection over full and truncated rule string
@@ -271,18 +282,18 @@ func TestExistsRaw(t *testing.T) {
 
 	for i, r := range input {
 		ruleAdd := append([]string{"-t", string(Filter), "-A", testChain1}, r.rule...)
-		err = RawCombinedOutput(ruleAdd...)
+		err = iptable.RawCombinedOutput(ruleAdd...)
 		if err != nil {
 			t.Fatalf("i=%d, err: %v", i, err)
 		}
-		if !existsRaw(Filter, testChain1, r.rule...) {
+		if !iptable.existsRaw(Filter, testChain1, r.rule...) {
 			t.Fatalf("Failed to detect rule. i=%d", i)
 		}
 		// Truncate the rule
 		trg := r.rule[len(r.rule)-1]
 		trg = trg[:len(trg)-2]
 		r.rule[len(r.rule)-1] = trg
-		if existsRaw(Filter, testChain1, r.rule...) {
+		if iptable.existsRaw(Filter, testChain1, r.rule...) {
 			t.Fatalf("Invalid detection. i=%d", i)
 		}
 	}

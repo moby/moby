@@ -96,18 +96,20 @@ func createTestBridge(config *networkConfiguration, br *bridgeInterface, t *test
 // Assert base function which pushes iptables chain rules on insertion and removal.
 func assertIPTableChainProgramming(rule iptRule, descr string, t *testing.T) {
 	// Add
-	if err := programChainRule(rule, descr, true); err != nil {
+	if err := programChainRule(iptables.IPv4, rule, descr, true); err != nil {
 		t.Fatalf("Failed to program iptable rule %s: %s", descr, err.Error())
 	}
-	if iptables.Exists(rule.table, rule.chain, rule.args...) == false {
+
+	iptable := iptables.GetIptable(iptables.IPv4)
+	if iptable.Exists(rule.table, rule.chain, rule.args...) == false {
 		t.Fatalf("Failed to effectively program iptable rule: %s", descr)
 	}
 
 	// Remove
-	if err := programChainRule(rule, descr, false); err != nil {
+	if err := programChainRule(iptables.IPv4, rule, descr, false); err != nil {
 		t.Fatalf("Failed to remove iptable rule %s: %s", descr, err.Error())
 	}
-	if iptables.Exists(rule.table, rule.chain, rule.args...) == true {
+	if iptable.Exists(rule.table, rule.chain, rule.args...) == true {
 		t.Fatalf("Failed to effectively remove iptable rule: %s", descr)
 	}
 }
@@ -116,7 +118,7 @@ func assertIPTableChainProgramming(rule iptRule, descr string, t *testing.T) {
 func assertChainConfig(d *driver, t *testing.T) {
 	var err error
 
-	d.natChain, d.filterChain, d.isolationChain1, d.isolationChain2, err = setupIPChains(d.config)
+	d.natChain, d.filterChain, d.isolationChain1, d.isolationChain2, err = setupIPChains(d.config, iptables.IPv4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +131,7 @@ func assertBridgeConfig(config *networkConfiguration, br *bridgeInterface, d *dr
 	nw.driver = d
 
 	// Attempt programming of ip tables.
-	err := nw.setupIPTables(config, br)
+	err := nw.setupIP4Tables(config, br)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

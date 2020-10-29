@@ -19,13 +19,14 @@ func TestReloaded(t *testing.T) {
 	var err error
 	var fwdChain *ChainInfo
 
-	fwdChain, err = NewChain("FWD", Filter, false)
+	iptable := GetIptable(IPv4)
+	fwdChain, err = iptable.NewChain("FWD", Filter, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	bridgeName := "lo"
 
-	err = ProgramChain(fwdChain, bridgeName, false, true)
+	err = iptable.ProgramChain(fwdChain, bridgeName, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +55,7 @@ func TestReloaded(t *testing.T) {
 		"--dport", strconv.Itoa(port),
 		"-j", "ACCEPT"}
 
-	if !Exists(fwdChain.Table, fwdChain.Name, rule1...) {
+	if !iptable.Exists(fwdChain.Table, fwdChain.Name, rule1...) {
 		t.Fatal("rule1 does not exist")
 	}
 
@@ -64,7 +65,7 @@ func TestReloaded(t *testing.T) {
 	reloaded()
 
 	// make sure the rules have been recreated
-	if !Exists(fwdChain.Table, fwdChain.Name, rule1...) {
+	if !iptable.Exists(fwdChain.Table, fwdChain.Name, rule1...) {
 		t.Fatal("rule1 hasn't been recreated")
 	}
 }
@@ -76,12 +77,13 @@ func TestPassthrough(t *testing.T) {
 		"--dport", "123",
 		"-j", "ACCEPT"}
 
+	iptable := GetIptable(IPv4)
 	if firewalldRunning {
 		_, err := Passthrough(Iptables, append([]string{"-A"}, rule1...)...)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !Exists(Filter, "INPUT", rule1...) {
+		if !iptable.Exists(Filter, "INPUT", rule1...) {
 			t.Fatal("rule1 does not exist")
 		}
 	}

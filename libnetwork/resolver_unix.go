@@ -57,25 +57,28 @@ func reexecSetupResolver() {
 		os.Exit(3)
 	}
 
+	// TODO IPv6 support
+	iptable := iptables.GetIptable(iptables.IPv4)
+
 	// insert outputChain and postroutingchain
-	err = iptables.RawCombinedOutputNative("-t", "nat", "-C", "OUTPUT", "-d", resolverIP, "-j", outputChain)
+	err = iptable.RawCombinedOutputNative("-t", "nat", "-C", "OUTPUT", "-d", resolverIP, "-j", outputChain)
 	if err == nil {
-		iptables.RawCombinedOutputNative("-t", "nat", "-F", outputChain)
+		iptable.RawCombinedOutputNative("-t", "nat", "-F", outputChain)
 	} else {
-		iptables.RawCombinedOutputNative("-t", "nat", "-N", outputChain)
-		iptables.RawCombinedOutputNative("-t", "nat", "-I", "OUTPUT", "-d", resolverIP, "-j", outputChain)
+		iptable.RawCombinedOutputNative("-t", "nat", "-N", outputChain)
+		iptable.RawCombinedOutputNative("-t", "nat", "-I", "OUTPUT", "-d", resolverIP, "-j", outputChain)
 	}
 
-	err = iptables.RawCombinedOutputNative("-t", "nat", "-C", "POSTROUTING", "-d", resolverIP, "-j", postroutingchain)
+	err = iptable.RawCombinedOutputNative("-t", "nat", "-C", "POSTROUTING", "-d", resolverIP, "-j", postroutingchain)
 	if err == nil {
-		iptables.RawCombinedOutputNative("-t", "nat", "-F", postroutingchain)
+		iptable.RawCombinedOutputNative("-t", "nat", "-F", postroutingchain)
 	} else {
-		iptables.RawCombinedOutputNative("-t", "nat", "-N", postroutingchain)
-		iptables.RawCombinedOutputNative("-t", "nat", "-I", "POSTROUTING", "-d", resolverIP, "-j", postroutingchain)
+		iptable.RawCombinedOutputNative("-t", "nat", "-N", postroutingchain)
+		iptable.RawCombinedOutputNative("-t", "nat", "-I", "POSTROUTING", "-d", resolverIP, "-j", postroutingchain)
 	}
 
 	for _, rule := range rules {
-		if iptables.RawCombinedOutputNative(rule...) != nil {
+		if iptable.RawCombinedOutputNative(rule...) != nil {
 			logrus.Errorf("set up rule failed, %v", rule)
 		}
 	}

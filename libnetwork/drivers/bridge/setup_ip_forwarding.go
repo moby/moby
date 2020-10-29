@@ -21,7 +21,7 @@ func configureIPForwarding(enable bool) error {
 	return ioutil.WriteFile(ipv4ForwardConf, []byte{val, '\n'}, ipv4ForwardConfPerm)
 }
 
-func setupIPForwarding(enableIPTables bool) error {
+func setupIPForwarding(enableIPTables bool, enableIP6Tables bool) error {
 	// Get current IPv4 forward setup
 	ipv4ForwardData, err := ioutil.ReadFile(ipv4ForwardConf)
 	if err != nil {
@@ -36,21 +36,36 @@ func setupIPForwarding(enableIPTables bool) error {
 		}
 		// When enabling ip_forward set the default policy on forward chain to
 		// drop only if the daemon option iptables is not set to false.
-		if !enableIPTables {
-			return nil
-		}
-		if err := iptables.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
-			if err := configureIPForwarding(false); err != nil {
-				logrus.Errorf("Disabling IP forwarding failed, %v", err)
+		if enableIPTables {
+			iptable := iptables.GetIptable(iptables.IPv4)
+			if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
+				if err := configureIPForwarding(false); err != nil {
+					logrus.Errorf("Disabling IP forwarding failed, %v", err)
+				}
+				return err
 			}
-			return err
+			iptables.OnReloaded(func() {
+				logrus.Debug("Setting the default DROP policy on firewall reload")
+				if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
+					logrus.Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
+				}
+			})
+		}
+	}
+
+	// add only iptables rules - forwarding is handled by setupIPv6Forwarding in setup_ipv6
+	if enableIP6Tables {
+		iptable := iptables.GetIptable(iptables.IPv6)
+		if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
+			logrus.Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
 		}
 		iptables.OnReloaded(func() {
 			logrus.Debug("Setting the default DROP policy on firewall reload")
-			if err := iptables.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
+			if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
 				logrus.Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
 			}
 		})
 	}
+
 	return nil
 }

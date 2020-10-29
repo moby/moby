@@ -17,6 +17,8 @@ const (
 )
 
 func TestUserChain(t *testing.T) {
+	iptable := iptables.GetIptable(iptables.IPv4)
+
 	nc, err := New()
 	assert.NilError(t, err)
 
@@ -60,7 +62,7 @@ func TestUserChain(t *testing.T) {
 			assert.DeepEqual(t, getRules(t, fwdChainName), []string{"-P FORWARD ACCEPT"})
 
 			if tc.insert {
-				_, err = iptables.Raw("-A", fwdChainName, "-j", "DROP")
+				_, err = iptable.Raw("-A", fwdChainName, "-j", "DROP")
 				assert.NilError(t, err)
 			}
 			arrangeUserFilterRule()
@@ -69,7 +71,7 @@ func TestUserChain(t *testing.T) {
 			if tc.userChain != nil {
 				assert.DeepEqual(t, getRules(t, usrChainName), tc.userChain)
 			} else {
-				_, err := iptables.Raw("-S", usrChainName)
+				_, err := iptable.Raw("-S", usrChainName)
 				assert.Assert(t, err != nil, "chain %v: created unexpectedly", usrChainName)
 			}
 		})
@@ -78,8 +80,10 @@ func TestUserChain(t *testing.T) {
 }
 
 func getRules(t *testing.T, chain string) []string {
+	iptable := iptables.GetIptable(iptables.IPv4)
+
 	t.Helper()
-	output, err := iptables.Raw("-S", chain)
+	output, err := iptable.Raw("-S", chain)
 	assert.NilError(t, err, "chain %s: failed to get rules", chain)
 
 	rules := strings.Split(string(output), "\n")
@@ -90,8 +94,10 @@ func getRules(t *testing.T, chain string) []string {
 }
 
 func resetIptables(t *testing.T) {
+	iptable := iptables.GetIptable(iptables.IPv4)
+
 	t.Helper()
-	_, err := iptables.Raw("-F", fwdChainName)
+	_, err := iptable.Raw("-F", fwdChainName)
 	assert.NilError(t, err)
-	_ = iptables.RemoveExistingChain(usrChainName, "")
+	_ = iptable.RemoveExistingChain(usrChainName, "")
 }
