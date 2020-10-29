@@ -1,6 +1,6 @@
 // +build !windows
 
-package symlink // import "github.com/docker/docker/pkg/symlink"
+package symlink
 
 import (
 	"path/filepath"

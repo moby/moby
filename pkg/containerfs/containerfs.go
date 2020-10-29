@@ -6,7 +6,7 @@ import (
 
 	"github.com/containerd/continuity/driver"
 	"github.com/containerd/continuity/pathdriver"
-	"github.com/docker/docker/pkg/symlink"
+	"github.com/moby/sys/symlink"
 )
 
 // ContainerFS is that represents a root file system
