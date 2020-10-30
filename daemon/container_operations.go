@@ -118,7 +118,7 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container) ([]lib
 		// If the IP Address is a string called "host-gateway", replace this
 		// value with the IP address stored in the daemon level HostGatewayIP
 		// config variable
-		if parts[1] == network.HostGatewayName {
+		if parts[1] == opts.HostGatewayName {
 			gateway := daemon.configStore.HostGatewayIP.String()
 			if gateway == "" {
 				return nil, fmt.Errorf("unable to derive the IP value for host-gateway")
