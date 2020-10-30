@@ -51,7 +51,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 		}
 	}()
 
-	if ctr.RemovalInProgress || ctr.Dead {
+	if ctr.IsRemovalInProgress() || ctr.IsDead() {
 		return errCannotUpdate(ctr.ID, fmt.Errorf("container is marked for removal and cannot be \"update\""))
 	}
 

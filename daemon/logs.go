@@ -38,7 +38,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		return nil, false, err
 	}
 
-	if ctr.RemovalInProgress || ctr.Dead {
+	if ctr.IsRemovalInProgress() || ctr.IsDead() {
 		return nil, false, errdefs.Conflict(errors.New("can not get logs from container which is dead or marked for removal"))
 	}
 
@@ -162,7 +162,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 
 func (daemon *Daemon) getLogger(container *container.Container) (l logger.Logger, created bool, err error) {
 	container.Lock()
-	if container.State.Running {
+	if container.State.IsRunning() {
 		l = container.LogDriver
 	}
 	container.Unlock()

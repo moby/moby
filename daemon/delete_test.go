@@ -82,7 +82,7 @@ func TestContainerDoubleDelete(t *testing.T) {
 	c := newContainerWithState(container.NewState())
 
 	// Mark the container as having a delete in progress
-	c.SetRemovalInProgress()
+	c.SetRemovalInProgress(true)
 
 	d, cleanup := newDaemonWithTmpRoot(t)
 	defer cleanup()

@@ -50,7 +50,7 @@ func setupContainerWithName(t *testing.T, name string, daemon *Daemon) *containe
 		name = "/" + name
 	}
 	c.Name = name
-	c.Running = true
+	c.Running = 1
 	c.HostConfig = &containertypes.HostConfig{}
 
 	// these are for passing the refreshImage reducer

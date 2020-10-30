@@ -27,11 +27,12 @@ func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) 
 	}
 
 	// Container state RemovalInProgress should be used to avoid races.
-	if inProgress := container.SetRemovalInProgress(); inProgress {
+	if container.IsRemovalInProgress() {
 		err := fmt.Errorf("removal of container %s is already in progress", name)
 		return errdefs.Conflict(err)
 	}
-	defer container.ResetRemovalInProgress()
+	container.SetRemovalInProgress(true)
+	defer container.SetRemovalInProgress(false)
 
 	// check if container wasn't deregistered by previous rm since Get
 	if c := daemon.containers.Get(container.ID); c == nil {
@@ -104,12 +105,12 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	}
 
 	// Mark container dead. We don't want anybody to be restarting it.
-	container.Lock()
-	container.Dead = true
+	container.SetDead()
 
 	// Save container state to disk. So that if error happens before
 	// container meta file got removed from disk, then a restart of
 	// docker should not make a dead container alive.
+	container.Lock()
 	if err := container.CheckpointTo(daemon.containersReplica); err != nil && !os.IsNotExist(err) {
 		logrus.Errorf("Error saving dying container to disk: %v", err)
 	}

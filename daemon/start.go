@@ -29,18 +29,15 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 	}
 
 	validateState := func() error {
-		ctr.Lock()
-		defer ctr.Unlock()
-
-		if ctr.Paused {
+		if ctr.IsPaused() {
 			return errdefs.Conflict(errors.New("cannot start a paused container, try unpause instead"))
 		}
 
-		if ctr.Running {
+		if ctr.IsRunning() {
 			return containerNotModifiedError{running: true}
 		}
 
-		if ctr.RemovalInProgress || ctr.Dead {
+		if ctr.IsRemovalInProgress() || ctr.IsDead() {
 			return errdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
 		}
 		return nil
@@ -104,14 +101,12 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 // begin running.
 func (daemon *Daemon) containerStart(container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (err error) {
 	start := time.Now()
-	container.Lock()
-	defer container.Unlock()
 
-	if resetRestartManager && container.Running { // skip this check if already in restarting step and resetRestartManager==false
+	if resetRestartManager && container.IsRunning() { // skip this check if already in restarting step and resetRestartManager==false
 		return nil
 	}
 
-	if container.RemovalInProgress || container.Dead {
+	if container.IsRemovalInProgress() || container.IsDead() {
 		return errdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
 	}
 
@@ -120,28 +115,30 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		return errdefs.Forbidden(errors.New("custom checkpointdir is not supported"))
 	}
 
+	container.Lock()
 	// if we encounter an error during start we need to ensure that any other
 	// setup has been cleaned up properly
 	defer func() {
+		container.Unlock()
 		if err != nil {
 			container.SetError(err)
 			// if no one else has set it, make sure we don't leave it at zero
 			if container.ExitCode() == 0 {
 				container.SetExitCode(128)
 			}
+			container.Lock()
 			if err := container.CheckpointTo(daemon.containersReplica); err != nil {
 				logrus.Errorf("%s: failed saving state on start failure: %v", container.ID, err)
 			}
 			container.Reset(false)
 
 			daemon.Cleanup(container)
+			container.Unlock()
 			// if containers AutoRemove flag is set, remove it after clean up
 			if container.HostConfig.AutoRemove {
-				container.Unlock()
 				if err := daemon.ContainerRm(container.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 					logrus.Errorf("can't remove container %s: %v", container.ID, err)
 				}
-				container.Lock()
 			}
 		}
 	}()

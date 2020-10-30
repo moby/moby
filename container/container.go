@@ -59,6 +59,7 @@ type ExitStatus struct {
 
 // Container holds the structure defining a container object.
 type Container struct {
+	sync.Mutex
 	StreamConfig *stream.Config
 	// embed for Container to support states directly.
 	*State          `json:"State"`          // Needed for Engine API version <= 1.11
@@ -467,7 +468,7 @@ func (container *Container) GetExecIDs() []string {
 // ShouldRestart decides whether the daemon should restart the container or not.
 // This is based on the container's restart policy.
 func (container *Container) ShouldRestart() bool {
-	shouldRestart, _, _ := container.RestartManager().ShouldRestart(uint32(container.ExitCode()), container.HasBeenManuallyStopped, container.FinishedAt.Sub(container.StartedAt))
+	shouldRestart, _, _ := container.RestartManager().ShouldRestart(uint32(container.ExitCode()), container.HasBeenManuallyStopped, container.FinishedAt.Get().Sub(container.StartedAt.Get()))
 	return shouldRestart
 }
 

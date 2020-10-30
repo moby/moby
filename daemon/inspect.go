@@ -148,16 +148,16 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 
 	containerState := &types.ContainerState{
 		Status:     container.State.StateString(),
-		Running:    container.State.Running,
-		Paused:     container.State.Paused,
-		Restarting: container.State.Restarting,
-		OOMKilled:  container.State.OOMKilled,
-		Dead:       container.State.Dead,
-		Pid:        container.State.Pid,
+		Running:    container.State.IsRunning(),
+		Paused:     container.State.IsPaused(),
+		Restarting: container.State.IsRestarting(),
+		OOMKilled:  container.State.IsOOMKilled(),
+		Dead:       container.State.IsDead(),
+		Pid:        container.State.GetPID(),
 		ExitCode:   container.State.ExitCode(),
-		Error:      container.State.ErrorMsg,
-		StartedAt:  container.State.StartedAt.Format(time.RFC3339Nano),
-		FinishedAt: container.State.FinishedAt.Format(time.RFC3339Nano),
+		Error:      container.State.ErrorMsg.Get(),
+		StartedAt:  container.State.StartedAt.Get().Format(time.RFC3339Nano),
+		FinishedAt: container.State.FinishedAt.Get().Format(time.RFC3339Nano),
 		Health:     containerHealth,
 	}
 
@@ -185,7 +185,7 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 	contJSONBase.GraphDriver.Name = container.Driver
 
 	if container.RWLayer == nil {
-		if container.Dead {
+		if container.IsDead() {
 			return contJSONBase, nil
 		}
 		return nil, errdefs.System(errors.New("RWLayer of container " + container.ID + " is unexpectedly nil"))
@@ -196,7 +196,7 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 	// could have been removed, it will cause error if we try to get the metadata,
 	// we can ignore the error if the container is dead.
 	if err != nil {
-		if !container.Dead {
+		if !container.IsDead() {
 			return nil, errdefs.System(err)
 		}
 	} else {
