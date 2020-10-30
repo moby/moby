@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
@@ -62,7 +63,8 @@ type v2Puller struct {
 	repo              distribution.Repository
 	// confirmedV2 is set to true if we confirm we're talking to a v2
 	// registry. This is used to limit fallbacks to the v1 protocol.
-	confirmedV2 bool
+	confirmedV2   bool
+	manifestStore *manifestStore
 }
 
 func (p *v2Puller) Pull(ctx context.Context, ref reference.Named, platform *specs.Platform) (err error) {
@@ -70,6 +72,11 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named, platform *spec
 	p.repo, p.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		logrus.Warnf("Error getting v2 registry: %v", err)
+		return err
+	}
+
+	p.manifestStore.remote, err = p.repo.Manifests(ctx)
+	if err != nil {
 		return err
 	}
 
@@ -330,35 +337,43 @@ func (ld *v2LayerDescriptor) Registered(diffID layer.DiffID) {
 }
 
 func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named, platform *specs.Platform) (tagUpdated bool, err error) {
-	manSvc, err := p.repo.Manifests(ctx)
-	if err != nil {
-		return false, err
-	}
 
 	var (
-		manifest    distribution.Manifest
 		tagOrDigest string // Used for logging/progress only
+		dgst        digest.Digest
+		mt          string
+		size        int64
 	)
 	if digested, isDigested := ref.(reference.Canonical); isDigested {
-		manifest, err = manSvc.Get(ctx, digested.Digest())
-		if err != nil {
-			return false, err
-		}
-		tagOrDigest = digested.Digest().String()
+		dgst = digested.Digest()
+		tagOrDigest = digested.String()
 	} else if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
 		tagService := p.repo.Tags(ctx)
 		desc, err := tagService.Get(ctx, tagged.Tag())
 		if err != nil {
 			return false, allowV1Fallback(err)
 		}
-
-		manifest, err = manSvc.Get(ctx, desc.Digest)
-		if err != nil {
-			return false, err
-		}
+		dgst = desc.Digest
 		tagOrDigest = tagged.Tag()
+		mt = desc.MediaType
+		size = desc.Size
 	} else {
 		return false, fmt.Errorf("internal error: reference has neither a tag nor a digest: %s", reference.FamiliarString(ref))
+	}
+
+	ctx = log.WithLogger(ctx, logrus.WithFields(
+		logrus.Fields{
+			"digest": dgst,
+			"remote": ref,
+		}))
+
+	manifest, err := p.manifestStore.Get(ctx, specs.Descriptor{
+		MediaType: mt,
+		Digest:    dgst,
+		Size:      size,
+	})
+	if err != nil {
+		return false, err
 	}
 
 	if manifest == nil {
@@ -559,7 +574,7 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unv
 		return "", "", err
 	}
 
-	imageID, err := p.config.ImageStore.Put(config)
+	imageID, err := p.config.ImageStore.Put(ctx, config)
 	if err != nil {
 		return "", "", err
 	}
@@ -570,7 +585,7 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unv
 }
 
 func (p *v2Puller) pullSchema2Layers(ctx context.Context, target distribution.Descriptor, layers []distribution.Descriptor, platform *specs.Platform) (id digest.Digest, err error) {
-	if _, err := p.config.ImageStore.Get(target.Digest); err == nil {
+	if _, err := p.config.ImageStore.Get(ctx, target.Digest); err == nil {
 		// If the image already exists locally, no need to pull
 		// anything.
 		return target.Digest, nil
@@ -727,7 +742,7 @@ func (p *v2Puller) pullSchema2Layers(ctx context.Context, target distribution.De
 		}
 	}
 
-	imageID, err := p.config.ImageStore.Put(configJSON)
+	imageID, err := p.config.ImageStore.Put(ctx, configJSON)
 	if err != nil {
 		return "", err
 	}
@@ -797,23 +812,22 @@ func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mf
 	if len(manifestMatches) > 1 {
 		logrus.Debugf("found multiple matches in manifest list, choosing best match %s", manifestMatches[0].Digest.String())
 	}
-	manifestDigest := manifestMatches[0].Digest
+	match := manifestMatches[0]
 
-	if err := checkImageCompatibility(manifestMatches[0].Platform.OS, manifestMatches[0].Platform.OSVersion); err != nil {
+	if err := checkImageCompatibility(match.Platform.OS, match.Platform.OSVersion); err != nil {
 		return "", "", err
 	}
 
-	manSvc, err := p.repo.Manifests(ctx)
+	manifest, err := p.manifestStore.Get(ctx, specs.Descriptor{
+		Digest:    match.Digest,
+		Size:      match.Size,
+		MediaType: match.MediaType,
+	})
 	if err != nil {
 		return "", "", err
 	}
 
-	manifest, err := manSvc.Get(ctx, manifestDigest)
-	if err != nil {
-		return "", "", err
-	}
-
-	manifestRef, err := reference.WithDigest(reference.TrimNamed(ref), manifestDigest)
+	manifestRef, err := reference.WithDigest(reference.TrimNamed(ref), match.Digest)
 	if err != nil {
 		return "", "", err
 	}

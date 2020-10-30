@@ -69,7 +69,7 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 		},
 		Schema2Types: ImageTypes,
 	}
-	puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
+	puller, err := newPuller(endpoint, repoInfo, imagePullConfig, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
