@@ -346,9 +346,15 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named, platform 
 		}
 		tagOrDigest = digested.Digest().String()
 	} else if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
-		manifest, err = manSvc.Get(ctx, "", distribution.WithTag(tagged.Tag()))
+		tagService := p.repo.Tags(ctx)
+		desc, err := tagService.Get(ctx, tagged.Tag())
 		if err != nil {
 			return false, allowV1Fallback(err)
+		}
+
+		manifest, err = manSvc.Get(ctx, desc.Digest)
+		if err != nil {
+			return false, err
 		}
 		tagOrDigest = tagged.Tag()
 	} else {
