@@ -67,11 +67,12 @@ func (n *network) findLBEndpointSandbox() (*endpoint, *sandbox, error) {
 	if !ok {
 		return nil, nil, fmt.Errorf("Unable to get sandbox for %s(%s) in for %s", ep.Name(), ep.ID(), n.ID())
 	}
-	ep = sb.getEndpoint(ep.ID())
-	if ep == nil {
+	var sep *endpoint
+	sep = sb.getEndpoint(ep.ID())
+	if sep == nil {
 		return nil, nil, fmt.Errorf("Load balancing endpoint %s(%s) removed from %s", ep.Name(), ep.ID(), n.ID())
 	}
-	return ep, sb, nil
+	return sep, sb, nil
 }
 
 // Searches the OS sandbox for the name of the endpoint interface
