@@ -494,7 +494,8 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) (err error) {
 		n.getController().watchSvcRecord(ep)
 	}
 
-	if doUpdateHostsFile(n, sb) {
+	// Do not update hosts file with internal networks endpoint IP
+	if !n.ingress && n.Name() != libnGWNetwork {
 		var addresses []string
 		if ip := ep.getFirstInterfaceIPv4Address(); ip != nil {
 			addresses = append(addresses, ip.String())
@@ -598,10 +599,6 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) (err error) {
 	return nil
 }
 
-func doUpdateHostsFile(n *network, sb *sandbox) bool {
-	return !n.ingress && n.Name() != libnGWNetwork
-}
-
 func (ep *endpoint) rename(name string) error {
 	var (
 		err      error
@@ -680,7 +677,7 @@ func (ep *endpoint) rename(name string) error {
 	// benign error. Besides there is no meaningful recovery that
 	// we can do. When the cluster recovers subsequent EpCnt update
 	// will force the peers to get the correct EP name.
-	n.getEpCnt().updateStore() // nolint:errcheck
+	_ = n.getEpCnt().updateStore()
 
 	return err
 }
