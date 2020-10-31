@@ -43,14 +43,14 @@ func TestSetupIPv6(t *testing.T) {
 
 	var found bool
 	for _, addr := range addrsv6 {
-		if bridgeIPv6Str == addr.IPNet.String() {
+		if bridgeIPv6.String() == addr.IPNet.String() {
 			found = true
 			break
 		}
 	}
 
 	if !found {
-		t.Fatalf("Bridge device does not have requested IPv6 address %v", bridgeIPv6Str)
+		t.Fatalf("Bridge device does not have requested IPv6 address %v", bridgeIPv6)
 	}
 
 }
