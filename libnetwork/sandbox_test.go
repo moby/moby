@@ -110,15 +110,15 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ep1.Join(sbx, JoinOptionPriority(ep1, 1)); err != nil {
+	if err := ep1.Join(sbx, JoinOptionPriority(1)); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep2.Join(sbx, JoinOptionPriority(ep2, 2)); err != nil {
+	if err := ep2.Join(sbx, JoinOptionPriority(2)); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep3.Join(sbx, JoinOptionPriority(ep3, 3)); err != nil {
+	if err := ep3.Join(sbx, JoinOptionPriority(3)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -145,7 +145,7 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 	}
 
 	// Re-add ep3 back
-	if err := ep3.Join(sbx, JoinOptionPriority(ep3, 3)); err != nil {
+	if err := ep3.Join(sbx, JoinOptionPriority(3)); err != nil {
 		t.Fatal(err)
 	}
 
