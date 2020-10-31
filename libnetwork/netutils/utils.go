@@ -19,8 +19,6 @@ var (
 	ErrNetworkOverlapsWithNameservers = errors.New("requested network overlaps with nameserver")
 	// ErrNetworkOverlaps preformatted error
 	ErrNetworkOverlaps = errors.New("requested network overlaps with existing network")
-	// ErrNoDefaultRoute preformatted error
-	ErrNoDefaultRoute = errors.New("no default route")
 )
 
 // CheckNameserverOverlaps checks whether the passed network overlaps with any of the nameservers
