@@ -324,7 +324,7 @@ func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 
 // Install/Removes the iptables rules needed to isolate this network
 // from each of the other networks
-func (n *bridgeNetwork) isolateNetwork(others []*bridgeNetwork, enable bool) error {
+func (n *bridgeNetwork) isolateNetwork(enable bool) error {
 	n.Lock()
 	thisConfig := n.config
 	n.Unlock()
@@ -673,8 +673,6 @@ func (d *driver) checkConflict(config *networkConfiguration) error {
 func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 	defer osl.InitOSContext()()
 
-	networkList := d.getNetworks()
-
 	// Initialize handle when needed
 	d.Lock()
 	if d.nlh == nil {
@@ -714,16 +712,15 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 
 	// Add inter-network communication rules.
 	setupNetworkIsolationRules := func(config *networkConfiguration, i *bridgeInterface) error {
-		if err := network.isolateNetwork(networkList, true); err != nil {
-			if err = network.isolateNetwork(networkList, false); err != nil {
+		if err := network.isolateNetwork(true); err != nil {
+			if err = network.isolateNetwork(false); err != nil {
 				logrus.Warnf("Failed on removing the inter-network iptables rules on cleanup: %v", err)
 			}
 			return err
 		}
 		// register the cleanup function
 		network.registerIptCleanFunc(func() error {
-			nwList := d.getNetworks()
-			return network.isolateNetwork(nwList, false)
+			return network.isolateNetwork(false)
 		})
 		return nil
 	}
