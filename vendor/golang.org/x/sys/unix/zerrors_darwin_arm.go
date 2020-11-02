@@ -251,6 +251,7 @@ const (
 	CSTOP                             = 0x13
 	CSTOPB                            = 0x400
 	CSUSP                             = 0x1a
+	CTLIOCGINFO                       = 0xc0644e03
 	CTL_HW                            = 0x6
 	CTL_KERN                          = 0x1
 	CTL_MAXNAME                       = 0xc
