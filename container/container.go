@@ -244,7 +244,7 @@ func (container *Container) WriteHostConfig() (*containertypes.HostConfig, error
 		return nil, err
 	}
 
-	f, err := ioutils.NewAtomicFileWriter(pth, 0644)
+	f, err := ioutils.NewAtomicFileWriter(pth, 0600)
 	if err != nil {
 		return nil, err
 	}
