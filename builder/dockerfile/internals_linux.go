@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/symlink"
+	"github.com/moby/sys/symlink"
 	lcUser "github.com/opencontainers/runc/libcontainer/user"
 	"github.com/pkg/errors"
 )
