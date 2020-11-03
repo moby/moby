@@ -1711,3 +1711,7 @@ func (daemon *Daemon) RawSysInfo(quiet bool) *sysinfo.SysInfo {
 	}
 	return sysinfo.New(quiet, opts...)
 }
+
+func recursiveUnmount(target string) error {
+	return mount.RecursiveUnmount(target)
+}

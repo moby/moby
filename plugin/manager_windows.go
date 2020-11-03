@@ -26,3 +26,7 @@ func (pm *Manager) restore(p *v2.Plugin, c *controller) error {
 // Shutdown plugins
 func (pm *Manager) Shutdown() {
 }
+
+func recursiveUnmount(_ string) error {
+	return nil
+}

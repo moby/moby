@@ -39,6 +39,11 @@ func (v *localVolume) needsMount() bool {
 func (v *localVolume) mount() error {
 	return nil
 }
+func (v *localVolume) unmount() error {
+	return nil
+}
+
+func unmount(_ string) {}
 
 func (v *localVolume) postMount() error {
 	return nil

@@ -1,3 +1,5 @@
+// +build freebsd,cgo openbsd,cgo
+
 package mountinfo
 
 /*
@@ -33,7 +35,7 @@ func parseMountTable(filter FilterFunc) ([]*Info, error) {
 		var mountinfo Info
 		var skip, stop bool
 		mountinfo.Mountpoint = C.GoString(&entry.f_mntonname[0])
-		mountinfo.Fstype = C.GoString(&entry.f_fstypename[0])
+		mountinfo.FSType = C.GoString(&entry.f_fstypename[0])
 		mountinfo.Source = C.GoString(&entry.f_mntfromname[0])
 
 		if filter != nil {
@@ -50,4 +52,16 @@ func parseMountTable(filter FilterFunc) ([]*Info, error) {
 		}
 	}
 	return out, nil
+}
+
+func mounted(path string) (bool, error) {
+	// Fast path: compare st.st_dev fields.
+	// This should always work for FreeBSD and OpenBSD.
+	mounted, err := mountedByStat(path)
+	if err == nil {
+		return mounted, nil
+	}
+
+	// Fallback to parsing mountinfo
+	return mountedByMountinfo(path)
 }

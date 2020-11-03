@@ -467,6 +467,10 @@ func (daemon *Daemon) cleanupMounts() error {
 	return nil
 }
 
+func recursiveUnmount(_ string) error {
+	return nil
+}
+
 func setupRemappedRoot(config *config.Config) (*idtools.IdentityMapping, error) {
 	return &idtools.IdentityMapping{}, nil
 }

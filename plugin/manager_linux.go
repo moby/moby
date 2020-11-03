@@ -346,3 +346,7 @@ func (pm *Manager) createPlugin(name string, configDigest, manifestDigest digest
 
 	return p, nil
 }
+
+func recursiveUnmount(target string) error {
+	return mount.RecursiveUnmount(target)
+}

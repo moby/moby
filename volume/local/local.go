@@ -18,8 +18,6 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/quota"
 	"github.com/docker/docker/volume"
-	"github.com/moby/sys/mount"
-	"github.com/moby/sys/mountinfo"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -96,9 +94,9 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 			if !reflect.DeepEqual(opts, optsConfig{}) {
 				v.opts = &opts
 			}
-
-			// unmount anything that may still be mounted (for example, from an unclean shutdown)
-			mount.Unmount(v.path)
+			// unmount anything that may still be mounted (for example, from an
+			// unclean shutdown). This is a no-op on windows
+			unmount(v.path)
 		}
 	}
 
@@ -345,18 +343,6 @@ func (v *localVolume) Unmount(id string) error {
 	}
 
 	return v.unmount()
-}
-
-func (v *localVolume) unmount() error {
-	if v.needsMount() {
-		if err := mount.Unmount(v.path); err != nil {
-			if mounted, mErr := mountinfo.Mounted(v.path); mounted || mErr != nil {
-				return errdefs.System(err)
-			}
-		}
-		v.active.mounted = false
-	}
-	return nil
 }
 
 func (v *localVolume) Status() map[string]interface{} {

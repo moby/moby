@@ -23,7 +23,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/registry"
-	"github.com/moby/sys/mount"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -159,10 +158,8 @@ func (pm *Manager) HandleExitEvent(id string) error {
 
 	if restart {
 		pm.enable(p, c, true)
-	} else {
-		if err := mount.RecursiveUnmount(filepath.Join(pm.config.Root, id)); err != nil {
-			return errors.Wrap(err, "error cleaning up plugin mounts")
-		}
+	} else if err := recursiveUnmount(filepath.Join(pm.config.Root, id)); err != nil {
+		return errors.Wrap(err, "error cleaning up plugin mounts")
 	}
 	return nil
 }
