@@ -862,6 +862,13 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 				ei = libcontainerdtypes.EventInfo{
 					ContainerID: t.ContainerID,
 				}
+			case *apievents.TaskDelete:
+				c.logger.WithFields(logrus.Fields{
+					"topic":     ev.Topic,
+					"type":      reflect.TypeOf(t),
+					"container": t.ContainerID},
+				).Info("ignoring event")
+				continue
 			default:
 				c.logger.WithFields(logrus.Fields{
 					"topic": ev.Topic,
