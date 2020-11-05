@@ -523,6 +523,46 @@ RUN for g in $(seq 0 8); do dd if=/dev/urandom of=rnd bs=1K count=1 seek=$((1024
 	assert.Check(t, is.Contains(out.String(), "Successfully built"))
 }
 
+func TestBuildWCOWSandboxSize(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "windows", "only Windows has sandbox size control")
+	ctx := context.TODO()
+	defer setupTest(t)()
+
+	dockerfile := `FROM busybox AS intermediate
+WORKDIR C:\\stuff
+# Create and delete a 21GB file
+RUN fsutil file createnew C:\\stuff\\bigfile_0.txt 22548578304 && del bigfile_0.txt
+# Create three 7GB files
+RUN fsutil file createnew C:\\stuff\\bigfile_1.txt 7516192768
+RUN fsutil file createnew C:\\stuff\\bigfile_2.txt 7516192768
+RUN fsutil file createnew C:\\stuff\\bigfile_3.txt 7516192768
+# Copy that 21GB of data out into a new target
+FROM busybox
+COPY --from=intermediate C:\\stuff C:\\stuff
+`
+
+	buf := bytes.NewBuffer(nil)
+	w := tar.NewWriter(buf)
+	writeTarRecord(t, w, "Dockerfile", dockerfile)
+	err := w.Close()
+	assert.NilError(t, err)
+
+	apiclient := testEnv.APIClient()
+	resp, err := apiclient.ImageBuild(ctx,
+		buf,
+		types.ImageBuildOptions{
+			Remove:      true,
+			ForceRemove: true,
+		})
+
+	out := bytes.NewBuffer(nil)
+	assert.NilError(t, err)
+	_, err = io.Copy(out, resp.Body)
+	resp.Body.Close()
+	assert.NilError(t, err)
+	assert.Check(t, is.Contains(out.String(), "Successfully built"))
+}
+
 func TestBuildWithEmptyDockerfile(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "broken in earlier versions")
 	ctx := context.TODO()
