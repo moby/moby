@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	defaultBindingIP = net.IPv4(0, 0, 0, 0)
+	defaultBindingIP   = net.IPv4(0, 0, 0, 0)
+	defaultBindingIPV6 = net.ParseIP("::")
 )
 
 func (n *bridgeNetwork) allocatePorts(ep *bridgeEndpoint, reqDefBindIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
@@ -25,7 +26,25 @@ func (n *bridgeNetwork) allocatePorts(ep *bridgeEndpoint, reqDefBindIP net.IP, u
 		defHostIP = reqDefBindIP
 	}
 
-	return n.allocatePortsInternal(ep.extConnConfig.PortBindings, ep.addr.IP, defHostIP, ulPxyEnabled)
+	// IPv4 port binding including user land proxy
+	pb, err := n.allocatePortsInternal(ep.extConnConfig.PortBindings, ep.addr.IP, defHostIP, ulPxyEnabled)
+	if err != nil {
+		return nil, err
+	}
+
+	// IPv6 port binding excluding user land proxy
+	if n.driver.config.EnableIP6Tables && ep.addrv6 != nil {
+		// TODO IPv6 custom default binding IP
+		pbv6, err := n.allocatePortsInternal(ep.extConnConfig.PortBindings, ep.addrv6.IP, defaultBindingIPV6, false)
+		if err != nil {
+			// ensure we clear the previous allocated IPv4 ports
+			n.releasePortsInternal(pb)
+			return nil, err
+		}
+
+		pb = append(pb, pbv6...)
+	}
+	return pb, nil
 }
 
 func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
@@ -69,9 +88,15 @@ func (n *bridgeNetwork) allocatePort(bnd *types.PortBinding, containerIP, defHos
 		return err
 	}
 
+	portmapper := n.portMapper
+
+	if containerIP.To4() == nil {
+		portmapper = n.portMapperV6
+	}
+
 	// Try up to maxAllocatePortAttempts times to get a port that's not already allocated.
 	for i := 0; i < maxAllocatePortAttempts; i++ {
-		if host, err = n.portMapper.MapRange(container, bnd.HostIP, int(bnd.HostPort), int(bnd.HostPortEnd), ulPxyEnabled); err == nil {
+		if host, err = portmapper.MapRange(container, bnd.HostIP, int(bnd.HostPort), int(bnd.HostPortEnd), ulPxyEnabled); err == nil {
 			break
 		}
 		// There is no point in immediately retrying to map an explicitly chosen port.
@@ -128,5 +153,12 @@ func (n *bridgeNetwork) releasePort(bnd types.PortBinding) error {
 	if err != nil {
 		return err
 	}
-	return n.portMapper.Unmap(host)
+
+	portmapper := n.portMapper
+
+	if bnd.HostIP.To4() == nil {
+		portmapper = n.portMapperV6
+	}
+
+	return portmapper.Unmap(host)
 }
