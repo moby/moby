@@ -33,12 +33,7 @@ func Detect(config backend.BuildConfig) (remote builder.Source, dockerfile *pars
 	case remoteURL == "":
 		remote, dockerfile, err = newArchiveRemote(config.Source, dockerfilePath)
 	case remoteURL == ClientSessionRemote:
-		res, err := parser.Parse(config.Source)
-		if err != nil {
-			return nil, nil, errdefs.InvalidParameter(err)
-		}
-
-		return nil, res, nil
+		return nil, nil, errdefs.InvalidParameter(errors.New("experimental session with v1 builder is no longer supported, use builder version v2 (BuildKit) instead"))
 	case urlutil.IsGitURL(remoteURL):
 		remote, dockerfile, err = newGitRemote(remoteURL, dockerfilePath)
 	case urlutil.IsURL(remoteURL):

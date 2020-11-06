@@ -85,10 +85,6 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	if config.Options.SessionID != "" {
-		return nil, errors.New("experimental session with v1 builder is no longer supported, use builder version v2 (BuildKit) instead")
-	}
-
 	builderOptions := builderOptions{
 		Options:        config.Options,
 		ProgressWriter: config.ProgressWriter,
