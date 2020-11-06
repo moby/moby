@@ -38,8 +38,15 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// filterDriver is an HCSShim driver type for the Windows Filter driver.
-const filterDriver = 1
+const (
+	// filterDriver is an HCSShim driver type for the Windows Filter driver.
+	filterDriver = 1
+	// For WCOW, the default of 20GB hard-coded in the platform
+	// is too small for builder scenarios where many users are
+	// using RUN or COPY statements to install large amounts of data.
+	// Use 127GB as that's the default size of a VHD in Hyper-V.
+	defaultSandboxSize = "127GB"
+)
 
 var (
 	// mutatedFiles is a list of files that are mutated by the import process
@@ -73,6 +80,10 @@ func (c *checker) IsMounted(path string) bool {
 	return false
 }
 
+type storageOptions struct {
+	size uint64
+}
+
 // Driver represents a windows graph driver.
 type Driver struct {
 	// info stores the shim driver information
@@ -80,8 +91,9 @@ type Driver struct {
 	ctr  *graphdriver.RefCounter
 	// it is safe for windows to use a cache here because it does not support
 	// restoring containers when the daemon dies.
-	cacheMu sync.Mutex
-	cache   map[string]string
+	cacheMu            sync.Mutex
+	cache              map[string]string
+	defaultStorageOpts *storageOptions
 }
 
 // InitFilter returns a new Windows storage filter driver.
@@ -100,6 +112,11 @@ func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap)
 		return nil, fmt.Errorf("windowsfilter failed to create '%s': %v", home, err)
 	}
 
+	size, err := units.RAMInBytes(defaultSandboxSize)
+	if err != nil {
+		return nil, fmt.Errorf("windowsfilter failed to parse default size '%s': %v", defaultSandboxSize, err)
+	}
+
 	d := &Driver{
 		info: hcsshim.DriverInfo{
 			HomeDir: home,
@@ -107,6 +124,9 @@ func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap)
 		},
 		cache: make(map[string]string),
 		ctr:   graphdriver.NewRefCounter(&checker{}),
+		defaultStorageOpts: &storageOptions{
+			size: uint64(size),
+		},
 	}
 	return d, nil
 }
@@ -231,8 +251,13 @@ func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt
 			return fmt.Errorf("Failed to parse storage options - %s", err)
 		}
 
+		sandboxSize := d.defaultStorageOpts.size
 		if storageOptions.size != 0 {
-			if err := hcsshim.ExpandSandboxSize(d.info, id, storageOptions.size); err != nil {
+			sandboxSize = storageOptions.size
+		}
+
+		if sandboxSize != 0 {
+			if err := hcsshim.ExpandSandboxSize(d.info, id, sandboxSize); err != nil {
 				return err
 			}
 		}
@@ -933,10 +958,6 @@ func (d *Driver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
 	}
 
 	return &fileGetCloserWithBackupPrivileges{d.dir(id)}, nil
-}
-
-type storageOptions struct {
-	size uint64
 }
 
 func parseStorageOpt(storageOpt map[string]string) (*storageOptions, error) {
