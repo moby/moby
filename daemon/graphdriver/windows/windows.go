@@ -112,9 +112,17 @@ func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap)
 		return nil, fmt.Errorf("windowsfilter failed to create '%s': %v", home, err)
 	}
 
-	size, err := units.RAMInBytes(defaultSandboxSize)
+	storageOpt := make(map[string]string)
+	storageOpt["size"] = defaultSandboxSize
+
+	for _, v := range options {
+		opt := strings.SplitN(v, "=", 2)
+		storageOpt[strings.ToLower(opt[0])] = opt[1]
+	}
+
+	storageOptions, err := parseStorageOpt(storageOpt)
 	if err != nil {
-		return nil, fmt.Errorf("windowsfilter failed to parse default size '%s': %v", defaultSandboxSize, err)
+		return nil, fmt.Errorf("windowsfilter failed to parse default storage options - %s", err)
 	}
 
 	d := &Driver{
@@ -122,11 +130,9 @@ func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap)
 			HomeDir: home,
 			Flavour: filterDriver,
 		},
-		cache: make(map[string]string),
-		ctr:   graphdriver.NewRefCounter(&checker{}),
-		defaultStorageOpts: &storageOptions{
-			size: uint64(size),
-		},
+		cache:              make(map[string]string),
+		ctr:                graphdriver.NewRefCounter(&checker{}),
+		defaultStorageOpts: storageOptions,
 	}
 	return d, nil
 }
