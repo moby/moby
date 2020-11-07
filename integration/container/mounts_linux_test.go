@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/sys/mount"
+	"github.com/moby/sys/mountinfo"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/fs"
@@ -264,5 +265,129 @@ func TestContainerBindMountNonRecursive(t *testing.T) {
 
 	for _, c := range containers {
 		poll.WaitOn(t, container.IsSuccessful(ctx, client, c), poll.WithDelay(100*time.Millisecond))
+	}
+}
+
+func TestContainerVolumesMountedAsShared(t *testing.T) {
+	// Volume propagation is linux only. Also it creates directories for
+	// bind mounting, so needs to be same host.
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsUserNamespace)
+	skip.If(t, testEnv.IsRootless, "cannot be tested because RootlessKit executes the daemon in private mount namespace (https://github.com/rootless-containers/rootlesskit/issues/97)")
+
+	defer setupTest(t)()
+
+	// Prepare a source directory to bind mount
+	tmpDir1 := fs.NewDir(t, "volume-source", fs.WithMode(0755),
+		fs.WithDir("mnt1", fs.WithMode(0755)))
+	defer tmpDir1.Remove()
+	tmpDir1Mnt := filepath.Join(tmpDir1.Path(), "mnt1")
+
+	// Convert this directory into a shared mount point so that we do
+	// not rely on propagation properties of parent mount.
+	if err := mount.Mount(tmpDir1.Path(), tmpDir1.Path(), "none", "bind,private"); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := mount.Unmount(tmpDir1.Path()); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	if err := mount.Mount("none", tmpDir1.Path(), "none", "shared"); err != nil {
+		t.Fatal(err)
+	}
+
+	sharedMount := mounttypes.Mount{
+		Type:   mounttypes.TypeBind,
+		Source: tmpDir1.Path(),
+		Target: "/volume-dest",
+		BindOptions: &mounttypes.BindOptions{
+			Propagation: mounttypes.PropagationShared,
+		},
+	}
+
+	bindMountCmd := []string{"mount", "--bind", "/volume-dest/mnt1", "/volume-dest/mnt1"}
+
+	ctx := context.Background()
+	client := testEnv.APIClient()
+	containerID := container.Run(ctx, t, client, container.WithPrivileged(true), container.WithMount(sharedMount), container.WithCmd(bindMountCmd...))
+	poll.WaitOn(t, container.IsSuccessful(ctx, client, containerID), poll.WithDelay(100*time.Millisecond))
+
+	// Make sure a bind mount under a shared volume propagated to host.
+	if mounted, _ := mountinfo.Mounted(tmpDir1Mnt); !mounted {
+		t.Fatalf("Bind mount under shared volume did not propagate to host")
+	}
+
+	mount.Unmount(tmpDir1Mnt)
+}
+
+func TestContainerVolumesMountedAsSlave(t *testing.T) {
+	// Volume propagation is linux only. Also it creates directories for
+	// bind mounting, so needs to be same host.
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsUserNamespace)
+	skip.If(t, testEnv.IsRootless, "cannot be tested because RootlessKit executes the daemon in private mount namespace (https://github.com/rootless-containers/rootlesskit/issues/97)")
+
+	// Prepare a source directory to bind mount
+	tmpDir1 := fs.NewDir(t, "volume-source", fs.WithMode(0755),
+		fs.WithDir("mnt1", fs.WithMode(0755)))
+	defer tmpDir1.Remove()
+	tmpDir1Mnt := filepath.Join(tmpDir1.Path(), "mnt1")
+
+	// Prepare a source directory with file in it. We will bind mount this
+	// directory and see if file shows up.
+	tmpDir2 := fs.NewDir(t, "volume-source2", fs.WithMode(0755),
+		fs.WithFile("slave-testfile", "Test", fs.WithMode(0644)))
+	defer tmpDir2.Remove()
+
+	// Convert this directory into a shared mount point so that we do
+	// not rely on propagation properties of parent mount.
+	if err := mount.Mount(tmpDir1.Path(), tmpDir1.Path(), "none", "bind,private"); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := mount.Unmount(tmpDir1.Path()); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	if err := mount.Mount("none", tmpDir1.Path(), "none", "shared"); err != nil {
+		t.Fatal(err)
+	}
+
+	slaveMount := mounttypes.Mount{
+		Type:   mounttypes.TypeBind,
+		Source: tmpDir1.Path(),
+		Target: "/volume-dest",
+		BindOptions: &mounttypes.BindOptions{
+			Propagation: mounttypes.PropagationSlave,
+		},
+	}
+
+	topCmd := []string{"top"}
+
+	ctx := context.Background()
+	client := testEnv.APIClient()
+	containerID := container.Run(ctx, t, client, container.WithTty(true), container.WithMount(slaveMount), container.WithCmd(topCmd...))
+
+	// Bind mount tmpDir2/ onto tmpDir1/mnt1. If mount propagates inside
+	// container then contents of tmpDir2/slave-testfile should become
+	// visible at "/volume-dest/mnt1/slave-testfile"
+	if err := mount.Mount(tmpDir2.Path(), tmpDir1Mnt, "none", "bind"); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := mount.Unmount(tmpDir1Mnt); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	mountCmd := []string{"cat", "/volume-dest/mnt1/slave-testfile"}
+
+	if result, err := container.Exec(ctx, client, containerID, mountCmd); err == nil {
+		if result.Stdout() != "Test" {
+			t.Fatalf("Bind mount under slave volume did not propagate to container")
+		}
+	} else {
+		t.Fatal(err)
 	}
 }
