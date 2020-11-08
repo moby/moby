@@ -560,7 +560,16 @@ COPY --from=intermediate C:\\stuff C:\\stuff
 	_, err = io.Copy(out, resp.Body)
 	resp.Body.Close()
 	assert.NilError(t, err)
-	assert.Check(t, is.Contains(out.String(), "Successfully built"))
+	// The test passes if either:
+	// - the image build succeeded; or
+	// - The "COPY --from=intermediate" step ran out of space during re-exec'd writing of the transport layer information to hcsshim's temp directory
+	// The latter case means we finished the COPY operation, so the sandbox must have been larger than 20GB, which was the test,
+	// and _then_ ran out of space on the host during `importLayer` in the WindowsFilter graph driver, while committing the layer.
+	// See https://github.com/moby/moby/pull/41636#issuecomment-723038517 for more details on the operations being done here.
+	// Specifically, this happens on the Docker Jenkins CI Windows-RS5 build nodes.
+	// The two parts of the acceptable-failure case are on different lines, so we need two regexp checks.
+	assert.Check(t, is.Regexp("Successfully built|COPY --from=intermediate", out.String()))
+	assert.Check(t, is.Regexp("Successfully built|re-exec error: exit status 1: output: write.*daemon\\\\\\\\tmp\\\\\\\\hcs.*bigfile_[1-3].txt: There is not enough space on the disk.", out.String()))
 }
 
 func TestBuildWithEmptyDockerfile(t *testing.T) {
