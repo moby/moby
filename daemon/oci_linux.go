@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	cdcgroups "github.com/containerd/cgroups"
 	"github.com/containerd/containerd/containers"
 	coci "github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/sys"
@@ -89,7 +90,7 @@ func WithRootless(daemon *Daemon) coci.SpecOpts {
 	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		var v2Controllers []string
 		if daemon.getCgroupDriver() == cgroupSystemdDriver {
-			if !cgroups.IsCgroup2UnifiedMode() {
+			if cdcgroups.Mode() != cdcgroups.Unified {
 				return errors.New("rootless systemd driver doesn't support cgroup v1")
 			}
 			rootlesskitParentEUID := os.Getenv("ROOTLESSKIT_PARENT_EUID")
@@ -814,7 +815,7 @@ func WithCgroups(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			return nil
 		}
 
-		if cgroups.IsCgroup2UnifiedMode() {
+		if cdcgroups.Mode() == cdcgroups.Unified {
 			return errors.New("daemon-scoped cpu-rt-period and cpu-rt-runtime are not implemented for cgroup v2")
 		}
 
