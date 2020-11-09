@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	cdcgroups "github.com/containerd/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -56,7 +57,7 @@ func New(quiet bool, options ...Opt) *SysInfo {
 	for _, o := range options {
 		o(&opts)
 	}
-	if cgroups.IsCgroup2UnifiedMode() {
+	if cdcgroups.Mode() == cdcgroups.Unified {
 		return newV2(quiet, &opts)
 	}
 

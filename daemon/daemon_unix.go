@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/cgroups"
 	statsV1 "github.com/containerd/cgroups/stats/v1"
 	statsV2 "github.com/containerd/cgroups/v2/stats"
 	"github.com/containerd/containerd/sys"
@@ -43,7 +44,6 @@ import (
 	"github.com/docker/libnetwork/options"
 	lntypes "github.com/docker/libnetwork/types"
 	"github.com/moby/sys/mount"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
@@ -362,11 +362,11 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 	if hostConfig.CgroupnsMode.IsEmpty() {
 		// for cgroup v2: unshare cgroupns even for privileged containers
 		// https://github.com/containers/libpod/pull/4374#issuecomment-549776387
-		if hostConfig.Privileged && !cgroups.IsCgroup2UnifiedMode() {
+		if hostConfig.Privileged && cgroups.Mode() != cgroups.Unified {
 			hostConfig.CgroupnsMode = containertypes.CgroupnsMode("host")
 		} else {
 			m := "host"
-			if cgroups.IsCgroup2UnifiedMode() {
+			if cgroups.Mode() == cgroups.Unified {
 				m = "private"
 			}
 			if daemon.configStore != nil {
@@ -637,7 +637,7 @@ func UsingSystemd(config *config.Config) bool {
 		return true
 	}
 	// On cgroup v2 hosts, default to systemd driver
-	if getCD(config) == "" && cgroups.IsCgroup2UnifiedMode() && IsRunningSystemd() {
+	if getCD(config) == "" && cgroups.Mode() == cgroups.Unified && IsRunningSystemd() {
 		return true
 	}
 	return false
@@ -758,7 +758,7 @@ func verifyDaemonSettings(conf *config.Config) error {
 		}
 	}
 
-	if conf.Rootless && UsingSystemd(conf) && !cgroups.IsCgroup2UnifiedMode() {
+	if conf.Rootless && UsingSystemd(conf) && cgroups.Mode() != cgroups.Unified {
 		return fmt.Errorf("exec-opt native.cgroupdriver=systemd requires cgroup v2 for rootless mode")
 	}
 

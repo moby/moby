@@ -5,11 +5,11 @@ package main
 import (
 	"os/exec"
 
+	"github.com/containerd/cgroups"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/rootless"
 	units "github.com/docker/go-units"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 )
@@ -66,7 +66,7 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	// Note that defaultUserlandProxyPath and honorXDG are configured according to the value of rootless.RunningWithRootlessKit, not the value of --rootless.
 	flags.BoolVar(&conf.Rootless, "rootless", rootless.RunningWithRootlessKit(), "Enable rootless mode; typically used with RootlessKit")
 	defaultCgroupNamespaceMode := "host"
-	if cgroups.IsCgroup2UnifiedMode() {
+	if cgroups.Mode() == cgroups.Unified {
 		defaultCgroupNamespaceMode = "private"
 	}
 	flags.StringVar(&conf.CgroupNamespaceMode, "default-cgroupns-mode", defaultCgroupNamespaceMode, `Default mode for containers cgroup namespace ("host" | "private")`)
