@@ -53,7 +53,6 @@ func TestCopyDir(t *testing.T) {
 		}
 
 		dstPath := filepath.Join(dstDir, relPath)
-		assert.NilError(t, err)
 
 		// If we add non-regular dirs and files to the test
 		// then we need to add more checks here.
