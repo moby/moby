@@ -65,8 +65,8 @@ func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt,
 	opts := []supervisor.DaemonOpt{
 		supervisor.WithOOMScore(cli.Config.OOMScoreAdjust),
 		supervisor.WithPlugin("linux", &linux.Config{
-			Shim:        daemon.DefaultShimBinary,
-			Runtime:     daemon.DefaultRuntimeBinary,
+			Shim:        config.DefaultShimBinary,
+			Runtime:     config.DefaultRuntimeBinary,
 			RuntimeRoot: filepath.Join(cli.Config.Root, "runc"),
 			ShimDebug:   cli.Config.Debug,
 		}),
