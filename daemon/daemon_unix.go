@@ -621,8 +621,8 @@ func getCD(config *config.Config) string {
 	return ""
 }
 
-// VerifyCgroupDriver validates native.cgroupdriver
-func VerifyCgroupDriver(config *config.Config) error {
+// verifyCgroupDriver validates native.cgroupdriver
+func verifyCgroupDriver(config *config.Config) error {
 	cd := getCD(config)
 	if cd == "" || cd == cgroupFsDriver || cd == cgroupSystemdDriver {
 		return nil
@@ -768,7 +768,7 @@ func verifyDaemonSettings(conf *config.Config) error {
 	if !conf.BridgeConfig.EnableIPTables && conf.BridgeConfig.EnableIPMasq {
 		conf.BridgeConfig.EnableIPMasq = false
 	}
-	if err := VerifyCgroupDriver(conf); err != nil {
+	if err := verifyCgroupDriver(conf); err != nil {
 		return err
 	}
 	if conf.CgroupParent != "" && UsingSystemd(conf) {
