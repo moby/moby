@@ -14,6 +14,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/containerd/cgroups"
@@ -644,6 +645,11 @@ func UsingSystemd(config *config.Config) bool {
 	return false
 }
 
+var (
+	runningSystemd bool
+	detectSystemd  sync.Once
+)
+
 // isRunningSystemd checks whether the host was booted with systemd as its init
 // system. This functions similarly to systemd's `sd_booted(3)`: internally, it
 // checks whether /run/systemd/system/ exists and is a directory.
@@ -652,11 +658,14 @@ func UsingSystemd(config *config.Config) bool {
 // NOTE: This function comes from package github.com/coreos/go-systemd/util
 // It was borrowed here to avoid a dependency on cgo.
 func isRunningSystemd() bool {
-	fi, err := os.Lstat("/run/systemd/system")
-	if err != nil {
-		return false
-	}
-	return fi.IsDir()
+	detectSystemd.Do(func() {
+		fi, err := os.Lstat("/run/systemd/system")
+		if err != nil {
+			return
+		}
+		runningSystemd = fi.IsDir()
+	})
+	return runningSystemd
 }
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
