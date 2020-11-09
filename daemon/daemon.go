@@ -751,7 +751,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	// Ensure that we have a correct root key limit for launching containers.
-	if err := ModifyRootKeyLimit(); err != nil {
+	if err := modifyRootKeyLimit(); err != nil {
 		logrus.Warnf("unable to modify root key limit, number of containers could be limited by this quota: %v", err)
 	}
 
