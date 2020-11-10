@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/pkg/mount"
+	"github.com/moby/sys/mount"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 )
