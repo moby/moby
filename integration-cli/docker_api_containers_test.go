@@ -30,7 +30,6 @@ import (
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/docker/volume"
 	"github.com/docker/go-connections/nat"
-	"github.com/moby/sys/mount"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -2056,7 +2055,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 			assert.NilError(c, err)
 			defer os.RemoveAll(tmpDir3)
 
-			assert.Assert(c, mount.Mount(tmpDir3, tmpDir3, "none", "bind,shared") == nil)
+			assert.Assert(c, mountWrapper(tmpDir3, tmpDir3, "none", "bind,shared") == nil)
 
 			cases = append(cases, []testCase{
 				{
