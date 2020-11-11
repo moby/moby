@@ -624,6 +624,7 @@ func DefaultProfile() *Seccomp {
 		{
 			Names: []string{
 				"kcmp",
+				"pidfd_getfd",
 				"process_vm_readv",
 				"process_vm_writev",
 				"ptrace",
