@@ -225,6 +225,8 @@ func DefaultProfile() *Seccomp {
 				"openat",
 				"openat2",
 				"pause",
+				"pidfd_open",
+				"pidfd_send_signal",
 				"pipe",
 				"pipe2",
 				"poll",
