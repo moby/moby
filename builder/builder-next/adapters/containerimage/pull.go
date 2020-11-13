@@ -176,12 +176,10 @@ func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session
 
 type puller struct {
 	is               *Source
-	resolveOnce      sync.Once
 	resolveLocalOnce sync.Once
 	src              *source.ImageIdentifier
 	desc             ocispec.Descriptor
 	ref              string
-	resolveErr       error
 	config           []byte
 	platform         ocispec.Platform
 	sm               *session.Manager
@@ -249,22 +247,21 @@ func (p *puller) resolveLocal() {
 }
 
 func (p *puller) resolve(ctx context.Context, g session.Group) error {
-	p.resolveOnce.Do(func() {
+	_, err := p.is.g.Do(ctx, "", func(ctx context.Context) (_ interface{}, err error) {
 		resolveProgressDone := oneOffProgress(ctx, "resolve "+p.src.Reference.String())
+		defer func() {
+			resolveProgressDone(err)
+		}()
 
 		ref, err := distreference.ParseNormalizedNamed(p.src.Reference.String())
 		if err != nil {
-			p.resolveErr = err
-			_ = resolveProgressDone(err)
-			return
+			return nil, err
 		}
 
 		if p.desc.Digest == "" && p.config == nil {
 			origRef, desc, err := p.resolver(g).Resolve(ctx, ref.String())
 			if err != nil {
-				p.resolveErr = err
-				_ = resolveProgressDone(err)
-				return
+				return nil, err
 			}
 
 			p.desc = desc
@@ -279,22 +276,18 @@ func (p *puller) resolve(ctx context.Context, g session.Group) error {
 		if p.config == nil && p.desc.MediaType != images.MediaTypeDockerSchema1Manifest {
 			ref, err := distreference.WithDigest(ref, p.desc.Digest)
 			if err != nil {
-				p.resolveErr = err
-				_ = resolveProgressDone(err)
-				return
+				return nil, err
 			}
 			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), llb.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: resolveModeToString(p.src.ResolveMode)}, p.sm, g)
 			if err != nil {
-				p.resolveErr = err
-				_ = resolveProgressDone(err)
-				return
+				return nil, err
 			}
 
 			p.config = dt
 		}
-		_ = resolveProgressDone(nil)
+		return nil, nil
 	})
-	return p.resolveErr
+	return err
 }
 
 func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (string, solver.CacheOpts, bool, error) {
