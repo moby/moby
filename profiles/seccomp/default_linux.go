@@ -225,6 +225,8 @@ func DefaultProfile() *Seccomp {
 				"openat",
 				"openat2",
 				"pause",
+				"pidfd_open",
+				"pidfd_send_signal",
 				"pipe",
 				"pipe2",
 				"poll",
@@ -622,6 +624,7 @@ func DefaultProfile() *Seccomp {
 		{
 			Names: []string{
 				"kcmp",
+				"pidfd_getfd",
 				"process_vm_readv",
 				"process_vm_writev",
 				"ptrace",
