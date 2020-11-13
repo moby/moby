@@ -1,6 +1,6 @@
 package ext
 
-import opentracing "github.com/opentracing/opentracing-go"
+import "github.com/opentracing/opentracing-go"
 
 // These constants define common tag names recommended for better portability across
 // tracing systems and languages/platforms.
@@ -47,40 +47,40 @@ var (
 
 	// Component is a low-cardinality identifier of the module, library,
 	// or package that is generating a span.
-	Component = stringTagName("component")
+	Component = StringTagName("component")
 
 	//////////////////////////////////////////////////////////////////////
 	// Sampling hint
 	//////////////////////////////////////////////////////////////////////
 
 	// SamplingPriority determines the priority of sampling this Span.
-	SamplingPriority = uint16TagName("sampling.priority")
+	SamplingPriority = Uint16TagName("sampling.priority")
 
 	//////////////////////////////////////////////////////////////////////
-	// Peer tags. These tags can be emitted by either client-side of
+	// Peer tags. These tags can be emitted by either client-side or
 	// server-side to describe the other side/service in a peer-to-peer
 	// communications, like an RPC call.
 	//////////////////////////////////////////////////////////////////////
 
 	// PeerService records the service name of the peer.
-	PeerService = stringTagName("peer.service")
+	PeerService = StringTagName("peer.service")
 
 	// PeerAddress records the address name of the peer. This may be a "ip:port",
 	// a bare "hostname", a FQDN or even a database DSN substring
 	// like "mysql://username@127.0.0.1:3306/dbname"
-	PeerAddress = stringTagName("peer.address")
+	PeerAddress = StringTagName("peer.address")
 
 	// PeerHostname records the host name of the peer
-	PeerHostname = stringTagName("peer.hostname")
+	PeerHostname = StringTagName("peer.hostname")
 
 	// PeerHostIPv4 records IP v4 host address of the peer
-	PeerHostIPv4 = ipv4Tag("peer.ipv4")
+	PeerHostIPv4 = IPv4TagName("peer.ipv4")
 
 	// PeerHostIPv6 records IP v6 host address of the peer
-	PeerHostIPv6 = stringTagName("peer.ipv6")
+	PeerHostIPv6 = StringTagName("peer.ipv6")
 
 	// PeerPort records port number of the peer
-	PeerPort = uint16TagName("peer.port")
+	PeerPort = Uint16TagName("peer.port")
 
 	//////////////////////////////////////////////////////////////////////
 	// HTTP Tags
@@ -88,46 +88,46 @@ var (
 
 	// HTTPUrl should be the URL of the request being handled in this segment
 	// of the trace, in standard URI format. The protocol is optional.
-	HTTPUrl = stringTagName("http.url")
+	HTTPUrl = StringTagName("http.url")
 
 	// HTTPMethod is the HTTP method of the request, and is case-insensitive.
-	HTTPMethod = stringTagName("http.method")
+	HTTPMethod = StringTagName("http.method")
 
 	// HTTPStatusCode is the numeric HTTP status code (200, 404, etc) of the
 	// HTTP response.
-	HTTPStatusCode = uint16TagName("http.status_code")
+	HTTPStatusCode = Uint16TagName("http.status_code")
 
 	//////////////////////////////////////////////////////////////////////
 	// DB Tags
 	//////////////////////////////////////////////////////////////////////
 
 	// DBInstance is database instance name.
-	DBInstance = stringTagName("db.instance")
+	DBInstance = StringTagName("db.instance")
 
 	// DBStatement is a database statement for the given database type.
 	// It can be a query or a prepared statement (i.e., before substitution).
-	DBStatement = stringTagName("db.statement")
+	DBStatement = StringTagName("db.statement")
 
 	// DBType is a database type. For any SQL database, "sql".
 	// For others, the lower-case database category, e.g. "redis"
-	DBType = stringTagName("db.type")
+	DBType = StringTagName("db.type")
 
 	// DBUser is a username for accessing database.
-	DBUser = stringTagName("db.user")
+	DBUser = StringTagName("db.user")
 
 	//////////////////////////////////////////////////////////////////////
 	// Message Bus Tag
 	//////////////////////////////////////////////////////////////////////
 
 	// MessageBusDestination is an address at which messages can be exchanged
-	MessageBusDestination = stringTagName("message_bus.destination")
+	MessageBusDestination = StringTagName("message_bus.destination")
 
 	//////////////////////////////////////////////////////////////////////
 	// Error Tag
 	//////////////////////////////////////////////////////////////////////
 
 	// Error indicates that operation represented by the span resulted in an error.
-	Error = boolTagName("error")
+	Error = BoolTagName("error")
 )
 
 // ---
@@ -163,48 +163,53 @@ func RPCServerOption(client opentracing.SpanContext) opentracing.StartSpanOption
 
 // ---
 
-type stringTagName string
+// StringTagName is a common tag name to be set to a string value
+type StringTagName string
 
 // Set adds a string tag to the `span`
-func (tag stringTagName) Set(span opentracing.Span, value string) {
+func (tag StringTagName) Set(span opentracing.Span, value string) {
 	span.SetTag(string(tag), value)
 }
 
 // ---
 
-type uint32TagName string
+// Uint32TagName is a common tag name to be set to a uint32 value
+type Uint32TagName string
 
 // Set adds a uint32 tag to the `span`
-func (tag uint32TagName) Set(span opentracing.Span, value uint32) {
+func (tag Uint32TagName) Set(span opentracing.Span, value uint32) {
 	span.SetTag(string(tag), value)
 }
 
 // ---
 
-type uint16TagName string
+// Uint16TagName is a common tag name to be set to a uint16 value
+type Uint16TagName string
 
 // Set adds a uint16 tag to the `span`
-func (tag uint16TagName) Set(span opentracing.Span, value uint16) {
+func (tag Uint16TagName) Set(span opentracing.Span, value uint16) {
 	span.SetTag(string(tag), value)
 }
 
 // ---
 
-type boolTagName string
+// BoolTagName is a common tag name to be set to a bool value
+type BoolTagName string
 
-// Add adds a bool tag to the `span`
-func (tag boolTagName) Set(span opentracing.Span, value bool) {
+// Set adds a bool tag to the `span`
+func (tag BoolTagName) Set(span opentracing.Span, value bool) {
 	span.SetTag(string(tag), value)
 }
 
-type ipv4Tag string
+// IPv4TagName is a common tag name to be set to an ipv4 value
+type IPv4TagName string
 
 // Set adds IP v4 host address of the peer as an uint32 value to the `span`, keep this for backward and zipkin compatibility
-func (tag ipv4Tag) Set(span opentracing.Span, value uint32) {
+func (tag IPv4TagName) Set(span opentracing.Span, value uint32) {
 	span.SetTag(string(tag), value)
 }
 
 // SetString records IP v4 host address of the peer as a .-separated tuple to the `span`. E.g., "127.0.0.1"
-func (tag ipv4Tag) SetString(span opentracing.Span, value string) {
+func (tag IPv4TagName) SetString(span opentracing.Span, value string) {
 	span.SetTag(string(tag), value)
 }

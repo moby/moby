@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/remotes/docker"
@@ -28,7 +29,8 @@ func canonicalizeRef(rawRef string) (string, error) {
 }
 
 const (
-	attrRef = "ref"
+	attrRef           = "ref"
+	attrOCIMediatypes = "oci-mediatypes"
 )
 
 func ResolveCacheExporterFunc(sm *session.Manager, hosts docker.RegistryHosts) remotecache.ResolveCacheExporterFunc {
@@ -37,12 +39,20 @@ func ResolveCacheExporterFunc(sm *session.Manager, hosts docker.RegistryHosts) r
 		if err != nil {
 			return nil, err
 		}
-		remote := resolver.New(hosts, resolver.NewSessionAuthenticator(sm, g))
+		ociMediatypes := true
+		if v, ok := attrs[attrOCIMediatypes]; ok {
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to parse %s", attrOCIMediatypes)
+			}
+			ociMediatypes = b
+		}
+		remote := resolver.DefaultPool.GetResolver(hosts, ref, "push", sm, g)
 		pusher, err := remote.Pusher(ctx, ref)
 		if err != nil {
 			return nil, err
 		}
-		return remotecache.NewExporter(contentutil.FromPusher(pusher)), nil
+		return remotecache.NewExporter(contentutil.FromPusher(pusher), ociMediatypes), nil
 	}
 }
 
@@ -52,7 +62,7 @@ func ResolveCacheImporterFunc(sm *session.Manager, cs content.Store, hosts docke
 		if err != nil {
 			return nil, specs.Descriptor{}, err
 		}
-		remote := resolver.New(hosts, resolver.NewSessionAuthenticator(sm, g))
+		remote := resolver.DefaultPool.GetResolver(hosts, ref, "pull", sm, g)
 		xref, desc, err := remote.Resolve(ctx, ref)
 		if err != nil {
 			return nil, specs.Descriptor{}, err

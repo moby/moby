@@ -1,5 +1,3 @@
-// +build dfsecrets
-
 package dockerfile2llb
 
 import (

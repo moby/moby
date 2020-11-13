@@ -25,12 +25,27 @@ func (lm *localMounter) Mount() (string, error) {
 		return "", errors.Wrapf(errdefs.ErrNotImplemented, "request to mount %d layers, only 1 is supported", len(lm.mounts))
 	}
 
+	m := lm.mounts[0]
+
+	if m.Type == "bind" || m.Type == "rbind" {
+		ro := false
+		for _, opt := range m.Options {
+			if opt == "ro" {
+				ro = true
+				break
+			}
+		}
+		if !ro {
+			return m.Source, nil
+		}
+	}
+
 	// Windows mounts always activate in-place, so the target of the mount must be the source directory.
 	// See https://github.com/containerd/containerd/pull/2366
-	dir := lm.mounts[0].Source
+	dir := m.Source
 
-	if err := lm.mounts[0].Mount(dir); err != nil {
-		return "", errors.Wrapf(err, "failed to mount in-place: %v", lm.mounts[0])
+	if err := m.Mount(dir); err != nil {
+		return "", errors.Wrapf(err, "failed to mount in-place: %v", m)
 	}
 	lm.target = dir
 	return lm.target, nil

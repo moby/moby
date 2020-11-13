@@ -3,252 +3,56 @@
 package oci
 
 import (
-	"context"
-	"path"
-	"sync"
-
-	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/contrib/seccomp"
-	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
-	"github.com/containerd/continuity/fs"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/mitchellh/hashstructure"
-	"github.com/moby/buildkit/executor"
-	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/entitlements/security"
-	"github.com/moby/buildkit/util/network"
 	"github.com/moby/buildkit/util/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 )
 
-// Ideally we don't have to import whole containerd just for the default spec
-
-// GenerateSpec generates spec using containerd functionality.
-// opts are ignored for s.Process, s.Hostname, and s.Mounts .
-func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, processMode ProcessMode, idmap *idtools.IdentityMapping, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
-	c := &containers.Container{
-		ID: id,
-	}
-	_, ok := namespaces.Namespace(ctx)
-	if !ok {
-		ctx = namespaces.WithNamespace(ctx, "buildkit")
-	}
-	if meta.SecurityMode == pb.SecurityMode_INSECURE {
-		opts = append(opts, security.WithInsecureSpec())
-	} else if system.SeccompSupported() && meta.SecurityMode == pb.SecurityMode_SANDBOX {
-		opts = append(opts, seccomp.WithDefaultProfile())
-	}
-
-	switch processMode {
-	case NoProcessSandbox:
-		// Mount for /proc is replaced in GetMounts()
-		opts = append(opts,
-			oci.WithHostNamespace(specs.PIDNamespace))
-		// TODO(AkihiroSuda): Configure seccomp to disable ptrace (and prctl?) explicitly
-	}
-
-	// Note that containerd.GenerateSpec is namespaced so as to make
-	// specs.Linux.CgroupsPath namespaced
-	s, err := oci.GenerateSpec(ctx, nil, c, opts...)
-	if err != nil {
-		return nil, nil, err
-	}
-	// set the networking information on the spec
-	namespace.Set(s)
-
-	s.Process.Args = meta.Args
-	s.Process.Env = meta.Env
-	s.Process.Cwd = meta.Cwd
-	s.Process.Rlimits = nil           // reset open files limit
-	s.Process.NoNewPrivileges = false // reset nonewprivileges
-	s.Hostname = "buildkitsandbox"
-
-	s.Mounts, err = GetMounts(ctx,
-		withProcessMode(processMode),
+func generateMountOpts(resolvConf, hostsFile string) ([]oci.SpecOpts, error) {
+	return []oci.SpecOpts{
+		// https://github.com/moby/buildkit/issues/429
+		withRemovedMount("/run"),
 		withROBind(resolvConf, "/etc/resolv.conf"),
 		withROBind(hostsFile, "/etc/hosts"),
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	s.Mounts = append(s.Mounts, specs.Mount{
-		Destination: "/sys/fs/cgroup",
-		Type:        "cgroup",
-		Source:      "cgroup",
-		Options:     []string{"ro", "nosuid", "noexec", "nodev"},
-	})
-
-	if processMode == NoProcessSandbox {
-		var maskedPaths []string
-		for _, s := range s.Linux.MaskedPaths {
-			if !hasPrefix(s, "/proc") {
-				maskedPaths = append(maskedPaths, s)
-			}
-		}
-		s.Linux.MaskedPaths = maskedPaths
-		var readonlyPaths []string
-		for _, s := range s.Linux.ReadonlyPaths {
-			if !hasPrefix(s, "/proc") {
-				readonlyPaths = append(readonlyPaths, s)
-			}
-		}
-		s.Linux.ReadonlyPaths = readonlyPaths
-	}
-
-	if meta.SecurityMode == pb.SecurityMode_INSECURE {
-		if err = oci.WithWriteableCgroupfs(ctx, nil, c, s); err != nil {
-			return nil, nil, err
-		}
-		if err = oci.WithWriteableSysfs(ctx, nil, c, s); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	if idmap != nil {
-		s.Linux.Namespaces = append(s.Linux.Namespaces, specs.LinuxNamespace{
-			Type: specs.UserNamespace,
-		})
-		s.Linux.UIDMappings = specMapping(idmap.UIDs())
-		s.Linux.GIDMappings = specMapping(idmap.GIDs())
-	}
-
-	sm := &submounts{}
-
-	var releasers []func() error
-	releaseAll := func() {
-		sm.cleanup()
-		for _, f := range releasers {
-			f()
-		}
-	}
-
-	for _, m := range mounts {
-		if m.Src == nil {
-			return nil, nil, errors.Errorf("mount %s has no source", m.Dest)
-		}
-		mountable, err := m.Src.Mount(ctx, m.Readonly)
-		if err != nil {
-			releaseAll()
-			return nil, nil, errors.Wrapf(err, "failed to mount %s", m.Dest)
-		}
-		mounts, release, err := mountable.Mount()
-		if err != nil {
-			releaseAll()
-			return nil, nil, errors.WithStack(err)
-		}
-		releasers = append(releasers, release)
-		for _, mount := range mounts {
-			mount, err = sm.subMount(mount, m.Selector)
-			if err != nil {
-				releaseAll()
-				return nil, nil, err
-			}
-			s.Mounts = append(s.Mounts, specs.Mount{
-				Destination: m.Dest,
-				Type:        mount.Type,
-				Source:      mount.Source,
-				Options:     mount.Options,
-			})
-		}
-	}
-
-	return s, releaseAll, nil
+		withCGroup(),
+	}, nil
 }
 
-type mountRef struct {
-	mount   mount.Mount
-	unmount func() error
+// generateSecurityOpts may affect mounts, so must be called after generateMountOpts
+func generateSecurityOpts(mode pb.SecurityMode) ([]oci.SpecOpts, error) {
+	if mode == pb.SecurityMode_INSECURE {
+		return []oci.SpecOpts{
+			security.WithInsecureSpec(),
+			oci.WithWriteableCgroupfs,
+			oci.WithWriteableSysfs,
+		}, nil
+	} else if system.SeccompSupported() && mode == pb.SecurityMode_SANDBOX {
+		return []oci.SpecOpts{seccomp.WithDefaultProfile()}, nil
+	}
+	return nil, nil
 }
 
-type submounts struct {
-	m map[uint64]mountRef
+// generateProcessModeOpts may affect mounts, so must be called after generateMountOpts
+func generateProcessModeOpts(mode ProcessMode) ([]oci.SpecOpts, error) {
+	if mode == NoProcessSandbox {
+		return []oci.SpecOpts{
+			oci.WithHostNamespace(specs.PIDNamespace),
+			withBoundProc(),
+		}, nil
+		// TODO(AkihiroSuda): Configure seccomp to disable ptrace (and prctl?) explicitly
+	}
+	return nil, nil
 }
 
-func (s *submounts) subMount(m mount.Mount, subPath string) (mount.Mount, error) {
-	if path.Join("/", subPath) == "/" {
-		return m, nil
+func generateIDmapOpts(idmap *idtools.IdentityMapping) ([]oci.SpecOpts, error) {
+	if idmap == nil {
+		return nil, nil
 	}
-	if s.m == nil {
-		s.m = map[uint64]mountRef{}
-	}
-	h, err := hashstructure.Hash(m, nil)
-	if err != nil {
-		return mount.Mount{}, nil
-	}
-	if mr, ok := s.m[h]; ok {
-		sm, err := sub(mr.mount, subPath)
-		if err != nil {
-			return mount.Mount{}, nil
-		}
-		return sm, nil
-	}
-
-	lm := snapshot.LocalMounterWithMounts([]mount.Mount{m})
-
-	mp, err := lm.Mount()
-	if err != nil {
-		return mount.Mount{}, err
-	}
-
-	opts := []string{"rbind"}
-	for _, opt := range m.Options {
-		if opt == "ro" {
-			opts = append(opts, opt)
-		}
-	}
-
-	s.m[h] = mountRef{
-		mount: mount.Mount{
-			Source:  mp,
-			Type:    "bind",
-			Options: opts,
-		},
-		unmount: lm.Unmount,
-	}
-
-	sm, err := sub(s.m[h].mount, subPath)
-	if err != nil {
-		return mount.Mount{}, err
-	}
-	return sm, nil
-}
-
-func (s *submounts) cleanup() {
-	var wg sync.WaitGroup
-	wg.Add(len(s.m))
-	for _, m := range s.m {
-		func(m mountRef) {
-			go func() {
-				m.unmount()
-				wg.Done()
-			}()
-		}(m)
-	}
-	wg.Wait()
-}
-
-func sub(m mount.Mount, subPath string) (mount.Mount, error) {
-	src, err := fs.RootPath(m.Source, subPath)
-	if err != nil {
-		return mount.Mount{}, err
-	}
-	m.Source = src
-	return m, nil
-}
-
-func specMapping(s []idtools.IDMap) []specs.LinuxIDMapping {
-	var ids []specs.LinuxIDMapping
-	for _, item := range s {
-		ids = append(ids, specs.LinuxIDMapping{
-			HostID:      uint32(item.HostID),
-			ContainerID: uint32(item.ContainerID),
-			Size:        uint32(item.Size),
-		})
-	}
-	return ids
+	return []oci.SpecOpts{
+		oci.WithUserNamespace(specMapping(idmap.UIDs()), specMapping(idmap.GIDs())),
+	}, nil
 }

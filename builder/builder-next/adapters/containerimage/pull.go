@@ -31,11 +31,12 @@ import (
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/imageutil"
 	"github.com/moby/buildkit/util/progress"
-	"github.com/moby/buildkit/util/resolver"
+	_ "github.com/moby/buildkit/util/resolver"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -67,7 +68,7 @@ type Source struct {
 func NewSource(opt SourceOpt) (*Source, error) {
 	is := &Source{
 		SourceOpt:     opt,
-		resolverCache: newResolverCache(),
+		resolverCache: nil, //newResolverCache(),
 	}
 
 	return is, nil
@@ -82,10 +83,11 @@ func (is *Source) getResolver(hosts docker.RegistryHosts, ref string, sm *sessio
 	if res := is.resolverCache.Get(ref, g); res != nil {
 		return res
 	}
-	auth := resolver.NewSessionAuthenticator(sm, g)
-	r := resolver.New(hosts, auth)
-	r = is.resolverCache.Add(ref, auth, r, g)
-	return r
+	//auth := resolver.NewSessionAuthenticator(sm, g)
+	//r := resolver.New(hosts, auth)
+	//r = is.resolverCache.Add(ref, auth, r, g)
+	//return r
+	return nil
 }
 
 func (is *Source) resolveLocal(refStr string) (*image.Image, error) {
@@ -168,7 +170,7 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 }
 
 // Resolve returns access to pulling for an identifier
-func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager) (source.SourceInstance, error) {
+func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager, vtx solver.Vertex) (source.SourceInstance, error) {
 	imageIdentifier, ok := id.(*source.ImageIdentifier)
 	if !ok {
 		return nil, errors.Errorf("invalid image identifier %v", id)
@@ -319,47 +321,47 @@ func (p *puller) resolve(ctx context.Context, g session.Group) error {
 	return p.resolveErr
 }
 
-func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (string, bool, error) {
+func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (string, solver.CacheOpts, bool, error) {
 	p.resolveLocal()
 
 	if p.desc.Digest != "" && index == 0 {
 		dgst, err := p.mainManifestKey(p.desc.Digest, p.platform)
 		if err != nil {
-			return "", false, err
+			return "", nil, false, err
 		}
-		return dgst.String(), false, nil
+		return dgst.String(), nil, false, nil
 	}
 
 	if p.config != nil {
 		k := cacheKeyFromConfig(p.config).String()
 		if k == "" {
-			return digest.FromBytes(p.config).String(), true, nil
+			return digest.FromBytes(p.config).String(), nil, true, nil
 		}
-		return k, true, nil
+		return k, nil, true, nil
 	}
 
 	if err := p.resolve(ctx, g); err != nil {
-		return "", false, err
+		return "", nil, false, err
 	}
 
 	if p.desc.Digest != "" && index == 0 {
 		dgst, err := p.mainManifestKey(p.desc.Digest, p.platform)
 		if err != nil {
-			return "", false, err
+			return "", nil, false, err
 		}
-		return dgst.String(), false, nil
+		return dgst.String(), nil, false, nil
 	}
 
 	k := cacheKeyFromConfig(p.config).String()
 	if k == "" {
 		dgst, err := p.mainManifestKey(p.desc.Digest, p.platform)
 		if err != nil {
-			return "", false, err
+			return "", nil, false, err
 		}
-		return dgst.String(), true, nil
+		return dgst.String(), nil, true, nil
 	}
 
-	return k, true, nil
+	return k, nil, true, nil
 }
 
 func (p *puller) getRef(ctx context.Context, diffIDs []layer.DiffID, opts ...cache.RefOption) (cache.ImmutableRef, error) {
@@ -854,7 +856,7 @@ type cachedResolver struct {
 	counter int64 // needs to be 64bit aligned for 32bit systems
 	timeout time.Time
 	remotes.Resolver
-	auth *resolver.SessionAuthenticator
+	auth *struct{}
 }
 
 func (cr *cachedResolver) Resolve(ctx context.Context, ref string) (name string, desc ocispec.Descriptor, err error) {
@@ -862,7 +864,7 @@ func (cr *cachedResolver) Resolve(ctx context.Context, ref string) (name string,
 	return cr.Resolver.Resolve(ctx, ref)
 }
 
-func (r *resolverCache) Add(ref string, auth *resolver.SessionAuthenticator, resolver remotes.Resolver, g session.Group) *cachedResolver {
+func (r *resolverCache) Add(ref string, auth *struct{}, resolver remotes.Resolver, g session.Group) *cachedResolver {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -871,7 +873,6 @@ func (r *resolverCache) Add(ref string, auth *resolver.SessionAuthenticator, res
 	cr, ok := r.m[ref]
 	cr.timeout = time.Now().Add(time.Minute)
 	if ok {
-		cr.auth.AddSession(g)
 		return &cr
 	}
 
@@ -897,7 +898,6 @@ func (r *resolverCache) Get(ref string, g session.Group) *cachedResolver {
 
 	cr, ok := r.m[ref]
 	if ok {
-		cr.auth.AddSession(g)
 		return &cr
 	}
 	return nil

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptrace"
+	"net/url"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -31,9 +32,12 @@ type Transport struct {
 }
 
 type clientOptions struct {
-	operationName      string
-	componentName      string
-	disableClientTrace bool
+	operationName            string
+	componentName            string
+	urlTagFunc         func(u *url.URL) string
+	disableClientTrace       bool
+	disableInjectSpanContext bool
+	spanObserver             func(span opentracing.Span, r *http.Request)
 }
 
 // ClientOption contols the behavior of TraceRequest.
@@ -44,6 +48,15 @@ type ClientOption func(*clientOptions)
 func OperationName(operationName string) ClientOption {
 	return func(options *clientOptions) {
 		options.operationName = operationName
+	}
+}
+
+// URLTagFunc returns a ClientOption that uses given function f
+// to set the span's http.url tag. Can be used to change the default
+// http.url tag, eg to redact sensitive information.
+func URLTagFunc(f func(u *url.URL) string) ClientOption {
+	return func(options *clientOptions) {
+		options.urlTagFunc = f
 	}
 }
 
@@ -60,6 +73,24 @@ func ComponentName(componentName string) ClientOption {
 func ClientTrace(enabled bool) ClientOption {
 	return func(options *clientOptions) {
 		options.disableClientTrace = !enabled
+	}
+}
+
+// InjectSpanContext returns a ClientOption that turns on or off
+// injection of the Span context in the request HTTP headers.
+// If this option is not used, the default behaviour is to
+// inject the span context.
+func InjectSpanContext(enabled bool) ClientOption {
+	return func(options *clientOptions) {
+		options.disableInjectSpanContext = !enabled
+	}
+}
+
+// ClientSpanObserver returns a ClientOption that observes the span
+// for the client-side span.
+func ClientSpanObserver(f func(span opentracing.Span, r *http.Request)) ClientOption {
+	return func(options *clientOptions) {
+		options.spanObserver = f
 	}
 }
 
@@ -88,7 +119,12 @@ func ClientTrace(enabled bool) ClientOption {
 // 		return nil
 // 	}
 func TraceRequest(tr opentracing.Tracer, req *http.Request, options ...ClientOption) (*http.Request, *Tracer) {
-	opts := &clientOptions{}
+	opts := &clientOptions{
+		urlTagFunc: func(u *url.URL) string {
+			return u.String()
+		},
+		spanObserver: func(_ opentracing.Span, _ *http.Request) {},
+	}
 	for _, opt := range options {
 		opt(opts)
 	}
@@ -113,24 +149,38 @@ func (c closeTracker) Close() error {
 	return err
 }
 
+// TracerFromRequest retrieves the Tracer from the request. If the request does
+// not have a Tracer it will return nil.
+func TracerFromRequest(req *http.Request) *Tracer {
+	tr, ok := req.Context().Value(keyTracer).(*Tracer)
+	if !ok {
+		return nil
+	}
+	return tr
+}
+
 // RoundTrip implements the RoundTripper interface.
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	rt := t.RoundTripper
 	if rt == nil {
 		rt = http.DefaultTransport
 	}
-	tracer, ok := req.Context().Value(keyTracer).(*Tracer)
-	if !ok {
+	tracer := TracerFromRequest(req)
+	if tracer == nil {
 		return rt.RoundTrip(req)
 	}
 
 	tracer.start(req)
 
 	ext.HTTPMethod.Set(tracer.sp, req.Method)
-	ext.HTTPUrl.Set(tracer.sp, req.URL.String())
+	ext.HTTPUrl.Set(tracer.sp, tracer.opts.urlTagFunc(req.URL))
+	tracer.opts.spanObserver(tracer.sp, req)
 
-	carrier := opentracing.HTTPHeadersCarrier(req.Header)
-	tracer.sp.Tracer().Inject(tracer.sp.Context(), opentracing.HTTPHeaders, carrier)
+	if !tracer.opts.disableInjectSpanContext {
+		carrier := opentracing.HTTPHeadersCarrier(req.Header)
+		tracer.sp.Tracer().Inject(tracer.sp.Context(), opentracing.HTTPHeaders, carrier)
+	}
+
 	resp, err := rt.RoundTrip(req)
 
 	if err != nil {
@@ -138,6 +188,9 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return resp, err
 	}
 	ext.HTTPStatusCode.Set(tracer.sp, uint16(resp.StatusCode))
+	if resp.StatusCode >= http.StatusInternalServerError {
+		ext.Error.Set(tracer.sp, true)
+	}
 	if req.Method == "HEAD" {
 		tracer.sp.Finish()
 	} else {

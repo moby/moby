@@ -74,6 +74,6 @@ func emptyImage(platform specs.Platform) Image {
 	}
 	img.RootFS.Type = "layers"
 	img.Config.WorkingDir = "/"
-	img.Config.Env = []string{"PATH=" + system.DefaultPathEnv}
+	img.Config.Env = []string{"PATH=" + system.DefaultPathEnv(platform.OS)}
 	return img
 }

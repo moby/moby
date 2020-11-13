@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/moby/buildkit/cache"
+	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/llbsolver/ops/fileoptypes"
 	"github.com/pkg/errors"
@@ -17,25 +18,25 @@ type RefManager struct {
 	cm cache.Manager
 }
 
-func (rm *RefManager) Prepare(ctx context.Context, ref fileoptypes.Ref, readonly bool) (fileoptypes.Mount, error) {
+func (rm *RefManager) Prepare(ctx context.Context, ref fileoptypes.Ref, readonly bool, g session.Group) (fileoptypes.Mount, error) {
 	ir, ok := ref.(cache.ImmutableRef)
 	if !ok && ref != nil {
 		return nil, errors.Errorf("invalid ref type: %T", ref)
 	}
 
 	if ir != nil && readonly {
-		m, err := ir.Mount(ctx, readonly)
+		m, err := ir.Mount(ctx, readonly, g)
 		if err != nil {
 			return nil, err
 		}
 		return &Mount{m: m}, nil
 	}
 
-	mr, err := rm.cm.New(ctx, ir, cache.WithDescription("fileop target"), cache.CachePolicyRetain)
+	mr, err := rm.cm.New(ctx, ir, g, cache.WithDescription("fileop target"), cache.CachePolicyRetain)
 	if err != nil {
 		return nil, err
 	}
-	m, err := mr.Mount(ctx, readonly)
+	m, err := mr.Mount(ctx, readonly, g)
 	if err != nil {
 		return nil, err
 	}

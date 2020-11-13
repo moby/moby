@@ -5,6 +5,7 @@ import (
 
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/frontend/gateway/client"
+	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver/pb"
 )
 
@@ -20,8 +21,8 @@ type GatewayForwarder struct {
 	f       client.BuildFunc
 }
 
-func (gf *GatewayForwarder) Solve(ctx context.Context, llbBridge frontend.FrontendLLBBridge, opts map[string]string, inputs map[string]*pb.Definition, sid string) (retRes *frontend.Result, retErr error) {
-	c, err := llbBridgeToGatewayClient(ctx, llbBridge, opts, inputs, gf.workers.WorkerInfos(), sid)
+func (gf *GatewayForwarder) Solve(ctx context.Context, llbBridge frontend.FrontendLLBBridge, opts map[string]string, inputs map[string]*pb.Definition, sid string, sm *session.Manager) (retRes *frontend.Result, retErr error) {
+	c, err := llbBridgeToGatewayClient(ctx, llbBridge, opts, inputs, gf.workers.WorkerInfos(), sid, sm)
 	if err != nil {
 		return nil, err
 	}

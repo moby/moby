@@ -15,5 +15,5 @@ type Provider interface {
 type Namespace interface {
 	io.Closer
 	// Set the namespace on the spec
-	Set(*specs.Spec)
+	Set(*specs.Spec) error
 }

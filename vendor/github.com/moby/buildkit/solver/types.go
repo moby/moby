@@ -95,6 +95,8 @@ type CacheExportOpt struct {
 	Convert func(context.Context, Result) (*Remote, error)
 	// Mode defines a cache export algorithm
 	Mode CacheExportMode
+	// Session is the session group to client (for auth credentials etc)
+	Session session.Group
 }
 
 // CacheExporter can export the artifacts of the build chain
@@ -145,7 +147,8 @@ type Op interface {
 	Exec(ctx context.Context, g session.Group, inputs []Result) (outputs []Result, err error)
 }
 
-type ResultBasedCacheFunc func(context.Context, Result) (digest.Digest, error)
+type ResultBasedCacheFunc func(context.Context, Result, session.Group) (digest.Digest, error)
+type PreprocessFunc func(context.Context, Result, session.Group) error
 
 // CacheMap is a description for calculating the cache key of an operation.
 type CacheMap struct {
@@ -171,7 +174,16 @@ type CacheMap struct {
 		// For example, in LLB this is invoked to calculate the cache key based on
 		// the checksum of file contents from input snapshots.
 		ComputeDigestFunc ResultBasedCacheFunc
+
+		// PreprocessFunc is a function that runs on an input before it is passed to op
+		PreprocessFunc PreprocessFunc
 	}
+
+	// Opts specifies generic options that will be passed to cache load calls if/when
+	// the key associated with this CacheMap is used to load a ref. It allows options
+	// such as oci descriptor content providers and progress writers to be passed to
+	// the cache. Opts should not have any impact on the computed cache key.
+	Opts CacheOpts
 }
 
 // ExportableCacheKey is a cache key connected with an exporter that can export

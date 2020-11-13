@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/moby/buildkit/identity"
+	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
@@ -260,7 +261,7 @@ func (cs *cacheResultStorage) Load(ctx context.Context, res solver.CacheResult) 
 	return worker.NewWorkerRefResult(ref, cs.w), nil
 }
 
-func (cs *cacheResultStorage) LoadRemote(ctx context.Context, res solver.CacheResult) (*solver.Remote, error) {
+func (cs *cacheResultStorage) LoadRemote(ctx context.Context, res solver.CacheResult, _ session.Group) (*solver.Remote, error) {
 	if r := cs.byResultID(res.ID); r != nil && r.result != nil {
 		return r.result, nil
 	}

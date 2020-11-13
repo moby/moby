@@ -14,11 +14,11 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/platforms"
-	"github.com/docker/docker/builder/dockerignore"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend/dockerfile/dockerfile2llb"
+	"github.com/moby/buildkit/frontend/dockerfile/dockerignore"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	gwpb "github.com/moby/buildkit/frontend/gateway/pb"
@@ -53,15 +53,22 @@ const (
 	keyNameDockerfile          = "dockerfilekey"
 	keyContextSubDir           = "contextsubdir"
 	keyContextKeepGitDir       = "build-arg:BUILDKIT_CONTEXT_KEEP_GIT_DIR"
+	keySyntax                  = "build-arg:BUILDKIT_SYNTAX"
+	keyHostname                = "hostname"
 )
 
 var httpPrefix = regexp.MustCompile(`^https?://`)
-var gitUrlPathWithFragmentSuffix = regexp.MustCompile(`\.git(?:#.+)?$`)
+var gitURLPathWithFragmentSuffix = regexp.MustCompile(`\.git(?:#.+)?$`)
 
 func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 	opts := c.BuildOpts().Opts
 	caps := c.BuildOpts().LLBCaps
 	gwcaps := c.BuildOpts().Caps
+
+	allowForward, capsError := validateCaps(opts["frontend.caps"])
+	if !allowForward && capsError != nil {
+		return nil, capsError
+	}
 
 	marshalOpts := []llb.ConstraintsOpt{llb.WithCaps(caps)}
 
@@ -317,14 +324,28 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 	}
 
 	if _, ok := opts["cmdline"]; !ok {
-		ref, cmdline, loc, ok := dockerfile2llb.DetectSyntax(bytes.NewBuffer(dtDockerfile))
-		if ok {
+		if cmdline, ok := opts[keySyntax]; ok {
+			p := strings.SplitN(strings.TrimSpace(cmdline), " ", 2)
+			res, err := forwardGateway(ctx, c, p[0], cmdline)
+			if err != nil && len(errdefs.Sources(err)) == 0 {
+				return nil, errors.Wrapf(err, "failed with %s = %s", keySyntax, cmdline)
+			}
+			return res, err
+		} else if ref, cmdline, loc, ok := dockerfile2llb.DetectSyntax(bytes.NewBuffer(dtDockerfile)); ok {
 			res, err := forwardGateway(ctx, c, ref, cmdline)
 			if err != nil && len(errdefs.Sources(err)) == 0 {
 				return nil, wrapSource(err, sourceMap, loc)
 			}
 			return res, err
 		}
+	}
+
+	if capsError != nil {
+		return nil, capsError
+	}
+
+	if res, ok, err := checkSubRequest(ctx, opts); ok {
+		return res, err
 	}
 
 	exportMap := len(targetPlatforms) > 1
@@ -375,6 +396,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 					OverrideCopyImage: opts[keyOverrideCopyImage],
 					LLBCaps:           &caps,
 					SourceMap:         sourceMap,
+					Hostname:          opts[keyHostname],
 				})
 
 				if err != nil {
@@ -512,7 +534,7 @@ func filter(opt map[string]string, key string) map[string]string {
 
 func detectGitContext(ref, gitContext string) (*llb.State, bool) {
 	found := false
-	if httpPrefix.MatchString(ref) && gitUrlPathWithFragmentSuffix.MatchString(ref) {
+	if httpPrefix.MatchString(ref) && gitURLPathWithFragmentSuffix.MatchString(ref) {
 		found = true
 	}
 

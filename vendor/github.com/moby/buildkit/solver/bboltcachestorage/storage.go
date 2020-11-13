@@ -233,12 +233,6 @@ func (s *Store) releaseHelper(tx *bolt.Tx, id, resultID string) error {
 		}
 	}
 
-	links := tx.Bucket([]byte(resultBucket))
-	if results == nil {
-		return nil
-	}
-	links = links.Bucket([]byte(id))
-
 	return s.emptyBranchWithParents(tx, []byte(id))
 }
 

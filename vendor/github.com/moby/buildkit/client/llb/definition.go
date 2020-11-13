@@ -16,14 +16,15 @@ import (
 // LLB state can be reconstructed from the definition.
 type DefinitionOp struct {
 	MarshalCache
-	mu        sync.Mutex
-	ops       map[digest.Digest]*pb.Op
-	defs      map[digest.Digest][]byte
-	metas     map[digest.Digest]pb.OpMetadata
-	sources   map[digest.Digest][]*SourceLocation
-	platforms map[digest.Digest]*specs.Platform
-	dgst      digest.Digest
-	index     pb.OutputIndex
+	mu         sync.Mutex
+	ops        map[digest.Digest]*pb.Op
+	defs       map[digest.Digest][]byte
+	metas      map[digest.Digest]pb.OpMetadata
+	sources    map[digest.Digest][]*SourceLocation
+	platforms  map[digest.Digest]*specs.Platform
+	dgst       digest.Digest
+	index      pb.OutputIndex
+	inputCache map[digest.Digest][]*DefinitionOp
 }
 
 // NewDefinitionOp returns a new operation from a marshalled definition.
@@ -89,13 +90,14 @@ func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
 	}
 
 	return &DefinitionOp{
-		ops:       ops,
-		defs:      defs,
-		metas:     def.Metadata,
-		sources:   srcs,
-		platforms: platforms,
-		dgst:      dgst,
-		index:     index,
+		ops:        ops,
+		defs:       defs,
+		metas:      def.Metadata,
+		sources:    srcs,
+		platforms:  platforms,
+		dgst:       dgst,
+		index:      index,
+		inputCache: make(map[digest.Digest][]*DefinitionOp),
 	}, nil
 }
 
@@ -188,14 +190,34 @@ func (d *DefinitionOp) Inputs() []Output {
 	d.mu.Unlock()
 
 	for _, input := range op.Inputs {
-		vtx := &DefinitionOp{
-			ops:       d.ops,
-			defs:      d.defs,
-			metas:     d.metas,
-			platforms: d.platforms,
-			dgst:      input.Digest,
-			index:     input.Index,
+		var vtx *DefinitionOp
+		d.mu.Lock()
+		if existingIndexes, ok := d.inputCache[input.Digest]; ok {
+			if int(input.Index) < len(existingIndexes) && existingIndexes[input.Index] != nil {
+				vtx = existingIndexes[input.Index]
+			}
 		}
+		if vtx == nil {
+			vtx = &DefinitionOp{
+				ops:        d.ops,
+				defs:       d.defs,
+				metas:      d.metas,
+				platforms:  d.platforms,
+				dgst:       input.Digest,
+				index:      input.Index,
+				inputCache: d.inputCache,
+			}
+			existingIndexes := d.inputCache[input.Digest]
+			indexDiff := int(input.Index) - len(existingIndexes)
+			if indexDiff >= 0 {
+				// make room in the slice for the new index being set
+				existingIndexes = append(existingIndexes, make([]*DefinitionOp, indexDiff+1)...)
+			}
+			existingIndexes[input.Index] = vtx
+			d.inputCache[input.Digest] = existingIndexes
+		}
+		d.mu.Unlock()
+
 		inputs = append(inputs, &output{vertex: vtx, platform: platform, getIndex: func() (pb.OutputIndex, error) {
 			return pb.OutputIndex(vtx.index), nil
 		}})

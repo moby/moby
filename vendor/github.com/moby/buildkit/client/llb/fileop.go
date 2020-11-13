@@ -2,7 +2,7 @@ package llb
 
 import (
 	"context"
-	_ "crypto/sha256"
+	_ "crypto/sha256" // for opencontainers/go-digest
 	"os"
 	"path"
 	"strconv"
@@ -252,13 +252,13 @@ func (co ChownOpt) SetCopyOption(mi *CopyInfo) {
 	mi.ChownOpt = &co
 }
 
-func (cp *ChownOpt) marshal(base pb.InputIndex) *pb.ChownOpt {
-	if cp == nil {
+func (co *ChownOpt) marshal(base pb.InputIndex) *pb.ChownOpt {
+	if co == nil {
 		return nil
 	}
 	return &pb.ChownOpt{
-		User:  cp.User.marshal(base),
-		Group: cp.Group.marshal(base),
+		User:  co.User.marshal(base),
+		Group: co.Group.marshal(base),
 	}
 }
 
@@ -476,17 +476,17 @@ func (a *fileActionCopy) toProtoAction(ctx context.Context, parent string, base 
 	}, nil
 }
 
-func (c *fileActionCopy) sourcePath(ctx context.Context) (string, error) {
-	p := path.Clean(c.src)
+func (a *fileActionCopy) sourcePath(ctx context.Context) (string, error) {
+	p := path.Clean(a.src)
 	if !path.IsAbs(p) {
-		if c.state != nil {
-			dir, err := c.state.GetDir(ctx)
+		if a.state != nil {
+			dir, err := a.state.GetDir(ctx)
 			if err != nil {
 				return "", err
 			}
 			p = path.Join("/", dir, p)
-		} else if c.fas != nil {
-			dir, err := c.fas.state.GetDir(ctx)
+		} else if a.fas != nil {
+			dir, err := a.fas.state.GetDir(ctx)
 			if err != nil {
 				return "", err
 			}

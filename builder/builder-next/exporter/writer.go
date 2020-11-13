@@ -26,7 +26,7 @@ func emptyImageConfig() ([]byte, error) {
 	}
 	img.RootFS.Type = "layers"
 	img.Config.WorkingDir = "/"
-	img.Config.Env = []string{"PATH=" + system.DefaultPathEnv}
+	img.Config.Env = []string{"PATH=" + system.DefaultPathEnvUnix}
 	dt, err := json.Marshal(img)
 	return dt, errors.Wrap(err, "failed to create empty image config")
 }

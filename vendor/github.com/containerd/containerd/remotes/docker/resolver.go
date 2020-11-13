@@ -41,10 +41,6 @@ import (
 )
 
 var (
-	// ErrNoToken is returned if a request is successful but the body does not
-	// contain an authorization token.
-	ErrNoToken = errors.New("authorization server did not include a token in the response")
-
 	// ErrInvalidAuthorization is used when credentials are passed to a server but
 	// those credentials are rejected.
 	ErrInvalidAuthorization = errors.New("authorization failed")

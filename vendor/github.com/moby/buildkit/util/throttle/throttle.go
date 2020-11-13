@@ -11,10 +11,10 @@ func Throttle(d time.Duration, f func()) func() {
 	return throttle(d, f, true)
 }
 
-// ThrottleAfter wraps a function so that internal function does not get called
+// After wraps a function so that internal function does not get called
 // more frequently than the specified duration. The delay is added after function
 // has been called.
-func ThrottleAfter(d time.Duration, f func()) func() {
+func After(d time.Duration, f func()) func() {
 	return throttle(d, f, false)
 }
 

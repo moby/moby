@@ -320,6 +320,14 @@ func (s State) User(v string) State {
 	return User(v)(s)
 }
 
+func (s State) Hostname(v string) State {
+	return Hostname(v)(s)
+}
+
+func (s State) GetHostname(ctx context.Context) (string, error) {
+	return getHostname(s)(ctx)
+}
+
 func (s State) Platform(p specs.Platform) State {
 	return platform(p)(s)
 }

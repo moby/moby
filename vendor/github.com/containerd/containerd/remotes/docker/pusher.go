@@ -30,6 +30,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes"
+	remoteserrors "github.com/containerd/containerd/remotes/errors"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -112,8 +113,9 @@ func (p dockerPusher) Push(ctx context.Context, desc ocispec.Descriptor) (conten
 				return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
 			}
 		} else if resp.StatusCode != http.StatusNotFound {
-			// TODO: log error
-			return nil, errors.Errorf("unexpected response: %s", resp.Status)
+			err := remoteserrors.NewUnexpectedStatusErr(resp)
+			log.G(ctx).WithField("resp", resp).WithField("body", string(err.(remoteserrors.ErrUnexpectedStatus).Body)).Debug("unexpected response")
+			return nil, err
 		}
 	}
 
@@ -166,8 +168,9 @@ func (p dockerPusher) Push(ctx context.Context, desc ocispec.Descriptor) (conten
 			})
 			return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
 		default:
-			// TODO: log error
-			return nil, errors.Errorf("unexpected response: %s", resp.Status)
+			err := remoteserrors.NewUnexpectedStatusErr(resp)
+			log.G(ctx).WithField("resp", resp).WithField("body", string(err.(remoteserrors.ErrUnexpectedStatus).Body)).Debug("unexpected response")
+			return nil, err
 		}
 
 		var (
@@ -244,8 +247,9 @@ func (p dockerPusher) Push(ctx context.Context, desc ocispec.Descriptor) (conten
 		switch resp.StatusCode {
 		case http.StatusOK, http.StatusCreated, http.StatusNoContent:
 		default:
-			// TODO: log error
-			pr.CloseWithError(errors.Errorf("unexpected response: %s", resp.Status))
+			err := remoteserrors.NewUnexpectedStatusErr(resp)
+			log.G(ctx).WithField("resp", resp).WithField("body", string(err.(remoteserrors.ErrUnexpectedStatus).Body)).Debug("unexpected response")
+			pr.CloseWithError(err)
 		}
 		respC <- resp
 	}()

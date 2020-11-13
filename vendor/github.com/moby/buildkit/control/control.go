@@ -63,7 +63,7 @@ func NewController(opt Opt) (*Controller, error) {
 		cache:            cache,
 		gatewayForwarder: gatewayForwarder,
 	}
-	c.throttledGC = throttle.ThrottleAfter(time.Minute, c.gc)
+	c.throttledGC = throttle.After(time.Minute, c.gc)
 
 	defer func() {
 		time.AfterFunc(time.Second, c.throttledGC)
@@ -305,40 +305,56 @@ func (c *Controller) Status(req *controlapi.StatusRequest, stream controlapi.Con
 			if !ok {
 				return nil
 			}
-			sr := controlapi.StatusResponse{}
-			for _, v := range ss.Vertexes {
-				sr.Vertexes = append(sr.Vertexes, &controlapi.Vertex{
-					Digest:    v.Digest,
-					Inputs:    v.Inputs,
-					Name:      v.Name,
-					Started:   v.Started,
-					Completed: v.Completed,
-					Error:     v.Error,
-					Cached:    v.Cached,
-				})
-			}
-			for _, v := range ss.Statuses {
-				sr.Statuses = append(sr.Statuses, &controlapi.VertexStatus{
-					ID:        v.ID,
-					Vertex:    v.Vertex,
-					Name:      v.Name,
-					Current:   v.Current,
-					Total:     v.Total,
-					Timestamp: v.Timestamp,
-					Started:   v.Started,
-					Completed: v.Completed,
-				})
-			}
-			for _, v := range ss.Logs {
-				sr.Logs = append(sr.Logs, &controlapi.VertexLog{
-					Vertex:    v.Vertex,
-					Stream:    int64(v.Stream),
-					Msg:       v.Data,
-					Timestamp: v.Timestamp,
-				})
-			}
-			if err := stream.SendMsg(&sr); err != nil {
-				return err
+			logSize := 0
+			retry := false
+			for {
+				sr := controlapi.StatusResponse{}
+				for _, v := range ss.Vertexes {
+					sr.Vertexes = append(sr.Vertexes, &controlapi.Vertex{
+						Digest:    v.Digest,
+						Inputs:    v.Inputs,
+						Name:      v.Name,
+						Started:   v.Started,
+						Completed: v.Completed,
+						Error:     v.Error,
+						Cached:    v.Cached,
+					})
+				}
+				for _, v := range ss.Statuses {
+					sr.Statuses = append(sr.Statuses, &controlapi.VertexStatus{
+						ID:        v.ID,
+						Vertex:    v.Vertex,
+						Name:      v.Name,
+						Current:   v.Current,
+						Total:     v.Total,
+						Timestamp: v.Timestamp,
+						Started:   v.Started,
+						Completed: v.Completed,
+					})
+				}
+				for i, v := range ss.Logs {
+					sr.Logs = append(sr.Logs, &controlapi.VertexLog{
+						Vertex:    v.Vertex,
+						Stream:    int64(v.Stream),
+						Msg:       v.Data,
+						Timestamp: v.Timestamp,
+					})
+					logSize += len(v.Data)
+					// avoid logs growing big and split apart if they do
+					if logSize > 1024*1024 {
+						ss.Vertexes = nil
+						ss.Statuses = nil
+						ss.Logs = ss.Logs[i+1:]
+						retry = true
+						break
+					}
+				}
+				if err := stream.SendMsg(&sr); err != nil {
+					return err
+				}
+				if !retry {
+					break
+				}
 			}
 		}
 	})

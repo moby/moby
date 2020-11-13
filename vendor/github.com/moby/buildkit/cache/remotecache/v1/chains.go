@@ -23,7 +23,7 @@ func (c *CacheChains) Add(dgst digest.Digest) solver.CacheExporterRecord {
 	if strings.HasPrefix(dgst.String(), "random:") {
 		return &nopRecord{}
 	}
-	it := &item{c: c, dgst: dgst}
+	it := &item{c: c, dgst: dgst, backlinks: map[*item]struct{}{}}
 	c.items = append(c.items, it)
 	return it
 }
@@ -43,6 +43,17 @@ func (c *CacheChains) normalize() error {
 		links: map[*item]map[nlink]map[digest.Digest]struct{}{},
 		byKey: map[digest.Digest]*item{},
 	}
+
+	validated := make([]*item, 0, len(c.items))
+	for _, it := range c.items {
+		it.validate()
+	}
+	for _, it := range c.items {
+		if !it.invalid {
+			validated = append(validated, it)
+		}
+	}
+	c.items = validated
 
 	for _, it := range c.items {
 		_, err := normalizeItem(it, st)
@@ -99,7 +110,9 @@ type item struct {
 	result     *solver.Remote
 	resultTime time.Time
 
-	links []map[link]struct{}
+	links     []map[link]struct{}
+	backlinks map[*item]struct{}
+	invalid   bool
 }
 
 type link struct {
@@ -126,6 +139,30 @@ func (c *item) LinkFrom(rec solver.CacheExporterRecord, index int, selector stri
 	}
 
 	c.links[index][link{src: src, selector: selector}] = struct{}{}
+	src.backlinks[c] = struct{}{}
+}
+
+func (c *item) validate() {
+	for _, m := range c.links {
+		if len(m) == 0 {
+			c.invalid = true
+			for bl := range c.backlinks {
+				changed := false
+				for _, m := range bl.links {
+					for l := range m {
+						if l.src == c {
+							delete(m, l)
+							changed = true
+						}
+					}
+				}
+				if changed {
+					bl.validate()
+				}
+			}
+			return
+		}
+	}
 }
 
 func (c *item) walkAllResults(fn func(i *item) error, visited map[*item]struct{}) error {

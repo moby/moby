@@ -587,14 +587,21 @@ func dispatchStopSignal(d dispatchRequest, c *instructions.StopSignalCommand) er
 // to builder using the --build-arg flag for expansion/substitution or passing to 'run'.
 // Dockerfile author may optionally set a default value of this variable.
 func dispatchArg(d dispatchRequest, c *instructions.ArgCommand) error {
-
-	commitStr := "ARG " + c.Key
-	if c.Value != nil {
-		commitStr += "=" + *c.Value
+	var commitStr strings.Builder
+	commitStr.WriteString("ARG ")
+	for i, arg := range c.Args {
+		if i > 0 {
+			commitStr.WriteString(" ")
+		}
+		commitStr.WriteString(arg.Key)
+		if arg.Value != nil {
+			commitStr.WriteString("=")
+			commitStr.WriteString(*arg.Value)
+		}
+		d.state.buildArgs.AddArg(arg.Key, arg.Value)
 	}
 
-	d.state.buildArgs.AddArg(c.Key, c.Value)
-	return d.builder.commit(d.state, commitStr)
+	return d.builder.commit(d.state, commitStr.String())
 }
 
 // SHELL powershell -command

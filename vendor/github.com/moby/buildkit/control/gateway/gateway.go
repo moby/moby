@@ -152,3 +152,27 @@ func (gwf *GatewayForwarder) StatFile(ctx context.Context, req *gwapi.StatFileRe
 	}
 	return fwd.StatFile(ctx, req)
 }
+
+func (gwf *GatewayForwarder) NewContainer(ctx context.Context, req *gwapi.NewContainerRequest) (*gwapi.NewContainerResponse, error) {
+	fwd, err := gwf.lookupForwarder(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "forwarding NewContainer")
+	}
+	return fwd.NewContainer(ctx, req)
+}
+
+func (gwf *GatewayForwarder) ReleaseContainer(ctx context.Context, req *gwapi.ReleaseContainerRequest) (*gwapi.ReleaseContainerResponse, error) {
+	fwd, err := gwf.lookupForwarder(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "forwarding ReleaseContainer")
+	}
+	return fwd.ReleaseContainer(ctx, req)
+}
+
+func (gwf *GatewayForwarder) ExecProcess(srv gwapi.LLBBridge_ExecProcessServer) error {
+	fwd, err := gwf.lookupForwarder(srv.Context())
+	if err != nil {
+		return errors.Wrap(err, "forwarding ExecProcess")
+	}
+	return fwd.ExecProcess(srv)
+}

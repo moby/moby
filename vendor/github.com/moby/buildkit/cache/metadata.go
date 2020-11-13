@@ -28,6 +28,10 @@ const keyBlob = "cache.blob"
 const keySnapshot = "cache.snapshot"
 const keyBlobOnly = "cache.blobonly"
 const keyMediaType = "cache.mediatype"
+const keyImageRefs = "cache.imageRefs"
+
+// BlobSize is the packed blob size as specified in the oci descriptor
+const keyBlobSize = "cache.blobsize"
 
 const keyDeleted = "cache.deleted"
 
@@ -297,6 +301,63 @@ func setSize(si *metadata.StorageItem, s int64) error {
 
 func getSize(si *metadata.StorageItem) int64 {
 	v := si.Get(keySize)
+	if v == nil {
+		return sizeUnknown
+	}
+	var size int64
+	if err := v.Unmarshal(&size); err != nil {
+		return sizeUnknown
+	}
+	return size
+}
+
+func appendImageRef(si *metadata.StorageItem, s string) error {
+	return si.GetAndSetValue(keyImageRefs, func(v *metadata.Value) (*metadata.Value, error) {
+		var imageRefs []string
+		if v != nil {
+			if err := v.Unmarshal(&imageRefs); err != nil {
+				return nil, err
+			}
+		}
+		for _, existing := range imageRefs {
+			if existing == s {
+				return nil, metadata.ErrSkipSetValue
+			}
+		}
+		imageRefs = append(imageRefs, s)
+		v, err := metadata.NewValue(imageRefs)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create imageRefs value")
+		}
+		return v, nil
+	})
+}
+
+func getImageRefs(si *metadata.StorageItem) []string {
+	v := si.Get(keyImageRefs)
+	if v == nil {
+		return nil
+	}
+	var refs []string
+	if err := v.Unmarshal(&refs); err != nil {
+		return nil
+	}
+	return refs
+}
+
+func queueBlobSize(si *metadata.StorageItem, s int64) error {
+	v, err := metadata.NewValue(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to create blobsize value")
+	}
+	si.Queue(func(b *bolt.Bucket) error {
+		return si.SetValue(b, keyBlobSize, v)
+	})
+	return nil
+}
+
+func getBlobSize(si *metadata.StorageItem) int64 {
+	v := si.Get(keyBlobSize)
 	if v == nil {
 		return sizeUnknown
 	}

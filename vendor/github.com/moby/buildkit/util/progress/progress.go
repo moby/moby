@@ -62,6 +62,11 @@ func WithMetadata(key string, val interface{}) WriterOption {
 	}
 }
 
+type Controller interface {
+	Start(context.Context) (context.Context, func(error))
+	Status(id string, action string) func()
+}
+
 type Writer interface {
 	Write(id string, value interface{}) error
 	Close() error

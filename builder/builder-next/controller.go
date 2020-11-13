@@ -34,7 +34,7 @@ import (
 	"github.com/moby/buildkit/frontend/gateway/forwarder"
 	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
 	"github.com/moby/buildkit/solver/bboltcachestorage"
-	"github.com/moby/buildkit/util/binfmt_misc"
+	"github.com/moby/buildkit/util/archutil"
 	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/worker"
@@ -166,7 +166,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, errors.Errorf("snapshotter doesn't support differ")
 	}
 
-	p, err := parsePlatforms(binfmt_misc.SupportedPlatforms(true))
+	p, err := parsePlatforms(archutil.SupportedPlatforms(true))
 	if err != nil {
 		return nil, err
 	}

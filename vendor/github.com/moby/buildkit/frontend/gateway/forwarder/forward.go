@@ -4,13 +4,16 @@ import (
 	"context"
 	"sync"
 
-	"github.com/moby/buildkit/cache"
 	cacheutil "github.com/moby/buildkit/cache/util"
 	clienttypes "github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/frontend"
+	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	gwpb "github.com/moby/buildkit/frontend/gateway/pb"
+	"github.com/moby/buildkit/identity"
+	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver"
 	opspb "github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
@@ -19,12 +22,13 @@ import (
 	fstypes "github.com/tonistiigi/fsutil/types"
 )
 
-func llbBridgeToGatewayClient(ctx context.Context, llbBridge frontend.FrontendLLBBridge, opts map[string]string, inputs map[string]*opspb.Definition, workerInfos []clienttypes.WorkerInfo, sid string) (*bridgeClient, error) {
+func llbBridgeToGatewayClient(ctx context.Context, llbBridge frontend.FrontendLLBBridge, opts map[string]string, inputs map[string]*opspb.Definition, workerInfos []clienttypes.WorkerInfo, sid string, sm *session.Manager) (*bridgeClient, error) {
 	return &bridgeClient{
 		opts:              opts,
 		inputs:            inputs,
 		FrontendLLBBridge: llbBridge,
 		sid:               sid,
+		sm:                sm,
 		workerInfos:       workerInfos,
 		final:             map[*ref]struct{}{},
 	}, nil
@@ -32,14 +36,14 @@ func llbBridgeToGatewayClient(ctx context.Context, llbBridge frontend.FrontendLL
 
 type bridgeClient struct {
 	frontend.FrontendLLBBridge
-	mu           sync.Mutex
-	opts         map[string]string
-	inputs       map[string]*opspb.Definition
-	final        map[*ref]struct{}
-	sid          string
-	exporterAttr map[string][]byte
-	refs         []*ref
-	workerInfos  []clienttypes.WorkerInfo
+	mu          sync.Mutex
+	opts        map[string]string
+	inputs      map[string]*opspb.Definition
+	final       map[*ref]struct{}
+	sid         string
+	sm          *session.Manager
+	refs        []*ref
+	workerInfos []clienttypes.WorkerInfo
 }
 
 func (c *bridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*client.Result, error) {
@@ -57,7 +61,7 @@ func (c *bridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*cli
 	cRes := &client.Result{}
 	c.mu.Lock()
 	for k, r := range res.Refs {
-		rr, err := newRef(r)
+		rr, err := newRef(r, session.NewGroup(c.sid))
 		if err != nil {
 			return nil, err
 		}
@@ -65,7 +69,7 @@ func (c *bridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*cli
 		cRes.AddRef(k, rr)
 	}
 	if r := res.Ref; r != nil {
-		rr, err := newRef(r)
+		rr, err := newRef(r, session.NewGroup(c.sid))
 		if err != nil {
 			return nil, err
 		}
@@ -150,12 +154,48 @@ func (c *bridgeClient) discard(err error) {
 	}
 }
 
-type ref struct {
-	solver.ResultProxy
+func (c *bridgeClient) NewContainer(ctx context.Context, req client.NewContainerRequest) (client.Container, error) {
+	ctrReq := gateway.NewContainerRequest{
+		ContainerID: identity.NewID(),
+		NetMode:     req.NetMode,
+	}
+
+	for _, m := range req.Mounts {
+		var refProxy solver.ResultProxy
+		if m.Ref != nil {
+			var ok bool
+			refProxy, ok = m.Ref.(*ref)
+			if !ok {
+				return nil, errors.Errorf("unexpected Ref type: %T", m.Ref)
+			}
+		}
+		ctrReq.Mounts = append(ctrReq.Mounts, gateway.Mount{
+			Dest:      m.Dest,
+			Selector:  m.Selector,
+			Readonly:  m.Readonly,
+			MountType: m.MountType,
+			RefProxy:  refProxy,
+			CacheOpt:  m.CacheOpt,
+			SecretOpt: m.SecretOpt,
+			SSHOpt:    m.SSHOpt,
+		})
+	}
+
+	group := session.NewGroup(c.sid)
+	ctr, err := gateway.NewContainer(ctx, c, c.sm, group, ctrReq)
+	if err != nil {
+		return nil, err
+	}
+	return ctr, nil
 }
 
-func newRef(r solver.ResultProxy) (*ref, error) {
-	return &ref{ResultProxy: r}, nil
+type ref struct {
+	solver.ResultProxy
+	session session.Group
+}
+
+func newRef(r solver.ResultProxy, s session.Group) (*ref, error) {
+	return &ref{ResultProxy: r, session: s}, nil
 }
 
 func (r *ref) ToState() (st llb.State, err error) {
@@ -167,7 +207,7 @@ func (r *ref) ToState() (st llb.State, err error) {
 }
 
 func (r *ref) ReadFile(ctx context.Context, req client.ReadRequest) ([]byte, error) {
-	ref, err := r.getImmutableRef(ctx)
+	m, err := r.getMountable(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -180,11 +220,11 @@ func (r *ref) ReadFile(ctx context.Context, req client.ReadRequest) ([]byte, err
 			Length: r.Length,
 		}
 	}
-	return cacheutil.ReadFile(ctx, ref, newReq)
+	return cacheutil.ReadFile(ctx, m, newReq)
 }
 
 func (r *ref) ReadDir(ctx context.Context, req client.ReadDirRequest) ([]*fstypes.Stat, error) {
-	ref, err := r.getImmutableRef(ctx)
+	m, err := r.getMountable(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -192,18 +232,18 @@ func (r *ref) ReadDir(ctx context.Context, req client.ReadDirRequest) ([]*fstype
 		Path:           req.Path,
 		IncludePattern: req.IncludePattern,
 	}
-	return cacheutil.ReadDir(ctx, ref, newReq)
+	return cacheutil.ReadDir(ctx, m, newReq)
 }
 
 func (r *ref) StatFile(ctx context.Context, req client.StatRequest) (*fstypes.Stat, error) {
-	ref, err := r.getImmutableRef(ctx)
+	m, err := r.getMountable(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return cacheutil.StatFile(ctx, ref, req.Path)
+	return cacheutil.StatFile(ctx, m, req.Path)
 }
 
-func (r *ref) getImmutableRef(ctx context.Context) (cache.ImmutableRef, error) {
+func (r *ref) getMountable(ctx context.Context) (snapshot.Mountable, error) {
 	rr, err := r.ResultProxy.Result(ctx)
 	if err != nil {
 		return nil, err
@@ -212,5 +252,5 @@ func (r *ref) getImmutableRef(ctx context.Context) (cache.ImmutableRef, error) {
 	if !ok {
 		return nil, errors.Errorf("invalid ref: %T", rr.Sys())
 	}
-	return ref.ImmutableRef, nil
+	return ref.ImmutableRef.Mount(ctx, true, r.session)
 }

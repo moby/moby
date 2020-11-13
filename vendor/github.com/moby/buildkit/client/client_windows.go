@@ -1,15 +1,15 @@
 package client
 
 import (
+	"context"
 	"net"
 	"strings"
-	"time"
 
 	winio "github.com/Microsoft/go-winio"
 	"github.com/pkg/errors"
 )
 
-func dialer(address string, timeout time.Duration) (net.Conn, error) {
+func dialer(ctx context.Context, address string) (net.Conn, error) {
 	addrParts := strings.SplitN(address, "://", 2)
 	if len(addrParts) != 2 {
 		return nil, errors.Errorf("invalid address %s", address)
@@ -17,8 +17,9 @@ func dialer(address string, timeout time.Duration) (net.Conn, error) {
 	switch addrParts[0] {
 	case "npipe":
 		address = strings.Replace(addrParts[1], "/", "\\", -1)
-		return winio.DialPipe(address, &timeout)
+		return winio.DialPipeContext(ctx, address)
 	default:
-		return net.DialTimeout(addrParts[0], addrParts[1], timeout)
+		var d net.Dialer
+		return d.DialContext(ctx, addrParts[0], addrParts[1])
 	}
 }

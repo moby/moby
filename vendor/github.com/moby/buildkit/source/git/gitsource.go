@@ -13,7 +13,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/docker/pkg/locker"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/client"
@@ -21,8 +20,10 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/secrets"
 	"github.com/moby/buildkit/snapshot"
+	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/util/progress/logs"
+	"github.com/moby/locker"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"
@@ -63,7 +64,7 @@ func (gs *gitSource) ID() string {
 }
 
 // needs to be called with repo lock
-func (gs *gitSource) mountRemote(ctx context.Context, remote string, auth []string) (target string, release func(), retErr error) {
+func (gs *gitSource) mountRemote(ctx context.Context, remote string, auth []string, g session.Group) (target string, release func(), retErr error) {
 	remoteKey := "git-remote::" + remote
 
 	sis, err := gs.md.Search(remoteKey)
@@ -87,7 +88,7 @@ func (gs *gitSource) mountRemote(ctx context.Context, remote string, auth []stri
 
 	initializeRepo := false
 	if remoteRef == nil {
-		remoteRef, err = gs.cache.New(ctx, nil, cache.CachePolicyRetain, cache.WithDescription(fmt.Sprintf("shared git repo for %s", remote)))
+		remoteRef, err = gs.cache.New(ctx, nil, g, cache.CachePolicyRetain, cache.WithDescription(fmt.Sprintf("shared git repo for %s", remote)))
 		if err != nil {
 			return "", nil, errors.Wrapf(err, "failed to create new mutable for %s", remote)
 		}
@@ -104,7 +105,7 @@ func (gs *gitSource) mountRemote(ctx context.Context, remote string, auth []stri
 		}
 	}()
 
-	mount, err := remoteRef.Mount(ctx, false)
+	mount, err := remoteRef.Mount(ctx, false, g)
 	if err != nil {
 		return "", nil, err
 	}
@@ -166,7 +167,7 @@ func (gs *gitSourceHandler) shaToCacheKey(sha string) string {
 	return key
 }
 
-func (gs *gitSource) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager) (source.SourceInstance, error) {
+func (gs *gitSource) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager, _ solver.Vertex) (source.SourceInstance, error) {
 	gitIdentifier, ok := id.(*source.GitIdentifier)
 	if !ok {
 		return nil, errors.Errorf("invalid git identifier %v", id)
@@ -231,7 +232,7 @@ func (gs *gitSourceHandler) getAuthToken(ctx context.Context, g session.Group) e
 	})
 }
 
-func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index int) (string, bool, error) {
+func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index int) (string, solver.CacheOpts, bool, error) {
 	remote := gs.src.Remote
 	ref := gs.src.Ref
 	if ref == "" {
@@ -243,14 +244,14 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index
 	if isCommitSHA(ref) {
 		ref = gs.shaToCacheKey(ref)
 		gs.cacheKey = ref
-		return ref, true, nil
+		return ref, nil, true, nil
 	}
 
 	gs.getAuthToken(ctx, g)
 
-	gitDir, unmountGitDir, err := gs.mountRemote(ctx, remote, gs.auth)
+	gitDir, unmountGitDir, err := gs.mountRemote(ctx, remote, gs.auth, g)
 	if err != nil {
-		return "", false, err
+		return "", nil, false, err
 	}
 	defer unmountGitDir()
 
@@ -258,21 +259,21 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index
 
 	buf, err := gitWithinDir(ctx, gitDir, "", gs.auth, "ls-remote", "origin", ref)
 	if err != nil {
-		return "", false, errors.Wrapf(err, "failed to fetch remote %s", remote)
+		return "", nil, false, errors.Wrapf(err, "failed to fetch remote %s", remote)
 	}
 	out := buf.String()
 	idx := strings.Index(out, "\t")
 	if idx == -1 {
-		return "", false, errors.Errorf("repository does not contain ref %s, output: %q", ref, string(out))
+		return "", nil, false, errors.Errorf("repository does not contain ref %s, output: %q", ref, string(out))
 	}
 
 	sha := string(out[:idx])
 	if !isCommitSHA(sha) {
-		return "", false, errors.Errorf("invalid commit sha %q", sha)
+		return "", nil, false, errors.Errorf("invalid commit sha %q", sha)
 	}
 	sha = gs.shaToCacheKey(sha)
 	gs.cacheKey = sha
-	return sha, true, nil
+	return sha, nil, true, nil
 }
 
 func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out cache.ImmutableRef, retErr error) {
@@ -284,7 +285,7 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 	cacheKey := gs.cacheKey
 	if cacheKey == "" {
 		var err error
-		cacheKey, _, err = gs.CacheKey(ctx, g, 0)
+		cacheKey, _, _, err = gs.CacheKey(ctx, g, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -306,7 +307,7 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 
 	gs.locker.Lock(gs.src.Remote)
 	defer gs.locker.Unlock(gs.src.Remote)
-	gitDir, unmountGitDir, err := gs.mountRemote(ctx, gs.src.Remote, gs.auth)
+	gitDir, unmountGitDir, err := gs.mountRemote(ctx, gs.src.Remote, gs.auth, g)
 	if err != nil {
 		return nil, err
 	}
@@ -344,7 +345,7 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 		}
 	}
 
-	checkoutRef, err := gs.cache.New(ctx, nil, cache.WithRecordType(client.UsageRecordTypeGitCheckout), cache.WithDescription(fmt.Sprintf("git snapshot for %s#%s", gs.src.Remote, ref)))
+	checkoutRef, err := gs.cache.New(ctx, nil, g, cache.WithRecordType(client.UsageRecordTypeGitCheckout), cache.WithDescription(fmt.Sprintf("git snapshot for %s#%s", gs.src.Remote, ref)))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create new mutable for %s", gs.src.Remote)
 	}
@@ -355,7 +356,7 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 		}
 	}()
 
-	mount, err := checkoutRef.Mount(ctx, false)
+	mount, err := checkoutRef.Mount(ctx, false, g)
 	if err != nil {
 		return nil, err
 	}

@@ -57,6 +57,7 @@ message Meta {
 	string user = 4;
 	ProxyEnv proxy_env = 5;
 	repeated HostIP extraHosts = 6;
+	string hostname = 7;
 }
 
 enum NetMode {
@@ -81,6 +82,7 @@ message Mount {
 	CacheOpt cacheOpt = 20;
 	SecretOpt secretOpt = 21;
 	SSHOpt SSHOpt = 22;
+	string resultID = 23;
 }
 
 // MountType defines a type of a mount from a supported set

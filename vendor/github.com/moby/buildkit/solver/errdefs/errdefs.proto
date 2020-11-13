@@ -12,3 +12,11 @@ message Source {
 	pb.SourceInfo info = 1;
 	repeated pb.Range ranges = 2;
 }
+
+message FrontendCap {
+	string name = 1;
+}
+
+message Subrequest {
+	string name = 1;
+}
