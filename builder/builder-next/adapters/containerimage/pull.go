@@ -191,7 +191,7 @@ func (p *puller) resolver(g session.Group) remotes.Resolver {
 	return resolver.DefaultPool.GetResolver(p.is.RegistryHosts, p.src.Reference.String(), "pull", p.sm, g)
 }
 
-func (p *puller) mainManifestKey(dgst digest.Digest, platform ocispec.Platform) (digest.Digest, error) {
+func (p *puller) mainManifestKey(platform ocispec.Platform) (digest.Digest, error) {
 	dt, err := json.Marshal(struct {
 		Digest  digest.Digest
 		OS      string
@@ -301,7 +301,7 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (stri
 	p.resolveLocal()
 
 	if p.desc.Digest != "" && index == 0 {
-		dgst, err := p.mainManifestKey(p.desc.Digest, p.platform)
+		dgst, err := p.mainManifestKey(p.platform)
 		if err != nil {
 			return "", nil, false, err
 		}
@@ -321,7 +321,7 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (stri
 	}
 
 	if p.desc.Digest != "" && index == 0 {
-		dgst, err := p.mainManifestKey(p.desc.Digest, p.platform)
+		dgst, err := p.mainManifestKey(p.platform)
 		if err != nil {
 			return "", nil, false, err
 		}
@@ -330,7 +330,7 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (stri
 
 	k := cacheKeyFromConfig(p.config).String()
 	if k == "" {
-		dgst, err := p.mainManifestKey(p.desc.Digest, p.platform)
+		dgst, err := p.mainManifestKey(p.platform)
 		if err != nil {
 			return "", nil, false, err
 		}
