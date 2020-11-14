@@ -500,6 +500,9 @@ var (
 		// Jack Kilby invented silicon integrated circuits and gave Silicon Valley its name. - https://en.wikipedia.org/wiki/Jack_Kilby
 		"kilby",
 
+		// Kimishige Ishizaka - Japanese scientist and immunologist who co-discovered the antibody class Immunoglobulin E. https://en.wikipedia.org/wiki/Kimishige_Ishizaka
+		"kimishige",
+
 		// Maria Kirch - German astronomer and first woman to discover a comet - https://en.wikipedia.org/wiki/Maria_Margarethe_Kirch
 		"kirch",
 
