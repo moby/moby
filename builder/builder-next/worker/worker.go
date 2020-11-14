@@ -41,6 +41,7 @@ import (
 	"github.com/moby/buildkit/source/http"
 	"github.com/moby/buildkit/source/local"
 	"github.com/moby/buildkit/util/archutil"
+	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/progress"
 	digest "github.com/opencontainers/go-digest"
@@ -236,7 +237,7 @@ func (w *Worker) Exporter(name string, sm *session.Manager) (exporter.Exporter, 
 }
 
 // GetRemote returns a remote snapshot reference for a local one
-func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool) (*solver.Remote, error) {
+func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool, _ compression.Type, _ session.Group) (*solver.Remote, error) {
 	var diffIDs []layer.DiffID
 	var err error
 	if !createIfNeeded {
