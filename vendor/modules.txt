@@ -189,9 +189,7 @@ github.com/containerd/containerd/oci
 github.com/containerd/containerd/pkg/apparmor
 github.com/containerd/containerd/pkg/cap
 github.com/containerd/containerd/pkg/dialer
-github.com/containerd/containerd/pkg/process
 github.com/containerd/containerd/pkg/seccomp
-github.com/containerd/containerd/pkg/stdio
 github.com/containerd/containerd/pkg/userns
 github.com/containerd/containerd/platforms
 github.com/containerd/containerd/plugin
@@ -203,13 +201,7 @@ github.com/containerd/containerd/remotes/docker/auth
 github.com/containerd/containerd/remotes/docker/schema1
 github.com/containerd/containerd/remotes/errors
 github.com/containerd/containerd/rootfs
-github.com/containerd/containerd/runtime
 github.com/containerd/containerd/runtime/linux/runctypes
-github.com/containerd/containerd/runtime/v1
-github.com/containerd/containerd/runtime/v1/linux
-github.com/containerd/containerd/runtime/v1/shim
-github.com/containerd/containerd/runtime/v1/shim/client
-github.com/containerd/containerd/runtime/v1/shim/v1
 github.com/containerd/containerd/runtime/v2/runc/options
 github.com/containerd/containerd/services
 github.com/containerd/containerd/services/content/contentserver
@@ -218,7 +210,6 @@ github.com/containerd/containerd/services/server/config
 github.com/containerd/containerd/snapshots
 github.com/containerd/containerd/snapshots/proxy
 github.com/containerd/containerd/sys
-github.com/containerd/containerd/sys/reaper
 github.com/containerd/containerd/version
 # github.com/containerd/continuity v0.2.2
 ## explicit; go 1.13
