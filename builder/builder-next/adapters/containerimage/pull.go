@@ -93,7 +93,13 @@ func (is *Source) resolveRemote(ctx context.Context, ref string, platform *ocisp
 		dgst digest.Digest
 		dt   []byte
 	}
-	res, err := is.g.Do(ctx, ref, func(ctx context.Context) (interface{}, error) {
+	p := platforms.DefaultSpec()
+	if platform != nil {
+		p = *platform
+	}
+	// key is used to synchronize resolutions that can happen in parallel when doing multi-stage.
+	key := "getconfig::" + ref + "::" + platforms.Format(p)
+	res, err := is.g.Do(ctx, key, func(ctx context.Context) (interface{}, error) {
 		res := resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, "pull", sm, g)
 		dgst, dt, err := imageutil.Config(ctx, ref, res, is.ContentStore, nil, platform)
 		if err != nil {
@@ -247,7 +253,9 @@ func (p *puller) resolveLocal() {
 }
 
 func (p *puller) resolve(ctx context.Context, g session.Group) error {
-	_, err := p.is.g.Do(ctx, "", func(ctx context.Context) (_ interface{}, err error) {
+	// key is used to synchronize resolutions that can happen in parallel when doing multi-stage.
+	key := "resolve::" + p.ref + "::" + platforms.Format(p.platform)
+	_, err := p.is.g.Do(ctx, key, func(ctx context.Context) (_ interface{}, err error) {
 		resolveProgressDone := oneOffProgress(ctx, "resolve "+p.src.Reference.String())
 		defer func() {
 			resolveProgressDone(err)
