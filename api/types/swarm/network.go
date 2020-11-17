@@ -99,6 +99,7 @@ type NetworkAttachmentConfig struct {
 	Target     string            `json:",omitempty"`
 	Aliases    []string          `json:",omitempty"`
 	DriverOpts map[string]string `json:",omitempty"`
+	Addresses  []string          `json:",omitempty"`
 }
 
 // NetworkAttachment represents a network attachment.

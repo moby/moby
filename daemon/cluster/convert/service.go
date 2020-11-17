@@ -167,7 +167,15 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 
 	taskNetworks := make([]*swarmapi.NetworkAttachmentConfig, 0, len(s.TaskTemplate.Networks))
 	for _, n := range s.TaskTemplate.Networks {
-		netConfig := &swarmapi.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases, DriverAttachmentOpts: n.DriverOpts}
+		if len(n.Addresses) > 0 {
+			if *s.Mode.Replicated.Replicas > 1 {
+				return swarmapi.ServiceSpec{}, errors.New("networks.static_address required deploy.replicas must be 1")
+			}
+			if s.UpdateConfig.Order != "stop-first" {
+				return swarmapi.ServiceSpec{}, errors.New("networks.static_address required deploy.update_config.order must be `stop-first`")
+			}
+		}
+		netConfig := &swarmapi.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases, DriverAttachmentOpts: n.DriverOpts, Addresses: n.Addresses}
 		taskNetworks = append(taskNetworks, netConfig)
 
 	}
@@ -673,7 +681,7 @@ func networkAttachmentSpecFromGRPC(attachment swarmapi.NetworkAttachmentSpec) *t
 func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) (types.TaskSpec, error) {
 	taskNetworks := make([]types.NetworkAttachmentConfig, 0, len(taskSpec.Networks))
 	for _, n := range taskSpec.Networks {
-		netConfig := types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases, DriverOpts: n.DriverAttachmentOpts}
+		netConfig := types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases, DriverOpts: n.DriverAttachmentOpts, Addresses: n.Addresses}
 		taskNetworks = append(taskNetworks, netConfig)
 	}
 
