@@ -91,12 +91,12 @@ type clonedCachedResult struct {
 	cr CachedResult
 }
 
-func (r *clonedCachedResult) ID() string {
-	return r.Result.ID()
+func (ccr *clonedCachedResult) ID() string {
+	return ccr.Result.ID()
 }
 
-func (cr *clonedCachedResult) CacheKeys() []ExportableCacheKey {
-	return cr.cr.CacheKeys()
+func (ccr *clonedCachedResult) CacheKeys() []ExportableCacheKey {
+	return ccr.cr.CacheKeys()
 }
 
 type SharedCachedResult struct {

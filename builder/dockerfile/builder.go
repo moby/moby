@@ -235,8 +235,10 @@ func processMetaArg(meta instructions.ArgCommand, shlex *shell.Lex, args *BuildA
 	}); err != nil {
 		return err
 	}
-	args.AddArg(meta.Key, meta.Value)
-	args.AddMetaArg(meta.Key, meta.Value)
+	for _, arg := range meta.Args {
+		args.AddArg(arg.Key, arg.Value)
+		args.AddMetaArg(arg.Key, arg.Value)
+	}
 	return nil
 }
 

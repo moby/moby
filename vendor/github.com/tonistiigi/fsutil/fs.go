@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil/types"
@@ -36,7 +37,8 @@ func (fs *fs) Walk(ctx context.Context, fn filepath.WalkFunc) error {
 }
 
 func (fs *fs) Open(p string) (io.ReadCloser, error) {
-	return os.Open(filepath.Join(fs.root, p))
+	rc, err := os.Open(filepath.Join(fs.root, p))
+	return rc, errors.WithStack(err)
 }
 
 type Dir struct {
@@ -51,10 +53,10 @@ func SubDirFS(dirs []Dir) (FS, error) {
 	m := map[string]Dir{}
 	for _, d := range dirs {
 		if path.Base(d.Stat.Path) != d.Stat.Path {
-			return nil, errors.Errorf("subdir %s must be single file", d.Stat.Path)
+			return nil, errors.WithStack(&os.PathError{Path: d.Stat.Path, Err: syscall.EISDIR, Op: "invalid path"})
 		}
 		if _, ok := m[d.Stat.Path]; ok {
-			return nil, errors.Errorf("invalid path %s", d.Stat.Path)
+			return nil, errors.WithStack(&os.PathError{Path: d.Stat.Path, Err: syscall.EEXIST, Op: "duplicate path"})
 		}
 		m[d.Stat.Path] = d
 	}
@@ -70,7 +72,7 @@ func (fs *subDirFS) Walk(ctx context.Context, fn filepath.WalkFunc) error {
 	for _, d := range fs.dirs {
 		fi := &StatInfo{Stat: &d.Stat}
 		if !fi.IsDir() {
-			return errors.Errorf("fs subdir %s not mode directory", d.Stat.Path)
+			return errors.WithStack(&os.PathError{Path: d.Stat.Path, Err: syscall.ENOTDIR, Op: "walk subdir"})
 		}
 		if err := fn(d.Stat.Path, fi, nil); err != nil {
 			return err
@@ -78,7 +80,7 @@ func (fs *subDirFS) Walk(ctx context.Context, fn filepath.WalkFunc) error {
 		if err := d.FS.Walk(ctx, func(p string, fi os.FileInfo, err error) error {
 			stat, ok := fi.Sys().(*types.Stat)
 			if !ok {
-				return errors.Wrapf(err, "invalid fileinfo without stat info: %s", p)
+				return errors.WithStack(&os.PathError{Path: d.Stat.Path, Err: syscall.EBADMSG, Op: "fileinfo without stat info"})
 			}
 			stat.Path = path.Join(d.Stat.Path, stat.Path)
 			if stat.Linkname != "" {
@@ -105,7 +107,7 @@ func (fs *subDirFS) Open(p string) (io.ReadCloser, error) {
 	}
 	d, ok := fs.m[parts[0]]
 	if !ok {
-		return nil, os.ErrNotExist
+		return nil, errors.WithStack(&os.PathError{Path: parts[0], Err: syscall.ENOENT, Op: "open"})
 	}
 	return d.FS.Open(parts[1])
 }

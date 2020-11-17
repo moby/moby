@@ -33,21 +33,26 @@ func Dialer(api controlapi.ControlClient) session.Dialer {
 	}
 }
 
-func streamToConn(stream grpc.Stream) (net.Conn, <-chan struct{}) {
+type stream interface {
+	Context() context.Context
+	SendMsg(m interface{}) error
+	RecvMsg(m interface{}) error
+}
+
+func streamToConn(stream stream) (net.Conn, <-chan struct{}) {
 	closeCh := make(chan struct{})
 	c := &conn{stream: stream, buf: make([]byte, 32*1<<10), closeCh: closeCh}
 	return c, closeCh
 }
 
 type conn struct {
-	stream  grpc.Stream
+	stream  stream
 	buf     []byte
 	lastBuf []byte
 
 	closedOnce sync.Once
 	readMu     sync.Mutex
 	writeMu    sync.Mutex
-	err        error
 	closeCh    chan struct{}
 }
 

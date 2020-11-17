@@ -1,5 +1,3 @@
-// +build dfrunmount
-
 package instructions
 
 import (

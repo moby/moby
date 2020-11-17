@@ -14,28 +14,26 @@ import (
 	"github.com/pkg/errors"
 )
 
-const hostsContent = `
-127.0.0.1	localhost buildkitsandbox
-::1	localhost ip6-localhost ip6-loopback
-`
+const defaultHostname = "buildkitsandbox"
 
-func GetHostsFile(ctx context.Context, stateDir string, extraHosts []executor.HostIP, idmap *idtools.IdentityMapping) (string, func(), error) {
-	if len(extraHosts) == 0 {
-		_, err := g.Do(ctx, stateDir, func(ctx context.Context) (interface{}, error) {
-			_, _, err := makeHostsFile(stateDir, nil, idmap)
-			return nil, err
-		})
-		if err != nil {
-			return "", nil, err
-		}
-		return filepath.Join(stateDir, "hosts"), func() {}, nil
+func GetHostsFile(ctx context.Context, stateDir string, extraHosts []executor.HostIP, idmap *idtools.IdentityMapping, hostname string) (string, func(), error) {
+	if len(extraHosts) != 0 || hostname != defaultHostname {
+		return makeHostsFile(stateDir, extraHosts, idmap, hostname)
 	}
-	return makeHostsFile(stateDir, extraHosts, idmap)
+
+	_, err := g.Do(ctx, stateDir, func(ctx context.Context) (interface{}, error) {
+		_, _, err := makeHostsFile(stateDir, nil, idmap, hostname)
+		return nil, err
+	})
+	if err != nil {
+		return "", nil, err
+	}
+	return filepath.Join(stateDir, "hosts"), func() {}, nil
 }
 
-func makeHostsFile(stateDir string, extraHosts []executor.HostIP, idmap *idtools.IdentityMapping) (string, func(), error) {
+func makeHostsFile(stateDir string, extraHosts []executor.HostIP, idmap *idtools.IdentityMapping, hostname string) (string, func(), error) {
 	p := filepath.Join(stateDir, "hosts")
-	if len(extraHosts) != 0 {
+	if len(extraHosts) != 0 || hostname != defaultHostname {
 		p += "." + identity.NewID()
 	}
 	_, err := os.Stat(p)
@@ -47,8 +45,7 @@ func makeHostsFile(stateDir string, extraHosts []executor.HostIP, idmap *idtools
 	}
 
 	b := &bytes.Buffer{}
-
-	if _, err := b.Write([]byte(hostsContent)); err != nil {
+	if _, err := b.Write([]byte(initHostsFile(hostname))); err != nil {
 		return "", nil, err
 	}
 
@@ -76,4 +73,15 @@ func makeHostsFile(stateDir string, extraHosts []executor.HostIP, idmap *idtools
 	return p, func() {
 		os.RemoveAll(p)
 	}, nil
+}
+
+func initHostsFile(hostname string) string {
+	var hosts string
+	if hostname != "" {
+		hosts = fmt.Sprintf("127.0.0.1	localhost %s", hostname)
+	} else {
+		hosts = fmt.Sprintf("127.0.0.1	localhost %s", defaultHostname)
+	}
+	hosts = fmt.Sprintf("%s\n::1	localhost ip6-localhost ip6-loopback\n", hosts)
+	return hosts
 }

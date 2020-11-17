@@ -5608,30 +5608,6 @@ func (s *DockerSuite) TestBuildWithExtraHostInvalidFormat(c *testing.T) {
 
 }
 
-func (s *DockerSuite) TestBuildContChar(c *testing.T) {
-	name := "testbuildcontchar"
-
-	buildImage(name, build.WithDockerfile(`FROM busybox\`)).Assert(c, icmd.Expected{
-		Out: "Step 1/1 : FROM busybox",
-	})
-
-	result := buildImage(name, build.WithDockerfile(`FROM busybox
-		 RUN echo hi \`))
-	result.Assert(c, icmd.Success)
-	assert.Assert(c, strings.Contains(result.Combined(), "Step 1/2 : FROM busybox"))
-	assert.Assert(c, strings.Contains(result.Combined(), "Step 2/2 : RUN echo hi\n"))
-	result = buildImage(name, build.WithDockerfile(`FROM busybox
-		 RUN echo hi \\`))
-	result.Assert(c, icmd.Success)
-	assert.Assert(c, strings.Contains(result.Combined(), "Step 1/2 : FROM busybox"))
-	assert.Assert(c, strings.Contains(result.Combined(), "Step 2/2 : RUN echo hi \\\n"))
-	result = buildImage(name, build.WithDockerfile(`FROM busybox
-		 RUN echo hi \\\`))
-	result.Assert(c, icmd.Success)
-	assert.Assert(c, strings.Contains(result.Combined(), "Step 1/2 : FROM busybox"))
-	assert.Assert(c, strings.Contains(result.Combined(), "Step 2/2 : RUN echo hi \\\\\n"))
-}
-
 func (s *DockerSuite) TestBuildMultiStageCopyFromSyntax(c *testing.T) {
 	dockerfile := `
 		FROM busybox AS first

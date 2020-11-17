@@ -1,5 +1,3 @@
-// +build dfsecrets
-
 package instructions
 
 func isSecretMountsSupported() bool {

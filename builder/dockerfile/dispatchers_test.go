@@ -139,10 +139,10 @@ func TestFromWithArg(t *testing.T) {
 	args := NewBuildArgs(make(map[string]*string))
 
 	val := "sometag"
-	metaArg := instructions.ArgCommand{KeyValuePairOptional: instructions.KeyValuePairOptional{
+	metaArg := instructions.ArgCommand{Args: []instructions.KeyValuePairOptional{{
 		Key:   "THETAG",
 		Value: &val,
-	}}
+	}}}
 	cmd := &instructions.Stage{
 		BaseName: "alpine:${THETAG}",
 	}
@@ -395,7 +395,7 @@ func TestArg(t *testing.T) {
 
 	argName := "foo"
 	argVal := "bar"
-	cmd := &instructions.ArgCommand{KeyValuePairOptional: instructions.KeyValuePairOptional{Key: argName, Value: &argVal}}
+	cmd := &instructions.ArgCommand{Args: []instructions.KeyValuePairOptional{{Key: argName, Value: &argVal}}}
 	err := dispatch(sb, cmd)
 	assert.NilError(t, err)
 

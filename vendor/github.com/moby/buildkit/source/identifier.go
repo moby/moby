@@ -30,8 +30,8 @@ const (
 	DockerImageScheme = "docker-image"
 	GitScheme         = "git"
 	LocalScheme       = "local"
-	HttpScheme        = "http"
-	HttpsScheme       = "https"
+	HTTPScheme        = "http"
+	HTTPSScheme       = "https"
 )
 
 type Identifier interface {
@@ -52,10 +52,10 @@ func FromString(s string) (Identifier, error) {
 		return NewGitIdentifier(parts[1])
 	case LocalScheme:
 		return NewLocalIdentifier(parts[1])
-	case HttpsScheme:
-		return NewHttpIdentifier(parts[1], true)
-	case HttpScheme:
-		return NewHttpIdentifier(parts[1], false)
+	case HTTPSScheme:
+		return NewHTTPIdentifier(parts[1], true)
+	case HTTPScheme:
+		return NewHTTPIdentifier(parts[1], false)
 	default:
 		return nil, errors.Wrapf(errNotFound, "unknown schema %s", parts[0])
 	}
@@ -142,7 +142,7 @@ func FromLLB(op *pb.Op_Source, platform *pb.Platform) (Identifier, error) {
 			}
 		}
 	}
-	if id, ok := id.(*HttpIdentifier); ok {
+	if id, ok := id.(*HTTPIdentifier); ok {
 		for k, v := range op.Source.Attrs {
 			switch k {
 			case pb.AttrHTTPChecksum:
@@ -196,7 +196,7 @@ func NewImageIdentifier(str string) (*ImageIdentifier, error) {
 	return &ImageIdentifier{Reference: ref}, nil
 }
 
-func (_ *ImageIdentifier) ID() string {
+func (*ImageIdentifier) ID() string {
 	return DockerImageScheme
 }
 
@@ -217,15 +217,15 @@ func (*LocalIdentifier) ID() string {
 	return LocalScheme
 }
 
-func NewHttpIdentifier(str string, tls bool) (*HttpIdentifier, error) {
+func NewHTTPIdentifier(str string, tls bool) (*HTTPIdentifier, error) {
 	proto := "https://"
 	if !tls {
 		proto = "http://"
 	}
-	return &HttpIdentifier{TLS: tls, URL: proto + str}, nil
+	return &HTTPIdentifier{TLS: tls, URL: proto + str}, nil
 }
 
-type HttpIdentifier struct {
+type HTTPIdentifier struct {
 	TLS      bool
 	URL      string
 	Checksum digest.Digest
@@ -235,8 +235,8 @@ type HttpIdentifier struct {
 	GID      int
 }
 
-func (_ *HttpIdentifier) ID() string {
-	return HttpsScheme
+func (*HTTPIdentifier) ID() string {
+	return HTTPSScheme
 }
 
 func (r ResolveMode) String() string {

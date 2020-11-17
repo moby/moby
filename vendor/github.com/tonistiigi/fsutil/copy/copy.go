@@ -147,7 +147,7 @@ func (c *copier) prepareTargetDir(srcFollowed, src, destPath string, copyDirCont
 }
 
 type User struct {
-	Uid, Gid int
+	UID, GID int
 }
 
 type Chowner func(*User) (*User, error)
@@ -175,7 +175,7 @@ func WithCopyInfo(ci CopyInfo) func(*CopyInfo) {
 func WithChown(uid, gid int) Opt {
 	return func(ci *CopyInfo) {
 		ci.Chown = func(*User) (*User, error) {
-			return &User{Uid: uid, Gid: gid}, nil
+			return &User{UID: uid, GID: gid}, nil
 		}
 	}
 }

@@ -22,7 +22,7 @@ const (
 	CapSourceGit         apicaps.CapID = "source.git"
 	CapSourceGitKeepDir  apicaps.CapID = "source.git.keepgitdir"
 	CapSourceGitFullURL  apicaps.CapID = "source.git.fullurl"
-	CapSourceGitHttpAuth apicaps.CapID = "source.git.httpauth"
+	CapSourceGitHTTPAuth apicaps.CapID = "source.git.httpauth"
 
 	CapSourceHTTP         apicaps.CapID = "source.http"
 	CapSourceHTTPChecksum apicaps.CapID = "source.http.checksum"
@@ -133,7 +133,7 @@ func init() {
 	})
 
 	Caps.Init(apicaps.Cap{
-		ID:      CapSourceGitHttpAuth,
+		ID:      CapSourceGitHTTPAuth,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})

@@ -21,8 +21,9 @@ func (kvp *KeyValuePair) String() string {
 
 // KeyValuePairOptional is the same as KeyValuePair but Value is optional
 type KeyValuePairOptional struct {
-	Key   string
-	Value *string
+	Key     string
+	Value   *string
+	Comment string
 }
 
 func (kvpo *KeyValuePairOptional) ValueString() string {
@@ -380,22 +381,25 @@ func (c *StopSignalCommand) CheckPlatform(platform string) error {
 // Dockerfile author may optionally set a default value of this variable.
 type ArgCommand struct {
 	withNameAndCode
-	KeyValuePairOptional
+	Args []KeyValuePairOptional
 }
 
 // Expand variables
 func (c *ArgCommand) Expand(expander SingleWordExpander) error {
-	p, err := expander(c.Key)
-	if err != nil {
-		return err
-	}
-	c.Key = p
-	if c.Value != nil {
-		p, err = expander(*c.Value)
+	for i, v := range c.Args {
+		p, err := expander(v.Key)
 		if err != nil {
 			return err
 		}
-		c.Value = &p
+		v.Key = p
+		if v.Value != nil {
+			p, err = expander(*v.Value)
+			if err != nil {
+				return err
+			}
+			v.Value = &p
+		}
+		c.Args[i] = v
 	}
 	return nil
 }
@@ -416,6 +420,7 @@ type Stage struct {
 	SourceCode string
 	Platform   string
 	Location   []parser.Range
+	Comment    string
 }
 
 // AddCommand to the stage

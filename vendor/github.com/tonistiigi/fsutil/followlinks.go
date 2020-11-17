@@ -77,10 +77,10 @@ func (r *symlinkResolver) readSymlink(p string, allowWildcard bool) ([]string, e
 	if allowWildcard && containsWildcards(base) {
 		fis, err := ioutil.ReadDir(filepath.Dir(realPath))
 		if err != nil {
-			if os.IsNotExist(err) {
+			if errors.Is(err, os.ErrNotExist) {
 				return nil, nil
 			}
-			return nil, errors.Wrapf(err, "failed to read dir %s", filepath.Dir(realPath))
+			return nil, errors.Wrap(err, "readdir")
 		}
 		var out []string
 		for _, f := range fis {
@@ -97,17 +97,17 @@ func (r *symlinkResolver) readSymlink(p string, allowWildcard bool) ([]string, e
 
 	fi, err := os.Lstat(realPath)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil
 		}
-		return nil, errors.Wrapf(err, "failed to lstat %s", realPath)
+		return nil, errors.WithStack(err)
 	}
 	if fi.Mode()&os.ModeSymlink == 0 {
 		return nil, nil
 	}
 	link, err := os.Readlink(realPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to readlink %s", realPath)
+		return nil, errors.WithStack(err)
 	}
 	link = filepath.Clean(link)
 	if filepath.IsAbs(link) {

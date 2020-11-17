@@ -37,13 +37,13 @@ func mapUserToChowner(user *copy.User, idmap *idtools.IdentityMapping) (copy.Cho
 				// non-nil old is already mapped
 				if idmap != nil {
 					identity, err := idmap.ToHost(idtools.Identity{
-						UID: old.Uid,
-						GID: old.Gid,
+						UID: old.UID,
+						GID: old.GID,
 					})
 					if err != nil {
 						return nil, err
 					}
-					return &copy.User{Uid: identity.UID, Gid: identity.GID}, nil
+					return &copy.User{UID: identity.UID, GID: identity.GID}, nil
 				}
 			}
 			return old, nil
@@ -52,14 +52,14 @@ func mapUserToChowner(user *copy.User, idmap *idtools.IdentityMapping) (copy.Cho
 	u := *user
 	if idmap != nil {
 		identity, err := idmap.ToHost(idtools.Identity{
-			UID: user.Uid,
-			GID: user.Gid,
+			UID: user.UID,
+			GID: user.GID,
 		})
 		if err != nil {
 			return nil, err
 		}
-		u.Uid = identity.UID
-		u.Gid = identity.GID
+		u.UID = identity.UID
+		u.GID = identity.GID
 	}
 	return func(*copy.User) (*copy.User, error) {
 		return &u, nil

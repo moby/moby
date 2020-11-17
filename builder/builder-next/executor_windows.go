@@ -7,7 +7,6 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/libnetwork"
-	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 )
@@ -19,7 +18,7 @@ func newExecutor(_, _ string, _ libnetwork.NetworkController, _ *oci.DNSConfig, 
 type winExecutor struct {
 }
 
-func (w *winExecutor) Run(ctx context.Context, id string, root cache.Mountable, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (err error) {
+func (w *winExecutor) Run(ctx context.Context, id string, root executor.Mount, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (err error) {
 	return errors.New("buildkit executor not implemented for windows")
 }
 

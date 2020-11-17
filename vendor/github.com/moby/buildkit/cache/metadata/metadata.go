@@ -372,6 +372,22 @@ func (s *StorageItem) SetValue(b *bolt.Bucket, key string, v *Value) error {
 	return nil
 }
 
+var ErrSkipSetValue = errors.New("skip setting metadata value")
+
+func (s *StorageItem) GetAndSetValue(key string, fn func(*Value) (*Value, error)) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.Update(func(b *bolt.Bucket) error {
+		v, err := fn(s.values[key])
+		if errors.Is(err, ErrSkipSetValue) {
+			return nil
+		} else if err != nil {
+			return err
+		}
+		return s.SetValue(b, key, v)
+	})
+}
+
 type Value struct {
 	Value json.RawMessage `json:"value,omitempty"`
 	Index string          `json:"index,omitempty"`

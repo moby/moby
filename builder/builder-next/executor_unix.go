@@ -95,11 +95,11 @@ func (iface *lnInterface) init(c libnetwork.NetworkController, n libnetwork.Netw
 	iface.ep = ep
 }
 
-func (iface *lnInterface) Set(s *specs.Spec) {
+func (iface *lnInterface) Set(s *specs.Spec) error {
 	<-iface.ready
 	if iface.err != nil {
 		logrus.WithError(iface.err).Error("failed to set networking spec")
-		return
+		return iface.err
 	}
 	shortNetCtlrID := stringid.TruncateID(iface.provider.NetworkController.ID())
 	// attach netns to bridge within the container namespace, using reexec in a prestart hook
@@ -109,6 +109,7 @@ func (iface *lnInterface) Set(s *specs.Spec) {
 			Args: []string{"libnetwork-setkey", "-exec-root=" + iface.provider.Config().Daemon.ExecRoot, iface.sbx.ContainerID(), shortNetCtlrID},
 		}},
 	}
+	return nil
 }
 
 func (iface *lnInterface) Close() error {

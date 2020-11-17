@@ -14,6 +14,7 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/filesync"
 	"github.com/moby/buildkit/snapshot"
+	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/util/progress"
 	digest "github.com/opencontainers/go-digest"
@@ -51,7 +52,7 @@ func (ls *localSource) ID() string {
 	return source.LocalScheme
 }
 
-func (ls *localSource) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager) (source.SourceInstance, error) {
+func (ls *localSource) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager, _ solver.Vertex) (source.SourceInstance, error) {
 	localIdentifier, ok := id.(*source.LocalIdentifier)
 	if !ok {
 		return nil, errors.Errorf("invalid local identifier %v", id)
@@ -70,13 +71,13 @@ type localSourceHandler struct {
 	*localSource
 }
 
-func (ls *localSourceHandler) CacheKey(ctx context.Context, g session.Group, index int) (string, bool, error) {
+func (ls *localSourceHandler) CacheKey(ctx context.Context, g session.Group, index int) (string, solver.CacheOpts, bool, error) {
 	sessionID := ls.src.SessionID
 
 	if sessionID == "" {
 		id := g.SessionIterator().NextSession()
 		if id == "" {
-			return "", false, errors.New("could not access local files without session")
+			return "", nil, false, errors.New("could not access local files without session")
 		}
 		sessionID = id
 	}
@@ -87,15 +88,15 @@ func (ls *localSourceHandler) CacheKey(ctx context.Context, g session.Group, ind
 		FollowPaths     []string
 	}{SessionID: sessionID, IncludePatterns: ls.src.IncludePatterns, ExcludePatterns: ls.src.ExcludePatterns, FollowPaths: ls.src.FollowPaths})
 	if err != nil {
-		return "", false, err
+		return "", nil, false, err
 	}
-	return "session:" + ls.src.Name + ":" + digest.FromBytes(dt).String(), true, nil
+	return "session:" + ls.src.Name + ":" + digest.FromBytes(dt).String(), nil, true, nil
 }
 
 func (ls *localSourceHandler) Snapshot(ctx context.Context, g session.Group) (cache.ImmutableRef, error) {
 	var ref cache.ImmutableRef
 	err := ls.sm.Any(ctx, g, func(ctx context.Context, _ string, c session.Caller) error {
-		r, err := ls.snapshot(ctx, c)
+		r, err := ls.snapshot(ctx, g, c)
 		if err != nil {
 			return err
 		}
@@ -108,7 +109,7 @@ func (ls *localSourceHandler) Snapshot(ctx context.Context, g session.Group) (ca
 	return ref, nil
 }
 
-func (ls *localSourceHandler) snapshot(ctx context.Context, caller session.Caller) (out cache.ImmutableRef, retErr error) {
+func (ls *localSourceHandler) snapshot(ctx context.Context, s session.Group, caller session.Caller) (out cache.ImmutableRef, retErr error) {
 	sharedKey := keySharedKey + ":" + ls.src.Name + ":" + ls.src.SharedKeyHint + ":" + caller.SharedKey() // TODO: replace caller.SharedKey() with source based hint from client(absolute-path+nodeid)
 
 	var mutable cache.MutableRef
@@ -125,7 +126,7 @@ func (ls *localSourceHandler) snapshot(ctx context.Context, caller session.Calle
 	}
 
 	if mutable == nil {
-		m, err := ls.cm.New(ctx, nil, cache.CachePolicyRetain, cache.WithRecordType(client.UsageRecordTypeLocalSource), cache.WithDescription(fmt.Sprintf("local source for %s", ls.src.Name)))
+		m, err := ls.cm.New(ctx, nil, s, cache.CachePolicyRetain, cache.WithRecordType(client.UsageRecordTypeLocalSource), cache.WithDescription(fmt.Sprintf("local source for %s", ls.src.Name)))
 		if err != nil {
 			return nil, err
 		}
@@ -145,7 +146,7 @@ func (ls *localSourceHandler) snapshot(ctx context.Context, caller session.Calle
 		}
 	}()
 
-	mount, err := mutable.Mount(ctx, false)
+	mount, err := mutable.Mount(ctx, false, s)
 	if err != nil {
 		return nil, err
 	}

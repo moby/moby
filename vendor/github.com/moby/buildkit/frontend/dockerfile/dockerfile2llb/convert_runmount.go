@@ -1,5 +1,3 @@
-// +build dfrunmount
-
 package dockerfile2llb
 
 import (

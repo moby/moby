@@ -122,22 +122,35 @@ func Float64(key string, val float64) Field {
 	}
 }
 
-// Error adds an error with the key "error" to a Span.LogFields() record
+// Error adds an error with the key "error.object" to a Span.LogFields() record
 func Error(err error) Field {
 	return Field{
-		key:          "error",
+		key:          "error.object",
 		fieldType:    errorType,
 		interfaceVal: err,
 	}
 }
 
 // Object adds an object-valued key:value pair to a Span.LogFields() record
+// Please pass in an immutable object, otherwise there may be concurrency issues.
+// Such as passing in the map, log.Object may result in "fatal error: concurrent map iteration and map write".
+// Because span is sent asynchronously, it is possible that this map will also be modified.
 func Object(key string, obj interface{}) Field {
 	return Field{
 		key:          key,
 		fieldType:    objectType,
 		interfaceVal: obj,
 	}
+}
+
+// Event creates a string-valued Field for span logs with key="event" and value=val.
+func Event(val string) Field {
+	return String("event", val)
+}
+
+// Message creates a string-valued Field for span logs with key="message" and value=val.
+func Message(val string) Field {
+	return String("message", val)
 }
 
 // LazyLogger allows for user-defined, late-bound logging of arbitrary data

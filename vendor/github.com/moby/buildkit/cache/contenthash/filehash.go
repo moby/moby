@@ -40,20 +40,22 @@ func NewFileHash(path string, fi os.FileInfo) (hash.Hash, error) {
 }
 
 func NewFromStat(stat *fstypes.Stat) (hash.Hash, error) {
+	// Clear the socket bit since archive/tar.FileInfoHeader does not handle it
+	stat.Mode &^= uint32(os.ModeSocket)
+
 	fi := &statInfo{stat}
 	hdr, err := tar.FileInfoHeader(fi, stat.Linkname)
 	if err != nil {
 		return nil, err
 	}
 	hdr.Name = "" // note: empty name is different from current has in docker build. Name is added on recursive directory scan instead
-	hdr.Mode = int64(chmodWindowsTarEntry(os.FileMode(hdr.Mode)))
 	hdr.Devmajor = stat.Devmajor
 	hdr.Devminor = stat.Devminor
 
 	if len(stat.Xattrs) > 0 {
-		hdr.Xattrs = make(map[string]string, len(stat.Xattrs))
+		hdr.PAXRecords = make(map[string]string, len(stat.Xattrs))
 		for k, v := range stat.Xattrs {
-			hdr.Xattrs[k] = string(v)
+			hdr.PAXRecords["SCHILY.xattr."+k] = string(v)
 		}
 	}
 	// fmt.Printf("hdr: %#v\n", hdr)

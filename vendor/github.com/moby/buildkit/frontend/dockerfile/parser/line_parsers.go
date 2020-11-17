@@ -40,7 +40,7 @@ func parseSubCommand(rest string, d *directives) (*Node, map[string]bool, error)
 		return nil, nil, nil
 	}
 
-	child, err := newNodeFromLine(rest, d)
+	child, err := newNodeFromLine(rest, d, nil)
 	if err != nil {
 		return nil, nil, err
 	}

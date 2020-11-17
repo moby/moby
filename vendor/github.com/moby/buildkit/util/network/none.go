@@ -18,7 +18,8 @@ func (h *none) New() (Namespace, error) {
 type noneNS struct {
 }
 
-func (h *noneNS) Set(s *specs.Spec) {
+func (h *noneNS) Set(s *specs.Spec) error {
+	return nil
 }
 
 func (h *noneNS) Close() error {

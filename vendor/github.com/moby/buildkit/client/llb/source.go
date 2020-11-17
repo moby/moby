@@ -2,7 +2,7 @@ package llb
 
 import (
 	"context"
-	_ "crypto/sha256"
+	_ "crypto/sha256" // for opencontainers/go-digest
 	"encoding/json"
 	"os"
 	"strconv"
@@ -233,11 +233,15 @@ func Git(remote, ref string, opts ...GitOption) State {
 	}
 	if gi.AuthTokenSecret != "" {
 		attrs[pb.AttrAuthTokenSecret] = gi.AuthTokenSecret
-		addCap(&gi.Constraints, pb.CapSourceGitHttpAuth)
+		if gi.addAuthCap {
+			addCap(&gi.Constraints, pb.CapSourceGitHTTPAuth)
+		}
 	}
 	if gi.AuthHeaderSecret != "" {
 		attrs[pb.AttrAuthHeaderSecret] = gi.AuthHeaderSecret
-		addCap(&gi.Constraints, pb.CapSourceGitHttpAuth)
+		if gi.addAuthCap {
+			addCap(&gi.Constraints, pb.CapSourceGitHTTPAuth)
+		}
 	}
 
 	addCap(&gi.Constraints, pb.CapSourceGit)
@@ -260,6 +264,7 @@ type GitInfo struct {
 	KeepGitDir       bool
 	AuthTokenSecret  string
 	AuthHeaderSecret string
+	addAuthCap       bool
 }
 
 func KeepGitDir() GitOption {
@@ -271,12 +276,14 @@ func KeepGitDir() GitOption {
 func AuthTokenSecret(v string) GitOption {
 	return gitOptionFunc(func(gi *GitInfo) {
 		gi.AuthTokenSecret = v
+		gi.addAuthCap = true
 	})
 }
 
 func AuthHeaderSecret(v string) GitOption {
 	return gitOptionFunc(func(gi *GitInfo) {
 		gi.AuthHeaderSecret = v
+		gi.addAuthCap = true
 	})
 }
 

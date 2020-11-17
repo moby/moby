@@ -17,7 +17,7 @@ func Chown(p string, old *User, fn Chowner) error {
 		return errors.WithStack(err)
 	}
 	if user != nil {
-		if err := os.Lchown(p, user.Uid, user.Gid); err != nil {
+		if err := os.Lchown(p, user.UID, user.GID); err != nil {
 			return err
 		}
 	}

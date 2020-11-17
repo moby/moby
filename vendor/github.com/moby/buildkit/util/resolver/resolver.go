@@ -10,41 +10,59 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/moby/buildkit/cmd/buildkitd/config"
-	"github.com/moby/buildkit/session"
-	"github.com/moby/buildkit/session/auth"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/pkg/errors"
 )
 
-func fillInsecureOpts(host string, c config.RegistryConfig, h *docker.RegistryHost) error {
+func fillInsecureOpts(host string, c config.RegistryConfig, h docker.RegistryHost) ([]docker.RegistryHost, error) {
+	var hosts []docker.RegistryHost
+
 	tc, err := loadTLSConfig(c)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	var isHTTP bool
 
 	if c.PlainHTTP != nil && *c.PlainHTTP {
-		h.Scheme = "http"
-	} else if c.Insecure != nil && *c.Insecure {
-		tc.InsecureSkipVerify = true
-	} else if c.PlainHTTP == nil {
+		isHTTP = true
+	}
+	if c.PlainHTTP == nil {
 		if ok, _ := docker.MatchLocalhost(host); ok {
-			h.Scheme = "http"
+			isHTTP = true
 		}
 	}
 
-	transport := newDefaultTransport()
-	transport.TLSClientConfig = tc
-
-	h.Client = &http.Client{
-		Transport: tracing.NewTransport(transport),
+	if isHTTP {
+		h2 := h
+		h2.Scheme = "http"
+		hosts = append(hosts, h2)
 	}
-	return nil
+	if c.Insecure != nil && *c.Insecure {
+		h2 := h
+		transport := newDefaultTransport()
+		transport.TLSClientConfig = tc
+		h2.Client = &http.Client{
+			Transport: tracing.NewTransport(transport),
+		}
+		tc.InsecureSkipVerify = true
+		hosts = append(hosts, h2)
+	}
+
+	if len(hosts) == 0 {
+		transport := newDefaultTransport()
+		transport.TLSClientConfig = tc
+
+		h.Client = &http.Client{
+			Transport: tracing.NewTransport(transport),
+		}
+		hosts = append(hosts, h)
+	}
+
+	return hosts, nil
 }
 
 func loadTLSConfig(c config.RegistryConfig) (*tls.Config, error) {
@@ -97,6 +115,7 @@ func loadTLSConfig(c config.RegistryConfig) (*tls.Config, error) {
 	return tc, nil
 }
 
+// NewRegistryConfig converts registry config to docker.RegistryHosts callback
 func NewRegistryConfig(m map[string]config.RegistryConfig) docker.RegistryHosts {
 	return docker.Registries(
 		func(host string) ([]docker.RegistryHost, error) {
@@ -116,11 +135,12 @@ func NewRegistryConfig(m map[string]config.RegistryConfig) docker.RegistryHosts 
 					Capabilities: docker.HostCapabilityPull | docker.HostCapabilityResolve,
 				}
 
-				if err := fillInsecureOpts(mirror, m[mirror], &h); err != nil {
+				hosts, err := fillInsecureOpts(mirror, m[mirror], h)
+				if err != nil {
 					return nil, err
 				}
 
-				out = append(out, h)
+				out = append(out, hosts...)
 			}
 
 			if host == "docker.io" {
@@ -135,11 +155,12 @@ func NewRegistryConfig(m map[string]config.RegistryConfig) docker.RegistryHosts 
 				Capabilities: docker.HostCapabilityPush | docker.HostCapabilityPull | docker.HostCapabilityResolve,
 			}
 
-			if err := fillInsecureOpts(host, c, &h); err != nil {
+			hosts, err := fillInsecureOpts(host, c, h)
+			if err != nil {
 				return nil, err
 			}
 
-			out = append(out, h)
+			out = append(out, hosts...)
 			return out, nil
 		},
 		docker.ConfigureDefaultRegistries(
@@ -149,92 +170,9 @@ func NewRegistryConfig(m map[string]config.RegistryConfig) docker.RegistryHosts 
 	)
 }
 
-type SessionAuthenticator struct {
-	sm      *session.Manager
-	groups  []session.Group
-	mu      sync.RWMutex
-	cache   map[string]credentials
-	cacheMu sync.RWMutex
-}
-
-type credentials struct {
-	user    string
-	secret  string
-	created time.Time
-}
-
-func NewSessionAuthenticator(sm *session.Manager, g session.Group) *SessionAuthenticator {
-	return &SessionAuthenticator{sm: sm, groups: []session.Group{g}, cache: map[string]credentials{}}
-}
-
-func (a *SessionAuthenticator) credentials(h string) (string, string, error) {
-	const credentialsTimeout = time.Minute
-
-	a.cacheMu.RLock()
-	c, ok := a.cache[h]
-	if ok && time.Since(c.created) < credentialsTimeout {
-		a.cacheMu.RUnlock()
-		return c.user, c.secret, nil
-	}
-	a.cacheMu.RUnlock()
-
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-
-	var err error
-	for i := len(a.groups) - 1; i >= 0; i-- {
-		var user, secret string
-		user, secret, err = auth.CredentialsFunc(a.sm, a.groups[i])(h)
-		if err != nil {
-			continue
-		}
-		a.cacheMu.Lock()
-		a.cache[h] = credentials{user: user, secret: secret, created: time.Now()}
-		a.cacheMu.Unlock()
-		return user, secret, nil
-	}
-	return "", "", err
-}
-
-func (a *SessionAuthenticator) AddSession(g session.Group) {
-	a.mu.Lock()
-	a.groups = append(a.groups, g)
-	a.mu.Unlock()
-}
-
-func New(hosts docker.RegistryHosts, auth *SessionAuthenticator) remotes.Resolver {
-	return docker.NewResolver(docker.ResolverOptions{
-		Hosts: hostsWithCredentials(hosts, auth),
-	})
-}
-
-func hostsWithCredentials(hosts docker.RegistryHosts, auth *SessionAuthenticator) docker.RegistryHosts {
-	if hosts == nil {
-		return nil
-	}
-	return func(domain string) ([]docker.RegistryHost, error) {
-		res, err := hosts(domain)
-		if err != nil {
-			return nil, err
-		}
-		if len(res) == 0 {
-			return nil, nil
-		}
-
-		a := docker.NewDockerAuthorizer(
-			docker.WithAuthClient(res[0].Client),
-			docker.WithAuthCreds(auth.credentials),
-		)
-		for i := range res {
-			res[i].Authorizer = a
-		}
-		return res, nil
-	}
-}
-
 func newDefaultClient() *http.Client {
 	return &http.Client{
-		Transport: newDefaultTransport(),
+		Transport: tracing.NewTransport(newDefaultTransport()),
 	}
 }
 
@@ -250,14 +188,12 @@ func newDefaultTransport() *http.Transport {
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-			DualStack: true,
+			KeepAlive: 60 * time.Second,
 		}).DialContext,
 		MaxIdleConns:          10,
 		IdleConnTimeout:       30 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 5 * time.Second,
-		DisableKeepAlives:     true,
 		TLSNextProto:          make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
 	}
 }

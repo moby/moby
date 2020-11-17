@@ -33,13 +33,15 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/solver/llbsolver/mounts"
 	"github.com/moby/buildkit/solver/llbsolver/ops"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/source/git"
 	"github.com/moby/buildkit/source/http"
 	"github.com/moby/buildkit/source/local"
-	"github.com/moby/buildkit/util/binfmt_misc"
+	"github.com/moby/buildkit/util/archutil"
+	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/progress"
 	digest "github.com/opencontainers/go-digest"
@@ -147,7 +149,7 @@ func (w *Worker) Platforms(noCache bool) []ocispec.Platform {
 		for _, p := range w.Opt.Platforms {
 			pm[platforms.Format(p)] = struct{}{}
 		}
-		for _, p := range binfmt_misc.SupportedPlatforms(noCache) {
+		for _, p := range archutil.SupportedPlatforms(noCache) {
 			if _, ok := pm[p]; !ok {
 				pp, _ := platforms.Parse(p)
 				w.Opt.Platforms = append(w.Opt.Platforms, pp)
@@ -170,13 +172,18 @@ func (w *Worker) ContentStore() content.Store {
 	return w.Opt.ContentStore
 }
 
+// MetadataStore returns the metadata store
+func (w *Worker) MetadataStore() *metadata.Store {
+	return w.Opt.MetadataStore
+}
+
 // LoadRef loads a reference by ID
-func (w *Worker) LoadRef(id string, hidden bool) (cache.ImmutableRef, error) {
+func (w *Worker) LoadRef(ctx context.Context, id string, hidden bool) (cache.ImmutableRef, error) {
 	var opts []cache.RefOption
 	if hidden {
 		opts = append(opts, cache.NoUpdateLastUsed)
 	}
-	return w.CacheManager().Get(context.TODO(), id, opts...)
+	return w.CacheManager().Get(ctx, id, opts...)
 }
 
 // ResolveOp converts a LLB vertex into a LLB operation
@@ -186,9 +193,9 @@ func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *se
 		case *pb.Op_Source:
 			return ops.NewSourceOp(v, op, baseOp.Platform, w.SourceManager, sm, w)
 		case *pb.Op_Exec:
-			return ops.NewExecOp(v, op, baseOp.Platform, w.CacheManager(), sm, w.MetadataStore, w.Executor(), w)
+			return ops.NewExecOp(v, op, baseOp.Platform, w.CacheManager(), sm, w.Opt.MetadataStore, w.Executor(), w)
 		case *pb.Op_File:
-			return ops.NewFileOp(v, op, w.CacheManager(), w.MetadataStore, w)
+			return ops.NewFileOp(v, op, w.CacheManager(), w.Opt.MetadataStore, w)
 		case *pb.Op_Build:
 			return ops.NewBuildOp(v, op, s, w)
 		}
@@ -230,7 +237,7 @@ func (w *Worker) Exporter(name string, sm *session.Manager) (exporter.Exporter, 
 }
 
 // GetRemote returns a remote snapshot reference for a local one
-func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool) (*solver.Remote, error) {
+func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool, _ compression.Type, _ session.Group) (*solver.Remote, error) {
 	var diffIDs []layer.DiffID
 	var err error
 	if !createIfNeeded {
@@ -265,13 +272,13 @@ func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIf
 
 // PruneCacheMounts removes the current cache snapshots for specified IDs
 func (w *Worker) PruneCacheMounts(ctx context.Context, ids []string) error {
-	mu := ops.CacheMountsLocker()
+	mu := mounts.CacheMountsLocker()
 	mu.Lock()
 	defer mu.Unlock()
 
 	for _, id := range ids {
 		id = "cache-dir:" + id
-		sis, err := w.MetadataStore.Search(id)
+		sis, err := w.Opt.MetadataStore.Search(id)
 		if err != nil {
 			return err
 		}
@@ -300,7 +307,7 @@ func (w *Worker) PruneCacheMounts(ctx context.Context, ids []string) error {
 		}
 	}
 
-	ops.ClearActiveCacheMounts()
+	mounts.ClearActiveCacheMounts()
 	return nil
 }
 
