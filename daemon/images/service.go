@@ -5,6 +5,8 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/leases"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution"
@@ -42,6 +44,9 @@ type ImageServiceConfig struct {
 	ReferenceStore            dockerreference.Store
 	RegistryService           registry.Service
 	TrustKey                  libtrust.PrivateKey
+	ContentStore              content.Store
+	Leases                    leases.Manager
+	ContentNamespace          string
 }
 
 // NewImageService returns a new ImageService from a configuration
@@ -54,12 +59,15 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 		distributionMetadataStore: config.DistributionMetadataStore,
 		downloadManager:           xfer.NewLayerDownloadManager(config.LayerStores, config.MaxConcurrentDownloads, xfer.WithMaxDownloadAttempts(config.MaxDownloadAttempts)),
 		eventsService:             config.EventsService,
-		imageStore:                config.ImageStore,
+		imageStore:                &imageStoreWithLease{Store: config.ImageStore, leases: config.Leases, ns: config.ContentNamespace},
 		layerStores:               config.LayerStores,
 		referenceStore:            config.ReferenceStore,
 		registryService:           config.RegistryService,
 		trustKey:                  config.TrustKey,
 		uploadManager:             xfer.NewLayerUploadManager(config.MaxConcurrentUploads),
+		leases:                    config.Leases,
+		content:                   config.ContentStore,
+		contentNamespace:          config.ContentNamespace,
 	}
 }
 
@@ -76,6 +84,9 @@ type ImageService struct {
 	registryService           registry.Service
 	trustKey                  libtrust.PrivateKey
 	uploadManager             *xfer.LayerUploadManager
+	leases                    leases.Manager
+	content                   content.Store
+	contentNamespace          string
 }
 
 // DistributionServices provides daemon image storage services
