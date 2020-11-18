@@ -106,10 +106,8 @@ func FetchTokenWithOAuth(ctx context.Context, client *http.Client, headers http.
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
-	if headers != nil {
-		for k, v := range headers {
-			req.Header[k] = append(req.Header[k], v...)
-		}
+	for k, v := range headers {
+		req.Header[k] = append(req.Header[k], v...)
 	}
 
 	resp, err := ctxhttp.Do(ctx, client, req)
@@ -152,10 +150,8 @@ func FetchToken(ctx context.Context, client *http.Client, headers http.Header, t
 		return nil, err
 	}
 
-	if headers != nil {
-		for k, v := range headers {
-			req.Header[k] = append(req.Header[k], v...)
-		}
+	for k, v := range headers {
+		req.Header[k] = append(req.Header[k], v...)
 	}
 
 	reqParams := req.URL.Query()

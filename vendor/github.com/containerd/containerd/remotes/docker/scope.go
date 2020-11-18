@@ -26,10 +26,10 @@ import (
 	"github.com/containerd/containerd/reference"
 )
 
-// repositoryScope returns a repository scope string such as "repository:foo/bar:pull"
+// RepositoryScope returns a repository scope string such as "repository:foo/bar:pull"
 // for "host/foo/bar:baz".
 // When push is true, both pull and push are added to the scope.
-func repositoryScope(refspec reference.Spec, push bool) (string, error) {
+func RepositoryScope(refspec reference.Spec, push bool) (string, error) {
 	u, err := url.Parse("dummy://" + refspec.Locator)
 	if err != nil {
 		return "", err
@@ -45,9 +45,9 @@ func repositoryScope(refspec reference.Spec, push bool) (string, error) {
 // value: []string (e.g. {"registry:foo/bar:pull"})
 type tokenScopesKey struct{}
 
-// contextWithRepositoryScope returns a context with tokenScopesKey{} and the repository scope value.
-func contextWithRepositoryScope(ctx context.Context, refspec reference.Spec, push bool) (context.Context, error) {
-	s, err := repositoryScope(refspec, push)
+// ContextWithRepositoryScope returns a context with tokenScopesKey{} and the repository scope value.
+func ContextWithRepositoryScope(ctx context.Context, refspec reference.Spec, push bool) (context.Context, error) {
+	s, err := RepositoryScope(refspec, push)
 	if err != nil {
 		return nil, err
 	}
@@ -66,9 +66,9 @@ func WithScope(ctx context.Context, scope string) context.Context {
 	return context.WithValue(ctx, tokenScopesKey{}, scopes)
 }
 
-// contextWithAppendPullRepositoryScope is used to append repository pull
+// ContextWithAppendPullRepositoryScope is used to append repository pull
 // scope into existing scopes indexed by the tokenScopesKey{}.
-func contextWithAppendPullRepositoryScope(ctx context.Context, repo string) context.Context {
+func ContextWithAppendPullRepositoryScope(ctx context.Context, repo string) context.Context {
 	return WithScope(ctx, fmt.Sprintf("repository:%s:pull", repo))
 }
 

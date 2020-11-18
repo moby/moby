@@ -45,7 +45,7 @@ func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.R
 		return nil, errors.Wrap(errdefs.ErrNotFound, "no pull hosts")
 	}
 
-	ctx, err := contextWithRepositoryScope(ctx, r.refspec, false)
+	ctx, err := ContextWithRepositoryScope(ctx, r.refspec, false)
 	if err != nil {
 		return nil, err
 	}

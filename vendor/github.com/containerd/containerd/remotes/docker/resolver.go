@@ -263,7 +263,7 @@ func (r *dockerResolver) Resolve(ctx context.Context, ref string) (string, ocisp
 		return "", ocispec.Descriptor{}, errors.Wrap(errdefs.ErrNotFound, "no resolve hosts")
 	}
 
-	ctx, err = contextWithRepositoryScope(ctx, refspec, false)
+	ctx, err = ContextWithRepositoryScope(ctx, refspec, false)
 	if err != nil {
 		return "", ocispec.Descriptor{}, err
 	}

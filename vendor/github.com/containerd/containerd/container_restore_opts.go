@@ -87,21 +87,21 @@ func WithRestoreRuntime(ctx context.Context, id string, client *Client, checkpoi
 				return err
 			}
 		}
-		var options *ptypes.Any
+		var options ptypes.Any
 		if m != nil {
 			store := client.ContentStore()
 			data, err := content.ReadBlob(ctx, store, *m)
 			if err != nil {
 				return errors.Wrap(err, "unable to read checkpoint runtime")
 			}
-			if err := proto.Unmarshal(data, options); err != nil {
+			if err := proto.Unmarshal(data, &options); err != nil {
 				return err
 			}
 		}
 
 		c.Runtime = containers.RuntimeInfo{
 			Name:    name,
-			Options: options,
+			Options: &options,
 		}
 		return nil
 	}

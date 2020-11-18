@@ -232,6 +232,8 @@ func DefaultProfile(sp *specs.Spec) *specs.LinuxSeccomp {
 				"openat",
 				"openat2",
 				"pause",
+				"pidfd_open",
+				"pidfd_send_signal",
 				"pipe",
 				"pipe2",
 				"poll",
@@ -571,6 +573,7 @@ func DefaultProfile(sp *specs.Spec) *specs.LinuxSeccomp {
 			s.Syscalls = append(s.Syscalls, specs.LinuxSyscall{
 				Names: []string{
 					"kcmp",
+					"pidfd_getfd",
 					"process_vm_readv",
 					"process_vm_writev",
 					"ptrace",
