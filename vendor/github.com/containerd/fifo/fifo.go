@@ -25,6 +25,7 @@ import (
 	"syscall"
 
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
 type fifo struct {
@@ -41,6 +42,21 @@ type fifo struct {
 
 var leakCheckWg *sync.WaitGroup
 
+// OpenFifoDup2 is same as OpenFifo, but additionally creates a copy of the FIFO file descriptor with dup2 syscall.
+func OpenFifoDup2(ctx context.Context, fn string, flag int, perm os.FileMode, fd int) (io.ReadWriteCloser, error) {
+	f, err := openFifo(ctx, fn, flag, perm)
+	if err != nil {
+		return nil, errors.Wrap(err, "fifo error")
+	}
+
+	if err := unix.Dup2(int(f.file.Fd()), fd); err != nil {
+		_ = f.Close()
+		return nil, errors.Wrap(err, "dup2 error")
+	}
+
+	return f, nil
+}
+
 // OpenFifo opens a fifo. Returns io.ReadWriteCloser.
 // Context can be used to cancel this function until open(2) has not returned.
 // Accepted flags:
@@ -52,6 +68,10 @@ var leakCheckWg *sync.WaitGroup
 //     fifo isn't open. read/write will be connected after the actual fifo is
 //     open or after fifo is closed.
 func OpenFifo(ctx context.Context, fn string, flag int, perm os.FileMode) (io.ReadWriteCloser, error) {
+	return openFifo(ctx, fn, flag, perm)
+}
+
+func openFifo(ctx context.Context, fn string, flag int, perm os.FileMode) (*fifo, error) {
 	if _, err := os.Stat(fn); err != nil {
 		if os.IsNotExist(err) && flag&syscall.O_CREAT != 0 {
 			if err := mkfifo(fn, uint32(perm&os.ModePerm)); err != nil && !os.IsExist(err) {
