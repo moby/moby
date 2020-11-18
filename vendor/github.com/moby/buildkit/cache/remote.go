@@ -14,6 +14,7 @@ import (
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/leaseutil"
+	"github.com/moby/buildkit/util/progress/logs"
 	"github.com/moby/buildkit/util/pull/pullprogress"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -182,7 +183,7 @@ func (p lazyRefProvider) Unlazy(ctx context.Context) error {
 		err := contentutil.Copy(ctx, p.ref.cm.ContentStore, &pullprogress.ProviderWithProgress{
 			Provider: p.dh.Provider(p.session),
 			Manager:  p.ref.cm.ContentStore,
-		}, p.desc)
+		}, p.desc, logs.LoggerFromContext(ctx))
 		if err != nil {
 			return nil, err
 		}

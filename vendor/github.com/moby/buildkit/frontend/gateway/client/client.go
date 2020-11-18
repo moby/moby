@@ -34,6 +34,7 @@ type NewContainerRequest struct {
 type Mount struct {
 	Selector  string
 	Dest      string
+	ResultID  string
 	Ref       Reference
 	Readonly  bool
 	MountType pb.MountType
@@ -104,6 +105,7 @@ type StatRequest struct {
 
 // SolveRequest is same as frontend.SolveRequest but avoiding dependency
 type SolveRequest struct {
+	Evaluate       bool
 	Definition     *pb.Definition
 	Frontend       string
 	FrontendOpt    map[string]string

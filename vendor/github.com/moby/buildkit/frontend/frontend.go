@@ -3,9 +3,7 @@ package frontend
 import (
 	"context"
 
-	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb"
-	"github.com/moby/buildkit/executor"
 	gw "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver/pb"
@@ -17,7 +15,6 @@ type Frontend interface {
 }
 
 type FrontendLLBBridge interface {
-	executor.Executor
 	Solve(ctx context.Context, req SolveRequest, sid string) (*Result, error)
 	ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt) (digest.Digest, []byte, error)
 }
@@ -25,7 +22,3 @@ type FrontendLLBBridge interface {
 type SolveRequest = gw.SolveRequest
 
 type CacheOptionsEntry = gw.CacheOptionsEntry
-
-type WorkerInfos interface {
-	WorkerInfos() []client.WorkerInfo
-}

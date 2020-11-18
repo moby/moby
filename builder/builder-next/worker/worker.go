@@ -429,7 +429,10 @@ func (ld *layerDescriptor) DiffID() (layer.DiffID, error) {
 
 func (ld *layerDescriptor) Download(ctx context.Context, progressOutput pkgprogress.Output) (io.ReadCloser, int64, error) {
 	done := oneOffProgress(ld.pctx, fmt.Sprintf("pulling %s", ld.desc.Digest))
-	if err := contentutil.Copy(ctx, ld.w.ContentStore(), ld.provider, ld.desc); err != nil {
+
+	// TODO should this write output to progressOutput? Or use something similar to loggerFromContext()? see https://github.com/moby/buildkit/commit/aa29e7729464f3c2a773e27795e584023c751cb8
+	discardLogs := func(_ []byte) {}
+	if err := contentutil.Copy(ctx, ld.w.ContentStore(), ld.provider, ld.desc, discardLogs); err != nil {
 		return nil, 0, done(err)
 	}
 	_ = done(nil)

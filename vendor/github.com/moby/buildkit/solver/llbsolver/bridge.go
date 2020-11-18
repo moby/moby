@@ -11,7 +11,6 @@ import (
 	"github.com/mitchellh/hashstructure"
 	"github.com/moby/buildkit/cache/remotecache"
 	"github.com/moby/buildkit/client/llb"
-	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/frontend"
 	gw "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/session"
@@ -19,7 +18,6 @@ import (
 	"github.com/moby/buildkit/solver/errdefs"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/flightcontrol"
-	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -125,6 +123,10 @@ func (b *llbBridge) Solve(ctx context.Context, req frontend.SolveRequest, sid st
 
 	if req.Definition != nil && req.Definition.Def != nil {
 		res = &frontend.Result{Ref: newResultProxy(b, req)}
+		if req.Evaluate {
+			_, err := res.Ref.Result(ctx)
+			return res, err
+		}
 	} else if req.Frontend != "" {
 		f, ok := b.frontends[req.Frontend]
 		if !ok {
@@ -242,28 +244,6 @@ func (rp *resultProxy) Result(ctx context.Context) (res solver.CachedResult, err
 		return r.(solver.CachedResult), nil
 	}
 	return nil, err
-}
-
-func (b *llbBridge) Run(ctx context.Context, id string, root executor.Mount, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (err error) {
-	w, err := b.resolveWorker()
-	if err != nil {
-		return err
-	}
-	span, ctx := tracing.StartSpan(ctx, strings.Join(process.Meta.Args, " "))
-	err = w.Executor().Run(ctx, id, root, mounts, process, started)
-	tracing.FinishWithError(span, err)
-	return err
-}
-
-func (b *llbBridge) Exec(ctx context.Context, id string, process executor.ProcessInfo) (err error) {
-	w, err := b.resolveWorker()
-	if err != nil {
-		return err
-	}
-	span, ctx := tracing.StartSpan(ctx, strings.Join(process.Meta.Args, " "))
-	err = w.Executor().Exec(ctx, id, process)
-	tracing.FinishWithError(span, err)
-	return err
 }
 
 func (b *llbBridge) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt) (dgst digest.Digest, config []byte, err error) {

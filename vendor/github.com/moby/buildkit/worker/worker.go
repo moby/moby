@@ -39,6 +39,11 @@ type Worker interface {
 	MetadataStore() *metadata.Store
 }
 
+type Infos interface {
+	GetDefault() (Worker, error)
+	WorkerInfos() []client.WorkerInfo
+}
+
 // Pre-defined label keys
 const (
 	labelPrefix      = "org.mobyproject.buildkit.worker."

@@ -617,8 +617,12 @@ func (s *sharedOp) LoadCache(ctx context.Context, rec *CacheRecord) (Result, err
 	return res, err
 }
 
+// CalcSlowCache computes the digest of an input that is ready and has been
+// evaluated, hence "slow" cache.
 func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, p PreprocessFunc, f ResultBasedCacheFunc, res Result) (dgst digest.Digest, err error) {
 	defer func() {
+		err = WrapSlowCache(err, index, NewSharedResult(res).Clone())
+		err = errdefs.WithOp(err, s.st.vtx.Sys())
 		err = errdefs.WrapVertex(err, s.st.origDigest)
 	}()
 	key, err := s.g.Do(ctx, fmt.Sprintf("slow-compute-%d", index), func(ctx context.Context) (interface{}, error) {
@@ -681,6 +685,7 @@ func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, p PreprocessF
 
 func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp, err error) {
 	defer func() {
+		err = errdefs.WithOp(err, s.st.vtx.Sys())
 		err = errdefs.WrapVertex(err, s.st.origDigest)
 	}()
 	op, err := s.getOp()
@@ -739,6 +744,7 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp,
 
 func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result, exporters []ExportableCacheKey, err error) {
 	defer func() {
+		err = errdefs.WithOp(err, s.st.vtx.Sys())
 		err = errdefs.WrapVertex(err, s.st.origDigest)
 	}()
 	op, err := s.getOp()
@@ -879,4 +885,29 @@ func notifyCompleted(ctx context.Context, v *client.Vertex, err error, cached bo
 		v.Error = err.Error()
 	}
 	pw.Write(v.Digest.String(), *v)
+}
+
+type SlowCacheError struct {
+	error
+	Index  Index
+	Result Result
+}
+
+func (e *SlowCacheError) Unwrap() error {
+	return e.error
+}
+
+func (e *SlowCacheError) ToSubject() errdefs.IsSolve_Subject {
+	return &errdefs.Solve_Cache{
+		Cache: &errdefs.ContentCache{
+			Index: int64(e.Index),
+		},
+	}
+}
+
+func WrapSlowCache(err error, index Index, res Result) error {
+	if err == nil {
+		return nil
+	}
+	return &SlowCacheError{Index: index, Result: res, error: err}
 }

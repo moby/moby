@@ -107,6 +107,8 @@ message SolveRequest {
 
 	// apicaps:CapFrontendInputs
 	map<string, pb.Definition> FrontendInputs = 13;
+
+	bool Evaluate = 14;
 }
 
 // CacheOptionsEntry corresponds to the control.CacheOptionsEntry

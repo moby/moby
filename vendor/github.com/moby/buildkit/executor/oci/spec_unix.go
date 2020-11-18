@@ -3,9 +3,12 @@
 package oci
 
 import (
-	"github.com/containerd/containerd/contrib/seccomp"
+	"context"
+
+	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/oci"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/profiles/seccomp"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/entitlements/security"
 	"github.com/moby/buildkit/util/system"
@@ -31,7 +34,7 @@ func generateSecurityOpts(mode pb.SecurityMode) ([]oci.SpecOpts, error) {
 			oci.WithWriteableSysfs,
 		}, nil
 	} else if system.SeccompSupported() && mode == pb.SecurityMode_SANDBOX {
-		return []oci.SpecOpts{seccomp.WithDefaultProfile()}, nil
+		return []oci.SpecOpts{withDefaultProfile()}, nil
 	}
 	return nil, nil
 }
@@ -55,4 +58,14 @@ func generateIDmapOpts(idmap *idtools.IdentityMapping) ([]oci.SpecOpts, error) {
 	return []oci.SpecOpts{
 		oci.WithUserNamespace(specMapping(idmap.UIDs()), specMapping(idmap.GIDs())),
 	}, nil
+}
+
+// withDefaultProfile sets the default seccomp profile to the spec.
+// Note: must follow the setting of process capabilities
+func withDefaultProfile() oci.SpecOpts {
+	return func(_ context.Context, _ oci.Client, _ *containers.Container, s *specs.Spec) error {
+		var err error
+		s.Linux.Seccomp, err = seccomp.GetDefaultProfile(s)
+		return err
+	}
 }

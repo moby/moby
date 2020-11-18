@@ -15,10 +15,11 @@ import (
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/executor"
+	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/session"
-	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver"
+	"github.com/moby/buildkit/solver/llbsolver/errdefs"
 	"github.com/moby/buildkit/solver/llbsolver/mounts"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/progress/logs"
@@ -213,145 +214,58 @@ func addDefaultEnvvar(env []string, k, v string) []string {
 	return append(env, k+"="+v)
 }
 
-func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Result) ([]solver.Result, error) {
-	var mounts []executor.Mount
-	var root cache.Mountable
-	var readonlyRootFS bool
-
-	var outputs []cache.Ref
-
-	defer func() {
-		for _, o := range outputs {
-			if o != nil {
-				go o.Release(context.TODO())
-			}
-		}
-	}()
-
-	// loop over all mounts, fill in mounts, root and outputs
-	for _, m := range e.op.Mounts {
-		var mountable cache.Mountable
-		var ref cache.ImmutableRef
-
-		if m.Dest == pb.RootMount && m.MountType != pb.MountType_BIND {
-			return nil, errors.Errorf("invalid mount type %s for %s", m.MountType.String(), m.Dest)
-		}
-
-		// if mount is based on input validate and load it
-		if m.Input != pb.Empty {
-			if int(m.Input) > len(inputs) {
-				return nil, errors.Errorf("missing input %d", m.Input)
-			}
-			inp := inputs[int(m.Input)]
-			workerRef, ok := inp.Sys().(*worker.WorkerRef)
-			if !ok {
-				return nil, errors.Errorf("invalid reference for exec %T", inp.Sys())
-			}
-			ref = workerRef.ImmutableRef
-			mountable = ref
-		}
-
-		makeMutable := func(ref cache.ImmutableRef) (cache.MutableRef, error) {
-			desc := fmt.Sprintf("mount %s from exec %s", m.Dest, strings.Join(e.op.Meta.Args, " "))
-			return e.cm.New(ctx, ref, g, cache.WithDescription(desc))
-		}
-
-		switch m.MountType {
-		case pb.MountType_BIND:
-			// if mount creates an output
-			if m.Output != pb.SkipOutput {
-				// if it is readonly and not root then output is the input
-				if m.Readonly && ref != nil && m.Dest != pb.RootMount {
-					outputs = append(outputs, ref.Clone())
-				} else {
-					// otherwise output and mount is the mutable child
-					active, err := makeMutable(ref)
-					if err != nil {
-						return nil, err
-					}
-					outputs = append(outputs, active)
-					mountable = active
-				}
-			} else if (!m.Readonly || ref == nil) && m.Dest != pb.RootMount {
-				// this case is empty readonly scratch without output that is not really useful for anything but don't error
-				active, err := makeMutable(ref)
-				if err != nil {
-					return nil, err
-				}
-				defer active.Release(context.TODO())
-				mountable = active
-			}
-
-		case pb.MountType_CACHE:
-			mRef, err := e.mm.MountableCache(ctx, m, ref, g)
-			if err != nil {
-				return nil, err
-			}
-			mountable = mRef
-			defer func() {
-				go mRef.Release(context.TODO())
-			}()
-			if m.Output != pb.SkipOutput && ref != nil {
-				outputs = append(outputs, ref.Clone())
-			}
-
-		case pb.MountType_TMPFS:
-			mountable = e.mm.MountableTmpFS()
-		case pb.MountType_SECRET:
-			var err error
-			mountable, err = e.mm.MountableSecret(ctx, m, g)
-			if err != nil {
-				return nil, err
-			}
-			if mountable == nil {
-				continue
-			}
-		case pb.MountType_SSH:
-			var err error
-			mountable, err = e.mm.MountableSSH(ctx, m, g)
-			if err != nil {
-				return nil, err
-			}
-			if mountable == nil {
-				continue
-			}
-
-		default:
-			return nil, errors.Errorf("mount type %s not implemented", m.MountType)
-		}
-
-		// validate that there is a mount
-		if mountable == nil {
-			return nil, errors.Errorf("mount %s has no input", m.Dest)
-		}
-
-		// if dest is root we need mutable ref even if there is no output
-		if m.Dest == pb.RootMount {
-			root = mountable
-			readonlyRootFS = m.Readonly
-			if m.Output == pb.SkipOutput && readonlyRootFS {
-				active, err := makeMutable(ref)
-				if err != nil {
-					return nil, err
-				}
-				defer func() {
-					go active.Release(context.TODO())
-				}()
-				root = active
-			}
-		} else {
-			mws := mountWithSession(mountable, g)
-			mws.Dest = m.Dest
-			mws.Readonly = m.Readonly
-			mws.Selector = m.Selector
-			mounts = append(mounts, mws)
+func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Result) (results []solver.Result, err error) {
+	refs := make([]*worker.WorkerRef, len(inputs))
+	for i, inp := range inputs {
+		var ok bool
+		refs[i], ok = inp.Sys().(*worker.WorkerRef)
+		if !ok {
+			return nil, errors.Errorf("invalid reference for exec %T", inp.Sys())
 		}
 	}
 
-	// sort mounts so parents are mounted first
-	sort.Slice(mounts, func(i, j int) bool {
-		return mounts[i].Dest < mounts[j].Dest
+	p, err := gateway.PrepareMounts(ctx, e.mm, e.cm, g, e.op.Mounts, refs, func(m *pb.Mount, ref cache.ImmutableRef) (cache.MutableRef, error) {
+		desc := fmt.Sprintf("mount %s from exec %s", m.Dest, strings.Join(e.op.Meta.Args, " "))
+		return e.cm.New(ctx, ref, g, cache.WithDescription(desc))
 	})
+	defer func() {
+		if err != nil {
+			execInputs := make([]solver.Result, len(e.op.Mounts))
+			for i, m := range e.op.Mounts {
+				if m.Input == -1 {
+					continue
+				}
+				execInputs[i] = inputs[m.Input]
+			}
+			execMounts := make([]solver.Result, len(e.op.Mounts))
+			copy(execMounts, execInputs)
+			for i, res := range results {
+				execMounts[p.OutputRefs[i].MountIndex] = res
+			}
+			for _, active := range p.Actives {
+				ref, cerr := active.Ref.Commit(ctx)
+				if cerr != nil {
+					err = errors.Wrapf(err, "error committing %s: %s", active.Ref.ID(), cerr)
+					continue
+				}
+				execMounts[active.MountIndex] = worker.NewWorkerRefResult(ref, e.w)
+			}
+			err = errdefs.WithExecError(err, execInputs, execMounts)
+		} else {
+			// Only release actives if err is nil.
+			for i := len(p.Actives) - 1; i >= 0; i-- { // call in LIFO order
+				p.Actives[i].Ref.Release(context.TODO())
+			}
+		}
+		for _, o := range p.OutputRefs {
+			if o.Ref != nil {
+				o.Ref.Release(context.TODO())
+			}
+		}
+	}()
+	if err != nil {
+		return nil, err
+	}
 
 	extraHosts, err := parseExtraHosts(e.op.Meta.ExtraHosts)
 	if err != nil {
@@ -362,7 +276,7 @@ func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 	if err == nil && emu != nil {
 		e.op.Meta.Args = append([]string{qemuMountName}, e.op.Meta.Args...)
 
-		mounts = append(mounts, executor.Mount{
+		p.Mounts = append(p.Mounts, executor.Mount{
 			Readonly: true,
 			Src:      emu,
 			Dest:     qemuMountName,
@@ -378,7 +292,7 @@ func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 		Cwd:            e.op.Meta.Cwd,
 		User:           e.op.Meta.User,
 		Hostname:       e.op.Meta.Hostname,
-		ReadonlyRootFS: readonlyRootFS,
+		ReadonlyRootFS: p.ReadonlyRootFS,
 		ExtraHosts:     extraHosts,
 		NetMode:        e.op.Network,
 		SecurityMode:   e.op.Security,
@@ -397,24 +311,27 @@ func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 	defer stdout.Close()
 	defer stderr.Close()
 
-	if err := e.exec.Run(ctx, "", mountWithSession(root, g), mounts, executor.ProcessInfo{Meta: meta, Stdin: nil, Stdout: stdout, Stderr: stderr}, nil); err != nil {
-		return nil, errors.Wrapf(err, "executor failed running %v", meta.Args)
-	}
+	execErr := e.exec.Run(ctx, "", p.Root, p.Mounts, executor.ProcessInfo{
+		Meta:   meta,
+		Stdin:  nil,
+		Stdout: stdout,
+		Stderr: stderr,
+	}, nil)
 
-	refs := []solver.Result{}
-	for i, out := range outputs {
-		if mutable, ok := out.(cache.MutableRef); ok {
+	for i, out := range p.OutputRefs {
+		if mutable, ok := out.Ref.(cache.MutableRef); ok {
 			ref, err := mutable.Commit(ctx)
 			if err != nil {
 				return nil, errors.Wrapf(err, "error committing %s", mutable.ID())
 			}
-			refs = append(refs, worker.NewWorkerRefResult(ref, e.w))
+			results = append(results, worker.NewWorkerRefResult(ref, e.w))
 		} else {
-			refs = append(refs, worker.NewWorkerRefResult(out.(cache.ImmutableRef), e.w))
+			results = append(results, worker.NewWorkerRefResult(out.Ref.(cache.ImmutableRef), e.w))
 		}
-		outputs[i] = nil
+		// Prevent the result from being released.
+		p.OutputRefs[i].Ref = nil
 	}
-	return refs, nil
+	return results, errors.Wrapf(execErr, "executor failed running %v", e.op.Meta.Args)
 }
 
 func proxyEnvList(p *pb.ProxyEnv) []string {
@@ -447,21 +364,4 @@ func parseExtraHosts(ips []*pb.HostIP) ([]executor.HostIP, error) {
 		}
 	}
 	return out, nil
-}
-
-func mountWithSession(m cache.Mountable, g session.Group) executor.Mount {
-	_, readonly := m.(cache.ImmutableRef)
-	return executor.Mount{
-		Src:      &mountable{m: m, g: g},
-		Readonly: readonly,
-	}
-}
-
-type mountable struct {
-	m cache.Mountable
-	g session.Group
-}
-
-func (m *mountable) Mount(ctx context.Context, readonly bool) (snapshot.Mountable, error) {
-	return m.m.Mount(ctx, readonly, m.g)
 }
