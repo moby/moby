@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 
 	v1 "github.com/containerd/cgroups/stats/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -207,21 +206,6 @@ func (m *memoryController) Create(path string, resources *specs.LinuxResources) 
 	if resources.Memory == nil {
 		return nil
 	}
-	if resources.Memory.Kernel != nil {
-		// Check if kernel memory is enabled
-		// We have to limit the kernel memory here as it won't be accounted at all
-		// until a limit is set on the cgroup and limit cannot be set once the
-		// cgroup has children, or if there are already tasks in the cgroup.
-		for _, i := range []int64{1, -1} {
-			if err := retryingWriteFile(
-				filepath.Join(m.Path(path), "memory.kmem.limit_in_bytes"),
-				[]byte(strconv.FormatInt(i, 10)),
-				defaultFilePerm,
-			); err != nil {
-				return checkEBUSY(err)
-			}
-		}
-	}
 	return m.set(path, getMemorySettings(resources))
 }
 
@@ -248,18 +232,28 @@ func (m *memoryController) Update(path string, resources *specs.LinuxResources) 
 }
 
 func (m *memoryController) Stat(path string, stats *v1.Metrics) error {
-	f, err := os.Open(filepath.Join(m.Path(path), "memory.stat"))
+	fMemStat, err := os.Open(filepath.Join(m.Path(path), "memory.stat"))
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer fMemStat.Close()
 	stats.Memory = &v1.MemoryStat{
 		Usage:     &v1.MemoryEntry{},
 		Swap:      &v1.MemoryEntry{},
 		Kernel:    &v1.MemoryEntry{},
 		KernelTCP: &v1.MemoryEntry{},
 	}
-	if err := m.parseStats(f, stats.Memory); err != nil {
+	if err := m.parseStats(fMemStat, stats.Memory); err != nil {
+		return err
+	}
+
+	fMemOomControl, err := os.Open(filepath.Join(m.Path(path), "memory.oom_control"))
+	if err != nil {
+		return err
+	}
+	defer fMemOomControl.Close()
+	stats.MemoryOomControl = &v1.MemoryOomControl{}
+	if err := m.parseOomControlStats(fMemOomControl, stats.MemoryOomControl); err != nil {
 		return err
 	}
 	for _, t := range []struct {
@@ -374,6 +368,29 @@ func (m *memoryController) parseStats(r io.Reader, stat *v1.MemoryStat) error {
 	return nil
 }
 
+func (m *memoryController) parseOomControlStats(r io.Reader, stat *v1.MemoryOomControl) error {
+	var (
+		raw  = make(map[string]uint64)
+		sc   = bufio.NewScanner(r)
+		line int
+	)
+	for sc.Scan() {
+		key, v, err := parseKV(sc.Text())
+		if err != nil {
+			return fmt.Errorf("%d: %v", line, err)
+		}
+		raw[key] = v
+		line++
+	}
+	if err := sc.Err(); err != nil {
+		return err
+	}
+	stat.OomKillDisable = raw["oom_kill_disable"]
+	stat.UnderOom = raw["under_oom"]
+	stat.OomKill = raw["oom_kill"]
+	return nil
+}
+
 func (m *memoryController) set(path string, settings []memorySettings) error {
 	for _, t := range settings {
 		if t.value != nil {
@@ -431,18 +448,6 @@ func getMemorySettings(resources *specs.LinuxResources) []memorySettings {
 			value: swappiness,
 		},
 	}
-}
-
-func checkEBUSY(err error) error {
-	if pathErr, ok := err.(*os.PathError); ok {
-		if errNo, ok := pathErr.Err.(syscall.Errno); ok {
-			if errNo == unix.EBUSY {
-				return fmt.Errorf(
-					"failed to set memory.kmem.limit_in_bytes, because either tasks have already joined this cgroup or it has children")
-			}
-		}
-	}
-	return err
 }
 
 func getOomControlValue(mem *specs.LinuxMemory) *int64 {

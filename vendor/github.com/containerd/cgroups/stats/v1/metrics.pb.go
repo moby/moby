@@ -33,6 +33,7 @@ type Metrics struct {
 	Rdma                 *RdmaStat      `protobuf:"bytes,6,opt,name=rdma,proto3" json:"rdma,omitempty"`
 	Network              []*NetworkStat `protobuf:"bytes,7,rep,name=network,proto3" json:"network,omitempty"`
 	CgroupStats          *CgroupStats   `protobuf:"bytes,8,opt,name=cgroup_stats,json=cgroupStats,proto3" json:"cgroup_stats,omitempty"`
+	MemoryOomControl     *MemoryOomControl `protobuf:"bytes,9,opt,name=memory_oom_control,json=MemoryOomControl,proto3" json:"memory_oom_control,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -392,6 +393,47 @@ func (m *MemoryEntry) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MemoryEntry proto.InternalMessageInfo
 
+type MemoryOomControl struct {
+	OomKillDisable   uint64   `protobuf:"varint,1,opt,name=oom_kill_disable,proto3" json:oom_kill_disable",omitempty"`
+	UnderOom         uint64   `protobuf:"varint,2,opt,name=under_oom,proto3" json:"under_oom,omitempty"`
+	OomKill          uint64   `protobuf:"varint,3,opt,name=oom_kill,proto3" json:"oom_kill,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *MemoryOomControl) Reset()  { *m = MemoryOomControl{} }
+func (*MemoryOomControl) ProtoMessage() {}
+func (*MemoryOomControl) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a17b2d87c332bfaa, []int{8}
+}
+func (m *MemoryOomControl) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MemoryOomControl) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MemoryOomControl.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MemoryOomControl) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MemoryOomControl.Merge(m, src)
+}
+func (m *MemoryOomControl) XXX_Size() int {
+	return m.Size()
+}
+func (m *MemoryOomControl) XXX_DiscardUnknown() {
+	xxx_messageInfo_MemoryOomControl.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MemoryOomControl proto.InternalMessageInfo
+
 type BlkIOStat struct {
 	IoServiceBytesRecursive []*BlkIOEntry `protobuf:"bytes,1,rep,name=io_service_bytes_recursive,json=ioServiceBytesRecursive,proto3" json:"io_service_bytes_recursive,omitempty"`
 	IoServicedRecursive     []*BlkIOEntry `protobuf:"bytes,2,rep,name=io_serviced_recursive,json=ioServicedRecursive,proto3" json:"io_serviced_recursive,omitempty"`
@@ -409,7 +451,7 @@ type BlkIOStat struct {
 func (m *BlkIOStat) Reset()      { *m = BlkIOStat{} }
 func (*BlkIOStat) ProtoMessage() {}
 func (*BlkIOStat) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a17b2d87c332bfaa, []int{8}
+	return fileDescriptor_a17b2d87c332bfaa, []int{9}
 }
 func (m *BlkIOStat) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -452,7 +494,7 @@ type BlkIOEntry struct {
 func (m *BlkIOEntry) Reset()      { *m = BlkIOEntry{} }
 func (*BlkIOEntry) ProtoMessage() {}
 func (*BlkIOEntry) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a17b2d87c332bfaa, []int{9}
+	return fileDescriptor_a17b2d87c332bfaa, []int{10}
 }
 func (m *BlkIOEntry) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -492,7 +534,7 @@ type RdmaStat struct {
 func (m *RdmaStat) Reset()      { *m = RdmaStat{} }
 func (*RdmaStat) ProtoMessage() {}
 func (*RdmaStat) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a17b2d87c332bfaa, []int{10}
+	return fileDescriptor_a17b2d87c332bfaa, []int{11}
 }
 func (m *RdmaStat) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -533,7 +575,7 @@ type RdmaEntry struct {
 func (m *RdmaEntry) Reset()      { *m = RdmaEntry{} }
 func (*RdmaEntry) ProtoMessage() {}
 func (*RdmaEntry) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a17b2d87c332bfaa, []int{11}
+	return fileDescriptor_a17b2d87c332bfaa, []int{12}
 }
 func (m *RdmaEntry) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -580,7 +622,7 @@ type NetworkStat struct {
 func (m *NetworkStat) Reset()      { *m = NetworkStat{} }
 func (*NetworkStat) ProtoMessage() {}
 func (*NetworkStat) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a17b2d87c332bfaa, []int{12}
+	return fileDescriptor_a17b2d87c332bfaa, []int{13}
 }
 func (m *NetworkStat) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -629,7 +671,7 @@ type CgroupStats struct {
 func (m *CgroupStats) Reset()      { *m = CgroupStats{} }
 func (*CgroupStats) ProtoMessage() {}
 func (*CgroupStats) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a17b2d87c332bfaa, []int{13}
+	return fileDescriptor_a17b2d87c332bfaa, []int{14}
 }
 func (m *CgroupStats) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -667,6 +709,7 @@ func init() {
 	proto.RegisterType((*Throttle)(nil), "io.containerd.cgroups.v1.Throttle")
 	proto.RegisterType((*MemoryStat)(nil), "io.containerd.cgroups.v1.MemoryStat")
 	proto.RegisterType((*MemoryEntry)(nil), "io.containerd.cgroups.v1.MemoryEntry")
+	proto.RegisterType((*MemoryOomControl)(nil), "io.containerd.cgroups.v1.MemoryOomControl")
 	proto.RegisterType((*BlkIOStat)(nil), "io.containerd.cgroups.v1.BlkIOStat")
 	proto.RegisterType((*BlkIOEntry)(nil), "io.containerd.cgroups.v1.BlkIOEntry")
 	proto.RegisterType((*RdmaStat)(nil), "io.containerd.cgroups.v1.RdmaStat")
@@ -886,6 +929,16 @@ func (m *Metrics) MarshalTo(dAtA []byte) (int, error) {
 			return 0, err
 		}
 		i += n6
+	}
+	if m.MemoryOomControl != nil {
+		dAtA[i] = 0x4a
+		i++
+		i = encodeVarintMetrics(dAtA, i, uint64(m.MemoryOomControl.Size()))
+		n7, err := m.MemoryOomControl.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n7
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(dAtA[i:], m.XXX_unrecognized)
@@ -1400,6 +1453,39 @@ func (m *MemoryEntry) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
+func (m *MemoryOomControl) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MemoryOomControl) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.OomKillDisable != 0 {
+		dAtA[i] = 0x8
+		i++
+		i = encodeVarintMetrics(dAtA, i, uint64(m.OomKillDisable))
+	}
+	if m.UnderOom != 0 {
+		dAtA[i] = 0x10
+		i++
+		i = encodeVarintMetrics(dAtA, i, uint64(m.UnderOom))
+	}
+	if m.OomKill != 0 {
+		dAtA[i] = 0x18
+		i++
+		i = encodeVarintMetrics(dAtA, i, uint64(m.OomKill))
+	}
+	return i, nil
+}
+
 func (m *BlkIOStat) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -1811,6 +1897,10 @@ func (m *Metrics) Size() (n int) {
 		l = m.CgroupStats.Size()
 		n += 1 + l + sovMetrics(uint64(l))
 	}
+	if m.MemoryOomControl != nil {
+		l = m.MemoryOomControl.Size()
+		n += 1 + l + sovMetrics(uint64(l))
+	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -2077,6 +2167,27 @@ func (m *MemoryEntry) Size() (n int) {
 	return n
 }
 
+func (m *MemoryOomControl) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.OomKillDisable != 0 {
+		n += 1 + sovMetrics(uint64(m.OomKillDisable))
+	}
+	if m.UnderOom != 0 {
+		n += 1 + sovMetrics(uint64(m.UnderOom))
+	}
+	if m.OomKill != 0 {
+		n += 1 + sovMetrics(uint64(m.OomKill))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
 func (m *BlkIOStat) Size() (n int) {
 	if m == nil {
 		return 0
@@ -2301,6 +2412,7 @@ func (this *Metrics) String() string {
 		`Pids:` + strings.Replace(fmt.Sprintf("%v", this.Pids), "PidsStat", "PidsStat", 1) + `,`,
 		`CPU:` + strings.Replace(fmt.Sprintf("%v", this.CPU), "CPUStat", "CPUStat", 1) + `,`,
 		`Memory:` + strings.Replace(fmt.Sprintf("%v", this.Memory), "MemoryStat", "MemoryStat", 1) + `,`,
+		`MemoryOomControl:` + strings.Replace(fmt.Sprintf("%v", this.MemoryOomControl), "MemoryOomControl", "MemoryOomControl", 1) + `,`,
 		`Blkio:` + strings.Replace(fmt.Sprintf("%v", this.Blkio), "BlkIOStat", "BlkIOStat", 1) + `,`,
 		`Rdma:` + strings.Replace(fmt.Sprintf("%v", this.Rdma), "RdmaStat", "RdmaStat", 1) + `,`,
 		`Network:` + strings.Replace(fmt.Sprintf("%v", this.Network), "NetworkStat", "NetworkStat", 1) + `,`,
@@ -2430,6 +2542,19 @@ func (this *MemoryEntry) String() string {
 		`Usage:` + fmt.Sprintf("%v", this.Usage) + `,`,
 		`Max:` + fmt.Sprintf("%v", this.Max) + `,`,
 		`Failcnt:` + fmt.Sprintf("%v", this.Failcnt) + `,`,
+		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *MemoryOomControl) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&MemoryOomControl{`,
+		`OomKillDisable:` + fmt.Sprintf("%v", this.OomKillDisable) + `,`,
+		`UnderOom:` + fmt.Sprintf("%v", this.UnderOom) + `,`,
+		`OomKill:` + fmt.Sprintf("%v", this.OomKill) + `,`,
 		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
 		`}`,
 	}, "")
@@ -2848,6 +2973,41 @@ func (m *Metrics) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MemoryOomControl", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMetrics
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthMetrics
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthMetrics
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.MemoryOomControl == nil {
+				m.MemoryOomControl = &MemoryOomControl{}
+			}
+			if err := m.MemoryOomControl.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipMetrics(dAtA[iNdEx:])
@@ -4439,6 +4599,117 @@ func (m *MemoryEntry) Unmarshal(dAtA []byte) error {
 				b := dAtA[iNdEx]
 				iNdEx++
 				m.Failcnt |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipMetrics(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthMetrics
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthMetrics
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MemoryOomControl) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowMetrics
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MemoryOomControl: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MemoryOomControl: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OomKillDisable", wireType)
+			}
+			m.OomKillDisable = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMetrics
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.OomKillDisable |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field UnderOom", wireType)
+			}
+			m.UnderOom = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMetrics
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.UnderOom |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OomKill", wireType)
+			}
+			m.OomKill = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMetrics
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.OomKill |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
