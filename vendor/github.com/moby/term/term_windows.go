@@ -71,19 +71,22 @@ func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 	// go-ansiterm hasn't switch to x/sys/windows.
 	// TODO: switch back to x/sys/windows once go-ansiterm has switched
 	if emulateStdin {
-		stdIn = windowsconsole.NewAnsiReader(windows.STD_INPUT_HANDLE)
+		h := uint32(windows.STD_INPUT_HANDLE)
+		stdIn = windowsconsole.NewAnsiReader(int(h))
 	} else {
 		stdIn = os.Stdin
 	}
 
 	if emulateStdout {
-		stdOut = windowsconsole.NewAnsiWriter(windows.STD_OUTPUT_HANDLE)
+		h := uint32(windows.STD_OUTPUT_HANDLE)
+		stdOut = windowsconsole.NewAnsiWriter(int(h))
 	} else {
 		stdOut = os.Stdout
 	}
 
 	if emulateStderr {
-		stdErr = windowsconsole.NewAnsiWriter(windows.STD_ERROR_HANDLE)
+		h := uint32(windows.STD_ERROR_HANDLE)
+		stdErr = windowsconsole.NewAnsiWriter(int(h))
 	} else {
 		stdErr = os.Stderr
 	}
