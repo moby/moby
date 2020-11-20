@@ -376,7 +376,7 @@ func (daemon *Daemon) restore() error {
 						default:
 							// running
 							c.Lock()
-							c.Paused = false
+							c.SetPaused(false)
 							daemon.setStateCounter(c)
 							if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 								logrus.WithError(err).WithField("container", c.ID).
@@ -443,7 +443,7 @@ func (daemon *Daemon) restore() error {
 			}
 
 			c.Lock()
-			if c.RemovalInProgress {
+			if c.IsRemovalInProgress() {
 				// We probably crashed in the middle of a removal, reset
 				// the flag.
 				//
@@ -453,8 +453,8 @@ func (daemon *Daemon) restore() error {
 				// be removed. So we put the container in the "dead"
 				// state and leave further processing up to them.
 				logrus.Debugf("Resetting RemovalInProgress flag from %v", c.ID)
-				c.RemovalInProgress = false
-				c.Dead = true
+				c.SetRemovalInProgress(false)
+				c.SetDead()
 				if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 					logrus.Errorf("Failed to update RemovalInProgress container %s state: %v", c.ID, err)
 				}

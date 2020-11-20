@@ -91,7 +91,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		"oldName": oldName,
 	}
 
-	if !container.Running {
+	if !container.IsRunning() {
 		daemon.LogContainerEventWithAttributes(container, "rename", attributes)
 		return nil
 	}

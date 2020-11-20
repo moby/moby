@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -15,26 +16,27 @@ import (
 // set the state. Container has an embed, which allows all of the
 // functions defined against State to run against Container.
 type State struct {
-	sync.Mutex
 	// Note that `Running` and `Paused` are not mutually exclusive:
 	// When pausing a container (on Linux), the freezer cgroup is used to suspend
 	// all processes in the container. Freezing the process requires the process to
 	// be running. As a result, paused containers are both `Running` _and_ `Paused`.
-	Running           bool
-	Paused            bool
-	Restarting        bool
-	OOMKilled         bool
-	RemovalInProgress bool // Not need for this to be persistent on disk.
-	Dead              bool
-	Pid               int
-	ExitCodeValue     int    `json:"ExitCode"`
-	ErrorMsg          string `json:"Error"` // contains last known error during container start, stop, or remove
-	StartedAt         time.Time
-	FinishedAt        time.Time
+	Running           sbool
+	Paused            sbool
+	Restarting        sbool
+	OOMKilled         sbool
+	RemovalInProgress sbool
+	Dead              sbool
+	Pid               int64
+	ExitCodeValue     int64   `json:"ExitCode"`
+	ErrorMsg          sstring `json:"Error"`
+	StartedAt         stime
+	FinishedAt        stime
 	Health            *Health
 
 	waitStop   chan struct{}
 	waitRemove chan struct{}
+
+	mu sync.Mutex
 }
 
 // StateStatus is used to return container wait results.
@@ -67,38 +69,38 @@ func NewState() *State {
 
 // String returns a human-readable description of the state
 func (s *State) String() string {
-	if s.Running {
-		if s.Paused {
-			return fmt.Sprintf("Up %s (Paused)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
+	if s.IsRunning() {
+		if s.IsPaused() {
+			return fmt.Sprintf("Up %s (Paused)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt.Get())))
 		}
-		if s.Restarting {
-			return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCodeValue, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+		if s.IsRestarting() {
+			return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCode(), units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt.Get())))
 		}
 
 		if h := s.Health; h != nil {
-			return fmt.Sprintf("Up %s (%s)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)), h.String())
+			return fmt.Sprintf("Up %s (%s)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt.Get())), h.String())
 		}
 
-		return fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
+		return fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt.Get())))
 	}
 
-	if s.RemovalInProgress {
+	if s.IsRemovalInProgress() {
 		return "Removal In Progress"
 	}
 
-	if s.Dead {
+	if s.IsDead() {
 		return "Dead"
 	}
 
-	if s.StartedAt.IsZero() {
+	if s.StartedAt.Get().IsZero() {
 		return "Created"
 	}
 
-	if s.FinishedAt.IsZero() {
+	if s.FinishedAt.Get().IsZero() {
 		return ""
 	}
 
-	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCodeValue, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCode(), units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt.Get())))
 }
 
 // IsValidHealthString checks if the provided string is a valid container health status or not.
@@ -111,25 +113,25 @@ func IsValidHealthString(s string) bool {
 
 // StateString returns a single string to describe state
 func (s *State) StateString() string {
-	if s.Running {
-		if s.Paused {
+	if s.IsRunning() {
+		if s.IsPaused() {
 			return "paused"
 		}
-		if s.Restarting {
+		if s.IsRestarting() {
 			return "restarting"
 		}
 		return "running"
 	}
 
-	if s.RemovalInProgress {
+	if s.IsRemovalInProgress() {
 		return "removing"
 	}
 
-	if s.Dead {
+	if s.IsDead() {
 		return "dead"
 	}
 
-	if s.StartedAt.IsZero() {
+	if s.StartedAt.Get().IsZero() {
 		return "created"
 	}
 
@@ -179,10 +181,7 @@ const (
 // otherwise, the results Err() method will return an error indicating why the
 // wait operation failed.
 func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateStatus {
-	s.Lock()
-	defer s.Unlock()
-
-	if condition == WaitConditionNotRunning && !s.Running {
+	if condition == WaitConditionNotRunning && !s.IsRunning() {
 		// Buffer so we can put it in the channel now.
 		resultC := make(chan StateStatus, 1)
 
@@ -197,6 +196,7 @@ func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateS
 
 	// If we are waiting only for removal, the waitStop channel should
 	// remain nil and block forever.
+	s.mu.Lock()
 	var waitStop chan struct{}
 	if condition < WaitConditionRemoved {
 		waitStop = s.waitStop
@@ -206,6 +206,7 @@ func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateS
 	// while it is still in a "created" state, in which case it is never
 	// actually stopped.
 	waitRemove := s.waitRemove
+	s.mu.Unlock()
 
 	resultC := make(chan StateStatus)
 
@@ -222,12 +223,10 @@ func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateS
 		case <-waitRemove:
 		}
 
-		s.Lock()
 		result := StateStatus{
 			exitCode: s.ExitCode(),
 			err:      s.Err(),
 		}
-		s.Unlock()
 
 		resultC <- result
 	}()
@@ -237,63 +236,59 @@ func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateS
 
 // IsRunning returns whether the running flag is set. Used by Container to check whether a container is running.
 func (s *State) IsRunning() bool {
-	s.Lock()
-	res := s.Running
-	s.Unlock()
-	return res
+	return atomic.LoadInt64(&s.Running.v) == 1
 }
 
 // GetPID holds the process id of a container.
 func (s *State) GetPID() int {
-	s.Lock()
-	res := s.Pid
-	s.Unlock()
-	return res
+	return int(atomic.LoadInt64(&s.Pid))
 }
 
-// ExitCode returns current exitcode for the state. Take lock before if state
-// may be shared.
+// GetPID holds the process id of a container.
+func (s *State) SetPID(pid int) {
+	atomic.StoreInt64(&s.Pid, int64(pid))
+}
+
+// ExitCode returns current exitcode for the state.
 func (s *State) ExitCode() int {
-	return s.ExitCodeValue
+	return int(atomic.LoadInt64(&s.ExitCodeValue))
 }
 
-// SetExitCode sets current exitcode for the state. Take lock before if state
-// may be shared.
+// SetExitCode sets current exitcode for the state.
 func (s *State) SetExitCode(ec int) {
-	s.ExitCodeValue = ec
+	atomic.StoreInt64(&s.ExitCodeValue, int64(ec))
 }
 
 // SetRunning sets the state of the container to "running".
 func (s *State) SetRunning(pid int, initial bool) {
-	s.ErrorMsg = ""
-	s.Paused = false
-	s.Running = true
-	s.Restarting = false
+	s.SetError(nil)
+	s.Running.Set(true)
+	s.SetPaused(false)
+	s.Restarting.Set(false)
+	s.SetExitCode(0)
+	s.SetPID(pid)
 	if initial {
-		s.Paused = false
-	}
-	s.ExitCodeValue = 0
-	s.Pid = pid
-	if initial {
-		s.StartedAt = time.Now().UTC()
+		s.StartedAt.Set(time.Now().UTC())
 	}
 }
 
 // SetStopped sets the container state to "stopped" without locking.
 func (s *State) SetStopped(exitStatus *ExitStatus) {
-	s.Running = false
-	s.Paused = false
-	s.Restarting = false
-	s.Pid = 0
+	s.Running.Set(false)
+	s.SetPaused(false)
+	s.Restarting.Set(false)
+	s.SetPID(0)
 	if exitStatus.ExitedAt.IsZero() {
-		s.FinishedAt = time.Now().UTC()
+		s.FinishedAt.Set(time.Now().UTC())
 	} else {
-		s.FinishedAt = exitStatus.ExitedAt
+		s.FinishedAt.Set(exitStatus.ExitedAt)
 	}
-	s.ExitCodeValue = exitStatus.ExitCode
-	s.OOMKilled = exitStatus.OOMKilled
+	s.SetExitCode(exitStatus.ExitCode)
+	s.SetOOMKilled(exitStatus.OOMKilled)
 	close(s.waitStop) // fire waiters for stop
+	s.mu.Lock()
 	s.waitStop = make(chan struct{})
+	s.mu.Unlock()
 }
 
 // SetRestarting sets the container state to "restarting" without locking.
@@ -301,77 +296,75 @@ func (s *State) SetStopped(exitStatus *ExitStatus) {
 func (s *State) SetRestarting(exitStatus *ExitStatus) {
 	// we should consider the container running when it is restarting because of
 	// all the checks in docker around rm/stop/etc
-	s.Running = true
-	s.Restarting = true
-	s.Paused = false
-	s.Pid = 0
-	s.FinishedAt = time.Now().UTC()
-	s.ExitCodeValue = exitStatus.ExitCode
-	s.OOMKilled = exitStatus.OOMKilled
+	s.Running.Set(true)
+	s.SetPaused(false)
+	s.Restarting.Set(true)
+	s.SetPID(0)
+	s.FinishedAt.Set(time.Now().UTC())
+	s.SetExitCode(exitStatus.ExitCode)
+	s.SetOOMKilled(exitStatus.OOMKilled)
 	close(s.waitStop) // fire waiters for stop
+	s.mu.Lock()
 	s.waitStop = make(chan struct{})
+	s.mu.Unlock()
 }
 
 // SetError sets the container's error state. This is useful when we want to
 // know the error that occurred when container transits to another state
 // when inspecting it
 func (s *State) SetError(err error) {
-	s.ErrorMsg = ""
 	if err != nil {
-		s.ErrorMsg = err.Error()
+		s.ErrorMsg.Set(err.Error())
+	} else {
+		s.ErrorMsg.Set("")
 	}
 }
 
 // IsPaused returns whether the container is paused or not.
 func (s *State) IsPaused() bool {
-	s.Lock()
-	res := s.Paused
-	s.Unlock()
-	return res
+	return s.Paused.Get()
+}
+
+// SetPaused sets the paused value
+func (s *State) SetPaused(b bool) {
+	s.Paused.Set(b)
+}
+
+// IsOOMKilled returns whether the container is oom killed or not.
+func (s *State) IsOOMKilled() bool {
+	return s.OOMKilled.Get()
+}
+
+// SetOOMKilled sets the paused value
+func (s *State) SetOOMKilled(b bool) {
+	s.OOMKilled.Set(b)
 }
 
 // IsRestarting returns whether the container is restarting or not.
 func (s *State) IsRestarting() bool {
-	s.Lock()
-	res := s.Restarting
-	s.Unlock()
-	return res
+	return s.Restarting.Get()
 }
 
 // SetRemovalInProgress sets the container state as being removed.
 // It returns true if the container was already in that state.
-func (s *State) SetRemovalInProgress() bool {
-	s.Lock()
-	defer s.Unlock()
-	if s.RemovalInProgress {
-		return true
-	}
-	s.RemovalInProgress = true
-	return false
-}
-
-// ResetRemovalInProgress makes the RemovalInProgress state to false.
-func (s *State) ResetRemovalInProgress() {
-	s.Lock()
-	s.RemovalInProgress = false
-	s.Unlock()
+func (s *State) SetRemovalInProgress(b bool) {
+	s.RemovalInProgress.Set(b)
 }
 
 // IsRemovalInProgress returns whether the RemovalInProgress flag is set.
 // Used by Container to check whether a container is being removed.
 func (s *State) IsRemovalInProgress() bool {
-	s.Lock()
-	res := s.RemovalInProgress
-	s.Unlock()
-	return res
+	return s.RemovalInProgress.Get()
+}
+
+// SetDead sets the container state to "dead"
+func (s *State) SetDead() {
+	s.Dead.Set(true)
 }
 
 // IsDead returns whether the Dead flag is set. Used by Container to check whether a container is dead.
 func (s *State) IsDead() bool {
-	s.Lock()
-	res := s.Dead
-	s.Unlock()
-	return res
+	return s.Dead.Get()
 }
 
 // SetRemoved assumes this container is already in the "dead" state and
@@ -386,17 +379,18 @@ func (s *State) SetRemoved() {
 // callers waiting for the container to be removed.
 func (s *State) SetRemovalError(err error) {
 	s.SetError(err)
-	s.Lock()
 	close(s.waitRemove) // Unblock those waiting on remove.
+	s.mu.Lock()
 	// Recreate the channel so next ContainerWait will work
 	s.waitRemove = make(chan struct{})
-	s.Unlock()
+	s.mu.Unlock()
 }
 
 // Err returns an error if there is one.
 func (s *State) Err() error {
-	if s.ErrorMsg != "" {
-		return errors.New(s.ErrorMsg)
+	msg := s.ErrorMsg.Get()
+	if msg != "" {
+		return errors.New(msg)
 	}
 	return nil
 }

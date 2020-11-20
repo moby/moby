@@ -1067,8 +1067,8 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 	container.Lock()
 	defer container.Unlock()
 
-	if !container.Running {
-		if container.RemovalInProgress || container.Dead {
+	if !container.IsRunning() {
+		if container.IsRemovalInProgress() || container.IsDead() {
 			return errRemovalContainer(container.ID)
 		}
 
@@ -1097,8 +1097,8 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, netw
 	container.Lock()
 	defer container.Unlock()
 
-	if !container.Running || (err != nil && force) {
-		if container.RemovalInProgress || container.Dead {
+	if !container.IsRunning() || (err != nil && force) {
+		if container.IsRemovalInProgress() || container.IsDead() {
 			return errRemovalContainer(container.ID)
 		}
 		// In case networkName is resolved we will use n.Name()

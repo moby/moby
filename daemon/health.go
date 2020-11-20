@@ -150,7 +150,7 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 		// case we do not increment the failure streak.
 		if h.Status() == types.Starting {
 			startPeriod := timeoutWithDefault(c.Config.Healthcheck.StartPeriod, defaultStartPeriod)
-			timeSinceStart := result.Start.Sub(c.State.StartedAt)
+			timeSinceStart := result.Start.Sub(c.State.StartedAt.Get())
 
 			// If still within the start period, then don't increment failing streak.
 			if timeSinceStart < startPeriod {
@@ -280,7 +280,7 @@ func (daemon *Daemon) updateHealthMonitor(c *container.Container) {
 	}
 
 	probe := getProbe(c)
-	wantRunning := c.Running && !c.Paused && probe != nil
+	wantRunning := c.IsRunning() && !c.IsPaused() && probe != nil
 	if wantRunning {
 		if stop := h.OpenMonitorChannel(); stop != nil {
 			go monitor(daemon, c, stop, probe)

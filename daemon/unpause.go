@@ -19,11 +19,12 @@ func (daemon *Daemon) ContainerUnpause(name string) error {
 
 // containerUnpause resumes the container execution after the container is paused.
 func (daemon *Daemon) containerUnpause(ctr *container.Container) error {
+	// TODO this lock might only be necessary for CheckpointTo function?
 	ctr.Lock()
 	defer ctr.Unlock()
 
 	// We cannot unpause the container which is not paused
-	if !ctr.Paused {
+	if !ctr.IsPaused() {
 		return fmt.Errorf("Container %s is not paused", ctr.ID)
 	}
 
@@ -31,7 +32,7 @@ func (daemon *Daemon) containerUnpause(ctr *container.Container) error {
 		return fmt.Errorf("Cannot unpause container %s: %s", ctr.ID, err)
 	}
 
-	ctr.Paused = false
+	ctr.SetPaused(false)
 	daemon.setStateCounter(ctr)
 	daemon.updateHealthMonitor(ctr)
 	daemon.LogContainerEvent(ctr, "unpause")
