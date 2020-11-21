@@ -124,6 +124,10 @@ func (is *store) Create(config []byte) (ID, error) {
 		return "", err
 	}
 
+	if img.RootFS == nil {
+		return "", errors.New("rootfs should be present in config")
+	}
+
 	// Must reject any config that references diffIDs from the history
 	// which aren't among the rootfs layers.
 	rootFSLayers := make(map[layer.DiffID]struct{})
