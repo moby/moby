@@ -6,12 +6,15 @@ package cleanup
 import (
 	"os"
 	"strings"
-
-	"gotest.tools/v3/x/subtest"
 )
 
 type cleanupT interface {
 	Cleanup(f func())
+}
+
+// implemented by gotest.tools/x/subtest.TestContext
+type addCleanupT interface {
+	AddCleanup(f func())
 }
 
 type logT interface {
@@ -39,7 +42,7 @@ func Cleanup(t logT, f func()) {
 		ct.Cleanup(f)
 		return
 	}
-	if tc, ok := t.(subtest.TestContext); ok {
+	if tc, ok := t.(addCleanupT); ok {
 		tc.AddCleanup(f)
 	}
 }

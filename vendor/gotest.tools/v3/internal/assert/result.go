@@ -9,8 +9,10 @@ import (
 	"gotest.tools/v3/internal/source"
 )
 
-func runComparison(
-	t TestingT,
+// RunComparison and return Comparison.Success. If the comparison fails a messages
+// will be printed using t.Log.
+func RunComparison(
+	t LogT,
 	argSelector argSelector,
 	f cmp.Comparison,
 	msgAndArgs ...interface{},
@@ -26,7 +28,7 @@ func runComparison(
 	var message string
 	switch typed := result.(type) {
 	case resultWithComparisonArgs:
-		const stackIndex = 3 // Assert/Check, assert, runComparison
+		const stackIndex = 3 // Assert/Check, assert, RunComparison
 		args, err := source.CallExprArgs(stackIndex)
 		if err != nil {
 			t.Log(err.Error())
@@ -88,18 +90,35 @@ func isShortPrintableExpr(expr ast.Expr) bool {
 
 type argSelector func([]ast.Expr) []ast.Expr
 
-func argsAfterT(args []ast.Expr) []ast.Expr {
+// ArgsAfterT selects args starting at position 1. Used when the caller has a
+// testing.T as the first argument, and the args to select should follow it.
+func ArgsAfterT(args []ast.Expr) []ast.Expr {
 	if len(args) < 1 {
 		return nil
 	}
 	return args[1:]
 }
 
-func argsFromComparisonCall(args []ast.Expr) []ast.Expr {
-	if len(args) < 1 {
+// ArgsFromComparisonCall selects args from the CallExpression at position 1.
+// Used when the caller has a testing.T as the first argument, and the args to
+// select are passed to the cmp.Comparison at position 1.
+func ArgsFromComparisonCall(args []ast.Expr) []ast.Expr {
+	if len(args) <= 1 {
 		return nil
 	}
 	if callExpr, ok := args[1].(*ast.CallExpr); ok {
+		return callExpr.Args
+	}
+	return nil
+}
+
+// ArgsAtZeroIndex selects args from the CallExpression at position 1.
+// Used when the caller accepts a single cmp.Comparison argument.
+func ArgsAtZeroIndex(args []ast.Expr) []ast.Expr {
+	if len(args) == 0 {
+		return nil
+	}
+	if callExpr, ok := args[0].(*ast.CallExpr); ok {
 		return callExpr.Args
 	}
 	return nil

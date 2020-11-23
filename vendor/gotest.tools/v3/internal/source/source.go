@@ -93,8 +93,9 @@ func nodePosition(fileset *token.FileSet, node ast.Node) token.Position {
 }
 
 // GoVersionLessThan returns true if runtime.Version() is semantically less than
-// version 1.minor.
-func GoVersionLessThan(minor int64) bool {
+// version major.minor. Returns false if a release version can not be parsed from
+// runtime.Version().
+func GoVersionLessThan(major, minor int64) bool {
 	version := runtime.Version()
 	// not a release version
 	if !strings.HasPrefix(version, "go") {
@@ -105,11 +106,21 @@ func GoVersionLessThan(minor int64) bool {
 	if len(parts) < 2 {
 		return false
 	}
-	actual, err := strconv.ParseInt(parts[1], 10, 32)
-	return err == nil && parts[0] == "1" && actual < minor
+	rMajor, err := strconv.ParseInt(parts[0], 10, 32)
+	if err != nil {
+		return false
+	}
+	if rMajor != major {
+		return rMajor < major
+	}
+	rMinor, err := strconv.ParseInt(parts[1], 10, 32)
+	if err != nil {
+		return false
+	}
+	return rMinor < minor
 }
 
-var goVersionBefore19 = GoVersionLessThan(9)
+var goVersionBefore19 = GoVersionLessThan(1, 9)
 
 func getCallExprArgs(node ast.Node) ([]ast.Expr, error) {
 	visitor := &callExprVisitor{}
