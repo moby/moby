@@ -26,15 +26,17 @@ func (daemon *Daemon) setStateCounter(c *container.Container) {
 
 func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontainerdtypes.EventInfo) error {
 	c.Lock()
-
-	ec, et, err := daemon.containerd.DeleteTask(context.Background(), c.ID)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ec, et, err := daemon.containerd.DeleteTask(ctx, c.ID)
+	cancel()
 	if err != nil {
-		logrus.WithError(err).Warnf("failed to delete container %s from containerd", c.ID)
+		logrus.WithError(err).WithField("container", c.ID).Warnf("failed to delete container from containerd")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Second)
 	c.StreamConfig.Wait(ctx)
 	cancel()
+
 	c.Reset(false)
 
 	exitStatus := container.ExitStatus{
