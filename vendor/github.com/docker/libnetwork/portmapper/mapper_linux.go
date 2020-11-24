@@ -44,3 +44,11 @@ func (pm *PortMapper) forward(action iptables.Action, proto string, sourceIP net
 	}
 	return pm.chain.Forward(action, sourceIP, sourcePort, proto, containerIP, containerPort, pm.bridgeName)
 }
+
+// checkIP checks if IP is valid and matching to chain version
+func (pm *PortMapper) checkIP(ip net.IP) bool {
+	if pm.chain == nil || pm.chain.IPTable.Version == iptables.IPv4 {
+		return ip.To4() != nil
+	}
+	return ip.To16() != nil
+}
