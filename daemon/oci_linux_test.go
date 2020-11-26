@@ -15,6 +15,7 @@ import (
 	"github.com/docker/libnetwork"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
@@ -62,6 +63,7 @@ func cleanupFakeContainer(c *container.Container) {
 // in "Duplicate mount point" error from the engine.
 // https://github.com/moby/moby/issues/35455
 func TestTmpfsDevShmNoDupMount(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	c := &container.Container{
 		ShmPath: "foobar", // non-empty, for c.IpcMounts() to work
 		HostConfig: &containertypes.HostConfig{
@@ -84,6 +86,7 @@ func TestTmpfsDevShmNoDupMount(t *testing.T) {
 // the resulting /dev/shm mount is NOT made read-only.
 // https://github.com/moby/moby/issues/36503
 func TestIpcPrivateVsReadonly(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	c := &container.Container{
 		HostConfig: &containertypes.HostConfig{
 			IpcMode:        containertypes.IpcMode("private"),
@@ -108,6 +111,7 @@ func TestIpcPrivateVsReadonly(t *testing.T) {
 // TestSysctlOverride ensures that any implicit sysctls (such as
 // Config.Domainname) are overridden by an explicit sysctl in the HostConfig.
 func TestSysctlOverride(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	c := &container.Container{
 		Config: &containertypes.Config{
 			Hostname:   "foobar",
@@ -149,6 +153,7 @@ func TestSysctlOverride(t *testing.T) {
 // TestSysctlOverrideHost ensures that any implicit network sysctls are not set
 // with host networking
 func TestSysctlOverrideHost(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	c := &container.Container{
 		Config: &containertypes.Config{},
 		HostConfig: &containertypes.HostConfig{
