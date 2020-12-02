@@ -1,3 +1,5 @@
+.POSIX:
+
 .PHONY: all binary dynbinary build cross help install manpages run shell test test-docker-py test-integration test-unit validate win
 
 ifdef USE_BUILDX
