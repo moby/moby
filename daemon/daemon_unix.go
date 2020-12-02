@@ -746,6 +746,9 @@ func verifyDaemonSettings(conf *config.Config) error {
 	if !conf.BridgeConfig.EnableIPTables && !conf.BridgeConfig.InterContainerCommunication {
 		return fmt.Errorf("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true")
 	}
+	if conf.BridgeConfig.EnableIP6Tables && !conf.Experimental {
+		return fmt.Errorf("ip6tables rules are only available if experimental features are enabled")
+	}
 	if !conf.BridgeConfig.EnableIPTables && conf.BridgeConfig.EnableIPMasq {
 		conf.BridgeConfig.EnableIPMasq = false
 	}
