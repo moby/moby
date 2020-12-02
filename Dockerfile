@@ -23,23 +23,10 @@ ARG DEBIAN_FRONTEND
 # Install dependency packages specific to criu
 RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-criu-aptcache,target=/var/cache/apt \
-        apt-get update && apt-get install -y --no-install-recommends \
-            libcap-dev \
-            libnet-dev \
-            libnl-3-dev \
-            libprotobuf-c-dev \
-            libprotobuf-dev \
-            protobuf-c-compiler \
-            protobuf-compiler \
-            python-protobuf
-
-# Install CRIU for checkpoint/restore support
-ARG CRIU_VERSION=3.14
-RUN mkdir -p /usr/src/criu \
-    && curl -sSL https://github.com/checkpoint-restore/criu/archive/v${CRIU_VERSION}.tar.gz | tar -C /usr/src/criu/ -xz --strip-components=1 \
-    && cd /usr/src/criu \
-    && make \
-    && make PREFIX=/build/ install-criu
+        echo 'deb https://download.opensuse.org/repositories/devel:/tools:/criu/Debian_10/ /' > /etc/apt/sources.list.d/criu.list \
+        && curl -fsSL https://download.opensuse.org/repositories/devel:/tools:/criu/Debian_10/Release.key | apt-key add - \
+        && apt-get update \
+        && apt-get install -y --no-install-recommends criu
 
 FROM base AS registry
 WORKDIR /go/src/github.com/docker/distribution
@@ -300,7 +287,7 @@ COPY --from=swagger       /build/ /usr/local/bin/
 COPY --from=tomlv         /build/ /usr/local/bin/
 COPY --from=tini          /build/ /usr/local/bin/
 COPY --from=registry      /build/ /usr/local/bin/
-COPY --from=criu          /build/ /usr/local/
+COPY --from=criu          /usr/sbin/criu /usr/local/bin
 COPY --from=vndr          /build/ /usr/local/bin/
 COPY --from=gotestsum     /build/ /usr/local/bin/
 COPY --from=golangci_lint /build/ /usr/local/bin/
