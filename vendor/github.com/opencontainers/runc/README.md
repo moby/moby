@@ -17,10 +17,6 @@ This means that `runc` 1.0.0 should implement the 1.0 version of the specificati
 
 You can find official releases of `runc` on the [release](https://github.com/opencontainers/runc/releases) page.
 
-Currently, the following features are not considered to be production-ready:
-
-* [Support for cgroup v2](./docs/cgroup-v2.md)
-
 ## Security
 
 The reporting process and disclosure communications are outlined [here](https://github.com/opencontainers/org/blob/master/SECURITY.md).

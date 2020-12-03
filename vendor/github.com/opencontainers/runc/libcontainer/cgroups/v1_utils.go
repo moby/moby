@@ -23,7 +23,8 @@ const (
 )
 
 var (
-	errUnified = errors.New("not implemented for cgroup v2 unified hierarchy")
+	errUnified     = errors.New("not implemented for cgroup v2 unified hierarchy")
+	ErrV1NoUnified = errors.New("invalid configuration: cannot use unified on cgroup v1")
 )
 
 type NotFoundError struct {

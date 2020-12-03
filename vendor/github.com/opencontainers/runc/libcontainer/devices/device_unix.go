@@ -1,6 +1,6 @@
 // +build !windows
 
-package configs
+package devices
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func (d *DeviceRule) Mkdev() (uint64, error) {
+func (d *Rule) Mkdev() (uint64, error) {
 	if d.Major == Wildcard || d.Minor == Wildcard {
 		return 0, errors.New("cannot mkdev() device with wildcards")
 	}

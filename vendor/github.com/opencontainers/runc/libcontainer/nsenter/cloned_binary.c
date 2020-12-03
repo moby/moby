@@ -59,14 +59,38 @@
 #include <sys/syscall.h>
 
 /* Use our own wrapper for memfd_create. */
-#if !defined(SYS_memfd_create) && defined(__NR_memfd_create)
-#  define SYS_memfd_create __NR_memfd_create
+#ifndef SYS_memfd_create
+#  ifdef __NR_memfd_create
+#    define SYS_memfd_create __NR_memfd_create
+#  else
+/* These values come from <https://fedora.juszkiewicz.com.pl/syscalls.html>. */
+#    warning "libc is outdated -- using hard-coded SYS_memfd_create"
+#    if defined(__x86_64__) // x86_64
+#      define SYS_memfd_create 319
+#    elif defined(__i386__) // i386
+#      define SYS_memfd_create 356
+#    elif defined(__ia64__) // ia64
+#      define SYS_memfd_create 1340
+#    elif defined(__arm__) // arm
+#      define SYS_memfd_create 385
+#    elif defined(__aarch64__) // arm64
+#      define SYS_memfd_create 279
+#    elif defined(__ppc__) || defined(__ppc64__) // ppc + ppc64
+#      define SYS_memfd_create 360
+#    elif defined(__s390__) || defined(__s390x__) // s390(x)
+#      define SYS_memfd_create 350
+#    else
+#      error "unknown architecture -- cannot hard-code SYS_memfd_create"
+#    endif
+#  endif
 #endif
+
 /* memfd_create(2) flags -- copied from <linux/memfd.h>. */
 #ifndef MFD_CLOEXEC
 #  define MFD_CLOEXEC       0x0001U
 #  define MFD_ALLOW_SEALING 0x0002U
 #endif
+
 int memfd_create(const char *name, unsigned int flags)
 {
 #ifdef SYS_memfd_create
