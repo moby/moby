@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer/devices"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 )
@@ -24,7 +24,7 @@ func TestDeviceMode(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			d := Device(&configs.Device{FileMode: tc.in})
+			d := Device(&devices.Device{FileMode: tc.in})
 			assert.Equal(t, *d.FileMode, tc.out)
 		})
 	}
