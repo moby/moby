@@ -5,13 +5,13 @@ package oci // import "github.com/docker/docker/oci"
 import (
 	"errors"
 
-	"github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer/devices"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // Device transforms a libcontainer configs.Device to a specs.Device object.
 // Not implemented
-func Device(d *configs.Device) specs.LinuxDevice { return specs.LinuxDevice{} }
+func Device(d *devices.Device) specs.LinuxDevice { return specs.LinuxDevice{} }
 
 // DevicesFromPath computes a list of devices and device permissions from paths (pathOnHost and pathInContainer) and cgroup permissions.
 // Not implemented

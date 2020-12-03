@@ -6,13 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // Device transforms a libcontainer configs.Device to a specs.LinuxDevice object.
-func Device(d *configs.Device) specs.LinuxDevice {
+func Device(d *devices.Device) specs.LinuxDevice {
 	return specs.LinuxDevice{
 		Type:     string(d.Type),
 		Path:     d.Path,
@@ -24,7 +23,7 @@ func Device(d *configs.Device) specs.LinuxDevice {
 	}
 }
 
-func deviceCgroup(d *configs.Device) specs.LinuxDeviceCgroup {
+func deviceCgroup(d *devices.Device) specs.LinuxDeviceCgroup {
 	return specs.LinuxDeviceCgroup{
 		Allow:  true,
 		Type:   string(d.Type),
