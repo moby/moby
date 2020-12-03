@@ -178,6 +178,9 @@ func (mm *MountManager) getSSHMountable(ctx context.Context, m *pb.Mount, g sess
 	if err != nil {
 		return nil, err
 	}
+	if caller == nil {
+		return nil, nil
+	}
 	// because ssh socket remains active, to actually handle session disconnecting ssh error
 	// should restart the whole exec with new session
 	return &sshMount{mount: m, caller: caller, idmap: mm.cm.IdentityMapping()}, nil

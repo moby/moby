@@ -130,8 +130,15 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 
 	name := "load build definition from " + filename
 
+	filenames := []string{filename, filename + ".dockerignore"}
+
+	// dockerfile is also supported casing moby/moby#10858
+	if path.Base(filename) == defaultDockerfileName {
+		filenames = append(filenames, path.Join(path.Dir(filename), strings.ToLower(defaultDockerfileName)))
+	}
+
 	src := llb.Local(localNameDockerfile,
-		llb.FollowPaths([]string{filename, filename + ".dockerignore"}),
+		llb.FollowPaths(filenames),
 		llb.SessionID(c.BuildOpts().SessionID),
 		llb.SharedKeyHint(localNameDockerfile),
 		dockerfile2llb.WithInternalName(name),
@@ -258,7 +265,19 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 			Filename: filename,
 		})
 		if err != nil {
-			return errors.Wrapf(err, "failed to read dockerfile")
+			fallback := false
+			if path.Base(filename) == defaultDockerfileName {
+				var err1 error
+				dtDockerfile, err1 = ref.ReadFile(ctx2, client.ReadRequest{
+					Filename: path.Join(path.Dir(filename), strings.ToLower(defaultDockerfileName)),
+				})
+				if err1 == nil {
+					fallback = true
+				}
+			}
+			if !fallback {
+				return errors.Wrapf(err, "failed to read dockerfile")
+			}
 		}
 
 		sourceMap = llb.NewSourceMap(&src, filename, dtDockerfile)

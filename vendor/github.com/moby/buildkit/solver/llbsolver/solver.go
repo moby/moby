@@ -16,7 +16,6 @@ import (
 	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
-	"github.com/moby/buildkit/solver/llbsolver/errdefs"
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/progress"
@@ -143,20 +142,6 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	res.EachRef(func(ref solver.ResultProxy) error {
 		eg.Go(func() error {
 			_, err := ref.Result(ctx2)
-			if err != nil {
-				// Also release any results referenced by exec errors.
-				var ee *errdefs.ExecError
-				if errors.As(err, &ee) {
-					ee.EachRef(func(res solver.Result) error {
-
-						workerRef, ok := res.Sys().(*worker.WorkerRef)
-						if !ok {
-							return nil
-						}
-						return workerRef.ImmutableRef.Release(ctx)
-					})
-				}
-			}
 			return err
 		})
 		return nil

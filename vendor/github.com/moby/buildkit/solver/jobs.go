@@ -659,6 +659,7 @@ func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, p PreprocessF
 			case <-ctx.Done():
 				if strings.Contains(err.Error(), context.Canceled.Error()) {
 					complete = false
+					releaseError(err)
 					err = errors.Wrap(ctx.Err(), err.Error())
 				}
 			default:
@@ -717,6 +718,7 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp,
 			case <-ctx.Done():
 				if strings.Contains(err.Error(), context.Canceled.Error()) {
 					complete = false
+					releaseError(err)
 					err = errors.Wrap(ctx.Err(), err.Error())
 				}
 			default:
@@ -774,6 +776,7 @@ func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result,
 			case <-ctx.Done():
 				if strings.Contains(err.Error(), context.Canceled.Error()) {
 					complete = false
+					releaseError(err)
 					err = errors.Wrap(ctx.Err(), err.Error())
 				}
 			default:
@@ -910,4 +913,16 @@ func WrapSlowCache(err error, index Index, res Result) error {
 		return nil
 	}
 	return &SlowCacheError{Index: index, Result: res, error: err}
+}
+
+func releaseError(err error) {
+	if err == nil {
+		return
+	}
+	if re, ok := err.(interface {
+		Release() error
+	}); ok {
+		re.Release()
+	}
+	releaseError(errors.Unwrap(err))
 }
