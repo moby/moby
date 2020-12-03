@@ -15,6 +15,7 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver"
+	"github.com/moby/buildkit/solver/llbsolver/errdefs"
 	"github.com/moby/buildkit/solver/llbsolver/file"
 	"github.com/moby/buildkit/solver/llbsolver/ops/fileoptypes"
 	"github.com/moby/buildkit/solver/pb"
@@ -44,7 +45,7 @@ func NewFileOp(v solver.Vertex, op *pb.Op_File, cm cache.Manager, md *metadata.S
 		md:        md,
 		numInputs: len(v.Inputs()),
 		w:         w,
-		solver:    NewFileOpSolver(&file.Backend{}, file.NewRefManager(cm)),
+		solver:    NewFileOpSolver(w, &file.Backend{}, file.NewRefManager(cm)),
 	}, nil
 }
 
@@ -258,8 +259,9 @@ func processOwner(chopt *pb.ChownOpt, selectors map[int]map[llbsolver.Selector]s
 	return nil
 }
 
-func NewFileOpSolver(b fileoptypes.Backend, r fileoptypes.RefManager) *FileOpSolver {
+func NewFileOpSolver(w worker.Worker, b fileoptypes.Backend, r fileoptypes.RefManager) *FileOpSolver {
 	return &FileOpSolver{
+		w:    w,
 		b:    b,
 		r:    r,
 		outs: map[int]int{},
@@ -268,6 +270,7 @@ func NewFileOpSolver(b fileoptypes.Backend, r fileoptypes.RefManager) *FileOpSol
 }
 
 type FileOpSolver struct {
+	w worker.Worker
 	b fileoptypes.Backend
 	r fileoptypes.RefManager
 
@@ -343,7 +346,7 @@ func (s *FileOpSolver) Solve(ctx context.Context, inputs []fileoptypes.Ref, acti
 				}
 				inp, err := s.getInput(ctx, idx, inputs, actions, g)
 				if err != nil {
-					return err
+					return errdefs.WithFileActionError(err, idx-len(inputs))
 				}
 				outs[i] = inp.ref
 				return nil
@@ -401,17 +404,41 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 
 		var inpMount, inpMountSecondary fileoptypes.Mount
 		var toRelease []fileoptypes.Mount
-		var inpMountPrepared bool
+		action := actions[idx-len(inputs)]
+
 		defer func() {
+			if err != nil && inpMount != nil {
+				inputRes := make([]solver.Result, len(inputs))
+				for i, input := range inputs {
+					inputRes[i] = worker.NewWorkerRefResult(input.(cache.ImmutableRef), s.w)
+				}
+
+				outputRes := make([]solver.Result, len(actions))
+
+				// Commit the mutable for the primary input of the failed action.
+				if !inpMount.Readonly() {
+					ref, cerr := s.r.Commit(ctx, inpMount)
+					if cerr == nil {
+						outputRes[idx-len(inputs)] = worker.NewWorkerRefResult(ref.(cache.ImmutableRef), s.w)
+					}
+					inpMount.Release(context.TODO())
+				}
+
+				// If the action has a secondary input, commit it and set the ref on
+				// the output results.
+				if inpMountSecondary != nil && !inpMountSecondary.Readonly() {
+					ref2, cerr := s.r.Commit(ctx, inpMountSecondary)
+					if cerr == nil {
+						outputRes[int(action.SecondaryInput)-len(inputs)] = worker.NewWorkerRefResult(ref2.(cache.ImmutableRef), s.w)
+					}
+				}
+
+				err = errdefs.WithExecError(err, inputRes, outputRes)
+			}
 			for _, m := range toRelease {
 				m.Release(context.TODO())
 			}
-			if err != nil && inpMount != nil && inpMountPrepared {
-				inpMount.Release(context.TODO())
-			}
 		}()
-
-		action := actions[idx-len(inputs)]
 
 		loadInput := func(ctx context.Context) func() error {
 			return func() error {
@@ -425,7 +452,6 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 						return err
 					}
 					inpMount = m
-					inpMountPrepared = true
 					return nil
 				}
 				inpMount = inp.mount
@@ -524,7 +550,6 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 				return nil, err
 			}
 			inpMount = m
-			inpMountPrepared = true
 		}
 
 		switch a := action.Action.(type) {

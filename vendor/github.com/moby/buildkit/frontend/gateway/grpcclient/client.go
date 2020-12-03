@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd"
 	"github.com/gogo/googleapis/google/rpc"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/golang/protobuf/ptypes/any"
@@ -299,7 +298,7 @@ func (c *grpcClient) requestForRef(ref client.Reference) (*pb.SolveRequest, erro
 	return req, nil
 }
 
-func (c *grpcClient) Solve(ctx context.Context, creq client.SolveRequest) (*client.Result, error) {
+func (c *grpcClient) Solve(ctx context.Context, creq client.SolveRequest) (res *client.Result, err error) {
 	if creq.Definition != nil {
 		for _, md := range creq.Definition.Metadata {
 			for cap := range md.Caps {
@@ -345,13 +344,45 @@ func (c *grpcClient) Solve(ctx context.Context, creq client.SolveRequest) (*clie
 		req.ExporterAttr = []byte("{}")
 	}
 
+	if creq.Evaluate {
+		if c.caps.Supports(pb.CapGatewayEvaluateSolve) == nil {
+			req.Evaluate = creq.Evaluate
+		} else {
+			// If evaluate is not supported, fallback to running Stat(".") in order to
+			// trigger an evaluation of the result.
+			defer func() {
+				if res == nil {
+					return
+				}
+
+				var (
+					id  string
+					ref client.Reference
+				)
+				ref, err = res.SingleRef()
+				if err != nil {
+					for refID := range res.Refs {
+						id = refID
+						break
+					}
+				} else {
+					id = ref.(*reference).id
+				}
+
+				_, err = c.client.StatFile(ctx, &pb.StatFileRequest{
+					Ref:  id,
+					Path: ".",
+				})
+			}()
+		}
+	}
+
 	resp, err := c.client.Solve(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	res := &client.Result{}
-
+	res = &client.Result{}
 	if resp.Result == nil {
 		if id := resp.Ref; id != "" {
 			c.requests[id] = req
@@ -652,7 +683,7 @@ func (c *grpcClient) NewContainer(ctx context.Context, req client.NewContainerRe
 	id := identity.NewID()
 	var mounts []*opspb.Mount
 	for _, m := range req.Mounts {
-		var resultID string
+		resultID := m.ResultID
 		if m.Ref != nil {
 			ref, ok := m.Ref.(*reference)
 			if !ok {
@@ -851,7 +882,7 @@ func (ctr *container) Start(ctx context.Context, req client.StartRequest) (clien
 					Message: exit.Error.Message,
 					Details: convertGogoAny(exit.Error.Details),
 				}))
-				if exit.Code != containerd.UnknownExitStatus {
+				if exit.Code != errdefs.ContainerdUnknownExitStatus {
 					exitError = &errdefs.ExitError{ExitCode: exit.Code, Err: exitError}
 				}
 			} else if serverDone := msg.GetDone(); serverDone != nil {

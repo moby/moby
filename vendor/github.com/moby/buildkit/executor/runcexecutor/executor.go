@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/mount"
 	containerdoci "github.com/containerd/containerd/oci"
 	"github.com/containerd/continuity/fs"
@@ -335,7 +334,7 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 func exitError(ctx context.Context, err error) error {
 	if err != nil {
 		exitErr := &errdefs.ExitError{
-			ExitCode: containerd.UnknownExitStatus,
+			ExitCode: errdefs.ContainerdUnknownExitStatus,
 			Err:      err,
 		}
 		var runcExitError *runc.ExitError

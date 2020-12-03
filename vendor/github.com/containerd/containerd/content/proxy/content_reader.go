@@ -40,7 +40,13 @@ func (ra *remoteReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 		Offset: off,
 		Size_:  int64(len(p)),
 	}
-	rc, err := ra.client.Read(ra.ctx, rr)
+	// we need a child context with cancel, or the eventually called
+	// grpc.NewStream will leak the goroutine until the whole thing is cleared.
+	// See comment at https://godoc.org/google.golang.org/grpc#ClientConn.NewStream
+	childCtx, cancel := context.WithCancel(ra.ctx)
+	// we MUST cancel the child context; see comment above
+	defer cancel()
+	rc, err := ra.client.Read(childCtx, rr)
 	if err != nil {
 		return 0, err
 	}

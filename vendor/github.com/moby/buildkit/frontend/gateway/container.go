@@ -13,7 +13,6 @@ import (
 	"github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
-	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver/mounts"
 	opspb "github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/stack"
@@ -36,29 +35,11 @@ type NewContainerRequest struct {
 // except is has a RefProxy instead of Ref to allow for a common abstraction
 // between gateway clients.
 type Mount struct {
-	Dest      string
-	Selector  string
-	Readonly  bool
-	MountType opspb.MountType
-	RefProxy  solver.ResultProxy
-	CacheOpt  *opspb.CacheOpt
-	SecretOpt *opspb.SecretOpt
-	SSHOpt    *opspb.SSHOpt
+	*opspb.Mount
+	WorkerRef *worker.WorkerRef
 }
 
-func toProtoMount(m Mount) *opspb.Mount {
-	return &opspb.Mount{
-		Selector:  m.Selector,
-		Dest:      m.Dest,
-		Readonly:  m.Readonly,
-		MountType: m.MountType,
-		CacheOpt:  m.CacheOpt,
-		SecretOpt: m.SecretOpt,
-		SSHOpt:    m.SSHOpt,
-	}
-}
-
-func NewContainer(ctx context.Context, e executor.Executor, sm *session.Manager, g session.Group, req NewContainerRequest) (client.Container, error) {
+func NewContainer(ctx context.Context, w worker.Worker, sm *session.Manager, g session.Group, req NewContainerRequest) (client.Container, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	eg, ctx := errgroup.WithContext(ctx)
 	platform := opspb.Platform{
@@ -72,138 +53,218 @@ func NewContainer(ctx context.Context, e executor.Executor, sm *session.Manager,
 		id:       req.ContainerID,
 		netMode:  req.NetMode,
 		platform: platform,
-		executor: e,
+		executor: w.Executor(),
 		errGroup: eg,
 		ctx:      ctx,
 		cancel:   cancel,
 	}
 
-	makeMutable := func(worker worker.Worker, ref cache.ImmutableRef) (cache.MutableRef, error) {
-		mRef, err := worker.CacheManager().New(ctx, ref, g)
-		if err != nil {
-			return nil, stack.Enable(err)
+	var (
+		mnts []*opspb.Mount
+		refs []*worker.WorkerRef
+	)
+	for _, m := range req.Mounts {
+		mnts = append(mnts, m.Mount)
+		if m.WorkerRef != nil {
+			refs = append(refs, m.WorkerRef)
+			m.Mount.Input = opspb.InputIndex(len(refs) - 1)
+		} else {
+			m.Mount.Input = opspb.Empty
 		}
+	}
+
+	name := fmt.Sprintf("container %s", req.ContainerID)
+	mm := mounts.NewMountManager(name, w.CacheManager(), sm, w.MetadataStore())
+	p, err := PrepareMounts(ctx, mm, w.CacheManager(), g, mnts, refs, func(m *opspb.Mount, ref cache.ImmutableRef) (cache.MutableRef, error) {
+		cm := w.CacheManager()
+		if m.Input != opspb.Empty {
+			cm = refs[m.Input].Worker.CacheManager()
+		}
+		return cm.New(ctx, ref, g)
+
+	})
+	if err != nil {
+		for i := len(p.Actives) - 1; i >= 0; i-- { // call in LIFO order
+			p.Actives[i].Ref.Release(context.TODO())
+		}
+		for _, o := range p.OutputRefs {
+			o.Ref.Release(context.TODO())
+		}
+		return nil, err
+	}
+	ctr.rootFS = p.Root
+	ctr.mounts = p.Mounts
+
+	for _, o := range p.OutputRefs {
+		o := o
 		ctr.cleanup = append(ctr.cleanup, func() error {
-			return stack.Enable(mRef.Release(context.TODO()))
+			return o.Ref.Release(context.TODO())
 		})
-		return mRef, nil
+	}
+	for _, active := range p.Actives {
+		active := active
+		ctr.cleanup = append(ctr.cleanup, func() error {
+			return active.Ref.Release(context.TODO())
+		})
 	}
 
-	var mm *mounts.MountManager
-	mnts := req.Mounts
+	return ctr, nil
+}
 
+type PreparedMounts struct {
+	Root           executor.Mount
+	ReadonlyRootFS bool
+	Mounts         []executor.Mount
+	OutputRefs     []MountRef
+	Actives        []MountMutableRef
+}
+
+type MountRef struct {
+	Ref        cache.Ref
+	MountIndex int
+}
+
+type MountMutableRef struct {
+	Ref        cache.MutableRef
+	MountIndex int
+}
+
+type MakeMutable func(m *opspb.Mount, ref cache.ImmutableRef) (cache.MutableRef, error)
+
+func PrepareMounts(ctx context.Context, mm *mounts.MountManager, cm cache.Manager, g session.Group, mnts []*opspb.Mount, refs []*worker.WorkerRef, makeMutable MakeMutable) (p PreparedMounts, err error) {
+	// loop over all mounts, fill in mounts, root and outputs
 	for i, m := range mnts {
-		if m.Dest == opspb.RootMount && m.RefProxy != nil {
-			res, err := m.RefProxy.Result(ctx)
-			if err != nil {
-				return nil, stack.Enable(err)
-			}
-			workerRef, ok := res.Sys().(*worker.WorkerRef)
-			if !ok {
-				return nil, errors.Errorf("invalid reference for exec %T", res.Sys())
-			}
+		var (
+			mountable cache.Mountable
+			ref       cache.ImmutableRef
+		)
 
-			name := fmt.Sprintf("container %s", req.ContainerID)
-			mm = mounts.NewMountManager(name, workerRef.Worker.CacheManager(), sm, workerRef.Worker.MetadataStore())
-
-			ctr.rootFS = mountWithSession(workerRef.ImmutableRef, g)
-			if !m.Readonly {
-				ref, err := makeMutable(workerRef.Worker, workerRef.ImmutableRef)
-				if err != nil {
-					return nil, stack.Enable(err)
-				}
-				ctr.rootFS = mountWithSession(ref, g)
-			}
-
-			// delete root mount from list, handled here
-			mnts = append(mnts[:i], mnts[i+1:]...)
-			break
+		if m.Dest == opspb.RootMount && m.MountType != opspb.MountType_BIND {
+			return p, errors.Errorf("invalid mount type %s for %s", m.MountType.String(), m.Dest)
 		}
-	}
 
-	if ctr.rootFS.Src == nil {
-		return nil, errors.Errorf("root mount required")
-	}
-
-	for _, m := range mnts {
-		var ref cache.ImmutableRef
-		var mountable cache.Mountable
-		if m.RefProxy != nil {
-			res, err := m.RefProxy.Result(ctx)
-			if err != nil {
-				return nil, stack.Enable(err)
+		// if mount is based on input validate and load it
+		if m.Input != opspb.Empty {
+			if int(m.Input) >= len(refs) {
+				return p, errors.Errorf("missing input %d", m.Input)
 			}
-			workerRef, ok := res.Sys().(*worker.WorkerRef)
-			if !ok {
-				return nil, errors.Errorf("invalid reference for exec %T", res.Sys())
-			}
-			ref = workerRef.ImmutableRef
+			ref = refs[int(m.Input)].ImmutableRef
 			mountable = ref
-
-			if !m.Readonly {
-				mountable, err = makeMutable(workerRef.Worker, ref)
-				if err != nil {
-					return nil, stack.Enable(err)
-				}
-			}
 		}
+
 		switch m.MountType {
 		case opspb.MountType_BIND:
-			// nothing to do here
-		case opspb.MountType_CACHE:
-			mRef, err := mm.MountableCache(ctx, toProtoMount(m), ref, g)
-			if err != nil {
-				return nil, err
+			// if mount creates an output
+			if m.Output != opspb.SkipOutput {
+				// if it is readonly and not root then output is the input
+				if m.Readonly && ref != nil && m.Dest != opspb.RootMount {
+					p.OutputRefs = append(p.OutputRefs, MountRef{
+						MountIndex: i,
+						Ref:        ref.Clone(),
+					})
+				} else {
+					// otherwise output and mount is the mutable child
+					active, err := makeMutable(m, ref)
+					if err != nil {
+						return p, err
+					}
+					mountable = active
+					p.OutputRefs = append(p.OutputRefs, MountRef{
+						MountIndex: i,
+						Ref:        active,
+					})
+				}
+			} else if (!m.Readonly || ref == nil) && m.Dest != opspb.RootMount {
+				// this case is empty readonly scratch without output that is not really useful for anything but don't error
+				active, err := makeMutable(m, ref)
+				if err != nil {
+					return p, err
+				}
+				p.Actives = append(p.Actives, MountMutableRef{
+					MountIndex: i,
+					Ref:        active,
+				})
+				mountable = active
 			}
-			mountable = mRef
-			ctr.cleanup = append(ctr.cleanup, func() error {
-				return stack.Enable(mRef.Release(context.TODO()))
+
+		case opspb.MountType_CACHE:
+			active, err := mm.MountableCache(ctx, m, ref, g)
+			if err != nil {
+				return p, err
+			}
+			mountable = active
+			p.Actives = append(p.Actives, MountMutableRef{
+				MountIndex: i,
+				Ref:        active,
 			})
+			if m.Output != opspb.SkipOutput && ref != nil {
+				p.OutputRefs = append(p.OutputRefs, MountRef{
+					MountIndex: i,
+					Ref:        ref.Clone(),
+				})
+			}
+
 		case opspb.MountType_TMPFS:
 			mountable = mm.MountableTmpFS()
 		case opspb.MountType_SECRET:
 			var err error
-			mountable, err = mm.MountableSecret(ctx, toProtoMount(m), g)
+			mountable, err = mm.MountableSecret(ctx, m, g)
 			if err != nil {
-				return nil, err
+				return p, err
 			}
 			if mountable == nil {
 				continue
 			}
 		case opspb.MountType_SSH:
 			var err error
-			mountable, err = mm.MountableSSH(ctx, toProtoMount(m), g)
+			mountable, err = mm.MountableSSH(ctx, m, g)
 			if err != nil {
-				return nil, err
+				return p, err
 			}
 			if mountable == nil {
 				continue
 			}
+
 		default:
-			return nil, errors.Errorf("mount type %s not implemented", m.MountType)
+			return p, errors.Errorf("mount type %s not implemented", m.MountType)
 		}
 
 		// validate that there is a mount
 		if mountable == nil {
-			return nil, errors.Errorf("mount %s has no input", m.Dest)
+			return p, errors.Errorf("mount %s has no input", m.Dest)
 		}
 
-		execMount := executor.Mount{
-			Src:      mountableWithSession(mountable, g),
-			Selector: m.Selector,
-			Dest:     m.Dest,
-			Readonly: m.Readonly,
+		// if dest is root we need mutable ref even if there is no output
+		if m.Dest == opspb.RootMount {
+			root := mountable
+			p.ReadonlyRootFS = m.Readonly
+			if m.Output == opspb.SkipOutput && p.ReadonlyRootFS {
+				active, err := makeMutable(m, ref)
+				if err != nil {
+					return p, err
+				}
+				p.Actives = append(p.Actives, MountMutableRef{
+					MountIndex: i,
+					Ref:        active,
+				})
+				root = active
+			}
+			p.Root = mountWithSession(root, g)
+		} else {
+			mws := mountWithSession(mountable, g)
+			mws.Dest = m.Dest
+			mws.Readonly = m.Readonly
+			mws.Selector = m.Selector
+			p.Mounts = append(p.Mounts, mws)
 		}
-
-		ctr.mounts = append(ctr.mounts, execMount)
 	}
 
 	// sort mounts so parents are mounted first
-	sort.Slice(ctr.mounts, func(i, j int) bool {
-		return ctr.mounts[i].Dest < ctr.mounts[j].Dest
+	sort.Slice(p.Mounts, func(i, j int) bool {
+		return p.Mounts[i].Dest < p.Mounts[j].Dest
 	})
 
-	return ctr, nil
+	return p, nil
 }
 
 type gatewayContainer struct {
@@ -354,13 +415,9 @@ func addDefaultEnvvar(env []string, k, v string) []string {
 func mountWithSession(m cache.Mountable, g session.Group) executor.Mount {
 	_, readonly := m.(cache.ImmutableRef)
 	return executor.Mount{
-		Src:      mountableWithSession(m, g),
+		Src:      &mountable{m: m, g: g},
 		Readonly: readonly,
 	}
-}
-
-func mountableWithSession(m cache.Mountable, g session.Group) executor.Mountable {
-	return &mountable{m: m, g: g}
 }
 
 type mountable struct {

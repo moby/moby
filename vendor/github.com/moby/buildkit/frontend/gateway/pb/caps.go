@@ -42,6 +42,11 @@ const (
 
 	// CapFrontendCaps can be used to check that frontends define support for certain capabilities
 	CapFrontendCaps apicaps.CapID = "frontend.caps"
+
+	// CapGatewayEvaluateSolve is a capability to immediately unlazy solve
+	// results. This is generally used by the client to return and handle solve
+	// errors.
+	CapGatewayEvaluateSolve apicaps.CapID = "gateway.solve.evaluate"
 )
 
 func init() {
@@ -154,6 +159,13 @@ func init() {
 	Caps.Init(apicaps.Cap{
 		ID:      CapFrontendCaps,
 		Name:    "frontend capabilities",
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapGatewayEvaluateSolve,
+		Name:    "gateway evaluate solve",
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})

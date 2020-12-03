@@ -20,10 +20,15 @@ import (
 var defaultMaxLogSize = 1024 * 1024
 var defaultMaxLogSpeed = 100 * 1024 // per second
 
+const (
+	stdout = 1
+	stderr = 2
+)
+
 var configCheckOnce sync.Once
 
 func NewLogStreams(ctx context.Context, printOutput bool) (io.WriteCloser, io.WriteCloser) {
-	return newStreamWriter(ctx, 1, printOutput), newStreamWriter(ctx, 2, printOutput)
+	return newStreamWriter(ctx, stdout, printOutput), newStreamWriter(ctx, stderr, printOutput)
 }
 
 func newStreamWriter(ctx context.Context, stream int, printOutput bool) io.WriteCloser {
@@ -122,4 +127,14 @@ func (sw *streamWriter) Write(dt []byte) (int, error) {
 
 func (sw *streamWriter) Close() error {
 	return sw.pw.Close()
+}
+
+func LoggerFromContext(ctx context.Context) func([]byte) {
+	return func(dt []byte) {
+		pw, _, _ := progress.FromContext(ctx)
+		pw.Write(identity.NewID(), client.VertexLog{
+			Stream: stderr,
+			Data:   []byte(dt),
+		})
+	}
 }

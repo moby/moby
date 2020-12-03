@@ -249,33 +249,34 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 							ResolveMode: opt.ImageResolveMode.String(),
 							LogName:     fmt.Sprintf("%s load metadata for %s", prefix, d.stage.BaseName),
 						})
-						if err == nil { // handle the error while builder is actually running
-							var img Image
-							if err := json.Unmarshal(dt, &img); err != nil {
+						if err != nil {
+							return err
+						}
+						var img Image
+						if err := json.Unmarshal(dt, &img); err != nil {
+							return err
+						}
+						img.Created = nil
+						// if there is no explicit target platform, try to match based on image config
+						if d.platform == nil && platformOpt.implicitTarget {
+							p := autoDetectPlatform(img, *platform, platformOpt.buildPlatforms)
+							platform = &p
+						}
+						d.image = img
+						if dgst != "" {
+							ref, err = reference.WithDigest(ref, dgst)
+							if err != nil {
 								return err
 							}
-							img.Created = nil
-							// if there is no explicit target platform, try to match based on image config
-							if d.platform == nil && platformOpt.implicitTarget {
-								p := autoDetectPlatform(img, *platform, platformOpt.buildPlatforms)
-								platform = &p
-							}
-							d.image = img
-							if dgst != "" {
-								ref, err = reference.WithDigest(ref, dgst)
-								if err != nil {
-									return err
-								}
-							}
-							d.stage.BaseName = ref.String()
-							if len(img.RootFS.DiffIDs) == 0 {
-								isScratch = true
-								// schema1 images can't return diffIDs so double check :(
-								for _, h := range img.History {
-									if !h.EmptyLayer {
-										isScratch = false
-										break
-									}
+						}
+						d.stage.BaseName = ref.String()
+						if len(img.RootFS.DiffIDs) == 0 {
+							isScratch = true
+							// schema1 images can't return diffIDs so double check :(
+							for _, h := range img.History {
+								if !h.EmptyLayer {
+									isScratch = false
+									break
 								}
 							}
 						}
