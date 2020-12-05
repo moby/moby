@@ -255,7 +255,7 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 	err = w.Executor().Run(ctx, "", mountWithSession(rootFS, session.NewGroup(sid)), nil, executor.ProcessInfo{Meta: meta, Stdin: lbf.Stdin, Stdout: lbf.Stdout, Stderr: os.Stderr}, nil)
 
 	if err != nil {
-		if errors.Is(err, context.Canceled) && lbf.isErrServerClosed {
+		if errdefs.IsCanceled(err) && lbf.isErrServerClosed {
 			err = errors.Errorf("frontend grpc server closed unexpectedly")
 		}
 		// An existing error (set via Return rpc) takes

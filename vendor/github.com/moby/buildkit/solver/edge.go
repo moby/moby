@@ -359,6 +359,7 @@ func (e *edge) unpark(incoming []pipe.Sender, updates, allPipes []pipe.Receiver,
 	if e.execReq == nil {
 		if added := e.createInputRequests(desiredState, f, false); !added && !e.hasActiveOutgoing && !cacheMapReq {
 			logrus.Errorf("buildkit scheluding error: leaving incoming open. forcing solve. Please report this with BUILDKIT_SCHEDULER_DEBUG=1")
+			debugSchedulerPreUnpark(e, incoming, updates, allPipes)
 			e.createInputRequests(desiredState, f, true)
 		}
 	}
