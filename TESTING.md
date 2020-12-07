@@ -47,6 +47,13 @@ Bugs fixes should include a unit test case which exercises the bug.
 A bug fix may also include new assertions in existing integration tests for the
 API endpoint.
 
+### Writing new integration tests
+
+Note the `integration-cli` tests are deprecated; new tests will be rejected by
+the CI.
+
+Instead, implement new tests under `integration/`.
+
 ### Integration tests environment considerations
 
 When adding new tests or modifying existing tests under `integration/`, testing
