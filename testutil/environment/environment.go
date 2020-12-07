@@ -167,6 +167,27 @@ func (e *Execution) IsRootless() bool {
 	return os.Getenv("DOCKER_ROOTLESS") != ""
 }
 
+// IsUserNamespaceInKernel returns whether the kernel supports user namespaces
+func (e *Execution) IsUserNamespaceInKernel() bool {
+	if _, err := os.Stat("/proc/self/uid_map"); os.IsNotExist(err) {
+		/*
+		 * This kernel-provided file only exists if user namespaces are
+		 * supported
+		 */
+		return false
+	}
+
+	// We need extra check on redhat based distributions
+	if f, err := os.Open("/sys/module/user_namespace/parameters/enable"); err == nil {
+		defer f.Close()
+		b := make([]byte, 1)
+		_, _ = f.Read(b)
+		return string(b) != "N"
+	}
+
+	return true
+}
+
 // HasExistingImage checks whether there is an image with the given reference.
 // Note that this is done by filtering and then checking whether there were any
 // results -- so ambiguous references might result in false-positives.
