@@ -131,7 +131,15 @@ func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 	}
 
 	for _, endpoint := range endpoints {
-		return loginV2(authConfig, endpoint, userAgent)
+		status, token, err = loginV2(authConfig, endpoint, userAgent)
+		if err == nil {
+			return
+		}
+		if errdefs.IsUnauthorized(err) {
+			// Failed to authenticate; don't continue with (non-TLS) endpoints.
+			return status, token, err
+		}
+		logrus.WithError(err).Infof("Error logging in to endpoint, trying next endpoint")
 	}
 
 	return "", "", err
