@@ -276,7 +276,8 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             vim-common \
             xfsprogs \
             xz-utils \
-            zip
+            zip \
+            zstd
 
 
 # Switch to use iptables instead of nftables (to match the CI hosts)
