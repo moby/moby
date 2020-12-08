@@ -135,6 +135,13 @@ func TestDecompressStreamXz(t *testing.T) {
 	testDecompressStream(t, "xz", "xz -f")
 }
 
+func TestDecompressStreamZstd(t *testing.T) {
+	if _, err := exec.LookPath("zstd"); err != nil {
+		t.Skip("zstd not installed")
+	}
+	testDecompressStream(t, "zst", "zstd -f")
+}
+
 func TestCompressStreamXzUnsupported(t *testing.T) {
 	dest, err := os.Create(tmp + "dest")
 	if err != nil {
@@ -208,6 +215,13 @@ func TestExtensionXz(t *testing.T) {
 	output := compression.Extension()
 	if output != "tar.xz" {
 		t.Fatalf("The extension of a xz archive should be 'tar.xz'")
+	}
+}
+func TestExtensionZstd(t *testing.T) {
+	compression := Zstd
+	output := compression.Extension()
+	if output != "tar.zst" {
+		t.Fatalf("The extension of a zstd archive should be 'tar.zst'")
 	}
 }
 
