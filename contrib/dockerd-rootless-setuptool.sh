@@ -269,6 +269,16 @@ cmd_entrypoint_check() {
 	INFO "Requirements are satisfied"
 }
 
+show_systemd_error() {
+	n="20"
+	ERROR "Failed to start ${SYSTEMD_UNIT}. Run \`journalctl -n ${n} --no-pager --user --unit ${SYSTEMD_UNIT}\` to show the error log."
+	ERROR "Before retrying installation, you might need to uninstall the current setup: \`$0 uninstall -f ; ${BIN}/rootlesskit rm -rf ${HOME}/.local/share/docker\`"
+	if journalctl -q -n ${n} --user --unit ${SYSTEMD_UNIT} | grep -qF "/run/xtables.lock: Permission denied"; then
+		ERROR "Failure likely related to https://github.com/moby/moby/issues/41230"
+		ERROR "This may work as a workaround: \`sudo dnf install -y policycoreutils-python-utils && sudo semanage permissive -a iptables_t\`"
+	fi
+}
+
 # install (systemd)
 install_systemd() {
 	mkdir -p "${CFG_DIR}/systemd/user"
@@ -307,13 +317,21 @@ install_systemd() {
 		INFO "starting systemd service ${SYSTEMD_UNIT}"
 		(
 			set -x
-			systemctl --user start "${SYSTEMD_UNIT}"
+			if ! systemctl --user start "${SYSTEMD_UNIT}"; then
+				set +x
+				show_systemd_error
+				exit 1
+			fi
 			sleep 3
 		)
 	fi
 	(
 		set -x
-		systemctl --user --no-pager --full status "${SYSTEMD_UNIT}"
+		if ! systemctl --user --no-pager --full status "${SYSTEMD_UNIT}"; then
+			set +x
+			show_systemd_error
+			exit 1
+		fi
 		DOCKER_HOST="unix://$XDG_RUNTIME_DIR/docker.sock" $BIN/docker version
 		systemctl --user enable "${SYSTEMD_UNIT}"
 	)
