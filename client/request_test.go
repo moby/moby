@@ -3,12 +3,14 @@ package client // import "github.com/docker/docker/client"
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
@@ -104,4 +106,44 @@ func TestInfiniteError(t *testing.T) {
 
 	_, err := client.Ping(context.Background())
 	assert.Check(t, is.ErrorContains(err, "request returned Internal Server Error"))
+}
+
+func TestCanceledContext(t *testing.T) {
+	testURL := "/test"
+
+	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			assert.Equal(t, req.Context().Err(), context.Canceled)
+
+			return &http.Response{}, context.Canceled
+		}),
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := client.sendRequest(ctx, http.MethodGet, testURL, nil, nil, nil)
+	assert.Equal(t, true, errdefs.IsCancelled(err))
+	assert.Equal(t, true, errors.Is(err, context.Canceled))
+}
+
+func TestDeadlineExceededContext(t *testing.T) {
+	testURL := "/test"
+
+	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			assert.Equal(t, req.Context().Err(), context.DeadlineExceeded)
+
+			return &http.Response{}, context.DeadlineExceeded
+		}),
+	}
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now())
+	defer cancel()
+
+	<-ctx.Done()
+
+	_, err := client.sendRequest(ctx, http.MethodGet, testURL, nil, nil, nil)
+	assert.Equal(t, true, errdefs.IsDeadline(err))
+	assert.Equal(t, true, errors.Is(err, context.DeadlineExceeded))
 }
