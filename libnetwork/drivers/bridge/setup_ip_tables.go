@@ -178,7 +178,11 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 			return iptable.ProgramChain(filterChain, config.BridgeName, hairpinMode, false)
 		})
 
-		n.portMapper.SetIptablesChain(natChain, n.getNetworkBridgeName())
+		if ipVersion == iptables.IPv4 {
+			n.portMapper.SetIptablesChain(natChain, n.getNetworkBridgeName())
+		} else {
+			n.portMapperV6.SetIptablesChain(natChain, n.getNetworkBridgeName())
+		}
 	}
 
 	d.Lock()
