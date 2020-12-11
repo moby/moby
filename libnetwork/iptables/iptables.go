@@ -533,8 +533,10 @@ func (iptable IPTable) raw(args ...string) ([]byte, error) {
 	}
 
 	path := iptablesPath
+	commandName := "iptables"
 	if iptable.Version == IPv6 {
 		path = ip6tablesPath
+		commandName = "ip6tables"
 	}
 
 	logrus.Debugf("%s, %v", path, args)
@@ -542,7 +544,7 @@ func (iptable IPTable) raw(args ...string) ([]byte, error) {
 	startTime := time.Now()
 	output, err := exec.Command(path, args...).CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("iptables failed: iptables %v: %s (%s)", strings.Join(args, " "), output, err)
+		return nil, fmt.Errorf("iptables failed: %s %v: %s (%s)", commandName, strings.Join(args, " "), output, err)
 	}
 
 	return filterOutput(startTime, output, args...), err
