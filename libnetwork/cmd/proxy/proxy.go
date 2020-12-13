@@ -8,6 +8,16 @@ import (
 	"github.com/ishidawataru/sctp"
 )
 
+// ipVersion refers to IP version - v4 or v6
+type ipVersion string
+
+const (
+	// IPv4 is version 4
+	ipv4 ipVersion = "4"
+	// IPv4 is version 6
+	ipv6 ipVersion = "6"
+)
+
 // Proxy defines the behavior of a proxy. It forwards traffic back and forth
 // between two endpoints : the frontend and the backend.
 // It can be used to do software port-mapping between two addresses.

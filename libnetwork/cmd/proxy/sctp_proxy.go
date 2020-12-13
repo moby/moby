@@ -19,7 +19,12 @@ type SCTPProxy struct {
 
 // NewSCTPProxy creates a new SCTPProxy.
 func NewSCTPProxy(frontendAddr, backendAddr *sctp.SCTPAddr) (*SCTPProxy, error) {
-	listener, err := sctp.ListenSCTP("sctp", frontendAddr)
+	// detect version of hostIP to bind only to correct version
+	ipVersion := ipv4
+	if frontendAddr.IPAddrs[0].IP.To4() == nil {
+		ipVersion = ipv6
+	}
+	listener, err := sctp.ListenSCTP("sctp"+string(ipVersion), frontendAddr)
 	if err != nil {
 		return nil, err
 	}
