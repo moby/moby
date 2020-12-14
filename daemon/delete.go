@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/system"
+	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -134,7 +135,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	}
 
 	linkNames := daemon.linkIndex.delete(container)
-	selinuxFreeLxcContexts(container.ProcessLabel)
+	selinux.ReleaseLabel(container.ProcessLabel)
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)
 	daemon.containersReplica.Delete(container)

@@ -1,5 +1,3 @@
-// +build selinux,linux
-
 package label
 
 import (
