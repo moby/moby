@@ -527,7 +527,13 @@ func (j *Job) Discard() error {
 		st.mu.Unlock()
 	}
 
-	delete(j.list.jobs, j.id)
+	go func() {
+		// don't clear job right away. there might still be a status request coming to read progress
+		time.Sleep(10 * time.Second)
+		j.list.mu.Lock()
+		defer j.list.mu.Unlock()
+		delete(j.list.jobs, j.id)
+	}()
 	return nil
 }
 
