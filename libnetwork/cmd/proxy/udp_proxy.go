@@ -55,7 +55,12 @@ type UDPProxy struct {
 
 // NewUDPProxy creates a new UDPProxy.
 func NewUDPProxy(frontendAddr, backendAddr *net.UDPAddr) (*UDPProxy, error) {
-	listener, err := net.ListenUDP("udp", frontendAddr)
+	// detect version of hostIP to bind only to correct version
+	ipVersion := ipv4
+	if frontendAddr.IP.To4() == nil {
+		ipVersion = ipv6
+	}
+	listener, err := net.ListenUDP("udp"+string(ipVersion), frontendAddr)
 	if err != nil {
 		return nil, err
 	}

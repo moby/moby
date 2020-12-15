@@ -95,3 +95,74 @@ func TestPortMappingConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestPortMappingV6Config(t *testing.T) {
+	defer testutils.SetupTestOSContext(t)()
+	d := newDriver()
+
+	config := &configuration{
+		EnableIPTables:  true,
+		EnableIP6Tables: true,
+	}
+	genericOption := make(map[string]interface{})
+	genericOption[netlabel.GenericData] = config
+
+	if err := d.configure(genericOption); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
+	portBindings := []types.PortBinding{
+		{Proto: types.UDP, Port: uint16(400), HostPort: uint16(54000)},
+		{Proto: types.TCP, Port: uint16(500), HostPort: uint16(65000)},
+		{Proto: types.SCTP, Port: uint16(500), HostPort: uint16(65000)},
+	}
+
+	sbOptions := make(map[string]interface{})
+	sbOptions[netlabel.PortMap] = portBindings
+	netConfig := &networkConfiguration{
+		BridgeName: DefaultBridgeName,
+		EnableIPv6: true,
+	}
+	netOptions := make(map[string]interface{})
+	netOptions[netlabel.GenericData] = netConfig
+
+	ipdList := getIPv4Data(t, "")
+	err := d.CreateNetwork("dummy", netOptions, nil, ipdList, nil)
+	if err != nil {
+		t.Fatalf("Failed to create bridge: %v", err)
+	}
+
+	te := newTestEndpoint(ipdList[0].Pool, 11)
+	err = d.CreateEndpoint("dummy", "ep1", te.Interface(), nil)
+	if err != nil {
+		t.Fatalf("Failed to create the endpoint: %s", err.Error())
+	}
+
+	if err = d.Join("dummy", "ep1", "sbox", te, sbOptions); err != nil {
+		t.Fatalf("Failed to join the endpoint: %v", err)
+	}
+
+	if err = d.ProgramExternalConnectivity("dummy", "ep1", sbOptions); err != nil {
+		t.Fatalf("Failed to program external connectivity: %v", err)
+	}
+
+	network, ok := d.networks["dummy"]
+	if !ok {
+		t.Fatalf("Cannot find network %s inside driver", "dummy")
+	}
+	ep, _ := network.endpoints["ep1"]
+	if len(ep.portMapping) != 6 {
+		t.Fatalf("Failed to store the port bindings into the sandbox info. Found: %v", ep.portMapping)
+	}
+
+	// release host mapped ports
+	err = d.Leave("dummy", "ep1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = d.RevokeExternalConnectivity("dummy", "ep1")
+	if err != nil {
+		t.Fatal(err)
+	}
+}

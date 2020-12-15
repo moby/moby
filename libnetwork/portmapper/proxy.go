@@ -19,6 +19,16 @@ type userlandProxy interface {
 	Stop() error
 }
 
+// ipVersion refers to IP version - v4 or v6
+type ipVersion string
+
+const (
+	// IPv4 is version 4
+	ipv4 ipVersion = "4"
+	// IPv4 is version 6
+	ipv6 ipVersion = "6"
+)
+
 // proxyCommand wraps an exec.Cmd to run the userland TCP and UDP
 // proxies as separate processes.
 type proxyCommand struct {
@@ -77,21 +87,27 @@ func (p *proxyCommand) Stop() error {
 // port allocations on bound port, because without userland proxy we using
 // iptables rules and not net.Listen
 type dummyProxy struct {
-	listener io.Closer
-	addr     net.Addr
+	listener  io.Closer
+	addr      net.Addr
+	ipVersion ipVersion
 }
 
 func newDummyProxy(proto string, hostIP net.IP, hostPort int) (userlandProxy, error) {
+	// detect version of hostIP to bind only to correct version
+	version := ipv4
+	if hostIP.To4() == nil {
+		version = ipv6
+	}
 	switch proto {
 	case "tcp":
 		addr := &net.TCPAddr{IP: hostIP, Port: hostPort}
-		return &dummyProxy{addr: addr}, nil
+		return &dummyProxy{addr: addr, ipVersion: version}, nil
 	case "udp":
 		addr := &net.UDPAddr{IP: hostIP, Port: hostPort}
-		return &dummyProxy{addr: addr}, nil
+		return &dummyProxy{addr: addr, ipVersion: version}, nil
 	case "sctp":
 		addr := &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: hostIP}}, Port: hostPort}
-		return &dummyProxy{addr: addr}, nil
+		return &dummyProxy{addr: addr, ipVersion: version}, nil
 	default:
 		return nil, fmt.Errorf("Unknown addr type: %s", proto)
 	}
@@ -100,19 +116,19 @@ func newDummyProxy(proto string, hostIP net.IP, hostPort int) (userlandProxy, er
 func (p *dummyProxy) Start() error {
 	switch addr := p.addr.(type) {
 	case *net.TCPAddr:
-		l, err := net.ListenTCP("tcp", addr)
+		l, err := net.ListenTCP("tcp"+string(p.ipVersion), addr)
 		if err != nil {
 			return err
 		}
 		p.listener = l
 	case *net.UDPAddr:
-		l, err := net.ListenUDP("udp", addr)
+		l, err := net.ListenUDP("udp"+string(p.ipVersion), addr)
 		if err != nil {
 			return err
 		}
 		p.listener = l
 	case *sctp.SCTPAddr:
-		l, err := sctp.ListenSCTP("sctp", addr)
+		l, err := sctp.ListenSCTP("sctp"+string(p.ipVersion), addr)
 		if err != nil {
 			return err
 		}
