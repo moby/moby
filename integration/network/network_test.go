@@ -3,6 +3,7 @@ package network // import "github.com/docker/docker/integration/network"
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"os/exec"
 	"strings"
@@ -89,6 +90,34 @@ func TestNetworkInvalidJSON(t *testing.T) {
 			buf, err = request.ReadBody(body)
 			assert.NilError(t, err)
 			assert.Check(t, is.Contains(string(buf), "got EOF while reading request body"))
+		})
+	}
+}
+
+// TestNetworkList verifies that /networks returns a list of networks either
+// with, or without a trailing slash (/networks/). Regression test for https://github.com/moby/moby/issues/24595
+func TestNetworkList(t *testing.T) {
+	defer setupTest(t)()
+
+	endpoints := []string{
+		"/networks",
+		"/networks/",
+	}
+
+	for _, ep := range endpoints {
+		t.Run(ep, func(t *testing.T) {
+			t.Parallel()
+
+			res, body, err := request.Get(ep, request.JSON)
+			assert.NilError(t, err)
+			assert.Equal(t, res.StatusCode, http.StatusOK)
+
+			buf, err := request.ReadBody(body)
+			assert.NilError(t, err)
+			var nws []types.NetworkResource
+			err = json.Unmarshal(buf, &nws)
+			assert.NilError(t, err)
+			assert.Assert(t, len(nws) > 0)
 		})
 	}
 }
