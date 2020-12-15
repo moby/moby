@@ -92,9 +92,9 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 			case *swarmapi.ServiceSpec_Replicated:
 				mode = "replicated"
 			case *swarmapi.ServiceSpec_ReplicatedJob:
-				mode = "replicatedjob"
+				mode = "replicated-job"
 			case *swarmapi.ServiceSpec_GlobalJob:
-				mode = "globaljob"
+				mode = "global-job"
 			}
 
 			if !options.Filters.ExactMatch("mode", mode) {
