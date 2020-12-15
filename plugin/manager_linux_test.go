@@ -175,6 +175,7 @@ func (e *executorWithRunning) Signal(id string, signal int) error {
 }
 
 func TestPluginAlreadyRunningOnStartup(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	t.Parallel()
 
 	root, err := ioutil.TempDir("", t.Name())
