@@ -99,17 +99,21 @@ func detectCompressionType(cr io.Reader) (Type, error) {
 }
 
 var toDockerLayerType = map[string]string{
-	ocispec.MediaTypeImageLayer:            images.MediaTypeDockerSchema2Layer,
-	images.MediaTypeDockerSchema2Layer:     images.MediaTypeDockerSchema2Layer,
-	ocispec.MediaTypeImageLayerGzip:        images.MediaTypeDockerSchema2LayerGzip,
-	images.MediaTypeDockerSchema2LayerGzip: images.MediaTypeDockerSchema2LayerGzip,
+	ocispec.MediaTypeImageLayer:                   images.MediaTypeDockerSchema2Layer,
+	images.MediaTypeDockerSchema2Layer:            images.MediaTypeDockerSchema2Layer,
+	ocispec.MediaTypeImageLayerGzip:               images.MediaTypeDockerSchema2LayerGzip,
+	images.MediaTypeDockerSchema2LayerGzip:        images.MediaTypeDockerSchema2LayerGzip,
+	images.MediaTypeDockerSchema2LayerForeign:     images.MediaTypeDockerSchema2Layer,
+	images.MediaTypeDockerSchema2LayerForeignGzip: images.MediaTypeDockerSchema2LayerGzip,
 }
 
 var toOCILayerType = map[string]string{
-	ocispec.MediaTypeImageLayer:            ocispec.MediaTypeImageLayer,
-	images.MediaTypeDockerSchema2Layer:     ocispec.MediaTypeImageLayer,
-	ocispec.MediaTypeImageLayerGzip:        ocispec.MediaTypeImageLayerGzip,
-	images.MediaTypeDockerSchema2LayerGzip: ocispec.MediaTypeImageLayerGzip,
+	ocispec.MediaTypeImageLayer:                   ocispec.MediaTypeImageLayer,
+	images.MediaTypeDockerSchema2Layer:            ocispec.MediaTypeImageLayer,
+	ocispec.MediaTypeImageLayerGzip:               ocispec.MediaTypeImageLayerGzip,
+	images.MediaTypeDockerSchema2LayerGzip:        ocispec.MediaTypeImageLayerGzip,
+	images.MediaTypeDockerSchema2LayerForeign:     ocispec.MediaTypeImageLayer,
+	images.MediaTypeDockerSchema2LayerForeignGzip: ocispec.MediaTypeImageLayerGzip,
 }
 
 func convertLayerMediaType(mediaType string, oci bool) string {

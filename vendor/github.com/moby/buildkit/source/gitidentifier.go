@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/moby/buildkit/util/sshutil"
 	"github.com/pkg/errors"
 )
 
@@ -58,7 +59,7 @@ func (i *GitIdentifier) ID() string {
 // isGitTransport returns true if the provided str is a git transport by inspecting
 // the prefix of the string for known protocols used in git.
 func isGitTransport(str string) bool {
-	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://") || strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "git@")
+	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://") || strings.HasPrefix(str, "git://") || sshutil.IsSSHTransport(str)
 }
 
 func getRefAndSubdir(fragment string) (ref string, subdir string) {

@@ -131,6 +131,10 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 		}
 	}
 
+	if res == nil {
+		res = &frontend.Result{}
+	}
+
 	defer func() {
 		res.EachRef(func(ref solver.ResultProxy) error {
 			go ref.Release(context.TODO())
