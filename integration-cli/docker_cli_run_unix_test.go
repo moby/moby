@@ -873,12 +873,12 @@ func (s *DockerSuite) TestRunTmpfsMountsWithOptions(c *testing.T) {
 		assert.Assert(c, strings.Contains(out, option))
 	}
 
-	// We use debian:buster as there is no findmnt in busybox. Also the output will be in the format of
+	// We use debian:bullseye as there is no findmnt in busybox. Also the output will be in the format of
 	// TARGET PROPAGATION
 	// /tmp   shared
 	// so we only capture `shared` here.
 	expectedOptions = []string{"shared"}
-	out, _ = dockerCmd(c, "run", "--tmpfs", "/tmp:shared", "debian:buster", "findmnt", "-o", "TARGET,PROPAGATION", "/tmp")
+	out, _ = dockerCmd(c, "run", "--tmpfs", "/tmp:shared", "debian:bullseye", "findmnt", "-o", "TARGET,PROPAGATION", "/tmp")
 	for _, option := range expectedOptions {
 		assert.Assert(c, strings.Contains(out, option))
 	}
@@ -914,7 +914,7 @@ func (s *DockerSuite) TestRunSysctls(c *testing.T) {
 	})
 }
 
-// TestRunSeccompProfileDenyUnshare checks that 'docker run --security-opt seccomp=/tmp/profile.json debian:buster unshare' exits with operation not permitted.
+// TestRunSeccompProfileDenyUnshare checks that 'docker run --security-opt seccomp=/tmp/profile.json debian:bullseye unshare' exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotArm, Apparmor)
 	jsonData := `{
@@ -937,7 +937,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *testing.T) {
 	}
 	icmd.RunCommand(dockerBinary, "run", "--security-opt", "apparmor=unconfined",
 		"--security-opt", "seccomp="+tmpFile.Name(),
-		"debian:buster", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc").Assert(c, icmd.Expected{
+		"debian:bullseye", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc").Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Operation not permitted",
 	})
@@ -977,7 +977,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *testing.T) {
 	})
 }
 
-// TestRunSeccompProfileDenyUnshareUserns checks that 'docker run debian:buster unshare --map-root-user --user sh -c whoami' with a specific profile to
+// TestRunSeccompProfileDenyUnshareUserns checks that 'docker run debian:bullseye unshare --map-root-user --user sh -c whoami' with a specific profile to
 // deny unshare of a userns exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotArm, Apparmor)
@@ -1009,7 +1009,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *testing.T) {
 	}
 	icmd.RunCommand(dockerBinary, "run",
 		"--security-opt", "apparmor=unconfined", "--security-opt", "seccomp="+tmpFile.Name(),
-		"debian:buster", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami").Assert(c, icmd.Expected{
+		"debian:bullseye", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami").Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Operation not permitted",
 	})
@@ -1061,12 +1061,12 @@ func (s *DockerSuite) TestRunSeccompProfileAllow32Bit(c *testing.T) {
 	icmd.RunCommand(dockerBinary, "run", "syscall-test", "exit32-test").Assert(c, icmd.Success)
 }
 
-// TestRunSeccompAllowSetrlimit checks that 'docker run debian:buster ulimit -v 1048510' succeeds.
+// TestRunSeccompAllowSetrlimit checks that 'docker run debian:bullseye ulimit -v 1048510' succeeds.
 func (s *DockerSuite) TestRunSeccompAllowSetrlimit(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
 	// ulimit uses setrlimit, so we want to make sure we don't break it
-	icmd.RunCommand(dockerBinary, "run", "debian:buster", "bash", "-c", "ulimit -v 1048510").Assert(c, icmd.Success)
+	icmd.RunCommand(dockerBinary, "run", "debian:bullseye", "bash", "-c", "ulimit -v 1048510").Assert(c, icmd.Success)
 }
 
 func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *testing.T) {
@@ -1362,7 +1362,7 @@ func (s *DockerSuite) TestRunApparmorProcDirectory(c *testing.T) {
 func (s *DockerSuite) TestRunSeccompWithDefaultProfile(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
-	out, _, err := dockerCmdWithError("run", "--security-opt", "seccomp=../profiles/seccomp/default.json", "debian:buster", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
+	out, _, err := dockerCmdWithError("run", "--security-opt", "seccomp=../profiles/seccomp/default.json", "debian:bullseye", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
 	assert.ErrorContains(c, err, "", out)
 	assert.Equal(c, strings.TrimSpace(out), "unshare: unshare failed: Operation not permitted")
 }
