@@ -4,7 +4,11 @@ package poll // import "gotest.tools/v3/poll"
 
 import (
 	"fmt"
+	"strings"
 	"time"
+
+	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/internal/assert"
 )
 
 // TestingT is the subset of testing.T used by WaitOn
@@ -137,4 +141,31 @@ func WaitOn(t TestingT, check Check, pollOps ...SettingOp) {
 			lastMessage = result.Message()
 		}
 	}
+}
+
+// Compare values using the cmp.Comparison. If the comparison fails return a
+// result which indicates to WaitOn that it should continue waiting.
+// If the comparison is successful then WaitOn stops polling.
+func Compare(compare cmp.Comparison) Result {
+	buf := new(logBuffer)
+	if assert.RunComparison(buf, assert.ArgsAtZeroIndex, compare) {
+		return Success()
+	}
+	return Continue(buf.String())
+}
+
+type logBuffer struct {
+	log [][]interface{}
+}
+
+func (c *logBuffer) Log(args ...interface{}) {
+	c.log = append(c.log, args)
+}
+
+func (c *logBuffer) String() string {
+	b := new(strings.Builder)
+	for _, item := range c.log {
+		b.WriteString(fmt.Sprint(item...) + " ")
+	}
+	return b.String()
 }
