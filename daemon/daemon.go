@@ -239,31 +239,36 @@ func (daemon *Daemon) restore() error {
 			_ = sem.Acquire(context.Background(), 1)
 			defer sem.Release(1)
 
-			container, err := daemon.load(id)
+			log := logrus.WithField("container", id)
+
+			c, err := daemon.load(id)
 			if err != nil {
-				logrus.Errorf("Failed to load container %v: %v", id, err)
+				log.WithError(err).Error("failed to load container")
 				return
 			}
-			if !system.IsOSSupported(container.OS) {
-				logrus.Errorf("Failed to load container %v: %s (%q)", id, system.ErrNotSupportedOperatingSystem, container.OS)
+			if !system.IsOSSupported(c.OS) {
+				log.Errorf("failed to load container: %s (%q)", system.ErrNotSupportedOperatingSystem, c.OS)
 				return
 			}
 			// Ignore the container if it does not support the current driver being used by the graph
-			currentDriverForContainerOS := daemon.graphDrivers[container.OS]
-			if (container.Driver == "" && currentDriverForContainerOS == "aufs") || container.Driver == currentDriverForContainerOS {
-				rwlayer, err := daemon.imageService.GetLayerByID(container.ID, container.OS)
+			currentDriverForContainerOS := daemon.graphDrivers[c.OS]
+			if (c.Driver == "" && currentDriverForContainerOS == "aufs") || c.Driver == currentDriverForContainerOS {
+				rwlayer, err := daemon.imageService.GetLayerByID(c.ID, c.OS)
 				if err != nil {
-					logrus.Errorf("Failed to load container mount %v: %v", id, err)
+					log.WithError(err).Error("failed to load container mount")
 					return
 				}
-				container.RWLayer = rwlayer
-				logrus.Debugf("Loaded container %v, isRunning: %v", container.ID, container.IsRunning())
+				c.RWLayer = rwlayer
+				log.WithFields(logrus.Fields{
+					"running": c.IsRunning(),
+					"paused":  c.IsPaused(),
+				}).Debug("loaded container")
 
 				mapLock.Lock()
-				containers[container.ID] = container
+				containers[c.ID] = c
 				mapLock.Unlock()
 			} else {
-				logrus.Debugf("Cannot load container %s because it was created with another graph driver.", container.ID)
+				log.Debugf("cannot load container because it was created with another storage driver")
 			}
 		}(v.Name())
 	}
@@ -280,15 +285,17 @@ func (daemon *Daemon) restore() error {
 			_ = sem.Acquire(context.Background(), 1)
 			defer sem.Release(1)
 
+			log := logrus.WithField("container", c.ID)
+
 			if err := daemon.registerName(c); err != nil {
-				logrus.Errorf("Failed to register container name %s: %s", c.ID, err)
+				log.WithError(err).Errorf("failed to register container name: %s", c.Name)
 				mapLock.Lock()
 				delete(containers, c.ID)
 				mapLock.Unlock()
 				return
 			}
 			if err := daemon.Register(c); err != nil {
-				logrus.Errorf("Failed to register container %s: %s", c.ID, err)
+				log.WithError(err).Error("failed to register container")
 				mapLock.Lock()
 				delete(containers, c.ID)
 				mapLock.Unlock()
@@ -300,7 +307,7 @@ func (daemon *Daemon) restore() error {
 			// Fixes https://github.com/docker/docker/issues/22536
 			if c.HostConfig.LogConfig.Type == "" {
 				if err := daemon.mergeAndVerifyLogConfig(&c.HostConfig.LogConfig); err != nil {
-					logrus.Errorf("Failed to verify log config for container %s: %q", c.ID, err)
+					log.WithError(err).Error("failed to verify log config for container")
 				}
 			}
 		}(c)
@@ -314,17 +321,18 @@ func (daemon *Daemon) restore() error {
 			_ = sem.Acquire(context.Background(), 1)
 			defer sem.Release(1)
 
+			log := logrus.WithField("container", c.ID)
+
 			daemon.backportMountSpec(c)
 			if err := daemon.checkpointAndSave(c); err != nil {
-				logrus.WithError(err).WithField("container", c.ID).Error("error saving backported mountspec to disk")
+				log.WithError(err).Error("error saving backported mountspec to disk")
 			}
 
 			daemon.setStateCounter(c)
 
-			logrus.WithFields(logrus.Fields{
-				"container": c.ID,
-				"running":   c.IsRunning(),
-				"paused":    c.IsPaused(),
+			log.WithFields(logrus.Fields{
+				"running": c.IsRunning(),
+				"paused":  c.IsPaused(),
 			}).Debug("restoring container")
 
 			var (
@@ -337,18 +345,18 @@ func (daemon *Daemon) restore() error {
 
 			alive, _, process, err = daemon.containerd.Restore(context.Background(), c.ID, c.InitializeStdio)
 			if err != nil && !errdefs.IsNotFound(err) {
-				logrus.Errorf("Failed to restore container %s with containerd: %s", c.ID, err)
+				log.WithError(err).Error("failed to restore container with containerd")
 				return
 			}
 			if !alive && process != nil {
 				ec, exitedAt, err = process.Delete(context.Background())
 				if err != nil && !errdefs.IsNotFound(err) {
-					logrus.WithError(err).Errorf("Failed to delete container %s from containerd", c.ID)
+					log.WithError(err).Error("failed to delete container from containerd")
 					return
 				}
 			} else if !daemon.configStore.LiveRestoreEnabled {
 				if err := daemon.shutdownContainer(c); err != nil && !errdefs.IsNotFound(err) {
-					logrus.WithError(err).WithField("container", c.ID).Error("error shutting down container")
+					log.WithError(err).Error("error shutting down container")
 					return
 				}
 				c.ResetRestartManager(false)
@@ -360,27 +368,23 @@ func (daemon *Daemon) restore() error {
 				if c.IsPaused() && alive {
 					s, err := daemon.containerd.Status(context.Background(), c.ID)
 					if err != nil {
-						logrus.WithError(err).WithField("container", c.ID).
-							Errorf("Failed to get container status")
+						log.WithError(err).Error("failed to get container status")
 					} else {
-						logrus.WithField("container", c.ID).WithField("state", s).
-							Info("restored container paused")
+						log.WithField("state", s).Info("restored container paused")
 						switch s {
 						case containerd.Paused, containerd.Pausing:
 							// nothing to do
 						case containerd.Stopped:
 							alive = false
 						case containerd.Unknown:
-							logrus.WithField("container", c.ID).
-								Error("Unknown status for container during restore")
+							log.Error("unknown status for paused container during restore")
 						default:
 							// running
 							c.Lock()
 							c.Paused = false
 							daemon.setStateCounter(c)
 							if err := c.CheckpointTo(daemon.containersReplica); err != nil {
-								logrus.WithError(err).WithField("container", c.ID).
-									Error("Failed to update stopped container state")
+								log.WithError(err).Error("failed to update paused container state")
 							}
 							c.Unlock()
 						}
@@ -392,7 +396,7 @@ func (daemon *Daemon) restore() error {
 					c.SetStopped(&container.ExitStatus{ExitCode: int(ec), ExitedAt: exitedAt})
 					daemon.Cleanup(c)
 					if err := c.CheckpointTo(daemon.containersReplica); err != nil {
-						logrus.Errorf("Failed to update stopped container %s state: %v", c.ID, err)
+						log.WithError(err).Error("failed to update stopped container state")
 					}
 					c.Unlock()
 				}
@@ -405,10 +409,10 @@ func (daemon *Daemon) restore() error {
 					// stopped/restarted/removed.
 					// See #29365 for related information.
 					// The error is only logged here.
-					logrus.Warnf("Failed to mount container on getting BaseFs path %v: %v", c.ID, err)
+					log.WithError(err).Warn("failed to mount container to get BaseFs path")
 				} else {
 					if err := daemon.Unmount(c); err != nil {
-						logrus.Warnf("Failed to umount container on getting BaseFs path %v: %v", c.ID, err)
+						log.WithError(err).Warn("failed to umount container to get BaseFs path")
 					}
 				}
 
@@ -416,7 +420,7 @@ func (daemon *Daemon) restore() error {
 				if !c.HostConfig.NetworkMode.IsContainer() && c.IsRunning() {
 					options, err := daemon.buildSandboxOptions(c)
 					if err != nil {
-						logrus.Warnf("Failed build sandbox option to restore container %s: %v", c.ID, err)
+						log.WithError(err).Warn("failed to build sandbox option to restore container")
 					}
 					mapLock.Lock()
 					activeSandboxes[c.NetworkSettings.SandboxID] = options
@@ -452,11 +456,12 @@ func (daemon *Daemon) restore() error {
 				// associated volumes, network links or both to also
 				// be removed. So we put the container in the "dead"
 				// state and leave further processing up to them.
-				logrus.Debugf("Resetting RemovalInProgress flag from %v", c.ID)
 				c.RemovalInProgress = false
 				c.Dead = true
 				if err := c.CheckpointTo(daemon.containersReplica); err != nil {
-					logrus.Errorf("Failed to update RemovalInProgress container %s state: %v", c.ID, err)
+					log.WithError(err).Error("failed to update RemovalInProgress container state")
+				} else {
+					log.Debugf("reset RemovalInProgress state for container")
 				}
 			}
 			c.Unlock()
@@ -476,7 +481,7 @@ func (daemon *Daemon) restore() error {
 			_ = sem.Acquire(context.Background(), 1)
 
 			if err := daemon.registerLinks(c, c.HostConfig); err != nil {
-				logrus.Errorf("failed to register link for container %s: %v", c.ID, err)
+				logrus.WithField("container", c.ID).WithError(err).Error("failed to register link for container")
 			}
 
 			sem.Release(1)
@@ -489,7 +494,10 @@ func (daemon *Daemon) restore() error {
 		group.Add(1)
 		go func(c *container.Container, chNotify chan struct{}) {
 			_ = sem.Acquire(context.Background(), 1)
-			logrus.Debugf("Starting container %s", c.ID)
+
+			log := logrus.WithField("container", c.ID)
+
+			log.Debug("starting container")
 
 			// ignore errors here as this is a best effort to wait for children to be
 			//   running before we try to start the container
@@ -509,7 +517,7 @@ func (daemon *Daemon) restore() error {
 			// Make sure networks are available before starting
 			daemon.waitForNetworks(c)
 			if err := daemon.containerStart(c, "", "", true); err != nil {
-				logrus.Errorf("Failed to start container %s: %s", c.ID, err)
+				log.WithError(err).Error("failed to start container")
 			}
 			close(chNotify)
 
@@ -525,7 +533,7 @@ func (daemon *Daemon) restore() error {
 			_ = sem.Acquire(context.Background(), 1)
 
 			if err := daemon.ContainerRm(cid, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
-				logrus.Errorf("Failed to remove container %s: %s", cid, err)
+				logrus.WithField("container", cid).WithError(err).Error("failed to remove container")
 			}
 
 			sem.Release(1)
@@ -556,7 +564,7 @@ func (daemon *Daemon) restore() error {
 			_ = sem.Acquire(context.Background(), 1)
 
 			if err := daemon.prepareMountPoints(c); err != nil {
-				logrus.Error(err)
+				logrus.WithField("container", c.ID).WithError(err).Error("failed to prepare mountpoints for container")
 			}
 
 			sem.Release(1)
@@ -600,7 +608,7 @@ func (daemon *Daemon) RestartSwarmContainers() {
 					}
 
 					if err := daemon.containerStart(c, "", "", true); err != nil {
-						logrus.Error(err)
+						logrus.WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
 					}
 
 					sem.Release(1)
@@ -634,7 +642,7 @@ func (daemon *Daemon) waitForNetworks(c *container.Container) {
 			dur := 60 * time.Second
 			timer := time.NewTimer(dur)
 
-			logrus.Debugf("Container %s waiting for network to be ready", c.Name)
+			logrus.WithField("container", c.ID).Debugf("Container %s waiting for network to be ready", c.Name)
 			select {
 			case <-daemon.discoveryWatcher.ReadyCh():
 			case <-timer.C:
@@ -1228,15 +1236,16 @@ func (daemon *Daemon) Shutdown() error {
 			if !c.IsRunning() {
 				return
 			}
-			logrus.Debugf("stopping %s", c.ID)
+			log := logrus.WithField("container", c.ID)
+			log.Debug("shutting down container")
 			if err := daemon.shutdownContainer(c); err != nil {
-				logrus.Errorf("Stop container error: %v", err)
+				log.WithError(err).Error("failed to shut down container")
 				return
 			}
 			if mountid, err := daemon.imageService.GetLayerMountID(c.ID, c.OS); err == nil {
 				daemon.cleanupMountsByID(mountid)
 			}
-			logrus.Debugf("container stopped %s", c.ID)
+			log.Debugf("shut down container")
 		})
 	}
 
@@ -1287,7 +1296,7 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 	if err != nil {
 		return err
 	}
-	logrus.Debugf("container mounted via layerStore: %v", dir)
+	logrus.WithField("container", container.ID).Debugf("container mounted via layerStore: %v", dir)
 
 	if container.BaseFS != nil && container.BaseFS.Path() != dir.Path() {
 		// The mount path reported by the graph driver should always be trusted on Windows, since the
@@ -1309,7 +1318,7 @@ func (daemon *Daemon) Unmount(container *container.Container) error {
 		return errors.New("RWLayer of container " + container.ID + " is unexpectedly nil")
 	}
 	if err := container.RWLayer.Unmount(); err != nil {
-		logrus.Errorf("Error unmounting container %s: %s", container.ID, err)
+		logrus.WithField("container", container.ID).WithError(err).Error("error unmounting container")
 		return err
 	}
 
