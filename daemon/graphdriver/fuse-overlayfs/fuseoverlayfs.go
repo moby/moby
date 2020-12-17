@@ -76,11 +76,9 @@ func init() {
 	graphdriver.Register(driverName, Init)
 }
 
-// Init returns the native diff driver for overlay filesystem.
-// If overlay filesystem is not supported on the host, the error
+// Init returns the naive diff driver for fuse-overlayfs.
+// If fuse-overlayfs is not supported on the host, the error
 // graphdriver.ErrNotSupported is returned.
-// If an overlay filesystem is not supported over an existing filesystem then
-// the error graphdriver.ErrIncompatibleFS is returned.
 func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	if _, err := exec.LookPath(binary); err != nil {
 		logger.Error(err)
@@ -117,7 +115,6 @@ func (d *Driver) String() string {
 }
 
 // Status returns current driver information in a two dimensional string array.
-// Output contains "Backing Filesystem" used in this implementation.
 func (d *Driver) Status() [][2]string {
 	return [][2]string{}
 }
