@@ -348,13 +348,14 @@ func (daemon *Daemon) restore() error {
 				log.WithError(err).Error("failed to restore container with containerd")
 				return
 			}
+			log.Debugf("alive: %v", alive)
 			if !alive && process != nil {
 				ec, exitedAt, err = process.Delete(context.Background())
 				if err != nil && !errdefs.IsNotFound(err) {
 					log.WithError(err).Error("failed to delete container from containerd")
 					return
 				}
-			} else if !daemon.configStore.LiveRestoreEnabled {
+			} else if alive && !daemon.configStore.LiveRestoreEnabled {
 				if err := daemon.shutdownContainer(c); err != nil && !errdefs.IsNotFound(err) {
 					log.WithError(err).Error("error shutting down container")
 					return
@@ -393,6 +394,7 @@ func (daemon *Daemon) restore() error {
 
 				if !alive {
 					c.Lock()
+					log.Debug("setting stopped state")
 					c.SetStopped(&container.ExitStatus{ExitCode: int(ec), ExitedAt: exitedAt})
 					daemon.Cleanup(c)
 					if err := c.CheckpointTo(daemon.containersReplica); err != nil {
