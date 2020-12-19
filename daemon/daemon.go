@@ -330,10 +330,15 @@ func (daemon *Daemon) restore() error {
 
 			daemon.setStateCounter(c)
 
-			log.WithFields(logrus.Fields{
-				"running": c.IsRunning(),
-				"paused":  c.IsPaused(),
-			}).Debug("restoring container")
+			logger := func(c *container.Container) *logrus.Entry {
+				return log.WithFields(logrus.Fields{
+					"running":    c.IsRunning(),
+					"paused":     c.IsPaused(),
+					"restarting": c.IsRestarting(),
+				})
+			}
+
+			logger(c).Debug("restoring container")
 
 			var (
 				err      error
@@ -345,17 +350,24 @@ func (daemon *Daemon) restore() error {
 
 			alive, _, process, err = daemon.containerd.Restore(context.Background(), c.ID, c.InitializeStdio)
 			if err != nil && !errdefs.IsNotFound(err) {
-				log.WithError(err).Error("failed to restore container with containerd")
+				logger(c).WithError(err).Error("failed to restore container with containerd")
 				return
 			}
-			log.Debugf("alive: %v", alive)
-			if !alive && process != nil {
-				ec, exitedAt, err = process.Delete(context.Background())
-				if err != nil && !errdefs.IsNotFound(err) {
-					log.WithError(err).Error("failed to delete container from containerd")
-					return
+			logger(c).Debugf("alive: %v", alive)
+			if !alive {
+				// If process is not nil, cleanup dead container from containerd.
+				// If process is nil then the above `containerd.Restore` returned an errdefs.NotFoundError,
+				// and docker's view of the container state will be updated accorrdingly via SetStopped further down.
+				if process != nil {
+					logger(c).Debug("cleaning up dead container process")
+					ec, exitedAt, err = process.Delete(context.Background())
+					if err != nil && !errdefs.IsNotFound(err) {
+						logger(c).WithError(err).Error("failed to delete container from containerd")
+						return
+					}
 				}
-			} else if alive && !daemon.configStore.LiveRestoreEnabled {
+			} else if !daemon.configStore.LiveRestoreEnabled {
+				logger(c).Debug("shutting down container considered alive by containerd")
 				if err := daemon.shutdownContainer(c); err != nil && !errdefs.IsNotFound(err) {
 					log.WithError(err).Error("error shutting down container")
 					return
@@ -364,14 +376,16 @@ func (daemon *Daemon) restore() error {
 			}
 
 			if c.IsRunning() || c.IsPaused() {
+				logger(c).Debug("syncing container on disk state with real state")
+
 				c.RestartManager().Cancel() // manually start containers because some need to wait for swarm networking
 
 				if c.IsPaused() && alive {
 					s, err := daemon.containerd.Status(context.Background(), c.ID)
 					if err != nil {
-						log.WithError(err).Error("failed to get container status")
+						logger(c).WithError(err).Error("failed to get container status")
 					} else {
-						log.WithField("state", s).Info("restored container paused")
+						logger(c).WithField("state", s).Info("restored container paused")
 						switch s {
 						case containerd.Paused, containerd.Pausing:
 							// nothing to do
@@ -393,14 +407,15 @@ func (daemon *Daemon) restore() error {
 				}
 
 				if !alive {
+					logger(c).Debug("setting stopped state")
 					c.Lock()
-					log.Debug("setting stopped state")
 					c.SetStopped(&container.ExitStatus{ExitCode: int(ec), ExitedAt: exitedAt})
 					daemon.Cleanup(c)
 					if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 						log.WithError(err).Error("failed to update stopped container state")
 					}
 					c.Unlock()
+					logger(c).Debug("set stopped state")
 				}
 
 				// we call Mount and then Unmount to get BaseFs of the container
@@ -411,10 +426,10 @@ func (daemon *Daemon) restore() error {
 					// stopped/restarted/removed.
 					// See #29365 for related information.
 					// The error is only logged here.
-					log.WithError(err).Warn("failed to mount container to get BaseFs path")
+					logger(c).WithError(err).Warn("failed to mount container to get BaseFs path")
 				} else {
 					if err := daemon.Unmount(c); err != nil {
-						log.WithError(err).Warn("failed to umount container to get BaseFs path")
+						logger(c).WithError(err).Warn("failed to umount container to get BaseFs path")
 					}
 				}
 
@@ -422,7 +437,7 @@ func (daemon *Daemon) restore() error {
 				if !c.HostConfig.NetworkMode.IsContainer() && c.IsRunning() {
 					options, err := daemon.buildSandboxOptions(c)
 					if err != nil {
-						log.WithError(err).Warn("failed to build sandbox option to restore container")
+						logger(c).WithError(err).Warn("failed to build sandbox option to restore container")
 					}
 					mapLock.Lock()
 					activeSandboxes[c.NetworkSettings.SandboxID] = options
@@ -467,6 +482,7 @@ func (daemon *Daemon) restore() error {
 				}
 			}
 			c.Unlock()
+			logger(c).Debug("done restoring container")
 		}(c)
 	}
 	group.Wait()
