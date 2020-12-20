@@ -12,3 +12,32 @@ message Source {
 	pb.SourceInfo info = 1;
 	repeated pb.Range ranges = 2;
 }
+
+message FrontendCap {
+	string name = 1;
+}
+
+message Subrequest {
+	string name = 1;
+}
+
+message Solve {
+	repeated string inputIDs = 1;
+	repeated string mountIDs = 2;
+	pb.Op op = 3;
+
+	oneof subject {
+		FileAction file = 4;
+		ContentCache cache = 5;
+	}
+}
+
+message FileAction {
+	// Index of the file action that failed the exec.
+	int64 index = 1;
+}
+
+message ContentCache {
+	// Original index of result that failed the slow cache calculation.
+	int64 index = 1;
+}

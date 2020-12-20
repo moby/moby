@@ -17,6 +17,7 @@
 // used interally by the stats collector.
 package tagencoding // import "go.opencensus.io/internal/tagencoding"
 
+// Values represent the encoded buffer for the values.
 type Values struct {
 	Buffer     []byte
 	WriteIndex int
@@ -31,6 +32,7 @@ func (vb *Values) growIfRequired(expected int) {
 	}
 }
 
+// WriteValue is the helper method to encode Values from map[Key][]byte.
 func (vb *Values) WriteValue(v []byte) {
 	length := len(v) & 0xff
 	vb.growIfRequired(1 + length)
@@ -49,7 +51,7 @@ func (vb *Values) WriteValue(v []byte) {
 	vb.WriteIndex += length
 }
 
-// ReadValue is the helper method to read the values when decoding valuesBytes to a map[Key][]byte.
+// ReadValue is the helper method to decode Values to a map[Key][]byte.
 func (vb *Values) ReadValue() []byte {
 	// read length of v
 	length := int(vb.Buffer[vb.ReadIndex])
@@ -67,6 +69,7 @@ func (vb *Values) ReadValue() []byte {
 	return v
 }
 
+// Bytes returns a reference to already written bytes in the Buffer.
 func (vb *Values) Bytes() []byte {
 	return vb.Buffer[:vb.WriteIndex]
 }

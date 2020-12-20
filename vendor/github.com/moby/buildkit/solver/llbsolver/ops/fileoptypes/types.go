@@ -3,6 +3,7 @@ package fileoptypes
 import (
 	"context"
 
+	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver/pb"
 )
 
@@ -13,6 +14,7 @@ type Ref interface {
 type Mount interface {
 	IsFileOpMount()
 	Release(context.Context) error
+	Readonly() bool
 }
 
 type Backend interface {
@@ -23,6 +25,6 @@ type Backend interface {
 }
 
 type RefManager interface {
-	Prepare(ctx context.Context, ref Ref, readonly bool) (Mount, error)
+	Prepare(ctx context.Context, ref Ref, readonly bool, g session.Group) (Mount, error)
 	Commit(ctx context.Context, mount Mount) (Ref, error)
 }

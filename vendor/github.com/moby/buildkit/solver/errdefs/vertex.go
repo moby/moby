@@ -1,14 +1,14 @@
 package errdefs
 
 import (
-	proto "github.com/golang/protobuf/proto"
+	"github.com/containerd/typeurl"
 	"github.com/moby/buildkit/util/grpcerrors"
 	digest "github.com/opencontainers/go-digest"
 )
 
 func init() {
-	proto.RegisterType((*Vertex)(nil), "errdefs.Vertex")
-	proto.RegisterType((*Source)(nil), "errdefs.Source")
+	typeurl.Register((*Vertex)(nil), "github.com/moby/buildkit", "errdefs.Vertex+json")
+	typeurl.Register((*Source)(nil), "github.com/moby/buildkit", "errdefs.Source+json")
 }
 
 type VertexError struct {

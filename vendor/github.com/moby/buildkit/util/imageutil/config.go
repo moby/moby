@@ -14,6 +14,7 @@ import (
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/moby/buildkit/util/leaseutil"
+	"github.com/moby/buildkit/util/resolver/retryhandler"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -33,6 +34,12 @@ func CancelCacheLeases() {
 		f(context.TODO())
 	}
 	leasesF = nil
+	leasesMu.Unlock()
+}
+
+func AddLease(f func(context.Context) error) {
+	leasesMu.Lock()
+	leasesF = append(leasesF, f)
 	leasesMu.Unlock()
 }
 
@@ -57,9 +64,7 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 		ctx = ctx2
 		defer func() {
 			// this lease is not deleted to allow other components to access manifest/config from cache. It will be deleted after 5 min deadline or on pruning inactive builder
-			leasesMu.Lock()
-			leasesF = append(leasesF, done)
-			leasesMu.Unlock()
+			AddLease(done)
 		}()
 	}
 
@@ -96,7 +101,7 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 	children := childrenConfigHandler(cache, platform)
 
 	handlers := []images.Handler{
-		remotes.FetchHandler(cache, fetcher),
+		retryhandler.New(remotes.FetchHandler(cache, fetcher), nil),
 		children,
 	}
 	if err := images.Dispatch(ctx, images.Handlers(handlers...), nil, desc); err != nil {

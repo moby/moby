@@ -2,7 +2,7 @@
 
 A collection of packages to augment `testing` and support common patterns.
 
-[![GoDoc](https://godoc.org/gotest.tools?status.svg)](http://gotest.tools)
+[![GoDoc](https://godoc.org/gotest.tools?status.svg)](https://pkg.go.dev/gotest.tools/v3/?tab=subdirectories)
 [![CircleCI](https://circleci.com/gh/gotestyourself/gotest.tools/tree/master.svg?style=shield)](https://circleci.com/gh/gotestyourself/gotest.tools/tree/master)
 [![Go Reportcard](https://goreportcard.com/badge/gotest.tools)](https://goreportcard.com/report/gotest.tools)
 
@@ -24,19 +24,19 @@ module paths pin to version `v2.3.0`.
 
 ## Packages
 
-* [assert](http://gotest.tools/assert) -
+* [assert](http://pkg.go.dev/gotest.tools/v3/assert) -
   compare values and fail the test when a comparison fails
-* [env](http://gotest.tools/env) -
+* [env](http://pkg.go.dev/gotest.tools/v3/env) -
   test code which uses environment variables
-* [fs](http://gotest.tools/fs) -
+* [fs](http://pkg.go.dev/gotest.tools/v3/fs) -
   create temporary files and compare a filesystem tree to an expected value
-* [golden](http://gotest.tools/golden) -
+* [golden](http://pkg.go.dev/gotest.tools/v3/golden) -
   compare large multi-line strings against values frozen in golden files
-* [icmd](http://gotest.tools/icmd) -
+* [icmd](http://pkg.go.dev/gotest.tools/v3/icmd) -
   execute binaries and test the output
-* [poll](http://gotest.tools/poll) -
+* [poll](http://pkg.go.dev/gotest.tools/v3/poll) -
   test asynchronous code by polling until a desired state is reached
-* [skip](http://gotest.tools/skip) -
+* [skip](http://pkg.go.dev/gotest.tools/v3/skip) -
   skip a test and print the source code of the condition used to skip the test
 
 ## Related

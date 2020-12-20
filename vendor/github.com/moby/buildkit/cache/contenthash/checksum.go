@@ -11,12 +11,13 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/locker"
 	iradix "github.com/hashicorp/go-immutable-radix"
 	"github.com/hashicorp/golang-lru/simplelru"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
+	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
+	"github.com/moby/locker"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil"
@@ -44,12 +45,12 @@ func getDefaultManager() *cacheManager {
 // header, "/dir" is for contents. For the root node "" (empty string) is the
 // key for root, "/" for the root header
 
-func Checksum(ctx context.Context, ref cache.ImmutableRef, path string, followLinks bool) (digest.Digest, error) {
-	return getDefaultManager().Checksum(ctx, ref, path, followLinks)
+func Checksum(ctx context.Context, ref cache.ImmutableRef, path string, followLinks bool, s session.Group) (digest.Digest, error) {
+	return getDefaultManager().Checksum(ctx, ref, path, followLinks, s)
 }
 
-func ChecksumWildcard(ctx context.Context, ref cache.ImmutableRef, path string, followLinks bool) (digest.Digest, error) {
-	return getDefaultManager().ChecksumWildcard(ctx, ref, path, followLinks)
+func ChecksumWildcard(ctx context.Context, ref cache.ImmutableRef, path string, followLinks bool, s session.Group) (digest.Digest, error) {
+	return getDefaultManager().ChecksumWildcard(ctx, ref, path, followLinks, s)
 }
 
 func GetCacheContext(ctx context.Context, md *metadata.StorageItem, idmap *idtools.IdentityMapping) (CacheContext, error) {
@@ -65,8 +66,8 @@ func ClearCacheContext(md *metadata.StorageItem) {
 }
 
 type CacheContext interface {
-	Checksum(ctx context.Context, ref cache.Mountable, p string, followLinks bool) (digest.Digest, error)
-	ChecksumWildcard(ctx context.Context, ref cache.Mountable, p string, followLinks bool) (digest.Digest, error)
+	Checksum(ctx context.Context, ref cache.Mountable, p string, followLinks bool, s session.Group) (digest.Digest, error)
+	ChecksumWildcard(ctx context.Context, ref cache.Mountable, p string, followLinks bool, s session.Group) (digest.Digest, error)
 	HandleChange(kind fsutil.ChangeKind, p string, fi os.FileInfo, err error) error
 }
 
@@ -85,20 +86,20 @@ type cacheManager struct {
 	lruMu  sync.Mutex
 }
 
-func (cm *cacheManager) Checksum(ctx context.Context, ref cache.ImmutableRef, p string, followLinks bool) (digest.Digest, error) {
+func (cm *cacheManager) Checksum(ctx context.Context, ref cache.ImmutableRef, p string, followLinks bool, s session.Group) (digest.Digest, error) {
 	cc, err := cm.GetCacheContext(ctx, ensureOriginMetadata(ref.Metadata()), ref.IdentityMapping())
 	if err != nil {
 		return "", nil
 	}
-	return cc.Checksum(ctx, ref, p, followLinks)
+	return cc.Checksum(ctx, ref, p, followLinks, s)
 }
 
-func (cm *cacheManager) ChecksumWildcard(ctx context.Context, ref cache.ImmutableRef, p string, followLinks bool) (digest.Digest, error) {
+func (cm *cacheManager) ChecksumWildcard(ctx context.Context, ref cache.ImmutableRef, p string, followLinks bool, s session.Group) (digest.Digest, error) {
 	cc, err := cm.GetCacheContext(ctx, ensureOriginMetadata(ref.Metadata()), ref.IdentityMapping())
 	if err != nil {
 		return "", nil
 	}
-	return cc.ChecksumWildcard(ctx, ref, p, followLinks)
+	return cc.ChecksumWildcard(ctx, ref, p, followLinks, s)
 }
 
 func (cm *cacheManager) GetCacheContext(ctx context.Context, md *metadata.StorageItem, idmap *idtools.IdentityMapping) (CacheContext, error) {
@@ -170,13 +171,14 @@ type mount struct {
 	mountable cache.Mountable
 	mountPath string
 	unmount   func() error
+	session   session.Group
 }
 
 func (m *mount) mount(ctx context.Context) (string, error) {
 	if m.mountPath != "" {
 		return m.mountPath, nil
 	}
-	mounts, err := m.mountable.Mount(ctx, true)
+	mounts, err := m.mountable.Mount(ctx, true, m.session)
 	if err != nil {
 		return "", err
 	}
@@ -380,13 +382,13 @@ func (cc *cacheContext) HandleChange(kind fsutil.ChangeKind, p string, fi os.Fil
 	return nil
 }
 
-func (cc *cacheContext) ChecksumWildcard(ctx context.Context, mountable cache.Mountable, p string, followLinks bool) (digest.Digest, error) {
-	m := &mount{mountable: mountable}
+func (cc *cacheContext) ChecksumWildcard(ctx context.Context, mountable cache.Mountable, p string, followLinks bool, s session.Group) (digest.Digest, error) {
+	m := &mount{mountable: mountable, session: s}
 	defer m.clean()
 
 	wildcards, err := cc.wildcards(ctx, m, p)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	if followLinks {
@@ -413,13 +415,12 @@ func (cc *cacheContext) ChecksumWildcard(ctx context.Context, mountable cache.Mo
 			digester.Hash().Write([]byte(w.Record.Digest))
 		}
 		return digester.Digest(), nil
-	} else {
-		return wildcards[0].Record.Digest, nil
 	}
+	return wildcards[0].Record.Digest, nil
 }
 
-func (cc *cacheContext) Checksum(ctx context.Context, mountable cache.Mountable, p string, followLinks bool) (digest.Digest, error) {
-	m := &mount{mountable: mountable}
+func (cc *cacheContext) Checksum(ctx context.Context, mountable cache.Mountable, p string, followLinks bool, s session.Group) (digest.Digest, error) {
+	m := &mount{mountable: mountable, session: s}
 	defer m.clean()
 
 	return cc.checksumFollow(ctx, m, p, followLinks)
@@ -688,24 +689,24 @@ func (cc *cacheContext) needsScanFollow(root *iradix.Node, p string, linksWalked
 	if p == "/" {
 		p = ""
 	}
-	if v, ok := root.Get(convertPathToKey([]byte(p))); !ok {
+	v, ok := root.Get(convertPathToKey([]byte(p)))
+	if !ok {
 		if p == "" {
 			return true, nil
 		}
 		return cc.needsScanFollow(root, path.Clean(path.Dir(p)), linksWalked)
-	} else {
-		cr := v.(*CacheRecord)
-		if cr.Type == CacheRecordTypeSymlink {
-			if *linksWalked > 255 {
-				return false, errTooManyLinks
-			}
-			*linksWalked++
-			link := path.Clean(cr.Linkname)
-			if !path.IsAbs(cr.Linkname) {
-				link = path.Join("/", path.Dir(p), link)
-			}
-			return cc.needsScanFollow(root, link, linksWalked)
+	}
+	cr := v.(*CacheRecord)
+	if cr.Type == CacheRecordTypeSymlink {
+		if *linksWalked > 255 {
+			return false, errTooManyLinks
 		}
+		*linksWalked++
+		link := path.Clean(cr.Linkname)
+		if !path.IsAbs(cr.Linkname) {
+			link = path.Join("/", path.Dir(p), link)
+		}
+		return cc.needsScanFollow(root, link, linksWalked)
 	}
 	return false, nil
 }
@@ -875,12 +876,15 @@ func ensureOriginMetadata(md *metadata.StorageItem) *metadata.StorageItem {
 }
 
 var pool32K = sync.Pool{
-	New: func() interface{} { return make([]byte, 32*1024) }, // 32K
+	New: func() interface{} {
+		buf := make([]byte, 32*1024) // 32K
+		return &buf
+	},
 }
 
 func poolsCopy(dst io.Writer, src io.Reader) (written int64, err error) {
-	buf := pool32K.Get().([]byte)
-	written, err = io.CopyBuffer(dst, src, buf)
+	buf := pool32K.Get().(*[]byte)
+	written, err = io.CopyBuffer(dst, src, *buf)
 	pool32K.Put(buf)
 	return
 }

@@ -97,11 +97,9 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	conf.MaxDownloadAttempts = &maxDownloadAttempts
 
 	flags.StringVar(&conf.ContainerdNamespace, "containerd-namespace", daemon.ContainersNamespace, "Containerd namespace to use")
-	if err := flags.MarkHidden("containerd-namespace"); err != nil {
-		return err
-	}
 	flags.StringVar(&conf.ContainerdPluginNamespace, "containerd-plugins-namespace", containerd.PluginNamespace, "Containerd namespace to use for plugins")
-	return flags.MarkHidden("containerd-plugins-namespace")
+
+	return nil
 }
 
 func installRegistryServiceFlags(options *registry.ServiceOptions, flags *pflag.FlagSet) {

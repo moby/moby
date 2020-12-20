@@ -205,8 +205,8 @@ type CommonConfig struct {
 	Debug     bool     `json:"debug,omitempty"`
 	Hosts     []string `json:"hosts,omitempty"`
 	LogLevel  string   `json:"log-level,omitempty"`
-	TLS       bool     `json:"tls,omitempty"`
-	TLSVerify bool     `json:"tlsverify,omitempty"`
+	TLS       *bool    `json:"tls,omitempty"`
+	TLSVerify *bool    `json:"tlsverify,omitempty"`
 
 	// Embedded structs that allow config
 	// deserialization without the full struct.

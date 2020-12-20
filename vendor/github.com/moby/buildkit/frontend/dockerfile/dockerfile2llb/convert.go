@@ -62,6 +62,7 @@ type ConvertOpt struct {
 	LLBCaps           *apicaps.CapSet
 	ContextLocalName  string
 	SourceMap         *llb.SourceMap
+	Hostname          string
 }
 
 func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State, *Image, error) {
@@ -94,11 +95,13 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 
 	shlex := shell.NewLex(dockerfile.EscapeToken)
 
-	for _, metaArg := range metaArgs {
-		if metaArg.Value != nil {
-			*metaArg.Value, _ = shlex.ProcessWordWithMap(*metaArg.Value, metaArgsToMap(optMetaArgs))
+	for _, cmd := range metaArgs {
+		for _, metaArg := range cmd.Args {
+			if metaArg.Value != nil {
+				*metaArg.Value, _ = shlex.ProcessWordWithMap(*metaArg.Value, metaArgsToMap(optMetaArgs))
+			}
+			optMetaArgs = append(optMetaArgs, setKVValue(metaArg, opt.BuildArgs))
 		}
-		optMetaArgs = append(optMetaArgs, setKVValue(metaArg.KeyValuePairOptional, opt.BuildArgs))
 	}
 
 	metaResolver := opt.MetaResolver
@@ -246,33 +249,34 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 							ResolveMode: opt.ImageResolveMode.String(),
 							LogName:     fmt.Sprintf("%s load metadata for %s", prefix, d.stage.BaseName),
 						})
-						if err == nil { // handle the error while builder is actually running
-							var img Image
-							if err := json.Unmarshal(dt, &img); err != nil {
+						if err != nil {
+							return err
+						}
+						var img Image
+						if err := json.Unmarshal(dt, &img); err != nil {
+							return err
+						}
+						img.Created = nil
+						// if there is no explicit target platform, try to match based on image config
+						if d.platform == nil && platformOpt.implicitTarget {
+							p := autoDetectPlatform(img, *platform, platformOpt.buildPlatforms)
+							platform = &p
+						}
+						d.image = img
+						if dgst != "" {
+							ref, err = reference.WithDigest(ref, dgst)
+							if err != nil {
 								return err
 							}
-							img.Created = nil
-							// if there is no explicit target platform, try to match based on image config
-							if d.platform == nil && platformOpt.implicitTarget {
-								p := autoDetectPlatform(img, *platform, platformOpt.buildPlatforms)
-								platform = &p
-							}
-							d.image = img
-							if dgst != "" {
-								ref, err = reference.WithDigest(ref, dgst)
-								if err != nil {
-									return err
-								}
-							}
-							d.stage.BaseName = ref.String()
-							if len(img.RootFS.DiffIDs) == 0 {
-								isScratch = true
-								// schema1 images can't return diffIDs so double check :(
-								for _, h := range img.History {
-									if !h.EmptyLayer {
-										isScratch = false
-										break
-									}
+						}
+						d.stage.BaseName = ref.String()
+						if len(img.RootFS.DiffIDs) == 0 {
+							isScratch = true
+							// schema1 images can't return diffIDs so double check :(
+							for _, h := range img.History {
+								if !h.EmptyLayer {
+									isScratch = false
+									break
 								}
 							}
 						}
@@ -314,13 +318,20 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 
 		// make sure that PATH is always set
 		if _, ok := shell.BuildEnvs(d.image.Config.Env)["PATH"]; !ok {
-			d.image.Config.Env = append(d.image.Config.Env, "PATH="+system.DefaultPathEnv)
+			var os string
+			if d.platform != nil {
+				os = d.platform.OS
+			}
+			d.image.Config.Env = append(d.image.Config.Env, "PATH="+system.DefaultPathEnv(os))
 		}
 
 		// initialize base metadata from image conf
 		for _, env := range d.image.Config.Env {
 			k, v := parseKeyValue(env)
 			d.state = d.state.AddEnv(k, v)
+		}
+		if opt.Hostname != "" {
+			d.state = d.state.Hostname(opt.Hostname)
 		}
 		if d.image.Config.WorkingDir != "" {
 			if err = dispatchWorkdir(d, &instructions.WorkdirCommand{Path: d.image.Config.WorkingDir}, false, nil); err != nil {
@@ -1072,26 +1083,30 @@ func dispatchShell(d *dispatchState, c *instructions.ShellCommand) error {
 }
 
 func dispatchArg(d *dispatchState, c *instructions.ArgCommand, metaArgs []instructions.KeyValuePairOptional, buildArgValues map[string]string) error {
-	commitStr := "ARG " + c.Key
-	buildArg := setKVValue(c.KeyValuePairOptional, buildArgValues)
+	commitStrs := make([]string, 0, len(c.Args))
+	for _, arg := range c.Args {
+		buildArg := setKVValue(arg, buildArgValues)
 
-	if c.Value != nil {
-		commitStr += "=" + *c.Value
-	}
-	if buildArg.Value == nil {
-		for _, ma := range metaArgs {
-			if ma.Key == buildArg.Key {
-				buildArg.Value = ma.Value
+		commitStr := arg.Key
+		if arg.Value != nil {
+			commitStr += "=" + *arg.Value
+		}
+		commitStrs = append(commitStrs, commitStr)
+		if buildArg.Value == nil {
+			for _, ma := range metaArgs {
+				if ma.Key == buildArg.Key {
+					buildArg.Value = ma.Value
+				}
 			}
 		}
-	}
 
-	if buildArg.Value != nil {
-		d.state = d.state.AddEnv(buildArg.Key, *buildArg.Value)
-	}
+		if buildArg.Value != nil {
+			d.state = d.state.AddEnv(buildArg.Key, *buildArg.Value)
+		}
 
-	d.buildArgs = append(d.buildArgs, buildArg)
-	return commitToHistory(&d.image, commitStr, false, nil)
+		d.buildArgs = append(d.buildArgs, buildArg)
+	}
+	return commitToHistory(&d.image, "ARG "+strings.Join(commitStrs, " "), false, nil)
 }
 
 func pathRelativeToWorkingDir(s llb.State, p string) (string, error) {
@@ -1308,15 +1323,15 @@ func proxyEnvFromBuildArgs(args map[string]string) *llb.ProxyEnv {
 	isNil := true
 	for k, v := range args {
 		if strings.EqualFold(k, "http_proxy") {
-			pe.HttpProxy = v
+			pe.HTTPProxy = v
 			isNil = false
 		}
 		if strings.EqualFold(k, "https_proxy") {
-			pe.HttpsProxy = v
+			pe.HTTPSProxy = v
 			isNil = false
 		}
 		if strings.EqualFold(k, "ftp_proxy") {
-			pe.FtpProxy = v
+			pe.FTPProxy = v
 			isNil = false
 		}
 		if strings.EqualFold(k, "no_proxy") {
@@ -1339,7 +1354,7 @@ func withShell(img Image, args []string) []string {
 	if len(img.Config.Shell) > 0 {
 		shell = append([]string{}, img.Config.Shell...)
 	} else {
-		shell = defaultShell()
+		shell = defaultShell(img.OS)
 	}
 	return append(shell, strings.Join(args, " "))
 }

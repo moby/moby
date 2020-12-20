@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/opencontainers/go-digest"
@@ -32,7 +33,6 @@ type DiskWriter struct {
 	opt  DiskWriterOpt
 	dest string
 
-	wg     sync.WaitGroup
 	ctx    context.Context
 	cancel func()
 	eg     *errgroup.Group
@@ -104,7 +104,7 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 
 	stat, ok := fi.Sys().(*types.Stat)
 	if !ok {
-		return errors.Errorf("%s invalid change without stat information", p)
+		return errors.WithStack(&os.PathError{Path: p, Err: syscall.EBADMSG, Op: "change without stat info"})
 	}
 
 	statCopy := *stat
@@ -118,13 +118,13 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 	rename := true
 	oldFi, err := os.Lstat(destPath)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			if kind != ChangeKindAdd {
-				return errors.Wrapf(err, "invalid addition: %s", destPath)
+				return errors.Wrap(err, "modify/rm")
 			}
 			rename = false
 		} else {
-			return errors.Wrapf(err, "failed to stat %s", destPath)
+			return errors.WithStack(err)
 		}
 	}
 
@@ -285,7 +285,6 @@ func (hw *hashedWriter) Digest() digest.Digest {
 
 type lazyFileWriter struct {
 	dest     string
-	ctx      context.Context
 	f        *os.File
 	fileMode *os.FileMode
 }

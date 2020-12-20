@@ -3,8 +3,9 @@
 # BuildKit
 
 [![GoDoc](https://godoc.org/github.com/moby/buildkit?status.svg)](https://godoc.org/github.com/moby/buildkit/client/llb)
-[![Build Status](https://travis-ci.org/moby/buildkit.svg?branch=master)](https://travis-ci.org/moby/buildkit)
+[![Build Status](https://github.com/moby/buildkit/workflows/build/badge.svg)](https://github.com/moby/buildkit/actions?query=workflow%3Abuild)
 [![Go Report Card](https://goreportcard.com/badge/github.com/moby/buildkit)](https://goreportcard.com/report/github.com/moby/buildkit)
+[![codecov](https://codecov.io/gh/moby/buildkit/branch/master/graph/badge.svg)](https://codecov.io/gh/moby/buildkit)
 
 BuildKit is a toolkit for converting source code to build artifacts in an efficient, expressive and repeatable manner.
 
@@ -27,7 +28,7 @@ Introductory blog post https://blog.mobyproject.org/introducing-buildkit-17e056c
 
 Join `#buildkit` channel on [Docker Community Slack](http://dockr.ly/slack)
 
-:information_source: If you are visiting this repo for the usage of experimental Dockerfile features like `RUN --mount=type=(bind|cache|tmpfs|secret|ssh)`, please refer to [`frontend/dockerfile/docs/experimental.md`](frontend/dockerfile/docs/experimental.md).
+:information_source: If you are visiting this repo for the usage of BuildKit-only Dockerfile features like `RUN --mount=type=(bind|cache|tmpfs|secret|ssh)`, please refer to [`frontend/dockerfile/docs/syntax.md`](frontend/dockerfile/docs/syntax.md).
 
 :information_source: [BuildKit has been integrated to `docker build` since Docker 18.06 .](https://docs.docker.com/develop/develop-images/build_enhancements/)
 You don't need to read this document unless you want to use the full-featured standalone version of BuildKit.
@@ -62,6 +63,7 @@ You don't need to read this document unless you want to use the full-featured st
 - [Expose BuildKit as a TCP service](#expose-buildkit-as-a-tcp-service)
   - [Load balancing](#load-balancing)
 - [Containerizing BuildKit](#containerizing-buildkit)
+  - [Podman](#podman)
   - [Kubernetes](#kubernetes)
   - [Daemonless](#daemonless)
 - [Opentracing support](#opentracing-support)
@@ -127,11 +129,6 @@ We are open to adding more backends.
 The buildkitd daemon listens gRPC API on `/run/buildkit/buildkitd.sock` by default, but you can also use TCP sockets.
 See [Expose BuildKit as a TCP service](#expose-buildkit-as-a-tcp-service).
 
-:information_source: Notice to Fedora 31 users:
-
-* As runc still does not work on cgroup v2 environment like Fedora 31, you need to substitute runc with crun. Run `buildkitd` with `--oci-worker-binary=crun`.
-* If you want to use runc, you need to configure the system to use cgroup v1. Run `sudo grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=0"` and reboot.
-
 ### Exploring LLB
 
 BuildKit builds are based on a binary intermediate format called LLB that is used for defining the dependency graph for processes running part of your build. tl;dr: LLB is to Dockerfile what LLVM IR is to C.
@@ -150,6 +147,9 @@ Currently, the following high-level languages has been implemented for LLB:
 -   [Mockerfile](https://matt-rickard.com/building-a-new-dockerfile-frontend/)
 -   [Gockerfile](https://github.com/po3rin/gockerfile)
 -   [bldr (Pkgfile)](https://github.com/talos-systems/bldr/)
+-   [HLB](https://github.com/openllb/hlb)
+-   [Earthfile (Earthly)](https://github.com/earthly/earthly)
+-   [Cargo Wharf (Rust)](https://github.com/denzp/cargo-wharf)
 -   (open a PR to add your own language)
 
 ### Exploring Dockerfiles
@@ -178,7 +178,7 @@ buildctl build \
 
 #### Building a Dockerfile using external frontend:
 
-External versions of the Dockerfile frontend are pushed to https://hub.docker.com/r/docker/dockerfile-upstream and https://hub.docker.com/r/docker/dockerfile and can be used with the gateway frontend. The source for the external frontend is currently located in `./frontend/dockerfile/cmd/dockerfile-frontend` but will move out of this repository in the future ([#163](https://github.com/moby/buildkit/issues/163)). For automatic build from master branch of this repository `docker/dockerfile-upsteam:master` or `docker/dockerfile-upstream:master-experimental` image can be used.
+External versions of the Dockerfile frontend are pushed to https://hub.docker.com/r/docker/dockerfile-upstream and https://hub.docker.com/r/docker/dockerfile and can be used with the gateway frontend. The source for the external frontend is currently located in `./frontend/dockerfile/cmd/dockerfile-frontend` but will move out of this repository in the future ([#163](https://github.com/moby/buildkit/issues/163)). For automatic build from master branch of this repository `docker/dockerfile-upstream:master` or `docker/dockerfile-upstream:master-labs` image can be used.
 
 ```bash
 buildctl build \
@@ -353,6 +353,7 @@ The directory layout conforms to OCI Image Spec v1.0.
 -   `mode=max`: export all the layers of all intermediate steps. Not supported for `inline` cache exporter.
 -   `ref=docker.io/user/image:tag`: reference for `registry` cache exporter
 -   `dest=path/to/output-dir`: directory for `local` cache exporter
+-   `oci-mediatypes=true|false`: whether to use OCI mediatypes in exported manifests for `local` and `registry` exporter. Since BuildKit `v0.8` defaults to true.
 
 #### `--import-cache` options
 -   `type`: `registry` or `local`. Use `registry` to import `inline` cache.
@@ -418,13 +419,23 @@ export BUILDKIT_HOST=docker-container://buildkitd
 buildctl build --help
 ```
 
+### Podman
+To connect to a BuildKit daemon running in a Podman container, use `podman-container://` instead of `docker-container://` .
+
+```bash
+podman run -d --name buildkitd --privileged moby/buildkit:latest
+buildctl --addr=podman-container://buildkitd build --frontend dockerfile.v0 --local context=. --local dockerfile=. --output type=oci | podman load foo
+```
+
+`sudo` is not required.
+
 ### Kubernetes
 
 For Kubernetes deployments, see [`examples/kubernetes`](./examples/kubernetes).
 
 ### Daemonless
 
-To run client and an ephemeral daemon in a single container ("daemonless mode"):
+To run the client and an ephemeral daemon in a single container ("daemonless mode"):
 
 ```bash
 docker run \

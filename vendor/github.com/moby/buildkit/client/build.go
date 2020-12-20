@@ -45,10 +45,13 @@ func (c *Client) Build(ctx context.Context, opt SolveOpt, product string, buildF
 	}
 
 	cb := func(ref string, s *session.Session) error {
-		g, err := grpcclient.New(ctx, feOpts, s.ID(), product, c.gatewayClientForBuild(ref), gworkers)
+		gwClient := c.gatewayClientForBuild(ref)
+		g, err := grpcclient.New(ctx, feOpts, s.ID(), product, gwClient, gworkers)
 		if err != nil {
 			return err
 		}
+
+		gwClient.caps = g.BuildOpts().Caps
 
 		if err := g.Run(ctx, buildFunc); err != nil {
 			return errors.Wrap(err, "failed to run Build function")
@@ -59,14 +62,18 @@ func (c *Client) Build(ctx context.Context, opt SolveOpt, product string, buildF
 	return c.solve(ctx, nil, cb, opt, statusChan)
 }
 
-func (c *Client) gatewayClientForBuild(buildid string) gatewayapi.LLBBridgeClient {
+func (c *Client) gatewayClientForBuild(buildid string) *gatewayClientForBuild {
 	g := gatewayapi.NewLLBBridgeClient(c.conn)
-	return &gatewayClientForBuild{g, buildid}
+	return &gatewayClientForBuild{
+		gateway: g,
+		buildID: buildid,
+	}
 }
 
 type gatewayClientForBuild struct {
 	gateway gatewayapi.LLBBridgeClient
 	buildID string
+	caps    apicaps.CapSet
 }
 
 func (g *gatewayClientForBuild) ResolveImageConfig(ctx context.Context, in *gatewayapi.ResolveImageConfigRequest, opts ...grpc.CallOption) (*gatewayapi.ResolveImageConfigResponse, error) {
@@ -85,11 +92,17 @@ func (g *gatewayClientForBuild) ReadFile(ctx context.Context, in *gatewayapi.Rea
 }
 
 func (g *gatewayClientForBuild) ReadDir(ctx context.Context, in *gatewayapi.ReadDirRequest, opts ...grpc.CallOption) (*gatewayapi.ReadDirResponse, error) {
+	if err := g.caps.Supports(gatewayapi.CapReadDir); err != nil {
+		return nil, err
+	}
 	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
 	return g.gateway.ReadDir(ctx, in, opts...)
 }
 
 func (g *gatewayClientForBuild) StatFile(ctx context.Context, in *gatewayapi.StatFileRequest, opts ...grpc.CallOption) (*gatewayapi.StatFileResponse, error) {
+	if err := g.caps.Supports(gatewayapi.CapStatFile); err != nil {
+		return nil, err
+	}
 	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
 	return g.gateway.StatFile(ctx, in, opts...)
 }
@@ -105,6 +118,33 @@ func (g *gatewayClientForBuild) Return(ctx context.Context, in *gatewayapi.Retur
 }
 
 func (g *gatewayClientForBuild) Inputs(ctx context.Context, in *gatewayapi.InputsRequest, opts ...grpc.CallOption) (*gatewayapi.InputsResponse, error) {
+	if err := g.caps.Supports(gatewayapi.CapFrontendInputs); err != nil {
+		return nil, err
+	}
 	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
 	return g.gateway.Inputs(ctx, in, opts...)
+}
+
+func (g *gatewayClientForBuild) NewContainer(ctx context.Context, in *gatewayapi.NewContainerRequest, opts ...grpc.CallOption) (*gatewayapi.NewContainerResponse, error) {
+	if err := g.caps.Supports(gatewayapi.CapGatewayExec); err != nil {
+		return nil, err
+	}
+	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
+	return g.gateway.NewContainer(ctx, in, opts...)
+}
+
+func (g *gatewayClientForBuild) ReleaseContainer(ctx context.Context, in *gatewayapi.ReleaseContainerRequest, opts ...grpc.CallOption) (*gatewayapi.ReleaseContainerResponse, error) {
+	if err := g.caps.Supports(gatewayapi.CapGatewayExec); err != nil {
+		return nil, err
+	}
+	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
+	return g.gateway.ReleaseContainer(ctx, in, opts...)
+}
+
+func (g *gatewayClientForBuild) ExecProcess(ctx context.Context, opts ...grpc.CallOption) (gatewayapi.LLBBridge_ExecProcessClient, error) {
+	if err := g.caps.Supports(gatewayapi.CapGatewayExec); err != nil {
+		return nil, err
+	}
+	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
+	return g.gateway.ExecProcess(ctx, opts...)
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/worker"
@@ -106,7 +107,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 
 	var res *frontend.Result
 	if s.gatewayForwarder != nil && req.Definition == nil && req.Frontend == "" {
-		fwd := gateway.NewBridgeForwarder(ctx, s.Bridge(j), s.workerController, req.FrontendInputs, sessionID)
+		fwd := gateway.NewBridgeForwarder(ctx, s.Bridge(j), s.workerController, req.FrontendInputs, sessionID, s.sm)
 		defer fwd.Discard()
 		if err := s.gatewayForwarder.RegisterBuild(ctx, id, fwd); err != nil {
 			return nil, err
@@ -128,6 +129,10 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if res == nil {
+		res = &frontend.Result{}
 	}
 
 	defer func() {
@@ -168,7 +173,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 			}
 			inp.Ref = workerRef.ImmutableRef
 
-			dt, err := inlineCache(ctx, exp.CacheExporter, r)
+			dt, err := inlineCache(ctx, exp.CacheExporter, r, session.NewGroup(sessionID))
 			if err != nil {
 				return nil, err
 			}
@@ -192,7 +197,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 					}
 					m[k] = workerRef.ImmutableRef
 
-					dt, err := inlineCache(ctx, exp.CacheExporter, r)
+					dt, err := inlineCache(ctx, exp.CacheExporter, r, session.NewGroup(sessionID))
 					if err != nil {
 						return nil, err
 					}
@@ -212,6 +217,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 		}
 	}
 
+	g := session.NewGroup(j.SessionID)
 	var cacheExporterResponse map[string]string
 	if e := exp.CacheExporter; e != nil {
 		if err := inBuilderContext(ctx, j, "exporting cache", "", func(ctx context.Context, _ session.Group) error {
@@ -223,8 +229,9 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 				}
 				// all keys have same export chain so exporting others is not needed
 				_, err = r.CacheKeys()[0].Exporter.ExportTo(ctx, e, solver.CacheExportOpt{
-					Convert: workerRefConverter,
+					Convert: workerRefConverter(g),
 					Mode:    exp.CacheExportMode,
+					Session: g,
 				})
 				return err
 			}); err != nil {
@@ -258,7 +265,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	}, nil
 }
 
-func inlineCache(ctx context.Context, e remotecache.Exporter, res solver.CachedResult) ([]byte, error) {
+func inlineCache(ctx context.Context, e remotecache.Exporter, res solver.CachedResult, g session.Group) ([]byte, error) {
 	if efl, ok := e.(interface {
 		ExportForLayers([]digest.Digest) ([]byte, error)
 	}); ok {
@@ -267,7 +274,7 @@ func inlineCache(ctx context.Context, e remotecache.Exporter, res solver.CachedR
 			return nil, errors.Errorf("invalid reference: %T", res.Sys())
 		}
 
-		remote, err := workerRef.Worker.GetRemote(ctx, workerRef.ImmutableRef, true)
+		remote, err := workerRef.GetRemote(ctx, true, compression.Default, g)
 		if err != nil || remote == nil {
 			return nil, nil
 		}
@@ -278,8 +285,9 @@ func inlineCache(ctx context.Context, e remotecache.Exporter, res solver.CachedR
 		}
 
 		if _, err := res.CacheKeys()[0].Exporter.ExportTo(ctx, e, solver.CacheExportOpt{
-			Convert: workerRefConverter,
+			Convert: workerRefConverter(g),
 			Mode:    solver.CacheExportModeMin,
+			Session: g,
 		}); err != nil {
 			return nil, err
 		}

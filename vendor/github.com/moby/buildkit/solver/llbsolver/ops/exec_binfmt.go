@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/pb"
-	"github.com/moby/buildkit/util/binfmt_misc"
+	"github.com/moby/buildkit/util/archutil"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	copy "github.com/tonistiigi/fsutil/copy"
@@ -83,7 +83,7 @@ func (m *staticEmulatorMount) IdentityMapping() *idtools.IdentityMapping {
 }
 
 func getEmulator(p *pb.Platform, idmap *idtools.IdentityMapping) (*emulator, error) {
-	all := binfmt_misc.SupportedPlatforms(false)
+	all := archutil.SupportedPlatforms(false)
 	m := make(map[string]struct{}, len(all))
 
 	for _, p := range all {

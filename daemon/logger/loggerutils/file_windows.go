@@ -4,9 +4,11 @@ import (
 	"os"
 	"syscall"
 	"unsafe"
-
-	"github.com/pkg/errors"
 )
+
+func open(name string) (*os.File, error) {
+	return openFile(name, os.O_RDONLY, 0)
+}
 
 func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
 	if name == "" {
@@ -14,7 +16,7 @@ func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
 	}
 	h, err := syscallOpen(fixLongPath(name), flag|syscall.O_CLOEXEC, syscallMode(perm))
 	if err != nil {
-		return nil, errors.Wrap(err, "error opening file")
+		return nil, &os.PathError{Op: "open", Path: name, Err: err}
 	}
 	return os.NewFile(uintptr(h), name), nil
 }

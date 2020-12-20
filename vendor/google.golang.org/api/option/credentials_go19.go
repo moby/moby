@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
+// Copyright 2018 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ func (w *withCreds) Apply(o *internal.DialSettings) {
 	o.Credentials = (*google.Credentials)(w)
 }
 
+// WithCredentials returns a ClientOption that authenticates API calls.
 func WithCredentials(creds *google.Credentials) ClientOption {
 	return (*withCreds)(creds)
 }

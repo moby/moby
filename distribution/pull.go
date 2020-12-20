@@ -29,7 +29,7 @@ type Puller interface {
 // whether a v1 or v2 puller will be created. The other parameters are passed
 // through to the underlying puller implementation for use during the actual
 // pull operation.
-func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig) (Puller, error) {
+func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig, local ContentStore) (Puller, error) {
 	switch endpoint.Version {
 	case registry.APIVersion2:
 		return &v2Puller{
@@ -37,6 +37,9 @@ func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo,
 			endpoint:          endpoint,
 			config:            imagePullConfig,
 			repoInfo:          repoInfo,
+			manifestStore: &manifestStore{
+				local: local,
+			},
 		}, nil
 	case registry.APIVersion1:
 		return nil, fmt.Errorf("protocol version %d no longer supported. Please contact admins of registry %s", endpoint.Version, endpoint.URL)
@@ -46,7 +49,7 @@ func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo,
 
 // Pull initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
-func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullConfig) error {
+func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullConfig, local ContentStore) error {
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := imagePullConfig.RegistryService.ResolveRepository(ref)
 	if err != nil {
@@ -104,7 +107,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 
 		logrus.Debugf("Trying to pull %s from %s %s", reference.FamiliarName(repoInfo.Name), endpoint.URL, endpoint.Version)
 
-		puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
+		puller, err := newPuller(endpoint, repoInfo, imagePullConfig, local)
 		if err != nil {
 			lastErr = err
 			continue

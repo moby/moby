@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/pkg/symlink"
+	"github.com/moby/sys/symlink"
 	"github.com/pkg/errors"
 )
 

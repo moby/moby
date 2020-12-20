@@ -2,7 +2,7 @@ package llb
 
 import (
 	"context"
-	_ "crypto/sha256"
+	_ "crypto/sha256" // for opencontainers/go-digest
 	"fmt"
 	"net"
 	"sort"
@@ -153,7 +153,13 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 	}
 	if c.Caps != nil {
 		if err := c.Caps.Supports(pb.CapExecMetaSetsDefaultPath); err != nil {
-			env = env.SetDefault("PATH", system.DefaultPathEnv)
+			os := "linux"
+			if c.Platform != nil {
+				os = c.Platform.OS
+			} else if e.constraints.Platform != nil {
+				os = e.constraints.Platform.OS
+			}
+			env = env.SetDefault("PATH", system.DefaultPathEnv(os))
 		} else {
 			addCap(&e.constraints, pb.CapExecMetaSetsDefaultPath)
 		}
@@ -174,11 +180,17 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 		return "", nil, nil, nil, err
 	}
 
+	hostname, err := getHostname(e.base)(ctx)
+	if err != nil {
+		return "", nil, nil, nil, err
+	}
+
 	meta := &pb.Meta{
-		Args: args,
-		Env:  env.ToArray(),
-		Cwd:  cwd,
-		User: user,
+		Args:     args,
+		Env:      env.ToArray(),
+		Cwd:      cwd,
+		User:     user,
+		Hostname: hostname,
 	}
 	extraHosts, err := getExtraHosts(e.base)(ctx)
 	if err != nil {
@@ -217,9 +229,9 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 
 	if p := e.proxyEnv; p != nil {
 		peo.Meta.ProxyEnv = &pb.ProxyEnv{
-			HttpProxy:  p.HttpProxy,
-			HttpsProxy: p.HttpsProxy,
-			FtpProxy:   p.FtpProxy,
+			HttpProxy:  p.HTTPProxy,
+			HttpsProxy: p.HTTPSProxy,
+			FtpProxy:   p.FTPProxy,
 			NoProxy:    p.NoProxy,
 		}
 		addCap(&e.constraints, pb.CapExecMetaProxy)
@@ -629,9 +641,9 @@ type MountInfo struct {
 }
 
 type ProxyEnv struct {
-	HttpProxy  string
-	HttpsProxy string
-	FtpProxy   string
+	HTTPProxy  string
+	HTTPSProxy string
+	FTPProxy   string
 	NoProxy    string
 }
 

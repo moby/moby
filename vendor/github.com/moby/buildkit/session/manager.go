@@ -149,7 +149,7 @@ func (sm *Manager) handleConn(ctx context.Context, conn net.Conn, opts map[strin
 }
 
 // Get returns a session by ID
-func (sm *Manager) Get(ctx context.Context, id string) (Caller, error) {
+func (sm *Manager) Get(ctx context.Context, id string, noWait bool) (Caller, error) {
 	// session prefix is used to identify vertexes with different contexts so
 	// they would not collide, but for lookup we don't need the prefix
 	if p := strings.SplitN(id, ":", 2); len(p) == 2 && len(p[1]) > 0 {
@@ -180,12 +180,16 @@ func (sm *Manager) Get(ctx context.Context, id string) (Caller, error) {
 		}
 		var ok bool
 		c, ok = sm.sessions[id]
-		if !ok || c.closed() {
+		if (!ok || c.closed()) && !noWait {
 			sm.updateCondition.Wait()
 			continue
 		}
 		sm.mu.Unlock()
 		break
+	}
+
+	if c == nil {
+		return nil, nil
 	}
 
 	return c, nil

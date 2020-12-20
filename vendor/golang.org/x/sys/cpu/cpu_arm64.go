@@ -39,13 +39,16 @@ func initOptions() {
 
 func archInit() {
 	switch runtime.GOOS {
-	case "android", "darwin", "netbsd":
+	case "android", "darwin", "ios", "netbsd", "openbsd":
 		// Android and iOS don't seem to allow reading these registers.
 		//
 		// NetBSD:
 		// ID_AA64ISAR0_EL1 is a privileged register and cannot be read from EL0.
 		// It can be read via sysctl(3). Example for future implementers:
 		// https://nxr.netbsd.org/xref/src/usr.sbin/cpuctl/arch/aarch64.c
+		//
+		// OpenBSD:
+		// See https://golang.org/issue/31746
 		//
 		// Fake the minimal features expected by
 		// TestARM64minimalFeatures.

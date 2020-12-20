@@ -3,6 +3,7 @@
 package windows // import "github.com/docker/docker/daemon/graphdriver/windows"
 
 import (
+	"archive/tar"
 	"bufio"
 	"bytes"
 	"encoding/json"
@@ -20,7 +21,6 @@ import (
 	"unsafe"
 
 	winio "github.com/Microsoft/go-winio"
-	"github.com/Microsoft/go-winio/archive/tar"
 	"github.com/Microsoft/go-winio/backuptar"
 	"github.com/Microsoft/go-winio/vhd"
 	"github.com/Microsoft/hcsshim"

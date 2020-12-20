@@ -121,14 +121,14 @@ func (ei *edgeIndex) LoadOrStore(k *CacheKey, e *edge) *edge {
 }
 
 // enforceLinked adds links from current ID to all dep keys
-func (er *edgeIndex) enforceLinked(id string, k *CacheKey) {
-	main, ok := er.items[id]
+func (ei *edgeIndex) enforceLinked(id string, k *CacheKey) {
+	main, ok := ei.items[id]
 	if !ok {
 		main = &indexItem{
 			links: map[CacheInfoLink]map[string]struct{}{},
 			deps:  map[string]struct{}{},
 		}
-		er.items[id] = main
+		ei.items[id] = main
 	}
 
 	deps := k.Deps()
@@ -136,10 +136,10 @@ func (er *edgeIndex) enforceLinked(id string, k *CacheKey) {
 	for i, dd := range deps {
 		for _, d := range dd {
 			ck := d.CacheKey.CacheKey
-			er.enforceIndexID(ck)
+			ei.enforceIndexID(ck)
 			ll := CacheInfoLink{Input: Index(i), Digest: k.Digest(), Output: k.Output(), Selector: d.Selector}
 			for _, ckID := range ck.indexIDs {
-				if item, ok := er.items[ckID]; ok {
+				if item, ok := ei.items[ckID]; ok {
 					links, ok := item.links[ll]
 					if !ok {
 						links = map[string]struct{}{}

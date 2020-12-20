@@ -28,14 +28,15 @@ import (
 // works a little more effectively than a "proper" parse tree for our needs.
 //
 type Node struct {
-	Value      string          // actual content
-	Next       *Node           // the next item in the current sexp
-	Children   []*Node         // the children of this sexp
-	Attributes map[string]bool // special attributes for this node
-	Original   string          // original line used before parsing
-	Flags      []string        // only top Node should have this set
-	StartLine  int             // the line in the original dockerfile where the node begins
-	EndLine    int             // the line in the original dockerfile where the node ends
+	Value       string          // actual content
+	Next        *Node           // the next item in the current sexp
+	Children    []*Node         // the children of this sexp
+	Attributes  map[string]bool // special attributes for this node
+	Original    string          // original line used before parsing
+	Flags       []string        // only top Node should have this set
+	StartLine   int             // the line in the original dockerfile where the node begins
+	EndLine     int             // the line in the original dockerfile where the node ends
+	PrevComment []string
 }
 
 // Location return the location of node in source code
@@ -107,13 +108,25 @@ type directives struct {
 	seen                  map[string]struct{} // Whether the escape directive has been seen
 }
 
-// setEscapeToken sets the default token for escaping characters in a Dockerfile.
+// setEscapeToken sets the default token for escaping characters and as line-
+// continuation token in a Dockerfile. Only ` (backtick) and \ (backslash) are
+// allowed as token.
 func (d *directives) setEscapeToken(s string) error {
-	if s != "`" && s != "\\" {
+	if s != "`" && s != `\` {
 		return errors.Errorf("invalid escape token '%s' does not match ` or \\", s)
 	}
 	d.escapeToken = rune(s[0])
-	d.lineContinuationRegex = regexp.MustCompile(`\` + s + `[ \t]*$`)
+	// The escape token is used both to escape characters in a line and as line
+	// continuation token. If it's the last non-whitespace token, it is used as
+	// line-continuation token, *unless* preceded by an escape-token.
+	//
+	// The second branch in the regular expression handles line-continuation
+	// tokens on their own line, which don't have any character preceding them.
+	//
+	// Due to Go lacking negative look-ahead matching, this regular expression
+	// does not currently handle a line-continuation token preceded by an *escaped*
+	// escape-token ("foo \\\").
+	d.lineContinuationRegex = regexp.MustCompile(`([^\` + s + `])\` + s + `[ \t]*$|^\` + s + `[ \t]*$`)
 	return nil
 }
 
@@ -191,7 +204,7 @@ func init() {
 // newNodeFromLine splits the line into parts, and dispatches to a function
 // based on the command and command arguments. A Node is created from the
 // result of the dispatch.
-func newNodeFromLine(line string, d *directives) (*Node, error) {
+func newNodeFromLine(line string, d *directives, comments []string) (*Node, error) {
 	cmd, flags, args, err := splitCommand(line)
 	if err != nil {
 		return nil, err
@@ -208,11 +221,12 @@ func newNodeFromLine(line string, d *directives) (*Node, error) {
 	}
 
 	return &Node{
-		Value:      cmd,
-		Original:   line,
-		Flags:      flags,
-		Next:       next,
-		Attributes: attrs,
+		Value:       cmd,
+		Original:    line,
+		Flags:       flags,
+		Next:        next,
+		Attributes:  attrs,
+		PrevComment: comments,
 	}, nil
 }
 
@@ -239,6 +253,7 @@ func Parse(rwc io.Reader) (*Result, error) {
 	root := &Node{StartLine: -1}
 	scanner := bufio.NewScanner(rwc)
 	warnings := []string{}
+	var comments []string
 
 	var err error
 	for scanner.Scan() {
@@ -246,6 +261,14 @@ func Parse(rwc io.Reader) (*Result, error) {
 		if currentLine == 0 {
 			// First line, strip the byte-order-marker if present
 			bytesRead = bytes.TrimPrefix(bytesRead, utf8bom)
+		}
+		if isComment(bytesRead) {
+			comment := strings.TrimSpace(string(bytesRead[1:]))
+			if comment == "" {
+				comments = nil
+			} else {
+				comments = append(comments, comment)
+			}
 		}
 		bytesRead, err = processLine(d, bytesRead, true)
 		if err != nil {
@@ -285,10 +308,11 @@ func Parse(rwc io.Reader) (*Result, error) {
 			warnings = append(warnings, "[WARNING]: Empty continuation line found in:\n    "+line)
 		}
 
-		child, err := newNodeFromLine(line, d)
+		child, err := newNodeFromLine(line, d, comments)
 		if err != nil {
 			return nil, withLocation(err, startLine, currentLine)
 		}
+		comments = nil
 		root.AddChild(child, startLine, currentLine)
 	}
 
@@ -327,7 +351,7 @@ var utf8bom = []byte{0xEF, 0xBB, 0xBF}
 
 func trimContinuationCharacter(line string, d *directives) (string, bool) {
 	if d.lineContinuationRegex.MatchString(line) {
-		line = d.lineContinuationRegex.ReplaceAllString(line, "")
+		line = d.lineContinuationRegex.ReplaceAllString(line, "$1")
 		return line, false
 	}
 	return line, true

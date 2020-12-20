@@ -129,8 +129,8 @@ type progressCb func(int, bool)
 
 type protocol struct {
 	name   string
-	sendFn func(stream grpc.Stream, fs fsutil.FS, progress progressCb) error
-	recvFn func(stream grpc.Stream, destDir string, cu CacheUpdater, progress progressCb, mapFunc func(string, *fstypes.Stat) bool) error
+	sendFn func(stream Stream, fs fsutil.FS, progress progressCb) error
+	recvFn func(stream grpc.ClientStream, destDir string, cu CacheUpdater, progress progressCb, mapFunc func(string, *fstypes.Stat) bool) error
 }
 
 func isProtoSupported(p string) bool {

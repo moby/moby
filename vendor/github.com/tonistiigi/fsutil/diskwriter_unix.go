@@ -17,17 +17,17 @@ func rewriteMetadata(p string, stat *types.Stat) error {
 	}
 
 	if err := os.Lchown(p, int(stat.Uid), int(stat.Gid)); err != nil {
-		return errors.Wrapf(err, "failed to lchown %s", p)
+		return errors.WithStack(err)
 	}
 
 	if os.FileMode(stat.Mode)&os.ModeSymlink == 0 {
 		if err := os.Chmod(p, os.FileMode(stat.Mode)); err != nil {
-			return errors.Wrapf(err, "failed to chown %s", p)
+			return errors.WithStack(err)
 		}
 	}
 
 	if err := chtimes(p, stat.ModTime); err != nil {
-		return errors.Wrapf(err, "failed to chtimes %s", p)
+		return err
 	}
 
 	return nil
@@ -46,7 +46,7 @@ func handleTarTypeBlockCharFifo(path string, stat *types.Stat) error {
 	}
 
 	if err := syscall.Mknod(path, mode, int(mkdev(stat.Devmajor, stat.Devminor))); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	return nil
 }

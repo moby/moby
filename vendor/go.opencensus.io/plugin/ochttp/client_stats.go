@@ -34,8 +34,11 @@ type statsTransport struct {
 // RoundTrip implements http.RoundTripper, delegating to Base and recording stats for the request.
 func (t statsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	ctx, _ := tag.New(req.Context(),
-		tag.Upsert(Host, req.URL.Host),
+		tag.Upsert(KeyClientHost, req.Host),
+		tag.Upsert(Host, req.Host),
+		tag.Upsert(KeyClientPath, req.URL.Path),
 		tag.Upsert(Path, req.URL.Path),
+		tag.Upsert(KeyClientMethod, req.Method),
 		tag.Upsert(Method, req.Method))
 	req = req.WithContext(ctx)
 	track := &tracker{
@@ -58,11 +61,14 @@ func (t statsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		track.end()
 	} else {
 		track.statusCode = resp.StatusCode
+		if req.Method != "HEAD" {
+			track.respContentLength = resp.ContentLength
+		}
 		if resp.Body == nil {
 			track.end()
 		} else {
 			track.body = resp.Body
-			resp.Body = track
+			resp.Body = wrappedBody(track, resp.Body)
 		}
 	}
 	return resp, err
@@ -79,36 +85,48 @@ func (t statsTransport) CancelRequest(req *http.Request) {
 }
 
 type tracker struct {
-	ctx        context.Context
-	respSize   int64
-	reqSize    int64
-	start      time.Time
-	body       io.ReadCloser
-	statusCode int
-	endOnce    sync.Once
+	ctx               context.Context
+	respSize          int64
+	respContentLength int64
+	reqSize           int64
+	start             time.Time
+	body              io.ReadCloser
+	statusCode        int
+	endOnce           sync.Once
 }
 
 var _ io.ReadCloser = (*tracker)(nil)
 
 func (t *tracker) end() {
 	t.endOnce.Do(func() {
+		latencyMs := float64(time.Since(t.start)) / float64(time.Millisecond)
+		respSize := t.respSize
+		if t.respSize == 0 && t.respContentLength > 0 {
+			respSize = t.respContentLength
+		}
 		m := []stats.Measurement{
-			ClientLatency.M(float64(time.Since(t.start)) / float64(time.Millisecond)),
+			ClientSentBytes.M(t.reqSize),
+			ClientReceivedBytes.M(respSize),
+			ClientRoundtripLatency.M(latencyMs),
+			ClientLatency.M(latencyMs),
 			ClientResponseBytes.M(t.respSize),
 		}
 		if t.reqSize >= 0 {
 			m = append(m, ClientRequestBytes.M(t.reqSize))
 		}
-		ctx, _ := tag.New(t.ctx, tag.Upsert(StatusCode, strconv.Itoa(t.statusCode)))
-		stats.Record(ctx, m...)
+
+		stats.RecordWithTags(t.ctx, []tag.Mutator{
+			tag.Upsert(StatusCode, strconv.Itoa(t.statusCode)),
+			tag.Upsert(KeyClientStatus, strconv.Itoa(t.statusCode)),
+		}, m...)
 	})
 }
 
 func (t *tracker) Read(b []byte) (int, error) {
 	n, err := t.body.Read(b)
+	t.respSize += int64(n)
 	switch err {
 	case nil:
-		t.respSize += int64(n)
 		return n, nil
 	case io.EOF:
 		t.end()

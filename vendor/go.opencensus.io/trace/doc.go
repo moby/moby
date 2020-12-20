@@ -32,6 +32,8 @@ to sample a subset of traces, or use AlwaysSample to collect a trace on every ru
 
     trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
 
+Be careful about using trace.AlwaysSample in a production application with
+significant traffic: a new trace will be started and exported for every request.
 
 Adding Spans to a Trace
 
@@ -42,7 +44,7 @@ It is common to want to capture all the activity of a function call in a span. F
 this to work, the function must take a context.Context as a parameter. Add these two
 lines to the top of the function:
 
-    ctx, span := trace.StartSpan(ctx, "my.org/Run")
+    ctx, span := trace.StartSpan(ctx, "example.com/Run")
     defer span.End()
 
 StartSpan will create a new top-level span if the context

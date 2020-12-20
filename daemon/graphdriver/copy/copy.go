@@ -42,7 +42,7 @@ func copyRegular(srcPath, dstPath string, fileinfo os.FileInfo, copyWithFileRang
 	defer dstFile.Close()
 
 	if *copyWithFileClone {
-		err = fiClone(srcFile, dstFile)
+		err = unix.IoctlFileClone(int(dstFile.Fd()), int(srcFile.Fd()))
 		if err == nil {
 			return nil
 		}

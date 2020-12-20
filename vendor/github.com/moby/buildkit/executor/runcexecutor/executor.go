@@ -17,10 +17,10 @@ import (
 	"github.com/containerd/continuity/fs"
 	runc "github.com/containerd/go-runc"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 	"github.com/moby/buildkit/identity"
+	"github.com/moby/buildkit/solver/errdefs"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
 	rootlessspecconv "github.com/moby/buildkit/util/rootless/specconv"
@@ -52,7 +52,6 @@ var defaultCommandCandidates = []string{"buildkit-runc", "runc"}
 type runcExecutor struct {
 	runc             *runc.Runc
 	root             string
-	cmd              string
 	cgroupParent     string
 	rootless         bool
 	networkProviders map[pb.NetMode]network.Provider
@@ -103,14 +102,15 @@ func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Ex
 	os.RemoveAll(filepath.Join(root, "resolv.conf"))
 
 	runtime := &runc.Runc{
-		Command:      cmd,
-		Log:          filepath.Join(root, "runc-log.json"),
-		LogFormat:    runc.JSON,
-		PdeathSignal: syscall.SIGKILL, // this can still leak the process
-		Setpgid:      true,
+		Command:   cmd,
+		Log:       filepath.Join(root, "runc-log.json"),
+		LogFormat: runc.JSON,
+		Setpgid:   true,
 		// we don't execute runc with --rootless=(true|false) explicitly,
 		// so as to support non-runc runtimes
 	}
+
+	updateRuncFieldsForHostOS(runtime)
 
 	w := &runcExecutor{
 		runc:             runtime,
@@ -128,7 +128,7 @@ func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Ex
 	return w, nil
 }
 
-func (w *runcExecutor) Run(ctx context.Context, id string, root cache.Mountable, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (err error) {
+func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (err error) {
 	meta := process.Meta
 
 	startedOnce := sync.Once{}
@@ -168,7 +168,7 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root cache.Mountable,
 		return err
 	}
 
-	hostsFile, clean, err := oci.GetHostsFile(ctx, w.root, meta.ExtraHosts, w.idmap)
+	hostsFile, clean, err := oci.GetHostsFile(ctx, w.root, meta.ExtraHosts, w.idmap, meta.Hostname)
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root cache.Mountable,
 		defer clean()
 	}
 
-	mountable, err := root.Mount(ctx, false)
+	mountable, err := root.Src.Mount(ctx, false)
 	if err != nil {
 		return err
 	}
@@ -213,7 +213,9 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root cache.Mountable,
 	}
 	defer mount.Unmount(rootFSPath, 0)
 
-	uid, gid, sgids, err := oci.GetUser(ctx, rootFSPath, meta.User)
+	defer executor.MountStubsCleaner(rootFSPath, mounts)()
+
+	uid, gid, sgids, err := oci.GetUser(rootFSPath, meta.User)
 	if err != nil {
 		return err
 	}
@@ -258,7 +260,7 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root cache.Mountable,
 	defer cleanup()
 
 	spec.Root.Path = rootFSPath
-	if _, ok := root.(cache.ImmutableRef); ok { // TODO: pass in with mount, not ref type
+	if root.Readonly {
 		spec.Root.Readonly = true
 	}
 
@@ -323,28 +325,37 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root cache.Mountable,
 			close(started)
 		})
 	}
-	status, err := w.runc.Run(runCtx, id, bundle, &runc.CreateOpts{
-		IO:      &forwardIO{stdin: process.Stdin, stdout: process.Stdout, stderr: process.Stderr},
-		NoPivot: w.noPivot,
-	})
-	close(ended)
 
-	if status != 0 || err != nil {
-		if err == nil {
-			err = errors.Errorf("exit code: %d", status)
+	err = w.run(runCtx, id, bundle, process)
+	close(ended)
+	return exitError(ctx, err)
+}
+
+func exitError(ctx context.Context, err error) error {
+	if err != nil {
+		exitErr := &errdefs.ExitError{
+			ExitCode: errdefs.ContainerdUnknownExitStatus,
+			Err:      err,
+		}
+		var runcExitError *runc.ExitError
+		if errors.As(err, &runcExitError) {
+			exitErr = &errdefs.ExitError{
+				ExitCode: uint32(runcExitError.Status),
+			}
 		}
 		select {
 		case <-ctx.Done():
-			return errors.Wrapf(ctx.Err(), err.Error())
+			exitErr.Err = errors.Wrapf(ctx.Err(), exitErr.Error())
+			return exitErr
 		default:
-			return stack.Enable(err)
+			return stack.Enable(exitErr)
 		}
 	}
 
 	return nil
 }
 
-func (w *runcExecutor) Exec(ctx context.Context, id string, process executor.ProcessInfo) error {
+func (w *runcExecutor) Exec(ctx context.Context, id string, process executor.ProcessInfo) (err error) {
 	// first verify the container is running, if we get an error assume the container
 	// is in the process of being created and check again every 100ms or until
 	// context is canceled.
@@ -386,7 +397,7 @@ func (w *runcExecutor) Exec(ctx context.Context, id string, process executor.Pro
 	}
 
 	if process.Meta.User != "" {
-		uid, gid, sgids, err := oci.GetUser(ctx, state.Rootfs, process.Meta.User)
+		uid, gid, sgids, err := oci.GetUser(state.Rootfs, process.Meta.User)
 		if err != nil {
 			return err
 		}
@@ -407,9 +418,8 @@ func (w *runcExecutor) Exec(ctx context.Context, id string, process executor.Pro
 		spec.Process.Env = process.Meta.Env
 	}
 
-	return w.runc.Exec(ctx, id, *spec.Process, &runc.ExecOpts{
-		IO: &forwardIO{stdin: process.Stdin, stdout: process.Stdout, stderr: process.Stderr},
-	})
+	err = w.exec(ctx, id, state.Bundle, spec.Process, process)
+	return exitError(ctx, err)
 }
 
 type forwardIO struct {

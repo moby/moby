@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 )
 
 // Test for CVE-2018-15664
@@ -23,6 +24,7 @@ import (
 // some path outside of a container's rootfs that we do not copy data to a
 // container path that will actually overwrite data on the host
 func TestUntarWithMaliciousSymlinks(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	dir, err := ioutil.TempDir("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
@@ -84,6 +86,7 @@ func TestUntarWithMaliciousSymlinks(t *testing.T) {
 // some path outside of a container's rootfs that we do not unwittingly leak
 // host data into the archive.
 func TestTarWithMaliciousSymlinks(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	dir, err := ioutil.TempDir("", t.Name())
 	assert.NilError(t, err)
 	// defer os.RemoveAll(dir)

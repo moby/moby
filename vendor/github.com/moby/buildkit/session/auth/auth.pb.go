@@ -4,6 +4,7 @@
 package auth
 
 import (
+	bytes "bytes"
 	context "context"
 	fmt "fmt"
 	proto "github.com/gogo/protobuf/proto"
@@ -122,30 +123,384 @@ func (m *CredentialsResponse) GetSecret() string {
 	return ""
 }
 
+type FetchTokenRequest struct {
+	ClientID string   `protobuf:"bytes,1,opt,name=ClientID,proto3" json:"ClientID,omitempty"`
+	Host     string   `protobuf:"bytes,2,opt,name=Host,proto3" json:"Host,omitempty"`
+	Realm    string   `protobuf:"bytes,3,opt,name=Realm,proto3" json:"Realm,omitempty"`
+	Service  string   `protobuf:"bytes,4,opt,name=Service,proto3" json:"Service,omitempty"`
+	Scopes   []string `protobuf:"bytes,5,rep,name=Scopes,proto3" json:"Scopes,omitempty"`
+}
+
+func (m *FetchTokenRequest) Reset()      { *m = FetchTokenRequest{} }
+func (*FetchTokenRequest) ProtoMessage() {}
+func (*FetchTokenRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8bbd6f3875b0e874, []int{2}
+}
+func (m *FetchTokenRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *FetchTokenRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_FetchTokenRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *FetchTokenRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FetchTokenRequest.Merge(m, src)
+}
+func (m *FetchTokenRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *FetchTokenRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FetchTokenRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FetchTokenRequest proto.InternalMessageInfo
+
+func (m *FetchTokenRequest) GetClientID() string {
+	if m != nil {
+		return m.ClientID
+	}
+	return ""
+}
+
+func (m *FetchTokenRequest) GetHost() string {
+	if m != nil {
+		return m.Host
+	}
+	return ""
+}
+
+func (m *FetchTokenRequest) GetRealm() string {
+	if m != nil {
+		return m.Realm
+	}
+	return ""
+}
+
+func (m *FetchTokenRequest) GetService() string {
+	if m != nil {
+		return m.Service
+	}
+	return ""
+}
+
+func (m *FetchTokenRequest) GetScopes() []string {
+	if m != nil {
+		return m.Scopes
+	}
+	return nil
+}
+
+type FetchTokenResponse struct {
+	Token     string `protobuf:"bytes,1,opt,name=Token,proto3" json:"Token,omitempty"`
+	ExpiresIn int64  `protobuf:"varint,2,opt,name=ExpiresIn,proto3" json:"ExpiresIn,omitempty"`
+	IssuedAt  int64  `protobuf:"varint,3,opt,name=IssuedAt,proto3" json:"IssuedAt,omitempty"`
+}
+
+func (m *FetchTokenResponse) Reset()      { *m = FetchTokenResponse{} }
+func (*FetchTokenResponse) ProtoMessage() {}
+func (*FetchTokenResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8bbd6f3875b0e874, []int{3}
+}
+func (m *FetchTokenResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *FetchTokenResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_FetchTokenResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *FetchTokenResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FetchTokenResponse.Merge(m, src)
+}
+func (m *FetchTokenResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *FetchTokenResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FetchTokenResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FetchTokenResponse proto.InternalMessageInfo
+
+func (m *FetchTokenResponse) GetToken() string {
+	if m != nil {
+		return m.Token
+	}
+	return ""
+}
+
+func (m *FetchTokenResponse) GetExpiresIn() int64 {
+	if m != nil {
+		return m.ExpiresIn
+	}
+	return 0
+}
+
+func (m *FetchTokenResponse) GetIssuedAt() int64 {
+	if m != nil {
+		return m.IssuedAt
+	}
+	return 0
+}
+
+type GetTokenAuthorityRequest struct {
+	Host string `protobuf:"bytes,1,opt,name=Host,proto3" json:"Host,omitempty"`
+	Salt []byte `protobuf:"bytes,2,opt,name=Salt,proto3" json:"Salt,omitempty"`
+}
+
+func (m *GetTokenAuthorityRequest) Reset()      { *m = GetTokenAuthorityRequest{} }
+func (*GetTokenAuthorityRequest) ProtoMessage() {}
+func (*GetTokenAuthorityRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8bbd6f3875b0e874, []int{4}
+}
+func (m *GetTokenAuthorityRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *GetTokenAuthorityRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_GetTokenAuthorityRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *GetTokenAuthorityRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetTokenAuthorityRequest.Merge(m, src)
+}
+func (m *GetTokenAuthorityRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *GetTokenAuthorityRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetTokenAuthorityRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetTokenAuthorityRequest proto.InternalMessageInfo
+
+func (m *GetTokenAuthorityRequest) GetHost() string {
+	if m != nil {
+		return m.Host
+	}
+	return ""
+}
+
+func (m *GetTokenAuthorityRequest) GetSalt() []byte {
+	if m != nil {
+		return m.Salt
+	}
+	return nil
+}
+
+type GetTokenAuthorityResponse struct {
+	PublicKey []byte `protobuf:"bytes,1,opt,name=PublicKey,proto3" json:"PublicKey,omitempty"`
+}
+
+func (m *GetTokenAuthorityResponse) Reset()      { *m = GetTokenAuthorityResponse{} }
+func (*GetTokenAuthorityResponse) ProtoMessage() {}
+func (*GetTokenAuthorityResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8bbd6f3875b0e874, []int{5}
+}
+func (m *GetTokenAuthorityResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *GetTokenAuthorityResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_GetTokenAuthorityResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *GetTokenAuthorityResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetTokenAuthorityResponse.Merge(m, src)
+}
+func (m *GetTokenAuthorityResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *GetTokenAuthorityResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetTokenAuthorityResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetTokenAuthorityResponse proto.InternalMessageInfo
+
+func (m *GetTokenAuthorityResponse) GetPublicKey() []byte {
+	if m != nil {
+		return m.PublicKey
+	}
+	return nil
+}
+
+type VerifyTokenAuthorityRequest struct {
+	Host    string `protobuf:"bytes,1,opt,name=Host,proto3" json:"Host,omitempty"`
+	Payload []byte `protobuf:"bytes,2,opt,name=Payload,proto3" json:"Payload,omitempty"`
+	Salt    []byte `protobuf:"bytes,3,opt,name=Salt,proto3" json:"Salt,omitempty"`
+}
+
+func (m *VerifyTokenAuthorityRequest) Reset()      { *m = VerifyTokenAuthorityRequest{} }
+func (*VerifyTokenAuthorityRequest) ProtoMessage() {}
+func (*VerifyTokenAuthorityRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8bbd6f3875b0e874, []int{6}
+}
+func (m *VerifyTokenAuthorityRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *VerifyTokenAuthorityRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_VerifyTokenAuthorityRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *VerifyTokenAuthorityRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_VerifyTokenAuthorityRequest.Merge(m, src)
+}
+func (m *VerifyTokenAuthorityRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *VerifyTokenAuthorityRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_VerifyTokenAuthorityRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_VerifyTokenAuthorityRequest proto.InternalMessageInfo
+
+func (m *VerifyTokenAuthorityRequest) GetHost() string {
+	if m != nil {
+		return m.Host
+	}
+	return ""
+}
+
+func (m *VerifyTokenAuthorityRequest) GetPayload() []byte {
+	if m != nil {
+		return m.Payload
+	}
+	return nil
+}
+
+func (m *VerifyTokenAuthorityRequest) GetSalt() []byte {
+	if m != nil {
+		return m.Salt
+	}
+	return nil
+}
+
+type VerifyTokenAuthorityResponse struct {
+	Signed []byte `protobuf:"bytes,1,opt,name=Signed,proto3" json:"Signed,omitempty"`
+}
+
+func (m *VerifyTokenAuthorityResponse) Reset()      { *m = VerifyTokenAuthorityResponse{} }
+func (*VerifyTokenAuthorityResponse) ProtoMessage() {}
+func (*VerifyTokenAuthorityResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8bbd6f3875b0e874, []int{7}
+}
+func (m *VerifyTokenAuthorityResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *VerifyTokenAuthorityResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_VerifyTokenAuthorityResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *VerifyTokenAuthorityResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_VerifyTokenAuthorityResponse.Merge(m, src)
+}
+func (m *VerifyTokenAuthorityResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *VerifyTokenAuthorityResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_VerifyTokenAuthorityResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_VerifyTokenAuthorityResponse proto.InternalMessageInfo
+
+func (m *VerifyTokenAuthorityResponse) GetSigned() []byte {
+	if m != nil {
+		return m.Signed
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*CredentialsRequest)(nil), "moby.filesync.v1.CredentialsRequest")
 	proto.RegisterType((*CredentialsResponse)(nil), "moby.filesync.v1.CredentialsResponse")
+	proto.RegisterType((*FetchTokenRequest)(nil), "moby.filesync.v1.FetchTokenRequest")
+	proto.RegisterType((*FetchTokenResponse)(nil), "moby.filesync.v1.FetchTokenResponse")
+	proto.RegisterType((*GetTokenAuthorityRequest)(nil), "moby.filesync.v1.GetTokenAuthorityRequest")
+	proto.RegisterType((*GetTokenAuthorityResponse)(nil), "moby.filesync.v1.GetTokenAuthorityResponse")
+	proto.RegisterType((*VerifyTokenAuthorityRequest)(nil), "moby.filesync.v1.VerifyTokenAuthorityRequest")
+	proto.RegisterType((*VerifyTokenAuthorityResponse)(nil), "moby.filesync.v1.VerifyTokenAuthorityResponse")
 }
 
 func init() { proto.RegisterFile("auth.proto", fileDescriptor_8bbd6f3875b0e874) }
 
 var fileDescriptor_8bbd6f3875b0e874 = []byte{
-	// 233 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x4a, 0x2c, 0x2d, 0xc9,
-	0xd0, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x12, 0xc8, 0xcd, 0x4f, 0xaa, 0xd4, 0x4b, 0xcb, 0xcc,
-	0x49, 0x2d, 0xae, 0xcc, 0x4b, 0xd6, 0x2b, 0x33, 0x54, 0xd2, 0xe0, 0x12, 0x72, 0x2e, 0x4a, 0x4d,
-	0x49, 0xcd, 0x2b, 0xc9, 0x4c, 0xcc, 0x29, 0x0e, 0x4a, 0x2d, 0x2c, 0x4d, 0x2d, 0x2e, 0x11, 0x12,
-	0xe2, 0x62, 0xf1, 0xc8, 0x2f, 0x2e, 0x91, 0x60, 0x54, 0x60, 0xd4, 0xe0, 0x0c, 0x02, 0xb3, 0x95,
-	0x3c, 0xb9, 0x84, 0x51, 0x54, 0x16, 0x17, 0xe4, 0xe7, 0x15, 0xa7, 0x0a, 0x49, 0x71, 0x71, 0x84,
-	0x16, 0xa7, 0x16, 0xe5, 0x25, 0xe6, 0xa6, 0x42, 0x95, 0xc3, 0xf9, 0x42, 0x62, 0x5c, 0x6c, 0xc1,
-	0xa9, 0xc9, 0x45, 0xa9, 0x25, 0x12, 0x4c, 0x60, 0x19, 0x28, 0xcf, 0x28, 0x89, 0x8b, 0xc5, 0xb1,
-	0xb4, 0x24, 0x43, 0x28, 0x8a, 0x8b, 0x1b, 0xc9, 0x48, 0x21, 0x15, 0x3d, 0x74, 0xe7, 0xe9, 0x61,
-	0xba, 0x4d, 0x4a, 0x95, 0x80, 0x2a, 0x88, 0xbb, 0x9c, 0xac, 0x2e, 0x3c, 0x94, 0x63, 0xb8, 0xf1,
-	0x50, 0x8e, 0xe1, 0xc3, 0x43, 0x39, 0xc6, 0x86, 0x47, 0x72, 0x8c, 0x2b, 0x1e, 0xc9, 0x31, 0x9e,
-	0x78, 0x24, 0xc7, 0x78, 0xe1, 0x91, 0x1c, 0xe3, 0x83, 0x47, 0x72, 0x8c, 0x2f, 0x1e, 0xc9, 0x31,
-	0x7c, 0x78, 0x24, 0xc7, 0x38, 0xe1, 0xb1, 0x1c, 0xc3, 0x85, 0xc7, 0x72, 0x0c, 0x37, 0x1e, 0xcb,
-	0x31, 0x44, 0xb1, 0x80, 0x02, 0x2b, 0x89, 0x0d, 0x1c, 0x5a, 0xc6, 0x80, 0x00, 0x00, 0x00, 0xff,
-	0xff, 0x64, 0x61, 0x71, 0x59, 0x3b, 0x01, 0x00, 0x00,
+	// 513 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x94, 0xcd, 0x6e, 0xd3, 0x40,
+	0x10, 0xc7, 0xbd, 0x75, 0xd2, 0x36, 0x43, 0x0f, 0x74, 0x89, 0x90, 0x31, 0xd1, 0xaa, 0x32, 0x45,
+	0xaa, 0x40, 0x58, 0x02, 0x24, 0x24, 0xb8, 0xb5, 0xe5, 0x2b, 0xe2, 0x52, 0x39, 0x7c, 0x48, 0xbd,
+	0x20, 0xc7, 0x9e, 0x12, 0x0b, 0xc7, 0x0e, 0xde, 0x75, 0x85, 0x6f, 0xdc, 0xb9, 0xf0, 0x08, 0x1c,
+	0x79, 0x14, 0x8e, 0x39, 0xf6, 0x48, 0x9c, 0x0b, 0xc7, 0x3c, 0x02, 0xf2, 0x66, 0x9d, 0x04, 0x1c,
+	0xd2, 0xdc, 0xfc, 0x1f, 0xff, 0x77, 0xe6, 0xb7, 0x33, 0xa3, 0x05, 0x70, 0x53, 0xd1, 0xb3, 0x07,
+	0x49, 0x2c, 0x62, 0x7a, 0xb5, 0x1f, 0x77, 0x33, 0xfb, 0x2c, 0x08, 0x91, 0x67, 0x91, 0x67, 0x9f,
+	0xdf, 0xb7, 0x0e, 0x80, 0x1e, 0x27, 0xe8, 0x63, 0x24, 0x02, 0x37, 0xe4, 0x0e, 0x7e, 0x4a, 0x91,
+	0x0b, 0x4a, 0xa1, 0xf6, 0x32, 0xe6, 0xc2, 0x20, 0x7b, 0xe4, 0xa0, 0xe1, 0xc8, 0x6f, 0xab, 0x0d,
+	0xd7, 0xfe, 0x72, 0xf2, 0x41, 0x1c, 0x71, 0xa4, 0x26, 0x6c, 0xbf, 0xe1, 0x98, 0x44, 0x6e, 0x1f,
+	0x95, 0x7d, 0xa6, 0xe9, 0x75, 0xd8, 0xec, 0xa0, 0x97, 0xa0, 0x30, 0x36, 0xe4, 0x1f, 0xa5, 0xac,
+	0xaf, 0x04, 0x76, 0x9f, 0xa3, 0xf0, 0x7a, 0xaf, 0xe3, 0x8f, 0x18, 0x95, 0x45, 0x4d, 0xd8, 0x3e,
+	0x0e, 0x03, 0x8c, 0x44, 0xfb, 0x69, 0x99, 0xa9, 0xd4, 0x33, 0xa0, 0x8d, 0x39, 0x10, 0x6d, 0x42,
+	0xdd, 0x41, 0x37, 0xec, 0x1b, 0xba, 0x0c, 0x4e, 0x05, 0x35, 0x60, 0xab, 0x83, 0xc9, 0x79, 0xe0,
+	0xa1, 0x51, 0x93, 0xf1, 0x52, 0x4a, 0x1a, 0x2f, 0x1e, 0x20, 0x37, 0xea, 0x7b, 0xba, 0xa4, 0x91,
+	0xca, 0xf2, 0x81, 0x2e, 0xc2, 0xa8, 0x7b, 0x35, 0xa1, 0x2e, 0x03, 0x0a, 0x65, 0x2a, 0x68, 0x0b,
+	0x1a, 0xcf, 0x3e, 0x0f, 0x82, 0x04, 0x79, 0x3b, 0x92, 0x30, 0xba, 0x33, 0x0f, 0x14, 0x37, 0x68,
+	0x73, 0x9e, 0xa2, 0x7f, 0x28, 0x24, 0x94, 0xee, 0xcc, 0xb4, 0x75, 0x04, 0xc6, 0x0b, 0x14, 0x32,
+	0xcb, 0x61, 0x2a, 0x7a, 0x71, 0x12, 0x88, 0x6c, 0x45, 0xbb, 0x8b, 0x58, 0xc7, 0x0d, 0xa7, 0x37,
+	0xde, 0x71, 0xe4, 0xb7, 0xf5, 0x18, 0x6e, 0x2c, 0xc9, 0xa1, 0x80, 0x5b, 0xd0, 0x38, 0x49, 0xbb,
+	0x61, 0xe0, 0xbd, 0xc2, 0x4c, 0x66, 0xda, 0x71, 0xe6, 0x01, 0xeb, 0x3d, 0xdc, 0x7c, 0x8b, 0x49,
+	0x70, 0x96, 0xad, 0x4f, 0x60, 0xc0, 0xd6, 0x89, 0x9b, 0x85, 0xb1, 0xeb, 0x2b, 0x88, 0x52, 0xce,
+	0xd8, 0xf4, 0x05, 0xb6, 0x47, 0xd0, 0x5a, 0x5e, 0x40, 0xe1, 0x15, 0xdd, 0x0f, 0x3e, 0x44, 0xe8,
+	0x2b, 0x36, 0xa5, 0x1e, 0x7c, 0xd7, 0xa1, 0x56, 0xb8, 0xe9, 0x29, 0x5c, 0x59, 0xd8, 0x2f, 0xba,
+	0x6f, 0xff, 0xbb, 0xab, 0x76, 0x75, 0x51, 0xcd, 0xdb, 0x97, 0xb8, 0x54, 0xf1, 0x77, 0x00, 0xf3,
+	0x11, 0xd3, 0x5b, 0xd5, 0x43, 0x95, 0x6d, 0x34, 0xf7, 0x57, 0x9b, 0x54, 0xe2, 0x10, 0x76, 0x2b,
+	0x13, 0xa1, 0x77, 0xaa, 0x47, 0xff, 0x37, 0x7a, 0xf3, 0xee, 0x5a, 0x5e, 0x55, 0x2d, 0x85, 0xe6,
+	0xb2, 0x1e, 0xd3, 0x7b, 0xd5, 0x24, 0x2b, 0x86, 0x6d, 0xda, 0xeb, 0xda, 0xa7, 0x65, 0x8f, 0x9e,
+	0x0c, 0x47, 0x4c, 0xbb, 0x18, 0x31, 0x6d, 0x32, 0x62, 0xe4, 0x4b, 0xce, 0xc8, 0x8f, 0x9c, 0x91,
+	0x9f, 0x39, 0x23, 0xc3, 0x9c, 0x91, 0x5f, 0x39, 0x23, 0xbf, 0x73, 0xa6, 0x4d, 0x72, 0x46, 0xbe,
+	0x8d, 0x99, 0x36, 0x1c, 0x33, 0xed, 0x62, 0xcc, 0xb4, 0xd3, 0x5a, 0xf1, 0xee, 0x74, 0x37, 0xe5,
+	0xc3, 0xf3, 0xf0, 0x4f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xba, 0xb3, 0x18, 0x70, 0x86, 0x04, 0x00,
+	0x00,
 }
 
 func (this *CredentialsRequest) Equal(that interface{}) bool {
@@ -199,6 +554,182 @@ func (this *CredentialsResponse) Equal(that interface{}) bool {
 	}
 	return true
 }
+func (this *FetchTokenRequest) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*FetchTokenRequest)
+	if !ok {
+		that2, ok := that.(FetchTokenRequest)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if this.ClientID != that1.ClientID {
+		return false
+	}
+	if this.Host != that1.Host {
+		return false
+	}
+	if this.Realm != that1.Realm {
+		return false
+	}
+	if this.Service != that1.Service {
+		return false
+	}
+	if len(this.Scopes) != len(that1.Scopes) {
+		return false
+	}
+	for i := range this.Scopes {
+		if this.Scopes[i] != that1.Scopes[i] {
+			return false
+		}
+	}
+	return true
+}
+func (this *FetchTokenResponse) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*FetchTokenResponse)
+	if !ok {
+		that2, ok := that.(FetchTokenResponse)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if this.Token != that1.Token {
+		return false
+	}
+	if this.ExpiresIn != that1.ExpiresIn {
+		return false
+	}
+	if this.IssuedAt != that1.IssuedAt {
+		return false
+	}
+	return true
+}
+func (this *GetTokenAuthorityRequest) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*GetTokenAuthorityRequest)
+	if !ok {
+		that2, ok := that.(GetTokenAuthorityRequest)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if this.Host != that1.Host {
+		return false
+	}
+	if !bytes.Equal(this.Salt, that1.Salt) {
+		return false
+	}
+	return true
+}
+func (this *GetTokenAuthorityResponse) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*GetTokenAuthorityResponse)
+	if !ok {
+		that2, ok := that.(GetTokenAuthorityResponse)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if !bytes.Equal(this.PublicKey, that1.PublicKey) {
+		return false
+	}
+	return true
+}
+func (this *VerifyTokenAuthorityRequest) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*VerifyTokenAuthorityRequest)
+	if !ok {
+		that2, ok := that.(VerifyTokenAuthorityRequest)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if this.Host != that1.Host {
+		return false
+	}
+	if !bytes.Equal(this.Payload, that1.Payload) {
+		return false
+	}
+	if !bytes.Equal(this.Salt, that1.Salt) {
+		return false
+	}
+	return true
+}
+func (this *VerifyTokenAuthorityResponse) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*VerifyTokenAuthorityResponse)
+	if !ok {
+		that2, ok := that.(VerifyTokenAuthorityResponse)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if !bytes.Equal(this.Signed, that1.Signed) {
+		return false
+	}
+	return true
+}
 func (this *CredentialsRequest) GoString() string {
 	if this == nil {
 		return "nil"
@@ -217,6 +748,75 @@ func (this *CredentialsResponse) GoString() string {
 	s = append(s, "&auth.CredentialsResponse{")
 	s = append(s, "Username: "+fmt.Sprintf("%#v", this.Username)+",\n")
 	s = append(s, "Secret: "+fmt.Sprintf("%#v", this.Secret)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *FetchTokenRequest) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 9)
+	s = append(s, "&auth.FetchTokenRequest{")
+	s = append(s, "ClientID: "+fmt.Sprintf("%#v", this.ClientID)+",\n")
+	s = append(s, "Host: "+fmt.Sprintf("%#v", this.Host)+",\n")
+	s = append(s, "Realm: "+fmt.Sprintf("%#v", this.Realm)+",\n")
+	s = append(s, "Service: "+fmt.Sprintf("%#v", this.Service)+",\n")
+	s = append(s, "Scopes: "+fmt.Sprintf("%#v", this.Scopes)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *FetchTokenResponse) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 7)
+	s = append(s, "&auth.FetchTokenResponse{")
+	s = append(s, "Token: "+fmt.Sprintf("%#v", this.Token)+",\n")
+	s = append(s, "ExpiresIn: "+fmt.Sprintf("%#v", this.ExpiresIn)+",\n")
+	s = append(s, "IssuedAt: "+fmt.Sprintf("%#v", this.IssuedAt)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *GetTokenAuthorityRequest) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 6)
+	s = append(s, "&auth.GetTokenAuthorityRequest{")
+	s = append(s, "Host: "+fmt.Sprintf("%#v", this.Host)+",\n")
+	s = append(s, "Salt: "+fmt.Sprintf("%#v", this.Salt)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *GetTokenAuthorityResponse) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 5)
+	s = append(s, "&auth.GetTokenAuthorityResponse{")
+	s = append(s, "PublicKey: "+fmt.Sprintf("%#v", this.PublicKey)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *VerifyTokenAuthorityRequest) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 7)
+	s = append(s, "&auth.VerifyTokenAuthorityRequest{")
+	s = append(s, "Host: "+fmt.Sprintf("%#v", this.Host)+",\n")
+	s = append(s, "Payload: "+fmt.Sprintf("%#v", this.Payload)+",\n")
+	s = append(s, "Salt: "+fmt.Sprintf("%#v", this.Salt)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *VerifyTokenAuthorityResponse) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 5)
+	s = append(s, "&auth.VerifyTokenAuthorityResponse{")
+	s = append(s, "Signed: "+fmt.Sprintf("%#v", this.Signed)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -242,6 +842,9 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type AuthClient interface {
 	Credentials(ctx context.Context, in *CredentialsRequest, opts ...grpc.CallOption) (*CredentialsResponse, error)
+	FetchToken(ctx context.Context, in *FetchTokenRequest, opts ...grpc.CallOption) (*FetchTokenResponse, error)
+	GetTokenAuthority(ctx context.Context, in *GetTokenAuthorityRequest, opts ...grpc.CallOption) (*GetTokenAuthorityResponse, error)
+	VerifyTokenAuthority(ctx context.Context, in *VerifyTokenAuthorityRequest, opts ...grpc.CallOption) (*VerifyTokenAuthorityResponse, error)
 }
 
 type authClient struct {
@@ -261,9 +864,39 @@ func (c *authClient) Credentials(ctx context.Context, in *CredentialsRequest, op
 	return out, nil
 }
 
+func (c *authClient) FetchToken(ctx context.Context, in *FetchTokenRequest, opts ...grpc.CallOption) (*FetchTokenResponse, error) {
+	out := new(FetchTokenResponse)
+	err := c.cc.Invoke(ctx, "/moby.filesync.v1.Auth/FetchToken", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authClient) GetTokenAuthority(ctx context.Context, in *GetTokenAuthorityRequest, opts ...grpc.CallOption) (*GetTokenAuthorityResponse, error) {
+	out := new(GetTokenAuthorityResponse)
+	err := c.cc.Invoke(ctx, "/moby.filesync.v1.Auth/GetTokenAuthority", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authClient) VerifyTokenAuthority(ctx context.Context, in *VerifyTokenAuthorityRequest, opts ...grpc.CallOption) (*VerifyTokenAuthorityResponse, error) {
+	out := new(VerifyTokenAuthorityResponse)
+	err := c.cc.Invoke(ctx, "/moby.filesync.v1.Auth/VerifyTokenAuthority", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServer is the server API for Auth service.
 type AuthServer interface {
 	Credentials(context.Context, *CredentialsRequest) (*CredentialsResponse, error)
+	FetchToken(context.Context, *FetchTokenRequest) (*FetchTokenResponse, error)
+	GetTokenAuthority(context.Context, *GetTokenAuthorityRequest) (*GetTokenAuthorityResponse, error)
+	VerifyTokenAuthority(context.Context, *VerifyTokenAuthorityRequest) (*VerifyTokenAuthorityResponse, error)
 }
 
 // UnimplementedAuthServer can be embedded to have forward compatible implementations.
@@ -272,6 +905,15 @@ type UnimplementedAuthServer struct {
 
 func (*UnimplementedAuthServer) Credentials(ctx context.Context, req *CredentialsRequest) (*CredentialsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Credentials not implemented")
+}
+func (*UnimplementedAuthServer) FetchToken(ctx context.Context, req *FetchTokenRequest) (*FetchTokenResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FetchToken not implemented")
+}
+func (*UnimplementedAuthServer) GetTokenAuthority(ctx context.Context, req *GetTokenAuthorityRequest) (*GetTokenAuthorityResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTokenAuthority not implemented")
+}
+func (*UnimplementedAuthServer) VerifyTokenAuthority(ctx context.Context, req *VerifyTokenAuthorityRequest) (*VerifyTokenAuthorityResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VerifyTokenAuthority not implemented")
 }
 
 func RegisterAuthServer(s *grpc.Server, srv AuthServer) {
@@ -296,6 +938,60 @@ func _Auth_Credentials_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Auth_FetchToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FetchTokenRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServer).FetchToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/moby.filesync.v1.Auth/FetchToken",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServer).FetchToken(ctx, req.(*FetchTokenRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Auth_GetTokenAuthority_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTokenAuthorityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServer).GetTokenAuthority(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/moby.filesync.v1.Auth/GetTokenAuthority",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServer).GetTokenAuthority(ctx, req.(*GetTokenAuthorityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Auth_VerifyTokenAuthority_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VerifyTokenAuthorityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServer).VerifyTokenAuthority(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/moby.filesync.v1.Auth/VerifyTokenAuthority",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServer).VerifyTokenAuthority(ctx, req.(*VerifyTokenAuthorityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Auth_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "moby.filesync.v1.Auth",
 	HandlerType: (*AuthServer)(nil),
@@ -303,6 +999,18 @@ var _Auth_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Credentials",
 			Handler:    _Auth_Credentials_Handler,
+		},
+		{
+			MethodName: "FetchToken",
+			Handler:    _Auth_FetchToken_Handler,
+		},
+		{
+			MethodName: "GetTokenAuthority",
+			Handler:    _Auth_GetTokenAuthority_Handler,
+		},
+		{
+			MethodName: "VerifyTokenAuthority",
+			Handler:    _Auth_VerifyTokenAuthority_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -376,6 +1084,247 @@ func (m *CredentialsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *FetchTokenRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *FetchTokenRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *FetchTokenRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Scopes) > 0 {
+		for iNdEx := len(m.Scopes) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Scopes[iNdEx])
+			copy(dAtA[i:], m.Scopes[iNdEx])
+			i = encodeVarintAuth(dAtA, i, uint64(len(m.Scopes[iNdEx])))
+			i--
+			dAtA[i] = 0x2a
+		}
+	}
+	if len(m.Service) > 0 {
+		i -= len(m.Service)
+		copy(dAtA[i:], m.Service)
+		i = encodeVarintAuth(dAtA, i, uint64(len(m.Service)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.Realm) > 0 {
+		i -= len(m.Realm)
+		copy(dAtA[i:], m.Realm)
+		i = encodeVarintAuth(dAtA, i, uint64(len(m.Realm)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Host) > 0 {
+		i -= len(m.Host)
+		copy(dAtA[i:], m.Host)
+		i = encodeVarintAuth(dAtA, i, uint64(len(m.Host)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.ClientID) > 0 {
+		i -= len(m.ClientID)
+		copy(dAtA[i:], m.ClientID)
+		i = encodeVarintAuth(dAtA, i, uint64(len(m.ClientID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *FetchTokenResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *FetchTokenResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *FetchTokenResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.IssuedAt != 0 {
+		i = encodeVarintAuth(dAtA, i, uint64(m.IssuedAt))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.ExpiresIn != 0 {
+		i = encodeVarintAuth(dAtA, i, uint64(m.ExpiresIn))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.Token) > 0 {
+		i -= len(m.Token)
+		copy(dAtA[i:], m.Token)
+		i = encodeVarintAuth(dAtA, i, uint64(len(m.Token)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *GetTokenAuthorityRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GetTokenAuthorityRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetTokenAuthorityRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Salt) > 0 {
+		i -= len(m.Salt)
+		copy(dAtA[i:], m.Salt)
+		i = encodeVarintAuth(dAtA, i, uint64(len(m.Salt)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Host) > 0 {
+		i -= len(m.Host)
+		copy(dAtA[i:], m.Host)
+		i = encodeVarintAuth(dAtA, i, uint64(len(m.Host)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *GetTokenAuthorityResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GetTokenAuthorityResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetTokenAuthorityResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.PublicKey) > 0 {
+		i -= len(m.PublicKey)
+		copy(dAtA[i:], m.PublicKey)
+		i = encodeVarintAuth(dAtA, i, uint64(len(m.PublicKey)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *VerifyTokenAuthorityRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *VerifyTokenAuthorityRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *VerifyTokenAuthorityRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Salt) > 0 {
+		i -= len(m.Salt)
+		copy(dAtA[i:], m.Salt)
+		i = encodeVarintAuth(dAtA, i, uint64(len(m.Salt)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Payload) > 0 {
+		i -= len(m.Payload)
+		copy(dAtA[i:], m.Payload)
+		i = encodeVarintAuth(dAtA, i, uint64(len(m.Payload)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Host) > 0 {
+		i -= len(m.Host)
+		copy(dAtA[i:], m.Host)
+		i = encodeVarintAuth(dAtA, i, uint64(len(m.Host)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *VerifyTokenAuthorityResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *VerifyTokenAuthorityResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *VerifyTokenAuthorityResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Signed) > 0 {
+		i -= len(m.Signed)
+		copy(dAtA[i:], m.Signed)
+		i = encodeVarintAuth(dAtA, i, uint64(len(m.Signed)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintAuth(dAtA []byte, offset int, v uint64) int {
 	offset -= sovAuth(v)
 	base := offset
@@ -417,6 +1366,120 @@ func (m *CredentialsResponse) Size() (n int) {
 	return n
 }
 
+func (m *FetchTokenRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ClientID)
+	if l > 0 {
+		n += 1 + l + sovAuth(uint64(l))
+	}
+	l = len(m.Host)
+	if l > 0 {
+		n += 1 + l + sovAuth(uint64(l))
+	}
+	l = len(m.Realm)
+	if l > 0 {
+		n += 1 + l + sovAuth(uint64(l))
+	}
+	l = len(m.Service)
+	if l > 0 {
+		n += 1 + l + sovAuth(uint64(l))
+	}
+	if len(m.Scopes) > 0 {
+		for _, s := range m.Scopes {
+			l = len(s)
+			n += 1 + l + sovAuth(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *FetchTokenResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Token)
+	if l > 0 {
+		n += 1 + l + sovAuth(uint64(l))
+	}
+	if m.ExpiresIn != 0 {
+		n += 1 + sovAuth(uint64(m.ExpiresIn))
+	}
+	if m.IssuedAt != 0 {
+		n += 1 + sovAuth(uint64(m.IssuedAt))
+	}
+	return n
+}
+
+func (m *GetTokenAuthorityRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Host)
+	if l > 0 {
+		n += 1 + l + sovAuth(uint64(l))
+	}
+	l = len(m.Salt)
+	if l > 0 {
+		n += 1 + l + sovAuth(uint64(l))
+	}
+	return n
+}
+
+func (m *GetTokenAuthorityResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.PublicKey)
+	if l > 0 {
+		n += 1 + l + sovAuth(uint64(l))
+	}
+	return n
+}
+
+func (m *VerifyTokenAuthorityRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Host)
+	if l > 0 {
+		n += 1 + l + sovAuth(uint64(l))
+	}
+	l = len(m.Payload)
+	if l > 0 {
+		n += 1 + l + sovAuth(uint64(l))
+	}
+	l = len(m.Salt)
+	if l > 0 {
+		n += 1 + l + sovAuth(uint64(l))
+	}
+	return n
+}
+
+func (m *VerifyTokenAuthorityResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Signed)
+	if l > 0 {
+		n += 1 + l + sovAuth(uint64(l))
+	}
+	return n
+}
+
 func sovAuth(x uint64) (n int) {
 	return (math_bits.Len64(x|1) + 6) / 7
 }
@@ -440,6 +1503,75 @@ func (this *CredentialsResponse) String() string {
 	s := strings.Join([]string{`&CredentialsResponse{`,
 		`Username:` + fmt.Sprintf("%v", this.Username) + `,`,
 		`Secret:` + fmt.Sprintf("%v", this.Secret) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *FetchTokenRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&FetchTokenRequest{`,
+		`ClientID:` + fmt.Sprintf("%v", this.ClientID) + `,`,
+		`Host:` + fmt.Sprintf("%v", this.Host) + `,`,
+		`Realm:` + fmt.Sprintf("%v", this.Realm) + `,`,
+		`Service:` + fmt.Sprintf("%v", this.Service) + `,`,
+		`Scopes:` + fmt.Sprintf("%v", this.Scopes) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *FetchTokenResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&FetchTokenResponse{`,
+		`Token:` + fmt.Sprintf("%v", this.Token) + `,`,
+		`ExpiresIn:` + fmt.Sprintf("%v", this.ExpiresIn) + `,`,
+		`IssuedAt:` + fmt.Sprintf("%v", this.IssuedAt) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *GetTokenAuthorityRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&GetTokenAuthorityRequest{`,
+		`Host:` + fmt.Sprintf("%v", this.Host) + `,`,
+		`Salt:` + fmt.Sprintf("%v", this.Salt) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *GetTokenAuthorityResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&GetTokenAuthorityResponse{`,
+		`PublicKey:` + fmt.Sprintf("%v", this.PublicKey) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *VerifyTokenAuthorityRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&VerifyTokenAuthorityRequest{`,
+		`Host:` + fmt.Sprintf("%v", this.Host) + `,`,
+		`Payload:` + fmt.Sprintf("%v", this.Payload) + `,`,
+		`Salt:` + fmt.Sprintf("%v", this.Salt) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *VerifyTokenAuthorityResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&VerifyTokenAuthorityResponse{`,
+		`Signed:` + fmt.Sprintf("%v", this.Signed) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -629,6 +1761,788 @@ func (m *CredentialsResponse) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Secret = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAuth(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *FetchTokenRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAuth
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: FetchTokenRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: FetchTokenRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ClientID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuth
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAuth
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ClientID = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Host", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuth
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAuth
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Host = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Realm", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuth
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAuth
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Realm = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Service", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuth
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAuth
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Service = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Scopes", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuth
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAuth
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Scopes = append(m.Scopes, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAuth(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *FetchTokenResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAuth
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: FetchTokenResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: FetchTokenResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Token", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuth
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAuth
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Token = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ExpiresIn", wireType)
+			}
+			m.ExpiresIn = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuth
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ExpiresIn |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field IssuedAt", wireType)
+			}
+			m.IssuedAt = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuth
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.IssuedAt |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAuth(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GetTokenAuthorityRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAuth
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GetTokenAuthorityRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GetTokenAuthorityRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Host", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuth
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAuth
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Host = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Salt", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuth
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthAuth
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Salt = append(m.Salt[:0], dAtA[iNdEx:postIndex]...)
+			if m.Salt == nil {
+				m.Salt = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAuth(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GetTokenAuthorityResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAuth
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GetTokenAuthorityResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GetTokenAuthorityResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PublicKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuth
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthAuth
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.PublicKey = append(m.PublicKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.PublicKey == nil {
+				m.PublicKey = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAuth(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *VerifyTokenAuthorityRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAuth
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: VerifyTokenAuthorityRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: VerifyTokenAuthorityRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Host", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuth
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAuth
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Host = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Payload", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuth
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthAuth
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Payload = append(m.Payload[:0], dAtA[iNdEx:postIndex]...)
+			if m.Payload == nil {
+				m.Payload = []byte{}
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Salt", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuth
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthAuth
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Salt = append(m.Salt[:0], dAtA[iNdEx:postIndex]...)
+			if m.Salt == nil {
+				m.Salt = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAuth(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *VerifyTokenAuthorityResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAuth
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: VerifyTokenAuthorityResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: VerifyTokenAuthorityResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Signed", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAuth
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthAuth
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAuth
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Signed = append(m.Signed[:0], dAtA[iNdEx:postIndex]...)
+			if m.Signed == nil {
+				m.Signed = []byte{}
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

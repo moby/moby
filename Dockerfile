@@ -7,7 +7,9 @@ ARG GO_VERSION=1.13.15
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_VERSION=0.4.0
 ARG DOCKER_BUILDTAGS="apparmor seccomp selinux"
-ARG GOLANG_IMAGE="golang:${GO_VERSION}-buster"
+
+ARG BASE_DEBIAN_DISTRO="buster"
+ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
 FROM ${GOLANG_IMAGE} AS base
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
@@ -79,21 +81,24 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         && git checkout -q "$GO_SWAGGER_COMMIT" \
         && go build -o /build/swagger github.com/go-swagger/go-swagger/cmd/swagger
 
-FROM base AS frozen-images
+FROM debian:${BASE_DEBIAN_DISTRO} AS frozen-images
 ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,sharing=locked,id=moby-frozen-images-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-frozen-images-aptcache,target=/var/cache/apt \
        apt-get update && apt-get install -y --no-install-recommends \
            ca-certificates \
+           curl \
            jq
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image-v2.sh /
+ARG TARGETARCH
 RUN /download-frozen-image-v2.sh /build \
         buildpack-deps:buster@sha256:d0abb4b1e5c664828b93e8b6ac84d10bce45ee469999bef88304be04a2709491 \
         busybox:latest@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209 \
         busybox:glibc@sha256:1f81263701cddf6402afe9f33fca0266d9fff379e59b1748f33d3072da71ee85 \
         debian:buster@sha256:46d659005ca1151087efa997f1039ae45a7bf7a2cbbe2d17d3dcbda632a3ee9a \
-        hello-world:latest@sha256:d58e752213a51785838f9eed2b7a498ffa1cb3aa7f946dda11af39286c3db9a9
+        hello-world:latest@sha256:d58e752213a51785838f9eed2b7a498ffa1cb3aa7f946dda11af39286c3db9a9 \
+        arm32v7/hello-world:latest@sha256:50b8560ad574c779908da71f7ce370c0a2471c098d44d1c8f6b513c5a55eeeb1
 # See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
 
 FROM base AS cross-false

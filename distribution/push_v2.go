@@ -116,7 +116,7 @@ func (p *v2Pusher) pushV2Repository(ctx context.Context) (err error) {
 func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id digest.Digest) error {
 	logrus.Debugf("Pushing repository: %s", reference.FamiliarString(ref))
 
-	imgConfig, err := p.config.ImageStore.Get(id)
+	imgConfig, err := p.config.ImageStore.Get(ctx, id)
 	if err != nil {
 		return fmt.Errorf("could not find image from tag %s: %v", reference.FamiliarString(ref), err)
 	}

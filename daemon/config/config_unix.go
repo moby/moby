@@ -54,6 +54,7 @@ type BridgeConfig struct {
 	// Fields below here are platform specific.
 	EnableIPv6          bool   `json:"ipv6,omitempty"`
 	EnableIPTables      bool   `json:"iptables,omitempty"`
+	EnableIP6Tables     bool   `json:"ip6tables,omitempty"`
 	EnableIPForward     bool   `json:"ip-forward,omitempty"`
 	EnableIPMasq        bool   `json:"ip-masq,omitempty"`
 	EnableUserlandProxy bool   `json:"userland-proxy,omitempty"`

@@ -5,14 +5,10 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/containers"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/moby/sys/mount"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -182,12 +178,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 
 	ctx := context.TODO()
 
-	imageRef, err := reference.ParseNormalizedNamed(container.Config.Image)
-	if err != nil {
-		return err
-	}
-
-	err = daemon.containerd.Create(ctx, container.ID, spec, shim, createOptions, withImageName(imageRef.String()))
+	err = daemon.containerd.Create(ctx, container.ID, spec, shim, createOptions)
 	if err != nil {
 		if errdefs.IsConflict(err) {
 			logrus.WithError(err).WithField("container", container.ID).Error("Container not cleaned up from containerd from previous run")
@@ -196,7 +187,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 			if err := daemon.containerd.Delete(ctx, container.ID); err != nil && !errdefs.IsNotFound(err) {
 				logrus.WithError(err).WithField("container", container.ID).Error("Error cleaning up stale containerd container object")
 			}
-			err = daemon.containerd.Create(ctx, container.ID, spec, shim, createOptions, withImageName(imageRef.String()))
+			err = daemon.containerd.Create(ctx, container.ID, spec, shim, createOptions)
 		}
 		if err != nil {
 			return translateContainerdStartErr(container.Path, container.SetExitCode, err)
@@ -253,7 +244,7 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 		logrus.Warnf("%s cleanup: failed to unmount secrets: %s", container.ID, err)
 	}
 
-	if err := mount.RecursiveUnmount(container.Root); err != nil {
+	if err := recursiveUnmount(container.Root); err != nil {
 		logrus.WithError(err).WithField("container", container.ID).Warn("Error while cleaning up container resource mounts.")
 	}
 
@@ -271,12 +262,5 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 
 	if err := daemon.containerd.Delete(context.Background(), container.ID); err != nil {
 		logrus.Errorf("%s cleanup: failed to delete container from containerd: %v", container.ID, err)
-	}
-}
-
-func withImageName(n string) containerd.NewContainerOpts {
-	return func(ctx context.Context, _ *containerd.Client, c *containers.Container) error {
-		c.Image = n
-		return nil
 	}
 }

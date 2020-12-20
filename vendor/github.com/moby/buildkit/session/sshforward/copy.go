@@ -6,10 +6,14 @@ import (
 	"github.com/pkg/errors"
 	context "golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
 )
 
-func Copy(ctx context.Context, conn io.ReadWriteCloser, stream grpc.Stream, closeStream func() error) error {
+type Stream interface {
+	SendMsg(m interface{}) error
+	RecvMsg(m interface{}) error
+}
+
+func Copy(ctx context.Context, conn io.ReadWriteCloser, stream Stream, closeStream func() error) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() (retErr error) {

@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func getUidGid(fi os.FileInfo) (uid, gid int) {
+func getUIDGID(fi os.FileInfo) (uid, gid int) {
 	st := fi.Sys().(*syscall.Stat_t)
 	return int(st.Uid), int(st.Gid)
 }
@@ -19,8 +19,8 @@ func (c *copier) copyFileInfo(fi os.FileInfo, name string) error {
 	st := fi.Sys().(*syscall.Stat_t)
 
 	chown := c.chown
-	uid, gid := getUidGid(fi)
-	old := &User{Uid: uid, Gid: gid}
+	uid, gid := getUIDGID(fi)
+	old := &User{UID: uid, GID: gid}
 	if chown == nil {
 		chown = func(u *User) (*User, error) {
 			return u, nil

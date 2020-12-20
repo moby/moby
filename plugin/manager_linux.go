@@ -239,7 +239,7 @@ func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest, manifestDigest dige
 
 	defer func() {
 		if err != nil {
-			if rmErr := os.RemoveAll(orig); rmErr != nil && !os.IsNotExist(rmErr) {
+			if rmErr := os.RemoveAll(orig); rmErr != nil {
 				logrus.WithError(rmErr).WithField("dir", backup).Error("error cleaning up after failed upgrade")
 				return
 			}
@@ -250,7 +250,7 @@ func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest, manifestDigest dige
 				logrus.WithError(rmErr).WithField("plugin", p.Name()).Errorf("error cleaning up plugin upgrade dir: %s", tmpRootFSDir)
 			}
 		} else {
-			if rmErr := os.RemoveAll(backup); rmErr != nil && !os.IsNotExist(rmErr) {
+			if rmErr := os.RemoveAll(backup); rmErr != nil {
 				logrus.WithError(rmErr).WithField("dir", backup).Error("error cleaning up old plugin root after successful upgrade")
 			}
 
@@ -345,4 +345,8 @@ func (pm *Manager) createPlugin(name string, configDigest, manifestDigest digest
 	pm.config.Store.Add(p) // todo: remove
 
 	return p, nil
+}
+
+func recursiveUnmount(target string) error {
+	return mount.RecursiveUnmount(target)
 }

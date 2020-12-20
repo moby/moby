@@ -3,6 +3,7 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"fmt"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/pkg/errors"
 
 	"github.com/docker/distribution/reference"
@@ -34,30 +35,24 @@ func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retIm
 			return
 		}
 
-		// This allows us to tell clients that we don't have the image they asked for
-		// Where this gets hairy is the image store does not currently support multi-arch images, e.g.:
-		//   An image `foo` may have a multi-arch manifest, but the image store only fetches the image for a specific platform
-		//   The image store does not store the manifest list and image tags are assigned to architecture specific images.
-		//   So we can have a `foo` image that is amd64 but the user requested armv7. If the user looks at the list of images.
-		//   This may be confusing.
-		//   The alternative to this is to return a errdefs.Conflict error with a helpful message, but clients will not be
-		//   able to automatically tell what causes the conflict.
-		if retImg.OS != platform.OS {
-			retErr = errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified OS platform: wanted: %s, actual: %s", refOrID, platform.OS, retImg.OS))
-			retImg = nil
-			return
+		imgPlat := specs.Platform{
+			OS:           retImg.OS,
+			Architecture: retImg.Architecture,
+			Variant:      retImg.Variant,
 		}
-		if retImg.Architecture != platform.Architecture {
-			retErr = errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform cpu architecture: wanted: %s, actual: %s", refOrID, platform.Architecture, retImg.Architecture))
-			retImg = nil
-			return
-		}
-
-		// Only validate variant if retImg has a variant set.
-		// The image variant may not be set since it's a newer field.
-		if platform.Variant != "" && retImg.Variant != "" && retImg.Variant != platform.Variant {
-			retErr = errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform cpu architecture variant: wanted: %s, actual: %s", refOrID, platform.Variant, retImg.Variant))
-			retImg = nil
+		p := *platform
+		// Note that `platforms.Only` will fuzzy match this for us
+		// For example: an armv6 image will run just fine an an armv7 CPU, without emulation or anything.
+		if !platforms.Only(p).Match(imgPlat) {
+			// This allows us to tell clients that we don't have the image they asked for
+			// Where this gets hairy is the image store does not currently support multi-arch images, e.g.:
+			//   An image `foo` may have a multi-arch manifest, but the image store only fetches the image for a specific platform
+			//   The image store does not store the manifest list and image tags are assigned to architecture specific images.
+			//   So we can have a `foo` image that is amd64 but the user requested armv7. If the user looks at the list of images.
+			//   This may be confusing.
+			//   The alternative to this is to return a errdefs.Conflict error with a helpful message, but clients will not be
+			//   able to automatically tell what causes the conflict.
+			retErr = errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, platforms.Format(p), platforms.Format(imgPlat)))
 			return
 		}
 	}()

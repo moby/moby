@@ -28,6 +28,10 @@ service LLBBridge {
 	rpc Return(ReturnRequest) returns (ReturnResponse);
 	// apicaps:CapFrontendInputs
 	rpc Inputs(InputsRequest) returns (InputsResponse);
+
+	rpc NewContainer(NewContainerRequest) returns (NewContainerResponse);
+	rpc ReleaseContainer(ReleaseContainerRequest) returns (ReleaseContainerResponse);
+	rpc ExecProcess(stream ExecMessage) returns (stream ExecMessage);  
 }
 
 message Result {
@@ -103,6 +107,8 @@ message SolveRequest {
 
 	// apicaps:CapFrontendInputs
 	map<string, pb.Definition> FrontendInputs = 13;
+
+	bool Evaluate = 14;
 }
 
 // CacheOptionsEntry corresponds to the control.CacheOptionsEntry
@@ -161,4 +167,72 @@ message PongResponse{
 	repeated moby.buildkit.v1.apicaps.APICap FrontendAPICaps = 1 [(gogoproto.nullable) = false];
 	repeated moby.buildkit.v1.apicaps.APICap LLBCaps = 2 [(gogoproto.nullable) = false];
 	repeated moby.buildkit.v1.types.WorkerRecord Workers = 3;
+}
+
+message NewContainerRequest {
+	string ContainerID = 1;
+	// For mount input values we can use random identifiers passed with ref
+	repeated pb.Mount Mounts = 2;
+	pb.NetMode Network = 3;
+	pb.Platform platform = 4;
+	pb.WorkerConstraints constraints = 5;
+}
+
+message NewContainerResponse{}
+
+message ReleaseContainerRequest {
+	string ContainerID = 1;
+}
+
+message ReleaseContainerResponse{}
+
+message ExecMessage {
+	string ProcessID = 1;
+	oneof Input {
+		// InitMessage sent from client to server will start a new process in a
+		// container
+		InitMessage Init = 2;
+		// FdMessage used from client to server for input (stdin) and 
+		// from server to client for output (stdout, stderr)
+		FdMessage File = 3;
+		// ResizeMessage used from client to server for terminal resize events
+		ResizeMessage Resize = 4;
+		// StartedMessage sent from server to client after InitMessage to
+		// indicate the process has started.
+		StartedMessage Started = 5;
+		// ExitMessage sent from server to client will contain the exit code
+		// when the process ends.
+		ExitMessage Exit = 6;
+		// DoneMessage from server to client will be the last message for any
+		// process.  Note that FdMessage might be sent after ExitMessage.
+		DoneMessage Done = 7;
+	}
+}
+
+message InitMessage{
+	string ContainerID = 1;
+	pb.Meta Meta = 2;
+	repeated uint32 Fds = 3;
+	bool Tty = 4;
+	pb.SecurityMode Security = 5;
+}
+
+message ExitMessage {
+	uint32 Code = 1;
+	google.rpc.Status Error = 2;
+}
+
+message StartedMessage{}
+
+message DoneMessage{}
+
+message FdMessage{
+	uint32 Fd = 1; // what fd the data was from
+	bool EOF = 2;  // true if eof was reached
+	bytes Data = 3;
+}
+
+message ResizeMessage{
+	uint32 Rows = 1;
+	uint32 Cols = 2;
 }

@@ -8,11 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/pkg/homedir"
 )
 
-var (
+const (
 	// DefaultHTTPPort Default HTTP Port used if only the protocol is provided to -H flag e.g. dockerd -H tcp://
 	// These are the IANA registered port numbers for use with Docker
 	// see http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=docker
@@ -23,11 +22,15 @@ var (
 	// Docker daemon by default always listens on the default unix socket
 	DefaultUnixSocket = "/var/run/docker.sock"
 	// DefaultTCPHost constant defines the default host string used by docker on Windows
-	DefaultTCPHost = fmt.Sprintf("tcp://%s:%d", DefaultHTTPHost, DefaultHTTPPort)
+	DefaultTCPHost = "tcp://" + DefaultHTTPHost + ":2375"
 	// DefaultTLSHost constant defines the default host string used by docker for TLS sockets
-	DefaultTLSHost = fmt.Sprintf("tcp://%s:%d", DefaultHTTPHost, DefaultTLSHTTPPort)
+	DefaultTLSHost = "tcp://" + DefaultHTTPHost + ":2376"
 	// DefaultNamedPipe defines the default named pipe used by docker on Windows
 	DefaultNamedPipe = `//./pipe/docker_engine`
+	// HostGatewayName is the string value that can be passed
+	// to the IPAddr section in --add-host that is replaced by
+	// the value of HostGatewayIP daemon config value
+	HostGatewayName = "host-gateway"
 )
 
 // ValidateHost validates that the specified string is a valid host and returns it.
@@ -171,7 +174,7 @@ func ValidateExtraHost(val string) (string, error) {
 		return "", fmt.Errorf("bad format for add-host: %q", val)
 	}
 	// Skip IPaddr validation for special "host-gateway" string
-	if arr[1] != network.HostGatewayName {
+	if arr[1] != HostGatewayName {
 		if _, err := ValidateIPAddress(arr[1]); err != nil {
 			return "", fmt.Errorf("invalid IP address in add-host: %q", arr[1])
 		}

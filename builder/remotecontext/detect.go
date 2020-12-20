@@ -11,10 +11,10 @@ import (
 	"github.com/containerd/continuity/driver"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/builder/dockerignore"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/urlutil"
+	"github.com/moby/buildkit/frontend/dockerfile/dockerignore"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -33,12 +33,7 @@ func Detect(config backend.BuildConfig) (remote builder.Source, dockerfile *pars
 	case remoteURL == "":
 		remote, dockerfile, err = newArchiveRemote(config.Source, dockerfilePath)
 	case remoteURL == ClientSessionRemote:
-		res, err := parser.Parse(config.Source)
-		if err != nil {
-			return nil, nil, errdefs.InvalidParameter(err)
-		}
-
-		return nil, res, nil
+		return nil, nil, errdefs.InvalidParameter(errors.New("experimental session with v1 builder is no longer supported, use builder version v2 (BuildKit) instead"))
 	case urlutil.IsGitURL(remoteURL):
 		remote, dockerfile, err = newGitRemote(remoteURL, dockerfilePath)
 	case urlutil.IsURL(remoteURL):

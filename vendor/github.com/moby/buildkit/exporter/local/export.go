@@ -51,7 +51,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp exporter.Source,
 	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	caller, err := e.opt.SessionManager.Get(timeoutCtx, sessionID)
+	caller, err := e.opt.SessionManager.Get(timeoutCtx, sessionID, false)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp exporter.Source,
 				}
 				defer os.RemoveAll(src)
 			} else {
-				mount, err := ref.Mount(ctx, true)
+				mount, err := ref.Mount(ctx, true, session.NewGroup(sessionID))
 				if err != nil {
 					return err
 				}

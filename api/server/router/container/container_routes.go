@@ -494,8 +494,8 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 			hostConfig.IpcMode = container.IpcMode("shareable")
 		}
 	}
-	if hostConfig != nil && versions.LessThan(version, "1.41") {
-		// Older clients expect the default to be "host"
+	if hostConfig != nil && versions.LessThan(version, "1.41") && !s.cgroup2 {
+		// Older clients expect the default to be "host" on cgroup v1 hosts
 		if hostConfig.CgroupnsMode.IsEmpty() {
 			hostConfig.CgroupnsMode = container.CgroupnsMode("host")
 		}
@@ -509,17 +509,6 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 				return errdefs.InvalidParameter(err)
 			}
 			platform = &p
-		}
-		defaultPlatform := platforms.DefaultSpec()
-		if platform == nil {
-			platform = &defaultPlatform
-		}
-		if platform.OS == "" {
-			platform.OS = defaultPlatform.OS
-		}
-		if platform.Architecture == "" {
-			platform.Architecture = defaultPlatform.Architecture
-			platform.Variant = defaultPlatform.Variant
 		}
 	}
 

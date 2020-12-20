@@ -51,6 +51,12 @@ func TaskFromGRPC(t swarmapi.Task) (types.Task, error) {
 		task.NetworksAttachments = append(task.NetworksAttachments, networkAttachmentFromGRPC(na))
 	}
 
+	if t.JobIteration != nil {
+		task.JobIteration = &types.Version{
+			Index: t.JobIteration.Index,
+		}
+	}
+
 	if t.Status.PortStatus == nil {
 		return task, nil
 	}
@@ -63,12 +69,6 @@ func TaskFromGRPC(t swarmapi.Task) (types.Task, error) {
 			TargetPort:    p.TargetPort,
 			PublishedPort: p.PublishedPort,
 		})
-	}
-
-	if t.JobIteration != nil {
-		task.JobIteration = &types.Version{
-			Index: t.JobIteration.Index,
-		}
 	}
 
 	return task, nil

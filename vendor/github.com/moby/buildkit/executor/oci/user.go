@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func GetUser(ctx context.Context, root, username string) (uint32, uint32, []uint32, error) {
+func GetUser(root, username string) (uint32, uint32, []uint32, error) {
 	// fast path from uid/gid
 	if uid, gid, err := ParseUIDGID(username); err == nil {
 		return uid, gid, nil, nil

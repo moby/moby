@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -380,8 +381,16 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	conf.Debug = opts.Debug
 	conf.Hosts = opts.Hosts
 	conf.LogLevel = opts.LogLevel
-	conf.TLS = opts.TLS
-	conf.TLSVerify = opts.TLSVerify
+
+	if opts.flags.Changed(FlagTLS) {
+		conf.TLS = &opts.TLS
+	}
+	if opts.flags.Changed(FlagTLSVerify) {
+		conf.TLSVerify = &opts.TLSVerify
+		v := true
+		conf.TLS = &v
+	}
+
 	conf.CommonTLSOptions = config.CommonTLSOptions{}
 
 	if opts.TLSOptions != nil {
@@ -409,6 +418,7 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 				return nil, errors.Wrapf(err, "unable to configure the Docker daemon with file %s", opts.configFile)
 			}
 		}
+
 		// the merged configuration can be nil if the config file didn't exist.
 		// leave the current configuration as it is if when that happens.
 		if c != nil {
@@ -434,7 +444,12 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	// Regardless of whether the user sets it to true or false, if they
 	// specify TLSVerify at all then we need to turn on TLS
 	if conf.IsValueSet(FlagTLSVerify) {
-		conf.TLS = true
+		v := true
+		conf.TLS = &v
+	}
+
+	if conf.TLSVerify == nil && conf.TLS != nil {
+		conf.TLSVerify = conf.TLS
 	}
 
 	return conf, nil
@@ -462,7 +477,7 @@ func initRouter(opts routerOptions) {
 	routers := []router.Router{
 		// we need to add the checkpoint router before the container router or the DELETE gets masked
 		checkpointrouter.NewRouter(opts.daemon, decoder),
-		container.NewRouter(opts.daemon, decoder),
+		container.NewRouter(opts.daemon, decoder, opts.daemon.RawSysInfo(true).CgroupUnified),
 		image.NewRouter(opts.daemon.ImageService()),
 		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildkit, opts.features),
 		volume.NewRouter(opts.daemon.VolumesService()),
@@ -548,7 +563,7 @@ func newAPIServerConfig(cli *DaemonCli) (*apiserver.Config, error) {
 		CorsHeaders: cli.Config.CorsHeaders,
 	}
 
-	if cli.Config.TLS {
+	if cli.Config.TLS != nil && *cli.Config.TLS {
 		tlsOptions := tlsconfig.Options{
 			CAFile:             cli.Config.CommonTLSOptions.CAFile,
 			CertFile:           cli.Config.CommonTLSOptions.CertFile,
@@ -556,7 +571,7 @@ func newAPIServerConfig(cli *DaemonCli) (*apiserver.Config, error) {
 			ExclusiveRootPools: true,
 		}
 
-		if cli.Config.TLSVerify {
+		if cli.Config.TLSVerify == nil || *cli.Config.TLSVerify {
 			// server requires and verifies client's certificate
 			tlsOptions.ClientAuth = tls.RequireAndVerifyClientCert
 		}
@@ -574,13 +589,43 @@ func newAPIServerConfig(cli *DaemonCli) (*apiserver.Config, error) {
 	return serverConfig, nil
 }
 
+// checkTLSAuthOK checks basically for an explicitly disabled TLS/TLSVerify
+// Going forward we do not want to support a scenario where dockerd listens
+//   on TCP without either TLS client auth (or an explicit opt-in to disable it)
+func checkTLSAuthOK(c *config.Config) bool {
+	if c.TLS == nil {
+		// Either TLS is enabled by default, in which case TLS verification should be enabled by default, or explicitly disabled
+		// Or TLS is disabled by default... in any of these cases, we can just take the default value as to how to proceed
+		return DefaultTLSValue
+	}
+
+	if !*c.TLS {
+		// TLS is explicitly disabled, which is supported
+		return true
+	}
+
+	if c.TLSVerify == nil {
+		// this actually shouldn't happen since we set TLSVerify on the config object anyway
+		// But in case it does get here, be cautious and assume this is not supported.
+		return false
+	}
+
+	// Either TLSVerify is explicitly enabled or disabled, both cases are supported
+	return true
+}
+
 func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, error) {
 	var hosts []string
 	seen := make(map[string]struct{}, len(cli.Config.Hosts))
 
+	useTLS := DefaultTLSValue
+	if cli.Config.TLS != nil {
+		useTLS = *cli.Config.TLS
+	}
+
 	for i := 0; i < len(cli.Config.Hosts); i++ {
 		var err error
-		if cli.Config.Hosts[i], err = dopts.ParseHost(cli.Config.TLS, honorXDG, cli.Config.Hosts[i]); err != nil {
+		if cli.Config.Hosts[i], err = dopts.ParseHost(useTLS, honorXDG, cli.Config.Hosts[i]); err != nil {
 			return nil, errors.Wrapf(err, "error parsing -H %s", cli.Config.Hosts[i])
 		}
 		if _, ok := seen[cli.Config.Hosts[i]]; ok {
@@ -598,8 +643,43 @@ func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, er
 		addr := protoAddrParts[1]
 
 		// It's a bad idea to bind to TCP without tlsverify.
-		if proto == "tcp" && (serverConfig.TLSConfig == nil || serverConfig.TLSConfig.ClientAuth != tls.RequireAndVerifyClientCert) {
-			logrus.Warn("[!] DON'T BIND ON ANY IP ADDRESS WITHOUT setting --tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING [!]")
+		authEnabled := serverConfig.TLSConfig != nil && serverConfig.TLSConfig.ClientAuth == tls.RequireAndVerifyClientCert
+		if proto == "tcp" && !authEnabled {
+			logrus.WithField("host", protoAddr).Warn("Binding to IP address without --tlsverify is insecure and gives root access on this machine to everyone who has access to your network.")
+			logrus.WithField("host", protoAddr).Warn("Binding to an IP address, even on localhost, can also give access to scripts run in a browser. Be safe out there!")
+			time.Sleep(time.Second)
+
+			// If TLSVerify is explicitly set to false we'll take that as "Please let me shoot myself in the foot"
+			// We do not want to continue to support a default mode where tls verification is disabled, so we do some extra warnings here and eventually remove support
+			if !checkTLSAuthOK(cli.Config) {
+				ipAddr, _, err := net.SplitHostPort(addr)
+				if err != nil {
+					return nil, errors.Wrap(err, "error parsing tcp address")
+				}
+
+				// shortcut all this extra stuff for literal "localhost"
+				// -H supports specifying hostnames, since we want to bypass this on loopback interfaces we'll look it up here.
+				if ipAddr != "localhost" {
+					ip := net.ParseIP(ipAddr)
+					if ip == nil {
+						ipA, err := net.ResolveIPAddr("ip", ipAddr)
+						if err != nil {
+							logrus.WithError(err).WithField("host", ipAddr).Error("Error looking up specified host address")
+						}
+						if ipA != nil {
+							ip = ipA.IP
+						}
+					}
+					if ip == nil || !ip.IsLoopback() {
+						logrus.WithField("host", protoAddr).Warn("Binding to an IP address without --tlsverify is deprecated. Startup is intentionally being slowed down to show this message")
+						logrus.WithField("host", protoAddr).Warn("Please consider generating tls certificates with client validation to prevent exposing unauthenticated root access to your network")
+						logrus.WithField("host", protoAddr).Warnf("You can override this by explicitly specifying '--%s=false' or '--%s=false'", FlagTLS, FlagTLSVerify)
+						logrus.WithField("host", protoAddr).Warnf("Support for listening on TCP without authentication or explicit intent to run without authentication will be removed in the next release")
+
+						time.Sleep(15 * time.Second)
+					}
+				}
+			}
 		}
 		ls, err := listeners.Init(proto, addr, serverConfig.SocketGroup, serverConfig.TLSConfig)
 		if err != nil {

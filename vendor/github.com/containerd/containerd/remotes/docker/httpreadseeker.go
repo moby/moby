@@ -121,7 +121,7 @@ func (hrs *httpReadSeeker) reader() (io.Reader, error) {
 
 		rc, err := hrs.open(hrs.offset)
 		if err != nil {
-			return nil, errors.Wrapf(err, "httpReaderSeeker: failed open")
+			return nil, errors.Wrapf(err, "httpReadSeeker: failed open")
 		}
 
 		if hrs.rc != nil {

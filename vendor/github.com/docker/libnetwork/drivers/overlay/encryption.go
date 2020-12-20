@@ -210,7 +210,10 @@ func programMangle(vni uint32, add bool) (err error) {
 		action = "install"
 	)
 
-	if add == iptables.Exists(iptables.Mangle, chain, rule...) {
+	// TODO IPv6 support
+	iptable := iptables.GetIptable(iptables.IPv4)
+
+	if add == iptable.Exists(iptables.Mangle, chain, rule...) {
 		return
 	}
 
@@ -219,7 +222,7 @@ func programMangle(vni uint32, add bool) (err error) {
 		action = "remove"
 	}
 
-	if err = iptables.RawCombinedOutput(append([]string{"-t", string(iptables.Mangle), a, chain}, rule...)...); err != nil {
+	if err = iptable.RawCombinedOutput(append([]string{"-t", string(iptables.Mangle), a, chain}, rule...)...); err != nil {
 		logrus.Warnf("could not %s mangle rule: %v", action, err)
 	}
 
@@ -239,16 +242,19 @@ func programInput(vni uint32, add bool) (err error) {
 		msg        = "add"
 	)
 
+	// TODO IPv6 support
+	iptable := iptables.GetIptable(iptables.IPv4)
+
 	if !add {
 		action = iptables.Delete
 		msg = "remove"
 	}
 
-	if err := iptables.ProgramRule(iptables.Filter, chain, action, accept); err != nil {
+	if err := iptable.ProgramRule(iptables.Filter, chain, action, accept); err != nil {
 		logrus.Errorf("could not %s input rule: %v. Please do it manually.", msg, err)
 	}
 
-	if err := iptables.ProgramRule(iptables.Filter, chain, action, block); err != nil {
+	if err := iptable.ProgramRule(iptables.Filter, chain, action, block); err != nil {
 		logrus.Errorf("could not %s input rule: %v. Please do it manually.", msg, err)
 	}
 

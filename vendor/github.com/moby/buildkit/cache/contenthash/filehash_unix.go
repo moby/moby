@@ -12,10 +12,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func chmodWindowsTarEntry(perm os.FileMode) os.FileMode {
-	return perm
-}
-
 func setUnixOpt(path string, fi os.FileInfo, stat *fstypes.Stat) error {
 	s := fi.Sys().(*syscall.Stat_t)
 

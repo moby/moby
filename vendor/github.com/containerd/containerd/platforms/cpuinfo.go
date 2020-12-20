@@ -96,6 +96,15 @@ func getCPUVariant() string {
 		return ""
 	}
 
+	// handle edge case for Raspberry Pi ARMv6 devices (which due to a kernel quirk, report "CPU architecture: 7")
+	// https://www.raspberrypi.org/forums/viewtopic.php?t=12614
+	if runtime.GOARCH == "arm" && variant == "7" {
+		model, err := getCPUInfo("model name")
+		if err == nil && strings.HasPrefix(strings.ToLower(model), "armv6-compatible") {
+			variant = "6"
+		}
+	}
+
 	switch strings.ToLower(variant) {
 	case "8", "aarch64":
 		// special case: if running a 32-bit userspace on aarch64, the variant should be "v7"

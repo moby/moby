@@ -57,6 +57,7 @@ type iptablesCleanFuncs []iptableCleanFunc
 type configuration struct {
 	EnableIPForwarding  bool
 	EnableIPTables      bool
+	EnableIP6Tables     bool
 	EnableUserlandProxy bool
 	UserlandProxyPath   string
 }
@@ -133,22 +134,27 @@ type bridgeNetwork struct {
 	config        *networkConfiguration
 	endpoints     map[string]*bridgeEndpoint // key: endpoint id
 	portMapper    *portmapper.PortMapper
+	portMapperV6  *portmapper.PortMapper
 	driver        *driver // The network's driver
 	iptCleanFuncs iptablesCleanFuncs
 	sync.Mutex
 }
 
 type driver struct {
-	config          *configuration
-	network         *bridgeNetwork
-	natChain        *iptables.ChainInfo
-	filterChain     *iptables.ChainInfo
-	isolationChain1 *iptables.ChainInfo
-	isolationChain2 *iptables.ChainInfo
-	networks        map[string]*bridgeNetwork
-	store           datastore.DataStore
-	nlh             *netlink.Handle
-	configNetwork   sync.Mutex
+	config            *configuration
+	network           *bridgeNetwork
+	natChain          *iptables.ChainInfo
+	filterChain       *iptables.ChainInfo
+	isolationChain1   *iptables.ChainInfo
+	isolationChain2   *iptables.ChainInfo
+	natChainV6        *iptables.ChainInfo
+	filterChainV6     *iptables.ChainInfo
+	isolationChain1V6 *iptables.ChainInfo
+	isolationChain2V6 *iptables.ChainInfo
+	networks          map[string]*bridgeNetwork
+	store             datastore.DataStore
+	nlh               *netlink.Handle
+	configNetwork     sync.Mutex
 	sync.Mutex
 }
 
@@ -277,12 +283,16 @@ func (n *bridgeNetwork) registerIptCleanFunc(clean iptableCleanFunc) {
 	n.iptCleanFuncs = append(n.iptCleanFuncs, clean)
 }
 
-func (n *bridgeNetwork) getDriverChains() (*iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, error) {
+func (n *bridgeNetwork) getDriverChains(version iptables.IPVersion) (*iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, error) {
 	n.Lock()
 	defer n.Unlock()
 
 	if n.driver == nil {
 		return nil, nil, nil, nil, types.BadRequestErrorf("no driver found")
+	}
+
+	if version == iptables.IPv6 {
+		return n.driver.natChainV6, n.driver.filterChainV6, n.driver.isolationChain1V6, n.driver.isolationChain2V6, nil
 	}
 
 	return n.driver.natChain, n.driver.filterChain, n.driver.isolationChain1, n.driver.isolationChain2, nil
@@ -323,17 +333,31 @@ func (n *bridgeNetwork) isolateNetwork(others []*bridgeNetwork, enable bool) err
 	}
 
 	// Install the rules to isolate this network against each of the other networks
-	return setINC(thisConfig.BridgeName, enable)
+	if n.driver.config.EnableIP6Tables {
+		err := setINC(iptables.IPv6, thisConfig.BridgeName, enable)
+		if err != nil {
+			return err
+		}
+	}
+
+	if n.driver.config.EnableIPTables {
+		return setINC(iptables.IPv4, thisConfig.BridgeName, enable)
+	}
+	return nil
 }
 
 func (d *driver) configure(option map[string]interface{}) error {
 	var (
-		config          *configuration
-		err             error
-		natChain        *iptables.ChainInfo
-		filterChain     *iptables.ChainInfo
-		isolationChain1 *iptables.ChainInfo
-		isolationChain2 *iptables.ChainInfo
+		config            *configuration
+		err               error
+		natChain          *iptables.ChainInfo
+		filterChain       *iptables.ChainInfo
+		isolationChain1   *iptables.ChainInfo
+		isolationChain2   *iptables.ChainInfo
+		natChainV6        *iptables.ChainInfo
+		filterChainV6     *iptables.ChainInfo
+		isolationChain1V6 *iptables.ChainInfo
+		isolationChain2V6 *iptables.ChainInfo
 	)
 
 	genericData, ok := option[netlabel.GenericData]
@@ -354,23 +378,46 @@ func (d *driver) configure(option map[string]interface{}) error {
 		return &ErrInvalidDriverConfig{}
 	}
 
-	if config.EnableIPTables {
+	if config.EnableIPTables || config.EnableIP6Tables {
 		if _, err := os.Stat("/proc/sys/net/bridge"); err != nil {
 			if out, err := exec.Command("modprobe", "-va", "bridge", "br_netfilter").CombinedOutput(); err != nil {
 				logrus.Warnf("Running modprobe bridge br_netfilter failed with message: %s, error: %v", out, err)
 			}
 		}
-		removeIPChains()
-		natChain, filterChain, isolationChain1, isolationChain2, err = setupIPChains(config)
+	}
+
+	if config.EnableIPTables {
+		removeIPChains(iptables.IPv4)
+
+		natChain, filterChain, isolationChain1, isolationChain2, err = setupIPChains(config, iptables.IPv4)
 		if err != nil {
 			return err
 		}
+
 		// Make sure on firewall reload, first thing being re-played is chains creation
-		iptables.OnReloaded(func() { logrus.Debugf("Recreating iptables chains on firewall reload"); setupIPChains(config) })
+		iptables.OnReloaded(func() {
+			logrus.Debugf("Recreating iptables chains on firewall reload")
+			setupIPChains(config, iptables.IPv4)
+		})
+	}
+
+	if config.EnableIP6Tables {
+		removeIPChains(iptables.IPv6)
+
+		natChainV6, filterChainV6, isolationChain1V6, isolationChain2V6, err = setupIPChains(config, iptables.IPv6)
+		if err != nil {
+			return err
+		}
+
+		// Make sure on firewall reload, first thing being re-played is chains creation
+		iptables.OnReloaded(func() {
+			logrus.Debugf("Recreating ip6tables chains on firewall reload")
+			setupIPChains(config, iptables.IPv6)
+		})
 	}
 
 	if config.EnableIPForwarding {
-		err = setupIPForwarding(config.EnableIPTables)
+		err = setupIPForwarding(config.EnableIPTables, config.EnableIP6Tables)
 		if err != nil {
 			logrus.Warn(err)
 			return err
@@ -382,6 +429,10 @@ func (d *driver) configure(option map[string]interface{}) error {
 	d.filterChain = filterChain
 	d.isolationChain1 = isolationChain1
 	d.isolationChain2 = isolationChain2
+	d.natChainV6 = natChainV6
+	d.filterChainV6 = filterChainV6
+	d.isolationChain1V6 = isolationChain1V6
+	d.isolationChain2V6 = isolationChain2V6
 	d.config = config
 	d.Unlock()
 
@@ -644,12 +695,13 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 
 	// Create and set network handler in driver
 	network := &bridgeNetwork{
-		id:         config.ID,
-		endpoints:  make(map[string]*bridgeEndpoint),
-		config:     config,
-		portMapper: portmapper.New(d.config.UserlandProxyPath),
-		bridge:     bridgeIface,
-		driver:     d,
+		id:           config.ID,
+		endpoints:    make(map[string]*bridgeEndpoint),
+		config:       config,
+		portMapper:   portmapper.New(d.config.UserlandProxyPath),
+		portMapperV6: portmapper.New(d.config.UserlandProxyPath),
+		bridge:       bridgeIface,
+		driver:       d,
 	}
 
 	d.Lock()
@@ -724,11 +776,16 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		{!d.config.EnableUserlandProxy, setupLoopbackAddressesRouting},
 
 		// Setup IPTables.
-		{d.config.EnableIPTables, network.setupIPTables},
+		{d.config.EnableIPTables, network.setupIP4Tables},
+
+		// Setup IP6Tables.
+		{config.EnableIPv6 && d.config.EnableIP6Tables, network.setupIP6Tables},
 
 		//We want to track firewalld configuration so that
 		//if it is started/reloaded, the rules can be applied correctly
 		{d.config.EnableIPTables, network.setupFirewalld},
+		// same for IPv6
+		{config.EnableIPv6 && d.config.EnableIP6Tables, network.setupFirewalld6},
 
 		// Setup DefaultGatewayIPv4
 		{config.DefaultGatewayIPv4 != nil, setupGatewayIPv4},

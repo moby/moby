@@ -74,7 +74,7 @@ func (sm *Manager) Any(ctx context.Context, g Group, f func(context.Context, str
 
 		timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		c, err := sm.Get(timeoutCtx, id)
+		c, err := sm.Get(timeoutCtx, id, false)
 		if err != nil {
 			lastErr = err
 			continue

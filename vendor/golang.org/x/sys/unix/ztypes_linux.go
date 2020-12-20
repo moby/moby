@@ -76,6 +76,21 @@ type Fsid struct {
 	Val [2]int32
 }
 
+type FileCloneRange struct {
+	Src_fd      int64
+	Src_offset  uint64
+	Src_length  uint64
+	Dest_offset uint64
+}
+
+type FileDedupeRange struct {
+	Src_offset uint64
+	Src_length uint64
+	Dest_count uint16
+	Reserved1  uint16
+	Reserved2  uint32
+}
+
 type FscryptPolicy struct {
 	Version                   uint8
 	Contents_encryption_mode  uint8
@@ -539,7 +554,11 @@ const (
 	IFLA_NEW_IFINDEX        = 0x31
 	IFLA_MIN_MTU            = 0x32
 	IFLA_MAX_MTU            = 0x33
-	IFLA_MAX                = 0x36
+	IFLA_PROP_LIST          = 0x34
+	IFLA_ALT_IFNAME         = 0x35
+	IFLA_PERM_ADDRESS       = 0x36
+	IFLA_PROTO_DOWN_REASON  = 0x37
+	IFLA_MAX                = 0x37
 	IFLA_INFO_KIND          = 0x1
 	IFLA_INFO_DATA          = 0x2
 	IFLA_INFO_XSTATS        = 0x3
@@ -752,6 +771,22 @@ const (
 	AT_EACCESS = 0x200
 )
 
+type OpenHow struct {
+	Flags   uint64
+	Mode    uint64
+	Resolve uint64
+}
+
+const SizeofOpenHow = 0x18
+
+const (
+	RESOLVE_BENEATH       = 0x8
+	RESOLVE_IN_ROOT       = 0x10
+	RESOLVE_NO_MAGICLINKS = 0x2
+	RESOLVE_NO_SYMLINKS   = 0x4
+	RESOLVE_NO_XDEV       = 0x1
+)
+
 type PollFd struct {
 	Fd      int32
 	Events  int16
@@ -791,8 +826,6 @@ type SignalfdSiginfo struct {
 	Arch      uint32
 	_         [28]uint8
 }
-
-const PERF_IOC_FLAG_GROUP = 0x1
 
 type Winsize struct {
 	Row    uint16
@@ -917,7 +950,10 @@ type PerfEventMmapPage struct {
 	Time_offset    uint64
 	Time_zero      uint64
 	Size           uint32
-	_              [948]uint8
+	_              uint32
+	Time_cycles    uint64
+	Time_mask      uint64
+	_              [928]uint8
 	Data_head      uint64
 	Data_tail      uint64
 	Data_offset    uint64
@@ -959,13 +995,13 @@ const (
 )
 
 const (
-	PERF_TYPE_HARDWARE   = 0x0
-	PERF_TYPE_SOFTWARE   = 0x1
-	PERF_TYPE_TRACEPOINT = 0x2
-	PERF_TYPE_HW_CACHE   = 0x3
-	PERF_TYPE_RAW        = 0x4
-	PERF_TYPE_BREAKPOINT = 0x5
-
+	PERF_TYPE_HARDWARE                    = 0x0
+	PERF_TYPE_SOFTWARE                    = 0x1
+	PERF_TYPE_TRACEPOINT                  = 0x2
+	PERF_TYPE_HW_CACHE                    = 0x3
+	PERF_TYPE_RAW                         = 0x4
+	PERF_TYPE_BREAKPOINT                  = 0x5
+	PERF_TYPE_MAX                         = 0x6
 	PERF_COUNT_HW_CPU_CYCLES              = 0x0
 	PERF_COUNT_HW_INSTRUCTIONS            = 0x1
 	PERF_COUNT_HW_CACHE_REFERENCES        = 0x2
@@ -976,106 +1012,163 @@ const (
 	PERF_COUNT_HW_STALLED_CYCLES_FRONTEND = 0x7
 	PERF_COUNT_HW_STALLED_CYCLES_BACKEND  = 0x8
 	PERF_COUNT_HW_REF_CPU_CYCLES          = 0x9
-
-	PERF_COUNT_HW_CACHE_L1D  = 0x0
-	PERF_COUNT_HW_CACHE_L1I  = 0x1
-	PERF_COUNT_HW_CACHE_LL   = 0x2
-	PERF_COUNT_HW_CACHE_DTLB = 0x3
-	PERF_COUNT_HW_CACHE_ITLB = 0x4
-	PERF_COUNT_HW_CACHE_BPU  = 0x5
-	PERF_COUNT_HW_CACHE_NODE = 0x6
-
-	PERF_COUNT_HW_CACHE_OP_READ     = 0x0
-	PERF_COUNT_HW_CACHE_OP_WRITE    = 0x1
-	PERF_COUNT_HW_CACHE_OP_PREFETCH = 0x2
-
-	PERF_COUNT_HW_CACHE_RESULT_ACCESS = 0x0
-	PERF_COUNT_HW_CACHE_RESULT_MISS   = 0x1
-
-	PERF_COUNT_SW_CPU_CLOCK        = 0x0
-	PERF_COUNT_SW_TASK_CLOCK       = 0x1
-	PERF_COUNT_SW_PAGE_FAULTS      = 0x2
-	PERF_COUNT_SW_CONTEXT_SWITCHES = 0x3
-	PERF_COUNT_SW_CPU_MIGRATIONS   = 0x4
-	PERF_COUNT_SW_PAGE_FAULTS_MIN  = 0x5
-	PERF_COUNT_SW_PAGE_FAULTS_MAJ  = 0x6
-	PERF_COUNT_SW_ALIGNMENT_FAULTS = 0x7
-	PERF_COUNT_SW_EMULATION_FAULTS = 0x8
-	PERF_COUNT_SW_DUMMY            = 0x9
-	PERF_COUNT_SW_BPF_OUTPUT       = 0xa
-
-	PERF_SAMPLE_IP           = 0x1
-	PERF_SAMPLE_TID          = 0x2
-	PERF_SAMPLE_TIME         = 0x4
-	PERF_SAMPLE_ADDR         = 0x8
-	PERF_SAMPLE_READ         = 0x10
-	PERF_SAMPLE_CALLCHAIN    = 0x20
-	PERF_SAMPLE_ID           = 0x40
-	PERF_SAMPLE_CPU          = 0x80
-	PERF_SAMPLE_PERIOD       = 0x100
-	PERF_SAMPLE_STREAM_ID    = 0x200
-	PERF_SAMPLE_RAW          = 0x400
-	PERF_SAMPLE_BRANCH_STACK = 0x800
-	PERF_SAMPLE_REGS_USER    = 0x1000
-	PERF_SAMPLE_STACK_USER   = 0x2000
-	PERF_SAMPLE_WEIGHT       = 0x4000
-	PERF_SAMPLE_DATA_SRC     = 0x8000
-	PERF_SAMPLE_IDENTIFIER   = 0x10000
-	PERF_SAMPLE_TRANSACTION  = 0x20000
-	PERF_SAMPLE_REGS_INTR    = 0x40000
-
-	PERF_SAMPLE_BRANCH_USER       = 0x1
-	PERF_SAMPLE_BRANCH_KERNEL     = 0x2
-	PERF_SAMPLE_BRANCH_HV         = 0x4
-	PERF_SAMPLE_BRANCH_ANY        = 0x8
-	PERF_SAMPLE_BRANCH_ANY_CALL   = 0x10
-	PERF_SAMPLE_BRANCH_ANY_RETURN = 0x20
-	PERF_SAMPLE_BRANCH_IND_CALL   = 0x40
-	PERF_SAMPLE_BRANCH_ABORT_TX   = 0x80
-	PERF_SAMPLE_BRANCH_IN_TX      = 0x100
-	PERF_SAMPLE_BRANCH_NO_TX      = 0x200
-	PERF_SAMPLE_BRANCH_COND       = 0x400
-	PERF_SAMPLE_BRANCH_CALL_STACK = 0x800
-	PERF_SAMPLE_BRANCH_IND_JUMP   = 0x1000
-	PERF_SAMPLE_BRANCH_CALL       = 0x2000
-	PERF_SAMPLE_BRANCH_NO_FLAGS   = 0x4000
-	PERF_SAMPLE_BRANCH_NO_CYCLES  = 0x8000
-	PERF_SAMPLE_BRANCH_TYPE_SAVE  = 0x10000
-
-	PERF_FORMAT_TOTAL_TIME_ENABLED = 0x1
-	PERF_FORMAT_TOTAL_TIME_RUNNING = 0x2
-	PERF_FORMAT_ID                 = 0x4
-	PERF_FORMAT_GROUP              = 0x8
-
-	PERF_RECORD_MMAP            = 0x1
-	PERF_RECORD_LOST            = 0x2
-	PERF_RECORD_COMM            = 0x3
-	PERF_RECORD_EXIT            = 0x4
-	PERF_RECORD_THROTTLE        = 0x5
-	PERF_RECORD_UNTHROTTLE      = 0x6
-	PERF_RECORD_FORK            = 0x7
-	PERF_RECORD_READ            = 0x8
-	PERF_RECORD_SAMPLE          = 0x9
-	PERF_RECORD_MMAP2           = 0xa
-	PERF_RECORD_AUX             = 0xb
-	PERF_RECORD_ITRACE_START    = 0xc
-	PERF_RECORD_LOST_SAMPLES    = 0xd
-	PERF_RECORD_SWITCH          = 0xe
-	PERF_RECORD_SWITCH_CPU_WIDE = 0xf
-	PERF_RECORD_NAMESPACES      = 0x10
-
-	PERF_CONTEXT_HV     = -0x20
-	PERF_CONTEXT_KERNEL = -0x80
-	PERF_CONTEXT_USER   = -0x200
-
-	PERF_CONTEXT_GUEST        = -0x800
-	PERF_CONTEXT_GUEST_KERNEL = -0x880
-	PERF_CONTEXT_GUEST_USER   = -0xa00
-
-	PERF_FLAG_FD_NO_GROUP = 0x1
-	PERF_FLAG_FD_OUTPUT   = 0x2
-	PERF_FLAG_PID_CGROUP  = 0x4
-	PERF_FLAG_FD_CLOEXEC  = 0x8
+	PERF_COUNT_HW_MAX                     = 0xa
+	PERF_COUNT_HW_CACHE_L1D               = 0x0
+	PERF_COUNT_HW_CACHE_L1I               = 0x1
+	PERF_COUNT_HW_CACHE_LL                = 0x2
+	PERF_COUNT_HW_CACHE_DTLB              = 0x3
+	PERF_COUNT_HW_CACHE_ITLB              = 0x4
+	PERF_COUNT_HW_CACHE_BPU               = 0x5
+	PERF_COUNT_HW_CACHE_NODE              = 0x6
+	PERF_COUNT_HW_CACHE_MAX               = 0x7
+	PERF_COUNT_HW_CACHE_OP_READ           = 0x0
+	PERF_COUNT_HW_CACHE_OP_WRITE          = 0x1
+	PERF_COUNT_HW_CACHE_OP_PREFETCH       = 0x2
+	PERF_COUNT_HW_CACHE_OP_MAX            = 0x3
+	PERF_COUNT_HW_CACHE_RESULT_ACCESS     = 0x0
+	PERF_COUNT_HW_CACHE_RESULT_MISS       = 0x1
+	PERF_COUNT_HW_CACHE_RESULT_MAX        = 0x2
+	PERF_COUNT_SW_CPU_CLOCK               = 0x0
+	PERF_COUNT_SW_TASK_CLOCK              = 0x1
+	PERF_COUNT_SW_PAGE_FAULTS             = 0x2
+	PERF_COUNT_SW_CONTEXT_SWITCHES        = 0x3
+	PERF_COUNT_SW_CPU_MIGRATIONS          = 0x4
+	PERF_COUNT_SW_PAGE_FAULTS_MIN         = 0x5
+	PERF_COUNT_SW_PAGE_FAULTS_MAJ         = 0x6
+	PERF_COUNT_SW_ALIGNMENT_FAULTS        = 0x7
+	PERF_COUNT_SW_EMULATION_FAULTS        = 0x8
+	PERF_COUNT_SW_DUMMY                   = 0x9
+	PERF_COUNT_SW_BPF_OUTPUT              = 0xa
+	PERF_COUNT_SW_MAX                     = 0xb
+	PERF_SAMPLE_IP                        = 0x1
+	PERF_SAMPLE_TID                       = 0x2
+	PERF_SAMPLE_TIME                      = 0x4
+	PERF_SAMPLE_ADDR                      = 0x8
+	PERF_SAMPLE_READ                      = 0x10
+	PERF_SAMPLE_CALLCHAIN                 = 0x20
+	PERF_SAMPLE_ID                        = 0x40
+	PERF_SAMPLE_CPU                       = 0x80
+	PERF_SAMPLE_PERIOD                    = 0x100
+	PERF_SAMPLE_STREAM_ID                 = 0x200
+	PERF_SAMPLE_RAW                       = 0x400
+	PERF_SAMPLE_BRANCH_STACK              = 0x800
+	PERF_SAMPLE_REGS_USER                 = 0x1000
+	PERF_SAMPLE_STACK_USER                = 0x2000
+	PERF_SAMPLE_WEIGHT                    = 0x4000
+	PERF_SAMPLE_DATA_SRC                  = 0x8000
+	PERF_SAMPLE_IDENTIFIER                = 0x10000
+	PERF_SAMPLE_TRANSACTION               = 0x20000
+	PERF_SAMPLE_REGS_INTR                 = 0x40000
+	PERF_SAMPLE_PHYS_ADDR                 = 0x80000
+	PERF_SAMPLE_AUX                       = 0x100000
+	PERF_SAMPLE_CGROUP                    = 0x200000
+	PERF_SAMPLE_MAX                       = 0x400000
+	PERF_SAMPLE_BRANCH_USER_SHIFT         = 0x0
+	PERF_SAMPLE_BRANCH_KERNEL_SHIFT       = 0x1
+	PERF_SAMPLE_BRANCH_HV_SHIFT           = 0x2
+	PERF_SAMPLE_BRANCH_ANY_SHIFT          = 0x3
+	PERF_SAMPLE_BRANCH_ANY_CALL_SHIFT     = 0x4
+	PERF_SAMPLE_BRANCH_ANY_RETURN_SHIFT   = 0x5
+	PERF_SAMPLE_BRANCH_IND_CALL_SHIFT     = 0x6
+	PERF_SAMPLE_BRANCH_ABORT_TX_SHIFT     = 0x7
+	PERF_SAMPLE_BRANCH_IN_TX_SHIFT        = 0x8
+	PERF_SAMPLE_BRANCH_NO_TX_SHIFT        = 0x9
+	PERF_SAMPLE_BRANCH_COND_SHIFT         = 0xa
+	PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT   = 0xb
+	PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT     = 0xc
+	PERF_SAMPLE_BRANCH_CALL_SHIFT         = 0xd
+	PERF_SAMPLE_BRANCH_NO_FLAGS_SHIFT     = 0xe
+	PERF_SAMPLE_BRANCH_NO_CYCLES_SHIFT    = 0xf
+	PERF_SAMPLE_BRANCH_TYPE_SAVE_SHIFT    = 0x10
+	PERF_SAMPLE_BRANCH_HW_INDEX_SHIFT     = 0x11
+	PERF_SAMPLE_BRANCH_MAX_SHIFT          = 0x12
+	PERF_SAMPLE_BRANCH_USER               = 0x1
+	PERF_SAMPLE_BRANCH_KERNEL             = 0x2
+	PERF_SAMPLE_BRANCH_HV                 = 0x4
+	PERF_SAMPLE_BRANCH_ANY                = 0x8
+	PERF_SAMPLE_BRANCH_ANY_CALL           = 0x10
+	PERF_SAMPLE_BRANCH_ANY_RETURN         = 0x20
+	PERF_SAMPLE_BRANCH_IND_CALL           = 0x40
+	PERF_SAMPLE_BRANCH_ABORT_TX           = 0x80
+	PERF_SAMPLE_BRANCH_IN_TX              = 0x100
+	PERF_SAMPLE_BRANCH_NO_TX              = 0x200
+	PERF_SAMPLE_BRANCH_COND               = 0x400
+	PERF_SAMPLE_BRANCH_CALL_STACK         = 0x800
+	PERF_SAMPLE_BRANCH_IND_JUMP           = 0x1000
+	PERF_SAMPLE_BRANCH_CALL               = 0x2000
+	PERF_SAMPLE_BRANCH_NO_FLAGS           = 0x4000
+	PERF_SAMPLE_BRANCH_NO_CYCLES          = 0x8000
+	PERF_SAMPLE_BRANCH_TYPE_SAVE          = 0x10000
+	PERF_SAMPLE_BRANCH_HW_INDEX           = 0x20000
+	PERF_SAMPLE_BRANCH_MAX                = 0x40000
+	PERF_BR_UNKNOWN                       = 0x0
+	PERF_BR_COND                          = 0x1
+	PERF_BR_UNCOND                        = 0x2
+	PERF_BR_IND                           = 0x3
+	PERF_BR_CALL                          = 0x4
+	PERF_BR_IND_CALL                      = 0x5
+	PERF_BR_RET                           = 0x6
+	PERF_BR_SYSCALL                       = 0x7
+	PERF_BR_SYSRET                        = 0x8
+	PERF_BR_COND_CALL                     = 0x9
+	PERF_BR_COND_RET                      = 0xa
+	PERF_BR_MAX                           = 0xb
+	PERF_SAMPLE_REGS_ABI_NONE             = 0x0
+	PERF_SAMPLE_REGS_ABI_32               = 0x1
+	PERF_SAMPLE_REGS_ABI_64               = 0x2
+	PERF_TXN_ELISION                      = 0x1
+	PERF_TXN_TRANSACTION                  = 0x2
+	PERF_TXN_SYNC                         = 0x4
+	PERF_TXN_ASYNC                        = 0x8
+	PERF_TXN_RETRY                        = 0x10
+	PERF_TXN_CONFLICT                     = 0x20
+	PERF_TXN_CAPACITY_WRITE               = 0x40
+	PERF_TXN_CAPACITY_READ                = 0x80
+	PERF_TXN_MAX                          = 0x100
+	PERF_TXN_ABORT_MASK                   = -0x100000000
+	PERF_TXN_ABORT_SHIFT                  = 0x20
+	PERF_FORMAT_TOTAL_TIME_ENABLED        = 0x1
+	PERF_FORMAT_TOTAL_TIME_RUNNING        = 0x2
+	PERF_FORMAT_ID                        = 0x4
+	PERF_FORMAT_GROUP                     = 0x8
+	PERF_FORMAT_MAX                       = 0x10
+	PERF_IOC_FLAG_GROUP                   = 0x1
+	PERF_RECORD_MMAP                      = 0x1
+	PERF_RECORD_LOST                      = 0x2
+	PERF_RECORD_COMM                      = 0x3
+	PERF_RECORD_EXIT                      = 0x4
+	PERF_RECORD_THROTTLE                  = 0x5
+	PERF_RECORD_UNTHROTTLE                = 0x6
+	PERF_RECORD_FORK                      = 0x7
+	PERF_RECORD_READ                      = 0x8
+	PERF_RECORD_SAMPLE                    = 0x9
+	PERF_RECORD_MMAP2                     = 0xa
+	PERF_RECORD_AUX                       = 0xb
+	PERF_RECORD_ITRACE_START              = 0xc
+	PERF_RECORD_LOST_SAMPLES              = 0xd
+	PERF_RECORD_SWITCH                    = 0xe
+	PERF_RECORD_SWITCH_CPU_WIDE           = 0xf
+	PERF_RECORD_NAMESPACES                = 0x10
+	PERF_RECORD_KSYMBOL                   = 0x11
+	PERF_RECORD_BPF_EVENT                 = 0x12
+	PERF_RECORD_CGROUP                    = 0x13
+	PERF_RECORD_TEXT_POKE                 = 0x14
+	PERF_RECORD_MAX                       = 0x15
+	PERF_RECORD_KSYMBOL_TYPE_UNKNOWN      = 0x0
+	PERF_RECORD_KSYMBOL_TYPE_BPF          = 0x1
+	PERF_RECORD_KSYMBOL_TYPE_OOL          = 0x2
+	PERF_RECORD_KSYMBOL_TYPE_MAX          = 0x3
+	PERF_BPF_EVENT_UNKNOWN                = 0x0
+	PERF_BPF_EVENT_PROG_LOAD              = 0x1
+	PERF_BPF_EVENT_PROG_UNLOAD            = 0x2
+	PERF_BPF_EVENT_MAX                    = 0x3
+	PERF_CONTEXT_HV                       = -0x20
+	PERF_CONTEXT_KERNEL                   = -0x80
+	PERF_CONTEXT_USER                     = -0x200
+	PERF_CONTEXT_GUEST                    = -0x800
+	PERF_CONTEXT_GUEST_KERNEL             = -0x880
+	PERF_CONTEXT_GUEST_USER               = -0xa00
+	PERF_CONTEXT_MAX                      = -0xfff
 )
 
 type TCPMD5Sig struct {
@@ -1381,7 +1474,7 @@ const (
 	NFT_MSG_DELOBJ                    = 0x14
 	NFT_MSG_GETOBJ_RESET              = 0x15
 	NFT_MSG_MAX                       = 0x19
-	NFTA_LIST_UNPEC                   = 0x0
+	NFTA_LIST_UNSPEC                  = 0x0
 	NFTA_LIST_ELEM                    = 0x1
 	NFTA_HOOK_UNSPEC                  = 0x0
 	NFTA_HOOK_HOOKNUM                 = 0x1
@@ -1820,9 +1913,12 @@ type XDPMmapOffsets struct {
 }
 
 type XDPStatistics struct {
-	Rx_dropped       uint64
-	Rx_invalid_descs uint64
-	Tx_invalid_descs uint64
+	Rx_dropped               uint64
+	Rx_invalid_descs         uint64
+	Tx_invalid_descs         uint64
+	Rx_ring_full             uint64
+	Rx_fill_ring_empty_descs uint64
+	Tx_ring_empty_descs      uint64
 }
 
 type XDPDesc struct {
@@ -2469,7 +2565,7 @@ const (
 	DEVLINK_ATTR_DPIPE_FIELD_MAPPING_TYPE     = 0x3c
 	DEVLINK_ATTR_PAD                          = 0x3d
 	DEVLINK_ATTR_ESWITCH_ENCAP_MODE           = 0x3e
-	DEVLINK_ATTR_MAX                          = 0x90
+	DEVLINK_ATTR_MAX                          = 0x94
 	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_NONE     = 0x0
 	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_IFINDEX  = 0x1
 	DEVLINK_DPIPE_MATCH_TYPE_FIELD_EXACT      = 0x0
@@ -2536,3 +2632,9 @@ const (
 	CAN_RAW_FD_FRAMES     = 0x5
 	CAN_RAW_JOIN_FILTERS  = 0x6
 )
+
+type WatchdogInfo struct {
+	Options  uint32
+	Version  uint32
+	Identity [32]uint8
+}

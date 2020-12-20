@@ -84,8 +84,8 @@ type ImagePushConfig struct {
 // by digest. Allows getting an image configurations rootfs from the
 // configuration.
 type ImageConfigStore interface {
-	Put([]byte) (digest.Digest, error)
-	Get(digest.Digest) ([]byte, error)
+	Put(context.Context, []byte) (digest.Digest, error)
+	Get(context.Context, digest.Digest) ([]byte, error)
 	RootFSFromConfig([]byte) (*image.RootFS, error)
 	PlatformFromConfig([]byte) (*specs.Platform, error)
 }
@@ -128,12 +128,12 @@ func NewImageConfigStoreFromStore(is image.Store) ImageConfigStore {
 	}
 }
 
-func (s *imageConfigStore) Put(c []byte) (digest.Digest, error) {
+func (s *imageConfigStore) Put(_ context.Context, c []byte) (digest.Digest, error) {
 	id, err := s.Store.Create(c)
 	return digest.Digest(id), err
 }
 
-func (s *imageConfigStore) Get(d digest.Digest) ([]byte, error) {
+func (s *imageConfigStore) Get(_ context.Context, d digest.Digest) ([]byte, error) {
 	img, err := s.Store.Get(image.IDFromDigest(d))
 	if err != nil {
 		return nil, err

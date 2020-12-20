@@ -22,6 +22,7 @@ import (
 // TODO(#412): remove this
 var Trace interface{}
 
+// LocalSpanStoreEnabled true if the local span store is enabled.
 var LocalSpanStoreEnabled bool
 
 // BucketConfiguration stores the number of samples to store for span buckets

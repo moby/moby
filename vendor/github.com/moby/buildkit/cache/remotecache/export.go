@@ -12,8 +12,10 @@ import (
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/progress"
+	"github.com/moby/buildkit/util/progress/logs"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -55,20 +57,17 @@ type contentCacheExporter struct {
 	solver.CacheExporterTarget
 	chains   *v1.CacheChains
 	ingester content.Ingester
+	oci      bool
 }
 
-func NewExporter(ingester content.Ingester) Exporter {
+func NewExporter(ingester content.Ingester, oci bool) Exporter {
 	cc := v1.NewCacheChains()
-	return &contentCacheExporter{CacheExporterTarget: cc, chains: cc, ingester: ingester}
+	return &contentCacheExporter{CacheExporterTarget: cc, chains: cc, ingester: ingester, oci: oci}
 }
 
 func (ce *contentCacheExporter) Finalize(ctx context.Context) (map[string]string, error) {
-	return export(ctx, ce.ingester, ce.chains)
-}
-
-func export(ctx context.Context, ingester content.Ingester, cc *v1.CacheChains) (map[string]string, error) {
 	res := make(map[string]string)
-	config, descs, err := cc.Marshal()
+	config, descs, err := ce.chains.Marshal()
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +85,9 @@ func export(ctx context.Context, ingester content.Ingester, cc *v1.CacheChains) 
 	var mfst manifestList
 	mfst.SchemaVersion = 2
 	mfst.MediaType = images.MediaTypeDockerSchema2ManifestList
+	if ce.oci {
+		mfst.MediaType = ocispec.MediaTypeImageIndex
+	}
 
 	for _, l := range config.Layers {
 		dgstPair, ok := descs[l.Blob]
@@ -93,12 +95,14 @@ func export(ctx context.Context, ingester content.Ingester, cc *v1.CacheChains) 
 			return nil, errors.Errorf("missing blob %s", l.Blob)
 		}
 		layerDone := oneOffProgress(ctx, fmt.Sprintf("writing layer %s", l.Blob))
-		if err := contentutil.Copy(ctx, ingester, dgstPair.Provider, dgstPair.Descriptor); err != nil {
+		if err := contentutil.Copy(ctx, ce.ingester, dgstPair.Provider, dgstPair.Descriptor, logs.LoggerFromContext(ctx)); err != nil {
 			return nil, layerDone(errors.Wrap(err, "error writing layer blob"))
 		}
 		layerDone(nil)
 		mfst.Manifests = append(mfst.Manifests, dgstPair.Descriptor)
 	}
+
+	mfst.Manifests = compression.ConvertAllLayerMediaTypes(ce.oci, mfst.Manifests...)
 
 	dt, err := json.Marshal(config)
 	if err != nil {
@@ -111,7 +115,7 @@ func export(ctx context.Context, ingester content.Ingester, cc *v1.CacheChains) 
 		MediaType: v1.CacheConfigMediaTypeV0,
 	}
 	configDone := oneOffProgress(ctx, fmt.Sprintf("writing config %s", dgst))
-	if err := content.WriteBlob(ctx, ingester, dgst.String(), bytes.NewReader(dt), desc); err != nil {
+	if err := content.WriteBlob(ctx, ce.ingester, dgst.String(), bytes.NewReader(dt), desc); err != nil {
 		return nil, configDone(errors.Wrap(err, "error writing config blob"))
 	}
 	configDone(nil)
@@ -130,7 +134,7 @@ func export(ctx context.Context, ingester content.Ingester, cc *v1.CacheChains) 
 		MediaType: mfst.MediaType,
 	}
 	mfstDone := oneOffProgress(ctx, fmt.Sprintf("writing manifest %s", dgst))
-	if err := content.WriteBlob(ctx, ingester, dgst.String(), bytes.NewReader(dt), desc); err != nil {
+	if err := content.WriteBlob(ctx, ce.ingester, dgst.String(), bytes.NewReader(dt), desc); err != nil {
 		return nil, mfstDone(errors.Wrap(err, "error writing manifest blob"))
 	}
 	descJSON, err := json.Marshal(desc)

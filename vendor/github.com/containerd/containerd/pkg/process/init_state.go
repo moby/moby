@@ -172,7 +172,7 @@ func (s *createdCheckpointState) Start(ctx context.Context) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to retrieve console master")
 		}
-		console, err = p.Platform.CopyConsole(ctx, console, sio.Stdin, sio.Stdout, sio.Stderr, &p.wg)
+		console, err = p.Platform.CopyConsole(ctx, console, p.id, sio.Stdin, sio.Stdout, sio.Stderr, &p.wg)
 		if err != nil {
 			return errors.Wrap(err, "failed to start console copy")
 		}

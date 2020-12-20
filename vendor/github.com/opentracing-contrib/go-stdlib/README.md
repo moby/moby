@@ -16,3 +16,7 @@ following caveats:
 
 - **net/http**: Client and server instrumentation. *Only supported
   with Go 1.7 and later.*
+
+## License
+
+By contributing to this repository, you agree that your contributions will be licensed under [Apache 2.0 License](./LICENSE).

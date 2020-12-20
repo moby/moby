@@ -58,12 +58,12 @@ func readUser(chopt *pb.ChownOpt, mu, mg fileoptypes.Mount) (*copy.User, error) 
 			}
 
 			if len(users) > 0 {
-				us.Uid = users[0].Uid
-				us.Gid = users[0].Gid
+				us.UID = users[0].Uid
+				us.GID = users[0].Gid
 			}
 		case *pb.UserOpt_ByID:
-			us.Uid = int(u.ByID)
-			us.Gid = int(u.ByID)
+			us.UID = int(u.ByID)
+			us.GID = int(u.ByID)
 		}
 	}
 
@@ -108,10 +108,10 @@ func readUser(chopt *pb.ChownOpt, mu, mg fileoptypes.Mount) (*copy.User, error) 
 			}
 
 			if len(groups) > 0 {
-				us.Gid = groups[0].Gid
+				us.GID = groups[0].Gid
 			}
 		case *pb.UserOpt_ByID:
-			us.Gid = int(u.ByID)
+			us.GID = int(u.ByID)
 		}
 	}
 

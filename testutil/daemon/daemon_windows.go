@@ -24,6 +24,8 @@ func signalDaemonReload(pid int) error {
 	return fmt.Errorf("daemon reload not supported")
 }
 
+func cleanupMount(_ testing.TB, _ *Daemon) {}
+
 func cleanupNetworkNamespace(_ testing.TB, _ *Daemon) {}
 
 // CgroupNamespace returns the cgroup namespace the daemon is running in

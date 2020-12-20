@@ -1,11 +1,15 @@
 package grpcerrors
 
 import (
+	"encoding/json"
+	"errors"
+
+	"github.com/containerd/typeurl"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/moby/buildkit/util/stack"
+	"github.com/sirupsen/logrus"
 	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -29,8 +33,12 @@ func ToGRPC(err error) error {
 		st = status.New(Code(err), err.Error())
 	}
 	if st.Code() != Code(err) {
+		code := Code(err)
+		if code == codes.OK {
+			code = codes.Unknown
+		}
 		pb := st.Proto()
-		pb.Code = int32(Code(err))
+		pb.Code = int32(code)
 		st = status.FromProto(pb)
 	}
 
@@ -47,12 +55,32 @@ func ToGRPC(err error) error {
 	})
 
 	if len(details) > 0 {
-		if st2, err := st.WithDetails(details...); err == nil {
+		if st2, err := withDetails(st, details...); err == nil {
 			st = st2
 		}
 	}
 
 	return st.Err()
+}
+
+func withDetails(s *status.Status, details ...proto.Message) (*status.Status, error) {
+	if s.Code() == codes.OK {
+		return nil, errors.New("no error details for status with code OK")
+	}
+	p := s.Proto()
+	for _, detail := range details {
+		url, err := typeurl.TypeURL(detail)
+		if err != nil {
+			logrus.Warnf("ignoring typed error %T: not registered", detail)
+			continue
+		}
+		dt, err := json.Marshal(detail)
+		if err != nil {
+			return nil, err
+		}
+		p.Details = append(p.Details, &any.Any{TypeUrl: url, Value: dt})
+	}
+	return status.FromProto(p), nil
 }
 
 func Code(err error) codes.Code {
@@ -72,9 +100,10 @@ func Code(err error) codes.Code {
 		Unwrap() error
 	})
 	if ok {
-		return Code(wrapped.Unwrap())
+		if err := wrapped.Unwrap(); err != nil {
+			return Code(err)
+		}
 	}
-
 	return status.FromContextError(err).Code()
 }
 
@@ -96,7 +125,9 @@ func AsGRPCStatus(err error) (*status.Status, bool) {
 		Unwrap() error
 	})
 	if ok {
-		return AsGRPCStatus(wrapped.Unwrap())
+		if err := wrapped.Unwrap(); err != nil {
+			return AsGRPCStatus(err)
+		}
 	}
 
 	return nil, false
@@ -123,17 +154,9 @@ func FromGRPC(err error) error {
 
 	// details that we don't understand are copied as proto
 	for _, d := range pb.Details {
-		var m interface{}
-		detail := &ptypes.DynamicAny{}
-		if err := ptypes.UnmarshalAny(d, detail); err != nil {
-			detail := &gogotypes.DynamicAny{}
-			if err := gogotypes.UnmarshalAny(gogoAny(d), detail); err != nil {
-				n.Details = append(n.Details, d)
-				continue
-			}
-			m = detail.Message
-		} else {
-			m = detail.Message
+		m, err := typeurl.UnmarshalAny(gogoAny(d))
+		if err != nil {
+			continue
 		}
 
 		switch v := m.(type) {
@@ -144,7 +167,6 @@ func FromGRPC(err error) error {
 		default:
 			n.Details = append(n.Details, d)
 		}
-
 	}
 
 	err = status.FromProto(n).Err()
@@ -159,12 +181,20 @@ func FromGRPC(err error) error {
 		err = d.WrapError(err)
 	}
 
+	if err != nil {
+		stack.Helper()
+	}
+
 	return stack.Enable(err)
 }
 
 type withCode struct {
 	code codes.Code
 	error
+}
+
+func (e *withCode) Code() codes.Code {
+	return e.code
 }
 
 func (e *withCode) Unwrap() error {

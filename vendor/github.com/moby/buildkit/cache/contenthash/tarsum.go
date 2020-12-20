@@ -36,11 +36,24 @@ func v0TarHeaderSelect(h *tar.Header) (orderedHeaders [][2]string) {
 }
 
 func v1TarHeaderSelect(h *tar.Header) (orderedHeaders [][2]string) {
+	pax := h.PAXRecords
+	if len(h.Xattrs) > 0 { //nolint deprecated
+		if pax == nil {
+			pax = map[string]string{}
+			for k, v := range h.Xattrs { //nolint deprecated
+				pax["SCHILY.xattr."+k] = v
+			}
+		}
+	}
+
 	// Get extended attributes.
-	xAttrKeys := make([]string, len(h.Xattrs))
-	for k := range h.Xattrs {
-		if k == "security.capability" || !strings.HasPrefix(k, "security.") && !strings.HasPrefix(k, "system.") {
-			xAttrKeys = append(xAttrKeys, k)
+	xAttrKeys := make([]string, len(h.PAXRecords))
+	for k := range pax {
+		if strings.HasPrefix(k, "SCHILY.xattr.") {
+			k = strings.TrimPrefix(k, "SCHILY.xattr.")
+			if k == "security.capability" || !strings.HasPrefix(k, "security.") && !strings.HasPrefix(k, "system.") {
+				xAttrKeys = append(xAttrKeys, k)
+			}
 		}
 	}
 	sort.Strings(xAttrKeys)
@@ -56,7 +69,7 @@ func v1TarHeaderSelect(h *tar.Header) (orderedHeaders [][2]string) {
 
 	// Finally, append the sorted xattrs.
 	for _, k := range xAttrKeys {
-		orderedHeaders = append(orderedHeaders, [2]string{k, h.Xattrs[k]})
+		orderedHeaders = append(orderedHeaders, [2]string{k, h.PAXRecords["SCHILY.xattr."+k]})
 	}
 
 	return

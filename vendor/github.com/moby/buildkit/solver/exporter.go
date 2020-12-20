@@ -100,7 +100,7 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 			return nil, err
 		}
 
-		remote, err = cm.results.LoadRemote(ctx, res)
+		remote, err = cm.results.LoadRemote(ctx, res, opt.Session)
 		if err != nil {
 			return nil, err
 		}

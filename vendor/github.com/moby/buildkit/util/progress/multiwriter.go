@@ -15,7 +15,6 @@ type MultiWriter struct {
 	mu      sync.Mutex
 	items   []*Progress
 	writers map[rawProgressWriter]struct{}
-	done    bool
 	meta    map[string]interface{}
 }
 
