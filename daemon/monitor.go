@@ -58,7 +58,9 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	c.StreamConfig.Wait(ctx)
 	cancel()
 
-	c.Reset(false)
+	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Second)
+	c.Reset(ctx, false)
+	cancel()
 
 	if e != nil {
 		exitStatus.ExitCode = int(e.ExitCode)
