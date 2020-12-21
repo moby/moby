@@ -573,14 +573,14 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	// the page size. The mount syscall fails if the mount data cannot
 	// fit within a page and relative links make the mount data much
 	// smaller at the expense of requiring a fork exec to chroot.
-	if len(mountData) > pageSize {
+	if len(mountData) > pageSize-1 {
 		if readonly {
 			opts = indexOff + "lowerdir=" + path.Join(id, diffDirName) + ":" + string(lowers)
 		} else {
 			opts = indexOff + "lowerdir=" + string(lowers) + ",upperdir=" + path.Join(id, diffDirName) + ",workdir=" + path.Join(id, workDirName)
 		}
 		mountData = label.FormatMountLabel(opts, mountLabel)
-		if len(mountData) > pageSize {
+		if len(mountData) > pageSize-1 {
 			return nil, fmt.Errorf("cannot mount layer, mount label too large %d", len(mountData))
 		}
 
