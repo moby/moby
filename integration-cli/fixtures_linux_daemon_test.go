@@ -49,7 +49,7 @@ func ensureSyscallTest(c *testing.T) {
 
 	dockerFile := filepath.Join(tmp, "Dockerfile")
 	content := []byte(`
-	FROM debian:buster
+	FROM debian:bullseye
 	COPY . /usr/bin/
 	`)
 	err = ioutil.WriteFile(dockerFile, content, 0600)
@@ -103,7 +103,7 @@ func ensureNNPTest(c *testing.T) {
 
 	dockerfile := filepath.Join(tmp, "Dockerfile")
 	content := `
-	FROM debian:buster
+	FROM debian:bullseye
 	COPY . /usr/bin
 	RUN chmod +s /usr/bin/nnp-test
 	`
