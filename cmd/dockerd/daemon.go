@@ -184,7 +184,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	}, logrus.StandardLogger())
 
 	// Notify that the API is active, but before daemon is set up.
-	preNotifySystem()
+	preNotifyReady()
 
 	pluginStore := plugin.NewStore()
 
@@ -242,13 +242,15 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	go cli.api.Wait(serveAPIWait)
 
 	// after the daemon is done setting up we can notify systemd api
-	notifySystem()
+	notifyReady()
 
 	// Daemon is fully initialized and handling API traffic
 	// Wait for serve API to complete
 	errAPI := <-serveAPIWait
 	c.Cleanup()
 
+	// notify systemd that we're shutting down
+	notifyStopping()
 	shutdownDaemon(d)
 
 	// Stop notification processing and any background processes
