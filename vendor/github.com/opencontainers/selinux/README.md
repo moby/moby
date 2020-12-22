@@ -18,5 +18,5 @@ Participation in the OpenContainers community is governed by [OpenContainer's Co
 
 If you find an issue, please follow the [security][security] protocol to report it.
 
-[security]: https://github.com/opencontainers/org/blob/master/security
+[security]: https://github.com/opencontainers/org/blob/master/SECURITY.md
 [code-of-conduct]: https://github.com/opencontainers/org/blob/master/CODE_OF_CONDUCT.md
