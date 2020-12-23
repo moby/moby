@@ -151,20 +151,16 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 	}
 
 	containerIP, containerPort := getIPAndPort(m.container)
-	if pm.checkIP(hostIP) {
-		if err := pm.AppendForwardingTableEntry(m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort); err != nil {
-			return nil, err
-		}
+	if err := pm.AppendForwardingTableEntry(m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort); err != nil {
+		return nil, err
 	}
 
 	cleanup := func() error {
 		// need to undo the iptables rules before we return
 		m.userlandProxy.Stop()
-		if pm.checkIP(hostIP) {
-			pm.DeleteForwardingTableEntry(m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
-			if err := pm.Allocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
-				return err
-			}
+		pm.DeleteForwardingTableEntry(m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
+		if err := pm.Allocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
+			return err
 		}
 
 		return nil
