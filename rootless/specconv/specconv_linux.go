@@ -5,11 +5,13 @@ import (
 	"strconv"
 
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
 )
 
 // ToRootless converts spec to be compatible with "rootless" runc.
 // * Remove non-supported cgroups
 // * Fix up OOMScoreAdj
+// * Remove "kernel.domainname" sysctl (workaround for https://github.com/docker/for-linux/issues/743)
 //
 // v2Controllers should be non-nil only if running with v2 and systemd.
 func ToRootless(spec *specs.Spec, v2Controllers []string) error {
@@ -65,6 +67,14 @@ func toRootless(spec *specs.Spec, v2Controllers []string, currentOOMScoreAdj int
 			spec.Linux.Resources.HugepageLimits = nil
 			spec.Linux.Resources.Network = nil
 		}
+	}
+
+	// FIXME: Temporary workaround for https://github.com/docker/for-linux/issues/743.
+	//        Remove this once https://github.com/opencontainers/runc/issues/2091 is
+	//        resolved in runc.
+	if _, ok := spec.Linux.Sysctl["kernel.domainname"]; ok {
+		logrus.Info("Domainname is currently not supported when running in rootless mode. Discarding 'kernel.domainname' sysctl. See https://github.com/docker/for-linux/issues/743 for details.")
+		delete(spec.Linux.Sysctl, "kernel.domainname")
 	}
 
 	if spec.Process.OOMScoreAdj != nil && *spec.Process.OOMScoreAdj < currentOOMScoreAdj {
