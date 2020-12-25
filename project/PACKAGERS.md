@@ -157,12 +157,6 @@ export DOCKER_BUILDTAGS='apparmor'
 ```
 
 If you're building a binary that may need to be used on platforms that include
-SELinux, you will need to use the `selinux` build tag:
-```bash
-export DOCKER_BUILDTAGS='selinux'
-```
-
-If you're building a binary that may need to be used on platforms that include
 seccomp, you will need to use the `seccomp` build tag:
 ```bash
 export DOCKER_BUILDTAGS='seccomp'
@@ -188,7 +182,7 @@ export DOCKER_BUILDTAGS='exclude_graphdriver_aufs'
 
 NOTE: if you need to set more than one build tag, space separate them:
 ```bash
-export DOCKER_BUILDTAGS='apparmor selinux exclude_graphdriver_aufs'
+export DOCKER_BUILDTAGS='apparmor exclude_graphdriver_aufs'
 ```
 
 ### LCOW (Linux Containers On Windows)

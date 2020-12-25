@@ -6,7 +6,8 @@ Common SELinux package used across the container ecosystem.
 
 ## Usage
 
-When compiling consumers of this project, the `selinux` build tag must be used to enable selinux functionality.
+Prior to v1.8.0, the `selinux` build tag had to be used to enable selinux functionality for compiling consumers of this project.
+Starting with v1.8.0, the `selinux` build tag is no longer needed.
 
 For complete documentation, see [godoc](https://godoc.org/github.com/opencontainers/selinux).
 

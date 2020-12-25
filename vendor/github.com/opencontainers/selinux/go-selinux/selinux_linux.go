@@ -1,5 +1,3 @@
-// +build selinux,linux
-
 package selinux
 
 import (
