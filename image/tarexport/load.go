@@ -63,6 +63,10 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		return err
 	}
 
+	if err := validateManifest(manifest); err != nil {
+		return err
+	}
+
 	var parentLinks []parentLink
 	var imageIDsStr string
 	var imageRefCount int
@@ -429,4 +433,14 @@ func checkCompatibleOS(imageOS string) error {
 	}
 
 	return system.ValidatePlatform(p)
+}
+
+func validateManifest(manifest []manifestItem) error {
+	// a nil manifest usually indicates a bug, so don't just silently fail.
+	// if someone really needs to pass an empty manifest, they can pass [].
+	if manifest == nil {
+		return errors.New("invalid manifest, manifest cannot be null (but can be [])")
+	}
+
+	return nil
 }

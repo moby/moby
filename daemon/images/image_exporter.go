@@ -17,7 +17,7 @@ func (i *ImageService) ExportImage(names []string, outStream io.Writer) error {
 }
 
 // LoadImage uploads a set of images into the repository. This is the
-// complement of ImageExport.  The input stream is an uncompressed tar
+// complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
 func (i *ImageService) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
 	imageExporter := tarexport.NewTarExporter(i.imageStore, i.layerStores, i.referenceStore, i)
