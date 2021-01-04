@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -156,4 +159,67 @@ func TestPluginInstall(t *testing.T) {
 		assert.NilError(t, err)
 	})
 	// TODO: test insecure registry with https
+}
+
+func TestPluginsWithRuntimes(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+	skip.If(t, testEnv.IsRootless, "Test not supported on rootless due to buggy daemon setup in rootless mode due to daemon restart")
+	skip.If(t, testEnv.OSType == "windows")
+
+	dir, err := ioutil.TempDir("", t.Name())
+	assert.NilError(t, err)
+	defer os.RemoveAll(dir)
+
+	d := daemon.New(t)
+	defer d.Cleanup(t)
+
+	d.Start(t)
+	defer d.Stop(t)
+
+	ctx := context.Background()
+	client := d.NewClientT(t)
+
+	assert.NilError(t, plugin.Create(ctx, client, "test:latest"))
+	defer client.PluginRemove(ctx, "test:latest", types.PluginRemoveOptions{Force: true})
+
+	assert.NilError(t, client.PluginEnable(ctx, "test:latest", types.PluginEnableOptions{Timeout: 30}))
+
+	p := filepath.Join(dir, "myrt")
+	script := fmt.Sprintf(`#!/bin/sh
+	file="%s/success"
+	if [ "$1" = "someArg" ]; then
+		shift
+		file="${file}_someArg"
+	fi
+
+	touch $file
+	exec runc $@
+	`, dir)
+
+	assert.NilError(t, ioutil.WriteFile(p, []byte(script), 0777))
+
+	type config struct {
+		Runtimes map[string]types.Runtime `json:"runtimes"`
+	}
+
+	cfg, err := json.Marshal(config{
+		Runtimes: map[string]types.Runtime{
+			"myrt":     {Path: p},
+			"myrtArgs": {Path: p, Args: []string{"someArg"}},
+		},
+	})
+	configPath := filepath.Join(dir, "config.json")
+	ioutil.WriteFile(configPath, cfg, 0644)
+
+	t.Run("No Args", func(t *testing.T) {
+		d.Restart(t, "--default-runtime=myrt", "--config-file="+configPath)
+		_, err = os.Stat(filepath.Join(dir, "success"))
+		assert.NilError(t, err)
+	})
+
+	t.Run("With Args", func(t *testing.T) {
+		d.Restart(t, "--default-runtime=myrtArgs", "--config-file="+configPath)
+		_, err = os.Stat(filepath.Join(dir, "success_someArg"))
+		assert.NilError(t, err)
+	})
 }

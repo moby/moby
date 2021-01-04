@@ -965,8 +965,12 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 
 		var rt types.Runtime
-		if runtime := config.GetRuntime(config.GetDefaultRuntimeName()); runtime != nil {
-			rt = *runtime
+		if runtime.GOOS != "windows" {
+			rtPtr, err := d.getRuntime(config.GetDefaultRuntimeName())
+			if err != nil {
+				return nil, err
+			}
+			rt = *rtPtr
 		}
 		return pluginexec.New(ctx, getPluginExecRoot(config.Root), pluginCli, config.ContainerdPluginNamespace, m, rt)
 	}
