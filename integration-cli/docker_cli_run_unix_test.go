@@ -697,7 +697,7 @@ func (s *DockerSuite) TestRunWithMemoryReservationInvalid(c *testing.T) {
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), expected), "run container should fail with invalid memory reservation")
 	out, _, err = dockerCmdWithError("run", "--memory-reservation", "1k", "busybox", "true")
 	assert.ErrorContains(c, err, "")
-	expected = "Minimum memory reservation allowed is 4MB"
+	expected = "Minimum memory reservation allowed is 6MB"
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), expected), "run container should fail with invalid memory reservation")
 }
 
