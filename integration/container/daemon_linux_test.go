@@ -193,7 +193,7 @@ func TestRestartDaemonWithRestartingContainer(t *testing.T) {
 	defer d.Cleanup(t)
 
 	d.StartWithBusybox(t, "--iptables=false")
-	defer d.Kill()
+	defer d.Stop(t)
 
 	ctx := context.Background()
 	client := d.NewClientT(t)
@@ -203,8 +203,7 @@ func TestRestartDaemonWithRestartingContainer(t *testing.T) {
 	// We will manipulate the on disk state later
 	id := container.Create(ctx, t, client, container.WithRestartPolicy("always"), container.WithCmd("/bin/sh", "-c", "exit 1"))
 
-	// SIGKILL the daemon
-	assert.NilError(t, d.Kill())
+	d.Stop(t)
 
 	configPath := filepath.Join(d.Root, "containers", id, "config.v2.json")
 	configBytes, err := ioutil.ReadFile(configPath)
