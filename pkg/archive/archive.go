@@ -104,6 +104,10 @@ const (
 	modeISSOCK = 0140000 // Socket
 )
 
+const (
+	paxSchilyXattr = "SCHILY.xattrs."
+)
+
 // IsArchivePath checks if the (possibly compressed) file at the given path
 // starts with a tar file header.
 func IsArchivePath(path string) bool {
@@ -399,15 +403,52 @@ func fillGo18FileTypeBits(mode int64, fi os.FileInfo) int64 {
 	return mode
 }
 
-// ReadSecurityXattrToTarHeader reads security.capability xattr from filesystem
+// ReadWhitelistedXattrToTarHeader reads whitelisted xattrs from filesystem
 // to a tar header
-func ReadSecurityXattrToTarHeader(path string, hdr *tar.Header) error {
-	capability, _ := system.Lgetxattr(path, "security.capability")
-	if capability != nil {
-		hdr.Xattrs = make(map[string]string)
-		hdr.Xattrs["security.capability"] = string(capability)
+func ReadWhitelistedXattrToTarHeader(path string, hdr *tar.Header) error {
+	whitelist := []string{"user.pax.", "security."}
+
+	xattrs, err := getXattrByPrefix(path, whitelist...)
+	if err != nil {
+		return err
+	}
+
+	if len(xattrs) == 0 {
+		return nil
+	}
+
+	hdr.Xattrs = make(map[string]string, len(xattrs))
+	if hdr.PAXRecords == nil {
+		hdr.PAXRecords = make(map[string]string, len(xattrs))
+	}
+
+	for _, name := range xattrs {
+		xattr, _ := system.Lgetxattr(path, name)
+		if xattr != nil {
+			hdr.Xattrs[name] = string(xattr)
+			hdr.PAXRecords[paxSchilyXattr+name] = string(xattr)
+		}
 	}
 	return nil
+}
+
+func getXattrByPrefix(path string, prefixes ...string) ([]string, error) {
+	var xattrs []string
+
+	allXattrs, err := system.Llistxattr(path)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, name := range allXattrs {
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(name, prefix) {
+				xattrs = append(xattrs, name)
+			}
+		}
+	}
+
+	return xattrs, nil
 }
 
 type tarWhiteoutConverter interface {
@@ -473,7 +514,7 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	if err != nil {
 		return err
 	}
-	if err := ReadSecurityXattrToTarHeader(path, hdr); err != nil {
+	if err := ReadWhitelistedXattrToTarHeader(path, hdr); err != nil {
 		return err
 	}
 
@@ -657,8 +698,14 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 	}
 
+	var xattrs map[string]string
+	if hdr.Xattrs != nil {
+		xattrs = hdr.Xattrs
+	} else if hdr.PAXRecords != nil {
+		xattrs = getPAXSchilyXattr(hdr.PAXRecords)
+	}
 	var errors []string
-	for key, value := range hdr.Xattrs {
+	for key, value := range xattrs {
 		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
 			if err == syscall.ENOTSUP || err == syscall.EPERM {
 				// We ignore errors here because not all graphdrivers support
@@ -711,6 +758,22 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 	}
 	return nil
+}
+
+// getPAXSchilyXattr copies extended attributes from "SCHILY.xattrs" namespace
+// in PAXRecords and returns them as a new map, where key is xattr name and
+// value is xattr value
+func getPAXSchilyXattr(PAXRecords map[string]string) map[string]string {
+	schilyXattrs := make(map[string]string)
+
+	for key, value := range PAXRecords {
+		if strings.HasPrefix(key, paxSchilyXattr) {
+			key = key[len(paxSchilyXattr):]
+			schilyXattrs[key] = value
+		}
+	}
+
+	return schilyXattrs
 }
 
 // Tar creates an archive from the directory at `path`, and returns it as a
@@ -1163,6 +1226,10 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 			hdr.ChangeTime = time.Time{}
 			hdr.Name = filepath.Base(dst)
 			hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
+
+			if err := ReadWhitelistedXattrToTarHeader(src, hdr); err != nil {
+				return err
+			}
 
 			if err := remapIDs(archiver.IDMapping, hdr); err != nil {
 				return err

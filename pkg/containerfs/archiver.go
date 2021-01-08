@@ -146,6 +146,11 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (retErr error) {
 			hdr.AccessTime = time.Time{}
 			hdr.ChangeTime = time.Time{}
 			hdr.Name = dstDriver.Base(dst)
+
+			if err := archive.ReadWhitelistedXattrToTarHeader(src, hdr); err != nil {
+				return err
+			}
+
 			if dstDriver.OS() == "windows" {
 				hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
 			} else {

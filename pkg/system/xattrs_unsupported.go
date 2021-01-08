@@ -11,3 +11,8 @@ func Lgetxattr(path string, attr string) ([]byte, error) {
 func Lsetxattr(path string, attr string, data []byte, flags int) error {
 	return ErrNotSupportedPlatform
 }
+
+// Llistxattr is not supported on platforms other than linux.
+func Llistxattr(path string) ([]string, error) {
+	return nil, ErrNotSupportedPlatform
+}
