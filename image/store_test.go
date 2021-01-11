@@ -10,6 +10,14 @@ import (
 	"gotest.tools/v3/assert/cmp"
 )
 
+func TestCreate(t *testing.T) {
+	is, cleanup := defaultImageStore(t)
+	defer cleanup()
+
+	_, err := is.Create([]byte(`{}`))
+	assert.Check(t, cmp.Error(err, "invalid image JSON, no RootFS key"))
+}
+
 func TestRestore(t *testing.T) {
 	fs, cleanup := defaultFSStoreBackend(t)
 	defer cleanup()
