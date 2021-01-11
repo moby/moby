@@ -323,7 +323,10 @@ echo "  - \"$(wrap_color 'overlay' blue)\":"
 check_flags VXLAN BRIDGE_VLAN_FILTERING | sed 's/^/    /'
 echo '      Optional (for encrypted networks):'
 check_flags CRYPTO CRYPTO_AEAD CRYPTO_GCM CRYPTO_SEQIV CRYPTO_GHASH \
-	XFRM XFRM_USER XFRM_ALGO INET_ESP INET_XFRM_MODE_TRANSPORT | sed 's/^/      /'
+	XFRM XFRM_USER XFRM_ALGO INET_ESP | sed 's/^/      /'
+if [ "$kernelMajor" -lt 5 ] || [ "$kernelMajor" -eq 5 -a "$kernelMinor" -le 3 ]; then
+	check_flags INET_XFRM_MODE_TRANSPORT | sed 's/^/      /'
+fi
 echo "  - \"$(wrap_color 'ipvlan' blue)\":"
 check_flags IPVLAN | sed 's/^/    /'
 echo "  - \"$(wrap_color 'macvlan' blue)\":"
