@@ -1,0 +1,8 @@
+{
+	"go.toolsEnvVars": {
+		"GO111MODULE": "off"
+	},
+	"terminal.integrated.env.linux": {
+		"GO111MODULE": "off"
+	}
+}

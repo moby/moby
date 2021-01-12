@@ -1,0 +1,15 @@
+set -e
+
+: "${RUNHCS_COMMIT:=aa1ba87e99b68e0113bd27ec26c60b88f9d4ccd9}"
+
+(
+	git clone https://github.com/Microsoft/hcsshim "$GOPATH/src/github.com/Microsoft/hcsshim"
+	cd "$GOPATH/src/github.com/Microsoft/hcsshim"
+	git checkout -q "$RUNHCS_COMMIT"
+
+	echo Building: ${DEST}/containerd-shim-runhcs-v1.exe
+	mkdir -p ${ABS_DEST}
+
+	GO111MODULE=on go build -mod=vendor -o "${DEST}/containerd-shim-runhcs-v1.exe" ./cmd/containerd-shim-runhcs-v1
+
+)
