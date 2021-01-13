@@ -5,18 +5,23 @@ import (
 	"io"
 	"runtime"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/containerfs"
+	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 type roLayer struct {
@@ -161,7 +166,29 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 	if err := i.pullImageWithReference(ctx, ref, platform, nil, pullRegistryAuth, output); err != nil {
 		return nil, err
 	}
-	return i.GetImage(name, platform)
+
+	img, err := i.GetImage(name, platform)
+	if errdefs.IsNotFound(err) && img != nil && platform != nil {
+		imgPlat := specs.Platform{
+			OS:           img.OS,
+			Architecture: img.BaseImgArch(),
+			Variant:      img.BaseImgVariant(),
+		}
+
+		p := *platform
+		if !platforms.Only(p).Match(imgPlat) {
+			po := streamformatter.NewJSONProgressOutput(output, false)
+			progress.Messagef(po, "", `
+WARNING: Pulled image with specified platform (%s), but the resulting image's configured platform (%s) does not match.
+This is most likely caused by a bug in the build system that created the fetched image (%s).
+Please notify the image author to correct the configuration.`,
+				platforms.Format(p), platforms.Format(imgPlat), name,
+			)
+			logrus.WithError(err).WithField("image", name).Warn("Ignoring error about platform mismatch where the manifest list points to an image whose configuration does not match the platform in the manifest.")
+			err = nil
+		}
+	}
+	return img, err
 }
 
 // GetImageAndReleasableLayer returns an image and releaseable layer for a reference or ID.
