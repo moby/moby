@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
+	"github.com/docker/docker/testutil/fixtures/load"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )
@@ -36,7 +37,13 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	defer os.RemoveAll(tmp)
 
 	dUserRemap := daemon.New(t)
-	dUserRemap.StartWithBusybox(t, "--userns-remap", "default")
+	dUserRemap.Start(t, "--userns-remap", "default")
+	ctx := context.Background()
+	clientUserRemap := dUserRemap.NewClientT(t)
+
+	err = load.FrozenImagesLinux(clientUserRemap, "buildpack-deps:buster")
+	assert.NilError(t, err)
+
 	dUserRemapRunning := true
 	defer func() {
 		if dUserRemapRunning {
@@ -49,11 +56,9 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 		RUN setcap CAP_NET_BIND_SERVICE=+eip /bin/sleep
 	`
 
-	ctx := context.Background()
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
 	defer source.Close()
 
-	clientUserRemap := dUserRemap.NewClientT(t)
 	resp, err := clientUserRemap.ImageBuild(ctx,
 		source.AsTarReader(t),
 		types.ImageBuildOptions{
@@ -89,7 +94,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	dUserRemapRunning = false
 
 	dNoUserRemap := daemon.New(t)
-	dNoUserRemap.StartWithBusybox(t)
+	dNoUserRemap.Start(t)
 	defer dNoUserRemap.Stop(t)
 
 	clientNoUserRemap := dNoUserRemap.NewClientT(t)
