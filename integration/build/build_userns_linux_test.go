@@ -126,15 +126,6 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	_, err = stdcopy.StdCopy(actualStdout, actualStderr, logReader)
 	assert.NilError(t, err)
 	if strings.TrimSpace(actualStdout.String()) != "/bin/sleep cap_net_bind_service=eip" {
-		// Activate when fix is merged: https://github.com/moby/moby/pull/41724
-		//t.Fatalf("run produced invalid output: %q, expected %q", actualStdout.String(), "/bin/sleep cap_net_bind_service=eip")
-		// t.Logf("run produced invalid output (expected until #41724 merges): %q, expected %q",
-		// 	actualStdout.String(),
-		// 	"/bin/sleep cap_net_bind_service=eip")
-	} else {
-		// Shouldn't happen until fix is merged: https://github.com/moby/moby/pull/41724
-		t.Fatalf("run produced valid output (unexpected until #41724 merges): %q, expected %q",
-			actualStdout.String(),
-			"/bin/sleep cap_net_bind_service=eip")
+		t.Fatalf("run produced invalid output: %q, expected %q", actualStdout.String(), "/bin/sleep cap_net_bind_service=eip")
 	}
 }
