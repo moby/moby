@@ -40,7 +40,8 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   deny @{PROC}/sysrq-trigger rwklx,
   deny @{PROC}/kcore rwklx,
 
-  deny mount,
+  mount fstype=fuse,
+  mount fstype=fuse.*,
 
   deny /sys/[^f]*/** wklx,
   deny /sys/f[^s]*/** wklx,
