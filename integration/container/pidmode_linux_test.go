@@ -15,7 +15,6 @@ import (
 func TestPidHost(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
-	skip.If(t, testEnv.IsRootless, "https://github.com/moby/moby/issues/41457")
 
 	hostPid, err := os.Readlink("/proc/1/ns/pid")
 	assert.NilError(t, err)
