@@ -100,10 +100,14 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 		if !v.SwapLimit {
 			v.Warnings = append(v.Warnings, "WARNING: No swap limit support")
 		}
-		if !v.KernelMemoryTCP {
+		if !v.KernelMemoryTCP && v.CgroupVersion == "1" {
+			// kernel memory is not available for cgroup v2.
+			// Warning is not printed on cgroup v2, because there is no action user can take.
 			v.Warnings = append(v.Warnings, "WARNING: No kernel memory TCP limit support")
 		}
-		if !v.OomKillDisable {
+		if !v.OomKillDisable && v.CgroupVersion == "1" {
+			// oom kill disable is not available for cgroup v2.
+			// Warning is not printed on cgroup v2, because there is no action user can take.
 			v.Warnings = append(v.Warnings, "WARNING: No oom kill disable support")
 		}
 		if !v.CPUCfsQuota {
@@ -122,10 +126,13 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 			v.Warnings = append(v.Warnings, "WARNING: Support for cgroup v2 is experimental")
 		}
 		// TODO add fields for these options in types.Info
-		if !sysInfo.BlkioWeight {
+		if !sysInfo.BlkioWeight && v.CgroupVersion == "2" {
+			// blkio weight is not available on cgroup v1 since kernel 5.0.
+			// Warning is not printed on cgroup v1, because there is no action user can take.
+			// On cgroup v2, blkio weight is implemented using io.weight
 			v.Warnings = append(v.Warnings, "WARNING: No blkio weight support")
 		}
-		if !sysInfo.BlkioWeightDevice {
+		if !sysInfo.BlkioWeightDevice && v.CgroupVersion == "2" {
 			v.Warnings = append(v.Warnings, "WARNING: No blkio weight_device support")
 		}
 		if !sysInfo.BlkioReadBpsDevice {
