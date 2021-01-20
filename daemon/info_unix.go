@@ -130,22 +130,38 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 			// blkio weight is not available on cgroup v1 since kernel 5.0.
 			// Warning is not printed on cgroup v1, because there is no action user can take.
 			// On cgroup v2, blkio weight is implemented using io.weight
-			v.Warnings = append(v.Warnings, "WARNING: No blkio weight support")
+			v.Warnings = append(v.Warnings, "WARNING: No io.weight support")
 		}
 		if !sysInfo.BlkioWeightDevice && v.CgroupVersion == "2" {
-			v.Warnings = append(v.Warnings, "WARNING: No blkio weight_device support")
+			v.Warnings = append(v.Warnings, "WARNING: No io.weight (per device) support")
 		}
 		if !sysInfo.BlkioReadBpsDevice {
-			v.Warnings = append(v.Warnings, "WARNING: No blkio throttle.read_bps_device support")
+			if v.CgroupVersion == "2" {
+				v.Warnings = append(v.Warnings, "WARNING: No io.max (rbps) support")
+			} else {
+				v.Warnings = append(v.Warnings, "WARNING: No blkio throttle.read_bps_device support")
+			}
 		}
 		if !sysInfo.BlkioWriteBpsDevice {
-			v.Warnings = append(v.Warnings, "WARNING: No blkio throttle.write_bps_device support")
+			if v.CgroupVersion == "2" {
+				v.Warnings = append(v.Warnings, "WARNING: No io.max (wbps) support")
+			} else {
+				v.Warnings = append(v.Warnings, "WARNING: No blkio throttle.write_bps_device support")
+			}
 		}
 		if !sysInfo.BlkioReadIOpsDevice {
-			v.Warnings = append(v.Warnings, "WARNING: No blkio throttle.read_iops_device support")
+			if v.CgroupVersion == "2" {
+				v.Warnings = append(v.Warnings, "WARNING: No io.max (riops) support")
+			} else {
+				v.Warnings = append(v.Warnings, "WARNING: No blkio throttle.read_iops_device support")
+			}
 		}
 		if !sysInfo.BlkioWriteIOpsDevice {
-			v.Warnings = append(v.Warnings, "WARNING: No blkio throttle.write_iops_device support")
+			if v.CgroupVersion == "2" {
+				v.Warnings = append(v.Warnings, "WARNING: No io.max (wiops) support")
+			} else {
+				v.Warnings = append(v.Warnings, "WARNING: No blkio throttle.write_iops_device support")
+			}
 		}
 	}
 	if !v.IPv4Forwarding {
