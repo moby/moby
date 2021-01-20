@@ -189,6 +189,9 @@ var (
 		// Elizabeth Blackwell - American doctor and first American woman to receive a medical degree - https://en.wikipedia.org/wiki/Elizabeth_Blackwell
 		"blackwell",
 
+		// Susanne Bødker - Researcher and author focued on human-computer interaction https://en.wikipedia.org/wiki/Susanne_B%C3%B8dker
+		"Bodker",
+
 		// Niels Bohr is the father of quantum theory. https://en.wikipedia.org/wiki/Niels_Bohr.
 		"bohr",
 
