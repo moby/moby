@@ -49,8 +49,16 @@ func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, cont
 			}
 			bs = append(bs, bIPv4)
 		}
+
 		// Allocate IPv6 Port mappings
-		if ok := n.validatePortBindingIPv6(&bIPv6, containerIPv6, defHostIP); ok {
+		// If the container has no IPv6 address, allow proxying host IPv6 traffic to it
+		// by setting up the binding with the IPv4 interface if the userland proxy is enabled
+		// This change was added to keep backward compatibility
+		containerIP := containerIPv6
+		if ulPxyEnabled && (containerIPv6 == nil) {
+			containerIP = containerIPv4
+		}
+		if ok := n.validatePortBindingIPv6(&bIPv6, containerIP, defHostIP); ok {
 			if err := n.allocatePort(&bIPv6, ulPxyEnabled); err != nil {
 				// On allocation failure, release previously allocated ports. On cleanup error, just log a warning message
 				if cuErr := n.releasePortsInternal(bs); cuErr != nil {
@@ -67,7 +75,7 @@ func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, cont
 // validatePortBindingIPv4 validates the port binding, populates the missing Host IP field and returns true
 // if this is a valid IPv4 binding, else returns false
 func (n *bridgeNetwork) validatePortBindingIPv4(bnd *types.PortBinding, containerIPv4, defHostIP net.IP) bool {
-	//Return early if there is a valid Host IP, but its not a IPv6 address
+	//Return early if there is a valid Host IP, but its not a IPv4 address
 	if len(bnd.HostIP) > 0 && bnd.HostIP.To4() == nil {
 		return false
 	}
@@ -85,10 +93,10 @@ func (n *bridgeNetwork) validatePortBindingIPv4(bnd *types.PortBinding, containe
 }
 
 // validatePortBindingIPv6 validates the port binding, populates the missing Host IP field and returns true
-// if this is a valid IP6v binding, else returns false
-func (n *bridgeNetwork) validatePortBindingIPv6(bnd *types.PortBinding, containerIPv6, defHostIP net.IP) bool {
-	// Return early if there is no IPv6 container endpoint
-	if containerIPv6 == nil {
+// if this is a valid IPv6 binding, else returns false
+func (n *bridgeNetwork) validatePortBindingIPv6(bnd *types.PortBinding, containerIP, defHostIP net.IP) bool {
+	// Return early if there is no container endpoint
+	if containerIP == nil {
 		return false
 	}
 	// Return early if there is a valid Host IP, which is a IPv4 address
@@ -108,9 +116,8 @@ func (n *bridgeNetwork) validatePortBindingIPv6(bnd *types.PortBinding, containe
 			return false
 		}
 	}
-	bnd.IP = containerIPv6
+	bnd.IP = containerIP
 	return true
-
 }
 
 func (n *bridgeNetwork) allocatePort(bnd *types.PortBinding, ulPxyEnabled bool) error {
@@ -132,7 +139,7 @@ func (n *bridgeNetwork) allocatePort(bnd *types.PortBinding, ulPxyEnabled bool) 
 
 	portmapper := n.portMapper
 
-	if bnd.IP.To4() == nil {
+	if bnd.HostIP.To4() == nil {
 		portmapper = n.portMapperV6
 	}
 
