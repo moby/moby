@@ -743,6 +743,9 @@ var (
 		// Michael Stonebraker is a database research pioneer and architect of Ingres, Postgres, VoltDB and SciDB. Winner of 2014 ACM Turing Award. https://en.wikipedia.org/wiki/Michael_Stonebraker
 		"stonebraker",
 
+		// Bjarne Stroustrup - Creator of C++. https://en.wikipedia.org/wiki/Bjarne_Stroustrup
+		"stroustrup",
+
 		// Ivan Edward Sutherland - American computer scientist and Internet pioneer, widely regarded as the father of computer graphics. https://en.wikipedia.org/wiki/Ivan_Sutherland
 		"sutherland",
 
