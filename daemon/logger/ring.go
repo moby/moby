@@ -21,6 +21,8 @@ type RingLogger struct {
 	closeFlag int32
 }
 
+var _ SizedLogger = &RingLogger{}
+
 type ringWithReader struct {
 	*RingLogger
 }
@@ -55,6 +57,15 @@ func NewRingLogger(driver Logger, logInfo Info, maxSize int64) Logger {
 		return &ringWithReader{l}
 	}
 	return l
+}
+
+// BufSize returns the buffer size of the underlying logger.
+// Returns -1 if the logger doesn't match SizedLogger interface.
+func (r *RingLogger) BufSize() int {
+	if sl, ok := r.l.(SizedLogger); ok {
+		return sl.BufSize()
+	}
+	return -1
 }
 
 // Log queues messages into the ring buffer
