@@ -10,10 +10,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/containerd/cgroups"
 	"github.com/containerd/containerd/runtime/linux/runctypes"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -96,14 +98,15 @@ func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error
 	}()
 
 	for name, rt := range runtimes {
-		if len(rt.Args) == 0 {
-			continue
+		if len(rt.Args) > 0 {
+			script := filepath.Join(tmpDir, name)
+			content := fmt.Sprintf("#!/bin/sh\n%s %s $@\n", rt.Path, strings.Join(rt.Args, " "))
+			if err := ioutil.WriteFile(script, []byte(content), 0700); err != nil {
+				return err
+			}
 		}
-
-		script := filepath.Join(tmpDir, name)
-		content := fmt.Sprintf("#!/bin/sh\n%s %s $@\n", rt.Path, strings.Join(rt.Args, " "))
-		if err := ioutil.WriteFile(script, []byte(content), 0700); err != nil {
-			return err
+		if rt.Shim == nil {
+			rt.Shim = defaultV2ShimConfig(daemon.configStore, rt.Path)
 		}
 	}
 	return nil
@@ -123,4 +126,33 @@ func (daemon *Daemon) rewriteRuntimePath(name, p string, args []string) (string,
 	}
 
 	return filepath.Join(daemon.configStore.Root, "runtimes", name), nil
+}
+
+func (daemon *Daemon) getRuntime(name string) (*types.Runtime, error) {
+	rt := daemon.configStore.GetRuntime(name)
+	if rt == nil {
+		return nil, errdefs.InvalidParameter(errors.Errorf("runtime not found in config: %s", name))
+	}
+
+	if len(rt.Args) > 0 {
+		p, err := daemon.rewriteRuntimePath(name, rt.Path, rt.Args)
+		if err != nil {
+			return nil, err
+		}
+		rt.Path = p
+		rt.Args = nil
+	}
+
+	if rt.Shim == nil {
+		rt.Shim = defaultV2ShimConfig(daemon.configStore, rt.Path)
+	}
+
+	if rt.Shim.Binary == linuxShimV1 {
+		if cgroups.Mode() == cgroups.Unified {
+			return nil, errdefs.InvalidParameter(errors.Errorf("runtime %q is not supported while cgroups v2 (unified hierarchy) is being used", name))
+		}
+		logrus.Warnf("Configured runtime %q is deprecated and will be removed in the next release", name)
+	}
+
+	return rt, nil
 }
