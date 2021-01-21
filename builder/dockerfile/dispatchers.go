@@ -92,6 +92,9 @@ func dispatchLabel(d dispatchRequest, c *instructions.LabelCommand) error {
 // exist here. If you do not wish to have this automatic handling, use COPY.
 //
 func dispatchAdd(d dispatchRequest, c *instructions.AddCommand) error {
+	if c.Chmod != "" {
+		return errors.New("the --chmod option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
+	}
 	downloader := newRemoteSourceDownloader(d.builder.Output, d.builder.Stdout)
 	copier := copierFromDispatchRequest(d, downloader, nil)
 	defer copier.Cleanup()
@@ -111,6 +114,9 @@ func dispatchAdd(d dispatchRequest, c *instructions.AddCommand) error {
 // Same as 'ADD' but without the tar and remote url handling.
 //
 func dispatchCopy(d dispatchRequest, c *instructions.CopyCommand) error {
+	if c.Chmod != "" {
+		return errors.New("the --chmod option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
+	}
 	var im *imageMount
 	var err error
 	if c.From != "" {
@@ -346,6 +352,12 @@ func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
 	if !system.IsOSSupported(d.state.operatingSystem) {
 		return system.ErrNotSupportedOperatingSystem
 	}
+
+	if len(c.FlagsUsed) > 0 {
+		// classic builder RUN currently does not support any flags, so fail on the first one
+		return errors.Errorf("the --%s option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled", c.FlagsUsed[0])
+	}
+
 	stateRunConfig := d.state.runConfig
 	cmdFromArgs, argsEscaped := resolveCmdLine(c.ShellDependantCmdLine, stateRunConfig, d.state.operatingSystem, c.Name(), c.String())
 	buildArgs := d.state.buildArgs.FilterAllowed(stateRunConfig.Env)
