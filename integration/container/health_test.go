@@ -37,6 +37,7 @@ func TestHealthCheckWorkdir(t *testing.T) {
 // Do not stop healthchecks just because we sent a signal to the container
 func TestHealthKillContainer(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows", "Windows only supports SIGKILL and SIGTERM? See https://github.com/moby/moby/issues/39574")
+	skip.If(t, testEnv.DaemonInfo.CgroupVersion == "2", "FIXME (needs analysis)")
 	defer setupTest(t)()
 
 	ctx := context.Background()
