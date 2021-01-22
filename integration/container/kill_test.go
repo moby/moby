@@ -155,6 +155,7 @@ func TestInspectOomKilledTrue(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
 	skip.If(t, !testEnv.DaemonInfo.MemoryLimit || !testEnv.DaemonInfo.SwapLimit)
+	skip.If(t, testEnv.DaemonInfo.CgroupVersion == "2", "FIXME: flaky on cgroup v2 (https://github.com/moby/moby/issues/41929)")
 
 	defer setupTest(t)()
 	ctx := context.Background()
