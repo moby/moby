@@ -1,0 +1,36 @@
+name: Cgroup v2
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+
+jobs:
+  cgroup2:
+    name: Cgroup v2
+    # nested virtualization is only available on macOS hosts
+    runs-on: macos-10.15
+    timeout-minutes: 120
+    env:
+      # TEST_SKIP_INTEGRATION_CLI=1: because testing CLI is too heavy
+      # DOCKER_SYSTEMD=1:            because systemd cgroup driver is used by default on cgroup v2
+      # ssh is launched with -tt because DOCKER_SYSTEMD requires pseudo tty
+      MAKE: "ssh -tt default DOCKER_BUILDKIT=1 DOCKER_BUILD_ARGS=--progress=plain TEST_SKIP_INTEGRATION_CLI=1 DOCKER_SYSTEMD=1 make -C /vagrant"
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Boot Fedora
+        run: |
+          vagrant up
+          vagrant ssh-config >> ~/.ssh/config
+
+      - name: Build
+        run: $MAKE build
+
+      - name: Integration test
+        run: $MAKE test-integration
+
+      - name: Integration test (auto retry)
+        if: failure()
+        run: $MAKE test-integration
