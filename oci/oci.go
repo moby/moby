@@ -8,6 +8,11 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
+// TODO verify if this regex is correct for "a" (all); the docs (https://github.com/torvalds/linux/blob/v5.10/Documentation/admin-guide/cgroup-v1/devices.rst) describe:
+//      "'all' means it applies to all types and all major and minor numbers", and shows an example
+//      that *only* passes `a` as value: `echo a > /sys/fs/cgroup/1/devices.allow, which would be
+//      the "implicit" equivalent of "a *:* rwm". Source-code also looks to confirm this, and returns
+//      early for "a" (all); https://github.com/torvalds/linux/blob/v5.10/security/device_cgroup.c#L614-L642
 // nolint: gosimple
 var deviceCgroupRuleRegex = regexp.MustCompile("^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$")
 
@@ -31,7 +36,7 @@ func SetCapabilities(s *specs.Spec, caplist []string) error {
 func AppendDevicePermissionsFromCgroupRules(devPermissions []specs.LinuxDeviceCgroup, rules []string) ([]specs.LinuxDeviceCgroup, error) {
 	for _, deviceCgroupRule := range rules {
 		ss := deviceCgroupRuleRegex.FindAllStringSubmatch(deviceCgroupRule, -1)
-		if len(ss[0]) != 5 {
+		if len(ss) == 0 || len(ss[0]) != 5 {
 			return nil, fmt.Errorf("invalid device cgroup rule format: '%s'", deviceCgroupRule)
 		}
 		matches := ss[0]
