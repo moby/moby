@@ -139,7 +139,7 @@ func (n *bridgeNetwork) allocatePort(bnd *types.PortBinding, ulPxyEnabled bool) 
 
 	portmapper := n.portMapper
 
-	if bnd.IP.To4() == nil {
+	if bnd.HostIP.To4() == nil {
 		portmapper = n.portMapperV6
 	}
 
