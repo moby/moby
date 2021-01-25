@@ -231,6 +231,7 @@ const (
 	SizeofSockaddrUnix     = 0x6a
 	SizeofSockaddrDatalink = 0x20
 	SizeofLinger           = 0x8
+	SizeofIovec            = 0x8
 	SizeofIPMreq           = 0x8
 	SizeofIPv6Mreq         = 0x14
 	SizeofMsghdr           = 0x1c
@@ -436,6 +437,7 @@ type Winsize struct {
 
 const (
 	AT_FDCWD            = -0x64
+	AT_SYMLINK_FOLLOW   = 0x4
 	AT_SYMLINK_NOFOLLOW = 0x2
 )
 

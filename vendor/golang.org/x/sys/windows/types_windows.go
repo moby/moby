@@ -62,11 +62,6 @@ var signals = [...]string{
 }
 
 const (
-	GENERIC_READ    = 0x80000000
-	GENERIC_WRITE   = 0x40000000
-	GENERIC_EXECUTE = 0x20000000
-	GENERIC_ALL     = 0x10000000
-
 	FILE_LIST_DIRECTORY   = 0x00000001
 	FILE_APPEND_DATA      = 0x00000004
 	FILE_WRITE_ATTRIBUTES = 0x00000100
@@ -158,17 +153,43 @@ const (
 	WAIT_OBJECT_0  = 0x00000000
 	WAIT_FAILED    = 0xFFFFFFFF
 
-	PROCESS_TERMINATE         = 1
-	PROCESS_QUERY_INFORMATION = 0x00000400
-	SYNCHRONIZE               = 0x00100000
+	// Access rights for process.
+	PROCESS_CREATE_PROCESS            = 0x0080
+	PROCESS_CREATE_THREAD             = 0x0002
+	PROCESS_DUP_HANDLE                = 0x0040
+	PROCESS_QUERY_INFORMATION         = 0x0400
+	PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+	PROCESS_SET_INFORMATION           = 0x0200
+	PROCESS_SET_QUOTA                 = 0x0100
+	PROCESS_SUSPEND_RESUME            = 0x0800
+	PROCESS_TERMINATE                 = 0x0001
+	PROCESS_VM_OPERATION              = 0x0008
+	PROCESS_VM_READ                   = 0x0010
+	PROCESS_VM_WRITE                  = 0x0020
+
+	// Access rights for thread.
+	THREAD_DIRECT_IMPERSONATION      = 0x0200
+	THREAD_GET_CONTEXT               = 0x0008
+	THREAD_IMPERSONATE               = 0x0100
+	THREAD_QUERY_INFORMATION         = 0x0040
+	THREAD_QUERY_LIMITED_INFORMATION = 0x0800
+	THREAD_SET_CONTEXT               = 0x0010
+	THREAD_SET_INFORMATION           = 0x0020
+	THREAD_SET_LIMITED_INFORMATION   = 0x0400
+	THREAD_SET_THREAD_TOKEN          = 0x0080
+	THREAD_SUSPEND_RESUME            = 0x0002
+	THREAD_TERMINATE                 = 0x0001
 
 	FILE_MAP_COPY    = 0x01
 	FILE_MAP_WRITE   = 0x02
 	FILE_MAP_READ    = 0x04
 	FILE_MAP_EXECUTE = 0x20
 
-	CTRL_C_EVENT     = 0
-	CTRL_BREAK_EVENT = 1
+	CTRL_C_EVENT        = 0
+	CTRL_BREAK_EVENT    = 1
+	CTRL_CLOSE_EVENT    = 2
+	CTRL_LOGOFF_EVENT   = 5
+	CTRL_SHUTDOWN_EVENT = 6
 
 	// Windows reserves errors >= 1<<29 for application use.
 	APPLICATION_ERROR = 1 << 29
@@ -228,24 +249,27 @@ const (
 
 const (
 	// wincrypt.h
-	PROV_RSA_FULL                    = 1
-	PROV_RSA_SIG                     = 2
-	PROV_DSS                         = 3
-	PROV_FORTEZZA                    = 4
-	PROV_MS_EXCHANGE                 = 5
-	PROV_SSL                         = 6
-	PROV_RSA_SCHANNEL                = 12
-	PROV_DSS_DH                      = 13
-	PROV_EC_ECDSA_SIG                = 14
-	PROV_EC_ECNRA_SIG                = 15
-	PROV_EC_ECDSA_FULL               = 16
-	PROV_EC_ECNRA_FULL               = 17
-	PROV_DH_SCHANNEL                 = 18
-	PROV_SPYRUS_LYNKS                = 20
-	PROV_RNG                         = 21
-	PROV_INTEL_SEC                   = 22
-	PROV_REPLACE_OWF                 = 23
-	PROV_RSA_AES                     = 24
+	/* certenrolld_begin -- PROV_RSA_*/
+	PROV_RSA_FULL      = 1
+	PROV_RSA_SIG       = 2
+	PROV_DSS           = 3
+	PROV_FORTEZZA      = 4
+	PROV_MS_EXCHANGE   = 5
+	PROV_SSL           = 6
+	PROV_RSA_SCHANNEL  = 12
+	PROV_DSS_DH        = 13
+	PROV_EC_ECDSA_SIG  = 14
+	PROV_EC_ECNRA_SIG  = 15
+	PROV_EC_ECDSA_FULL = 16
+	PROV_EC_ECNRA_FULL = 17
+	PROV_DH_SCHANNEL   = 18
+	PROV_SPYRUS_LYNKS  = 20
+	PROV_RNG           = 21
+	PROV_INTEL_SEC     = 22
+	PROV_REPLACE_OWF   = 23
+	PROV_RSA_AES       = 24
+
+	/* dwFlags definitions for CryptAcquireContext */
 	CRYPT_VERIFYCONTEXT              = 0xF0000000
 	CRYPT_NEWKEYSET                  = 0x00000008
 	CRYPT_DELETEKEYSET               = 0x00000010
@@ -253,6 +277,17 @@ const (
 	CRYPT_SILENT                     = 0x00000040
 	CRYPT_DEFAULT_CONTAINER_OPTIONAL = 0x00000080
 
+	/* Flags for PFXImportCertStore */
+	CRYPT_EXPORTABLE                   = 0x00000001
+	CRYPT_USER_PROTECTED               = 0x00000002
+	CRYPT_USER_KEYSET                  = 0x00001000
+	PKCS12_PREFER_CNG_KSP              = 0x00000100
+	PKCS12_ALWAYS_CNG_KSP              = 0x00000200
+	PKCS12_ALLOW_OVERWRITE_KEY         = 0x00004000
+	PKCS12_NO_PERSIST_KEY              = 0x00008000
+	PKCS12_INCLUDE_EXTENDED_PROPERTIES = 0x00000010
+
+	/* Default usage match type is AND with value zero */
 	USAGE_MATCH_TYPE_AND = 0
 	USAGE_MATCH_TYPE_OR  = 1
 
@@ -388,6 +423,10 @@ const (
 	CERT_CHAIN_POLICY_EV                = 8
 	CERT_CHAIN_POLICY_SSL_F12           = 9
 
+	/* Certificate Store close flags */
+	CERT_CLOSE_STORE_FORCE_FLAG = 0x00000001
+	CERT_CLOSE_STORE_CHECK_FLAG = 0x00000002
+
 	/* AuthType values for SSLExtraCertChainPolicyPara struct */
 	AUTHTYPE_CLIENT = 1
 	AUTHTYPE_SERVER = 2
@@ -448,12 +487,6 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 	tv.Sec = int32(nsec / 1e9)
 	tv.Usec = int32(nsec % 1e9 / 1e3)
 	return
-}
-
-type SecurityAttributes struct {
-	Length             uint32
-	SecurityDescriptor uintptr
-	InheritHandle      uint32
 }
 
 type Overlapped struct {
@@ -629,6 +662,16 @@ type ProcessEntry32 struct {
 	ExeFile         [MAX_PATH]uint16
 }
 
+type ThreadEntry32 struct {
+	Size           uint32
+	Usage          uint32
+	ThreadID       uint32
+	OwnerProcessID uint32
+	BasePri        int32
+	DeltaPri       int32
+	Flags          uint32
+}
+
 type Systemtime struct {
 	Year         uint16
 	Month        uint16
@@ -656,18 +699,26 @@ const (
 	AF_UNSPEC  = 0
 	AF_UNIX    = 1
 	AF_INET    = 2
-	AF_INET6   = 23
 	AF_NETBIOS = 17
+	AF_INET6   = 23
+	AF_IRDA    = 26
+	AF_BTH     = 32
 
 	SOCK_STREAM    = 1
 	SOCK_DGRAM     = 2
 	SOCK_RAW       = 3
+	SOCK_RDM       = 4
 	SOCK_SEQPACKET = 5
 
-	IPPROTO_IP   = 0
-	IPPROTO_IPV6 = 0x29
-	IPPROTO_TCP  = 6
-	IPPROTO_UDP  = 17
+	IPPROTO_IP      = 0
+	IPPROTO_ICMP    = 1
+	IPPROTO_IGMP    = 2
+	BTHPROTO_RFCOMM = 3
+	IPPROTO_TCP     = 6
+	IPPROTO_UDP     = 17
+	IPPROTO_IPV6    = 41
+	IPPROTO_ICMPV6  = 58
+	IPPROTO_RM      = 113
 
 	SOL_SOCKET                = 0xffff
 	SO_REUSEADDR              = 4
@@ -676,6 +727,7 @@ const (
 	SO_BROADCAST              = 32
 	SO_LINGER                 = 128
 	SO_RCVBUF                 = 0x1002
+	SO_RCVTIMEO               = 0x1006
 	SO_SNDBUF                 = 0x1001
 	SO_UPDATE_ACCEPT_CONTEXT  = 0x700b
 	SO_UPDATE_CONNECT_CONTEXT = 0x7010
@@ -1105,6 +1157,11 @@ type CertChainPolicyStatus struct {
 	ExtraPolicyStatus Pointer
 }
 
+type CryptDataBlob struct {
+	Size uint32
+	Data *byte
+}
+
 const (
 	// do not reorder
 	HKEY_CLASSES_ROOT = 0x80000000 + iota
@@ -1145,6 +1202,28 @@ const (
 	REG_QWORD_LITTLE_ENDIAN
 	REG_DWORD = REG_DWORD_LITTLE_ENDIAN
 	REG_QWORD = REG_QWORD_LITTLE_ENDIAN
+)
+
+const (
+	EVENT_MODIFY_STATE = 0x0002
+	EVENT_ALL_ACCESS   = STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | 0x3
+
+	MUTANT_QUERY_STATE = 0x0001
+	MUTANT_ALL_ACCESS  = STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | MUTANT_QUERY_STATE
+
+	SEMAPHORE_MODIFY_STATE = 0x0002
+	SEMAPHORE_ALL_ACCESS   = STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | 0x3
+
+	TIMER_QUERY_STATE  = 0x0001
+	TIMER_MODIFY_STATE = 0x0002
+	TIMER_ALL_ACCESS   = STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | TIMER_QUERY_STATE | TIMER_MODIFY_STATE
+
+	MUTEX_MODIFY_STATE = MUTANT_QUERY_STATE
+	MUTEX_ALL_ACCESS   = MUTANT_ALL_ACCESS
+
+	CREATE_EVENT_MANUAL_RESET  = 0x1
+	CREATE_EVENT_INITIAL_SET   = 0x2
+	CREATE_MUTEX_INITIAL_OWNER = 0x1
 )
 
 type AddrinfoW struct {
@@ -1528,18 +1607,6 @@ const (
 	JOB_OBJECT_LIMIT_WORKINGSET                 = 0x00000001
 )
 
-type JOBOBJECT_BASIC_LIMIT_INFORMATION struct {
-	PerProcessUserTimeLimit int64
-	PerJobUserTimeLimit     int64
-	LimitFlags              uint32
-	MinimumWorkingSetSize   uintptr
-	MaximumWorkingSetSize   uintptr
-	ActiveProcessLimit      uint32
-	Affinity                uintptr
-	PriorityClass           uint32
-	SchedulingClass         uint32
-}
-
 type IO_COUNTERS struct {
 	ReadOperationCount  uint64
 	WriteOperationCount uint64
@@ -1589,4 +1656,208 @@ const (
 	JobObjectNotificationLimitInformation       = 12
 	JobObjectNotificationLimitInformation2      = 34
 	JobObjectSecurityLimitInformation           = 5
+)
+
+const (
+	KF_FLAG_DEFAULT                          = 0x00000000
+	KF_FLAG_FORCE_APP_DATA_REDIRECTION       = 0x00080000
+	KF_FLAG_RETURN_FILTER_REDIRECTION_TARGET = 0x00040000
+	KF_FLAG_FORCE_PACKAGE_REDIRECTION        = 0x00020000
+	KF_FLAG_NO_PACKAGE_REDIRECTION           = 0x00010000
+	KF_FLAG_FORCE_APPCONTAINER_REDIRECTION   = 0x00020000
+	KF_FLAG_NO_APPCONTAINER_REDIRECTION      = 0x00010000
+	KF_FLAG_CREATE                           = 0x00008000
+	KF_FLAG_DONT_VERIFY                      = 0x00004000
+	KF_FLAG_DONT_UNEXPAND                    = 0x00002000
+	KF_FLAG_NO_ALIAS                         = 0x00001000
+	KF_FLAG_INIT                             = 0x00000800
+	KF_FLAG_DEFAULT_PATH                     = 0x00000400
+	KF_FLAG_NOT_PARENT_RELATIVE              = 0x00000200
+	KF_FLAG_SIMPLE_IDLIST                    = 0x00000100
+	KF_FLAG_ALIAS_ONLY                       = 0x80000000
+)
+
+type OsVersionInfoEx struct {
+	osVersionInfoSize uint32
+	MajorVersion      uint32
+	MinorVersion      uint32
+	BuildNumber       uint32
+	PlatformId        uint32
+	CsdVersion        [128]uint16
+	ServicePackMajor  uint16
+	ServicePackMinor  uint16
+	SuiteMask         uint16
+	ProductType       byte
+	_                 byte
+}
+
+const (
+	EWX_LOGOFF          = 0x00000000
+	EWX_SHUTDOWN        = 0x00000001
+	EWX_REBOOT          = 0x00000002
+	EWX_FORCE           = 0x00000004
+	EWX_POWEROFF        = 0x00000008
+	EWX_FORCEIFHUNG     = 0x00000010
+	EWX_QUICKRESOLVE    = 0x00000020
+	EWX_RESTARTAPPS     = 0x00000040
+	EWX_HYBRID_SHUTDOWN = 0x00400000
+	EWX_BOOTOPTIONS     = 0x01000000
+
+	SHTDN_REASON_FLAG_COMMENT_REQUIRED          = 0x01000000
+	SHTDN_REASON_FLAG_DIRTY_PROBLEM_ID_REQUIRED = 0x02000000
+	SHTDN_REASON_FLAG_CLEAN_UI                  = 0x04000000
+	SHTDN_REASON_FLAG_DIRTY_UI                  = 0x08000000
+	SHTDN_REASON_FLAG_USER_DEFINED              = 0x40000000
+	SHTDN_REASON_FLAG_PLANNED                   = 0x80000000
+	SHTDN_REASON_MAJOR_OTHER                    = 0x00000000
+	SHTDN_REASON_MAJOR_NONE                     = 0x00000000
+	SHTDN_REASON_MAJOR_HARDWARE                 = 0x00010000
+	SHTDN_REASON_MAJOR_OPERATINGSYSTEM          = 0x00020000
+	SHTDN_REASON_MAJOR_SOFTWARE                 = 0x00030000
+	SHTDN_REASON_MAJOR_APPLICATION              = 0x00040000
+	SHTDN_REASON_MAJOR_SYSTEM                   = 0x00050000
+	SHTDN_REASON_MAJOR_POWER                    = 0x00060000
+	SHTDN_REASON_MAJOR_LEGACY_API               = 0x00070000
+	SHTDN_REASON_MINOR_OTHER                    = 0x00000000
+	SHTDN_REASON_MINOR_NONE                     = 0x000000ff
+	SHTDN_REASON_MINOR_MAINTENANCE              = 0x00000001
+	SHTDN_REASON_MINOR_INSTALLATION             = 0x00000002
+	SHTDN_REASON_MINOR_UPGRADE                  = 0x00000003
+	SHTDN_REASON_MINOR_RECONFIG                 = 0x00000004
+	SHTDN_REASON_MINOR_HUNG                     = 0x00000005
+	SHTDN_REASON_MINOR_UNSTABLE                 = 0x00000006
+	SHTDN_REASON_MINOR_DISK                     = 0x00000007
+	SHTDN_REASON_MINOR_PROCESSOR                = 0x00000008
+	SHTDN_REASON_MINOR_NETWORKCARD              = 0x00000009
+	SHTDN_REASON_MINOR_POWER_SUPPLY             = 0x0000000a
+	SHTDN_REASON_MINOR_CORDUNPLUGGED            = 0x0000000b
+	SHTDN_REASON_MINOR_ENVIRONMENT              = 0x0000000c
+	SHTDN_REASON_MINOR_HARDWARE_DRIVER          = 0x0000000d
+	SHTDN_REASON_MINOR_OTHERDRIVER              = 0x0000000e
+	SHTDN_REASON_MINOR_BLUESCREEN               = 0x0000000F
+	SHTDN_REASON_MINOR_SERVICEPACK              = 0x00000010
+	SHTDN_REASON_MINOR_HOTFIX                   = 0x00000011
+	SHTDN_REASON_MINOR_SECURITYFIX              = 0x00000012
+	SHTDN_REASON_MINOR_SECURITY                 = 0x00000013
+	SHTDN_REASON_MINOR_NETWORK_CONNECTIVITY     = 0x00000014
+	SHTDN_REASON_MINOR_WMI                      = 0x00000015
+	SHTDN_REASON_MINOR_SERVICEPACK_UNINSTALL    = 0x00000016
+	SHTDN_REASON_MINOR_HOTFIX_UNINSTALL         = 0x00000017
+	SHTDN_REASON_MINOR_SECURITYFIX_UNINSTALL    = 0x00000018
+	SHTDN_REASON_MINOR_MMC                      = 0x00000019
+	SHTDN_REASON_MINOR_SYSTEMRESTORE            = 0x0000001a
+	SHTDN_REASON_MINOR_TERMSRV                  = 0x00000020
+	SHTDN_REASON_MINOR_DC_PROMOTION             = 0x00000021
+	SHTDN_REASON_MINOR_DC_DEMOTION              = 0x00000022
+	SHTDN_REASON_UNKNOWN                        = SHTDN_REASON_MINOR_NONE
+	SHTDN_REASON_LEGACY_API                     = SHTDN_REASON_MAJOR_LEGACY_API | SHTDN_REASON_FLAG_PLANNED
+	SHTDN_REASON_VALID_BIT_MASK                 = 0xc0ffffff
+
+	SHUTDOWN_NORETRY = 0x1
+)
+
+// Flags used for GetModuleHandleEx
+const (
+	GET_MODULE_HANDLE_EX_FLAG_PIN                = 1
+	GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT = 2
+	GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS       = 4
+)
+
+// MUI function flag values
+const (
+	MUI_LANGUAGE_ID                    = 0x4
+	MUI_LANGUAGE_NAME                  = 0x8
+	MUI_MERGE_SYSTEM_FALLBACK          = 0x10
+	MUI_MERGE_USER_FALLBACK            = 0x20
+	MUI_UI_FALLBACK                    = MUI_MERGE_SYSTEM_FALLBACK | MUI_MERGE_USER_FALLBACK
+	MUI_THREAD_LANGUAGES               = 0x40
+	MUI_CONSOLE_FILTER                 = 0x100
+	MUI_COMPLEX_SCRIPT_FILTER          = 0x200
+	MUI_RESET_FILTERS                  = 0x001
+	MUI_USER_PREFERRED_UI_LANGUAGES    = 0x10
+	MUI_USE_INSTALLED_LANGUAGES        = 0x20
+	MUI_USE_SEARCH_ALL_LANGUAGES       = 0x40
+	MUI_LANG_NEUTRAL_PE_FILE           = 0x100
+	MUI_NON_LANG_NEUTRAL_FILE          = 0x200
+	MUI_MACHINE_LANGUAGE_SETTINGS      = 0x400
+	MUI_FILETYPE_NOT_LANGUAGE_NEUTRAL  = 0x001
+	MUI_FILETYPE_LANGUAGE_NEUTRAL_MAIN = 0x002
+	MUI_FILETYPE_LANGUAGE_NEUTRAL_MUI  = 0x004
+	MUI_QUERY_TYPE                     = 0x001
+	MUI_QUERY_CHECKSUM                 = 0x002
+	MUI_QUERY_LANGUAGE_NAME            = 0x004
+	MUI_QUERY_RESOURCE_TYPES           = 0x008
+	MUI_FILEINFO_VERSION               = 0x001
+
+	MUI_FULL_LANGUAGE      = 0x01
+	MUI_PARTIAL_LANGUAGE   = 0x02
+	MUI_LIP_LANGUAGE       = 0x04
+	MUI_LANGUAGE_INSTALLED = 0x20
+	MUI_LANGUAGE_LICENSED  = 0x40
+)
+
+// FILE_INFO_BY_HANDLE_CLASS constants for SetFileInformationByHandle/GetFileInformationByHandleEx
+const (
+	FileBasicInfo                  = 0
+	FileStandardInfo               = 1
+	FileNameInfo                   = 2
+	FileRenameInfo                 = 3
+	FileDispositionInfo            = 4
+	FileAllocationInfo             = 5
+	FileEndOfFileInfo              = 6
+	FileStreamInfo                 = 7
+	FileCompressionInfo            = 8
+	FileAttributeTagInfo           = 9
+	FileIdBothDirectoryInfo        = 10
+	FileIdBothDirectoryRestartInfo = 11
+	FileIoPriorityHintInfo         = 12
+	FileRemoteProtocolInfo         = 13
+	FileFullDirectoryInfo          = 14
+	FileFullDirectoryRestartInfo   = 15
+	FileStorageInfo                = 16
+	FileAlignmentInfo              = 17
+	FileIdInfo                     = 18
+	FileIdExtdDirectoryInfo        = 19
+	FileIdExtdDirectoryRestartInfo = 20
+	FileDispositionInfoEx          = 21
+	FileRenameInfoEx               = 22
+	FileCaseSensitiveInfo          = 23
+	FileNormalizedNameInfo         = 24
+)
+
+// LoadLibrary flags for determining from where to search for a DLL
+const (
+	DONT_RESOLVE_DLL_REFERENCES               = 0x1
+	LOAD_LIBRARY_AS_DATAFILE                  = 0x2
+	LOAD_WITH_ALTERED_SEARCH_PATH             = 0x8
+	LOAD_IGNORE_CODE_AUTHZ_LEVEL              = 0x10
+	LOAD_LIBRARY_AS_IMAGE_RESOURCE            = 0x20
+	LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE        = 0x40
+	LOAD_LIBRARY_REQUIRE_SIGNED_TARGET        = 0x80
+	LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR          = 0x100
+	LOAD_LIBRARY_SEARCH_APPLICATION_DIR       = 0x200
+	LOAD_LIBRARY_SEARCH_USER_DIRS             = 0x400
+	LOAD_LIBRARY_SEARCH_SYSTEM32              = 0x800
+	LOAD_LIBRARY_SEARCH_DEFAULT_DIRS          = 0x1000
+	LOAD_LIBRARY_SAFE_CURRENT_DIRS            = 0x00002000
+	LOAD_LIBRARY_SEARCH_SYSTEM32_NO_FORWARDER = 0x00004000
+	LOAD_LIBRARY_OS_INTEGRITY_CONTINUITY      = 0x00008000
+)
+
+// RegNotifyChangeKeyValue notifyFilter flags.
+const (
+	// REG_NOTIFY_CHANGE_NAME notifies the caller if a subkey is added or deleted.
+	REG_NOTIFY_CHANGE_NAME = 0x00000001
+
+	// REG_NOTIFY_CHANGE_ATTRIBUTES notifies the caller of changes to the attributes of the key, such as the security descriptor information.
+	REG_NOTIFY_CHANGE_ATTRIBUTES = 0x00000002
+
+	// REG_NOTIFY_CHANGE_LAST_SET notifies the caller of changes to a value of the key. This can include adding or deleting a value, or changing an existing value.
+	REG_NOTIFY_CHANGE_LAST_SET = 0x00000004
+
+	// REG_NOTIFY_CHANGE_SECURITY notifies the caller of changes to the security descriptor of the key.
+	REG_NOTIFY_CHANGE_SECURITY = 0x00000008
+
+	// REG_NOTIFY_THREAD_AGNOSTIC indicates that the lifetime of the registration must not be tied to the lifetime of the thread issuing the RegNotifyChangeKeyValue call. Note: This flag value is only supported in Windows 8 and later.
+	REG_NOTIFY_THREAD_AGNOSTIC = 0x10000000
 )
