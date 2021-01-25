@@ -124,6 +124,7 @@ type Driver struct {
 	cachedScratchMutex sync.Mutex // Protects race conditions from multiple threads creating the cached scratch.
 	options            []string   // Graphdriver options we are initialised with.
 	globalMode         bool       // Indicates if running in an unsafe/global service VM mode.
+	defaultSandboxSize uint64     // The default sandbox size to use if one is not specified
 
 	// NOTE: It is OK to use a cache here because Windows does not support
 	// restoring containers when the daemon dies.
@@ -163,7 +164,8 @@ func InitDriver(dataRoot string, options []string, _, _ []idtools.IDMap) (graphd
 		serviceVms: &serviceVMMap{
 			svms: make(map[string]*serviceVMMapItem),
 		},
-		globalMode: false,
+		globalMode:         false,
+		defaultSandboxSize: client.DefaultVhdxSizeGB,
 	}
 
 	// Looks for relevant options
@@ -176,6 +178,16 @@ func InitDriver(dataRoot string, options []string, _, _ []idtools.IDMap) (graphd
 				d.globalMode, err = strconv.ParseBool(opt[1])
 				if err != nil {
 					return nil, fmt.Errorf("%s failed to parse value for 'lcow.globalmode' - must be 'true' or 'false'", title)
+				}
+				break
+			case "lcow.sandboxsize":
+				var err error
+				d.defaultSandboxSize, err = strconv.ParseUint(opt[1], 10, 32)
+				if err != nil {
+					return nil, fmt.Errorf("%s failed to parse value '%s' for 'lcow.sandboxsize'", title, v)
+				}
+				if d.defaultSandboxSize < client.DefaultVhdxSizeGB {
+					return nil, fmt.Errorf("%s 'lcow.sandboxsize' option cannot be less than %d", title, client.DefaultVhdxSizeGB)
 				}
 				break
 			}
@@ -517,7 +529,7 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 	}
 
 	// Look for an explicit sandbox size option.
-	sandboxSize := uint64(client.DefaultVhdxSizeGB)
+	sandboxSize := d.defaultSandboxSize
 	for k, v := range opts.StorageOpt {
 		switch strings.ToLower(k) {
 		case "lcow.sandboxsize":
