@@ -46,6 +46,7 @@ require (
 	github.com/opencontainers/image-spec v1.0.1
 	github.com/opencontainers/runc v1.0.0-rc92
 	github.com/opencontainers/runtime-spec v1.0.3-0.20200728170252-4d89ac9fbff6
+	github.com/opencontainers/selinux v1.8.0
 	github.com/opentracing-contrib/go-stdlib v1.0.0
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/pkg/errors v0.9.1

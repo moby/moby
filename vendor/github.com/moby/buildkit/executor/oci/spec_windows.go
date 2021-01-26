@@ -14,7 +14,7 @@ func generateMountOpts(resolvConf, hostsFile string) ([]oci.SpecOpts, error) {
 }
 
 // generateSecurityOpts may affect mounts, so must be called after generateMountOpts
-func generateSecurityOpts(mode pb.SecurityMode) ([]oci.SpecOpts, error) {
+func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string) ([]oci.SpecOpts, error) {
 	if mode == pb.SecurityMode_INSECURE {
 		return nil, errors.New("no support for running in insecure mode on Windows")
 	}
