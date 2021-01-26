@@ -194,6 +194,15 @@ type RawSockaddrAny struct {
 	Pad  [92]int8
 }
 
+type RawSockaddrCtl struct {
+	Sc_len      uint8
+	Sc_family   uint8
+	Ss_sysaddr  uint16
+	Sc_id       uint32
+	Sc_unit     uint32
+	Sc_reserved [5]uint32
+}
+
 type _Socklen uint32
 
 type Linger struct {
@@ -258,7 +267,9 @@ const (
 	SizeofSockaddrAny      = 0x6c
 	SizeofSockaddrUnix     = 0x6a
 	SizeofSockaddrDatalink = 0x14
+	SizeofSockaddrCtl      = 0x20
 	SizeofLinger           = 0x8
+	SizeofIovec            = 0x8
 	SizeofIPMreq           = 0x8
 	SizeofIPv6Mreq         = 0x14
 	SizeofMsghdr           = 0x1c

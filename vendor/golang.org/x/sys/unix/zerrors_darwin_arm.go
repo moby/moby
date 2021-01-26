@@ -45,6 +45,7 @@ const (
 	AF_SIP                            = 0x18
 	AF_SNA                            = 0xb
 	AF_SYSTEM                         = 0x20
+	AF_SYS_CONTROL                    = 0x2
 	AF_UNIX                           = 0x1
 	AF_UNSPEC                         = 0x0
 	AF_UTUN                           = 0x26
