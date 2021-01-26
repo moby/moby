@@ -41,7 +41,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	ctx := context.Background()
 	clientUserRemap := dUserRemap.NewClientT(t)
 
-	err = load.FrozenImagesLinux(clientUserRemap, "buildpack-deps:buster")
+	err = load.FrozenImagesLinux(clientUserRemap, "debian:bullseye")
 	assert.NilError(t, err)
 
 	dUserRemapRunning := true
