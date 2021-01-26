@@ -13,6 +13,7 @@ import (
 	"github.com/moby/buildkit/util/entitlements/security"
 	"github.com/moby/buildkit/util/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 func generateMountOpts(resolvConf, hostsFile string) ([]oci.SpecOpts, error) {
@@ -26,15 +27,32 @@ func generateMountOpts(resolvConf, hostsFile string) ([]oci.SpecOpts, error) {
 }
 
 // generateSecurityOpts may affect mounts, so must be called after generateMountOpts
-func generateSecurityOpts(mode pb.SecurityMode) ([]oci.SpecOpts, error) {
-	if mode == pb.SecurityMode_INSECURE {
+func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string) (opts []oci.SpecOpts, _ error) {
+	switch mode {
+	case pb.SecurityMode_INSECURE:
 		return []oci.SpecOpts{
 			security.WithInsecureSpec(),
 			oci.WithWriteableCgroupfs,
 			oci.WithWriteableSysfs,
+			func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
+				var err error
+				s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels([]string{"disable"})
+				return err
+			},
 		}, nil
-	} else if system.SeccompSupported() && mode == pb.SecurityMode_SANDBOX {
-		return []oci.SpecOpts{withDefaultProfile()}, nil
+	case pb.SecurityMode_SANDBOX:
+		if system.SeccompSupported() {
+			opts = append(opts, withDefaultProfile())
+		}
+		if apparmorProfile != "" {
+			opts = append(opts, oci.WithApparmorProfile(apparmorProfile))
+		}
+		opts = append(opts, func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
+			var err error
+			s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels(nil)
+			return err
+		})
+		return opts, nil
 	}
 	return nil, nil
 }
