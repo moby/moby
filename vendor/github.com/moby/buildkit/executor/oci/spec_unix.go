@@ -22,6 +22,8 @@ import (
 	"github.com/moby/buildkit/util/network"
 	"github.com/moby/buildkit/util/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/selinux/go-selinux"
+	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 )
 
@@ -29,7 +31,7 @@ import (
 
 // GenerateSpec generates spec using containerd functionality.
 // opts are ignored for s.Process, s.Hostname, and s.Mounts .
-func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, processMode ProcessMode, idmap *idtools.IdentityMapping, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
+func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, processMode ProcessMode, idmap *idtools.IdentityMapping, apparmorProfile string, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
 	c := &containers.Container{
 		ID: id,
 	}
@@ -37,10 +39,11 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 	if !ok {
 		ctx = namespaces.WithNamespace(ctx, "buildkit")
 	}
-	if meta.SecurityMode == pb.SecurityMode_INSECURE {
-		opts = append(opts, entitlements.WithInsecureSpec())
-	} else if system.SeccompSupported() && meta.SecurityMode == pb.SecurityMode_SANDBOX {
-		opts = append(opts, seccomp.WithDefaultProfile())
+
+	if securityOpts, err := generateSecurityOpts(meta.SecurityMode, apparmorProfile); err == nil {
+		opts = append(opts, securityOpts...)
+	} else {
+		return nil, nil, err
 	}
 
 	switch processMode {
@@ -125,6 +128,9 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 		for _, f := range releasers {
 			f()
 		}
+		if s.Process.SelinuxLabel != "" {
+			selinux.ReleaseLabel(s.Process.SelinuxLabel)
+		}
 	}
 
 	for _, m := range mounts {
@@ -163,6 +169,37 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 type mountRef struct {
 	mount   mount.Mount
 	unmount func() error
+}
+
+// generateSecurityOpts may affect mounts, so must be called after generateMountOpts
+func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string) (opts []oci.SpecOpts, _ error) {
+	switch mode {
+	case pb.SecurityMode_INSECURE:
+		return []oci.SpecOpts{
+			entitlements.WithInsecureSpec(),
+			oci.WithWriteableCgroupfs,
+			oci.WithWriteableSysfs,
+			func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
+				var err error
+				s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels([]string{"disable"})
+				return err
+			},
+		}, nil
+	case pb.SecurityMode_SANDBOX:
+		if system.SeccompSupported() {
+			opts = append(opts, seccomp.WithDefaultProfile())
+		}
+		if apparmorProfile != "" {
+			opts = append(opts, oci.WithApparmorProfile(apparmorProfile))
+		}
+		opts = append(opts, func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
+			var err error
+			s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels(nil)
+			return err
+		})
+		return opts, nil
+	}
+	return nil, nil
 }
 
 type submounts struct {

@@ -39,9 +39,10 @@ type Opt struct {
 	ProcessMode     oci.ProcessMode
 	IdentityMapping *idtools.IdentityMapping
 	// runc run --no-pivot (unrecommended)
-	NoPivot     bool
-	DNS         *oci.DNSConfig
-	OOMScoreAdj *int
+	NoPivot         bool
+	DNS             *oci.DNSConfig
+	OOMScoreAdj     *int
+	ApparmorProfile string
 }
 
 var defaultCommandCandidates = []string{"buildkit-runc", "runc"}
@@ -58,6 +59,7 @@ type runcExecutor struct {
 	noPivot          bool
 	dns              *oci.DNSConfig
 	oomScoreAdj      *int
+	apparmorProfile  string
 }
 
 func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Executor, error) {
@@ -118,6 +120,7 @@ func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Ex
 		noPivot:          opt.NoPivot,
 		dns:              opt.DNS,
 		oomScoreAdj:      opt.OOMScoreAdj,
+		apparmorProfile:  opt.ApparmorProfile,
 	}
 	return w, nil
 }
@@ -223,7 +226,7 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 		}
 		opts = append(opts, containerdoci.WithCgroup(cgroupsPath))
 	}
-	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, resolvConf, hostsFile, namespace, w.processMode, w.idmap, opts...)
+	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, resolvConf, hostsFile, namespace, w.processMode, w.idmap, w.apparmorProfile, opts...)
 	if err != nil {
 		return err
 	}
