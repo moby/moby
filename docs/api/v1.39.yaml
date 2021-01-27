@@ -7004,7 +7004,7 @@ paths:
 
 
             For example, the build arg `FOO=bar` would become `{"FOO":"bar"}` in JSON. This would result in the
-            the query parameter `buildargs={"FOO":"bar"}`. Note that `{"FOO":"bar"}` should be URI component encoded.
+            query parameter `buildargs={"FOO":"bar"}`. Note that `{"FOO":"bar"}` should be URI component encoded.
 
 
             [Read more about the buildargs instruction.](https://docs.docker.com/engine/reference/builder/#arg)
