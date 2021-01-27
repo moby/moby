@@ -31,5 +31,12 @@ man/man1
 man/man5
 man/man8
 vendor/pkg/
-!/.idea/
-!/.gitignore
+### Example user template template
+### Example user template
+
+# IntelliJ project files
+.idea
+*.iml
+out
+gen
+.gitignore

@@ -3,6 +3,7 @@
   <component name="ChangeListManager">
     <list default="true" id="ec336926-51c1-45a7-8dfa-579a26791d10" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -63,7 +64,14 @@
       <option name="project" value="LOCAL" />
       <updated>1611754367743</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="make change3">
+      <created>1611754852616</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1611754852616</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -82,7 +90,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="make change1" />
     <MESSAGE value="make change2" />
-    <option name="LAST_COMMIT_MESSAGE" value="make change2" />
+    <MESSAGE value="make change3" />
+    <option name="LAST_COMMIT_MESSAGE" value="make change3" />
   </component>
   <component name="WindowStateProjectService">
     <state width="617" height="438" key="Git.Branch.Popup" />
