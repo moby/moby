@@ -307,6 +307,7 @@ install_systemd() {
 			TasksMax=infinity
 			Delegate=yes
 			Type=simple
+			KillMode=mixed
 
 			[Install]
 			WantedBy=default.target
