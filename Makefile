@@ -1,5 +1,7 @@
 .PHONY: all binary dynbinary build cross help install manpages run shell test test-docker-py test-integration test-unit validate win
 
+BUILDX_VERSION ?= v0.5.1
+
 ifdef USE_BUILDX
 BUILDX ?= $(shell command -v buildx)
 BUILDX ?= $(shell command -v docker-buildx)
@@ -273,22 +275,6 @@ buildx: bundles/buildx ## build buildx cli tool
 endif
 endif
 
-# This intentionally is not using the `--output` flag from the docker CLI, which
-# is a buildkit option. The idea here being that if buildx is being used, it's
-# because buildkit is not supported natively
 bundles/buildx: bundles ## build buildx CLI tool
-	docker build -f $${BUILDX_DOCKERFILE:-Dockerfile.buildx} -t "moby-buildx:$${BUILDX_COMMIT:-latest}" \
-		--build-arg BUILDX_COMMIT \
-		--build-arg BUILDX_REPO \
-		--build-arg GOOS=$$(if [ -n "$(GOOS)" ]; then echo $(GOOS); else go env GOHOSTOS || uname | awk '{print tolower($$0)}' || true; fi) \
-		--build-arg GOARCH=$$(if [ -n "$(GOARCH)" ]; then echo $(GOARCH); else go env GOHOSTARCH || true; fi) \
-		.
-
-	id=$$(docker create moby-buildx:$${BUILDX_COMMIT:-latest}); \
-	if [ -n "$${id}" ]; then \
-		docker cp $${id}:/usr/bin/buildx $@ \
-		&& touch $@; \
-		docker rm -f $${id}; \
-	fi
-
+	curl -fsSL https://raw.githubusercontent.com/moby/buildkit/70deac12b5857a1aa4da65e90b262368e2f71500/hack/install-buildx | VERSION="$(BUILDX_VERSION)" BINDIR="$(@D)" bash
 	$@ version
