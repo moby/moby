@@ -130,7 +130,7 @@ func TestCgroupNamespacesRunInvalidMode(t *testing.T) {
 }
 
 // Clients before 1.40 expect containers to be created in the host cgroup namespace,
-// regardless of the default setting of the daemon
+// regardless of the default setting of the daemon, unless running with cgroup v2
 func TestCgroupNamespacesRunOlderClient(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
@@ -148,5 +148,9 @@ func TestCgroupNamespacesRunOlderClient(t *testing.T) {
 
 	daemonCgroup := d.CgroupNamespace(t)
 	containerCgroup := containerCgroupNamespace(ctx, t, client, cID)
-	assert.Assert(t, daemonCgroup == containerCgroup)
+	if testEnv.DaemonInfo.CgroupVersion != "2" {
+		assert.Assert(t, daemonCgroup == containerCgroup)
+	} else {
+		assert.Assert(t, daemonCgroup != containerCgroup)
+	}
 }
