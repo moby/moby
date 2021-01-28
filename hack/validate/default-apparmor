@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+export SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPTDIR}/.validate"
+
+IFS=$'\n'
+files=($(validate_diff --diff-filter=ACMR --name-only -- 'profiles/apparmor' || true))
+unset IFS
+
+if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ ${#files[@]} -gt 0 ]; then
+	# We run 'go generate' and see if we have a diff afterwards
+	go generate ./profiles/apparmor/ > /dev/null
+	# Let see if the working directory is clean
+	diffs="$(git status --porcelain -- profiles/apparmor 2> /dev/null)"
+	if [ "$diffs" ]; then
+		{
+			echo 'The result of go generate ./profiles/apparmor/ differs'
+			echo
+			echo "$diffs"
+			echo
+			echo 'Please re-run go generate ./profiles/apparmor/'
+			echo
+		} >&2
+		false
+	else
+		echo 'Congratulations!  AppArmor profile generation is done correctly.'
+	fi
+fi

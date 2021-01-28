@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/docker/docker/pkg/fileutils"
@@ -101,7 +102,7 @@ type Daemon struct {
 	discoveryWatcher  discovery.Reloader
 	root              string
 	seccompEnabled    bool
-	apparmorEnabled   bool
+	appArmorEnabled   bool
 	shutdown          bool
 	idMapping         *idtools.IdentityMapping
 	// TODO: move graphDrivers field to an InfoService
@@ -122,6 +123,9 @@ type Daemon struct {
 
 	seccompProfile     []byte
 	seccompProfilePath string
+
+	appArmorProfile     *template.Template
+	appArmorProfilePath string
 
 	diskUsageRunning int32
 	pruneRunning     int32
@@ -845,6 +849,9 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if err := d.setupSeccompProfile(); err != nil {
 		return nil, err
 	}
+	if err := d.setupAppArmorProfile(); err != nil {
+		return nil, err
+	}
 
 	// Set the default isolation mode (only applicable on Windows)
 	if err := d.setDefaultIsolation(); err != nil {
@@ -853,11 +860,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	if err := configureMaxThreads(config); err != nil {
 		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
-	}
-
-	// ensureDefaultAppArmorProfile does nothing if apparmor is disabled
-	if err := ensureDefaultAppArmorProfile(); err != nil {
-		logrus.Errorf(err.Error())
 	}
 
 	daemonRepo := filepath.Join(config.Root, "containers")
@@ -1098,7 +1100,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d.root = config.Root
 	d.idMapping = idMapping
 	d.seccompEnabled = sysInfo.Seccomp
-	d.apparmorEnabled = sysInfo.AppArmor
+	d.appArmorEnabled = sysInfo.AppArmor
 
 	d.linkIndex = newLinkIndex()
 

@@ -125,8 +125,8 @@ func WithSelinux(c *container.Container) coci.SpecOpts {
 	}
 }
 
-// WithApparmor sets the apparmor profile
-func WithApparmor(c *container.Container) coci.SpecOpts {
+// WithAppArmor sets the AppArmor profile.
+func WithAppArmor(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		if apparmor.IsEnabled() {
 			var appArmorProfile string
@@ -139,13 +139,13 @@ func WithApparmor(c *container.Container) coci.SpecOpts {
 			}
 
 			if appArmorProfile == defaultAppArmorProfile {
-				// Unattended upgrades and other fun services can unload AppArmor
-				// profiles inadvertently. Since we cannot store our profile in
-				// /etc/apparmor.d, nor can we practically add other ways of
-				// telling the system to keep our profile loaded, in order to make
-				// sure that we keep the default profile enabled we dynamically
-				// reload it if necessary.
-				if err := ensureDefaultAppArmorProfile(); err != nil {
+				// Unattended upgrades and other fun services can unload
+				// AppArmor profiles inadvertently. Since we cannot store our
+				// profile in /etc/apparmor.d, nor can we practically add other
+				// ways of telling the system to keep our profile loaded, in
+				// order to make sure that we keep the default profile enabled
+				// we dynamically reload it if necessary.
+				if err := daemon.ensureDefaultAppArmorProfile(); err != nil {
 					return err
 				}
 			}
@@ -1025,7 +1025,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 		WithSeccomp(daemon, c),
 		WithMounts(daemon, c),
 		WithLibnetwork(daemon, c),
-		WithApparmor(c),
+		WithAppArmor(daemon, c),
 		WithSelinux(c),
 		WithOOMScore(&c.HostConfig.OomScoreAdj),
 	)

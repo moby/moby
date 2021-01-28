@@ -180,7 +180,11 @@ func (daemon *Daemon) fillPluginsInfo(v *types.Info) {
 func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInfo) {
 	var securityOptions []string
 	if sysInfo.AppArmor {
-		securityOptions = append(securityOptions, "name=apparmor")
+		profile := daemon.appArmorProfilePath
+		if profile == "" {
+			profile = "default"
+		}
+		securityOptions = append(securityOptions, fmt.Sprintf("name=apparmor,profile=%s", profile))
 	}
 	if sysInfo.Seccomp && supportsSeccomp {
 		profile := daemon.seccompProfilePath

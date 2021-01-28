@@ -46,7 +46,7 @@ func (daemon *Daemon) execSetPlatformOpt(c *container.Container, ec *exec.Config
 			// telling the system to keep our profile loaded, in order to make
 			// sure that we keep the default profile enabled we dynamically
 			// reload it if necessary.
-			if err := ensureDefaultAppArmorProfile(); err != nil {
+			if err := daemon.ensureDefaultAppArmorProfile(); err != nil {
 				return err
 			}
 		}
