@@ -3,27 +3,50 @@
 package btrfs // import "github.com/docker/docker/daemon/graphdriver/btrfs"
 
 /*
-#include <stdlib.h>
 #include <dirent.h>
-#include <btrfs/ioctl.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <btrfs/ctree.h>
 
-static void set_name_btrfs_ioctl_vol_args_v2(struct btrfs_ioctl_vol_args_v2* btrfs_struct, const char* value) {
-    snprintf(btrfs_struct->name, BTRFS_SUBVOL_NAME_MAX, "%s", value);
+static int copy_GoString_to_CString(char *dst, size_t dst_size, const _GoString_ src) {
+    const size_t src_size = _GoStringLen(src);
+    if (src_size >= dst_size) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+    const char *psrc = _GoStringPtr(src);
+    size_t i;
+    for (i = 0; i < src_size; i++) {
+        dst[i] = psrc[i];
+    }
+    dst[i] = '\0';
+    return i;
 }
+
+static inline int set_name_btrfs_ioctl_vol_args(struct btrfs_ioctl_vol_args* btrfs_struct, const _GoString_ name) {
+    return copy_GoString_to_CString(btrfs_struct->name, sizeof(btrfs_struct->name), name);
+}
+
+static inline int set_name_btrfs_ioctl_vol_args_v2(struct btrfs_ioctl_vol_args_v2* btrfs_struct, const _GoString_ name) {
+    return copy_GoString_to_CString(btrfs_struct->name, sizeof(btrfs_struct->name), name);
+}
+
+static inline __u16 _le16toh(__le16 i) {return le16toh(i);}
+static inline __u64 _le64toh(__le64 i) {return le64toh(i);}
+
+static inline int _openat(int dirfd, const char *pathname, int flags) {return openat(dirfd, pathname, flags);}
 */
 import "C"
 
 import (
 	"fmt"
 	"io/ioutil"
-	"math"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
+	"syscall"
 	"unsafe"
 
 	"github.com/docker/docker/daemon/graphdriver"
@@ -44,8 +67,7 @@ func init() {
 }
 
 type btrfsOptions struct {
-	minSpace uint64
-	size     uint64
+	minSpace C.__u64
 }
 
 // Init returns a new BTRFS driver.
@@ -123,8 +145,11 @@ func parseOptions(opt []string) (btrfsOptions, bool, error) {
 			if err != nil {
 				return options, userDiskQuota, err
 			}
+			if minSpace < 0 {
+				return options, userDiskQuota, fmt.Errorf("btrfs: min_space can't be negative but got: %d", minSpace)
+			}
 			userDiskQuota = true
-			options.minSpace = uint64(minSpace)
+			options.minSpace = C.__u64(minSpace)
 		default:
 			return options, userDiskQuota, fmt.Errorf("Unknown option %s", key)
 		}
@@ -135,12 +160,10 @@ func parseOptions(opt []string) (btrfsOptions, bool, error) {
 // Driver contains information about the filesystem mounted.
 type Driver struct {
 	// root of the file system
-	home         string
-	uidMaps      []idtools.IDMap
-	gidMaps      []idtools.IDMap
-	options      btrfsOptions
-	quotaEnabled bool
-	once         sync.Once
+	home    string
+	uidMaps []idtools.IDMap
+	gidMaps []idtools.IDMap
+	options btrfsOptions
 }
 
 // String prints the name of the driver (btrfs).
@@ -169,14 +192,7 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 
 // Cleanup unmounts the home directory.
 func (d *Driver) Cleanup() error {
-	err := d.subvolDisableQuota()
 	umountErr := mount.Unmount(d.home)
-
-	// in case we have two errors, prefer the one from disableQuota()
-	if err != nil {
-		return err
-	}
-
 	if umountErr != nil {
 		return umountErr
 	}
@@ -188,20 +204,70 @@ func free(p *C.char) {
 	C.free(unsafe.Pointer(p))
 }
 
-func openDir(path string) (*C.DIR, error) {
-	Cpath := C.CString(path)
-	defer free(Cpath)
+func openDir(dirpath string) (*C.DIR, error) {
+	if len(dirpath) >= C.PATH_MAX {
+		// Remove // and . to more safely slice the path
+		dirpath = path.Clean(dirpath)
+	}
 
-	dir := C.opendir(Cpath)
+	if len(dirpath) < C.PATH_MAX {
+		Cdirpath := C.CString(dirpath)
+		dir, err := C.opendir(Cdirpath)
+		free(Cdirpath)
+		if dir == nil {
+			return nil, fmt.Errorf("Can't open dir %s: %v", dirpath, err)
+		}
+		return dir, nil
+	}
+
+	// Path too long to fit in one ioctl so we will move in a small steps
+	head := path.Dir(dirpath[:C.PATH_MAX-1])
+	tail := dirpath[len(head)+1:]
+
+	closefd := func(fd C.int) {
+		if r, err := C.close(fd); r < 0 {
+			logrus.Errorf("Failed to close %v: %v", fd, err)
+		}
+	}
+	var oflags C.int = (C.O_RDONLY | C.O_NDELAY | C.O_DIRECTORY | C.O_CLOEXEC)
+
+	tmpCstr := C.CString(head)
+	headfd, err := C._openat(C.AT_FDCWD, tmpCstr, oflags)
+	free(tmpCstr)
+	if headfd < 0 {
+		return nil, fmt.Errorf("Can't open dir %s: %v", head, err)
+	}
+
+	relfd := headfd
+	for len(tail) > 0 {
+		if len(tail) >= C.PATH_MAX {
+			head = path.Dir(tail[:C.PATH_MAX-1])
+			tail = tail[len(head)+1:]
+		} else {
+			head = tail
+			tail = ""
+		}
+		tmpCstr = C.CString(head)
+		headfd, err = C._openat(relfd, tmpCstr, oflags)
+		free(tmpCstr)
+		closefd(relfd)
+		if headfd < 0 {
+			return nil, fmt.Errorf("Can't open dir %s: %v", head, err)
+		}
+		relfd = headfd
+	}
+
+	dir, err := C.fdopendir(headfd)
 	if dir == nil {
-		return nil, fmt.Errorf("Can't open dir")
+		closefd(headfd)
+		return nil, fmt.Errorf("Can't get DIR from fd %d for dir %s: %v", headfd, dirpath, err)
 	}
 	return dir, nil
 }
 
 func closeDir(dir *C.DIR) {
-	if dir != nil {
-		C.closedir(dir)
+	if r, err := C.closedir(dir); r < 0 {
+		logrus.Errorf("Failed to closedir: %v", err)
 	}
 }
 
@@ -209,33 +275,7 @@ func getDirFd(dir *C.DIR) uintptr {
 	return uintptr(C.dirfd(dir))
 }
 
-func subvolCreate(path, name string) error {
-	dir, err := openDir(path)
-	if err != nil {
-		return err
-	}
-	defer closeDir(dir)
-
-	var args C.struct_btrfs_ioctl_vol_args
-	for i, c := range []byte(name) {
-		args.name[i] = C.char(c)
-	}
-
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SUBVOL_CREATE,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
-		return fmt.Errorf("Failed to create btrfs subvolume: %v", errno.Error())
-	}
-	return nil
-}
-
 func subvolSnapshot(src, dest, name string) error {
-	srcDir, err := openDir(src)
-	if err != nil {
-		return err
-	}
-	defer closeDir(srcDir)
-
 	destDir, err := openDir(dest)
 	if err != nil {
 		return err
@@ -243,118 +283,433 @@ func subvolSnapshot(src, dest, name string) error {
 	defer closeDir(destDir)
 
 	var args C.struct_btrfs_ioctl_vol_args_v2
-	args.fd = C.__s64(getDirFd(srcDir))
 
-	var cs = C.CString(name)
-	C.set_name_btrfs_ioctl_vol_args_v2(&args, cs)
-	C.free(unsafe.Pointer(cs))
+	var cmd uintptr = C.BTRFS_IOC_SUBVOL_CREATE_V2
+	if src != "" {
+		cmd = C.BTRFS_IOC_SNAP_CREATE_V2
 
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(destDir), C.BTRFS_IOC_SNAP_CREATE_V2,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
-		return fmt.Errorf("Failed to create btrfs snapshot: %v", errno.Error())
+		srcDir, err := openDir(src)
+		if err != nil {
+			return err
+		}
+		defer closeDir(srcDir)
+
+		args.fd = C.__s64(getDirFd(srcDir))
 	}
+
+	if r, err := C.set_name_btrfs_ioctl_vol_args_v2(&args, name); r < 0 {
+		return fmt.Errorf("Failed to copy subvolume name %s to args struct: %v", name, err)
+	}
+
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(destDir), cmd, uintptr(unsafe.Pointer(&args)))
+	if errno != 0 {
+		return fmt.Errorf("Failed to create btrfs subvolume: %v", errno.Error())
+	}
+
 	return nil
 }
 
-func isSubvolume(p string) (bool, error) {
-	var bufStat unix.Stat_t
-	if err := unix.Lstat(p, &bufStat); err != nil {
-		return false, err
+func btrfsIoctlSearchArgsInc(args *C.struct_btrfs_ioctl_search_args) bool {
+	/* the objectid, type, offset together make up the btrfs key,
+	 * which is considered a single 136byte integer when
+	 * comparing. This call increases the counter by one, dealing
+	 * with the overflow between the overflows */
+	if args.key.min_offset < ^C.__u64(0) {
+		args.key.min_offset++
+		return false
 	}
 
-	// return true if it is a btrfs subvolume
-	return bufStat.Ino == C.BTRFS_FIRST_FREE_OBJECTID, nil
+	if args.key.min_type < C.__u32(^C.__u8(0)) {
+		args.key.min_type++
+		args.key.min_offset = 0
+		return false
+	}
+
+	if args.key.min_objectid < ^C.__u64(0) {
+		args.key.min_objectid++
+		args.key.min_offset = 0
+		args.key.min_type = 0
+		return false
+	}
+
+	return true
 }
 
-func subvolDelete(dirpath, name string, quotaEnabled bool) error {
+func btrfsIoctlSearchArgsCompare(args *C.struct_btrfs_ioctl_search_args) bool {
+	/* Compare min and max. Return true if min <= max */
+	if args.key.min_objectid < args.key.max_objectid {
+		return true
+	}
+	if args.key.min_objectid > args.key.max_objectid {
+		return false
+	}
+
+	if args.key.min_type < args.key.max_type {
+		return true
+	}
+	if args.key.min_type > args.key.max_type {
+		return false
+	}
+
+	if args.key.min_offset < args.key.max_offset {
+		return true
+	}
+	if args.key.min_offset > args.key.max_offset {
+		return false
+	}
+
+	return true
+}
+
+func subvolDelete(dirpath, name string, subvolID C.__u64) error {
 	dir, err := openDir(dirpath)
 	if err != nil {
 		return err
 	}
 	defer closeDir(dir)
+
 	fullPath := path.Join(dirpath, name)
 
-	var args C.struct_btrfs_ioctl_vol_args
+	// Makes subvolume writable
+	if err := subvolSetPropRO(fullPath, false); err != nil {
+		return err
+	}
 
-	// walk the btrfs subvolumes
-	walkSubvolumes := func(p string, f os.FileInfo, err error) error {
-		if err != nil {
-			if os.IsNotExist(err) && p != fullPath {
-				// missing most likely because the path was a subvolume that got removed in the previous iteration
-				// since it's gone anyway, we don't care
-				return nil
-			}
-			return fmt.Errorf("error walking subvolumes: %v", err)
+	subvoldir, err := openDir(fullPath)
+	if err != nil {
+		return err
+	}
+	defer closeDir(subvoldir)
+
+	if subvolID == 0 {
+		// Get subvol ID
+		var lkpargs C.struct_btrfs_ioctl_ino_lookup_args
+		lkpargs.objectid = C.BTRFS_FIRST_FREE_OBJECTID
+		_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(subvoldir), C.BTRFS_IOC_INO_LOOKUP,
+			uintptr(unsafe.Pointer(&lkpargs)))
+		if errno != 0 {
+			return fmt.Errorf("Cannot resolve ID for path %s: %v", fullPath, errno.Error())
 		}
-		// we want to check children only so skip itself
-		// it will be removed after the filepath walk anyways
-		if f.IsDir() && p != fullPath {
-			sv, err := isSubvolume(p)
-			if err != nil {
-				return fmt.Errorf("Failed to test if %s is a btrfs subvolume: %v", p, err)
+		subvolID = lkpargs.treeid
+	}
+
+	destroySnap := func() syscall.Errno {
+		var args C.struct_btrfs_ioctl_vol_args
+		if r, err := C.set_name_btrfs_ioctl_vol_args(&args, name); r < 0 {
+			return err.(syscall.Errno)
+		}
+		_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY,
+			uintptr(unsafe.Pointer(&args)))
+		return errno
+	}
+
+	// First try to delete right now. Should be most common case
+	if errno := destroySnap(); errno == 0 {
+		// for the leaf subvolumes, the qgroup id is identical to the subvol id
+		return btrfsQgroupDestroyRecursive(dir, subvolID)
+	} else if errno != syscall.ENOTEMPTY {
+		return fmt.Errorf("Failed to destroy btrfs subvolume %s: %v", fullPath, errno.Error())
+	}
+	// errno == ENOTEMPTY going to search subvols
+
+	// map to store info about subvols relative path to which is not fit in BTRFS_IOC_INO_LOOKUP
+	type subvolData struct {
+		name string
+		id   C.__u64
+	}
+	// key - dirid (inode number) of parent dir
+	distantDescendants := make(map[C.__u64][]subvolData)
+
+	// Init search key
+	var args C.struct_btrfs_ioctl_search_args
+	args.key.tree_id = C.BTRFS_ROOT_TREE_OBJECTID
+	args.key.min_type = C.BTRFS_ROOT_BACKREF_KEY
+	args.key.max_type = C.BTRFS_ROOT_BACKREF_KEY
+	args.key.min_objectid = C.BTRFS_FIRST_FREE_OBJECTID
+	args.key.max_objectid = C.BTRFS_LAST_FREE_OBJECTID
+	args.key.min_transid = 0
+	args.key.max_transid = ^C.__u64(0)
+	args.key.min_offset = subvolID
+	args.key.max_offset = subvolID
+
+	// while search key is converging
+	for btrfsIoctlSearchArgsCompare(&args) {
+		// Search subvols
+		args.key.nr_items = 256
+		_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_TREE_SEARCH,
+			uintptr(unsafe.Pointer(&args)))
+		if errno != 0 {
+			return fmt.Errorf("Failed to search subvols for %s: %v", dirpath, errno.Error())
+		}
+		if args.key.nr_items <= 0 {
+			break
+		}
+		// Parse search results
+		var sh *C.struct_btrfs_ioctl_search_header
+		for i, shPtr := C.__u32(0), unsafe.Pointer(&args.buf); i < args.key.nr_items; i, shPtr = i+1, unsafe.Pointer(uintptr(shPtr)+C.sizeof_struct_btrfs_ioctl_search_header+uintptr(sh.len)) {
+			sh = (*C.struct_btrfs_ioctl_search_header)(shPtr)
+
+			// Make sure we start the next search at least from this entry
+			args.key.min_objectid = sh.objectid
+			args.key.min_type = sh._type
+			args.key.min_offset = sh.offset
+
+			if sh._type != C.BTRFS_ROOT_BACKREF_KEY {
+				continue
 			}
-			if sv {
-				if err := subvolDelete(path.Dir(p), f.Name(), quotaEnabled); err != nil {
-					return fmt.Errorf("Failed to destroy btrfs child subvolume (%s) of parent (%s): %v", p, dirpath, err)
+			if sh.offset != subvolID {
+				continue
+			}
+
+			// We found some
+			ref := (*C.struct_btrfs_root_ref)(unsafe.Pointer(uintptr(shPtr) + C.sizeof_struct_btrfs_ioctl_search_header))
+			childName := C.GoStringN((*C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(ref))+C.sizeof_struct_btrfs_root_ref)), C.int(C._le16toh(ref.name_len)))
+			dirid := C._le64toh(ref.dirid)
+
+			// Search relative path to subvol parent dir
+			var inoArgs C.struct_btrfs_ioctl_ino_lookup_args
+			inoArgs.treeid = subvolID
+			inoArgs.objectid = dirid
+			_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_INO_LOOKUP,
+				uintptr(unsafe.Pointer(&inoArgs)))
+			if errno == syscall.ENAMETOOLONG {
+				// Path too long so save it for future walk
+				distantDescendants[dirid] = append(distantDescendants[dirid], subvolData{childName, sh.objectid})
+			} else if errno != 0 {
+				return fmt.Errorf("Failed to search relative path from %s to %s: %v", name, childName, errno.Error())
+			} else {
+				relPath := C.GoString((*C.char)(unsafe.Pointer(&inoArgs.name)))
+				if err := subvolDelete(path.Join(fullPath, relPath), childName, sh.objectid); err != nil {
+					return err
 				}
 			}
 		}
-		return nil
-	}
-	if err := filepath.Walk(path.Join(dirpath, name), walkSubvolumes); err != nil {
-		return fmt.Errorf("Recursively walking subvolumes for %s failed: %v", dirpath, err)
-	}
-
-	if quotaEnabled {
-		if qgroupid, err := subvolLookupQgroup(fullPath); err == nil {
-			var args C.struct_btrfs_ioctl_qgroup_create_args
-			args.qgroupid = C.__u64(qgroupid)
-
-			_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_CREATE,
-				uintptr(unsafe.Pointer(&args)))
-			if errno != 0 {
-				logrus.WithField("storage-driver", "btrfs").Errorf("Failed to delete btrfs qgroup %v for %s: %v", qgroupid, fullPath, errno.Error())
-			}
-		} else {
-			logrus.WithField("storage-driver", "btrfs").Errorf("Failed to lookup btrfs qgroup for %s: %v", fullPath, err.Error())
+		// Increase search key by one, to read the next item, if we can.
+		if btrfsIoctlSearchArgsInc(&args) {
+			break
 		}
 	}
 
-	// all subvolumes have been removed
-	// now remove the one originally passed in
-	for i, c := range []byte(name) {
-		args.name[i] = C.char(c)
+	if len(distantDescendants) > 0 {
+		var walk func(*C.DIR, string) error
+		walk = func(pdir *C.DIR, ppath string) error {
+			ent, errno := C.readdir(pdir)
+			for ; ent != nil; ent, errno = C.readdir(pdir) {
+				if ent.d_type == C.DT_DIR {
+					dname := C.GoString((*C.char)(unsafe.Pointer(&ent.d_name)))
+					// Check if dir contain subvols
+					if childs, ok := distantDescendants[C.__u64(ent.d_ino)]; ok {
+						dpath := path.Join(ppath, dname)
+						for _, child := range childs {
+							if err := subvolDelete(dpath, child.name, child.id); err != nil {
+								return fmt.Errorf("Failed to delete btrfs subvolume %+v: %v", child, err)
+							}
+						}
+						delete(distantDescendants, C.__u64(ent.d_ino))
+					}
+					// Go deeper
+					if dname != "." && dname != ".." {
+						var oflags C.int = (C.O_RDONLY | C.O_NDELAY | C.O_DIRECTORY | C.O_CLOEXEC | C.O_NOFOLLOW)
+						dirfd, err := C._openat(C.dirfd(pdir), (*C.char)(unsafe.Pointer(&ent.d_name)), oflags)
+						if dirfd < 0 {
+							logrus.Errorf("Can't open dir %s: %v", dname, err)
+							continue
+						}
+						cdir, err := C.fdopendir(dirfd)
+						if cdir == nil {
+							C.close(dirfd)
+							logrus.Errorf("Can't get DIR from fd %d for %s: %v", dirfd, dname, err)
+							continue
+						}
+						defer closeDir(cdir)
+
+						if err := walk(cdir, path.Join(ppath, dname)); err != nil {
+							return err
+						}
+					}
+				}
+			}
+			if errno != nil {
+				logrus.Errorf("Error while walk at %s: %v", ppath, errno)
+			}
+			return nil
+		}
+
+		if err := walk(subvoldir, fullPath); err != nil {
+			return err
+		}
+		if len(distantDescendants) > 0 {
+			return fmt.Errorf("Child btrfs subvolumes %+v was not reached from %s", distantDescendants, fullPath)
+		}
 	}
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY,
-		uintptr(unsafe.Pointer(&args)))
+
+	// For now all descendants should be destroyed and we can try one more time
+	if errno := destroySnap(); errno != 0 {
+		return fmt.Errorf("Failed to destroy btrfs subvolume %s: %v", fullPath, errno.Error())
+	}
+	return btrfsQgroupDestroyRecursive(dir, subvolID)
+}
+
+/* Destroys the specified qgroup, but unassigns it from all
+ * its parents first. Also, it recursively destroys all
+ * qgroups it is assgined to that have the same id part of the
+ * qgroupid as the specified group. */
+func btrfsQgroupDestroyRecursive(dir *C.DIR, qgroupID C.__u64) error {
+	qgroupParents := []C.__u64{}
+
+	// Init search key
+	var args C.struct_btrfs_ioctl_search_args
+	args.key.tree_id = C.BTRFS_QUOTA_TREE_OBJECTID
+	args.key.min_type = C.BTRFS_QGROUP_RELATION_KEY
+	args.key.max_type = C.BTRFS_QGROUP_RELATION_KEY
+	args.key.min_objectid = qgroupID
+	args.key.max_objectid = qgroupID
+	args.key.min_transid = 0
+	args.key.max_transid = ^C.__u64(0)
+	args.key.min_offset = 0
+	args.key.max_offset = ^C.__u64(0)
+
+	for btrfsIoctlSearchArgsCompare(&args) {
+		args.key.nr_items = 256
+		_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_TREE_SEARCH,
+			uintptr(unsafe.Pointer(&args)))
+		if errno != 0 {
+			if errno == syscall.ENOENT { // quota tree missing: quota is disabled
+				return nil
+			}
+			return fmt.Errorf("Failed to search parents for qgroup %d: %v", qgroupID, errno.Error())
+		}
+		if args.key.nr_items <= 0 {
+			break
+		}
+		// Parse search results
+		var sh *C.struct_btrfs_ioctl_search_header
+		for i, shPtr := C.__u32(0), unsafe.Pointer(&args.buf); i < args.key.nr_items; i, shPtr = i+1, unsafe.Pointer(uintptr(shPtr)+C.sizeof_struct_btrfs_ioctl_search_header+uintptr(sh.len)) {
+			sh = (*C.struct_btrfs_ioctl_search_header)(shPtr)
+
+			// Make sure we start the next search at least from this entry
+			args.key.min_objectid = sh.objectid
+			args.key.min_type = sh._type
+			args.key.min_offset = sh.offset
+
+			if sh._type != C.BTRFS_QGROUP_RELATION_KEY {
+				continue
+			}
+			if sh.offset < sh.objectid {
+				continue
+			}
+			if sh.objectid != qgroupID {
+				continue
+			}
+
+			qgroupParents = append(qgroupParents, sh.offset)
+		}
+		// Increase search key by one, to read the next item, if we can.
+		if btrfsIoctlSearchArgsInc(&args) {
+			break
+		}
+	}
+
+	btrfsQgroupIDSplit := func(qgroupid C.__u64) C.__u64 {
+		return qgroupid & ((C.__u64(1) << C.BTRFS_QGROUP_LEVEL_SHIFT) - 1)
+	}
+
+	subvolID := btrfsQgroupIDSplit(qgroupID)
+
+	for _, parent := range qgroupParents {
+		//unassign btrfs qgroup from parent
+		var aargs C.struct_btrfs_ioctl_qgroup_assign_args
+		aargs.assign = C.false
+		aargs.src = qgroupID
+		aargs.dst = parent
+		ret, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_ASSIGN,
+			uintptr(unsafe.Pointer(&aargs)))
+		if errno != 0 {
+			return fmt.Errorf("Failed to unassign qgroup %d from parent %d: %v", qgroupID, parent, errno.Error())
+		}
+		// If the return value is > 0, we need to request a rescan
+		if ret > 0 {
+			var rargs C.struct_btrfs_ioctl_quota_rescan_args
+			for {
+				_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_RESCAN,
+					uintptr(unsafe.Pointer(&rargs)))
+				if errno != 0 {
+					if errno == syscall.EINPROGRESS {
+						if err := btrfsIocQuotaRescanWait(dir); err != nil {
+							return err
+						}
+						continue
+					}
+					return fmt.Errorf("Failed to start btrfs quota rescan: %v", errno.Error())
+				}
+				break
+			}
+			if err := btrfsIocQuotaRescanWait(dir); err != nil {
+				return err
+			}
+		}
+
+		ID := btrfsQgroupIDSplit(parent)
+		// The parent qgroupid shares the same id part with us? If so, destroy it too.
+		if ID == subvolID {
+			if err := btrfsQgroupDestroyRecursive(dir, parent); err != nil {
+				return fmt.Errorf("Failed to destroy parent %d of qgroup %d: %v", parent, qgroupID, err)
+			}
+		}
+	}
+
+	// now delete qgroup
+	var qcargs C.struct_btrfs_ioctl_qgroup_create_args
+	qcargs.create = C.false
+	qcargs.qgroupid = qgroupID
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_CREATE, uintptr(unsafe.Pointer(&qcargs)))
 	if errno != 0 {
-		return fmt.Errorf("Failed to destroy btrfs snapshot %s for %s: %v", dirpath, name, errno.Error())
+		return fmt.Errorf("Failed to delete btrfs qgroup %d: %v", qgroupID, errno.Error())
 	}
 	return nil
 }
 
-func (d *Driver) updateQuotaStatus() {
-	d.once.Do(func() {
-		if !d.quotaEnabled {
-			// In case quotaEnabled is not set, check qgroup and update quotaEnabled as needed
-			if err := subvolQgroupStatus(d.home); err != nil {
-				// quota is still not enabled
-				return
-			}
-			d.quotaEnabled = true
+func subvolSetPropRO(path string, isReadOnly bool) error {
+	dir, err := openDir(path)
+	if err != nil {
+		return err
+	}
+	defer closeDir(dir)
+
+	var oldFlags, newFlags C.__u64
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SUBVOL_GETFLAGS,
+		uintptr(unsafe.Pointer(&oldFlags)))
+	if errno != 0 {
+		return fmt.Errorf("Failed to get btrfs subvolume flags for %s: %v", path, errno.Error())
+	}
+
+	if isReadOnly {
+		newFlags = oldFlags | C.BTRFS_SUBVOL_RDONLY
+	} else {
+		newFlags = oldFlags &^ C.BTRFS_SUBVOL_RDONLY
+	}
+
+	if newFlags != oldFlags {
+		_, _, errno = unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SUBVOL_SETFLAGS,
+			uintptr(unsafe.Pointer(&newFlags)))
+		if errno != 0 {
+			return fmt.Errorf("Failed to set btrfs subvolume flags for %s: %v", path, errno.Error())
 		}
-	})
+	}
+	return nil
+}
+
+func btrfsIocQuotaRescanWait(dir *C.DIR) error {
+	ret, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_RESCAN_WAIT, uintptr(0))
+	if ret < 0 {
+		return fmt.Errorf("Failed to wait for btrfs quota rescan: %v", errno.Error())
+	}
+	return nil
 }
 
 func (d *Driver) subvolEnableQuota() error {
-	d.updateQuotaStatus()
-
-	if d.quotaEnabled {
-		return nil
-	}
-
-	dir, err := openDir(d.home)
+	sdir := d.subvolumesDir()
+	dir, err := openDir(sdir)
 	if err != nil {
 		return err
 	}
@@ -365,64 +720,13 @@ func (d *Driver) subvolEnableQuota() error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_CTL,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("Failed to enable btrfs quota for %s: %v", dir, errno.Error())
+		return fmt.Errorf("Failed to enable btrfs quota for %s: %v", sdir, errno.Error())
 	}
-
-	d.quotaEnabled = true
-
-	return nil
+	// If quotas was switched on then initial rescan is triggered so wait for it.
+	return btrfsIocQuotaRescanWait(dir)
 }
 
-func (d *Driver) subvolDisableQuota() error {
-	d.updateQuotaStatus()
-
-	if !d.quotaEnabled {
-		return nil
-	}
-
-	dir, err := openDir(d.home)
-	if err != nil {
-		return err
-	}
-	defer closeDir(dir)
-
-	var args C.struct_btrfs_ioctl_quota_ctl_args
-	args.cmd = C.BTRFS_QUOTA_CTL_DISABLE
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_CTL,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
-		return fmt.Errorf("Failed to disable btrfs quota for %s: %v", dir, errno.Error())
-	}
-
-	d.quotaEnabled = false
-
-	return nil
-}
-
-func (d *Driver) subvolRescanQuota() error {
-	d.updateQuotaStatus()
-
-	if !d.quotaEnabled {
-		return nil
-	}
-
-	dir, err := openDir(d.home)
-	if err != nil {
-		return err
-	}
-	defer closeDir(dir)
-
-	var args C.struct_btrfs_ioctl_quota_rescan_args
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_RESCAN_WAIT,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
-		return fmt.Errorf("Failed to rescan btrfs quota for %s: %v", dir, errno.Error())
-	}
-
-	return nil
-}
-
-func subvolLimitQgroup(path string, size uint64) error {
+func subvolLimitQgroup(path string, size C.__u64) error {
 	dir, err := openDir(path)
 	if err != nil {
 		return err
@@ -430,69 +734,16 @@ func subvolLimitQgroup(path string, size uint64) error {
 	defer closeDir(dir)
 
 	var args C.struct_btrfs_ioctl_qgroup_limit_args
-	args.lim.max_referenced = C.__u64(size)
+	args.lim.max_referenced = size
 	args.lim.flags = C.BTRFS_QGROUP_LIMIT_MAX_RFER
+	args.qgroupid = 0 //To take the subvol as qgroup
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_LIMIT,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("Failed to limit qgroup for %s: %v", dir, errno.Error())
+		return fmt.Errorf("Failed to limit qgroup for %s: %v", path, errno.Error())
 	}
 
 	return nil
-}
-
-// subvolQgroupStatus performs a BTRFS_IOC_TREE_SEARCH on the root path
-// with search key of BTRFS_QGROUP_STATUS_KEY.
-// In case qgroup is enabled, the retuned key type will match BTRFS_QGROUP_STATUS_KEY.
-// For more details please see https://github.com/kdave/btrfs-progs/blob/v4.9/qgroup.c#L1035
-func subvolQgroupStatus(path string) error {
-	dir, err := openDir(path)
-	if err != nil {
-		return err
-	}
-	defer closeDir(dir)
-
-	var args C.struct_btrfs_ioctl_search_args
-	args.key.tree_id = C.BTRFS_QUOTA_TREE_OBJECTID
-	args.key.min_type = C.BTRFS_QGROUP_STATUS_KEY
-	args.key.max_type = C.BTRFS_QGROUP_STATUS_KEY
-	args.key.max_objectid = C.__u64(math.MaxUint64)
-	args.key.max_offset = C.__u64(math.MaxUint64)
-	args.key.max_transid = C.__u64(math.MaxUint64)
-	args.key.nr_items = 4096
-
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_TREE_SEARCH,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
-		return fmt.Errorf("Failed to search qgroup for %s: %v", path, errno.Error())
-	}
-	sh := (*C.struct_btrfs_ioctl_search_header)(unsafe.Pointer(&args.buf))
-	if sh._type != C.BTRFS_QGROUP_STATUS_KEY {
-		return fmt.Errorf("Invalid qgroup search header type for %s: %v", path, sh._type)
-	}
-	return nil
-}
-
-func subvolLookupQgroup(path string) (uint64, error) {
-	dir, err := openDir(path)
-	if err != nil {
-		return 0, err
-	}
-	defer closeDir(dir)
-
-	var args C.struct_btrfs_ioctl_ino_lookup_args
-	args.objectid = C.BTRFS_FIRST_FREE_OBJECTID
-
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_INO_LOOKUP,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
-		return 0, fmt.Errorf("Failed to lookup qgroup for %s: %v", dir, errno.Error())
-	}
-	if args.treeid == 0 {
-		return 0, fmt.Errorf("Invalid qgroup id for %s: 0", dir)
-	}
-
-	return uint64(args.treeid), nil
 }
 
 func (d *Driver) subvolumesDir() string {
@@ -519,8 +770,32 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 
 // Create the filesystem with given id.
 func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
-	quotas := path.Join(d.home, "quotas")
-	subvolumes := path.Join(d.home, "subvolumes")
+	// Let's check StorageOpt first
+	// units.RAMInBytes return only int64 so we can use max value as flag
+	storageSize := ^C.__u64(0)
+	if opts != nil {
+		for key, val := range opts.StorageOpt {
+			key := strings.ToLower(key)
+			switch key {
+			case "size":
+				size, err := units.RAMInBytes(val)
+				if err != nil {
+					return fmt.Errorf("btrfs: Failed to parse storage size %s: %v", val, err)
+				}
+				if size < 0 {
+					return fmt.Errorf("btrfs: storage size can't be negative but got: %d", size)
+				}
+				storageSize = C.__u64(size)
+				if d.options.minSpace > 0 && storageSize < d.options.minSpace {
+					return fmt.Errorf("btrfs: storage size cannot be less than %d byte, but got %d for %s", d.options.minSpace, storageSize, id)
+				}
+			default:
+				return fmt.Errorf("Unknown btrfs storage option %s", key)
+			}
+		}
+	}
+
+	subvolumes := d.subvolumesDir()
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
 		return err
@@ -528,12 +803,9 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 	if err := idtools.MkdirAllAndChown(subvolumes, 0700, idtools.Identity{UID: rootUID, GID: rootGID}); err != nil {
 		return err
 	}
-	if parent == "" {
-		if err := subvolCreate(subvolumes, id); err != nil {
-			return err
-		}
-	} else {
-		parentDir := d.subvolumesDirID(parent)
+	parentDir := ""
+	if parent != "" {
+		parentDir = d.subvolumesDirID(parent)
 		st, err := os.Stat(parentDir)
 		if err != nil {
 			return err
@@ -541,81 +813,44 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 		if !st.IsDir() {
 			return fmt.Errorf("%s: not a directory", parentDir)
 		}
-		if err := subvolSnapshot(parentDir, subvolumes, id); err != nil {
-			return err
-		}
+	}
+	if err := subvolSnapshot(parentDir, subvolumes, id); err != nil {
+		return err
 	}
 
-	var storageOpt map[string]string
-	if opts != nil {
-		storageOpt = opts.StorageOpt
-	}
-
-	if _, ok := storageOpt["size"]; ok {
-		driver := &Driver{}
-		if err := d.parseStorageOpt(storageOpt, driver); err != nil {
-			return err
-		}
-
-		if err := d.setStorageSize(path.Join(subvolumes, id), driver); err != nil {
-			return err
-		}
-		if err := idtools.MkdirAllAndChown(quotas, 0700, idtools.Identity{UID: rootUID, GID: rootGID}); err != nil {
-			return err
-		}
-		if err := ioutil.WriteFile(path.Join(quotas, id), []byte(fmt.Sprint(driver.options.size)), 0644); err != nil {
-			return err
-		}
-	}
+	subvolumeDir := d.subvolumesDirID(id)
 
 	// if we have a remapped root (user namespaces enabled), change the created snapshot
 	// dir ownership to match
 	if rootUID != 0 || rootGID != 0 {
-		if err := os.Chown(path.Join(subvolumes, id), rootUID, rootGID); err != nil {
+		if err := os.Chown(subvolumeDir, rootUID, rootGID); err != nil {
 			return err
 		}
 	}
 
-	mountLabel := ""
 	if opts != nil {
-		mountLabel = opts.MountLabel
-	}
-
-	return label.Relabel(path.Join(subvolumes, id), mountLabel, false)
-}
-
-// Parse btrfs storage options
-func (d *Driver) parseStorageOpt(storageOpt map[string]string, driver *Driver) error {
-	// Read size to change the subvolume disk quota per container
-	for key, val := range storageOpt {
-		key := strings.ToLower(key)
-		switch key {
-		case "size":
-			size, err := units.RAMInBytes(val)
-			if err != nil {
+		if storageSize != ^C.__u64(0) {
+			if err := idtools.MkdirAllAndChown(d.quotasDir(), 0700, idtools.Identity{UID: rootUID, GID: rootGID}); err != nil {
 				return err
 			}
-			driver.options.size = uint64(size)
-		default:
-			return fmt.Errorf("Unknown option %s", key)
+			subvolQuota := d.quotasDirID(id)
+			if err := ioutil.WriteFile(subvolQuota, []byte(fmt.Sprint(storageSize)), 0644); err != nil {
+				return err
+			}
+			if rootUID != 0 || rootGID != 0 {
+				if err := os.Chown(subvolQuota, rootUID, rootGID); err != nil {
+					return err
+				}
+			}
+		}
+
+		if err := label.Relabel(subvolumeDir, opts.MountLabel, false); err != nil {
+			return err
 		}
 	}
 
-	return nil
-}
-
-// Set btrfs storage size
-func (d *Driver) setStorageSize(dir string, driver *Driver) error {
-	if driver.options.size == 0 {
-		return fmt.Errorf("btrfs: invalid storage size: %s", units.HumanSize(float64(driver.options.size)))
-	}
-	if d.options.minSpace > 0 && driver.options.size < d.options.minSpace {
-		return fmt.Errorf("btrfs: storage size cannot be less than %s", units.HumanSize(float64(d.options.minSpace)))
-	}
-	if err := d.subvolEnableQuota(); err != nil {
-		return err
-	}
-	return subvolLimitQgroup(dir, driver.options.size)
+	// For now we made all init changes and can turn subvolume into readonly mode
+	return subvolSetPropRO(subvolumeDir, true)
 }
 
 // Remove the filesystem with given id.
@@ -633,16 +868,10 @@ func (d *Driver) Remove(id string) error {
 		return err
 	}
 
-	// Call updateQuotaStatus() to invoke status update
-	d.updateQuotaStatus()
-
-	if err := subvolDelete(d.subvolumesDir(), id, d.quotaEnabled); err != nil {
+	if err := subvolDelete(d.subvolumesDir(), id, 0); err != nil {
 		return err
 	}
-	if err := system.EnsureRemoveAll(dir); err != nil {
-		return err
-	}
-	return d.subvolRescanQuota()
+	return system.EnsureRemoveAll(dir)
 }
 
 // Get the requested filesystem id.
@@ -657,25 +886,43 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 		return nil, fmt.Errorf("%s: not a directory", dir)
 	}
 
+	// Makes subvolume writable
+	if err := subvolSetPropRO(dir, false); err != nil {
+		return nil, err
+	}
+
 	if quota, err := ioutil.ReadFile(d.quotasDirID(id)); err == nil {
-		if size, err := strconv.ParseUint(string(quota), 10, 64); err == nil && size >= d.options.minSpace {
-			if err := d.subvolEnableQuota(); err != nil {
-				return nil, err
-			}
-			if err := subvolLimitQgroup(dir, size); err != nil {
-				return nil, err
-			}
+		size, err := strconv.ParseUint(string(quota), 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse quota size \"%s\" for %s: %v", string(quota), dir, err)
+		}
+		qsize := C.__u64(size)
+		if d.options.minSpace > 0 && qsize < d.options.minSpace {
+			return nil, fmt.Errorf("btrfs: storage size cannot be less than %d byte, but got %d for %s", d.options.minSpace, qsize, dir)
+		}
+		// Apply quota from here
+		if err := d.subvolEnableQuota(); err != nil {
+			return nil, err
+		}
+		if err := subvolLimitQgroup(dir, qsize); err != nil {
+			return nil, err
+		}
+	}
+
+	if mountLabel != "" {
+		if err := label.SetFileLabel(dir, mountLabel); err != nil {
+			return nil, err
 		}
 	}
 
 	return containerfs.NewLocalContainerFS(dir), nil
 }
 
-// Put is not implemented for BTRFS as there is no cleanup required for the id.
+// Put returns a subvolume to read-only state.
 func (d *Driver) Put(id string) error {
-	// Get() creates no runtime resources (like e.g. mounts)
-	// so this doesn't need to do anything.
-	return nil
+	// Get() creates no runtime resources (like e.g. mounts),
+	// it only makes a subvolume read-write; revert it here.
+	return subvolSetPropRO(d.subvolumesDirID(id), true)
 }
 
 // Exists checks if the id exists in the filesystem.
