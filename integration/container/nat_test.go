@@ -70,7 +70,11 @@ func TestNetworkLoopbackNat(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(ctx, t, client, container.WithCmd("sh", "-c", fmt.Sprintf("stty raw && nc -w 1 %s 8080", endpoint.String())), container.WithTty(true), container.WithNetworkMode("container:"+serverContainerID))
+	cID := container.Run(ctx, t, client,
+		container.WithCmd("sh", "-c", fmt.Sprintf("stty raw && nc -w 1 %s 8080", endpoint.String())),
+		container.WithTty(true),
+		container.WithNetworkMode("container:"+serverContainerID),
+	)
 
 	poll.WaitOn(t, container.IsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
 
@@ -92,15 +96,19 @@ func startServerContainer(t *testing.T, msg string, port int) string {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(ctx, t, client, container.WithName("server-"+t.Name()), container.WithCmd("sh", "-c", fmt.Sprintf("echo %q | nc -lp %d", msg, port)), container.WithExposedPorts(fmt.Sprintf("%d/tcp", port)), func(c *container.TestContainerConfig) {
-		c.HostConfig.PortBindings = nat.PortMap{
-			nat.Port(fmt.Sprintf("%d/tcp", port)): []nat.PortBinding{
-				{
-					HostPort: fmt.Sprintf("%d", port),
+	cID := container.Run(ctx, t, client,
+		container.WithName("server-"+t.Name()),
+		container.WithCmd("sh", "-c", fmt.Sprintf("echo %q | nc -lp %d", msg, port)),
+		container.WithExposedPorts(fmt.Sprintf("%d/tcp", port)),
+		func(c *container.TestContainerConfig) {
+			c.HostConfig.PortBindings = nat.PortMap{
+				nat.Port(fmt.Sprintf("%d/tcp", port)): []nat.PortBinding{
+					{
+						HostPort: fmt.Sprintf("%d", port),
+					},
 				},
-			},
-		}
-	})
+			}
+		})
 
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
