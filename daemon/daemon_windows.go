@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/containerfs"
+	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/platform"
@@ -475,12 +476,19 @@ func setupRemappedRoot(config *config.Config) (*idtools.IdentityMapping, error) 
 	return &idtools.IdentityMapping{}, nil
 }
 
-func setupDaemonRoot(config *config.Config, rootDir string, rootIdentity idtools.Identity) error {
-	config.Root = rootDir
+func setupDaemonRoot(config *config.Config, rootIdentity idtools.Identity) error {
 	// Create the root directory if it doesn't exists
 	if err := system.MkdirAllWithACL(config.Root, 0, system.SddlAdministratorsLocalSystem); err != nil {
 		return err
 	}
+
+	// get the canonical path to the Docker root directory
+	realRoot, err := fileutils.ReadSymlinkedDirectory(config.Root)
+	if err != nil {
+		return fmt.Errorf("Unable to get the full path to root (%s): %s", config.Root, err)
+	}
+	config.Root = realRoot
+
 	return nil
 }
 
