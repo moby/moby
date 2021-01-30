@@ -736,7 +736,12 @@ func (bs *blobs) Create(ctx context.Context, options ...distribution.BlobCreateO
 		return nil, err
 	}
 
-	resp, err := bs.client.Post(u, "", nil)
+	req, err := http.NewRequest("POST", u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := bs.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
