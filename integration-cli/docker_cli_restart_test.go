@@ -69,14 +69,13 @@ func (s *DockerCLIRestartSuite) TestRestartRunningContainer(c *testing.T) {
 
 // Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
 func (s *DockerCLIRestartSuite) TestRestartWithVolumes(c *testing.T) {
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	cID := runSleepingContainer(c, "-d", "-v", prefix+slash+"test")
+	cID := runSleepingContainer(c, "-d", "-v", dPath("/test"))
 	out, err := inspectFilter(cID, "len .Mounts")
 	assert.NilError(c, err, "failed to inspect %s: %s", cID, out)
 	out = strings.Trim(out, " \n\r")
 	assert.Equal(c, out, "1")
 
-	mnt, err := inspectMountPoint(cID, prefix+slash+"test")
+	mnt, err := inspectMountPoint(cID, dPath("/test"))
 	assert.NilError(c, err)
 
 	cli.DockerCmd(c, "restart", cID)
@@ -86,7 +85,7 @@ func (s *DockerCLIRestartSuite) TestRestartWithVolumes(c *testing.T) {
 	out = strings.Trim(out, " \n\r")
 	assert.Equal(c, out, "1")
 
-	mountAfterRestart, err := inspectMountPoint(cID, prefix+slash+"test")
+	mountAfterRestart, err := inspectMountPoint(cID, dPath("/test"))
 	assert.NilError(c, err)
 	assert.Equal(c, mnt.Source, mountAfterRestart.Source)
 }

@@ -503,24 +503,23 @@ func (s *DockerCLIRunSuite) TestRunVolumesFromInReadWriteMode(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestVolumesFromGetsProperMode(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	hostpath := RandomTmpDirPath("test", testEnv.DaemonInfo.OSType)
 	if err := os.MkdirAll(hostpath, 0o755); err != nil {
 		c.Fatalf("Failed to create %s: %q", hostpath, err)
 	}
 	defer os.RemoveAll(hostpath)
 
-	cli.DockerCmd(c, "run", "--name", "parent", "-v", hostpath+":"+prefix+slash+"test:ro", "busybox", "true")
+	cli.DockerCmd(c, "run", "--name", "parent", "-v", hostpath+":"+dPath("/test")+":ro", "busybox", "true")
 
 	// Expect this "rw" mode to be ignored since the inherited volume is "ro"
-	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent:rw", "busybox", "touch", prefix+slash+"test"+slash+"file"); err == nil {
+	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent:rw", "busybox", "touch", dPath("/test/file")); err == nil {
 		c.Fatal("Expected volumes-from to inherit read-only volume even when passing in `rw`")
 	}
 
-	cli.DockerCmd(c, "run", "--name", "parent2", "-v", hostpath+":"+prefix+slash+"test:ro", "busybox", "true")
+	cli.DockerCmd(c, "run", "--name", "parent2", "-v", hostpath+":"+dPath("/test")+":ro", "busybox", "true")
 
 	// Expect this to be read-only since both are "ro"
-	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent2:ro", "busybox", "touch", prefix+slash+"test"+slash+"file"); err == nil {
+	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent2:ro", "busybox", "touch", dPath("/test/file")); err == nil {
 		c.Fatal("Expected volumes-from to inherit read-only volume even when passing in `ro`")
 	}
 }
@@ -1811,8 +1810,6 @@ func (s *DockerCLIRunSuite) TestRunBindMounts(c *testing.T) {
 		testRequires(c, DaemonIsLinux, NotUserNamespace)
 	}
 
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-
 	tmpDir, err := os.MkdirTemp("", "docker-test-container")
 	if err != nil {
 		c.Fatal(err)
@@ -1822,7 +1819,7 @@ func (s *DockerCLIRunSuite) TestRunBindMounts(c *testing.T) {
 	writeFile(path.Join(tmpDir, "touch-me"), "", c)
 
 	// Test reading from a read-only bind mount
-	out := cli.DockerCmd(c, "run", "-v", fmt.Sprintf("%s:%s/tmpx:ro", tmpDir, prefix), "busybox", "ls", prefix+"/tmpx").Combined()
+	out := cli.DockerCmd(c, "run", "-v", fmt.Sprintf("%s:%s:ro", tmpDir, dPath("/tmpx")), "busybox", "ls", dPath("/tmpx")).Combined()
 	if !strings.Contains(out, "touch-me") {
 		c.Fatal("Container failed to read from bind mount")
 	}
@@ -1989,7 +1986,6 @@ func (s *DockerCLIRunSuite) TestRunAllocatePortInReservedRange(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunMountOrdering(c *testing.T) {
 	// TODO Windows: Post RS1. Windows does not support nested mounts.
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, NotUserNamespace)
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
 	tmpDir, err := os.MkdirTemp("", "docker_nested_mount_test")
 	if err != nil {
@@ -2022,19 +2018,19 @@ func (s *DockerCLIRunSuite) TestRunMountOrdering(c *testing.T) {
 	}
 
 	cli.DockerCmd(c, "run",
-		"-v", fmt.Sprintf("%s:"+prefix+"/tmp", tmpDir),
-		"-v", fmt.Sprintf("%s:"+prefix+"/tmp/foo", fooDir),
-		"-v", fmt.Sprintf("%s:"+prefix+"/tmp/tmp2", tmpDir2),
-		"-v", fmt.Sprintf("%s:"+prefix+"/tmp/tmp2/foo", fooDir),
+		"-v", fmt.Sprintf("%s:"+dPath("/tmp"), tmpDir),
+		"-v", fmt.Sprintf("%s:"+dPath("/tmp/foo"), fooDir),
+		"-v", fmt.Sprintf("%s:"+dPath("/tmp/tmp2"), tmpDir2),
+		"-v", fmt.Sprintf("%s:"+dPath("/tmp/tmp2/foo"), fooDir),
 		"busybox:latest", "sh", "-c",
-		"ls "+prefix+"/tmp/touch-me && ls "+prefix+"/tmp/foo/touch-me && ls "+prefix+"/tmp/tmp2/touch-me && ls "+prefix+"/tmp/tmp2/foo/touch-me")
+		"ls "+dPath("/tmp/touch-me")+" "+dPath("/tmp/foo/touch-me")+" "+dPath("/tmp/tmp2/touch-me")+" "+dPath("/tmp/tmp2/foo/touch-me"),
+	)
 }
 
 // Regression test for https://github.com/moby/moby/issues/8259
 func (s *DockerCLIRunSuite) TestRunReuseBindVolumeThatIsSymlink(c *testing.T) {
 	// Not applicable on Windows as Windows does not support volumes
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, NotUserNamespace)
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
 	tmpDir, err := os.MkdirTemp(os.TempDir(), "testlink")
 	if err != nil {
@@ -2049,11 +2045,11 @@ func (s *DockerCLIRunSuite) TestRunReuseBindVolumeThatIsSymlink(c *testing.T) {
 	defer os.RemoveAll(linkPath)
 
 	// Create first container
-	cli.DockerCmd(c, "run", "-v", fmt.Sprintf("%s:"+prefix+"/tmp/test", linkPath), "busybox", "ls", prefix+"/tmp/test")
+	cli.DockerCmd(c, "run", "-v", fmt.Sprintf("%s:"+dPath("/tmp/test"), linkPath), "busybox", "ls", dPath("/tmp/test"))
 
 	// Create second container with same symlinked path
 	// This will fail if the referenced issue is hit with a "Volume exists" error
-	cli.DockerCmd(c, "run", "-v", fmt.Sprintf("%s:"+prefix+"/tmp/test", linkPath), "busybox", "ls", prefix+"/tmp/test")
+	cli.DockerCmd(c, "run", "-v", fmt.Sprintf("%s:"+dPath("/tmp/test"), linkPath), "busybox", "ls", dPath("/tmp/test"))
 }
 
 // GH#10604: Test an "/etc" volume doesn't overlay special bind mounts in container
@@ -2082,11 +2078,10 @@ func (s *DockerCLIRunSuite) TestVolumesNoCopyData(c *testing.T) {
 	// TODO Windows (Post RS1). Windows does not support volumes which
 	// are pre-populated such as is built in the dockerfile used in this test.
 	testRequires(c, DaemonIsLinux)
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	cli.BuildCmd(c, "dataimage", build.WithDockerfile(`FROM busybox
 		RUN ["mkdir", "-p", "/foo"]
 		RUN ["touch", "/foo/bar"]`))
-	cli.DockerCmd(c, "run", "--name", "test", "-v", prefix+slash+"foo", "busybox")
+	cli.DockerCmd(c, "run", "--name", "test", "-v", dPath("/foo"), "busybox")
 
 	if out, _, err := dockerCmdWithError("run", "--volumes-from", "test", "dataimage", "ls", "-lh", "/foo/bar"); err == nil || !strings.Contains(out, "No such file or directory") {
 		c.Fatalf("Data was copied on volumes-from but shouldn't be:\n%q", out)
@@ -2113,31 +2108,37 @@ func (s *DockerCLIRunSuite) TestRunNoOutputFromPullInStdout(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunVolumesCleanPaths(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+
+	// use forward slashes in Dockerfile
+	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	cli.BuildCmd(c, "run_volumes_clean_paths", build.WithDockerfile(`FROM busybox
 		VOLUME `+prefix+`/foo/`))
-	cli.DockerCmd(c, "run", "-v", prefix+"/foo", "-v", prefix+"/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
+	cli.DockerCmd(c, "run", "-v", dPath("/foo"), "-v", dPath("/bar/"), "--name", "dark_helmet", "run_volumes_clean_paths")
 
-	mnt, err := inspectMountPoint("dark_helmet", prefix+slash+"foo"+slash)
+	p := dPath("/foo/")
+	mnt, err := inspectMountPoint("dark_helmet", p)
 	if !errors.Is(err, errMountNotFound) {
-		c.Fatalf("Found unexpected volume entry for '%s/foo/' in volumes\n%q", prefix, mnt.Source)
+		c.Fatalf("Found unexpected volume entry for '%s' in volumes\n%q", p, mnt.Source)
 	}
 
-	mnt, err = inspectMountPoint("dark_helmet", prefix+slash+`foo`)
+	p = dPath("/foo")
+	mnt, err = inspectMountPoint("dark_helmet", p)
 	assert.NilError(c, err)
 	if !strings.Contains(strings.ToLower(mnt.Source), strings.ToLower(testEnv.PlatformDefaults.VolumesConfigPath)) {
-		c.Fatalf("Volume was not defined for %s/foo\n%q", prefix, mnt.Source)
+		c.Fatalf("Volume was not defined for %s\n%q", p, mnt.Source)
 	}
 
-	mnt, err = inspectMountPoint("dark_helmet", prefix+slash+"bar"+slash)
+	p = dPath("/bar/")
+	mnt, err = inspectMountPoint("dark_helmet", p)
 	if !errors.Is(err, errMountNotFound) {
-		c.Fatalf("Found unexpected volume entry for '%s/bar/' in volumes\n%q", prefix, mnt.Source)
+		c.Fatalf("Found unexpected volume entry for '%s' in volumes\n%q", p, mnt.Source)
 	}
 
-	mnt, err = inspectMountPoint("dark_helmet", prefix+slash+"bar")
+	p = dPath("/bar")
+	mnt, err = inspectMountPoint("dark_helmet", p)
 	assert.NilError(c, err)
 	if !strings.Contains(strings.ToLower(mnt.Source), strings.ToLower(testEnv.PlatformDefaults.VolumesConfigPath)) {
-		c.Fatalf("Volume was not defined for %s/bar\n%q", prefix, mnt.Source)
+		c.Fatalf("Volume was not defined for %s\n%q", p, mnt.Source)
 	}
 }
 
@@ -2655,8 +2656,7 @@ func (s *DockerCLIRunSuite) TestRunContainerWithReadonlyRootfsWithAddHostFlag(c 
 }
 
 func (s *DockerCLIRunSuite) TestRunVolumesFromRestartAfterRemoved(c *testing.T) {
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-	runSleepingContainer(c, "--name=voltest", "-v", prefix+"/foo")
+	runSleepingContainer(c, "--name=voltest", "-v", dPath("/foo"))
 	runSleepingContainer(c, "--name=restarter", "--volumes-from", "voltest")
 
 	// Remove the main volume container and restart the consuming container
@@ -2906,22 +2906,20 @@ func (s *DockerCLIRunSuite) TestRunCapAddCHOWN(c *testing.T) {
 
 // https://github.com/moby/moby/pull/14498
 func (s *DockerCLIRunSuite) TestVolumeFromMixedRWOptions(c *testing.T) {
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-
-	cli.DockerCmd(c, "run", "--name", "parent", "-v", prefix+"/test", "busybox", "true")
+	cli.DockerCmd(c, "run", "--name", "parent", "-v", dPath("/test"), "busybox", "true")
 
 	cli.DockerCmd(c, "run", "--volumes-from", "parent:ro", "--name", "test-volumes-1", "busybox", "true")
 	cli.DockerCmd(c, "run", "--volumes-from", "parent:rw", "--name", "test-volumes-2", "busybox", "true")
 
 	if testEnv.DaemonInfo.OSType != "windows" {
-		mRO, err := inspectMountPoint("test-volumes-1", prefix+slash+"test")
+		mRO, err := inspectMountPoint("test-volumes-1", dPath("/test"))
 		assert.NilError(c, err, "failed to inspect mount point")
 		if mRO.RW {
 			c.Fatalf("Expected RO volume was RW")
 		}
 	}
 
-	mRW, err := inspectMountPoint("test-volumes-2", prefix+slash+"test")
+	mRW, err := inspectMountPoint("test-volumes-2", dPath("/test"))
 	assert.NilError(c, err, "failed to inspect mount point")
 	if !mRW.RW {
 		c.Fatalf("Expected RW volume was RO")
@@ -3104,14 +3102,13 @@ func (s *DockerCLIRunSuite) TestRunCreateContainerFailedCleanUp(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestRunNamedVolume(c *testing.T) {
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	testRequires(c, DaemonIsLinux)
-	cli.DockerCmd(c, "run", "--name=test", "-v", "testing:"+prefix+"/foo", "busybox", "sh", "-c", "echo hello > "+prefix+"/foo/bar")
+	cli.DockerCmd(c, "run", "--name=test", "-v", "testing:"+dPath("/foo"), "busybox", "sh", "-c", "echo hello > "+dPath("/foo/bar"))
 
-	out := cli.DockerCmd(c, "run", "--volumes-from", "test", "busybox", "sh", "-c", "cat "+prefix+"/foo/bar").Combined()
+	out := cli.DockerCmd(c, "run", "--volumes-from", "test", "busybox", "sh", "-c", "cat "+dPath("/foo/bar")).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "hello")
 
-	out = cli.DockerCmd(c, "run", "-v", "testing:"+prefix+"/foo", "busybox", "sh", "-c", "cat "+prefix+"/foo/bar").Combined()
+	out = cli.DockerCmd(c, "run", "-v", "testing:"+dPath("/foo"), "busybox", "sh", "-c", "cat "+dPath("/foo/bar")).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "hello")
 }
 
@@ -3679,16 +3676,14 @@ func (s *DockerCLIRunSuite) TestRunNamedVolumeCopyImageData(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestRunNamedVolumeNotRemoved(c *testing.T) {
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-
 	cli.DockerCmd(c, "volume", "create", "test")
 
-	cli.DockerCmd(c, "run", "--rm", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
+	cli.DockerCmd(c, "run", "--rm", "-v", "test:"+dPath("/foo"), "-v", dPath("/bar"), "busybox", "true")
 	cli.DockerCmd(c, "volume", "inspect", "test")
 	out := cli.DockerCmd(c, "volume", "ls", "-q").Combined()
 	assert.Assert(c, is.Contains(out, "test"))
 
-	cli.DockerCmd(c, "run", "--name=test", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
+	cli.DockerCmd(c, "run", "--name=test", "-v", "test:"+dPath("/foo"), "-v", dPath("/bar"), "busybox", "true")
 	cli.DockerCmd(c, "rm", "-fv", "test")
 	cli.DockerCmd(c, "volume", "inspect", "test")
 	out = cli.DockerCmd(c, "volume", "ls", "-q").Combined()
@@ -3696,10 +3691,8 @@ func (s *DockerCLIRunSuite) TestRunNamedVolumeNotRemoved(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestRunNamedVolumesFromNotRemoved(c *testing.T) {
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-
 	cli.DockerCmd(c, "volume", "create", "test")
-	cid := cli.DockerCmd(c, "run", "-d", "--name=parent", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true").Stdout()
+	cid := cli.DockerCmd(c, "run", "-d", "--name=parent", "-v", "test:"+dPath("/foo"), "-v", dPath("/bar"), "busybox", "true").Stdout()
 	cli.DockerCmd(c, "run", "--name=child", "--volumes-from=parent", "busybox", "true")
 
 	apiClient, err := client.New(client.FromEnv)
