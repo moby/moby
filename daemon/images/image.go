@@ -1,15 +1,24 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 
+	"github.com/containerd/containerd/content"
+	c8derrdefs "github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/platforms"
-	"github.com/pkg/errors"
-
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // ErrImageDoesNotExist is error returned when no image can be found for a reference.
@@ -28,6 +37,115 @@ func (e ErrImageDoesNotExist) Error() string {
 // NotFound implements the NotFound interface
 func (e ErrImageDoesNotExist) NotFound() {}
 
+type manifestList struct {
+	Manifests []specs.Descriptor `json:"manifests"`
+}
+
+type manifest struct {
+	Config specs.Descriptor `json:"config"`
+}
+
+func (i *ImageService) manifestMatchesPlatform(img *image.Image, platform specs.Platform) bool {
+	ctx := context.TODO()
+	logger := logrus.WithField("image", img.ID).WithField("desiredPlatform", platforms.Format(platform))
+
+	ls, leaseErr := i.leases.ListResources(context.TODO(), leases.Lease{ID: imageKey(img.ID().Digest())})
+	if leaseErr != nil {
+		logger.WithError(leaseErr).Error("Error looking up image leases")
+		return false
+	}
+
+	comparer := platforms.Only(platform)
+
+	var (
+		ml manifestList
+		m  manifest
+	)
+
+	makeRdr := func(ra content.ReaderAt) io.Reader {
+		return io.LimitReader(io.NewSectionReader(ra, 0, ra.Size()), 1e6)
+	}
+
+	for _, r := range ls {
+		logger := logger.WithField("resourceID", r.ID).WithField("resourceType", r.Type)
+		logger.Debug("Checking lease resource for platform match")
+		if r.Type != "content" {
+			continue
+		}
+
+		ra, err := i.content.ReaderAt(ctx, specs.Descriptor{Digest: digest.Digest(r.ID)})
+		if err != nil {
+			if c8derrdefs.IsNotFound(err) {
+				continue
+			}
+			logger.WithError(err).Error("Error looking up referenced manifest list for image")
+			continue
+		}
+
+		data, err := ioutil.ReadAll(makeRdr(ra))
+		ra.Close()
+
+		if err != nil {
+			logger.WithError(err).Error("Error reading manifest list for image")
+			continue
+		}
+
+		ml.Manifests = nil
+
+		if err := json.Unmarshal(data, &ml); err != nil {
+			logger.WithError(err).Error("Error unmarshalling content")
+			continue
+		}
+
+		for _, md := range ml.Manifests {
+			switch md.MediaType {
+			case specs.MediaTypeImageManifest, images.MediaTypeDockerSchema2Manifest:
+			default:
+				continue
+			}
+
+			p := specs.Platform{
+				Architecture: md.Platform.Architecture,
+				OS:           md.Platform.OS,
+				Variant:      md.Platform.Variant,
+			}
+			if !comparer.Match(p) {
+				logger.WithField("otherPlatform", platforms.Format(p)).Debug("Manifest is not a match")
+				continue
+			}
+
+			// Here we have a platform match for the referenced manifest, let's make sure the manifest is actually for the image config we are using.
+
+			ra, err := i.content.ReaderAt(ctx, specs.Descriptor{Digest: md.Digest})
+			if err != nil {
+				logger.WithField("otherDigest", md.Digest).WithError(err).Error("Could not get reader for manifest")
+				continue
+			}
+
+			data, err := ioutil.ReadAll(makeRdr(ra))
+			ra.Close()
+			if err != nil {
+				logger.WithError(err).Error("Error reading manifest for image")
+				continue
+			}
+
+			if err := json.Unmarshal(data, &m); err != nil {
+				logger.WithError(err).Error("Error desserializing manifest")
+				continue
+			}
+
+			if m.Config.Digest == img.ID().Digest() {
+				logger.WithField("manifestDigest", md.Digest).Debug("Found matching manifest for image")
+				return true
+			}
+
+			logger.WithField("otherDigest", md.Digest).Debug("Skipping non-matching manifest")
+		}
+	}
+
+	return false
+}
+
 // GetImage returns an image corresponding to the image referred to by refOrID.
 func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retImg *image.Image, retErr error) {
 	defer func() {
@@ -44,6 +162,19 @@ func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retIm
 		// Note that `platforms.Only` will fuzzy match this for us
 		// For example: an armv6 image will run just fine an an armv7 CPU, without emulation or anything.
 		if !platforms.Only(p).Match(imgPlat) {
+			// Sometimes image variant is not populated due to legacy builders
+			// We still should support falling back here.
+			if imgPlat.OS == platform.OS && imgPlat.Architecture == platform.Architecture && imgPlat.Variant == "" {
+				logrus.WithField("image", refOrID).WithField("platform", platforms.Format(p)).Debug("Image platform cpu variant is not populated, but otherwise it matches what was requested")
+				return
+			}
+
+			// In some cases the image config can actually be wrong (e.g. classic `docker build` may not handle `--platform` correctly)
+			// So we'll look up the manifest list that coresponds to this imaage to check if at least the manifest list says it is the correct image.
+			if i.manifestMatchesPlatform(retImg, p) {
+				return
+			}
+
 			// This allows us to tell clients that we don't have the image they asked for
 			// Where this gets hairy is the image store does not currently support multi-arch images, e.g.:
 			//   An image `foo` may have a multi-arch manifest, but the image store only fetches the image for a specific platform
