@@ -194,12 +194,10 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	}
 	ctr.RWLayer = rwLayer
 
-	rootIDs := daemon.idMapping.RootPair()
-
-	if err := idtools.MkdirAndChown(ctr.Root, 0700, rootIDs); err != nil {
+	if err := idtools.MkdirAndChown(ctr.Root, 0701, idtools.CurrentIdentity()); err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAndChown(ctr.CheckpointDir(), 0700, rootIDs); err != nil {
+	if err := idtools.MkdirAndChown(ctr.CheckpointDir(), 0700, idtools.CurrentIdentity()); err != nil {
 		return nil, err
 	}
 

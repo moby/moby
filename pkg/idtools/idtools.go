@@ -35,13 +35,13 @@ const (
 
 // MkdirAllAndChown creates a directory (include any along the path) and then modifies
 // ownership to the requested uid/gid.  If the directory already exists, this
-// function will still change ownership to the requested uid/gid pair.
+// function will still change ownership and permissions.
 func MkdirAllAndChown(path string, mode os.FileMode, owner Identity) error {
 	return mkdirAs(path, mode, owner, true, true)
 }
 
 // MkdirAndChown creates a directory and then modifies ownership to the requested uid/gid.
-// If the directory already exists, this function still changes ownership.
+// If the directory already exists, this function still changes ownership and permissions.
 // Note that unlike os.Mkdir(), this function does not return IsExist error
 // in case path already exists.
 func MkdirAndChown(path string, mode os.FileMode, owner Identity) error {
@@ -50,7 +50,7 @@ func MkdirAndChown(path string, mode os.FileMode, owner Identity) error {
 
 // MkdirAllAndChownNew creates a directory (include any along the path) and then modifies
 // ownership ONLY of newly created directories to the requested uid/gid. If the
-// directories along the path exist, no change of ownership will be performed
+// directories along the path exist, no change of ownership or permissions will be performed
 func MkdirAllAndChownNew(path string, mode os.FileMode, owner Identity) error {
 	return mkdirAs(path, mode, owner, true, false)
 }
@@ -233,4 +233,9 @@ func parseSubidFile(path, username string) (ranges, error) {
 	}
 
 	return rangeList, s.Err()
+}
+
+// CurrentIdentity returns the identity of the current process
+func CurrentIdentity() Identity {
+	return Identity{UID: os.Getuid(), GID: os.Getegid()}
 }
