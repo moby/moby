@@ -87,6 +87,10 @@ type OCIConfig struct {
 	// Decoding this is delayed in order to remove the dependency from this
 	// config pkg to stargz snapshotter's config pkg.
 	StargzSnapshotterConfig toml.Primitive `toml:"stargzSnapshotter"`
+
+	// ApparmorProfile is the name of the apparmor profile that should be used to constrain build containers.
+	// The profile should already be loaded (by a higher level system) before creating a worker.
+	ApparmorProfile string `toml:"apparmor-profile"`
 }
 
 type ContainerdConfig struct {
@@ -98,6 +102,10 @@ type ContainerdConfig struct {
 	GCConfig
 	NetworkConfig
 	Snapshotter string `toml:"snapshotter"`
+
+	// ApparmorProfile is the name of the apparmor profile that should be used to constrain build containers.
+	// The profile should already be loaded (by a higher level system) before creating a worker.
+	ApparmorProfile string `toml:"apparmor-profile"`
 }
 
 type GCPolicy struct {

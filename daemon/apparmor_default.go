@@ -15,6 +15,14 @@ const (
 	defaultAppArmorProfile    = "docker-default"
 )
 
+// DefaultApparmorProfile returns the name of the default apparmor profile
+func DefaultApparmorProfile() string {
+	if apparmor.IsEnabled() {
+		return defaultAppArmorProfile
+	}
+	return ""
+}
+
 func ensureDefaultAppArmorProfile() error {
 	if apparmor.IsEnabled() {
 		loaded, err := aaprofile.IsLoaded(defaultAppArmorProfile)

@@ -297,6 +297,7 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		Rootless:            d.Rootless(),
 		IdentityMapping:     d.IdentityMapping(),
 		DNSConfig:           config.DNSConfig,
+		ApparmorProfile:     daemon.DefaultApparmorProfile(),
 	})
 	if err != nil {
 		return opts, err

@@ -16,6 +16,7 @@ import (
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/util/network"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 )
 
@@ -35,7 +36,7 @@ const (
 
 // GenerateSpec generates spec using containerd functionality.
 // opts are ignored for s.Process, s.Hostname, and s.Mounts .
-func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, processMode ProcessMode, idmap *idtools.IdentityMapping, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
+func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, processMode ProcessMode, idmap *idtools.IdentityMapping, apparmorProfile string, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
 	c := &containers.Container{
 		ID: id,
 	}
@@ -52,7 +53,7 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 		return nil, nil, err
 	}
 
-	if securityOpts, err := generateSecurityOpts(meta.SecurityMode); err == nil {
+	if securityOpts, err := generateSecurityOpts(meta.SecurityMode, apparmorProfile); err == nil {
 		opts = append(opts, securityOpts...)
 	} else {
 		return nil, nil, err
@@ -102,6 +103,9 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 		sm.cleanup()
 		for _, f := range releasers {
 			f()
+		}
+		if s.Process.SelinuxLabel != "" {
+			selinux.ReleaseLabel(s.Process.SelinuxLabel)
 		}
 	}
 
