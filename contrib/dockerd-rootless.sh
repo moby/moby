@@ -18,6 +18,12 @@
 # See the documentation for the further information: https://docs.docker.com/engine/security/rootless/
 
 set -e -x
+case "$1" in
+	"check" | "install" | "uninstall")
+		echo "Did you mean 'dockerd-rootless-setuptool.sh $@' ?"
+		exit 1
+		;;
+esac
 if ! [ -w $XDG_RUNTIME_DIR ]; then
 	echo "XDG_RUNTIME_DIR needs to be set and writable"
 	exit 1
