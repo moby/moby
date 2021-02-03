@@ -19,6 +19,9 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 	}
 
 	rt := daemon.configStore.GetRuntime(container.HostConfig.Runtime)
+	if rt == nil {
+		rt = daemon.configStore.GetRuntime(daemon.configStore.GetDefaultRuntimeName())
+	}
 	if rt.Shim == nil {
 		p, err := daemon.rewriteRuntimePath(container.HostConfig.Runtime, rt.Path, rt.Args)
 		if err != nil {
