@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -1081,7 +1082,9 @@ func (n *network) delete(force bool, rmLBEndpoint bool) error {
 	// Cleanup the load balancer. On Windows this call is required
 	// to remove remote loadbalancers in VFP, and must be performed before
 	// dataplane network deletion.
-	c.cleanupServiceBindings(n.ID())
+	if runtime.GOOS == "windows" {
+		c.cleanupServiceBindings(n.ID())
+	}
 
 	// Delete the network from the dataplane
 	if err = n.deleteNetwork(); err != nil {
