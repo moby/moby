@@ -33,19 +33,25 @@ func TestDaemonRestartWithLiveRestore(t *testing.T) {
 	d := daemon.New(t)
 	defer d.Stop(t)
 	d.Start(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	// Verify bridge network's subnet
+	out, err := c.NetworkInspect(context.Background(), "bridge", types.NetworkInspectOptions{})
+	assert.NilError(t, err)
+	subnet := out.IPAM.Config[0].Subnet
+
 	d.Restart(t,
 		"--live-restore=true",
 		"--default-address-pool", "base=175.30.0.0/16,size=16",
 		"--default-address-pool", "base=175.33.0.0/16,size=24",
 	)
 
-	// Verify bridge network's subnet
-	c := d.NewClientT(t)
-	defer c.Close()
-	out, err := c.NetworkInspect(context.Background(), "bridge", types.NetworkInspectOptions{})
+	out1, err := c.NetworkInspect(context.Background(), "bridge", types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	// Make sure docker0 doesn't get override with new IP in live restore case
-	assert.Equal(t, out.IPAM.Config[0].Subnet, "172.18.0.0/16")
+	assert.Equal(t, out1.IPAM.Config[0].Subnet, subnet)
 }
 
 func TestDaemonDefaultNetworkPools(t *testing.T) {
