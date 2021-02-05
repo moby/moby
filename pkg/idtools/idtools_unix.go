@@ -71,7 +71,7 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 	// even if it existed, we will chown the requested path + any subpaths that
 	// didn't exist when we called MkdirAll
 	for _, pathComponent := range paths {
-		if err := setPermissions(pathComponent, mode, owner.UID, owner.GID, nil); err != nil {
+		if err := setPermissions(pathComponent, 0, owner.UID, owner.GID, nil); err != nil {
 			return err
 		}
 	}
@@ -225,7 +225,7 @@ func setPermissions(p string, mode os.FileMode, uid, gid int, stat *system.StatT
 			return err
 		}
 	}
-	if os.FileMode(stat.Mode()).Perm() != mode.Perm() {
+	if os.FileMode(0) != mode && os.FileMode(stat.Mode()).Perm() != mode.Perm() {
 		if err := os.Chmod(p, mode.Perm()); err != nil {
 			return err
 		}

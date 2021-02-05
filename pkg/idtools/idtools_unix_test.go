@@ -21,8 +21,9 @@ const (
 )
 
 type node struct {
-	uid int
-	gid int
+	uid  int
+	gid  int
+	mode os.FileMode
 }
 
 func TestMkdirAllAndChown(t *testing.T) {
@@ -34,11 +35,11 @@ func TestMkdirAllAndChown(t *testing.T) {
 	defer os.RemoveAll(dirName)
 
 	testTree := map[string]node{
-		"usr":              {0, 0},
-		"usr/bin":          {0, 0},
-		"lib":              {33, 33},
-		"lib/x86_64":       {45, 45},
-		"lib/x86_64/share": {1, 1},
+		"usr":              {0, 0, 0755},
+		"usr/bin":          {0, 0, 0755},
+		"lib":              {33, 33, 0755},
+		"lib/x86_64":       {45, 45, 0755},
+		"lib/x86_64/share": {1, 1, 0755},
 	}
 
 	if err := buildTree(dirName, testTree); err != nil {
@@ -49,7 +50,7 @@ func TestMkdirAllAndChown(t *testing.T) {
 	if err := MkdirAllAndChown(filepath.Join(dirName, "usr", "share"), 0755, Identity{UID: 99, GID: 99}); err != nil {
 		t.Fatal(err)
 	}
-	testTree["usr/share"] = node{99, 99}
+	testTree["usr/share"] = node{99, 99, 0755}
 	verifyTree, err := readTree(dirName, "")
 	if err != nil {
 		t.Fatal(err)
@@ -62,8 +63,8 @@ func TestMkdirAllAndChown(t *testing.T) {
 	if err := MkdirAllAndChown(filepath.Join(dirName, "lib", "some", "other"), 0755, Identity{UID: 101, GID: 101}); err != nil {
 		t.Fatal(err)
 	}
-	testTree["lib/some"] = node{101, 101}
-	testTree["lib/some/other"] = node{101, 101}
+	testTree["lib/some"] = node{101, 101, 0755}
+	testTree["lib/some/other"] = node{101, 101, 0755}
 	verifyTree, err = readTree(dirName, "")
 	if err != nil {
 		t.Fatal(err)
@@ -76,7 +77,7 @@ func TestMkdirAllAndChown(t *testing.T) {
 	if err := MkdirAllAndChown(filepath.Join(dirName, "usr"), 0755, Identity{UID: 102, GID: 102}); err != nil {
 		t.Fatal(err)
 	}
-	testTree["usr"] = node{102, 102}
+	testTree["usr"] = node{102, 102, 0755}
 	verifyTree, err = readTree(dirName, "")
 	if err != nil {
 		t.Fatal(err)
@@ -93,11 +94,11 @@ func TestMkdirAllAndChownNew(t *testing.T) {
 	defer os.RemoveAll(dirName)
 
 	testTree := map[string]node{
-		"usr":              {0, 0},
-		"usr/bin":          {0, 0},
-		"lib":              {33, 33},
-		"lib/x86_64":       {45, 45},
-		"lib/x86_64/share": {1, 1},
+		"usr":              {0, 0, 0755},
+		"usr/bin":          {0, 0, 0755},
+		"lib":              {33, 33, 0755},
+		"lib/x86_64":       {45, 45, 0755},
+		"lib/x86_64/share": {1, 1, 0755},
 	}
 	assert.NilError(t, buildTree(dirName, testTree))
 
@@ -105,7 +106,7 @@ func TestMkdirAllAndChownNew(t *testing.T) {
 	err = MkdirAllAndChownNew(filepath.Join(dirName, "usr", "share"), 0755, Identity{UID: 99, GID: 99})
 	assert.NilError(t, err)
 
-	testTree["usr/share"] = node{99, 99}
+	testTree["usr/share"] = node{99, 99, 0755}
 	verifyTree, err := readTree(dirName, "")
 	assert.NilError(t, err)
 	assert.NilError(t, compareTrees(testTree, verifyTree))
@@ -113,14 +114,14 @@ func TestMkdirAllAndChownNew(t *testing.T) {
 	// test 2-deep new directories--both should be owned by the uid/gid pair
 	err = MkdirAllAndChownNew(filepath.Join(dirName, "lib", "some", "other"), 0755, Identity{UID: 101, GID: 101})
 	assert.NilError(t, err)
-	testTree["lib/some"] = node{101, 101}
-	testTree["lib/some/other"] = node{101, 101}
+	testTree["lib/some"] = node{101, 101, 0755}
+	testTree["lib/some/other"] = node{101, 101, 0755}
 	verifyTree, err = readTree(dirName, "")
 	assert.NilError(t, err)
 	assert.NilError(t, compareTrees(testTree, verifyTree))
 
 	// test a directory that already exists; should NOT be chowned
-	err = MkdirAllAndChownNew(filepath.Join(dirName, "usr"), 0755, Identity{UID: 102, GID: 102})
+	err = MkdirAllAndChownNew(filepath.Join(dirName, "usr"), 0701, Identity{UID: 102, GID: 102})
 	assert.NilError(t, err)
 	verifyTree, err = readTree(dirName, "")
 	assert.NilError(t, err)
@@ -136,7 +137,7 @@ func TestMkdirAndChown(t *testing.T) {
 	defer os.RemoveAll(dirName)
 
 	testTree := map[string]node{
-		"usr": {0, 0},
+		"usr": {0, 0, 0755},
 	}
 	if err := buildTree(dirName, testTree); err != nil {
 		t.Fatal(err)
@@ -146,7 +147,7 @@ func TestMkdirAndChown(t *testing.T) {
 	if err := MkdirAndChown(filepath.Join(dirName, "usr"), 0755, Identity{UID: 99, GID: 99}); err != nil {
 		t.Fatal(err)
 	}
-	testTree["usr"] = node{99, 99}
+	testTree["usr"] = node{99, 99, 0755}
 	verifyTree, err := readTree(dirName, "")
 	if err != nil {
 		t.Fatal(err)
@@ -164,7 +165,7 @@ func TestMkdirAndChown(t *testing.T) {
 	if err := MkdirAndChown(filepath.Join(dirName, "usr", "bin"), 0755, Identity{UID: 102, GID: 102}); err != nil {
 		t.Fatal(err)
 	}
-	testTree["usr/bin"] = node{102, 102}
+	testTree["usr/bin"] = node{102, 102, 0755}
 	verifyTree, err = readTree(dirName, "")
 	if err != nil {
 		t.Fatal(err)
@@ -200,7 +201,7 @@ func readTree(base, root string) (map[string]node, error) {
 		if err := unix.Stat(filepath.Join(base, info.Name()), s); err != nil {
 			return nil, fmt.Errorf("Can't stat file %q: %v", filepath.Join(base, info.Name()), err)
 		}
-		tree[filepath.Join(root, info.Name())] = node{int(s.Uid), int(s.Gid)}
+		tree[filepath.Join(root, info.Name())] = node{int(s.Uid), int(s.Gid), os.FileMode(s.Mode)}
 		if info.IsDir() {
 			// read the subdirectory
 			subtree, err := readTree(filepath.Join(base, info.Name()), filepath.Join(root, info.Name()))
@@ -225,6 +226,9 @@ func compareTrees(left, right map[string]node) error {
 				// mismatch
 				return fmt.Errorf("mismatched ownership for %q: expected: %d:%d, got: %d:%d", path,
 					nodeLeft.uid, nodeLeft.gid, nodeRight.uid, nodeRight.gid)
+			}
+			if nodeRight.mode.Perm() != nodeLeft.mode.Perm() {
+				return fmt.Errorf("mismatched permissions for %q: expected %s, got: %s", path, nodeLeft.mode.Perm(), nodeRight.mode.Perm())
 			}
 			continue
 		}
