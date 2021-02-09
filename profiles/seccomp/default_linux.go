@@ -399,7 +399,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				MinKernel: &KernelVersion{4, 8},
 			},
 		},
@@ -475,7 +475,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Arches: []string{"ppc64le"},
 			},
 		},
@@ -491,7 +491,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Arches: []string{"arm", "arm64"},
 			},
 		},
@@ -502,7 +502,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Arches: []string{"amd64", "x32"},
 			},
 		},
@@ -513,7 +513,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Arches: []string{"amd64", "x32", "x86"},
 			},
 		},
@@ -526,7 +526,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Arches: []string{"s390", "s390x"},
 			},
 		},
@@ -537,7 +537,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Caps: []string{"CAP_DAC_READ_SEARCH"},
 			},
 		},
@@ -568,7 +568,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Caps: []string{"CAP_SYS_ADMIN"},
 			},
 		},
@@ -587,7 +587,7 @@ func DefaultProfile() *Seccomp {
 					},
 				},
 			},
-			Excludes: Filter{
+			Excludes: &Filter{
 				Caps:   []string{"CAP_SYS_ADMIN"},
 				Arches: []string{"s390", "s390x"},
 			},
@@ -608,10 +608,10 @@ func DefaultProfile() *Seccomp {
 				},
 			},
 			Comment: "s390 parameter ordering for clone is different",
-			Includes: Filter{
+			Includes: &Filter{
 				Arches: []string{"s390", "s390x"},
 			},
-			Excludes: Filter{
+			Excludes: &Filter{
 				Caps: []string{"CAP_SYS_ADMIN"},
 			},
 		},
@@ -622,7 +622,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Caps: []string{"CAP_SYS_BOOT"},
 			},
 		},
@@ -633,7 +633,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Caps: []string{"CAP_SYS_CHROOT"},
 			},
 		},
@@ -646,7 +646,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Caps: []string{"CAP_SYS_MODULE"},
 			},
 		},
@@ -657,7 +657,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Caps: []string{"CAP_SYS_PACCT"},
 			},
 		},
@@ -673,7 +673,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Caps: []string{"CAP_SYS_PTRACE"},
 			},
 		},
@@ -685,7 +685,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Caps: []string{"CAP_SYS_RAWIO"},
 			},
 		},
@@ -698,7 +698,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Caps: []string{"CAP_SYS_TIME"},
 			},
 		},
@@ -709,7 +709,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Caps: []string{"CAP_SYS_TTY_CONFIG"},
 			},
 		},
@@ -722,7 +722,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Caps: []string{"CAP_SYS_NICE"},
 			},
 		},
@@ -733,7 +733,7 @@ func DefaultProfile() *Seccomp {
 				},
 				Action: specs.ActAllow,
 			},
-			Includes: Filter{
+			Includes: &Filter{
 				Caps: []string{"CAP_SYSLOG"},
 			},
 		},

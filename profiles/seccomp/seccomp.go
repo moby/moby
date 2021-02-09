@@ -48,10 +48,10 @@ type Filter struct {
 type Syscall struct {
 	specs.LinuxSyscall
 	// Deprecated: kept for backward compatibility with old JSON profiles, use Names instead
-	Name     string `json:"name,omitempty"`
-	Comment  string `json:"comment"`
-	Includes Filter `json:"includes"`
-	Excludes Filter `json:"excludes"`
+	Name     string  `json:"name,omitempty"`
+	Comment  string  `json:"comment,omitempty"`
+	Includes *Filter `json:"includes,omitempty"`
+	Excludes *Filter `json:"excludes,omitempty"`
 }
 
 // KernelVersion holds information about the kernel.
