@@ -150,29 +150,15 @@ Loop:
 			}
 		}
 
-		if call.Name != "" && len(call.Names) != 0 {
-			return nil, errors.New("'name' and 'names' were specified in the seccomp profile, use either 'name' or 'names'")
+		if call.Name != "" {
+			if len(call.Names) != 0 {
+				return nil, errors.New("'name' and 'names' were specified in the seccomp profile, use either 'name' or 'names'")
+			}
+			call.Names = append(call.Names, call.Name)
 		}
 
-		if call.Name != "" {
-			newConfig.Syscalls = append(newConfig.Syscalls, createSpecsSyscall([]string{call.Name}, call.Action, call.Args))
-		} else {
-			newConfig.Syscalls = append(newConfig.Syscalls, createSpecsSyscall(call.Names, call.Action, call.Args))
-		}
+		newConfig.Syscalls = append(newConfig.Syscalls, call.LinuxSyscall)
 	}
 
 	return newConfig, nil
-}
-
-func createSpecsSyscall(names []string, action specs.LinuxSeccompAction, args []*specs.LinuxSeccompArg) specs.LinuxSyscall {
-	newCall := specs.LinuxSyscall{
-		Names:  names,
-		Action: action,
-	}
-
-	// Loop through all the arguments of the syscall and convert them
-	for _, arg := range args {
-		newCall.Args = append(newCall.Args, *arg)
-	}
-	return newCall
 }

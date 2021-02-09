@@ -394,7 +394,6 @@
 				"writev"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {},
 			"excludes": {}
@@ -406,7 +405,6 @@
 				"ptrace"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": null,
 			"comment": "",
 			"includes": {
 				"minKernel": "4.8"
@@ -498,7 +496,6 @@
 				"sync_file_range2"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"arches": [
@@ -517,7 +514,6 @@
 				"set_tls"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"arches": [
@@ -532,7 +528,6 @@
 				"arch_prctl"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"arches": [
@@ -547,7 +542,6 @@
 				"modify_ldt"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"arches": [
@@ -565,7 +559,6 @@
 				"s390_runtime_instr"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"arches": [
@@ -580,7 +573,6 @@
 				"open_by_handle_at"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"caps": [
@@ -614,7 +606,6 @@
 				"unshare"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"caps": [
@@ -677,7 +668,6 @@
 				"reboot"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"caps": [
@@ -691,7 +681,6 @@
 				"chroot"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"caps": [
@@ -707,7 +696,6 @@
 				"finit_module"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"caps": [
@@ -721,7 +709,6 @@
 				"acct"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"caps": [
@@ -740,7 +727,6 @@
 				"ptrace"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"caps": [
@@ -755,7 +741,6 @@
 				"ioperm"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"caps": [
@@ -771,7 +756,6 @@
 				"clock_settime"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"caps": [
@@ -785,7 +769,6 @@
 				"vhangup"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"caps": [
@@ -801,7 +784,6 @@
 				"set_mempolicy"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"caps": [
@@ -815,7 +797,6 @@
 				"syslog"
 			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": [],
 			"comment": "",
 			"includes": {
 				"caps": [
