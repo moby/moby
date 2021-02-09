@@ -111,42 +111,46 @@ func setupSeccomp(config *Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) 
 Loop:
 	// Loop through all syscall blocks and convert them to libcontainer format after filtering them
 	for _, call := range config.Syscalls {
-		if len(call.Excludes.Arches) > 0 {
-			if inSlice(call.Excludes.Arches, arch) {
-				continue Loop
+		if call.Excludes != nil {
+			if len(call.Excludes.Arches) > 0 {
+				if inSlice(call.Excludes.Arches, arch) {
+					continue Loop
+				}
 			}
-		}
-		if len(call.Excludes.Caps) > 0 {
-			for _, c := range call.Excludes.Caps {
-				if inSlice(rs.Process.Capabilities.Bounding, c) {
+			if len(call.Excludes.Caps) > 0 {
+				for _, c := range call.Excludes.Caps {
+					if inSlice(rs.Process.Capabilities.Bounding, c) {
+						continue Loop
+					}
+				}
+			}
+			if call.Excludes.MinKernel != nil {
+				if ok, err := kernelGreaterEqualThan(*call.Excludes.MinKernel); err != nil {
+					return nil, err
+				} else if ok {
 					continue Loop
 				}
 			}
 		}
-		if call.Excludes.MinKernel != nil {
-			if ok, err := kernelGreaterEqualThan(*call.Excludes.MinKernel); err != nil {
-				return nil, err
-			} else if ok {
-				continue Loop
-			}
-		}
-		if len(call.Includes.Arches) > 0 {
-			if !inSlice(call.Includes.Arches, arch) {
-				continue Loop
-			}
-		}
-		if len(call.Includes.Caps) > 0 {
-			for _, c := range call.Includes.Caps {
-				if !inSlice(rs.Process.Capabilities.Bounding, c) {
+		if call.Includes != nil {
+			if len(call.Includes.Arches) > 0 {
+				if !inSlice(call.Includes.Arches, arch) {
 					continue Loop
 				}
 			}
-		}
-		if call.Includes.MinKernel != nil {
-			if ok, err := kernelGreaterEqualThan(*call.Includes.MinKernel); err != nil {
-				return nil, err
-			} else if !ok {
-				continue Loop
+			if len(call.Includes.Caps) > 0 {
+				for _, c := range call.Includes.Caps {
+					if !inSlice(rs.Process.Capabilities.Bounding, c) {
+						continue Loop
+					}
+				}
+			}
+			if call.Includes.MinKernel != nil {
+				if ok, err := kernelGreaterEqualThan(*call.Includes.MinKernel); err != nil {
+					return nil, err
+				} else if !ok {
+					continue Loop
+				}
 			}
 		}
 
