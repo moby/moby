@@ -505,7 +505,7 @@ definitions:
         format: "int64"
         minimum: 0
         maximum: 100
-      NanoCPUs:
+      NanoCpus:
         description: "CPU quota in units of 10<sup>-9</sup> CPUs."
         type: "integer"
         format: "int64"
@@ -5185,7 +5185,7 @@ paths:
                 MemorySwap: 0
                 MemoryReservation: 0
                 KernelMemory: 0
-                NanoCPUs: 500000
+                NanoCpus: 500000
                 CpuPercent: 80
                 CpuShares: 512
                 CpuPeriod: 100000
