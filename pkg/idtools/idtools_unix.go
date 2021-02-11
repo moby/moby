@@ -245,38 +245,51 @@ func NewIdentityMapping(name string) (*IdentityMapping, error) {
 		return nil, fmt.Errorf("Could not get user for username %s: %v", name, err)
 	}
 
-	uid := strconv.Itoa(usr.Uid)
-
-	subuidRangesWithUserName, err := parseSubuid(name)
+	subuidRanges, err := lookupSubUIDRanges(usr)
 	if err != nil {
 		return nil, err
 	}
-	subgidRangesWithUserName, err := parseSubgid(name)
+	subgidRanges, err := lookupSubGIDRanges(usr)
 	if err != nil {
 		return nil, err
-	}
-
-	subuidRangesWithUID, err := parseSubuid(uid)
-	if err != nil {
-		return nil, err
-	}
-	subgidRangesWithUID, err := parseSubgid(uid)
-	if err != nil {
-		return nil, err
-	}
-
-	subuidRanges := append(subuidRangesWithUserName, subuidRangesWithUID...)
-	subgidRanges := append(subgidRangesWithUserName, subgidRangesWithUID...)
-
-	if len(subuidRanges) == 0 {
-		return nil, errors.Errorf("no subuid ranges found for user %q", name)
-	}
-	if len(subgidRanges) == 0 {
-		return nil, errors.Errorf("no subgid ranges found for user %q", name)
 	}
 
 	return &IdentityMapping{
-		uids: createIDMap(subuidRanges),
-		gids: createIDMap(subgidRanges),
+		uids: subuidRanges,
+		gids: subgidRanges,
 	}, nil
+}
+
+func lookupSubUIDRanges(usr user.User) ([]IDMap, error) {
+	rangeList, err := parseSubuid(strconv.Itoa(usr.Uid))
+	if err != nil {
+		return nil, err
+	}
+	if len(rangeList) == 0 {
+		rangeList, err = parseSubuid(usr.Name)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(rangeList) == 0 {
+		return nil, errors.Errorf("no subuid ranges found for user %q", usr.Name)
+	}
+	return createIDMap(rangeList), nil
+}
+
+func lookupSubGIDRanges(usr user.User) ([]IDMap, error) {
+	rangeList, err := parseSubgid(strconv.Itoa(usr.Uid))
+	if err != nil {
+		return nil, err
+	}
+	if len(rangeList) == 0 {
+		rangeList, err = parseSubgid(usr.Name)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(rangeList) == 0 {
+		return nil, errors.Errorf("no subgid ranges found for user %q", usr.Name)
+	}
+	return createIDMap(rangeList), nil
 }
