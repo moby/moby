@@ -1625,7 +1625,7 @@ definitions:
           Resources:
             type: "object"
             properties:
-              NanoCPUs:
+              NanoCpus:
                 type: "integer"
                 format: "int64"
               MemoryBytes:
@@ -2744,7 +2744,7 @@ paths:
                 MemorySwap: 0
                 MemoryReservation: 0
                 KernelMemory: 0
-                NanoCPUs: 500000
+                NanoCpus: 500000
                 CpuPercent: 80
                 CpuShares: 512
                 CpuPeriod: 100000
