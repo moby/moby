@@ -2063,12 +2063,11 @@ func (s *DockerSuite) TestRunAllocatePortInReservedRange(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "-P", "-p", "80", "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	out, _ = dockerCmd(c, "port", id, "80")
-
-	strPort := strings.Split(strings.TrimSpace(out), ":")[1]
-	port, err := strconv.ParseInt(strPort, 10, 64)
+	out, _ = dockerCmd(c, "inspect", "--format", `{{index .NetworkSettings.Ports "80/tcp" 0 "HostPort" }}`, id)
+	out = strings.TrimSpace(out)
+	port, err := strconv.ParseInt(out, 10, 64)
 	if err != nil {
-		c.Fatalf("invalid port, got: %s, error: %s", strPort, err)
+		c.Fatalf("invalid port, got: %s, error: %s", out, err)
 	}
 
 	// allocate a static port and a dynamic port together, with static port
@@ -2278,7 +2277,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughExpose(c *testing.T) {
 		if portnum < 3000 || portnum > 3003 {
 			c.Fatalf("Port %d is out of range ", portnum)
 		}
-		if binding == nil || len(binding) != 1 || len(binding[0].HostPort) == 0 {
+		if len(binding) == 0 || len(binding[0].HostPort) == 0 {
 			c.Fatalf("Port is not mapped for the port %s", port)
 		}
 	}
@@ -2497,13 +2496,12 @@ func (s *DockerSuite) TestRunPortFromDockerRangeInUse(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "-p", ":80", "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	out, _ = dockerCmd(c, "port", id)
 
+	out, _ = dockerCmd(c, "inspect", "--format", `{{index .NetworkSettings.Ports "80/tcp" 0 "HostPort" }}`, id)
 	out = strings.TrimSpace(out)
 	if out == "" {
 		c.Fatal("docker port command output is empty")
 	}
-	out = strings.Split(out, ":")[1]
 	lastPort, err := strconv.Atoi(out)
 	if err != nil {
 		c.Fatal(err)
@@ -2637,7 +2635,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughPublish(c *testing.T) {
 		if portnum < 3000 || portnum > 3003 {
 			c.Fatalf("Port %d is out of range ", portnum)
 		}
-		if binding == nil || len(binding) != 1 || len(binding[0].HostPort) == 0 {
+		if len(binding) == 0 || len(binding[0].HostPort) == 0 {
 			c.Fatal("Port is not mapped for the port "+port, out)
 		}
 	}
