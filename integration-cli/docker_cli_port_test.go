@@ -1,8 +1,8 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"net"
 	"regexp"
 	"sort"
 	"strconv"
@@ -51,7 +51,8 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 	err = assertPortList(c, out, []string{
 		"80/tcp -> 0.0.0.0:9876",
 		"81/tcp -> 0.0.0.0:9877",
-		"82/tcp -> 0.0.0.0:9878"})
+		"82/tcp -> 0.0.0.0:9878",
+	})
 	// Port list is not correct
 	assert.NilError(c, err)
 
@@ -78,7 +79,8 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 		"80/tcp -> 0.0.0.0:9876",
 		"80/tcp -> 0.0.0.0:9999",
 		"81/tcp -> 0.0.0.0:9877",
-		"82/tcp -> 0.0.0.0:9878"})
+		"82/tcp -> 0.0.0.0:9878",
+	})
 	// Port list is not correct
 	assert.NilError(c, err)
 	dockerCmd(c, "rm", "-f", ID)
@@ -87,9 +89,7 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 		// host port ranges used
 		IDs := make([]string, 3)
 		for i := 0; i < 3; i++ {
-			out, _ = dockerCmd(c, "run", "-d",
-				"-p", "9090-9092:80",
-				"busybox", "top")
+			out, _ = dockerCmd(c, "run", "-d", "-p", "9090-9092:80", "busybox", "top")
 			IDs[i] = strings.TrimSpace(out)
 
 			out, _ = dockerCmd(c, "port", IDs[i])
@@ -100,9 +100,7 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 		}
 
 		// test port range exhaustion
-		out, _, err = dockerCmdWithError("run", "-d",
-			"-p", "9090-9092:80",
-			"busybox", "top")
+		out, _, err = dockerCmdWithError("run", "-d", "-p", "9090-9092:80", "busybox", "top")
 		// Exhausted port range did not return an error
 		assert.Assert(c, err != nil, "out: %s", out)
 
@@ -116,17 +114,13 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 
 	// test invalid port ranges
 	for _, invalidRange := range []string{"9090-9089:80", "9090-:80", "-9090:80"} {
-		out, _, err = dockerCmdWithError("run", "-d",
-			"-p", invalidRange,
-			"busybox", "top")
+		out, _, err = dockerCmdWithError("run", "-d", "-p", invalidRange, "busybox", "top")
 		// Port range should have returned an error
 		assert.Assert(c, err != nil, "out: %s", out)
 	}
 
 	// test host range:container range spec.
-	out, _ = dockerCmd(c, "run", "-d",
-		"-p", "9800-9803:80-83",
-		"busybox", "top")
+	out, _ = dockerCmd(c, "run", "-d", "-p", "9800-9803:80-83", "busybox", "top")
 	ID = strings.TrimSpace(out)
 
 	out, _ = dockerCmd(c, "port", ID)
@@ -135,28 +129,27 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 		"80/tcp -> 0.0.0.0:9800",
 		"81/tcp -> 0.0.0.0:9801",
 		"82/tcp -> 0.0.0.0:9802",
-		"83/tcp -> 0.0.0.0:9803"})
+		"83/tcp -> 0.0.0.0:9803",
+	})
 	// Port list is not correct
 	assert.NilError(c, err)
 	dockerCmd(c, "rm", "-f", ID)
 
 	// test mixing protocols in same port range
-	out, _ = dockerCmd(c, "run", "-d",
-		"-p", "8000-8080:80",
-		"-p", "8000-8080:80/udp",
-		"busybox", "top")
+	out, _ = dockerCmd(c, "run", "-d", "-p", "8000-8080:80", "-p", "8000-8080:80/udp", "busybox", "top")
 	ID = strings.TrimSpace(out)
 
 	out, _ = dockerCmd(c, "port", ID)
 
 	// Running this test multiple times causes the TCP port to increment.
-	err = assertPortRange(c, out, []int{8000, 8080}, []int{8000, 8080})
+	err = assertPortRange(ID, []int{8000, 8080}, []int{8000, 8080})
 	// Port list is not correct
 	assert.NilError(c, err)
 	dockerCmd(c, "rm", "-f", ID)
 }
 
 func assertPortList(c *testing.T, out string, expected []string) error {
+	c.Helper()
 	lines := strings.Split(strings.Trim(out, "\n "), "\n")
 	if len(lines) != len(expected) {
 		return fmt.Errorf("different size lists %s, %d, %d", out, len(lines), len(expected))
@@ -164,8 +157,20 @@ func assertPortList(c *testing.T, out string, expected []string) error {
 	sort.Strings(lines)
 	sort.Strings(expected)
 
+	// "docker port" does not yet have a "--format" flag, and older versions
+	// of the CLI used an incorrect output format for mappings on IPv6 addresses
+	// for example, "80/tcp -> :::80" instead of "80/tcp -> [::]:80".
+	oldFormat := func(mapping string) string {
+		old := strings.Replace(mapping, "-> [", "-> ", 1)
+		old = strings.Replace(old, "]:", ":", 1)
+		return old
+	}
+
 	for i := 0; i < len(expected); i++ {
-		if lines[i] != expected[i] {
+		if lines[i] == expected[i] {
+			continue
+		}
+		if lines[i] != oldFormat(expected[i]) {
 			return fmt.Errorf("|" + lines[i] + "!=" + expected[i] + "|")
 		}
 	}
@@ -173,27 +178,40 @@ func assertPortList(c *testing.T, out string, expected []string) error {
 	return nil
 }
 
-func assertPortRange(c *testing.T, out string, expectedTCP, expectedUDP []int) error {
-	lines := strings.Split(strings.Trim(out, "\n "), "\n")
+func assertPortRange(id string, expectedTCP, expectedUDP []int) error {
+	client := testEnv.APIClient()
+	inspect, err := client.ContainerInspect(context.TODO(), id)
+	if err != nil {
+		return err
+	}
 
 	var validTCP, validUDP bool
-	for _, l := range lines {
-		// 80/tcp -> 0.0.0.0:8015
-		port, err := strconv.Atoi(strings.Split(l, ":")[1])
-		if err != nil {
-			return err
+	for portAndProto, binding := range inspect.NetworkSettings.Ports {
+		if portAndProto.Proto() == "tcp" && len(expectedTCP) == 0 {
+			continue
 		}
-		if strings.Contains(l, "tcp") && expectedTCP != nil {
-			if port < expectedTCP[0] || port > expectedTCP[1] {
-				return fmt.Errorf("tcp port (%d) not in range expected range %d-%d", port, expectedTCP[0], expectedTCP[1])
-			}
-			validTCP = true
+		if portAndProto.Proto() == "udp" && len(expectedTCP) == 0 {
+			continue
 		}
-		if strings.Contains(l, "udp") && expectedUDP != nil {
-			if port < expectedUDP[0] || port > expectedUDP[1] {
-				return fmt.Errorf("udp port (%d) not in range expected range %d-%d", port, expectedUDP[0], expectedUDP[1])
+
+		for _, b := range binding {
+			port, err := strconv.Atoi(b.HostPort)
+			if err != nil {
+				return err
 			}
-			validUDP = true
+
+			if len(expectedTCP) > 0 {
+				if port < expectedTCP[0] || port > expectedTCP[1] {
+					return fmt.Errorf("tcp port (%d) not in range expected range %d-%d", port, expectedTCP[0], expectedTCP[1])
+				}
+				validTCP = true
+			}
+			if len(expectedUDP) > 0 {
+				if port < expectedUDP[0] || port > expectedUDP[1] {
+					return fmt.Errorf("udp port (%d) not in range expected range %d-%d", port, expectedUDP[0], expectedUDP[1])
+				}
+				validUDP = true
+			}
 		}
 	}
 	if !validTCP {
@@ -282,8 +300,7 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *testing.T) {
 
 func (s *DockerSuite) TestPortHostBinding(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
-	out, _ := dockerCmd(c, "run", "-d", "-p", "9876:80", "busybox",
-		"nc", "-l", "-p", "80")
+	out, _ := dockerCmd(c, "run", "-d", "-p", "9876:80", "busybox", "nc", "-l", "-p", "80")
 	firstID := strings.TrimSpace(out)
 
 	out, _ = dockerCmd(c, "port", firstID, "80")
@@ -292,8 +309,7 @@ func (s *DockerSuite) TestPortHostBinding(c *testing.T) {
 	// Port list is not correct
 	assert.NilError(c, err)
 
-	dockerCmd(c, "run", "--net=host", "busybox",
-		"nc", "localhost", "9876")
+	dockerCmd(c, "run", "--net=host", "busybox", "nc", "localhost", "9876")
 
 	dockerCmd(c, "rm", "-f", firstID)
 
@@ -304,22 +320,17 @@ func (s *DockerSuite) TestPortHostBinding(c *testing.T) {
 
 func (s *DockerSuite) TestPortExposeHostBinding(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
-	out, _ := dockerCmd(c, "run", "-d", "-P", "--expose", "80", "busybox",
-		"nc", "-l", "-p", "80")
+	out, _ := dockerCmd(c, "run", "-d", "-P", "--expose", "80", "busybox", "nc", "-l", "-p", "80")
 	firstID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "port", firstID, "80")
+	out, _ = dockerCmd(c, "inspect", "--format", `{{index .NetworkSettings.Ports "80/tcp" 0 "HostPort" }}`, firstID)
 
-	_, exposedPort, err := net.SplitHostPort(out)
-	assert.Assert(c, err == nil, "out: %s", out)
-
-	dockerCmd(c, "run", "--net=host", "busybox",
-		"nc", "localhost", strings.TrimSpace(exposedPort))
+	exposedPort := strings.TrimSpace(out)
+	dockerCmd(c, "run", "--net=host", "busybox", "nc", "127.0.0.1", exposedPort)
 
 	dockerCmd(c, "rm", "-f", firstID)
 
-	out, _, err = dockerCmdWithError("run", "--net=host", "busybox",
-		"nc", "localhost", strings.TrimSpace(exposedPort))
+	out, _, err := dockerCmdWithError("run", "--net=host", "busybox", "nc", "127.0.0.1", exposedPort)
 	// Port is still bound after the Container is removed
 	assert.Assert(c, err != nil, "out: %s", out)
 }
