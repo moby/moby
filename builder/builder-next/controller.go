@@ -111,6 +111,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		PruneRefChecker: refChecker,
 		LeaseManager:    lm,
 		ContentStore:    store,
+		GarbageCollect:  mdb.GarbageCollect,
 	})
 	if err != nil {
 		return nil, err
@@ -125,6 +126,8 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		ReferenceStore:  dist.ReferenceStore,
 		RegistryHosts:   opt.RegistryHosts,
 		LayerStore:      dist.LayerStore,
+		LeaseManager:    lm,
+		GarbageCollect:  mdb.GarbageCollect,
 	})
 	if err != nil {
 		return nil, err
