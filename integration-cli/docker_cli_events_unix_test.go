@@ -182,15 +182,14 @@ func (s *DockerSuite) TestVolumeEvents(c *testing.T) {
 	until := daemonUnixTime(c)
 	out, _ := dockerCmd(c, "events", "--since", since, "--until", until)
 	events := strings.Split(strings.TrimSpace(out), "\n")
-	assert.Assert(c, len(events) > 4)
+	assert.Assert(c, len(events) > 3)
 
 	volumeEvents := eventActionsByIDAndType(c, events, "test-event-volume-local", "volume")
-	assert.Equal(c, len(volumeEvents), 5)
+	assert.Equal(c, len(volumeEvents), 4)
 	assert.Equal(c, volumeEvents[0], "create")
-	assert.Equal(c, volumeEvents[1], "create")
-	assert.Equal(c, volumeEvents[2], "mount")
-	assert.Equal(c, volumeEvents[3], "unmount")
-	assert.Equal(c, volumeEvents[4], "destroy")
+	assert.Equal(c, volumeEvents[1], "mount")
+	assert.Equal(c, volumeEvents[2], "unmount")
+	assert.Equal(c, volumeEvents[3], "destroy")
 }
 
 func (s *DockerSuite) TestNetworkEvents(c *testing.T) {
