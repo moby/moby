@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 )
 
-// ImageImport creates a new image based in the source options.
+// ImageImport creates a new image based on the source options.
 // It returns the JSON content in the response body.
 func (cli *Client) ImageImport(ctx context.Context, source types.ImageImportSource, ref string, options types.ImageImportOptions) (io.ReadCloser, error) {
 	if ref != "" {

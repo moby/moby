@@ -19,7 +19,7 @@ type configWrapper struct {
 	Platform         *specs.Platform
 }
 
-// ContainerCreate creates a new container based in the given configuration.
+// ContainerCreate creates a new container based on the given configuration.
 // It can be associated with a name, but it's not mandatory.
 func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.ContainerCreateCreatedBody, error) {
 	var response container.ContainerCreateCreatedBody

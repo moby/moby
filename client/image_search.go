@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/errdefs"
 )
 
-// ImageSearch makes the docker host to search by a term in a remote registry.
+// ImageSearch makes the docker host search by a term in a remote registry.
 // The list of results is not sorted in any fashion.
 func (cli *Client) ImageSearch(ctx context.Context, term string, options types.ImageSearchOptions) ([]registry.SearchResult, error) {
 	var results []registry.SearchResult
