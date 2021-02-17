@@ -183,6 +183,7 @@ func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session
 type puller struct {
 	is               *Source
 	resolveLocalOnce sync.Once
+	g                flightcontrol.Group
 	src              *source.ImageIdentifier
 	desc             ocispec.Descriptor
 	ref              string
@@ -253,9 +254,7 @@ func (p *puller) resolveLocal() {
 }
 
 func (p *puller) resolve(ctx context.Context, g session.Group) error {
-	// key is used to synchronize resolutions that can happen in parallel when doing multi-stage.
-	key := "resolve::" + p.ref + "::" + platforms.Format(p.platform)
-	_, err := p.is.g.Do(ctx, key, func(ctx context.Context) (_ interface{}, err error) {
+	_, err := p.g.Do(ctx, "", func(ctx context.Context) (_ interface{}, err error) {
 		resolveProgressDone := oneOffProgress(ctx, "resolve "+p.src.Reference.String())
 		defer func() {
 			resolveProgressDone(err)
@@ -329,6 +328,10 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (stri
 		return dgst.String(), nil, false, nil
 	}
 
+	if len(p.config) == 0 {
+		return "", nil, false, errors.Errorf("invalid empty config file resolved for %s", p.src.Reference.String())
+	}
+
 	k := cacheKeyFromConfig(p.config).String()
 	if k == "" {
 		dgst, err := p.mainManifestKey(p.platform)
@@ -360,8 +363,10 @@ func (p *puller) getRef(ctx context.Context, diffIDs []layer.DiffID, opts ...cac
 
 func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.ImmutableRef, error) {
 	p.resolveLocal()
-	if err := p.resolve(ctx, g); err != nil {
-		return nil, err
+	if len(p.config) == 0 {
+		if err := p.resolve(ctx, g); err != nil {
+			return nil, err
+		}
 	}
 
 	if p.config != nil {
@@ -801,6 +806,7 @@ func cacheKeyFromConfig(dt []byte) digest.Digest {
 	var img ocispec.Image
 	err := json.Unmarshal(dt, &img)
 	if err != nil {
+		logrus.WithError(err).Errorf("failed to unmarshal image config for cache key %v", err)
 		return digest.FromBytes(dt)
 	}
 	if img.RootFS.Type != "layers" || len(img.RootFS.DiffIDs) == 0 {
