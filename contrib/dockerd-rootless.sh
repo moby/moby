@@ -74,6 +74,10 @@ fi
 if [ -z $_DOCKERD_ROOTLESS_CHILD ]; then
 	_DOCKERD_ROOTLESS_CHILD=1
 	export _DOCKERD_ROOTLESS_CHILD
+	if [ "$(id -u)" = "0" ]; then
+		echo "This script must be executed as a non-privileged user"
+		exit 1
+	fi
 	# Re-exec the script via RootlessKit, so as to create unprivileged {user,mount,network} namespaces.
 	#
 	# --copy-up allows removing/creating files in the directories by creating tmpfs and symlinks
