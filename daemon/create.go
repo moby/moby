@@ -12,6 +12,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/idtools"
@@ -89,7 +90,7 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 			Variant:      img.Variant,
 		}
 
-		if !platforms.Only(p).Match(imgPlat) {
+		if !images.OnlyPlatformWithFallback(p).Match(imgPlat) {
 			warnings = append(warnings, fmt.Sprintf("The requested image's platform (%s) does not match the detected host platform (%s) and no specific platform was requested", platforms.Format(imgPlat), platforms.Format(p)))
 		}
 	}
