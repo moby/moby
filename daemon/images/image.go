@@ -55,6 +55,8 @@ func (i *ImageService) manifestMatchesPlatform(img *image.Image, platform specs.
 		return false
 	}
 
+	// Note we are comparing against manifest lists here, which we expect to always have a CPU variant set (where applicable).
+	// So there is no need for the fallback matcher here.
 	comparer := platforms.Only(platform)
 
 	var (
@@ -161,31 +163,24 @@ func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retIm
 		p := *platform
 		// Note that `platforms.Only` will fuzzy match this for us
 		// For example: an armv6 image will run just fine an an armv7 CPU, without emulation or anything.
-		if !platforms.Only(p).Match(imgPlat) {
-			// Sometimes image variant is not populated due to legacy builders
-			// We still should support falling back here.
-			if imgPlat.OS == platform.OS && imgPlat.Architecture == platform.Architecture && imgPlat.Variant == "" {
-				logrus.WithField("image", refOrID).WithField("platform", platforms.Format(p)).Debug("Image platform cpu variant is not populated, but otherwise it matches what was requested")
-				return
-			}
-
-			// In some cases the image config can actually be wrong (e.g. classic `docker build` may not handle `--platform` correctly)
-			// So we'll look up the manifest list that coresponds to this imaage to check if at least the manifest list says it is the correct image.
-			if i.manifestMatchesPlatform(retImg, p) {
-				return
-			}
-
-			// This allows us to tell clients that we don't have the image they asked for
-			// Where this gets hairy is the image store does not currently support multi-arch images, e.g.:
-			//   An image `foo` may have a multi-arch manifest, but the image store only fetches the image for a specific platform
-			//   The image store does not store the manifest list and image tags are assigned to architecture specific images.
-			//   So we can have a `foo` image that is amd64 but the user requested armv7. If the user looks at the list of images.
-			//   This may be confusing.
-			//   The alternative to this is to return a errdefs.Conflict error with a helpful message, but clients will not be
-			//   able to automatically tell what causes the conflict.
-			retErr = errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, platforms.Format(p), platforms.Format(imgPlat)))
+		if OnlyPlatformWithFallback(p).Match(imgPlat) {
 			return
 		}
+		// In some cases the image config can actually be wrong (e.g. classic `docker build` may not handle `--platform` correctly)
+		// So we'll look up the manifest list that coresponds to this imaage to check if at least the manifest list says it is the correct image.
+		if i.manifestMatchesPlatform(retImg, p) {
+			return
+		}
+
+		// This allows us to tell clients that we don't have the image they asked for
+		// Where this gets hairy is the image store does not currently support multi-arch images, e.g.:
+		//   An image `foo` may have a multi-arch manifest, but the image store only fetches the image for a specific platform
+		//   The image store does not store the manifest list and image tags are assigned to architecture specific images.
+		//   So we can have a `foo` image that is amd64 but the user requested armv7. If the user looks at the list of images.
+		//   This may be confusing.
+		//   The alternative to this is to return a errdefs.Conflict error with a helpful message, but clients will not be
+		//   able to automatically tell what causes the conflict.
+		retErr = errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, platforms.Format(p), platforms.Format(imgPlat)))
 	}()
 	ref, err := reference.ParseAnyReference(refOrID)
 	if err != nil {
@@ -222,4 +217,35 @@ func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retIm
 	}
 
 	return nil, ErrImageDoesNotExist{ref}
+}
+
+// OnlyPlatformWithFallback uses `platforms.Only` with a fallback to handle the case where the platform
+//  being matched does not have a CPU variant.
+//
+// The reason for this is that CPU variant is not even if the official image config spec as of this writing.
+// See: https://github.com/opencontainers/image-spec/pull/809
+// Since Docker tends to compare platforms from the image config, we need to handle this case.
+func OnlyPlatformWithFallback(p specs.Platform) platforms.Matcher {
+	return &onlyFallbackMatcher{only: platforms.Only(p), p: platforms.Normalize(p)}
+}
+
+type onlyFallbackMatcher struct {
+	only platforms.Matcher
+	p    specs.Platform
+}
+
+func (m *onlyFallbackMatcher) Match(other specs.Platform) bool {
+	if m.only.Match(other) {
+		// It matches, no reason to fallback
+		return true
+	}
+	if other.Variant != "" {
+		// If there is a variant then this fallback does not apply, and there is no match
+		return false
+	}
+	otherN := platforms.Normalize(other)
+	otherN.Variant = "" // normalization adds a default variant... which is the whole problem with `platforms.Only`
+
+	return m.p.OS == otherN.OS &&
+		m.p.Architecture == otherN.Architecture
 }
