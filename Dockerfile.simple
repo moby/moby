@@ -18,13 +18,13 @@ RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
 # https://github.com/docker/docker/blob/master/project/PACKAGERS.md#build-dependencies
 # https://github.com/docker/docker/blob/master/project/PACKAGERS.md#runtime-dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-		btrfs-tools \
 		build-essential \
 		curl \
 		cmake \
 		gcc \
 		git \
 		libapparmor-dev \
+		libbtrfs-dev \
 		libdevmapper-dev \
 		libseccomp-dev \
 		ca-certificates \
