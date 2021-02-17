@@ -12,9 +12,11 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
+	"github.com/docker/docker/testutil/fixtures/load"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )
@@ -36,7 +38,13 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	defer os.RemoveAll(tmp)
 
 	dUserRemap := daemon.New(t)
-	dUserRemap.StartWithBusybox(t, "--userns-remap", "default")
+	dUserRemap.Start(t, "--userns-remap", "default")
+	ctx := context.Background()
+	clientUserRemap := dUserRemap.NewClientT(t)
+
+	err = load.FrozenImagesLinux(clientUserRemap, "debian:bullseye")
+	assert.NilError(t, err)
+
 	dUserRemapRunning := true
 	defer func() {
 		if dUserRemapRunning {
@@ -49,11 +57,9 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 		RUN setcap CAP_NET_BIND_SERVICE=+eip /bin/sleep
 	`
 
-	ctx := context.Background()
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
 	defer source.Close()
 
-	clientUserRemap := dUserRemap.NewClientT(t)
 	resp, err := clientUserRemap.ImageBuild(ctx,
 		source.AsTarReader(t),
 		types.ImageBuildOptions{
@@ -61,17 +67,10 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 		})
 	assert.NilError(t, err)
 	defer resp.Body.Close()
-	buf := make([]byte, 1024)
-	for {
-		n, err := resp.Body.Read(buf)
-		if err != nil && err != io.EOF {
-			t.Fatalf("Error reading ImageBuild response: %v", err)
-			break
-		}
-		if n == 0 {
-			break
-		}
-	}
+
+	buf := bytes.NewBuffer(nil)
+	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, buf, 0, false, nil)
+	assert.NilError(t, err)
 
 	reader, err := clientUserRemap.ImageSave(ctx, []string{imageTag})
 	assert.NilError(t, err, "failed to download capabilities image")
@@ -89,7 +88,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	dUserRemapRunning = false
 
 	dNoUserRemap := daemon.New(t)
-	dNoUserRemap.StartWithBusybox(t)
+	dNoUserRemap.Start(t)
 	defer dNoUserRemap.Stop(t)
 
 	clientNoUserRemap := dNoUserRemap.NewClientT(t)
@@ -101,16 +100,9 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	loadResp, err := clientNoUserRemap.ImageLoad(ctx, tarReader, false)
 	assert.NilError(t, err, "failed to load image tar file")
 	defer loadResp.Body.Close()
-	for {
-		n, err := loadResp.Body.Read(buf)
-		if err != nil && err != io.EOF {
-			t.Fatalf("Error reading ImageLoad response: %v", err)
-			break
-		}
-		if n == 0 {
-			break
-		}
-	}
+	buf = bytes.NewBuffer(nil)
+	err = jsonmessage.DisplayJSONMessagesStream(loadResp.Body, buf, 0, false, nil)
+	assert.NilError(t, err)
 
 	cid := container.Run(ctx, t, clientNoUserRemap,
 		container.WithImage(imageTag),
