@@ -1,7 +1,6 @@
 package image // import "github.com/docker/docker/image"
 
 import (
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -118,8 +117,8 @@ func (is *store) restore() error {
 }
 
 func (is *store) Create(config []byte) (ID, error) {
-	var img Image
-	err := json.Unmarshal(config, &img)
+	var img *Image
+	img, err := NewFromJSON(config)
 	if err != nil {
 		return "", err
 	}
