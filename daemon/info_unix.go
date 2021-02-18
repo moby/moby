@@ -122,9 +122,6 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 		if !v.CPUSet {
 			v.Warnings = append(v.Warnings, "WARNING: No cpuset support")
 		}
-		if v.CgroupVersion == "2" {
-			v.Warnings = append(v.Warnings, "WARNING: Support for cgroup v2 is experimental")
-		}
 		// TODO add fields for these options in types.Info
 		if !sysInfo.BlkioWeight && v.CgroupVersion == "2" {
 			// blkio weight is not available on cgroup v1 since kernel 5.0.
