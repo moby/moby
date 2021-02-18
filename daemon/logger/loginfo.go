@@ -42,7 +42,7 @@ func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string
 	}
 
 	labelsRegex, ok := info.Config["labels-regex"]
-	if ok && len(labels) > 0 {
+	if ok && len(labelsRegex) > 0 {
 		re, err := regexp.Compile(labelsRegex)
 		if err != nil {
 			return nil, err
