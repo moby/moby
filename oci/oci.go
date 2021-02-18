@@ -9,7 +9,7 @@ import (
 )
 
 // nolint: gosimple
-var deviceCgroupRuleRegex = regexp.MustCompile("^(([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})|a)$")
+var deviceCgroupRuleRegex = regexp.MustCompile("^^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$|a$")
 
 // SetCapabilities sets the provided capabilities on the spec
 // All capabilities are added if privileged is true
