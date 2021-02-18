@@ -97,9 +97,14 @@ func TestAppendDevicePermissionsFromCgroupRules(t *testing.T) {
 			expectedErr: `invalid minor value in device cgroup rule format: 'c 1:18446744073709551616 rwm'`,
 		},
 		{
+			doc:         "all (a) devices with not '*' major and minor",
+			rule:        "a 1:1 rwm",
+			expectedErr: `although this cgroup rule is technically correct, because 'a' maps to 'a *:* rwm' regardless of what comes next, this format is partially ineffective: 'a 1:1 rwm'`,
+		},
+		{
 			doc:      "all (a) devices",
-			rule:     "a 1:1 rwm",
-			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "a", Major: ptr(1), Minor: ptr(1), Access: "rwm"},
+			rule:     "a",
+			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "a", Major: ptr(-1), Minor: ptr(-1), Access: "rwm"},
 		},
 		{
 			doc:      "char (c) devices",

@@ -9,7 +9,11 @@ import (
 )
 
 // nolint: gosimple
-var deviceCgroupRuleRegex = regexp.MustCompile("^^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$|a$")
+var deviceCgroupRuleRegex = regexp.MustCompile("^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$|a$")
+
+// This regex checks if a cgroup rule addressed to an 'a' device type is effective, given that 'a' maps to 'a *:* rwm'
+// If the rule is just 'a' or 'a *:* rwm', it is deemed correct, and if not, like 'a 1:3 m', we can let the user know that the rule is ineffective
+var deviceCgroupARuleRegex = regexp.MustCompile("^a \\*:\\* ([rwm]{3})$|a$")
 
 // SetCapabilities sets the provided capabilities on the spec
 // All capabilities are added if privileged is true
@@ -35,6 +39,27 @@ func AppendDevicePermissionsFromCgroupRules(devPermissions []specs.LinuxDeviceCg
 			return nil, fmt.Errorf("invalid device cgroup rule format: '%s'", deviceCgroupRule)
 		}
 		matches := ss[0]
+
+		if matches[0] == "a" || matches[1] == "a" {
+			ms := deviceCgroupARuleRegex.MatchString(matches[0])
+			if !ms {
+				return nil, fmt.Errorf("although this cgroup rule is technically correct, because 'a' maps to 'a *:* rwm' regardless of what comes next, this format is partially ineffective: '%s'", deviceCgroupRule)
+			}
+
+			major := int64(-1)
+			minor := int64(-1)
+
+			dPermissions := specs.LinuxDeviceCgroup{
+				Allow:  true,
+				Type:   "a",
+				Access: "rwm",
+				Major:  &major,
+				Minor:  &minor,
+			}
+
+			devPermissions = append(devPermissions, dPermissions)
+			return devPermissions, nil
+		}
 
 		dPermissions := specs.LinuxDeviceCgroup{
 			Allow:  true,
