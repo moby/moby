@@ -88,13 +88,13 @@ func TestAppendDevicePermissionsFromCgroupRules(t *testing.T) {
 		},
 		{
 			doc:         "major out of range",
-			rule:        "c 18446744073709551616:1 rwm",
-			expectedErr: `invalid major value in device cgroup rule format: 'c 18446744073709551616:1 rwm'`,
+			rule:        "c 2048:1 rwm",
+			expectedErr: `invalid major value in device cgroup rule format: 'c 2048:1 rwm'`,
 		},
 		{
 			doc:         "minor out of range",
-			rule:        "c 1:18446744073709551616 rwm",
-			expectedErr: `invalid minor value in device cgroup rule format: 'c 1:18446744073709551616 rwm'`,
+			rule:        "c 1:524288 rwm",
+			expectedErr: `invalid minor value in device cgroup rule format: 'c 1:524288 rwm'`,
 		},
 		{
 			doc:         "all (a) devices with not '*' major and minor",

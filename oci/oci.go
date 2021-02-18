@@ -70,7 +70,7 @@ func AppendDevicePermissionsFromCgroupRules(devPermissions []specs.LinuxDeviceCg
 			major := int64(-1)
 			dPermissions.Major = &major
 		} else {
-			major, err := strconv.ParseInt(matches[2], 10, 64)
+			major, err := strconv.ParseInt(matches[2], 10, 12)
 			if err != nil {
 				return nil, fmt.Errorf("invalid major value in device cgroup rule format: '%s'", deviceCgroupRule)
 			}
@@ -80,7 +80,7 @@ func AppendDevicePermissionsFromCgroupRules(devPermissions []specs.LinuxDeviceCg
 			minor := int64(-1)
 			dPermissions.Minor = &minor
 		} else {
-			minor, err := strconv.ParseInt(matches[3], 10, 64)
+			minor, err := strconv.ParseInt(matches[3], 10, 20)
 			if err != nil {
 				return nil, fmt.Errorf("invalid minor value in device cgroup rule format: '%s'", deviceCgroupRule)
 			}
