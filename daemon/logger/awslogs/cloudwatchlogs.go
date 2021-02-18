@@ -400,6 +400,7 @@ func (l *logStream) Name() string {
 	return name
 }
 
+// BufSize returns the maximum bytes CloudWatch can handle.
 func (l *logStream) BufSize() int {
 	return maximumBytesPerEvent
 }
