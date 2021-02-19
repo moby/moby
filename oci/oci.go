@@ -13,6 +13,7 @@ var deviceCgroupRuleRegex = regexp.MustCompile("^([acb]) ([0-9]+|\\*):([0-9]+|\\
 
 // This regex checks if a cgroup rule addressed to an 'a' device type is effective, given that 'a' maps to 'a *:* rwm'
 // If the rule is just 'a' or 'a *:* rwm', it is deemed correct, and if not, like 'a 1:3 m', we can let the user know that the rule is ineffective
+// nolint: gosimple
 var deviceCgroupARuleRegex = regexp.MustCompile("^a \\*:\\* ([rwm]{3})$|a$")
 
 // SetCapabilities sets the provided capabilities on the spec
