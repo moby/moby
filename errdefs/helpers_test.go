@@ -218,3 +218,19 @@ func TestSystem(t *testing.T) {
 		t.Fatalf("expected system error to match errTest")
 	}
 }
+
+func TestCgroupRule(t *testing.T) {
+	if IsCgroupRule(errTest) {
+		t.Fatalf("did not expect cgroup rule error, got %T", errTest)
+	}
+	e := CgroupRule(errTest)
+	if !IsCgroupRule(e) {
+		t.Fatalf("expected cgroup rule error, got %T", e)
+	}
+	if cause := e.(causal).Cause(); cause != errTest {
+		t.Fatalf("causual should be errTest, got: %v", cause)
+	}
+	if !errors.Is(e, errTest) {
+		t.Fatalf("expected cgroup rule error to match errTest")
+	}
+}

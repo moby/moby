@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
@@ -208,6 +209,13 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	if err := daemon.createContainerOSSpecificSettings(ctr, opts.params.Config, opts.params.HostConfig); err != nil {
 		return nil, err
 	}
+
+	devPermissions, err := oci.DevicePermissionsFromCgroupRules(ctr.HostConfig.DeviceCgroupRules)
+	if err != nil {
+		return nil, errdefs.CgroupRule(err)
+	}
+
+	ctr.HostConfig.DeviceCgroupPermissions = devPermissions
 
 	var endpointsConfigs map[string]*networktypes.EndpointSettings
 	if opts.params.NetworkingConfig != nil {

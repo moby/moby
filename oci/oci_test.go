@@ -7,7 +7,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestAppendDevicePermissionsFromCgroupRules(t *testing.T) {
+func TestDevicePermissionsFromCgroupRules(t *testing.T) {
 	ptr := func(i int64) *int64 { return &i }
 
 	tests := []struct {
@@ -161,7 +161,7 @@ func TestAppendDevicePermissionsFromCgroupRules(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
-			out, err := AppendDevicePermissionsFromCgroupRules([]specs.LinuxDeviceCgroup{}, []string{tc.rule})
+			out, err := DevicePermissionsFromCgroupRules([]string{tc.rule})
 			if tc.expectedErr != "" {
 				assert.Error(t, err, tc.expectedErr)
 				return

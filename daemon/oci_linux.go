@@ -912,11 +912,7 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 				devPermissions = append(devPermissions, dPermissions...)
 			}
 
-			var err error
-			devPermissions, err = oci.AppendDevicePermissionsFromCgroupRules(devPermissions, c.HostConfig.DeviceCgroupRules)
-			if err != nil {
-				return err
-			}
+			devPermissions = append(devPermissions, c.HostConfig.DeviceCgroupPermissions...)
 		}
 
 		s.Linux.Devices = append(s.Linux.Devices, devs...)

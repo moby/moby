@@ -19,7 +19,8 @@ func getImplementer(err error) error {
 		ErrCancelled,
 		ErrDeadline,
 		ErrDataLoss,
-		ErrUnknown:
+		ErrUnknown,
+		ErrCgroupRule:
 		return err
 	case causer:
 		return getImplementer(e.Cause())
@@ -103,5 +104,11 @@ func IsDeadline(err error) bool {
 // IsDataLoss returns if the passed in error is an ErrDataLoss
 func IsDataLoss(err error) bool {
 	_, ok := getImplementer(err).(ErrDataLoss)
+	return ok
+}
+
+// IsCgroupRule returns if the passed in error is an ErrCgroupRule
+func IsCgroupRule(err error) bool {
+	_, ok := getImplementer(err).(ErrCgroupRule)
 	return ok
 }

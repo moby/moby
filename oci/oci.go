@@ -31,8 +31,9 @@ func SetCapabilities(s *specs.Spec, caplist []string) error {
 	return nil
 }
 
-// AppendDevicePermissionsFromCgroupRules takes rules for the devices cgroup to append to the default set
-func AppendDevicePermissionsFromCgroupRules(devPermissions []specs.LinuxDeviceCgroup, rules []string) ([]specs.LinuxDeviceCgroup, error) {
+// DevicePermissionsFromCgroupRules takes rules for the devices cgroup
+func DevicePermissionsFromCgroupRules(rules []string) ([]specs.LinuxDeviceCgroup, error) {
+	var devPermissions []specs.LinuxDeviceCgroup
 	for _, deviceCgroupRule := range rules {
 		ss := deviceCgroupRuleRegex.FindAllStringSubmatch(deviceCgroupRule, -1)
 		if len(ss) == 0 || len(ss[0]) != 5 {
@@ -49,6 +50,7 @@ func AppendDevicePermissionsFromCgroupRules(devPermissions []specs.LinuxDeviceCg
 			major := int64(-1)
 			minor := int64(-1)
 
+			// TODO Are all these fields needed?
 			dPermissions := specs.LinuxDeviceCgroup{
 				Allow:  true,
 				Type:   "a",

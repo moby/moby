@@ -262,6 +262,26 @@ func DataLoss(err error) error {
 	return errDataLoss{err}
 }
 
+type errCgroupRule struct{ error }
+
+func (errCgroupRule) CgroupRule() {}
+
+func (e errCgroupRule) Cause() error {
+	return e.error
+}
+
+func (e errCgroupRule) Unwrap() error {
+	return e.error
+}
+
+// CgroupRule is a helper to create an error of the class with the same name from any error type
+func CgroupRule(err error) error {
+	if err == nil || IsCgroupRule(err) {
+		return err
+	}
+	return errCgroupRule{err}
+}
+
 // FromContext returns the error class from the passed in context
 func FromContext(ctx context.Context) error {
 	e := ctx.Err()
