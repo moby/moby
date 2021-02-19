@@ -397,8 +397,8 @@ func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spe
 	if err := oci.SetCapabilities(s, capabilities); err != nil {
 		return fmt.Errorf("linux spec capabilities: %v", err)
 	}
-	devPermissions := c.HostConfig.DeviceCgroupPermissions
-	s.Linux.Resources.Devices = devPermissions
+
+	s.Linux.Resources.Devices = c.HostConfig.DeviceCgroupPermissions
 	return nil
 }
 
