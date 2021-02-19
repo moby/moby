@@ -47,16 +47,11 @@ func DevicePermissionsFromCgroupRules(rules []string) ([]specs.LinuxDeviceCgroup
 				return nil, fmt.Errorf("although this cgroup rule is technically correct, because 'a' maps to 'a *:* rwm' regardless of what comes next, this format is partially ineffective: '%s'", deviceCgroupRule)
 			}
 
-			major := int64(-1)
-			minor := int64(-1)
-
-			// TODO Are all these fields needed?
+			// TODO Is the type field needed?
 			dPermissions := specs.LinuxDeviceCgroup{
 				Allow:  true,
 				Type:   "a",
 				Access: "rwm",
-				Major:  &major,
-				Minor:  &minor,
 			}
 
 			devPermissions = append(devPermissions, dPermissions)
@@ -68,20 +63,14 @@ func DevicePermissionsFromCgroupRules(rules []string) ([]specs.LinuxDeviceCgroup
 			Type:   matches[1],
 			Access: matches[4],
 		}
-		if matches[2] == "*" {
-			major := int64(-1)
-			dPermissions.Major = &major
-		} else {
+		if matches[2] != "*" {
 			major, err := strconv.ParseInt(matches[2], 10, 12)
 			if err != nil {
 				return nil, fmt.Errorf("invalid major value in device cgroup rule format: '%s'", deviceCgroupRule)
 			}
 			dPermissions.Major = &major
 		}
-		if matches[3] == "*" {
-			minor := int64(-1)
-			dPermissions.Minor = &minor
-		} else {
+		if matches[3] != "*" {
 			minor, err := strconv.ParseInt(matches[3], 10, 20)
 			if err != nil {
 				return nil, fmt.Errorf("invalid minor value in device cgroup rule format: '%s'", deviceCgroupRule)

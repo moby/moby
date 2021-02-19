@@ -104,7 +104,7 @@ func TestDevicePermissionsFromCgroupRules(t *testing.T) {
 		{
 			doc:      "all (a) devices",
 			rule:     "a",
-			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "a", Major: ptr(-1), Minor: ptr(-1), Access: "rwm"},
+			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "a", Access: "rwm"},
 		},
 		{
 			doc:      "char (c) devices",
@@ -124,17 +124,17 @@ func TestDevicePermissionsFromCgroupRules(t *testing.T) {
 		{
 			doc:      "wildcard major",
 			rule:     "c *:1 rwm",
-			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "c", Major: ptr(-1), Minor: ptr(1), Access: "rwm"},
+			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "c", Minor: ptr(1), Access: "rwm"},
 		},
 		{
 			doc:      "wildcard minor",
 			rule:     "c 1:* rwm",
-			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "c", Major: ptr(1), Minor: ptr(-1), Access: "rwm"},
+			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "c", Major: ptr(1), Access: "rwm"},
 		},
 		{
 			doc:      "wildcard major and minor",
 			rule:     "c *:* rwm",
-			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "c", Major: ptr(-1), Minor: ptr(-1), Access: "rwm"},
+			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "c", Access: "rwm"},
 		},
 		{
 			doc:      "read (r) permission",
