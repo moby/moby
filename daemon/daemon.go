@@ -301,15 +301,6 @@ func (daemon *Daemon) restore() error {
 				mapLock.Unlock()
 				return
 			}
-
-			// The LogConfig.Type is empty if the container was created before docker 1.12 with default log driver.
-			// We should rewrite it to use the daemon defaults.
-			// Fixes https://github.com/docker/docker/issues/22536
-			if c.HostConfig.LogConfig.Type == "" {
-				if err := daemon.mergeAndVerifyLogConfig(&c.HostConfig.LogConfig); err != nil {
-					log.WithError(err).Error("failed to verify log config for container")
-				}
-			}
 		}(c)
 	}
 	group.Wait()
