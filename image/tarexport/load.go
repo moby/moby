@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"reflect"
 	"runtime"
 
 	"github.com/containerd/containerd/platforms"
@@ -410,7 +409,7 @@ func checkValidParent(img, parent *image.Image) bool {
 		return false
 	}
 	for i, h := range parent.History {
-		if !reflect.DeepEqual(h, img.History[i]) {
+		if !h.Equal(img.History[i]) {
 			return false
 		}
 	}
