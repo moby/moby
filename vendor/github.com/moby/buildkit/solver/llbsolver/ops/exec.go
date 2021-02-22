@@ -235,7 +235,7 @@ func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 				if m.Input == -1 {
 					continue
 				}
-				execInputs[i] = inputs[m.Input]
+				execInputs[i] = inputs[m.Input].Clone()
 			}
 			execMounts := make([]solver.Result, len(e.op.Mounts))
 			copy(execMounts, execInputs)
@@ -243,12 +243,16 @@ func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 				execMounts[p.OutputRefs[i].MountIndex] = res
 			}
 			for _, active := range p.Actives {
-				ref, cerr := active.Ref.Commit(ctx)
-				if cerr != nil {
-					err = errors.Wrapf(err, "error committing %s: %s", active.Ref.ID(), cerr)
-					continue
+				if active.NoCommit {
+					active.Ref.Release(context.TODO())
+				} else {
+					ref, cerr := active.Ref.Commit(ctx)
+					if cerr != nil {
+						err = errors.Wrapf(err, "error committing %s: %s", active.Ref.ID(), cerr)
+						continue
+					}
+					execMounts[active.MountIndex] = worker.NewWorkerRefResult(ref, e.w)
 				}
-				execMounts[active.MountIndex] = worker.NewWorkerRefResult(ref, e.w)
 			}
 			err = errdefs.WithExecError(err, execInputs, execMounts)
 		} else {

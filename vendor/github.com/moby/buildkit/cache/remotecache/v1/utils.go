@@ -10,6 +10,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+// EmptyLayerRemovalSupported defines if implementation supports removal of empty layers. Buildkit image exporter
+// removes empty layers, but moby layerstore based implementation does not.
+var EmptyLayerRemovalSupported = true
+
 // sortConfig sorts the config structure to make sure it is deterministic
 func sortConfig(cc *CacheConfig) {
 	type indexedLayer struct {
@@ -239,7 +243,7 @@ func marshalRemote(r *solver.Remote, state *marshalState) string {
 	}
 	desc := r.Descriptors[len(r.Descriptors)-1]
 
-	if desc.Digest == exptypes.EmptyGZLayer {
+	if desc.Digest == exptypes.EmptyGZLayer && EmptyLayerRemovalSupported {
 		return parentID
 	}
 

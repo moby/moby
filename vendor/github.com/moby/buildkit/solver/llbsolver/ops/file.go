@@ -61,6 +61,8 @@ func (f *fileOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 		}
 	}
 
+	indexes := make([][]int, 0, len(f.op.Actions))
+
 	for _, action := range f.op.Actions {
 		var dt []byte
 		var err error
@@ -103,14 +105,21 @@ func (f *fileOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 		}
 
 		actions = append(actions, dt)
+		indexes = append(indexes, []int{int(action.Input), int(action.SecondaryInput), int(action.Output)})
+	}
+
+	if isDefaultIndexes(indexes) {
+		indexes = nil
 	}
 
 	dt, err := json.Marshal(struct {
 		Type    string
 		Actions [][]byte
+		Indexes [][]int `json:"indexes,omitempty"`
 	}{
 		Type:    fileCacheType,
 		Actions: actions,
+		Indexes: indexes,
 	})
 	if err != nil {
 		return nil, false, err
@@ -421,7 +430,6 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 					if cerr == nil {
 						outputRes[idx-len(inputs)] = worker.NewWorkerRefResult(ref.(cache.ImmutableRef), s.w)
 					}
-					inpMount.Release(context.TODO())
 				}
 
 				// If the action has a secondary input, commit it and set the ref on
@@ -610,4 +618,40 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 		return input{}, err
 	}
 	return inp.(input), err
+}
+
+func isDefaultIndexes(idxs [][]int) bool {
+	// Older version of checksum did not contain indexes for actions resulting in possibility for a wrong cache match.
+	// We detect the most common pattern for indexes and maintain old checksum for that case to minimize cache misses on upgrade.
+	// If a future change causes braking changes in instruction cache consider removing this exception.
+	if len(idxs) == 0 {
+		return false
+	}
+
+	for i, idx := range idxs {
+		if len(idx) != 3 {
+			return false
+		}
+		// input for first action is first input
+		if i == 0 && idx[0] != 0 {
+			return false
+		}
+		// input for other actions is previous action
+		if i != 0 && idx[0] != len(idxs)+(i-1) {
+			return false
+		}
+		// secondary input is second input or -1
+		if idx[1] != -1 && idx[1] != 1 {
+			return false
+		}
+		// last action creates output
+		if i == len(idxs)-1 && idx[2] != 0 {
+			return false
+		}
+		// other actions do not create an output
+		if i != len(idxs)-1 && idx[2] != -1 {
+			return false
+		}
+	}
+	return true
 }
