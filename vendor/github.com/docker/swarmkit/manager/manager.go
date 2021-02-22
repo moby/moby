@@ -1049,7 +1049,16 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 
 	go func(d *dispatcher.Dispatcher) {
 		// Initialize the dispatcher.
-		d.Init(m.raftNode, dispatcher.DefaultConfig(), drivers.New(m.config.PluginGetter), m.config.SecurityConfig)
+		var cluster *api.Cluster
+		s.View(func(tx store.ReadTx) {
+			cluster = store.GetCluster(tx, clusterID)
+		})
+		var defaultConfig = dispatcher.DefaultConfig()
+		heartbeatPeriod, err := gogotypes.DurationFromProto(cluster.Spec.Dispatcher.HeartbeatPeriod)
+		if err == nil {
+			defaultConfig.HeartbeatPeriod = heartbeatPeriod
+		}
+		d.Init(m.raftNode, defaultConfig, drivers.New(m.config.PluginGetter), m.config.SecurityConfig)
 		if err := d.Run(ctx); err != nil {
 			log.G(ctx).WithError(err).Error("Dispatcher exited with an error")
 		}
