@@ -47,7 +47,7 @@ type splitResult struct {
 
 func (r *splitResult) Release(ctx context.Context) error {
 	if atomic.AddInt64(&r.released, 1) > 1 {
-		err := errors.Errorf("releasing already released reference")
+		err := errors.Errorf("releasing already released reference %+v", r.Result.ID())
 		logrus.Error(err)
 		return err
 	}
@@ -78,8 +78,12 @@ func NewSharedCachedResult(res CachedResult) *SharedCachedResult {
 	}
 }
 
-func (r *SharedCachedResult) Clone() CachedResult {
+func (r *SharedCachedResult) CloneCachedResult() CachedResult {
 	return &clonedCachedResult{Result: r.SharedResult.Clone(), cr: r.CachedResult}
+}
+
+func (r *SharedCachedResult) Clone() Result {
+	return r.CloneCachedResult()
 }
 
 func (r *SharedCachedResult) Release(ctx context.Context) error {

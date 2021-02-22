@@ -21,10 +21,15 @@ func (e *ExecError) Unwrap() error {
 }
 
 func (e *ExecError) EachRef(fn func(solver.Result) error) (err error) {
+	m := map[solver.Result]struct{}{}
 	for _, res := range e.Inputs {
 		if res == nil {
 			continue
 		}
+		if _, ok := m[res]; ok {
+			continue
+		}
+		m[res] = struct{}{}
 		if err1 := fn(res); err1 != nil && err == nil {
 			err = err1
 		}
@@ -33,6 +38,10 @@ func (e *ExecError) EachRef(fn func(solver.Result) error) (err error) {
 		if res == nil {
 			continue
 		}
+		if _, ok := m[res]; ok {
+			continue
+		}
+		m[res] = struct{}{}
 		if err1 := fn(res); err1 != nil && err == nil {
 			err = err1
 		}

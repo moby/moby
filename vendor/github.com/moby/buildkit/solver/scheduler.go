@@ -244,7 +244,7 @@ func (s *scheduler) build(ctx context.Context, edge Edge) (CachedResult, error) 
 	if err := p.Receiver.Status().Err; err != nil {
 		return nil, err
 	}
-	return p.Receiver.Status().Value.(*edgeState).result.Clone(), nil
+	return p.Receiver.Status().Value.(*edgeState).result.CloneCachedResult(), nil
 }
 
 // newPipe creates a new request pipe between two edges
