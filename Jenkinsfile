@@ -51,7 +51,6 @@ pipeline {
                 sh '''
                 docker run --rm \
                   -v "$WORKSPACE:/workspace" \
-                  -e VALIDATE_REPO=${GIT_URL} \
                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                   alpine sh -c 'apk add --no-cache -q bash git openssh-client && cd /workspace && hack/validate/dco'
                 '''
@@ -100,7 +99,6 @@ pipeline {
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TEST_FORCE_VALIDATE \
-                                  -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/validate/default
@@ -116,7 +114,6 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
-                                  -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
@@ -186,7 +183,6 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
-                                  -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/test/unit
@@ -208,7 +204,6 @@ pipeline {
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TEST_FORCE_VALIDATE \
-                                  -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/validate/vendor
@@ -296,7 +291,6 @@ pipeline {
                                           -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                           -e DOCKER_GRAPHDRIVER \
                                           -e TIMEOUT \
-                                          -e VALIDATE_REPO=${GIT_URL} \
                                           -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                           docker:${GIT_COMMIT} \
                                           hack/make.sh \
@@ -415,7 +409,6 @@ pipeline {
                                   -e DOCKER_ROOTLESS \
                                   -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
-                                  -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
@@ -497,7 +490,6 @@ pipeline {
                                   -e DOCKER_SYSTEMD \
                                   -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
-                                  -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
@@ -579,7 +571,6 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
-                                  -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/test/unit
@@ -604,7 +595,6 @@ pipeline {
                                   -e TESTDEBUG \
                                   -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
-                                  -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
@@ -687,7 +677,6 @@ pipeline {
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TEST_SKIP_INTEGRATION \
                                   -e TIMEOUT \
-                                  -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
@@ -774,7 +763,6 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
-                                  -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/test/unit
@@ -799,7 +787,6 @@ pipeline {
                                   -e TESTDEBUG \
                                   -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
-                                  -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
@@ -889,7 +876,6 @@ pipeline {
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TEST_SKIP_INTEGRATION \
                                   -e TIMEOUT \
-                                  -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
@@ -970,7 +956,6 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
-                                  -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/test/unit
@@ -995,7 +980,6 @@ pipeline {
                                   -e TESTDEBUG \
                                   -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
-                                  -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
