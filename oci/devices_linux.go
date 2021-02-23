@@ -9,6 +9,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"golang.org/x/sys/unix"
 )
 
 // Device transforms a libcontainer configs.Device to a specs.LinuxDevice object.
@@ -18,7 +19,7 @@ func Device(d *configs.Device) specs.LinuxDevice {
 		Path:     d.Path,
 		Major:    d.Major,
 		Minor:    d.Minor,
-		FileMode: fmPtr(int64(d.FileMode)),
+		FileMode: fmPtr(int64(d.FileMode &^ unix.S_IFMT)), // strip file type, as OCI spec only expects file-mode to be included
 		UID:      u32Ptr(int64(d.Uid)),
 		GID:      u32Ptr(int64(d.Gid)),
 	}
