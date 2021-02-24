@@ -721,15 +721,32 @@ func (s *Scheduler) noSuitableNode(ctx context.Context, taskGroup map[string]*ap
 
 		newT := *t
 		newT.Status.Timestamp = ptypes.MustTimestampProto(time.Now())
-		if explanation != "" {
-			newT.Status.Err = "no suitable node (" + explanation + ")"
+		sv := service.SpecVersion
+		tv := newT.SpecVersion
+		if sv != nil && tv != nil && sv.Index > tv.Index {
+			log.G(ctx).WithField("task.id", t.ID).Debug(
+				"task belongs to old revision of service",
+			)
+			if t.Status.State == api.TaskStatePending && t.DesiredState >= api.TaskStateShutdown {
+				log.G(ctx).WithField("task.id", t.ID).Debug(
+					"task is desired shutdown, scheduler will go ahead and do so",
+				)
+				newT.Status.State = api.TaskStateShutdown
+				newT.Status.Err = ""
+			}
 		} else {
-			newT.Status.Err = "no suitable node"
+			if explanation != "" {
+				newT.Status.Err = "no suitable node (" + explanation + ")"
+			} else {
+				newT.Status.Err = "no suitable node"
+			}
+
+			// re-enqueue a task that should still be attempted
+			s.enqueue(&newT)
 		}
+
 		s.allTasks[t.ID] = &newT
 		schedulingDecisions[t.ID] = schedulingDecision{old: t, new: &newT}
-
-		s.enqueue(&newT)
 	}
 }
 
