@@ -15,7 +15,7 @@
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX=(auto|true|false): whether to protect slirp4netns with a dedicated mount namespace. Defaults to "auto".
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP=(auto|true|false): whether to protect slirp4netns with seccomp. Defaults to "auto".
 #
-# See the documentation for the further information: https://docs.docker.com/engine/security/rootless/
+# See the documentation for the further information: https://docs.docker.com/go/rootless/
 
 set -e -x
 case "$1" in

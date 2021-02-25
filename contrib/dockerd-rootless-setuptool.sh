@@ -4,7 +4,7 @@
 #
 # Typical usage: dockerd-rootless-setuptool.sh install --force
 #
-# Documentation: https://docs.docker.com/engine/security/rootless/
+# Documentation: https://docs.docker.com/go/rootless/
 set -eu
 
 # utility functions
@@ -290,7 +290,7 @@ install_systemd() {
 		cat <<- EOT > "${unit_file}"
 			[Unit]
 			Description=Docker Application Container Engine (Rootless)
-			Documentation=https://docs.docker.com/engine/security/rootless/
+			Documentation=https://docs.docker.com/go/rootless/
 
 			[Service]
 			Environment=PATH=$BIN:/sbin:/usr/sbin:$PATH
@@ -400,7 +400,7 @@ usage() {
 	echo
 	echo "A setup tool for Rootless Docker (${DOCKERD_ROOTLESS_SH})."
 	echo
-	echo "Documentation: https://docs.docker.com/engine/security/rootless/"
+	echo "Documentation: https://docs.docker.com/go/rootless/"
 	echo
 	echo "Options:"
 	echo "  -f, --force                Ignore rootful Docker (/var/run/docker.sock)"

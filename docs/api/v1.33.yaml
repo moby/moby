@@ -113,7 +113,7 @@ tags:
   - name: "Network"
     x-displayName: "Networks"
     description: |
-      Networks are user-defined networks that containers can be attached to. See the [networking documentation](https://docs.docker.com/engine/userguide/networking/) for more information.
+      Networks are user-defined networks that containers can be attached to. See the [networking documentation](https://docs.docker.com/network/) for more information.
   - name: "Volume"
     x-displayName: "Volumes"
     description: |
