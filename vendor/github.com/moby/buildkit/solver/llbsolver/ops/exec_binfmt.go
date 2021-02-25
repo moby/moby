@@ -27,6 +27,7 @@ var qemuArchMap = map[string]string{
 	"arm":     "arm",
 	"s390x":   "s390x",
 	"ppc64le": "ppc64le",
+	"386":     "i386",
 }
 
 type emulator struct {

@@ -231,7 +231,7 @@ func (gs *gitSourceHandler) getAuthToken(ctx context.Context, g session.Group) e
 			if s.token {
 				dt = []byte("basic " + base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("x-access-token:%s", dt))))
 			}
-			gs.auth = []string{"-c", "http.extraheader=Authorization: " + string(dt)}
+			gs.auth = []string{"-c", "http." + tokenScope(gs.src.Remote) + ".extraheader=Authorization: " + string(dt)}
 			break
 		}
 		return nil
@@ -630,4 +630,15 @@ func argsNoDepth(args []string) []string {
 		}
 	}
 	return out
+}
+
+func tokenScope(remote string) string {
+	// generally we can only use the token for fetching main remote but in case of github.com we do best effort
+	// to try reuse same token for all github.com remotes. This is the same behavior actions/checkout uses
+	for _, pfx := range []string{"https://github.com/", "https://www.github.com/"} {
+		if strings.HasPrefix(remote, pfx) {
+			return pfx
+		}
+	}
+	return remote
 }

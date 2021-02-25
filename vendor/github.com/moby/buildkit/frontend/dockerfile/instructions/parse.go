@@ -375,7 +375,7 @@ func parseRun(req parseRequest) (*RunCommand, error) {
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
-
+	cmd.FlagsUsed = req.flags.Used()
 	cmd.ShellDependantCmdLine = parseShellDependentCommand(req, false)
 	cmd.withNameAndCode = newWithNameAndCode(req)
 
