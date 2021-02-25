@@ -68,9 +68,10 @@ func (StreamFraming_FramingType) EnumDescriptor() ([]byte, []int) {
 //
 // A nil descriptor means there is nothing to attach.
 type AttachStreamsRequest struct {
-	Stdin                *FileDescriptor `protobuf:"bytes,1,opt,name=stdin,proto3" json:"stdin,omitempty"`
-	Stdout               *FileDescriptor `protobuf:"bytes,2,opt,name=stdout,proto3" json:"stdout,omitempty"`
-	Stderr               *FileDescriptor `protobuf:"bytes,3,opt,name=stderr,proto3" json:"stderr,omitempty"`
+	Process              string          `protobuf:"bytes,1,opt,name=process,proto3" json:"process,omitempty"`
+	Stdin                *FileDescriptor `protobuf:"bytes,2,opt,name=stdin,proto3" json:"stdin,omitempty"`
+	Stdout               *FileDescriptor `protobuf:"bytes,3,opt,name=stdout,proto3" json:"stdout,omitempty"`
+	Stderr               *FileDescriptor `protobuf:"bytes,4,opt,name=stderr,proto3" json:"stderr,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
 	XXX_unrecognized     []byte          `json:"-"`
 	XXX_sizecache        int32           `json:"-"`
@@ -112,10 +113,11 @@ var xxx_messageInfo_AttachStreamsRequest proto.InternalMessageInfo
 // Each file descriptor reference must be transferred to the stdio service before making this request.
 // How the file descriptors are transferred to the stdio service is left up to the implementation to deal with.
 type AttachStreamsMultiplexedRequest struct {
+	Process string `protobuf:"bytes,1,opt,name=process,proto3" json:"process,omitempty"`
 	// Stream specifies the file descriptor that will be used for sending/receiving stdio with framing.
 	// Stream must never be nil.
-	Stream  *FileDescriptor `protobuf:"bytes,1,opt,name=stream,proto3" json:"stream,omitempty"`
-	Framing StreamFraming   `protobuf:"bytes,2,opt,name=framing,proto3" json:"framing"`
+	Stream  *FileDescriptor `protobuf:"bytes,2,opt,name=stream,proto3" json:"stream,omitempty"`
+	Framing StreamFraming   `protobuf:"bytes,3,opt,name=framing,proto3" json:"framing"`
 	// include_stdout and include_stderr denote which streams are to be multiplexed on the output stream.
 	// At lease one must be specified or an error will be generated.
 	IncludeStdin         bool     `protobuf:"varint,4,opt,name=include_stdin,json=includeStdin,proto3" json:"include_stdin,omitempty"`
@@ -242,12 +244,98 @@ func (m *FileDescriptor) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_FileDescriptor proto.InternalMessageInfo
 
+// OpenStreamsRequest defines the set of fifos to use for a new process to be managed by the stdio service
+type OpenStreamsRequest struct {
+	// process is a unique ID that the caller specifies that will be used in subseqent attach requests.
+	Process              string   `protobuf:"bytes,1,opt,name=process,proto3" json:"process,omitempty"`
+	Stdin                string   `protobuf:"bytes,2,opt,name=stdin,proto3" json:"stdin,omitempty"`
+	Stdout               string   `protobuf:"bytes,3,opt,name=stdout,proto3" json:"stdout,omitempty"`
+	Stderr               string   `protobuf:"bytes,4,opt,name=stderr,proto3" json:"stderr,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *OpenStreamsRequest) Reset()      { *m = OpenStreamsRequest{} }
+func (*OpenStreamsRequest) ProtoMessage() {}
+func (*OpenStreamsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4c066d8b925c99ff, []int{4}
+}
+func (m *OpenStreamsRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *OpenStreamsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_OpenStreamsRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *OpenStreamsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_OpenStreamsRequest.Merge(m, src)
+}
+func (m *OpenStreamsRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *OpenStreamsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_OpenStreamsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_OpenStreamsRequest proto.InternalMessageInfo
+
+// CloseStreamsRequest describes the streams that should be cleaned up
+type CloseStreamsRequest struct {
+	Process              string   `protobuf:"bytes,1,opt,name=process,proto3" json:"process,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *CloseStreamsRequest) Reset()      { *m = CloseStreamsRequest{} }
+func (*CloseStreamsRequest) ProtoMessage() {}
+func (*CloseStreamsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4c066d8b925c99ff, []int{5}
+}
+func (m *CloseStreamsRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *CloseStreamsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_CloseStreamsRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *CloseStreamsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CloseStreamsRequest.Merge(m, src)
+}
+func (m *CloseStreamsRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *CloseStreamsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CloseStreamsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CloseStreamsRequest proto.InternalMessageInfo
+
 func init() {
 	proto.RegisterEnum("docker.container.services.stdio.v1.StreamFraming_FramingType", StreamFraming_FramingType_name, StreamFraming_FramingType_value)
 	proto.RegisterType((*AttachStreamsRequest)(nil), "docker.container.services.stdio.v1.AttachStreamsRequest")
 	proto.RegisterType((*AttachStreamsMultiplexedRequest)(nil), "docker.container.services.stdio.v1.AttachStreamsMultiplexedRequest")
 	proto.RegisterType((*StreamFraming)(nil), "docker.container.services.stdio.v1.StreamFraming")
 	proto.RegisterType((*FileDescriptor)(nil), "docker.container.services.stdio.v1.FileDescriptor")
+	proto.RegisterType((*OpenStreamsRequest)(nil), "docker.container.services.stdio.v1.OpenStreamsRequest")
+	proto.RegisterType((*CloseStreamsRequest)(nil), "docker.container.services.stdio.v1.CloseStreamsRequest")
 }
 
 func init() {
@@ -255,44 +343,49 @@ func init() {
 }
 
 var fileDescriptor_4c066d8b925c99ff = []byte{
-	// 577 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x54, 0xcb, 0x6e, 0xd3, 0x40,
-	0x14, 0xcd, 0xa4, 0x79, 0x71, 0xd3, 0x44, 0xd1, 0x28, 0xaa, 0xa2, 0x20, 0x39, 0x91, 0x11, 0x52,
-	0x56, 0xb6, 0x1a, 0x36, 0x15, 0x82, 0x45, 0xf3, 0xa8, 0x80, 0x8a, 0x84, 0x3a, 0x91, 0x68, 0xd9,
-	0x44, 0x8e, 0x3d, 0x71, 0xac, 0x3a, 0x1e, 0x33, 0x1e, 0xa7, 0x64, 0xc7, 0x9f, 0xf0, 0x0f, 0x7c,
-	0x45, 0x96, 0x2c, 0x58, 0xb0, 0x42, 0x34, 0x5f, 0xc1, 0x12, 0xd9, 0xe3, 0xd0, 0x06, 0x88, 0xe8,
-	0x63, 0xe3, 0x19, 0x5f, 0x9f, 0x7b, 0xce, 0xcc, 0xb9, 0xf7, 0x1a, 0x3a, 0x96, 0xcd, 0xa7, 0xc1,
-	0x58, 0x31, 0xe8, 0x4c, 0x35, 0xa9, 0x71, 0x4e, 0xd8, 0x7a, 0x31, 0xa8, 0xcb, 0x75, 0xdb, 0x25,
-	0x4c, 0xf5, 0x39, 0x23, 0xfa, 0x2c, 0x5e, 0xe6, 0x4d, 0xd5, 0xe7, 0xa6, 0x4d, 0xc5, 0x53, 0xf1,
-	0x18, 0xe5, 0x14, 0xcb, 0x22, 0x47, 0xf9, 0x9d, 0xa3, 0xf8, 0x84, 0xcd, 0x6d, 0x83, 0xf8, 0x8a,
-	0x80, 0xcd, 0xf7, 0xab, 0x0f, 0x2d, 0x4a, 0x2d, 0x87, 0xa8, 0x51, 0xc6, 0x38, 0x98, 0xa8, 0x64,
-	0xe6, 0xf1, 0x85, 0x20, 0xa8, 0x96, 0x2d, 0x6a, 0xd1, 0x68, 0xab, 0x86, 0x3b, 0x11, 0x95, 0x7f,
-	0x22, 0x28, 0x1f, 0x72, 0xae, 0x1b, 0xd3, 0x41, 0xa4, 0xed, 0x6b, 0xe4, 0x7d, 0x40, 0x7c, 0x8e,
-	0x5f, 0x40, 0x3a, 0xe4, 0x75, 0x2b, 0xa8, 0x8e, 0x1a, 0xf9, 0x66, 0x53, 0xf9, 0xbf, 0xbe, 0x72,
-	0x64, 0x3b, 0xa4, 0x43, 0x7c, 0x83, 0xd9, 0x1e, 0xa7, 0x4c, 0x13, 0x04, 0xf8, 0x15, 0x64, 0x7c,
-	0x6e, 0xd2, 0x80, 0x57, 0x92, 0x77, 0xa6, 0x8a, 0x19, 0x62, 0x2e, 0xc2, 0x58, 0x65, 0xe7, 0x5e,
-	0x5c, 0x84, 0x31, 0xf9, 0x6b, 0x12, 0x6a, 0x1b, 0x57, 0x7f, 0x1d, 0x38, 0xdc, 0xf6, 0x1c, 0xf2,
-	0x81, 0x98, 0x6b, 0x17, 0x22, 0xbd, 0xf0, 0xe3, 0x3d, 0x6c, 0x88, 0x19, 0xf0, 0x09, 0x64, 0x27,
-	0x4c, 0x9f, 0xd9, 0xae, 0x15, 0x1b, 0xb1, 0x7f, 0x13, 0x32, 0x71, 0xb6, 0x23, 0x91, 0xd8, 0x4a,
-	0x2d, 0xbf, 0xd7, 0x12, 0xda, 0x9a, 0x07, 0x3f, 0x82, 0x82, 0xed, 0x1a, 0x4e, 0x60, 0x92, 0x91,
-	0x28, 0x56, 0xaa, 0x8e, 0x1a, 0x39, 0x6d, 0x37, 0x0e, 0x0e, 0x22, 0xff, 0x1f, 0x43, 0xf1, 0x1a,
-	0x28, 0xac, 0x43, 0x3a, 0x42, 0x15, 0xae, 0x50, 0xa1, 0xb5, 0x9b, 0xb0, 0xd0, 0xe2, 0xcc, 0x9f,
-	0x30, 0xc2, 0x18, 0xae, 0x41, 0xde, 0x24, 0xa1, 0x69, 0xa3, 0x73, 0xb2, 0xf0, 0x2b, 0xd9, 0x3a,
-	0x6a, 0xec, 0x6a, 0x20, 0x42, 0xc7, 0x64, 0xe1, 0xcb, 0x9f, 0x11, 0x14, 0x36, 0x0e, 0x8d, 0x4f,
-	0x20, 0xc5, 0x17, 0x1e, 0x89, 0x2c, 0x2c, 0x36, 0x9f, 0xdf, 0xfa, 0xd6, 0x4a, 0xbc, 0x0e, 0x17,
-	0x1e, 0xd1, 0x22, 0x2a, 0xb9, 0x07, 0xf9, 0x6b, 0x41, 0x9c, 0x83, 0x54, 0xaf, 0xdf, 0xeb, 0x96,
-	0x12, 0x38, 0x0f, 0xd9, 0xc1, 0xb0, 0xd3, 0xee, 0xbf, 0x39, 0x2b, 0x21, 0x8c, 0xa1, 0xf8, 0xb6,
-	0xdb, 0x1a, 0xf4, 0xdb, 0xc7, 0xdd, 0xe1, 0x68, 0xd8, 0x3d, 0x1d, 0x96, 0x92, 0xb8, 0x0c, 0xa5,
-	0xab, 0x58, 0xeb, 0x65, 0xef, 0x50, 0x3b, 0x2b, 0xed, 0xc8, 0xcf, 0xa0, 0xb8, 0x59, 0x35, 0x8c,
-	0x21, 0xe5, 0xea, 0x33, 0x71, 0xe8, 0x07, 0x5a, 0xb4, 0xc7, 0x7b, 0x90, 0x99, 0xd8, 0x0e, 0x71,
-	0x69, 0x54, 0xc0, 0x82, 0x16, 0xbf, 0x35, 0x3f, 0x25, 0x21, 0x1d, 0x7a, 0x4d, 0xb1, 0x0e, 0x85,
-	0x8d, 0x96, 0xc2, 0x07, 0x37, 0xb9, 0xed, 0xbf, 0x06, 0xb0, 0xba, 0xa7, 0x88, 0x69, 0x56, 0xd6,
-	0xd3, 0xac, 0x74, 0xc3, 0x69, 0xc6, 0x17, 0x50, 0xd9, 0xd6, 0xb5, 0xb8, 0x7d, 0x6b, 0xb5, 0xbf,
-	0x7b, 0x7e, 0xab, 0xf0, 0x53, 0xc8, 0x0d, 0xa6, 0x01, 0x37, 0xe9, 0x85, 0x8b, 0xb7, 0x60, 0xb6,
-	0xe5, 0xb6, 0xb4, 0xe5, 0xa5, 0x94, 0xf8, 0x76, 0x29, 0x25, 0x3e, 0xae, 0x24, 0xb4, 0x5c, 0x49,
-	0xe8, 0xcb, 0x4a, 0x42, 0x3f, 0x56, 0x12, 0x7a, 0x77, 0x70, 0xd7, 0xbf, 0xe3, 0x29, 0x1a, 0x67,
-	0x22, 0x95, 0x27, 0xbf, 0x02, 0x00, 0x00, 0xff, 0xff, 0x4c, 0xed, 0x7b, 0x0a, 0x62, 0x05, 0x00,
-	0x00,
+	// 660 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x55, 0xdf, 0x4e, 0x1a, 0x4f,
+	0x14, 0x66, 0x11, 0x41, 0x0e, 0x42, 0xc8, 0xfc, 0x08, 0xd9, 0xf8, 0x4b, 0xd0, 0x6c, 0xd3, 0xc4,
+	0xab, 0xdd, 0x48, 0x93, 0xd6, 0x34, 0xed, 0x85, 0x20, 0xa6, 0xad, 0x29, 0xd4, 0x85, 0xa4, 0xda,
+	0xa4, 0x21, 0xb8, 0x7b, 0xc4, 0x8d, 0xcb, 0xce, 0x76, 0x66, 0x56, 0xcb, 0x5d, 0x9f, 0xa1, 0x8f,
+	0xd2, 0xa7, 0xf0, 0xb2, 0x97, 0xbd, 0x6a, 0x2b, 0x0f, 0xd0, 0x67, 0x68, 0xf6, 0x0f, 0xca, 0x56,
+	0x89, 0xab, 0xde, 0x30, 0x33, 0x27, 0xe7, 0x7c, 0x67, 0xf8, 0xbe, 0xf9, 0xce, 0xc2, 0xf6, 0xd0,
+	0x12, 0xc7, 0xde, 0xa1, 0x6a, 0xd0, 0x91, 0x66, 0x52, 0xe3, 0x04, 0xd9, 0x74, 0x31, 0xa8, 0x23,
+	0x06, 0x96, 0x83, 0x4c, 0xe3, 0x82, 0xe1, 0x60, 0x14, 0x2d, 0xa7, 0x75, 0x8d, 0x0b, 0xd3, 0xa2,
+	0xe1, 0xaf, 0xea, 0x32, 0x2a, 0x28, 0x51, 0xc2, 0x1a, 0xf5, 0xb2, 0x46, 0xe5, 0xc8, 0x4e, 0x2d,
+	0x03, 0xb9, 0x1a, 0xa6, 0x9d, 0x6e, 0xac, 0xfc, 0x3f, 0xa4, 0x74, 0x68, 0xa3, 0x16, 0x54, 0x1c,
+	0x7a, 0x47, 0x1a, 0x8e, 0x5c, 0x31, 0x0e, 0x01, 0x56, 0x2a, 0x43, 0x3a, 0xa4, 0xc1, 0x56, 0xf3,
+	0x77, 0x61, 0x54, 0xf9, 0x9a, 0x86, 0xca, 0x96, 0x10, 0x03, 0xe3, 0xb8, 0x1b, 0xf4, 0xe6, 0x3a,
+	0x7e, 0xf2, 0x90, 0x0b, 0x22, 0x43, 0xce, 0x65, 0xd4, 0x40, 0xce, 0x65, 0x69, 0x4d, 0x5a, 0xcf,
+	0xeb, 0xd3, 0x23, 0x79, 0x05, 0x8b, 0x7e, 0x47, 0x47, 0x4e, 0xaf, 0x49, 0xeb, 0x85, 0x7a, 0x5d,
+	0xbd, 0xfd, 0x66, 0xea, 0x8e, 0x65, 0xe3, 0x36, 0x72, 0x83, 0x59, 0xae, 0xa0, 0x4c, 0x0f, 0x01,
+	0xc8, 0x1b, 0xc8, 0x72, 0x61, 0x52, 0x4f, 0xc8, 0x0b, 0xf7, 0x86, 0x8a, 0x10, 0x22, 0x2c, 0x64,
+	0x4c, 0xce, 0x3c, 0x08, 0x0b, 0x19, 0x53, 0xfe, 0xa4, 0x61, 0x35, 0x46, 0xca, 0x5b, 0xcf, 0x16,
+	0x96, 0x6b, 0xe3, 0x67, 0x34, 0x6f, 0xe7, 0x27, 0xb8, 0x89, 0x5f, 0xf6, 0x00, 0x82, 0x22, 0x04,
+	0xb2, 0x07, 0xb9, 0x23, 0x36, 0x18, 0x59, 0xce, 0x30, 0xa2, 0x68, 0x23, 0x09, 0x58, 0x78, 0xeb,
+	0x9d, 0xb0, 0xb0, 0x91, 0x39, 0xff, 0xb9, 0x9a, 0xd2, 0xa7, 0x38, 0xe4, 0x11, 0x14, 0x2d, 0xc7,
+	0xb0, 0x3d, 0x13, 0xfb, 0xa1, 0x8c, 0x3e, 0x5f, 0x4b, 0xfa, 0x72, 0x14, 0xec, 0x06, 0xca, 0x3c,
+	0x86, 0xd2, 0x4c, 0x92, 0xaf, 0xd0, 0x62, 0x90, 0x55, 0xbc, 0xca, 0xf2, 0x49, 0x8f, 0xa7, 0xf9,
+	0xe4, 0x67, 0xff, 0x4d, 0x43, 0xc6, 0xc8, 0x2a, 0x14, 0x4c, 0xf4, 0xe9, 0xec, 0x9f, 0xe0, 0x98,
+	0xcb, 0xb9, 0x35, 0x69, 0x7d, 0x59, 0x87, 0x30, 0xb4, 0x8b, 0x63, 0xae, 0x7c, 0x93, 0xa0, 0x18,
+	0xbb, 0x34, 0xd9, 0x83, 0x8c, 0x18, 0xbb, 0x18, 0x70, 0x5b, 0xaa, 0xbf, 0xbc, 0xf3, 0xbf, 0x56,
+	0xa3, 0xb5, 0x37, 0x76, 0x51, 0x0f, 0xa0, 0x94, 0x36, 0x14, 0x66, 0x82, 0x64, 0x09, 0x32, 0xed,
+	0x4e, 0xbb, 0x55, 0x4e, 0x91, 0x02, 0xe4, 0xba, 0xbd, 0xed, 0x66, 0xe7, 0xdd, 0x41, 0x59, 0x22,
+	0x04, 0x4a, 0xef, 0x5b, 0x8d, 0x6e, 0xa7, 0xb9, 0xdb, 0xea, 0xf5, 0x7b, 0xad, 0xfd, 0x5e, 0x39,
+	0x4d, 0x2a, 0x50, 0xbe, 0x8a, 0x35, 0x5e, 0xb7, 0xb7, 0xf4, 0x83, 0xf2, 0x82, 0xf2, 0x02, 0x4a,
+	0x71, 0xd5, 0x08, 0x81, 0x8c, 0x33, 0x18, 0x61, 0xf4, 0x20, 0x82, 0x3d, 0xa9, 0x42, 0xf6, 0xc8,
+	0xb2, 0xd1, 0xa1, 0xc1, 0x6b, 0x28, 0xea, 0xd1, 0x49, 0x11, 0x40, 0x3a, 0x2e, 0x3a, 0x89, 0x5d,
+	0x57, 0x99, 0x75, 0x5d, 0x7e, 0xea, 0xa0, 0x6a, 0xcc, 0x41, 0xf9, 0x4b, 0x37, 0x54, 0x63, 0x6e,
+	0xc8, 0x5f, 0xbe, 0x6c, 0x0d, 0xfe, 0x6b, 0xda, 0x94, 0x63, 0xd2, 0xb6, 0xf5, 0x5f, 0x0b, 0xb0,
+	0xe8, 0x3f, 0x09, 0x4a, 0x06, 0x50, 0x8c, 0x79, 0x82, 0x6c, 0x26, 0x11, 0xe5, 0xa6, 0xd9, 0xb2,
+	0x52, 0x55, 0xc3, 0x41, 0xa5, 0x4e, 0x07, 0x95, 0xda, 0xf2, 0x07, 0x15, 0x39, 0x03, 0x79, 0x9e,
+	0xed, 0x48, 0xf3, 0xce, 0xdd, 0xae, 0x9b, 0x76, 0x6e, 0xe3, 0x8f, 0x50, 0x98, 0x11, 0x83, 0x3c,
+	0x4d, 0xd2, 0xeb, 0xba, 0x7a, 0x73, 0xe1, 0xfb, 0xb0, 0x3c, 0xcb, 0x3a, 0x79, 0x96, 0x04, 0xff,
+	0x06, 0x9d, 0xe6, 0x36, 0x78, 0x0e, 0x4b, 0xdd, 0x63, 0x4f, 0x98, 0xf4, 0xcc, 0x21, 0x73, 0x72,
+	0xe6, 0xd5, 0x36, 0xf4, 0xf3, 0x8b, 0x5a, 0xea, 0xc7, 0x45, 0x2d, 0xf5, 0x65, 0x52, 0x93, 0xce,
+	0x27, 0x35, 0xe9, 0xfb, 0xa4, 0x26, 0xfd, 0x9e, 0xd4, 0xa4, 0x0f, 0x9b, 0xf7, 0xfd, 0x70, 0xed,
+	0x4b, 0x87, 0xd9, 0xa0, 0xcb, 0x93, 0xbf, 0x01, 0x00, 0x00, 0xff, 0xff, 0xd2, 0xcd, 0x52, 0x10,
+	0xfd, 0x06, 0x00, 0x00,
 }
 
 func (m *AttachStreamsRequest) Marshal() (dAtA []byte, err error) {
@@ -329,7 +422,7 @@ func (m *AttachStreamsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			i = encodeVarintStdio(dAtA, i, uint64(size))
 		}
 		i--
-		dAtA[i] = 0x1a
+		dAtA[i] = 0x22
 	}
 	if m.Stdout != nil {
 		{
@@ -341,7 +434,7 @@ func (m *AttachStreamsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			i = encodeVarintStdio(dAtA, i, uint64(size))
 		}
 		i--
-		dAtA[i] = 0x12
+		dAtA[i] = 0x1a
 	}
 	if m.Stdin != nil {
 		{
@@ -352,6 +445,13 @@ func (m *AttachStreamsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			i -= size
 			i = encodeVarintStdio(dAtA, i, uint64(size))
 		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Process) > 0 {
+		i -= len(m.Process)
+		copy(dAtA[i:], m.Process)
+		i = encodeVarintStdio(dAtA, i, uint64(len(m.Process)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -428,7 +528,7 @@ func (m *AttachStreamsMultiplexedRequest) MarshalToSizedBuffer(dAtA []byte) (int
 		i = encodeVarintStdio(dAtA, i, uint64(size))
 	}
 	i--
-	dAtA[i] = 0x12
+	dAtA[i] = 0x1a
 	if m.Stream != nil {
 		{
 			size, err := m.Stream.MarshalToSizedBuffer(dAtA[:i])
@@ -438,6 +538,13 @@ func (m *AttachStreamsMultiplexedRequest) MarshalToSizedBuffer(dAtA []byte) (int
 			i -= size
 			i = encodeVarintStdio(dAtA, i, uint64(size))
 		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Process) > 0 {
+		i -= len(m.Process)
+		copy(dAtA[i:], m.Process)
+		i = encodeVarintStdio(dAtA, i, uint64(len(m.Process)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -515,6 +622,95 @@ func (m *FileDescriptor) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *OpenStreamsRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *OpenStreamsRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *OpenStreamsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.Stderr) > 0 {
+		i -= len(m.Stderr)
+		copy(dAtA[i:], m.Stderr)
+		i = encodeVarintStdio(dAtA, i, uint64(len(m.Stderr)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.Stdout) > 0 {
+		i -= len(m.Stdout)
+		copy(dAtA[i:], m.Stdout)
+		i = encodeVarintStdio(dAtA, i, uint64(len(m.Stdout)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Stdin) > 0 {
+		i -= len(m.Stdin)
+		copy(dAtA[i:], m.Stdin)
+		i = encodeVarintStdio(dAtA, i, uint64(len(m.Stdin)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Process) > 0 {
+		i -= len(m.Process)
+		copy(dAtA[i:], m.Process)
+		i = encodeVarintStdio(dAtA, i, uint64(len(m.Process)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *CloseStreamsRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *CloseStreamsRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *CloseStreamsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.Process) > 0 {
+		i -= len(m.Process)
+		copy(dAtA[i:], m.Process)
+		i = encodeVarintStdio(dAtA, i, uint64(len(m.Process)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintStdio(dAtA []byte, offset int, v uint64) int {
 	offset -= sovStdio(v)
 	base := offset
@@ -532,6 +728,10 @@ func (m *AttachStreamsRequest) Size() (n int) {
 	}
 	var l int
 	_ = l
+	l = len(m.Process)
+	if l > 0 {
+		n += 1 + l + sovStdio(uint64(l))
+	}
 	if m.Stdin != nil {
 		l = m.Stdin.Size()
 		n += 1 + l + sovStdio(uint64(l))
@@ -556,6 +756,10 @@ func (m *AttachStreamsMultiplexedRequest) Size() (n int) {
 	}
 	var l int
 	_ = l
+	l = len(m.Process)
+	if l > 0 {
+		n += 1 + l + sovStdio(uint64(l))
+	}
 	if m.Stream != nil {
 		l = m.Stream.Size()
 		n += 1 + l + sovStdio(uint64(l))
@@ -615,6 +819,50 @@ func (m *FileDescriptor) Size() (n int) {
 	return n
 }
 
+func (m *OpenStreamsRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Process)
+	if l > 0 {
+		n += 1 + l + sovStdio(uint64(l))
+	}
+	l = len(m.Stdin)
+	if l > 0 {
+		n += 1 + l + sovStdio(uint64(l))
+	}
+	l = len(m.Stdout)
+	if l > 0 {
+		n += 1 + l + sovStdio(uint64(l))
+	}
+	l = len(m.Stderr)
+	if l > 0 {
+		n += 1 + l + sovStdio(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *CloseStreamsRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Process)
+	if l > 0 {
+		n += 1 + l + sovStdio(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
 func sovStdio(x uint64) (n int) {
 	return (math_bits.Len64(x|1) + 6) / 7
 }
@@ -626,6 +874,7 @@ func (this *AttachStreamsRequest) String() string {
 		return "nil"
 	}
 	s := strings.Join([]string{`&AttachStreamsRequest{`,
+		`Process:` + fmt.Sprintf("%v", this.Process) + `,`,
 		`Stdin:` + strings.Replace(this.Stdin.String(), "FileDescriptor", "FileDescriptor", 1) + `,`,
 		`Stdout:` + strings.Replace(this.Stdout.String(), "FileDescriptor", "FileDescriptor", 1) + `,`,
 		`Stderr:` + strings.Replace(this.Stderr.String(), "FileDescriptor", "FileDescriptor", 1) + `,`,
@@ -639,6 +888,7 @@ func (this *AttachStreamsMultiplexedRequest) String() string {
 		return "nil"
 	}
 	s := strings.Join([]string{`&AttachStreamsMultiplexedRequest{`,
+		`Process:` + fmt.Sprintf("%v", this.Process) + `,`,
 		`Stream:` + strings.Replace(this.Stream.String(), "FileDescriptor", "FileDescriptor", 1) + `,`,
 		`Framing:` + strings.Replace(strings.Replace(this.Framing.String(), "StreamFraming", "StreamFraming", 1), `&`, ``, 1) + `,`,
 		`IncludeStdin:` + fmt.Sprintf("%v", this.IncludeStdin) + `,`,
@@ -673,6 +923,31 @@ func (this *FileDescriptor) String() string {
 	}, "")
 	return s
 }
+func (this *OpenStreamsRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&OpenStreamsRequest{`,
+		`Process:` + fmt.Sprintf("%v", this.Process) + `,`,
+		`Stdin:` + fmt.Sprintf("%v", this.Stdin) + `,`,
+		`Stdout:` + fmt.Sprintf("%v", this.Stdout) + `,`,
+		`Stderr:` + fmt.Sprintf("%v", this.Stderr) + `,`,
+		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *CloseStreamsRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&CloseStreamsRequest{`,
+		`Process:` + fmt.Sprintf("%v", this.Process) + `,`,
+		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
+		`}`,
+	}, "")
+	return s
+}
 func valueToStringStdio(v interface{}) string {
 	rv := reflect.ValueOf(v)
 	if rv.IsNil() {
@@ -685,6 +960,8 @@ func valueToStringStdio(v interface{}) string {
 type StdioService interface {
 	AttachStreams(ctx context.Context, req *AttachStreamsRequest) (*types.Empty, error)
 	AttachStreamsMultiplexed(ctx context.Context, req *AttachStreamsMultiplexedRequest) (*types.Empty, error)
+	OpenStreams(ctx context.Context, req *OpenStreamsRequest) (*types.Empty, error)
+	CloseStreams(ctx context.Context, req *CloseStreamsRequest) (*types.Empty, error)
 	Shutdown(ctx context.Context, req *types.Empty) (*types.Empty, error)
 }
 
@@ -703,6 +980,20 @@ func RegisterStdioService(srv *github_com_containerd_ttrpc.Server, svc StdioServ
 				return nil, err
 			}
 			return svc.AttachStreamsMultiplexed(ctx, &req)
+		},
+		"OpenStreams": func(ctx context.Context, unmarshal func(interface{}) error) (interface{}, error) {
+			var req OpenStreamsRequest
+			if err := unmarshal(&req); err != nil {
+				return nil, err
+			}
+			return svc.OpenStreams(ctx, &req)
+		},
+		"CloseStreams": func(ctx context.Context, unmarshal func(interface{}) error) (interface{}, error) {
+			var req CloseStreamsRequest
+			if err := unmarshal(&req); err != nil {
+				return nil, err
+			}
+			return svc.CloseStreams(ctx, &req)
 		},
 		"Shutdown": func(ctx context.Context, unmarshal func(interface{}) error) (interface{}, error) {
 			var req types.Empty
@@ -735,6 +1026,22 @@ func (c *stdioClient) AttachStreams(ctx context.Context, req *AttachStreamsReque
 func (c *stdioClient) AttachStreamsMultiplexed(ctx context.Context, req *AttachStreamsMultiplexedRequest) (*types.Empty, error) {
 	var resp types.Empty
 	if err := c.client.Call(ctx, "docker.container.services.stdio.v1.Stdio", "AttachStreamsMultiplexed", req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+func (c *stdioClient) OpenStreams(ctx context.Context, req *OpenStreamsRequest) (*types.Empty, error) {
+	var resp types.Empty
+	if err := c.client.Call(ctx, "docker.container.services.stdio.v1.Stdio", "OpenStreams", req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+func (c *stdioClient) CloseStreams(ctx context.Context, req *CloseStreamsRequest) (*types.Empty, error) {
+	var resp types.Empty
+	if err := c.client.Call(ctx, "docker.container.services.stdio.v1.Stdio", "CloseStreams", req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -778,6 +1085,38 @@ func (m *AttachStreamsRequest) Unmarshal(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Process", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowStdio
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthStdio
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthStdio
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Process = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Stdin", wireType)
 			}
 			var msglen int
@@ -812,7 +1151,7 @@ func (m *AttachStreamsRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 2:
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Stdout", wireType)
 			}
@@ -848,7 +1187,7 @@ func (m *AttachStreamsRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 3:
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Stderr", wireType)
 			}
@@ -940,6 +1279,38 @@ func (m *AttachStreamsMultiplexedRequest) Unmarshal(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Process", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowStdio
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthStdio
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthStdio
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Process = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Stream", wireType)
 			}
 			var msglen int
@@ -974,7 +1345,7 @@ func (m *AttachStreamsMultiplexedRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 2:
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Framing", wireType)
 			}
@@ -1279,6 +1650,274 @@ func (m *FileDescriptor) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipStdio(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthStdio
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthStdio
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *OpenStreamsRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowStdio
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: OpenStreamsRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: OpenStreamsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Process", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowStdio
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthStdio
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthStdio
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Process = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Stdin", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowStdio
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthStdio
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthStdio
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Stdin = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Stdout", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowStdio
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthStdio
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthStdio
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Stdout = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Stderr", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowStdio
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthStdio
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthStdio
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Stderr = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipStdio(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthStdio
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthStdio
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *CloseStreamsRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowStdio
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: CloseStreamsRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: CloseStreamsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Process", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowStdio
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthStdio
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthStdio
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Process = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipStdio(dAtA[iNdEx:])

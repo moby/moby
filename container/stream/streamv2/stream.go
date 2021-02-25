@@ -38,6 +38,7 @@ type attachRequest struct {
 	detachKeys                                 []byte
 	stream                                     *os.File
 	includeStdin, includeStdout, includeStderr bool
+	process                                    string
 }
 
 func (r *attachRequest) Close() {
@@ -92,9 +93,9 @@ func (c *Streams) CopyToPipe(dio *cio.DirectIO) (_ cio.IO, retErr error) {
 
 	for _, req := range c.requests {
 		if req.framing != nil {
-			err = c.client.AttachMultiplexed(ctx, req.stream, *req.framing, req.detachKeys, req.includeStdin, req.includeStdout, req.includeStderr)
+			err = c.client.AttachMultiplexed(ctx, stdio.InitProcess, req.stream, *req.framing, req.detachKeys, req.includeStdin, req.includeStdout, req.includeStderr)
 		} else {
-			err = c.client.Attach(ctx, req.stdin, req.stdout, req.stderr)
+			err = c.client.Attach(ctx, stdio.InitProcess, req.stdin, req.stdout, req.stderr)
 		}
 
 		if err != nil {
@@ -148,6 +149,14 @@ func (c *Streams) Wait(ctx context.Context) {
 	if cio != nil {
 		cio.Wait()
 	}
+}
+
+func (c *Streams) OpenProcessStreams(ctx context.Context, process string, dio *cio.DirectIO) error {
+	return c.client.OpenStreams(ctx, process, dio.Config().Stdin, dio.Config().Stdout, dio.Config().Stderr)
+}
+
+func (c *Streams) CloseProcessStreams(ctx context.Context, process string) error {
+	return c.client.CloseStreams(ctx, process)
 }
 
 func getFile(i interface{}, ref string) (retFile *os.File) {
@@ -274,13 +283,13 @@ func (c *Streams) AttachStreams(ctx context.Context, stdin io.Reader, stdout, st
 
 	c.mu.Lock()
 	if !c.initialized {
-		c.requests = append(c.requests, &attachRequest{stdin: stdinF, stdout: stdoutF, stderr: stderrF})
+		c.requests = append(c.requests, &attachRequest{process: stdio.InitProcess, stdin: stdinF, stdout: stdoutF, stderr: stderrF})
 		c.mu.Unlock()
 		return nil
 	}
 	c.mu.Unlock()
 
-	return c.client.Attach(ctx, stdinF, stdoutF, stderrF)
+	return c.client.Attach(ctx, stdio.InitProcess, stdinF, stdoutF, stderrF)
 }
 
 // AttachStreamsMultiplexed multiplexes all the requested stdio sttreams onto the single passed in stream.
@@ -312,13 +321,21 @@ func (c *Streams) AttachStreamsMultiplexed(ctx context.Context, stream io.ReadWr
 	c.mu.Lock()
 	if !c.initialized {
 		stored = true
-		c.requests = append(c.requests, &attachRequest{stream: streamF, detachKeys: detachKeys, framing: framing, includeStdin: includeStdin, includeStdout: includeStdout, includeStderr: includeStderr})
+		c.requests = append(c.requests, &attachRequest{
+			process:       stdio.InitProcess,
+			stream:        streamF,
+			detachKeys:    detachKeys,
+			framing:       framing,
+			includeStdin:  includeStdin,
+			includeStdout: includeStdout,
+			includeStderr: includeStderr,
+		})
 		c.mu.Unlock()
 		return nil
 	}
 	c.mu.Unlock()
 
-	return c.client.AttachMultiplexed(ctx, streamF, *framing, detachKeys, includeStdin, includeStdout, includeStderr)
+	return c.client.AttachMultiplexed(ctx, stdio.InitProcess, streamF, *framing, detachKeys, includeStdin, includeStdout, includeStderr)
 }
 
 // LogPipes creates 2 pipes for stdout/stderr which are then attached to the
@@ -355,6 +372,10 @@ func (c *Streams) LogPipes(ctx context.Context) (_, _ io.ReadCloser, retErr erro
 	c.mu.Unlock()
 
 	return stdoutR, stderrR, nil
+}
+
+func (c *Streams) Attacher(ctx context.Context) stdio.Attacher {
+	return c.client
 }
 
 // common implementations of net.Conn (such as net.UnixConn, net.TCPConn, etc...) have this `File()` method that we can use

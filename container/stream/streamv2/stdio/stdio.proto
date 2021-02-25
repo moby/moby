@@ -21,6 +21,12 @@ service Stdio {
 	// Attaching to stdin is still supported in order to reduce requests needed to do a full attachment, but there is nothing multiplexed about the stdin stream
 	//  and it should behave exactly like AttachStreams.
 	rpc AttachStreamsMultiplexed(AttachStreamsMultiplexedRequest) returns (google.protobuf.Empty);
+	// AddStreams adds a new set of streams to be managed by the stdio service.
+	// This is used for execs and allows us to use the same stdio service
+	rpc OpenStreams(OpenStreamsRequest) returns (google.protobuf.Empty);
+	// CloseStreams deletes a stream registered with `OpenStreams`
+	// It cleans up all the resources used by these streams.
+	rpc CloseStreams(CloseStreamsRequest) returns (google.protobuf.Empty);
 	// Shutdown shuts down the stdio service.
 	// This should be called only when a container exits.
 	//
@@ -35,19 +41,21 @@ service Stdio {
 //
 // A nil descriptor means there is nothing to attach.
 message AttachStreamsRequest {
-	FileDescriptor stdin = 1;
-	FileDescriptor stdout = 2;
-	FileDescriptor stderr = 3;
+	string process = 1;
+	FileDescriptor stdin = 2;
+	FileDescriptor stdout = 3;
+	FileDescriptor stderr = 4;
 }
 
 // AttachStreamRequest is used to by the AttachStreamsMultiplexed rpc to pass along references to file descriptors that the caller is requesting to attach with.
 // Each file descriptor reference must be transferred to the stdio service before making this request.
 // How the file descriptors are transferred to the stdio service is left up to the implementation to deal with.
 message AttachStreamsMultiplexedRequest {
+	string process = 1;
 	// Stream specifies the file descriptor that will be used for sending/receiving stdio with framing.
 	// Stream must never be nil.
-	FileDescriptor stream = 1;
-	StreamFraming framing = 2 [(gogoproto.nullable) = false];
+	FileDescriptor stream = 2;
+	StreamFraming framing = 3 [(gogoproto.nullable) = false];
 	// include_stdout and include_stderr denote which streams are to be multiplexed on the output stream.
 	// At lease one must be specified or an error will be generated.
 	bool include_stdin = 4;
@@ -77,4 +85,20 @@ message StreamFraming {
 message FileDescriptor {
 	string name = 1;
 	uint32 fileno = 2;
+}
+
+
+// OpenStreamsRequest defines the set of fifos to use for a new process to be managed by the stdio service
+message OpenStreamsRequest {
+	// process is a unique ID that the caller specifies that will be used in subseqent attach requests.
+	string process = 1;
+	string stdin = 2;
+	string stdout = 3;
+	string stderr = 4;
+}
+
+
+// CloseStreamsRequest describes the streams that should be cleaned up
+message CloseStreamsRequest {
+	string process = 1;
 }

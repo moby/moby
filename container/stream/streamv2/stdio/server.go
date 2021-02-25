@@ -46,6 +46,9 @@ func (e *fdImportError) Error() string {
 }
 
 func (s *server) AttachStreams(ctx context.Context, req *AttachStreamsRequest) (_ *types.Empty, retErr error) {
+	if req.Process == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "missing process id")
+	}
 	var (
 		stdin, stdout, stderr *os.File
 	)
@@ -90,7 +93,7 @@ func (s *server) AttachStreams(ctx context.Context, req *AttachStreamsRequest) (
 		return nil, &fdImportError{badFds}
 	}
 
-	if err := s.a.Attach(ctx, stdin, stdout, stderr); err != nil {
+	if err := s.a.Attach(ctx, req.Process, stdin, stdout, stderr); err != nil {
 		return nil, err
 	}
 
@@ -100,6 +103,9 @@ func (s *server) AttachStreams(ctx context.Context, req *AttachStreamsRequest) (
 func (s *server) AttachStreamsMultiplexed(ctx context.Context, req *AttachStreamsMultiplexedRequest) (_ *types.Empty, retErr error) {
 	if req.Stream == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing stream")
+	}
+	if req.Process == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "missing process id")
 	}
 	var stream *os.File
 
@@ -114,10 +120,31 @@ func (s *server) AttachStreamsMultiplexed(ctx context.Context, req *AttachStream
 		return nil, &fdImportError{[]*FileDescriptor{req.Stream}}
 	}
 
-	if err := s.a.AttachMultiplexed(ctx, stream, req.Framing, req.DetachKeys, req.IncludeStdin, req.IncludeStdout, req.IncludeStderr); err != nil {
+	if err := s.a.AttachMultiplexed(ctx, req.Process, stream, req.Framing, req.DetachKeys, req.IncludeStdin, req.IncludeStdout, req.IncludeStderr); err != nil {
 		return nil, err
 	}
 
+	return &types.Empty{}, nil
+}
+
+func (s *server) OpenStreams(ctx context.Context, req *OpenStreamsRequest) (*types.Empty, error) {
+	if req.Process == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "missing process id")
+	}
+	err := s.a.OpenStreams(ctx, req.Process, req.Stdin, req.Stdout, req.Stderr)
+	if err != nil {
+		return nil, err
+	}
+	return &types.Empty{}, nil
+}
+
+func (s *server) CloseStreams(ctx context.Context, req *CloseStreamsRequest) (*types.Empty, error) {
+	if req.Process == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "missing process id")
+	}
+	if err := s.a.CloseStreams(ctx, req.Process); err != nil {
+		return nil, err
+	}
 	return &types.Empty{}, nil
 }
 

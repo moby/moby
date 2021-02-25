@@ -112,7 +112,7 @@ func (daemon *Daemon) ContainerExecCreate(name string, config *types.ExecConfig)
 		}
 	}
 
-	execConfig := exec.NewConfig()
+	execConfig := exec.NewConfig(cntr.StreamConfig)
 	execConfig.OpenStdin = config.AttachStdin
 	execConfig.OpenStdout = config.AttachStdout
 	execConfig.OpenStderr = config.AttachStderr
@@ -213,12 +213,6 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 	}
 	if ec.OpenStderr {
 		cStderr = stderr
-	}
-
-	if ec.OpenStdin {
-		ec.StreamConfig.NewInputPipes()
-	} else {
-		ec.StreamConfig.NewNopInputPipe()
 	}
 
 	p := &specs.Process{}

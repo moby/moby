@@ -15,20 +15,12 @@ import (
 
 var _ Attacher = &Client{}
 
-type AttachConfig struct {
-	Stdin         *os.File
-	Stdout        *os.File
-	Stderr        *os.File
-	Framing       StreamFraming
-	IncludeStdout bool
-	IncludeStderr bool
-	DetachKeys    []byte
-}
-
 // Attacher is the interface used abstract stream attachments for different implementations which can be backed by RPC or directly in process.
 type Attacher interface {
-	Attach(ctx context.Context, stdin, stdout, stderr *os.File) error
-	AttachMultiplexed(ctx context.Context, f *os.File, framing StreamFraming, detachKeys []byte, includeStdin, includeStdout, includeStderr bool) error
+	Attach(ctx context.Context, process string, stdin, stdout, stderr *os.File) error
+	AttachMultiplexed(ctx context.Context, process string, f *os.File, framing StreamFraming, detachKeys []byte, includeStdin, includeStdout, includeStderr bool) error
+	OpenStreams(ctx context.Context, process string, stdin, stdout, stderr string) error
+	CloseStreams(ctx context.Context, process string) error
 	Close() error
 }
 
@@ -75,7 +67,7 @@ func CheckRunning(addr string) bool {
 // Attach sends a request to attach the I/O streams to the container's stdio.
 //
 // On success, all passed in files are closed.
-func (c *Client) Attach(ctx context.Context, stdin, stdout, stderr *os.File) (retErr error) {
+func (c *Client) Attach(ctx context.Context, process string, stdin, stdout, stderr *os.File) (retErr error) {
 	send := make([]*os.File, 0, 3)
 	if stdin != nil {
 		send = append(send, stdin)
@@ -133,7 +125,7 @@ func (c *Client) Attach(ctx context.Context, stdin, stdout, stderr *os.File) (re
 // AttachMultiplexed a request to attach the I/O streams to the container with the output streams multiplexed.
 //
 // On success, the passed in file is closed.
-func (c *Client) AttachMultiplexed(ctx context.Context, f *os.File, framing StreamFraming, detachKeys []byte, includeStdin, includeStdout, includeStderr bool) error {
+func (c *Client) AttachMultiplexed(ctx context.Context, process string, f *os.File, framing StreamFraming, detachKeys []byte, includeStdin, includeStdout, includeStderr bool) error {
 	fds, err := c.fdSender.Sendfd(f)
 	if err != nil {
 		return fmt.Errorf("error sending file descriptors: %w", err)
@@ -153,6 +145,27 @@ func (c *Client) AttachMultiplexed(ctx context.Context, f *os.File, framing Stre
 	}
 
 	_, err = c.c.AttachStreamsMultiplexed(ctx, req)
+	return err
+}
+
+// OpenStreams adds the fifos with the given process id to the stdio service.
+// Once this has returned, you can attach to these streams by providing the same process ID to `Attach` or `AttachMultiplexed`
+func (c *Client) OpenStreams(ctx context.Context, process string, stdin, stdout, stderr string) error {
+	_, err := c.c.OpenStreams(ctx, &OpenStreamsRequest{
+		Process: process,
+		Stdin:   stdin,
+		Stdout:  stdout,
+		Stderr:  stderr,
+	})
+	return err
+}
+
+// CloseStreams deletes the streams from the remote with the provided process ID.
+// This should be called when done with streams added by `AddStreams`.
+func (c *Client) CloseStreams(ctx context.Context, process string) error {
+	_, err := c.c.CloseStreams(ctx, &CloseStreamsRequest{
+		Process: process,
+	})
 	return err
 }
 
