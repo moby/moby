@@ -61,6 +61,7 @@ type Result interface {
 	ID() string
 	Release(context.Context) error
 	Sys() interface{}
+	Clone() Result
 }
 
 // CachedResult is a result connected with its cache key

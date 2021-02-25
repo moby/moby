@@ -127,6 +127,7 @@ type MountRef struct {
 type MountMutableRef struct {
 	Ref        cache.MutableRef
 	MountIndex int
+	NoCommit   bool
 }
 
 type MakeMutable func(m *opspb.Mount, ref cache.ImmutableRef) (cache.MutableRef, error)
@@ -196,6 +197,7 @@ func PrepareMounts(ctx context.Context, mm *mounts.MountManager, cm cache.Manage
 			p.Actives = append(p.Actives, MountMutableRef{
 				MountIndex: i,
 				Ref:        active,
+				NoCommit:   true,
 			})
 			if m.Output != opspb.SkipOutput && ref != nil {
 				p.OutputRefs = append(p.OutputRefs, MountRef{

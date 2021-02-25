@@ -269,6 +269,7 @@ type RunCommand struct {
 	withNameAndCode
 	withExternalData
 	ShellDependantCmdLine
+	FlagsUsed []string
 }
 
 // CmdCommand : CMD foo
