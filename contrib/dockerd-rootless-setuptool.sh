@@ -306,7 +306,8 @@ install_systemd() {
 			LimitCORE=infinity
 			TasksMax=infinity
 			Delegate=yes
-			Type=simple
+			Type=notify
+			NotifyAccess=all
 			KillMode=mixed
 
 			[Install]
