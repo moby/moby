@@ -209,7 +209,7 @@ func (daemon *Daemon) fillAPIInfo(v *types.Info) {
 	const warn string = `
          Access to the remote API is equivalent to root access on the host. Refer
          to the 'Docker daemon attack surface' section in the documentation for
-         more information: https://docs.docker.com/engine/security/security/#docker-daemon-attack-surface`
+         more information: https://docs.docker.com/go/attack-surface/`
 
 	cfg := daemon.configStore
 	for _, host := range cfg.Hosts {
