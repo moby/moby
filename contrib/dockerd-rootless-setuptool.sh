@@ -23,6 +23,7 @@ ERROR() {
 # constants
 DOCKERD_ROOTLESS_SH="dockerd-rootless.sh"
 SYSTEMD_UNIT="docker.service"
+CLI_CONTEXT="rootless"
 
 # CLI opt: --force
 OPT_FORCE=""
@@ -350,6 +351,23 @@ install_nonsystemd() {
 	echo
 }
 
+cli_ctx_exists() {
+	name="$1"
+	"${BIN}/docker" context inspect -f "{{.Name}}" "${name}" > /dev/null 2>&1
+}
+
+cli_ctx_create() {
+	name="$1"
+	host="$2"
+	description="$3"
+	"${BIN}/docker" context create "${name}" --docker "host=${host}" --description "${description}" > /dev/null
+}
+
+cli_ctx_rm() {
+	name="$1"
+	"${BIN}/docker" context rm -f "${name}" > /dev/null
+}
+
 # CLI subcommand: "install"
 cmd_entrypoint_install() {
 	# requirements are already checked in init()
@@ -359,6 +377,14 @@ cmd_entrypoint_install() {
 		install_systemd
 	fi
 
+	if cli_ctx_exists "${CLI_CONTEXT}"; then
+		INFO "CLI context \"${CLI_CONTEXT}\" already exists"
+	else
+		INFO "Creating CLI context \"${CLI_CONTEXT}\""
+		cli_ctx_create "${CLI_CONTEXT}" "unix://${XDG_RUNTIME_DIR}/docker.sock" "Rootless mode"
+	fi
+
+	echo
 	INFO "Make sure the following environment variables are set (or add them to ~/.bashrc):"
 	echo
 	if [ -n "$XDG_RUNTIME_DIR_CREATED" ]; then
@@ -388,6 +414,11 @@ cmd_entrypoint_uninstall() {
 		) || :
 		rm -f "${unit_file}"
 		INFO "Uninstalled ${SYSTEMD_UNIT}"
+	fi
+
+	if cli_ctx_exists "${CLI_CONTEXT}"; then
+		cli_ctx_rm "${CLI_CONTEXT}"
+		INFO "Deleted CLI context \"${CLI_CONTEXT}\""
 	fi
 
 	INFO "This uninstallation tool does NOT remove Docker binaries and data."
