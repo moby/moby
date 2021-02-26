@@ -48,9 +48,7 @@ const (
 	// DefaultRuntimeBinary is the default runtime to be used by
 	// containerd if none is specified
 	DefaultRuntimeBinary = "runc"
-	// StockRuntimeName is the reserved name/alias used to represent the
-	// OCI runtime being shipped with the docker daemon package.
-	StockRuntimeName = "runc"
+
 	// LinuxV1RuntimeName is the runtime used to specify the containerd v1 shim with the runc binary
 	// Note this is different than io.containerd.runc.v1 which would be the v1 shim using the v2 shim API.
 	// This is specifically for the v1 shim using the v1 shim API.
@@ -273,6 +271,8 @@ type CommonConfig struct {
 
 	ContainerdNamespace       string `json:"containerd-namespace,omitempty"`
 	ContainerdPluginNamespace string `json:"containerd-plugin-namespace,omitempty"`
+
+	DefaultRuntime string `json:"default-runtime,omitempty"`
 }
 
 // IsValueSet returns true if a configuration value
@@ -635,4 +635,13 @@ func ModifiedDiscoverySettings(config *Config, backendType, advertise string, cl
 	}
 
 	return !reflect.DeepEqual(config.ClusterOpts, clusterOpts)
+}
+
+// GetDefaultRuntimeName returns the current default runtime
+func (conf *Config) GetDefaultRuntimeName() string {
+	conf.Lock()
+	rt := conf.DefaultRuntime
+	conf.Unlock()
+
+	return rt
 }
