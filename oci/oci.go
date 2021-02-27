@@ -74,7 +74,7 @@ func DevicePermissionsFromCgroupRules(rules []string) ([]specs.LinuxDeviceCgroup
 		if matches[2] != "*" && matches[2] != "-1" {
 			m, err := strconv.ParseUint(matches[2], 10, 12)
 			if err != nil {
-				return nil, warnings, fmt.Errorf("major value out of range in device cgroup rule format: '%s'", deviceCgroupRule)
+				return nil, warnings, fmt.Errorf("invalid major value in device cgroup rule format: '%s': parsing %s: value out of range", deviceCgroupRule, matches[2])
 			}
 			major := int64(m)
 			dPermissions.Major = &major
@@ -82,7 +82,7 @@ func DevicePermissionsFromCgroupRules(rules []string) ([]specs.LinuxDeviceCgroup
 		if matches[3] != "*" && matches[2] != "-1" {
 			m, err := strconv.ParseUint(matches[3], 10, 20)
 			if err != nil {
-				return nil, warnings, fmt.Errorf("minor value out of range in device cgroup rule format: '%s'", deviceCgroupRule)
+				return nil, warnings, fmt.Errorf("invalid minor value in device cgroup rule format: '%s': parsing %s: value out of range", deviceCgroupRule, matches[3])
 			}
 			minor := int64(m)
 			dPermissions.Minor = &minor
