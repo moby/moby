@@ -41,8 +41,6 @@ func GetHTTPErrorStatusCode(err error) int {
 		statusCode = http.StatusNotModified
 	case IsNotImplemented(err):
 		statusCode = http.StatusNotImplemented
-	case IsCgroupRule(err):
-		statusCode = http.StatusBadRequest
 	case IsSystem(err) || IsUnknown(err) || IsDataLoss(err) || IsDeadline(err) || IsCancelled(err):
 		statusCode = http.StatusInternalServerError
 	default:

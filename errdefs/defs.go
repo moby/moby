@@ -67,8 +67,3 @@ type ErrDeadline interface {
 type ErrDataLoss interface {
 	DataLoss()
 }
-
-// ErrCgroupRule indicates that a cgroup rule was invalid
-type ErrCgroupRule interface {
-	CgroupRule()
-}
