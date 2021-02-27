@@ -13,7 +13,7 @@ import (
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality
-func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) ([]string, error) {
 
 	if container.OS == runtime.GOOS {
 		// Make sure the host config has the default daemon isolation if not specified by caller.
@@ -24,7 +24,7 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 		// LCOW must be a Hyper-V container as you can't run a shared kernel when one
 		// is a Windows kernel, the other is a Linux kernel.
 		if containertypes.Isolation.IsProcess(containertypes.Isolation(hostConfig.Isolation)) {
-			return fmt.Errorf("process isolation is invalid for Linux containers on Windows")
+			return nil, fmt.Errorf("process isolation is invalid for Linux containers on Windows")
 		}
 		hostConfig.Isolation = "hyperv"
 	}
@@ -33,7 +33,7 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 
 		mp, err := parser.ParseMountRaw(spec, hostConfig.VolumeDriver)
 		if err != nil {
-			return fmt.Errorf("Unrecognised volume spec: %v", err)
+			return nil, fmt.Errorf("Unrecognised volume spec: %v", err)
 		}
 
 		// If the mountpoint doesn't have a name, generate one.
@@ -53,7 +53,7 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 		// a new one will be created.
 		v, err := daemon.volumes.Create(context.TODO(), mp.Name, volumeDriver, volumeopts.WithCreateReference(container.ID))
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// FIXME Windows: This code block is present in the Linux version and
@@ -89,5 +89,5 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 		// Add it to container.MountPoints
 		container.AddMountPointWithVolume(mp.Destination, &volumeWrapper{v: v, s: daemon.volumes}, mp.RW)
 	}
-	return nil
+	return nil, nil
 }
