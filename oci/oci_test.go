@@ -100,7 +100,7 @@ func TestDevicePermissionsFromCgroupRules(t *testing.T) {
 		{
 			doc:             "all (a) devices with not '*' major and minor",
 			rule:            "a 1:1 rwm",
-			expectedWarning: `although this cgroup rule is technically correct, because 'a' maps to 'a *:* rwm' regardless of what comes next, this format is partially ineffective: 'a 1:1 rwm'`,
+			expectedWarning: `Although this cgroup rule is technically correct, because 'a' maps to 'a *:* rwm' regardless of what comes next, this format is partially ineffective: 'a 1:1 rwm'`,
 		},
 		{
 			doc:      "all (a) devices",
