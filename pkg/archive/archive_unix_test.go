@@ -160,6 +160,7 @@ func TestTarWithHardLinkAndRebase(t *testing.T) {
 // TestUntarParentPathPermissions is a regression test to check that missing
 // parent directories are created with the expected permissions
 func TestUntarParentPathPermissions(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	buf := &bytes.Buffer{}
 	w := tar.NewWriter(buf)
 	err := w.WriteHeader(&tar.Header{Name: "foo/bar"})
