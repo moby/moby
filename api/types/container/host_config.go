@@ -3,13 +3,12 @@ package container // import "github.com/docker/docker/api/types/container"
 import (
 	"strings"
 
-	specs "github.com/opencontainers/runtime-spec/specs-go"
-
 	"github.com/docker/docker/api/types/blkiodev"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
 	units "github.com/docker/go-units"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // CgroupnsMode represents the cgroup namespace mode of the container
