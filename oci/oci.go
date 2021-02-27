@@ -49,7 +49,7 @@ func DevicePermissionsFromCgroupRules(rules []string) ([]specs.LinuxDeviceCgroup
 		if matches[0] == "a" || matches[1] == "a" {
 			ms := deviceCgroupARuleRegex.MatchString(matches[0])
 			if !ms {
-				warnings = append(warnings, fmt.Sprintf("although this cgroup rule is technically correct, because 'a' maps to 'a *:* rwm' regardless of what comes next, this format is partially ineffective: '%s'", deviceCgroupRule))
+				warnings = append(warnings, fmt.Sprintf("Although this cgroup rule is technically correct, because 'a' maps to 'a *:* rwm' regardless of what comes next, this format is partially ineffective: '%s'", deviceCgroupRule))
 			}
 
 			dPermissions := specs.LinuxDeviceCgroup{
