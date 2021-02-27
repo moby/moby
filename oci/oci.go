@@ -33,52 +33,61 @@ func SetCapabilities(s *specs.Spec, caplist []string) error {
 }
 
 // DevicePermissionsFromCgroupRules takes rules for the devices cgroup
-func DevicePermissionsFromCgroupRules(rules []string) ([]specs.LinuxDeviceCgroup, error) {
+func DevicePermissionsFromCgroupRules(rules []string) ([]specs.LinuxDeviceCgroup, []string, error) {
 	var devPermissions []specs.LinuxDeviceCgroup
+	var warnings []string
 	for _, deviceCgroupRule := range rules {
 		ss := deviceCgroupRuleRegex.FindAllStringSubmatch(deviceCgroupRule, -1)
 		if len(ss) == 0 || len(ss[0]) != 5 {
-			return nil, fmt.Errorf("invalid device cgroup rule format: '%s'", deviceCgroupRule)
+			return nil, warnings, fmt.Errorf("invalid device cgroup rule format: '%s'", deviceCgroupRule)
 		}
 		matches := ss[0]
+
+		major := int64(-1)
+		minor := int64(-1)
 
 		if matches[0] == "a" || matches[1] == "a" {
 			ms := deviceCgroupARuleRegex.MatchString(matches[0])
 			if !ms {
-				return nil, fmt.Errorf("although this cgroup rule is technically correct, because 'a' maps to 'a *:* rwm' regardless of what comes next, this format is partially ineffective: '%s'", deviceCgroupRule)
+				warnings = append(warnings, fmt.Sprintf("although this cgroup rule is technically correct, because 'a' maps to 'a *:* rwm' regardless of what comes next, this format is partially ineffective: '%s'", deviceCgroupRule))
 			}
 
-			// TODO Is the type field needed?
 			dPermissions := specs.LinuxDeviceCgroup{
 				Allow:  true,
 				Type:   "a",
+				Major:  &major,
+				Minor:  &minor,
 				Access: "rwm",
 			}
 
 			devPermissions = append(devPermissions, dPermissions)
-			return devPermissions, nil
+			return devPermissions, warnings, nil
 		}
 
 		dPermissions := specs.LinuxDeviceCgroup{
 			Allow:  true,
 			Type:   matches[1],
+			Major:  &major,
+			Minor:  &minor,
 			Access: matches[4],
 		}
-		if matches[2] != "*" {
-			major, err := strconv.ParseInt(matches[2], 10, 12)
+		if matches[2] != "*" && matches[2] != "-1" {
+			m, err := strconv.ParseUint(matches[2], 10, 12)
 			if err != nil {
-				return nil, fmt.Errorf("invalid major value in device cgroup rule format: '%s'", deviceCgroupRule)
+				return nil, warnings, fmt.Errorf("major value out of range in device cgroup rule format: '%s'", deviceCgroupRule)
 			}
+			major := int64(m)
 			dPermissions.Major = &major
 		}
-		if matches[3] != "*" {
-			minor, err := strconv.ParseInt(matches[3], 10, 20)
+		if matches[3] != "*" && matches[2] != "-1" {
+			m, err := strconv.ParseUint(matches[3], 10, 20)
 			if err != nil {
-				return nil, fmt.Errorf("invalid minor value in device cgroup rule format: '%s'", deviceCgroupRule)
+				return nil, warnings, fmt.Errorf("minor value out of range in device cgroup rule format: '%s'", deviceCgroupRule)
 			}
+			minor := int64(m)
 			dPermissions.Minor = &minor
 		}
 		devPermissions = append(devPermissions, dPermissions)
 	}
-	return devPermissions, nil
+	return devPermissions, warnings, nil
 }

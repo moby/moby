@@ -11,10 +11,11 @@ func TestDevicePermissionsFromCgroupRules(t *testing.T) {
 	ptr := func(i int64) *int64 { return &i }
 
 	tests := []struct {
-		doc         string
-		rule        string
-		expected    specs.LinuxDeviceCgroup
-		expectedErr string
+		doc             string
+		rule            string
+		expected        specs.LinuxDeviceCgroup
+		expectedWarning string
+		expectedErr     string
 	}{
 		{
 			doc:         "empty rule",
@@ -88,23 +89,23 @@ func TestDevicePermissionsFromCgroupRules(t *testing.T) {
 		},
 		{
 			doc:         "major out of range",
-			rule:        "c 2048:1 rwm",
-			expectedErr: `invalid major value in device cgroup rule format: 'c 2048:1 rwm'`,
+			rule:        "c 4096:1 rwm",
+			expectedErr: `major value out of range in device cgroup rule format: 'c 4096:1 rwm'`,
 		},
 		{
 			doc:         "minor out of range",
-			rule:        "c 1:524288 rwm",
-			expectedErr: `invalid minor value in device cgroup rule format: 'c 1:524288 rwm'`,
+			rule:        "c 1:1048576 rwm",
+			expectedErr: `minor value out of range in device cgroup rule format: 'c 1:1048576 rwm'`,
 		},
 		{
-			doc:         "all (a) devices with not '*' major and minor",
-			rule:        "a 1:1 rwm",
-			expectedErr: `although this cgroup rule is technically correct, because 'a' maps to 'a *:* rwm' regardless of what comes next, this format is partially ineffective: 'a 1:1 rwm'`,
+			doc:             "all (a) devices with not '*' major and minor",
+			rule:            "a 1:1 rwm",
+			expectedWarning: `although this cgroup rule is technically correct, because 'a' maps to 'a *:* rwm' regardless of what comes next, this format is partially ineffective: 'a 1:1 rwm'`,
 		},
 		{
 			doc:      "all (a) devices",
 			rule:     "a",
-			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "a", Access: "rwm"},
+			expected: specs.LinuxDeviceCgroup{Allow: true, Minor: ptr(-1), Major: ptr(-1), Type: "a", Access: "rwm"},
 		},
 		{
 			doc:      "char (c) devices",
@@ -124,17 +125,17 @@ func TestDevicePermissionsFromCgroupRules(t *testing.T) {
 		{
 			doc:      "wildcard major",
 			rule:     "c *:1 rwm",
-			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "c", Minor: ptr(1), Access: "rwm"},
+			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "c", Major: ptr(-1), Minor: ptr(1), Access: "rwm"},
 		},
 		{
 			doc:      "wildcard minor",
 			rule:     "c 1:* rwm",
-			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "c", Major: ptr(1), Access: "rwm"},
+			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "c", Major: ptr(1), Minor: ptr(-1), Access: "rwm"},
 		},
 		{
 			doc:      "wildcard major and minor",
 			rule:     "c *:* rwm",
-			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "c", Access: "rwm"},
+			expected: specs.LinuxDeviceCgroup{Allow: true, Type: "c", Major: ptr(-1), Minor: ptr(-1), Access: "rwm"},
 		},
 		{
 			doc:      "read (r) permission",
@@ -161,9 +162,13 @@ func TestDevicePermissionsFromCgroupRules(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
-			out, err := DevicePermissionsFromCgroupRules([]string{tc.rule})
+			out, warnings, err := DevicePermissionsFromCgroupRules([]string{tc.rule})
 			if tc.expectedErr != "" {
 				assert.Error(t, err, tc.expectedErr)
+				return
+			}
+			if tc.expectedWarning != "" {
+				assert.DeepEqual(t, warnings, []string{tc.expectedWarning})
 				return
 			}
 			assert.NilError(t, err)
