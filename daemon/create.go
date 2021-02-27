@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
@@ -108,7 +107,8 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
-	ctr, err := daemon.create(opts)
+	ctr, warn, err := daemon.create(opts)
+	warnings = append(warnings, warn...)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, err
 	}
@@ -122,7 +122,7 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 }
 
 // Create creates a new container from the given configuration with a given name.
-func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr error) {
+func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retWarnings []string, retErr error) {
 	var (
 		ctr   *container.Container
 		img   *image.Image
@@ -134,7 +134,7 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	if opts.params.Config.Image != "" {
 		img, err = daemon.imageService.GetImage(opts.params.Config.Image, opts.params.Platform)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if img.OS != "" {
 			os = img.OS
@@ -147,7 +147,7 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 		imgID = img.ID()
 
 		if isWindows && img.OS == "linux" && !system.LCOWSupported() {
-			return nil, errors.New("operating system on which parent image was created is not Windows")
+			return nil, nil, errors.New("operating system on which parent image was created is not Windows")
 		}
 	} else {
 		if isWindows {
@@ -164,15 +164,15 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	}
 
 	if err := daemon.mergeAndVerifyConfig(opts.params.Config, img); err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return nil, nil, errdefs.InvalidParameter(err)
 	}
 
 	if err := daemon.mergeAndVerifyLogConfig(&opts.params.HostConfig.LogConfig); err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return nil, nil, errdefs.InvalidParameter(err)
 	}
 
 	if ctr, err = daemon.newContainer(opts.params.Name, os, opts.params.Config, opts.params.HostConfig, imgID, opts.managed); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer func() {
 		if retErr != nil {
@@ -183,7 +183,7 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	}()
 
 	if err := daemon.setSecurityOptions(ctr, opts.params.HostConfig); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	ctr.HostConfig.StorageOpt = opts.params.HostConfig.StorageOpt
@@ -191,31 +191,25 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	// Set RWLayer for container after mount labels have been set
 	rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping))
 	if err != nil {
-		return nil, errdefs.System(err)
+		return nil, nil, errdefs.System(err)
 	}
 	ctr.RWLayer = rwLayer
 
 	if err := idtools.MkdirAndChown(ctr.Root, 0701, idtools.CurrentIdentity()); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := idtools.MkdirAndChown(ctr.CheckpointDir(), 0700, idtools.CurrentIdentity()); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err := daemon.setHostConfig(ctr, opts.params.HostConfig); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if err := daemon.createContainerOSSpecificSettings(ctr, opts.params.Config, opts.params.HostConfig); err != nil {
-		return nil, err
-	}
-
-	devPermissions, err := oci.DevicePermissionsFromCgroupRules(ctr.HostConfig.DeviceCgroupRules)
+	warnings, err := daemon.createContainerOSSpecificSettings(ctr, opts.params.Config, opts.params.HostConfig)
 	if err != nil {
-		return nil, errdefs.CgroupRule(err)
+		return nil, warnings, err
 	}
-
-	ctr.HostConfig.DeviceCgroupPermissions = devPermissions
 
 	var endpointsConfigs map[string]*networktypes.EndpointSettings
 	if opts.params.NetworkingConfig != nil {
@@ -227,11 +221,11 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 
 	daemon.updateContainerNetworkSettings(ctr, endpointsConfigs)
 	if err := daemon.Register(ctr); err != nil {
-		return nil, err
+		return nil, warnings, err
 	}
 	stateCtr.set(ctr.ID, "stopped")
 	daemon.LogContainerEvent(ctr, "create")
-	return ctr, nil
+	return ctr, warnings, nil
 }
 
 func toHostConfigSelinuxLabels(labels []string) []string {
