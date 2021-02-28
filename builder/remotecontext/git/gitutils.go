@@ -241,7 +241,7 @@ func getScheme(address string) string {
 func getDefaultBranch(remoteURL string) (string, error) {
 	out, err := git("ls-remote", "--symref", remoteURL, "HEAD")
 	if err != nil {
-		return "", err
+		return "", errors.Errorf("error fetching default branch for repository %s: %v", remoteURL, err)
 	}
 
 	ss := defaultBranch.FindAllStringSubmatch(string(out), -1)
