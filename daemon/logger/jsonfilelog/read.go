@@ -61,9 +61,10 @@ func decodeLogLine(dec *json.Decoder, l *jsonlog.JSONLog) (*logger.Message, erro
 }
 
 type decoder struct {
-	rdr io.Reader
-	dec *json.Decoder
-	jl  *jsonlog.JSONLog
+	rdr      io.Reader
+	dec      *json.Decoder
+	jl       *jsonlog.JSONLog
+	maxRetry int
 }
 
 func (d *decoder) Reset(rdr io.Reader) {
@@ -87,7 +88,11 @@ func (d *decoder) Decode() (msg *logger.Message, err error) {
 	if d.jl == nil {
 		d.jl = &jsonlog.JSONLog{}
 	}
-	for retries := 0; retries < maxJSONDecodeRetry; retries++ {
+	if d.maxRetry == 0 {
+		// We aren't using maxJSONDecodeRetry directly so we can give a custom value for testing.
+		d.maxRetry = maxJSONDecodeRetry
+	}
+	for retries := 0; retries < d.maxRetry; retries++ {
 		msg, err = decodeLogLine(d.dec, d.jl)
 		if err == nil || err == io.EOF {
 			break
@@ -105,8 +110,7 @@ func (d *decoder) Decode() (msg *logger.Message, err error) {
 		// If the json logger writes a partial json log entry to the disk
 		// while at the same time the decoder tries to decode it, the race condition happens.
 		if err == io.ErrUnexpectedEOF {
-			d.rdr = io.MultiReader(d.dec.Buffered(), d.rdr)
-			d.dec = json.NewDecoder(d.rdr)
+			d.dec = json.NewDecoder(io.MultiReader(d.dec.Buffered(), d.rdr))
 			continue
 		}
 	}
