@@ -293,7 +293,9 @@ install_systemd() {
 			Documentation=https://docs.docker.com/go/rootless/
 
 			[Service]
-			Environment=PATH=$BIN:/sbin:/usr/sbin:$PATH
+			Environment="XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
+			Environment="DOCKER_HOST="unix://$XDG_RUNTIME_DIR/docker.sock"
+			Environment="PATH=$BIN:/sbin:/usr/sbin:$PATH"
 			ExecStart=$BIN/dockerd-rootless.sh $DOCKERD_ROOTLESS_SH_FLAGS
 			ExecReload=/bin/kill -s HUP \$MAINPID
 			TimeoutSec=0
