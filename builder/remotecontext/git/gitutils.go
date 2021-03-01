@@ -20,8 +20,7 @@ type gitRepo struct {
 	subdir string
 }
 
-// nolint: gosimple
-var defaultBranch = regexp.MustCompile("refs\\/heads\\/([^\\s]+)")
+var defaultBranch = regexp.MustCompile(`refs/heads/(\S+)`)
 
 // Clone clones a repository into a newly created directory which
 // will be under "docker-build-git"
