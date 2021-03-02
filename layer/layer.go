@@ -126,7 +126,7 @@ type RWLayer interface {
 	Parent() Layer
 
 	// Mount mounts the RWLayer and returns the filesystem path
-	// the to the writable layer.
+	// to the writable layer.
 	Mount(mountLabel string) (containerfs.ContainerFS, error)
 
 	// Unmount unmounts the RWLayer. This should be called
