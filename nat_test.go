@@ -201,42 +201,88 @@ func TestParsePortSpecFull(t *testing.T) {
 }
 
 func TestPartPortSpecIPV6(t *testing.T) {
-	portMappings, err := ParsePortSpec("[2001:4860:0:2001::68]::333")
-	if err != nil {
-		t.Fatalf("expected nil error, got: %v", err)
+	type test struct {
+		name     string
+		spec     string
+		expected []PortMapping
 	}
-
-	expected := []PortMapping{
+	cases := []test{
 		{
-			Port: "333/tcp",
-			Binding: PortBinding{
-				HostIP:   "2001:4860:0:2001::68",
-				HostPort: "",
+			name: "square angled IPV6 without host port",
+			spec: "[2001:4860:0:2001::68]::333",
+			expected: []PortMapping{
+				{
+					Port: "333/tcp",
+					Binding: PortBinding{
+						HostIP:   "2001:4860:0:2001::68",
+						HostPort: "",
+					},
+				},
+			},
+		},
+		{
+			name: "square angled IPV6 with host port",
+			spec: "[::1]:80:80",
+			expected: []PortMapping{
+				{
+					Port: "80/tcp",
+					Binding: PortBinding{
+						HostIP:   "::1",
+						HostPort: "80",
+					},
+				},
+			},
+		},
+		{
+			name: "IPV6 without host port",
+			spec: "2001:4860:0:2001::68::333",
+			expected: []PortMapping{
+				{
+					Port: "333/tcp",
+					Binding: PortBinding{
+						HostIP:   "2001:4860:0:2001::68",
+						HostPort: "",
+					},
+				},
+			},
+		},
+		{
+			name: "IPV6 with host port",
+			spec: "::1:80:80",
+			expected: []PortMapping{
+				{
+					Port: "80/tcp",
+					Binding: PortBinding{
+						HostIP:   "::1",
+						HostPort: "80",
+					},
+				},
+			},
+		},
+		{
+			name: ":: IPV6, without host port",
+			spec: "::::80",
+			expected: []PortMapping{
+				{
+					Port: "80/tcp",
+					Binding: PortBinding{
+						HostIP:   "::",
+						HostPort: "",
+					},
+				},
 			},
 		},
 	}
-	if !reflect.DeepEqual(expected, portMappings) {
-		t.Fatalf("wrong port mappings: got=%v, want=%v", portMappings, expected)
-	}
-}
-
-func TestPartPortSpecIPV6WithHostPort(t *testing.T) {
-	portMappings, err := ParsePortSpec("[::1]:80:80")
-	if err != nil {
-		t.Fatalf("expected nil error, got: %v", err)
-	}
-
-	expected := []PortMapping{
-		{
-			Port: "80/tcp",
-			Binding: PortBinding{
-				HostIP:   "::1",
-				HostPort: "80",
-			},
-		},
-	}
-	if !reflect.DeepEqual(expected, portMappings) {
-		t.Fatalf("wrong port mappings: got=%v, want=%v", portMappings, expected)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			portMappings, err := ParsePortSpec(c.spec)
+			if err != nil {
+				t.Fatalf("expected nil error, got: %v", err)
+			}
+			if !reflect.DeepEqual(c.expected, portMappings) {
+				t.Fatalf("wrong port mappings: got=%v, want=%v", portMappings, c.expected)
+			}
+		})
 	}
 }
 
