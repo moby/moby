@@ -390,7 +390,11 @@ func DefaultProfile() *Seccomp {
 			Args:   []*specs.LinuxSeccompArg{},
 		},
 		{
-			Names:  []string{"ptrace"},
+			Names: []string{
+				"process_vm_readv",
+				"process_vm_writev",
+				"ptrace",
+			},
 			Action: specs.ActAllow,
 			Includes: Filter{
 				MinKernel: &KernelVersion{4, 8},
