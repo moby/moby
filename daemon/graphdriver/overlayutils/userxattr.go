@@ -27,6 +27,7 @@ import (
 
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/sys"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/sirupsen/logrus"
 )
 
@@ -56,10 +57,13 @@ func NeedsUserXAttr(d string) (bool, error) {
 		return false, nil
 	}
 
-	// TODO: add fast path for kernel >= 5.11 .
+	// Fast path for kernel >= 5.11 .
 	//
 	// Keep in mind that distro vendors might be going to backport the patch to older kernels.
-	// So we can't completely remove the check.
+	// So we can't completely remove the "slow path".
+	if kernel.CheckKernelVersion(5, 11, 0) {
+		return true, nil
+	}
 
 	tdRoot := filepath.Join(d, "userxattr-check")
 	if err := os.RemoveAll(tdRoot); err != nil {
