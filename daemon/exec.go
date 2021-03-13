@@ -158,7 +158,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 
 	ec, err := daemon.getExecConfig(name)
 	if err != nil {
-		return errExecNotFound(name)
+		return err
 	}
 
 	ec.Lock()
@@ -176,6 +176,9 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 	ec.Unlock()
 
 	c := daemon.containers.Get(ec.ContainerID)
+	if c == nil {
+		return containerNotFound(ec.ContainerID)
+	}
 	logrus.Debugf("starting exec command %s in container %s", ec.ID, c.ID)
 	attributes := map[string]string{
 		"execID": ec.ID,
