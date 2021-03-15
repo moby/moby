@@ -8,11 +8,6 @@ import (
 	"strings"
 )
 
-const (
-	// portSpecTemplate is the expected format for port specifications
-	portSpecTemplate = "ip:hostPort:containerPort"
-)
-
 // PortBinding represents a binding between a Host IP address and a Host Port
 type PortBinding struct {
 	// HostIP is the host IP Address
