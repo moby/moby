@@ -192,7 +192,7 @@ func ParsePortSpec(rawPort string) ([]PortMapping, error) {
 		ip = rawIP
 	}
 	if ip != "" && net.ParseIP(ip) == nil {
-		return nil, fmt.Errorf("invalid IP address: %s", ip)
+		return nil, errors.New("invalid IP address: " + ip)
 	}
 	if containerPort == "" {
 		return nil, fmt.Errorf("no port specified: %s<empty>", rawPort)
@@ -200,14 +200,14 @@ func ParsePortSpec(rawPort string) ([]PortMapping, error) {
 
 	startPort, endPort, err := ParsePortRange(containerPort)
 	if err != nil {
-		return nil, fmt.Errorf("invalid containerPort: %s", containerPort)
+		return nil, errors.New("invalid containerPort: " + containerPort)
 	}
 
 	var startHostPort, endHostPort uint64 = 0, 0
 	if len(hostPort) > 0 {
 		startHostPort, endHostPort, err = ParsePortRange(hostPort)
 		if err != nil {
-			return nil, fmt.Errorf("invalid hostPort: %s", hostPort)
+			return nil, errors.New("invalid hostPort: " + hostPort)
 		}
 	}
 
