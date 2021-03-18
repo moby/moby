@@ -24,11 +24,7 @@ type Puller interface {
 	Pull(ctx context.Context, ref reference.Named, platform *specs.Platform) error
 }
 
-// newPuller returns a Puller interface that will pull from either a v1 or v2
-// registry. The endpoint argument contains a Version field that determines
-// whether a v1 or v2 puller will be created. The other parameters are passed
-// through to the underlying puller implementation for use during the actual
-// pull operation.
+// newPuller returns a Puller interface that will pull from a v2 registry.
 func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig, local ContentStore) (Puller, error) {
 	switch endpoint.Version {
 	case registry.APIVersion2:
@@ -78,26 +74,12 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 		// error is the ones from v2 endpoints not v1.
 		discardNoSupportErrors bool
 
-		// confirmedV2 is set to true if a pull attempt managed to
-		// confirm that it was talking to a v2 registry. This will
-		// prevent fallback to the v1 protocol.
-		confirmedV2 bool
-
 		// confirmedTLSRegistries is a map indicating which registries
 		// are known to be using TLS. There should never be a plaintext
 		// retry for any of these.
 		confirmedTLSRegistries = make(map[string]struct{})
 	)
 	for _, endpoint := range endpoints {
-		if imagePullConfig.RequireSchema2 && endpoint.Version == registry.APIVersion1 {
-			continue
-		}
-
-		if confirmedV2 && endpoint.Version == registry.APIVersion1 {
-			logrus.Debugf("Skipping v1 endpoint %s because v2 registry was detected", endpoint.URL)
-			continue
-		}
-
 		if endpoint.URL.Scheme != "https" {
 			if _, confirmedTLS := confirmedTLSRegistries[endpoint.URL.Host]; confirmedTLS {
 				logrus.Debugf("Skipping non-TLS endpoint %s for host/port that appears to use TLS", endpoint.URL)
@@ -122,7 +104,6 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 			default:
 				if fallbackErr, ok := err.(fallbackError); ok {
 					fallback = true
-					confirmedV2 = confirmedV2 || fallbackErr.confirmedV2
 					if fallbackErr.transportOK && endpoint.URL.Scheme == "https" {
 						confirmedTLSRegistries[endpoint.URL.Host] = struct{}{}
 					}

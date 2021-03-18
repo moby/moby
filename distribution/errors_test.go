@@ -7,26 +7,26 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/registry/api/errcode"
-	v2 "github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client"
 )
 
+var errUnexpected = errors.New("some totally unexpected error")
+
 var alwaysContinue = []error{
 	&client.UnexpectedHTTPResponseError{},
-
-	// Some errcode.Errors that don't disprove the existence of a V1 image
-	errcode.Error{Code: errcode.ErrorCodeUnauthorized},
-	errcode.Error{Code: v2.ErrorCodeManifestUnknown},
-	errcode.Error{Code: v2.ErrorCodeNameUnknown},
-
-	errors.New("some totally unexpected error"),
+	errcode.Errors{},
+	errUnexpected,
+	// nested
+	errcode.Errors{errUnexpected},
+	ErrNoSupport{Err: errUnexpected},
 }
 
 var continueFromMirrorEndpoint = []error{
 	ImageConfigPullError{},
-
-	// Some other errcode.Error that doesn't indicate we should search for a V1 image.
-	errcode.Error{Code: errcode.ErrorCodeTooManyRequests},
+	errcode.Error{},
+	// nested
+	errcode.Errors{errcode.Error{}},
+	ErrNoSupport{Err: errcode.Error{}},
 }
 
 var neverContinue = []error{
@@ -65,21 +65,5 @@ func TestContinueOnError_NeverContinue(t *testing.T) {
 				t.Errorf("Should never continue: %T: '%s'", err, err.Error())
 			}
 		}
-	}
-}
-
-func TestContinueOnError_UnnestsErrors(t *testing.T) {
-	// ContinueOnError should evaluate nested errcode.Errors.
-
-	// Assumes that v2.ErrorCodeNameUnknown is a continueable error code.
-	err := errcode.Errors{errcode.Error{Code: v2.ErrorCodeNameUnknown}}
-	if !continueOnError(err, false) {
-		t.Fatal("ContinueOnError should unnest, base return value on errcode.Errors")
-	}
-
-	// Assumes that errcode.ErrorCodeTooManyRequests is not a V1-fallback indication
-	err = errcode.Errors{errcode.Error{Code: errcode.ErrorCodeTooManyRequests}}
-	if continueOnError(err, false) {
-		t.Fatal("ContinueOnError should unnest, base return value on errcode.Errors")
 	}
 }

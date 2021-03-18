@@ -135,12 +135,11 @@ func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 		if err == nil {
 			return
 		}
-		if fErr, ok := err.(fallbackError); ok {
-			logrus.WithError(fErr.err).Infof("Error logging in to endpoint, trying next endpoint")
-			continue
+		if errdefs.IsUnauthorized(err) {
+			// Failed to authenticate; don't continue with (non-TLS) endpoints.
+			return status, token, err
 		}
-
-		return "", "", err
+		logrus.WithError(err).Infof("Error logging in to endpoint, trying next endpoint")
 	}
 
 	return "", "", err
@@ -194,14 +193,14 @@ func (s *DefaultService) Search(ctx context.Context, term string, limit int, aut
 		}
 
 		modifiers := Headers(userAgent, nil)
-		v2Client, foundV2, err := v2AuthHTTPClient(endpoint.URL, endpoint.client.Transport, modifiers, creds, scopes)
+		v2Client, err := v2AuthHTTPClient(endpoint.URL, endpoint.client.Transport, modifiers, creds, scopes)
 		if err != nil {
 			if fErr, ok := err.(fallbackError); ok {
 				logrus.Errorf("Cannot use identity token for search, v2 auth not supported: %v", fErr.err)
 			} else {
 				return nil, err
 			}
-		} else if foundV2 {
+		} else {
 			// Copy non transport http client features
 			v2Client.Timeout = endpoint.client.Timeout
 			v2Client.CheckRedirect = endpoint.client.CheckRedirect

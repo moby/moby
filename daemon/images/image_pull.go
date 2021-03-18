@@ -15,7 +15,6 @@ import (
 	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/registry"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -110,41 +109,36 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 }
 
 // GetRepository returns a repository from the registry.
-func (i *ImageService) GetRepository(ctx context.Context, ref reference.Named, authConfig *types.AuthConfig) (dist.Repository, bool, error) {
+func (i *ImageService) GetRepository(ctx context.Context, ref reference.Named, authConfig *types.AuthConfig) (dist.Repository, error) {
 	// get repository info
 	repoInfo, err := i.registryService.ResolveRepository(ref)
 	if err != nil {
-		return nil, false, errdefs.InvalidParameter(err)
+		return nil, errdefs.InvalidParameter(err)
 	}
 	// makes sure name is not empty or `scratch`
 	if err := distribution.ValidateRepoName(repoInfo.Name); err != nil {
-		return nil, false, errdefs.InvalidParameter(err)
+		return nil, errdefs.InvalidParameter(err)
 	}
 
 	// get endpoints
 	endpoints, err := i.registryService.LookupPullEndpoints(reference.Domain(repoInfo.Name))
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
 	// retrieve repository
 	var (
-		confirmedV2 bool
-		repository  dist.Repository
-		lastError   error
+		repository dist.Repository
+		lastError  error
 	)
 
 	for _, endpoint := range endpoints {
-		if endpoint.Version == registry.APIVersion1 {
-			continue
-		}
-
-		repository, confirmedV2, lastError = distribution.NewV2Repository(ctx, repoInfo, endpoint, nil, authConfig, "pull")
-		if lastError == nil && confirmedV2 {
+		repository, lastError = distribution.NewV2Repository(ctx, repoInfo, endpoint, nil, authConfig, "pull")
+		if lastError == nil {
 			break
 		}
 	}
-	return repository, confirmedV2, lastError
+	return repository, lastError
 }
 
 func tempLease(ctx context.Context, mgr leases.Manager) (context.Context, func(context.Context) error, error) {
