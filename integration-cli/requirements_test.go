@@ -189,6 +189,15 @@ func TODOBuildkit() bool {
 	return os.Getenv("DOCKER_BUILDKIT") == ""
 }
 
+func DockerCLIVersion(t testing.TB) string {
+	out, _ := dockerCmd(t, "--version")
+	version := strings.Fields(out)
+	if len(version) < 3 {
+		t.Fatal("unknown version output", version)
+	}
+	return version[2]
+}
+
 // testRequires checks if the environment satisfies the requirements
 // for the test to run or skips the tests.
 func testRequires(t *testing.T, requirements ...requirement.Test) {
