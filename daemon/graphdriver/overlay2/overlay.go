@@ -113,7 +113,8 @@ var (
 	useNaiveDiffLock sync.Once
 	useNaiveDiffOnly bool
 
-	indexOff string
+	indexOff  string
+	userxattr string
 )
 
 func init() {
@@ -204,7 +205,16 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		logger.Warnf("Unable to detect whether overlay kernel module supports index parameter: %s", err)
 	}
 
-	logger.Debugf("backingFs=%s, projectQuotaSupported=%v, indexOff=%q", backingFs, projectQuotaSupported, indexOff)
+	needsUserXattr, err := overlayutils.NeedsUserXAttr(home)
+	if err != nil {
+		logger.Warnf("Unable to detect whether overlay kernel module needs \"userxattr\" parameter: %s", err)
+	}
+	if needsUserXattr {
+		userxattr = "userxattr,"
+	}
+
+	logger.Debugf("backingFs=%s, projectQuotaSupported=%v, indexOff=%q, userxattr=%q",
+		backingFs, projectQuotaSupported, indexOff, userxattr)
 
 	return d, nil
 }
@@ -257,6 +267,7 @@ func (d *Driver) Status() [][2]string {
 		{"Backing Filesystem", backingFs},
 		{"Supports d_type", strconv.FormatBool(d.supportsDType)},
 		{"Native Overlay Diff", strconv.FormatBool(!useNaiveDiff(d.home))},
+		{"userxattr", strconv.FormatBool(userxattr != "")},
 	}
 }
 
@@ -546,9 +557,9 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 
 	var opts string
 	if readonly {
-		opts = indexOff + "lowerdir=" + diffDir + ":" + strings.Join(absLowers, ":")
+		opts = indexOff + userxattr + "lowerdir=" + diffDir + ":" + strings.Join(absLowers, ":")
 	} else {
-		opts = indexOff + "lowerdir=" + strings.Join(absLowers, ":") + ",upperdir=" + diffDir + ",workdir=" + workDir
+		opts = indexOff + userxattr + "lowerdir=" + strings.Join(absLowers, ":") + ",upperdir=" + diffDir + ",workdir=" + workDir
 	}
 
 	mountData := label.FormatMountLabel(opts, mountLabel)
@@ -571,9 +582,9 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	// smaller at the expense of requiring a fork exec to chroot.
 	if len(mountData) > pageSize-1 {
 		if readonly {
-			opts = indexOff + "lowerdir=" + path.Join(id, diffDirName) + ":" + string(lowers)
+			opts = indexOff + userxattr + "lowerdir=" + path.Join(id, diffDirName) + ":" + string(lowers)
 		} else {
-			opts = indexOff + "lowerdir=" + string(lowers) + ",upperdir=" + path.Join(id, diffDirName) + ",workdir=" + path.Join(id, workDirName)
+			opts = indexOff + userxattr + "lowerdir=" + string(lowers) + ",upperdir=" + path.Join(id, diffDirName) + ",workdir=" + path.Join(id, workDirName)
 		}
 		mountData = label.FormatMountLabel(opts, mountLabel)
 		if len(mountData) > pageSize-1 {
