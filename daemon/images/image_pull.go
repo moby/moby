@@ -139,7 +139,12 @@ func (i *ImageService) GetRepository(ctx context.Context, ref reference.Named, a
 			continue
 		}
 
-		repository, confirmedV2, lastError = distribution.NewV2Repository(ctx, repoInfo, endpoint, nil, authConfig, "pull")
+		endpointAuthConfig := authConfig
+		if endpoint.Mirror {
+			endpointAuthConfig = &types.AuthConfig{}
+		}
+
+		repository, confirmedV2, lastError = distribution.NewV2Repository(ctx, repoInfo, endpoint, nil, endpointAuthConfig, "pull")
 		if lastError == nil && confirmedV2 {
 			break
 		}

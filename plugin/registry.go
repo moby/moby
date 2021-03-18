@@ -87,13 +87,10 @@ func (pm *Manager) registryHostsFn(auth *types.AuthConfig, httpFallback bool) do
 			}
 
 			client := registryHTTPClient(ep.TLSConfig)
-			hosts = append(hosts, docker.RegistryHost{
-				Host:         host,
-				Scheme:       ep.URL.Scheme,
-				Client:       client,
-				Path:         "/v2",
-				Capabilities: caps,
-				Authorizer: docker.NewDockerAuthorizer(
+
+			var authorizer docker.Authorizer
+			if !ep.Mirror {
+				authorizer = docker.NewDockerAuthorizer(
 					docker.WithAuthClient(client),
 					docker.WithAuthCreds(func(_ string) (string, string, error) {
 						if auth.IdentityToken != "" {
@@ -101,7 +98,16 @@ func (pm *Manager) registryHostsFn(auth *types.AuthConfig, httpFallback bool) do
 						}
 						return auth.Username, auth.Password, nil
 					}),
-				),
+				)
+			}
+
+			hosts = append(hosts, docker.RegistryHost{
+				Host:         host,
+				Scheme:       ep.URL.Scheme,
+				Client:       client,
+				Path:         "/v2",
+				Capabilities: caps,
+				Authorizer:   authorizer,
 			})
 		}
 		logrus.WithField("registryHost", hostname).WithField("hosts", hosts).Debug("Resolved registry hosts")

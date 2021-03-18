@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/pkg/progress"
 	refstore "github.com/docker/docker/reference"
@@ -105,9 +106,14 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 			}
 		}
 
+		endpointImagePullConfig := *imagePullConfig
+		if endpoint.Mirror {
+			endpointImagePullConfig.AuthConfig = &types.AuthConfig{}
+		}
+
 		logrus.Debugf("Trying to pull %s from %s %s", reference.FamiliarName(repoInfo.Name), endpoint.URL, endpoint.Version)
 
-		puller, err := newPuller(endpoint, repoInfo, imagePullConfig, local)
+		puller, err := newPuller(endpoint, repoInfo, &endpointImagePullConfig, local)
 		if err != nil {
 			lastErr = err
 			continue
