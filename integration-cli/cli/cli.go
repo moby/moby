@@ -26,6 +26,7 @@ type CmdOperator func(*icmd.Cmd) func()
 
 // DockerCmd executes the specified docker command and expect a success
 func DockerCmd(t testing.TB, args ...string) *icmd.Result {
+	t.Helper()
 	return Docker(Args(args...)).Assert(t, icmd.Success)
 }
 
