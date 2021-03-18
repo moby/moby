@@ -396,8 +396,6 @@ func (c *client) createLinux(id string, spec *specs.Spec, runtimeOptions interfa
 		TerminateOnLastHandleClosed: true,
 		HvRuntime: &hcsshim.HvRuntime{
 			ImagePath:           lcowConfig.KirdPath,
-			LinuxKernelFile:     lcowConfig.KernelFile,
-			LinuxInitrdFile:     lcowConfig.InitrdFile,
 			LinuxBootParameters: lcowConfig.BootParameters,
 		},
 	}

@@ -44,8 +44,6 @@ type Config struct {
 // Options is the structure used by a client to define configurable options for a utility VM.
 type Options struct {
 	KirdPath       string // Path to where kernel/initrd are found (defaults to %PROGRAMFILES%\Linux Containers)
-	KernelFile     string // Kernel for Utility VM (embedded in a UEFI bootloader) - does NOT include full path, just filename
-	InitrdFile     string // Initrd image for Utility VM - does NOT include full path, just filename
 	TimeoutSeconds int    // Requested time for the utility VM to respond in seconds (may be over-ridden by environment)
 	BootParameters string // Additional boot parameters for initrd booting
 }
@@ -61,10 +59,6 @@ func ParseOptions(options []string) (Options, error) {
 			switch strings.ToLower(opt[0]) {
 			case "lcow.kirdpath":
 				rOpts.KirdPath = opt[1]
-			case "lcow.kernel":
-				rOpts.KernelFile = opt[1]
-			case "lcow.initrd":
-				rOpts.InitrdFile = opt[1]
 			case "lcow.bootparameters":
 				rOpts.BootParameters = opt[1]
 			case "lcow.timeout":
@@ -83,13 +77,6 @@ func ParseOptions(options []string) (Options, error) {
 	if rOpts.KirdPath == "" {
 		rOpts.KirdPath = filepath.Join(os.Getenv("ProgramFiles"), "Linux Containers")
 	}
-	if rOpts.KernelFile == "" {
-		rOpts.KernelFile = `kernel`
-	}
-	if rOpts.InitrdFile == "" {
-		rOpts.InitrdFile = `initrd.img`
-	}
-
 	return rOpts, nil
 }
 
@@ -137,11 +124,11 @@ func (config *Config) GenerateDefault(options []string) error {
 // Validate validates a Config structure for starting a utility VM.
 func (config *Config) Validate() error {
 
-	if _, err := os.Stat(filepath.Join(config.KirdPath, config.KernelFile)); os.IsNotExist(err) {
-		return fmt.Errorf("kernel '%s' not found", filepath.Join(config.KirdPath, config.KernelFile))
+	if _, err := os.Stat(filepath.Join(config.KirdPath, `kernel`)); os.IsNotExist(err) {
+		return fmt.Errorf("kernel not found in %s", config.KirdPath)
 	}
-	if _, err := os.Stat(filepath.Join(config.KirdPath, config.InitrdFile)); os.IsNotExist(err) {
-		return fmt.Errorf("initrd '%s' not found", filepath.Join(config.KirdPath, config.InitrdFile))
+	if _, err := os.Stat(filepath.Join(config.KirdPath, `initrd.img`)); os.IsNotExist(err) {
+		return fmt.Errorf("initrd not found in %s", config.KirdPath)
 	}
 
 	// Ensure all the MappedVirtualDisks exist on the host
@@ -174,8 +161,8 @@ func (config *Config) StartUtilityVM() error {
 		MappedVirtualDisks:          config.MappedVirtualDisks,
 		HvRuntime: &hcsshim.HvRuntime{
 			ImagePath:           config.KirdPath,
-			LinuxInitrdFile:     config.InitrdFile,
-			LinuxKernelFile:     config.KernelFile,
+			LinuxInitrdFile:     `initrd.img`,
+			LinuxKernelFile:     `kernel`,
 			LinuxBootParameters: config.BootParameters,
 		},
 	}

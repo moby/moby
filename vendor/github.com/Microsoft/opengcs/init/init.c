@@ -9,12 +9,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mount.h>
+#include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include "../vsockexec/vsock.h"
+
+// musl-gcc doesn't use headers in /usr/include, so it can't find
+// linux/random.h which is where RNDADDENTROPY is defined. We only need this
+// single definition from linux/random.h, so we just duplicate it here as a
+// workaround.
+#define RNDADDENTROPY _IOW( 'R', 0x03, int [2] )
 
 #define DEFAULT_PATH_ENV "PATH=/sbin:/usr/sbin:/bin:/usr/bin"
 
@@ -24,7 +32,7 @@ const char *const default_envp[] = {
 };
 
 // When nothing is passed, default to the LCOWv1 behavior.
-const char *const default_argv[] = { "/bin/gcs", "-loglevel", "debug", "-logfile=/tmp/gcs.log" };
+const char *const default_argv[] = { "/bin/gcs", "-loglevel", "debug", "-logfile=/run/gcs/gcs.log" };
 const char *const default_shell = "/bin/sh";
 
 struct Mount {
@@ -116,6 +124,22 @@ _Noreturn void die(const char *msg) {
 _Noreturn void die2(const char *msg1, const char *msg2) {
     warn2(msg1, msg2);
     dien();
+}
+
+void init_rlimit() {
+    // Set the hard limit for number of open fds much larger. The kernel sets
+    // a limit of 4096 for historical reasons, and this limit is too low for
+    // some software. According to the systemd developers, there is no downside
+    // to a large hard limit in modern Linux kernels.
+    //
+    // Retain the small soft limit of 1024 for appcompat.
+    struct rlimit rlim = {
+        .rlim_cur = 1024,
+        .rlim_max = 1024 * 1024,
+    };
+    if (setrlimit(RLIMIT_NOFILE, &rlim) < 0) {
+        die("setrlimit(RLIMIT_NOFILE)");
+    }
 }
 
 void init_dev() {
@@ -236,6 +260,45 @@ void init_network(const char *iface, int domain) {
     close(s);
 }
 
+// inject boot-time entropy after reading it from a vsock port
+void init_entropy(int port) {
+    int s = openvsock(VMADDR_CID_HOST, port);
+    if (s < 0) {
+        die("openvsock entropy");
+    }
+
+    int e = open("/dev/random", O_RDWR);
+    if (e < 0) {
+        die("open /dev/random");
+    }
+
+    struct {
+        int entropy_count;
+        int buf_size;
+        char buf[4096];
+    } buf;
+
+    for (;;) {
+        ssize_t n = read(s, buf.buf, sizeof(buf.buf));
+        if (n < 0) {
+            die("read entropy");
+        }
+
+        if (n == 0) {
+            break;
+        }
+
+        buf.entropy_count = n * 8; // in bits
+        buf.buf_size = n; // in bytes
+        if (ioctl(e, RNDADDENTROPY, &buf) < 0) {
+            die("ioctl(RNDADDENTROPY)");
+        }
+    }
+
+    close(s);
+    close(e);
+}
+
 pid_t launch(int argc, char **argv) {
     int pid = fork();
     if (pid != 0) {
@@ -282,7 +345,9 @@ int reap_until(pid_t until_pid) {
                 }
                 return WEXITSTATUS(status);
             }
-            fputs("child exited by signal\n", stderr);
+            fputs("child exited by signal: ", stderr);
+            fputs(strsignal(WTERMSIG(status)), stderr);
+            fputs("\n", stderr);
             return 128 + WTERMSIG(status);
         }
     }
@@ -290,16 +355,26 @@ int reap_until(pid_t until_pid) {
 
 int main(int argc, char **argv) {
     char *debug_shell = NULL;
+    int entropy_port = 0;
     if (argc <= 1) {
         argv = (char **)default_argv;
         argc = sizeof(default_argv) / sizeof(default_argv[0]);
         optind = 0;
         debug_shell = (char*)default_shell;
     } else {
-        for (int opt; (opt = getopt(argc, argv, "+d:")) >= 0; ) {
+        for (int opt; (opt = getopt(argc, argv, "+d:e:")) >= 0; ) {
             switch (opt) {
             case 'd':
                 debug_shell = optarg;
+                break;
+
+            case 'e':
+                entropy_port = atoi(optarg);
+                if (entropy_port == 0) {
+                    fputs("invalid entropy port\n", stderr);
+                    exit(1);
+                }
+
                 break;
 
             default:
@@ -316,11 +391,15 @@ int main(int argc, char **argv) {
     sigfillset(&set);
     sigprocmask(SIG_BLOCK, &set, 0);
 
+    init_rlimit();
     init_dev();
     init_fs(ops, sizeof(ops) / sizeof(ops[0]));
     init_cgroups();
     init_network("lo", AF_INET);
     init_network("lo", AF_INET6);
+    if (entropy_port != 0) {
+        init_entropy(entropy_port);
+    }
 
     pid_t pid = launch(child_argc, child_argv);
     if (debug_shell != NULL) {
