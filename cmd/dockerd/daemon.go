@@ -117,8 +117,6 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return fmt.Errorf("dockerd needs to be started with root. To see how to run dockerd in rootless mode with unprivileged user, see the documentation")
 	}
 
-	system.InitLCOW(cli.Config.Experimental)
-
 	if err := setDefaultUmask(); err != nil {
 		return err
 	}
