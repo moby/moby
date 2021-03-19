@@ -36,7 +36,7 @@ func (b *Builder) commit(ctx context.Context, dispatchState *dispatchState, comm
 		return errors.New("Please provide a source image with `from` prior to commit")
 	}
 
-	runConfigWithCommentCmd := copyRunConfig(dispatchState.runConfig, withCmdComment(comment, dispatchState.operatingSystem))
+	runConfigWithCommentCmd := copyRunConfig(dispatchState.runConfig, withCmdComment(comment))
 	id, err := b.probeAndCreate(ctx, dispatchState, runConfigWithCommentCmd)
 	if err != nil || id == "" {
 		return err
@@ -127,9 +127,7 @@ func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst cop
 	commentStr := fmt.Sprintf("%s %s%s in %s ", inst.cmdName, chownComment, srcHash, inst.dest)
 
 	// TODO: should this have been using origPaths instead of srcHash in the comment?
-	runConfigWithCommentCmd := copyRunConfig(
-		state.runConfig,
-		withCmdCommentString(commentStr, state.operatingSystem))
+	runConfigWithCommentCmd := copyRunConfig(state.runConfig, withCmdCommentString(commentStr))
 	hit, err := b.probeCache(state, runConfigWithCommentCmd)
 	if err != nil || hit {
 		return err
@@ -227,9 +225,9 @@ func withArgsEscaped(argsEscaped bool) runConfigModifier {
 
 // withCmdComment sets Cmd to a nop comment string. See withCmdCommentString for
 // why there are two almost identical versions of this.
-func withCmdComment(comment string, platform string) runConfigModifier {
+func withCmdComment(comment string) runConfigModifier {
 	return func(runConfig *container.Config) {
-		runConfig.Cmd = append(getShell(runConfig, platform), "#(nop) ", comment)
+		runConfig.Cmd = append(getShell(runConfig), "#(nop) ", comment)
 	}
 }
 
@@ -237,9 +235,9 @@ func withCmdComment(comment string, platform string) runConfigModifier {
 // A few instructions (workdir, copy, add) used a nop comment that is a single arg
 // where as all the other instructions used a two arg comment string. This
 // function implements the single arg version.
-func withCmdCommentString(comment string, platform string) runConfigModifier {
+func withCmdCommentString(comment string) runConfigModifier {
 	return func(runConfig *container.Config) {
-		runConfig.Cmd = append(getShell(runConfig, platform), "#(nop) "+comment)
+		runConfig.Cmd = append(getShell(runConfig), "#(nop) "+comment)
 	}
 }
 
@@ -320,9 +318,9 @@ func copyStringSlice(orig []string) []string {
 
 // getShell is a helper function which gets the right shell for prefixing the
 // shell-form of RUN, ENTRYPOINT and CMD instructions
-func getShell(c *container.Config, os string) []string {
+func getShell(c *container.Config) []string {
 	if 0 == len(c.Shell) {
-		return append([]string{}, defaultShellForOS(os)[:]...)
+		return defaultShell()
 	}
 	return append([]string{}, c.Shell[:]...)
 }
