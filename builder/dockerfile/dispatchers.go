@@ -305,7 +305,7 @@ func dispatchWorkdir(ctx context.Context, d dispatchRequest, c *instructions.Wor
 	}
 
 	comment := "WORKDIR " + runConfig.WorkingDir
-	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment, d.state.operatingSystem))
+	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment))
 
 	containerID, err := d.builder.probeAndCreate(ctx, d.state, runConfigWithCommentCmd)
 	if err != nil || containerID == "" {
@@ -325,7 +325,7 @@ func dispatchWorkdir(ctx context.Context, d dispatchRequest, c *instructions.Wor
 // the current SHELL which defaults to 'sh -c' under linux or 'cmd /S /C' under
 // Windows, in the event there is only one argument The difference in processing:
 //
-// RUN echo hi          # sh -c echo hi       (Linux and LCOW)
+// RUN echo hi          # sh -c echo hi       (Linux)
 // RUN echo hi          # cmd /S /C echo hi   (Windows)
 // RUN [ "echo", "hi" ] # echo hi
 func dispatchRun(ctx context.Context, d dispatchRequest, c *instructions.RunCommand) error {
@@ -339,7 +339,7 @@ func dispatchRun(ctx context.Context, d dispatchRequest, c *instructions.RunComm
 	}
 
 	stateRunConfig := d.state.runConfig
-	cmdFromArgs, argsEscaped := resolveCmdLine(c.ShellDependantCmdLine, stateRunConfig, d.state.operatingSystem, c.Name(), c.String())
+	cmdFromArgs, argsEscaped := resolveCmdLine(c.ShellDependantCmdLine, stateRunConfig, c.Name(), c.String())
 	buildArgs := d.state.buildArgs.FilterAllowed(stateRunConfig.Env)
 
 	saveCmd := cmdFromArgs
@@ -431,7 +431,7 @@ func prependEnvOnCmd(buildArgs *BuildArgs, buildArgVars []string, cmd []string) 
 // Argument handling is the same as RUN.
 func dispatchCmd(ctx context.Context, d dispatchRequest, c *instructions.CmdCommand) error {
 	runConfig := d.state.runConfig
-	cmd, argsEscaped := resolveCmdLine(c.ShellDependantCmdLine, runConfig, d.state.operatingSystem, c.Name(), c.String())
+	cmd, argsEscaped := resolveCmdLine(c.ShellDependantCmdLine, runConfig, c.Name(), c.String())
 
 	// We warn here as Windows shell processing operates differently to Linux.
 	// Linux:   /bin/sh -c "echo hello" world	--> hello
@@ -480,7 +480,7 @@ func dispatchHealthcheck(ctx context.Context, d dispatchRequest, c *instructions
 // is initialized at newBuilder time instead of through argument parsing.
 func dispatchEntrypoint(ctx context.Context, d dispatchRequest, c *instructions.EntrypointCommand) error {
 	runConfig := d.state.runConfig
-	cmd, argsEscaped := resolveCmdLine(c.ShellDependantCmdLine, runConfig, d.state.operatingSystem, c.Name(), c.String())
+	cmd, argsEscaped := resolveCmdLine(c.ShellDependantCmdLine, runConfig, c.Name(), c.String())
 
 	// This warning is a little more complex than in dispatchCmd(), as the Windows base images (similar
 	// universally to almost every Linux image out there) have a single .Cmd field populated so that
