@@ -447,9 +447,9 @@ func TestRunWithBuildArgs(t *testing.T) {
 
 	var cmdWithShell strslice.StrSlice
 	if runtime.GOOS == "windows" {
-		cmdWithShell = strslice.StrSlice([]string{strings.Join(append(getShell(runConfig, runtime.GOOS), []string{"echo foo"}...), " ")})
+		cmdWithShell = strslice.StrSlice([]string{strings.Join(append(getShell(runConfig), []string{"echo foo"}...), " ")})
 	} else {
-		cmdWithShell = strslice.StrSlice(append(getShell(runConfig, runtime.GOOS), "echo foo"))
+		cmdWithShell = strslice.StrSlice(append(getShell(runConfig), "echo foo"))
 	}
 
 	envVars := []string{"|1", "one=two"}
