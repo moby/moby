@@ -250,7 +250,7 @@ func (daemon *Daemon) restore() error {
 			}
 			// Ignore the container if it does not support the current driver being used by the graph
 			if (c.Driver == "" && daemon.graphDriver == "aufs") || c.Driver == daemon.graphDriver {
-				rwlayer, err := daemon.imageService.GetLayerByID(c.ID, c.OS)
+				rwlayer, err := daemon.imageService.GetLayerByID(c.ID)
 				if err != nil {
 					log.WithError(err).Error("failed to load container mount")
 					return
@@ -1003,10 +1003,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	// TODO remove multiple imagestores map now that LCOW is no more
-	imageStore, err := image.NewImageStore(ifs, map[string]image.LayerGetReleaser{
-		runtime.GOOS: layerStore,
-	})
+	imageStore, err := image.NewImageStore(ifs, layerStore)
 	if err != nil {
 		return nil, err
 	}
@@ -1084,7 +1081,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		DistributionMetadataStore: distributionMetadataStore,
 		EventsService:             d.EventsService,
 		ImageStore:                imageStore,
-		LayerStores:               map[string]layer.Store{runtime.GOOS: layerStore}, // TODO remove multiple LayerStores map now that LCOW is no more
+		LayerStore:                layerStore,
 		MaxConcurrentDownloads:    *config.MaxConcurrentDownloads,
 		MaxConcurrentUploads:      *config.MaxConcurrentUploads,
 		MaxDownloadAttempts:       *config.MaxDownloadAttempts,
@@ -1231,7 +1228,7 @@ func (daemon *Daemon) Shutdown() error {
 				log.WithError(err).Error("failed to shut down container")
 				return
 			}
-			if mountid, err := daemon.imageService.GetLayerMountID(c.ID, c.OS); err == nil {
+			if mountid, err := daemon.imageService.GetLayerMountID(c.ID); err == nil {
 				daemon.cleanupMountsByID(mountid)
 			}
 			log.Debugf("shut down container")
@@ -1294,7 +1291,7 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 		if runtime.GOOS != "windows" {
 			daemon.Unmount(container)
 			return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
-				daemon.imageService.GraphDriverForOS(container.OS), container.ID, container.BaseFS, dir)
+				daemon.imageService.GraphDriverName(), container.ID, container.BaseFS, dir)
 		}
 	}
 	container.BaseFS = dir // TODO: combine these fields

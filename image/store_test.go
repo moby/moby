@@ -2,7 +2,6 @@ package image // import "github.com/docker/docker/image"
 
 import (
 	"fmt"
-	"runtime"
 	"testing"
 
 	"github.com/docker/docker/layer"
@@ -34,9 +33,7 @@ func TestRestore(t *testing.T) {
 	err = fs.SetMetadata(id2, "parent", []byte(id1))
 	assert.NilError(t, err)
 
-	mlgrMap := make(map[string]LayerGetReleaser)
-	mlgrMap[runtime.GOOS] = &mockLayerGetReleaser{}
-	is, err := NewImageStore(fs, mlgrMap)
+	is, err := NewImageStore(fs, &mockLayerGetReleaser{})
 	assert.NilError(t, err)
 
 	assert.Check(t, cmp.Len(is.Map(), 2))
@@ -153,9 +150,7 @@ func TestParentReset(t *testing.T) {
 func defaultImageStore(t *testing.T) (Store, func()) {
 	fsBackend, cleanup := defaultFSStoreBackend(t)
 
-	mlgrMap := make(map[string]LayerGetReleaser)
-	mlgrMap[runtime.GOOS] = &mockLayerGetReleaser{}
-	store, err := NewImageStore(fsBackend, mlgrMap)
+	store, err := NewImageStore(fsBackend, &mockLayerGetReleaser{})
 	assert.NilError(t, err)
 
 	return store, cleanup

@@ -53,7 +53,7 @@ func (i *ImageService) PushImage(ctx context.Context, image, tag string, metaHea
 			ReferenceStore:   i.referenceStore,
 		},
 		ConfigMediaType: schema2.MediaTypeImageConfig,
-		LayerStores:     distribution.NewLayerProvidersFromStores(i.layerStores),
+		LayerStores:     distribution.NewLayerProvidersFromStore(i.layerStore),
 		TrustKey:        i.trustKey,
 		UploadManager:   i.uploadManager,
 	}

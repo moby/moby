@@ -124,7 +124,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 		layerID := img.RootFS.ChainID()
 		var size int64
 		if layerID != "" {
-			l, err := i.layerStores[img.OperatingSystem()].Get(layerID)
+			l, err := i.layerStore.Get(layerID)
 			if err != nil {
 				// The layer may have been deleted between the call to `Map()` or
 				// `Heads()` and the call to `Get()`, so we just ignore this error
@@ -135,7 +135,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 			}
 
 			size, err = l.Size()
-			layer.ReleaseAndLog(i.layerStores[img.OperatingSystem()], l)
+			layer.ReleaseAndLog(i.layerStore, l)
 			if err != nil {
 				return nil, err
 			}
@@ -190,15 +190,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 			// lazily init variables
 			if imagesMap == nil {
 				allContainers = i.containers.List()
-
-				// allLayers is built from all layerstores combined
-				allLayers = make(map[layer.ChainID]layer.Layer)
-				for _, ls := range i.layerStores {
-					layers := ls.Map()
-					for k, v := range layers {
-						allLayers[k] = v
-					}
-				}
+				allLayers = i.layerStore.Map()
 				imagesMap = make(map[*image.Image]*types.ImageSummary)
 				layerRefs = make(map[layer.ChainID]int)
 			}
@@ -285,11 +277,11 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
 	if !system.IsOSSupported(img.OperatingSystem()) {
 		return "", errors.Wrap(err, system.ErrNotSupportedOperatingSystem.Error())
 	}
-	l, err := i.layerStores[img.OperatingSystem()].Get(img.RootFS.ChainID())
+	l, err := i.layerStore.Get(img.RootFS.ChainID())
 	if err != nil {
 		return "", errors.Wrap(err, "error getting image layer")
 	}
-	defer i.layerStores[img.OperatingSystem()].Release(l)
+	defer i.layerStore.Release(l)
 
 	ts, err := l.TarStreamFrom(parentChainID)
 	if err != nil {
@@ -297,11 +289,11 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
 	}
 	defer ts.Close()
 
-	newL, err := i.layerStores[img.OperatingSystem()].Register(ts, parentChainID)
+	newL, err := i.layerStore.Register(ts, parentChainID)
 	if err != nil {
 		return "", errors.Wrap(err, "error registering layer")
 	}
-	defer i.layerStores[img.OperatingSystem()].Release(newL)
+	defer i.layerStore.Release(newL)
 
 	newImage := *img
 	newImage.RootFS = nil
