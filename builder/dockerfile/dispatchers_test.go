@@ -261,7 +261,7 @@ func TestCmd(t *testing.T) {
 
 	var expectedCommand []string
 	if runtime.GOOS == "windows" {
-		expectedCommand = []string{"cmd", "/S", "/C", "./executable"}
+		expectedCommand = []string{"cmd /S /C ./executable"}
 	} else {
 		expectedCommand = []string{"/bin/sh", "-c", "./executable"}
 	}
@@ -316,7 +316,7 @@ func TestEntrypoint(t *testing.T) {
 
 	var expectedEntrypoint []string
 	if runtime.GOOS == "windows" {
-		expectedEntrypoint = []string{"cmd", "/S", "/C", "/usr/sbin/nginx"}
+		expectedEntrypoint = []string{"cmd /S /C /usr/sbin/nginx"}
 	} else {
 		expectedEntrypoint = []string{"/bin/sh", "-c", "/usr/sbin/nginx"}
 	}
