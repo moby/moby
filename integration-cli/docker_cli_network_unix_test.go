@@ -1696,9 +1696,6 @@ func (s *DockerNetworkSuite) TestDockerNetworkFlagAlias(c *testing.T) {
 	output, status := dockerCmd(c, "run", "--rm", "--network=user", "--network-alias=foo", "busybox", "true")
 	assert.Equal(c, status, 0, fmt.Sprintf("unexpected status code %d (%s)", status, output))
 
-	output, status, _ = dockerCmdWithError("run", "--rm", "--net=user", "--network=user", "busybox", "true")
-	assert.Equal(c, status, 0, fmt.Sprintf("unexpected status code %d (%s)", status, output))
-
 	output, status, _ = dockerCmdWithError("run", "--rm", "--network=user", "--net-alias=foo", "--network-alias=bar", "busybox", "true")
 	assert.Equal(c, status, 0, fmt.Sprintf("unexpected status code %d (%s)", status, output))
 }
