@@ -691,6 +691,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64
 		GIDMaps:        d.gidMaps,
 		WhiteoutFormat: archive.OverlayWhiteoutFormat,
 		InUserNS:       sys.RunningInUserNS(),
+		UserXAttr:      userxattr != "",
 	}); err != nil {
 		return 0, err
 	}
@@ -728,6 +729,8 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 		UIDMaps:        d.uidMaps,
 		GIDMaps:        d.gidMaps,
 		WhiteoutFormat: archive.OverlayWhiteoutFormat,
+		InUserNS:       sys.RunningInUserNS(),
+		UserXAttr:      userxattr != "",
 	})
 }
 

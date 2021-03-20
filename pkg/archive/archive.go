@@ -54,6 +54,9 @@ type (
 		// replaced with the matching name from this map.
 		RebaseNames map[string]string
 		InUserNS    bool
+		// Use "user.*" xattrs instead of "trusted.*" ones.
+		// Only meaningful for OverlayWhiteoutFormat.
+		UserXAttr bool
 	}
 )
 
@@ -759,7 +762,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 			compressWriter,
 			options.ChownOpts,
 		)
-		ta.WhiteoutConverter = getWhiteoutConverter(options.WhiteoutFormat, options.InUserNS)
+		ta.WhiteoutConverter = getWhiteoutConverter(options.WhiteoutFormat, options.InUserNS, options.UserXAttr)
 
 		defer func() {
 			// Make sure to check the error on Close.
@@ -917,7 +920,7 @@ func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) err
 	var dirs []*tar.Header
 	idMapping := idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps)
 	rootIDs := idMapping.RootPair()
-	whiteoutConverter := getWhiteoutConverter(options.WhiteoutFormat, options.InUserNS)
+	whiteoutConverter := getWhiteoutConverter(options.WhiteoutFormat, options.InUserNS, options.UserXAttr)
 
 	// Iterate through the files in the archive.
 loop:
