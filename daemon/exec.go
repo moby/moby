@@ -59,7 +59,7 @@ func (daemon *Daemon) getExecConfig(name string) (*exec.Config, error) {
 		return nil, containerNotFound(name)
 	}
 	if !ctr.IsRunning() {
-		return nil, fmt.Errorf("Container %s is not running: %s", ctr.ID, ctr.State.String())
+		return nil, errNotRunning(ctr.ID)
 	}
 	if ctr.IsPaused() {
 		return nil, errExecPaused(ctr.ID)
