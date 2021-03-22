@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
@@ -81,7 +82,15 @@ func testPushMultipleTags(c *testing.T) {
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoTag1)
 	dockerCmd(c, "tag", "busybox", repoTag2)
-	dockerCmd(c, "push", repoName)
+
+	args := []string{"push"}
+	if versions.GreaterThanOrEqualTo(DockerCLIVersion(c), "20.10.0") {
+		// 20.10 CLI removed implicit push all tags and requires the "--all" flag
+		args = append(args, "--all-tags")
+	}
+	args = append(args, repoName)
+
+	dockerCmd(c, args...)
 
 	imageAlreadyExists := ": Image already exists"
 
