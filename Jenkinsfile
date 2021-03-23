@@ -1183,8 +1183,9 @@ pipeline {
                         SOURCES_SUBDIR         = 'gopath'
                         TESTRUN_DRIVE          = 'd'
                         TESTRUN_SUBDIR         = "CI"
-                        WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
-                        WINDOWS_BASE_IMAGE_TAG = '2022'
+                        // TODO switch to mcr.microsoft.com/windows/servercore:2022 once published
+                        WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore/insider'
+                        WINDOWS_BASE_IMAGE_TAG = '10.0.20295.1'
                     }
                     agent {
                         node {
