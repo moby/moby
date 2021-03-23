@@ -226,6 +226,7 @@ echo 'Optional Features:'
 }
 {
 	check_flags SECCOMP
+	check_flags SECCOMP_FILTER
 }
 {
 	check_flags CGROUP_PIDS
