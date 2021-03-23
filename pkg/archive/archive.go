@@ -753,13 +753,18 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 		return nil, err
 	}
 
+	whiteoutConverter, err := getWhiteoutConverter(options.WhiteoutFormat, options.InUserNS)
+	if err != nil {
+		return nil, err
+	}
+
 	go func() {
 		ta := newTarAppender(
 			idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps),
 			compressWriter,
 			options.ChownOpts,
 		)
-		ta.WhiteoutConverter = getWhiteoutConverter(options.WhiteoutFormat, options.InUserNS)
+		ta.WhiteoutConverter = whiteoutConverter
 
 		defer func() {
 			// Make sure to check the error on Close.
@@ -917,7 +922,10 @@ func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) err
 	var dirs []*tar.Header
 	idMapping := idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps)
 	rootIDs := idMapping.RootPair()
-	whiteoutConverter := getWhiteoutConverter(options.WhiteoutFormat, options.InUserNS)
+	whiteoutConverter, err := getWhiteoutConverter(options.WhiteoutFormat, options.InUserNS)
+	if err != nil {
+		return err
+	}
 
 	// Iterate through the files in the archive.
 loop:
