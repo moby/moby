@@ -22,7 +22,7 @@ import (
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/distribution/registry/api/v2"
+	v2 "github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/testutil"
 	"github.com/docker/distribution/uuid"
 	"github.com/docker/libtrust"
@@ -152,7 +152,7 @@ func TestBlobFetch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(b, b1) != 0 {
+	if !bytes.Equal(b, b1) {
 		t.Fatalf("Wrong bytes values fetched: [%d]byte != [%d]byte", len(b), len(b1))
 	}
 
