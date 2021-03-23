@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -19,7 +20,14 @@ import (
 // which copies up the opaque flag when copying up an opaque
 // directory or the kernel enable CONFIG_OVERLAY_FS_REDIRECT_DIR.
 // When these exist naive diff should be used.
+//
+// When running in a user namespace, returns errRunningInUserNS
+// immediately.
 func doesSupportNativeDiff(d string) error {
+	if sys.RunningInUserNS() {
+		return errors.New("running in a user namespace")
+	}
+
 	td, err := ioutil.TempDir(d, "opaque-bug-check")
 	if err != nil {
 		return err
