@@ -41,6 +41,14 @@ func TestParseRemoteURL(t *testing.T) {
 			},
 		},
 		{
+			doc: "git scheme, no url-fragment, non-master branch",
+			url: "git://github.com/docker/compose-cli.git",
+			expected: gitRepo{
+				remote: "git://github.com/docker/compose-cli.git",
+				ref:    "main",
+			},
+		},
+		{
 			doc: "git scheme, with url-fragment",
 			url: "git://github.com/user/repo.git#mybranch:mydir/mysubdir/",
 			expected: gitRepo{
@@ -55,6 +63,14 @@ func TestParseRemoteURL(t *testing.T) {
 			expected: gitRepo{
 				remote: "https://github.com/moby/moby.git",
 				ref:    "master",
+			},
+		},
+		{
+			doc: "https scheme, no url-fragment, non-master branch",
+			url: "https://github.com/docker/compose-cli.git",
+			expected: gitRepo{
+				remote: "https://github.com/docker/compose-cli.git",
+				ref:    "main",
 			},
 		},
 		{
