@@ -678,7 +678,7 @@ func (d *Driver) isParent(id, parent string) bool {
 
 // ApplyDiff applies the new layer into a root
 func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64, err error) {
-	if !d.isParent(id, parent) {
+	if useNaiveDiff(d.home) || !d.isParent(id, parent) {
 		return d.naiveDiff.ApplyDiff(id, parent, diff)
 	}
 
