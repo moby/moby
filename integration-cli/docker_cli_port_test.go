@@ -161,7 +161,7 @@ func assertPortList(c *testing.T, out string, expected []string) error {
 	// of the CLI used an incorrect output format for mappings on IPv6 addresses
 	// for example, "80/tcp -> :::80" instead of "80/tcp -> [::]:80".
 	oldFormat := func(mapping string) string {
-		old := strings.Replace(mapping, "-> [", "-> ", 1)
+		old := strings.Replace(mapping, "[", "", 1)
 		old = strings.Replace(old, "]:", ":", 1)
 		return old
 	}
