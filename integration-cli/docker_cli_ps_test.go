@@ -594,20 +594,16 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *testing.T) {
 
 func (s *DockerSuite) TestPsNotShowPortsOfStoppedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--name=foo", "-d", "-p", "5000:5000", "busybox", "top")
+	dockerCmd(c, "run", "--name=foo", "-d", "-p", "6000:5000", "busybox", "top")
 	assert.Assert(c, waitRun("foo") == nil)
-	out, _ := dockerCmd(c, "ps")
-	lines := strings.Split(strings.TrimSpace(out), "\n")
-	expected := "0.0.0.0:5000->5000/tcp"
-	fields := strings.Fields(lines[1])
-	assert.Equal(c, fields[len(fields)-2], expected, fmt.Sprintf("Expected: %v, got: %v", expected, fields[len(fields)-2]))
+	ports, _ := dockerCmd(c, "ps", "--format", "{{ .Ports }}", "--filter", "name=foo")
+	expected := ":6000->5000/tcp"
+	assert.Assert(c, is.Contains(ports, expected), "Expected: %v, got: %v", expected, ports)
 
 	dockerCmd(c, "kill", "foo")
 	dockerCmd(c, "wait", "foo")
-	out, _ = dockerCmd(c, "ps", "-l")
-	lines = strings.Split(strings.TrimSpace(out), "\n")
-	fields = strings.Fields(lines[1])
-	assert.Assert(c, fields[len(fields)-2] != expected, "Should not got %v", expected)
+	ports, _ = dockerCmd(c, "ps", "--format", "{{ .Ports }}", "--filter", "name=foo")
+	assert.Equal(c, ports, "", "Should not got %v", expected)
 }
 
 func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
