@@ -3,6 +3,7 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"runtime"
 	"strings"
 	"testing"
@@ -569,4 +570,41 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 	}
 	assert.NilError(t, dispatch(sb, run))
 	assert.Check(t, is.DeepEqual(expectedTest, sb.state.runConfig.Healthcheck.Test))
+}
+
+func TestDispatchUnsupportedOptions(t *testing.T) {
+	b := newBuilderWithMockBackend()
+	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
+	sb.state.baseImage = &mockImage{}
+	sb.state.operatingSystem = runtime.GOOS
+
+	t.Run("ADD with chmod", func(t *testing.T) {
+		cmd := &instructions.AddCommand{SourcesAndDest: []string{".", "."}, Chmod: "0655"}
+		err := dispatch(sb, cmd)
+		assert.Error(t, err, "the --chmod option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
+	})
+
+	t.Run("COPY with chmod", func(t *testing.T) {
+		cmd := &instructions.CopyCommand{SourcesAndDest: []string{".", "."}, Chmod: "0655"}
+		err := dispatch(sb, cmd)
+		assert.Error(t, err, "the --chmod option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
+	})
+
+	t.Run("RUN with unsupported options", func(t *testing.T) {
+		cmd := &instructions.RunCommand{
+			ShellDependantCmdLine: instructions.ShellDependantCmdLine{
+				CmdLine:      strslice.StrSlice{"echo foo"},
+				PrependShell: true,
+			},
+		}
+
+		// classic builder "RUN" currently doesn't support any flags, but testing
+		// both "known" flags and "bogus" flags for completeness, and in case
+		// one or more of these flags will be supported in future
+		for _, f := range []string{"mount", "network", "security", "any-flag"} {
+			cmd.FlagsUsed = []string{f}
+			err := dispatch(sb, cmd)
+			assert.Error(t, err, fmt.Sprintf("the --%s option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled", f))
+		}
+	})
 }
