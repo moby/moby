@@ -492,7 +492,7 @@ func buildManifest(ctx context.Context, s content.Manager, config digest.Digest,
 			return m, errors.Wrapf(err, "error fetching info for content digest %s", l)
 		}
 		m.Layers = append(m.Layers, specs.Descriptor{
-			MediaType: specs.MediaTypeImageLayerGzip, // TODO: This is assuming everything is a gzip compressed layer, but that may not be true.
+			MediaType: images.MediaTypeDockerSchema2LayerGzip, // TODO: This is assuming everything is a gzip compressed layer, but that may not be true.
 			Digest:    l,
 			Size:      info.Size,
 		})
