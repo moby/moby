@@ -78,6 +78,9 @@ func WithDialContext(dialContext func(ctx context.Context, network, addr string)
 // WithHost overrides the client host with the specified one.
 func WithHost(host string) Opt {
 	return func(c *Client) error {
+		if host == "" {
+			host = DefaultDockerHost
+		}
 		hostURL, err := ParseHostURL(host)
 		if err != nil {
 			return err

@@ -20,13 +20,13 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 
 	out, _ = dockerCmd(c, "port", firstID, "80")
 
-	err := assertPortList(c, out, []string{"0.0.0.0:9876"})
+	err := assertPortList(c, out, []string{"0.0.0.0:9876", "[::]:9876"})
 	// Port list is not correct
 	assert.NilError(c, err)
 
 	out, _ = dockerCmd(c, "port", firstID)
 
-	err = assertPortList(c, out, []string{"80/tcp -> 0.0.0.0:9876"})
+	err = assertPortList(c, out, []string{"80/tcp -> 0.0.0.0:9876", "80/tcp -> [::]:9876"})
 	// Port list is not correct
 	assert.NilError(c, err)
 
@@ -42,7 +42,7 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 
 	out, _ = dockerCmd(c, "port", ID, "80")
 
-	err = assertPortList(c, out, []string{"0.0.0.0:9876"})
+	err = assertPortList(c, out, []string{"0.0.0.0:9876", "[::]:9876"})
 	// Port list is not correct
 	assert.NilError(c, err)
 
@@ -50,8 +50,11 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 
 	err = assertPortList(c, out, []string{
 		"80/tcp -> 0.0.0.0:9876",
+		"80/tcp -> [::]:9876",
 		"81/tcp -> 0.0.0.0:9877",
+		"81/tcp -> [::]:9877",
 		"82/tcp -> 0.0.0.0:9878",
+		"82/tcp -> [::]:9878",
 	})
 	// Port list is not correct
 	assert.NilError(c, err)
@@ -69,7 +72,7 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 
 	out, _ = dockerCmd(c, "port", ID, "80")
 
-	err = assertPortList(c, out, []string{"0.0.0.0:9876", "0.0.0.0:9999"})
+	err = assertPortList(c, out, []string{"0.0.0.0:9876", "[::]:9876", "0.0.0.0:9999", "[::]:9999"})
 	// Port list is not correct
 	assert.NilError(c, err)
 
@@ -78,8 +81,12 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 	err = assertPortList(c, out, []string{
 		"80/tcp -> 0.0.0.0:9876",
 		"80/tcp -> 0.0.0.0:9999",
+		"80/tcp -> [::]:9876",
+		"80/tcp -> [::]:9999",
 		"81/tcp -> 0.0.0.0:9877",
+		"81/tcp -> [::]:9877",
 		"82/tcp -> 0.0.0.0:9878",
+		"82/tcp -> [::]:9878",
 	})
 	// Port list is not correct
 	assert.NilError(c, err)
@@ -94,7 +101,10 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 
 			out, _ = dockerCmd(c, "port", IDs[i])
 
-			err = assertPortList(c, out, []string{fmt.Sprintf("80/tcp -> 0.0.0.0:%d", 9090+i)})
+			err = assertPortList(c, out, []string{
+				fmt.Sprintf("80/tcp -> 0.0.0.0:%d", 9090+i),
+				fmt.Sprintf("80/tcp -> [::]:%d", 9090+i),
+			})
 			// Port list is not correct
 			assert.NilError(c, err)
 		}
@@ -127,9 +137,13 @@ func (s *DockerSuite) TestPortList(c *testing.T) {
 
 	err = assertPortList(c, out, []string{
 		"80/tcp -> 0.0.0.0:9800",
+		"80/tcp -> [::]:9800",
 		"81/tcp -> 0.0.0.0:9801",
+		"81/tcp -> [::]:9801",
 		"82/tcp -> 0.0.0.0:9802",
+		"82/tcp -> [::]:9802",
 		"83/tcp -> 0.0.0.0:9803",
+		"83/tcp -> [::]:9803",
 	})
 	// Port list is not correct
 	assert.NilError(c, err)
@@ -161,7 +175,7 @@ func assertPortList(c *testing.T, out string, expected []string) error {
 	// of the CLI used an incorrect output format for mappings on IPv6 addresses
 	// for example, "80/tcp -> :::80" instead of "80/tcp -> [::]:80".
 	oldFormat := func(mapping string) string {
-		old := strings.Replace(mapping, "-> [", "-> ", 1)
+		old := strings.Replace(mapping, "[", "", 1)
 		old = strings.Replace(old, "]:", ":", 1)
 		return old
 	}
@@ -305,7 +319,7 @@ func (s *DockerSuite) TestPortHostBinding(c *testing.T) {
 
 	out, _ = dockerCmd(c, "port", firstID, "80")
 
-	err := assertPortList(c, out, []string{"0.0.0.0:9876"})
+	err := assertPortList(c, out, []string{"0.0.0.0:9876", "[::]:9876"})
 	// Port list is not correct
 	assert.NilError(c, err)
 
