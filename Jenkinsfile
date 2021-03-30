@@ -939,7 +939,7 @@ pipeline {
                         beforeAgent true
                         expression { params.arm64 }
                     }
-                    agent { label 'arm64 && linux' }
+                    agent { label 'arm64 && ubuntu-2004' }
                     environment {
                         TEST_SKIP_INTEGRATION_CLI = '1'
                     }
