@@ -15,7 +15,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/pkg/archive"
@@ -678,10 +677,11 @@ func (d *Driver) isParent(id, parent string) bool {
 
 // ApplyDiff applies the new layer into a root
 func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64, err error) {
-	if !d.isParent(id, parent) {
+	if useNaiveDiff(d.home) || !d.isParent(id, parent) {
 		return d.naiveDiff.ApplyDiff(id, parent, diff)
 	}
 
+	// never reach here if we are running in UserNS
 	applyDir := d.getDiffPath(id)
 
 	logger.Debugf("Applying tar in %s", applyDir)
@@ -690,7 +690,6 @@ func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64
 		UIDMaps:        d.uidMaps,
 		GIDMaps:        d.gidMaps,
 		WhiteoutFormat: archive.OverlayWhiteoutFormat,
-		InUserNS:       sys.RunningInUserNS(),
 	}); err != nil {
 		return 0, err
 	}
@@ -721,6 +720,7 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 		return d.naiveDiff.Diff(id, parent)
 	}
 
+	// never reach here if we are running in UserNS
 	diffPath := d.getDiffPath(id)
 	logger.Debugf("Tar with options on %s", diffPath)
 	return archive.TarWithOptions(diffPath, &archive.TarOptions{
