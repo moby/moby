@@ -61,16 +61,6 @@ type container struct {
 	terminateInvoked bool
 }
 
-// Win32 error codes that are used for various workarounds
-// These really should be ALL_CAPS to match golangs syscall library and standard
-// Win32 error conventions, but golint insists on CamelCase.
-const (
-	CoEClassstring     = syscall.Errno(0x800401F3) // Invalid class string
-	ErrorNoNetwork     = syscall.Errno(1222)       // The network is not present or not started
-	ErrorBadPathname   = syscall.Errno(161)        // The specified path is invalid
-	ErrorInvalidObject = syscall.Errno(0x800710D8) // The object identifier does not represent a valid object
-)
-
 // defaultOwner is a tag passed to HCS to allow it to differentiate between
 // container creator management stacks. We hard code "docker" in the case
 // of docker.
