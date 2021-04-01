@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/errdefs"
@@ -100,8 +99,7 @@ func (daemon *Daemon) ContainerExecCreate(name string, config *types.ExecConfig)
 		return "", err
 	}
 
-	cmd := strslice.StrSlice(config.Cmd)
-	entrypoint, args := daemon.getEntrypointAndArgs(strslice.StrSlice{}, cmd)
+	entrypoint, args := daemon.getEntrypointAndArgs([]string{}, config.Cmd)
 
 	keys := []byte{}
 	if config.DetachKeys != "" {
