@@ -132,9 +132,6 @@ function start_dnet() {
     # Try discovery URLs with or without path
     neigh_ip=""
     neighbors=""
-    if [ "$store" = "etcd" ]; then
-	read discovery provider address < <(parse_discovery_str etcd://${bridge_ip}:42000/custom_prefix)
-    else
 	if [ "$nip" != "" ]; then
 	    neighbors=${nip}
 	fi
@@ -142,7 +139,6 @@ function start_dnet() {
 	discovery=""
 	provider=""
 	address=""
-    fi
 
     if [ "$discovery" != "" ]; then
 	cat > ${tomlfile} <<EOF
@@ -248,23 +244,6 @@ function runc_nofail() {
     status="$?"
     set -e
     dnet_exec ${dnet} "umount /var/run/netns/c && rm /var/run/netns/c"
-}
-
-function start_etcd() {
-    local bridge_ip
-    stop_etcd
-
-    bridge_ip=$(get_docker_bridge_ip)
-    docker run -d \
-	   --net=host \
-	   --name=dn_etcd \
-	   mrjana/etcd --listen-client-urls http://0.0.0.0:42000 \
-	   --advertise-client-urls http://${bridge_ip}:42000
-    sleep 2
-}
-
-function stop_etcd() {
-    docker rm -f dn_etcd || true
 }
 
 function test_overlay() {

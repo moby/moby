@@ -52,51 +52,9 @@ function run_overlay_local_tests() {
 	unset cmap[dnet-3-local]
 }
 
-function run_overlay_etcd_tests() {
-	## Test overlay network with etcd
-	start_dnet 1 etcd 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 1 - etcd]=dnet-1-etcd
-	start_dnet 2 etcd 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 2 - etcd]=dnet-2-etcd
-	start_dnet 3 etcd 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 3 - etcd]=dnet-3-etcd
-
-	./integration-tmp/bin/bats ./test/integration/dnet/overlay-etcd.bats
-
-	stop_dnet 1 etcd 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-1-etcd]
-	stop_dnet 2 etcd 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-2-etcd]
-	stop_dnet 3 etcd 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-3-etcd]
-}
-
 function run_dnet_tests() {
 	# Test dnet configuration options
 	./integration-tmp/bin/bats ./test/integration/dnet/dnet.bats
-}
-
-function run_multi_etcd_tests() {
-	# Test multi node configuration with a global scope test driver backed by etcd
-
-	## Setup
-	start_dnet 1 multi_etcd etcd 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 1 - multi_etcd]=dnet-1-multi_etcd
-	start_dnet 2 multi_etcd etcd 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 2 - multi_etcd]=dnet-2-multi_etcd
-	start_dnet 3 multi_etcd etcd 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 3 - multi_etcd]=dnet-3-multi_etcd
-
-	## Run the test cases
-	./integration-tmp/bin/bats ./test/integration/dnet/multi.bats
-
-	## Teardown
-	stop_dnet 1 multi_etcd 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-1-multi_etcd]
-	stop_dnet 2 multi_etcd 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-2-multi_etcd]
-	stop_dnet 3 multi_etcd 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-3-multi_etcd]
 }
 
 source ./test/integration/dnet/helpers.bash
@@ -118,15 +76,9 @@ fi
 # Suite setup
 
 if [ -z "$SUITES" ]; then
-	suites="dnet multi_etcd  bridge overlay_etcd"
+	suites="dnet bridge"
 else
 	suites="$SUITES"
-fi
-
-if [[ "$suites" =~ .*etcd.* ]]; then
-	echo "Starting etcd ..."
-	start_etcd 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dn_etcd]=dn_etcd
 fi
 
 echo ""
