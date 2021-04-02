@@ -647,10 +647,10 @@ func TestAllowNondistributableArtifacts(t *testing.T) {
 		{"example.com:5000", []string{"42.42.42.42/8"}, true},
 		{"127.0.0.1:5000", []string{"127.0.0.0/8"}, true},
 		{"42.42.42.42:5000", []string{"42.1.1.1/8"}, true},
-		{"invalid.domain.com", []string{"42.42.0.0/16"}, false},
-		{"invalid.domain.com", []string{"invalid.domain.com"}, true},
-		{"invalid.domain.com:5000", []string{"invalid.domain.com"}, false},
-		{"invalid.domain.com:5000", []string{"invalid.domain.com:5000"}, true},
+		{"invalid.example.com", []string{"42.42.0.0/16"}, false},
+		{"invalid.example.com", []string{"invalid.example.com"}, true},
+		{"invalid.example.com:5000", []string{"invalid.example.com"}, false},
+		{"invalid.example.com:5000", []string{"invalid.example.com:5000"}, true},
 	}
 	for _, tt := range tests {
 		config, err := newServiceConfig(ServiceOptions{
@@ -692,10 +692,10 @@ func TestIsSecureIndex(t *testing.T) {
 		{"example.com:5000", []string{"42.42.42.42/8"}, false},
 		{"127.0.0.1:5000", []string{"127.0.0.0/8"}, false},
 		{"42.42.42.42:5000", []string{"42.1.1.1/8"}, false},
-		{"invalid.domain.com", []string{"42.42.0.0/16"}, true},
-		{"invalid.domain.com", []string{"invalid.domain.com"}, false},
-		{"invalid.domain.com:5000", []string{"invalid.domain.com"}, true},
-		{"invalid.domain.com:5000", []string{"invalid.domain.com:5000"}, false},
+		{"invalid.example.com", []string{"42.42.0.0/16"}, true},
+		{"invalid.example.com", []string{"invalid.example.com"}, false},
+		{"invalid.example.com:5000", []string{"invalid.example.com"}, true},
+		{"invalid.example.com:5000", []string{"invalid.example.com:5000"}, false},
 	}
 	for _, tt := range tests {
 		config, err := makeServiceConfig(nil, tt.insecureRegistries)

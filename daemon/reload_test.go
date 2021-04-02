@@ -120,9 +120,9 @@ func TestDaemonReloadMirrors(t *testing.T) {
 	daemon.RegistryService, err = registry.NewService(registry.ServiceOptions{
 		InsecureRegistries: []string{},
 		Mirrors: []string{
-			"https://mirror.test1.com",
-			"https://mirror.test2.com", // this will be removed when reloading
-			"https://mirror.test3.com", // this will be removed when reloading
+			"https://mirror.test1.example.com",
+			"https://mirror.test2.example.com", // this will be removed when reloading
+			"https://mirror.test3.example.com", // this will be removed when reloading
 		},
 	})
 	if err != nil {
@@ -150,13 +150,13 @@ func TestDaemonReloadMirrors(t *testing.T) {
 		},
 		{
 			valid:   false,
-			mirrors: []string{"10.10.1.11:5000", "mirror.test1.com"}, // mirrors are invalid
+			mirrors: []string{"10.10.1.11:5000", "mirror.test1.example.com"}, // mirrors are invalid
 			after:   []string{},
 		},
 		{
 			valid:   true,
-			mirrors: []string{"https://mirror.test1.com", "https://mirror.test4.com"},
-			after:   []string{"https://mirror.test1.com/", "https://mirror.test4.com/"},
+			mirrors: []string{"https://mirror.test1.example.com", "https://mirror.test4.example.com"},
+			after:   []string{"https://mirror.test1.example.com/", "https://mirror.test4.example.com/"},
 		},
 	}
 
@@ -224,8 +224,8 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 			"127.0.0.0/8",
 			"10.10.1.11:5000",
 			"10.10.1.22:5000", // this will be removed when reloading
-			"docker1.com",
-			"docker2.com", // this will be removed when reloading
+			"docker1.example.com",
+			"docker2.example.com", // this will be removed when reloading
 		},
 	})
 	if err != nil {
@@ -235,11 +235,11 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 	daemon.configStore = &config.Config{}
 
 	insecureRegistries := []string{
-		"127.0.0.0/8",     // this will be kept
-		"10.10.1.11:5000", // this will be kept
-		"10.10.1.33:5000", // this will be newly added
-		"docker1.com",     // this will be kept
-		"docker3.com",     // this will be newly added
+		"127.0.0.0/8",         // this will be kept
+		"10.10.1.11:5000",     // this will be kept
+		"10.10.1.33:5000",     // this will be newly added
+		"docker1.example.com", // this will be kept
+		"docker3.example.com", // this will be newly added
 	}
 
 	valuesSets := make(map[string]interface{})
@@ -300,7 +300,7 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 	}
 
 	// assert if "docker2.com" is removed when reloading
-	if value, ok := dataMap["docker2.com"]; ok {
+	if value, ok := dataMap["docker2.example.com"]; ok {
 		t.Fatalf("Expected no insecure registry of docker2.com, got %d", value)
 	}
 }

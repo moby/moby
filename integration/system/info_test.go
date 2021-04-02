@@ -120,7 +120,7 @@ func TestInfoRegistryMirrors(t *testing.T) {
 
 	const (
 		registryMirror1 = "https://192.168.1.2"
-		registryMirror2 = "http://registry.mirror.com:5000"
+		registryMirror2 = "http://registry-mirror.example.com:5000"
 	)
 
 	d := daemon.New(t)
