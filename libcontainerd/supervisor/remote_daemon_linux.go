@@ -29,10 +29,10 @@ func (r *remote) setDefaults() {
 		r.Debug.Address = filepath.Join(r.stateDir, debugSockFile)
 	}
 
-	for key, conf := range r.pluginConfs.Plugins {
+	for key, conf := range r.Plugins {
 		if conf == nil {
 			r.DisabledPlugins = append(r.DisabledPlugins, key)
-			delete(r.pluginConfs.Plugins, key)
+			delete(r.Plugins, key)
 		}
 	}
 }

@@ -49,7 +49,7 @@ func WithMetricsAddress(addr string) DaemonOpt {
 // the toml format.
 func WithPlugin(name string, conf interface{}) DaemonOpt {
 	return func(r *remote) error {
-		r.pluginConfs.Plugins[name] = conf
+		r.Plugins[name] = conf
 		return nil
 	}
 }
