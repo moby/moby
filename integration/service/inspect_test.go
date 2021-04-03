@@ -88,7 +88,7 @@ func fullSwarmServiceSpec(name string, replicas uint64) swarmtypes.ServiceSpec {
 				Image:           "busybox:latest",
 				Labels:          map[string]string{"container-label": "container-value"},
 				Command:         []string{"/bin/top"},
-				Args:            []string{"-u", "root"},
+				Args:            []string{"-d", "5"},
 				Hostname:        "hostname",
 				Env:             []string{"envvar=envvalue"},
 				Dir:             "/work",
