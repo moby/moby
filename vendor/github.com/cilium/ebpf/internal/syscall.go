@@ -91,6 +91,19 @@ func BPFProgDetach(attr *BPFProgDetachAttr) error {
 	return err
 }
 
+type BPFEnableStatsAttr struct {
+	StatsType uint32
+}
+
+func BPFEnableStats(attr *BPFEnableStatsAttr) (*FD, error) {
+	ptr, err := BPF(BPF_ENABLE_STATS, unsafe.Pointer(attr), unsafe.Sizeof(*attr))
+	if err != nil {
+		return nil, fmt.Errorf("enable stats: %w", err)
+	}
+	return NewFD(uint32(ptr)), nil
+
+}
+
 type bpfObjAttr struct {
 	fileName  Pointer
 	fd        uint32
@@ -127,13 +140,41 @@ func BPFObjPin(fileName string, fd *FD) error {
 }
 
 // BPFObjGet wraps BPF_OBJ_GET.
-func BPFObjGet(fileName string) (*FD, error) {
+func BPFObjGet(fileName string, flags uint32) (*FD, error) {
 	attr := bpfObjAttr{
-		fileName: NewStringPointer(fileName),
+		fileName:  NewStringPointer(fileName),
+		fileFlags: flags,
 	}
 	ptr, err := BPF(BPF_OBJ_GET, unsafe.Pointer(&attr), unsafe.Sizeof(attr))
 	if err != nil {
 		return nil, fmt.Errorf("get object %s: %w", fileName, err)
 	}
 	return NewFD(uint32(ptr)), nil
+}
+
+type bpfObjGetInfoByFDAttr struct {
+	fd      uint32
+	infoLen uint32
+	info    Pointer
+}
+
+// BPFObjGetInfoByFD wraps BPF_OBJ_GET_INFO_BY_FD.
+//
+// Available from 4.13.
+func BPFObjGetInfoByFD(fd *FD, info unsafe.Pointer, size uintptr) error {
+	value, err := fd.Value()
+	if err != nil {
+		return err
+	}
+
+	attr := bpfObjGetInfoByFDAttr{
+		fd:      value,
+		infoLen: uint32(size),
+		info:    NewPointer(info),
+	}
+	_, err = BPF(BPF_OBJ_GET_INFO_BY_FD, unsafe.Pointer(&attr), unsafe.Sizeof(attr))
+	if err != nil {
+		return fmt.Errorf("fd %v: %w", fd, err)
+	}
+	return nil
 }
