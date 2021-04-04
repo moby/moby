@@ -31,10 +31,10 @@ RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
             libprotobuf-dev \
             protobuf-c-compiler \
             protobuf-compiler \
-            python-protobuf
+            python3-protobuf
 
 # Install CRIU for checkpoint/restore support
-ARG CRIU_VERSION=3.14
+ARG CRIU_VERSION=3.15
 RUN mkdir -p /usr/src/criu \
     && curl -sSL https://github.com/checkpoint-restore/criu/archive/v${CRIU_VERSION}.tar.gz | tar -C /usr/src/criu/ -xz --strip-components=1 \
     && cd /usr/src/criu \
