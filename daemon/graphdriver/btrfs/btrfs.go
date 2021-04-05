@@ -633,7 +633,14 @@ func (d *Driver) Remove(id string) error {
 	d.updateQuotaStatus()
 
 	if err := subvolDelete(d.subvolumesDir(), id, d.quotaEnabled); err != nil {
-		return err
+		if d.quotaEnabled {
+			return err
+		}
+		// If quota is not enabled, fallback to rmdir syscall to delete subvolumes.
+		// This would allow unprivileged user to delete their owned subvolumes
+		// in kernel >= 4.18 without user_subvol_rm_allowed mount option.
+		//
+		// From https://github.com/containers/storage/pull/508/commits/831e32b6bdcb530acc4c1cb9059d3c6dba14208c
 	}
 	if err := system.EnsureRemoveAll(dir); err != nil {
 		return err
