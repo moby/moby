@@ -167,9 +167,9 @@ func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 
 func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 	content := `{
-		"allow-nondistributable-artifacts": ["allow-nondistributable-artifacts.com"],
-		"registry-mirrors": ["https://mirrors.docker.com"],
-		"insecure-registries": ["https://insecure.docker.com"]
+		"allow-nondistributable-artifacts": ["allow-nondistributable-artifacts.example.com"],
+		"registry-mirrors": ["https://mirrors.example.com"],
+		"insecure-registries": ["https://insecure-registry.example.com"]
 	}`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
 	defer tempFile.Remove()

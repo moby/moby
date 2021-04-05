@@ -52,20 +52,20 @@ func TestLoadAllowNondistributableArtifacts(t *testing.T) {
 		},
 
 		{
-			registries: []string{"http://mytest.com"},
-			err:        "allow-nondistributable-artifacts registry http://mytest.com should not contain '://'",
+			registries: []string{"http://myregistry.example.com"},
+			err:        "allow-nondistributable-artifacts registry http://myregistry.example.com should not contain '://'",
 		},
 		{
-			registries: []string{"https://mytest.com"},
-			err:        "allow-nondistributable-artifacts registry https://mytest.com should not contain '://'",
+			registries: []string{"https://myregistry.example.com"},
+			err:        "allow-nondistributable-artifacts registry https://myregistry.example.com should not contain '://'",
 		},
 		{
-			registries: []string{"HTTP://mytest.com"},
-			err:        "allow-nondistributable-artifacts registry HTTP://mytest.com should not contain '://'",
+			registries: []string{"HTTP://myregistry.example.com"},
+			err:        "allow-nondistributable-artifacts registry HTTP://myregistry.example.com should not contain '://'",
 		},
 		{
-			registries: []string{"svn://mytest.com"},
-			err:        "allow-nondistributable-artifacts registry svn://mytest.com should not contain '://'",
+			registries: []string{"svn://myregistry.example.com"},
+			err:        "allow-nondistributable-artifacts registry svn://myregistry.example.com should not contain '://'",
 		},
 		{
 			registries: []string{"-invalid-registry"},
@@ -80,16 +80,16 @@ func TestLoadAllowNondistributableArtifacts(t *testing.T) {
 			err:        `allow-nondistributable-artifacts registry 1200:0000:AB00:1234:0000:2552:7777:1313:8080 is not valid: invalid host "1200:0000:AB00:1234:0000:2552:7777:1313:8080"`,
 		},
 		{
-			registries: []string{`mytest.com:500000`},
-			err:        `allow-nondistributable-artifacts registry mytest.com:500000 is not valid: invalid port "500000"`,
+			registries: []string{`myregistry.example.com:500000`},
+			err:        `allow-nondistributable-artifacts registry myregistry.example.com:500000 is not valid: invalid port "500000"`,
 		},
 		{
-			registries: []string{`"mytest.com"`},
-			err:        `allow-nondistributable-artifacts registry "mytest.com" is not valid: invalid host "\"mytest.com\""`,
+			registries: []string{`"myregistry.example.com"`},
+			err:        `allow-nondistributable-artifacts registry "myregistry.example.com" is not valid: invalid host "\"myregistry.example.com\""`,
 		},
 		{
-			registries: []string{`"mytest.com:5000"`},
-			err:        `allow-nondistributable-artifacts registry "mytest.com:5000" is not valid: invalid host "\"mytest.com"`,
+			registries: []string{`"myregistry.example.com:5000"`},
+			err:        `allow-nondistributable-artifacts registry "myregistry.example.com:5000" is not valid: invalid host "\"myregistry.example.com"`,
 		},
 	}
 	for _, testCase := range testCases {
@@ -129,10 +129,10 @@ func TestLoadAllowNondistributableArtifacts(t *testing.T) {
 
 func TestValidateMirror(t *testing.T) {
 	valid := []string{
-		"http://mirror-1.com",
-		"http://mirror-1.com/",
-		"https://mirror-1.com",
-		"https://mirror-1.com/",
+		"http://mirror-1.example.com",
+		"http://mirror-1.example.com/",
+		"https://mirror-1.example.com",
+		"https://mirror-1.example.com/",
 		"http://localhost",
 		"https://localhost",
 		"http://localhost:5000",
@@ -145,18 +145,18 @@ func TestValidateMirror(t *testing.T) {
 
 	invalid := []string{
 		"!invalid!://%as%",
-		"ftp://mirror-1.com",
-		"http://mirror-1.com/?q=foo",
-		"http://mirror-1.com/v1/",
-		"http://mirror-1.com/v1/?q=foo",
-		"http://mirror-1.com/v1/?q=foo#frag",
-		"http://mirror-1.com?q=foo",
-		"https://mirror-1.com#frag",
-		"https://mirror-1.com/#frag",
-		"http://foo:bar@mirror-1.com/",
-		"https://mirror-1.com/v1/",
-		"https://mirror-1.com/v1/#",
-		"https://mirror-1.com?q",
+		"ftp://mirror-1.example.com",
+		"http://mirror-1.example.com/?q=foo",
+		"http://mirror-1.example.com/v1/",
+		"http://mirror-1.example.com/v1/?q=foo",
+		"http://mirror-1.example.com/v1/?q=foo#frag",
+		"http://mirror-1.example.com?q=foo",
+		"https://mirror-1.example.com#frag",
+		"https://mirror-1.example.com/#frag",
+		"http://foo:bar@mirror-1.example.com/",
+		"https://mirror-1.example.com/v1/",
+		"https://mirror-1.example.com/v1/#",
+		"https://mirror-1.example.com?q",
 	}
 
 	for _, address := range valid {
@@ -195,20 +195,20 @@ func TestLoadInsecureRegistries(t *testing.T) {
 			index:      "[2001:db8::1]:80",
 		},
 		{
-			registries: []string{"http://mytest.com"},
-			index:      "mytest.com",
+			registries: []string{"http://myregistry.example.com"},
+			index:      "myregistry.example.com",
 		},
 		{
-			registries: []string{"https://mytest.com"},
-			index:      "mytest.com",
+			registries: []string{"https://myregistry.example.com"},
+			index:      "myregistry.example.com",
 		},
 		{
-			registries: []string{"HTTP://mytest.com"},
-			index:      "mytest.com",
+			registries: []string{"HTTP://myregistry.example.com"},
+			index:      "myregistry.example.com",
 		},
 		{
-			registries: []string{"svn://mytest.com"},
-			err:        "insecure registry svn://mytest.com should not contain '://'",
+			registries: []string{"svn://myregistry.example.com"},
+			err:        "insecure registry svn://myregistry.example.com should not contain '://'",
 		},
 		{
 			registries: []string{"-invalid-registry"},
@@ -223,16 +223,16 @@ func TestLoadInsecureRegistries(t *testing.T) {
 			err:        `insecure registry 1200:0000:AB00:1234:0000:2552:7777:1313:8080 is not valid: invalid host "1200:0000:AB00:1234:0000:2552:7777:1313:8080"`,
 		},
 		{
-			registries: []string{`mytest.com:500000`},
-			err:        `insecure registry mytest.com:500000 is not valid: invalid port "500000"`,
+			registries: []string{`myregistry.example.com:500000`},
+			err:        `insecure registry myregistry.example.com:500000 is not valid: invalid port "500000"`,
 		},
 		{
-			registries: []string{`"mytest.com"`},
-			err:        `insecure registry "mytest.com" is not valid: invalid host "\"mytest.com\""`,
+			registries: []string{`"myregistry.example.com"`},
+			err:        `insecure registry "myregistry.example.com" is not valid: invalid host "\"myregistry.example.com\""`,
 		},
 		{
-			registries: []string{`"mytest.com:5000"`},
-			err:        `insecure registry "mytest.com:5000" is not valid: invalid host "\"mytest.com"`,
+			registries: []string{`"myregistry.example.com:5000"`},
+			err:        `insecure registry "myregistry.example.com:5000" is not valid: invalid host "\"myregistry.example.com"`,
 		},
 	}
 	for _, testCase := range testCases {
@@ -341,8 +341,8 @@ func TestValidateIndexName(t *testing.T) {
 			expect: "mytest-1.com",
 		},
 		{
-			index:  "mirror-1.com/v1/?q=foo",
-			expect: "mirror-1.com/v1/?q=foo",
+			index:  "mirror-1.example.com/v1/?q=foo",
+			expect: "mirror-1.example.com/v1/?q=foo",
 		},
 	}
 
@@ -370,8 +370,8 @@ func TestValidateIndexNameWithError(t *testing.T) {
 			err:   "invalid index name (-example.com). Cannot begin or end with a hyphen",
 		},
 		{
-			index: "mirror-1.com/v1/?q=foo-",
-			err:   "invalid index name (mirror-1.com/v1/?q=foo-). Cannot begin or end with a hyphen",
+			index: "mirror-1.example.com/v1/?q=foo-",
+			err:   "invalid index name (mirror-1.example.com/v1/?q=foo-). Cannot begin or end with a hyphen",
 		},
 	}
 	for _, testCase := range invalid {
