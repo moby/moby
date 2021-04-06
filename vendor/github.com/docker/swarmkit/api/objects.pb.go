@@ -14,6 +14,7 @@ import (
 	types "github.com/gogo/protobuf/types"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
 )
@@ -27,7 +28,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // Meta contains metadata about objects. Every object contains a meta field.
 type Meta struct {
@@ -52,7 +53,7 @@ func (m *Meta) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Meta.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -124,7 +125,7 @@ func (m *Node) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Node.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -191,7 +192,7 @@ func (m *Service) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Service.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -236,7 +237,7 @@ func (m *Endpoint) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Endpoint.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -284,7 +285,7 @@ func (m *Endpoint_VirtualIP) XXX_Marshal(b []byte, deterministic bool) ([]byte, 
 		return xxx_messageInfo_Endpoint_VirtualIP.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -380,7 +381,7 @@ func (m *Task) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Task.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -428,7 +429,7 @@ func (m *NetworkAttachment) XXX_Marshal(b []byte, deterministic bool) ([]byte, e
 		return xxx_messageInfo_NetworkAttachment.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -484,7 +485,7 @@ func (m *Network) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Network.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -556,7 +557,7 @@ func (m *Cluster) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Cluster.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -600,7 +601,7 @@ func (m *Secret) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Secret.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -642,7 +643,7 @@ func (m *Config) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Config.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -690,7 +691,7 @@ func (m *Resource) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Resource.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -731,7 +732,7 @@ func (m *Extension) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Extension.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -1272,7 +1273,7 @@ func (m *Extension) CopyFrom(src interface{}) {
 func (m *Meta) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1280,45 +1281,56 @@ func (m *Meta) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Meta) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Meta) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	dAtA[i] = 0xa
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Version.Size()))
-	n1, err := m.Version.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n1
-	if m.CreatedAt != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.CreatedAt.Size()))
-		n2, err := m.CreatedAt.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n2
-	}
 	if m.UpdatedAt != nil {
+		{
+			size, err := m.UpdatedAt.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
+		}
+		i--
 		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.UpdatedAt.Size()))
-		n3, err := m.UpdatedAt.MarshalTo(dAtA[i:])
+	}
+	if m.CreatedAt != nil {
+		{
+			size, err := m.CreatedAt.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	{
+		size, err := m.Version.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
-		i += n3
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
 	}
-	return i, nil
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
 }
 
 func (m *Node) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1326,107 +1338,129 @@ func (m *Node) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Node) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Node) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.ID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
-		i += copy(dAtA[i:], m.ID)
-	}
-	dAtA[i] = 0x12
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Meta.Size()))
-	n4, err := m.Meta.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n4
-	dAtA[i] = 0x1a
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Spec.Size()))
-	n5, err := m.Spec.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n5
-	if m.Description != nil {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.Description.Size()))
-		n6, err := m.Description.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n6
-	}
-	dAtA[i] = 0x2a
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Status.Size()))
-	n7, err := m.Status.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n7
-	if m.ManagerStatus != nil {
-		dAtA[i] = 0x32
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.ManagerStatus.Size()))
-		n8, err := m.ManagerStatus.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n8
-	}
-	if m.Attachment != nil {
-		dAtA[i] = 0x3a
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.Attachment.Size()))
-		n9, err := m.Attachment.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n9
-	}
-	dAtA[i] = 0x42
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Certificate.Size()))
-	n10, err := m.Certificate.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n10
-	if m.Role != 0 {
-		dAtA[i] = 0x48
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.Role))
+	if m.VXLANUDPPort != 0 {
+		i = encodeVarintObjects(dAtA, i, uint64(m.VXLANUDPPort))
+		i--
+		dAtA[i] = 0x58
 	}
 	if len(m.Attachments) > 0 {
-		for _, msg := range m.Attachments {
+		for iNdEx := len(m.Attachments) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Attachments[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintObjects(dAtA, i, uint64(size))
+			}
+			i--
 			dAtA[i] = 0x52
-			i++
-			i = encodeVarintObjects(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
+		}
+	}
+	if m.Role != 0 {
+		i = encodeVarintObjects(dAtA, i, uint64(m.Role))
+		i--
+		dAtA[i] = 0x48
+	}
+	{
+		size, err := m.Certificate.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x42
+	if m.Attachment != nil {
+		{
+			size, err := m.Attachment.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
-			i += n
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
 		}
+		i--
+		dAtA[i] = 0x3a
 	}
-	if m.VXLANUDPPort != 0 {
-		dAtA[i] = 0x58
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.VXLANUDPPort))
+	if m.ManagerStatus != nil {
+		{
+			size, err := m.ManagerStatus.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x32
 	}
-	return i, nil
+	{
+		size, err := m.Status.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x2a
+	if m.Description != nil {
+		{
+			size, err := m.Description.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x22
+	}
+	{
+		size, err := m.Spec.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x1a
+	{
+		size, err := m.Meta.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x12
+	if len(m.ID) > 0 {
+		i -= len(m.ID)
+		copy(dAtA[i:], m.ID)
+		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *Service) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1434,109 +1468,131 @@ func (m *Service) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Service) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Service) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.ID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
-		i += copy(dAtA[i:], m.ID)
-	}
-	dAtA[i] = 0x12
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Meta.Size()))
-	n11, err := m.Meta.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n11
-	dAtA[i] = 0x1a
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Spec.Size()))
-	n12, err := m.Spec.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n12
-	if m.Endpoint != nil {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.Endpoint.Size()))
-		n13, err := m.Endpoint.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if m.JobStatus != nil {
+		{
+			size, err := m.JobStatus.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
 		}
-		i += n13
+		i--
+		dAtA[i] = 0x62
 	}
-	if m.UpdateStatus != nil {
-		dAtA[i] = 0x2a
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.UpdateStatus.Size()))
-		n14, err := m.UpdateStatus.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if m.PreviousSpecVersion != nil {
+		{
+			size, err := m.PreviousSpecVersion.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
 		}
-		i += n14
+		i--
+		dAtA[i] = 0x5a
 	}
-	if m.PreviousSpec != nil {
-		dAtA[i] = 0x32
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.PreviousSpec.Size()))
-		n15, err := m.PreviousSpec.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if m.SpecVersion != nil {
+		{
+			size, err := m.SpecVersion.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
 		}
-		i += n15
+		i--
+		dAtA[i] = 0x52
 	}
 	if m.PendingDelete {
-		dAtA[i] = 0x38
-		i++
+		i--
 		if m.PendingDelete {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
 		}
-		i++
+		i--
+		dAtA[i] = 0x38
 	}
-	if m.SpecVersion != nil {
-		dAtA[i] = 0x52
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.SpecVersion.Size()))
-		n16, err := m.SpecVersion.MarshalTo(dAtA[i:])
+	if m.PreviousSpec != nil {
+		{
+			size, err := m.PreviousSpec.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x32
+	}
+	if m.UpdateStatus != nil {
+		{
+			size, err := m.UpdateStatus.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x2a
+	}
+	if m.Endpoint != nil {
+		{
+			size, err := m.Endpoint.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x22
+	}
+	{
+		size, err := m.Spec.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
-		i += n16
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
 	}
-	if m.PreviousSpecVersion != nil {
-		dAtA[i] = 0x5a
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.PreviousSpecVersion.Size()))
-		n17, err := m.PreviousSpecVersion.MarshalTo(dAtA[i:])
+	i--
+	dAtA[i] = 0x1a
+	{
+		size, err := m.Meta.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
-		i += n17
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
 	}
-	if m.JobStatus != nil {
-		dAtA[i] = 0x62
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.JobStatus.Size()))
-		n18, err := m.JobStatus.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n18
+	i--
+	dAtA[i] = 0x12
+	if len(m.ID) > 0 {
+		i -= len(m.ID)
+		copy(dAtA[i:], m.ID)
+		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *Endpoint) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1544,51 +1600,62 @@ func (m *Endpoint) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Endpoint) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Endpoint) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Spec != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.Spec.Size()))
-		n19, err := m.Spec.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if len(m.VirtualIPs) > 0 {
+		for iNdEx := len(m.VirtualIPs) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.VirtualIPs[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintObjects(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x1a
 		}
-		i += n19
 	}
 	if len(m.Ports) > 0 {
-		for _, msg := range m.Ports {
+		for iNdEx := len(m.Ports) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Ports[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintObjects(dAtA, i, uint64(size))
+			}
+			i--
 			dAtA[i] = 0x12
-			i++
-			i = encodeVarintObjects(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
+		}
+	}
+	if m.Spec != nil {
+		{
+			size, err := m.Spec.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
-			i += n
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
 		}
+		i--
+		dAtA[i] = 0xa
 	}
-	if len(m.VirtualIPs) > 0 {
-		for _, msg := range m.VirtualIPs {
-			dAtA[i] = 0x1a
-			i++
-			i = encodeVarintObjects(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *Endpoint_VirtualIP) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1596,29 +1663,36 @@ func (m *Endpoint_VirtualIP) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Endpoint_VirtualIP) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Endpoint_VirtualIP) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.NetworkID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(len(m.NetworkID)))
-		i += copy(dAtA[i:], m.NetworkID)
-	}
 	if len(m.Addr) > 0 {
-		dAtA[i] = 0x12
-		i++
+		i -= len(m.Addr)
+		copy(dAtA[i:], m.Addr)
 		i = encodeVarintObjects(dAtA, i, uint64(len(m.Addr)))
-		i += copy(dAtA[i:], m.Addr)
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if len(m.NetworkID) > 0 {
+		i -= len(m.NetworkID)
+		copy(dAtA[i:], m.NetworkID)
+		i = encodeVarintObjects(dAtA, i, uint64(len(m.NetworkID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *Task) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1626,151 +1700,181 @@ func (m *Task) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Task) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Task) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.ID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
-		i += copy(dAtA[i:], m.ID)
-	}
-	dAtA[i] = 0x12
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Meta.Size()))
-	n20, err := m.Meta.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n20
-	dAtA[i] = 0x1a
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Spec.Size()))
-	n21, err := m.Spec.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n21
-	if len(m.ServiceID) > 0 {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(len(m.ServiceID)))
-		i += copy(dAtA[i:], m.ServiceID)
-	}
-	if m.Slot != 0 {
-		dAtA[i] = 0x28
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.Slot))
-	}
-	if len(m.NodeID) > 0 {
-		dAtA[i] = 0x32
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(len(m.NodeID)))
-		i += copy(dAtA[i:], m.NodeID)
-	}
-	dAtA[i] = 0x3a
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Annotations.Size()))
-	n22, err := m.Annotations.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n22
-	dAtA[i] = 0x42
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.ServiceAnnotations.Size()))
-	n23, err := m.ServiceAnnotations.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n23
-	dAtA[i] = 0x4a
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Status.Size()))
-	n24, err := m.Status.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n24
-	if m.DesiredState != 0 {
-		dAtA[i] = 0x50
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.DesiredState))
-	}
-	if len(m.Networks) > 0 {
-		for _, msg := range m.Networks {
-			dAtA[i] = 0x5a
-			i++
-			i = encodeVarintObjects(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
+	if m.JobIteration != nil {
+		{
+			size, err := m.JobIteration.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
-			i += n
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
 		}
-	}
-	if m.Endpoint != nil {
-		dAtA[i] = 0x62
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.Endpoint.Size()))
-		n25, err := m.Endpoint.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n25
-	}
-	if m.LogDriver != nil {
-		dAtA[i] = 0x6a
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.LogDriver.Size()))
-		n26, err := m.LogDriver.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n26
-	}
-	if m.SpecVersion != nil {
-		dAtA[i] = 0x72
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.SpecVersion.Size()))
-		n27, err := m.SpecVersion.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n27
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x82
 	}
 	if len(m.AssignedGenericResources) > 0 {
-		for _, msg := range m.AssignedGenericResources {
+		for iNdEx := len(m.AssignedGenericResources) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.AssignedGenericResources[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintObjects(dAtA, i, uint64(size))
+			}
+			i--
 			dAtA[i] = 0x7a
-			i++
-			i = encodeVarintObjects(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
+		}
+	}
+	if m.SpecVersion != nil {
+		{
+			size, err := m.SpecVersion.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
-			i += n
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x72
+	}
+	if m.LogDriver != nil {
+		{
+			size, err := m.LogDriver.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x6a
+	}
+	if m.Endpoint != nil {
+		{
+			size, err := m.Endpoint.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x62
+	}
+	if len(m.Networks) > 0 {
+		for iNdEx := len(m.Networks) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Networks[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintObjects(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x5a
 		}
 	}
-	if m.JobIteration != nil {
-		dAtA[i] = 0x82
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.JobIteration.Size()))
-		n28, err := m.JobIteration.MarshalTo(dAtA[i:])
+	if m.DesiredState != 0 {
+		i = encodeVarintObjects(dAtA, i, uint64(m.DesiredState))
+		i--
+		dAtA[i] = 0x50
+	}
+	{
+		size, err := m.Status.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
-		i += n28
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
 	}
-	return i, nil
+	i--
+	dAtA[i] = 0x4a
+	{
+		size, err := m.ServiceAnnotations.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x42
+	{
+		size, err := m.Annotations.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x3a
+	if len(m.NodeID) > 0 {
+		i -= len(m.NodeID)
+		copy(dAtA[i:], m.NodeID)
+		i = encodeVarintObjects(dAtA, i, uint64(len(m.NodeID)))
+		i--
+		dAtA[i] = 0x32
+	}
+	if m.Slot != 0 {
+		i = encodeVarintObjects(dAtA, i, uint64(m.Slot))
+		i--
+		dAtA[i] = 0x28
+	}
+	if len(m.ServiceID) > 0 {
+		i -= len(m.ServiceID)
+		copy(dAtA[i:], m.ServiceID)
+		i = encodeVarintObjects(dAtA, i, uint64(len(m.ServiceID)))
+		i--
+		dAtA[i] = 0x22
+	}
+	{
+		size, err := m.Spec.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x1a
+	{
+		size, err := m.Meta.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x12
+	if len(m.ID) > 0 {
+		i -= len(m.ID)
+		copy(dAtA[i:], m.ID)
+		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *NetworkAttachment) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1778,74 +1882,71 @@ func (m *NetworkAttachment) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *NetworkAttachment) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *NetworkAttachment) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Network != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.Network.Size()))
-		n29, err := m.Network.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n29
-	}
-	if len(m.Addresses) > 0 {
-		for _, s := range m.Addresses {
+	if len(m.DriverAttachmentOpts) > 0 {
+		for k := range m.DriverAttachmentOpts {
+			v := m.DriverAttachmentOpts[k]
+			baseI := i
+			i -= len(v)
+			copy(dAtA[i:], v)
+			i = encodeVarintObjects(dAtA, i, uint64(len(v)))
+			i--
 			dAtA[i] = 0x12
-			i++
-			l = len(s)
-			for l >= 1<<7 {
-				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
-				l >>= 7
-				i++
-			}
-			dAtA[i] = uint8(l)
-			i++
-			i += copy(dAtA[i:], s)
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintObjects(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintObjects(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x22
 		}
 	}
 	if len(m.Aliases) > 0 {
-		for _, s := range m.Aliases {
+		for iNdEx := len(m.Aliases) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Aliases[iNdEx])
+			copy(dAtA[i:], m.Aliases[iNdEx])
+			i = encodeVarintObjects(dAtA, i, uint64(len(m.Aliases[iNdEx])))
+			i--
 			dAtA[i] = 0x1a
-			i++
-			l = len(s)
-			for l >= 1<<7 {
-				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
-				l >>= 7
-				i++
-			}
-			dAtA[i] = uint8(l)
-			i++
-			i += copy(dAtA[i:], s)
 		}
 	}
-	if len(m.DriverAttachmentOpts) > 0 {
-		for k, _ := range m.DriverAttachmentOpts {
-			dAtA[i] = 0x22
-			i++
-			v := m.DriverAttachmentOpts[k]
-			mapSize := 1 + len(k) + sovObjects(uint64(len(k))) + 1 + len(v) + sovObjects(uint64(len(v)))
-			i = encodeVarintObjects(dAtA, i, uint64(mapSize))
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintObjects(dAtA, i, uint64(len(k)))
-			i += copy(dAtA[i:], k)
+	if len(m.Addresses) > 0 {
+		for iNdEx := len(m.Addresses) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Addresses[iNdEx])
+			copy(dAtA[i:], m.Addresses[iNdEx])
+			i = encodeVarintObjects(dAtA, i, uint64(len(m.Addresses[iNdEx])))
+			i--
 			dAtA[i] = 0x12
-			i++
-			i = encodeVarintObjects(dAtA, i, uint64(len(v)))
-			i += copy(dAtA[i:], v)
 		}
 	}
-	return i, nil
+	if m.Network != nil {
+		{
+			size, err := m.Network.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *Network) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1853,69 +1954,83 @@ func (m *Network) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Network) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Network) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.ID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
-		i += copy(dAtA[i:], m.ID)
-	}
-	dAtA[i] = 0x12
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Meta.Size()))
-	n30, err := m.Meta.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n30
-	dAtA[i] = 0x1a
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Spec.Size()))
-	n31, err := m.Spec.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n31
-	if m.DriverState != nil {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.DriverState.Size()))
-		n32, err := m.DriverState.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n32
-	}
-	if m.IPAM != nil {
-		dAtA[i] = 0x2a
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.IPAM.Size()))
-		n33, err := m.IPAM.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n33
-	}
 	if m.PendingDelete {
-		dAtA[i] = 0x30
-		i++
+		i--
 		if m.PendingDelete {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
 		}
-		i++
+		i--
+		dAtA[i] = 0x30
 	}
-	return i, nil
+	if m.IPAM != nil {
+		{
+			size, err := m.IPAM.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x2a
+	}
+	if m.DriverState != nil {
+		{
+			size, err := m.DriverState.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x22
+	}
+	{
+		size, err := m.Spec.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x1a
+	{
+		size, err := m.Meta.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x12
+	if len(m.ID) > 0 {
+		i -= len(m.ID)
+		copy(dAtA[i:], m.ID)
+		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *Cluster) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1923,139 +2038,147 @@ func (m *Cluster) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Cluster) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Cluster) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.ID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
-		i += copy(dAtA[i:], m.ID)
+	if m.VXLANUDPPort != 0 {
+		i = encodeVarintObjects(dAtA, i, uint64(m.VXLANUDPPort))
+		i--
+		dAtA[i] = 0x68
 	}
-	dAtA[i] = 0x12
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Meta.Size()))
-	n34, err := m.Meta.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
+	if m.SubnetSize != 0 {
+		i = encodeVarintObjects(dAtA, i, uint64(m.SubnetSize))
+		i--
+		dAtA[i] = 0x60
 	}
-	i += n34
-	dAtA[i] = 0x1a
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Spec.Size()))
-	n35, err := m.Spec.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n35
-	dAtA[i] = 0x22
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.RootCA.Size()))
-	n36, err := m.RootCA.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n36
-	if len(m.NetworkBootstrapKeys) > 0 {
-		for _, msg := range m.NetworkBootstrapKeys {
-			dAtA[i] = 0x2a
-			i++
-			i = encodeVarintObjects(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if m.EncryptionKeyLamportClock != 0 {
-		dAtA[i] = 0x30
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.EncryptionKeyLamportClock))
-	}
-	if len(m.BlacklistedCertificates) > 0 {
-		for k, _ := range m.BlacklistedCertificates {
-			dAtA[i] = 0x42
-			i++
-			v := m.BlacklistedCertificates[k]
-			msgSize := 0
-			if v != nil {
-				msgSize = v.Size()
-				msgSize += 1 + sovObjects(uint64(msgSize))
-			}
-			mapSize := 1 + len(k) + sovObjects(uint64(len(k))) + msgSize
-			i = encodeVarintObjects(dAtA, i, uint64(mapSize))
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintObjects(dAtA, i, uint64(len(k)))
-			i += copy(dAtA[i:], k)
-			if v != nil {
-				dAtA[i] = 0x12
-				i++
-				i = encodeVarintObjects(dAtA, i, uint64(v.Size()))
-				n37, err := v.MarshalTo(dAtA[i:])
-				if err != nil {
-					return 0, err
-				}
-				i += n37
-			}
-		}
-	}
-	if len(m.UnlockKeys) > 0 {
-		for _, msg := range m.UnlockKeys {
-			dAtA[i] = 0x4a
-			i++
-			i = encodeVarintObjects(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
+	if len(m.DefaultAddressPool) > 0 {
+		for iNdEx := len(m.DefaultAddressPool) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.DefaultAddressPool[iNdEx])
+			copy(dAtA[i:], m.DefaultAddressPool[iNdEx])
+			i = encodeVarintObjects(dAtA, i, uint64(len(m.DefaultAddressPool[iNdEx])))
+			i--
+			dAtA[i] = 0x5a
 		}
 	}
 	if m.FIPS {
-		dAtA[i] = 0x50
-		i++
+		i--
 		if m.FIPS {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
 		}
-		i++
+		i--
+		dAtA[i] = 0x50
 	}
-	if len(m.DefaultAddressPool) > 0 {
-		for _, s := range m.DefaultAddressPool {
-			dAtA[i] = 0x5a
-			i++
-			l = len(s)
-			for l >= 1<<7 {
-				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
-				l >>= 7
-				i++
+	if len(m.UnlockKeys) > 0 {
+		for iNdEx := len(m.UnlockKeys) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.UnlockKeys[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintObjects(dAtA, i, uint64(size))
 			}
-			dAtA[i] = uint8(l)
-			i++
-			i += copy(dAtA[i:], s)
+			i--
+			dAtA[i] = 0x4a
 		}
 	}
-	if m.SubnetSize != 0 {
-		dAtA[i] = 0x60
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.SubnetSize))
+	if len(m.BlacklistedCertificates) > 0 {
+		for k := range m.BlacklistedCertificates {
+			v := m.BlacklistedCertificates[k]
+			baseI := i
+			if v != nil {
+				{
+					size, err := v.MarshalToSizedBuffer(dAtA[:i])
+					if err != nil {
+						return 0, err
+					}
+					i -= size
+					i = encodeVarintObjects(dAtA, i, uint64(size))
+				}
+				i--
+				dAtA[i] = 0x12
+			}
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintObjects(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintObjects(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x42
+		}
 	}
-	if m.VXLANUDPPort != 0 {
-		dAtA[i] = 0x68
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.VXLANUDPPort))
+	if m.EncryptionKeyLamportClock != 0 {
+		i = encodeVarintObjects(dAtA, i, uint64(m.EncryptionKeyLamportClock))
+		i--
+		dAtA[i] = 0x30
 	}
-	return i, nil
+	if len(m.NetworkBootstrapKeys) > 0 {
+		for iNdEx := len(m.NetworkBootstrapKeys) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.NetworkBootstrapKeys[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintObjects(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x2a
+		}
+	}
+	{
+		size, err := m.RootCA.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x22
+	{
+		size, err := m.Spec.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x1a
+	{
+		size, err := m.Meta.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x12
+	if len(m.ID) > 0 {
+		i -= len(m.ID)
+		copy(dAtA[i:], m.ID)
+		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *Secret) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -2063,49 +2186,59 @@ func (m *Secret) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Secret) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Secret) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.ID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
-		i += copy(dAtA[i:], m.ID)
-	}
-	dAtA[i] = 0x12
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Meta.Size()))
-	n38, err := m.Meta.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n38
-	dAtA[i] = 0x1a
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Spec.Size()))
-	n39, err := m.Spec.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n39
 	if m.Internal {
-		dAtA[i] = 0x20
-		i++
+		i--
 		if m.Internal {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
 		}
-		i++
+		i--
+		dAtA[i] = 0x20
 	}
-	return i, nil
+	{
+		size, err := m.Spec.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x1a
+	{
+		size, err := m.Meta.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x12
+	if len(m.ID) > 0 {
+		i -= len(m.ID)
+		copy(dAtA[i:], m.ID)
+		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *Config) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -2113,39 +2246,49 @@ func (m *Config) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Config) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Config) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.ID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
-		i += copy(dAtA[i:], m.ID)
+	{
+		size, err := m.Spec.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
 	}
-	dAtA[i] = 0x12
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Meta.Size()))
-	n40, err := m.Meta.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n40
+	i--
 	dAtA[i] = 0x1a
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Spec.Size()))
-	n41, err := m.Spec.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
+	{
+		size, err := m.Meta.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
 	}
-	i += n41
-	return i, nil
+	i--
+	dAtA[i] = 0x12
+	if len(m.ID) > 0 {
+		i -= len(m.ID)
+		copy(dAtA[i:], m.ID)
+		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *Resource) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -2153,55 +2296,68 @@ func (m *Resource) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Resource) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Resource) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.ID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
-		i += copy(dAtA[i:], m.ID)
-	}
-	dAtA[i] = 0x12
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Meta.Size()))
-	n42, err := m.Meta.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n42
-	dAtA[i] = 0x1a
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Annotations.Size()))
-	n43, err := m.Annotations.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n43
-	if len(m.Kind) > 0 {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(len(m.Kind)))
-		i += copy(dAtA[i:], m.Kind)
-	}
 	if m.Payload != nil {
+		{
+			size, err := m.Payload.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintObjects(dAtA, i, uint64(size))
+		}
+		i--
 		dAtA[i] = 0x2a
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(m.Payload.Size()))
-		n44, err := m.Payload.MarshalTo(dAtA[i:])
+	}
+	if len(m.Kind) > 0 {
+		i -= len(m.Kind)
+		copy(dAtA[i:], m.Kind)
+		i = encodeVarintObjects(dAtA, i, uint64(len(m.Kind)))
+		i--
+		dAtA[i] = 0x22
+	}
+	{
+		size, err := m.Annotations.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
-		i += n44
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
 	}
-	return i, nil
+	i--
+	dAtA[i] = 0x1a
+	{
+		size, err := m.Meta.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x12
+	if len(m.ID) > 0 {
+		i -= len(m.ID)
+		copy(dAtA[i:], m.ID)
+		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *Extension) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -2209,49 +2365,62 @@ func (m *Extension) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Extension) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Extension) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.ID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
-		i += copy(dAtA[i:], m.ID)
-	}
-	dAtA[i] = 0x12
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Meta.Size()))
-	n45, err := m.Meta.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n45
-	dAtA[i] = 0x1a
-	i++
-	i = encodeVarintObjects(dAtA, i, uint64(m.Annotations.Size()))
-	n46, err := m.Annotations.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n46
 	if len(m.Description) > 0 {
-		dAtA[i] = 0x22
-		i++
+		i -= len(m.Description)
+		copy(dAtA[i:], m.Description)
 		i = encodeVarintObjects(dAtA, i, uint64(len(m.Description)))
-		i += copy(dAtA[i:], m.Description)
+		i--
+		dAtA[i] = 0x22
 	}
-	return i, nil
+	{
+		size, err := m.Annotations.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x1a
+	{
+		size, err := m.Meta.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintObjects(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x12
+	if len(m.ID) > 0 {
+		i -= len(m.ID)
+		copy(dAtA[i:], m.ID)
+		i = encodeVarintObjects(dAtA, i, uint64(len(m.ID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintObjects(dAtA []byte, offset int, v uint64) int {
+	offset -= sovObjects(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 func (m *Meta) Size() (n int) {
 	if m == nil {
@@ -2675,14 +2844,7 @@ func (m *Extension) Size() (n int) {
 }
 
 func sovObjects(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozObjects(x uint64) (n int) {
 	return sovObjects(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -5329,7 +5491,7 @@ func (this *Meta) String() string {
 		return "nil"
 	}
 	s := strings.Join([]string{`&Meta{`,
-		`Version:` + strings.Replace(strings.Replace(this.Version.String(), "Version", "Version", 1), `&`, ``, 1) + `,`,
+		`Version:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Version), "Version", "Version", 1), `&`, ``, 1) + `,`,
 		`CreatedAt:` + strings.Replace(fmt.Sprintf("%v", this.CreatedAt), "Timestamp", "types.Timestamp", 1) + `,`,
 		`UpdatedAt:` + strings.Replace(fmt.Sprintf("%v", this.UpdatedAt), "Timestamp", "types.Timestamp", 1) + `,`,
 		`}`,
@@ -5340,17 +5502,22 @@ func (this *Node) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForAttachments := "[]*NetworkAttachment{"
+	for _, f := range this.Attachments {
+		repeatedStringForAttachments += strings.Replace(f.String(), "NetworkAttachment", "NetworkAttachment", 1) + ","
+	}
+	repeatedStringForAttachments += "}"
 	s := strings.Join([]string{`&Node{`,
 		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
 		`Meta:` + strings.Replace(strings.Replace(this.Meta.String(), "Meta", "Meta", 1), `&`, ``, 1) + `,`,
-		`Spec:` + strings.Replace(strings.Replace(this.Spec.String(), "NodeSpec", "NodeSpec", 1), `&`, ``, 1) + `,`,
+		`Spec:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Spec), "NodeSpec", "NodeSpec", 1), `&`, ``, 1) + `,`,
 		`Description:` + strings.Replace(fmt.Sprintf("%v", this.Description), "NodeDescription", "NodeDescription", 1) + `,`,
-		`Status:` + strings.Replace(strings.Replace(this.Status.String(), "NodeStatus", "NodeStatus", 1), `&`, ``, 1) + `,`,
+		`Status:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Status), "NodeStatus", "NodeStatus", 1), `&`, ``, 1) + `,`,
 		`ManagerStatus:` + strings.Replace(fmt.Sprintf("%v", this.ManagerStatus), "ManagerStatus", "ManagerStatus", 1) + `,`,
-		`Attachment:` + strings.Replace(fmt.Sprintf("%v", this.Attachment), "NetworkAttachment", "NetworkAttachment", 1) + `,`,
-		`Certificate:` + strings.Replace(strings.Replace(this.Certificate.String(), "Certificate", "Certificate", 1), `&`, ``, 1) + `,`,
+		`Attachment:` + strings.Replace(this.Attachment.String(), "NetworkAttachment", "NetworkAttachment", 1) + `,`,
+		`Certificate:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Certificate), "Certificate", "Certificate", 1), `&`, ``, 1) + `,`,
 		`Role:` + fmt.Sprintf("%v", this.Role) + `,`,
-		`Attachments:` + strings.Replace(fmt.Sprintf("%v", this.Attachments), "NetworkAttachment", "NetworkAttachment", 1) + `,`,
+		`Attachments:` + repeatedStringForAttachments + `,`,
 		`VXLANUDPPort:` + fmt.Sprintf("%v", this.VXLANUDPPort) + `,`,
 		`}`,
 	}, "")
@@ -5363,8 +5530,8 @@ func (this *Service) String() string {
 	s := strings.Join([]string{`&Service{`,
 		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
 		`Meta:` + strings.Replace(strings.Replace(this.Meta.String(), "Meta", "Meta", 1), `&`, ``, 1) + `,`,
-		`Spec:` + strings.Replace(strings.Replace(this.Spec.String(), "ServiceSpec", "ServiceSpec", 1), `&`, ``, 1) + `,`,
-		`Endpoint:` + strings.Replace(fmt.Sprintf("%v", this.Endpoint), "Endpoint", "Endpoint", 1) + `,`,
+		`Spec:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Spec), "ServiceSpec", "ServiceSpec", 1), `&`, ``, 1) + `,`,
+		`Endpoint:` + strings.Replace(this.Endpoint.String(), "Endpoint", "Endpoint", 1) + `,`,
 		`UpdateStatus:` + strings.Replace(fmt.Sprintf("%v", this.UpdateStatus), "UpdateStatus", "UpdateStatus", 1) + `,`,
 		`PreviousSpec:` + strings.Replace(fmt.Sprintf("%v", this.PreviousSpec), "ServiceSpec", "ServiceSpec", 1) + `,`,
 		`PendingDelete:` + fmt.Sprintf("%v", this.PendingDelete) + `,`,
@@ -5379,10 +5546,20 @@ func (this *Endpoint) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForPorts := "[]*PortConfig{"
+	for _, f := range this.Ports {
+		repeatedStringForPorts += strings.Replace(fmt.Sprintf("%v", f), "PortConfig", "PortConfig", 1) + ","
+	}
+	repeatedStringForPorts += "}"
+	repeatedStringForVirtualIPs := "[]*Endpoint_VirtualIP{"
+	for _, f := range this.VirtualIPs {
+		repeatedStringForVirtualIPs += strings.Replace(fmt.Sprintf("%v", f), "Endpoint_VirtualIP", "Endpoint_VirtualIP", 1) + ","
+	}
+	repeatedStringForVirtualIPs += "}"
 	s := strings.Join([]string{`&Endpoint{`,
 		`Spec:` + strings.Replace(fmt.Sprintf("%v", this.Spec), "EndpointSpec", "EndpointSpec", 1) + `,`,
-		`Ports:` + strings.Replace(fmt.Sprintf("%v", this.Ports), "PortConfig", "PortConfig", 1) + `,`,
-		`VirtualIPs:` + strings.Replace(fmt.Sprintf("%v", this.VirtualIPs), "Endpoint_VirtualIP", "Endpoint_VirtualIP", 1) + `,`,
+		`Ports:` + repeatedStringForPorts + `,`,
+		`VirtualIPs:` + repeatedStringForVirtualIPs + `,`,
 		`}`,
 	}, "")
 	return s
@@ -5402,22 +5579,32 @@ func (this *Task) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForNetworks := "[]*NetworkAttachment{"
+	for _, f := range this.Networks {
+		repeatedStringForNetworks += strings.Replace(f.String(), "NetworkAttachment", "NetworkAttachment", 1) + ","
+	}
+	repeatedStringForNetworks += "}"
+	repeatedStringForAssignedGenericResources := "[]*GenericResource{"
+	for _, f := range this.AssignedGenericResources {
+		repeatedStringForAssignedGenericResources += strings.Replace(fmt.Sprintf("%v", f), "GenericResource", "GenericResource", 1) + ","
+	}
+	repeatedStringForAssignedGenericResources += "}"
 	s := strings.Join([]string{`&Task{`,
 		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
 		`Meta:` + strings.Replace(strings.Replace(this.Meta.String(), "Meta", "Meta", 1), `&`, ``, 1) + `,`,
-		`Spec:` + strings.Replace(strings.Replace(this.Spec.String(), "TaskSpec", "TaskSpec", 1), `&`, ``, 1) + `,`,
+		`Spec:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Spec), "TaskSpec", "TaskSpec", 1), `&`, ``, 1) + `,`,
 		`ServiceID:` + fmt.Sprintf("%v", this.ServiceID) + `,`,
 		`Slot:` + fmt.Sprintf("%v", this.Slot) + `,`,
 		`NodeID:` + fmt.Sprintf("%v", this.NodeID) + `,`,
-		`Annotations:` + strings.Replace(strings.Replace(this.Annotations.String(), "Annotations", "Annotations", 1), `&`, ``, 1) + `,`,
-		`ServiceAnnotations:` + strings.Replace(strings.Replace(this.ServiceAnnotations.String(), "Annotations", "Annotations", 1), `&`, ``, 1) + `,`,
-		`Status:` + strings.Replace(strings.Replace(this.Status.String(), "TaskStatus", "TaskStatus", 1), `&`, ``, 1) + `,`,
+		`Annotations:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Annotations), "Annotations", "Annotations", 1), `&`, ``, 1) + `,`,
+		`ServiceAnnotations:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.ServiceAnnotations), "Annotations", "Annotations", 1), `&`, ``, 1) + `,`,
+		`Status:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Status), "TaskStatus", "TaskStatus", 1), `&`, ``, 1) + `,`,
 		`DesiredState:` + fmt.Sprintf("%v", this.DesiredState) + `,`,
-		`Networks:` + strings.Replace(fmt.Sprintf("%v", this.Networks), "NetworkAttachment", "NetworkAttachment", 1) + `,`,
-		`Endpoint:` + strings.Replace(fmt.Sprintf("%v", this.Endpoint), "Endpoint", "Endpoint", 1) + `,`,
+		`Networks:` + repeatedStringForNetworks + `,`,
+		`Endpoint:` + strings.Replace(this.Endpoint.String(), "Endpoint", "Endpoint", 1) + `,`,
 		`LogDriver:` + strings.Replace(fmt.Sprintf("%v", this.LogDriver), "Driver", "Driver", 1) + `,`,
 		`SpecVersion:` + strings.Replace(fmt.Sprintf("%v", this.SpecVersion), "Version", "Version", 1) + `,`,
-		`AssignedGenericResources:` + strings.Replace(fmt.Sprintf("%v", this.AssignedGenericResources), "GenericResource", "GenericResource", 1) + `,`,
+		`AssignedGenericResources:` + repeatedStringForAssignedGenericResources + `,`,
 		`JobIteration:` + strings.Replace(fmt.Sprintf("%v", this.JobIteration), "Version", "Version", 1) + `,`,
 		`}`,
 	}, "")
@@ -5438,7 +5625,7 @@ func (this *NetworkAttachment) String() string {
 	}
 	mapStringForDriverAttachmentOpts += "}"
 	s := strings.Join([]string{`&NetworkAttachment{`,
-		`Network:` + strings.Replace(fmt.Sprintf("%v", this.Network), "Network", "Network", 1) + `,`,
+		`Network:` + strings.Replace(this.Network.String(), "Network", "Network", 1) + `,`,
 		`Addresses:` + fmt.Sprintf("%v", this.Addresses) + `,`,
 		`Aliases:` + fmt.Sprintf("%v", this.Aliases) + `,`,
 		`DriverAttachmentOpts:` + mapStringForDriverAttachmentOpts + `,`,
@@ -5453,7 +5640,7 @@ func (this *Network) String() string {
 	s := strings.Join([]string{`&Network{`,
 		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
 		`Meta:` + strings.Replace(strings.Replace(this.Meta.String(), "Meta", "Meta", 1), `&`, ``, 1) + `,`,
-		`Spec:` + strings.Replace(strings.Replace(this.Spec.String(), "NetworkSpec", "NetworkSpec", 1), `&`, ``, 1) + `,`,
+		`Spec:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Spec), "NetworkSpec", "NetworkSpec", 1), `&`, ``, 1) + `,`,
 		`DriverState:` + strings.Replace(fmt.Sprintf("%v", this.DriverState), "Driver", "Driver", 1) + `,`,
 		`IPAM:` + strings.Replace(fmt.Sprintf("%v", this.IPAM), "IPAMOptions", "IPAMOptions", 1) + `,`,
 		`PendingDelete:` + fmt.Sprintf("%v", this.PendingDelete) + `,`,
@@ -5465,6 +5652,16 @@ func (this *Cluster) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForNetworkBootstrapKeys := "[]*EncryptionKey{"
+	for _, f := range this.NetworkBootstrapKeys {
+		repeatedStringForNetworkBootstrapKeys += strings.Replace(fmt.Sprintf("%v", f), "EncryptionKey", "EncryptionKey", 1) + ","
+	}
+	repeatedStringForNetworkBootstrapKeys += "}"
+	repeatedStringForUnlockKeys := "[]*EncryptionKey{"
+	for _, f := range this.UnlockKeys {
+		repeatedStringForUnlockKeys += strings.Replace(fmt.Sprintf("%v", f), "EncryptionKey", "EncryptionKey", 1) + ","
+	}
+	repeatedStringForUnlockKeys += "}"
 	keysForBlacklistedCertificates := make([]string, 0, len(this.BlacklistedCertificates))
 	for k, _ := range this.BlacklistedCertificates {
 		keysForBlacklistedCertificates = append(keysForBlacklistedCertificates, k)
@@ -5478,12 +5675,12 @@ func (this *Cluster) String() string {
 	s := strings.Join([]string{`&Cluster{`,
 		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
 		`Meta:` + strings.Replace(strings.Replace(this.Meta.String(), "Meta", "Meta", 1), `&`, ``, 1) + `,`,
-		`Spec:` + strings.Replace(strings.Replace(this.Spec.String(), "ClusterSpec", "ClusterSpec", 1), `&`, ``, 1) + `,`,
-		`RootCA:` + strings.Replace(strings.Replace(this.RootCA.String(), "RootCA", "RootCA", 1), `&`, ``, 1) + `,`,
-		`NetworkBootstrapKeys:` + strings.Replace(fmt.Sprintf("%v", this.NetworkBootstrapKeys), "EncryptionKey", "EncryptionKey", 1) + `,`,
+		`Spec:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Spec), "ClusterSpec", "ClusterSpec", 1), `&`, ``, 1) + `,`,
+		`RootCA:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.RootCA), "RootCA", "RootCA", 1), `&`, ``, 1) + `,`,
+		`NetworkBootstrapKeys:` + repeatedStringForNetworkBootstrapKeys + `,`,
 		`EncryptionKeyLamportClock:` + fmt.Sprintf("%v", this.EncryptionKeyLamportClock) + `,`,
 		`BlacklistedCertificates:` + mapStringForBlacklistedCertificates + `,`,
-		`UnlockKeys:` + strings.Replace(fmt.Sprintf("%v", this.UnlockKeys), "EncryptionKey", "EncryptionKey", 1) + `,`,
+		`UnlockKeys:` + repeatedStringForUnlockKeys + `,`,
 		`FIPS:` + fmt.Sprintf("%v", this.FIPS) + `,`,
 		`DefaultAddressPool:` + fmt.Sprintf("%v", this.DefaultAddressPool) + `,`,
 		`SubnetSize:` + fmt.Sprintf("%v", this.SubnetSize) + `,`,
@@ -5499,7 +5696,7 @@ func (this *Secret) String() string {
 	s := strings.Join([]string{`&Secret{`,
 		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
 		`Meta:` + strings.Replace(strings.Replace(this.Meta.String(), "Meta", "Meta", 1), `&`, ``, 1) + `,`,
-		`Spec:` + strings.Replace(strings.Replace(this.Spec.String(), "SecretSpec", "SecretSpec", 1), `&`, ``, 1) + `,`,
+		`Spec:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Spec), "SecretSpec", "SecretSpec", 1), `&`, ``, 1) + `,`,
 		`Internal:` + fmt.Sprintf("%v", this.Internal) + `,`,
 		`}`,
 	}, "")
@@ -5512,7 +5709,7 @@ func (this *Config) String() string {
 	s := strings.Join([]string{`&Config{`,
 		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
 		`Meta:` + strings.Replace(strings.Replace(this.Meta.String(), "Meta", "Meta", 1), `&`, ``, 1) + `,`,
-		`Spec:` + strings.Replace(strings.Replace(this.Spec.String(), "ConfigSpec", "ConfigSpec", 1), `&`, ``, 1) + `,`,
+		`Spec:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Spec), "ConfigSpec", "ConfigSpec", 1), `&`, ``, 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -5524,7 +5721,7 @@ func (this *Resource) String() string {
 	s := strings.Join([]string{`&Resource{`,
 		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
 		`Meta:` + strings.Replace(strings.Replace(this.Meta.String(), "Meta", "Meta", 1), `&`, ``, 1) + `,`,
-		`Annotations:` + strings.Replace(strings.Replace(this.Annotations.String(), "Annotations", "Annotations", 1), `&`, ``, 1) + `,`,
+		`Annotations:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Annotations), "Annotations", "Annotations", 1), `&`, ``, 1) + `,`,
 		`Kind:` + fmt.Sprintf("%v", this.Kind) + `,`,
 		`Payload:` + strings.Replace(fmt.Sprintf("%v", this.Payload), "Any", "types.Any", 1) + `,`,
 		`}`,
@@ -5538,7 +5735,7 @@ func (this *Extension) String() string {
 	s := strings.Join([]string{`&Extension{`,
 		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
 		`Meta:` + strings.Replace(strings.Replace(this.Meta.String(), "Meta", "Meta", 1), `&`, ``, 1) + `,`,
-		`Annotations:` + strings.Replace(strings.Replace(this.Annotations.String(), "Annotations", "Annotations", 1), `&`, ``, 1) + `,`,
+		`Annotations:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Annotations), "Annotations", "Annotations", 1), `&`, ``, 1) + `,`,
 		`Description:` + fmt.Sprintf("%v", this.Description) + `,`,
 		`}`,
 	}, "")
@@ -5692,10 +5889,7 @@ func (m *Meta) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthObjects
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -6089,10 +6283,7 @@ func (m *Node) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthObjects
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -6476,10 +6667,7 @@ func (m *Service) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthObjects
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -6633,10 +6821,7 @@ func (m *Endpoint) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthObjects
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -6750,10 +6935,7 @@ func (m *Endpoint_VirtualIP) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthObjects
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -7314,10 +7496,7 @@ func (m *Task) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthObjects
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -7577,7 +7756,7 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 					if err != nil {
 						return err
 					}
-					if skippy < 0 {
+					if (skippy < 0) || (iNdEx+skippy) < 0 {
 						return ErrInvalidLengthObjects
 					}
 					if (iNdEx + skippy) > postIndex {
@@ -7594,10 +7773,7 @@ func (m *NetworkAttachment) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthObjects
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -7837,10 +8013,7 @@ func (m *Network) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthObjects
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -8186,7 +8359,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 					if err != nil {
 						return err
 					}
-					if skippy < 0 {
+					if (skippy < 0) || (iNdEx+skippy) < 0 {
 						return ErrInvalidLengthObjects
 					}
 					if (iNdEx + skippy) > postIndex {
@@ -8327,10 +8500,7 @@ func (m *Cluster) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthObjects
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -8498,10 +8668,7 @@ func (m *Secret) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthObjects
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -8649,10 +8816,7 @@ func (m *Config) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthObjects
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -8868,10 +9032,7 @@ func (m *Resource) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthObjects
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -9051,10 +9212,7 @@ func (m *Extension) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthObjects
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthObjects
 			}
 			if (iNdEx + skippy) > l {
@@ -9072,6 +9230,7 @@ func (m *Extension) Unmarshal(dAtA []byte) error {
 func skipObjects(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -9103,10 +9262,8 @@ func skipObjects(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -9127,55 +9284,30 @@ func skipObjects(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthObjects
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthObjects
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowObjects
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipObjects(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthObjects
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupObjects
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthObjects
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthObjects = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowObjects   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthObjects        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowObjects          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupObjects = fmt.Errorf("proto: unexpected end of group")
 )
