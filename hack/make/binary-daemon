@@ -14,7 +14,7 @@ copy_binaries() {
 		return
 	fi
 	echo "Copying nested executables into $dir"
-	for file in containerd containerd-shim containerd-shim-runc-v2 ctr runc docker-init docker-proxy rootlesskit rootlesskit-docker-proxy dockerd-rootless.sh dockerd-rootless-setuptool.sh; do
+	for file in containerd containerd-shim containerd-shim-runc-v2 ctr runc docker-init rootlesskit rootlesskit-docker-proxy dockerd-rootless.sh dockerd-rootless-setuptool.sh; do
 		cp -f "$(command -v "$file")" "$dir/"
 		if [ "$hash" = "hash" ]; then
 			hash_files "$dir/$file"
@@ -31,5 +31,11 @@ copy_binaries() {
 }
 
 [ -z "$KEEPDEST" ] && rm -rf "$DEST"
-source "${MAKEDIR}/.binary"
-copy_binaries "$DEST" 'hash'
+
+(
+	GO_PACKAGE='github.com/docker/docker/cmd/dockerd'
+	BINARY_SHORT_NAME='dockerd'
+
+	source "${MAKEDIR}/.binary"
+	copy_binaries "$DEST" 'hash'
+)

@@ -177,13 +177,6 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
         PREFIX=/build /tmp/install/install.sh containerd
 
-FROM dev-base AS proxy
-ARG LIBNETWORK_COMMIT
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
-        PREFIX=/build /tmp/install/install.sh proxy
-
 FROM base AS golangci_lint
 ARG GOLANGCI_LINT_COMMIT
 RUN --mount=type=cache,target=/root/.cache/go-build \
@@ -318,7 +311,6 @@ COPY --from=runc          /build/ /usr/local/bin/
 COPY --from=containerd    /build/ /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
 COPY --from=vpnkit        /build/ /usr/local/bin/
-COPY --from=proxy         /build/ /usr/local/bin/
 ENV PATH=/usr/local/cli:$PATH
 ARG DOCKER_BUILDTAGS
 ENV DOCKER_BUILDTAGS="${DOCKER_BUILDTAGS}"
@@ -364,7 +356,6 @@ COPY --from=tini        /build/ /usr/local/bin/
 COPY --from=runc        /build/ /usr/local/bin/
 COPY --from=containerd  /build/ /usr/local/bin/
 COPY --from=rootlesskit /build/ /usr/local/bin/
-COPY --from=proxy       /build/ /usr/local/bin/
 COPY --from=vpnkit      /build/ /usr/local/bin/
 WORKDIR /go/src/github.com/docker/docker
 

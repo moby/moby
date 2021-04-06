@@ -121,7 +121,7 @@ pipeline {
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
-                                    dynbinary-daemon \
+                                    dynbinary \
                                     test-docker-py
                                 '''
                             }
@@ -160,7 +160,7 @@ pipeline {
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
-                                  hack/make.sh binary-daemon
+                                  hack/make.sh binary
                                 '''
                             }
                         }
@@ -319,7 +319,7 @@ pipeline {
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
-                                    dynbinary-daemon
+                                    dynbinary
 
                                 # flaky + integration
                                 TEST_INTEGRATION_DEST=1 CONTAINER_NAME=${CONTAINER_NAME}-1 TEST_SKIP_INTEGRATION_CLI=1 run_tests test-integration-flaky &
