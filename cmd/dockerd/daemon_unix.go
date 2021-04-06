@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/libnetwork/portallocator"
+	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"

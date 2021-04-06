@@ -9,8 +9,8 @@ import (
 
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
-	"github.com/docker/libnetwork/datastore"
-	_ "github.com/docker/libnetwork/testutils"
+	"github.com/docker/docker/libnetwork/datastore"
+	_ "github.com/docker/docker/libnetwork/testutils"
 )
 
 const (

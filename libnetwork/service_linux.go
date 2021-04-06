@@ -15,8 +15,8 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/libnetwork/iptables"
-	"github.com/docker/libnetwork/ns"
+	"github.com/docker/docker/libnetwork/iptables"
+	"github.com/docker/docker/libnetwork/ns"
 	"github.com/gogo/protobuf/proto"
 	"github.com/ishidawataru/sctp"
 	"github.com/moby/ipvs"

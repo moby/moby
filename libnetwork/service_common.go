@@ -5,7 +5,7 @@ package libnetwork
 import (
 	"net"
 
-	"github.com/docker/libnetwork/internal/setmatrix"
+	"github.com/docker/docker/libnetwork/internal/setmatrix"
 	"github.com/sirupsen/logrus"
 )
 

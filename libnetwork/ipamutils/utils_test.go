@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	_ "github.com/docker/libnetwork/testutils"
+	_ "github.com/docker/docker/libnetwork/testutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

@@ -4,8 +4,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/docker/libnetwork/cmd/networkdb-test/dbclient"
-	"github.com/docker/libnetwork/cmd/networkdb-test/dbserver"
+	"github.com/docker/docker/libnetwork/cmd/networkdb-test/dbclient"
+	"github.com/docker/docker/libnetwork/cmd/networkdb-test/dbserver"
 	"github.com/sirupsen/logrus"
 )
 

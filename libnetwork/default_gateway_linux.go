@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/docker/libnetwork/drivers/bridge"
+	"github.com/docker/docker/libnetwork/drivers/bridge"
 )
 
 const libnGWNetwork = "docker_gwbridge"

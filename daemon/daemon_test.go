@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/pkg/truncindex"
 	volumesservice "github.com/docker/docker/volume/service"
 	"github.com/docker/go-connections/nat"
-	"github.com/docker/libnetwork"
+	"github.com/docker/docker/libnetwork"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

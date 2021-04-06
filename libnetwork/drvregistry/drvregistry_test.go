@@ -4,18 +4,18 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/docker/libnetwork/datastore"
-	"github.com/docker/libnetwork/discoverapi"
-	"github.com/docker/libnetwork/driverapi"
-	"github.com/docker/libnetwork/ipamapi"
-	builtinIpam "github.com/docker/libnetwork/ipams/builtin"
-	nullIpam "github.com/docker/libnetwork/ipams/null"
-	remoteIpam "github.com/docker/libnetwork/ipams/remote"
+	"github.com/docker/docker/libnetwork/datastore"
+	"github.com/docker/docker/libnetwork/discoverapi"
+	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/ipamapi"
+	builtinIpam "github.com/docker/docker/libnetwork/ipams/builtin"
+	nullIpam "github.com/docker/docker/libnetwork/ipams/null"
+	remoteIpam "github.com/docker/docker/libnetwork/ipams/remote"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 
 	// this takes care of the incontainer flag
-	_ "github.com/docker/libnetwork/testutils"
+	_ "github.com/docker/docker/libnetwork/testutils"
 )
 
 const mockDriverName = "mock-driver"

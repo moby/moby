@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/libnetwork/driverapi"
-	_ "github.com/docker/libnetwork/testutils"
+	"github.com/docker/docker/libnetwork/driverapi"
+	_ "github.com/docker/docker/libnetwork/testutils"
 )
 
 const testNetworkType = "macvlan"

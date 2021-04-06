@@ -1,9 +1,9 @@
 package libnetwork
 
 import (
-	windriver "github.com/docker/libnetwork/drivers/windows"
-	"github.com/docker/libnetwork/options"
-	"github.com/docker/libnetwork/types"
+	windriver "github.com/docker/docker/libnetwork/drivers/windows"
+	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork/types"
 )
 
 const libnGWNetwork = "nat"

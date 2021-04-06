@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/libnetwork"
+	"github.com/docker/docker/libnetwork"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"

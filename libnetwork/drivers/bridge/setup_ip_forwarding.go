@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/docker/libnetwork/iptables"
+	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/sirupsen/logrus"
 )
 

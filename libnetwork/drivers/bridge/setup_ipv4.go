@@ -7,7 +7,7 @@ import (
 	"net"
 	"path/filepath"
 
-	"github.com/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )

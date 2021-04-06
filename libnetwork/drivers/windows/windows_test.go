@@ -6,9 +6,9 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/libnetwork/driverapi"
-	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/netlabel"
+	"github.com/docker/docker/libnetwork/types"
 )
 
 func testNetwork(networkType string, t *testing.T) {

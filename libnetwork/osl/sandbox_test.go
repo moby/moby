@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/libnetwork/ns"
-	"github.com/docker/libnetwork/testutils"
+	"github.com/docker/docker/libnetwork/ns"
+	"github.com/docker/docker/libnetwork/testutils"
 )
 
 func TestMain(m *testing.M) {

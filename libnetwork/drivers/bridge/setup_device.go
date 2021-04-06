@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )

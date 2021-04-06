@@ -10,8 +10,8 @@ import (
 
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
-	"github.com/docker/libnetwork/discoverapi"
-	"github.com/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/discoverapi"
+	"github.com/docker/docker/libnetwork/types"
 )
 
 //DataStore exported

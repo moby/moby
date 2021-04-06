@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/libnetwork/etchosts"
-	"github.com/docker/libnetwork/resolvconf"
-	"github.com/docker/libnetwork/resolvconf/dns"
-	"github.com/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/etchosts"
+	"github.com/docker/docker/libnetwork/resolvconf"
+	"github.com/docker/docker/libnetwork/resolvconf/dns"
+	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
 )
 

@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/libnetwork"
-	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork"
+	"github.com/docker/docker/libnetwork/netlabel"
+	"github.com/docker/docker/libnetwork/netutils"
+	"github.com/docker/docker/libnetwork/types"
 	"github.com/gorilla/mux"
 )
 

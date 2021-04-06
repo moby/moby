@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/docker/libnetwork/testutils"
+	_ "github.com/docker/docker/libnetwork/testutils"
 )
 
 func TestGenerate(t *testing.T) {

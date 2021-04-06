@@ -5,10 +5,10 @@ import (
 	"log"
 
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/libnetwork"
-	"github.com/docker/libnetwork/config"
-	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork"
+	"github.com/docker/docker/libnetwork/config"
+	"github.com/docker/docker/libnetwork/netlabel"
+	"github.com/docker/docker/libnetwork/options"
 )
 
 func main() {

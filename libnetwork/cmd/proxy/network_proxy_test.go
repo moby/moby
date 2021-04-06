@@ -12,7 +12,7 @@ import (
 
 	"github.com/ishidawataru/sctp"
 	// this takes care of the incontainer flag
-	_ "github.com/docker/libnetwork/testutils"
+	_ "github.com/docker/docker/libnetwork/testutils"
 )
 
 var testBuf = []byte("Buffalo buffalo Buffalo buffalo buffalo buffalo Buffalo buffalo")

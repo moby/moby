@@ -10,8 +10,8 @@ import (
 	"text/tabwriter"
 
 	"github.com/docker/docker/pkg/stringid"
-	flag "github.com/docker/libnetwork/client/mflag"
-	"github.com/docker/libnetwork/netutils"
+	flag "github.com/docker/docker/libnetwork/client/mflag"
+	"github.com/docker/docker/libnetwork/netutils"
 )
 
 var (

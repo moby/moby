@@ -7,7 +7,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/types"
 	"github.com/ishidawataru/sctp"
 	"github.com/sirupsen/logrus"
 )

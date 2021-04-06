@@ -1,6 +1,6 @@
 package api
 
-import "github.com/docker/libnetwork/types"
+import "github.com/docker/docker/libnetwork/types"
 
 /***********
  Resources

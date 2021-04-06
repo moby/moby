@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	types "github.com/docker/libnetwork/ipamutils"
+	types "github.com/docker/docker/libnetwork/ipamutils"
 )
 
 // PoolsOpt is a Value type for parsing the default address pools definitions

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	mapset "github.com/deckarep/golang-set"
-	_ "github.com/docker/libnetwork/testutils"
+	_ "github.com/docker/docker/libnetwork/testutils"
 
 	"github.com/docker/docker/pkg/discovery"
 )

@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/docker/libnetwork/config"
-	"github.com/docker/libnetwork/ipamapi"
-	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/options"
-	"github.com/docker/libnetwork/osl"
-	"github.com/docker/libnetwork/testutils"
+	"github.com/docker/docker/libnetwork/config"
+	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/netlabel"
+	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork/osl"
+	"github.com/docker/docker/libnetwork/testutils"
 )
 
 func getTestEnv(t *testing.T, opts ...[]NetworkOption) (NetworkController, []Network) {

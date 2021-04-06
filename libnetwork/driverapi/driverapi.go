@@ -4,7 +4,7 @@ import (
 	"net"
 
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/libnetwork/discoverapi"
+	"github.com/docker/docker/libnetwork/discoverapi"
 )
 
 // NetworkPluginEndpointType represents the Endpoint Type used by Plugin system

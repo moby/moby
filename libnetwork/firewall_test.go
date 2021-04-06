@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/libnetwork/iptables"
-	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork/iptables"
+	"github.com/docker/docker/libnetwork/netlabel"
+	"github.com/docker/docker/libnetwork/options"
 	"gotest.tools/v3/assert"
 )
 

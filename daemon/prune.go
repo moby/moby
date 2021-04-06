@@ -14,7 +14,7 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/libnetwork"
+	"github.com/docker/docker/libnetwork"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

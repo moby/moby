@@ -8,11 +8,11 @@ import (
 	"net"
 	"strings"
 
-	"github.com/docker/libnetwork/ipamutils"
-	"github.com/docker/libnetwork/ns"
-	"github.com/docker/libnetwork/osl"
-	"github.com/docker/libnetwork/resolvconf"
-	"github.com/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/ipamutils"
+	"github.com/docker/docker/libnetwork/ns"
+	"github.com/docker/docker/libnetwork/osl"
+	"github.com/docker/docker/libnetwork/resolvconf"
+	"github.com/docker/docker/libnetwork/types"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 )

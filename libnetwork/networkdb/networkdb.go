@@ -1,6 +1,6 @@
 package networkdb
 
-//go:generate protoc -I.:../vendor/github.com/gogo/protobuf --gogo_out=import_path=github.com/docker/libnetwork/networkdb,Mgogoproto/gogo.proto=github.com/gogo/protobuf/gogoproto:. networkdb.proto
+//go:generate protoc -I.:../vendor/github.com/gogo/protobuf --gogo_out=import_path=github.com/docker/docker/libnetwork/networkdb,Mgogoproto/gogo.proto=github.com/gogo/protobuf/gogoproto:. networkdb.proto
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/armon/go-radix"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
-	"github.com/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/types"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/serf"
 	"github.com/sirupsen/logrus"

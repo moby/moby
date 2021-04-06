@@ -11,7 +11,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/types"
 )
 
 var (

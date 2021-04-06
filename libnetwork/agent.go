@@ -1,6 +1,6 @@
 package libnetwork
 
-//go:generate protoc -I.:Godeps/_workspace/src/github.com/gogo/protobuf  --gogo_out=import_path=github.com/docker/libnetwork,Mgogoproto/gogo.proto=github.com/gogo/protobuf/gogoproto:. agent.proto
+//go:generate protoc -I.:Godeps/_workspace/src/github.com/gogo/protobuf  --gogo_out=import_path=github.com/docker/docker/libnetwork,Mgogoproto/gogo.proto=github.com/gogo/protobuf/gogoproto:. agent.proto
 
 import (
 	"encoding/json"
@@ -10,12 +10,12 @@ import (
 	"sync"
 
 	"github.com/docker/go-events"
-	"github.com/docker/libnetwork/cluster"
-	"github.com/docker/libnetwork/datastore"
-	"github.com/docker/libnetwork/discoverapi"
-	"github.com/docker/libnetwork/driverapi"
-	"github.com/docker/libnetwork/networkdb"
-	"github.com/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/cluster"
+	"github.com/docker/docker/libnetwork/datastore"
+	"github.com/docker/docker/libnetwork/discoverapi"
+	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/networkdb"
+	"github.com/docker/docker/libnetwork/types"
 	"github.com/gogo/protobuf/proto"
 	"github.com/sirupsen/logrus"
 )

@@ -34,7 +34,7 @@ import (
 	"github.com/docker/docker/opts"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	units "github.com/docker/go-units"
-	"github.com/docker/libnetwork/iptables"
+	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
 	"github.com/moby/sys/mount"
 	"golang.org/x/sys/unix"

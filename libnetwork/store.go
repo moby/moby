@@ -8,7 +8,7 @@ import (
 	"github.com/docker/libkv/store/consul"
 	"github.com/docker/libkv/store/etcd"
 	"github.com/docker/libkv/store/zookeeper"
-	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/sirupsen/logrus"
 )
 

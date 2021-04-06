@@ -1,6 +1,6 @@
 package libnetwork
 
-import "github.com/docker/libnetwork/types"
+import "github.com/docker/docker/libnetwork/types"
 
 const libnGWNetwork = "docker_gwbridge"
 

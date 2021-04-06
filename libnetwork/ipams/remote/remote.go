@@ -6,10 +6,10 @@ import (
 
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
-	"github.com/docker/libnetwork/discoverapi"
-	"github.com/docker/libnetwork/ipamapi"
-	"github.com/docker/libnetwork/ipams/remote/api"
-	"github.com/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/discoverapi"
+	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams/remote/api"
+	"github.com/docker/docker/libnetwork/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

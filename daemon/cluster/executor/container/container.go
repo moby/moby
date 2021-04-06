@@ -22,7 +22,7 @@ import (
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
-	netconst "github.com/docker/libnetwork/datastore"
+	netconst "github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/api/genericresource"
