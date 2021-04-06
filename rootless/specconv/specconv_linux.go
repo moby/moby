@@ -2,6 +2,8 @@ package specconv // import "github.com/docker/docker/rootless/specconv"
 
 import (
 	"io/ioutil"
+	"os"
+	"path"
 	"strconv"
 	"strings"
 
@@ -12,6 +14,7 @@ import (
 // ToRootless converts spec to be compatible with "rootless" runc.
 // * Remove non-supported cgroups
 // * Fix up OOMScoreAdj
+// * Fix up /proc if --pid=host
 //
 // v2Controllers should be non-nil only if running with v2 and systemd.
 func ToRootless(spec *specs.Spec, v2Controllers []string) error {
@@ -75,5 +78,62 @@ func toRootless(spec *specs.Spec, v2Controllers []string, currentOOMScoreAdj int
 	if spec.Process.OOMScoreAdj != nil && *spec.Process.OOMScoreAdj < currentOOMScoreAdj {
 		*spec.Process.OOMScoreAdj = currentOOMScoreAdj
 	}
+
+	// Fix up /proc if --pid=host
+	pidHost, err := isPidHost(spec)
+	if err != nil {
+		return err
+	}
+	if !pidHost {
+		return nil
+	}
+	return bindMountHostProcfs(spec)
+}
+
+func isPidHost(spec *specs.Spec) (bool, error) {
+	for _, ns := range spec.Linux.Namespaces {
+		if ns.Type == specs.PIDNamespace {
+			if ns.Path == "" {
+				return false, nil
+			}
+			pidNS, err := os.Readlink(ns.Path)
+			if err != nil {
+				return false, err
+			}
+			selfPidNS, err := os.Readlink("/proc/self/ns/pid")
+			if err != nil {
+				return false, err
+			}
+			return pidNS == selfPidNS, nil
+		}
+	}
+	return true, nil
+}
+
+func bindMountHostProcfs(spec *specs.Spec) error {
+	// Replace procfs mount with rbind
+	// https://github.com/containers/podman/blob/v3.0.0-rc1/pkg/specgen/generate/oci.go#L248-L257
+	for i, m := range spec.Mounts {
+		if path.Clean(m.Destination) == "/proc" {
+			newM := specs.Mount{
+				Destination: "/proc",
+				Type:        "bind",
+				Source:      "/proc",
+				Options:     []string{"rbind", "nosuid", "noexec", "nodev"},
+			}
+			spec.Mounts[i] = newM
+		}
+	}
+
+	// Remove ReadonlyPaths for /proc/*
+	newROP := spec.Linux.ReadonlyPaths[:0]
+	for _, s := range spec.Linux.ReadonlyPaths {
+		s = path.Clean(s)
+		if !strings.HasPrefix(s, "/proc/") {
+			newROP = append(newROP, s)
+		}
+	}
+	spec.Linux.ReadonlyPaths = newROP
+
 	return nil
 }

@@ -2425,28 +2425,6 @@ func (s *DockerSuite) TestContainerNetworkMode(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestRunModePIDHost(c *testing.T) {
-	// Not applicable on Windows as uses Unix-specific capabilities
-	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, NotUserNamespace)
-
-	hostPid, err := os.Readlink("/proc/1/ns/pid")
-	if err != nil {
-		c.Fatal(err)
-	}
-
-	out, _ := dockerCmd(c, "run", "--pid=host", "busybox", "readlink", "/proc/self/ns/pid")
-	out = strings.Trim(out, "\n")
-	if hostPid != out {
-		c.Fatalf("PID different with --pid=host %s != %s\n", hostPid, out)
-	}
-
-	out, _ = dockerCmd(c, "run", "busybox", "readlink", "/proc/self/ns/pid")
-	out = strings.Trim(out, "\n")
-	if hostPid == out {
-		c.Fatalf("PID should be different without --pid=host %s == %s\n", hostPid, out)
-	}
-}
-
 func (s *DockerSuite) TestRunModeUTSHost(c *testing.T) {
 	// Not applicable on Windows as uses Unix-specific capabilities
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
