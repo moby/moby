@@ -22,36 +22,18 @@ import (
 	"archive/tar"
 	"bufio"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/Microsoft/go-winio"
+	"github.com/Microsoft/go-winio/backuptar"
 	"github.com/Microsoft/hcsshim"
 	"github.com/containerd/containerd/sys"
 	"github.com/pkg/errors"
-)
-
-const (
-	// MSWINDOWS pax vendor extensions
-	hdrMSWindowsPrefix = "MSWINDOWS."
-
-	hdrFileAttributes        = hdrMSWindowsPrefix + "fileattr"
-	hdrSecurityDescriptor    = hdrMSWindowsPrefix + "sd"
-	hdrRawSecurityDescriptor = hdrMSWindowsPrefix + "rawsd"
-	hdrMountPoint            = hdrMSWindowsPrefix + "mountpoint"
-	hdrEaPrefix              = hdrMSWindowsPrefix + "xattr."
-
-	// LIBARCHIVE pax vendor extensions
-	hdrLibArchivePrefix = "LIBARCHIVE."
-
-	hdrCreateTime = hdrLibArchivePrefix + "creationtime"
 )
 
 var (
@@ -149,10 +131,21 @@ func setxattr(path, key, value string) error {
 	return errors.New("xattrs not supported on Windows")
 }
 
+func copyDirInfo(fi os.FileInfo, path string) error {
+	if err := os.Chmod(path, fi.Mode()); err != nil {
+		return errors.Wrapf(err, "failed to chmod %s", path)
+	}
+	return nil
+}
+
+func copyUpXAttrs(dst, src string) error {
+	return nil
+}
+
 // applyWindowsLayer applies a tar stream of an OCI style diff tar of a Windows
 // layer using the hcsshim layer writer and backup streams.
 // See https://github.com/opencontainers/image-spec/blob/master/layer.md#applying-changesets
-func applyWindowsLayer(ctx context.Context, root string, tr *tar.Reader, options ApplyOptions) (size int64, err error) {
+func applyWindowsLayer(ctx context.Context, root string, r io.Reader, options ApplyOptions) (size int64, err error) {
 	home, id := filepath.Split(root)
 	info := hcsshim.DriverInfo{
 		HomeDir: home,
@@ -172,6 +165,7 @@ func applyWindowsLayer(ctx context.Context, root string, tr *tar.Reader, options
 		}
 	}()
 
+	tr := tar.NewReader(r)
 	buf := bufio.NewWriter(nil)
 	hdr, nextErr := tr.Next()
 	// Iterate through the files in the archive.
@@ -208,7 +202,7 @@ func applyWindowsLayer(ctx context.Context, root string, tr *tar.Reader, options
 			}
 			hdr, nextErr = tr.Next()
 		} else {
-			name, fileSize, fileInfo, err := fileInfoFromHeader(hdr)
+			name, fileSize, fileInfo, err := backuptar.FileInfoFromHeader(hdr)
 			if err != nil {
 				return 0, err
 			}
@@ -220,42 +214,6 @@ func applyWindowsLayer(ctx context.Context, root string, tr *tar.Reader, options
 		}
 	}
 
-	return
-}
-
-// fileInfoFromHeader retrieves basic Win32 file information from a tar header, using the additional metadata written by
-// WriteTarFileFromBackupStream.
-func fileInfoFromHeader(hdr *tar.Header) (name string, size int64, fileInfo *winio.FileBasicInfo, err error) {
-	name = hdr.Name
-	if hdr.Typeflag == tar.TypeReg || hdr.Typeflag == tar.TypeRegA {
-		size = hdr.Size
-	}
-	fileInfo = &winio.FileBasicInfo{
-		LastAccessTime: syscall.NsecToFiletime(hdr.AccessTime.UnixNano()),
-		LastWriteTime:  syscall.NsecToFiletime(hdr.ModTime.UnixNano()),
-		ChangeTime:     syscall.NsecToFiletime(hdr.ChangeTime.UnixNano()),
-
-		// Default CreationTime to ModTime, updated below if MSWINDOWS.createtime exists
-		CreationTime: syscall.NsecToFiletime(hdr.ModTime.UnixNano()),
-	}
-	if attrStr, ok := hdr.PAXRecords[hdrFileAttributes]; ok {
-		attr, err := strconv.ParseUint(attrStr, 10, 32)
-		if err != nil {
-			return "", 0, nil, err
-		}
-		fileInfo.FileAttributes = uint32(attr)
-	} else {
-		if hdr.Typeflag == tar.TypeDir {
-			fileInfo.FileAttributes |= syscall.FILE_ATTRIBUTE_DIRECTORY
-		}
-	}
-	if createStr, ok := hdr.PAXRecords[hdrCreateTime]; ok {
-		createTime, err := parsePAXTime(createStr)
-		if err != nil {
-			return "", 0, nil, err
-		}
-		fileInfo.CreationTime = syscall.NsecToFiletime(createTime.UnixNano())
-	}
 	return
 }
 
@@ -299,146 +257,5 @@ func tarToBackupStreamWithMutatedFiles(buf *bufio.Writer, w io.Writer, t *tar.Re
 		}
 	}()
 
-	return writeBackupStreamFromTarFile(buf, t, hdr)
-}
-
-// writeBackupStreamFromTarFile writes a Win32 backup stream from the current tar file. Since this function may process multiple
-// tar file entries in order to collect all the alternate data streams for the file, it returns the next
-// tar file that was not processed, or io.EOF is there are no more.
-func writeBackupStreamFromTarFile(w io.Writer, t *tar.Reader, hdr *tar.Header) (*tar.Header, error) {
-	bw := winio.NewBackupStreamWriter(w)
-	var sd []byte
-	var err error
-	// Maintaining old SDDL-based behavior for backward compatibility.  All new tar headers written
-	// by this library will have raw binary for the security descriptor.
-	if sddl, ok := hdr.PAXRecords[hdrSecurityDescriptor]; ok {
-		sd, err = winio.SddlToSecurityDescriptor(sddl)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if sdraw, ok := hdr.PAXRecords[hdrRawSecurityDescriptor]; ok {
-		sd, err = base64.StdEncoding.DecodeString(sdraw)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if len(sd) != 0 {
-		bhdr := winio.BackupHeader{
-			Id:   winio.BackupSecurity,
-			Size: int64(len(sd)),
-		}
-		err := bw.WriteHeader(&bhdr)
-		if err != nil {
-			return nil, err
-		}
-		_, err = bw.Write(sd)
-		if err != nil {
-			return nil, err
-		}
-	}
-	var eas []winio.ExtendedAttribute
-	for k, v := range hdr.PAXRecords {
-		if !strings.HasPrefix(k, hdrEaPrefix) {
-			continue
-		}
-		data, err := base64.StdEncoding.DecodeString(v)
-		if err != nil {
-			return nil, err
-		}
-		eas = append(eas, winio.ExtendedAttribute{
-			Name:  k[len(hdrEaPrefix):],
-			Value: data,
-		})
-	}
-	if len(eas) != 0 {
-		eadata, err := winio.EncodeExtendedAttributes(eas)
-		if err != nil {
-			return nil, err
-		}
-		bhdr := winio.BackupHeader{
-			Id:   winio.BackupEaData,
-			Size: int64(len(eadata)),
-		}
-		err = bw.WriteHeader(&bhdr)
-		if err != nil {
-			return nil, err
-		}
-		_, err = bw.Write(eadata)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if hdr.Typeflag == tar.TypeSymlink {
-		_, isMountPoint := hdr.PAXRecords[hdrMountPoint]
-		rp := winio.ReparsePoint{
-			Target:       filepath.FromSlash(hdr.Linkname),
-			IsMountPoint: isMountPoint,
-		}
-		reparse := winio.EncodeReparsePoint(&rp)
-		bhdr := winio.BackupHeader{
-			Id:   winio.BackupReparseData,
-			Size: int64(len(reparse)),
-		}
-		err := bw.WriteHeader(&bhdr)
-		if err != nil {
-			return nil, err
-		}
-		_, err = bw.Write(reparse)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	buf := bufPool.Get().(*[]byte)
-	defer bufPool.Put(buf)
-
-	if hdr.Typeflag == tar.TypeReg || hdr.Typeflag == tar.TypeRegA {
-		bhdr := winio.BackupHeader{
-			Id:   winio.BackupData,
-			Size: hdr.Size,
-		}
-		err := bw.WriteHeader(&bhdr)
-		if err != nil {
-			return nil, err
-		}
-		_, err = io.CopyBuffer(bw, t, *buf)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// Copy all the alternate data streams and return the next non-ADS header.
-	for {
-		ahdr, err := t.Next()
-		if err != nil {
-			return nil, err
-		}
-		if ahdr.Typeflag != tar.TypeReg || !strings.HasPrefix(ahdr.Name, hdr.Name+":") {
-			return ahdr, nil
-		}
-		bhdr := winio.BackupHeader{
-			Id:   winio.BackupAlternateData,
-			Size: ahdr.Size,
-			Name: ahdr.Name[len(hdr.Name):] + ":$DATA",
-		}
-		err = bw.WriteHeader(&bhdr)
-		if err != nil {
-			return nil, err
-		}
-		_, err = io.CopyBuffer(bw, t, *buf)
-		if err != nil {
-			return nil, err
-		}
-	}
-}
-
-func copyDirInfo(fi os.FileInfo, path string) error {
-	if err := os.Chmod(path, fi.Mode()); err != nil {
-		return errors.Wrapf(err, "failed to chmod %s", path)
-	}
-	return nil
-}
-
-func copyUpXAttrs(dst, src string) error {
-	return nil
+	return backuptar.WriteBackupStreamFromTarFile(buf, t, hdr)
 }

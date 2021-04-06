@@ -19,6 +19,7 @@ package archive
 import (
 	"archive/tar"
 	"context"
+	"io"
 )
 
 // ApplyOptions provides additional options for an Apply operation
@@ -27,7 +28,7 @@ type ApplyOptions struct {
 	ConvertWhiteout ConvertWhiteout // Convert whiteout files
 	Parents         []string        // Parent directories to handle inherited attributes without CoW
 
-	applyFunc func(context.Context, string, *tar.Reader, ApplyOptions) (int64, error)
+	applyFunc func(context.Context, string, io.Reader, ApplyOptions) (int64, error)
 }
 
 // ApplyOpt allows setting mutable archive apply properties on creation

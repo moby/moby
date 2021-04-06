@@ -42,7 +42,7 @@ func init() {
 //
 // If m.Type starts with "fuse." or "fuse3.", "mount.fuse" or "mount.fuse3"
 // helper binary is called.
-func (m *Mount) Mount(target string) error {
+func (m *Mount) Mount(target string) (err error) {
 	for _, helperBinary := range allowedHelperBinaries {
 		// helperBinary = "mount.fuse", typePrefix = "fuse."
 		typePrefix := strings.TrimPrefix(helperBinary, "mount.") + "."
@@ -62,7 +62,7 @@ func (m *Mount) Mount(target string) error {
 		chdir, options = compactLowerdirOption(options)
 	}
 
-	flags, data := parseMountOptions(options)
+	flags, data, losetup := parseMountOptions(options)
 	if len(data) > pagesize {
 		return errors.Errorf("mount options is too long")
 	}
@@ -77,7 +77,18 @@ func (m *Mount) Mount(target string) error {
 	if flags&unix.MS_REMOUNT == 0 || data != "" {
 		// Initial call applying all non-propagation flags for mount
 		// or remount with changed data
-		if err := mountAt(chdir, m.Source, target, m.Type, uintptr(oflags), data); err != nil {
+		source := m.Source
+		if losetup {
+			devFile, err := setupLoop(m.Source, LoopParams{
+				Readonly:  oflags&unix.MS_RDONLY == unix.MS_RDONLY,
+				Autoclear: true})
+			if err != nil {
+				return err
+			}
+			// Mount the loop device instead
+			source = devFile
+		}
+		if err := mountAt(chdir, source, target, m.Type, uintptr(oflags), data); err != nil {
 			return err
 		}
 	}
@@ -186,11 +197,13 @@ func UnmountAll(mount string, flags int) error {
 
 // parseMountOptions takes fstab style mount options and parses them for
 // use with a standard mount() syscall
-func parseMountOptions(options []string) (int, string) {
+func parseMountOptions(options []string) (int, string, bool) {
 	var (
-		flag int
-		data []string
+		flag    int
+		losetup bool
+		data    []string
 	)
+	loopOpt := "loop"
 	flags := map[string]struct {
 		clear bool
 		flag  int
@@ -231,11 +244,13 @@ func parseMountOptions(options []string) (int, string) {
 			} else {
 				flag |= f.flag
 			}
+		} else if o == loopOpt {
+			losetup = true
 		} else {
 			data = append(data, o)
 		}
 	}
-	return flag, strings.Join(data, ",")
+	return flag, strings.Join(data, ","), losetup
 }
 
 // compactLowerdirOption updates overlay lowdir option and returns the common

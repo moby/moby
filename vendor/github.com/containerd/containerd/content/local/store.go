@@ -240,9 +240,14 @@ func (s *store) Update(ctx context.Context, info content.Info, fieldpaths ...str
 	return info, nil
 }
 
-func (s *store) Walk(ctx context.Context, fn content.WalkFunc, filters ...string) error {
-	// TODO: Support filters
+func (s *store) Walk(ctx context.Context, fn content.WalkFunc, fs ...string) error {
 	root := filepath.Join(s.root, "blobs")
+
+	filter, err := filters.ParseAll(fs...)
+	if err != nil {
+		return err
+	}
+
 	var alg digest.Algorithm
 	return filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
 		if err != nil {
@@ -286,7 +291,12 @@ func (s *store) Walk(ctx context.Context, fn content.WalkFunc, filters ...string
 				return err
 			}
 		}
-		return fn(s.info(dgst, fi, labels))
+
+		info := s.info(dgst, fi, labels)
+		if !filter.Match(content.AdaptInfo(info)) {
+			return nil
+		}
+		return fn(info)
 	})
 }
 

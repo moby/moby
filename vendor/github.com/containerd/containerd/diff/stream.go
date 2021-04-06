@@ -168,7 +168,7 @@ func (c *compressedProcessor) Close() error {
 	return c.rc.Close()
 }
 
-func BinaryHandler(id, returnsMediaType string, mediaTypes []string, path string, args []string) Handler {
+func BinaryHandler(id, returnsMediaType string, mediaTypes []string, path string, args, env []string) Handler {
 	set := make(map[string]struct{}, len(mediaTypes))
 	for _, m := range mediaTypes {
 		set[m] = struct{}{}
@@ -177,7 +177,7 @@ func BinaryHandler(id, returnsMediaType string, mediaTypes []string, path string
 		if _, ok := set[mediaType]; ok {
 			return func(ctx context.Context, stream StreamProcessor, payloads map[string]*types.Any) (StreamProcessor, error) {
 				payload := payloads[id]
-				return NewBinaryProcessor(ctx, mediaType, returnsMediaType, stream, path, args, payload)
+				return NewBinaryProcessor(ctx, mediaType, returnsMediaType, stream, path, args, env, payload)
 			}, true
 		}
 		return nil, false

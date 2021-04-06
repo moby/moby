@@ -108,7 +108,7 @@ func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
 		mode |= unix.S_IFIFO
 	}
 
-	return unix.Mknod(path, mode, int(unix.Mkdev(uint32(hdr.Devmajor), uint32(hdr.Devminor))))
+	return mknod(path, mode, unix.Mkdev(uint32(hdr.Devmajor), uint32(hdr.Devminor)))
 }
 
 func handleLChmod(hdr *tar.Header, path string, hdrInfo os.FileInfo) error {
@@ -196,10 +196,7 @@ func copyUpXAttrs(dst, src string) error {
 			}
 			return errors.Wrapf(err, "failed to get xattr %q on %s", xattr, src)
 		}
-		if err := unix.Lsetxattr(dst, xattr, data, unix.XATTR_CREATE); err != nil {
-			if err == unix.ENOTSUP || err == unix.ENODATA || err == unix.EEXIST {
-				continue
-			}
+		if err := lsetxattrCreate(dst, xattr, data); err != nil {
 			return errors.Wrapf(err, "failed to set xattr %q on %s", xattr, dst)
 		}
 	}

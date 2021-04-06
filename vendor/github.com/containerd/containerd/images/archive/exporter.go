@@ -39,6 +39,7 @@ type exportOptions struct {
 	platform           platforms.MatchComparer
 	allPlatforms       bool
 	skipDockerManifest bool
+	blobRecordOptions  blobRecordOptions
 }
 
 // ExportOpt defines options for configuring exported descriptors
@@ -108,6 +109,25 @@ func WithManifest(manifest ocispec.Descriptor, names ...string) ExportOpt {
 	}
 }
 
+// BlobFilter returns false if the blob should not be included in the archive.
+type BlobFilter func(ocispec.Descriptor) bool
+
+// WithBlobFilter specifies BlobFilter.
+func WithBlobFilter(f BlobFilter) ExportOpt {
+	return func(ctx context.Context, o *exportOptions) error {
+		o.blobRecordOptions.blobFilter = f
+		return nil
+	}
+}
+
+// WithSkipNonDistributableBlobs excludes non-distributable blobs such as Windows base layers.
+func WithSkipNonDistributableBlobs() ExportOpt {
+	f := func(desc ocispec.Descriptor) bool {
+		return !images.IsNonDistributable(desc.MediaType)
+	}
+	return WithBlobFilter(f)
+}
+
 func addNameAnnotation(name string, base map[string]string) map[string]string {
 	annotations := map[string]string{}
 	for k, v := range base {
@@ -143,7 +163,7 @@ func Export(ctx context.Context, store content.Provider, writer io.Writer, opts 
 			mt, ok := dManifests[desc.Digest]
 			if !ok {
 				// TODO(containerd): Skip if already added
-				r, err := getRecords(ctx, store, desc, algorithms)
+				r, err := getRecords(ctx, store, desc, algorithms, &eo.blobRecordOptions)
 				if err != nil {
 					return err
 				}
@@ -162,7 +182,7 @@ func Export(ctx context.Context, store content.Provider, writer io.Writer, opts 
 		case images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
 			d, ok := resolvedIndex[desc.Digest]
 			if !ok {
-				records = append(records, blobRecord(store, desc))
+				records = append(records, blobRecord(store, desc, &eo.blobRecordOptions))
 
 				p, err := content.ReadBlob(ctx, store, desc)
 				if err != nil {
@@ -184,7 +204,7 @@ func Export(ctx context.Context, store content.Provider, writer io.Writer, opts 
 						}
 					}
 
-					r, err := getRecords(ctx, store, m, algorithms)
+					r, err := getRecords(ctx, store, m, algorithms, &eo.blobRecordOptions)
 					if err != nil {
 						return err
 					}
@@ -248,10 +268,10 @@ func Export(ctx context.Context, store content.Provider, writer io.Writer, opts 
 	return writeTar(ctx, tw, records)
 }
 
-func getRecords(ctx context.Context, store content.Provider, desc ocispec.Descriptor, algorithms map[string]struct{}) ([]tarRecord, error) {
+func getRecords(ctx context.Context, store content.Provider, desc ocispec.Descriptor, algorithms map[string]struct{}, brOpts *blobRecordOptions) ([]tarRecord, error) {
 	var records []tarRecord
 	exportHandler := func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-		records = append(records, blobRecord(store, desc))
+		records = append(records, blobRecord(store, desc, brOpts))
 		algorithms[desc.Digest.Algorithm().String()] = struct{}{}
 		return nil, nil
 	}
@@ -277,7 +297,14 @@ type tarRecord struct {
 	CopyTo func(context.Context, io.Writer) (int64, error)
 }
 
-func blobRecord(cs content.Provider, desc ocispec.Descriptor) tarRecord {
+type blobRecordOptions struct {
+	blobFilter BlobFilter
+}
+
+func blobRecord(cs content.Provider, desc ocispec.Descriptor, opts *blobRecordOptions) tarRecord {
+	if opts != nil && opts.blobFilter != nil && !opts.blobFilter(desc) {
+		return tarRecord{}
+	}
 	path := path.Join("blobs", desc.Digest.Algorithm().String(), desc.Digest.Encoded())
 	return tarRecord{
 		Header: &tar.Header{
@@ -438,7 +465,13 @@ func manifestsRecord(ctx context.Context, store content.Provider, manifests map[
 	}, nil
 }
 
-func writeTar(ctx context.Context, tw *tar.Writer, records []tarRecord) error {
+func writeTar(ctx context.Context, tw *tar.Writer, recordsWithEmpty []tarRecord) error {
+	var records []tarRecord
+	for _, r := range recordsWithEmpty {
+		if r.Header != nil {
+			records = append(records, r)
+		}
+	}
 	sort.Slice(records, func(i, j int) bool {
 		return records[i].Header.Name < records[j].Header.Name
 	})

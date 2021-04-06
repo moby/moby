@@ -289,7 +289,7 @@ func Platforms(ctx context.Context, provider content.Provider, image ocispec.Des
 // If available is true, the caller can assume that required represents the
 // complete set of content required for the image.
 //
-// missing will have the components that are part of required but not avaiiable
+// missing will have the components that are part of required but not available
 // in the provider.
 //
 // If there is a problem resolving content, an error will be returned.

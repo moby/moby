@@ -1,4 +1,4 @@
-// +build !linux,!freebsd,!solaris,!openbsd freebsd,!cgo solaris,!cgo openbsd,!cgo
+// +build !windows,!freebsd
 
 /*
    Copyright The containerd Authors.
@@ -16,19 +16,21 @@
    limitations under the License.
 */
 
-package mount
+package archive
 
-import (
-	"fmt"
-	"runtime"
-)
+import "golang.org/x/sys/unix"
 
-// Self retrieves a list of mounts for the current running process.
-func Self() ([]Info, error) {
-	return nil, fmt.Errorf("mountinfo.Self is not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+// mknod wraps Unix.Mknod and casts dev to int
+func mknod(path string, mode uint32, dev uint64) error {
+	return unix.Mknod(path, mode, int(dev))
 }
 
-// PID collects the mounts for a specific process ID.
-func PID(pid int) ([]Info, error) {
-	return nil, fmt.Errorf("mountinfo.PID is not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+// lsetxattrCreate wraps unix.Lsetxattr, passes the unix.XATTR_CREATE flag on
+// supported operating systems,and ignores appropriate errors
+func lsetxattrCreate(link string, attr string, data []byte) error {
+	err := unix.Lsetxattr(link, attr, data, unix.XATTR_CREATE)
+	if err == unix.ENOTSUP || err == unix.ENODATA || err == unix.EEXIST {
+		return nil
+	}
+	return err
 }
