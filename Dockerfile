@@ -165,6 +165,23 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
         PREFIX=/build /tmp/install/install.sh vndr
 
+FROM dev-base AS yamllint
+RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-dev-aptcache,target=/var/cache/apt \
+        apt-get update && apt-get install -y --no-install-recommends \
+            zlib1g-dev \
+            python3-dev \
+            python3-pip \
+            python3-setuptools \
+            python3-wheel
+
+ARG YAMLLINT_VERSION=1.23.0
+RUN --mount=type=cache,sharing=locked,id=moby-dev-piplocal,target=/root/.local \
+    --mount=type=cache,sharing=locked,id=moby-dev-pipcache,target=/root/.cache \
+        pip3 install --user pyinstaller yamllint==${YAMLLINT_VERSION} \
+        && /root/.local/bin/pyinstaller --onefile --distpath=/build /root/.local/bin/yamllint \
+        && /build/yamllint --version
+
 FROM dev-base AS containerd
 ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,sharing=locked,id=moby-containerd-aptlib,target=/var/lib/apt \
@@ -281,9 +298,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             libprotobuf-c1 \
             net-tools \
             pigz \
-            python3-pip \
-            python3-setuptools \
-            python3-wheel \
             sudo \
             thin-provisioning-tools \
             uidmap \
@@ -300,12 +314,11 @@ RUN update-alternatives --set iptables  /usr/sbin/iptables-legacy  || true \
  && update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy || true \
  && update-alternatives --set arptables /usr/sbin/arptables-legacy || true
 
-RUN pip3 install yamllint==1.16.0
-
 COPY --from=dockercli     /build/ /usr/local/cli
 COPY --from=frozen-images /build/ /docker-frozen-images
 COPY --from=swagger       /build/ /usr/local/bin/
 COPY --from=tomlv         /build/ /usr/local/bin/
+COPY --from=yamllint      /build/ /usr/local/bin/
 COPY --from=tini          /build/ /usr/local/bin/
 COPY --from=registry      /build/ /usr/local/bin/
 COPY --from=criu          /build/ /usr/local/
