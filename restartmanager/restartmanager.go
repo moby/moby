@@ -23,6 +23,7 @@ var ErrRestartCanceled = errors.New("restart canceled")
 type RestartManager interface {
 	Cancel()
 	ShouldRestart(exitCode uint32, hasBeenManuallyStopped bool, executionDuration time.Duration) (bool, chan error, error)
+	SetPolicy(policy container.RestartPolicy)
 }
 
 type restartManager struct {
