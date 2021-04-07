@@ -2,10 +2,23 @@ package winapi
 
 import (
 	"errors"
+	"reflect"
 	"syscall"
-	"unicode/utf16"
 	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
+
+// Uint16BufferToSlice wraps a uint16 pointer-and-length into a slice
+// for easier interop with Go APIs
+func Uint16BufferToSlice(buffer *uint16, bufferLength int) (result []uint16) {
+	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&result))
+	hdr.Data = uintptr(unsafe.Pointer(buffer))
+	hdr.Cap = bufferLength
+	hdr.Len = bufferLength
+
+	return
+}
 
 type UnicodeString struct {
 	Length        uint16
@@ -15,28 +28,30 @@ type UnicodeString struct {
 
 //String converts a UnicodeString to a golang string
 func (uni UnicodeString) String() string {
-	p := (*[0xffff]uint16)(unsafe.Pointer(uni.Buffer))
-
 	// UnicodeString is not guaranteed to be null terminated, therefore
 	// use the UnicodeString's Length field
-	lengthInChars := uni.Length / 2
-	return syscall.UTF16ToString(p[:lengthInChars])
+	return syscall.UTF16ToString(Uint16BufferToSlice(uni.Buffer, int(uni.Length/2)))
 }
 
 // NewUnicodeString allocates a new UnicodeString and copies `s` into
 // the buffer of the new UnicodeString.
 func NewUnicodeString(s string) (*UnicodeString, error) {
-	ws := utf16.Encode(([]rune)(s))
-	if len(ws) > 32767 {
+	// Get length of original `s` to use in the UnicodeString since the `buf`
+	// created later will have an additional trailing null character
+	length := len(s)
+	if length > 32767 {
 		return nil, syscall.ENAMETOOLONG
 	}
 
-	uni := &UnicodeString{
-		Length:        uint16(len(ws) * 2),
-		MaximumLength: uint16(len(ws) * 2),
-		Buffer:        &make([]uint16, len(ws))[0],
+	buf, err := windows.UTF16FromString(s)
+	if err != nil {
+		return nil, err
 	}
-	copy((*[32768]uint16)(unsafe.Pointer(uni.Buffer))[:], ws)
+	uni := &UnicodeString{
+		Length:        uint16(length * 2),
+		MaximumLength: uint16(length * 2),
+		Buffer:        &buf[0],
+	}
 	return uni, nil
 }
 
