@@ -2,6 +2,7 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"context"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -122,6 +123,11 @@ func TestHostnameDnsResolution(t *testing.T) {
 	})
 
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+
+	// These platforms are slower which why want give them moment to get container networking ready
+	if runtime.GOARCH == "s390x" || runtime.GOARCH == "ppc64le" {
+		time.Sleep(2 * time.Second)
+	}
 
 	inspect, err := client.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)

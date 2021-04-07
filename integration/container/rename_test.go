@@ -2,6 +2,7 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"context"
+	"runtime"
 	"testing"
 	"time"
 
@@ -150,6 +151,11 @@ func TestRenameAnonymousContainer(t *testing.T) {
 	assert.NilError(t, err)
 
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+
+	// These platforms are slower which why want give them moment to get first container networking ready
+	if runtime.GOARCH == "s390x" || runtime.GOARCH == "ppc64le" {
+		time.Sleep(2 * time.Second)
+	}
 
 	count := "-c"
 	if testEnv.OSType == "windows" {
