@@ -32,7 +32,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * The `filter` (singular) query parameter, which was deprecated in favor of the
   `filters` option in Docker 1.13, has now been removed from the `GET /images/json`
   endpoint. The parameter remains available when using API version 1.40 or below.
-* `GET /services` now returns `CappAdd` and `CapDrop` as part of the `ContainerSpec`.
+* `GET /services` now returns `CapAdd` and `CapDrop` as part of the `ContainerSpec`.
 * `GET /services/{id}` now returns `CapAdd` and `CapDrop` as part of the `ContainerSpec`.
 * `POST /services/create` now accepts `CapAdd` and `CapDrop` as part of the `ContainerSpec`.
 * `POST /services/{id}/update` now accepts `CapAdd` and `CapDrop` as part of the `ContainerSpec`.
