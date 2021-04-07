@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -111,6 +112,11 @@ func startServerContainer(t *testing.T, msg string, port int) string {
 		})
 
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+
+	// These platforms are slower which why want give them moment to start listening requested port
+	if runtime.GOARCH == "s390x" || runtime.GOARCH == "ppc64le" {
+		time.Sleep(2 * time.Second)
+	}
 
 	return cID
 }
