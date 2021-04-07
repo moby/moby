@@ -5,10 +5,12 @@ import (
 	"bufio"
 	"encoding/binary"
 	"io"
+	"os"
 	"path"
 	"strings"
 
 	"github.com/Microsoft/hcsshim/ext4/internal/compactext4"
+	"github.com/Microsoft/hcsshim/ext4/internal/format"
 )
 
 type params struct {
@@ -146,7 +148,7 @@ func Convert(r io.Reader, w io.ReadWriteSeeker, options ...Option) error {
 			}
 			f.Mode &= ^compactext4.TypeMask
 			f.Mode |= typ
-			err = fs.Create(hdr.Name, f)
+			err = fs.CreateWithParents(hdr.Name, f)
 			if err != nil {
 				return err
 			}
@@ -171,4 +173,37 @@ func Convert(r io.Reader, w io.ReadWriteSeeker, options ...Option) error {
 		}
 	}
 	return nil
+}
+
+// ReadExt4SuperBlock reads and returns ext4 super block from VHD
+//
+// The layout on disk is as follows:
+// | Group 0 padding     | - 1024 bytes
+// | ext4 SuperBlock     | - 1 block
+// | Group Descriptors   | - many blocks
+// | Reserved GDT Blocks | - many blocks
+// | Data Block Bitmap   | - 1 block
+// | inode Bitmap        | - 1 block
+// | inode Table         | - many blocks
+// | Data Blocks         | - many blocks
+//
+// More details can be found here https://ext4.wiki.kernel.org/index.php/Ext4_Disk_Layout
+//
+// Our goal is to skip the Group 0 padding, read and return the ext4 SuperBlock
+func ReadExt4SuperBlock(vhdPath string) (*format.SuperBlock, error) {
+	vhd, err := os.OpenFile(vhdPath, os.O_RDONLY, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer vhd.Close()
+
+	// Skip padding at the start
+	if _, err := vhd.Seek(1024, io.SeekStart); err != nil {
+		return nil, err
+	}
+	var sb format.SuperBlock
+	if err := binary.Read(vhd, binary.LittleEndian, &sb); err != nil {
+		return nil, err
+	}
+	return &sb, nil
 }

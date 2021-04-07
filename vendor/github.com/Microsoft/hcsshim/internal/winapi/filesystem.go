@@ -31,6 +31,43 @@ const (
 	STATUS_NO_MORE_ENTRIES = 0x8000001a
 )
 
+// Select entries from FILE_INFO_BY_HANDLE_CLASS.
+//
+// C declaration:
+//   typedef enum _FILE_INFO_BY_HANDLE_CLASS {
+//       FileBasicInfo,
+//       FileStandardInfo,
+//       FileNameInfo,
+//       FileRenameInfo,
+//       FileDispositionInfo,
+//       FileAllocationInfo,
+//       FileEndOfFileInfo,
+//       FileStreamInfo,
+//       FileCompressionInfo,
+//       FileAttributeTagInfo,
+//       FileIdBothDirectoryInfo,
+//       FileIdBothDirectoryRestartInfo,
+//       FileIoPriorityHintInfo,
+//       FileRemoteProtocolInfo,
+//       FileFullDirectoryInfo,
+//       FileFullDirectoryRestartInfo,
+//       FileStorageInfo,
+//       FileAlignmentInfo,
+//       FileIdInfo,
+//       FileIdExtdDirectoryInfo,
+//       FileIdExtdDirectoryRestartInfo,
+//       FileDispositionInfoEx,
+//       FileRenameInfoEx,
+//       FileCaseSensitiveInfo,
+//       FileNormalizedNameInfo,
+//       MaximumFileInfoByHandleClass
+//   } FILE_INFO_BY_HANDLE_CLASS, *PFILE_INFO_BY_HANDLE_CLASS;
+//
+// Documentation: https://docs.microsoft.com/en-us/windows/win32/api/minwinbase/ne-minwinbase-file_info_by_handle_class
+const (
+	FileIdInfo = 18
+)
+
 type FileDispositionInformationEx struct {
 	Flags uintptr
 }
@@ -42,7 +79,7 @@ type IOStatusBlock struct {
 type ObjectAttributes struct {
 	Length             uintptr
 	RootDirectory      uintptr
-	ObjectName         uintptr
+	ObjectName         *UnicodeString
 	Attributes         uintptr
 	SecurityDescriptor uintptr
 	SecurityQoS        uintptr
@@ -58,4 +95,16 @@ type FileLinkInformation struct {
 	RootDirectory   uintptr
 	FileNameLength  uint32
 	FileName        [1]uint16
+}
+
+// C declaration:
+//   typedef struct _FILE_ID_INFO {
+//       ULONGLONG   VolumeSerialNumber;
+//       FILE_ID_128 FileId;
+//   } FILE_ID_INFO, *PFILE_ID_INFO;
+//
+// Documentation: https://docs.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_id_info
+type FILE_ID_INFO struct {
+	VolumeSerialNumber uint64
+	FileID             [16]byte
 }
