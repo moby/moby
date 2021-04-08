@@ -42,20 +42,25 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 
 	restoreConfig := false
 	backupHostConfig := *ctr.HostConfig
+
 	defer func() {
 		if restoreConfig {
 			ctr.Lock()
-			ctr.HostConfig = &backupHostConfig
-			ctr.CheckpointTo(daemon.containersReplica)
+			if !ctr.RemovalInProgress && !ctr.Dead {
+				ctr.HostConfig = &backupHostConfig
+				ctr.CheckpointTo(daemon.containersReplica)
+			}
 			ctr.Unlock()
 		}
 	}()
 
+	ctr.Lock()
+
 	if ctr.RemovalInProgress || ctr.Dead {
+		ctr.Unlock()
 		return errCannotUpdate(ctr.ID, fmt.Errorf("container is marked for removal and cannot be \"update\""))
 	}
 
-	ctr.Lock()
 	if err := ctr.UpdateContainer(hostConfig); err != nil {
 		restoreConfig = true
 		ctr.Unlock()
@@ -66,6 +71,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 		ctr.Unlock()
 		return errCannotUpdate(ctr.ID, err)
 	}
+
 	ctr.Unlock()
 
 	// if Restart Policy changed, we need to update container monitor
