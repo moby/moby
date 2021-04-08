@@ -61,10 +61,12 @@ if command -v btrfs > /dev/null 2>&1; then
 	# Source: http://stackoverflow.com/a/32865333
 	for subvol in $(find "$dir" -type d -inum 256 | sort -r); do
 		if [ "$dir" != "$subvol" ]; then
-			(
-				set -x
-				btrfs subvolume delete "$subvol"
-			)
+			if [ "$(stat -f --format=%T $subvol)" == "btrfs" ]; then
+				(
+					set -x
+					btrfs subvolume delete "$subvol"
+				)
+			fi
 		fi
 	done
 fi
