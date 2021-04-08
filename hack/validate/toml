@@ -10,7 +10,7 @@ unset IFS
 badFiles=()
 for f in "${files[@]}"; do
 	# we use "git show" here to validate that what's committed has valid TOML syntax
-	if ! git show "$VALIDATE_HEAD:$f" | tomlv /proc/self/fd/0; then
+	if ! git show "$VALIDATE_HEAD:$f" | tomll /proc/self/fd/0; then
 		badFiles+=("$f")
 	fi
 done
