@@ -44,7 +44,7 @@ If you are interested in trying out containerd see our example at [Getting Start
 There are nightly builds available for download [here](https://github.com/containerd/containerd/actions?query=workflow%3ANightly).
 Binaries are generated from `master` branch every night for `Linux` and `Windows`.
 
-Please be aware: nightly builds might have critical bugs, it's not recommended for use in prodution and no support provided.
+Please be aware: nightly builds might have critical bugs, it's not recommended for use in production and no support provided.
 
 ## Runtime Requirements
 
@@ -140,7 +140,7 @@ redis, err := client.NewContainer(context, "redis-master", containerd.WithNewSpe
 
 ### Root Filesystems
 
-containerd allows you to use overlay or snapshot filesystems with your containers.  It comes with builtin support for overlayfs and btrfs.
+containerd allows you to use overlay or snapshot filesystems with your containers.  It comes with built in support for overlayfs and btrfs.
 
 ```go
 // pull an image and unpack it into the configured snapshotter
@@ -171,7 +171,7 @@ Taking a container object and turning it into a runnable process on a system is 
 task, err := redis.NewTask(context, cio.NewCreator(cio.WithStdio))
 defer task.Delete(context)
 
-// the task is now running and has a pid that can be use to setup networking
+// the task is now running and has a pid that can be used to setup networking
 // or other runtime settings outside of containerd
 pid := task.Pid()
 
@@ -184,7 +184,7 @@ status, err := task.Wait(context)
 
 ### Checkpoint and Restore
 
-If you have [criu](https://criu.org/Main_Page) installed on your machine you can checkpoint and restore containers and their tasks.  This allow you to clone and/or live migrate containers to other machines.
+If you have [criu](https://criu.org/Main_Page) installed on your machine you can checkpoint and restore containers and their tasks.  This allows you to clone and/or live migrate containers to other machines.
 
 ```go
 // checkpoint the task then push it to a registry
