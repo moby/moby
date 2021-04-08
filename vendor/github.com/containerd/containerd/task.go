@@ -503,6 +503,8 @@ func (t *task) Checkpoint(ctx context.Context, opts ...CheckpointTaskOpts) (Imag
 type UpdateTaskInfo struct {
 	// Resources updates a tasks resource constraints
 	Resources interface{}
+	// Annotations allows arbitrary and/or experimental resource constraints for task update
+	Annotations map[string]string
 }
 
 // UpdateTaskOpts allows a caller to update task settings
@@ -524,6 +526,9 @@ func (t *task) Update(ctx context.Context, opts ...UpdateTaskOpts) error {
 			return err
 		}
 		request.Resources = any
+	}
+	if i.Annotations != nil {
+		request.Annotations = i.Annotations
 	}
 	_, err := t.client.TaskService().Update(ctx, request)
 	return errdefs.FromGRPC(err)

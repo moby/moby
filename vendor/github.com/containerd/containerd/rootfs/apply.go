@@ -123,7 +123,7 @@ func applyLayers(ctx context.Context, layers []Layer, chain []digest.Digest, sn 
 	)
 
 	for {
-		key = fmt.Sprintf("extract-%s %s", uniquePart(), chainID)
+		key = fmt.Sprintf(snapshots.UnpackKeyFormat, uniquePart(), chainID)
 
 		// Prepare snapshot with from parent, label as root
 		mounts, err = sn.Prepare(ctx, key, parent.String(), opts...)

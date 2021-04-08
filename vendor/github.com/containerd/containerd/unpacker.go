@@ -138,7 +138,7 @@ EachLayer:
 
 		for try := 1; try <= 3; try++ {
 			// Prepare snapshot with from parent, label as root
-			key = fmt.Sprintf("extract-%s %s", uniquePart(), chainID)
+			key = fmt.Sprintf(snapshots.UnpackKeyFormat, uniquePart(), chainID)
 			mounts, err = sn.Prepare(ctx, key, parent.String(), opts...)
 			if err != nil {
 				if errdefs.IsAlreadyExists(err) {

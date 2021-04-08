@@ -188,6 +188,7 @@ message CheckpointTaskResponse {
 message UpdateTaskRequest {
 	string container_id = 1;
 	google.protobuf.Any resources = 2;
+	map<string, string> annotations = 3;
 }
 
 message MetricsRequest {

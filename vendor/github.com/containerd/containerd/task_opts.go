@@ -209,3 +209,11 @@ func WithResources(resources interface{}) UpdateTaskOpts {
 		return nil
 	}
 }
+
+// WithAnnotations sets the provided annotations for task updates.
+func WithAnnotations(annotations map[string]string) UpdateTaskOpts {
+	return func(ctx context.Context, client *Client, r *UpdateTaskInfo) error {
+		r.Annotations = annotations
+		return nil
+	}
+}

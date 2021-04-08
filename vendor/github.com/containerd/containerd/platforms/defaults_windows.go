@@ -19,6 +19,8 @@
 package platforms
 
 import (
+	"runtime"
+
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -26,6 +28,6 @@ import (
 func Default() MatchComparer {
 	return Ordered(DefaultSpec(), specs.Platform{
 		OS:           "linux",
-		Architecture: "amd64",
+		Architecture: runtime.GOARCH,
 	})
 }

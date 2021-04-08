@@ -70,7 +70,7 @@ type Task interface {
 	// Checkpoint checkpoints a container to an image with live system data
 	Checkpoint(context.Context, string, *types.Any) error
 	// Update sets the provided resources to a running task
-	Update(context.Context, *types.Any) error
+	Update(context.Context, *types.Any, map[string]string) error
 	// Process returns a process within the task for the provided id
 	Process(context.Context, string) (Process, error)
 	// Stats returns runtime specific metrics for a task
