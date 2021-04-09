@@ -60,13 +60,11 @@ if command -v btrfs > /dev/null 2>&1; then
 	# Find btrfs subvolumes under $dir checking for inode 256
 	# Source: http://stackoverflow.com/a/32865333
 	for subvol in $(find "$dir" -type d -inum 256 | sort -r); do
-		if [ "$dir" != "$subvol" ]; then
-			if [ "$(stat -f --format=%T $subvol)" == "btrfs" ]; then
-				(
-					set -x
-					btrfs subvolume delete "$subvol"
-				)
-			fi
+		if [ "$dir" != "$subvol" ] && subvolType="$(stat -f --format=%T "$subvol")" && [ "$subvolType" = "btrfs" ]; then
+			(
+				set -x
+				btrfs subvolume delete "$subvol"
+			)
 		fi
 	done
 fi
