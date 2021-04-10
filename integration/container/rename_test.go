@@ -2,6 +2,7 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"context"
+	"math/rand"
 	"runtime"
 	"testing"
 	"time"
@@ -154,7 +155,8 @@ func TestRenameAnonymousContainer(t *testing.T) {
 
 	// These platforms are slower which why want give them moment to get first container networking ready
 	if runtime.GOARCH == "s390x" || runtime.GOARCH == "ppc64le" {
-		time.Sleep(2 * time.Second)
+		rand.Seed(time.Now().UnixNano())
+		time.Sleep(time.Duration(rand.Intn(3)) * time.Second)
 	}
 
 	count := "-c"
