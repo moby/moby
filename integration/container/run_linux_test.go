@@ -128,7 +128,7 @@ func TestHostnameDnsResolution(t *testing.T) {
 	// These platforms are slower which why want give them moment to get container networking ready
 	if runtime.GOARCH == "s390x" || runtime.GOARCH == "ppc64le" {
 		rand.Seed(time.Now().UnixNano())
-		time.Sleep(time.Duration(rand.Intn(3)) * time.Second)
+		time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
 	}
 
 	inspect, err := client.ContainerInspect(ctx, cID)

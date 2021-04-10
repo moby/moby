@@ -117,7 +117,7 @@ func startServerContainer(t *testing.T, msg string, port int) string {
 	// These platforms are slower which why want give them moment to start listening requested port
 	if runtime.GOARCH == "s390x" || runtime.GOARCH == "ppc64le" {
 		rand.Seed(time.Now().UnixNano())
-		time.Sleep(time.Duration(rand.Intn(3)) * time.Second)
+		time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
 	}
 
 	return cID
