@@ -2,7 +2,7 @@
 set -e -o pipefail
 
 echo "Stress testing integration tests"
-TESTARRAY="TestBuildUserNamespaceValidateCapabilitiesAreV2|TestDaemonHostGatewayIP|TestHealthKillContainer|TestHealthKillContainer|TestInspectOomKilledTrue|TestNetworkNat|TestNetworkLocalhostTCPNat|TestNetworkLoopbackNat|TestRenameAnonymousContainer|TestHostnameDnsResolution|TestServiceRemoveKeepsIngressNetwork|TestCreateServiceSecretFileMode|TestCreateServiceConfigFileMode|TestServiceUpdateSecrets|"
+TESTARRAY="TestDaemonHostGatewayIP|TestHealthKillContainer|TestHealthKillContainer|TestInspectOomKilledTrue|TestNetworkNat|TestNetworkLocalhostTCPNat|TestNetworkLoopbackNat|TestRenameAnonymousContainer|TestHostnameDnsResolution|TestServiceRemoveKeepsIngressNetwork|TestCreateServiceSecretFileMode|TestCreateServiceConfigFileMode|TestServiceUpdateSecrets|"
 export TEST_REPEAT=30
 export TESTFLAGS="-test.count ${TEST_REPEAT} -test.failfast -test.run ${TESTARRAY%?}"
 echo "Using test flags: $TESTFLAGS"
