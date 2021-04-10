@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
+echo "Stress testing integration tests"
+TESTARRAY="TestBuildUserNamespaceValidateCapabilitiesAreV2|TestDaemonHostGatewayIP|TestHealthKillContainer|TestHealthKillContainer|TestInspectOomKilledTrue|TestNetworkNat|TestNetworkLocalhostTCPNat|TestNetworkLoopbackNat|TestRenameAnonymousContainer|TestHostnameDnsResolution|TestServiceRemoveKeepsIngressNetwork|TestCreateServiceSecretFileMode|TestCreateServiceConfigFileMode|TestServiceUpdateSecrets|"
+export TEST_REPEAT=10
+export TESTFLAGS="-test.count ${TEST_REPEAT} -test.run ${TESTARRAY%?}"
+echo "Using test flags: $TESTFLAGS"
+
 source hack/make/.integration-test-helpers
 
 if [ ! -z "${TEST_SKIP_INTEGRATION}" ] && [ ! -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
