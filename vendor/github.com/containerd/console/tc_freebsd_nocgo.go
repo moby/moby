@@ -1,3 +1,5 @@
+// +build freebsd,!cgo
+
 /*
    Copyright The containerd Authors.
 
@@ -28,11 +30,19 @@ const (
 	cmdTcSet = unix.TIOCSETA
 )
 
+//
+// Implementing the functions below requires cgo support.  Non-cgo stubs
+// versions are defined below to enable cross-compilation of source code
+// that depends on these functions, but the resultant cross-compiled
+// binaries cannot actually be used.  If the stub function(s) below are
+// actually invoked they will display an error message and cause the
+// calling process to exit.
+//
+
 // unlockpt unlocks the slave pseudoterminal device corresponding to the master pseudoterminal referred to by f.
 // unlockpt should be called before opening the slave side of a pty.
-// This does not exist on FreeBSD, it does not allocate controlling terminals on open
 func unlockpt(f *os.File) error {
-	return nil
+	panic("unlockpt() support requires cgo.")
 }
 
 // ptsname retrieves the name of the first available pts for the given master.
