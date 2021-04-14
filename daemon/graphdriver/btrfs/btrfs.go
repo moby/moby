@@ -96,7 +96,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	}
 
 	if userDiskQuota {
-		if err := driver.subvolEnableQuota(); err != nil {
+		if err := driver.enableQuota(); err != nil {
 			return nil, err
 		}
 	}
@@ -165,16 +165,8 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 
 // Cleanup unmounts the home directory.
 func (d *Driver) Cleanup() error {
-	err := d.subvolDisableQuota()
-	umountErr := mount.Unmount(d.home)
-
-	// in case we have two errors, prefer the one from disableQuota()
-	if err != nil {
+	if err := mount.Unmount(d.home); err != nil {
 		return err
-	}
-
-	if umountErr != nil {
-		return umountErr
 	}
 
 	return nil
@@ -334,7 +326,7 @@ func (d *Driver) updateQuotaStatus() {
 	d.once.Do(func() {
 		if !d.quotaEnabled {
 			// In case quotaEnabled is not set, check qgroup and update quotaEnabled as needed
-			if err := subvolQgroupStatus(d.home); err != nil {
+			if err := qgroupStatus(d.home); err != nil {
 				// quota is still not enabled
 				return
 			}
@@ -343,7 +335,7 @@ func (d *Driver) updateQuotaStatus() {
 	})
 }
 
-func (d *Driver) subvolEnableQuota() error {
+func (d *Driver) enableQuota() error {
 	d.updateQuotaStatus()
 
 	if d.quotaEnabled {
@@ -365,32 +357,6 @@ func (d *Driver) subvolEnableQuota() error {
 	}
 
 	d.quotaEnabled = true
-
-	return nil
-}
-
-func (d *Driver) subvolDisableQuota() error {
-	d.updateQuotaStatus()
-
-	if !d.quotaEnabled {
-		return nil
-	}
-
-	dir, err := openDir(d.home)
-	if err != nil {
-		return err
-	}
-	defer closeDir(dir)
-
-	var args C.struct_btrfs_ioctl_quota_ctl_args
-	args.cmd = C.BTRFS_QUOTA_CTL_DISABLE
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_CTL,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
-		return fmt.Errorf("Failed to disable btrfs quota for %s: %v", dir, errno.Error())
-	}
-
-	d.quotaEnabled = false
 
 	return nil
 }
@@ -437,11 +403,11 @@ func subvolLimitQgroup(path string, size uint64) error {
 	return nil
 }
 
-// subvolQgroupStatus performs a BTRFS_IOC_TREE_SEARCH on the root path
+// qgroupStatus performs a BTRFS_IOC_TREE_SEARCH on the root path
 // with search key of BTRFS_QGROUP_STATUS_KEY.
 // In case qgroup is enabled, the retuned key type will match BTRFS_QGROUP_STATUS_KEY.
 // For more details please see https://github.com/kdave/btrfs-progs/blob/v4.9/qgroup.c#L1035
-func subvolQgroupStatus(path string) error {
+func qgroupStatus(path string) error {
 	dir, err := openDir(path)
 	if err != nil {
 		return err
@@ -608,7 +574,7 @@ func (d *Driver) setStorageSize(dir string, driver *Driver) error {
 	if d.options.minSpace > 0 && driver.options.size < d.options.minSpace {
 		return fmt.Errorf("btrfs: storage size cannot be less than %s", units.HumanSize(float64(d.options.minSpace)))
 	}
-	if err := d.subvolEnableQuota(); err != nil {
+	if err := d.enableQuota(); err != nil {
 		return err
 	}
 	return subvolLimitQgroup(dir, driver.options.size)
@@ -662,7 +628,7 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 
 	if quota, err := ioutil.ReadFile(d.quotasDirID(id)); err == nil {
 		if size, err := strconv.ParseUint(string(quota), 10, 64); err == nil && size >= d.options.minSpace {
-			if err := d.subvolEnableQuota(); err != nil {
+			if err := d.enableQuota(); err != nil {
 				return nil, err
 			}
 			if err := subvolLimitQgroup(dir, size); err != nil {
