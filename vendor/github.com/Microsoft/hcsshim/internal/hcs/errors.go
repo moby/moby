@@ -171,7 +171,6 @@ type SystemError struct {
 	ID     string
 	Op     string
 	Err    error
-	Extra  string
 	Events []ErrorEvent
 }
 
@@ -181,9 +180,6 @@ func (e *SystemError) Error() string {
 	s := e.Op + " " + e.ID + ": " + e.Err.Error()
 	for _, ev := range e.Events {
 		s += "\n" + ev.String()
-	}
-	if e.Extra != "" {
-		s += "\n(extra info: " + e.Extra + ")"
 	}
 	return s
 }
@@ -198,7 +194,7 @@ func (e *SystemError) Timeout() bool {
 	return ok && err.Timeout()
 }
 
-func makeSystemError(system *System, op string, extra string, err error, events []ErrorEvent) error {
+func makeSystemError(system *System, op string, err error, events []ErrorEvent) error {
 	// Don't double wrap errors
 	if _, ok := err.(*SystemError); ok {
 		return err
@@ -206,7 +202,6 @@ func makeSystemError(system *System, op string, extra string, err error, events 
 	return &SystemError{
 		ID:     system.ID(),
 		Op:     op,
-		Extra:  extra,
 		Err:    err,
 		Events: events,
 	}
