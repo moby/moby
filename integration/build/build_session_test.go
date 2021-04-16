@@ -89,6 +89,7 @@ func TestBuildWithSession(t *testing.T) {
 	assert.Check(t, is.Equal(du.BuilderSize, int64(0)))
 }
 
+//nolint:unused // false positive: linter detects this as "unused"
 func testBuildWithSession(t *testing.T, client dclient.APIClient, daemonHost string, dir, dockerfile string) (outStr string) {
 	ctx := context.Background()
 	sess, err := session.NewSession(ctx, "foo1", "foo")
