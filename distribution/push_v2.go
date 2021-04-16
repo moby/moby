@@ -330,7 +330,8 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 	// Attempt to find another repository in the same registry to mount the layer from to avoid an unnecessary upload
 	candidates := getRepositoryMountCandidates(pd.repoInfo, pd.hmacKey, maxMountAttempts, v2Metadata)
 	isUnauthorizedError := false
-	for _, mountCandidate := range candidates {
+	for _, mc := range candidates {
+		mountCandidate := mc
 		logrus.Debugf("attempting to mount layer %s (%s) from %s", diffID, mountCandidate.Digest, mountCandidate.SourceRepository)
 		createOpts := []distribution.BlobCreateOption{}
 
