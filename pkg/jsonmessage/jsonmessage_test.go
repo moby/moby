@@ -252,7 +252,7 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 		// Without progress, with ID
 		"{ \"id\": \"ID\",\"status\": \"status\" }": {
 			"ID: status\n",
-			fmt.Sprintf("ID: status\n"),
+			"ID: status\n",
 		},
 		// With progress
 		"{ \"id\": \"ID\", \"status\": \"status\", \"progress\": \"ProgressMessage\" }": {
