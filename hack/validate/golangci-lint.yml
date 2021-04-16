@@ -79,10 +79,10 @@ issues:
       linters:
         - staticcheck
     # FIXME temporarily suppress these. See #39926
-    - text: "SA1019: httputil.NewClientConn is deprecated"
+    - text: "SA1019: httputil.NewClientConn"
       linters:
         - staticcheck
     # FIXME temporarily suppress these (related to the ones above)
-    - text: "SA1019: httputil.ErrPersistEOF is deprecated"
+    - text: "SA1019: httputil.ErrPersistEOF"
       linters:
         - staticcheck
