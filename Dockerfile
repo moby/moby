@@ -78,41 +78,8 @@ RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
         && /build/criu --version
 
 # registry
-FROM base AS registry-src
-WORKDIR /usr/src/registry
-RUN git init . && git remote add origin "https://github.com/distribution/distribution.git"
-
-FROM base AS registry
-WORKDIR /go/src/github.com/docker/distribution
-
-# REGISTRY_VERSION_SCHEMA1 specifies the version of the registry to build and
-# install from the https://github.com/docker/distribution repository. This is
-# an older (pre v2.3.0) version of the registry that only supports schema1
-# manifests. This version of the registry is not working on arm64, so installation
-# is skipped on that architecture.
-ARG REGISTRY_VERSION_SCHEMA1=v2.1.0
-ARG TARGETPLATFORM
-RUN --mount=from=registry-src,src=/usr/src/registry,rw \
-    --mount=type=cache,target=/root/.cache/go-build,id=registry-build-$TARGETPLATFORM \
-    --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=tmpfs,target=/go/src <<EOT
-  set -ex
-  export GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"
-  # Make the /build directory no matter what so that it doesn't fail on arm64 or
-  # any other platform where we don't build this registry
-  mkdir /build
-  case $TARGETPLATFORM in
-    linux/amd64|linux/arm/v7|linux/ppc64le|linux/s390x)
-      git fetch -q --depth 1 origin "${REGISTRY_VERSION_SCHEMA1}" +refs/tags/*:refs/tags/*
-      git checkout -q FETCH_HEAD
-      CGO_ENABLED=0 xx-go build -o /build/registry-v2-schema1 -v ./cmd/registry
-      xx-verify /build/registry-v2-schema1
-      ;;
-  esac
-EOT
-
-FROM distribution/distribution:$REGISTRY_VERSION AS registry-v2
-RUN mkdir /build && mv /bin/registry /build/registry-v2
+FROM distribution/distribution:$REGISTRY_VERSION AS registry
+RUN mkdir /build && mv /bin/registry /build/registry
 
 # go-swagger
 FROM base AS swagger-src
@@ -467,7 +434,6 @@ COPY --link --from=delve         /build/ /usr/local/bin/
 COPY --link --from=gowinres      /build/ /usr/local/bin/
 COPY --link --from=tini          /build/ /usr/local/bin/
 COPY --link --from=registry      /build/ /usr/local/bin/
-COPY --link --from=registry-v2   /build/ /usr/local/bin/
 
 # Skip the CRIU stage for now, as the opensuse package repository is sometimes
 # unstable, and we're currently not using it in CI.

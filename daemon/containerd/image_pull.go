@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
 
@@ -151,16 +150,10 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 		}
 	}()
 
-	var sentPullingFrom, sentSchema1Deprecation bool
+	var sentPullingFrom bool
 	ah := c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-		if desc.MediaType == c8dimages.MediaTypeDockerSchema1Manifest && !sentSchema1Deprecation {
-			err := distribution.DeprecatedSchema1ImageError(ref)
-			if os.Getenv("DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE") == "" {
-				log.G(context.TODO()).Warn(err.Error())
-				return nil, err
-			}
-			progress.Message(out, "", err.Error())
-			sentSchema1Deprecation = true
+		if desc.MediaType == c8dimages.MediaTypeDockerSchema1Manifest {
+			return nil, distribution.DeprecatedSchema1ImageError(ref)
 		}
 		if c8dimages.IsLayerType(desc.MediaType) {
 			id := stringid.TruncateID(desc.Digest.String())

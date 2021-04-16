@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"os"
 
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
@@ -154,15 +153,10 @@ func (dr *distributionRouter) fetchManifest(ctx context.Context, distrepo distri
 				distributionInspect.Platforms = append(distributionInspect.Platforms, platform)
 			}
 		}
+
+	// TODO(thaJeztah); we only use this to produce a nice error, but as a result, we can't remove libtrust as dependency - see if we can reduce the dependencies, but still able to detect it's a deprecated manifest
 	case *schema1.SignedManifest:
-		if os.Getenv("DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE") == "" {
-			return registry.DistributionInspect{}, distributionpkg.DeprecatedSchema1ImageError(namedRef)
-		}
-		platform := ocispec.Platform{
-			Architecture: mnfstObj.Architecture,
-			OS:           "linux",
-		}
-		distributionInspect.Platforms = append(distributionInspect.Platforms, platform)
+		return registry.DistributionInspect{}, distributionpkg.DeprecatedSchema1ImageError(namedRef)
 	}
 	return distributionInspect, nil
 }

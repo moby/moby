@@ -26,7 +26,7 @@ import (
 // tags for the same image) are not also pulled down.
 //
 // Ref: docker/docker#8141
-func testPullImageWithAliases(c *testing.T) {
+func (s *DockerRegistrySuite) TestPullImageWithAliases(c *testing.T) {
 	const imgRepo = privateRegistryURL + "/dockercli/busybox"
 
 	var repos []string
@@ -53,16 +53,8 @@ func testPullImageWithAliases(c *testing.T) {
 	}
 }
 
-func (s *DockerRegistrySuite) TestPullImageWithAliases(c *testing.T) {
-	testPullImageWithAliases(c)
-}
-
-func (s *DockerSchema1RegistrySuite) TestPullImageWithAliases(c *testing.T) {
-	testPullImageWithAliases(c)
-}
-
-// testConcurrentPullWholeRepo pulls the same repo concurrently.
-func testConcurrentPullWholeRepo(c *testing.T) {
+// TestConcurrentPullWholeRepo pulls the same repo concurrently.
+func (s *DockerRegistrySuite) TestConcurrentPullWholeRepo(c *testing.T) {
 	const imgRepo = privateRegistryURL + "/dockercli/busybox"
 
 	var repos []string
@@ -109,16 +101,8 @@ func testConcurrentPullWholeRepo(c *testing.T) {
 	}
 }
 
-func (s *DockerRegistrySuite) TestConcurrentPullWholeRepo(c *testing.T) {
-	testConcurrentPullWholeRepo(c)
-}
-
-func (s *DockerSchema1RegistrySuite) TestConcurrentPullWholeRepo(c *testing.T) {
-	testConcurrentPullWholeRepo(c)
-}
-
-// testConcurrentFailingPull tries a concurrent pull that doesn't succeed.
-func testConcurrentFailingPull(c *testing.T) {
+// TestConcurrentFailingPull tries a concurrent pull that doesn't succeed.
+func (s *DockerRegistrySuite) TestConcurrentFailingPull(c *testing.T) {
 	const imgRepo = privateRegistryURL + "/dockercli/busybox"
 
 	// Run multiple pulls concurrently
@@ -140,17 +124,9 @@ func testConcurrentFailingPull(c *testing.T) {
 	}
 }
 
-func (s *DockerRegistrySuite) TestConcurrentFailingPull(c *testing.T) {
-	testConcurrentFailingPull(c)
-}
-
-func (s *DockerSchema1RegistrySuite) TestConcurrentFailingPull(c *testing.T) {
-	testConcurrentFailingPull(c)
-}
-
-// testConcurrentPullMultipleTags pulls multiple tags from the same repo
+// TestConcurrentPullMultipleTags pulls multiple tags from the same repo
 // concurrently.
-func testConcurrentPullMultipleTags(c *testing.T) {
+func (s *DockerRegistrySuite) TestConcurrentPullMultipleTags(c *testing.T) {
 	const imgRepo = privateRegistryURL + "/dockercli/busybox"
 
 	var repos []string
@@ -196,17 +172,9 @@ func testConcurrentPullMultipleTags(c *testing.T) {
 	}
 }
 
-func (s *DockerRegistrySuite) TestConcurrentPullMultipleTags(c *testing.T) {
-	testConcurrentPullMultipleTags(c)
-}
-
-func (s *DockerSchema1RegistrySuite) TestConcurrentPullMultipleTags(c *testing.T) {
-	testConcurrentPullMultipleTags(c)
-}
-
-// testPullIDStability verifies that pushing an image and pulling it back
+// TestPullIDStability verifies that pushing an image and pulling it back
 // preserves the image ID.
-func testPullIDStability(c *testing.T) {
+func (s *DockerRegistrySuite) TestPullIDStability(c *testing.T) {
 	const derivedImage = privateRegistryURL + "/dockercli/id-stability"
 	const baseImage = "busybox"
 
@@ -256,16 +224,8 @@ func testPullIDStability(c *testing.T) {
 	}
 }
 
-func (s *DockerRegistrySuite) TestPullIDStability(c *testing.T) {
-	testPullIDStability(c)
-}
-
-func (s *DockerSchema1RegistrySuite) TestPullIDStability(c *testing.T) {
-	testPullIDStability(c)
-}
-
 // #21213
-func testPullNoLayers(c *testing.T) {
+func (s *DockerRegistrySuite) TestPullNoLayers(c *testing.T) {
 	const imgRepo = privateRegistryURL + "/dockercli/scratch"
 
 	buildImageSuccessfully(c, imgRepo, build.WithDockerfile(`
@@ -274,14 +234,6 @@ func testPullNoLayers(c *testing.T) {
 	cli.DockerCmd(c, "push", imgRepo)
 	cli.DockerCmd(c, "rmi", imgRepo)
 	cli.DockerCmd(c, "pull", imgRepo)
-}
-
-func (s *DockerRegistrySuite) TestPullNoLayers(c *testing.T) {
-	testPullNoLayers(c)
-}
-
-func (s *DockerSchema1RegistrySuite) TestPullNoLayers(c *testing.T) {
-	testPullNoLayers(c)
 }
 
 func (s *DockerRegistrySuite) TestPullManifestList(c *testing.T) {
