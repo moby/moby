@@ -431,6 +431,7 @@ func (c *containerAdapter) remove(ctx context.Context) error {
 func (c *containerAdapter) createVolumes(ctx context.Context) error {
 	// Create plugin volumes that are embedded inside a Mount
 	for _, mount := range c.container.task.Spec.GetContainer().Mounts {
+		mount := mount
 		if mount.Type != api.MountTypeVolume {
 			continue
 		}
