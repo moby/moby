@@ -573,9 +573,9 @@ func (daemon *Daemon) GetNetworks(filter filters.Args, config types.NetworkListC
 	}
 
 	if config.Detailed {
-		for i, n := range list {
-			np := &n
-			buildDetailedNetworkResources(np, idx[n.ID], config.Verbose)
+		for i := range list {
+			np := &list[i]
+			buildDetailedNetworkResources(np, idx[np.ID], config.Verbose)
 			list[i] = *np
 		}
 	}
