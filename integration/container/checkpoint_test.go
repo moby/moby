@@ -20,6 +20,7 @@ import (
 	"gotest.tools/v3/skip"
 )
 
+//nolint:unused // false positive: linter detects this as "unused"
 func containerExec(t *testing.T, client client.APIClient, cID string, cmd []string) {
 	t.Logf("Exec: %s", cmd)
 	ctx := context.Background()
