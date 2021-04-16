@@ -40,14 +40,8 @@ fi
 # intentionally open a couple bogus file descriptors to help test that they get scrubbed in containers
 exec 41>&1 42>&2
 
-# Allow pushing manifest v2 schema 1 images, as they're used to push
-# images to our test-registries for testing _pulling_ schema 2v1 images.
-export DOCKER_ALLOW_SCHEMA1_PUSH_DONOTUSE=1
 export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
 export DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
-
-# Allow testing push/pull of legacy image formats
-export DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE=1
 
 # example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
 storage_params=""

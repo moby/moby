@@ -2,11 +2,6 @@ package registry
 
 import "io"
 
-// Schema1 sets the registry to serve v1 api
-func Schema1(c *Config) {
-	c.schema1 = true
-}
-
 // Htpasswd sets the auth method with htpasswd
 func Htpasswd(c *Config) {
 	c.auth = "htpasswd"

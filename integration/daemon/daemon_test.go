@@ -58,6 +58,18 @@ func TestConfigDaemonID(t *testing.T) {
 	info = d.Info(t)
 	assert.Equal(t, info.ID, engineID)
 	d.Stop(t)
+
+	// Verify that engine-id file is created if it doesn't exist
+	err = os.Remove(idFile)
+	assert.NilError(t, err)
+
+	d.Start(t, "--iptables=false")
+	id, err := os.ReadFile(idFile)
+	assert.NilError(t, err)
+
+	info = d.Info(t)
+	assert.Equal(t, string(id), info.ID)
+	d.Stop(t)
 }
 
 func TestDaemonConfigValidation(t *testing.T) {
