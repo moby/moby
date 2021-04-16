@@ -74,6 +74,10 @@ issues:
     - text: "(G201|G202): SQL string (formatting|concatenation)"
       linters:
         - gosec
+    # FIXME: evaluate these and fix where needed: G307: Deferring unsafe method "*os.File" on type "Close" (gosec)
+    - text: "G307: Deferring unsafe method"
+      linters:
+        - gosec
     # FIXME temporarily suppress these. See #39924
     - text: "SA1019: .*\\.Xattrs is deprecated: Use PAXRecords instead"
       linters:
@@ -84,5 +88,10 @@ issues:
         - staticcheck
     # FIXME temporarily suppress these (related to the ones above)
     - text: "SA1019: httputil.ErrPersistEOF"
+      linters:
+        - staticcheck
+    # FIXME temporarily suppress these for false positives in tests (see https://github.com/dominikh/go-tools/issues/1022)
+    - text: "SA5011"
+      path: _test\.go
       linters:
         - staticcheck
