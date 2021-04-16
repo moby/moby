@@ -19,6 +19,9 @@ linters:
     - errcheck
 
   run:
+    build-tags:
+      - journald
+      - seccomp
     concurrency: 2
     modules-download-mode: vendor
 
