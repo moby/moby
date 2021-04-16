@@ -46,7 +46,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	if err := compiled.Execute(f, data); err != nil {
 		log.Fatalf("executing template failed: %v", err)

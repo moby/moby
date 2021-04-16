@@ -98,8 +98,10 @@ func InstallDefault(name string) error {
 	}
 	profilePath := f.Name()
 
-	defer f.Close()
-	defer os.Remove(profilePath)
+	defer func() {
+		_ = f.Close()
+		_ = os.Remove(profilePath)
+	}()
 
 	if err := p.generateDefault(f); err != nil {
 		return err
@@ -115,7 +117,9 @@ func IsLoaded(name string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	r := bufio.NewReader(file)
 	for {
