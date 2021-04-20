@@ -76,7 +76,7 @@ func openRelativeInternal(path string, root *os.File, accessMask uint32, shareFl
 	}
 
 	oa.Length = unsafe.Sizeof(oa)
-	oa.ObjectName = uintptr(unsafe.Pointer(pathUnicode))
+	oa.ObjectName = pathUnicode
 	oa.RootDirectory = uintptr(root.Fd())
 	oa.Attributes = winapi.OBJ_DONT_REPARSE
 	status := winapi.NtCreateFile(
@@ -177,7 +177,7 @@ func LinkRelative(oldname string, oldroot *os.File, newname string, newroot *os.
 	linkinfo := (*winapi.FileLinkInformation)(unsafe.Pointer(linkinfoBuffer))
 	linkinfo.RootDirectory = parent.Fd()
 	linkinfo.FileNameLength = uint32(len(newbase16) * 2)
-	copy((*[32768]uint16)(unsafe.Pointer(&linkinfo.FileName[0]))[:], newbase16)
+	copy(winapi.Uint16BufferToSlice(&linkinfo.FileName[0], len(newbase16)), newbase16)
 
 	var iosb winapi.IOStatusBlock
 	status := winapi.NtSetInformationFile(
@@ -244,7 +244,7 @@ func RemoveRelative(path string, root *os.File) error {
 		err = deleteOnClose(f)
 		if err == syscall.ERROR_ACCESS_DENIED {
 			// Maybe the file is marked readonly. Clear the bit and retry.
-			clearReadOnly(f)
+			_ = clearReadOnly(f)
 			err = deleteOnClose(f)
 		}
 	}
