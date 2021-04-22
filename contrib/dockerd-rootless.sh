@@ -28,8 +28,8 @@ if ! [ -w $XDG_RUNTIME_DIR ]; then
 	echo "XDG_RUNTIME_DIR needs to be set and writable"
 	exit 1
 fi
-if ! [ -w $HOME ]; then
-	echo "HOME needs to be set and writable"
+if ! [ -d $HOME ]; then
+	echo "HOME needs to be set and exist."
 	exit 1
 fi
 
