@@ -440,7 +440,7 @@ func (s *DockerSuite) TestEventsCopy(c *testing.T) {
 }
 
 func (s *DockerSuite) TestEventsResize(c *testing.T) {
-	out := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d", "-t")
 	cID := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(cID))
 

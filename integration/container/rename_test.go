@@ -123,7 +123,6 @@ func TestRenameInvalidName(t *testing.T) {
 // This test is to make sure once the container has been renamed,
 // the service discovery for the (re)named container works.
 func TestRenameAnonymousContainer(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := testEnv.APIClient()

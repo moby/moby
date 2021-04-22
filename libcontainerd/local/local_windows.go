@@ -22,6 +22,7 @@ import (
 	opengcs "github.com/Microsoft/opengcs/client"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
+	containerderrdefs "github.com/containerd/containerd/errdefs"
 
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/queue"
@@ -985,7 +986,7 @@ func (c *client) Pause(_ context.Context, containerID string) error {
 	}
 
 	if ctr.ociSpec.Windows.HyperV == nil {
-		return errors.New("cannot pause Windows Server Containers")
+		return containerderrdefs.ErrNotImplemented
 	}
 
 	ctr.Lock()

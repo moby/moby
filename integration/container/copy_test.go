@@ -35,14 +35,19 @@ func TestCopyFromContainerPathDoesNotExist(t *testing.T) {
 
 func TestCopyFromContainerPathIsNotDir(t *testing.T) {
 	defer setupTest(t)()
-	skip.If(t, testEnv.OSType == "windows")
 
 	ctx := context.Background()
 	apiclient := testEnv.APIClient()
 	cid := container.Create(ctx, t, apiclient)
 
-	_, _, err := apiclient.CopyFromContainer(ctx, cid, "/etc/passwd/")
-	assert.Assert(t, is.ErrorContains(err, "not a directory"))
+	path := "/etc/passwd/"
+	expected := "not a directory"
+	if testEnv.OSType == "windows" {
+		path = "c:/windows/system32/drivers/etc/hosts/"
+		expected = "The filename, directory name, or volume label syntax is incorrect."
+	}
+	_, _, err := apiclient.CopyFromContainer(ctx, cid, path)
+	assert.Assert(t, is.ErrorContains(err, expected))
 }
 
 func TestCopyToContainerPathDoesNotExist(t *testing.T) {
@@ -60,13 +65,16 @@ func TestCopyToContainerPathDoesNotExist(t *testing.T) {
 
 func TestCopyToContainerPathIsNotDir(t *testing.T) {
 	defer setupTest(t)()
-	skip.If(t, testEnv.OSType == "windows")
 
 	ctx := context.Background()
 	apiclient := testEnv.APIClient()
 	cid := container.Create(ctx, t, apiclient)
 
-	err := apiclient.CopyToContainer(ctx, cid, "/etc/passwd/", nil, types.CopyToContainerOptions{})
+	path := "/etc/passwd/"
+	if testEnv.OSType == "windows" {
+		path = "c:/windows/system32/drivers/etc/hosts/"
+	}
+	err := apiclient.CopyToContainer(ctx, cid, path, nil, types.CopyToContainerOptions{})
 	assert.Assert(t, is.ErrorContains(err, "not a directory"))
 }
 
