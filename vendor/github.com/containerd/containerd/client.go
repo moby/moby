@@ -39,6 +39,7 @@ import (
 	snapshotsapi "github.com/containerd/containerd/api/services/snapshots/v1"
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	versionservice "github.com/containerd/containerd/api/services/version/v1"
+	apitypes "github.com/containerd/containerd/api/types"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/content"
 	contentproxy "github.com/containerd/containerd/content/proxy"
@@ -781,4 +782,34 @@ func CheckRuntime(current, expected string) bool {
 		}
 	}
 	return true
+}
+
+func (c *Client) GetSnapshotterSupportedPlatforms(ctx context.Context, snapshotterName string) (platforms.MatchComparer, error) {
+	filters := []string{fmt.Sprintf("type==%s, id==%s", plugin.SnapshotPlugin, snapshotterName)}
+	in := c.IntrospectionService()
+
+	resp, err := in.Plugins(ctx, filters)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp.Plugins) <= 0 {
+		return nil, fmt.Errorf("inspection service could not find snapshotter %s plugin", snapshotterName)
+	}
+
+	sn := resp.Plugins[0]
+	snPlatforms := toPlatforms(sn.Platforms)
+	return platforms.Any(snPlatforms...), nil
+}
+
+func toPlatforms(pt []apitypes.Platform) []ocispec.Platform {
+	platforms := make([]ocispec.Platform, len(pt))
+	for i, p := range pt {
+		platforms[i] = ocispec.Platform{
+			Architecture: p.Architecture,
+			OS:           p.OS,
+			Variant:      p.Variant,
+		}
+	}
+	return platforms
 }

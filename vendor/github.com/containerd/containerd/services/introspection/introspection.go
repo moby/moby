@@ -21,6 +21,7 @@ import (
 
 	api "github.com/containerd/containerd/api/services/introspection/v1"
 	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/log"
 	ptypes "github.com/gogo/protobuf/types"
 )
 
@@ -40,6 +41,7 @@ func NewIntrospectionServiceFromClient(c api.IntrospectionClient) Service {
 }
 
 func (i *introspectionRemote) Plugins(ctx context.Context, filters []string) (*api.PluginsResponse, error) {
+	log.G(ctx).WithField("filters", filters).Debug("remote introspection plugin filters")
 	resp, err := i.client.Plugins(ctx, &api.PluginsRequest{
 		Filters: filters,
 	})

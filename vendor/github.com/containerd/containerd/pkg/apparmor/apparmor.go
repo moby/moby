@@ -1,4 +1,4 @@
-// +build apparmor,linux
+// +build linux
 
 /*
    Copyright The containerd Authors.

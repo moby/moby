@@ -65,7 +65,7 @@ func GenerateTokenOptions(ctx context.Context, host, username, secret string, c 
 	return to, nil
 }
 
-// TokenOptions are optios for requesting a token
+// TokenOptions are options for requesting a token
 type TokenOptions struct {
 	Realm    string
 	Service  string

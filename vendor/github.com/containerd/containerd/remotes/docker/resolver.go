@@ -219,18 +219,13 @@ func (r *countingReader) Read(p []byte) (int, error) {
 var _ remotes.Resolver = &dockerResolver{}
 
 func (r *dockerResolver) Resolve(ctx context.Context, ref string) (string, ocispec.Descriptor, error) {
-	refspec, err := reference.Parse(ref)
+	base, err := r.resolveDockerBase(ref)
 	if err != nil {
 		return "", ocispec.Descriptor{}, err
 	}
-
+	refspec := base.refspec
 	if refspec.Object == "" {
 		return "", ocispec.Descriptor{}, reference.ErrObjectRequired
-	}
-
-	base, err := r.base(refspec)
-	if err != nil {
-		return "", ocispec.Descriptor{}, err
 	}
 
 	var (
@@ -387,12 +382,7 @@ func (r *dockerResolver) Resolve(ctx context.Context, ref string) (string, ocisp
 }
 
 func (r *dockerResolver) Fetcher(ctx context.Context, ref string) (remotes.Fetcher, error) {
-	refspec, err := reference.Parse(ref)
-	if err != nil {
-		return nil, err
-	}
-
-	base, err := r.base(refspec)
+	base, err := r.resolveDockerBase(ref)
 	if err != nil {
 		return nil, err
 	}
@@ -403,21 +393,25 @@ func (r *dockerResolver) Fetcher(ctx context.Context, ref string) (remotes.Fetch
 }
 
 func (r *dockerResolver) Pusher(ctx context.Context, ref string) (remotes.Pusher, error) {
-	refspec, err := reference.Parse(ref)
-	if err != nil {
-		return nil, err
-	}
-
-	base, err := r.base(refspec)
+	base, err := r.resolveDockerBase(ref)
 	if err != nil {
 		return nil, err
 	}
 
 	return dockerPusher{
 		dockerBase: base,
-		object:     refspec.Object,
+		object:     base.refspec.Object,
 		tracker:    r.tracker,
 	}, nil
+}
+
+func (r *dockerResolver) resolveDockerBase(ref string) (*dockerBase, error) {
+	refspec, err := reference.Parse(ref)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.base(refspec)
 }
 
 type dockerBase struct {
@@ -451,10 +445,11 @@ func (r *dockerBase) filterHosts(caps HostCapabilities) (hosts []RegistryHost) {
 }
 
 func (r *dockerBase) request(host RegistryHost, method string, ps ...string) *request {
-	header := http.Header{}
-	for key, value := range r.header {
-		header[key] = append(header[key], value...)
+	header := r.header.Clone()
+	if header == nil {
+		header = http.Header{}
 	}
+
 	for key, value := range host.Header {
 		header[key] = append(header[key], value...)
 	}
@@ -521,7 +516,10 @@ func (r *request) do(ctx context.Context) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header = r.header
+	req.Header = http.Header{} // headers need to be copied to avoid concurrent map access
+	for k, v := range r.header {
+		req.Header[k] = v
+	}
 	if r.body != nil {
 		body, err := r.body()
 		if err != nil {

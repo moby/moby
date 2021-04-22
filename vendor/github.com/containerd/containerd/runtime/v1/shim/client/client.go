@@ -174,6 +174,7 @@ func eaddrinuse(err error) bool {
 
 // setupOOMScore gets containerd's oom score and adds +1 to it
 // to ensure a shim has a lower* score than the daemons
+// if not already at the maximum OOM Score
 func setupOOMScore(shimPid int) error {
 	pid := os.Getpid()
 	score, err := sys.GetOOMScoreAdj(pid)
@@ -181,6 +182,9 @@ func setupOOMScore(shimPid int) error {
 		return errors.Wrap(err, "get daemon OOM score")
 	}
 	shimScore := score + 1
+	if shimScore > sys.OOMScoreAdjMax {
+		shimScore = sys.OOMScoreAdjMax
+	}
 	if err := sys.SetOOMScore(shimPid, shimScore); err != nil {
 		return errors.Wrap(err, "set shim OOM score")
 	}

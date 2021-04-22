@@ -16,6 +16,11 @@
 
 package sys
 
+const (
+	// OOMScoreAdjMax is not implemented on Windows
+	OOMScoreAdjMax = 0
+)
+
 // SetOOMScore sets the oom score for the process
 //
 // Not implemented on Windows
