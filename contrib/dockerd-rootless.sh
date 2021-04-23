@@ -35,7 +35,7 @@ fi
 
 rootlesskit=""
 for f in docker-rootlesskit rootlesskit; do
-	if which $f > /dev/null 2>&1; then
+	if command -v $f > /dev/null 2>&1; then
 		rootlesskit=$f
 		break
 	fi
@@ -53,7 +53,7 @@ fi
 net=$DOCKERD_ROOTLESS_ROOTLESSKIT_NET
 mtu=$DOCKERD_ROOTLESS_ROOTLESSKIT_MTU
 if [ -z $net ]; then
-	if which slirp4netns > /dev/null 2>&1; then
+	if command -v slirp4netns > /dev/null 2>&1; then
 		# If --netns-type is present in --help, slirp4netns is >= v0.4.0.
 		if slirp4netns --help | grep -qw -- --netns-type; then
 			net=slirp4netns
@@ -65,7 +65,7 @@ if [ -z $net ]; then
 		fi
 	fi
 	if [ -z $net ]; then
-		if which vpnkit > /dev/null 2>&1; then
+		if command -v vpnkit > /dev/null 2>&1; then
 			net=vpnkit
 		else
 			echo "Either slirp4netns (>= v0.4.0) or vpnkit needs to be installed"
