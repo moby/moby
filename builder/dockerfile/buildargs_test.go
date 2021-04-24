@@ -19,6 +19,7 @@ func TestGetAllAllowed(t *testing.T) {
 		"ArgOverriddenByOptions":              strPtr("fromopt2"),
 		"ArgNoDefaultInDockerfileFromOptions": strPtr("fromopt3"),
 		"HTTP_PROXY":                          strPtr("theproxy"),
+		"all_proxy":                           strPtr("theproxy2"),
 	})
 
 	buildArgs.AddMetaArg("ArgFromMeta", strPtr("frommeta1"))
@@ -35,6 +36,7 @@ func TestGetAllAllowed(t *testing.T) {
 	all := buildArgs.GetAllAllowed()
 	expected := map[string]string{
 		"HTTP_PROXY":                          "theproxy",
+		"all_proxy":                           "theproxy2",
 		"ArgOverriddenByOptions":              "fromopt2",
 		"ArgWithDefaultInDockerfile":          "fromdockerfile1",
 		"ArgNoDefaultInDockerfileFromOptions": "fromopt3",
