@@ -19,6 +19,7 @@ type RingLogger struct {
 	l         Logger
 	logInfo   Info
 	closeFlag int32
+	wg        sync.WaitGroup
 }
 
 var _ SizedLogger = &RingLogger{}
@@ -42,6 +43,7 @@ func newRingLogger(driver Logger, logInfo Info, maxSize int64) *RingLogger {
 		l:       driver,
 		logInfo: logInfo,
 	}
+	l.wg.Add(1)
 	go l.run()
 	return l
 }
@@ -93,6 +95,7 @@ func (r *RingLogger) setClosed() {
 func (r *RingLogger) Close() error {
 	r.setClosed()
 	r.buffer.Close()
+	r.wg.Wait()
 	// empty out the queue
 	var logErr bool
 	for _, msg := range r.buffer.Drain() {
@@ -118,6 +121,7 @@ func (r *RingLogger) Close() error {
 // logger.
 // This is run in a goroutine when the RingLogger is created
 func (r *RingLogger) run() {
+	defer r.wg.Done()
 	for {
 		if r.closed() {
 			return
