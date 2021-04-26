@@ -390,7 +390,7 @@ func (w *legacyLayerWriter) CloseRoots() {
 		w.destRoot = nil
 	}
 	for i := range w.parentRoots {
-		w.parentRoots[i].Close()
+		_ = w.parentRoots[i].Close()
 	}
 	w.parentRoots = nil
 }
@@ -640,7 +640,7 @@ func (w *legacyLayerWriter) Add(name string, fileInfo *winio.FileBasicInfo) erro
 		defer func() {
 			if f != nil {
 				f.Close()
-				safefile.RemoveRelative(name, w.destRoot)
+				_ = safefile.RemoveRelative(name, w.destRoot)
 			}
 		}()
 
@@ -676,7 +676,7 @@ func (w *legacyLayerWriter) Add(name string, fileInfo *winio.FileBasicInfo) erro
 	defer func() {
 		if f != nil {
 			f.Close()
-			safefile.RemoveRelative(fname, w.root)
+			_ = safefile.RemoveRelative(fname, w.root)
 		}
 	}()
 

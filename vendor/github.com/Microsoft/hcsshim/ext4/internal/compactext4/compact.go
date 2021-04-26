@@ -514,6 +514,45 @@ func (w *Writer) lookup(name string, mustExist bool) (*inode, *inode, string, er
 	return dir, child, childname, nil
 }
 
+// CreateWithParents adds a file to the file system creating the parent directories in the path if
+// they don't exist (like `mkdir -p`). These non existing parent directories are created
+// with the same permissions as that of it's parent directory. It is expected that the a
+// call to make these parent directories will be made at a later point with the correct
+// permissions, at that time the permissions of these directories will be updated.
+func (w *Writer) CreateWithParents(name string, f *File) error {
+	// go through the directories in the path one by one and create the
+	// parent directories if they don't exist.
+	cleanname := path.Clean("/" + name)[1:]
+	parentDirs, _ := path.Split(cleanname)
+	currentPath := ""
+	root := w.root()
+	dirname := ""
+	for parentDirs != "" {
+		dirname, parentDirs = splitFirst(parentDirs)
+		currentPath += "/" + dirname
+		if _, ok := root.Children[dirname]; !ok {
+			f := &File{
+				Mode:     root.Mode,
+				Atime:    time.Now(),
+				Mtime:    time.Now(),
+				Ctime:    time.Now(),
+				Crtime:   time.Now(),
+				Size:     0,
+				Uid:      root.Uid,
+				Gid:      root.Gid,
+				Devmajor: root.Devmajor,
+				Devminor: root.Devminor,
+				Xattrs:   make(map[string][]byte),
+			}
+			if err := w.Create(currentPath, f); err != nil {
+				return fmt.Errorf("failed while creating parent directories: %w", err)
+			}
+		}
+		root = root.Children[dirname]
+	}
+	return w.Create(name, f)
+}
+
 // Create adds a file to the file system.
 func (w *Writer) Create(name string, f *File) error {
 	if err := w.finishInode(); err != nil {
@@ -693,7 +732,7 @@ func (w *Writer) seekBlock(block uint32) {
 func (w *Writer) nextBlock() {
 	if w.pos%blockSize != 0 {
 		// Simplify callers; w.err is updated on failure.
-		w.zero(blockSize - w.pos%blockSize)
+		_, _ = w.zero(blockSize - w.pos%blockSize)
 	}
 }
 
@@ -743,7 +782,7 @@ func (w *Writer) writeExtents(inode *inode) error {
 			extents [4]format.ExtentLeafNode
 		}
 		fillExtents(&root.hdr, root.extents[:extents], startBlock, 0, blocks)
-		binary.Write(&b, binary.LittleEndian, root)
+		_ = binary.Write(&b, binary.LittleEndian, root)
 	} else if extents <= 4*extentsPerBlock {
 		const extentsPerBlock = blockSize/extentNodeSize - 1
 		extentBlocks := extents/extentsPerBlock + 1
@@ -778,12 +817,12 @@ func (w *Writer) writeExtents(inode *inode) error {
 
 			offset := i * extentsPerBlock * maxBlocksPerExtent
 			fillExtents(&node.hdr, node.extents[:extentsInBlock], startBlock+offset, offset, blocks)
-			binary.Write(&b2, binary.LittleEndian, node)
+			_ = binary.Write(&b2, binary.LittleEndian, node)
 			if _, err := w.write(b2.Next(blockSize)); err != nil {
 				return err
 			}
 		}
-		binary.Write(&b, binary.LittleEndian, root)
+		_ = binary.Write(&b, binary.LittleEndian, root)
 	} else {
 		panic("file too big")
 	}
@@ -924,7 +963,13 @@ func (w *Writer) writeDirectory(dir, parent *inode) error {
 		children = append(children, name)
 	}
 	sort.Slice(children, func(i, j int) bool {
-		return dir.Children[children[i]].Number < dir.Children[children[j]].Number
+		left_num := dir.Children[children[i]].Number
+		right_num := dir.Children[children[j]].Number
+
+		if left_num == right_num {
+			return children[i] < children[j]
+		}
+		return left_num < right_num
 	})
 
 	for _, name := range children {
@@ -945,7 +990,24 @@ func (w *Writer) writeDirectoryRecursive(dir, parent *inode) error {
 	if err := w.writeDirectory(dir, parent); err != nil {
 		return err
 	}
-	for _, child := range dir.Children {
+
+	// Follow e2fsck's convention and sort the children by inode number.
+	var children []string
+	for name := range dir.Children {
+		children = append(children, name)
+	}
+	sort.Slice(children, func(i, j int) bool {
+		left_num := dir.Children[children[i]].Number
+		right_num := dir.Children[children[j]].Number
+
+		if left_num == right_num {
+			return children[i] < children[j]
+		}
+		return left_num < right_num
+	})
+
+	for _, name := range children {
+		child := dir.Children[name]
 		if child.IsDir() {
 			if err := w.writeDirectoryRecursive(child, dir); err != nil {
 				return err
@@ -998,12 +1060,12 @@ func (w *Writer) writeInodeTable(tableSize uint32) error {
 				binary.LittleEndian.PutUint32(binode.Block[4:], dev)
 			}
 
-			binary.Write(&b, binary.LittleEndian, binode)
+			_ = binary.Write(&b, binary.LittleEndian, binode)
 			b.Truncate(inodeUsedSize)
 			n, _ := b.Write(inode.XattrInline)
-			io.CopyN(&b, zero, int64(inodeExtraSize-n))
+			_, _ = io.CopyN(&b, zero, int64(inodeExtraSize-n))
 		} else {
-			io.CopyN(&b, zero, inodeSize)
+			_, _ = io.CopyN(&b, zero, inodeSize)
 		}
 		if _, err := w.write(b.Next(inodeSize)); err != nil {
 			return err
@@ -1136,7 +1198,7 @@ func (w *Writer) Close() error {
 		diskSize = minSize
 	}
 
-	usedGdBlocks := (groups-1)/groupDescriptorSize + 1
+	usedGdBlocks := (groups-1)/groupsPerDescriptorBlock + 1
 	if usedGdBlocks > w.gdBlocks {
 		return exceededMaxSizeError{w.maxDiskSize}
 	}
@@ -1253,7 +1315,7 @@ func (w *Writer) Close() error {
 	if w.supportInlineData {
 		sb.FeatureIncompat |= format.IncompatInlineData
 	}
-	binary.Write(b, binary.LittleEndian, sb)
+	_ = binary.Write(b, binary.LittleEndian, sb)
 	w.seekBlock(0)
 	if _, err := w.write(blk[:]); err != nil {
 		return err

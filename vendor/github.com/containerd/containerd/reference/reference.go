@@ -85,6 +85,10 @@ var splitRe = regexp.MustCompile(`[:@]`)
 
 // Parse parses the string into a structured ref.
 func Parse(s string) (Spec, error) {
+	if strings.Contains(s, "://") {
+		return Spec{}, ErrInvalid
+	}
+
 	u, err := url.Parse("dummy://" + s)
 	if err != nil {
 		return Spec{}, err

@@ -32,4 +32,7 @@ const (
 	// V20H1 (version 2004) corresponds to Windows Server 2004 (semi-annual
 	// channel).
 	V20H1 = 19041
+
+	// V20H2 corresponds to Windows Server 20H2 (semi-annual channel).
+	V20H2 = 19042
 )

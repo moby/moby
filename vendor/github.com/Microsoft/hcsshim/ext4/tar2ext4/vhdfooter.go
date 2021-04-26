@@ -56,7 +56,7 @@ func calculateCheckSum(footer *vhdFooter) uint32 {
 	footer.Checksum = 0
 
 	buf := &bytes.Buffer{}
-	binary.Write(buf, binary.BigEndian, footer)
+	_ = binary.Write(buf, binary.BigEndian, footer)
 
 	var chk uint32
 	bufBytes := buf.Bytes()

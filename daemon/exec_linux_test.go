@@ -5,16 +5,16 @@ package daemon
 import (
 	"testing"
 
+	"github.com/containerd/containerd/pkg/apparmor"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
-	"github.com/opencontainers/runc/libcontainer/apparmor"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"gotest.tools/v3/assert"
 )
 
 func TestExecSetPlatformOpt(t *testing.T) {
-	if !apparmor.IsEnabled() {
+	if !apparmor.HostSupports() {
 		t.Skip("requires AppArmor to be enabled")
 	}
 	d := &Daemon{}
@@ -34,7 +34,7 @@ func TestExecSetPlatformOpt(t *testing.T) {
 // This behavior may change in future, but test for the behavior to prevent it
 // from being changed accidentally.
 func TestExecSetPlatformOptPrivileged(t *testing.T) {
-	if !apparmor.IsEnabled() {
+	if !apparmor.HostSupports() {
 		t.Skip("requires AppArmor to be enabled")
 	}
 	d := &Daemon{}
