@@ -28,7 +28,6 @@
 			"anusha",
 			"coolljt0725",
 			"cpuguy83",
-			"crosbymichael",
 			"estesp",
 			"johnstep",
 			"justincormack",
@@ -102,6 +101,17 @@
 			# David is now doing amazing stuff as CTO for https://www.netlify.com,
 			# and tweets as @calavera.
 			"calavera",
+
+			# Michael Crosby was "chief maintainer" of the Docker project.
+			# During his time as a maintainer, Michael contributed to many
+			# milestones of the project; he was release captain of Docker v1.0.0,
+			# started the development of "libcontainer" (what later became runc)
+			# and containerd, as well as demoing cool hacks such as live migrating
+			# a game server container with checkpoint/restore.
+			#
+			# Michael is currently a maintainer of containerd, but you may see
+			# him around in other projects on GitHub.
+			"crosbymichael",
 
 			# Before becoming a maintainer, Daniel Nephin was a core contributor
 			# to "Fig" (now known as Docker Compose). As a maintainer for both the
