@@ -15,9 +15,11 @@ import (
 	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/streamformatter"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
@@ -50,7 +52,29 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag string, platfor
 
 	err = i.pullImageWithReference(ctx, ref, platform, metaHeaders, authConfig, outStream)
 	imageActions.WithValues("pull").UpdateSince(start)
-	return err
+	if err != nil {
+		return err
+	}
+
+	if platform != nil {
+		// If --platform was specified, check that the image we pulled matches
+		// the expected platform. This check is for situations where the image
+		// is a single-arch image, in which case (for backward compatibility),
+		// we allow the image to have a non-matching architecture. The code
+		// below checks for this situation, and returns a warning to the client,
+		// as well ass logs it to the daemon logs.
+		img, err := i.GetImage(image, platform)
+
+		// Note that this is a special case where GetImage returns both an image
+		// and an error: https://github.com/docker/docker/blob/v20.10.7/daemon/images/image.go#L175-L183
+		if errdefs.IsNotFound(err) && img != nil {
+			po := streamformatter.NewJSONProgressOutput(outStream, false)
+			progress.Messagef(po, "", `WARNING: %s`, err.Error())
+			logrus.WithError(err).WithField("image", image).Warn("ignoring platform mismatch on single-arch image")
+		}
+	}
+
+	return nil
 }
 
 func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference.Named, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
