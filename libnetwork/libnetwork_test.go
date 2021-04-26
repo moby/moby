@@ -16,6 +16,7 @@ import (
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/drivers/bridge"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -199,7 +200,11 @@ func TestBridge(t *testing.T) {
 	if !ok {
 		t.Fatalf("Unexpected format for port mapping in endpoint operational data")
 	}
-	if len(pm) != 10 {
+	expectedLen := 10
+	if !bridge.IsV6Listenable() {
+		expectedLen = 5
+	}
+	if len(pm) != expectedLen {
 		t.Fatalf("Incomplete data for port mapping in endpoint operational data: %d", len(pm))
 	}
 }
