@@ -165,6 +165,16 @@
 			# check out her open source projects on GitHub https://github.com/jessfraz (a must-try).
 			"jessfraz",
 
+			# As a maintainer, John Howard managed to make the impossible possible;
+			# to run Docker on Windows. After facing many challenges, teaching
+			# fellow-maintainers that 'Windows is not Linux', and many changes in
+			# Windows Server to facilitate containers, native Windows containers
+			# saw the light of day in 2015.
+			#
+			# John is now enjoying life without containers: playing piano, painting,
+			# and walking his dogs, but you may occasionally see him drop by on GitHub.
+			"lowenna",
+
 			# Alexander Morozov contributed many features to Docker, worked on the premise of 
 			# what later became containerd (and worked on that too), and made a "stupid" Go
 			# vendor tool specifically for docker/docker needs: vndr (https://github.com/LK4D4/vndr).
