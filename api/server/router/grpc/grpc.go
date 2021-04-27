@@ -2,6 +2,7 @@ package grpc // import "github.com/docker/docker/api/server/router/grpc"
 
 import (
 	"github.com/docker/docker/api/server/router"
+	"github.com/moby/buildkit/util/grpcerrors"
 	"golang.org/x/net/http2"
 	"google.golang.org/grpc"
 )
@@ -14,9 +15,12 @@ type grpcRouter struct {
 
 // NewRouter initializes a new grpc http router
 func NewRouter(backends ...Backend) router.Router {
+	opts := []grpc.ServerOption{grpc.UnaryInterceptor(grpcerrors.UnaryServerInterceptor), grpc.StreamInterceptor(grpcerrors.StreamServerInterceptor)}
+	server := grpc.NewServer(opts...)
+
 	r := &grpcRouter{
 		h2Server:   &http2.Server{},
-		grpcServer: grpc.NewServer(),
+		grpcServer: server,
 	}
 	for _, b := range backends {
 		b.RegisterGRPC(r.grpcServer)
