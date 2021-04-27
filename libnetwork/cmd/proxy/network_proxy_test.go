@@ -6,11 +6,14 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ishidawataru/sctp"
+	"gotest.tools/v3/skip"
+
 	// this takes care of the incontainer flag
 	_ "github.com/docker/docker/libnetwork/testutils"
 )
@@ -282,6 +285,8 @@ func TestUDPWriteError(t *testing.T) {
 }
 
 func TestSCTP4Proxy(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "sctp is not supported on windows")
+
 	backend := NewEchoServer(t, "sctp", "127.0.0.1:0", EchoServerOptions{})
 	defer backend.Close()
 	backend.Run()
@@ -295,6 +300,8 @@ func TestSCTP4Proxy(t *testing.T) {
 
 func TestSCTP6Proxy(t *testing.T) {
 	t.Skip("Need to start CI docker with --ipv6")
+	skip.If(t, runtime.GOOS == "windows", "sctp is not supported on windows")
+
 	backend := NewEchoServer(t, "sctp", "[::1]:0", EchoServerOptions{})
 	defer backend.Close()
 	backend.Run()

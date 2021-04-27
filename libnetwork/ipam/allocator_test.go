@@ -7,24 +7,26 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net"
+	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/docker/libkv/store"
-	"github.com/docker/libkv/store/boltdb"
 	"github.com/docker/docker/libnetwork/bitseq"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	_ "github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/libkv/store"
+	"github.com/docker/libkv/store/boltdb"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
-const (
-	defaultPrefix = "/tmp/libnetwork/test/ipam"
+var (
+	defaultPrefix = filepath.Join(os.TempDir(), "libnetwork", "test", "ipam")
 )
 
 func init() {
@@ -46,7 +48,7 @@ func randomLocalStore(needStore bool) (datastore.DataStore, error) {
 	return datastore.NewDataStore(datastore.LocalScope, &datastore.ScopeCfg{
 		Client: datastore.ScopeClientCfg{
 			Provider: "boltdb",
-			Address:  defaultPrefix + tmp.Name(),
+			Address:  filepath.Join(defaultPrefix, filepath.Base(tmp.Name())),
 			Config: &store.Config{
 				Bucket:            "libnetwork",
 				ConnectionTimeout: 3 * time.Second,

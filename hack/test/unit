@@ -10,7 +10,7 @@
 #
 #   TESTDIRS='./pkg/term' hack/test/unit
 #
-set -eu -o pipefail
+set -eux -o pipefail
 
 BUILDFLAGS=(-tags 'netgo seccomp libdm_no_deferred_remove')
 TESTFLAGS+=" -test.timeout=${TIMEOUT:-5m}"

@@ -4,17 +4,19 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/docker/libkv/store"
-	"github.com/docker/libkv/store/boltdb"
 	"github.com/docker/docker/libnetwork/datastore"
 	_ "github.com/docker/docker/libnetwork/testutils"
+	"github.com/docker/libkv/store"
+	"github.com/docker/libkv/store/boltdb"
 )
 
-const (
-	defaultPrefix = "/tmp/libnetwork/test/bitseq"
+var (
+	defaultPrefix = filepath.Join(os.TempDir(), "libnetwork", "test", "bitseq")
 )
 
 func init() {
@@ -32,7 +34,7 @@ func randomLocalStore() (datastore.DataStore, error) {
 	return datastore.NewDataStore(datastore.LocalScope, &datastore.ScopeCfg{
 		Client: datastore.ScopeClientCfg{
 			Provider: "boltdb",
-			Address:  defaultPrefix + tmp.Name(),
+			Address:  filepath.Join(defaultPrefix, filepath.Base(tmp.Name())),
 			Config: &store.Config{
 				Bucket:            "libnetwork",
 				ConnectionTimeout: 3 * time.Second,
@@ -937,7 +939,7 @@ func TestAllocateRandomDeallocate(t *testing.T) {
 
 	numBlocks := uint32(8)
 	numBits := int(numBlocks * blockLen)
-	hnd, err := NewHandle("bitseq-test/data/", ds, "test1", uint64(numBits))
+	hnd, err := NewHandle(filepath.Join("bitseq", "test", "data"), ds, "test1", uint64(numBits))
 	if err != nil {
 		t.Fatal(err)
 	}
