@@ -190,7 +190,7 @@ pipeline {
                                   -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
-                                  hack/test/unit
+                                  hack/test/unit"
                                 '''
                             }
                             post {
@@ -587,7 +587,7 @@ pipeline {
                                   -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
-                                  hack/test/unit
+                                  hack/test/unit"
                                 '''
                             }
                             post {
@@ -786,7 +786,7 @@ pipeline {
                                   -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
-                                  hack/test/unit
+                                  hack/test/unit"
                                 '''
                             }
                             post {
@@ -982,7 +982,7 @@ pipeline {
                                   -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
-                                  hack/test/unit
+                                  hack/test/unit"
                                 '''
                             }
                             post {
