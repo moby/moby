@@ -1,3 +1,5 @@
+// +build windows
+
 package etw
 
 import (
@@ -117,10 +119,50 @@ func providerIDFromName(name string) guid.GUID {
 	return guid.FromWindowsArray(a)
 }
 
+type providerOpts struct {
+	callback EnableCallback
+	id       guid.GUID
+	group    guid.GUID
+}
+
+// ProviderOpt allows the caller to specify provider options to
+// NewProviderWithOptions
+type ProviderOpt func(*providerOpts)
+
+// WithCallback is used to provide a callback option to NewProviderWithOptions
+func WithCallback(callback EnableCallback) ProviderOpt {
+	return func(opts *providerOpts) {
+		opts.callback = callback
+	}
+}
+
+// WithID is used to provide a provider ID option to NewProviderWithOptions
+func WithID(id guid.GUID) ProviderOpt {
+	return func(opts *providerOpts) {
+		opts.id = id
+	}
+}
+
+// WithGroup is used to provide a provider group option to
+// NewProviderWithOptions
+func WithGroup(group guid.GUID) ProviderOpt {
+	return func(opts *providerOpts) {
+		opts.group = group
+	}
+}
+
+// NewProviderWithID creates and registers a new ETW provider, allowing the
+// provider ID to be manually specified. This is most useful when there is an
+// existing provider ID that must be used to conform to existing diagnostic
+// infrastructure.
+func NewProviderWithID(name string, id guid.GUID, callback EnableCallback) (provider *Provider, err error) {
+	return NewProviderWithOptions(name, WithID(id), WithCallback(callback))
+}
+
 // NewProvider creates and registers a new ETW provider. The provider ID is
 // generated based on the provider name.
 func NewProvider(name string, callback EnableCallback) (provider *Provider, err error) {
-	return NewProviderWithID(name, providerIDFromName(name), callback)
+	return NewProviderWithOptions(name, WithCallback(callback))
 }
 
 // Close unregisters the provider.
