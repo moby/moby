@@ -1,0 +1,44 @@
+
+## path configuration (FHS-style)
+PREFIX  ?= /usr
+SBINDIR ?= $(PREFIX)/sbin
+
+## toolchain commands
+export GO ?= go
+export LDFLAGS=-s -w
+
+PROGS=$(CURDIR)/dockerd $(CURDIR)/docker-proxy
+
+all: compile
+
+compile: $(PROGS)
+
+## generate go.mod from vendor tree
+$(CURDIR)/go.mod: vendor/modules.txt
+	@( \
+		echo "module github.com/docker/docker" ; \
+		echo "" ; \
+		echo "go 1.19" ; \
+		echo "" ; \
+		echo "require (" ; \
+		cat $< | grep -E '^# ' | grep -Ev '^## ' | sed -e 's~^# ~\t~;' ; \
+		echo ")" ; \
+	) > $@
+
+$(CURDIR)/dockerd: $(CURDIR)/go.mod
+	$(GO) build -tags "$(GO_BUILD_TAGS)" -ldflags "$(LDFLAGS)" -mod=vendor -o $@ $(CURDIR)/cmd/dockerd
+
+$(CURDIR)/docker-proxy: $(CURDIR)/go.mod
+	$(GO) build -tags "$(GO_BUILD_TAGS)" -ldflags "$(LDFLAGS)" -mod=vendor -o $@ $(CURDIR)/cmd/docker-proxy
+
+clean:
+	rm -Rf $(CURDIR)/go.mod $(PROGS)
+
+install: compile
+	install -D -m755 $(CURDIR)/contrib/init/sysvinit-debian/docker $(DESTDIR)/etc/init.d/docker
+	install -D -m755 $(CURDIR)/dockerd                             $(DESTDIR)/$(SBINDIR)/dockerd
+	install -D -m755 $(CURDIR)/docker-proxy                        $(DESTDIR)/$(SBINDIR)/docker-proxy
+	install -d $(DESTDIR)/etc/docker
+	install -d $(DESTDIR)/var/lib/docker
+
+.PHONY: all
