@@ -832,13 +832,13 @@ func writeLayerReexec() {
 
 // writeLayer writes a layer from a tar file.
 func writeLayer(layerData io.Reader, home string, id string, parentLayerPaths ...string) (size int64, retErr error) {
-	err := winio.EnableProcessPrivileges([]string{winio.SeBackupPrivilege, winio.SeRestorePrivilege})
+	err := winio.EnableProcessPrivileges([]string{winio.SeSecurityPrivilege, winio.SeBackupPrivilege, winio.SeRestorePrivilege})
 	if err != nil {
 		return 0, err
 	}
 	if noreexec {
 		defer func() {
-			if err := winio.DisableProcessPrivileges([]string{winio.SeBackupPrivilege, winio.SeRestorePrivilege}); err != nil {
+			if err := winio.DisableProcessPrivileges([]string{winio.SeSecurityPrivilege, winio.SeBackupPrivilege, winio.SeRestorePrivilege}); err != nil {
 				// This should never happen, but just in case when in debugging mode.
 				// See https://github.com/docker/docker/pull/28002#discussion_r86259241 for rationale.
 				panic("Failed to disabled process privileges while in non re-exec mode")
