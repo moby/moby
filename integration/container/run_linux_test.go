@@ -2,7 +2,6 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"context"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -16,40 +15,6 @@ import (
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
-
-func TestKernelTCPMemory(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "skip test from new feature")
-	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
-	skip.If(t, !testEnv.DaemonInfo.KernelMemoryTCP)
-
-	defer setupTest(t)()
-	client := testEnv.APIClient()
-	ctx := context.Background()
-
-	const (
-		kernelMemoryTCP int64 = 200 * 1024 * 1024
-	)
-
-	cID := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
-		c.HostConfig.Resources = containertypes.Resources{
-			KernelMemoryTCP: kernelMemoryTCP,
-		}
-	})
-
-	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
-
-	inspect, err := client.ContainerInspect(ctx, cID)
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(kernelMemoryTCP, inspect.HostConfig.KernelMemoryTCP))
-
-	res, err := container.Exec(ctx, client, cID,
-		[]string{"cat", "/sys/fs/cgroup/memory/memory.kmem.tcp.limit_in_bytes"})
-	assert.NilError(t, err)
-	assert.Assert(t, is.Len(res.Stderr(), 0))
-	assert.Equal(t, 0, res.ExitCode)
-	assert.Check(t, is.Equal(strconv.FormatInt(kernelMemoryTCP, 10), strings.TrimSpace(res.Stdout())))
-}
 
 func TestNISDomainname(t *testing.T) {
 	// Older versions of the daemon would concatenate hostname and domainname,
