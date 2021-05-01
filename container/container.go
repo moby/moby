@@ -717,6 +717,17 @@ func getSecretTargetPath(r *swarmtypes.SecretReference) string {
 	return filepath.Join(containerSecretMountPath, r.File.Name)
 }
 
+// getConfigTargetPath makes sure that config paths inside the container are
+// absolute, as required by the runtime spec, and enforced by runc >= 1.0.0-rc94.
+// see https://github.com/opencontainers/runc/issues/2928
+func getConfigTargetPath(r *swarmtypes.ConfigReference) string {
+	if filepath.IsAbs(r.File.Name) {
+		return r.File.Name
+	}
+
+	return filepath.Join(containerConfigMountPath, r.File.Name)
+}
+
 // CreateDaemonEnvironment creates a new environment variable slice for this container.
 func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string) []string {
 	// Setup environment
