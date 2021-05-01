@@ -241,8 +241,11 @@ func (container *Container) SecretMounts() ([]Mount, error) {
 			return nil, err
 		}
 		mounts = append(mounts, Mount{
-			Source:      fPath,
-			Destination: r.File.Name,
+			Source: fPath,
+			// runc >= 1.0.0-rc94 wants Destination to be absolute,
+			// so we prepend "/" here.
+			// https://github.com/opencontainers/runc/issues/2928
+			Destination: "/" + r.File.Name,
 			Writable:    false,
 		})
 	}
