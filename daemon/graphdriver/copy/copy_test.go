@@ -33,6 +33,7 @@ func TestCopyWithoutRange(t *testing.T) {
 func TestCopyDir(t *testing.T) {
 	srcDir, err := ioutil.TempDir("", "srcDir")
 	assert.NilError(t, err)
+	defer os.RemoveAll(srcDir)
 	populateSrcDir(t, srcDir, 3)
 
 	dstDir, err := ioutil.TempDir("", "testdst")
@@ -111,7 +112,7 @@ func doCopyTest(t *testing.T, copyWithFileRange, copyWithFileClone *bool) {
 	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
 	srcFilename := filepath.Join(dir, "srcFilename")
-	dstFilename := filepath.Join(dir, "dstilename")
+	dstFilename := filepath.Join(dir, "dstFilename")
 
 	r := rand.New(rand.NewSource(0))
 	buf := make([]byte, 1024)
