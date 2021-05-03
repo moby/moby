@@ -22,6 +22,30 @@ func NewRefCounter(c Checker) *RefCounter {
 	}
 }
 
+// Get returns the current count for the given id
+func (c *RefCounter) Get(path string) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	m := c.counts[path]
+	if m == nil {
+		return 0
+	}
+	count := m.count
+	return count
+}
+
+// Delete delete the give id from the counts
+func (c *RefCounter) Delete(path string) {
+	c.mu.Lock()
+	if m, ok := c.counts[path]; ok {
+		count := m.count
+		if count <= 0 {
+			delete(c.counts, path)
+		}
+	}
+	c.mu.Unlock()
+}
+
 // Increment increases the ref count for the given id and returns the current count
 func (c *RefCounter) Increment(path string) int {
 	return c.incdec(path, func(minfo *minfo) {
@@ -54,9 +78,6 @@ func (c *RefCounter) incdec(path string, infoOp func(minfo *minfo)) int {
 	}
 	infoOp(m)
 	count := m.count
-	if count <= 0 {
-		delete(c.counts, path)
-	}
 	c.mu.Unlock()
 	return count
 }
