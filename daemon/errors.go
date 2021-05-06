@@ -141,11 +141,10 @@ func translateContainerdStartErr(cmd string, setExitCode func(int), err error) e
 	// if we receive an internal error from the initial start of a container then lets
 	// return it instead of entering the restart loop
 	// set to 127 for container cmd not found/does not exist)
-	if contains(errDesc, cmd) &&
-		(contains(errDesc, "executable file not found") ||
-			contains(errDesc, "no such file or directory") ||
-			contains(errDesc, "system cannot find the file specified") ||
-			contains(errDesc, "failed to run runc create/exec call")) {
+	if contains(errDesc, "executable file not found") ||
+		contains(errDesc, "no such file or directory") ||
+		contains(errDesc, "system cannot find the file specified") ||
+		contains(errDesc, "failed to run runc create/exec call") {
 		setExitCode(127)
 		retErr = startInvalidConfigError(errDesc)
 	}
