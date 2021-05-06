@@ -43,7 +43,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const configFileName = "config.v2.json"
+const (
+	configFileName     = "config.v2.json"
+	hostConfigFileName = "hostconfig.json"
+)
 
 // ExitStatus provides exit reasons for a container.
 type ExitStatus struct {
@@ -158,12 +161,9 @@ func (container *Container) FromDisk() error {
 	return container.readHostConfig()
 }
 
-// toDisk saves the container configuration on disk and returns a deep copy.
+// toDisk writes the container's configuration (config.v2.json, hostconfig.json)
+// to disk and returns a deep copy.
 func (container *Container) toDisk() (*Container, error) {
-	var (
-		buf      bytes.Buffer
-		deepCopy Container
-	)
 	pth, err := container.ConfigPath()
 	if err != nil {
 		return nil, err
@@ -176,11 +176,13 @@ func (container *Container) toDisk() (*Container, error) {
 	}
 	defer f.Close()
 
+	var buf bytes.Buffer
 	w := io.MultiWriter(&buf, f)
 	if err := json.NewEncoder(w).Encode(container); err != nil {
 		return nil, err
 	}
 
+	var deepCopy Container
 	if err := json.NewDecoder(&buf).Decode(&deepCopy); err != nil {
 		return nil, err
 	}
@@ -188,7 +190,6 @@ func (container *Container) toDisk() (*Container, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &deepCopy, nil
 }
 
@@ -244,7 +245,7 @@ func (container *Container) WriteHostConfig() (*containertypes.HostConfig, error
 		return nil, err
 	}
 
-	f, err := ioutils.NewAtomicFileWriter(pth, 0644)
+	f, err := ioutils.NewAtomicFileWriter(pth, 0600)
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +349,7 @@ func (container *Container) ExitOnNext() {
 
 // HostConfigPath returns the path to the container's JSON hostconfig
 func (container *Container) HostConfigPath() (string, error) {
-	return container.GetRootResourcePath("hostconfig.json")
+	return container.GetRootResourcePath(hostConfigFileName)
 }
 
 // ConfigPath returns the path to the container's JSON config
