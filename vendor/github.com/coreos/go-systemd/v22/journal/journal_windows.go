@@ -23,24 +23,13 @@
 package journal
 
 import (
-	"fmt"
+	"errors"
 )
 
-// Priority of a journal message
-type Priority int
+func Enabled() bool {
+	return false
+}
 
-const (
-	PriEmerg Priority = iota
-	PriAlert
-	PriCrit
-	PriErr
-	PriWarning
-	PriNotice
-	PriInfo
-	PriDebug
-)
-
-// Print prints a message to the local systemd journal using Send().
-func Print(priority Priority, format string, a ...interface{}) error {
-	return Send(fmt.Sprintf(format, a...), priority, nil)
+func Send(message string, priority Priority, vars map[string]string) error {
+	return errors.New("could not initialize socket to journald")
 }
