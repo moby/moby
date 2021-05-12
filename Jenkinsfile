@@ -14,8 +14,8 @@ pipeline {
         booleanParam(name: 'rootless', defaultValue: true, description: 'amd64 (x86_64) Build/Test (Rootless mode)')
         booleanParam(name: 'cgroup2', defaultValue: true, description: 'amd64 (x86_64) Build/Test (cgroup v2)')
         booleanParam(name: 'arm64', defaultValue: true, description: 'ARM (arm64) Build/Test')
-        booleanParam(name: 's390x', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
-        booleanParam(name: 'ppc64le', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
+        booleanParam(name: 's390x', defaultValue: false, description: 'IBM Z (s390x) Build/Test')
+        booleanParam(name: 'ppc64le', defaultValue: false, description: 'PowerPC (ppc64le) Build/Test')
         booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
         booleanParam(name: 'windowsRS5', defaultValue: true, description: 'Windows 2019 (RS5) Build/Test')
         booleanParam(name: 'windows2022', defaultValue: true, description: 'Windows 2022 (SAC) Build/Test')
@@ -548,7 +548,11 @@ pipeline {
                 stage('s390x') {
                     when {
                         beforeAgent true
-                        expression { params.s390x }
+                        // Skip this stage on PRs unless the checkbox is selected
+                        anyOf {
+                            not { changeRequest() }
+                            expression { params.s390x }
+                        }
                     }
                     agent { label 's390x-ubuntu-1804' }
 
@@ -736,7 +740,11 @@ pipeline {
                 stage('ppc64le') {
                     when {
                         beforeAgent true
-                        expression { params.ppc64le }
+                        // Skip this stage on PRs unless the checkbox is selected
+                        anyOf {
+                            not { changeRequest() }
+                            expression { params.ppc64le }
+                        }
                     }
                     agent { label 'ppc64le-ubuntu-1604' }
                     // ppc64le machines run on Docker 18.06, and buildkit has some
