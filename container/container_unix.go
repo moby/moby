@@ -27,6 +27,7 @@ const (
 	// for the graceful container stop before forcefully terminating it.
 	DefaultStopTimeout = 10
 
+	containerConfigMountPath = "/"
 	containerSecretMountPath = "/run/secrets"
 )
 
@@ -242,7 +243,7 @@ func (container *Container) SecretMounts() ([]Mount, error) {
 		}
 		mounts = append(mounts, Mount{
 			Source:      fPath,
-			Destination: r.File.Name,
+			Destination: getConfigTargetPath(r),
 			Writable:    false,
 		})
 	}
