@@ -49,6 +49,14 @@ func (cli *Client) postRaw(ctx context.Context, path string, query url.Values, b
 	return cli.sendRequest(ctx, http.MethodPost, path, query, body, headers)
 }
 
+func (cli *Client) put(ctx context.Context, path string, query url.Values, obj interface{}, headers map[string][]string) (serverResponse, error) {
+	body, headers, err := encodeBody(obj, headers)
+	if err != nil {
+		return serverResponse{}, err
+	}
+	return cli.sendRequest(ctx, http.MethodPut, path, query, body, headers)
+}
+
 // putRaw sends an http request to the docker API using the method PUT.
 func (cli *Client) putRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (serverResponse, error) {
 	return cli.sendRequest(ctx, http.MethodPut, path, query, body, headers)
