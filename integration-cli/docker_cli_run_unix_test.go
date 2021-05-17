@@ -495,33 +495,6 @@ func (s *DockerSuite) TestRunWithInvalidCpuPeriod(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, expected))
 }
 
-func (s *DockerSuite) TestRunWithKernelMemory(c *testing.T) {
-	testRequires(c, DaemonIsLinux, kernelMemorySupport)
-
-	file := "/sys/fs/cgroup/memory/memory.kmem.limit_in_bytes"
-	cli.DockerCmd(c, "run", "--kernel-memory", "50M", "--name", "test1", "busybox", "cat", file).Assert(c, icmd.Expected{
-		Out: "52428800",
-	})
-
-	cli.InspectCmd(c, "test1", cli.Format(".HostConfig.KernelMemory")).Assert(c, icmd.Expected{
-		Out: "52428800",
-	})
-}
-
-func (s *DockerSuite) TestRunWithInvalidKernelMemory(c *testing.T) {
-	testRequires(c, DaemonIsLinux, kernelMemorySupport)
-
-	out, _, err := dockerCmdWithError("run", "--kernel-memory", "2M", "busybox", "true")
-	assert.ErrorContains(c, err, "")
-	expected := "Minimum kernel memory limit allowed is 4MB"
-	assert.Assert(c, strings.Contains(out, expected))
-
-	out, _, err = dockerCmdWithError("run", "--kernel-memory", "-16m", "--name", "test2", "busybox", "echo", "test")
-	assert.ErrorContains(c, err, "")
-	expected = "invalid size"
-	assert.Assert(c, strings.Contains(out, expected))
-}
-
 func (s *DockerSuite) TestRunWithCPUShares(c *testing.T) {
 	testRequires(c, cpuShare)
 
