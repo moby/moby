@@ -1,6 +1,7 @@
 package signal // import "github.com/docker/docker/pkg/signal"
 
 import (
+	"os"
 	"syscall"
 )
 
@@ -23,4 +24,8 @@ const (
 var SignalMap = map[string]syscall.Signal{
 	"KILL": syscall.SIGKILL,
 	"TERM": syscall.SIGTERM,
+}
+
+func isRuntimeSig(_ os.Signal) bool {
+	return false
 }
