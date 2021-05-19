@@ -4,6 +4,7 @@
 package signal // import "github.com/docker/docker/pkg/signal"
 
 import (
+	"os"
 	"syscall"
 
 	"golang.org/x/sys/unix"
@@ -81,4 +82,8 @@ var SignalMap = map[string]syscall.Signal{
 	"RTMAX-2":  sigrtmax - 2,
 	"RTMAX-1":  sigrtmax - 1,
 	"RTMAX":    sigrtmax,
+}
+
+func isRuntimeSig(s os.Signal) bool {
+	return s == unix.SIGURG
 }
