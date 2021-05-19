@@ -14,7 +14,6 @@ import (
 	"github.com/creack/pty"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 )
@@ -120,67 +119,6 @@ func (s *DockerSuite) TestUpdateContainerWithoutFlags(c *testing.T) {
 	dockerCmd(c, "run", "-d", "--name", name, "-m", "300M", "busybox", "true")
 	_, _, err := dockerCmdWithError("update", name)
 	assert.ErrorContains(c, err, "")
-}
-
-func (s *DockerSuite) TestUpdateKernelMemory(c *testing.T) {
-	testRequires(c, DaemonIsLinux, kernelMemorySupport)
-
-	name := "test-update-container"
-	dockerCmd(c, "run", "-d", "--name", name, "--kernel-memory", "50M", "busybox", "top")
-	dockerCmd(c, "update", "--kernel-memory", "100M", name)
-
-	assert.Equal(c, inspectField(c, name, "HostConfig.KernelMemory"), "104857600")
-
-	file := "/sys/fs/cgroup/memory/memory.kmem.limit_in_bytes"
-	out, _ := dockerCmd(c, "exec", name, "cat", file)
-	assert.Equal(c, strings.TrimSpace(out), "104857600")
-}
-
-func (s *DockerSuite) TestUpdateKernelMemoryUninitialized(c *testing.T) {
-	testRequires(c, DaemonIsLinux, kernelMemorySupport)
-
-	isNewKernel := CheckKernelVersion(4, 6, 0)
-	name := "test-update-container"
-	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
-	_, _, err := dockerCmdWithError("update", "--kernel-memory", "100M", name)
-	// Update kernel memory to a running container without kernel memory initialized
-	// is not allowed before kernel version 4.6.
-	if !isNewKernel {
-		assert.ErrorContains(c, err, "")
-	} else {
-		assert.NilError(c, err)
-	}
-
-	dockerCmd(c, "pause", name)
-	_, _, err = dockerCmdWithError("update", "--kernel-memory", "200M", name)
-	if !isNewKernel {
-		assert.ErrorContains(c, err, "")
-	} else {
-		assert.NilError(c, err)
-	}
-	dockerCmd(c, "unpause", name)
-
-	dockerCmd(c, "stop", name)
-	dockerCmd(c, "update", "--kernel-memory", "300M", name)
-	dockerCmd(c, "start", name)
-
-	assert.Equal(c, inspectField(c, name, "HostConfig.KernelMemory"), "314572800")
-
-	file := "/sys/fs/cgroup/memory/memory.kmem.limit_in_bytes"
-	out, _ := dockerCmd(c, "exec", name, "cat", file)
-	assert.Equal(c, strings.TrimSpace(out), "314572800")
-}
-
-// GetKernelVersion gets the current kernel version.
-func GetKernelVersion() *kernel.VersionInfo {
-	v, _ := kernel.ParseRelease(testEnv.DaemonInfo.KernelVersion)
-	return v
-}
-
-// CheckKernelVersion checks if current kernel is newer than (or equal to)
-// the given version.
-func CheckKernelVersion(k, major, minor int) bool {
-	return kernel.CompareKernelVersion(*GetKernelVersion(), kernel.VersionInfo{Kernel: k, Major: major, Minor: minor}) >= 0
 }
 
 func (s *DockerSuite) TestUpdateSwapMemoryOnly(c *testing.T) {
