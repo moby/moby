@@ -1,6 +1,7 @@
 package signal // import "github.com/docker/docker/pkg/signal"
 
 import (
+	"os"
 	"syscall"
 )
 
@@ -38,4 +39,8 @@ var SignalMap = map[string]syscall.Signal{
 	"WINCH":  syscall.SIGWINCH,
 	"XCPU":   syscall.SIGXCPU,
 	"XFSZ":   syscall.SIGXFSZ,
+}
+
+func isRuntimeSig(_ os.Signal) bool {
+	return false
 }
