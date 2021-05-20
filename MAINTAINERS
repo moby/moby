@@ -34,6 +34,7 @@
 			"kolyshkin",
 			"mhbauer",
 			"runcom",
+			"samuelkarp",
 			"stevvooe",
 			"thajeztah",
 			"tianon",
@@ -441,6 +442,11 @@
 	Name = "Antonio Murdaca"
 	Email = "runcom@redhat.com"
 	GitHub = "runcom"
+
+	[people.samuelkarp]
+	Name = "Samuel Karp"
+	Email = "skarp@amazon.com"
+	GitHub = "samuelkarp"
 
 	[people.samwhited]
 	Name = "Sam Whited"
