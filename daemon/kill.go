@@ -137,6 +137,8 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 		return errNotRunning(container.ID)
 	}
 
+	waitStop := container.GetWaitStop()
+
 	// 1. Send SIGKILL
 	if err := daemon.killPossiblyDeadProcess(container, int(syscall.SIGKILL)); err != nil {
 		// While normally we might "return err" here we're not going to
@@ -171,7 +173,7 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 
 	// Wait for exit with no timeout.
 	// Ignore returned status.
-	<-container.Wait(context.Background(), containerpkg.WaitConditionNotRunning)
+	<-container.Wait3(context.Background(), containerpkg.WaitConditionNotRunning, waitStop)
 
 	return nil
 }

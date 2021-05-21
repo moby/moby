@@ -65,6 +65,10 @@ func NewState() *State {
 	}
 }
 
+func (s State) GetWaitStop() chan struct{} {
+	return s.waitStop
+}
+
 // String returns a human-readable description of the state
 func (s *State) String() string {
 	if s.Running {
@@ -179,6 +183,11 @@ const (
 // otherwise, the results Err() method will return an error indicating why the
 // wait operation failed.
 func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateStatus {
+	return s.Wait3(ctx, condition, nil)
+}
+
+func (s *State) Wait3(ctx context.Context, condition WaitCondition, waitStop chan struct{}) <-chan StateStatus {
+
 	s.Lock()
 	defer s.Unlock()
 
@@ -197,9 +206,10 @@ func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateS
 
 	// If we are waiting only for removal, the waitStop channel should
 	// remain nil and block forever.
-	var waitStop chan struct{}
 	if condition < WaitConditionRemoved {
-		waitStop = s.waitStop
+		if waitStop == nil {
+			waitStop = s.waitStop
+		}
 	}
 
 	// Always wait for removal, just in case the container gets removed
