@@ -54,10 +54,12 @@ func testNetwork(networkType string, t *testing.T) {
 }
 
 func TestNAT(t *testing.T) {
+	t.Skip("Test does not work on CI and was never running to begin with")
 	testNetwork("nat", t)
 }
 
 func TestTransparent(t *testing.T) {
+	t.Skip("Test does not work on CI and was never running to begin with")
 	testNetwork("transparent", t)
 }
 
