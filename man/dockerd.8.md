@@ -75,6 +75,7 @@ dockerd - Enable daemon mode
 [**--userland-proxy**[=*true*]]
 [**--userland-proxy-path**[=*""*]]
 [**--userns-remap**[=*default*]]
+[**--validate**]
 
 # DESCRIPTION
 **dockerd** is used for starting the Docker daemon (i.e., to command the daemon
@@ -410,6 +411,9 @@ unix://[/path/to/socket] to use.
   Specifying a user (or uid) and optionally a group (or gid) will cause the
   daemon to lookup the user and group's subordinate ID ranges for use as the
   user namespace mappings for contained processes.
+
+**--validate**
+  Validate daemon configuration and exit.
 
 # STORAGE DRIVER OPTIONS
 
