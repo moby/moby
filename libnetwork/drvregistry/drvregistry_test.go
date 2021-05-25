@@ -1,6 +1,7 @@
 package drvregistry
 
 import (
+	"runtime"
 	"sort"
 	"testing"
 
@@ -181,7 +182,11 @@ func TestWalkIPAMs(t *testing.T) {
 	})
 
 	sort.Strings(ipams)
-	assert.Check(t, is.DeepEqual(ipams, []string{"default", "null"}))
+	expected := []string{"default", "null"}
+	if runtime.GOOS == "windows" {
+		expected = append(expected, "windows")
+	}
+	assert.Check(t, is.DeepEqual(ipams, expected))
 }
 
 func TestWalkDrivers(t *testing.T) {

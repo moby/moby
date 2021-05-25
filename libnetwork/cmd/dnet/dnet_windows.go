@@ -17,7 +17,7 @@ func setupDumpStackTrap() {
 		}
 		ev, _ := windows.UTF16PtrFromString("Global\\docker-daemon-" + fmt.Sprint(os.Getpid()))
 		if h, _ := windows.CreateEvent(&sa, 0, 0, ev); h != 0 {
-			logrus.Debugf("Stackdump - waiting signal at %s", ev)
+			logrus.Debugf("Stackdump - waiting signal at %d", *ev)
 			for {
 				windows.WaitForSingleObject(h, windows.INFINITE)
 				signal.DumpStacks("")
