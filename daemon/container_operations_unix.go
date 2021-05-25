@@ -3,13 +3,11 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
-	"time"
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/links"
@@ -336,38 +334,32 @@ func (daemon *Daemon) cleanupSecretDir(c *container.Container) {
 	}
 }
 
-func killProcessDirectly(cntr *container.Container) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+func killProcessDirectly(container *container.Container) error {
+	pid := container.GetPID()
+	// Ensure that we don't kill ourselves
+	if pid == 0 {
+		return nil
+	}
 
-	// Block until the container to stops or timeout.
-	status := <-cntr.Wait(ctx, container.WaitConditionNotRunning)
-	if status.Err() != nil {
-		// Ensure that we don't kill ourselves
-		if pid := cntr.GetPID(); pid != 0 {
-			logrus.Infof("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", stringid.TruncateID(cntr.ID))
-			if err := unix.Kill(pid, 9); err != nil {
-				if err != unix.ESRCH {
-					return err
-				}
-				e := errNoSuchProcess{pid, 9}
-				logrus.Debug(e)
-				return e
-			}
+	if err := unix.Kill(pid, 9); err != nil {
+		if err != unix.ESRCH {
+			return err
+		}
+		e := errNoSuchProcess{pid, 9}
+		logrus.WithError(e).WithField("container", container.ID).Debug("no such process")
+		return e
+	}
 
-			// In case there were some exceptions(e.g., state of zombie and D)
-			if system.IsProcessAlive(pid) {
-
-				// Since we can not kill a zombie pid, add zombie check here
-				isZombie, err := system.IsProcessZombie(pid)
-				if err != nil {
-					logrus.Warnf("Container %s state is invalid", stringid.TruncateID(cntr.ID))
-					return err
-				}
-				if isZombie {
-					return errdefs.System(errors.Errorf("container %s PID %d is zombie and can not be killed. Use the --init option when creating containers to run an init inside the container that forwards signals and reaps processes", stringid.TruncateID(cntr.ID), pid))
-				}
-			}
+	// In case there were some exceptions(e.g., state of zombie and D)
+	if system.IsProcessAlive(pid) {
+		// Since we can not kill a zombie pid, add zombie check here
+		isZombie, err := system.IsProcessZombie(pid)
+		if err != nil {
+			logrus.WithError(err).WithField("container", container.ID).Warn("Container state is invalid")
+			return err
+		}
+		if isZombie {
+			return errdefs.System(errors.Errorf("container %s PID %d is zombie and can not be killed. Use the --init option when creating containers to run an init inside the container that forwards signals and reaps processes", stringid.TruncateID(container.ID), pid))
 		}
 	}
 	return nil
