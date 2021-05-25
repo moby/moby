@@ -181,6 +181,9 @@ pipeline {
                         stage("Unit tests") {
                             steps {
                                 sh '''
+                                sudo modprobe ip6table_filter
+                                '''
+                                sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
@@ -578,6 +581,9 @@ pipeline {
                         stage("Unit tests") {
                             steps {
                                 sh '''
+                                sudo modprobe ip6table_filter
+                                '''
+                                sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
@@ -777,6 +783,9 @@ pipeline {
                         stage("Unit tests") {
                             steps {
                                 sh '''
+                                sudo modprobe ip6table_filter
+                                '''
+                                sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
@@ -972,6 +981,9 @@ pipeline {
                         }
                         stage("Unit tests") {
                             steps {
+                                sh '''
+                                sudo modprobe ip6table_filter
+                                '''
                                 sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
