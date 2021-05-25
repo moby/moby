@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 
 	"github.com/docker/libnetwork/types"
 	"github.com/ishidawataru/sctp"
@@ -48,6 +49,13 @@ func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, cont
 				return nil, err
 			}
 			bs = append(bs, bIPv4)
+		}
+
+		// skip adding implicit v6 addr, when the kernel was booted with `ipv6.disable=1`
+		// https://github.com/moby/moby/issues/42288
+		isV6Binding := c.HostIP != nil && c.HostIP.To4() == nil
+		if !isV6Binding && !IsV6Listenable() {
+			continue
 		}
 
 		// Allocate IPv6 Port mappings
@@ -210,4 +218,27 @@ func (n *bridgeNetwork) releasePort(bnd types.PortBinding) error {
 	}
 
 	return portmapper.Unmap(host)
+}
+
+var (
+	v6ListenableCached bool
+	v6ListenableOnce   sync.Once
+)
+
+// IsV6Listenable returns true when `[::1]:0` is listenable.
+// IsV6Listenable returns false mostly when the kernel was booted with `ipv6.disable=1` option.
+func IsV6Listenable() bool {
+	v6ListenableOnce.Do(func() {
+		ln, err := net.Listen("tcp6", "[::1]:0")
+		if err != nil {
+			// When the kernel was booted with `ipv6.disable=1`,
+			// we get err "listen tcp6 [::1]:0: socket: address family not supported by protocol"
+			// https://github.com/moby/moby/issues/42288
+			logrus.Debugf("port_mapping: v6Listenable=false (%v)", err)
+		} else {
+			v6ListenableCached = true
+			ln.Close()
+		}
+	})
+	return v6ListenableCached
 }
