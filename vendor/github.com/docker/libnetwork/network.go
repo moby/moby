@@ -1409,21 +1409,21 @@ func (n *network) addSvcRecords(eID, name, serviceID string, epIP, epIPv6 net.IP
 	if n.ingress {
 		return
 	}
-
-	logrus.Debugf("%s (%.7s).addSvcRecords(%s, %s, %s, %t) %s sid:%s", eID, n.ID(), name, epIP, epIPv6, ipMapUpdate, method, serviceID)
+	networkID := n.ID()
+	logrus.Debugf("%s (%.7s).addSvcRecords(%s, %s, %s, %t) %s sid:%s", eID, networkID, name, epIP, epIPv6, ipMapUpdate, method, serviceID)
 
 	c := n.getController()
 	c.Lock()
 	defer c.Unlock()
 
-	sr, ok := c.svcRecords[n.ID()]
+	sr, ok := c.svcRecords[networkID]
 	if !ok {
 		sr = svcInfo{
 			svcMap:     setmatrix.NewSetMatrix(),
 			svcIPv6Map: setmatrix.NewSetMatrix(),
 			ipMap:      setmatrix.NewSetMatrix(),
 		}
-		c.svcRecords[n.ID()] = sr
+		c.svcRecords[networkID] = sr
 	}
 
 	if ipMapUpdate {
@@ -1445,14 +1445,14 @@ func (n *network) deleteSvcRecords(eID, name, serviceID string, epIP net.IP, epI
 	if n.ingress {
 		return
 	}
-
-	logrus.Debugf("%s (%.7s).deleteSvcRecords(%s, %s, %s, %t) %s sid:%s ", eID, n.ID(), name, epIP, epIPv6, ipMapUpdate, method, serviceID)
+	networkID := n.ID()
+	logrus.Debugf("%s (%.7s).deleteSvcRecords(%s, %s, %s, %t) %s sid:%s ", eID, networkID, name, epIP, epIPv6, ipMapUpdate, method, serviceID)
 
 	c := n.getController()
 	c.Lock()
 	defer c.Unlock()
 
-	sr, ok := c.svcRecords[n.ID()]
+	sr, ok := c.svcRecords[networkID]
 	if !ok {
 		return
 	}
@@ -1972,9 +1972,10 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 	var ipv6Miss bool
 
 	c := n.getController()
+	networkID := n.ID()
 	c.Lock()
 	defer c.Unlock()
-	sr, ok := c.svcRecords[n.ID()]
+	sr, ok := c.svcRecords[networkID]
 
 	if !ok {
 		return nil, false
@@ -2012,10 +2013,11 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 }
 
 func (n *network) HandleQueryResp(name string, ip net.IP) {
+	networkID := n.ID()
 	c := n.getController()
 	c.Lock()
 	defer c.Unlock()
-	sr, ok := c.svcRecords[n.ID()]
+	sr, ok := c.svcRecords[networkID]
 
 	if !ok {
 		return
@@ -2031,10 +2033,11 @@ func (n *network) HandleQueryResp(name string, ip net.IP) {
 }
 
 func (n *network) ResolveIP(ip string) string {
+	networkID := n.ID()
 	c := n.getController()
 	c.Lock()
 	defer c.Unlock()
-	sr, ok := c.svcRecords[n.ID()]
+	sr, ok := c.svcRecords[networkID]
 
 	if !ok {
 		return ""
@@ -2085,9 +2088,10 @@ func (n *network) ResolveService(name string) ([]*net.SRV, []net.IP) {
 	proto := parts[1]
 	svcName := strings.Join(parts[2:], ".")
 
+	networkID := n.ID()
 	c.Lock()
 	defer c.Unlock()
-	sr, ok := c.svcRecords[n.ID()]
+	sr, ok := c.svcRecords[networkID]
 
 	if !ok {
 		return nil, nil
