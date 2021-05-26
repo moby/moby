@@ -69,8 +69,8 @@ func cloneExecOp(old *pb.ExecOp) pb.ExecOp {
 	}
 	n.Meta = &meta
 	n.Mounts = nil
-	for i := range n.Mounts {
-		m := *n.Mounts[i]
+	for i := range old.Mounts {
+		m := *old.Mounts[i]
 		n.Mounts = append(n.Mounts, &m)
 	}
 	return n
@@ -95,6 +95,22 @@ func (e *execOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 			Architecture: e.platform.Architecture,
 			Variant:      e.platform.Variant,
 		}
+	}
+
+	// Special case for cache compatibility with buggy versions that wrongly
+	// excluded Exec.Mounts: for the default case of one root mount (i.e. RUN
+	// inside a Dockerfile), do not include the mount when generating the cache
+	// map.
+	if len(op.Mounts) == 1 &&
+		op.Mounts[0].Dest == "/" &&
+		op.Mounts[0].Selector == "" &&
+		!op.Mounts[0].Readonly &&
+		op.Mounts[0].MountType == pb.MountType_BIND &&
+		op.Mounts[0].CacheOpt == nil &&
+		op.Mounts[0].SSHOpt == nil &&
+		op.Mounts[0].SecretOpt == nil &&
+		op.Mounts[0].ResultID == "" {
+		op.Mounts = nil
 	}
 
 	dt, err := json.Marshal(struct {
