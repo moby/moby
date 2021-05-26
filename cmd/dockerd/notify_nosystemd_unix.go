@@ -1,3 +1,5 @@
+// +build nosystemd freebsd
+
 package main
 
 // preNotifyReady sends a message to the host when the API is active, but before the daemon is

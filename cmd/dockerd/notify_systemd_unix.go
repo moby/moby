@@ -1,3 +1,5 @@
+// +build !nosystemd,!freebsd
+
 package main
 
 import systemdDaemon "github.com/coreos/go-systemd/v22/daemon"
