@@ -406,17 +406,19 @@ func (cc *cacheContext) ChecksumWildcard(ctx context.Context, mountable cache.Mo
 		return digest.FromBytes([]byte{}), nil
 	}
 
-	if len(wildcards) > 1 {
-		digester := digest.Canonical.Digester()
-		for i, w := range wildcards {
-			if i != 0 {
-				digester.Hash().Write([]byte{0})
-			}
-			digester.Hash().Write([]byte(w.Record.Digest))
-		}
-		return digester.Digest(), nil
+	if len(wildcards) == 1 && path.Base(p) == path.Base(wildcards[0].Path) {
+		return wildcards[0].Record.Digest, nil
 	}
-	return wildcards[0].Record.Digest, nil
+
+	digester := digest.Canonical.Digester()
+	for i, w := range wildcards {
+		if i != 0 {
+			digester.Hash().Write([]byte{0})
+		}
+		digester.Hash().Write([]byte(path.Base(w.Path)))
+		digester.Hash().Write([]byte(w.Record.Digest))
+	}
+	return digester.Digest(), nil
 }
 
 func (cc *cacheContext) Checksum(ctx context.Context, mountable cache.Mountable, p string, followLinks bool, s session.Group) (digest.Digest, error) {
