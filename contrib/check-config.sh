@@ -60,8 +60,7 @@ color() {
 			white) code=37 ;;
 		esac
 		if [ "$code" ]; then
-			[ "$codes" ] && codes="$codes "
-			codes="$codes$code"
+			codes="${codes:+$codes;}$code"
 		fi
 	fi
 	oldIFS=$IFS
