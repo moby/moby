@@ -63,10 +63,7 @@ color() {
 			codes="${codes:+$codes;}$code"
 		fi
 	fi
-	oldIFS=$IFS
-	IFS=';'
 	printf '\033[%sm' "$codes"
-	IFS=$oldIFS
 }
 wrap_color() {
 	text="$1"
