@@ -145,21 +145,21 @@ func testWatch(t *testing.T, ch chan events.Event, ev interface{}, tname, nid, k
 	select {
 	case rcvdEv := <-ch:
 		assert.Check(t, is.Equal(fmt.Sprintf("%T", rcvdEv), fmt.Sprintf("%T", ev)))
-		switch rcvdEv.(type) {
+		switch typ := rcvdEv.(type) {
 		case CreateEvent:
-			assert.Check(t, is.Equal(tname, rcvdEv.(CreateEvent).Table))
-			assert.Check(t, is.Equal(nid, rcvdEv.(CreateEvent).NetworkID))
-			assert.Check(t, is.Equal(key, rcvdEv.(CreateEvent).Key))
-			assert.Check(t, is.Equal(value, string(rcvdEv.(CreateEvent).Value)))
+			assert.Check(t, is.Equal(tname, typ.Table))
+			assert.Check(t, is.Equal(nid, typ.NetworkID))
+			assert.Check(t, is.Equal(key, typ.Key))
+			assert.Check(t, is.Equal(value, string(typ.Value)))
 		case UpdateEvent:
-			assert.Check(t, is.Equal(tname, rcvdEv.(UpdateEvent).Table))
-			assert.Check(t, is.Equal(nid, rcvdEv.(UpdateEvent).NetworkID))
-			assert.Check(t, is.Equal(key, rcvdEv.(UpdateEvent).Key))
-			assert.Check(t, is.Equal(value, string(rcvdEv.(UpdateEvent).Value)))
+			assert.Check(t, is.Equal(tname, typ.Table))
+			assert.Check(t, is.Equal(nid, typ.NetworkID))
+			assert.Check(t, is.Equal(key, typ.Key))
+			assert.Check(t, is.Equal(value, string(typ.Value)))
 		case DeleteEvent:
-			assert.Check(t, is.Equal(tname, rcvdEv.(DeleteEvent).Table))
-			assert.Check(t, is.Equal(nid, rcvdEv.(DeleteEvent).NetworkID))
-			assert.Check(t, is.Equal(key, rcvdEv.(DeleteEvent).Key))
+			assert.Check(t, is.Equal(tname, typ.Table))
+			assert.Check(t, is.Equal(nid, typ.NetworkID))
+			assert.Check(t, is.Equal(key, typ.Key))
 		}
 	case <-time.After(time.Second):
 		t.Fail()
@@ -816,7 +816,7 @@ func TestNetworkDBIslands(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 5, "node", DefaultConfig())
 
 	// Get the node IP used currently
-	node, _ := dbs[0].nodes[dbs[0].config.NodeID]
+	node := dbs[0].nodes[dbs[0].config.NodeID]
 	baseIPStr := node.Addr.String()
 	// Node 0,1,2 are going to be the 3 bootstrap nodes
 	members := []string{fmt.Sprintf("%s:%d", baseIPStr, dbs[0].config.BindPort),

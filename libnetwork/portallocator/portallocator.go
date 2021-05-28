@@ -3,9 +3,10 @@ package portallocator
 import (
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"net"
 	"sync"
+
+	"github.com/sirupsen/logrus"
 )
 
 var (

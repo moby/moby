@@ -151,7 +151,7 @@ func (d *driver) resolvePeer(nid string, peerIP net.IP) (net.HardwareAddr, net.I
 		return nil, nil, nil, fmt.Errorf("could not resolve peer: serf instance not initialized")
 	}
 
-	qPayload := fmt.Sprintf("%s %s", string(nid), peerIP.String())
+	qPayload := fmt.Sprintf("%s %s", nid, peerIP.String())
 	resp, err := d.serfInstance.Query("peerlookup", []byte(qPayload), nil)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("resolving peer by querying the cluster failed: %v", err)

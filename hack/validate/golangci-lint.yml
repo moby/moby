@@ -25,6 +25,8 @@ linters:
     skip-dirs:
       - bundles
       - docs
+      # TODO: This package should be completely removed
+      - libnetwork/client/mflag
 
 linters-settings:
   govet:
@@ -59,6 +61,11 @@ issues:
     - text: "G304: Potential file inclusion via variable"
       linters:
         - gosec
+    - text: "G306: Expect WriteFile permissions to be 0600 or less"
+      linters:
+        - gosec
+    - text: 'G307: Deferring unsafe method "Close" on type "*os.File"'
+      linters: gosec
 
     # Exclude some linters from running on tests files.
     - path: _test\.go
@@ -86,3 +93,16 @@ issues:
     - text: "SA1019: httputil.ErrPersistEOF is deprecated"
       linters:
         - staticcheck
+    # This code is doing some fun stuff with reflect and it trips up the linter.
+    - text: "field `foo` is unused"
+      path: "libnetwork/options/options_test.go"
+      linters:
+        - structcheck
+        - unused
+    # This field is only used on windows but is defined in a platform agnostic file.
+    # The linter doesn't understand that the field is used.
+    - text: "`resolverOnce` is unused"
+      path: libnetwork/network.go
+      linters:
+        - structcheck
+        - unused

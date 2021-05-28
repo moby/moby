@@ -97,9 +97,7 @@ func TestEverything(t *testing.T) {
 	// Now test they're visited in sort order.
 	var flagNames []string
 	Visit(func(f *Flag) {
-		for _, name := range f.Names {
-			flagNames = append(flagNames, name)
-		}
+		flagNames = append(flagNames, f.Names...)
 	})
 	if !sort.StringsAreSorted(flagNames) {
 		t.Errorf("flag names not sorted: %v", flagNames)

@@ -159,7 +159,7 @@ func (aSpace *addrSpace) MarshalJSON() ([]byte, error) {
 	defer aSpace.Unlock()
 
 	m := map[string]interface{}{
-		"Scope": string(aSpace.scope),
+		"Scope": aSpace.scope,
 	}
 
 	if aSpace.subnets != nil {

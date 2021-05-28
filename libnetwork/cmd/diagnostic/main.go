@@ -117,7 +117,7 @@ func fetchNodePeers(ip string, port int, network string) map[string]string {
 		path = fmt.Sprintf(clusterPeers, ip, port)
 	}
 
-	resp, err := http.Get(path)
+	resp, err := http.Get(path) // nolint:gosec
 	if err != nil {
 		logrus.WithError(err).Fatalf("Failed fetching path")
 	}

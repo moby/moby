@@ -4,10 +4,10 @@
 wget -O support.sh.new https://raw.githubusercontent.com/docker/libnetwork/master/support/support.sh
 
 if [ "$?" -eq "0" ]; then
-  mv support.sh.new support.sh
-  chmod +x support.sh
+	mv support.sh.new support.sh
+	chmod +x support.sh
 else
-  echo "issue fetching the latest support.sh, will use the container version"
+	echo "issue fetching the latest support.sh, will use the container version"
 fi
 
 echo "run the support script"

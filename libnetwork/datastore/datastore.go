@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/libkv"
-	"github.com/docker/libkv/store"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/libkv"
+	"github.com/docker/libkv/store"
 )
 
 //DataStore exported

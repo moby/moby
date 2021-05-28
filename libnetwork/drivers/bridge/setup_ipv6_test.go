@@ -32,7 +32,7 @@ func TestSetupIPv6(t *testing.T) {
 		t.Fatalf("Failed to read disable_ipv6 kernel setting: %v", err)
 	}
 
-	if expected := []byte("0\n"); bytes.Compare(expected, procSetting) != 0 {
+	if expected := []byte("0\n"); !bytes.Equal(expected, procSetting) {
 		t.Fatalf("Invalid kernel setting disable_ipv6: expected %q, got %q", string(expected), string(procSetting))
 	}
 

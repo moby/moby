@@ -629,7 +629,7 @@ func clearEncryptionStates() {
 	}
 	for _, sp := range spList {
 		if sp.Mark != nil && sp.Mark.Value == spMark.Value {
-			if err := nlh.XfrmPolicyDel(&sp); err != nil {
+			if err := nlh.XfrmPolicyDel(&sp); err != nil { // nolint:gosec
 				logrus.Warnf("Failed to delete stale SP %s: %v", sp, err)
 				continue
 			}
@@ -638,7 +638,7 @@ func clearEncryptionStates() {
 	}
 	for _, sa := range saList {
 		if sa.Reqid == r {
-			if err := nlh.XfrmStateDel(&sa); err != nil {
+			if err := nlh.XfrmStateDel(&sa); err != nil { // nolint:gosec
 				logrus.Warnf("Failed to delete stale SA %s: %v", sa, err)
 				continue
 			}

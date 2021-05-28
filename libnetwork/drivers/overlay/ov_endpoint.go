@@ -138,7 +138,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 }
 
 func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
-	return make(map[string]interface{}, 0), nil
+	return make(map[string]interface{}), nil
 }
 
 func (d *driver) deleteEndpointFromStore(e *endpoint) error {

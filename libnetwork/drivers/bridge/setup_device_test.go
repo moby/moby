@@ -90,7 +90,7 @@ func TestGenerateRandomMAC(t *testing.T) {
 
 	mac1 := netutils.GenerateRandomMAC()
 	mac2 := netutils.GenerateRandomMAC()
-	if bytes.Compare(mac1, mac2) == 0 {
+	if bytes.Equal(mac1, mac2) {
 		t.Fatalf("Generated twice the same MAC address %v", mac1)
 	}
 }

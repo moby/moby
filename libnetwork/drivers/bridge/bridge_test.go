@@ -455,16 +455,24 @@ func TestCreateMultipleNetworks(t *testing.T) {
 
 	verifyV4INCEntries(d.networks, t)
 
-	d.DeleteNetwork("1")
+	if err := d.DeleteNetwork("1"); err != nil {
+		t.Log(err)
+	}
 	verifyV4INCEntries(d.networks, t)
 
-	d.DeleteNetwork("2")
+	if err := d.DeleteNetwork("2"); err != nil {
+		t.Log(err)
+	}
 	verifyV4INCEntries(d.networks, t)
 
-	d.DeleteNetwork("3")
+	if err := d.DeleteNetwork("3"); err != nil {
+		t.Log(err)
+	}
 	verifyV4INCEntries(d.networks, t)
 
-	d.DeleteNetwork("4")
+	if err := d.DeleteNetwork("4"); err != nil {
+		t.Log(err)
+	}
 	verifyV4INCEntries(d.networks, t)
 }
 
@@ -503,12 +511,10 @@ type testInterface struct {
 }
 
 type testEndpoint struct {
-	iface          *testInterface
-	gw             net.IP
-	gw6            net.IP
-	hostsPath      string
-	resolvConfPath string
-	routes         []types.StaticRoute
+	iface  *testInterface
+	gw     net.IP
+	gw6    net.IP
+	routes []types.StaticRoute
 }
 
 func newTestEndpoint(nw *net.IPNet, ordinal byte) *testEndpoint {
@@ -662,7 +668,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	if !ok {
 		t.Fatalf("Cannot find network %s inside driver", "net1")
 	}
-	ep, _ := network.endpoints["ep1"]
+	ep := network.endpoints["ep1"]
 	data, err := d.EndpointOperInfo(network.id, ep.id)
 	if err != nil {
 		t.Fatalf("Failed to ask for endpoint operational data:  %v", err)
@@ -794,7 +800,7 @@ func TestLinkContainers(t *testing.T) {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
 
-	out, err := iptable.Raw("-L", DockerChain)
+	out, _ := iptable.Raw("-L", DockerChain)
 	for _, pm := range exposedPorts {
 		regex := fmt.Sprintf("%s dpt:%d", pm.Proto.String(), pm.Port)
 		re := regexp.MustCompile(regex)
@@ -820,7 +826,7 @@ func TestLinkContainers(t *testing.T) {
 		t.Fatal("Failed to unlink ep1 and ep2")
 	}
 
-	out, err = iptable.Raw("-L", DockerChain)
+	out, _ = iptable.Raw("-L", DockerChain)
 	for _, pm := range exposedPorts {
 		regex := fmt.Sprintf("%s dpt:%d", pm.Proto.String(), pm.Port)
 		re := regexp.MustCompile(regex)
@@ -848,7 +854,7 @@ func TestLinkContainers(t *testing.T) {
 	}
 	err = d.ProgramExternalConnectivity("net1", "ep2", sbOptions)
 	if err != nil {
-		out, err = iptable.Raw("-L", DockerChain)
+		out, _ = iptable.Raw("-L", DockerChain)
 		for _, pm := range exposedPorts {
 			regex := fmt.Sprintf("%s dpt:%d", pm.Proto.String(), pm.Port)
 			re := regexp.MustCompile(regex)

@@ -9,9 +9,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/docker/docker/pkg/stringid"
 	flag "github.com/docker/docker/libnetwork/client/mflag"
 	"github.com/docker/docker/libnetwork/netutils"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 var (

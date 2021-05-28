@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/armon/go-radix"
+	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/serf"
 	"github.com/sirupsen/logrus"

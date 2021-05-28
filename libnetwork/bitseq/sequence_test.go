@@ -849,7 +849,7 @@ func TestSetAnyInRange(t *testing.T) {
 
 func TestMethods(t *testing.T) {
 	numBits := uint64(256 * blockLen)
-	hnd, err := NewHandle("path/to/data", nil, "sequence1", uint64(numBits))
+	hnd, err := NewHandle("path/to/data", nil, "sequence1", numBits)
 	if err != nil {
 		t.Fatal(err)
 	}

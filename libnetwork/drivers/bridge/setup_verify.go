@@ -40,7 +40,7 @@ func setupVerifyAndReconcile(config *networkConfiguration, i *bridgeInterface) e
 	// Release any residual IPv6 address that might be there because of older daemon instances
 	for _, addrv6 := range addrsv6 {
 		if addrv6.IP.IsGlobalUnicast() && !types.CompareIPNet(addrv6.IPNet, i.bridgeIPv6) {
-			if err := i.nlh.AddrDel(i.Link, &addrv6); err != nil {
+			if err := i.nlh.AddrDel(i.Link, &addrv6); err != nil { // nolint:gosec
 				logrus.Warnf("Failed to remove residual IPv6 address %s from bridge: %v", addrv6.IPNet, err)
 			}
 		}

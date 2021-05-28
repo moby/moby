@@ -6,9 +6,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/pkg/ioutils"
 	_ "github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/ioutils"
 )
 
 func TestGet(t *testing.T) {

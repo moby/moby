@@ -30,7 +30,7 @@ const (
 
 func setupIPChains(config *configuration, version iptables.IPVersion) (*iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, error) {
 	// Sanity check.
-	if config.EnableIPTables == false {
+	if !config.EnableIPTables {
 		return nil, nil, nil, nil, errors.New("cannot create new chains, EnableIPTable is disabled")
 	}
 

@@ -60,7 +60,7 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		allocatedHostPort int
 	)
 
-	switch container.(type) {
+	switch t := container.(type) {
 	case *net.TCPAddr:
 		proto = "tcp"
 		if allocatedHostPort, err = pm.Allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd); err != nil {
@@ -74,7 +74,7 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		}
 
 		if useProxy {
-			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, container.(*net.TCPAddr).IP, container.(*net.TCPAddr).Port, pm.proxyPath)
+			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, t.IP, t.Port, pm.proxyPath)
 			if err != nil {
 				return nil, err
 			}
@@ -97,7 +97,7 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		}
 
 		if useProxy {
-			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, container.(*net.UDPAddr).IP, container.(*net.UDPAddr).Port, pm.proxyPath)
+			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, t.IP, t.Port, pm.proxyPath)
 			if err != nil {
 				return nil, err
 			}

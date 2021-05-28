@@ -18,7 +18,6 @@ import (
 var (
 	successResponse  = responseStatus{Status: "Success", StatusCode: http.StatusOK}
 	createdResponse  = responseStatus{Status: "Created", StatusCode: http.StatusCreated}
-	mismatchResponse = responseStatus{Status: "Body/URI parameter mismatch", StatusCode: http.StatusBadRequest}
 	badQueryResponse = responseStatus{Status: "Unsupported query", StatusCode: http.StatusBadRequest}
 )
 
@@ -29,11 +28,9 @@ const (
 	regex = "[a-zA-Z_0-9-]+"
 	qregx = "$|" + regex
 	// Router URL variable definition
-	nwName   = "{" + urlNwName + ":" + regex + "}"
 	nwNameQr = "{" + urlNwName + ":" + qregx + "}"
 	nwID     = "{" + urlNwID + ":" + regex + "}"
 	nwPIDQr  = "{" + urlNwPID + ":" + qregx + "}"
-	epName   = "{" + urlEpName + ":" + regex + "}"
 	epNameQr = "{" + urlEpName + ":" + qregx + "}"
 	epID     = "{" + urlEpID + ":" + regex + "}"
 	epPIDQr  = "{" + urlEpPID + ":" + qregx + "}"
@@ -258,11 +255,6 @@ func (sc *sandboxCreate) parseOptions() []libnetwork.SandboxOption {
 		setFctList = append(setFctList, libnetwork.OptionPortMapping(sc.PortMapping))
 	}
 	return setFctList
-}
-
-func (ej *endpointJoin) parseOptions() []libnetwork.EndpointOption {
-	// priority will go here
-	return []libnetwork.EndpointOption{}
 }
 
 /******************

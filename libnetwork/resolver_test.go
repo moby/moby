@@ -1,7 +1,6 @@
 package libnetwork
 
 import (
-	"bytes"
 	"net"
 	"runtime"
 	"syscall"
@@ -9,11 +8,11 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+	"github.com/sirupsen/logrus"
 )
 
 // a simple/null address type that will be used to fake a local address for unit testing
 type tstaddr struct {
-	net string
 }
 
 func (a *tstaddr) Network() string { return "tcp" }
@@ -51,12 +50,6 @@ func (w *tstwriter) ClearResponse() { w.msg = nil }
 func checkNonNullResponse(t *testing.T, m *dns.Msg) {
 	if m == nil {
 		t.Fatal("Null DNS response found. Non Null response msg expected.")
-	}
-}
-
-func checkNullResponse(t *testing.T, m *dns.Msg) {
-	if m != nil {
-		t.Fatal("Non Null DNS response found. Null response msg expected.")
 	}
 }
 
@@ -140,7 +133,7 @@ func TestDNSIPQuery(t *testing.T) {
 		checkDNSAnswersCount(t, resp, 1)
 		checkDNSRRType(t, resp.Answer[0].Header().Rrtype, dns.TypeA)
 		if answer, ok := resp.Answer[0].(*dns.A); ok {
-			if !bytes.Equal(answer.A, net.ParseIP("192.168.0.1")) {
+			if !answer.A.Equal(net.ParseIP("192.168.0.1")) {
 				t.Fatalf("IP response in Answer %v does not match 192.168.0.1", answer.A)
 			}
 		} else {
@@ -182,7 +175,9 @@ func newDNSHandlerServFailOnce(requests *int) func(w dns.ResponseWriter, r *dns.
 			m.SetRcode(r, dns.RcodeServerFailure)
 		}
 		*requests = *requests + 1
-		w.WriteMsg(m)
+		if err := w.WriteMsg(m); err != nil {
+			logrus.WithError(err).Error("Error writing dns response")
+		}
 	}
 }
 
@@ -251,8 +246,16 @@ func TestDNSProxyServFail(t *testing.T) {
 	dns.HandleFunc(".", newDNSHandlerServFailOnce(&nRequests))
 	// use TCP for predictable results. Connection tests (to figure out DNS server initialization) don't work with UDP
 	server := &dns.Server{Addr: ":53", Net: "tcp"}
-	go server.ListenAndServe()
-	defer server.Shutdown()
+	srvErrCh := make(chan error, 1)
+	go func() {
+		srvErrCh <- server.ListenAndServe()
+	}()
+	defer func() {
+		server.Shutdown() // nolint:errcheck
+		if err := <-srvErrCh; err != nil {
+			t.Error(err)
+		}
+	}()
 
 	waitForLocalDNSServer(t)
 	t.Log("DNS Server can be reached")

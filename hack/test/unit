@@ -18,8 +18,8 @@ TESTDIRS="${TESTDIRS:-./...}"
 exclude_paths='/vendor/|/integration'
 pkg_list=$(go list $TESTDIRS | grep -vE "($exclude_paths)")
 
-echo "${pkg_list}" | grep --fixed-strings "libnetwork/drivers/bridge" && \
-	if ! type docker-proxy; then
+echo "${pkg_list}" | grep --fixed-strings "libnetwork/drivers/bridge" \
+	&& if ! type docker-proxy; then
 		hack/make.sh binary-proxy install-proxy
 	fi
 

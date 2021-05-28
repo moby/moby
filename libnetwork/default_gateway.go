@@ -162,18 +162,6 @@ func (ep *endpoint) endpointInGWNetwork() bool {
 	return false
 }
 
-func (sb *sandbox) getEPwithoutGateway() *endpoint {
-	for _, ep := range sb.getConnectedEndpoints() {
-		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
-			continue
-		}
-		if len(ep.Gateway()) == 0 {
-			return ep
-		}
-	}
-	return nil
-}
-
 // Looks for the default gw network and creates it if not there.
 // Parallel executions are serialized.
 func (c *controller) defaultGwNetwork() (Network, error) {

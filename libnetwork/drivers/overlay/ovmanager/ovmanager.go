@@ -27,7 +27,6 @@ type networkTable map[string]*network
 type driver struct {
 	config   map[string]interface{}
 	networks networkTable
-	store    datastore.DataStore
 	vxlanIdm *idm.Idm
 	sync.Mutex
 }

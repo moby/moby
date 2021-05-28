@@ -9,8 +9,8 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/libnetwork/iptables"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netns"
 )
@@ -49,7 +49,7 @@ func reexecSetupResolver() {
 		logrus.Errorf("failed get network namespace %q: %v", os.Args[1], err)
 		os.Exit(2)
 	}
-	defer f.Close()
+	defer f.Close() // nolint:gosec
 
 	nsFD := f.Fd()
 	if err = netns.Set(netns.NsHandle(nsFD)); err != nil {

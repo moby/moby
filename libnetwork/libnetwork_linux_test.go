@@ -14,7 +14,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -22,6 +21,7 @@ import (
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
@@ -920,7 +920,17 @@ func runParallelTests(t *testing.T, thrNumber int) {
 			t.Fatal(err)
 		}
 	}
-	defer netns.Set(origins)
+	defer func() {
+		if err := netns.Set(origins); err != nil {
+			// NOTE(@cpuguy83): This...
+			// I touched this code because the linter found that we weren't checking the error...
+			// It returns an error because "origins" is a closed file handle *unless* createGlobalInstance is called.
+			// Which... this test is run in parallel and `createGlobalInstance` modifies `origins` without synchronization.
+			// I'm not sure what exactly the *intent* of this code was, but it looks very broken.
+			// Anyway that's why I'm only logging the error and not failing the test.
+			t.Log(err)
+		}
+	}()
 
 	net1, err := controller.NetworkByName("testhost")
 	if err != nil {

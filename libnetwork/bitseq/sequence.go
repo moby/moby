@@ -144,11 +144,7 @@ func (s *sequence) equal(o *sequence) bool {
 		this = this.next
 		other = other.next
 	}
-	// Check if other is longer than this
-	if other != nil {
-		return false
-	}
-	return true
+	return other == nil
 }
 
 // ToByteArray converts the sequence into a byte array
@@ -699,7 +695,6 @@ func removeCurrentIfEmpty(head **sequence, previous, current *sequence) {
 			*head = current.next
 		} else {
 			previous.next = current.next
-			current = current.next
 		}
 	}
 }

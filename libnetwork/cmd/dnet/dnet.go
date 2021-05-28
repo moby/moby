@@ -21,8 +21,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/pkg/discovery"
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/api"
 	"github.com/docker/docker/libnetwork/cluster"
@@ -33,6 +31,8 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/discovery"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/gorilla/mux"
 	"github.com/moby/term"
 	"github.com/sirupsen/logrus"
@@ -43,13 +43,11 @@ const (
 	// DefaultHTTPHost is used if only port is provided to -H flag e.g. docker -d -H tcp://:8080
 	DefaultHTTPHost = "0.0.0.0"
 	// DefaultHTTPPort is the default http port used by dnet
-	DefaultHTTPPort = 2385
-	// DefaultUnixSocket exported
-	DefaultUnixSocket = "/var/run/dnet.sock"
-	cfgFileEnv        = "LIBNETWORK_CFG"
-	defaultCfgFile    = "/etc/default/libnetwork.toml"
-	defaultHeartbeat  = time.Duration(10) * time.Second
-	ttlFactor         = 2
+	DefaultHTTPPort  = 2385
+	cfgFileEnv       = "LIBNETWORK_CFG"
+	defaultCfgFile   = "/etc/default/libnetwork.toml"
+	defaultHeartbeat = time.Duration(10) * time.Second
+	ttlFactor        = 2
 )
 
 var epConn *dnetConnection
@@ -172,11 +170,9 @@ func startDiscovery(cfg *config.ClusterCfg) ([]config.Option, error) {
 	options := []config.Option{config.OptionDiscoveryWatcher(d), config.OptionDiscoveryAddress(cfg.Address)}
 	go func() {
 		for {
-			select {
-			case <-time.After(hb):
-				if err := d.Register(cfg.Address + ":0"); err != nil {
-					logrus.Warn(err)
-				}
+			time.Sleep(hb)
+			if err := d.Register(cfg.Address + ":0"); err != nil {
+				logrus.Warn(err)
 			}
 		}
 	}()
@@ -507,7 +503,7 @@ func (d *dnetConnection) httpCall(method, path string, data interface{}, headers
 		return nil, nil, -1, err
 	}
 
-	req, err := http.NewRequest(method, fmt.Sprintf("%s", path), in)
+	req, err := http.NewRequest(method, path, in)
 	if err != nil {
 		return nil, nil, -1, err
 	}
@@ -552,10 +548,8 @@ func setupRequestHeaders(method string, data interface{}, req *http.Request, hea
 		req.Header.Set("Content-Type", "text/plain")
 	}
 
-	if headers != nil {
-		for k, v := range headers {
-			req.Header[k] = v
-		}
+	for k, v := range headers {
+		req.Header[k] = v
 	}
 }
 

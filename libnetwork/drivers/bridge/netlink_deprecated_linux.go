@@ -2,10 +2,8 @@ package bridge
 
 import (
 	"fmt"
-	"math/rand"
 	"net"
 	"syscall"
-	"time"
 	"unsafe"
 )
 
@@ -24,8 +22,6 @@ type ifreqHwaddr struct {
 	IfrnName   [ifNameSize]byte
 	IfruHwaddr syscall.RawSockaddr
 }
-
-var rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 // THIS CODE DOES NOT COMMUNICATE WITH KERNEL VIA RTNETLINK INTERFACE
 // IT IS HERE FOR BACKWARDS COMPATIBILITY WITH OLDER LINUX KERNELS

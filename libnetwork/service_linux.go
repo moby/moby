@@ -14,9 +14,9 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/ns"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/gogo/protobuf/proto"
 	"github.com/ishidawataru/sctp"
 	"github.com/moby/ipvs"
@@ -67,8 +67,7 @@ func (n *network) findLBEndpointSandbox() (*endpoint, *sandbox, error) {
 	if !ok {
 		return nil, nil, fmt.Errorf("Unable to get sandbox for %s(%s) in for %s", ep.Name(), ep.ID(), n.ID())
 	}
-	var sep *endpoint
-	sep = sb.getEndpoint(ep.ID())
+	sep := sb.getEndpoint(ep.ID())
 	if sep == nil {
 		return nil, nil, fmt.Errorf("Load balancing endpoint %s(%s) removed from %s", ep.Name(), ep.ID(), n.ID())
 	}
@@ -379,7 +378,7 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 		}
 
 		path := filepath.Join("/proc/sys/net/ipv4/conf", oifName, "route_localnet")
-		if err := ioutil.WriteFile(path, []byte{'1', '\n'}, 0644); err != nil {
+		if err := ioutil.WriteFile(path, []byte{'1', '\n'}, 0644); err != nil { // nolint:gosec
 			return fmt.Errorf("could not write to %s: %v", path, err)
 		}
 
@@ -543,7 +542,7 @@ func writePortsToFile(ports []*PortConfig) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	defer f.Close() // nolint:gosec
 
 	buf, _ := proto.Marshal(&EndpointRecord{
 		IngressPorts: ports,

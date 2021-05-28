@@ -65,11 +65,7 @@ func setIPVlanMode(mode string) (netlink.IPVlanMode, error) {
 // parentExists check if the specified interface exists in the default namespace
 func parentExists(ifaceStr string) bool {
 	_, err := ns.NlHandle().LinkByName(ifaceStr)
-	if err != nil {
-		return false
-	}
-
-	return true
+	return err == nil
 }
 
 // createVlanLink parses sub-interfaces and vlan id for creation

@@ -102,7 +102,9 @@ func (n *networkNamespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr,
 			if nh.linkDst != "" {
 				nlnh.LinkIndex = iface.Attrs().Index
 			}
-			nlh.NeighDel(nlnh)
+			if err := nlh.NeighDel(nlnh); err != nil {
+				logrus.WithError(err).Warn("error while deleting neighbor entry")
+			}
 		}
 	}
 

@@ -1,6 +1,7 @@
 package osl
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -14,13 +15,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl/kernel"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
 )
 
 const defaultPrefix = "/var/run/docker"
@@ -337,7 +339,9 @@ func createNetworkNamespace(path string, osCreate bool) error {
 
 func unmountNamespaceFile(path string) {
 	if _, err := os.Stat(path); err == nil {
-		syscall.Unmount(path, syscall.MNT_DETACH)
+		if err := syscall.Unmount(path, syscall.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
+			logrus.WithError(err).Error("Error unmounting namespace file")
+		}
 	}
 }
 

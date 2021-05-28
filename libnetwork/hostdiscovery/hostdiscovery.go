@@ -8,12 +8,13 @@ import (
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/docker/docker/pkg/discovery"
+
 	// Including KV
-	_ "github.com/docker/docker/pkg/discovery/kv"
+	"github.com/docker/docker/libnetwork/types"
+	_ "github.com/docker/docker/pkg/discovery/kv" // register all the things with host discovery
 	"github.com/docker/libkv/store/consul"
 	"github.com/docker/libkv/store/etcd"
 	"github.com/docker/libkv/store/zookeeper"
-	"github.com/docker/docker/libnetwork/types"
 )
 
 type hostDiscovery struct {

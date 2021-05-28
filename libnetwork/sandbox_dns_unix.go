@@ -99,7 +99,7 @@ func (sb *sandbox) buildHostsFile() error {
 }
 
 func (sb *sandbox) updateHostsFile(ifaceIPs []string) error {
-	if ifaceIPs == nil || len(ifaceIPs) == 0 {
+	if len(ifaceIPs) == 0 {
 		return nil
 	}
 
@@ -322,7 +322,7 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(sb.config.resolvConfPath, newRC.Content, 0644)
+	err = ioutil.WriteFile(sb.config.resolvConfPath, newRC.Content, 0644) // nolint:gosec
 	if err != nil {
 		return err
 	}

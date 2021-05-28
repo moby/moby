@@ -18,9 +18,6 @@ import (
 const (
 	localAddressSpace  = "LocalDefault"
 	globalAddressSpace = "GlobalDefault"
-	// The biggest configurable host subnets
-	minNetSize   = 8
-	minNetSizeV6 = 64
 	// datastore keyes for ipam objects
 	dsConfigKey = "ipam/" + ipamapi.DefaultIPAM + "/config"
 	dsDataKey   = "ipam/" + ipamapi.DefaultIPAM + "/data"
@@ -103,11 +100,9 @@ func (a *Allocator) updateBitMasks(aSpace *addrSpace) error {
 	aSpace.Unlock()
 
 	// Add the bitmasks (data could come from datastore)
-	if inserterList != nil {
-		for _, f := range inserterList {
-			if err := f(); err != nil {
-				return err
-			}
+	for _, f := range inserterList {
+		if err := f(); err != nil {
+			return err
 		}
 	}
 
@@ -572,7 +567,7 @@ func (a *Allocator) getAddress(nw *net.IPNet, bitmask *bitseq.Handle, prefAddres
 	logrus.Debugf("Request address PoolID:%v %s Serial:%v PrefAddress:%v ", nw, bitmask.String(), serial, prefAddress)
 	base = types.GetIPNetCopy(nw)
 
-	if bitmask.Unselected() <= 0 {
+	if bitmask.Unselected() == 0 {
 		return nil, ipamapi.ErrNoAvailableIPs
 	}
 	if ipr == nil && prefAddress == nil {

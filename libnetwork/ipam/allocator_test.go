@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
+	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -307,7 +308,7 @@ func TestAddReleasePoolID(t *testing.T) {
 		assert.NilError(t, err)
 
 		var k0, k1 SubnetKey
-		aSpace, err := a.getAddrSpace(localAddressSpace)
+		_, err = a.getAddrSpace(localAddressSpace)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -320,7 +321,7 @@ func TestAddReleasePoolID(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		aSpace, err = a.getAddrSpace(localAddressSpace)
+		aSpace, err := a.getAddrSpace(localAddressSpace)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1070,8 +1071,6 @@ func TestRelease(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		bm := a.addresses[SubnetKey{localAddressSpace, subnet, ""}]
-
 		// Allocate all addresses
 		for err != ipamapi.ErrNoAvailableIPs {
 			_, _, err = a.RequestAddress(pid, nil, nil)
@@ -1108,7 +1107,7 @@ func TestRelease(t *testing.T) {
 		for i, inp := range toRelease {
 			ip0 := net.ParseIP(inp.address)
 			a.ReleaseAddress(pid, ip0)
-			bm = a.addresses[SubnetKey{localAddressSpace, subnet, ""}]
+			bm := a.addresses[SubnetKey{localAddressSpace, subnet, ""}]
 			if bm.Unselected() != 1 {
 				t.Fatalf("Failed to update free address count after release. Expected %d, Found: %d", i+1, bm.Unselected())
 			}
@@ -1197,13 +1196,6 @@ func benchmarkRequest(b *testing.B, a *Allocator, subnet string) {
 	pid, _, _, err := a.RequestPool(localAddressSpace, subnet, "", nil, false)
 	for err != ipamapi.ErrNoAvailableIPs {
 		_, _, err = a.RequestAddress(pid, nil, nil)
-	}
-}
-
-func benchMarkRequest(subnet string, b *testing.B) {
-	a, _ := getAllocator(true)
-	for n := 0; n < b.N; n++ {
-		benchmarkRequest(b, a, subnet)
 	}
 }
 
@@ -1442,10 +1434,7 @@ func runParallelTests(t *testing.T, instance int) {
 	}
 
 	if instance != first {
-		select {
-		case <-start:
-		}
-
+		<-start
 		instDone := make(chan struct{})
 		done <- instDone
 		defer close(instDone)
@@ -1462,9 +1451,7 @@ func runParallelTests(t *testing.T, instance int) {
 
 	if instance == first {
 		for instDone := range done {
-			select {
-			case <-instDone:
-			}
+			<-instDone
 		}
 		// Now check each instance got a different pool
 		for i := 0; i < numInstances; i++ {
@@ -1495,7 +1482,7 @@ func TestRequestReleaseAddressDuplicate(t *testing.T) {
 		scope:   a.addrSpaces[localAddressSpace].scope,
 		subnets: map[SubnetKey]*PoolData{},
 	}
-	var wg sync.WaitGroup
+
 	opts := map[string]string{
 		ipamapi.AllocSerialPrefix: "true",
 	}
@@ -1506,6 +1493,7 @@ func TestRequestReleaseAddressDuplicate(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	group := new(errgroup.Group)
 	for err == nil {
 		var c *net.IPNet
 		if c, _, err = a.RequestAddress(poolID, nil, opts); err == nil {
@@ -1515,21 +1503,26 @@ func TestRequestReleaseAddressDuplicate(t *testing.T) {
 			allocatedIPs = append(allocatedIPs, c)
 			if len(allocatedIPs) > 500 {
 				i := rand.Intn(len(allocatedIPs) - 1)
-				wg.Add(1)
-				go func(ip *net.IPNet) {
+				ip := allocatedIPs[i]
+				group.Go(func() error {
 					if err = a.ReleaseAddress(poolID, ip.IP); err != nil {
-						t.Fatal(err)
+						return err
 					}
 					l.Lock()
 					ips = append(ips, IP{ip, -1})
 					l.Unlock()
-					wg.Done()
-				}(allocatedIPs[i])
+					return nil
+				})
+
 				allocatedIPs = append(allocatedIPs[:i], allocatedIPs[i+1:]...)
 			}
 		}
 	}
-	wg.Wait()
+
+	if err := group.Wait(); err != nil {
+		t.Fatal(err)
+	}
+
 	refMap := make(map[string]int)
 	for _, ip := range ips {
 		refMap[ip.ip.String()] = refMap[ip.ip.String()] + ip.ref

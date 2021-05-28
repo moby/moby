@@ -5,16 +5,16 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	"github.com/docker/docker/pkg/discovery"
-	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/go-connections/tlsconfig"
-	"github.com/docker/libkv/store"
 	"github.com/docker/docker/libnetwork/cluster"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/portallocator"
+	"github.com/docker/docker/pkg/discovery"
+	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/go-connections/tlsconfig"
+	"github.com/docker/libkv/store"
 	"github.com/sirupsen/logrus"
 )
 

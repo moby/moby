@@ -15,7 +15,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -24,6 +23,7 @@ import (
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
@@ -415,7 +415,9 @@ func (n *network) destroySandbox() {
 
 func populateVNITbl() {
 	filepath.Walk(filepath.Dir(osl.GenerateKey("walk")),
-		func(path string, info os.FileInfo, err error) error {
+		// NOTE(cpuguy83): The linter picked up on the fact that this walk function was not using this error argument
+		// That seems wrong... however I'm not familiar with this code or if that error matters
+		func(path string, info os.FileInfo, _ error) error {
 			_, fname := filepath.Split(path)
 
 			if len(strings.Split(fname, "-")) <= 1 {

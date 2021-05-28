@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -52,7 +51,6 @@ type endpoint struct {
 
 type network struct {
 	id        string
-	sbox      osl.Sandbox
 	endpoints endpointTable
 	driver    *driver
 	config    *configuration
@@ -68,7 +66,9 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	d := &driver{
 		networks: networkTable{},
 	}
-	d.initStore(config)
+	if err := d.initStore(config); err != nil {
+		return err
+	}
 
 	return dc.RegisterDriver(macvlanType, d, c)
 }
@@ -82,7 +82,7 @@ func (d *driver) NetworkFree(id string) error {
 }
 
 func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
-	return make(map[string]interface{}, 0), nil
+	return make(map[string]interface{}), nil
 }
 
 func (d *driver) Type() string {

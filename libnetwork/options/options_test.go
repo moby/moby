@@ -86,7 +86,7 @@ func TestGenerateMissingField(t *testing.T) {
 }
 
 func TestFieldCannotBeSet(t *testing.T) {
-	type Model struct{ foo int }
+	type Model struct{ foo int } // nolint:structcheck
 	_, err := GenerateFromModel(Generic{"foo": "bar"}, Model{})
 
 	if _, ok := err.(CannotSetFieldError); !ok {

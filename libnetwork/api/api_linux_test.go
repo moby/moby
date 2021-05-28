@@ -24,7 +24,6 @@ import (
 
 const (
 	bridgeNetType = "bridge"
-	bridgeName    = "docker0"
 )
 
 func i2s(i interface{}) string {
@@ -1664,7 +1663,7 @@ func newWriter() *localResponseWriter {
 }
 
 func (f *localResponseWriter) Header() http.Header {
-	return make(map[string][]string, 0)
+	return make(map[string][]string)
 }
 
 func (f *localResponseWriter) Write(data []byte) (int, error) {

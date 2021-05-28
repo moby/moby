@@ -9,13 +9,13 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/docker/go-events"
 	"github.com/docker/docker/libnetwork/cluster"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/networkdb"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/go-events"
 	"github.com/gogo/protobuf/proto"
 	"github.com/sirupsen/logrus"
 )
@@ -793,7 +793,7 @@ func (n *network) addDriverWatches() {
 			return
 		}
 
-		agent.networkDB.WalkTable(table.name, func(nid, key string, value []byte, deleted bool) bool {
+		err = agent.networkDB.WalkTable(table.name, func(nid, key string, value []byte, deleted bool) bool {
 			// skip the entries that are mark for deletion, this is safe because this function is
 			// called at initialization time so there is no state to delete
 			if nid == n.ID() && !deleted {
@@ -801,6 +801,9 @@ func (n *network) addDriverWatches() {
 			}
 			return false
 		})
+		if err != nil {
+			logrus.WithError(err).Warn("Error while walking networkdb")
+		}
 	}
 }
 

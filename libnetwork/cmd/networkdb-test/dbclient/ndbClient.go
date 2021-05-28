@@ -118,19 +118,6 @@ func dbTableEntriesNumber(ip, port, networkName, tableName string, doneCh chan r
 	doneCh <- resultTuple{id: ip, result: entriesNum}
 }
 
-func dbEntriesNumber(ip, port, networkName string, doneCh chan resultTuple) {
-	body, err := httpGet(ip, port, "/networkstats?nid="+networkName)
-
-	if err != nil {
-		logrus.Errorf("entriesNumber %s there was an error: %s", ip, err)
-		doneCh <- resultTuple{id: ip, result: -1}
-		return
-	}
-	elementsRegexp := regexp.MustCompile(`entries: ([0-9]+)`)
-	entriesNum, _ := strconv.Atoi(elementsRegexp.FindStringSubmatch(string(body))[1])
-	doneCh <- resultTuple{id: ip, result: entriesNum}
-}
-
 func dbQueueLength(ip, port, networkName string, doneCh chan resultTuple) {
 	body, err := httpGet(ip, port, "/networkstats?nid="+networkName)
 

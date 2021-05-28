@@ -2,7 +2,6 @@ package bitseq
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/types"
@@ -104,17 +103,6 @@ func (h *Handle) DataScope() string {
 	defer h.Unlock()
 
 	return h.store.Scope()
-}
-
-func (h *Handle) fromDsValue(value []byte) error {
-	var ba []byte
-	if err := json.Unmarshal(value, &ba); err != nil {
-		return fmt.Errorf("failed to decode json: %s", err.Error())
-	}
-	if err := h.FromByteArray(ba); err != nil {
-		return fmt.Errorf("failed to decode handle: %s", err.Error())
-	}
-	return nil
 }
 
 func (h *Handle) writeToStore() error {

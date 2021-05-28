@@ -6,10 +6,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/reexec"
 )
 
 func TestMain(m *testing.M) {
@@ -71,7 +71,7 @@ func TestPortMappingConfig(t *testing.T) {
 	if !ok {
 		t.Fatalf("Cannot find network %s inside driver", "dummy")
 	}
-	ep, _ := network.endpoints["ep1"]
+	ep := network.endpoints["ep1"]
 	if len(ep.portMapping) != 3 {
 		t.Fatalf("Failed to store the port bindings into the sandbox info. Found: %v", ep.portMapping)
 	}
@@ -152,7 +152,7 @@ func TestPortMappingV6Config(t *testing.T) {
 	if !ok {
 		t.Fatalf("Cannot find network %s inside driver", "dummy")
 	}
-	ep, _ := network.endpoints["ep1"]
+	ep := network.endpoints["ep1"]
 	if len(ep.portMapping) != 6 {
 		t.Fatalf("Failed to store the port bindings into the sandbox info. Found: %v", ep.portMapping)
 	}

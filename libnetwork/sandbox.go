@@ -72,7 +72,6 @@ type sandbox struct {
 	controller         *controller
 	resolver           Resolver
 	resolverOnce       sync.Once
-	refCnt             int
 	endpoints          []*endpoint
 	epPriority         map[string]int
 	populatedEndpoints map[string]struct{}
@@ -93,12 +92,13 @@ type sandbox struct {
 
 // These are the container configs used to customize container /etc/hosts file.
 type hostsPathConfig struct {
-	hostName        string
-	domainName      string
-	hostsPath       string
-	originHostsPath string
-	extraHosts      []extraHost
-	parentUpdates   []parentUpdate
+	// Note(cpuguy83): The linter is drunk and says none of these fields are used while they are
+	hostName        string         // nolint:structcheck
+	domainName      string         // nolint:structcheck
+	hostsPath       string         // nolint:structcheck
+	originHostsPath string         // nolint:structcheck
+	extraHosts      []extraHost    // nolint:structcheck
+	parentUpdates   []parentUpdate // nolint:structcheck
 }
 
 type parentUpdate struct {
@@ -114,12 +114,13 @@ type extraHost struct {
 
 // These are the container configs used to customize container /etc/resolv.conf file.
 type resolvConfPathConfig struct {
-	resolvConfPath       string
-	originResolvConfPath string
-	resolvConfHashFile   string
-	dnsList              []string
-	dnsSearchList        []string
-	dnsOptionsList       []string
+	// Note(cpuguy83): The linter is drunk and says none of these fields are used while they are
+	resolvConfPath       string   // nolint:structcheck
+	originResolvConfPath string   // nolint:structcheck
+	resolvConfHashFile   string   // nolint:structcheck
+	dnsList              []string // nolint:structcheck
+	dnsSearchList        []string // nolint:structcheck
+	dnsOptionsList       []string // nolint:structcheck
 }
 
 type containerConfig struct {
@@ -128,7 +129,6 @@ type containerConfig struct {
 	generic           map[string]interface{}
 	useDefaultSandBox bool
 	useExternalKey    bool
-	prio              int // higher the value, more the priority
 	exposedPorts      []types.TransportPort
 }
 
@@ -246,7 +246,9 @@ func (sb *sandbox) delete(force bool) error {
 	}
 
 	if sb.osSbox != nil && !sb.config.useDefaultSandBox {
-		sb.osSbox.Destroy()
+		if err := sb.osSbox.Destroy(); err != nil {
+			logrus.WithError(err).Warn("error destroying network sandbox")
+		}
 	}
 
 	if err := sb.storeDelete(); err != nil {
@@ -279,7 +281,9 @@ func (sb *sandbox) Rename(name string) error {
 
 		defer func() {
 			if err != nil {
-				lEp.rename(oldName)
+				if err2 := lEp.rename(oldName); err2 != nil {
+					logrus.WithField("old", oldName).WithField("origError", err).WithError(err2).Error("error renaming sandbox")
+				}
 			}
 		}()
 	}
@@ -408,8 +412,8 @@ func (sb *sandbox) updateGateway(ep *endpoint) error {
 	if osSbox == nil {
 		return nil
 	}
-	osSbox.UnsetGateway()
-	osSbox.UnsetGatewayIPv6()
+	osSbox.UnsetGateway()     // nolint:errcheck
+	osSbox.UnsetGatewayIPv6() // nolint:errcheck
 
 	if ep == nil {
 		return nil
@@ -694,7 +698,9 @@ func (sb *sandbox) EnableService() (err error) {
 	logrus.Debugf("EnableService %s START", sb.containerID)
 	defer func() {
 		if err != nil {
-			sb.DisableService()
+			if err2 := sb.DisableService(); err2 != nil {
+				logrus.WithError(err2).WithField("origError", err).Error("Error while disabling service after original error")
+			}
 		}
 	}()
 	for _, ep := range sb.getConnectedEndpoints() {
@@ -779,7 +785,9 @@ func (sb *sandbox) releaseOSSbox() {
 		releaseOSSboxResources(osSbox, ep)
 	}
 
-	osSbox.Destroy()
+	if err := osSbox.Destroy(); err != nil {
+		logrus.WithError(err).Error("Error destroying os sandbox")
+	}
 }
 
 func (sb *sandbox) restoreOslSandbox() error {
@@ -975,7 +983,9 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 	sb.Unlock()
 
 	if gwepAfter != nil && gwepBefore != gwepAfter {
-		sb.updateGateway(gwepAfter)
+		if err := sb.updateGateway(gwepAfter); err != nil {
+			return err
+		}
 	}
 
 	// Only update the store if we did not come here as part of
@@ -987,13 +997,6 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 	}
 
 	return nil
-}
-
-func (sb *sandbox) isEndpointPopulated(ep *endpoint) bool {
-	sb.Lock()
-	_, ok := sb.populatedEndpoints[ep.ID()]
-	sb.Unlock()
-	return ok
 }
 
 // joinLeaveStart waits to ensure there are no joins or leaves in progress and
@@ -1024,13 +1027,6 @@ func (sb *sandbox) joinLeaveEnd() {
 		close(sb.joinLeaveDone)
 		sb.joinLeaveDone = nil
 	}
-}
-
-func (sb *sandbox) hasPortConfigs() bool {
-	opts := sb.Labels()
-	_, hasExpPorts := opts[netlabel.ExposedPorts]
-	_, hasPortMaps := opts[netlabel.PortMap]
-	return hasExpPorts || hasPortMaps
 }
 
 // OptionHostname function returns an option setter for hostname option to

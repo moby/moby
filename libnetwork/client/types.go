@@ -86,11 +86,3 @@ type extraHost struct {
 	Name    string `json:"name"`
 	Address string `json:"address"`
 }
-
-// sandboxParentUpdate is the object carrying the information about the
-// sandbox parent that needs to be updated.
-type sandboxParentUpdate struct {
-	ContainerID string `json:"container_id"`
-	Name        string `json:"name"`
-	Address     string `json:"address"`
-}

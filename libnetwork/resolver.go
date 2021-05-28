@@ -157,13 +157,17 @@ func (r *resolver) Start() error {
 	s := &dns.Server{Handler: r, PacketConn: r.conn}
 	r.server = s
 	go func() {
-		s.ActivateAndServe()
+		if err := s.ActivateAndServe(); err != nil {
+			logrus.WithError(err).Error("error starting packetconn dns server")
+		}
 	}()
 
 	tcpServer := &dns.Server{Handler: r, Listener: r.tcpListen}
 	r.tcpServer = tcpServer
 	go func() {
-		tcpServer.ActivateAndServe()
+		if err := tcpServer.ActivateAndServe(); err != nil {
+			logrus.WithError(err).Error("error starting tcp dns server")
+		}
 	}()
 	return nil
 }
@@ -173,10 +177,10 @@ func (r *resolver) Stop() {
 	defer func() { <-r.startCh }()
 
 	if r.server != nil {
-		r.server.Shutdown()
+		r.server.Shutdown() // nolint:errcheck
 	}
 	if r.tcpServer != nil {
-		r.tcpServer.Shutdown()
+		r.tcpServer.Shutdown() // nolint:errcheck
 	}
 	r.conn = nil
 	r.tcpServer = nil
@@ -210,7 +214,7 @@ func setCommonFlags(msg *dns.Msg) {
 
 func shuffleAddr(addr []net.IP) []net.IP {
 	for i := len(addr) - 1; i > 0; i-- {
-		r := rand.Intn(i + 1)
+		r := rand.Intn(i + 1) // nolint:gosec
 		addr[i], addr[r] = addr[r], addr[i]
 	}
 	return addr
@@ -392,7 +396,9 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 		if !r.proxyDNS {
 			resp = new(dns.Msg)
 			resp.SetRcode(query, dns.RcodeServerFailure)
-			w.WriteMsg(resp)
+			if err := w.WriteMsg(resp); err != nil {
+				logrus.WithError(err).Error("Error writing dns response")
+			}
 			return
 		}
 
@@ -457,7 +463,9 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 				extConn.LocalAddr().String(), proto, extDNS.IPStr)
 
 			// Timeout has to be set for every IO operation.
-			extConn.SetDeadline(time.Now().Add(extIOTimeout))
+			if err := extConn.SetDeadline(time.Now().Add(extIOTimeout)); err != nil {
+				logrus.WithError(err).Error("Error setting conn deadline")
+			}
 			co := &dns.Conn{
 				Conn:    extConn,
 				UDPSize: uint16(maxSize),

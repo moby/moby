@@ -193,12 +193,12 @@ func (i *nwIface) Statistics() (*types.InterfaceStatistics, error) {
 	}
 
 	return &types.InterfaceStatistics{
-		RxBytes:   uint64(stats.RxBytes),
-		TxBytes:   uint64(stats.TxBytes),
-		RxPackets: uint64(stats.RxPackets),
-		TxPackets: uint64(stats.TxPackets),
-		RxDropped: uint64(stats.RxDropped),
-		TxDropped: uint64(stats.TxDropped),
+		RxBytes:   stats.RxBytes,
+		TxBytes:   stats.TxBytes,
+		RxPackets: stats.RxPackets,
+		TxPackets: stats.TxPackets,
+		RxDropped: stats.RxDropped,
+		TxDropped: stats.TxDropped,
 	}, nil
 }
 
@@ -422,8 +422,7 @@ func setInterfaceRoutes(nlh *netlink.Handle, iface netlink.Link, i *nwIface) err
 // we cannot gather the statistics from /sys/class/net/<dev>/statistics/<counter> files. Per-netns stats
 // are naturally found in /proc/net/dev in kernels which support netns (ifconfig relies on that).
 const (
-	netStatsFile = "/proc/net/dev"
-	base         = "[ ]*%s:([ ]+[0-9]+){16}"
+	base = "[ ]*%s:([ ]+[0-9]+){16}"
 )
 
 func scanInterfaceStats(data, ifName string, i *types.InterfaceStatistics) error {

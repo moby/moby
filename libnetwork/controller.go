@@ -52,10 +52,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/pkg/discovery"
-	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/pkg/plugins"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/libnetwork/cluster"
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/datastore"
@@ -69,6 +65,10 @@ import (
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/discovery"
+	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -156,28 +156,27 @@ type SandboxWalker func(sb Sandbox) bool
 type sandboxTable map[string]*sandbox
 
 type controller struct {
-	id                     string
-	drvRegistry            *drvregistry.DrvRegistry
-	sandboxes              sandboxTable
-	cfg                    *config.Config
-	stores                 []datastore.DataStore
-	discovery              hostdiscovery.HostDiscovery
-	extKeyListener         net.Listener
-	watchCh                chan *endpoint
-	unWatchCh              chan *endpoint
-	svcRecords             map[string]svcInfo
-	nmap                   map[string]*netWatch
-	serviceBindings        map[serviceKey]*service
-	defOsSbox              osl.Sandbox
-	ingressSandbox         *sandbox
-	sboxOnce               sync.Once
-	agent                  *agent
-	networkLocker          *locker.Locker
-	agentInitDone          chan struct{}
-	agentStopDone          chan struct{}
-	keys                   []*types.EncryptionKey
-	clusterConfigAvailable bool
-	DiagnosticServer       *diagnostic.Server
+	id               string
+	drvRegistry      *drvregistry.DrvRegistry
+	sandboxes        sandboxTable
+	cfg              *config.Config
+	stores           []datastore.DataStore
+	discovery        hostdiscovery.HostDiscovery
+	extKeyListener   net.Listener
+	watchCh          chan *endpoint
+	unWatchCh        chan *endpoint
+	svcRecords       map[string]svcInfo
+	nmap             map[string]*netWatch
+	serviceBindings  map[serviceKey]*service
+	defOsSbox        osl.Sandbox
+	ingressSandbox   *sandbox
+	sboxOnce         sync.Once
+	agent            *agent
+	networkLocker    *locker.Locker
+	agentInitDone    chan struct{}
+	agentStopDone    chan struct{}
+	keys             []*types.EncryptionKey
+	DiagnosticServer *diagnostic.Server
 	sync.Mutex
 }
 
@@ -276,10 +275,6 @@ func (c *controller) SetClusterProvider(provider cluster.Provider) {
 	// We don't want to spawn a new go routine if the previous one did not exit yet
 	c.AgentStopWait()
 	go c.clusterAgentInit()
-}
-
-func isValidClusteringIP(addr string) bool {
-	return addr != "" && !net.ParseIP(addr).IsLoopback() && !net.ParseIP(addr).IsUnspecified()
 }
 
 // libnetwork side of agent depends on the keys. On the first receipt of
@@ -559,13 +554,6 @@ func (c *controller) BuiltinIPAMDrivers() []string {
 	return drivers
 }
 
-func (c *controller) validateHostDiscoveryConfig() bool {
-	if c.cfg == nil || c.cfg.Cluster.Discovery == "" || c.cfg.Cluster.Address == "" {
-		return false
-	}
-	return true
-}
-
 func (c *controller) clusterHostID() string {
 	c.Lock()
 	defer c.Unlock()
@@ -574,21 +562,6 @@ func (c *controller) clusterHostID() string {
 	}
 	addr := strings.Split(c.cfg.Cluster.Address, ":")
 	return addr[0]
-}
-
-func (c *controller) isNodeAlive(node string) bool {
-	if c.discovery == nil {
-		return false
-	}
-
-	nodes := c.discovery.Fetch()
-	for _, n := range nodes {
-		if n.String() == node {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (c *controller) initDiscovery(watcher discovery.Watcher) error {
@@ -716,7 +689,7 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 
 	if id != "" {
 		c.networkLocker.Lock(id)
-		defer c.networkLocker.Unlock(id)
+		defer c.networkLocker.Unlock(id) // nolint:errcheck
 
 		if _, err = c.NetworkByID(id); err == nil {
 			return nil, NetworkNameError(id)
@@ -827,7 +800,7 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 
 	err = c.addNetwork(network)
 	if err != nil {
-		if _, ok := err.(types.MaskableError); ok {
+		if _, ok := err.(types.MaskableError); ok { // nolint:gosimple
 			// This error can be ignored and set this boolean
 			// value to skip a refcount increment for configOnly networks
 			skipCfgEpCount = true

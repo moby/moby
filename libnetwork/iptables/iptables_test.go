@@ -5,10 +5,10 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 
 	_ "github.com/docker/docker/libnetwork/testutils"
+	"golang.org/x/sync/errgroup"
 )
 
 const chainName = "DOCKEREST"
@@ -194,8 +194,6 @@ func TestConcurrencyNoWait(t *testing.T) {
 // Note that if iptables does not support the xtable lock on this
 // system, then allowXlock has no effect -- it will always be off.
 func RunConcurrencyTest(t *testing.T, allowXlock bool) {
-	var wg sync.WaitGroup
-
 	if !allowXlock && supportsXlock {
 		supportsXlock = false
 		defer func() { supportsXlock = true }()
@@ -207,17 +205,15 @@ func RunConcurrencyTest(t *testing.T, allowXlock bool) {
 	dstPort := 4321
 	proto := "tcp"
 
+	group := new(errgroup.Group)
 	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := natChain.Forward(Append, ip, port, proto, dstAddr, dstPort, "lo")
-			if err != nil {
-				t.Fatal(err)
-			}
-		}()
+		group.Go(func() error {
+			return natChain.Forward(Append, ip, port, proto, dstAddr, dstPort, "lo")
+		})
 	}
-	wg.Wait()
+	if err := group.Wait(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestCleanup(t *testing.T) {

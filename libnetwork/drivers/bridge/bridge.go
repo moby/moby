@@ -144,7 +144,6 @@ type bridgeNetwork struct {
 
 type driver struct {
 	config            *configuration
-	network           *bridgeNetwork
 	natChain          *iptables.ChainInfo
 	filterChain       *iptables.ChainInfo
 	isolationChain1   *iptables.ChainInfo
@@ -399,7 +398,9 @@ func (d *driver) configure(option map[string]interface{}) error {
 		// Make sure on firewall reload, first thing being re-played is chains creation
 		iptables.OnReloaded(func() {
 			logrus.Debugf("Recreating iptables chains on firewall reload")
-			setupIPChains(config, iptables.IPv4)
+			if _, _, _, _, err := setupIPChains(config, iptables.IPv4); err != nil {
+				logrus.WithError(err).Error("Error reloading iptables chains")
+			}
 		})
 	}
 
@@ -414,7 +415,9 @@ func (d *driver) configure(option map[string]interface{}) error {
 		// Make sure on firewall reload, first thing being re-played is chains creation
 		iptables.OnReloaded(func() {
 			logrus.Debugf("Recreating ip6tables chains on firewall reload")
-			setupIPChains(config, iptables.IPv6)
+			if _, _, _, _, err := setupIPChains(config, iptables.IPv6); err != nil {
+				logrus.WithError(err).Error("Error reloading ip6tables chains")
+			}
 		})
 	}
 
@@ -549,7 +552,7 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 		return nil, err
 	}
 
-	if config.BridgeName == "" && config.DefaultBridge == false {
+	if config.BridgeName == "" && !config.DefaultBridge {
 		config.BridgeName = "br-" + id[:12]
 	}
 
@@ -566,18 +569,6 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 
 	config.ID = id
 	return config, nil
-}
-
-// Returns the non link-local IPv6 subnet for the containers attached to this bridge if found, nil otherwise
-func getV6Network(config *networkConfiguration, i *bridgeInterface) *net.IPNet {
-	if config.AddressIPv6 != nil {
-		return config.AddressIPv6
-	}
-	if i.bridgeIPv6 != nil && i.bridgeIPv6.IP != nil && !i.bridgeIPv6.IP.IsLinkLocalUnicast() {
-		return i.bridgeIPv6
-	}
-
-	return nil
 }
 
 // Return a slice of networks over which caller can iterate safely
@@ -643,7 +634,9 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		}
 		// Got a conflict with a stale default network, clean that up and continue
 		logrus.Warn(nerr)
-		d.deleteNetwork(nerr.ID)
+		if err := d.deleteNetwork(nerr.ID); err != nil {
+			logrus.WithError(err).Debug("Error while cleaning up network on conflict")
+		}
 	}
 
 	// there is no conflict, now create the network

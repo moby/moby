@@ -14,7 +14,7 @@ func TestSetupIPForwarding(t *testing.T) {
 	defer reconcileIPForwardingSetting(t, procSetting)
 
 	// Disable IP Forwarding if enabled
-	if bytes.Compare(procSetting, []byte("1\n")) == 0 {
+	if bytes.Equal(procSetting, []byte("1\n")) {
 		writeIPForwardingSetting(t, []byte{'0', '\n'})
 	}
 
@@ -25,7 +25,7 @@ func TestSetupIPForwarding(t *testing.T) {
 
 	// Read new setting
 	procSetting = readCurrentIPForwardingSetting(t)
-	if bytes.Compare(procSetting, []byte("1\n")) != 0 {
+	if !bytes.Equal(procSetting, []byte("1\n")) {
 		t.Fatal("Failed to effectively setup IP forwarding")
 	}
 }
@@ -47,7 +47,7 @@ func writeIPForwardingSetting(t *testing.T, chars []byte) {
 
 func reconcileIPForwardingSetting(t *testing.T, original []byte) {
 	current := readCurrentIPForwardingSetting(t)
-	if bytes.Compare(original, current) != 0 {
+	if !bytes.Equal(original, current) {
 		writeIPForwardingSetting(t, original)
 	}
 }

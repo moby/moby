@@ -14,13 +14,18 @@ func TestCleanupServiceDiscovery(t *testing.T) {
 	assert.NilError(t, err)
 	defer c.Stop()
 
+	cleanup := func(n Network) {
+		if err := n.Delete(); err != nil {
+			t.Error(err)
+		}
+	}
 	n1, err := c.NewNetwork("bridge", "net1", "", nil)
 	assert.NilError(t, err)
-	defer n1.Delete()
+	defer cleanup(n1)
 
 	n2, err := c.NewNetwork("bridge", "net2", "", nil)
 	assert.NilError(t, err)
-	defer n2.Delete()
+	defer cleanup(n2)
 
 	n1.(*network).addSvcRecords("N1ep1", "service_test", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
 	n1.(*network).addSvcRecords("N2ep2", "service_test", "serviceID2", net.ParseIP("192.168.0.2"), net.IP{}, true, "test")
@@ -52,7 +57,14 @@ func TestDNSOptions(t *testing.T) {
 
 	sb, err := c.(*controller).NewSandbox("cnt1", nil)
 	assert.NilError(t, err)
-	defer sb.Delete()
+
+	cleanup := func(s Sandbox) {
+		if err := s.Delete(); err != nil {
+			t.Error(err)
+		}
+	}
+
+	defer cleanup(sb)
 	sb.(*sandbox).startResolver(false)
 
 	err = sb.(*sandbox).setupDNS()
@@ -84,7 +96,7 @@ func TestDNSOptions(t *testing.T) {
 
 	sb2, err := c.(*controller).NewSandbox("cnt2", nil)
 	assert.NilError(t, err)
-	defer sb2.Delete()
+	defer cleanup(sb2)
 	sb2.(*sandbox).startResolver(false)
 
 	sb2.(*sandbox).config.dnsOptionsList = []string{"ndots:0"}

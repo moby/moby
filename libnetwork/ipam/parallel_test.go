@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/libnetwork/ipamapi"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -89,11 +90,20 @@ func TestRequestPoolParallel(t *testing.T) {
 	}
 	var operationIndex int32
 	ch := make(chan *op, 240)
+
+	group := new(errgroup.Group)
+	defer func() {
+		if err := group.Wait(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
 	for i := 0; i < 120; i++ {
-		go func(t *testing.T, a *Allocator, ch chan *op) {
+		group.Go(func() error {
 			name, _, _, err := a.RequestPool("GlobalDefault", "", "", nil, false)
 			if err != nil {
-				t.Fatalf("request error %v", err)
+				t.Log(err) // log so we can see the error in real time rather than at the end when we actually call "Wait".
+				return fmt.Errorf("request error %v", err)
 			}
 			idx := atomic.AddInt32(&operationIndex, 1)
 			ch <- &op{idx, true, name}
@@ -101,10 +111,12 @@ func TestRequestPoolParallel(t *testing.T) {
 			idx = atomic.AddInt32(&operationIndex, 1)
 			err = a.ReleasePool(name)
 			if err != nil {
-				t.Fatalf("release error %v", err)
+				t.Log(err) // log so we can see the error in real time rather than at the end when we actually call "Wait".
+				return fmt.Errorf("release error %v", err)
 			}
 			ch <- &op{idx, false, name}
-		}(t, a, ch)
+			return nil
+		})
 	}
 
 	// map of events
@@ -258,24 +270,25 @@ func release(t *testing.T, tctx *testContext, mode releaseMode, parallel int64) 
 	var id int
 	parallelExec := semaphore.NewWeighted(parallel)
 	ch := make(chan *net.IPNet, len(ipIndex))
-	wg := sync.WaitGroup{}
+	group := new(errgroup.Group)
 	for index := range ipIndex {
-		wg.Add(1)
-		go func(id, index int) {
+		index := index
+		group.Go(func() error {
 			parallelExec.Acquire(context.Background(), 1)
-			// logrus.Errorf("index %v", index)
-			// logrus.Errorf("list %v", tctx.ipList)
 			err := tctx.a.ReleaseAddress(tctx.pid, tctx.ipList[index].IP)
 			if err != nil {
-				t.Fatalf("routine %d got %v", id, err)
+				return fmt.Errorf("routine %d got %v", id, err)
 			}
 			ch <- tctx.ipList[index]
 			parallelExec.Release(1)
-			wg.Done()
-		}(id, index)
+			return nil
+		})
 		id++
 	}
-	wg.Wait()
+
+	if err := group.Wait(); err != nil {
+		t.Fatal(err)
+	}
 
 	for i := 0; i < len(ipIndex); i++ {
 		ip := <-ch

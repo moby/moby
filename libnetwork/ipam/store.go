@@ -116,17 +116,6 @@ func (a *Allocator) writeToStore(aSpace *addrSpace) error {
 	return err
 }
 
-func (a *Allocator) deleteFromStore(aSpace *addrSpace) error {
-	store := aSpace.store()
-
-	// IPAM may not have a valid store. In such cases it is just in-memory state.
-	if store == nil {
-		return nil
-	}
-
-	return store.DeleteObjectAtomic(aSpace)
-}
-
 // DataScope method returns the storage scope of the datastore
 func (aSpace *addrSpace) DataScope() string {
 	aSpace.Lock()

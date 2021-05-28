@@ -156,7 +156,7 @@ func TestNetworkMarshalling(t *testing.T) {
 }
 
 func printIpamConf(list []*IpamConf) string {
-	s := fmt.Sprintf("\n[]*IpamConfig{")
+	s := "\n[]*IpamConfig{"
 	for _, i := range list {
 		s = fmt.Sprintf("%s %v,", s, i)
 	}
@@ -165,7 +165,7 @@ func printIpamConf(list []*IpamConf) string {
 }
 
 func printIpamInfo(list []*IpamInfo) string {
-	s := fmt.Sprintf("\n[]*IpamInfo{")
+	s := "\n[]*IpamInfo{"
 	for _, i := range list {
 		s = fmt.Sprintf("%s\n{\n%s\n}", s, i)
 	}
@@ -586,7 +586,9 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gnw.Delete()
+	if err := gnw.Delete(); err != nil {
+		t.Fatal(err)
+	}
 
 	// Now check whether ipam release works on endpoint creation failure
 	bd.failNetworkCreation = false
@@ -594,7 +596,11 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer bnw.Delete()
+	defer func() {
+		if err := bnw.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	if _, err := bnw.CreateEndpoint("ep0"); err == nil {
 		t.Fatalf("bad network driver should have failed endpoint creation")
@@ -606,13 +612,17 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer gnw.Delete()
+	defer func() {
+		if err := gnw.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	ep, err := gnw.CreateEndpoint("ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ep.Delete(false)
+	defer ep.Delete(false) // nolint:errcheck
 
 	expectedIP, _ := types.ParseCIDR("10.35.0.1/16")
 	if !types.CompareIPNet(ep.Info().Iface().Address(), expectedIP) {

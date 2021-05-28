@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"sync"
 	"testing"
 
 	_ "github.com/docker/docker/libnetwork/testutils"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestBuildDefault(t *testing.T) {
@@ -431,12 +431,10 @@ func TestConcurrentWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var wg sync.WaitGroup
+	group := new(errgroup.Group)
 	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-
+		i := i
+		group.Go(func() error {
 			rec := []Record{
 				{
 					IP:    fmt.Sprintf("%d.%d.%d.%d", i, i, i, i),
@@ -446,17 +444,20 @@ func TestConcurrentWrites(t *testing.T) {
 
 			for j := 0; j < 25; j++ {
 				if err := Add(file.Name(), rec); err != nil {
-					t.Fatal(err)
+					return err
 				}
 
 				if err := Delete(file.Name(), rec); err != nil {
-					t.Fatal(err)
+					return err
 				}
 			}
-		}(i)
+			return nil
+		})
 	}
 
-	wg.Wait()
+	if err := group.Wait(); err != nil {
+		t.Fatal(err)
+	}
 
 	content, err := ioutil.ReadFile(file.Name())
 	if err != nil {

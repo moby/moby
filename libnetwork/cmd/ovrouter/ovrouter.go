@@ -6,12 +6,12 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/overlay"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/vishvananda/netlink"
 )
 
@@ -161,14 +161,13 @@ func main() {
 	}
 
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, os.Kill)
+	signal.Notify(sigCh, os.Interrupt)
 
-	for {
-		select {
-		case <-sigCh:
-			r.d.Leave("testnetwork", "testep")
-			overlay.Fini(r.d)
-			os.Exit(0)
+	for range sigCh {
+		if err := r.d.Leave("testnetwork", "testep"); err != nil {
+			fmt.Printf("Error leaving: %v", err)
 		}
+		overlay.Fini(r.d)
+		os.Exit(0)
 	}
 }

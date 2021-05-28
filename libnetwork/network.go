@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
@@ -20,6 +19,7 @@ import (
 	"github.com/docker/docker/libnetwork/networkdb"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -220,7 +220,6 @@ type network struct {
 	dbIndex          uint64
 	dbExists         bool
 	persist          bool
-	stopWatchCh      chan struct{}
 	drvOnce          *sync.Once
 	resolverOnce     sync.Once
 	resolver         []Resolver
@@ -499,25 +498,33 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 
 	for _, v4conf := range n.ipamV4Config {
 		dstV4Conf := &IpamConf{}
-		v4conf.CopyTo(dstV4Conf)
+		if err := v4conf.CopyTo(dstV4Conf); err != nil {
+			return err
+		}
 		dstN.ipamV4Config = append(dstN.ipamV4Config, dstV4Conf)
 	}
 
 	for _, v4info := range n.ipamV4Info {
 		dstV4Info := &IpamInfo{}
-		v4info.CopyTo(dstV4Info)
+		if err := v4info.CopyTo(dstV4Info); err != nil {
+			return err
+		}
 		dstN.ipamV4Info = append(dstN.ipamV4Info, dstV4Info)
 	}
 
 	for _, v6conf := range n.ipamV6Config {
 		dstV6Conf := &IpamConf{}
-		v6conf.CopyTo(dstV6Conf)
+		if err := v6conf.CopyTo(dstV6Conf); err != nil {
+			return err
+		}
 		dstN.ipamV6Config = append(dstN.ipamV6Config, dstV6Conf)
 	}
 
 	for _, v6info := range n.ipamV6Info {
 		dstV6Info := &IpamInfo{}
-		v6info.CopyTo(dstV6Info)
+		if err := v6info.CopyTo(dstV6Info); err != nil {
+			return err
+		}
 		dstN.ipamV6Info = append(dstN.ipamV6Info, dstV6Info)
 	}
 
@@ -933,16 +940,6 @@ func (n *network) resolveDriver(name string, load bool) (driverapi.Driver, *driv
 	return d, cap, nil
 }
 
-func (n *network) driverScope() string {
-	_, cap, err := n.resolveDriver(n.networkType, true)
-	if err != nil {
-		// If driver could not be resolved simply return an empty string
-		return ""
-	}
-
-	return cap.DataScope
-}
-
 func (n *network) driverIsMultihost() bool {
 	_, cap, err := n.resolveDriver(n.networkType, true)
 	if err != nil {
@@ -995,7 +992,7 @@ func (n *network) delete(force bool, rmLBEndpoint bool) error {
 	n.Unlock()
 
 	c.networkLocker.Lock(id)
-	defer c.networkLocker.Unlock(id)
+	defer c.networkLocker.Unlock(id) // nolint:errcheck
 
 	n, err := c.getNetworkFromStore(id)
 	if err != nil {
@@ -1163,7 +1160,7 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	}
 
 	n.ctrlr.networkLocker.Lock(n.id)
-	defer n.ctrlr.networkLocker.Unlock(n.id)
+	defer n.ctrlr.networkLocker.Unlock(n.id) // nolint:errcheck
 
 	return n.createEndpoint(name, options...)
 
@@ -1832,13 +1829,17 @@ func (n *network) IpamConfig() (string, map[string]string, []*IpamConf, []*IpamC
 
 	for i, c := range n.ipamV4Config {
 		cc := &IpamConf{}
-		c.CopyTo(cc)
+		if err := c.CopyTo(cc); err != nil {
+			logrus.WithError(err).Error("Error copying ipam ipv4 config")
+		}
 		v4L[i] = cc
 	}
 
 	for i, c := range n.ipamV6Config {
 		cc := &IpamConf{}
-		c.CopyTo(cc)
+		if err := c.CopyTo(cc); err != nil {
+			logrus.WithError(err).Debug("Error copying ipam ipv6 config")
+		}
 		v6L[i] = cc
 	}
 
@@ -1854,13 +1855,17 @@ func (n *network) IpamInfo() ([]*IpamInfo, []*IpamInfo) {
 
 	for i, info := range n.ipamV4Info {
 		ic := &IpamInfo{}
-		info.CopyTo(ic)
+		if err := info.CopyTo(ic); err != nil {
+			logrus.WithError(err).Error("Error copying ipv4 ipam config")
+		}
 		v4Info[i] = ic
 	}
 
 	for i, info := range n.ipamV6Info {
 		ic := &IpamInfo{}
-		info.CopyTo(ic)
+		if err := info.CopyTo(ic); err != nil {
+			logrus.WithError(err).Error("Error copying ipv6 ipam config")
+		}
 		v6Info[i] = ic
 	}
 
