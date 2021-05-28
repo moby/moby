@@ -27,6 +27,70 @@ import (
 	"github.com/vishvananda/netns"
 )
 
+var (
+	origins = netns.None()
+	testns  = netns.None()
+)
+
+func createGlobalInstance(t *testing.T) {
+	var err error
+	defer close(start)
+
+	origins, err = netns.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if testutils.IsRunningInContainer() {
+		testns = origins
+	} else {
+		testns, err = netns.New()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	netOption := options.Generic{
+		netlabel.GenericData: options.Generic{
+			"BridgeName": "network",
+		},
+	}
+
+	net1, err := controller.NetworkByName("testhost")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	net2, err := createTestNetwork("bridge", "network2", netOption, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = net1.CreateEndpoint("pep1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = net2.CreateEndpoint("pep2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = net2.CreateEndpoint("pep3")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if sboxes[first-1], err = controller.NewSandbox(fmt.Sprintf("%drace", first), libnetwork.OptionUseDefaultSandbox()); err != nil {
+		t.Fatal(err)
+	}
+	for thd := first + 1; thd <= last; thd++ {
+		if sboxes[thd-1], err = controller.NewSandbox(fmt.Sprintf("%drace", thd)); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestHost(t *testing.T) {
 	sbx1, err := controller.NewSandbox("host_c1",
 		libnetwork.OptionHostname("test1"),

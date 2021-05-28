@@ -8,13 +8,13 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
@@ -23,7 +23,6 @@ import (
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/sirupsen/logrus"
-	"github.com/vishvananda/netns"
 )
 
 const (
@@ -201,12 +200,34 @@ func TestBridge(t *testing.T) {
 		t.Fatalf("Unexpected format for port mapping in endpoint operational data")
 	}
 	expectedLen := 10
-	if !bridge.IsV6Listenable() {
+	if !isV6Listenable() {
 		expectedLen = 5
 	}
 	if len(pm) != expectedLen {
 		t.Fatalf("Incomplete data for port mapping in endpoint operational data: %d", len(pm))
 	}
+}
+
+var (
+	v6ListenableCached bool
+	v6ListenableOnce   sync.Once
+)
+
+// This is copied from the bridge driver package b/c the bridge driver is not platform agnostic.
+func isV6Listenable() bool {
+	v6ListenableOnce.Do(func() {
+		ln, err := net.Listen("tcp6", "[::1]:0")
+		if err != nil {
+			// When the kernel was booted with `ipv6.disable=1`,
+			// we get err "listen tcp6 [::1]:0: socket: address family not supported by protocol"
+			// https://github.com/moby/moby/issues/42288
+			logrus.Debugf("port_mapping: v6Listenable=false (%v)", err)
+		} else {
+			v6ListenableCached = true
+			ln.Close()
+		}
+	})
+	return v6ListenableCached
 }
 
 func TestUnknownDriver(t *testing.T) {
@@ -1411,11 +1432,9 @@ func TestValidRemoteDriver(t *testing.T) {
 }
 
 var (
-	start   = make(chan struct{})
-	done    = make(chan chan struct{}, numThreads-1)
-	origins = netns.None()
-	testns  = netns.None()
-	sboxes  = make([]libnetwork.Sandbox, numThreads)
+	start  = make(chan struct{})
+	done   = make(chan chan struct{}, numThreads-1)
+	sboxes = make([]libnetwork.Sandbox, numThreads)
 )
 
 const (
@@ -1425,65 +1444,6 @@ const (
 	last       = numThreads
 	debug      = false
 )
-
-func createGlobalInstance(t *testing.T) {
-	var err error
-	defer close(start)
-
-	origins, err = netns.Get()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if testutils.IsRunningInContainer() {
-		testns = origins
-	} else {
-		testns, err = netns.New()
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	netOption := options.Generic{
-		netlabel.GenericData: options.Generic{
-			"BridgeName": "network",
-		},
-	}
-
-	net1, err := controller.NetworkByName("testhost")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	net2, err := createTestNetwork("bridge", "network2", netOption, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = net1.CreateEndpoint("pep1")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = net2.CreateEndpoint("pep2")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = net2.CreateEndpoint("pep3")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if sboxes[first-1], err = controller.NewSandbox(fmt.Sprintf("%drace", first), libnetwork.OptionUseDefaultSandbox()); err != nil {
-		t.Fatal(err)
-	}
-	for thd := first + 1; thd <= last; thd++ {
-		if sboxes[thd-1], err = controller.NewSandbox(fmt.Sprintf("%drace", thd)); err != nil {
-			t.Fatal(err)
-		}
-	}
-}
 
 func debugf(format string, a ...interface{}) {
 	if debug {

@@ -33,3 +33,11 @@ func (sb *sandbox) deleteHostsEntries(recs []etchosts.Record) {
 func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	return nil
 }
+
+func (sb *sandbox) setupDNS() error {
+	return nil
+}
+
+func (sb *sandbox) rebuildDNS() error {
+	return nil
+}
