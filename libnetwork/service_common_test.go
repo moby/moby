@@ -2,14 +2,18 @@ package libnetwork
 
 import (
 	"net"
+	"runtime"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 func TestCleanupServiceDiscovery(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
+
 	c, err := New()
 	assert.NilError(t, err)
 	defer c.Stop()
@@ -52,6 +56,8 @@ func TestCleanupServiceDiscovery(t *testing.T) {
 }
 
 func TestDNSOptions(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
+
 	c, err := New()
 	assert.NilError(t, err)
 

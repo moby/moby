@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"runtime"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
+	"gotest.tools/v3/skip"
 )
 
 func TestNetworkMarshalling(t *testing.T) {
@@ -346,6 +348,8 @@ func TestAuxAddresses(t *testing.T) {
 }
 
 func TestSRVServiceQuery(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
+
 	c, err := New()
 	if err != nil {
 		t.Fatal(err)
@@ -442,6 +446,8 @@ func TestSRVServiceQuery(t *testing.T) {
 }
 
 func TestServiceVIPReuse(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
+
 	c, err := New()
 	if err != nil {
 		t.Fatal(err)
@@ -555,6 +561,8 @@ func TestServiceVIPReuse(t *testing.T) {
 }
 
 func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
+
 	if !testutils.IsRunningInContainer() {
 		defer testutils.SetupTestOSContext(t)()
 	}

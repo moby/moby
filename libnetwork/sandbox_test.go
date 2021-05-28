@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/config"
@@ -10,9 +11,12 @@ import (
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/testutils"
+	"gotest.tools/v3/skip"
 )
 
 func getTestEnv(t *testing.T, opts ...[]NetworkOption) (NetworkController, []Network) {
+	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
+
 	netType := "bridge"
 
 	option := options.Generic{

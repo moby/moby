@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -457,7 +456,7 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 	for i := 1; i < n; i++ {
 		_, err = dbs[i].GetEntry("test_table", "network1", "test_key")
 		assert.Check(t, is.ErrorContains(err, ""))
-		assert.Check(t, strings.Contains(err.Error(), "deleted and pending garbage collection"))
+		assert.Check(t, is.Contains(err.Error(), "deleted and pending garbage collection"), err)
 	}
 
 	closeNetworkDBInstances(dbs)

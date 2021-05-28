@@ -9,6 +9,7 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
+	"gotest.tools/v3/skip"
 )
 
 // a simple/null address type that will be used to fake a local address for unit testing
@@ -73,6 +74,8 @@ func checkDNSRRType(t *testing.T, actual, expected uint16) {
 }
 
 func TestDNSIPQuery(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
+
 	c, err := New()
 	if err != nil {
 		t.Fatal(err)
@@ -210,9 +213,7 @@ func waitForLocalDNSServer(t *testing.T) {
 }
 
 func TestDNSProxyServFail(t *testing.T) {
-	if runtime.GOARCH == "arm64" {
-		t.Skip("This test fails on arm64 foor some reason... this need to be fixed")
-	}
+	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
 	c, err := New()
 	if err != nil {
@@ -245,7 +246,7 @@ func TestDNSProxyServFail(t *testing.T) {
 	// initialize a local DNS server and configure it to fail the first query
 	dns.HandleFunc(".", newDNSHandlerServFailOnce(&nRequests))
 	// use TCP for predictable results. Connection tests (to figure out DNS server initialization) don't work with UDP
-	server := &dns.Server{Addr: ":53", Net: "tcp"}
+	server := &dns.Server{Addr: "127.0.0.1:53", Net: "tcp"}
 	srvErrCh := make(chan error, 1)
 	go func() {
 		srvErrCh <- server.ListenAndServe()

@@ -5,4 +5,8 @@ import (
 	"path/filepath"
 )
 
-var specPath = filepath.Join(os.Getenv("programdata"), "docker", "plugins")
+const bridgeNetType = "nat"
+
+var (
+	specPath = filepath.Join(os.Getenv("programdata"), "docker", "plugins")
+)

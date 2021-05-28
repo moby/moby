@@ -383,6 +383,8 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 		resp, err = r.handlePTRQuery(name, query)
 	case dns.TypeSRV:
 		resp, err = r.handleSRVQuery(name, query)
+	default:
+		panic("error")
 	}
 
 	if err != nil {
@@ -455,7 +457,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 				}
 			}
 			if err != nil {
-				logrus.Warnf("[resolver] connect failed: %s", err)
+				logrus.WithField("retries", i).Warnf("[resolver] connect failed: %s", err)
 				continue
 			}
 			queryType := dns.TypeToString[query.Question[0].Qtype]

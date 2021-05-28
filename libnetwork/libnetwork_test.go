@@ -1,3 +1,5 @@
+// +build linux
+
 package libnetwork_test
 
 import (
@@ -8,7 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"sync"
+	"runtime"
 	"testing"
 
 	"github.com/docker/docker/libnetwork"
@@ -25,13 +27,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	bridgeNetType = "bridge"
-)
-
 var controller libnetwork.NetworkController
 
 func TestMain(m *testing.M) {
+	if runtime.GOOS == "windows" {
+		logrus.Info("Test suite does not currently support windows")
+		os.Exit(0)
+	}
 	if reexec.Init() {
 		return
 	}
@@ -75,7 +77,7 @@ func createTestNetwork(networkType, networkName string, netOption options.Generi
 
 func getEmptyGenericOption() map[string]interface{} {
 	genericOption := make(map[string]interface{})
-	genericOption[netlabel.GenericData] = options.Generic{}
+	genericOption[netlabel.GenericData] = map[string]string{}
 	return genericOption
 }
 
@@ -139,95 +141,6 @@ func TestNull(t *testing.T) {
 	if _, ok := err.(types.ForbiddenError); !ok {
 		t.Fatalf("Unexpected error type")
 	}
-}
-
-func TestBridge(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
-
-	netOption := options.Generic{
-		netlabel.EnableIPv6: true,
-		netlabel.GenericData: options.Generic{
-			"BridgeName":         "testnetwork",
-			"EnableICC":          true,
-			"EnableIPMasquerade": true,
-		},
-	}
-	ipamV4ConfList := []*libnetwork.IpamConf{{PreferredPool: "192.168.100.0/24", Gateway: "192.168.100.1"}}
-	ipamV6ConfList := []*libnetwork.IpamConf{{PreferredPool: "fe90::/64", Gateway: "fe90::22"}}
-
-	network, err := createTestNetwork(bridgeNetType, "testnetwork", netOption, ipamV4ConfList, ipamV6ConfList)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := network.Delete(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	ep, err := network.CreateEndpoint("testep")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sb, err := controller.NewSandbox(containerID, libnetwork.OptionPortMapping(getPortMapping()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := sb.Delete(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	err = ep.Join(sb)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	epInfo, err := ep.DriverInfo()
-	if err != nil {
-		t.Fatal(err)
-	}
-	pmd, ok := epInfo[netlabel.PortMap]
-	if !ok {
-		t.Fatalf("Could not find expected info in endpoint data")
-	}
-	pm, ok := pmd.([]types.PortBinding)
-	if !ok {
-		t.Fatalf("Unexpected format for port mapping in endpoint operational data")
-	}
-	expectedLen := 10
-	if !isV6Listenable() {
-		expectedLen = 5
-	}
-	if len(pm) != expectedLen {
-		t.Fatalf("Incomplete data for port mapping in endpoint operational data: %d", len(pm))
-	}
-}
-
-var (
-	v6ListenableCached bool
-	v6ListenableOnce   sync.Once
-)
-
-// This is copied from the bridge driver package b/c the bridge driver is not platform agnostic.
-func isV6Listenable() bool {
-	v6ListenableOnce.Do(func() {
-		ln, err := net.Listen("tcp6", "[::1]:0")
-		if err != nil {
-			// When the kernel was booted with `ipv6.disable=1`,
-			// we get err "listen tcp6 [::1]:0: socket: address family not supported by protocol"
-			// https://github.com/moby/moby/issues/42288
-			logrus.Debugf("port_mapping: v6Listenable=false (%v)", err)
-		} else {
-			v6ListenableCached = true
-			ln.Close()
-		}
-	})
-	return v6ListenableCached
 }
 
 func TestUnknownDriver(t *testing.T) {
@@ -1272,7 +1185,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 		defer testutils.SetupTestOSContext(t)()
 	}
 
-	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{
+	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "testnetwork",
 		},
