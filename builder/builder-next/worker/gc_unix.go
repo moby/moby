@@ -12,7 +12,7 @@ func detectDefaultGCCap(root string) int64 {
 	if err := syscall.Statfs(root, &st); err != nil {
 		return defaultCap
 	}
-	diskSize := int64(st.Bsize) * int64(st.Blocks) // nolint unconvert
+	diskSize := int64(st.Bsize) * int64(st.Blocks) //nolint unconvert
 	avail := diskSize / 10
 	return (avail/(1<<30) + 1) * 1e9 // round up
 }

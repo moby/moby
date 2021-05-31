@@ -90,7 +90,7 @@ func verifyDefaultIpcMode(mode string) error {
 func verifyDefaultCgroupNsMode(mode string) error {
 	cm := containertypes.CgroupnsMode(mode)
 	if !cm.Valid() {
-		return fmt.Errorf("Default cgroup namespace mode (%v) is invalid. Use \"host\" or \"private\".", cm) // nolint: golint
+		return fmt.Errorf("Default cgroup namespace mode (%v) is invalid. Use \"host\" or \"private\".", cm) //nolint: golint
 	}
 
 	return nil

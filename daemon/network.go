@@ -155,7 +155,7 @@ var (
 func (daemon *Daemon) startIngressWorker() {
 	ingressJobsChannel = make(chan *ingressJob, 100)
 	go func() {
-		// nolint: gosimple
+		//nolint: gosimple
 		for {
 			select {
 			case r := <-ingressJobsChannel:
@@ -365,7 +365,7 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 	n, err := c.NewNetwork(driver, create.Name, id, nwOptions...)
 	if err != nil {
 		if _, ok := err.(libnetwork.ErrDataStoreNotInitialized); ok {
-			// nolint: golint
+			//nolint: golint
 			return nil, errors.New("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
 		}
 		return nil, err
