@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -75,7 +76,7 @@ func NewContainer(ctx context.Context, w worker.Worker, sm *session.Manager, g s
 
 	name := fmt.Sprintf("container %s", req.ContainerID)
 	mm := mounts.NewMountManager(name, w.CacheManager(), sm, w.MetadataStore())
-	p, err := PrepareMounts(ctx, mm, w.CacheManager(), g, mnts, refs, func(m *opspb.Mount, ref cache.ImmutableRef) (cache.MutableRef, error) {
+	p, err := PrepareMounts(ctx, mm, w.CacheManager(), g, "", mnts, refs, func(m *opspb.Mount, ref cache.ImmutableRef) (cache.MutableRef, error) {
 		cm := w.CacheManager()
 		if m.Input != opspb.Empty {
 			cm = refs[m.Input].Worker.CacheManager()
@@ -132,7 +133,7 @@ type MountMutableRef struct {
 
 type MakeMutable func(m *opspb.Mount, ref cache.ImmutableRef) (cache.MutableRef, error)
 
-func PrepareMounts(ctx context.Context, mm *mounts.MountManager, cm cache.Manager, g session.Group, mnts []*opspb.Mount, refs []*worker.WorkerRef, makeMutable MakeMutable) (p PreparedMounts, err error) {
+func PrepareMounts(ctx context.Context, mm *mounts.MountManager, cm cache.Manager, g session.Group, cwd string, mnts []*opspb.Mount, refs []*worker.WorkerRef, makeMutable MakeMutable) (p PreparedMounts, err error) {
 	// loop over all mounts, fill in mounts, root and outputs
 	for i, m := range mnts {
 		var (
@@ -254,7 +255,11 @@ func PrepareMounts(ctx context.Context, mm *mounts.MountManager, cm cache.Manage
 			p.Root = mountWithSession(root, g)
 		} else {
 			mws := mountWithSession(mountable, g)
-			mws.Dest = m.Dest
+			dest := m.Dest
+			if !filepath.IsAbs(filepath.Clean(dest)) {
+				dest = filepath.Join("/", cwd, dest)
+			}
+			mws.Dest = dest
 			mws.Readonly = m.Readonly
 			mws.Selector = m.Selector
 			p.Mounts = append(p.Mounts, mws)
