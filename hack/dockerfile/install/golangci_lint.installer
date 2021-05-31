@@ -1,6 +1,6 @@
 #!/bin/sh
 
-: "${GOLANGCI_LINT_COMMIT=v1.23.8}"
+: "${GOLANGCI_LINT_COMMIT=v1.40.1}"
 
 install_golangci_lint() {
 	set -e
