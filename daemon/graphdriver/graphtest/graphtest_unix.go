@@ -303,10 +303,10 @@ func writeRandomFile(path string, size uint64) error {
 	}
 
 	// Cast to []byte
-	header := *(*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	header := *(*reflect.SliceHeader)(unsafe.Pointer(&buf)) //nolint:govet // FIXME: unsafeptr: possible misuse of reflect.SliceHeader (govet) see https://github.com/moby/moby/issues/42444
 	header.Len *= 8
 	header.Cap *= 8
-	data := *(*[]byte)(unsafe.Pointer(&header))
+	data := *(*[]byte)(unsafe.Pointer(&header)) //nolint:govet // FIXME: unsafeptr: possible misuse of reflect.SliceHeader (govet) see https://github.com/moby/moby/issues/42444
 
 	return ioutil.WriteFile(path, data, 0700)
 }
