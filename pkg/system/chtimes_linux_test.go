@@ -26,7 +26,7 @@ func TestChtimesLinux(t *testing.T) {
 	}
 
 	stat := f.Sys().(*syscall.Stat_t)
-	aTime := time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec)) // nolint: unconvert
+	aTime := time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec)) //nolint: unconvert
 	if aTime != unixEpochTime {
 		t.Fatalf("Expected: %s, got: %s", unixEpochTime, aTime)
 	}
@@ -40,7 +40,7 @@ func TestChtimesLinux(t *testing.T) {
 	}
 
 	stat = f.Sys().(*syscall.Stat_t)
-	aTime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec)) // nolint: unconvert
+	aTime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec)) //nolint: unconvert
 	if aTime != unixEpochTime {
 		t.Fatalf("Expected: %s, got: %s", unixEpochTime, aTime)
 	}
@@ -54,7 +54,7 @@ func TestChtimesLinux(t *testing.T) {
 	}
 
 	stat = f.Sys().(*syscall.Stat_t)
-	aTime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec)) // nolint: unconvert
+	aTime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec)) //nolint: unconvert
 	if aTime != unixEpochTime {
 		t.Fatalf("Expected: %s, got: %s", unixEpochTime, aTime)
 	}
@@ -68,7 +68,7 @@ func TestChtimesLinux(t *testing.T) {
 	}
 
 	stat = f.Sys().(*syscall.Stat_t)
-	aTime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec)) // nolint: unconvert
+	aTime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec)) //nolint: unconvert
 	if aTime != afterUnixEpochTime {
 		t.Fatalf("Expected: %s, got: %s", afterUnixEpochTime, aTime)
 	}
@@ -82,7 +82,7 @@ func TestChtimesLinux(t *testing.T) {
 	}
 
 	stat = f.Sys().(*syscall.Stat_t)
-	aTime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec)) // nolint: unconvert
+	aTime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec)) //nolint: unconvert
 	if aTime.Truncate(time.Second) != unixMaxTime.Truncate(time.Second) {
 		t.Fatalf("Expected: %s, got: %s", unixMaxTime.Truncate(time.Second), aTime.Truncate(time.Second))
 	}
