@@ -2,12 +2,12 @@ linters:
   enable:
     - deadcode
     - goimports
-    - golint
     - gosec
     - gosimple
     - govet
     - ineffassign
     - misspell
+    - revive
     - staticcheck
     - structcheck
     - typecheck
