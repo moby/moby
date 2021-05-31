@@ -75,14 +75,14 @@ func (conf *Config) IsSwarmCompatible() error {
 }
 
 func verifyDefaultIpcMode(mode string) error {
-	const hint = "Use \"shareable\" or \"private\"."
+	const hint = `use "shareable" or "private"`
 
 	dm := containertypes.IpcMode(mode)
 	if !dm.Valid() {
-		return fmt.Errorf("Default IPC mode setting (%v) is invalid. "+hint, dm)
+		return fmt.Errorf("default IPC mode setting (%v) is invalid; "+hint, dm)
 	}
 	if dm != "" && !dm.IsPrivate() && !dm.IsShareable() {
-		return fmt.Errorf("IPC mode \"%v\" is not supported as default value. "+hint, dm)
+		return fmt.Errorf(`IPC mode "%v" is not supported as default value; `+hint, dm)
 	}
 	return nil
 }
@@ -90,7 +90,7 @@ func verifyDefaultIpcMode(mode string) error {
 func verifyDefaultCgroupNsMode(mode string) error {
 	cm := containertypes.CgroupnsMode(mode)
 	if !cm.Valid() {
-		return fmt.Errorf("Default cgroup namespace mode (%v) is invalid. Use \"host\" or \"private\".", cm) //nolint: golint
+		return fmt.Errorf(`default cgroup namespace mode (%v) is invalid; use "host" or "private"`, cm)
 	}
 
 	return nil
