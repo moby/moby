@@ -109,10 +109,7 @@ func (pm *Manager) fetch(ctx context.Context, ref reference.Named, auth *types.A
 
 	fp := withFetchProgress(pm.blobStore, out, ref)
 	handlers = append([]images.Handler{fp, remotes.FetchHandler(pm.blobStore, fetcher)}, handlers...)
-	if err := images.Dispatch(ctx, images.Handlers(handlers...), nil, desc); err != nil {
-		return err
-	}
-	return nil
+	return images.Dispatch(ctx, images.Handlers(handlers...), nil, desc)
 }
 
 // applyLayer makes an images.HandlerFunc which applies a fetched image rootfs layer to a directory.
