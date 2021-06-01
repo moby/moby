@@ -9,6 +9,7 @@ require (
 	github.com/Microsoft/hcsshim v0.8.10
 	github.com/codahale/hdrhistogram v0.0.0-20160425231609-f8ad88b59a58 // indirect
 	github.com/containerd/console v1.0.1
+	// containerd: the actual version is replaced in replace()
 	github.com/containerd/containerd v1.4.1-0.20201117152358-0edc412565dc
 	github.com/containerd/continuity v0.0.0-20200710164510-efbc4488d8fe
 	github.com/containerd/go-cni v1.0.1
@@ -71,6 +72,11 @@ require (
 )
 
 replace (
+	// containerd: Forked from 0edc412565dcc6e3d6125ff9e4b009ad4b89c638 (20201117) with:
+	// - `Adjust overlay tests to expect "index=off"`        (#4719, for ease of cherry-picking #5076)
+	// - `overlay: support "userxattr" option (kernel 5.11)` (#5076)
+	// - `docker: avoid concurrent map access panic`         (#4855)
+	github.com/containerd/containerd => github.com/AkihiroSuda/containerd v1.1.1-0.20210312044057-48f85a131bb8
 	// protobuf: corresponds to containerd
 	github.com/golang/protobuf => github.com/golang/protobuf v1.3.5
 	github.com/hashicorp/go-immutable-radix => github.com/tonistiigi/go-immutable-radix v0.0.0-20170803185627-826af9ccf0fe

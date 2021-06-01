@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/images"
+	remoteserrors "github.com/containerd/containerd/remotes/errors"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -47,6 +48,14 @@ func New(f images.HandlerFunc, logger func([]byte)) images.HandlerFunc {
 }
 
 func retryError(err error) bool {
+	// Retry on 5xx errors
+	var errUnexpectedStatus remoteserrors.ErrUnexpectedStatus
+	if errors.As(err, &errUnexpectedStatus) &&
+		errUnexpectedStatus.StatusCode >= 500 &&
+		errUnexpectedStatus.StatusCode <= 599 {
+		return true
+	}
+
 	if errors.Is(err, io.EOF) || errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.EPIPE) {
 		return true
 	}
