@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -561,12 +562,12 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 	assert.NilError(t, err)
 
 	for i := 0; i < keysWriteDelete; i++ {
-		err = dbs[i%2].CreateEntry("testTable", "network1", "key-"+string(i), []byte("value"))
+		err = dbs[i%2].CreateEntry("testTable", "network1", "key-"+strconv.Itoa(i), []byte("value"))
 		assert.NilError(t, err)
 	}
 	time.Sleep(time.Second)
 	for i := 0; i < keysWriteDelete; i++ {
-		err = dbs[i%2].DeleteEntry("testTable", "network1", "key-"+string(i))
+		err = dbs[i%2].DeleteEntry("testTable", "network1", "key-"+strconv.Itoa(i))
 		assert.NilError(t, err)
 	}
 	for i := 0; i < 2; i++ {
@@ -823,6 +824,7 @@ func TestNetworkDBIslands(t *testing.T) {
 		fmt.Sprintf("%s:%d", baseIPStr, dbs[2].config.BindPort)}
 	// Rejoining will update the list of the bootstrap members
 	for i := 3; i < 5; i++ {
+		t.Logf("Re-joining: %d", i)
 		assert.Check(t, dbs[i].Join(members))
 	}
 
@@ -832,17 +834,34 @@ func TestNetworkDBIslands(t *testing.T) {
 		dbs[i].Close()
 	}
 
+	checkDBs := make(map[string]*NetworkDB)
+	for i := 3; i < 5; i++ {
+		db := dbs[i]
+		checkDBs[db.config.Hostname] = db
+	}
+
 	// Give some time to let the system propagate the messages and free up the ports
 	check := func(t poll.LogT) poll.Result {
 		// Verify that the nodes are actually all gone and marked appropiately
-		for i := 3; i < 5; i++ {
-			if (len(dbs[i].leftNodes) != 3) || (len(dbs[i].failedNodes) != 0) {
-				return poll.Continue("%s:Waiting for all nodes to cleanly leave", dbs[i].config.Hostname)
+		for name, db := range checkDBs {
+			db.RLock()
+			if (len(db.leftNodes) != 3) || (len(db.failedNodes) != 0) {
+				for name := range db.leftNodes {
+					t.Logf("%s: Node %s left", db.config.Hostname, name)
+				}
+				for name := range db.failedNodes {
+					t.Logf("%s: Node %s failed", db.config.Hostname, name)
+				}
+				db.RUnlock()
+				return poll.Continue("%s:Waiting for all nodes to cleanly leave, left: %d, failed nodes: %d", name, len(db.leftNodes), len(db.failedNodes))
 			}
+			db.RUnlock()
+			t.Logf("%s: OK", name)
+			delete(checkDBs, name)
 		}
 		return poll.Success()
 	}
-	poll.WaitOn(t, check, poll.WithDelay(20*time.Second), poll.WithTimeout(120*time.Second))
+	poll.WaitOn(t, check, poll.WithDelay(time.Second), poll.WithTimeout(120*time.Second))
 
 	// Spawn again the first 3 nodes with different names but same IP:port
 	for i := 0; i < 3; i++ {
@@ -855,26 +874,33 @@ func TestNetworkDBIslands(t *testing.T) {
 	check = func(t poll.LogT) poll.Result {
 		// Verify that the cluster is again all connected. Note that the 3 previous node did not do any join
 		for i := 0; i < 5; i++ {
-			if len(dbs[i].nodes) != 5 {
+			db := dbs[i]
+			db.RLock()
+			if len(db.nodes) != 5 {
+				db.RUnlock()
 				return poll.Continue("%s:Waiting to connect to all nodes", dbs[i].config.Hostname)
 			}
-			if len(dbs[i].failedNodes) != 0 {
+			if len(db.failedNodes) != 0 {
+				db.RUnlock()
 				return poll.Continue("%s:Waiting for 0 failedNodes", dbs[i].config.Hostname)
 			}
 			if i < 3 {
 				// nodes from 0 to 3 has no left nodes
-				if len(dbs[i].leftNodes) != 0 {
+				if len(db.leftNodes) != 0 {
+					db.RUnlock()
 					return poll.Continue("%s:Waiting to have no leftNodes", dbs[i].config.Hostname)
 				}
 			} else {
 				// nodes from 4 to 5 has the 3 previous left nodes
-				if len(dbs[i].leftNodes) != 3 {
+				if len(db.leftNodes) != 3 {
+					db.RUnlock()
 					return poll.Continue("%s:Waiting to have 3 leftNodes", dbs[i].config.Hostname)
 				}
 			}
+			db.RUnlock()
 		}
 		return poll.Success()
 	}
-	poll.WaitOn(t, check, poll.WithDelay(20*time.Second), poll.WithTimeout(120*time.Second))
+	poll.WaitOn(t, check, poll.WithDelay(10*time.Second), poll.WithTimeout(120*time.Second))
 	closeNetworkDBInstances(dbs)
 }
