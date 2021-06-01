@@ -21,7 +21,6 @@ require (
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker v20.10.0-beta1.0.20201110211921-af34b94a78a1+incompatible
 	github.com/docker/go-connections v0.4.0
-	github.com/docker/libnetwork v0.8.0-dev.2.0.20200917202933-d0951081b35f
 	github.com/gofrs/flock v0.7.3
 	github.com/gogo/googleapis v1.3.2
 	github.com/gogo/protobuf v1.3.1
@@ -64,7 +63,7 @@ require (
 	golang.org/x/crypto v0.0.0-20201117144127-c1f2f97bffc9
 	golang.org/x/net v0.0.0-20200707034311-ab3426394381
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
-	golang.org/x/sys v0.0.0-20201013081832-0aaa2718063a
+	golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1
 	// genproto: the actual version is replaced in replace()
 	google.golang.org/genproto v0.0.0-20200527145253-8367513e4ece
@@ -77,6 +76,7 @@ replace (
 	// - `overlay: support "userxattr" option (kernel 5.11)` (#5076)
 	// - `docker: avoid concurrent map access panic`         (#4855)
 	github.com/containerd/containerd => github.com/AkihiroSuda/containerd v1.1.1-0.20210312044057-48f85a131bb8
+	github.com/docker/docker => github.com/cpuguy83/docker v0.0.0-20210406002447-5616f4544aef
 	// protobuf: corresponds to containerd
 	github.com/golang/protobuf => github.com/golang/protobuf v1.3.5
 	github.com/hashicorp/go-immutable-radix => github.com/tonistiigi/go-immutable-radix v0.0.0-20170803185627-826af9ccf0fe

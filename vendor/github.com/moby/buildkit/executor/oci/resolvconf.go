@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/libnetwork/resolvconf"
-	"github.com/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/resolvconf"
+	"github.com/docker/docker/libnetwork/types"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/pkg/errors"
 )
