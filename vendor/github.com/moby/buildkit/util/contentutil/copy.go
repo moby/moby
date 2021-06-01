@@ -65,7 +65,7 @@ func CopyChain(ctx context.Context, ingester content.Ingester, provider content.
 	handlers := []images.Handler{
 		images.ChildrenHandler(provider),
 		filterHandler,
-		retryhandler.New(remotes.FetchHandler(ingester, &localFetcher{provider}), nil),
+		retryhandler.New(remotes.FetchHandler(ingester, &localFetcher{provider}), func(_ []byte) {}),
 	}
 
 	if err := images.Dispatch(ctx, images.Handlers(handlers...), nil, desc); err != nil {
