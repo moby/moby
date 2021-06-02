@@ -157,7 +157,7 @@ be found.
 + Ensure iptables initialization only happens once [docker/libnetwork#1676](https://github.com/docker/libnetwork/pull/1676)
 * Fix bad order of iptables filter rules [docker/libnetwork#961](https://github.com/docker/libnetwork/pull/961)
 + Add anonymous container alias to service record on attachable network [docker/libnetwork#1651](https://github.com/docker/libnetwork/pull/1651)
-+ Support for `com.docker.network.container_interface_prefix` driver label [docker/libnetwork#1667](https://github.com/docker/libnetwork/pull/1667)
++ Support for `com.docker.network.container_iface_prefix` driver label [docker/libnetwork#1667](https://github.com/docker/libnetwork/pull/1667)
 + Improve network list performance by omitting network details that are not used [#30673](https://github.com/docker/docker/pull/30673)
 
 ### Runtime
