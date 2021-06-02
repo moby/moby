@@ -1081,12 +1081,12 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *testing.T) {
 		c.Fatalf("test 0: expected Operation not permitted, got: %s", out)
 	}
 
-	out, _, err = dockerCmdWithError("run", "--cap-add", "sys_admin", "syscall-test", "ns-test", "echo", "hello1")
+	out, _, err = dockerCmdWithError("run", "--cap-add", "sys_admin", "--cap-add", "sys_ptrace", "syscall-test", "ns-test", "echo", "hello1")
 	if err != nil || !strings.Contains(out, "hello1") {
 		c.Fatalf("test 1: expected hello1, got: %s, %v", out, err)
 	}
 
-	out, _, err = dockerCmdWithError("run", "--cap-drop", "all", "--cap-add", "sys_admin", "syscall-test", "ns-test", "echo", "hello2")
+	out, _, err = dockerCmdWithError("run", "--cap-drop", "all", "--cap-add", "sys_admin", "--cap-add", "sys_ptrace", "syscall-test", "ns-test", "echo", "hello2")
 	if err != nil || !strings.Contains(out, "hello2") {
 		c.Fatalf("test 2: expected hello2, got: %s, %v", out, err)
 	}

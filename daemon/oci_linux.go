@@ -156,10 +156,10 @@ func WithApparmor(c *container.Container) coci.SpecOpts {
 }
 
 // WithCapabilities sets the container's capabilties
-func WithCapabilities(c *container.Container) coci.SpecOpts {
+func WithCapabilities(c *container.Container, defaultCapabilities []string) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		capabilities, err := caps.TweakCapabilities(
-			caps.DefaultCapabilities(),
+			defaultCapabilities,
 			c.HostConfig.CapAdd,
 			c.HostConfig.CapDrop,
 			c.HostConfig.Privileged,
@@ -1021,7 +1021,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 		WithUser(c),
 		WithRlimits(daemon, c),
 		WithNamespaces(daemon, c),
-		WithCapabilities(c),
 		WithSeccomp(daemon, c),
 		WithMounts(daemon, c),
 		WithLibnetwork(daemon, c),
@@ -1042,6 +1041,11 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	}
 	if daemon.configStore.Rootless {
 		opts = append(opts, WithRootless(daemon))
+	}
+	if len(daemon.configStore.DefaultCapabilities) > 0 {
+		opts = append(opts, WithCapabilities(c, daemon.configStore.DefaultCapabilities))
+	} else {
+		opts = append(opts, WithCapabilities(c, caps.DefaultCapabilities()))
 	}
 	return &s, coci.ApplyOpts(context.Background(), nil, &containers.Container{
 		ID: c.ID,

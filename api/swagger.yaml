@@ -915,15 +915,13 @@ definitions:
           CapAdd:
             type: "array"
             description: |
-              A list of kernel capabilities to add to the container. Conflicts
-              with option 'Capabilities'.
+              A list of kernel capabilities to add to the container.
             items:
               type: "string"
           CapDrop:
             type: "array"
             description: |
-              A list of kernel capabilities to drop from the container. Conflicts
-              with option 'Capabilities'.
+              A list of kernel capabilities to drop from the container.
             items:
               type: "string"
           CgroupnsMode:
