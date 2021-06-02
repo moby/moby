@@ -50,7 +50,6 @@ func getPausedContainers(ctx context.Context, t testing.TB, client client.Contai
 	filter.Add("status", "paused")
 	containers, err := client.ContainerList(ctx, types.ContainerListOptions{
 		Filters: filter,
-		Quiet:   true,
 		All:     true,
 	})
 	assert.Check(t, err, "failed to list containers")
@@ -85,8 +84,7 @@ func deleteAllContainers(t testing.TB, apiclient client.ContainerAPIClient, prot
 func getAllContainers(ctx context.Context, t testing.TB, client client.ContainerAPIClient) []types.Container {
 	t.Helper()
 	containers, err := client.ContainerList(ctx, types.ContainerListOptions{
-		Quiet: true,
-		All:   true,
+		All: true,
 	})
 	assert.Check(t, err, "failed to list containers")
 	return containers
