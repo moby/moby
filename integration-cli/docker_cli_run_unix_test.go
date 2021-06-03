@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/moby/sys/mount"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
@@ -993,6 +994,10 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *testing.T) {
 func (s *DockerSuite) TestRunSeccompProfileAllowCloneUserns(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace, unprivilegedUsernsClone)
 	ensureSyscallTest(c)
+
+	if !(kernel.CheckKernelVersion(4, 18, 0)) {
+		c.Skip("The unprivileged creation of user namespaces is not permitted for Linux kernels older than 4.18")
+	}
 
 	icmd.RunCommand(dockerBinary, "run", "syscall-test", "userns-test", "id").Assert(c, icmd.Expected{
 		Out: "nobody",

@@ -565,6 +565,9 @@ func DefaultProfile() *Seccomp {
 					Op:       specs.OpMaskedEqual,
 				},
 			},
+			Includes: Filter{
+				MinKernel: &KernelVersion{4, 18},
+			},
 			Excludes: Filter{
 				Caps:   []string{"CAP_SYS_ADMIN"},
 				Arches: []string{"s390", "s390x"},
@@ -585,9 +588,51 @@ func DefaultProfile() *Seccomp {
 			},
 			Comment: "s390 parameter ordering for clone is different",
 			Includes: Filter{
+				MinKernel: &KernelVersion{4, 18},
 				Arches: []string{"s390", "s390x"},
 			},
 			Excludes: Filter{
+				Caps: []string{"CAP_SYS_ADMIN"},
+			},
+		},
+		{
+			Names: []string{
+				"clone",
+			},
+			Action: specs.ActAllow,
+			Args: []*specs.LinuxSeccompArg{
+				{
+					Index:    0,
+					Value:    unix.CLONE_NEWNS | unix.CLONE_NEWUTS | unix.CLONE_NEWIPC | unix.CLONE_NEWUSER | unix.CLONE_NEWPID | unix.CLONE_NEWNET | unix.CLONE_NEWCGROUP,
+					ValueTwo: 0,
+					Op:       specs.OpMaskedEqual,
+				},
+			},
+			Excludes: Filter{
+				MinKernel: &KernelVersion{4, 18},
+				Caps:   []string{"CAP_SYS_ADMIN"},
+				Arches: []string{"s390", "s390x"},
+			},
+		},
+		{
+			Names: []string{
+				"clone",
+			},
+			Action: specs.ActAllow,
+			Args: []*specs.LinuxSeccompArg{
+				{
+					Index:    1,
+					Value:    unix.CLONE_NEWNS | unix.CLONE_NEWUTS | unix.CLONE_NEWIPC | unix.CLONE_NEWUSER | unix.CLONE_NEWPID | unix.CLONE_NEWNET | unix.CLONE_NEWCGROUP,
+					ValueTwo: 0,
+					Op:       specs.OpMaskedEqual,
+				},
+			},
+			Comment: "s390 parameter ordering for clone is different",
+			Includes: Filter{
+				Arches: []string{"s390", "s390x"},
+			},
+			Excludes: Filter{
+				MinKernel: &KernelVersion{4, 18},
 				Caps: []string{"CAP_SYS_ADMIN"},
 			},
 		},
@@ -604,7 +649,28 @@ func DefaultProfile() *Seccomp {
 					Op:       specs.OpMaskedEqual,
 				},
 			},
+			Includes: Filter{
+				MinKernel: &KernelVersion{4, 18},
+			},
 			Excludes: Filter{
+				Caps:   []string{"CAP_SYS_ADMIN"},
+			},
+		},
+		{
+			Names: []string{
+				"unshare",
+			},
+			Action: specs.ActAllow,
+			Args: []*specs.LinuxSeccompArg{
+				{
+					Index:    0,
+					Value:    unix.CLONE_NEWNS | unix.CLONE_NEWUTS | unix.CLONE_NEWIPC | unix.CLONE_NEWUSER | unix.CLONE_NEWPID | unix.CLONE_NEWNET | unix.CLONE_NEWCGROUP,
+					ValueTwo: 0,
+					Op:       specs.OpMaskedEqual,
+				},
+			},
+			Excludes: Filter{
+				MinKernel: &KernelVersion{4, 18},
 				Caps:   []string{"CAP_SYS_ADMIN"},
 			},
 		},
