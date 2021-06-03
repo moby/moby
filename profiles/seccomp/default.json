@@ -631,7 +631,7 @@
 			"args": [
 				{
 					"index": 0,
-					"value": 2114060288,
+					"value": 1845624832,
 					"op": "SCMP_CMP_MASKED_EQ"
 				}
 			],
@@ -655,7 +655,7 @@
 			"args": [
 				{
 					"index": 1,
-					"value": 2114060288,
+					"value": 1845624832,
 					"op": "SCMP_CMP_MASKED_EQ"
 				}
 			],
@@ -666,6 +666,26 @@
 					"s390x"
 				]
 			},
+			"excludes": {
+				"caps": [
+					"CAP_SYS_ADMIN"
+				]
+			}
+		},
+		{
+			"names": [
+				"unshare"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"args": [
+				{
+					"index": 0,
+					"value": 1845624832,
+					"op": "SCMP_CMP_MASKED_EQ"
+				}
+			],
+			"comment": "",
+			"includes": {},
 			"excludes": {
 				"caps": [
 					"CAP_SYS_ADMIN"

@@ -34,6 +34,7 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/profiles/seccomp"
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/docker/libnetwork"
@@ -1699,7 +1700,7 @@ func maybeCreateCPURealTimeFile(configValue int64, file string, path string) err
 }
 
 func (daemon *Daemon) setupSeccompProfile() error {
-	if daemon.configStore.SeccompProfile != "" {
+	if !seccomp.IsProfileShorthand(daemon.configStore.SeccompProfile) {
 		daemon.seccompProfilePath = daemon.configStore.SeccompProfile
 		b, err := ioutil.ReadFile(daemon.configStore.SeccompProfile)
 		if err != nil {

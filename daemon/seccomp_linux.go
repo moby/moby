@@ -25,7 +25,7 @@ func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			return nil
 		}
 		if !daemon.seccompEnabled {
-			if c.SeccompProfile != "" {
+			if !seccomp.IsProfileShorthand(c.SeccompProfile) {
 				return fmt.Errorf("seccomp is not enabled in your kernel, cannot run a custom seccomp profile")
 			}
 			logrus.Warn("seccomp is not enabled in your kernel, running container without default profile")
@@ -34,12 +34,12 @@ func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 		var err error
 		switch {
-		case c.SeccompProfile != "":
+		case !seccomp.IsProfileShorthand(c.SeccompProfile):
 			s.Linux.Seccomp, err = seccomp.LoadProfile(c.SeccompProfile, s)
 		case daemon.seccompProfile != nil:
 			s.Linux.Seccomp, err = seccomp.LoadProfile(string(daemon.seccompProfile), s)
 		default:
-			s.Linux.Seccomp, err = seccomp.GetDefaultProfile(s)
+			s.Linux.Seccomp, err = seccomp.GetDefaultProfileUsingShorthand(c.SeccompProfile, s)
 		}
 		return err
 	}
