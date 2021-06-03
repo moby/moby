@@ -569,7 +569,7 @@ func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDi
 	var cpDesc *v1.Descriptor
 	for _, m := range index.Manifests {
 		if m.MediaType == images.MediaTypeContainerd1Checkpoint {
-			cpDesc = &m
+			cpDesc = &m // nolint:gosec
 			break
 		}
 	}

@@ -30,7 +30,7 @@ for platform in ${DOCKER_CROSSPLATFORMS}; do
 		echo "Cross building: ${DEST}"
 		mkdir -p "${DEST}"
 		ABS_DEST="$(cd "${DEST}" && pwd -P)"
-		source "${MAKEDIR}/binary-daemon"
+		source "${MAKEDIR}/binary"
 
 		source "${MAKEDIR}/cross-platform-dependent"
 	)

@@ -6,7 +6,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/libnetwork"
+	"github.com/docker/docker/libnetwork"
 )
 
 // Backend is all the methods that need to be implemented

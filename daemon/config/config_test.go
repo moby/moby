@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/discovery"
+	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/opts"
-	"github.com/docker/libnetwork/ipamutils"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

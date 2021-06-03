@@ -121,7 +121,7 @@ pipeline {
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
-                                    dynbinary-daemon \
+                                    dynbinary \
                                     test-docker-py
                                 '''
                             }
@@ -160,7 +160,7 @@ pipeline {
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
-                                  hack/make.sh binary-daemon
+                                  hack/make.sh binary
                                 '''
                             }
                         }
@@ -180,6 +180,9 @@ pipeline {
                         // needs to be last stage that calls make.sh for the junit report to work
                         stage("Unit tests") {
                             steps {
+                                sh '''
+                                sudo modprobe ip6table_filter
+                                '''
                                 sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
@@ -319,7 +322,7 @@ pipeline {
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
-                                    dynbinary-daemon
+                                    dynbinary
 
                                 # flaky + integration
                                 TEST_INTEGRATION_DEST=1 CONTAINER_NAME=${CONTAINER_NAME}-1 TEST_SKIP_INTEGRATION_CLI=1 run_tests test-integration-flaky &
@@ -578,6 +581,9 @@ pipeline {
                         stage("Unit tests") {
                             steps {
                                 sh '''
+                                sudo modprobe ip6table_filter
+                                '''
+                                sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
@@ -777,6 +783,9 @@ pipeline {
                         stage("Unit tests") {
                             steps {
                                 sh '''
+                                sudo modprobe ip6table_filter
+                                '''
+                                sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
@@ -972,6 +981,9 @@ pipeline {
                         }
                         stage("Unit tests") {
                             steps {
+                                sh '''
+                                sudo modprobe ip6table_filter
+                                '''
                                 sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
