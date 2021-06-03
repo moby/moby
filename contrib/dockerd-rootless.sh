@@ -118,5 +118,15 @@ else
 		# https://github.com/moby/moby/issues/41230
 		chcon system_u:object_r:iptables_var_run_t:s0 /run
 	fi
+
+	if [ "$(stat -c %T -f /etc)" = "tmpfs" ] && [ -L "/etc/ssl" ]; then
+		# Workaround for "x509: certificate signed by unknown authority" on openSUSE Tumbleweed.
+		# https://github.com/rootless-containers/rootlesskit/issues/225
+		realpath_etc_ssl=$(realpath /etc/ssl)
+		rm -f /etc/ssl
+		mkdir /etc/ssl
+		mount --rbind ${realpath_etc_ssl} /etc/ssl
+	fi
+
 	exec dockerd $@
 fi
