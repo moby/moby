@@ -1,8 +1,9 @@
 # typeurl
 
-[![Build Status](https://travis-ci.org/containerd/typeurl.svg?branch=master)](https://travis-ci.org/containerd/typeurl)
-
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/containerd/typeurl)](https://pkg.go.dev/github.com/containerd/typeurl)
+[![Build Status](https://github.com/containerd/typeurl/workflows/CI/badge.svg)](https://github.com/containerd/typeurl/actions?query=workflow%3ACI)
 [![codecov](https://codecov.io/gh/containerd/typeurl/branch/master/graph/badge.svg)](https://codecov.io/gh/containerd/typeurl)
+[![Go Report Card](https://goreportcard.com/badge/github.com/containerd/typeurl)](https://goreportcard.com/report/github.com/containerd/typeurl)
 
 A Go package for managing the registration, marshaling, and unmarshaling of encoded types.
 
