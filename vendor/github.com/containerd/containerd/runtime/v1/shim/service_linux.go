@@ -26,7 +26,7 @@ import (
 
 	"github.com/containerd/console"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/containerd/runtime"
+	"github.com/containerd/containerd/pkg/process"
 	"github.com/containerd/fifo"
 	"github.com/pkg/errors"
 )
@@ -75,14 +75,14 @@ func (p *linuxPlatform) CopyConsole(ctx context.Context, console console.Console
 			return nil, err
 		}
 
-		cmd := runtime.NewBinaryCmd(uri, id, ns)
+		cmd := process.NewBinaryCmd(uri, id, ns)
 
 		// In case of unexpected errors during logging binary start, close open pipes
 		var filesToClose []*os.File
 
 		defer func() {
 			if retErr != nil {
-				runtime.CloseFiles(filesToClose...)
+				process.CloseFiles(filesToClose...)
 			}
 		}()
 

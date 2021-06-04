@@ -67,7 +67,7 @@ func InitRootFS(ctx context.Context, name string, parent digest.Digest, readonly
 	return snapshotter.Prepare(ctx, name, parentS)
 }
 
-func createInitLayer(ctx context.Context, parent, initName string, initFn func(string) error, snapshotter snapshots.Snapshotter, mounter Mounter) (string, error) {
+func createInitLayer(ctx context.Context, parent, initName string, initFn func(string) error, snapshotter snapshots.Snapshotter, mounter Mounter) (_ string, retErr error) {
 	initS := fmt.Sprintf("%s %s", parent, initName)
 	if _, err := snapshotter.Stat(ctx, initS); err == nil {
 		return initS, nil
@@ -87,7 +87,7 @@ func createInitLayer(ctx context.Context, parent, initName string, initFn func(s
 	}
 
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			if rerr := snapshotter.Remove(ctx, td); rerr != nil {
 				log.G(ctx).Errorf("Failed to remove snapshot %s: %v", td, rerr)
 			}

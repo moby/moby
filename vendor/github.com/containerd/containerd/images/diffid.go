@@ -17,10 +17,10 @@
 package images
 
 import (
-	"compress/gzip"
 	"context"
 	"io"
 
+	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/labels"
 	"github.com/opencontainers/go-digest"
@@ -55,13 +55,14 @@ func GetDiffID(ctx context.Context, cs content.Store, desc ocispec.Descriptor) (
 	}
 	defer ra.Close()
 	r := content.NewReader(ra)
-	gzR, err := gzip.NewReader(r)
+	uR, err := compression.DecompressStream(r)
 	if err != nil {
 		return "", err
 	}
+	defer uR.Close()
 	digester := digest.Canonical.Digester()
 	hashW := digester.Hash()
-	if _, err := io.Copy(hashW, gzR); err != nil {
+	if _, err := io.Copy(hashW, uR); err != nil {
 		return "", err
 	}
 	if err := ra.Close(); err != nil {

@@ -38,7 +38,6 @@ import (
 	"github.com/opencontainers/runc/libcontainer/user"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/syndtr/gocapability/capability"
 )
 
 // SpecOpts sets spec specific information to a newly generated OCI spec
@@ -274,6 +273,28 @@ func WithMounts(mounts []specs.Mount) SpecOpts {
 	}
 }
 
+// WithoutMounts removes mounts
+func WithoutMounts(dests ...string) SpecOpts {
+	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		var (
+			mounts  []specs.Mount
+			current = s.Mounts
+		)
+	mLoop:
+		for _, m := range current {
+			mDestination := filepath.Clean(m.Destination)
+			for _, dest := range dests {
+				if mDestination == dest {
+					continue mLoop
+				}
+			}
+			mounts = append(mounts, m)
+		}
+		s.Mounts = mounts
+		return nil
+	}
+}
+
 // WithHostNamespace allows a task to run inside the host's linux namespace
 func WithHostNamespace(ns specs.LinuxNamespaceType) SpecOpts {
 	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
@@ -295,10 +316,7 @@ func WithLinuxNamespace(ns specs.LinuxNamespace) SpecOpts {
 		setLinux(s)
 		for i, n := range s.Linux.Namespaces {
 			if n.Type == ns.Type {
-				before := s.Linux.Namespaces[:i]
-				after := s.Linux.Namespaces[i+1:]
-				s.Linux.Namespaces = append(before, ns)
-				s.Linux.Namespaces = append(s.Linux.Namespaces, after...)
+				s.Linux.Namespaces[i] = ns
 				return nil
 			}
 		}
@@ -776,29 +794,6 @@ func WithCapabilities(caps []string) SpecOpts {
 	}
 }
 
-// WithAllCapabilities sets all linux capabilities for the process
-var WithAllCapabilities = func(ctx context.Context, client Client, c *containers.Container, s *Spec) error {
-	return WithCapabilities(GetAllCapabilities())(ctx, client, c, s)
-}
-
-// GetAllCapabilities returns all caps up to CAP_LAST_CAP
-// or CAP_BLOCK_SUSPEND on RHEL6
-func GetAllCapabilities() []string {
-	last := capability.CAP_LAST_CAP
-	// hack for RHEL6 which has no /proc/sys/kernel/cap_last_cap
-	if last == capability.Cap(63) {
-		last = capability.CAP_BLOCK_SUSPEND
-	}
-	var caps []string
-	for _, cap := range capability.List() {
-		if cap > last {
-			continue
-		}
-		caps = append(caps, "CAP_"+strings.ToUpper(cap.String()))
-	}
-	return caps
-}
-
 func capsContain(caps []string, s string) bool {
 	for _, c := range caps {
 		if c == s {
@@ -954,16 +949,13 @@ func WithReadonlyPaths(paths []string) SpecOpts {
 
 // WithWriteableSysfs makes any sysfs mounts writeable
 func WithWriteableSysfs(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
-	for i, m := range s.Mounts {
+	for _, m := range s.Mounts {
 		if m.Type == "sysfs" {
-			var options []string
-			for _, o := range m.Options {
+			for i, o := range m.Options {
 				if o == "ro" {
-					o = "rw"
+					m.Options[i] = "rw"
 				}
-				options = append(options, o)
 			}
-			s.Mounts[i].Options = options
 		}
 	}
 	return nil
@@ -971,16 +963,13 @@ func WithWriteableSysfs(_ context.Context, _ Client, _ *containers.Container, s 
 
 // WithWriteableCgroupfs makes any cgroup mounts writeable
 func WithWriteableCgroupfs(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
-	for i, m := range s.Mounts {
+	for _, m := range s.Mounts {
 		if m.Type == "cgroup" {
-			var options []string
-			for _, o := range m.Options {
+			for i, o := range m.Options {
 				if o == "ro" {
-					o = "rw"
+					m.Options[i] = "rw"
 				}
-				options = append(options, o)
 			}
-			s.Mounts[i].Options = options
 		}
 	}
 	return nil
@@ -1132,7 +1121,7 @@ func WithDefaultUnixDevices(_ context.Context, _ Client, _ *containers.Container
 
 // WithPrivileged sets up options for a privileged container
 var WithPrivileged = Compose(
-	WithAllCapabilities,
+	WithAllCurrentCapabilities,
 	WithMaskedPaths(nil),
 	WithReadonlyPaths(nil),
 	WithWriteableSysfs,
@@ -1205,15 +1194,13 @@ func WithLinuxDevices(devices []specs.LinuxDevice) SpecOpts {
 	}
 }
 
-var ErrNotADevice = errors.New("not a device node")
-
 // WithLinuxDevice adds the device specified by path to the spec
 func WithLinuxDevice(path, permissions string) SpecOpts {
 	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
 		setLinux(s)
 		setResources(s)
 
-		dev, err := deviceFromPath(path, permissions)
+		dev, err := deviceFromPath(path)
 		if err != nil {
 			return err
 		}

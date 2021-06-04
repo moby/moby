@@ -28,7 +28,8 @@ import (
 const (
 	// UnpackKeyPrefix is the beginning of the key format used for snapshots that will have
 	// image content unpacked into them.
-	UnpackKeyPrefix       = "extract"
+	UnpackKeyPrefix = "extract"
+	// UnpackKeyFormat is the format for the snapshotter keys used for extraction
 	UnpackKeyFormat       = UnpackKeyPrefix + "-%s %s"
 	inheritedLabelsPrefix = "containerd.io/snapshot/"
 	labelSnapshotRef      = "containerd.io/snapshot.ref"

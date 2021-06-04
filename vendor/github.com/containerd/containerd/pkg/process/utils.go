@@ -172,7 +172,7 @@ func (p *pidFile) Read() (int, error) {
 func waitTimeout(ctx context.Context, wg *sync.WaitGroup, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	done := make(chan struct{}, 1)
+	done := make(chan struct{})
 	go func() {
 		wg.Wait()
 		close(done)

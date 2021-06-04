@@ -36,19 +36,19 @@ type Process interface {
 	// ID of the process
 	ID() string
 	// State returns the process state
-	State(context.Context) (State, error)
+	State(ctx context.Context) (State, error)
 	// Kill signals a container
-	Kill(context.Context, uint32, bool) error
-	// Pty resizes the processes pty/console
-	ResizePty(context.Context, ConsoleSize) error
-	// CloseStdin closes the processes stdin
-	CloseIO(context.Context) error
+	Kill(ctx context.Context, signal uint32, all bool) error
+	// ResizePty resizes the processes pty/console
+	ResizePty(ctx context.Context, size ConsoleSize) error
+	// CloseIO closes the processes IO
+	CloseIO(ctx context.Context) error
 	// Start the container's user defined process
-	Start(context.Context) error
+	Start(ctx context.Context) error
 	// Wait for the process to exit
-	Wait(context.Context) (*Exit, error)
+	Wait(ctx context.Context) (*Exit, error)
 	// Delete deletes the process
-	Delete(context.Context) (*Exit, error)
+	Delete(ctx context.Context) (*Exit, error)
 }
 
 // Task is the runtime object for an executing container
@@ -60,21 +60,21 @@ type Task interface {
 	// Namespace that the task exists in
 	Namespace() string
 	// Pause pauses the container process
-	Pause(context.Context) error
+	Pause(ctx context.Context) error
 	// Resume unpauses the container process
-	Resume(context.Context) error
+	Resume(ctx context.Context) error
 	// Exec adds a process into the container
-	Exec(context.Context, string, ExecOpts) (Process, error)
+	Exec(ctx context.Context, id string, opts ExecOpts) (Process, error)
 	// Pids returns all pids
-	Pids(context.Context) ([]ProcessInfo, error)
+	Pids(ctx context.Context) ([]ProcessInfo, error)
 	// Checkpoint checkpoints a container to an image with live system data
-	Checkpoint(context.Context, string, *types.Any) error
+	Checkpoint(ctx context.Context, path string, opts *types.Any) error
 	// Update sets the provided resources to a running task
-	Update(context.Context, *types.Any, map[string]string) error
+	Update(ctx context.Context, resources *types.Any, annotations map[string]string) error
 	// Process returns a process within the task for the provided id
-	Process(context.Context, string) (Process, error)
+	Process(ctx context.Context, id string) (Process, error)
 	// Stats returns runtime specific metrics for a task
-	Stats(context.Context) (*types.Any, error)
+	Stats(ctx context.Context) (*types.Any, error)
 }
 
 // ExecOpts provides additional options for additional processes running in a task

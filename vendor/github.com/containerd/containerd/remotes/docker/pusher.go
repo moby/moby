@@ -44,16 +44,46 @@ type dockerPusher struct {
 	tracker StatusTracker
 }
 
+// Writer implements Ingester API of content store. This allows the client
+// to receive ErrUnavailable when there is already an on-going upload.
+// Note that the tracker MUST implement StatusTrackLocker interface to avoid
+// race condition on StatusTracker.
+func (p dockerPusher) Writer(ctx context.Context, opts ...content.WriterOpt) (content.Writer, error) {
+	var wOpts content.WriterOpts
+	for _, opt := range opts {
+		if err := opt(&wOpts); err != nil {
+			return nil, err
+		}
+	}
+	if wOpts.Ref == "" {
+		return nil, errors.Wrap(errdefs.ErrInvalidArgument, "ref must not be empty")
+	}
+	return p.push(ctx, wOpts.Desc, wOpts.Ref, true)
+}
+
 func (p dockerPusher) Push(ctx context.Context, desc ocispec.Descriptor) (content.Writer, error) {
+	return p.push(ctx, desc, remotes.MakeRefKey(ctx, desc), false)
+}
+
+func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref string, unavailableOnFail bool) (content.Writer, error) {
+	if l, ok := p.tracker.(StatusTrackLocker); ok {
+		l.Lock(ref)
+		defer l.Unlock(ref)
+	}
 	ctx, err := ContextWithRepositoryScope(ctx, p.refspec, true)
 	if err != nil {
 		return nil, err
 	}
-	ref := remotes.MakeRefKey(ctx, desc)
 	status, err := p.tracker.GetStatus(ref)
 	if err == nil {
-		if status.Offset == status.Total {
+		if status.Committed && status.Offset == status.Total {
 			return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "ref %v", ref)
+		}
+		if unavailableOnFail {
+			// Another push of this ref is happening elsewhere. The rest of function
+			// will continue only when `errdefs.IsNotFound(err) == true` (i.e. there
+			// is no actively-tracked ref already).
+			return nil, errors.Wrap(errdefs.ErrUnavailable, "push is on-going")
 		}
 		// TODO: Handle incomplete status
 	} else if !errdefs.IsNotFound(err) {
@@ -105,8 +135,11 @@ func (p dockerPusher) Push(ctx context.Context, desc ocispec.Descriptor) (conten
 
 			if exists {
 				p.tracker.SetStatus(ref, Status{
+					Committed: true,
 					Status: content.Status{
-						Ref: ref,
+						Ref:    ref,
+						Total:  desc.Size,
+						Offset: desc.Size,
 						// TODO: Set updated time?
 					},
 				})
@@ -162,8 +195,11 @@ func (p dockerPusher) Push(ctx context.Context, desc ocispec.Descriptor) (conten
 		case http.StatusOK, http.StatusAccepted, http.StatusNoContent:
 		case http.StatusCreated:
 			p.tracker.SetStatus(ref, Status{
+				Committed: true,
 				Status: content.Status{
-					Ref: ref,
+					Ref:    ref,
+					Total:  desc.Size,
+					Offset: desc.Size,
 				},
 			})
 			return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
@@ -341,8 +377,6 @@ func (pw *pushWriter) Commit(ctx context.Context, size int64, expected digest.Di
 	if err := pw.pipe.Close(); err != nil {
 		return err
 	}
-	// TODO: Update status to determine committing
-
 	// TODO: timeout waiting for response
 	resp := <-pw.responseC
 	if resp.err != nil {
@@ -354,7 +388,7 @@ func (pw *pushWriter) Commit(ctx context.Context, size int64, expected digest.Di
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated, http.StatusNoContent, http.StatusAccepted:
 	default:
-		return errors.Errorf("unexpected status: %s", resp.Status)
+		return remoteserrors.NewUnexpectedStatusErr(resp.Response)
 	}
 
 	status, err := pw.tracker.GetStatus(pw.ref)
@@ -378,6 +412,10 @@ func (pw *pushWriter) Commit(ctx context.Context, size int64, expected digest.Di
 	if actual != expected {
 		return errors.Errorf("got digest %s, expected %s", actual, expected)
 	}
+
+	status.Committed = true
+	status.UpdatedAt = time.Now()
+	pw.tracker.SetStatus(pw.ref, status)
 
 	return nil
 }

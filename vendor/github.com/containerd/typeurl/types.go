@@ -28,11 +28,20 @@ import (
 )
 
 var (
-	mu       sync.Mutex
+	mu       sync.RWMutex
 	registry = make(map[reflect.Type]string)
 )
 
-var ErrNotFound = errors.New("not found")
+// Definitions of common error types used throughout typeurl.
+//
+// These error types are used with errors.Wrap and errors.Wrapf to add context
+// to an error.
+//
+// To detect an error class, use errors.Is() functions to tell whether an
+// error is of this type.
+var (
+	ErrNotFound = errors.New("not found")
+)
 
 // Register a type with a base URL for JSON marshaling. When the MarshalAny and
 // UnmarshalAny functions are called they will treat the Any type value as JSON.
@@ -56,9 +65,9 @@ func Register(v interface{}, args ...string) {
 
 // TypeURL returns the type url for a registered type.
 func TypeURL(v interface{}) (string, error) {
-	mu.Lock()
+	mu.RLock()
 	u, ok := registry[tryDereference(v)]
-	mu.Unlock()
+	mu.RUnlock()
 	if !ok {
 		// fallback to the proto registry if it is a proto message
 		pb, ok := v.(proto.Message)
@@ -119,14 +128,21 @@ func UnmarshalAny(any *types.Any) (interface{}, error) {
 	return UnmarshalByTypeURL(any.TypeUrl, any.Value)
 }
 
+// UnmarshalByTypeURL unmarshals the given type and value to into a concrete type.
 func UnmarshalByTypeURL(typeURL string, value []byte) (interface{}, error) {
 	return unmarshal(typeURL, value, nil)
 }
 
+// UnmarshalTo unmarshals the any type into a concrete type passed in the out
+// argument. It is identical to UnmarshalAny, but lets clients provide a
+// destination type through the out argument.
 func UnmarshalTo(any *types.Any, out interface{}) error {
 	return UnmarshalToByTypeURL(any.TypeUrl, any.Value, out)
 }
 
+// UnmarshalTo unmarshals the given type and value into a concrete type passed
+// in the out argument. It is identical to UnmarshalByTypeURL, but lets clients
+// provide a destination type through the out argument.
 func UnmarshalToByTypeURL(typeURL string, value []byte, out interface{}) error {
 	_, err := unmarshal(typeURL, value, out)
 	return err
@@ -166,13 +182,16 @@ type urlType struct {
 }
 
 func getTypeByUrl(url string) (urlType, error) {
+	mu.RLock()
 	for t, u := range registry {
 		if u == url {
+			mu.RUnlock()
 			return urlType{
 				t: t,
 			}, nil
 		}
 	}
+	mu.RUnlock()
 	// fallback to proto registry
 	t := proto.MessageType(url)
 	if t != nil {

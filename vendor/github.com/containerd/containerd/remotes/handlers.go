@@ -31,6 +31,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/semaphore"
 )
 
 type refKeyPrefix struct{}
@@ -55,25 +56,32 @@ func WithMediaTypeKeyPrefix(ctx context.Context, mediaType, prefix string) conte
 // used to lookup ongoing processes related to the descriptor. This function
 // may look to the context to namespace the reference appropriately.
 func MakeRefKey(ctx context.Context, desc ocispec.Descriptor) string {
+	key := desc.Digest.String()
+	if desc.Annotations != nil {
+		if name, ok := desc.Annotations[ocispec.AnnotationRefName]; ok {
+			key = fmt.Sprintf("%s@%s", name, desc.Digest.String())
+		}
+	}
+
 	if v := ctx.Value(refKeyPrefix{}); v != nil {
 		values := v.(map[string]string)
 		if prefix := values[desc.MediaType]; prefix != "" {
-			return prefix + "-" + desc.Digest.String()
+			return prefix + "-" + key
 		}
 	}
 
 	switch mt := desc.MediaType; {
 	case mt == images.MediaTypeDockerSchema2Manifest || mt == ocispec.MediaTypeImageManifest:
-		return "manifest-" + desc.Digest.String()
+		return "manifest-" + key
 	case mt == images.MediaTypeDockerSchema2ManifestList || mt == ocispec.MediaTypeImageIndex:
-		return "index-" + desc.Digest.String()
+		return "index-" + key
 	case images.IsLayerType(mt):
-		return "layer-" + desc.Digest.String()
+		return "layer-" + key
 	case images.IsKnownConfig(mt):
-		return "config-" + desc.Digest.String()
+		return "config-" + key
 	default:
 		log.G(ctx).Warnf("reference for unknown type: %s", mt)
-		return "unknown-" + desc.Digest.String()
+		return "unknown-" + key
 	}
 }
 
@@ -115,6 +123,12 @@ func fetch(ctx context.Context, ingester content.Ingester, fetcher Fetcher, desc
 		return err
 	}
 
+	if desc.Size == 0 {
+		// most likely a poorly configured registry/web front end which responded with no
+		// Content-Length header; unable (not to mention useless) to commit a 0-length entry
+		// into the content store. Error out here otherwise the error sent back is confusing
+		return errors.Wrapf(errdefs.ErrInvalidArgument, "unable to fetch descriptor (%s) which reports content size of zero", desc.Digest)
+	}
 	if ws.Offset == desc.Size {
 		// If writer is already complete, commit and return
 		err := cw.Commit(ctx, desc.Size, desc.Digest)
@@ -151,7 +165,15 @@ func PushHandler(pusher Pusher, provider content.Provider) images.HandlerFunc {
 func push(ctx context.Context, provider content.Provider, pusher Pusher, desc ocispec.Descriptor) error {
 	log.G(ctx).Debug("push")
 
-	cw, err := pusher.Push(ctx, desc)
+	var (
+		cw  content.Writer
+		err error
+	)
+	if cs, ok := pusher.(content.Ingester); ok {
+		cw, err = content.OpenWriter(ctx, cs, content.WithRef(MakeRefKey(ctx, desc)), content.WithDescriptor(desc))
+	} else {
+		cw, err = pusher.Push(ctx, desc)
+	}
 	if err != nil {
 		if !errdefs.IsAlreadyExists(err) {
 			return err
@@ -175,7 +197,8 @@ func push(ctx context.Context, provider content.Provider, pusher Pusher, desc oc
 //
 // Base handlers can be provided which will be called before any push specific
 // handlers.
-func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, store content.Store, platform platforms.MatchComparer, wrapper func(h images.Handler) images.Handler) error {
+func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, store content.Store, limiter *semaphore.Weighted, platform platforms.MatchComparer, wrapper func(h images.Handler) images.Handler) error {
+
 	var m sync.Mutex
 	manifestStack := []ocispec.Descriptor{}
 
@@ -207,7 +230,7 @@ func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, st
 		handler = wrapper(handler)
 	}
 
-	if err := images.Dispatch(ctx, handler, nil, desc); err != nil {
+	if err := images.Dispatch(ctx, handler, limiter, desc); err != nil {
 		return err
 	}
 

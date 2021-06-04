@@ -24,7 +24,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/continuity/sysx"
 	"github.com/pkg/errors"
@@ -87,7 +87,7 @@ func skipFile(hdr *tar.Header) bool {
 	switch hdr.Typeflag {
 	case tar.TypeBlock, tar.TypeChar:
 		// cannot create a device if running in user namespace
-		return sys.RunningInUserNS()
+		return userns.RunningInUserNS()
 	default:
 		return false
 	}

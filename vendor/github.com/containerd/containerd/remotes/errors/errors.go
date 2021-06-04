@@ -27,9 +27,10 @@ var _ error = ErrUnexpectedStatus{}
 
 // ErrUnexpectedStatus is returned if a registry API request returned with unexpected HTTP status
 type ErrUnexpectedStatus struct {
-	Status     string
-	StatusCode int
-	Body       []byte
+	Status                    string
+	StatusCode                int
+	Body                      []byte
+	RequestURL, RequestMethod string
 }
 
 func (e ErrUnexpectedStatus) Error() string {
@@ -42,5 +43,14 @@ func NewUnexpectedStatusErr(resp *http.Response) error {
 	if resp.Body != nil {
 		b, _ = ioutil.ReadAll(io.LimitReader(resp.Body, 64000)) // 64KB
 	}
-	return ErrUnexpectedStatus{Status: resp.Status, StatusCode: resp.StatusCode, Body: b}
+	err := ErrUnexpectedStatus{
+		Body:          b,
+		Status:        resp.Status,
+		StatusCode:    resp.StatusCode,
+		RequestMethod: resp.Request.Method,
+	}
+	if resp.Request.URL != nil {
+		err.RequestURL = resp.Request.URL.String()
+	}
+	return err
 }

@@ -49,6 +49,9 @@ const (
 	MediaTypeContainerd1CheckpointRuntimeOptions = "application/vnd.containerd.container.checkpoint.runtime.options+proto"
 	// Legacy Docker schema1 manifest
 	MediaTypeDockerSchema1Manifest = "application/vnd.docker.distribution.manifest.v1+prettyjws"
+	// Encypted media types
+	MediaTypeImageLayerEncrypted     = ocispec.MediaTypeImageLayer + "+encrypted"
+	MediaTypeImageLayerGzipEncrypted = ocispec.MediaTypeImageLayerGzip + "+encrypted"
 )
 
 // DiffCompression returns the compression as defined by the layer diff media

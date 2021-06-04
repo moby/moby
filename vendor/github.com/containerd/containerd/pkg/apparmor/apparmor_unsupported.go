@@ -18,7 +18,6 @@
 
 package apparmor
 
-//nolint: deadcode, unused
-func HostSupports() bool {
+func hostSupports() bool {
 	return false
 }

@@ -22,7 +22,7 @@ import (
 	"github.com/containerd/containerd/filters"
 )
 
-// AdoptInfo returns `filters.Adaptor` that handles `content.Info`.
+// AdaptInfo returns `filters.Adaptor` that handles `content.Info`.
 func AdaptInfo(info Info) filters.Adaptor {
 	return filters.AdapterFunc(func(fieldpath []string) (string, bool) {
 		if len(fieldpath) == 0 {

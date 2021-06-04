@@ -40,7 +40,7 @@ func copyFileContent(dst, src *os.File) error {
 	return err
 }
 
-func copyXAttrs(dst, src string, xeh XAttrErrorHandler) error {
+func copyXAttrs(dst, src string, excludes map[string]struct{}, errorHandler XAttrErrorHandler) error {
 	return nil
 }
 

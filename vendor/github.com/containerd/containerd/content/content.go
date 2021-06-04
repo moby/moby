@@ -37,7 +37,7 @@ type Provider interface {
 	// ReaderAt only requires desc.Digest to be set.
 	// Other fields in the descriptor may be used internally for resolving
 	// the location of the actual data.
-	ReaderAt(ctx context.Context, dec ocispec.Descriptor) (ReaderAt, error)
+	ReaderAt(ctx context.Context, desc ocispec.Descriptor) (ReaderAt, error)
 }
 
 // Ingester writes content

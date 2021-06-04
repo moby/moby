@@ -45,6 +45,8 @@ type Resolver interface {
 	Fetcher(ctx context.Context, ref string) (Fetcher, error)
 
 	// Pusher returns a new pusher for the provided reference
+	// The returned Pusher should satisfy content.Ingester and concurrent attempts
+	// to push the same blob using the Ingester API should result in ErrUnavailable.
 	Pusher(ctx context.Context, ref string) (Pusher, error)
 }
 

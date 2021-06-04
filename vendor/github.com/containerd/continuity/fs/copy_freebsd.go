@@ -1,3 +1,5 @@
+// +build freebsd
+
 /*
    Copyright The containerd Authors.
 
@@ -14,23 +16,27 @@
    limitations under the License.
 */
 
-package sys
+package fs
 
-const (
-	// OOMScoreAdjMax is not implemented on Windows
-	OOMScoreAdjMax = 0
+import (
+	"os"
+	"syscall"
+
+	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
-// SetOOMScore sets the oom score for the process
-//
-// Not implemented on Windows
-func SetOOMScore(pid, score int) error {
-	return nil
+func copyDevice(dst string, fi os.FileInfo) error {
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return errors.New("unsupported stat type")
+	}
+	return unix.Mknod(dst, uint32(fi.Mode()), st.Rdev)
 }
 
-// GetOOMScoreAdj gets the oom score for a process
-//
-// Not implemented on Windows
-func GetOOMScoreAdj(pid int) (int, error) {
-	return 0, nil
+func utimesNano(name string, atime, mtime syscall.Timespec) error {
+	at := unix.NsecToTimespec(atime.Nano())
+	mt := unix.NsecToTimespec(mtime.Nano())
+	utimes := [2]unix.Timespec{at, mt}
+	return unix.UtimesNanoAt(unix.AT_FDCWD, name, utimes[0:], unix.AT_SYMLINK_NOFOLLOW)
 }

@@ -1,4 +1,4 @@
-// +build solaris
+// +build freebsd
 
 /*
    Copyright The containerd Authors.
@@ -16,12 +16,10 @@
    limitations under the License.
 */
 
-package fifo
+package devices
 
-import (
-	"golang.org/x/sys/unix"
-)
+import "golang.org/x/sys/unix"
 
-func mkfifo(path string, mode uint32) (err error) {
-	return unix.Mkfifo(path, mode)
+func mknod(path string, mode uint32, dev uint64) (err error) {
+	return unix.Mknod(path, mode, dev)
 }
