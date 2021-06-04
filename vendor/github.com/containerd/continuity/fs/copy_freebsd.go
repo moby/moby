@@ -1,3 +1,5 @@
+// +build freebsd
+
 /*
    Copyright The containerd Authors.
 
@@ -17,33 +19,24 @@
 package fs
 
 import (
-	"io"
 	"os"
+	"syscall"
 
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
-func copyFileInfo(fi os.FileInfo, name string) error {
-	if err := os.Chmod(name, fi.Mode()); err != nil {
-		return errors.Wrapf(err, "failed to chmod %s", name)
-	}
-
-	// TODO: copy windows specific metadata
-
-	return nil
-}
-
-func copyFileContent(dst, src *os.File) error {
-	buf := bufferPool.Get().(*[]byte)
-	_, err := io.CopyBuffer(dst, src, *buf)
-	bufferPool.Put(buf)
-	return err
-}
-
-func copyXAttrs(dst, src string, excludes map[string]struct{}, errorHandler XAttrErrorHandler) error {
-	return nil
-}
-
 func copyDevice(dst string, fi os.FileInfo) error {
-	return errors.New("device copy not supported")
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return errors.New("unsupported stat type")
+	}
+	return unix.Mknod(dst, uint32(fi.Mode()), st.Rdev)
+}
+
+func utimesNano(name string, atime, mtime syscall.Timespec) error {
+	at := unix.NsecToTimespec(atime.Nano())
+	mt := unix.NsecToTimespec(mtime.Nano())
+	utimes := [2]unix.Timespec{at, mt}
+	return unix.UtimesNanoAt(unix.AT_FDCWD, name, utimes[0:], unix.AT_SYMLINK_NOFOLLOW)
 }
