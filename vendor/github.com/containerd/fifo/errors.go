@@ -16,9 +16,7 @@
 
 package fifo
 
-import (
-	"errors"
-)
+import "errors"
 
 var (
 	ErrClosed      = errors.New("fifo closed")

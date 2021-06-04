@@ -1,5 +1,3 @@
-// +build solaris
-
 /*
    Copyright The containerd Authors.
 
@@ -18,10 +16,20 @@
 
 package fifo
 
-import (
-	"golang.org/x/sys/unix"
-)
+import "os"
 
-func mkfifo(path string, mode uint32) (err error) {
-	return unix.Mkfifo(path, mode)
+// IsFifo checks if a file is a (named pipe) fifo
+// if the file does not exist then it returns false
+func IsFifo(path string) (bool, error) {
+	stat, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if stat.Mode()&os.ModeNamedPipe == os.ModeNamedPipe {
+		return true, nil
+	}
+	return false, nil
 }
