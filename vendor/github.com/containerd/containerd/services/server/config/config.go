@@ -20,9 +20,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/BurntSushi/toml"
 	"github.com/imdario/mergo"
+	"github.com/pelletier/go-toml"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/plugin"
@@ -55,7 +56,7 @@ type Config struct {
 	// required plugin doesn't exist or fails to be initialized or started.
 	RequiredPlugins []string `toml:"required_plugins"`
 	// Plugins provides plugin specific configuration for the initialization of a plugin
-	Plugins map[string]toml.Primitive `toml:"plugins"`
+	Plugins map[string]toml.Tree `toml:"plugins"`
 	// OOMScore adjust the containerd's oom score
 	OOMScore int `toml:"oom_score"`
 	// Cgroup specifies cgroup information for the containerd daemon process
@@ -94,7 +95,9 @@ func (c *Config) GetVersion() int {
 
 // ValidateV2 validates the config for a v2 file
 func (c *Config) ValidateV2() error {
-	if c.GetVersion() != 2 {
+	version := c.GetVersion()
+	if version < 2 {
+		logrus.Warnf("deprecated version : `%d`, please switch to version `2`", version)
 		return nil
 	}
 	for _, p := range c.DisabledPlugins {
@@ -209,7 +212,7 @@ func (c *Config) Decode(p *plugin.Registration) (interface{}, error) {
 	if !ok {
 		return p.Config, nil
 	}
-	if err := toml.PrimitiveDecode(data, p.Config); err != nil {
+	if err := data.Unmarshal(p.Config); err != nil {
 		return nil, err
 	}
 	return p.Config, nil
@@ -258,16 +261,26 @@ func LoadConfig(path string, out *Config) error {
 		out.Imports = append(out.Imports, path)
 	}
 
-	return out.ValidateV2()
+	err := out.ValidateV2()
+	if err != nil {
+		return errors.Wrapf(err, "failed to load TOML from %s", path)
+	}
+	return nil
 }
 
 // loadConfigFile decodes a TOML file at the given path
 func loadConfigFile(path string) (*Config, error) {
 	config := &Config{}
-	_, err := toml.DecodeFile(path, &config)
+
+	file, err := toml.LoadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to load TOML: %s", path)
 	}
+
+	if err := file.Unmarshal(config); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal TOML")
+	}
+
 	return config, nil
 }
 

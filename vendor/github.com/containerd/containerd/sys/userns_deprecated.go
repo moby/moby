@@ -16,21 +16,8 @@
 
 package sys
 
-const (
-	// OOMScoreAdjMax is not implemented on Windows
-	OOMScoreAdjMax = 0
-)
+import "github.com/containerd/containerd/pkg/userns"
 
-// SetOOMScore sets the oom score for the process
-//
-// Not implemented on Windows
-func SetOOMScore(pid, score int) error {
-	return nil
-}
-
-// GetOOMScoreAdj gets the oom score for a process
-//
-// Not implemented on Windows
-func GetOOMScoreAdj(pid int) (int, error) {
-	return 0, nil
-}
+// RunningInUserNS detects whether we are currently running in a user namespace.
+// Deprecated: use github.com/containerd/containerd/pkg/userns.RunningInUserNS instead.
+var RunningInUserNS = userns.RunningInUserNS

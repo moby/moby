@@ -73,3 +73,13 @@ func WithParents(p []string) ApplyOpt {
 		return nil
 	}
 }
+
+// WriteDiffOptions provides additional options for a WriteDiff operation
+type WriteDiffOptions struct {
+	ParentLayers []string // Windows needs the full list of parent layers
+
+	writeDiffFunc func(context.Context, io.Writer, string, string, WriteDiffOptions) error
+}
+
+// WriteDiffOpt allows setting mutable archive write properties on creation
+type WriteDiffOpt func(options *WriteDiffOptions) error

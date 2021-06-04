@@ -182,10 +182,7 @@ func setupOOMScore(shimPid int) error {
 		return errors.Wrap(err, "get daemon OOM score")
 	}
 	shimScore := score + 1
-	if shimScore > sys.OOMScoreAdjMax {
-		shimScore = sys.OOMScoreAdjMax
-	}
-	if err := sys.SetOOMScore(shimPid, shimScore); err != nil {
+	if err := sys.AdjustOOMScore(shimPid, shimScore); err != nil {
 		return errors.Wrap(err, "set shim OOM score")
 	}
 	return nil

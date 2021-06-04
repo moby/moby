@@ -18,6 +18,7 @@ package metadata
 
 import (
 	"context"
+	"strings"
 
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/identifiers"
@@ -140,10 +141,17 @@ func (s *namespaceStore) Delete(ctx context.Context, namespace string, opts ...n
 		}
 	}
 	bkt := getBucket(s.tx, bucketKeyVersion)
-	if empty, err := s.namespaceEmpty(ctx, namespace); err != nil {
+	types, err := s.listNs(namespace)
+	if err != nil {
 		return err
-	} else if !empty {
-		return errors.Wrapf(errdefs.ErrFailedPrecondition, "namespace %q must be empty", namespace)
+	}
+
+	if len(types) > 0 {
+		return errors.Wrapf(
+			errdefs.ErrFailedPrecondition,
+			"namespace %q must be empty, but it still has %s",
+			namespace, strings.Join(types, ", "),
+		)
 	}
 
 	if err := bkt.DeleteBucket([]byte(namespace)); err != nil {
@@ -157,32 +165,35 @@ func (s *namespaceStore) Delete(ctx context.Context, namespace string, opts ...n
 	return nil
 }
 
-func (s *namespaceStore) namespaceEmpty(ctx context.Context, namespace string) (bool, error) {
-	// Get all data buckets
-	buckets := []*bolt.Bucket{
-		getImagesBucket(s.tx, namespace),
-		getBlobsBucket(s.tx, namespace),
-		getContainersBucket(s.tx, namespace),
+// listNs returns the types of the remaining objects inside the given namespace.
+// It doesn't return exact objects due to performance concerns.
+func (s *namespaceStore) listNs(namespace string) ([]string, error) {
+	var out []string
+
+	if !isBucketEmpty(getImagesBucket(s.tx, namespace)) {
+		out = append(out, "images")
 	}
+	if !isBucketEmpty(getBlobsBucket(s.tx, namespace)) {
+		out = append(out, "blobs")
+	}
+	if !isBucketEmpty(getContainersBucket(s.tx, namespace)) {
+		out = append(out, "containers")
+	}
+
 	if snbkt := getSnapshottersBucket(s.tx, namespace); snbkt != nil {
 		if err := snbkt.ForEach(func(k, v []byte) error {
 			if v == nil {
-				buckets = append(buckets, snbkt.Bucket(k))
+				if !isBucketEmpty(snbkt.Bucket(k)) {
+					out = append(out, "snapshot-"+string(k))
+				}
 			}
 			return nil
 		}); err != nil {
-			return false, err
+			return nil, err
 		}
 	}
 
-	// Ensure data buckets are empty
-	for _, bkt := range buckets {
-		if !isBucketEmpty(bkt) {
-			return false, nil
-		}
-	}
-
-	return true, nil
+	return out, nil
 }
 
 func isBucketEmpty(bkt *bolt.Bucket) bool {

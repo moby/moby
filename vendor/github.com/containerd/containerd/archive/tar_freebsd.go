@@ -29,7 +29,7 @@ func mknod(path string, mode uint32, dev uint64) error {
 // lsetxattrCreate wraps unix.Lsetxattr with FreeBSD-specific flags and errors
 func lsetxattrCreate(link string, attr string, data []byte) error {
 	err := unix.Lsetxattr(link, attr, data, 0)
-	if err == unix.ENOTSUP|| err == unix.EEXIST {
+	if err == unix.ENOTSUP || err == unix.EEXIST {
 		return nil
 	}
 	return err

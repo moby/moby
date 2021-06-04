@@ -25,6 +25,7 @@ import (
 	ptypes "github.com/gogo/protobuf/types"
 )
 
+// Service defines the instrospection service interface
 type Service interface {
 	Plugins(context.Context, []string) (*api.PluginsResponse, error)
 	Server(context.Context, *ptypes.Empty) (*api.ServerResponse, error)
@@ -36,6 +37,7 @@ type introspectionRemote struct {
 
 var _ = (Service)(&introspectionRemote{})
 
+// NewIntrospectionServiceFromClient creates a new introspection service from an API client
 func NewIntrospectionServiceFromClient(c api.IntrospectionClient) Service {
 	return &introspectionRemote{client: c}
 }

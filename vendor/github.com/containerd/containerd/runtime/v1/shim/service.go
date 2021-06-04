@@ -397,6 +397,9 @@ func (s *Service) ListPids(ctx context.Context, r *shimapi.ListPidsRequest) (*sh
 		return nil, errdefs.ToGRPC(err)
 	}
 	var processes []*task.ProcessInfo
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	for _, pid := range pids {
 		pInfo := task.ProcessInfo{
 			Pid: pid,

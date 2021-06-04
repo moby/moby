@@ -18,6 +18,11 @@ package local
 
 import (
 	"os"
+
+	"github.com/pkg/errors"
+
+	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/errdefs"
 )
 
 // readerat implements io.ReaderAt in a completely stateless manner by opening
@@ -25,6 +30,29 @@ import (
 type sizeReaderAt struct {
 	size int64
 	fp   *os.File
+}
+
+// OpenReader creates ReaderAt from a file
+func OpenReader(p string) (content.ReaderAt, error) {
+	fi, err := os.Stat(p)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+
+		return nil, errors.Wrap(errdefs.ErrNotFound, "blob not found")
+	}
+
+	fp, err := os.Open(p)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+
+		return nil, errors.Wrap(errdefs.ErrNotFound, "blob not found")
+	}
+
+	return sizeReaderAt{size: fi.Size(), fp: fp}, nil
 }
 
 func (ra sizeReaderAt) ReadAt(p []byte, offset int64) (int, error) {

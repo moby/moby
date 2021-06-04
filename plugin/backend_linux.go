@@ -421,7 +421,7 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 
 	// Make sure we can authenticate the request since the auth scope for plugin repos is different than a normal repo.
 	ctx = docker.WithScope(ctx, scope(ref, true))
-	if err := remotes.PushContent(ctx, pusher, desc, pm.blobStore, nil, func(h images.Handler) images.Handler {
+	if err := remotes.PushContent(ctx, pusher, desc, pm.blobStore, nil, nil, func(h images.Handler) images.Handler {
 		return images.Handlers(progressHandler, h)
 	}); err != nil {
 		// Try fallback to http.
@@ -433,7 +433,7 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 			pusher, _ := resolver.Pusher(ctx, ref.String())
 			if pusher != nil {
 				logrus.WithField("ref", ref).Debug("Re-attmpting push with http-fallback")
-				err2 := remotes.PushContent(ctx, pusher, desc, pm.blobStore, nil, func(h images.Handler) images.Handler {
+				err2 := remotes.PushContent(ctx, pusher, desc, pm.blobStore, nil, nil, func(h images.Handler) images.Handler {
 					return images.Handlers(progressHandler, h)
 				})
 				if err2 == nil {
