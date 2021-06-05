@@ -1712,15 +1712,13 @@ func (daemon *Daemon) setupSeccompProfile() error {
 
 // RawSysInfo returns *sysinfo.SysInfo .
 func (daemon *Daemon) RawSysInfo(quiet bool) *sysinfo.SysInfo {
-	var opts []sysinfo.Opt
+	var siOpts []sysinfo.Opt
 	if daemon.getCgroupDriver() == cgroupSystemdDriver {
-		rootlesskitParentEUID := os.Getenv("ROOTLESSKIT_PARENT_EUID")
-		if rootlesskitParentEUID != "" {
-			groupPath := fmt.Sprintf("/user.slice/user-%s.slice", rootlesskitParentEUID)
-			opts = append(opts, sysinfo.WithCgroup2GroupPath(groupPath))
+		if euid := os.Getenv("ROOTLESSKIT_PARENT_EUID"); euid != "" {
+			siOpts = append(siOpts, sysinfo.WithCgroup2GroupPath("/user.slice/user-"+euid+".slice"))
 		}
 	}
-	return sysinfo.New(quiet, opts...)
+	return sysinfo.New(quiet, siOpts...)
 }
 
 func recursiveUnmount(target string) error {
