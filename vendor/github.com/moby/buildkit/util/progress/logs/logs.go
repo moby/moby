@@ -17,8 +17,8 @@ import (
 	"github.com/tonistiigi/units"
 )
 
-var defaultMaxLogSize = 1024 * 1024
-var defaultMaxLogSpeed = 100 * 1024 // per second
+var defaultMaxLogSize = 2 * 1024 * 1024
+var defaultMaxLogSpeed = 200 * 1024 // per second
 
 const (
 	stdout = 1
@@ -71,15 +71,16 @@ func (sw *streamWriter) checkLimit(n int) int {
 		maxSize = int(math.Ceil(time.Since(sw.created).Seconds())) * defaultMaxLogSpeed
 		sw.clipReasonSpeed = true
 	}
-	if maxSize > defaultMaxLogSize {
+	if maxSize == -1 || maxSize > defaultMaxLogSize {
 		maxSize = defaultMaxLogSize
 		sw.clipReasonSpeed = false
 	}
-	if maxSize < oldSize {
-		return 0
-	}
 
 	if maxSize != -1 {
+		if maxSize < oldSize {
+			return 0
+		}
+
 		if sw.size > maxSize {
 			return maxSize - oldSize
 		}

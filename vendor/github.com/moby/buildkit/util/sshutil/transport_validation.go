@@ -6,6 +6,6 @@ import (
 
 var gitSSHRegex = regexp.MustCompile("^[a-zA-Z0-9-_]+@[a-zA-Z0-9-.]+:.*$")
 
-func IsSSHTransport(s string) bool {
+func IsImplicitSSHTransport(s string) bool {
 	return gitSSHRegex.MatchString(s)
 }

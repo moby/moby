@@ -135,6 +135,8 @@ type CacheLink struct {
 	Selector digest.Digest `json:",omitempty"`
 }
 
+type ReleaseFunc func()
+
 // Op defines how the solver can evaluate the properties of a vertex operation.
 // An op is executed in the worker, and is retrieved from the vertex by the
 // value of `vertex.Sys()`. The solver is configured with a resolve function to
@@ -146,6 +148,9 @@ type Op interface {
 
 	// Exec runs an operation given results from previous operations.
 	Exec(ctx context.Context, g session.Group, inputs []Result) (outputs []Result, err error)
+
+	// Acquire acquires the necessary resources to execute the `Op`.
+	Acquire(ctx context.Context) (release ReleaseFunc, err error)
 }
 
 type ResultBasedCacheFunc func(context.Context, Result, session.Group) (digest.Digest, error)

@@ -4,9 +4,11 @@ package moby.filesync.v1;
 
 option go_package = "filesync";
 
+import "github.com/tonistiigi/fsutil/types/wire.proto";
+
 service FileSync{
-  rpc DiffCopy(stream BytesMessage) returns (stream BytesMessage);
-  rpc TarStream(stream BytesMessage) returns (stream BytesMessage);
+  rpc DiffCopy(stream fsutil.types.Packet) returns (stream fsutil.types.Packet);
+  rpc TarStream(stream fsutil.types.Packet) returns (stream fsutil.types.Packet);
 }
 
 service FileSend{

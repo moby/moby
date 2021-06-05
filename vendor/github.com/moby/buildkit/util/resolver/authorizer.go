@@ -40,7 +40,7 @@ func newAuthHandlerNS(sm *session.Manager) *authHandlerNS {
 	}
 }
 
-func (a *authHandlerNS) get(host string, sm *session.Manager, g session.Group) *authHandler {
+func (a *authHandlerNS) get(ctx context.Context, host string, sm *session.Manager, g session.Group) *authHandler {
 	if g != nil {
 		if iter := g.SessionIterator(); iter != nil {
 			for {
@@ -65,7 +65,7 @@ func (a *authHandlerNS) get(host string, sm *session.Manager, g session.Group) *
 		}
 		if parts[0] == host {
 			if h.authority != nil {
-				session, ok, err := sessionauth.VerifyTokenAuthority(host, h.authority, sm, g)
+				session, ok, err := sessionauth.VerifyTokenAuthority(ctx, host, h.authority, sm, g)
 				if err == nil && ok {
 					a.handlers[host+"/"+session] = h
 					h.lastUsed = time.Now()
@@ -122,7 +122,7 @@ func (a *dockerAuthorizer) Authorize(ctx context.Context, req *http.Request) err
 	defer a.handlers.mu.Unlock()
 
 	// skip if there is no auth handler
-	ah := a.handlers.get(req.URL.Host, a.sm, a.session)
+	ah := a.handlers.get(ctx, req.URL.Host, a.sm, a.session)
 	if ah == nil {
 		return nil
 	}
@@ -147,7 +147,7 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 	last := responses[len(responses)-1]
 	host := last.Request.URL.Host
 
-	handler := a.handlers.get(host, a.sm, a.session)
+	handler := a.handlers.get(ctx, host, a.sm, a.session)
 
 	for _, c := range auth.ParseAuthHeader(last.Header) {
 		if c.Scheme == auth.BearerAuth {
@@ -177,7 +177,7 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 			}
 
 			var username, secret string
-			session, pubKey, err := sessionauth.GetTokenAuthority(host, a.sm, a.session)
+			session, pubKey, err := sessionauth.GetTokenAuthority(ctx, host, a.sm, a.session)
 			if err != nil {
 				return err
 			}
@@ -339,7 +339,7 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 	}()
 
 	if ah.authority != nil {
-		resp, err := sessionauth.FetchToken(&sessionauth.FetchTokenRequest{
+		resp, err := sessionauth.FetchToken(ctx, &sessionauth.FetchTokenRequest{
 			ClientID: "buildkit-client",
 			Host:     ah.host,
 			Realm:    to.Realm,
@@ -400,6 +400,11 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 }
 
 func invalidAuthorization(c auth.Challenge, responses []*http.Response) error {
+	lastResponse := responses[len(responses)-1]
+	if lastResponse.StatusCode == http.StatusUnauthorized {
+		return errors.Wrapf(docker.ErrInvalidAuthorization, "authorization status: %v", lastResponse.StatusCode)
+	}
+
 	errStr := c.Parameters["error"]
 	if errStr == "" {
 		return nil

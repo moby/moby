@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/urlutil"
+	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -107,9 +108,8 @@ func copierFromDispatchRequest(req dispatchRequest, download sourceDownloader, i
 
 }
 
-func (o *copier) createCopyInstruction(args []string, cmdName string) (copyInstruction, error) {
+func (o *copier) createCopyInstruction(sourcesAndDest instructions.SourcesAndDest, cmdName string) (copyInstruction, error) {
 	inst := copyInstruction{cmdName: cmdName}
-	last := len(args) - 1
 
 	// Work in platform-specific filepath semantics
 	// TODO: This OS switch for paths is NOT correct and should not be supported.
@@ -118,9 +118,9 @@ func (o *copier) createCopyInstruction(args []string, cmdName string) (copyInstr
 	if o.platform != nil {
 		pathOS = o.platform.OS
 	}
-	inst.dest = fromSlash(args[last], pathOS)
+	inst.dest = fromSlash(sourcesAndDest.DestPath, pathOS)
 	separator := string(separator(pathOS))
-	infos, err := o.getCopyInfosForSourcePaths(args[0:last], inst.dest)
+	infos, err := o.getCopyInfosForSourcePaths(sourcesAndDest.SourcePaths, inst.dest)
 	if err != nil {
 		return inst, errors.Wrapf(err, "%s failed", cmdName)
 	}

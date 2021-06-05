@@ -42,7 +42,6 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
-	bkconfig "github.com/moby/buildkit/cmd/buildkitd/config"
 	"github.com/moby/buildkit/util/resolver"
 	"github.com/sirupsen/logrus"
 
@@ -160,7 +159,7 @@ func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 	var (
 		registryKey = "docker.io"
 		mirrors     = make([]string, len(daemon.configStore.Mirrors))
-		m           = map[string]bkconfig.RegistryConfig{}
+		m           = map[string]resolver.RegistryConfig{}
 	)
 	// must trim "https://" or "http://" prefix
 	for i, v := range daemon.configStore.Mirrors {
@@ -170,11 +169,11 @@ func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 		mirrors[i] = v
 	}
 	// set mirrors for default registry
-	m[registryKey] = bkconfig.RegistryConfig{Mirrors: mirrors}
+	m[registryKey] = resolver.RegistryConfig{Mirrors: mirrors}
 
 	for _, v := range daemon.configStore.InsecureRegistries {
 		u, err := url.Parse(v)
-		c := bkconfig.RegistryConfig{}
+		c := resolver.RegistryConfig{}
 		if err == nil {
 			v = u.Host
 			t := true
@@ -198,7 +197,7 @@ func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 	if fis, err := ioutil.ReadDir(certsDir); err == nil {
 		for _, fi := range fis {
 			if _, ok := m[fi.Name()]; !ok {
-				m[fi.Name()] = bkconfig.RegistryConfig{
+				m[fi.Name()] = resolver.RegistryConfig{
 					TLSConfigDir: []string{filepath.Join(certsDir, fi.Name())},
 				}
 			}

@@ -21,10 +21,6 @@ var g flightcontrol.Group
 
 const containerdUncompressed = "containerd.io/uncompressed"
 
-type CompareWithParent interface {
-	CompareWithParent(ctx context.Context, ref string, opts ...diff.Opt) (ocispec.Descriptor, error)
-}
-
 var ErrNoBlobs = errors.Errorf("no blobs for snapshot")
 
 // computeBlobChain ensures every ref in a parent chain has an associated blob in the content store. If
@@ -77,12 +73,6 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 			var descr ocispec.Descriptor
 			var err error
 
-			if pc, ok := sr.cm.Differ.(CompareWithParent); ok {
-				descr, err = pc.CompareWithParent(ctx, sr.ID(), diff.WithMediaType(mediaType))
-				if err != nil {
-					return nil, err
-				}
-			}
 			if descr.Digest == "" {
 				// reference needs to be committed
 				var lower []mount.Mount

@@ -67,7 +67,7 @@ func mapUserToChowner(user *copy.User, idmap *idtools.IdentityMapping) (copy.Cho
 }
 
 func mkdir(ctx context.Context, d string, action pb.FileActionMkDir, user *copy.User, idmap *idtools.IdentityMapping) error {
-	p, err := fs.RootPath(d, filepath.Join(filepath.Join("/", action.Path)))
+	p, err := fs.RootPath(d, filepath.Join("/", action.Path))
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func mkdir(ctx context.Context, d string, action pb.FileActionMkDir, user *copy.
 }
 
 func mkfile(ctx context.Context, d string, action pb.FileActionMkFile, user *copy.User, idmap *idtools.IdentityMapping) error {
-	p, err := fs.RootPath(d, filepath.Join(filepath.Join("/", action.Path)))
+	p, err := fs.RootPath(d, filepath.Join("/", action.Path))
 	if err != nil {
 		return err
 	}
@@ -146,7 +146,7 @@ func rm(ctx context.Context, d string, action pb.FileActionRm) error {
 }
 
 func rmPath(root, src string, allowNotFound bool) error {
-	p, err := fs.RootPath(root, filepath.Join(filepath.Join("/", src)))
+	p, err := fs.RootPath(root, filepath.Join("/", src))
 	if err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *
 	destPath := cleanPath(action.Dest)
 
 	if !action.CreateDestPath {
-		p, err := fs.RootPath(dest, filepath.Join(filepath.Join("/", action.Dest)))
+		p, err := fs.RootPath(dest, filepath.Join("/", action.Dest))
 		if err != nil {
 			return err
 		}
@@ -187,6 +187,8 @@ func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *
 
 	opt := []copy.Opt{
 		func(ci *copy.CopyInfo) {
+			ci.IncludePatterns = action.IncludePatterns
+			ci.ExcludePatterns = action.ExcludePatterns
 			ci.Chown = ch
 			ci.Utime = timestampToTime(action.Timestamp)
 			if m := int(action.Mode); m != -1 {

@@ -57,13 +57,12 @@ func WithInsecureSpec() oci.SpecOpts {
 			"CAP_NET_ADMIN",
 			"CAP_NET_BROADCAST",
 		}
-		for _, cap := range addCaps {
-			s.Process.Capabilities.Bounding = append(s.Process.Capabilities.Bounding, cap)
-			s.Process.Capabilities.Ambient = append(s.Process.Capabilities.Ambient, cap)
-			s.Process.Capabilities.Effective = append(s.Process.Capabilities.Effective, cap)
-			s.Process.Capabilities.Inheritable = append(s.Process.Capabilities.Inheritable, cap)
-			s.Process.Capabilities.Permitted = append(s.Process.Capabilities.Permitted, cap)
-		}
+		s.Process.Capabilities.Bounding = append(s.Process.Capabilities.Bounding, addCaps...)
+		s.Process.Capabilities.Ambient = append(s.Process.Capabilities.Ambient, addCaps...)
+		s.Process.Capabilities.Effective = append(s.Process.Capabilities.Effective, addCaps...)
+		s.Process.Capabilities.Inheritable = append(s.Process.Capabilities.Inheritable, addCaps...)
+		s.Process.Capabilities.Permitted = append(s.Process.Capabilities.Permitted, addCaps...)
+
 		s.Linux.ReadonlyPaths = []string{}
 		s.Linux.MaskedPaths = []string{}
 		s.Process.ApparmorProfile = ""

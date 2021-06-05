@@ -49,6 +49,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"
+	"golang.org/x/sync/semaphore"
 )
 
 const labelCreatedAt = "buildkit/createdat"
@@ -189,13 +190,15 @@ func (w *Worker) LoadRef(ctx context.Context, id string, hidden bool) (cache.Imm
 // ResolveOp converts a LLB vertex into a LLB operation
 func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *session.Manager) (solver.Op, error) {
 	if baseOp, ok := v.Sys().(*pb.Op); ok {
+		// TODO do we need to pass a value here? Where should it come from? https://github.com/moby/buildkit/commit/b3cf7c43cfefdfd7a945002c0e76b54e346ab6cf
+		var parallelism *semaphore.Weighted
 		switch op := baseOp.Op.(type) {
 		case *pb.Op_Source:
-			return ops.NewSourceOp(v, op, baseOp.Platform, w.SourceManager, sm, w)
+			return ops.NewSourceOp(v, op, baseOp.Platform, w.SourceManager, parallelism, sm, w)
 		case *pb.Op_Exec:
-			return ops.NewExecOp(v, op, baseOp.Platform, w.CacheManager(), sm, w.Opt.MetadataStore, w.Executor(), w)
+			return ops.NewExecOp(v, op, baseOp.Platform, w.CacheManager(), parallelism, sm, w.Opt.MetadataStore, w.Executor(), w)
 		case *pb.Op_File:
-			return ops.NewFileOp(v, op, w.CacheManager(), w.Opt.MetadataStore, w)
+			return ops.NewFileOp(v, op, w.CacheManager(), parallelism, w.Opt.MetadataStore, w)
 		case *pb.Op_Build:
 			return ops.NewBuildOp(v, op, s, w)
 		}

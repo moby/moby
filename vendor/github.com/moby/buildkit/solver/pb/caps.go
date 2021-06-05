@@ -25,6 +25,7 @@ const (
 	CapSourceGitHTTPAuth      apicaps.CapID = "source.git.httpauth"
 	CapSourceGitKnownSSHHosts apicaps.CapID = "source.git.knownsshhosts"
 	CapSourceGitMountSSHSock  apicaps.CapID = "source.git.mountsshsock"
+	CapSourceGitSubdir        apicaps.CapID = "source.git.subdir"
 
 	CapSourceHTTP         apicaps.CapID = "source.http"
 	CapSourceHTTPChecksum apicaps.CapID = "source.http.checksum"
@@ -50,8 +51,9 @@ const (
 
 	CapExecMetaSecurityDeviceWhitelistV1 apicaps.CapID = "exec.meta.security.devices.v1"
 
-	CapFileBase       apicaps.CapID = "file.base"
-	CapFileRmWildcard apicaps.CapID = "file.rm.wildcard"
+	CapFileBase                       apicaps.CapID = "file.base"
+	CapFileRmWildcard                 apicaps.CapID = "file.rm.wildcard"
+	CapFileCopyIncludeExcludePatterns apicaps.CapID = "file.copy.includeexcludepatterns"
 
 	CapConstraints apicaps.CapID = "constraints"
 	CapPlatform    apicaps.CapID = "platform"
@@ -148,6 +150,12 @@ func init() {
 
 	Caps.Init(apicaps.Cap{
 		ID:      CapSourceGitMountSSHSock,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapSourceGitSubdir,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})
@@ -284,6 +292,12 @@ func init() {
 
 	Caps.Init(apicaps.Cap{
 		ID:      CapFileRmWildcard,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapFileCopyIncludeExcludePatterns,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})

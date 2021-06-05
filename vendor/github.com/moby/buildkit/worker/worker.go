@@ -46,8 +46,10 @@ type Infos interface {
 
 // Pre-defined label keys
 const (
-	labelPrefix      = "org.mobyproject.buildkit.worker."
-	LabelExecutor    = labelPrefix + "executor"    // "oci" or "containerd"
-	LabelSnapshotter = labelPrefix + "snapshotter" // containerd snapshotter name ("overlay", "native", ...)
-	LabelHostname    = labelPrefix + "hostname"
+	labelPrefix              = "org.mobyproject.buildkit.worker."
+	LabelExecutor            = labelPrefix + "executor"    // "oci" or "containerd"
+	LabelSnapshotter         = labelPrefix + "snapshotter" // containerd snapshotter name ("overlay", "native", ...)
+	LabelHostname            = labelPrefix + "hostname"
+	LabelContainerdUUID      = labelPrefix + "containerd.uuid"      // containerd worker: containerd UUID
+	LabelContainerdNamespace = labelPrefix + "containerd.namespace" // containerd worker: containerd namespace
 )

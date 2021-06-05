@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	"github.com/moby/buildkit/frontend/dockerfile/command"
+	"github.com/moby/buildkit/frontend/dockerfile/shell"
 	"github.com/pkg/errors"
 )
 
@@ -31,6 +32,7 @@ type Node struct {
 	Value       string          // actual content
 	Next        *Node           // the next item in the current sexp
 	Children    []*Node         // the children of this sexp
+	Heredocs    []Heredoc       // extra heredoc content attachments
 	Attributes  map[string]bool // special attributes for this node
 	Original    string          // original line used before parsing
 	Flags       []string        // only top Node should have this set
@@ -74,6 +76,17 @@ func (node *Node) lines(start, end int) {
 	node.EndLine = end
 }
 
+func (node *Node) canContainHeredoc() bool {
+	if _, allowedDirective := heredocDirectives[node.Value]; !allowedDirective {
+		return false
+	}
+	if _, isJSON := node.Attributes["json"]; isJSON {
+		return false
+	}
+
+	return true
+}
+
 // AddChild adds a new child node, and updates line information
 func (node *Node) AddChild(child *Node, startLine, endLine int) {
 	child.lines(startLine, endLine)
@@ -84,11 +97,22 @@ func (node *Node) AddChild(child *Node, startLine, endLine int) {
 	node.Children = append(node.Children, child)
 }
 
+type Heredoc struct {
+	Name           string
+	FileDescriptor uint
+	Expand         bool
+	Chomp          bool
+	Content        string
+}
+
 var (
-	dispatch     map[string]func(string, *directives) (*Node, map[string]bool, error)
-	reWhitespace = regexp.MustCompile(`[\t\v\f\r ]+`)
-	reDirectives = regexp.MustCompile(`^#\s*([a-zA-Z][a-zA-Z0-9]*)\s*=\s*(.+?)\s*$`)
-	reComment    = regexp.MustCompile(`^#.*$`)
+	dispatch          map[string]func(string, *directives) (*Node, map[string]bool, error)
+	heredocDirectives map[string]bool
+	reWhitespace      = regexp.MustCompile(`[\t\v\f\r ]+`)
+	reDirectives      = regexp.MustCompile(`^#\s*([a-zA-Z][a-zA-Z0-9]*)\s*=\s*(.+?)\s*$`)
+	reComment         = regexp.MustCompile(`^#.*$`)
+	reHeredoc         = regexp.MustCompile(`^(\d*)<<(-?)(['"]?)([a-zA-Z][a-zA-Z0-9]*)(['"]?)$`)
+	reLeadingTabs     = regexp.MustCompile(`(?m)^\t+`)
 )
 
 // DefaultEscapeToken is the default escape token
@@ -252,6 +276,7 @@ func Parse(rwc io.Reader) (*Result, error) {
 	currentLine := 0
 	root := &Node{StartLine: -1}
 	scanner := bufio.NewScanner(rwc)
+	scanner.Split(scanLines)
 	warnings := []string{}
 	var comments []string
 
@@ -312,8 +337,40 @@ func Parse(rwc io.Reader) (*Result, error) {
 		if err != nil {
 			return nil, withLocation(err, startLine, currentLine)
 		}
-		comments = nil
+
+		if child.canContainHeredoc() {
+			heredocs, err := heredocsFromLine(line)
+			if err != nil {
+				return nil, withLocation(err, startLine, currentLine)
+			}
+
+			for _, heredoc := range heredocs {
+				terminator := []byte(heredoc.Name)
+				terminated := false
+				for scanner.Scan() {
+					bytesRead := scanner.Bytes()
+					currentLine++
+
+					possibleTerminator := trimNewline(bytesRead)
+					if heredoc.Chomp {
+						possibleTerminator = trimLeadingTabs(possibleTerminator)
+					}
+					if bytes.Equal(possibleTerminator, terminator) {
+						terminated = true
+						break
+					}
+					heredoc.Content += string(bytesRead)
+				}
+				if !terminated {
+					return nil, withLocation(errors.New("unterminated heredoc"), startLine, currentLine)
+				}
+
+				child.Heredocs = append(child.Heredocs, heredoc)
+			}
+		}
+
 		root.AddChild(child, startLine, currentLine)
+		comments = nil
 	}
 
 	if len(warnings) > 0 {
@@ -331,20 +388,83 @@ func Parse(rwc io.Reader) (*Result, error) {
 	}, withLocation(handleScannerError(scanner.Err()), currentLine, 0)
 }
 
+func heredocFromMatch(match []string) (*Heredoc, error) {
+	if len(match) == 0 {
+		return nil, nil
+	}
+
+	fileDescriptor, _ := strconv.ParseUint(match[1], 10, 0)
+	chomp := match[2] == "-"
+	quoteOpen := match[3]
+	name := match[4]
+	quoteClose := match[5]
+
+	expand := true
+	if quoteOpen != "" || quoteClose != "" {
+		if quoteOpen != quoteClose {
+			return nil, errors.New("quoted heredoc quotes do not match")
+		}
+		expand = false
+	}
+
+	return &Heredoc{
+		Name:           name,
+		Expand:         expand,
+		Chomp:          chomp,
+		FileDescriptor: uint(fileDescriptor),
+	}, nil
+}
+
+func ParseHeredoc(src string) (*Heredoc, error) {
+	return heredocFromMatch(reHeredoc.FindStringSubmatch(src))
+}
+func MustParseHeredoc(src string) *Heredoc {
+	heredoc, _ := ParseHeredoc(src)
+	return heredoc
+}
+
+func heredocsFromLine(line string) ([]Heredoc, error) {
+	shlex := shell.NewLex('\\')
+	shlex.RawQuotes = true
+	words, _ := shlex.ProcessWords(line, []string{})
+
+	var docs []Heredoc
+	for _, word := range words {
+		heredoc, err := ParseHeredoc(word)
+		if err != nil {
+			return nil, err
+		}
+		if heredoc != nil {
+			docs = append(docs, *heredoc)
+		}
+	}
+	return docs, nil
+}
+
+func ChompHeredocContent(src string) string {
+	return reLeadingTabs.ReplaceAllString(src, "")
+}
+
 func trimComments(src []byte) []byte {
 	return reComment.ReplaceAll(src, []byte{})
 }
 
-func trimWhitespace(src []byte) []byte {
+func trimLeadingWhitespace(src []byte) []byte {
 	return bytes.TrimLeftFunc(src, unicode.IsSpace)
+}
+func trimLeadingTabs(src []byte) []byte {
+	return bytes.TrimLeft(src, "\t")
+}
+func trimNewline(src []byte) []byte {
+	return bytes.TrimRight(src, "\r\n")
 }
 
 func isComment(line []byte) bool {
-	return reComment.Match(trimWhitespace(line))
+	return reComment.Match(trimLeadingWhitespace(trimNewline(line)))
 }
 
 func isEmptyContinuationLine(line []byte) bool {
-	return len(trimWhitespace(line)) == 0
+	return len(trimLeadingWhitespace(trimNewline(line))) == 0
 }
 
 var utf8bom = []byte{0xEF, 0xBB, 0xBF}
@@ -360,10 +480,25 @@ func trimContinuationCharacter(line string, d *directives) (string, bool) {
 // TODO: remove stripLeftWhitespace after deprecation period. It seems silly
 // to preserve whitespace on continuation lines. Why is that done?
 func processLine(d *directives, token []byte, stripLeftWhitespace bool) ([]byte, error) {
+	token = trimNewline(token)
 	if stripLeftWhitespace {
-		token = trimWhitespace(token)
+		token = trimLeadingWhitespace(token)
 	}
 	return trimComments(token), d.possibleParserDirective(string(token))
+}
+
+// Variation of bufio.ScanLines that preserves the line endings
+func scanLines(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if atEOF && len(data) == 0 {
+		return 0, nil, nil
+	}
+	if i := bytes.IndexByte(data, '\n'); i >= 0 {
+		return i + 1, data[0 : i+1], nil
+	}
+	if atEOF {
+		return len(data), data, nil
+	}
+	return 0, nil, nil
 }
 
 func handleScannerError(err error) error {
