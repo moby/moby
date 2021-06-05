@@ -11,12 +11,21 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+type DiffType int
+
+const (
+	DiffMetadata DiffType = iota
+	DiffNone
+	DiffContent
+)
+
 type ReceiveOpt struct {
 	NotifyHashed  ChangeFunc
 	ContentHasher ContentHasher
 	ProgressCb    func(int, bool)
 	Merge         bool
 	Filter        FilterFunc
+	Differ        DiffType
 }
 
 func Receive(ctx context.Context, conn Stream, dest string, opt ReceiveOpt) error {
@@ -33,6 +42,7 @@ func Receive(ctx context.Context, conn Stream, dest string, opt ReceiveOpt) erro
 		progressCb:    opt.ProgressCb,
 		merge:         opt.Merge,
 		filter:        opt.Filter,
+		differ:        opt.Differ,
 	}
 	return r.run(ctx)
 }
@@ -47,6 +57,7 @@ type receiver struct {
 	progressCb func(int, bool)
 	merge      bool
 	filter     FilterFunc
+	differ     DiffType
 
 	notifyHashed   ChangeFunc
 	contentHasher  ContentHasher
@@ -132,7 +143,7 @@ func (r *receiver) run(ctx context.Context) error {
 		if !r.merge {
 			destWalker = getWalkerFn(r.dest)
 		}
-		err := doubleWalkDiff(ctx, dw.HandleChange, destWalker, w.fill, r.filter)
+		err := doubleWalkDiff(ctx, dw.HandleChange, destWalker, w.fill, r.filter, r.differ)
 		if err != nil {
 			return err
 		}
