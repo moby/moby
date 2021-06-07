@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/daemon/config"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -27,6 +28,6 @@ func (s *DockerSuite) TestInfoSecurityOptions(c *testing.T) {
 		assert.Check(c, is.Contains(info.SecurityOptions, "name=apparmor"))
 	}
 	if seccompEnabled() {
-		assert.Check(c, is.Contains(info.SecurityOptions, "name=seccomp,profile=default"))
+		assert.Check(c, is.Contains(info.SecurityOptions, "name=seccomp,profile="+config.SeccompProfileDefault))
 	}
 }
