@@ -117,6 +117,11 @@ func TestConfigDaemonSeccompProfiles(t *testing.T) {
 			expectedProfile: config.SeccompProfileDefault,
 		},
 		{
+			doc:             "default profile",
+			profile:         config.SeccompProfileDefault,
+			expectedProfile: config.SeccompProfileDefault,
+		},
+		{
 			doc:             "unconfined profile",
 			profile:         config.SeccompProfileUnconfined,
 			expectedProfile: config.SeccompProfileUnconfined,
