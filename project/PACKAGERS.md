@@ -4,24 +4,6 @@ If you are looking to make Docker available on your favorite software
 distribution, this document is for you. It summarizes the requirements for
 building and running the Docker client and the Docker daemon.
 
-## Getting Started
-
-We want to help you package Docker successfully. Before doing any packaging, a
-good first step is to introduce yourself on the [docker-dev mailing
-list](https://groups.google.com/d/forum/docker-dev), explain what you're trying
-to achieve, and tell us how we can help. Don't worry, we don't bite! There might
-even be someone already working on packaging for the same distro!
-
-You can also join the IRC channel - #docker and #docker-dev on Freenode are both
-active and friendly.
-
-We like to refer to Tianon ("@tianon" on GitHub and "tianon" on IRC) as our
-"Packagers Relations", since he's always working to make sure our packagers have
-a good, healthy upstream to work with (both in our communication and in our
-build scripts). If you're having any kind of trouble, feel free to ping him
-directly. He also likes to keep track of what distributions we have packagers
-for, so feel free to reach out to him even just to say "Hi!"
-
 ## Package Name
 
 If possible, your package should be called "docker". If that name is already
@@ -41,27 +23,7 @@ need to package Docker your way, without denaturing it in the process.
 
 ## Build Dependencies
 
-To build Docker, you will need the following:
-
-* A recent version of Git and Mercurial
-* Go version 1.6 or later
-* A clean checkout of the source added to a valid [Go
-  workspace](https://golang.org/doc/code.html#Workspaces) under the path
-  *src/github.com/docker/docker* (unless you plan to use `AUTO_GOPATH`,
-  explained in more detail below)
-
-To build the Docker daemon, you will additionally need:
-
-* An amd64/x86_64 machine running Linux
-* SQLite version 3.7.9 or later
-* libdevmapper version 1.02.68-cvs (2012-01-26) or later from lvm2 version
-  2.02.89 or later
-* btrfs-progs version 3.16.1 or later (unless using an older version is
-  absolutely necessary, in which case 3.8 is the minimum)
-* libseccomp version 2.2.1 or later (for build tag seccomp)
-
-Be sure to also check out Docker's Dockerfile for the most up-to-date list of
-these build-time dependencies.
+The Dockerfile contains the most up-to-date list of build-time dependencies.
 
 ### Go Dependencies
 
@@ -69,17 +31,9 @@ All Go dependencies are vendored under "./vendor". They are used by the official
 build, so the source of truth for the current version of each dependency is
 whatever is in "./vendor".
 
-To use the vendored dependencies, simply make sure the path to "./vendor" is
-included in `GOPATH` (or use `AUTO_GOPATH`, as explained below).
-
 If you would rather (or must, due to distro policy) package these dependencies
 yourself, take a look at "vendor.conf" for an easy-to-parse list of the
 exact version for each.
-
-NOTE: if you're not able to package the exact version (to the exact commit) of a
-given dependency, please get in touch so we can remediate! Who knows what
-discrepancies can be caused by even the slightest deviation. We promise to do
-our best to make everybody happy.
 
 ## Stripping Binaries
 
@@ -123,40 +77,11 @@ from the upstream Golang perspective.
 
 ## Building Docker
 
-Please use our build script ("./hack/make.sh") for all your compilation of
-Docker. If there's something you need that it isn't doing, or something it could
-be doing to make your life as a packager easier, please get in touch with Tianon
-and help us rectify the situation. Chances are good that other packagers have
-probably run into the same problems and a fix might already be in the works, but
-none of us will know for sure unless you harass Tianon about it. :)
-
-All the commands listed within this section should be run with the Docker source
-checkout as the current working directory.
-
-### `AUTO_GOPATH`
-
-If you'd rather not be bothered with the hassles that setting up `GOPATH`
-appropriately can be, and prefer to just get a "build that works", you should
-add something similar to this to whatever script or process you're using to
-build Docker:
-
-```bash
-export AUTO_GOPATH=1
-```
-
-This will cause the build scripts to set up a reasonable `GOPATH` that
-automatically and properly includes both docker/docker from the local
-directory, and the local "./vendor" directory as necessary.
+Please use our build script ("./hack/make.sh") for compilation.
 
 ### `DOCKER_BUILDTAGS`
 
-If you're building a binary that may need to be used on platforms that include
-AppArmor, you will need to set `DOCKER_BUILDTAGS` as follows:
-```bash
-export DOCKER_BUILDTAGS='apparmor'
-```
-
-If you're building a binary that may need to be used on platforms that include
+If you're building a binary that might be used on platforms that include
 seccomp, you will need to use the `seccomp` build tag:
 ```bash
 export DOCKER_BUILDTAGS='seccomp'
@@ -185,69 +110,6 @@ NOTE: if you need to set more than one build tag, space separate them:
 export DOCKER_BUILDTAGS='apparmor exclude_graphdriver_aufs'
 ```
 
-### Static Daemon
-
-If it is feasible within the constraints of your distribution, you should
-seriously consider packaging Docker as a single static binary. A good comparison
-is Busybox, which is often packaged statically as a feature to enable mass
-portability. Because of the unique way Docker operates, being similarly static
-is a "feature".
-
-To build a static Docker daemon binary, run the following command (first
-ensuring that all the necessary libraries are available in static form for
-linking - see the "Build Dependencies" section above, and the relevant lines
-within Docker's own Dockerfile that set up our official build environment):
-
-```bash
-./hack/make.sh binary
-```
-
-This will create a static binary under
-"./bundles/$VERSION/binary/docker-$VERSION", where "$VERSION" is the contents of
-the file "./VERSION". This binary is usually installed somewhere like
-"/usr/bin/docker".
-
-### Dynamic Daemon / Client-only Binary
-
-If you are only interested in a Docker client binary, you can build using:
-
-```bash
-./hack/make.sh binary-client
-```
-
-If you need to (due to distro policy, distro library availability, or for other
-reasons) create a dynamically compiled daemon binary, or if you are only
-interested in creating a client binary for Docker, use something similar to the
-following:
-
-```bash
-./hack/make.sh dynbinary-client
-```
-
-This will create "./bundles/$VERSION/dynbinary-client/docker-$VERSION", which for
-client-only builds is the important file to grab and install as appropriate.
-
-### Cross Compilation
-
-Limited cross compilation is supported due to requiring cgo for critical
-functionality (such as seccomp support).
-
-To cross compile run `make cross`. You can specify the platforms to target by
-setting the `DOCKER_CROSSPLATFORMS` environment variable to a list of platforms
-in the format `<GOOS>/<GOARCH>`. Specify multiple platforms by using a space
-in between each desired platform.
-
-For setting arm variants, you can specify the `GOARM` value by append `/v<GOARM>`
-to your `<GOOS>/arm`. Example:
-
-```
-make DOCKER_CROSSPLATFORMS=linux/arm/v7 cross
-```
-
-This will create a linux binary targeting arm 7.
-
-See `hack/make/.binary` for supported cross compliation platforms.
-
 ## System Dependencies
 
 ### Runtime Dependencies
@@ -260,12 +122,7 @@ installed and available at runtime:
 * e2fsprogs version 1.4.12 or later (in use: mkfs.ext4, tune2fs)
 * xfsprogs (in use: mkfs.xfs)
 * XZ Utils version 4.9 or later
-* a [properly
-  mounted](https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount)
-  cgroupfs hierarchy (having a single, all-encompassing "cgroup" mount point
-  [is](https://github.com/docker/docker/issues/2683)
-  [not](https://github.com/docker/docker/issues/3485)
-  [sufficient](https://github.com/docker/docker/issues/4568))
+* pigz (optional)
 
 Additionally, the Docker client needs the following software to be installed and
 available at runtime:
@@ -276,11 +133,7 @@ available at runtime:
 
 The Docker daemon has very specific kernel requirements. Most pre-packaged
 kernels already include the necessary options enabled. If you are building your
-own kernel, you will either need to discover the options necessary via trial and
-error, or check out the [Gentoo
-ebuild](https://github.com/tianon/docker-overlay/blob/master/app-emulation/docker/docker-9999.ebuild),
-in which a list is maintained (and if there are any issues or discrepancies in
-that list, please contact Tianon so they can be rectified).
+own kernel, you should check out `contrib/check-config.sh`.
 
 Note that in client mode, there are no specific kernel requirements, and that
 the client will even run on alternative platforms such as Mac OS X / Darwin.
@@ -301,8 +154,7 @@ by having support for them in the kernel or userspace. A few examples include:
 Docker expects to run as a daemon at machine startup. Your package will need to
 include a script for your distro's process supervisor of choice. Be sure to
 check out the "contrib/init" folder in case a suitable init script already
-exists (and if one does not, contact Tianon about whether it might be
-appropriate for your distro's init script to live there too!).
+exists.
 
 In general, Docker should be run as root, similar to the following:
 
@@ -310,13 +162,5 @@ In general, Docker should be run as root, similar to the following:
 dockerd
 ```
 
-Generally, a `DOCKER_OPTS` variable of some kind is available for adding more
-flags (such as changing the graph driver to use BTRFS, switching the location of
-"/var/lib/docker", etc).
-
-## Communicate
-
-As a final note, please do feel free to reach out to Tianon at any time for
-pretty much anything. He really does love hearing from our packagers and wants
-to make sure we're not being a "hostile upstream". As should be a given, we
-appreciate the work our packagers do to make sure we have broad distribution!
+Generally, it is encouraged that additional configuration be placed in
+`/etc/docker/daemon.json`.
