@@ -426,12 +426,8 @@ func checkCompatibleOS(imageOS string) error {
 		return fmt.Errorf("cannot load %s image on %s", imageOS, runtime.GOOS)
 	}
 
-	p, err := platforms.Parse(imageOS)
-	if err != nil {
-		return err
-	}
-
-	return system.ValidatePlatform(p)
+	_, err := platforms.Parse(imageOS)
+	return err
 }
 
 func validateManifest(manifest []manifestItem) error {

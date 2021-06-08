@@ -746,7 +746,7 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 	}
 
 	env := make([]string, 0, envSize)
-	if runtime.GOOS != "windows" || (runtime.GOOS == "windows" && os == "linux") {
+	if runtime.GOOS != "windows" {
 		env = append(env, "PATH="+system.DefaultPathEnv(os))
 		env = append(env, "HOSTNAME="+container.Config.Hostname)
 		if tty {

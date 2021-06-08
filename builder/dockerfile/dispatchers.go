@@ -172,9 +172,6 @@ func initializeStage(d dispatchRequest, cmd *instructions.Stage) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to parse platform %s", v)
 		}
-		if err := system.ValidatePlatform(p); err != nil {
-			return err
-		}
 		platform = &p
 	}
 
@@ -264,10 +261,7 @@ func (d *dispatchRequest) getImageOrStage(name string, platform *specs.Platform)
 		// from it.
 		if runtime.GOOS == "windows" {
 			if platform == nil || platform.OS == "linux" {
-				if !system.LCOWSupported() {
-					return nil, errors.New("Linux containers are not supported on this system")
-				}
-				imageImage.OS = "linux"
+				return nil, errors.New("Linux containers are not supported on this system")
 			} else if platform.OS == "windows" {
 				return nil, errors.New("Windows does not support FROM scratch")
 			} else {

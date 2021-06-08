@@ -69,12 +69,6 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 		if err == nil {
 			os = img.OS
 		}
-	} else {
-		// This mean scratch. On Windows, we can safely assume that this is a linux
-		// container. On other platforms, it's the host OS (which it already is)
-		if isWindows && system.LCOWSupported() {
-			os = "linux"
-		}
 	}
 
 	warnings, err := daemon.verifyContainerSettings(os, opts.params.HostConfig, opts.params.Config, false)

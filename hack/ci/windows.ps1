@@ -9,12 +9,6 @@
 $ErrorActionPreference = 'Stop'
 $StartTime=Get-Date
 
-# Put up top to be blindingly obvious. The production jenkins.dockerproject.org Linux-container 
-# CI job is "Docker-PRs-LoW-RS3". Force into LCOW mode for this run, or not.
-if ($env:BUILD_TAG -match "-LoW") { $env:LCOW_MODE=1 }
-if ($env:BUILD_TAG -match "-WoW") { $env:LCOW_MODE="" }
-
-
 Write-Host -ForegroundColor Red "DEBUG: print all environment variables to check how Jenkins runs this script"
 $allArgs = [Environment]::GetCommandLineArgs()
 Write-Host -ForegroundColor Red $allArgs
@@ -100,11 +94,6 @@ Write-Host -ForegroundColor Red "-----------------------------------------------
 #    WINDOWS_BASE_IMAGE_TAG   if defined, uses that as the tag name for the base image.
 #                             if no set, defaults to latest
 #
-#    LCOW_BASIC_MODE          if defined, does very basic LCOW verification. Ultimately we 
-#                             want to run the entire CI suite from docker, but that's a way off.
-#                            
-#    LCOW_MODE                if defined, runs the entire CI suite
-#                            
 # -------------------------------------------------------------------------------------------
 #
 # Jenkins Integration. Add a Windows Powershell build step as follows:
@@ -628,11 +617,6 @@ Try {
     Write-Host -ForegroundColor Green "INFO: Args: $dutArgs"
     New-Item -ItemType Directory $env:TEMP\daemon -ErrorAction SilentlyContinue  | Out-Null
 
-    # In LCOW mode, for now we need to set an environment variable before starting the daemon under test
-    if (($null -ne $env:LCOW_MODE) -or ($null -ne $env:LCOW_BASIC_MODE)) {
-        $env:LCOW_SUPPORTED=1
-    }
-
     # Cannot fathom why, but always writes to stderr....
     Start-Process "$env:TEMP\binary\dockerd-$COMMITHASH" `
                   -ArgumentList $dutArgs `
@@ -640,12 +624,6 @@ Try {
                   -RedirectStandardError "$env:TEMP\dut.err" 
     Write-Host -ForegroundColor Green "INFO: Process started successfully."
     $daemonStarted=1
-
-    # In LCOW mode, turn off that variable
-    if (($null -ne $env:LCOW_MODE) -or ($null -ne $env:LCOW_BASIC_MODE)) {
-        $env:LCOW_SUPPORTED=""
-    }
-
 
     # Start tailing the daemon under test if the command is installed
     if ($null -ne (Get-Command "tail" -ErrorAction SilentlyContinue)) {
@@ -706,63 +684,59 @@ Try {
     }
     Write-Host
 
-    # Don't need Windows images when in LCOW mode.
-    if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
-
-        # Default to windowsservercore for the base image used for the tests. The "docker" image
-        # and the control daemon use microsoft/windowsservercore regardless. This is *JUST* for the tests.
-        if ($null -eq $env:WINDOWS_BASE_IMAGE) {
-            $env:WINDOWS_BASE_IMAGE="microsoft/windowsservercore"
-        }
-        if ($null -eq $env:WINDOWS_BASE_IMAGE_TAG) {
-            $env:WINDOWS_BASE_IMAGE_TAG="latest"
-        }
-
-        # Lowercase and make sure it has a microsoft/ prefix
-        $env:WINDOWS_BASE_IMAGE = $env:WINDOWS_BASE_IMAGE.ToLower()
-        if (! $($env:WINDOWS_BASE_IMAGE -Split "/")[0] -match "microsoft") {
-            Throw "ERROR: WINDOWS_BASE_IMAGE should start microsoft/ or mcr.microsoft.com/"
-        }
-
-        Write-Host -ForegroundColor Green "INFO: Base image for tests is $env:WINDOWS_BASE_IMAGE"
-
-        $ErrorActionPreference = "SilentlyContinue"
-        if ($((& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" images --format "{{.Repository}}:{{.Tag}}" | Select-String "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG" | Measure-Object -Line).Lines) -eq 0) {
-            # Try the internal azure CI image version or Microsoft internal corpnet where the base image is already pre-prepared on the disk,
-            # either through Invoke-DockerCI or, in the case of Azure CI servers, baked into the VHD at the same location.
-            if (Test-Path $("c:\baseimages\"+$($env:WINDOWS_BASE_IMAGE -Split "/")[1]+".tar")) {
-                Write-Host  -ForegroundColor Green "INFO: Loading"$($env:WINDOWS_BASE_IMAGE -Split "/")[1]".tar from disk into the daemon under test. This may take some time..."
-                $ErrorActionPreference = "SilentlyContinue"
-                & "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" load -i $("$readBaseFrom`:\baseimages\"+$($env:WINDOWS_BASE_IMAGE -Split "/")[1]+".tar")
-                $ErrorActionPreference = "Stop"
-                if (-not $LastExitCode -eq 0) {
-                    Throw $("ERROR: Failed to load $readBaseFrom`:\baseimages\"+$($env:WINDOWS_BASE_IMAGE -Split "/")[1]+".tar into daemon under test")
-                }
-                Write-Host -ForegroundColor Green "INFO: docker load of"$($env:WINDOWS_BASE_IMAGE -Split "/")[1]" into daemon under test completed successfully"
-            } else {
-                # We need to docker pull it instead. It will come in directly as microsoft/imagename:tagname
-                Write-Host -ForegroundColor Green $("INFO: Pulling "+$env:WINDOWS_BASE_IMAGE+":"+$env:WINDOWS_BASE_IMAGE_TAG+" from docker hub into daemon under test. This may take some time...")
-                $ErrorActionPreference = "SilentlyContinue"
-                & "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" pull "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG"
-                $ErrorActionPreference = "Stop"
-                if (-not $LastExitCode -eq 0) {
-                    Throw $("ERROR: Failed to docker pull $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG into daemon under test.")
-                }
-                Write-Host -ForegroundColor Green $("INFO: docker pull of $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG into daemon under test completed successfully")
-                Write-Host -ForegroundColor Green $("INFO: Tagging $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG as microsoft/$ControlDaemonBaseImage in daemon under test")
-                & "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" tag "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG" microsoft/$ControlDaemonBaseImage
-            }
-        } else {
-            Write-Host -ForegroundColor Green "INFO: Image $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG is already loaded in the daemon under test"
-        }
-    
-    
-        # Inspect the pulled or loaded image to get the version directly
-        $ErrorActionPreference = "SilentlyContinue"
-        $dutimgVersion = $(&"$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" inspect "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG" --format "{{.OsVersion}}")
-        $ErrorActionPreference = "Stop"
-        Write-Host -ForegroundColor Green $("INFO: Version of $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG is '"+$dutimgVersion+"'")
+    # Default to windowsservercore for the base image used for the tests. The "docker" image
+    # and the control daemon use microsoft/windowsservercore regardless. This is *JUST* for the tests.
+    if ($null -eq $env:WINDOWS_BASE_IMAGE) {
+        $env:WINDOWS_BASE_IMAGE="microsoft/windowsservercore"
     }
+    if ($null -eq $env:WINDOWS_BASE_IMAGE_TAG) {
+        $env:WINDOWS_BASE_IMAGE_TAG="latest"
+    }
+
+    # Lowercase and make sure it has a microsoft/ prefix
+    $env:WINDOWS_BASE_IMAGE = $env:WINDOWS_BASE_IMAGE.ToLower()
+    if (! $($env:WINDOWS_BASE_IMAGE -Split "/")[0] -match "microsoft") {
+        Throw "ERROR: WINDOWS_BASE_IMAGE should start microsoft/ or mcr.microsoft.com/"
+    }
+
+    Write-Host -ForegroundColor Green "INFO: Base image for tests is $env:WINDOWS_BASE_IMAGE"
+
+    $ErrorActionPreference = "SilentlyContinue"
+    if ($((& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" images --format "{{.Repository}}:{{.Tag}}" | Select-String "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG" | Measure-Object -Line).Lines) -eq 0) {
+        # Try the internal azure CI image version or Microsoft internal corpnet where the base image is already pre-prepared on the disk,
+        # either through Invoke-DockerCI or, in the case of Azure CI servers, baked into the VHD at the same location.
+        if (Test-Path $("c:\baseimages\"+$($env:WINDOWS_BASE_IMAGE -Split "/")[1]+".tar")) {
+            Write-Host  -ForegroundColor Green "INFO: Loading"$($env:WINDOWS_BASE_IMAGE -Split "/")[1]".tar from disk into the daemon under test. This may take some time..."
+            $ErrorActionPreference = "SilentlyContinue"
+            & "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" load -i $("$readBaseFrom`:\baseimages\"+$($env:WINDOWS_BASE_IMAGE -Split "/")[1]+".tar")
+            $ErrorActionPreference = "Stop"
+            if (-not $LastExitCode -eq 0) {
+                Throw $("ERROR: Failed to load $readBaseFrom`:\baseimages\"+$($env:WINDOWS_BASE_IMAGE -Split "/")[1]+".tar into daemon under test")
+            }
+            Write-Host -ForegroundColor Green "INFO: docker load of"$($env:WINDOWS_BASE_IMAGE -Split "/")[1]" into daemon under test completed successfully"
+        } else {
+            # We need to docker pull it instead. It will come in directly as microsoft/imagename:tagname
+            Write-Host -ForegroundColor Green $("INFO: Pulling "+$env:WINDOWS_BASE_IMAGE+":"+$env:WINDOWS_BASE_IMAGE_TAG+" from docker hub into daemon under test. This may take some time...")
+            $ErrorActionPreference = "SilentlyContinue"
+            & "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" pull "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG"
+            $ErrorActionPreference = "Stop"
+            if (-not $LastExitCode -eq 0) {
+                Throw $("ERROR: Failed to docker pull $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG into daemon under test.")
+            }
+            Write-Host -ForegroundColor Green $("INFO: docker pull of $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG into daemon under test completed successfully")
+            Write-Host -ForegroundColor Green $("INFO: Tagging $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG as microsoft/$ControlDaemonBaseImage in daemon under test")
+            & "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" tag "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG" microsoft/$ControlDaemonBaseImage
+        }
+    } else {
+        Write-Host -ForegroundColor Green "INFO: Image $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG is already loaded in the daemon under test"
+    }
+
+
+    # Inspect the pulled or loaded image to get the version directly
+    $ErrorActionPreference = "SilentlyContinue"
+    $dutimgVersion = $(&"$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" inspect "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG" --format "{{.OsVersion}}")
+    $ErrorActionPreference = "Stop"
+    Write-Host -ForegroundColor Green $("INFO: Version of $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG is '"+$dutimgVersion+"'")
 
     # Run the validation tests unless SKIP_VALIDATION_TESTS is defined.
     if ($null -eq $env:SKIP_VALIDATION_TESTS) {
@@ -778,193 +752,122 @@ Try {
         Write-Host -ForegroundColor Magenta "WARN: Skipping validation tests"
     }
 
-    # Note the unit tests won't work in LCOW mode as I turned off loading the base images above.
     # Run the unit tests inside a container unless SKIP_UNIT_TESTS is defined
-    if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
-        if ($null -eq $env:SKIP_UNIT_TESTS) {
-            $ContainerNameForUnitTests = $COMMITHASH + "_UnitTests"
-            Write-Host -ForegroundColor Cyan "INFO: Running unit tests at $(Get-Date)..."
-            $ErrorActionPreference = "SilentlyContinue"
-            $Duration=$(Measure-Command {docker run --name $ContainerNameForUnitTests -e DOCKER_GITCOMMIT=$COMMITHASH$CommitUnsupported docker hack\make.ps1 -TestUnit | Out-Host })
-            $TestRunExitCode = $LastExitCode
-            $ErrorActionPreference = "Stop"
+    if ($null -eq $env:SKIP_UNIT_TESTS) {
+        $ContainerNameForUnitTests = $COMMITHASH + "_UnitTests"
+        Write-Host -ForegroundColor Cyan "INFO: Running unit tests at $(Get-Date)..."
+        $ErrorActionPreference = "SilentlyContinue"
+        $Duration=$(Measure-Command {docker run --name $ContainerNameForUnitTests -e DOCKER_GITCOMMIT=$COMMITHASH$CommitUnsupported docker hack\make.ps1 -TestUnit | Out-Host })
+        $TestRunExitCode = $LastExitCode
+        $ErrorActionPreference = "Stop"
 
-            # Saving where jenkins will take a look at.....
-            New-Item -Force -ItemType Directory bundles | Out-Null
-            $unitTestsContPath="$ContainerNameForUnitTests`:c`:\gopath\src\github.com\docker\docker\bundles"
-            $JunitExpectedContFilePath = "$unitTestsContPath\junit-report-unit-tests.xml"
-            docker cp $JunitExpectedContFilePath "bundles"
-            if (-not($LastExitCode -eq 0)) {
-                Throw "ERROR: Failed to docker cp the unit tests report ($JunitExpectedContFilePath) to bundles"
-            }
-
-            if (Test-Path "bundles\junit-report-unit-tests.xml") {
-                Write-Host -ForegroundColor Magenta "INFO: Unit tests results(bundles\junit-report-unit-tests.xml) exist. pwd=$pwd"
-            } else {
-                Write-Host -ForegroundColor Magenta "ERROR: Unit tests results(bundles\junit-report-unit-tests.xml) do not exist. pwd=$pwd"
-            }
-
-            if (-not($TestRunExitCode -eq 0)) {
-                Throw "ERROR: Unit tests failed"
-            }
-            Write-Host  -ForegroundColor Green "INFO: Unit tests ended at $(Get-Date). Duration`:$Duration"
-        } else {
-            Write-Host -ForegroundColor Magenta "WARN: Skipping unit tests"
+        # Saving where jenkins will take a look at.....
+        New-Item -Force -ItemType Directory bundles | Out-Null
+        $unitTestsContPath="$ContainerNameForUnitTests`:c`:\gopath\src\github.com\docker\docker\bundles"
+        $JunitExpectedContFilePath = "$unitTestsContPath\junit-report-unit-tests.xml"
+        docker cp $JunitExpectedContFilePath "bundles"
+        if (-not($LastExitCode -eq 0)) {
+            Throw "ERROR: Failed to docker cp the unit tests report ($JunitExpectedContFilePath) to bundles"
         }
+
+        if (Test-Path "bundles\junit-report-unit-tests.xml") {
+            Write-Host -ForegroundColor Magenta "INFO: Unit tests results(bundles\junit-report-unit-tests.xml) exist. pwd=$pwd"
+        } else {
+            Write-Host -ForegroundColor Magenta "ERROR: Unit tests results(bundles\junit-report-unit-tests.xml) do not exist. pwd=$pwd"
+        }
+
+        if (-not($TestRunExitCode -eq 0)) {
+            Throw "ERROR: Unit tests failed"
+        }
+        Write-Host  -ForegroundColor Green "INFO: Unit tests ended at $(Get-Date). Duration`:$Duration"
+    } else {
+        Write-Host -ForegroundColor Magenta "WARN: Skipping unit tests"
     }
 
     # Add the Windows busybox image. Needed for WCOW integration tests
-    if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
-        if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
-            Write-Host -ForegroundColor Green "INFO: Building busybox"
-            $ErrorActionPreference = "SilentlyContinue"
-            $(& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" build  -t busybox --build-arg WINDOWS_BASE_IMAGE --build-arg WINDOWS_BASE_IMAGE_TAG "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\contrib\busybox\" | Out-Host)
-            $ErrorActionPreference = "Stop"
-            if (-not($LastExitCode -eq 0)) {
-                Throw "ERROR: Failed to build busybox image"
-            }
-
-            Write-Host -ForegroundColor Green "INFO: Docker images of the daemon under test"
-            Write-Host 
-            $ErrorActionPreference = "SilentlyContinue"
-            & "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" images
-            $ErrorActionPreference = "Stop"
-            if ($LastExitCode -ne 0) {
-                Throw "ERROR: The daemon under test does not appear to be running."
-            }
-            Write-Host
+    if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
+        Write-Host -ForegroundColor Green "INFO: Building busybox"
+        $ErrorActionPreference = "SilentlyContinue"
+        $(& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" build  -t busybox --build-arg WINDOWS_BASE_IMAGE --build-arg WINDOWS_BASE_IMAGE_TAG "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\contrib\busybox\" | Out-Host)
+        $ErrorActionPreference = "Stop"
+        if (-not($LastExitCode -eq 0)) {
+            Throw "ERROR: Failed to build busybox image"
         }
+
+        Write-Host -ForegroundColor Green "INFO: Docker images of the daemon under test"
+        Write-Host
+        $ErrorActionPreference = "SilentlyContinue"
+        & "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" images
+        $ErrorActionPreference = "Stop"
+        if ($LastExitCode -ne 0) {
+            Throw "ERROR: The daemon under test does not appear to be running."
+        }
+        Write-Host
     }
 
     # Run the WCOW integration tests unless SKIP_INTEGRATION_TESTS is defined
-    if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
-        if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
-            Write-Host -ForegroundColor Cyan "INFO: Running integration tests at $(Get-Date)..."
-            $ErrorActionPreference = "SilentlyContinue"
-    
-            # Location of the daemon under test.
-            $env:OrigDOCKER_HOST="$env:DOCKER_HOST"
-    
-            #https://blogs.technet.microsoft.com/heyscriptingguy/2011/09/20/solve-problems-with-external-command-lines-in-powershell/ is useful to see tokenising
-            $jsonFilePath = "..\\bundles\\go-test-report-intcli-tests.json"
-            $xmlFilePath = "..\\bundles\\junit-report-intcli-tests.xml"
-            $c = "gotestsum --format=standard-verbose --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- "
-            if ($null -ne $env:INTEGRATION_TEST_NAME) { # Makes is quicker for debugging to be able to run only a subset of the integration tests
-                $c += "`"-test.run`" "
-                $c += "`"$env:INTEGRATION_TEST_NAME`" "
-                Write-Host -ForegroundColor Magenta "WARN: Only running integration tests matching $env:INTEGRATION_TEST_NAME"
-            }
-            $c += "`"-tags`" " + "`"autogen`" "
-            $c += "`"-test.timeout`" " + "`"200m`" "
-    
-            if ($null -ne $env:INTEGRATION_IN_CONTAINER) {
-                Write-Host -ForegroundColor Green "INFO: Integration tests being run inside a container"
-                # Note we talk back through the containers gateway address
-                # And the ridiculous lengths we have to go to get the default gateway address... (GetNetIPConfiguration doesn't work in nanoserver)
-                # I just could not get the escaping to work in a single command, so output $c to a file and run that in the container instead...
-                # Not the prettiest, but it works.
-                $c | Out-File -Force "$env:TEMP\binary\runIntegrationCLI.ps1"
-                $Duration= $(Measure-Command { & docker run `
-                                                        --rm `
-                                                        -e c=$c `
-                                                        --workdir "c`:\gopath\src\github.com\docker\docker\integration-cli" `
-                                                        -v "$env:TEMP\binary`:c:\target" `
-                                                        docker `
-                                                        "`$env`:PATH`='c`:\target;'+`$env:PATH`;  `$env:DOCKER_HOST`='tcp`://'+(ipconfig | select -last 1).Substring(39)+'`:2357'; c:\target\runIntegrationCLI.ps1" | Out-Host } )
-            } else  {
-                $env:DOCKER_HOST=$DASHH_CUT  
-                $env:PATH="$env:TEMP\binary;$env:PATH;"  # Force to use the test binaries, not the host ones.
-                $env:GO111MODULE="off"
-                Write-Host -ForegroundColor Green "INFO: DOCKER_HOST at $DASHH_CUT"
+    if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
+        Write-Host -ForegroundColor Cyan "INFO: Running integration tests at $(Get-Date)..."
+        $ErrorActionPreference = "SilentlyContinue"
 
-                $ErrorActionPreference = "SilentlyContinue"
-                Write-Host -ForegroundColor Cyan "INFO: Integration API tests being run from the host:"
-                $start=(Get-Date); Invoke-Expression ".\hack\make.ps1 -TestIntegration"; $Duration=New-Timespan -Start $start -End (Get-Date)
-                $IntTestsRunResult = $LastExitCode
-                $ErrorActionPreference = "Stop"
-                if (-not($IntTestsRunResult -eq 0)) {
-                    Throw "ERROR: Integration API tests failed at $(Get-Date). Duration`:$Duration"
-                }
+        # Location of the daemon under test.
+        $env:OrigDOCKER_HOST="$env:DOCKER_HOST"
 
-                $ErrorActionPreference = "SilentlyContinue"
-                Write-Host -ForegroundColor Green "INFO: Integration CLI tests being run from the host:"
-                Write-Host -ForegroundColor Green "INFO: $c"
-                Set-Location "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\integration-cli"
-                # Explicit to not use measure-command otherwise don't get output as it goes
-                $start=(Get-Date); Invoke-Expression $c; $Duration=New-Timespan -Start $start -End (Get-Date)
-            }
-            $ErrorActionPreference = "Stop"
-            if (-not($LastExitCode -eq 0)) {
-                Throw "ERROR: Integration CLI tests failed at $(Get-Date). Duration`:$Duration"
-            }
-            Write-Host  -ForegroundColor Green "INFO: Integration tests ended at $(Get-Date). Duration`:$Duration"
-        } else {
-            Write-Host -ForegroundColor Magenta "WARN: Skipping integration tests"
+        #https://blogs.technet.microsoft.com/heyscriptingguy/2011/09/20/solve-problems-with-external-command-lines-in-powershell/ is useful to see tokenising
+        $jsonFilePath = "..\\bundles\\go-test-report-intcli-tests.json"
+        $xmlFilePath = "..\\bundles\\junit-report-intcli-tests.xml"
+        $c = "gotestsum --format=standard-verbose --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- "
+        if ($null -ne $env:INTEGRATION_TEST_NAME) { # Makes is quicker for debugging to be able to run only a subset of the integration tests
+            $c += "`"-test.run`" "
+            $c += "`"$env:INTEGRATION_TEST_NAME`" "
+            Write-Host -ForegroundColor Magenta "WARN: Only running integration tests matching $env:INTEGRATION_TEST_NAME"
         }
-    } else {
-        # The LCOW version of the tests here
-        if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
-            Write-Host -ForegroundColor Cyan "INFO: Running LCOW tests at $(Get-Date)..."
+        $c += "`"-tags`" " + "`"autogen`" "
+        $c += "`"-test.timeout`" " + "`"200m`" "
 
-            $ErrorActionPreference = "SilentlyContinue"
-    
-            # Location of the daemon under test.
-            $env:OrigDOCKER_HOST="$env:DOCKER_HOST"
-
-            # Make sure we are pointing at the DUT
-            $env:DOCKER_HOST=$DASHH_CUT  
+        if ($null -ne $env:INTEGRATION_IN_CONTAINER) {
+            Write-Host -ForegroundColor Green "INFO: Integration tests being run inside a container"
+            # Note we talk back through the containers gateway address
+            # And the ridiculous lengths we have to go to get the default gateway address... (GetNetIPConfiguration doesn't work in nanoserver)
+            # I just could not get the escaping to work in a single command, so output $c to a file and run that in the container instead...
+            # Not the prettiest, but it works.
+            $c | Out-File -Force "$env:TEMP\binary\runIntegrationCLI.ps1"
+            $Duration= $(Measure-Command { & docker run `
+                                                    --rm `
+                                                    -e c=$c `
+                                                    --workdir "c`:\gopath\src\github.com\docker\docker\integration-cli" `
+                                                    -v "$env:TEMP\binary`:c:\target" `
+                                                    docker `
+                                                    "`$env`:PATH`='c`:\target;'+`$env:PATH`;  `$env:DOCKER_HOST`='tcp`://'+(ipconfig | select -last 1).Substring(39)+'`:2357'; c:\target\runIntegrationCLI.ps1" | Out-Host } )
+        } else  {
+            $env:DOCKER_HOST=$DASHH_CUT
+            $env:PATH="$env:TEMP\binary;$env:PATH;"  # Force to use the test binaries, not the host ones.
+                $env:GO111MODULE="off"
             Write-Host -ForegroundColor Green "INFO: DOCKER_HOST at $DASHH_CUT"
 
-            # Force to use the test binaries, not the host ones.
-            $env:PATH="$env:TEMP\binary;$env:PATH;"  
-
-            if ($null -ne $env:LCOW_BASIC_MODE) {
-                $wc = New-Object net.webclient
-                try {
-                    Write-Host -ForegroundColor green "INFO: Downloading latest execution script..."
-                    $wc.Downloadfile("https://raw.githubusercontent.com/kevpar/docker-w2wCIScripts/master/runCI/lcowbasicvalidation.ps1", "$env:TEMP\binary\lcowbasicvalidation.ps1")
-                } 
-                catch [System.Net.WebException]
-                {
-                    Throw ("Failed to download: $_")
-                }
-
-                # Explicit to not use measure-command otherwise don't get output as it goes
-                $ErrorActionPreference = "Stop"
-                $start=(Get-Date); Invoke-Expression "powershell $env:TEMP\binary\lcowbasicvalidation.ps1"; $lec=$lastExitCode; $Duration=New-Timespan -Start $start -End (Get-Date)
-                $Duration=New-Timespan -Start $start -End (Get-Date)
-                Write-Host  -ForegroundColor Green "INFO: LCOW tests ended at $(Get-Date). Duration`:$Duration"
-                if ($lec -ne 0) {
-                    Throw "LCOW validation tests failed"
-                }
-            } else {
-                #https://blogs.technet.microsoft.com/heyscriptingguy/2011/09/20/solve-problems-with-external-command-lines-in-powershell/ is useful to see tokenising
-                $c = "go test "
-                $c += "`"-test.v`" "
-                if ($null -ne $env:INTEGRATION_TEST_NAME) { # Makes is quicker for debugging to be able to run only a subset of the integration tests
-                    $c += "`"-test.run`" "
-                    $c += "`"$env:INTEGRATION_TEST_NAME`" "
-                    Write-Host -ForegroundColor Magenta "WARN: Only running LCOW integration tests matching $env:INTEGRATION_TEST_NAME"
-                }
-                $c += "`"-tags`" " + "`"autogen`" "
-                $c += "`"-test.timeout`" " + "`"200m`" "
-
-                Write-Host -ForegroundColor Green "INFO: LCOW Integration tests being run from the host:"
-                Set-Location "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\integration-cli"
-                Write-Host -ForegroundColor Green "INFO: $c"
-                Write-Host -ForegroundColor Green "INFO: DOCKER_HOST at $DASHH_CUT"
-                # Explicit to not use measure-command otherwise don't get output as it goes
-                $start=(Get-Date); Invoke-Expression $c; $Duration=New-Timespan -Start $start -End (Get-Date)
-
-            }
+            $ErrorActionPreference = "SilentlyContinue"
+            Write-Host -ForegroundColor Cyan "INFO: Integration API tests being run from the host:"
+            $start=(Get-Date); Invoke-Expression ".\hack\make.ps1 -TestIntegration"; $Duration=New-Timespan -Start $start -End (Get-Date)
+            $IntTestsRunResult = $LastExitCode
             $ErrorActionPreference = "Stop"
-            if (-not($LastExitCode -eq 0)) {
-                Throw "ERROR: Integration tests failed at $(Get-Date). Duration`:$Duration"
+            if (-not($IntTestsRunResult -eq 0)) {
+                Throw "ERROR: Integration API tests failed at $(Get-Date). Duration`:$Duration"
             }
-            Write-Host  -ForegroundColor Green "INFO: Integration tests ended at $(Get-Date). Duration`:$Duration"
-        } else {
-            Write-Host -ForegroundColor Magenta "WARN: Skipping LCOW tests"
+
+            $ErrorActionPreference = "SilentlyContinue"
+            Write-Host -ForegroundColor Green "INFO: Integration CLI tests being run from the host:"
+            Write-Host -ForegroundColor Green "INFO: $c"
+            Set-Location "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\integration-cli"
+            # Explicit to not use measure-command otherwise don't get output as it goes
+            $start=(Get-Date); Invoke-Expression $c; $Duration=New-Timespan -Start $start -End (Get-Date)
         }
+        $ErrorActionPreference = "Stop"
+        if (-not($LastExitCode -eq 0)) {
+            Throw "ERROR: Integration CLI tests failed at $(Get-Date). Duration`:$Duration"
+        }
+        Write-Host  -ForegroundColor Green "INFO: Integration tests ended at $(Get-Date). Duration`:$Duration"
+    } else {
+        Write-Host -ForegroundColor Magenta "WARN: Skipping integration tests"
     }
 
     # Docker info now to get counts (after or if jjh/containercounts is merged)

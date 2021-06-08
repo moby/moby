@@ -159,9 +159,6 @@ func newBuilder(clientCtx context.Context, options builderOptions) (*Builder, er
 		if err != nil {
 			return nil, err
 		}
-		if err := system.ValidatePlatform(sp); err != nil {
-			return nil, err
-		}
 		b.platform = &sp
 	}
 
