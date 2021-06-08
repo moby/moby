@@ -14,6 +14,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/containerd/cgroups"
@@ -55,14 +56,6 @@ import (
 
 const (
 	isWindows = false
-
-	// DefaultShimBinary is the default shim to be used by containerd if none
-	// is specified
-	DefaultShimBinary = "containerd-shim"
-
-	// DefaultRuntimeBinary is the default runtime to be used by
-	// containerd if none is specified
-	DefaultRuntimeBinary = "runc"
 
 	// See https://git.kernel.org/cgit/linux/kernel/git/tip/tip.git/tree/kernel/sched/sched.h?id=8cd9234c64c584432f6992fe944ca9e46ca8ea76#n269
 	linuxMinCPUShares = 2
@@ -620,8 +613,8 @@ func getCD(config *config.Config) string {
 	return ""
 }
 
-// VerifyCgroupDriver validates native.cgroupdriver
-func VerifyCgroupDriver(config *config.Config) error {
+// verifyCgroupDriver validates native.cgroupdriver
+func verifyCgroupDriver(config *config.Config) error {
 	cd := getCD(config)
 	if cd == "" || cd == cgroupFsDriver || cd == cgroupSystemdDriver {
 		return nil
@@ -638,19 +631,33 @@ func UsingSystemd(config *config.Config) bool {
 		return true
 	}
 	// On cgroup v2 hosts, default to systemd driver
-	if getCD(config) == "" && cgroups.Mode() == cgroups.Unified && IsRunningSystemd() {
+	if getCD(config) == "" && cgroups.Mode() == cgroups.Unified && isRunningSystemd() {
 		return true
 	}
 	return false
 }
 
-// IsRunningSystemd is from https://github.com/opencontainers/runc/blob/46be7b612e2533c494e6a251111de46d8e286ed5/libcontainer/cgroups/systemd/common.go#L27-L33
-func IsRunningSystemd() bool {
-	fi, err := os.Lstat("/run/systemd/system")
-	if err != nil {
-		return false
-	}
-	return fi.IsDir()
+var (
+	runningSystemd bool
+	detectSystemd  sync.Once
+)
+
+// isRunningSystemd checks whether the host was booted with systemd as its init
+// system. This functions similarly to systemd's `sd_booted(3)`: internally, it
+// checks whether /run/systemd/system/ exists and is a directory.
+// http://www.freedesktop.org/software/systemd/man/sd_booted.html
+//
+// NOTE: This function comes from package github.com/coreos/go-systemd/util
+// It was borrowed here to avoid a dependency on cgo.
+func isRunningSystemd() bool {
+	detectSystemd.Do(func() {
+		fi, err := os.Lstat("/run/systemd/system")
+		if err != nil {
+			return
+		}
+		runningSystemd = fi.IsDir()
+	})
+	return runningSystemd
 }
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
@@ -753,7 +760,7 @@ func verifyDaemonSettings(conf *config.Config) error {
 	if !conf.BridgeConfig.EnableIPTables && conf.BridgeConfig.EnableIPMasq {
 		conf.BridgeConfig.EnableIPMasq = false
 	}
-	if err := VerifyCgroupDriver(conf); err != nil {
+	if err := verifyCgroupDriver(conf); err != nil {
 		return err
 	}
 	if conf.CgroupParent != "" && UsingSystemd(conf) {
