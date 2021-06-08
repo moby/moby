@@ -83,7 +83,7 @@ func (daemon *Daemon) containerStop(container *containerpkg.Container, seconds i
 		return err
 	}
 
-	logrus.WithField("container", container.ID).Infof("Container failed to exit within %d seconds of signal %d - using the force", seconds, stopSignal)
+	logrus.WithField("container", container.ID).Infof("Container failed to exit within %s of signal %d - using the force", wait, stopSignal)
 	// Stop either failed or container didnt exit, so fallback to kill.
 	if err := daemon.Kill(container); err != nil {
 		// got a kill error, but give container 2 more seconds to exit just in case
