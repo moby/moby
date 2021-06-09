@@ -51,7 +51,6 @@ function test_overlay_local() {
 }
 
 @test "Test overlay network in local scope" {
-    skip_for_circleci
     test_overlay_local local
 }
 

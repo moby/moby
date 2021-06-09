@@ -54,11 +54,7 @@ function start_consul() {
 
 function stop_consul() {
     echo "consul started"
-    docker stop pr_consul || true
-    # You cannot destroy a container in Circle CI. So do not attempt destroy in circleci
-    if [ -z "$CIRCLECI" ]; then
-	docker rm -f pr_consul || true
-    fi
+    docker rm -f pr_consul || true
 }
 
 hrun() {
@@ -228,22 +224,12 @@ function start_ovrouter() {
 	   mrjana/golang ./cmd/ovrouter/ovrouter eth0
 }
 
-function skip_for_circleci() {
-    if [ -n "$CIRCLECI" ]; then
-	skip
-    fi
-}
-
 function stop_dnet() {
     local name
 
     name=$(dnet_container_name $1 $2)
     rm -rf /tmp/dnet/${name} || true
-    docker stop ${name} || true
-    # You cannot destroy a container in Circle CI. So do not attempt destroy in circleci
-    if [ -z "$CIRCLECI" ]; then
-	docker rm -f ${name} || true
-    fi
+    docker rm -f ${name} || true
 }
 
 function dnet_cmd() {
@@ -299,11 +285,7 @@ function start_etcd() {
 }
 
 function stop_etcd() {
-    docker stop dn_etcd || true
-    # You cannot destroy a container in Circle CI. So do not attempt destroy in circleci
-    if [ -z "$CIRCLECI" ]; then
-	docker rm -f dn_etcd || true
-    fi
+    docker rm -f dn_etcd || true
 }
 
 function start_zookeeper() {
@@ -318,11 +300,7 @@ function start_zookeeper() {
 
 function stop_zookeeper() {
     echo "zookeeper started"
-    docker stop zookeeper_server || true
-    # You cannot destroy a container in Circle CI. So do not attempt destroy in circleci
-    if [ -z "$CIRCLECI" ]; then
-	docker rm -f zookeeper_server || true
-    fi
+    docker rm -f zookeeper_server || true
 }
 
 function test_overlay() {

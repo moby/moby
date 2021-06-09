@@ -4,17 +4,14 @@
 load helpers
 
 @test "Test overlay network with consul" {
-    skip_for_circleci
     test_overlay consul
 }
 
 @test "Test overlay network singlehost with consul" {
-    skip_for_circleci
     test_overlay_singlehost consul
 }
 
 @test "Test overlay network with dnet restart" {
-    skip_for_circleci
     test_overlay consul skip_rm
     docker restart dnet-1-consul
     wait_for_dnet $(inst_id2port 1) dnet-1-consul
@@ -26,12 +23,10 @@ load helpers
 }
 
 @test "Test overlay network internal network with consul" {
-    skip_for_circleci
     test_overlay consul internal
 }
 
 @test "Test overlay network with dnet ungraceful shutdown" {
-    skip_for_circleci
     dnet_cmd $(inst_id2port 1) network create -d overlay multihost
     start=1
     end=3
