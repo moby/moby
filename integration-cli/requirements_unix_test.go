@@ -62,7 +62,7 @@ func cgroupCpuset() bool {
 }
 
 func seccompEnabled() bool {
-	return supportsSeccomp && SysInfo.Seccomp
+	return SysInfo.Seccomp
 }
 
 func bridgeNfIptables() bool {
