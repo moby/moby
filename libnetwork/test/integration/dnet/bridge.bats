@@ -47,16 +47,12 @@ function test_single_network_connectivity() {
 }
 
 @test "Test default bridge network" {
-    skip_for_circleci
-
     echo $(docker ps)
     test_single_network_connectivity bridge 3
 }
 
 
 @test "Test default network dnet restart" {
-    skip_for_circleci
-
     echo $(docker ps)
 
     for iter in `seq 1 2`;
@@ -70,8 +66,6 @@ function test_single_network_connectivity() {
 }
 
 @test "Test default network dnet ungraceful restart" {
-    skip_for_circleci
-
     echo $(docker ps)
 
     for iter in `seq 1 2`;
@@ -87,8 +81,6 @@ function test_single_network_connectivity() {
 }
 
 @test "Test bridge network" {
-    skip_for_circleci
-
     echo $(docker ps)
     dnet_cmd $(inst_id2port 1) network create -d bridge singlehost
     test_single_network_connectivity singlehost 3
@@ -96,8 +88,6 @@ function test_single_network_connectivity() {
 }
 
 @test "Test bridge network dnet restart" {
-    skip_for_circleci
-
     echo $(docker ps)
     dnet_cmd $(inst_id2port 1) network create -d bridge singlehost
 
@@ -114,8 +104,6 @@ function test_single_network_connectivity() {
 }
 
 @test "Test bridge network dnet ungraceful restart" {
-    skip_for_circleci
-
     echo $(docker ps)
     dnet_cmd $(inst_id2port 1) network create -d bridge singlehost
 
@@ -134,8 +122,6 @@ function test_single_network_connectivity() {
 }
 
 @test "Test multiple bridge networks" {
-    skip_for_circleci
-
     echo $(docker ps)
 
     start=1
@@ -237,7 +223,6 @@ function test_single_network_connectivity() {
 }
 
 @test "Test bridge network alias support" {
-    skip_for_circleci
     dnet_cmd $(inst_id2port 1) network create -d bridge br1
     dnet_cmd $(inst_id2port 1) container create container_1
     net_connect 1 container_1 br1 container_2:c2 
@@ -254,7 +239,6 @@ function test_single_network_connectivity() {
 
 
 @test "Test bridge network global alias support" {
-    skip_for_circleci
     dnet_cmd $(inst_id2port 1) network create -d bridge br1
     dnet_cmd $(inst_id2port 1) network create -d bridge br2
     dnet_cmd $(inst_id2port 1) container create container_1
@@ -284,8 +268,6 @@ function test_single_network_connectivity() {
 }
 
 @test "Test bridge network internal network" {
-    skip_for_circleci
-
     echo $(docker ps)
     dnet_cmd $(inst_id2port 1) network create -d bridge --internal internal
     dnet_cmd $(inst_id2port 1) container create container_1

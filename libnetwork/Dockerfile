@@ -1,6 +1,10 @@
-ARG GO_VERSION=1.13.8
+# syntax=docker/dockerfile:1.2
 
-FROM golang:${GO_VERSION}-buster as dev
+ARG GO_VERSION=1.13.15
+ARG BASE_DEBIAN_DISTRO="buster"
+ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
+
+FROM ${GOLANG_IMAGE} AS dev
 RUN apt-get update && apt-get -y install iptables \
 		protobuf-compiler
 

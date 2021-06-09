@@ -1,9 +1,6 @@
 package testutils
 
-import (
-	"os"
-	"testing"
-)
+import "testing"
 
 // SetupTestOSContext joins a new network namespace, and returns its associated
 // teardown function.
@@ -13,11 +10,5 @@ import (
 //     defer SetupTestOSContext(t)()
 //
 func SetupTestOSContext(t *testing.T) func() {
-	return func() {
-	}
-}
-
-// RunningOnCircleCI returns true if being executed on libnetwork Circle CI setup
-func RunningOnCircleCI() bool {
-	return os.Getenv("CIRCLECI") != ""
+	return func() {}
 }

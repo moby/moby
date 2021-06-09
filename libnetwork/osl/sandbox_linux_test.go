@@ -186,10 +186,6 @@ func TestScanStatistics(t *testing.T) {
 }
 
 func TestDisableIPv6DAD(t *testing.T) {
-	if testutils.RunningOnCircleCI() {
-		t.Skipf("Skipping as not supported on CIRCLE CI kernel")
-	}
-
 	defer testutils.SetupTestOSContext(t)()
 
 	key, err := newKey(t)

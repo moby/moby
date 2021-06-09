@@ -11,10 +11,7 @@ trap "cleanup_containers" EXIT SIGINT
 
 function cleanup_containers() {
 	for c in "${!cmap[@]}"; do
-		docker stop $c 1>> ${INTEGRATION_ROOT}/test.log 2>&1 || true
-		if [ -z "$CIRCLECI" ]; then
-			docker rm -f $c 1>> ${INTEGRATION_ROOT}/test.log 2>&1 || true
-		fi
+		docker rm -f $c 1>> ${INTEGRATION_ROOT}/test.log 2>&1 || true
 	done
 
 	unset cmap
@@ -223,13 +220,7 @@ fi
 # Suite setup
 
 if [ -z "$SUITES" ]; then
-	if [ -n "$CIRCLECI" ]; then
-		# We can only run a limited list of suites in circleci because of the
-		# old kernel and limited docker environment.
-		suites="dnet multi_consul multi_zk multi_etcd"
-	else
-		suites="dnet multi_consul multi_zk multi_etcd  bridge overlay_consul overlay_consul_host overlay_zk overlay_etcd"
-	fi
+	suites="dnet multi_consul multi_zk multi_etcd  bridge overlay_consul overlay_consul_host overlay_zk overlay_etcd"
 else
 	suites="$SUITES"
 fi
