@@ -45,7 +45,7 @@ func (i *ImageService) Map() map[image.ID]*image.Image {
 // the heads.
 func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error) {
 	var (
-		allImages    map[image.ID]*image.Image
+		allImages    map[image.ID]*image.Meta
 		err          error
 		danglingOnly = false
 	)
@@ -62,9 +62,9 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 		}
 	}
 	if danglingOnly {
-		allImages = i.imageStore.Heads()
+		allImages = i.imageStore.HeadsMeta()
 	} else {
-		allImages = i.imageStore.Map()
+		allImages = i.imageStore.MetaMap()
 	}
 
 	var beforeFilter, sinceFilter *image.Image
@@ -85,7 +85,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 	}
 
 	images := []*types.ImageSummary{}
-	var imagesMap map[*image.Image]*types.ImageSummary
+	var imagesMap map[*image.Meta]*types.ImageSummary
 	var layerRefs map[layer.ChainID]int
 	var allLayers map[layer.ChainID]layer.Layer
 	var allContainers []*container.Container
@@ -104,12 +104,8 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 		}
 
 		if imageFilters.Contains("label") {
-			// Very old image that do not have image.Config (or even labels)
-			if img.Config == nil {
-				continue
-			}
 			// We are now sure image.Config is not nil
-			if !imageFilters.MatchKVList("label", img.Config.Labels) {
+			if !imageFilters.MatchKVList("label", img.Labels) {
 				continue
 			}
 		}
@@ -117,25 +113,14 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 		// Skip any images with an unsupported operating system to avoid a potential
 		// panic when indexing through the layerstore. Don't error as we want to list
 		// the other images. This should never happen, but here as a safety precaution.
-		if !system.IsOSSupported(img.OperatingSystem()) {
+		if !system.IsOSSupported(img.OS) {
 			continue
 		}
 
-		layerID := img.RootFS.ChainID()
+		// layerID := img.RootFS.ChainID()
 		var size int64
-		if layerID != "" {
-			l, err := i.layerStores[img.OperatingSystem()].Get(layerID)
-			if err != nil {
-				// The layer may have been deleted between the call to `Map()` or
-				// `Heads()` and the call to `Get()`, so we just ignore this error
-				if err == layer.ErrLayerDoesNotExist {
-					continue
-				}
-				return nil, err
-			}
-
-			size, err = l.Size()
-			layer.ReleaseAndLog(i.layerStores[img.OperatingSystem()], l)
+		if img.Layer != nil {
+			size, err = img.Layer.Size()
 			if err != nil {
 				return nil, err
 			}
@@ -199,7 +184,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 						allLayers[k] = v
 					}
 				}
-				imagesMap = make(map[*image.Image]*types.ImageSummary)
+				imagesMap = make(map[*image.Meta]*types.ImageSummary)
 				layerRefs = make(map[layer.ChainID]int)
 			}
 
@@ -212,16 +197,14 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 			}
 
 			// count layer references
-			rootFS := *img.RootFS
-			rootFS.DiffIDs = nil
-			for _, id := range img.RootFS.DiffIDs {
-				rootFS.Append(id)
-				chid := rootFS.ChainID()
+			for l := img.Layer; l != nil; l = l.Parent() {
+				chid := l.ChainID()
 				layerRefs[chid]++
 				if _, ok := allLayers[chid]; !ok {
 					return nil, fmt.Errorf("layer %v was not found (corruption?)", chid)
 				}
 			}
+
 			imagesMap[img] = newImage
 		}
 
@@ -231,13 +214,8 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 	if withExtraAttrs {
 		// Get Shared sizes
 		for img, newImage := range imagesMap {
-			rootFS := *img.RootFS
-			rootFS.DiffIDs = nil
-
-			newImage.SharedSize = 0
-			for _, id := range img.RootFS.DiffIDs {
-				rootFS.Append(id)
-				chid := rootFS.ChainID()
+			for l := img.Layer; l != nil; l = l.Parent() {
+				chid := l.ChainID()
 
 				diffSize, err := allLayers[chid].DiffSize()
 				if err != nil {
@@ -343,17 +321,15 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
 	return string(newImgID), nil
 }
 
-func newImage(image *image.Image, size int64) *types.ImageSummary {
+func newImage(meta *image.Meta, size int64) *types.ImageSummary {
 	newImage := new(types.ImageSummary)
-	newImage.ParentID = image.Parent.String()
-	newImage.ID = image.ID().String()
-	newImage.Created = image.Created.Unix()
+	newImage.ParentID = meta.Parent.String()
+	newImage.ID = meta.ID.String()
+	newImage.Created = meta.Created.Unix()
 	newImage.Size = size
 	newImage.VirtualSize = size
 	newImage.SharedSize = -1
 	newImage.Containers = -1
-	if image.Config != nil {
-		newImage.Labels = image.Config.Labels
-	}
+	newImage.Labels = meta.Labels
 	return newImage
 }
