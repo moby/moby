@@ -674,6 +674,9 @@ func (daemon *Daemon) parents(c *container.Container) map[string]*container.Cont
 }
 
 func (daemon *Daemon) registerLink(parent, child *container.Container, alias string) error {
+	if len(strings.Fields(alias)) > 1 {
+		return errdefs.InvalidParameter(errors.Errorf("Invalid link alias name (%s), can't contain white spaces", alias))
+	}
 	fullName := path.Join(parent.Name, alias)
 	if err := daemon.containersReplica.ReserveName(fullName, child.ID); err != nil {
 		if err == container.ErrNameReserved {
@@ -987,7 +990,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	for operatingSystem, gd := range d.graphDrivers {
 		layerStores[operatingSystem], err = layer.NewStoreFromOptions(layer.StoreOptions{
-			Root:                      config.Root,
+			Root: config.Root,
 			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
 			GraphDriver:               gd,
 			GraphDriverOptions:        config.GraphOptions,
