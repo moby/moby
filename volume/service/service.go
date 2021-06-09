@@ -23,7 +23,9 @@ type ds interface {
 	GetDriverList() []string
 }
 
-type volumeEventLogger interface {
+// VolumeEventLogger interface provides methods to log volume-related events
+type VolumeEventLogger interface {
+	// LogVolumeEvent generates an event related to a volume.
 	LogVolumeEvent(volumeID, action string, attributes map[string]string)
 }
 
@@ -33,17 +35,17 @@ type VolumesService struct {
 	vs           *VolumeStore
 	ds           ds
 	pruneRunning int32
-	eventLogger  volumeEventLogger
+	eventLogger  VolumeEventLogger
 }
 
 // NewVolumeService creates a new volume service
-func NewVolumeService(root string, pg plugingetter.PluginGetter, rootIDs idtools.Identity, logger volumeEventLogger) (*VolumesService, error) {
+func NewVolumeService(root string, pg plugingetter.PluginGetter, rootIDs idtools.Identity, logger VolumeEventLogger) (*VolumesService, error) {
 	ds := drivers.NewStore(pg)
 	if err := setupDefaultDriver(ds, root, rootIDs); err != nil {
 		return nil, err
 	}
 
-	vs, err := NewStore(root, ds)
+	vs, err := NewStore(root, ds, WithEventLogger(logger))
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +73,6 @@ func (s *VolumesService) Create(ctx context.Context, name, driverName string, op
 		return nil, err
 	}
 
-	s.eventLogger.LogVolumeEvent(v.Name(), "create", map[string]string{"driver": v.DriverName()})
 	apiV := volumeToAPIType(v)
 	return &apiV, nil
 }
@@ -160,10 +161,6 @@ func (s *VolumesService) Remove(ctx context.Context, name string, rmOpts ...opts
 		err = errdefs.Conflict(err)
 	} else if IsNotExist(err) && cfg.PurgeOnError {
 		err = nil
-	}
-
-	if err == nil {
-		s.eventLogger.LogVolumeEvent(v.Name(), "destroy", map[string]string{"driver": v.DriverName()})
 	}
 	return err
 }

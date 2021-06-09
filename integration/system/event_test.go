@@ -3,6 +3,7 @@ package system // import "github.com/docker/docker/integration/system"
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -11,9 +12,12 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil/request"
@@ -121,4 +125,70 @@ func TestEventsBackwardsCompatible(t *testing.T) {
 	assert.Check(t, is.Equal("create", containerCreateEvent.Status))
 	assert.Check(t, is.Equal(cID, containerCreateEvent.ID))
 	assert.Check(t, is.Equal("busybox", containerCreateEvent.From))
+}
+
+// TestEventsVolumeCreate verifies that volume create events are only fired
+// once: when creating the volume, and not when attaching to a container.
+func TestEventsVolumeCreate(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows", "FIXME: Windows doesn't trigger the events? Could be a race")
+
+	defer setupTest(t)()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	client := testEnv.APIClient()
+
+	since := request.DaemonUnixTime(ctx, t, client, testEnv)
+	volName := t.Name()
+	getEvents := func(messages <-chan events.Message, errs <-chan error) ([]events.Message, error) {
+		var evts []events.Message
+
+		for {
+			select {
+			case m := <-messages:
+				evts = append(evts, m)
+			case err := <-errs:
+				if err == io.EOF {
+					return evts, nil
+				}
+				return nil, err
+			case <-time.After(time.Second * 3):
+				return nil, errors.New("timeout hit")
+			}
+		}
+	}
+
+	_, err := client.VolumeCreate(ctx, volume.VolumeCreateBody{Name: volName})
+	assert.NilError(t, err)
+
+	filter := filters.NewArgs(
+		filters.Arg("type", "volume"),
+		filters.Arg("event", "create"),
+		filters.Arg("volume", volName),
+	)
+	messages, errs := client.Events(ctx, types.EventsOptions{
+		Since:   since,
+		Until:   request.DaemonUnixTime(ctx, t, client, testEnv),
+		Filters: filter,
+	})
+
+	volEvents, err := getEvents(messages, errs)
+	assert.NilError(t, err)
+	assert.Equal(t, len(volEvents), 1, "expected volume create event when creating a volume")
+
+	container.Create(ctx, t, client, container.WithMount(mount.Mount{
+		Type:   mount.TypeVolume,
+		Source: volName,
+		Target: "/tmp/foo",
+	}))
+
+	messages, errs = client.Events(ctx, types.EventsOptions{
+		Since:   since,
+		Until:   request.DaemonUnixTime(ctx, t, client, testEnv),
+		Filters: filter,
+	})
+
+	volEvents, err = getEvents(messages, errs)
+	assert.NilError(t, err)
+	assert.Equal(t, len(volEvents), 1, "expected volume create event to be fired only once")
 }
