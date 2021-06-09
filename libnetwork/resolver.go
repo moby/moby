@@ -21,10 +21,10 @@ type Resolver interface {
 	// Stop stops the name server for the container. Stopped resolver
 	// can be reused after running the SetupFunc again.
 	Stop()
-	// SetupFunc() provides the setup function that should be run
+	// SetupFunc provides the setup function that should be run
 	// in the container's network namespace.
 	SetupFunc(int) func()
-	// NameServer() returns the IP of the DNS resolver for the
+	// NameServer returns the IP of the DNS resolver for the
 	// containers.
 	NameServer() string
 	// SetExtServers configures the external nameservers the resolver
@@ -52,7 +52,7 @@ type DNSBackend interface {
 	// ExecFunc allows a function to be executed in the context of the backend
 	// on behalf of the resolver.
 	ExecFunc(f func()) error
-	//NdotsSet queries the backends ndots dns option settings
+	// NdotsSet queries the backends ndots dns option settings
 	NdotsSet() bool
 	// HandleQueryResp passes the name & IP from a response to the backend. backend
 	// can use it to maintain any required state about the resolution
