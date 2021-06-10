@@ -15,7 +15,6 @@ import (
 
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/rootless"
 )
 
 // Action signifies the iptable action.
@@ -128,18 +127,6 @@ func detectIptables() {
 		log.G(context.TODO()).WithError(err).Warnf("unable to find ip6tables")
 	} else {
 		ip6tablesPath = path
-	}
-}
-
-func initFirewalld() {
-	// When running with RootlessKit, firewalld is running as the root outside our network namespace
-	// https://github.com/moby/moby/issues/43781
-	if rootless.RunningWithRootlessKit() {
-		log.G(context.TODO()).Info("skipping firewalld management for rootless mode")
-		return
-	}
-	if err := firewalldInit(); err != nil {
-		log.G(context.TODO()).WithError(err).Debugf("unable to initialize firewalld; using raw iptables instead")
 	}
 }
 
@@ -512,24 +499,6 @@ func filterOutput(start time.Time, output []byte, args ...string) []byte {
 	}
 	// Put further filters here if desired
 	return output
-}
-
-// Raw calls 'iptables' system command, passing supplied arguments.
-func (iptable IPTable) Raw(args ...string) ([]byte, error) {
-	if firewalldRunning {
-		// select correct IP version for firewalld
-		ipv := Iptables
-		if iptable.ipVersion == IPv6 {
-			ipv = IP6Tables
-		}
-
-		startTime := time.Now()
-		output, err := Passthrough(ipv, args...)
-		if err == nil || !strings.Contains(err.Error(), "was not provided by any .service files") {
-			return filterOutput(startTime, output, args...), err
-		}
-	}
-	return iptable.raw(args...)
 }
 
 func (iptable IPTable) raw(args ...string) ([]byte, error) {
