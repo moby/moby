@@ -143,24 +143,14 @@ func (daemon *Daemon) fillClusterInfo(v *types.Info) {
 }
 
 func (daemon *Daemon) fillDriverInfo(v *types.Info) {
-	var ds [][2]string
-	drivers := ""
-	statuses := daemon.imageService.LayerStoreStatus()
-	for os, gd := range daemon.graphDrivers {
-		ds = append(ds, statuses[os]...)
-		drivers += gd
-		if len(daemon.graphDrivers) > 1 {
-			drivers += fmt.Sprintf(" (%s) ", os)
-		}
-		switch gd {
-		case "aufs", "devicemapper", "overlay":
-			v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: the %s storage-driver is deprecated, and will be removed in a future release.", gd))
-		}
+	switch daemon.graphDriver {
+	case "aufs", "devicemapper", "overlay":
+		v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: the %s storage-driver is deprecated, and will be removed in a future release.", daemon.graphDriver))
 	}
-	drivers = strings.TrimSpace(drivers)
 
-	v.Driver = drivers
-	v.DriverStatus = ds
+	statuses := daemon.imageService.LayerStoreStatus()
+	v.Driver = daemon.graphDriver
+	v.DriverStatus = statuses[runtime.GOOS]
 
 	fillDriverWarnings(v)
 }
