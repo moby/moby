@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -19,7 +18,6 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Microsoft/hcsshim/osversion"
-	opengcs "github.com/Microsoft/opengcs/client"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	containerderrdefs "github.com/containerd/containerd/errdefs"
@@ -150,11 +148,10 @@ func (c *client) Create(_ context.Context, id string, spec *specs.Spec, shim str
 	}
 
 	var err error
-	if spec.Linux == nil {
-		err = c.createWindows(id, spec, runtimeOptions)
-	} else {
-		err = c.createLinux(id, spec, runtimeOptions)
+	if spec.Linux != nil {
+		return errors.New("linux containers are not supported on this platform")
 	}
+	err = c.createWindows(id, spec, runtimeOptions)
 
 	if err == nil {
 		c.eventQ.Append(id, func() {
@@ -364,203 +361,6 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 	logger.Debug("createWindows() completed successfully")
 	return nil
 
-}
-
-func (c *client) createLinux(id string, spec *specs.Spec, runtimeOptions interface{}) error {
-	logrus.Debugf("libcontainerd: createLinux(): containerId %s ", id)
-	logger := c.logger.WithField("container", id)
-
-	if runtimeOptions == nil {
-		return fmt.Errorf("lcow option must be supplied to the runtime")
-	}
-	lcowConfig, ok := runtimeOptions.(*opengcs.Config)
-	if !ok {
-		return fmt.Errorf("lcow option must be supplied to the runtime")
-	}
-
-	configuration := &hcsshim.ContainerConfig{
-		HvPartition:                 true,
-		Name:                        id,
-		SystemType:                  "container",
-		ContainerType:               "linux",
-		Owner:                       defaultOwner,
-		TerminateOnLastHandleClosed: true,
-		HvRuntime: &hcsshim.HvRuntime{
-			ImagePath:           lcowConfig.KirdPath,
-			LinuxKernelFile:     lcowConfig.KernelFile,
-			LinuxInitrdFile:     lcowConfig.InitrdFile,
-			LinuxBootParameters: lcowConfig.BootParameters,
-		},
-	}
-
-	if spec.Windows == nil {
-		return fmt.Errorf("spec.Windows must not be nil for LCOW containers")
-	}
-
-	c.extractResourcesFromSpec(spec, configuration)
-
-	// We must have least one layer in the spec
-	if spec.Windows.LayerFolders == nil || len(spec.Windows.LayerFolders) == 0 {
-		return fmt.Errorf("OCI spec is invalid - at least one LayerFolders must be supplied to the runtime")
-	}
-
-	// Strip off the top-most layer as that's passed in separately to HCS
-	configuration.LayerFolderPath = spec.Windows.LayerFolders[len(spec.Windows.LayerFolders)-1]
-	layerFolders := spec.Windows.LayerFolders[:len(spec.Windows.LayerFolders)-1]
-
-	for _, layerPath := range layerFolders {
-		_, filename := filepath.Split(layerPath)
-		g, err := hcsshim.NameToGuid(filename)
-		if err != nil {
-			return err
-		}
-		configuration.Layers = append(configuration.Layers, hcsshim.Layer{
-			ID:   g.ToString(),
-			Path: filepath.Join(layerPath, "layer.vhd"),
-		})
-	}
-
-	if spec.Windows.Network != nil {
-		configuration.EndpointList = spec.Windows.Network.EndpointList
-		configuration.AllowUnqualifiedDNSQuery = spec.Windows.Network.AllowUnqualifiedDNSQuery
-		if spec.Windows.Network.DNSSearchList != nil {
-			configuration.DNSSearchList = strings.Join(spec.Windows.Network.DNSSearchList, ",")
-		}
-		configuration.NetworkSharedContainerName = spec.Windows.Network.NetworkSharedContainerName
-	}
-
-	// Add the mounts (volumes, bind mounts etc) to the structure. We have to do
-	// some translation for both the mapped directories passed into HCS and in
-	// the spec.
-	//
-	// For HCS, we only pass in the mounts from the spec which are type "bind".
-	// Further, the "ContainerPath" field (which is a little mis-leadingly
-	// named when it applies to the utility VM rather than the container in the
-	// utility VM) is moved to under /tmp/gcs/<ID>/binds, where this is passed
-	// by the caller through a 'uvmpath' option.
-	//
-	// We do similar translation for the mounts in the spec by stripping out
-	// the uvmpath option, and translating the Source path to the location in the
-	// utility VM calculated above.
-	//
-	// From inside the utility VM, you would see a 9p mount such as in the following
-	// where a host folder has been mapped to /target. The line with /tmp/gcs/<ID>/binds
-	// specifically:
-	//
-	//	/ # mount
-	//	rootfs on / type rootfs (rw,size=463736k,nr_inodes=115934)
-	//	proc on /proc type proc (rw,relatime)
-	//	sysfs on /sys type sysfs (rw,relatime)
-	//	udev on /dev type devtmpfs (rw,relatime,size=498100k,nr_inodes=124525,mode=755)
-	//	tmpfs on /run type tmpfs (rw,relatime)
-	//	cgroup on /sys/fs/cgroup type cgroup (rw,relatime,cpuset,cpu,cpuacct,blkio,memory,devices,freezer,net_cls,perf_event,net_prio,hugetlb,pids,rdma)
-	//	mqueue on /dev/mqueue type mqueue (rw,relatime)
-	//	devpts on /dev/pts type devpts (rw,relatime,mode=600,ptmxmode=000)
-	//	/binds/b3ea9126d67702173647ece2744f7c11181c0150e9890fc9a431849838033edc/target on /binds/b3ea9126d67702173647ece2744f7c11181c0150e9890fc9a431849838033edc/target type 9p (rw,sync,dirsync,relatime,trans=fd,rfdno=6,wfdno=6)
-	//	/dev/pmem0 on /tmp/gcs/b3ea9126d67702173647ece2744f7c11181c0150e9890fc9a431849838033edc/layer0 type ext4 (ro,relatime,block_validity,delalloc,norecovery,barrier,dax,user_xattr,acl)
-	//	/dev/sda on /tmp/gcs/b3ea9126d67702173647ece2744f7c11181c0150e9890fc9a431849838033edc/scratch type ext4 (rw,relatime,block_validity,delalloc,barrier,user_xattr,acl)
-	//	overlay on /tmp/gcs/b3ea9126d67702173647ece2744f7c11181c0150e9890fc9a431849838033edc/rootfs type overlay (rw,relatime,lowerdir=/tmp/base/:/tmp/gcs/b3ea9126d67702173647ece2744f7c11181c0150e9890fc9a431849838033edc/layer0,upperdir=/tmp/gcs/b3ea9126d67702173647ece2744f7c11181c0150e9890fc9a431849838033edc/scratch/upper,workdir=/tmp/gcs/b3ea9126d67702173647ece2744f7c11181c0150e9890fc9a431849838033edc/scratch/work)
-	//
-	//  /tmp/gcs/b3ea9126d67702173647ece2744f7c11181c0150e9890fc9a431849838033edc # ls -l
-	//	total 16
-	//	drwx------    3 0        0               60 Sep  7 18:54 binds
-	//	-rw-r--r--    1 0        0             3345 Sep  7 18:54 config.json
-	//	drwxr-xr-x   10 0        0             4096 Sep  6 17:26 layer0
-	//	drwxr-xr-x    1 0        0             4096 Sep  7 18:54 rootfs
-	//	drwxr-xr-x    5 0        0             4096 Sep  7 18:54 scratch
-	//
-	//	/tmp/gcs/b3ea9126d67702173647ece2744f7c11181c0150e9890fc9a431849838033edc # ls -l binds
-	//	total 0
-	//	drwxrwxrwt    2 0        0             4096 Sep  7 16:51 target
-
-	mds := []hcsshim.MappedDir{}
-	specMounts := []specs.Mount{}
-	for _, mount := range spec.Mounts {
-		specMount := mount
-		if mount.Type == "bind" {
-			// Strip out the uvmpath from the options
-			updatedOptions := []string{}
-			uvmPath := ""
-			readonly := false
-			for _, opt := range mount.Options {
-				dropOption := false
-				elements := strings.SplitN(opt, "=", 2)
-				switch elements[0] {
-				case "uvmpath":
-					uvmPath = elements[1]
-					dropOption = true
-				case "rw":
-				case "ro":
-					readonly = true
-				case "rbind":
-				default:
-					return fmt.Errorf("unsupported option %q", opt)
-				}
-				if !dropOption {
-					updatedOptions = append(updatedOptions, opt)
-				}
-			}
-			mount.Options = updatedOptions
-			if uvmPath == "" {
-				return fmt.Errorf("no uvmpath for bind mount %+v", mount)
-			}
-			md := hcsshim.MappedDir{
-				HostPath:          mount.Source,
-				ContainerPath:     path.Join(uvmPath, mount.Destination),
-				CreateInUtilityVM: true,
-				ReadOnly:          readonly,
-			}
-			// If we are 1803/RS4+ enable LinuxMetadata support by default
-			if osversion.Build() >= osversion.RS4 {
-				md.LinuxMetadata = true
-			}
-			mds = append(mds, md)
-			specMount.Source = path.Join(uvmPath, mount.Destination)
-		}
-		specMounts = append(specMounts, specMount)
-	}
-	configuration.MappedDirectories = mds
-
-	hcsContainer, err := hcsshim.CreateContainer(id, configuration)
-	if err != nil {
-		return err
-	}
-
-	spec.Mounts = specMounts
-
-	// Construct a container object for calling start on it.
-	ctr := &container{
-		id:           id,
-		execs:        make(map[string]*process),
-		isWindows:    false,
-		ociSpec:      spec,
-		hcsContainer: hcsContainer,
-		status:       containerd.Created,
-		waitCh:       make(chan struct{}),
-	}
-
-	// Start the container.
-	logger.Debug("starting container")
-	if err = hcsContainer.Start(); err != nil {
-		c.logger.WithError(err).Error("failed to start container")
-		ctr.debugGCS()
-		ctr.Lock()
-		if err := c.terminateContainer(ctr); err != nil {
-			c.logger.WithError(err).Error("failed to cleanup after a failed Start")
-		} else {
-			c.logger.Debug("cleaned up after failed Start by calling Terminate")
-		}
-		ctr.Unlock()
-		return err
-	}
-	ctr.debugGCS()
-
-	c.Lock()
-	c.containers[id] = ctr
-	c.Unlock()
-
-	logger.Debug("createLinux() completed successfully")
-	return nil
 }
 
 func (c *client) extractResourcesFromSpec(spec *specs.Spec, configuration *hcsshim.ContainerConfig) {
