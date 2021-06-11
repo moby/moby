@@ -37,11 +37,11 @@ func (i *ImageService) LookupImage(name string) (*types.ImageInspect, error) {
 	var layerMetadata map[string]string
 	layerID := img.RootFS.ChainID()
 	if layerID != "" {
-		l, err := i.layerStores[img.OperatingSystem()].Get(layerID)
+		l, err := i.layerStore.Get(layerID)
 		if err != nil {
 			return nil, err
 		}
-		defer layer.ReleaseAndLog(i.layerStores[img.OperatingSystem()], l)
+		defer layer.ReleaseAndLog(i.layerStore, l)
 		size, err = l.Size()
 		if err != nil {
 			return nil, err
@@ -87,7 +87,7 @@ func (i *ImageService) LookupImage(name string) (*types.ImageInspect, error) {
 		},
 	}
 
-	imageInspect.GraphDriver.Name = i.layerStores[img.OperatingSystem()].DriverName()
+	imageInspect.GraphDriver.Name = i.layerStore.DriverName()
 	imageInspect.GraphDriver.Data = layerMetadata
 
 	return imageInspect, nil

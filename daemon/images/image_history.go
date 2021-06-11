@@ -36,12 +36,12 @@ func (i *ImageService) ImageHistory(name string) ([]*image.HistoryResponseItem, 
 				return nil, system.ErrNotSupportedOperatingSystem
 			}
 			rootFS.Append(img.RootFS.DiffIDs[layerCounter])
-			l, err := i.layerStores[img.OperatingSystem()].Get(rootFS.ChainID())
+			l, err := i.layerStore.Get(rootFS.ChainID())
 			if err != nil {
 				return nil, err
 			}
 			layerSize, err = l.DiffSize()
-			layer.ReleaseAndLog(i.layerStores[img.OperatingSystem()], l)
+			layer.ReleaseAndLog(i.layerStore, l)
 			if err != nil {
 				return nil, err
 			}

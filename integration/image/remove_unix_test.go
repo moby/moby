@@ -45,8 +45,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	ctx := context.Background()
 	client := d.NewClientT(t)
 
-	layerStores := make(map[string]layer.Store)
-	layerStores[runtime.GOOS], _ = layer.NewStoreFromOptions(layer.StoreOptions{
+	layerStore, _ := layer.NewStoreFromOptions(layer.StoreOptions{
 		Root:                      d.Root,
 		MetadataStorePathTemplate: filepath.Join(d.RootDir(), "image", "%s", "layerdb"),
 		GraphDriver:               d.StorageDriver(),
@@ -57,7 +56,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 		OS:                        runtime.GOOS,
 	})
 	i := images.NewImageService(images.ImageServiceConfig{
-		LayerStores: layerStores,
+		LayerStore: layerStore,
 	})
 
 	img := "test-garbage-collector"

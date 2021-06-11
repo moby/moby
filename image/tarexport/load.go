@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
@@ -83,25 +82,14 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		if err != nil {
 			return err
 		}
-		if err := checkCompatibleOS(img.OS); err != nil {
-			return err
+		if !system.IsOSSupported(img.OperatingSystem()) {
+			return fmt.Errorf("cannot load %s image on %s", img.OperatingSystem(), runtime.GOOS)
 		}
 		rootFS := *img.RootFS
 		rootFS.DiffIDs = nil
 
 		if expected, actual := len(m.Layers), len(img.RootFS.DiffIDs); expected != actual {
 			return fmt.Errorf("invalid manifest, layers length mismatch: expected %d, got %d", expected, actual)
-		}
-
-		// On Windows, validate the platform, defaulting to windows if not present.
-		os := img.OS
-		if os == "" {
-			os = runtime.GOOS
-		}
-		if runtime.GOOS == "windows" {
-			if (os != "windows") && (os != "linux") {
-				return fmt.Errorf("configuration for this image has an unsupported operating system: %s", os)
-			}
 		}
 
 		for i, diffID := range img.RootFS.DiffIDs {
@@ -111,14 +99,14 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 			}
 			r := rootFS
 			r.Append(diffID)
-			newLayer, err := l.lss[os].Get(r.ChainID())
+			newLayer, err := l.lss.Get(r.ChainID())
 			if err != nil {
-				newLayer, err = l.loadLayer(layerPath, rootFS, diffID.String(), os, m.LayerSources[diffID], progressOutput)
+				newLayer, err = l.loadLayer(layerPath, rootFS, diffID.String(), m.LayerSources[diffID], progressOutput)
 				if err != nil {
 					return err
 				}
 			}
-			defer layer.ReleaseAndLog(l.lss[os], newLayer)
+			defer layer.ReleaseAndLog(l.lss, newLayer)
 			if expected, actual := diffID, newLayer.DiffID(); expected != actual {
 				return fmt.Errorf("invalid diffID for layer %d: expected %q, got %q", i, expected, actual)
 			}
@@ -180,7 +168,7 @@ func (l *tarexporter) setParentID(id, parentID image.ID) error {
 	return l.is.SetParent(id, parentID)
 }
 
-func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string, os string, foreignSrc distribution.Descriptor, progressOutput progress.Output) (layer.Layer, error) {
+func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string, foreignSrc distribution.Descriptor, progressOutput progress.Output) (layer.Layer, error) {
 	// We use system.OpenSequential to use sequential file access on Windows, avoiding
 	// depleting the standby list. On Linux, this equates to a regular os.Open.
 	rawTar, err := system.OpenSequential(filename)
@@ -209,10 +197,10 @@ func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string,
 	}
 	defer inflatedLayerData.Close()
 
-	if ds, ok := l.lss[os].(layer.DescribableStore); ok {
+	if ds, ok := l.lss.(layer.DescribableStore); ok {
 		return ds.RegisterWithDescriptor(inflatedLayerData, rootFS.ChainID(), foreignSrc)
 	}
-	return l.lss[os].Register(inflatedLayerData, rootFS.ChainID())
+	return l.lss.Register(inflatedLayerData, rootFS.ChainID())
 }
 
 func (l *tarexporter) setLoadedTag(ref reference.Named, imgID digest.Digest, outStream io.Writer) error {
@@ -303,11 +291,11 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 		return err
 	}
 
-	if err := checkCompatibleOS(img.OS); err != nil {
-		return err
-	}
 	if img.OS == "" {
 		img.OS = runtime.GOOS
+	}
+	if !system.IsOSSupported(img.OS) {
+		return fmt.Errorf("cannot load %s image on %s", img.OS, runtime.GOOS)
 	}
 
 	var parentID image.ID
@@ -342,7 +330,7 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 	if err != nil {
 		return err
 	}
-	newLayer, err := l.loadLayer(layerPath, *rootFS, oldID, img.OS, distribution.Descriptor{}, progressOutput)
+	newLayer, err := l.loadLayer(layerPath, *rootFS, oldID, distribution.Descriptor{}, progressOutput)
 	if err != nil {
 		return err
 	}
@@ -363,7 +351,7 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 		return err
 	}
 
-	metadata, err := l.lss[img.OS].Release(newLayer)
+	metadata, err := l.lss.Release(newLayer)
 	layer.LogReleaseMetadata(metadata)
 	if err != nil {
 		return err
@@ -414,20 +402,6 @@ func checkValidParent(img, parent *image.Image) bool {
 		}
 	}
 	return true
-}
-
-func checkCompatibleOS(imageOS string) error {
-	// always compatible if the images OS matches the host OS; also match an empty image OS
-	if imageOS == runtime.GOOS || imageOS == "" {
-		return nil
-	}
-	// On non-Windows hosts, for compatibility, fail if the image is Windows.
-	if runtime.GOOS != "windows" && imageOS == "windows" {
-		return fmt.Errorf("cannot load %s image on %s", imageOS, runtime.GOOS)
-	}
-
-	_, err := platforms.Parse(imageOS)
-	return err
 }
 
 func validateManifest(manifest []manifestItem) error {

@@ -206,7 +206,7 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 		if !system.IsOSSupported(os) {
 			return nil, nil, system.ErrNotSupportedOperatingSystem
 		}
-		layer, err := newROLayerForImage(nil, i.layerStores[os])
+		layer, err := newROLayerForImage(nil, i.layerStore)
 		return nil, layer, err
 	}
 
@@ -220,7 +220,7 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 			if !system.IsOSSupported(image.OperatingSystem()) {
 				return nil, nil, system.ErrNotSupportedOperatingSystem
 			}
-			layer, err := newROLayerForImage(image, i.layerStores[image.OperatingSystem()])
+			layer, err := newROLayerForImage(image, i.layerStore)
 			return image, layer, err
 		}
 	}
@@ -232,7 +232,7 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 	if !system.IsOSSupported(image.OperatingSystem()) {
 		return nil, nil, system.ErrNotSupportedOperatingSystem
 	}
-	layer, err := newROLayerForImage(image, i.layerStores[image.OperatingSystem()])
+	layer, err := newROLayerForImage(image, i.layerStore)
 	return image, layer, err
 }
 

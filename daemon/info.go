@@ -148,9 +148,8 @@ func (daemon *Daemon) fillDriverInfo(v *types.Info) {
 		v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: the %s storage-driver is deprecated, and will be removed in a future release.", daemon.graphDriver))
 	}
 
-	statuses := daemon.imageService.LayerStoreStatus()
 	v.Driver = daemon.graphDriver
-	v.DriverStatus = statuses[runtime.GOOS]
+	v.DriverStatus = daemon.imageService.LayerStoreStatus()
 
 	fillDriverWarnings(v)
 }

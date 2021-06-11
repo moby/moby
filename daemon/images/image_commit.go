@@ -8,17 +8,12 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
 
 // CommitImage creates a new image from a commit config
 func (i *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
-	layerStore, ok := i.layerStores[c.ContainerOS]
-	if !ok {
-		return "", system.ErrNotSupportedOperatingSystem
-	}
-	rwTar, err := exportContainerRw(layerStore, c.ContainerID, c.ContainerMountLabel)
+	rwTar, err := exportContainerRw(i.layerStore, c.ContainerID, c.ContainerMountLabel)
 	if err != nil {
 		return "", err
 	}
@@ -39,11 +34,11 @@ func (i *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
 		}
 	}
 
-	l, err := layerStore.Register(rwTar, parent.RootFS.ChainID())
+	l, err := i.layerStore.Register(rwTar, parent.RootFS.ChainID())
 	if err != nil {
 		return "", err
 	}
-	defer layer.ReleaseAndLog(layerStore, l)
+	defer layer.ReleaseAndLog(i.layerStore, l)
 
 	cc := image.ChildConfig{
 		ContainerID:     c.ContainerID,

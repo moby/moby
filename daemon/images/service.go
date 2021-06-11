@@ -3,7 +3,6 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 	"os"
-	"runtime"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/leases"
@@ -37,7 +36,7 @@ type ImageServiceConfig struct {
 	DistributionMetadataStore metadata.Store
 	EventsService             *daemonevents.Events
 	ImageStore                image.Store
-	LayerStores               map[string]layer.Store
+	LayerStore                layer.Store
 	MaxConcurrentDownloads    int
 	MaxConcurrentUploads      int
 	MaxDownloadAttempts       int
@@ -57,10 +56,10 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 	return &ImageService{
 		containers:                config.ContainerStore,
 		distributionMetadataStore: config.DistributionMetadataStore,
-		downloadManager:           xfer.NewLayerDownloadManager(config.LayerStores, config.MaxConcurrentDownloads, xfer.WithMaxDownloadAttempts(config.MaxDownloadAttempts)),
+		downloadManager:           xfer.NewLayerDownloadManager(config.LayerStore, config.MaxConcurrentDownloads, xfer.WithMaxDownloadAttempts(config.MaxDownloadAttempts)),
 		eventsService:             config.EventsService,
 		imageStore:                &imageStoreWithLease{Store: config.ImageStore, leases: config.Leases, ns: config.ContentNamespace},
-		layerStores:               config.LayerStores,
+		layerStore:                config.LayerStore,
 		referenceStore:            config.ReferenceStore,
 		registryService:           config.RegistryService,
 		trustKey:                  config.TrustKey,
@@ -78,7 +77,7 @@ type ImageService struct {
 	downloadManager           *xfer.LayerDownloadManager
 	eventsService             *daemonevents.Events
 	imageStore                image.Store
-	layerStores               map[string]layer.Store // By operating system
+	layerStore                layer.Store
 	pruneRunning              int32
 	referenceStore            dockerreference.Store
 	registryService           registry.Service
@@ -93,7 +92,7 @@ type ImageService struct {
 type DistributionServices struct {
 	DownloadManager   distribution.RootFSDownloadManager
 	V2MetadataService metadata.V2MetadataService
-	LayerStore        layer.Store // TODO: lcow
+	LayerStore        layer.Store
 	ImageStore        image.Store
 	ReferenceStore    dockerreference.Store
 }
@@ -103,7 +102,7 @@ func (i *ImageService) DistributionServices() DistributionServices {
 	return DistributionServices{
 		DownloadManager:   i.downloadManager,
 		V2MetadataService: metadata.NewV2MetadataService(i.distributionMetadataStore),
-		LayerStore:        i.layerStores[runtime.GOOS],
+		LayerStore:        i.layerStore,
 		ImageStore:        i.imageStore,
 		ReferenceStore:    i.referenceStore,
 	}
@@ -143,61 +142,52 @@ func (i *ImageService) CreateLayer(container *container.Container, initFunc laye
 
 	// Indexing by OS is safe here as validation of OS has already been performed in create() (the only
 	// caller), and guaranteed non-nil
-	return i.layerStores[container.OS].CreateRWLayer(container.ID, layerID, rwLayerOpts)
+	return i.layerStore.CreateRWLayer(container.ID, layerID, rwLayerOpts)
 }
 
-// GetLayerByID returns a layer by ID and operating system
+// GetLayerByID returns a layer by ID
 // called from daemon.go Daemon.restore(), and Daemon.containerExport()
-func (i *ImageService) GetLayerByID(cid string, os string) (layer.RWLayer, error) {
-	return i.layerStores[os].GetRWLayer(cid)
+func (i *ImageService) GetLayerByID(cid string) (layer.RWLayer, error) {
+	return i.layerStore.GetRWLayer(cid)
 }
 
 // LayerStoreStatus returns the status for each layer store
 // called from info.go
-func (i *ImageService) LayerStoreStatus() map[string][][2]string {
-	result := make(map[string][][2]string)
-	for os, store := range i.layerStores {
-		result[os] = store.DriverStatus()
-	}
-	return result
+func (i *ImageService) LayerStoreStatus() [][2]string {
+	return i.layerStore.DriverStatus()
 }
 
 // GetLayerMountID returns the mount ID for a layer
 // called from daemon.go Daemon.Shutdown(), and Daemon.Cleanup() (cleanup is actually continerCleanup)
-// TODO: needs to be refactored to Unmount (see callers), or removed and replaced
-// with GetLayerByID
-func (i *ImageService) GetLayerMountID(cid string, os string) (string, error) {
-	return i.layerStores[os].GetMountID(cid)
+// TODO: needs to be refactored to Unmount (see callers), or removed and replaced with GetLayerByID
+func (i *ImageService) GetLayerMountID(cid string) (string, error) {
+	return i.layerStore.GetMountID(cid)
 }
 
 // Cleanup resources before the process is shutdown.
 // called from daemon.go Daemon.Shutdown()
 func (i *ImageService) Cleanup() {
-	for os, ls := range i.layerStores {
-		if ls != nil {
-			if err := ls.Cleanup(); err != nil {
-				logrus.Errorf("Error during layer Store.Cleanup(): %v %s", err, os)
-			}
-		}
+	if err := i.layerStore.Cleanup(); err != nil {
+		logrus.Errorf("Error during layer Store.Cleanup(): %v", err)
 	}
 }
 
-// GraphDriverForOS returns the name of the graph drvier
+// GraphDriverName returns the name of the graph drvier
 // moved from Daemon.GraphDriverName, used by:
 // - newContainer
 // - to report an error in Daemon.Mount(container)
-func (i *ImageService) GraphDriverForOS(os string) string {
-	return i.layerStores[os].DriverName()
+func (i *ImageService) GraphDriverName() string {
+	return i.layerStore.DriverName()
 }
 
 // ReleaseLayer releases a layer allowing it to be removed
 // called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
 func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer, containerOS string) error {
-	metadata, err := i.layerStores[containerOS].ReleaseRWLayer(rwlayer)
+	metadata, err := i.layerStore.ReleaseRWLayer(rwlayer)
 	layer.LogReleaseMetadata(metadata)
 	if err != nil && !errors.Is(err, layer.ErrMountDoesNotExist) && !errors.Is(err, os.ErrNotExist) {
 		return errors.Wrapf(err, "driver %q failed to remove root filesystem",
-			i.layerStores[containerOS].DriverName())
+			i.layerStore.DriverName())
 	}
 	return nil
 }
@@ -207,21 +197,19 @@ func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer, containerOS string) e
 func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
 	var allLayersSize int64
 	layerRefs := i.getLayerRefs()
-	for _, ls := range i.layerStores {
-		allLayers := ls.Map()
-		for _, l := range allLayers {
-			select {
-			case <-ctx.Done():
-				return allLayersSize, ctx.Err()
-			default:
-				size, err := l.DiffSize()
-				if err == nil {
-					if _, ok := layerRefs[l.ChainID()]; ok {
-						allLayersSize += size
-					}
-				} else {
-					logrus.Warnf("failed to get diff size for layer %v", l.ChainID())
+	allLayers := i.layerStore.Map()
+	for _, l := range allLayers {
+		select {
+		case <-ctx.Done():
+			return allLayersSize, ctx.Err()
+		default:
+			size, err := l.DiffSize()
+			if err == nil {
+				if _, ok := layerRefs[l.ChainID()]; ok {
+					allLayersSize += size
 				}
+			} else {
+				logrus.Warnf("failed to get diff size for layer %v", l.ChainID())
 			}
 		}
 	}

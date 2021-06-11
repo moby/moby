@@ -91,11 +91,11 @@ func (i *ImageService) ImportImage(src string, repository, os string, tag string
 	if err != nil {
 		return err
 	}
-	l, err := i.layerStores[os].Register(inflatedLayerData, "")
+	l, err := i.layerStore.Register(inflatedLayerData, "")
 	if err != nil {
 		return err
 	}
-	defer layer.ReleaseAndLog(i.layerStores[os], l)
+	defer layer.ReleaseAndLog(i.layerStore, l)
 
 	created := time.Now().UTC()
 	imgConfig, err := json.Marshal(&image.Image{

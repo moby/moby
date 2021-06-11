@@ -50,7 +50,7 @@ func (daemon *Daemon) containerExport(container *container.Container) (arch io.R
 	if !system.IsOSSupported(container.OS) {
 		return nil, fmt.Errorf("cannot export %s: %s ", container.ID, system.ErrNotSupportedOperatingSystem)
 	}
-	rwlayer, err := daemon.imageService.GetLayerByID(container.ID, container.OS)
+	rwlayer, err := daemon.imageService.GetLayerByID(container.ID)
 	if err != nil {
 		return nil, err
 	}
