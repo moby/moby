@@ -68,9 +68,10 @@ hash_files() {
 		esac
 	fi
 
-	# -buildmode=pie is not supported on Windows and Linux on mips and riscv64.
+	# -buildmode=pie is not supported on Windows and Linux on mips, riscv64 and ppc64be.
+	# https://github.com/golang/go/blob/master/src/cmd/internal/sys/supported.go#L89-L99
 	case "$(go env GOOS)/$(go env GOARCH)" in
-		windows/* | linux/mips* | linux/riscv*) ;;
+		windows/* | linux/mips* | linux/riscv* | linux/ppc64) ;;
 
 		*)
 			BUILDFLAGS+=("-buildmode=pie")
