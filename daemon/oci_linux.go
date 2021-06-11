@@ -97,7 +97,11 @@ func WithRootless(daemon *Daemon) coci.SpecOpts {
 			if rootlesskitParentEUID == "" {
 				return errors.New("$ROOTLESSKIT_PARENT_EUID is not set (requires RootlessKit v0.8.0)")
 			}
-			controllersPath := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%s.slice/cgroup.controllers", rootlesskitParentEUID)
+			euid, err := strconv.Atoi(rootlesskitParentEUID)
+			if err != nil {
+				return errors.Wrap(err, "invalid $ROOTLESSKIT_PARENT_EUID: must be a numeric value")
+			}
+			controllersPath := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%d.slice/cgroup.controllers", euid)
 			controllersFile, err := ioutil.ReadFile(controllersPath)
 			if err != nil {
 				return err
