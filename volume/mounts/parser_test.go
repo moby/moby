@@ -438,7 +438,7 @@ func TestParseMountSpec(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(testDir)
-	parser := NewParser(runtime.GOOS)
+	parser := NewParser()
 	cases := []c{
 		{mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath, ReadOnly: true}, MountPoint{Type: mount.TypeBind, Source: testDir, Destination: testDestinationPath, Propagation: parser.DefaultPropagationMode()}},
 		{mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath}, MountPoint{Type: mount.TypeBind, Source: testDir, Destination: testDestinationPath, RW: true, Propagation: parser.DefaultPropagationMode()}},
@@ -519,7 +519,7 @@ func TestParseMountSpecBindWithFileinfoError(t *testing.T) {
 	}
 	m := mount.Mount{Type: mount.TypeBind, Source: p, Target: p}
 
-	parser := NewParser(runtime.GOOS)
+	parser := NewParser()
 
 	_, err := parser.ParseMountSpec(m)
 	assert.ErrorContains(t, err, "some crazy error")
