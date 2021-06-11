@@ -280,6 +280,11 @@ slotsLoop:
 	wg.Wait()
 
 	if !stopped {
+		// if a delay is set we need to monitor for a period longer than the delay
+		// otherwise we will leave the monitorLoop before the task is done delaying
+		if updateConfig.Delay >= monitoringPeriod {
+			monitoringPeriod = updateConfig.Delay + 1*time.Second
+		}
 		// Keep watching for task failures for one more monitoringPeriod,
 		// before declaring the update complete.
 		doneMonitoring := time.After(monitoringPeriod)
