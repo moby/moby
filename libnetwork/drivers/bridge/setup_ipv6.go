@@ -8,28 +8,18 @@ import (
 	"net"
 	"os"
 
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
-var bridgeIPv6 *net.IPNet
+// bridgeIPv6 is the default, link-local IPv6 address for the bridge (fe80::1/64)
+var bridgeIPv6 = &net.IPNet{IP: net.ParseIP("fe80::1"), Mask: net.CIDRMask(64, 128)}
 
 const (
-	bridgeIPv6Str          = "fe80::1/64"
 	ipv6ForwardConfPerm    = 0644
 	ipv6ForwardConfDefault = "/proc/sys/net/ipv6/conf/default/forwarding"
 	ipv6ForwardConfAll     = "/proc/sys/net/ipv6/conf/all/forwarding"
 )
-
-func init() {
-	// We allow ourselves to panic in this special case because we indicate a
-	// failure to parse a compile-time define constant.
-	var err error
-	if bridgeIPv6, err = types.ParseCIDR(bridgeIPv6Str); err != nil {
-		panic(fmt.Sprintf("Cannot parse default bridge IPv6 address %q: %v", bridgeIPv6Str, err))
-	}
-}
 
 func setupBridgeIPv6(config *networkConfiguration, i *bridgeInterface) error {
 	procFile := "/proc/sys/net/ipv6/conf/" + config.BridgeName + "/disable_ipv6"

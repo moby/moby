@@ -13,11 +13,7 @@ type policyLists struct {
 	elb *hcsshim.PolicyList
 }
 
-var lbPolicylistMap map[*loadBalancer]*policyLists
-
-func init() {
-	lbPolicylistMap = make(map[*loadBalancer]*policyLists)
-}
+var lbPolicylistMap = make(map[*loadBalancer]*policyLists)
 
 func (n *network) addLBBackend(ip net.IP, lb *loadBalancer) {
 	if len(lb.vip) == 0 {
