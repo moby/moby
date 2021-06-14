@@ -98,13 +98,15 @@ RUN dpkg --add-architecture arm64
 RUN dpkg --add-architecture armel
 RUN dpkg --add-architecture armhf
 RUN dpkg --add-architecture ppc64el
+RUN dpkg --add-architecture s390x
 RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-cross-true-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
             crossbuild-essential-arm64 \
             crossbuild-essential-armel \
             crossbuild-essential-armhf \
-            crossbuild-essential-ppc64el
+            crossbuild-essential-ppc64el \
+            crossbuild-essential-s390x
 
 FROM cross-${CROSS} as dev-base
 
@@ -135,7 +137,8 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/
             libapparmor-dev:arm64 \
             libapparmor-dev:armel \
             libapparmor-dev:armhf \
-            libapparmor-dev:ppc64el
+            libapparmor-dev:ppc64el \
+            libapparmor-dev:s390x
 
 FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
