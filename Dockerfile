@@ -127,16 +127,12 @@ ARG DEBIAN_FRONTEND
 # on non-amd64 systems.
 # Additionally, the crossbuild-amd64 is currently only on debian:buster, so
 # other architectures cannnot crossbuild amd64.
-RUN echo 'deb http://deb.debian.org/debian buster-backports main' > /etc/apt/sources.list.d/backports.list
 RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-cross-true-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
             libapparmor-dev:arm64 \
             libapparmor-dev:armel \
-            libapparmor-dev:armhf \
-            libseccomp-dev:arm64/buster-backports \
-            libseccomp-dev:armel/buster-backports \
-            libseccomp-dev:armhf/buster-backports
+            libapparmor-dev:armhf
 
 FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
