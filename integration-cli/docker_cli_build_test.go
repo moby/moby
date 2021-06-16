@@ -4544,16 +4544,16 @@ func (s *DockerSuite) TestBuildBuildTimeArgEnv(c *testing.T) {
 	    `
 	result := buildImage("testbuildtimeargenv",
 		cli.WithFlags(
-			"--build-arg", fmt.Sprintf("FOO1=fromcmd"),
-			"--build-arg", fmt.Sprintf("FOO2="),
-			"--build-arg", fmt.Sprintf("FOO3"), // set in env
-			"--build-arg", fmt.Sprintf("FOO4"), // not set in env
-			"--build-arg", fmt.Sprintf("FOO5=fromcmd"),
+			"--build-arg", "FOO1=fromcmd",
+			"--build-arg", "FOO2=",
+			"--build-arg", "FOO3", // set in env
+			"--build-arg", "FOO4", // not set in env
+			"--build-arg", "FOO5=fromcmd",
 			// FOO6 is not set at all
-			"--build-arg", fmt.Sprintf("FOO7=fromcmd"), // should produce a warning
-			"--build-arg", fmt.Sprintf("FOO8="), // should produce a warning
-			"--build-arg", fmt.Sprintf("FOO9"), // should produce a warning
-			"--build-arg", fmt.Sprintf("FO10"), // not set in env, empty value
+			"--build-arg", "FOO7=fromcmd", // should produce a warning
+			"--build-arg", "FOO8=", // should produce a warning
+			"--build-arg", "FOO9", // should produce a warning
+			"--build-arg", "FO10", // not set in env, empty value
 		),
 		cli.WithEnvironmentVariables(append(os.Environ(),
 			"FOO1=fromenv",
@@ -4665,7 +4665,7 @@ func (s *DockerSuite) TestBuildMultiStageGlobalArg(c *testing.T) {
 
 	result := cli.BuildCmd(c, imgName,
 		build.WithDockerfile(dockerfile),
-		cli.WithFlags("--build-arg", fmt.Sprintf("tag=latest")))
+		cli.WithFlags("--build-arg", "tag=latest"))
 	result.Assert(c, icmd.Success)
 
 	result = cli.DockerCmd(c, "images", "-q", "-f", "label=multifromtest=1")
@@ -4687,7 +4687,7 @@ func (s *DockerSuite) TestBuildMultiStageUnusedArg(c *testing.T) {
 
 	result := cli.BuildCmd(c, imgName,
 		build.WithDockerfile(dockerfile),
-		cli.WithFlags("--build-arg", fmt.Sprintf("baz=abc")))
+		cli.WithFlags("--build-arg", "baz=abc"))
 	result.Assert(c, icmd.Success)
 	assert.Assert(c, strings.Contains(result.Combined(), "[Warning]"))
 	assert.Assert(c, strings.Contains(result.Combined(), "[baz] were not consumed"))

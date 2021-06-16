@@ -81,16 +81,25 @@ issues:
     - text: "(G201|G202): SQL string (formatting|concatenation)"
       linters:
         - gosec
+    # FIXME: evaluate these and fix where needed: G307: Deferring unsafe method "*os.File" on type "Close" (gosec)
+    - text: "G307: Deferring unsafe method"
+      linters:
+        - gosec
     # FIXME temporarily suppress these. See #39924
     - text: "SA1019: .*\\.Xattrs is deprecated: Use PAXRecords instead"
       linters:
         - staticcheck
     # FIXME temporarily suppress these. See #39926
-    - text: "SA1019: httputil.NewClientConn is deprecated"
+    - text: "SA1019: httputil.NewClientConn"
       linters:
         - staticcheck
     # FIXME temporarily suppress these (related to the ones above)
-    - text: "SA1019: httputil.ErrPersistEOF is deprecated"
+    - text: "SA1019: httputil.ErrPersistEOF"
+      linters:
+        - staticcheck
+    # FIXME temporarily suppress these for false positives in tests (see https://github.com/dominikh/go-tools/issues/1022)
+    - text: "SA5011"
+      path: _test\.go
       linters:
         - staticcheck
     # This code is doing some fun stuff with reflect and it trips up the linter.
@@ -106,3 +115,9 @@ issues:
       linters:
         - structcheck
         - unused
+
+  # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
+  max-issues-per-linter: 0
+
+  # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
+  max-same-issues: 0

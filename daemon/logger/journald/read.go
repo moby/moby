@@ -125,10 +125,10 @@ func (s *journald) Close() error {
 	return nil
 }
 
-// convert error code returned from a sd_journal_* function
+// CErr converts error code returned from a sd_journal_* function
 // (which returns -errno) to a string
 func CErr(ret C.int) string {
-	return C.GoString(C.strerror(C.int(-ret)))
+	return C.GoString(C.strerror(-ret))
 }
 
 func (s *journald) drainJournal(logWatcher *logger.LogWatcher, j *C.sd_journal, oldCursor *C.char, untilUnixMicro uint64) (*C.char, bool, int) {
@@ -377,7 +377,6 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	}
 
 	C.free(unsafe.Pointer(cursor))
-	return
 }
 
 func (s *journald) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {

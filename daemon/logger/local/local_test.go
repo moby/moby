@@ -211,7 +211,8 @@ func copyLogMessage(src *logger.Message) *logger.Message {
 	dst.Err = src.Err
 	dst.Line = append(dst.Line, src.Line...)
 	if src.PLogMetaData != nil {
-		dst.PLogMetaData = &(*src.PLogMetaData)
+		lmd := *src.PLogMetaData
+		dst.PLogMetaData = &lmd
 	}
 	return dst
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/pubsub"
 	"github.com/sirupsen/logrus"
 )
@@ -131,7 +132,7 @@ func (s *Collector) Run() {
 
 				pair.publisher.Publish(*stats)
 
-			case notRunningErr, notFoundErr:
+			case errdefs.ErrConflict, errdefs.ErrNotFound:
 				// publish empty stats containing only name and ID if not running or not found
 				pair.publisher.Publish(types.StatsJSON{
 					Name: pair.container.Name,
@@ -149,14 +150,4 @@ func (s *Collector) Run() {
 
 		time.Sleep(s.interval)
 	}
-}
-
-type notRunningErr interface {
-	error
-	Conflict()
-}
-
-type notFoundErr interface {
-	error
-	NotFound()
 }

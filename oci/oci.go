@@ -13,7 +13,7 @@ import (
 //      that *only* passes `a` as value: `echo a > /sys/fs/cgroup/1/devices.allow, which would be
 //      the "implicit" equivalent of "a *:* rwm". Source-code also looks to confirm this, and returns
 //      early for "a" (all); https://github.com/torvalds/linux/blob/v5.10/security/device_cgroup.c#L614-L642
-// nolint: gosimple
+//nolint: gosimple
 var deviceCgroupRuleRegex = regexp.MustCompile("^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$")
 
 // SetCapabilities sets the provided capabilities on the spec
