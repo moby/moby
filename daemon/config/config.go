@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	registrytypes "github.com/docker/docker/api/types/registry"
 	daemondiscovery "github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/authorization"
@@ -84,8 +85,9 @@ var flatOptions = map[string]bool{
 // that will be skipped from findConfigurationConflicts
 // for unknown flag validation.
 var skipValidateOptions = map[string]bool{
-	"features": true,
-	"builder":  true,
+	"features":   true,
+	"builder":    true,
+	"registries": true,
 	// Corresponding flag has been removed because it was already unusable
 	"deprecated-key-path": true,
 }
@@ -289,6 +291,11 @@ func New() *Config {
 	return &config
 }
 
+// ParseRegistriesSettings parses the specified advertise settings
+func ParseRegistriesSettings(v []registrytypes.RegistryConfig) error {
+	return nil
+}
+
 // ParseClusterAdvertiseSettings parses the specified advertise settings
 func ParseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (string, error) {
 	if clusterAdvertise == "" {
@@ -408,6 +415,7 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		}
 
 		configSet := configValuesSet(jsonConfig)
+		println(string(b))
 
 		if err := findConfigurationConflicts(configSet, flags); err != nil {
 			return nil, err

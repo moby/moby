@@ -7,6 +7,12 @@ import (
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+type RegistryConfig struct {
+	Url      string   `json:"url,omitempty"`
+	Prefixes []string `json:"prefixes,omitempty"`
+	Actions  []string `json:"actions,omitempty"`
+}
+
 // ServiceConfig stores daemon registry services configuration.
 type ServiceConfig struct {
 	AllowNondistributableArtifactsCIDRs     []*NetIPNet
@@ -81,6 +87,12 @@ type IndexInfo struct {
 	Secure bool
 	// Official indicates whether this is an official registry
 	Official bool
+
+	// Prefixes is a set of repositories allowed for actions
+	Prefixes []string
+	// Actions is a list with enabled actions - by default both pull and
+	// push are enabled
+	Actions []string
 }
 
 // SearchResult describes a search result returned from a registry

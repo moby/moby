@@ -68,3 +68,20 @@ type RepositoryInfo struct {
 	// or "image".
 	Class string
 }
+
+func (r RepositoryInfo) IsPushAllowed() bool {
+	println("Is PUSH allowed? ", r.Name)
+
+	if r.Index.Prefixes == nil {
+		if r.Index.Actions == nil {
+			return true
+		}
+	}
+
+	if r.Index.Actions == nil && r.Index.Prefixes == nil {
+		return true
+	}
+
+	return true
+
+}

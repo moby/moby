@@ -16,9 +16,10 @@ import (
 
 // ServiceOptions holds command line options.
 type ServiceOptions struct {
-	AllowNondistributableArtifacts []string `json:"allow-nondistributable-artifacts,omitempty"`
-	Mirrors                        []string `json:"registry-mirrors,omitempty"`
-	InsecureRegistries             []string `json:"insecure-registries,omitempty"`
+	AllowNondistributableArtifacts []string                       `json:"allow-nondistributable-artifacts,omitempty"`
+	Mirrors                        []string                       `json:"registry-mirrors,omitempty"`
+	InsecureRegistries             []string                       `json:"insecure-registries,omitempty"`
+	Registries                     []registrytypes.RegistryConfig `json:"registries,omitempty"`
 }
 
 // serviceConfig holds daemon configuration for the registry service.
@@ -61,6 +62,7 @@ var (
 
 // newServiceConfig returns a new instance of ServiceConfig
 func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
+	println("new service config ............ = ", len(options.Registries))
 	config := &serviceConfig{
 		ServiceConfig: registrytypes.ServiceConfig{
 			InsecureRegistryCIDRs: make([]*registrytypes.NetIPNet, 0),
@@ -79,7 +81,33 @@ func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
 		return nil, err
 	}
 
+	if err := config.LoadRegistryActionConfigurations(options.Registries); err != nil {
+		return nil, err
+	}
+
 	return config, nil
+}
+
+// LoadAllowedRepositories loads the allowed repositories.
+func (config *serviceConfig) LoadRegistryActionConfigurations(registries []registrytypes.RegistryConfig) error {
+	for _, registry := range registries {
+
+		name, err := ValidateIndexName(registry.Url)
+		if err != nil {
+			return err
+		}
+		_, found := config.IndexConfigs[name]
+		if !found {
+			config.IndexConfigs[name] = &registrytypes.IndexInfo{Name: registry.Url}
+		}
+		config.IndexConfigs[name].Actions = registry.Actions
+		config.IndexConfigs[name].Prefixes = registry.Prefixes
+	}
+	for k, v := range config.IndexConfigs {
+		println("k=", k, "   v= ", v.Prefixes)
+	}
+
+	return nil
 }
 
 // LoadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries into config.
@@ -214,6 +242,9 @@ skip:
 				Mirrors:  make([]string, 0),
 				Secure:   false,
 				Official: false,
+
+				Prefixes: nil,
+				Actions:  nil,
 			}
 		}
 	}

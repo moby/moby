@@ -46,8 +46,8 @@ type DefaultService struct {
 // NewService returns a new instance of DefaultService ready to be
 // installed into an engine.
 func NewService(options ServiceOptions) (*DefaultService, error) {
+	println("service options : ", len(options.Registries))
 	config, err := newServiceConfig(options)
-
 	return &DefaultService{config: config}, err
 }
 
@@ -244,6 +244,7 @@ type APIEndpoint struct {
 	Official                       bool
 	TrimHostname                   bool
 	TLSConfig                      *tls.Config
+	Prefixes                       []string
 }
 
 // ToV1Endpoint returns a V1 API endpoint based on the APIEndpoint
@@ -275,7 +276,13 @@ func (s *DefaultService) LookupPullEndpoints(hostname string) (endpoints []APIEn
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.lookupV2Endpoints(hostname)
+	endpoints, err = s.lookupV2Endpoints(hostname)
+	if err != nil {
+		return nil, err
+	}
+	println("PULL endpoints lookup: ", len(endpoints), " ", endpoints)
+
+	return endpoints, nil
 }
 
 // LookupPushEndpoints creates a list of v2 endpoints to try to push to, in order of preference.
@@ -292,5 +299,6 @@ func (s *DefaultService) LookupPushEndpoints(hostname string) (endpoints []APIEn
 			}
 		}
 	}
+	println("PUSH endpoints lookup: ", len(allEndpoints), " ", allEndpoints)
 	return endpoints, err
 }

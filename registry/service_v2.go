@@ -74,6 +74,6 @@ func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 			TLSConfig: tlsConfig,
 		})
 	}
-
+	println("Endpoints: ", len(endpoints), endpoints[0].URL)
 	return endpoints, nil
 }
