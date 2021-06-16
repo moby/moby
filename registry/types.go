@@ -1,6 +1,8 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
+	"strings"
+
 	"github.com/docker/distribution/reference"
 	registrytypes "github.com/docker/docker/api/types/registry"
 )
@@ -69,19 +71,44 @@ type RepositoryInfo struct {
 	Class string
 }
 
-func (r RepositoryInfo) IsPushAllowed() bool {
-	println("Is PUSH allowed? ", r.Name)
+func (r RepositoryInfo) PushAllowed() bool {
+	prefix := getMatchingPrefix(r.Name.Name(), r.Index.Prefixes)
+	if prefix == "" {
+		return false
+	}
+	return r.Index.Prefixes[prefix].Push
+}
 
-	if r.Index.Prefixes == nil {
-		if r.Index.Actions == nil {
-			return true
+func (r RepositoryInfo) PullAllowed() bool {
+	prefix := getMatchingPrefix(r.Name.Name(), r.Index.Prefixes)
+	if prefix == "" {
+		return false
+	}
+	return r.Index.Prefixes[prefix].Pull
+}
+
+func getMatchingPrefix(name string, prefixes registrytypes.RepositoryPrefixes) string {
+	prefix := ""
+	for k := range prefixes {
+		if matches(name, k) {
+			// keep longest match only
+			if len(k) > len(prefix) {
+				prefix = k
+			}
 		}
 	}
+	return prefix
+}
 
-	if r.Index.Actions == nil && r.Index.Prefixes == nil {
+func matches(name, prefix string) bool {
+	if !strings.Contains(name, prefix) {
+		return false
+	}
+	if name == prefix {
 		return true
 	}
-
-	return true
-
+	if strings.Index(name, prefix) == 0 && name[len(prefix)] == '/' {
+		return true
+	}
+	return false
 }

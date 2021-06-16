@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -62,7 +63,6 @@ var (
 
 // newServiceConfig returns a new instance of ServiceConfig
 func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
-	println("new service config ............ = ", len(options.Registries))
 	config := &serviceConfig{
 		ServiceConfig: registrytypes.ServiceConfig{
 			InsecureRegistryCIDRs: make([]*registrytypes.NetIPNet, 0),
@@ -90,23 +90,45 @@ func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
 
 // LoadAllowedRepositories loads the allowed repositories.
 func (config *serviceConfig) LoadRegistryActionConfigurations(registries []registrytypes.RegistryConfig) error {
-	for _, registry := range registries {
+	contains := func(values []string, value string) bool {
+		for _, v := range values {
+			if v == value {
+				return true
+			}
+		}
+		return false
+	}
 
-		name, err := ValidateIndexName(registry.Url)
+	for _, registry := range registries {
+		if registry.Name == "" {
+			return fmt.Errorf("registry name is missing in daemon registries configuration")
+		}
+		name, err := ValidateIndexName(registry.Name)
 		if err != nil {
 			return err
 		}
 		_, found := config.IndexConfigs[name]
 		if !found {
-			config.IndexConfigs[name] = &registrytypes.IndexInfo{Name: registry.Url}
+			config.IndexConfigs[name] = &registrytypes.IndexInfo{
+				Name:     registry.Name,
+				Prefixes: registrytypes.RepositoryPrefixes{},
+			}
 		}
-		config.IndexConfigs[name].Actions = registry.Actions
-		config.IndexConfigs[name].Prefixes = registry.Prefixes
+		if len(registry.Prefixes) == 0 {
+			// actions are applied globally if no prefix is set
+			config.IndexConfigs[name].Prefixes[path.Join(name, "/")] = registrytypes.RepositoryActions{
+				Pull: len(registry.Actions) == 0 || contains(registry.Actions, "pull"),
+				Push: len(registry.Actions) == 0 || contains(registry.Actions, "push"),
+			}
+			continue
+		}
+		for _, prefix := range registry.Prefixes {
+			config.IndexConfigs[name].Prefixes[path.Join(name, prefix)] = registrytypes.RepositoryActions{
+				Pull: len(registry.Actions) == 0 || contains(registry.Actions, "pull"),
+				Push: len(registry.Actions) == 0 || contains(registry.Actions, "push"),
+			}
+		}
 	}
-	for k, v := range config.IndexConfigs {
-		println("k=", k, "   v= ", v.Prefixes)
-	}
-
 	return nil
 }
 
@@ -172,6 +194,7 @@ func (config *serviceConfig) LoadMirrors(mirrors []string) error {
 		Mirrors:  config.Mirrors,
 		Secure:   true,
 		Official: true,
+		Prefixes: registrytypes.RepositoryPrefixes{},
 	}
 
 	return nil
@@ -242,9 +265,7 @@ skip:
 				Mirrors:  make([]string, 0),
 				Secure:   false,
 				Official: false,
-
-				Prefixes: nil,
-				Actions:  nil,
+				Prefixes: registrytypes.RepositoryPrefixes{},
 			}
 		}
 	}
@@ -255,6 +276,7 @@ skip:
 		Mirrors:  config.Mirrors,
 		Secure:   true,
 		Official: true,
+		Prefixes: registrytypes.RepositoryPrefixes{},
 	}
 
 	return nil
@@ -417,6 +439,7 @@ func newIndexInfo(config *serviceConfig, indexName string) (*registrytypes.Index
 		Name:     indexName,
 		Mirrors:  make([]string, 0),
 		Official: false,
+		Prefixes: registrytypes.RepositoryPrefixes{},
 	}
 	index.Secure = isSecureIndex(config, indexName)
 	return index, nil

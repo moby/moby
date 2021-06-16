@@ -452,10 +452,7 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	if conf.TLSVerify == nil && conf.TLS != nil {
 		conf.TLSVerify = conf.TLS
 	}
-	/*println("===============>    END config: num registries = ", len(conf.Registries))
-	for k, v := range conf.ValuesSet {
-		println("confg set k =", k, "=", v)
-	}*/
+
 	return conf, nil
 }
 

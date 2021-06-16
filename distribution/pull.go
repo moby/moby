@@ -26,6 +26,9 @@ type Puller interface {
 
 // newPuller returns a Puller interface that will pull from a v2 registry.
 func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig, local ContentStore) (Puller, error) {
+	if endpoint.Restricted && !repoInfo.PullAllowed() {
+		return nil, fmt.Errorf("PULL is not allowed for %s, check allowed repositories in the daemon configuration", repoInfo.Name.Name())
+	}
 	switch endpoint.Version {
 	case registry.APIVersion2:
 		return &v2Puller{
@@ -51,7 +54,6 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 	if err != nil {
 		return err
 	}
-
 	// makes sure name is not `scratch`
 	if err := ValidateRepoName(repoInfo.Name); err != nil {
 		return err

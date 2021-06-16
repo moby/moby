@@ -39,16 +39,16 @@ type Service interface {
 // DefaultService is a registry service. It tracks configuration data such as a list
 // of mirrors.
 type DefaultService struct {
-	config *serviceConfig
-	mu     sync.Mutex
+	config     *serviceConfig
+	mu         sync.Mutex
+	Restricted bool
 }
 
 // NewService returns a new instance of DefaultService ready to be
 // installed into an engine.
 func NewService(options ServiceOptions) (*DefaultService, error) {
-	println("service options : ", len(options.Registries))
 	config, err := newServiceConfig(options)
-	return &DefaultService{config: config}, err
+	return &DefaultService{config: config, Restricted: len(options.Registries) > 0}, err
 }
 
 // ServiceConfig returns the public registry service configuration.
@@ -244,7 +244,7 @@ type APIEndpoint struct {
 	Official                       bool
 	TrimHostname                   bool
 	TLSConfig                      *tls.Config
-	Prefixes                       []string
+	Restricted                     bool
 }
 
 // ToV1Endpoint returns a V1 API endpoint based on the APIEndpoint
@@ -276,13 +276,7 @@ func (s *DefaultService) LookupPullEndpoints(hostname string) (endpoints []APIEn
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	endpoints, err = s.lookupV2Endpoints(hostname)
-	if err != nil {
-		return nil, err
-	}
-	println("PULL endpoints lookup: ", len(endpoints), " ", endpoints)
-
-	return endpoints, nil
+	return s.lookupV2Endpoints(hostname)
 }
 
 // LookupPushEndpoints creates a list of v2 endpoints to try to push to, in order of preference.
@@ -299,6 +293,5 @@ func (s *DefaultService) LookupPushEndpoints(hostname string) (endpoints []APIEn
 			}
 		}
 	}
-	println("PUSH endpoints lookup: ", len(allEndpoints), " ", allEndpoints)
 	return endpoints, err
 }

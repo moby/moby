@@ -8,7 +8,7 @@ import (
 )
 
 type RegistryConfig struct {
-	Url      string   `json:"url,omitempty"`
+	Name     string   `json:"name"`
 	Prefixes []string `json:"prefixes,omitempty"`
 	Actions  []string `json:"actions,omitempty"`
 }
@@ -20,6 +20,7 @@ type ServiceConfig struct {
 	InsecureRegistryCIDRs                   []*NetIPNet           `json:"InsecureRegistryCIDRs"`
 	IndexConfigs                            map[string]*IndexInfo `json:"IndexConfigs"`
 	Mirrors                                 []string
+	Restricted                              bool
 }
 
 // NetIPNet is the net.IPNet type, which can be marshalled and
@@ -88,12 +89,18 @@ type IndexInfo struct {
 	// Official indicates whether this is an official registry
 	Official bool
 
-	// Prefixes is a set of repositories allowed for actions
-	Prefixes []string
-	// Actions is a list with enabled actions - by default both pull and
-	// push are enabled
-	Actions []string
+	// Prefixes holds repository pull/push permissions
+	Prefixes RepositoryPrefixes
 }
+
+// RepositoryActions maps repository pull/push permissions
+type RepositoryActions struct {
+	Pull bool
+	Push bool
+}
+
+// RepositoryActions describes pull/push permissions per repository
+type RepositoryPrefixes map[string]RepositoryActions
 
 // SearchResult describes a search result returned from a registry
 type SearchResult struct {

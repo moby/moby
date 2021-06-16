@@ -31,6 +31,9 @@ const compressionBufSize = 32768
 // through to the underlying pusher implementation for use during the actual
 // push operation.
 func NewPusher(ref reference.Named, endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePushConfig *ImagePushConfig) (Pusher, error) {
+	if endpoint.Restricted && !repoInfo.PushAllowed() {
+		return nil, fmt.Errorf("PUSH is not allowed for %s, check allowed repositories in the daemon configuration", repoInfo.Name.Name())
+	}
 	switch endpoint.Version {
 	case registry.APIVersion2:
 		return &v2Pusher{
@@ -57,7 +60,6 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 	if err != nil {
 		return err
 	}
-
 	endpoints, err := imagePushConfig.RegistryService.LookupPushEndpoints(reference.Domain(repoInfo.Name))
 	if err != nil {
 		return err

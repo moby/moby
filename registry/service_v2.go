@@ -28,6 +28,7 @@ func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 				Mirror:       true,
 				TrimHostname: true,
 				TLSConfig:    mirrorTLSConfig,
+				Restricted:   s.Restricted,
 			})
 		}
 		endpoints = append(endpoints, APIEndpoint{
@@ -36,6 +37,7 @@ func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 			Official:     true,
 			TrimHostname: true,
 			TLSConfig:    tlsConfig,
+			Restricted:   s.Restricted,
 		})
 
 		return endpoints, nil
@@ -58,6 +60,7 @@ func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 			AllowNondistributableArtifacts: ana,
 			TrimHostname:                   true,
 			TLSConfig:                      tlsConfig,
+			Restricted:                     s.Restricted,
 		},
 	}
 
@@ -71,9 +74,10 @@ func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 			AllowNondistributableArtifacts: ana,
 			TrimHostname:                   true,
 			// used to check if supposed to be secure via InsecureSkipVerify
-			TLSConfig: tlsConfig,
+			TLSConfig:  tlsConfig,
+			Restricted: s.Restricted,
 		})
 	}
-	println("Endpoints: ", len(endpoints), endpoints[0].URL)
+
 	return endpoints, nil
 }
