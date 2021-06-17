@@ -20,12 +20,14 @@ func detectRunMount(cmd *command, allDispatchStates *dispatchStates) bool {
 		mounts := instructions.GetMounts(c)
 		sources := make([]*dispatchState, len(mounts))
 		for i, mount := range mounts {
-			if mount.From == "" && mount.Type == instructions.MountTypeCache {
-				mount.From = emptyImageName
-			}
-			from := mount.From
-			if from == "" || mount.Type == instructions.MountTypeTmpfs {
-				continue
+			var from string
+			if mount.From == "" {
+				// this might not be accurate because the type might not have a real source (tmpfs for instance),
+				// but since this is just for creating the sources map it should be ok (we don't want to check the value of
+				// mount.Type because it might be a variable)
+				from = emptyImageName
+			} else {
+				from = mount.From
 			}
 			stn, ok := allDispatchStates.findStateByName(from)
 			if !ok {

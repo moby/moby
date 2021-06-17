@@ -13,12 +13,11 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/moby/buildkit/cmd/buildkitd/config"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/pkg/errors"
 )
 
-func fillInsecureOpts(host string, c config.RegistryConfig, h docker.RegistryHost) ([]docker.RegistryHost, error) {
+func fillInsecureOpts(host string, c RegistryConfig, h docker.RegistryHost) ([]docker.RegistryHost, error) {
 	var hosts []docker.RegistryHost
 
 	tc, err := loadTLSConfig(c)
@@ -65,7 +64,7 @@ func fillInsecureOpts(host string, c config.RegistryConfig, h docker.RegistryHos
 	return hosts, nil
 }
 
-func loadTLSConfig(c config.RegistryConfig) (*tls.Config, error) {
+func loadTLSConfig(c RegistryConfig) (*tls.Config, error) {
 	for _, d := range c.TLSConfigDir {
 		fs, err := ioutil.ReadDir(d)
 		if err != nil && !errors.Is(err, os.ErrNotExist) && !errors.Is(err, os.ErrPermission) {
@@ -76,7 +75,7 @@ func loadTLSConfig(c config.RegistryConfig) (*tls.Config, error) {
 				c.RootCAs = append(c.RootCAs, filepath.Join(d, f.Name()))
 			}
 			if strings.HasSuffix(f.Name(), ".cert") {
-				c.KeyPairs = append(c.KeyPairs, config.TLSKeyPair{
+				c.KeyPairs = append(c.KeyPairs, TLSKeyPair{
 					Certificate: filepath.Join(d, f.Name()),
 					Key:         filepath.Join(d, strings.TrimSuffix(f.Name(), ".cert")+".key"),
 				})
@@ -115,8 +114,22 @@ func loadTLSConfig(c config.RegistryConfig) (*tls.Config, error) {
 	return tc, nil
 }
 
+type RegistryConfig struct {
+	Mirrors      []string     `toml:"mirrors"`
+	PlainHTTP    *bool        `toml:"http"`
+	Insecure     *bool        `toml:"insecure"`
+	RootCAs      []string     `toml:"ca"`
+	KeyPairs     []TLSKeyPair `toml:"keypair"`
+	TLSConfigDir []string     `toml:"tlsconfigdir"`
+}
+
+type TLSKeyPair struct {
+	Key         string `toml:"key"`
+	Certificate string `toml:"cert"`
+}
+
 // NewRegistryConfig converts registry config to docker.RegistryHosts callback
-func NewRegistryConfig(m map[string]config.RegistryConfig) docker.RegistryHosts {
+func NewRegistryConfig(m map[string]RegistryConfig) docker.RegistryHosts {
 	return docker.Registries(
 		func(host string) ([]docker.RegistryHost, error) {
 			c, ok := m[host]

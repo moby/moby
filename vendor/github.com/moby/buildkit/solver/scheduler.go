@@ -170,9 +170,13 @@ postUnpark:
 			// skip this if not at least 1 key per dep
 			origEdge := e.index.LoadOrStore(k, e)
 			if origEdge != nil {
-				logrus.Debugf("merging edge %s to %s\n", e.edge.Vertex.Name(), origEdge.edge.Vertex.Name())
-				if s.mergeTo(origEdge, e) {
-					s.ef.setEdge(e.edge, origEdge)
+				if e.isDep(origEdge) || origEdge.isDep(e) {
+					logrus.Debugf("skip merge due to dependency")
+				} else {
+					logrus.Debugf("merging edge %s to %s\n", e.edge.Vertex.Name(), origEdge.edge.Vertex.Name())
+					if s.mergeTo(origEdge, e) {
+						s.ef.setEdge(e.edge, origEdge)
+					}
 				}
 			}
 		}

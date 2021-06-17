@@ -19,8 +19,8 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
+	"github.com/moby/buildkit/frontend/gateway/errdefs"
 	"github.com/moby/buildkit/identity"
-	"github.com/moby/buildkit/solver/errdefs"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
 	rootlessspecconv "github.com/moby/buildkit/util/rootless/specconv"
@@ -337,7 +337,7 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 func exitError(ctx context.Context, err error) error {
 	if err != nil {
 		exitErr := &errdefs.ExitError{
-			ExitCode: errdefs.ContainerdUnknownExitStatus,
+			ExitCode: errdefs.UnknownExitStatus,
 			Err:      err,
 		}
 		var runcExitError *runc.ExitError

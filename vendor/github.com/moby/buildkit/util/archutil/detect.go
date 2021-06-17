@@ -38,6 +38,12 @@ func SupportedPlatforms(noCache bool) []string {
 	if p := "linux/386"; def != p && i386Supported() == nil {
 		arr = append(arr, p)
 	}
+	if p := "linux/mips64le"; def != p && mips64leSupported() == nil {
+		arr = append(arr, p)
+	}
+	if p := "linux/mips64"; def != p && mips64Supported() == nil {
+		arr = append(arr, p)
+	}
 	if !strings.HasPrefix(def, "linux/arm/") && armSupported() == nil {
 		arr = append(arr, "linux/arm/v7", "linux/arm/v6")
 	} else if def == "linux/arm/v7" {
@@ -64,6 +70,12 @@ func Check(pp specs.Platform) bool {
 		return true
 	}
 	if p == "linux/386" && i386Supported() == nil {
+		return true
+	}
+	if p == "linux/mips64le" && mips64leSupported() == nil {
+		return true
+	}
+	if p == "linux/mips64" && mips64Supported() == nil {
 		return true
 	}
 	if !strings.HasPrefix(p, "linux/arm/") && armSupported() == nil {
@@ -107,6 +119,16 @@ func WarnIfUnsupported(pfs []string) {
 			}
 			if p == "linux/386" {
 				if err := i386Supported(); err != nil {
+					printPlatformWarning(p, err)
+				}
+			}
+			if p == "linux/mips64le" {
+				if err := mips64leSupported(); err != nil {
+					printPlatformWarning(p, err)
+				}
+			}
+			if p == "linux/mips64" {
+				if err := mips64Supported(); err != nil {
 					printPlatformWarning(p, err)
 				}
 			}

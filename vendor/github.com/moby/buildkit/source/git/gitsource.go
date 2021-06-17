@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -75,7 +76,7 @@ func (gs *gitSource) mountRemote(ctx context.Context, remote string, auth []stri
 
 	sis, err := gs.md.Search(remoteKey)
 	if err != nil {
-		return "", nil, errors.Wrapf(err, "failed to search metadata for %s", remote)
+		return "", nil, errors.Wrapf(err, "failed to search metadata for %s", redactCredentials(remote))
 	}
 
 	var remoteRef cache.MutableRef
@@ -84,19 +85,19 @@ func (gs *gitSource) mountRemote(ctx context.Context, remote string, auth []stri
 		if err != nil {
 			if errors.Is(err, cache.ErrLocked) {
 				// should never really happen as no other function should access this metadata, but lets be graceful
-				logrus.Warnf("mutable ref for %s  %s was locked: %v", remote, si.ID(), err)
+				logrus.Warnf("mutable ref for %s  %s was locked: %v", redactCredentials(remote), si.ID(), err)
 				continue
 			}
-			return "", nil, errors.Wrapf(err, "failed to get mutable ref for %s", remote)
+			return "", nil, errors.Wrapf(err, "failed to get mutable ref for %s", redactCredentials(remote))
 		}
 		break
 	}
 
 	initializeRepo := false
 	if remoteRef == nil {
-		remoteRef, err = gs.cache.New(ctx, nil, g, cache.CachePolicyRetain, cache.WithDescription(fmt.Sprintf("shared git repo for %s", remote)))
+		remoteRef, err = gs.cache.New(ctx, nil, g, cache.CachePolicyRetain, cache.WithDescription(fmt.Sprintf("shared git repo for %s", redactCredentials(remote))))
 		if err != nil {
-			return "", nil, errors.Wrapf(err, "failed to create new mutable for %s", remote)
+			return "", nil, errors.Wrapf(err, "failed to create new mutable for %s", redactCredentials(remote))
 		}
 		initializeRepo = true
 	}
@@ -140,10 +141,10 @@ func (gs *gitSource) mountRemote(ctx context.Context, remote string, auth []stri
 		// same new remote metadata
 		si, _ := gs.md.Get(remoteRef.ID())
 		v, err := metadata.NewValue(remoteKey)
-		v.Index = remoteKey
 		if err != nil {
 			return "", nil, err
 		}
+		v.Index = remoteKey
 
 		if err := si.Update(func(b *bolt.Bucket) error {
 			return si.SetValue(b, "git-remote", v)
@@ -169,6 +170,9 @@ func (gs *gitSourceHandler) shaToCacheKey(sha string) string {
 	key := sha
 	if gs.src.KeepGitDir {
 		key += ".git"
+	}
+	if gs.src.Subdir != "" {
+		key += ":" + gs.src.Subdir
 	}
 	return key
 }
@@ -348,7 +352,7 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index
 
 	buf, err := gitWithinDir(ctx, gitDir, "", sock, knownHosts, gs.auth, "ls-remote", "origin", ref)
 	if err != nil {
-		return "", nil, false, errors.Wrapf(err, "failed to fetch remote %s", remote)
+		return "", nil, false, errors.Wrapf(err, "failed to fetch remote %s", redactCredentials(remote))
 	}
 	out := buf.String()
 	idx := strings.Index(out, "\t")
@@ -450,13 +454,13 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 			// TODO: is there a better way to do this?
 		}
 		if _, err := gitWithinDir(ctx, gitDir, "", sock, knownHosts, gs.auth, args...); err != nil {
-			return nil, errors.Wrapf(err, "failed to fetch remote %s", gs.src.Remote)
+			return nil, errors.Wrapf(err, "failed to fetch remote %s", redactCredentials(gs.src.Remote))
 		}
 	}
 
 	checkoutRef, err := gs.cache.New(ctx, nil, g, cache.WithRecordType(client.UsageRecordTypeGitCheckout), cache.WithDescription(fmt.Sprintf("git snapshot for %s#%s", gs.src.Remote, ref)))
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create new mutable for %s", gs.src.Remote)
+		return nil, errors.Wrapf(err, "failed to create new mutable for %s", redactCredentials(gs.src.Remote))
 	}
 
 	defer func() {
@@ -480,7 +484,12 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 		}
 	}()
 
-	if gs.src.KeepGitDir {
+	subdir := path.Clean(gs.src.Subdir)
+	if subdir == "/" {
+		subdir = "."
+	}
+
+	if gs.src.KeepGitDir && subdir == "." {
 		checkoutDirGit := filepath.Join(checkoutDir, ".git")
 		if err := os.MkdirAll(checkoutDir, 0711); err != nil {
 			return nil, err
@@ -509,19 +518,53 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 		}
 		_, err = gitWithinDir(ctx, checkoutDirGit, checkoutDir, sock, knownHosts, nil, "checkout", "FETCH_HEAD")
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to checkout remote %s", gs.src.Remote)
+			return nil, errors.Wrapf(err, "failed to checkout remote %s", redactCredentials(gs.src.Remote))
 		}
 		gitDir = checkoutDirGit
 	} else {
-		_, err = gitWithinDir(ctx, gitDir, checkoutDir, sock, knownHosts, nil, "checkout", ref, "--", ".")
+		cd := checkoutDir
+		if subdir != "." {
+			cd, err = ioutil.TempDir(cd, "checkout")
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to create temporary checkout dir")
+			}
+		}
+		_, err = gitWithinDir(ctx, gitDir, cd, sock, knownHosts, nil, "checkout", ref, "--", ".")
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to checkout remote %s", gs.src.Remote)
+			return nil, errors.Wrapf(err, "failed to checkout remote %s", redactCredentials(gs.src.Remote))
+		}
+		if subdir != "." {
+			d, err := os.Open(filepath.Join(cd, subdir))
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to open subdir %v", subdir)
+			}
+			defer func() {
+				if d != nil {
+					d.Close()
+				}
+			}()
+			names, err := d.Readdirnames(0)
+			if err != nil {
+				return nil, err
+			}
+			for _, n := range names {
+				if err := os.Rename(filepath.Join(cd, subdir, n), filepath.Join(checkoutDir, n)); err != nil {
+					return nil, err
+				}
+			}
+			if err := d.Close(); err != nil {
+				return nil, err
+			}
+			d = nil // reset defer
+			if err := os.RemoveAll(cd); err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	_, err = gitWithinDir(ctx, gitDir, checkoutDir, sock, knownHosts, gs.auth, "submodule", "update", "--init", "--recursive", "--depth=1")
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to update submodules for %s", gs.src.Remote)
+		return nil, errors.Wrapf(err, "failed to update submodules for %s", redactCredentials(gs.src.Remote))
 	}
 
 	if idmap := mount.IdentityMapping(); idmap != nil {
@@ -551,10 +594,11 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 
 	si, _ := gs.md.Get(snap.ID())
 	v, err := metadata.NewValue(snapshotKey)
-	v.Index = snapshotKey
 	if err != nil {
 		return nil, err
 	}
+	v.Index = snapshotKey
+
 	if err := si.Update(func(b *bolt.Bucket) error {
 		return si.SetValue(b, "git-snapshot", v)
 	}); err != nil {

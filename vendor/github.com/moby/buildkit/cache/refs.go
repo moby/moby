@@ -155,8 +155,18 @@ func (cr *cacheRecord) isLazy(ctx context.Context) (bool, error) {
 	_, err := cr.cm.ContentStore.Info(ctx, digest.Digest(dgst))
 	if errors.Is(err, errdefs.ErrNotFound) {
 		return true, nil
+	} else if err != nil {
+		return false, err
 	}
-	return false, err
+
+	// If the snapshot is a remote snapshot, this layer is lazy.
+	if info, err := cr.cm.Snapshotter.Stat(ctx, getSnapshotID(cr.md)); err == nil {
+		if _, ok := info.Labels["containerd.io/snapshot/remote"]; ok {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func (cr *cacheRecord) IdentityMapping() *idtools.IdentityMapping {
@@ -381,6 +391,20 @@ func (sr *immutableRef) Mount(ctx context.Context, readonly bool, s session.Grou
 
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
+
+	if sr.cm.Snapshotter.Name() == "stargz" {
+		var (
+			m    snapshot.Mountable
+			rerr error
+		)
+		if err := sr.withRemoteSnapshotLabelsStargzMode(ctx, s, func() {
+			m, rerr = sr.mount(ctx, readonly)
+		}); err != nil {
+			return nil, err
+		}
+		return m, rerr
+	}
+
 	return sr.mount(ctx, readonly)
 }
 
@@ -400,66 +424,154 @@ func (sr *immutableRef) Extract(ctx context.Context, s session.Group) (rerr erro
 	}
 
 	if sr.cm.Snapshotter.Name() == "stargz" {
-		if _, err := sr.prepareRemoteSnapshots(ctx, sr.descHandlers); err != nil {
+		if err := sr.withRemoteSnapshotLabelsStargzMode(ctx, s, func() {
+			if rerr = sr.prepareRemoteSnapshotsStargzMode(ctx, s); rerr != nil {
+				return
+			}
+			rerr = sr.extract(ctx, sr.descHandlers, s)
+		}); err != nil {
 			return err
 		}
+		return rerr
 	}
 
 	return sr.extract(ctx, sr.descHandlers, s)
 }
 
-func (sr *immutableRef) prepareRemoteSnapshots(ctx context.Context, dhs DescHandlers) (bool, error) {
-	ok, err := sr.sizeG.Do(ctx, sr.ID()+"-prepare-remote-snapshot", func(ctx context.Context) (_ interface{}, rerr error) {
-		snapshotID := getSnapshotID(sr.md)
-		if _, err := sr.cm.Snapshotter.Stat(ctx, snapshotID); err == nil {
-			return true, nil
+func (sr *immutableRef) withRemoteSnapshotLabelsStargzMode(ctx context.Context, s session.Group, f func()) error {
+	dhs := sr.descHandlers
+	for _, r := range sr.parentRefChain() {
+		r := r
+		info, err := r.cm.Snapshotter.Stat(ctx, getSnapshotID(r.md))
+		if err != nil && !errdefs.IsNotFound(err) {
+			return err
+		} else if errdefs.IsNotFound(err) {
+			continue // This snpashot doesn't exist; skip
+		} else if _, ok := info.Labels["containerd.io/snapshot/remote"]; !ok {
+			continue // This isn't a remote snapshot; skip
 		}
-		desc, err := sr.ociDesc()
+		desc, err := r.ociDesc()
 		if err != nil {
-			return false, err
+			return err
 		}
 		dh := dhs[desc.Digest]
 		if dh == nil {
-			return false, nil
+			continue // no info passed; skip
 		}
 
-		parentID := ""
-		if sr.parent != nil {
-			if ok, err := sr.parent.prepareRemoteSnapshots(ctx, dhs); !ok {
-				return false, err
+		// Append temporary labels (based on dh.SnapshotLabels) as hints for remote snapshots.
+		// For avoiding collosion among calls, keys of these tmp labels contain an unique ID.
+		flds, labels := makeTmpLabelsStargzMode(snapshots.FilterInheritedLabels(dh.SnapshotLabels), s)
+		info.Labels = labels
+		if _, err := r.cm.Snapshotter.Update(ctx, info, flds...); err != nil {
+			return errors.Wrapf(err, "failed to add tmp remote labels for remote snapshot")
+		}
+		defer func() {
+			for k := range info.Labels {
+				info.Labels[k] = "" // Remove labels appended in this call
 			}
-			parentID = getSnapshotID(sr.parent.md)
-		}
+			if _, err := r.cm.Snapshotter.Update(ctx, info, flds...); err != nil {
+				logrus.Warn(errors.Wrapf(err, "failed to remove tmp remote labels"))
+			}
+		}()
 
-		// Hint labels to the snapshotter
-		labels := dh.SnapshotLabels
-		if labels == nil {
-			labels = make(map[string]string)
-		}
-		labels["containerd.io/snapshot.ref"] = snapshotID
-		opt := snapshots.WithLabels(labels)
+		continue
+	}
 
-		// Try to preapre the remote snapshot
-		key := fmt.Sprintf("tmp-%s %s", identity.NewID(), sr.Info().ChainID)
-		if err = sr.cm.Snapshotter.Prepare(ctx, key, parentID, opt); err != nil {
-			if errdefs.IsAlreadyExists(err) {
-				// Check if the targeting snapshot ID has been prepared as a remote
-				// snapshot in the snapshotter.
-				if _, err := sr.cm.Snapshotter.Stat(ctx, snapshotID); err == nil {
-					// We can use this remote snapshot without unlazying.
-					// Try the next layer as well.
-					return true, nil
+	f()
+
+	return nil
+}
+
+func (sr *immutableRef) prepareRemoteSnapshotsStargzMode(ctx context.Context, s session.Group) error {
+	_, err := sr.sizeG.Do(ctx, sr.ID()+"-prepare-remote-snapshot", func(ctx context.Context) (_ interface{}, rerr error) {
+		dhs := sr.descHandlers
+		for _, r := range sr.parentRefChain() {
+			r := r
+			snapshotID := getSnapshotID(r.md)
+			if _, err := r.cm.Snapshotter.Stat(ctx, snapshotID); err == nil {
+				continue
+			}
+
+			desc, err := r.ociDesc()
+			if err != nil {
+				return nil, err
+			}
+			dh := dhs[desc.Digest]
+			if dh == nil {
+				// We cannot prepare remote snapshots without descHandler.
+				return nil, nil
+			}
+
+			// tmpLabels contains dh.SnapshotLabels + session IDs. All keys contain
+			// an unique ID for avoiding the collision among snapshotter API calls to
+			// this snapshot. tmpLabels will be removed at the end of this function.
+			defaultLabels := snapshots.FilterInheritedLabels(dh.SnapshotLabels)
+			if defaultLabels == nil {
+				defaultLabels = make(map[string]string)
+			}
+			tmpFields, tmpLabels := makeTmpLabelsStargzMode(defaultLabels, s)
+			defaultLabels["containerd.io/snapshot.ref"] = snapshotID
+
+			// Prepare remote snapshots
+			var (
+				key  = fmt.Sprintf("tmp-%s %s", identity.NewID(), r.Info().ChainID)
+				opts = []snapshots.Opt{
+					snapshots.WithLabels(defaultLabels),
+					snapshots.WithLabels(tmpLabels),
+				}
+			)
+			parentID := ""
+			if r.parent != nil {
+				parentID = getSnapshotID(r.parent.md)
+			}
+			if err = r.cm.Snapshotter.Prepare(ctx, key, parentID, opts...); err != nil {
+				if errdefs.IsAlreadyExists(err) {
+					// Check if the targeting snapshot ID has been prepared as
+					// a remote snapshot in the snapshotter.
+					info, err := r.cm.Snapshotter.Stat(ctx, snapshotID)
+					if err == nil { // usable as remote snapshot without unlazying.
+						defer func() {
+							// Remove tmp labels appended in this func
+							for k := range tmpLabels {
+								info.Labels[k] = ""
+							}
+							if _, err := r.cm.Snapshotter.Update(ctx, info, tmpFields...); err != nil {
+								logrus.Warn(errors.Wrapf(err,
+									"failed to remove tmp remote labels after prepare"))
+							}
+						}()
+
+						// Try the next layer as well.
+						continue
+					}
 				}
 			}
+
+			// This layer and all upper layers cannot be prepared without unlazying.
+			break
 		}
 
-		// This layer cannot be prepared without unlazying.
-		return false, nil
+		return nil, nil
 	})
-	if err != nil {
-		return false, err
+	return err
+}
+
+func makeTmpLabelsStargzMode(labels map[string]string, s session.Group) (fields []string, res map[string]string) {
+	res = make(map[string]string)
+	// Append unique ID to labels for avoiding collision of labels among calls
+	id := identity.NewID()
+	for k, v := range labels {
+		tmpKey := k + "." + id
+		fields = append(fields, "labels."+tmpKey)
+		res[tmpKey] = v
 	}
-	return ok.(bool), err
+	for i, sid := range session.AllSessionIDs(s) {
+		sidKey := "containerd.io/snapshot/remote/stargz.session." + fmt.Sprintf("%d", i) + "." + id
+		fields = append(fields, "labels."+sidKey)
+		res[sidKey] = sid
+	}
+	return
 }
 
 func (sr *immutableRef) extract(ctx context.Context, dhs DescHandlers, s session.Group) error {
@@ -724,6 +836,19 @@ func (sr *mutableRef) commit(ctx context.Context) (*immutableRef, error) {
 func (sr *mutableRef) Mount(ctx context.Context, readonly bool, s session.Group) (snapshot.Mountable, error) {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
+
+	if sr.cm.Snapshotter.Name() == "stargz" && sr.parent != nil {
+		var (
+			m    snapshot.Mountable
+			rerr error
+		)
+		if err := sr.parent.withRemoteSnapshotLabelsStargzMode(ctx, s, func() {
+			m, rerr = sr.mount(ctx, readonly)
+		}); err != nil {
+			return nil, err
+		}
+		return m, rerr
+	}
 
 	return sr.mount(ctx, readonly)
 }

@@ -52,8 +52,8 @@ func CredentialsFunc(sm *session.Manager, g session.Group) func(string) (session
 	}
 }
 
-func FetchToken(req *FetchTokenRequest, sm *session.Manager, g session.Group) (resp *FetchTokenResponse, err error) {
-	err = sm.Any(context.TODO(), g, func(ctx context.Context, id string, c session.Caller) error {
+func FetchToken(ctx context.Context, req *FetchTokenRequest, sm *session.Manager, g session.Group) (resp *FetchTokenResponse, err error) {
+	err = sm.Any(ctx, g, func(ctx context.Context, id string, c session.Caller) error {
 		client := NewAuthClient(c.Conn())
 
 		resp, err = client.FetchToken(ctx, req)
@@ -68,9 +68,9 @@ func FetchToken(req *FetchTokenRequest, sm *session.Manager, g session.Group) (r
 	return resp, nil
 }
 
-func VerifyTokenAuthority(host string, pubKey *[32]byte, sm *session.Manager, g session.Group) (sessionID string, ok bool, err error) {
+func VerifyTokenAuthority(ctx context.Context, host string, pubKey *[32]byte, sm *session.Manager, g session.Group) (sessionID string, ok bool, err error) {
 	var verified bool
-	err = sm.Any(context.TODO(), g, func(ctx context.Context, id string, c session.Caller) error {
+	err = sm.Any(ctx, g, func(ctx context.Context, id string, c session.Caller) error {
 		client := NewAuthClient(c.Conn())
 
 		payload := make([]byte, 32)
@@ -100,8 +100,8 @@ func VerifyTokenAuthority(host string, pubKey *[32]byte, sm *session.Manager, g 
 	return sessionID, verified, nil
 }
 
-func GetTokenAuthority(host string, sm *session.Manager, g session.Group) (sessionID string, pubKey *[32]byte, err error) {
-	err = sm.Any(context.TODO(), g, func(ctx context.Context, id string, c session.Caller) error {
+func GetTokenAuthority(ctx context.Context, host string, sm *session.Manager, g session.Group) (sessionID string, pubKey *[32]byte, err error) {
+	err = sm.Any(ctx, g, func(ctx context.Context, id string, c session.Caller) error {
 		client := NewAuthClient(c.Conn())
 
 		resp, err := client.GetTokenAuthority(ctx, &GetTokenAuthorityRequest{

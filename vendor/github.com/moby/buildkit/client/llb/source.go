@@ -11,6 +11,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
+	"github.com/moby/buildkit/util/gitutil"
 	"github.com/moby/buildkit/util/sshutil"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -198,52 +199,14 @@ type ImageInfo struct {
 	RecordType    string
 }
 
-const (
-	gitProtocolHTTP = iota + 1
-	gitProtocolHTTPS
-	gitProtocolSSH
-	gitProtocolGit
-	gitProtocolUnknown
-)
-
-func getGitProtocol(remote string) (string, int) {
-	prefixes := map[string]int{
-		"http://":  gitProtocolHTTP,
-		"https://": gitProtocolHTTPS,
-		"git://":   gitProtocolGit,
-		"ssh://":   gitProtocolSSH,
-	}
-	protocolType := gitProtocolUnknown
-	for prefix, potentialType := range prefixes {
-		if strings.HasPrefix(remote, prefix) {
-			remote = strings.TrimPrefix(remote, prefix)
-			protocolType = potentialType
-		}
-	}
-
-	if protocolType == gitProtocolUnknown && sshutil.IsSSHTransport(remote) {
-		protocolType = gitProtocolSSH
-	}
-
-	// remove name from ssh
-	if protocolType == gitProtocolSSH {
-		parts := strings.SplitN(remote, "@", 2)
-		if len(parts) == 2 {
-			remote = parts[1]
-		}
-	}
-
-	return remote, protocolType
-}
-
 func Git(remote, ref string, opts ...GitOption) State {
 	url := strings.Split(remote, "#")[0]
 
 	var protocolType int
-	remote, protocolType = getGitProtocol(remote)
+	remote, protocolType = gitutil.ParseProtocol(remote)
 
 	var sshHost string
-	if protocolType == gitProtocolSSH {
+	if protocolType == gitutil.SSHProtocol {
 		parts := strings.SplitN(remote, ":", 2)
 		if len(parts) == 2 {
 			sshHost = parts[0]
@@ -251,7 +214,7 @@ func Git(remote, ref string, opts ...GitOption) State {
 			remote = parts[0] + "/" + parts[1]
 		}
 	}
-	if protocolType == gitProtocolUnknown {
+	if protocolType == gitutil.UnknownProtocol {
 		url = "https://" + url
 	}
 
@@ -289,7 +252,7 @@ func Git(remote, ref string, opts ...GitOption) State {
 			addCap(&gi.Constraints, pb.CapSourceGitHTTPAuth)
 		}
 	}
-	if protocolType == gitProtocolSSH {
+	if protocolType == gitutil.SSHProtocol {
 		if gi.KnownSSHHosts != "" {
 			attrs[pb.AttrKnownSSHHosts] = gi.KnownSSHHosts
 		} else if sshHost != "" {

@@ -56,6 +56,10 @@ type subAction interface {
 	toProtoAction(context.Context, string, pb.InputIndex) (pb.IsFileAction, error)
 }
 
+type capAdder interface {
+	addCaps(*FileOp)
+}
+
 type FileAction struct {
 	state  *State
 	prev   *FileAction
@@ -427,6 +431,8 @@ type CopyInfo struct {
 	Mode                *os.FileMode
 	FollowSymlinks      bool
 	CopyDirContentsOnly bool
+	IncludePatterns     []string
+	ExcludePatterns     []string
 	AttemptUnpack       bool
 	CreateDestPath      bool
 	AllowWildcard       bool
@@ -458,6 +464,8 @@ func (a *fileActionCopy) toProtoAction(ctx context.Context, parent string, base 
 		Src:                              src,
 		Dest:                             normalizePath(parent, a.dest, true),
 		Owner:                            a.info.ChownOpt.marshal(base),
+		IncludePatterns:                  a.info.IncludePatterns,
+		ExcludePatterns:                  a.info.ExcludePatterns,
 		AllowWildcard:                    a.info.AllowWildcard,
 		AllowEmptyWildcard:               a.info.AllowEmptyWildcard,
 		FollowSymlink:                    a.info.FollowSymlinks,
@@ -494,6 +502,12 @@ func (a *fileActionCopy) sourcePath(ctx context.Context) (string, error) {
 		}
 	}
 	return p, nil
+}
+
+func (a *fileActionCopy) addCaps(f *FileOp) {
+	if len(a.info.IncludePatterns) != 0 || len(a.info.ExcludePatterns) != 0 {
+		addCap(&f.constraints, pb.CapFileCopyIncludeExcludePatterns)
+	}
 }
 
 type CreatedTime time.Time
@@ -682,6 +696,10 @@ func (f *FileOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 	pop.Inputs = state.inputs
 
 	for i, st := range state.actions {
+		if adder, isCapAdder := st.action.(capAdder); isCapAdder {
+			adder.addCaps(f)
+		}
+
 		output := pb.OutputIndex(-1)
 		if i+1 == len(state.actions) {
 			output = 0

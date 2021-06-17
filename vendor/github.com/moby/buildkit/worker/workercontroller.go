@@ -1,8 +1,6 @@
 package worker
 
 import (
-	"sync"
-
 	"github.com/containerd/containerd/filters"
 	"github.com/moby/buildkit/client"
 	"github.com/pkg/errors"
@@ -12,16 +10,15 @@ import (
 // Currently, only local workers are supported.
 type Controller struct {
 	// TODO: define worker interface and support remote ones
-	workers   sync.Map
-	defaultID string
+	workers []Worker
 }
 
-// Add adds a local worker
+// Add adds a local worker.
+// The first worker becomes the default.
+//
+// Add is not thread-safe.
 func (c *Controller) Add(w Worker) error {
-	c.workers.Store(w.ID(), w)
-	if c.defaultID == "" {
-		c.defaultID = w.ID()
-	}
+	c.workers = append(c.workers, w)
 	return nil
 }
 
@@ -32,41 +29,38 @@ func (c *Controller) List(filterStrings ...string) ([]Worker, error) {
 		return nil, err
 	}
 	var workers []Worker
-	c.workers.Range(func(k, v interface{}) bool {
-		w := v.(Worker)
+	for _, w := range c.workers {
 		if filter.Match(adaptWorker(w)) {
 			workers = append(workers, w)
 		}
-		return true
-	})
+	}
 	return workers, nil
 }
 
 // GetDefault returns the default local worker
 func (c *Controller) GetDefault() (Worker, error) {
-	if c.defaultID == "" {
+	if len(c.workers) == 0 {
 		return nil, errors.Errorf("no default worker")
 	}
-	return c.Get(c.defaultID)
+	return c.workers[0], nil
 }
 
 func (c *Controller) Get(id string) (Worker, error) {
-	v, ok := c.workers.Load(id)
-	if !ok {
-		return nil, errors.Errorf("worker %s not found", id)
+	for _, w := range c.workers {
+		if w.ID() == id {
+			return w, nil
+		}
 	}
-	return v.(Worker), nil
+	return nil, errors.Errorf("worker %s not found", id)
 }
 
 // TODO: add Get(Constraint) (*Worker, error)
 
+// WorkerInfos returns slice of WorkerInfo.
+// The first item is the default worker.
 func (c *Controller) WorkerInfos() []client.WorkerInfo {
-	workers, err := c.List()
-	if err != nil {
-		return nil
-	}
-	out := make([]client.WorkerInfo, 0, len(workers))
-	for _, w := range workers {
+	out := make([]client.WorkerInfo, 0, len(c.workers))
+	for _, w := range c.workers {
 		out = append(out, client.WorkerInfo{
 			ID:        w.ID(),
 			Labels:    w.Labels(),

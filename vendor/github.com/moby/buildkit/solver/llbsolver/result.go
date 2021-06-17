@@ -16,9 +16,15 @@ import (
 )
 
 type Selector struct {
-	Path        string
-	Wildcard    bool
-	FollowLinks bool
+	Path            string
+	Wildcard        bool
+	FollowLinks     bool
+	IncludePatterns []string
+	ExcludePatterns []string
+}
+
+func (sel Selector) HasWildcardOrFilters() bool {
+	return sel.Wildcard || len(sel.IncludePatterns) != 0 || len(sel.ExcludePatterns) != 0
 }
 
 func UnlazyResultFunc(ctx context.Context, res solver.Result, g session.Group) error {
@@ -50,19 +56,20 @@ func NewContentHashFunc(selectors []Selector) solver.ResultBasedCacheFunc {
 		for i, sel := range selectors {
 			i, sel := i, sel
 			eg.Go(func() error {
-				if !sel.Wildcard {
-					dgst, err := contenthash.Checksum(ctx, ref.ImmutableRef, path.Join("/", sel.Path), sel.FollowLinks, s)
-					if err != nil {
-						return err
-					}
-					dgsts[i] = []byte(dgst)
-				} else {
-					dgst, err := contenthash.ChecksumWildcard(ctx, ref.ImmutableRef, path.Join("/", sel.Path), sel.FollowLinks, s)
-					if err != nil {
-						return err
-					}
-					dgsts[i] = []byte(dgst)
+				dgst, err := contenthash.Checksum(
+					ctx, ref.ImmutableRef, path.Join("/", sel.Path),
+					contenthash.ChecksumOpts{
+						Wildcard:        sel.Wildcard,
+						FollowLinks:     sel.FollowLinks,
+						IncludePatterns: sel.IncludePatterns,
+						ExcludePatterns: sel.ExcludePatterns,
+					},
+					s,
+				)
+				if err != nil {
+					return err
 				}
+				dgsts[i] = []byte(dgst)
 				return nil
 			})
 		}

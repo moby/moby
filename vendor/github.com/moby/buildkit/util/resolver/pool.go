@@ -105,7 +105,7 @@ func newResolver(hosts docker.RegistryHosts, handler *authHandlerNS, sm *session
 		handler: handler,
 	}
 	r.Resolver = docker.NewResolver(docker.ResolverOptions{
-		Hosts: r.hostsFunc,
+		Hosts: r.HostsFunc,
 	})
 	return r
 }
@@ -123,7 +123,8 @@ type Resolver struct {
 	mode source.ResolveMode
 }
 
-func (r *Resolver) hostsFunc(host string) ([]docker.RegistryHost, error) {
+// HostsFunc implements registry configuration of this Resolver
+func (r *Resolver) HostsFunc(host string) ([]docker.RegistryHost, error) {
 	return func(domain string) ([]docker.RegistryHost, error) {
 		v, err := r.handler.g.Do(context.TODO(), domain, func(ctx context.Context) (interface{}, error) {
 			// long lock not needed because flightcontrol.Do
