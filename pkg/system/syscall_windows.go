@@ -8,12 +8,15 @@ import (
 )
 
 const (
+	// Deprecated: use github.com/docker/pkg/idtools.SeTakeOwnershipPrivilege
 	SeTakeOwnershipPrivilege = "SeTakeOwnershipPrivilege"
 )
 
 const (
+	// Deprecated: use github.com/docker/pkg/idtools.ContainerAdministratorSidString
 	ContainerAdministratorSidString = "S-1-5-93-2-1"
-	ContainerUserSidString          = "S-1-5-93-2-2"
+	// Deprecated: use github.com/docker/pkg/idtools.ContainerUserSidString
+	ContainerUserSidString = "S-1-5-93-2-2"
 )
 
 var (
