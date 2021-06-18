@@ -7,7 +7,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/system"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
@@ -25,7 +25,7 @@ import (
 //     └── f1 # whiteout, 0644
 func setupOverlayTestDir(t *testing.T, src string) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	skip.If(t, sys.RunningInUserNS(), "skipping test that requires initial userns (trusted.overlay.opaque xattr cannot be set in userns, even with Ubuntu kernel)")
+	skip.If(t, userns.RunningInUserNS(), "skipping test that requires initial userns (trusted.overlay.opaque xattr cannot be set in userns, even with Ubuntu kernel)")
 	// Create opaque directory containing single file and permission 0700
 	err := os.Mkdir(filepath.Join(src, "d1"), 0700)
 	assert.NilError(t, err)

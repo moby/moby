@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 	"golang.org/x/sys/unix"
@@ -184,7 +184,7 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 			}
 
 		case mode&os.ModeDevice != 0:
-			if sys.RunningInUserNS() {
+			if userns.RunningInUserNS() {
 				// cannot create a device if running in user namespace
 				return nil
 			}

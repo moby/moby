@@ -35,7 +35,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -174,7 +174,7 @@ func supportsAufs() error {
 	// proc/filesystems for when aufs is supported
 	exec.Command("modprobe", "aufs").Run()
 
-	if sys.RunningInUserNS() {
+	if userns.RunningInUserNS() {
 		return ErrAufsNested
 	}
 

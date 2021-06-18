@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -24,7 +24,7 @@ import (
 // When running in a user namespace, returns errRunningInUserNS
 // immediately.
 func doesSupportNativeDiff(d string) error {
-	if sys.RunningInUserNS() {
+	if userns.RunningInUserNS() {
 		return errors.New("running in a user namespace")
 	}
 

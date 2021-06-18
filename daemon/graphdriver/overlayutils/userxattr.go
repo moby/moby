@@ -26,7 +26,7 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/sirupsen/logrus"
 )
@@ -51,7 +51,7 @@ import (
 //
 // The "userxattr" support is not exposed in "/sys/module/overlay/parameters".
 func NeedsUserXAttr(d string) (bool, error) {
-	if !sys.RunningInUserNS() {
+	if !userns.RunningInUserNS() {
 		// we are the real root (i.e., the root in the initial user NS),
 		// so we do never need "userxattr" opt.
 		return false, nil
