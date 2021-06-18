@@ -52,12 +52,6 @@ func IsWindowsClient() bool {
 	return osviex.ProductType == verNTWorkstation
 }
 
-// Unmount is a platform-specific helper function to call
-// the unmount syscall. Not supported on Windows
-func Unmount(_ string) error {
-	return nil
-}
-
 // HasWin32KSupport determines whether containers that depend on win32k can
 // run on this machine. Win32k is the driver used to implement windowing.
 func HasWin32KSupport() bool {
