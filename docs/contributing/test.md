@@ -108,10 +108,10 @@ Try this now.
 2.  Start a Moby development image.
 
     If you are following along with this guide, you should have a
-    `dry-run-test` image.
+    `docker-dev:dry-run-test` image.
 
     ```bash
-    $ docker run --privileged --rm -ti -v `pwd`:/go/src/github.com/docker/docker dry-run-test /bin/bash
+    $ docker run --privileged --rm -ti -v `pwd`:/go/src/github.com/docker/docker docker-dev:dry-run-test /bin/bash
     ```
 
 3.  Run the unit tests using the `hack/test/unit` script.
