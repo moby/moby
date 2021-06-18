@@ -49,7 +49,7 @@ func reexecSetupResolver() {
 		logrus.Errorf("failed get network namespace %q: %v", os.Args[1], err)
 		os.Exit(2)
 	}
-	defer f.Close() // nolint:gosec
+	defer f.Close() //nolint:gosec
 
 	nsFD := f.Fd()
 	if err = netns.Set(netns.NsHandle(nsFD)); err != nil {

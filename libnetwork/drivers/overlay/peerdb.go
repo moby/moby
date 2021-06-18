@@ -131,10 +131,11 @@ func (d *driver) peerDbNetworkWalk(nid string, f func(*peerKey, *peerEntry) bool
 
 	for pKeyStr, pEntry := range mp {
 		var pKey peerKey
+		pEntry := pEntry
 		if _, err := fmt.Sscan(pKeyStr, &pKey); err != nil {
 			logrus.Warnf("Peer key scan on network %s failed: %v", nid, err)
 		}
-		if f(&pKey, &pEntry) { // nolint:gosec
+		if f(&pKey, &pEntry) {
 			return nil
 		}
 	}

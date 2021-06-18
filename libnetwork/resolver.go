@@ -214,7 +214,7 @@ func setCommonFlags(msg *dns.Msg) {
 
 func shuffleAddr(addr []net.IP) []net.IP {
 	for i := len(addr) - 1; i > 0; i-- {
-		r := rand.Intn(i + 1) // nolint:gosec
+		r := rand.Intn(i + 1) // nolint:gosec // gosec complains about the use of rand here. It should be fine.
 		addr[i], addr[r] = addr[r], addr[i]
 	}
 	return addr
