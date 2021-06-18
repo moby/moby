@@ -15,7 +15,7 @@ import (
 	"github.com/containerd/containerd/containers"
 	coci "github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/pkg/apparmor"
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	daemonconfig "github.com/docker/docker/daemon/config"
@@ -652,7 +652,7 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			// "mount" when we bind-mount. The reason for this is that at the point
 			// when runc sets up the root filesystem, it is already inside a user
 			// namespace, and thus cannot change any flags that are locked.
-			if daemon.configStore.RemappedRoot != "" || sys.RunningInUserNS() {
+			if daemon.configStore.RemappedRoot != "" || userns.RunningInUserNS() {
 				unprivOpts, err := getUnprivilegedMountFlags(m.Source)
 				if err != nil {
 					return err
@@ -873,7 +873,7 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		var devs []specs.LinuxDevice
 		devPermissions := s.Linux.Resources.Devices
 
-		if c.HostConfig.Privileged && !sys.RunningInUserNS() {
+		if c.HostConfig.Privileged && !userns.RunningInUserNS() {
 			hostDevices, err := devices.HostDevices()
 			if err != nil {
 				return err

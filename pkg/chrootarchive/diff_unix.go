@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
@@ -36,7 +36,7 @@ func applyLayer() {
 	runtime.LockOSThread()
 	flag.Parse()
 
-	inUserns := sys.RunningInUserNS()
+	inUserns := userns.RunningInUserNS()
 	if err := chroot(flag.Arg(0)); err != nil {
 		fatal(err)
 	}
@@ -95,7 +95,7 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 	}
 	if options == nil {
 		options = &archive.TarOptions{}
-		if sys.RunningInUserNS() {
+		if userns.RunningInUserNS() {
 			options.InUserNS = true
 		}
 	}

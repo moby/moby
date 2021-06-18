@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	cgroupsV2 "github.com/containerd/cgroups/v2"
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/sirupsen/logrus"
 )
@@ -164,6 +164,6 @@ func applyPIDSCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, _ str
 }
 
 func applyDevicesCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, _ string) []string {
-	info.CgroupDevicesEnabled = !sys.RunningInUserNS()
+	info.CgroupDevicesEnabled = !userns.RunningInUserNS()
 	return nil
 }

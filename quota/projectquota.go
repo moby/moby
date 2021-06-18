@@ -58,7 +58,7 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -118,7 +118,7 @@ func NewControl(basePath string) (*Control, error) {
 	// If we are running in a user namespace quota won't be supported for
 	// now since makeBackingFsDev() will try to mknod().
 	//
-	if sys.RunningInUserNS() {
+	if userns.RunningInUserNS() {
 		return nil, ErrQuotaNotSupported
 	}
 
