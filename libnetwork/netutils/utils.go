@@ -19,8 +19,6 @@ var (
 	ErrNetworkOverlapsWithNameservers = errors.New("requested network overlaps with nameserver")
 	// ErrNetworkOverlaps preformatted error
 	ErrNetworkOverlaps = errors.New("requested network overlaps with existing network")
-	// ErrNoDefaultRoute preformatted error
-	ErrNoDefaultRoute = errors.New("no default route")
 )
 
 // CheckNameserverOverlaps checks whether the passed network overlaps with any of the nameservers
@@ -74,8 +72,7 @@ func GetIfaceAddr(name string) (net.Addr, []net.Addr, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	var addrs4 []net.Addr
-	var addrs6 []net.Addr
+	var addrs4, addrs6 []net.Addr
 	for _, addr := range addrs {
 		ip := (addr.(*net.IPNet)).IP
 		if ip4 := ip.To4(); ip4 != nil {
@@ -86,7 +83,7 @@ func GetIfaceAddr(name string) (net.Addr, []net.Addr, error) {
 	}
 	switch {
 	case len(addrs4) == 0:
-		return nil, nil, fmt.Errorf("Interface %v has no IPv4 addresses", name)
+		return nil, nil, fmt.Errorf("interface %v has no IPv4 addresses", name)
 	case len(addrs4) > 1:
 		fmt.Printf("Interface %v has more than 1 IPv4 address. Defaulting to using %v\n",
 			name, (addrs4[0].(*net.IPNet)).IP)
@@ -175,9 +172,9 @@ func ParseAlias(val string) (string, string, error) {
 	if val == "" {
 		return "", "", errors.New("empty string specified for alias")
 	}
-	arr := strings.Split(val, ":")
+	arr := strings.SplitN(val, ":", 3)
 	if len(arr) > 2 {
-		return "", "", fmt.Errorf("bad format for alias: %s", val)
+		return "", "", errors.New("bad format for alias: " + val)
 	}
 	if len(arr) == 1 {
 		return val, val, nil
