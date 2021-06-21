@@ -150,7 +150,7 @@ func parseVlan(linkName string) (string, int, error) {
 	}
 	// Check if the interface exists
 	if !parentExists(parent) {
-		return "", 0, fmt.Errorf("-o parent interface does was not found on the host: %s", parent)
+		return "", 0, fmt.Errorf("-o parent interface was not found on the host: %s", parent)
 	}
 
 	return parent, vidInt, nil
