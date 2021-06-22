@@ -90,7 +90,7 @@ echo ""
 
 issue_url=$(format_issue_url "${issue_title}" "$(template)")
 
-if which xdg-open 2> /dev/null > /dev/null; then
+if command -v xdg-open 2> /dev/null > /dev/null; then
 	echo -ne "Would like to launch this report in your browser? [Y|n]: "
 	read -r -n 1 launch_now
 	echo ""
