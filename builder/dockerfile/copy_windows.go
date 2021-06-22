@@ -43,8 +43,7 @@ func fixPermissionsReexec() {
 }
 
 func fixPermissionsWindows(source, destination, SID string) error {
-
-	privileges := []string{winio.SeRestorePrivilege, system.SeTakeOwnershipPrivilege}
+	privileges := []string{winio.SeRestorePrivilege, idtools.SeTakeOwnershipPrivilege}
 
 	err := winio.EnableProcessPrivileges(privileges)
 	if err != nil {
