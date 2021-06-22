@@ -87,7 +87,7 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
+                                sh 'docker build --force-rm --build-arg APT_MIRROR --build-arg CROSS=true -t docker:${GIT_COMMIT} .'
                             }
                         }
                         stage("Validate") {
