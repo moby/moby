@@ -21,6 +21,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   was introduced in API 1.31 as part of an experimental feature, and no longer
   used since API 1.40.
   Use field `BuildCache` instead to track storage used by the builder component.
+* `GET /system/df` now accepts query parameter `types`. When set,
+  computes and returns data only for the specified object types.
+  Supported values are: `container`, `image`, `volume`, `build-cache`.
 
 ## v1.41 API changes
 
