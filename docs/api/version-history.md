@@ -24,6 +24,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /images/json` now accepts query parameter `shared-size`. When set `true`,
   images returned will include `SharedSize`, which provides the size on disk shared
   with other images present on the system.
+* `GET /system/df` now accepts query parameter `type`. When set,
+  computes and returns data only for the specified object type.
+  The parameter can be specified multiple times to select several object types.
+  Supported values are: `container`, `image`, `volume`, `build-cache`.
 
 ## v1.41 API changes
 
