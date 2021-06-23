@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -399,11 +398,16 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 	}
 
 	var config Config
-	var reader io.Reader
+
+	b = bytes.TrimSpace(b)
+	if len(b) == 0 {
+		// empty config file
+		return &config, nil
+	}
+
 	if flags != nil {
 		var jsonConfig map[string]interface{}
-		reader = bytes.NewReader(b)
-		if err := json.NewDecoder(reader).Decode(&jsonConfig); err != nil {
+		if err := json.Unmarshal(b, &jsonConfig); err != nil {
 			return nil, err
 		}
 
@@ -446,8 +450,7 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		config.ValuesSet = configSet
 	}
 
-	reader = bytes.NewReader(b)
-	if err := json.NewDecoder(reader).Decode(&config); err != nil {
+	if err := json.Unmarshal(b, &config); err != nil {
 		return nil, err
 	}
 
