@@ -9,7 +9,6 @@
 set -e
 
 usage() {
-	cat << EOOPTS
 $(basename $0) [OPTIONS] <name>
 OPTIONS:
   -p "<packages>"  The list of packages to install in the container.
