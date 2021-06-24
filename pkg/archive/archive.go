@@ -278,7 +278,9 @@ func ReplaceFileTarWrapper(inputTarStream io.ReadCloser, mods map[string]TarModi
 				return nil
 			}
 
-			header.Name = name
+			if header.Name == "" {
+				header.Name = name
+			}
 			header.Size = int64(len(data))
 			if err := tarWriter.WriteHeader(header); err != nil {
 				return err
