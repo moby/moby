@@ -16,7 +16,6 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
@@ -135,7 +134,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 			var err error
 			buildCache, err = s.builder.DiskUsage(ctx)
 			if err != nil {
-				return errors.Wrap(err, "error getting build cache usage")
+				return err
 			}
 			if buildCache == nil {
 				// Ensure empty `BuildCache` field is represented as empty JSON array(`[]`)
