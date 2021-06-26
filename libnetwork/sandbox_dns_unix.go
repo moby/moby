@@ -322,7 +322,7 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(sb.config.resolvConfPath, newRC.Content, 0644) // nolint:gosec
+	err = ioutil.WriteFile(sb.config.resolvConfPath, newRC.Content, 0644) //nolint:gosec // gosec complains about perms here, which must be 0644 in this case
 	if err != nil {
 		return err
 	}

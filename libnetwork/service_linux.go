@@ -378,7 +378,7 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 		}
 
 		path := filepath.Join("/proc/sys/net/ipv4/conf", oifName, "route_localnet")
-		if err := ioutil.WriteFile(path, []byte{'1', '\n'}, 0644); err != nil { // nolint:gosec
+		if err := ioutil.WriteFile(path, []byte{'1', '\n'}, 0644); err != nil { //nolint:gosec // gosec complains about perms here, which must be 0644 in this case
 			return fmt.Errorf("could not write to %s: %v", path, err)
 		}
 
@@ -542,7 +542,7 @@ func writePortsToFile(ports []*PortConfig) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close() // nolint:gosec
+	defer f.Close() //nolint:gosec
 
 	buf, _ := proto.Marshal(&EndpointRecord{
 		IngressPorts: ports,
