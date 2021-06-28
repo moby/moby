@@ -40,7 +40,7 @@ func New(lDs, gDs Placeholder, dfn DriverNotifyFunc, ifn Placeholder, pg pluging
 // AddDriver adds a network driver to the registry.
 //
 // Deprecated: call fn(r, config) directly.
-func (r *DrvRegistry) AddDriver(_ string, fn InitFunc, config map[string]interface{}) error {
+func (r *DrvRegistry) AddDriver(fn InitFunc, config map[string]interface{}) error {
 	return fn(r, config)
 }
 

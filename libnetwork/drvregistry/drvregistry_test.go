@@ -71,18 +71,18 @@ func TestNew(t *testing.T) {
 func TestAddDriver(t *testing.T) {
 	reg := getNew(t)
 
-	err := reg.AddDriver(mockDriverName, mockDriverInit, nil)
+	err := reg.AddDriver(mockDriverInit, nil)
 	assert.NilError(t, err)
 }
 
 func TestAddDuplicateDriver(t *testing.T) {
 	reg := getNew(t)
 
-	err := reg.AddDriver(mockDriverName, mockDriverInit, nil)
+	err := reg.AddDriver(mockDriverInit, nil)
 	assert.NilError(t, err)
 
 	// Try adding the same driver
-	err = reg.AddDriver(mockDriverName, mockDriverInit, nil)
+	err = reg.AddDriver(mockDriverInit, nil)
 	assert.Check(t, is.ErrorContains(err, ""))
 }
 
@@ -98,7 +98,7 @@ func TestIPAMDefaultAddressSpaces(t *testing.T) {
 func TestDriver(t *testing.T) {
 	reg := getNew(t)
 
-	err := reg.AddDriver(mockDriverName, mockDriverInit, nil)
+	err := reg.AddDriver(mockDriverInit, nil)
 	assert.NilError(t, err)
 
 	d, cap := reg.Driver(mockDriverName)
@@ -134,7 +134,7 @@ func TestWalkIPAMs(t *testing.T) {
 func TestWalkDrivers(t *testing.T) {
 	reg := getNew(t)
 
-	err := reg.AddDriver(mockDriverName, mockDriverInit, nil)
+	err := reg.AddDriver(mockDriverInit, nil)
 	assert.NilError(t, err)
 
 	var driverName string
