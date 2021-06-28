@@ -30,7 +30,7 @@ type Placeholder *struct{}
 // New returns a new legacy driver registry.
 //
 // Deprecated: use the separate [Networks] and [IPAMs] registries.
-func New(lDs, gDs Placeholder, dfn DriverNotifyFunc, ifn Placeholder, pg plugingetter.PluginGetter) (*DrvRegistry, error) {
+func New(dfn DriverNotifyFunc, pg plugingetter.PluginGetter) (*DrvRegistry, error) {
 	return &DrvRegistry{
 		Networks:     Networks{Notify: dfn},
 		pluginGetter: pg,
