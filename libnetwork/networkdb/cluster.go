@@ -244,7 +244,7 @@ func (nDB *NetworkDB) clusterLeave() error {
 
 func (nDB *NetworkDB) triggerFunc(stagger time.Duration, C <-chan time.Time, f func()) {
 	// Use a random stagger to avoid synchronizing
-	randStagger := time.Duration(uint64(rnd.Int63()) % uint64(stagger)) // nolint:gosec
+	randStagger := time.Duration(uint64(rnd.Int63()) % uint64(stagger)) //nolint:gosec // gosec complains about the use of rand here. It should be fine.
 	select {
 	case <-time.After(randStagger):
 	case <-nDB.ctx.Done():
