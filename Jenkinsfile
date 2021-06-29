@@ -558,7 +558,7 @@ pipeline {
                             expression { params.s390x }
                         }
                     }
-                    agent { label 's390x-ubuntu-1804' }
+                    agent { label 's390x-ubuntu-2004' }
 
                     stages {
                         stage("Print info") {
@@ -667,7 +667,7 @@ pipeline {
                         not { changeRequest() }
                         expression { params.s390x }
                     }
-                    agent { label 's390x-ubuntu-1804' }
+                    agent { label 's390x-ubuntu-2004' }
 
                     stages {
                         stage("Print info") {
