@@ -77,21 +77,19 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 		return nil, err
 	}
 
-	var allImages map[image.ID]*image.Image
+	var selectedImages map[image.ID]*image.Image
 	if danglingOnly {
-		allImages = i.imageStore.Heads()
+		selectedImages = i.imageStore.Heads()
 	} else {
-		allImages = i.imageStore.Map()
+		selectedImages = i.imageStore.Map()
 	}
 
 	var (
-		summaries     []*types.ImageSummary
+		summaries     = make([]*types.ImageSummary, 0, len(selectedImages))
 		summaryMap    map[*image.Image]*types.ImageSummary
-		layerRefs     map[layer.ChainID]int
-		allLayers     map[layer.ChainID]layer.Layer
 		allContainers []*container.Container
 	)
-	for id, img := range allImages {
+	for id, img := range selectedImages {
 		if beforeFilter != nil {
 			if img.Created.Equal(beforeFilter.Created) || img.Created.After(beforeFilter.Created) {
 				continue
@@ -187,12 +185,10 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 		}
 
 		if withExtraAttrs {
-			// lazily init variables
+			// Lazily init summaryMap and allContainers
 			if summaryMap == nil {
+				summaryMap = make(map[*image.Image]*types.ImageSummary, len(selectedImages))
 				allContainers = i.containers.List()
-				allLayers = i.layerStore.Map()
-				summaryMap = make(map[*image.Image]*types.ImageSummary)
-				layerRefs = make(map[layer.ChainID]int)
 			}
 
 			// Get container count
@@ -205,19 +201,33 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 			// NOTE: By default, Containers is -1, or "not set"
 			summary.Containers = containers
 
-			// count layer references
-			rootFS := *img.RootFS
-			rootFS.DiffIDs = nil
-			for _, id := range img.RootFS.DiffIDs {
-				rootFS.Append(id)
-				layerRefs[rootFS.ChainID()]++
-			}
 			summaryMap[img] = summary
 		}
 		summaries = append(summaries, summary)
 	}
 
 	if withExtraAttrs {
+		allLayers := i.layerStore.Map()
+		layerRefs := make(map[layer.ChainID]int, len(allLayers))
+
+		allImages := selectedImages
+		if danglingOnly {
+			// If danglingOnly is true, then selectedImages include only dangling images,
+			// but we need to consider all existing images to correctly perform reference counting.
+			// If danglingOnly is false, selectedImages (and, hence, allImages) is already equal to i.imageStore.Map()
+			// and we can avoid performing an otherwise redundant method call.
+			allImages = i.imageStore.Map()
+		}
+		// Count layer references across all known images
+		for _, img := range allImages {
+			rootFS := *img.RootFS
+			rootFS.DiffIDs = nil
+			for _, id := range img.RootFS.DiffIDs {
+				rootFS.Append(id)
+				layerRefs[rootFS.ChainID()]++
+			}
+		}
+
 		// Get Shared sizes
 		for img, summary := range summaryMap {
 			rootFS := *img.RootFS
