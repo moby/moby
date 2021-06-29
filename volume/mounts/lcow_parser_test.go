@@ -1,10 +1,12 @@
 package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types/mount"
+	"gotest.tools/v3/assert"
 )
 
 func TestLCOWParseMountRaw(t *testing.T) {
@@ -130,41 +132,21 @@ func TestLCOWParseMountRawSplit(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		t.Logf("case %d", i)
-		m, err := parser.ParseMountRaw(c.bind, c.driver)
-		if c.fail {
-			if err == nil {
-				t.Errorf("Expected error, was nil, for spec %s\n", c.bind)
+		c := c
+		t.Run(fmt.Sprintf("%d_%s", i, c.bind), func(t *testing.T) {
+			m, err := parser.ParseMountRaw(c.bind, c.driver)
+			if c.fail {
+				assert.ErrorContains(t, err, "", "expected an error")
+				return
 			}
-			continue
-		}
 
-		if m == nil || err != nil {
-			t.Errorf("ParseMountRaw failed for spec '%s', driver '%s', error '%v'", c.bind, c.driver, err)
-			continue
-		}
-
-		if m.Destination != c.expDest {
-			t.Errorf("Expected destination '%s, was %s', for spec '%s'", c.expDest, m.Destination, c.bind)
-		}
-
-		if m.Source != c.expSource {
-			t.Errorf("Expected source '%s', was '%s', for spec '%s'", c.expSource, m.Source, c.bind)
-		}
-
-		if m.Name != c.expName {
-			t.Errorf("Expected name '%s', was '%s' for spec '%s'", c.expName, m.Name, c.bind)
-		}
-
-		if m.Driver != c.expDriver {
-			t.Errorf("Expected driver '%s', was '%s', for spec '%s'", c.expDriver, m.Driver, c.bind)
-		}
-
-		if m.RW != c.expRW {
-			t.Errorf("Expected RW '%v', was '%v' for spec '%s'", c.expRW, m.RW, c.bind)
-		}
-		if m.Type != c.expType {
-			t.Fatalf("Expected type '%s', was '%s', for spec '%s'", c.expType, m.Type, c.bind)
-		}
+			assert.NilError(t, err)
+			assert.Equal(t, m.Destination, c.expDest)
+			assert.Equal(t, m.Source, c.expSource)
+			assert.Equal(t, m.Name, c.expName)
+			assert.Equal(t, m.Driver, c.expDriver)
+			assert.Equal(t, m.RW, c.expRW)
+			assert.Equal(t, m.Type, c.expType)
+		})
 	}
 }
