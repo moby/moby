@@ -1,11 +1,205 @@
 package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types/mount"
+	"gotest.tools/v3/assert"
 )
+
+func TestLinuxParseMountRaw(t *testing.T) {
+	previousProvider := currentFileInfoProvider
+	defer func() { currentFileInfoProvider = previousProvider }()
+	currentFileInfoProvider = mockFiProvider{}
+
+	valid := []string{
+		"/home",
+		"/home:/home",
+		"/home:/something/else",
+		"/with space",
+		"/home:/with space",
+		"relative:/absolute-path",
+		"hostPath:/containerPath:ro",
+		"/hostPath:/containerPath:rw",
+		"/rw:/ro",
+		"/hostPath:/containerPath:shared",
+		"/hostPath:/containerPath:rshared",
+		"/hostPath:/containerPath:slave",
+		"/hostPath:/containerPath:rslave",
+		"/hostPath:/containerPath:private",
+		"/hostPath:/containerPath:rprivate",
+		"/hostPath:/containerPath:ro,shared",
+		"/hostPath:/containerPath:ro,slave",
+		"/hostPath:/containerPath:ro,private",
+		"/hostPath:/containerPath:ro,z,shared",
+		"/hostPath:/containerPath:ro,Z,slave",
+		"/hostPath:/containerPath:Z,ro,slave",
+		"/hostPath:/containerPath:slave,Z,ro",
+		"/hostPath:/containerPath:Z,slave,ro",
+		"/hostPath:/containerPath:slave,ro,Z",
+		"/hostPath:/containerPath:rslave,ro,Z",
+		"/hostPath:/containerPath:ro,rshared,Z",
+		"/hostPath:/containerPath:ro,Z,rprivate",
+	}
+
+	invalid := map[string]string{
+		"":                                "invalid volume specification",
+		"./":                              "mount path must be absolute",
+		"../":                             "mount path must be absolute",
+		"/:../":                           "mount path must be absolute",
+		"/:path":                          "mount path must be absolute",
+		":":                               "invalid volume specification",
+		"/tmp:":                           "invalid volume specification",
+		":test":                           "invalid volume specification",
+		":/test":                          "invalid volume specification",
+		"tmp:":                            "invalid volume specification",
+		":test:":                          "invalid volume specification",
+		"::":                              "invalid volume specification",
+		":::":                             "invalid volume specification",
+		"/tmp:::":                         "invalid volume specification",
+		":/tmp::":                         "invalid volume specification",
+		"/path:rw":                        "invalid volume specification",
+		"/path:ro":                        "invalid volume specification",
+		"/rw:rw":                          "invalid volume specification",
+		"path:ro":                         "invalid volume specification",
+		"/path:/path:sw":                  `invalid mode`,
+		"/path:/path:rwz":                 `invalid mode`,
+		"/path:/path:ro,rshared,rslave":   `invalid mode`,
+		"/path:/path:ro,z,rshared,rslave": `invalid mode`,
+		"/path:shared":                    "invalid volume specification",
+		"/path:slave":                     "invalid volume specification",
+		"/path:private":                   "invalid volume specification",
+		"name:/absolute-path:shared":      "invalid volume specification",
+		"name:/absolute-path:rshared":     "invalid volume specification",
+		"name:/absolute-path:slave":       "invalid volume specification",
+		"name:/absolute-path:rslave":      "invalid volume specification",
+		"name:/absolute-path:private":     "invalid volume specification",
+		"name:/absolute-path:rprivate":    "invalid volume specification",
+	}
+
+	parser := &linuxParser{}
+
+	for _, path := range valid {
+		if _, err := parser.ParseMountRaw(path, "local"); err != nil {
+			t.Errorf("ParseMountRaw(`%q`) should succeed: error %q", path, err)
+		}
+	}
+
+	for path, expectedError := range invalid {
+		if mp, err := parser.ParseMountRaw(path, "local"); err == nil {
+			t.Errorf("ParseMountRaw(`%q`) should have failed validation. Err '%v' - MP: %v", path, err, mp)
+		} else {
+			if !strings.Contains(err.Error(), expectedError) {
+				t.Errorf("ParseMountRaw(`%q`) error should contain %q, got %v", path, expectedError, err.Error())
+			}
+		}
+	}
+}
+
+func TestLinuxParseMountRawSplit(t *testing.T) {
+	previousProvider := currentFileInfoProvider
+	defer func() { currentFileInfoProvider = previousProvider }()
+	currentFileInfoProvider = mockFiProvider{}
+
+	cases := []struct {
+		bind      string
+		driver    string
+		expType   mount.Type
+		expDest   string
+		expSource string
+		expName   string
+		expDriver string
+		expRW     bool
+		fail      bool
+	}{
+		{"/tmp:/tmp1", "", mount.TypeBind, "/tmp1", "/tmp", "", "", true, false},
+		{"/tmp:/tmp2:ro", "", mount.TypeBind, "/tmp2", "/tmp", "", "", false, false},
+		{"/tmp:/tmp3:rw", "", mount.TypeBind, "/tmp3", "/tmp", "", "", true, false},
+		{"/tmp:/tmp4:foo", "", mount.TypeBind, "", "", "", "", false, true},
+		{"name:/named1", "", mount.TypeVolume, "/named1", "", "name", "", true, false},
+		{"name:/named2", "external", mount.TypeVolume, "/named2", "", "name", "external", true, false},
+		{"name:/named3:ro", "local", mount.TypeVolume, "/named3", "", "name", "local", false, false},
+		{"local/name:/tmp:rw", "", mount.TypeVolume, "/tmp", "", "local/name", "", true, false},
+		{"/tmp:tmp", "", mount.TypeBind, "", "", "", "", true, true},
+	}
+
+	parser := &linuxParser{}
+	for i, c := range cases {
+		t.Logf("case %d", i)
+		m, err := parser.ParseMountRaw(c.bind, c.driver)
+		if c.fail {
+			if err == nil {
+				t.Errorf("Expected error, was nil, for spec %s\n", c.bind)
+			}
+			continue
+		}
+
+		if m == nil || err != nil {
+			t.Errorf("ParseMountRaw failed for spec '%s', driver '%s', error '%v'", c.bind, c.driver, err)
+			continue
+		}
+
+		if m.Destination != c.expDest {
+			t.Errorf("Expected destination '%s, was %s', for spec '%s'", c.expDest, m.Destination, c.bind)
+		}
+
+		if m.Source != c.expSource {
+			t.Errorf("Expected source '%s', was '%s', for spec '%s'", c.expSource, m.Source, c.bind)
+		}
+
+		if m.Name != c.expName {
+			t.Errorf("Expected name '%s', was '%s' for spec '%s'", c.expName, m.Name, c.bind)
+		}
+
+		if m.Driver != c.expDriver {
+			t.Errorf("Expected driver '%s', was '%s', for spec '%s'", c.expDriver, m.Driver, c.bind)
+		}
+
+		if m.RW != c.expRW {
+			t.Errorf("Expected RW '%v', was '%v' for spec '%s'", c.expRW, m.RW, c.bind)
+		}
+		if m.Type != c.expType {
+			t.Fatalf("Expected type '%s', was '%s', for spec '%s'", c.expType, m.Type, c.bind)
+		}
+	}
+}
+
+// TestLinuxParseMountSpecBindWithFileinfoError makes sure that the parser returns
+// the error produced by the fileinfo provider.
+//
+// Some extra context for the future in case of changes and possible wtf are we
+// testing this for:
+//
+// Currently this "fileInfoProvider" returns (bool, bool, error)
+// The 1st bool is "does this path exist"
+// The 2nd bool is "is this path a dir"
+// Then of course the error is an error.
+//
+// The issue is the parser was ignoring the error and only looking at the
+// "does this path exist" boolean, which is always false if there is an error.
+// Then the error returned to the caller was a (slightly, maybe) friendlier
+// error string than what comes from `os.Stat`
+// So ...the caller was always getting an error saying the path doesn't exist
+// even if it does exist but got some other error (like a permission error).
+// This is confusing to users.
+func TestLinuxParseMountSpecBindWithFileinfoError(t *testing.T) {
+	previousProvider := currentFileInfoProvider
+	defer func() { currentFileInfoProvider = previousProvider }()
+
+	testErr := fmt.Errorf("some crazy error")
+	currentFileInfoProvider = &mockFiProviderWithError{err: testErr}
+
+	parser := &linuxParser{}
+
+	_, err := parser.ParseMountSpec(mount.Mount{
+		Type:   mount.TypeBind,
+		Source: `/bananas`,
+		Target: `/bananas`,
+	})
+	assert.ErrorContains(t, err, testErr.Error())
+}
 
 func TestConvertTmpfsOptions(t *testing.T) {
 	type testCase struct {
