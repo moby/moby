@@ -85,6 +85,7 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 		summaryMap    map[*image.Image]*types.ImageSummary
 		allContainers []*container.Container
 	)
+imageLoop:
 	for id, img := range selectedImages {
 		if beforeFilter != nil {
 			if img.Created.Equal(beforeFilter.Created) || img.Created.After(beforeFilter.Created) {
@@ -158,6 +159,9 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 				summary.RepoDigests = append(summary.RepoDigests, reference.FamiliarString(ref))
 			}
 			if _, ok := ref.(reference.NamedTagged); ok {
+				if danglingOnly {
+					continue imageLoop
+				}
 				summary.RepoTags = append(summary.RepoTags, reference.FamiliarString(ref))
 			}
 		}
@@ -176,8 +180,6 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 			} else {
 				continue
 			}
-		} else if danglingOnly && len(summary.RepoTags) > 0 {
-			continue
 		}
 
 		if opts.ContainerCount {
