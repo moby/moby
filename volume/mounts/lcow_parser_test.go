@@ -8,10 +8,6 @@ import (
 )
 
 func TestLCOWParseMountRaw(t *testing.T) {
-	previousProvider := currentFileInfoProvider
-	defer func() { currentFileInfoProvider = previousProvider }()
-	currentFileInfoProvider = mockFiProvider{}
-
 	valid := []string{
 		`/foo`,
 		`/foo/`,
@@ -81,6 +77,9 @@ func TestLCOWParseMountRaw(t *testing.T) {
 	}
 
 	parser := NewLCOWParser()
+	if p, ok := parser.(*lcowParser); ok {
+		p.fi = mockFiProvider{}
+	}
 
 	for _, path := range valid {
 		if _, err := parser.ParseMountRaw(path, "local"); err != nil {
@@ -100,10 +99,6 @@ func TestLCOWParseMountRaw(t *testing.T) {
 }
 
 func TestLCOWParseMountRawSplit(t *testing.T) {
-	previousProvider := currentFileInfoProvider
-	defer func() { currentFileInfoProvider = previousProvider }()
-	currentFileInfoProvider = mockFiProvider{}
-
 	cases := []struct {
 		bind      string
 		driver    string
@@ -130,6 +125,10 @@ func TestLCOWParseMountRawSplit(t *testing.T) {
 	}
 
 	parser := NewLCOWParser()
+	if p, ok := parser.(*lcowParser); ok {
+		p.fi = mockFiProvider{}
+	}
+
 	for i, c := range cases {
 		t.Logf("case %d", i)
 		m, err := parser.ParseMountRaw(c.bind, c.driver)

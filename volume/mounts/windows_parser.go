@@ -14,10 +14,14 @@ import (
 
 // NewWindowsParser creates a parser with Windows semantics.
 func NewWindowsParser() Parser {
-	return &windowsParser{}
+	return &windowsParser{
+		fi: defaultFileInfoProvider{},
+	}
 }
 
-type windowsParser struct{}
+type windowsParser struct {
+	fi fileInfoProvider
+}
 
 const (
 	// Spec should be in the format [source:]destination[:mode]
@@ -76,7 +80,7 @@ const (
 
 type mountValidator func(mnt *mount.Mount) error
 
-func windowsSplitRawSpec(raw, destRegex string) ([]string, error) {
+func (p *windowsParser) windowsSplitRawSpec(raw, destRegex string) ([]string, error) {
 	specExp := regexp.MustCompile(`^` + rxSource + destRegex + rxMode + `$`)
 	match := specExp.FindStringSubmatch(strings.ToLower(raw))
 
@@ -119,8 +123,7 @@ func windowsSplitRawSpec(raw, destRegex string) ([]string, error) {
 				return nil, fmt.Errorf("volume name %q cannot be a reserved word for Windows filenames", matchgroups["destination"])
 			}
 		} else {
-
-			exists, isDir, _ := currentFileInfoProvider.fileInfo(matchgroups["destination"])
+			exists, isDir, _ := p.fi.fileInfo(matchgroups["destination"])
 			if exists && !isDir {
 				return nil, fmt.Errorf("file '%s' cannot be mapped. Only directories can be mapped on this platform", matchgroups["destination"])
 
@@ -211,8 +214,6 @@ func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, err err
 	return true, fi.IsDir(), nil
 }
 
-var currentFileInfoProvider fileInfoProvider = defaultFileInfoProvider{}
-
 func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex string, additionalValidators ...mountValidator) error {
 
 	for _, v := range additionalValidators {
@@ -247,7 +248,7 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex strin
 			return &errMountConfig{mnt, err}
 		}
 
-		exists, isdir, err := currentFileInfoProvider.fileInfo(mnt.Source)
+		exists, isdir, err := p.fi.fileInfo(mnt.Source)
 		if err != nil {
 			return &errMountConfig{mnt, err}
 		}
@@ -302,7 +303,7 @@ func (p *windowsParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, er
 }
 
 func (p *windowsParser) parseMountRaw(raw, volumeDriver, destRegex string, convertTargetToBackslash bool, additionalValidators ...mountValidator) (*MountPoint, error) {
-	arr, err := windowsSplitRawSpec(raw, destRegex)
+	arr, err := p.windowsSplitRawSpec(raw, destRegex)
 	if err != nil {
 		return nil, err
 	}

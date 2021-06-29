@@ -10,10 +10,6 @@ import (
 )
 
 func TestWindowsParseMountRaw(t *testing.T) {
-	previousProvider := currentFileInfoProvider
-	defer func() { currentFileInfoProvider = previousProvider }()
-	currentFileInfoProvider = mockFiProvider{}
-
 	valid := []string{
 		`d:\`,
 		`d:`,
@@ -88,6 +84,9 @@ func TestWindowsParseMountRaw(t *testing.T) {
 	}
 
 	parser := NewWindowsParser()
+	if p, ok := parser.(*windowsParser); ok {
+		p.fi = mockFiProvider{}
+	}
 
 	for _, path := range valid {
 		if _, err := parser.ParseMountRaw(path, "local"); err != nil {
@@ -107,10 +106,6 @@ func TestWindowsParseMountRaw(t *testing.T) {
 }
 
 func TestWindowsParseMountRawSplit(t *testing.T) {
-	previousProvider := currentFileInfoProvider
-	defer func() { currentFileInfoProvider = previousProvider }()
-	currentFileInfoProvider = mockFiProvider{}
-
 	cases := []struct {
 		bind      string
 		driver    string
@@ -138,6 +133,10 @@ func TestWindowsParseMountRawSplit(t *testing.T) {
 	}
 
 	parser := NewWindowsParser()
+	if p, ok := parser.(*windowsParser); ok {
+		p.fi = mockFiProvider{}
+	}
+
 	for i, c := range cases {
 		t.Logf("case %d", i)
 		m, err := parser.ParseMountRaw(c.bind, c.driver)
@@ -197,13 +196,11 @@ func TestWindowsParseMountRawSplit(t *testing.T) {
 // even if it does exist but got some other error (like a permission error).
 // This is confusing to users.
 func TestWindowsParseMountSpecBindWithFileinfoError(t *testing.T) {
-	previousProvider := currentFileInfoProvider
-	defer func() { currentFileInfoProvider = previousProvider }()
-
-	testErr := fmt.Errorf("some crazy error")
-	currentFileInfoProvider = &mockFiProviderWithError{err: testErr}
-
 	parser := NewWindowsParser()
+	testErr := fmt.Errorf("some crazy error")
+	if pr, ok := parser.(*windowsParser); ok {
+		pr.fi = &mockFiProviderWithError{err: testErr}
+	}
 
 	_, err := parser.ParseMountSpec(mount.Mount{
 		Type:   mount.TypeBind,

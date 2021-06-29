@@ -9,7 +9,11 @@ import (
 
 // NewLCOWParser creates a parser with Linux Containers on Windows semantics.
 func NewLCOWParser() Parser {
-	return &lcowParser{}
+	return &lcowParser{
+		windowsParser{
+			fi: defaultFileInfoProvider{},
+		},
+	}
 }
 
 // rxLCOWDestination is the regex expression for the mount destination for LCOW

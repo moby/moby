@@ -14,10 +14,14 @@ import (
 
 // NewLinuxParser creates a parser with Linux semantics.
 func NewLinuxParser() Parser {
-	return &linuxParser{}
+	return &linuxParser{
+		fi: defaultFileInfoProvider{},
+	}
 }
 
-type linuxParser struct{}
+type linuxParser struct {
+	fi fileInfoProvider
+}
 
 func linuxSplitRawSpec(raw string) ([]string, error) {
 	if strings.Count(raw, ":") > 2 {
@@ -86,7 +90,7 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 		}
 
 		if validateBindSourceExists {
-			exists, _, err := currentFileInfoProvider.fileInfo(mnt.Source)
+			exists, _, err := p.fi.fileInfo(mnt.Source)
 			if err != nil {
 				return &errMountConfig{mnt, err}
 			}
