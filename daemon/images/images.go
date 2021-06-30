@@ -132,7 +132,10 @@ imageLoop:
 		}
 
 		var size int64
-		if layerID := img.RootFS.ChainID(); layerID != "" {
+		v, ok := i.imageSizeCache.Load(id)
+		if ok {
+			size = v.(int64)
+		} else if layerID := img.RootFS.ChainID(); layerID != "" {
 			l, err := i.layerStore.Get(layerID)
 			if err != nil {
 				// The layer may have been deleted between the call to `Map()` or
@@ -148,6 +151,8 @@ imageLoop:
 			if err != nil {
 				return nil, err
 			}
+
+			i.imageSizeCache.Store(id, size)
 		}
 
 		references := i.referenceStore.References(id.Digest())
