@@ -57,18 +57,16 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
            esac
 
 FROM base AS swagger
-WORKDIR $GOPATH/src/github.com/go-swagger/go-swagger
+WORKDIR /swagger
 # Install go-swagger for validating swagger.yaml
-# This is https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix
-# TODO: move to under moby/ or fix upstream go-swagger to work for us.
-ENV GO_SWAGGER_COMMIT 5e6cb12f7c82ce78e45ba71fa6cb1928094db050
+ENV GO_SWAGGER_COMMIT v0.27.0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ \
         set -x \
-        && git clone https://github.com/kolyshkin/go-swagger.git . \
+        && git clone https://github.com/go-swagger/go-swagger.git . \
         && git checkout -q "$GO_SWAGGER_COMMIT" \
-        && go build -o /build/swagger github.com/go-swagger/go-swagger/cmd/swagger
+        && go build -o /build/swagger ./cmd/swagger
 
 FROM debian:${BASE_DEBIAN_DISTRO} AS frozen-images
 ARG DEBIAN_FRONTEND
