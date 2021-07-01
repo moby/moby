@@ -4,8 +4,8 @@ package graphtest // import "github.com/docker/docker/daemon/graphdriver/graphte
 
 import (
 	"bytes"
+	"crypto/rand"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"path"
 	"testing"
