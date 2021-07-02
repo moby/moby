@@ -156,11 +156,20 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		logrus.WithField("storage-driver", "overlay").Warn(overlayutils.ErrDTypeNotSupported("overlay", backingFs))
 	}
 
-	// Create the driver home dir
-	if err := idtools.MkdirAllAndChown(home, 0701, idtools.CurrentIdentity()); err != nil {
+	currentID := idtools.CurrentIdentity()
+	_, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
+	if err != nil {
 		return nil, err
 	}
+	dirID := idtools.Identity{
+		UID: currentID.UID,
+		GID: rootGID,
+	}
 
+	// Create the driver home dir
+	if err := idtools.MkdirAllAndChown(home, 0710, dirID); err != nil {
+		return nil, err
+	}
 	d := &Driver{
 		home:          home,
 		uidMaps:       uidMaps,
@@ -262,10 +271,11 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 	root := idtools.Identity{UID: rootUID, GID: rootGID}
 
 	currentID := idtools.CurrentIdentity()
-	if err := idtools.MkdirAllAndChown(path.Dir(dir), 0701, currentID); err != nil {
-		return err
+	dirID := idtools.Identity{
+		UID: currentID.UID,
+		GID: rootGID,
 	}
-	if err := idtools.MkdirAndChown(dir, 0701, currentID); err != nil {
+	if err := idtools.MkdirAndChown(dir, 0710, dirID); err != nil {
 		return err
 	}
 
