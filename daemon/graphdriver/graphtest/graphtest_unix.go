@@ -4,13 +4,11 @@ package graphtest // import "github.com/docker/docker/daemon/graphdriver/graphte
 
 import (
 	"bytes"
+	"crypto/rand"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"path"
-	"reflect"
 	"testing"
-	"unsafe"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/stringid"
@@ -294,19 +292,11 @@ func DriverTestChanges(t testing.TB, drivername string, driverOptions ...string)
 }
 
 func writeRandomFile(path string, size uint64) error {
-	buf := make([]int64, size/8)
-
-	r := rand.NewSource(0)
-	for i := range buf {
-		buf[i] = r.Int63()
+	data := make([]byte, size)
+	_, err := rand.Read(data)
+	if err != nil {
+		return err
 	}
-
-	// Cast to []byte
-	header := *(*reflect.SliceHeader)(unsafe.Pointer(&buf)) //nolint:govet // FIXME: unsafeptr: possible misuse of reflect.SliceHeader (govet) see https://github.com/moby/moby/issues/42444
-	header.Len *= 8
-	header.Cap *= 8
-	data := *(*[]byte)(unsafe.Pointer(&header)) //nolint:govet // FIXME: unsafeptr: possible misuse of reflect.SliceHeader (govet) see https://github.com/moby/moby/issues/42444
-
 	return ioutil.WriteFile(path, data, 0700)
 }
 
