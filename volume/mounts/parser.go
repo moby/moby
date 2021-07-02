@@ -36,7 +36,7 @@ type Parser interface {
 // NewParser creates a parser for the current host OS
 func NewParser() Parser {
 	if runtime.GOOS == "windows" {
-		return &windowsParser{}
+		return NewWindowsParser()
 	}
-	return &linuxParser{}
+	return NewLinuxParser()
 }

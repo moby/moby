@@ -79,7 +79,7 @@ func TestLinuxParseMountRaw(t *testing.T) {
 		"name:/absolute-path:rprivate":    "invalid volume specification",
 	}
 
-	parser := &linuxParser{}
+	parser := NewLinuxParser()
 
 	for _, path := range valid {
 		if _, err := parser.ParseMountRaw(path, "local"); err != nil {
@@ -125,7 +125,7 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 		{"/tmp:tmp", "", mount.TypeBind, "", "", "", "", true, true},
 	}
 
-	parser := &linuxParser{}
+	parser := NewLinuxParser()
 	for i, c := range cases {
 		t.Logf("case %d", i)
 		m, err := parser.ParseMountRaw(c.bind, c.driver)
@@ -191,7 +191,7 @@ func TestLinuxParseMountSpecBindWithFileinfoError(t *testing.T) {
 	testErr := fmt.Errorf("some crazy error")
 	currentFileInfoProvider = &mockFiProviderWithError{err: testErr}
 
-	parser := &linuxParser{}
+	parser := NewLinuxParser()
 
 	_, err := parser.ParseMountSpec(mount.Mount{
 		Type:   mount.TypeBind,
@@ -222,7 +222,7 @@ func TestConvertTmpfsOptions(t *testing.T) {
 			unexpectedSubstrings: []string{},
 		},
 	}
-	p := &linuxParser{}
+	p := NewLinuxParser()
 	for _, c := range cases {
 		data, err := p.ConvertTmpfsOptions(&c.opt, c.readOnly)
 		if err != nil {

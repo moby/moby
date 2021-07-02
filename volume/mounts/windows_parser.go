@@ -12,6 +12,11 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 )
 
+// NewWindowsParser creates a parser with Windows semantics.
+func NewWindowsParser() Parser {
+	return &windowsParser{}
+}
+
 type windowsParser struct{}
 
 const (

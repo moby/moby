@@ -12,6 +12,11 @@ import (
 	"github.com/docker/docker/volume"
 )
 
+// NewLinuxParser creates a parser with Linux semantics.
+func NewLinuxParser() Parser {
+	return &linuxParser{}
+}
+
 type linuxParser struct{}
 
 func linuxSplitRawSpec(raw string) ([]string, error) {

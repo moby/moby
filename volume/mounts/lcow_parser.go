@@ -7,6 +7,11 @@ import (
 	"github.com/docker/docker/api/types/mount"
 )
 
+// NewLCOWParser creates a parser with Linux Containers on Windows semantics.
+func NewLCOWParser() Parser {
+	return &lcowParser{}
+}
+
 // rxLCOWDestination is the regex expression for the mount destination for LCOW
 //
 // Destination (aka container path):

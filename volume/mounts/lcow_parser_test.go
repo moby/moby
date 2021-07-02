@@ -80,7 +80,7 @@ func TestLCOWParseMountRaw(t *testing.T) {
 		`\\.\pipe\foo:/foo`:                  `Linux containers on Windows do not support named pipe mounts`,
 	}
 
-	parser := &lcowParser{}
+	parser := NewLCOWParser()
 
 	for _, path := range valid {
 		if _, err := parser.ParseMountRaw(path, "local"); err != nil {
@@ -129,7 +129,7 @@ func TestLCOWParseMountRawSplit(t *testing.T) {
 		{`c:\foo\bar:\\.\pipe\foo`, "local", mount.TypeNamedPipe, ``, ``, "", "", true, true},
 	}
 
-	parser := &lcowParser{}
+	parser := NewLCOWParser()
 	for i, c := range cases {
 		t.Logf("case %d", i)
 		m, err := parser.ParseMountRaw(c.bind, c.driver)

@@ -87,7 +87,7 @@ func TestWindowsParseMountRaw(t *testing.T) {
 		`\\.\pipe\foo:c:\pipe`:             `'c:\pipe' is not a valid pipe path`,
 	}
 
-	parser := &windowsParser{}
+	parser := NewWindowsParser()
 
 	for _, path := range valid {
 		if _, err := parser.ParseMountRaw(path, "local"); err != nil {
@@ -137,7 +137,7 @@ func TestWindowsParseMountRawSplit(t *testing.T) {
 		{`c:\foo\bar:\\.\pipe\foo`, "local", mount.TypeNamedPipe, ``, ``, "", "", true, true},
 	}
 
-	parser := &windowsParser{}
+	parser := NewWindowsParser()
 	for i, c := range cases {
 		t.Logf("case %d", i)
 		m, err := parser.ParseMountRaw(c.bind, c.driver)
@@ -203,7 +203,7 @@ func TestWindowsParseMountSpecBindWithFileinfoError(t *testing.T) {
 	testErr := fmt.Errorf("some crazy error")
 	currentFileInfoProvider = &mockFiProviderWithError{err: testErr}
 
-	parser := &windowsParser{}
+	parser := NewWindowsParser()
 
 	_, err := parser.ParseMountSpec(mount.Mount{
 		Type:   mount.TypeBind,
