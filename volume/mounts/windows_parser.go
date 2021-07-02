@@ -12,8 +12,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 )
 
-type windowsParser struct {
-}
+type windowsParser struct{}
 
 const (
 	// Spec should be in the format [source:]destination[:mode]
@@ -62,12 +61,6 @@ const (
 
 	// rxDestination is the regex expression for the mount destination
 	rxDestination = `(?P<destination>((?:\\\\\?\\)?([a-z]):((?:[\\/][^\\/:*?"<>\r\n]+)*[\\/]?))|(` + rxPipe + `))`
-
-	rxLCOWDestination = `(?P<destination>/(?:[^\\/:*?"<>\r\n]+[/]?)*)`
-	// Destination (aka container path):
-	//    -  Variation on hostdir but can be a drive followed by colon as well
-	//    -  If a path, must be absolute. Can include spaces
-	//    -  Drive cannot be c: (explicitly checked in code, not RegEx)
 
 	// rxMode is the regex expression for the mode of the mount
 	// Mode (optional):
@@ -136,8 +129,10 @@ func windowsValidMountMode(mode string) bool {
 	if mode == "" {
 		return true
 	}
+	// TODO should windows mounts produce an error if any mode was provided (they're a no-op on windows)
 	return rwModes[strings.ToLower(mode)]
 }
+
 func windowsValidateNotRoot(p string) error {
 	p = strings.ToLower(strings.Replace(p, `/`, `\`, -1))
 	if p == "c:" || p == `c:\` {
@@ -177,7 +172,7 @@ func (p *windowsParser) ReadWrite(mode string) bool {
 	return strings.ToLower(mode) != "ro"
 }
 
-// IsVolumeNameValid checks a volume name in a platform specific manner.
+// ValidateVolumeName checks a volume name in a platform specific manner.
 func (p *windowsParser) ValidateVolumeName(name string) error {
 	nameExp := regexp.MustCompile(`^` + rxName + `$`)
 	if !nameExp.MatchString(name) {
@@ -453,4 +448,8 @@ func (p *windowsParser) IsBackwardCompatible(m *MountPoint) bool {
 
 func (p *windowsParser) ValidateTmpfsMountDestination(dest string) error {
 	return errors.New("Platform does not support tmpfs")
+}
+
+func (p *windowsParser) HasResource(m *MountPoint, absolutePath string) bool {
+	return false
 }

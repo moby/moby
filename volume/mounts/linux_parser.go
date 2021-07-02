@@ -12,8 +12,7 @@ import (
 	"github.com/docker/docker/volume"
 )
 
-type linuxParser struct {
-}
+type linuxParser struct{}
 
 func linuxSplitRawSpec(raw string) ([]string, error) {
 	if strings.Count(raw, ":") > 2 {
@@ -113,12 +112,6 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 		return &errMountConfig{mnt, errors.New("mount type unknown")}
 	}
 	return nil
-}
-
-// read-write modes
-var rwModes = map[string]bool{
-	"rw": true,
-	"ro": true,
 }
 
 // label modes

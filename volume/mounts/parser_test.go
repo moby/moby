@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/docker/api/types/mount"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
 )
 
 type parseMountRawTestSet struct {
@@ -300,9 +299,7 @@ func TestParseMountRaw(t *testing.T) {
 	winParser := &windowsParser{}
 	lcowParser := &lcowParser{}
 	tester := func(parser Parser, set parseMountRawTestSet) {
-
 		for _, path := range set.valid {
-
 			if _, err := parser.ParseMountRaw(path, "local"); err != nil {
 				t.Errorf("ParseMountRaw(`%q`) should succeed: error %q", path, err)
 			}
@@ -318,10 +315,10 @@ func TestParseMountRaw(t *testing.T) {
 			}
 		}
 	}
+
 	tester(linParser, linuxSet)
 	tester(winParser, windowsSet)
 	tester(lcowParser, lcowSet)
-
 }
 
 // testParseMountRaw is a structure used by TestParseMountRawSplit for
@@ -397,7 +394,7 @@ func TestParseMountRawSplit(t *testing.T) {
 			}
 
 			if m == nil || err != nil {
-				t.Errorf("ParseMountRaw failed for spec '%s', driver '%s', error '%v'", c.bind, c.driver, err.Error())
+				t.Errorf("ParseMountRaw failed for spec '%s', driver '%s', error '%v'", c.bind, c.driver, err)
 				continue
 			}
 
@@ -525,6 +522,5 @@ func TestParseMountSpecBindWithFileinfoError(t *testing.T) {
 	parser := NewParser(runtime.GOOS)
 
 	_, err := parser.ParseMountSpec(m)
-	assert.Assert(t, err != nil)
-	assert.Assert(t, cmp.Contains(err.Error(), "some crazy error"))
+	assert.ErrorContains(t, err, "some crazy error")
 }

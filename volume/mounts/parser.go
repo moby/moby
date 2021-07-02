@@ -18,6 +18,12 @@ const (
 // It's used by both LCOW and Linux parsers.
 var ErrVolumeTargetIsRoot = errors.New("invalid specification: destination can't be '/'")
 
+// read-write modes
+var rwModes = map[string]bool{
+	"rw": true,
+	"ro": true,
+}
+
 // Parser represents a platform specific parser for mount expressions
 type Parser interface {
 	ParseMountRaw(raw, volumeDriver string) (*MountPoint, error)
