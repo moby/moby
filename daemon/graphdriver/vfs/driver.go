@@ -37,8 +37,16 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	if err := d.parseOptions(options); err != nil {
 		return nil, err
 	}
+	_, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
+	if err != nil {
+		return nil, err
+	}
 
-	if err := idtools.MkdirAllAndChown(home, 0701, idtools.CurrentIdentity()); err != nil {
+	dirID := idtools.Identity{
+		UID: idtools.CurrentIdentity().UID,
+		GID: rootGID,
+	}
+	if err := idtools.MkdirAllAndChown(home, 0710, dirID); err != nil {
 		return nil, err
 	}
 
@@ -140,7 +148,12 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 func (d *Driver) create(id, parent string, size uint64) error {
 	dir := d.dir(id)
 	rootIDs := d.idMapping.RootPair()
-	if err := idtools.MkdirAllAndChown(filepath.Dir(dir), 0701, idtools.CurrentIdentity()); err != nil {
+
+	dirID := idtools.Identity{
+		UID: idtools.CurrentIdentity().UID,
+		GID: rootIDs.GID,
+	}
+	if err := idtools.MkdirAllAndChown(filepath.Dir(dir), 0710, dirID); err != nil {
 		return err
 	}
 	if err := idtools.MkdirAndChown(dir, 0755, rootIDs); err != nil {

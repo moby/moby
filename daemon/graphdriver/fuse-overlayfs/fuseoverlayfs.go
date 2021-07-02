@@ -88,7 +88,17 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, graphdriver.ErrNotSupported
 	}
 
-	if err := idtools.MkdirAllAndChown(path.Join(home, linkDir), 0701, idtools.CurrentIdentity()); err != nil {
+	remappedRoot := idtools.NewIDMappingsFromMaps(uidMaps, gidMaps)
+	currentID := idtools.CurrentIdentity()
+	dirID := idtools.Identity{
+		UID: currentID.UID,
+		GID: remappedRoot.RootPair().GID,
+	}
+
+	if err := idtools.MkdirAllAndChown(home, 0710, dirID); err != nil {
+		return nil, err
+	}
+	if err := idtools.MkdirAllAndChown(path.Join(home, linkDir), 700, currentID); err != nil {
 		return nil, err
 	}
 
@@ -173,11 +183,15 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 	}
 	root := idtools.Identity{UID: rootUID, GID: rootGID}
 
-	currentID := idtools.CurrentIdentity()
-	if err := idtools.MkdirAllAndChown(path.Dir(dir), 0701, currentID); err != nil {
+	dirID := idtools.Identity{
+		UID: rootUID,
+		GID: rootGID,
+	}
+
+	if err := idtools.MkdirAllAndChown(path.Dir(dir), 0710, dirID); err != nil {
 		return err
 	}
-	if err := idtools.MkdirAndChown(dir, 0701, currentID); err != nil {
+	if err := idtools.MkdirAndChown(dir, 0710, dirID); err != nil {
 		return err
 	}
 
@@ -211,7 +225,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return nil
 	}
 
-	if err := idtools.MkdirAndChown(path.Join(dir, workDirName), 0701, currentID); err != nil {
+	if err := idtools.MkdirAndChown(path.Join(dir, workDirName), 0710, dirID); err != nil {
 		return err
 	}
 

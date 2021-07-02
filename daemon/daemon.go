@@ -845,7 +845,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	daemonRepo := filepath.Join(config.Root, "containers")
-	if err := idtools.MkdirAllAndChown(daemonRepo, 0701, idtools.CurrentIdentity()); err != nil {
+	if err := idtools.MkdirAllAndChown(daemonRepo, 0710, idtools.Identity{
+		UID: idtools.CurrentIdentity().UID,
+		GID: rootIDs.GID,
+	}); err != nil {
 		return nil, err
 	}
 

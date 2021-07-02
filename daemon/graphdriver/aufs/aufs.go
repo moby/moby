@@ -130,14 +130,23 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	}
 
 	currentID := idtools.CurrentIdentity()
+	_, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
+	if err != nil {
+		return nil, err
+	}
+	dirID := idtools.Identity{
+		UID: currentID.UID,
+		GID: rootGID,
+	}
+
 	// Create the root aufs driver dir
-	if err := idtools.MkdirAllAndChown(root, 0701, currentID); err != nil {
+	if err := idtools.MkdirAllAndChown(root, 0710, dirID); err != nil {
 		return nil, err
 	}
 
 	// Populate the dir structure
 	for _, p := range paths {
-		if err := idtools.MkdirAllAndChown(path.Join(root, p), 0701, currentID); err != nil {
+		if err := idtools.MkdirAllAndChown(path.Join(root, p), 0710, dirID); err != nil {
 			return nil, err
 		}
 	}
