@@ -105,7 +105,16 @@ func Init(base string, opt []string, uidMaps, gidMaps []idtools.IDMap) (graphdri
 		return nil, fmt.Errorf("BUG: zfs get all -t filesystem -rHp '%s' should contain '%s'", options.fsName, options.fsName)
 	}
 
-	if err := idtools.MkdirAllAndChown(base, 0701, idtools.CurrentIdentity()); err != nil {
+	_, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
+	if err != nil {
+		return nil, err
+	}
+
+	dirID := idtools.Identity{
+		UID: idtools.CurrentIdentity().UID,
+		GID: rootGID,
+	}
+	if err := idtools.MkdirAllAndChown(base, 0710, dirID); err != nil {
 		return nil, fmt.Errorf("Failed to create '%s': %v", base, err)
 	}
 
