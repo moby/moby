@@ -14,8 +14,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 )
 
-// ImageBuild sends request to the daemon to build images.
-// The Body in the response implement an io.ReadCloser and it's up to the caller to
+// ImageBuild sends a request to the daemon to build images.
+// The Body in the response implements an io.ReadCloser and it's up to the caller to
 // close it.
 func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, options types.ImageBuildOptions) (types.ImageBuildResponse, error) {
 	query, err := cli.imageBuildOptionsToQuery(options)

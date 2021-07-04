@@ -10,7 +10,7 @@ import (
 
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/executor/container"
-	lncluster "github.com/docker/libnetwork/cluster"
+	lncluster "github.com/docker/docker/libnetwork/cluster"
 	swarmapi "github.com/docker/swarmkit/api"
 	swarmallocator "github.com/docker/swarmkit/manager/allocator/cnmallocator"
 	swarmnode "github.com/docker/swarmkit/node"

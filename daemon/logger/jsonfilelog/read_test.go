@@ -2,6 +2,7 @@ package jsonfilelog // import "github.com/docker/docker/daemon/logger/jsonfilelo
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"testing"
 	"time"
@@ -92,4 +93,62 @@ func TestEncodeDecode(t *testing.T) {
 
 	_, err = dec.Decode()
 	assert.Assert(t, err == io.EOF)
+}
+
+func TestUnexpectedEOF(t *testing.T) {
+	buf := bytes.NewBuffer(nil)
+	msg1 := &logger.Message{Timestamp: time.Now(), Line: []byte("hello1")}
+	msg2 := &logger.Message{Timestamp: time.Now(), Line: []byte("hello2")}
+
+	err := marshalMessage(msg1, json.RawMessage{}, buf)
+	assert.NilError(t, err)
+	err = marshalMessage(msg2, json.RawMessage{}, buf)
+	assert.NilError(t, err)
+
+	r := &readerWithErr{
+		err:   io.EOF,
+		after: buf.Len() / 4,
+		r:     buf,
+	}
+	dec := &decoder{rdr: r, maxRetry: 1}
+
+	_, err = dec.Decode()
+	assert.Error(t, err, io.ErrUnexpectedEOF.Error())
+	// again just to check
+	_, err = dec.Decode()
+	assert.Error(t, err, io.ErrUnexpectedEOF.Error())
+
+	// reset the error
+	// from here all reads should succeed until we get EOF on the underlying reader
+	r.err = nil
+
+	msg, err := dec.Decode()
+	assert.NilError(t, err)
+	assert.Equal(t, string(msg1.Line)+"\n", string(msg.Line))
+
+	msg, err = dec.Decode()
+	assert.NilError(t, err)
+	assert.Equal(t, string(msg2.Line)+"\n", string(msg.Line))
+
+	_, err = dec.Decode()
+	assert.Error(t, err, io.EOF.Error())
+}
+
+type readerWithErr struct {
+	err   error
+	after int
+	r     io.Reader
+	read  int
+}
+
+func (r *readerWithErr) Read(p []byte) (int, error) {
+	if r.err != nil && r.read > r.after {
+		return 0, r.err
+	}
+
+	n, err := r.r.Read(p[:1])
+	if n > 0 {
+		r.read += n
+	}
+	return n, err
 }

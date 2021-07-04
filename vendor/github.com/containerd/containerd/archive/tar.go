@@ -63,13 +63,34 @@ func Diff(ctx context.Context, a, b string) io.ReadCloser {
 }
 
 // WriteDiff writes a tar stream of the computed difference between the
-// provided directories.
+// provided paths.
 //
 // Produces a tar using OCI style file markers for deletions. Deleted
 // files will be prepended with the prefix ".wh.". This style is
 // based off AUFS whiteouts.
 // See https://github.com/opencontainers/image-spec/blob/master/layer.md
-func WriteDiff(ctx context.Context, w io.Writer, a, b string) error {
+func WriteDiff(ctx context.Context, w io.Writer, a, b string, opts ...WriteDiffOpt) error {
+	var options WriteDiffOptions
+	for _, opt := range opts {
+		if err := opt(&options); err != nil {
+			return errors.Wrap(err, "failed to apply option")
+		}
+	}
+	if options.writeDiffFunc == nil {
+		options.writeDiffFunc = writeDiffNaive
+	}
+
+	return options.writeDiffFunc(ctx, w, a, b, options)
+}
+
+// writeDiffNaive writes a tar stream of the computed difference between the
+// provided directories on disk.
+//
+// Produces a tar using OCI style file markers for deletions. Deleted
+// files will be prepended with the prefix ".wh.". This style is
+// based off AUFS whiteouts.
+// See https://github.com/opencontainers/image-spec/blob/master/layer.md
+func writeDiffNaive(ctx context.Context, w io.Writer, a, b string, _ WriteDiffOptions) error {
 	cw := newChangeWriter(w, b)
 	err := fs.Changes(ctx, a, b, cw.HandleChange)
 	if err != nil {
@@ -114,15 +135,17 @@ func Apply(ctx context.Context, root string, r io.Reader, opts ...ApplyOpt) (int
 		options.applyFunc = applyNaive
 	}
 
-	return options.applyFunc(ctx, root, tar.NewReader(r), options)
+	return options.applyFunc(ctx, root, r, options)
 }
 
 // applyNaive applies a tar stream of an OCI style diff tar to a directory
 // applying each file as either a whole file or whiteout.
 // See https://github.com/opencontainers/image-spec/blob/master/layer.md#applying-changesets
-func applyNaive(ctx context.Context, root string, tr *tar.Reader, options ApplyOptions) (size int64, err error) {
+func applyNaive(ctx context.Context, root string, r io.Reader, options ApplyOptions) (size int64, err error) {
 	var (
 		dirs []*tar.Header
+
+		tr = tar.NewReader(r)
 
 		// Used for handling opaque directory markers which
 		// may occur out of order

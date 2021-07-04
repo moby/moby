@@ -35,7 +35,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -129,18 +129,15 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		locker:    locker.New(),
 	}
 
-	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
-	if err != nil {
-		return nil, err
-	}
+	currentID := idtools.CurrentIdentity()
 	// Create the root aufs driver dir
-	if err := idtools.MkdirAllAndChown(root, 0700, idtools.Identity{UID: rootUID, GID: rootGID}); err != nil {
+	if err := idtools.MkdirAllAndChown(root, 0701, currentID); err != nil {
 		return nil, err
 	}
 
 	// Populate the dir structure
 	for _, p := range paths {
-		if err := idtools.MkdirAllAndChown(path.Join(root, p), 0700, idtools.Identity{UID: rootUID, GID: rootGID}); err != nil {
+		if err := idtools.MkdirAllAndChown(path.Join(root, p), 0701, currentID); err != nil {
 			return nil, err
 		}
 	}
@@ -177,7 +174,7 @@ func supportsAufs() error {
 	// proc/filesystems for when aufs is supported
 	exec.Command("modprobe", "aufs").Run()
 
-	if sys.RunningInUserNS() {
+	if userns.RunningInUserNS() {
 		return ErrAufsNested
 	}
 

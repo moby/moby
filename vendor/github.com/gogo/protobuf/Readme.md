@@ -1,6 +1,8 @@
+[GoGo Protobuf looking for new ownership](https://github.com/gogo/protobuf/issues/691)
+
 # Protocol Buffers for Go with Gadgets
 
-[![Build Status](https://travis-ci.org/gogo/protobuf.svg?branch=master)](https://travis-ci.org/gogo/protobuf)
+[![Build Status](https://github.com/gogo/protobuf/workflows/Continuous%20Integration/badge.svg)](https://github.com/gogo/protobuf/actions)
 [![GoDoc](https://godoc.org/github.com/gogo/protobuf?status.svg)](http://godoc.org/github.com/gogo/protobuf)
 
 gogoprotobuf is a fork of <a href="https://github.com/golang/protobuf">golang/protobuf</a> with extra code generation features.
@@ -90,10 +92,10 @@ After that you can choose:
 ### Installation
 
 To install it, you must first have Go (at least version 1.6.3 or 1.9 if you are using gRPC) installed (see [http://golang.org/doc/install](http://golang.org/doc/install)).
-Latest patch versions of 1.10 and 1.11 are continuously tested.
+Latest patch versions of 1.12 and 1.15 are continuously tested.
 
 Next, install the standard protocol buffer implementation from [https://github.com/google/protobuf](https://github.com/google/protobuf).
-Most versions from 2.3.1 should not give any problems, but 2.6.1, 3.0.2 and 3.6.1 are continuously tested.
+Most versions from 2.3.1 should not give any problems, but 2.6.1, 3.0.2 and 3.14.0 are continuously tested.
 
 ### Speed
 

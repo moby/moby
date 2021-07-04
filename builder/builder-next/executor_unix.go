@@ -3,15 +3,16 @@
 package buildkit
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
 
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/libnetwork"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 	"github.com/moby/buildkit/executor/runcexecutor"
@@ -24,12 +25,25 @@ import (
 
 const networkName = "bridge"
 
-func newExecutor(root, cgroupParent string, net libnetwork.NetworkController, dnsConfig *oci.DNSConfig, rootless bool, idmap *idtools.IdentityMapping) (executor.Executor, error) {
+func newExecutor(root, cgroupParent string, net libnetwork.NetworkController, dnsConfig *oci.DNSConfig, rootless bool, idmap *idtools.IdentityMapping, apparmorProfile string) (executor.Executor, error) {
+	netRoot := filepath.Join(root, "net")
 	networkProviders := map[pb.NetMode]network.Provider{
-		pb.NetMode_UNSET: &bridgeProvider{NetworkController: net, Root: filepath.Join(root, "net")},
+		pb.NetMode_UNSET: &bridgeProvider{NetworkController: net, Root: netRoot},
 		pb.NetMode_HOST:  network.NewHostProvider(),
 		pb.NetMode_NONE:  network.NewNoneProvider(),
 	}
+
+	// make sure net state directory is cleared from previous state
+	fis, err := ioutil.ReadDir(netRoot)
+	if err == nil {
+		for _, fi := range fis {
+			fp := filepath.Join(netRoot, fi.Name())
+			if err := os.RemoveAll(fp); err != nil {
+				logrus.WithError(err).Errorf("failed to delete old network state: %v", fp)
+			}
+		}
+	}
+
 	return runcexecutor.New(runcexecutor.Opt{
 		Root:                filepath.Join(root, "executor"),
 		CommandCandidates:   []string{"runc"},
@@ -38,6 +52,7 @@ func newExecutor(root, cgroupParent string, net libnetwork.NetworkController, dn
 		NoPivot:             os.Getenv("DOCKER_RAMDISK") != "",
 		IdentityMapping:     idmap,
 		DNS:                 dnsConfig,
+		ApparmorProfile:     apparmorProfile,
 	}, networkProviders)
 }
 
@@ -117,7 +132,10 @@ func (iface *lnInterface) Close() error {
 	if iface.sbx != nil {
 		go func() {
 			if err := iface.sbx.Delete(); err != nil {
-				logrus.Errorf("failed to delete builder network sandbox: %v", err)
+				logrus.WithError(err).Errorf("failed to delete builder network sandbox")
+			}
+			if err := os.RemoveAll(filepath.Join(iface.provider.Root, iface.sbx.ContainerID())); err != nil {
+				logrus.WithError(err).Errorf("failed to delete builder sandbox directory")
 			}
 		}()
 	}

@@ -159,9 +159,6 @@ func newBuilder(clientCtx context.Context, options builderOptions) (*Builder, er
 		if err != nil {
 			return nil, err
 		}
-		if err := system.ValidatePlatform(sp); err != nil {
-			return nil, err
-		}
 		b.platform = &sp
 	}
 
@@ -257,10 +254,10 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 		totalCommands += len(stage.Commands)
 	}
 	shlex := shell.NewLex(escapeToken)
-	for _, meta := range metaArgs {
-		currentCommandIndex = printCommand(b.Stdout, currentCommandIndex, totalCommands, &meta)
+	for i := range metaArgs {
+		currentCommandIndex = printCommand(b.Stdout, currentCommandIndex, totalCommands, &metaArgs[i])
 
-		err := processMetaArg(meta, shlex, buildArgs)
+		err := processMetaArg(metaArgs[i], shlex, buildArgs)
 		if err != nil {
 			return nil, err
 		}
@@ -268,7 +265,8 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 
 	stagesResults := newStagesBuildResults()
 
-	for _, stage := range parseResult {
+	for _, s := range parseResult {
+		stage := s
 		if err := stagesResults.checkStageNameAvailable(stage.Name); err != nil {
 			return nil, err
 		}

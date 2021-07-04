@@ -16,8 +16,8 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
+	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/libnetwork/portallocator"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -65,8 +65,8 @@ func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt,
 	opts := []supervisor.DaemonOpt{
 		supervisor.WithOOMScore(cli.Config.OOMScoreAdjust),
 		supervisor.WithPlugin("linux", &linux.Config{
-			Shim:        daemon.DefaultShimBinary,
-			Runtime:     daemon.DefaultRuntimeBinary,
+			Shim:        config.DefaultShimBinary,
+			Runtime:     config.DefaultRuntimeBinary,
 			RuntimeRoot: filepath.Join(cli.Config.Root, "runc"),
 			ShimDebug:   cli.Config.Debug,
 		}),

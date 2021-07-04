@@ -75,14 +75,18 @@ func NewDaemonCli() *DaemonCli {
 }
 
 func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
-	stopc := make(chan bool)
-	defer close(stopc)
-
 	opts.SetDefaultOptions(opts.flags)
 
 	if cli.Config, err = loadDaemonCliConfig(opts); err != nil {
 		return err
 	}
+
+	if opts.Validate {
+		// If config wasn't OK we wouldn't have made it this far.
+		fmt.Fprintln(os.Stderr, "configuration OK")
+		return nil
+	}
+
 	warnOnDeprecatedConfigOptions(cli.Config)
 
 	if err := configureDaemonLogs(cli.Config); err != nil {
@@ -116,8 +120,6 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	if runtime.GOOS == "linux" && os.Geteuid() != 0 {
 		return fmt.Errorf("dockerd needs to be started with root. To see how to run dockerd in rootless mode with unprivileged user, see the documentation")
 	}
-
-	system.InitLCOW(cli.Config.Experimental)
 
 	if err := setDefaultUmask(); err != nil {
 		return err
@@ -178,13 +180,16 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	}
 	defer cancel()
 
+	stopc := make(chan bool)
+	defer close(stopc)
+
 	signal.Trap(func() {
 		cli.stop()
 		<-stopc // wait for daemonCli.start() to return
 	}, logrus.StandardLogger())
 
 	// Notify that the API is active, but before daemon is set up.
-	preNotifySystem()
+	preNotifyReady()
 
 	pluginStore := plugin.NewStore()
 
@@ -242,13 +247,15 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	go cli.api.Wait(serveAPIWait)
 
 	// after the daemon is done setting up we can notify systemd api
-	notifySystem()
+	notifyReady()
 
 	// Daemon is fully initialized and handling API traffic
 	// Wait for serve API to complete
 	errAPI := <-serveAPIWait
 	c.Cleanup()
 
+	// notify systemd that we're shutting down
+	notifyStopping()
 	shutdownDaemon(d)
 
 	// Stop notification processing and any background processes
@@ -295,6 +302,7 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		Rootless:            d.Rootless(),
 		IdentityMapping:     d.IdentityMapping(),
 		DNSConfig:           config.DNSConfig,
+		ApparmorProfile:     daemon.DefaultApparmorProfile(),
 	})
 	if err != nil {
 		return opts, err

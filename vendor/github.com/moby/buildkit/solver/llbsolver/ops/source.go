@@ -12,32 +12,35 @@ import (
 	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
+	"golang.org/x/sync/semaphore"
 )
 
 const sourceCacheType = "buildkit.source.v0"
 
 type sourceOp struct {
-	mu       sync.Mutex
-	op       *pb.Op_Source
-	platform *pb.Platform
-	sm       *source.Manager
-	src      source.SourceInstance
-	sessM    *session.Manager
-	w        worker.Worker
-	vtx      solver.Vertex
+	mu          sync.Mutex
+	op          *pb.Op_Source
+	platform    *pb.Platform
+	sm          *source.Manager
+	src         source.SourceInstance
+	sessM       *session.Manager
+	w           worker.Worker
+	vtx         solver.Vertex
+	parallelism *semaphore.Weighted
 }
 
-func NewSourceOp(vtx solver.Vertex, op *pb.Op_Source, platform *pb.Platform, sm *source.Manager, sessM *session.Manager, w worker.Worker) (solver.Op, error) {
+func NewSourceOp(vtx solver.Vertex, op *pb.Op_Source, platform *pb.Platform, sm *source.Manager, parallelism *semaphore.Weighted, sessM *session.Manager, w worker.Worker) (solver.Op, error) {
 	if err := llbsolver.ValidateOp(&pb.Op{Op: op}); err != nil {
 		return nil, err
 	}
 	return &sourceOp{
-		op:       op,
-		sm:       sm,
-		w:        w,
-		sessM:    sessM,
-		platform: platform,
-		vtx:      vtx,
+		op:          op,
+		sm:          sm,
+		w:           w,
+		sessM:       sessM,
+		platform:    platform,
+		vtx:         vtx,
+		parallelism: parallelism,
 	}, nil
 }
 
@@ -92,4 +95,17 @@ func (s *sourceOp) Exec(ctx context.Context, g session.Group, _ []solver.Result)
 		return nil, err
 	}
 	return []solver.Result{worker.NewWorkerRefResult(ref, s.w)}, nil
+}
+
+func (s *sourceOp) Acquire(ctx context.Context) (solver.ReleaseFunc, error) {
+	if s.parallelism == nil {
+		return func() {}, nil
+	}
+	err := s.parallelism.Acquire(ctx, 1)
+	if err != nil {
+		return nil, err
+	}
+	return func() {
+		s.parallelism.Release(1)
+	}, nil
 }

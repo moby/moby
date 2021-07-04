@@ -217,6 +217,15 @@ func New(t testing.TB, ops ...Option) *Daemon {
 	return d
 }
 
+// BinaryPath returns the binary and its arguments.
+func (d *Daemon) BinaryPath() (string, error) {
+	dockerdBinary, err := exec.LookPath(d.dockerdBinary)
+	if err != nil {
+		return "", errors.Wrapf(err, "[%s] could not find docker binary in $PATH", d.id)
+	}
+	return dockerdBinary, nil
+}
+
 // ContainersNamespace returns the containerd namespace used for containers.
 func (d *Daemon) ContainersNamespace() string {
 	return d.id
@@ -288,6 +297,7 @@ func (d *Daemon) Cleanup(t testing.TB) {
 func (d *Daemon) Start(t testing.TB, args ...string) {
 	t.Helper()
 	if err := d.StartWithError(args...); err != nil {
+		d.DumpStackAndQuit() // in case the daemon is stuck
 		t.Fatalf("[%s] failed to start daemon with arguments %v : %v", d.id, d.args, err)
 	}
 }
@@ -306,9 +316,9 @@ func (d *Daemon) StartWithError(args ...string) error {
 // StartWithLogFile will start the daemon and attach its streams to a given file.
 func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	d.handleUserns()
-	dockerdBinary, err := exec.LookPath(d.dockerdBinary)
+	dockerdBinary, err := d.BinaryPath()
 	if err != nil {
-		return errors.Wrapf(err, "[%s] could not find docker binary in $PATH", d.id)
+		return err
 	}
 
 	if d.pidFile == "" {

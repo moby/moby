@@ -135,7 +135,7 @@ Read more on [How to Write a Git Commit Message][how-to-git-commit] or the Discu
 8. When possible, one keyword to scope the change in the subject (i.e. "README: ...", "runtime: ...")
 
 
-[charter]: https://www.opencontainers.org/about/governance
+[charter]: https://github.com/opencontainers/tob/blob/master/CHARTER.md
 [code-of-conduct]: https://github.com/opencontainers/org/blob/master/CODE_OF_CONDUCT.md
 [dev-list]: https://groups.google.com/a/opencontainers.org/forum/#!forum/dev
 [how-to-git-commit]: http://chris.beams.io/posts/git-commit

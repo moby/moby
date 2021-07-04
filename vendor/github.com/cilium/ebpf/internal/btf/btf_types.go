@@ -31,19 +31,23 @@ const (
 	kindDatasec
 )
 
+// btfFuncLinkage describes BTF function linkage metadata.
 type btfFuncLinkage uint8
 
+// Equivalent of enum btf_func_linkage.
 const (
 	linkageStatic btfFuncLinkage = iota
 	linkageGlobal
-	linkageExtern
+	// linkageExtern // Currently unused in libbpf.
 )
 
 const (
-	btfTypeKindShift = 24
-	btfTypeKindLen   = 4
-	btfTypeVlenShift = 0
-	btfTypeVlenMask  = 16
+	btfTypeKindShift     = 24
+	btfTypeKindLen       = 4
+	btfTypeVlenShift     = 0
+	btfTypeVlenMask      = 16
+	btfTypeKindFlagShift = 31
+	btfTypeKindFlagMask  = 1
 )
 
 // btfType is equivalent to struct btf_type in Documentation/bpf/btf.rst.
@@ -134,6 +138,10 @@ func (bt *btfType) Vlen() int {
 
 func (bt *btfType) SetVlen(vlen int) {
 	bt.setInfo(uint32(vlen), btfTypeVlenMask, btfTypeVlenShift)
+}
+
+func (bt *btfType) KindFlag() bool {
+	return bt.info(btfTypeKindFlagMask, btfTypeKindFlagShift) == 1
 }
 
 func (bt *btfType) Linkage() btfFuncLinkage {
@@ -256,4 +264,8 @@ func readTypes(r io.Reader, bo binary.ByteOrder) ([]rawType, error) {
 
 		types = append(types, rawType{header, data})
 	}
+}
+
+func intEncoding(raw uint32) (IntEncoding, uint32, byte) {
+	return IntEncoding((raw & 0x0f000000) >> 24), (raw & 0x00ff0000) >> 16, byte(raw & 0x000000ff)
 }

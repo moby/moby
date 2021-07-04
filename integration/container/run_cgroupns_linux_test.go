@@ -2,7 +2,6 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -11,19 +10,9 @@ import (
 	"github.com/docker/docker/integration/internal/requirement"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
-
-// Gets the value of the cgroup namespace for pid 1 of a container
-func containerCgroupNamespace(ctx context.Context, t *testing.T, client *client.Client, cID string) string {
-	res, err := container.Exec(ctx, client, cID, []string{"readlink", "/proc/1/ns/cgroup"})
-	assert.NilError(t, err)
-	assert.Assert(t, is.Len(res.Stderr(), 0))
-	assert.Equal(t, 0, res.ExitCode)
-	return strings.TrimSpace(res.Stdout())
-}
 
 // Bring up a daemon with the specified default cgroup namespace mode, and then create a container with the container options
 func testRunWithCgroupNs(t *testing.T, daemonNsMode string, containerOpts ...func(*container.TestContainerConfig)) (string, string) {
@@ -38,7 +27,7 @@ func testRunWithCgroupNs(t *testing.T, daemonNsMode string, containerOpts ...fun
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	daemonCgroup := d.CgroupNamespace(t)
-	containerCgroup := containerCgroupNamespace(ctx, t, client, cID)
+	containerCgroup := container.GetContainerNS(ctx, t, client, cID, "cgroup")
 	return containerCgroup, daemonCgroup
 }
 
@@ -130,7 +119,7 @@ func TestCgroupNamespacesRunInvalidMode(t *testing.T) {
 }
 
 // Clients before 1.40 expect containers to be created in the host cgroup namespace,
-// regardless of the default setting of the daemon
+// regardless of the default setting of the daemon, unless running with cgroup v2
 func TestCgroupNamespacesRunOlderClient(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
@@ -147,6 +136,10 @@ func TestCgroupNamespacesRunOlderClient(t *testing.T) {
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	daemonCgroup := d.CgroupNamespace(t)
-	containerCgroup := containerCgroupNamespace(ctx, t, client, cID)
-	assert.Assert(t, daemonCgroup == containerCgroup)
+	containerCgroup := container.GetContainerNS(ctx, t, client, cID, "cgroup")
+	if testEnv.DaemonInfo.CgroupVersion != "2" {
+		assert.Assert(t, daemonCgroup == containerCgroup)
+	} else {
+		assert.Assert(t, daemonCgroup != containerCgroup)
+	}
 }

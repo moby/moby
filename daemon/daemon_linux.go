@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/libnetwork/resolvconf"
+	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/pkg/errors"
@@ -44,7 +44,7 @@ func (daemon *Daemon) cleanupMountsFromReaderByID(reader io.Reader, id string, u
 	regexps := getCleanPatterns(id)
 	sc := bufio.NewScanner(reader)
 	for sc.Scan() {
-		if fields := strings.Fields(sc.Text()); len(fields) >= 4 {
+		if fields := strings.Fields(sc.Text()); len(fields) > 4 {
 			if mnt := fields[4]; strings.HasPrefix(mnt, daemon.root) {
 				for _, p := range regexps {
 					if p.MatchString(mnt) {

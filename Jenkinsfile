@@ -12,11 +12,14 @@ pipeline {
         booleanParam(name: 'validate_force', defaultValue: false, description: 'force validation steps to be run, even if no changes were detected')
         booleanParam(name: 'amd64', defaultValue: true, description: 'amd64 (x86_64) Build/Test')
         booleanParam(name: 'rootless', defaultValue: true, description: 'amd64 (x86_64) Build/Test (Rootless mode)')
+        booleanParam(name: 'cgroup2', defaultValue: true, description: 'amd64 (x86_64) Build/Test (cgroup v2)')
         booleanParam(name: 'arm64', defaultValue: true, description: 'ARM (arm64) Build/Test')
-        booleanParam(name: 's390x', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
-        booleanParam(name: 'ppc64le', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
+        booleanParam(name: 's390x', defaultValue: false, description: 'IBM Z (s390x) Build/Test')
+        booleanParam(name: 'ppc64le', defaultValue: false, description: 'PowerPC (ppc64le) Build/Test')
         booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
         booleanParam(name: 'windowsRS5', defaultValue: true, description: 'Windows 2019 (RS5) Build/Test')
+        booleanParam(name: 'windows2022', defaultValue: true, description: 'Windows 2022 (SAC) Build/Test')
+        booleanParam(name: 'windows2022containerd', defaultValue: true, description: 'Windows 2022 (SAC) with containerd Build/Test')
         booleanParam(name: 'dco', defaultValue: true, description: 'Run the DCO check')
     }
     environment {
@@ -24,7 +27,7 @@ pipeline {
         DOCKER_EXPERIMENTAL = '1'
         DOCKER_GRAPHDRIVER  = 'overlay2'
         APT_MIRROR          = 'cdn-fastly.deb.debian.org'
-        CHECK_CONFIG_COMMIT = '78405559cfe5987174aa2cb6463b9b2c1b917255'
+        CHECK_CONFIG_COMMIT = '2b0755b936416834e14208c6c37b36977e67ea35'
         TESTDEBUG           = '0'
         TIMEOUT             = '120m'
     }
@@ -85,7 +88,7 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
+                                sh 'docker build --force-rm --build-arg APT_MIRROR --build-arg CROSS=true -t docker:${GIT_COMMIT} .'
                             }
                         }
                         stage("Validate") {
@@ -119,7 +122,7 @@ pipeline {
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
-                                    dynbinary-daemon \
+                                    dynbinary \
                                     test-docker-py
                                 '''
                             }
@@ -158,7 +161,7 @@ pipeline {
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
-                                  hack/make.sh binary-daemon
+                                  hack/make.sh binary
                                 '''
                             }
                         }
@@ -178,6 +181,9 @@ pipeline {
                         // needs to be last stage that calls make.sh for the junit report to work
                         stage("Unit tests") {
                             steps {
+                                sh '''
+                                sudo modprobe ip6table_filter
+                                '''
                                 sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
@@ -317,7 +323,7 @@ pipeline {
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
-                                    dynbinary-daemon
+                                    dynbinary
 
                                 # flaky + integration
                                 TEST_INTEGRATION_DEST=1 CONTAINER_NAME=${CONTAINER_NAME}-1 TEST_SKIP_INTEGRATION_CLI=1 run_tests test-integration-flaky &
@@ -460,12 +466,99 @@ pipeline {
                     }
                 }
 
+                stage('cgroup2') {
+                    when {
+                        beforeAgent true
+                        expression { params.cgroup2 }
+                    }
+                    agent { label 'amd64 && ubuntu-2004 && cgroup2' }
+                    stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                            }
+                        }
+                        stage("Build dev image") {
+                            steps {
+                                sh '''
+                                docker build --force-rm --build-arg APT_MIRROR --build-arg SYSTEMD=true -t docker:${GIT_COMMIT} .
+                                '''
+                            }
+                        }
+                        stage("Integration tests") {
+                            environment {
+                                DOCKER_SYSTEMD = '1' // recommended cgroup driver for v2
+                                TEST_SKIP_INTEGRATION_CLI = '1' // CLI tests do not support v2
+                            }
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  -e DOCKER_EXPERIMENTAL \
+                                  -e DOCKER_SYSTEMD \
+                                  -e TEST_SKIP_INTEGRATION_CLI \
+                                  -e TIMEOUT \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh \
+                                    dynbinary \
+                                    test-integration
+                                '''
+                            }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                                }
+                            }
+                        }
+                    }
+
+                    post {
+                        always {
+                            sh '''
+                            echo "Ensuring container killed."
+                            docker rm -vf docker-pr$BUILD_NUMBER || true
+                            '''
+
+                            sh '''
+                            echo "Chowning /workspace to jenkins user"
+                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
+                            '''
+
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                sh '''
+                                bundleName=amd64-cgroup2
+                                echo "Creating ${bundleName}-bundles.tar.gz"
+                                # exclude overlay2 directories
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                '''
+
+                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
+                            }
+                        }
+                        cleanup {
+                            sh 'make clean'
+                            deleteDir()
+                        }
+                    }
+                }
+
+
                 stage('s390x') {
                     when {
                         beforeAgent true
-                        expression { params.s390x }
+                        // Skip this stage on PRs unless the checkbox is selected
+                        anyOf {
+                            not { changeRequest() }
+                            expression { params.s390x }
+                        }
                     }
-                    agent { label 's390x-ubuntu-1804' }
+                    agent { label 's390x-ubuntu-2004' }
 
                     stages {
                         stage("Print info") {
@@ -488,6 +581,9 @@ pipeline {
                         }
                         stage("Unit tests") {
                             steps {
+                                sh '''
+                                sudo modprobe ip6table_filter
+                                '''
                                 sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
@@ -571,7 +667,7 @@ pipeline {
                         not { changeRequest() }
                         expression { params.s390x }
                     }
-                    agent { label 's390x-ubuntu-1804' }
+                    agent { label 's390x-ubuntu-2004' }
 
                     stages {
                         stage("Print info") {
@@ -651,7 +747,11 @@ pipeline {
                 stage('ppc64le') {
                     when {
                         beforeAgent true
-                        expression { params.ppc64le }
+                        // Skip this stage on PRs unless the checkbox is selected
+                        anyOf {
+                            not { changeRequest() }
+                            expression { params.ppc64le }
+                        }
                     }
                     agent { label 'ppc64le-ubuntu-1604' }
                     // ppc64le machines run on Docker 18.06, and buildkit has some
@@ -683,6 +783,9 @@ pipeline {
                         }
                         stage("Unit tests") {
                             steps {
+                                sh '''
+                                sudo modprobe ip6table_filter
+                                '''
                                 sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
@@ -855,7 +958,7 @@ pipeline {
                         beforeAgent true
                         expression { params.arm64 }
                     }
-                    agent { label 'arm64 && linux' }
+                    agent { label 'arm64 && ubuntu-2004' }
                     environment {
                         TEST_SKIP_INTEGRATION_CLI = '1'
                     }
@@ -879,6 +982,9 @@ pipeline {
                         }
                         stage("Unit tests") {
                             steps {
+                                sh '''
+                                sudo modprobe ip6table_filter
+                                '''
                                 sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
@@ -1070,6 +1176,134 @@ pipeline {
                                 powershell '''
                                 cd $env:WORKSPACE
                                 $bundleName="windowsRS5-integration"
+                                Write-Host -ForegroundColor Green "Creating ${bundleName}-bundles.zip"
+
+                                # archiveArtifacts does not support env-vars to , so save the artifacts in a fixed location
+                                Compress-Archive -Path "bundles/CIDUT.out", "bundles/CIDUT.err", "bundles/junit-report-*.xml" -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
+                                '''
+
+                                archiveArtifacts artifacts: '*-bundles.zip', allowEmptyArchive: true
+                            }
+                        }
+                        cleanup {
+                            sh 'make clean'
+                            deleteDir()
+                        }
+                    }
+                }
+                stage('win-2022') {
+                    when {
+                        beforeAgent true
+                        expression { params.windows2022 }
+                    }
+                    environment {
+                        DOCKER_BUILDKIT        = '0'
+                        DOCKER_DUT_DEBUG       = '1'
+                        SKIP_VALIDATION_TESTS  = '1'
+                        SOURCES_DRIVE          = 'd'
+                        SOURCES_SUBDIR         = 'gopath'
+                        TESTRUN_DRIVE          = 'd'
+                        TESTRUN_SUBDIR         = "CI"
+                        // TODO switch to mcr.microsoft.com/windows/servercore:2022 once published
+                        WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore/insider'
+                        WINDOWS_BASE_IMAGE_TAG = '10.0.20295.1'
+                    }
+                    agent {
+                        node {
+                            customWorkspace 'd:\\gopath\\src\\github.com\\docker\\docker'
+                            label 'windows-2022'
+                        }
+                    }
+                    stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                            }
+                        }
+                        stage("Run tests") {
+                            steps {
+                                powershell '''
+                                $ErrorActionPreference = 'Stop'
+                                Invoke-WebRequest https://github.com/moby/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
+                                ./hack/ci/windows.ps1
+                                exit $LastExitCode
+                                '''
+                            }
+                        }
+                    }
+                    post {
+                        always {
+                            junit testResults: 'bundles/junit-report-*.xml', allowEmptyResults: true
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.zip') {
+                                powershell '''
+                                cd $env:WORKSPACE
+                                $bundleName="win-2022-integration"
+                                Write-Host -ForegroundColor Green "Creating ${bundleName}-bundles.zip"
+
+                                # archiveArtifacts does not support env-vars to , so save the artifacts in a fixed location
+                                Compress-Archive -Path "bundles/CIDUT.out", "bundles/CIDUT.err", "bundles/junit-report-*.xml" -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
+                                '''
+
+                                archiveArtifacts artifacts: '*-bundles.zip', allowEmptyArchive: true
+                            }
+                        }
+                        cleanup {
+                            sh 'make clean'
+                            deleteDir()
+                        }
+                    }
+                }
+                stage('win-2022-c8d') {
+                    when {
+                        beforeAgent true
+                        expression { params.windows2022containerd }
+                    }
+                    environment {
+                        DOCKER_BUILDKIT        = '0'
+                        DOCKER_DUT_DEBUG       = '1'
+                        SKIP_VALIDATION_TESTS  = '1'
+                        SOURCES_DRIVE          = 'd'
+                        SOURCES_SUBDIR         = 'gopath'
+                        TESTRUN_DRIVE          = 'd'
+                        TESTRUN_SUBDIR         = "CI"
+                        // TODO switch to mcr.microsoft.com/windows/servercore:2022 once published
+                        WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore/insider'
+                        // Available tags can be found at https://mcr.microsoft.com/v2/windows/servercore/insider/tags/list
+                        WINDOWS_BASE_IMAGE_TAG = '10.0.20295.1'
+                        DOCKER_WINDOWS_CONTAINERD_RUNTIME = '1'
+                    }
+                    agent {
+                        node {
+                            customWorkspace 'd:\\gopath\\src\\github.com\\docker\\docker'
+                            label 'windows-2022'
+                        }
+                    }
+                    stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                            }
+                        }
+                        stage("Run tests") {
+                            steps {
+                                powershell '''
+                                $ErrorActionPreference = 'Stop'
+                                Invoke-WebRequest https://github.com/moby/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
+                                ./hack/ci/windows.ps1
+                                exit $LastExitCode
+                                '''
+                            }
+                        }
+                    }
+                    post {
+                        always {
+                            junit testResults: 'bundles/junit-report-*.xml', allowEmptyResults: true
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.zip') {
+                                powershell '''
+                                cd $env:WORKSPACE
+                                $bundleName="win-2022-c8d-integration"
                                 Write-Host -ForegroundColor Green "Creating ${bundleName}-bundles.zip"
 
                                 # archiveArtifacts does not support env-vars to , so save the artifacts in a fixed location

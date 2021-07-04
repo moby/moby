@@ -8,7 +8,12 @@ import (
 	"github.com/moby/buildkit/solver"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
+
+// EmptyLayerRemovalSupported defines if implementation supports removal of empty layers. Buildkit image exporter
+// removes empty layers, but moby layerstore based implementation does not.
+var EmptyLayerRemovalSupported = true
 
 // sortConfig sorts the config structure to make sure it is deterministic
 func sortConfig(cc *CacheConfig) {
@@ -126,6 +131,53 @@ type normalizeState struct {
 	next  int
 }
 
+func (s *normalizeState) removeLoops() {
+	roots := []digest.Digest{}
+	for dgst, it := range s.byKey {
+		if len(it.links) == 0 {
+			roots = append(roots, dgst)
+		}
+	}
+
+	visited := map[digest.Digest]struct{}{}
+
+	for _, d := range roots {
+		s.checkLoops(d, visited)
+	}
+}
+
+func (s *normalizeState) checkLoops(d digest.Digest, visited map[digest.Digest]struct{}) {
+	it, ok := s.byKey[d]
+	if !ok {
+		return
+	}
+	links, ok := s.links[it]
+	if !ok {
+		return
+	}
+	visited[d] = struct{}{}
+	defer func() {
+		delete(visited, d)
+	}()
+
+	for l, ids := range links {
+		for id := range ids {
+			if _, ok := visited[id]; ok {
+				it2, ok := s.byKey[id]
+				if !ok {
+					continue
+				}
+				if !it2.removeLink(it) {
+					logrus.Warnf("failed to remove looping cache key %s %s", d, id)
+				}
+				delete(links[l], id)
+			} else {
+				s.checkLoops(id, visited)
+			}
+		}
+	}
+}
+
 func normalizeItem(it *item, state *normalizeState) (*item, error) {
 	if it2, ok := state.added[it]; ok {
 		return it2, nil
@@ -239,7 +291,7 @@ func marshalRemote(r *solver.Remote, state *marshalState) string {
 	}
 	desc := r.Descriptors[len(r.Descriptors)-1]
 
-	if desc.Digest == exptypes.EmptyGZLayer {
+	if desc.Digest == exptypes.EmptyGZLayer && EmptyLayerRemovalSupported {
 		return parentID
 	}
 

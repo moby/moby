@@ -5,8 +5,8 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"fmt"
 
+	"github.com/containerd/containerd/pkg/apparmor"
 	aaprofile "github.com/docker/docker/profiles/apparmor"
-	"github.com/opencontainers/runc/libcontainer/apparmor"
 )
 
 // Define constants for native driver
@@ -15,8 +15,16 @@ const (
 	defaultAppArmorProfile    = "docker-default"
 )
 
+// DefaultApparmorProfile returns the name of the default apparmor profile
+func DefaultApparmorProfile() string {
+	if apparmor.HostSupports() {
+		return defaultAppArmorProfile
+	}
+	return ""
+}
+
 func ensureDefaultAppArmorProfile() error {
-	if apparmor.IsEnabled() {
+	if apparmor.HostSupports() {
 		loaded, err := aaprofile.IsLoaded(defaultAppArmorProfile)
 		if err != nil {
 			return fmt.Errorf("Could not check if %s AppArmor profile was loaded: %s", defaultAppArmorProfile, err)

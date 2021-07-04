@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	containerConfigMountPath         = `C:\`
 	containerSecretMountPath         = `C:\ProgramData\Docker\secrets`
 	containerInternalSecretMountPath = `C:\ProgramData\Docker\internal\secrets`
 	containerInternalConfigsDirPath  = `C:\ProgramData\Docker\internal\configs`
@@ -87,7 +88,7 @@ func (container *Container) CreateConfigSymlinks() error {
 		if configRef.File == nil {
 			continue
 		}
-		resolvedPath, _, err := container.ResolvePath(configRef.File.Name)
+		resolvedPath, _, err := container.ResolvePath(getConfigTargetPath(configRef))
 		if err != nil {
 			return err
 		}

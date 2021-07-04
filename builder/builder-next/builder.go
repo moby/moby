@@ -17,10 +17,9 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/pkg/system"
-	"github.com/docker/libnetwork"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/control"
@@ -75,6 +74,7 @@ type Opt struct {
 	Rootless            bool
 	IdentityMapping     *idtools.IdentityMapping
 	DNSConfig           config.DNSConfig
+	ApparmorProfile     string
 }
 
 // Builder can build using BuildKit backend
@@ -298,11 +298,8 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 	if opt.Options.Platform != "" {
 		// same as in newBuilder in builder/dockerfile.builder.go
 		// TODO: remove once opt.Options.Platform is of type specs.Platform
-		sp, err := platforms.Parse(opt.Options.Platform)
+		_, err := platforms.Parse(opt.Options.Platform)
 		if err != nil {
-			return nil, err
-		}
-		if err := system.ValidatePlatform(sp); err != nil {
 			return nil, err
 		}
 		frontendAttrs["platform"] = opt.Options.Platform

@@ -17,7 +17,10 @@
 package docker
 
 import (
+	"net"
 	"net/http"
+
+	"github.com/pkg/errors"
 )
 
 // HostCapabilities represent the capabilities of the registry
@@ -56,6 +59,7 @@ const (
 	// Reserved for future capabilities (i.e. search, catalog, remove)
 )
 
+// Has checks whether the capabilities list has the provide capability
 func (c HostCapabilities) Has(t HostCapabilities) bool {
 	return c&t == t
 }
@@ -201,12 +205,41 @@ func MatchAllHosts(string) (bool, error) {
 
 // MatchLocalhost is a host match function which returns true for
 // localhost.
+//
+// Note: this does not handle matching of ip addresses in octal,
+// decimal or hex form.
 func MatchLocalhost(host string) (bool, error) {
-	for _, s := range []string{"localhost", "127.0.0.1", "[::1]"} {
-		if len(host) >= len(s) && host[0:len(s)] == s && (len(host) == len(s) || host[len(s)] == ':') {
-			return true, nil
-		}
+	switch {
+	case host == "::1":
+		return true, nil
+	case host == "[::1]":
+		return true, nil
 	}
-	return host == "::1", nil
+	h, p, err := net.SplitHostPort(host)
 
+	// addrError helps distinguish between errors of form
+	// "no colon in address" and "too many colons in address".
+	// The former is fine as the host string need not have a
+	// port. Latter needs to be handled.
+	addrError := &net.AddrError{
+		Err:  "missing port in address",
+		Addr: host,
+	}
+	if err != nil {
+		if err.Error() != addrError.Error() {
+			return false, err
+		}
+		// host string without any port specified
+		h = host
+	} else if len(p) == 0 {
+		return false, errors.New("invalid host name format")
+	}
+
+	// use ipv4 dotted decimal for further checking
+	if h == "localhost" {
+		h = "127.0.0.1"
+	}
+	ip := net.ParseIP(h)
+
+	return ip.IsLoopback(), nil
 }

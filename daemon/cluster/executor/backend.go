@@ -17,11 +17,11 @@ import (
 	containerpkg "github.com/docker/docker/container"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	networkSettings "github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/libnetwork"
+	"github.com/docker/docker/libnetwork/cluster"
+	networktypes "github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/plugin"
 	volumeopts "github.com/docker/docker/volume/service/opts"
-	"github.com/docker/libnetwork"
-	"github.com/docker/libnetwork/cluster"
-	networktypes "github.com/docker/libnetwork/types"
 	"github.com/docker/swarmkit/agent/exec"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -72,6 +72,6 @@ type VolumeBackend interface {
 // ImageBackend is used by an executor to perform image operations
 type ImageBackend interface {
 	PullImage(ctx context.Context, image, tag string, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
-	GetRepository(context.Context, reference.Named, *types.AuthConfig) (distribution.Repository, bool, error)
+	GetRepository(context.Context, reference.Named, *types.AuthConfig) (distribution.Repository, error)
 	LookupImage(name string) (*types.ImageInspect, error)
 }

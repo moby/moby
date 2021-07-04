@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
 	metrics "github.com/docker/go-metrics"
+	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/sirupsen/logrus"
 )
 
@@ -142,24 +143,13 @@ func (daemon *Daemon) fillClusterInfo(v *types.Info) {
 }
 
 func (daemon *Daemon) fillDriverInfo(v *types.Info) {
-	var ds [][2]string
-	drivers := ""
-	statuses := daemon.imageService.LayerStoreStatus()
-	for os, gd := range daemon.graphDrivers {
-		ds = append(ds, statuses[os]...)
-		drivers += gd
-		if len(daemon.graphDrivers) > 1 {
-			drivers += fmt.Sprintf(" (%s) ", os)
-		}
-		switch gd {
-		case "aufs", "devicemapper", "overlay":
-			v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: the %s storage-driver is deprecated, and will be removed in a future release.", gd))
-		}
+	switch daemon.graphDriver {
+	case "aufs", "devicemapper", "overlay":
+		v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: the %s storage-driver is deprecated, and will be removed in a future release.", daemon.graphDriver))
 	}
-	drivers = strings.TrimSpace(drivers)
 
-	v.Driver = drivers
-	v.DriverStatus = ds
+	v.Driver = daemon.graphDriver
+	v.DriverStatus = daemon.imageService.LayerStoreStatus()
 
 	fillDriverWarnings(v)
 }
@@ -188,7 +178,7 @@ func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInf
 		}
 		securityOptions = append(securityOptions, fmt.Sprintf("name=seccomp,profile=%s", profile))
 	}
-	if selinuxEnabled() {
+	if selinux.GetEnabled() {
 		securityOptions = append(securityOptions, "name=selinux")
 	}
 	if rootIDs := daemon.idMapping.RootPair(); rootIDs.UID != 0 || rootIDs.GID != 0 {
@@ -208,7 +198,7 @@ func (daemon *Daemon) fillAPIInfo(v *types.Info) {
 	const warn string = `
          Access to the remote API is equivalent to root access on the host. Refer
          to the 'Docker daemon attack surface' section in the documentation for
-         more information: https://docs.docker.com/engine/security/security/#docker-daemon-attack-surface`
+         more information: https://docs.docker.com/go/attack-surface/`
 
 	cfg := daemon.configStore
 	for _, host := range cfg.Hosts {

@@ -17,6 +17,7 @@ import (
 	status "google.golang.org/grpc/status"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
 	rafttime "time"
@@ -31,7 +32,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // StoreActionKind defines the operation to take on the store for the target of
 // a storage action.
@@ -91,7 +92,7 @@ func (m *RaftMember) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_RaftMember.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -128,7 +129,7 @@ func (m *JoinRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) 
 		return xxx_messageInfo_JoinRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -170,7 +171,7 @@ func (m *JoinResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_JoinResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -206,7 +207,7 @@ func (m *LeaveRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_LeaveRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -241,7 +242,7 @@ func (m *LeaveResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error
 		return xxx_messageInfo_LeaveResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -277,7 +278,7 @@ func (m *ProcessRaftMessageRequest) XXX_Marshal(b []byte, deterministic bool) ([
 		return xxx_messageInfo_ProcessRaftMessageRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -312,7 +313,7 @@ func (m *ProcessRaftMessageResponse) XXX_Marshal(b []byte, deterministic bool) (
 		return xxx_messageInfo_ProcessRaftMessageResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -349,7 +350,7 @@ func (m *StreamRaftMessageRequest) XXX_Marshal(b []byte, deterministic bool) ([]
 		return xxx_messageInfo_StreamRaftMessageRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -385,7 +386,7 @@ func (m *StreamRaftMessageResponse) XXX_Marshal(b []byte, deterministic bool) ([
 		return xxx_messageInfo_StreamRaftMessageResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -422,7 +423,7 @@ func (m *ResolveAddressRequest) XXX_Marshal(b []byte, deterministic bool) ([]byt
 		return xxx_messageInfo_ResolveAddressRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -459,7 +460,7 @@ func (m *ResolveAddressResponse) XXX_Marshal(b []byte, deterministic bool) ([]by
 		return xxx_messageInfo_ResolveAddressResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -499,7 +500,7 @@ func (m *InternalRaftRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte,
 		return xxx_messageInfo_InternalRaftRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -547,7 +548,7 @@ func (m *StoreAction) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) 
 		return xxx_messageInfo_StoreAction.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -573,31 +574,31 @@ type isStoreAction_Target interface {
 }
 
 type StoreAction_Node struct {
-	Node *Node `protobuf:"bytes,2,opt,name=node,proto3,oneof"`
+	Node *Node `protobuf:"bytes,2,opt,name=node,proto3,oneof" json:"node,omitempty"`
 }
 type StoreAction_Service struct {
-	Service *Service `protobuf:"bytes,3,opt,name=service,proto3,oneof"`
+	Service *Service `protobuf:"bytes,3,opt,name=service,proto3,oneof" json:"service,omitempty"`
 }
 type StoreAction_Task struct {
-	Task *Task `protobuf:"bytes,4,opt,name=task,proto3,oneof"`
+	Task *Task `protobuf:"bytes,4,opt,name=task,proto3,oneof" json:"task,omitempty"`
 }
 type StoreAction_Network struct {
-	Network *Network `protobuf:"bytes,5,opt,name=network,proto3,oneof"`
+	Network *Network `protobuf:"bytes,5,opt,name=network,proto3,oneof" json:"network,omitempty"`
 }
 type StoreAction_Cluster struct {
-	Cluster *Cluster `protobuf:"bytes,6,opt,name=cluster,proto3,oneof"`
+	Cluster *Cluster `protobuf:"bytes,6,opt,name=cluster,proto3,oneof" json:"cluster,omitempty"`
 }
 type StoreAction_Secret struct {
-	Secret *Secret `protobuf:"bytes,7,opt,name=secret,proto3,oneof"`
+	Secret *Secret `protobuf:"bytes,7,opt,name=secret,proto3,oneof" json:"secret,omitempty"`
 }
 type StoreAction_Resource struct {
-	Resource *Resource `protobuf:"bytes,8,opt,name=resource,proto3,oneof"`
+	Resource *Resource `protobuf:"bytes,8,opt,name=resource,proto3,oneof" json:"resource,omitempty"`
 }
 type StoreAction_Extension struct {
-	Extension *Extension `protobuf:"bytes,9,opt,name=extension,proto3,oneof"`
+	Extension *Extension `protobuf:"bytes,9,opt,name=extension,proto3,oneof" json:"extension,omitempty"`
 }
 type StoreAction_Config struct {
-	Config *Config `protobuf:"bytes,10,opt,name=config,proto3,oneof"`
+	Config *Config `protobuf:"bytes,10,opt,name=config,proto3,oneof" json:"config,omitempty"`
 }
 
 func (*StoreAction_Node) isStoreAction_Target()      {}
@@ -680,9 +681,9 @@ func (m *StoreAction) GetConfig() *Config {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*StoreAction) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _StoreAction_OneofMarshaler, _StoreAction_OneofUnmarshaler, _StoreAction_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*StoreAction) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*StoreAction_Node)(nil),
 		(*StoreAction_Service)(nil),
 		(*StoreAction_Task)(nil),
@@ -693,198 +694,6 @@ func (*StoreAction) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) e
 		(*StoreAction_Extension)(nil),
 		(*StoreAction_Config)(nil),
 	}
-}
-
-func _StoreAction_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*StoreAction)
-	// target
-	switch x := m.Target.(type) {
-	case *StoreAction_Node:
-		_ = b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Node); err != nil {
-			return err
-		}
-	case *StoreAction_Service:
-		_ = b.EncodeVarint(3<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Service); err != nil {
-			return err
-		}
-	case *StoreAction_Task:
-		_ = b.EncodeVarint(4<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Task); err != nil {
-			return err
-		}
-	case *StoreAction_Network:
-		_ = b.EncodeVarint(5<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Network); err != nil {
-			return err
-		}
-	case *StoreAction_Cluster:
-		_ = b.EncodeVarint(6<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Cluster); err != nil {
-			return err
-		}
-	case *StoreAction_Secret:
-		_ = b.EncodeVarint(7<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Secret); err != nil {
-			return err
-		}
-	case *StoreAction_Resource:
-		_ = b.EncodeVarint(8<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Resource); err != nil {
-			return err
-		}
-	case *StoreAction_Extension:
-		_ = b.EncodeVarint(9<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Extension); err != nil {
-			return err
-		}
-	case *StoreAction_Config:
-		_ = b.EncodeVarint(10<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Config); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("StoreAction.Target has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _StoreAction_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*StoreAction)
-	switch tag {
-	case 2: // target.node
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Node)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Node{msg}
-		return true, err
-	case 3: // target.service
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Service)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Service{msg}
-		return true, err
-	case 4: // target.task
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Task)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Task{msg}
-		return true, err
-	case 5: // target.network
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Network)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Network{msg}
-		return true, err
-	case 6: // target.cluster
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Cluster)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Cluster{msg}
-		return true, err
-	case 7: // target.secret
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Secret)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Secret{msg}
-		return true, err
-	case 8: // target.resource
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Resource)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Resource{msg}
-		return true, err
-	case 9: // target.extension
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Extension)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Extension{msg}
-		return true, err
-	case 10: // target.config
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Config)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Config{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _StoreAction_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*StoreAction)
-	// target
-	switch x := m.Target.(type) {
-	case *StoreAction_Node:
-		s := proto.Size(x.Node)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StoreAction_Service:
-		s := proto.Size(x.Service)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StoreAction_Task:
-		s := proto.Size(x.Task)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StoreAction_Network:
-		s := proto.Size(x.Network)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StoreAction_Cluster:
-		s := proto.Size(x.Cluster)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StoreAction_Secret:
-		s := proto.Size(x.Secret)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StoreAction_Resource:
-		s := proto.Size(x.Resource)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StoreAction_Extension:
-		s := proto.Size(x.Extension)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StoreAction_Config:
-		s := proto.Size(x.Config)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 func init() {
@@ -1375,6 +1184,20 @@ type RaftServer interface {
 	ResolveAddress(context.Context, *ResolveAddressRequest) (*ResolveAddressResponse, error)
 }
 
+// UnimplementedRaftServer can be embedded to have forward compatible implementations.
+type UnimplementedRaftServer struct {
+}
+
+func (*UnimplementedRaftServer) ProcessRaftMessage(ctx context.Context, req *ProcessRaftMessageRequest) (*ProcessRaftMessageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ProcessRaftMessage not implemented")
+}
+func (*UnimplementedRaftServer) StreamRaftMessage(srv Raft_StreamRaftMessageServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamRaftMessage not implemented")
+}
+func (*UnimplementedRaftServer) ResolveAddress(ctx context.Context, req *ResolveAddressRequest) (*ResolveAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResolveAddress not implemented")
+}
+
 func RegisterRaftServer(s *grpc.Server, srv RaftServer) {
 	s.RegisterService(&_Raft_serviceDesc, srv)
 }
@@ -1508,6 +1331,17 @@ type RaftMembershipServer interface {
 	Leave(context.Context, *LeaveRequest) (*LeaveResponse, error)
 }
 
+// UnimplementedRaftMembershipServer can be embedded to have forward compatible implementations.
+type UnimplementedRaftMembershipServer struct {
+}
+
+func (*UnimplementedRaftMembershipServer) Join(ctx context.Context, req *JoinRequest) (*JoinResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Join not implemented")
+}
+func (*UnimplementedRaftMembershipServer) Leave(ctx context.Context, req *LeaveRequest) (*LeaveResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Leave not implemented")
+}
+
 func RegisterRaftMembershipServer(s *grpc.Server, srv RaftMembershipServer) {
 	s.RegisterService(&_RaftMembership_serviceDesc, srv)
 }
@@ -1568,7 +1402,7 @@ var _RaftMembership_serviceDesc = grpc.ServiceDesc{
 func (m *RaftMember) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1576,42 +1410,51 @@ func (m *RaftMember) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *RaftMember) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *RaftMember) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.RaftID != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.RaftID))
+	{
+		size, err := m.Status.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintRaft(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x22
+	if len(m.Addr) > 0 {
+		i -= len(m.Addr)
+		copy(dAtA[i:], m.Addr)
+		i = encodeVarintRaft(dAtA, i, uint64(len(m.Addr)))
+		i--
+		dAtA[i] = 0x1a
 	}
 	if len(m.NodeID) > 0 {
-		dAtA[i] = 0x12
-		i++
+		i -= len(m.NodeID)
+		copy(dAtA[i:], m.NodeID)
 		i = encodeVarintRaft(dAtA, i, uint64(len(m.NodeID)))
-		i += copy(dAtA[i:], m.NodeID)
+		i--
+		dAtA[i] = 0x12
 	}
-	if len(m.Addr) > 0 {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(len(m.Addr)))
-		i += copy(dAtA[i:], m.Addr)
+	if m.RaftID != 0 {
+		i = encodeVarintRaft(dAtA, i, uint64(m.RaftID))
+		i--
+		dAtA[i] = 0x8
 	}
-	dAtA[i] = 0x22
-	i++
-	i = encodeVarintRaft(dAtA, i, uint64(m.Status.Size()))
-	n1, err := m.Status.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n1
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *JoinRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1619,23 +1462,29 @@ func (m *JoinRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *JoinRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *JoinRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.Addr) > 0 {
-		dAtA[i] = 0xa
-		i++
+		i -= len(m.Addr)
+		copy(dAtA[i:], m.Addr)
 		i = encodeVarintRaft(dAtA, i, uint64(len(m.Addr)))
-		i += copy(dAtA[i:], m.Addr)
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *JoinResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1643,41 +1492,48 @@ func (m *JoinResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *JoinResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *JoinResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.RaftID != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.RaftID))
+	if len(m.RemovedMembers) > 0 {
+		for iNdEx := len(m.RemovedMembers) - 1; iNdEx >= 0; iNdEx-- {
+			i = encodeVarintRaft(dAtA, i, uint64(m.RemovedMembers[iNdEx]))
+			i--
+			dAtA[i] = 0x18
+		}
 	}
 	if len(m.Members) > 0 {
-		for _, msg := range m.Members {
-			dAtA[i] = 0x12
-			i++
-			i = encodeVarintRaft(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Members) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Members[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintRaft(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0x12
 		}
 	}
-	if len(m.RemovedMembers) > 0 {
-		for _, num := range m.RemovedMembers {
-			dAtA[i] = 0x18
-			i++
-			i = encodeVarintRaft(dAtA, i, uint64(num))
-		}
+	if m.RaftID != 0 {
+		i = encodeVarintRaft(dAtA, i, uint64(m.RaftID))
+		i--
+		dAtA[i] = 0x8
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *LeaveRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1685,27 +1541,34 @@ func (m *LeaveRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *LeaveRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *LeaveRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.Node != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Node.Size()))
-		n2, err := m.Node.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Node.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n2
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *LeaveResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1713,17 +1576,22 @@ func (m *LeaveResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *LeaveResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *LeaveResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *ProcessRaftMessageRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1731,27 +1599,34 @@ func (m *ProcessRaftMessageRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *ProcessRaftMessageRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ProcessRaftMessageRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.Message != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Message.Size()))
-		n3, err := m.Message.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Message.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n3
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *ProcessRaftMessageResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1759,17 +1634,22 @@ func (m *ProcessRaftMessageResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *ProcessRaftMessageResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ProcessRaftMessageResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *StreamRaftMessageRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1777,27 +1657,34 @@ func (m *StreamRaftMessageRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *StreamRaftMessageRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StreamRaftMessageRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.Message != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Message.Size()))
-		n4, err := m.Message.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Message.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n4
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *StreamRaftMessageResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1805,17 +1692,22 @@ func (m *StreamRaftMessageResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *StreamRaftMessageResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StreamRaftMessageResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *ResolveAddressRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1823,22 +1715,27 @@ func (m *ResolveAddressRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *ResolveAddressRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ResolveAddressRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.RaftID != 0 {
-		dAtA[i] = 0x8
-		i++
 		i = encodeVarintRaft(dAtA, i, uint64(m.RaftID))
+		i--
+		dAtA[i] = 0x8
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *ResolveAddressResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1846,23 +1743,29 @@ func (m *ResolveAddressResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *ResolveAddressResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ResolveAddressResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.Addr) > 0 {
-		dAtA[i] = 0xa
-		i++
+		i -= len(m.Addr)
+		copy(dAtA[i:], m.Addr)
 		i = encodeVarintRaft(dAtA, i, uint64(len(m.Addr)))
-		i += copy(dAtA[i:], m.Addr)
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *InternalRaftRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1870,34 +1773,41 @@ func (m *InternalRaftRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *InternalRaftRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *InternalRaftRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.ID != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.ID))
-	}
 	if len(m.Action) > 0 {
-		for _, msg := range m.Action {
-			dAtA[i] = 0x12
-			i++
-			i = encodeVarintRaft(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Action) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Action[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintRaft(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0x12
 		}
 	}
-	return i, nil
+	if m.ID != 0 {
+		i = encodeVarintRaft(dAtA, i, uint64(m.ID))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *StoreAction) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1905,159 +1815,231 @@ func (m *StoreAction) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *StoreAction) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Action != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Action))
-	}
 	if m.Target != nil {
-		nn5, err := m.Target.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size := m.Target.Size()
+			i -= size
+			if _, err := m.Target.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
 		}
-		i += nn5
 	}
-	return i, nil
+	if m.Action != 0 {
+		i = encodeVarintRaft(dAtA, i, uint64(m.Action))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *StoreAction_Node) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Node) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Node != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Node.Size()))
-		n6, err := m.Node.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Node.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n6
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *StoreAction_Service) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Service) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Service != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Service.Size()))
-		n7, err := m.Service.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Service.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n7
+		i--
+		dAtA[i] = 0x1a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *StoreAction_Task) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Task) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Task != nil {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Task.Size()))
-		n8, err := m.Task.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Task.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n8
+		i--
+		dAtA[i] = 0x22
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *StoreAction_Network) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Network) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Network != nil {
-		dAtA[i] = 0x2a
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Network.Size()))
-		n9, err := m.Network.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Network.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n9
+		i--
+		dAtA[i] = 0x2a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *StoreAction_Cluster) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Cluster) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Cluster != nil {
-		dAtA[i] = 0x32
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Cluster.Size()))
-		n10, err := m.Cluster.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Cluster.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n10
+		i--
+		dAtA[i] = 0x32
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *StoreAction_Secret) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Secret) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Secret != nil {
-		dAtA[i] = 0x3a
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Secret.Size()))
-		n11, err := m.Secret.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Secret.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n11
+		i--
+		dAtA[i] = 0x3a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *StoreAction_Resource) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Resource) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Resource != nil {
-		dAtA[i] = 0x42
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Resource.Size()))
-		n12, err := m.Resource.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Resource.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n12
+		i--
+		dAtA[i] = 0x42
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *StoreAction_Extension) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Extension) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Extension != nil {
-		dAtA[i] = 0x4a
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Extension.Size()))
-		n13, err := m.Extension.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Extension.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n13
+		i--
+		dAtA[i] = 0x4a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *StoreAction_Config) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Config) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Config != nil {
-		dAtA[i] = 0x52
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Config.Size()))
-		n14, err := m.Config.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Config.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n14
+		i--
+		dAtA[i] = 0x52
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func encodeVarintRaft(dAtA []byte, offset int, v uint64) int {
+	offset -= sovRaft(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 
 type raftProxyRaftServer struct {
@@ -2693,14 +2675,7 @@ func (m *StoreAction_Config) Size() (n int) {
 }
 
 func sovRaft(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozRaft(x uint64) (n int) {
 	return sovRaft(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -2713,7 +2688,7 @@ func (this *RaftMember) String() string {
 		`RaftID:` + fmt.Sprintf("%v", this.RaftID) + `,`,
 		`NodeID:` + fmt.Sprintf("%v", this.NodeID) + `,`,
 		`Addr:` + fmt.Sprintf("%v", this.Addr) + `,`,
-		`Status:` + strings.Replace(strings.Replace(this.Status.String(), "RaftMemberStatus", "RaftMemberStatus", 1), `&`, ``, 1) + `,`,
+		`Status:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Status), "RaftMemberStatus", "RaftMemberStatus", 1), `&`, ``, 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2732,9 +2707,14 @@ func (this *JoinResponse) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForMembers := "[]*RaftMember{"
+	for _, f := range this.Members {
+		repeatedStringForMembers += strings.Replace(f.String(), "RaftMember", "RaftMember", 1) + ","
+	}
+	repeatedStringForMembers += "}"
 	s := strings.Join([]string{`&JoinResponse{`,
 		`RaftID:` + fmt.Sprintf("%v", this.RaftID) + `,`,
-		`Members:` + strings.Replace(fmt.Sprintf("%v", this.Members), "RaftMember", "RaftMember", 1) + `,`,
+		`Members:` + repeatedStringForMembers + `,`,
 		`RemovedMembers:` + fmt.Sprintf("%v", this.RemovedMembers) + `,`,
 		`}`,
 	}, "")
@@ -2745,7 +2725,7 @@ func (this *LeaveRequest) String() string {
 		return "nil"
 	}
 	s := strings.Join([]string{`&LeaveRequest{`,
-		`Node:` + strings.Replace(fmt.Sprintf("%v", this.Node), "RaftMember", "RaftMember", 1) + `,`,
+		`Node:` + strings.Replace(this.Node.String(), "RaftMember", "RaftMember", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2821,9 +2801,14 @@ func (this *InternalRaftRequest) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForAction := "[]StoreAction{"
+	for _, f := range this.Action {
+		repeatedStringForAction += strings.Replace(strings.Replace(f.String(), "StoreAction", "StoreAction", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForAction += "}"
 	s := strings.Join([]string{`&InternalRaftRequest{`,
 		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
-		`Action:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Action), "StoreAction", "StoreAction", 1), `&`, ``, 1) + `,`,
+		`Action:` + repeatedStringForAction + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3088,10 +3073,7 @@ func (m *RaftMember) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3173,10 +3155,7 @@ func (m *JoinRequest) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3355,10 +3334,7 @@ func (m *JoinResponse) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3444,10 +3420,7 @@ func (m *LeaveRequest) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3497,10 +3470,7 @@ func (m *LeaveResponse) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3586,10 +3556,7 @@ func (m *ProcessRaftMessageRequest) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3639,10 +3606,7 @@ func (m *ProcessRaftMessageResponse) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3728,10 +3692,7 @@ func (m *StreamRaftMessageRequest) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3781,10 +3742,7 @@ func (m *StreamRaftMessageResponse) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3853,10 +3811,7 @@ func (m *ResolveAddressRequest) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -3938,10 +3893,7 @@ func (m *ResolveAddressResponse) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -4044,10 +3996,7 @@ func (m *InternalRaftRequest) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -4431,10 +4380,7 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRaft
 			}
 			if (iNdEx + skippy) > l {
@@ -4452,6 +4398,7 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 func skipRaft(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -4483,10 +4430,8 @@ func skipRaft(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -4507,55 +4452,30 @@ func skipRaft(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthRaft
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthRaft
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowRaft
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipRaft(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthRaft
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupRaft
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthRaft
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthRaft = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowRaft   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthRaft        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowRaft          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupRaft = fmt.Errorf("proto: unexpected end of group")
 )

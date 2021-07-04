@@ -4,7 +4,8 @@
 
 export SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-. "${SCRIPTDIR}"/dco
+# Skip DCO check here, as it's already checked in a separate stage in the Jenkinsfile
+#. "${SCRIPTDIR}"/dco
 . "${SCRIPTDIR}"/default-seccomp
 . "${SCRIPTDIR}"/pkg-imports
 . "${SCRIPTDIR}"/swagger

@@ -14,12 +14,13 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/containerd/cgroups"
 	statsV1 "github.com/containerd/cgroups/stats/v1"
 	statsV2 "github.com/containerd/cgroups/v2/stats"
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/blkiodev"
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
@@ -28,6 +29,13 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/initlayer"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/libnetwork"
+	nwconfig "github.com/docker/docker/libnetwork/config"
+	"github.com/docker/docker/libnetwork/drivers/bridge"
+	"github.com/docker/docker/libnetwork/netlabel"
+	"github.com/docker/docker/libnetwork/netutils"
+	"github.com/docker/docker/libnetwork/options"
+	lntypes "github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
@@ -36,15 +44,9 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
-	"github.com/docker/libnetwork"
-	nwconfig "github.com/docker/libnetwork/config"
-	"github.com/docker/libnetwork/drivers/bridge"
-	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/options"
-	lntypes "github.com/docker/libnetwork/types"
 	"github.com/moby/sys/mount"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -54,14 +56,6 @@ import (
 
 const (
 	isWindows = false
-
-	// DefaultShimBinary is the default shim to be used by containerd if none
-	// is specified
-	DefaultShimBinary = "containerd-shim"
-
-	// DefaultRuntimeBinary is the default runtime to be used by
-	// containerd if none is specified
-	DefaultRuntimeBinary = "runc"
 
 	// See https://git.kernel.org/cgit/linux/kernel/git/tip/tip.git/tree/kernel/sched/sched.h?id=8cd9234c64c584432f6992fe944ca9e46ca8ea76#n269
 	linuxMinCPUShares = 2
@@ -192,8 +186,8 @@ func getBlkioWeightDevices(config containertypes.Resources) ([]specs.LinuxWeight
 		weight := weightDevice.Weight
 		d := specs.LinuxWeightDevice{Weight: &weight}
 		// The type is 32bit on mips.
-		d.Major = int64(unix.Major(uint64(stat.Rdev))) // nolint: unconvert
-		d.Minor = int64(unix.Minor(uint64(stat.Rdev))) // nolint: unconvert
+		d.Major = int64(unix.Major(uint64(stat.Rdev))) //nolint: unconvert
+		d.Minor = int64(unix.Minor(uint64(stat.Rdev))) //nolint: unconvert
 		blkioWeightDevices = append(blkioWeightDevices, d)
 	}
 
@@ -264,8 +258,8 @@ func getBlkioThrottleDevices(devs []*blkiodev.ThrottleDevice) ([]specs.LinuxThro
 		}
 		d := specs.LinuxThrottleDevice{Rate: d.Rate}
 		// the type is 32bit on mips
-		d.Major = int64(unix.Major(uint64(stat.Rdev))) // nolint: unconvert
-		d.Minor = int64(unix.Minor(uint64(stat.Rdev))) // nolint: unconvert
+		d.Major = int64(unix.Major(uint64(stat.Rdev))) //nolint: unconvert
+		d.Minor = int64(unix.Minor(uint64(stat.Rdev))) //nolint: unconvert
 		throttleDevices = append(throttleDevices, d)
 	}
 
@@ -460,7 +454,7 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 		resources.MemoryReservation = 0
 	}
 	if resources.MemoryReservation > 0 && resources.MemoryReservation < linuxMinMemory {
-		return warnings, fmt.Errorf("Minimum memory reservation allowed is 4MB")
+		return warnings, fmt.Errorf("Minimum memory reservation allowed is 6MB")
 	}
 	if resources.Memory > 0 && resources.MemoryReservation > 0 && resources.Memory < resources.MemoryReservation {
 		return warnings, fmt.Errorf("Minimum memory limit can not be less than memory reservation limit, see usage")
@@ -619,8 +613,8 @@ func getCD(config *config.Config) string {
 	return ""
 }
 
-// VerifyCgroupDriver validates native.cgroupdriver
-func VerifyCgroupDriver(config *config.Config) error {
+// verifyCgroupDriver validates native.cgroupdriver
+func verifyCgroupDriver(config *config.Config) error {
 	cd := getCD(config)
 	if cd == "" || cd == cgroupFsDriver || cd == cgroupSystemdDriver {
 		return nil
@@ -637,19 +631,33 @@ func UsingSystemd(config *config.Config) bool {
 		return true
 	}
 	// On cgroup v2 hosts, default to systemd driver
-	if getCD(config) == "" && cgroups.Mode() == cgroups.Unified && IsRunningSystemd() {
+	if getCD(config) == "" && cgroups.Mode() == cgroups.Unified && isRunningSystemd() {
 		return true
 	}
 	return false
 }
 
-// IsRunningSystemd is from https://github.com/opencontainers/runc/blob/46be7b612e2533c494e6a251111de46d8e286ed5/libcontainer/cgroups/systemd/common.go#L27-L33
-func IsRunningSystemd() bool {
-	fi, err := os.Lstat("/run/systemd/system")
-	if err != nil {
-		return false
-	}
-	return fi.IsDir()
+var (
+	runningSystemd bool
+	detectSystemd  sync.Once
+)
+
+// isRunningSystemd checks whether the host was booted with systemd as its init
+// system. This functions similarly to systemd's `sd_booted(3)`: internally, it
+// checks whether /run/systemd/system/ exists and is a directory.
+// http://www.freedesktop.org/software/systemd/man/sd_booted.html
+//
+// NOTE: This function comes from package github.com/coreos/go-systemd/util
+// It was borrowed here to avoid a dependency on cgo.
+func isRunningSystemd() bool {
+	detectSystemd.Do(func() {
+		fi, err := os.Lstat("/run/systemd/system")
+		if err != nil {
+			return
+		}
+		runningSystemd = fi.IsDir()
+	})
+	return runningSystemd
 }
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
@@ -752,7 +760,7 @@ func verifyDaemonSettings(conf *config.Config) error {
 	if !conf.BridgeConfig.EnableIPTables && conf.BridgeConfig.EnableIPMasq {
 		conf.BridgeConfig.EnableIPMasq = false
 	}
-	if err := VerifyCgroupDriver(conf); err != nil {
+	if err := verifyCgroupDriver(conf); err != nil {
 		return err
 	}
 	if conf.CgroupParent != "" && UsingSystemd(conf) {
@@ -822,7 +830,7 @@ func overlaySupportsSelinux() (bool, error) {
 // configureKernelSecuritySupport configures and validates security support for the kernel
 func configureKernelSecuritySupport(config *config.Config, driverName string) error {
 	if config.EnableSelinuxSupport {
-		if !selinuxEnabled() {
+		if !selinux.GetEnabled() {
 			logrus.Warn("Docker could not enable SELinux on the host system")
 			return nil
 		}
@@ -840,7 +848,7 @@ func configureKernelSecuritySupport(config *config.Config, driverName string) er
 			}
 		}
 	} else {
-		selinuxSetDisabled()
+		selinux.SetDisabled()
 	}
 	return nil
 }
@@ -1195,7 +1203,7 @@ func setupRemappedRoot(config *config.Config) (*idtools.IdentityMapping, error) 
 	return &idtools.IdentityMapping{}, nil
 }
 
-func setupDaemonRoot(config *config.Config, rootDir string, rootIdentity idtools.Identity) error {
+func setupDaemonRoot(config *config.Config, rootDir string, remappedRoot idtools.Identity) error {
 	config.Root = rootDir
 	// the docker root metadata directory needs to have execute permissions for all users (g+x,o+x)
 	// so that syscalls executing as non-root, operating on subdirectories of the graph root
@@ -1220,10 +1228,16 @@ func setupDaemonRoot(config *config.Config, rootDir string, rootIdentity idtools
 	// a new subdirectory with ownership set to the remapped uid/gid (so as to allow
 	// `chdir()` to work for containers namespaced to that uid/gid)
 	if config.RemappedRoot != "" {
-		config.Root = filepath.Join(rootDir, fmt.Sprintf("%d.%d", rootIdentity.UID, rootIdentity.GID))
+		id := idtools.CurrentIdentity()
+		// First make sure the current root dir has the correct perms.
+		if err := idtools.MkdirAllAndChown(config.Root, 0701, id); err != nil {
+			return errors.Wrapf(err, "could not create or set daemon root permissions: %s", config.Root)
+		}
+
+		config.Root = filepath.Join(rootDir, fmt.Sprintf("%d.%d", remappedRoot.UID, remappedRoot.GID))
 		logrus.Debugf("Creating user namespaced daemon root: %s", config.Root)
 		// Create the root directory if it doesn't exist
-		if err := idtools.MkdirAllAndChown(config.Root, 0700, rootIdentity); err != nil {
+		if err := idtools.MkdirAllAndChown(config.Root, 0701, id); err != nil {
 			return fmt.Errorf("Cannot create daemon root: %s: %v", config.Root, err)
 		}
 		// we also need to verify that any pre-existing directories in the path to
@@ -1236,7 +1250,7 @@ func setupDaemonRoot(config *config.Config, rootDir string, rootIdentity idtools
 			if dirPath == "/" {
 				break
 			}
-			if !idtools.CanAccess(dirPath, rootIdentity) {
+			if !idtools.CanAccess(dirPath, remappedRoot) {
 				return fmt.Errorf("a subdirectory in your graphroot path (%s) restricts access to the remapped root uid/gid; please fix by allowing 'o+x' permissions on existing directories", config.Root)
 			}
 		}
@@ -1631,7 +1645,7 @@ func setMayDetachMounts() error {
 		// Setting may_detach_mounts does not work in an
 		// unprivileged container. Ignore the error, but log
 		// it if we appear not to be in that situation.
-		if !sys.RunningInUserNS() {
+		if !userns.RunningInUserNS() {
 			logrus.Debugf("Permission denied writing %q to /proc/sys/fs/may_detach_mounts", "1")
 		}
 		return nil
@@ -1654,7 +1668,7 @@ func setupOOMScoreAdj(score int) error {
 		// Setting oom_score_adj does not work in an
 		// unprivileged container. Ignore the error, but log
 		// it if we appear not to be in that situation.
-		if !sys.RunningInUserNS() {
+		if !userns.RunningInUserNS() {
 			logrus.Debugf("Permission denied writing %q to /proc/self/oom_score_adj", stringScore)
 		}
 		return nil
@@ -1705,15 +1719,13 @@ func (daemon *Daemon) setupSeccompProfile() error {
 
 // RawSysInfo returns *sysinfo.SysInfo .
 func (daemon *Daemon) RawSysInfo(quiet bool) *sysinfo.SysInfo {
-	var opts []sysinfo.Opt
+	var siOpts []sysinfo.Opt
 	if daemon.getCgroupDriver() == cgroupSystemdDriver {
-		rootlesskitParentEUID := os.Getenv("ROOTLESSKIT_PARENT_EUID")
-		if rootlesskitParentEUID != "" {
-			groupPath := fmt.Sprintf("/user.slice/user-%s.slice", rootlesskitParentEUID)
-			opts = append(opts, sysinfo.WithCgroup2GroupPath(groupPath))
+		if euid := os.Getenv("ROOTLESSKIT_PARENT_EUID"); euid != "" {
+			siOpts = append(siOpts, sysinfo.WithCgroup2GroupPath("/user.slice/user-"+euid+".slice"))
 		}
 	}
-	return sysinfo.New(quiet, opts...)
+	return sysinfo.New(quiet, siOpts...)
 }
 
 func recursiveUnmount(target string) error {

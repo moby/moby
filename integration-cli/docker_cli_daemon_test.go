@@ -31,10 +31,10 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/opts"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	units "github.com/docker/go-units"
-	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
 	"github.com/moby/sys/mount"
 	"golang.org/x/sys/unix"
@@ -1776,7 +1776,7 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 	defer mount.Unmount(testDir)
 
 	// create a 3MiB image (with a 2MiB ext4 fs) and mount it as graph root
-	// Why in a container? Because `mount` sometimes behaves weirdly and often fails outright on this test in debian:buster (which is what the test suite runs under if run from the Makefile)
+	// Why in a container? Because `mount` sometimes behaves weirdly and often fails outright on this test in debian:bullseye (which is what the test suite runs under if run from the Makefile)
 	dockerCmd(c, "run", "--rm", "-v", testDir+":/test", "busybox", "sh", "-c", "dd of=/test/testfs.img bs=1M seek=3 count=0")
 	icmd.RunCommand("mkfs.ext4", "-F", filepath.Join(testDir, "testfs.img")).Assert(c, icmd.Success)
 
@@ -1787,7 +1787,7 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 	defer s.d.Stop(c)
 
 	// pull a repository large enough to overfill the mounted filesystem
-	pullOut, err := s.d.Cmd("pull", "debian:buster")
+	pullOut, err := s.d.Cmd("pull", "debian:bullseye")
 	assert.Assert(c, err != nil, pullOut)
 	assert.Assert(c, strings.Contains(pullOut, "no space left on device"))
 }

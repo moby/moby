@@ -59,7 +59,7 @@ func (daemon *Daemon) getExecConfig(name string) (*exec.Config, error) {
 		return nil, containerNotFound(name)
 	}
 	if !ctr.IsRunning() {
-		return nil, fmt.Errorf("Container %s is not running: %s", ctr.ID, ctr.State.String())
+		return nil, errNotRunning(ctr.ID)
 	}
 	if ctr.IsPaused() {
 		return nil, errExecPaused(ctr.ID)
@@ -158,7 +158,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 
 	ec, err := daemon.getExecConfig(name)
 	if err != nil {
-		return errExecNotFound(name)
+		return err
 	}
 
 	ec.Lock()
@@ -176,6 +176,9 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 	ec.Unlock()
 
 	c := daemon.containers.Get(ec.ContainerID)
+	if c == nil {
+		return containerNotFound(ec.ContainerID)
+	}
 	logrus.Debugf("starting exec command %s in container %s", ec.ID, c.ID)
 	attributes := map[string]string{
 		"execID": ec.ID,

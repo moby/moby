@@ -11,7 +11,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -448,8 +447,7 @@ func (b *Builder) probeAndCreate(dispatchState *dispatchState, runConfig *contai
 func (b *Builder) create(runConfig *container.Config) (string, error) {
 	logrus.Debugf("[BUILDER] Command to be executed: %v", runConfig.Cmd)
 
-	isWCOW := runtime.GOOS == "windows" && b.platform != nil && b.platform.OS == "windows"
-	hostConfig := hostConfigFromOptions(b.options, isWCOW)
+	hostConfig := hostConfigFromOptions(b.options)
 	container, err := b.containerManager.Create(runConfig, hostConfig)
 	if err != nil {
 		return "", err
@@ -462,7 +460,7 @@ func (b *Builder) create(runConfig *container.Config) (string, error) {
 	return container.ID, nil
 }
 
-func hostConfigFromOptions(options *types.ImageBuildOptions, isWCOW bool) *container.HostConfig {
+func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConfig {
 	resources := container.Resources{
 		CgroupParent: options.CgroupParent,
 		CPUShares:    options.CPUShares,
@@ -485,16 +483,6 @@ func hostConfigFromOptions(options *types.ImageBuildOptions, isWCOW bool) *conta
 		LogConfig:  defaultLogConfig,
 		ExtraHosts: options.ExtraHosts,
 	}
-
-	// For WCOW, the default of 20GB hard-coded in the platform
-	// is too small for builder scenarios where many users are
-	// using RUN statements to install large amounts of data.
-	// Use 127GB as that's the default size of a VHD in Hyper-V.
-	if isWCOW {
-		hc.StorageOpt = make(map[string]string)
-		hc.StorageOpt["size"] = "127GB"
-	}
-
 	return hc
 }
 

@@ -13,7 +13,9 @@ import (
 
 	"github.com/containerd/containerd/content"
 	containerderrors "github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/gc"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/platforms"
 	ctdreference "github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
@@ -34,6 +36,7 @@ import (
 	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/imageutil"
+	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/resolver"
 	digest "github.com/opencontainers/go-digest"
@@ -54,6 +57,8 @@ type SourceOpt struct {
 	ImageStore      image.Store
 	RegistryHosts   docker.RegistryHosts
 	LayerStore      layer.Store
+	LeaseManager    leases.Manager
+	GarbageCollect  func(ctx context.Context) (gc.Stats, error)
 }
 
 // Source is the source implementation for accessing container images
@@ -101,7 +106,7 @@ func (is *Source) resolveRemote(ctx context.Context, ref string, platform *ocisp
 	key := "getconfig::" + ref + "::" + platforms.Format(p)
 	res, err := is.g.Do(ctx, key, func(ctx context.Context) (interface{}, error) {
 		res := resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, "pull", sm, g)
-		dgst, dt, err := imageutil.Config(ctx, ref, res, is.ContentStore, nil, platform)
+		dgst, dt, err := imageutil.Config(ctx, ref, res, is.ContentStore, is.LeaseManager, platform)
 		if err != nil {
 			return nil, err
 		}
@@ -183,6 +188,7 @@ func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session
 type puller struct {
 	is               *Source
 	resolveLocalOnce sync.Once
+	g                flightcontrol.Group
 	src              *source.ImageIdentifier
 	desc             ocispec.Descriptor
 	ref              string
@@ -253,9 +259,7 @@ func (p *puller) resolveLocal() {
 }
 
 func (p *puller) resolve(ctx context.Context, g session.Group) error {
-	// key is used to synchronize resolutions that can happen in parallel when doing multi-stage.
-	key := "resolve::" + p.ref + "::" + platforms.Format(p.platform)
-	_, err := p.is.g.Do(ctx, key, func(ctx context.Context) (_ interface{}, err error) {
+	_, err := p.g.Do(ctx, "", func(ctx context.Context) (_ interface{}, err error) {
 		resolveProgressDone := oneOffProgress(ctx, "resolve "+p.src.Reference.String())
 		defer func() {
 			resolveProgressDone(err)
@@ -329,8 +333,12 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (stri
 		return dgst.String(), nil, false, nil
 	}
 
+	if len(p.config) == 0 && p.desc.MediaType != images.MediaTypeDockerSchema1Manifest {
+		return "", nil, false, errors.Errorf("invalid empty config file resolved for %s", p.src.Reference.String())
+	}
+
 	k := cacheKeyFromConfig(p.config).String()
-	if k == "" {
+	if k == "" || p.desc.MediaType == images.MediaTypeDockerSchema1Manifest {
 		dgst, err := p.mainManifestKey(p.platform)
 		if err != nil {
 			return "", nil, false, err
@@ -360,8 +368,10 @@ func (p *puller) getRef(ctx context.Context, diffIDs []layer.DiffID, opts ...cac
 
 func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.ImmutableRef, error) {
 	p.resolveLocal()
-	if err := p.resolve(ctx, g); err != nil {
-		return nil, err
+	if len(p.config) == 0 {
+		if err := p.resolve(ctx, g); err != nil {
+			return nil, err
+		}
 	}
 
 	if p.config != nil {
@@ -383,6 +393,17 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 	}
 
 	ongoing := newJobs(p.ref)
+
+	ctx, done, err := leaseutil.WithLease(ctx, p.is.LeaseManager, leases.WithExpiration(5*time.Minute), leaseutil.MakeTemporary)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		done(context.TODO())
+		if p.is.GarbageCollect != nil {
+			go p.is.GarbageCollect(context.TODO())
+		}
+	}()
 
 	pctx, stopProgress := context.WithCancel(ctx)
 
@@ -406,6 +427,8 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 
 	platform := platforms.Only(p.platform)
 
+	var nonLayers []digest.Digest
+
 	var (
 		schema1Converter *schema1.Converter
 		handlers         []images.Handler
@@ -426,6 +449,7 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 			case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest,
 				images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex,
 				images.MediaTypeDockerSchema2Config, ocispec.MediaTypeImageConfig:
+				nonLayers = append(nonLayers, desc.Digest)
 			default:
 				return nil, images.ErrSkipDesc
 			}
@@ -435,8 +459,6 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 
 		// Get all the children for a descriptor
 		childrenHandler := images.ChildrenHandler(p.is.ContentStore)
-		// Set any children labels for that content
-		childrenHandler = images.SetChildrenLabels(p.is.ContentStore, childrenHandler)
 		// Filter the children by the platform
 		childrenHandler = images.FilterPlatforms(childrenHandler, platform)
 		// Limit manifests pulled to the best match in an index
@@ -524,6 +546,9 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 	layers := make([]xfer.DownloadDescriptor, 0, len(mfst.Layers))
 
 	for i, desc := range mfst.Layers {
+		if err := desc.Digest.Validate(); err != nil {
+			return nil, errors.Wrap(err, "layer digest could not be validated")
+		}
 		ongoing.add(desc)
 		layers = append(layers, &layerDescriptor{
 			desc:    desc,
@@ -536,9 +561,6 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 
 	defer func() {
 		<-progressDone
-		for _, desc := range mfst.Layers {
-			p.is.ContentStore.Delete(context.TODO(), desc.Digest)
-		}
 	}()
 
 	r := image.NewRootFS()
@@ -552,6 +574,16 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 	release()
 	if err != nil {
 		return nil, err
+	}
+
+	// keep manifest blobs until ref is alive for cache
+	for _, nl := range nonLayers {
+		if err := p.is.LeaseManager.AddResource(ctx, leases.Lease{ID: ref.ID()}, leases.Resource{
+			ID:   nl.String(),
+			Type: "content",
+		}); err != nil {
+			return nil, err
+		}
 	}
 
 	// TODO: handle windows layers for cross platform builds
@@ -798,6 +830,7 @@ func cacheKeyFromConfig(dt []byte) digest.Digest {
 	var img ocispec.Image
 	err := json.Unmarshal(dt, &img)
 	if err != nil {
+		logrus.WithError(err).Errorf("failed to unmarshal image config for cache key %v", err)
 		return digest.FromBytes(dt)
 	}
 	if img.RootFS.Type != "layers" || len(img.RootFS.DiffIDs) == 0 {

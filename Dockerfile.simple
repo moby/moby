@@ -5,7 +5,7 @@
 
 # This represents the bare minimum required to build and test Docker.
 
-ARG GO_VERSION=1.13.15
+ARG GO_VERSION=1.16.5
 
 FROM golang:${GO_VERSION}-buster
 ENV GO111MODULE=off
@@ -18,13 +18,13 @@ RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
 # https://github.com/docker/docker/blob/master/project/PACKAGERS.md#build-dependencies
 # https://github.com/docker/docker/blob/master/project/PACKAGERS.md#runtime-dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-		btrfs-tools \
 		build-essential \
 		curl \
 		cmake \
 		gcc \
 		git \
 		libapparmor-dev \
+		libbtrfs-dev \
 		libdevmapper-dev \
 		libseccomp-dev \
 		ca-certificates \

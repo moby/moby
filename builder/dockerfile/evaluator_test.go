@@ -32,9 +32,8 @@ func TestDispatch(t *testing.T) {
 		{
 			name: "ADD multiple files to file",
 			cmd: &instructions.AddCommand{SourcesAndDest: instructions.SourcesAndDest{
-				"file1.txt",
-				"file2.txt",
-				"test",
+				SourcePaths: []string{"file1.txt", "file2.txt"},
+				DestPath:    "test",
 			}},
 			expectedError: "When using ADD with more than one source file, the destination must be a directory and end with a /",
 			files:         map[string]string{"file1.txt": "test1", "file2.txt": "test2"},
@@ -42,8 +41,8 @@ func TestDispatch(t *testing.T) {
 		{
 			name: "Wildcard ADD multiple files to file",
 			cmd: &instructions.AddCommand{SourcesAndDest: instructions.SourcesAndDest{
-				"file*.txt",
-				"test",
+				SourcePaths: []string{"file*.txt"},
+				DestPath:    "test",
 			}},
 			expectedError: "When using ADD with more than one source file, the destination must be a directory and end with a /",
 			files:         map[string]string{"file1.txt": "test1", "file2.txt": "test2"},
@@ -51,9 +50,8 @@ func TestDispatch(t *testing.T) {
 		{
 			name: "COPY multiple files to file",
 			cmd: &instructions.CopyCommand{SourcesAndDest: instructions.SourcesAndDest{
-				"file1.txt",
-				"file2.txt",
-				"test",
+				SourcePaths: []string{"file1.txt", "file2.txt"},
+				DestPath:    "test",
 			}},
 			expectedError: "When using COPY with more than one source file, the destination must be a directory and end with a /",
 			files:         map[string]string{"file1.txt": "test1", "file2.txt": "test2"},
@@ -61,9 +59,8 @@ func TestDispatch(t *testing.T) {
 		{
 			name: "ADD multiple files to file with whitespace",
 			cmd: &instructions.AddCommand{SourcesAndDest: instructions.SourcesAndDest{
-				"test file1.txt",
-				"test file2.txt",
-				"test",
+				SourcePaths: []string{"test file1.txt", "test file2.txt"},
+				DestPath:    "test",
 			}},
 			expectedError: "When using ADD with more than one source file, the destination must be a directory and end with a /",
 			files:         map[string]string{"test file1.txt": "test1", "test file2.txt": "test2"},
@@ -71,9 +68,8 @@ func TestDispatch(t *testing.T) {
 		{
 			name: "COPY multiple files to file with whitespace",
 			cmd: &instructions.CopyCommand{SourcesAndDest: instructions.SourcesAndDest{
-				"test file1.txt",
-				"test file2.txt",
-				"test",
+				SourcePaths: []string{"test file1.txt", "test file2.txt"},
+				DestPath:    "test",
 			}},
 			expectedError: "When using COPY with more than one source file, the destination must be a directory and end with a /",
 			files:         map[string]string{"test file1.txt": "test1", "test file2.txt": "test2"},
@@ -81,8 +77,8 @@ func TestDispatch(t *testing.T) {
 		{
 			name: "COPY wildcard no files",
 			cmd: &instructions.CopyCommand{SourcesAndDest: instructions.SourcesAndDest{
-				"file*.txt",
-				"/tmp/",
+				SourcePaths: []string{"file*.txt"},
+				DestPath:    "/tmp/",
 			}},
 			expectedError: "COPY failed: no source files were specified",
 			files:         nil,
@@ -90,8 +86,8 @@ func TestDispatch(t *testing.T) {
 		{
 			name: "COPY url",
 			cmd: &instructions.CopyCommand{SourcesAndDest: instructions.SourcesAndDest{
-				"https://index.docker.io/robots.txt",
-				"/",
+				SourcePaths: []string{"https://index.docker.io/robots.txt"},
+				DestPath:    "/",
 			}},
 			expectedError: "source can't be a URL for COPY",
 			files:         nil,

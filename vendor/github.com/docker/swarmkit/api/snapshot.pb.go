@@ -9,6 +9,7 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
 )
@@ -22,7 +23,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type Snapshot_Version int32
 
@@ -73,7 +74,7 @@ func (m *StoreSnapshot) XXX_Marshal(b []byte, deterministic bool) ([]byte, error
 		return xxx_messageInfo_StoreSnapshot.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -111,7 +112,7 @@ func (m *ClusterSnapshot) XXX_Marshal(b []byte, deterministic bool) ([]byte, err
 		return xxx_messageInfo_ClusterSnapshot.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -149,7 +150,7 @@ func (m *Snapshot) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Snapshot.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -350,7 +351,7 @@ func (m *Snapshot) CopyFrom(src interface{}) {
 func (m *StoreSnapshot) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -358,125 +359,148 @@ func (m *StoreSnapshot) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *StoreSnapshot) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreSnapshot) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Nodes) > 0 {
-		for _, msg := range m.Nodes {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+	if len(m.Configs) > 0 {
+		for iNdEx := len(m.Configs) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Configs[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
 			}
-			i += n
-		}
-	}
-	if len(m.Services) > 0 {
-		for _, msg := range m.Services {
-			dAtA[i] = 0x12
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if len(m.Networks) > 0 {
-		for _, msg := range m.Networks {
-			dAtA[i] = 0x1a
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if len(m.Tasks) > 0 {
-		for _, msg := range m.Tasks {
-			dAtA[i] = 0x22
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if len(m.Clusters) > 0 {
-		for _, msg := range m.Clusters {
-			dAtA[i] = 0x2a
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if len(m.Secrets) > 0 {
-		for _, msg := range m.Secrets {
-			dAtA[i] = 0x32
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if len(m.Resources) > 0 {
-		for _, msg := range m.Resources {
-			dAtA[i] = 0x3a
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
+			i--
+			dAtA[i] = 0x4a
 		}
 	}
 	if len(m.Extensions) > 0 {
-		for _, msg := range m.Extensions {
+		for iNdEx := len(m.Extensions) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Extensions[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
 			dAtA[i] = 0x42
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
 		}
 	}
-	if len(m.Configs) > 0 {
-		for _, msg := range m.Configs {
-			dAtA[i] = 0x4a
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+	if len(m.Resources) > 0 {
+		for iNdEx := len(m.Resources) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Resources[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0x3a
 		}
 	}
-	return i, nil
+	if len(m.Secrets) > 0 {
+		for iNdEx := len(m.Secrets) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Secrets[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x32
+		}
+	}
+	if len(m.Clusters) > 0 {
+		for iNdEx := len(m.Clusters) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Clusters[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x2a
+		}
+	}
+	if len(m.Tasks) > 0 {
+		for iNdEx := len(m.Tasks) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Tasks[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x22
+		}
+	}
+	if len(m.Networks) > 0 {
+		for iNdEx := len(m.Networks) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Networks[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x1a
+		}
+	}
+	if len(m.Services) > 0 {
+		for iNdEx := len(m.Services) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Services[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if len(m.Nodes) > 0 {
+		for iNdEx := len(m.Nodes) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Nodes[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *ClusterSnapshot) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -484,36 +508,43 @@ func (m *ClusterSnapshot) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *ClusterSnapshot) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ClusterSnapshot) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Members) > 0 {
-		for _, msg := range m.Members {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
 	if len(m.Removed) > 0 {
-		for _, num := range m.Removed {
+		for iNdEx := len(m.Removed) - 1; iNdEx >= 0; iNdEx-- {
+			i = encodeVarintSnapshot(dAtA, i, uint64(m.Removed[iNdEx]))
+			i--
 			dAtA[i] = 0x10
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(num))
 		}
 	}
-	return i, nil
+	if len(m.Members) > 0 {
+		for iNdEx := len(m.Members) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Members[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *Snapshot) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -521,42 +552,53 @@ func (m *Snapshot) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Snapshot) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Snapshot) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Version != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintSnapshot(dAtA, i, uint64(m.Version))
+	{
+		size, err := m.Store.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintSnapshot(dAtA, i, uint64(size))
 	}
-	dAtA[i] = 0x12
-	i++
-	i = encodeVarintSnapshot(dAtA, i, uint64(m.Membership.Size()))
-	n1, err := m.Membership.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n1
+	i--
 	dAtA[i] = 0x1a
-	i++
-	i = encodeVarintSnapshot(dAtA, i, uint64(m.Store.Size()))
-	n2, err := m.Store.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
+	{
+		size, err := m.Membership.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintSnapshot(dAtA, i, uint64(size))
 	}
-	i += n2
-	return i, nil
+	i--
+	dAtA[i] = 0x12
+	if m.Version != 0 {
+		i = encodeVarintSnapshot(dAtA, i, uint64(m.Version))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintSnapshot(dAtA []byte, offset int, v uint64) int {
+	offset -= sovSnapshot(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 func (m *StoreSnapshot) Size() (n int) {
 	if m == nil {
@@ -658,14 +700,7 @@ func (m *Snapshot) Size() (n int) {
 }
 
 func sovSnapshot(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozSnapshot(x uint64) (n int) {
 	return sovSnapshot(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -674,16 +709,61 @@ func (this *StoreSnapshot) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForNodes := "[]*Node{"
+	for _, f := range this.Nodes {
+		repeatedStringForNodes += strings.Replace(fmt.Sprintf("%v", f), "Node", "Node", 1) + ","
+	}
+	repeatedStringForNodes += "}"
+	repeatedStringForServices := "[]*Service{"
+	for _, f := range this.Services {
+		repeatedStringForServices += strings.Replace(fmt.Sprintf("%v", f), "Service", "Service", 1) + ","
+	}
+	repeatedStringForServices += "}"
+	repeatedStringForNetworks := "[]*Network{"
+	for _, f := range this.Networks {
+		repeatedStringForNetworks += strings.Replace(fmt.Sprintf("%v", f), "Network", "Network", 1) + ","
+	}
+	repeatedStringForNetworks += "}"
+	repeatedStringForTasks := "[]*Task{"
+	for _, f := range this.Tasks {
+		repeatedStringForTasks += strings.Replace(fmt.Sprintf("%v", f), "Task", "Task", 1) + ","
+	}
+	repeatedStringForTasks += "}"
+	repeatedStringForClusters := "[]*Cluster{"
+	for _, f := range this.Clusters {
+		repeatedStringForClusters += strings.Replace(fmt.Sprintf("%v", f), "Cluster", "Cluster", 1) + ","
+	}
+	repeatedStringForClusters += "}"
+	repeatedStringForSecrets := "[]*Secret{"
+	for _, f := range this.Secrets {
+		repeatedStringForSecrets += strings.Replace(fmt.Sprintf("%v", f), "Secret", "Secret", 1) + ","
+	}
+	repeatedStringForSecrets += "}"
+	repeatedStringForResources := "[]*Resource{"
+	for _, f := range this.Resources {
+		repeatedStringForResources += strings.Replace(fmt.Sprintf("%v", f), "Resource", "Resource", 1) + ","
+	}
+	repeatedStringForResources += "}"
+	repeatedStringForExtensions := "[]*Extension{"
+	for _, f := range this.Extensions {
+		repeatedStringForExtensions += strings.Replace(fmt.Sprintf("%v", f), "Extension", "Extension", 1) + ","
+	}
+	repeatedStringForExtensions += "}"
+	repeatedStringForConfigs := "[]*Config{"
+	for _, f := range this.Configs {
+		repeatedStringForConfigs += strings.Replace(fmt.Sprintf("%v", f), "Config", "Config", 1) + ","
+	}
+	repeatedStringForConfigs += "}"
 	s := strings.Join([]string{`&StoreSnapshot{`,
-		`Nodes:` + strings.Replace(fmt.Sprintf("%v", this.Nodes), "Node", "Node", 1) + `,`,
-		`Services:` + strings.Replace(fmt.Sprintf("%v", this.Services), "Service", "Service", 1) + `,`,
-		`Networks:` + strings.Replace(fmt.Sprintf("%v", this.Networks), "Network", "Network", 1) + `,`,
-		`Tasks:` + strings.Replace(fmt.Sprintf("%v", this.Tasks), "Task", "Task", 1) + `,`,
-		`Clusters:` + strings.Replace(fmt.Sprintf("%v", this.Clusters), "Cluster", "Cluster", 1) + `,`,
-		`Secrets:` + strings.Replace(fmt.Sprintf("%v", this.Secrets), "Secret", "Secret", 1) + `,`,
-		`Resources:` + strings.Replace(fmt.Sprintf("%v", this.Resources), "Resource", "Resource", 1) + `,`,
-		`Extensions:` + strings.Replace(fmt.Sprintf("%v", this.Extensions), "Extension", "Extension", 1) + `,`,
-		`Configs:` + strings.Replace(fmt.Sprintf("%v", this.Configs), "Config", "Config", 1) + `,`,
+		`Nodes:` + repeatedStringForNodes + `,`,
+		`Services:` + repeatedStringForServices + `,`,
+		`Networks:` + repeatedStringForNetworks + `,`,
+		`Tasks:` + repeatedStringForTasks + `,`,
+		`Clusters:` + repeatedStringForClusters + `,`,
+		`Secrets:` + repeatedStringForSecrets + `,`,
+		`Resources:` + repeatedStringForResources + `,`,
+		`Extensions:` + repeatedStringForExtensions + `,`,
+		`Configs:` + repeatedStringForConfigs + `,`,
 		`}`,
 	}, "")
 	return s
@@ -692,8 +772,13 @@ func (this *ClusterSnapshot) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForMembers := "[]*RaftMember{"
+	for _, f := range this.Members {
+		repeatedStringForMembers += strings.Replace(fmt.Sprintf("%v", f), "RaftMember", "RaftMember", 1) + ","
+	}
+	repeatedStringForMembers += "}"
 	s := strings.Join([]string{`&ClusterSnapshot{`,
-		`Members:` + strings.Replace(fmt.Sprintf("%v", this.Members), "RaftMember", "RaftMember", 1) + `,`,
+		`Members:` + repeatedStringForMembers + `,`,
 		`Removed:` + fmt.Sprintf("%v", this.Removed) + `,`,
 		`}`,
 	}, "")
@@ -1060,10 +1145,7 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthSnapshot
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthSnapshot
 			}
 			if (iNdEx + skippy) > l {
@@ -1223,10 +1305,7 @@ func (m *ClusterSnapshot) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthSnapshot
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthSnapshot
 			}
 			if (iNdEx + skippy) > l {
@@ -1361,10 +1440,7 @@ func (m *Snapshot) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthSnapshot
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthSnapshot
 			}
 			if (iNdEx + skippy) > l {
@@ -1382,6 +1458,7 @@ func (m *Snapshot) Unmarshal(dAtA []byte) error {
 func skipSnapshot(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -1413,10 +1490,8 @@ func skipSnapshot(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -1437,55 +1512,30 @@ func skipSnapshot(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthSnapshot
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthSnapshot
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowSnapshot
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipSnapshot(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthSnapshot
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupSnapshot
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthSnapshot
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthSnapshot = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowSnapshot   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthSnapshot        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowSnapshot          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupSnapshot = fmt.Errorf("proto: unexpected end of group")
 )

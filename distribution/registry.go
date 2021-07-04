@@ -58,7 +58,7 @@ func init() {
 func NewV2Repository(
 	ctx context.Context, repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint,
 	metaHeaders http.Header, authConfig *types.AuthConfig, actions ...string,
-) (repo distribution.Repository, foundVersion bool, err error) {
+) (repo distribution.Repository, err error) {
 	repoName := repoInfo.Name.Name()
 	// If endpoint does not support CanonicalName, use the RemoteName instead
 	if endpoint.TrimHostname {
@@ -84,16 +84,15 @@ func NewV2Repository(
 	modifiers := registry.Headers(dockerversion.DockerUserAgent(ctx), metaHeaders)
 	authTransport := transport.NewTransport(base, modifiers...)
 
-	challengeManager, foundVersion, err := registry.PingV2Registry(endpoint.URL, authTransport)
+	challengeManager, err := registry.PingV2Registry(endpoint.URL, authTransport)
 	if err != nil {
 		transportOK := false
 		if responseErr, ok := err.(registry.PingResponseError); ok {
 			transportOK = true
 			err = responseErr.Err
 		}
-		return nil, foundVersion, fallbackError{
+		return nil, fallbackError{
 			err:         err,
-			confirmedV2: foundVersion,
 			transportOK: transportOK,
 		}
 	}
@@ -123,9 +122,8 @@ func NewV2Repository(
 
 	repoNameRef, err := reference.WithName(repoName)
 	if err != nil {
-		return nil, foundVersion, fallbackError{
+		return nil, fallbackError{
 			err:         err,
-			confirmedV2: foundVersion,
 			transportOK: true,
 		}
 	}
@@ -134,7 +132,6 @@ func NewV2Repository(
 	if err != nil {
 		err = fallbackError{
 			err:         err,
-			confirmedV2: foundVersion,
 			transportOK: true,
 		}
 	}

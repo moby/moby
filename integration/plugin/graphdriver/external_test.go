@@ -129,7 +129,7 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		switch t := data.(type) {
 		case error:
-			fmt.Fprintln(w, fmt.Sprintf(`{"Err": %q}`, t.Error()))
+			fmt.Fprintf(w, "{\"Err\": %q}\n", t.Error())
 		case string:
 			fmt.Fprintln(w, t)
 		default:
@@ -318,7 +318,7 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		parent := r.URL.Query().Get("parent")
 
 		if id == "" {
-			http.Error(w, fmt.Sprintf("missing id"), 409)
+			http.Error(w, "missing id", 409)
 		}
 
 		size, err := driver.ApplyDiff(id, parent, diff)

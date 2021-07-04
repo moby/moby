@@ -53,16 +53,13 @@ type pushState struct {
 	// involve the same layers. It is also used to fill in digest and size
 	// information when building the manifest.
 	remoteLayers map[layer.DiffID]distribution.Descriptor
-	// confirmedV2 is set to true if we confirm we're talking to a v2
-	// registry. This is used to limit fallbacks to the v1 protocol.
-	confirmedV2 bool
-	hasAuthInfo bool
+	hasAuthInfo  bool
 }
 
 func (p *v2Pusher) Push(ctx context.Context) (err error) {
 	p.pushState.remoteLayers = make(map[layer.DiffID]distribution.Descriptor)
 
-	p.repo, p.pushState.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
+	p.repo, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
 	p.pushState.hasAuthInfo = p.config.AuthConfig.RegistryToken != "" || (p.config.AuthConfig.Username != "" && p.config.AuthConfig.Password != "")
 	if err != nil {
 		logrus.Debugf("Error getting v2 registry: %v", err)
@@ -73,7 +70,6 @@ func (p *v2Pusher) Push(ctx context.Context) (err error) {
 		if continueOnError(err, p.endpoint.Mirror) {
 			return fallbackError{
 				err:         err,
-				confirmedV2: p.pushState.confirmedV2,
 				transportOK: true,
 			}
 		}
@@ -126,12 +122,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 		return fmt.Errorf("unable to get rootfs for image %s: %s", reference.FamiliarString(ref), err)
 	}
 
-	platform, err := p.config.ImageStore.PlatformFromConfig(imgConfig)
-	if err != nil {
-		return fmt.Errorf("unable to get platform for image %s: %s", reference.FamiliarString(ref), err)
-	}
-
-	l, err := p.config.LayerStores[platform.OS].Get(rootfs.ChainID())
+	l, err := p.config.LayerStores.Get(rootfs.ChainID())
 	if err != nil {
 		return fmt.Errorf("failed to get top layer from image: %v", err)
 	}
@@ -330,7 +321,8 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 	// Attempt to find another repository in the same registry to mount the layer from to avoid an unnecessary upload
 	candidates := getRepositoryMountCandidates(pd.repoInfo, pd.hmacKey, maxMountAttempts, v2Metadata)
 	isUnauthorizedError := false
-	for _, mountCandidate := range candidates {
+	for _, mc := range candidates {
+		mountCandidate := mc
 		logrus.Debugf("attempting to mount layer %s (%s) from %s", diffID, mountCandidate.Digest, mountCandidate.SourceRepository)
 		createOpts := []distribution.BlobCreateOption{}
 
@@ -370,7 +362,6 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 			err.Descriptor.MediaType = schema2.MediaTypeLayer
 
 			pd.pushState.Lock()
-			pd.pushState.confirmedV2 = true
 			pd.pushState.remoteLayers[diffID] = err.Descriptor
 			pd.pushState.Unlock()
 
@@ -510,8 +501,6 @@ func (pd *v2PushDescriptor) uploadUsingSession(
 	}
 
 	pd.pushState.Lock()
-	// If Commit succeeded, that's an indication that the remote registry speaks the v2 protocol.
-	pd.pushState.confirmedV2 = true
 	pd.pushState.remoteLayers[diffID] = desc
 	pd.pushState.Unlock()
 

@@ -126,7 +126,9 @@ func (p *Plugin) Set(args []string) error {
 	// TODO(vieux): lots of code duplication here, needs to be refactored.
 
 next:
-	for _, s := range sets {
+	for _, set := range sets {
+		s := set
+
 		// range over all the envs in the config
 		for _, env := range p.PluginObj.Config.Env {
 			// found the env in the config

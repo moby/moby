@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 set -e
 
 EXITCODE=0
@@ -6,20 +6,20 @@ EXITCODE=0
 # bits of this were adapted from lxc-checkconfig
 # see also https://github.com/lxc/lxc/blob/lxc-1.0.2/src/lxc/lxc-checkconfig.in
 
-possibleConfigs=(
-	'/proc/config.gz'
-	"/boot/config-$(uname -r)"
-	"/usr/src/linux-$(uname -r)/.config"
-	'/usr/src/linux/.config'
-)
+possibleConfigs="
+	/proc/config.gz
+	/boot/config-$(uname -r)
+	/usr/src/linux-$(uname -r)/.config
+	/usr/src/linux/.config
+"
 
 if [ $# -gt 0 ]; then
 	CONFIG="$1"
 else
-	: "${CONFIG:="${possibleConfigs[0]}"}"
+	: "${CONFIG:=/proc/config.gz}"
 fi
 
-if ! command -v zgrep &> /dev/null; then
+if ! command -v zgrep > /dev/null 2>&1; then
 	zgrep() {
 		zcat "$2" | grep "$1"
 	}
@@ -41,13 +41,13 @@ is_set_as_module() {
 }
 
 color() {
-	local codes=()
+	codes=
 	if [ "$1" = 'bold' ]; then
-		codes=("${codes[@]}" '1')
+		codes='1'
 		shift
 	fi
 	if [ "$#" -gt 0 ]; then
-		local code=
+		code=
 		case "$1" in
 			# see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
 			black) code=30 ;;
@@ -60,17 +60,16 @@ color() {
 			white) code=37 ;;
 		esac
 		if [ "$code" ]; then
-			codes=("${codes[@]}" "$code")
+			codes="${codes:+$codes;}$code"
 		fi
 	fi
-	local IFS=';'
-	echo -en '\033['"${codes[*]}"'m'
+	printf '\033[%sm' "$codes"
 }
 wrap_color() {
 	text="$1"
 	shift
 	color "$@"
-	echo -n "$text"
+	printf '%s' "$text"
 	color reset
 	echo
 }
@@ -98,7 +97,7 @@ check_flag() {
 
 check_flags() {
 	for flag in "$@"; do
-		echo -n "- "
+		printf -- '- '
 		check_flag "$flag"
 	done
 }
@@ -122,20 +121,26 @@ check_device() {
 }
 
 check_distro_userns() {
-	source /etc/os-release 2> /dev/null || /bin/true
-	if [[ "${ID}" =~ ^(centos|rhel)$ && "${VERSION_ID}" =~ ^7 ]]; then
-		# this is a CentOS7 or RHEL7 system
-		grep -q "user_namespace.enable=1" /proc/cmdline || {
-			# no user namespace support enabled
-			wrap_bad "  (RHEL7/CentOS7" "User namespaces disabled; add 'user_namespace.enable=1' to boot command line)"
-			EXITCODE=1
-		}
-	fi
+	. /etc/os-release 2> /dev/null || /bin/true
+	case "$ID" in
+		centos | rhel)
+			case "$VERSION_ID" in
+				7*)
+					# this is a CentOS7 or RHEL7 system
+					grep -q 'user_namespace.enable=1' /proc/cmdline || {
+						# no user namespace support enabled
+						wrap_bad "  (RHEL7/CentOS7" "User namespaces disabled; add 'user_namespace.enable=1' to boot command line)"
+						EXITCODE=1
+					}
+					;;
+			esac
+			;;
+	esac
 }
 
 if [ ! -e "$CONFIG" ]; then
 	wrap_warning "warning: $CONFIG does not exist, searching other paths for kernel config ..."
-	for tryConfig in "${possibleConfigs[@]}"; do
+	for tryConfig in $possibleConfigs; do
 		if [ -e "$tryConfig" ]; then
 			CONFIG="$tryConfig"
 			break
@@ -154,31 +159,35 @@ echo
 
 echo 'Generally Necessary:'
 
-echo -n '- '
-cgroupSubsystemDir="$(awk '/[, ](cpu|cpuacct|cpuset|devices|freezer|memory)[, ]/ && $3 == "cgroup" { print $2 }' /proc/mounts | head -n1)"
-cgroupDir="$(dirname "$cgroupSubsystemDir")"
-if [ -d "$cgroupDir/cpu" ] || [ -d "$cgroupDir/cpuacct" ] || [ -d "$cgroupDir/cpuset" ] || [ -d "$cgroupDir/devices" ] || [ -d "$cgroupDir/freezer" ] || [ -d "$cgroupDir/memory" ]; then
-	echo "$(wrap_good 'cgroup hierarchy' 'properly mounted') [$cgroupDir]"
+printf -- '- '
+if [ "$(stat -f -c %t /sys/fs/cgroup 2> /dev/null)" = '63677270' ]; then
+	wrap_good 'cgroup hierarchy' 'cgroupv2'
 else
-	if [ "$cgroupSubsystemDir" ]; then
-		echo "$(wrap_bad 'cgroup hierarchy' 'single mountpoint!') [$cgroupSubsystemDir]"
+	cgroupSubsystemDir="$(sed -rne '/^[^ ]+ ([^ ]+) cgroup ([^ ]*,)?(cpu|cpuacct|cpuset|devices|freezer|memory)[, ].*$/ { s//\1/p; q }' /proc/mounts)"
+	cgroupDir="$(dirname "$cgroupSubsystemDir")"
+	if [ -d "$cgroupDir/cpu" ] || [ -d "$cgroupDir/cpuacct" ] || [ -d "$cgroupDir/cpuset" ] || [ -d "$cgroupDir/devices" ] || [ -d "$cgroupDir/freezer" ] || [ -d "$cgroupDir/memory" ]; then
+		echo "$(wrap_good 'cgroup hierarchy' 'properly mounted') [$cgroupDir]"
 	else
-		wrap_bad 'cgroup hierarchy' 'nonexistent??'
+		if [ "$cgroupSubsystemDir" ]; then
+			echo "$(wrap_bad 'cgroup hierarchy' 'single mountpoint!') [$cgroupSubsystemDir]"
+		else
+			wrap_bad 'cgroup hierarchy' 'nonexistent??'
+		fi
+		EXITCODE=1
+		echo "    $(wrap_color '(see https://github.com/tianon/cgroupfs-mount)' yellow)"
 	fi
-	EXITCODE=1
-	echo "    $(wrap_color '(see https://github.com/tianon/cgroupfs-mount)' yellow)"
 fi
 
 if [ "$(cat /sys/module/apparmor/parameters/enabled 2> /dev/null)" = 'Y' ]; then
-	echo -n '- '
-	if command -v apparmor_parser &> /dev/null; then
+	printf -- '- '
+	if command -v apparmor_parser > /dev/null 2>&1; then
 		wrap_good 'apparmor' 'enabled and tools installed'
 	else
 		wrap_bad 'apparmor' 'enabled, but apparmor_parser missing'
-		echo -n '    '
-		if command -v apt-get &> /dev/null; then
+		printf '    '
+		if command -v apt-get > /dev/null 2>&1; then
 			wrap_color '(use "apt-get install apparmor" to fix this)'
-		elif command -v yum &> /dev/null; then
+		elif command -v yum > /dev/null 2>&1; then
 			wrap_color '(your best bet is "yum install apparmor-parser")'
 		else
 			wrap_color '(look for an "apparmor" package for your distribution)'
@@ -187,21 +196,30 @@ if [ "$(cat /sys/module/apparmor/parameters/enabled 2> /dev/null)" = 'Y' ]; then
 	fi
 fi
 
-flags=(
-	NAMESPACES {NET,PID,IPC,UTS}_NS
-	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED CPUSETS MEMCG
-	KEYS
-	VETH BRIDGE BRIDGE_NETFILTER
-	NF_NAT_IPV4 IP_NF_FILTER IP_NF_TARGET_MASQUERADE
-	NETFILTER_XT_MATCH_{ADDRTYPE,CONNTRACK,IPVS}
-	IP_NF_NAT NF_NAT NF_NAT_NEEDED
-
-	# required for bind-mounting /dev/mqueue into containers
+check_flags \
+	NAMESPACES NET_NS PID_NS IPC_NS UTS_NS \
+	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED CPUSETS MEMCG \
+	KEYS \
+	VETH BRIDGE BRIDGE_NETFILTER \
+	IP_NF_FILTER IP_NF_TARGET_MASQUERADE \
+	NETFILTER_XT_MATCH_ADDRTYPE \
+	NETFILTER_XT_MATCH_CONNTRACK \
+	NETFILTER_XT_MATCH_IPVS \
+	NETFILTER_XT_MARK \
+	IP_NF_NAT NF_NAT \
 	POSIX_MQUEUE
-)
-check_flags "${flags[@]}"
+# (POSIX_MQUEUE is required for bind-mounting /dev/mqueue into containers)
+
 if [ "$kernelMajor" -lt 4 ] || ([ "$kernelMajor" -eq 4 ] && [ "$kernelMinor" -lt 8 ]); then
 	check_flags DEVPTS_MULTIPLE_INSTANCES
+fi
+
+if [ "$kernelMajor" -lt 5 ] || [ "$kernelMajor" -eq 5 -a "$kernelMinor" -le 1 ]; then
+	check_flags NF_NAT_IPV4
+fi
+
+if [ "$kernelMajor" -lt 5 ] || [ "$kernelMajor" -eq 5 -a "$kernelMinor" -le 2 ]; then
+	check_flags NF_NAT_NEEDED
 fi
 
 echo
@@ -213,30 +231,39 @@ echo 'Optional Features:'
 }
 {
 	check_flags SECCOMP
+	check_flags SECCOMP_FILTER
 }
 {
 	check_flags CGROUP_PIDS
 }
 {
-	CODE=${EXITCODE}
-	check_flags MEMCG_SWAP MEMCG_SWAP_ENABLED
-	if [ -e /sys/fs/cgroup/memory/memory.memsw.limit_in_bytes ]; then
+	check_flags MEMCG_SWAP
+	# Kernel v5.8+ removes MEMCG_SWAP_ENABLED.
+	if [ "$kernelMajor" -lt 5 ] || [ "$kernelMajor" -eq 5 -a "$kernelMinor" -le 8 ]; then
+		CODE=${EXITCODE}
+		check_flags MEMCG_SWAP_ENABLED
+		# FIXME this check is cgroupv1-specific
+		if [ -e /sys/fs/cgroup/memory/memory.memsw.limit_in_bytes ]; then
+			echo "    $(wrap_color '(cgroup swap accounting is currently enabled)' bold black)"
+			EXITCODE=${CODE}
+		elif is_set MEMCG_SWAP && ! is_set MEMCG_SWAP_ENABLED; then
+			echo "    $(wrap_color '(cgroup swap accounting is currently not enabled, you can enable it by setting boot option "swapaccount=1")' bold black)"
+		fi
+	else
+		# Kernel v5.8+ enables swap accounting by default.
 		echo "    $(wrap_color '(cgroup swap accounting is currently enabled)' bold black)"
-		EXITCODE=${CODE}
-	elif is_set MEMCG_SWAP && ! is_set MEMCG_SWAP_ENABLED; then
-		echo "    $(wrap_color '(cgroup swap accounting is currently not enabled, you can enable it by setting boot option "swapaccount=1")' bold black)"
 	fi
 }
 {
 	if is_set LEGACY_VSYSCALL_NATIVE; then
-		echo -n "- "
+		printf -- '- '
 		wrap_bad "CONFIG_LEGACY_VSYSCALL_NATIVE" 'enabled'
 		echo "    $(wrap_color '(dangerous, provides an ASLR-bypassing target with usable ROP gadgets.)' bold black)"
 	elif is_set LEGACY_VSYSCALL_EMULATE; then
-		echo -n "- "
+		printf -- '- '
 		wrap_good "CONFIG_LEGACY_VSYSCALL_EMULATE" 'enabled'
 	elif is_set LEGACY_VSYSCALL_NONE; then
-		echo -n "- "
+		printf -- '- '
 		wrap_bad "CONFIG_LEGACY_VSYSCALL_NONE" 'enabled'
 		echo "    $(wrap_color '(containers using eglibc <= 2.13 will not work. Switch to' bold black)"
 		echo "    $(wrap_color ' "CONFIG_VSYSCALL_[NATIVE|EMULATE]" or use "vsyscall=[native|emulate]"' bold black)"
@@ -263,20 +290,24 @@ else
 	netprio=CGROUP_NET_PRIO
 fi
 
-flags=(
-	BLK_CGROUP BLK_DEV_THROTTLING IOSCHED_CFQ CFQ_GROUP_IOSCHED
-	CGROUP_PERF
-	CGROUP_HUGETLB
-	NET_CLS_CGROUP $netprio
-	CFS_BANDWIDTH FAIR_GROUP_SCHED RT_GROUP_SCHED
-	IP_NF_TARGET_REDIRECT
-	IP_VS
-	IP_VS_NFCT
-	IP_VS_PROTO_TCP
-	IP_VS_PROTO_UDP
-	IP_VS_RR
-)
-check_flags "${flags[@]}"
+if [ "$kernelMajor" -lt 5 ]; then
+	check_flags IOSCHED_CFQ CFQ_GROUP_IOSCHED
+fi
+
+check_flags \
+	BLK_CGROUP BLK_DEV_THROTTLING \
+	CGROUP_PERF \
+	CGROUP_HUGETLB \
+	NET_CLS_CGROUP $netprio \
+	CFS_BANDWIDTH FAIR_GROUP_SCHED RT_GROUP_SCHED \
+	IP_NF_TARGET_REDIRECT \
+	IP_VS \
+	IP_VS_NFCT \
+	IP_VS_PROTO_TCP \
+	IP_VS_PROTO_UDP \
+	IP_VS_RR \
+	SECURITY_SELINUX \
+	SECURITY_APPARMOR
 
 if ! is_set EXT4_USE_FOR_EXT2; then
 	check_flags EXT3_FS EXT3_FS_XATTR EXT3_FS_POSIX_ACL EXT3_FS_SECURITY
@@ -299,7 +330,10 @@ echo "  - \"$(wrap_color 'overlay' blue)\":"
 check_flags VXLAN BRIDGE_VLAN_FILTERING | sed 's/^/    /'
 echo '      Optional (for encrypted networks):'
 check_flags CRYPTO CRYPTO_AEAD CRYPTO_GCM CRYPTO_SEQIV CRYPTO_GHASH \
-	XFRM XFRM_USER XFRM_ALGO INET_ESP INET_XFRM_MODE_TRANSPORT | sed 's/^/      /'
+	XFRM XFRM_USER XFRM_ALGO INET_ESP | sed 's/^/      /'
+if [ "$kernelMajor" -lt 5 ] || [ "$kernelMajor" -eq 5 -a "$kernelMinor" -le 3 ]; then
+	check_flags INET_XFRM_MODE_TRANSPORT | sed 's/^/      /'
+fi
 echo "  - \"$(wrap_color 'ipvlan' blue)\":"
 check_flags IPVLAN | sed 's/^/    /'
 echo "  - \"$(wrap_color 'macvlan' blue)\":"
@@ -338,11 +372,11 @@ check_flags OVERLAY_FS | sed 's/^/    /'
 EXITCODE=0
 
 echo "  - \"$(wrap_color 'zfs' blue)\":"
-echo -n "    - "
+printf '    - '
 check_device /dev/zfs
-echo -n "    - "
+printf '    - '
 check_command zfs
-echo -n "    - "
+printf '    - '
 check_command zpool
 [ "$EXITCODE" = 0 ] && STORAGE=0
 EXITCODE=0

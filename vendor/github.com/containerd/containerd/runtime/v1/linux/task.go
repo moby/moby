@@ -306,7 +306,7 @@ func (t *Task) Checkpoint(ctx context.Context, path string, options *types.Any) 
 }
 
 // Update changes runtime information of a running task
-func (t *Task) Update(ctx context.Context, resources *types.Any) error {
+func (t *Task) Update(ctx context.Context, resources *types.Any, _ map[string]string) error {
 	if _, err := t.shim.Update(ctx, &shim.UpdateTaskRequest{
 		Resources: resources,
 	}); err != nil {

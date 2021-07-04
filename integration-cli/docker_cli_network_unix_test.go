@@ -18,14 +18,14 @@ import (
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/libnetwork/driverapi"
+	remoteapi "github.com/docker/docker/libnetwork/drivers/remote/api"
+	"github.com/docker/docker/libnetwork/ipamapi"
+	remoteipam "github.com/docker/docker/libnetwork/ipams/remote/api"
+	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	testdaemon "github.com/docker/docker/testutil/daemon"
-	"github.com/docker/libnetwork/driverapi"
-	remoteapi "github.com/docker/libnetwork/drivers/remote/api"
-	"github.com/docker/libnetwork/ipamapi"
-	remoteipam "github.com/docker/libnetwork/ipams/remote/api"
-	"github.com/docker/libnetwork/netlabel"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
@@ -1574,7 +1574,7 @@ func (s *DockerSuite) TestEmbeddedDNSInvalidInput(c *testing.T) {
 	dockerCmd(c, "network", "create", "-d", "bridge", "nw1")
 
 	// Sending garbage to embedded DNS shouldn't crash the daemon
-	dockerCmd(c, "run", "-i", "--net=nw1", "--name=c1", "debian:buster", "bash", "-c", "echo InvalidQuery > /dev/udp/127.0.0.11/53")
+	dockerCmd(c, "run", "-i", "--net=nw1", "--name=c1", "debian:bullseye", "bash", "-c", "echo InvalidQuery > /dev/udp/127.0.0.11/53")
 }
 
 func (s *DockerSuite) TestDockerNetworkConnectFailsNoInspectChange(c *testing.T) {
@@ -1694,9 +1694,6 @@ func (s *DockerDaemonSuite) TestDaemonRestartRestoreBridgeNetwork(t *testing.T) 
 func (s *DockerNetworkSuite) TestDockerNetworkFlagAlias(c *testing.T) {
 	dockerCmd(c, "network", "create", "user")
 	output, status := dockerCmd(c, "run", "--rm", "--network=user", "--network-alias=foo", "busybox", "true")
-	assert.Equal(c, status, 0, fmt.Sprintf("unexpected status code %d (%s)", status, output))
-
-	output, status, _ = dockerCmdWithError("run", "--rm", "--net=user", "--network=user", "busybox", "true")
 	assert.Equal(c, status, 0, fmt.Sprintf("unexpected status code %d (%s)", status, output))
 
 	output, status, _ = dockerCmdWithError("run", "--rm", "--network=user", "--net-alias=foo", "--network-alias=bar", "busybox", "true")

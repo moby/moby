@@ -54,6 +54,7 @@ const (
 	keyContextSubDir           = "contextsubdir"
 	keyContextKeepGitDir       = "build-arg:BUILDKIT_CONTEXT_KEEP_GIT_DIR"
 	keySyntax                  = "build-arg:BUILDKIT_SYNTAX"
+	keyMultiPlatformArg        = "build-arg:BUILDKIT_MULTI_PLATFORM"
 	keyHostname                = "hostname"
 )
 
@@ -369,6 +370,9 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 
 	exportMap := len(targetPlatforms) > 1
 
+	if v := opts[keyMultiPlatformArg]; v != "" {
+		opts[keyMultiPlatform] = v
+	}
 	if v := opts[keyMultiPlatform]; v != "" {
 		b, err := strconv.ParseBool(v)
 		if err != nil {

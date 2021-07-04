@@ -7,4 +7,5 @@ rm -rf "$DEST"
 	DEST="${DEST}-daemon"
 	ABS_DEST="${ABS_DEST}-daemon"
 	. hack/make/binary-daemon
+	. hack/make/binary-proxy
 )

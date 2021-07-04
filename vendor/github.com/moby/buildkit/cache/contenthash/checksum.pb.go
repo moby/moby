@@ -552,10 +552,7 @@ func (m *CacheRecord) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthChecksum
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthChecksum
 			}
 			if (iNdEx + skippy) > l {
@@ -673,10 +670,7 @@ func (m *CacheRecordWithPath) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthChecksum
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthChecksum
 			}
 			if (iNdEx + skippy) > l {
@@ -760,10 +754,7 @@ func (m *CacheRecords) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthChecksum
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthChecksum
 			}
 			if (iNdEx + skippy) > l {

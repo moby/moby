@@ -18,6 +18,7 @@ import (
 	status "google.golang.org/grpc/status"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
 	rafttime "time"
@@ -32,7 +33,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // WatchActionKind distinguishes between creations, updates, and removals. It
 // is structured as a bitmap so multiple kinds of events can be requested with
@@ -95,7 +96,7 @@ func (m *Object) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Object.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -121,31 +122,31 @@ type isObject_Object interface {
 }
 
 type Object_Node struct {
-	Node *Node `protobuf:"bytes,1,opt,name=node,proto3,oneof"`
+	Node *Node `protobuf:"bytes,1,opt,name=node,proto3,oneof" json:"node,omitempty"`
 }
 type Object_Service struct {
-	Service *Service `protobuf:"bytes,2,opt,name=service,proto3,oneof"`
+	Service *Service `protobuf:"bytes,2,opt,name=service,proto3,oneof" json:"service,omitempty"`
 }
 type Object_Network struct {
-	Network *Network `protobuf:"bytes,3,opt,name=network,proto3,oneof"`
+	Network *Network `protobuf:"bytes,3,opt,name=network,proto3,oneof" json:"network,omitempty"`
 }
 type Object_Task struct {
-	Task *Task `protobuf:"bytes,4,opt,name=task,proto3,oneof"`
+	Task *Task `protobuf:"bytes,4,opt,name=task,proto3,oneof" json:"task,omitempty"`
 }
 type Object_Cluster struct {
-	Cluster *Cluster `protobuf:"bytes,5,opt,name=cluster,proto3,oneof"`
+	Cluster *Cluster `protobuf:"bytes,5,opt,name=cluster,proto3,oneof" json:"cluster,omitempty"`
 }
 type Object_Secret struct {
-	Secret *Secret `protobuf:"bytes,6,opt,name=secret,proto3,oneof"`
+	Secret *Secret `protobuf:"bytes,6,opt,name=secret,proto3,oneof" json:"secret,omitempty"`
 }
 type Object_Resource struct {
-	Resource *Resource `protobuf:"bytes,7,opt,name=resource,proto3,oneof"`
+	Resource *Resource `protobuf:"bytes,7,opt,name=resource,proto3,oneof" json:"resource,omitempty"`
 }
 type Object_Extension struct {
-	Extension *Extension `protobuf:"bytes,8,opt,name=extension,proto3,oneof"`
+	Extension *Extension `protobuf:"bytes,8,opt,name=extension,proto3,oneof" json:"extension,omitempty"`
 }
 type Object_Config struct {
-	Config *Config `protobuf:"bytes,9,opt,name=config,proto3,oneof"`
+	Config *Config `protobuf:"bytes,9,opt,name=config,proto3,oneof" json:"config,omitempty"`
 }
 
 func (*Object_Node) isObject_Object()      {}
@@ -228,9 +229,9 @@ func (m *Object) GetConfig() *Config {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*Object) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _Object_OneofMarshaler, _Object_OneofUnmarshaler, _Object_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*Object) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*Object_Node)(nil),
 		(*Object_Service)(nil),
 		(*Object_Network)(nil),
@@ -241,198 +242,6 @@ func (*Object) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error,
 		(*Object_Extension)(nil),
 		(*Object_Config)(nil),
 	}
-}
-
-func _Object_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*Object)
-	// Object
-	switch x := m.Object.(type) {
-	case *Object_Node:
-		_ = b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Node); err != nil {
-			return err
-		}
-	case *Object_Service:
-		_ = b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Service); err != nil {
-			return err
-		}
-	case *Object_Network:
-		_ = b.EncodeVarint(3<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Network); err != nil {
-			return err
-		}
-	case *Object_Task:
-		_ = b.EncodeVarint(4<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Task); err != nil {
-			return err
-		}
-	case *Object_Cluster:
-		_ = b.EncodeVarint(5<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Cluster); err != nil {
-			return err
-		}
-	case *Object_Secret:
-		_ = b.EncodeVarint(6<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Secret); err != nil {
-			return err
-		}
-	case *Object_Resource:
-		_ = b.EncodeVarint(7<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Resource); err != nil {
-			return err
-		}
-	case *Object_Extension:
-		_ = b.EncodeVarint(8<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Extension); err != nil {
-			return err
-		}
-	case *Object_Config:
-		_ = b.EncodeVarint(9<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Config); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("Object.Object has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _Object_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*Object)
-	switch tag {
-	case 1: // Object.node
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Node)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Node{msg}
-		return true, err
-	case 2: // Object.service
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Service)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Service{msg}
-		return true, err
-	case 3: // Object.network
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Network)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Network{msg}
-		return true, err
-	case 4: // Object.task
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Task)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Task{msg}
-		return true, err
-	case 5: // Object.cluster
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Cluster)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Cluster{msg}
-		return true, err
-	case 6: // Object.secret
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Secret)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Secret{msg}
-		return true, err
-	case 7: // Object.resource
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Resource)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Resource{msg}
-		return true, err
-	case 8: // Object.extension
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Extension)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Extension{msg}
-		return true, err
-	case 9: // Object.config
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Config)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Config{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _Object_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*Object)
-	// Object
-	switch x := m.Object.(type) {
-	case *Object_Node:
-		s := proto.Size(x.Node)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Object_Service:
-		s := proto.Size(x.Service)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Object_Network:
-		s := proto.Size(x.Network)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Object_Task:
-		s := proto.Size(x.Task)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Object_Cluster:
-		s := proto.Size(x.Cluster)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Object_Secret:
-		s := proto.Size(x.Secret)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Object_Resource:
-		s := proto.Size(x.Resource)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Object_Extension:
-		s := proto.Size(x.Extension)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Object_Config:
-		s := proto.Size(x.Config)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 // FIXME(aaronl): These messages should ideally be embedded in SelectBy, but
@@ -455,7 +264,7 @@ func (m *SelectBySlot) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_SelectBySlot.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -493,7 +302,7 @@ func (m *SelectByCustom) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return xxx_messageInfo_SelectByCustom.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -550,7 +359,7 @@ func (m *SelectBy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_SelectBy.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -576,52 +385,52 @@ type isSelectBy_By interface {
 }
 
 type SelectBy_ID struct {
-	ID string `protobuf:"bytes,1,opt,name=id,proto3,oneof"`
+	ID string `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
 }
 type SelectBy_IDPrefix struct {
-	IDPrefix string `protobuf:"bytes,2,opt,name=id_prefix,json=idPrefix,proto3,oneof"`
+	IDPrefix string `protobuf:"bytes,2,opt,name=id_prefix,json=idPrefix,proto3,oneof" json:"id_prefix,omitempty"`
 }
 type SelectBy_Name struct {
-	Name string `protobuf:"bytes,3,opt,name=name,proto3,oneof"`
+	Name string `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
 }
 type SelectBy_NamePrefix struct {
-	NamePrefix string `protobuf:"bytes,4,opt,name=name_prefix,json=namePrefix,proto3,oneof"`
+	NamePrefix string `protobuf:"bytes,4,opt,name=name_prefix,json=namePrefix,proto3,oneof" json:"name_prefix,omitempty"`
 }
 type SelectBy_Custom struct {
-	Custom *SelectByCustom `protobuf:"bytes,5,opt,name=custom,proto3,oneof"`
+	Custom *SelectByCustom `protobuf:"bytes,5,opt,name=custom,proto3,oneof" json:"custom,omitempty"`
 }
 type SelectBy_CustomPrefix struct {
-	CustomPrefix *SelectByCustom `protobuf:"bytes,6,opt,name=custom_prefix,json=customPrefix,proto3,oneof"`
+	CustomPrefix *SelectByCustom `protobuf:"bytes,6,opt,name=custom_prefix,json=customPrefix,proto3,oneof" json:"custom_prefix,omitempty"`
 }
 type SelectBy_ServiceID struct {
-	ServiceID string `protobuf:"bytes,7,opt,name=service_id,json=serviceId,proto3,oneof"`
+	ServiceID string `protobuf:"bytes,7,opt,name=service_id,json=serviceId,proto3,oneof" json:"service_id,omitempty"`
 }
 type SelectBy_NodeID struct {
-	NodeID string `protobuf:"bytes,8,opt,name=node_id,json=nodeId,proto3,oneof"`
+	NodeID string `protobuf:"bytes,8,opt,name=node_id,json=nodeId,proto3,oneof" json:"node_id,omitempty"`
 }
 type SelectBy_Slot struct {
-	Slot *SelectBySlot `protobuf:"bytes,9,opt,name=slot,proto3,oneof"`
+	Slot *SelectBySlot `protobuf:"bytes,9,opt,name=slot,proto3,oneof" json:"slot,omitempty"`
 }
 type SelectBy_DesiredState struct {
-	DesiredState TaskState `protobuf:"varint,10,opt,name=desired_state,json=desiredState,proto3,enum=docker.swarmkit.v1.TaskState,oneof"`
+	DesiredState TaskState `protobuf:"varint,10,opt,name=desired_state,json=desiredState,proto3,enum=docker.swarmkit.v1.TaskState,oneof" json:"desired_state,omitempty"`
 }
 type SelectBy_Role struct {
-	Role NodeRole `protobuf:"varint,11,opt,name=role,proto3,enum=docker.swarmkit.v1.NodeRole,oneof"`
+	Role NodeRole `protobuf:"varint,11,opt,name=role,proto3,enum=docker.swarmkit.v1.NodeRole,oneof" json:"role,omitempty"`
 }
 type SelectBy_Membership struct {
-	Membership NodeSpec_Membership `protobuf:"varint,12,opt,name=membership,proto3,enum=docker.swarmkit.v1.NodeSpec_Membership,oneof"`
+	Membership NodeSpec_Membership `protobuf:"varint,12,opt,name=membership,proto3,enum=docker.swarmkit.v1.NodeSpec_Membership,oneof" json:"membership,omitempty"`
 }
 type SelectBy_ReferencedNetworkID struct {
-	ReferencedNetworkID string `protobuf:"bytes,13,opt,name=referenced_network_id,json=referencedNetworkId,proto3,oneof"`
+	ReferencedNetworkID string `protobuf:"bytes,13,opt,name=referenced_network_id,json=referencedNetworkId,proto3,oneof" json:"referenced_network_id,omitempty"`
 }
 type SelectBy_ReferencedSecretID struct {
-	ReferencedSecretID string `protobuf:"bytes,14,opt,name=referenced_secret_id,json=referencedSecretId,proto3,oneof"`
+	ReferencedSecretID string `protobuf:"bytes,14,opt,name=referenced_secret_id,json=referencedSecretId,proto3,oneof" json:"referenced_secret_id,omitempty"`
 }
 type SelectBy_ReferencedConfigID struct {
-	ReferencedConfigID string `protobuf:"bytes,16,opt,name=referenced_config_id,json=referencedConfigId,proto3,oneof"`
+	ReferencedConfigID string `protobuf:"bytes,16,opt,name=referenced_config_id,json=referencedConfigId,proto3,oneof" json:"referenced_config_id,omitempty"`
 }
 type SelectBy_Kind struct {
-	Kind string `protobuf:"bytes,15,opt,name=kind,proto3,oneof"`
+	Kind string `protobuf:"bytes,15,opt,name=kind,proto3,oneof" json:"kind,omitempty"`
 }
 
 func (*SelectBy_ID) isSelectBy_By()                  {}
@@ -760,9 +569,9 @@ func (m *SelectBy) GetKind() string {
 	return ""
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*SelectBy) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _SelectBy_OneofMarshaler, _SelectBy_OneofUnmarshaler, _SelectBy_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*SelectBy) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*SelectBy_ID)(nil),
 		(*SelectBy_IDPrefix)(nil),
 		(*SelectBy_Name)(nil),
@@ -780,269 +589,6 @@ func (*SelectBy) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) erro
 		(*SelectBy_ReferencedConfigID)(nil),
 		(*SelectBy_Kind)(nil),
 	}
-}
-
-func _SelectBy_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*SelectBy)
-	// By
-	switch x := m.By.(type) {
-	case *SelectBy_ID:
-		_ = b.EncodeVarint(1<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.ID)
-	case *SelectBy_IDPrefix:
-		_ = b.EncodeVarint(2<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.IDPrefix)
-	case *SelectBy_Name:
-		_ = b.EncodeVarint(3<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.Name)
-	case *SelectBy_NamePrefix:
-		_ = b.EncodeVarint(4<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.NamePrefix)
-	case *SelectBy_Custom:
-		_ = b.EncodeVarint(5<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Custom); err != nil {
-			return err
-		}
-	case *SelectBy_CustomPrefix:
-		_ = b.EncodeVarint(6<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.CustomPrefix); err != nil {
-			return err
-		}
-	case *SelectBy_ServiceID:
-		_ = b.EncodeVarint(7<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.ServiceID)
-	case *SelectBy_NodeID:
-		_ = b.EncodeVarint(8<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.NodeID)
-	case *SelectBy_Slot:
-		_ = b.EncodeVarint(9<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Slot); err != nil {
-			return err
-		}
-	case *SelectBy_DesiredState:
-		_ = b.EncodeVarint(10<<3 | proto.WireVarint)
-		_ = b.EncodeVarint(uint64(x.DesiredState))
-	case *SelectBy_Role:
-		_ = b.EncodeVarint(11<<3 | proto.WireVarint)
-		_ = b.EncodeVarint(uint64(x.Role))
-	case *SelectBy_Membership:
-		_ = b.EncodeVarint(12<<3 | proto.WireVarint)
-		_ = b.EncodeVarint(uint64(x.Membership))
-	case *SelectBy_ReferencedNetworkID:
-		_ = b.EncodeVarint(13<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.ReferencedNetworkID)
-	case *SelectBy_ReferencedSecretID:
-		_ = b.EncodeVarint(14<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.ReferencedSecretID)
-	case *SelectBy_ReferencedConfigID:
-		_ = b.EncodeVarint(16<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.ReferencedConfigID)
-	case *SelectBy_Kind:
-		_ = b.EncodeVarint(15<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.Kind)
-	case nil:
-	default:
-		return fmt.Errorf("SelectBy.By has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _SelectBy_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*SelectBy)
-	switch tag {
-	case 1: // By.id
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_ID{x}
-		return true, err
-	case 2: // By.id_prefix
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_IDPrefix{x}
-		return true, err
-	case 3: // By.name
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_Name{x}
-		return true, err
-	case 4: // By.name_prefix
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_NamePrefix{x}
-		return true, err
-	case 5: // By.custom
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(SelectByCustom)
-		err := b.DecodeMessage(msg)
-		m.By = &SelectBy_Custom{msg}
-		return true, err
-	case 6: // By.custom_prefix
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(SelectByCustom)
-		err := b.DecodeMessage(msg)
-		m.By = &SelectBy_CustomPrefix{msg}
-		return true, err
-	case 7: // By.service_id
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_ServiceID{x}
-		return true, err
-	case 8: // By.node_id
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_NodeID{x}
-		return true, err
-	case 9: // By.slot
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(SelectBySlot)
-		err := b.DecodeMessage(msg)
-		m.By = &SelectBy_Slot{msg}
-		return true, err
-	case 10: // By.desired_state
-		if wire != proto.WireVarint {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeVarint()
-		m.By = &SelectBy_DesiredState{TaskState(x)}
-		return true, err
-	case 11: // By.role
-		if wire != proto.WireVarint {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeVarint()
-		m.By = &SelectBy_Role{NodeRole(x)}
-		return true, err
-	case 12: // By.membership
-		if wire != proto.WireVarint {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeVarint()
-		m.By = &SelectBy_Membership{NodeSpec_Membership(x)}
-		return true, err
-	case 13: // By.referenced_network_id
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_ReferencedNetworkID{x}
-		return true, err
-	case 14: // By.referenced_secret_id
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_ReferencedSecretID{x}
-		return true, err
-	case 16: // By.referenced_config_id
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_ReferencedConfigID{x}
-		return true, err
-	case 15: // By.kind
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_Kind{x}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _SelectBy_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*SelectBy)
-	// By
-	switch x := m.By.(type) {
-	case *SelectBy_ID:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.ID)))
-		n += len(x.ID)
-	case *SelectBy_IDPrefix:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.IDPrefix)))
-		n += len(x.IDPrefix)
-	case *SelectBy_Name:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.Name)))
-		n += len(x.Name)
-	case *SelectBy_NamePrefix:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.NamePrefix)))
-		n += len(x.NamePrefix)
-	case *SelectBy_Custom:
-		s := proto.Size(x.Custom)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *SelectBy_CustomPrefix:
-		s := proto.Size(x.CustomPrefix)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *SelectBy_ServiceID:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.ServiceID)))
-		n += len(x.ServiceID)
-	case *SelectBy_NodeID:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.NodeID)))
-		n += len(x.NodeID)
-	case *SelectBy_Slot:
-		s := proto.Size(x.Slot)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *SelectBy_DesiredState:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(x.DesiredState))
-	case *SelectBy_Role:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(x.Role))
-	case *SelectBy_Membership:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(x.Membership))
-	case *SelectBy_ReferencedNetworkID:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.ReferencedNetworkID)))
-		n += len(x.ReferencedNetworkID)
-	case *SelectBy_ReferencedSecretID:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.ReferencedSecretID)))
-		n += len(x.ReferencedSecretID)
-	case *SelectBy_ReferencedConfigID:
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.ReferencedConfigID)))
-		n += len(x.ReferencedConfigID)
-	case *SelectBy_Kind:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.Kind)))
-		n += len(x.Kind)
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type WatchRequest struct {
@@ -1076,7 +622,7 @@ func (m *WatchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_WatchRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -1120,7 +666,7 @@ func (m *WatchRequest_WatchEntry) XXX_Marshal(b []byte, deterministic bool) ([]b
 		return xxx_messageInfo_WatchRequest_WatchEntry.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -1162,7 +708,7 @@ func (m *WatchMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_WatchMessage.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -1207,7 +753,7 @@ func (m *WatchMessage_Event) XXX_Marshal(b []byte, deterministic bool) ([]byte, 
 		return xxx_messageInfo_WatchMessage_Event.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -1718,6 +1264,14 @@ type WatchServer interface {
 	Watch(*WatchRequest, Watch_WatchServer) error
 }
 
+// UnimplementedWatchServer can be embedded to have forward compatible implementations.
+type UnimplementedWatchServer struct {
+}
+
+func (*UnimplementedWatchServer) Watch(req *WatchRequest, srv Watch_WatchServer) error {
+	return status.Errorf(codes.Unimplemented, "method Watch not implemented")
+}
+
 func RegisterWatchServer(s *grpc.Server, srv WatchServer) {
 	s.RegisterService(&_Watch_serviceDesc, srv)
 }
@@ -1760,7 +1314,7 @@ var _Watch_serviceDesc = grpc.ServiceDesc{
 func (m *Object) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1768,150 +1322,220 @@ func (m *Object) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Object) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.Object != nil {
-		nn1, err := m.Object.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size := m.Object.Size()
+			i -= size
+			if _, err := m.Object.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
 		}
-		i += nn1
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *Object_Node) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Node) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Node != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Node.Size()))
-		n2, err := m.Node.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Node.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n2
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *Object_Service) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Service) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Service != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Service.Size()))
-		n3, err := m.Service.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Service.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n3
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *Object_Network) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Network) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Network != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Network.Size()))
-		n4, err := m.Network.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Network.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n4
+		i--
+		dAtA[i] = 0x1a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *Object_Task) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Task) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Task != nil {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Task.Size()))
-		n5, err := m.Task.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Task.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n5
+		i--
+		dAtA[i] = 0x22
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *Object_Cluster) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Cluster) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Cluster != nil {
-		dAtA[i] = 0x2a
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Cluster.Size()))
-		n6, err := m.Cluster.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Cluster.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n6
+		i--
+		dAtA[i] = 0x2a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *Object_Secret) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Secret) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Secret != nil {
-		dAtA[i] = 0x32
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Secret.Size()))
-		n7, err := m.Secret.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Secret.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n7
+		i--
+		dAtA[i] = 0x32
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *Object_Resource) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Resource) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Resource != nil {
-		dAtA[i] = 0x3a
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Resource.Size()))
-		n8, err := m.Resource.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Resource.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n8
+		i--
+		dAtA[i] = 0x3a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *Object_Extension) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Extension) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Extension != nil {
-		dAtA[i] = 0x42
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Extension.Size()))
-		n9, err := m.Extension.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Extension.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n9
+		i--
+		dAtA[i] = 0x42
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *Object_Config) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Config) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Config != nil {
-		dAtA[i] = 0x4a
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Config.Size()))
-		n10, err := m.Config.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Config.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n10
+		i--
+		dAtA[i] = 0x4a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *SelectBySlot) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1919,28 +1543,34 @@ func (m *SelectBySlot) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *SelectBySlot) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBySlot) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.ServiceID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(len(m.ServiceID)))
-		i += copy(dAtA[i:], m.ServiceID)
-	}
 	if m.Slot != 0 {
-		dAtA[i] = 0x10
-		i++
 		i = encodeVarintWatch(dAtA, i, uint64(m.Slot))
+		i--
+		dAtA[i] = 0x10
 	}
-	return i, nil
+	if len(m.ServiceID) > 0 {
+		i -= len(m.ServiceID)
+		copy(dAtA[i:], m.ServiceID)
+		i = encodeVarintWatch(dAtA, i, uint64(len(m.ServiceID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *SelectByCustom) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1948,35 +1578,43 @@ func (m *SelectByCustom) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *SelectByCustom) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectByCustom) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Kind) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(len(m.Kind)))
-		i += copy(dAtA[i:], m.Kind)
+	if len(m.Value) > 0 {
+		i -= len(m.Value)
+		copy(dAtA[i:], m.Value)
+		i = encodeVarintWatch(dAtA, i, uint64(len(m.Value)))
+		i--
+		dAtA[i] = 0x1a
 	}
 	if len(m.Index) > 0 {
-		dAtA[i] = 0x12
-		i++
+		i -= len(m.Index)
+		copy(dAtA[i:], m.Index)
 		i = encodeVarintWatch(dAtA, i, uint64(len(m.Index)))
-		i += copy(dAtA[i:], m.Index)
+		i--
+		dAtA[i] = 0x12
 	}
-	if len(m.Value) > 0 {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(len(m.Value)))
-		i += copy(dAtA[i:], m.Value)
+	if len(m.Kind) > 0 {
+		i -= len(m.Kind)
+		copy(dAtA[i:], m.Kind)
+		i = encodeVarintWatch(dAtA, i, uint64(len(m.Kind)))
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *SelectBy) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1984,169 +1622,272 @@ func (m *SelectBy) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *SelectBy) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.By != nil {
-		nn11, err := m.By.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size := m.By.Size()
+			i -= size
+			if _, err := m.By.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
 		}
-		i += nn11
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *SelectBy_ID) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0xa
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_ID) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.ID)
+	copy(dAtA[i:], m.ID)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.ID)))
-	i += copy(dAtA[i:], m.ID)
-	return i, nil
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_IDPrefix) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x12
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_IDPrefix) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.IDPrefix)
+	copy(dAtA[i:], m.IDPrefix)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.IDPrefix)))
-	i += copy(dAtA[i:], m.IDPrefix)
-	return i, nil
+	i--
+	dAtA[i] = 0x12
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_Name) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x1a
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_Name) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.Name)
+	copy(dAtA[i:], m.Name)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.Name)))
-	i += copy(dAtA[i:], m.Name)
-	return i, nil
+	i--
+	dAtA[i] = 0x1a
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_NamePrefix) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x22
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_NamePrefix) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.NamePrefix)
+	copy(dAtA[i:], m.NamePrefix)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.NamePrefix)))
-	i += copy(dAtA[i:], m.NamePrefix)
-	return i, nil
+	i--
+	dAtA[i] = 0x22
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_Custom) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_Custom) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Custom != nil {
-		dAtA[i] = 0x2a
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Custom.Size()))
-		n12, err := m.Custom.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Custom.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n12
+		i--
+		dAtA[i] = 0x2a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_CustomPrefix) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_CustomPrefix) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.CustomPrefix != nil {
-		dAtA[i] = 0x32
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.CustomPrefix.Size()))
-		n13, err := m.CustomPrefix.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.CustomPrefix.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n13
+		i--
+		dAtA[i] = 0x32
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_ServiceID) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x3a
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_ServiceID) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.ServiceID)
+	copy(dAtA[i:], m.ServiceID)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.ServiceID)))
-	i += copy(dAtA[i:], m.ServiceID)
-	return i, nil
+	i--
+	dAtA[i] = 0x3a
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_NodeID) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x42
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_NodeID) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.NodeID)
+	copy(dAtA[i:], m.NodeID)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.NodeID)))
-	i += copy(dAtA[i:], m.NodeID)
-	return i, nil
+	i--
+	dAtA[i] = 0x42
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_Slot) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_Slot) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Slot != nil {
-		dAtA[i] = 0x4a
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Slot.Size()))
-		n14, err := m.Slot.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Slot.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n14
+		i--
+		dAtA[i] = 0x4a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_DesiredState) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x50
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_DesiredState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	i = encodeVarintWatch(dAtA, i, uint64(m.DesiredState))
-	return i, nil
+	i--
+	dAtA[i] = 0x50
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_Role) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x58
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_Role) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	i = encodeVarintWatch(dAtA, i, uint64(m.Role))
-	return i, nil
+	i--
+	dAtA[i] = 0x58
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_Membership) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x60
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_Membership) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	i = encodeVarintWatch(dAtA, i, uint64(m.Membership))
-	return i, nil
+	i--
+	dAtA[i] = 0x60
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_ReferencedNetworkID) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x6a
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_ReferencedNetworkID) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.ReferencedNetworkID)
+	copy(dAtA[i:], m.ReferencedNetworkID)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.ReferencedNetworkID)))
-	i += copy(dAtA[i:], m.ReferencedNetworkID)
-	return i, nil
+	i--
+	dAtA[i] = 0x6a
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_ReferencedSecretID) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x72
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_ReferencedSecretID) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.ReferencedSecretID)
+	copy(dAtA[i:], m.ReferencedSecretID)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.ReferencedSecretID)))
-	i += copy(dAtA[i:], m.ReferencedSecretID)
-	return i, nil
+	i--
+	dAtA[i] = 0x72
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_Kind) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x7a
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_Kind) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.Kind)
+	copy(dAtA[i:], m.Kind)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.Kind)))
-	i += copy(dAtA[i:], m.Kind)
-	return i, nil
+	i--
+	dAtA[i] = 0x7a
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_ReferencedConfigID) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x82
-	i++
-	dAtA[i] = 0x1
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_ReferencedConfigID) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.ReferencedConfigID)
+	copy(dAtA[i:], m.ReferencedConfigID)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.ReferencedConfigID)))
-	i += copy(dAtA[i:], m.ReferencedConfigID)
-	return i, nil
+	i--
+	dAtA[i] = 0x1
+	i--
+	dAtA[i] = 0x82
+	return len(dAtA) - i, nil
 }
 func (m *WatchRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -2154,49 +1895,58 @@ func (m *WatchRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *WatchRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *WatchRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Entries) > 0 {
-		for _, msg := range m.Entries {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintWatch(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if m.ResumeFrom != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.ResumeFrom.Size()))
-		n15, err := m.ResumeFrom.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n15
-	}
 	if m.IncludeOldObject {
-		dAtA[i] = 0x18
-		i++
+		i--
 		if m.IncludeOldObject {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
 		}
-		i++
+		i--
+		dAtA[i] = 0x18
 	}
-	return i, nil
+	if m.ResumeFrom != nil {
+		{
+			size, err := m.ResumeFrom.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Entries) > 0 {
+		for iNdEx := len(m.Entries) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Entries[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintWatch(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *WatchRequest_WatchEntry) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -2204,40 +1954,48 @@ func (m *WatchRequest_WatchEntry) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *WatchRequest_WatchEntry) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *WatchRequest_WatchEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Kind) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(len(m.Kind)))
-		i += copy(dAtA[i:], m.Kind)
-	}
-	if m.Action != 0 {
-		dAtA[i] = 0x10
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Action))
-	}
 	if len(m.Filters) > 0 {
-		for _, msg := range m.Filters {
-			dAtA[i] = 0x1a
-			i++
-			i = encodeVarintWatch(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Filters) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Filters[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintWatch(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0x1a
 		}
 	}
-	return i, nil
+	if m.Action != 0 {
+		i = encodeVarintWatch(dAtA, i, uint64(m.Action))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.Kind) > 0 {
+		i -= len(m.Kind)
+		copy(dAtA[i:], m.Kind)
+		i = encodeVarintWatch(dAtA, i, uint64(len(m.Kind)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *WatchMessage) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -2245,39 +2003,48 @@ func (m *WatchMessage) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *WatchMessage) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *WatchMessage) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Events) > 0 {
-		for _, msg := range m.Events {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintWatch(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
+	if m.Version != nil {
+		{
+			size, err := m.Version.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
-			i += n
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-	}
-	if m.Version != nil {
+		i--
 		dAtA[i] = 0x12
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Version.Size()))
-		n16, err := m.Version.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n16
 	}
-	return i, nil
+	if len(m.Events) > 0 {
+		for iNdEx := len(m.Events) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Events[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintWatch(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *WatchMessage_Event) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -2285,46 +2052,57 @@ func (m *WatchMessage_Event) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *WatchMessage_Event) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *WatchMessage_Event) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Action != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Action))
+	if m.OldObject != nil {
+		{
+			size, err := m.OldObject.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x1a
 	}
 	if m.Object != nil {
+		{
+			size, err := m.Object.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
+		}
+		i--
 		dAtA[i] = 0x12
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Object.Size()))
-		n17, err := m.Object.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n17
 	}
-	if m.OldObject != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.OldObject.Size()))
-		n18, err := m.OldObject.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n18
+	if m.Action != 0 {
+		i = encodeVarintWatch(dAtA, i, uint64(m.Action))
+		i--
+		dAtA[i] = 0x8
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintWatch(dAtA []byte, offset int, v uint64) int {
+	offset -= sovWatch(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 
 type raftProxyWatchServer struct {
@@ -2866,14 +2644,7 @@ func (m *WatchMessage_Event) Size() (n int) {
 }
 
 func sovWatch(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozWatch(x uint64) (n int) {
 	return sovWatch(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -3175,8 +2946,13 @@ func (this *WatchRequest) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForEntries := "[]*WatchRequest_WatchEntry{"
+	for _, f := range this.Entries {
+		repeatedStringForEntries += strings.Replace(fmt.Sprintf("%v", f), "WatchRequest_WatchEntry", "WatchRequest_WatchEntry", 1) + ","
+	}
+	repeatedStringForEntries += "}"
 	s := strings.Join([]string{`&WatchRequest{`,
-		`Entries:` + strings.Replace(fmt.Sprintf("%v", this.Entries), "WatchRequest_WatchEntry", "WatchRequest_WatchEntry", 1) + `,`,
+		`Entries:` + repeatedStringForEntries + `,`,
 		`ResumeFrom:` + strings.Replace(fmt.Sprintf("%v", this.ResumeFrom), "Version", "Version", 1) + `,`,
 		`IncludeOldObject:` + fmt.Sprintf("%v", this.IncludeOldObject) + `,`,
 		`}`,
@@ -3187,10 +2963,15 @@ func (this *WatchRequest_WatchEntry) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForFilters := "[]*SelectBy{"
+	for _, f := range this.Filters {
+		repeatedStringForFilters += strings.Replace(f.String(), "SelectBy", "SelectBy", 1) + ","
+	}
+	repeatedStringForFilters += "}"
 	s := strings.Join([]string{`&WatchRequest_WatchEntry{`,
 		`Kind:` + fmt.Sprintf("%v", this.Kind) + `,`,
 		`Action:` + fmt.Sprintf("%v", this.Action) + `,`,
-		`Filters:` + strings.Replace(fmt.Sprintf("%v", this.Filters), "SelectBy", "SelectBy", 1) + `,`,
+		`Filters:` + repeatedStringForFilters + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3199,8 +2980,13 @@ func (this *WatchMessage) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForEvents := "[]*WatchMessage_Event{"
+	for _, f := range this.Events {
+		repeatedStringForEvents += strings.Replace(fmt.Sprintf("%v", f), "WatchMessage_Event", "WatchMessage_Event", 1) + ","
+	}
+	repeatedStringForEvents += "}"
 	s := strings.Join([]string{`&WatchMessage{`,
-		`Events:` + strings.Replace(fmt.Sprintf("%v", this.Events), "WatchMessage_Event", "WatchMessage_Event", 1) + `,`,
+		`Events:` + repeatedStringForEvents + `,`,
 		`Version:` + strings.Replace(fmt.Sprintf("%v", this.Version), "Version", "Version", 1) + `,`,
 		`}`,
 	}, "")
@@ -3212,8 +2998,8 @@ func (this *WatchMessage_Event) String() string {
 	}
 	s := strings.Join([]string{`&WatchMessage_Event{`,
 		`Action:` + fmt.Sprintf("%v", this.Action) + `,`,
-		`Object:` + strings.Replace(fmt.Sprintf("%v", this.Object), "Object", "Object", 1) + `,`,
-		`OldObject:` + strings.Replace(fmt.Sprintf("%v", this.OldObject), "Object", "Object", 1) + `,`,
+		`Object:` + strings.Replace(this.Object.String(), "Object", "Object", 1) + `,`,
+		`OldObject:` + strings.Replace(this.OldObject.String(), "Object", "Object", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3576,10 +3362,7 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthWatch
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthWatch
 			}
 			if (iNdEx + skippy) > l {
@@ -3680,10 +3463,7 @@ func (m *SelectBySlot) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthWatch
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthWatch
 			}
 			if (iNdEx + skippy) > l {
@@ -3829,10 +3609,7 @@ func (m *SelectByCustom) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthWatch
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthWatch
 			}
 			if (iNdEx + skippy) > l {
@@ -4367,10 +4144,7 @@ func (m *SelectBy) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthWatch
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthWatch
 			}
 			if (iNdEx + skippy) > l {
@@ -4510,10 +4284,7 @@ func (m *WatchRequest) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthWatch
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthWatch
 			}
 			if (iNdEx + skippy) > l {
@@ -4648,10 +4419,7 @@ func (m *WatchRequest_WatchEntry) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthWatch
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthWatch
 			}
 			if (iNdEx + skippy) > l {
@@ -4771,10 +4539,7 @@ func (m *WatchMessage) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthWatch
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthWatch
 			}
 			if (iNdEx + skippy) > l {
@@ -4915,10 +4680,7 @@ func (m *WatchMessage_Event) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthWatch
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthWatch
 			}
 			if (iNdEx + skippy) > l {
@@ -4936,6 +4698,7 @@ func (m *WatchMessage_Event) Unmarshal(dAtA []byte) error {
 func skipWatch(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -4967,10 +4730,8 @@ func skipWatch(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -4991,55 +4752,30 @@ func skipWatch(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthWatch
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthWatch
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowWatch
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipWatch(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthWatch
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupWatch
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthWatch
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthWatch = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowWatch   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthWatch        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowWatch          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupWatch = fmt.Errorf("proto: unexpected end of group")
 )

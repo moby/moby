@@ -4,8 +4,6 @@ import (
 	"errors"
 	"sync"
 	"sync/atomic"
-
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -19,7 +17,10 @@ type RingLogger struct {
 	l         Logger
 	logInfo   Info
 	closeFlag int32
+	wg        sync.WaitGroup
 }
+
+var _ SizedLogger = &RingLogger{}
 
 type ringWithReader struct {
 	*RingLogger
@@ -40,6 +41,7 @@ func newRingLogger(driver Logger, logInfo Info, maxSize int64) *RingLogger {
 		l:       driver,
 		logInfo: logInfo,
 	}
+	l.wg.Add(1)
 	go l.run()
 	return l
 }
@@ -55,6 +57,15 @@ func NewRingLogger(driver Logger, logInfo Info, maxSize int64) Logger {
 		return &ringWithReader{l}
 	}
 	return l
+}
+
+// BufSize returns the buffer size of the underlying logger.
+// Returns -1 if the logger doesn't match SizedLogger interface.
+func (r *RingLogger) BufSize() int {
+	if sl, ok := r.l.(SizedLogger); ok {
+		return sl.BufSize()
+	}
+	return -1
 }
 
 // Log queues messages into the ring buffer
@@ -82,6 +93,7 @@ func (r *RingLogger) setClosed() {
 func (r *RingLogger) Close() error {
 	r.setClosed()
 	r.buffer.Close()
+	r.wg.Wait()
 	// empty out the queue
 	var logErr bool
 	for _, msg := range r.buffer.Drain() {
@@ -93,10 +105,7 @@ func (r *RingLogger) Close() error {
 		}
 
 		if err := r.l.Log(msg); err != nil {
-			logrus.WithField("driver", r.l.Name()).
-				WithField("container", r.logInfo.ContainerID).
-				WithError(err).
-				Errorf("Error writing log message")
+			logDriverError(r.l.Name(), string(msg.Line), err)
 			logErr = true
 		}
 	}
@@ -107,6 +116,7 @@ func (r *RingLogger) Close() error {
 // logger.
 // This is run in a goroutine when the RingLogger is created
 func (r *RingLogger) run() {
+	defer r.wg.Done()
 	for {
 		if r.closed() {
 			return
@@ -117,10 +127,7 @@ func (r *RingLogger) run() {
 			return
 		}
 		if err := r.l.Log(msg); err != nil {
-			logrus.WithField("driver", r.l.Name()).
-				WithField("container", r.logInfo.ContainerID).
-				WithError(err).
-				Errorf("Error writing log message")
+			logDriverError(r.l.Name(), string(msg.Line), err)
 		}
 	}
 }

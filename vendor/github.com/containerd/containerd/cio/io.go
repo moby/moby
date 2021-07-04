@@ -80,7 +80,7 @@ type FIFOSet struct {
 
 // Close the FIFOSet
 func (f *FIFOSet) Close() error {
-	if f.close != nil {
+	if f != nil && f.close != nil {
 		return f.close()
 	}
 	return nil

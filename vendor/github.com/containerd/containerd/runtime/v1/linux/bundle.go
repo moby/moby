@@ -91,7 +91,7 @@ func ShimRemote(c *Config, daemonAddress, cgroup string, exitHandler func()) Shi
 	return func(b *bundle, ns string, ropts *runctypes.RuncOptions) (shim.Config, client.Opt) {
 		config := b.shimConfig(ns, c, ropts)
 		return config,
-			client.WithStart(c.Shim, b.shimAddress(ns), daemonAddress, cgroup, c.ShimDebug, exitHandler)
+			client.WithStart(c.Shim, b.shimAddress(ns, daemonAddress), daemonAddress, cgroup, c.ShimDebug, exitHandler)
 	}
 }
 
@@ -117,6 +117,11 @@ func (b *bundle) NewShimClient(ctx context.Context, namespace string, getClientO
 
 // Delete deletes the bundle from disk
 func (b *bundle) Delete() error {
+	address, _ := b.loadAddress()
+	if address != "" {
+		// we don't care about errors here
+		client.RemoveSocket(address)
+	}
 	err := atomicDelete(b.path)
 	if err == nil {
 		return atomicDelete(b.workDir)
@@ -133,9 +138,11 @@ func (b *bundle) legacyShimAddress(namespace string) string {
 	return filepath.Join(string(filepath.Separator), "containerd-shim", namespace, b.id, "shim.sock")
 }
 
-func (b *bundle) shimAddress(namespace string) string {
-	d := sha256.Sum256([]byte(filepath.Join(namespace, b.id)))
-	return filepath.Join(string(filepath.Separator), "containerd-shim", fmt.Sprintf("%x.sock", d))
+const socketRoot = "/run/containerd"
+
+func (b *bundle) shimAddress(namespace, socketPath string) string {
+	d := sha256.Sum256([]byte(filepath.Join(socketPath, namespace, b.id)))
+	return fmt.Sprintf("unix://%s/%x", filepath.Join(socketRoot, "s"), d)
 }
 
 func (b *bundle) loadAddress() (string, error) {

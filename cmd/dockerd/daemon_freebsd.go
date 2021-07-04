@@ -1,9 +1,13 @@
 package main
 
-// preNotifySystem sends a message to the host when the API is active, but before the daemon is
-func preNotifySystem() {
+// preNotifyReady sends a message to the host when the API is active, but before the daemon is
+func preNotifyReady() {
 }
 
-// notifySystem sends a message to the host when the server is ready to be used
-func notifySystem() {
+// notifyReady sends a message to the host when the server is ready to be used
+func notifyReady() {
+}
+
+// notifyStopping sends a message to the host when the server is shutting down
+func notifyStopping() {
 }

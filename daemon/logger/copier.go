@@ -54,7 +54,12 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 
 	bufSize := defaultBufSize
 	if sizedLogger, ok := c.dst.(SizedLogger); ok {
-		bufSize = sizedLogger.BufSize()
+		size := sizedLogger.BufSize()
+		// Loggers that wrap another loggers would have BufSize(), but cannot return the size
+		// when the wrapped loggers doesn't have BufSize().
+		if size > 0 {
+			bufSize = size
+		}
 	}
 	buf := make([]byte, bufSize)
 
@@ -121,8 +126,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 					}
 
 					if logErr := c.dst.Log(msg); logErr != nil {
-						logWritesFailedCount.Inc(1)
-						logrus.Errorf("Failed to log msg %q for logger %s: %s", msg.Line, c.dst.Name(), logErr)
+						logDriverError(c.dst.Name(), string(msg.Line), logErr)
 					}
 				}
 				p += q + 1
@@ -154,8 +158,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 					hasMorePartial = true
 
 					if logErr := c.dst.Log(msg); logErr != nil {
-						logWritesFailedCount.Inc(1)
-						logrus.Errorf("Failed to log msg %q for logger %s: %s", msg.Line, c.dst.Name(), logErr)
+						logDriverError(c.dst.Name(), string(msg.Line), logErr)
 					}
 					p = 0
 					n = 0

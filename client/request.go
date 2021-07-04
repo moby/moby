@@ -110,11 +110,16 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 	if err != nil {
 		return serverResponse{}, err
 	}
+
 	resp, err := cli.doRequest(ctx, req)
-	if err != nil {
-		return resp, errdefs.FromStatusCode(err, resp.statusCode)
+	switch {
+	case errors.Is(err, context.Canceled):
+		return serverResponse{}, errdefs.Cancelled(err)
+	case errors.Is(err, context.DeadlineExceeded):
+		return serverResponse{}, errdefs.Deadline(err)
+	case err == nil:
+		err = cli.checkResponseErr(resp)
 	}
-	err = cli.checkResponseErr(resp)
 	return resp, errdefs.FromStatusCode(err, resp.statusCode)
 }
 
@@ -242,10 +247,8 @@ func (cli *Client) addHeaders(req *http.Request, headers headers) *http.Request 
 		req.Header.Set(k, v)
 	}
 
-	if headers != nil {
-		for k, v := range headers {
-			req.Header[k] = v
-		}
+	for k, v := range headers {
+		req.Header[k] = v
 	}
 	return req
 }

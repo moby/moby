@@ -59,17 +59,6 @@ func (c *CapabilityMapping) String() string {
 	return c.Key
 }
 
-// GetCapability returns CapabilityMapping which contains specific key
-func GetCapability(key string) *CapabilityMapping {
-	for _, capp := range capabilityList {
-		if capp.Key == key {
-			cpy := *capp
-			return &cpy
-		}
-	}
-	return nil
-}
-
 // GetAllCapabilities returns all of the capabilities
 func GetAllCapabilities() []string {
 	output := make([]string, len(capabilityList))
@@ -114,17 +103,6 @@ func NormalizeLegacyCapabilities(caps []string) ([]string, error) {
 		normalized = append(normalized, c)
 	}
 	return normalized, nil
-}
-
-// ValidateCapabilities validates if caps only contains valid capabilities
-func ValidateCapabilities(caps []string) error {
-	valids := GetAllCapabilities()
-	for _, c := range caps {
-		if !inSlice(valids, c) {
-			return errdefs.InvalidParameter(fmt.Errorf("unknown capability: %q", c))
-		}
-	}
-	return nil
 }
 
 // TweakCapabilities tweaks capabilities by adding, dropping, or overriding

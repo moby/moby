@@ -57,7 +57,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 		return errdefs.InvalidParameter(errors.Errorf("unknown image reference format: %s", image))
 	}
 
-	distrepo, _, err := s.backend.GetRepository(ctx, namedRef, config)
+	distrepo, err := s.backend.GetRepository(ctx, namedRef, config)
 	if err != nil {
 		return err
 	}

@@ -59,7 +59,6 @@ type ContainerExecInspect struct {
 
 // ContainerListOptions holds parameters to list containers with.
 type ContainerListOptions struct {
-	Quiet   bool
 	Size    bool
 	All     bool
 	Latest  bool

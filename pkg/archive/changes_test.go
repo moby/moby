@@ -8,10 +8,14 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/Microsoft/hcsshim/osversion"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/system"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
@@ -246,6 +250,18 @@ func TestChangesWithChangesGH13590(t *testing.T) {
 
 // Create a directory, copy it, make sure we report no changes between the two
 func TestChangesDirsEmpty(t *testing.T) {
+	// Note we parse kernel.GetKernelVersion rather than system.GetOSVersion
+	// as test binaries aren't manifested, so would otherwise report the wrong
+	// build number.
+	if runtime.GOOS == "windows" {
+		v, err := kernel.GetKernelVersion()
+		assert.NilError(t, err)
+		build, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
+		if build >= osversion.V19H1 {
+			t.Skip("FIXME: broken on Windows 1903 and up; see #39846")
+		}
+	}
+
 	src, err := ioutil.TempDir("", "docker-changes-test")
 	assert.NilError(t, err)
 	defer os.RemoveAll(src)
@@ -328,6 +344,18 @@ func mutateSampleDir(t *testing.T, root string) {
 }
 
 func TestChangesDirsMutated(t *testing.T) {
+	// Note we parse kernel.GetKernelVersion rather than system.GetOSVersion
+	// as test binaries aren't manifested, so would otherwise report the wrong
+	// build number.
+	if runtime.GOOS == "windows" {
+		v, err := kernel.GetKernelVersion()
+		assert.NilError(t, err)
+		build, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
+		if build >= osversion.V19H1 {
+			t.Skip("FIXME: broken on Windows 1903 and up; see #39846")
+		}
+	}
+
 	src, err := ioutil.TempDir("", "docker-changes-test")
 	assert.NilError(t, err)
 	createSampleDir(t, src)

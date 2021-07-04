@@ -3,6 +3,7 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"runtime"
 	"strings"
 	"testing"
@@ -546,11 +547,19 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 	assert.NilError(t, err)
 
 	expectedTest := []string{"CMD-SHELL", "curl -f http://localhost/ || exit 1"}
-	cmd := &instructions.HealthCheckCommand{
-		Health: &container.HealthConfig{
-			Test: expectedTest,
+	healthint, err := instructions.ParseInstruction(&parser.Node{
+		Original: `HEALTHCHECK CMD curl -f http://localhost/ || exit 1`,
+		Value:    "healthcheck",
+		Next: &parser.Node{
+			Value: "cmd",
+			Next: &parser.Node{
+				Value: `curl -f http://localhost/ || exit 1`,
+			},
 		},
-	}
+	})
+	assert.NilError(t, err)
+	cmd := healthint.(*instructions.HealthCheckCommand)
+
 	assert.NilError(t, dispatch(sb, cmd))
 	assert.Assert(t, sb.state.runConfig.Healthcheck != nil)
 
@@ -561,12 +570,57 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 	}
 
 	sb.state.buildArgs.AddArg("one", strPtr("two"))
-	run := &instructions.RunCommand{
-		ShellDependantCmdLine: instructions.ShellDependantCmdLine{
-			CmdLine:      strslice.StrSlice{"echo foo"},
-			PrependShell: true,
-		},
-	}
+	runint, err := instructions.ParseInstruction(&parser.Node{Original: `RUN echo foo`, Value: "run"})
+	assert.NilError(t, err)
+	run := runint.(*instructions.RunCommand)
+	run.PrependShell = true
+
 	assert.NilError(t, dispatch(sb, run))
 	assert.Check(t, is.DeepEqual(expectedTest, sb.state.runConfig.Healthcheck.Test))
+}
+
+func TestDispatchUnsupportedOptions(t *testing.T) {
+	b := newBuilderWithMockBackend()
+	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
+	sb.state.baseImage = &mockImage{}
+	sb.state.operatingSystem = runtime.GOOS
+
+	t.Run("ADD with chmod", func(t *testing.T) {
+		cmd := &instructions.AddCommand{
+			SourcesAndDest: instructions.SourcesAndDest{
+				SourcePaths: []string{"."},
+				DestPath:    ".",
+			},
+			Chmod: "0655",
+		}
+		err := dispatch(sb, cmd)
+		assert.Error(t, err, "the --chmod option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
+	})
+
+	t.Run("COPY with chmod", func(t *testing.T) {
+		cmd := &instructions.CopyCommand{
+			SourcesAndDest: instructions.SourcesAndDest{
+				SourcePaths: []string{"."},
+				DestPath:    ".",
+			},
+			Chmod: "0655",
+		}
+		err := dispatch(sb, cmd)
+		assert.Error(t, err, "the --chmod option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
+	})
+
+	t.Run("RUN with unsupported options", func(t *testing.T) {
+		runint, err := instructions.ParseInstruction(&parser.Node{Original: `RUN echo foo`, Value: "run"})
+		assert.NilError(t, err)
+		cmd := runint.(*instructions.RunCommand)
+
+		// classic builder "RUN" currently doesn't support any flags, but testing
+		// both "known" flags and "bogus" flags for completeness, and in case
+		// one or more of these flags will be supported in future
+		for _, f := range []string{"mount", "network", "security", "any-flag"} {
+			cmd.FlagsUsed = []string{f}
+			err := dispatch(sb, cmd)
+			assert.Error(t, err, fmt.Sprintf("the --%s option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled", f))
+		}
+	})
 }

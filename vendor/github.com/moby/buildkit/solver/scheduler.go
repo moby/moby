@@ -170,9 +170,13 @@ postUnpark:
 			// skip this if not at least 1 key per dep
 			origEdge := e.index.LoadOrStore(k, e)
 			if origEdge != nil {
-				logrus.Debugf("merging edge %s to %s\n", e.edge.Vertex.Name(), origEdge.edge.Vertex.Name())
-				if s.mergeTo(origEdge, e) {
-					s.ef.setEdge(e.edge, origEdge)
+				if e.isDep(origEdge) || origEdge.isDep(e) {
+					logrus.Debugf("skip merge due to dependency")
+				} else {
+					logrus.Debugf("merging edge %s to %s\n", e.edge.Vertex.Name(), origEdge.edge.Vertex.Name())
+					if s.mergeTo(origEdge, e) {
+						s.ef.setEdge(e.edge, origEdge)
+					}
 				}
 			}
 		}
@@ -244,7 +248,7 @@ func (s *scheduler) build(ctx context.Context, edge Edge) (CachedResult, error) 
 	if err := p.Receiver.Status().Err; err != nil {
 		return nil, err
 	}
-	return p.Receiver.Status().Value.(*edgeState).result.Clone(), nil
+	return p.Receiver.Status().Value.(*edgeState).result.CloneCachedResult(), nil
 }
 
 // newPipe creates a new request pipe between two edges

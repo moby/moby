@@ -3,8 +3,7 @@
 # Create a base CentOS Docker image.
 #
 # This script is useful on systems with yum installed (e.g., building
-# a CentOS image on CentOS).  See contrib/mkimage-rinse.sh for a way
-# to build CentOS images on other systems.
+# a CentOS image on CentOS).
 
 set -e
 

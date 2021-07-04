@@ -1293,7 +1293,9 @@ func (sc *serverConn) startGracefulShutdown() {
 	sc.shutdownOnce.Do(func() { sc.sendServeMsg(gracefulShutdownMsg) })
 }
 
-// After sending GOAWAY, the connection will close after goAwayTimeout.
+// After sending GOAWAY with an error code (non-graceful shutdown), the
+// connection will close after goAwayTimeout.
+//
 // If we close the connection immediately after sending GOAWAY, there may
 // be unsent data in our kernel receive buffer, which will cause the kernel
 // to send a TCP RST on close() instead of a FIN. This RST will abort the
@@ -1629,23 +1631,37 @@ func (sc *serverConn) processSettingInitialWindowSize(val uint32) error {
 
 func (sc *serverConn) processData(f *DataFrame) error {
 	sc.serveG.check()
-	if sc.inGoAway && sc.goAwayCode != ErrCodeNo {
+	id := f.Header().StreamID
+	if sc.inGoAway && (sc.goAwayCode != ErrCodeNo || id > sc.maxClientStreamID) {
+		// Discard all DATA frames if the GOAWAY is due to an
+		// error, or:
+		//
+		// Section 6.8: After sending a GOAWAY frame, the sender
+		// can discard frames for streams initiated by the
+		// receiver with identifiers higher than the identified
+		// last stream.
 		return nil
 	}
-	data := f.Data()
 
-	// "If a DATA frame is received whose stream is not in "open"
-	// or "half closed (local)" state, the recipient MUST respond
-	// with a stream error (Section 5.4.2) of type STREAM_CLOSED."
-	id := f.Header().StreamID
+	data := f.Data()
 	state, st := sc.state(id)
 	if id == 0 || state == stateIdle {
+		// Section 6.1: "DATA frames MUST be associated with a
+		// stream. If a DATA frame is received whose stream
+		// identifier field is 0x0, the recipient MUST respond
+		// with a connection error (Section 5.4.1) of type
+		// PROTOCOL_ERROR."
+		//
 		// Section 5.1: "Receiving any frame other than HEADERS
 		// or PRIORITY on a stream in this state MUST be
 		// treated as a connection error (Section 5.4.1) of
 		// type PROTOCOL_ERROR."
 		return ConnectionError(ErrCodeProtocol)
 	}
+
+	// "If a DATA frame is received whose stream is not in "open"
+	// or "half closed (local)" state, the recipient MUST respond
+	// with a stream error (Section 5.4.2) of type STREAM_CLOSED."
 	if st == nil || state != stateOpen || st.gotTrailerHeader || st.resetQueued {
 		// This includes sending a RST_STREAM if the stream is
 		// in stateHalfClosedLocal (which currently means that
@@ -1694,6 +1710,7 @@ func (sc *serverConn) processData(f *DataFrame) error {
 		if len(data) > 0 {
 			wrote, err := st.body.Write(data)
 			if err != nil {
+				sc.sendWindowUpdate(nil, int(f.Length)-wrote)
 				return streamError(id, ErrCodeStreamClosed)
 			}
 			if wrote != len(data) {
@@ -2020,7 +2037,11 @@ func (sc *serverConn) newWriterAndRequest(st *stream, f *MetaHeadersFrame) (*res
 	}
 	if bodyOpen {
 		if vv, ok := rp.header["Content-Length"]; ok {
-			req.ContentLength, _ = strconv.ParseInt(vv[0], 10, 64)
+			if cl, err := strconv.ParseUint(vv[0], 10, 63); err == nil {
+				req.ContentLength = int64(cl)
+			} else {
+				req.ContentLength = 0
+			}
 		} else {
 			req.ContentLength = -1
 		}
@@ -2403,9 +2424,8 @@ func (rws *responseWriterState) writeChunk(p []byte) (n int, err error) {
 		var ctype, clen string
 		if clen = rws.snapHeader.Get("Content-Length"); clen != "" {
 			rws.snapHeader.Del("Content-Length")
-			clen64, err := strconv.ParseInt(clen, 10, 64)
-			if err == nil && clen64 >= 0 {
-				rws.sentContentLen = clen64
+			if cl, err := strconv.ParseUint(clen, 10, 63); err == nil {
+				rws.sentContentLen = int64(cl)
 			} else {
 				clen = ""
 			}

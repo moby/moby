@@ -10,7 +10,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
 	"golang.org/x/sys/unix"
@@ -51,8 +51,8 @@ func setHeaderForSpecialDevice(hdr *tar.Header, name string, stat interface{}) (
 		// Currently go does not fill in the major/minors
 		if s.Mode&unix.S_IFBLK != 0 ||
 			s.Mode&unix.S_IFCHR != 0 {
-			hdr.Devmajor = int64(unix.Major(uint64(s.Rdev))) // nolint: unconvert
-			hdr.Devminor = int64(unix.Minor(uint64(s.Rdev))) // nolint: unconvert
+			hdr.Devmajor = int64(unix.Major(uint64(s.Rdev))) //nolint: unconvert
+			hdr.Devminor = int64(unix.Minor(uint64(s.Rdev))) //nolint: unconvert
 		}
 	}
 
@@ -81,11 +81,6 @@ func getFileUIDGID(stat interface{}) (idtools.Identity, error) {
 // handleTarTypeBlockCharFifo is an OS-specific helper function used by
 // createTarFile to handle the following types of header: Block; Char; Fifo
 func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
-	if sys.RunningInUserNS() {
-		// cannot create a device if running in user namespace
-		return nil
-	}
-
 	mode := uint32(hdr.Mode & 07777)
 	switch hdr.Typeflag {
 	case tar.TypeBlock:
@@ -96,7 +91,12 @@ func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
 		mode |= unix.S_IFIFO
 	}
 
-	return system.Mknod(path, mode, int(system.Mkdev(hdr.Devmajor, hdr.Devminor)))
+	err := system.Mknod(path, mode, int(system.Mkdev(hdr.Devmajor, hdr.Devminor)))
+	if errors.Is(err, syscall.EPERM) && userns.RunningInUserNS() {
+		// In most cases, cannot create a device if running in user namespace
+		err = nil
+	}
+	return err
 }
 
 func handleLChmod(hdr *tar.Header, path string, hdrInfo os.FileInfo) error {

@@ -377,8 +377,6 @@ func TestMatches(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		tests = append(tests, []matchesTestCase{
 			{"a\\*b", "a*b", true},
-			{"a\\", "a", false},
-			{"a\\", "a\\", false},
 		}...)
 	}
 

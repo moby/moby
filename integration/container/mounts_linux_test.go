@@ -285,7 +285,7 @@ func TestContainerVolumesMountedAsShared(t *testing.T) {
 
 	// Convert this directory into a shared mount point so that we do
 	// not rely on propagation properties of parent mount.
-	if err := mount.Mount(tmpDir1.Path(), tmpDir1.Path(), "none", "bind,private"); err != nil {
+	if err := mount.MakePrivate(tmpDir1.Path()); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
@@ -293,7 +293,7 @@ func TestContainerVolumesMountedAsShared(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
-	if err := mount.Mount("none", tmpDir1.Path(), "none", "shared"); err != nil {
+	if err := mount.MakeShared(tmpDir1.Path()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -342,7 +342,7 @@ func TestContainerVolumesMountedAsSlave(t *testing.T) {
 
 	// Convert this directory into a shared mount point so that we do
 	// not rely on propagation properties of parent mount.
-	if err := mount.Mount(tmpDir1.Path(), tmpDir1.Path(), "none", "bind,private"); err != nil {
+	if err := mount.MakePrivate(tmpDir1.Path()); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
@@ -350,7 +350,7 @@ func TestContainerVolumesMountedAsSlave(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
-	if err := mount.Mount("none", tmpDir1.Path(), "none", "shared"); err != nil {
+	if err := mount.MakeShared(tmpDir1.Path()); err != nil {
 		t.Fatal(err)
 	}
 

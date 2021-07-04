@@ -14,7 +14,7 @@ import (
 )
 
 // Same as DM_DEVICE_* enum values from libdevmapper.h
-// nolint: deadcode,unused,varcheck
+//nolint: deadcode,unused,varcheck
 const (
 	deviceCreate TaskType = iota
 	deviceReload
@@ -380,7 +380,7 @@ func CancelDeferredRemove(deviceName string) error {
 		return fmt.Errorf("devicemapper: Can't set sector %s", err)
 	}
 
-	if err := task.setMessage(fmt.Sprintf("@cancel_deferred_remove")); err != nil {
+	if err := task.setMessage("@cancel_deferred_remove"); err != nil {
 		return fmt.Errorf("devicemapper: Can't set message %s", err)
 	}
 

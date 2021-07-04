@@ -47,13 +47,20 @@ Bugs fixes should include a unit test case which exercises the bug.
 A bug fix may also include new assertions in existing integration tests for the
 API endpoint.
 
+### Writing new integration tests
+
+Note the `integration-cli` tests are deprecated; new tests will be rejected by
+the CI.
+
+Instead, implement new tests under `integration/`.
+
 ### Integration tests environment considerations
 
 When adding new tests or modifying existing tests under `integration/`, testing
 environment should be properly considered. `skip.If` from 
 [gotest.tools/skip](https://godoc.org/gotest.tools/skip) can be used to make the 
 test run conditionally. Full testing environment conditions can be found at 
-[environment.go](https://github.com/moby/moby/blob/cb37987ee11655ed6bbef663d245e55922354c68/internal/test/environment/environment.go)
+[environment.go](https://github.com/moby/moby/blob/6b6eeed03b963a27085ea670f40cd5ff8a61f32e/testutil/environment/environment.go)
 
 Here is a quick example. If the test needs to interact with a docker daemon on 
 the same host, the following condition should be checked within the test code

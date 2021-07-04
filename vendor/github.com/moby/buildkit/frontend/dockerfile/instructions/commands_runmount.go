@@ -2,6 +2,7 @@ package instructions
 
 import (
 	"encoding/csv"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -64,13 +65,17 @@ func runMountPreHook(cmd *RunCommand, req parseRequest) error {
 }
 
 func runMountPostHook(cmd *RunCommand, req parseRequest) error {
+	return setMountState(cmd, nil)
+}
+
+func setMountState(cmd *RunCommand, expander SingleWordExpander) error {
 	st := getMountState(cmd)
 	if st == nil {
 		return errors.Errorf("no mount state")
 	}
 	var mounts []*Mount
 	for _, str := range st.flag.StringValues {
-		m, err := parseMount(str)
+		m, err := parseMount(str, expander)
 		if err != nil {
 			return err
 		}
@@ -111,7 +116,7 @@ type Mount struct {
 	GID          *uint64
 }
 
-func parseMount(value string) (*Mount, error) {
+func parseMount(value string, expander SingleWordExpander) (*Mount, error) {
 	csvReader := csv.NewReader(strings.NewReader(value))
 	fields, err := csvReader.Read()
 	if err != nil {
@@ -151,6 +156,23 @@ func parseMount(value string) (*Mount, error) {
 		}
 
 		value := parts[1]
+		// check for potential variable
+		if expander != nil {
+			processed, err := expander(value)
+			if err != nil {
+				return nil, err
+			}
+			value = processed
+		} else if key == "from" {
+			if matched, err := regexp.MatchString(`\$.`, value); err != nil { //nolint
+				return nil, err
+			} else if matched {
+				return nil, errors.Errorf("'%s' doesn't support variable expansion, define alias stage instead", key)
+			}
+		} else {
+			// if we don't have an expander, defer evaluation to later
+			continue
+		}
 		switch key {
 		case "type":
 			if !isValidMountType(strings.ToLower(value)) {

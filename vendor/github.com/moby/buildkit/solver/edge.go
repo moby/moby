@@ -939,6 +939,22 @@ func (e *edge) execOp(ctx context.Context) (interface{}, error) {
 	return NewCachedResult(res, ek), nil
 }
 
+func (e *edge) isDep(e2 *edge) bool {
+	return isDep(e.edge.Vertex, e2.edge.Vertex)
+}
+
+func isDep(vtx, vtx2 Vertex) bool {
+	if vtx.Digest() == vtx2.Digest() {
+		return true
+	}
+	for _, e := range vtx.Inputs() {
+		if isDep(e.Vertex, vtx2) {
+			return true
+		}
+	}
+	return false
+}
+
 func toResultSlice(cres []CachedResult) (out []Result) {
 	out = make([]Result, len(cres))
 	for i := range cres {

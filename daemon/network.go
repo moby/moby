@@ -17,18 +17,18 @@ import (
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	internalnetwork "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/libnetwork"
+	lncluster "github.com/docker/docker/libnetwork/cluster"
+	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/netlabel"
+	"github.com/docker/docker/libnetwork/networkdb"
+	"github.com/docker/docker/libnetwork/options"
+	networktypes "github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
-	"github.com/docker/libnetwork"
-	lncluster "github.com/docker/libnetwork/cluster"
-	"github.com/docker/libnetwork/driverapi"
-	"github.com/docker/libnetwork/ipamapi"
-	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/networkdb"
-	"github.com/docker/libnetwork/options"
-	networktypes "github.com/docker/libnetwork/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -155,7 +155,7 @@ var (
 func (daemon *Daemon) startIngressWorker() {
 	ingressJobsChannel = make(chan *ingressJob, 100)
 	go func() {
-		// nolint: gosimple
+		//nolint: gosimple
 		for {
 			select {
 			case r := <-ingressJobsChannel:
@@ -365,7 +365,7 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 	n, err := c.NewNetwork(driver, create.Name, id, nwOptions...)
 	if err != nil {
 		if _, ok := err.(libnetwork.ErrDataStoreNotInitialized); ok {
-			// nolint: golint
+			//nolint: golint
 			return nil, errors.New("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
 		}
 		return nil, err
@@ -573,9 +573,9 @@ func (daemon *Daemon) GetNetworks(filter filters.Args, config types.NetworkListC
 	}
 
 	if config.Detailed {
-		for i, n := range list {
-			np := &n
-			buildDetailedNetworkResources(np, idx[n.ID], config.Verbose)
+		for i := range list {
+			np := &list[i]
+			buildDetailedNetworkResources(np, idx[np.ID], config.Verbose)
 			list[i] = *np
 		}
 	}

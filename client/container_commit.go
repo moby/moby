@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 )
 
-// ContainerCommit applies changes into a container and creates a new tagged image.
+// ContainerCommit applies changes to a container and creates a new tagged image.
 func (cli *Client) ContainerCommit(ctx context.Context, container string, options types.ContainerCommitOptions) (types.IDResponse, error) {
 	var repository, tag string
 	if options.Reference != "" {

@@ -59,14 +59,38 @@
 #include <sys/syscall.h>
 
 /* Use our own wrapper for memfd_create. */
-#if !defined(SYS_memfd_create) && defined(__NR_memfd_create)
-#  define SYS_memfd_create __NR_memfd_create
+#ifndef SYS_memfd_create
+#  ifdef __NR_memfd_create
+#    define SYS_memfd_create __NR_memfd_create
+#  else
+/* These values come from <https://fedora.juszkiewicz.com.pl/syscalls.html>. */
+#    warning "libc is outdated -- using hard-coded SYS_memfd_create"
+#    if defined(__x86_64__)
+#      define SYS_memfd_create 319
+#    elif defined(__i386__)
+#      define SYS_memfd_create 356
+#    elif defined(__ia64__)
+#      define SYS_memfd_create 1340
+#    elif defined(__arm__)
+#      define SYS_memfd_create 385
+#    elif defined(__aarch64__)
+#      define SYS_memfd_create 279
+#    elif defined(__ppc__) || defined(__PPC64__) || defined(__powerpc64__)
+#      define SYS_memfd_create 360
+#    elif defined(__s390__) || defined(__s390x__)
+#      define SYS_memfd_create 350
+#    else
+#      warning "unknown architecture -- cannot hard-code SYS_memfd_create"
+#    endif
+#  endif
 #endif
+
 /* memfd_create(2) flags -- copied from <linux/memfd.h>. */
 #ifndef MFD_CLOEXEC
 #  define MFD_CLOEXEC       0x0001U
 #  define MFD_ALLOW_SEALING 0x0002U
 #endif
+
 int memfd_create(const char *name, unsigned int flags)
 {
 #ifdef SYS_memfd_create
@@ -76,7 +100,6 @@ int memfd_create(const char *name, unsigned int flags)
 	return -1;
 #endif
 }
-
 
 /* This comes directly from <linux/fcntl.h>. */
 #ifndef F_LINUX_SPECIFIC_BASE
@@ -103,7 +126,7 @@ static void *must_realloc(void *ptr, size_t size)
 	void *old = ptr;
 	do {
 		ptr = realloc(old, size);
-	} while(!ptr);
+	} while (!ptr);
 	return ptr;
 }
 
@@ -115,10 +138,10 @@ static void *must_realloc(void *ptr, size_t size)
 static int is_self_cloned(void)
 {
 	int fd, ret, is_cloned = 0;
-	struct stat statbuf = {};
-	struct statfs fsbuf = {};
+	struct stat statbuf = { };
+	struct statfs fsbuf = { };
 
-	fd = open("/proc/self/exe", O_RDONLY|O_CLOEXEC);
+	fd = open("/proc/self/exe", O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
 		fprintf(stderr, "you have no read access to runc binary file\n");
 		return -ENOTRECOVERABLE;
@@ -274,7 +297,7 @@ enum {
 static int make_execfd(int *fdtype)
 {
 	int fd = -1;
-	char template[PATH_MAX] = {0};
+	char template[PATH_MAX] = { 0 };
 	char *prefix = getenv("_LIBCONTAINER_STATEDIR");
 
 	if (!prefix || *prefix != '/')
@@ -303,7 +326,7 @@ static int make_execfd(int *fdtype)
 	*fdtype = EFD_FILE;
 	fd = open(prefix, O_TMPFILE | O_EXCL | O_RDWR | O_CLOEXEC, 0700);
 	if (fd >= 0) {
-		struct stat statbuf = {};
+		struct stat statbuf = { };
 		bool working_otmpfile = false;
 
 		/*
@@ -348,27 +371,27 @@ static int seal_execfd(int *fd, int fdtype)
 	switch (fdtype) {
 	case EFD_MEMFD:
 		return fcntl(*fd, F_ADD_SEALS, RUNC_MEMFD_SEALS);
-	case EFD_FILE: {
-		/* Need to re-open our pseudo-memfd as an O_PATH to avoid execve(2) giving -ETXTBSY. */
-		int newfd;
-		char fdpath[PATH_MAX] = {0};
+	case EFD_FILE:{
+			/* Need to re-open our pseudo-memfd as an O_PATH to avoid execve(2) giving -ETXTBSY. */
+			int newfd;
+			char fdpath[PATH_MAX] = { 0 };
 
-		if (fchmod(*fd, 0100) < 0)
-			return -1;
+			if (fchmod(*fd, 0100) < 0)
+				return -1;
 
-		if (snprintf(fdpath, sizeof(fdpath), "/proc/self/fd/%d", *fd) < 0)
-			return -1;
+			if (snprintf(fdpath, sizeof(fdpath), "/proc/self/fd/%d", *fd) < 0)
+				return -1;
 
-		newfd = open(fdpath, O_PATH | O_CLOEXEC);
-		if (newfd < 0)
-			return -1;
+			newfd = open(fdpath, O_PATH | O_CLOEXEC);
+			if (newfd < 0)
+				return -1;
 
-		close(*fd);
-		*fd = newfd;
-		return 0;
-	}
+			close(*fd);
+			*fd = newfd;
+			return 0;
+		}
 	default:
-	   break;
+		break;
 	}
 	return -1;
 }
@@ -376,7 +399,7 @@ static int seal_execfd(int *fd, int fdtype)
 static int try_bindfd(void)
 {
 	int fd, ret = -1;
-	char template[PATH_MAX] = {0};
+	char template[PATH_MAX] = { 0 };
 	char *prefix = getenv("_LIBCONTAINER_STATEDIR");
 
 	if (!prefix || *prefix != '/')
@@ -403,7 +426,6 @@ static int try_bindfd(void)
 		goto out;
 	if (mount("", template, "", MS_REMOUNT | MS_BIND | MS_RDONLY, "") < 0)
 		goto out_umount;
-
 
 	/* Get read-only handle that we're sure can't be made read-write. */
 	ret = open(template, O_PATH | O_CLOEXEC);
@@ -448,7 +470,7 @@ static ssize_t fd_to_fd(int outfd, int infd)
 			if (n < 0)
 				return -1;
 			nwritten += n;
-		} while(nwritten < nread);
+		} while (nwritten < nread);
 
 		total += nwritten;
 	}
@@ -459,7 +481,7 @@ static ssize_t fd_to_fd(int outfd, int infd)
 static int clone_binary(void)
 {
 	int binfd, execfd;
-	struct stat statbuf = {};
+	struct stat statbuf = { };
 	size_t sent = 0;
 	int fdtype = EFD_NONE;
 

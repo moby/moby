@@ -219,7 +219,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 				namespaces.WithNamespace(context.TODO(), namespace), cleanupTimeout)
 			defer deferCancel()
 			if kerr := s.KillShim(deferCtx); kerr != nil {
-				log.G(ctx).WithError(err).Error("failed to kill shim")
+				log.G(ctx).WithError(kerr).Error("failed to kill shim")
 			}
 		}
 	}()

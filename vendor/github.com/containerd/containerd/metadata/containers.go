@@ -336,16 +336,11 @@ func readContainer(container *containers.Container, bkt *bolt.Bucket) error {
 				container.Runtime.Name = string(n)
 			}
 
-			obkt := rbkt.Get(bucketKeyOptions)
-			if obkt == nil {
-				return nil
-			}
-
-			var any types.Any
-			if err := proto.Unmarshal(obkt, &any); err != nil {
+			any, err := boltutil.ReadAny(rbkt, bucketKeyOptions)
+			if err != nil {
 				return err
 			}
-			container.Runtime.Options = &any
+			container.Runtime.Options = any
 		case string(bucketKeySpec):
 			var any types.Any
 			if err := proto.Unmarshal(v, &any); err != nil {
@@ -357,22 +352,8 @@ func readContainer(container *containers.Container, bkt *bolt.Bucket) error {
 		case string(bucketKeySnapshotter):
 			container.Snapshotter = string(v)
 		case string(bucketKeyExtensions):
-			ebkt := bkt.Bucket(bucketKeyExtensions)
-			if ebkt == nil {
-				return nil
-			}
-
-			extensions := make(map[string]types.Any)
-			if err := ebkt.ForEach(func(k, v []byte) error {
-				var a types.Any
-				if err := proto.Unmarshal(v, &a); err != nil {
-					return err
-				}
-
-				extensions[string(k)] = a
-				return nil
-			}); err != nil {
-
+			extensions, err := boltutil.ReadExtensions(bkt)
+			if err != nil {
 				return err
 			}
 
@@ -388,15 +369,8 @@ func writeContainer(bkt *bolt.Bucket, container *containers.Container) error {
 		return err
 	}
 
-	if container.Spec != nil {
-		spec, err := container.Spec.Marshal()
-		if err != nil {
-			return err
-		}
-
-		if err := bkt.Put(bucketKeySpec, spec); err != nil {
-			return err
-		}
+	if err := boltutil.WriteAny(bkt, bucketKeySpec, container.Spec); err != nil {
+		return err
 	}
 
 	for _, v := range [][2][]byte{
@@ -424,33 +398,12 @@ func writeContainer(bkt *bolt.Bucket, container *containers.Container) error {
 		return err
 	}
 
-	if len(container.Extensions) > 0 {
-		ebkt, err := bkt.CreateBucketIfNotExists(bucketKeyExtensions)
-		if err != nil {
-			return err
-		}
-
-		for name, ext := range container.Extensions {
-			p, err := proto.Marshal(&ext)
-			if err != nil {
-				return err
-			}
-
-			if err := ebkt.Put([]byte(name), p); err != nil {
-				return err
-			}
-		}
+	if err := boltutil.WriteExtensions(bkt, container.Extensions); err != nil {
+		return err
 	}
 
-	if container.Runtime.Options != nil {
-		data, err := proto.Marshal(container.Runtime.Options)
-		if err != nil {
-			return err
-		}
-
-		if err := rbkt.Put(bucketKeyOptions, data); err != nil {
-			return err
-		}
+	if err := boltutil.WriteAny(rbkt, bucketKeyOptions, container.Runtime.Options); err != nil {
+		return err
 	}
 
 	return boltutil.WriteLabels(bkt, container.Labels)

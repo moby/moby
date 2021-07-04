@@ -8,3 +8,9 @@ package system // import "github.com/docker/docker/pkg/system"
 func GetLongPathName(path string) (string, error) {
 	return path, nil
 }
+
+// checkSystemDriveAndRemoveDriveLetter is the non-Windows implementation
+// of CheckSystemDriveAndRemoveDriveLetter
+func checkSystemDriveAndRemoveDriveLetter(path string, driver PathVerifier) (string, error) {
+	return path, nil
+}

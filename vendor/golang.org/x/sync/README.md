@@ -1,5 +1,7 @@
 # Go Sync
 
+[![Go Reference](https://pkg.go.dev/badge/golang.org/x/sync.svg)](https://pkg.go.dev/golang.org/x/sync)
+
 This repository provides Go concurrency primitives in addition to the
 ones provided by the language and "sync" and "sync/atomic" packages.
 

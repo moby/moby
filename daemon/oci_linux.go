@@ -14,7 +14,8 @@ import (
 	cdcgroups "github.com/containerd/cgroups"
 	"github.com/containerd/containerd/containers"
 	coci "github.com/containerd/containerd/oci"
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/apparmor"
+	"github.com/containerd/containerd/pkg/userns"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	daemonconfig "github.com/docker/docker/daemon/config"
@@ -26,7 +27,6 @@ import (
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
-	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/user"
@@ -97,7 +97,11 @@ func WithRootless(daemon *Daemon) coci.SpecOpts {
 			if rootlesskitParentEUID == "" {
 				return errors.New("$ROOTLESSKIT_PARENT_EUID is not set (requires RootlessKit v0.8.0)")
 			}
-			controllersPath := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%s.slice/cgroup.controllers", rootlesskitParentEUID)
+			euid, err := strconv.Atoi(rootlesskitParentEUID)
+			if err != nil {
+				return errors.Wrap(err, "invalid $ROOTLESSKIT_PARENT_EUID: must be a numeric value")
+			}
+			controllersPath := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%d.slice/cgroup.controllers", euid)
 			controllersFile, err := ioutil.ReadFile(controllersPath)
 			if err != nil {
 				return err
@@ -128,7 +132,7 @@ func WithSelinux(c *container.Container) coci.SpecOpts {
 // WithApparmor sets the apparmor profile
 func WithApparmor(c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
-		if apparmor.IsEnabled() {
+		if apparmor.HostSupports() {
 			var appArmorProfile string
 			if c.AppArmorProfile != "" {
 				appArmorProfile = c.AppArmorProfile
@@ -648,7 +652,7 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			// "mount" when we bind-mount. The reason for this is that at the point
 			// when runc sets up the root filesystem, it is already inside a user
 			// namespace, and thus cannot change any flags that are locked.
-			if daemon.configStore.RemappedRoot != "" {
+			if daemon.configStore.RemappedRoot != "" || userns.RunningInUserNS() {
 				unprivOpts, err := getUnprivilegedMountFlags(m.Source)
 				if err != nil {
 					return err
@@ -869,7 +873,7 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		var devs []specs.LinuxDevice
 		devPermissions := s.Linux.Resources.Devices
 
-		if c.HostConfig.Privileged && !sys.RunningInUserNS() {
+		if c.HostConfig.Privileged && !userns.RunningInUserNS() {
 			hostDevices, err := devices.HostDevices()
 			if err != nil {
 				return err

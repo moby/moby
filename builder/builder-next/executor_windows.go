@@ -5,13 +5,13 @@ import (
 	"errors"
 
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/libnetwork"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 )
 
-func newExecutor(_, _ string, _ libnetwork.NetworkController, _ *oci.DNSConfig, _ bool, _ *idtools.IdentityMapping) (executor.Executor, error) {
+func newExecutor(_, _ string, _ libnetwork.NetworkController, _ *oci.DNSConfig, _ bool, _ *idtools.IdentityMapping, _ string) (executor.Executor, error) {
 	return &winExecutor{}, nil
 }
 

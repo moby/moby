@@ -1,3 +1,3 @@
 package filesync
 
-//go:generate protoc --gogoslick_out=plugins=grpc:. filesync.proto
+//go:generate protoc -I=. -I=../../vendor/ -I=../../vendor/github.com/tonistiigi/fsutil/types/ --gogoslick_out=plugins=grpc:. filesync.proto

@@ -122,6 +122,13 @@ func (s *CapSet) Supports(id CapID) error {
 	return nil
 }
 
+// Contains checks if cap set contains cap. Note that unlike Supports() this
+// function only checks capability existence in remote set, not if cap has been initialized.
+func (s *CapSet) Contains(id CapID) bool {
+	_, ok := s.set[string(id)]
+	return ok
+}
+
 // CapError is an error for unsupported capability
 type CapError struct {
 	ID         CapID

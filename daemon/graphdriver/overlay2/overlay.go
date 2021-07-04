@@ -15,7 +15,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/pkg/archive"
@@ -113,7 +112,8 @@ var (
 	useNaiveDiffLock sync.Once
 	useNaiveDiffOnly bool
 
-	indexOff string
+	indexOff  string
+	userxattr string
 )
 
 func init() {
@@ -165,12 +165,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		logger.Warn(overlayutils.ErrDTypeNotSupported("overlay2", backingFs))
 	}
 
-	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
-	if err != nil {
-		return nil, err
-	}
-	// Create the driver home dir
-	if err := idtools.MkdirAllAndChown(path.Join(home, linkDir), 0700, idtools.Identity{UID: rootUID, GID: rootGID}); err != nil {
+	if err := idtools.MkdirAllAndChown(path.Join(home, linkDir), 0701, idtools.CurrentIdentity()); err != nil {
 		return nil, err
 	}
 
@@ -209,7 +204,16 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		logger.Warnf("Unable to detect whether overlay kernel module supports index parameter: %s", err)
 	}
 
-	logger.Debugf("backingFs=%s, projectQuotaSupported=%v, indexOff=%q", backingFs, projectQuotaSupported, indexOff)
+	needsUserXattr, err := overlayutils.NeedsUserXAttr(home)
+	if err != nil {
+		logger.Warnf("Unable to detect whether overlay kernel module needs \"userxattr\" parameter: %s", err)
+	}
+	if needsUserXattr {
+		userxattr = "userxattr,"
+	}
+
+	logger.Debugf("backingFs=%s, projectQuotaSupported=%v, indexOff=%q, userxattr=%q",
+		backingFs, projectQuotaSupported, indexOff, userxattr)
 
 	return d, nil
 }
@@ -262,6 +266,7 @@ func (d *Driver) Status() [][2]string {
 		{"Backing Filesystem", backingFs},
 		{"Supports d_type", strconv.FormatBool(d.supportsDType)},
 		{"Native Overlay Diff", strconv.FormatBool(!useNaiveDiff(d.home))},
+		{"userxattr", strconv.FormatBool(userxattr != "")},
 	}
 }
 
@@ -339,11 +344,12 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return err
 	}
 	root := idtools.Identity{UID: rootUID, GID: rootGID}
+	current := idtools.CurrentIdentity()
 
-	if err := idtools.MkdirAllAndChown(path.Dir(dir), 0700, root); err != nil {
+	if err := idtools.MkdirAllAndChown(path.Dir(dir), 0701, current); err != nil {
 		return err
 	}
-	if err := idtools.MkdirAndChown(dir, 0700, root); err != nil {
+	if err := idtools.MkdirAndChown(dir, 0701, current); err != nil {
 		return err
 	}
 
@@ -550,9 +556,9 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 
 	var opts string
 	if readonly {
-		opts = indexOff + "lowerdir=" + diffDir + ":" + strings.Join(absLowers, ":")
+		opts = indexOff + userxattr + "lowerdir=" + diffDir + ":" + strings.Join(absLowers, ":")
 	} else {
-		opts = indexOff + "lowerdir=" + strings.Join(absLowers, ":") + ",upperdir=" + diffDir + ",workdir=" + workDir
+		opts = indexOff + userxattr + "lowerdir=" + strings.Join(absLowers, ":") + ",upperdir=" + diffDir + ",workdir=" + workDir
 	}
 
 	mountData := label.FormatMountLabel(opts, mountLabel)
@@ -573,14 +579,14 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	// the page size. The mount syscall fails if the mount data cannot
 	// fit within a page and relative links make the mount data much
 	// smaller at the expense of requiring a fork exec to chroot.
-	if len(mountData) > pageSize {
+	if len(mountData) > pageSize-1 {
 		if readonly {
-			opts = indexOff + "lowerdir=" + path.Join(id, diffDirName) + ":" + string(lowers)
+			opts = indexOff + userxattr + "lowerdir=" + path.Join(id, diffDirName) + ":" + string(lowers)
 		} else {
-			opts = indexOff + "lowerdir=" + string(lowers) + ",upperdir=" + path.Join(id, diffDirName) + ",workdir=" + path.Join(id, workDirName)
+			opts = indexOff + userxattr + "lowerdir=" + string(lowers) + ",upperdir=" + path.Join(id, diffDirName) + ",workdir=" + path.Join(id, workDirName)
 		}
 		mountData = label.FormatMountLabel(opts, mountLabel)
-		if len(mountData) > pageSize {
+		if len(mountData) > pageSize-1 {
 			return nil, fmt.Errorf("cannot mount layer, mount label too large %d", len(mountData))
 		}
 
@@ -671,10 +677,11 @@ func (d *Driver) isParent(id, parent string) bool {
 
 // ApplyDiff applies the new layer into a root
 func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64, err error) {
-	if !d.isParent(id, parent) {
+	if useNaiveDiff(d.home) || !d.isParent(id, parent) {
 		return d.naiveDiff.ApplyDiff(id, parent, diff)
 	}
 
+	// never reach here if we are running in UserNS
 	applyDir := d.getDiffPath(id)
 
 	logger.Debugf("Applying tar in %s", applyDir)
@@ -683,7 +690,6 @@ func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64
 		UIDMaps:        d.uidMaps,
 		GIDMaps:        d.gidMaps,
 		WhiteoutFormat: archive.OverlayWhiteoutFormat,
-		InUserNS:       sys.RunningInUserNS(),
 	}); err != nil {
 		return 0, err
 	}
@@ -714,6 +720,7 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 		return d.naiveDiff.Diff(id, parent)
 	}
 
+	// never reach here if we are running in UserNS
 	diffPath := d.getDiffPath(id)
 	logger.Debugf("Tar with options on %s", diffPath)
 	return archive.TarWithOptions(diffPath, &archive.TarOptions{

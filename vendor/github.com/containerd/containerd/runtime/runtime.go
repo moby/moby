@@ -63,14 +63,14 @@ type PlatformRuntime interface {
 	// ID of the runtime
 	ID() string
 	// Create creates a task with the provided id and options.
-	Create(ctx context.Context, id string, opts CreateOpts) (Task, error)
+	Create(ctx context.Context, taskID string, opts CreateOpts) (Task, error)
 	// Get returns a task.
-	Get(context.Context, string) (Task, error)
+	Get(ctx context.Context, taskID string) (Task, error)
 	// Tasks returns all the current tasks for the runtime.
 	// Any container runs at most one task at a time.
-	Tasks(context.Context, bool) ([]Task, error)
+	Tasks(ctx context.Context, all bool) ([]Task, error)
 	// Add adds a task into runtime.
-	Add(context.Context, Task) error
+	Add(ctx context.Context, task Task) error
 	// Delete remove a task.
-	Delete(context.Context, string)
+	Delete(ctx context.Context, taskID string)
 }

@@ -108,6 +108,15 @@ func (fl *Flag) IsUsed() bool {
 	return false
 }
 
+// Used returns a slice of flag names that are set
+func (bf *BFlags) Used() []string {
+	used := make([]string, 0, len(bf.used))
+	for f := range bf.used {
+		used = append(used, f)
+	}
+	return used
+}
+
 // IsTrue checks if a bool flag is true
 func (fl *Flag) IsTrue() bool {
 	if fl.flagType != boolType {

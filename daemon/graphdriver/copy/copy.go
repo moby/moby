@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 	"golang.org/x/sys/unix"
@@ -144,7 +144,7 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 		switch mode := f.Mode(); {
 		case mode.IsRegular():
 			// the type is 32bit on mips
-			id := fileID{dev: uint64(stat.Dev), ino: stat.Ino} // nolint: unconvert
+			id := fileID{dev: uint64(stat.Dev), ino: stat.Ino} //nolint: unconvert
 			if copyMode == Hardlink {
 				isHardlink = true
 				if err2 := os.Link(srcPath, dstPath); err2 != nil {
@@ -184,7 +184,7 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 			}
 
 		case mode&os.ModeDevice != 0:
-			if sys.RunningInUserNS() {
+			if userns.RunningInUserNS() {
 				// cannot create a device if running in user namespace
 				return nil
 			}
@@ -223,7 +223,7 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 		}
 
 		// system.Chtimes doesn't support a NOFOLLOW flag atm
-		// nolint: unconvert
+		//nolint: unconvert
 		if f.IsDir() {
 			dirsToSetMtimes.PushFront(&dirMtimeInfo{dstPath: &dstPath, stat: stat})
 		} else if !isSymlink {

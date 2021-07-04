@@ -58,6 +58,17 @@ type loggerWithCache struct {
 	cache logger.Logger
 }
 
+var _ logger.SizedLogger = &loggerWithCache{}
+
+// BufSize returns the buffer size of the underlying logger.
+// Returns -1 if the logger doesn't match SizedLogger interface.
+func (l *loggerWithCache) BufSize() int {
+	if sl, ok := l.l.(logger.SizedLogger); ok {
+		return sl.BufSize()
+	}
+	return -1
+}
+
 func (l *loggerWithCache) Log(msg *logger.Message) error {
 	// copy the message as the original will be reset once the call to `Log` is complete
 	dup := logger.NewMessage()

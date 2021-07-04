@@ -58,7 +58,7 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -118,7 +118,7 @@ func NewControl(basePath string) (*Control, error) {
 	// If we are running in a user namespace quota won't be supported for
 	// now since makeBackingFsDev() will try to mknod().
 	//
-	if sys.RunningInUserNS() {
+	if userns.RunningInUserNS() {
 		return nil, ErrQuotaNotSupported
 	}
 
@@ -396,9 +396,9 @@ func getDirFd(dir *C.DIR) uintptr {
 	return uintptr(C.dirfd(dir))
 }
 
-// Get the backing block device of the driver home directory
-// and create a block device node under the home directory
-// to be used by quotactl commands
+// makeBackingFsDev gets the backing block device of the driver home directory
+// and creates a block device node under the home directory to be used by
+// quotactl commands.
 func makeBackingFsDev(home string) (string, error) {
 	var stat unix.Stat_t
 	if err := unix.Stat(home, &stat); err != nil {

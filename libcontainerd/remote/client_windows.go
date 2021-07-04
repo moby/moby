@@ -16,11 +16,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	runtimeName       = "io.containerd.runhcs.v1"
-	shimV2RuntimeName = runtimeName
-)
-
 func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {
 	switch pd := i.(type) {
 	case *options.ProcessDetails:
@@ -99,6 +94,5 @@ func (c *client) UpdateResources(ctx context.Context, containerID string, resour
 
 func getSpecUser(ociSpec *specs.Spec) (int, int) {
 	// TODO: (containerd): Not implemented, but don't error.
-	// Not clear if we can even do this for LCOW.
 	return 0, 0
 }

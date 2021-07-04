@@ -28,14 +28,13 @@
 			"anusha",
 			"coolljt0725",
 			"cpuguy83",
-			"crosbymichael",
 			"estesp",
 			"johnstep",
 			"justincormack",
 			"kolyshkin",
-			"lowenna",
 			"mhbauer",
 			"runcom",
+			"samuelkarp",
 			"stevvooe",
 			"thajeztah",
 			"tianon",
@@ -103,6 +102,17 @@
 			# and tweets as @calavera.
 			"calavera",
 
+			# Michael Crosby was "chief maintainer" of the Docker project.
+			# During his time as a maintainer, Michael contributed to many
+			# milestones of the project; he was release captain of Docker v1.0.0,
+			# started the development of "libcontainer" (what later became runc)
+			# and containerd, as well as demoing cool hacks such as live migrating
+			# a game server container with checkpoint/restore.
+			#
+			# Michael is currently a maintainer of containerd, but you may see
+			# him around in other projects on GitHub.
+			"crosbymichael",
+
 			# Before becoming a maintainer, Daniel Nephin was a core contributor
 			# to "Fig" (now known as Docker Compose). As a maintainer for both the
 			# Engine and Docker CLI, Daniel contributed many features, among which
@@ -165,6 +175,16 @@
 			# read her blog at https://blog.jessfraz.com (a must-read), and
 			# check out her open source projects on GitHub https://github.com/jessfraz (a must-try).
 			"jessfraz",
+
+			# As a maintainer, John Howard managed to make the impossible possible;
+			# to run Docker on Windows. After facing many challenges, teaching
+			# fellow-maintainers that 'Windows is not Linux', and many changes in
+			# Windows Server to facilitate containers, native Windows containers
+			# saw the light of day in 2015.
+			#
+			# John is now enjoying life without containers: playing piano, painting,
+			# and walking his dogs, but you may occasionally see him drop by on GitHub.
+			"lowenna",
 
 			# Alexander Morozov contributed many features to Docker, worked on the premise of 
 			# what later became containerd (and worked on that too), and made a "stupid" Go
@@ -422,6 +442,11 @@
 	Name = "Antonio Murdaca"
 	Email = "runcom@redhat.com"
 	GitHub = "runcom"
+
+	[people.samuelkarp]
+	Name = "Samuel Karp"
+	Email = "skarp@amazon.com"
+	GitHub = "samuelkarp"
 
 	[people.samwhited]
 	Name = "Sam Whited"

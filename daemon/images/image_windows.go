@@ -23,9 +23,9 @@ func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) 
 		if !system.IsOSSupported(img.OperatingSystem()) {
 			return nil, errors.Wrapf(system.ErrNotSupportedOperatingSystem, "cannot get layerpath for ImageID %s", img.RootFS.ChainID())
 		}
-		layerPath, err := layer.GetLayerPath(i.layerStores[img.OperatingSystem()], img.RootFS.ChainID())
+		layerPath, err := layer.GetLayerPath(i.layerStore, img.RootFS.ChainID())
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get layer path from graphdriver %s for ImageID %s", i.layerStores[img.OperatingSystem()], img.RootFS.ChainID())
+			return nil, errors.Wrapf(err, "failed to get layer path from graphdriver %s for ImageID %s", i.layerStore, img.RootFS.ChainID())
 		}
 		// Reverse order, expecting parent first
 		folders = append([]string{layerPath}, folders...)

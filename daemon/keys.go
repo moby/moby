@@ -18,10 +18,10 @@ const (
 	rootKeyByteMultiplier = 25
 )
 
-// ModifyRootKeyLimit checks to see if the root key limit is set to
+// modifyRootKeyLimit checks to see if the root key limit is set to
 // at least 1000000 and changes it to that limit along with the maxbytes
 // allocated to the keys at a 25 to 1 multiplier.
-func ModifyRootKeyLimit() error {
+func modifyRootKeyLimit() error {
 	value, err := readRootKeyLimit(rootKeyFile)
 	if err != nil {
 		return err

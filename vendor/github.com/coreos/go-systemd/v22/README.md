@@ -1,7 +1,7 @@
 # go-systemd
 
 [![Build Status](https://travis-ci.org/coreos/go-systemd.png?branch=master)](https://travis-ci.org/coreos/go-systemd)
-[![godoc](https://godoc.org/github.com/coreos/go-systemd?status.svg)](http://godoc.org/github.com/coreos/go-systemd)
+[![godoc](https://img.shields.io/badge/godoc-reference-5272B4)](https://pkg.go.dev/mod/github.com/coreos/go-systemd/v22/?tab=packages)
 ![minimum golang 1.12](https://img.shields.io/badge/golang-1.12%2B-orange.svg)
 
 
@@ -24,13 +24,15 @@ https://github.com/coreos/go-systemd/tree/master/examples/activation/httpserver
 
 ## systemd Service Notification
 
-The `daemon` package is an implementation of the [sd_notify protocol](https://www.freedesktop.org/software/systemd/man/sd_notify.html#Description). It can be used to inform systemd of service start-up completion, watchdog events, and other status changes.
+The `daemon` package is an implementation of the [sd_notify protocol](https://www.freedesktop.org/software/systemd/man/sd_notify.html#Description).
+It can be used to inform systemd of service start-up completion, watchdog events, and other status changes.
 
 ## D-Bus
 
-The `dbus` package connects to the [systemd D-Bus API](http://www.freedesktop.org/wiki/Software/systemd/dbus/) and lets you start, stop and introspect systemd units. The API docs are here:
+The `dbus` package connects to the [systemd D-Bus API](http://www.freedesktop.org/wiki/Software/systemd/dbus/) and lets you start, stop and introspect systemd units.
+[API documentation][dbus-doc] is available online.
 
-http://godoc.org/github.com/coreos/go-systemd/dbus
+[dbus-doc]: https://pkg.go.dev/github.com/coreos/go-systemd/v22/dbus?tab=doc
 
 ### Debugging
 

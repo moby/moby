@@ -9,7 +9,7 @@ import (
 )
 
 // ContainerRestart stops and starts a container again.
-// It makes the daemon to wait for the container to be up again for
+// It makes the daemon wait for the container to be up again for
 // a specific amount of time, given the timeout.
 func (cli *Client) ContainerRestart(ctx context.Context, containerID string, timeout *time.Duration) error {
 	query := url.Values{}

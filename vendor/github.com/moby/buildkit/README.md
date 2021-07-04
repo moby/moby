@@ -60,6 +60,7 @@ You don't need to read this document unless you want to use the full-featured st
     - [`--export-cache` options](#--export-cache-options)
     - [`--import-cache` options](#--import-cache-options)
   - [Consistent hashing](#consistent-hashing)
+- [Systemd socket activation](#systemd-socket-activation)
 - [Expose BuildKit as a TCP service](#expose-buildkit-as-a-tcp-service)
   - [Load balancing](#load-balancing)
 - [Containerizing BuildKit](#containerizing-buildkit)
@@ -85,6 +86,7 @@ BuildKit is used by the following projects:
 -   [the Sanic build tool](https://github.com/distributed-containers-inc/sanic)
 -   [vab](https://github.com/stellarproject/vab)
 -   [Rio](https://github.com/rancher/rio)
+-   [kim](https://github.com/rancher/kim)
 -   [PouchContainer](https://github.com/alibaba/pouch)
 -   [Docker buildx](https://github.com/docker/buildx)
 -   [Okteto Cloud](https://okteto.com/)
@@ -125,6 +127,9 @@ The buildkitd daemon supports two worker backends: OCI (runc) and containerd.
 By default, the OCI (runc) worker is used. You can set `--oci-worker=false --containerd-worker=true` to use the containerd worker.
 
 We are open to adding more backends.
+
+To start the buildkitd daemon using systemd socket activiation, you can install the buildkit systemd unit files.
+See [Systemd socket activation](#systemd-socket-activation)
 
 The buildkitd daemon listens gRPC API on `/run/buildkit/buildkitd.sock` by default, but you can also use TCP sockets.
 See [Expose BuildKit as a TCP service](#expose-buildkit-as-a-tcp-service).
@@ -370,6 +375,24 @@ consider client-side load balancing using consistent hashing.
 
 See [`./examples/kubernetes/consistenthash`](./examples/kubernetes/consistenthash).
 
+## Metadata
+
+To output build metadata such as the image digest, pass the `--metadata-file` flag.
+The metadata will be written as a JSON object to the specified file.
+The directory of the specified file must already exist and be writable.
+
+```
+buildctl build ... --metadata-file metadata.json
+```
+
+```
+{"containerimage.digest": "sha256:ea0cfb27fd41ea0405d3095880c1efa45710f5bcdddb7d7d5a7317ad4825ae14",...}
+```
+
+## Systemd socket activation
+
+On Systemd based systems, you can communicate with the daemon via [Systemd socket activation](http://0pointer.de/blog/projects/socket-activation.html), use `buildkitd --addr fd://`.
+You can find examples of using Systemd socket activation with BuildKit and Systemd in [`./examples/systemd`](./examples/systemd).
 ## Expose BuildKit as a TCP service
 
 The `buildkitd` daemon can listen the gRPC API on a TCP socket.

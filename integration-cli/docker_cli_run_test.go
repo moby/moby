@@ -27,13 +27,13 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/libnetwork/resolvconf"
+	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/go-connections/nat"
-	"github.com/docker/libnetwork/resolvconf"
-	"github.com/docker/libnetwork/types"
 	"github.com/moby/sys/mountinfo"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
@@ -2063,12 +2063,11 @@ func (s *DockerSuite) TestRunAllocatePortInReservedRange(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "-P", "-p", "80", "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	out, _ = dockerCmd(c, "port", id, "80")
-
-	strPort := strings.Split(strings.TrimSpace(out), ":")[1]
-	port, err := strconv.ParseInt(strPort, 10, 64)
+	out, _ = dockerCmd(c, "inspect", "--format", `{{index .NetworkSettings.Ports "80/tcp" 0 "HostPort" }}`, id)
+	out = strings.TrimSpace(out)
+	port, err := strconv.ParseInt(out, 10, 64)
 	if err != nil {
-		c.Fatalf("invalid port, got: %s, error: %s", strPort, err)
+		c.Fatalf("invalid port, got: %s, error: %s", out, err)
 	}
 
 	// allocate a static port and a dynamic port together, with static port
@@ -2278,7 +2277,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughExpose(c *testing.T) {
 		if portnum < 3000 || portnum > 3003 {
 			c.Fatalf("Port %d is out of range ", portnum)
 		}
-		if binding == nil || len(binding) != 1 || len(binding[0].HostPort) == 0 {
+		if len(binding) == 0 || len(binding[0].HostPort) == 0 {
 			c.Fatalf("Port is not mapped for the port %s", port)
 		}
 	}
@@ -2426,28 +2425,6 @@ func (s *DockerSuite) TestContainerNetworkMode(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestRunModePIDHost(c *testing.T) {
-	// Not applicable on Windows as uses Unix-specific capabilities
-	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, NotUserNamespace)
-
-	hostPid, err := os.Readlink("/proc/1/ns/pid")
-	if err != nil {
-		c.Fatal(err)
-	}
-
-	out, _ := dockerCmd(c, "run", "--pid=host", "busybox", "readlink", "/proc/self/ns/pid")
-	out = strings.Trim(out, "\n")
-	if hostPid != out {
-		c.Fatalf("PID different with --pid=host %s != %s\n", hostPid, out)
-	}
-
-	out, _ = dockerCmd(c, "run", "busybox", "readlink", "/proc/self/ns/pid")
-	out = strings.Trim(out, "\n")
-	if hostPid == out {
-		c.Fatalf("PID should be different without --pid=host %s == %s\n", hostPid, out)
-	}
-}
-
 func (s *DockerSuite) TestRunModeUTSHost(c *testing.T) {
 	// Not applicable on Windows as uses Unix-specific capabilities
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
@@ -2497,13 +2474,12 @@ func (s *DockerSuite) TestRunPortFromDockerRangeInUse(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "-p", ":80", "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	out, _ = dockerCmd(c, "port", id)
 
+	out, _ = dockerCmd(c, "inspect", "--format", `{{index .NetworkSettings.Ports "80/tcp" 0 "HostPort" }}`, id)
 	out = strings.TrimSpace(out)
 	if out == "" {
 		c.Fatal("docker port command output is empty")
 	}
-	out = strings.Split(out, ":")[1]
 	lastPort, err := strconv.Atoi(out)
 	if err != nil {
 		c.Fatal(err)
@@ -2637,7 +2613,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughPublish(c *testing.T) {
 		if portnum < 3000 || portnum > 3003 {
 			c.Fatalf("Port %d is out of range ", portnum)
 		}
-		if binding == nil || len(binding) != 1 || len(binding[0].HostPort) == 0 {
+		if len(binding) == 0 || len(binding[0].HostPort) == 0 {
 			c.Fatal("Port is not mapped for the port "+port, out)
 		}
 	}
@@ -2927,7 +2903,7 @@ func (s *DockerSuite) TestRunUnshareProc(c *testing.T) {
 
 	go func() {
 		name := "acidburn"
-		out, _, err := dockerCmdWithError("run", "--name", name, "--security-opt", "seccomp=unconfined", "debian:buster", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount")
+		out, _, err := dockerCmdWithError("run", "--name", name, "--security-opt", "seccomp=unconfined", "debian:bullseye", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount")
 		if err == nil ||
 			!(strings.Contains(strings.ToLower(out), "permission denied") ||
 				strings.Contains(strings.ToLower(out), "operation not permitted")) {
@@ -2939,7 +2915,7 @@ func (s *DockerSuite) TestRunUnshareProc(c *testing.T) {
 
 	go func() {
 		name := "cereal"
-		out, _, err := dockerCmdWithError("run", "--name", name, "--security-opt", "seccomp=unconfined", "debian:buster", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
+		out, _, err := dockerCmdWithError("run", "--name", name, "--security-opt", "seccomp=unconfined", "debian:bullseye", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
 		if err == nil ||
 			!(strings.Contains(strings.ToLower(out), "mount: cannot mount none") ||
 				strings.Contains(strings.ToLower(out), "permission denied") ||
@@ -2953,7 +2929,7 @@ func (s *DockerSuite) TestRunUnshareProc(c *testing.T) {
 	/* Ensure still fails if running privileged with the default policy */
 	go func() {
 		name := "crashoverride"
-		out, _, err := dockerCmdWithError("run", "--privileged", "--security-opt", "seccomp=unconfined", "--security-opt", "apparmor=docker-default", "--name", name, "debian:buster", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
+		out, _, err := dockerCmdWithError("run", "--privileged", "--security-opt", "seccomp=unconfined", "--security-opt", "apparmor=docker-default", "--name", name, "debian:bullseye", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
 		if err == nil ||
 			!(strings.Contains(strings.ToLower(out), "mount: cannot mount none") ||
 				strings.Contains(strings.ToLower(out), "permission denied") ||

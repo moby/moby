@@ -451,11 +451,20 @@ func (t *task) Checkpoint(ctx context.Context, opts ...CheckpointTaskOpts) (Imag
 		}
 		request.Options = any
 	}
-	// make sure we pause it and resume after all other filesystem operations are completed
-	if err := t.Pause(ctx); err != nil {
+
+	status, err := t.Status(ctx)
+	if err != nil {
 		return nil, err
 	}
-	defer t.Resume(ctx)
+
+	if status.Status != Paused {
+		// make sure we pause it and resume after all other filesystem operations are completed
+		if err := t.Pause(ctx); err != nil {
+			return nil, err
+		}
+		defer t.Resume(ctx)
+	}
+
 	index := v1.Index{
 		Versioned: is.Versioned{
 			SchemaVersion: 2,
@@ -503,6 +512,8 @@ func (t *task) Checkpoint(ctx context.Context, opts ...CheckpointTaskOpts) (Imag
 type UpdateTaskInfo struct {
 	// Resources updates a tasks resource constraints
 	Resources interface{}
+	// Annotations allows arbitrary and/or experimental resource constraints for task update
+	Annotations map[string]string
 }
 
 // UpdateTaskOpts allows a caller to update task settings
@@ -524,6 +535,9 @@ func (t *task) Update(ctx context.Context, opts ...UpdateTaskOpts) error {
 			return err
 		}
 		request.Resources = any
+	}
+	if i.Annotations != nil {
+		request.Annotations = i.Annotations
 	}
 	_, err := t.client.TaskService().Update(ctx, request)
 	return errdefs.FromGRPC(err)

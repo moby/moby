@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -e
+
+(
+	export IAMSTATIC='false'
+	export LDFLAGS_STATIC_DOCKER=''
+	export BUILDFLAGS=("${BUILDFLAGS[@]/netgo /}")        # disable netgo, since we don't need it for a dynamic binary
+	export BUILDFLAGS=("${BUILDFLAGS[@]/osusergo /}")     # ditto for osusergo
+	export BUILDFLAGS=("${BUILDFLAGS[@]/static_build /}") # we're not building a "static" binary here
+
+	GO_PACKAGE='github.com/docker/docker/cmd/docker-proxy'
+	BINARY_SHORT_NAME='docker-proxy'
+	source "${MAKEDIR}/.binary"
+)

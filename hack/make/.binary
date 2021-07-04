@@ -8,8 +8,6 @@ binary_extension() {
 	fi
 }
 
-GO_PACKAGE='github.com/docker/docker/cmd/dockerd'
-BINARY_SHORT_NAME='dockerd'
 BINARY_NAME="$BINARY_SHORT_NAME-$VERSION"
 BINARY_EXTENSION="$(binary_extension)"
 BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
@@ -67,12 +65,23 @@ hash_files() {
 				export CC="${CC:-x86_64-linux-gnu-gcc}"
 				export CGO_ENABLED=1
 				;;
+			linux/ppc64le)
+				export CC="${CC:-powerpc64le-linux-gnu-gcc}"
+				export CGO_ENABLED=1
+				;;
+			linux/s390x)
+				export CC="${CC:-s390x-linux-gnu-gcc}"
+				export CGO_ENABLED=1
+				;;
 		esac
 	fi
 
-	# -buildmode=pie is not supported on Windows and Linux on mips and riscv64.
+	# -buildmode=pie is not supported on Windows and Linux on mips, riscv64 and ppc64be.
+	# https://github.com/golang/go/blob/77aa209b386a184e7f4b44938f2a05a1b5c5a3cf/src/cmd/internal/sys/supported.go#L89-L99
 	case "$(go env GOOS)/$(go env GOARCH)" in
-		windows/* | linux/mips* | linux/riscv*) ;;
+		windows/* | linux/mips* | linux/riscv* | linux/ppc64) ;;
+		# TODO remove windows in Go 1.15+: https://github.com/golang/go/commit/95f382139043059a2a0780ba577b53893408f7e4
+		# TODO remove riscv64 in Go 1.16+: https://github.com/golang/go/commit/8eb846fd37eb7bded8a1cf6932be2c59069863e5
 
 		*)
 			BUILDFLAGS+=("-buildmode=pie")

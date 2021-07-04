@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -16,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"gotest.tools/v3/assert"
@@ -1174,6 +1175,26 @@ func TestTempArchiveCloseMultipleTimes(t *testing.T) {
 	}
 }
 
+// TestXGlobalNoParent is a regression test to check parent directories are not crated for PAX headers
+func TestXGlobalNoParent(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := tar.NewWriter(buf)
+	err := w.WriteHeader(&tar.Header{
+		Name:     "foo/bar",
+		Typeflag: tar.TypeXGlobalHeader,
+	})
+	assert.NilError(t, err)
+	tmpDir, err := ioutil.TempDir("", "pax-test")
+	assert.NilError(t, err)
+	defer os.RemoveAll(tmpDir)
+	err = Untar(buf, tmpDir, nil)
+	assert.NilError(t, err)
+
+	_, err = os.Lstat(filepath.Join(tmpDir, "foo"))
+	assert.Check(t, err != nil)
+	assert.Check(t, errors.Is(err, os.ErrNotExist))
+}
+
 func TestReplaceFileTarWrapper(t *testing.T) {
 	filesInArchive := 20
 	testcases := []struct {
@@ -1230,7 +1251,7 @@ func TestReplaceFileTarWrapper(t *testing.T) {
 // version of this package that was built with <=go17 are still readable.
 func TestPrefixHeaderReadable(t *testing.T) {
 	skip.If(t, runtime.GOOS != "windows" && os.Getuid() != 0, "skipping test that requires root")
-	skip.If(t, sys.RunningInUserNS(), "skipping test that requires more than 010000000 UIDs, which is unlikely to be satisfied when running in userns")
+	skip.If(t, userns.RunningInUserNS(), "skipping test that requires more than 010000000 UIDs, which is unlikely to be satisfied when running in userns")
 	// https://gist.github.com/stevvooe/e2a790ad4e97425896206c0816e1a882#file-out-go
 	var testFile = []byte("\x1f\x8b\x08\x08\x44\x21\x68\x59\x00\x03\x74\x2e\x74\x61\x72\x00\x4b\xcb\xcf\x67\xa0\x35\x30\x80\x00\x86\x06\x10\x47\x01\xc1\x37\x40\x00\x54\xb6\xb1\xa1\xa9\x99\x09\x48\x25\x1d\x40\x69\x71\x49\x62\x91\x02\xe5\x76\xa1\x79\x84\x21\x91\xd6\x80\x72\xaf\x8f\x82\x51\x30\x0a\x46\x36\x00\x00\xf0\x1c\x1e\x95\x00\x06\x00\x00")
 

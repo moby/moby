@@ -14,8 +14,8 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/libnetwork"
-	netconst "github.com/docker/libnetwork/datastore"
+	"github.com/docker/docker/libnetwork"
+	netconst "github.com/docker/docker/libnetwork/datastore"
 	"github.com/pkg/errors"
 )
 

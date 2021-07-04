@@ -53,6 +53,15 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	}
 
 	restart, wait, err := c.RestartManager().ShouldRestart(ec, daemon.IsShuttingDown() || c.HasBeenManuallyStopped, time.Since(c.StartedAt))
+
+	// cancel healthcheck here, they will be automatically
+	// restarted if/when the container is started again
+	daemon.stopHealthchecks(c)
+	attributes := map[string]string{
+		"exitCode": strconv.Itoa(int(ec)),
+	}
+	daemon.Cleanup(c)
+
 	if err == nil && restart {
 		c.RestartCount++
 		c.SetRestarting(&exitStatus)
@@ -62,16 +71,10 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	}
 	defer c.Unlock() // needs to be called before autoRemove
 
-	// cancel healthcheck here, they will be automatically
-	// restarted if/when the container is started again
-	daemon.stopHealthchecks(c)
-	attributes := map[string]string{
-		"exitCode": strconv.Itoa(int(ec)),
-	}
-	daemon.LogContainerEventWithAttributes(c, "die", attributes)
-	daemon.Cleanup(c)
 	daemon.setStateCounter(c)
 	cpErr := c.CheckpointTo(daemon.containersReplica)
+
+	daemon.LogContainerEventWithAttributes(c, "die", attributes)
 
 	if err == nil && restart {
 		go func() {

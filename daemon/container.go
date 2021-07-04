@@ -158,7 +158,7 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 	base.ImageID = imgID
 	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
 	base.Name = name
-	base.Driver = daemon.imageService.GraphDriverForOS(operatingSystem)
+	base.Driver = daemon.imageService.GraphDriverName()
 	base.OS = operatingSystem
 	return base, err
 }
@@ -279,7 +279,8 @@ func validateHostConfig(hostConfig *containertypes.HostConfig, platform string) 
 	}
 	// Validate mounts; check if host directories still exist
 	parser := volumemounts.NewParser(platform)
-	for _, cfg := range hostConfig.Mounts {
+	for _, c := range hostConfig.Mounts {
+		cfg := c
 		if err := parser.ValidateMountConfig(&cfg); err != nil {
 			return err
 		}

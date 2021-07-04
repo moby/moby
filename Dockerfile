@@ -1,12 +1,12 @@
-# syntax=docker/dockerfile:1.1.7-experimental
+# syntax=docker/dockerfile:1.2
 
 ARG CROSS="false"
 ARG SYSTEMD="false"
 # IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
-ARG GO_VERSION=1.13.15
+ARG GO_VERSION=1.16.5
 ARG DEBIAN_FRONTEND=noninteractive
-ARG VPNKIT_VERSION=0.4.0
-ARG DOCKER_BUILDTAGS="apparmor seccomp selinux"
+ARG VPNKIT_VERSION=0.5.0
+ARG DOCKER_BUILDTAGS="apparmor seccomp"
 
 ARG BASE_DEBIAN_DISTRO="buster"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
@@ -20,26 +20,15 @@ ENV GO111MODULE=off
 
 FROM base AS criu
 ARG DEBIAN_FRONTEND
-# Install dependency packages specific to criu
+ADD --chmod=0644 https://download.opensuse.org/repositories/devel:/tools:/criu/Debian_10/Release.key /etc/apt/trusted.gpg.d/criu.gpg.asc
+# FIXME: temporarily doing a manual chmod as workaround for https://github.com/moby/buildkit/issues/2114
 RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-criu-aptcache,target=/var/cache/apt \
-        apt-get update && apt-get install -y --no-install-recommends \
-            libcap-dev \
-            libnet-dev \
-            libnl-3-dev \
-            libprotobuf-c-dev \
-            libprotobuf-dev \
-            protobuf-c-compiler \
-            protobuf-compiler \
-            python-protobuf
-
-# Install CRIU for checkpoint/restore support
-ARG CRIU_VERSION=3.14
-RUN mkdir -p /usr/src/criu \
-    && curl -sSL https://github.com/checkpoint-restore/criu/archive/v${CRIU_VERSION}.tar.gz | tar -C /usr/src/criu/ -xz --strip-components=1 \
-    && cd /usr/src/criu \
-    && make \
-    && make PREFIX=/build/ install-criu
+        chmod 0644 /etc/apt/trusted.gpg.d/criu.gpg.asc \
+        && echo 'deb https://download.opensuse.org/repositories/devel:/tools:/criu/Debian_10/ /' > /etc/apt/sources.list.d/criu.list \
+        && apt-get update \
+        && apt-get install -y --no-install-recommends criu \
+        && install -D /usr/sbin/criu /build/criu
 
 FROM base AS registry
 WORKDIR /go/src/github.com/docker/distribution
@@ -72,7 +61,7 @@ WORKDIR $GOPATH/src/github.com/go-swagger/go-swagger
 # Install go-swagger for validating swagger.yaml
 # This is https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix
 # TODO: move to under moby/ or fix upstream go-swagger to work for us.
-ENV GO_SWAGGER_COMMIT 5e6cb12f7c82ce78e45ba71fa6cb1928094db050
+ENV GO_SWAGGER_COMMIT c56166c036004ba7a3a321e5951ba472b9ae298c
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ \
@@ -96,10 +85,10 @@ RUN /download-frozen-image-v2.sh /build \
         buildpack-deps:buster@sha256:d0abb4b1e5c664828b93e8b6ac84d10bce45ee469999bef88304be04a2709491 \
         busybox:latest@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209 \
         busybox:glibc@sha256:1f81263701cddf6402afe9f33fca0266d9fff379e59b1748f33d3072da71ee85 \
-        debian:buster@sha256:46d659005ca1151087efa997f1039ae45a7bf7a2cbbe2d17d3dcbda632a3ee9a \
+        debian:bullseye@sha256:7190e972ab16aefea4d758ebe42a293f4e5c5be63595f4d03a5b9bf6839a4344 \
         hello-world:latest@sha256:d58e752213a51785838f9eed2b7a498ffa1cb3aa7f946dda11af39286c3db9a9 \
         arm32v7/hello-world:latest@sha256:50b8560ad574c779908da71f7ce370c0a2471c098d44d1c8f6b513c5a55eeeb1
-# See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
+# See also frozenImages in "testutil/environment/protect.go" (which needs to be updated when adding images to this list)
 
 FROM base AS cross-false
 
@@ -108,17 +97,22 @@ ARG DEBIAN_FRONTEND
 RUN dpkg --add-architecture arm64
 RUN dpkg --add-architecture armel
 RUN dpkg --add-architecture armhf
+RUN dpkg --add-architecture ppc64el
+RUN dpkg --add-architecture s390x
 RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-cross-true-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
             crossbuild-essential-arm64 \
             crossbuild-essential-armel \
-            crossbuild-essential-armhf
+            crossbuild-essential-armhf \
+            crossbuild-essential-ppc64el \
+            crossbuild-essential-s390x
 
 FROM cross-${CROSS} as dev-base
 
 FROM dev-base AS runtime-dev-cross-false
 ARG DEBIAN_FRONTEND
+RUN echo 'deb http://deb.debian.org/debian buster-backports main' > /etc/apt/sources.list.d/backports.list
 RUN --mount=type=cache,sharing=locked,id=moby-cross-false-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-cross-false-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
@@ -127,7 +121,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-false-aptlib,target=/var/lib
             libapparmor-dev \
             libbtrfs-dev \
             libdevmapper-dev \
-            libseccomp-dev \
+            libseccomp-dev/buster-backports \
             libsystemd-dev \
             libudev-dev
 
@@ -143,18 +137,17 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/
             libapparmor-dev:arm64 \
             libapparmor-dev:armel \
             libapparmor-dev:armhf \
-            libseccomp-dev:arm64 \
-            libseccomp-dev:armel \
-            libseccomp-dev:armhf
+            libapparmor-dev:ppc64el \
+            libapparmor-dev:s390x
 
 FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
-FROM base AS tomlv
-ARG TOMLV_COMMIT
+FROM base AS tomll
+ARG GOTOML_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
-        PREFIX=/build /tmp/install/install.sh tomlv
+    --mount=type=bind,src=hack/dockerfile/install/tomll.installer,target=/tmp/install/tomll.installer \
+        . /tmp/install/tomll.installer && PREFIX=/build install_tomll
 
 FROM base AS vndr
 ARG VNDR_COMMIT
@@ -174,13 +167,6 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
         PREFIX=/build /tmp/install/install.sh containerd
-
-FROM dev-base AS proxy
-ARG LIBNETWORK_COMMIT
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
-        PREFIX=/build /tmp/install/install.sh proxy
 
 FROM base AS golangci_lint
 ARG GOLANGCI_LINT_COMMIT
@@ -241,7 +227,13 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 COPY ./contrib/dockerd-rootless.sh /build
 COPY ./contrib/dockerd-rootless-setuptool.sh /build
 
-FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit
+FROM --platform=amd64 djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit-amd64
+
+FROM --platform=arm64 djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit-arm64
+
+FROM scratch AS vpnkit
+COPY --from=vpnkit-amd64 /vpnkit /build/vpnkit.x86_64
+COPY --from=vpnkit-arm64 /vpnkit /build/vpnkit.aarch64
 
 # TODO: Some of this is only really needed for testing, it would be nice to split this up
 FROM runtime-dev AS dev-systemd-false
@@ -272,6 +264,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             libnl-3-200 \
             libprotobuf-c1 \
             net-tools \
+            patch \
             pigz \
             python3-pip \
             python3-setuptools \
@@ -292,15 +285,15 @@ RUN update-alternatives --set iptables  /usr/sbin/iptables-legacy  || true \
  && update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy || true \
  && update-alternatives --set arptables /usr/sbin/arptables-legacy || true
 
-RUN pip3 install yamllint==1.16.0
+RUN pip3 install yamllint==1.26.1
 
 COPY --from=dockercli     /build/ /usr/local/cli
 COPY --from=frozen-images /build/ /docker-frozen-images
 COPY --from=swagger       /build/ /usr/local/bin/
-COPY --from=tomlv         /build/ /usr/local/bin/
+COPY --from=tomll         /build/ /usr/local/bin/
 COPY --from=tini          /build/ /usr/local/bin/
 COPY --from=registry      /build/ /usr/local/bin/
-COPY --from=criu          /build/ /usr/local/
+COPY --from=criu          /build/ /usr/local/bin/
 COPY --from=vndr          /build/ /usr/local/bin/
 COPY --from=gotestsum     /build/ /usr/local/bin/
 COPY --from=golangci_lint /build/ /usr/local/bin/
@@ -308,8 +301,7 @@ COPY --from=shfmt         /build/ /usr/local/bin/
 COPY --from=runc          /build/ /usr/local/bin/
 COPY --from=containerd    /build/ /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
-COPY --from=vpnkit        /vpnkit /usr/local/bin/vpnkit.x86_64
-COPY --from=proxy         /build/ /usr/local/bin/
+COPY --from=vpnkit        /build/ /usr/local/bin/
 ENV PATH=/usr/local/cli:$PATH
 ARG DOCKER_BUILDTAGS
 ENV DOCKER_BUILDTAGS="${DOCKER_BUILDTAGS}"
@@ -355,8 +347,7 @@ COPY --from=tini        /build/ /usr/local/bin/
 COPY --from=runc        /build/ /usr/local/bin/
 COPY --from=containerd  /build/ /usr/local/bin/
 COPY --from=rootlesskit /build/ /usr/local/bin/
-COPY --from=proxy       /build/ /usr/local/bin/
-COPY --from=vpnkit      /vpnkit /usr/local/bin/vpnkit.x86_64
+COPY --from=vpnkit      /build/ /usr/local/bin/
 WORKDIR /go/src/github.com/docker/docker
 
 FROM binary-base AS build-binary

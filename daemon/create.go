@@ -12,6 +12,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/idtools"
@@ -68,12 +69,6 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 		if err == nil {
 			os = img.OS
 		}
-	} else {
-		// This mean scratch. On Windows, we can safely assume that this is a linux
-		// container. On other platforms, it's the host OS (which it already is)
-		if isWindows && system.LCOWSupported() {
-			os = "linux"
-		}
 	}
 
 	warnings, err := daemon.verifyContainerSettings(os, opts.params.HostConfig, opts.params.Config, false)
@@ -89,7 +84,7 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 			Variant:      img.Variant,
 		}
 
-		if !platforms.Only(p).Match(imgPlat) {
+		if !images.OnlyPlatformWithFallback(p).Match(imgPlat) {
 			warnings = append(warnings, fmt.Sprintf("The requested image's platform (%s) does not match the detected host platform (%s) and no specific platform was requested", platforms.Format(imgPlat), platforms.Format(p)))
 		}
 	}
@@ -187,23 +182,6 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 
 	ctr.HostConfig.StorageOpt = opts.params.HostConfig.StorageOpt
 
-	// Fixes: https://github.com/moby/moby/issues/34074 and
-	// https://github.com/docker/for-win/issues/999.
-	// Merge the daemon's storage options if they aren't already present. We only
-	// do this on Windows as there's no effective sandbox size limit other than
-	// physical on Linux.
-	if isWindows {
-		if ctr.HostConfig.StorageOpt == nil {
-			ctr.HostConfig.StorageOpt = make(map[string]string)
-		}
-		for _, v := range daemon.configStore.GraphOptions {
-			opt := strings.SplitN(v, "=", 2)
-			if _, ok := ctr.HostConfig.StorageOpt[opt[0]]; !ok {
-				ctr.HostConfig.StorageOpt[opt[0]] = opt[1]
-			}
-		}
-	}
-
 	// Set RWLayer for container after mount labels have been set
 	rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping))
 	if err != nil {
@@ -211,12 +189,10 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	}
 	ctr.RWLayer = rwLayer
 
-	rootIDs := daemon.idMapping.RootPair()
-
-	if err := idtools.MkdirAndChown(ctr.Root, 0700, rootIDs); err != nil {
+	if err := idtools.MkdirAndChown(ctr.Root, 0701, idtools.CurrentIdentity()); err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAndChown(ctr.CheckpointDir(), 0700, rootIDs); err != nil {
+	if err := idtools.MkdirAndChown(ctr.CheckpointDir(), 0700, idtools.CurrentIdentity()); err != nil {
 		return nil, err
 	}
 

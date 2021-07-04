@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 )
 
-// TaskInspectWithRaw returns the task information and its raw representation..
+// TaskInspectWithRaw returns the task information and its raw representation.
 func (cli *Client) TaskInspectWithRaw(ctx context.Context, taskID string) (swarm.Task, []byte, error) {
 	if taskID == "" {
 		return swarm.Task{}, nil, objectNotFoundError{object: "task", id: taskID}

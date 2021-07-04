@@ -14,6 +14,12 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/libnetwork"
+	nwconfig "github.com/docker/docker/libnetwork/config"
+	"github.com/docker/docker/libnetwork/datastore"
+	winlibnetwork "github.com/docker/docker/libnetwork/drivers/windows"
+	"github.com/docker/docker/libnetwork/netlabel"
+	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
@@ -21,12 +27,6 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/libnetwork"
-	nwconfig "github.com/docker/libnetwork/config"
-	"github.com/docker/libnetwork/datastore"
-	winlibnetwork "github.com/docker/libnetwork/drivers/windows"
-	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/options"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
@@ -499,19 +499,12 @@ func (daemon *Daemon) runAsHyperVContainer(hostConfig *containertypes.HostConfig
 // conditionalMountOnStart is a platform specific helper function during the
 // container start to call mount.
 func (daemon *Daemon) conditionalMountOnStart(container *container.Container) error {
-
-	// Bail out now for Linux containers. We cannot mount the containers filesystem on the
-	// host as it is a non-Windows filesystem.
-	if system.LCOWSupported() && container.OS != "windows" {
+	if daemon.runAsHyperVContainer(container.HostConfig) {
+		// We do not mount if a Hyper-V container as it needs to be mounted inside the
+		// utility VM, not the host.
 		return nil
 	}
-
-	// We do not mount if a Hyper-V container as it needs to be mounted inside the
-	// utility VM, not the host.
-	if !daemon.runAsHyperVContainer(container.HostConfig) {
-		return daemon.Mount(container)
-	}
-	return nil
+	return daemon.Mount(container)
 }
 
 // conditionalUnmountOnCleanup is a platform specific helper function called

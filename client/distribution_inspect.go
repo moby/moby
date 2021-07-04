@@ -8,7 +8,7 @@ import (
 	registrytypes "github.com/docker/docker/api/types/registry"
 )
 
-// DistributionInspect returns the image digest with full Manifest
+// DistributionInspect returns the image digest with the full manifest.
 func (cli *Client) DistributionInspect(ctx context.Context, image, encodedRegistryAuth string) (registrytypes.DistributionInspect, error) {
 	// Contact the registry to retrieve digest and platform information
 	var distributionInspect registrytypes.DistributionInspect

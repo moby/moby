@@ -12,7 +12,7 @@ if [ -x "${DEST}/../binary-daemon/dockerd-${VERSION}" ]; then
 	echo "Created symlinks:" "${DEST}/linux/${arch}/"*
 fi
 
-DOCKER_CROSSPLATFORMS=${DOCKER_CROSSPLATFORMS:-"linux/amd64 windows/amd64"}
+DOCKER_CROSSPLATFORMS=${DOCKER_CROSSPLATFORMS:-"linux/amd64 windows/amd64 linux/ppc64le linux/s390x"}
 
 for platform in ${DOCKER_CROSSPLATFORMS}; do
 	(
@@ -30,7 +30,7 @@ for platform in ${DOCKER_CROSSPLATFORMS}; do
 		echo "Cross building: ${DEST}"
 		mkdir -p "${DEST}"
 		ABS_DEST="$(cd "${DEST}" && pwd -P)"
-		source "${MAKEDIR}/binary-daemon"
+		source "${MAKEDIR}/binary"
 
 		source "${MAKEDIR}/cross-platform-dependent"
 	)

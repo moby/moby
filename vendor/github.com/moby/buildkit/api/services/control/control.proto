@@ -2,9 +2,6 @@ syntax = "proto3";
 
 package moby.buildkit.v1;
 
-// The control API is currently considered experimental and may break in a backwards
-// incompatible way.
-
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 import "google/protobuf/timestamp.proto";
 import "github.com/moby/buildkit/solver/pb/ops.proto";

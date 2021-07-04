@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"reflect"
 	"runtime"
 	"strings"
 	"time"
@@ -216,6 +217,16 @@ func NewHistory(author, comment, createdBy string, isEmptyLayer bool) History {
 		Comment:    comment,
 		EmptyLayer: isEmptyLayer,
 	}
+}
+
+// Equal compares two history structs for equality
+func (h History) Equal(i History) bool {
+	if !h.Created.Equal(i.Created) {
+		return false
+	}
+	i.Created = h.Created
+
+	return reflect.DeepEqual(h, i)
 }
 
 // Exporter provides interface for loading and saving images

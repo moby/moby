@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -44,7 +43,12 @@ const (
 	DisableNetworkBridge = "none"
 	// DefaultInitBinary is the name of the default init binary
 	DefaultInitBinary = "docker-init"
-
+	// DefaultShimBinary is the default shim to be used by containerd if none
+	// is specified
+	DefaultShimBinary = "containerd-shim"
+	// DefaultRuntimeBinary is the default runtime to be used by
+	// containerd if none is specified
+	DefaultRuntimeBinary = "runc"
 	// StockRuntimeName is the reserved name/alias used to represent the
 	// OCI runtime being shipped with the docker daemon package.
 	StockRuntimeName = "runc"
@@ -394,11 +398,16 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 	}
 
 	var config Config
-	var reader io.Reader
+
+	b = bytes.TrimSpace(b)
+	if len(b) == 0 {
+		// empty config file
+		return &config, nil
+	}
+
 	if flags != nil {
 		var jsonConfig map[string]interface{}
-		reader = bytes.NewReader(b)
-		if err := json.NewDecoder(reader).Decode(&jsonConfig); err != nil {
+		if err := json.Unmarshal(b, &jsonConfig); err != nil {
 			return nil, err
 		}
 
@@ -441,8 +450,7 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		config.ValuesSet = configSet
 	}
 
-	reader = bytes.NewReader(b)
-	if err := json.NewDecoder(reader).Decode(&config); err != nil {
+	if err := json.Unmarshal(b, &config); err != nil {
 		return nil, err
 	}
 

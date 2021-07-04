@@ -297,7 +297,7 @@ func waitForExec(c *testing.T, id string) {
 }
 
 func inspectContainer(c *testing.T, id string, out interface{}) {
-	resp, body, err := request.Get(fmt.Sprintf("/containers/%s/json", id))
+	resp, body, err := request.Get("/containers/" + id + "/json")
 	assert.NilError(c, err)
 	defer body.Close()
 	assert.Equal(c, resp.StatusCode, http.StatusOK)

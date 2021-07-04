@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/api/types"
 )
 
-// ContainerStatPath returns Stat information about a path inside the container filesystem.
+// ContainerStatPath returns stat information about a path inside the container filesystem.
 func (cli *Client) ContainerStatPath(ctx context.Context, containerID, path string) (types.ContainerPathStat, error) {
 	query := url.Values{}
 	query.Set("path", filepath.ToSlash(path)) // Normalize the paths used in the API.
