@@ -8339,6 +8339,8 @@ paths:
                   UsageData:
                     Size: 10920104
                     RefCount: 2
+              BuildCache: null
+              BuilderSize: 0
         500:
           description: "server error"
           schema:
