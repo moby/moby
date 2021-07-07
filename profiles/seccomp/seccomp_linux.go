@@ -111,68 +111,58 @@ func setupSeccomp(config *Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) 
 Loop:
 	// Loop through all syscall blocks and convert them to libcontainer format after filtering them
 	for _, call := range config.Syscalls {
-		if len(call.Excludes.Arches) > 0 {
-			if inSlice(call.Excludes.Arches, arch) {
-				continue Loop
+		if call.Excludes != nil {
+			if len(call.Excludes.Arches) > 0 {
+				if inSlice(call.Excludes.Arches, arch) {
+					continue Loop
+				}
 			}
-		}
-		if len(call.Excludes.Caps) > 0 {
-			for _, c := range call.Excludes.Caps {
-				if inSlice(rs.Process.Capabilities.Bounding, c) {
+			if len(call.Excludes.Caps) > 0 {
+				for _, c := range call.Excludes.Caps {
+					if inSlice(rs.Process.Capabilities.Bounding, c) {
+						continue Loop
+					}
+				}
+			}
+			if call.Excludes.MinKernel != nil {
+				if ok, err := kernelGreaterEqualThan(*call.Excludes.MinKernel); err != nil {
+					return nil, err
+				} else if ok {
 					continue Loop
 				}
 			}
 		}
-		if call.Excludes.MinKernel != nil {
-			if ok, err := kernelGreaterEqualThan(*call.Excludes.MinKernel); err != nil {
-				return nil, err
-			} else if ok {
-				continue Loop
-			}
-		}
-		if len(call.Includes.Arches) > 0 {
-			if !inSlice(call.Includes.Arches, arch) {
-				continue Loop
-			}
-		}
-		if len(call.Includes.Caps) > 0 {
-			for _, c := range call.Includes.Caps {
-				if !inSlice(rs.Process.Capabilities.Bounding, c) {
+		if call.Includes != nil {
+			if len(call.Includes.Arches) > 0 {
+				if !inSlice(call.Includes.Arches, arch) {
 					continue Loop
 				}
 			}
-		}
-		if call.Includes.MinKernel != nil {
-			if ok, err := kernelGreaterEqualThan(*call.Includes.MinKernel); err != nil {
-				return nil, err
-			} else if !ok {
-				continue Loop
+			if len(call.Includes.Caps) > 0 {
+				for _, c := range call.Includes.Caps {
+					if !inSlice(rs.Process.Capabilities.Bounding, c) {
+						continue Loop
+					}
+				}
 			}
-		}
-
-		if call.Name != "" && len(call.Names) != 0 {
-			return nil, errors.New("'name' and 'names' were specified in the seccomp profile, use either 'name' or 'names'")
+			if call.Includes.MinKernel != nil {
+				if ok, err := kernelGreaterEqualThan(*call.Includes.MinKernel); err != nil {
+					return nil, err
+				} else if !ok {
+					continue Loop
+				}
+			}
 		}
 
 		if call.Name != "" {
-			newConfig.Syscalls = append(newConfig.Syscalls, createSpecsSyscall([]string{call.Name}, call.Action, call.Args))
-		} else {
-			newConfig.Syscalls = append(newConfig.Syscalls, createSpecsSyscall(call.Names, call.Action, call.Args))
+			if len(call.Names) != 0 {
+				return nil, errors.New("'name' and 'names' were specified in the seccomp profile, use either 'name' or 'names'")
+			}
+			call.Names = append(call.Names, call.Name)
 		}
+
+		newConfig.Syscalls = append(newConfig.Syscalls, call.LinuxSyscall)
 	}
 
 	return newConfig, nil
-}
-
-func createSpecsSyscall(names []string, action specs.LinuxSeccompAction, args []*specs.LinuxSeccompArg) specs.LinuxSyscall {
-	newCall := specs.LinuxSyscall{
-		Names:  names,
-		Action: action,
-	}
-
-	// Loop through all the arguments of the syscall and convert them
-	for _, arg := range args {
-		newCall.Args = append(newCall.Args, *arg)
-	}
-	return newCall
 }

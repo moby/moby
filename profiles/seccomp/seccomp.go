@@ -40,15 +40,18 @@ type Filter struct {
 	MinKernel *KernelVersion `json:"minKernel,omitempty"`
 }
 
-// Syscall is used to match a group of syscalls in Seccomp
+// Syscall is used to match a group of syscalls in Seccomp. It extends the
+// runtime-spec Syscall type, adding a "Name" field for backward compatibility
+// with older JSON representations, additional "Comment" metadata, and conditional
+// rules ("Includes", "Excludes") used to generate a runtime-spec Seccomp profile
+// based on the container (capabilities) and host's (arch, kernel) configuration.
 type Syscall struct {
-	Name     string                   `json:"name,omitempty"`
-	Names    []string                 `json:"names,omitempty"`
-	Action   specs.LinuxSeccompAction `json:"action"`
-	Args     []*specs.LinuxSeccompArg `json:"args"`
-	Comment  string                   `json:"comment"`
-	Includes Filter                   `json:"includes"`
-	Excludes Filter                   `json:"excludes"`
+	specs.LinuxSyscall
+	// Deprecated: kept for backward compatibility with old JSON profiles, use Names instead
+	Name     string  `json:"name,omitempty"`
+	Comment  string  `json:"comment,omitempty"`
+	Includes *Filter `json:"includes,omitempty"`
+	Excludes *Filter `json:"excludes,omitempty"`
 }
 
 // KernelVersion holds information about the kernel.
