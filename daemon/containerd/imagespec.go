@@ -19,11 +19,15 @@ func dockerOciImageToDockerImagePartial(id image.ID, img imagespec.DockerOCIImag
 	v1Image := image.V1Image{
 		DockerVersion: dockerversion.Version,
 		Config:        dockerOCIImageConfigToContainerConfig(img.Config),
-		Architecture:  img.Platform.Architecture,
-		Variant:       img.Platform.Variant,
-		OS:            img.Platform.OS,
-		Author:        img.Author,
-		Created:       img.Created,
+		Platform: ocispec.Platform{
+			Architecture: img.Platform.Architecture,
+			OS:           img.Platform.OS,
+			OSVersion:    img.Platform.OSVersion,
+			OSFeatures:   img.Platform.OSFeatures,
+			Variant:      img.Platform.Variant,
+		},
+		Author:  img.Author,
+		Created: img.Created,
 	}
 
 	out := image.NewImage(id)
@@ -33,8 +37,6 @@ func dockerOciImageToDockerImagePartial(id image.ID, img imagespec.DockerOCIImag
 		DiffIDs: slices.Clone(img.RootFS.DiffIDs),
 	}
 	out.History = img.History
-	out.OSFeatures = img.OSFeatures
-	out.OSVersion = img.OSVersion
 	return out
 }
 

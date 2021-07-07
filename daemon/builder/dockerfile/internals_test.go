@@ -16,6 +16,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -198,9 +199,11 @@ func TestExportImage(t *testing.T) {
 	ds := newDispatchState(NewBuildArgs(map[string]*string{}))
 	parentImage := &image.Image{
 		V1Image: image.V1Image{
-			OS:           "linux",
-			Architecture: "arm64",
-			Variant:      "v8",
+			Platform: ocispec.Platform{
+				OS:           "linux",
+				Architecture: "arm64",
+				Variant:      "v8",
+			},
 		},
 	}
 	b := &Builder{
