@@ -6,3 +6,8 @@ package seccomp // import "github.com/docker/docker/profiles/seccomp"
 func DefaultProfile() *Seccomp {
 	return nil
 }
+
+// DefaultProfileWithoutUserNamespaces returns a nil pointer on unsupported systems.
+func DefaultProfileWithoutUserNamespaces() *Seccomp {
+	return nil
+}

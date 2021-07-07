@@ -631,58 +631,6 @@
 			"args": [
 				{
 					"index": 0,
-					"value": 1845624832,
-					"op": "SCMP_CMP_MASKED_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {
-				"minKernel": "4.18"
-			},
-			"excludes": {
-				"caps": [
-					"CAP_SYS_ADMIN"
-				],
-				"arches": [
-					"s390",
-					"s390x"
-				]
-			}
-		},
-		{
-			"names": [
-				"clone"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 1,
-					"value": 1845624832,
-					"op": "SCMP_CMP_MASKED_EQ"
-				}
-			],
-			"comment": "s390 parameter ordering for clone is different",
-			"includes": {
-				"arches": [
-					"s390",
-					"s390x"
-				],
-				"minKernel": "4.18"
-			},
-			"excludes": {
-				"caps": [
-					"CAP_SYS_ADMIN"
-				]
-			}
-		},
-		{
-			"names": [
-				"clone"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
 					"value": 2114060288,
 					"op": "SCMP_CMP_MASKED_EQ"
 				}
@@ -696,8 +644,7 @@
 				"arches": [
 					"s390",
 					"s390x"
-				],
-				"minKernel": "4.18"
+				]
 			}
 		},
 		{
@@ -722,29 +669,6 @@
 			"excludes": {
 				"caps": [
 					"CAP_SYS_ADMIN"
-				],
-				"minKernel": "4.18"
-			}
-		},
-		{
-			"names": [
-				"unshare"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 1845624832,
-					"op": "SCMP_CMP_MASKED_EQ"
-				}
-			],
-			"comment": "",
-			"includes": {
-				"minKernel": "4.18"
-			},
-			"excludes": {
-				"caps": [
-					"CAP_SYS_ADMIN"
 				]
 			}
 		},
@@ -765,8 +689,7 @@
 			"excludes": {
 				"caps": [
 					"CAP_SYS_ADMIN"
-				],
-				"minKernel": "4.18"
+				]
 			}
 		},
 		{

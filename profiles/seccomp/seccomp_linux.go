@@ -11,9 +11,37 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
+// IsProfileShorthand takes a string and checks whether it is a profile shorthand
+func IsProfileShorthand(profileShorthand string) bool {
+
+	switch profileShorthand {
+		case "", "without-user-namespaces":
+			return true;
+		default:
+			return false
+	}
+
+}
+
 // GetDefaultProfile returns the default seccomp profile.
 func GetDefaultProfile(rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 	return setupSeccomp(DefaultProfile(), rs)
+}
+
+// GetDefaultProfileUsingShorthand returns the default seccomp profile that matches the specified shorthand.
+func GetDefaultProfileUsingShorthand(profileShorthand string, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
+	var profile *Seccomp
+
+	switch profileShorthand {
+		case "":
+			profile = DefaultProfile()
+		case "without-user-namespaces":
+			profile = DefaultProfileWithoutUserNamespaces()
+		default:
+			profile = nil
+	}
+
+	return setupSeccomp(profile, rs)
 }
 
 // LoadProfile takes a json string and decodes the seccomp profile.

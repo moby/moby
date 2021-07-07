@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/moby/sys/mount"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
@@ -988,13 +989,29 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *testing.T) {
 	})
 }
 
-// TestRunSeccompProfileDenyCloneUserns checks that 'docker run syscall-test'
-// with a the default seccomp profile exits with operation not permitted.
+// TestRunSeccompProfileAllowCloneUserns checks that 'docker run syscall-test'
+// with the default seccomp profile allows creating a userns.
+func (s *DockerSuite) TestRunSeccompProfileAllowCloneUserns(c *testing.T) {
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace, unprivilegedUsernsClone)
+	ensureSyscallTest(c)
+
+	if !(kernel.CheckKernelVersion(4, 18, 0)) {
+		c.Skip("The unprivileged creation of user namespaces is not permitted for Linux kernels older than 4.18")
+	}
+
+	icmd.RunCommand(dockerBinary, "run", "syscall-test", "userns-test", "id").Assert(c, icmd.Expected{
+		Out: "nobody",
+	})
+}
+
+// TestRunSeccompProfileWithoutUserNamespacesCloneUserns checks that
+// 'docker run --security-opt seccomp=without-user-namespaces syscall-test'
+// exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyCloneUserns(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 	ensureSyscallTest(c)
 
-	icmd.RunCommand(dockerBinary, "run", "syscall-test", "userns-test", "id").Assert(c, icmd.Expected{
+	icmd.RunCommand(dockerBinary, "run",  "--security-opt", "seccomp=without-user-namespaces", "syscall-test", "userns-test", "id").Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "clone failed: Operation not permitted",
 	})
@@ -1330,12 +1347,12 @@ func (s *DockerSuite) TestRunApparmorProcDirectory(c *testing.T) {
 	}
 }
 
-// make sure the default profile can be successfully parsed (using unshare as it is
+// make sure the default profile can be successfully parsed (using unshare --mount as it is
 // something which we know is blocked in the default profile)
 func (s *DockerSuite) TestRunSeccompWithDefaultProfile(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
-	out, _, err := dockerCmdWithError("run", "--security-opt", "seccomp=../profiles/seccomp/default.json", "debian:bullseye", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
+	out, _, err := dockerCmdWithError("run", "--security-opt", "seccomp=../profiles/seccomp/default.json", "debian:bullseye", "unshare", "--mount")
 	assert.ErrorContains(c, err, "", out)
 	assert.Equal(c, strings.TrimSpace(out), "unshare: unshare failed: Operation not permitted")
 }
