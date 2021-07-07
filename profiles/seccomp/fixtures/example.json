@@ -22,6 +22,12 @@
             "name": "close",
             "action": "SCMP_ACT_ALLOW",
             "args": []
+        },
+        {
+            "name": "syslog",
+            "action": "SCMP_ACT_ERRNO",
+            "errnoRet": 12345,
+            "args": []
         }
     ]
 }
