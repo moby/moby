@@ -120,6 +120,11 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 
 	du.BuilderSize = builderSize
 	du.BuildCache = buildCache
+	if buildCache == nil {
+		// Ensure empty `BuildCache` field is represented as empty JSON array(`[]`)
+		// instead of `null` to be consistent with `Images`, `Containers` etc.
+		du.BuildCache = []*types.BuildCache{}
+	}
 
 	return httputils.WriteJSON(w, http.StatusOK, du)
 }
