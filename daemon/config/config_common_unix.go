@@ -3,8 +3,6 @@
 package config // import "github.com/docker/docker/daemon/config"
 
 import (
-	"net"
-
 	"github.com/docker/docker/api/types"
 )
 
@@ -14,14 +12,6 @@ type CommonUnixConfig struct {
 	Runtimes          map[string]types.Runtime `json:"runtimes,omitempty"`
 	DefaultRuntime    string                   `json:"default-runtime,omitempty"`
 	DefaultInitBinary string                   `json:"default-init,omitempty"`
-}
-
-type commonUnixBridgeConfig struct {
-	DefaultIP                   net.IP `json:"ip,omitempty"`
-	IP                          string `json:"bip,omitempty"`
-	DefaultGatewayIPv4          net.IP `json:"default-gateway,omitempty"`
-	DefaultGatewayIPv6          net.IP `json:"default-gateway-v6,omitempty"`
-	InterContainerCommunication bool   `json:"icc,omitempty"`
 }
 
 // GetRuntime returns the runtime path and arguments for a given

@@ -4,6 +4,7 @@ package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"fmt"
+	"net"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/opts"
@@ -20,10 +21,13 @@ const (
 type BridgeConfig struct {
 	commonBridgeConfig
 
-	// These fields are common to all unix platforms.
-	commonUnixBridgeConfig
-
 	// Fields below here are platform specific.
+	DefaultIP                   net.IP `json:"ip,omitempty"`
+	IP                          string `json:"bip,omitempty"`
+	DefaultGatewayIPv4          net.IP `json:"default-gateway,omitempty"`
+	DefaultGatewayIPv6          net.IP `json:"default-gateway-v6,omitempty"`
+	InterContainerCommunication bool   `json:"icc,omitempty"`
+
 	EnableIPv6          bool   `json:"ipv6,omitempty"`
 	EnableIPTables      bool   `json:"iptables,omitempty"`
 	EnableIP6Tables     bool   `json:"ip6tables,omitempty"`
