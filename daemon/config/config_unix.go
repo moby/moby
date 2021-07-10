@@ -15,6 +15,25 @@ const (
 	DefaultIpcMode = "private"
 )
 
+// BridgeConfig stores all the bridge driver specific
+// configuration.
+type BridgeConfig struct {
+	commonBridgeConfig
+
+	// These fields are common to all unix platforms.
+	commonUnixBridgeConfig
+
+	// Fields below here are platform specific.
+	EnableIPv6          bool   `json:"ipv6,omitempty"`
+	EnableIPTables      bool   `json:"iptables,omitempty"`
+	EnableIP6Tables     bool   `json:"ip6tables,omitempty"`
+	EnableIPForward     bool   `json:"ip-forward,omitempty"`
+	EnableIPMasq        bool   `json:"ip-masq,omitempty"`
+	EnableUserlandProxy bool   `json:"userland-proxy,omitempty"`
+	UserlandProxyPath   string `json:"userland-proxy-path,omitempty"`
+	FixedCIDRv6         string `json:"fixed-cidr-v6,omitempty"`
+}
+
 // Config defines the configuration of a docker daemon.
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line uses.
@@ -41,25 +60,6 @@ type Config struct {
 	// ResolvConf is the path to the configuration of the host resolver
 	ResolvConf string `json:"resolv-conf,omitempty"`
 	Rootless   bool   `json:"rootless,omitempty"`
-}
-
-// BridgeConfig stores all the bridge driver specific
-// configuration.
-type BridgeConfig struct {
-	commonBridgeConfig
-
-	// These fields are common to all unix platforms.
-	commonUnixBridgeConfig
-
-	// Fields below here are platform specific.
-	EnableIPv6          bool   `json:"ipv6,omitempty"`
-	EnableIPTables      bool   `json:"iptables,omitempty"`
-	EnableIP6Tables     bool   `json:"ip6tables,omitempty"`
-	EnableIPForward     bool   `json:"ip-forward,omitempty"`
-	EnableIPMasq        bool   `json:"ip-masq,omitempty"`
-	EnableUserlandProxy bool   `json:"userland-proxy,omitempty"`
-	UserlandProxyPath   string `json:"userland-proxy-path,omitempty"`
-	FixedCIDRv6         string `json:"fixed-cidr-v6,omitempty"`
 }
 
 // IsSwarmCompatible defines if swarm mode can be enabled in this config
@@ -104,7 +104,7 @@ func (conf *Config) ValidatePlatformConfig() error {
 	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)
 }
 
-// IsRootless returns conf.Rootless
+// IsRootless returns conf.Rootless on Linux but false on Windows
 func (conf *Config) IsRootless() bool {
 	return conf.Rootless
 }
