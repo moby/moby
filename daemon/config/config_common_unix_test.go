@@ -8,29 +8,25 @@ import (
 	"github.com/docker/docker/api/types"
 )
 
-func TestCommonUnixValidateConfigurationErrors(t *testing.T) {
+func TestUnixValidateConfigurationErrors(t *testing.T) {
 	testCases := []struct {
 		config *Config
 	}{
 		// Can't override the stock runtime
 		{
 			config: &Config{
-				CommonUnixConfig: CommonUnixConfig{
-					Runtimes: map[string]types.Runtime{
-						StockRuntimeName: {},
-					},
+				Runtimes: map[string]types.Runtime{
+					StockRuntimeName: {},
 				},
 			},
 		},
 		// Default runtime should be present in runtimes
 		{
 			config: &Config{
-				CommonUnixConfig: CommonUnixConfig{
-					Runtimes: map[string]types.Runtime{
-						"foo": {},
-					},
-					DefaultRuntime: "bar",
+				Runtimes: map[string]types.Runtime{
+					"foo": {},
 				},
+				DefaultRuntime: "bar",
 			},
 		},
 	}
@@ -42,7 +38,7 @@ func TestCommonUnixValidateConfigurationErrors(t *testing.T) {
 	}
 }
 
-func TestCommonUnixGetInitPath(t *testing.T) {
+func TestUnixGetInitPath(t *testing.T) {
 	testCases := []struct {
 		config           *Config
 		expectedInitPath string
@@ -55,18 +51,14 @@ func TestCommonUnixGetInitPath(t *testing.T) {
 		},
 		{
 			config: &Config{
-				CommonUnixConfig: CommonUnixConfig{
-					DefaultInitBinary: "foo-init-bin",
-				},
+				DefaultInitBinary: "foo-init-bin",
 			},
 			expectedInitPath: "foo-init-bin",
 		},
 		{
 			config: &Config{
-				InitPath: "init-path-A",
-				CommonUnixConfig: CommonUnixConfig{
-					DefaultInitBinary: "init-path-B",
-				},
+				InitPath:          "init-path-A",
+				DefaultInitBinary: "init-path-B",
 			},
 			expectedInitPath: "init-path-A",
 		},

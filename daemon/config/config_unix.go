@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/opts"
 	units "github.com/docker/go-units"
@@ -44,9 +45,10 @@ type BridgeConfig struct {
 type Config struct {
 	CommonConfig
 
-	// These fields are common to all unix platforms.
-	CommonUnixConfig
 	// Fields below here are platform specific.
+	Runtimes             map[string]types.Runtime `json:"runtimes,omitempty"`
+	DefaultRuntime       string                   `json:"default-runtime,omitempty"`
+	DefaultInitBinary    string                   `json:"default-init,omitempty"`
 	CgroupParent         string                   `json:"cgroup-parent,omitempty"`
 	EnableSelinuxSupport bool                     `json:"selinux-enabled,omitempty"`
 	RemappedRoot         string                   `json:"userns-remap,omitempty"`
@@ -64,6 +66,58 @@ type Config struct {
 	// ResolvConf is the path to the configuration of the host resolver
 	ResolvConf string `json:"resolv-conf,omitempty"`
 	Rootless   bool   `json:"rootless,omitempty"`
+}
+
+// GetRuntime returns the runtime path and arguments for a given
+// runtime name
+func (conf *Config) GetRuntime(name string) *types.Runtime {
+	conf.Lock()
+	defer conf.Unlock()
+	if rt, ok := conf.Runtimes[name]; ok {
+		return &rt
+	}
+	return nil
+}
+
+// GetDefaultRuntimeName returns the current default runtime
+func (conf *Config) GetDefaultRuntimeName() string {
+	conf.Lock()
+	rt := conf.DefaultRuntime
+	conf.Unlock()
+
+	return rt
+}
+
+// GetAllRuntimes returns a copy of the runtimes map
+func (conf *Config) GetAllRuntimes() map[string]types.Runtime {
+	conf.Lock()
+	rts := conf.Runtimes
+	conf.Unlock()
+	return rts
+}
+
+// GetExecRoot returns the user configured Exec-root
+func (conf *Config) GetExecRoot() string {
+	return conf.ExecRoot
+}
+
+// GetInitPath returns the configured docker-init path
+func (conf *Config) GetInitPath() string {
+	conf.Lock()
+	defer conf.Unlock()
+	if conf.InitPath != "" {
+		return conf.InitPath
+	}
+	if conf.DefaultInitBinary != "" {
+		return conf.DefaultInitBinary
+	}
+	return DefaultInitBinary
+}
+
+// GetResolvConf returns the appropriate resolv.conf
+// Check setupResolvConf on how this is selected
+func (conf *Config) GetResolvConf() string {
+	return conf.ResolvConf
 }
 
 // IsSwarmCompatible defines if swarm mode can be enabled in this config
