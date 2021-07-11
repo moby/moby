@@ -37,6 +37,7 @@ func TestDiskUsage(t *testing.T) {
 				Images:     nil,
 				Containers: nil,
 				Volumes:    nil,
+				Plugins:    nil,
 			}
 
 			b, err := json.Marshal(du)
