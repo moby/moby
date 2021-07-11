@@ -7507,6 +7507,18 @@ paths:
             Refer to the [authentication section](#section/Authentication) for
             details.
           type: "string"
+        - name: "changes"
+          in: "query"
+          description: |
+            Apply `Dockerfile` instructions to the image that is created,
+            for example: `changes=ENV DEBUG=true`.
+            Note that `ENV DEBUG=true` should be URI component encoded.
+
+            Supported `Dockerfile` instructions:
+            `CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
+          type: "array"
+          items:
+            type: "string"
         - name: "platform"
           in: "query"
           description: "Platform in the format os[/arch[/variant]]"
