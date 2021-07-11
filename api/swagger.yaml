@@ -4366,7 +4366,6 @@ definitions:
         type: "string"
         example: "2020-06-22T15:49:27.000000000+00:00"
 
-
   SystemInfo:
     type: "object"
     properties:
@@ -8545,6 +8544,7 @@ paths:
           description: "Exec configuration"
           schema:
             type: "object"
+            title: "ExecConfig"
             properties:
               AttachStdin:
                 type: "boolean"
@@ -8635,6 +8635,7 @@ paths:
           in: "body"
           schema:
             type: "object"
+            title: "ExecStartConfig"
             properties:
               Detach:
                 type: "boolean"
@@ -9169,6 +9170,7 @@ paths:
           required: true
           schema:
             type: "object"
+            title: "NetworkCreateRequest"
             required: ["Name"]
             properties:
               Name:
@@ -9279,6 +9281,7 @@ paths:
           required: true
           schema:
             type: "object"
+            title: "NetworkConnectRequest"
             properties:
               Container:
                 type: "string"
@@ -9325,6 +9328,7 @@ paths:
           required: true
           schema:
             type: "object"
+            title: "NetworkDisconnectRequest"
             properties:
               Container:
                 type: "string"
@@ -9984,6 +9988,7 @@ paths:
           required: true
           schema:
             type: "object"
+            title: "SwarmInitRequest"
             properties:
               ListenAddr:
                 description: |
@@ -10082,6 +10087,7 @@ paths:
           required: true
           schema:
             type: "object"
+            title: "SwarmJoinRequest"
             properties:
               ListenAddr:
                 description: |
@@ -10242,6 +10248,7 @@ paths:
           required: true
           schema:
             type: "object"
+            title: "SwarmUnlockRequest"
             properties:
               UnlockKey:
                 description: "The swarm's unlock key."
