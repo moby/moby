@@ -819,8 +819,24 @@ func TestParallelDelete(t *testing.T) {
 }
 
 func TestNetworkDBIslands(t *testing.T) {
+	pollTimeout := func() time.Duration {
+		const defaultTimeout = 120 * time.Second
+		dl, ok := t.Deadline()
+		if !ok {
+			return defaultTimeout
+		}
+		if d := time.Until(dl); d <= defaultTimeout {
+			return d
+		}
+		return defaultTimeout
+	}
+
 	logrus.SetLevel(logrus.DebugLevel)
-	dbs := createNetworkDBInstances(t, 5, "node", DefaultConfig())
+	conf := DefaultConfig()
+	// Shorten durations to speed up test execution.
+	conf.rejoinClusterDuration = conf.rejoinClusterDuration / 10
+	conf.rejoinClusterInterval = conf.rejoinClusterInterval / 10
+	dbs := createNetworkDBInstances(t, 5, "node", conf)
 
 	// Get the node IP used currently
 	node := dbs[0].nodes[dbs[0].config.NodeID]
@@ -868,7 +884,7 @@ func TestNetworkDBIslands(t *testing.T) {
 		}
 		return poll.Success()
 	}
-	poll.WaitOn(t, check, poll.WithDelay(time.Second), poll.WithTimeout(120*time.Second))
+	poll.WaitOn(t, check, poll.WithDelay(time.Second), poll.WithTimeout(pollTimeout()))
 
 	// Spawn again the first 3 nodes with different names but same IP:port
 	for i := 0; i < 3; i++ {
@@ -877,7 +893,7 @@ func TestNetworkDBIslands(t *testing.T) {
 		dbs[i] = launchNode(t, *dbs[i].config)
 	}
 
-	// Give some time for the reconnect routine to run, it runs every 60s
+	// Give some time for the reconnect routine to run, it runs every 6s.
 	check = func(t poll.LogT) poll.Result {
 		// Verify that the cluster is again all connected. Note that the 3 previous node did not do any join
 		for i := 0; i < 5; i++ {
@@ -908,6 +924,6 @@ func TestNetworkDBIslands(t *testing.T) {
 		}
 		return poll.Success()
 	}
-	poll.WaitOn(t, check, poll.WithDelay(10*time.Second), poll.WithTimeout(120*time.Second))
+	poll.WaitOn(t, check, poll.WithDelay(time.Second), poll.WithTimeout(pollTimeout()))
 	closeNetworkDBInstances(t, dbs)
 }
