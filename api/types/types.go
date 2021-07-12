@@ -538,7 +538,7 @@ type DiskUsage struct {
 	Containers  []*Container
 	Volumes     []*Volume
 	BuildCache  []*BuildCache
-	BuilderSize int64 // deprecated
+	BuilderSize int64 `json:",omitempty"` // Deprecated: deprecated in API 1.38, and no longer used since API 1.40.
 }
 
 // ContainersPruneReport contains the response for Engine API:
