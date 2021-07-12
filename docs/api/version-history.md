@@ -17,6 +17,11 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.42](https://docs.docker.com/engine/api/v1.42/) documentation
 
+* Removed the `BuilderSize` field on the `GET /system/df` endpoint. This field
+  was introduced in API 1.31 as part of an experimental feature, and no longer
+  used since API 1.40.
+  Use field `BuildCache` instead to track storage used by the builder component.
+
 ## v1.41 API changes
 
 [Docker Engine API v1.41](https://docs.docker.com/engine/api/v1.41/) documentation

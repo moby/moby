@@ -113,12 +113,14 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
-	var builderSize int64
-	for _, b := range buildCache {
-		builderSize += b.Size
+	if versions.LessThan(httputils.VersionFromContext(ctx), "1.42") {
+		var builderSize int64
+		for _, b := range buildCache {
+			builderSize += b.Size
+		}
+		du.BuilderSize = builderSize
 	}
 
-	du.BuilderSize = builderSize
 	du.BuildCache = buildCache
 	if buildCache == nil {
 		// Ensure empty `BuildCache` field is represented as empty JSON array(`[]`)
