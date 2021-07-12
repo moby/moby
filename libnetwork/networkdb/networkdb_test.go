@@ -278,6 +278,8 @@ func TestNetworkDBCRUDTableEntries(t *testing.T) {
 	err = dbs[1].JoinNetwork("network1")
 	assert.NilError(t, err)
 
+	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
+
 	n := 10
 	for i := 1; i <= n; i++ {
 		err = dbs[0].CreateEntry("test_table", "network1",
@@ -497,12 +499,7 @@ func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Wait for the propagation on db[0]
-	for i := 0; i < maxRetry; i++ {
-		if len(dbs[0].networkNodes["network1"]) == 2 {
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
+	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
 	if len(dbs[0].networkNodes["network1"]) != 2 {
 		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[0].networkNodes["network1"]), dbs[0].networkNodes["network1"])
 	}
@@ -511,12 +508,7 @@ func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	}
 
 	// Wait for the propagation on db[1]
-	for i := 0; i < maxRetry; i++ {
-		if len(dbs[1].networkNodes["network1"]) == 2 {
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
+	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
 	if len(dbs[1].networkNodes["network1"]) != 2 {
 		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[1].networkNodes["network1"]), dbs[1].networkNodes["network1"])
 	}
