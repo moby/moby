@@ -37,6 +37,13 @@ type SysInfo struct {
 	// Whether the cgroup is in unified mode (v2).
 	CgroupUnified bool
 
+	// Warnings contains a slice of warnings that occurred  while collecting
+	// system information. These warnings are intended to be informational
+	// messages for the user, and can either be logged or returned to the
+	// client; they are not intended to be parsed / used for other purposes,
+	// and do not have a fixed format.
+	Warnings []string
+
 	// cgMounts is the list of cgroup v1 mount paths, indexed by subsystem, to
 	// inspect availability of subsystems.
 	cgMounts map[string]string

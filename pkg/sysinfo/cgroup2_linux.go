@@ -13,7 +13,6 @@ import (
 )
 
 func newV2(quiet bool, options ...Opt) *SysInfo {
-	var warnings []string
 	sysInfo := &SysInfo{
 		CgroupUnified: true,
 		cg2GroupPath:  "/",
@@ -52,11 +51,10 @@ func newV2(quiet bool, options ...Opt) *SysInfo {
 	}
 
 	for _, o := range ops {
-		w := o(sysInfo)
-		warnings = append(warnings, w...)
+		o(sysInfo)
 	}
 	if !quiet {
-		for _, w := range warnings {
+		for _, w := range sysInfo.Warnings {
 			logrus.Warn(w)
 		}
 	}
@@ -81,11 +79,10 @@ func getSwapLimitV2() bool {
 	return true
 }
 
-func applyMemoryCgroupInfoV2(info *SysInfo) []string {
-	var warnings []string
+func applyMemoryCgroupInfoV2(info *SysInfo) {
 	if _, ok := info.cg2Controllers["memory"]; !ok {
-		warnings = append(warnings, "Unable to find memory controller")
-		return warnings
+		info.Warnings = append(info.Warnings, "Unable to find memory controller")
+		return
 	}
 
 	info.MemoryLimit = true
@@ -95,26 +92,22 @@ func applyMemoryCgroupInfoV2(info *SysInfo) []string {
 	info.MemorySwappiness = false
 	info.KernelMemory = false
 	info.KernelMemoryTCP = false
-	return warnings
 }
 
-func applyCPUCgroupInfoV2(info *SysInfo) []string {
-	var warnings []string
+func applyCPUCgroupInfoV2(info *SysInfo) {
 	if _, ok := info.cg2Controllers["cpu"]; !ok {
-		warnings = append(warnings, "Unable to find cpu controller")
-		return warnings
+		info.Warnings = append(info.Warnings, "Unable to find cpu controller")
+		return
 	}
 	info.CPUShares = true
 	info.CPUCfs = true
 	info.CPURealtime = false
-	return warnings
 }
 
-func applyIOCgroupInfoV2(info *SysInfo) []string {
-	var warnings []string
+func applyIOCgroupInfoV2(info *SysInfo) {
 	if _, ok := info.cg2Controllers["io"]; !ok {
-		warnings = append(warnings, "Unable to find io controller")
-		return warnings
+		info.Warnings = append(info.Warnings, "Unable to find io controller")
+		return
 	}
 
 	info.BlkioWeight = true
@@ -123,42 +116,36 @@ func applyIOCgroupInfoV2(info *SysInfo) []string {
 	info.BlkioWriteBpsDevice = true
 	info.BlkioReadIOpsDevice = true
 	info.BlkioWriteIOpsDevice = true
-	return warnings
 }
 
-func applyCPUSetCgroupInfoV2(info *SysInfo) []string {
-	var warnings []string
+func applyCPUSetCgroupInfoV2(info *SysInfo) {
 	if _, ok := info.cg2Controllers["cpuset"]; !ok {
-		warnings = append(warnings, "Unable to find cpuset controller")
-		return warnings
+		info.Warnings = append(info.Warnings, "Unable to find cpuset controller")
+		return
 	}
 	info.Cpuset = true
 
 	cpus, err := ioutil.ReadFile(path.Join("/sys/fs/cgroup", info.cg2GroupPath, "cpuset.cpus.effective"))
 	if err != nil {
-		return warnings
+		return
 	}
 	info.Cpus = strings.TrimSpace(string(cpus))
 
 	mems, err := ioutil.ReadFile(path.Join("/sys/fs/cgroup", info.cg2GroupPath, "cpuset.mems.effective"))
 	if err != nil {
-		return warnings
+		return
 	}
 	info.Mems = strings.TrimSpace(string(mems))
-	return warnings
 }
 
-func applyPIDSCgroupInfoV2(info *SysInfo) []string {
-	var warnings []string
+func applyPIDSCgroupInfoV2(info *SysInfo) {
 	if _, ok := info.cg2Controllers["pids"]; !ok {
-		warnings = append(warnings, "Unable to find pids controller")
-		return warnings
+		info.Warnings = append(info.Warnings, "Unable to find pids controller")
+		return
 	}
 	info.PidsLimit = true
-	return warnings
 }
 
-func applyDevicesCgroupInfoV2(info *SysInfo) []string {
+func applyDevicesCgroupInfoV2(info *SysInfo) {
 	info.CgroupDevicesEnabled = !userns.RunningInUserNS()
-	return nil
 }
