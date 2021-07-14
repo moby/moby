@@ -37,6 +37,9 @@ type SysInfo struct {
 	// cgMounts is the list of cgroup v1 mount paths, indexed by subsystem, to
 	// inspect availability of subsystems.
 	cgMounts map[string]string
+
+	// cg2GroupPath is the cgroup v2 group path to inspect availability of the controllers.
+	cg2GroupPath string
 }
 
 type cgroupMemInfo struct {

@@ -12,7 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type infoCollectorV2 func(info *SysInfo, controllers map[string]struct{}, dirPath string) (warnings []string)
+type infoCollectorV2 func(info *SysInfo, controllers map[string]struct{}) (warnings []string)
 
 func newV2(quiet bool, options ...Opt) *SysInfo {
 	var warnings []string
@@ -27,6 +27,7 @@ func newV2(quiet bool, options ...Opt) *SysInfo {
 	if g == "" {
 		g = "/"
 	}
+	sysInfo.cg2GroupPath = g
 	m, err := cgroupsV2.LoadManager("/sys/fs/cgroup", g)
 	if err != nil {
 		logrus.Warn(err)
@@ -47,9 +48,8 @@ func newV2(quiet bool, options ...Opt) *SysInfo {
 			applyPIDSCgroupInfoV2,
 			applyDevicesCgroupInfoV2,
 		}
-		dirPath := path.Join("/sys/fs/cgroup", g)
 		for _, o := range opsV2 {
-			w := o(sysInfo, controllersM, dirPath)
+			w := o(sysInfo, controllersM)
 			warnings = append(warnings, w...)
 		}
 	}
@@ -90,7 +90,7 @@ func getSwapLimitV2() bool {
 	return true
 }
 
-func applyMemoryCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, _ string) []string {
+func applyMemoryCgroupInfoV2(info *SysInfo, controllers map[string]struct{}) []string {
 	var warnings []string
 	if _, ok := controllers["memory"]; !ok {
 		warnings = append(warnings, "Unable to find memory controller")
@@ -107,7 +107,7 @@ func applyMemoryCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, _ s
 	return warnings
 }
 
-func applyCPUCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, _ string) []string {
+func applyCPUCgroupInfoV2(info *SysInfo, controllers map[string]struct{}) []string {
 	var warnings []string
 	if _, ok := controllers["cpu"]; !ok {
 		warnings = append(warnings, "Unable to find cpu controller")
@@ -119,7 +119,7 @@ func applyCPUCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, _ stri
 	return warnings
 }
 
-func applyIOCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, _ string) []string {
+func applyIOCgroupInfoV2(info *SysInfo, controllers map[string]struct{}) []string {
 	var warnings []string
 	if _, ok := controllers["io"]; !ok {
 		warnings = append(warnings, "Unable to find io controller")
@@ -135,7 +135,7 @@ func applyIOCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, _ strin
 	return warnings
 }
 
-func applyCPUSetCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, dirPath string) []string {
+func applyCPUSetCgroupInfoV2(info *SysInfo, controllers map[string]struct{}) []string {
 	var warnings []string
 	if _, ok := controllers["cpuset"]; !ok {
 		warnings = append(warnings, "Unable to find cpuset controller")
@@ -143,13 +143,13 @@ func applyCPUSetCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, dir
 	}
 	info.Cpuset = true
 
-	cpus, err := ioutil.ReadFile(path.Join(dirPath, "cpuset.cpus.effective"))
+	cpus, err := ioutil.ReadFile(path.Join("/sys/fs/cgroup", info.cg2GroupPath, "cpuset.cpus.effective"))
 	if err != nil {
 		return warnings
 	}
 	info.Cpus = strings.TrimSpace(string(cpus))
 
-	mems, err := ioutil.ReadFile(path.Join(dirPath, "cpuset.mems.effective"))
+	mems, err := ioutil.ReadFile(path.Join("/sys/fs/cgroup", info.cg2GroupPath, "cpuset.mems.effective"))
 	if err != nil {
 		return warnings
 	}
@@ -157,7 +157,7 @@ func applyCPUSetCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, dir
 	return warnings
 }
 
-func applyPIDSCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, _ string) []string {
+func applyPIDSCgroupInfoV2(info *SysInfo, controllers map[string]struct{}) []string {
 	var warnings []string
 	if _, ok := controllers["pids"]; !ok {
 		warnings = append(warnings, "Unable to find pids controller")
@@ -167,7 +167,7 @@ func applyPIDSCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, _ str
 	return warnings
 }
 
-func applyDevicesCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, _ string) []string {
+func applyDevicesCgroupInfoV2(info *SysInfo, controllers map[string]struct{}) []string {
 	info.CgroupDevicesEnabled = !userns.RunningInUserNS()
 	return nil
 }
