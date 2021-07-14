@@ -18,17 +18,12 @@ func newV2(quiet bool, options ...Opt) *SysInfo {
 	var warnings []string
 	sysInfo := &SysInfo{
 		CgroupUnified: true,
+		cg2GroupPath:  "/",
 	}
-	var opts opts
 	for _, o := range options {
-		o(&opts)
+		o(sysInfo)
 	}
-	g := opts.cg2GroupPath
-	if g == "" {
-		g = "/"
-	}
-	sysInfo.cg2GroupPath = g
-	m, err := cgroupsV2.LoadManager("/sys/fs/cgroup", g)
+	m, err := cgroupsV2.LoadManager("/sys/fs/cgroup", sysInfo.cg2GroupPath)
 	if err != nil {
 		logrus.Warn(err)
 	} else {

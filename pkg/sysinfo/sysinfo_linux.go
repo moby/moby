@@ -30,13 +30,6 @@ func findCgroupMountpoints() (map[string]string, error) {
 
 type infoCollector func(info *SysInfo) (warnings []string)
 
-type opts struct {
-	cg2GroupPath string
-}
-
-// Opt for New().
-type Opt func(*opts)
-
 // WithCgroup2GroupPath specifies the cgroup v2 group path to inspect availability
 // of the controllers.
 //
@@ -44,8 +37,10 @@ type Opt func(*opts)
 //
 // e.g. g = "/user.slice/user-1000.slice/user@1000.service"
 func WithCgroup2GroupPath(g string) Opt {
-	return func(o *opts) {
-		o.cg2GroupPath = path.Clean(g)
+	return func(o *SysInfo) {
+		if p := path.Clean(g); p != "" {
+			o.cg2GroupPath = p
+		}
 	}
 }
 

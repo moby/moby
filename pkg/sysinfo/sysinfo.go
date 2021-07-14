@@ -2,6 +2,9 @@ package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
 
 import "github.com/docker/docker/pkg/parsers"
 
+// Opt for New().
+type Opt func(info *SysInfo)
+
 // SysInfo stores information about which features a kernel supports.
 // TODO Windows: Factor out platform specific capabilities.
 type SysInfo struct {
