@@ -33,6 +33,10 @@ type SysInfo struct {
 
 	// Whether the cgroup is in unified mode (v2).
 	CgroupUnified bool
+
+	// cgMounts is the list of cgroup v1 mount paths, indexed by subsystem, to
+	// inspect availability of subsystems.
+	cgMounts map[string]string
 }
 
 type cgroupMemInfo struct {

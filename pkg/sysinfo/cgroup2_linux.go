@@ -61,7 +61,7 @@ func newV2(quiet bool, options ...Opt) *SysInfo {
 		applyCgroupNsInfo,
 	}
 	for _, o := range ops {
-		w := o(sysInfo, nil)
+		w := o(sysInfo)
 		warnings = append(warnings, w...)
 	}
 	if !quiet {
