@@ -14,7 +14,7 @@ import (
 
 // Testing dependencies
 var (
-	ioutilReadDir = ioutil.ReadDir
+	ioutilReadDir         = ioutil.ReadDir
 	usernsRunningInUserNS = userns.RunningInUserNS
 )
 
