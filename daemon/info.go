@@ -30,7 +30,7 @@ import (
 func (daemon *Daemon) SystemInfo() *types.Info {
 	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_info"))()
 
-	sysInfo := daemon.RawSysInfo(true)
+	sysInfo := daemon.RawSysInfo()
 	cRunning, cPaused, cStopped := stateCtr.get()
 
 	v := &types.Info{

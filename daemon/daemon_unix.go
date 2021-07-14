@@ -666,7 +666,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	if hostConfig == nil {
 		return nil, nil
 	}
-	sysInfo := daemon.RawSysInfo(true)
+	sysInfo := daemon.RawSysInfo()
 
 	w, err := verifyPlatformContainerResources(&hostConfig.Resources, sysInfo, update)
 
@@ -1718,14 +1718,14 @@ func (daemon *Daemon) setupSeccompProfile() error {
 }
 
 // RawSysInfo returns *sysinfo.SysInfo .
-func (daemon *Daemon) RawSysInfo(quiet bool) *sysinfo.SysInfo {
+func (daemon *Daemon) RawSysInfo() *sysinfo.SysInfo {
 	var siOpts []sysinfo.Opt
 	if daemon.getCgroupDriver() == cgroupSystemdDriver {
 		if euid := os.Getenv("ROOTLESSKIT_PARENT_EUID"); euid != "" {
 			siOpts = append(siOpts, sysinfo.WithCgroup2GroupPath("/user.slice/user-"+euid+".slice"))
 		}
 	}
-	return sysinfo.New(quiet, siOpts...)
+	return sysinfo.New(siOpts...)
 }
 
 func recursiveUnmount(target string) error {

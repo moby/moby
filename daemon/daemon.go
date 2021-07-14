@@ -1050,7 +1050,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	sysInfo := d.RawSysInfo(false)
+	sysInfo := d.RawSysInfo()
+	for _, w := range sysInfo.Warnings {
+		logrus.Warn(w)
+	}
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
 	// on Linux.
 	if runtime.GOOS == "linux" && !sysInfo.CgroupDevicesEnabled && !userns.RunningInUserNS() {

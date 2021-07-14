@@ -45,16 +45,15 @@ func WithCgroup2GroupPath(g string) Opt {
 }
 
 // New returns a new SysInfo, using the filesystem to detect which features
-// the kernel supports. If `quiet` is `false` info.Warnings are printed in logs
-// whenever an error occurs or misconfigurations are present.
-func New(quiet bool, options ...Opt) *SysInfo {
+// the kernel supports.
+func New(options ...Opt) *SysInfo {
 	if cdcgroups.Mode() == cdcgroups.Unified {
-		return newV2(quiet, options...)
+		return newV2(options...)
 	}
-	return newV1(quiet)
+	return newV1()
 }
 
-func newV1(quiet bool) *SysInfo {
+func newV1() *SysInfo {
 	var (
 		err     error
 		sysInfo = &SysInfo{}
@@ -83,11 +82,6 @@ func newV1(quiet bool) *SysInfo {
 
 	for _, o := range ops {
 		o(sysInfo)
-	}
-	if !quiet {
-		for _, w := range sysInfo.Warnings {
-			logrus.Warn(w)
-		}
 	}
 	return sysInfo
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func newV2(quiet bool, options ...Opt) *SysInfo {
+func newV2(options ...Opt) *SysInfo {
 	sysInfo := &SysInfo{
 		CgroupUnified: true,
 		cg2GroupPath:  "/",
@@ -52,11 +52,6 @@ func newV2(quiet bool, options ...Opt) *SysInfo {
 
 	for _, o := range ops {
 		o(sysInfo)
-	}
-	if !quiet {
-		for _, w := range sysInfo.Warnings {
-			logrus.Warn(w)
-		}
 	}
 	return sysInfo
 }
