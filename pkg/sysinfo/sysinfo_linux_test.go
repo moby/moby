@@ -75,7 +75,7 @@ func checkSysInfo(t *testing.T, sysInfo *SysInfo) {
 func TestNewAppArmorEnabled(t *testing.T) {
 	// Check if AppArmor is supported. then it must be TRUE , else FALSE
 	if _, err := os.Stat("/sys/kernel/security/apparmor"); err != nil {
-		t.Skip("App Armor Must be Enabled")
+		t.Skip("AppArmor Must be Enabled")
 	}
 
 	sysInfo := New()
@@ -85,7 +85,7 @@ func TestNewAppArmorEnabled(t *testing.T) {
 func TestNewAppArmorDisabled(t *testing.T) {
 	// Check if AppArmor is supported. then it must be TRUE , else FALSE
 	if _, err := os.Stat("/sys/kernel/security/apparmor"); !os.IsNotExist(err) {
-		t.Skip("App Armor Must be Disabled")
+		t.Skip("AppArmor Must be Disabled")
 	}
 
 	sysInfo := New()
