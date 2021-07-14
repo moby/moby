@@ -21,7 +21,7 @@ validate_vendor_diff(){
 				echo
 				echo "$diffs"
 				echo
-				echo 'Please vendor your package with github.com/LK4D4/vndr.'
+				echo 'Please vendor your package with hack/vendor.sh.'
 				echo
 				if [ -n "$mfiles" ] ; then
 					git diff -- "$mfiles"
