@@ -47,7 +47,7 @@ func newV2(quiet bool, options ...Opt) *SysInfo {
 			applyPIDSCgroupInfoV2,
 			applyDevicesCgroupInfoV2,
 		}
-		dirPath := path.Join("/sys/fs/cgroup", path.Clean(g))
+		dirPath := path.Join("/sys/fs/cgroup", g)
 		for _, o := range opsV2 {
 			w := o(sysInfo, controllersM, dirPath)
 			warnings = append(warnings, w...)
