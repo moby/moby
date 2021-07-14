@@ -28,7 +28,6 @@ import (
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
-	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/user"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -874,7 +873,7 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		devPermissions := s.Linux.Resources.Devices
 
 		if c.HostConfig.Privileged {
-			hostDevices, err := devices.HostDevices()
+			hostDevices, err := HostDevices()
 			if err != nil {
 				return err
 			}
