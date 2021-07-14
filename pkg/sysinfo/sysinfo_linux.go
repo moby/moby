@@ -53,14 +53,13 @@ func WithCgroup2GroupPath(g string) Opt {
 // the kernel supports. If `quiet` is `false` warnings are printed in logs
 // whenever an error occurs or misconfigurations are present.
 func New(quiet bool, options ...Opt) *SysInfo {
-	var opts opts
-	for _, o := range options {
-		o(&opts)
-	}
 	if cdcgroups.Mode() == cdcgroups.Unified {
-		return newV2(quiet, &opts)
+		return newV2(quiet, options...)
 	}
+	return newV1(quiet)
+}
 
+func newV1(quiet bool) *SysInfo {
 	var ops []infoCollector
 	var warnings []string
 	sysInfo := &SysInfo{}

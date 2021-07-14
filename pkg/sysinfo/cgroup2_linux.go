@@ -14,10 +14,14 @@ import (
 
 type infoCollectorV2 func(info *SysInfo, controllers map[string]struct{}, dirPath string) (warnings []string)
 
-func newV2(quiet bool, opts *opts) *SysInfo {
+func newV2(quiet bool, options ...Opt) *SysInfo {
 	var warnings []string
 	sysInfo := &SysInfo{
 		CgroupUnified: true,
+	}
+	var opts opts
+	for _, o := range options {
+		o(&opts)
 	}
 	g := opts.cg2GroupPath
 	if g == "" {
