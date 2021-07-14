@@ -43,6 +43,9 @@ type SysInfo struct {
 
 	// cg2GroupPath is the cgroup v2 group path to inspect availability of the controllers.
 	cg2GroupPath string
+
+	// cg2Controllers is an index of available cgroup v2 controllers.
+	cg2Controllers map[string]struct{}
 }
 
 type cgroupMemInfo struct {

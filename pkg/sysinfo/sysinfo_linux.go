@@ -57,30 +57,30 @@ func New(quiet bool, options ...Opt) *SysInfo {
 func newV1(quiet bool) *SysInfo {
 	var (
 		err      error
-		ops      []infoCollector
 		warnings []string
 		sysInfo  = &SysInfo{}
 	)
+
+	ops := []infoCollector{
+		applyNetworkingInfo,
+		applyAppArmorInfo,
+		applySeccompInfo,
+		applyCgroupNsInfo,
+	}
+
 	sysInfo.cgMounts, err = findCgroupMountpoints()
 	if err != nil {
 		logrus.Warn(err)
 	} else {
-		ops = append(ops, []infoCollector{
+		ops = append(ops,
 			applyMemoryCgroupInfo,
 			applyCPUCgroupInfo,
 			applyBlkioCgroupInfo,
 			applyCPUSetCgroupInfo,
 			applyPIDSCgroupInfo,
 			applyDevicesCgroupInfo,
-		}...)
+		)
 	}
-
-	ops = append(ops, []infoCollector{
-		applyNetworkingInfo,
-		applyAppArmorInfo,
-		applySeccompInfo,
-		applyCgroupNsInfo,
-	}...)
 
 	for _, o := range ops {
 		w := o(sysInfo)
