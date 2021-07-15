@@ -3,32 +3,43 @@ package signal // import "github.com/docker/docker/pkg/signal"
 import (
 	"syscall"
 	"testing"
-
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestParseSignal(t *testing.T) {
-	_, checkAtoiError := ParseSignal("0")
-	assert.Check(t, is.Error(checkAtoiError, "Invalid signal: 0"))
+	_, err := ParseSignal("0")
+	expectedErr := "Invalid signal: 0"
+	if err == nil || err.Error() != expectedErr {
+		t.Errorf("expected  %q, but got %v", expectedErr, err)
+	}
 
-	_, error := ParseSignal("SIG")
-	assert.Check(t, is.Error(error, "Invalid signal: SIG"))
+	_, err = ParseSignal("SIG")
+	expectedErr = "Invalid signal: SIG"
+	if err == nil || err.Error() != expectedErr {
+		t.Errorf("expected  %q, but got %v", expectedErr, err)
+	}
 
 	for sigStr := range SignalMap {
-		responseSignal, error := ParseSignal(sigStr)
-		assert.Check(t, error)
+		responseSignal, err := ParseSignal(sigStr)
+		if err != nil {
+			t.Error(err)
+		}
 		signal := SignalMap[sigStr]
-		assert.Check(t, is.DeepEqual(signal, responseSignal))
+		if responseSignal != signal {
+			t.Errorf("expected: %q, got: %q", signal, responseSignal)
+		}
 	}
 }
 
 func TestValidSignalForPlatform(t *testing.T) {
 	isValidSignal := ValidSignalForPlatform(syscall.Signal(0))
-	assert.Check(t, is.Equal(false, isValidSignal))
+	if isValidSignal {
+		t.Error("expected !isValidSignal")
+	}
 
 	for _, sigN := range SignalMap {
 		isValidSignal = ValidSignalForPlatform(sigN)
-		assert.Check(t, is.Equal(true, isValidSignal))
+		if !isValidSignal {
+			t.Error("expected isValidSignal")
+		}
 	}
 }
