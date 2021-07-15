@@ -18,7 +18,8 @@ func cleanupTest() {
 	usernsRunningInUserNS = userns.RunningInUserNS
 }
 
-// Based on test from runc (libcontainer/devices/device_unix_test.go).
+// Based on test from runc:
+// https://github.com/opencontainers/runc/blob/v1.0.0/libcontainer/devices/device_unix_test.go#L34-L47
 func TestHostDevicesIoutilReadDirFailure(t *testing.T) {
 	testError := fmt.Errorf("test error: %w", os.ErrPermission)
 
@@ -38,7 +39,8 @@ func TestHostDevicesIoutilReadDirFailure(t *testing.T) {
 	}
 }
 
-// Based on test from runc (libcontainer/devices/device_unix_test.go).
+// Based on test from runc:
+// https://github.com/opencontainers/runc/blob/v1.0.0/libcontainer/devices/device_unix_test.go#L34-L47
 func TestHostDevicesIoutilReadDirFailureIfRunningInUserNS(t *testing.T) {
 	testError := fmt.Errorf("test error: %w", os.ErrPermission)
 
@@ -58,7 +60,8 @@ func TestHostDevicesIoutilReadDirFailureIfRunningInUserNS(t *testing.T) {
 	}
 }
 
-// Based on test from runc (libcontainer/devices/device_unix_test.go).
+// Based on test from runc:
+// https://github.com/opencontainers/runc/blob/v1.0.0/libcontainer/devices/device_unix_test.go#L49-L74
 func TestHostDevicesIoutilReadDirDeepFailure(t *testing.T) {
 	testError := fmt.Errorf("test error: %w", os.ErrPermission)
 	called := false
@@ -90,7 +93,8 @@ func TestHostDevicesIoutilReadDirDeepFailure(t *testing.T) {
 	}
 }
 
-// Based on test from runc (libcontainer/devices/device_unix_test.go).
+// Based on test from runc:
+// https://github.com/opencontainers/runc/blob/v1.0.0/libcontainer/devices/device_unix_test.go#L49-L74
 func TestHostDevicesIoutilReadDirDeepFailureIfRunningInUserNS(t *testing.T) {
 	testError := fmt.Errorf("test error: %w", os.ErrPermission)
 	called := false
@@ -122,7 +126,8 @@ func TestHostDevicesIoutilReadDirDeepFailureIfRunningInUserNS(t *testing.T) {
 	}
 }
 
-// Based on test from runc (libcontainer/devices/device_unix_test.go).
+// Based on test from runc:
+// https://github.com/opencontainers/runc/blob/v1.0.0/libcontainer/devices/device_unix_test.go#L76-L96
 func TestHostDevicesAllValid(t *testing.T) {
 	hostDevices, err := HostDevices()
 	if err != nil {

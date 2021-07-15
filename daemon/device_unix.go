@@ -19,14 +19,16 @@ var (
 )
 
 // HostDevices returns all devices that can be found under /dev directory.
-// Based on HostDevices from runc (libcontainer/devices/device_unix.go).
+// Based on HostDevices from runc:
+// https://github.com/opencontainers/runc/blob/v1.0.0/libcontainer/devices/device_unix.go#L71-L74
 func HostDevices() ([]*devices.Device, error) {
 	return GetDevices("/dev")
 }
 
 // GetDevices recursively traverses a directory specified by path
 // and returns all devices found there.
-// Based on GetDevices from runc (libcontainer/devices/device_unix.go).
+// Based on GetDevices from runc:
+// https://github.com/opencontainers/runc/blob/v1.0.0/libcontainer/devices/device_unix.go#L76-L120
 func GetDevices(path string) ([]*devices.Device, error) {
 	files, err := ioutilReadDir(path)
 	if err != nil {
