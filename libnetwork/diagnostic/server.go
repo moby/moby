@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 
 	"github.com/docker/docker/libnetwork/internal/caller"
-	stackdump "github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/stack"
 	"github.com/sirupsen/logrus"
 )
 
@@ -169,7 +169,7 @@ func stackTrace(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("stack trace")
 
-	path, err := stackdump.DumpStacks("/tmp/")
+	path, err := stack.DumpToFile("/tmp/")
 	if err != nil {
 		log.WithError(err).Error("failed to write goroutines dump")
 		HTTPReply(w, FailCommand(err), json) // nolint:errcheck

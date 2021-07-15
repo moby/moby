@@ -5,7 +5,7 @@ import (
 	"os"
 	"unsafe"
 
-	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/stack"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 )
@@ -34,7 +34,7 @@ func (daemon *Daemon) setupDumpStackTrap(root string) {
 		logrus.Debugf("Stackdump - waiting signal at %s", event)
 		for {
 			windows.WaitForSingleObject(h, windows.INFINITE)
-			path, err := signal.DumpStacks(root)
+			path, err := stack.DumpToFile(root)
 			if err != nil {
 				logrus.WithError(err).Error("failed to write goroutines dump")
 			} else {
