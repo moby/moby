@@ -24,5 +24,5 @@ if [ $# -eq 0 ] || [ "$1" = "archive/tar" ]; then
 fi
 
 if [ $# -eq 0 ] || [ "$1" != "archive/tar" ]; then
-	vndr -whitelist=^archive/tar "$@"
+	vndr -whitelist='^archive[/\\]tar' "$@"
 fi
