@@ -1,6 +1,6 @@
 // +build linux
 
-package signal // import "github.com/docker/docker/pkg/signal"
+package trap // import "github.com/docker/docker/cmd/dockerd/trap"
 
 import (
 	"io/ioutil"
