@@ -24,32 +24,32 @@ func TestLoadProfile(t *testing.T) {
 	}
 	var expectedErrno uint = 12345
 	expected := specs.LinuxSeccomp{
-		DefaultAction: "SCMP_ACT_ERRNO",
+		DefaultAction: specs.ActErrno,
 		Syscalls: []specs.LinuxSyscall{
 			{
 				Names:  []string{"clone"},
-				Action: "SCMP_ACT_ALLOW",
+				Action: specs.ActAllow,
 				Args: []specs.LinuxSeccompArg{{
 					Index:    0,
 					Value:    2114060288,
 					ValueTwo: 0,
-					Op:       "SCMP_CMP_MASKED_EQ",
+					Op:       specs.OpMaskedEqual,
 				}},
 			},
 			{
 
 				Names:  []string{"open"},
-				Action: "SCMP_ACT_ALLOW",
+				Action: specs.ActAllow,
 				Args:   []specs.LinuxSeccompArg{},
 			},
 			{
 				Names:  []string{"close"},
-				Action: "SCMP_ACT_ALLOW",
+				Action: specs.ActAllow,
 				Args:   []specs.LinuxSeccompArg{},
 			},
 			{
 				Names:    []string{"syslog"},
-				Action:   "SCMP_ACT_ERRNO",
+				Action:   specs.ActErrno,
 				ErrnoRet: &expectedErrno,
 				Args:     []specs.LinuxSeccompArg{},
 			},
@@ -72,7 +72,7 @@ func TestLoadProfileWithDefaultErrnoRet(t *testing.T) {
 
 	expectedErrnoRet := uint(6)
 	expected := specs.LinuxSeccomp{
-		DefaultAction:   "SCMP_ACT_ERRNO",
+		DefaultAction:   specs.ActErrno,
 		DefaultErrnoRet: &expectedErrnoRet,
 	}
 
@@ -92,7 +92,7 @@ func TestLoadProfileWithListenerPath(t *testing.T) {
 	}
 
 	expected := specs.LinuxSeccomp{
-		DefaultAction:    "SCMP_ACT_ERRNO",
+		DefaultAction:    specs.ActErrno,
 		ListenerPath:     "/var/run/seccompaget.sock",
 		ListenerMetadata: "opaque-metadata",
 	}
