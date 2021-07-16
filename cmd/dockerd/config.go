@@ -99,6 +99,10 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.StringVar(&conf.ContainerdNamespace, "containerd-namespace", daemon.ContainersNamespace, "Containerd namespace to use")
 	flags.StringVar(&conf.ContainerdPluginNamespace, "containerd-plugins-namespace", containerd.PluginNamespace, "Containerd namespace to use for plugins")
 
+	flags.StringVar(&conf.HTTPProxy, "http-proxy", "", "HTTP proxy url for outgoing traffic (example: http://user:pass@proxy.corp.example.com:8080)")
+	flags.StringVar(&conf.HTTPSProxy, "https-proxy", "", "HTTPS proxy url for outgoing traffic (example: https://user:pass@proxy.corp.example.com:8080)")
+	flags.StringVar(&conf.NoProxy, "no-proxy", "", "Comma-separated list of hosts, IP addresses for which the proxy is passed")
+
 	return nil
 }
 
