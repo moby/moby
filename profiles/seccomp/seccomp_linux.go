@@ -85,7 +85,7 @@ func setupSeccomp(config *Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) 
 	newConfig := &specs.LinuxSeccomp{}
 
 	if len(config.Architectures) != 0 && len(config.ArchMap) != 0 {
-		return nil, errors.New("'architectures' and 'archMap' were specified in the seccomp profile, use either 'architectures' or 'archMap'")
+		return nil, errors.New("both 'architectures' and 'archMap' are specified in the seccomp profile, use either 'architectures' or 'archMap'")
 	}
 
 	// if config.Architectures == 0 then libseccomp will figure out the architecture to use
@@ -94,9 +94,7 @@ func setupSeccomp(config *Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) 
 	}
 
 	arch := goToNative[runtime.GOARCH]
-	seccompArch, archExists := nativeToSeccomp[arch]
-
-	if len(config.ArchMap) != 0 && archExists {
+	if seccompArch, ok := nativeToSeccomp[arch]; ok {
 		for _, a := range config.ArchMap {
 			if a.Arch == seccompArch {
 				newConfig.Architectures = append(newConfig.Architectures, a.Arch)
@@ -112,8 +110,14 @@ func setupSeccomp(config *Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) 
 	newConfig.ListenerMetadata = config.ListenerMetadata
 
 Loop:
-	// Loop through all syscall blocks and convert them to libcontainer format after filtering them
+	// Convert Syscall to OCI runtimes-spec specs.LinuxSyscall after filtering them.
 	for _, call := range config.Syscalls {
+		if call.Name != "" {
+			if len(call.Names) != 0 {
+				return nil, errors.New("both 'name' and 'names' are specified in the seccomp profile, use either 'name' or 'names'")
+			}
+			call.Names = []string{call.Name}
+		}
 		if call.Excludes != nil {
 			if len(call.Excludes.Arches) > 0 {
 				if inSlice(call.Excludes.Arches, arch) {
@@ -156,14 +160,6 @@ Loop:
 				}
 			}
 		}
-
-		if call.Name != "" {
-			if len(call.Names) != 0 {
-				return nil, errors.New("'name' and 'names' were specified in the seccomp profile, use either 'name' or 'names'")
-			}
-			call.Names = append(call.Names, call.Name)
-		}
-
 		newConfig.Syscalls = append(newConfig.Syscalls, call.LinuxSyscall)
 	}
 
