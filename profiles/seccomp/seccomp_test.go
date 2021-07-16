@@ -100,6 +100,34 @@ func TestLoadProfileWithListenerPath(t *testing.T) {
 	assert.DeepEqual(t, expected, *p)
 }
 
+// TestLoadProfileValidation tests that invalid profiles produce the correct error.
+func TestLoadProfileValidation(t *testing.T) {
+	tests := []struct {
+		doc      string
+		profile  string
+		expected string
+	}{
+		{
+			doc:      "conflicting architectures and archMap",
+			profile:  `{"defaultAction": "SCMP_ACT_ERRNO", "architectures": ["A", "B", "C"], "archMap": [{"architecture": "A", "subArchitectures": ["B", "C"]}]}`,
+			expected: `use either 'architectures' or 'archMap'`,
+		},
+		{
+			doc:      "conflicting syscall.name and syscall.names",
+			profile:  `{"defaultAction": "SCMP_ACT_ERRNO", "syscalls": [{"name": "accept", "names": ["accept"], "action": "SCMP_ACT_ALLOW"}]}`,
+			expected: `use either 'name' or 'names'`,
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		rs := createSpec()
+		t.Run(tc.doc, func(t *testing.T) {
+			_, err := LoadProfile(tc.profile, &rs)
+			assert.ErrorContains(t, err, tc.expected)
+		})
+	}
+}
+
 // TestLoadLegacyProfile tests loading a seccomp profile in the old format
 // (before https://github.com/docker/docker/pull/24510)
 func TestLoadLegacyProfile(t *testing.T) {
@@ -108,9 +136,17 @@ func TestLoadLegacyProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 	rs := createSpec()
-	if _, err := LoadProfile(string(f), &rs); err != nil {
-		t.Fatal(err)
+	p, err := LoadProfile(string(f), &rs)
+	assert.NilError(t, err)
+	assert.Equal(t, p.DefaultAction, specs.ActErrno)
+	assert.DeepEqual(t, p.Architectures, []specs.Arch{"SCMP_ARCH_X86_64", "SCMP_ARCH_X86", "SCMP_ARCH_X32"})
+	assert.Equal(t, len(p.Syscalls), 311)
+	expected := specs.LinuxSyscall{
+		Names:  []string{"accept"},
+		Action: specs.ActAllow,
+		Args:   []specs.LinuxSeccompArg{},
 	}
+	assert.DeepEqual(t, p.Syscalls[0], expected)
 }
 
 func TestLoadDefaultProfile(t *testing.T) {
