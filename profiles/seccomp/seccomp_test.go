@@ -100,6 +100,18 @@ func TestLoadProfileWithListenerPath(t *testing.T) {
 	assert.DeepEqual(t, expected, *p)
 }
 
+func TestLoadProfileWithFlag(t *testing.T) {
+	profile := `{"defaultAction": "SCMP_ACT_ERRNO", "flags": ["SECCOMP_FILTER_FLAG_SPEC_ALLOW", "SECCOMP_FILTER_FLAG_LOG"]}`
+	expected := specs.LinuxSeccomp{
+		DefaultAction: specs.ActErrno,
+		Flags:         []specs.LinuxSeccompFlag{"SECCOMP_FILTER_FLAG_SPEC_ALLOW", "SECCOMP_FILTER_FLAG_LOG"},
+	}
+	rs := createSpec()
+	p, err := LoadProfile(profile, &rs)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expected, *p)
+}
+
 // TestLoadProfileValidation tests that invalid profiles produce the correct error.
 func TestLoadProfileValidation(t *testing.T) {
 	tests := []struct {

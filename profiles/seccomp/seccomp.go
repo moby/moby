@@ -10,15 +10,12 @@ import (
 )
 
 // Seccomp represents the config for a seccomp profile for syscall restriction.
+// It is used to marshal/unmarshal the JSON profiles as accepted by docker, and
+// extends the runtime-spec's specs.LinuxSeccomp, overriding some fields to
+// provide the ability to define conditional rules based on the host's kernel
+// version, architecture, and the container's capabilities.
 type Seccomp struct {
-	DefaultAction    specs.LinuxSeccompAction `json:"defaultAction"`
-	DefaultErrnoRet  *uint                    `json:"defaultErrnoRet,omitempty"`
-	ListenerPath     string                   `json:"listenerPath,omitempty"`
-	ListenerMetadata string                   `json:"listenerMetadata,omitempty"`
-
-	// Architectures is kept to maintain backward compatibility with the old
-	// seccomp profile.
-	Architectures []specs.Arch `json:"architectures,omitempty"`
+	specs.LinuxSeccomp
 
 	// ArchMap contains a list of Architectures and Sub-architectures for the
 	// profile. When generating the profile, this list is expanded to a

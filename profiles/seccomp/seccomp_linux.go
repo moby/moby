@@ -82,18 +82,22 @@ func setupSeccomp(config *Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) 
 		return nil, nil
 	}
 
-	newConfig := &specs.LinuxSeccomp{}
-
 	if len(config.Architectures) != 0 && len(config.ArchMap) != 0 {
 		return nil, errors.New("both 'architectures' and 'archMap' are specified in the seccomp profile, use either 'architectures' or 'archMap'")
 	}
 
-	// if config.Architectures == 0 then libseccomp will figure out the architecture to use
-	if len(config.Architectures) != 0 {
-		newConfig.Architectures = config.Architectures
+	if len(config.LinuxSeccomp.Syscalls) != 0 {
+		// The Seccomp type overrides the LinuxSeccomp.Syscalls field,
+		// so 'this should never happen' when loaded from JSON, but could
+		// happen if someone constructs the Config from source.
+		return nil, errors.New("the LinuxSeccomp.Syscalls field should be empty")
 	}
 
-	arch := goToNative[runtime.GOARCH]
+	var (
+		// Copy all common / standard properties to the output profile
+		newConfig = &config.LinuxSeccomp
+		arch      = goToNative[runtime.GOARCH]
+	)
 	if seccompArch, ok := nativeToSeccomp[arch]; ok {
 		for _, a := range config.ArchMap {
 			if a.Arch == seccompArch {
@@ -103,11 +107,6 @@ func setupSeccomp(config *Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) 
 			}
 		}
 	}
-
-	newConfig.DefaultAction = config.DefaultAction
-	newConfig.DefaultErrnoRet = config.DefaultErrnoRet
-	newConfig.ListenerPath = config.ListenerPath
-	newConfig.ListenerMetadata = config.ListenerMetadata
 
 Loop:
 	// Convert Syscall to OCI runtimes-spec specs.LinuxSyscall after filtering them.
