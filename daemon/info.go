@@ -63,9 +63,9 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 		Labels:             daemon.configStore.Labels,
 		ExperimentalBuild:  daemon.configStore.Experimental,
 		ServerVersion:      dockerversion.Version,
-		HTTPProxy:          config.MaskCredentials(getEnvAny("HTTP_PROXY", "http_proxy")),
-		HTTPSProxy:         config.MaskCredentials(getEnvAny("HTTPS_PROXY", "https_proxy")),
-		NoProxy:            getEnvAny("NO_PROXY", "no_proxy"),
+		HTTPProxy:          config.MaskCredentials(getConfigOrEnv(daemon.configStore.HTTPProxy, "HTTP_PROXY", "http_proxy")),
+		HTTPSProxy:         config.MaskCredentials(getConfigOrEnv(daemon.configStore.HTTPSProxy, "HTTPS_PROXY", "https_proxy")),
+		NoProxy:            getConfigOrEnv(daemon.configStore.NoProxy, "NO_PROXY", "no_proxy"),
 		LiveRestoreEnabled: daemon.configStore.LiveRestoreEnabled,
 		Isolation:          daemon.defaultIsolation,
 	}
@@ -295,4 +295,11 @@ func getEnvAny(names ...string) string {
 		}
 	}
 	return ""
+}
+
+func getConfigOrEnv(config string, env ...string) string {
+	if config != "" {
+		return config
+	}
+	return getEnvAny(env...)
 }
