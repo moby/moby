@@ -18,9 +18,19 @@ type Seccomp struct {
 
 	// Architectures is kept to maintain backward compatibility with the old
 	// seccomp profile.
-	Architectures []specs.Arch   `json:"architectures,omitempty"`
-	ArchMap       []Architecture `json:"archMap,omitempty"`
-	Syscalls      []*Syscall     `json:"syscalls"`
+	Architectures []specs.Arch `json:"architectures,omitempty"`
+
+	// ArchMap contains a list of Architectures and Sub-architectures for the
+	// profile. When generating the profile, this list is expanded to a
+	// []specs.Arch, to propagate the Architectures field of the profile.
+	ArchMap []Architecture `json:"archMap,omitempty"`
+
+	// Syscalls contains lists of syscall rules. Rules can define conditions
+	// for them to be included or excluded in the resulting profile (based on
+	// on kernel version, architecture, capabilities, etc.). These lists are
+	// expanded to an specs.Syscall  When generating the profile, these lists
+	// are expanded to a []specs.LinuxSyscall.
+	Syscalls []*Syscall `json:"syscalls"`
 }
 
 // Architecture is used to represent a specific architecture
