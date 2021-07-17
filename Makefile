@@ -118,9 +118,7 @@ endif # ifndef DOCKER_MOUNT
 # This allows to set the docker-dev container name
 DOCKER_CONTAINER_NAME := $(if $(CONTAINER_NAME),--name $(CONTAINER_NAME),)
 
-GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
-GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
-DOCKER_IMAGE := docker-dev$(if $(GIT_BRANCH_CLEAN),:$(GIT_BRANCH_CLEAN))
+DOCKER_IMAGE := docker-dev
 DOCKER_PORT_FORWARD := $(if $(DOCKER_PORT),-p "$(DOCKER_PORT)",)
 
 DOCKER_FLAGS := $(DOCKER) run --rm -i --privileged $(DOCKER_CONTAINER_NAME) $(DOCKER_ENVS) $(DOCKER_MOUNT) $(DOCKER_PORT_FORWARD)
