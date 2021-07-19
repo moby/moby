@@ -25,6 +25,8 @@ func TestWithSeccomp(t *testing.T) {
 		comment string
 	}
 
+	defaultErrnoRet := uint(1)
+
 	for _, x := range []expected{
 		{
 			comment: "unconfined seccompProfile runs unconfined",
@@ -46,7 +48,7 @@ func TestWithSeccomp(t *testing.T) {
 				seccompEnabled: true,
 			},
 			c: &container.Container{
-				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_LOG\" }",
+				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_LOG\", \"defaultErrnoRet\": 1 }",
 				HostConfig: &config.HostConfig{
 					Privileged: true,
 				},
@@ -72,7 +74,7 @@ func TestWithSeccomp(t *testing.T) {
 			comment: "privileged container w/ daemon profile runs unconfined",
 			daemon: &Daemon{
 				seccompEnabled: true,
-				seccompProfile: []byte("{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }"),
+				seccompProfile: []byte("{ \"defaultAction\": \"SCMP_ACT_ERRNO\", \"defaultErrnoRet\": 1 }"),
 			},
 			c: &container.Container{
 				SeccompProfile: "",
@@ -89,7 +91,7 @@ func TestWithSeccomp(t *testing.T) {
 				seccompEnabled: false,
 			},
 			c: &container.Container{
-				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }",
+				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_ERRNO\", \"defaultErrnoRet\": 1 }",
 				HostConfig: &config.HostConfig{
 					Privileged: false,
 				},
@@ -123,7 +125,7 @@ func TestWithSeccomp(t *testing.T) {
 				seccompEnabled: true,
 			},
 			c: &container.Container{
-				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }",
+				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_ERRNO\", \"defaultErrnoRet\": 1 }",
 				HostConfig: &config.HostConfig{
 					Privileged: false,
 				},
@@ -132,7 +134,8 @@ func TestWithSeccomp(t *testing.T) {
 			outSpec: func() coci.Spec {
 				s := doci.DefaultLinuxSpec()
 				profile := &specs.LinuxSeccomp{
-					DefaultAction: specs.LinuxSeccompAction("SCMP_ACT_ERRNO"),
+					DefaultAction:   specs.LinuxSeccompAction("SCMP_ACT_ERRNO"),
+					DefaultErrnoRet: &defaultErrnoRet,
 				}
 				s.Linux.Seccomp = profile
 				return s
@@ -142,7 +145,7 @@ func TestWithSeccomp(t *testing.T) {
 			comment: "load daemon's profile",
 			daemon: &Daemon{
 				seccompEnabled: true,
-				seccompProfile: []byte("{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }"),
+				seccompProfile: []byte("{ \"defaultAction\": \"SCMP_ACT_ERRNO\", \"defaultErrnoRet\": 1 }"),
 			},
 			c: &container.Container{
 				SeccompProfile: "",
@@ -154,7 +157,8 @@ func TestWithSeccomp(t *testing.T) {
 			outSpec: func() coci.Spec {
 				s := doci.DefaultLinuxSpec()
 				profile := &specs.LinuxSeccomp{
-					DefaultAction: specs.LinuxSeccompAction("SCMP_ACT_ERRNO"),
+					DefaultAction:   specs.LinuxSeccompAction("SCMP_ACT_ERRNO"),
+					DefaultErrnoRet: &defaultErrnoRet,
 				}
 				s.Linux.Seccomp = profile
 				return s
@@ -164,7 +168,7 @@ func TestWithSeccomp(t *testing.T) {
 			comment: "load prioritise container profile over daemon's",
 			daemon: &Daemon{
 				seccompEnabled: true,
-				seccompProfile: []byte("{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }"),
+				seccompProfile: []byte("{ \"defaultAction\": \"SCMP_ACT_ERRNO\", \"defaultErrnoRet\": 1 }"),
 			},
 			c: &container.Container{
 				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_LOG\" }",

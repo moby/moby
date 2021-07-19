@@ -23,8 +23,10 @@ func TestLoadProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 	var expectedErrno uint = 12345
+	var expectedDefaultErrno uint = 1
 	expected := specs.LinuxSeccomp{
-		DefaultAction: "SCMP_ACT_ERRNO",
+		DefaultAction:   "SCMP_ACT_ERRNO",
+		DefaultErrnoRet: &expectedDefaultErrno,
 		Syscalls: []specs.LinuxSyscall{
 			{
 				Names:  []string{"clone"},
@@ -54,26 +56,6 @@ func TestLoadProfile(t *testing.T) {
 				Args:     []specs.LinuxSeccompArg{},
 			},
 		},
-	}
-
-	assert.DeepEqual(t, expected, *p)
-}
-
-func TestLoadProfileWithDefaultErrnoRet(t *testing.T) {
-	var profile = []byte(`{
-"defaultAction": "SCMP_ACT_ERRNO",
-"defaultErrnoRet": 6
-}`)
-	rs := createSpec()
-	p, err := LoadProfile(string(profile), &rs)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	expectedErrnoRet := uint(6)
-	expected := specs.LinuxSeccomp{
-		DefaultAction:   "SCMP_ACT_ERRNO",
-		DefaultErrnoRet: &expectedErrnoRet,
 	}
 
 	assert.DeepEqual(t, expected, *p)

@@ -739,9 +739,12 @@ func DefaultProfile() *Seccomp {
 		},
 	}
 
+	// The DefaultErrnoRet is 1: EPERM
+	errnoRet := uint(1)
 	return &Seccomp{
-		DefaultAction: specs.ActErrno,
-		ArchMap:       arches(),
-		Syscalls:      syscalls,
+		DefaultAction:   specs.ActErrno,
+		DefaultErrnoRet: &errnoRet,
+		ArchMap:         arches(),
+		Syscalls:        syscalls,
 	}
 }
