@@ -2190,6 +2190,26 @@ definitions:
         type: "string"
         x-nullable: false
 
+  PluginPrivilegeItem:
+    description: |
+      Describes a permission the user has to accept upon installing
+      the plugin.
+    type: "object"
+    x-nullable: false
+    required: [Name, Value]
+    properties:
+      Name:
+        type: "string"
+        example: "network"
+      Description:
+        type: "string"
+      Value:
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "host"
+
   Plugin:
     description: "A plugin for the Engine API"
     type: "object"
@@ -2972,19 +2992,7 @@ definitions:
           PluginPrivilege:
             type: "array"
             items:
-              description: |
-                Describes a permission accepted by the user upon installing the
-                plugin.
-              type: "object"
-              properties:
-                Name:
-                  type: "string"
-                Description:
-                  type: "string"
-                Value:
-                  type: "array"
-                  items:
-                    type: "string"
+              $ref: "#/definitions/PluginPrivilegeItem"
       ContainerSpec:
         type: "object"
         description: |
@@ -4365,7 +4373,6 @@ definitions:
           The date and time that the daemon was compiled.
         type: "string"
         example: "2020-06-22T15:49:27.000000000+00:00"
-
 
   SystemInfo:
     type: "object"
@@ -8524,6 +8531,7 @@ paths:
           description: "Exec configuration"
           schema:
             type: "object"
+            title: "ExecConfig"
             properties:
               AttachStdin:
                 type: "boolean"
@@ -8614,6 +8622,7 @@ paths:
           in: "body"
           schema:
             type: "object"
+            title: "ExecStartConfig"
             properties:
               Detach:
                 type: "boolean"
@@ -9148,6 +9157,7 @@ paths:
           required: true
           schema:
             type: "object"
+            title: "NetworkCreateRequest"
             required: ["Name"]
             properties:
               Name:
@@ -9258,6 +9268,7 @@ paths:
           required: true
           schema:
             type: "object"
+            title: "NetworkConnectRequest"
             properties:
               Container:
                 type: "string"
@@ -9304,6 +9315,7 @@ paths:
           required: true
           schema:
             type: "object"
+            title: "NetworkDisconnectRequest"
             properties:
               Container:
                 type: "string"
@@ -9388,20 +9400,7 @@ paths:
           schema:
             type: "array"
             items:
-              description: |
-                Describes a permission the user has to accept upon installing
-                the plugin.
-              type: "object"
-              title: "PluginPrivilegeItem"
-              properties:
-                Name:
-                  type: "string"
-                Description:
-                  type: "string"
-                Value:
-                  type: "array"
-                  items:
-                    type: "string"
+              $ref: "#/definitions/PluginPrivilegeItem"
             example:
               - Name: "network"
                 Description: ""
@@ -9477,19 +9476,7 @@ paths:
           schema:
             type: "array"
             items:
-              description: |
-                Describes a permission accepted by the user upon installing the
-                plugin.
-              type: "object"
-              properties:
-                Name:
-                  type: "string"
-                Description:
-                  type: "string"
-                Value:
-                  type: "array"
-                  items:
-                    type: "string"
+              $ref: "#/definitions/PluginPrivilegeItem"
             example:
               - Name: "network"
                 Description: ""
@@ -9661,19 +9648,7 @@ paths:
           schema:
             type: "array"
             items:
-              description: |
-                Describes a permission accepted by the user upon installing the
-                plugin.
-              type: "object"
-              properties:
-                Name:
-                  type: "string"
-                Description:
-                  type: "string"
-                Value:
-                  type: "array"
-                  items:
-                    type: "string"
+              $ref: "#/definitions/PluginPrivilegeItem"
             example:
               - Name: "network"
                 Description: ""
