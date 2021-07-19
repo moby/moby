@@ -14,7 +14,7 @@ import (
 	"unsafe"
 )
 
-func testEscapeJsonString(t *testing.T, input, want string) {
+func testEscapeJSONString(t *testing.T, input, want string) {
 	in := C.CString(input)
 	out := C.escape_json_string(in)
 	got := C.GoString(out)
@@ -25,7 +25,7 @@ func testEscapeJsonString(t *testing.T, input, want string) {
 	}
 }
 
-func testEscapeJson(t *testing.T) {
+func testEscapeJSON(t *testing.T) {
 	testCases := []struct {
 		input, output string
 	}{
@@ -48,6 +48,6 @@ func testEscapeJson(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		testEscapeJsonString(t, tc.input, tc.output)
+		testEscapeJSONString(t, tc.input, tc.output)
 	}
 }

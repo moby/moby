@@ -212,7 +212,12 @@ type Info struct {
 	SecurityOptions     []string
 	ProductLicense      string               `json:",omitempty"`
 	DefaultAddressPools []NetworkAddressPool `json:",omitempty"`
-	Warnings            []string
+
+	// Warnings contains a slice of warnings that occurred  while collecting
+	// system information. These warnings are intended to be informational
+	// messages for the user, and are not intended to be parsed / used for
+	// other purposes, as they do not have a fixed format.
+	Warnings []string
 }
 
 // KeyValue holds a key/value pair

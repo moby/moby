@@ -699,7 +699,7 @@ func (s *DockerSuite) TestRunSwapLessThanMemoryLimit(c *testing.T) {
 func (s *DockerSuite) TestRunInvalidCpusetCpusFlagValue(c *testing.T) {
 	testRequires(c, cgroupCpuset, testEnv.IsLocalDaemon)
 
-	sysInfo := sysinfo.New(true)
+	sysInfo := sysinfo.New()
 	cpus, err := parsers.ParseUintList(sysInfo.Cpus)
 	assert.NilError(c, err)
 	var invalid int
@@ -718,7 +718,7 @@ func (s *DockerSuite) TestRunInvalidCpusetCpusFlagValue(c *testing.T) {
 func (s *DockerSuite) TestRunInvalidCpusetMemsFlagValue(c *testing.T) {
 	testRequires(c, cgroupCpuset)
 
-	sysInfo := sysinfo.New(true)
+	sysInfo := sysinfo.New()
 	mems, err := parsers.ParseUintList(sysInfo.Mems)
 	assert.NilError(c, err)
 	var invalid int
@@ -1473,7 +1473,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *testing.T) {
 
 	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "'name' and 'names' were specified in the seccomp profile, use either 'name' or 'names'"))
+	assert.Assert(c, strings.Contains(out, "use either 'name' or 'names'"))
 }
 
 func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *testing.T) {
@@ -1510,7 +1510,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *testing.T) {
 
 	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "'architectures' and 'archMap' were specified in the seccomp profile, use either 'architectures' or 'archMap'"))
+	assert.Assert(c, strings.Contains(out, "use either 'architectures' or 'archMap'"))
 }
 
 func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *testing.T) {

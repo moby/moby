@@ -290,7 +290,7 @@ func validateContainer(container *containers.Container) error {
 
 	// image has no validation
 	for k, v := range container.Labels {
-		if err := labels.Validate(k, v); err == nil {
+		if err := labels.Validate(k, v); err != nil {
 			return errors.Wrapf(err, "containers.Labels")
 		}
 	}

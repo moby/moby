@@ -21,6 +21,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   was introduced in API 1.31 as part of an experimental feature, and no longer
   used since API 1.40.
   Use field `BuildCache` instead to track storage used by the builder component.
+* `GET /images/json` now accepts query parameter `shared-size`. When set `true`,
+  images returned will include `SharedSize`, which provides the size on disk shared
+  with other images present on the system.
 
 ## v1.41 API changes
 

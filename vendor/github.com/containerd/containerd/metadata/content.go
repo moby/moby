@@ -708,7 +708,7 @@ func (cs *contentStore) checkAccess(ctx context.Context, dgst digest.Digest) err
 
 func validateInfo(info *content.Info) error {
 	for k, v := range info.Labels {
-		if err := labels.Validate(k, v); err == nil {
+		if err := labels.Validate(k, v); err != nil {
 			return errors.Wrapf(err, "info.Labels")
 		}
 	}

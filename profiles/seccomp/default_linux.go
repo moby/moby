@@ -740,8 +740,10 @@ func DefaultProfile() *Seccomp {
 	}
 
 	return &Seccomp{
-		DefaultAction: specs.ActErrno,
-		ArchMap:       arches(),
-		Syscalls:      syscalls,
+		LinuxSeccomp: specs.LinuxSeccomp{
+			DefaultAction: specs.ActErrno,
+		},
+		ArchMap:  arches(),
+		Syscalls: syscalls,
 	}
 }

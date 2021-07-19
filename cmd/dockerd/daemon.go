@@ -478,14 +478,14 @@ func warnOnDeprecatedConfigOptions(config *config.Config) {
 func initRouter(opts routerOptions) {
 	decoder := runconfig.ContainerDecoder{
 		GetSysInfo: func() *sysinfo.SysInfo {
-			return opts.daemon.RawSysInfo(true)
+			return opts.daemon.RawSysInfo()
 		},
 	}
 
 	routers := []router.Router{
 		// we need to add the checkpoint router before the container router or the DELETE gets masked
 		checkpointrouter.NewRouter(opts.daemon, decoder),
-		container.NewRouter(opts.daemon, decoder, opts.daemon.RawSysInfo(true).CgroupUnified),
+		container.NewRouter(opts.daemon, decoder, opts.daemon.RawSysInfo().CgroupUnified),
 		image.NewRouter(opts.daemon.ImageService()),
 		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildkit, opts.features),
 		volume.NewRouter(opts.daemon.VolumesService()),

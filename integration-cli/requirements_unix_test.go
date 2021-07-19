@@ -84,6 +84,6 @@ func overlayFSSupported() bool {
 
 func init() {
 	if testEnv.IsLocalDaemon() {
-		SysInfo = sysinfo.New(true)
+		SysInfo = sysinfo.New()
 	}
 }

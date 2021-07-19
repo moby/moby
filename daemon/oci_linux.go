@@ -824,7 +824,7 @@ func WithCgroups(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 
 		// FIXME this is very expensive way to check if cpu rt is supported
-		sysInfo := daemon.RawSysInfo(true)
+		sysInfo := daemon.RawSysInfo()
 		if !sysInfo.CPURealtime {
 			return errors.New("daemon-scoped cpu-rt-period and cpu-rt-runtime are not supported by the kernel")
 		}

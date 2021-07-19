@@ -12,8 +12,8 @@ struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
 } events SEC(".maps");
 
-SEC("uprobe/bash_readline")
-int uprobe_bash_readline(struct pt_regs *ctx) {
+SEC("uretprobe/bash_readline")
+int uretprobe_bash_readline(struct pt_regs *ctx) {
 	struct event_t event;
 
 	event.pid = bpf_get_current_pid_tgid();

@@ -21,7 +21,7 @@ func (r ContainerDecoder) DecodeConfig(src io.Reader) (*container.Config, *conta
 	if r.GetSysInfo != nil {
 		si = r.GetSysInfo()
 	} else {
-		si = sysinfo.New(true)
+		si = sysinfo.New()
 	}
 
 	return decodeContainerConfig(src, si)
