@@ -28,14 +28,7 @@ func findCgroupMountpoints() (map[string]string, error) {
 	return mps, nil
 }
 
-type infoCollector func(info *SysInfo, cgMounts map[string]string) (warnings []string)
-
-type opts struct {
-	cg2GroupPath string
-}
-
-// Opt for New().
-type Opt func(*opts)
+type infoCollector func(info *SysInfo)
 
 // WithCgroup2GroupPath specifies the cgroup v2 group path to inspect availability
 // of the controllers.
@@ -44,172 +37,158 @@ type Opt func(*opts)
 //
 // e.g. g = "/user.slice/user-1000.slice/user@1000.service"
 func WithCgroup2GroupPath(g string) Opt {
-	return func(o *opts) {
-		o.cg2GroupPath = path.Clean(g)
+	return func(o *SysInfo) {
+		if p := path.Clean(g); p != "" {
+			o.cg2GroupPath = p
+		}
 	}
 }
 
 // New returns a new SysInfo, using the filesystem to detect which features
-// the kernel supports. If `quiet` is `false` warnings are printed in logs
-// whenever an error occurs or misconfigurations are present.
-func New(quiet bool, options ...Opt) *SysInfo {
-	var opts opts
-	for _, o := range options {
-		o(&opts)
-	}
+// the kernel supports.
+func New(options ...Opt) *SysInfo {
 	if cdcgroups.Mode() == cdcgroups.Unified {
-		return newV2(quiet, &opts)
+		return newV2(options...)
+	}
+	return newV1()
+}
+
+func newV1() *SysInfo {
+	var (
+		err     error
+		sysInfo = &SysInfo{}
+	)
+
+	ops := []infoCollector{
+		applyNetworkingInfo,
+		applyAppArmorInfo,
+		applySeccompInfo,
+		applyCgroupNsInfo,
 	}
 
-	var ops []infoCollector
-	var warnings []string
-	sysInfo := &SysInfo{}
-	cgMounts, err := findCgroupMountpoints()
+	sysInfo.cgMounts, err = findCgroupMountpoints()
 	if err != nil {
 		logrus.Warn(err)
 	} else {
-		ops = append(ops, []infoCollector{
+		ops = append(ops,
 			applyMemoryCgroupInfo,
 			applyCPUCgroupInfo,
 			applyBlkioCgroupInfo,
 			applyCPUSetCgroupInfo,
 			applyPIDSCgroupInfo,
 			applyDevicesCgroupInfo,
-		}...)
+		)
 	}
-
-	ops = append(ops, []infoCollector{
-		applyNetworkingInfo,
-		applyAppArmorInfo,
-		applySeccompInfo,
-		applyCgroupNsInfo,
-	}...)
 
 	for _, o := range ops {
-		w := o(sysInfo, cgMounts)
-		warnings = append(warnings, w...)
-	}
-	if !quiet {
-		for _, w := range warnings {
-			logrus.Warn(w)
-		}
+		o(sysInfo)
 	}
 	return sysInfo
 }
 
 // applyMemoryCgroupInfo adds the memory cgroup controller information to the info.
-func applyMemoryCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
-	var warnings []string
-	mountPoint, ok := cgMounts["memory"]
+func applyMemoryCgroupInfo(info *SysInfo) {
+	mountPoint, ok := info.cgMounts["memory"]
 	if !ok {
-		warnings = append(warnings, "Your kernel does not support cgroup memory limit")
-		return warnings
+		info.Warnings = append(info.Warnings, "Your kernel does not support cgroup memory limit")
+		return
 	}
 	info.MemoryLimit = ok
 
 	info.SwapLimit = cgroupEnabled(mountPoint, "memory.memsw.limit_in_bytes")
 	if !info.SwapLimit {
-		warnings = append(warnings, "Your kernel does not support swap memory limit")
+		info.Warnings = append(info.Warnings, "Your kernel does not support swap memory limit")
 	}
 	info.MemoryReservation = cgroupEnabled(mountPoint, "memory.soft_limit_in_bytes")
 	if !info.MemoryReservation {
-		warnings = append(warnings, "Your kernel does not support memory reservation")
+		info.Warnings = append(info.Warnings, "Your kernel does not support memory reservation")
 	}
 	info.OomKillDisable = cgroupEnabled(mountPoint, "memory.oom_control")
 	if !info.OomKillDisable {
-		warnings = append(warnings, "Your kernel does not support oom control")
+		info.Warnings = append(info.Warnings, "Your kernel does not support oom control")
 	}
 	info.MemorySwappiness = cgroupEnabled(mountPoint, "memory.swappiness")
 	if !info.MemorySwappiness {
-		warnings = append(warnings, "Your kernel does not support memory swappiness")
+		info.Warnings = append(info.Warnings, "Your kernel does not support memory swappiness")
 	}
 	info.KernelMemory = cgroupEnabled(mountPoint, "memory.kmem.limit_in_bytes")
 	if !info.KernelMemory {
-		warnings = append(warnings, "Your kernel does not support kernel memory limit")
+		info.Warnings = append(info.Warnings, "Your kernel does not support kernel memory limit")
 	}
 	info.KernelMemoryTCP = cgroupEnabled(mountPoint, "memory.kmem.tcp.limit_in_bytes")
 	if !info.KernelMemoryTCP {
-		warnings = append(warnings, "Your kernel does not support kernel memory TCP limit")
+		info.Warnings = append(info.Warnings, "Your kernel does not support kernel memory TCP limit")
 	}
-
-	return warnings
 }
 
 // applyCPUCgroupInfo adds the cpu cgroup controller information to the info.
-func applyCPUCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
-	var warnings []string
-	mountPoint, ok := cgMounts["cpu"]
+func applyCPUCgroupInfo(info *SysInfo) {
+	mountPoint, ok := info.cgMounts["cpu"]
 	if !ok {
-		warnings = append(warnings, "Unable to find cpu cgroup in mounts")
-		return warnings
+		info.Warnings = append(info.Warnings, "Unable to find cpu cgroup in mounts")
+		return
 	}
 
 	info.CPUShares = cgroupEnabled(mountPoint, "cpu.shares")
 	if !info.CPUShares {
-		warnings = append(warnings, "Your kernel does not support CPU shares")
+		info.Warnings = append(info.Warnings, "Your kernel does not support CPU shares")
 	}
 
 	info.CPUCfs = cgroupEnabled(mountPoint, "cpu.cfs_quota_us")
 	if !info.CPUCfs {
-		warnings = append(warnings, "Your kernel does not support CPU CFS scheduler")
+		info.Warnings = append(info.Warnings, "Your kernel does not support CPU CFS scheduler")
 	}
 
 	info.CPURealtime = cgroupEnabled(mountPoint, "cpu.rt_period_us")
 	if !info.CPURealtime {
-		warnings = append(warnings, "Your kernel does not support CPU realtime scheduler")
+		info.Warnings = append(info.Warnings, "Your kernel does not support CPU realtime scheduler")
 	}
-
-	return warnings
 }
 
 // applyBlkioCgroupInfo adds the blkio cgroup controller information to the info.
-func applyBlkioCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
-	var warnings []string
-	mountPoint, ok := cgMounts["blkio"]
+func applyBlkioCgroupInfo(info *SysInfo) {
+	mountPoint, ok := info.cgMounts["blkio"]
 	if !ok {
-		warnings = append(warnings, "Unable to find blkio cgroup in mounts")
-		return warnings
+		info.Warnings = append(info.Warnings, "Unable to find blkio cgroup in mounts")
+		return
 	}
 
 	info.BlkioWeight = cgroupEnabled(mountPoint, "blkio.weight")
 	if !info.BlkioWeight {
-		warnings = append(warnings, "Your kernel does not support cgroup blkio weight")
+		info.Warnings = append(info.Warnings, "Your kernel does not support cgroup blkio weight")
 	}
 
 	info.BlkioWeightDevice = cgroupEnabled(mountPoint, "blkio.weight_device")
 	if !info.BlkioWeightDevice {
-		warnings = append(warnings, "Your kernel does not support cgroup blkio weight_device")
+		info.Warnings = append(info.Warnings, "Your kernel does not support cgroup blkio weight_device")
 	}
 
 	info.BlkioReadBpsDevice = cgroupEnabled(mountPoint, "blkio.throttle.read_bps_device")
 	if !info.BlkioReadBpsDevice {
-		warnings = append(warnings, "Your kernel does not support cgroup blkio throttle.read_bps_device")
+		info.Warnings = append(info.Warnings, "Your kernel does not support cgroup blkio throttle.read_bps_device")
 	}
 
 	info.BlkioWriteBpsDevice = cgroupEnabled(mountPoint, "blkio.throttle.write_bps_device")
 	if !info.BlkioWriteBpsDevice {
-		warnings = append(warnings, "Your kernel does not support cgroup blkio throttle.write_bps_device")
+		info.Warnings = append(info.Warnings, "Your kernel does not support cgroup blkio throttle.write_bps_device")
 	}
 	info.BlkioReadIOpsDevice = cgroupEnabled(mountPoint, "blkio.throttle.read_iops_device")
 	if !info.BlkioReadIOpsDevice {
-		warnings = append(warnings, "Your kernel does not support cgroup blkio throttle.read_iops_device")
+		info.Warnings = append(info.Warnings, "Your kernel does not support cgroup blkio throttle.read_iops_device")
 	}
 
 	info.BlkioWriteIOpsDevice = cgroupEnabled(mountPoint, "blkio.throttle.write_iops_device")
 	if !info.BlkioWriteIOpsDevice {
-		warnings = append(warnings, "Your kernel does not support cgroup blkio throttle.write_iops_device")
+		info.Warnings = append(info.Warnings, "Your kernel does not support cgroup blkio throttle.write_iops_device")
 	}
-
-	return warnings
 }
 
 // applyCPUSetCgroupInfo adds the cpuset cgroup controller information to the info.
-func applyCPUSetCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
-	var warnings []string
-	mountPoint, ok := cgMounts["cpuset"]
+func applyCPUSetCgroupInfo(info *SysInfo) {
+	mountPoint, ok := info.cgMounts["cpuset"]
 	if !ok {
-		warnings = append(warnings, "Unable to find cpuset cgroup in mounts")
-		return warnings
+		info.Warnings = append(info.Warnings, "Unable to find cpuset cgroup in mounts")
+		return
 	}
 	info.Cpuset = ok
 
@@ -217,66 +196,54 @@ func applyCPUSetCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
 
 	cpus, err := ioutil.ReadFile(path.Join(mountPoint, "cpuset.cpus"))
 	if err != nil {
-		return warnings
+		return
 	}
 	info.Cpus = strings.TrimSpace(string(cpus))
 
 	mems, err := ioutil.ReadFile(path.Join(mountPoint, "cpuset.mems"))
 	if err != nil {
-		return warnings
+		return
 	}
 	info.Mems = strings.TrimSpace(string(mems))
-
-	return warnings
 }
 
 // applyPIDSCgroupInfo adds whether the pids cgroup controller is available to the info.
-func applyPIDSCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
-	var warnings []string
-	_, ok := cgMounts["pids"]
+func applyPIDSCgroupInfo(info *SysInfo) {
+	_, ok := info.cgMounts["pids"]
 	if !ok {
-		warnings = append(warnings, "Unable to find pids cgroup in mounts")
-		return warnings
+		info.Warnings = append(info.Warnings, "Unable to find pids cgroup in mounts")
+		return
 	}
 	info.PidsLimit = true
-	return warnings
 }
 
 // applyDevicesCgroupInfo adds whether the devices cgroup controller is available to the info.
-func applyDevicesCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
-	var warnings []string
-	_, ok := cgMounts["devices"]
+func applyDevicesCgroupInfo(info *SysInfo) {
+	_, ok := info.cgMounts["devices"]
 	info.CgroupDevicesEnabled = ok
-	return warnings
 }
 
 // applyNetworkingInfo adds networking information to the info.
-func applyNetworkingInfo(info *SysInfo, _ map[string]string) []string {
-	var warnings []string
+func applyNetworkingInfo(info *SysInfo) {
 	info.IPv4ForwardingDisabled = !readProcBool("/proc/sys/net/ipv4/ip_forward")
 	info.BridgeNFCallIPTablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-iptables")
 	info.BridgeNFCallIP6TablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-ip6tables")
-	return warnings
 }
 
 // applyAppArmorInfo adds whether AppArmor is enabled to the info.
-func applyAppArmorInfo(info *SysInfo, _ map[string]string) []string {
-	var warnings []string
+func applyAppArmorInfo(info *SysInfo) {
 	if _, err := os.Stat("/sys/kernel/security/apparmor"); !os.IsNotExist(err) {
 		if _, err := ioutil.ReadFile("/sys/kernel/security/apparmor/profiles"); err == nil {
 			info.AppArmor = true
 		}
 	}
-	return warnings
 }
 
 // applyCgroupNsInfo adds whether cgroupns is enabled to the info.
-func applyCgroupNsInfo(info *SysInfo, _ map[string]string) []string {
-	var warnings []string
+func applyCgroupNsInfo(info *SysInfo) {
 	if _, err := os.Stat("/proc/self/ns/cgroup"); !os.IsNotExist(err) {
 		info.CgroupNamespaces = true
 	}
-	return warnings
 }
 
 var (
@@ -285,8 +252,7 @@ var (
 )
 
 // applySeccompInfo checks if Seccomp is supported, via CONFIG_SECCOMP.
-func applySeccompInfo(info *SysInfo, _ map[string]string) []string {
-	var warnings []string
+func applySeccompInfo(info *SysInfo) {
 	seccompOnce.Do(func() {
 		// Check if Seccomp is supported, via CONFIG_SECCOMP.
 		if err := unix.Prctl(unix.PR_GET_SECCOMP, 0, 0, 0, 0); err != unix.EINVAL {
@@ -297,7 +263,6 @@ func applySeccompInfo(info *SysInfo, _ map[string]string) []string {
 		}
 	})
 	info.Seccomp = seccompEnabled
-	return warnings
 }
 
 func cgroupEnabled(mountPoint, name string) bool {

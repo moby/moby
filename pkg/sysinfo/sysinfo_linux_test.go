@@ -55,11 +55,7 @@ func TestCgroupEnabled(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	sysInfo := New(false)
-	assert.Assert(t, sysInfo != nil)
-	checkSysInfo(t, sysInfo)
-
-	sysInfo = New(true)
+	sysInfo := New()
 	assert.Assert(t, sysInfo != nil)
 	checkSysInfo(t, sysInfo)
 }
@@ -79,20 +75,20 @@ func checkSysInfo(t *testing.T, sysInfo *SysInfo) {
 func TestNewAppArmorEnabled(t *testing.T) {
 	// Check if AppArmor is supported. then it must be TRUE , else FALSE
 	if _, err := os.Stat("/sys/kernel/security/apparmor"); err != nil {
-		t.Skip("App Armor Must be Enabled")
+		t.Skip("AppArmor Must be Enabled")
 	}
 
-	sysInfo := New(true)
+	sysInfo := New()
 	assert.Assert(t, sysInfo.AppArmor)
 }
 
 func TestNewAppArmorDisabled(t *testing.T) {
 	// Check if AppArmor is supported. then it must be TRUE , else FALSE
 	if _, err := os.Stat("/sys/kernel/security/apparmor"); !os.IsNotExist(err) {
-		t.Skip("App Armor Must be Disabled")
+		t.Skip("AppArmor Must be Disabled")
 	}
 
-	sysInfo := New(true)
+	sysInfo := New()
 	assert.Assert(t, !sysInfo.AppArmor)
 }
 
@@ -102,7 +98,7 @@ func TestNewCgroupNamespacesEnabled(t *testing.T) {
 		t.Skip("cgroup namespaces must be enabled")
 	}
 
-	sysInfo := New(true)
+	sysInfo := New()
 	assert.Assert(t, sysInfo.CgroupNamespaces)
 }
 
@@ -112,7 +108,7 @@ func TestNewCgroupNamespacesDisabled(t *testing.T) {
 		t.Skip("cgroup namespaces must be disabled")
 	}
 
-	sysInfo := New(true)
+	sysInfo := New()
 	assert.Assert(t, !sysInfo.CgroupNamespaces)
 }
 
