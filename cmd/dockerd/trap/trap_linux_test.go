@@ -1,6 +1,6 @@
 // +build linux
 
-package signal // import "github.com/docker/docker/pkg/signal"
+package trap // import "github.com/docker/docker/cmd/dockerd/trap"
 
 import (
 	"io/ioutil"
@@ -63,21 +63,4 @@ func TestTrap(t *testing.T) {
 		})
 	}
 
-}
-
-func TestDumpStacks(t *testing.T) {
-	directory, err := ioutil.TempDir("", "test-dump-tasks")
-	assert.Check(t, err)
-	defer os.RemoveAll(directory)
-	dumpPath, err := DumpStacks(directory)
-	assert.Check(t, err)
-	readFile, _ := ioutil.ReadFile(dumpPath)
-	fileData := string(readFile)
-	assert.Check(t, is.Contains(fileData, "goroutine"))
-}
-
-func TestDumpStacksWithEmptyInput(t *testing.T) {
-	path, err := DumpStacks("")
-	assert.Check(t, err)
-	assert.Check(t, is.Equal(os.Stderr.Name(), path))
 }

@@ -54,7 +54,7 @@ import (
 	"github.com/docker/docker/daemon/cluster/controllers/plugin"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	lncluster "github.com/docker/docker/libnetwork/cluster"
-	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/stack"
 	swarmapi "github.com/docker/swarmkit/api"
 	swarmnode "github.com/docker/swarmkit/node"
 	"github.com/pkg/errors"
@@ -393,7 +393,7 @@ func (c *Cluster) Cleanup() {
 
 	if err := node.Stop(); err != nil {
 		logrus.Errorf("failed to shut down cluster node: %v", err)
-		signal.DumpStacks("")
+		stack.Dump()
 	}
 
 	c.mu.Lock()

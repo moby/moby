@@ -5,7 +5,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/cmd/dockerd/trap"
 	"github.com/sirupsen/logrus"
 )
 
@@ -15,7 +15,7 @@ func main() {
 		"QUIT": syscall.SIGQUIT,
 		"INT":  os.Interrupt,
 	}
-	signal.Trap(func() {
+	trap.Trap(func() {
 		time.Sleep(time.Second)
 		os.Exit(99)
 	}, logrus.StandardLogger())

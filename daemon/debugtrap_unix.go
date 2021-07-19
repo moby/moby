@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/signal"
 
-	stackdump "github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/stack"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -16,7 +16,7 @@ func (daemon *Daemon) setupDumpStackTrap(root string) {
 	signal.Notify(c, unix.SIGUSR1)
 	go func() {
 		for range c {
-			path, err := stackdump.DumpStacks(root)
+			path, err := stack.DumpToFile(root)
 			if err != nil {
 				logrus.WithError(err).Error("failed to write goroutines dump")
 			} else {

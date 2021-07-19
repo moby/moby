@@ -1,17 +1,13 @@
-package signal // import "github.com/docker/docker/pkg/signal"
+package trap // import "github.com/docker/docker/cmd/dockerd/trap"
 
 import (
 	"fmt"
 	"os"
 	gosignal "os/signal"
-	"path/filepath"
-	"runtime"
-	"strings"
 	"sync/atomic"
 	"syscall"
-	"time"
 
-	"github.com/pkg/errors"
+	"github.com/docker/docker/pkg/stack"
 )
 
 // Trap sets up a simplified signal "trap", appropriate for common
@@ -58,7 +54,7 @@ func Trap(cleanup func(), logger interface {
 						logger.Info("Forcing docker daemon shutdown without cleanup; 3 interrupts received")
 					}
 				case syscall.SIGQUIT:
-					DumpStacks("")
+					stack.Dump()
 					logger.Info("Forcing docker daemon shutdown without cleanup on SIGQUIT")
 				}
 				// for the SIGINT/TERM, and SIGQUIT non-clean shutdown case, exit with 128 + signal #
@@ -66,39 +62,4 @@ func Trap(cleanup func(), logger interface {
 			}(sig)
 		}
 	}()
-}
-
-const stacksLogNameTemplate = "goroutine-stacks-%s.log"
-
-// DumpStacks appends the runtime stack into file in dir and returns full path
-// to that file.
-func DumpStacks(dir string) (string, error) {
-	var (
-		buf       []byte
-		stackSize int
-	)
-	bufferLen := 16384
-	for stackSize == len(buf) {
-		buf = make([]byte, bufferLen)
-		stackSize = runtime.Stack(buf, true)
-		bufferLen *= 2
-	}
-	buf = buf[:stackSize]
-	var f *os.File
-	if dir != "" {
-		path := filepath.Join(dir, fmt.Sprintf(stacksLogNameTemplate, strings.Replace(time.Now().Format(time.RFC3339), ":", "", -1)))
-		var err error
-		f, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0666)
-		if err != nil {
-			return "", errors.Wrap(err, "failed to open file to write the goroutine stacks")
-		}
-		defer f.Close()
-		defer f.Sync()
-	} else {
-		f = os.Stderr
-	}
-	if _, err := f.Write(buf); err != nil {
-		return "", errors.Wrap(err, "failed to write goroutine stacks")
-	}
-	return f.Name(), nil
 }
