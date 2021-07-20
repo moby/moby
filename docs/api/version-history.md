@@ -24,6 +24,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /images/json` now accepts query parameter `shared-size`. When set `true`,
   images returned will include `SharedSize`, which provides the size on disk shared
   with other images present on the system.
+* `POST /exec/{id}/kill` is a new endpoint that can be used for sending a signal to an exec instance.
 
 ## v1.41 API changes
 
