@@ -172,11 +172,10 @@ func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInf
 		securityOptions = append(securityOptions, "name=apparmor")
 	}
 	if sysInfo.Seccomp && supportsSeccomp {
-		profile := daemon.seccompProfilePath
-		if profile == "" {
-			profile = "default"
+		if daemon.seccompProfilePath != config.SeccompProfileDefault {
+			v.Warnings = append(v.Warnings, "WARNING: daemon is not using the default seccomp profile")
 		}
-		securityOptions = append(securityOptions, fmt.Sprintf("name=seccomp,profile=%s", profile))
+		securityOptions = append(securityOptions, "name=seccomp,profile="+daemon.seccompProfilePath)
 	}
 	if selinux.GetEnabled() {
 		securityOptions = append(securityOptions, "name=selinux")
