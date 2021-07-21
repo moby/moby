@@ -70,12 +70,12 @@ func TestSortPortMap(t *testing.T) {
 
 	SortPortMap(ports, portMap)
 	if !reflect.DeepEqual(ports, []Port{
-		Port("9999/tcp"),
-		Port("6379/tcp"),
-		Port("8443/tcp"),
-		Port("8000/tcp"),
-		Port("22/tcp"),
-		Port("22/udp"),
+		"9999/tcp",
+		"6379/tcp",
+		"8443/tcp",
+		"8000/tcp",
+		"22/tcp",
+		"22/udp",
 	}) {
 		t.Errorf("failed to prioritize port with explicit mappings, got %v", ports)
 	}

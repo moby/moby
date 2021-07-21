@@ -43,7 +43,7 @@ type portMapSorter []portMapEntry
 func (s portMapSorter) Len() int      { return len(s) }
 func (s portMapSorter) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
-// sort the port so that the order is:
+// Less sorts the port so that the order is:
 // 1. port with larger specified bindings
 // 2. larger port
 // 3. port with tcp protocol

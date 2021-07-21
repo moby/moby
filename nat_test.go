@@ -115,12 +115,12 @@ func TestPort(t *testing.T) {
 		t.Fatal("port int value was not 1234")
 	}
 
-	p, err = NewPort("tcp", "asd1234")
+	_, err = NewPort("tcp", "asd1234")
 	if err == nil {
 		t.Fatal("tcp, asd1234 was supposed to fail")
 	}
 
-	p, err = NewPort("tcp", "1234-1230")
+	_, err = NewPort("tcp", "1234-1230")
 	if err == nil {
 		t.Fatal("tcp, 1234-1230 was supposed to fail")
 	}
