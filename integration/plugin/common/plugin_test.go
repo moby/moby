@@ -36,6 +36,7 @@ func TestPluginInvalidJSON(t *testing.T) {
 	endpoints := []string{"/plugins/foobar/set"}
 
 	for _, ep := range endpoints {
+		ep := ep
 		t.Run(ep, func(t *testing.T) {
 			t.Parallel()
 

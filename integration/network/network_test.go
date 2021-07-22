@@ -72,6 +72,7 @@ func TestNetworkInvalidJSON(t *testing.T) {
 	}
 
 	for _, ep := range endpoints {
+		ep := ep
 		t.Run(ep, func(t *testing.T) {
 			t.Parallel()
 
@@ -105,6 +106,7 @@ func TestNetworkList(t *testing.T) {
 	}
 
 	for _, ep := range endpoints {
+		ep := ep
 		t.Run(ep, func(t *testing.T) {
 			t.Parallel()
 
