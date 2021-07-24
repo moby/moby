@@ -62,7 +62,7 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag string, platfor
 		// is a single-arch image, in which case (for backward compatibility),
 		// we allow the image to have a non-matching architecture. The code
 		// below checks for this situation, and returns a warning to the client,
-		// as well ass logs it to the daemon logs.
+		// as well as logging it to the daemon logs.
 		img, err := i.GetImage(image, platform)
 
 		// Note that this is a special case where GetImage returns both an image
