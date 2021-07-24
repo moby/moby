@@ -24,6 +24,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /images/json` now accepts query parameter `shared-size`. When set `true`,
   images returned will include `SharedSize`, which provides the size on disk shared
   with other images present on the system.
+* `GET /containers/json` now includes `Platform` information for containers,
+  describing platform details of the image that the container was created with
+  (`Architecture`, `OS`, and optional: `OSVersion`, `OSFeatures`, `Variant`).
 
 ## v1.41 API changes
 
