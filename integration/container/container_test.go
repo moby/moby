@@ -13,7 +13,6 @@ func TestContainerInvalidJSON(t *testing.T) {
 	defer setupTest(t)()
 
 	endpoints := []string{
-		"/containers/foobar/copy",
 		"/containers/foobar/exec",
 		"/exec/foobar/start",
 	}
