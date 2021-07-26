@@ -130,7 +130,6 @@ func DetectCompression(source []byte) Compression {
 		Xz:    {0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00},
 	} {
 		if len(source) < len(m) {
-			logrus.Debug("Len too short")
 			continue
 		}
 		if bytes.Equal(m, source[:len(m)]) {
@@ -1091,7 +1090,6 @@ func untarHandler(tarArchive io.Reader, dest string, options *TarOptions, decomp
 // TarUntar is a convenience function which calls Tar and Untar, with the output of one piped into the other.
 // If either Tar or Untar fails, TarUntar aborts and returns the error.
 func (archiver *Archiver) TarUntar(src, dst string) error {
-	logrus.Debugf("TarUntar(%s %s)", src, dst)
 	archive, err := TarWithOptions(src, &TarOptions{Compression: Uncompressed})
 	if err != nil {
 		return err
@@ -1136,11 +1134,9 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 	// as owner
 	rootIDs := archiver.IDMapping.RootPair()
 	// Create dst, copy src's content into it
-	logrus.Debugf("Creating dest directory: %s", dst)
 	if err := idtools.MkdirAllAndChownNew(dst, 0755, rootIDs); err != nil {
 		return err
 	}
-	logrus.Debugf("Calling TarUntar(%s, %s)", src, dst)
 	return archiver.TarUntar(src, dst)
 }
 
@@ -1148,7 +1144,6 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 // for a single file. It copies a regular file from path `src` to
 // path `dst`, and preserves all its metadata.
 func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
-	logrus.Debugf("CopyFileWithTar(%s, %s)", src, dst)
 	srcSt, err := os.Stat(src)
 	if err != nil {
 		return err
