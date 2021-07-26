@@ -151,8 +151,11 @@ func windowsValidateNotRoot(p string) error {
 	return nil
 }
 
-var windowsSpecificValidators mountValidator = func(mnt *mount.Mount) error {
-	return windowsValidateNotRoot(mnt.Target)
+var windowsValidators mountValidator = func(m *mount.Mount) error {
+	if err := windowsValidateNotRoot(m.Target); err != nil {
+		return err
+	}
+	return windowsValidateRegex(m.Target, mountDestinationRegexp)
 }
 
 func windowsValidateRegex(p string, r *regexp.Regexp) error {
@@ -193,7 +196,7 @@ func (p *windowsParser) ValidateVolumeName(name string) error {
 	return nil
 }
 func (p *windowsParser) ValidateMountConfig(mnt *mount.Mount) error {
-	return p.validateMountConfigReg(mnt, mountDestinationRegexp, windowsSpecificValidators)
+	return p.validateMountConfigReg(mnt, windowsValidators)
 }
 
 type fileInfoProvider interface {
@@ -214,18 +217,14 @@ func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, err err
 	return true, fi.IsDir(), nil
 }
 
-func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex *regexp.Regexp, additionalValidators ...mountValidator) error {
+func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValidators ...mountValidator) error {
+	if len(mnt.Target) == 0 {
+		return &errMountConfig{mnt, errMissingField("Target")}
+	}
 	for _, v := range additionalValidators {
 		if err := v(mnt); err != nil {
 			return &errMountConfig{mnt, err}
 		}
-	}
-	if len(mnt.Target) == 0 {
-		return &errMountConfig{mnt, errMissingField("Target")}
-	}
-
-	if err := windowsValidateRegex(mnt.Target, destRegex); err != nil {
-		return &errMountConfig{mnt, err}
 	}
 
 	switch mnt.Type {
@@ -303,10 +302,10 @@ func (p *windowsParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, er
 	if err != nil {
 		return nil, err
 	}
-	return p.parseMount(arr, raw, volumeDriver, mountDestinationRegexp, true, windowsSpecificValidators)
+	return p.parseMount(arr, raw, volumeDriver, true, windowsValidators)
 }
 
-func (p *windowsParser) parseMount(arr []string, raw, volumeDriver string, destRegex *regexp.Regexp, convertTargetToBackslash bool, additionalValidators ...mountValidator) (*MountPoint, error) {
+func (p *windowsParser) parseMount(arr []string, raw, volumeDriver string, convertTargetToBackslash bool, additionalValidators ...mountValidator) (*MountPoint, error) {
 	var spec mount.Mount
 	var mode string
 	switch len(arr) {
@@ -355,7 +354,7 @@ func (p *windowsParser) parseMount(arr []string, raw, volumeDriver string, destR
 		spec.VolumeOptions.NoCopy = !copyData
 	}
 
-	mp, err := p.parseMountSpec(spec, destRegex, convertTargetToBackslash, additionalValidators...)
+	mp, err := p.parseMountSpec(spec, convertTargetToBackslash, additionalValidators...)
 	if mp != nil {
 		mp.Mode = mode
 	}
@@ -366,10 +365,11 @@ func (p *windowsParser) parseMount(arr []string, raw, volumeDriver string, destR
 }
 
 func (p *windowsParser) ParseMountSpec(cfg mount.Mount) (*MountPoint, error) {
-	return p.parseMountSpec(cfg, mountDestinationRegexp, true, windowsSpecificValidators)
+	return p.parseMountSpec(cfg, true, windowsValidators)
 }
-func (p *windowsParser) parseMountSpec(cfg mount.Mount, destRegex *regexp.Regexp, convertTargetToBackslash bool, additionalValidators ...mountValidator) (*MountPoint, error) {
-	if err := p.validateMountConfigReg(&cfg, destRegex, additionalValidators...); err != nil {
+
+func (p *windowsParser) parseMountSpec(cfg mount.Mount, convertTargetToBackslash bool, additionalValidators ...mountValidator) (*MountPoint, error) {
+	if err := p.validateMountConfigReg(&cfg, additionalValidators...); err != nil {
 		return nil, err
 	}
 	mp := &MountPoint{

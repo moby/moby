@@ -30,12 +30,15 @@ var (
 	lcowSplitRawSpec          = regexp.MustCompile(`^` + rxSource + rxLCOWDestination + rxMode + `$`)
 )
 
-var lcowSpecificValidators mountValidator = func(m *mount.Mount) error {
+var lcowValidators mountValidator = func(m *mount.Mount) error {
 	if path.Clean(m.Target) == "/" {
 		return ErrVolumeTargetIsRoot
 	}
 	if m.Type == mount.TypeNamedPipe {
 		return errors.New("Linux containers on Windows do not support named pipe mounts")
+	}
+	if err := windowsValidateRegex(m.Target, lcowMountDestinationRegex); err != nil {
+		return err
 	}
 	return nil
 }
@@ -45,7 +48,7 @@ type lcowParser struct {
 }
 
 func (p *lcowParser) ValidateMountConfig(mnt *mount.Mount) error {
-	return p.validateMountConfigReg(mnt, lcowMountDestinationRegex, lcowSpecificValidators)
+	return p.validateMountConfigReg(mnt, lcowValidators)
 }
 
 func (p *lcowParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
@@ -53,9 +56,9 @@ func (p *lcowParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, error
 	if err != nil {
 		return nil, err
 	}
-	return p.parseMount(arr, raw, volumeDriver, lcowMountDestinationRegex, false, lcowSpecificValidators)
+	return p.parseMount(arr, raw, volumeDriver, false, lcowValidators)
 }
 
 func (p *lcowParser) ParseMountSpec(cfg mount.Mount) (*MountPoint, error) {
-	return p.parseMountSpec(cfg, lcowMountDestinationRegex, false, lcowSpecificValidators)
+	return p.parseMountSpec(cfg, false, lcowValidators)
 }
