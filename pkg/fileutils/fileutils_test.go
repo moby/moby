@@ -328,6 +328,8 @@ func TestMatches(t *testing.T) {
 		{"dir/**", "dir/file/", true},
 		{"dir/**", "dir/dir2/file", true},
 		{"dir/**", "dir/dir2/file/", true},
+		{"**/dir", "dir", true},
+		{"**/dir", "dir/file", true},
 		{"**/dir2/*", "dir/dir2/file", true},
 		{"**/dir2/*", "dir/dir2/file/", true},
 		{"**/dir2/**", "dir/dir2/dir3/file", true},
