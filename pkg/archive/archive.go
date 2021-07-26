@@ -129,10 +129,7 @@ func DetectCompression(source []byte) Compression {
 		Gzip:  {0x1F, 0x8B, 0x08},
 		Xz:    {0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00},
 	} {
-		if len(source) < len(m) {
-			continue
-		}
-		if bytes.Equal(m, source[:len(m)]) {
+		if bytes.HasPrefix(source, m) {
 			return compression
 		}
 	}
