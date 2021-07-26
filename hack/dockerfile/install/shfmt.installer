@@ -4,8 +4,5 @@
 
 install_shfmt() {
 	echo "Install shfmt version $SHFMT_VERSION"
-	git clone https://github.com/mvdan/sh.git "$GOPATH/src/github.com/mvdan/sh"
-	cd "$GOPATH/src/github.com/mvdan/sh" || exit 1
-	git checkout -q "$SHFMT_VERSION"
-	GO111MODULE=on go build ${GO_BUILDMODE} -v -o "${PREFIX}/shfmt" ./cmd/shfmt
+	GOBIN="${PREFIX}" GO111MODULE=on go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}"
 }
