@@ -88,7 +88,7 @@ var (
 
 type mountValidator func(mnt *mount.Mount) error
 
-func (p *windowsParser) windowsSplitRawSpec(raw string, splitRegexp *regexp.Regexp) ([]string, error) {
+func (p *windowsParser) splitRawSpec(raw string, splitRegexp *regexp.Regexp) ([]string, error) {
 	match := splitRegexp.FindStringSubmatch(strings.ToLower(raw))
 	if len(match) == 0 {
 		return nil, errInvalidSpec(raw)
@@ -299,7 +299,7 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex *rege
 }
 
 func (p *windowsParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
-	arr, err := p.windowsSplitRawSpec(raw, windowsSplitRawSpecRegexp)
+	arr, err := p.splitRawSpec(raw, windowsSplitRawSpecRegexp)
 	if err != nil {
 		return nil, err
 	}

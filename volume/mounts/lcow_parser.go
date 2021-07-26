@@ -49,7 +49,7 @@ func (p *lcowParser) ValidateMountConfig(mnt *mount.Mount) error {
 }
 
 func (p *lcowParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
-	arr, err := p.windowsSplitRawSpec(raw, lcowSplitRawSpec)
+	arr, err := p.splitRawSpec(raw, lcowSplitRawSpec)
 	if err != nil {
 		return nil, err
 	}
