@@ -166,7 +166,7 @@ FROM microsoft/windowsservercore
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 ARG GO_VERSION=1.16.13
-ARG GOTESTSUM_VERSION=v0.5.3
+ARG GOTESTSUM_VERSION=v1.7.0
 
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
