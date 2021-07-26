@@ -166,7 +166,7 @@ FROM microsoft/windowsservercore
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 ARG GO_VERSION=1.16.13
-ARG GOTESTSUM_COMMIT=v0.5.3
+ARG GOTESTSUM_VERSION=v0.5.3
 
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
@@ -176,7 +176,7 @@ ENV GO_VERSION=${GO_VERSION} `
     GOPATH=C:\gopath `
     GO111MODULE=off `
     FROM_DOCKERFILE=1 `
-    GOTESTSUM_COMMIT=${GOTESTSUM_COMMIT}
+    GOTESTSUM_VERSION=${GOTESTSUM_VERSION}
 
 RUN `
   Function Test-Nano() { `
@@ -262,11 +262,11 @@ RUN `
 
 RUN `
   Function Build-GoTestSum() { `
-    Write-Host "INFO: Building gotestsum version $Env:GOTESTSUM_COMMIT in $Env:GOPATH"; `
+    Write-Host "INFO: Building gotestsum version $Env:GOTESTSUM_VERSION in $Env:GOPATH"; `
     $Env:GO111MODULE = 'on'; `
     $tmpGobin = "${Env:GOBIN_TMP}"; `
     $Env:GOBIN = """${Env:GOPATH}`\bin"""; `
-    &go get -buildmode=exe "gotest.tools/gotestsum@${Env:GOTESTSUM_COMMIT}"; `
+    &go get -buildmode=exe "gotest.tools/gotestsum@${Env:GOTESTSUM_VERSION}"; `
     $Env:GOBIN = "${tmpGobin}"; `
     $Env:GO111MODULE = 'off'; `
     if ($LASTEXITCODE -ne 0) {  `
