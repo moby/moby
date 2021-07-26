@@ -90,7 +90,6 @@ type mountValidator func(mnt *mount.Mount) error
 
 func (p *windowsParser) windowsSplitRawSpec(raw string, splitRegexp *regexp.Regexp) ([]string, error) {
 	match := splitRegexp.FindStringSubmatch(strings.ToLower(raw))
-	// Must have something back
 	if len(match) == 0 {
 		return nil, errInvalidSpec(raw)
 	}
@@ -216,7 +215,6 @@ func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, err err
 }
 
 func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex *regexp.Regexp, additionalValidators ...mountValidator) error {
-
 	for _, v := range additionalValidators {
 		if err := v(mnt); err != nil {
 			return &errMountConfig{mnt, err}
@@ -299,6 +297,7 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex *rege
 	}
 	return nil
 }
+
 func (p *windowsParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
 	arr, err := p.windowsSplitRawSpec(raw, windowsSplitRawSpecRegexp)
 	if err != nil {
@@ -439,21 +438,23 @@ func (p *windowsParser) ParseVolumesFrom(spec string) (string, string, error) {
 }
 
 func (p *windowsParser) DefaultPropagationMode() mount.Propagation {
-	return mount.Propagation("")
+	return ""
 }
 
 func (p *windowsParser) ConvertTmpfsOptions(opt *mount.TmpfsOptions, readOnly bool) (string, error) {
 	return "", fmt.Errorf("%s does not support tmpfs", runtime.GOOS)
 }
+
 func (p *windowsParser) DefaultCopyMode() bool {
 	return false
 }
+
 func (p *windowsParser) IsBackwardCompatible(m *MountPoint) bool {
 	return false
 }
 
 func (p *windowsParser) ValidateTmpfsMountDestination(dest string) error {
-	return errors.New("Platform does not support tmpfs")
+	return errors.New("platform does not support tmpfs")
 }
 
 func (p *windowsParser) HasResource(m *MountPoint, absolutePath string) bool {
