@@ -4,8 +4,5 @@
 
 install_vndr() {
 	echo "Install vndr version $VNDR_VERSION"
-	git clone https://github.com/LK4D4/vndr.git "$GOPATH/src/github.com/LK4D4/vndr"
-	cd "$GOPATH/src/github.com/LK4D4/vndr" || exit 1
-	git checkout -q "$VNDR_VERSION"
-	go build ${GO_BUILDMODE} -v -o "${PREFIX}/vndr" .
+	GOBIN="${PREFIX}" GO111MODULE=on go install "github.com/LK4D4/vndr@${VNDR_VERSION}"
 }
