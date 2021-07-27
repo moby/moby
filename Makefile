@@ -1,6 +1,6 @@
 .PHONY: all binary dynbinary build cross help install manpages run shell test test-docker-py test-integration test-unit validate win
 
-BUILDX_VERSION ?= v0.5.1
+BUILDX_VERSION ?= v0.6.0
 
 ifdef USE_BUILDX
 BUILDX ?= $(shell command -v buildx)
