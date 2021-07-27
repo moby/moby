@@ -921,18 +921,16 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 	return controller, nil
 }
 
-func driverOptions(config *config.Config) []nwconfig.Option {
-	bridgeConfig := options.Generic{
-		"EnableIPForwarding":  config.BridgeConfig.EnableIPForward,
-		"EnableIPTables":      config.BridgeConfig.EnableIPTables,
-		"EnableIP6Tables":     config.BridgeConfig.EnableIP6Tables,
-		"EnableUserlandProxy": config.BridgeConfig.EnableUserlandProxy,
-		"UserlandProxyPath":   config.BridgeConfig.UserlandProxyPath}
-	bridgeOption := options.Generic{netlabel.GenericData: bridgeConfig}
-
-	dOptions := []nwconfig.Option{}
-	dOptions = append(dOptions, nwconfig.OptionDriverConfig("bridge", bridgeOption))
-	return dOptions
+func driverOptions(config *config.Config) nwconfig.Option {
+	return nwconfig.OptionDriverConfig("bridge", options.Generic{
+		netlabel.GenericData: options.Generic{
+			"EnableIPForwarding":  config.BridgeConfig.EnableIPForward,
+			"EnableIPTables":      config.BridgeConfig.EnableIPTables,
+			"EnableIP6Tables":     config.BridgeConfig.EnableIP6Tables,
+			"EnableUserlandProxy": config.BridgeConfig.EnableUserlandProxy,
+			"UserlandProxyPath":   config.BridgeConfig.UserlandProxyPath,
+		},
+	})
 }
 
 func initBridgeDriver(controller libnetwork.NetworkController, config *config.Config) error {
