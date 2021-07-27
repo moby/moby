@@ -12,8 +12,8 @@ func TestParsePortRange(t *testing.T) {
 }
 
 func TestParsePortRangeEmpty(t *testing.T) {
-	if _, _, err := ParsePortRange(""); err == nil || err.Error() != "Empty string specified for ports." {
-		t.Fatalf("Expected error 'Empty string specified for ports.', got %v", err)
+	if _, _, err := ParsePortRange(""); err == nil || err.Error() != "empty string specified for ports" {
+		t.Fatalf("Expected error 'empty string specified for ports', got %v", err)
 	}
 }
 
@@ -28,27 +28,27 @@ func TestParsePortRangeWithNoRange(t *testing.T) {
 }
 
 func TestParsePortRangeIncorrectRange(t *testing.T) {
-	if _, _, err := ParsePortRange("9000-8080"); err == nil || !strings.Contains(err.Error(), "Invalid range specified for the Port") {
-		t.Fatalf("Expecting error 'Invalid range specified for the Port' but received %s.", err)
+	if _, _, err := ParsePortRange("9000-8080"); err == nil || !strings.Contains(err.Error(), "invalid range specified for port") {
+		t.Fatalf("Expecting error 'invalid range specified for port' but received %s.", err)
 	}
 }
 
 func TestParsePortRangeIncorrectEndRange(t *testing.T) {
 	if _, _, err := ParsePortRange("8000-a"); err == nil || !strings.Contains(err.Error(), "invalid syntax") {
-		t.Fatalf("Expecting error 'Invalid range specified for the Port' but received %s.", err)
+		t.Fatalf("Expecting error 'invalid syntax' but received %s.", err)
 	}
 
 	if _, _, err := ParsePortRange("8000-30a"); err == nil || !strings.Contains(err.Error(), "invalid syntax") {
-		t.Fatalf("Expecting error 'Invalid range specified for the Port' but received %s.", err)
+		t.Fatalf("Expecting error 'invalid syntax' but received %s.", err)
 	}
 }
 
 func TestParsePortRangeIncorrectStartRange(t *testing.T) {
 	if _, _, err := ParsePortRange("a-8000"); err == nil || !strings.Contains(err.Error(), "invalid syntax") {
-		t.Fatalf("Expecting error 'Invalid range specified for the Port' but received %s.", err)
+		t.Fatalf("Expecting error 'invalid syntax' but received %s.", err)
 	}
 
 	if _, _, err := ParsePortRange("30a-8000"); err == nil || !strings.Contains(err.Error(), "invalid syntax") {
-		t.Fatalf("Expecting error 'Invalid range specified for the Port' but received %s.", err)
+		t.Fatalf("Expecting error 'invalid syntax' but received %s.", err)
 	}
 }
