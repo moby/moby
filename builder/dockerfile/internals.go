@@ -235,8 +235,8 @@ func createDestInfo(workingDir string, inst copyInstruction, rwLayer builder.RWL
 // normalizeDest normalises the destination of a COPY/ADD command in a
 // platform semantically consistent way.
 func normalizeDest(workingDir, requested string, platform string) (string, error) {
-	dest := fromSlash(requested, platform)
-	endsInSlash := strings.HasSuffix(dest, string(separator(platform)))
+	dest := filepath.FromSlash(requested)
+	endsInSlash := strings.HasSuffix(dest, string(os.PathSeparator))
 
 	if platform != "windows" {
 		if !path.IsAbs(requested) {
@@ -484,20 +484,4 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 		ExtraHosts: options.ExtraHosts,
 	}
 	return hc
-}
-
-// fromSlash works like filepath.FromSlash but with a given OS platform field
-func fromSlash(path, platform string) string {
-	if platform == "windows" {
-		return strings.Replace(path, "/", "\\", -1)
-	}
-	return path
-}
-
-// separator returns a OS path separator for the given OS platform
-func separator(platform string) byte {
-	if platform == "windows" {
-		return '\\'
-	}
-	return '/'
 }

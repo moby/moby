@@ -109,22 +109,15 @@ func copierFromDispatchRequest(req dispatchRequest, download sourceDownloader, i
 }
 
 func (o *copier) createCopyInstruction(sourcesAndDest instructions.SourcesAndDest, cmdName string) (copyInstruction, error) {
-	inst := copyInstruction{cmdName: cmdName}
-
-	// Work in platform-specific filepath semantics
-	// TODO: This OS switch for paths is NOT correct and should not be supported.
-	// Maintained for backwards compatibility
-	pathOS := runtime.GOOS
-	if o.platform != nil {
-		pathOS = o.platform.OS
+	inst := copyInstruction{
+		cmdName: cmdName,
+		dest:    filepath.FromSlash(sourcesAndDest.DestPath),
 	}
-	inst.dest = fromSlash(sourcesAndDest.DestPath, pathOS)
-	separator := string(separator(pathOS))
 	infos, err := o.getCopyInfosForSourcePaths(sourcesAndDest.SourcePaths, inst.dest)
 	if err != nil {
 		return inst, errors.Wrapf(err, "%s failed", cmdName)
 	}
-	if len(infos) > 1 && !strings.HasSuffix(inst.dest, separator) {
+	if len(infos) > 1 && !strings.HasSuffix(inst.dest, string(os.PathSeparator)) {
 		return inst, errors.Errorf("When using %s with more than one source file, the destination must be a directory and end with a /", cmdName)
 	}
 	inst.infos = infos
