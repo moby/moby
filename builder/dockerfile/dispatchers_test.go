@@ -116,7 +116,7 @@ func TestFromScratch(t *testing.T) {
 	}
 	err := initializeStage(sb, cmd)
 
-	if runtime.GOOS == "windows" && !system.LCOWSupported() {
+	if runtime.GOOS == "windows" {
 		assert.Check(t, is.Error(err, "Linux containers are not supported on this system"))
 		return
 	}
