@@ -155,17 +155,14 @@ var windowsValidators mountValidator = func(m *mount.Mount) error {
 	if err := windowsValidateNotRoot(m.Target); err != nil {
 		return err
 	}
-	return windowsValidateRegex(m.Target, mountDestinationRegexp)
+	if !mountDestinationRegexp.MatchString(strings.ToLower(m.Target)) {
+		return fmt.Errorf("invalid mount path: '%s'", m.Target)
+	}
+	return nil
 }
 
-func windowsValidateRegex(p string, r *regexp.Regexp) error {
-	if r.MatchString(strings.ToLower(p)) {
-		return nil
-	}
-	return fmt.Errorf("invalid mount path: '%s'", p)
-}
 func windowsValidateAbsolute(p string) error {
-	if err := windowsValidateRegex(p, mountDestinationRegexp); err != nil {
+	if !mountDestinationRegexp.MatchString(strings.ToLower(p)) {
 		return fmt.Errorf("invalid mount path: '%s' mount path must be absolute", p)
 	}
 	return nil

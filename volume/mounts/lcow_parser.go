@@ -2,8 +2,10 @@ package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
 	"errors"
+	"fmt"
 	"path"
 	"regexp"
+	"strings"
 
 	"github.com/docker/docker/api/types/mount"
 )
@@ -37,8 +39,8 @@ var lcowValidators mountValidator = func(m *mount.Mount) error {
 	if m.Type == mount.TypeNamedPipe {
 		return errors.New("Linux containers on Windows do not support named pipe mounts")
 	}
-	if err := windowsValidateRegex(m.Target, lcowMountDestinationRegex); err != nil {
-		return err
+	if !lcowMountDestinationRegex.MatchString(strings.ToLower(m.Target)) {
+		return fmt.Errorf("invalid mount path: '%s'", m.Target)
 	}
 	return nil
 }
