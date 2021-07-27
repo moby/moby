@@ -79,6 +79,16 @@ func fixPermissionsWindows(source, destination, SID string) error {
 	return windows.SetNamedSecurityInfo(destination, windows.SE_FILE_OBJECT, windows.OWNER_SECURITY_INFORMATION|windows.DACL_SECURITY_INFORMATION, sid, nil, dacl, nil)
 }
 
+func containsWildcards(name string) bool {
+	for i := 0; i < len(name); i++ {
+		ch := name[i]
+		if ch == '*' || ch == '?' || ch == '[' {
+			return true
+		}
+	}
+	return false
+}
+
 func validateCopySourcePath(imageSource *imageMount, origPath string) error {
 	if imageSource == nil {
 		return nil

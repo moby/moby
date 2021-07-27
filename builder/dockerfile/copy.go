@@ -251,19 +251,6 @@ func (o *copier) calcCopyInfo(origPath string, allowWildcards bool) ([]copyInfo,
 	return newCopyInfos(newCopyInfoFromSource(o.source, origPath, hash)), nil
 }
 
-func containsWildcards(name string) bool {
-	isWindows := runtime.GOOS == "windows"
-	for i := 0; i < len(name); i++ {
-		ch := name[i]
-		if ch == '\\' && !isWindows {
-			i++
-		} else if ch == '*' || ch == '?' || ch == '[' {
-			return true
-		}
-	}
-	return false
-}
-
 func (o *copier) storeInPathCache(im *imageMount, path string, hash string) {
 	if im != nil {
 		o.pathCache.Store(im.ImageID()+path, hash)

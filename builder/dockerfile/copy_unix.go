@@ -43,6 +43,18 @@ func fixPermissions(source, destination string, identity idtools.Identity, overr
 	})
 }
 
+func containsWildcards(name string) bool {
+	for i := 0; i < len(name); i++ {
+		ch := name[i]
+		if ch == '\\' {
+			i++
+		} else if ch == '*' || ch == '?' || ch == '[' {
+			return true
+		}
+	}
+	return false
+}
+
 func validateCopySourcePath(imageSource *imageMount, origPath string) error {
 	return nil
 }
