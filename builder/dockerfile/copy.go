@@ -191,6 +191,9 @@ func (o *copier) Cleanup() {
 // TODO: allowWildcards can probably be removed by refactoring this function further.
 func (o *copier) calcCopyInfo(origPath string, allowWildcards bool) ([]copyInfo, error) {
 	imageSource := o.imageSource
+	if err := validateCopySourcePath(imageSource, origPath); err != nil {
+		return nil, err
+	}
 
 	// TODO: do this when creating copier. Requires validateCopySourcePath
 	// (and other below) to be aware of the difference sources. Why is it only
@@ -215,20 +218,13 @@ func (o *copier) calcCopyInfo(origPath string, allowWildcards bool) ([]copyInfo,
 		return nil, errors.Errorf("missing build context")
 	}
 
-	root := o.source.Root()
-
-	if err := validateCopySourcePath(imageSource, origPath, root.OS()); err != nil {
-		return nil, err
-	}
-
-	// Work in source OS specific filepath semantics
-	// For LCOW, this is NOT the daemon OS.
-	origPath = root.FromSlash(origPath)
-	origPath = strings.TrimPrefix(origPath, string(root.Separator()))
-	origPath = strings.TrimPrefix(origPath, "."+string(root.Separator()))
+	// Work in daemon-specific OS filepath semantics
+	origPath = filepath.FromSlash(origPath)
+	origPath = strings.TrimPrefix(origPath, string(os.PathSeparator))
+	origPath = strings.TrimPrefix(origPath, "."+string(os.PathSeparator))
 
 	// Deal with wildcards
-	if allowWildcards && containsWildcards(origPath, root.OS()) {
+	if allowWildcards && containsWildcards(origPath) {
 		return o.copyWithWildcards(origPath)
 	}
 
@@ -262,8 +258,8 @@ func (o *copier) calcCopyInfo(origPath string, allowWildcards bool) ([]copyInfo,
 	return newCopyInfos(newCopyInfoFromSource(o.source, origPath, hash)), nil
 }
 
-func containsWildcards(name, platform string) bool {
-	isWindows := platform == "windows"
+func containsWildcards(name string) bool {
+	isWindows := runtime.GOOS == "windows"
 	for i := 0; i < len(name); i++ {
 		ch := name[i]
 		if ch == '\\' && !isWindows {
@@ -549,33 +545,23 @@ func copyDirectory(archiver Archiver, source, dest *copyEndpoint, identity *idto
 		return errors.Wrapf(err, "failed to copy directory")
 	}
 	if identity != nil {
-		// TODO: @gupta-ak. Investigate how LCOW permission mappings will work.
 		return fixPermissions(source.path, dest.path, *identity, !destExists)
 	}
 	return nil
 }
 
 func copyFile(archiver Archiver, source, dest *copyEndpoint, identity *idtools.Identity) error {
-	if runtime.GOOS == "windows" && dest.driver.OS() == "linux" {
-		// LCOW
-		if err := dest.driver.MkdirAll(dest.driver.Dir(dest.path), 0755); err != nil {
-			return errors.Wrapf(err, "failed to create new directory")
+	if identity == nil {
+		// Use system.MkdirAll here, which is a custom version of os.MkdirAll
+		// modified for use on Windows to handle volume GUID paths. These paths
+		// are of the form \\?\Volume{<GUID>}\<path>. An example would be:
+		// \\?\Volume{dae8d3ac-b9a1-11e9-88eb-e8554b2ba1db}\bin\busybox.exe
+		if err := system.MkdirAll(filepath.Dir(dest.path), 0755); err != nil {
+			return err
 		}
 	} else {
-		// Normal containers
-		if identity == nil {
-			// Use system.MkdirAll here, which is a custom version of os.MkdirAll
-			// modified for use on Windows to handle volume GUID paths. These paths
-			// are of the form \\?\Volume{<GUID>}\<path>. An example would be:
-			// \\?\Volume{dae8d3ac-b9a1-11e9-88eb-e8554b2ba1db}\bin\busybox.exe
-
-			if err := system.MkdirAll(filepath.Dir(dest.path), 0755); err != nil {
-				return err
-			}
-		} else {
-			if err := idtools.MkdirAllAndChownNew(filepath.Dir(dest.path), 0755, *identity); err != nil {
-				return errors.Wrapf(err, "failed to create new directory")
-			}
+		if err := idtools.MkdirAllAndChownNew(filepath.Dir(dest.path), 0755, *identity); err != nil {
+			return errors.Wrapf(err, "failed to create new directory")
 		}
 	}
 
@@ -583,7 +569,6 @@ func copyFile(archiver Archiver, source, dest *copyEndpoint, identity *idtools.I
 		return errors.Wrapf(err, "failed to copy file")
 	}
 	if identity != nil {
-		// TODO: @gupta-ak. Investigate how LCOW permission mappings will work.
 		return fixPermissions(source.path, dest.path, *identity, false)
 	}
 	return nil

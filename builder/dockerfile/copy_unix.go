@@ -43,6 +43,6 @@ func fixPermissions(source, destination string, identity idtools.Identity, overr
 	})
 }
 
-func validateCopySourcePath(imageSource *imageMount, origPath, platform string) error {
+func validateCopySourcePath(imageSource *imageMount, origPath string) error {
 	return nil
 }

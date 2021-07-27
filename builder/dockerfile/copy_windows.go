@@ -79,12 +79,10 @@ func fixPermissionsWindows(source, destination, SID string) error {
 	return windows.SetNamedSecurityInfo(destination, windows.SE_FILE_OBJECT, windows.OWNER_SECURITY_INFORMATION|windows.DACL_SECURITY_INFORMATION, sid, nil, dacl, nil)
 }
 
-func validateCopySourcePath(imageSource *imageMount, origPath, platform string) error {
-	// validate windows paths from other images + LCOW
-	if imageSource == nil || platform != "windows" {
+func validateCopySourcePath(imageSource *imageMount, origPath string) error {
+	if imageSource == nil {
 		return nil
 	}
-
 	origPath = filepath.FromSlash(origPath)
 	p := strings.ToLower(filepath.Clean(origPath))
 	if !filepath.IsAbs(p) {
@@ -92,13 +90,13 @@ func validateCopySourcePath(imageSource *imageMount, origPath, platform string) 
 			if p[len(p)-2:] == ":." { // case where clean returns weird c:. paths
 				p = p[:len(p)-1]
 			}
-			p += "\\"
+			p += `\`
 		} else {
-			p = filepath.Join("c:\\", p)
+			p = filepath.Join(`c:\`, p)
 		}
 	}
 	if _, ok := pathDenyList[p]; ok {
-		return errors.New("copy from c:\\ or c:\\windows is not allowed on windows")
+		return errors.New(`copy from c:\ or c:\windows is not allowed on windows`)
 	}
 	return nil
 }
