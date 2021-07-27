@@ -13,12 +13,12 @@ func TestContainerInvalidJSON(t *testing.T) {
 	defer setupTest(t)()
 
 	endpoints := []string{
-		"/containers/foobar/copy",
 		"/containers/foobar/exec",
 		"/exec/foobar/start",
 	}
 
 	for _, ep := range endpoints {
+		ep := ep
 		t.Run(ep, func(t *testing.T) {
 			t.Parallel()
 
