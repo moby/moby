@@ -7,6 +7,8 @@ import (
 	"math"
 	"math/rand"
 	"net"
+	"os"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,7 +17,6 @@ import (
 	"github.com/coreos/etcd/pkg/idutil"
 	"github.com/coreos/etcd/raft"
 	"github.com/coreos/etcd/raft/raftpb"
-	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-events"
 	"github.com/docker/go-metrics"
 	"github.com/docker/swarmkit/api"
@@ -594,7 +595,7 @@ func (n *Node) Run(ctx context.Context) error {
 				transferLeadershipLimit.Allow() {
 				log.G(ctx).Error("Attempting to transfer leadership")
 				if !n.opts.DisableStackDump {
-					signal.DumpStacks("")
+					stackDump()
 				}
 				transferee, err := n.transport.LongestActive()
 				if err != nil {
@@ -2130,4 +2131,22 @@ func getIDs(snap *raftpb.Snapshot, ents []raftpb.Entry) []uint64 {
 
 func (n *Node) reqTimeout() time.Duration {
 	return 5*time.Second + 2*time.Duration(n.Config.ElectionTick)*n.opts.TickInterval
+}
+
+// stackDump outputs the runtime stack to os.StdErr.
+//
+// It is based on Moby's stack.Dump(); https://github.com/moby/moby/blob/471fd27709777d2cce3251129887e14e8bb2e0c7/pkg/stack/stackdump.go#L41-L57
+func stackDump() {
+	var (
+		buf       []byte
+		stackSize int
+	)
+	bufferLen := 16384
+	for stackSize == len(buf) {
+		buf = make([]byte, bufferLen)
+		stackSize = runtime.Stack(buf, true)
+		bufferLen *= 2
+	}
+	buf = buf[:stackSize]
+	_, _ = os.Stderr.Write(buf)
 }
