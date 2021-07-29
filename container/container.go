@@ -264,12 +264,6 @@ func (container *Container) WriteHostConfig() (*containertypes.HostConfig, error
 
 // SetupWorkingDirectory sets up the container's working directory as set in container.Config.WorkingDir
 func (container *Container) SetupWorkingDirectory(rootIdentity idtools.Identity) error {
-	// TODO: LCOW Support. This will need revisiting.
-	// We will need to do remote filesystem operations here.
-	if container.OS != runtime.GOOS {
-		return nil
-	}
-
 	if container.Config.WorkingDir == "" {
 		return nil
 	}
@@ -727,14 +721,14 @@ func getConfigTargetPath(r *swarmtypes.ConfigReference) string {
 // CreateDaemonEnvironment creates a new environment variable slice for this container.
 func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string) []string {
 	// Setup environment
-	os := container.OS
-	if os == "" {
-		os = runtime.GOOS
+	ctrOS := container.OS
+	if ctrOS == "" {
+		ctrOS = runtime.GOOS
 	}
 
 	// Figure out what size slice we need so we can allocate this all at once.
 	envSize := len(container.Config.Env)
-	if runtime.GOOS != "windows" || (runtime.GOOS == "windows" && os == "linux") {
+	if runtime.GOOS != "windows" {
 		envSize += 2 + len(linkedEnv)
 	}
 	if tty {
@@ -743,7 +737,7 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 
 	env := make([]string, 0, envSize)
 	if runtime.GOOS != "windows" {
-		env = append(env, "PATH="+system.DefaultPathEnv(os))
+		env = append(env, "PATH="+system.DefaultPathEnv(ctrOS))
 		env = append(env, "HOSTNAME="+container.Config.Hostname)
 		if tty {
 			env = append(env, "TERM=xterm")

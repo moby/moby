@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
-	"strings"
 
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
@@ -487,6 +486,14 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named, platform 
 }
 
 func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unverifiedManifest *schema1.SignedManifest, platform *specs.Platform) (id digest.Digest, manifestDigest digest.Digest, err error) {
+	if platform != nil {
+		// Early bath if the requested OS doesn't match that of the configuration.
+		// This avoids doing the download, only to potentially fail later.
+		if !system.IsOSSupported(platform.OS) {
+			return "", "", fmt.Errorf("cannot download image with operating system %q when requesting %q", runtime.GOOS, platform.OS)
+		}
+	}
+
 	var verifiedManifest *schema1.Manifest
 	verifiedManifest, err = verifySchema1Manifest(unverifiedManifest, ref)
 	if err != nil {
@@ -541,44 +548,7 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unv
 		descriptors = append(descriptors, layerDescriptor)
 	}
 
-	// The v1 manifest itself doesn't directly contain an OS. However,
-	// the history does, but unfortunately that's a string, so search through
-	// all the history until hopefully we find one which indicates the OS.
-	// supertest2014/nyan is an example of a registry image with schemav1.
-	configOS := runtime.GOOS
-	if system.LCOWSupported() {
-		type config struct {
-			Os string `json:"os,omitempty"`
-		}
-		for _, v := range verifiedManifest.History {
-			var c config
-			if err := json.Unmarshal([]byte(v.V1Compatibility), &c); err == nil {
-				if c.Os != "" {
-					configOS = c.Os
-					break
-				}
-			}
-		}
-	}
-
-	// In the situation that the API call didn't specify an OS explicitly, but
-	// we support the operating system, switch to that operating system.
-	// eg FROM supertest2014/nyan with no platform specifier, and docker build
-	// with no --platform= flag under LCOW.
-	requestedOS := ""
-	if platform != nil {
-		requestedOS = platform.OS
-	} else if system.IsOSSupported(configOS) {
-		requestedOS = configOS
-	}
-
-	// Early bath if the requested OS doesn't match that of the configuration.
-	// This avoids doing the download, only to potentially fail later.
-	if !strings.EqualFold(configOS, requestedOS) {
-		return "", "", fmt.Errorf("cannot download image with operating system %q when requesting %q", configOS, requestedOS)
-	}
-
-	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, configOS, descriptors, p.config.ProgressOutput)
+	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, runtime.GOOS, descriptors, p.config.ProgressOutput)
 	if err != nil {
 		return "", "", err
 	}

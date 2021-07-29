@@ -61,7 +61,6 @@ Write-Host -ForegroundColor Red "-----------------------------------------------
 #   DOCKER_STORAGE_OPTS       comma-separated list of optional storage driver options for the daemon under test
 #                             examples:
 #                             DOCKER_STORAGE_OPTS="size=40G"
-#                             DOCKER_STORAGE_OPTS="lcow.globalmode=false,lcow.kernel=kernel.efi"
 #
 #    SKIP_VALIDATION_TESTS    if defined skips the validation tests
 #
@@ -191,7 +190,7 @@ Function Nuke-Everything {
         Stop-Process -name "tail" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
 
         # Detach any VHDs
-        gwmi msvm_mountedstorageimage -namespace root/virtualization/v2 -ErrorAction SilentlyContinue | foreach-object {$_.DetachVirtualHardDisk() }
+        gwmi msvm_mountedstorageimage -namespace root/virtualization/v2 -ErrorAction SilentlyContinue | foreach-Object {$_.DetachVirtualHardDisk() }
 
         # Stop any compute processes
         Get-ComputeProcess | Stop-ComputeProcess -Force
@@ -602,10 +601,10 @@ Try {
     }
 
     # Arguments: Allow setting optional storage-driver options
-    # example usage: DOCKER_STORAGE_OPTS="lcow.globalmode=false,lcow.kernel=kernel.efi"
+    # example usage: DDOCKER_STORAGE_OPTS="size=40G"
     if (-not ("$env:DOCKER_STORAGE_OPTS" -eq "")) {
         Write-Host -ForegroundColor Green "INFO: Running the daemon under test with storage-driver options ${env:DOCKER_STORAGE_OPTS}"
-        $env:DOCKER_STORAGE_OPTS.Split(",") | ForEach {
+        $env:DOCKER_STORAGE_OPTS.Split(",") | ForEach-Object {
             $dutArgs += "--storage-opt $_"
         }
     }
