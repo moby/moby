@@ -708,8 +708,10 @@ func (s *containerRouter) postContainersPrune(ctx context.Context, w http.Respon
 	if err != nil {
 		return errdefs.InvalidParameter(err)
 	}
-
-	pruneReport, err := s.backend.ContainersPrune(ctx, pruneFilters)
+	// using containerPruneConfig for backportability
+	// dryRun = httputils.BoolValue(r.FormValue("dry-run"))
+	logrus.Debug("containerPruneConfig : %s", r)
+	pruneReport, err := s.backend.ContainersPrune(ctx, pruneFilters, true)
 	if err != nil {
 		return err
 	}

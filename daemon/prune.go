@@ -28,7 +28,6 @@ var (
 		"label":  true,
 		"label!": true,
 		"until":  true,
-		"dryRun": true,
 	}
 
 	networksAcceptedFilters = map[string]bool{
@@ -39,7 +38,7 @@ var (
 )
 
 // ContainersPrune removes unused containers
-func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.Args) (*types.ContainersPruneReport, error) {
+func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.Args, dryRun bool) (*types.ContainersPruneReport, error) {
 	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
 		return nil, errPruneRunning
 	}
@@ -58,7 +57,7 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 		return nil, err
 	}
 
-	dryRunMode := isDryRun(pruneFilters)
+	dryRunMode := dryRun
 
 	allContainers := daemon.List()
 	for _, c := range allContainers {
