@@ -282,6 +282,7 @@ func ParseHostURL(host string) (*url.URL, error) {
 }
 
 // CustomHTTPHeaders returns the custom http headers stored by the client.
+// Deprecated: this function was unused, and will be removed in the next release.
 func (cli *Client) CustomHTTPHeaders() map[string]string {
 	m := make(map[string]string)
 	for k, v := range cli.customHTTPHeaders {
