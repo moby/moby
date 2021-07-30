@@ -33,9 +33,9 @@ func getFiltersQuery(f filters.Args) (url.Values, error) {
 	return query, nil
 }
 
-// getFiltersQuery returns a url query with "filters" query term, based on the
-// filters provided.
-func setPruneConfigQuery(dryRun bool, query url.Values) (url.Values, error) {
+// setPruneConfigQuery takes in url values and a boolean for dryRunField
+// and adds that to url values
+func setdryRunQuery(dryRun bool, query url.Values) (url.Values, error) {
 	if dryRun {
 		query.Set("dryRun", "true")
 	}

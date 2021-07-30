@@ -21,11 +21,15 @@ func (cli *Client) ContainersPrune(ctx context.Context, pruneFilters filters.Arg
 	if err != nil {
 		return report, err
 	}
-	query, err := setPruneConfigQuery(dryRun, filtersQuery)
+
+	// add dryRun option to query URL
+	query, err := setdryRunQuery(dryRun, filtersQuery)
 	if err != nil {
 		return report, err
 	}
-	fmt.Fprintf(stdout, "Printing before post: ", dryRun)
+
+	// dry run prune will have
+	// /containers/prune?dryRun=true
 	serverResp, err := cli.post(ctx, "/containers/prune", query, nil, nil)
 	defer ensureReaderClosed(serverResp)
 	if err != nil {

@@ -530,11 +530,6 @@ type ShimConfig struct {
 	Opts   interface{}
 }
 
-// holds info about what kind of prune to run
-type ContainerPruneConfig struct {
-	IsDryRun bool
-}
-
 // DiskUsage contains response of Engine API:
 // GET "/system/df"
 type DiskUsage struct {

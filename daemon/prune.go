@@ -259,8 +259,3 @@ func matchLabels(pruneFilters filters.Args, labels map[string]string) bool {
 	}
 	return true
 }
-
-func isDryRun(args filters.Args) bool {
-	return args.Contains("dryRun") &&
-		(args.ExactMatch("dryRun", "true") || args.ExactMatch("dryRun", "0"))
-}
