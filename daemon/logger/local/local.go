@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"os"
+	"path/filepath"
 
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/plugins/logdriver"
@@ -28,6 +30,7 @@ const (
 	defaultMaxFileSize  int64 = 20 * 1024 * 1024
 	defaultMaxFileCount       = 5
 	defaultCompressLogs       = true
+	defaultUseTmpfs           = false
 )
 
 // LogOptKeys are the keys names used for log opts passed in to initialize the driver.
@@ -35,6 +38,7 @@ var LogOptKeys = map[string]bool{
 	"max-file": true,
 	"max-size": true,
 	"compress": true,
+	"tmpfs"   : true,
 }
 
 // ValidateLogOpt looks for log driver specific options.
@@ -93,6 +97,17 @@ func New(info logger.Info) (logger.Logger, error) {
 			return nil, errdefs.InvalidParameter(errors.Wrap(err, "error reading compress log option"))
 		}
 		cfg.DisableCompression = !compressLogs
+	}
+	
+	if tmpfs, ok := info.Config["tmpfs"]; ok {
+		useTmpfs, err := strconv.ParseBool(tmpfs)
+		if err != nil {
+			return nil, errdefs.InvalidParameter(errors.Wrap(err, "error reading tmpfs option"))
+		}
+		if useTmpfs {
+			info.LogPath = "/dev/shm" + info.LogPath
+			os.MkdirAll(filepath.Dir(info.LogPath), os.ModePerm)
+		}
 	}
 	return newDriver(info.LogPath, cfg)
 }
