@@ -9,6 +9,7 @@ type CreateConfig struct {
 	DisableCompression bool
 	MaxFileSize        int64
 	MaxFileCount       int
+	Tmpfs              bool
 }
 
 func newDefaultConfig() *CreateConfig {
@@ -16,6 +17,7 @@ func newDefaultConfig() *CreateConfig {
 		MaxFileSize:        defaultMaxFileSize,
 		MaxFileCount:       defaultMaxFileCount,
 		DisableCompression: !defaultCompressLogs,
+		Tmpfs:              defaultUseTmpfs,
 	}
 }
 
