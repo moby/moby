@@ -481,7 +481,6 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 }
 
 func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
-	maxRetry := 5
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
 	// Single node Join/Leave
@@ -530,22 +529,12 @@ func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	err = dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
 
-	for i := 0; i < maxRetry; i++ {
-		if len(dbs[0].networkNodes["network1"]) == 2 {
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
+	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
 	if len(dbs[0].networkNodes["network1"]) != 2 {
 		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[0].networkNodes["network1"]), dbs[0].networkNodes["network1"])
 	}
 
-	for i := 0; i < maxRetry; i++ {
-		if len(dbs[1].networkNodes["network1"]) == 2 {
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
+	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
 	if len(dbs[1].networkNodes["network1"]) != 2 {
 		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[1].networkNodes["network1"]), dbs[1].networkNodes["network1"])
 	}
