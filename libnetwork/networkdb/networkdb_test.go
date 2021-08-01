@@ -99,7 +99,15 @@ func (db *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool
 
 func (db *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string, present bool) {
 	t.Helper()
-	for i := 0; i < 80; i++ {
+
+	const sleepInterval = 50 * time.Millisecond
+	var maxRetries int64
+	if dl, ok := t.Deadline(); ok {
+		maxRetries = int64(time.Until(dl) / sleepInterval)
+	} else {
+		maxRetries = 80
+	}
+	for i := int64(0); i < maxRetries; i++ {
 		db.RLock()
 		nn, nnok := db.networks[node]
 		db.RUnlock()
@@ -116,7 +124,7 @@ func (db *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string
 			}
 		}
 
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(sleepInterval)
 	}
 
 	t.Error("Network existence verification failed")
