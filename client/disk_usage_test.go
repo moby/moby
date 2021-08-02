@@ -18,7 +18,7 @@ func TestDiskUsageError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.DiskUsage(context.Background())
+	_, err := client.DiskUsage(context.Background(), types.DiskUsageOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
@@ -50,7 +50,7 @@ func TestDiskUsage(t *testing.T) {
 			}, nil
 		}),
 	}
-	if _, err := client.DiskUsage(context.Background()); err != nil {
+	if _, err := client.DiskUsage(context.Background(), types.DiskUsageOptions{}); err != nil {
 		t.Fatal(err)
 	}
 }
