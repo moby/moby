@@ -23,8 +23,10 @@ func TestLoadProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 	var expectedErrno uint = 12345
+	var expectedDefaultErrno uint = 1
 	expected := specs.LinuxSeccomp{
-		DefaultAction: specs.ActErrno,
+		DefaultAction:   specs.ActErrno,
+		DefaultErrnoRet: &expectedDefaultErrno,
 		Syscalls: []specs.LinuxSyscall{
 			{
 				Names:  []string{"clone"},

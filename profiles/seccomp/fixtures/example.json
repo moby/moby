@@ -1,5 +1,6 @@
 {
     "defaultAction": "SCMP_ACT_ERRNO",
+    "defaultErrnoRet": 1,
     "syscalls": [
         {
             "name": "clone",
