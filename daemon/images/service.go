@@ -72,11 +72,11 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 		content:                   config.ContentStore,
 		contentNamespace:          config.ContentNamespace,
 	}
-	i.imageDiskUsageSingleton = compute.NewSingleton(func(ctx context.Context) (interface{}, error) {
-		return i.imageDiskUsage(ctx)
+	i.imagesUsageSingleton = compute.NewSingleton(func(ctx context.Context) (interface{}, error) {
+		return i.imagesUsage(ctx)
 	})
-	i.layerDiskUsageSingleton = compute.NewSingleton(func(ctx context.Context) (interface{}, error) {
-		return i.layerDiskUsage(ctx)
+	i.layersUsageSingleton = compute.NewSingleton(func(ctx context.Context) (interface{}, error) {
+		return i.layersUsage(ctx)
 	})
 	return i
 }
@@ -97,8 +97,8 @@ type ImageService struct {
 	leases                    leases.Manager
 	content                   content.Store
 	contentNamespace          string
-	imageDiskUsageSingleton   *compute.Singleton
-	layerDiskUsageSingleton   *compute.Singleton
+	imagesUsageSingleton      *compute.Singleton
+	layersUsageSingleton      *compute.Singleton
 }
 
 // DistributionServices provides daemon image storage services
@@ -205,7 +205,7 @@ func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer, containerOS string) e
 	return nil
 }
 
-func (i *ImageService) layerDiskUsage(ctx context.Context) (int64, error) {
+func (i *ImageService) layersUsage(ctx context.Context) (int64, error) {
 	var allLayersSize int64
 	layerRefs := i.getLayerRefs()
 	allLayers := i.layerStore.Map()
@@ -227,9 +227,9 @@ func (i *ImageService) layerDiskUsage(ctx context.Context) (int64, error) {
 	return allLayersSize, nil
 }
 
-// LayerDiskUsage returns the number of bytes used by layer stores.
-func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
-	v, err := i.layerDiskUsageSingleton.Do(ctx)
+// LayerUsage returns the number of bytes used by layer stores.
+func (i *ImageService) LayersUsage(ctx context.Context) (int64, error) {
+	v, err := i.layersUsageSingleton.Do(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -257,8 +257,7 @@ func (i *ImageService) getLayerRefs() map[layer.ChainID]int {
 	return layerRefs
 }
 
-// ImageDiskUsage returns information about image data disk usage.
-func (i *ImageService) imageDiskUsage(ctx context.Context) ([]*types.ImageSummary, error) {
+func (i *ImageService) imagesUsage(ctx context.Context) ([]*types.ImageUsage, error) {
 	// Get all top images with shared size.
 	images, err := i.Images(ctx, types.ImageListOptions{
 		Filters:        filters.NewArgs(),
@@ -268,16 +267,26 @@ func (i *ImageService) imageDiskUsage(ctx context.Context) ([]*types.ImageSummar
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve image list: %v", err)
 	}
-	return images, nil
+	us := make([]*types.ImageUsage, 0, len(images))
+	for _, img := range images {
+		us = append(us, &types.ImageUsage{
+			Containers:  img.Containers,
+			ID:          img.ID,
+			SharedSize:  img.SharedSize,
+			Size:        img.Size,
+			VirtualSize: img.VirtualSize,
+		})
+	}
+	return us, nil
 }
 
-// ImageDiskUsage returns information about image data disk usage.
-func (i *ImageService) ImageDiskUsage(ctx context.Context) ([]*types.ImageSummary, error) {
-	v, err := i.imageDiskUsageSingleton.Do(ctx)
+// ImageUsage returns information about image usage.
+func (i *ImageService) ImagesUsage(ctx context.Context) ([]*types.ImageUsage, error) {
+	v, err := i.imagesUsageSingleton.Do(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return v.([]*types.ImageSummary), nil
+	return v.([]*types.ImageUsage), nil
 }
 
 // UpdateConfig values

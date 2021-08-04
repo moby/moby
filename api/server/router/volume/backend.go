@@ -16,5 +16,5 @@ type Backend interface {
 	Create(ctx context.Context, name, driverName string, opts ...opts.CreateOption) (*types.Volume, error)
 	Remove(ctx context.Context, name string, opts ...opts.RemoveOption) error
 	Prune(ctx context.Context, pruneFilters filters.Args) (*types.VolumesPruneReport, error)
-	LocalVolumesSize(ctx context.Context) ([]*types.Volume, error)
+	LocalVolumesUsage(ctx context.Context) ([]*types.VolumeUsage, error)
 }

@@ -14,36 +14,35 @@ import (
 	"github.com/docker/docker/errdefs"
 )
 
-func TestContainerDiskUsageError(t *testing.T) {
+func TestVolumeUsageError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ContainerDiskUsage(context.Background())
+	_, err := client.VolumeUsage(context.Background())
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
-func TestContainerDiskUsage(t *testing.T) {
-	expectedURL := "/containers/usage"
+func TestVolumeUsage(t *testing.T) {
+	expectedURL := "/volumes/usage"
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
 
-			du := []*types.Container{
+			us := []*types.VolumeUsage{
 				{
-					ID:      "test-id",
-					Names:   []string{"test-names"},
-					Image:   "test-image",
-					ImageID: "test-image-id",
-					Command: "test-command",
-					Created: 42,
+					Name: "test-name",
+					UsageData: &types.VolumeUsageData{
+						RefCount: 42,
+						Size:     4242,
+					},
 				},
 			}
 
-			b, err := json.Marshal(du)
+			b, err := json.Marshal(us)
 			if err != nil {
 				return nil, err
 			}
@@ -54,7 +53,7 @@ func TestContainerDiskUsage(t *testing.T) {
 			}, nil
 		}),
 	}
-	if _, err := client.ContainerDiskUsage(context.Background()); err != nil {
+	if _, err := client.VolumeUsage(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }

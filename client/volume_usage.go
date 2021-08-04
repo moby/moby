@@ -8,8 +8,8 @@ import (
 	"github.com/docker/docker/api/types"
 )
 
-// VolumeDiskUsage requests the current volume data usage from the daemon.
-func (cli *Client) VolumeDiskUsage(ctx context.Context) ([]*types.Volume, error) {
+// VolumeUsage requests the current volume usage from the daemon.
+func (cli *Client) VolumeUsage(ctx context.Context) ([]*types.Volume, error) {
 	serverResp, err := cli.get(ctx, "/volumes/usage", nil, nil)
 	defer ensureReaderClosed(serverResp)
 	if err != nil {
@@ -18,7 +18,7 @@ func (cli *Client) VolumeDiskUsage(ctx context.Context) ([]*types.Volume, error)
 
 	var du []*types.Volume
 	if err := json.NewDecoder(serverResp.body).Decode(&du); err != nil {
-		return nil, fmt.Errorf("Error retrieving volume disk usage: %v", err)
+		return nil, fmt.Errorf("Error retrieving volume usage: %v", err)
 	}
 	return du, nil
 }

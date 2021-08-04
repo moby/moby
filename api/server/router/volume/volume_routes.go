@@ -95,12 +95,12 @@ func (v *volumeRouter) postVolumesPrune(ctx context.Context, w http.ResponseWrit
 	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
 }
 
-func (v *volumeRouter) getVolumesDiskUsage(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (v *volumeRouter) getVolumesUsage(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
-	du, err := v.backend.LocalVolumesSize(ctx)
+	du, err := v.backend.LocalVolumesUsage(ctx)
 	if err != nil {
 		return err
 	}

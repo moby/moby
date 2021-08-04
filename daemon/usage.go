@@ -9,7 +9,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func (daemon *Daemon) containerDiskUsage(ctx context.Context) ([]*types.Container, error) {
+func (daemon *Daemon) containersUsage(ctx context.Context) ([]*types.ContainerUsage, error) {
 	containers, err := daemon.Containers(&types.ContainerListOptions{
 		Size: true,
 		All:  true,
@@ -17,16 +17,25 @@ func (daemon *Daemon) containerDiskUsage(ctx context.Context) ([]*types.Containe
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve container list: %v", err)
 	}
-	return containers, nil
+	us := make([]*types.ContainerUsage, 0, len(containers))
+	for _, cont := range containers {
+		us = append(us, &types.ContainerUsage{
+			ID:         cont.ID,
+			Names:      cont.Names,
+			SizeRw:     cont.SizeRw,
+			SizeRootFs: cont.SizeRootFs,
+		})
+	}
+	return us, nil
 }
 
-// ContainerDiskUsage returns information about container data disk usage.
-func (daemon *Daemon) ContainerDiskUsage(ctx context.Context) ([]*types.Container, error) {
-	v, err := daemon.containerDiskUsageSingleton.Do(ctx)
+// ContainerUsage returns information about container usage.
+func (daemon *Daemon) ContainersUsage(ctx context.Context) ([]*types.ContainerUsage, error) {
+	v, err := daemon.containersUsageSingleton.Do(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return v.([]*types.Container), nil
+	return v.([]*types.ContainerUsage), nil
 }
 
 // SystemDiskUsage returns information about the daemon data disk usage.
@@ -34,37 +43,37 @@ func (daemon *Daemon) ContainerDiskUsage(ctx context.Context) ([]*types.Containe
 func (daemon *Daemon) SystemDiskUsage(ctx context.Context, opts system.DiskUsageOptions) (*types.DiskUsage, error) {
 	eg, ctx := errgroup.WithContext(ctx)
 
-	var containers []*types.Container
+	var containers []*types.ContainerUsage
 	if opts.Containers {
 		eg.Go(func() error {
 			var err error
-			containers, err = daemon.ContainerDiskUsage(ctx)
+			containers, err = daemon.ContainersUsage(ctx)
 			return err
 		})
 	}
 
 	var (
-		images     []*types.ImageSummary
+		images     []*types.ImageUsage
 		layersSize int64
 	)
 	if opts.Images {
 		eg.Go(func() error {
 			var err error
-			images, err = daemon.imageService.ImageDiskUsage(ctx)
+			images, err = daemon.imageService.ImagesUsage(ctx)
 			return err
 		})
 		eg.Go(func() error {
 			var err error
-			layersSize, err = daemon.imageService.LayerDiskUsage(ctx)
+			layersSize, err = daemon.imageService.LayersUsage(ctx)
 			return err
 		})
 	}
 
-	var volumes []*types.Volume
+	var volumes []*types.VolumeUsage
 	if opts.Volumes {
 		eg.Go(func() error {
 			var err error
-			volumes, err = daemon.volumes.LocalVolumesSize(ctx)
+			volumes, err = daemon.volumes.LocalVolumesUsage(ctx)
 			return err
 		})
 	}

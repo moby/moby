@@ -14,35 +14,34 @@ import (
 	"github.com/docker/docker/errdefs"
 )
 
-func TestImageDiskUsageError(t *testing.T) {
+func TestContainerUsageError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImageDiskUsage(context.Background())
+	_, err := client.ContainerUsage(context.Background())
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
-func TestImageDiskUsage(t *testing.T) {
-	expectedURL := "/images/usage"
+func TestContainerUsage(t *testing.T) {
+	expectedURL := "/containers/usage"
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
 
-			du := []*types.ImageSummary{
+			us := []*types.ContainerUsage{
 				{
-					Created:     42,
-					ID:          "test-id",
-					RepoTags:    []string{"test-image:test-tag"},
-					Size:        4242,
-					VirtualSize: 4242,
+					ID:         "test-id",
+					Names:      []string{"test-names"},
+					SizeRw:     42,
+					SizeRootFs: 4242,
 				},
 			}
 
-			b, err := json.Marshal(du)
+			b, err := json.Marshal(us)
 			if err != nil {
 				return nil, err
 			}
@@ -53,7 +52,7 @@ func TestImageDiskUsage(t *testing.T) {
 			}, nil
 		}),
 	}
-	if _, err := client.ImageDiskUsage(context.Background()); err != nil {
+	if _, err := client.ContainerUsage(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }

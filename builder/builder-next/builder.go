@@ -121,26 +121,22 @@ func (b *Builder) Cancel(ctx context.Context, id string) error {
 	return nil
 }
 
-// DiskUsage returns a report about space used by build cache
-func (b *Builder) DiskUsage(ctx context.Context) ([]*types.BuildCache, error) {
+// DiskUsage returns a report about build cache usage.
+func (b *Builder) Usage(ctx context.Context) ([]*types.BuildCacheUsage, error) {
 	duResp, err := b.controller.DiskUsage(ctx, &controlapi.DiskUsageRequest{})
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting build cache usage")
 	}
 
-	var items []*types.BuildCache
+	var items []*types.BuildCacheUsage
 	for _, r := range duResp.Record {
-		items = append(items, &types.BuildCache{
-			ID:          r.ID,
-			Parent:      r.Parent,
-			Type:        r.RecordType,
-			Description: r.Description,
-			InUse:       r.InUse,
-			Shared:      r.Shared,
-			Size:        r.Size_,
-			CreatedAt:   r.CreatedAt,
-			LastUsedAt:  r.LastUsedAt,
-			UsageCount:  int(r.UsageCount),
+		items = append(items, &types.BuildCacheUsage{
+			ID:         r.ID,
+			InUse:      r.InUse,
+			Shared:     r.Shared,
+			Size:       r.Size_,
+			LastUsedAt: r.LastUsedAt,
+			UsageCount: int(r.UsageCount),
 		})
 	}
 	return items, nil

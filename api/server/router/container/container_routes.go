@@ -716,12 +716,12 @@ func (s *containerRouter) postContainersPrune(ctx context.Context, w http.Respon
 	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
 }
 
-func (s *containerRouter) getContainersDiskUsage(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *containerRouter) getContainersUsage(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
-	du, err := s.backend.ContainerDiskUsage(ctx)
+	du, err := s.backend.ContainersUsage(ctx)
 	if err != nil {
 		return err
 	}

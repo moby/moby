@@ -118,7 +118,7 @@ type Daemon struct {
 	seccompProfile     []byte
 	seccompProfilePath string
 
-	containerDiskUsageSingleton *compute.Singleton
+	containersUsageSingleton *compute.Singleton
 
 	pruneRunning int32
 	hosts        map[string]bool // hosts stores the addresses the daemon is listening on
@@ -806,8 +806,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		PluginStore: pluginStore,
 		startupDone: make(chan struct{}),
 	}
-	d.containerDiskUsageSingleton = compute.NewSingleton(func(ctx context.Context) (interface{}, error) {
-		return d.containerDiskUsage(ctx)
+	d.containersUsageSingleton = compute.NewSingleton(func(ctx context.Context) (interface{}, error) {
+		return d.containersUsage(ctx)
 	})
 
 	// Ensure the daemon is properly shutdown if there is a failure during

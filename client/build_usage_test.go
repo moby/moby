@@ -9,23 +9,22 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
 )
 
-func TestBuildDiskUsageError(t *testing.T) {
+func TestBuildUsageError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.BuildDiskUsage(context.Background())
+	_, err := client.BuildUsage(context.Background())
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
-func TestBuildDiskUsage(t *testing.T) {
+func TestBuildUsage(t *testing.T) {
 	expectedURL := "/builds/usage"
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
@@ -33,18 +32,14 @@ func TestBuildDiskUsage(t *testing.T) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
 
-			du := []*types.BuildCache{
+			us := []*types.BuildCacheUsage{
 				{
-					ID:          "test-id",
-					Parent:      "test-parent",
-					Type:        "test-type",
-					Description: "test-description",
-					Size:        42,
-					CreatedAt:   time.Now(),
+					ID:   "test-id",
+					Size: 42,
 				},
 			}
 
-			b, err := json.Marshal(du)
+			b, err := json.Marshal(us)
 			if err != nil {
 				return nil, err
 			}
@@ -55,7 +50,7 @@ func TestBuildDiskUsage(t *testing.T) {
 			}, nil
 		}),
 	}
-	if _, err := client.BuildDiskUsage(context.Background()); err != nil {
+	if _, err := client.BuildUsage(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }

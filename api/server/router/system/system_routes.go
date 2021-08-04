@@ -128,18 +128,18 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		})
 	}
 
-	var buildCache []*types.BuildCache
+	var buildCache []*types.BuildCacheUsage
 	if getBuildCache {
 		eg.Go(func() error {
 			var err error
-			buildCache, err = s.builder.DiskUsage(ctx)
+			buildCache, err = s.builder.Usage(ctx)
 			if err != nil {
 				return err
 			}
 			if buildCache == nil {
 				// Ensure empty `BuildCache` field is represented as empty JSON array(`[]`)
 				// instead of `null` to be consistent with `Images`, `Containers` etc.
-				buildCache = []*types.BuildCache{}
+				buildCache = []*types.BuildCacheUsage{}
 			}
 			return nil
 		})

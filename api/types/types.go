@@ -664,8 +664,12 @@ type BuildCache struct {
 
 // BuildCacheUsage contains information about a build cache usage.
 type BuildCacheUsage struct {
-	ID   string
-	Size int64
+	ID         string
+	InUse      bool
+	Shared     bool
+	Size       int64
+	LastUsedAt *time.Time
+	UsageCount int
 }
 
 // BuildCachePruneOptions hold parameters to prune the build cache

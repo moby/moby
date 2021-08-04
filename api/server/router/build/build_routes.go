@@ -296,12 +296,12 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	return nil
 }
 
-func (br *buildRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (br *buildRouter) getUsage(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
-	du, err := br.builder.DiskUsage(ctx)
+	du, err := br.builder.Usage(ctx)
 	if err != nil {
 		return err
 	}

@@ -330,24 +330,24 @@ func (s *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWriter
 	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
 }
 
-func (s *imageRouter) getImagesDiskUsage(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) getImagesUsage(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
 	eg, ctx := errgroup.WithContext(ctx)
 
-	var images []*types.ImageSummary
+	var images []*types.ImageUsage
 	eg.Go(func() error {
 		var err error
-		images, err = s.backend.ImageDiskUsage(ctx)
+		images, err = s.backend.ImagesUsage(ctx)
 		return err
 	})
 
 	var layers int64
 	eg.Go(func() error {
 		var err error
-		layers, err = s.backend.LayerDiskUsage(ctx)
+		layers, err = s.backend.LayersUsage(ctx)
 		return err
 	})
 
@@ -355,7 +355,7 @@ func (s *imageRouter) getImagesDiskUsage(ctx context.Context, w http.ResponseWri
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, struct {
-		Images []*types.ImageSummary
+		Images []*types.ImageUsage
 		Layers int64
 	}{
 		Images: images,

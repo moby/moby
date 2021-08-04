@@ -8,8 +8,8 @@ import (
 	"github.com/docker/docker/api/types"
 )
 
-// ImageDiskUsage requests the current image data usage from the daemon.
-func (cli *Client) ImageDiskUsage(ctx context.Context) ([]*types.ImageSummary, error) {
+// ImageUsage requests the current image usage from the daemon.
+func (cli *Client) ImageUsage(ctx context.Context) ([]*types.ImageUsage, error) {
 	serverResp, err := cli.get(ctx, "/images/usage", nil, nil)
 	defer ensureReaderClosed(serverResp)
 	if err != nil {
@@ -18,7 +18,7 @@ func (cli *Client) ImageDiskUsage(ctx context.Context) ([]*types.ImageSummary, e
 
 	var du []*types.ImageSummary
 	if err := json.NewDecoder(serverResp.body).Decode(&du); err != nil {
-		return nil, fmt.Errorf("Error retrieving image disk usage: %v", err)
+		return nil, fmt.Errorf("Error retrieving image usage: %v", err)
 	}
 	return du, nil
 }
