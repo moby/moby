@@ -2,29 +2,29 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/container"
 	"golang.org/x/sync/errgroup"
 )
 
 func (daemon *Daemon) containersUsage(ctx context.Context) ([]*types.ContainerUsage, error) {
-	containers, err := daemon.Containers(&types.ContainerListOptions{
+	var us []*types.ContainerUsage
+	if err := daemon.rangeContainers(&types.ContainerListOptions{
 		Size: true,
 		All:  true,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve container list: %v", err)
-	}
-	us := make([]*types.ContainerUsage, 0, len(containers))
-	for _, cont := range containers {
+	}, func(s *container.Snapshot, _ *listContext) bool {
+		sizeRw, sizeRootFs := daemon.imageService.GetContainerLayerSize(s.ID)
 		us = append(us, &types.ContainerUsage{
-			ID:         cont.ID,
-			Names:      cont.Names,
-			SizeRw:     cont.SizeRw,
-			SizeRootFs: cont.SizeRootFs,
+			ID:         s.ID,
+			Names:      s.Names,
+			SizeRw:     sizeRw,
+			SizeRootFs: sizeRootFs,
 		})
+		return true
+	}); err != nil {
+		return nil, err
 	}
 	return us, nil
 }
