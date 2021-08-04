@@ -4522,6 +4522,68 @@ definitions:
         items:
           $ref: "#/definitions/MountPoint"
 
+  ContainerUsage:
+    description: "ContainerUsage describes the data usage of a container"
+    type: "object"
+    properties:
+      Id:
+        description: "The ID of this container"
+        type: "string"
+        x-go-name: "ID"
+        example: "e575172ed11dc01bfce087fb27bee502db149e1a0fad7c296ad300bbff178148"
+      Names:
+        description: "The names that this container has been given"
+        type: "array"
+        items:
+          type: "string"
+        example: ["thirsty_lederberg"]
+      Image:
+        description: "The name of the image used when creating this container"
+        type: "string"
+        example: "busybox"
+      ImageID:
+        description: "The ID of the image that this container was created from"
+        type: "string"
+        example: "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
+      Command:
+        type: "string"
+        description: "Command to run when starting this container"
+        example: "top"
+      Created:
+        description: "When the container was created"
+        type: "integer"
+        format: "int64"
+        example: 1472592424
+      Ports:
+        description: "The ports exposed by this container"
+        type: "array"
+        items:
+          $ref: "#/definitions/Port"
+      SizeRw:
+        description: "The size of files that have been created or changed by this container"
+        type: "integer"
+        format: "int64"
+      SizeRootFs:
+        description: "The total size of all the files in this container"
+        type: "integer"
+        format: "int64"
+        example: 1092588
+      Labels:
+        description: "User-defined key/value metadata."
+        type: "object"
+        additionalProperties:
+          type: "string"
+      State:
+        $ref: "#/definitions/ContainerStateStatus"
+      Status:
+        description: "Additional human-readable status of this container"
+        type: "string"
+        example: "Exited (0) 56 minutes ago"
+      Mounts:
+        type: "array"
+        items:
+          $ref: "#/definitions/MountPoint"
+
   Driver:
     description: "Driver represents a driver (network, logging, secrets)."
     type: "object"
@@ -9049,39 +9111,7 @@ paths:
               Containers:
                 type: "array"
                 items:
-                  $ref: "#/definitions/ContainerSummary"
-                example:
-                  -
-                    Id: "e575172ed11dc01bfce087fb27bee502db149e1a0fad7c296ad300bbff178148"
-                    Names:
-                      - "/top"
-                    Image: "busybox"
-                    ImageID: "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
-                    Command: "top"
-                    Created: 1472592424
-                    Ports: []
-                    SizeRootFs: 1092588
-                    Labels: {}
-                    State: "exited"
-                    Status: "Exited (0) 56 minutes ago"
-                    HostConfig:
-                      NetworkMode: "default"
-                    NetworkSettings:
-                      Networks:
-                        bridge:
-                          IPAMConfig: null
-                          Links: null
-                          Aliases: null
-                          NetworkID: "d687bc59335f0e5c9ee8193e5612e8aee000c8c62ea170cfb99c098f95899d92"
-                          EndpointID: "8ed5115aeaad9abb174f68dcf135b49f11daf597678315231a32ca28441dec6a"
-                          Gateway: "172.18.0.1"
-                          IPAddress: "172.18.0.2"
-                          IPPrefixLen: 16
-                          IPv6Gateway: ""
-                          GlobalIPv6Address: ""
-                          GlobalIPv6PrefixLen: 0
-                          MacAddress: "02:42:ac:12:00:02"
-                    Mounts: []
+                  $ref: "#/definitions/ContainerUsage"
               Volumes:
                 type: "array"
                 items:
