@@ -8,10 +8,13 @@ swagger generate model -f api/swagger.yaml \
 	-n IdResponse \
 	-n ImageDeleteResponseItem \
 	-n ImageSummary \
+	-n ImageUsage \
 	-n Plugin -n PluginDevice -n PluginMount -n PluginEnv -n PluginInterfaceType \
 	-n Port \
 	-n ServiceUpdateResponse \
-	-n Volume
+	-n Volume \
+    -n VolumeUsageData \
+    -n VolumeUsage
 
 swagger generate operation -f api/swagger.yaml \
 	-t api -a types -m types -C api/swagger-gen.yaml \

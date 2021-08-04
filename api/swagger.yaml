@@ -1640,6 +1640,31 @@ definitions:
         x-nullable: false
         type: "integer"
 
+  ImageUsage:
+    type: "object"
+    required:
+      - Id
+      - Size
+      - SharedSize
+      - VirtualSize
+      - Containers
+    properties:
+      Id:
+        type: "string"
+        x-nullable: false
+      Size:
+        type: "integer"
+        x-nullable: false
+      SharedSize:
+        type: "integer"
+        x-nullable: false
+      VirtualSize:
+        type: "integer"
+        x-nullable: false
+      Containers:
+        type: "integer"
+        x-nullable: false
+
   AuthConfig:
     type: "object"
     properties:
@@ -1671,6 +1696,30 @@ definitions:
         type: "array"
         items:
           type: "string"
+
+  VolumeUsageData:
+    type: "object"
+    required: [Size, RefCount]
+    description: |
+      Data usage details about the volume. This information is used by the
+      `GET /system/df` and `GET /volumes/usage` endpoint, and omitted in other endpoints.
+    properties:
+      Size:
+        type: "integer"
+        default: -1
+        description: |
+          Amount of disk space used by the volume (in bytes). This information
+          is only available for volumes created with the `"local"` volume
+          driver. For volumes created with other volume drivers, this field
+          is set to `-1` ("not available")
+        x-nullable: false
+      RefCount:
+        type: "integer"
+        default: -1
+        description: |
+          The number of containers referencing this volume. This field
+          is set to `-1` if the reference-count is not available.
+        x-nullable: false
 
   Volume:
     type: "object"
@@ -1724,29 +1773,8 @@ definitions:
         additionalProperties:
           type: "string"
       UsageData:
-        type: "object"
+        $ref: "#/definitions/VolumeUsageData"
         x-nullable: true
-        required: [Size, RefCount]
-        description: |
-          Usage details about the volume. This information is used by the
-          `GET /system/df` endpoint, and omitted in other endpoints.
-        properties:
-          Size:
-            type: "integer"
-            default: -1
-            description: |
-              Amount of disk space used by the volume (in bytes). This information
-              is only available for volumes created with the `"local"` volume
-              driver. For volumes created with other volume drivers, this field
-              is set to `-1` ("not available")
-            x-nullable: false
-          RefCount:
-            type: "integer"
-            default: -1
-            description: |
-              The number of containers referencing this volume. This field
-              is set to `-1` if the reference-count is not available.
-            x-nullable: false
 
     example:
       Name: "tardis"
@@ -1759,6 +1787,22 @@ definitions:
         com.example.some-other-label: "some-other-value"
       Scope: "local"
       CreatedAt: "2016-06-07T20:31:11.853781916Z"
+
+
+  VolumeUsage:
+    type: "object"
+    required: [Name, UsageData]
+    description: |
+      Usage details about the volume. This information is used by the
+      `GET /volumes/usage` endpoint.
+    properties:
+      Name:
+        type: "string"
+        description: "Name of the volume."
+        x-nullable: false
+      UsageData:
+        $ref: "#/definitions/VolumeUsageData"
+        x-nullable: false
 
   Network:
     type: "object"
