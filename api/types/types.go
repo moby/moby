@@ -100,6 +100,15 @@ type ContainerStats struct {
 	OSType string        `json:"ostype"`
 }
 
+// ContainerUsage contains response of Engine API:
+// GET "/containers/usage"
+type ContainerUsage struct {
+	ID         string `json:"Id"`
+	Names      []string
+	SizeRw     int64 `json:",omitempty"`
+	SizeRootFs int64 `json:",omitempty"`
+}
+
 // Ping contains response of Engine API:
 // GET "/_ping"
 type Ping struct {
@@ -560,10 +569,10 @@ type DiskUsageOptions struct {
 // GET "/system/df"
 type DiskUsage struct {
 	LayersSize  int64
-	Images      []*ImageSummary
-	Containers  []*Container
-	Volumes     []*Volume
-	BuildCache  []*BuildCache
+	Images      []*ImageUsage
+	Containers  []*ContainerUsage
+	Volumes     []*VolumeUsage
+	BuildCache  []*BuildCacheUsage
 	BuilderSize int64 `json:",omitempty"` // Deprecated: deprecated in API 1.38, and no longer used since API 1.40.
 }
 
@@ -651,6 +660,16 @@ type BuildCache struct {
 	CreatedAt   time.Time
 	LastUsedAt  *time.Time
 	UsageCount  int
+}
+
+// BuildCacheUsage contains information about a build cache usage.
+type BuildCacheUsage struct {
+	ID         string
+	InUse      bool
+	Shared     bool
+	Size       int64
+	LastUsedAt *time.Time
+	UsageCount int
 }
 
 // BuildCachePruneOptions hold parameters to prune the build cache

@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/pkg/compute"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
@@ -32,10 +33,11 @@ type VolumeEventLogger interface {
 // VolumesService manages access to volumes
 // This is used as the main access point for volumes to higher level services and the API.
 type VolumesService struct {
-	vs           *VolumeStore
-	ds           ds
-	pruneRunning int32
-	eventLogger  VolumeEventLogger
+	vs                         *VolumeStore
+	ds                         ds
+	pruneRunning               int32
+	eventLogger                VolumeEventLogger
+	localVolumesUsageSingleton *compute.Singleton
 }
 
 // NewVolumeService creates a new volume service
@@ -49,7 +51,15 @@ func NewVolumeService(root string, pg plugingetter.PluginGetter, rootIDs idtools
 	if err != nil {
 		return nil, err
 	}
-	return &VolumesService{vs: vs, ds: ds, eventLogger: logger}, nil
+	s := &VolumesService{
+		vs:          vs,
+		ds:          ds,
+		eventLogger: logger,
+	}
+	s.localVolumesUsageSingleton = compute.NewSingleton(func(ctx context.Context) (interface{}, error) {
+		return s.localVolumesUsage(ctx)
+	})
+	return s, nil
 }
 
 // GetDriverList gets the list of registered volume drivers
@@ -177,11 +187,7 @@ var acceptedListFilters = map[string]bool{
 	"label":    true,
 }
 
-// LocalVolumesSize gets all local volumes and fetches their size on disk
-// Note that this intentionally skips volumes which have mount options. Typically
-// volumes with mount options are not really local even if they are using the
-// local driver.
-func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]*types.Volume, error) {
+func (s *VolumesService) localVolumesUsage(ctx context.Context) ([]*types.VolumeUsage, error) {
 	ls, _, err := s.vs.Find(ctx, And(ByDriver(volume.DefaultDriverName), CustomFilter(func(v volume.Volume) bool {
 		dv, ok := v.(volume.DetailedVolume)
 		return ok && len(dv.Options()) == 0
@@ -189,7 +195,27 @@ func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]*types.Volume,
 	if err != nil {
 		return nil, err
 	}
-	return s.volumesToAPI(ctx, ls, calcSize(true)), nil
+	volumes := s.volumesToAPI(ctx, ls, calcSize(true))
+	us := make([]*types.VolumeUsage, 0, len(volumes))
+	for _, v := range volumes {
+		us = append(us, &types.VolumeUsage{
+			Name:      v.Name,
+			UsageData: v.UsageData,
+		})
+	}
+	return us, nil
+}
+
+// LocalVolumesUsage gets all local volumes and fetches their size on disk
+// Note that this intentionally skips volumes which have mount options. Typically
+// volumes with mount options are not really local even if they are using the
+// local driver.
+func (s *VolumesService) LocalVolumesUsage(ctx context.Context) ([]*types.VolumeUsage, error) {
+	v, err := s.localVolumesUsageSingleton.Do(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return v.([]*types.VolumeUsage), nil
 }
 
 // Prune removes (local) volumes which match the past in filter arguments.

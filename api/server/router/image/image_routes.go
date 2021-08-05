@@ -19,11 +19,11 @@ import (
 	"github.com/docker/docker/registry"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 )
 
 // Creates an image from Pull or from Import
 func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -328,4 +328,37 @@ func (s *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
+}
+
+func (s *imageRouter) getImagesUsage(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	eg, ctx := errgroup.WithContext(ctx)
+
+	var images []*types.ImageUsage
+	eg.Go(func() error {
+		var err error
+		images, err = s.backend.ImagesUsage(ctx)
+		return err
+	})
+
+	var layers int64
+	eg.Go(func() error {
+		var err error
+		layers, err = s.backend.LayersUsage(ctx)
+		return err
+	})
+
+	if err := eg.Wait(); err != nil {
+		return err
+	}
+	return httputils.WriteJSON(w, http.StatusOK, struct {
+		Images []*types.ImageUsage
+		Layers int64
+	}{
+		Images: images,
+		Layers: layers,
+	})
 }
