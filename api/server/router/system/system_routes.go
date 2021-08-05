@@ -196,7 +196,29 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		du.Containers = systemDiskUsage.Containers
 		du.Volumes = systemDiskUsage.Volumes
 	}
-	return httputils.WriteJSON(w, http.StatusOK, du)
+	var out interface{} = du
+	if versions.LessThan(version, "1.42") {
+		type pre142Container struct {
+			*types.ContainerUsage
+			NetworkSettings *types.SummaryNetworkSettings
+			HostConfig      struct {
+				NetworkMode string `json:",omitempty"`
+			}
+		}
+
+		containers := make([]pre142Container, 0, len(du.Containers))
+		for _, c := range du.Containers {
+			containers = append(containers, pre142Container{ContainerUsage: c})
+		}
+		out = struct {
+			Containers []pre142Container
+			types.DiskUsage
+		}{
+			Containers: containers,
+			DiskUsage:  du,
+		}
+	}
+	return httputils.WriteJSON(w, http.StatusOK, out)
 }
 
 type invalidRequestError struct {
