@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"golang.org/x/sync/errgroup"
 )
 
 // SystemDiskUsage returns information about the daemon data disk usage
@@ -17,18 +18,22 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context, opts system.DiskUsage
 	}
 	defer atomic.StoreInt32(&daemon.diskUsageRunning, 0)
 
-	var err error
+	eg, ctx := errgroup.WithContext(ctx)
 
 	var containers []*types.Container
 	if opts.Containers {
-		// Retrieve container list
-		containers, err = daemon.Containers(&types.ContainerListOptions{
-			Size: true,
-			All:  true,
+		eg.Go(func() error {
+			var err error
+			// Retrieve container list
+			containers, err = daemon.Containers(&types.ContainerListOptions{
+				Size: true,
+				All:  true,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to retrieve container list: %v", err)
+			}
+			return nil
 		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve container list: %v", err)
-		}
 	}
 
 	var (
@@ -36,28 +41,37 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context, opts system.DiskUsage
 		layersSize int64
 	)
 	if opts.Images {
-		// Get all top images with extra attributes
-		images, err = daemon.imageService.Images(ctx, types.ImageListOptions{
-			Filters:        filters.NewArgs(),
-			SharedSize:     true,
-			ContainerCount: true,
+		eg.Go(func() error {
+			var err error
+			// Get all top images with extra attributes
+			images, err = daemon.imageService.Images(ctx, types.ImageListOptions{
+				Filters:        filters.NewArgs(),
+				SharedSize:     true,
+				ContainerCount: true,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to retrieve image list: %v", err)
+			}
+			return nil
 		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve image list: %v", err)
-		}
-
-		layersSize, err = daemon.imageService.LayerDiskUsage(ctx)
-		if err != nil {
-			return nil, err
-		}
+		eg.Go(func() error {
+			var err error
+			layersSize, err = daemon.imageService.LayerDiskUsage(ctx)
+			return err
+		})
 	}
 
 	var volumes []*types.Volume
 	if opts.Volumes {
-		volumes, err = daemon.volumes.LocalVolumesSize(ctx)
-		if err != nil {
-			return nil, err
-		}
+		eg.Go(func() error {
+			var err error
+			volumes, err = daemon.volumes.LocalVolumesSize(ctx)
+			return err
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return nil, err
 	}
 	return &types.DiskUsage{
 		LayersSize: layersSize,
