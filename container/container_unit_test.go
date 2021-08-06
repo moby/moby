@@ -19,7 +19,7 @@ func TestContainerStopSignal(t *testing.T) {
 		Config: &container.Config{},
 	}
 
-	def, err := signal.ParseSignal(signal.DefaultStopSignal)
+	def, err := signal.ParseSignal(defaultStopSignal)
 	if err != nil {
 		t.Fatal(err)
 	}
