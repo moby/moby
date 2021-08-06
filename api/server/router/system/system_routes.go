@@ -157,11 +157,6 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 			if err != nil {
 				return errors.Wrap(err, "error getting build cache usage")
 			}
-			if buildCache == nil {
-				// Ensure empty `BuildCache` field is represented as empty JSON array(`[]`)
-				// instead of `null` to be consistent with `Images`, `Containers` etc.
-				buildCache = []*types.BuildCache{}
-			}
 			return nil
 		})
 	}
@@ -196,6 +191,15 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		du.Containers = systemDiskUsage.Containers
 		du.Volumes = systemDiskUsage.Volumes
 	}
+
+	// Ensure empty fields are represented as empty JSON array(`[]`) instead of `null` when selected.
+	if getContainers && du.Containers == nil {
+		du.Containers = []*types.ContainerUsage{}
+	}
+	if getBuildCache && du.BuildCache == nil {
+		du.BuildCache = []*types.BuildCache{}
+	}
+
 	var out interface{} = du
 	if versions.LessThan(version, "1.42") {
 		type pre142Container struct {
