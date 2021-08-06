@@ -528,7 +528,7 @@ func (container *Container) StopTimeout() int {
 	if container.Config.StopTimeout != nil {
 		return *container.Config.StopTimeout
 	}
-	return DefaultStopTimeout
+	return defaultStopTimeout
 }
 
 // InitDNSHostConfig ensures that the dns fields are never nil.

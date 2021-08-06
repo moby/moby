@@ -23,9 +23,9 @@ import (
 )
 
 const (
-	// DefaultStopTimeout sets the default time, in seconds, to wait
+	// defaultStopTimeout sets the default time, in seconds, to wait
 	// for the graceful container stop before forcefully terminating it.
-	DefaultStopTimeout = 10
+	defaultStopTimeout = 10
 
 	containerConfigMountPath = "/"
 	containerSecretMountPath = "/run/secrets"
