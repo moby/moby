@@ -60,7 +60,7 @@ const (
 	LinuxV2RuntimeName = "io.containerd.runc.v2"
 
 	// SeccompProfileDefault is the built-in default seccomp profile.
-	SeccompProfileDefault = "default"
+	SeccompProfileDefault = "builtin"
 	// SeccompProfileUnconfined is a special profile name for seccomp to use an
 	// "unconfined" seccomp profile.
 	SeccompProfileUnconfined = "unconfined"
