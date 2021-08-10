@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/volume/service/opts"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/singleflight"
 )
 
 type ds interface {
@@ -36,6 +37,7 @@ type VolumesService struct {
 	ds           ds
 	pruneRunning int32
 	eventLogger  VolumeEventLogger
+	usage        singleflight.Group
 }
 
 // NewVolumeService creates a new volume service
@@ -182,14 +184,25 @@ var acceptedListFilters = map[string]bool{
 // volumes with mount options are not really local even if they are using the
 // local driver.
 func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]*types.Volume, error) {
-	ls, _, err := s.vs.Find(ctx, And(ByDriver(volume.DefaultDriverName), CustomFilter(func(v volume.Volume) bool {
-		dv, ok := v.(volume.DetailedVolume)
-		return ok && len(dv.Options()) == 0
-	})))
-	if err != nil {
-		return nil, err
+	ch := s.usage.DoChan("LocalVolumesSize", func() (interface{}, error) {
+		ls, _, err := s.vs.Find(ctx, And(ByDriver(volume.DefaultDriverName), CustomFilter(func(v volume.Volume) bool {
+			dv, ok := v.(volume.DetailedVolume)
+			return ok && len(dv.Options()) == 0
+		})))
+		if err != nil {
+			return nil, err
+		}
+		return s.volumesToAPI(ctx, ls, calcSize(true)), nil
+	})
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case res := <-ch:
+		if res.Err != nil {
+			return nil, res.Err
+		}
+		return res.Val.([]*types.Volume), nil
 	}
-	return s.volumesToAPI(ctx, ls, calcSize(true)), nil
 }
 
 // Prune removes (local) volumes which match the past in filter arguments.
