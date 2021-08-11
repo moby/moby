@@ -179,6 +179,60 @@ func TestSysctlOverrideHost(t *testing.T) {
 	assert.Equal(t, s.Linux.Sysctl["net.ipv4.ip_unprivileged_port_start"], c.HostConfig.Sysctls["net.ipv4.ip_unprivileged_port_start"])
 }
 
+func TestWithCapabilities(t *testing.T) {
+	c := &container.Container{
+		Config: &containertypes.Config{},
+		HostConfig: &containertypes.HostConfig{
+			NetworkMode: "host",
+			Sysctls:     map[string]string{},
+			UsernsMode:  "host",
+		},
+	}
+	d := setupFakeDaemon(t, c)
+	defer cleanupFakeContainer(c)
+
+	tests := []struct {
+		name       string
+		hostConfig containertypes.HostConfig
+		caps       map[string]bool
+	}{
+		{
+			name:       "base",
+			hostConfig: containertypes.HostConfig{},
+			caps:       map[string]bool{"CAP_NET_BIND_SERVICE": false},
+		},
+		{
+			name:       "privileged",
+			hostConfig: containertypes.HostConfig{Privileged: true},
+			caps:       map[string]bool{"CAP_NET_BIND_SERVICE": true},
+		},
+		{
+			name: "host networking",
+			hostConfig: containertypes.HostConfig{
+				NetworkMode: "host",
+				Sysctls:     map[string]string{},
+				UsernsMode:  "host",
+			},
+			caps: map[string]bool{"CAP_NET_BIND_SERVICE": true},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			c.HostConfig = &tc.hostConfig
+			s, err := d.createSpec(c)
+			assert.NilError(t, err)
+			for capability, expected := range tc.caps {
+				assert.Equal(t, inSlice(s.Process.Capabilities.Effective, capability), expected)
+				assert.Equal(t, inSlice(s.Process.Capabilities.Bounding, capability), expected)
+				assert.Equal(t, inSlice(s.Process.Capabilities.Permitted, capability), expected)
+				assert.Equal(t, inSlice(s.Process.Capabilities.Inheritable, capability), expected)
+			}
+		})
+	}
+}
+
 func TestGetSourceMount(t *testing.T) {
 	// must be able to find source mount for /
 	mnt, _, err := getSourceMount("/")

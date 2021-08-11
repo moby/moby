@@ -159,13 +159,28 @@ func WithApparmor(c *container.Container) coci.SpecOpts {
 	}
 }
 
-// WithCapabilities sets the container's capabilties
+// WithCapabilities sets the container's capabilties depending on the container's
+// configuration:
+// - privileged containers get all known capabilities
+// - non-privileged containers get the caps.DefaultCapabilities(), after which
+//   capabilities are added/dropped based on HostConfig.CapAdd and HostConfig.CapDrop
+// - if privileged ports restrictions are disabled (net.ipv4.ip_unprivileged_port_start=0),
+//   CAP_NET_BIND_SERVICE is dropped.
 func WithCapabilities(c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		dropCaps := c.HostConfig.CapDrop
+		if sysctlExists("net.ipv4.ip_unprivileged_port_start") {
+			if s, ok := s.Linux.Sysctl["net.ipv4.ip_unprivileged_port_start"]; ok && s == "0" {
+				// We don't need CAP_NET_BIND_SERVICE if the container was configured
+				// with privileged ports disabled (ip_unprivileged_port_start=0),
+				// which is done in WithCommonOptions() if the host supports it.
+				dropCaps = append(dropCaps, "CAP_NET_BIND_SERVICE")
+			}
+		}
 		capabilities, err := caps.TweakCapabilities(
 			caps.DefaultCapabilities(),
 			c.HostConfig.CapAdd,
-			c.HostConfig.CapDrop,
+			dropCaps,
 			c.HostConfig.Privileged,
 		)
 		if err != nil {
