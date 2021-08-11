@@ -36,7 +36,15 @@ func TestDiskUsage(t *testing.T) {
 				LayersSize: int64(100),
 				Images:     nil,
 				Containers: nil,
-				Volumes:    nil,
+				Volumes: []*types.VolumeUsage{
+					{
+						Name: "test-volume",
+						UsageData: &types.VolumeUsageData{
+							RefCount: 42,
+							Size:     -1,
+						},
+					},
+				},
 			}
 
 			b, err := json.Marshal(du)

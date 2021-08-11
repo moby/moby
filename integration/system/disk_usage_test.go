@@ -37,7 +37,7 @@ func TestDiskUsage(t *testing.T) {
 				assert.DeepEqual(t, du, types.DiskUsage{
 					Images:     []*types.ImageSummary{},
 					Containers: []*types.Container{},
-					Volumes:    []*types.Volume{},
+					Volumes:    []*types.VolumeUsage{},
 					BuildCache: []*types.BuildCache{},
 				})
 				return du
@@ -64,7 +64,7 @@ func TestDiskUsage(t *testing.T) {
 						},
 					},
 					Containers: []*types.Container{},
-					Volumes:    []*types.Volume{},
+					Volumes:    []*types.VolumeUsage{},
 					BuildCache: []*types.BuildCache{},
 				})
 				return du
@@ -107,7 +107,7 @@ func TestDiskUsage(t *testing.T) {
 							Mounts:          du.Containers[0].Mounts,          // not relevant for the test
 						},
 					},
-					Volumes:    []*types.Volume{},
+					Volumes:    []*types.VolumeUsage{},
 					BuildCache: []*types.BuildCache{},
 				})
 				return du
