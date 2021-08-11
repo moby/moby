@@ -119,7 +119,6 @@ func TestSysctlOverride(t *testing.T) {
 		HostConfig: &containertypes.HostConfig{
 			NetworkMode: "bridge",
 			Sysctls:     map[string]string{},
-			UsernsMode:  "host",
 		},
 	}
 	d := setupFakeDaemon(t, c)
@@ -147,6 +146,20 @@ func TestSysctlOverride(t *testing.T) {
 	assert.Equal(t, s.Hostname, "foobar")
 	assert.Equal(t, s.Linux.Sysctl["kernel.domainname"], c.HostConfig.Sysctls["kernel.domainname"])
 	assert.Equal(t, s.Linux.Sysctl["net.ipv4.ip_unprivileged_port_start"], c.HostConfig.Sysctls["net.ipv4.ip_unprivileged_port_start"])
+
+	// Ensure the ping_group_range is not set on a daemon with user-namespaces enabled
+	d.configStore.RemappedRoot = "dummy:dummy"
+	s, err = d.createSpec(c)
+	assert.NilError(t, err)
+	_, ok := s.Linux.Sysctl["net.ipv4.ping_group_range"]
+	assert.Assert(t, !ok)
+
+	// Ensure the ping_group_range is set on a container in "host" userns mode
+	// on a daemon with user-namespaces enabled
+	c.HostConfig.UsernsMode = "host"
+	s, err = d.createSpec(c)
+	assert.NilError(t, err)
+	assert.Equal(t, s.Linux.Sysctl["net.ipv4.ping_group_range"], "0 2147483647")
 }
 
 // TestSysctlOverrideHost ensures that any implicit network sysctls are not set
@@ -158,7 +171,6 @@ func TestSysctlOverrideHost(t *testing.T) {
 		HostConfig: &containertypes.HostConfig{
 			NetworkMode: "host",
 			Sysctls:     map[string]string{},
-			UsernsMode:  "host",
 		},
 	}
 	d := setupFakeDaemon(t, c)
