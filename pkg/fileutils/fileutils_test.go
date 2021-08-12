@@ -382,13 +382,37 @@ func TestMatches(t *testing.T) {
 		}...)
 	}
 
-	for _, test := range tests {
-		desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
-		pm, err := NewPatternMatcher([]string{test.pattern})
-		assert.NilError(t, err, desc)
-		res, _ := pm.Matches(test.text)
-		assert.Check(t, is.Equal(test.pass, res), desc)
-	}
+	t.Run("Matches", func(t *testing.T) {
+		for _, test := range tests {
+			desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
+			pm, err := NewPatternMatcher([]string{test.pattern})
+			assert.NilError(t, err, desc)
+			res, _ := pm.Matches(test.text)
+			assert.Check(t, is.Equal(test.pass, res), desc)
+		}
+	})
+
+	t.Run("MatchesUsingParentResult", func(t *testing.T) {
+		for _, test := range tests {
+			desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
+			pm, err := NewPatternMatcher([]string{test.pattern})
+			assert.NilError(t, err, desc)
+
+			parentPath := path.Dir(test.text)
+			parentPathDirs := strings.Split(parentPath, "/")
+
+			parentMatched := false
+			if parentPath != "." {
+				for i := range parentPathDirs {
+					parentMatched, _ = pm.MatchesUsingParentResult(strings.Join(parentPathDirs[:i+1], "/"), parentMatched)
+				}
+			}
+
+			res, _ := pm.MatchesUsingParentResult(test.text, parentMatched)
+			assert.Check(t, is.Equal(test.pass, res), desc)
+		}
+	})
+
 }
 
 func TestCleanPatterns(t *testing.T) {

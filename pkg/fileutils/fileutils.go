@@ -55,8 +55,12 @@ func NewPatternMatcher(patterns []string) (*PatternMatcher, error) {
 	return pm, nil
 }
 
-// Matches matches path against all the patterns. Matches is not safe to be
-// called concurrently
+// Matches returns true if "file" matches any of the patterns
+// and isn't excluded by any of the subsequent patterns.
+//
+// The "file" argument should be a slash-delimited path.
+//
+// Matches is not safe to call concurrently.
 func (pm *PatternMatcher) Matches(file string) (bool, error) {
 	matched := false
 	file = filepath.FromSlash(file)
@@ -64,10 +68,11 @@ func (pm *PatternMatcher) Matches(file string) (bool, error) {
 	parentPathDirs := strings.Split(parentPath, string(os.PathSeparator))
 
 	for _, pattern := range pm.patterns {
-		negative := false
-
-		if pattern.exclusion {
-			negative = true
+		// Skip evaluation if this is an inclusion and the filename
+		// already matched the pattern, or it's an exclusion and it has
+		// not matched the pattern yet.
+		if pattern.exclusion != matched {
+			continue
 		}
 
 		match, err := pattern.match(file)
@@ -86,10 +91,42 @@ func (pm *PatternMatcher) Matches(file string) (bool, error) {
 		}
 
 		if match {
-			matched = !negative
+			matched = !pattern.exclusion
 		}
 	}
 
+	return matched, nil
+}
+
+// MatchesUsingParentResult returns true if "file" matches any of the patterns
+// and isn't excluded by any of the subsequent patterns. The functionality is
+// the same as Matches, but as an optimization, the caller keeps track of
+// whether the parent directory matched.
+//
+// The "file" argument should be a slash-delimited path.
+//
+// MatchesUsingParentResult is not safe to call concurrently.
+func (pm *PatternMatcher) MatchesUsingParentResult(file string, parentMatched bool) (bool, error) {
+	matched := parentMatched
+	file = filepath.FromSlash(file)
+
+	for _, pattern := range pm.patterns {
+		// Skip evaluation if this is an inclusion and the filename
+		// already matched the pattern, or it's an exclusion and it has
+		// not matched the pattern yet.
+		if pattern.exclusion != matched {
+			continue
+		}
+
+		match, err := pattern.match(file)
+		if err != nil {
+			return false, err
+		}
+
+		if match {
+			matched = !pattern.exclusion
+		}
+	}
 	return matched, nil
 }
 
@@ -121,7 +158,6 @@ func (p *Pattern) Exclusion() bool {
 }
 
 func (p *Pattern) match(path string) (bool, error) {
-
 	if p.regexp == nil {
 		if err := p.compile(); err != nil {
 			return false, filepath.ErrBadPattern
