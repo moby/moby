@@ -28,6 +28,12 @@ keywords: "API, Docker, rcli, REST, documentation"
   computes and returns data only for the specified object type.
   The parameter can be specified multiple times to select several object types.
   Supported values are: `container`, `image`, `volume`, `build-cache`.
+* `GET /system/df` can now be used concurrently. If a request is made while a
+  previous request is still being processed, the request will receive the result
+  of the already running calculation, once completed. Previously, an error
+  (`a disk usage operation is already running`) would be returned in this
+  situation. This change is not versioned, and affects all API versions if the
+  daemon has this patch.
 
 ## v1.41 API changes
 
