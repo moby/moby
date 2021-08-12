@@ -9,7 +9,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 )
@@ -72,16 +71,4 @@ func IsNetworkNotAvailable(c client.NetworkAPIClient, name string) cmp.Compariso
 		}
 		return cmp.ResultSuccess
 	}
-}
-
-// CheckKernelMajorVersionGreaterOrEqualThen returns whether the kernel version is greater or equal than the one provided
-func CheckKernelMajorVersionGreaterOrEqualThen(kernelVersion int, majorVersion int) bool {
-	kv, err := kernel.GetKernelVersion()
-	if err != nil {
-		return false
-	}
-	if kv.Kernel < kernelVersion || (kv.Kernel == kernelVersion && kv.Major < majorVersion) {
-		return false
-	}
-	return true
 }
