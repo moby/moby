@@ -5,7 +5,6 @@ package network
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -85,10 +84,4 @@ func CheckKernelMajorVersionGreaterOrEqualThen(kernelVersion int, majorVersion i
 		return false
 	}
 	return true
-}
-
-// IsUserNamespace returns whether the user namespace remapping is enabled
-func IsUserNamespace() bool {
-	root := os.Getenv("DOCKER_REMAP_ROOT")
-	return root != ""
 }
