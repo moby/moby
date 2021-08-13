@@ -398,8 +398,8 @@ func TestMatches(t *testing.T) {
 			pm, err := NewPatternMatcher([]string{test.pattern})
 			assert.NilError(t, err, desc)
 
-			parentPath := path.Dir(test.text)
-			parentPathDirs := strings.Split(parentPath, "/")
+			parentPath := filepath.Dir(filepath.FromSlash(test.text))
+			parentPathDirs := strings.Split(parentPath, string(os.PathSeparator))
 
 			parentMatched := false
 			if parentPath != "." {
