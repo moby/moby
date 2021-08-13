@@ -382,12 +382,12 @@ func TestMatches(t *testing.T) {
 		}...)
 	}
 
-	t.Run("Matches", func(t *testing.T) {
+	t.Run("MatchesOrParentMatches", func(t *testing.T) {
 		for _, test := range tests {
 			desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
 			pm, err := NewPatternMatcher([]string{test.pattern})
 			assert.NilError(t, err, desc)
-			res, _ := pm.Matches(test.text)
+			res, _ := pm.MatchesOrParentMatches(test.text)
 			assert.Check(t, is.Equal(test.pass, res), desc)
 		}
 	})

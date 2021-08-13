@@ -860,7 +860,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 					if len(parentMatched) != 0 {
 						skip, err = pm.MatchesUsingParentResult(relFilePath, parentMatched[len(parentMatched)-1])
 					} else {
-						skip, err = pm.Matches(relFilePath)
+						skip, err = pm.MatchesOrParentMatches(relFilePath)
 					}
 					if err != nil {
 						logrus.Errorf("Error matching %s: %v", relFilePath, err)
