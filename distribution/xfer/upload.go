@@ -16,8 +16,9 @@ const maxUploadAttempts = 5
 // LayerUploadManager provides task management and progress reporting for
 // uploads.
 type LayerUploadManager struct {
-	tm           TransferManager
-	waitDuration time.Duration
+	tm                 TransferManager
+	waitDuration       time.Duration
+	compressionThreads int
 }
 
 // SetConcurrency sets the max concurrent uploads for each push
@@ -53,7 +54,7 @@ type UploadDescriptor interface {
 	// DiffID should return the DiffID for this layer.
 	DiffID() layer.DiffID
 	// Upload is called to perform the Upload.
-	Upload(ctx context.Context, progressOutput progress.Output) (distribution.Descriptor, error)
+	Upload(ctx context.Context, progressOutput progress.Output, compressionThreads int) (distribution.Descriptor, error)
 	// SetRemoteDescriptor provides the distribution.Descriptor that was
 	// returned by Upload. This descriptor is not to be confused with
 	// the UploadDescriptor interface, which is used for internally
@@ -124,7 +125,7 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFun
 
 			retries := 0
 			for {
-				remoteDescriptor, err := descriptor.Upload(u.Transfer.Context(), progressOutput)
+				remoteDescriptor, err := descriptor.Upload(u.Transfer.Context(), progressOutput, lum.compressionThreads)
 				if err == nil {
 					u.remoteDescriptor = remoteDescriptor
 					break

@@ -142,7 +142,8 @@ func xzDecompress(ctx context.Context, archive io.Reader) (io.ReadCloser, error)
 	return cmdStream(exec.CommandContext(ctx, args[0], args[1:]...), archive)
 }
 
-func gzDecompress(ctx context.Context, buf io.Reader) (io.ReadCloser, error) {
+// validatePigzEnv Take the string value from the MOBY DISABLE PIGZ environment and convert it to a bool.
+func validatePigzEnv() bool {
 	if noPigzEnv := os.Getenv("MOBY_DISABLE_PIGZ"); noPigzEnv != "" {
 		noPigz, err := strconv.ParseBool(noPigzEnv)
 		if err != nil {
@@ -150,8 +151,15 @@ func gzDecompress(ctx context.Context, buf io.Reader) (io.ReadCloser, error) {
 		}
 		if noPigz {
 			logrus.Debugf("Use of pigz is disabled due to MOBY_DISABLE_PIGZ=%s", noPigzEnv)
-			return gzip.NewReader(buf)
+			return false
 		}
+	}
+	return true
+}
+
+func gzDecompress(ctx context.Context, buf io.Reader) (io.ReadCloser, error) {
+	if !validatePigzEnv() {
+		return gzip.NewReader(buf)
 	}
 
 	unpigzPath, err := exec.LookPath("unpigz")
@@ -219,6 +227,25 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
+}
+
+// GzCompress if pigz is not disabled, return pigz compressor, or gzip by default.
+func GzCompress(dest io.Writer) io.WriteCloser {
+	if !validatePigzEnv() {
+		return gzip.NewWriter(dest)
+	}
+	pigzPath, err := exec.LookPath("pigz")
+	if err != nil {
+		logrus.Debugf("pigz binary not found, falling back to go gzip library")
+		return gzip.NewWriter(dest)
+	}
+
+	logrus.Debugf("Using %s to compress", pigzPath)
+
+	// -k, --keep           Do not delete original file after processing
+	// -p, --processes n    Allow up to n compression threads (default is the number of online processors, or 8 if unknown)
+	pigzWriter := CmdWriter{exec.CommandContext(context.Background(), pigzPath, "-k", "-p"), dest}
+	return &pigzWriter
 }
 
 // CompressStream compresses the dest with specified compression algorithm.
@@ -1255,6 +1282,31 @@ func cmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, error) {
 		<-done
 		return err
 	}), nil
+}
+
+type CmdWriter struct {
+	cmd  *exec.Cmd
+	dest io.Writer
+}
+
+func (w *CmdWriter) Close() error {
+	return nil
+}
+
+func (w *CmdWriter) Write(p []byte) (n int, err error) {
+	r := bytes.NewReader(p)
+	w.cmd.Stdin = r
+	w.cmd.Stdout = w.dest
+
+	// Run the command and return the pipe
+	if err := w.cmd.Start(); err != nil {
+		return 0, err
+	}
+
+	go func() {
+		w.cmd.Wait()
+	}()
+	return len(p), nil
 }
 
 // NewTempArchive reads the content of src into a temporary file, and returns the contents

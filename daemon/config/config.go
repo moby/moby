@@ -202,6 +202,10 @@ type CommonConfig struct {
 	// may take place at a time for each push.
 	MaxDownloadAttempts *int `json:"max-download-attempts,omitempty"`
 
+	// CompressionThreads sets the number of threads to use for compression on image push;
+	// when greater than 1, we use pgzip instead of the normal compress/gzip library.
+	CompressionThreads int `json:"compression-threads,omitempty"`
+
 	// ShutdownTimeout is the timeout value (in seconds) the daemon will wait for the container
 	// to stop when daemon is being shutdown
 	ShutdownTimeout int `json:"shutdown-timeout,omitempty"`
