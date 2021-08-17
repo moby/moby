@@ -808,6 +808,11 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 		for _, include := range options.IncludeFiles {
 			rebaseName := options.RebaseNames[include]
 
+			var (
+				parentMatched []bool
+				parentDirs    []string
+			)
+
 			walkRoot := getWalkRoot(srcPath, include)
 			filepath.Walk(walkRoot, func(filePath string, f os.FileInfo, err error) error {
 				if err != nil {
@@ -834,10 +839,28 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				// is asking for that file no matter what - which is true
 				// for some files, like .dockerignore and Dockerfile (sometimes)
 				if include != relFilePath {
-					skip, err = pm.Matches(relFilePath)
+					for len(parentDirs) != 0 {
+						lastParentDir := parentDirs[len(parentDirs)-1]
+						if strings.HasPrefix(relFilePath, lastParentDir+string(os.PathSeparator)) {
+							break
+						}
+						parentDirs = parentDirs[:len(parentDirs)-1]
+						parentMatched = parentMatched[:len(parentMatched)-1]
+					}
+
+					if len(parentMatched) != 0 {
+						skip, err = pm.MatchesUsingParentResult(relFilePath, parentMatched[len(parentMatched)-1])
+					} else {
+						skip, err = pm.MatchesOrParentMatches(relFilePath)
+					}
 					if err != nil {
 						logrus.Errorf("Error matching %s: %v", relFilePath, err)
 						return err
+					}
+
+					if f.IsDir() {
+						parentDirs = append(parentDirs, relFilePath)
+						parentMatched = append(parentMatched, skip)
 					}
 				}
 
