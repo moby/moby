@@ -5,8 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
-
-	"github.com/docker/docker/pkg/ioutils"
 )
 
 func TestGet(t *testing.T) {
@@ -21,7 +19,7 @@ func TestGet(t *testing.T) {
 	if string(resolvConfUtils.Content) != string(resolvConfSystem) {
 		t.Fatalf("/etc/resolv.conf and GetResolvConf have different content.")
 	}
-	hashSystem, err := ioutils.HashData(bytes.NewReader(resolvConfSystem))
+	hashSystem, err := hashData(bytes.NewReader(resolvConfSystem))
 	if err != nil {
 		t.Fatal(err)
 	}

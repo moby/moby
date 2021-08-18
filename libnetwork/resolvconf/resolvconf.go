@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -109,7 +108,7 @@ func GetSpecific(path string) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
-	hash, err := ioutils.HashData(bytes.NewReader(resolv))
+	hash, err := hashData(bytes.NewReader(resolv))
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +126,7 @@ func GetIfChanged() (*File, error) {
 	if err != nil {
 		return nil, err
 	}
-	newHash, err := ioutils.HashData(bytes.NewReader(resolv))
+	newHash, err := hashData(bytes.NewReader(resolv))
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +172,7 @@ func FilterResolvDNS(resolvConf []byte, ipv6Enabled bool) (*File, error) {
 		}
 		cleanedResolvConf = append(cleanedResolvConf, []byte("\n"+strings.Join(dns, "\n"))...)
 	}
-	hash, err := ioutils.HashData(bytes.NewReader(cleanedResolvConf))
+	hash, err := hashData(bytes.NewReader(cleanedResolvConf))
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +286,7 @@ func Build(path string, dns, dnsSearch, dnsOptions []string) (*File, error) {
 		}
 	}
 
-	hash, err := ioutils.HashData(bytes.NewReader(content.Bytes()))
+	hash, err := hashData(bytes.NewReader(content.Bytes()))
 	if err != nil {
 		return nil, err
 	}
