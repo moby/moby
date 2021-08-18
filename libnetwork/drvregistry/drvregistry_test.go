@@ -14,9 +14,6 @@ import (
 	remoteIpam "github.com/docker/docker/libnetwork/ipams/remote"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-
-	// this takes care of the incontainer flag
-	_ "github.com/docker/docker/libnetwork/testutils"
 )
 
 const mockDriverName = "mock-driver"

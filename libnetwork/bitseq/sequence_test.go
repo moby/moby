@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/libnetwork/datastore"
-	_ "github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
 )

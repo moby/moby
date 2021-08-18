@@ -5,8 +5,6 @@ package overlay
 import (
 	"net"
 	"testing"
-
-	_ "github.com/docker/docker/libnetwork/testutils"
 )
 
 func TestPeerMarshal(t *testing.T) {

@@ -13,9 +13,6 @@ import (
 
 	"github.com/ishidawataru/sctp"
 	"gotest.tools/v3/skip"
-
-	// this takes care of the incontainer flag
-	_ "github.com/docker/docker/libnetwork/testutils"
 )
 
 var testBuf = []byte("Buffalo buffalo Buffalo buffalo buffalo buffalo Buffalo buffalo")
