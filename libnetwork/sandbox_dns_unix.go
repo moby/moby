@@ -233,7 +233,7 @@ func (sb *sandbox) setupDNS() error {
 	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 || len(sb.config.dnsOptionsList) > 0 {
 		var (
 			err            error
-			dnsList        = resolvconf.GetNameservers(currRC.Content, types.IP)
+			dnsList        = resolvconf.GetNameservers(currRC.Content, resolvconf.IP)
 			dnsSearchList  = resolvconf.GetSearchDomains(currRC.Content)
 			dnsOptionsList = resolvconf.GetOptions(currRC.Content)
 		)
@@ -253,13 +253,13 @@ func (sb *sandbox) setupDNS() error {
 		// After building the resolv.conf from the user config save the
 		// external resolvers in the sandbox. Note that --dns 127.0.0.x
 		// config refers to the loopback in the container namespace
-		sb.setExternalResolvers(newRC.Content, types.IPv4, false)
+		sb.setExternalResolvers(newRC.Content, resolvconf.IPv4, false)
 	} else {
 		// If the host resolv.conf file has 127.0.0.x container should
 		// use the host resolver for queries. This is supported by the
 		// docker embedded DNS server. Hence save the external resolvers
 		// before filtering it out.
-		sb.setExternalResolvers(currRC.Content, types.IPv4, true)
+		sb.setExternalResolvers(currRC.Content, resolvconf.IPv4, true)
 
 		// Replace any localhost/127.* (at this point we have no info about ipv6, pass it as true)
 		if newRC, err = resolvconf.FilterResolvDNS(currRC.Content, true); err != nil {
@@ -358,7 +358,7 @@ func (sb *sandbox) rebuildDNS() error {
 	}
 
 	if len(sb.extDNS) == 0 {
-		sb.setExternalResolvers(currRC.Content, types.IPv4, false)
+		sb.setExternalResolvers(currRC.Content, resolvconf.IPv4, false)
 	}
 	var (
 		dnsList        = []string{sb.resolver.NameServer()}
@@ -367,7 +367,7 @@ func (sb *sandbox) rebuildDNS() error {
 	)
 
 	// external v6 DNS servers has to be listed in resolv.conf
-	dnsList = append(dnsList, resolvconf.GetNameservers(currRC.Content, types.IPv6)...)
+	dnsList = append(dnsList, resolvconf.GetNameservers(currRC.Content, resolvconf.IPv6)...)
 
 	// If the user config and embedded DNS server both have ndots option set,
 	// remember the user's config so that unqualified names not in the docker

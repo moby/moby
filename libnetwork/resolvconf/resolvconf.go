@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/docker/docker/libnetwork/resolvconf/dns"
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/sirupsen/logrus"
 )
@@ -19,6 +18,13 @@ const (
 	defaultPath = "/etc/resolv.conf"
 	// alternatePath is a path different from defaultPath, that may be used to resolve DNS. See Path().
 	alternatePath = "/run/systemd/resolve/resolv.conf"
+)
+
+// constants for the IP address type
+const (
+	IP = iota // IPv4 and IPv6
+	IPv4
+	IPv6
 )
 
 var (
@@ -44,7 +50,7 @@ func Path() string {
 			// silencing error as it will resurface at next calls trying to read defaultPath
 			return
 		}
-		ns := GetNameservers(candidateResolvConf, types.IP)
+		ns := GetNameservers(candidateResolvConf, IP)
 		if len(ns) == 1 && ns[0] == "127.0.0.53" {
 			pathAfterSystemdDetection = alternatePath
 			logrus.Infof("detected 127.0.0.53 nameserver, assuming systemd-resolved, so using resolv.conf: %s", alternatePath)
@@ -153,7 +159,7 @@ func FilterResolvDNS(resolvConf []byte, ipv6Enabled bool) (*File, error) {
 	}
 	// if the resulting resolvConf has no more nameservers defined, add appropriate
 	// default DNS servers for IPv4 and (optionally) IPv6
-	if len(GetNameservers(cleanedResolvConf, types.IP)) == 0 {
+	if len(GetNameservers(cleanedResolvConf, IP)) == 0 {
 		logrus.Infof("No non-localhost DNS nameservers are left in resolv.conf. Using default external servers: %v", defaultIPv4Dns)
 		dns := defaultIPv4Dns
 		if ipv6Enabled {
@@ -189,11 +195,11 @@ func GetNameservers(resolvConf []byte, kind int) []string {
 	nameservers := []string{}
 	for _, line := range getLines(resolvConf, []byte("#")) {
 		var ns [][]byte
-		if kind == types.IP {
+		if kind == IP {
 			ns = nsRegexp.FindSubmatch(line)
-		} else if kind == types.IPv4 {
+		} else if kind == IPv4 {
 			ns = nsIPv4Regexpmatch.FindSubmatch(line)
-		} else if kind == types.IPv6 {
+		} else if kind == IPv6 {
 			ns = nsIPv6Regexpmatch.FindSubmatch(line)
 		}
 		if len(ns) > 0 {
@@ -208,7 +214,7 @@ func GetNameservers(resolvConf []byte, kind int) []string {
 // This function's output is intended for net.ParseCIDR
 func GetNameserversAsCIDR(resolvConf []byte) []string {
 	nameservers := []string{}
-	for _, nameserver := range GetNameservers(resolvConf, types.IP) {
+	for _, nameserver := range GetNameservers(resolvConf, IP) {
 		var address string
 		// If IPv6, strip zone if present
 		if strings.Contains(nameserver, ":") {

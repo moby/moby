@@ -6,7 +6,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/ioutils"
 )
 
@@ -48,7 +47,7 @@ nameserver 1.2.3.4
 		`search example.com
 nameserver 1.2.3.4 # not 4.3.2.1`: {"1.2.3.4"},
 	} {
-		test := GetNameservers([]byte(resolv), types.IP)
+		test := GetNameservers([]byte(resolv), IP)
 		if !strSlicesEqual(test, result) {
 			t.Fatalf("Wrong nameserver string {%s} should be %v. Input: %s", test, result, resolv)
 		}
