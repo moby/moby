@@ -3,6 +3,11 @@ package ioutils // import "github.com/docker/docker/pkg/ioutils"
 import (
 	"context"
 	"io"
+
+	// make sure crypto.SHA256, crypto.sha512 and crypto.SHA384 are registered
+	// TODO remove once https://github.com/opencontainers/go-digest/pull/64 is merged.
+	_ "crypto/sha256"
+	_ "crypto/sha512"
 )
 
 // ReadCloserWrapper wraps an io.Reader, and implements an io.ReadCloser
