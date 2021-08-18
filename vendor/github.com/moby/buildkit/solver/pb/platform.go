@@ -1,11 +1,11 @@
 package pb
 
 import (
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-func (p *Platform) Spec() specs.Platform {
-	return specs.Platform{
+func (p *Platform) Spec() ocispecs.Platform {
+	return ocispecs.Platform{
 		OS:           p.OS,
 		Architecture: p.Architecture,
 		Variant:      p.Variant,
@@ -14,7 +14,7 @@ func (p *Platform) Spec() specs.Platform {
 	}
 }
 
-func PlatformFromSpec(p specs.Platform) Platform {
+func PlatformFromSpec(p ocispecs.Platform) Platform {
 	return Platform{
 		OS:           p.OS,
 		Architecture: p.Architecture,
@@ -24,15 +24,15 @@ func PlatformFromSpec(p specs.Platform) Platform {
 	}
 }
 
-func ToSpecPlatforms(p []Platform) []specs.Platform {
-	out := make([]specs.Platform, 0, len(p))
+func ToSpecPlatforms(p []Platform) []ocispecs.Platform {
+	out := make([]ocispecs.Platform, 0, len(p))
 	for _, pp := range p {
 		out = append(out, pp.Spec())
 	}
 	return out
 }
 
-func PlatformsFromSpec(p []specs.Platform) []Platform {
+func PlatformsFromSpec(p []ocispecs.Platform) []Platform {
 	out := make([]Platform, 0, len(p))
 	for _, pp := range p {
 		out = append(out, PlatformFromSpec(pp))

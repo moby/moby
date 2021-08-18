@@ -274,7 +274,7 @@ func inlineCache(ctx context.Context, e remotecache.Exporter, res solver.CachedR
 			return nil, errors.Errorf("invalid reference: %T", res.Sys())
 		}
 
-		remote, err := workerRef.GetRemote(ctx, true, compression.Default, g)
+		remote, err := workerRef.GetRemote(ctx, true, compression.Default, false, g)
 		if err != nil || remote == nil {
 			return nil, nil
 		}
@@ -327,7 +327,7 @@ func allWorkers(wc *worker.Controller) func(func(w worker.Worker) error) error {
 }
 
 func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.FromContext(ctx)
+	pw, _, _ := progress.NewFromContext(ctx)
 	now := time.Now()
 	st := progress.Status{
 		Started: &now,
@@ -352,7 +352,7 @@ func inBuilderContext(ctx context.Context, b solver.Builder, name, id string, f 
 		Name:   name,
 	}
 	return b.InContext(ctx, func(ctx context.Context, g session.Group) error {
-		pw, _, ctx := progress.FromContext(ctx, progress.WithMetadata("vertex", v.Digest))
+		pw, _, ctx := progress.NewFromContext(ctx, progress.WithMetadata("vertex", v.Digest))
 		notifyStarted(ctx, &v, false)
 		defer pw.Close()
 		err := f(ctx, g)
@@ -362,7 +362,7 @@ func inBuilderContext(ctx context.Context, b solver.Builder, name, id string, f 
 }
 
 func notifyStarted(ctx context.Context, v *client.Vertex, cached bool) {
-	pw, _, _ := progress.FromContext(ctx)
+	pw, _, _ := progress.NewFromContext(ctx)
 	defer pw.Close()
 	now := time.Now()
 	v.Started = &now
@@ -372,7 +372,7 @@ func notifyStarted(ctx context.Context, v *client.Vertex, cached bool) {
 }
 
 func notifyCompleted(ctx context.Context, v *client.Vertex, err error, cached bool) {
-	pw, _, _ := progress.FromContext(ctx)
+	pw, _, _ := progress.NewFromContext(ctx)
 	defer pw.Close()
 	now := time.Now()
 	if v.Started == nil {

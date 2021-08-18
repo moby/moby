@@ -21,7 +21,7 @@ import (
 	"github.com/moby/buildkit/util/flightcontrol"
 	digest "github.com/opencontainers/go-digest"
 	imagespecidentity "github.com/opencontainers/image-spec/identity"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -45,7 +45,7 @@ type ManagerOpt struct {
 }
 
 type Accessor interface {
-	GetByBlob(ctx context.Context, desc ocispec.Descriptor, parent ImmutableRef, opts ...RefOption) (ImmutableRef, error)
+	GetByBlob(ctx context.Context, desc ocispecs.Descriptor, parent ImmutableRef, opts ...RefOption) (ImmutableRef, error)
 	Get(ctx context.Context, id string, opts ...RefOption) (ImmutableRef, error)
 
 	New(ctx context.Context, parent ImmutableRef, s session.Group, opts ...RefOption) (MutableRef, error)
@@ -97,7 +97,7 @@ func NewManager(opt ManagerOpt) (Manager, error) {
 	return cm, nil
 }
 
-func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispec.Descriptor, parent ImmutableRef, opts ...RefOption) (ir ImmutableRef, rerr error) {
+func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispecs.Descriptor, parent ImmutableRef, opts ...RefOption) (ir ImmutableRef, rerr error) {
 	diffID, err := diffIDFromDescriptor(desc)
 	if err != nil {
 		return nil, err
@@ -128,11 +128,11 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispec.Descriptor, 
 		if err != nil {
 			return nil, err
 		}
-		if err := p2.Finalize(ctx, true); err != nil {
+		p = p2.(*immutableRef)
+		if err := p.finalizeLocked(ctx); err != nil {
 			return nil, err
 		}
-		parentID = p2.ID()
-		p = p2.(*immutableRef)
+		parentID = p.ID()
 	}
 
 	releaseParent := false
@@ -175,7 +175,8 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispec.Descriptor, 
 	var link ImmutableRef
 	for _, si := range sis {
 		ref, err := cm.get(ctx, si.ID(), opts...)
-		if err != nil && !IsNotFound(err) {
+		// if the error was NotFound or NeedsRemoteProvider, we can't re-use the snapshot from the blob so just skip it
+		if err != nil && !IsNotFound(err) && !errors.As(err, &NeedsRemoteProvidersError{}) {
 			return nil, errors.Wrapf(err, "failed to get record %s by chainid", sis[0].ID())
 		}
 		if ref != nil {
@@ -381,7 +382,7 @@ func (cm *cacheManager) getRecord(ctx context.Context, id string, opts ...RefOpt
 
 	md, ok := cm.md.Get(id)
 	if !ok {
-		return nil, errors.Wrapf(errNotFound, "%s not found", id)
+		return nil, errors.Wrap(errNotFound, id)
 	}
 	if mutableID := getEqualMutable(md); mutableID != "" {
 		mutable, err := cm.getRecord(ctx, mutableID)
@@ -475,7 +476,7 @@ func (cm *cacheManager) New(ctx context.Context, s ImmutableRef, sess session.Gr
 			}
 			parent = p.(*immutableRef)
 		}
-		if err := parent.Finalize(ctx, true); err != nil {
+		if err := parent.finalizeLocked(ctx); err != nil {
 			return nil, err
 		}
 		if err := parent.Extract(ctx, sess); err != nil {
@@ -1196,7 +1197,7 @@ func sortDeleteRecords(toDelete []*deleteRecord) {
 	})
 }
 
-func diffIDFromDescriptor(desc ocispec.Descriptor) (digest.Digest, error) {
+func diffIDFromDescriptor(desc ocispecs.Descriptor) (digest.Digest, error) {
 	diffIDStr, ok := desc.Annotations["containerd.io/uncompressed"]
 	if !ok {
 		return "", errors.Errorf("missing uncompressed annotation for %s", desc.Digest)

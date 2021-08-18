@@ -9,8 +9,9 @@ import (
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/solver/pb"
 	digest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/tonistiigi/fsutil"
 )
 
 var (
@@ -69,7 +70,7 @@ func FromLLB(op *pb.Op_Source, platform *pb.Platform) (Identifier, error) {
 
 	if id, ok := id.(*ImageIdentifier); ok {
 		if platform != nil {
-			id.Platform = &specs.Platform{
+			id.Platform = &ocispecs.Platform{
 				OS:           platform.OS,
 				Architecture: platform.Architecture,
 				Variant:      platform.Variant,
@@ -146,6 +147,13 @@ func FromLLB(op *pb.Op_Source, platform *pb.Platform) (Identifier, error) {
 				id.FollowPaths = paths
 			case pb.AttrSharedKeyHint:
 				id.SharedKeyHint = v
+			case pb.AttrLocalDiffer:
+				switch v {
+				case pb.AttrLocalDifferMetadata, "":
+					id.Differ = fsutil.DiffMetadata
+				case pb.AttrLocalDifferNone:
+					id.Differ = fsutil.DiffNone
+				}
 			}
 		}
 	}
@@ -186,7 +194,7 @@ func FromLLB(op *pb.Op_Source, platform *pb.Platform) (Identifier, error) {
 
 type ImageIdentifier struct {
 	Reference   reference.Spec
-	Platform    *specs.Platform
+	Platform    *ocispecs.Platform
 	ResolveMode ResolveMode
 	RecordType  client.UsageRecordType
 }
@@ -214,6 +222,7 @@ type LocalIdentifier struct {
 	ExcludePatterns []string
 	FollowPaths     []string
 	SharedKeyHint   string
+	Differ          fsutil.DiffType
 }
 
 func NewLocalIdentifier(str string) (*LocalIdentifier, error) {

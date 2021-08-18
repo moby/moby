@@ -10,4 +10,8 @@ func init() {
 		command.Copy: true,
 		command.Run:  true,
 	}
+
+	heredocCompoundDirectives = map[string]bool{
+		command.Onbuild: true,
+	}
 }

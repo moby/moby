@@ -9,7 +9,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/google/shlex"
 	"github.com/moby/buildkit/solver/pb"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type contextKeyT string
@@ -39,8 +39,8 @@ func addEnvf(key, value string, replace bool, v ...interface{}) StateOption {
 		value = fmt.Sprintf(value, v...)
 	}
 	return func(s State) State {
-		return s.withValue(keyEnv, func(ctx context.Context) (interface{}, error) {
-			env, err := getEnv(s)(ctx)
+		return s.withValue(keyEnv, func(ctx context.Context, c *Constraints) (interface{}, error) {
+			env, err := getEnv(s)(ctx, c)
 			if err != nil {
 				return nil, err
 			}
@@ -62,9 +62,9 @@ func dirf(value string, replace bool, v ...interface{}) StateOption {
 		value = fmt.Sprintf(value, v...)
 	}
 	return func(s State) State {
-		return s.withValue(keyDir, func(ctx context.Context) (interface{}, error) {
+		return s.withValue(keyDir, func(ctx context.Context, c *Constraints) (interface{}, error) {
 			if !path.IsAbs(value) {
-				prev, err := getDir(s)(ctx)
+				prev, err := getDir(s)(ctx, c)
 				if err != nil {
 					return nil, err
 				}
@@ -92,9 +92,9 @@ func Reset(other State) StateOption {
 	}
 }
 
-func getEnv(s State) func(context.Context) (EnvList, error) {
-	return func(ctx context.Context) (EnvList, error) {
-		v, err := s.getValue(keyEnv)(ctx)
+func getEnv(s State) func(context.Context, *Constraints) (EnvList, error) {
+	return func(ctx context.Context, c *Constraints) (EnvList, error) {
+		v, err := s.getValue(keyEnv)(ctx, c)
 		if err != nil {
 			return nil, err
 		}
@@ -105,9 +105,9 @@ func getEnv(s State) func(context.Context) (EnvList, error) {
 	}
 }
 
-func getDir(s State) func(context.Context) (string, error) {
-	return func(ctx context.Context) (string, error) {
-		v, err := s.getValue(keyDir)(ctx)
+func getDir(s State) func(context.Context, *Constraints) (string, error) {
+	return func(ctx context.Context, c *Constraints) (string, error) {
+		v, err := s.getValue(keyDir)(ctx, c)
 		if err != nil {
 			return "", err
 		}
@@ -118,9 +118,9 @@ func getDir(s State) func(context.Context) (string, error) {
 	}
 }
 
-func getArgs(s State) func(context.Context) ([]string, error) {
-	return func(ctx context.Context) ([]string, error) {
-		v, err := s.getValue(keyArgs)(ctx)
+func getArgs(s State) func(context.Context, *Constraints) ([]string, error) {
+	return func(ctx context.Context, c *Constraints) ([]string, error) {
+		v, err := s.getValue(keyArgs)(ctx, c)
 		if err != nil {
 			return nil, err
 		}
@@ -131,9 +131,9 @@ func getArgs(s State) func(context.Context) ([]string, error) {
 	}
 }
 
-func getUser(s State) func(context.Context) (string, error) {
-	return func(ctx context.Context) (string, error) {
-		v, err := s.getValue(keyUser)(ctx)
+func getUser(s State) func(context.Context, *Constraints) (string, error) {
+	return func(ctx context.Context, c *Constraints) (string, error) {
+		v, err := s.getValue(keyUser)(ctx, c)
 		if err != nil {
 			return "", err
 		}
@@ -150,9 +150,9 @@ func Hostname(str string) StateOption {
 	}
 }
 
-func getHostname(s State) func(context.Context) (string, error) {
-	return func(ctx context.Context) (string, error) {
-		v, err := s.getValue(keyHostname)(ctx)
+func getHostname(s State) func(context.Context, *Constraints) (string, error) {
+	return func(ctx context.Context, c *Constraints) (string, error) {
+		v, err := s.getValue(keyHostname)(ctx, c)
 		if err != nil {
 			return "", err
 		}
@@ -182,20 +182,20 @@ func shlexf(str string, replace bool, v ...interface{}) StateOption {
 	}
 }
 
-func platform(p specs.Platform) StateOption {
+func platform(p ocispecs.Platform) StateOption {
 	return func(s State) State {
 		return s.WithValue(keyPlatform, platforms.Normalize(p))
 	}
 }
 
-func getPlatform(s State) func(context.Context) (*specs.Platform, error) {
-	return func(ctx context.Context) (*specs.Platform, error) {
-		v, err := s.getValue(keyPlatform)(ctx)
+func getPlatform(s State) func(context.Context, *Constraints) (*ocispecs.Platform, error) {
+	return func(ctx context.Context, c *Constraints) (*ocispecs.Platform, error) {
+		v, err := s.getValue(keyPlatform)(ctx, c)
 		if err != nil {
 			return nil, err
 		}
 		if v != nil {
-			p := v.(specs.Platform)
+			p := v.(ocispecs.Platform)
 			return &p, nil
 		}
 		return nil, nil
@@ -204,8 +204,8 @@ func getPlatform(s State) func(context.Context) (*specs.Platform, error) {
 
 func extraHost(host string, ip net.IP) StateOption {
 	return func(s State) State {
-		return s.withValue(keyExtraHost, func(ctx context.Context) (interface{}, error) {
-			v, err := getExtraHosts(s)(ctx)
+		return s.withValue(keyExtraHost, func(ctx context.Context, c *Constraints) (interface{}, error) {
+			v, err := getExtraHosts(s)(ctx, c)
 			if err != nil {
 				return nil, err
 			}
@@ -214,9 +214,9 @@ func extraHost(host string, ip net.IP) StateOption {
 	}
 }
 
-func getExtraHosts(s State) func(context.Context) ([]HostIP, error) {
-	return func(ctx context.Context) ([]HostIP, error) {
-		v, err := s.getValue(keyExtraHost)(ctx)
+func getExtraHosts(s State) func(context.Context, *Constraints) ([]HostIP, error) {
+	return func(ctx context.Context, c *Constraints) ([]HostIP, error) {
+		v, err := s.getValue(keyExtraHost)(ctx, c)
 		if err != nil {
 			return nil, err
 		}
@@ -237,9 +237,9 @@ func Network(v pb.NetMode) StateOption {
 		return s.WithValue(keyNetwork, v)
 	}
 }
-func getNetwork(s State) func(context.Context) (pb.NetMode, error) {
-	return func(ctx context.Context) (pb.NetMode, error) {
-		v, err := s.getValue(keyNetwork)(ctx)
+func getNetwork(s State) func(context.Context, *Constraints) (pb.NetMode, error) {
+	return func(ctx context.Context, c *Constraints) (pb.NetMode, error) {
+		v, err := s.getValue(keyNetwork)(ctx, c)
 		if err != nil {
 			return 0, err
 		}
@@ -256,9 +256,9 @@ func Security(v pb.SecurityMode) StateOption {
 		return s.WithValue(keySecurity, v)
 	}
 }
-func getSecurity(s State) func(context.Context) (pb.SecurityMode, error) {
-	return func(ctx context.Context) (pb.SecurityMode, error) {
-		v, err := s.getValue(keySecurity)(ctx)
+func getSecurity(s State) func(context.Context, *Constraints) (pb.SecurityMode, error) {
+	return func(ctx context.Context, c *Constraints) (pb.SecurityMode, error) {
+		v, err := s.getValue(keySecurity)(ctx, c)
 		if err != nil {
 			return 0, err
 		}

@@ -79,7 +79,7 @@ func (s *cacheResultStorage) LoadRemote(ctx context.Context, res solver.CacheRes
 	}
 	defer ref.Release(context.TODO())
 	wref := WorkerRef{ref, w}
-	remote, err := wref.GetRemote(ctx, false, compression.Default, g)
+	remote, err := wref.GetRemote(ctx, false, compression.Default, false, g)
 	if err != nil {
 		return nil, nil // ignore error. loadRemote is best effort
 	}

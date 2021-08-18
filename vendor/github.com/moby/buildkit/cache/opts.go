@@ -13,6 +13,7 @@ type DescHandler struct {
 	Provider       func(session.Group) content.Provider
 	Progress       progress.Controller
 	SnapshotLabels map[string]string
+	Ref            string // string representation of desc origin, can be used as a sync key
 }
 
 type DescHandlers map[digest.Digest]*DescHandler

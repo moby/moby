@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/moby/buildkit/util/bklog"
+
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/contenthash"
@@ -19,7 +21,6 @@ import (
 	"github.com/moby/buildkit/util/progress"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/tonistiigi/fsutil"
 	fstypes "github.com/tonistiigi/fsutil/types"
 	bolt "go.etcd.io/bbolt"
@@ -119,7 +120,7 @@ func (ls *localSourceHandler) snapshot(ctx context.Context, s session.Group, cal
 	}
 	for _, si := range sis {
 		if m, err := ls.cm.GetMutable(ctx, si.ID()); err == nil {
-			logrus.Debugf("reusing ref for local: %s", m.ID())
+			bklog.G(ctx).Debugf("reusing ref for local: %s", m.ID())
 			mutable = m
 			break
 		}
@@ -131,7 +132,7 @@ func (ls *localSourceHandler) snapshot(ctx context.Context, s session.Group, cal
 			return nil, err
 		}
 		mutable = m
-		logrus.Debugf("new ref for local: %s", mutable.ID())
+		bklog.G(ctx).Debugf("new ref for local: %s", mutable.ID())
 	}
 
 	defer func() {
@@ -139,7 +140,7 @@ func (ls *localSourceHandler) snapshot(ctx context.Context, s session.Group, cal
 			// on error remove the record as checksum update is in undefined state
 			cache.CachePolicyDefault(mutable)
 			if err := mutable.Metadata().Commit(); err != nil {
-				logrus.Errorf("failed to reset mutable cachepolicy: %v", err)
+				bklog.G(ctx).Errorf("failed to reset mutable cachepolicy: %v", err)
 			}
 			contenthash.ClearCacheContext(mutable.Metadata())
 			go mutable.Release(context.TODO())
@@ -178,6 +179,7 @@ func (ls *localSourceHandler) snapshot(ctx context.Context, s session.Group, cal
 		DestDir:          dest,
 		CacheUpdater:     &cacheUpdater{cc, mount.IdentityMapping()},
 		ProgressCb:       newProgressHandler(ctx, "transferring "+ls.src.Name+":"),
+		Differ:           ls.src.Differ,
 	}
 
 	if idmap := mount.IdentityMapping(); idmap != nil {
@@ -232,7 +234,7 @@ func (ls *localSourceHandler) snapshot(ctx context.Context, s session.Group, cal
 		}); err != nil {
 			return nil, err
 		}
-		logrus.Debugf("saved %s as %s", mutable.ID(), sharedKey)
+		bklog.G(ctx).Debugf("saved %s as %s", mutable.ID(), sharedKey)
 	}
 
 	snap, err := mutable.Commit(ctx)
@@ -247,7 +249,7 @@ func (ls *localSourceHandler) snapshot(ctx context.Context, s session.Group, cal
 
 func newProgressHandler(ctx context.Context, id string) func(int, bool) {
 	limiter := rate.NewLimiter(rate.Every(100*time.Millisecond), 1)
-	pw, _, _ := progress.FromContext(ctx)
+	pw, _, _ := progress.NewFromContext(ctx)
 	now := time.Now()
 	st := progress.Status{
 		Started: &now,

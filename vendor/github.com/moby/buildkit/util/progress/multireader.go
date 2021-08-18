@@ -28,7 +28,7 @@ func (mr *MultiReader) Reader(ctx context.Context) Reader {
 	defer mr.mu.Unlock()
 
 	pr, ctx, closeWriter := NewContext(ctx)
-	pw, _, ctx := FromContext(ctx)
+	pw, _, ctx := NewFromContext(ctx)
 
 	w := pw.(*progressWriter)
 	mr.writers[w] = closeWriter

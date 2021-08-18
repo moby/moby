@@ -13,7 +13,7 @@ import (
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/archutil"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	copy "github.com/tonistiigi/fsutil/copy"
 )
@@ -91,7 +91,7 @@ func getEmulator(p *pb.Platform, idmap *idtools.IdentityMapping) (*emulator, err
 		m[p] = struct{}{}
 	}
 
-	pp := platforms.Normalize(specs.Platform{
+	pp := platforms.Normalize(ocispecs.Platform{
 		Architecture: p.Architecture,
 		OS:           p.OS,
 		Variant:      p.Variant,

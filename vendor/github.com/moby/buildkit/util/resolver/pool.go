@@ -14,7 +14,7 @@ import (
 	distreference "github.com/docker/distribution/reference"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/source"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // DefaultPool is the default shared resolver pool instance
@@ -184,7 +184,7 @@ func (r *Resolver) Fetcher(ctx context.Context, ref string) (remotes.Fetcher, er
 }
 
 // Resolve attempts to resolve the reference into a name and descriptor.
-func (r *Resolver) Resolve(ctx context.Context, ref string) (string, ocispec.Descriptor, error) {
+func (r *Resolver) Resolve(ctx context.Context, ref string) (string, ocispecs.Descriptor, error) {
 	if r.mode == source.ResolveModePreferLocal && r.is != nil {
 		if img, err := r.is.Get(ctx, ref); err == nil {
 			return ref, img.Target, nil
@@ -203,5 +203,5 @@ func (r *Resolver) Resolve(ctx context.Context, ref string) (string, ocispec.Des
 		}
 	}
 
-	return "", ocispec.Descriptor{}, err
+	return "", ocispecs.Descriptor{}, err
 }

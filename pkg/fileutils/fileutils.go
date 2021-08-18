@@ -55,50 +55,6 @@ func NewPatternMatcher(patterns []string) (*PatternMatcher, error) {
 	return pm, nil
 }
 
-// Matches returns true if "file" matches any of the patterns
-// and isn't excluded by any of the subsequent patterns.
-//
-// The "file" argument should be a slash-delimited path.
-//
-// Matches is not safe to call concurrently.
-//
-// This implementation is buggy (it only checks a single parent dir against the
-// pattern) and will be removed soon. Use either MatchesOrParentMatches or
-// MatchesUsingParentResult instead.
-func (pm *PatternMatcher) Matches(file string) (bool, error) {
-	matched := false
-	file = filepath.FromSlash(file)
-	parentPath := filepath.Dir(file)
-	parentPathDirs := strings.Split(parentPath, string(os.PathSeparator))
-
-	for _, pattern := range pm.patterns {
-		// Skip evaluation if this is an inclusion and the filename
-		// already matched the pattern, or it's an exclusion and it has
-		// not matched the pattern yet.
-		if pattern.exclusion != matched {
-			continue
-		}
-
-		match, err := pattern.match(file)
-		if err != nil {
-			return false, err
-		}
-
-		if !match && parentPath != "." {
-			// Check to see if the pattern matches one of our parent dirs.
-			if len(pattern.dirs) <= len(parentPathDirs) {
-				match, _ = pattern.match(strings.Join(parentPathDirs[:len(pattern.dirs)], string(os.PathSeparator)))
-			}
-		}
-
-		if match {
-			matched = !pattern.exclusion
-		}
-	}
-
-	return matched, nil
-}
-
 // MatchesOrParentMatches returns true if "file" matches any of the patterns
 // and isn't excluded by any of the subsequent patterns.
 //
@@ -289,26 +245,6 @@ func (p *Pattern) compile() error {
 
 	p.regexp = re
 	return nil
-}
-
-// Matches returns true if file matches any of the patterns
-// and isn't excluded by any of the subsequent patterns.
-//
-// This implementation is buggy (it only checks a single parent dir against the
-// pattern) and will be removed soon. Use MatchesOrParentMatches instead.
-func Matches(file string, patterns []string) (bool, error) {
-	pm, err := NewPatternMatcher(patterns)
-	if err != nil {
-		return false, err
-	}
-	file = filepath.Clean(file)
-
-	if file == "." {
-		// Don't let them exclude everything, kind of silly.
-		return false, nil
-	}
-
-	return pm.Matches(file)
 }
 
 // MatchesOrParentMatches returns true if file matches any of the patterns

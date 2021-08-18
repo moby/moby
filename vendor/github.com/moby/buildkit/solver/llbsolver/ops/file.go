@@ -452,7 +452,7 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 					}
 				}
 
-				err = errdefs.WithExecError(err, inputRes, outputRes)
+				err = errdefs.WithExecErrorWithContext(ctx, err, inputRes, outputRes)
 			}
 			for _, m := range toRelease {
 				m.Release(context.TODO())

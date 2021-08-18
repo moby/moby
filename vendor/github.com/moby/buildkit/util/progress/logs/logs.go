@@ -32,7 +32,7 @@ func NewLogStreams(ctx context.Context, printOutput bool) (io.WriteCloser, io.Wr
 }
 
 func newStreamWriter(ctx context.Context, stream int, printOutput bool) io.WriteCloser {
-	pw, _, _ := progress.FromContext(ctx)
+	pw, _, _ := progress.NewFromContext(ctx)
 	return &streamWriter{
 		pw:          pw,
 		stream:      stream,
@@ -132,7 +132,7 @@ func (sw *streamWriter) Close() error {
 
 func LoggerFromContext(ctx context.Context) func([]byte) {
 	return func(dt []byte) {
-		pw, _, _ := progress.FromContext(ctx)
+		pw, _, _ := progress.NewFromContext(ctx)
 		defer pw.Close()
 		pw.Write(identity.NewID(), client.VertexLog{
 			Stream: stderr,

@@ -1,6 +1,11 @@
-package errdefs
+package moby_buildkit_v1_frontend //nolint:golint
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/containerd/typeurl"
+	"github.com/moby/buildkit/util/grpcerrors"
+)
 
 const (
 	// UnknownExitStatus might be returned in (*ExitError).ExitCode via
@@ -12,11 +17,21 @@ const (
 	UnknownExitStatus = 255
 )
 
+func init() {
+	typeurl.Register((*ExitMessage)(nil), "github.com/moby/buildkit", "gatewayapi.ExitMessage+json")
+}
+
 // ExitError will be returned when the container process exits with a non-zero
 // exit code.
 type ExitError struct {
 	ExitCode uint32
 	Err      error
+}
+
+func (err *ExitError) ToProto() grpcerrors.TypedErrorProto {
+	return &ExitMessage{
+		Code: err.ExitCode,
+	}
 }
 
 func (err *ExitError) Error() string {
@@ -27,8 +42,12 @@ func (err *ExitError) Error() string {
 }
 
 func (err *ExitError) Unwrap() error {
-	if err.Err == nil {
-		return fmt.Errorf("exit code: %d", err.ExitCode)
-	}
 	return err.Err
+}
+
+func (e *ExitMessage) WrapError(err error) error {
+	return &ExitError{
+		Err:      err,
+		ExitCode: e.Code,
+	}
 }

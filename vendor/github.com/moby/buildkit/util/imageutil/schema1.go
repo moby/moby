@@ -9,11 +9,11 @@ import (
 
 	"github.com/containerd/containerd/remotes"
 	digest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
-func readSchema1Config(ctx context.Context, ref string, desc specs.Descriptor, fetcher remotes.Fetcher, cache ContentCache) (digest.Digest, []byte, error) {
+func readSchema1Config(ctx context.Context, ref string, desc ocispecs.Descriptor, fetcher remotes.Fetcher, cache ContentCache) (digest.Digest, []byte, error) {
 	rc, err := fetcher.Fetch(ctx, desc)
 	if err != nil {
 		return "", nil, err
@@ -44,22 +44,22 @@ func convertSchema1ConfigMeta(in []byte) ([]byte, error) {
 		return nil, errors.Errorf("invalid schema1 manifest")
 	}
 
-	var img specs.Image
+	var img ocispecs.Image
 	if err := json.Unmarshal([]byte(m.History[0].V1Compatibility), &img); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal image from schema 1 history")
 	}
 
-	img.RootFS = specs.RootFS{
+	img.RootFS = ocispecs.RootFS{
 		Type: "layers", // filled in by exporter
 	}
-	img.History = make([]specs.History, len(m.History))
+	img.History = make([]ocispecs.History, len(m.History))
 
 	for i := range m.History {
 		var h v1History
 		if err := json.Unmarshal([]byte(m.History[i].V1Compatibility), &h); err != nil {
 			return nil, errors.Wrap(err, "failed to unmarshal history")
 		}
-		img.History[len(m.History)-i-1] = specs.History{
+		img.History[len(m.History)-i-1] = ocispecs.History{
 			Author:     h.Author,
 			Comment:    h.Comment,
 			Created:    &h.Created,

@@ -29,13 +29,13 @@ func (wr *WorkerRef) ID() string {
 // GetRemote method abstracts ImmutableRef's GetRemote to allow a Worker to override.
 // This is needed for moby integration.
 // Use this method instead of calling ImmutableRef.GetRemote() directly.
-func (wr *WorkerRef) GetRemote(ctx context.Context, createIfNeeded bool, compressionType compression.Type, g session.Group) (*solver.Remote, error) {
+func (wr *WorkerRef) GetRemote(ctx context.Context, createIfNeeded bool, compressionType compression.Type, forceCompression bool, g session.Group) (*solver.Remote, error) {
 	if w, ok := wr.Worker.(interface {
-		GetRemote(context.Context, cache.ImmutableRef, bool, compression.Type, session.Group) (*solver.Remote, error)
+		GetRemote(context.Context, cache.ImmutableRef, bool, compression.Type, bool, session.Group) (*solver.Remote, error)
 	}); ok {
-		return w.GetRemote(ctx, wr.ImmutableRef, createIfNeeded, compressionType, g)
+		return w.GetRemote(ctx, wr.ImmutableRef, createIfNeeded, compressionType, forceCompression, g)
 	}
-	return wr.ImmutableRef.GetRemote(ctx, createIfNeeded, compressionType, g)
+	return wr.ImmutableRef.GetRemote(ctx, createIfNeeded, compressionType, forceCompression, g)
 }
 
 type workerRefResult struct {

@@ -272,6 +272,11 @@ func (c *bridgeClient) NewContainer(ctx context.Context, req client.NewContainer
 		return nil, err
 	}
 
+	ctrReq.ExtraHosts, err = gateway.ParseExtraHosts(req.ExtraHosts)
+	if err != nil {
+		return nil, err
+	}
+
 	w, err := c.workers.GetDefault()
 	if err != nil {
 		return nil, err

@@ -7,11 +7,11 @@ import (
 	"time"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/grpcerrors"
-	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/net/http2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -22,7 +22,7 @@ func serve(ctx context.Context, grpcServer *grpc.Server, conn net.Conn) {
 		<-ctx.Done()
 		conn.Close()
 	}()
-	logrus.Debugf("serving grpc connection")
+	bklog.G(ctx).Debugf("serving grpc connection")
 	(&http2.Server{}).ServeConn(conn, &http2.ServeConnOpts{Handler: grpcServer})
 }
 
@@ -43,10 +43,9 @@ func grpcClientConn(ctx context.Context, conn net.Conn) (context.Context, *grpc.
 		grpc.WithInsecure(),
 	}
 
-	if span := opentracing.SpanFromContext(ctx); span != nil {
-		tracer := span.Tracer()
-		unary = append(unary, otgrpc.OpenTracingClientInterceptor(tracer, traceFilter()))
-		stream = append(stream, otgrpc.OpenTracingStreamClientInterceptor(tracer, traceFilter()))
+	if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
+		unary = append(unary, filterClient(otelgrpc.UnaryClientInterceptor(otelgrpc.WithTracerProvider(span.TracerProvider()), otelgrpc.WithPropagators(propagators))))
+		stream = append(stream, otelgrpc.StreamClientInterceptor(otelgrpc.WithTracerProvider(span.TracerProvider()), otelgrpc.WithPropagators(propagators)))
 	}
 
 	unary = append(unary, grpcerrors.UnaryClientInterceptor)

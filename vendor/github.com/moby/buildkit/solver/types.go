@@ -8,7 +8,7 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver/pb"
 	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // Vertex is a node in a build graph. It defines an interface for a
@@ -122,7 +122,7 @@ type CacheExporterRecord interface {
 // from a content provider
 // TODO: add closer to keep referenced data from getting deleted
 type Remote struct {
-	Descriptors []ocispec.Descriptor
+	Descriptors []ocispecs.Descriptor
 	Provider    content.Provider
 }
 

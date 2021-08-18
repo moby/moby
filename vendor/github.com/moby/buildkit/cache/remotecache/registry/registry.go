@@ -11,9 +11,9 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/resolver"
+	"github.com/moby/buildkit/util/resolver/limited"
 	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -52,27 +52,27 @@ func ResolveCacheExporterFunc(sm *session.Manager, hosts docker.RegistryHosts) r
 		if err != nil {
 			return nil, err
 		}
-		return remotecache.NewExporter(contentutil.FromPusher(pusher), ociMediatypes), nil
+		return remotecache.NewExporter(contentutil.FromPusher(pusher), ref, ociMediatypes), nil
 	}
 }
 
 func ResolveCacheImporterFunc(sm *session.Manager, cs content.Store, hosts docker.RegistryHosts) remotecache.ResolveCacheImporterFunc {
-	return func(ctx context.Context, g session.Group, attrs map[string]string) (remotecache.Importer, specs.Descriptor, error) {
+	return func(ctx context.Context, g session.Group, attrs map[string]string) (remotecache.Importer, ocispecs.Descriptor, error) {
 		ref, err := canonicalizeRef(attrs[attrRef])
 		if err != nil {
-			return nil, specs.Descriptor{}, err
+			return nil, ocispecs.Descriptor{}, err
 		}
 		remote := resolver.DefaultPool.GetResolver(hosts, ref, "pull", sm, g)
 		xref, desc, err := remote.Resolve(ctx, ref)
 		if err != nil {
-			return nil, specs.Descriptor{}, err
+			return nil, ocispecs.Descriptor{}, err
 		}
 		fetcher, err := remote.Fetcher(ctx, xref)
 		if err != nil {
-			return nil, specs.Descriptor{}, err
+			return nil, ocispecs.Descriptor{}, err
 		}
 		src := &withDistributionSourceLabel{
-			Provider: contentutil.FromFetcher(fetcher),
+			Provider: contentutil.FromFetcher(limited.Default.WrapFetcher(fetcher, ref)),
 			ref:      ref,
 			source:   cs,
 		}
@@ -93,11 +93,11 @@ func (dsl *withDistributionSourceLabel) SetDistributionSourceLabel(ctx context.C
 	if err != nil {
 		return err
 	}
-	_, err = hf(ctx, ocispec.Descriptor{Digest: dgst})
+	_, err = hf(ctx, ocispecs.Descriptor{Digest: dgst})
 	return err
 }
 
-func (dsl *withDistributionSourceLabel) SetDistributionSourceAnnotation(desc ocispec.Descriptor) ocispec.Descriptor {
+func (dsl *withDistributionSourceLabel) SetDistributionSourceAnnotation(desc ocispecs.Descriptor) ocispecs.Descriptor {
 	if desc.Annotations == nil {
 		desc.Annotations = map[string]string{}
 	}
