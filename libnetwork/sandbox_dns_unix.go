@@ -5,6 +5,7 @@ package libnetwork
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/docker/docker/libnetwork/etchosts"
 	"github.com/docker/docker/libnetwork/resolvconf"
-	"github.com/docker/docker/libnetwork/resolvconf/dns"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
 )
@@ -171,14 +171,26 @@ func (sb *sandbox) setExternalResolvers(content []byte, addrType int, checkLoopb
 	servers := resolvconf.GetNameservers(content, addrType)
 	for _, ip := range servers {
 		hostLoopback := false
-		if checkLoopback {
-			hostLoopback = dns.IsIPv4Localhost(ip)
+		if checkLoopback && isIPv4Loopback(ip) {
+			hostLoopback = true
 		}
 		sb.extDNS = append(sb.extDNS, extDNSEntry{
 			IPStr:        ip,
 			HostLoopback: hostLoopback,
 		})
 	}
+}
+
+// isIPv4Loopback checks if the given IP address is an IPv4 loopback address.
+// It's based on the logic in Go's net.IP.IsLoopback(), but only the IPv4 part:
+// https://github.com/golang/go/blob/go1.16.6/src/net/ip.go#L120-L126
+func isIPv4Loopback(ipAddress string) bool {
+	if ip := net.ParseIP(ipAddress); ip != nil {
+		if ip4 := ip.To4(); ip4 != nil {
+			return ip4[0] == 127
+		}
+	}
+	return false
 }
 
 func (sb *sandbox) setupDNS() error {
