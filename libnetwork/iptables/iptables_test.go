@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/docker/docker/libnetwork/testutils"
 	"golang.org/x/sync/errgroup"
 )
 

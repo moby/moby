@@ -18,9 +18,6 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
-
-	// this takes care of the incontainer flag
-	_ "github.com/docker/docker/libnetwork/testutils"
 )
 
 var dbPort int32 = 10000
