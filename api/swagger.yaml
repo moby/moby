@@ -2190,6 +2190,24 @@ definitions:
         type: "string"
         x-nullable: false
 
+  PluginPrivilegeItem:
+    description: |
+      Describes a permission the user has to accept upon installing
+      the plugin.
+    type: "object"
+    properties:
+      Name:
+        type: "string"
+        example: "network"
+      Description:
+        type: "string"
+      Value:
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "host"
+
   Plugin:
     description: "A plugin for the Engine API"
     type: "object"
@@ -2972,19 +2990,7 @@ definitions:
           PluginPrivilege:
             type: "array"
             items:
-              description: |
-                Describes a permission accepted by the user upon installing the
-                plugin.
-              type: "object"
-              properties:
-                Name:
-                  type: "string"
-                Description:
-                  type: "string"
-                Value:
-                  type: "array"
-                  items:
-                    type: "string"
+              $ref: "#/definitions/PluginPrivilegeItem"
       ContainerSpec:
         type: "object"
         description: |
@@ -9413,20 +9419,7 @@ paths:
           schema:
             type: "array"
             items:
-              description: |
-                Describes a permission the user has to accept upon installing
-                the plugin.
-              type: "object"
-              title: "PluginPrivilegeItem"
-              properties:
-                Name:
-                  type: "string"
-                Description:
-                  type: "string"
-                Value:
-                  type: "array"
-                  items:
-                    type: "string"
+              $ref: "#/definitions/PluginPrivilegeItem"
             example:
               - Name: "network"
                 Description: ""
@@ -9502,19 +9495,7 @@ paths:
           schema:
             type: "array"
             items:
-              description: |
-                Describes a permission accepted by the user upon installing the
-                plugin.
-              type: "object"
-              properties:
-                Name:
-                  type: "string"
-                Description:
-                  type: "string"
-                Value:
-                  type: "array"
-                  items:
-                    type: "string"
+              $ref: "#/definitions/PluginPrivilegeItem"
             example:
               - Name: "network"
                 Description: ""
@@ -9686,19 +9667,7 @@ paths:
           schema:
             type: "array"
             items:
-              description: |
-                Describes a permission accepted by the user upon installing the
-                plugin.
-              type: "object"
-              properties:
-                Name:
-                  type: "string"
-                Description:
-                  type: "string"
-                Value:
-                  type: "array"
-                  items:
-                    type: "string"
+              $ref: "#/definitions/PluginPrivilegeItem"
             example:
               - Name: "network"
                 Description: ""
