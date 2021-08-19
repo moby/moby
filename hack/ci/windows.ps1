@@ -582,8 +582,10 @@ Try {
     $env:GOPATH="$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR"
     Write-Host -ForegroundColor Green "INFO: GOPATH=$env:GOPATH"
 
-    # Set the path to have the version of go from the image at the front
-    $env:PATH="$env:TEMP\go\bin;$env:PATH"
+    # Set the path to have:
+    # - the version of go from the image at the front
+    # - the test binaries, not the host ones.
+    $env:PATH="$env:TEMP\go\bin;$env:TEMP\binary;$env:PATH"
 
     # Set the GOROOT to be our copy of go from the image
     $env:GOROOT="$env:TEMP\go"
@@ -871,7 +873,6 @@ Try {
                                                     "`$env`:PATH`='c`:\target;'+`$env:PATH`;  `$env:DOCKER_HOST`='tcp`://'+(ipconfig | select -last 1).Substring(39)+'`:2357'; c:\target\runIntegrationCLI.ps1" | Out-Host } )
         } else  {
             $env:DOCKER_HOST=$DASHH_CUT
-            $env:PATH="$env:TEMP\binary;$env:PATH;"  # Force to use the test binaries, not the host ones.
                 $env:GO111MODULE="off"
             Write-Host -ForegroundColor Green "INFO: DOCKER_HOST at $DASHH_CUT"
 
