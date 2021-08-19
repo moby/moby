@@ -133,7 +133,12 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/
             libapparmor-dev:armel \
             libapparmor-dev:armhf \
             libapparmor-dev:ppc64el \
-            libapparmor-dev:s390x
+            libapparmor-dev:s390x \
+            libseccomp-dev:arm64 \
+            libseccomp-dev:armel \
+            libseccomp-dev:armhf \
+            libseccomp-dev:ppc64el \
+            libseccomp-dev:s390x
 
 FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
