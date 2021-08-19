@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.2
+# syntax=docker/dockerfile:1.3
 
 ARG CROSS="false"
 ARG SYSTEMD="false"
@@ -21,10 +21,8 @@ ENV GO111MODULE=off
 FROM base AS criu
 ARG DEBIAN_FRONTEND
 ADD --chmod=0644 https://download.opensuse.org/repositories/devel:/tools:/criu/Debian_10/Release.key /etc/apt/trusted.gpg.d/criu.gpg.asc
-# FIXME: temporarily doing a manual chmod as workaround for https://github.com/moby/buildkit/issues/2114
 RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-criu-aptcache,target=/var/cache/apt \
-        chmod 0644 /etc/apt/trusted.gpg.d/criu.gpg.asc \
         && echo 'deb https://download.opensuse.org/repositories/devel:/tools:/criu/Debian_10/ /' > /etc/apt/sources.list.d/criu.list \
         && apt-get update \
         && apt-get install -y --no-install-recommends criu \
