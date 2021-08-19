@@ -285,7 +285,7 @@ func TestTarUntarWithXattr(t *testing.T) {
 		}
 		out, err := exec.Command("getcap", filepath.Join(origin, "2")).CombinedOutput()
 		assert.NilError(t, err, string(out))
-		assert.Check(t, is.Contains(string(out), "= cap_block_suspend+ep"), "untar should have kept the 'security.capability' xattr")
+		assert.Check(t, is.Contains(string(out), "cap_block_suspend=ep"), "untar should have kept the 'security.capability' xattr")
 	}
 }
 
