@@ -8,34 +8,25 @@ import (
 )
 
 var (
-	// initDefaults makes sure we initialize the defaults only once
-	initDefaults sync.Once
+	// initLocal makes sure we initialize the defaults only once
+	initLocal sync.Once
+	local     sync.RWMutex
 
 	// predefinedLocalScopeDefaultNetworks contains a list of 31 IPv4 private
 	// networks with host size 16 and 12 (172.17-31.x.x/16, 192.168.x.x/20)
 	// which do not overlap with the networks in predefinedGlobalScopeDefaultNetworks
 	predefinedLocalScopeDefaultNetworks []*net.IPNet
 
+	// initGlobal makes sure we initialize the defaults only once
+	initGlobal sync.Once
+	global     sync.RWMutex
+
+	globalScopeDefaultNetworks = []*NetworkToSplit{{"10.0.0.0/8", 24}}
+
 	// predefinedGlobalScopeDefaultNetworks contains a list of 64K IPv4 private
 	// networks with host size 8 (10.x.x.x/24) which do not overlap with the
 	// networks in predefinedLocalScopeDefaultNetworks
 	predefinedGlobalScopeDefaultNetworks []*net.IPNet
-
-	mutex sync.RWMutex
-
-	localScopeDefaultNetworks = []*NetworkToSplit{
-		{"172.17.0.0/16", 16},
-		{"172.18.0.0/16", 16},
-		{"172.19.0.0/16", 16},
-		{"172.20.0.0/14", 16},
-		{"172.24.0.0/14", 16},
-		{"172.28.0.0/14", 16},
-		{"192.168.0.0/16", 20},
-	}
-
-	globalScopeDefaultNetworks = []*NetworkToSplit{
-		{"10.0.0.0/8", 24},
-	}
 )
 
 // NetworkToSplit represent a network that has to be split in chunks with mask length Size.
@@ -48,42 +39,40 @@ type NetworkToSplit struct {
 	Size int    `json:"size"`
 }
 
-// initDefaultNetworks initializes the default address pools
-func initDefaultNetworks() {
+// initLocalScopeDefaultNetworks initializes the default address pools for the
+// local scope.
+func initLocalScopeDefaultNetworks() {
 	var err error
-	if len(predefinedLocalScopeDefaultNetworks) == 0 {
-		predefinedLocalScopeDefaultNetworks, err = splitNetworks(localScopeDefaultNetworks)
-		if err != nil {
-			panic("failed to initialize the local scope default address pool: " + err.Error())
-		}
-	}
-	if len(predefinedGlobalScopeDefaultNetworks) == 0 {
-		predefinedGlobalScopeDefaultNetworks, err = splitNetworks(globalScopeDefaultNetworks)
-		if err != nil {
-			panic("failed to initialize the global scope default address pool: " + err.Error())
-		}
+	predefinedLocalScopeDefaultNetworks, err = splitNetworks([]*NetworkToSplit{
+		{"172.17.0.0/16", 16},
+		{"172.18.0.0/16", 16},
+		{"172.19.0.0/16", 16},
+		{"172.20.0.0/14", 16},
+		{"172.24.0.0/14", 16},
+		{"172.28.0.0/14", 16},
+		{"192.168.0.0/16", 20},
+	})
+	if err != nil {
+		panic("failed to initialize the local scope default address pool: " + err.Error())
 	}
 }
 
-// configDefaultNetworks configures local as well global default pool based on input
-func configDefaultNetworks(defaultAddressPool []*NetworkToSplit, result *[]*net.IPNet) error {
-	mutex.Lock()
-	defer mutex.Unlock()
-	defaultNetworks, err := splitNetworks(defaultAddressPool)
+// initGlobalScopeDefaultNetworks initializes the default address pools
+func initGlobalScopeDefaultNetworks() {
+	var err error
+	predefinedGlobalScopeDefaultNetworks, err = splitNetworks(globalScopeDefaultNetworks)
 	if err != nil {
-		return err
+		panic("failed to initialize the global scope default address pool: " + err.Error())
 	}
-	*result = defaultNetworks
-	return nil
 }
 
 // GetGlobalScopeDefaultNetworks returns a list of 64K IPv4 private networks with
 // host size 8 (10.x.x.x/24) which do not overlap with the networks returned by
 // GetLocalScopeDefaultNetworks
 func GetGlobalScopeDefaultNetworks() []*net.IPNet {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	initDefaults.Do(initDefaultNetworks)
+	global.RLock()
+	defer global.RUnlock()
+	initGlobal.Do(initGlobalScopeDefaultNetworks)
 
 	return predefinedGlobalScopeDefaultNetworks
 }
@@ -92,24 +81,35 @@ func GetGlobalScopeDefaultNetworks() []*net.IPNet {
 // host size 16 and 12 (172.17-31.x.x/16, 192.168.x.x/20) which do not overlap
 // with the networks returned by GetGlobalScopeDefaultNetworks.
 func GetLocalScopeDefaultNetworks() []*net.IPNet {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	initDefaults.Do(initDefaultNetworks)
+	initLocal.Do(initLocalScopeDefaultNetworks)
 
+	local.RLock()
+	defer local.RUnlock()
 	return predefinedLocalScopeDefaultNetworks
 }
 
 // ConfigGlobalScopeDefaultNetworks configures global default pool.
 // Ideally this will be called from SwarmKit as part of swarm init
 func ConfigGlobalScopeDefaultNetworks(defaultAddressPool []*NetworkToSplit) error {
+	global.Lock()
+	defer global.Unlock()
+
 	if defaultAddressPool == nil {
+		// reset to defaults
 		defaultAddressPool = globalScopeDefaultNetworks
 	}
 
-	// Prevent potential race conditions; first trigger setting the defaults
-	// if it was not run yet
-	initDefaults.Do(initDefaultNetworks)
-	return configDefaultNetworks(defaultAddressPool, &predefinedGlobalScopeDefaultNetworks)
+	// Prevent potential race conditions; trigger setting the defaults if it was
+	// not run yet, otherwise a call to GetLocalScopeDefaultNetworks or
+	// GetLocalScopeDefaultNetworks would overwrite the custom configuration.
+	initGlobal.Do(initGlobalScopeDefaultNetworks)
+
+	nws, err := splitNetworks(defaultAddressPool)
+	if err != nil {
+		return err
+	}
+	predefinedGlobalScopeDefaultNetworks = nws
+	return nil
 }
 
 // ConfigLocalScopeDefaultNetworks configures local default pool.
@@ -118,10 +118,20 @@ func ConfigLocalScopeDefaultNetworks(defaultAddressPool []*NetworkToSplit) error
 	if defaultAddressPool == nil {
 		return nil
 	}
-	// Prevent potential race conditions; first trigger setting the defaults
-	// if it was not run yet
-	initDefaults.Do(initDefaultNetworks)
-	return configDefaultNetworks(defaultAddressPool, &predefinedLocalScopeDefaultNetworks)
+
+	// Prevent potential race conditions; trigger setting the defaults if it was
+	// not run yet, otherwise a call to GetLocalScopeDefaultNetworks or
+	// GetLocalScopeDefaultNetworks would overwrite the custom configuration.
+	initLocal.Do(initLocalScopeDefaultNetworks)
+
+	local.Lock()
+	defer local.Unlock()
+	nws, err := splitNetworks(defaultAddressPool)
+	if err != nil {
+		return err
+	}
+	predefinedLocalScopeDefaultNetworks = nws
+	return nil
 }
 
 // splitNetworks takes a slice of networks, split them accordingly and returns them
@@ -150,17 +160,12 @@ func splitNetwork(size int, base *net.IPNet) []*net.IPNet {
 	list := make([]*net.IPNet, 0, n)
 
 	for i := 0; i < n; i++ {
-		ip := copyIP(base.IP)
+		ip := make([]byte, len(base.IP))
+		copy(ip, base.IP)
 		addIntToIP(ip, uint(i<<s))
 		list = append(list, &net.IPNet{IP: ip, Mask: mask})
 	}
 	return list
-}
-
-func copyIP(from net.IP) net.IP {
-	ip := make([]byte, len(from))
-	copy(ip, from)
-	return ip
 }
 
 func addIntToIP(array net.IP, ordinal uint) {
