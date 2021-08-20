@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/testutil/environment"
 	"github.com/docker/go-connections/sockets"
@@ -180,7 +179,7 @@ func getTLSConfig() (*tls.Config, error) {
 
 // DaemonHost return the daemon host string for this test execution
 func DaemonHost() string {
-	daemonURLStr := "unix://" + opts.DefaultUnixSocket
+	daemonURLStr := client.DefaultDockerHost
 	if daemonHostVar := os.Getenv("DOCKER_HOST"); daemonHostVar != "" {
 		daemonURLStr = daemonHostVar
 	}
