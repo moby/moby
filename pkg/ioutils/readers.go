@@ -2,9 +2,12 @@ package ioutils // import "github.com/docker/docker/pkg/ioutils"
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"io"
+
+	// make sure crypto.SHA256, crypto.sha512 and crypto.SHA384 are registered
+	// TODO remove once https://github.com/opencontainers/go-digest/pull/64 is merged.
+	_ "crypto/sha256"
+	_ "crypto/sha512"
 )
 
 // ReadCloserWrapper wraps an io.Reader, and implements an io.ReadCloser
@@ -47,15 +50,6 @@ func NewReaderErrWrapper(r io.Reader, closer func()) io.Reader {
 		reader: r,
 		closer: closer,
 	}
-}
-
-// HashData returns the sha256 sum of src.
-func HashData(src io.Reader) (string, error) {
-	h := sha256.New()
-	if _, err := io.Copy(h, src); err != nil {
-		return "", err
-	}
-	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // OnEOFReader wraps an io.ReadCloser and a function
