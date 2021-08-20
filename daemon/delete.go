@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/containerfs"
@@ -109,7 +111,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 	// If you arrived here and know the answer, you earned yourself a picture
 	// of a cute animal of your own choosing.
 	var stopTimeout = 3
-	if err := daemon.containerStop(container, &stopTimeout); err != nil {
+	if err := daemon.containerStop(context.TODO(), container, containertypes.StopOptions{Timeout: &stopTimeout}); err != nil {
 		return err
 	}
 

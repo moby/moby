@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
@@ -18,7 +19,7 @@ import (
 // If the timeout is nil, the container's StopTimeout value is used, if set,
 // otherwise the engine default. A negative timeout value can be specified,
 // meaning no timeout, i.e. no forceful termination is performed.
-func (daemon *Daemon) ContainerStop(name string, timeout *int) error {
+func (daemon *Daemon) ContainerStop(ctx context.Context, name string, options containertypes.StopOptions) error {
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -26,7 +27,7 @@ func (daemon *Daemon) ContainerStop(name string, timeout *int) error {
 	if !ctr.IsRunning() {
 		return containerNotModifiedError{}
 	}
-	err = daemon.containerStop(ctr, timeout)
+	err = daemon.containerStop(ctx, ctr, options)
 	if err != nil {
 		return errdefs.System(errors.Wrapf(err, "cannot stop container: %s", name))
 	}
@@ -34,9 +35,7 @@ func (daemon *Daemon) ContainerStop(name string, timeout *int) error {
 }
 
 // containerStop sends a stop signal, waits, sends a kill signal.
-func (daemon *Daemon) containerStop(ctr *container.Container, seconds *int) (retErr error) {
-	// TODO propagate a context down to this function
-	ctx := context.TODO()
+func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Container, options containertypes.StopOptions) (retErr error) {
 	if !ctr.IsRunning() {
 		return nil
 	}
@@ -45,8 +44,8 @@ func (daemon *Daemon) containerStop(ctr *container.Container, seconds *int) (ret
 		stopSignal  = ctr.StopSignal()
 		stopTimeout = ctr.StopTimeout()
 	)
-	if seconds != nil {
-		stopTimeout = *seconds
+	if options.Timeout != nil {
+		stopTimeout = *options.Timeout
 	}
 
 	var wait time.Duration

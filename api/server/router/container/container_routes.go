@@ -221,16 +221,16 @@ func (s *containerRouter) postContainersStop(ctx context.Context, w http.Respons
 		return err
 	}
 
-	var seconds *int
+	var options container.StopOptions
 	if tmpSeconds := r.Form.Get("t"); tmpSeconds != "" {
 		valSeconds, err := strconv.Atoi(tmpSeconds)
 		if err != nil {
 			return err
 		}
-		seconds = &valSeconds
+		options.Timeout = &valSeconds
 	}
 
-	if err := s.backend.ContainerStop(vars["name"], seconds); err != nil {
+	if err := s.backend.ContainerStop(ctx, vars["name"], options); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -278,16 +278,16 @@ func (s *containerRouter) postContainersRestart(ctx context.Context, w http.Resp
 		return err
 	}
 
-	var seconds *int
+	var options container.StopOptions
 	if tmpSeconds := r.Form.Get("t"); tmpSeconds != "" {
 		valSeconds, err := strconv.Atoi(tmpSeconds)
 		if err != nil {
 			return err
 		}
-		seconds = &valSeconds
+		options.Timeout = &valSeconds
 	}
 
-	if err := s.backend.ContainerRestart(vars["name"], seconds); err != nil {
+	if err := s.backend.ContainerRestart(ctx, vars["name"], options); err != nil {
 		return err
 	}
 

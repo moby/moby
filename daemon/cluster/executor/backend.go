@@ -35,8 +35,8 @@ type Backend interface {
 	ReleaseIngress() (<-chan struct{}, error)
 	CreateManagedContainer(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
 	ContainerStart(name string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
-	ContainerStop(name string, seconds *int) error
-	ContainerLogs(context.Context, string, *types.ContainerLogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
+	ContainerStop(ctx context.Context, name string, config container.StopOptions) error
+	ContainerLogs(ctx context.Context, name string, config *types.ContainerLogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	ActivateContainerServiceBinding(containerName string) error
 	DeactivateContainerServiceBinding(containerName string) error

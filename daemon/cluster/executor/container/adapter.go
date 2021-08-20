@@ -407,14 +407,13 @@ func (c *containerAdapter) wait(ctx context.Context) (<-chan containerpkg.StateS
 }
 
 func (c *containerAdapter) shutdown(ctx context.Context) error {
+	var options = containertypes.StopOptions{}
 	// Default stop grace period to nil (daemon will use the stopTimeout of the container)
-	var stopgrace *int
-	spec := c.container.spec()
-	if spec.StopGracePeriod != nil {
-		stopgraceValue := int(spec.StopGracePeriod.Seconds)
-		stopgrace = &stopgraceValue
+	if spec := c.container.spec(); spec.StopGracePeriod != nil {
+		timeout := int(spec.StopGracePeriod.Seconds)
+		options.Timeout = &timeout
 	}
-	return c.backend.ContainerStop(c.container.name(), stopgrace)
+	return c.backend.ContainerStop(ctx, c.container.name(), options)
 }
 
 func (c *containerAdapter) terminate(ctx context.Context) error {

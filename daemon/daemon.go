@@ -1117,7 +1117,7 @@ func (daemon *Daemon) waitForStartupDone() {
 
 func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 	// If container failed to exit in stopTimeout seconds of SIGTERM, then using the force
-	if err := daemon.containerStop(c, nil); err != nil {
+	if err := daemon.containerStop(context.TODO(), c, containertypes.StopOptions{}); err != nil {
 		return fmt.Errorf("Failed to stop container %s with error: %v", c.ID, err)
 	}
 
