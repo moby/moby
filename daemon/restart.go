@@ -19,11 +19,8 @@ func (daemon *Daemon) ContainerRestart(name string, seconds *int) error {
 	if err != nil {
 		return err
 	}
-	if seconds == nil {
-		stopTimeout := ctr.StopTimeout()
-		seconds = &stopTimeout
-	}
-	if err := daemon.containerRestart(ctr, *seconds); err != nil {
+	err = daemon.containerRestart(ctr, seconds)
+	if err != nil {
 		return fmt.Errorf("Cannot restart container %s: %v", name, err)
 	}
 	return nil
@@ -34,8 +31,7 @@ func (daemon *Daemon) ContainerRestart(name string, seconds *int) error {
 // container. When stopping, wait for the given duration in seconds to
 // gracefully stop, before forcefully terminating the container. If
 // given a negative duration, wait forever for a graceful stop.
-func (daemon *Daemon) containerRestart(container *container.Container, seconds int) error {
-
+func (daemon *Daemon) containerRestart(container *container.Container, seconds *int) error {
 	// Determine isolation. If not specified in the hostconfig, use daemon default.
 	actualIsolation := container.HostConfig.Isolation
 	if containertypes.Isolation.IsDefault(actualIsolation) {

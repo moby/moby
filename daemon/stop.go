@@ -24,34 +24,39 @@ func (daemon *Daemon) ContainerStop(name string, timeout *int) error {
 		return err
 	}
 	if !ctr.IsRunning() {
-		return containerNotModifiedError{running: false}
+		return containerNotModifiedError{}
 	}
-	if timeout == nil {
-		stopTimeout := ctr.StopTimeout()
-		timeout = &stopTimeout
-	}
-	if err := daemon.containerStop(ctr, *timeout); err != nil {
+	err = daemon.containerStop(ctr, timeout)
+	if err != nil {
 		return errdefs.System(errors.Wrapf(err, "cannot stop container: %s", name))
 	}
 	return nil
 }
 
 // containerStop sends a stop signal, waits, sends a kill signal.
-func (daemon *Daemon) containerStop(ctr *container.Container, seconds int) error {
+func (daemon *Daemon) containerStop(ctr *container.Container, seconds *int) error {
 	// TODO propagate a context down to this function
 	ctx := context.TODO()
 	if !ctr.IsRunning() {
 		return nil
 	}
+
+	var (
+		stopSignal  = ctr.StopSignal()
+		stopTimeout = ctr.StopTimeout()
+	)
+	if seconds != nil {
+		stopTimeout = *seconds
+	}
+
 	var wait time.Duration
-	if seconds >= 0 {
-		wait = time.Duration(seconds) * time.Second
+	if stopTimeout >= 0 {
+		wait = time.Duration(stopTimeout) * time.Second
 	}
 	success := func() error {
 		daemon.LogContainerEvent(ctr, "stop")
 		return nil
 	}
-	stopSignal := ctr.StopSignal()
 
 	// 1. Send a stop signal
 	err := daemon.killPossiblyDeadProcess(ctr, stopSignal)
@@ -61,7 +66,7 @@ func (daemon *Daemon) containerStop(ctr *container.Container, seconds int) error
 
 	var subCtx context.Context
 	var cancel context.CancelFunc
-	if seconds >= 0 {
+	if stopTimeout >= 0 {
 		subCtx, cancel = context.WithTimeout(ctx, wait)
 	} else {
 		subCtx, cancel = context.WithCancel(ctx)
@@ -77,7 +82,7 @@ func (daemon *Daemon) containerStop(ctr *container.Container, seconds int) error
 		// the container has still not exited, and the kill function errored, so log the error here:
 		logrus.WithError(err).WithField("container", ctr.ID).Errorf("Error sending stop (signal %d) to container", stopSignal)
 	}
-	if seconds < 0 {
+	if stopTimeout < 0 {
 		// if the client requested that we never kill / wait forever, but container.Wait was still
 		// interrupted (parent context cancelled, for example), we should propagate the signal failure
 		return err

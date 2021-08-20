@@ -97,7 +97,19 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 	// if stats are currently getting collected.
 	daemon.statsCollector.StopCollection(container)
 
-	if err := daemon.containerStop(container, 3); err != nil {
+	// stopTimeout is the number of seconds to wait for the container to stop
+	// gracefully before forcibly killing it.
+	//
+	// Why 3 seconds? The timeout specified here was originally added in commit
+	// 1615bb08c7c3fc6c4b22db0a633edda516f97cf0, which added a custom timeout to
+	// some commands, but lacking an option for a timeout on "docker rm", was
+	// hardcoded to 10 seconds. Commit 28fd289b448164b77affd8103c0d96fd8110daf9
+	// later on updated this to 3 seconds (but no background on that change).
+	//
+	// If you arrived here and know the answer, you earned yourself a picture
+	// of a cute animal of your own choosing.
+	var stopTimeout = 3
+	if err := daemon.containerStop(container, &stopTimeout); err != nil {
 		return err
 	}
 
