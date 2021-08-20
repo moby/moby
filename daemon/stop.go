@@ -34,7 +34,7 @@ func (daemon *Daemon) ContainerStop(name string, timeout *int) error {
 }
 
 // containerStop sends a stop signal, waits, sends a kill signal.
-func (daemon *Daemon) containerStop(ctr *container.Container, seconds *int) error {
+func (daemon *Daemon) containerStop(ctr *container.Container, seconds *int) (retErr error) {
 	// TODO propagate a context down to this function
 	ctx := context.TODO()
 	if !ctr.IsRunning() {
@@ -53,10 +53,11 @@ func (daemon *Daemon) containerStop(ctr *container.Container, seconds *int) erro
 	if stopTimeout >= 0 {
 		wait = time.Duration(stopTimeout) * time.Second
 	}
-	success := func() error {
-		daemon.LogContainerEvent(ctr, "stop")
-		return nil
-	}
+	defer func() {
+		if retErr == nil {
+			daemon.LogContainerEvent(ctr, "stop")
+		}
+	}()
 
 	// 1. Send a stop signal
 	err := daemon.killPossiblyDeadProcess(ctr, stopSignal)
@@ -75,7 +76,7 @@ func (daemon *Daemon) containerStop(ctr *container.Container, seconds *int) erro
 
 	if status := <-ctr.Wait(subCtx, container.WaitConditionNotRunning); status.Err() == nil {
 		// container did exit, so ignore any previous errors and return
-		return success()
+		return nil
 	}
 
 	if err != nil {
@@ -89,18 +90,19 @@ func (daemon *Daemon) containerStop(ctr *container.Container, seconds *int) erro
 	}
 
 	logrus.WithField("container", ctr.ID).Infof("Container failed to exit within %s of signal %d - using the force", wait, stopSignal)
-	// Stop either failed or container didnt exit, so fallback to kill.
+
+	// Stop either failed or container didn't exit, so fallback to kill.
 	if err := daemon.Kill(ctr); err != nil {
 		// got a kill error, but give container 2 more seconds to exit just in case
 		subCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
-		if status := <-ctr.Wait(subCtx, container.WaitConditionNotRunning); status.Err() == nil {
-			// container did exit, so ignore error and return
-			return success()
+		status := <-ctr.Wait(subCtx, container.WaitConditionNotRunning)
+		if status.Err() != nil {
+			logrus.WithError(err).WithField("container", ctr.ID).Errorf("error killing container: %v", status.Err())
+			return err
 		}
-		logrus.WithError(err).WithField("container", ctr.ID).Error("Error killing the container")
-		return err
+		// container did exit, so ignore previous errors and continue
 	}
 
-	return success()
+	return nil
 }
