@@ -43,7 +43,7 @@ func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) 
 		return daemon.rmLink(ctr, name)
 	}
 
-	err = daemon.cleanupContainer(ctr, config.ForceRemove, config.RemoveVolume)
+	err = daemon.cleanupContainer(ctr, *config)
 	containerActions.WithValues("delete").UpdateSince(start)
 
 	return err
@@ -77,9 +77,9 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 
 // cleanupContainer unregisters a container from the daemon, stops stats
 // collection and cleanly removes contents and metadata from the filesystem.
-func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemove, removeVolume bool) error {
+func (daemon *Daemon) cleanupContainer(container *container.Container, config types.ContainerRmConfig) error {
 	if container.IsRunning() {
-		if !forceRemove {
+		if !config.ForceRemove {
 			state := container.StateString()
 			procedure := "Stop the container before attempting removal or force remove"
 			if state == "paused" {
@@ -135,7 +135,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)
 	daemon.containersReplica.Delete(container)
-	if err := daemon.removeMountPoints(container, removeVolume); err != nil {
+	if err := daemon.removeMountPoints(container, config.RemoveVolume); err != nil {
 		logrus.Error(err)
 	}
 	for _, name := range linkNames {
