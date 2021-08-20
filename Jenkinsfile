@@ -18,8 +18,8 @@ pipeline {
         booleanParam(name: 'ppc64le', defaultValue: false, description: 'PowerPC (ppc64le) Build/Test')
         booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
         booleanParam(name: 'windowsRS5', defaultValue: true, description: 'Windows 2019 (RS5) Build/Test')
-        booleanParam(name: 'windows2022', defaultValue: true, description: 'Windows 2022 (SAC) Build/Test')
-        booleanParam(name: 'windows2022containerd', defaultValue: true, description: 'Windows 2022 (SAC) with containerd Build/Test')
+        booleanParam(name: 'windows2022', defaultValue: true, description: 'Windows 2022 (LTSC) Build/Test')
+        booleanParam(name: 'windows2022containerd', defaultValue: true, description: 'Windows 2022 (LTSC) with containerd Build/Test')
         booleanParam(name: 'dco', defaultValue: true, description: 'Run the DCO check')
     }
     environment {
@@ -1204,10 +1204,9 @@ pipeline {
                         SOURCES_SUBDIR         = 'gopath'
                         TESTRUN_DRIVE          = 'd'
                         TESTRUN_SUBDIR         = "CI"
-                        // TODO switch to mcr.microsoft.com/windows/servercore:2022 once published
-                        WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore/insider'
-                        // Available tags can be found at https://mcr.microsoft.com/v2/windows/servercore/insider/tags/list
-                        WINDOWS_BASE_IMAGE_TAG = '10.0.20348.1'
+                        WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
+                        // Available tags can be found at https://mcr.microsoft.com/v2/windows/servercore/tags/list
+                        WINDOWS_BASE_IMAGE_TAG = 'ltsc2022'
                     }
                     agent {
                         node {
@@ -1268,10 +1267,9 @@ pipeline {
                         SOURCES_SUBDIR         = 'gopath'
                         TESTRUN_DRIVE          = 'd'
                         TESTRUN_SUBDIR         = "CI"
-                        // TODO switch to mcr.microsoft.com/windows/servercore:2022 once published
-                        WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore/insider'
-                        // Available tags can be found at https://mcr.microsoft.com/v2/windows/servercore/insider/tags/list
-                        WINDOWS_BASE_IMAGE_TAG = '10.0.20348.1'
+                        WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
+                        // Available tags can be found at https://mcr.microsoft.com/v2/windows/servercore/tags/list
+                        WINDOWS_BASE_IMAGE_TAG = 'ltsc2022'
                         DOCKER_WINDOWS_CONTAINERD_RUNTIME = '1'
                     }
                     agent {
