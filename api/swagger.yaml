@@ -2190,11 +2190,12 @@ definitions:
         type: "string"
         x-nullable: false
 
-  PluginPrivilegeItem:
+  PluginPrivilege:
     description: |
       Describes a permission the user has to accept upon installing
       the plugin.
     type: "object"
+    x-go-name: "PluginPrivilege"
     properties:
       Name:
         type: "string"
@@ -2990,7 +2991,7 @@ definitions:
           PluginPrivilege:
             type: "array"
             items:
-              $ref: "#/definitions/PluginPrivilegeItem"
+              $ref: "#/definitions/PluginPrivilege"
       ContainerSpec:
         type: "object"
         description: |
@@ -9437,7 +9438,7 @@ paths:
           schema:
             type: "array"
             items:
-              $ref: "#/definitions/PluginPrivilegeItem"
+              $ref: "#/definitions/PluginPrivilege"
             example:
               - Name: "network"
                 Description: ""
@@ -9513,7 +9514,7 @@ paths:
           schema:
             type: "array"
             items:
-              $ref: "#/definitions/PluginPrivilegeItem"
+              $ref: "#/definitions/PluginPrivilege"
             example:
               - Name: "network"
                 Description: ""
@@ -9685,7 +9686,7 @@ paths:
           schema:
             type: "array"
             items:
-              $ref: "#/definitions/PluginPrivilegeItem"
+              $ref: "#/definitions/PluginPrivilege"
             example:
               - Name: "network"
                 Description: ""
