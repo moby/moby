@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/netlabel"
-	_ "github.com/docker/docker/libnetwork/testutils"
 )
 
 func TestInvalidConfig(t *testing.T) {

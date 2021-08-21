@@ -6,8 +6,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-
-	_ "github.com/docker/docker/libnetwork/testutils"
 )
 
 func TestReadWriteKnobs(t *testing.T) {

@@ -199,7 +199,7 @@ pipeline {
                             }
                             post {
                                 always {
-                                    junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
+                                    junit testResults: 'bundles/junit-report*.xml', allowEmptyResults: true
                                 }
                             }
                         }
@@ -238,7 +238,7 @@ pipeline {
                                 sh '''
                                 bundleName=unit
                                 echo "Creating ${bundleName}-bundles.tar.gz"
-                                tar -czvf ${bundleName}-bundles.tar.gz bundles/junit-report.xml bundles/go-test-report.json bundles/profile.out
+                                tar -czvf ${bundleName}-bundles.tar.gz bundles/junit-report*.xml bundles/go-test-report*.json bundles/profile*.out
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
@@ -599,7 +599,7 @@ pipeline {
                             }
                             post {
                                 always {
-                                    junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
+                                    junit testResults: 'bundles/junit-report*.xml', allowEmptyResults: true
                                 }
                             }
                         }
@@ -801,7 +801,7 @@ pipeline {
                             }
                             post {
                                 always {
-                                    junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
+                                    junit testResults: 'bundles/junit-report*.xml', allowEmptyResults: true
                                 }
                             }
                         }
@@ -1000,7 +1000,7 @@ pipeline {
                             }
                             post {
                                 always {
-                                    junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
+                                    junit testResults: 'bundles/junit-report*.xml', allowEmptyResults: true
                                 }
                             }
                         }
@@ -1206,7 +1206,8 @@ pipeline {
                         TESTRUN_SUBDIR         = "CI"
                         // TODO switch to mcr.microsoft.com/windows/servercore:2022 once published
                         WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore/insider'
-                        WINDOWS_BASE_IMAGE_TAG = '10.0.20295.1'
+                        // Available tags can be found at https://mcr.microsoft.com/v2/windows/servercore/insider/tags/list
+                        WINDOWS_BASE_IMAGE_TAG = '10.0.20348.1'
                     }
                     agent {
                         node {
@@ -1270,7 +1271,7 @@ pipeline {
                         // TODO switch to mcr.microsoft.com/windows/servercore:2022 once published
                         WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore/insider'
                         // Available tags can be found at https://mcr.microsoft.com/v2/windows/servercore/insider/tags/list
-                        WINDOWS_BASE_IMAGE_TAG = '10.0.20295.1'
+                        WINDOWS_BASE_IMAGE_TAG = '10.0.20348.1'
                         DOCKER_WINDOWS_CONTAINERD_RUNTIME = '1'
                     }
                     agent {

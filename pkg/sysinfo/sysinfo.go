@@ -2,6 +2,9 @@ package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
 
 import "github.com/docker/docker/pkg/parsers"
 
+// Opt for New().
+type Opt func(info *SysInfo)
+
 // SysInfo stores information about which features a kernel supports.
 // TODO Windows: Factor out platform specific capabilities.
 type SysInfo struct {
@@ -33,6 +36,23 @@ type SysInfo struct {
 
 	// Whether the cgroup is in unified mode (v2).
 	CgroupUnified bool
+
+	// Warnings contains a slice of warnings that occurred  while collecting
+	// system information. These warnings are intended to be informational
+	// messages for the user, and can either be logged or returned to the
+	// client; they are not intended to be parsed / used for other purposes,
+	// and do not have a fixed format.
+	Warnings []string
+
+	// cgMounts is the list of cgroup v1 mount paths, indexed by subsystem, to
+	// inspect availability of subsystems.
+	cgMounts map[string]string
+
+	// cg2GroupPath is the cgroup v2 group path to inspect availability of the controllers.
+	cg2GroupPath string
+
+	// cg2Controllers is an index of available cgroup v2 controllers.
+	cg2Controllers map[string]struct{}
 }
 
 type cgroupMemInfo struct {

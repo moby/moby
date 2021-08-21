@@ -570,7 +570,7 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		for _, m := range mounts {
 			if m.Source == "tmpfs" {
 				data := m.Data
-				parser := volumemounts.NewParser("linux")
+				parser := volumemounts.NewParser()
 				options := []string{"noexec", "nosuid", "nodev", string(parser.DefaultPropagationMode())}
 				if data != "" {
 					options = append(options, strings.Split(data, ",")...)
@@ -824,7 +824,7 @@ func WithCgroups(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 
 		// FIXME this is very expensive way to check if cpu rt is supported
-		sysInfo := daemon.RawSysInfo(true)
+		sysInfo := daemon.RawSysInfo()
 		if !sysInfo.CPURealtime {
 			return errors.New("daemon-scoped cpu-rt-period and cpu-rt-runtime are not supported by the kernel")
 		}

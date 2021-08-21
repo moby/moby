@@ -21,6 +21,19 @@ keywords: "API, Docker, rcli, REST, documentation"
   was introduced in API 1.31 as part of an experimental feature, and no longer
   used since API 1.40.
   Use field `BuildCache` instead to track storage used by the builder component.
+* `GET /images/json` now accepts query parameter `shared-size`. When set `true`,
+  images returned will include `SharedSize`, which provides the size on disk shared
+  with other images present on the system.
+* `GET /system/df` now accepts query parameter `type`. When set,
+  computes and returns data only for the specified object type.
+  The parameter can be specified multiple times to select several object types.
+  Supported values are: `container`, `image`, `volume`, `build-cache`.
+* `GET /system/df` can now be used concurrently. If a request is made while a
+  previous request is still being processed, the request will receive the result
+  of the already running calculation, once completed. Previously, an error
+  (`a disk usage operation is already running`) would be returned in this
+  situation. This change is not versioned, and affects all API versions if the
+  daemon has this patch.
 
 ## v1.41 API changes
 

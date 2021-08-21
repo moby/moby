@@ -5,10 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
-
-	_ "github.com/docker/docker/libnetwork/testutils"
-	"github.com/docker/docker/libnetwork/types"
-	"github.com/docker/docker/pkg/ioutils"
 )
 
 func TestGet(t *testing.T) {
@@ -23,7 +19,7 @@ func TestGet(t *testing.T) {
 	if string(resolvConfUtils.Content) != string(resolvConfSystem) {
 		t.Fatalf("/etc/resolv.conf and GetResolvConf have different content.")
 	}
-	hashSystem, err := ioutils.HashData(bytes.NewReader(resolvConfSystem))
+	hashSystem, err := hashData(bytes.NewReader(resolvConfSystem))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +45,7 @@ nameserver 1.2.3.4
 		`search example.com
 nameserver 1.2.3.4 # not 4.3.2.1`: {"1.2.3.4"},
 	} {
-		test := GetNameservers([]byte(resolv), types.IP)
+		test := GetNameservers([]byte(resolv), IP)
 		if !strSlicesEqual(test, result) {
 			t.Fatalf("Wrong nameserver string {%s} should be %v. Input: %s", test, result, resolv)
 		}

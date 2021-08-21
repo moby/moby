@@ -55,8 +55,16 @@ func NewPatternMatcher(patterns []string) (*PatternMatcher, error) {
 	return pm, nil
 }
 
-// Matches matches path against all the patterns. Matches is not safe to be
-// called concurrently
+// Matches returns true if "file" matches any of the patterns
+// and isn't excluded by any of the subsequent patterns.
+//
+// The "file" argument should be a slash-delimited path.
+//
+// Matches is not safe to call concurrently.
+//
+// This implementation is buggy (it only checks a single parent dir against the
+// pattern) and will be removed soon. Use either MatchesOrParentMatches or
+// MatchesUsingParentResult instead.
 func (pm *PatternMatcher) Matches(file string) (bool, error) {
 	matched := false
 	file = filepath.FromSlash(file)
@@ -64,10 +72,11 @@ func (pm *PatternMatcher) Matches(file string) (bool, error) {
 	parentPathDirs := strings.Split(parentPath, string(os.PathSeparator))
 
 	for _, pattern := range pm.patterns {
-		negative := false
-
-		if pattern.exclusion {
-			negative = true
+		// Skip evaluation if this is an inclusion and the filename
+		// already matched the pattern, or it's an exclusion and it has
+		// not matched the pattern yet.
+		if pattern.exclusion != matched {
+			continue
 		}
 
 		match, err := pattern.match(file)
@@ -83,10 +92,85 @@ func (pm *PatternMatcher) Matches(file string) (bool, error) {
 		}
 
 		if match {
-			matched = !negative
+			matched = !pattern.exclusion
 		}
 	}
 
+	return matched, nil
+}
+
+// MatchesOrParentMatches returns true if "file" matches any of the patterns
+// and isn't excluded by any of the subsequent patterns.
+//
+// The "file" argument should be a slash-delimited path.
+//
+// Matches is not safe to call concurrently.
+func (pm *PatternMatcher) MatchesOrParentMatches(file string) (bool, error) {
+	matched := false
+	file = filepath.FromSlash(file)
+	parentPath := filepath.Dir(file)
+	parentPathDirs := strings.Split(parentPath, string(os.PathSeparator))
+
+	for _, pattern := range pm.patterns {
+		// Skip evaluation if this is an inclusion and the filename
+		// already matched the pattern, or it's an exclusion and it has
+		// not matched the pattern yet.
+		if pattern.exclusion != matched {
+			continue
+		}
+
+		match, err := pattern.match(file)
+		if err != nil {
+			return false, err
+		}
+
+		if !match && parentPath != "." {
+			// Check to see if the pattern matches one of our parent dirs.
+			for i := range parentPathDirs {
+				match, _ = pattern.match(strings.Join(parentPathDirs[:i+1], string(os.PathSeparator)))
+				if match {
+					break
+				}
+			}
+		}
+
+		if match {
+			matched = !pattern.exclusion
+		}
+	}
+
+	return matched, nil
+}
+
+// MatchesUsingParentResult returns true if "file" matches any of the patterns
+// and isn't excluded by any of the subsequent patterns. The functionality is
+// the same as Matches, but as an optimization, the caller keeps track of
+// whether the parent directory matched.
+//
+// The "file" argument should be a slash-delimited path.
+//
+// MatchesUsingParentResult is not safe to call concurrently.
+func (pm *PatternMatcher) MatchesUsingParentResult(file string, parentMatched bool) (bool, error) {
+	matched := parentMatched
+	file = filepath.FromSlash(file)
+
+	for _, pattern := range pm.patterns {
+		// Skip evaluation if this is an inclusion and the filename
+		// already matched the pattern, or it's an exclusion and it has
+		// not matched the pattern yet.
+		if pattern.exclusion != matched {
+			continue
+		}
+
+		match, err := pattern.match(file)
+		if err != nil {
+			return false, err
+		}
+
+		if match {
+			matched = !pattern.exclusion
+		}
+	}
 	return matched, nil
 }
 
@@ -118,7 +202,6 @@ func (p *Pattern) Exclusion() bool {
 }
 
 func (p *Pattern) match(path string) (bool, error) {
-
 	if p.regexp == nil {
 		if err := p.compile(); err != nil {
 			return false, filepath.ErrBadPattern
@@ -210,6 +293,9 @@ func (p *Pattern) compile() error {
 
 // Matches returns true if file matches any of the patterns
 // and isn't excluded by any of the subsequent patterns.
+//
+// This implementation is buggy (it only checks a single parent dir against the
+// pattern) and will be removed soon. Use MatchesOrParentMatches instead.
 func Matches(file string, patterns []string) (bool, error) {
 	pm, err := NewPatternMatcher(patterns)
 	if err != nil {
@@ -223,6 +309,23 @@ func Matches(file string, patterns []string) (bool, error) {
 	}
 
 	return pm.Matches(file)
+}
+
+// MatchesOrParentMatches returns true if file matches any of the patterns
+// and isn't excluded by any of the subsequent patterns.
+func MatchesOrParentMatches(file string, patterns []string) (bool, error) {
+	pm, err := NewPatternMatcher(patterns)
+	if err != nil {
+		return false, err
+	}
+	file = filepath.Clean(file)
+
+	if file == "." {
+		// Don't let them exclude everything, kind of silly.
+		return false, nil
+	}
+
+	return pm.MatchesOrParentMatches(file)
 }
 
 // CopyFile copies from src to dst until either EOF is reached

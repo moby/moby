@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net"
 	"testing"
-
-	_ "github.com/docker/docker/libnetwork/testutils"
 )
 
 func resetPortAllocator() {

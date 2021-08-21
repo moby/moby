@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
-	_ "github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 )
 

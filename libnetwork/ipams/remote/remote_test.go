@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/ipamapi"
-	_ "github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/pkg/plugins"
 )
 

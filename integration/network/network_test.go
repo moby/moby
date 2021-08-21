@@ -23,7 +23,7 @@ import (
 func TestRunContainerWithBridgeNone(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-	skip.If(t, IsUserNamespace())
+	skip.If(t, testEnv.IsUserNamespace)
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
 	d := daemon.New(t)
@@ -72,6 +72,7 @@ func TestNetworkInvalidJSON(t *testing.T) {
 	}
 
 	for _, ep := range endpoints {
+		ep := ep
 		t.Run(ep, func(t *testing.T) {
 			t.Parallel()
 
@@ -105,6 +106,7 @@ func TestNetworkList(t *testing.T) {
 	}
 
 	for _, ep := range endpoints {
+		ep := ep
 		t.Run(ep, func(t *testing.T) {
 			t.Parallel()
 

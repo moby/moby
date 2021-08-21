@@ -18,7 +18,11 @@
 
 package archive
 
-import "golang.org/x/sys/unix"
+import (
+	"os"
+
+	"golang.org/x/sys/unix"
+)
 
 // mknod wraps Unix.Mknod and casts dev to int
 func mknod(path string, mode uint32, dev uint64) error {
@@ -33,4 +37,19 @@ func lsetxattrCreate(link string, attr string, data []byte) error {
 		return nil
 	}
 	return err
+}
+
+// lchmod checks for symlink and changes the mode if not a symlink
+func lchmod(path string, mode os.FileMode) error {
+	fi, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+
+	if fi.Mode()&os.ModeSymlink == 0 {
+		if err := os.Chmod(path, mode); err != nil {
+			return err
+		}
+	}
+	return nil
 }

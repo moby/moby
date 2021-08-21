@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/stack"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/encryption"
 	swarmnode "github.com/docker/swarmkit/node"
@@ -399,7 +399,7 @@ func (c *Cluster) Leave(force bool) error {
 	// release readers in here
 	if err := nr.Stop(); err != nil {
 		logrus.Errorf("failed to shut down cluster node: %v", err)
-		signal.DumpStacks("")
+		stack.Dump()
 		return err
 	}
 

@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/libnetwork/bitseq"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/ipamapi"
-	_ "github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
