@@ -7,10 +7,10 @@ import (
 	"testing"
 
 	coci "github.com/containerd/containerd/oci"
-	config "github.com/docker/docker/api/types/container"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	dconfig "github.com/docker/docker/daemon/config"
-	doci "github.com/docker/docker/oci"
+	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/profiles/seccomp"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -36,12 +36,12 @@ func TestWithSeccomp(t *testing.T) {
 			},
 			c: &container.Container{
 				SeccompProfile: dconfig.SeccompProfileUnconfined,
-				HostConfig: &config.HostConfig{
+				HostConfig: &containertypes.HostConfig{
 					Privileged: false,
 				},
 			},
-			inSpec:  doci.DefaultLinuxSpec(),
-			outSpec: doci.DefaultLinuxSpec(),
+			inSpec:  oci.DefaultLinuxSpec(),
+			outSpec: oci.DefaultLinuxSpec(),
 		},
 		{
 			comment: "privileged container w/ custom profile runs unconfined",
@@ -50,12 +50,12 @@ func TestWithSeccomp(t *testing.T) {
 			},
 			c: &container.Container{
 				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_LOG\" }",
-				HostConfig: &config.HostConfig{
+				HostConfig: &containertypes.HostConfig{
 					Privileged: true,
 				},
 			},
-			inSpec:  doci.DefaultLinuxSpec(),
-			outSpec: doci.DefaultLinuxSpec(),
+			inSpec:  oci.DefaultLinuxSpec(),
+			outSpec: oci.DefaultLinuxSpec(),
 		},
 		{
 			comment: "privileged container w/ default runs unconfined",
@@ -64,12 +64,12 @@ func TestWithSeccomp(t *testing.T) {
 			},
 			c: &container.Container{
 				SeccompProfile: "",
-				HostConfig: &config.HostConfig{
+				HostConfig: &containertypes.HostConfig{
 					Privileged: true,
 				},
 			},
-			inSpec:  doci.DefaultLinuxSpec(),
-			outSpec: doci.DefaultLinuxSpec(),
+			inSpec:  oci.DefaultLinuxSpec(),
+			outSpec: oci.DefaultLinuxSpec(),
 		},
 		{
 			comment: "privileged container w/ daemon profile runs unconfined",
@@ -79,12 +79,12 @@ func TestWithSeccomp(t *testing.T) {
 			},
 			c: &container.Container{
 				SeccompProfile: "",
-				HostConfig: &config.HostConfig{
+				HostConfig: &containertypes.HostConfig{
 					Privileged: true,
 				},
 			},
-			inSpec:  doci.DefaultLinuxSpec(),
-			outSpec: doci.DefaultLinuxSpec(),
+			inSpec:  oci.DefaultLinuxSpec(),
+			outSpec: oci.DefaultLinuxSpec(),
 		},
 		{
 			comment: "custom profile when seccomp is disabled returns error",
@@ -93,12 +93,12 @@ func TestWithSeccomp(t *testing.T) {
 			},
 			c: &container.Container{
 				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }",
-				HostConfig: &config.HostConfig{
+				HostConfig: &containertypes.HostConfig{
 					Privileged: false,
 				},
 			},
-			inSpec:  doci.DefaultLinuxSpec(),
-			outSpec: doci.DefaultLinuxSpec(),
+			inSpec:  oci.DefaultLinuxSpec(),
+			outSpec: oci.DefaultLinuxSpec(),
 			err:     "seccomp is not enabled in your kernel, cannot run a custom seccomp profile",
 		},
 		{
@@ -108,13 +108,13 @@ func TestWithSeccomp(t *testing.T) {
 			},
 			c: &container.Container{
 				SeccompProfile: "",
-				HostConfig: &config.HostConfig{
+				HostConfig: &containertypes.HostConfig{
 					Privileged: false,
 				},
 			},
-			inSpec: doci.DefaultLinuxSpec(),
+			inSpec: oci.DefaultLinuxSpec(),
 			outSpec: func() coci.Spec {
-				s := doci.DefaultLinuxSpec()
+				s := oci.DefaultLinuxSpec()
 				profile, _ := seccomp.GetDefaultProfile(&s)
 				s.Linux.Seccomp = profile
 				return s
@@ -127,13 +127,13 @@ func TestWithSeccomp(t *testing.T) {
 			},
 			c: &container.Container{
 				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }",
-				HostConfig: &config.HostConfig{
+				HostConfig: &containertypes.HostConfig{
 					Privileged: false,
 				},
 			},
-			inSpec: doci.DefaultLinuxSpec(),
+			inSpec: oci.DefaultLinuxSpec(),
 			outSpec: func() coci.Spec {
-				s := doci.DefaultLinuxSpec()
+				s := oci.DefaultLinuxSpec()
 				profile := &specs.LinuxSeccomp{
 					DefaultAction: specs.LinuxSeccompAction("SCMP_ACT_ERRNO"),
 				}
@@ -149,13 +149,13 @@ func TestWithSeccomp(t *testing.T) {
 			},
 			c: &container.Container{
 				SeccompProfile: "",
-				HostConfig: &config.HostConfig{
+				HostConfig: &containertypes.HostConfig{
 					Privileged: false,
 				},
 			},
-			inSpec: doci.DefaultLinuxSpec(),
+			inSpec: oci.DefaultLinuxSpec(),
 			outSpec: func() coci.Spec {
-				s := doci.DefaultLinuxSpec()
+				s := oci.DefaultLinuxSpec()
 				profile := &specs.LinuxSeccomp{
 					DefaultAction: specs.LinuxSeccompAction("SCMP_ACT_ERRNO"),
 				}
@@ -171,13 +171,13 @@ func TestWithSeccomp(t *testing.T) {
 			},
 			c: &container.Container{
 				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_LOG\" }",
-				HostConfig: &config.HostConfig{
+				HostConfig: &containertypes.HostConfig{
 					Privileged: false,
 				},
 			},
-			inSpec: doci.DefaultLinuxSpec(),
+			inSpec: oci.DefaultLinuxSpec(),
 			outSpec: func() coci.Spec {
-				s := doci.DefaultLinuxSpec()
+				s := oci.DefaultLinuxSpec()
 				profile := &specs.LinuxSeccomp{
 					DefaultAction: specs.LinuxSeccompAction("SCMP_ACT_LOG"),
 				}

@@ -22,28 +22,28 @@ import (
 // network links are removed.
 func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) error {
 	start := time.Now()
-	container, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
 
 	// Container state RemovalInProgress should be used to avoid races.
-	if inProgress := container.SetRemovalInProgress(); inProgress {
+	if inProgress := ctr.SetRemovalInProgress(); inProgress {
 		err := fmt.Errorf("removal of container %s is already in progress", name)
 		return errdefs.Conflict(err)
 	}
-	defer container.ResetRemovalInProgress()
+	defer ctr.ResetRemovalInProgress()
 
 	// check if container wasn't deregistered by previous rm since Get
-	if c := daemon.containers.Get(container.ID); c == nil {
+	if c := daemon.containers.Get(ctr.ID); c == nil {
 		return nil
 	}
 
 	if config.RemoveLink {
-		return daemon.rmLink(container, name)
+		return daemon.rmLink(ctr, name)
 	}
 
-	err = daemon.cleanupContainer(container, config.ForceRemove, config.RemoveVolume)
+	err = daemon.cleanupContainer(ctr, config.ForceRemove, config.RemoveVolume)
 	containerActions.WithValues("delete").UpdateSince(start)
 
 	return err
