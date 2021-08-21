@@ -22,28 +22,28 @@ import (
 // network links are removed.
 func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) error {
 	start := time.Now()
-	container, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
 
 	// Container state RemovalInProgress should be used to avoid races.
-	if inProgress := container.SetRemovalInProgress(); inProgress {
+	if inProgress := ctr.SetRemovalInProgress(); inProgress {
 		err := fmt.Errorf("removal of container %s is already in progress", name)
 		return errdefs.Conflict(err)
 	}
-	defer container.ResetRemovalInProgress()
+	defer ctr.ResetRemovalInProgress()
 
 	// check if container wasn't deregistered by previous rm since Get
-	if c := daemon.containers.Get(container.ID); c == nil {
+	if c := daemon.containers.Get(ctr.ID); c == nil {
 		return nil
 	}
 
 	if config.RemoveLink {
-		return daemon.rmLink(container, name)
+		return daemon.rmLink(ctr, name)
 	}
 
-	err = daemon.cleanupContainer(container, config.ForceRemove, config.RemoveVolume)
+	err = daemon.cleanupContainer(ctr, config.ForceRemove, config.RemoveVolume)
 	containerActions.WithValues("delete").UpdateSince(start)
 
 	return err
@@ -77,7 +77,7 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 
 // cleanupContainer unregisters a container from the daemon, stops stats
 // collection and cleanly removes contents and metadata from the filesystem.
-func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemove, removeVolume bool) (err error) {
+func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemove, removeVolume bool) error {
 	if container.IsRunning() {
 		if !forceRemove {
 			state := container.StateString()
@@ -100,7 +100,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	// if stats are currently getting collected.
 	daemon.statsCollector.StopCollection(container)
 
-	if err = daemon.containerStop(container, 3); err != nil {
+	if err := daemon.containerStop(container, 3); err != nil {
 		return err
 	}
 
@@ -129,9 +129,9 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	}
 
 	if err := system.EnsureRemoveAll(container.Root); err != nil {
-		e := errors.Wrapf(err, "unable to remove filesystem for %s", container.ID)
-		container.SetRemovalError(e)
-		return e
+		err = errors.Wrapf(err, "unable to remove filesystem for %s", container.ID)
+		container.SetRemovalError(err)
+		return err
 	}
 
 	linkNames := daemon.linkIndex.delete(container)
