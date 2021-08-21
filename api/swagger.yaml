@@ -5204,6 +5204,61 @@ definitions:
         additionalProperties:
           type: "string"
 
+  EventActor:
+    description: |
+      Actor describes something that generates events, like a container, network,
+      or a volume.
+    type: "object"
+    properties:
+      ID:
+        description: "The ID of the object emitting the event"
+        type: "string"
+        example: "ede54ee1afda366ab42f824e8a5ffd195155d853ceaec74a927f249ea270c743"
+      Attributes:
+        description: |
+          Various key/value attributes of the object, depending on its type.
+        type: "object"
+        additionalProperties:
+          type: "string"
+        example:
+          com.example.some-label: "some-label-value"
+          image: "alpine:latest"
+          name: "my-container"
+
+  EventMessage:
+    description: |
+      EventMessage represents the information an event contains.
+    type: "object"
+    title: "SystemEventsResponse"
+    properties:
+      Type:
+        description: "The type of object emitting the event"
+        type: "string"
+        enum: ["builder", "config", "container", "daemon", "image", "network", "node", "plugin", "secret", "service", "volume"]
+        example: "container"
+      Action:
+        description: "The type of event"
+        type: "string"
+        example: "create"
+      Actor:
+        $ref: "#/definitions/EventActor"
+      scope:
+        description: |
+          Scope of the event. Engine events are `local` scope. Cluster (Swarm)
+          events are `swarm` scope.
+        type: "string"
+        enum: ["local", "swarm"]
+      time:
+        description: "Timestamp of event"
+        type: "integer"
+        format: "int64"
+        example: 1629574695
+      timeNano:
+        description: "Timestamp of event, with nanosecond accuracy"
+        type: "integer"
+        format: "int64"
+        example: 1629574695515050031
+
 paths:
   /containers/json:
     get:
@@ -8198,44 +8253,7 @@ paths:
         200:
           description: "no error"
           schema:
-            type: "object"
-            title: "SystemEventsResponse"
-            properties:
-              Type:
-                description: "The type of object emitting the event"
-                type: "string"
-              Action:
-                description: "The type of event"
-                type: "string"
-              Actor:
-                type: "object"
-                properties:
-                  ID:
-                    description: "The ID of the object emitting the event"
-                    type: "string"
-                  Attributes:
-                    description: "Various key/value attributes of the object, depending on its type"
-                    type: "object"
-                    additionalProperties:
-                      type: "string"
-              time:
-                description: "Timestamp of event"
-                type: "integer"
-              timeNano:
-                description: "Timestamp of event, with nanosecond accuracy"
-                type: "integer"
-                format: "int64"
-          examples:
-            application/json:
-              Type: "container"
-              Action: "create"
-              Actor:
-                ID: "ede54ee1afda366ab42f824e8a5ffd195155d853ceaec74a927f249ea270c743"
-                Attributes:
-                  com.example.some-label: "some-label-value"
-                  image: "alpine"
-                  name: "my-container"
-              time: 1461943101
+            $ref: "#/definitions/EventMessage"
         400:
           description: "bad parameter"
           schema:
