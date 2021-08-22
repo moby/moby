@@ -7,7 +7,10 @@
 
 ARG GO_VERSION=1.16.7
 
-FROM golang:${GO_VERSION}-buster
+ARG BASE_DEBIAN_DISTRO="bullseye"
+ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
+
+FROM ${GOLANG_IMAGE}
 ENV GO111MODULE=off
 
 # allow replacing httpredir or deb mirror
@@ -36,7 +39,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		xfsprogs \
 		xz-utils \
 		\
-		aufs-tools \
 		vim-common \
 	&& rm -rf /var/lib/apt/lists/*
 

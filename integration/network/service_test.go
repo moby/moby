@@ -20,6 +20,7 @@ import (
 
 // delInterface removes given network interface
 func delInterface(t *testing.T, ifName string) {
+	t.Helper()
 	icmd.RunCommand("ip", "link", "delete", ifName).Assert(t, icmd.Success)
 	icmd.RunCommand("iptables", "-t", "nat", "--flush").Assert(t, icmd.Success)
 	icmd.RunCommand("iptables", "--flush").Assert(t, icmd.Success)
