@@ -7,6 +7,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
+	"github.com/moby/sys/signal"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -44,6 +45,13 @@ func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Containe
 		stopSignal  = ctr.StopSignal()
 		stopTimeout = ctr.StopTimeout()
 	)
+	if options.Signal != "" {
+		sig, err := signal.ParseSignal(options.Signal)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+		stopSignal = int(sig)
+	}
 	if options.Timeout != nil {
 		stopTimeout = *options.Timeout
 	}

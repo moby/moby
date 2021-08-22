@@ -15,6 +15,11 @@ const MinimumDuration = 1 * time.Millisecond
 
 // StopOptions holds the options to stop or restart a container.
 type StopOptions struct {
+	// Signal (optional) is the signal to send to the container to (gracefully)
+	// stop it before forcibly terminating the container with SIGKILL after the
+	// timeout expires. If not value is set, the default (SIGTERM) is used.
+	Signal string `json:",omitempty"`
+
 	// Timeout (optional) is the timeout (in seconds) to wait for the container
 	// to stop gracefully before forcibly terminating it with SIGKILL.
 	//
