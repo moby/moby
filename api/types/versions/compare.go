@@ -8,6 +8,9 @@ import (
 // compare compares two version strings
 // returns -1 if v1 < v2, 1 if v1 > v2, 0 otherwise.
 func compare(v1, v2 string) int {
+	if v1 == v2 {
+		return 0
+	}
 	var (
 		currTab  = strings.Split(v1, ".")
 		otherTab = strings.Split(v2, ".")
