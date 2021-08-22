@@ -48,6 +48,7 @@ import (
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/cluster"
 	nwconfig "github.com/docker/docker/libnetwork/config"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
@@ -1271,6 +1272,33 @@ func (daemon *Daemon) Shutdown() error {
 	}
 
 	return daemon.cleanupMounts()
+}
+
+// SetContainerBaseFS only called when container create. For overlay and overlay2,
+// can walk around mount and umount to get the container's base fs dir. This
+// will accelerate container create.
+
+// TODO: May be for other storage driver also can be optimize with a layer
+// interface like container.RWLaye.GetBaseFS
+func (daemon *Daemon) SetContainerBaseFS(container *container.Container) error {
+	if container.Driver == "overlay" || container.Driver == "overlay2" {
+		if container.RWLayer == nil {
+			return errors.New("RWLayer of container " + container.ID + " is unexpectedly nil")
+		}
+		metadata, err := container.RWLayer.Metadata()
+		if err != nil {
+			return err
+		}
+		merged := metadata["MergedDir"]
+		fs := containerfs.NewLocalContainerFS(merged)
+		container.BaseFS = fs
+		return nil
+	}
+	if err := daemon.Mount(container); err != nil {
+		return err
+	}
+	defer daemon.Unmount(container)
+	return nil
 }
 
 // Mount sets container.BaseFS

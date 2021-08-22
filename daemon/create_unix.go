@@ -20,10 +20,9 @@ import (
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality
 func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
-	if err := daemon.Mount(container); err != nil {
+	if err := daemon.SetContainerBaseFS(container); err != nil {
 		return err
 	}
-	defer daemon.Unmount(container)
 
 	rootIDs := daemon.idMapping.RootPair()
 	if err := container.SetupWorkingDirectory(rootIDs); err != nil {
