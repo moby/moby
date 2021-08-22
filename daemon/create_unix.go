@@ -20,10 +20,16 @@ import (
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality
 func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
-	if err := daemon.Mount(container); err != nil {
-		return err
+	if canDirectSetBaseFS(container, config, hostConfig) {
+		if err := daemon.SetContainerBaseFS(container); err != nil {
+			return err
+		}
+	} else {
+		if err := daemon.Mount(container); err != nil {
+			return err
+		}
+		defer daemon.Unmount(container)
 	}
-	defer daemon.Unmount(container)
 
 	rootIDs := daemon.idMapping.RootPair()
 	if err := container.SetupWorkingDirectory(rootIDs); err != nil {
@@ -73,6 +79,22 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 		container.AddMountPointWithVolume(destination, &volumeWrapper{v: v, s: daemon.volumes}, true)
 	}
 	return daemon.populateVolumes(container)
+}
+
+func canDirectSetBaseFS(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) bool {
+	if container.Driver != "overlay" && container.Driver != "overlay2" {
+		return false
+	}
+	if len(config.Volumes) != 0 {
+		return false
+	}
+	if len(hostConfig.Binds) != 0 {
+		return false
+	}
+	if config.WorkingDir != "" {
+		return false
+	}
+	return true
 }
 
 // populateVolumes copies data from the container's rootfs into the volume for non-binds.
