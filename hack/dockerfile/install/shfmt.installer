@@ -1,8 +1,0 @@
-#!/bin/sh
-
-: "${SHFMT_VERSION:=v3.0.2}"
-
-install_shfmt() {
-	echo "Install shfmt version $SHFMT_VERSION"
-	GOBIN="${PREFIX}" GO111MODULE=on go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}"
-}
