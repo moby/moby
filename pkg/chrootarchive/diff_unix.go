@@ -1,4 +1,5 @@
-//+build !windows
+//go:build !windows
+// +build !windows
 
 package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
 

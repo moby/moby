@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package authorization // import "github.com/docker/docker/pkg/authorization"

@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package distribution // import "github.com/docker/docker/distribution"

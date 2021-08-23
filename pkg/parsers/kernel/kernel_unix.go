@@ -1,3 +1,4 @@
+//go:build linux || freebsd || openbsd
 // +build linux freebsd openbsd
 
 // Package kernel provides helper function to get, parse and compare kernel

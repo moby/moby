@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 // Simple tool to create an archive stream from an old and new directory

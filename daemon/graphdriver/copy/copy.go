@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package copy // import "github.com/docker/docker/daemon/graphdriver/copy"
