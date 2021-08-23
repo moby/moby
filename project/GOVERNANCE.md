@@ -113,7 +113,7 @@ the same steps:
  * **Step 3**: Maintainers merge, close or reject the pull request.
 
 Pull requests are reviewed by the current maintainers of the moby/moby
-repository. Weekly meetings are organized to are organized to synchronously
+repository. Weekly meetings are organized to synchronously
 discuss tricky PRs, as well as design and architecture decisions.. When
 technical agreement cannot be reached among the maintainers of the project,
 escalation or concerns can be raised by opening an issue to be handled
