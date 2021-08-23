@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 # When updating RUNC_COMMIT, also update runc in vendor.conf accordingly
 # The version of runc should match the version that is used by the containerd
@@ -7,13 +8,7 @@
 : ${RUNC_COMMIT:=52b36a2dd837e8462de8e01458bf02cf9eea47dd} # v1.0.2
 
 install_runc() {
-	# If using RHEL7 kernels (3.10.0 el7), disable kmem accounting/limiting
-	if uname -r | grep -q '^3\.10\.0.*\.el7\.'; then
-		: ${RUNC_NOKMEM='nokmem'}
-	fi
-
-	# Do not build with ambient capabilities support
-	RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp $RUNC_NOKMEM"}"
+	RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp"}"
 
 	echo "Install runc version $RUNC_COMMIT (build tags: $RUNC_BUILDTAGS)"
 	git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc"
