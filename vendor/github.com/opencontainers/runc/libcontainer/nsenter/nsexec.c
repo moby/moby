@@ -142,7 +142,7 @@ int setns(int fd, int nstype)
 
 static void write_log(const char *level, const char *format, ...)
 {
-	char *message = NULL, *stage = NULL;
+	char *message = NULL, *stage = NULL, *json = NULL;
 	va_list args;
 	int ret;
 
@@ -164,11 +164,21 @@ static void write_log(const char *level, const char *format, ...)
 	if (ret < 0)
 		goto out;
 
-	dprintf(logfd, "{\"level\":\"%s\", \"msg\": \"%s[%d]: %s\"}\n", level, stage, getpid(), message);
+	ret = asprintf(&json, "{\"level\":\"%s\", \"msg\": \"%s[%d]: %s\"}\n", level, stage, getpid(), message);
+	if (ret < 0) {
+		json = NULL;
+		goto out;
+	}
+
+	/* This logging is on a best-effort basis. In case of a short or failed
+	 * write there is nothing we can do, so just ignore write() errors.
+	 */
+	ssize_t __attribute__((unused)) __res = write(logfd, json, ret);
 
 out:
 	free(message);
 	free(stage);
+	free(json);
 }
 
 /* XXX: This is ugly. */
