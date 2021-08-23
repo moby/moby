@@ -480,83 +480,96 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		return err
 	}
 
-	name := r.Form.Get("name")
-
 	config, hostConfig, networkingConfig, err := s.decoder.DecodeConfig(r.Body)
 	if err != nil {
 		return err
 	}
-	version := httputils.VersionFromContext(ctx)
-	adjustCPUShares := versions.LessThan(version, "1.19")
+	var (
+		name            = r.Form.Get("name")
+		version         = httputils.VersionFromContext(ctx)
+		adjustCPUShares bool
+	)
 
-	// When using API 1.24 and under, the client is responsible for removing the container
-	if hostConfig != nil && versions.LessThan(version, "1.25") {
-		hostConfig.AutoRemove = false
-	}
+	if hostConfig != nil {
+		if versions.LessThan(version, "1.19") {
+			adjustCPUShares = true
+		}
+		if versions.LessThan(version, "1.25") {
+			// the client is responsible for removing the container when using API 1.24 and under.
+			hostConfig.AutoRemove = false
+		}
+		if versions.LessThan(version, "1.40") {
+			// Ignore BindOptions.NonRecursive because it was added in API 1.40.
+			for _, m := range hostConfig.Mounts {
+				if bo := m.BindOptions; bo != nil {
+					bo.NonRecursive = false
+				}
+			}
+			// Ignore KernelMemoryTCP because it was added in API 1.40.
+			hostConfig.KernelMemoryTCP = 0
 
-	if hostConfig != nil && versions.LessThan(version, "1.40") {
-		// Ignore BindOptions.NonRecursive because it was added in API 1.40.
-		for _, m := range hostConfig.Mounts {
-			if bo := m.BindOptions; bo != nil {
-				bo.NonRecursive = false
+			// Older clients (API < 1.40) expects the default to be shareable, make them happy
+			if hostConfig.IpcMode.IsEmpty() {
+				hostConfig.IpcMode = container.IPCModeShareable
 			}
 		}
-		// Ignore KernelMemoryTCP because it was added in API 1.40.
-		hostConfig.KernelMemoryTCP = 0
-
-		// Older clients (API < 1.40) expects the default to be shareable, make them happy
-		if hostConfig.IpcMode.IsEmpty() {
-			hostConfig.IpcMode = container.IPCModeShareable
+		if versions.LessThan(version, "1.41") && !s.cgroup2 {
+			// Older clients expect the default to be "host" on cgroup v1 hosts
+			if hostConfig.CgroupnsMode.IsEmpty() {
+				hostConfig.CgroupnsMode = container.CgroupnsModeHost
+			}
 		}
-	}
-	if hostConfig != nil && versions.LessThan(version, "1.41") && !s.cgroup2 {
-		// Older clients expect the default to be "host" on cgroup v1 hosts
-		if hostConfig.CgroupnsMode.IsEmpty() {
-			hostConfig.CgroupnsMode = container.CgroupnsModeHost
+
+		if hostConfig.PidsLimit != nil && *hostConfig.PidsLimit <= 0 {
+			// Don't set a limit if either no limit was specified, or "unlimited" was
+			// explicitly set.
+			// Both `0` and `-1` are accepted as "unlimited", and historically any
+			// negative value was accepted, so treat those as "unlimited" as well.
+			hostConfig.PidsLimit = nil
 		}
-	}
 
-	if hostConfig != nil && versions.LessThan(version, "1.42") {
-		for _, m := range hostConfig.Mounts {
-			// Ignore BindOptions.CreateMountpoint because it was added in API 1.42.
-			if bo := m.BindOptions; bo != nil {
-				bo.CreateMountpoint = false
-			}
-
-			// These combinations are invalid, but weren't validated in API < 1.42.
-			// We reset them here, so that validation doesn't produce an error.
-			if o := m.VolumeOptions; o != nil && m.Type != mount.TypeVolume {
-				m.VolumeOptions = nil
-			}
-			if o := m.TmpfsOptions; o != nil && m.Type != mount.TypeTmpfs {
-				m.TmpfsOptions = nil
-			}
-			if bo := m.BindOptions; bo != nil {
+		if versions.LessThan(version, "1.42") {
+			for _, m := range hostConfig.Mounts {
 				// Ignore BindOptions.CreateMountpoint because it was added in API 1.42.
-				bo.CreateMountpoint = false
+				if bo := m.BindOptions; bo != nil {
+					bo.CreateMountpoint = false
+				}
+
+				// These combinations are invalid, but weren't validated in API < 1.42.
+				// We reset them here, so that validation doesn't produce an error.
+				if o := m.VolumeOptions; o != nil && m.Type != mount.TypeVolume {
+					m.VolumeOptions = nil
+				}
+				if o := m.TmpfsOptions; o != nil && m.Type != mount.TypeTmpfs {
+					m.TmpfsOptions = nil
+				}
+				if bo := m.BindOptions; bo != nil {
+					// Ignore BindOptions.CreateMountpoint because it was added in API 1.42.
+					bo.CreateMountpoint = false
+				}
+			}
+
+			if runtime.GOOS == "linux" {
+				// ConsoleSize is not respected by Linux daemon before API 1.42
+				hostConfig.ConsoleSize = [2]uint{0, 0}
 			}
 		}
-	}
 
-	if hostConfig != nil && versions.GreaterThanOrEqualTo(version, "1.42") {
-		// Ignore KernelMemory removed in API 1.42.
-		hostConfig.KernelMemory = 0
-		for _, m := range hostConfig.Mounts {
-			if o := m.VolumeOptions; o != nil && m.Type != mount.TypeVolume {
-				return errdefs.InvalidParameter(fmt.Errorf("VolumeOptions must not be specified on mount type %q", m.Type))
-			}
-			if o := m.BindOptions; o != nil && m.Type != mount.TypeBind {
-				return errdefs.InvalidParameter(fmt.Errorf("BindOptions must not be specified on mount type %q", m.Type))
-			}
-			if o := m.TmpfsOptions; o != nil && m.Type != mount.TypeTmpfs {
-				return errdefs.InvalidParameter(fmt.Errorf("TmpfsOptions must not be specified on mount type %q", m.Type))
+		if versions.GreaterThanOrEqualTo(version, "1.42") {
+			// Ignore KernelMemory removed in API 1.42.
+			hostConfig.KernelMemory = 0
+			for _, m := range hostConfig.Mounts {
+				if o := m.VolumeOptions; o != nil && m.Type != mount.TypeVolume {
+					return errdefs.InvalidParameter(fmt.Errorf("VolumeOptions must not be specified on mount type %q", m.Type))
+				}
+				if o := m.BindOptions; o != nil && m.Type != mount.TypeBind {
+					return errdefs.InvalidParameter(fmt.Errorf("BindOptions must not be specified on mount type %q", m.Type))
+				}
+				if o := m.TmpfsOptions; o != nil && m.Type != mount.TypeTmpfs {
+					return errdefs.InvalidParameter(fmt.Errorf("TmpfsOptions must not be specified on mount type %q", m.Type))
+				}
 			}
 		}
-	}
-
-	if hostConfig != nil && runtime.GOOS == "linux" && versions.LessThan(version, "1.42") {
-		// ConsoleSize is not respected by Linux daemon before API 1.42
-		hostConfig.ConsoleSize = [2]uint{0, 0}
 	}
 
 	var platform *specs.Platform
@@ -568,14 +581,6 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 			}
 			platform = &p
 		}
-	}
-
-	if hostConfig != nil && hostConfig.PidsLimit != nil && *hostConfig.PidsLimit <= 0 {
-		// Don't set a limit if either no limit was specified, or "unlimited" was
-		// explicitly set.
-		// Both `0` and `-1` are accepted as "unlimited", and historically any
-		// negative value was accepted, so treat those as "unlimited" as well.
-		hostConfig.PidsLimit = nil
 	}
 
 	ccr, err := s.backend.ContainerCreate(ctx, types.ContainerCreateConfig{
