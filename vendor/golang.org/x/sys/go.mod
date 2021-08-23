@@ -1,3 +1,3 @@
 module golang.org/x/sys
 
-go 1.12
+go 1.17
