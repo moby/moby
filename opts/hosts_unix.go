@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package opts // import "github.com/docker/docker/opts"

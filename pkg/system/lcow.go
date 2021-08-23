@@ -1,3 +1,4 @@
+//go:build windows && !no_lcow
 // +build windows,!no_lcow
 
 package system // import "github.com/docker/docker/pkg/system"

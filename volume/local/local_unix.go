@@ -1,3 +1,4 @@
+//go:build linux || freebsd
 // +build linux freebsd
 
 // Package local provides the default implementation for volumes. It
@@ -32,9 +33,9 @@ var (
 		"size":   {}, // quota size limit
 	}
 	mandatoryOpts = map[string][]string{
-		"device": []string{"type"},
-		"type":   []string{"device"},
-		"o":      []string{"device", "type"},
+		"device": {"type"},
+		"type":   {"device"},
+		"o":      {"device", "type"},
 	}
 )
 

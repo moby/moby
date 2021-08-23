@@ -1,3 +1,4 @@
+//go:build !darwin
 // +build !darwin
 
 package system // import "github.com/docker/docker/pkg/system"

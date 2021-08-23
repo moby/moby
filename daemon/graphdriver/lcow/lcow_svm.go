@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package lcow // import "github.com/docker/docker/daemon/graphdriver/lcow"

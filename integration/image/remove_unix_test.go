@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package image // import "github.com/docker/docker/integration/image"

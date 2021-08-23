@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package layer // import "github.com/docker/docker/layer"

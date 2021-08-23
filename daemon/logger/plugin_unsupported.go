@@ -1,3 +1,4 @@
+//go:build !linux && !freebsd
 // +build !linux,!freebsd
 
 package logger // import "github.com/docker/docker/daemon/logger"

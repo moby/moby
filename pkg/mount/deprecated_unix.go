@@ -1,3 +1,4 @@
+//go:build !darwin && !windows
 // +build !darwin,!windows
 
 package mount // import "github.com/docker/docker/pkg/mount"

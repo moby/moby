@@ -1,3 +1,4 @@
+//go:build !linux
 // +build !linux
 
 package oci // import "github.com/docker/docker/oci"
