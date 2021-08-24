@@ -181,6 +181,10 @@ func RegistryHosting() bool {
 	return err == nil
 }
 
+func RuntimeIsWindowsContainerd() bool {
+	return os.Getenv("DOCKER_WINDOWS_CONTAINERD_RUNTIME") == "1"
+}
+
 func SwarmInactive() bool {
 	return testEnv.DaemonInfo.Swarm.LocalNodeState == swarm.LocalNodeStateInactive
 }

@@ -36,6 +36,7 @@ import (
 	"github.com/moby/sys/mountinfo"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/skip"
 )
 
 // "test123" should be printed by docker run
@@ -1983,6 +1984,7 @@ func (s *DockerSuite) TestRunCidFileCheckIDLength(c *testing.T) {
 }
 
 func (s *DockerSuite) TestRunSetMacAddress(c *testing.T) {
+	skip.If(c, RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
 	mac := "12:34:56:78:9a:bc"
 	var out string
 	if testEnv.OSType == "windows" {
