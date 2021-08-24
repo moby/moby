@@ -3,7 +3,7 @@ package resolvconf
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -43,7 +43,7 @@ var (
 // More information at https://www.freedesktop.org/software/systemd/man/systemd-resolved.service.html#/etc/resolv.conf
 func Path() string {
 	detectSystemdResolvConfOnce.Do(func() {
-		candidateResolvConf, err := ioutil.ReadFile(defaultPath)
+		candidateResolvConf, err := os.ReadFile(defaultPath)
 		if err != nil {
 			// silencing error as it will resurface at next calls trying to read defaultPath
 			return
@@ -104,7 +104,7 @@ func Get() (*File, error) {
 
 // GetSpecific returns the contents of the user specified resolv.conf file and its hash
 func GetSpecific(path string) (*File, error) {
-	resolv, err := ioutil.ReadFile(path)
+	resolv, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func GetIfChanged() (*File, error) {
 	lastModified.Lock()
 	defer lastModified.Unlock()
 
-	resolv, err := ioutil.ReadFile(Path())
+	resolv, err := os.ReadFile(Path())
 	if err != nil {
 		return nil, err
 	}
@@ -291,5 +291,5 @@ func Build(path string, dns, dnsSearch, dnsOptions []string) (*File, error) {
 		return nil, err
 	}
 
-	return &File{Content: content.Bytes(), Hash: hash}, ioutil.WriteFile(path, content.Bytes(), 0644)
+	return &File{Content: content.Bytes(), Hash: hash}, os.WriteFile(path, content.Bytes(), 0644)
 }

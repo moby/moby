@@ -1,7 +1,7 @@
 package config // import "github.com/docker/docker/daemon/config"
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/docker/docker/opts"
@@ -11,7 +11,7 @@ import (
 )
 
 func TestDaemonConfigurationMerge(t *testing.T) {
-	f, err := ioutil.TempFile("", "docker-config-")
+	f, err := os.CreateTemp("", "docker-config-")
 	if err != nil {
 		t.Fatal(err)
 	}

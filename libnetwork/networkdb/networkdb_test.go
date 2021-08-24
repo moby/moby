@@ -2,7 +2,6 @@ package networkdb
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -23,7 +22,7 @@ import (
 var dbPort int32 = 10000
 
 func TestMain(m *testing.M) {
-	ioutil.WriteFile("/proc/sys/net/ipv6/conf/lo/disable_ipv6", []byte{'0', '\n'}, 0644)
+	os.WriteFile("/proc/sys/net/ipv6/conf/lo/disable_ipv6", []byte{'0', '\n'}, 0644)
 	logrus.SetLevel(logrus.ErrorLevel)
 	os.Exit(m.Run())
 }

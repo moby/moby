@@ -2,7 +2,6 @@ package fakegit // import "github.com/docker/docker/testutil/fakegit"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -76,7 +75,7 @@ func New(c testing.TB, name string, files map[string]string, enforceLocalServer 
 		c.Fatalf("error trying to commit to repo: %s (%s)", err, output)
 	}
 
-	root, err := ioutil.TempDir("", "docker-test-git-repo")
+	root, err := os.MkdirTemp("", "docker-test-git-repo")
 	if err != nil {
 		c.Fatal(err)
 	}

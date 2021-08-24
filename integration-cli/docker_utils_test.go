@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -213,7 +212,7 @@ func writeFile(dst, content string, c *testing.T) {
 // Fail the test when error occurs.
 func readFile(src string, c *testing.T) (content string) {
 	c.Helper()
-	data, err := ioutil.ReadFile(src)
+	data, err := os.ReadFile(src)
 	assert.NilError(c, err)
 
 	return string(data)
@@ -241,7 +240,7 @@ func readContainerFile(c *testing.T, containerID, filename string) []byte {
 	assert.NilError(c, err)
 	defer f.Close()
 
-	content, err := ioutil.ReadAll(f)
+	content, err := io.ReadAll(f)
 	assert.NilError(c, err)
 	return content
 }
@@ -311,12 +310,12 @@ func appendBaseEnv(isTLS bool, env ...string) []string {
 
 func createTmpFile(c *testing.T, content string) string {
 	c.Helper()
-	f, err := ioutil.TempFile("", "testfile")
+	f, err := os.CreateTemp("", "testfile")
 	assert.NilError(c, err)
 
 	filename := f.Name()
 
-	err = ioutil.WriteFile(filename, []byte(content), 0644)
+	err = os.WriteFile(filename, []byte(content), 0644)
 	assert.NilError(c, err)
 
 	return filename

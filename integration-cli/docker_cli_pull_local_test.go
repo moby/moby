@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -333,7 +332,7 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *testing.T) {
 	err = os.MkdirAll(blobDir, 0755)
 	assert.NilError(c, err, "error creating blob dir")
 	blobPath := filepath.Join(blobDir, "data")
-	err = ioutil.WriteFile(blobPath, manifestListJSON, 0644)
+	err = os.WriteFile(blobPath, manifestListJSON, 0644)
 	assert.NilError(c, err, "error writing manifest list")
 
 	// Add to revision store
@@ -341,12 +340,12 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *testing.T) {
 	err = os.Mkdir(revisionDir, 0755)
 	assert.Assert(c, err == nil, "error creating revision dir")
 	revisionPath := filepath.Join(revisionDir, "link")
-	err = ioutil.WriteFile(revisionPath, []byte(manifestListDigest.String()), 0644)
+	err = os.WriteFile(revisionPath, []byte(manifestListDigest.String()), 0644)
 	assert.Assert(c, err == nil, "error writing revision link")
 
 	// Update tag
 	tagPath := filepath.Join(registryV2Path, "repositories", remoteRepoName, "_manifests", "tags", "latest", "current", "link")
-	err = ioutil.WriteFile(tagPath, []byte(manifestListDigest.String()), 0644)
+	err = os.WriteFile(tagPath, []byte(manifestListDigest.String()), 0644)
 	assert.NilError(c, err, "error writing tag link")
 
 	// Verify that the image can be pulled through the manifest list.
@@ -381,18 +380,18 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuthLoginWithSchem
 
 	repoName := fmt.Sprintf("%v/dockercli/busybox:authtest", privateRegistryURL)
 
-	tmp, err := ioutil.TempDir("", "integration-cli-")
+	tmp, err := os.MkdirTemp("", "integration-cli-")
 	assert.NilError(c, err)
 
 	externalAuthConfig := `{ "credsStore": "shell-test" }`
 
 	configPath := filepath.Join(tmp, "config.json")
-	err = ioutil.WriteFile(configPath, []byte(externalAuthConfig), 0644)
+	err = os.WriteFile(configPath, []byte(externalAuthConfig), 0644)
 	assert.NilError(c, err)
 
 	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
 
-	b, err := ioutil.ReadFile(configPath)
+	b, err := os.ReadFile(configPath)
 	assert.NilError(c, err)
 	assert.Assert(c, !strings.Contains(string(b), "\"auth\":"))
 	dockerCmd(c, "--config", tmp, "tag", "busybox", repoName)
@@ -425,18 +424,18 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuth(c *testing.T)
 
 	repoName := fmt.Sprintf("%v/dockercli/busybox:authtest", privateRegistryURL)
 
-	tmp, err := ioutil.TempDir("", "integration-cli-")
+	tmp, err := os.MkdirTemp("", "integration-cli-")
 	assert.NilError(c, err)
 
 	externalAuthConfig := `{ "credsStore": "shell-test" }`
 
 	configPath := filepath.Join(tmp, "config.json")
-	err = ioutil.WriteFile(configPath, []byte(externalAuthConfig), 0644)
+	err = os.WriteFile(configPath, []byte(externalAuthConfig), 0644)
 	assert.NilError(c, err)
 
 	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
 
-	b, err := ioutil.ReadFile(configPath)
+	b, err := os.ReadFile(configPath)
 	assert.NilError(c, err)
 	assert.Assert(c, !strings.Contains(string(b), "\"auth\":"))
 	dockerCmd(c, "--config", tmp, "tag", "busybox", repoName)

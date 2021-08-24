@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -185,7 +184,7 @@ func New(info logger.Info) (logger.Logger, error) {
 
 	// If path to the root certificate is provided - load it
 	if caPath, ok := info.Config[splunkCAPathKey]; ok {
-		caCert, err := ioutil.ReadFile(caPath)
+		caCert, err := os.ReadFile(caPath)
 		if err != nil {
 			return nil, err
 		}
@@ -531,12 +530,12 @@ func (l *splunkLogger) tryPostMessages(ctx context.Context, messages []*splunkMe
 		return err
 	}
 	defer func() {
-		pools.Copy(ioutil.Discard, resp.Body)
+		pools.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
 	if resp.StatusCode != http.StatusOK {
 		rdr := io.LimitReader(resp.Body, maxResponseSize)
-		body, err := ioutil.ReadAll(rdr)
+		body, err := io.ReadAll(rdr)
 		if err != nil {
 			return err
 		}
@@ -631,13 +630,13 @@ func verifySplunkConnection(l *splunkLogger) error {
 		return err
 	}
 	defer func() {
-		pools.Copy(ioutil.Discard, resp.Body)
+		pools.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
 
 	if resp.StatusCode != http.StatusOK {
 		rdr := io.LimitReader(resp.Body, maxResponseSize)
-		body, err := ioutil.ReadAll(rdr)
+		body, err := io.ReadAll(rdr)
 		if err != nil {
 			return err
 		}

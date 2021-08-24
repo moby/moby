@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -139,7 +138,7 @@ func readLVMConfig(root string) (directLVMConfig, error) {
 	var cfg directLVMConfig
 
 	p := filepath.Join(root, "setup-config.json")
-	b, err := ioutil.ReadFile(p)
+	b, err := os.ReadFile(p)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return cfg, nil
@@ -162,7 +161,7 @@ func writeLVMConfig(root string, cfg directLVMConfig) error {
 	if err != nil {
 		return errors.Wrap(err, "error marshalling direct lvm config")
 	}
-	err = ioutil.WriteFile(p, b, 0600)
+	err = os.WriteFile(p, b, 0600)
 	return errors.Wrap(err, "error writing direct lvm config to file")
 }
 
@@ -221,7 +220,7 @@ func setupDirectLVM(cfg directLVMConfig) error {
 	}
 
 	profile := fmt.Sprintf("activation{\nthin_pool_autoextend_threshold=%d\nthin_pool_autoextend_percent=%d\n}", cfg.AutoExtendThreshold, cfg.AutoExtendPercent)
-	err = ioutil.WriteFile(lvmProfileDir+"/docker-thinpool.profile", []byte(profile), 0600)
+	err = os.WriteFile(lvmProfileDir+"/docker-thinpool.profile", []byte(profile), 0600)
 	if err != nil {
 		return errors.Wrap(err, "error writing docker thinp autoextend profile")
 	}

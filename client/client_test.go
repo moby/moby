@@ -3,7 +3,7 @@ package client // import "github.com/docker/docker/client"
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -274,7 +274,7 @@ func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 	httpClient := newMockClient(func(req *http.Request) (*http.Response, error) {
 		resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}}
 		resp.Header.Set("API-Version", pingVersion)
-		resp.Body = ioutil.NopCloser(strings.NewReader("OK"))
+		resp.Body = io.NopCloser(strings.NewReader("OK"))
 		return resp, nil
 	})
 

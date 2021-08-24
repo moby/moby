@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"strings"
@@ -87,7 +86,7 @@ func TestRemove(t *testing.T) {
 func TestList(t *testing.T) {
 	t.Parallel()
 
-	dir, err := ioutil.TempDir("", "test-list")
+	dir, err := os.MkdirTemp("", "test-list")
 	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
 
@@ -369,7 +368,7 @@ func setupTest(t *testing.T) (*VolumeStore, func()) {
 	t.Helper()
 
 	dirName := strings.Replace(t.Name(), string(os.PathSeparator), "_", -1)
-	dir, err := ioutil.TempDir("", dirName)
+	dir, err := os.MkdirTemp("", dirName)
 	assert.NilError(t, err)
 
 	cleanup := func() {

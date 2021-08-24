@@ -3,7 +3,6 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"bufio"
 	"context"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -217,7 +216,7 @@ func TestAPIIpcModeHost(t *testing.T) {
 	_, err = container.Exec(ctx, client, name, []string{"sh", "-c", "printf covfefe > /dev/shm/." + name})
 	assert.NilError(t, err)
 	// 2. check it's the same on the host
-	bytes, err := ioutil.ReadFile("/dev/shm/." + name)
+	bytes, err := os.ReadFile("/dev/shm/." + name)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("covfefe", string(bytes)))
 	// 3. clean up

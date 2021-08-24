@@ -1,7 +1,6 @@
 package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -41,7 +40,7 @@ func (m mockFiProviderWithError) fileInfo(path string) (bool, bool, error) {
 }
 
 func TestParseMountSpec(t *testing.T) {
-	testDir, err := ioutil.TempDir("", "test-mount-config")
+	testDir, err := os.MkdirTemp("", "test-mount-config")
 	if err != nil {
 		t.Fatal(err)
 	}

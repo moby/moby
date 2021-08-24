@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"compress/gzip"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
@@ -48,7 +47,7 @@ func (s *DockerSuite) TestImportFile(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
-	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
+	temporaryFile, err := os.CreateTemp("", "exportImportTest")
 	assert.Assert(c, err == nil, "failed to create temporary file")
 	defer os.Remove(temporaryFile.Name())
 
@@ -69,7 +68,7 @@ func (s *DockerSuite) TestImportGzipped(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
-	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
+	temporaryFile, err := os.CreateTemp("", "exportImportTest")
 	assert.Assert(c, err == nil, "failed to create temporary file")
 	defer os.Remove(temporaryFile.Name())
 
@@ -92,7 +91,7 @@ func (s *DockerSuite) TestImportFileWithMessage(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
-	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
+	temporaryFile, err := os.CreateTemp("", "exportImportTest")
 	assert.Assert(c, err == nil, "failed to create temporary file")
 	defer os.Remove(temporaryFile.Name())
 
@@ -128,7 +127,7 @@ func (s *DockerSuite) TestImportWithQuotedChanges(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	cli.DockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
-	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
+	temporaryFile, err := os.CreateTemp("", "exportImportTest")
 	assert.Assert(c, err == nil, "failed to create temporary file")
 	defer os.Remove(temporaryFile.Name())
 

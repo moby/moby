@@ -2,7 +2,6 @@ package service // import "github.com/docker/docker/volume/service"
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -16,7 +15,7 @@ import (
 func TestRestore(t *testing.T) {
 	t.Parallel()
 
-	dir, err := ioutil.TempDir("", "test-restore")
+	dir, err := os.MkdirTemp("", "test-restore")
 	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
 

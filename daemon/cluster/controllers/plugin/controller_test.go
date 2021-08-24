@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
@@ -321,7 +320,7 @@ func TestRemove(t *testing.T) {
 
 func newTestController(b Backend, disabled bool) *Controller {
 	return &Controller{
-		logger:  &logrus.Entry{Logger: &logrus.Logger{Out: ioutil.Discard}},
+		logger:  &logrus.Entry{Logger: &logrus.Logger{Out: io.Discard}},
 		backend: b,
 		spec: runtime.PluginSpec{
 			Name:     pluginTestName,

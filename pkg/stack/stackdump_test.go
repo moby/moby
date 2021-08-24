@@ -1,7 +1,6 @@
 package stack // import "github.com/docker/docker/pkg/stack"
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -14,12 +13,12 @@ func TestDump(t *testing.T) {
 }
 
 func TestDumpToFile(t *testing.T) {
-	directory, err := ioutil.TempDir("", "test-dump-tasks")
+	directory, err := os.MkdirTemp("", "test-dump-tasks")
 	assert.Check(t, err)
 	defer os.RemoveAll(directory)
 	dumpPath, err := DumpToFile(directory)
 	assert.Check(t, err)
-	readFile, _ := ioutil.ReadFile(dumpPath)
+	readFile, _ := os.ReadFile(dumpPath)
 	fileData := string(readFile)
 	assert.Check(t, is.Contains(fileData, "goroutine"))
 }

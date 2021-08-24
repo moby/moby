@@ -4,7 +4,6 @@
 package trap // import "github.com/docker/docker/cmd/dockerd/trap"
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"syscall"
@@ -16,7 +15,7 @@ import (
 
 func buildTestBinary(t *testing.T, tmpdir string, prefix string) (string, string) {
 	t.Helper()
-	tmpDir, err := ioutil.TempDir(tmpdir, prefix)
+	tmpDir, err := os.MkdirTemp(tmpdir, prefix)
 	assert.NilError(t, err)
 	exePath := tmpDir + "/" + prefix
 	wd, _ := os.Getwd()

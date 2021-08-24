@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -57,7 +56,7 @@ func applyLayer() {
 		options.InUserNS = true
 	}
 
-	if tmpDir, err = ioutil.TempDir("/", "temp-docker-extract"); err != nil {
+	if tmpDir, err = os.MkdirTemp("/", "temp-docker-extract"); err != nil {
 		fatal(err)
 	}
 

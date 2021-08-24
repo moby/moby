@@ -2,7 +2,7 @@ package file // import "github.com/docker/docker/pkg/discovery/file"
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 
@@ -51,7 +51,7 @@ func parseFileContent(content []byte) []string {
 }
 
 func (s *Discovery) fetch() (discovery.Entries, error) {
-	fileContent, err := ioutil.ReadFile(s.path)
+	fileContent, err := os.ReadFile(s.path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read '%s': %v", s.path, err)
 	}

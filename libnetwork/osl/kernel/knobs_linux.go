@@ -1,7 +1,7 @@
 package kernel
 
 import (
-	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 
@@ -12,13 +12,13 @@ import (
 // For e.g. net.ipv4.ip_forward translated to /proc/sys/net/ipv4/ip_forward.
 func writeSystemProperty(key, value string) error {
 	keyPath := strings.Replace(key, ".", "/", -1)
-	return ioutil.WriteFile(path.Join("/proc/sys", keyPath), []byte(value), 0644)
+	return os.WriteFile(path.Join("/proc/sys", keyPath), []byte(value), 0644)
 }
 
 // readSystemProperty reads the value from the path under /proc/sys and returns it
 func readSystemProperty(key string) (string, error) {
 	keyPath := strings.Replace(key, ".", "/", -1)
-	value, err := ioutil.ReadFile(path.Join("/proc/sys", keyPath))
+	value, err := os.ReadFile(path.Join("/proc/sys", keyPath))
 	if err != nil {
 		return "", err
 	}

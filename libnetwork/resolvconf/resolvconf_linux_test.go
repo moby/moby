@@ -2,7 +2,6 @@ package resolvconf
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -12,7 +11,7 @@ func TestGet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resolvConfSystem, err := ioutil.ReadFile("/etc/resolv.conf")
+	resolvConfSystem, err := os.ReadFile("/etc/resolv.conf")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +143,7 @@ func strSlicesEqual(a, b []string) bool {
 }
 
 func TestBuild(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +154,7 @@ func TestBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err := ioutil.ReadFile(file.Name())
+	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +165,7 @@ func TestBuild(t *testing.T) {
 }
 
 func TestBuildWithZeroLengthDomainSearch(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +176,7 @@ func TestBuildWithZeroLengthDomainSearch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err := ioutil.ReadFile(file.Name())
+	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +190,7 @@ func TestBuildWithZeroLengthDomainSearch(t *testing.T) {
 }
 
 func TestBuildWithNoOptions(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +201,7 @@ func TestBuildWithNoOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err := ioutil.ReadFile(file.Name())
+	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}

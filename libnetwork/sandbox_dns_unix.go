@@ -5,7 +5,6 @@ package libnetwork
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path"
@@ -279,13 +278,13 @@ func (sb *sandbox) setupDNS() error {
 			return err
 		}
 		// No contention on container resolv.conf file at sandbox creation
-		if err := ioutil.WriteFile(sb.config.resolvConfPath, newRC.Content, filePerm); err != nil {
+		if err := os.WriteFile(sb.config.resolvConfPath, newRC.Content, filePerm); err != nil {
 			return types.InternalErrorf("failed to write unhaltered resolv.conf file content when setting up dns for sandbox %s: %v", sb.ID(), err)
 		}
 	}
 
 	// Write hash
-	if err := ioutil.WriteFile(sb.config.resolvConfHashFile, []byte(newRC.Hash), filePerm); err != nil {
+	if err := os.WriteFile(sb.config.resolvConfHashFile, []byte(newRC.Hash), filePerm); err != nil {
 		return types.InternalErrorf("failed to write resolv.conf hash file when setting up dns for sandbox %s: %v", sb.ID(), err)
 	}
 
@@ -313,7 +312,7 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 			return err
 		}
 	} else {
-		h, err := ioutil.ReadFile(hashFile)
+		h, err := os.ReadFile(hashFile)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return err
@@ -335,14 +334,14 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(sb.config.resolvConfPath, newRC.Content, 0644) //nolint:gosec // gosec complains about perms here, which must be 0644 in this case
+	err = os.WriteFile(sb.config.resolvConfPath, newRC.Content, 0644) //nolint:gosec // gosec complains about perms here, which must be 0644 in this case
 	if err != nil {
 		return err
 	}
 
 	// write the new hash in a temp file and rename it to make the update atomic
 	dir := path.Dir(sb.config.resolvConfPath)
-	tmpHashFile, err := ioutil.TempFile(dir, "hash")
+	tmpHashFile, err := os.CreateTemp(dir, "hash")
 	if err != nil {
 		return err
 	}
@@ -442,9 +441,9 @@ func createFile(path string) error {
 }
 
 func copyFile(src, dst string) error {
-	sBytes, err := ioutil.ReadFile(src)
+	sBytes, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(dst, sBytes, filePerm)
+	return os.WriteFile(dst, sBytes, filePerm)
 }

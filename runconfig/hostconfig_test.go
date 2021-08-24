@@ -6,7 +6,7 @@ package runconfig // import "github.com/docker/docker/runconfig"
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
@@ -213,7 +213,7 @@ func TestDecodeHostConfig(t *testing.T) {
 	}
 
 	for _, f := range fixtures {
-		b, err := ioutil.ReadFile(f.file)
+		b, err := os.ReadFile(f.file)
 		if err != nil {
 			t.Fatal(err)
 		}

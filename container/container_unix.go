@@ -4,7 +4,6 @@
 package container // import "github.com/docker/docker/container"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -61,7 +60,7 @@ func (container *Container) BuildHostnameFile() error {
 		return err
 	}
 	container.HostnamePath = hostnamePath
-	return ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
+	return os.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
 }
 
 // NetworkMounts returns the list of network mounts.
@@ -410,7 +409,7 @@ func ignoreUnsupportedXAttrs() fs.CopyDirOpt {
 // copyExistingContents copies from the source to the destination and
 // ensures the ownership is appropriately set.
 func copyExistingContents(source, destination string) error {
-	dstList, err := ioutil.ReadDir(destination)
+	dstList, err := os.ReadDir(destination)
 	if err != nil {
 		return err
 	}

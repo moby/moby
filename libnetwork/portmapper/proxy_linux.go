@@ -2,7 +2,7 @@ package portmapper
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -67,7 +67,7 @@ func (p *proxyCommand) Start() error {
 		r.Read(buf)
 
 		if string(buf) != "0\n" {
-			errStr, err := ioutil.ReadAll(r)
+			errStr, err := io.ReadAll(r)
 			if err != nil {
 				errchan <- fmt.Errorf("Error reading exit status from userland proxy: %v", err)
 				return

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -51,7 +51,7 @@ func TestContainerStats(t *testing.T) {
 
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Body:       ioutil.NopCloser(bytes.NewReader([]byte("response"))),
+					Body:       io.NopCloser(bytes.NewReader([]byte("response"))),
 				}, nil
 			}),
 		}
@@ -60,7 +60,7 @@ func TestContainerStats(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer resp.Body.Close()
-		content, err := ioutil.ReadAll(resp.Body)
+		content, err := io.ReadAll(resp.Body)
 		if err != nil {
 			t.Fatal(err)
 		}

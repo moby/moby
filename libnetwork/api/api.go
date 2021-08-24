@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -156,7 +156,7 @@ func makeHandler(ctrl libnetwork.NetworkController, fct processor) http.HandlerF
 			err  error
 		)
 		if req.Body != nil {
-			body, err = ioutil.ReadAll(req.Body)
+			body, err = io.ReadAll(req.Body)
 			if err != nil {
 				http.Error(w, "Invalid body: "+err.Error(), http.StatusBadRequest)
 				return

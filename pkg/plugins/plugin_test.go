@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -132,7 +132,7 @@ func TestGetAll(t *testing.T) {
 	"Addr": "https://example.com/docker/plugin"
 }`
 
-	if err := ioutil.WriteFile(p, []byte(spec), 0644); err != nil {
+	if err := os.WriteFile(p, []byte(spec), 0644); err != nil {
 		t.Fatal(err)
 	}
 

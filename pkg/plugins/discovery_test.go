@@ -1,14 +1,13 @@
 package plugins // import "github.com/docker/docker/pkg/plugins"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func Setup(t *testing.T) (string, func()) {
-	tmpdir, err := ioutil.TempDir("", "docker-test")
+	tmpdir, err := os.MkdirTemp("", "docker-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +43,7 @@ func TestFileSpecPlugin(t *testing.T) {
 		if err := os.MkdirAll(filepath.Dir(c.path), 0755); err != nil {
 			t.Fatal(err)
 		}
-		if err := ioutil.WriteFile(c.path, []byte(c.addr), 0644); err != nil {
+		if err := os.WriteFile(c.path, []byte(c.addr), 0644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -87,7 +86,7 @@ func TestFileJSONSpecPlugin(t *testing.T) {
 	}
 }`
 
-	if err := ioutil.WriteFile(p, []byte(spec), 0644); err != nil {
+	if err := os.WriteFile(p, []byte(spec), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -128,7 +127,7 @@ func TestFileJSONSpecPluginWithoutTLSConfig(t *testing.T) {
   "Addr": "https://example.com/docker/plugin"
 }`
 
-	if err := ioutil.WriteFile(p, []byte(spec), 0644); err != nil {
+	if err := os.WriteFile(p, []byte(spec), 0644); err != nil {
 		t.Fatal(err)
 	}
 

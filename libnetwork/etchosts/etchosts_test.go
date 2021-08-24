@@ -3,7 +3,6 @@ package etchosts
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -11,7 +10,7 @@ import (
 )
 
 func TestBuildDefault(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -24,7 +23,7 @@ func TestBuildDefault(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		content, err := ioutil.ReadFile(file.Name())
+		content, err := os.ReadFile(file.Name())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -37,7 +36,7 @@ func TestBuildDefault(t *testing.T) {
 }
 
 func TestBuildHostnameDomainname(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +47,7 @@ func TestBuildHostnameDomainname(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err := ioutil.ReadFile(file.Name())
+	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +58,7 @@ func TestBuildHostnameDomainname(t *testing.T) {
 }
 
 func TestBuildHostname(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +69,7 @@ func TestBuildHostname(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err := ioutil.ReadFile(file.Name())
+	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +80,7 @@ func TestBuildHostname(t *testing.T) {
 }
 
 func TestBuildHostnameFQDN(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +91,7 @@ func TestBuildHostnameFQDN(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err := ioutil.ReadFile(file.Name())
+	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +102,7 @@ func TestBuildHostnameFQDN(t *testing.T) {
 }
 
 func TestBuildNoIP(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +113,7 @@ func TestBuildNoIP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err := ioutil.ReadFile(file.Name())
+	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +124,7 @@ func TestBuildNoIP(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +134,7 @@ func TestUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err := ioutil.ReadFile(file.Name())
+	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +147,7 @@ func TestUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err = ioutil.ReadFile(file.Name())
+	content, err = os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +165,7 @@ func TestUpdate(t *testing.T) {
 // with "prefix" should not be changed. For more information see
 // GitHub issue #603.
 func TestUpdateIgnoresPrefixedHostname(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,7 +188,7 @@ func TestUpdateIgnoresPrefixedHostname(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err := ioutil.ReadFile(file.Name())
+	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +201,7 @@ func TestUpdateIgnoresPrefixedHostname(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err = ioutil.ReadFile(file.Name())
+	content, err = os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +217,7 @@ func TestUpdateIgnoresPrefixedHostname(t *testing.T) {
 // "prefix", an unrelated host called "prefixAndMore" should not
 // be deleted. For more information see GitHub issue #603.
 func TestDeleteIgnoresPrefixedHostname(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +250,7 @@ func TestDeleteIgnoresPrefixedHostname(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err := ioutil.ReadFile(file.Name())
+	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +265,7 @@ func TestDeleteIgnoresPrefixedHostname(t *testing.T) {
 }
 
 func TestAddEmpty(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +282,7 @@ func TestAddEmpty(t *testing.T) {
 }
 
 func TestAdd(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,7 +302,7 @@ func TestAdd(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err := ioutil.ReadFile(file.Name())
+	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -314,7 +313,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestDeleteEmpty(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -331,7 +330,7 @@ func TestDeleteEmpty(t *testing.T) {
 }
 
 func TestDeleteNewline(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -354,7 +353,7 @@ func TestDeleteNewline(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -395,7 +394,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err := ioutil.ReadFile(file.Name())
+	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -410,7 +409,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestConcurrentWrites(t *testing.T) {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -458,7 +457,7 @@ func TestConcurrentWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err := ioutil.ReadFile(file.Name())
+	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -470,7 +469,7 @@ func TestConcurrentWrites(t *testing.T) {
 
 func benchDelete(b *testing.B) {
 	b.StopTimer()
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		b.Fatal(err)
 	}

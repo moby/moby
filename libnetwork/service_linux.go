@@ -3,7 +3,6 @@ package libnetwork
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -378,7 +377,7 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 		}
 
 		path := filepath.Join("/proc/sys/net/ipv4/conf", oifName, "route_localnet")
-		if err := ioutil.WriteFile(path, []byte{'1', '\n'}, 0644); err != nil { //nolint:gosec // gosec complains about perms here, which must be 0644 in this case
+		if err := os.WriteFile(path, []byte{'1', '\n'}, 0644); err != nil { //nolint:gosec // gosec complains about perms here, which must be 0644 in this case
 			return fmt.Errorf("could not write to %s: %v", path, err)
 		}
 
@@ -538,7 +537,7 @@ func plumbProxy(iPort *PortConfig, isDelete bool) error {
 }
 
 func writePortsToFile(ports []*PortConfig) (string, error) {
-	f, err := ioutil.TempFile("", "port_configs")
+	f, err := os.CreateTemp("", "port_configs")
 	if err != nil {
 		return "", err
 	}
@@ -561,7 +560,7 @@ func writePortsToFile(ports []*PortConfig) (string, error) {
 }
 
 func readPortsFromFile(fileName string) ([]*PortConfig, error) {
-	buf, err := ioutil.ReadFile(fileName)
+	buf, err := os.ReadFile(fileName)
 	if err != nil {
 		return nil, err
 	}
@@ -671,7 +670,7 @@ func fwMarker() {
 			rule := append(strings.Fields("-t nat -A POSTROUTING"), ruleParams...)
 			rules = append(rules, rule)
 
-			err := ioutil.WriteFile("/proc/sys/net/ipv4/vs/conntrack", []byte{'1', '\n'}, 0644)
+			err := os.WriteFile("/proc/sys/net/ipv4/vs/conntrack", []byte{'1', '\n'}, 0644)
 			if err != nil {
 				logrus.Errorf("Failed to write to /proc/sys/net/ipv4/vs/conntrack: %v", err)
 				os.Exit(7)

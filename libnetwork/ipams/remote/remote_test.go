@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -57,7 +56,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 		t.Fatal("Failed to start an HTTP Server")
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(specPath, name+".spec"), []byte(server.URL), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(specPath, name+".spec"), []byte(server.URL), 0644); err != nil {
 		t.Fatal(err)
 	}
 

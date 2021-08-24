@@ -3,7 +3,6 @@ package osl
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -172,7 +171,7 @@ func GenerateKey(containerID string) string {
 			indexStr string
 			tmpkey   string
 		)
-		dir, err := ioutil.ReadDir(basePath())
+		dir, err := os.ReadDir(basePath())
 		if err != nil {
 			return ""
 		}
@@ -408,12 +407,12 @@ func (n *networkNamespace) DisableARPForVIP(srcName string) (Err error) {
 
 	err := n.InvokeFunc(func() {
 		path := filepath.Join("/proc/sys/net/ipv4/conf", dstName, "arp_ignore")
-		if err := ioutil.WriteFile(path, []byte{'1', '\n'}, 0644); err != nil {
+		if err := os.WriteFile(path, []byte{'1', '\n'}, 0644); err != nil {
 			Err = fmt.Errorf("Failed to set %s to 1: %v", path, err)
 			return
 		}
 		path = filepath.Join("/proc/sys/net/ipv4/conf", dstName, "arp_announce")
-		if err := ioutil.WriteFile(path, []byte{'2', '\n'}, 0644); err != nil {
+		if err := os.WriteFile(path, []byte{'2', '\n'}, 0644); err != nil {
 			Err = fmt.Errorf("Failed to set %s to 2: %v", path, err)
 			return
 		}
@@ -665,7 +664,7 @@ func reexecSetIPv6() {
 		os.Exit(5)
 	}
 
-	if err = ioutil.WriteFile(path, []byte{value, '\n'}, 0644); err != nil {
+	if err = os.WriteFile(path, []byte{value, '\n'}, 0644); err != nil {
 		logrus.Errorf("failed to %s IPv6 forwarding for container's interface %s: %v", action, os.Args[2], err)
 		os.Exit(4)
 	}

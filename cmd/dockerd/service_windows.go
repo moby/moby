@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -293,7 +293,7 @@ func initService(daemonCli *DaemonCli) (bool, bool, error) {
 	}
 
 	logrus.AddHook(&etwHook{log})
-	logrus.SetOutput(ioutil.Discard)
+	logrus.SetOutput(io.Discard)
 
 	service = h
 	go func() {

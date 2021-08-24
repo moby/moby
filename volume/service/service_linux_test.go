@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -21,7 +20,7 @@ func TestLocalVolumeSize(t *testing.T) {
 	t.Parallel()
 
 	ds := volumedrivers.NewStore(nil)
-	dir, err := ioutil.TempDir("", t.Name())
+	dir, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
 
@@ -42,9 +41,9 @@ func TestLocalVolumeSize(t *testing.T) {
 	assert.NilError(t, err)
 
 	data := make([]byte, 1024)
-	err = ioutil.WriteFile(filepath.Join(v1.Mountpoint, "data"), data, 0644)
+	err = os.WriteFile(filepath.Join(v1.Mountpoint, "data"), data, 0644)
 	assert.NilError(t, err)
-	err = ioutil.WriteFile(filepath.Join(v2.Mountpoint, "data"), data[:1], 0644)
+	err = os.WriteFile(filepath.Join(v2.Mountpoint, "data"), data[:1], 0644)
 	assert.NilError(t, err)
 
 	ls, err := service.LocalVolumesSize(ctx)

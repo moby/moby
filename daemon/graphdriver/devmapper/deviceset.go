@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -326,7 +325,7 @@ func (devices *DeviceSet) removeMetadata(info *devInfo) error {
 
 // Given json data and file path, write it to disk
 func (devices *DeviceSet) writeMetaFile(jsonData []byte, filePath string) error {
-	tmpFile, err := ioutil.TempFile(devices.metadataDir(), ".tmp")
+	tmpFile, err := os.CreateTemp(devices.metadataDir(), ".tmp")
 	if err != nil {
 		return fmt.Errorf("devmapper: Error creating metadata file: %s", err)
 	}
@@ -541,7 +540,7 @@ func xfsSupported() error {
 		return err // error text is descriptive enough
 	}
 
-	mountTarget, err := ioutil.TempDir("", "supportsXFS")
+	mountTarget, err := os.MkdirTemp("", "supportsXFS")
 	if err != nil {
 		return errors.Wrapf(err, "error checking for xfs support")
 	}
@@ -634,7 +633,7 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) (err error) {
 
 func (devices *DeviceSet) migrateOldMetaData() error {
 	// Migrate old metadata file
-	jsonData, err := ioutil.ReadFile(devices.oldMetadataFile())
+	jsonData, err := os.ReadFile(devices.oldMetadataFile())
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -956,7 +955,7 @@ func (devices *DeviceSet) loadMetadata(hash string) *devInfo {
 	info := &devInfo{Hash: hash, devices: devices}
 	logger := logrus.WithField("storage-driver", "devicemapper")
 
-	jsonData, err := ioutil.ReadFile(devices.metadataFile(info))
+	jsonData, err := os.ReadFile(devices.metadataFile(info))
 	if err != nil {
 		logger.Debugf("Failed to read %s with err: %v", devices.metadataFile(info), err)
 		return nil
@@ -1264,7 +1263,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 }
 
 func setCloseOnExec(name string) {
-	fileInfos, _ := ioutil.ReadDir("/proc/self/fd")
+	fileInfos, _ := os.ReadDir("/proc/self/fd")
 	for _, i := range fileInfos {
 		link, _ := os.Readlink(filepath.Join("/proc/self/fd", i.Name()))
 		if link == name {
@@ -1358,7 +1357,7 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 }
 
 func (devices *DeviceSet) loadTransactionMetaData() error {
-	jsonData, err := ioutil.ReadFile(devices.transactionMetaFile())
+	jsonData, err := os.ReadFile(devices.transactionMetaFile())
 	if err != nil {
 		// There is no active transaction. This will be the case
 		// during upgrade.
@@ -1441,7 +1440,7 @@ func (devices *DeviceSet) processPendingTransaction() error {
 }
 
 func (devices *DeviceSet) loadDeviceSetMetaData() error {
-	jsonData, err := ioutil.ReadFile(devices.deviceSetMetaFile())
+	jsonData, err := os.ReadFile(devices.deviceSetMetaFile())
 	if err != nil {
 		// For backward compatibility return success if file does
 		// not exist.
@@ -2246,7 +2245,7 @@ func (devices *DeviceSet) cancelDeferredRemoval(info *devInfo) error {
 func (devices *DeviceSet) unmountAndDeactivateAll(dir string) {
 	logger := logrus.WithField("storage-driver", "devicemapper")
 
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		logger.Warnf("unmountAndDeactivate: %s", err)
 		return

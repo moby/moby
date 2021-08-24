@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -25,7 +25,7 @@ func (s *DockerSuite) TestClientSetsTLSServerName(c *testing.T) {
 	}))
 	defer virtualHostServer.Close()
 	// discard TLS handshake errors written by default to os.Stderr
-	virtualHostServer.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
+	virtualHostServer.Config.ErrorLog = log.New(io.Discard, "", 0)
 
 	u, err := url.Parse(virtualHostServer.URL)
 	assert.NilError(c, err)

@@ -1,7 +1,6 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,11 +12,11 @@ import (
 
 // LoadOrCreateTrustKey
 func TestLoadOrCreateTrustKeyInvalidKeyFile(t *testing.T) {
-	tmpKeyFolderPath, err := ioutil.TempDir("", "api-trustkey-test")
+	tmpKeyFolderPath, err := os.MkdirTemp("", "api-trustkey-test")
 	assert.NilError(t, err)
 	defer os.RemoveAll(tmpKeyFolderPath)
 
-	tmpKeyFile, err := ioutil.TempFile(tmpKeyFolderPath, "keyfile")
+	tmpKeyFile, err := os.CreateTemp(tmpKeyFolderPath, "keyfile")
 	assert.NilError(t, err)
 
 	_, err = loadOrCreateTrustKey(tmpKeyFile.Name())
