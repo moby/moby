@@ -8,7 +8,6 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -197,7 +196,7 @@ func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 	}
 
 	certsDir := registry.CertsDir()
-	if fis, err := ioutil.ReadDir(certsDir); err == nil {
+	if fis, err := os.ReadDir(certsDir); err == nil {
 		for _, fi := range fis {
 			if _, ok := m[fi.Name()]; !ok {
 				m[fi.Name()] = bkconfig.RegistryConfig{
@@ -216,7 +215,7 @@ func (daemon *Daemon) restore() error {
 
 	logrus.Info("Loading containers: start.")
 
-	dir, err := ioutil.ReadDir(daemon.repository)
+	dir, err := os.ReadDir(daemon.repository)
 	if err != nil {
 		return err
 	}

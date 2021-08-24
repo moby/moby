@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -104,7 +103,7 @@ func Apparmor() bool {
 	if strings.HasPrefix(testEnv.DaemonInfo.OperatingSystem, "SUSE Linux Enterprise Server ") {
 		return false
 	}
-	buf, err := ioutil.ReadFile("/sys/module/apparmor/parameters/enabled")
+	buf, err := os.ReadFile("/sys/module/apparmor/parameters/enabled")
 	return err == nil && len(buf) > 1 && buf[0] == 'Y'
 }
 

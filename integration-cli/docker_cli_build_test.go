@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -939,7 +938,7 @@ func (s *DockerSuite) TestBuildAddBadLinks(c *testing.T) {
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(dockerfile))
 	defer ctx.Close()
 
-	tempDir, err := ioutil.TempDir("", "test-link-absolute-temp-")
+	tempDir, err := os.MkdirTemp("", "test-link-absolute-temp-")
 	if err != nil {
 		c.Fatalf("failed to create temporary directory: %s", tempDir)
 	}
@@ -1015,7 +1014,7 @@ func (s *DockerSuite) TestBuildAddBadLinksVolume(c *testing.T) {
 		targetFile = "foo.txt"
 	)
 
-	tempDir, err := ioutil.TempDir("", "test-link-absolute-volume-temp-")
+	tempDir, err := os.MkdirTemp("", "test-link-absolute-volume-temp-")
 	if err != nil {
 		c.Fatalf("failed to create temporary directory: %s", tempDir)
 	}
@@ -1514,7 +1513,7 @@ func (s *DockerSuite) TestBuildContextCleanup(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 
 	name := "testbuildcontextcleanup"
-	entries, err := ioutil.ReadDir(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "tmp"))
+	entries, err := os.ReadDir(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "tmp"))
 	if err != nil {
 		c.Fatalf("failed to list contents of tmp dir: %s", err)
 	}
@@ -1522,7 +1521,7 @@ func (s *DockerSuite) TestBuildContextCleanup(c *testing.T) {
 	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM `+minimalBaseImage()+`
         ENTRYPOINT ["/bin/echo"]`))
 
-	entriesFinal, err := ioutil.ReadDir(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "tmp"))
+	entriesFinal, err := os.ReadDir(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "tmp"))
 	if err != nil {
 		c.Fatalf("failed to list contents of tmp dir: %s", err)
 	}
@@ -1536,7 +1535,7 @@ func (s *DockerSuite) TestBuildContextCleanupFailedBuild(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 
 	name := "testbuildcontextcleanup"
-	entries, err := ioutil.ReadDir(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "tmp"))
+	entries, err := os.ReadDir(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "tmp"))
 	if err != nil {
 		c.Fatalf("failed to list contents of tmp dir: %s", err)
 	}
@@ -1546,7 +1545,7 @@ func (s *DockerSuite) TestBuildContextCleanupFailedBuild(c *testing.T) {
 		ExitCode: 1,
 	})
 
-	entriesFinal, err := ioutil.ReadDir(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "tmp"))
+	entriesFinal, err := os.ReadDir(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "tmp"))
 	if err != nil {
 		c.Fatalf("failed to list contents of tmp dir: %s", err)
 	}
@@ -1556,9 +1555,9 @@ func (s *DockerSuite) TestBuildContextCleanupFailedBuild(c *testing.T) {
 
 }
 
-// compareDirectoryEntries compares two sets of FileInfo (usually taken from a directory)
+// compareDirectoryEntries compares two sets of DirEntry (usually taken from a directory)
 // and returns an error if different.
-func compareDirectoryEntries(e1 []os.FileInfo, e2 []os.FileInfo) error {
+func compareDirectoryEntries(e1 []os.DirEntry, e2 []os.DirEntry) error {
 	var (
 		e1Entries = make(map[string]struct{})
 		e2Entries = make(map[string]struct{})
@@ -2068,9 +2067,9 @@ func (s *DockerSuite) TestBuildNoContext(c *testing.T) {
 // FIXME(vdemeester) migrate to docker/cli e2e
 func (s *DockerSuite) TestBuildDockerfileStdin(c *testing.T) {
 	name := "stdindockerfile"
-	tmpDir, err := ioutil.TempDir("", "fake-context")
+	tmpDir, err := os.MkdirTemp("", "fake-context")
 	assert.NilError(c, err)
-	err = ioutil.WriteFile(filepath.Join(tmpDir, "foo"), []byte("bar"), 0600)
+	err = os.WriteFile(filepath.Join(tmpDir, "foo"), []byte("bar"), 0600)
 	assert.NilError(c, err)
 
 	icmd.RunCmd(icmd.Cmd{
@@ -2110,12 +2109,12 @@ func (s *DockerSuite) TestBuildDockerfileStdinDockerignoreIgnored(c *testing.T) 
 
 func (s *DockerSuite) testBuildDockerfileStdinNoExtraFiles(c *testing.T, hasDockerignore, ignoreDockerignore bool) {
 	name := "stdindockerfilenoextra"
-	tmpDir, err := ioutil.TempDir("", "fake-context")
+	tmpDir, err := os.MkdirTemp("", "fake-context")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpDir)
 
 	writeFile := func(filename, content string) {
-		err = ioutil.WriteFile(filepath.Join(tmpDir, filename), []byte(content), 0600)
+		err = os.WriteFile(filepath.Join(tmpDir, filename), []byte(content), 0600)
 		assert.NilError(c, err)
 	}
 
@@ -2845,7 +2844,7 @@ ADD test.tar /existing-directory
 RUN cat /existing-directory/test/foo | grep Hi
 ADD test.tar /existing-directory-trailing-slash/
 RUN cat /existing-directory-trailing-slash/test/foo | grep Hi`
-		tmpDir, err := ioutil.TempDir("", "fake-context")
+		tmpDir, err := os.MkdirTemp("", "fake-context")
 		assert.NilError(c, err)
 		testTar, err := os.Create(filepath.Join(tmpDir, "test.tar"))
 		if err != nil {
@@ -2868,7 +2867,7 @@ RUN cat /existing-directory-trailing-slash/test/foo | grep Hi`
 			c.Fatalf("failed to close tar archive: %v", err)
 		}
 
-		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
 			c.Fatalf("failed to open destination dockerfile: %v", err)
 		}
 		return fakecontext.New(c, tmpDir)
@@ -2885,7 +2884,7 @@ func (s *DockerSuite) TestBuildAddBrokenTar(c *testing.T) {
 		dockerfile := `
 FROM busybox
 ADD test.tar /`
-		tmpDir, err := ioutil.TempDir("", "fake-context")
+		tmpDir, err := os.MkdirTemp("", "fake-context")
 		assert.NilError(c, err)
 		testTar, err := os.Create(filepath.Join(tmpDir, "test.tar"))
 		if err != nil {
@@ -2917,7 +2916,7 @@ ADD test.tar /`
 			c.Fatalf("failed to truncate tar archive: %v", err)
 		}
 
-		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
 			c.Fatalf("failed to open destination dockerfile: %v", err)
 		}
 		return fakecontext.New(c, tmpDir)
@@ -2953,7 +2952,7 @@ func (s *DockerSuite) TestBuildAddTarXz(c *testing.T) {
 			FROM busybox
 			ADD test.tar.xz /
 			RUN cat /test/foo | grep Hi`
-		tmpDir, err := ioutil.TempDir("", "fake-context")
+		tmpDir, err := os.MkdirTemp("", "fake-context")
 		assert.NilError(c, err)
 		testTar, err := os.Create(filepath.Join(tmpDir, "test.tar"))
 		if err != nil {
@@ -2980,7 +2979,7 @@ func (s *DockerSuite) TestBuildAddTarXz(c *testing.T) {
 			Command: []string{"xz", "-k", "test.tar"},
 			Dir:     tmpDir,
 		}).Assert(c, icmd.Success)
-		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
 			c.Fatalf("failed to open destination dockerfile: %v", err)
 		}
 		return fakecontext.New(c, tmpDir)
@@ -3000,7 +2999,7 @@ func (s *DockerSuite) TestBuildAddTarXzGz(c *testing.T) {
 			FROM busybox
 			ADD test.tar.xz.gz /
 			RUN ls /test.tar.xz.gz`
-		tmpDir, err := ioutil.TempDir("", "fake-context")
+		tmpDir, err := os.MkdirTemp("", "fake-context")
 		assert.NilError(c, err)
 		testTar, err := os.Create(filepath.Join(tmpDir, "test.tar"))
 		if err != nil {
@@ -3032,7 +3031,7 @@ func (s *DockerSuite) TestBuildAddTarXzGz(c *testing.T) {
 			Command: []string{"gzip", "test.tar.xz"},
 			Dir:     tmpDir,
 		})
-		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
 			c.Fatalf("failed to open destination dockerfile: %v", err)
 		}
 		return fakecontext.New(c, tmpDir)
@@ -3593,7 +3592,7 @@ RUN [ $(ls -l /test | awk '{print $3":"$4}') = 'root:root' ]
 
 func (s *DockerSuite) TestBuildSymlinkBreakout(c *testing.T) {
 	name := "testbuildsymlinkbreakout"
-	tmpdir, err := ioutil.TempDir("", name)
+	tmpdir, err := os.MkdirTemp("", name)
 	assert.NilError(c, err)
 
 	// See https://github.com/moby/moby/pull/37770 for reason for next line.
@@ -3605,7 +3604,7 @@ func (s *DockerSuite) TestBuildSymlinkBreakout(c *testing.T) {
 	if err := os.MkdirAll(ctx, 0755); err != nil {
 		c.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(ctx, "Dockerfile"), []byte(`
+	if err := os.WriteFile(filepath.Join(ctx, "Dockerfile"), []byte(`
 	from busybox
 	add symlink.tar /
 	add inject /symlink/
@@ -3613,7 +3612,7 @@ func (s *DockerSuite) TestBuildSymlinkBreakout(c *testing.T) {
 		c.Fatal(err)
 	}
 	inject := filepath.Join(ctx, "inject")
-	if err := ioutil.WriteFile(inject, nil, 0644); err != nil {
+	if err := os.WriteFile(inject, nil, 0644); err != nil {
 		c.Fatal(err)
 	}
 	f, err := os.Create(filepath.Join(ctx, "symlink.tar"))
@@ -3970,7 +3969,7 @@ func (s *DockerSuite) TestBuildContainerWithCgroupParent(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	cgroupParent := "test"
-	data, err := ioutil.ReadFile("/proc/self/cgroup")
+	data, err := os.ReadFile("/proc/self/cgroup")
 	if err != nil {
 		c.Fatalf("failed to read '/proc/self/cgroup - %v", err)
 	}
@@ -4768,7 +4767,7 @@ func (s *DockerSuite) TestBuildCacheBrokenSymlink(c *testing.T) {
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
 	// add new file to context, should invalidate cache
-	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "newfile"), []byte("foo"), 0644)
+	err = os.WriteFile(filepath.Join(ctx.Dir, "newfile"), []byte("foo"), 0644)
 	assert.NilError(c, err)
 
 	result := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
@@ -4797,7 +4796,7 @@ func (s *DockerSuite) TestBuildFollowSymlinkToFile(c *testing.T) {
 	assert.Assert(c, cmp.Regexp("^bar$", out))
 
 	// change target file should invalidate cache
-	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("baz"), 0644)
+	err = os.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("baz"), 0644)
 	assert.NilError(c, err)
 
 	result := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
@@ -4828,7 +4827,7 @@ func (s *DockerSuite) TestBuildFollowSymlinkToDir(c *testing.T) {
 	assert.Assert(c, cmp.Regexp("^barbaz$", out))
 
 	// change target file should invalidate cache
-	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "foo/def"), []byte("bax"), 0644)
+	err = os.WriteFile(filepath.Join(ctx.Dir, "foo/def"), []byte("bax"), 0644)
 	assert.NilError(c, err)
 
 	result := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
@@ -4877,7 +4876,7 @@ func (s *DockerSuite) TestBuildCacheRootSource(c *testing.T) {
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
 	// change file, should invalidate cache
-	err := ioutil.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("baz"), 0644)
+	err := os.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("baz"), 0644)
 	assert.NilError(c, err)
 
 	result := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
@@ -5023,18 +5022,18 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestBuildWithExternalAuth(c *testing.T
 
 	repoName := fmt.Sprintf("%v/dockercli/busybox:authtest", privateRegistryURL)
 
-	tmp, err := ioutil.TempDir("", "integration-cli-")
+	tmp, err := os.MkdirTemp("", "integration-cli-")
 	assert.NilError(c, err)
 
 	externalAuthConfig := `{ "credsStore": "shell-test" }`
 
 	configPath := filepath.Join(tmp, "config.json")
-	err = ioutil.WriteFile(configPath, []byte(externalAuthConfig), 0644)
+	err = os.WriteFile(configPath, []byte(externalAuthConfig), 0644)
 	assert.NilError(c, err)
 
 	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
 
-	b, err := ioutil.ReadFile(configPath)
+	b, err := os.ReadFile(configPath)
 	assert.NilError(c, err)
 	assert.Assert(c, !strings.Contains(string(b), "\"auth\":"))
 	dockerCmd(c, "--config", tmp, "tag", "busybox", repoName)
@@ -5452,7 +5451,7 @@ func (s *DockerSuite) TestBuildCacheFrom(c *testing.T) {
 	cli.DockerCmd(c, "rmi", "build2")
 
 	// clear parent images
-	tempDir, err := ioutil.TempDir("", "test-build-cache-from-")
+	tempDir, err := os.MkdirTemp("", "test-build-cache-from-")
 	if err != nil {
 		c.Fatalf("failed to create temporary directory: %s", tempDir)
 	}
@@ -5490,7 +5489,7 @@ func (s *DockerSuite) TestBuildCacheFrom(c *testing.T) {
 		ENV FOO=bar
 		ADD baz /
 		RUN touch newfile`
-	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), []byte(dockerfile), 0644)
+	err = os.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), []byte(dockerfile), 0644)
 	assert.NilError(c, err)
 
 	result = cli.BuildCmd(c, "build2", cli.WithFlags("--cache-from=build1"), build.WithExternalBuildContext(ctx))
@@ -5648,14 +5647,14 @@ func (s *DockerSuite) TestBuildMultiStageCopyFromSyntax(c *testing.T) {
 	assert.Equal(c, strings.Count(result.Combined(), "Using cache"), 7)
 	assert.Equal(c, getIDByName(c, "build1"), getIDByName(c, "build2"))
 
-	err := ioutil.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), []byte(fmt.Sprintf(dockerfile, "COPY baz/aa foo")), 0644)
+	err := os.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), []byte(fmt.Sprintf(dockerfile, "COPY baz/aa foo")), 0644)
 	assert.NilError(c, err)
 
 	// changing file in parent block should not affect last block
 	result = cli.BuildCmd(c, "build3", build.WithExternalBuildContext(ctx))
 	assert.Equal(c, strings.Count(result.Combined(), "Using cache"), 5)
 
-	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("pqr"), 0644)
+	err = os.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("pqr"), 0644)
 	assert.NilError(c, err)
 
 	// changing file in parent block should affect both first and last block
@@ -6144,7 +6143,7 @@ CMD echo foo
 
 // FIXME(vdemeester) should migrate to docker/cli tests
 func (s *DockerSuite) TestBuildIidFile(c *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "TestBuildIidFile")
+	tmpDir, err := os.MkdirTemp("", "TestBuildIidFile")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -6160,7 +6159,7 @@ FROM `+minimalBaseImage()+`
 ENV BAR BAZ`),
 		cli.WithFlags("--iidfile", tmpIidFile))
 
-	id, err := ioutil.ReadFile(tmpIidFile)
+	id, err := os.ReadFile(tmpIidFile)
 	assert.NilError(c, err)
 	d, err := digest.Parse(string(id))
 	assert.NilError(c, err)
@@ -6169,14 +6168,14 @@ ENV BAR BAZ`),
 
 // FIXME(vdemeester) should migrate to docker/cli tests
 func (s *DockerSuite) TestBuildIidFileCleanupOnFail(c *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "TestBuildIidFileCleanupOnFail")
+	tmpDir, err := os.MkdirTemp("", "TestBuildIidFileCleanupOnFail")
 	if err != nil {
 		c.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 	tmpIidFile := filepath.Join(tmpDir, "iid")
 
-	err = ioutil.WriteFile(tmpIidFile, []byte("Dummy"), 0666)
+	err = os.WriteFile(tmpIidFile, []byte("Dummy"), 0666)
 	assert.NilError(c, err)
 
 	cli.Docker(cli.Build("testbuildiidfilecleanuponfail"),

@@ -4,7 +4,6 @@
 package system // import "github.com/docker/docker/pkg/system"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -13,13 +12,13 @@ import (
 
 // prepareFiles creates files for testing in the temp directory
 func prepareFiles(t *testing.T) (string, string, string, string) {
-	dir, err := ioutil.TempDir("", "docker-system-test")
+	dir, err := os.MkdirTemp("", "docker-system-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	file := filepath.Join(dir, "exist")
-	if err := ioutil.WriteFile(file, []byte("hello"), 0644); err != nil {
+	if err := os.WriteFile(file, []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
 

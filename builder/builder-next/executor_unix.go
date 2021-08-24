@@ -4,7 +4,6 @@
 package buildkit
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -35,7 +34,7 @@ func newExecutor(root, cgroupParent string, net libnetwork.NetworkController, dn
 	}
 
 	// make sure net state directory is cleared from previous state
-	fis, err := ioutil.ReadDir(netRoot)
+	fis, err := os.ReadDir(netRoot)
 	if err == nil {
 		for _, fi := range fis {
 			fp := filepath.Join(netRoot, fi.Name())

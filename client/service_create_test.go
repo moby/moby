@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -48,7 +48,7 @@ func TestServiceCreate(t *testing.T) {
 			}
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader(b)),
+				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
 		}),
 	}
@@ -87,7 +87,7 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 				}
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Body:       ioutil.NopCloser(bytes.NewReader(b)),
+					Body:       io.NopCloser(bytes.NewReader(b)),
 				}, nil
 			} else if strings.HasPrefix(req.URL.Path, "/v1.30/distribution/") {
 				b, err := json.Marshal(registrytypes.DistributionInspect{
@@ -106,7 +106,7 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 				}
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Body:       ioutil.NopCloser(bytes.NewReader(b)),
+					Body:       io.NopCloser(bytes.NewReader(b)),
 				}, nil
 			} else {
 				return nil, fmt.Errorf("unexpected URL '%s'", req.URL.Path)
@@ -163,7 +163,7 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 				}
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Body:       ioutil.NopCloser(bytes.NewReader(b)),
+					Body:       io.NopCloser(bytes.NewReader(b)),
 				}, nil
 			} else if strings.HasPrefix(req.URL.Path, "/v1.30/distribution/cannotresolve") {
 				// unresolvable image
@@ -180,7 +180,7 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 				}
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Body:       ioutil.NopCloser(bytes.NewReader(b)),
+					Body:       io.NopCloser(bytes.NewReader(b)),
 				}, nil
 			}
 			return nil, fmt.Errorf("unexpected URL '%s'", req.URL.Path)

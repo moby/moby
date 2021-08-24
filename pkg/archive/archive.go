@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -1272,7 +1271,7 @@ func cmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, error) {
 // of that file as an archive. The archive can only be read once - as soon as reading completes,
 // the file will be deleted.
 func NewTempArchive(src io.Reader, dir string) (*TempArchive, error) {
-	f, err := ioutil.TempFile(dir, "")
+	f, err := os.CreateTemp(dir, "")
 	if err != nil {
 		return nil, err
 	}

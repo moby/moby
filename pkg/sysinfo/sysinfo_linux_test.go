@@ -1,7 +1,6 @@
 package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -12,19 +11,19 @@ import (
 )
 
 func TestReadProcBool(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "test-sysinfo-proc")
+	tmpDir, err := os.MkdirTemp("", "test-sysinfo-proc")
 	assert.NilError(t, err)
 	defer os.RemoveAll(tmpDir)
 
 	procFile := filepath.Join(tmpDir, "read-proc-bool")
-	err = ioutil.WriteFile(procFile, []byte("1"), 0644)
+	err = os.WriteFile(procFile, []byte("1"), 0644)
 	assert.NilError(t, err)
 
 	if !readProcBool(procFile) {
 		t.Fatal("expected proc bool to be true, got false")
 	}
 
-	if err := ioutil.WriteFile(procFile, []byte("0"), 0644); err != nil {
+	if err := os.WriteFile(procFile, []byte("0"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if readProcBool(procFile) {
@@ -38,7 +37,7 @@ func TestReadProcBool(t *testing.T) {
 }
 
 func TestCgroupEnabled(t *testing.T) {
-	cgroupDir, err := ioutil.TempDir("", "cgroup-test")
+	cgroupDir, err := os.MkdirTemp("", "cgroup-test")
 	assert.NilError(t, err)
 	defer os.RemoveAll(cgroupDir)
 
@@ -46,7 +45,7 @@ func TestCgroupEnabled(t *testing.T) {
 		t.Fatal("cgroupEnabled should be false")
 	}
 
-	err = ioutil.WriteFile(path.Join(cgroupDir, "test"), []byte{}, 0644)
+	err = os.WriteFile(path.Join(cgroupDir, "test"), []byte{}, 0644)
 	assert.NilError(t, err)
 
 	if !cgroupEnabled(cgroupDir, "test") {

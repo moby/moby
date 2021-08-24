@@ -4,7 +4,6 @@
 package local // import "github.com/docker/docker/volume/local"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -59,11 +58,11 @@ func testVolWithQuota(t *testing.T, mountPoint, backingFsDev, testDir string) {
 	testfile := filepath.Join(dir, "testfile")
 
 	// test writing file smaller than quota
-	assert.NilError(t, ioutil.WriteFile(testfile, make([]byte, quotaSize/2), 0644))
+	assert.NilError(t, os.WriteFile(testfile, make([]byte, quotaSize/2), 0644))
 	assert.NilError(t, os.Remove(testfile))
 
 	// test writing fiel larger than quota
-	err = ioutil.WriteFile(testfile, make([]byte, quotaSize+1), 0644)
+	err = os.WriteFile(testfile, make([]byte, quotaSize+1), 0644)
 	assert.ErrorContains(t, err, "")
 	if _, err := os.Stat(testfile); err == nil {
 		assert.NilError(t, os.Remove(testfile))

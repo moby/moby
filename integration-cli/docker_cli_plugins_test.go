@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -241,12 +241,12 @@ func (ps *DockerPluginSuite) TestPluginEnableDisableNegative(c *testing.T) {
 
 func (ps *DockerPluginSuite) TestPluginCreate(c *testing.T) {
 	name := "foo/bar-driver"
-	temp, err := ioutil.TempDir("", "foo")
+	temp, err := os.MkdirTemp("", "foo")
 	assert.NilError(c, err)
 	defer os.RemoveAll(temp)
 
 	data := `{"description": "foo plugin"}`
-	err = ioutil.WriteFile(filepath.Join(temp, "config.json"), []byte(data), 0644)
+	err = os.WriteFile(filepath.Join(temp, "config.json"), []byte(data), 0644)
 	assert.NilError(c, err)
 
 	err = os.MkdirAll(filepath.Join(temp, "rootfs"), 0700)
@@ -381,11 +381,11 @@ func (ps *DockerPluginSuite) TestPluginIDPrefix(c *testing.T) {
 }
 
 func (ps *DockerPluginSuite) TestPluginListDefaultFormat(c *testing.T) {
-	config, err := ioutil.TempDir("", "config-file-")
+	config, err := os.MkdirTemp("", "config-file-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(config)
 
-	err = ioutil.WriteFile(filepath.Join(config, "config.json"), []byte(`{"pluginsFormat": "raw"}`), 0644)
+	err = os.WriteFile(filepath.Join(config, "config.json"), []byte(`{"pluginsFormat": "raw"}`), 0644)
 	assert.NilError(c, err)
 
 	name := "test:latest"
@@ -457,7 +457,7 @@ func (s *DockerSuite) TestPluginMetricsCollector(c *testing.T) {
 	assert.NilError(c, err)
 	defer resp.Body.Close()
 
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	assert.NilError(c, err)
 	// check that a known metric is there... don't expect this metric to change over time.. probably safe
 	assert.Assert(c, strings.Contains(string(b), "container_actions"))

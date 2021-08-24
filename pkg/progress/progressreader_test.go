@@ -3,13 +3,12 @@ package progress // import "github.com/docker/docker/pkg/progress"
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"testing"
 )
 
 func TestOutputOnPrematureClose(t *testing.T) {
 	content := []byte("TESTING")
-	reader := ioutil.NopCloser(bytes.NewReader(content))
+	reader := io.NopCloser(bytes.NewReader(content))
 	progressChan := make(chan Progress, 10)
 
 	pr := NewProgressReader(reader, ChanOutput(progressChan), int64(len(content)), "Test", "Read")
@@ -41,12 +40,12 @@ drainLoop:
 
 func TestCompleteSilently(t *testing.T) {
 	content := []byte("TESTING")
-	reader := ioutil.NopCloser(bytes.NewReader(content))
+	reader := io.NopCloser(bytes.NewReader(content))
 	progressChan := make(chan Progress, 10)
 
 	pr := NewProgressReader(reader, ChanOutput(progressChan), int64(len(content)), "Test", "Read")
 
-	out, err := ioutil.ReadAll(pr)
+	out, err := io.ReadAll(pr)
 	if err != nil {
 		pr.Close()
 		t.Fatal(err)

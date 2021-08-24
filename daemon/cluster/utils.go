@@ -2,7 +2,6 @@ package cluster // import "github.com/docker/docker/daemon/cluster"
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -10,7 +9,7 @@ import (
 )
 
 func loadPersistentState(root string) (*nodeStartConfig, error) {
-	dt, err := ioutil.ReadFile(filepath.Join(root, stateFile))
+	dt, err := os.ReadFile(filepath.Join(root, stateFile))
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +39,7 @@ func clearPersistentState(root string) error {
 	// todo: backup this data instead of removing?
 	// rather than delete the entire swarm directory, delete the contents in order to preserve the inode
 	// (for example, allowing it to be bind-mounted)
-	files, err := ioutil.ReadDir(root)
+	files, err := os.ReadDir(root)
 	if err != nil {
 		return err
 	}

@@ -1,7 +1,6 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,7 +18,7 @@ import (
 )
 
 func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
-	root, err := ioutil.TempDir("", "oci_linux_test-root")
+	root, err := os.MkdirTemp("", "oci_linux_test-root")
 	assert.NilError(t, err)
 
 	rootfs := filepath.Join(root, "rootfs")

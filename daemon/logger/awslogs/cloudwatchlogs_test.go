@@ -3,7 +3,6 @@ package awslogs // import "github.com/docker/docker/daemon/logger/awslogs"
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1669,7 +1668,7 @@ func TestNewAWSLogsClientCredentialSharedFile(t *testing.T) {
 	`
 	content := []byte(contentStr)
 
-	tmpfile, err := ioutil.TempFile("", "example")
+	tmpfile, err := os.CreateTemp("", "example")
 	defer os.Remove(tmpfile.Name()) // clean up
 	assert.Check(t, err)
 

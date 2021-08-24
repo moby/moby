@@ -1,7 +1,6 @@
 package loggerutils
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,7 +9,7 @@ import (
 )
 
 func TestOpenFileDelete(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", t.Name())
+	tmpDir, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(tmpDir)
 
@@ -22,7 +21,7 @@ func TestOpenFileDelete(t *testing.T) {
 }
 
 func TestOpenFileRename(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", t.Name())
+	tmpDir, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(tmpDir)
 

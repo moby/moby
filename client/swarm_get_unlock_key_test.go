@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -51,7 +51,7 @@ func TestSwarmGetUnlockKey(t *testing.T) {
 
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader(b)),
+				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
 		}),
 	}

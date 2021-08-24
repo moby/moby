@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -94,11 +93,11 @@ func (s *DockerSuite) TestVolumeLsFormatDefaultFormat(c *testing.T) {
 	config := `{
 		"volumesFormat": "{{ .Name }} default"
 }`
-	d, err := ioutil.TempDir("", "integration-cli-")
+	d, err := os.MkdirTemp("", "integration-cli-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(d)
 
-	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
+	err = os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
 	assert.NilError(c, err)
 
 	out, _ := dockerCmd(c, "--config", d, "volume", "ls")

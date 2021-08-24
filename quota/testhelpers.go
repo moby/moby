@@ -4,7 +4,6 @@
 package quota // import "github.com/docker/docker/quota"
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"testing"
@@ -38,7 +37,7 @@ func PrepareQuotaTestImage(t *testing.T) (string, error) {
 	}
 
 	// create a sparse image
-	imageFile, err := ioutil.TempFile("", "xfs-image")
+	imageFile, err := os.CreateTemp("", "xfs-image")
 	if err != nil {
 		return "", err
 	}
@@ -101,7 +100,7 @@ func WrapMountTest(imageFileName string, enableQuota bool, testFunc func(t *test
 		backingFsDev, err := makeBackingFsDev(mountPoint)
 		assert.NilError(t, err)
 
-		testDir, err := ioutil.TempDir(mountPoint, "per-test")
+		testDir, err := os.MkdirTemp(mountPoint, "per-test")
 		assert.NilError(t, err)
 		defer os.RemoveAll(testDir)
 
@@ -116,7 +115,7 @@ func WrapQuotaTest(testFunc func(t *testing.T, ctrl *Control, mountPoint, testDi
 		ctrl, err := NewControl(testDir)
 		assert.NilError(t, err)
 
-		testSubDir, err := ioutil.TempDir(testDir, "quota-test")
+		testSubDir, err := os.MkdirTemp(testDir, "quota-test")
 		assert.NilError(t, err)
 		testFunc(t, ctrl, mountPoint, testDir, testSubDir)
 	}

@@ -5,7 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -22,7 +22,7 @@ import (
 
 func TestJSONFileLogger(t *testing.T) {
 	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
-	tmp, err := ioutil.TempDir("", "docker-logger-")
+	tmp, err := os.MkdirTemp("", "docker-logger-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestJSONFileLogger(t *testing.T) {
 	if err := l.Log(&logger.Message{Line: []byte("line3"), Source: "src3"}); err != nil {
 		t.Fatal(err)
 	}
-	res, err := ioutil.ReadFile(filename)
+	res, err := os.ReadFile(filename)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestJSONFileLogger(t *testing.T) {
 func TestJSONFileLoggerWithTags(t *testing.T) {
 	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
 	cname := "test-container"
-	tmp, err := ioutil.TempDir("", "docker-logger-")
+	tmp, err := os.MkdirTemp("", "docker-logger-")
 
 	assert.NilError(t, err)
 
@@ -90,7 +90,7 @@ func TestJSONFileLoggerWithTags(t *testing.T) {
 	err = l.Log(&logger.Message{Line: []byte("line3"), Source: "src3"})
 	assert.NilError(t, err)
 
-	res, err := ioutil.ReadFile(filename)
+	res, err := os.ReadFile(filename)
 	assert.NilError(t, err)
 
 	expected := `{"log":"line1\n","stream":"src1","attrs":{"tag":"a7317399f3f8/test-container"},"time":"0001-01-01T00:00:00Z"}
@@ -154,7 +154,7 @@ func BenchmarkJSONFileLoggerLog(b *testing.B) {
 
 func TestJSONFileLoggerWithOpts(t *testing.T) {
 	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
-	tmp, err := ioutil.TempDir("", "docker-logger-")
+	tmp, err := os.MkdirTemp("", "docker-logger-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,12 +176,12 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 		}
 	}
 
-	res, err := ioutil.ReadFile(filename)
+	res, err := os.ReadFile(filename)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	penUlt, err := ioutil.ReadFile(filename + ".1")
+	penUlt, err := os.ReadFile(filename + ".1")
 	if err != nil {
 		if !os.IsNotExist(err) {
 			t.Fatal(err)
@@ -197,7 +197,7 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer zipReader.Close()
-		penUlt, err = ioutil.ReadAll(zipReader)
+		penUlt, err = io.ReadAll(zipReader)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -213,7 +213,7 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer zipReader.Close()
-	antepenult, err := ioutil.ReadAll(zipReader)
+	antepenult, err := io.ReadAll(zipReader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -271,7 +271,7 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 
 func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
 	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
-	tmp, err := ioutil.TempDir("", "docker-logger-")
+	tmp, err := os.MkdirTemp("", "docker-logger-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,7 +292,7 @@ func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
 	if err := l.Log(&logger.Message{Line: []byte("line"), Source: "src1"}); err != nil {
 		t.Fatal(err)
 	}
-	res, err := ioutil.ReadFile(filename)
+	res, err := os.ReadFile(filename)
 	if err != nil {
 		t.Fatal(err)
 	}

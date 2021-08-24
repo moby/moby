@@ -7,7 +7,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -787,7 +786,7 @@ func checkSystem() error {
 // configureMaxThreads sets the Go runtime max threads threshold
 // which is 90% of the kernel setting from /proc/sys/kernel/threads-max
 func configureMaxThreads(config *config.Config) error {
-	mt, err := ioutil.ReadFile("/proc/sys/kernel/threads-max")
+	mt, err := os.ReadFile("/proc/sys/kernel/threads-max")
 	if err != nil {
 		return err
 	}
@@ -1293,7 +1292,7 @@ func setupDaemonRootPropagation(cfg *config.Config) error {
 		return errors.Wrap(err, "error creating dir to store mount cleanup file")
 	}
 
-	if err := ioutil.WriteFile(cleanupFile, nil, 0600); err != nil {
+	if err := os.WriteFile(cleanupFile, nil, 0600); err != nil {
 		return errors.Wrap(err, "error writing file to signal mount cleanup on shutdown")
 	}
 	return nil
@@ -1696,13 +1695,13 @@ func maybeCreateCPURealTimeFile(configValue int64, file string, path string) err
 	if configValue == 0 {
 		return nil
 	}
-	return ioutil.WriteFile(filepath.Join(path, file), []byte(strconv.FormatInt(configValue, 10)), 0700)
+	return os.WriteFile(filepath.Join(path, file), []byte(strconv.FormatInt(configValue, 10)), 0700)
 }
 
 func (daemon *Daemon) setupSeccompProfile() error {
 	if daemon.configStore.SeccompProfile != "" {
 		daemon.seccompProfilePath = daemon.configStore.SeccompProfile
-		b, err := ioutil.ReadFile(daemon.configStore.SeccompProfile)
+		b, err := os.ReadFile(daemon.configStore.SeccompProfile)
 		if err != nil {
 			return fmt.Errorf("opening seccomp profile (%s) failed: %v", daemon.configStore.SeccompProfile, err)
 		}

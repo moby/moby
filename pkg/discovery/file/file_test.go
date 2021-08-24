@@ -1,7 +1,6 @@
 package file // import "github.com/docker/docker/pkg/discovery/file"
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -74,7 +73,7 @@ func (s *DiscoverySuite) TestWatch(c *testing.T) {
 	}
 
 	// Create a temporary file and remove it.
-	tmp, err := ioutil.TempFile(os.TempDir(), "discovery-file-test")
+	tmp, err := os.CreateTemp(os.TempDir(), "discovery-file-test")
 	assert.Assert(c, err == nil)
 	assert.Assert(c, tmp.Close() == nil)
 	assert.Assert(c, os.Remove(tmp.Name()) == nil)
@@ -94,7 +93,7 @@ func (s *DiscoverySuite) TestWatch(c *testing.T) {
 	}()
 
 	// Write the file and make sure we get the expected value back.
-	assert.Assert(c, ioutil.WriteFile(tmp.Name(), []byte(data), 0600) == nil)
+	assert.Assert(c, os.WriteFile(tmp.Name(), []byte(data), 0600) == nil)
 	assert.DeepEqual(c, <-ch, expected)
 
 	// Add a new entry and look it up.

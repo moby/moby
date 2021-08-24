@@ -6,7 +6,6 @@ package overlay // import "github.com/docker/docker/daemon/graphdriver/overlay"
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -229,7 +228,7 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 		return metadata, nil
 	}
 
-	lowerID, err := ioutil.ReadFile(path.Join(dir, "lower-id"))
+	lowerID, err := os.ReadFile(path.Join(dir, "lower-id"))
 	if err != nil {
 		return nil, err
 	}
@@ -310,17 +309,17 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		if err := idtools.MkdirAndChown(path.Join(dir, "work"), 0700, root); err != nil {
 			return err
 		}
-		return ioutil.WriteFile(path.Join(dir, "lower-id"), []byte(parent), 0600)
+		return os.WriteFile(path.Join(dir, "lower-id"), []byte(parent), 0600)
 	}
 
 	// Otherwise, copy the upper and the lower-id from the parent
 
-	lowerID, err := ioutil.ReadFile(path.Join(parentDir, "lower-id"))
+	lowerID, err := os.ReadFile(path.Join(parentDir, "lower-id"))
 	if err != nil {
 		return err
 	}
 
-	if err := ioutil.WriteFile(path.Join(dir, "lower-id"), lowerID, 0600); err != nil {
+	if err := os.WriteFile(path.Join(dir, "lower-id"), lowerID, 0600); err != nil {
 		return err
 	}
 
@@ -386,7 +385,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, err erro
 			}
 		}
 	}()
-	lowerID, err := ioutil.ReadFile(path.Join(dir, "lower-id"))
+	lowerID, err := os.ReadFile(path.Join(dir, "lower-id"))
 	if err != nil {
 		return nil, err
 	}
@@ -466,7 +465,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64
 	// 2) ApplyDiff doesn't do any in-place writes to files (would break hardlinks)
 	// These are all currently true and are not expected to break
 
-	tmpRootDir, err := ioutil.TempDir(dir, "tmproot")
+	tmpRootDir, err := os.MkdirTemp(dir, "tmproot")
 	if err != nil {
 		return 0, err
 	}

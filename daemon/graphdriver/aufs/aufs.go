@@ -28,7 +28,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -154,7 +153,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	for _, path := range []string{"mnt", "diff"} {
 		p := filepath.Join(root, path)
-		entries, err := ioutil.ReadDir(p)
+		entries, err := os.ReadDir(p)
 		if err != nil {
 			logger.WithError(err).WithField("dir", p).Error("error reading dir entries")
 			continue
@@ -553,7 +552,7 @@ func (a *Driver) mounted(mountpoint string) (bool, error) {
 // Cleanup aufs and unmount all mountpoints
 func (a *Driver) Cleanup() error {
 	dir := a.mntPath()
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		return errors.Wrap(err, "aufs readdir error")
 	}
@@ -636,14 +635,14 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 // version of aufs.
 func useDirperm() bool {
 	enableDirpermLock.Do(func() {
-		base, err := ioutil.TempDir("", "docker-aufs-base")
+		base, err := os.MkdirTemp("", "docker-aufs-base")
 		if err != nil {
 			logger.Errorf("error checking dirperm1: %v", err)
 			return
 		}
 		defer os.RemoveAll(base)
 
-		union, err := ioutil.TempDir("", "docker-aufs-union")
+		union, err := os.MkdirTemp("", "docker-aufs-union")
 		if err != nil {
 			logger.Errorf("error checking dirperm1: %v", err)
 			return

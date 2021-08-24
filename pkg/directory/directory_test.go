@@ -2,7 +2,6 @@ package directory // import "github.com/docker/docker/pkg/directory"
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -14,7 +13,7 @@ import (
 func TestSizeEmpty(t *testing.T) {
 	var dir string
 	var err error
-	if dir, err = ioutil.TempDir(os.TempDir(), "testSizeEmptyDirectory"); err != nil {
+	if dir, err = os.MkdirTemp(os.TempDir(), "testSizeEmptyDirectory"); err != nil {
 		t.Fatalf("failed to create directory: %s", err)
 	}
 
@@ -28,12 +27,12 @@ func TestSizeEmpty(t *testing.T) {
 func TestSizeEmptyFile(t *testing.T) {
 	var dir string
 	var err error
-	if dir, err = ioutil.TempDir(os.TempDir(), "testSizeEmptyFile"); err != nil {
+	if dir, err = os.MkdirTemp(os.TempDir(), "testSizeEmptyFile"); err != nil {
 		t.Fatalf("failed to create directory: %s", err)
 	}
 
 	var file *os.File
-	if file, err = ioutil.TempFile(dir, "file"); err != nil {
+	if file, err = os.CreateTemp(dir, "file"); err != nil {
 		t.Fatalf("failed to create file: %s", err)
 	}
 
@@ -47,12 +46,12 @@ func TestSizeEmptyFile(t *testing.T) {
 func TestSizeNonemptyFile(t *testing.T) {
 	var dir string
 	var err error
-	if dir, err = ioutil.TempDir(os.TempDir(), "testSizeNonemptyFile"); err != nil {
+	if dir, err = os.MkdirTemp(os.TempDir(), "testSizeNonemptyFile"); err != nil {
 		t.Fatalf("failed to create directory: %s", err)
 	}
 
 	var file *os.File
-	if file, err = ioutil.TempFile(dir, "file"); err != nil {
+	if file, err = os.CreateTemp(dir, "file"); err != nil {
 		t.Fatalf("failed to create file: %s", err)
 	}
 
@@ -69,10 +68,10 @@ func TestSizeNonemptyFile(t *testing.T) {
 func TestSizeNestedDirectoryEmpty(t *testing.T) {
 	var dir string
 	var err error
-	if dir, err = ioutil.TempDir(os.TempDir(), "testSizeNestedDirectoryEmpty"); err != nil {
+	if dir, err = os.MkdirTemp(os.TempDir(), "testSizeNestedDirectoryEmpty"); err != nil {
 		t.Fatalf("failed to create directory: %s", err)
 	}
-	if dir, err = ioutil.TempDir(dir, "nested"); err != nil {
+	if dir, err = os.MkdirTemp(dir, "nested"); err != nil {
 		t.Fatalf("failed to create nested directory: %s", err)
 	}
 
@@ -86,15 +85,15 @@ func TestSizeNestedDirectoryEmpty(t *testing.T) {
 func TestSizeFileAndNestedDirectoryEmpty(t *testing.T) {
 	var dir string
 	var err error
-	if dir, err = ioutil.TempDir(os.TempDir(), "testSizeFileAndNestedDirectoryEmpty"); err != nil {
+	if dir, err = os.MkdirTemp(os.TempDir(), "testSizeFileAndNestedDirectoryEmpty"); err != nil {
 		t.Fatalf("failed to create directory: %s", err)
 	}
-	if dir, err = ioutil.TempDir(dir, "nested"); err != nil {
+	if dir, err = os.MkdirTemp(dir, "nested"); err != nil {
 		t.Fatalf("failed to create nested directory: %s", err)
 	}
 
 	var file *os.File
-	if file, err = ioutil.TempFile(dir, "file"); err != nil {
+	if file, err = os.CreateTemp(dir, "file"); err != nil {
 		t.Fatalf("failed to create file: %s", err)
 	}
 
@@ -111,15 +110,15 @@ func TestSizeFileAndNestedDirectoryEmpty(t *testing.T) {
 func TestSizeFileAndNestedDirectoryNonempty(t *testing.T) {
 	var dir, dirNested string
 	var err error
-	if dir, err = ioutil.TempDir(os.TempDir(), "TestSizeFileAndNestedDirectoryNonempty"); err != nil {
+	if dir, err = os.MkdirTemp(os.TempDir(), "TestSizeFileAndNestedDirectoryNonempty"); err != nil {
 		t.Fatalf("failed to create directory: %s", err)
 	}
-	if dirNested, err = ioutil.TempDir(dir, "nested"); err != nil {
+	if dirNested, err = os.MkdirTemp(dir, "nested"); err != nil {
 		t.Fatalf("failed to create nested directory: %s", err)
 	}
 
 	var file *os.File
-	if file, err = ioutil.TempFile(dir, "file"); err != nil {
+	if file, err = os.CreateTemp(dir, "file"); err != nil {
 		t.Fatalf("failed to create file: %s", err)
 	}
 
@@ -127,7 +126,7 @@ func TestSizeFileAndNestedDirectoryNonempty(t *testing.T) {
 	file.Write(data)
 
 	var nestedFile *os.File
-	if nestedFile, err = ioutil.TempFile(dirNested, "file"); err != nil {
+	if nestedFile, err = os.CreateTemp(dirNested, "file"); err != nil {
 		t.Fatalf("failed to create file in nested directory: %s", err)
 	}
 
@@ -145,11 +144,11 @@ func TestMoveToSubdir(t *testing.T) {
 	var outerDir, subDir string
 	var err error
 
-	if outerDir, err = ioutil.TempDir(os.TempDir(), "TestMoveToSubdir"); err != nil {
+	if outerDir, err = os.MkdirTemp(os.TempDir(), "TestMoveToSubdir"); err != nil {
 		t.Fatalf("failed to create directory: %v", err)
 	}
 
-	if subDir, err = ioutil.TempDir(outerDir, "testSub"); err != nil {
+	if subDir, err = os.MkdirTemp(outerDir, "testSub"); err != nil {
 		t.Fatalf("failed to create subdirectory: %v", err)
 	}
 
@@ -168,7 +167,7 @@ func TestMoveToSubdir(t *testing.T) {
 		t.Fatalf("Error during migration of content to subdirectory: %v", err)
 	}
 	// validate that the files were moved to the subdirectory
-	infos, err := ioutil.ReadDir(subDir)
+	infos, err := os.ReadDir(subDir)
 	if err != nil {
 		t.Fatal(err)
 	}

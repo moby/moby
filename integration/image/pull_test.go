@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -151,7 +150,7 @@ func TestImagePullStoredfDigestForOtherRepo(t *testing.T) {
 	rdr, err := client.ImagePull(ctx, remote, types.ImagePullOptions{})
 	assert.NilError(t, err)
 	defer rdr.Close()
-	io.Copy(ioutil.Discard, rdr)
+	io.Copy(io.Discard, rdr)
 
 	// Now, pull a totally different repo with a the same digest
 	rdr, err = client.ImagePull(ctx, path.Join(registry.DefaultURL, "other:image@"+desc.Digest.String()), types.ImagePullOptions{})

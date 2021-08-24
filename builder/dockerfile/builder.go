@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"sort"
 	"strings"
 
@@ -349,8 +348,8 @@ func BuildFromConfig(config *container.Config, changes []string, os string) (*co
 		}
 	}
 
-	b.Stdout = ioutil.Discard
-	b.Stderr = ioutil.Discard
+	b.Stdout = io.Discard
+	b.Stderr = io.Discard
 	b.disableCommit = true
 
 	var commands []instructions.Command

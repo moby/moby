@@ -3,7 +3,6 @@ package fakestorage // import "github.com/docker/docker/testutil/fakestorage"
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,7 +29,7 @@ func ensureHTTPServerImage(t testing.TB) {
 
 	defer testEnv.ProtectImage(t, "httpserver:latest")
 
-	tmp, err := ioutil.TempDir("", "docker-http-server-test")
+	tmp, err := os.MkdirTemp("", "docker-http-server-test")
 	if err != nil {
 		t.Fatalf("could not build http server: %v", err)
 	}
@@ -85,6 +84,6 @@ func ensureHTTPServerImage(t testing.TB) {
 		Tags:        []string{"httpserver"},
 	})
 	assert.NilError(t, err)
-	_, err = io.Copy(ioutil.Discard, resp.Body)
+	_, err = io.Copy(io.Discard, resp.Body)
 	assert.NilError(t, err)
 }

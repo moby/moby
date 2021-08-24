@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -43,7 +42,7 @@ func CopyWithTar(src, dst string) error {
 
 func TestChrootTarUntar(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	tmpdir, err := ioutil.TempDir("", "docker-TestChrootTarUntar")
+	tmpdir, err := os.MkdirTemp("", "docker-TestChrootTarUntar")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,10 +51,10 @@ func TestChrootTarUntar(t *testing.T) {
 	if err := system.MkdirAll(src, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(src, "toto"), []byte("hello toto"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(src, "toto"), []byte("hello toto"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(src, "lolo"), []byte("hello lolo"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(src, "lolo"), []byte("hello lolo"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	stream, err := archive.Tar(src, archive.Uncompressed)
@@ -75,7 +74,7 @@ func TestChrootTarUntar(t *testing.T) {
 // local images)
 func TestChrootUntarWithHugeExcludesList(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	tmpdir, err := ioutil.TempDir("", "docker-TestChrootUntarHugeExcludes")
+	tmpdir, err := os.MkdirTemp("", "docker-TestChrootUntarHugeExcludes")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +83,7 @@ func TestChrootUntarWithHugeExcludesList(t *testing.T) {
 	if err := system.MkdirAll(src, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(src, "toto"), []byte("hello toto"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(src, "toto"), []byte("hello toto"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	stream, err := archive.Tar(src, archive.Uncompressed)
@@ -110,7 +109,7 @@ func TestChrootUntarWithHugeExcludesList(t *testing.T) {
 }
 
 func TestChrootUntarEmptyArchive(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "docker-TestChrootUntarEmptyArchive")
+	tmpdir, err := os.MkdirTemp("", "docker-TestChrootUntarEmptyArchive")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +123,7 @@ func prepareSourceDirectory(numberOfFiles int, targetPath string, makeSymLinks b
 	fileData := []byte("fooo")
 	for n := 0; n < numberOfFiles; n++ {
 		fileName := fmt.Sprintf("file-%d", n)
-		if err := ioutil.WriteFile(filepath.Join(targetPath, fileName), fileData, 0700); err != nil {
+		if err := os.WriteFile(filepath.Join(targetPath, fileName), fileData, 0700); err != nil {
 			return 0, err
 		}
 		if makeSymLinks {
@@ -138,7 +137,7 @@ func prepareSourceDirectory(numberOfFiles int, targetPath string, makeSymLinks b
 }
 
 func getHash(filename string) (uint32, error) {
-	stream, err := ioutil.ReadFile(filename)
+	stream, err := os.ReadFile(filename)
 	if err != nil {
 		return 0, err
 	}
@@ -176,7 +175,7 @@ func compareFiles(src string, dest string) error {
 func TestChrootTarUntarWithSymlink(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "FIXME: figure out why this is failing")
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	tmpdir, err := ioutil.TempDir("", "docker-TestChrootTarUntarWithSymlink")
+	tmpdir, err := os.MkdirTemp("", "docker-TestChrootTarUntarWithSymlink")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,7 +199,7 @@ func TestChrootTarUntarWithSymlink(t *testing.T) {
 func TestChrootCopyWithTar(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "FIXME: figure out why this is failing")
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	tmpdir, err := ioutil.TempDir("", "docker-TestChrootCopyWithTar")
+	tmpdir, err := os.MkdirTemp("", "docker-TestChrootCopyWithTar")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +246,7 @@ func TestChrootCopyWithTar(t *testing.T) {
 
 func TestChrootCopyFileWithTar(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	tmpdir, err := ioutil.TempDir("", "docker-TestChrootCopyFileWithTar")
+	tmpdir, err := os.MkdirTemp("", "docker-TestChrootCopyFileWithTar")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,7 +291,7 @@ func TestChrootCopyFileWithTar(t *testing.T) {
 func TestChrootUntarPath(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "FIXME: figure out why this is failing")
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	tmpdir, err := ioutil.TempDir("", "docker-TestChrootUntarPath")
+	tmpdir, err := os.MkdirTemp("", "docker-TestChrootUntarPath")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -318,7 +317,7 @@ func TestChrootUntarPath(t *testing.T) {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(stream)
 	tarfile := filepath.Join(tmpdir, "src.tar")
-	if err := ioutil.WriteFile(tarfile, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(tarfile, buf.Bytes(), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if err := UntarPath(tarfile, dest); err != nil {
@@ -354,7 +353,7 @@ func (s *slowEmptyTarReader) Read(p []byte) (int, error) {
 
 func TestChrootUntarEmptyArchiveFromSlowReader(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	tmpdir, err := ioutil.TempDir("", "docker-TestChrootUntarEmptyArchiveFromSlowReader")
+	tmpdir, err := os.MkdirTemp("", "docker-TestChrootUntarEmptyArchiveFromSlowReader")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,7 +370,7 @@ func TestChrootUntarEmptyArchiveFromSlowReader(t *testing.T) {
 
 func TestChrootApplyEmptyArchiveFromSlowReader(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	tmpdir, err := ioutil.TempDir("", "docker-TestChrootApplyEmptyArchiveFromSlowReader")
+	tmpdir, err := os.MkdirTemp("", "docker-TestChrootApplyEmptyArchiveFromSlowReader")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -388,7 +387,7 @@ func TestChrootApplyEmptyArchiveFromSlowReader(t *testing.T) {
 
 func TestChrootApplyDotDotFile(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	tmpdir, err := ioutil.TempDir("", "docker-TestChrootApplyDotDotFile")
+	tmpdir, err := os.MkdirTemp("", "docker-TestChrootApplyDotDotFile")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -397,7 +396,7 @@ func TestChrootApplyDotDotFile(t *testing.T) {
 	if err := system.MkdirAll(src, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(src, "..gitme"), []byte(""), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(src, "..gitme"), []byte(""), 0644); err != nil {
 		t.Fatal(err)
 	}
 	stream, err := archive.Tar(src, archive.Uncompressed)

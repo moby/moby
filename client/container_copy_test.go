@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -40,7 +40,7 @@ func TestContainerStatPathNoHeaderError(t *testing.T) {
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
+				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
 		}),
 	}
@@ -76,7 +76,7 @@ func TestContainerStatPath(t *testing.T) {
 			base64PathStat := base64.StdEncoding.EncodeToString(content)
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
+				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 				Header: http.Header{
 					"X-Docker-Container-Path-Stat": []string{base64PathStat},
 				},
@@ -147,7 +147,7 @@ func TestCopyToContainer(t *testing.T) {
 				return nil, fmt.Errorf("noOverwriteDirNonDir not set in URL query properly, expected true, got %s", noOverwriteDirNonDir)
 			}
 
-			content, err := ioutil.ReadAll(req.Body)
+			content, err := io.ReadAll(req.Body)
 			if err != nil {
 				return nil, err
 			}
@@ -160,7 +160,7 @@ func TestCopyToContainer(t *testing.T) {
 
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
+				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
 		}),
 	}
@@ -208,7 +208,7 @@ func TestCopyFromContainerNoHeaderError(t *testing.T) {
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
+				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
 		}),
 	}
@@ -246,7 +246,7 @@ func TestCopyFromContainer(t *testing.T) {
 
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader([]byte("content"))),
+				Body:       io.NopCloser(bytes.NewReader([]byte("content"))),
 				Header: http.Header{
 					"X-Docker-Container-Path-Stat": []string{base64PathStat},
 				},
@@ -263,7 +263,7 @@ func TestCopyFromContainer(t *testing.T) {
 	if stat.Mode != 0700 {
 		t.Fatalf("expected container path stat mode to be 0700, got '%v'", stat.Mode)
 	}
-	content, err := ioutil.ReadAll(r)
+	content, err := io.ReadAll(r)
 	if err != nil {
 		t.Fatal(err)
 	}

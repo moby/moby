@@ -7,7 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -777,10 +777,10 @@ func newIOFromProcess(newProcess hcsshim.Process, terminal bool) (*cio.DirectIO,
 
 	// Convert io.ReadClosers to io.Readers
 	if stdout != nil {
-		dio.Stdout = ioutil.NopCloser(&autoClosingReader{ReadCloser: stdout})
+		dio.Stdout = io.NopCloser(&autoClosingReader{ReadCloser: stdout})
 	}
 	if stderr != nil {
-		dio.Stderr = ioutil.NopCloser(&autoClosingReader{ReadCloser: stderr})
+		dio.Stderr = io.NopCloser(&autoClosingReader{ReadCloser: stderr})
 	}
 	return dio, nil
 }

@@ -2,7 +2,6 @@ package fileutils // import "github.com/docker/docker/pkg/fileutils"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,7 +15,7 @@ import (
 
 // CopyFile with invalid src
 func TestCopyFileWithInvalidSrc(t *testing.T) {
-	tempFolder, err := ioutil.TempDir("", "docker-fileutils-test") // #nosec G303
+	tempFolder, err := os.MkdirTemp("", "docker-fileutils-test") // #nosec G303
 	defer os.RemoveAll(tempFolder)
 	if err != nil {
 		t.Fatal(err)
@@ -33,13 +32,13 @@ func TestCopyFileWithInvalidSrc(t *testing.T) {
 
 // CopyFile with invalid dest
 func TestCopyFileWithInvalidDest(t *testing.T) {
-	tempFolder, err := ioutil.TempDir("", "docker-fileutils-test")
+	tempFolder, err := os.MkdirTemp("", "docker-fileutils-test")
 	defer os.RemoveAll(tempFolder)
 	if err != nil {
 		t.Fatal(err)
 	}
 	src := path.Join(tempFolder, "file")
-	err = ioutil.WriteFile(src, []byte("content"), 0740)
+	err = os.WriteFile(src, []byte("content"), 0740)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,13 +54,13 @@ func TestCopyFileWithInvalidDest(t *testing.T) {
 
 // CopyFile with same src and dest
 func TestCopyFileWithSameSrcAndDest(t *testing.T) {
-	tempFolder, err := ioutil.TempDir("", "docker-fileutils-test")
+	tempFolder, err := os.MkdirTemp("", "docker-fileutils-test")
 	defer os.RemoveAll(tempFolder)
 	if err != nil {
 		t.Fatal(err)
 	}
 	file := path.Join(tempFolder, "file")
-	err = ioutil.WriteFile(file, []byte("content"), 0740)
+	err = os.WriteFile(file, []byte("content"), 0740)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +75,7 @@ func TestCopyFileWithSameSrcAndDest(t *testing.T) {
 
 // CopyFile with same src and dest but path is different and not clean
 func TestCopyFileWithSameSrcAndDestWithPathNameDifferent(t *testing.T) {
-	tempFolder, err := ioutil.TempDir("", "docker-fileutils-test")
+	tempFolder, err := os.MkdirTemp("", "docker-fileutils-test")
 	defer os.RemoveAll(tempFolder)
 	if err != nil {
 		t.Fatal(err)
@@ -88,7 +87,7 @@ func TestCopyFileWithSameSrcAndDestWithPathNameDifferent(t *testing.T) {
 	}
 	file := path.Join(testFolder, "file")
 	sameFile := testFolder + "/../test/file"
-	err = ioutil.WriteFile(file, []byte("content"), 0740)
+	err = os.WriteFile(file, []byte("content"), 0740)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,15 +101,15 @@ func TestCopyFileWithSameSrcAndDestWithPathNameDifferent(t *testing.T) {
 }
 
 func TestCopyFile(t *testing.T) {
-	tempFolder, err := ioutil.TempDir("", "docker-fileutils-test")
+	tempFolder, err := os.MkdirTemp("", "docker-fileutils-test")
 	defer os.RemoveAll(tempFolder)
 	if err != nil {
 		t.Fatal(err)
 	}
 	src := path.Join(tempFolder, "src")
 	dest := path.Join(tempFolder, "dest")
-	ioutil.WriteFile(src, []byte("content"), 0777)
-	ioutil.WriteFile(dest, []byte("destContent"), 0777)
+	os.WriteFile(src, []byte("content"), 0777)
+	os.WriteFile(dest, []byte("destContent"), 0777)
 	bytes, err := CopyFile(src, dest)
 	if err != nil {
 		t.Fatal(err)
@@ -118,7 +117,7 @@ func TestCopyFile(t *testing.T) {
 	if bytes != 7 {
 		t.Fatalf("Should have written %d bytes but wrote %d", 7, bytes)
 	}
-	actual, err := ioutil.ReadFile(dest)
+	actual, err := os.ReadFile(dest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -455,7 +454,7 @@ func TestCleanPatternsErrorSingleException(t *testing.T) {
 }
 
 func TestCreateIfNotExistsDir(t *testing.T) {
-	tempFolder, err := ioutil.TempDir("", "docker-fileutils-test")
+	tempFolder, err := os.MkdirTemp("", "docker-fileutils-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -477,7 +476,7 @@ func TestCreateIfNotExistsDir(t *testing.T) {
 }
 
 func TestCreateIfNotExistsFile(t *testing.T) {
-	tempFolder, err := ioutil.TempDir("", "docker-fileutils-test")
+	tempFolder, err := os.MkdirTemp("", "docker-fileutils-test")
 	if err != nil {
 		t.Fatal(err)
 	}

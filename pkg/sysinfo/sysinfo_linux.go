@@ -2,7 +2,6 @@ package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -215,13 +214,13 @@ func applyCPUSetCgroupInfo(info *SysInfo, cgMounts map[string]string) []string {
 
 	var err error
 
-	cpus, err := ioutil.ReadFile(path.Join(mountPoint, "cpuset.cpus"))
+	cpus, err := os.ReadFile(path.Join(mountPoint, "cpuset.cpus"))
 	if err != nil {
 		return warnings
 	}
 	info.Cpus = strings.TrimSpace(string(cpus))
 
-	mems, err := ioutil.ReadFile(path.Join(mountPoint, "cpuset.mems"))
+	mems, err := os.ReadFile(path.Join(mountPoint, "cpuset.mems"))
 	if err != nil {
 		return warnings
 	}
@@ -263,7 +262,7 @@ func applyNetworkingInfo(info *SysInfo, _ map[string]string) []string {
 func applyAppArmorInfo(info *SysInfo, _ map[string]string) []string {
 	var warnings []string
 	if _, err := os.Stat("/sys/kernel/security/apparmor"); !os.IsNotExist(err) {
-		if _, err := ioutil.ReadFile("/sys/kernel/security/apparmor/profiles"); err == nil {
+		if _, err := os.ReadFile("/sys/kernel/security/apparmor/profiles"); err == nil {
 			info.AppArmor = true
 		}
 	}
@@ -306,7 +305,7 @@ func cgroupEnabled(mountPoint, name string) bool {
 }
 
 func readProcBool(path string) bool {
-	val, err := ioutil.ReadFile(path)
+	val, err := os.ReadFile(path)
 	if err != nil {
 		return false
 	}

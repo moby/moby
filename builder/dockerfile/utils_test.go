@@ -1,7 +1,6 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,7 +10,7 @@ import (
 // It returns the created path and a cleanup function which is meant to be used as deferred call.
 // When an error occurs, it terminates the test.
 func createTestTempDir(t *testing.T, dir, prefix string) (string, func()) {
-	path, err := ioutil.TempDir(dir, prefix)
+	path, err := os.MkdirTemp(dir, prefix)
 
 	if err != nil {
 		t.Fatalf("Error when creating directory %s with prefix %s: %s", dir, prefix, err)
@@ -30,7 +29,7 @@ func createTestTempDir(t *testing.T, dir, prefix string) (string, func()) {
 // When an error occurs, it terminates the test
 func createTestTempFile(t *testing.T, dir, filename, contents string, perm os.FileMode) string {
 	filePath := filepath.Join(dir, filename)
-	err := ioutil.WriteFile(filePath, []byte(contents), perm)
+	err := os.WriteFile(filePath, []byte(contents), perm)
 
 	if err != nil {
 		t.Fatalf("Error when creating %s file: %s", filename, err)

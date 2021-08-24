@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -71,7 +71,7 @@ func TestImageLoad(t *testing.T) {
 				headers.Add("Content-Type", loadCase.responseContentType)
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Body:       ioutil.NopCloser(bytes.NewReader([]byte(expectedOutput))),
+					Body:       io.NopCloser(bytes.NewReader([]byte(expectedOutput))),
 					Header:     headers,
 				}, nil
 			}),
@@ -85,7 +85,7 @@ func TestImageLoad(t *testing.T) {
 		if imageLoadResponse.JSON != loadCase.expectedResponseJSON {
 			t.Fatalf("expected a JSON response, was not.")
 		}
-		body, err := ioutil.ReadAll(imageLoadResponse.Body)
+		body, err := io.ReadAll(imageLoadResponse.Body)
 		if err != nil {
 			t.Fatal(err)
 		}

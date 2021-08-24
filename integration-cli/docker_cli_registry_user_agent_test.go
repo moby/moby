@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"regexp"
@@ -83,7 +82,7 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *testing.T) {
 
 	s.d.StartWithBusybox(c, "--insecure-registry", reg.URL())
 
-	tmp, err := ioutil.TempDir("", "integration-cli-")
+	tmp, err := os.MkdirTemp("", "integration-cli-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmp)
 

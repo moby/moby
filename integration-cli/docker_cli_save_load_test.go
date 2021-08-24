@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -262,7 +261,7 @@ func (s *DockerSuite) TestSaveDirectoryPermissions(c *testing.T) {
 	layerEntriesAUFS := []string{"./", ".wh..wh.aufs", ".wh..wh.orph/", ".wh..wh.plnk/", "opt/", "opt/a/", "opt/a/b/", "opt/a/b/c"}
 
 	name := "save-directory-permissions"
-	tmpDir, err := ioutil.TempDir("", "save-layers-with-directories")
+	tmpDir, err := os.MkdirTemp("", "save-layers-with-directories")
 	assert.Assert(c, err == nil, "failed to create temporary directory: %s", err)
 	extractionDirectory := filepath.Join(tmpDir, "image-extraction-dir")
 	os.Mkdir(extractionDirectory, 0777)
@@ -278,7 +277,7 @@ func (s *DockerSuite) TestSaveDirectoryPermissions(c *testing.T) {
 	)
 	assert.NilError(c, err, "failed to save and extract image: %s", out)
 
-	dirs, err := ioutil.ReadDir(extractionDirectory)
+	dirs, err := os.ReadDir(extractionDirectory)
 	assert.NilError(c, err, "failed to get a listing of the layer directories: %s", err)
 
 	found := false
@@ -358,7 +357,7 @@ func (s *DockerSuite) TestSaveLoadParents(c *testing.T) {
 	idFoo := makeImage("busybox", "foo")
 	idBar := makeImage(idFoo, "bar")
 
-	tmpDir, err := ioutil.TempDir("", "save-load-parents")
+	tmpDir, err := os.MkdirTemp("", "save-load-parents")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpDir)
 

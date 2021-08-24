@@ -3,7 +3,6 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -98,7 +97,7 @@ func WithRootless(daemon *Daemon) coci.SpecOpts {
 				return errors.New("$ROOTLESSKIT_PARENT_EUID is not set (requires RootlessKit v0.8.0)")
 			}
 			controllersPath := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%s.slice/cgroup.controllers", rootlesskitParentEUID)
-			controllersFile, err := ioutil.ReadFile(controllersPath)
+			controllersFile, err := os.ReadFile(controllersPath)
 			if err != nil {
 				return err
 			}

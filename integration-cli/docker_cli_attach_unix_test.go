@@ -5,7 +5,7 @@ package main
 
 import (
 	"bufio"
-	"io/ioutil"
+	"io"
 	"os/exec"
 	"strings"
 	"testing"
@@ -51,7 +51,7 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *testing.T) {
 	select {
 	case err := <-errChan:
 		tty.Close()
-		out, _ := ioutil.ReadAll(pty)
+		out, _ := io.ReadAll(pty)
 		assert.Assert(c, err == nil, "out: %v", string(out))
 	case <-time.After(attachWait):
 		c.Fatal("timed out without attach returning")

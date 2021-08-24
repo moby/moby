@@ -1,7 +1,7 @@
 package layer // import "github.com/docker/docker/layer"
 
 import (
-	"io/ioutil"
+	"io"
 	"runtime"
 	"sort"
 	"testing"
@@ -56,7 +56,7 @@ func TestMountInit(t *testing.T) {
 	}
 	defer f.Close()
 
-	b, err := ioutil.ReadAll(f)
+	b, err := io.ReadAll(f)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,7 +254,7 @@ func TestMountApply(t *testing.T) {
 	}
 	defer f.Close()
 
-	b, err := ioutil.ReadAll(f)
+	b, err := io.ReadAll(f)
 	if err != nil {
 		t.Fatal(err)
 	}

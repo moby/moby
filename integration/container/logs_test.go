@@ -2,7 +2,7 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -29,6 +29,6 @@ func TestLogsFollowTailEmpty(t *testing.T) {
 	}
 	assert.Check(t, err)
 
-	_, err = stdcopy.StdCopy(ioutil.Discard, ioutil.Discard, logs)
+	_, err = stdcopy.StdCopy(io.Discard, io.Discard, logs)
 	assert.Check(t, err)
 }
