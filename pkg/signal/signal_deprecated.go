@@ -48,7 +48,8 @@ const (
 	// SIGPIPE is a signal sent to a process when a pipe is written to before the other end is open for reading
 	// Deprecated: use github.com/moby/sys/signal.SIGPIPE instead
 	SIGPIPE = msignal.SIGPIPE
-	// DefaultStopSignal is the syscall signal used to stop a container in unix systems.
-	// Deprecated: use github.com/moby/sys/signal.DefaultStopSignal instead
-	DefaultStopSignal = msignal.DefaultStopSignal
+
+	// DefaultStopSignal has been deprecated and removed. The default value is
+	// now defined in github.com/docker/docker/container. Clients should omit
+	// the container's stop-signal field if the default should be used.
 )

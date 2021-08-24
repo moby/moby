@@ -19,7 +19,7 @@ func TestContainerStopSignal(t *testing.T) {
 		Config: &container.Config{},
 	}
 
-	def, err := signal.ParseSignal(signal.DefaultStopSignal)
+	def, err := signal.ParseSignal(defaultStopSignal)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,8 +44,8 @@ func TestContainerStopTimeout(t *testing.T) {
 	}
 
 	s := c.StopTimeout()
-	if s != DefaultStopTimeout {
-		t.Fatalf("Expected %v, got %v", DefaultStopTimeout, s)
+	if s != defaultStopTimeout {
+		t.Fatalf("Expected %v, got %v", defaultStopTimeout, s)
 	}
 
 	stopTimeout := 15

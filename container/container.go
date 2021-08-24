@@ -518,7 +518,7 @@ func (container *Container) StopSignal() int {
 	}
 
 	if int(stopSignal) == 0 {
-		stopSignal, _ = signal.ParseSignal(signal.DefaultStopSignal)
+		stopSignal, _ = signal.ParseSignal(defaultStopSignal)
 	}
 	return int(stopSignal)
 }
@@ -528,7 +528,7 @@ func (container *Container) StopTimeout() int {
 	if container.Config.StopTimeout != nil {
 		return *container.Config.StopTimeout
 	}
-	return DefaultStopTimeout
+	return defaultStopTimeout
 }
 
 // InitDNSHostConfig ensures that the dns fields are never nil.
