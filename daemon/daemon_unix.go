@@ -869,6 +869,7 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 
 	if len(activeSandboxes) > 0 {
 		logrus.Info("There are old running containers, the network config will not take affect")
+		setHostGatewayIP(daemon.configStore, controller)
 		return controller, nil
 	}
 
@@ -906,19 +907,26 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 	}
 
 	// Set HostGatewayIP to the default bridge's IP  if it is empty
-	if daemon.configStore.HostGatewayIP == nil && controller != nil {
-		if n, err := controller.NetworkByName("bridge"); err == nil {
-			v4Info, v6Info := n.Info().IpamInfo()
-			var gateway net.IP
-			if len(v4Info) > 0 {
-				gateway = v4Info[0].Gateway.IP
-			} else if len(v6Info) > 0 {
-				gateway = v6Info[0].Gateway.IP
-			}
-			daemon.configStore.HostGatewayIP = gateway
-		}
-	}
+	setHostGatewayIP(daemon.configStore, controller)
+
 	return controller, nil
+}
+
+// setHostGatewayIP sets cfg.HostGatewayIP to the default bridge's IP if it is empty.
+func setHostGatewayIP(config *config.Config, controller libnetwork.NetworkController) {
+	if config.HostGatewayIP != nil {
+		return
+	}
+	if n, err := controller.NetworkByName("bridge"); err == nil {
+		v4Info, v6Info := n.Info().IpamInfo()
+		var gateway net.IP
+		if len(v4Info) > 0 {
+			gateway = v4Info[0].Gateway.IP
+		} else if len(v6Info) > 0 {
+			gateway = v6Info[0].Gateway.IP
+		}
+		config.HostGatewayIP = gateway
+	}
 }
 
 func driverOptions(config *config.Config) []nwconfig.Option {
