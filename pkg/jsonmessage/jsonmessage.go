@@ -32,15 +32,27 @@ func (e *JSONError) Error() string {
 // value of the progress made towards Total. Total is the end value describing when
 // we made 100% progress for an operation.
 type JSONProgress struct {
-	terminalFd uintptr
-	Current    int64 `json:"current,omitempty"`
-	Total      int64 `json:"total,omitempty"`
-	Start      int64 `json:"start,omitempty"`
+	terminalFd   uintptr
+	Current      int64         `json:"current,omitempty"`
+	Total        int64         `json:"total,omitempty"`
+	Start        int64         `json:"start,omitempty"`
+	DownloadCost time.Duration `json:"downloadcost,omitempty"`
+	ExtractCost  time.Duration `json:"extractcost,omitempty"`
 	// If true, don't show xB/yB
 	HideCounts bool   `json:"hidecounts,omitempty"`
 	Units      string `json:"units,omitempty"`
 	nowFunc    func() time.Time
 	winSize    int
+}
+
+// Statistics show the information about the download and extract time costs and the layer size.
+func (p *JSONProgress) Statistics() string {
+	// Keep pace with the progress bar, show statistics only if the progress bar is visible.
+	if p.width() <= 110 {
+		return ""
+	}
+	total := units.HumanSize(float64(p.Total))
+	return fmt.Sprintf("%8s Download %8s, Extract %8s", total, p.DownloadCost, p.ExtractCost)
 }
 
 func (p *JSONProgress) String() string {
@@ -193,7 +205,12 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 		fmt.Fprintf(out, "(from %s) ", jm.From)
 	}
 	if jm.Progress != nil && isTerminal {
-		fmt.Fprintf(out, "%s %s%s", jm.Status, jm.Progress.String(), endl)
+		if jm.Status == "Pull complete" {
+			// Show the statistics after pulling.
+			fmt.Fprintf(out, "%s %s%s", jm.Status, jm.Progress.Statistics(), endl)
+		} else {
+			fmt.Fprintf(out, "%s %s%s", jm.Status, jm.Progress.String(), endl)
+		}
 	} else if jm.ProgressMessage != "" { // deprecated
 		fmt.Fprintf(out, "%s %s%s", jm.Status, jm.ProgressMessage, endl)
 	} else if jm.Stream != "" {
