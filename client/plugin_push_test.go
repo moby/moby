@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 )
 
@@ -34,9 +35,9 @@ func TestPluginPush(t *testing.T) {
 			if req.Method != http.MethodPost {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
-			auth := req.Header.Get("X-Registry-Auth")
+			auth := req.Header.Get(registry.AuthHeader)
 			if auth != "authtoken" {
-				return nil, fmt.Errorf("Invalid auth header : expected 'authtoken', got %s", auth)
+				return nil, fmt.Errorf("invalid auth header : expected 'authtoken', got %s", auth)
 			}
 			return &http.Response{
 				StatusCode: http.StatusOK,

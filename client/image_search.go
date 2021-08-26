@@ -48,6 +48,6 @@ func (cli *Client) ImageSearch(ctx context.Context, term string, options types.I
 }
 
 func (cli *Client) tryImageSearch(ctx context.Context, query url.Values, registryAuth string) (serverResponse, error) {
-	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
+	headers := map[string][]string{registry.AuthHeader: {registryAuth}}
 	return cli.get(ctx, "/images/search", query, headers)
 }

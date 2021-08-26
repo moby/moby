@@ -6,6 +6,7 @@ import (
 	"net/url"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
 )
 
@@ -23,7 +24,7 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 	}
 
 	if options.EncodedRegistryAuth != "" {
-		headers["X-Registry-Auth"] = []string{options.EncodedRegistryAuth}
+		headers[registry.AuthHeader] = []string{options.EncodedRegistryAuth}
 	}
 
 	if options.RegistryAuthFrom != "" {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/pkg/errors"
 )
 
@@ -34,6 +35,6 @@ func (cli *Client) PluginUpgrade(ctx context.Context, name string, options types
 }
 
 func (cli *Client) tryPluginUpgrade(ctx context.Context, query url.Values, privileges types.PluginPrivileges, name, registryAuth string) (serverResponse, error) {
-	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
+	headers := map[string][]string{registry.AuthHeader: {registryAuth}}
 	return cli.post(ctx, "/plugins/"+name+"/upgrade", query, privileges, headers)
 }

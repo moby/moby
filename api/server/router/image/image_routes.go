@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -63,7 +64,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 			}
 		}
 
-		authEncoded := r.Header.Get("X-Registry-Auth")
+		authEncoded := r.Header.Get(registry.AuthHeader)
 		authConfig := &types.AuthConfig{}
 		if authEncoded != "" {
 			authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
@@ -100,7 +101,7 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 	}
 	authConfig := &types.AuthConfig{}
 
-	authEncoded := r.Header.Get("X-Registry-Auth")
+	authEncoded := r.Header.Get(registry.AuthHeader)
 	if authEncoded != "" {
 		// the new format is to handle the authConfig as a header
 		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
@@ -360,7 +361,7 @@ func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter
 	}
 	var (
 		config      *types.AuthConfig
-		authEncoded = r.Header.Get("X-Registry-Auth")
+		authEncoded = r.Header.Get(registry.AuthHeader)
 		headers     = map[string][]string{}
 	)
 

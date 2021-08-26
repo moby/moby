@@ -13,7 +13,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -28,8 +28,8 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 
 	var (
 		config              = &types.AuthConfig{}
-		authEncoded         = r.Header.Get("X-Registry-Auth")
-		distributionInspect registrytypes.DistributionInspect
+		authEncoded         = r.Header.Get(registry.AuthHeader)
+		distributionInspect registry.DistributionInspect
 	)
 
 	if authEncoded != "" {
