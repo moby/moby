@@ -146,51 +146,6 @@ func (p *PortBinding) String() string {
 	return ret
 }
 
-// FromString reads the PortBinding structure from string s.
-// String s is a triple of "protocol/containerIP:port/hostIP:port"
-// containerIP and hostIP can be in dotted decimal ("192.0.2.1") or IPv6 ("2001:db8::68") form.
-// Zoned addresses ("169.254.0.23%eth0" or "fe80::1ff:fe23:4567:890a%eth0") are not supported.
-// If string s is incorrectly formatted or the IP addresses or ports cannot be parsed, FromString
-// returns an error.
-func (p *PortBinding) FromString(s string) error {
-	ps := strings.Split(s, "/")
-	if len(ps) != 3 {
-		return BadRequestErrorf("invalid format for port binding: %s", s)
-	}
-
-	p.Proto = ParseProtocol(ps[0])
-
-	var err error
-	if p.IP, p.Port, err = parseIPPort(ps[1]); err != nil {
-		return BadRequestErrorf("failed to parse Container IP/Port in port binding: %s", err.Error())
-	}
-
-	if p.HostIP, p.HostPort, err = parseIPPort(ps[2]); err != nil {
-		return BadRequestErrorf("failed to parse Host IP/Port in port binding: %s", err.Error())
-	}
-
-	return nil
-}
-
-func parseIPPort(s string) (net.IP, uint16, error) {
-	hoststr, portstr, err := net.SplitHostPort(s)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	ip := net.ParseIP(hoststr)
-	if ip == nil {
-		return nil, 0, BadRequestErrorf("invalid ip: %s", hoststr)
-	}
-
-	port, err := strconv.ParseUint(portstr, 10, 16)
-	if err != nil {
-		return nil, 0, BadRequestErrorf("invalid port: %s", portstr)
-	}
-
-	return ip, uint16(port), nil
-}
-
 // Equal checks if this instance of PortBinding is equal to the passed one
 func (p *PortBinding) Equal(o *PortBinding) bool {
 	if p == o {
