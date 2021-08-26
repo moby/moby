@@ -73,7 +73,7 @@ func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			auth := req.Header.Get("X-Registry-Auth")
+			auth := req.Header.Get(registry.AuthHeader)
 			if auth == "NotValid" {
 				return &http.Response{
 					StatusCode: http.StatusUnauthorized,
