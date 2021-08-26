@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"net"
-	"strconv"
 	"strings"
 
 	"github.com/ishidawataru/sctp"
@@ -67,19 +66,6 @@ func (t *TransportPort) GetCopy() TransportPort {
 // String returns the TransportPort structure in string form
 func (t *TransportPort) String() string {
 	return fmt.Sprintf("%s/%d", t.Proto.String(), t.Port)
-}
-
-// FromString reads the TransportPort structure from string
-func (t *TransportPort) FromString(s string) error {
-	ps := strings.Split(s, "/")
-	if len(ps) == 2 {
-		t.Proto = ParseProtocol(ps[0])
-		if p, err := strconv.ParseUint(ps[1], 10, 16); err == nil {
-			t.Port = uint16(p)
-			return nil
-		}
-	}
-	return BadRequestErrorf("invalid format for transport port: %s", s)
 }
 
 // PortBinding represents a port binding between the container and the host

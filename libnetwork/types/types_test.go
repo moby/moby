@@ -5,23 +5,6 @@ import (
 	"testing"
 )
 
-func TestTransportPortConv(t *testing.T) {
-	sform := "tcp/23"
-	tp := &TransportPort{Proto: TCP, Port: uint16(23)}
-
-	if sform != tp.String() {
-		t.Fatalf("String() method failed")
-	}
-
-	rc := new(TransportPort)
-	if err := rc.FromString(sform); err != nil {
-		t.Fatal(err)
-	}
-	if !tp.Equal(rc) {
-		t.Fatalf("FromString() method failed")
-	}
-}
-
 func TestErrorConstructors(t *testing.T) {
 	var err error
 
