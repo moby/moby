@@ -342,21 +342,6 @@ func GetMinimalIP(ip net.IP) net.IP {
 	return ip
 }
 
-// GetMinimalIPNet returns a copy of the passed IP Network with congruent ip and mask notation
-func GetMinimalIPNet(nw *net.IPNet) *net.IPNet {
-	if nw == nil {
-		return nil
-	}
-	if len(nw.IP) == 16 && nw.IP.To4() != nil {
-		m := nw.Mask
-		if len(m) == 16 {
-			m = m[12:16]
-		}
-		return &net.IPNet{IP: nw.IP.To4(), Mask: m}
-	}
-	return nw
-}
-
 // IsIPNetValid returns true if the ipnet is a valid network/mask
 // combination. Otherwise returns false.
 func IsIPNetValid(nw *net.IPNet) bool {
