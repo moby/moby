@@ -224,7 +224,7 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 	}
 
 	// Get returns "" if the header does not exist
-	encodedAuth := r.Header.Get("X-Registry-Auth")
+	encodedAuth := r.Header.Get(basictypes.RegistryAuthHeader)
 	queryRegistry := false
 	if v := httputils.VersionFromContext(ctx); v != "" {
 		if versions.LessThan(v, "1.30") {
@@ -260,7 +260,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 	var flags basictypes.ServiceUpdateOptions
 
 	// Get returns "" if the header does not exist
-	flags.EncodedRegistryAuth = r.Header.Get("X-Registry-Auth")
+	flags.EncodedRegistryAuth = r.Header.Get(basictypes.RegistryAuthHeader)
 	flags.RegistryAuthFrom = r.URL.Query().Get("registryAuthFrom")
 	flags.Rollback = r.URL.Query().Get("rollback")
 	queryRegistry := false

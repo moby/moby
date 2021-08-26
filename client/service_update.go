@@ -24,7 +24,7 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 	}
 
 	if options.EncodedRegistryAuth != "" {
-		headers["X-Registry-Auth"] = []string{options.EncodedRegistryAuth}
+		headers[types.RegistryAuthHeader] = []string{options.EncodedRegistryAuth}
 	}
 
 	if options.RegistryAuthFrom != "" {

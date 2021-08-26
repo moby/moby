@@ -28,7 +28,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 
 	var (
 		config              = &types.AuthConfig{}
-		authEncoded         = r.Header.Get("X-Registry-Auth")
+		authEncoded         = r.Header.Get(types.RegistryAuthHeader)
 		distributionInspect registrytypes.DistributionInspect
 	)
 

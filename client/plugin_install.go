@@ -67,12 +67,12 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 }
 
 func (cli *Client) tryPluginPrivileges(ctx context.Context, query url.Values, registryAuth string) (serverResponse, error) {
-	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
+	headers := map[string][]string{types.RegistryAuthHeader: {registryAuth}}
 	return cli.get(ctx, "/plugins/privileges", query, headers)
 }
 
 func (cli *Client) tryPluginPull(ctx context.Context, query url.Values, privileges types.PluginPrivileges, registryAuth string) (serverResponse, error) {
-	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
+	headers := map[string][]string{types.RegistryAuthHeader: {registryAuth}}
 	return cli.post(ctx, "/plugins/pull", query, privileges, headers)
 }
 

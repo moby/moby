@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/url"
 
+	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
 )
 
@@ -23,7 +24,7 @@ func (cli *Client) DistributionInspect(ctx context.Context, image, encodedRegist
 
 	if encodedRegistryAuth != "" {
 		headers = map[string][]string{
-			"X-Registry-Auth": {encodedRegistryAuth},
+			types.RegistryAuthHeader: {encodedRegistryAuth},
 		}
 	}
 

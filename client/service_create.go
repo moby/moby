@@ -21,7 +21,7 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 	}
 
 	if options.EncodedRegistryAuth != "" {
-		headers["X-Registry-Auth"] = []string{options.EncodedRegistryAuth}
+		headers[types.RegistryAuthHeader] = []string{options.EncodedRegistryAuth}
 	}
 
 	// Make sure containerSpec is not nil when no runtime is set or the runtime is set to container

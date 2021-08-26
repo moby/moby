@@ -34,9 +34,9 @@ func TestImageCreate(t *testing.T) {
 			if !strings.HasPrefix(r.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
 			}
-			registryAuth := r.Header.Get("X-Registry-Auth")
+			registryAuth := r.Header.Get(types.RegistryAuthHeader)
 			if registryAuth != expectedRegistryAuth {
-				return nil, fmt.Errorf("X-Registry-Auth header not properly set in the request. Expected '%s', got %s", expectedRegistryAuth, registryAuth)
+				return nil, fmt.Errorf("%s header not properly set in the request. Expected '%s', got %s", types.RegistryAuthHeader, expectedRegistryAuth, registryAuth)
 			}
 
 			query := r.URL.Query()

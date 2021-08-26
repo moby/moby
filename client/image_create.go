@@ -32,6 +32,6 @@ func (cli *Client) ImageCreate(ctx context.Context, parentReference string, opti
 }
 
 func (cli *Client) tryImageCreate(ctx context.Context, query url.Values, registryAuth string) (serverResponse, error) {
-	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
+	headers := map[string][]string{types.RegistryAuthHeader: {registryAuth}}
 	return cli.post(ctx, "/images/create", query, nil, headers)
 }

@@ -61,7 +61,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 			}
 		}
 
-		authEncoded := r.Header.Get("X-Registry-Auth")
+		authEncoded := r.Header.Get(types.RegistryAuthHeader)
 		authConfig := &types.AuthConfig{}
 		if authEncoded != "" {
 			authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
@@ -105,7 +105,7 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 	}
 	authConfig := &types.AuthConfig{}
 
-	authEncoded := r.Header.Get("X-Registry-Auth")
+	authEncoded := r.Header.Get(types.RegistryAuthHeader)
 	if authEncoded != "" {
 		// the new format is to handle the authConfig as a header
 		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
@@ -281,7 +281,7 @@ func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter
 	}
 	var (
 		config      *types.AuthConfig
-		authEncoded = r.Header.Get("X-Registry-Auth")
+		authEncoded = r.Header.Get(types.RegistryAuthHeader)
 		headers     = map[string][]string{}
 	)
 

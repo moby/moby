@@ -1,5 +1,9 @@
 package types // import "github.com/docker/docker/api/types"
 
+// RegistryAuthHeader is the name of the header used to send encoded registry
+// authorization credentials for registry operations (push/pull).
+const RegistryAuthHeader = "X-Registry-Auth"
+
 // AuthConfig contains authorization information for connecting to a Registry
 type AuthConfig struct {
 	Username string `json:"username,omitempty"`

@@ -29,7 +29,7 @@ func parseHeaders(headers http.Header) (map[string][]string, *types.AuthConfig) 
 	}
 
 	// Get X-Registry-Auth
-	authEncoded := headers.Get("X-Registry-Auth")
+	authEncoded := headers.Get(types.RegistryAuthHeader)
 	authConfig := &types.AuthConfig{}
 	if authEncoded != "" {
 		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
