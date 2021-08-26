@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 // Package journald provides the log driver for forwarding server logs

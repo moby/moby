@@ -1,3 +1,4 @@
+//go:build !autogen
 // +build !autogen
 
 // Package dockerversion is auto-generated at build-time

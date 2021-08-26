@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 // Forked from https://github.com/containerd/containerd/blob/9ade247b38b5a685244e1391c86ff41ab109556e/snapshots/overlay/check.go

@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package requirement // import "github.com/docker/docker/integration/internal/requirement"

@@ -1,3 +1,4 @@
+//go:build linux || freebsd || darwin
 // +build linux freebsd darwin
 
 package service // import "github.com/docker/docker/volume/service"

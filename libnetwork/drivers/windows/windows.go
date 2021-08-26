@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 // Shim for the Host Network Service (HNS) to manage networking for
