@@ -90,17 +90,17 @@ func TestEvents(t *testing.T) {
 			},
 			events: []events.Message{
 				{
-					Type:   "container",
+					Type:   events.BuilderEventType,
 					ID:     "1",
 					Action: "create",
 				},
 				{
-					Type:   "container",
+					Type:   events.BuilderEventType,
 					ID:     "2",
 					Action: "die",
 				},
 				{
-					Type:   "container",
+					Type:   events.BuilderEventType,
 					ID:     "3",
 					Action: "create",
 				},
