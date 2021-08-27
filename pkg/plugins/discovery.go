@@ -3,7 +3,6 @@ package plugins // import "github.com/docker/docker/pkg/plugins"
 import (
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -41,7 +40,7 @@ func Scan() ([]string, error) {
 				continue
 			}
 
-			entry = fs.FileInfoToDirEntry(fi)
+			entry = fileInfoToDirEntry(fi)
 		}
 
 		if entry.Type()&os.ModeSocket != 0 {
