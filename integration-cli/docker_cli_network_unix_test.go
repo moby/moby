@@ -6,7 +6,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -201,11 +200,11 @@ func setupRemoteNetworkDrivers(c *testing.T, mux *http.ServeMux, url, netDrv, ip
 	assert.NilError(c, err)
 
 	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", netDrv)
-	err = ioutil.WriteFile(fileName, []byte(url), 0644)
+	err = os.WriteFile(fileName, []byte(url), 0644)
 	assert.NilError(c, err)
 
 	ipamFileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", ipamDrv)
-	err = ioutil.WriteFile(ipamFileName, []byte(url), 0644)
+	err = os.WriteFile(ipamFileName, []byte(url), 0644)
 	assert.NilError(c, err)
 }
 

@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/docker/docker/libnetwork/cluster"
@@ -71,7 +71,7 @@ func ParseConfig(tomlCfgFile string) (*Config, error) {
 	cfg := &Config{
 		Scopes: map[string]*datastore.ScopeCfg{},
 	}
-	data, err := ioutil.ReadFile(tomlCfgFile)
+	data, err := os.ReadFile(tomlCfgFile)
 	if err != nil {
 		return nil, err
 	}

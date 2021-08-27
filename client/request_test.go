@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -66,7 +66,7 @@ func TestSetHostHeader(t *testing.T) {
 				}
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
+					Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 				}, nil
 			}),
 
@@ -99,7 +99,7 @@ func TestInfiniteError(t *testing.T) {
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			resp := &http.Response{StatusCode: http.StatusInternalServerError}
 			resp.Header = http.Header{}
-			resp.Body = ioutil.NopCloser(infinitR)
+			resp.Body = io.NopCloser(infinitR)
 			return resp, nil
 		}),
 	}

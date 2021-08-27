@@ -5,7 +5,7 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -70,7 +70,7 @@ func bridgeNfIptables() bool {
 }
 
 func unprivilegedUsernsClone() bool {
-	content, err := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
+	content, err := os.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
 	return err != nil || !strings.Contains(string(content), "0")
 }
 

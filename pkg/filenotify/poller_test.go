@@ -2,7 +2,6 @@ package filenotify // import "github.com/docker/docker/pkg/filenotify"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"testing"
@@ -21,7 +20,7 @@ func TestPollerAddRemove(t *testing.T) {
 		t.Fatal("should have gotten error when removing non-existent watch")
 	}
 
-	f, err := ioutil.TempFile("", "asdf")
+	f, err := os.CreateTemp("", "asdf")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +41,7 @@ func TestPollerEvent(t *testing.T) {
 	}
 	w := NewPollingWatcher()
 
-	f, err := ioutil.TempFile("", "test-poller")
+	f, err := os.CreateTemp("", "test-poller")
 	if err != nil {
 		t.Fatal("error creating temp file")
 	}
@@ -61,7 +60,7 @@ func TestPollerEvent(t *testing.T) {
 	default:
 	}
 
-	if err := ioutil.WriteFile(f.Name(), []byte("hello"), 0600); err != nil {
+	if err := os.WriteFile(f.Name(), []byte("hello"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	assertFileMode(t, f.Name(), 0600)
@@ -95,7 +94,7 @@ func TestPollerClose(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	f, err := ioutil.TempFile("", "asdf")
+	f, err := os.CreateTemp("", "asdf")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"runtime"
 	"strings"
@@ -83,7 +82,7 @@ func (server *StreamEchoServer) Run() {
 			}
 			go func(client net.Conn) {
 				if server.opts.TCPHalfClose {
-					data, err := ioutil.ReadAll(client)
+					data, err := io.ReadAll(client)
 					if err != nil {
 						server.testCtx.Logf("io.ReadAll() failed for the client: %v\n", err.Error())
 					}

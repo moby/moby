@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"os"
@@ -38,7 +37,7 @@ func randomLocalStore(needStore bool) (datastore.DataStore, error) {
 	if !needStore {
 		return nil, nil
 	}
-	tmp, err := ioutil.TempFile("", "libnetwork-")
+	tmp, err := os.CreateTemp("", "libnetwork-")
 	if err != nil {
 		return nil, fmt.Errorf("Error creating temp file: %v", err)
 	}

@@ -2,7 +2,7 @@ package build
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -115,7 +115,7 @@ func testBuildWithSession(t *testing.T, client dclient.APIClient, daemonHost str
 			request.Host(daemonHost),
 			request.Method(http.MethodPost),
 			request.With(func(req *http.Request) error {
-				req.Body = ioutil.NopCloser(strings.NewReader(dockerfile))
+				req.Body = io.NopCloser(strings.NewReader(dockerfile))
 				return nil
 			}),
 		)

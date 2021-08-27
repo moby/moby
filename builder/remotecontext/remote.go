@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -58,7 +57,7 @@ func GetWithStatusError(address string) (resp *http.Response, err error) {
 		return resp, nil
 	}
 	msg := fmt.Sprintf("failed to GET %s with status %s", address, resp.Status)
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
 		return nil, errdefs.System(errors.New(msg + ": error reading body"))

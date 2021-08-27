@@ -6,7 +6,7 @@ package authz // import "github.com/docker/docker/integration/plugin/authz"
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -77,7 +77,7 @@ func setupSuite() {
 
 	mux.HandleFunc("/AuthZPlugin.AuthZReq", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			panic("could not read body for /AuthZPlugin.AuthZReq: " + err.Error())
 		}
@@ -115,7 +115,7 @@ func setupSuite() {
 
 	mux.HandleFunc("/AuthZPlugin.AuthZRes", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			panic("could not read body for /AuthZPlugin.AuthZRes: " + err.Error())
 		}

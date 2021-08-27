@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"testing"
@@ -12,11 +11,11 @@ import (
 )
 
 func makefile(path string, contents string) (string, error) {
-	f, err := ioutil.TempFile(path, "tmp")
+	f, err := os.CreateTemp(path, "tmp")
 	if err != nil {
 		return "", err
 	}
-	err = ioutil.WriteFile(f.Name(), []byte(contents), os.ModePerm)
+	err = os.WriteFile(f.Name(), []byte(contents), os.ModePerm)
 	if err != nil {
 		return "", err
 	}
@@ -42,7 +41,7 @@ func (s *DockerRegistrySuite) TestV2Only(c *testing.T) {
 
 	s.d.Start(c, "--insecure-registry", reg.URL())
 
-	tmp, err := ioutil.TempDir("", "integration-cli-")
+	tmp, err := os.MkdirTemp("", "integration-cli-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmp)
 

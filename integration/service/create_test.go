@@ -3,7 +3,7 @@ package service // import "github.com/docker/docker/integration/service"
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -296,7 +296,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 	assert.NilError(t, err)
 	defer body.Close()
 
-	content, err := ioutil.ReadAll(body)
+	content, err := io.ReadAll(body)
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(string(content), "-rwxrwxrwx"))
 
@@ -360,7 +360,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 	assert.NilError(t, err)
 	defer body.Close()
 
-	content, err := ioutil.ReadAll(body)
+	content, err := io.ReadAll(body)
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(string(content), "-rwxrwxrwx"))
 

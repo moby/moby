@@ -4,7 +4,6 @@
 package libnetwork
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -36,7 +35,7 @@ fe90::2	somehost.example.com somehost
 	c, nws := getTestEnv(t, opts)
 	ctrlr := c.(*controller)
 
-	hostsFile, err := ioutil.TempFile("", "")
+	hostsFile, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +55,7 @@ fe90::2	somehost.example.com somehost
 		t.Fatal(err)
 	}
 
-	data, err := ioutil.ReadFile(hostsFile.Name())
+	data, err := os.ReadFile(hostsFile.Name())
 	if err != nil {
 		t.Fatal(err)
 	}

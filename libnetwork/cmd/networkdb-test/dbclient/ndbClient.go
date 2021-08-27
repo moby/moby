@@ -3,7 +3,7 @@ package dbclient
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -39,7 +39,7 @@ func httpGet(ip, port, path string) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	return body, err
 }
 

@@ -17,7 +17,6 @@ import "C"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math"
 	"os"
 	"path"
@@ -527,7 +526,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 		if err := idtools.MkdirAllAndChown(quotas, 0700, idtools.CurrentIdentity()); err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(path.Join(quotas, id), []byte(fmt.Sprint(driver.options.size)), 0644); err != nil {
+		if err := os.WriteFile(path.Join(quotas, id), []byte(fmt.Sprint(driver.options.size)), 0644); err != nil {
 			return err
 		}
 	}
@@ -632,7 +631,7 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 		return nil, fmt.Errorf("%s: not a directory", dir)
 	}
 
-	if quota, err := ioutil.ReadFile(d.quotasDirID(id)); err == nil {
+	if quota, err := os.ReadFile(d.quotasDirID(id)); err == nil {
 		if size, err := strconv.ParseUint(string(quota), 10, 64); err == nil && size >= d.options.minSpace {
 			if err := d.enableQuota(); err != nil {
 				return nil, err

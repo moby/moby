@@ -1,14 +1,13 @@
 package pidfile // import "github.com/docker/docker/pkg/pidfile"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestNewAndRemove(t *testing.T) {
-	dir, err := ioutil.TempDir(os.TempDir(), "test-pidfile")
+	dir, err := os.MkdirTemp(os.TempDir(), "test-pidfile")
 	if err != nil {
 		t.Fatal("Could not create test directory")
 	}

@@ -6,7 +6,6 @@ package local // import "github.com/docker/docker/volume/local"
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -61,7 +60,7 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 		rootIdentity: rootIdentity,
 	}
 
-	dirs, err := ioutil.ReadDir(rootDirectory)
+	dirs, err := os.ReadDir(rootDirectory)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +83,7 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 		}
 		r.volumes[name] = v
 		optsFilePath := filepath.Join(rootDirectory, name, "opts.json")
-		if b, err := ioutil.ReadFile(optsFilePath); err == nil {
+		if b, err := os.ReadFile(optsFilePath); err == nil {
 			opts := optsConfig{}
 			if err := json.Unmarshal(b, &opts); err != nil {
 				return nil, errors.Wrapf(err, "error while unmarshaling volume options for volume: %s", name)
@@ -187,7 +186,7 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 		if err != nil {
 			return nil, err
 		}
-		if err = ioutil.WriteFile(filepath.Join(filepath.Dir(path), "opts.json"), b, 0600); err != nil {
+		if err = os.WriteFile(filepath.Join(filepath.Dir(path), "opts.json"), b, 0600); err != nil {
 			return nil, errdefs.System(errors.Wrap(err, "error while persisting volume options"))
 		}
 	}

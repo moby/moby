@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,7 +62,7 @@ func (s *DockerSuite) TestRunRedirectStdout(c *testing.T) {
 func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *testing.T) {
 	// /tmp gets permission denied
 	testRequires(c, NotUserNamespace, testEnv.IsLocalDaemon)
-	tmpDir, err := ioutil.TempDir("", "docker_recursive_mount_test")
+	tmpDir, err := os.MkdirTemp("", "docker_recursive_mount_test")
 	assert.NilError(c, err)
 
 	defer os.RemoveAll(tmpDir)
@@ -73,7 +72,7 @@ func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *testing.T) {
 	assert.Assert(c, os.MkdirAll(tmpfsDir, 0777) == nil, "failed to mkdir at %s", tmpfsDir)
 	assert.Assert(c, mount.Mount("tmpfs", tmpfsDir, "tmpfs", "") == nil, "failed to create a tmpfs mount at %s", tmpfsDir)
 
-	f, err := ioutil.TempFile(tmpfsDir, "touch-me")
+	f, err := os.CreateTemp(tmpfsDir, "touch-me")
 	assert.NilError(c, err)
 	defer f.Close()
 
@@ -246,7 +245,7 @@ func (s *DockerSuite) TestRunAttachDetachFromConfig(c *testing.T) {
 	// Setup config
 	homeKey := homedir.Key()
 	homeVal := homedir.Get()
-	tmpDir, err := ioutil.TempDir("", "fake-home")
+	tmpDir, err := os.MkdirTemp("", "fake-home")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpDir)
 
@@ -261,7 +260,7 @@ func (s *DockerSuite) TestRunAttachDetachFromConfig(c *testing.T) {
 		"detachKeys": "ctrl-a,a"
 	}`
 
-	err = ioutil.WriteFile(tmpCfg, []byte(data), 0600)
+	err = os.WriteFile(tmpCfg, []byte(data), 0600)
 	assert.NilError(c, err)
 
 	// Then do the work
@@ -329,7 +328,7 @@ func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *testing.T) {
 	// Setup config
 	homeKey := homedir.Key()
 	homeVal := homedir.Get()
-	tmpDir, err := ioutil.TempDir("", "fake-home")
+	tmpDir, err := os.MkdirTemp("", "fake-home")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpDir)
 
@@ -344,7 +343,7 @@ func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *testing.T) {
 		"detachKeys": "ctrl-e,e"
 	}`
 
-	err = ioutil.WriteFile(tmpCfg, []byte(data), 0600)
+	err = os.WriteFile(tmpCfg, []byte(data), 0600)
 	assert.NilError(c, err)
 
 	// Then do the work
@@ -780,7 +779,7 @@ func (s *DockerSuite) TestRunWithShmSize(c *testing.T) {
 }
 
 func (s *DockerSuite) TestRunTmpfsMountsEnsureOrdered(c *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "test")
+	tmpFile, err := os.CreateTemp("", "test")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 	out, _ := dockerCmd(c, "run", "--tmpfs", "/run", "-v", tmpFile.Name()+":/run/test", "busybox", "ls", "/run")
@@ -900,7 +899,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *testing.T) {
 		}
 	]
 }`
-	tmpFile, err := ioutil.TempFile("", "profile.json")
+	tmpFile, err := os.CreateTemp("", "profile.json")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -937,7 +936,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *testing.T) {
 		}
 	]
 }`
-	tmpFile, err := ioutil.TempFile("", "profile.json")
+	tmpFile, err := os.CreateTemp("", "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 
@@ -972,7 +971,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *testing.T) {
 		}
 	]
 }`, uint64(0x10000000))
-	tmpFile, err := ioutil.TempFile("", "profile.json")
+	tmpFile, err := os.CreateTemp("", "profile.json")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -1349,7 +1348,7 @@ func (s *DockerSuite) TestRunDeviceSymlink(c *testing.T) {
 	}
 
 	// Create a temporary directory to create symlink
-	tmpDir, err := ioutil.TempDir("", "docker_device_follow_symlink_tests")
+	tmpDir, err := os.MkdirTemp("", "docker_device_follow_symlink_tests")
 	assert.NilError(c, err)
 
 	defer os.RemoveAll(tmpDir)
@@ -1362,7 +1361,7 @@ func (s *DockerSuite) TestRunDeviceSymlink(c *testing.T) {
 	// Create a temporary file "temp" inside tmpDir, write some data to "tmpDir/temp",
 	// then create a symlink "tmpDir/file" to the temporary file "tmpDir/temp".
 	tmpFile := filepath.Join(tmpDir, "temp")
-	err = ioutil.WriteFile(tmpFile, []byte("temp"), 0666)
+	err = os.WriteFile(tmpFile, []byte("temp"), 0666)
 	assert.NilError(c, err)
 	symFile := filepath.Join(tmpDir, "file")
 	err = os.Symlink(tmpFile, symFile)
@@ -1440,7 +1439,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *testing.T) {
 		}
 	]
 }`
-	tmpFile, err := ioutil.TempFile("", "profile.json")
+	tmpFile, err := os.CreateTemp("", "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 	_, err = tmpFile.Write([]byte(jsonData))
@@ -1466,7 +1465,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *testing.T) {
 		}
 	]
 }`
-	tmpFile, err := ioutil.TempFile("", "profile.json")
+	tmpFile, err := os.CreateTemp("", "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 	_, err = tmpFile.Write([]byte(jsonData))
@@ -1503,7 +1502,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *testing.T) {
 		}
 	]
 }`
-	tmpFile, err := ioutil.TempFile("", "profile.json")
+	tmpFile, err := os.CreateTemp("", "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 	_, err = tmpFile.Write([]byte(jsonData))
@@ -1536,7 +1535,7 @@ func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *testing.T)
 		}
 	]
 }`
-	tmpFile, err := ioutil.TempFile("", "profile.json")
+	tmpFile, err := os.CreateTemp("", "profile.json")
 	assert.NilError(c, err)
 	defer tmpFile.Close()
 	_, err = tmpFile.Write([]byte(jsonData))

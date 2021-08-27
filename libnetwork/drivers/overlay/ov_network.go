@@ -6,7 +6,6 @@ package overlay
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -120,7 +119,7 @@ func setDefaultVlan() {
 	path := filepath.Join("/sys/class/net", brName, "bridge/default_pvid")
 	data := []byte{'0', '\n'}
 
-	if err = ioutil.WriteFile(path, data, 0644); err != nil {
+	if err = os.WriteFile(path, data, 0644); err != nil {
 		logrus.Errorf("enabling default vlan on bridge %s failed %v", brName, err)
 		os.Exit(1)
 	}

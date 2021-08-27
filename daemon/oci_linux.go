@@ -3,7 +3,6 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -102,7 +101,7 @@ func WithRootless(daemon *Daemon) coci.SpecOpts {
 				return errors.Wrap(err, "invalid $ROOTLESSKIT_PARENT_EUID: must be a numeric value")
 			}
 			controllersPath := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%d.slice/cgroup.controllers", euid)
-			controllersFile, err := ioutil.ReadFile(controllersPath)
+			controllersFile, err := os.ReadFile(controllersPath)
 			if err != nil {
 				return err
 			}

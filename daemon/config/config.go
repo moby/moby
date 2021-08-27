@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"reflect"
@@ -402,7 +401,7 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *pflag.FlagSet, config
 // It compares that configuration with the one provided by the flags,
 // and returns an error if there are conflicts.
 func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Config, error) {
-	b, err := ioutil.ReadFile(configFile)
+	b, err := os.ReadFile(configFile)
 	if err != nil {
 		return nil, err
 	}

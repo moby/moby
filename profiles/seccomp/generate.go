@@ -5,7 +5,6 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -27,7 +26,7 @@ func main() {
 		panic(err)
 	}
 
-	if err := ioutil.WriteFile(f, b, 0644); err != nil {
+	if err := os.WriteFile(f, b, 0644); err != nil {
 		panic(err)
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -42,7 +42,7 @@ func TestDecodeContainerConfig(t *testing.T) {
 	}
 
 	for _, f := range fixtures {
-		b, err := ioutil.ReadFile(f.file)
+		b, err := os.ReadFile(f.file)
 		if err != nil {
 			t.Fatal(err)
 		}
