@@ -26,16 +26,16 @@ import (
 // A Network represents a logical connectivity zone that containers may
 // join using the Link method. A Network is managed by a specific driver.
 type Network interface {
-	// A user chosen name for this network.
+	// Name returns a user chosen name for this network.
 	Name() string
 
-	// A system generated id for this network.
+	// ID returns a system generated id for this network.
 	ID() string
 
-	// The type of network, which corresponds to its managing driver.
+	// Type returns the type of network, which corresponds to its managing driver.
 	Type() string
 
-	// Create a new endpoint to this network symbolically identified by the
+	// CreateEndpoint creates a new endpoint to this network symbolically identified by the
 	// specified unique name. The options parameter carries driver specific options.
 	CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error)
 
@@ -45,7 +45,7 @@ type Network interface {
 	// Endpoints returns the list of Endpoint(s) in this network.
 	Endpoints() []Endpoint
 
-	// WalkEndpoints uses the provided function to walk the Endpoints
+	// WalkEndpoints uses the provided function to walk the Endpoints.
 	WalkEndpoints(walker EndpointWalker)
 
 	// EndpointByName returns the Endpoint which has the passed name. If not found, the error ErrNoSuchEndpoint is returned.
@@ -54,7 +54,7 @@ type Network interface {
 	// EndpointByID returns the Endpoint which has the passed id. If not found, the error ErrNoSuchEndpoint is returned.
 	EndpointByID(id string) (Endpoint, error)
 
-	// Return certain operational data belonging to this network
+	// Info returns certain operational data belonging to this network.
 	Info() NetworkInfo
 }
 
@@ -78,8 +78,8 @@ type NetworkInfo interface {
 	// gossip cluster. For non-dynamic overlay networks and bridge networks it returns an
 	// empty slice
 	Peers() []networkdb.PeerInfo
-	//Services returns a map of services keyed by the service name with the details
-	//of all the tasks that belong to the service. Applicable only in swarm mode.
+	// Services returns a map of services keyed by the service name with the details
+	// of all the tasks that belong to the service. Applicable only in swarm mode.
 	Services() map[string]ServiceInfo
 }
 
@@ -89,7 +89,7 @@ type EndpointWalker func(ep Endpoint) bool
 
 // ipInfo is the reverse mapping from IP to service name to serve the PTR query.
 // extResolver is set if an external server resolves a service name to this IP.
-// Its an indication to defer PTR queries also to that external server.
+// It's an indication to defer PTR queries also to that external server.
 type ipInfo struct {
 	name        string
 	serviceID   string
@@ -130,15 +130,15 @@ type networkDBTable struct {
 
 // IpamConf contains all the ipam related configurations for a network
 type IpamConf struct {
-	// The master address pool for containers and network interfaces
+	// PreferredPool is the master address pool for containers and network interfaces.
 	PreferredPool string
-	// A subset of the master pool. If specified,
-	// this becomes the container pool
+	// SubPool is a subset of the master pool. If specified,
+	// this becomes the container pool.
 	SubPool string
-	// Preferred Network Gateway address (optional)
+	// Gateway is the preferred Network Gateway address (optional).
 	Gateway string
-	// Auxiliary addresses for network driver. Must be within the master pool.
-	// libnetwork will reserve them if they fall into the container pool
+	// AuxAddresses contains auxiliary addresses for network driver. Must be within the master pool.
+	// libnetwork will reserve them if they fall into the container pool.
 	AuxAddresses map[string]string
 }
 
@@ -415,7 +415,7 @@ func (n *network) validateConfiguration() error {
 	return nil
 }
 
-// Applies network specific configurations
+// applyConfigurationTo applies network specific configurations.
 func (n *network) applyConfigurationTo(to *network) error {
 	to.enableIPv6 = n.enableIPv6
 	if len(n.labels) > 0 {
@@ -1197,12 +1197,12 @@ func (n *network) createEndpoint(name string, options ...EndpointOption) (Endpoi
 		}
 	}
 
-	ipam, cap, err := n.getController().getIPAMDriver(n.ipamType)
+	ipam, capability, err := n.getController().getIPAMDriver(n.ipamType)
 	if err != nil {
 		return nil, err
 	}
 
-	if cap.RequiresMACAddress {
+	if capability.RequiresMACAddress {
 		if ep.iface.mac == nil {
 			ep.iface.mac = netutils.GenerateRandomMAC()
 		}
@@ -2236,14 +2236,14 @@ func (n *network) deleteLoadBalancerSandbox() error {
 			if sb != nil {
 				if err := sb.DisableService(); err != nil {
 					logrus.Warnf("Failed to disable service on sandbox %s: %v", sandboxName, err)
-					//Ignore error and attempt to delete the load balancer endpoint
+					// Ignore error and attempt to delete the load balancer endpoint
 				}
 			}
 		}
 
 		if err := endpoint.Delete(true); err != nil {
 			logrus.Warnf("Failed to delete endpoint %s (%s) in %s: %v", endpoint.Name(), endpoint.ID(), sandboxName, err)
-			//Ignore error and attempt to delete the sandbox.
+			// Ignore error and attempt to delete the sandbox.
 		}
 	}
 
