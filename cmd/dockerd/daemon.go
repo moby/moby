@@ -118,7 +118,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	// return human-friendly error before creating files
 	if runtime.GOOS == "linux" && os.Geteuid() != 0 {
-		return fmt.Errorf("dockerd needs to be started with root. To see how to run dockerd in rootless mode with unprivileged user, see the documentation")
+		return fmt.Errorf("dockerd needs to be started with root privileges. To run dockerd in rootless mode as an unprivileged user, see https://docs.docker.com/go/rootless/")
 	}
 
 	if err := setDefaultUmask(); err != nil {
