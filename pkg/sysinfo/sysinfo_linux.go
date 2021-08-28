@@ -5,12 +5,11 @@ import (
 	"os"
 	"path"
 	"strings"
-	"sync"
 
 	cdcgroups "github.com/containerd/cgroups"
+	cdseccomp "github.com/containerd/containerd/pkg/seccomp"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/sys/unix"
 )
 
 func findCgroupMountpoints() (map[string]string, error) {
@@ -245,23 +244,9 @@ func applyCgroupNsInfo(info *SysInfo) {
 	}
 }
 
-var (
-	seccompOnce    sync.Once
-	seccompEnabled bool
-)
-
 // applySeccompInfo checks if Seccomp is supported, via CONFIG_SECCOMP.
 func applySeccompInfo(info *SysInfo) {
-	seccompOnce.Do(func() {
-		// Check if Seccomp is supported, via CONFIG_SECCOMP.
-		if err := unix.Prctl(unix.PR_GET_SECCOMP, 0, 0, 0, 0); err != unix.EINVAL {
-			// Make sure the kernel has CONFIG_SECCOMP_FILTER.
-			if err := unix.Prctl(unix.PR_SET_SECCOMP, unix.SECCOMP_MODE_FILTER, 0, 0, 0); err != unix.EINVAL {
-				seccompEnabled = true
-			}
-		}
-	})
-	info.Seccomp = seccompEnabled
+	info.Seccomp = cdseccomp.IsEnabled()
 }
 
 func cgroupEnabled(mountPoint, name string) bool {
