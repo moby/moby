@@ -59,7 +59,7 @@ type v2Puller struct {
 	manifestStore     *manifestStore
 }
 
-func (p *v2Puller) Pull(ctx context.Context, ref reference.Named, platform *specs.Platform) (err error) {
+func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (err error) {
 	// TODO(tiborvass): was ReceiveTimeout
 	p.repo, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
@@ -72,7 +72,7 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named, platform *spec
 		return err
 	}
 
-	if err = p.pullV2Repository(ctx, ref, platform); err != nil {
+	if err = p.pullV2Repository(ctx, ref); err != nil {
 		if _, ok := err.(fallbackError); ok {
 			return err
 		}
@@ -86,10 +86,10 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named, platform *spec
 	return err
 }
 
-func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named, platform *specs.Platform) (err error) {
+func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (err error) {
 	var layersDownloaded bool
 	if !reference.IsNameOnly(ref) {
-		layersDownloaded, err = p.pullV2Tag(ctx, ref, platform)
+		layersDownloaded, err = p.pullV2Tag(ctx, ref, p.config.Platform)
 		if err != nil {
 			return err
 		}
@@ -104,7 +104,7 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named, pl
 			if err != nil {
 				return err
 			}
-			pulledNew, err := p.pullV2Tag(ctx, tagRef, platform)
+			pulledNew, err := p.pullV2Tag(ctx, tagRef, p.config.Platform)
 			if err != nil {
 				// Since this is the pull-all-tags case, don't
 				// allow an error pulling a particular tag to

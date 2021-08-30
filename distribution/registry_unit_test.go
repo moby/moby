@@ -83,7 +83,7 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 	logrus.Debug("About to pull")
 	// We expect it to fail, since we haven't mock'd the full registry exchange in our handler above
 	tag, _ := reference.WithTag(n, "tag_goes_here")
-	_ = p.pullV2Repository(ctx, tag, nil)
+	_ = p.pullV2Repository(ctx, tag)
 }
 
 func TestTokenPassThru(t *testing.T) {
