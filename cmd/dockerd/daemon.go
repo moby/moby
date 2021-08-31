@@ -801,8 +801,8 @@ func overrideProxyEnv(name, val string) {
 	if oldVal := os.Getenv(name); oldVal != "" && oldVal != val {
 		logrus.WithFields(logrus.Fields{
 			"name":      name,
-			"old-value": oldVal,
-			"new-value": val,
+			"old-value": config.MaskCredentials(oldVal),
+			"new-value": config.MaskCredentials(val),
 		}).Warn("overriding existing proxy variable with value from configuration")
 	}
 	_ = os.Setenv(name, val)
