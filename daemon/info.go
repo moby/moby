@@ -2,7 +2,6 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"runtime"
 	"strings"
@@ -64,8 +63,8 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 		Labels:             daemon.configStore.Labels,
 		ExperimentalBuild:  daemon.configStore.Experimental,
 		ServerVersion:      dockerversion.Version,
-		HTTPProxy:          maskCredentials(getEnvAny("HTTP_PROXY", "http_proxy")),
-		HTTPSProxy:         maskCredentials(getEnvAny("HTTPS_PROXY", "https_proxy")),
+		HTTPProxy:          config.MaskCredentials(getEnvAny("HTTP_PROXY", "http_proxy")),
+		HTTPSProxy:         config.MaskCredentials(getEnvAny("HTTPS_PROXY", "https_proxy")),
 		NoProxy:            getEnvAny("NO_PROXY", "no_proxy"),
 		LiveRestoreEnabled: daemon.configStore.LiveRestoreEnabled,
 		Isolation:          daemon.defaultIsolation,
@@ -287,16 +286,6 @@ func osVersion() (version string) {
 	}
 
 	return version
-}
-
-func maskCredentials(rawURL string) string {
-	parsedURL, err := url.Parse(rawURL)
-	if err != nil || parsedURL.User == nil {
-		return rawURL
-	}
-	parsedURL.User = url.UserPassword("xxxxx", "xxxxx")
-	maskedURL := parsedURL.String()
-	return maskedURL
 }
 
 func getEnvAny(names ...string) string {
