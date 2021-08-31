@@ -3,6 +3,7 @@ package namesgenerator // import "github.com/docker/docker/pkg/namesgenerator"
 import (
 	"fmt"
 	"math/rand"
+	"time"
 )
 
 var (
@@ -833,6 +834,30 @@ var (
 		// Nikolay Yegorovich Zhukovsky (Russian: Никола́й Его́рович Жуко́вский, January 17 1847 – March 17, 1921) was a Russian scientist, mathematician and engineer, and a founding father of modern aero- and hydrodynamics. Whereas contemporary scientists scoffed at the idea of human flight, Zhukovsky was the first to undertake the study of airflow. He is often called the Father of Russian Aviation. https://en.wikipedia.org/wiki/Nikolay_Yegorovich_Zhukovsky
 		"zhukovsky",
 	}
+
+	// Pride month 🏳️‍🌈
+	pridemonth = [...]string{
+
+		// Sexual orientations
+		"aromantic",
+		"asexual",
+		"bicurious",
+		"biromantic",
+		"bisexual",
+		"demiromantic",
+		"demisexual",
+		"genderfluid",
+		"gay",
+		"intersex",
+		"nonbinary",
+		"straight",
+		"lesbian",
+		"panromantic",
+		"pansexual",
+		"queer",
+		"questioning",
+		"quiltbag", // https://en.wiktionary.org/wiki/QUILTBAG
+	}
 )
 
 // GetRandomName generates a random name from the list of adjectives and surnames in this package
@@ -840,9 +865,15 @@ var (
 // integer between 0 and 10 will be added to the end of the name, e.g `focused_turing3`
 func GetRandomName(retry int) string {
 begin:
-	name := fmt.Sprintf("%s_%s", left[rand.Intn(len(left))], right[rand.Intn(len(right))]) //nolint:gosec // G404: Use of weak random number generator (math/rand instead of crypto/rand)
-	if name == "boring_wozniak" /* Steve Wozniak is not boring */ {
-		goto begin
+	var name string
+	if time.Now().Month() == 6 {
+		// It's pride month! 🏳️‍🌈
+		name = fmt.Sprintf("%s_%s", left[rand.Intn(len(left))], pridemonth[rand.Intn(len(pridemonth))]) //nolint:gosec // G404: Use of weak random number generator (math/rand instead of crypto/rand)
+	} else {
+		name = fmt.Sprintf("%s_%s", left[rand.Intn(len(left))], right[rand.Intn(len(right))]) //nolint:gosec // G404: Use of weak random number generator (math/rand instead of crypto/rand)
+		if name == "boring_wozniak" /* Steve Wozniak is not boring */ {
+			goto begin
+		}
 	}
 
 	if retry > 0 {
