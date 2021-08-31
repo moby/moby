@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"reflect"
 	"strings"
@@ -644,4 +645,14 @@ func (conf *Config) GetDefaultRuntimeName() string {
 	conf.Unlock()
 
 	return rt
+}
+
+// MaskCredentials masks credentials that are in an URL.
+func MaskCredentials(rawURL string) string {
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil || parsedURL.User == nil {
+		return rawURL
+	}
+	parsedURL.User = url.UserPassword("xxxxx", "xxxxx")
+	return parsedURL.String()
 }
