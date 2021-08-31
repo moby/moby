@@ -534,6 +534,11 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 
 	var conflicts []string
 	printConflict := func(name string, flagValue, fileValue interface{}) string {
+		switch name {
+		case "http-proxy", "https-proxy":
+			flagValue = MaskCredentials(flagValue.(string))
+			fileValue = MaskCredentials(fileValue.(string))
+		}
 		return fmt.Sprintf("%s: (from flag: %v, from file: %v)", name, flagValue, fileValue)
 	}
 

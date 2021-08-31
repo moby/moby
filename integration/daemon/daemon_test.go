@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -165,6 +167,8 @@ func TestDaemonProxy(t *testing.T) {
 	}))
 	defer proxyServer.Close()
 
+	const userPass = "myuser:mypassword@"
+
 	// Configure proxy through env-vars
 	t.Run("environment variables", func(t *testing.T) {
 		defer env.Patch(t, "HTTP_PROXY", proxyServer.URL)()
@@ -195,10 +199,10 @@ func TestDaemonProxy(t *testing.T) {
 
 	// Configure proxy through command-line flags
 	t.Run("command-line options", func(t *testing.T) {
-		defer env.Patch(t, "HTTP_PROXY", "http://from-env-http.invalid")()
-		defer env.Patch(t, "http_proxy", "http://from-env-http.invalid")()
-		defer env.Patch(t, "HTTPS_PROXY", "https://from-env-https.invalid")()
-		defer env.Patch(t, "https_proxy", "https://from-env-http.invalid")()
+		defer env.Patch(t, "HTTP_PROXY", "http://"+userPass+"from-env-http.invalid")()
+		defer env.Patch(t, "http_proxy", "http://"+userPass+"from-env-http.invalid")()
+		defer env.Patch(t, "HTTPS_PROXY", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")()
+		defer env.Patch(t, "https_proxy", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")()
 		defer env.Patch(t, "NO_PROXY", "ignore.invalid")()
 		defer env.Patch(t, "no_proxy", "ignore.invalid")()
 
@@ -210,6 +214,7 @@ func TestDaemonProxy(t *testing.T) {
 		assert.Assert(t, is.Contains(string(logs), "overriding existing proxy variable with value from configuration"))
 		for _, v := range []string{"http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY", "no_proxy", "NO_PROXY"} {
 			assert.Assert(t, is.Contains(string(logs), "name="+v))
+			assert.Assert(t, !strings.Contains(string(logs), userPass), "logs should not contain the non-sanitized proxy URL: %s", string(logs))
 		}
 
 		c := d.NewClientT(t)
@@ -235,10 +240,10 @@ func TestDaemonProxy(t *testing.T) {
 
 	// Configure proxy through configuration file
 	t.Run("configuration file", func(t *testing.T) {
-		defer env.Patch(t, "HTTP_PROXY", "http://from-env-http.invalid")()
-		defer env.Patch(t, "http_proxy", "http://from-env-http.invalid")()
-		defer env.Patch(t, "HTTPS_PROXY", "https://from-env-https.invalid")()
-		defer env.Patch(t, "https_proxy", "https://from-env-http.invalid")()
+		defer env.Patch(t, "HTTP_PROXY", "http://"+userPass+"from-env-http.invalid")()
+		defer env.Patch(t, "http_proxy", "http://"+userPass+"from-env-http.invalid")()
+		defer env.Patch(t, "HTTPS_PROXY", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")()
+		defer env.Patch(t, "https_proxy", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")()
 		defer env.Patch(t, "NO_PROXY", "ignore.invalid")()
 		defer env.Patch(t, "no_proxy", "ignore.invalid")()
 
@@ -258,6 +263,7 @@ func TestDaemonProxy(t *testing.T) {
 		assert.Assert(t, is.Contains(string(logs), "overriding existing proxy variable with value from configuration"))
 		for _, v := range []string{"http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY", "no_proxy", "NO_PROXY"} {
 			assert.Assert(t, is.Contains(string(logs), "name="+v))
+			assert.Assert(t, !strings.Contains(string(logs), userPass), "logs should not contain the non-sanitized proxy URL: %s", string(logs))
 		}
 
 		_, err = c.ImagePull(ctx, "example.org:5002/some/image:latest", types.ImagePullOptions{})
@@ -280,7 +286,8 @@ func TestDaemonProxy(t *testing.T) {
 	// Conflicting options (passed both through command-line options and config file)
 	t.Run("conflicting options", func(t *testing.T) {
 		const (
-			proxyRawURL = "https://myuser:mypassword@example.org"
+			proxyRawURL = "https://" + userPass + "example.org"
+			proxyURL    = "https://xxxxx:xxxxx@example.org"
 		)
 
 		d := daemon.New(t)
@@ -295,8 +302,38 @@ func TestDaemonProxy(t *testing.T) {
 		assert.NilError(t, err)
 		expected := fmt.Sprintf(
 			`the following directives are specified both as a flag and in the configuration file: http-proxy: (from flag: %[1]s, from file: %[1]s), https-proxy: (from flag: %[1]s, from file: %[1]s), no-proxy: (from flag: example.com, from file: example.com)`,
-			proxyRawURL,
+			proxyURL,
 		)
 		assert.Assert(t, is.Contains(string(logs), expected))
+	})
+
+	// Make sure values are sanitized when reloading the daemon-config
+	t.Run("reload sanitized", func(t *testing.T) {
+		const (
+			proxyRawURL = "https://" + userPass + "example.org"
+			proxyURL    = "https://xxxxx:xxxxx@example.org"
+		)
+
+		d := daemon.New(t)
+		d.Start(t, "--http-proxy", proxyRawURL, "--https-proxy", proxyRawURL, "--no-proxy", "example.com")
+		defer d.Stop(t)
+		err := d.Signal(syscall.SIGHUP)
+		assert.NilError(t, err)
+
+		logs, err := d.ReadLogFile()
+		assert.NilError(t, err)
+
+		// FIXME: there appears to ba a race condition, which causes ReadLogFile
+		//        to not contain the full logs after signaling the daemon to reload,
+		//        causing the test to fail here. As a workaround, check if we
+		//        received the "reloaded" message after signaling, and only then
+		//        check that it's sanitized properly. For more details on this
+		//        issue, see https://github.com/moby/moby/pull/42835/files#r713120315
+		if !strings.Contains(string(logs), "Reloaded configuration:") {
+			t.Skip("Skipping test, because we did not find 'Reloaded configuration' in the logs")
+		}
+
+		assert.Assert(t, is.Contains(string(logs), proxyURL))
+		assert.Assert(t, !strings.Contains(string(logs), userPass), "logs should not contain the non-sanitized proxy URL: %s", string(logs))
 	})
 }
