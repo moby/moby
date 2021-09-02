@@ -2190,11 +2190,12 @@ definitions:
         type: "string"
         x-nullable: false
 
-  PluginPrivilegeItem:
+  PluginPrivilege:
     description: |
       Describes a permission the user has to accept upon installing
       the plugin.
     type: "object"
+    x-go-name: "PluginPrivilege"
     properties:
       Name:
         type: "string"
@@ -2990,7 +2991,7 @@ definitions:
           PluginPrivilege:
             type: "array"
             items:
-              $ref: "#/definitions/PluginPrivilegeItem"
+              $ref: "#/definitions/PluginPrivilege"
       ContainerSpec:
         type: "object"
         description: |
@@ -5203,6 +5204,158 @@ definitions:
         type: "object"
         additionalProperties:
           type: "string"
+
+  EventActor:
+    description: |
+      Actor describes something that generates events, like a container, network,
+      or a volume.
+    type: "object"
+    properties:
+      ID:
+        description: "The ID of the object emitting the event"
+        type: "string"
+        example: "ede54ee1afda366ab42f824e8a5ffd195155d853ceaec74a927f249ea270c743"
+      Attributes:
+        description: |
+          Various key/value attributes of the object, depending on its type.
+        type: "object"
+        additionalProperties:
+          type: "string"
+        example:
+          com.example.some-label: "some-label-value"
+          image: "alpine:latest"
+          name: "my-container"
+
+  EventMessage:
+    description: |
+      EventMessage represents the information an event contains.
+    type: "object"
+    title: "SystemEventsResponse"
+    properties:
+      Type:
+        description: "The type of object emitting the event"
+        type: "string"
+        enum: ["builder", "config", "container", "daemon", "image", "network", "node", "plugin", "secret", "service", "volume"]
+        example: "container"
+      Action:
+        description: "The type of event"
+        type: "string"
+        example: "create"
+      Actor:
+        $ref: "#/definitions/EventActor"
+      scope:
+        description: |
+          Scope of the event. Engine events are `local` scope. Cluster (Swarm)
+          events are `swarm` scope.
+        type: "string"
+        enum: ["local", "swarm"]
+      time:
+        description: "Timestamp of event"
+        type: "integer"
+        format: "int64"
+        example: 1629574695
+      timeNano:
+        description: "Timestamp of event, with nanosecond accuracy"
+        type: "integer"
+        format: "int64"
+        example: 1629574695515050031
+
+  OCIDescriptor:
+    type: "object"
+    x-go-name: Descriptor
+    description: |
+      A descriptor struct containing digest, media type, and size, as defined in
+      the [OCI Content Descriptors Specification](https://github.com/opencontainers/image-spec/blob/v1.0.1/descriptor.md).
+    properties:
+      mediaType:
+        description: |
+          The media type of the object this schema refers to.
+        type: "string"
+        example: "application/vnd.docker.distribution.manifest.v2+json"
+      digest:
+        description: |
+          The digest of the targeted content.
+        type: "string"
+        example: "sha256:c0537ff6a5218ef531ece93d4984efc99bbf3f7497c0a7726c88e2bb7584dc96"
+      size:
+        description: |
+          The size in bytes of the blob.
+        type: "integer"
+        format: "int64"
+        example: 3987495
+      # TODO Not yet including these fields for now, as they are nil / omitted in our response.
+      # urls:
+      #   description: |
+      #     List of URLs from which this object MAY be downloaded.
+      #   type: "array"
+      #   items:
+      #     type: "string"
+      #     format: "uri"
+      # annotations:
+      #   description: |
+      #     Arbitrary metadata relating to the targeted content.
+      #   type: "object"
+      #   additionalProperties:
+      #     type: "string"
+      # platform:
+      #   $ref: "#/definitions/OCIPlatform"
+
+  OCIPlatform:
+    type: "object"
+    x-go-name: Platform
+    description: |
+      Describes the platform which the image in the manifest runs on, as defined
+      in the [OCI Image Index Specification](https://github.com/opencontainers/image-spec/blob/v1.0.1/image-index.md).
+    properties:
+      architecture:
+        description: |
+          The CPU architecture, for example `amd64` or `ppc64`.
+        type: "string"
+        example: "arm"
+      os:
+        description: |
+          The operating system, for example `linux` or `windows`.
+        type: "string"
+        example: "windows"
+      os.version:
+        description: |
+          Optional field specifying the operating system version, for example on
+          Windows `10.0.19041.1165`.
+        type: "string"
+        example: "10.0.19041.1165"
+      os.features:
+        description: |
+          Optional field specifying an array of strings, each listing a required
+          OS feature (for example on Windows `win32k`).
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "win32k"
+      variant:
+        description: |
+          Optional field specifying a variant of the CPU, for example `v7` to
+          specify ARMv7 when architecture is `arm`.
+        type: "string"
+        example: "v7"
+
+  DistributionInspect:
+    type: "object"
+    x-go-name: DistributionInspect
+    title: "DistributionInspectResponse"
+    required: [Descriptor, Platforms]
+    description: |
+      Describes the result obtained from contacting the registry to retrieve
+      image metadata.
+    properties:
+      Descriptor:
+        $ref: "#/definitions/OCIDescriptor"
+      Platforms:
+        type: "array"
+        description: |
+          An array containing all platforms supported by the image.
+        items:
+          $ref: "#/definitions/OCIPlatform"
 
 paths:
   /containers/json:
@@ -8198,44 +8351,7 @@ paths:
         200:
           description: "no error"
           schema:
-            type: "object"
-            title: "SystemEventsResponse"
-            properties:
-              Type:
-                description: "The type of object emitting the event"
-                type: "string"
-              Action:
-                description: "The type of event"
-                type: "string"
-              Actor:
-                type: "object"
-                properties:
-                  ID:
-                    description: "The ID of the object emitting the event"
-                    type: "string"
-                  Attributes:
-                    description: "Various key/value attributes of the object, depending on its type"
-                    type: "object"
-                    additionalProperties:
-                      type: "string"
-              time:
-                description: "Timestamp of event"
-                type: "integer"
-              timeNano:
-                description: "Timestamp of event, with nanosecond accuracy"
-                type: "integer"
-                format: "int64"
-          examples:
-            application/json:
-              Type: "container"
-              Action: "create"
-              Actor:
-                ID: "ede54ee1afda366ab42f824e8a5ffd195155d853ceaec74a927f249ea270c743"
-                Attributes:
-                  com.example.some-label: "some-label-value"
-                  image: "alpine"
-                  name: "my-container"
-              time: 1461943101
+            $ref: "#/definitions/EventMessage"
         400:
           description: "bad parameter"
           schema:
@@ -9419,7 +9535,7 @@ paths:
           schema:
             type: "array"
             items:
-              $ref: "#/definitions/PluginPrivilegeItem"
+              $ref: "#/definitions/PluginPrivilege"
             example:
               - Name: "network"
                 Description: ""
@@ -9495,7 +9611,7 @@ paths:
           schema:
             type: "array"
             items:
-              $ref: "#/definitions/PluginPrivilegeItem"
+              $ref: "#/definitions/PluginPrivilege"
             example:
               - Name: "network"
                 Description: ""
@@ -9667,7 +9783,7 @@ paths:
           schema:
             type: "array"
             items:
-              $ref: "#/definitions/PluginPrivilegeItem"
+              $ref: "#/definitions/PluginPrivilege"
             example:
               - Name: "network"
                 Description: ""
@@ -11329,67 +11445,7 @@ paths:
         200:
           description: "descriptor and platform information"
           schema:
-            type: "object"
-            x-go-name: DistributionInspect
-            title: "DistributionInspectResponse"
-            required: [Descriptor, Platforms]
-            properties:
-              Descriptor:
-                type: "object"
-                description: |
-                  A descriptor struct containing digest, media type, and size.
-                properties:
-                  mediaType:
-                    type: "string"
-                  size:
-                    type: "integer"
-                    format: "int64"
-                  digest:
-                    type: "string"
-                  urls:
-                    type: "array"
-                    items:
-                      type: "string"
-              Platforms:
-                type: "array"
-                description: |
-                  An array containing all platforms supported by the image.
-                items:
-                  type: "object"
-                  properties:
-                    architecture:
-                      type: "string"
-                    os:
-                      type: "string"
-                    os.version:
-                      type: "string"
-                    os.features:
-                      type: "array"
-                      items:
-                        type: "string"
-                    variant:
-                      type: "string"
-                    Features:
-                      type: "array"
-                      items:
-                        type: "string"
-          examples:
-            application/json:
-              Descriptor:
-                MediaType: "application/vnd.docker.distribution.manifest.v2+json"
-                Digest: "sha256:c0537ff6a5218ef531ece93d4984efc99bbf3f7497c0a7726c88e2bb7584dc96"
-                Size: 3987495
-                URLs:
-                  - ""
-              Platforms:
-                - architecture: "amd64"
-                  os: "linux"
-                  os.version: ""
-                  os.features:
-                    - ""
-                  variant: ""
-                  Features:
-                    - ""
+            $ref: "#/definitions/DistributionInspect"
         401:
           description: "Failed authentication or no image found"
           schema:
