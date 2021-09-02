@@ -1,7 +1,6 @@
 #!/bin/sh
 
-# v0.14.4
-: "${ROOTLESSKIT_COMMIT:=87d443683ac1e8aba4110b8081f15aaae432aaa2}"
+: "${ROOTLESSKIT_VERSION:=v0.14.4}"
 
 install_rootlesskit() {
 	case "$1" in
@@ -26,17 +25,8 @@ install_rootlesskit_dynamic() {
 }
 
 _install_rootlesskit() (
-	echo "Install rootlesskit version $ROOTLESSKIT_COMMIT"
-	git clone https://github.com/rootless-containers/rootlesskit.git "$GOPATH/src/github.com/rootless-containers/rootlesskit"
-	cd "$GOPATH/src/github.com/rootless-containers/rootlesskit" || exit 1
-	git checkout -q "$ROOTLESSKIT_COMMIT"
-	export GO111MODULE=on
-	# TODO remove GOPROXY override once we updated to Go 1.14+
-	# Using goproxy instead of "direct" to work around an issue in go mod
-	# on Go 1.13 not working with older git versions (default version on
-	# CentOS 7 is git 1.8), see https://github.com/golang/go/issues/38373
-	export GOPROXY="https://proxy.golang.org"
+	echo "Install rootlesskit version ${ROOTLESSKIT_VERSION}"
 	for f in rootlesskit rootlesskit-docker-proxy; do
-		go build $BUILD_MODE -ldflags="$ROOTLESSKIT_LDFLAGS" -o "${PREFIX}/$f" github.com/rootless-containers/rootlesskit/cmd/$f
+		GOBIN="${PREFIX}" GO111MODULE=on go install ${BUILD_MODE} -ldflags="$ROOTLESSKIT_LDFLAGS" "github.com/rootless-containers/rootlesskit/cmd/${f}@${ROOTLESSKIT_VERSION}"
 	done
 )

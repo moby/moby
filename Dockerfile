@@ -149,7 +149,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         . /tmp/install/tomll.installer && PREFIX=/build install_tomll
 
 FROM base AS vndr
-ARG VNDR_COMMIT
+ARG VNDR_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
@@ -161,28 +161,28 @@ RUN --mount=type=cache,sharing=locked,id=moby-containerd-aptlib,target=/var/lib/
     --mount=type=cache,sharing=locked,id=moby-containerd-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
             libbtrfs-dev
-ARG CONTAINERD_COMMIT
+ARG CONTAINERD_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
         PREFIX=/build /tmp/install/install.sh containerd
 
 FROM base AS golangci_lint
-ARG GOLANGCI_LINT_COMMIT
+ARG GOLANGCI_LINT_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
         PREFIX=/build /tmp/install/install.sh golangci_lint
 
 FROM base AS gotestsum
-ARG GOTESTSUM_COMMIT
+ARG GOTESTSUM_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
         PREFIX=/build /tmp/install/install.sh gotestsum
 
 FROM base AS shfmt
-ARG SHFMT_COMMIT
+ARG SHFMT_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
@@ -197,7 +197,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         PREFIX=/build /tmp/install/install.sh dockercli
 
 FROM runtime-dev AS runc
-ARG RUNC_COMMIT
+ARG RUNC_VERSION
 ARG RUNC_BUILDTAGS
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
@@ -206,7 +206,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM dev-base AS tini
 ARG DEBIAN_FRONTEND
-ARG TINI_COMMIT
+ARG TINI_VERSION
 RUN --mount=type=cache,sharing=locked,id=moby-tini-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-tini-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
@@ -218,7 +218,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         PREFIX=/build /tmp/install/install.sh tini
 
 FROM dev-base AS rootlesskit
-ARG ROOTLESSKIT_COMMIT
+ARG ROOTLESSKIT_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \

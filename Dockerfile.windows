@@ -167,7 +167,7 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPref
 
 ARG GO_VERSION=1.17.0
 ARG CONTAINERD_VERSION=1.5.5
-ARG GOTESTSUM_COMMIT=v0.5.3
+ARG GOTESTSUM_VERSION=v1.7.0
 
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
@@ -179,7 +179,7 @@ ENV GO_VERSION=${GO_VERSION} `
     GOPATH=C:\gopath `
     GO111MODULE=off `
     FROM_DOCKERFILE=1 `
-    GOTESTSUM_COMMIT=${GOTESTSUM_COMMIT}
+    GOTESTSUM_VERSION=${GOTESTSUM_VERSION}
 
 RUN `
   Function Test-Nano() { `
@@ -274,21 +274,20 @@ RUN `
   C:\git\cmd\git config --global core.autocrlf true;
 
 RUN `
-  Function Build-GoTestSum() { `
-    Write-Host "INFO: Building gotestsum version $Env:GOTESTSUM_COMMIT in $Env:GOPATH"; `
+  Function Install-GoTestSum() { `
     $Env:GO111MODULE = 'on'; `
     $tmpGobin = "${Env:GOBIN_TMP}"; `
     $Env:GOBIN = """${Env:GOPATH}`\bin"""; `
-    &go get -buildmode=exe "gotest.tools/gotestsum@${Env:GOTESTSUM_COMMIT}"; `
+    Write-Host "INFO: Installing gotestsum version $Env:GOTESTSUM_VERSION in $Env:GOBIN"; `
+    &go install "gotest.tools/gotestsum@${Env:GOTESTSUM_VERSION}"; `
     $Env:GOBIN = "${tmpGobin}"; `
     $Env:GO111MODULE = 'off'; `
     if ($LASTEXITCODE -ne 0) {  `
-      Throw '"gotestsum build failed..."'; `
+      Throw '"gotestsum install failed..."'; `
     } `
-    Write-Host "INFO:     Build done for gotestsum..."; `
   } `
   `
-  Build-GoTestSum
+  Install-GoTestSum
 
 # Make PowerShell the default entrypoint
 ENTRYPOINT ["powershell.exe"]
