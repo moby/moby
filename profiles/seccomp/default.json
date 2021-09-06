@@ -72,6 +72,7 @@
 				"clock_getres_time64",
 				"clock_gettime",
 				"clock_gettime64",
+                               "clone3",
 				"clock_nanosleep",
 				"clock_nanosleep_time64",
 				"close",
@@ -623,18 +624,6 @@
 					"s390x"
 				]
 			},
-			"excludes": {
-				"caps": [
-					"CAP_SYS_ADMIN"
-				]
-			}
-		},
-		{
-			"names": [
-				"clone3"
-			],
-			"action": "SCMP_ACT_ERRNO",
-			"errnoRet": 38,
 			"excludes": {
 				"caps": [
 					"CAP_SYS_ADMIN"
