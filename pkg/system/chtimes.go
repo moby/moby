@@ -5,8 +5,7 @@ import (
 	"time"
 )
 
-// Chtimes changes the access time and modified time of a file at the given path
-func Chtimes(name string, atime time.Time, mtime time.Time) error {
+func adjustTime(itime time.Time) time.Time {
 	unixMinTime := time.Unix(0, 0)
 	unixMaxTime := maxTime
 
@@ -14,13 +13,16 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
 	// end of Unix Time, os.Chtimes has undefined behavior
 	// default to Unix Epoch in this case, just in case
 
-	if atime.Before(unixMinTime) || atime.After(unixMaxTime) {
-		atime = unixMinTime
+	if itime.Before(unixMinTime) || itime.After(unixMaxTime) {
+		return unixMinTime
 	}
+	return itime
+}
 
-	if mtime.Before(unixMinTime) || mtime.After(unixMaxTime) {
-		mtime = unixMinTime
-	}
+// Chtimes changes the access time and modified time of a file at the given path
+func Chtimes(name string, atime time.Time, mtime time.Time) error {
+	atime = adjustTime(atime)
+	mtime = adjustTime(mtime)
 
 	if err := os.Chtimes(name, atime, mtime); err != nil {
 		return err
@@ -28,4 +30,17 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
 
 	// Take platform specific action for setting create time.
 	return setCTime(name, mtime)
+}
+
+// ChtimesNoFollow change the access time and mofified time of a file,
+// without following symbol link.
+func ChtimesNoFollow(name string, atime time.Time, mtime time.Time) error {
+	atime = adjustTime(atime)
+	mtime = adjustTime(mtime)
+
+	if err := setAMTimeNoFollow(name, atime, mtime); err != nil {
+		return err
+	}
+
+	return setCTimeNoFollow(name, mtime)
 }
