@@ -42,6 +42,7 @@ func arches() []Architecture {
 
 // DefaultProfile defines the allowed syscalls for the default seccomp profile.
 func DefaultProfile() *Seccomp {
+	nosys := uint(unix.ENOSYS)
 	syscalls := []*Syscall{
 		{
 			Names: []string{
@@ -522,6 +523,7 @@ func DefaultProfile() *Seccomp {
 			Names: []string{
 				"bpf",
 				"clone",
+				"clone3",
 				"fanotify_init",
 				"fsconfig",
 				"fsmount",
@@ -583,6 +585,17 @@ func DefaultProfile() *Seccomp {
 			Includes: Filter{
 				Arches: []string{"s390", "s390x"},
 			},
+			Excludes: Filter{
+				Caps: []string{"CAP_SYS_ADMIN"},
+			},
+		},
+		{
+			Names: []string{
+				"clone3",
+			},
+			Action:   specs.ActErrno,
+			ErrnoRet: &nosys,
+			Args:     []*specs.LinuxSeccompArg{},
 			Excludes: Filter{
 				Caps: []string{"CAP_SYS_ADMIN"},
 			},

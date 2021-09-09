@@ -45,6 +45,7 @@ type Syscall struct {
 	Name     string                   `json:"name,omitempty"`
 	Names    []string                 `json:"names,omitempty"`
 	Action   specs.LinuxSeccompAction `json:"action"`
+	ErrnoRet *uint                    `json:"errnoRet,omitempty"`
 	Args     []*specs.LinuxSeccompArg `json:"args"`
 	Comment  string                   `json:"comment"`
 	Includes Filter                   `json:"includes"`

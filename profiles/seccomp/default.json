@@ -591,6 +591,7 @@
 			"names": [
 				"bpf",
 				"clone",
+				"clone3",
 				"fanotify_init",
 				"fsconfig",
 				"fsmount",
@@ -664,6 +665,21 @@
 					"s390x"
 				]
 			},
+			"excludes": {
+				"caps": [
+					"CAP_SYS_ADMIN"
+				]
+			}
+		},
+		{
+			"names": [
+				"clone3"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"errnoRet": 38,
+			"args": [],
+			"comment": "",
+			"includes": {},
 			"excludes": {
 				"caps": [
 					"CAP_SYS_ADMIN"
