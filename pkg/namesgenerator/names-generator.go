@@ -841,7 +841,7 @@ var (
 func GetRandomName(retry int) string {
 begin:
 	name := fmt.Sprintf("%s_%s", left[rand.Intn(len(left))], right[rand.Intn(len(right))]) //nolint:gosec // G404: Use of weak random number generator (math/rand instead of crypto/rand)
-	if name == "boring_wozniak" /* Steve Wozniak is not boring */ {
+	if name == "boring_torvalds" /* linus torvalds is not boring */ {
 		goto begin
 	}
 
