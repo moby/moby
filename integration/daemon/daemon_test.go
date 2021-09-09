@@ -23,7 +23,7 @@ import (
 )
 
 func TestConfigDaemonLibtrustID(t *testing.T) {
-	skip.If(t, runtime.GOOS != "linux")
+	skip.If(t, runtime.GOOS == "windows")
 
 	d := daemon.New(t)
 	defer d.Stop(t)
@@ -42,7 +42,7 @@ func TestConfigDaemonLibtrustID(t *testing.T) {
 }
 
 func TestDaemonConfigValidation(t *testing.T) {
-	skip.If(t, runtime.GOOS != "linux")
+	skip.If(t, runtime.GOOS == "windows")
 
 	d := daemon.New(t)
 	dockerBinary, err := d.BinaryPath()
@@ -108,7 +108,7 @@ func TestDaemonConfigValidation(t *testing.T) {
 }
 
 func TestConfigDaemonSeccompProfiles(t *testing.T) {
-	skip.If(t, runtime.GOOS != "linux")
+	skip.If(t, runtime.GOOS == "windows")
 
 	d := daemon.New(t)
 	defer d.Stop(t)
