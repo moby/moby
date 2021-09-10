@@ -42,6 +42,7 @@ const (
 	credentialsEndpointKey = "awslogs-credentials-endpoint"
 	forceFlushIntervalKey  = "awslogs-force-flush-interval-seconds"
 	maxBufferedEventsKey   = "awslogs-max-buffered-events"
+	logFormatKey           = "awslogs-format"
 
 	defaultForceFlushInterval = 5 * time.Second
 	defaultMaxBufferedEvents  = 4096
@@ -66,6 +67,10 @@ const (
 	credentialsEndpoint = "http://169.254.170.2"
 
 	userAgentHeader = "User-Agent"
+
+	// See: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html
+	logsFormatHeader = "x-amzn-logs-format"
+	jsonEmfLogFormat = "json/emf"
 )
 
 type logStream struct {
@@ -404,6 +409,16 @@ func newAWSLogsClient(info logger.Info) (api, error) {
 					dockerversion.Version, runtime.GOOS, currentAgent))
 		},
 	})
+
+	if info.Config[logFormatKey] != "" {
+		client.Handlers.Build.PushBackNamed(request.NamedHandler{
+			Name: "LogFormatHeaderHandler",
+			Fn: func(req *request.Request) {
+				req.HTTPRequest.Header.Set(logsFormatHeader, info.Config[logFormatKey])
+			},
+		})
+	}
+
 	return client, nil
 }
 
@@ -755,6 +770,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case credentialsEndpointKey:
 		case forceFlushIntervalKey:
 		case maxBufferedEventsKey:
+		case logFormatKey:
 		default:
 			return fmt.Errorf("unknown log opt '%s' for %s log driver", key, name)
 		}
@@ -782,6 +798,17 @@ func ValidateLogOpt(cfg map[string]string) error {
 	if datetimeFormatKeyExists && multilinePatternKeyExists {
 		return fmt.Errorf("you cannot configure log opt '%s' and '%s' at the same time", datetimeFormatKey, multilinePatternKey)
 	}
+
+	if cfg[logFormatKey] != "" {
+		// For now, only the "json/emf" log format is supported
+		if cfg[logFormatKey] != jsonEmfLogFormat {
+			return fmt.Errorf("unsupported log format '%s'", cfg[logFormatKey])
+		}
+		if datetimeFormatKeyExists || multilinePatternKeyExists {
+			return fmt.Errorf("you cannot configure log opt '%s' or '%s' when log opt '%s' is set to '%s'", datetimeFormatKey, multilinePatternKey, logFormatKey, jsonEmfLogFormat)
+		}
+	}
+
 	return nil
 }
 
