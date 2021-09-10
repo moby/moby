@@ -147,6 +147,48 @@ func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
 	}
 }
 
+func TestNewAWSLogsClientLogFormatHeaderHandler(t *testing.T) {
+	tests := []struct {
+		logFormat           string
+		expectedHeaderValue string
+	}{
+		{
+			logFormat:           jsonEmfLogFormat,
+			expectedHeaderValue: "json/emf",
+		},
+		{
+			logFormat:           "",
+			expectedHeaderValue: "",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.logFormat, func(t *testing.T) {
+			info := logger.Info{
+				Config: map[string]string{
+					regionKey:    "us-east-1",
+					logFormatKey: tc.logFormat,
+				},
+			}
+
+			client, err := newAWSLogsClient(info)
+			assert.NilError(t, err)
+
+			realClient, ok := client.(*cloudwatchlogs.CloudWatchLogs)
+			assert.Check(t, ok, "Could not cast client to cloudwatchlogs.CloudWatchLogs")
+
+			buildHandlerList := realClient.Handlers.Build
+			request := &request.Request{
+				HTTPRequest: &http.Request{
+					Header: http.Header{},
+				},
+			}
+			buildHandlerList.Run(request)
+			logFormatHeaderVal := request.HTTPRequest.Header.Get("x-amzn-logs-format")
+			assert.Equal(t, tc.expectedHeaderValue, logFormatHeaderVal)
+		})
+	}
+}
+
 func TestNewAWSLogsClientAWSLogsEndpoint(t *testing.T) {
 	endpoint := "mock-endpoint"
 	info := logger.Info{
@@ -1552,6 +1594,43 @@ func TestValidateLogOptionsMaxBufferedEvents(t *testing.T) {
 			if tc.shouldErr {
 				expectedErr := "must specify a positive integer for log opt 'awslogs-max-buffered-events': " + tc.input
 				assert.Error(t, err, expectedErr)
+			} else {
+				assert.NilError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateLogOptionsFormat(t *testing.T) {
+	tests := []struct {
+		format           string
+		multiLinePattern string
+		datetimeFormat   string
+		expErrMsg        string
+	}{
+		{"json/emf", "", "", ""},
+		{"random", "", "", "unsupported log format 'random'"},
+		{"", "", "", ""},
+		{"json/emf", "---", "", "you cannot configure log opt 'awslogs-datetime-format' or 'awslogs-multiline-pattern' when log opt 'awslogs-format' is set to 'json/emf'"},
+		{"json/emf", "", "yyyy-dd-mm", "you cannot configure log opt 'awslogs-datetime-format' or 'awslogs-multiline-pattern' when log opt 'awslogs-format' is set to 'json/emf'"},
+	}
+
+	for i, tc := range tests {
+		t.Run(fmt.Sprintf("%d/%s", i, tc.format), func(t *testing.T) {
+			cfg := map[string]string{
+				logGroupKey:  groupName,
+				logFormatKey: tc.format,
+			}
+			if tc.multiLinePattern != "" {
+				cfg[multilinePatternKey] = tc.multiLinePattern
+			}
+			if tc.datetimeFormat != "" {
+				cfg[datetimeFormatKey] = tc.datetimeFormat
+			}
+
+			err := ValidateLogOpt(cfg)
+			if tc.expErrMsg != "" {
+				assert.Error(t, err, tc.expErrMsg)
 			} else {
 				assert.NilError(t, err)
 			}
