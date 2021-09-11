@@ -1,14 +1,11 @@
-package namesgenerator_test // import "github.com/docker/docker/pkg/namesgenerator"
-
+package namesgenerator // import "github.com/docker/docker/pkg/namesgenerator"
 import (
 	"strings"
 	"testing"
-
-	"github.com/docker/docker/pkg/namesgenerator"
 )
 
 func TestNameFormat(t *testing.T) {
-	name := namesgenerator.GetRandomName(0)
+	name := GetRandomName(0)
 	if !strings.Contains(name, "_") {
 		t.Fatalf("Generated name does not contain an underscore")
 	}
@@ -18,7 +15,7 @@ func TestNameFormat(t *testing.T) {
 }
 
 func TestNameRetries(t *testing.T) {
-	name := namesgenerator.GetRandomName(1)
+	name := GetRandomName(1)
 	if !strings.Contains(name, "_") {
 		t.Fatalf("Generated name does not contain an underscore")
 	}
