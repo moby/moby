@@ -1,8 +1,9 @@
 package namesgenerator // import "github.com/docker/docker/pkg/namesgenerator"
 
 import (
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 )
 
 var (
@@ -840,13 +841,31 @@ var (
 // integer between 0 and 10 will be added to the end of the name, e.g `focused_turing3`
 func GetRandomName(retry int) string {
 begin:
-	name := fmt.Sprintf("%s_%s", left[rand.Intn(len(left))], right[rand.Intn(len(right))]) //nolint:gosec // G404: Use of weak random number generator (math/rand instead of crypto/rand)
+	// Generating a random number for the left part of the name.
+	l, err := rand.Int(rand.Reader, big.NewInt(int64(len(left))))
+	if err != nil {
+		goto begin
+	}
+	// Generating a random number for the right part of the name.
+	r, err := rand.Int(rand.Reader, big.NewInt(int64(len(right))))
+	if err != nil {
+		goto begin
+	}
+
+	name := fmt.Sprintf("%s_%s", left[l.Int64()], right[r.Int64()]) //nolint:gosec // G404: Use of weak random number generator (math/rand instead of crypto/rand)
 	if name == "boring_wozniak" /* Steve Wozniak is not boring */ {
 		goto begin
 	}
 
 	if retry > 0 {
-		name = fmt.Sprintf("%s%d", name, rand.Intn(10)) //nolint:gosec // G404: Use of weak random number generator (math/rand instead of crypto/rand)
+		// Generating a random number for using as a postfix.
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(10)))
+		if err != nil {
+			goto begin
+		}
+
+		name = fmt.Sprintf("%s%d", name, num.Int64()) //nolint:gosec // G404: Use of weak random number generator (math/rand instead of crypto/rand)
 	}
+
 	return name
 }
