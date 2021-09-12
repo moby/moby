@@ -246,12 +246,11 @@ func (d *driver) peerDbDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPM
 // networkDB has already delivered some events of peers already available on remote nodes,
 // these peers are saved into the peerDB and this function is used to properly configure
 // the network sandbox with all those peers that got previously notified.
-// Note also that this method sends a single message on the channel and the go routine on the
-// other side, will atomically loop on the whole table of peers and will program their state
+// Note also that this method will atomically loop on the whole table of peers and will program their state
 // in one single atomic operation. This is fundamental to guarantee consistency, and avoid that
 // new peerAdd or peerDelete gets reordered during the sandbox init.
 func (d *driver) initSandboxPeerDB(nid string) {
-	d.peerInit(nid)
+	d.peerInitOp(nid)
 }
 
 type peerOperationType int32
