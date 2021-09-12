@@ -300,15 +300,6 @@ func (d *driver) peerOpRoutine(ctx context.Context, ch chan *peerOperation) {
 	}
 }
 
-func (d *driver) peerInit(nid string) {
-	callerName := caller.Name(1)
-	d.peerOpCh <- &peerOperation{
-		opType:     peerOperationINIT,
-		networkID:  nid,
-		callerName: callerName,
-	}
-}
-
 func (d *driver) peerInitOp(nid string) error {
 	return d.peerDbNetworkWalk(nid, func(pKey *peerKey, pEntry *peerEntry) bool {
 		// Local entries do not need to be added
