@@ -155,6 +155,7 @@ func TestConfigDaemonSeccompProfiles(t *testing.T) {
 
 func TestDaemonProxy(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "cannot start multiple daemons on windows")
+	skip.If(t, os.Getenv("DOCKER_ROOTLESS") != "", "cannot connect to localhost proxy in rootless environment")
 
 	var received string
 	proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
