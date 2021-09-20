@@ -17,3 +17,7 @@ func (q *Control) SetQuota(targetPath string, quota Quota) error {
 func (q *Control) GetQuota(targetPath string, quota *Quota) error {
 	return ErrQuotaNotSupported
 }
+
+func makeBackingFsDev(home string) (string, error) {
+	return "", ErrQuotaNotSupported
+}
