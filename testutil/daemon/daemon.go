@@ -262,6 +262,7 @@ func (d *Daemon) LogFileName() string {
 
 // ReadLogFile returns the content of the daemon log file
 func (d *Daemon) ReadLogFile() ([]byte, error) {
+	_ = d.logFile.Sync()
 	return os.ReadFile(d.logFile.Name())
 }
 
