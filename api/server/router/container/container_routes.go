@@ -439,6 +439,12 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	if versions.LessThan(httputils.VersionFromContext(ctx), "1.40") {
 		updateConfig.PidsLimit = nil
 	}
+
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
+		// Ignore KernelMemory removed in API 1.42.
+		updateConfig.KernelMemory = 0
+	}
+
 	if updateConfig.PidsLimit != nil && *updateConfig.PidsLimit <= 0 {
 		// Both `0` and `-1` are accepted to set "unlimited" when updating.
 		// Historically, any negative value was accepted, so treat them as
@@ -503,6 +509,11 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		if hostConfig.CgroupnsMode.IsEmpty() {
 			hostConfig.CgroupnsMode = container.CgroupnsModeHost
 		}
+	}
+
+	if hostConfig != nil && versions.GreaterThanOrEqualTo(version, "1.42") {
+		// Ignore KernelMemory removed in API 1.42.
+		hostConfig.KernelMemory = 0
 	}
 
 	var platform *specs.Platform
