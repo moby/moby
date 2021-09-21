@@ -109,10 +109,6 @@ func applyMemoryCgroupInfo(info *SysInfo) {
 	if !info.MemorySwappiness {
 		info.Warnings = append(info.Warnings, "Your kernel does not support memory swappiness")
 	}
-	info.KernelMemory = cgroupEnabled(mountPoint, "memory.kmem.limit_in_bytes")
-	if !info.KernelMemory {
-		info.Warnings = append(info.Warnings, "Your kernel does not support kernel memory limit")
-	}
 	info.KernelMemoryTCP = cgroupEnabled(mountPoint, "memory.kmem.tcp.limit_in_bytes")
 	if !info.KernelMemoryTCP {
 		info.Warnings = append(info.Warnings, "Your kernel does not support kernel memory TCP limit")

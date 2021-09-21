@@ -34,6 +34,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   (`a disk usage operation is already running`) would be returned in this
   situation. This change is not versioned, and affects all API versions if the
   daemon has this patch.
+* Removed the `KernelMemory` field from the `POST /containers/create` and
+  `POST /containers/{id}/update` endpoints, any value it is set to will be ignored.
+  This field has been deprecated in `v1.41`.
 
 ## v1.41 API changes
 
