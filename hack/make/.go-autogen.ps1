@@ -10,6 +10,19 @@
 
 .PARAMETER DockerVersion
      The version such as 17.04.0-dev. This is calculated externally to this script.
+
+.PARAMETER Platform
+     The platform name, such as "Docker Engine - Community".
+
+.PARAMETER Product
+     The product name, used to set version.ProductName, which is used to set BuildKit's
+     ExportedProduct variable in order to show useful error messages to users when a
+     certain version of the product doesn't support a BuildKit feature.
+
+.PARAMETER DefaultProductLicense
+     Sets the version.DefaultProductLicense string, such as "Community Engine". This field
+     can contain a summary of the product license of the daemon if a commercial license has
+     been applied to the daemon.
 #>
 
 param(
