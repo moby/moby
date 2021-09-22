@@ -23,6 +23,9 @@
      Sets the version.DefaultProductLicense string, such as "Community Engine". This field
      can contain a summary of the product license of the daemon if a commercial license has
      been applied to the daemon.
+
+.PARAMETER PackagerName
+     The name of the packager (e.g. "Docker, Inc."). This used to set CompanyName in the manifest.
 #>
 
 param(
@@ -30,7 +33,8 @@ param(
     [Parameter(Mandatory=$true)][string]$DockerVersion,
     [Parameter(Mandatory=$false)][string]$Platform,
     [Parameter(Mandatory=$false)][string]$Product,
-    [Parameter(Mandatory=$false)][string]$DefaultProductLicense
+    [Parameter(Mandatory=$false)][string]$DefaultProductLicense,
+    [Parameter(Mandatory=$false)][string]$PackagerName
 )
 
 $ErrorActionPreference = "Stop"
@@ -87,6 +91,7 @@ const (
     # Generate the .syso files containing all the resources and manifest needed to compile the final docker binaries. Both 32 and 64-bit clients.
     $env:_ag_dockerVersion=$DockerVersion
     $env:_ag_gitCommit=$CommitString
+    $env:_ag_packagerName=$CompanyName
 
     windres `
         -i hack/make/.resources-windows/dockerd.rc `
@@ -95,7 +100,7 @@ const (
         --use-temp-file `
         -I autogen/winresources/tmp `
         -D DOCKER_VERSION_QUAD=$versionQuad `
-        --% -D DOCKER_VERSION=\"%_ag_dockerVersion%\" -D DOCKER_COMMIT=\"%_ag_gitCommit%\"
+        --% -D DOCKER_VERSION=\"%_ag_dockerVersion%\" -D DOCKER_COMMIT=\"%_ag_gitCommit%\" -D PACKAGER_NAME=\"%_ag_packagerName%\"
     if ($LASTEXITCODE -ne 0) { Throw "Failed to compile daemon resources" }
 }
 Catch [Exception] {

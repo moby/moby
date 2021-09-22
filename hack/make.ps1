@@ -429,7 +429,8 @@ Try {
                 -CommitString $gitCommit `
                 -DockerVersion $dockerVersion `
                 -Platform "$env:PLATFORM" `
-                -Product "$env:PRODUCT"
+                -Product "$env:PRODUCT" `
+                -CompanyName "$env:PACKAGER_NAME"
         }
         Catch [Exception] { Throw $_ }
     }

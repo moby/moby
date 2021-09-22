@@ -164,7 +164,7 @@ ifdef DOCKER_CROSSPLATFORMS
 BUILD_CROSS = --build-arg CROSS=true
 endif
 
-VERSION_AUTOGEN_ARGS = --build-arg VERSION --build-arg DOCKER_GITCOMMIT --build-arg PRODUCT --build-arg PLATFORM --build-arg DEFAULT_PRODUCT_LICENSE
+VERSION_AUTOGEN_ARGS = --build-arg VERSION --build-arg DOCKER_GITCOMMIT --build-arg PRODUCT --build-arg PLATFORM --build-arg DEFAULT_PRODUCT_LICENSE --build-arg PACKAGER_NAME
 
 default: binary
 

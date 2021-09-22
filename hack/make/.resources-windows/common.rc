@@ -23,6 +23,9 @@ BEGIN
       VALUE "FileVersion", DOCKER_VERSION
       VALUE "ProductVersion", DOCKER_VERSION
 #endif
+#ifdef PACKAGER_NAME
+      VALUE "CompanyName", PACKAGER_NAME
+#endif
 
 #ifdef DOCKER_COMMIT
       VALUE "OriginalFileName", DOCKER_COMMIT

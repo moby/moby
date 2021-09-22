@@ -39,12 +39,14 @@ if [ "$(go env GOOS)" = "windows" ]; then
 	fi
 
 	# Pass version and commit information into the resource compiler
-	defs=
-	[ -n "$VERSION" ]      && defs+=( "-D DOCKER_VERSION=\"$VERSION\"")
-	[ -n "$VERSION_QUAD" ] && defs+=( "-D DOCKER_VERSION_QUAD=$VERSION_QUAD")
-	[ -n "$GITCOMMIT" ]    && defs+=( "-D DOCKER_COMMIT=\"$GITCOMMIT\"")
+	defs=()
+	[ -n "$VERSION" ]       && defs+=("-D") && defs+=("DOCKER_VERSION=\"$VERSION\"")
+	[ -n "$VERSION_QUAD" ]  && defs+=("-D") && defs+=("DOCKER_VERSION_QUAD=\"$VERSION_QUAD\"")
+	[ -n "$GITCOMMIT" ]     && defs+=("-D") && defs+=("DOCKER_COMMIT=\"$GITCOMMIT\"")
+#	[ -n "$PACKAGER_NAME" ] && defs+=("-D") && defs+=("PACKAGER_NAME=\"FOOBAR HELLO\"")
 
 	makeres() {
+		set -x
 		# shellcheck disable=SC2086
 		"${WINDRES}" \
 			-i "hack/make/.resources-windows/$1" \
@@ -52,7 +54,7 @@ if [ "$(go env GOOS)" = "windows" ]; then
 			-F "$2" \
 			--use-temp-file \
 			-I "$TEMPDIR" \
-			${defs[*]}
+			"${defs[@]}"
 	}
 
 	"${WINDMC}" \
