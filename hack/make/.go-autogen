@@ -18,10 +18,13 @@ LDFLAGS="${LDFLAGS} \
 
 # Compile the Windows resources into the sources
 if [ "$(go env GOOS)" = "windows" ]; then
-	mkdir -p autogen/winresources/tmp autogen/winresources/dockerd
+	TEMPDIR=$(mktemp -d)
+	trap 'rm -rf "$TEMPDIR"' EXIT
+
+	mkdir -p autogen/winresources/dockerd
 	cp hack/make/.resources-windows/resources.go autogen/winresources/dockerd/
 
-	if [ "$(go env GOHOSTOS)" == "windows" ]; then
+	if [ "$(go env GOHOSTOS)" = "windows" ]; then
 		WINDRES=windres
 		WINDMC=windmc
 	else
@@ -31,32 +34,31 @@ if [ "$(go env GOOS)" = "windows" ]; then
 	fi
 
 	# Generate a Windows file version of the form major,minor,patch,build (with any part optional)
-	if [ ! -v VERSION_QUAD ]; then
-		VERSION_QUAD=$(echo -n $VERSION | sed -re 's/^([0-9.]*).*$/\1/' | tr . ,)
+	if [ -z "$VERSION_QUAD" ]; then
+		VERSION_QUAD=$(printf "%s" "$VERSION" | sed -re 's/^([0-9.]*).*$/\1/' | tr . ,)
 	fi
 
 	# Pass version and commit information into the resource compiler
 	defs=
-	[ ! -z $VERSION ]      && defs="$defs -D DOCKER_VERSION=\"$VERSION\""
-	[ ! -z $VERSION_QUAD ] && defs="$defs -D DOCKER_VERSION_QUAD=$VERSION_QUAD"
-	[ ! -z $GITCOMMIT ]    && defs="$defs -D DOCKER_COMMIT=\"$GITCOMMIT\""
+	[ -n "$VERSION" ]      && defs+=( "-D DOCKER_VERSION=\"$VERSION\"")
+	[ -n "$VERSION_QUAD" ] && defs+=( "-D DOCKER_VERSION_QUAD=$VERSION_QUAD")
+	[ -n "$GITCOMMIT" ]    && defs+=( "-D DOCKER_COMMIT=\"$GITCOMMIT\"")
 
-	function makeres {
-		${WINDRES} \
-			-i hack/make/.resources-windows/$1 \
-			-o $3 \
-			-F $2 \
+	makeres() {
+		# shellcheck disable=SC2086
+		"${WINDRES}" \
+			-i "hack/make/.resources-windows/$1" \
+			-o "$3" \
+			-F "$2" \
 			--use-temp-file \
-			-I autogen/winresources/tmp \
-			$defs
+			-I "$TEMPDIR" \
+			${defs[*]}
 	}
 
-	${WINDMC} \
+	"${WINDMC}" \
 		hack/make/.resources-windows/event_messages.mc \
-		-h autogen/winresources/tmp \
-		-r autogen/winresources/tmp
+		-h "$TEMPDIR" \
+		-r "$TEMPDIR"
 
 	makeres dockerd.rc pe-x86-64 autogen/winresources/dockerd/rsrc_amd64.syso
-
-	rm -r autogen/winresources/tmp
 fi
