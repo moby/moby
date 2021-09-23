@@ -4,6 +4,12 @@ import (
 	"github.com/docker/docker/api/types"
 )
 
+const (
+	// This is used by the `default-runtime` flag in dockerd as the default value.
+	// On windows we'd prefer to keep this empty so the value is auto-detected based on other options.
+	StockRuntimeName = ""
+)
+
 // BridgeConfig stores all the bridge driver specific
 // configuration.
 type BridgeConfig struct {
@@ -24,11 +30,6 @@ type Config struct {
 // runtime name
 func (conf *Config) GetRuntime(name string) *types.Runtime {
 	return nil
-}
-
-// GetDefaultRuntimeName returns the current default runtime
-func (conf *Config) GetDefaultRuntimeName() string {
-	return StockRuntimeName
 }
 
 // GetAllRuntimes returns a copy of the runtimes map

@@ -150,7 +150,9 @@ func TestUnixValidateConfigurationErrors(t *testing.T) {
 				Runtimes: map[string]types.Runtime{
 					"foo": {},
 				},
-				DefaultRuntime: "bar",
+				CommonConfig: CommonConfig{
+					DefaultRuntime: "bar",
+				},
 			},
 		},
 	}

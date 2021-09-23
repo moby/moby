@@ -14,6 +14,8 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/libcontainerd/local"
+	"github.com/docker/docker/libcontainerd/remote"
 	"github.com/docker/docker/libnetwork"
 	nwconfig "github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/datastore"
@@ -40,6 +42,9 @@ const (
 	windowsMaxCPUShares  = 10000
 	windowsMinCPUPercent = 1
 	windowsMaxCPUPercent = 100
+
+	windowsV1RuntimeName = "com.docker.hcsshim.v1"
+	windowsV2RuntimeName = "io.containerd.runhcs.v1"
 )
 
 // Windows containers are much larger than Linux containers and each of them
@@ -648,4 +653,43 @@ func setupResolvConf(config *config.Config) {
 // RawSysInfo returns *sysinfo.SysInfo .
 func (daemon *Daemon) RawSysInfo() *sysinfo.SysInfo {
 	return sysinfo.New()
+}
+
+func (daemon *Daemon) initLibcontainerd(ctx context.Context) error {
+	var err error
+
+	rt := daemon.configStore.GetDefaultRuntimeName()
+	if rt == "" {
+		if daemon.configStore.ContainerdAddr == "" {
+			rt = windowsV1RuntimeName
+		} else {
+			rt = windowsV2RuntimeName
+		}
+	}
+
+	switch rt {
+	case windowsV1RuntimeName:
+		daemon.containerd, err = local.NewClient(
+			ctx,
+			daemon.containerdCli,
+			filepath.Join(daemon.configStore.ExecRoot, "containerd"),
+			daemon.configStore.ContainerdNamespace,
+			daemon,
+		)
+	case windowsV2RuntimeName:
+		if daemon.configStore.ContainerdAddr == "" {
+			return fmt.Errorf("cannot use the specified runtime %q without containerd", rt)
+		}
+		daemon.containerd, err = remote.NewClient(
+			ctx,
+			daemon.containerdCli,
+			filepath.Join(daemon.configStore.ExecRoot, "containerd"),
+			daemon.configStore.ContainerdNamespace,
+			daemon,
+		)
+	default:
+		return fmt.Errorf("unknown windows runtime %s", rt)
+	}
+
+	return err
 }
