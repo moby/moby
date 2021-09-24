@@ -31,29 +31,29 @@ RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
 FROM base AS registry
 WORKDIR /go/src/github.com/docker/distribution
 
-# REGISTRY_COMMIT specifies the version of the registry to build and install
+# REGISTRY_VERSION specifies the version of the registry to build and install
 # from the https://github.com/docker/distribution repository. This version of
 # the registry is used to test both schema 1 and schema 2 manifests. Generally,
 # the version specified here should match a current release.
-ARG REGISTRY_COMMIT=47a064d4195a9b56133891bbb13620c3ac83a827
+ARG REGISTRY_VERSION=v2.3.0
 
-# REGISTRY_COMMIT_SCHEMA1 specifies the version of the regsitry to build and
+# REGISTRY_VERSION_SCHEMA1 specifies the version of the regsitry to build and
 # install from the https://github.com/docker/distribution repository. This is
 # an older (pre v2.3.0) version of the registry that only supports schema1
 # manifests. This version of the registry is not working on arm64, so installation
 # is skipped on that architecture.
-ARG REGISTRY_COMMIT_SCHEMA1=ec87e9b6971d831f0eff752ddb54fb64693e51cd
+ARG REGISTRY_VERSION_SCHEMA1=v2.1.0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ \
         set -x \
         && git clone https://github.com/docker/distribution.git . \
-        && git checkout -q "$REGISTRY_COMMIT" \
+        && git checkout -q "$REGISTRY_VERSION" \
         && GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
            go build -buildmode=pie -o /build/registry-v2 github.com/docker/distribution/cmd/registry \
         && case $(dpkg --print-architecture) in \
                amd64|armhf|ppc64*|s390x) \
-               git checkout -q "$REGISTRY_COMMIT_SCHEMA1"; \
+               git checkout -q "$REGISTRY_VERSION_SCHEMA1"; \
                GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"; \
                    go build -buildmode=pie -o /build/registry-v2-schema1 github.com/docker/distribution/cmd/registry; \
                 ;; \
