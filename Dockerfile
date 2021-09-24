@@ -33,7 +33,7 @@ WORKDIR /go/src/github.com/docker/distribution
 # from the https://github.com/docker/distribution repository. This version of
 # the registry is used to test both schema 1 and schema 2 manifests. Generally,
 # the version specified here should match a current release.
-ARG REGISTRY_VERSION=v2.3.0
+ARG REGISTRY_VERSION=v2.8.1
 
 # REGISTRY_VERSION_SCHEMA1 specifies the version of the registry to build and
 # install from the https://github.com/docker/distribution repository. This is
