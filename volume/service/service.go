@@ -256,8 +256,13 @@ func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*types
 
 // List gets the list of volumes which match the past in filters
 // If filters is nil or empty all volumes are returned.
-func (s *VolumesService) List(ctx context.Context, filter filters.Args) (volumesOut []*volumetypes.Volume, warnings []string, err error) {
-	by, err := filtersToBy(filter, acceptedListFilters)
+func (s *VolumesService) List(ctx context.Context, options ...opts.ListOption) (volumesOut []*volumetypes.Volume, warnings []string, err error) {
+	var cfg opts.ListConfig
+	for _, o := range options {
+		o(&cfg)
+	}
+
+	by, err := filtersToBy(cfg.Filters, acceptedListFilters)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -266,8 +271,12 @@ func (s *VolumesService) List(ctx context.Context, filter filters.Args) (volumes
 	if err != nil {
 		return nil, nil, err
 	}
+	vOpts := []convertOpt{useCachedPath(true)}
+	if cfg.Size {
+		vOpts = append(vOpts, calcSize(true))
+	}
 
-	return s.volumesToAPI(ctx, volumes, useCachedPath(true)), warnings, nil
+	return s.volumesToAPI(ctx, volumes, vOpts...), warnings, nil
 }
 
 // Shutdown shuts down the image service and dependencies

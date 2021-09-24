@@ -27,18 +27,21 @@ func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	filters, err := filters.FromJSON(r.Form.Get("filters"))
+	fltrs, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return errors.Wrap(err, "error reading volume filters")
 	}
-	volumes, warnings, err := v.backend.List(ctx, filters)
+	volumes, warnings, err := v.backend.List(ctx,
+		opts.WithFilters(fltrs),
+		opts.WithSize(httputils.BoolValue(r, "size")),
+	)
 	if err != nil {
 		return err
 	}
 
 	version := httputils.VersionFromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
-		clusterVolumes, swarmErr := v.cluster.GetVolumes(volume.ListOptions{Filters: filters})
+		clusterVolumes, swarmErr := v.cluster.GetVolumes(volume.ListOptions{Filters: fltrs})
 		if swarmErr != nil {
 			// if there is a swarm error, we may not want to error out right
 			// away. the local list probably worked. instead, let's do what we
