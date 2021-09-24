@@ -99,3 +99,32 @@ func TestHostnameDnsResolution(t *testing.T) {
 	assert.Check(t, is.Equal("", res.Stderr()))
 	assert.Equal(t, 0, res.ExitCode)
 }
+
+func TestUnprivilegedPortsAndPing(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support setting net.ipv4.ping_group_range and net.ipv4.ip_unprivileged_port_start")
+
+	defer setupTest(t)()
+	client := testEnv.APIClient()
+	ctx := context.Background()
+
+	cID := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
+		c.Config.User = "1000:1000"
+	})
+
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+
+	// Check net.ipv4.ping_group_range.
+	res, err := container.Exec(ctx, client, cID, []string{"cat", "/proc/sys/net/ipv4/ping_group_range"})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(res.Stderr(), 0))
+	assert.Equal(t, 0, res.ExitCode)
+	assert.Equal(t, `0	2147483647`, strings.TrimSpace(res.Stdout()))
+
+	// Check net.ipv4.ip_unprivileged_port_start.
+	res, err = container.Exec(ctx, client, cID, []string{"cat", "/proc/sys/net/ipv4/ip_unprivileged_port_start"})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(res.Stderr(), 0))
+	assert.Equal(t, 0, res.ExitCode)
+	assert.Equal(t, "0", strings.TrimSpace(res.Stdout()))
+}
