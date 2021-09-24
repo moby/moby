@@ -322,10 +322,9 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *testing.T) {
 			// clear these out before each run
 			leader = nil
 			followers = nil
-			type timeoutError interface{ Timeout() bool }
 			for _, d := range nodes {
 				n := d.GetNode(c, d.NodeID(), func(err error) bool {
-					if e, ok := errors.Cause(err).(timeoutError); ok && e.Timeout() {
+					if os.IsTimeout(errors.Cause(err)) {
 						lastErr = err
 						return true
 					}
