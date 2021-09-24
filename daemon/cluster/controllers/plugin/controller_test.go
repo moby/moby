@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -172,12 +173,10 @@ func TestWaitDisabled(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	type timeoutError interface{ Timeout() bool }
-
 	select {
 	case <-chEvent:
 		<-ctxWaitReady.Done()
-		if err, ok := ctxWaitReady.Err().(timeoutError); ok && err.Timeout() {
+		if err := ctxWaitReady.Err(); os.IsTimeout(err) {
 			t.Fatal(err)
 		}
 		select {
@@ -255,12 +254,10 @@ func TestWaitEnabled(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	type timeoutError interface{ Timeout() bool }
-
 	select {
 	case <-chEvent:
 		<-ctxWaitReady.Done()
-		if err, ok := ctxWaitReady.Err().(timeoutError); ok && err.Timeout() {
+		if err := ctxWaitReady.Err(); os.IsTimeout(err) {
 			t.Fatal(err)
 		}
 		select {
