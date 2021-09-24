@@ -628,11 +628,13 @@ func verifyCgroupDriver(config *config.Config) error {
 
 // UsingSystemd returns true if cli option includes native.cgroupdriver=systemd
 func UsingSystemd(config *config.Config) bool {
-	if getCD(config) == cgroupSystemdDriver {
+	cd := getCD(config)
+
+	if cd == cgroupSystemdDriver {
 		return true
 	}
 	// On cgroup v2 hosts, default to systemd driver
-	if getCD(config) == "" && cgroups.Mode() == cgroups.Unified && isRunningSystemd() {
+	if cd == "" && cgroups.Mode() == cgroups.Unified && isRunningSystemd() {
 		return true
 	}
 	return false
