@@ -373,8 +373,8 @@ func TestPartialLogs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected := `{"log":"1234","stream":"stdout","time":"0001-01-01T00:00:00Z"}
-{"log":"5678\n","stream":"stdout","time":"0001-01-01T00:00:00Z"}
+	expected := `{"log":"1234","stream":"stdout","time":"0001-01-01T00:00:00Z","partial_message":"true"}
+{"log":"5678\n","stream":"stdout","time":"0001-01-01T00:00:00Z","partial_message":"true"}
 `
 	if string(res) != expected {
 		t.Fatalf("Wrong log content: %q, expected %q", res, expected)

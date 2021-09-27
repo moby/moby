@@ -135,12 +135,24 @@ func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffe
 	if msg.PLogMetaData == nil || (msg.PLogMetaData != nil && msg.PLogMetaData.Last) {
 		logLine = append(msg.Line, '\n')
 	}
-	err := (&jsonlog.JSONLogs{
-		Log:      logLine,
-		Stream:   msg.Source,
-		Created:  msg.Timestamp,
-		RawAttrs: extra,
-	}).MarshalJSONBuf(buf)
+	var err error
+	if msg.PLogMetaData != nil {
+		err = (&jsonlog.JSONLogs{
+			Log:      logLine,
+			Stream:   msg.Source,
+			Created:  msg.Timestamp,
+			RawAttrs: extra,
+			PartialMessage: "true",
+		}).MarshalJSONBuf(buf)
+	} else {
+		err = (&jsonlog.JSONLogs{
+			Log:      logLine,
+			Stream:   msg.Source,
+			Created:  msg.Timestamp,
+			RawAttrs: extra,
+		}).MarshalJSONBuf(buf)
+
+	}
 	if err != nil {
 		return errors.Wrap(err, "error writing log message to buffer")
 	}

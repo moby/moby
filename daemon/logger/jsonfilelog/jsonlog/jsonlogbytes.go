@@ -12,6 +12,7 @@ type JSONLogs struct {
 	Log     []byte    `json:"log,omitempty"`
 	Stream  string    `json:"stream,omitempty"`
 	Created time.Time `json:"time"`
+	PartialMessage string `json:"partial_message,omitempty"`
 
 	// json-encoded bytes
 	RawAttrs json.RawMessage `json:"attrs,omitempty"`
@@ -57,6 +58,13 @@ func (mj *JSONLogs) MarshalJSONBuf(buf *bytes.Buffer) error {
 
 	buf.WriteString(`"time":`)
 	buf.WriteString(created)
+	if len(mj.PartialMessage) != 0 {
+		buf.WriteString(`,`)
+		// Is partial message
+		buf.WriteString(`"partial_message":`)
+		ffjsonWriteJSONBytesAsString(buf, []byte(mj.PartialMessage))
+	}
+
 	buf.WriteString(`}`)
 	return nil
 }
