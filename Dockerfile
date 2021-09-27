@@ -30,25 +30,30 @@ RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
 
 FROM base AS registry
 WORKDIR /go/src/github.com/docker/distribution
-# Install two versions of the registry. The first one is a recent version that
-# supports both schema 1 and 2 manifests. The second one is an older version that
-# only supports schema1 manifests. This allows integration-cli tests to cover
-# push/pull with both schema1 and schema2 manifests.
-# The old version of the registry is not working on arm64, so installation is
-# skipped on that architecture.
-ENV REGISTRY_COMMIT_SCHEMA1 ec87e9b6971d831f0eff752ddb54fb64693e51cd
-ENV REGISTRY_COMMIT 47a064d4195a9b56133891bbb13620c3ac83a827
+
+# REGISTRY_VERSION specifies the version of the registry to build and install
+# from the https://github.com/docker/distribution repository. This version of
+# the registry is used to test both schema 1 and schema 2 manifests. Generally,
+# the version specified here should match a current release.
+ARG REGISTRY_VERSION=v2.3.0
+
+# REGISTRY_VERSION_SCHEMA1 specifies the version of the regsitry to build and
+# install from the https://github.com/docker/distribution repository. This is
+# an older (pre v2.3.0) version of the registry that only supports schema1
+# manifests. This version of the registry is not working on arm64, so installation
+# is skipped on that architecture.
+ARG REGISTRY_VERSION_SCHEMA1=v2.1.0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ \
         set -x \
         && git clone https://github.com/docker/distribution.git . \
-        && git checkout -q "$REGISTRY_COMMIT" \
+        && git checkout -q "$REGISTRY_VERSION" \
         && GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
            go build -buildmode=pie -o /build/registry-v2 github.com/docker/distribution/cmd/registry \
         && case $(dpkg --print-architecture) in \
                amd64|armhf|ppc64*|s390x) \
-               git checkout -q "$REGISTRY_COMMIT_SCHEMA1"; \
+               git checkout -q "$REGISTRY_VERSION_SCHEMA1"; \
                GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"; \
                    go build -buildmode=pie -o /build/registry-v2-schema1 github.com/docker/distribution/cmd/registry; \
                 ;; \
@@ -56,8 +61,11 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM base AS swagger
 WORKDIR $GOPATH/src/github.com/go-swagger/go-swagger
-# Install go-swagger for validating swagger.yaml
-# This is https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix
+
+# GO_SWAGGER_COMMIT specifies the version of the go-swagger binary to build and
+# install. Go-swagger is used in CI for validating swagger.yaml in hack/validate/swagger-gen
+#
+# Currently uses a fork from https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix,
 # TODO: move to under moby/ or fix upstream go-swagger to work for us.
 ENV GO_SWAGGER_COMMIT c56166c036004ba7a3a321e5951ba472b9ae298c
 RUN --mount=type=cache,target=/root/.cache/go-build \
@@ -105,7 +113,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/
             crossbuild-essential-ppc64el \
             crossbuild-essential-s390x
 
-FROM cross-${CROSS} as dev-base
+FROM cross-${CROSS} AS dev-base
 
 FROM dev-base AS runtime-dev-cross-false
 ARG DEBIAN_FRONTEND
@@ -142,18 +150,30 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/
 FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
 FROM base AS tomll
-ARG GOTOML_VERSION
+# GOTOML_VERSION specifies the version of the tomll binary to build and install
+# from the https://github.com/pelletier/go-toml repository. This binary is used
+# in CI in the hack/validate/toml script.
+#
+# When updating this version, consider updating the github.com/pelletier/go-toml
+# dependency in vendor.conf accordingly.
+ARG GOTOML_VERSION=v1.8.1
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install/tomll.installer,target=/tmp/install/tomll.installer \
-        . /tmp/install/tomll.installer && PREFIX=/build install_tomll
+        GOBIN=/build/ GO111MODULE=on go install "github.com/pelletier/go-toml/cmd/tomll@${GOTOML_VERSION}" \
+     && /build/tomll --help
 
 FROM base AS vndr
-ARG VNDR_VERSION
+# VNDR_VERSION specifies the version of the vndr tool to build and install
+# from the https://github.com/LK4D4/vndr repository.
+#
+# The vndr tool is used to manage vendored go packages in the vendor directory,
+# and is pinned to a fixed version because different versions of this tool
+# can result in differences in the (go) files that are considered for vendoring.
+ARG VNDR_VERSION=v0.1.2
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
-        PREFIX=/build /tmp/install/install.sh vndr
+        GOBIN=/build/ GO111MODULE=on go install "github.com/LK4D4/vndr@${VNDR_VERSION}" \
+     && /build/vndr --help
 
 FROM dev-base AS containerd
 ARG DEBIAN_FRONTEND
@@ -162,47 +182,47 @@ RUN --mount=type=cache,sharing=locked,id=moby-containerd-aptlib,target=/var/lib/
         apt-get update && apt-get install -y --no-install-recommends \
             libbtrfs-dev
 ARG CONTAINERD_VERSION
+COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/containerd.installer /
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
-        PREFIX=/build /tmp/install/install.sh containerd
+        PREFIX=/build /install.sh containerd
 
 FROM base AS golangci_lint
-ARG GOLANGCI_LINT_VERSION
+ARG GOLANGCI_LINT_VERSION=v1.23.8
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
-        PREFIX=/build /tmp/install/install.sh golangci_lint
+        GOBIN=/build/ GO111MODULE=on go install "github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
+     && /build/golangci-lint --version
 
 FROM base AS gotestsum
-ARG GOTESTSUM_VERSION
+ARG GOTESTSUM_VERSION=v1.7.0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
-        PREFIX=/build /tmp/install/install.sh gotestsum
+        GOBIN=/build/ GO111MODULE=on go install "gotest.tools/gotestsum@${GOTESTSUM_VERSION}" \
+     && /build/gotestsum --version
 
 FROM base AS shfmt
-ARG SHFMT_VERSION
+ARG SHFMT_VERSION=v3.0.2
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
-        PREFIX=/build /tmp/install/install.sh shfmt
+        GOBIN=/build/ GO111MODULE=on go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
+     && /build/shfmt --version
 
 FROM dev-base AS dockercli
 ARG DOCKERCLI_CHANNEL
 ARG DOCKERCLI_VERSION
+COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/dockercli.installer /
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
-        PREFIX=/build /tmp/install/install.sh dockercli
+        PREFIX=/build /install.sh dockercli
 
 FROM runtime-dev AS runc
 ARG RUNC_VERSION
 ARG RUNC_BUILDTAGS
+COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/runc.installer /
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
-        PREFIX=/build /tmp/install/install.sh runc
+        PREFIX=/build /install.sh runc
 
 FROM dev-base AS tini
 ARG DEBIAN_FRONTEND
@@ -212,17 +232,20 @@ RUN --mount=type=cache,sharing=locked,id=moby-tini-aptlib,target=/var/lib/apt \
         apt-get update && apt-get install -y --no-install-recommends \
             cmake \
             vim-common
+COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/tini.installer /
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
-        PREFIX=/build /tmp/install/install.sh tini
+        PREFIX=/build /install.sh tini
 
 FROM dev-base AS rootlesskit
 ARG ROOTLESSKIT_VERSION
+ARG PREFIX=/build
+COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/rootlesskit.installer /
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
-        PREFIX=/build /tmp/install/install.sh rootlesskit
+        /install.sh rootlesskit \
+     && "${PREFIX}"/rootlesskit --version \
+     && "${PREFIX}"/rootlesskit-docker-proxy --help
 COPY ./contrib/dockerd-rootless.sh /build
 COPY ./contrib/dockerd-rootless-setuptool.sh /build
 

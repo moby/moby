@@ -1,8 +1,0 @@
-#!/bin/sh
-
-: "${VNDR_VERSION:=v0.1.2}"
-
-install_vndr() {
-	echo "Install vndr version $VNDR_VERSION"
-	GOBIN="${PREFIX}" GO111MODULE=on go install "github.com/LK4D4/vndr@${VNDR_VERSION}"
-}

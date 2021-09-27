@@ -1,9 +1,0 @@
-#!/bin/sh
-
-: ${GOTESTSUM_VERSION:=v1.7.0}
-
-install_gotestsum() (
-	set -e
-	echo "Install gotestsum version ${GOTESTSUM_VERSION}"
-	GOBIN="${PREFIX}" GO111MODULE=on go install "gotest.tools/gotestsum@${GOTESTSUM_VERSION}"
-)
