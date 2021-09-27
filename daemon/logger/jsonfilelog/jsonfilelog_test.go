@@ -15,6 +15,7 @@ import (
 
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog/jsonlog"
+	"github.com/docker/docker/api/types/backend"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/fs"
@@ -317,4 +318,66 @@ func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
 	if !reflect.DeepEqual(extra, expected) {
 		t.Fatalf("Wrong log attrs: %q, expected %q", extra, expected)
 	}
+}
+
+func TestPartialLogs(t *testing.T) {
+	tmp, err := os.MkdirTemp("", "docker-logger-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	filename := filepath.Join(tmp, "container.log")
+
+	jsonlogger, err := New(logger.Info{
+		ContainerID: "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657",
+		LogPath: filename,
+		Config: map[string]string{
+			"max-file": "10",
+			"compress": "true",
+			"max-size": "10m",
+		},
+	})
+	assert.NilError(t, err)
+
+	partialMD1 := &backend.PartialLogMetaData{
+		Last: false,
+		ID: "asdf",
+		Ordinal: 0,
+	}
+	msg1 := &logger.Message{
+		Line: []byte("1234"),
+		Source: "stdout",
+		PLogMetaData: partialMD1,
+	}
+	if err := jsonlogger.Log(msg1); err != nil {
+		t.Fatal(err)
+	}
+
+	partialMD2 := &backend.PartialLogMetaData{
+		Last: true,
+		ID: "asdf",
+		Ordinal: 1,
+	}
+	msg2 := &logger.Message{
+		Line: []byte("5678"),
+		Source: "stdout",
+		PLogMetaData: partialMD2,
+	}
+	if err := jsonlogger.Log(msg2); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := os.ReadFile(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := `{"log":"1234","stream":"stdout","time":"0001-01-01T00:00:00Z"}
+{"log":"5678\n","stream":"stdout","time":"0001-01-01T00:00:00Z"}
+`
+	if string(res) != expected {
+		t.Fatalf("Wrong log content: %q, expected %q", res, expected)
+	}
+
 }
