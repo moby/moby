@@ -340,9 +340,11 @@ func TestPartialLogs(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
+	partialMessageId := "message_id";
+
 	partialMD1 := &backend.PartialLogMetaData{
 		Last: false,
-		ID: "asdf",
+		ID: partialMessageId,
 		Ordinal: 0,
 	}
 	msg1 := &logger.Message{
@@ -356,7 +358,7 @@ func TestPartialLogs(t *testing.T) {
 
 	partialMD2 := &backend.PartialLogMetaData{
 		Last: true,
-		ID: "asdf",
+		ID: partialMessageId,
 		Ordinal: 1,
 	}
 	msg2 := &logger.Message{
@@ -373,8 +375,8 @@ func TestPartialLogs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected := `{"log":"1234","stream":"stdout","time":"0001-01-01T00:00:00Z","partial_message":"true"}
-{"log":"5678\n","stream":"stdout","time":"0001-01-01T00:00:00Z","partial_message":"true"}
+	expected := `{"log":"1234","stream":"stdout","time":"0001-01-01T00:00:00Z","partial_message":"true","partial_id":"message_id","partial_ordinal":0,"partial_last":"false"}
+{"log":"5678\n","stream":"stdout","time":"0001-01-01T00:00:00Z","partial_message":"true","partial_id":"message_id","partial_ordinal":1,"partial_last":"true"}
 `
 	if string(res) != expected {
 		t.Fatalf("Wrong log content: %q, expected %q", res, expected)
