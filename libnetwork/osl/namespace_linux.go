@@ -1,8 +1,8 @@
 package osl
 
 import (
-	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -14,14 +14,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/osl/kernel"
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/libnetwork/ns"
+	"github.com/docker/libnetwork/osl/kernel"
+	"github.com/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
-	"golang.org/x/sys/unix"
 )
 
 const defaultPrefix = "/var/run/docker"
@@ -39,6 +38,17 @@ var (
 	gpmChan            = make(chan chan struct{})
 	prefix             = defaultPrefix
 	loadBalancerConfig = map[string]*kernel.OSValue{
+		// disables any special handling on port reuse of existing IPVS connection table entries
+		// more info: https://github.com/torvalds/linux/blob/master/Documentation/networking/ipvs-sysctl.txt#L25:1
+		"net.ipv4.vs.conn_reuse_mode": {Value: "0", CheckFn: nil},
+		// expires connection from the IPVS connection table when the backend is not available
+		// more info: https://github.com/torvalds/linux/blob/master/Documentation/networking/ipvs-sysctl.txt#L126:1
+		"net.ipv4.vs.expire_nodest_conn": {Value: "1", CheckFn: nil},
+		// expires persistent connections to destination servers with weights set to 0
+		// more info: https://github.com/torvalds/linux/blob/master/Documentation/networking/ipvs-sysctl.txt#L144:1
+		"net.ipv4.vs.expire_quiescent_template": {Value: "1", CheckFn: nil},
+	}
+	ingressConfig = map[string]*kernel.OSValue{
 		// disables any special handling on port reuse of existing IPVS connection table entries
 		// more info: https://github.com/torvalds/linux/blob/master/Documentation/networking/ipvs-sysctl.txt#L25:1
 		"net.ipv4.vs.conn_reuse_mode": {Value: "0", CheckFn: nil},
@@ -171,7 +181,7 @@ func GenerateKey(containerID string) string {
 			indexStr string
 			tmpkey   string
 		)
-		dir, err := os.ReadDir(basePath())
+		dir, err := ioutil.ReadDir(basePath())
 		if err != nil {
 			return ""
 		}
@@ -338,9 +348,7 @@ func createNetworkNamespace(path string, osCreate bool) error {
 
 func unmountNamespaceFile(path string) {
 	if _, err := os.Stat(path); err == nil {
-		if err := syscall.Unmount(path, syscall.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
-			logrus.WithError(err).Error("Error unmounting namespace file")
-		}
+		syscall.Unmount(path, syscall.MNT_DETACH)
 	}
 }
 
@@ -407,12 +415,12 @@ func (n *networkNamespace) DisableARPForVIP(srcName string) (Err error) {
 
 	err := n.InvokeFunc(func() {
 		path := filepath.Join("/proc/sys/net/ipv4/conf", dstName, "arp_ignore")
-		if err := os.WriteFile(path, []byte{'1', '\n'}, 0644); err != nil {
+		if err := ioutil.WriteFile(path, []byte{'1', '\n'}, 0644); err != nil {
 			Err = fmt.Errorf("Failed to set %s to 1: %v", path, err)
 			return
 		}
 		path = filepath.Join("/proc/sys/net/ipv4/conf", dstName, "arp_announce")
-		if err := os.WriteFile(path, []byte{'2', '\n'}, 0644); err != nil {
+		if err := ioutil.WriteFile(path, []byte{'2', '\n'}, 0644); err != nil {
 			Err = fmt.Errorf("Failed to set %s to 2: %v", path, err)
 			return
 		}
@@ -664,7 +672,7 @@ func reexecSetIPv6() {
 		os.Exit(5)
 	}
 
-	if err = os.WriteFile(path, []byte{value, '\n'}, 0644); err != nil {
+	if err = ioutil.WriteFile(path, []byte{value, '\n'}, 0644); err != nil {
 		logrus.Errorf("failed to %s IPv6 forwarding for container's interface %s: %v", action, os.Args[2], err)
 		os.Exit(4)
 	}
@@ -691,6 +699,9 @@ func (n *networkNamespace) ApplyOSTweaks(types []SandboxType) {
 		switch t {
 		case SandboxTypeLoadBalancer:
 			kernel.ApplyOSTweaks(loadBalancerConfig)
+		}
+		case SandboxTypeIngress:
+			kernel.ApplyOSTweaks(ingressConfig)
 		}
 	}
 }
