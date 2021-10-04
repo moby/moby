@@ -396,9 +396,9 @@ func getDirFd(dir *C.DIR) uintptr {
 	return uintptr(C.dirfd(dir))
 }
 
-// Get the backing block device of the driver home directory
-// and create a block device node under the home directory
-// to be used by quotactl commands
+// makeBackingFsDev gets the backing block device of the driver home directory
+// and creates a block device node under the home directory to be used by
+// quotactl commands.
 func makeBackingFsDev(home string) (string, error) {
 	var stat unix.Stat_t
 	if err := unix.Stat(home, &stat); err != nil {
