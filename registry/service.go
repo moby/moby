@@ -257,16 +257,12 @@ func (s *DefaultService) TLSConfig(hostname string) (*tls.Config, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return newTLSConfig(hostname, isSecureIndex(s.config, hostname))
+	return s.tlsConfig(hostname)
 }
 
 // tlsConfig constructs a client TLS configuration based on server defaults
 func (s *DefaultService) tlsConfig(hostname string) (*tls.Config, error) {
 	return newTLSConfig(hostname, isSecureIndex(s.config, hostname))
-}
-
-func (s *DefaultService) tlsConfigForMirror(mirrorURL *url.URL) (*tls.Config, error) {
-	return s.tlsConfig(mirrorURL.Host)
 }
 
 // LookupPullEndpoints creates a list of v2 endpoints to try to pull from, in order of preference.
