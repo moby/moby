@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/containerd/containerd/pkg/cap"
 	"github.com/docker/docker/errdefs"
 	"github.com/syndtr/gocapability/capability"
 )
@@ -21,18 +22,14 @@ var (
 )
 
 func init() {
-	last := capability.CAP_LAST_CAP
-	rawCaps := capability.List()
-	allCaps = make([]string, min(int(last+1), len(rawCaps)))
-	capabilityList = make(map[string]*capability.Cap, len(rawCaps))
+	allCaps, _ = cap.Current()
+	rawCaps := cap.Known()
+	capabilityList := make(map[string]*capability.Cap, len(rawCaps))
+
 	for i, c := range rawCaps {
-		capName := "CAP_" + strings.ToUpper(c.String())
-		if c > last {
-			capabilityList[capName] = nil
-			continue
-		}
-		allCaps[i] = capName
-		capabilityList[capName] = &c
+		cc := capability.Cap(i)
+
+		capabilityList[c] = &cc
 	}
 }
 
