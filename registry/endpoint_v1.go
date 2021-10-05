@@ -89,10 +89,7 @@ func trimV1Address(address string) (string, error) {
 		apiVersionStr string
 	)
 
-	if strings.HasSuffix(address, "/") {
-		address = address[:len(address)-1]
-	}
-
+	address = strings.TrimSuffix(address, "/")
 	chunks = strings.Split(address, "/")
 	apiVersionStr = chunks[len(chunks)-1]
 	if apiVersionStr == "v1" {
