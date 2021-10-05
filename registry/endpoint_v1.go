@@ -34,7 +34,8 @@ func NewV1Endpoint(index *registrytypes.IndexInfo, userAgent string, metaHeaders
 		return nil, err
 	}
 
-	if err := validateEndpoint(endpoint); err != nil {
+	err = validateEndpoint(endpoint)
+	if err != nil {
 		return nil, err
 	}
 
@@ -66,20 +67,6 @@ func validateEndpoint(endpoint *V1Endpoint) error {
 	}
 
 	return nil
-}
-
-func newV1Endpoint(address url.URL, tlsConfig *tls.Config, userAgent string, metaHeaders http.Header) *V1Endpoint {
-	endpoint := &V1Endpoint{
-		IsSecure: tlsConfig == nil || !tlsConfig.InsecureSkipVerify,
-		URL:      new(url.URL),
-	}
-
-	*endpoint.URL = address
-
-	// TODO(tiborvass): make sure a ConnectTimeout transport is used
-	tr := NewTransport(tlsConfig)
-	endpoint.client = HTTPClient(transport.NewTransport(tr, Headers(userAgent, metaHeaders)...))
-	return endpoint
 }
 
 // trimV1Address trims the version off the address and returns the
@@ -124,9 +111,14 @@ func newV1EndpointFromStr(address string, tlsConfig *tls.Config, userAgent strin
 		return nil, err
 	}
 
-	endpoint := newV1Endpoint(*uri, tlsConfig, userAgent, metaHeaders)
+	// TODO(tiborvass): make sure a ConnectTimeout transport is used
+	tr := NewTransport(tlsConfig)
 
-	return endpoint, nil
+	return &V1Endpoint{
+		IsSecure: tlsConfig == nil || !tlsConfig.InsecureSkipVerify,
+		URL:      uri,
+		client:   HTTPClient(transport.NewTransport(tr, Headers(userAgent, metaHeaders)...)),
+	}, nil
 }
 
 // Get the formatted URL for the root of this registry Endpoint
