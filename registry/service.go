@@ -246,12 +246,6 @@ type APIEndpoint struct {
 	TLSConfig                      *tls.Config
 }
 
-// ToV1Endpoint returns a V1 API endpoint based on the APIEndpoint
-// Deprecated: this function is deprecated and will be removed in a future update
-func (e APIEndpoint) ToV1Endpoint(userAgent string, metaHeaders http.Header) *V1Endpoint {
-	return newV1Endpoint(*e.URL, e.TLSConfig, userAgent, metaHeaders)
-}
-
 // TLSConfig constructs a client TLS configuration based on server defaults
 func (s *DefaultService) TLSConfig(hostname string) (*tls.Config, error) {
 	s.mu.Lock()
