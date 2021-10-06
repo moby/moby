@@ -3,7 +3,6 @@ package registry // import "github.com/docker/docker/registry"
 
 import (
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -15,12 +14,6 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/sirupsen/logrus"
-)
-
-var (
-	// ErrAlreadyExists is an error returned if an image being pushed
-	// already exists on the remote side
-	ErrAlreadyExists = errors.New("Image already exists")
 )
 
 // HostCertsDir returns the config directory for a specific host
