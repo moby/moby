@@ -131,29 +131,28 @@ func (e *V1Endpoint) Path(path string) string {
 
 // Ping returns a PingResult which indicates whether the registry is standalone or not.
 func (e *V1Endpoint) Ping() (PingResult, error) {
-	logrus.Debugf("attempting v1 ping for registry endpoint %s", e)
-
 	if e.String() == IndexServer {
 		// Skip the check, we know this one is valid
 		// (and we never want to fallback to http in case of error)
-		return PingResult{Standalone: false}, nil
+		return PingResult{}, nil
 	}
 
+	logrus.Debugf("attempting v1 ping for registry endpoint %s", e)
 	req, err := http.NewRequest(http.MethodGet, e.Path("_ping"), nil)
 	if err != nil {
-		return PingResult{Standalone: false}, err
+		return PingResult{}, err
 	}
 
 	resp, err := e.client.Do(req)
 	if err != nil {
-		return PingResult{Standalone: false}, err
+		return PingResult{}, err
 	}
 
 	defer resp.Body.Close()
 
 	jsonString, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return PingResult{Standalone: false}, fmt.Errorf("error while reading the http response: %s", err)
+		return PingResult{}, fmt.Errorf("error while reading the http response: %s", err)
 	}
 
 	// If the header is absent, we assume true for compatibility with earlier
@@ -166,13 +165,12 @@ func (e *V1Endpoint) Ping() (PingResult, error) {
 		// don't stop here. Just assume sane defaults
 	}
 	if hdr := resp.Header.Get("X-Docker-Registry-Version"); hdr != "" {
-		logrus.Debugf("Registry version header: '%s'", hdr)
 		info.Version = hdr
 	}
 	logrus.Debugf("PingResult.Version: %q", info.Version)
 
 	standalone := resp.Header.Get("X-Docker-Registry-Standalone")
-	logrus.Debugf("Registry standalone header: '%s'", standalone)
+
 	// Accepted values are "true" (case-insensitive) and "1".
 	if strings.EqualFold(standalone, "true") || standalone == "1" {
 		info.Standalone = true
