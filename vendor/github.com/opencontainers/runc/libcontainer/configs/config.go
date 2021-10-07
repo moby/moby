@@ -83,9 +83,6 @@ type Syscall struct {
 	Args     []*Arg `json:"args"`
 }
 
-// TODO Windows. Many of these fields should be factored out into those parts
-// which are common across platforms, and those which are platform specific.
-
 // Config defines configuration options for executing a process inside a contained environment.
 type Config struct {
 	// NoPivotRoot will use MS_MOVE and a chroot to jail the process into the container's rootfs

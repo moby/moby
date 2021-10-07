@@ -26,13 +26,17 @@ func (rio RawInstructionOffset) Bytes() uint64 {
 
 // Instruction is a single eBPF instruction.
 type Instruction struct {
-	OpCode    OpCode
-	Dst       Register
-	Src       Register
-	Offset    int16
-	Constant  int64
+	OpCode   OpCode
+	Dst      Register
+	Src      Register
+	Offset   int16
+	Constant int64
+
+	// Reference denotes a reference (e.g. a jump) to another symbol.
 	Reference string
-	Symbol    string
+
+	// Symbol denotes an instruction at the start of a function body.
+	Symbol string
 }
 
 // Sym creates a symbol.
@@ -43,33 +47,45 @@ func (ins Instruction) Sym(name string) Instruction {
 
 // Unmarshal decodes a BPF instruction.
 func (ins *Instruction) Unmarshal(r io.Reader, bo binary.ByteOrder) (uint64, error) {
-	var bi bpfInstruction
-	err := binary.Read(r, bo, &bi)
-	if err != nil {
+	data := make([]byte, InstructionSize)
+	if _, err := io.ReadFull(r, data); err != nil {
 		return 0, err
 	}
 
-	ins.OpCode = bi.OpCode
-	ins.Offset = bi.Offset
-	ins.Constant = int64(bi.Constant)
-	ins.Dst, ins.Src, err = bi.Registers.Unmarshal(bo)
-	if err != nil {
-		return 0, fmt.Errorf("can't unmarshal registers: %s", err)
+	ins.OpCode = OpCode(data[0])
+
+	regs := data[1]
+	switch bo {
+	case binary.LittleEndian:
+		ins.Dst, ins.Src = Register(regs&0xF), Register(regs>>4)
+	case binary.BigEndian:
+		ins.Dst, ins.Src = Register(regs>>4), Register(regs&0xf)
 	}
 
-	if !bi.OpCode.IsDWordLoad() {
+	ins.Offset = int16(bo.Uint16(data[2:4]))
+	// Convert to int32 before widening to int64
+	// to ensure the signed bit is carried over.
+	ins.Constant = int64(int32(bo.Uint32(data[4:8])))
+
+	if !ins.OpCode.IsDWordLoad() {
 		return InstructionSize, nil
 	}
 
-	var bi2 bpfInstruction
-	if err := binary.Read(r, bo, &bi2); err != nil {
+	// Pull another instruction from the stream to retrieve the second
+	// half of the 64-bit immediate value.
+	if _, err := io.ReadFull(r, data); err != nil {
 		// No Wrap, to avoid io.EOF clash
 		return 0, errors.New("64bit immediate is missing second half")
 	}
-	if bi2.OpCode != 0 || bi2.Offset != 0 || bi2.Registers != 0 {
+
+	// Require that all fields other than the value are zero.
+	if bo.Uint32(data[0:4]) != 0 {
 		return 0, errors.New("64bit immediate has non-zero fields")
 	}
-	ins.Constant = int64(uint64(uint32(bi2.Constant))<<32 | uint64(uint32(bi.Constant)))
+
+	cons1 := uint32(ins.Constant)
+	cons2 := int32(bo.Uint32(data[4:8]))
+	ins.Constant = int64(cons2)<<32 | int64(cons1)
 
 	return 2 * InstructionSize, nil
 }
@@ -93,14 +109,12 @@ func (ins Instruction) Marshal(w io.Writer, bo binary.ByteOrder) (uint64, error)
 		return 0, fmt.Errorf("can't marshal registers: %s", err)
 	}
 
-	bpfi := bpfInstruction{
-		ins.OpCode,
-		regs,
-		ins.Offset,
-		cons,
-	}
-
-	if err := binary.Write(w, bo, &bpfi); err != nil {
+	data := make([]byte, InstructionSize)
+	data[0] = byte(ins.OpCode)
+	data[1] = byte(regs)
+	bo.PutUint16(data[2:4], uint16(ins.Offset))
+	bo.PutUint32(data[4:8], uint32(cons))
+	if _, err := w.Write(data); err != nil {
 		return 0, err
 	}
 
@@ -108,11 +122,11 @@ func (ins Instruction) Marshal(w io.Writer, bo binary.ByteOrder) (uint64, error)
 		return InstructionSize, nil
 	}
 
-	bpfi = bpfInstruction{
-		Constant: int32(ins.Constant >> 32),
-	}
-
-	if err := binary.Write(w, bo, &bpfi); err != nil {
+	// The first half of the second part of a double-wide instruction
+	// must be zero. The second half carries the value.
+	bo.PutUint32(data[0:4], 0)
+	bo.PutUint32(data[4:8], uint32(ins.Constant>>32))
+	if _, err := w.Write(data); err != nil {
 		return 0, err
 	}
 
@@ -181,6 +195,18 @@ func (ins *Instruction) IsFunctionCall() bool {
 	return ins.OpCode.JumpOp() == Call && ins.Src == PseudoCall
 }
 
+// IsLoadOfFunctionPointer returns true if the instruction loads a function pointer.
+func (ins *Instruction) IsLoadOfFunctionPointer() bool {
+	return ins.OpCode.IsDWordLoad() && ins.Src == PseudoFunc
+}
+
+// IsFunctionReference returns true if the instruction references another BPF
+// function, either by invoking a Call jump operation or by loading a function
+// pointer.
+func (ins *Instruction) IsFunctionReference() bool {
+	return ins.IsFunctionCall() || ins.IsLoadOfFunctionPointer()
+}
+
 // IsBuiltinCall returns true if the instruction is a built-in call, i.e. BPF helper call.
 func (ins *Instruction) IsBuiltinCall() bool {
 	return ins.OpCode.JumpOp() == Call && ins.Src == R0 && ins.Dst == R0
@@ -226,8 +252,8 @@ func (ins Instruction) Format(f fmt.State, c rune) {
 	}
 
 	fmt.Fprintf(f, "%v ", op)
-	switch cls := op.Class(); cls {
-	case LdClass, LdXClass, StClass, StXClass:
+	switch cls := op.Class(); {
+	case cls.isLoadOrStore():
 		switch op.Mode() {
 		case ImmMode:
 			fmt.Fprintf(f, "dst: %s imm: %d", ins.Dst, ins.Constant)
@@ -241,7 +267,7 @@ func (ins Instruction) Format(f fmt.State, c rune) {
 			fmt.Fprintf(f, "dst: %s src: %s", ins.Dst, ins.Src)
 		}
 
-	case ALU64Class, ALUClass:
+	case cls.IsALU():
 		fmt.Fprintf(f, "dst: %s ", ins.Dst)
 		if op.ALUOp() == Swap || op.Source() == ImmSource {
 			fmt.Fprintf(f, "imm: %d", ins.Constant)
@@ -249,7 +275,7 @@ func (ins Instruction) Format(f fmt.State, c rune) {
 			fmt.Fprintf(f, "src: %s", ins.Src)
 		}
 
-	case JumpClass:
+	case cls.IsJump():
 		switch jop := op.JumpOp(); jop {
 		case Call:
 			if ins.Src == PseudoCall {
@@ -275,11 +301,58 @@ ref:
 	}
 }
 
+// Size returns the amount of bytes ins would occupy in binary form.
+func (ins Instruction) Size() uint64 {
+	return uint64(InstructionSize * ins.OpCode.rawInstructions())
+}
+
 // Instructions is an eBPF program.
 type Instructions []Instruction
 
+// Unmarshal unmarshals an Instructions from a binary instruction stream.
+// All instructions in insns are replaced by instructions decoded from r.
+func (insns *Instructions) Unmarshal(r io.Reader, bo binary.ByteOrder) error {
+	if len(*insns) > 0 {
+		*insns = nil
+	}
+
+	var offset uint64
+	for {
+		var ins Instruction
+		n, err := ins.Unmarshal(r, bo)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("offset %d: %w", offset, err)
+		}
+
+		*insns = append(*insns, ins)
+		offset += n
+	}
+
+	return nil
+}
+
+// Name returns the name of the function insns belongs to, if any.
+func (insns Instructions) Name() string {
+	if len(insns) == 0 {
+		return ""
+	}
+	return insns[0].Symbol
+}
+
 func (insns Instructions) String() string {
 	return fmt.Sprint(insns)
+}
+
+// Size returns the amount of bytes insns would occupy in binary form.
+func (insns Instructions) Size() uint64 {
+	var sum uint64
+	for _, ins := range insns {
+		sum += ins.Size()
+	}
+	return sum
 }
 
 // RewriteMapPtr rewrites all loads of a specific map pointer to a new fd.
@@ -329,6 +402,31 @@ func (insns Instructions) SymbolOffsets() (map[string]int, error) {
 	}
 
 	return offsets, nil
+}
+
+// FunctionReferences returns a set of symbol names these Instructions make
+// bpf-to-bpf calls to.
+func (insns Instructions) FunctionReferences() map[string]bool {
+	calls := make(map[string]bool)
+
+	for _, ins := range insns {
+		if ins.Constant != -1 {
+			// BPF-to-BPF calls have -1 constants.
+			continue
+		}
+
+		if ins.Reference == "" {
+			continue
+		}
+
+		if !ins.IsFunctionReference() {
+			continue
+		}
+
+		calls[ins.Reference] = true
+	}
+
+	return calls
 }
 
 // ReferenceOffsets returns the set of references and their offset in
@@ -464,13 +562,6 @@ func (iter *InstructionIterator) Next() bool {
 	return true
 }
 
-type bpfInstruction struct {
-	OpCode    OpCode
-	Registers bpfRegisters
-	Offset    int16
-	Constant  int32
-}
-
 type bpfRegisters uint8
 
 func newBPFRegisters(dst, src Register, bo binary.ByteOrder) (bpfRegisters, error) {
@@ -481,17 +572,6 @@ func newBPFRegisters(dst, src Register, bo binary.ByteOrder) (bpfRegisters, erro
 		return bpfRegisters((dst << 4) | (src & 0xF)), nil
 	default:
 		return 0, fmt.Errorf("unrecognized ByteOrder %T", bo)
-	}
-}
-
-func (r bpfRegisters) Unmarshal(bo binary.ByteOrder) (dst, src Register, err error) {
-	switch bo {
-	case binary.LittleEndian:
-		return Register(r & 0xF), Register(r >> 4), nil
-	case binary.BigEndian:
-		return Register(r >> 4), Register(r & 0xf), nil
-	default:
-		return 0, 0, fmt.Errorf("unrecognized ByteOrder %T", bo)
 	}
 }
 

@@ -57,6 +57,8 @@ func AttachCgroup(opts CgroupOptions) (Link, error) {
 }
 
 // LoadPinnedCgroup loads a pinned cgroup from a bpffs.
+//
+// Deprecated: use LoadPinnedLink instead.
 func LoadPinnedCgroup(fileName string, opts *ebpf.LoadPinOptions) (Link, error) {
 	link, err := LoadPinnedRawLink(fileName, CgroupType, opts)
 	if err != nil {
@@ -149,6 +151,10 @@ func (cg *progAttachCgroup) Pin(string) error {
 
 func (cg *progAttachCgroup) Unpin() error {
 	return fmt.Errorf("can't pin cgroup: %w", ErrNotSupported)
+}
+
+func (cg *progAttachCgroup) Info() (*Info, error) {
+	return nil, fmt.Errorf("can't get cgroup info: %w", ErrNotSupported)
 }
 
 type linkCgroup struct {

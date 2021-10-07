@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/cilium/ebpf/asm"
-	"github.com/cilium/ebpf/internal"
 	"github.com/cilium/ebpf/internal/btf"
+	"github.com/cilium/ebpf/internal/sys"
 )
 
 // CollectionOptions control loading a collection into the kernel.
@@ -244,9 +244,14 @@ func (cs *CollectionSpec) LoadAndAssign(to interface{}, opts *CollectionOptions)
 		switch m.typ {
 		case ProgramArray:
 			// Require all lazy-loaded ProgramArrays to be assigned to the given object.
-			// Without any references, they will be closed on the first GC and all tail
-			// calls into them will miss.
-			if !assignedMaps[n] {
+			// The kernel empties a ProgramArray once the last user space reference
+			// to it closes, which leads to failed tail calls. Combined with the library
+			// closing map fds via GC finalizers this can lead to surprising behaviour.
+			// Only allow unassigned ProgramArrays when the library hasn't pre-populated
+			// any entries from static value declarations. At this point, we know the map
+			// is empty and there's no way for the caller to interact with the map going
+			// forward.
+			if !assignedMaps[n] && len(cs.Maps[n].Contents) > 0 {
 				return fmt.Errorf("ProgramArray %s must be assigned to prevent missed tail calls", n)
 			}
 		}
@@ -281,7 +286,11 @@ func NewCollectionWithOptions(spec *CollectionSpec, opts CollectionOptions) (*Co
 		}
 	}
 
-	for progName := range spec.Programs {
+	for progName, prog := range spec.Programs {
+		if prog.Type == UnspecifiedProgram {
+			continue
+		}
+
 		if _, err := loader.loadProgram(progName); err != nil {
 			return nil, err
 		}
@@ -419,9 +428,16 @@ func (cl *collectionLoader) loadProgram(progName string) (*Program, error) {
 		return nil, fmt.Errorf("unknown program %s", progName)
 	}
 
+	// Bail out early if we know the kernel is going to reject the program.
+	// This skips loading map dependencies, saving some cleanup work later.
+	if progSpec.Type == UnspecifiedProgram {
+		return nil, fmt.Errorf("cannot load program %s: program type is unspecified", progName)
+	}
+
 	progSpec = progSpec.Copy()
 
-	// Rewrite any reference to a valid map.
+	// Rewrite any reference to a valid map in the program's instructions,
+	// which includes all of its dependencies.
 	for i := range progSpec.Instructions {
 		ins := &progSpec.Instructions[i]
 
@@ -442,7 +458,7 @@ func (cl *collectionLoader) loadProgram(progName string) (*Program, error) {
 
 		fd := m.FD()
 		if fd < 0 {
-			return nil, fmt.Errorf("map %s: %w", ins.Reference, internal.ErrClosedFd)
+			return nil, fmt.Errorf("map %s: %w", ins.Reference, sys.ErrClosedFd)
 		}
 		if err := ins.RewriteMapPtr(m.FD()); err != nil {
 			return nil, fmt.Errorf("program %s: map %s: %w", progName, ins.Reference, err)
@@ -467,24 +483,30 @@ func (cl *collectionLoader) populateMaps() error {
 
 		mapSpec = mapSpec.Copy()
 
-		// Replace any object stubs with loaded objects.
+		// MapSpecs that refer to inner maps or programs within the same
+		// CollectionSpec do so using strings. These strings are used as the key
+		// to look up the respective object in the Maps or Programs fields.
+		// Resolve those references to actual Map or Program resources that
+		// have been loaded into the kernel.
 		for i, kv := range mapSpec.Contents {
-			switch v := kv.Value.(type) {
-			case programStub:
-				// loadProgram is idempotent and could return an existing Program.
-				prog, err := cl.loadProgram(string(v))
-				if err != nil {
-					return fmt.Errorf("loading program %s, for map %s: %w", v, mapName, err)
-				}
-				mapSpec.Contents[i] = MapKV{kv.Key, prog}
+			if objName, ok := kv.Value.(string); ok {
+				switch mapSpec.Type {
+				case ProgramArray:
+					// loadProgram is idempotent and could return an existing Program.
+					prog, err := cl.loadProgram(objName)
+					if err != nil {
+						return fmt.Errorf("loading program %s, for map %s: %w", objName, mapName, err)
+					}
+					mapSpec.Contents[i] = MapKV{kv.Key, prog}
 
-			case mapStub:
-				// loadMap is idempotent and could return an existing Map.
-				innerMap, err := cl.loadMap(string(v))
-				if err != nil {
-					return fmt.Errorf("loading inner map %s, for map %s: %w", v, mapName, err)
+				case ArrayOfMaps, HashOfMaps:
+					// loadMap is idempotent and could return an existing Map.
+					innerMap, err := cl.loadMap(objName)
+					if err != nil {
+						return fmt.Errorf("loading inner map %s, for map %s: %w", objName, mapName, err)
+					}
+					mapSpec.Contents[i] = MapKV{kv.Key, innerMap}
 				}
-				mapSpec.Contents[i] = MapKV{kv.Key, innerMap}
 			}
 		}
 

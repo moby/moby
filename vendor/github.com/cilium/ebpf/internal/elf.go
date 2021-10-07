@@ -66,3 +66,14 @@ func (se *SafeELFFile) DynamicSymbols() (syms []elf.Symbol, err error) {
 	syms, err = se.File.DynamicSymbols()
 	return
 }
+
+// SectionsByType returns all sections in the file with the specified section type.
+func (se *SafeELFFile) SectionsByType(typ elf.SectionType) []*elf.Section {
+	sections := make([]*elf.Section, 0, 1)
+	for _, section := range se.Sections {
+		if section.Type == typ {
+			sections = append(sections, section)
+		}
+	}
+	return sections
+}

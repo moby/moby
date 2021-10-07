@@ -97,7 +97,7 @@ func (f COREFixup) isNonExistant() bool {
 
 type COREFixups map[uint64]COREFixup
 
-// Apply a set of CO-RE relocations to a BPF program.
+// Apply returns a copy of insns with CO-RE relocations applied.
 func (fs COREFixups) Apply(insns asm.Instructions) (asm.Instructions, error) {
 	if len(fs) == 0 {
 		cpy := make(asm.Instructions, len(insns))
@@ -191,13 +191,13 @@ func (k COREKind) checksForExistence() bool {
 	return k == reloEnumvalExists || k == reloTypeExists || k == reloFieldExists
 }
 
-func coreRelocate(local, target *Spec, relos coreRelos) (COREFixups, error) {
+func coreRelocate(local, target *Spec, relos CoreRelos) (COREFixups, error) {
 	if local.byteOrder != target.byteOrder {
 		return nil, fmt.Errorf("can't relocate %s against %s", local.byteOrder, target.byteOrder)
 	}
 
 	var ids []TypeID
-	relosByID := make(map[TypeID]coreRelos)
+	relosByID := make(map[TypeID]CoreRelos)
 	result := make(COREFixups, len(relos))
 	for _, relo := range relos {
 		if relo.kind == reloTypeIDLocal {
@@ -234,13 +234,13 @@ func coreRelocate(local, target *Spec, relos coreRelos) (COREFixups, error) {
 		}
 
 		localType := local.types[id]
-		named, ok := localType.(NamedType)
-		if !ok || named.TypeName() == "" {
+		localTypeName := localType.TypeName()
+		if localTypeName == "" {
 			return nil, fmt.Errorf("relocate unnamed or anonymous type %s: %w", localType, ErrNotSupported)
 		}
 
 		relos := relosByID[id]
-		targets := target.namedTypes[essentialName(named.TypeName())]
+		targets := target.namedTypes[newEssentialName(localTypeName)]
 		fixups, err := coreCalculateFixups(localType, targets, relos)
 		if err != nil {
 			return nil, fmt.Errorf("relocate %s: %w", localType, err)
@@ -262,9 +262,9 @@ var errImpossibleRelocation = errors.New("impossible relocation")
 //
 // The best target is determined by scoring: the less poisoning we have to do
 // the better the target is.
-func coreCalculateFixups(local Type, targets []NamedType, relos coreRelos) ([]COREFixup, error) {
+func coreCalculateFixups(local Type, targets []Type, relos CoreRelos) ([]COREFixup, error) {
 	localID := local.ID()
-	local, err := copyType(local, skipQualifierAndTypedef)
+	local, err := copyType(local, skipQualifiersAndTypedefs)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +273,7 @@ func coreCalculateFixups(local Type, targets []NamedType, relos coreRelos) ([]CO
 	var bestFixups []COREFixup
 	for i := range targets {
 		targetID := targets[i].ID()
-		target, err := copyType(targets[i], skipQualifierAndTypedef)
+		target, err := copyType(targets[i], skipQualifiersAndTypedefs)
 		if err != nil {
 			return nil, err
 		}
@@ -326,7 +326,7 @@ func coreCalculateFixups(local Type, targets []NamedType, relos coreRelos) ([]CO
 
 // coreCalculateFixup calculates the fixup for a single local type, target type
 // and relocation.
-func coreCalculateFixup(local Type, localID TypeID, target Type, targetID TypeID, relo coreRelo) (COREFixup, error) {
+func coreCalculateFixup(local Type, localID TypeID, target Type, targetID TypeID, relo CoreRelo) (COREFixup, error) {
 	fixup := func(local, target uint32) (COREFixup, error) {
 		return COREFixup{relo.kind, local, target, false}, nil
 	}
@@ -704,9 +704,9 @@ func coreFindEnumValue(local Type, localAcc coreAccessor, target Type) (localVal
 		return nil, nil, errImpossibleRelocation
 	}
 
-	localName := essentialName(localValue.Name)
+	localName := newEssentialName(localValue.Name)
 	for i, targetValue := range targetEnum.Values {
-		if essentialName(targetValue.Name) != localName {
+		if newEssentialName(targetValue.Name) != localName {
 			continue
 		}
 
@@ -831,7 +831,7 @@ func coreAreMembersCompatible(localType Type, targetType Type) error {
 			return nil
 		}
 
-		if essentialName(a) == essentialName(b) {
+		if newEssentialName(a) == newEssentialName(b) {
 			return nil
 		}
 
@@ -872,7 +872,7 @@ func coreAreMembersCompatible(localType Type, targetType Type) error {
 	}
 }
 
-func skipQualifierAndTypedef(typ Type) (Type, error) {
+func skipQualifiersAndTypedefs(typ Type) (Type, error) {
 	result := typ
 	for depth := 0; depth <= maxTypeDepth; depth++ {
 		switch v := (result).(type) {
@@ -880,6 +880,19 @@ func skipQualifierAndTypedef(typ Type) (Type, error) {
 			result = v.qualify()
 		case *Typedef:
 			result = v.Type
+		default:
+			return result, nil
+		}
+	}
+	return nil, errors.New("exceeded type depth")
+}
+
+func skipQualifiers(typ Type) (Type, error) {
+	result := typ
+	for depth := 0; depth <= maxTypeDepth; depth++ {
+		switch v := (result).(type) {
+		case qualifier:
+			result = v.qualify()
 		default:
 			return result, nil
 		}

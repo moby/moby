@@ -100,37 +100,6 @@ func LoadCollectionSpecFromReader(rd io.ReaderAt) (*CollectionSpec, error) {
 		return nil, fmt.Errorf("load BTF: %w", err)
 	}
 
-	// Assign symbols to all the sections we're interested in.
-	symbols, err := f.Symbols()
-	if err != nil {
-		return nil, fmt.Errorf("load symbols: %v", err)
-	}
-
-	for _, symbol := range symbols {
-		idx := symbol.Section
-		symType := elf.ST_TYPE(symbol.Info)
-
-		section := sections[idx]
-		if section == nil {
-			continue
-		}
-
-		// Older versions of LLVM don't tag symbols correctly, so keep
-		// all NOTYPE ones.
-		keep := symType == elf.STT_NOTYPE
-		switch section.kind {
-		case mapSection, btfMapSection, dataSection:
-			keep = keep || symType == elf.STT_OBJECT
-		case programSection:
-			keep = keep || symType == elf.STT_FUNC
-		}
-		if !keep || symbol.Name == "" {
-			continue
-		}
-
-		section.symbols[symbol.Value] = symbol
-	}
-
 	ec := &elfCode{
 		SafeELFFile: f,
 		sections:    sections,
@@ -138,6 +107,13 @@ func LoadCollectionSpecFromReader(rd io.ReaderAt) (*CollectionSpec, error) {
 		version:     version,
 		btf:         btfSpec,
 	}
+
+	symbols, err := f.Symbols()
+	if err != nil {
+		return nil, fmt.Errorf("load symbols: %v", err)
+	}
+
+	ec.assignSymbols(symbols)
 
 	// Go through relocation sections, and parse the ones for sections we're
 	// interested in. Make sure that relocations point at valid sections.
@@ -183,7 +159,7 @@ func LoadCollectionSpecFromReader(rd io.ReaderAt) (*CollectionSpec, error) {
 	}
 
 	// Finally, collect programs and link them.
-	progs, err := ec.loadPrograms()
+	progs, err := ec.loadProgramSections()
 	if err != nil {
 		return nil, fmt.Errorf("load programs: %w", err)
 	}
@@ -247,12 +223,57 @@ func newElfSection(section *elf.Section, kind elfSectionKind) *elfSection {
 	}
 }
 
-func (ec *elfCode) loadPrograms() (map[string]*ProgramSpec, error) {
-	var (
-		progs []*ProgramSpec
-		libs  []*ProgramSpec
-	)
+// assignSymbols takes a list of symbols and assigns them to their
+// respective sections, indexed by name.
+func (ec *elfCode) assignSymbols(symbols []elf.Symbol) {
+	for _, symbol := range symbols {
+		symType := elf.ST_TYPE(symbol.Info)
+		symSection := ec.sections[symbol.Section]
+		if symSection == nil {
+			continue
+		}
 
+		// Anonymous symbols only occur in debug sections which we don't process
+		// relocations for. Anonymous symbols are not referenced from other sections.
+		if symbol.Name == "" {
+			continue
+		}
+
+		// Older versions of LLVM don't tag symbols correctly, so keep
+		// all NOTYPE ones.
+		switch symSection.kind {
+		case mapSection, btfMapSection, dataSection:
+			if symType != elf.STT_NOTYPE && symType != elf.STT_OBJECT {
+				continue
+			}
+		case programSection:
+			if symType != elf.STT_NOTYPE && symType != elf.STT_FUNC {
+				continue
+			}
+			// LLVM emits LBB_ (Local Basic Block) symbols that seem to be jump
+			// targets within sections, but BPF has no use for them.
+			if symType == elf.STT_NOTYPE && elf.ST_BIND(symbol.Info) == elf.STB_LOCAL &&
+				strings.HasPrefix(symbol.Name, "LBB") {
+				continue
+			}
+		// Only collect symbols that occur in program/maps/data sections.
+		default:
+			continue
+		}
+
+		symSection.symbols[symbol.Value] = symbol
+	}
+}
+
+// loadProgramSections iterates ec's sections and emits a ProgramSpec
+// for each function it finds.
+//
+// The resulting map is indexed by function name.
+func (ec *elfCode) loadProgramSections() (map[string]*ProgramSpec, error) {
+
+	progs := make(map[string]*ProgramSpec)
+
+	// Generate a ProgramSpec for each function found in each program section.
 	for _, sec := range ec.sections {
 		if sec.kind != programSection {
 			continue
@@ -262,86 +283,150 @@ func (ec *elfCode) loadPrograms() (map[string]*ProgramSpec, error) {
 			return nil, fmt.Errorf("section %v: missing symbols", sec.Name)
 		}
 
-		funcSym, ok := sec.symbols[0]
-		if !ok {
-			return nil, fmt.Errorf("section %v: no label at start", sec.Name)
-		}
-
-		insns, length, err := ec.loadInstructions(sec)
+		funcs, err := ec.loadFunctions(sec)
 		if err != nil {
-			return nil, fmt.Errorf("program %s: %w", funcSym.Name, err)
+			return nil, fmt.Errorf("section %v: %w", sec.Name, err)
 		}
 
 		progType, attachType, progFlags, attachTo := getProgType(sec.Name)
 
-		spec := &ProgramSpec{
-			Name:          funcSym.Name,
-			Type:          progType,
-			Flags:         progFlags,
-			AttachType:    attachType,
-			AttachTo:      attachTo,
-			License:       ec.license,
-			KernelVersion: ec.version,
-			Instructions:  insns,
-			ByteOrder:     ec.ByteOrder,
-		}
-
-		if ec.btf != nil {
-			spec.BTF, err = ec.btf.Program(sec.Name, length)
-			if err != nil && !errors.Is(err, btf.ErrNoExtendedInfo) {
-				return nil, fmt.Errorf("program %s: %w", funcSym.Name, err)
+		for name, insns := range funcs {
+			spec := &ProgramSpec{
+				Name:          name,
+				Type:          progType,
+				Flags:         progFlags,
+				AttachType:    attachType,
+				AttachTo:      attachTo,
+				SectionName:   sec.Name,
+				License:       ec.license,
+				KernelVersion: ec.version,
+				Instructions:  insns,
+				ByteOrder:     ec.ByteOrder,
 			}
-		}
 
-		if spec.Type == UnspecifiedProgram {
-			// There is no single name we can use for "library" sections,
-			// since they may contain multiple functions. We'll decode the
-			// labels they contain later on, and then link sections that way.
-			libs = append(libs, spec)
-		} else {
-			progs = append(progs, spec)
+			if ec.btf != nil {
+				spec.BTF, err = ec.btf.Program(name)
+				if err != nil && !errors.Is(err, btf.ErrNoExtendedInfo) {
+					return nil, fmt.Errorf("program %s: %w", name, err)
+				}
+			}
+
+			// Function names must be unique within a single ELF blob.
+			if progs[name] != nil {
+				return nil, fmt.Errorf("duplicate program name %s", name)
+			}
+			progs[name] = spec
 		}
 	}
 
-	res := make(map[string]*ProgramSpec, len(progs))
-	for _, prog := range progs {
-		err := link(prog, libs)
-		if err != nil {
-			return nil, fmt.Errorf("program %s: %w", prog.Name, err)
-		}
-		res[prog.Name] = prog
+	// Populate each prog's references with pointers to all of its callees.
+	if err := populateReferences(progs); err != nil {
+		return nil, fmt.Errorf("populating references: %w", err)
 	}
 
-	return res, nil
+	// Hide programs (e.g. library functions) that were not explicitly emitted
+	// to an ELF section. These could be exposed in a separate CollectionSpec
+	// field later to allow them to be modified.
+	for n, p := range progs {
+		if p.SectionName == ".text" {
+			delete(progs, n)
+		}
+	}
+
+	return progs, nil
 }
 
-func (ec *elfCode) loadInstructions(section *elfSection) (asm.Instructions, uint64, error) {
+// loadFunctions extracts instruction streams from the given program section
+// starting at each symbol in the section. The section's symbols must already
+// be narrowed down to STT_NOTYPE (emitted by clang <8) or STT_FUNC.
+//
+// The resulting map is indexed by function name.
+func (ec *elfCode) loadFunctions(section *elfSection) (map[string]asm.Instructions, error) {
 	var (
 		r      = bufio.NewReader(section.Open())
-		insns  asm.Instructions
+		funcs  = make(map[string]asm.Instructions)
 		offset uint64
+		insns  asm.Instructions
 	)
 	for {
-		var ins asm.Instruction
+		ins := asm.Instruction{
+			// Symbols denote the first instruction of a function body.
+			Symbol: section.symbols[offset].Name,
+		}
+
+		// Pull one instruction from the instruction stream.
 		n, err := ins.Unmarshal(r, ec.ByteOrder)
-		if err == io.EOF {
-			return insns, offset, nil
+		if errors.Is(err, io.EOF) {
+			fn := insns.Name()
+			if fn == "" {
+				return nil, errors.New("reached EOF before finding a valid symbol")
+			}
+
+			// Reached the end of the section and the decoded instruction buffer
+			// contains at least one valid instruction belonging to a function.
+			// Store the result and stop processing instructions.
+			funcs[fn] = insns
+			break
 		}
 		if err != nil {
-			return nil, 0, fmt.Errorf("offset %d: %w", offset, err)
+			return nil, fmt.Errorf("offset %d: %w", offset, err)
 		}
 
-		ins.Symbol = section.symbols[offset].Name
+		// Decoded the first instruction of a function body but insns already
+		// holds a valid instruction stream. Store the result and flush insns.
+		if ins.Symbol != "" && insns.Name() != "" {
+			funcs[insns.Name()] = insns
+			insns = nil
+		}
 
 		if rel, ok := section.relocations[offset]; ok {
+			// A relocation was found for the current offset. Apply it to the insn.
 			if err = ec.relocateInstruction(&ins, rel); err != nil {
-				return nil, 0, fmt.Errorf("offset %d: relocate instruction: %w", offset, err)
+				return nil, fmt.Errorf("offset %d: relocate instruction: %w", offset, err)
+			}
+		} else {
+			// Up to LLVM 9, calls to subprograms within the same ELF section are
+			// sometimes encoded using relative jumps without relocation entries.
+			// If, after all relocations entries have been processed, there are
+			// still relative pseudocalls left, they must point to an existing
+			// symbol within the section.
+			// When splitting sections into subprograms, the targets of these calls
+			// are no longer in scope, so they must be resolved here.
+			if ins.IsFunctionReference() && ins.Constant != -1 {
+				tgt := jumpTarget(offset, ins)
+				sym := section.symbols[tgt].Name
+				if sym == "" {
+					return nil, fmt.Errorf("offset %d: no jump target found at offset %d", offset, tgt)
+				}
+
+				ins.Reference = sym
+				ins.Constant = -1
 			}
 		}
 
 		insns = append(insns, ins)
 		offset += n
 	}
+
+	return funcs, nil
+}
+
+// jumpTarget takes ins' offset within an instruction stream (in bytes)
+// and returns its absolute jump destination (in bytes) within the
+// instruction stream.
+func jumpTarget(offset uint64, ins asm.Instruction) uint64 {
+	// A relative jump instruction describes the amount of raw BPF instructions
+	// to jump, convert the offset into bytes.
+	dest := ins.Constant * asm.InstructionSize
+
+	// The starting point of the jump is the end of the current instruction.
+	dest += int64(offset + asm.InstructionSize)
+
+	if dest < 0 {
+		return 0
+	}
+
+	return uint64(dest)
 }
 
 func (ec *elfCode) relocateInstruction(ins *asm.Instruction, rel elf.Symbol) error {
@@ -413,44 +498,70 @@ func (ec *elfCode) relocateInstruction(ins *asm.Instruction, rel elf.Symbol) err
 		}
 
 	case programSection:
-		if ins.OpCode.JumpOp() != asm.Call {
-			return fmt.Errorf("not a call instruction: %s", ins)
-		}
-
-		if ins.Src != asm.PseudoCall {
-			return fmt.Errorf("call: %s: incorrect source register", name)
-		}
-
-		switch typ {
-		case elf.STT_NOTYPE, elf.STT_FUNC:
-			if bind != elf.STB_GLOBAL {
-				return fmt.Errorf("call: %s: unsupported binding: %s", name, bind)
+		switch opCode := ins.OpCode; {
+		case opCode.JumpOp() == asm.Call:
+			if ins.Src != asm.PseudoCall {
+				return fmt.Errorf("call: %s: incorrect source register", name)
 			}
 
-		case elf.STT_SECTION:
-			if bind != elf.STB_LOCAL {
-				return fmt.Errorf("call: %s: unsupported binding: %s", name, bind)
+			switch typ {
+			case elf.STT_NOTYPE, elf.STT_FUNC:
+				if bind != elf.STB_GLOBAL {
+					return fmt.Errorf("call: %s: unsupported binding: %s", name, bind)
+				}
+
+			case elf.STT_SECTION:
+				if bind != elf.STB_LOCAL {
+					return fmt.Errorf("call: %s: unsupported binding: %s", name, bind)
+				}
+
+				// The function we want to call is in the indicated section,
+				// at the offset encoded in the instruction itself. Reverse
+				// the calculation to find the real function we're looking for.
+				// A value of -1 references the first instruction in the section.
+				offset := int64(int32(ins.Constant)+1) * asm.InstructionSize
+				sym, ok := target.symbols[uint64(offset)]
+				if !ok {
+					return fmt.Errorf("call: no symbol at offset %d", offset)
+				}
+
+				name = sym.Name
+				ins.Constant = -1
+
+			default:
+				return fmt.Errorf("call: %s: invalid symbol type %s", name, typ)
+			}
+		case opCode.IsDWordLoad():
+			switch typ {
+			case elf.STT_FUNC:
+				if bind != elf.STB_GLOBAL {
+					return fmt.Errorf("load: %s: unsupported binding: %s", name, bind)
+				}
+
+			case elf.STT_SECTION:
+				if bind != elf.STB_LOCAL {
+					return fmt.Errorf("load: %s: unsupported binding: %s", name, bind)
+				}
+
+				// ins.Constant already contains the offset in bytes from the
+				// start of the section. This is different than a call to a
+				// static function.
+
+			default:
+				return fmt.Errorf("load: %s: invalid symbol type %s", name, typ)
 			}
 
-			// The function we want to call is in the indicated section,
-			// at the offset encoded in the instruction itself. Reverse
-			// the calculation to find the real function we're looking for.
-			// A value of -1 references the first instruction in the section.
-			offset := int64(int32(ins.Constant)+1) * asm.InstructionSize
-			if offset < 0 {
-				return fmt.Errorf("call: %s: invalid offset %d", name, offset)
-			}
-
-			sym, ok := target.symbols[uint64(offset)]
+			sym, ok := target.symbols[uint64(ins.Constant)]
 			if !ok {
-				return fmt.Errorf("call: %s: no symbol at offset %d", name, offset)
+				return fmt.Errorf("load: no symbol at offset %d", ins.Constant)
 			}
 
-			ins.Constant = -1
 			name = sym.Name
+			ins.Constant = -1
+			ins.Src = asm.PseudoFunc
 
 		default:
-			return fmt.Errorf("call: %s: invalid symbol type %s", name, typ)
+			return fmt.Errorf("neither a call nor a load instruction: %v", ins)
 		}
 
 	case undefSection:
@@ -525,7 +636,7 @@ func (ec *elfCode) loadMaps(maps map[string]*MapSpec) error {
 				return fmt.Errorf("map %s: reading map tail: %w", mapName, err)
 			}
 			if len(extra) > 0 {
-				spec.Extra = *bytes.NewReader(extra)
+				spec.Extra = bytes.NewReader(extra)
 			}
 
 			if err := spec.clampPerfEventArraySize(); err != nil {
@@ -554,7 +665,7 @@ func (ec *elfCode) loadBTFMaps(maps map[string]*MapSpec) error {
 
 		// Each section must appear as a DataSec in the ELF's BTF blob.
 		var ds *btf.Datasec
-		if err := ec.btf.FindType(sec.Name, &ds); err != nil {
+		if err := ec.btf.TypeByName(sec.Name, &ds); err != nil {
 			return fmt.Errorf("cannot find section '%s' in BTF: %w", sec.Name, err)
 		}
 
@@ -616,14 +727,6 @@ func (ec *elfCode) loadBTFMaps(maps map[string]*MapSpec) error {
 
 	return nil
 }
-
-// A programStub is a placeholder for a Program to be inserted at a certain map key.
-// It needs to be resolved into a Program later on in the loader process.
-type programStub string
-
-// A mapStub is a placeholder for a Map to be inserted at a certain map key.
-// It needs to be resolved into a Map later on in the loader process.
-type mapStub string
 
 // mapSpecFromBTF produces a MapSpec based on a btf.Struct def representing
 // a BTF map definition. The name and spec arguments will be copied to the
@@ -898,9 +1001,9 @@ func resolveBTFValuesContents(es *elfSection, vs *btf.VarSecinfo, member btf.Mem
 		// skipped here.
 		switch t := elf.ST_TYPE(r.Info); t {
 		case elf.STT_FUNC:
-			contents = append(contents, MapKV{uint32(k), programStub(r.Name)})
+			contents = append(contents, MapKV{uint32(k), r.Name})
 		case elf.STT_OBJECT:
-			contents = append(contents, MapKV{uint32(k), mapStub(r.Name)})
+			contents = append(contents, MapKV{uint32(k), r.Name})
 		default:
 			return nil, fmt.Errorf("unknown relocation type %v", t)
 		}
@@ -926,7 +1029,7 @@ func (ec *elfCode) loadDataSections(maps map[string]*MapSpec) error {
 		}
 
 		var datasec *btf.Datasec
-		if err := ec.btf.FindType(sec.Name, &datasec); err != nil {
+		if err := ec.btf.TypeByName(sec.Name, &datasec); err != nil {
 			return fmt.Errorf("data section %s: can't get BTF: %w", sec.Name, err)
 		}
 
@@ -964,85 +1067,97 @@ func (ec *elfCode) loadDataSections(maps map[string]*MapSpec) error {
 }
 
 func getProgType(sectionName string) (ProgramType, AttachType, uint32, string) {
-	types := map[string]struct {
+	types := []struct {
+		prefix     string
 		progType   ProgramType
 		attachType AttachType
 		progFlags  uint32
 	}{
-		// From https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/tools/lib/bpf/libbpf.c
-		"socket":                {SocketFilter, AttachNone, 0},
-		"sk_reuseport/migrate":  {SkReuseport, AttachSkReuseportSelectOrMigrate, 0},
-		"sk_reuseport":          {SkReuseport, AttachSkReuseportSelect, 0},
-		"seccomp":               {SocketFilter, AttachNone, 0},
-		"kprobe/":               {Kprobe, AttachNone, 0},
-		"uprobe/":               {Kprobe, AttachNone, 0},
-		"kretprobe/":            {Kprobe, AttachNone, 0},
-		"uretprobe/":            {Kprobe, AttachNone, 0},
-		"tracepoint/":           {TracePoint, AttachNone, 0},
-		"raw_tracepoint/":       {RawTracepoint, AttachNone, 0},
-		"raw_tp/":               {RawTracepoint, AttachNone, 0},
-		"tp_btf/":               {Tracing, AttachTraceRawTp, 0},
-		"xdp":                   {XDP, AttachNone, 0},
-		"perf_event":            {PerfEvent, AttachNone, 0},
-		"lwt_in":                {LWTIn, AttachNone, 0},
-		"lwt_out":               {LWTOut, AttachNone, 0},
-		"lwt_xmit":              {LWTXmit, AttachNone, 0},
-		"lwt_seg6local":         {LWTSeg6Local, AttachNone, 0},
-		"sockops":               {SockOps, AttachCGroupSockOps, 0},
-		"sk_skb/stream_parser":  {SkSKB, AttachSkSKBStreamParser, 0},
-		"sk_skb/stream_verdict": {SkSKB, AttachSkSKBStreamParser, 0},
-		"sk_msg":                {SkMsg, AttachSkSKBStreamVerdict, 0},
-		"lirc_mode2":            {LircMode2, AttachLircMode2, 0},
-		"flow_dissector":        {FlowDissector, AttachFlowDissector, 0},
-		"iter/":                 {Tracing, AttachTraceIter, 0},
-		"fentry/":               {Tracing, AttachTraceFEntry, 0},
-		"fmod_ret/":             {Tracing, AttachModifyReturn, 0},
-		"fexit/":                {Tracing, AttachTraceFExit, 0},
-		"fentry.s/":             {Tracing, AttachTraceFEntry, unix.BPF_F_SLEEPABLE},
-		"fmod_ret.s/":           {Tracing, AttachModifyReturn, unix.BPF_F_SLEEPABLE},
-		"fexit.s/":              {Tracing, AttachTraceFExit, unix.BPF_F_SLEEPABLE},
-		"sk_lookup/":            {SkLookup, AttachSkLookup, 0},
-		"freplace/":             {Extension, AttachNone, 0},
-		"lsm/":                  {LSM, AttachLSMMac, 0},
-		"lsm.s/":                {LSM, AttachLSMMac, unix.BPF_F_SLEEPABLE},
+		// Please update the types from libbpf.c and follow the order of it.
+		// https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/tools/lib/bpf/libbpf.c
+		{"socket", SocketFilter, AttachNone, 0},
+		{"sk_reuseport/migrate", SkReuseport, AttachSkReuseportSelectOrMigrate, 0},
+		{"sk_reuseport", SkReuseport, AttachSkReuseportSelect, 0},
+		{"kprobe/", Kprobe, AttachNone, 0},
+		{"uprobe/", Kprobe, AttachNone, 0},
+		{"kretprobe/", Kprobe, AttachNone, 0},
+		{"uretprobe/", Kprobe, AttachNone, 0},
+		{"tc", SchedCLS, AttachNone, 0},
+		{"classifier", SchedCLS, AttachNone, 0},
+		{"action", SchedACT, AttachNone, 0},
+		{"tracepoint/", TracePoint, AttachNone, 0},
+		{"tp/", TracePoint, AttachNone, 0},
+		{"raw_tracepoint/", RawTracepoint, AttachNone, 0},
+		{"raw_tp/", RawTracepoint, AttachNone, 0},
+		{"raw_tracepoint.w/", RawTracepointWritable, AttachNone, 0},
+		{"raw_tp.w/", RawTracepointWritable, AttachNone, 0},
+		{"tp_btf/", Tracing, AttachTraceRawTp, 0},
+		{"fentry/", Tracing, AttachTraceFEntry, 0},
+		{"fmod_ret/", Tracing, AttachModifyReturn, 0},
+		{"fexit/", Tracing, AttachTraceFExit, 0},
+		{"fentry.s/", Tracing, AttachTraceFEntry, unix.BPF_F_SLEEPABLE},
+		{"fmod_ret.s/", Tracing, AttachModifyReturn, unix.BPF_F_SLEEPABLE},
+		{"fexit.s/", Tracing, AttachTraceFExit, unix.BPF_F_SLEEPABLE},
+		{"freplace/", Extension, AttachNone, 0},
+		{"lsm/", LSM, AttachLSMMac, 0},
+		{"lsm.s/", LSM, AttachLSMMac, unix.BPF_F_SLEEPABLE},
+		{"iter/", Tracing, AttachTraceIter, 0},
+		{"syscall", Syscall, AttachNone, 0},
+		{"xdp_devmap/", XDP, AttachXDPDevMap, 0},
+		{"xdp_cpumap/", XDP, AttachXDPCPUMap, 0},
+		{"xdp", XDP, AttachNone, 0},
+		{"perf_event", PerfEvent, AttachNone, 0},
+		{"lwt_in", LWTIn, AttachNone, 0},
+		{"lwt_out", LWTOut, AttachNone, 0},
+		{"lwt_xmit", LWTXmit, AttachNone, 0},
+		{"lwt_seg6local", LWTSeg6Local, AttachNone, 0},
+		{"cgroup_skb/ingress", CGroupSKB, AttachCGroupInetIngress, 0},
+		{"cgroup_skb/egress", CGroupSKB, AttachCGroupInetEgress, 0},
+		{"cgroup/skb", CGroupSKB, AttachNone, 0},
+		{"cgroup/sock_create", CGroupSKB, AttachCGroupInetSockCreate, 0},
+		{"cgroup/sock_release", CGroupSKB, AttachCgroupInetSockRelease, 0},
+		{"cgroup/sock", CGroupSock, AttachCGroupInetSockCreate, 0},
+		{"cgroup/post_bind4", CGroupSock, AttachCGroupInet4PostBind, 0},
+		{"cgroup/post_bind6", CGroupSock, AttachCGroupInet6PostBind, 0},
+		{"cgroup/dev", CGroupDevice, AttachCGroupDevice, 0},
+		{"sockops", SockOps, AttachCGroupSockOps, 0},
+		{"sk_skb/stream_parser", SkSKB, AttachSkSKBStreamParser, 0},
+		{"sk_skb/stream_verdict", SkSKB, AttachSkSKBStreamVerdict, 0},
+		{"sk_skb", SkSKB, AttachNone, 0},
+		{"sk_msg", SkMsg, AttachSkMsgVerdict, 0},
+		{"lirc_mode2", LircMode2, AttachLircMode2, 0},
+		{"flow_dissector", FlowDissector, AttachFlowDissector, 0},
+		{"cgroup/bind4", CGroupSockAddr, AttachCGroupInet4Bind, 0},
+		{"cgroup/bind6", CGroupSockAddr, AttachCGroupInet6Bind, 0},
+		{"cgroup/connect4", CGroupSockAddr, AttachCGroupInet4Connect, 0},
+		{"cgroup/connect6", CGroupSockAddr, AttachCGroupInet6Connect, 0},
+		{"cgroup/sendmsg4", CGroupSockAddr, AttachCGroupUDP4Sendmsg, 0},
+		{"cgroup/sendmsg6", CGroupSockAddr, AttachCGroupUDP6Sendmsg, 0},
+		{"cgroup/recvmsg4", CGroupSockAddr, AttachCGroupUDP4Recvmsg, 0},
+		{"cgroup/recvmsg6", CGroupSockAddr, AttachCGroupUDP6Recvmsg, 0},
+		{"cgroup/getpeername4", CGroupSockAddr, AttachCgroupInet4GetPeername, 0},
+		{"cgroup/getpeername6", CGroupSockAddr, AttachCgroupInet6GetPeername, 0},
+		{"cgroup/getsockname4", CGroupSockAddr, AttachCgroupInet4GetSockname, 0},
+		{"cgroup/getsockname6", CGroupSockAddr, AttachCgroupInet6GetSockname, 0},
+		{"cgroup/sysctl", CGroupSysctl, AttachCGroupSysctl, 0},
+		{"cgroup/getsockopt", CGroupSockopt, AttachCGroupGetsockopt, 0},
+		{"cgroup/setsockopt", CGroupSockopt, AttachCGroupSetsockopt, 0},
+		{"struct_ops+", StructOps, AttachNone, 0},
+		{"sk_lookup/", SkLookup, AttachSkLookup, 0},
 
-		"cgroup_skb/ingress": {CGroupSKB, AttachCGroupInetIngress, 0},
-		"cgroup_skb/egress":  {CGroupSKB, AttachCGroupInetEgress, 0},
-		"cgroup/dev":         {CGroupDevice, AttachCGroupDevice, 0},
-		"cgroup/skb":         {CGroupSKB, AttachNone, 0},
-		"cgroup/sock":        {CGroupSock, AttachCGroupInetSockCreate, 0},
-		"cgroup/post_bind4":  {CGroupSock, AttachCGroupInet4PostBind, 0},
-		"cgroup/post_bind6":  {CGroupSock, AttachCGroupInet6PostBind, 0},
-		"cgroup/bind4":       {CGroupSockAddr, AttachCGroupInet4Bind, 0},
-		"cgroup/bind6":       {CGroupSockAddr, AttachCGroupInet6Bind, 0},
-		"cgroup/connect4":    {CGroupSockAddr, AttachCGroupInet4Connect, 0},
-		"cgroup/connect6":    {CGroupSockAddr, AttachCGroupInet6Connect, 0},
-		"cgroup/sendmsg4":    {CGroupSockAddr, AttachCGroupUDP4Sendmsg, 0},
-		"cgroup/sendmsg6":    {CGroupSockAddr, AttachCGroupUDP6Sendmsg, 0},
-		"cgroup/recvmsg4":    {CGroupSockAddr, AttachCGroupUDP4Recvmsg, 0},
-		"cgroup/recvmsg6":    {CGroupSockAddr, AttachCGroupUDP6Recvmsg, 0},
-		"cgroup/sysctl":      {CGroupSysctl, AttachCGroupSysctl, 0},
-		"cgroup/getsockopt":  {CGroupSockopt, AttachCGroupGetsockopt, 0},
-		"cgroup/setsockopt":  {CGroupSockopt, AttachCGroupSetsockopt, 0},
-		"classifier":         {SchedCLS, AttachNone, 0},
-		"action":             {SchedACT, AttachNone, 0},
-
-		"cgroup/getsockname4": {CGroupSockAddr, AttachCgroupInet4GetSockname, 0},
-		"cgroup/getsockname6": {CGroupSockAddr, AttachCgroupInet6GetSockname, 0},
-		"cgroup/getpeername4": {CGroupSockAddr, AttachCgroupInet4GetPeername, 0},
-		"cgroup/getpeername6": {CGroupSockAddr, AttachCgroupInet6GetPeername, 0},
+		{"seccomp", SocketFilter, AttachNone, 0},
 	}
 
-	for prefix, t := range types {
-		if !strings.HasPrefix(sectionName, prefix) {
+	for _, t := range types {
+		if !strings.HasPrefix(sectionName, t.prefix) {
 			continue
 		}
 
-		if !strings.HasSuffix(prefix, "/") {
+		if !strings.HasSuffix(t.prefix, "/") {
 			return t.progType, t.attachType, t.progFlags, ""
 		}
 
-		return t.progType, t.attachType, t.progFlags, sectionName[len(prefix):]
+		return t.progType, t.attachType, t.progFlags, sectionName[len(t.prefix):]
 	}
 
 	return UnspecifiedProgram, AttachNone, 0, ""

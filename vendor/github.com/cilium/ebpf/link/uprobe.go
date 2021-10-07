@@ -26,6 +26,17 @@ var (
 		err   error
 	}{}
 
+	uprobeRefCtrOffsetPMUPath = "/sys/bus/event_source/devices/uprobe/format/ref_ctr_offset"
+	// elixir.bootlin.com/linux/v5.15-rc7/source/kernel/events/core.c#L9799
+	uprobeRefCtrOffsetShift = 32
+	haveRefCtrOffsetPMU     = internal.FeatureTest("RefCtrOffsetPMU", "4.20", func() error {
+		_, err := os.Stat(uprobeRefCtrOffsetPMUPath)
+		if err != nil {
+			return internal.ErrNotSupported
+		}
+		return nil
+	})
+
 	// ErrNoSymbol indicates that the given symbol was not found
 	// in the ELF symbols table.
 	ErrNoSymbol = errors.New("not found")
@@ -48,11 +59,22 @@ type UprobeOptions struct {
 	// Only set the uprobe on the given process ID. Useful when tracing
 	// shared library calls or programs that have many running instances.
 	PID int
+	// Automatically manage SDT reference counts (semaphores).
+	//
+	// If this field is set, the Kernel will increment/decrement the
+	// semaphore located in the process memory at the provided address on
+	// probe attach/detach.
+	//
+	// See also:
+	// sourceware.org/systemtap/wiki/UserSpaceProbeImplementation (Semaphore Handling)
+	// github.com/torvalds/linux/commit/1cc33161a83d
+	// github.com/torvalds/linux/commit/a6ca88b241d5
+	RefCtrOffset uint64
 }
 
 // To open a new Executable, use:
 //
-//	OpenExecutable("/bin/bash")
+//  OpenExecutable("/bin/bash")
 //
 // The returned value can then be used to open Uprobe(s).
 func OpenExecutable(path string) (*Executable, error) {
@@ -161,7 +183,7 @@ func (ex *Executable) offset(symbol string) (uint64, error) {
 // When using symbols which belongs to shared libraries,
 // an offset must be provided via options:
 //
-//	up, err := ex.Uprobe("main", prog, &UprobeOptions{Offset: 0x123})
+//  up, err := ex.Uprobe("main", prog, &UprobeOptions{Offset: 0x123})
 //
 // Losing the reference to the resulting Link (up) will close the Uprobe
 // and prevent further execution of prog. The Link must be Closed during
@@ -193,7 +215,7 @@ func (ex *Executable) Uprobe(symbol string, prog *ebpf.Program, opts *UprobeOpti
 // When using symbols which belongs to shared libraries,
 // an offset must be provided via options:
 //
-//	up, err := ex.Uretprobe("main", prog, &UprobeOptions{Offset: 0x123})
+//  up, err := ex.Uretprobe("main", prog, &UprobeOptions{Offset: 0x123})
 //
 // Losing the reference to the resulting Link (up) will close the Uprobe
 // and prevent further execution of prog. The Link must be Closed during
@@ -225,11 +247,12 @@ func (ex *Executable) uprobe(symbol string, prog *ebpf.Program, opts *UprobeOpti
 	if prog.Type() != ebpf.Kprobe {
 		return nil, fmt.Errorf("eBPF program type %s is not Kprobe: %w", prog.Type(), errInvalidInput)
 	}
+	if opts == nil {
+		opts = &UprobeOptions{}
+	}
 
-	var offset uint64
-	if opts != nil && opts.Offset != 0 {
-		offset = opts.Offset
-	} else {
+	offset := opts.Offset
+	if offset == 0 {
 		off, err := ex.offset(symbol)
 		if err != nil {
 			return nil, err
@@ -237,13 +260,28 @@ func (ex *Executable) uprobe(symbol string, prog *ebpf.Program, opts *UprobeOpti
 		offset = off
 	}
 
-	pid := perfAllThreads
-	if opts != nil && opts.PID != 0 {
-		pid = opts.PID
+	pid := opts.PID
+	if pid == 0 {
+		pid = perfAllThreads
+	}
+
+	if opts.RefCtrOffset != 0 {
+		if err := haveRefCtrOffsetPMU(); err != nil {
+			return nil, fmt.Errorf("uprobe ref_ctr_offset: %w", err)
+		}
+	}
+
+	args := probeArgs{
+		symbol:       symbol,
+		path:         ex.path,
+		offset:       offset,
+		pid:          pid,
+		refCtrOffset: opts.RefCtrOffset,
+		ret:          ret,
 	}
 
 	// Use uprobe PMU if the kernel has it available.
-	tp, err := pmuUprobe(symbol, ex.path, offset, pid, ret)
+	tp, err := pmuUprobe(args)
 	if err == nil {
 		return tp, nil
 	}
@@ -252,7 +290,8 @@ func (ex *Executable) uprobe(symbol string, prog *ebpf.Program, opts *UprobeOpti
 	}
 
 	// Use tracefs if uprobe PMU is missing.
-	tp, err = tracefsUprobe(uprobeSanitizedSymbol(symbol), ex.path, offset, pid, ret)
+	args.symbol = uprobeSanitizedSymbol(symbol)
+	tp, err = tracefsUprobe(args)
 	if err != nil {
 		return nil, fmt.Errorf("creating trace event '%s:%s' in tracefs: %w", ex.path, symbol, err)
 	}
@@ -261,13 +300,13 @@ func (ex *Executable) uprobe(symbol string, prog *ebpf.Program, opts *UprobeOpti
 }
 
 // pmuUprobe opens a perf event based on the uprobe PMU.
-func pmuUprobe(symbol, path string, offset uint64, pid int, ret bool) (*perfEvent, error) {
-	return pmuProbe(uprobeType, symbol, path, offset, pid, ret)
+func pmuUprobe(args probeArgs) (*perfEvent, error) {
+	return pmuProbe(uprobeType, args)
 }
 
 // tracefsUprobe creates a Uprobe tracefs entry.
-func tracefsUprobe(symbol, path string, offset uint64, pid int, ret bool) (*perfEvent, error) {
-	return tracefsProbe(uprobeType, symbol, path, offset, pid, ret)
+func tracefsUprobe(args probeArgs) (*perfEvent, error) {
+	return tracefsProbe(uprobeType, args)
 }
 
 // uprobeSanitizedSymbol replaces every invalid characted for the tracefs api with an underscore.
@@ -275,9 +314,17 @@ func uprobeSanitizedSymbol(symbol string) string {
 	return rgxUprobeSymbol.ReplaceAllString(symbol, "_")
 }
 
-// uprobePathOffset creates the PATH:OFFSET token for the tracefs api.
-func uprobePathOffset(path string, offset uint64) string {
-	return fmt.Sprintf("%s:%#x", path, offset)
+// uprobeToken creates the PATH:OFFSET(REF_CTR_OFFSET) token for the tracefs api.
+func uprobeToken(args probeArgs) string {
+	po := fmt.Sprintf("%s:%#x", args.path, args.offset)
+
+	if args.refCtrOffset != 0 {
+		// This is not documented in Documentation/trace/uprobetracer.txt.
+		// elixir.bootlin.com/linux/v5.15-rc7/source/kernel/trace/trace.c#L5564
+		po += fmt.Sprintf("(%#x)", args.refCtrOffset)
+	}
+
+	return po
 }
 
 func uretprobeBit() (uint64, error) {

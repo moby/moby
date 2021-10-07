@@ -190,6 +190,13 @@ const (
 	FnSysBpf
 	FnBtfFindByNameKind
 	FnSysClose
+	FnTimerInit
+	FnTimerSetCallback
+	FnTimerStart
+	FnTimerCancel
+	FnGetFuncIp
+	FnGetAttachCookie
+	FnTaskPtRegs
 )
 
 // Call emits a function call.

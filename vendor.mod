@@ -34,7 +34,7 @@ require (
 	github.com/docker/libtrust v0.0.0-20150526203908-9cbd2a1374f4
 	github.com/fluent/fluent-logger-golang v1.9.0
 	github.com/fsnotify/fsnotify v1.5.1
-	github.com/godbus/dbus/v5 v5.0.6
+	github.com/godbus/dbus/v5 v5.1.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/gddo v0.0.0-20190904175337-72a348e765d2
 	github.com/google/go-cmp v0.5.7
@@ -54,7 +54,7 @@ require (
 	github.com/moby/locker v1.0.1
 	github.com/moby/swarmkit/v2 v2.0.0-20220420172245-6068d1894d46
 	github.com/moby/sys/mount v0.3.1
-	github.com/moby/sys/mountinfo v0.6.0
+	github.com/moby/sys/mountinfo v0.6.1
 	github.com/moby/sys/signal v0.7.0
 	github.com/moby/sys/symlink v0.2.0
 	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6
@@ -95,7 +95,7 @@ require (
 	github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/cilium/ebpf v0.7.0 // indirect
+	github.com/cilium/ebpf v0.8.1 // indirect
 	github.com/container-storage-interface/spec v1.5.0 // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/containerd/go-runc v1.0.0 // indirect
@@ -162,7 +162,7 @@ require (
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/api v0.54.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/protobuf v1.27.1 // indirect
+	google.golang.org/protobuf v1.28.0 // indirect
 	labix.org/v2/mgo v0.0.0-20140701140051-000000000287 // indirect
 )
 
@@ -189,3 +189,5 @@ replace github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
 // module go.etcd.io/etcd/server/v3 has upgraded its dependency on
 // go.opentelemetry.io/otel to v1.
 replace github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20
+
+replace github.com/opencontainers/runc => github.com/kolyshkin/runc v1.0.1-0.20220504223858-2ce40b6ad72b
