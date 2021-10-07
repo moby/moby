@@ -73,6 +73,7 @@ func (cli *Client) ContainerLogs(ctx context.Context, container string, options 
 	query.Set("tail", options.Tail)
 
 	resp, err := cli.get(ctx, "/containers/"+container+"/logs", query, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
 		return nil, wrapResponseError(err, resp, "container", container)
 	}
