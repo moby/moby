@@ -1,10 +1,10 @@
+//go:build !windows
 // +build !windows
 
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -59,7 +59,7 @@ func TestAdjustSharedNamespaceContainerName(t *testing.T) {
 
 // Unix test as uses settings which are not available on Windows
 func TestAdjustCPUShares(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "docker-daemon-unix-test-")
+	tmp, err := os.MkdirTemp("", "docker-daemon-unix-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestAdjustCPUShares(t *testing.T) {
 
 // Unix test as uses settings which are not available on Windows
 func TestAdjustCPUSharesNoAdjustment(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "docker-daemon-unix-test-")
+	tmp, err := os.MkdirTemp("", "docker-daemon-unix-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -396,7 +396,7 @@ func deviceTypeMock(t *testing.T, testAndCheck func(string)) {
 
 	t.Parallel()
 
-	tempDir, err := ioutil.TempDir("", "tempDevDir"+t.Name())
+	tempDir, err := os.MkdirTemp("", "tempDevDir"+t.Name())
 	assert.NilError(t, err, "create temp file")
 	tempFile := filepath.Join(tempDir, "dev")
 

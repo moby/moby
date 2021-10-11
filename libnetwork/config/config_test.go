@@ -1,14 +1,12 @@
 package config
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/netlabel"
-	_ "github.com/docker/docker/libnetwork/testutils"
 )
 
 func TestInvalidConfig(t *testing.T) {
@@ -106,14 +104,14 @@ dyT7ut01PL6RaW4SeQWtrJIVQaM6vF3pprMKqlc5XihOGAmVqH7rQx9rtQB5TicL
 BFrwkQE4HQtQBV60hYQUzzlSk44VFDz+jxIEtacRHaomDRh2FtOTz+I=
 -----END RSA PRIVATE KEY-----
 `
-	certFile, err := ioutil.TempFile("", "cert")
+	certFile, err := os.CreateTemp("", "cert")
 	if err != nil {
 		t.Fatalf("Failed to setup temp file: %s", err)
 	}
 	defer os.Remove(certFile.Name())
 	certFile.Write([]byte(cert))
 	certFile.Close()
-	keyFile, err := ioutil.TempFile("", "key")
+	keyFile, err := os.CreateTemp("", "key")
 	if err != nil {
 		t.Fatalf("Failed to setup temp file: %s", err)
 	}

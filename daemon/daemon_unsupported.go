@@ -1,3 +1,4 @@
+//go:build !linux && !freebsd && !windows
 // +build !linux,!freebsd,!windows
 
 package daemon // import "github.com/docker/docker/daemon"
@@ -13,6 +14,6 @@ func setupResolvConf(config *config.Config) {
 }
 
 // RawSysInfo returns *sysinfo.SysInfo .
-func (daemon *Daemon) RawSysInfo(quiet bool) *sysinfo.SysInfo {
-	return sysinfo.New(quiet)
+func (daemon *Daemon) RawSysInfo() *sysinfo.SysInfo {
+	return sysinfo.New()
 }

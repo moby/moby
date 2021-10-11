@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -18,7 +17,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/testutil/request"
@@ -43,6 +41,8 @@ const (
 	defaultDockerdBinary         = "dockerd"
 	defaultContainerdSocket      = "/var/run/docker/containerd/containerd.sock"
 	defaultDockerdRootlessBinary = "dockerd-rootless.sh"
+	defaultUnixSocket            = "/var/run/docker.sock"
+	defaultTLSHost               = "localhost:2376"
 )
 
 var errDaemonNotStarted = errors.New("daemon not started")
@@ -262,7 +262,7 @@ func (d *Daemon) LogFileName() string {
 
 // ReadLogFile returns the content of the daemon log file
 func (d *Daemon) ReadLogFile() ([]byte, error) {
-	return ioutil.ReadFile(d.logFile.Name())
+	return os.ReadFile(d.logFile.Name())
 }
 
 // NewClientT creates new client based on daemon's socket path
@@ -739,11 +739,11 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 		transport = &http.Transport{
 			TLSClientConfig: tlsConfig,
 		}
-		addr = fmt.Sprintf("%s:%d", opts.DefaultHTTPHost, opts.DefaultTLSHTTPPort)
+		addr = defaultTLSHost
 		scheme = "https"
 		proto = "tcp"
 	} else if d.UseDefaultHost {
-		addr = opts.DefaultUnixSocket
+		addr = defaultUnixSocket
 		proto = "unix"
 		scheme = "http"
 		transport = &http.Transport{}

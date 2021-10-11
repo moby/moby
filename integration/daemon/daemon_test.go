@@ -1,18 +1,17 @@
 package daemon // import "github.com/docker/docker/integration/daemon"
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
 
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
-
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 func TestConfigDaemonLibtrustID(t *testing.T) {
@@ -22,11 +21,11 @@ func TestConfigDaemonLibtrustID(t *testing.T) {
 	defer d.Stop(t)
 
 	trustKey := filepath.Join(d.RootDir(), "key.json")
-	err := ioutil.WriteFile(trustKey, []byte(`{"crv":"P-256","d":"dm28PH4Z4EbyUN8L0bPonAciAQa1QJmmyYd876mnypY","kid":"WTJ3:YSIP:CE2E:G6KJ:PSBD:YX2Y:WEYD:M64G:NU2V:XPZV:H2CR:VLUB","kty":"EC","x":"Mh5-JINSjaa_EZdXDttri255Z5fbCEOTQIZjAcScFTk","y":"eUyuAjfxevb07hCCpvi4Zi334Dy4GDWQvEToGEX4exQ"}`), 0644)
+	err := os.WriteFile(trustKey, []byte(`{"crv":"P-256","d":"dm28PH4Z4EbyUN8L0bPonAciAQa1QJmmyYd876mnypY","kid":"WTJ3:YSIP:CE2E:G6KJ:PSBD:YX2Y:WEYD:M64G:NU2V:XPZV:H2CR:VLUB","kty":"EC","x":"Mh5-JINSjaa_EZdXDttri255Z5fbCEOTQIZjAcScFTk","y":"eUyuAjfxevb07hCCpvi4Zi334Dy4GDWQvEToGEX4exQ"}`), 0644)
 	assert.NilError(t, err)
 
 	config := filepath.Join(d.RootDir(), "daemon.json")
-	err = ioutil.WriteFile(config, []byte(`{"deprecated-key-path": "`+trustKey+`"}`), 0644)
+	err = os.WriteFile(config, []byte(`{"deprecated-key-path": "`+trustKey+`"}`), 0644)
 	assert.NilError(t, err)
 
 	d.Start(t, "--config-file", config)
@@ -96,6 +95,54 @@ func TestDaemonConfigValidation(t *testing.T) {
 			} else {
 				assert.NilError(t, err)
 			}
+		})
+	}
+}
+
+func TestConfigDaemonSeccompProfiles(t *testing.T) {
+	skip.If(t, runtime.GOOS != "linux")
+
+	d := daemon.New(t)
+	defer d.Stop(t)
+
+	tests := []struct {
+		doc             string
+		profile         string
+		expectedProfile string
+	}{
+		{
+			doc:             "empty profile set",
+			profile:         "",
+			expectedProfile: config.SeccompProfileDefault,
+		},
+		{
+			doc:             "default profile",
+			profile:         config.SeccompProfileDefault,
+			expectedProfile: config.SeccompProfileDefault,
+		},
+		{
+			doc:             "unconfined profile",
+			profile:         config.SeccompProfileUnconfined,
+			expectedProfile: config.SeccompProfileUnconfined,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			d.Start(t, "--seccomp-profile="+tc.profile)
+			info := d.Info(t)
+			assert.Assert(t, is.Contains(info.SecurityOptions, "name=seccomp,profile="+tc.expectedProfile))
+			d.Stop(t)
+
+			cfg := filepath.Join(d.RootDir(), "daemon.json")
+			err := os.WriteFile(cfg, []byte(`{"seccomp-profile": "`+tc.profile+`"}`), 0644)
+			assert.NilError(t, err)
+
+			d.Start(t, "--config-file", cfg)
+			info = d.Info(t)
+			assert.Assert(t, is.Contains(info.SecurityOptions, "name=seccomp,profile="+tc.expectedProfile))
+			d.Stop(t)
 		})
 	}
 }

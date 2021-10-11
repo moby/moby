@@ -1,10 +1,10 @@
+//go:build linux
 // +build linux
 
 package overlayutils // import "github.com/docker/docker/daemon/graphdriver/overlayutils"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -47,7 +47,7 @@ func SupportsOverlay(d string, checkMultipleLowers bool) error {
 		return errors.New("overlay is not supported for Rootless with SELinux")
 	}
 
-	td, err := ioutil.TempDir(d, "check-overlayfs-support")
+	td, err := os.MkdirTemp(d, "check-overlayfs-support")
 	if err != nil {
 		return err
 	}

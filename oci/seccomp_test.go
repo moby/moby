@@ -1,10 +1,11 @@
+//go:build linux
 // +build linux
 
 package oci
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/docker/docker/profiles/seccomp"
@@ -15,7 +16,7 @@ func TestSeccompLoadProfile(t *testing.T) {
 
 	for _, p := range profiles {
 		t.Run(p, func(t *testing.T) {
-			f, err := ioutil.ReadFile("fixtures/" + p)
+			f, err := os.ReadFile("fixtures/" + p)
 			if err != nil {
 				t.Fatal(err)
 			}

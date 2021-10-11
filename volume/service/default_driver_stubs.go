@@ -1,3 +1,4 @@
+//go:build !linux && !windows
 // +build !linux,!windows
 
 package service // import "github.com/docker/docker/volume/service"

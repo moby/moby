@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package aufs // import "github.com/docker/docker/daemon/graphdriver/aufs"
@@ -6,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -690,7 +690,7 @@ func testMountMoreThan42Layers(t *testing.T, mountPath string) {
 	// Perform the actual mount for the top most image
 	point, err := driverGet(d, last, "")
 	assert.NilError(t, err)
-	files, err := ioutil.ReadDir(point)
+	files, err := os.ReadDir(point)
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(files, expected))
 }

@@ -1,10 +1,10 @@
+//go:build linux
 // +build linux
 
 package overlay2 // import "github.com/docker/docker/daemon/graphdriver/overlay2"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -28,7 +28,7 @@ func doesSupportNativeDiff(d string) error {
 		return errors.New("running in a user namespace")
 	}
 
-	td, err := ioutil.TempDir(d, "opaque-bug-check")
+	td, err := os.MkdirTemp(d, "opaque-bug-check")
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func doesSupportNativeDiff(d string) error {
 	}()
 
 	// Touch file in d to force copy up of opaque directory "d" from "l2" to "l3"
-	if err := ioutil.WriteFile(filepath.Join(td, mergedDirName, "d", "f"), []byte{}, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(td, mergedDirName, "d", "f"), []byte{}, 0644); err != nil {
 		return errors.Wrap(err, "failed to write to merged directory")
 	}
 

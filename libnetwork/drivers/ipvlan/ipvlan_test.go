@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package ipvlan
@@ -6,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/driverapi"
-	_ "github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/pkg/plugingetter"
 )
 

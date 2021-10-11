@@ -17,8 +17,11 @@ const (
 	containerInternalSecretMountPath = `C:\ProgramData\Docker\internal\secrets`
 	containerInternalConfigsDirPath  = `C:\ProgramData\Docker\internal\configs`
 
-	// DefaultStopTimeout is the timeout (in seconds) for the shutdown call on a container
-	DefaultStopTimeout = 30
+	// defaultStopSignal is the default syscall signal used to stop a container.
+	defaultStopSignal = "SIGTERM"
+
+	// defaultStopTimeout is the timeout (in seconds) for the shutdown call on a container
+	defaultStopTimeout = 30
 )
 
 // UnmountIpcMount unmounts Ipc related mounts.

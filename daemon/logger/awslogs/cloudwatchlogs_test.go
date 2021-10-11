@@ -3,7 +3,6 @@ package awslogs // import "github.com/docker/docker/daemon/logger/awslogs"
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -65,6 +64,7 @@ func TestNewStreamConfig(t *testing.T) {
 		logStreamName      string
 		logGroupName       string
 		logCreateGroup     string
+		logCreateStream    string
 		logNonBlocking     string
 		forceFlushInterval string
 		maxBufferedEvents  string
@@ -73,13 +73,13 @@ func TestNewStreamConfig(t *testing.T) {
 		shouldErr          bool
 		testName           string
 	}{
-		{"", groupName, "", "", "", "", "", "", false, "defaults"},
-		{"", groupName, "invalid create group", "", "", "", "", "", true, "invalid create group"},
-		{"", groupName, "", "", "invalid flush interval", "", "", "", true, "invalid flush interval"},
-		{"", groupName, "", "", "", "invalid max buffered events", "", "", true, "invalid max buffered events"},
-		{"", groupName, "", "", "", "", "", "n{1001}", true, "invalid multiline pattern"},
-		{"", groupName, "", "", "15", "", "", "", false, "flush interval at 15"},
-		{"", groupName, "", "", "", "1024", "", "", false, "max buffered events at 1024"},
+		{"", groupName, "", "", "", "", "", "", "", false, "defaults"},
+		{"", groupName, "invalid create group", "", "", "", "", "", "", true, "invalid create group"},
+		{"", groupName, "", "", "", "invalid flush interval", "", "", "", true, "invalid flush interval"},
+		{"", groupName, "", "", "", "", "invalid max buffered events", "", "", true, "invalid max buffered events"},
+		{"", groupName, "", "", "", "", "", "", "n{1001}", true, "invalid multiline pattern"},
+		{"", groupName, "", "", "", "15", "", "", "", false, "flush interval at 15"},
+		{"", groupName, "", "", "", "", "1024", "", "", false, "max buffered events at 1024"},
 	}
 
 	for _, tc := range tests {
@@ -91,6 +91,7 @@ func TestNewStreamConfig(t *testing.T) {
 				forceFlushIntervalKey: tc.forceFlushInterval,
 				maxBufferedEventsKey:  tc.maxBufferedEvents,
 				logStreamKey:          tc.logStreamName,
+				logCreateStreamKey:    tc.logCreateStream,
 				datetimeFormatKey:     tc.datetimeFormat,
 				multilinePatternKey:   tc.multilinePattern,
 			}
@@ -186,9 +187,10 @@ func TestNewAWSLogsClientRegionDetect(t *testing.T) {
 func TestCreateSuccess(t *testing.T) {
 	mockClient := newMockClient()
 	stream := &logStream{
-		client:        mockClient,
-		logGroupName:  groupName,
-		logStreamName: streamName,
+		client:          mockClient,
+		logGroupName:    groupName,
+		logStreamName:   streamName,
+		logCreateStream: true,
 	}
 	mockClient.createLogStreamResult <- &createLogStreamResult{}
 
@@ -212,13 +214,28 @@ func TestCreateSuccess(t *testing.T) {
 	}
 }
 
+func TestCreateStreamSkipped(t *testing.T) {
+	stream := &logStream{
+		logGroupName:    groupName,
+		logStreamName:   streamName,
+		logCreateStream: false,
+	}
+
+	err := stream.create()
+
+	if err != nil {
+		t.Errorf("Received unexpected err: %v\n", err)
+	}
+}
+
 func TestCreateLogGroupSuccess(t *testing.T) {
 	mockClient := newMockClient()
 	stream := &logStream{
-		client:         mockClient,
-		logGroupName:   groupName,
-		logStreamName:  streamName,
-		logCreateGroup: true,
+		client:          mockClient,
+		logGroupName:    groupName,
+		logStreamName:   streamName,
+		logCreateGroup:  true,
+		logCreateStream: true,
 	}
 	mockClient.createLogGroupResult <- &createLogGroupResult{}
 	mockClient.createLogStreamResult <- &createLogStreamResult{}
@@ -246,7 +263,8 @@ func TestCreateLogGroupSuccess(t *testing.T) {
 func TestCreateError(t *testing.T) {
 	mockClient := newMockClient()
 	stream := &logStream{
-		client: mockClient,
+		client:          mockClient,
+		logCreateStream: true,
 	}
 	mockClient.createLogStreamResult <- &createLogStreamResult{
 		errorResult: errors.New("Error"),
@@ -262,7 +280,8 @@ func TestCreateError(t *testing.T) {
 func TestCreateAlreadyExists(t *testing.T) {
 	mockClient := newMockClient()
 	stream := &logStream{
-		client: mockClient,
+		client:          mockClient,
+		logCreateStream: true,
 	}
 	mockClient.createLogStreamResult <- &createLogStreamResult{
 		errorResult: awserr.New(resourceAlreadyExistsCode, "", nil),
@@ -1552,9 +1571,10 @@ func TestCreateTagSuccess(t *testing.T) {
 		t.Errorf("Error generating tag: %q", e)
 	}
 	stream := &logStream{
-		client:        mockClient,
-		logGroupName:  groupName,
-		logStreamName: logStreamName,
+		client:          mockClient,
+		logGroupName:    groupName,
+		logStreamName:   logStreamName,
+		logCreateStream: true,
 	}
 	mockClient.createLogStreamResult <- &createLogStreamResult{}
 
@@ -1669,7 +1689,7 @@ func TestNewAWSLogsClientCredentialSharedFile(t *testing.T) {
 	`
 	content := []byte(contentStr)
 
-	tmpfile, err := ioutil.TempFile("", "example")
+	tmpfile, err := os.CreateTemp("", "example")
 	defer os.Remove(tmpfile.Name()) // clean up
 	assert.Check(t, err)
 

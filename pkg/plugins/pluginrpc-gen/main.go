@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"go/format"
-	"io/ioutil"
 	"os"
 	"unicode"
 	"unicode/utf8"
@@ -79,7 +78,7 @@ func main() {
 	errorOut("parser error", generatedTempl.Execute(&buf, analysis))
 	src, err := format.Source(buf.Bytes())
 	errorOut("error formatting generated source:\n"+buf.String(), err)
-	errorOut("error writing file", ioutil.WriteFile(*outputFile, src, 0644))
+	errorOut("error writing file", os.WriteFile(*outputFile, src, 0644))
 }
 
 func toLower(s string) string {

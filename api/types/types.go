@@ -212,7 +212,12 @@ type Info struct {
 	SecurityOptions     []string
 	ProductLicense      string               `json:",omitempty"`
 	DefaultAddressPools []NetworkAddressPool `json:",omitempty"`
-	Warnings            []string
+
+	// Warnings contains a slice of warnings that occurred  while collecting
+	// system information. These warnings are intended to be informational
+	// messages for the user, and are not intended to be parsed / used for
+	// other purposes, as they do not have a fixed format.
+	Warnings []string
 }
 
 // KeyValue holds a key/value pair
@@ -530,6 +535,27 @@ type ShimConfig struct {
 	Opts   interface{}
 }
 
+// DiskUsageObject represents an object type used for disk usage query filtering.
+type DiskUsageObject string
+
+const (
+	// ContainerObject represents a container DiskUsageObject.
+	ContainerObject DiskUsageObject = "container"
+	// ImageObject represents an image DiskUsageObject.
+	ImageObject DiskUsageObject = "image"
+	// VolumeObject represents a volume DiskUsageObject.
+	VolumeObject DiskUsageObject = "volume"
+	// BuildCacheObject represents a build-cache DiskUsageObject.
+	BuildCacheObject DiskUsageObject = "build-cache"
+)
+
+// DiskUsageOptions holds parameters for system disk usage query.
+type DiskUsageOptions struct {
+	// Types specifies what object types to include in the response. If empty,
+	// all object types are returned.
+	Types []DiskUsageObject
+}
+
 // DiskUsage contains response of Engine API:
 // GET "/system/df"
 type DiskUsage struct {
@@ -538,7 +564,7 @@ type DiskUsage struct {
 	Containers  []*Container
 	Volumes     []*Volume
 	BuildCache  []*BuildCache
-	BuilderSize int64 // deprecated
+	BuilderSize int64 `json:",omitempty"` // Deprecated: deprecated in API 1.38, and no longer used since API 1.40.
 }
 
 // ContainersPruneReport contains the response for Engine API:

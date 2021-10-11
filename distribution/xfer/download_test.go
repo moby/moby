@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"runtime"
 	"sync/atomic"
 	"testing"
@@ -30,7 +29,7 @@ type mockLayer struct {
 }
 
 func (ml *mockLayer) TarStream() (io.ReadCloser, error) {
-	return ioutil.NopCloser(bytes.NewBuffer(ml.layerData.Bytes())), nil
+	return io.NopCloser(bytes.NewBuffer(ml.layerData.Bytes())), nil
 }
 
 func (ml *mockLayer) TarStreamFrom(layer.ChainID) (io.ReadCloser, error) {
@@ -192,7 +191,7 @@ func (d *mockDownloadDescriptor) mockTarStream() io.ReadCloser {
 	// The mock implementation returns the ID repeated 5 times as a tar
 	// stream instead of actual tar data. The data is ignored except for
 	// computing IDs.
-	return ioutil.NopCloser(bytes.NewBuffer([]byte(d.id + d.id + d.id + d.id + d.id)))
+	return io.NopCloser(bytes.NewBuffer([]byte(d.id + d.id + d.id + d.id + d.id)))
 }
 
 // Download is called to perform the download.

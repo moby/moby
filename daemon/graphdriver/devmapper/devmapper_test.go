@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package devmapper // import "github.com/docker/docker/daemon/graphdriver/devmapper"
@@ -136,7 +137,7 @@ func TestDevmapperLockReleasedDeviceDeletion(t *testing.T) {
 	// DeviceSet Lock. If lock has not been released, this will hang.
 	driver.DeviceSet.cleanupDeletedDevices()
 
-	doneChan := make(chan bool)
+	doneChan := make(chan bool, 1)
 
 	go func() {
 		driver.DeviceSet.Lock()

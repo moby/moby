@@ -3,7 +3,6 @@ package distribution // import "github.com/docker/docker/distribution"
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"runtime"
 
@@ -21,6 +20,7 @@ import (
 	"github.com/docker/libtrust"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 )
 
 // Config stores configuration for communicating
@@ -155,20 +155,12 @@ func (s *imageConfigStore) PlatformFromConfig(c []byte) (*specs.Platform, error)
 		return nil, err
 	}
 
-	// fail immediately on Windows when downloading a non-Windows image
-	// and vice versa. Exception on Windows if Linux Containers are enabled.
-	if runtime.GOOS == "windows" && unmarshalledConfig.OS == "linux" && !system.LCOWSupported() {
-		return nil, fmt.Errorf("image operating system %q cannot be used on this platform", unmarshalledConfig.OS)
-	} else if runtime.GOOS != "windows" && unmarshalledConfig.OS == "windows" {
-		return nil, fmt.Errorf("image operating system %q cannot be used on this platform", unmarshalledConfig.OS)
-	}
-
 	os := unmarshalledConfig.OS
 	if os == "" {
 		os = runtime.GOOS
 	}
 	if !system.IsOSSupported(os) {
-		return nil, system.ErrNotSupportedOperatingSystem
+		return nil, errors.Wrapf(system.ErrNotSupportedOperatingSystem, "image operating system %q cannot be used on this platform", os)
 	}
 	return &specs.Platform{OS: os, Architecture: unmarshalledConfig.Architecture, Variant: unmarshalledConfig.Variant, OSVersion: unmarshalledConfig.OSVersion}, nil
 }

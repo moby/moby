@@ -1,10 +1,10 @@
+//go:build !windows
 // +build !windows
 
 package daemon
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -101,7 +101,7 @@ func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error
 		if len(rt.Args) > 0 {
 			script := filepath.Join(tmpDir, name)
 			content := fmt.Sprintf("#!/bin/sh\n%s %s $@\n", rt.Path, strings.Join(rt.Args, " "))
-			if err := ioutil.WriteFile(script, []byte(content), 0700); err != nil {
+			if err := os.WriteFile(script, []byte(content), 0700); err != nil {
 				return err
 			}
 		}

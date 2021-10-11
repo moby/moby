@@ -3,7 +3,6 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -102,7 +101,7 @@ func WithRootless(daemon *Daemon) coci.SpecOpts {
 				return errors.Wrap(err, "invalid $ROOTLESSKIT_PARENT_EUID: must be a numeric value")
 			}
 			controllersPath := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%d.slice/cgroup.controllers", euid)
-			controllersFile, err := ioutil.ReadFile(controllersPath)
+			controllersFile, err := os.ReadFile(controllersPath)
 			if err != nil {
 				return err
 			}
@@ -570,7 +569,7 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		for _, m := range mounts {
 			if m.Source == "tmpfs" {
 				data := m.Data
-				parser := volumemounts.NewParser("linux")
+				parser := volumemounts.NewParser()
 				options := []string{"noexec", "nosuid", "nodev", string(parser.DefaultPropagationMode())}
 				if data != "" {
 					options = append(options, strings.Split(data, ",")...)
@@ -771,7 +770,8 @@ func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		// joining an existing namespace, only if we create a new net namespace.
 		if c.HostConfig.NetworkMode.IsPrivate() {
 			// We cannot set up ping socket support in a user namespace
-			if !c.HostConfig.UsernsMode.IsPrivate() && sysctlExists("net.ipv4.ping_group_range") {
+			userNS := daemon.configStore.RemappedRoot != "" && c.HostConfig.UsernsMode.IsPrivate()
+			if !userNS && !userns.RunningInUserNS() && sysctlExists("net.ipv4.ping_group_range") {
 				// allow unprivileged ICMP echo sockets without CAP_NET_RAW
 				s.Linux.Sysctl["net.ipv4.ping_group_range"] = "0 2147483647"
 			}
@@ -824,7 +824,7 @@ func WithCgroups(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 
 		// FIXME this is very expensive way to check if cpu rt is supported
-		sysInfo := daemon.RawSysInfo(true)
+		sysInfo := daemon.RawSysInfo()
 		if !sysInfo.CPURealtime {
 			return errors.New("daemon-scoped cpu-rt-period and cpu-rt-runtime are not supported by the kernel")
 		}

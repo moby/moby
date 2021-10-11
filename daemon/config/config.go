@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"reflect"
@@ -49,15 +48,19 @@ const (
 	// DefaultRuntimeBinary is the default runtime to be used by
 	// containerd if none is specified
 	DefaultRuntimeBinary = "runc"
-	// StockRuntimeName is the reserved name/alias used to represent the
-	// OCI runtime being shipped with the docker daemon package.
-	StockRuntimeName = "runc"
+
 	// LinuxV1RuntimeName is the runtime used to specify the containerd v1 shim with the runc binary
 	// Note this is different than io.containerd.runc.v1 which would be the v1 shim using the v2 shim API.
 	// This is specifically for the v1 shim using the v1 shim API.
 	LinuxV1RuntimeName = "io.containerd.runtime.v1.linux"
 	// LinuxV2RuntimeName is the runtime used to specify the containerd v2 runc shim
 	LinuxV2RuntimeName = "io.containerd.runc.v2"
+
+	// SeccompProfileDefault is the built-in default seccomp profile.
+	SeccompProfileDefault = "builtin"
+	// SeccompProfileUnconfined is a special profile name for seccomp to use an
+	// "unconfined" seccomp profile.
+	SeccompProfileUnconfined = "unconfined"
 )
 
 var builtinRuntimes = map[string]bool{
@@ -268,6 +271,8 @@ type CommonConfig struct {
 
 	ContainerdNamespace       string `json:"containerd-namespace,omitempty"`
 	ContainerdPluginNamespace string `json:"containerd-plugin-namespace,omitempty"`
+
+	DefaultRuntime string `json:"default-runtime,omitempty"`
 }
 
 // IsValueSet returns true if a configuration value
@@ -282,10 +287,14 @@ func (conf *Config) IsValueSet(name string) bool {
 
 // New returns a new fully initialized Config struct
 func New() *Config {
-	config := Config{}
-	config.LogConfig.Config = make(map[string]string)
-	config.ClusterOpts = make(map[string]string)
-	return &config
+	return &Config{
+		CommonConfig: CommonConfig{
+			LogConfig: LogConfig{
+				Config: make(map[string]string),
+			},
+			ClusterOpts: make(map[string]string),
+		},
+	}
 }
 
 // ParseClusterAdvertiseSettings parses the specified advertise settings
@@ -392,7 +401,7 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *pflag.FlagSet, config
 // It compares that configuration with the one provided by the flags,
 // and returns an error if there are conflicts.
 func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Config, error) {
-	b, err := ioutil.ReadFile(configFile)
+	b, err := os.ReadFile(configFile)
 	if err != nil {
 		return nil, err
 	}
@@ -626,4 +635,13 @@ func ModifiedDiscoverySettings(config *Config, backendType, advertise string, cl
 	}
 
 	return !reflect.DeepEqual(config.ClusterOpts, clusterOpts)
+}
+
+// GetDefaultRuntimeName returns the current default runtime
+func (conf *Config) GetDefaultRuntimeName() string {
+	conf.Lock()
+	rt := conf.DefaultRuntime
+	conf.Unlock()
+
+	return rt
 }

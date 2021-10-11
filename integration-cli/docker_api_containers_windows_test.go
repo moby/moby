@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package main
@@ -5,7 +6,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"strings"
 	"testing"
@@ -40,7 +41,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsBindNamedPipe(c *testing.T) {
 	go func() {
 		conn, err := l.Accept()
 		if err == nil {
-			b, err = ioutil.ReadAll(conn)
+			b, err = io.ReadAll(conn)
 			conn.Close()
 		}
 		ch <- err

@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"runtime"
-	"strings"
 
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
@@ -61,7 +59,7 @@ type v2Puller struct {
 	manifestStore     *manifestStore
 }
 
-func (p *v2Puller) Pull(ctx context.Context, ref reference.Named, platform *specs.Platform) (err error) {
+func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (err error) {
 	// TODO(tiborvass): was ReceiveTimeout
 	p.repo, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
@@ -74,7 +72,7 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named, platform *spec
 		return err
 	}
 
-	if err = p.pullV2Repository(ctx, ref, platform); err != nil {
+	if err = p.pullV2Repository(ctx, ref); err != nil {
 		if _, ok := err.(fallbackError); ok {
 			return err
 		}
@@ -88,10 +86,10 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named, platform *spec
 	return err
 }
 
-func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named, platform *specs.Platform) (err error) {
+func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (err error) {
 	var layersDownloaded bool
 	if !reference.IsNameOnly(ref) {
-		layersDownloaded, err = p.pullV2Tag(ctx, ref, platform)
+		layersDownloaded, err = p.pullV2Tag(ctx, ref, p.config.Platform)
 		if err != nil {
 			return err
 		}
@@ -106,7 +104,7 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named, pl
 			if err != nil {
 				return err
 			}
-			pulledNew, err := p.pullV2Tag(ctx, tagRef, platform)
+			pulledNew, err := p.pullV2Tag(ctx, tagRef, p.config.Platform)
 			if err != nil {
 				// Since this is the pull-all-tags case, don't
 				// allow an error pulling a particular tag to
@@ -487,6 +485,14 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named, platform 
 }
 
 func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unverifiedManifest *schema1.SignedManifest, platform *specs.Platform) (id digest.Digest, manifestDigest digest.Digest, err error) {
+	if platform != nil {
+		// Early bath if the requested OS doesn't match that of the configuration.
+		// This avoids doing the download, only to potentially fail later.
+		if !system.IsOSSupported(platform.OS) {
+			return "", "", fmt.Errorf("cannot download image with operating system %q when requesting %q", runtime.GOOS, platform.OS)
+		}
+	}
+
 	var verifiedManifest *schema1.Manifest
 	verifiedManifest, err = verifySchema1Manifest(unverifiedManifest, ref)
 	if err != nil {
@@ -541,44 +547,7 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unv
 		descriptors = append(descriptors, layerDescriptor)
 	}
 
-	// The v1 manifest itself doesn't directly contain an OS. However,
-	// the history does, but unfortunately that's a string, so search through
-	// all the history until hopefully we find one which indicates the OS.
-	// supertest2014/nyan is an example of a registry image with schemav1.
-	configOS := runtime.GOOS
-	if system.LCOWSupported() {
-		type config struct {
-			Os string `json:"os,omitempty"`
-		}
-		for _, v := range verifiedManifest.History {
-			var c config
-			if err := json.Unmarshal([]byte(v.V1Compatibility), &c); err == nil {
-				if c.Os != "" {
-					configOS = c.Os
-					break
-				}
-			}
-		}
-	}
-
-	// In the situation that the API call didn't specify an OS explicitly, but
-	// we support the operating system, switch to that operating system.
-	// eg FROM supertest2014/nyan with no platform specifier, and docker build
-	// with no --platform= flag under LCOW.
-	requestedOS := ""
-	if platform != nil {
-		requestedOS = platform.OS
-	} else if system.IsOSSupported(configOS) {
-		requestedOS = configOS
-	}
-
-	// Early bath if the requested OS doesn't match that of the configuration.
-	// This avoids doing the download, only to potentially fail later.
-	if !strings.EqualFold(configOS, requestedOS) {
-		return "", "", fmt.Errorf("cannot download image with operating system %q when requesting %q", configOS, requestedOS)
-	}
-
-	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, configOS, descriptors, p.config.ProgressOutput)
+	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, runtime.GOOS, descriptors, p.config.ProgressOutput)
 	if err != nil {
 		return "", "", err
 	}
@@ -1005,7 +974,7 @@ func fixManifestLayers(m *schema1.Manifest) error {
 }
 
 func createDownloadFile() (*os.File, error) {
-	return ioutil.TempFile("", "GetImageBlob")
+	return os.CreateTemp("", "GetImageBlob")
 }
 
 func toOCIPlatform(p manifestlist.PlatformSpec) specs.Platform {

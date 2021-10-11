@@ -1,10 +1,11 @@
+//go:build !windows
 // +build !windows
 
 package libnetwork
 
 import (
 	"fmt"
-	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/docker/docker/libnetwork/etchosts"
 	"github.com/docker/docker/libnetwork/resolvconf"
-	"github.com/docker/docker/libnetwork/resolvconf/dns"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
 )
@@ -171,14 +171,26 @@ func (sb *sandbox) setExternalResolvers(content []byte, addrType int, checkLoopb
 	servers := resolvconf.GetNameservers(content, addrType)
 	for _, ip := range servers {
 		hostLoopback := false
-		if checkLoopback {
-			hostLoopback = dns.IsIPv4Localhost(ip)
+		if checkLoopback && isIPv4Loopback(ip) {
+			hostLoopback = true
 		}
 		sb.extDNS = append(sb.extDNS, extDNSEntry{
 			IPStr:        ip,
 			HostLoopback: hostLoopback,
 		})
 	}
+}
+
+// isIPv4Loopback checks if the given IP address is an IPv4 loopback address.
+// It's based on the logic in Go's net.IP.IsLoopback(), but only the IPv4 part:
+// https://github.com/golang/go/blob/go1.16.6/src/net/ip.go#L120-L126
+func isIPv4Loopback(ipAddress string) bool {
+	if ip := net.ParseIP(ipAddress); ip != nil {
+		if ip4 := ip.To4(); ip4 != nil {
+			return ip4[0] == 127
+		}
+	}
+	return false
 }
 
 func (sb *sandbox) setupDNS() error {
@@ -233,7 +245,7 @@ func (sb *sandbox) setupDNS() error {
 	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 || len(sb.config.dnsOptionsList) > 0 {
 		var (
 			err            error
-			dnsList        = resolvconf.GetNameservers(currRC.Content, types.IP)
+			dnsList        = resolvconf.GetNameservers(currRC.Content, resolvconf.IP)
 			dnsSearchList  = resolvconf.GetSearchDomains(currRC.Content)
 			dnsOptionsList = resolvconf.GetOptions(currRC.Content)
 		)
@@ -253,26 +265,26 @@ func (sb *sandbox) setupDNS() error {
 		// After building the resolv.conf from the user config save the
 		// external resolvers in the sandbox. Note that --dns 127.0.0.x
 		// config refers to the loopback in the container namespace
-		sb.setExternalResolvers(newRC.Content, types.IPv4, false)
+		sb.setExternalResolvers(newRC.Content, resolvconf.IPv4, false)
 	} else {
 		// If the host resolv.conf file has 127.0.0.x container should
 		// use the host resolver for queries. This is supported by the
 		// docker embedded DNS server. Hence save the external resolvers
 		// before filtering it out.
-		sb.setExternalResolvers(currRC.Content, types.IPv4, true)
+		sb.setExternalResolvers(currRC.Content, resolvconf.IPv4, true)
 
 		// Replace any localhost/127.* (at this point we have no info about ipv6, pass it as true)
 		if newRC, err = resolvconf.FilterResolvDNS(currRC.Content, true); err != nil {
 			return err
 		}
 		// No contention on container resolv.conf file at sandbox creation
-		if err := ioutil.WriteFile(sb.config.resolvConfPath, newRC.Content, filePerm); err != nil {
+		if err := os.WriteFile(sb.config.resolvConfPath, newRC.Content, filePerm); err != nil {
 			return types.InternalErrorf("failed to write unhaltered resolv.conf file content when setting up dns for sandbox %s: %v", sb.ID(), err)
 		}
 	}
 
 	// Write hash
-	if err := ioutil.WriteFile(sb.config.resolvConfHashFile, []byte(newRC.Hash), filePerm); err != nil {
+	if err := os.WriteFile(sb.config.resolvConfHashFile, []byte(newRC.Hash), filePerm); err != nil {
 		return types.InternalErrorf("failed to write resolv.conf hash file when setting up dns for sandbox %s: %v", sb.ID(), err)
 	}
 
@@ -300,7 +312,7 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 			return err
 		}
 	} else {
-		h, err := ioutil.ReadFile(hashFile)
+		h, err := os.ReadFile(hashFile)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return err
@@ -322,14 +334,14 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(sb.config.resolvConfPath, newRC.Content, 0644) //nolint:gosec // gosec complains about perms here, which must be 0644 in this case
+	err = os.WriteFile(sb.config.resolvConfPath, newRC.Content, 0644) //nolint:gosec // gosec complains about perms here, which must be 0644 in this case
 	if err != nil {
 		return err
 	}
 
 	// write the new hash in a temp file and rename it to make the update atomic
 	dir := path.Dir(sb.config.resolvConfPath)
-	tmpHashFile, err := ioutil.TempFile(dir, "hash")
+	tmpHashFile, err := os.CreateTemp(dir, "hash")
 	if err != nil {
 		return err
 	}
@@ -358,7 +370,7 @@ func (sb *sandbox) rebuildDNS() error {
 	}
 
 	if len(sb.extDNS) == 0 {
-		sb.setExternalResolvers(currRC.Content, types.IPv4, false)
+		sb.setExternalResolvers(currRC.Content, resolvconf.IPv4, false)
 	}
 	var (
 		dnsList        = []string{sb.resolver.NameServer()}
@@ -367,7 +379,7 @@ func (sb *sandbox) rebuildDNS() error {
 	)
 
 	// external v6 DNS servers has to be listed in resolv.conf
-	dnsList = append(dnsList, resolvconf.GetNameservers(currRC.Content, types.IPv6)...)
+	dnsList = append(dnsList, resolvconf.GetNameservers(currRC.Content, resolvconf.IPv6)...)
 
 	// If the user config and embedded DNS server both have ndots option set,
 	// remember the user's config so that unqualified names not in the docker
@@ -429,9 +441,9 @@ func createFile(path string) error {
 }
 
 func copyFile(src, dst string) error {
-	sBytes, err := ioutil.ReadFile(src)
+	sBytes, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(dst, sBytes, filePerm)
+	return os.WriteFile(dst, sBytes, filePerm)
 }

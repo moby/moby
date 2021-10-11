@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"regexp"
 	"strings"
@@ -226,7 +225,7 @@ func (s *DockerSuite) TestBuildAPIUnnormalizedTarPaths(c *testing.T) {
 
 		assert.NilError(c, tw.Close(), "failed to close tar archive")
 
-		res, body, err := request.Post("/build", request.RawContent(ioutil.NopCloser(buffer)), request.ContentType("application/x-tar"))
+		res, body, err := request.Post("/build", request.RawContent(io.NopCloser(buffer)), request.ContentType("application/x-tar"))
 		assert.NilError(c, err)
 		assert.Equal(c, res.StatusCode, http.StatusOK)
 
@@ -326,7 +325,7 @@ func (s *DockerRegistrySuite) TestBuildCopyFromForcePull(c *testing.T) {
 	// push the image to the registry
 	rc, err := client.ImagePush(context.TODO(), repoName, types.ImagePushOptions{RegistryAuth: "{}"})
 	assert.Check(c, err)
-	_, err = io.Copy(ioutil.Discard, rc)
+	_, err = io.Copy(io.Discard, rc)
 	assert.Check(c, err)
 
 	dockerfile := fmt.Sprintf(`

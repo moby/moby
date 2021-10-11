@@ -19,7 +19,7 @@ import (
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/signal"
+	"github.com/moby/sys/signal"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -491,13 +491,13 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 
 		// Older clients (API < 1.40) expects the default to be shareable, make them happy
 		if hostConfig.IpcMode.IsEmpty() {
-			hostConfig.IpcMode = container.IpcMode("shareable")
+			hostConfig.IpcMode = container.IPCModeShareable
 		}
 	}
 	if hostConfig != nil && versions.LessThan(version, "1.41") && !s.cgroup2 {
 		// Older clients expect the default to be "host" on cgroup v1 hosts
 		if hostConfig.CgroupnsMode.IsEmpty() {
-			hostConfig.CgroupnsMode = container.CgroupnsMode("host")
+			hostConfig.CgroupnsMode = container.CgroupnsModeHost
 		}
 	}
 

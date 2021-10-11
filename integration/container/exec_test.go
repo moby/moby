@@ -2,7 +2,7 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"testing"
 	"time"
 
@@ -17,6 +17,7 @@ import (
 
 // TestExecWithCloseStdin adds case for moby#37870 issue.
 func TestExecWithCloseStdin(t *testing.T) {
+	skip.If(t, testEnv.RuntimeIsWindowsContainerd(), "FIXME. Hang on Windows + containerd combination")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "broken in earlier versions")
 	defer setupTest(t)()
 
@@ -59,7 +60,7 @@ func TestExecWithCloseStdin(t *testing.T) {
 	go func() {
 		close(waitCh)
 		defer close(resCh)
-		r, err := ioutil.ReadAll(resp.Reader)
+		r, err := io.ReadAll(resp.Reader)
 
 		resCh <- struct {
 			content string
@@ -113,7 +114,7 @@ func TestExec(t *testing.T) {
 	)
 	assert.NilError(t, err)
 	defer resp.Close()
-	r, err := ioutil.ReadAll(resp.Reader)
+	r, err := io.ReadAll(resp.Reader)
 	assert.NilError(t, err)
 	out := string(r)
 	assert.NilError(t, err)

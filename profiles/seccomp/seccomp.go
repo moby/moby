@@ -10,13 +10,24 @@ import (
 )
 
 // Seccomp represents the config for a seccomp profile for syscall restriction.
+// It is used to marshal/unmarshal the JSON profiles as accepted by docker, and
+// extends the runtime-spec's specs.LinuxSeccomp, overriding some fields to
+// provide the ability to define conditional rules based on the host's kernel
+// version, architecture, and the container's capabilities.
 type Seccomp struct {
-	DefaultAction specs.LinuxSeccompAction `json:"defaultAction"`
-	// Architectures is kept to maintain backward compatibility with the old
-	// seccomp profile.
-	Architectures []specs.Arch   `json:"architectures,omitempty"`
-	ArchMap       []Architecture `json:"archMap,omitempty"`
-	Syscalls      []*Syscall     `json:"syscalls"`
+	specs.LinuxSeccomp
+
+	// ArchMap contains a list of Architectures and Sub-architectures for the
+	// profile. When generating the profile, this list is expanded to a
+	// []specs.Arch, to propagate the Architectures field of the profile.
+	ArchMap []Architecture `json:"archMap,omitempty"`
+
+	// Syscalls contains lists of syscall rules. Rules can define conditions
+	// for them to be included or excluded in the resulting profile (based on
+	// on kernel version, architecture, capabilities, etc.). These lists are
+	// expanded to an specs.Syscall  When generating the profile, these lists
+	// are expanded to a []specs.LinuxSyscall.
+	Syscalls []*Syscall `json:"syscalls"`
 }
 
 // Architecture is used to represent a specific architecture
@@ -40,15 +51,18 @@ type Filter struct {
 	MinKernel *KernelVersion `json:"minKernel,omitempty"`
 }
 
-// Syscall is used to match a group of syscalls in Seccomp
+// Syscall is used to match a group of syscalls in Seccomp. It extends the
+// runtime-spec Syscall type, adding a "Name" field for backward compatibility
+// with older JSON representations, additional "Comment" metadata, and conditional
+// rules ("Includes", "Excludes") used to generate a runtime-spec Seccomp profile
+// based on the container (capabilities) and host's (arch, kernel) configuration.
 type Syscall struct {
-	Name     string                   `json:"name,omitempty"`
-	Names    []string                 `json:"names,omitempty"`
-	Action   specs.LinuxSeccompAction `json:"action"`
-	Args     []*specs.LinuxSeccompArg `json:"args"`
-	Comment  string                   `json:"comment"`
-	Includes Filter                   `json:"includes"`
-	Excludes Filter                   `json:"excludes"`
+	specs.LinuxSyscall
+	// Deprecated: kept for backward compatibility with old JSON profiles, use Names instead
+	Name     string  `json:"name,omitempty"`
+	Comment  string  `json:"comment,omitempty"`
+	Includes *Filter `json:"includes,omitempty"`
+	Excludes *Filter `json:"excludes,omitempty"`
 }
 
 // KernelVersion holds information about the kernel.

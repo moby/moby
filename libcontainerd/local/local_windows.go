@@ -5,9 +5,8 @@ package local // import "github.com/docker/docker/libcontainerd/local"
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -47,7 +46,6 @@ type container struct {
 	// have access to the Spec
 	ociSpec *specs.Spec
 
-	isWindows    bool
 	hcsContainer hcsshim.Container
 
 	id               string
@@ -334,7 +332,6 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 	ctr := &container{
 		id:           id,
 		execs:        make(map[string]*process),
-		isWindows:    true,
 		ociSpec:      spec,
 		hcsContainer: hcsContainer,
 		status:       containerd.Created,
@@ -435,23 +432,10 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 	createProcessParms.Environment = setupEnvironmentVariables(ctr.ociSpec.Process.Env)
 
 	// Configure the CommandLine/CommandArgs
-	setCommandLineAndArgs(ctr.isWindows, ctr.ociSpec.Process, createProcessParms)
-	if ctr.isWindows {
-		logger.Debugf("start commandLine: %s", createProcessParms.CommandLine)
-	}
+	setCommandLineAndArgs(ctr.ociSpec.Process, createProcessParms)
+	logger.Debugf("start commandLine: %s", createProcessParms.CommandLine)
 
 	createProcessParms.User = ctr.ociSpec.Process.User.Username
-
-	// LCOW requires the raw OCI spec passed through HCS and onwards to
-	// GCS for the utility VM.
-	if !ctr.isWindows {
-		ociBuf, err := json.Marshal(ctr.ociSpec)
-		if err != nil {
-			return -1, err
-		}
-		ociRaw := json.RawMessage(ociBuf)
-		createProcessParms.OCISpecification = &ociRaw
-	}
 
 	ctr.Lock()
 
@@ -546,15 +530,11 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 }
 
 // setCommandLineAndArgs configures the HCS ProcessConfig based on an OCI process spec
-func setCommandLineAndArgs(isWindows bool, process *specs.Process, createProcessParms *hcsshim.ProcessConfig) {
-	if isWindows {
-		if process.CommandLine != "" {
-			createProcessParms.CommandLine = process.CommandLine
-		} else {
-			createProcessParms.CommandLine = system.EscapeArgs(process.Args)
-		}
+func setCommandLineAndArgs(process *specs.Process, createProcessParms *hcsshim.ProcessConfig) {
+	if process.CommandLine != "" {
+		createProcessParms.CommandLine = process.CommandLine
 	} else {
-		createProcessParms.CommandArgs = process.Args
+		createProcessParms.CommandLine = system.EscapeArgs(process.Args)
 	}
 }
 
@@ -568,10 +548,10 @@ func newIOFromProcess(newProcess hcsshim.Process, terminal bool) (*cio.DirectIO,
 
 	// Convert io.ReadClosers to io.Readers
 	if stdout != nil {
-		dio.Stdout = ioutil.NopCloser(&autoClosingReader{ReadCloser: stdout})
+		dio.Stdout = io.NopCloser(&autoClosingReader{ReadCloser: stdout})
 	}
 	if stderr != nil {
-		dio.Stderr = ioutil.NopCloser(&autoClosingReader{ReadCloser: stderr})
+		dio.Stderr = io.NopCloser(&autoClosingReader{ReadCloser: stderr})
 	}
 	return dio, nil
 }
@@ -622,7 +602,7 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	createProcessParms.Environment = setupEnvironmentVariables(spec.Env)
 
 	// Configure the CommandLine/CommandArgs
-	setCommandLineAndArgs(ctr.isWindows, spec, createProcessParms)
+	setCommandLineAndArgs(spec, createProcessParms)
 	logger.Debugf("exec commandLine: %s", createProcessParms.CommandLine)
 
 	createProcessParms.User = spec.User.Username
@@ -707,7 +687,7 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	return pid, nil
 }
 
-// Signal handles `docker stop` on Windows. While Linux has support for
+// SignalProcess handles `docker stop` on Windows. While Linux has support for
 // the full range of signals, signals aren't really implemented on Windows.
 // We fake supporting regular stop and -9 to force kill.
 func (c *client) SignalProcess(_ context.Context, containerID, processID string, signal int) error {
@@ -751,7 +731,7 @@ func (c *client) SignalProcess(_ context.Context, containerID, processID string,
 	return nil
 }
 
-// Resize handles a CLI event to resize an interactive docker run or docker
+// ResizeTerminal handles a CLI event to resize an interactive docker run or docker
 // exec window.
 func (c *client) ResizeTerminal(_ context.Context, containerID, processID string, width, height int) error {
 	_, p, err := c.getProcess(containerID, processID)
@@ -908,8 +888,8 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio libcontaine
 	}, nil
 }
 
-// GetPidsForContainer returns a list of process IDs running in a container.
-// Not used on Windows.
+// ListPids returns a list of process IDs running in a container. It is not
+// implemented on Windows.
 func (c *client) ListPids(_ context.Context, _ string) ([]uint32, error) {
 	return nil, errors.New("not implemented on Windows")
 }

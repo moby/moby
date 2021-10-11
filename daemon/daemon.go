@@ -8,7 +8,6 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -18,11 +17,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/docker/docker/pkg/fileutils"
-	"go.etcd.io/bbolt"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/backoff"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/defaults"
@@ -38,25 +32,21 @@ import (
 	"github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
+	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
-	"github.com/moby/buildkit/util/resolver"
-	"github.com/sirupsen/logrus"
-
-	// register graph drivers
-	_ "github.com/docker/docker/daemon/graphdriver/register"
 	"github.com/docker/docker/daemon/stats"
 	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/libcontainerd"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/cluster"
 	nwconfig "github.com/docker/docker/libnetwork/config"
+	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/system"
@@ -67,9 +57,15 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	volumesservice "github.com/docker/docker/volume/service"
+	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"go.etcd.io/bbolt"
 	"golang.org/x/sync/semaphore"
+	"golang.org/x/sync/singleflight"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 )
 
 // ContainersNamespace is the name of the namespace used for users containers
@@ -120,10 +116,11 @@ type Daemon struct {
 	seccompProfile     []byte
 	seccompProfilePath string
 
-	diskUsageRunning int32
-	pruneRunning     int32
-	hosts            map[string]bool // hosts stores the addresses the daemon is listening on
-	startupDone      chan struct{}
+	usage singleflight.Group
+
+	pruneRunning int32
+	hosts        map[string]bool // hosts stores the addresses the daemon is listening on
+	startupDone  chan struct{}
 
 	attachmentStore       network.AttachmentStore
 	attachableNetworkLock *locker.Locker
@@ -194,7 +191,7 @@ func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 	}
 
 	certsDir := registry.CertsDir()
-	if fis, err := ioutil.ReadDir(certsDir); err == nil {
+	if fis, err := os.ReadDir(certsDir); err == nil {
 		for _, fi := range fis {
 			if _, ok := m[fi.Name()]; !ok {
 				m[fi.Name()] = resolver.RegistryConfig{
@@ -213,7 +210,7 @@ func (daemon *Daemon) restore() error {
 
 	logrus.Info("Loading containers: start.")
 
-	dir, err := ioutil.ReadDir(daemon.repository)
+	dir, err := os.ReadDir(daemon.repository)
 	if err != nil {
 		return err
 	}
@@ -924,6 +921,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
 		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
 	}
+
 	if config.ContainerdAddr != "" {
 		d.containerdCli, err = containerd.New(config.ContainerdAddr, containerd.WithDefaultNamespace(config.ContainerdNamespace), containerd.WithDialOpts(gopts), containerd.WithTimeout(60*time.Second))
 		if err != nil {
@@ -934,8 +932,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	createPluginExec := func(m *plugin.Manager) (plugin.Executor, error) {
 		var pluginCli *containerd.Client
 
-		// Windows is not currently using containerd, keep the
-		// client as nil
 		if config.ContainerdAddr != "" {
 			pluginCli, err = containerd.New(config.ContainerdAddr, containerd.WithDefaultNamespace(config.ContainerdPluginNamespace), containerd.WithDialOpts(gopts), containerd.WithTimeout(60*time.Second))
 			if err != nil {
@@ -1050,7 +1046,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	sysInfo := d.RawSysInfo(false)
+	sysInfo := d.RawSysInfo()
+	for _, w := range sysInfo.Warnings {
+		logrus.Warn(w)
+	}
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
 	// on Linux.
 	if runtime.GOOS == "linux" && !sysInfo.CgroupDevicesEnabled && !userns.RunningInUserNS() {
@@ -1112,8 +1111,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	go d.execCommandGC()
 
-	d.containerd, err = libcontainerd.NewClient(ctx, d.containerdCli, filepath.Join(config.ExecRoot, "containerd"), config.ContainerdNamespace, d)
-	if err != nil {
+	if err := d.initLibcontainerd(ctx); err != nil {
 		return nil, err
 	}
 

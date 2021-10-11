@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
@@ -8,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -111,7 +111,7 @@ func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.T
 		// when `xz -d -c -q | docker-untar ...` failed on docker-untar side,
 		// we need to exhaust `xz`'s output, otherwise the `xz` side will be
 		// pending on write pipe forever
-		io.Copy(ioutil.Discard, decompressedArchive)
+		io.Copy(io.Discard, decompressedArchive)
 
 		return fmt.Errorf("Error processing tar file(%v): %s", err, output)
 	}

@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	_ "github.com/docker/docker/libnetwork/testutils"
 )
 
 func TestSetSerialInsertDelete(t *testing.T) {

@@ -1,7 +1,6 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -147,7 +146,7 @@ func TestContainerInitDNS(t *testing.T) {
 		t.Skip("root required") // for chown
 	}
 
-	tmp, err := ioutil.TempDir("", "docker-container-test-")
+	tmp, err := os.MkdirTemp("", "docker-container-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +180,7 @@ func TestContainerInitDNS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = ioutil.WriteFile(configPath, []byte(config), 0644); err != nil {
+	if err = os.WriteFile(configPath, []byte(config), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -194,7 +193,7 @@ func TestContainerInitDNS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = ioutil.WriteFile(hostConfigPath, []byte(hostConfig), 0644); err != nil {
+	if err = os.WriteFile(hostConfigPath, []byte(hostConfig), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -305,7 +304,7 @@ func TestMerge(t *testing.T) {
 func TestValidateContainerIsolation(t *testing.T) {
 	d := Daemon{}
 
-	_, err := d.verifyContainerSettings(runtime.GOOS, &containertypes.HostConfig{Isolation: containertypes.Isolation("invalid")}, nil, false)
+	_, err := d.verifyContainerSettings(&containertypes.HostConfig{Isolation: containertypes.Isolation("invalid")}, nil, false)
 	assert.Check(t, is.Error(err, "invalid isolation 'invalid' on "+runtime.GOOS))
 }
 

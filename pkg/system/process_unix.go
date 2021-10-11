@@ -1,10 +1,11 @@
+//go:build linux || freebsd || darwin
 // +build linux freebsd darwin
 
 package system // import "github.com/docker/docker/pkg/system"
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"syscall"
 
@@ -30,7 +31,7 @@ func KillProcess(pid int) {
 // http://man7.org/linux/man-pages/man5/proc.5.html
 func IsProcessZombie(pid int) (bool, error) {
 	statPath := fmt.Sprintf("/proc/%d/stat", pid)
-	dataBytes, err := ioutil.ReadFile(statPath)
+	dataBytes, err := os.ReadFile(statPath)
 	if err != nil {
 		return false, err
 	}

@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -23,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
+	"github.com/klauspost/compress/zstd"
 	"github.com/sirupsen/logrus"
 	exec "golang.org/x/sys/execabs"
 )
@@ -84,6 +84,8 @@ const (
 	Gzip
 	// Xz is xz compression algorithm.
 	Xz
+	// Zstd is zstd compression algorithm.
+	Zstd
 )
 
 const (
@@ -128,12 +130,9 @@ func DetectCompression(source []byte) Compression {
 		Bzip2: {0x42, 0x5A, 0x68},
 		Gzip:  {0x1F, 0x8B, 0x08},
 		Xz:    {0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00},
+		Zstd:  {0x28, 0xb5, 0x2f, 0xfd},
 	} {
-		if len(source) < len(m) {
-			logrus.Debug("Len too short")
-			continue
-		}
-		if bytes.Equal(m, source[:len(m)]) {
+		if bytes.HasPrefix(source, m) {
 			return compression
 		}
 	}
@@ -147,20 +146,15 @@ func xzDecompress(ctx context.Context, archive io.Reader) (io.ReadCloser, error)
 }
 
 func gzDecompress(ctx context.Context, buf io.Reader) (io.ReadCloser, error) {
-	noPigzEnv := os.Getenv("MOBY_DISABLE_PIGZ")
-	var noPigz bool
-
-	if noPigzEnv != "" {
-		var err error
-		noPigz, err = strconv.ParseBool(noPigzEnv)
+	if noPigzEnv := os.Getenv("MOBY_DISABLE_PIGZ"); noPigzEnv != "" {
+		noPigz, err := strconv.ParseBool(noPigzEnv)
 		if err != nil {
 			logrus.WithError(err).Warn("invalid value in MOBY_DISABLE_PIGZ env var")
 		}
-	}
-
-	if noPigz {
-		logrus.Debugf("Use of pigz is disabled due to MOBY_DISABLE_PIGZ=%s", noPigzEnv)
-		return gzip.NewReader(buf)
+		if noPigz {
+			logrus.Debugf("Use of pigz is disabled due to MOBY_DISABLE_PIGZ=%s", noPigzEnv)
+			return gzip.NewReader(buf)
+		}
 	}
 
 	unpigzPath, err := exec.LookPath("unpigz")
@@ -225,6 +219,13 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 		}
 		readBufWrapper := p.NewReadCloserWrapper(buf, xzReader)
 		return wrapReadCloser(readBufWrapper, cancel), nil
+	case Zstd:
+		zstdReader, err := zstd.NewReader(buf)
+		if err != nil {
+			return nil, err
+		}
+		readBufWrapper := p.NewReadCloserWrapper(buf, zstdReader)
+		return readBufWrapper, nil
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
@@ -351,6 +352,8 @@ func (compression *Compression) Extension() string {
 		return "tar.gz"
 	case Xz:
 		return "tar.xz"
+	case Zstd:
+		return "tar.zst"
 	}
 	return ""
 }
@@ -817,6 +820,11 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 		for _, include := range options.IncludeFiles {
 			rebaseName := options.RebaseNames[include]
 
+			var (
+				parentMatched []bool
+				parentDirs    []string
+			)
+
 			walkRoot := getWalkRoot(srcPath, include)
 			filepath.Walk(walkRoot, func(filePath string, f os.FileInfo, err error) error {
 				if err != nil {
@@ -843,10 +851,28 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				// is asking for that file no matter what - which is true
 				// for some files, like .dockerignore and Dockerfile (sometimes)
 				if include != relFilePath {
-					skip, err = pm.Matches(relFilePath)
+					for len(parentDirs) != 0 {
+						lastParentDir := parentDirs[len(parentDirs)-1]
+						if strings.HasPrefix(relFilePath, lastParentDir+string(os.PathSeparator)) {
+							break
+						}
+						parentDirs = parentDirs[:len(parentDirs)-1]
+						parentMatched = parentMatched[:len(parentMatched)-1]
+					}
+
+					if len(parentMatched) != 0 {
+						skip, err = pm.MatchesUsingParentResult(relFilePath, parentMatched[len(parentMatched)-1])
+					} else {
+						skip, err = pm.MatchesOrParentMatches(relFilePath)
+					}
 					if err != nil {
 						logrus.Errorf("Error matching %s: %v", relFilePath, err)
 						return err
+					}
+
+					if f.IsDir() {
+						parentDirs = append(parentDirs, relFilePath)
+						parentMatched = append(parentMatched, skip)
 					}
 				}
 
@@ -1091,7 +1117,6 @@ func untarHandler(tarArchive io.Reader, dest string, options *TarOptions, decomp
 // TarUntar is a convenience function which calls Tar and Untar, with the output of one piped into the other.
 // If either Tar or Untar fails, TarUntar aborts and returns the error.
 func (archiver *Archiver) TarUntar(src, dst string) error {
-	logrus.Debugf("TarUntar(%s %s)", src, dst)
 	archive, err := TarWithOptions(src, &TarOptions{Compression: Uncompressed})
 	if err != nil {
 		return err
@@ -1136,11 +1161,9 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 	// as owner
 	rootIDs := archiver.IDMapping.RootPair()
 	// Create dst, copy src's content into it
-	logrus.Debugf("Creating dest directory: %s", dst)
 	if err := idtools.MkdirAllAndChownNew(dst, 0755, rootIDs); err != nil {
 		return err
 	}
-	logrus.Debugf("Calling TarUntar(%s, %s)", src, dst)
 	return archiver.TarUntar(src, dst)
 }
 
@@ -1148,7 +1171,6 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 // for a single file. It copies a regular file from path `src` to
 // path `dst`, and preserves all its metadata.
 func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
-	logrus.Debugf("CopyFileWithTar(%s, %s)", src, dst)
 	srcSt, err := os.Stat(src)
 	if err != nil {
 		return err
@@ -1274,7 +1296,7 @@ func cmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, error) {
 // of that file as an archive. The archive can only be read once - as soon as reading completes,
 // the file will be deleted.
 func NewTempArchive(src io.Reader, dir string) (*TempArchive, error) {
-	f, err := ioutil.TempFile(dir, "")
+	f, err := os.CreateTemp(dir, "")
 	if err != nil {
 		return nil, err
 	}

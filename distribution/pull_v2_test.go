@@ -3,7 +3,7 @@ package distribution // import "github.com/docker/docker/distribution"
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -125,7 +125,7 @@ func TestValidateManifest(t *testing.T) {
 
 	// Good manifest
 
-	goodManifestBytes, err := ioutil.ReadFile("fixtures/validate_manifest/good_manifest")
+	goodManifestBytes, err := os.ReadFile("fixtures/validate_manifest/good_manifest")
 	if err != nil {
 		t.Fatal("error reading fixture:", err)
 	}
@@ -147,7 +147,7 @@ func TestValidateManifest(t *testing.T) {
 
 	// "Extra data" manifest
 
-	extraDataManifestBytes, err := ioutil.ReadFile("fixtures/validate_manifest/extra_data_manifest")
+	extraDataManifestBytes, err := os.ReadFile("fixtures/validate_manifest/extra_data_manifest")
 	if err != nil {
 		t.Fatal("error reading fixture:", err)
 	}
@@ -169,7 +169,7 @@ func TestValidateManifest(t *testing.T) {
 
 	// Bad manifest
 
-	badManifestBytes, err := ioutil.ReadFile("fixtures/validate_manifest/bad_manifest")
+	badManifestBytes, err := os.ReadFile("fixtures/validate_manifest/bad_manifest")
 	if err != nil {
 		t.Fatal("error reading fixture:", err)
 	}

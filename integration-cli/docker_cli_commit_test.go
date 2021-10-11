@@ -7,9 +7,11 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/cli"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 )
 
 func (s *DockerSuite) TestCommitAfterContainerIsDone(c *testing.T) {
+	skip.If(c, RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
 	out := cli.DockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo").Combined()
 
 	cleanedContainerID := strings.TrimSpace(out)

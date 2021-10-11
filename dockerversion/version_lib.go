@@ -1,3 +1,4 @@
+//go:build !autogen
 // +build !autogen
 
 // Package dockerversion is auto-generated at build-time
@@ -10,7 +11,6 @@ var (
 	Version               = "library-import"
 	BuildTime             = "library-import"
 	IAmStatic             = "library-import"
-	InitCommitID          = "library-import"
 	PlatformName          = ""
 	ProductName           = ""
 	DefaultProductLicense = ""

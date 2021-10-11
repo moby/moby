@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package bridge
@@ -5,7 +6,6 @@ package bridge
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"syscall"
 
@@ -124,7 +124,7 @@ func getBridgeNFKernelParam(ipVer ipVersion) string {
 //Gets the value of the kernel parameters located at the given path
 func getKernelBoolParam(path string) (bool, error) {
 	enabled := false
-	line, err := ioutil.ReadFile(path)
+	line, err := os.ReadFile(path)
 	if err != nil {
 		return false, err
 	}
@@ -140,7 +140,7 @@ func setKernelBoolParam(path string, on bool) error {
 	if on {
 		value = byte('1')
 	}
-	return ioutil.WriteFile(path, []byte{value, '\n'}, 0644)
+	return os.WriteFile(path, []byte{value, '\n'}, 0644)
 }
 
 //Checks to see if packet forwarding is enabled

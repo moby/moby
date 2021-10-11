@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package main
@@ -6,7 +7,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -95,7 +95,7 @@ func (s *DockerSuite) TestBuildAddChangeOwnership(c *testing.T) {
 			RUN [ $(stat -c %U:%G "/bar") = 'root:root' ]
 			RUN [ $(stat -c %U:%G "/bar/foo") = 'root:root' ]
 			`
-		tmpDir, err := ioutil.TempDir("", "fake-context")
+		tmpDir, err := os.MkdirTemp("", "fake-context")
 		assert.NilError(c, err)
 		testFile, err := os.Create(filepath.Join(tmpDir, "foo"))
 		if err != nil {
@@ -108,7 +108,7 @@ func (s *DockerSuite) TestBuildAddChangeOwnership(c *testing.T) {
 			Dir:     tmpDir,
 		}).Assert(c, icmd.Success)
 
-		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
 			c.Fatalf("failed to open destination dockerfile: %v", err)
 		}
 		return fakecontext.New(c, tmpDir)

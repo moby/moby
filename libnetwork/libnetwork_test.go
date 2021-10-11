@@ -1,10 +1,10 @@
+//go:build linux
 // +build linux
 
 package libnetwork_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -1269,7 +1269,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 		}
 	}()
 
-	if err := ioutil.WriteFile(filepath.Join(specPath, "invalid-network-driver.spec"), []byte(server.URL), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(specPath, "invalid-network-driver.spec"), []byte(server.URL), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1324,7 +1324,7 @@ func TestValidRemoteDriver(t *testing.T) {
 		}
 	}()
 
-	if err := ioutil.WriteFile(filepath.Join(specPath, "valid-network-driver.spec"), []byte(server.URL), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(specPath, "valid-network-driver.spec"), []byte(server.URL), 0644); err != nil {
 		t.Fatal(err)
 	}
 

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -620,13 +619,13 @@ func TestEnableIPv6(t *testing.T) {
 	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888\n")
 	expectedResolvConf := []byte("search pommesfrites.fr\nnameserver 127.0.0.11\nnameserver 2001:4860:4860::8888\noptions ndots:0\n")
 	//take a copy of resolv.conf for restoring after test completes
-	resolvConfSystem, err := ioutil.ReadFile("/etc/resolv.conf")
+	resolvConfSystem, err := os.ReadFile("/etc/resolv.conf")
 	if err != nil {
 		t.Fatal(err)
 	}
 	//cleanup
 	defer func() {
-		if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -654,7 +653,7 @@ func TestEnableIPv6(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -676,7 +675,7 @@ func TestEnableIPv6(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err := ioutil.ReadFile(resolvConfPath)
+	content, err := os.ReadFile(resolvConfPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -698,13 +697,13 @@ func TestResolvConfHost(t *testing.T) {
 	tmpResolvConf := []byte("search localhost.net\nnameserver 127.0.0.1\nnameserver 2001:4860:4860::8888\n")
 
 	//take a copy of resolv.conf for restoring after test completes
-	resolvConfSystem, err := ioutil.ReadFile("/etc/resolv.conf")
+	resolvConfSystem, err := os.ReadFile("/etc/resolv.conf")
 	if err != nil {
 		t.Fatal(err)
 	}
 	//cleanup
 	defer func() {
-		if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -719,7 +718,7 @@ func TestResolvConfHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -760,7 +759,7 @@ func TestResolvConfHost(t *testing.T) {
 		t.Fatalf("Expected file mode %s, got %s", fmode.String(), finfo.Mode().String())
 	}
 
-	content, err := ioutil.ReadFile(resolvConfPath)
+	content, err := os.ReadFile(resolvConfPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -781,13 +780,13 @@ func TestResolvConf(t *testing.T) {
 	tmpResolvConf3 := []byte("search pommesfrites.fr\nnameserver 113.34.56.78\n")
 
 	//take a copy of resolv.conf for restoring after test completes
-	resolvConfSystem, err := ioutil.ReadFile("/etc/resolv.conf")
+	resolvConfSystem, err := os.ReadFile("/etc/resolv.conf")
 	if err != nil {
 		t.Fatal(err)
 	}
 	//cleanup
 	defer func() {
-		if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -812,7 +811,7 @@ func TestResolvConf(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf1, 0644); err != nil {
+	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf1, 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -844,7 +843,7 @@ func TestResolvConf(t *testing.T) {
 		t.Fatalf("Expected file mode %s, got %s", fmode.String(), finfo.Mode().String())
 	}
 
-	content, err := ioutil.ReadFile(resolvConfPath)
+	content, err := os.ReadFile(resolvConfPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -859,7 +858,7 @@ func TestResolvConf(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf2, 0644); err != nil {
+	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf2, 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -878,7 +877,7 @@ func TestResolvConf(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err = ioutil.ReadFile(resolvConfPath)
+	content, err = os.ReadFile(resolvConfPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -887,7 +886,7 @@ func TestResolvConf(t *testing.T) {
 		t.Fatalf("Expected:\n%s\nGot:\n%s", string(expectedResolvConf1), string(content))
 	}
 
-	if err := ioutil.WriteFile(resolvConfPath, tmpResolvConf3, 0644); err != nil {
+	if err := os.WriteFile(resolvConfPath, tmpResolvConf3, 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -901,7 +900,7 @@ func TestResolvConf(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err = ioutil.ReadFile(resolvConfPath)
+	content, err = os.ReadFile(resolvConfPath)
 	if err != nil {
 		t.Fatal(err)
 	}

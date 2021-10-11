@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -211,7 +210,7 @@ func (r *remote) startContainerd() error {
 
 	r.daemonPid = cmd.Process.Pid
 
-	err = ioutil.WriteFile(filepath.Join(r.stateDir, pidFile), []byte(fmt.Sprintf("%d", r.daemonPid)), 0660)
+	err = os.WriteFile(filepath.Join(r.stateDir, pidFile), []byte(fmt.Sprintf("%d", r.daemonPid)), 0660)
 	if err != nil {
 		system.KillProcess(r.daemonPid)
 		return errors.Wrap(err, "libcontainerd: failed to save daemon pid to disk")

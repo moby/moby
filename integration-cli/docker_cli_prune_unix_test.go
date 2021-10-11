@@ -1,9 +1,9 @@
+//go:build !windows
 // +build !windows
 
 package main
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -147,10 +147,10 @@ func (s *DockerSuite) TestPruneContainerLabel(c *testing.T) {
 
 	// Add a config file of label=foobar, that will have no impact if cli is label!=foobar
 	config := `{"pruneFilters": ["label=foobar"]}`
-	d, err := ioutil.TempDir("", "integration-cli-")
+	d, err := os.MkdirTemp("", "integration-cli-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(d)
-	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
+	err = os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
 	assert.NilError(c, err)
 
 	// With config.json only, prune based on label=foobar
@@ -199,10 +199,10 @@ func (s *DockerSuite) TestPruneVolumeLabel(c *testing.T) {
 
 	// Add a config file of label=foobar, that will have no impact if cli is label!=foobar
 	config := `{"pruneFilters": ["label=foobar"]}`
-	d, err := ioutil.TempDir("", "integration-cli-")
+	d, err := os.MkdirTemp("", "integration-cli-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(d)
-	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
+	err = os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
 	assert.NilError(c, err)
 
 	// With config.json only, prune based on label=foobar

@@ -61,7 +61,6 @@ Write-Host -ForegroundColor Red "-----------------------------------------------
 #   DOCKER_STORAGE_OPTS       comma-separated list of optional storage driver options for the daemon under test
 #                             examples:
 #                             DOCKER_STORAGE_OPTS="size=40G"
-#                             DOCKER_STORAGE_OPTS="lcow.globalmode=false,lcow.kernel=kernel.efi"
 #
 #    SKIP_VALIDATION_TESTS    if defined skips the validation tests
 #
@@ -180,6 +179,13 @@ Function Nuke-Everything {
             }
         }
 
+        # Kill any spurious containerd.
+        $pids=$(get-process | where-object {$_.ProcessName -like 'containerd'}).id
+        foreach ($p in $pids) {
+            Write-Host "INFO: Killing containerd with PID $p"
+            Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
+        }
+
         Stop-Process -name "cc1" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
         Stop-Process -name "link" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
         Stop-Process -name "compile" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
@@ -191,7 +197,7 @@ Function Nuke-Everything {
         Stop-Process -name "tail" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
 
         # Detach any VHDs
-        gwmi msvm_mountedstorageimage -namespace root/virtualization/v2 -ErrorAction SilentlyContinue | foreach-object {$_.DetachVirtualHardDisk() }
+        gwmi msvm_mountedstorageimage -namespace root/virtualization/v2 -ErrorAction SilentlyContinue | foreach-Object {$_.DetachVirtualHardDisk() }
 
         # Stop any compute processes
         Get-ComputeProcess | Stop-ComputeProcess -Force
@@ -522,6 +528,15 @@ Try {
             Throw "ERROR: gotestsum.exe not found...." `
         }
 
+        docker cp "$COMMITHASH`:c`:\containerd\bin\containerd.exe" $env:TEMP\binary\
+        if (-not (Test-Path "$env:TEMP\binary\containerd.exe")) {
+            Throw "ERROR: containerd.exe not found...." `
+        }
+        docker cp "$COMMITHASH`:c`:\containerd\bin\containerd-shim-runhcs-v1.exe" $env:TEMP\binary\
+        if (-not (Test-Path "$env:TEMP\binary\containerd-shim-runhcs-v1.exe")) {
+            Throw "ERROR: containerd-shim-runhcs-v1.exe not found...." `
+        }
+
         $ErrorActionPreference = "Stop"
 
         # Copy the built dockerd.exe to dockerd-$COMMITHASH.exe so that easily spotted in task manager.
@@ -567,8 +582,10 @@ Try {
     $env:GOPATH="$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR"
     Write-Host -ForegroundColor Green "INFO: GOPATH=$env:GOPATH"
 
-    # Set the path to have the version of go from the image at the front
-    $env:PATH="$env:TEMP\go\bin;$env:PATH"
+    # Set the path to have:
+    # - the version of go from the image at the front
+    # - the test binaries, not the host ones.
+    $env:PATH="$env:TEMP\go\bin;$env:TEMP\binary;$env:PATH"
 
     # Set the GOROOT to be our copy of go from the image
     $env:GOROOT="$env:TEMP\go"
@@ -595,6 +612,12 @@ Try {
         $dutArgs += "-D"
     }
 
+    # Arguments: Are we starting the daemon under test in containerd mode?
+    if (-not ("$env:DOCKER_WINDOWS_CONTAINERD_RUNTIME" -eq "")) {
+        Write-Host -ForegroundColor Green "INFO: Running the daemon under test in containerd mode"
+        $dutArgs += "--containerd \\.\pipe\containerd-containerd"
+    }
+
     # Arguments: Are we starting the daemon under test with Hyper-V containers as the default isolation?
     if (-not ("$env:DOCKER_DUT_HYPERV" -eq "")) {
         Write-Host -ForegroundColor Green "INFO: Running the daemon under test with Hyper-V containers as the default"
@@ -602,10 +625,10 @@ Try {
     }
 
     # Arguments: Allow setting optional storage-driver options
-    # example usage: DOCKER_STORAGE_OPTS="lcow.globalmode=false,lcow.kernel=kernel.efi"
+    # example usage: DDOCKER_STORAGE_OPTS="size=40G"
     if (-not ("$env:DOCKER_STORAGE_OPTS" -eq "")) {
         Write-Host -ForegroundColor Green "INFO: Running the daemon under test with storage-driver options ${env:DOCKER_STORAGE_OPTS}"
-        $env:DOCKER_STORAGE_OPTS.Split(",") | ForEach {
+        $env:DOCKER_STORAGE_OPTS.Split(",") | ForEach-Object {
             $dutArgs += "--storage-opt $_"
         }
     }
@@ -616,6 +639,15 @@ Try {
     Write-Host -ForegroundColor Green "INFO: Starting a daemon under test..."
     Write-Host -ForegroundColor Green "INFO: Args: $dutArgs"
     New-Item -ItemType Directory $env:TEMP\daemon -ErrorAction SilentlyContinue  | Out-Null
+
+    # Start containerd first
+    if (-not ("$env:DOCKER_WINDOWS_CONTAINERD_RUNTIME" -eq "")) {
+        Start-Process "$env:TEMP\binary\containerd.exe" `
+                    -ArgumentList "--log-level debug" `
+                    -RedirectStandardOutput "$env:TEMP\containerd.out" `
+                    -RedirectStandardError "$env:TEMP\containerd.err"
+        Write-Host -ForegroundColor Green "INFO: Containerd started successfully."
+    }
 
     # Cannot fathom why, but always writes to stderr....
     Start-Process "$env:TEMP\binary\dockerd-$COMMITHASH" `
@@ -841,7 +873,6 @@ Try {
                                                     "`$env`:PATH`='c`:\target;'+`$env:PATH`;  `$env:DOCKER_HOST`='tcp`://'+(ipconfig | select -last 1).Substring(39)+'`:2357'; c:\target\runIntegrationCLI.ps1" | Out-Host } )
         } else  {
             $env:DOCKER_HOST=$DASHH_CUT
-            $env:PATH="$env:TEMP\binary;$env:PATH;"  # Force to use the test binaries, not the host ones.
                 $env:GO111MODULE="off"
             Write-Host -ForegroundColor Green "INFO: DOCKER_HOST at $DASHH_CUT"
 
@@ -944,6 +975,15 @@ Finally {
         Copy-Item  "$env:TEMP\dut.out" "bundles\CIDUT.out" -Force -ErrorAction SilentlyContinue
         Write-Host -ForegroundColor Green "INFO: Saving daemon under test log ($env:TEMP\dut.err) to bundles\CIDUT.err"
         Copy-Item  "$env:TEMP\dut.err" "bundles\CIDUT.err" -Force -ErrorAction SilentlyContinue
+
+        Write-Host -ForegroundColor Green "INFO: Saving containerd logs to bundles"
+        if (Test-Path -Path "$env:TEMP\containerd.out") {
+            Copy-Item "$env:TEMP\containerd.out" "bundles\containerd.out" -Force -ErrorAction SilentlyContinue
+            Copy-Item "$env:TEMP\containerd.err" "bundles\containerd.err" -Force -ErrorAction SilentlyContinue
+        } else {
+            "" | Out-File -FilePath "bundles\containerd.out"
+            "" | Out-File -FilePath "bundles\containerd.err"
+        }
     }
 
     Set-Location "$env:SOURCES_DRIVE\$env:SOURCES_SUBDIR" -ErrorAction SilentlyContinue

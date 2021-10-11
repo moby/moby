@@ -1,3 +1,4 @@
+//go:build linux || freebsd
 // +build linux freebsd
 
 // Package local provides the default implementation for volumes. It

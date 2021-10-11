@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -352,11 +351,11 @@ func (s *DockerSuite) TestImagesFormatDefaultFormat(c *testing.T) {
 	config := `{
 		"imagesFormat": "{{ .ID }} default"
 }`
-	d, err := ioutil.TempDir("", "integration-cli-")
+	d, err := os.MkdirTemp("", "integration-cli-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(d)
 
-	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
+	err = os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
 	assert.NilError(c, err)
 
 	out, _ = dockerCmd(c, "--config", d, "images", "-q", "myimage")

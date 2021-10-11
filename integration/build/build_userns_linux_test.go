@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -33,7 +32,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 
 	const imageTag = "capabilities:1.0"
 
-	tmp, err := ioutil.TempDir("", "integration-")
+	tmp, err := os.MkdirTemp("", "integration-")
 	assert.NilError(t, err)
 	defer os.RemoveAll(tmp)
 
@@ -42,7 +41,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	ctx := context.Background()
 	clientUserRemap := dUserRemap.NewClientT(t)
 
-	err = load.FrozenImagesLinux(clientUserRemap, "debian:bullseye")
+	err = load.FrozenImagesLinux(clientUserRemap, "debian:bullseye-slim")
 	assert.NilError(t, err)
 
 	dUserRemapRunning := true
@@ -53,7 +52,8 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	}()
 
 	dockerfile := `
-		FROM debian:bullseye
+		FROM debian:bullseye-slim
+		RUN apt-get update && apt-get install -y libcap2-bin --no-install-recommends
 		RUN setcap CAP_NET_BIND_SERVICE=+eip /bin/sleep
 	`
 
@@ -114,7 +114,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	assert.NilError(t, err)
 
 	actualStdout := new(bytes.Buffer)
-	actualStderr := ioutil.Discard
+	actualStderr := io.Discard
 	_, err = stdcopy.StdCopy(actualStdout, actualStderr, logReader)
 	assert.NilError(t, err)
 	if strings.TrimSpace(actualStdout.String()) != "/bin/sleep cap_net_bind_service=eip" {

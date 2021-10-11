@@ -1,3 +1,4 @@
+//go:build linux || freebsd
 // +build linux freebsd
 
 package daemon
@@ -33,12 +34,10 @@ func TestContainerWarningHostAndPublishPorts(t *testing.T) {
 			PortBindings: tc.ports,
 		}
 		cs := &config.Config{
-			CommonUnixConfig: config.CommonUnixConfig{
-				Runtimes: map[string]types.Runtime{"runc": {}},
-			},
+			Runtimes: map[string]types.Runtime{"runc": {}},
 		}
 		d := &Daemon{configStore: cs}
-		wrns, err := d.verifyContainerSettings("", hostConfig, &containertypes.Config{}, false)
+		wrns, err := d.verifyContainerSettings(hostConfig, &containertypes.Config{}, false)
 		assert.NilError(t, err)
 		assert.DeepEqual(t, tc.warnings, wrns)
 	}

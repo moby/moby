@@ -26,6 +26,7 @@ import (
 
 	"github.com/containerd/containerd/log"
 	remoteserrors "github.com/containerd/containerd/remotes/errors"
+	"github.com/containerd/containerd/version"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context/ctxhttp"
 )
@@ -109,6 +110,9 @@ func FetchTokenWithOAuth(ctx context.Context, client *http.Client, headers http.
 	for k, v := range headers {
 		req.Header[k] = append(req.Header[k], v...)
 	}
+	if len(req.Header.Get("User-Agent")) == 0 {
+		req.Header.Set("User-Agent", "containerd/"+version.Version)
+	}
 
 	resp, err := ctxhttp.Do(ctx, client, req)
 	if err != nil {
@@ -152,6 +156,9 @@ func FetchToken(ctx context.Context, client *http.Client, headers http.Header, t
 
 	for k, v := range headers {
 		req.Header[k] = append(req.Header[k], v...)
+	}
+	if len(req.Header.Get("User-Agent")) == 0 {
+		req.Header.Set("User-Agent", "containerd/"+version.Version)
 	}
 
 	reqParams := req.URL.Query()

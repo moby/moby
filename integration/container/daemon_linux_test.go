@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -73,7 +73,7 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 }
 
 func getContainerdShimPid(t *testing.T, c types.ContainerJSON) int {
-	statB, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/stat", c.State.Pid))
+	statB, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", c.State.Pid))
 	assert.Check(t, err, "error looking up containerd-shim pid")
 
 	// ppid is the 4th entry in `/proc/pid/stat`
@@ -206,7 +206,7 @@ func TestRestartDaemonWithRestartingContainer(t *testing.T) {
 	d.Stop(t)
 
 	configPath := filepath.Join(d.Root, "containers", id, "config.v2.json")
-	configBytes, err := ioutil.ReadFile(configPath)
+	configBytes, err := os.ReadFile(configPath)
 	assert.NilError(t, err)
 
 	var c realcontainer.Container
@@ -219,7 +219,7 @@ func TestRestartDaemonWithRestartingContainer(t *testing.T) {
 
 	configBytes, err = json.Marshal(&c)
 	assert.NilError(t, err)
-	assert.NilError(t, ioutil.WriteFile(configPath, configBytes, 0600))
+	assert.NilError(t, os.WriteFile(configPath, configBytes, 0600))
 
 	d.Start(t)
 

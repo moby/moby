@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -96,7 +96,7 @@ func TestImageList(t *testing.T) {
 				}
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Body:       ioutil.NopCloser(bytes.NewReader(content)),
+					Body:       io.NopCloser(bytes.NewReader(content)),
 				}, nil
 			}),
 		}
@@ -137,7 +137,7 @@ func TestImageListApiBefore125(t *testing.T) {
 			}
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader(content)),
+				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
 		}),
 		version: "1.24",

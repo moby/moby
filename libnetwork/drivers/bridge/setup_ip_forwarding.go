@@ -1,10 +1,11 @@
+//go:build linux
 // +build linux
 
 package bridge
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/sirupsen/logrus"
@@ -20,12 +21,12 @@ func configureIPForwarding(enable bool) error {
 	if enable {
 		val = '1'
 	}
-	return ioutil.WriteFile(ipv4ForwardConf, []byte{val, '\n'}, ipv4ForwardConfPerm)
+	return os.WriteFile(ipv4ForwardConf, []byte{val, '\n'}, ipv4ForwardConfPerm)
 }
 
 func setupIPForwarding(enableIPTables bool, enableIP6Tables bool) error {
 	// Get current IPv4 forward setup
-	ipv4ForwardData, err := ioutil.ReadFile(ipv4ForwardConf)
+	ipv4ForwardData, err := os.ReadFile(ipv4ForwardConf)
 	if err != nil {
 		return fmt.Errorf("Cannot read IP forwarding setup: %v", err)
 	}

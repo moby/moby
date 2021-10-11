@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 // TODO Windows: Some of these tests may be salvageable and portable to Windows.
@@ -10,7 +11,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,10 +28,10 @@ func removeAllPaths(paths ...string) {
 func getTestTempDirs(t *testing.T) (tmpDirA, tmpDirB string) {
 	var err error
 
-	tmpDirA, err = ioutil.TempDir("", "archive-copy-test")
+	tmpDirA, err = os.MkdirTemp("", "archive-copy-test")
 	assert.NilError(t, err)
 
-	tmpDirB, err = ioutil.TempDir("", "archive-copy-test")
+	tmpDirB, err = os.MkdirTemp("", "archive-copy-test")
 	assert.NilError(t, err)
 
 	return

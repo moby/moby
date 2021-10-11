@@ -2,7 +2,6 @@ package bitseq
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -10,7 +9,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/libnetwork/datastore"
-	_ "github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
 )
@@ -24,7 +22,7 @@ func init() {
 }
 
 func randomLocalStore() (datastore.DataStore, error) {
-	tmp, err := ioutil.TempFile("", "libnetwork-")
+	tmp, err := os.CreateTemp("", "libnetwork-")
 	if err != nil {
 		return nil, fmt.Errorf("Error creating temp file: %v", err)
 	}

@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package overlay
@@ -17,7 +18,6 @@ import (
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
-	_ "github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/libkv/store/consul"
 	"github.com/vishvananda/netlink/nl"

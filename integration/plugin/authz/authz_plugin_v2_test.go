@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package authz // import "github.com/docker/docker/integration/plugin/authz"
@@ -5,7 +6,7 @@ package authz // import "github.com/docker/docker/integration/plugin/authz"
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -165,6 +166,6 @@ func pluginInstallGrantAllPermissions(client client.APIClient, name string) erro
 	// we have to read the response out here because the client API
 	// actually starts a goroutine which we can only be sure has
 	// completed when we get EOF from reading responseBody
-	_, err = ioutil.ReadAll(responseReader)
+	_, err = io.ReadAll(responseReader)
 	return err
 }

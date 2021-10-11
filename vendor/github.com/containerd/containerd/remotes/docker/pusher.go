@@ -143,13 +143,16 @@ func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref str
 						// TODO: Set updated time?
 					},
 				})
+				resp.Body.Close()
 				return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
 			}
 		} else if resp.StatusCode != http.StatusNotFound {
 			err := remoteserrors.NewUnexpectedStatusErr(resp)
 			log.G(ctx).WithField("resp", resp).WithField("body", string(err.(remoteserrors.ErrUnexpectedStatus).Body)).Debug("unexpected response")
+			resp.Body.Close()
 			return nil, err
 		}
+		resp.Body.Close()
 	}
 
 	if isManifest {
@@ -190,6 +193,7 @@ func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref str
 				return nil, err
 			}
 		}
+		defer resp.Body.Close()
 
 		switch resp.StatusCode {
 		case http.StatusOK, http.StatusAccepted, http.StatusNoContent:
@@ -382,6 +386,7 @@ func (pw *pushWriter) Commit(ctx context.Context, size int64, expected digest.Di
 	if resp.err != nil {
 		return resp.err
 	}
+	defer resp.Response.Body.Close()
 
 	// 201 is specified return status, some registries return
 	// 200, 202 or 204.

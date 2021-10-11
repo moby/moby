@@ -1,10 +1,10 @@
+//go:build !windows
 // +build !windows
 
 package plugins // import "github.com/docker/docker/pkg/plugins"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -84,7 +84,7 @@ func TestScan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ioutil.WriteFile(path, []byte(addr), 0644)
+	err = os.WriteFile(path, []byte(addr), 0644)
 	if err != nil {
 		t.Fatal(err)
 	}

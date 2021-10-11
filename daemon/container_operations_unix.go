@@ -1,10 +1,10 @@
+//go:build linux || freebsd
 // +build linux freebsd
 
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -205,7 +205,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		if err != nil {
 			return errors.Wrap(err, "unable to get secret from secret store")
 		}
-		if err := ioutil.WriteFile(fPath, secret.Spec.Data, s.File.Mode); err != nil {
+		if err := os.WriteFile(fPath, secret.Spec.Data, s.File.Mode); err != nil {
 			return errors.Wrap(err, "error injecting secret")
 		}
 
@@ -256,7 +256,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		if err != nil {
 			return errors.Wrap(err, "unable to get config from config store")
 		}
-		if err := ioutil.WriteFile(fPath, config.Spec.Data, configRef.File.Mode); err != nil {
+		if err := os.WriteFile(fPath, config.Spec.Data, configRef.File.Mode); err != nil {
 			return errors.Wrap(err, "error injecting config")
 		}
 

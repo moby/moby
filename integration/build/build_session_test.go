@@ -2,7 +2,7 @@ package build
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -53,14 +53,14 @@ func TestBuildWithSession(t *testing.T) {
 	assert.Check(t, is.Equal(strings.Count(out, "Using cache"), 2))
 	assert.Check(t, is.Contains(out, "contentcontent"))
 
-	du, err := client.DiskUsage(context.TODO())
+	du, err := client.DiskUsage(context.TODO(), types.DiskUsageOptions{})
 	assert.Check(t, err)
 	assert.Check(t, du.BuilderSize > 10)
 
 	out = testBuildWithSession(t, client, client.DaemonHost(), fctx.Dir, dockerfile)
 	assert.Check(t, is.Equal(strings.Count(out, "Using cache"), 4))
 
-	du2, err := client.DiskUsage(context.TODO())
+	du2, err := client.DiskUsage(context.TODO(), types.DiskUsageOptions{})
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(du.BuilderSize, du2.BuilderSize))
 
@@ -84,7 +84,7 @@ func TestBuildWithSession(t *testing.T) {
 	_, err = client.BuildCachePrune(context.TODO(), types.BuildCachePruneOptions{All: true})
 	assert.Check(t, err)
 
-	du, err = client.DiskUsage(context.TODO())
+	du, err = client.DiskUsage(context.TODO(), types.DiskUsageOptions{})
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(du.BuilderSize, int64(0)))
 }
@@ -115,7 +115,7 @@ func testBuildWithSession(t *testing.T, client dclient.APIClient, daemonHost str
 			request.Host(daemonHost),
 			request.Method(http.MethodPost),
 			request.With(func(req *http.Request) error {
-				req.Body = ioutil.NopCloser(strings.NewReader(dockerfile))
+				req.Body = io.NopCloser(strings.NewReader(dockerfile))
 				return nil
 			}),
 		)

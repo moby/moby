@@ -1,3 +1,4 @@
+//go:build linux || freebsd
 // +build linux freebsd
 
 package main
@@ -59,6 +60,4 @@ func installUnixConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.BoolVar(&conf.BridgeConfig.InterContainerCommunication, "icc", true, "Enable inter-container communication")
 	flags.Var(opts.NewIPOpt(&conf.BridgeConfig.DefaultIP, "0.0.0.0"), "ip", "Default IP when binding container ports")
 	flags.Var(opts.NewNamedRuntimeOpt("runtimes", &conf.Runtimes, config.StockRuntimeName), "add-runtime", "Register an additional OCI compatible runtime")
-	flags.StringVar(&conf.DefaultRuntime, "default-runtime", config.StockRuntimeName, "Default OCI runtime for containers")
-
 }

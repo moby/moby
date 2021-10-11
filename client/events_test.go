@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
@@ -91,17 +90,17 @@ func TestEvents(t *testing.T) {
 			},
 			events: []events.Message{
 				{
-					Type:   "container",
+					Type:   events.BuilderEventType,
 					ID:     "1",
 					Action: "create",
 				},
 				{
-					Type:   "container",
+					Type:   events.BuilderEventType,
 					ID:     "2",
 					Action: "die",
 				},
 				{
-					Type:   "container",
+					Type:   events.BuilderEventType,
 					ID:     "3",
 					Action: "create",
 				},
@@ -138,7 +137,7 @@ func TestEvents(t *testing.T) {
 
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Body:       ioutil.NopCloser(buffer),
+					Body:       io.NopCloser(buffer),
 				}, nil
 			}),
 		}

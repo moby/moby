@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"os"
@@ -17,7 +16,6 @@ import (
 	"github.com/docker/docker/libnetwork/bitseq"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/ipamapi"
-	_ "github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
@@ -39,7 +37,7 @@ func randomLocalStore(needStore bool) (datastore.DataStore, error) {
 	if !needStore {
 		return nil, nil
 	}
-	tmp, err := ioutil.TempFile("", "libnetwork-")
+	tmp, err := os.CreateTemp("", "libnetwork-")
 	if err != nil {
 		return nil, fmt.Errorf("Error creating temp file: %v", err)
 	}

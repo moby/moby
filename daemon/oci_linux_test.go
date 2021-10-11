@@ -1,7 +1,6 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,7 +18,7 @@ import (
 )
 
 func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
-	root, err := ioutil.TempDir("", "oci_linux_test-root")
+	root, err := os.MkdirTemp("", "oci_linux_test-root")
 	assert.NilError(t, err)
 
 	rootfs := filepath.Join(root, "rootfs")
@@ -67,7 +66,7 @@ func TestTmpfsDevShmNoDupMount(t *testing.T) {
 	c := &container.Container{
 		ShmPath: "foobar", // non-empty, for c.IpcMounts() to work
 		HostConfig: &containertypes.HostConfig{
-			IpcMode: containertypes.IpcMode("shareable"), // default mode
+			IpcMode: containertypes.IPCModeShareable, // default mode
 			// --tmpfs /dev/shm:rw,exec,size=NNN
 			Tmpfs: map[string]string{
 				"/dev/shm": "rw,exec,size=1g",
@@ -89,7 +88,7 @@ func TestIpcPrivateVsReadonly(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	c := &container.Container{
 		HostConfig: &containertypes.HostConfig{
-			IpcMode:        containertypes.IpcMode("private"),
+			IpcMode:        containertypes.IPCModePrivate,
 			ReadonlyRootfs: true,
 		},
 	}
@@ -120,7 +119,6 @@ func TestSysctlOverride(t *testing.T) {
 		HostConfig: &containertypes.HostConfig{
 			NetworkMode: "bridge",
 			Sysctls:     map[string]string{},
-			UsernsMode:  "host",
 		},
 	}
 	d := setupFakeDaemon(t, c)
@@ -148,6 +146,20 @@ func TestSysctlOverride(t *testing.T) {
 	assert.Equal(t, s.Hostname, "foobar")
 	assert.Equal(t, s.Linux.Sysctl["kernel.domainname"], c.HostConfig.Sysctls["kernel.domainname"])
 	assert.Equal(t, s.Linux.Sysctl["net.ipv4.ip_unprivileged_port_start"], c.HostConfig.Sysctls["net.ipv4.ip_unprivileged_port_start"])
+
+	// Ensure the ping_group_range is not set on a daemon with user-namespaces enabled
+	d.configStore.RemappedRoot = "dummy:dummy"
+	s, err = d.createSpec(c)
+	assert.NilError(t, err)
+	_, ok := s.Linux.Sysctl["net.ipv4.ping_group_range"]
+	assert.Assert(t, !ok)
+
+	// Ensure the ping_group_range is set on a container in "host" userns mode
+	// on a daemon with user-namespaces enabled
+	c.HostConfig.UsernsMode = "host"
+	s, err = d.createSpec(c)
+	assert.NilError(t, err)
+	assert.Equal(t, s.Linux.Sysctl["net.ipv4.ping_group_range"], "0 2147483647")
 }
 
 // TestSysctlOverrideHost ensures that any implicit network sysctls are not set
@@ -159,7 +171,6 @@ func TestSysctlOverrideHost(t *testing.T) {
 		HostConfig: &containertypes.HostConfig{
 			NetworkMode: "host",
 			Sysctls:     map[string]string{},
-			UsernsMode:  "host",
 		},
 	}
 	d := setupFakeDaemon(t, c)

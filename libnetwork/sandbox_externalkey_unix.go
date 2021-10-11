@@ -1,3 +1,4 @@
+//go:build linux || freebsd
 // +build linux freebsd
 
 package libnetwork
@@ -7,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -52,7 +52,7 @@ func processSetKeyReexec() {
 	containerID, shortCtlrID := args[0], args[1]
 
 	// We expect specs.State as a json string in <stdin>
-	stateBuf, err := ioutil.ReadAll(os.Stdin)
+	stateBuf, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		return
 	}

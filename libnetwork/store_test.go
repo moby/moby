@@ -2,7 +2,7 @@ package libnetwork
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/config"
@@ -56,7 +56,7 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 
 // OptionBoltdbWithRandomDBFile function returns a random dir for local store backend
 func OptionBoltdbWithRandomDBFile() ([]config.Option, error) {
-	tmp, err := ioutil.TempFile("", "libnetwork-")
+	tmp, err := os.CreateTemp("", "libnetwork-")
 	if err != nil {
 		return nil, fmt.Errorf("Error creating temp file: %v", err)
 	}

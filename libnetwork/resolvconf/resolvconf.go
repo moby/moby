@@ -3,14 +3,11 @@ package resolvconf
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/libnetwork/resolvconf/dns"
-	"github.com/docker/docker/libnetwork/types"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -19,6 +16,13 @@ const (
 	defaultPath = "/etc/resolv.conf"
 	// alternatePath is a path different from defaultPath, that may be used to resolve DNS. See Path().
 	alternatePath = "/run/systemd/resolve/resolv.conf"
+)
+
+// constants for the IP address type
+const (
+	IP = iota // IPv4 and IPv6
+	IPv4
+	IPv6
 )
 
 var (
@@ -39,12 +43,12 @@ var (
 // More information at https://www.freedesktop.org/software/systemd/man/systemd-resolved.service.html#/etc/resolv.conf
 func Path() string {
 	detectSystemdResolvConfOnce.Do(func() {
-		candidateResolvConf, err := ioutil.ReadFile(defaultPath)
+		candidateResolvConf, err := os.ReadFile(defaultPath)
 		if err != nil {
 			// silencing error as it will resurface at next calls trying to read defaultPath
 			return
 		}
-		ns := GetNameservers(candidateResolvConf, types.IP)
+		ns := GetNameservers(candidateResolvConf, IP)
 		if len(ns) == 1 && ns[0] == "127.0.0.53" {
 			pathAfterSystemdDetection = alternatePath
 			logrus.Infof("detected 127.0.0.53 nameserver, assuming systemd-resolved, so using resolv.conf: %s", alternatePath)
@@ -53,20 +57,26 @@ func Path() string {
 	return pathAfterSystemdDetection
 }
 
-var (
-	// Note: the default IPv4 & IPv6 resolvers are set to Google's Public DNS
-	defaultIPv4Dns = []string{"nameserver 8.8.8.8", "nameserver 8.8.4.4"}
-	defaultIPv6Dns = []string{"nameserver 2001:4860:4860::8888", "nameserver 2001:4860:4860::8844"}
-	ipv4NumBlock   = `(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)`
-	ipv4Address    = `(` + ipv4NumBlock + `\.){3}` + ipv4NumBlock
+const (
+	// ipLocalhost is a regex pattern for IPv4 or IPv6 loopback range.
+	ipLocalhost  = `((127\.([0-9]{1,3}\.){2}[0-9]{1,3})|(::1)$)`
+	ipv4NumBlock = `(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)`
+	ipv4Address  = `(` + ipv4NumBlock + `\.){3}` + ipv4NumBlock
+
 	// This is not an IPv6 address verifier as it will accept a super-set of IPv6, and also
 	// will *not match* IPv4-Embedded IPv6 Addresses (RFC6052), but that and other variants
 	// -- e.g. other link-local types -- either won't work in containers or are unnecessary.
 	// For readability and sufficiency for Docker purposes this seemed more reasonable than a
 	// 1000+ character regexp with exact and complete IPv6 validation
 	ipv6Address = `([0-9A-Fa-f]{0,4}:){2,7}([0-9A-Fa-f]{0,4})(%\w+)?`
+)
 
-	localhostNSRegexp = regexp.MustCompile(`(?m)^nameserver\s+` + dns.IPLocalhost + `\s*\n*`)
+var (
+	// Note: the default IPv4 & IPv6 resolvers are set to Google's Public DNS
+	defaultIPv4Dns = []string{"nameserver 8.8.8.8", "nameserver 8.8.4.4"}
+	defaultIPv6Dns = []string{"nameserver 2001:4860:4860::8888", "nameserver 2001:4860:4860::8844"}
+
+	localhostNSRegexp = regexp.MustCompile(`(?m)^nameserver\s+` + ipLocalhost + `\s*\n*`)
 	nsIPv6Regexp      = regexp.MustCompile(`(?m)^nameserver\s+` + ipv6Address + `\s*\n*`)
 	nsRegexp          = regexp.MustCompile(`^\s*nameserver\s*((` + ipv4Address + `)|(` + ipv6Address + `))\s*$`)
 	nsIPv6Regexpmatch = regexp.MustCompile(`^\s*nameserver\s*((` + ipv6Address + `))\s*$`)
@@ -94,11 +104,11 @@ func Get() (*File, error) {
 
 // GetSpecific returns the contents of the user specified resolv.conf file and its hash
 func GetSpecific(path string) (*File, error) {
-	resolv, err := ioutil.ReadFile(path)
+	resolv, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	hash, err := ioutils.HashData(bytes.NewReader(resolv))
+	hash, err := hashData(bytes.NewReader(resolv))
 	if err != nil {
 		return nil, err
 	}
@@ -112,11 +122,11 @@ func GetIfChanged() (*File, error) {
 	lastModified.Lock()
 	defer lastModified.Unlock()
 
-	resolv, err := ioutil.ReadFile(Path())
+	resolv, err := os.ReadFile(Path())
 	if err != nil {
 		return nil, err
 	}
-	newHash, err := ioutils.HashData(bytes.NewReader(resolv))
+	newHash, err := hashData(bytes.NewReader(resolv))
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +163,7 @@ func FilterResolvDNS(resolvConf []byte, ipv6Enabled bool) (*File, error) {
 	}
 	// if the resulting resolvConf has no more nameservers defined, add appropriate
 	// default DNS servers for IPv4 and (optionally) IPv6
-	if len(GetNameservers(cleanedResolvConf, types.IP)) == 0 {
+	if len(GetNameservers(cleanedResolvConf, IP)) == 0 {
 		logrus.Infof("No non-localhost DNS nameservers are left in resolv.conf. Using default external servers: %v", defaultIPv4Dns)
 		dns := defaultIPv4Dns
 		if ipv6Enabled {
@@ -162,7 +172,7 @@ func FilterResolvDNS(resolvConf []byte, ipv6Enabled bool) (*File, error) {
 		}
 		cleanedResolvConf = append(cleanedResolvConf, []byte("\n"+strings.Join(dns, "\n"))...)
 	}
-	hash, err := ioutils.HashData(bytes.NewReader(cleanedResolvConf))
+	hash, err := hashData(bytes.NewReader(cleanedResolvConf))
 	if err != nil {
 		return nil, err
 	}
@@ -189,11 +199,11 @@ func GetNameservers(resolvConf []byte, kind int) []string {
 	nameservers := []string{}
 	for _, line := range getLines(resolvConf, []byte("#")) {
 		var ns [][]byte
-		if kind == types.IP {
+		if kind == IP {
 			ns = nsRegexp.FindSubmatch(line)
-		} else if kind == types.IPv4 {
+		} else if kind == IPv4 {
 			ns = nsIPv4Regexpmatch.FindSubmatch(line)
-		} else if kind == types.IPv6 {
+		} else if kind == IPv6 {
 			ns = nsIPv6Regexpmatch.FindSubmatch(line)
 		}
 		if len(ns) > 0 {
@@ -208,7 +218,7 @@ func GetNameservers(resolvConf []byte, kind int) []string {
 // This function's output is intended for net.ParseCIDR
 func GetNameserversAsCIDR(resolvConf []byte) []string {
 	nameservers := []string{}
-	for _, nameserver := range GetNameservers(resolvConf, types.IP) {
+	for _, nameserver := range GetNameservers(resolvConf, IP) {
 		var address string
 		// If IPv6, strip zone if present
 		if strings.Contains(nameserver, ":") {
@@ -276,10 +286,10 @@ func Build(path string, dns, dnsSearch, dnsOptions []string) (*File, error) {
 		}
 	}
 
-	hash, err := ioutils.HashData(bytes.NewReader(content.Bytes()))
+	hash, err := hashData(bytes.NewReader(content.Bytes()))
 	if err != nil {
 		return nil, err
 	}
 
-	return &File{Content: content.Bytes(), Hash: hash}, ioutil.WriteFile(path, content.Bytes(), 0644)
+	return &File{Content: content.Bytes(), Hash: hash}, os.WriteFile(path, content.Bytes(), 0644)
 }

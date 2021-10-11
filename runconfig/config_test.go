@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -42,12 +42,12 @@ func TestDecodeContainerConfig(t *testing.T) {
 	}
 
 	for _, f := range fixtures {
-		b, err := ioutil.ReadFile(f.file)
+		b, err := os.ReadFile(f.file)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		c, h, _, err := decodeContainerConfig(bytes.NewReader(b), sysinfo.New(true))
+		c, h, _, err := decodeContainerConfig(bytes.NewReader(b), sysinfo.New())
 		if err != nil {
 			t.Fatal(fmt.Errorf("Error parsing %s: %v", f, err))
 		}
@@ -131,5 +131,5 @@ func callDecodeContainerConfigIsolation(isolation string) (*container.Config, *c
 	if b, err = json.Marshal(w); err != nil {
 		return nil, nil, nil, fmt.Errorf("Error on marshal %s", err.Error())
 	}
-	return decodeContainerConfig(bytes.NewReader(b), sysinfo.New(true))
+	return decodeContainerConfig(bytes.NewReader(b), sysinfo.New())
 }

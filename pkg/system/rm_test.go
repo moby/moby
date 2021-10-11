@@ -1,9 +1,9 @@
+//go:build !darwin && !windows
 // +build !darwin,!windows
 
 package system // import "github.com/docker/docker/pkg/system"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,11 +16,11 @@ import (
 func TestEnsureRemoveAllWithMount(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 
-	dir1, err := ioutil.TempDir("", "test-ensure-removeall-with-dir1")
+	dir1, err := os.MkdirTemp("", "test-ensure-removeall-with-dir1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir2, err := ioutil.TempDir("", "test-ensure-removeall-with-dir2")
+	dir2, err := os.MkdirTemp("", "test-ensure-removeall-with-dir2")
 	if err != nil {
 		t.Fatal(err)
 	}

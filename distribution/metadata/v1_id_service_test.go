@@ -1,7 +1,6 @@
 package metadata // import "github.com/docker/docker/distribution/metadata"
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -10,7 +9,7 @@ import (
 )
 
 func TestV1IDService(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "v1-id-service-test")
+	tmpDir, err := os.MkdirTemp("", "v1-id-service-test")
 	if err != nil {
 		t.Fatalf("could not create temp dir: %v", err)
 	}

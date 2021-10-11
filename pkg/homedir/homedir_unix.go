@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package homedir // import "github.com/docker/docker/pkg/homedir"

@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 // Package windowsconsole implements ANSI-aware input and output streams for use

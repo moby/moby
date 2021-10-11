@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -282,7 +281,7 @@ func (s *DockerSuite) TestGetContainerStatsStream(c *testing.T) {
 	case <-time.After(2 * time.Second):
 		c.Fatal("stream was not closed after container was removed")
 	case sr := <-bc:
-		b, err := ioutil.ReadAll(sr.stats.Body)
+		b, err := io.ReadAll(sr.stats.Body)
 		defer sr.stats.Body.Close()
 		assert.NilError(c, err)
 		s := string(b)
@@ -324,7 +323,7 @@ func (s *DockerSuite) TestGetContainerStatsNoStream(c *testing.T) {
 	case <-time.After(2 * time.Second):
 		c.Fatal("stream was not closed after container was removed")
 	case sr := <-bc:
-		b, err := ioutil.ReadAll(sr.stats.Body)
+		b, err := io.ReadAll(sr.stats.Body)
 		defer sr.stats.Body.Close()
 		assert.NilError(c, err)
 		s := string(b)
@@ -656,7 +655,7 @@ func (s *DockerSuite) TestContainerAPIVerifyHeader(c *testing.T) {
 	create := func(ct string) (*http.Response, io.ReadCloser, error) {
 		jsonData := bytes.NewBuffer(nil)
 		assert.Assert(c, json.NewEncoder(jsonData).Encode(config) == nil)
-		return request.Post("/containers/create", request.RawContent(ioutil.NopCloser(jsonData)), request.ContentType(ct))
+		return request.Post("/containers/create", request.RawContent(io.NopCloser(jsonData)), request.ContentType(ct))
 	}
 
 	// Try with no content-type
@@ -1940,10 +1939,10 @@ func (s *DockerSuite) TestContainerAPICreateMountsBindRead(c *testing.T) {
 	// also with data in the host side
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	destPath := prefix + slash + "foo"
-	tmpDir, err := ioutil.TempDir("", "test-mounts-api-bind")
+	tmpDir, err := os.MkdirTemp("", "test-mounts-api-bind")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpDir)
-	err = ioutil.WriteFile(filepath.Join(tmpDir, "bar"), []byte("hello"), 0666)
+	err = os.WriteFile(filepath.Join(tmpDir, "bar"), []byte("hello"), 0666)
 	assert.NilError(c, err)
 	config := containertypes.Config{
 		Image: "busybox",
@@ -2026,7 +2025,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 
 	if testEnv.IsLocalDaemon() {
 		// setup temp dir for testing binds
-		tmpDir1, err := ioutil.TempDir("", "test-mounts-api-1")
+		tmpDir1, err := os.MkdirTemp("", "test-mounts-api-1")
 		assert.NilError(c, err)
 		defer os.RemoveAll(tmpDir1)
 		cases = append(cases, []testCase{
@@ -2231,7 +2230,7 @@ func (s *DockerSuite) TestContainerKillCustomStopSignal(c *testing.T) {
 	assert.NilError(c, err)
 	defer res.Body.Close()
 
-	b, err := ioutil.ReadAll(res.Body)
+	b, err := io.ReadAll(res.Body)
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusNoContent, string(b))
 	err = waitInspect(id, "{{.State.Running}} {{.State.Restarting}}", "false false", 30*time.Second)

@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package bridge
@@ -5,7 +6,6 @@ package bridge
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -927,7 +927,7 @@ func setHairpinMode(nlh *netlink.Handle, link netlink.Link, enable bool) error {
 		val = []byte{'0', '\n'}
 	}
 
-	if err := ioutil.WriteFile(path, val, 0644); err != nil {
+	if err := os.WriteFile(path, val, 0644); err != nil {
 		return fmt.Errorf("unable to set hairpin mode on %s via sysfs: %v", link.Attrs().Name, err)
 	}
 

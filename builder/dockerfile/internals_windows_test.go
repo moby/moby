@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
@@ -40,7 +41,7 @@ func TestNormalizeDest(t *testing.T) {
 	}
 	for _, testcase := range tests {
 		msg := fmt.Sprintf("Input: %s, %s", testcase.current, testcase.requested)
-		actual, err := normalizeDest(testcase.current, testcase.requested, "windows")
+		actual, err := normalizeDest(testcase.current, testcase.requested)
 		if testcase.etext == "" {
 			if !assert.Check(t, err, msg) {
 				continue

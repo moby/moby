@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package main
@@ -5,7 +6,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -200,11 +200,11 @@ func setupRemoteNetworkDrivers(c *testing.T, mux *http.ServeMux, url, netDrv, ip
 	assert.NilError(c, err)
 
 	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", netDrv)
-	err = ioutil.WriteFile(fileName, []byte(url), 0644)
+	err = os.WriteFile(fileName, []byte(url), 0644)
 	assert.NilError(c, err)
 
 	ipamFileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", ipamDrv)
-	err = ioutil.WriteFile(ipamFileName, []byte(url), 0644)
+	err = os.WriteFile(ipamFileName, []byte(url), 0644)
 	assert.NilError(c, err)
 }
 
@@ -1574,7 +1574,7 @@ func (s *DockerSuite) TestEmbeddedDNSInvalidInput(c *testing.T) {
 	dockerCmd(c, "network", "create", "-d", "bridge", "nw1")
 
 	// Sending garbage to embedded DNS shouldn't crash the daemon
-	dockerCmd(c, "run", "-i", "--net=nw1", "--name=c1", "debian:bullseye", "bash", "-c", "echo InvalidQuery > /dev/udp/127.0.0.11/53")
+	dockerCmd(c, "run", "-i", "--net=nw1", "--name=c1", "debian:bullseye-slim", "bash", "-c", "echo InvalidQuery > /dev/udp/127.0.0.11/53")
 }
 
 func (s *DockerSuite) TestDockerNetworkConnectFailsNoInspectChange(c *testing.T) {

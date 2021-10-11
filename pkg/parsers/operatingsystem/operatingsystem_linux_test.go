@@ -1,9 +1,9 @@
+//go:build linux || freebsd
 // +build linux freebsd
 
 package operatingsystem // import "github.com/docker/docker/pkg/parsers/operatingsystem"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -139,7 +139,7 @@ func runEtcReleaseParsingTests(t *testing.T, tests []EtcReleaseParsingTest, pars
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := ioutil.WriteFile(etcOsRelease, []byte(test.content), 0600); err != nil {
+			if err := os.WriteFile(etcOsRelease, []byte(test.content), 0600); err != nil {
 				t.Fatalf("failed to write to %s: %v", etcOsRelease, err)
 			}
 			s, err := parsingFunc()
@@ -202,7 +202,7 @@ func TestIsContainerized(t *testing.T) {
 		proc1Cgroup = backup
 	}()
 
-	if err := ioutil.WriteFile(proc1Cgroup, nonContainerizedProc1Cgroup, 0600); err != nil {
+	if err := os.WriteFile(proc1Cgroup, nonContainerizedProc1Cgroup, 0600); err != nil {
 		t.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
 	}
 	inContainer, err := IsContainerized()
@@ -213,7 +213,7 @@ func TestIsContainerized(t *testing.T) {
 		t.Fatal("Wrongly assuming containerized")
 	}
 
-	if err := ioutil.WriteFile(proc1Cgroup, nonContainerizedProc1Cgroupsystemd226, 0600); err != nil {
+	if err := os.WriteFile(proc1Cgroup, nonContainerizedProc1Cgroupsystemd226, 0600); err != nil {
 		t.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
 	}
 	inContainer, err = IsContainerized()
@@ -224,7 +224,7 @@ func TestIsContainerized(t *testing.T) {
 		t.Fatal("Wrongly assuming containerized for systemd /init.scope cgroup layout")
 	}
 
-	if err := ioutil.WriteFile(proc1Cgroup, nonContainerizedProc1CgroupNotSystemd, 0600); err != nil {
+	if err := os.WriteFile(proc1Cgroup, nonContainerizedProc1CgroupNotSystemd, 0600); err != nil {
 		t.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
 	}
 	inContainer, err = IsContainerized()
@@ -235,7 +235,7 @@ func TestIsContainerized(t *testing.T) {
 		t.Fatal("Wrongly assuming non-containerized")
 	}
 
-	if err := ioutil.WriteFile(proc1Cgroup, containerizedProc1Cgroup, 0600); err != nil {
+	if err := os.WriteFile(proc1Cgroup, containerizedProc1Cgroup, 0600); err != nil {
 		t.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
 	}
 	inContainer, err = IsContainerized()
@@ -267,7 +267,7 @@ HOME_URL="http://www.gentoo.org/"
 SUPPORT_URL="http://www.gentoo.org/main/en/support.xml"
 BUG_REPORT_URL="https://bugs.gentoo.org/"
 `
-	if err := ioutil.WriteFile(altOsRelease, []byte(content), 0600); err != nil {
+	if err := os.WriteFile(altOsRelease, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write to %s: %v", etcOsRelease, err)
 	}
 	s, err := GetOperatingSystem()

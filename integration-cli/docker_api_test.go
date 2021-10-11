@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"runtime"
 	"strconv"
@@ -52,7 +52,7 @@ func (s *DockerSuite) TestAPIClientVersionOldNotSupported(c *testing.T) {
 	defer body.Close()
 	assert.Equal(c, resp.StatusCode, http.StatusBadRequest)
 	expected := fmt.Sprintf("client version %s is too old. Minimum supported API version is %s, please upgrade your client to a newer version", version, api.MinVersion)
-	content, err := ioutil.ReadAll(body)
+	content, err := io.ReadAll(body)
 	assert.NilError(c, err)
 	assert.Equal(c, strings.TrimSpace(string(content)), expected)
 }

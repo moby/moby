@@ -281,21 +281,6 @@ func ParseHostURL(host string) (*url.URL, error) {
 	}, nil
 }
 
-// CustomHTTPHeaders returns the custom http headers stored by the client.
-func (cli *Client) CustomHTTPHeaders() map[string]string {
-	m := make(map[string]string)
-	for k, v := range cli.customHTTPHeaders {
-		m[k] = v
-	}
-	return m
-}
-
-// SetCustomHTTPHeaders that will be set on every HTTP request made by the client.
-// Deprecated: use WithHTTPHeaders when creating the client.
-func (cli *Client) SetCustomHTTPHeaders(headers map[string]string) {
-	cli.customHTTPHeaders = headers
-}
-
 // Dialer returns a dialer for a raw stream connection, with HTTP/1.1 header, that can be used for proxying the daemon connection.
 // Used by `docker dial-stdio` (docker/cli#889).
 func (cli *Client) Dialer() func(context.Context) (net.Conn, error) {
