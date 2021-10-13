@@ -158,7 +158,7 @@ func (r *resolver) Start() error {
 	r.server = s
 	go func() {
 		if err := s.ActivateAndServe(); err != nil {
-			logrus.WithError(err).Error("error starting packetconn dns server")
+			logrus.WithError(err).Error("[resolver] failed to start PacketConn DNS server")
 		}
 	}()
 
@@ -166,7 +166,7 @@ func (r *resolver) Start() error {
 	r.tcpServer = tcpServer
 	go func() {
 		if err := tcpServer.ActivateAndServe(); err != nil {
-			logrus.WithError(err).Error("error starting tcp dns server")
+			logrus.WithError(err).Error("[resolver] failed to start TCP DNS server")
 		}
 	}()
 	return nil
@@ -389,7 +389,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	}
 
 	if err != nil {
-		logrus.Error(err)
+		logrus.WithError(err).Errorf("[resolver] failed to handle query: %s (%s) from %s", name, dns.TypeToString[query.Question[0].Qtype], extConn.LocalAddr().String())
 		return
 	}
 
@@ -400,7 +400,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 			resp = new(dns.Msg)
 			resp.SetRcode(query, dns.RcodeServerFailure)
 			if err := w.WriteMsg(resp); err != nil {
-				logrus.WithError(err).Error("Error writing dns response")
+				logrus.WithError(err).Error("[resolver] error writing dns response")
 			}
 			return
 		}
@@ -467,7 +467,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 
 			// Timeout has to be set for every IO operation.
 			if err := extConn.SetDeadline(time.Now().Add(extIOTimeout)); err != nil {
-				logrus.WithError(err).Error("Error setting conn deadline")
+				logrus.WithError(err).Error("[resolver] error setting conn deadline")
 			}
 			co := &dns.Conn{
 				Conn:    extConn,
@@ -497,7 +497,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 			// client can retry over TCP
 			if err != nil && (resp == nil || !resp.Truncated) {
 				r.forwardQueryEnd()
-				logrus.Debugf("[resolver] read from DNS server failed, %s", err)
+				logrus.WithError(err).Debugf("[resolver] failed to read from DNS server")
 				continue
 			}
 			r.forwardQueryEnd()
@@ -554,7 +554,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	}
 
 	if err = w.WriteMsg(resp); err != nil {
-		logrus.Errorf("[resolver] error writing resolver resp, %s", err)
+		logrus.WithError(err).Errorf("[resolver] failed to write resolver response")
 	}
 }
 
