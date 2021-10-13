@@ -384,7 +384,8 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	case dns.TypeSRV:
 		resp, err = r.handleSRVQuery(name, query)
 	default:
-		panic("error")
+		queryType := dns.TypeToString[query.Question[0].Qtype]
+		logrus.Debugf("[resolver] query type %s is not supported by the embedded DNS and will be forwarded to external DNS", queryType)
 	}
 
 	if err != nil {
