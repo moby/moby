@@ -5,7 +5,6 @@ package backuptar
 import (
 	"archive/tar"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Microsoft/go-winio"
+	"golang.org/x/sys/windows"
 )
 
 const (
@@ -41,19 +41,14 @@ const (
 	hdrCreationTime = "LIBARCHIVE.creationtime"
 )
 
-func writeZeroes(w io.Writer, count int64) error {
-	buf := make([]byte, 8192)
-	c := len(buf)
-	for i := int64(0); i < count; i += int64(c) {
-		if int64(c) > count-i {
-			c = int(count - i)
-		}
-		_, err := w.Write(buf[:c])
-		if err != nil {
-			return err
-		}
+// zeroReader is an io.Reader that always returns 0s.
+type zeroReader struct{}
+
+func (zr zeroReader) Read(b []byte) (int, error) {
+	for i := range b {
+		b[i] = 0
 	}
-	return nil
+	return len(b), nil
 }
 
 func copySparse(t *tar.Writer, br *winio.BackupStreamReader) error {
@@ -70,15 +65,25 @@ func copySparse(t *tar.Writer, br *winio.BackupStreamReader) error {
 			return fmt.Errorf("unexpected stream %d", bhdr.Id)
 		}
 
+		// We can't seek backwards, since we have already written that data to the tar.Writer.
+		if bhdr.Offset < curOffset {
+			return fmt.Errorf("cannot seek back from %d to %d", curOffset, bhdr.Offset)
+		}
 		// archive/tar does not support writing sparse files
 		// so just write zeroes to catch up to the current offset.
-		err = writeZeroes(t, bhdr.Offset-curOffset)
+		if _, err := io.CopyN(t, zeroReader{}, bhdr.Offset-curOffset); err != nil {
+			return fmt.Errorf("seek to offset %d: %s", bhdr.Offset, err)
+		}
 		if bhdr.Size == 0 {
+			// A sparse block with size = 0 is used to mark the end of the sparse blocks.
 			break
 		}
 		n, err := io.Copy(t, br)
 		if err != nil {
 			return err
+		}
+		if n != bhdr.Size {
+			return fmt.Errorf("copied %d bytes instead of %d at offset %d", n, bhdr.Size, bhdr.Offset)
 		}
 		curOffset = bhdr.Offset + n
 	}
@@ -220,20 +225,44 @@ func WriteTarFileFromBackupStream(t *tar.Writer, r io.Reader, name string, size 
 		}
 	}
 
+	// The logic for copying file contents is fairly complicated due to the need for handling sparse files,
+	// and the weird ways they are represented by BackupRead. A normal file will always either have a data stream
+	// with size and content, or no data stream at all (if empty). However, for a sparse file, the content can also
+	// be represented using a series of sparse block streams following the data stream. Additionally, the way sparse
+	// files are handled by BackupRead has changed in the OS recently. The specifics of the representation are described
+	// in the list at the bottom of this block comment.
+	//
+	// Sparse files can be represented in four different ways, based on the specifics of the file.
+	// - Size = 0:
+	//     Previously: BackupRead yields no data stream and no sparse block streams.
+	//     Recently: BackupRead yields a data stream with size = 0. There are no following sparse block streams.
+	// - Size > 0, no allocated ranges:
+	//     BackupRead yields a data stream with size = 0. Following is a single sparse block stream with
+	//     size = 0 and offset = <file size>.
+	// - Size > 0, one allocated range:
+	//     BackupRead yields a data stream with size = <file size> containing the file contents. There are no
+	//     sparse block streams. This is the case if you take a normal file with contents and simply set the
+	//     sparse flag on it.
+	// - Size > 0, multiple allocated ranges:
+	//     BackupRead yields a data stream with size = 0. Following are sparse block streams for each allocated
+	//     range of the file containing the range contents. Finally there is a sparse block stream with
+	//     size = 0 and offset = <file size>.
+
 	if dataHdr != nil {
 		// A data stream was found. Copy the data.
-		if (dataHdr.Attributes & winio.StreamSparseAttributes) == 0 {
+		// We assume that we will either have a data stream size > 0 XOR have sparse block streams.
+		if dataHdr.Size > 0 || (dataHdr.Attributes&winio.StreamSparseAttributes) == 0 {
 			if size != dataHdr.Size {
 				return fmt.Errorf("%s: mismatch between file size %d and header size %d", name, size, dataHdr.Size)
 			}
-			_, err = io.Copy(t, br)
-			if err != nil {
-				return err
+			if _, err = io.Copy(t, br); err != nil {
+				return fmt.Errorf("%s: copying contents from data stream: %s", name, err)
 			}
-		} else {
-			err = copySparse(t, br)
-			if err != nil {
-				return err
+		} else if size > 0 {
+			// As of a recent OS change, BackupRead now returns a data stream for empty sparse files.
+			// These files have no sparse block streams, so skip the copySparse call if file size = 0.
+			if err = copySparse(t, br); err != nil {
+				return fmt.Errorf("%s: copying contents from sparse block stream: %s", name, err)
 			}
 		}
 	}
@@ -278,7 +307,7 @@ func WriteTarFileFromBackupStream(t *tar.Writer, r io.Reader, name string, size 
 			} else {
 				// Unsupported for now, since the size of the alternate stream is not present
 				// in the backup stream until after the data has been read.
-				return errors.New("tar of sparse alternate data streams is unsupported")
+				return fmt.Errorf("%s: tar of sparse alternate data streams is unsupported", name)
 			}
 		case winio.BackupEaData, winio.BackupLink, winio.BackupPropertyData, winio.BackupObjectId, winio.BackupTxfsData:
 			// ignore these streams
@@ -297,11 +326,11 @@ func FileInfoFromHeader(hdr *tar.Header) (name string, size int64, fileInfo *win
 		size = hdr.Size
 	}
 	fileInfo = &winio.FileBasicInfo{
-		LastAccessTime: syscall.NsecToFiletime(hdr.AccessTime.UnixNano()),
-		LastWriteTime:  syscall.NsecToFiletime(hdr.ModTime.UnixNano()),
-		ChangeTime:     syscall.NsecToFiletime(hdr.ChangeTime.UnixNano()),
+		LastAccessTime: windows.NsecToFiletime(hdr.AccessTime.UnixNano()),
+		LastWriteTime:  windows.NsecToFiletime(hdr.ModTime.UnixNano()),
+		ChangeTime:     windows.NsecToFiletime(hdr.ChangeTime.UnixNano()),
 		// Default to ModTime, we'll pull hdrCreationTime below if present
-		CreationTime: syscall.NsecToFiletime(hdr.ModTime.UnixNano()),
+		CreationTime: windows.NsecToFiletime(hdr.ModTime.UnixNano()),
 	}
 	if attrStr, ok := hdr.PAXRecords[hdrFileAttributes]; ok {
 		attr, err := strconv.ParseUint(attrStr, 10, 32)
@@ -319,7 +348,7 @@ func FileInfoFromHeader(hdr *tar.Header) (name string, size int64, fileInfo *win
 		if err != nil {
 			return "", 0, nil, err
 		}
-		fileInfo.CreationTime = syscall.NsecToFiletime(creationTime.UnixNano())
+		fileInfo.CreationTime = windows.NsecToFiletime(creationTime.UnixNano())
 	}
 	return
 }
