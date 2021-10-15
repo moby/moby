@@ -34,7 +34,8 @@ func NewV1Endpoint(index *registrytypes.IndexInfo, userAgent string, metaHeaders
 		return nil, err
 	}
 
-	if err := validateEndpoint(endpoint); err != nil {
+	err = validateEndpoint(endpoint)
+	if err != nil {
 		return nil, err
 	}
 
@@ -68,20 +69,6 @@ func validateEndpoint(endpoint *V1Endpoint) error {
 	return nil
 }
 
-func newV1Endpoint(address url.URL, tlsConfig *tls.Config, userAgent string, metaHeaders http.Header) *V1Endpoint {
-	endpoint := &V1Endpoint{
-		IsSecure: tlsConfig == nil || !tlsConfig.InsecureSkipVerify,
-		URL:      new(url.URL),
-	}
-
-	*endpoint.URL = address
-
-	// TODO(tiborvass): make sure a ConnectTimeout transport is used
-	tr := NewTransport(tlsConfig)
-	endpoint.client = HTTPClient(transport.NewTransport(tr, Headers(userAgent, metaHeaders)...))
-	return endpoint
-}
-
 // trimV1Address trims the version off the address and returns the
 // trimmed address or an error if there is a non-V1 version.
 func trimV1Address(address string) (string, error) {
@@ -90,10 +77,7 @@ func trimV1Address(address string) (string, error) {
 		apiVersionStr string
 	)
 
-	if strings.HasSuffix(address, "/") {
-		address = address[:len(address)-1]
-	}
-
+	address = strings.TrimSuffix(address, "/")
 	chunks = strings.Split(address, "/")
 	apiVersionStr = chunks[len(chunks)-1]
 	if apiVersionStr == "v1" {
@@ -124,9 +108,14 @@ func newV1EndpointFromStr(address string, tlsConfig *tls.Config, userAgent strin
 		return nil, err
 	}
 
-	endpoint := newV1Endpoint(*uri, tlsConfig, userAgent, metaHeaders)
+	// TODO(tiborvass): make sure a ConnectTimeout transport is used
+	tr := NewTransport(tlsConfig)
 
-	return endpoint, nil
+	return &V1Endpoint{
+		IsSecure: tlsConfig == nil || !tlsConfig.InsecureSkipVerify,
+		URL:      uri,
+		client:   HTTPClient(transport.NewTransport(tr, Headers(userAgent, metaHeaders)...)),
+	}, nil
 }
 
 // Get the formatted URL for the root of this registry Endpoint
@@ -142,29 +131,28 @@ func (e *V1Endpoint) Path(path string) string {
 
 // Ping returns a PingResult which indicates whether the registry is standalone or not.
 func (e *V1Endpoint) Ping() (PingResult, error) {
-	logrus.Debugf("attempting v1 ping for registry endpoint %s", e)
-
 	if e.String() == IndexServer {
 		// Skip the check, we know this one is valid
 		// (and we never want to fallback to http in case of error)
-		return PingResult{Standalone: false}, nil
+		return PingResult{}, nil
 	}
 
+	logrus.Debugf("attempting v1 ping for registry endpoint %s", e)
 	req, err := http.NewRequest(http.MethodGet, e.Path("_ping"), nil)
 	if err != nil {
-		return PingResult{Standalone: false}, err
+		return PingResult{}, err
 	}
 
 	resp, err := e.client.Do(req)
 	if err != nil {
-		return PingResult{Standalone: false}, err
+		return PingResult{}, err
 	}
 
 	defer resp.Body.Close()
 
 	jsonString, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return PingResult{Standalone: false}, fmt.Errorf("error while reading the http response: %s", err)
+		return PingResult{}, fmt.Errorf("error while reading the http response: %s", err)
 	}
 
 	// If the header is absent, we assume true for compatibility with earlier
@@ -177,13 +165,12 @@ func (e *V1Endpoint) Ping() (PingResult, error) {
 		// don't stop here. Just assume sane defaults
 	}
 	if hdr := resp.Header.Get("X-Docker-Registry-Version"); hdr != "" {
-		logrus.Debugf("Registry version header: '%s'", hdr)
 		info.Version = hdr
 	}
 	logrus.Debugf("PingResult.Version: %q", info.Version)
 
 	standalone := resp.Header.Get("X-Docker-Registry-Standalone")
-	logrus.Debugf("Registry standalone header: '%s'", standalone)
+
 	// Accepted values are "true" (case-insensitive) and "1".
 	if strings.EqualFold(standalone, "true") || standalone == "1" {
 		info.Standalone = true
