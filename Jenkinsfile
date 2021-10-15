@@ -39,7 +39,7 @@ pipeline {
                 beforeAgent true
                 expression { params.dco }
             }
-            agent { label 'amd64 && ubuntu-1804 && overlay2' }
+            agent { label 'arm64 && ubuntu-2004' }
             steps {
                 sh '''
                 docker run --rm \
