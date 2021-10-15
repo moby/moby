@@ -42,35 +42,12 @@ pipeline {
                 }
             }
         }
-        stage('DCO-check') {
-            when {
-                beforeAgent true
-                expression { params.dco }
-            }
-            agent { label 'amd64 && ubuntu-1804 && overlay2' }
-            steps {
-                sh '''
-                docker run --rm \
-                  -v "$WORKSPACE:/workspace" \
-                  -e VALIDATE_REPO=${GIT_URL} \
-                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
-                  alpine sh -c 'apk add --no-cache -q bash git openssh-client && cd /workspace && hack/validate/dco'
-                '''
-            }
-        }
         stage('Build') {
             parallel {
-                stage('unit-validate') {
-                    when {
-                        beforeAgent true
-                        expression { params.unit_validate }
-                    }
-                    agent { label 'amd64 && ubuntu-1804 && overlay2' }
+                stage('amd64-unit-validate') {
+                    agent { label 'amd64 && ubuntu-2004' }
                     environment {
-                        // On master ("non-pull-request"), force running some validation checks (vendor, swagger),
-                        // even if no files were changed. This allows catching problems caused by pull-requests
-                        // that were merged out-of-sequence.
-                        TEST_FORCE_VALIDATE = sh returnStdout: true, script: 'if [ "${BRANCH_NAME%%-*}" != "PR" ] || [ "${CHANGE_TARGET:-master}" != "master" ] || [ "${validate_force}" = "true" ]; then echo "1"; fi'
+                        TEST_SKIP_INTEGRATION_CLI = '1'
                     }
 
                     stages {
@@ -117,6 +94,7 @@ pipeline {
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e TEST_SKIP_INTEGRATION_CLI \
                                   -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
@@ -141,7 +119,7 @@ pipeline {
 
                                     catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
                                         sh '''
-                                        bundleName=docker-py
+                                        bundleName=amd64-docker-py
                                         echo "Creating ${bundleName}-bundles.tar.gz"
                                         tar -czf ${bundleName}-bundles.tar.gz bundles/test-docker-py/*.xml bundles/test-docker-py/*.log
                                         '''
@@ -235,7 +213,7 @@ pipeline {
 
                             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
                                 sh '''
-                                bundleName=unit
+                                bundleName=amd64-unit
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 tar -czvf ${bundleName}-bundles.tar.gz bundles/junit-report*.xml bundles/go-test-report*.json bundles/profile*.out
                                 '''
@@ -249,12 +227,11 @@ pipeline {
                         }
                     }
                 }
-                stage('amd64') {
-                    when {
-                        beforeAgent true
-                        expression { params.amd64 }
+                stage('arm64-unit-validate') {
+                    agent { label 'arm64 && ubuntu-2004' }
+                    environment {
+                        TEST_SKIP_INTEGRATION_CLI = '1'
                     }
-                    agent { label 'amd64 && ubuntu-1804 && overlay2' }
 
                     stages {
                         stage("Print info") {
@@ -270,144 +247,72 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh '''
-                                # todo: include ip_vs in base image
-                                sudo modprobe ip_vs
-
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
-                                '''
+                                sh 'docker build --force-rm --build-arg APT_MIRROR --build-arg CROSS=true -t docker:${GIT_COMMIT} .'
                             }
                         }
-                        stage("Run tests") {
+                        stage("Validate") {
                             steps {
-                                sh '''#!/bin/bash
-                                # bash is needed so 'jobs -p' works properly
-                                # it also accepts setting inline envvars for functions without explicitly exporting
-                                set -x
-
-                                run_tests() {
-                                        [ -n "$TESTDEBUG" ] && rm= || rm=--rm;
-                                        docker run $rm -t --privileged \
-                                          -v "$WORKSPACE/bundles/${TEST_INTEGRATION_DEST}:/go/src/github.com/docker/docker/bundles" \
-                                          -v "$WORKSPACE/bundles/dynbinary-daemon:/go/src/github.com/docker/docker/bundles/dynbinary-daemon" \
-                                          -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                                          --name "$CONTAINER_NAME" \
-                                          -e KEEPBUNDLE=1 \
-                                          -e TESTDEBUG \
-                                          -e TESTFLAGS \
-                                          -e TEST_SKIP_INTEGRATION \
-                                          -e TEST_SKIP_INTEGRATION_CLI \
-                                          -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                          -e DOCKER_GRAPHDRIVER \
-                                          -e TIMEOUT \
-                                          -e VALIDATE_REPO=${GIT_URL} \
-                                          -e VALIDATE_BRANCH=${CHANGE_TARGET} \
-                                          docker:${GIT_COMMIT} \
-                                          hack/make.sh \
-                                            "$1" \
-                                            test-integration
-                                }
-
-                                trap "exit" INT TERM
-                                trap 'pids=$(jobs -p); echo "Remaining pids to kill: [$pids]"; [ -z "$pids" ] || kill $pids' EXIT
-
-                                CONTAINER_NAME=docker-pr$BUILD_NUMBER
-
+                                sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                                  --name ${CONTAINER_NAME}-build \
+                                  --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e TEST_FORCE_VALIDATE \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
+                                  docker:${GIT_COMMIT} \
+                                  hack/validate/default
+                                '''
+                            }
+                        }
+                        stage("Docker-py") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  -e TEST_SKIP_INTEGRATION_CLI \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh \
-                                    dynbinary
-
-                                # flaky + integration
-                                TEST_INTEGRATION_DEST=1 CONTAINER_NAME=${CONTAINER_NAME}-1 TEST_SKIP_INTEGRATION_CLI=1 run_tests test-integration-flaky &
-
-                                # integration-cli first set
-                                TEST_INTEGRATION_DEST=2 CONTAINER_NAME=${CONTAINER_NAME}-2 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-test.run Test(DockerSuite|DockerNetworkSuite|DockerHubPullSuite|DockerRegistrySuite|DockerSchema1RegistrySuite|DockerRegistryAuthTokenSuite|DockerRegistryAuthHtpasswdSuite)/" run_tests &
-
-                                # integration-cli second set
-                                TEST_INTEGRATION_DEST=3 CONTAINER_NAME=${CONTAINER_NAME}-3 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-test.run Test(DockerSwarmSuite|DockerDaemonSuite|DockerExternalVolumeSuite)/" run_tests &
-
-                                c=0
-                                for job in $(jobs -p); do
-                                        wait ${job} || c=$?
-                                done
-                                exit $c
+                                    dynbinary \
+                                    test-docker-py
                                 '''
                             }
                             post {
                                 always {
-                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                                    junit testResults: 'bundles/test-docker-py/junit-report.xml', allowEmptyResults: true
+
+                                    sh '''
+                                    echo "Ensuring container killed."
+                                    docker rm -vf docker-pr$BUILD_NUMBER || true
+                                    '''
+
+                                    sh '''
+                                    echo 'Chowning /workspace to jenkins user'
+                                    docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
+                                    '''
+
+                                    catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                        sh '''
+                                        bundleName=arm64-docker-py
+                                        echo "Creating ${bundleName}-bundles.tar.gz"
+                                        tar -czf ${bundleName}-bundles.tar.gz bundles/test-docker-py/*.xml bundles/test-docker-py/*.log
+                                        '''
+
+                                        archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
+                                    }
                                 }
                             }
                         }
-                    }
-
-                    post {
-                        always {
-                            sh '''
-                            echo "Ensuring container killed."
-                            cids=$(docker ps -aq -f name=docker-pr${BUILD_NUMBER}-*)
-                            [ -n "$cids" ] && docker rm -vf $cids || true
-                            '''
-
-                            sh '''
-                            echo "Chowning /workspace to jenkins user"
-                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
-                            '''
-
-                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
-                                sh '''
-                                bundleName=amd64
-                                echo "Creating ${bundleName}-bundles.tar.gz"
-                                # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
-                                '''
-
-                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
-                            }
-                        }
-                        cleanup {
-                            sh 'make clean'
-                            deleteDir()
-                        }
-                    }
-                }
-                stage('rootless') {
-                    when {
-                        beforeAgent true
-                        expression { params.rootless }
-                    }
-                    agent { label 'amd64 && ubuntu-1804 && overlay2' }
-                    stages {
-                        stage("Print info") {
-                            steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                                sh '''
-                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
-                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
-                                && bash ${WORKSPACE}/check-config.sh || true
-                                '''
-                            }
-                        }
-                        stage("Build dev image") {
-                            steps {
-                                sh '''
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
-                                '''
-                            }
-                        }
-                        stage("Integration tests") {
-                            environment {
-                                DOCKER_ROOTLESS = '1'
-                                TEST_SKIP_INTEGRATION_CLI = '1'
-                            }
+                        stage("Static") {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
@@ -415,81 +320,12 @@ pipeline {
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
-                                  -e DOCKER_EXPERIMENTAL \
-                                  -e DOCKER_ROOTLESS \
-                                  -e TEST_SKIP_INTEGRATION_CLI \
-                                  -e TIMEOUT \
-                                  -e VALIDATE_REPO=${GIT_URL} \
-                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
-                                  hack/make.sh \
-                                    dynbinary \
-                                    test-integration
-                                '''
-                            }
-                            post {
-                                always {
-                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
-                                }
-                            }
-                        }
-                    }
-
-                    post {
-                        always {
-                            sh '''
-                            echo "Ensuring container killed."
-                            docker rm -vf docker-pr$BUILD_NUMBER || true
-                            '''
-
-                            sh '''
-                            echo "Chowning /workspace to jenkins user"
-                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
-                            '''
-
-                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
-                                sh '''
-                                bundleName=amd64-rootless
-                                echo "Creating ${bundleName}-bundles.tar.gz"
-                                # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
-                                '''
-
-                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
-                            }
-                        }
-                        cleanup {
-                            sh 'make clean'
-                            deleteDir()
-                        }
-                    }
-                }
-
-                stage('cgroup2') {
-                    when {
-                        beforeAgent true
-                        expression { params.cgroup2 }
-                    }
-                    agent { label 'amd64 && ubuntu-2004 && cgroup2' }
-                    stages {
-                        stage("Print info") {
-                            steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                            }
-                        }
-                        stage("Build dev image") {
-                            steps {
-                                sh '''
-                                docker build --force-rm --build-arg APT_MIRROR --build-arg SYSTEMD=true -t docker:${GIT_COMMIT} .
+                                  hack/make.sh binary
                                 '''
                             }
                         }
-                        stage("Integration tests") {
-                            environment {
-                                DOCKER_SYSTEMD = '1' // recommended cgroup driver for v2
-                                TEST_SKIP_INTEGRATION_CLI = '1' // CLI tests do not support v2
-                            }
+                        stage("Cross") {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
@@ -497,87 +333,12 @@ pipeline {
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
-                                  -e DOCKER_EXPERIMENTAL \
-                                  -e DOCKER_SYSTEMD \
-                                  -e TEST_SKIP_INTEGRATION_CLI \
-                                  -e TIMEOUT \
-                                  -e VALIDATE_REPO=${GIT_URL} \
-                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
-                                  hack/make.sh \
-                                    dynbinary \
-                                    test-integration
-                                '''
-                            }
-                            post {
-                                always {
-                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
-                                }
-                            }
-                        }
-                    }
-
-                    post {
-                        always {
-                            sh '''
-                            echo "Ensuring container killed."
-                            docker rm -vf docker-pr$BUILD_NUMBER || true
-                            '''
-
-                            sh '''
-                            echo "Chowning /workspace to jenkins user"
-                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
-                            '''
-
-                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
-                                sh '''
-                                bundleName=amd64-cgroup2
-                                echo "Creating ${bundleName}-bundles.tar.gz"
-                                # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
-                                '''
-
-                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
-                            }
-                        }
-                        cleanup {
-                            sh 'make clean'
-                            deleteDir()
-                        }
-                    }
-                }
-
-
-                stage('s390x') {
-                    when {
-                        beforeAgent true
-                        // Skip this stage on PRs unless the checkbox is selected
-                        anyOf {
-                            not { changeRequest() }
-                            expression { params.s390x }
-                        }
-                    }
-                    agent { label 's390x-ubuntu-2004' }
-
-                    stages {
-                        stage("Print info") {
-                            steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                                sh '''
-                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
-                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
-                                && bash ${WORKSPACE}/check-config.sh || true
+                                  hack/make.sh cross
                                 '''
                             }
                         }
-                        stage("Build dev image") {
-                            steps {
-                                sh '''
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
-                                '''
-                            }
-                        }
+                        // needs to be last stage that calls make.sh for the junit report to work
                         stage("Unit tests") {
                             steps {
                                 sh '''
@@ -602,31 +363,21 @@ pipeline {
                                 }
                             }
                         }
-                        stage("Integration tests") {
-                            environment { TEST_SKIP_INTEGRATION_CLI = '1' }
+                        stage("Validate vendor") {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
-                                  -e TESTDEBUG \
-                                  -e TEST_SKIP_INTEGRATION_CLI \
-                                  -e TIMEOUT \
+                                  -e TEST_FORCE_VALIDATE \
                                   -e VALIDATE_REPO=${GIT_URL} \
                                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
                                   docker:${GIT_COMMIT} \
-                                  hack/make.sh \
-                                    dynbinary \
-                                    test-integration
+                                  hack/validate/vendor
                                 '''
-                            }
-                            post {
-                                always {
-                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
-                                }
                             }
                         }
                     }
@@ -634,313 +385,20 @@ pipeline {
                     post {
                         always {
                             sh '''
-                            echo "Ensuring container killed."
+                            echo 'Ensuring container killed.'
                             docker rm -vf docker-pr$BUILD_NUMBER || true
                             '''
 
                             sh '''
-                            echo "Chowning /workspace to jenkins user"
+                            echo 'Chowning /workspace to jenkins user'
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
 
                             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
                                 sh '''
-                                bundleName=s390x-integration
+                                bundleName=arm64-unit
                                 echo "Creating ${bundleName}-bundles.tar.gz"
-                                # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
-                                '''
-
-                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
-                            }
-                        }
-                        cleanup {
-                            sh 'make clean'
-                            deleteDir()
-                        }
-                    }
-                }
-                stage('s390x integration-cli') {
-                    when {
-                        beforeAgent true
-                        not { changeRequest() }
-                        expression { params.s390x }
-                    }
-                    agent { label 's390x-ubuntu-2004' }
-
-                    stages {
-                        stage("Print info") {
-                            steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                                sh '''
-                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
-                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
-                                && bash ${WORKSPACE}/check-config.sh || true
-                                '''
-                            }
-                        }
-                        stage("Build dev image") {
-                            steps {
-                                sh '''
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
-                                '''
-                            }
-                        }
-                        stage("Integration-cli tests") {
-                            environment { TEST_SKIP_INTEGRATION = '1' }
-                            steps {
-                                sh '''
-                                docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                  --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER \
-                                  -e TEST_SKIP_INTEGRATION \
-                                  -e TIMEOUT \
-                                  -e VALIDATE_REPO=${GIT_URL} \
-                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
-                                  docker:${GIT_COMMIT} \
-                                  hack/make.sh \
-                                    dynbinary \
-                                    test-integration
-                                '''
-                            }
-                            post {
-                                always {
-                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
-                                }
-                            }
-                        }
-                    }
-
-                    post {
-                        always {
-                            sh '''
-                            echo "Ensuring container killed."
-                            docker rm -vf docker-pr$BUILD_NUMBER || true
-                            '''
-
-                            sh '''
-                            echo "Chowning /workspace to jenkins user"
-                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
-                            '''
-
-                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
-                                sh '''
-                                bundleName=s390x-integration-cli
-                                echo "Creating ${bundleName}-bundles.tar.gz"
-                                # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
-                                '''
-
-                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
-                            }
-                        }
-                        cleanup {
-                            sh 'make clean'
-                            deleteDir()
-                        }
-                    }
-                }
-                stage('ppc64le') {
-                    when {
-                        beforeAgent true
-                        // Skip this stage on PRs unless the checkbox is selected
-                        anyOf {
-                            not { changeRequest() }
-                            expression { params.ppc64le }
-                        }
-                    }
-                    agent { label 'ppc64le-ubuntu-1604' }
-                    // ppc64le machines run on Docker 18.06, and buildkit has some
-                    // bugs on that version. Build and use buildx instead.
-                    environment {
-                        USE_BUILDX      = '1'
-                        DOCKER_BUILDKIT = '0'
-                    }
-
-                    stages {
-                        stage("Print info") {
-                            steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                                sh '''
-                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
-                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
-                                && bash ${WORKSPACE}/check-config.sh || true
-                                '''
-                            }
-                        }
-                        stage("Build dev image") {
-                            steps {
-                                sh '''
-                                make bundles/buildx
-                                bundles/buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
-                                '''
-                            }
-                        }
-                        stage("Unit tests") {
-                            steps {
-                                sh '''
-                                sudo modprobe ip6table_filter
-                                '''
-                                sh '''
-                                docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                  --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_EXPERIMENTAL \
-                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER \
-                                  -e VALIDATE_REPO=${GIT_URL} \
-                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
-                                  docker:${GIT_COMMIT} \
-                                  hack/test/unit
-                                '''
-                            }
-                            post {
-                                always {
-                                    junit testResults: 'bundles/junit-report*.xml', allowEmptyResults: true
-                                }
-                            }
-                        }
-                        stage("Integration tests") {
-                            environment { TEST_SKIP_INTEGRATION_CLI = '1' }
-                            steps {
-                                sh '''
-                                docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                  --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_EXPERIMENTAL \
-                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER \
-                                  -e TESTDEBUG \
-                                  -e TEST_SKIP_INTEGRATION_CLI \
-                                  -e TIMEOUT \
-                                  -e VALIDATE_REPO=${GIT_URL} \
-                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
-                                  docker:${GIT_COMMIT} \
-                                  hack/make.sh \
-                                    dynbinary \
-                                    test-integration
-                                '''
-                            }
-                            post {
-                                always {
-                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
-                                }
-                            }
-                        }
-                    }
-
-                    post {
-                        always {
-                            sh '''
-                            echo "Ensuring container killed."
-                            docker rm -vf docker-pr$BUILD_NUMBER || true
-                            '''
-
-                            sh '''
-                            echo "Chowning /workspace to jenkins user"
-                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
-                            '''
-
-                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
-                                sh '''
-                                bundleName=ppc64le-integration
-                                echo "Creating ${bundleName}-bundles.tar.gz"
-                                # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
-                                '''
-
-                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
-                            }
-                        }
-                        cleanup {
-                            sh 'make clean'
-                            deleteDir()
-                        }
-                    }
-                }
-                stage('ppc64le integration-cli') {
-                    when {
-                        beforeAgent true
-                        not { changeRequest() }
-                        expression { params.ppc64le }
-                    }
-                    agent { label 'ppc64le-ubuntu-1604' }
-                    // ppc64le machines run on Docker 18.06, and buildkit has some
-                    // bugs on that version. Build and use buildx instead.
-                    environment {
-                        USE_BUILDX      = '1'
-                        DOCKER_BUILDKIT = '0'
-                    }
-
-                    stages {
-                        stage("Print info") {
-                            steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                                sh '''
-                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
-                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
-                                && bash ${WORKSPACE}/check-config.sh || true
-                                '''
-                            }
-                        }
-                        stage("Build dev image") {
-                            steps {
-                                sh '''
-                                make bundles/buildx
-                                bundles/buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
-                                '''
-                            }
-                        }
-                        stage("Integration-cli tests") {
-                            environment { TEST_SKIP_INTEGRATION = '1' }
-                            steps {
-                                sh '''
-                                docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                  --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER \
-                                  -e TEST_SKIP_INTEGRATION \
-                                  -e TIMEOUT \
-                                  -e VALIDATE_REPO=${GIT_URL} \
-                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
-                                  docker:${GIT_COMMIT} \
-                                  hack/make.sh \
-                                    dynbinary \
-                                    test-integration
-                                '''
-                            }
-                            post {
-                                always {
-                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
-                                }
-                            }
-                        }
-                    }
-
-                    post {
-                        always {
-                            sh '''
-                            echo "Ensuring container killed."
-                            docker rm -vf docker-pr$BUILD_NUMBER || true
-                            '''
-
-                            sh '''
-                            echo "Chowning /workspace to jenkins user"
-                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
-                            '''
-
-                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
-                                sh '''
-                                bundleName=ppc64le-integration-cli
-                                echo "Creating ${bundleName}-bundles.tar.gz"
-                                # exclude overlay2 directories
-                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                tar -czvf ${bundleName}-bundles.tar.gz bundles/junit-report*.xml bundles/go-test-report*.json bundles/profile*.out
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
@@ -953,10 +411,6 @@ pipeline {
                     }
                 }
                 stage('arm64') {
-                    when {
-                        beforeAgent true
-                        expression { params.arm64 }
-                    }
                     agent { label 'arm64 && ubuntu-2004' }
                     environment {
                         TEST_SKIP_INTEGRATION_CLI = '1'
@@ -1061,187 +515,103 @@ pipeline {
                         }
                     }
                 }
-                stage('win-RS5') {
-                    when {
-                        beforeAgent true
-                        expression { params.windowsRS5 }
-                    }
+                stage('amd64') {
+                    agent { label 'amd64 && ubuntu-2004' }
                     environment {
-                        DOCKER_BUILDKIT        = '0'
-                        DOCKER_DUT_DEBUG       = '1'
-                        SKIP_VALIDATION_TESTS  = '1'
-                        SOURCES_DRIVE          = 'd'
-                        SOURCES_SUBDIR         = 'gopath'
-                        TESTRUN_DRIVE          = 'd'
-                        TESTRUN_SUBDIR         = "CI"
-                        WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
-                        WINDOWS_BASE_IMAGE_TAG = 'ltsc2019'
+                        TEST_SKIP_INTEGRATION_CLI = '1'
                     }
-                    agent {
-                        node {
-                            customWorkspace 'd:\\gopath\\src\\github.com\\docker\\docker'
-                            label 'windows-2019'
-                        }
-                    }
+
                     stages {
                         stage("Print info") {
                             steps {
                                 sh 'docker version'
                                 sh 'docker info'
-                            }
-                        }
-                        stage("Run tests") {
-                            steps {
-                                powershell '''
-                                $ErrorActionPreference = 'Stop'
-                                Invoke-WebRequest https://github.com/moby/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
-                                ./hack/ci/windows.ps1
-                                exit $LastExitCode
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
                                 '''
                             }
                         }
+                        stage("Build dev image") {
+                            steps {
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
+                            }
+                        }
+                        stage("Unit tests") {
+                            steps {
+                                sh '''
+                                sudo modprobe ip6table_filter
+                                '''
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
+                                  docker:${GIT_COMMIT} \
+                                  hack/test/unit
+                                '''
+                            }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/junit-report*.xml', allowEmptyResults: true
+                                }
+                            }
+                        }
+                        stage("Integration tests") {
+                            environment { TEST_SKIP_INTEGRATION_CLI = '1' }
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  -e TESTDEBUG \
+                                  -e TEST_SKIP_INTEGRATION_CLI \
+                                  -e TIMEOUT \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh \
+                                    dynbinary \
+                                    test-integration
+                                '''
+                            }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                                }
+                            }
+                        }
                     }
+
                     post {
                         always {
-                            junit testResults: 'bundles/junit-report-*.xml', allowEmptyResults: true
+                            sh '''
+                            echo "Ensuring container killed."
+                            docker rm -vf docker-pr$BUILD_NUMBER || true
+                            '''
+
+                            sh '''
+                            echo "Chowning /workspace to jenkins user"
+                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
+                            '''
+
                             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
-                                powershell '''
-                                cd $env:WORKSPACE
-                                $bundleName="windowsRS5-integration"
-                                Write-Host -ForegroundColor Green "Creating ${bundleName}-bundles.zip"
-
-                                # archiveArtifacts does not support env-vars to , so save the artifacts in a fixed location
-                                Compress-Archive -Path "bundles/CIDUT.out", "bundles/CIDUT.err", "bundles/junit-report-*.xml" -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
+                                sh '''
+                                bundleName=amd64-integration
+                                echo "Creating ${bundleName}-bundles.tar.gz"
+                                # exclude overlay2 directories
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
                                 '''
 
-                                archiveArtifacts artifacts: '*-bundles.zip', allowEmptyArchive: true
-                            }
-                        }
-                        cleanup {
-                            sh 'make clean'
-                            deleteDir()
-                        }
-                    }
-                }
-                stage('win-2022') {
-                    when {
-                        beforeAgent true
-                        expression { params.windows2022 }
-                    }
-                    environment {
-                        DOCKER_BUILDKIT        = '0'
-                        DOCKER_DUT_DEBUG       = '1'
-                        SKIP_VALIDATION_TESTS  = '1'
-                        SOURCES_DRIVE          = 'd'
-                        SOURCES_SUBDIR         = 'gopath'
-                        TESTRUN_DRIVE          = 'd'
-                        TESTRUN_SUBDIR         = "CI"
-                        WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
-                        // Available tags can be found at https://mcr.microsoft.com/v2/windows/servercore/tags/list
-                        WINDOWS_BASE_IMAGE_TAG = 'ltsc2022'
-                    }
-                    agent {
-                        node {
-                            customWorkspace 'd:\\gopath\\src\\github.com\\docker\\docker'
-                            label 'windows-2022'
-                        }
-                    }
-                    stages {
-                        stage("Print info") {
-                            steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                            }
-                        }
-                        stage("Run tests") {
-                            steps {
-                                powershell '''
-                                $ErrorActionPreference = 'Stop'
-                                Invoke-WebRequest https://github.com/moby/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
-                                ./hack/ci/windows.ps1
-                                exit $LastExitCode
-                                '''
-                            }
-                        }
-                    }
-                    post {
-                        always {
-                            junit testResults: 'bundles/junit-report-*.xml', allowEmptyResults: true
-                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.zip') {
-                                powershell '''
-                                cd $env:WORKSPACE
-                                $bundleName="win-2022-integration"
-                                Write-Host -ForegroundColor Green "Creating ${bundleName}-bundles.zip"
-
-                                # archiveArtifacts does not support env-vars to , so save the artifacts in a fixed location
-                                Compress-Archive -Path "bundles/CIDUT.out", "bundles/CIDUT.err", "bundles/junit-report-*.xml" -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
-                                '''
-
-                                archiveArtifacts artifacts: '*-bundles.zip', allowEmptyArchive: true
-                            }
-                        }
-                        cleanup {
-                            sh 'make clean'
-                            deleteDir()
-                        }
-                    }
-                }
-                stage('win-2022-c8d') {
-                    when {
-                        beforeAgent true
-                        expression { params.windows2022containerd }
-                    }
-                    environment {
-                        DOCKER_BUILDKIT        = '0'
-                        DOCKER_DUT_DEBUG       = '1'
-                        SKIP_VALIDATION_TESTS  = '1'
-                        SOURCES_DRIVE          = 'd'
-                        SOURCES_SUBDIR         = 'gopath'
-                        TESTRUN_DRIVE          = 'd'
-                        TESTRUN_SUBDIR         = "CI"
-                        WINDOWS_BASE_IMAGE     = 'mcr.microsoft.com/windows/servercore'
-                        // Available tags can be found at https://mcr.microsoft.com/v2/windows/servercore/tags/list
-                        WINDOWS_BASE_IMAGE_TAG = 'ltsc2022'
-                        DOCKER_WINDOWS_CONTAINERD_RUNTIME = '1'
-                    }
-                    agent {
-                        node {
-                            customWorkspace 'd:\\gopath\\src\\github.com\\docker\\docker'
-                            label 'windows-2022'
-                        }
-                    }
-                    stages {
-                        stage("Print info") {
-                            steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                            }
-                        }
-                        stage("Run tests") {
-                            steps {
-                                powershell '''
-                                $ErrorActionPreference = 'Stop'
-                                Invoke-WebRequest https://github.com/moby/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
-                                ./hack/ci/windows.ps1
-                                exit $LastExitCode
-                                '''
-                            }
-                        }
-                    }
-                    post {
-                        always {
-                            junit testResults: 'bundles/junit-report-*.xml', allowEmptyResults: true
-                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.zip') {
-                                powershell '''
-                                cd $env:WORKSPACE
-                                $bundleName="win-2022-c8d-integration"
-                                Write-Host -ForegroundColor Green "Creating ${bundleName}-bundles.zip"
-
-                                # archiveArtifacts does not support env-vars to , so save the artifacts in a fixed location
-                                Compress-Archive -Path "bundles/CIDUT.out", "bundles/CIDUT.err", "bundles/containerd.out", "bundles/containerd.err", "bundles/junit-report-*.xml" -CompressionLevel Optimal -DestinationPath "${bundleName}-bundles.zip"
-                                '''
-
-                                archiveArtifacts artifacts: '*-bundles.zip', allowEmptyArchive: true
+                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
                             }
                         }
                         cleanup {
