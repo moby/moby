@@ -28,8 +28,9 @@ const (
 
 	ERROR_NOT_ALL_ASSIGNED syscall.Errno = 1300
 
-	SeBackupPrivilege  = "SeBackupPrivilege"
-	SeRestorePrivilege = "SeRestorePrivilege"
+	SeBackupPrivilege   = "SeBackupPrivilege"
+	SeRestorePrivilege  = "SeRestorePrivilege"
+	SeSecurityPrivilege = "SeSecurityPrivilege"
 )
 
 const (

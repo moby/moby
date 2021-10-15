@@ -1,8 +1,10 @@
+// +build windows
 // +build amd64 arm64
 
 package etw
 
 import (
+	"github.com/Microsoft/go-winio/pkg/guid"
 	"golang.org/x/sys/windows"
 )
 
@@ -38,4 +40,13 @@ func eventSetInformation(
 		class,
 		information,
 		length)
+}
+
+// providerCallbackAdapter acts as the first-level callback from the C/ETW side
+// for provider notifications. Because Go has trouble with callback arguments of
+// different size, it has only pointer-sized arguments, which are then cast to
+// the appropriate types when calling providerCallback.
+func providerCallbackAdapter(sourceID *guid.GUID, state uintptr, level uintptr, matchAnyKeyword uintptr, matchAllKeyword uintptr, filterData uintptr, i uintptr) uintptr {
+	providerCallback(*sourceID, ProviderState(state), Level(level), uint64(matchAnyKeyword), uint64(matchAllKeyword), filterData, i)
+	return 0
 }
