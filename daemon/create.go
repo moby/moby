@@ -99,6 +99,7 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, err
 	}
 	containerActions.WithValues("create").UpdateSince(start)
+	logrus.Infof("Container create done with name: %s and id: %s", ctr.Name, ctr.ID)
 
 	if warnings == nil {
 		warnings = make([]string, 0) // Create an empty slice to avoid https://github.com/moby/moby/issues/38222

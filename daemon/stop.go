@@ -33,6 +33,7 @@ func (daemon *Daemon) ContainerStop(name string, timeout *int) error {
 	if err := daemon.containerStop(container, *timeout); err != nil {
 		return errdefs.System(errors.Wrapf(err, "cannot stop container: %s", name))
 	}
+	logrus.Infof("Container stop done with name: %s and id: %s", container.Name, container.ID)
 	return nil
 }
 

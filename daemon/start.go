@@ -219,6 +219,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 
 	daemon.LogContainerEvent(container, "start")
 	containerActions.WithValues("start").UpdateSince(start)
+	logrus.Infof("Container start done with name: %s and id: %s", container.Name, container.ID)
 
 	return nil
 }
