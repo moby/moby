@@ -1,4 +1,4 @@
-# go-winio
+# go-winio [![Build Status](https://github.com/microsoft/go-winio/actions/workflows/ci.yml/badge.svg)](https://github.com/microsoft/go-winio/actions/workflows/ci.yml)
 
 This repository contains utilities for efficiently performing Win32 IO operations in
 Go. Currently, this is focused on accessing named pipes and other file handles, and
