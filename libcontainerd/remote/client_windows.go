@@ -43,7 +43,7 @@ func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOp
 			c.Labels = make(map[string]string)
 		}
 		c.Labels[DockerContainerBundlePath] = bundleDir
-		return os.MkdirAll(bundleDir, 0755)
+		return os.MkdirAll(bundleDir, 0o755)
 	}
 }
 
