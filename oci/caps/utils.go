@@ -5,47 +5,36 @@ import (
 	"strings"
 
 	"github.com/docker/docker/errdefs"
-	"github.com/syndtr/gocapability/capability"
 )
 
 var (
 	allCaps []string
 
-	// capabilityList maps linux capability name to its value of capability.Cap
-	// type. This list contains nil entries for capabilities that are known, but
-	// not supported by the current kernel.
-	// Capabilities is one of the security systems in Linux Security Module (LSM)
+	// knownCapabilities is a map of all known capabilities, using capability
+	// name as index. Nil values indicate that the capability is known, but either
+	// not supported by the Kernel, or not available in the current environment,
+	// for example, when running Docker-in-Docker with restricted capabilities.
+	//
+	// Capabilities are one of the security systems in Linux Security Module (LSM)
 	// framework provided by the kernel.
 	// For more details on capabilities, see http://man7.org/linux/man-pages/man7/capabilities.7.html
-	capabilityList map[string]*capability.Cap
+	knownCaps map[string]*struct{}
 )
 
-func init() {
-	last := capability.CAP_LAST_CAP
-	rawCaps := capability.List()
-	allCaps = make([]string, min(int(last+1), len(rawCaps)))
-	capabilityList = make(map[string]*capability.Cap, len(rawCaps))
-	for i, c := range rawCaps {
-		capName := "CAP_" + strings.ToUpper(c.String())
-		if c > last {
-			capabilityList[capName] = nil
-			continue
-		}
-		allCaps[i] = capName
-		capabilityList[capName] = &c
-	}
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-// GetAllCapabilities returns all of the capabilities
+// GetAllCapabilities returns all capabilities that are availeble in the current
+// environment.
 func GetAllCapabilities() []string {
+	initCaps()
 	return allCaps
+}
+
+// knownCapabilities returns a map of all known capabilities, using capability
+// name as index. Nil values indicate that the capability is known, but either
+// not supported by the Kernel, or not available in the current environment, for
+// example, when running Docker-in-Docker with restricted capabilities.
+func knownCapabilities() map[string]*struct{} {
+	initCaps()
+	return knownCaps
 }
 
 // inSlice tests whether a string is contained in a slice of strings or not.
@@ -65,7 +54,10 @@ const allCapabilities = "ALL"
 //
 // This function also accepts the "ALL" magic-value, that's used by CapAdd/CapDrop.
 func NormalizeLegacyCapabilities(caps []string) ([]string, error) {
-	var normalized []string
+	var (
+		normalized     []string
+		capabilityList = knownCapabilities()
+	)
 
 	for _, c := range caps {
 		c = strings.ToUpper(c)
@@ -79,7 +71,7 @@ func NormalizeLegacyCapabilities(caps []string) ([]string, error) {
 		if v, ok := capabilityList[c]; !ok {
 			return nil, errdefs.InvalidParameter(fmt.Errorf("unknown capability: %q", c))
 		} else if v == nil {
-			return nil, errdefs.InvalidParameter(fmt.Errorf("capability not supported by your kernel: %q", c))
+			return nil, errdefs.InvalidParameter(fmt.Errorf("capability not supported by your kernel or not available in the current environment: %q", c))
 		}
 		normalized = append(normalized, c)
 	}
