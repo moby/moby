@@ -21,6 +21,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/remotes/docker/schema1"
 	distreference "github.com/docker/distribution/reference"
+	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
@@ -853,11 +854,11 @@ func resolveModeToString(rm source.ResolveMode) string {
 }
 
 func platformMatches(img *image.Image, p *ocispec.Platform) bool {
-	if img.Architecture != p.Architecture {
-		return false
-	}
-	if img.Variant != "" && img.Variant != p.Variant {
-		return false
-	}
-	return img.OS == p.OS
+	return dimages.OnlyPlatformWithFallback(*p).Match(ocispec.Platform{
+		Architecture: img.Architecture,
+		OS:           img.OS,
+		OSVersion:    img.OSVersion,
+		OSFeatures:   img.OSFeatures,
+		Variant:      img.Variant,
+	})
 }
