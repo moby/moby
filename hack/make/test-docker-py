@@ -7,7 +7,7 @@ source hack/make/.integration-test-helpers
 # TODO docker 17.06 cli client used in CI fails to build using a sha;
 # unable to prepare context: unable to 'git clone' to temporary context directory: error fetching: error: no such remote ref ead0bb9e08c13dd3d1712759491eee06bf5a5602
 #: exit status 128
-: "${DOCKER_PY_COMMIT:=5.0.0}"
+: "${DOCKER_PY_COMMIT:=5.0.3}"
 
 # custom options to pass py.test
 #
