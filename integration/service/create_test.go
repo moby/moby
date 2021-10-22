@@ -267,7 +267,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 	serviceID := swarm.CreateService(t, d,
 		swarm.ServiceWithReplicas(instances),
 		swarm.ServiceWithName(serviceName),
-		swarm.ServiceWithCommand([]string{"/bin/sh", "-c", "ls -l /etc/secret || /bin/top"}),
+		swarm.ServiceWithCommand([]string{"/bin/sh", "-c", "ls -l /etc/secret && sleep inf"}),
 		swarm.ServiceWithSecret(&swarmtypes.SecretReference{
 			File: &swarmtypes.SecretReferenceFileTarget{
 				Name: "/etc/secret",
@@ -282,15 +282,8 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(client, serviceID, instances), swarm.ServicePoll)
 
-	filter := filters.NewArgs()
-	filter.Add("service", serviceID)
-	tasks, err := client.TaskList(ctx, types.TaskListOptions{
-		Filters: filter,
-	})
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(len(tasks), 1))
-
-	body, err := client.ContainerLogs(ctx, tasks[0].Status.ContainerStatus.ContainerID, types.ContainerLogsOptions{
+	body, err := client.ServiceLogs(ctx, serviceID, types.ContainerLogsOptions{
+		Tail:       "1",
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)
@@ -330,7 +323,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 	serviceName := "TestService_" + t.Name()
 	serviceID := swarm.CreateService(t, d,
 		swarm.ServiceWithName(serviceName),
-		swarm.ServiceWithCommand([]string{"/bin/sh", "-c", "ls -l /etc/config || /bin/top"}),
+		swarm.ServiceWithCommand([]string{"/bin/sh", "-c", "ls -l /etc/config && sleep inf"}),
 		swarm.ServiceWithReplicas(instances),
 		swarm.ServiceWithConfig(&swarmtypes.ConfigReference{
 			File: &swarmtypes.ConfigReferenceFileTarget{
@@ -346,15 +339,8 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(client, serviceID, instances))
 
-	filter := filters.NewArgs()
-	filter.Add("service", serviceID)
-	tasks, err := client.TaskList(ctx, types.TaskListOptions{
-		Filters: filter,
-	})
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(len(tasks), 1))
-
-	body, err := client.ContainerLogs(ctx, tasks[0].Status.ContainerStatus.ContainerID, types.ContainerLogsOptions{
+	body, err := client.ServiceLogs(ctx, serviceID, types.ContainerLogsOptions{
+		Tail:       "1",
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)
