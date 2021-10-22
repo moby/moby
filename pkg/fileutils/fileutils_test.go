@@ -373,6 +373,9 @@ func TestMatches(t *testing.T) {
 		{"abc/**", "abc/def/ghi", true},
 		{"**/.foo", ".foo", true},
 		{"**/.foo", "bar.foo", false},
+		{"a(b)c/def", "a(b)c/def", true},
+		{"a(b)c/def", "a(b)c/xyz", false},
+		{"a.|)$(}+{bc", "a.|)$(}+{bc", true},
 	}
 
 	if runtime.GOOS != "windows" {
