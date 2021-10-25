@@ -4,6 +4,7 @@
 package libnetwork_test
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -1285,7 +1286,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
 
-	if err != plugins.ErrNotImplements {
+	if !errors.Is(err, plugins.ErrNotImplements) {
 		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
 	}
 }
