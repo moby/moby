@@ -466,7 +466,7 @@ func (pd *v2PushDescriptor) uploadUsingSession(
 	case schema2.MediaTypeLayer:
 	default:
 		reader.Close()
-		return distribution.Descriptor{}, fmt.Errorf("unsupported layer media type %s", m)
+		return distribution.Descriptor{}, xfer.DoNotRetry{Err: fmt.Errorf("unsupported layer media type %s", m)}
 	}
 
 	digester := digest.Canonical.Digester()
