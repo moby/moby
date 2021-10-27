@@ -11,15 +11,11 @@ import (
 // DecodeHostConfig creates a HostConfig based on the specified Reader.
 // It assumes the content of the reader will be JSON, and decodes it.
 func decodeHostConfig(src io.Reader) (*container.HostConfig, error) {
-	decoder := json.NewDecoder(src)
-
 	var w ContainerConfigWrapper
-	if err := decoder.Decode(&w); err != nil {
+	if err := json.NewDecoder(src).Decode(&w); err != nil {
 		return nil, err
 	}
-
-	hc := w.getHostConfig()
-	return hc, nil
+	return w.getHostConfig(), nil
 }
 
 // SetDefaultNetModeIfBlank changes the NetworkMode in a HostConfig structure
@@ -27,20 +23,14 @@ func decodeHostConfig(src io.Reader) (*container.HostConfig, error) {
 // the validation of the network mode was moved from the docker CLI to the
 // docker daemon.
 func SetDefaultNetModeIfBlank(hc *container.HostConfig) {
-	if hc != nil {
-		if hc.NetworkMode == container.NetworkMode("") {
-			hc.NetworkMode = container.NetworkMode("default")
-		}
+	if hc != nil && hc.NetworkMode == "" {
+		hc.NetworkMode = "default"
 	}
 }
 
 // validateNetContainerMode ensures that the various combinations of requested
 // network settings wrt container mode are valid.
 func validateNetContainerMode(c *container.Config, hc *container.HostConfig) error {
-	// We may not be passed a host config, such as in the case of docker commit
-	if hc == nil {
-		return nil
-	}
 	parts := strings.Split(string(hc.NetworkMode), ":")
 	if parts[0] == "container" {
 		if len(parts) < 2 || parts[1] == "" {
