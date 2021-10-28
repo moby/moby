@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"reflect"
 	"strings"
@@ -165,6 +166,7 @@ type CommonConfig struct {
 	ExecRoot              string                    `json:"exec-root,omitempty"`
 	SocketGroup           string                    `json:"group,omitempty"`
 	CorsHeaders           string                    `json:"api-cors-header,omitempty"`
+	ProxyConfig
 
 	// TrustKeyPath is used to generate the daemon ID and for signing schema 1 manifests
 	// when pushing to a registry which does not support schema 2. This field is marked as
@@ -273,6 +275,13 @@ type CommonConfig struct {
 	ContainerdPluginNamespace string `json:"containerd-plugin-namespace,omitempty"`
 
 	DefaultRuntime string `json:"default-runtime,omitempty"`
+}
+
+// ProxyConfig holds the proxy-configuration for the daemon.
+type ProxyConfig struct {
+	HTTPProxy  string `json:"http-proxy,omitempty"`
+	HTTPSProxy string `json:"https-proxy,omitempty"`
+	NoProxy    string `json:"no-proxy,omitempty"`
 }
 
 // IsValueSet returns true if a configuration value
@@ -525,6 +534,11 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 
 	var conflicts []string
 	printConflict := func(name string, flagValue, fileValue interface{}) string {
+		switch name {
+		case "http-proxy", "https-proxy":
+			flagValue = MaskCredentials(flagValue.(string))
+			fileValue = MaskCredentials(fileValue.(string))
+		}
 		return fmt.Sprintf("%s: (from flag: %v, from file: %v)", name, flagValue, fileValue)
 	}
 
@@ -644,4 +658,14 @@ func (conf *Config) GetDefaultRuntimeName() string {
 	conf.Unlock()
 
 	return rt
+}
+
+// MaskCredentials masks credentials that are in an URL.
+func MaskCredentials(rawURL string) string {
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil || parsedURL.User == nil {
+		return rawURL
+	}
+	parsedURL.User = url.UserPassword("xxxxx", "xxxxx")
+	return parsedURL.String()
 }

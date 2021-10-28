@@ -87,6 +87,8 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return nil
 	}
 
+	configureProxyEnv(cli.Config)
+
 	warnOnDeprecatedConfigOptions(cli.Config)
 
 	if err := configureDaemonLogs(cli.Config); err != nil {
@@ -778,4 +780,30 @@ func configureDaemonLogs(conf *config.Config) error {
 		FullTimestamp:   true,
 	})
 	return nil
+}
+
+func configureProxyEnv(conf *config.Config) {
+	if p := conf.HTTPProxy; p != "" {
+		overrideProxyEnv("HTTP_PROXY", p)
+		overrideProxyEnv("http_proxy", p)
+	}
+	if p := conf.HTTPSProxy; p != "" {
+		overrideProxyEnv("HTTPS_PROXY", p)
+		overrideProxyEnv("https_proxy", p)
+	}
+	if p := conf.NoProxy; p != "" {
+		overrideProxyEnv("NO_PROXY", p)
+		overrideProxyEnv("no_proxy", p)
+	}
+}
+
+func overrideProxyEnv(name, val string) {
+	if oldVal := os.Getenv(name); oldVal != "" && oldVal != val {
+		logrus.WithFields(logrus.Fields{
+			"name":      name,
+			"old-value": config.MaskCredentials(oldVal),
+			"new-value": config.MaskCredentials(val),
+		}).Warn("overriding existing proxy variable with value from configuration")
+	}
+	_ = os.Setenv(name, val)
 }
