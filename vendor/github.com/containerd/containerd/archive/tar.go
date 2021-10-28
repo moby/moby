@@ -91,7 +91,7 @@ func WriteDiff(ctx context.Context, w io.Writer, a, b string, opts ...WriteDiffO
 // based off AUFS whiteouts.
 // See https://github.com/opencontainers/image-spec/blob/master/layer.md
 func writeDiffNaive(ctx context.Context, w io.Writer, a, b string, _ WriteDiffOptions) error {
-	cw := newChangeWriter(w, b)
+	cw := NewChangeWriter(w, b)
 	err := fs.Changes(ctx, a, b, cw.HandleChange)
 	if err != nil {
 		return errors.Wrap(err, "failed to create diff tar stream")
@@ -461,7 +461,17 @@ func mkparent(ctx context.Context, path, root string, parents []string) error {
 	return nil
 }
 
-type changeWriter struct {
+// ChangeWriter provides tar stream from filesystem change information.
+// The privided tar stream is styled as an OCI layer. Change information
+// (add/modify/delete/unmodified) for each file needs to be passed to this
+// writer through HandleChange method.
+//
+// This should be used combining with continuity's diff computing functionality
+// (e.g. `fs.Change` of github.com/containerd/continuity/fs).
+//
+// See also https://github.com/opencontainers/image-spec/blob/master/layer.md for details
+// about OCI layers
+type ChangeWriter struct {
 	tw        *tar.Writer
 	source    string
 	whiteoutT time.Time
@@ -470,8 +480,11 @@ type changeWriter struct {
 	addedDirs map[string]struct{}
 }
 
-func newChangeWriter(w io.Writer, source string) *changeWriter {
-	return &changeWriter{
+// NewChangeWriter returns ChangeWriter that writes tar stream of the source directory
+// to the privided writer. Change information (add/modify/delete/unmodified) for each
+// file needs to be passed through HandleChange method.
+func NewChangeWriter(w io.Writer, source string) *ChangeWriter {
+	return &ChangeWriter{
 		tw:        tar.NewWriter(w),
 		source:    source,
 		whiteoutT: time.Now(),
@@ -481,7 +494,10 @@ func newChangeWriter(w io.Writer, source string) *changeWriter {
 	}
 }
 
-func (cw *changeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, err error) error {
+// HandleChange receives filesystem change information and reflect that information to
+// the result tar stream. This function implements `fs.ChangeFunc` of continuity
+// (github.com/containerd/continuity/fs) and should be used with that package.
+func (cw *ChangeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, err error) error {
 	if err != nil {
 		return err
 	}
@@ -629,14 +645,15 @@ func (cw *changeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, e
 	return nil
 }
 
-func (cw *changeWriter) Close() error {
+// Close closes this writer.
+func (cw *ChangeWriter) Close() error {
 	if err := cw.tw.Close(); err != nil {
 		return errors.Wrap(err, "failed to close tar writer")
 	}
 	return nil
 }
 
-func (cw *changeWriter) includeParents(hdr *tar.Header) error {
+func (cw *ChangeWriter) includeParents(hdr *tar.Header) error {
 	if cw.addedDirs == nil {
 		return nil
 	}

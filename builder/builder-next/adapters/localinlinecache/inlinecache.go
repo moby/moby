@@ -75,7 +75,7 @@ func (li *localImporter) Resolve(ctx context.Context, _ specs.Descriptor, id str
 	if err != nil {
 		return nil, err
 	}
-	return solver.NewCacheManager(id, keysStorage, resultStorage), nil
+	return solver.NewCacheManager(ctx, id, keysStorage, resultStorage), nil
 }
 
 func (li *localImporter) importInlineCache(ctx context.Context, dt []byte, cc solver.CacheExporterTarget) error {

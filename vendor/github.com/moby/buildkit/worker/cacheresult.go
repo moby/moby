@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/util/compression"
@@ -28,11 +27,10 @@ func (s *cacheResultStorage) Save(res solver.Result, createdAt time.Time) (solve
 		return solver.CacheResult{}, errors.Errorf("invalid result: %T", res.Sys())
 	}
 	if ref.ImmutableRef != nil {
-		if !cache.HasCachePolicyRetain(ref.ImmutableRef) {
-			if err := cache.CachePolicyRetain(ref.ImmutableRef); err != nil {
+		if !ref.ImmutableRef.HasCachePolicyRetain() {
+			if err := ref.ImmutableRef.SetCachePolicyRetain(); err != nil {
 				return solver.CacheResult{}, err
 			}
-			ref.ImmutableRef.Metadata().Commit()
 		}
 	}
 	return solver.CacheResult{ID: ref.ID(), CreatedAt: createdAt}, nil
@@ -79,7 +77,7 @@ func (s *cacheResultStorage) LoadRemote(ctx context.Context, res solver.CacheRes
 	}
 	defer ref.Release(context.TODO())
 	wref := WorkerRef{ref, w}
-	remote, err := wref.GetRemote(ctx, false, compression.Default, g)
+	remote, err := wref.GetRemote(ctx, false, compression.Default, false, g)
 	if err != nil {
 		return nil, nil // ignore error. loadRemote is best effort
 	}

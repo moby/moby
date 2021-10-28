@@ -11,7 +11,6 @@ type exporter struct {
 	records []*CacheRecord
 	record  *CacheRecord
 
-	res      []CacheExporterRecord
 	edge     *edge // for secondaryExporters
 	override *bool
 }
@@ -52,9 +51,10 @@ func addBacklinks(t CacheExporterTarget, rec CacheExporterRecord, cm *cacheManag
 	return rec, nil
 }
 
-type backlinkT struct{}
+type contextT string
 
-var backlinkKey = backlinkT{}
+var backlinkKey = contextT("solver/exporter/backlinks")
+var resKey = contextT("solver/exporter/res")
 
 func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt CacheExportOpt) ([]CacheExporterRecord, error) {
 	var bkm map[string]CacheExporterRecord
@@ -66,8 +66,16 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 		bkm = bk.(map[string]CacheExporterRecord)
 	}
 
+	var res map[*exporter][]CacheExporterRecord
+	if r := ctx.Value(resKey); r == nil {
+		res = map[*exporter][]CacheExporterRecord{}
+		ctx = context.WithValue(ctx, resKey, res)
+	} else {
+		res = r.(map[*exporter][]CacheExporterRecord)
+	}
+
 	if t.Visited(e) {
-		return e.res, nil
+		return res[e], nil
 	}
 	t.Visit(e)
 
@@ -180,9 +188,9 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 		}
 	}
 
-	e.res = allRec
+	res[e] = allRec
 
-	return e.res, nil
+	return allRec, nil
 }
 
 func getBestResult(records []*CacheRecord) *CacheRecord {

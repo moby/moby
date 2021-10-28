@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"os"
 	"path"
 	"sort"
@@ -13,7 +12,6 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/moby/buildkit/cache"
-	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/session"
@@ -22,13 +20,13 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver/errdefs"
 	"github.com/moby/buildkit/solver/llbsolver/mounts"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/progress/logs"
 	utilsystem "github.com/moby/buildkit/util/system"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -45,14 +43,14 @@ type execOp struct {
 	parallelism *semaphore.Weighted
 }
 
-func NewExecOp(v solver.Vertex, op *pb.Op_Exec, platform *pb.Platform, cm cache.Manager, parallelism *semaphore.Weighted, sm *session.Manager, md *metadata.Store, exec executor.Executor, w worker.Worker) (solver.Op, error) {
+func NewExecOp(v solver.Vertex, op *pb.Op_Exec, platform *pb.Platform, cm cache.Manager, parallelism *semaphore.Weighted, sm *session.Manager, exec executor.Executor, w worker.Worker) (solver.Op, error) {
 	if err := llbsolver.ValidateOp(&pb.Op{Op: op}); err != nil {
 		return nil, err
 	}
 	name := fmt.Sprintf("exec %s", strings.Join(op.Exec.Meta.Args, " "))
 	return &execOp{
 		op:          op.Exec,
-		mm:          mounts.NewMountManager(name, cm, sm, md),
+		mm:          mounts.NewMountManager(name, cm, sm),
 		cm:          cm,
 		exec:        exec,
 		numInputs:   len(v.Inputs()),
@@ -93,7 +91,7 @@ func (e *execOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 
 	p := platforms.DefaultSpec()
 	if e.platform != nil {
-		p = specs.Platform{
+		p = ocispecs.Platform{
 			OS:           e.platform.OS,
 			Architecture: e.platform.Architecture,
 			Variant:      e.platform.Variant,
@@ -290,7 +288,7 @@ func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 		return nil, err
 	}
 
-	extraHosts, err := parseExtraHosts(e.op.Meta.ExtraHosts)
+	extraHosts, err := gateway.ParseExtraHosts(e.op.Meta.ExtraHosts)
 	if err != nil {
 		return nil, err
 	}
@@ -306,7 +304,7 @@ func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 		})
 	}
 	if err != nil {
-		logrus.Warn(err.Error()) // TODO: remove this with pull support
+		bklog.G(ctx).Warn(err.Error()) // TODO: remove this with pull support
 	}
 
 	meta := executor.Meta{
@@ -317,6 +315,7 @@ func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 		Hostname:       e.op.Meta.Hostname,
 		ReadonlyRootFS: p.ReadonlyRootFS,
 		ExtraHosts:     extraHosts,
+		Ulimit:         e.op.Meta.Ulimit,
 		NetMode:        e.op.Network,
 		SecurityMode:   e.op.Security,
 	}
@@ -354,7 +353,7 @@ func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 		// Prevent the result from being released.
 		p.OutputRefs[i].Ref = nil
 	}
-	return results, errors.Wrapf(execErr, "executor failed running %v", e.op.Meta.Args)
+	return results, errors.Wrapf(execErr, "process %q did not complete successfully", strings.Join(e.op.Meta.Args, " "))
 }
 
 func proxyEnvList(p *pb.ProxyEnv) []string {
@@ -375,21 +374,6 @@ func proxyEnvList(p *pb.ProxyEnv) []string {
 		out = append(out, "ALL_PROXY="+v, "all_proxy="+v)
 	}
 	return out
-}
-
-func parseExtraHosts(ips []*pb.HostIP) ([]executor.HostIP, error) {
-	out := make([]executor.HostIP, len(ips))
-	for i, hip := range ips {
-		ip := net.ParseIP(hip.IP)
-		if ip == nil {
-			return nil, errors.Errorf("failed to parse IP %s", hip.IP)
-		}
-		out[i] = executor.HostIP{
-			IP:   ip,
-			Host: hip.Host,
-		}
-	}
-	return out, nil
 }
 
 func (e *execOp) Acquire(ctx context.Context) (solver.ReleaseFunc, error) {

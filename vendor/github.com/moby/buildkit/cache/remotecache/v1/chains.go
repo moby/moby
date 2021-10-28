@@ -8,7 +8,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/moby/buildkit/solver"
 	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 func NewCacheChains() *CacheChains {
@@ -104,7 +104,7 @@ func (c *CacheChains) Marshal() (*CacheConfig, DescriptorProvider, error) {
 type DescriptorProvider map[digest.Digest]DescriptorProviderPair
 
 type DescriptorProviderPair struct {
-	Descriptor ocispec.Descriptor
+	Descriptor ocispecs.Descriptor
 	Provider   content.Provider
 }
 

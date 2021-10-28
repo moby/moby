@@ -7,7 +7,7 @@ import (
 	controlapi "github.com/moby/buildkit/api/services/control"
 	apitypes "github.com/moby/buildkit/api/types"
 	"github.com/moby/buildkit/solver/pb"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -15,7 +15,7 @@ import (
 type WorkerInfo struct {
 	ID        string
 	Labels    map[string]string
-	Platforms []specs.Platform
+	Platforms []ocispecs.Platform
 	GCPolicy  []PruneInfo
 }
 

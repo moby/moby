@@ -21,7 +21,7 @@ We are a large inclusive OSS project that is welcoming help of any kind shape or
 * Documentation help is needed to make the product easier to consume and extend.
 * We need OSS community outreach / organizing help to get the word out; manage
 and create messaging and educational content; and to help with social media, community forums/groups, and google groups.
-* We are actively inviting new [security advisors](https://github.com/containerd/project/blob/master/GOVERNANCE.md#security-advisors) to join the team.
+* We are actively inviting new [security advisors](https://github.com/containerd/project/blob/main/GOVERNANCE.md#security-advisors) to join the team.
 * New sub-projects are being created, core and non-core that could use additional development help.
 * Each of the [containerd projects](https://github.com/containerd) has a list of issues currently being worked on or that need help resolving.
   - If the issue has not already been assigned to someone, or has not made recent progress and you are interested, please inquire.
@@ -68,6 +68,14 @@ your system. See more details in [Checkpoint and Restore](#checkpoint-and-restor
 
 Build requirements for developers are listed in [BUILDING](BUILDING.md).
 
+
+## Supported Registries
+
+Any registry which is compliant with the [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec)
+is supported by containerd.
+
+For configuring registries, see [registry host configuration documentation](docs/hosts.md)
+
 ## Features
 
 ### Client
@@ -77,8 +85,11 @@ containerd offers a full client package to help you integrate containerd into yo
 ```go
 
 import (
+  "context"
+
   "github.com/containerd/containerd"
   "github.com/containerd/containerd/cio"
+  "github.com/containerd/containerd/namespaces"
 )
 
 
@@ -269,7 +280,7 @@ loaded for the user's shell environment.
 `cri` is a native plugin of containerd. Since containerd 1.1, the cri plugin is built into the release binaries and enabled by default.
 
 > **Note:** As of containerd 1.5, the `cri` plugin is merged into the containerd/containerd repo. For example, the source code previously stored under [`containerd/cri/pkg`](https://github.com/containerd/cri/tree/release/1.4/pkg)
-was moved to [`containerd/containerd/pkg/cri` package](https://github.com/containerd/containerd/tree/master/pkg/cri).
+was moved to [`containerd/containerd/pkg/cri` package](https://github.com/containerd/containerd/tree/main/pkg/cri).
 
 The `cri` plugin has reached GA status, representing that it is:
 * Feature complete
@@ -289,7 +300,7 @@ A Kubernetes incubator project, [cri-tools](https://github.com/kubernetes-sigs/c
 * [CRI Plugin Testing Guide](./docs/cri/testing.md)
 * [Debugging Pods, Containers, and Images with `crictl`](./docs/cri/crictl.md)
 * [Configuring `cri` Plugins](./docs/cri/config.md)
-* [Configuring containerd](https://github.com/containerd/containerd/blob/master/docs/man/containerd-config.8.md)
+* [Configuring containerd](https://github.com/containerd/containerd/blob/main/docs/man/containerd-config.8.md)
 
 ### Communication
 
@@ -320,9 +331,9 @@ However, all projects within the repo have common maintainership, governance, an
 guidelines which are stored in a `project` repository commonly for all containerd projects.
 
 Please find all these core project documents, including the:
- * [Project governance](https://github.com/containerd/project/blob/master/GOVERNANCE.md),
- * [Maintainers](https://github.com/containerd/project/blob/master/MAINTAINERS),
- * and [Contributing guidelines](https://github.com/containerd/project/blob/master/CONTRIBUTING.md)
+ * [Project governance](https://github.com/containerd/project/blob/main/GOVERNANCE.md),
+ * [Maintainers](https://github.com/containerd/project/blob/main/MAINTAINERS),
+ * and [Contributing guidelines](https://github.com/containerd/project/blob/main/CONTRIBUTING.md)
 
 information in our [`containerd/project`](https://github.com/containerd/project) repository.
 

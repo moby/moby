@@ -5,7 +5,7 @@ import (
 
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/util/contentutil"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -103,7 +103,7 @@ func getRemoteChain(layers []CacheLayer, idx int, provider DescriptorProvider, v
 		return r, nil
 	}
 	return &solver.Remote{
-		Descriptors: []ocispec.Descriptor{descPair.Descriptor},
+		Descriptors: []ocispecs.Descriptor{descPair.Descriptor},
 		Provider:    descPair.Provider,
 	}, nil
 

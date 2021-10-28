@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/moby/buildkit/util/bklog"
+
 	"github.com/containerd/containerd/mount"
 	containerdoci "github.com/containerd/containerd/oci"
 	"github.com/containerd/continuity/fs"
@@ -19,7 +21,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
-	"github.com/moby/buildkit/frontend/gateway/errdefs"
+	gatewayapi "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
@@ -27,7 +29,6 @@ import (
 	"github.com/moby/buildkit/util/stack"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type Opt struct {
@@ -46,6 +47,7 @@ type Opt struct {
 	DNS             *oci.DNSConfig
 	OOMScoreAdj     *int
 	ApparmorProfile string
+	TracingSocket   string
 }
 
 var defaultCommandCandidates = []string{"buildkit-runc", "runc"}
@@ -64,6 +66,7 @@ type runcExecutor struct {
 	running          map[string]chan error
 	mu               sync.Mutex
 	apparmorProfile  string
+	tracingSocket    string
 }
 
 func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Executor, error) {
@@ -127,6 +130,7 @@ func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Ex
 		oomScoreAdj:      opt.OOMScoreAdj,
 		running:          make(map[string]chan error),
 		apparmorProfile:  opt.ApparmorProfile,
+		tracingSocket:    opt.TracingSocket,
 	}
 	return w, nil
 }
@@ -163,7 +167,7 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 	defer namespace.Close()
 
 	if meta.NetMode == pb.NetMode_HOST {
-		logrus.Info("enabling HostNetworking")
+		bklog.G(ctx).Info("enabling HostNetworking")
 	}
 
 	resolvConf, err := oci.GetResolvConf(ctx, w.root, w.idmap, w.dns)
@@ -256,7 +260,7 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 		}
 		opts = append(opts, containerdoci.WithCgroup(cgroupsPath))
 	}
-	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, resolvConf, hostsFile, namespace, w.processMode, w.idmap, w.apparmorProfile, opts...)
+	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, resolvConf, hostsFile, namespace, w.processMode, w.idmap, w.apparmorProfile, w.tracingSocket, opts...)
 	if err != nil {
 		return err
 	}
@@ -300,7 +304,7 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 			case <-ctx.Done():
 				killCtx, timeout := context.WithTimeout(context.Background(), 7*time.Second)
 				if err := w.runc.Kill(killCtx, id, int(syscall.SIGKILL), nil); err != nil {
-					logrus.Errorf("failed to kill runc %s: %+v", id, err)
+					bklog.G(ctx).Errorf("failed to kill runc %s: %+v", id, err)
 					select {
 					case <-killCtx.Done():
 						timeout()
@@ -321,7 +325,7 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 		}
 	}()
 
-	logrus.Debugf("> creating %s %v", id, meta.Args)
+	bklog.G(ctx).Debugf("> creating %s %v", id, meta.Args)
 	// this is a cheat, we have not actually started, but as close as we can get with runc for now
 	if started != nil {
 		startedOnce.Do(func() {
@@ -336,13 +340,13 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 
 func exitError(ctx context.Context, err error) error {
 	if err != nil {
-		exitErr := &errdefs.ExitError{
-			ExitCode: errdefs.UnknownExitStatus,
+		exitErr := &gatewayapi.ExitError{
+			ExitCode: gatewayapi.UnknownExitStatus,
 			Err:      err,
 		}
 		var runcExitError *runc.ExitError
 		if errors.As(err, &runcExitError) {
-			exitErr = &errdefs.ExitError{
+			exitErr = &gatewayapi.ExitError{
 				ExitCode: uint32(runcExitError.Status),
 			}
 		}

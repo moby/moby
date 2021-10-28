@@ -13,7 +13,7 @@ import (
 	"github.com/moby/buildkit/util/imageutil"
 	"github.com/moby/locker"
 	digest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 var defaultImageMetaResolver llb.ImageMetaResolver
@@ -24,12 +24,12 @@ var WithDefault = imageOptionFunc(func(ii *llb.ImageInfo) {
 })
 
 type imageMetaResolverOpts struct {
-	platform *specs.Platform
+	platform *ocispecs.Platform
 }
 
 type ImageMetaResolverOpt func(o *imageMetaResolverOpts)
 
-func WithDefaultPlatform(p *specs.Platform) ImageMetaResolverOpt {
+func WithDefaultPlatform(p *ocispecs.Platform) ImageMetaResolverOpt {
 	return func(o *imageMetaResolverOpts) {
 		o.platform = p
 	}
@@ -61,7 +61,7 @@ func Default() llb.ImageMetaResolver {
 type imageMetaResolver struct {
 	resolver remotes.Resolver
 	buffer   contentutil.Buffer
-	platform *specs.Platform
+	platform *ocispecs.Platform
 	locker   *locker.Locker
 	cache    map[string]resolveResult
 }
@@ -95,7 +95,7 @@ func (imr *imageMetaResolver) ResolveImageConfig(ctx context.Context, ref string
 	return dgst, config, nil
 }
 
-func (imr *imageMetaResolver) key(ref string, platform *specs.Platform) string {
+func (imr *imageMetaResolver) key(ref string, platform *ocispecs.Platform) string {
 	if platform != nil {
 		ref += platforms.Format(*platform)
 	}

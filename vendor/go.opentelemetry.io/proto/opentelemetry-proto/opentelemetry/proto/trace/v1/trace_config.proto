@@ -1,0 +1,78 @@
+// Copyright 2019, OpenTelemetry Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package opentelemetry.proto.trace.v1;
+
+option java_multiple_files = true;
+option java_package = "io.opentelemetry.proto.trace.v1";
+option java_outer_classname = "TraceConfigProto";
+option go_package = "github.com/open-telemetry/opentelemetry-proto/gen/go/collector/trace/v1";
+
+// Global configuration of the trace service. All fields must be specified, or
+// the default (zero) values will be used for each type.
+message TraceConfig {
+
+  // The global default sampler used to make decisions on span sampling.
+  oneof sampler {
+    ConstantSampler constant_sampler = 1;
+
+    TraceIdRatioBased trace_id_ratio_based = 2;
+
+    RateLimitingSampler rate_limiting_sampler = 3;
+  }
+
+  // The global default max number of attributes per span.
+  int64 max_number_of_attributes = 4;
+
+  // The global default max number of annotation events per span.
+  int64 max_number_of_timed_events= 5;
+
+  // The global default max number of attributes per timed event.
+  int64 max_number_of_attributes_per_timed_event = 6;
+
+  // The global default max number of link entries per span.
+  int64 max_number_of_links = 7;
+
+  // The global default max number of attributes per span.
+  int64 max_number_of_attributes_per_link = 8;
+}
+
+// Sampler that always makes a constant decision on span sampling.
+message ConstantSampler {
+  // How spans should be sampled:
+  // - Always off
+  // - Always on
+  // - Always follow the parent Span's decision (off if no parent).
+  enum ConstantDecision {
+    ALWAYS_OFF = 0;
+    ALWAYS_ON = 1;
+    ALWAYS_PARENT = 2;
+  }
+  ConstantDecision decision = 1;
+}
+
+// Sampler that tries to uniformly sample traces with a given ratio.
+// The ratio of sampling a trace is equal to that of the specified ratio.
+message TraceIdRatioBased {
+  // The desired ratio of sampling. Must be within [0.0, 1.0].
+  double samplingRatio = 1;
+}
+
+// Sampler that tries to sample with a rate per time window.
+message RateLimitingSampler {
+  // Rate per second.
+  int64 qps = 1;
+}

@@ -13,11 +13,12 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/moby/buildkit/util/resolver/config"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/pkg/errors"
 )
 
-func fillInsecureOpts(host string, c RegistryConfig, h docker.RegistryHost) ([]docker.RegistryHost, error) {
+func fillInsecureOpts(host string, c config.RegistryConfig, h docker.RegistryHost) ([]docker.RegistryHost, error) {
 	var hosts []docker.RegistryHost
 
 	tc, err := loadTLSConfig(c)
@@ -64,7 +65,7 @@ func fillInsecureOpts(host string, c RegistryConfig, h docker.RegistryHost) ([]d
 	return hosts, nil
 }
 
-func loadTLSConfig(c RegistryConfig) (*tls.Config, error) {
+func loadTLSConfig(c config.RegistryConfig) (*tls.Config, error) {
 	for _, d := range c.TLSConfigDir {
 		fs, err := ioutil.ReadDir(d)
 		if err != nil && !errors.Is(err, os.ErrNotExist) && !errors.Is(err, os.ErrPermission) {
@@ -75,7 +76,7 @@ func loadTLSConfig(c RegistryConfig) (*tls.Config, error) {
 				c.RootCAs = append(c.RootCAs, filepath.Join(d, f.Name()))
 			}
 			if strings.HasSuffix(f.Name(), ".cert") {
-				c.KeyPairs = append(c.KeyPairs, TLSKeyPair{
+				c.KeyPairs = append(c.KeyPairs, config.TLSKeyPair{
 					Certificate: filepath.Join(d, f.Name()),
 					Key:         filepath.Join(d, strings.TrimSuffix(f.Name(), ".cert")+".key"),
 				})
@@ -114,22 +115,8 @@ func loadTLSConfig(c RegistryConfig) (*tls.Config, error) {
 	return tc, nil
 }
 
-type RegistryConfig struct {
-	Mirrors      []string     `toml:"mirrors"`
-	PlainHTTP    *bool        `toml:"http"`
-	Insecure     *bool        `toml:"insecure"`
-	RootCAs      []string     `toml:"ca"`
-	KeyPairs     []TLSKeyPair `toml:"keypair"`
-	TLSConfigDir []string     `toml:"tlsconfigdir"`
-}
-
-type TLSKeyPair struct {
-	Key         string `toml:"key"`
-	Certificate string `toml:"cert"`
-}
-
 // NewRegistryConfig converts registry config to docker.RegistryHosts callback
-func NewRegistryConfig(m map[string]RegistryConfig) docker.RegistryHosts {
+func NewRegistryConfig(m map[string]config.RegistryConfig) docker.RegistryHosts {
 	return docker.Registries(
 		func(host string) ([]docker.RegistryHost, error) {
 			c, ok := m[host]
@@ -203,8 +190,9 @@ func newDefaultTransport() *http.Transport {
 			Timeout:   30 * time.Second,
 			KeepAlive: 60 * time.Second,
 		}).DialContext,
-		MaxIdleConns:          10,
-		IdleConnTimeout:       30 * time.Second,
+		MaxIdleConns:          30,
+		IdleConnTimeout:       120 * time.Second,
+		MaxIdleConnsPerHost:   4,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 5 * time.Second,
 		TLSNextProto:          make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),

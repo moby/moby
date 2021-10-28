@@ -121,7 +121,6 @@ message VertexStatus {
 	string name = 3;
 	int64 current = 4;
 	int64 total = 5;
-	// TODO: add started, completed
 	google.protobuf.Timestamp timestamp = 6 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
 	google.protobuf.Timestamp started = 7 [(gogoproto.stdtime) = true ];
 	google.protobuf.Timestamp completed = 8 [(gogoproto.stdtime) = true ];

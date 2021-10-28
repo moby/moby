@@ -176,6 +176,7 @@ message NewContainerRequest {
 	pb.NetMode Network = 3;
 	pb.Platform platform = 4;
 	pb.WorkerConstraints constraints = 5;
+	repeated pb.HostIP extraHosts = 6;
 }
 
 message NewContainerResponse{}

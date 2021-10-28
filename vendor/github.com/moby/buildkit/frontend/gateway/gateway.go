@@ -25,7 +25,6 @@ import (
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend"
 	gwclient "github.com/moby/buildkit/frontend/gateway/client"
-	gwerrdefs "github.com/moby/buildkit/frontend/gateway/errdefs"
 	pb "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
@@ -34,14 +33,14 @@ import (
 	llberrdefs "github.com/moby/buildkit/solver/llbsolver/errdefs"
 	opspb "github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/stack"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/buildkit/worker"
-	"github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	digest "github.com/opencontainers/go-digest"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/net/http2"
 	"golang.org/x/sync/errgroup"
 	spb "google.golang.org/genproto/googleapis/rpc/status"
@@ -84,7 +83,7 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 	}
 
 	_, isDevel := opts[keyDevel]
-	var img specs.Image
+	var img ocispecs.Image
 	var mfstDigest digest.Digest
 	var rootFS cache.MutableRef
 	var readonly bool // TODO: try to switch to read-only by default.
@@ -460,9 +459,9 @@ type llbBridgeForwarder struct {
 
 func (lbf *llbBridgeForwarder) ResolveImageConfig(ctx context.Context, req *pb.ResolveImageConfigRequest) (*pb.ResolveImageConfigResponse, error) {
 	ctx = tracing.ContextWithSpanFromContext(ctx, lbf.callCtx)
-	var platform *specs.Platform
+	var platform *ocispecs.Platform
 	if p := req.Platform; p != nil {
-		platform = &specs.Platform{
+		platform = &ocispecs.Platform{
 			OS:           p.OS,
 			Architecture: p.Architecture,
 			Variant:      p.Variant,
@@ -669,7 +668,7 @@ func (lbf *llbBridgeForwarder) getImmutableRef(ctx context.Context, id, path str
 		return nil, errors.Errorf("no such ref: %v", id)
 	}
 	if ref == nil {
-		return nil, errors.Wrapf(os.ErrNotExist, "%s not found", path)
+		return nil, errors.Wrap(os.ErrNotExist, path)
 	}
 
 	r, err := ref.Result(ctx)
@@ -834,7 +833,7 @@ func (lbf *llbBridgeForwarder) Inputs(ctx context.Context, in *pb.InputsRequest)
 }
 
 func (lbf *llbBridgeForwarder) NewContainer(ctx context.Context, in *pb.NewContainerRequest) (_ *pb.NewContainerResponse, err error) {
-	logrus.Debugf("|<--- NewContainer %s", in.ContainerID)
+	bklog.G(ctx).Debugf("|<--- NewContainer %s", in.ContainerID)
 	ctrReq := NewContainerRequest{
 		ContainerID: in.ContainerID,
 		NetMode:     in.Network,
@@ -888,6 +887,11 @@ func (lbf *llbBridgeForwarder) NewContainer(ctx context.Context, in *pb.NewConta
 		return nil, stack.Enable(err)
 	}
 
+	ctrReq.ExtraHosts, err = ParseExtraHosts(in.ExtraHosts)
+	if err != nil {
+		return nil, stack.Enable(err)
+	}
+
 	ctr, err := NewContainer(context.Background(), w, lbf.sm, group, ctrReq)
 	if err != nil {
 		return nil, stack.Enable(err)
@@ -909,7 +913,7 @@ func (lbf *llbBridgeForwarder) NewContainer(ctx context.Context, in *pb.NewConta
 }
 
 func (lbf *llbBridgeForwarder) ReleaseContainer(ctx context.Context, in *pb.ReleaseContainerRequest) (*pb.ReleaseContainerResponse, error) {
-	logrus.Debugf("|<--- ReleaseContainer %s", in.ContainerID)
+	bklog.G(ctx).Debugf("|<--- ReleaseContainer %s", in.ContainerID)
 	lbf.ctrsMu.Lock()
 	ctr, ok := lbf.ctrs[in.ContainerID]
 	delete(lbf.ctrs, in.ContainerID)
@@ -1024,7 +1028,7 @@ type outputWriter struct {
 }
 
 func (w *outputWriter) Write(msg []byte) (int, error) {
-	logrus.Debugf("|---> File Message %s, fd=%d, %d bytes", w.processID, w.fd, len(msg))
+	bklog.G(w.stream.Context()).Debugf("|---> File Message %s, fd=%d, %d bytes", w.processID, w.fd, len(msg))
 	err := w.stream.Send(&pb.ExecMessage{
 		ProcessID: w.processID,
 		Input: &pb.ExecMessage_File{
@@ -1054,15 +1058,15 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 			}
 			switch m := execMsg.GetInput().(type) {
 			case *pb.ExecMessage_Init:
-				logrus.Debugf("|<--- Init Message %s", execMsg.ProcessID)
+				bklog.G(ctx).Debugf("|<--- Init Message %s", execMsg.ProcessID)
 			case *pb.ExecMessage_File:
 				if m.File.EOF {
-					logrus.Debugf("|<--- File Message %s, fd=%d, EOF", execMsg.ProcessID, m.File.Fd)
+					bklog.G(ctx).Debugf("|<--- File Message %s, fd=%d, EOF", execMsg.ProcessID, m.File.Fd)
 				} else {
-					logrus.Debugf("|<--- File Message %s, fd=%d, %d bytes", execMsg.ProcessID, m.File.Fd, len(m.File.Data))
+					bklog.G(ctx).Debugf("|<--- File Message %s, fd=%d, %d bytes", execMsg.ProcessID, m.File.Fd, len(m.File.Data))
 				}
 			case *pb.ExecMessage_Resize:
-				logrus.Debugf("|<--- Resize Message %s", execMsg.ProcessID)
+				bklog.G(ctx).Debugf("|<--- Resize Message %s", execMsg.ProcessID)
 			}
 			select {
 			case <-ctx.Done():
@@ -1134,14 +1138,15 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 				pios[pid] = pio
 
 				proc, err := ctr.Start(initCtx, gwclient.StartRequest{
-					Args:   init.Meta.Args,
-					Env:    init.Meta.Env,
-					User:   init.Meta.User,
-					Cwd:    init.Meta.Cwd,
-					Tty:    init.Tty,
-					Stdin:  pio.processReaders[0],
-					Stdout: pio.processWriters[1],
-					Stderr: pio.processWriters[2],
+					Args:         init.Meta.Args,
+					Env:          init.Meta.Env,
+					User:         init.Meta.User,
+					Cwd:          init.Meta.Cwd,
+					Tty:          init.Tty,
+					Stdin:        pio.processReaders[0],
+					Stdout:       pio.processWriters[1],
+					Stderr:       pio.processWriters[2],
+					SecurityMode: init.Security,
 				})
 				if err != nil {
 					return stack.Enable(err)
@@ -1150,7 +1155,7 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 
 				eg.Go(func() error {
 					<-pio.done
-					logrus.Debugf("|---> Done Message %s", pid)
+					bklog.G(ctx).Debugf("|---> Done Message %s", pid)
 					err := srv.Send(&pb.ExecMessage{
 						ProcessID: pid,
 						Input: &pb.ExecMessage_Done{
@@ -1167,10 +1172,10 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 					err := proc.Wait()
 
 					var statusCode uint32
-					var exitError *gwerrdefs.ExitError
+					var exitError *pb.ExitError
 					var statusError *rpc.Status
 					if err != nil {
-						statusCode = gwerrdefs.UnknownExitStatus
+						statusCode = pb.UnknownExitStatus
 						st, _ := status.FromError(grpcerrors.ToGRPC(err))
 						stp := st.Proto()
 						statusError = &rpc.Status{
@@ -1182,7 +1187,7 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 					if errors.As(err, &exitError) {
 						statusCode = exitError.ExitCode
 					}
-					logrus.Debugf("|---> Exit Message %s, code=%d, error=%s", pid, statusCode, err)
+					bklog.G(ctx).Debugf("|---> Exit Message %s, code=%d, error=%s", pid, statusCode, err)
 					sendErr := srv.Send(&pb.ExecMessage{
 						ProcessID: pid,
 						Input: &pb.ExecMessage_Exit{
@@ -1207,7 +1212,7 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 					return stack.Enable(err)
 				})
 
-				logrus.Debugf("|---> Started Message %s", pid)
+				bklog.G(ctx).Debugf("|---> Started Message %s", pid)
 				err = srv.Send(&pb.ExecMessage{
 					ProcessID: pid,
 					Input: &pb.ExecMessage_Started{
@@ -1246,7 +1251,7 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 							return stack.Enable(err)
 						}
 						// no error so must be EOF
-						logrus.Debugf("|---> File Message %s, fd=%d, EOF", pid, fd)
+						bklog.G(ctx).Debugf("|---> File Message %s, fd=%d, EOF", pid, fd)
 						err = srv.Send(&pb.ExecMessage{
 							ProcessID: pid,
 							Input: &pb.ExecMessage_File{
@@ -1288,7 +1293,7 @@ func serve(ctx context.Context, grpcServer *grpc.Server, conn net.Conn) {
 		<-ctx.Done()
 		conn.Close()
 	}()
-	logrus.Debugf("serving grpc connection")
+	bklog.G(ctx).Debugf("serving grpc connection")
 	(&http2.Server{}).ServeConn(conn, &http2.ServeConnOpts{Handler: grpcServer})
 }
 

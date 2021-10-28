@@ -15,6 +15,7 @@ import (
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/util/network"
+	traceexec "github.com/moby/buildkit/util/tracing/exec"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
@@ -36,7 +37,7 @@ const (
 
 // GenerateSpec generates spec using containerd functionality.
 // opts are ignored for s.Process, s.Hostname, and s.Mounts .
-func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, processMode ProcessMode, idmap *idtools.IdentityMapping, apparmorProfile string, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
+func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, processMode ProcessMode, idmap *idtools.IdentityMapping, apparmorProfile string, tracingSocket string, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
 	c := &containers.Container{
 		ID: id,
 	}
@@ -71,9 +72,21 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 		return nil, nil, err
 	}
 
+	if rlimitsOpts, err := generateRlimitOpts(meta.Ulimit); err == nil {
+		opts = append(opts, rlimitsOpts...)
+	} else {
+		return nil, nil, err
+	}
+
 	hostname := defaultHostname
 	if meta.Hostname != "" {
 		hostname = meta.Hostname
+	}
+
+	if tracingSocket != "" {
+		// https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md
+		meta.Env = append(meta.Env, "OTEL_TRACES_EXPORTER=otlp", "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=unix:///dev/otel-grpc.sock", "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=grpc")
+		meta.Env = append(meta.Env, traceexec.Environ(ctx)...)
 	}
 
 	opts = append(opts,
@@ -89,12 +102,15 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 		return nil, nil, err
 	}
 
+	if len(meta.Ulimit) == 0 {
+		// reset open files limit
+		s.Process.Rlimits = nil
+	}
+
 	// set the networking information on the spec
 	if err := namespace.Set(s); err != nil {
 		return nil, nil, err
 	}
-
-	s.Process.Rlimits = nil // reset open files limit
 
 	sm := &submounts{}
 
@@ -139,6 +155,16 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 		}
 	}
 
+	if tracingSocket != "" {
+		s.Mounts = append(s.Mounts, specs.Mount{
+			Destination: "/dev/otel-grpc.sock",
+			Type:        "bind",
+			Source:      tracingSocket,
+			Options:     []string{"ro", "rbind"},
+		})
+	}
+
+	s.Mounts = dedupMounts(s.Mounts)
 	return s, releaseAll, nil
 }
 

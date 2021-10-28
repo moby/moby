@@ -14,8 +14,16 @@ type CacheConfig struct {
 }
 
 type CacheLayer struct {
-	Blob        digest.Digest `json:"blob,omitempty"`
-	ParentIndex int           `json:"parent,omitempty"`
+	Blob        digest.Digest     `json:"blob,omitempty"`
+	ParentIndex int               `json:"parent,omitempty"`
+	Annotations *LayerAnnotations `json:"annotations,omitempty"`
+}
+
+type LayerAnnotations struct {
+	MediaType string        `json:"mediaType,omitempty"`
+	DiffID    digest.Digest `json:"diffID,omitempty"`
+	Size      int64         `json:"size,omitempty"`
+	CreatedAt time.Time     `json:"createdAt,omitempty"`
 }
 
 type CacheRecord struct {

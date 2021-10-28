@@ -7,8 +7,9 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/stargz-snapshotter/estargz"
 	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -23,8 +24,19 @@ const (
 	// Gzip is used for blob data.
 	Gzip
 
+	// EStargz is used for estargz data.
+	EStargz
+
+	// Zstd is used for Zstandard data.
+	Zstd
+
 	// UnknownCompression means not supported yet.
 	UnknownCompression Type = -1
+)
+
+const (
+	mediaTypeDockerSchema2LayerZstd = images.MediaTypeDockerSchema2Layer + ".zstd"
+	mediaTypeImageLayerZstd         = ocispecs.MediaTypeImageLayer + "+zstd" // unreleased image-spec#790
 )
 
 var Default = Gzip
@@ -35,20 +47,50 @@ func (ct Type) String() string {
 		return "uncompressed"
 	case Gzip:
 		return "gzip"
+	case EStargz:
+		return "estargz"
+	case Zstd:
+		return "zstd"
 	default:
 		return "unknown"
 	}
 }
 
+func (ct Type) DefaultMediaType() string {
+	switch ct {
+	case Uncompressed:
+		return ocispecs.MediaTypeImageLayer
+	case Gzip, EStargz:
+		return ocispecs.MediaTypeImageLayerGzip
+	case Zstd:
+		return mediaTypeImageLayerZstd
+	default:
+		return ocispecs.MediaTypeImageLayer + "+unknown"
+	}
+}
+
+func FromMediaType(mediaType string) Type {
+	switch toOCILayerType[mediaType] {
+	case ocispecs.MediaTypeImageLayer:
+		return Uncompressed
+	case ocispecs.MediaTypeImageLayerGzip:
+		return Gzip
+	case mediaTypeImageLayerZstd:
+		return Zstd
+	default:
+		return UnknownCompression
+	}
+}
+
 // DetectLayerMediaType returns media type from existing blob data.
 func DetectLayerMediaType(ctx context.Context, cs content.Store, id digest.Digest, oci bool) (string, error) {
-	ra, err := cs.ReaderAt(ctx, ocispec.Descriptor{Digest: id})
+	ra, err := cs.ReaderAt(ctx, ocispecs.Descriptor{Digest: id})
 	if err != nil {
 		return "", err
 	}
 	defer ra.Close()
 
-	ct, err := detectCompressionType(content.NewReader(ra))
+	ct, err := detectCompressionType(io.NewSectionReader(ra, 0, ra.Size()))
 	if err != nil {
 		return "", err
 	}
@@ -56,21 +98,22 @@ func DetectLayerMediaType(ctx context.Context, cs content.Store, id digest.Diges
 	switch ct {
 	case Uncompressed:
 		if oci {
-			return ocispec.MediaTypeImageLayer, nil
+			return ocispecs.MediaTypeImageLayer, nil
 		}
 		return images.MediaTypeDockerSchema2Layer, nil
-	case Gzip:
+	case Gzip, EStargz:
 		if oci {
-			return ocispec.MediaTypeImageLayerGzip, nil
+			return ocispecs.MediaTypeImageLayerGzip, nil
 		}
 		return images.MediaTypeDockerSchema2LayerGzip, nil
+
 	default:
 		return "", errors.Errorf("failed to detect layer %v compression type", id)
 	}
 }
 
 // detectCompressionType detects compression type from real blob data.
-func detectCompressionType(cr io.Reader) (Type, error) {
+func detectCompressionType(cr *io.SectionReader) (Type, error) {
 	var buf [10]byte
 	var n int
 	var err error
@@ -85,8 +128,13 @@ func detectCompressionType(cr io.Reader) (Type, error) {
 		return UnknownCompression, err
 	}
 
+	if _, _, err := estargz.OpenFooter(cr); err == nil {
+		return EStargz, nil
+	}
+
 	for c, m := range map[Type][]byte{
 		Gzip: {0x1F, 0x8B, 0x08},
+		Zstd: {0x28, 0xB5, 0x2F, 0xFD},
 	} {
 		if n < len(m) {
 			continue
@@ -95,25 +143,30 @@ func detectCompressionType(cr io.Reader) (Type, error) {
 			return c, nil
 		}
 	}
+
 	return Uncompressed, nil
 }
 
 var toDockerLayerType = map[string]string{
-	ocispec.MediaTypeImageLayer:                   images.MediaTypeDockerSchema2Layer,
+	ocispecs.MediaTypeImageLayer:                  images.MediaTypeDockerSchema2Layer,
 	images.MediaTypeDockerSchema2Layer:            images.MediaTypeDockerSchema2Layer,
-	ocispec.MediaTypeImageLayerGzip:               images.MediaTypeDockerSchema2LayerGzip,
+	ocispecs.MediaTypeImageLayerGzip:              images.MediaTypeDockerSchema2LayerGzip,
 	images.MediaTypeDockerSchema2LayerGzip:        images.MediaTypeDockerSchema2LayerGzip,
 	images.MediaTypeDockerSchema2LayerForeign:     images.MediaTypeDockerSchema2Layer,
 	images.MediaTypeDockerSchema2LayerForeignGzip: images.MediaTypeDockerSchema2LayerGzip,
+	mediaTypeImageLayerZstd:                       mediaTypeDockerSchema2LayerZstd,
+	mediaTypeDockerSchema2LayerZstd:               mediaTypeDockerSchema2LayerZstd,
 }
 
 var toOCILayerType = map[string]string{
-	ocispec.MediaTypeImageLayer:                   ocispec.MediaTypeImageLayer,
-	images.MediaTypeDockerSchema2Layer:            ocispec.MediaTypeImageLayer,
-	ocispec.MediaTypeImageLayerGzip:               ocispec.MediaTypeImageLayerGzip,
-	images.MediaTypeDockerSchema2LayerGzip:        ocispec.MediaTypeImageLayerGzip,
-	images.MediaTypeDockerSchema2LayerForeign:     ocispec.MediaTypeImageLayer,
-	images.MediaTypeDockerSchema2LayerForeignGzip: ocispec.MediaTypeImageLayerGzip,
+	ocispecs.MediaTypeImageLayer:                  ocispecs.MediaTypeImageLayer,
+	images.MediaTypeDockerSchema2Layer:            ocispecs.MediaTypeImageLayer,
+	ocispecs.MediaTypeImageLayerGzip:              ocispecs.MediaTypeImageLayerGzip,
+	images.MediaTypeDockerSchema2LayerGzip:        ocispecs.MediaTypeImageLayerGzip,
+	images.MediaTypeDockerSchema2LayerForeign:     ocispecs.MediaTypeImageLayer,
+	images.MediaTypeDockerSchema2LayerForeignGzip: ocispecs.MediaTypeImageLayerGzip,
+	mediaTypeImageLayerZstd:                       mediaTypeImageLayerZstd,
+	mediaTypeDockerSchema2LayerZstd:               mediaTypeImageLayerZstd,
 }
 
 func convertLayerMediaType(mediaType string, oci bool) string {
@@ -130,8 +183,8 @@ func convertLayerMediaType(mediaType string, oci bool) string {
 	return converted
 }
 
-func ConvertAllLayerMediaTypes(oci bool, descs ...ocispec.Descriptor) []ocispec.Descriptor {
-	var converted []ocispec.Descriptor
+func ConvertAllLayerMediaTypes(oci bool, descs ...ocispecs.Descriptor) []ocispecs.Descriptor {
+	var converted []ocispecs.Descriptor
 	for _, desc := range descs {
 		desc.MediaType = convertLayerMediaType(desc.MediaType, oci)
 		converted = append(converted, desc)

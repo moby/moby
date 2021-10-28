@@ -10,7 +10,7 @@ import (
 	"github.com/moby/buildkit/session"
 	sessioncontent "github.com/moby/buildkit/session/content"
 	digest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -42,32 +42,32 @@ func ResolveCacheExporterFunc(sm *session.Manager) remotecache.ResolveCacheExpor
 		if err != nil {
 			return nil, err
 		}
-		return remotecache.NewExporter(cs, ociMediatypes), nil
+		return remotecache.NewExporter(cs, "", ociMediatypes), nil
 	}
 }
 
 // ResolveCacheImporterFunc for "local" cache importer.
 func ResolveCacheImporterFunc(sm *session.Manager) remotecache.ResolveCacheImporterFunc {
-	return func(ctx context.Context, g session.Group, attrs map[string]string) (remotecache.Importer, specs.Descriptor, error) {
+	return func(ctx context.Context, g session.Group, attrs map[string]string) (remotecache.Importer, ocispecs.Descriptor, error) {
 		dgstStr := attrs[attrDigest]
 		if dgstStr == "" {
-			return nil, specs.Descriptor{}, errors.New("local cache importer requires explicit digest")
+			return nil, ocispecs.Descriptor{}, errors.New("local cache importer requires explicit digest")
 		}
 		dgst := digest.Digest(dgstStr)
 		store := attrs[attrSrc]
 		if store == "" {
-			return nil, specs.Descriptor{}, errors.New("local cache importer requires src")
+			return nil, ocispecs.Descriptor{}, errors.New("local cache importer requires src")
 		}
 		csID := contentStoreIDPrefix + store
 		cs, err := getContentStore(ctx, sm, g, csID)
 		if err != nil {
-			return nil, specs.Descriptor{}, err
+			return nil, ocispecs.Descriptor{}, err
 		}
 		info, err := cs.Info(ctx, dgst)
 		if err != nil {
-			return nil, specs.Descriptor{}, err
+			return nil, ocispecs.Descriptor{}, err
 		}
-		desc := specs.Descriptor{
+		desc := ocispecs.Descriptor{
 			// MediaType is typically MediaTypeDockerSchema2ManifestList,
 			// but we leave it empty until we get correct support for local index.json
 			Digest: dgst,

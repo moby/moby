@@ -11,23 +11,23 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/moby/locker"
 	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
-func ProviderFromRef(ref string) (ocispec.Descriptor, content.Provider, error) {
+func ProviderFromRef(ref string) (ocispecs.Descriptor, content.Provider, error) {
 	remote := docker.NewResolver(docker.ResolverOptions{
 		Client: http.DefaultClient,
 	})
 
 	name, desc, err := remote.Resolve(context.TODO(), ref)
 	if err != nil {
-		return ocispec.Descriptor{}, nil, err
+		return ocispecs.Descriptor{}, nil, err
 	}
 
 	fetcher, err := remote.Fetcher(context.TODO(), name)
 	if err != nil {
-		return ocispec.Descriptor{}, nil, err
+		return ocispecs.Descriptor{}, nil, err
 	}
 	return desc, FromFetcher(fetcher), nil
 }

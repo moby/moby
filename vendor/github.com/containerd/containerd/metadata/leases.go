@@ -33,22 +33,22 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-// LeaseManager manages the create/delete lifecycle of leases
+// leaseManager manages the create/delete lifecycle of leases
 // and also returns existing leases
-type LeaseManager struct {
+type leaseManager struct {
 	db *DB
 }
 
 // NewLeaseManager creates a new lease manager for managing leases using
 // the provided database transaction.
-func NewLeaseManager(db *DB) *LeaseManager {
-	return &LeaseManager{
+func NewLeaseManager(db *DB) leases.Manager {
+	return &leaseManager{
 		db: db,
 	}
 }
 
 // Create creates a new lease using the provided lease
-func (lm *LeaseManager) Create(ctx context.Context, opts ...leases.Opt) (leases.Lease, error) {
+func (lm *leaseManager) Create(ctx context.Context, opts ...leases.Opt) (leases.Lease, error) {
 	var l leases.Lease
 	for _, opt := range opts {
 		if err := opt(&l); err != nil {
@@ -102,7 +102,7 @@ func (lm *LeaseManager) Create(ctx context.Context, opts ...leases.Opt) (leases.
 }
 
 // Delete deletes the lease with the provided lease ID
-func (lm *LeaseManager) Delete(ctx context.Context, lease leases.Lease, _ ...leases.DeleteOpt) error {
+func (lm *leaseManager) Delete(ctx context.Context, lease leases.Lease, _ ...leases.DeleteOpt) error {
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return err
@@ -127,7 +127,7 @@ func (lm *LeaseManager) Delete(ctx context.Context, lease leases.Lease, _ ...lea
 }
 
 // List lists all active leases
-func (lm *LeaseManager) List(ctx context.Context, fs ...string) ([]leases.Lease, error) {
+func (lm *leaseManager) List(ctx context.Context, fs ...string) ([]leases.Lease, error) {
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return nil, err
@@ -183,7 +183,7 @@ func (lm *LeaseManager) List(ctx context.Context, fs ...string) ([]leases.Lease,
 }
 
 // AddResource references the resource by the provided lease.
-func (lm *LeaseManager) AddResource(ctx context.Context, lease leases.Lease, r leases.Resource) error {
+func (lm *leaseManager) AddResource(ctx context.Context, lease leases.Lease, r leases.Resource) error {
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return err
@@ -212,7 +212,7 @@ func (lm *LeaseManager) AddResource(ctx context.Context, lease leases.Lease, r l
 }
 
 // DeleteResource dereferences the resource by the provided lease.
-func (lm *LeaseManager) DeleteResource(ctx context.Context, lease leases.Lease, r leases.Resource) error {
+func (lm *leaseManager) DeleteResource(ctx context.Context, lease leases.Lease, r leases.Resource) error {
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return err
@@ -250,7 +250,7 @@ func (lm *LeaseManager) DeleteResource(ctx context.Context, lease leases.Lease, 
 }
 
 // ListResources lists all the resources referenced by the lease.
-func (lm *LeaseManager) ListResources(ctx context.Context, lease leases.Lease) ([]leases.Resource, error) {
+func (lm *leaseManager) ListResources(ctx context.Context, lease leases.Lease) ([]leases.Resource, error) {
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return nil, err

@@ -5,7 +5,6 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/moby/buildkit/cache"
-	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/executor"
@@ -14,14 +13,14 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	digest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type Worker interface {
 	// ID needs to be unique in the cluster
 	ID() string
 	Labels() map[string]string
-	Platforms(noCache bool) []specs.Platform
+	Platforms(noCache bool) []ocispecs.Platform
 
 	GCPolicy() []client.PruneInfo
 	LoadRef(ctx context.Context, id string, hidden bool) (cache.ImmutableRef, error)
@@ -36,7 +35,6 @@ type Worker interface {
 	ContentStore() content.Store
 	Executor() executor.Executor
 	CacheManager() cache.Manager
-	MetadataStore() *metadata.Store
 }
 
 type Infos interface {

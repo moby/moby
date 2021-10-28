@@ -10,7 +10,7 @@ import (
 	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/util/entitlements"
 	digest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -82,7 +82,7 @@ func NormalizeRuntimePlatforms() LoadOpt {
 			}
 			op.Platform = defaultPlatform
 		}
-		platform := specs.Platform{OS: op.Platform.OS, Architecture: op.Platform.Architecture, Variant: op.Platform.Variant}
+		platform := ocispecs.Platform{OS: op.Platform.OS, Architecture: op.Platform.Architecture, Variant: op.Platform.Variant}
 		normalizedPlatform := platforms.Normalize(platform)
 
 		op.Platform = &pb.Platform{

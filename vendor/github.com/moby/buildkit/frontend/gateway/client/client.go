@@ -8,7 +8,7 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
 	digest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	fstypes "github.com/tonistiigi/fsutil/types"
 )
 
@@ -25,6 +25,7 @@ type Client interface {
 type NewContainerRequest struct {
 	Mounts      []Mount
 	NetMode     pb.NetMode
+	ExtraHosts  []*pb.HostIP
 	Platform    *pb.Platform
 	Constraints *pb.WorkerConstraints
 }
@@ -121,7 +122,7 @@ type CacheOptionsEntry struct {
 type WorkerInfo struct {
 	ID        string
 	Labels    map[string]string
-	Platforms []specs.Platform
+	Platforms []ocispecs.Platform
 }
 
 type BuildOpts struct {

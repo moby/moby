@@ -281,6 +281,7 @@ func resolveLayers(ctx context.Context, store content.Store, layerFiles []string
 		}
 		s, err := compression.DecompressStream(content.NewReader(ra))
 		if err != nil {
+			ra.Close()
 			return nil, errors.Wrapf(err, "failed to detect compression for %q", layerFiles[i])
 		}
 		if s.GetCompression() == compression.Uncompressed {
@@ -292,6 +293,7 @@ func resolveLayers(ctx context.Context, store content.Store, layerFiles []string
 				layers[i], err = compressBlob(ctx, store, s, ref, content.WithLabels(labels))
 				if err != nil {
 					s.Close()
+					ra.Close()
 					return nil, err
 				}
 				layers[i].MediaType = images.MediaTypeDockerSchema2LayerGzip
@@ -302,7 +304,7 @@ func resolveLayers(ctx context.Context, store content.Store, layerFiles []string
 			layers[i].MediaType = images.MediaTypeDockerSchema2LayerGzip
 		}
 		s.Close()
-
+		ra.Close()
 	}
 	return layers, nil
 }

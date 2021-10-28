@@ -340,7 +340,7 @@ func BuildFromConfig(config *container.Config, changes []string, os string) (*co
 
 	// ensure that the commands are valid
 	for _, n := range dockerfile.AST.Children {
-		if !validCommitCommands[n.Value] {
+		if !validCommitCommands[strings.ToLower(n.Value)] {
 			return nil, errdefs.InvalidParameter(errors.Errorf("%s is not a valid change command", n.Value))
 		}
 	}

@@ -1,0 +1,140 @@
+// Copyright 2020, OpenTelemetry Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package opentelemetry.proto.logs.v1;
+
+import "opentelemetry/proto/common/v1/common.proto";
+import "opentelemetry/proto/resource/v1/resource.proto";
+
+option java_multiple_files = true;
+option java_package = "io.opentelemetry.proto.logs.v1";
+option java_outer_classname = "LogsProto";
+option go_package = "github.com/open-telemetry/opentelemetry-proto/gen/go/logs/v1";
+
+// A collection of InstrumentationLibraryLogs from a Resource.
+message ResourceLogs {
+  // The resource for the logs in this message.
+  // If this field is not set then resource info is unknown.
+  opentelemetry.proto.resource.v1.Resource resource = 1;
+
+  // A list of InstrumentationLibraryLogs that originate from a resource.
+  repeated InstrumentationLibraryLogs instrumentation_library_logs = 2;
+
+  // This schema_url applies to the data in the "resource" field. It does not apply
+  // to the data in the "instrumentation_library_logs" field which have their own
+  // schema_url field.
+  string schema_url = 3;
+}
+
+// A collection of Logs produced by an InstrumentationLibrary.
+message InstrumentationLibraryLogs {
+  // The instrumentation library information for the logs in this message.
+  // Semantically when InstrumentationLibrary isn't set, it is equivalent with
+  // an empty instrumentation library name (unknown).
+  opentelemetry.proto.common.v1.InstrumentationLibrary instrumentation_library = 1;
+
+  // A list of log records.
+  repeated LogRecord logs = 2;
+
+  // This schema_url applies to all logs in the "logs" field.
+  string schema_url = 3;
+}
+
+// Possible values for LogRecord.SeverityNumber.
+enum SeverityNumber {
+  // UNSPECIFIED is the default SeverityNumber, it MUST NOT be used.
+  SEVERITY_NUMBER_UNSPECIFIED = 0;
+  SEVERITY_NUMBER_TRACE  = 1;
+  SEVERITY_NUMBER_TRACE2 = 2;
+  SEVERITY_NUMBER_TRACE3 = 3;
+  SEVERITY_NUMBER_TRACE4 = 4;
+  SEVERITY_NUMBER_DEBUG  = 5;
+  SEVERITY_NUMBER_DEBUG2 = 6;
+  SEVERITY_NUMBER_DEBUG3 = 7;
+  SEVERITY_NUMBER_DEBUG4 = 8;
+  SEVERITY_NUMBER_INFO   = 9;
+  SEVERITY_NUMBER_INFO2  = 10;
+  SEVERITY_NUMBER_INFO3  = 11;
+  SEVERITY_NUMBER_INFO4  = 12;
+  SEVERITY_NUMBER_WARN   = 13;
+  SEVERITY_NUMBER_WARN2  = 14;
+  SEVERITY_NUMBER_WARN3  = 15;
+  SEVERITY_NUMBER_WARN4  = 16;
+  SEVERITY_NUMBER_ERROR  = 17;
+  SEVERITY_NUMBER_ERROR2 = 18;
+  SEVERITY_NUMBER_ERROR3 = 19;
+  SEVERITY_NUMBER_ERROR4 = 20;
+  SEVERITY_NUMBER_FATAL  = 21;
+  SEVERITY_NUMBER_FATAL2 = 22;
+  SEVERITY_NUMBER_FATAL3 = 23;
+  SEVERITY_NUMBER_FATAL4 = 24;
+}
+
+// Masks for LogRecord.flags field.
+enum LogRecordFlags {
+  LOG_RECORD_FLAG_UNSPECIFIED = 0;
+  LOG_RECORD_FLAG_TRACE_FLAGS_MASK = 0x000000FF;
+}
+
+// A log record according to OpenTelemetry Log Data Model:
+// https://github.com/open-telemetry/oteps/blob/main/text/logs/0097-log-data-model.md
+message LogRecord {
+  // time_unix_nano is the time when the event occurred.
+  // Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
+  // Value of 0 indicates unknown or missing timestamp.
+  fixed64 time_unix_nano = 1;
+
+  // Numerical value of the severity, normalized to values described in Log Data Model.
+  // [Optional].
+  SeverityNumber severity_number = 2;
+
+  // The severity text (also known as log level). The original string representation as
+  // it is known at the source. [Optional].
+  string severity_text = 3;
+
+  // Short event identifier that does not contain varying parts. Name describes
+  // what happened (e.g. "ProcessStarted"). Recommended to be no longer than 50
+  // characters. Not guaranteed to be unique in any way. [Optional].
+  string name = 4;
+
+  // A value containing the body of the log record. Can be for example a human-readable
+  // string message (including multi-line) describing the event in a free form or it can
+  // be a structured data composed of arrays and maps of other values. [Optional].
+  opentelemetry.proto.common.v1.AnyValue body = 5;
+
+  // Additional attributes that describe the specific event occurrence. [Optional].
+  repeated opentelemetry.proto.common.v1.KeyValue attributes = 6;
+  uint32 dropped_attributes_count = 7;
+
+  // Flags, a bit field. 8 least significant bits are the trace flags as
+  // defined in W3C Trace Context specification. 24 most significant bits are reserved
+  // and must be set to 0. Readers must not assume that 24 most significant bits
+  // will be zero and must correctly mask the bits when reading 8-bit trace flag (use
+  // flags & TRACE_FLAGS_MASK). [Optional].
+  fixed32 flags = 8;
+
+  // A unique identifier for a trace. All logs from the same trace share
+  // the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes
+  // is considered invalid. Can be set for logs that are part of request processing
+  // and have an assigned trace id. [Optional].
+  bytes trace_id = 9;
+
+  // A unique identifier for a span within a trace, assigned when the span
+  // is created. The ID is an 8-byte array. An ID with all zeroes is considered
+  // invalid. Can be set for logs that are part of a particular processing span.
+  // If span_id is present trace_id SHOULD be also present. [Optional].
+  bytes span_id = 10;
+}

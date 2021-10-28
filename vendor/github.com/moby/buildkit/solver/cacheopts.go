@@ -3,8 +3,9 @@ package solver
 import (
 	"context"
 
+	"github.com/moby/buildkit/util/bklog"
+
 	digest "github.com/opencontainers/go-digest"
-	"github.com/sirupsen/logrus"
 )
 
 type CacheOpts map[interface{}]interface{}
@@ -27,7 +28,7 @@ func withAncestorCacheOpts(ctx context.Context, start *state) context.Context {
 			keySet[k] = struct{}{}
 		}
 		values := make(map[interface{}]interface{})
-		walkAncestors(start, func(st *state) bool {
+		walkAncestors(ctx, start, func(st *state) bool {
 			if st.clientVertex.Error != "" {
 				// don't use values from cancelled or otherwise error'd vertexes
 				return false
@@ -52,7 +53,7 @@ func withAncestorCacheOpts(ctx context.Context, start *state) context.Context {
 	})
 }
 
-func walkAncestors(start *state, f func(*state) bool) {
+func walkAncestors(ctx context.Context, start *state, f func(*state) bool) {
 	stack := [][]*state{{start}}
 	cache := make(map[digest.Digest]struct{})
 	for len(stack) > 0 {
@@ -79,7 +80,7 @@ func walkAncestors(start *state, f func(*state) bool) {
 			parent := st.solver.actives[parentDgst]
 			st.solver.mu.RUnlock()
 			if parent == nil {
-				logrus.Warnf("parent %q not found in active job list during cache opt search", parentDgst)
+				bklog.G(ctx).Warnf("parent %q not found in active job list during cache opt search", parentDgst)
 				continue
 			}
 			stack[len(stack)-1] = append(stack[len(stack)-1], parent)

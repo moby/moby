@@ -7,6 +7,7 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/llbsolver/ops/fileoptypes"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/pkg/errors"
 )
 
@@ -18,7 +19,7 @@ type RefManager struct {
 	cm cache.Manager
 }
 
-func (rm *RefManager) Prepare(ctx context.Context, ref fileoptypes.Ref, readonly bool, g session.Group) (fileoptypes.Mount, error) {
+func (rm *RefManager) Prepare(ctx context.Context, ref fileoptypes.Ref, readonly bool, g session.Group) (_ fileoptypes.Mount, rerr error) {
 	ir, ok := ref.(cache.ImmutableRef)
 	if !ok && ref != nil {
 		return nil, errors.Errorf("invalid ref type: %T", ref)
@@ -36,6 +37,14 @@ func (rm *RefManager) Prepare(ctx context.Context, ref fileoptypes.Ref, readonly
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if rerr != nil {
+			if err := mr.SetCachePolicyDefault(); err != nil {
+				bklog.G(ctx).Errorf("failed to reset FileOp mutable ref cachepolicy: %v", err)
+			}
+			mr.Release(context.TODO())
+		}
+	}()
 	m, err := mr.Mount(ctx, readonly, g)
 	if err != nil {
 		return nil, err

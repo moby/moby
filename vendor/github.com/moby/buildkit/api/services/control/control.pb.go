@@ -827,18 +827,17 @@ func (m *Vertex) GetError() string {
 }
 
 type VertexStatus struct {
-	ID      string                                     `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
-	Vertex  github_com_opencontainers_go_digest.Digest `protobuf:"bytes,2,opt,name=vertex,proto3,customtype=github.com/opencontainers/go-digest.Digest" json:"vertex"`
-	Name    string                                     `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Current int64                                      `protobuf:"varint,4,opt,name=current,proto3" json:"current,omitempty"`
-	Total   int64                                      `protobuf:"varint,5,opt,name=total,proto3" json:"total,omitempty"`
-	// TODO: add started, completed
-	Timestamp            time.Time  `protobuf:"bytes,6,opt,name=timestamp,proto3,stdtime" json:"timestamp"`
-	Started              *time.Time `protobuf:"bytes,7,opt,name=started,proto3,stdtime" json:"started,omitempty"`
-	Completed            *time.Time `protobuf:"bytes,8,opt,name=completed,proto3,stdtime" json:"completed,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
-	XXX_unrecognized     []byte     `json:"-"`
-	XXX_sizecache        int32      `json:"-"`
+	ID                   string                                     `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	Vertex               github_com_opencontainers_go_digest.Digest `protobuf:"bytes,2,opt,name=vertex,proto3,customtype=github.com/opencontainers/go-digest.Digest" json:"vertex"`
+	Name                 string                                     `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Current              int64                                      `protobuf:"varint,4,opt,name=current,proto3" json:"current,omitempty"`
+	Total                int64                                      `protobuf:"varint,5,opt,name=total,proto3" json:"total,omitempty"`
+	Timestamp            time.Time                                  `protobuf:"bytes,6,opt,name=timestamp,proto3,stdtime" json:"timestamp"`
+	Started              *time.Time                                 `protobuf:"bytes,7,opt,name=started,proto3,stdtime" json:"started,omitempty"`
+	Completed            *time.Time                                 `protobuf:"bytes,8,opt,name=completed,proto3,stdtime" json:"completed,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                                   `json:"-"`
+	XXX_unrecognized     []byte                                     `json:"-"`
+	XXX_sizecache        int32                                      `json:"-"`
 }
 
 func (m *VertexStatus) Reset()         { *m = VertexStatus{} }

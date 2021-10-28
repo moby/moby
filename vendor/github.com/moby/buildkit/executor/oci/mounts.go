@@ -100,3 +100,17 @@ func withBoundProc() oci.SpecOpts {
 		return nil
 	}
 }
+
+func dedupMounts(mnts []specs.Mount) []specs.Mount {
+	ret := make([]specs.Mount, 0, len(mnts))
+	visited := make(map[string]int)
+	for i, mnt := range mnts {
+		if j, ok := visited[mnt.Destination]; ok {
+			ret[j] = mnt
+		} else {
+			visited[mnt.Destination] = i
+			ret = append(ret, mnt)
+		}
+	}
+	return ret
+}

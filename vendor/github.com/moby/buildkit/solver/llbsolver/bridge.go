@@ -18,11 +18,11 @@ import (
 	"github.com/moby/buildkit/solver/errdefs"
 	llberrdefs "github.com/moby/buildkit/solver/llbsolver/errdefs"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type llbBridge struct {
@@ -36,20 +36,20 @@ type llbBridge struct {
 	sm                        *session.Manager
 }
 
-func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImports []gw.CacheOptionsEntry) (solver.CachedResult, error) {
+func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImports []gw.CacheOptionsEntry) (solver.CachedResult, solver.BuildInfo, error) {
 	w, err := b.resolveWorker()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	ent, err := loadEntitlements(b.builder)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var cms []solver.CacheManager
 	for _, im := range cacheImports {
 		cmID, err := cmKey(im)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		b.cmsMu.Lock()
 		var cm solver.CacheManager
@@ -69,7 +69,7 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 						cmNew, err = ci.Resolve(ctx, desc, cmID, w)
 						return err
 					}); err != nil {
-						logrus.Debugf("error while importing cache manifest from cmId=%s: %v", cmID, err)
+						bklog.G(ctx).Debugf("error while importing cache manifest from cmId=%s: %v", cmID, err)
 						return nil, err
 					}
 					return cmNew, nil
@@ -86,7 +86,7 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 
 	edge, err := Load(def, dpc.Load, ValidateEntitlements(ent), WithCacheSources(cms), NormalizeRuntimePlatforms(), WithValidateCaps())
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to load LLB")
+		return nil, nil, errors.Wrap(err, "failed to load LLB")
 	}
 
 	if len(dpc.ids) > 0 {
@@ -97,24 +97,15 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 		if err := b.eachWorker(func(w worker.Worker) error {
 			return w.PruneCacheMounts(ctx, ids)
 		}); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
-	res, err := b.builder.Build(ctx, edge)
+	res, bi, err := b.builder.Build(ctx, edge)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	wr, ok := res.Sys().(*worker.WorkerRef)
-	if !ok {
-		return nil, errors.Errorf("invalid reference for exporting: %T", res.Sys())
-	}
-	if wr.ImmutableRef != nil {
-		if err := wr.ImmutableRef.Finalize(ctx, false); err != nil {
-			return nil, err
-		}
-	}
-	return res, err
+	return res, bi, nil
 }
 
 func (b *llbBridge) Solve(ctx context.Context, req frontend.SolveRequest, sid string) (res *frontend.Result, err error) {
@@ -135,7 +126,7 @@ func (b *llbBridge) Solve(ctx context.Context, req frontend.SolveRequest, sid st
 		}
 		res, err = f.Solve(ctx, b, req.FrontendOpt, req.FrontendInputs, sid, b.sm)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to solve with frontend %s", req.Frontend)
+			return nil, err
 		}
 	} else {
 		return &frontend.Result{}, nil
@@ -145,12 +136,13 @@ func (b *llbBridge) Solve(ctx context.Context, req frontend.SolveRequest, sid st
 }
 
 type resultProxy struct {
-	cb         func(context.Context) (solver.CachedResult, error)
+	cb         func(context.Context) (solver.CachedResult, solver.BuildInfo, error)
 	def        *pb.Definition
 	g          flightcontrol.Group
 	mu         sync.Mutex
 	released   bool
 	v          solver.CachedResult
+	bi         solver.BuildInfo
 	err        error
 	errResults []solver.Result
 }
@@ -159,8 +151,8 @@ func newResultProxy(b *llbBridge, req frontend.SolveRequest) *resultProxy {
 	rp := &resultProxy{
 		def: req.Definition,
 	}
-	rp.cb = func(ctx context.Context) (solver.CachedResult, error) {
-		res, err := b.loadResult(ctx, req.Definition, req.CacheImports)
+	rp.cb = func(ctx context.Context) (solver.CachedResult, solver.BuildInfo, error) {
+		res, bi, err := b.loadResult(ctx, req.Definition, req.CacheImports)
 		var ee *llberrdefs.ExecError
 		if errors.As(err, &ee) {
 			ee.EachRef(func(res solver.Result) error {
@@ -170,13 +162,17 @@ func newResultProxy(b *llbBridge, req frontend.SolveRequest) *resultProxy {
 			// acquire ownership so ExecError finalizer doesn't attempt to release as well
 			ee.OwnerBorrowed = true
 		}
-		return res, err
+		return res, bi, err
 	}
 	return rp
 }
 
 func (rp *resultProxy) Definition() *pb.Definition {
 	return rp.def
+}
+
+func (rp *resultProxy) BuildInfo() solver.BuildInfo {
+	return rp.bi
 }
 
 func (rp *resultProxy) Release(ctx context.Context) (err error) {
@@ -190,7 +186,7 @@ func (rp *resultProxy) Release(ctx context.Context) (err error) {
 	}
 	if rp.v != nil {
 		if rp.released {
-			logrus.Warnf("release of already released result")
+			bklog.G(ctx).Warnf("release of already released result")
 		}
 		rerr := rp.v.Release(ctx)
 		if err != nil {
@@ -237,7 +233,7 @@ func (rp *resultProxy) Result(ctx context.Context) (res solver.CachedResult, err
 			return rp.v, rp.err
 		}
 		rp.mu.Unlock()
-		v, err := rp.cb(ctx)
+		v, bi, err := rp.cb(ctx)
 		if err != nil {
 			select {
 			case <-ctx.Done():
@@ -256,6 +252,7 @@ func (rp *resultProxy) Result(ctx context.Context) (res solver.CachedResult, err
 			return nil, errors.Errorf("evaluating released result")
 		}
 		rp.v = v
+		rp.bi = bi
 		rp.err = err
 		rp.mu.Unlock()
 		return v, err

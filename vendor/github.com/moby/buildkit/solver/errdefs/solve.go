@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/containerd/typeurl"
-	"github.com/golang/protobuf/jsonpb"
+	"github.com/golang/protobuf/jsonpb" //nolint:staticcheck
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/grpcerrors"
 )

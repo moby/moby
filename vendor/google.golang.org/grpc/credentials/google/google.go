@@ -33,6 +33,8 @@ import (
 
 const tokenRequestTimeout = 30 * time.Second
 
+var logger = grpclog.Component("credentials")
+
 // NewDefaultCredentials returns a credentials bundle that is configured to work
 // with google services.
 //
@@ -44,14 +46,14 @@ func NewDefaultCredentials() credentials.Bundle {
 			defer cancel()
 			perRPCCreds, err := oauth.NewApplicationDefault(ctx)
 			if err != nil {
-				grpclog.Warningf("google default creds: failed to create application oauth: %v", err)
+				logger.Warningf("google default creds: failed to create application oauth: %v", err)
 			}
 			return perRPCCreds
 		},
 	}
 	bundle, err := c.NewWithMode(internal.CredsBundleModeFallback)
 	if err != nil {
-		grpclog.Warningf("google default creds: failed to create new creds: %v", err)
+		logger.Warningf("google default creds: failed to create new creds: %v", err)
 	}
 	return bundle
 }
@@ -69,7 +71,7 @@ func NewComputeEngineCredentials() credentials.Bundle {
 	}
 	bundle, err := c.NewWithMode(internal.CredsBundleModeFallback)
 	if err != nil {
-		grpclog.Warningf("compute engine creds: failed to create new creds: %v", err)
+		logger.Warningf("compute engine creds: failed to create new creds: %v", err)
 	}
 	return bundle
 }
@@ -97,6 +99,15 @@ func (c *creds) PerRPCCredentials() credentials.PerRPCCredentials {
 	return c.perRPCCreds
 }
 
+var (
+	newTLS = func() credentials.TransportCredentials {
+		return credentials.NewTLS(nil)
+	}
+	newALTS = func() credentials.TransportCredentials {
+		return alts.NewClientCreds(alts.DefaultClientOptions())
+	}
+)
+
 // NewWithMode should make a copy of Bundle, and switch mode. Modifying the
 // existing Bundle may cause races.
 func (c *creds) NewWithMode(mode string) (credentials.Bundle, error) {
@@ -108,11 +119,11 @@ func (c *creds) NewWithMode(mode string) (credentials.Bundle, error) {
 	// Create transport credentials.
 	switch mode {
 	case internal.CredsBundleModeFallback:
-		newCreds.transportCreds = credentials.NewTLS(nil)
+		newCreds.transportCreds = newClusterTransportCreds(newTLS(), newALTS())
 	case internal.CredsBundleModeBackendFromBalancer, internal.CredsBundleModeBalancer:
 		// Only the clients can use google default credentials, so we only need
 		// to create new ALTS client creds here.
-		newCreds.transportCreds = alts.NewClientCreds(alts.DefaultClientOptions())
+		newCreds.transportCreds = newALTS()
 	default:
 		return nil, fmt.Errorf("unsupported mode: %v", mode)
 	}

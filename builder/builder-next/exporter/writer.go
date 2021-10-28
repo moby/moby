@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/moby/buildkit/cache"
+	"github.com/moby/buildkit/util/buildinfo"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/system"
 	digest "github.com/opencontainers/go-digest"
@@ -41,7 +42,7 @@ func parseHistoryFromConfig(dt []byte) ([]ocispec.History, error) {
 	return config.History, nil
 }
 
-func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History, cache []byte) ([]byte, error) {
+func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History, cache []byte, buildInfo []byte) ([]byte, error) {
 	m := map[string]json.RawMessage{}
 	if err := json.Unmarshal(dt, &m); err != nil {
 		return nil, errors.Wrap(err, "failed to parse image config for patch")
@@ -83,6 +84,16 @@ func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History,
 			return nil, errors.Wrap(err, "failed to marshal cache")
 		}
 		m["moby.buildkit.cache.v0"] = dt
+	}
+
+	if buildInfo != nil {
+		dt, err := json.Marshal(buildInfo)
+		if err != nil {
+			return nil, err
+		}
+		m[buildinfo.ImageConfigField] = dt
+	} else if len(m[buildinfo.ImageConfigField]) > 0 {
+		delete(m, buildinfo.ImageConfigField)
 	}
 
 	dt, err = json.Marshal(m)
@@ -187,10 +198,10 @@ func getRefMetadata(ref cache.ImmutableRef, limit int) []refMetadata {
 	if ref == nil {
 		return append(getRefMetadata(nil, limit-1), meta)
 	}
-	if descr := cache.GetDescription(ref.Metadata()); descr != "" {
+	if descr := ref.GetDescription(); descr != "" {
 		meta.description = descr
 	}
-	meta.createdAt = cache.GetCreatedAt(ref.Metadata())
+	meta.createdAt = ref.GetCreatedAt()
 	p := ref.Parent()
 	if p != nil {
 		defer p.Release(context.TODO())
@@ -199,7 +210,7 @@ func getRefMetadata(ref cache.ImmutableRef, limit int) []refMetadata {
 }
 
 func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.FromContext(ctx)
+	pw, _, _ := progress.NewFromContext(ctx)
 	now := time.Now()
 	st := progress.Status{
 		Started: &now,

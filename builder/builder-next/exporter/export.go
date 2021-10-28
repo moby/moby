@@ -93,9 +93,13 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 	}
 
 	var config []byte
+	var buildInfo []byte
 	switch len(inp.Refs) {
 	case 0:
 		config = inp.Metadata[exptypes.ExporterImageConfigKey]
+		if v, ok := inp.Metadata[exptypes.ExporterBuildInfo]; ok {
+			buildInfo = v
+		}
 	case 1:
 		platformsBytes, ok := inp.Metadata[exptypes.ExporterPlatformsKey]
 		if !ok {
@@ -109,13 +113,16 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 			return nil, errors.Errorf("number of platforms does not match references %d %d", len(p.Platforms), len(inp.Refs))
 		}
 		config = inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterImageConfigKey, p.Platforms[0].ID)]
+		if v, ok := inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterBuildInfo, p.Platforms[0].ID)]; ok {
+			buildInfo = v
+		}
 	}
 
 	var diffs []digest.Digest
 	if ref != nil {
 		layersDone := oneOffProgress(ctx, "exporting layers")
 
-		if err := ref.Finalize(ctx, true); err != nil {
+		if err := ref.Finalize(ctx); err != nil {
 			return nil, layersDone(err)
 		}
 
@@ -147,7 +154,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 
 	diffs, history = normalizeLayersAndHistory(diffs, history, ref)
 
-	config, err = patchImageConfig(config, diffs, history, inp.Metadata[exptypes.ExporterInlineCache])
+	config, err = patchImageConfig(config, diffs, history, inp.Metadata[exptypes.ExporterInlineCache], buildInfo)
 	if err != nil {
 		return nil, err
 	}

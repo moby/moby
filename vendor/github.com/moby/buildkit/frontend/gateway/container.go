@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/moby/buildkit/util/bklog"
+
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/frontend/gateway/client"
@@ -20,13 +22,13 @@ import (
 	utilsystem "github.com/moby/buildkit/util/system"
 	"github.com/moby/buildkit/worker"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
 type NewContainerRequest struct {
 	ContainerID string
 	NetMode     opspb.NetMode
+	ExtraHosts  []executor.HostIP
 	Mounts      []Mount
 	Platform    *opspb.Platform
 	Constraints *opspb.WorkerConstraints
@@ -51,13 +53,14 @@ func NewContainer(ctx context.Context, w worker.Worker, sm *session.Manager, g s
 		platform = *req.Platform
 	}
 	ctr := &gatewayContainer{
-		id:       req.ContainerID,
-		netMode:  req.NetMode,
-		platform: platform,
-		executor: w.Executor(),
-		errGroup: eg,
-		ctx:      ctx,
-		cancel:   cancel,
+		id:         req.ContainerID,
+		netMode:    req.NetMode,
+		extraHosts: req.ExtraHosts,
+		platform:   platform,
+		executor:   w.Executor(),
+		errGroup:   eg,
+		ctx:        ctx,
+		cancel:     cancel,
 	}
 
 	var (
@@ -75,7 +78,7 @@ func NewContainer(ctx context.Context, w worker.Worker, sm *session.Manager, g s
 	}
 
 	name := fmt.Sprintf("container %s", req.ContainerID)
-	mm := mounts.NewMountManager(name, w.CacheManager(), sm, w.MetadataStore())
+	mm := mounts.NewMountManager(name, w.CacheManager(), sm)
 	p, err := PrepareMounts(ctx, mm, w.CacheManager(), g, "", mnts, refs, func(m *opspb.Mount, ref cache.ImmutableRef) (cache.MutableRef, error) {
 		cm := w.CacheManager()
 		if m.Input != opspb.Empty {
@@ -208,7 +211,7 @@ func PrepareMounts(ctx context.Context, mm *mounts.MountManager, cm cache.Manage
 			}
 
 		case opspb.MountType_TMPFS:
-			mountable = mm.MountableTmpFS()
+			mountable = mm.MountableTmpFS(m)
 		case opspb.MountType_SECRET:
 			var err error
 			mountable, err = mm.MountableSecret(ctx, m, g)
@@ -275,18 +278,19 @@ func PrepareMounts(ctx context.Context, mm *mounts.MountManager, cm cache.Manage
 }
 
 type gatewayContainer struct {
-	id       string
-	netMode  opspb.NetMode
-	platform opspb.Platform
-	rootFS   executor.Mount
-	mounts   []executor.Mount
-	executor executor.Executor
-	started  bool
-	errGroup *errgroup.Group
-	mu       sync.Mutex
-	cleanup  []func() error
-	ctx      context.Context
-	cancel   func()
+	id         string
+	netMode    opspb.NetMode
+	extraHosts []executor.HostIP
+	platform   opspb.Platform
+	rootFS     executor.Mount
+	mounts     []executor.Mount
+	executor   executor.Executor
+	started    bool
+	errGroup   *errgroup.Group
+	mu         sync.Mutex
+	cleanup    []func() error
+	ctx        context.Context
+	cancel     func()
 }
 
 func (gwCtr *gatewayContainer) Start(ctx context.Context, req client.StartRequest) (client.ContainerProcess, error) {
@@ -299,6 +303,7 @@ func (gwCtr *gatewayContainer) Start(ctx context.Context, req client.StartReques
 			Cwd:          req.Cwd,
 			Tty:          req.Tty,
 			NetMode:      gwCtr.netMode,
+			ExtraHosts:   gwCtr.extraHosts,
 			SecurityMode: req.SecurityMode,
 		},
 		Stdin:  req.Stdin,
@@ -331,7 +336,7 @@ func (gwCtr *gatewayContainer) Start(ctx context.Context, req client.StartReques
 	if !started {
 		startedCh := make(chan struct{})
 		gwProc.errGroup.Go(func() error {
-			logrus.Debugf("Starting new container for %s with args: %q", gwCtr.id, procInfo.Meta.Args)
+			bklog.G(gwCtr.ctx).Debugf("Starting new container for %s with args: %q", gwCtr.id, procInfo.Meta.Args)
 			err := gwCtr.executor.Run(ctx, gwCtr.id, gwCtr.rootFS, gwCtr.mounts, procInfo, startedCh)
 			return stack.Enable(err)
 		})
@@ -341,7 +346,7 @@ func (gwCtr *gatewayContainer) Start(ctx context.Context, req client.StartReques
 		}
 	} else {
 		gwProc.errGroup.Go(func() error {
-			logrus.Debugf("Execing into container %s with args: %q", gwCtr.id, procInfo.Meta.Args)
+			bklog.G(gwCtr.ctx).Debugf("Execing into container %s with args: %q", gwCtr.id, procInfo.Meta.Args)
 			err := gwCtr.executor.Exec(ctx, gwCtr.id, procInfo)
 			return stack.Enable(err)
 		})

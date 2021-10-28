@@ -89,6 +89,6 @@ func workerRefConverter(g session.Group) func(ctx context.Context, res solver.Re
 			return nil, errors.Errorf("invalid result: %T", res.Sys())
 		}
 
-		return ref.GetRemote(ctx, true, compression.Default, g)
+		return ref.GetRemote(ctx, true, compression.Default, false, g)
 	}
 }

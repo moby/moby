@@ -16,17 +16,19 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/client/llb/imagemetaresolver"
+	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
+	"github.com/moby/buildkit/util/suggest"
 	"github.com/moby/buildkit/util/system"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/moby/sys/signal"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -53,10 +55,12 @@ type ConvertOpt struct {
 	// CacheIDNamespace scopes the IDs for different cache mounts
 	CacheIDNamespace  string
 	ImageResolveMode  llb.ResolveMode
-	TargetPlatform    *specs.Platform
-	BuildPlatforms    []specs.Platform
+	TargetPlatform    *ocispecs.Platform
+	BuildPlatforms    []ocispecs.Platform
 	PrefixPlatform    bool
 	ExtraHosts        []llb.HostIP
+	ShmSize           int64
+	Ulimit            []pb.Ulimit
 	ForceNetMode      pb.NetMode
 	OverrideCopyImage string
 	LLBCaps           *apicaps.CapSet
@@ -216,6 +220,13 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 		allDispatchStates.states[0].stageName = ""
 	}
 
+	allStageNames := make([]string, 0, len(allDispatchStates.states))
+	for _, s := range allDispatchStates.states {
+		if s.stageName != "" {
+			allStageNames = append(allStageNames, s.stageName)
+		}
+	}
+
 	eg, ctx := errgroup.WithContext(ctx)
 	for i, d := range allDispatchStates.states {
 		reachable := isReachable(target, d)
@@ -227,10 +238,16 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 				continue
 			}
 			func(i int, d *dispatchState) {
-				eg.Go(func() error {
+				eg.Go(func() (err error) {
+					defer func() {
+						if err != nil {
+							err = parser.WithLocation(err, d.stage.Location)
+						}
+					}()
+					origName := d.stage.BaseName
 					ref, err := reference.ParseNormalizedNamed(d.stage.BaseName)
 					if err != nil {
-						return parser.WithLocation(errors.Wrapf(err, "failed to parse stage name %q", d.stage.BaseName), d.stage.Location)
+						return errors.Wrapf(err, "failed to parse stage name %q", d.stage.BaseName)
 					}
 					platform := d.platform
 					if platform == nil {
@@ -238,7 +255,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 					}
 					d.stage.BaseName = reference.TagNameOnly(ref).String()
 					var isScratch bool
-					if metaResolver != nil && reachable && !d.unregistered {
+					if metaResolver != nil && reachable {
 						prefix := "["
 						if opt.PrefixPlatform && platform != nil {
 							prefix += platforms.Format(*platform) + " "
@@ -250,11 +267,11 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 							LogName:     fmt.Sprintf("%s load metadata for %s", prefix, d.stage.BaseName),
 						})
 						if err != nil {
-							return err
+							return suggest.WrapError(errors.Wrap(err, origName), origName, append(allStageNames, commonImageNames()...), true)
 						}
 						var img Image
 						if err := json.Unmarshal(dt, &img); err != nil {
-							return err
+							return errors.Wrap(err, "failed to parse image config")
 						}
 						img.Created = nil
 						// if there is no explicit target platform, try to match based on image config
@@ -262,7 +279,6 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 							p := autoDetectPlatform(img, *platform, platformOpt.buildPlatforms)
 							platform = &p
 						}
-						d.image = img
 						if dgst != "" {
 							ref, err = reference.WithDigest(ref, dgst)
 							if err != nil {
@@ -280,6 +296,17 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 								}
 							}
 						}
+						if !isScratch {
+							// image not scratch set original image name as ref
+							// and actual reference as alias in BuildInfo
+							d.buildInfo = &exptypes.BuildInfo{
+								Type:  exptypes.BuildInfoTypeDockerImage,
+								Ref:   origName,
+								Alias: ref.String(),
+								Pin:   dgst.String(),
+							}
+						}
+						d.image = img
 					}
 					if isScratch {
 						d.state = llb.Scratch()
@@ -305,11 +332,18 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 
 	buildContext := &mutableOutput{}
 	ctxPaths := map[string]struct{}{}
+	var buildInfos []exptypes.BuildInfo
 
 	for _, d := range allDispatchStates.states {
 		if !isReachable(target, d) {
 			continue
 		}
+
+		// collect build dependencies
+		if d.buildInfo != nil {
+			buildInfos = append(buildInfos, *d.buildInfo)
+		}
+
 		if d.base != nil {
 			d.state = d.base.state
 			d.platform = d.base.platform
@@ -357,6 +391,8 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 			buildPlatforms:    platformOpt.buildPlatforms,
 			targetPlatform:    platformOpt.targetPlatform,
 			extraHosts:        opt.ExtraHosts,
+			shmSize:           opt.ShmSize,
+			ulimit:            opt.Ulimit,
 			copyImage:         opt.OverrideCopyImage,
 			llbCaps:           opt.LLBCaps,
 			sourceMap:         opt.SourceMap,
@@ -378,6 +414,18 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 
 		for p := range d.ctxPaths {
 			ctxPaths[p] = struct{}{}
+		}
+	}
+
+	// set target with gathered build dependencies
+	target.image.BuildInfo = []byte{}
+	if len(buildInfos) > 0 {
+		sort.Slice(buildInfos, func(i, j int) bool {
+			return buildInfos[i].Ref < buildInfos[j].Ref
+		})
+		target.image.BuildInfo, err = json.Marshal(buildInfos)
+		if err != nil {
+			return nil, nil, err
 		}
 	}
 
@@ -472,9 +520,11 @@ type dispatchOpt struct {
 	buildContext      llb.State
 	proxyEnv          *llb.ProxyEnv
 	cacheIDNamespace  string
-	targetPlatform    specs.Platform
-	buildPlatforms    []specs.Platform
+	targetPlatform    ocispecs.Platform
+	buildPlatforms    []ocispecs.Platform
 	extraHosts        []llb.HostIP
+	shmSize           int64
+	ulimit            []pb.Ulimit
 	copyImage         string
 	llbCaps           *apicaps.CapSet
 	sourceMap         *llb.SourceMap
@@ -554,7 +604,7 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 type dispatchState struct {
 	state          llb.State
 	image          Image
-	platform       *specs.Platform
+	platform       *ocispecs.Platform
 	stage          instructions.Stage
 	base           *dispatchState
 	deps           map[*dispatchState]struct{}
@@ -568,6 +618,7 @@ type dispatchState struct {
 	cmdIndex       int
 	cmdTotal       int
 	prefixPlatform bool
+	buildInfo      *exptypes.BuildInfo
 }
 
 type dispatchStates struct {
@@ -649,9 +700,11 @@ func dispatchEnv(d *dispatchState, c *instructions.EnvCommand) error {
 func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyEnv, sources []*dispatchState, dopt dispatchOpt) error {
 	var opt []llb.RunOption
 
+	customname := c.String()
+
 	var args []string = c.CmdLine
 	if len(c.Files) > 0 {
-		if len(args) != 1 {
+		if len(args) != 1 || !c.PrependShell {
 			return fmt.Errorf("parsing produced an invalid run command: %v", args)
 		}
 
@@ -669,12 +722,15 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 				if c.Files[0].Chomp {
 					data = parser.ChompHeredocContent(data)
 				}
-				st := llb.Scratch().Dir(sourcePath).File(llb.Mkfile(f, 0755, []byte(data)))
+				st := llb.Scratch().Dir(sourcePath).File(
+					llb.Mkfile(f, 0755, []byte(data)),
+					WithInternalName("preparing inline document"),
+				)
 
 				mount := llb.AddMount(destPath, st, llb.SourcePath(sourcePath), llb.Readonly)
 				opt = append(opt, mount)
 
-				args[0] = path.Join(destPath, f)
+				args = []string{path.Join(destPath, f)}
 			} else {
 				// Just a simple heredoc, so just run the contents in the
 				// shell: this creates the effect of a "fake"-heredoc, so that
@@ -685,14 +741,17 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 				if c.Files[0].Chomp {
 					data = parser.ChompHeredocContent(data)
 				}
-				args[0] = data
+				args = []string{data}
 			}
+			customname += fmt.Sprintf(" (%s)", summarizeHeredoc(c.Files[0].Data))
 		} else {
 			// More complex heredoc, so reconstitute it, and pass it to the
 			// shell to handle.
+			full := args[0]
 			for _, file := range c.Files {
-				args[0] += "\n" + file.Data + file.Name
+				full += "\n" + file.Data + file.Name
 			}
+			args = []string{full}
 		}
 	}
 	if c.PrependShell {
@@ -733,6 +792,12 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 		opt = append(opt, networkOpt)
 	}
 
+	if dopt.llbCaps != nil && dopt.llbCaps.Supports(pb.CapExecMetaUlimit) == nil {
+		for _, u := range dopt.ulimit {
+			opt = append(opt, llb.AddUlimit(llb.UlimitName(u.Name), u.Soft, u.Hard))
+		}
+	}
+
 	shlex := *dopt.shlex
 	shlex.RawQuotes = true
 	shlex.SkipUnsetEnv = true
@@ -741,10 +806,17 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 	if err != nil {
 		return err
 	}
-	opt = append(opt, llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(&shlex, c.String(), env)), d.prefixPlatform, pl)))
+	opt = append(opt, llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(&shlex, customname, env)), d.prefixPlatform, pl)))
 	for _, h := range dopt.extraHosts {
 		opt = append(opt, llb.AddExtraHost(h.Host, h.IP))
 	}
+
+	if dopt.llbCaps != nil && dopt.llbCaps.Supports(pb.CapExecMountTmpfsSize) == nil {
+		if dopt.shmSize > 0 {
+			opt = append(opt, llb.AddMount("/dev/shm", llb.Scratch(), llb.Tmpfs(llb.TmpfsSize(dopt.shmSize))))
+		}
+	}
+
 	d.state = d.state.Run(opt...).Root()
 	return commitToHistory(&d.image, "RUN "+runCommandString(args, d.buildArgs, shell.BuildEnvs(env)), true, &d.state)
 }
@@ -868,9 +940,14 @@ func dispatchCopyFileOp(d *dispatchState, c instructions.SourcesAndDest, sourceS
 	}
 
 	for _, src := range c.SourceContents {
+		commitMessage.WriteString(" <<" + src.Path)
+
 		data := src.Data
 		f := src.Path
-		st := llb.Scratch().Dir("/").File(llb.Mkfile(f, 0664, []byte(data)))
+		st := llb.Scratch().File(
+			llb.Mkfile(f, 0664, []byte(data)),
+			WithInternalName("preparing inline document"),
+		)
 
 		opts := append([]llb.CopyOption{&llb.CopyInfo{
 			Mode:           mode,
@@ -1279,7 +1356,7 @@ func commitToHistory(img *Image, msg string, withLayer bool, st *llb.State) erro
 		msg += " # buildkit"
 	}
 
-	img.History = append(img.History, specs.History{
+	img.History = append(img.History, ocispecs.History{
 		CreatedBy:  msg,
 		Comment:    historyComment,
 		EmptyLayer: !withLayer,
@@ -1433,7 +1510,7 @@ func withShell(img Image, args []string) []string {
 	return append(shell, strings.Join(args, " "))
 }
 
-func autoDetectPlatform(img Image, target specs.Platform, supported []specs.Platform) specs.Platform {
+func autoDetectPlatform(img Image, target ocispecs.Platform, supported []ocispecs.Platform) ocispecs.Platform {
 	os := img.OS
 	arch := img.Architecture
 	if target.OS == os && target.Architecture == arch {
@@ -1465,7 +1542,7 @@ func processCmdEnv(shlex *shell.Lex, cmd string, env []string) string {
 	return w
 }
 
-func prefixCommand(ds *dispatchState, str string, prefixPlatform bool, platform *specs.Platform) string {
+func prefixCommand(ds *dispatchState, str string, prefixPlatform bool, platform *ocispecs.Platform) string {
 	if ds.cmdTotal == 0 {
 		return str
 	}
@@ -1506,4 +1583,25 @@ func location(sm *llb.SourceMap, locations []parser.Range) llb.ConstraintsOpt {
 		})
 	}
 	return sm.Location(loc)
+}
+
+func summarizeHeredoc(doc string) string {
+	doc = strings.TrimSpace(doc)
+	lines := strings.Split(strings.ReplaceAll(doc, "\r\n", "\n"), "\n")
+	summary := lines[0]
+	if len(lines) > 1 {
+		summary += "..."
+	}
+	return summary
+}
+
+func commonImageNames() []string {
+	repos := []string{
+		"alpine", "busybox", "centos", "debian", "golang", "ubuntu", "fedora",
+	}
+	out := make([]string, 0, len(repos)*4)
+	for _, name := range repos {
+		out = append(out, name, "docker.io/library"+name, name+":latest", "docker.io/library"+name+":latest")
+	}
+	return out
 }

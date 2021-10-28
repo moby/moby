@@ -20,12 +20,12 @@ import (
 	"github.com/moby/buildkit/session/filesync"
 	"github.com/moby/buildkit/session/grpchijack"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/entitlements"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	opentracing "github.com/opentracing/opentracing-go"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	fstypes "github.com/tonistiigi/fsutil/types"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -93,8 +93,8 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 	statusContext, cancelStatus := context.WithCancel(context.Background())
 	defer cancelStatus()
 
-	if span := opentracing.SpanFromContext(ctx); span != nil {
-		statusContext = opentracing.ContextWithSpan(statusContext, span)
+	if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
+		statusContext = trace.ContextWithSpan(statusContext, span)
 	}
 
 	s := opt.SharedSession
@@ -109,7 +109,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 		}
 	}
 
-	cacheOpt, err := parseCacheOptions(opt)
+	cacheOpt, err := parseCacheOptions(ctx, opt)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,11 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 		}
 
 		eg.Go(func() error {
-			return s.Run(statusContext, grpchijack.Dialer(c.controlClient()))
+			sd := c.sessionDialer
+			if sd == nil {
+				sd = grpchijack.Dialer(c.controlClient())
+			}
+			return s.Run(statusContext, sd)
 		})
 	}
 
@@ -181,7 +185,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 				<-time.After(3 * time.Second)
 				cancelStatus()
 			}()
-			logrus.Debugf("stopping session")
+			bklog.G(ctx).Debugf("stopping session")
 			s.Close()
 		}()
 		var pbd *pb.Definition
@@ -300,7 +304,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 	// Update index.json of exported cache content store
 	// FIXME(AkihiroSuda): dedupe const definition of cache/remotecache.ExporterResponseManifestDesc = "cache.manifest"
 	if manifestDescJSON := res.ExporterResponse["cache.manifest"]; manifestDescJSON != "" {
-		var manifestDesc ocispec.Descriptor
+		var manifestDesc ocispecs.Descriptor
 		if err = json.Unmarshal([]byte(manifestDescJSON), &manifestDesc); err != nil {
 			return nil, err
 		}
@@ -341,13 +345,13 @@ func prepareSyncedDirs(def *llb.Definition, localDirs map[string]string) ([]file
 				return nil, errors.Wrap(err, "failed to parse llb proto op")
 			}
 			if src := op.GetSource(); src != nil {
-				if strings.HasPrefix(src.Identifier, "local://") { // TODO: just make a type property
+				if strings.HasPrefix(src.Identifier, "local://") {
 					name := strings.TrimPrefix(src.Identifier, "local://")
 					d, ok := localDirs[name]
 					if !ok {
 						return nil, errors.Errorf("local directory %s not enabled", name)
 					}
-					dirs = append(dirs, filesync.SyncedDir{Name: name, Dir: d, Map: resetUIDAndGID}) // TODO: excludes
+					dirs = append(dirs, filesync.SyncedDir{Name: name, Dir: d, Map: resetUIDAndGID})
 				}
 			}
 		}
@@ -370,7 +374,7 @@ type cacheOptions struct {
 	frontendAttrs   map[string]string
 }
 
-func parseCacheOptions(opt SolveOpt) (*cacheOptions, error) {
+func parseCacheOptions(ctx context.Context, opt SolveOpt) (*cacheOptions, error) {
 	var (
 		cacheExports []*controlapi.CacheOptionsEntry
 		cacheImports []*controlapi.CacheOptionsEntry
@@ -423,18 +427,18 @@ func parseCacheOptions(opt SolveOpt) (*cacheOptions, error) {
 			}
 			cs, err := contentlocal.NewStore(csDir)
 			if err != nil {
-				logrus.Warning("local cache import at " + csDir + " not found due to err: " + err.Error())
+				bklog.G(ctx).Warning("local cache import at " + csDir + " not found due to err: " + err.Error())
 				continue
 			}
 			// if digest is not specified, load from "latest" tag
 			if attrs["digest"] == "" {
 				idx, err := ociindex.ReadIndexJSONFileLocked(filepath.Join(csDir, "index.json"))
 				if err != nil {
-					logrus.Warning("local cache import at " + csDir + " not found due to err: " + err.Error())
+					bklog.G(ctx).Warning("local cache import at " + csDir + " not found due to err: " + err.Error())
 					continue
 				}
 				for _, m := range idx.Manifests {
-					if (m.Annotations[ocispec.AnnotationRefName] == "latest" && attrs["tag"] == "") || (attrs["tag"] != "" && m.Annotations[ocispec.AnnotationRefName] == attrs["tag"]) {
+					if (m.Annotations[ocispecs.AnnotationRefName] == "latest" && attrs["tag"] == "") || (attrs["tag"] != "" && m.Annotations[ocispecs.AnnotationRefName] == attrs["tag"]) {
 						attrs["digest"] = string(m.Digest)
 						break
 					}

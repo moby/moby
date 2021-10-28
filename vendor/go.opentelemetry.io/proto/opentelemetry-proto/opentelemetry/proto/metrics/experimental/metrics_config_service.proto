@@ -1,0 +1,102 @@
+// Copyright 2019, OpenTelemetry Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package opentelemetry.proto.metrics.experimental;
+
+import "opentelemetry/proto/resource/v1/resource.proto";
+
+option java_multiple_files = true;
+option java_package = "io.opentelemetry.proto.metrics.experimental";
+option java_outer_classname = "MetricConfigServiceProto";
+option go_package = "github.com/open-telemetry/opentelemetry-proto/gen/go/metrics/experimental";
+
+// MetricConfig is a service that enables updating metric schedules, trace
+// parameters, and other configurations on the SDK without having to restart the
+// instrumented application. The collector can also serve as the configuration
+// service, acting as a bridge between third-party configuration services and
+// the SDK, piping updated configs from a third-party source to an instrumented
+// application.
+service MetricConfig {
+  rpc GetMetricConfig (MetricConfigRequest) returns (MetricConfigResponse);
+}
+
+message MetricConfigRequest{
+
+  // Required. The resource for which configuration should be returned.
+  opentelemetry.proto.resource.v1.Resource resource = 1;
+
+  // Optional. The value of MetricConfigResponse.fingerprint for the last
+  // configuration that the caller received and successfully applied.
+  bytes last_known_fingerprint = 2;
+}
+
+message MetricConfigResponse {
+
+  // Optional. The fingerprint associated with this MetricConfigResponse. Each
+  // change in configs yields a different fingerprint. The resource SHOULD copy
+  // this value to MetricConfigRequest.last_known_fingerprint for the next
+  // configuration request. If there are no changes between fingerprint and
+  // MetricConfigRequest.last_known_fingerprint, then all other fields besides
+  // fingerprint in the response are optional, or the same as the last update if
+  // present.
+  //
+  // The exact mechanics of generating the fingerprint is up to the
+  // implementation. However, a fingerprint must be deterministically determined
+  // by the configurations -- the same configuration will generate the same
+  // fingerprint on any instance of an implementation. Hence using a timestamp is
+  // unacceptable, but a deterministic hash is fine.
+  bytes fingerprint = 1;
+
+  // A Schedule is used to apply a particular scheduling configuration to
+  // a metric. If a metric name matches a schedule's patterns, then the metric
+  // adopts the configuration specified by the schedule.
+  message Schedule {
+
+    // A light-weight pattern that can match 1 or more
+    // metrics, for which this schedule will apply. The string is used to
+    // match against metric names. It should not exceed 100k characters.
+    message Pattern {
+      oneof match {
+        string equals = 1;       // matches the metric name exactly
+        string starts_with = 2;  // prefix-matches the metric name
+      }
+    }
+
+    // Metrics with names that match a rule in the inclusion_patterns are
+    // targeted by this schedule. Metrics that match the exclusion_patterns
+    // are not targeted for this schedule, even if they match an inclusion
+    // pattern.
+    repeated Pattern exclusion_patterns = 1;
+    repeated Pattern inclusion_patterns = 2;
+
+    // Describes the collection period for each metric in seconds.
+    // A period of 0 means to not export.
+    int32 period_sec = 3;
+  }
+
+  // A single metric may match multiple schedules. In such cases, the schedule
+  // that specifies the smallest period is applied.
+  //
+  // Note, for optimization purposes, it is recommended to use as few schedules
+  // as possible to capture all required metric updates. Where you can be
+  // conservative, do take full advantage of the inclusion/exclusion patterns to
+  // capture as much of your targeted metrics.
+  repeated Schedule schedules = 2;
+
+  // Optional. The client is suggested to wait this long (in seconds) before
+  // pinging the configuration service again.
+  int32 suggested_wait_time_sec = 3;
+}

@@ -7,24 +7,30 @@ import (
 	"io/ioutil"
 	"net"
 	"net/url"
+	"strings"
 
 	"github.com/containerd/containerd/defaults"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client/connhelper"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/grpchijack"
 	"github.com/moby/buildkit/util/appdefaults"
 	"github.com/moby/buildkit/util/grpcerrors"
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/moby/buildkit/util/tracing/otlptracegrpc"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
 type Client struct {
-	conn *grpc.ClientConn
+	conn          *grpc.ClientConn
+	sessionDialer func(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error)
 }
 
 type ClientOpt interface{}
@@ -41,6 +47,11 @@ func New(ctx context.Context, address string, opts ...ClientOpt) (*Client, error
 	var unary []grpc.UnaryClientInterceptor
 	var stream []grpc.StreamClientInterceptor
 
+	var customTracer bool // allows manually setting disabling tracing even if tracer in context
+	var tracerProvider trace.TracerProvider
+	var tracerDelegate TracerDelegate
+	var sessionDialer func(context.Context, string, map[string][]string) (net.Conn, error)
+
 	for _, o := range opts {
 		if _, ok := o.(*withFailFast); ok {
 			gopts = append(gopts, grpc.FailOnNonTempDialError(true))
@@ -54,14 +65,33 @@ func New(ctx context.Context, address string, opts ...ClientOpt) (*Client, error
 			needWithInsecure = false
 		}
 		if wt, ok := o.(*withTracer); ok {
-			unary = append(unary, otgrpc.OpenTracingClientInterceptor(wt.tracer, otgrpc.LogPayloads()))
-			stream = append(stream, otgrpc.OpenTracingStreamClientInterceptor(wt.tracer))
+			customTracer = true
+			tracerProvider = wt.tp
 		}
 		if wd, ok := o.(*withDialer); ok {
 			gopts = append(gopts, grpc.WithContextDialer(wd.dialer))
 			needDialer = false
 		}
+		if wt, ok := o.(*withTracerDelegate); ok {
+			tracerDelegate = wt
+		}
+		if sd, ok := o.(*withSessionDialer); ok {
+			sessionDialer = sd.dialer
+		}
 	}
+
+	if !customTracer {
+		if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
+			tracerProvider = span.TracerProvider()
+		}
+	}
+
+	if tracerProvider != nil {
+		var propagators = propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})
+		unary = append(unary, filterInterceptor(otelgrpc.UnaryClientInterceptor(otelgrpc.WithTracerProvider(tracerProvider), otelgrpc.WithPropagators(propagators))))
+		stream = append(stream, otelgrpc.StreamClientInterceptor(otelgrpc.WithTracerProvider(tracerProvider), otelgrpc.WithPropagators(propagators)))
+	}
+
 	if needDialer {
 		dialFn, err := resolveDialer(address)
 		if err != nil {
@@ -104,10 +134,26 @@ func New(ctx context.Context, address string, opts ...ClientOpt) (*Client, error
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to dial %q . make sure buildkitd is running", address)
 	}
+
 	c := &Client{
-		conn: conn,
+		conn:          conn,
+		sessionDialer: sessionDialer,
 	}
+
+	if tracerDelegate != nil {
+		_ = c.setupDelegatedTracing(ctx, tracerDelegate) // ignore error
+	}
+
 	return c, nil
+}
+
+func (c *Client) setupDelegatedTracing(ctx context.Context, td TracerDelegate) error {
+	pd := otlptracegrpc.NewClient(c.conn)
+	e, err := otlptrace.New(ctx, pd)
+	if err != nil {
+		return nil
+	}
+	return td.SetSpanExporter(ctx, e)
 }
 
 func (c *Client) controlClient() controlapi.ControlClient {
@@ -182,12 +228,34 @@ func loadCredentials(opts *withCredentials) (grpc.DialOption, error) {
 	return grpc.WithTransportCredentials(credentials.NewTLS(cfg)), nil
 }
 
-func WithTracer(t opentracing.Tracer) ClientOpt {
+func WithTracerProvider(t trace.TracerProvider) ClientOpt {
 	return &withTracer{t}
 }
 
 type withTracer struct {
-	tracer opentracing.Tracer
+	tp trace.TracerProvider
+}
+
+type TracerDelegate interface {
+	SetSpanExporter(context.Context, sdktrace.SpanExporter) error
+}
+
+func WithTracerDelegate(td TracerDelegate) ClientOpt {
+	return &withTracerDelegate{
+		TracerDelegate: td,
+	}
+}
+
+type withTracerDelegate struct {
+	TracerDelegate
+}
+
+func WithSessionDialer(dialer func(context.Context, string, map[string][]string) (net.Conn, error)) ClientOpt {
+	return &withSessionDialer{dialer}
+}
+
+type withSessionDialer struct {
+	dialer func(context.Context, string, map[string][]string) (net.Conn, error)
 }
 
 func resolveDialer(address string) (func(context.Context, string) (net.Conn, error), error) {
@@ -200,4 +268,13 @@ func resolveDialer(address string) (func(context.Context, string) (net.Conn, err
 	}
 	// basic dialer
 	return dialer, nil
+}
+
+func filterInterceptor(intercept grpc.UnaryClientInterceptor) grpc.UnaryClientInterceptor {
+	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		if strings.HasSuffix(method, "opentelemetry.proto.collector.trace.v1.TraceService/Export") {
+			return invoker(ctx, method, req, reply, cc, opts...)
+		}
+		return intercept(ctx, method, req, reply, cc, invoker, opts...)
+	}
 }

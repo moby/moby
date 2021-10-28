@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/remotes/docker/auth"
 	remoteserrors "github.com/containerd/containerd/remotes/errors"
 	"github.com/moby/buildkit/session"
 	sessionauth "github.com/moby/buildkit/session/auth"
+	log "github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -25,11 +25,12 @@ import (
 type authHandlerNS struct {
 	counter int64 // needs to be 64bit aligned for 32bit systems
 
-	mu       sync.Mutex
-	handlers map[string]*authHandler
-	hosts    map[string][]docker.RegistryHost
-	sm       *session.Manager
-	g        flightcontrol.Group
+	handlers   map[string]*authHandler
+	muHandlers sync.Mutex
+	hosts      map[string][]docker.RegistryHost
+	muHosts    sync.Mutex
+	sm         *session.Manager
+	g          flightcontrol.Group
 }
 
 func newAuthHandlerNS(sm *session.Manager) *authHandlerNS {
@@ -118,8 +119,8 @@ func newDockerAuthorizer(client *http.Client, handlers *authHandlerNS, sm *sessi
 
 // Authorize handles auth request.
 func (a *dockerAuthorizer) Authorize(ctx context.Context, req *http.Request) error {
-	a.handlers.mu.Lock()
-	defer a.handlers.mu.Unlock()
+	a.handlers.muHandlers.Lock()
+	defer a.handlers.muHandlers.Unlock()
 
 	// skip if there is no auth handler
 	ah := a.handlers.get(ctx, req.URL.Host, a.sm, a.session)
@@ -141,8 +142,8 @@ func (a *dockerAuthorizer) getCredentials(host string) (sessionID, username, sec
 }
 
 func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.Response) error {
-	a.handlers.mu.Lock()
-	defer a.handlers.mu.Unlock()
+	a.handlers.muHandlers.Lock()
+	defer a.handlers.muHandlers.Unlock()
 
 	last := responses[len(responses)-1]
 	host := last.Request.URL.Host

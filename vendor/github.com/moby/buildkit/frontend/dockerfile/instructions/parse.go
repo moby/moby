@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/moby/buildkit/frontend/dockerfile/command"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
+	"github.com/moby/buildkit/util/suggest"
 	"github.com/pkg/errors"
 )
 
@@ -63,7 +64,7 @@ func ParseInstruction(node *parser.Node) (v interface{}, err error) {
 		err = parser.WithLocation(err, node.Location())
 	}()
 	req := newParseRequestFromNode(node)
-	switch node.Value {
+	switch strings.ToLower(node.Value) {
 	case command.Env:
 		return parseEnv(req)
 	case command.Maintainer:
@@ -101,8 +102,7 @@ func ParseInstruction(node *parser.Node) (v interface{}, err error) {
 	case command.Shell:
 		return parseShell(req)
 	}
-
-	return nil, &UnknownInstruction{Instruction: node.Value, Line: node.StartLine}
+	return nil, suggest.WrapError(&UnknownInstruction{Instruction: node.Value, Line: node.StartLine}, node.Value, allInstructionNames(), false)
 }
 
 // ParseCommand converts an AST to a typed Command
@@ -124,7 +124,7 @@ type UnknownInstruction struct {
 }
 
 func (e *UnknownInstruction) Error() string {
-	return fmt.Sprintf("unknown instruction: %s", strings.ToUpper(e.Instruction))
+	return fmt.Sprintf("unknown instruction: %s", e.Instruction)
 }
 
 type parseError struct {
@@ -133,7 +133,7 @@ type parseError struct {
 }
 
 func (e *parseError) Error() string {
-	return fmt.Sprintf("dockerfile parse error line %d: %v", e.node.StartLine, e.inner.Error())
+	return fmt.Sprintf("dockerfile parse error on line %d: %v", e.node.StartLine, e.inner.Error())
 }
 
 func (e *parseError) Unwrap() error {
@@ -381,11 +381,14 @@ func parseOnBuild(req parseRequest) (*OnbuildCommand, error) {
 	}
 
 	original := regexp.MustCompile(`(?i)^\s*ONBUILD\s*`).ReplaceAllString(req.original, "")
+	for _, heredoc := range req.heredocs {
+		original += "\n" + heredoc.Content + heredoc.Name
+	}
+
 	return &OnbuildCommand{
 		Expression:      original,
 		withNameAndCode: newWithNameAndCode(req),
 	}, nil
-
 }
 
 func parseWorkdir(req parseRequest) (*WorkdirCommand, error) {
@@ -751,4 +754,14 @@ func getComment(comments []string, name string) string {
 		}
 	}
 	return ""
+}
+
+func allInstructionNames() []string {
+	out := make([]string, len(command.Commands))
+	i := 0
+	for name := range command.Commands {
+		out[i] = strings.ToUpper(name)
+		i++
+	}
+	return out
 }

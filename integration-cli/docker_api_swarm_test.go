@@ -33,7 +33,7 @@ import (
 	"gotest.tools/v3/poll"
 )
 
-var defaultReconciliationTimeout = 30 * time.Second
+var defaultReconciliationTimeout = 2 * time.Minute
 
 func (s *DockerSwarmSuite) TestAPISwarmInit(c *testing.T) {
 	// todo: should find a better way to verify that components are running than /info

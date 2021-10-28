@@ -9,11 +9,11 @@ import (
 
 	"github.com/containerd/console"
 	runc "github.com/containerd/go-runc"
-	"github.com/docker/docker/pkg/signal"
 	"github.com/moby/buildkit/executor"
+	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/sys/signal"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -74,7 +74,7 @@ func (w *runcExecutor) callWithIO(ctx context.Context, id, bundle string, proces
 		cancel() // this will shutdown resize loop
 		err := eg.Wait()
 		if err != nil {
-			logrus.Warningf("error while shutting down tty io: %s", err)
+			bklog.G(ctx).Warningf("error while shutting down tty io: %s", err)
 		}
 	}()
 
@@ -135,11 +135,11 @@ func (w *runcExecutor) callWithIO(ctx context.Context, id, bundle string, proces
 					Width:  uint16(resize.Cols),
 				})
 				if err != nil {
-					logrus.Errorf("failed to resize ptm: %s", err)
+					bklog.G(ctx).Errorf("failed to resize ptm: %s", err)
 				}
 				err = runcProcess.Signal(signal.SIGWINCH)
 				if err != nil {
-					logrus.Errorf("failed to send SIGWINCH to process: %s", err)
+					bklog.G(ctx).Errorf("failed to send SIGWINCH to process: %s", err)
 				}
 			}
 		}

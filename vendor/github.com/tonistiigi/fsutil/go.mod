@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/containerd/continuity v0.1.0
-	github.com/docker/docker v20.10.3-0.20210609071616-4c2ec79bf2a8+incompatible // master (v21.xx-dev)
+	github.com/docker/docker v20.10.3-0.20210817025855-ba2adeebdb8d+incompatible // master (v21.xx-dev)
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/google/go-cmp v0.5.2 // indirect

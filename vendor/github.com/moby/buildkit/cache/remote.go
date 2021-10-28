@@ -16,7 +16,7 @@ import (
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/progress/logs"
 	"github.com/moby/buildkit/util/pull/pullprogress"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -27,25 +27,26 @@ type Unlazier interface {
 
 // GetRemote gets a *solver.Remote from content store for this ref (potentially pulling lazily).
 // Note: Use WorkerRef.GetRemote instead as moby integration requires custom GetRemote implementation.
-func (sr *immutableRef) GetRemote(ctx context.Context, createIfNeeded bool, compressionType compression.Type, s session.Group) (*solver.Remote, error) {
+func (sr *immutableRef) GetRemote(ctx context.Context, createIfNeeded bool, compressionType compression.Type, forceCompression bool, s session.Group) (*solver.Remote, error) {
 	ctx, done, err := leaseutil.WithLease(ctx, sr.cm.LeaseManager, leaseutil.MakeTemporary)
 	if err != nil {
 		return nil, err
 	}
 	defer done(ctx)
 
-	err = sr.computeBlobChain(ctx, createIfNeeded, compressionType, s)
+	err = sr.computeBlobChain(ctx, createIfNeeded, compressionType, forceCompression, s)
 	if err != nil {
 		return nil, err
 	}
 
-	mprovider := &lazyMultiProvider{mprovider: contentutil.NewMultiProvider(nil)}
+	chain := sr.parentRefChain()
+	mproviderBase := contentutil.NewMultiProvider(nil)
+	mprovider := &lazyMultiProvider{mprovider: mproviderBase}
 	remote := &solver.Remote{
 		Provider: mprovider,
 	}
-
-	for _, ref := range sr.parentRefChain() {
-		desc, err := ref.ociDesc()
+	for _, ref := range chain {
+		desc, err := ref.ociDesc(ctx, sr.descHandlers)
 		if err != nil {
 			return nil, err
 		}
@@ -65,10 +66,12 @@ func (sr *immutableRef) GetRemote(ctx context.Context, createIfNeeded bool, comp
 		// update distribution source annotation for lazy-refs (non-lazy refs
 		// will already have their dsl stored in the content store, which is
 		// used by the push handlers)
-		if isLazy, err := ref.isLazy(ctx); err != nil {
+		var addAnnotations []string
+		isLazy, err := ref.isLazy(ctx)
+		if err != nil {
 			return nil, err
 		} else if isLazy {
-			imageRefs := getImageRefs(ref.md)
+			imageRefs := ref.getImageRefs()
 			for _, imageRef := range imageRefs {
 				refspec, err := reference.Parse(imageRef)
 				if err != nil {
@@ -101,6 +104,35 @@ func (sr *immutableRef) GetRemote(ctx context.Context, createIfNeeded bool, comp
 					existingRepos = append(existingRepos, repo)
 				}
 				desc.Annotations[dslKey] = strings.Join(existingRepos, ",")
+				addAnnotations = append(addAnnotations, dslKey)
+			}
+		}
+
+		if forceCompression {
+			if needs, err := needsConversion(ctx, sr.cm.ContentStore, desc, compressionType); err != nil {
+				return nil, err
+			} else if needs {
+				// ensure the compression type.
+				// compressed blob must be created and stored in the content store.
+				blobDesc, err := ref.getCompressionBlob(ctx, compressionType)
+				if err != nil {
+					return nil, errors.Wrapf(err, "compression blob for %q not found", compressionType)
+				}
+				newDesc := desc
+				newDesc.MediaType = blobDesc.MediaType
+				newDesc.Digest = blobDesc.Digest
+				newDesc.Size = blobDesc.Size
+				newDesc.Annotations = nil
+				for _, k := range addAnnotations {
+					newDesc.Annotations[k] = desc.Annotations[k]
+				}
+				for k, v := range blobDesc.Annotations {
+					if newDesc.Annotations == nil {
+						newDesc.Annotations = make(map[string]string)
+					}
+					newDesc.Annotations[k] = v
+				}
+				desc = newDesc
 			}
 		}
 
@@ -125,7 +157,7 @@ func (mp *lazyMultiProvider) Add(p lazyRefProvider) {
 	mp.plist = append(mp.plist, p)
 }
 
-func (mp *lazyMultiProvider) ReaderAt(ctx context.Context, desc ocispec.Descriptor) (content.ReaderAt, error) {
+func (mp *lazyMultiProvider) ReaderAt(ctx context.Context, desc ocispecs.Descriptor) (content.ReaderAt, error) {
 	return mp.mprovider.ReaderAt(ctx, desc)
 }
 
@@ -142,12 +174,12 @@ func (mp *lazyMultiProvider) Unlazy(ctx context.Context) error {
 
 type lazyRefProvider struct {
 	ref     *immutableRef
-	desc    ocispec.Descriptor
+	desc    ocispecs.Descriptor
 	dh      *DescHandler
 	session session.Group
 }
 
-func (p lazyRefProvider) ReaderAt(ctx context.Context, desc ocispec.Descriptor) (content.ReaderAt, error) {
+func (p lazyRefProvider) ReaderAt(ctx context.Context, desc ocispecs.Descriptor) (content.ReaderAt, error) {
 	if desc.Digest != p.desc.Digest {
 		return nil, errdefs.ErrNotFound
 	}
@@ -183,23 +215,30 @@ func (p lazyRefProvider) Unlazy(ctx context.Context) error {
 		err := contentutil.Copy(ctx, p.ref.cm.ContentStore, &pullprogress.ProviderWithProgress{
 			Provider: p.dh.Provider(p.session),
 			Manager:  p.ref.cm.ContentStore,
-		}, p.desc, logs.LoggerFromContext(ctx))
+		}, p.desc, p.dh.Ref, logs.LoggerFromContext(ctx))
 		if err != nil {
 			return nil, err
 		}
 
-		if imageRefs := getImageRefs(p.ref.md); len(imageRefs) > 0 {
+		if imageRefs := p.ref.getImageRefs(); len(imageRefs) > 0 {
 			// just use the first image ref, it's arbitrary
 			imageRef := imageRefs[0]
-			if GetDescription(p.ref.md) == "" {
-				queueDescription(p.ref.md, "pulled from "+imageRef)
-				err := p.ref.md.Commit()
-				if err != nil {
+			if p.ref.GetDescription() == "" {
+				if err := p.ref.SetDescription("pulled from " + imageRef); err != nil {
 					return nil, err
 				}
 			}
 		}
-		return nil, err
+
+		compressionType := compression.FromMediaType(p.desc.MediaType)
+		if compressionType == compression.UnknownCompression {
+			return nil, errors.Errorf("unhandled layer media type: %q", p.desc.MediaType)
+		}
+
+		if err := p.ref.addCompressionBlob(ctx, p.desc, compressionType); err != nil {
+			return nil, err
+		}
+		return nil, nil
 	})
 	return err
 }

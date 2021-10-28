@@ -58,6 +58,18 @@ message Meta {
 	ProxyEnv proxy_env = 5;
 	repeated HostIP extraHosts = 6;
 	string hostname = 7;
+	repeated Ulimit ulimit = 9;
+}
+
+message HostIP {
+	string Host = 1;
+	string IP = 2;
+}
+
+message Ulimit {
+	string Name = 1;
+	int64 Soft = 2;
+	int64 Hard = 3;
 }
 
 enum NetMode {
@@ -79,6 +91,7 @@ message Mount {
 	int64 output = 4 [(gogoproto.customtype) = "OutputIndex", (gogoproto.nullable) = false];
 	bool readonly = 5;
 	MountType mountType = 6;
+	TmpfsOpt TmpfsOpt = 19;
 	CacheOpt cacheOpt = 20;
 	SecretOpt secretOpt = 21;
 	SSHOpt SSHOpt = 22;
@@ -92,6 +105,12 @@ enum MountType {
 	SSH = 2;
 	CACHE = 3;
 	TMPFS = 4;
+}
+
+// TmpfsOpt defines options describing tpmfs mounts
+message TmpfsOpt {
+	// Specify an upper limit on the size of the filesystem.
+	int64 size = 1;
 }
 
 // CacheOpt defines options specific to cache mounts
@@ -241,11 +260,6 @@ message Definition {
 	map<string, OpMetadata> metadata = 2 [(gogoproto.castkey) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
 	// Source contains the source mapping information for the vertexes in the definition
 	Source Source = 3;
-}
-
-message HostIP {
-	string Host = 1;
-	string IP = 2;
 }
 
 message FileOp {

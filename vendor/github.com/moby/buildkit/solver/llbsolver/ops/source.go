@@ -67,21 +67,27 @@ func (s *sourceOp) CacheMap(ctx context.Context, g session.Group, index int) (*s
 	if err != nil {
 		return nil, false, err
 	}
-	k, cacheOpts, done, err := src.CacheKey(ctx, g, index)
+
+	k, pin, cacheOpts, done, err := src.CacheKey(ctx, g, index)
 	if err != nil {
 		return nil, false, err
 	}
 
 	dgst := digest.FromBytes([]byte(sourceCacheType + ":" + k))
-
 	if strings.HasPrefix(k, "session:") {
 		dgst = digest.Digest("random:" + strings.TrimPrefix(dgst.String(), dgst.Algorithm().String()+":"))
 	}
 
+	var buildInfo map[string]string
+	if !strings.HasPrefix(s.op.Source.GetIdentifier(), "local://") {
+		buildInfo = map[string]string{s.op.Source.GetIdentifier(): pin}
+	}
+
 	return &solver.CacheMap{
 		// TODO: add os/arch
-		Digest: dgst,
-		Opts:   cacheOpts,
+		Digest:    dgst,
+		Opts:      cacheOpts,
+		BuildInfo: buildInfo,
 	}, done, nil
 }
 

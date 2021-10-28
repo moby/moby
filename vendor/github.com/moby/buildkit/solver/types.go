@@ -8,7 +8,7 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver/pb"
 	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // Vertex is a node in a build graph. It defines an interface for a
@@ -74,6 +74,7 @@ type ResultProxy interface {
 	Result(context.Context) (CachedResult, error)
 	Release(context.Context) error
 	Definition() *pb.Definition
+	BuildInfo() BuildInfo
 }
 
 // CacheExportMode is the type for setting cache exporting modes
@@ -122,7 +123,7 @@ type CacheExporterRecord interface {
 // from a content provider
 // TODO: add closer to keep referenced data from getting deleted
 type Remote struct {
-	Descriptors []ocispec.Descriptor
+	Descriptors []ocispecs.Descriptor
 	Provider    content.Provider
 }
 
@@ -190,7 +191,14 @@ type CacheMap struct {
 	// such as oci descriptor content providers and progress writers to be passed to
 	// the cache. Opts should not have any impact on the computed cache key.
 	Opts CacheOpts
+
+	// BuildInfo contains build dependencies that will be set from source
+	// operation.
+	BuildInfo map[string]string
 }
+
+// BuildInfo contains solved build dependencies.
+type BuildInfo map[string]string
 
 // ExportableCacheKey is a cache key connected with an exporter that can export
 // a chain of cacherecords pointing to that key

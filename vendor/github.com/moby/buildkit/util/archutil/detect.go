@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd/platforms"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -52,7 +52,7 @@ func SupportedPlatforms(noCache bool) []string {
 	return arr
 }
 
-func Check(pp specs.Platform) bool {
+func Check(pp ocispecs.Platform) bool {
 	p := platforms.Format(pp)
 	if p == "linux/amd64" && amd64Supported() == nil {
 		return true

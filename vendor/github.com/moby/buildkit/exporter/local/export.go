@@ -143,7 +143,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp exporter.Source,
 
 func newProgressHandler(ctx context.Context, id string) func(int, bool) {
 	limiter := rate.NewLimiter(rate.Every(100*time.Millisecond), 1)
-	pw, _, _ := progress.FromContext(ctx)
+	pw, _, _ := progress.NewFromContext(ctx)
 	now := time.Now()
 	st := progress.Status{
 		Started: &now,
