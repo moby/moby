@@ -9,7 +9,29 @@ import (
 	"regexp"
 	"strings"
 	"text/scanner"
+	"unicode/utf8"
 )
+
+// escapeBytes is a bitmap used to check whether a character should be escaped when creating the regex.
+var escapeBytes [8]byte
+
+// shouldEscape reports whether a rune should be escaped as part of the regex.
+//
+// This only includes characters that require escaping in regex but are also NOT valid filepath pattern characters.
+// Additionally, '\' is not excluded because there is specific logic to properly handle this, as it's a path separator
+// on Windows.
+//
+// Adapted from regexp::QuoteMeta in go stdlib.
+// See https://cs.opensource.google/go/go/+/refs/tags/go1.17.2:src/regexp/regexp.go;l=703-715;drc=refs%2Ftags%2Fgo1.17.2
+func shouldEscape(b rune) bool {
+	return b < utf8.RuneSelf && escapeBytes[b%8]&(1<<(b/8)) != 0
+}
+
+func init() {
+	for _, b := range []byte(`.+()|{}$`) {
+		escapeBytes[b%8] |= 1 << (b / 8)
+	}
+}
 
 // PatternMatcher allows checking paths against a list of patterns
 type PatternMatcher struct {
@@ -256,7 +278,7 @@ func (p *Pattern) compile() error {
 		} else if ch == '?' {
 			// "?" is any char except "/"
 			regStr += "[^" + escSL + "]"
-		} else if ch == '.' || ch == '$' {
+		} else if shouldEscape(ch) {
 			// Escape some regexp special chars that have no meaning
 			// in golang's filepath.Match
 			regStr += `\` + string(ch)
