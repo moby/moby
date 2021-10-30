@@ -101,8 +101,8 @@ func (cli *Client) setupHijackConn(ctx context.Context, req *http.Request, proto
 
 	c, br := clientconn.Hijack()
 	if br.Buffered() > 0 {
-		// If there is buffered content, wrap the connection.  We return an
-		// object that implements CloseWrite iff the underlying connection
+		// If there is buffered content, wrap the connection. We return an
+		// object that implements CloseWrite if the underlying connection
 		// implements it.
 		if _, ok := c.(types.CloseWriter); ok {
 			c = &hijackedConnCloseWriter{&hijackedConn{c, br}}
@@ -130,7 +130,7 @@ func (c *hijackedConn) Read(b []byte) (int, error) {
 }
 
 // hijackedConnCloseWriter is a hijackedConn which additionally implements
-// CloseWrite().  It is returned by setupHijackConn in the case that a) there
+// CloseWrite(). It is returned by setupHijackConn in the case that a) there
 // was already buffered data in the http layer when Hijack() was called, and b)
 // the underlying net.Conn *does* implement CloseWrite().
 type hijackedConnCloseWriter struct {
