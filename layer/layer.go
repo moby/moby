@@ -25,6 +25,9 @@ var (
 	// attempted on a layer which does not exist.
 	ErrLayerDoesNotExist = errors.New("layer does not exist")
 
+	// ErrLayerCorrupt is used when layer cache metadata corrupt
+	ErrLayerCorrupt = errors.New("layer cache metadata corrupt")
+
 	// ErrLayerNotRetained is used when a release is
 	// attempted on a layer which is not retained.
 	ErrLayerNotRetained = errors.New("layer not retained")

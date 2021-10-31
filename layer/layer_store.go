@@ -345,6 +345,11 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 		return nil, err
 	}
 
+	// If storage driver is overlay2, check the layer cache metadata before register
+	if ls.driver.String() == "overlay2" && !ls.driver.Exists(layer.cacheID) {
+		return nil, ErrLayerCorrupt
+	}
+
 	if layer.parent == nil {
 		layer.chainID = ChainID(layer.diffID)
 	} else {
@@ -359,9 +364,14 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 	defer ls.layerL.Unlock()
 
 	if existingLayer := ls.getWithoutLock(layer.chainID); existingLayer != nil {
-		// Set error for cleanup, but do not return the error
-		err = errors.New("layer already exists")
-		return existingLayer.getReference(), nil
+		if ls.driver.String() != "overlay2" || ls.driver.Exists(existingLayer.cacheID) {
+			// Set error for cleanup, but do not return the error
+			err = errors.New("layer already exists")
+			return existingLayer.getReference(), nil
+		}
+		if err := ls.deleteCorruptLayer(existingLayer); err != nil {
+			logrus.Errorf("delete corrupt layer failed when register with cached id %s, chain id %s, error %s", existingLayer.cacheID, existingLayer.chainID, err.Error())
+		}
 	}
 
 	if err = tx.Commit(layer.chainID); err != nil {
@@ -398,8 +408,23 @@ func (ls *layerStore) Get(l ChainID) (Layer, error) {
 	if layer == nil {
 		return nil, ErrLayerDoesNotExist
 	}
+	if ls.driver.String() == "overlay2" && !ls.driver.Exists(layer.cacheID) {
+		if err := ls.deleteCorruptLayer(layer); err != nil {
+			logrus.Errorf("delete corrupt layer failed when get with cached id %s, chain id %s, error %s", layer.cacheID, layer.chainID, err.Error())
+			return nil, err
+		}
+		return nil, ErrLayerDoesNotExist
+	}
 
 	return layer.getReference(), nil
+}
+
+func (ls *layerStore) deleteCorruptLayer(l *roLayer) error {
+	logrus.Infof("delete corrupt layer with cached id %s, chain id %s", l.cacheID, l.chainID)
+	delete(ls.layerMap, l.chainID)
+	err := ls.driver.Remove(l.cacheID)
+
+	return err
 }
 
 func (ls *layerStore) Map() map[ChainID]Layer {
