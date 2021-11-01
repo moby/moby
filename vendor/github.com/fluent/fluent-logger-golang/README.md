@@ -1,7 +1,7 @@
 fluent-logger-golang
 ====
 
-[![Build Status](https://travis-ci.org/fluent/fluent-logger-golang.png?branch=master)](https://travis-ci.org/fluent/fluent-logger-golang)
+[![Build Status](https://github.com/fluent/fluent-logger-golang/actions/workflows/ci.yaml/badge.svg?branch=master)](https://github.com/fluent/fluent-logger-golang/actions)
 [![GoDoc](https://godoc.org/github.com/fluent/fluent-logger-golang/fluent?status.svg)](https://godoc.org/github.com/fluent/fluent-logger-golang/fluent)
 
 ## A structured event logger for Fluentd (Golang)
@@ -60,7 +60,12 @@ f := fluent.New(fluent.Config{FluentPort: 80, FluentHost: "example.com"})
 
 ### FluentNetwork
 
-Specify the network protocol, as "tcp" (use `FluentHost` and `FluentPort`) or "unix" (use `FluentSocketPath`).
+Specify the network protocol. The supported values are:
+
+ * "tcp" (use `FluentHost` and `FluentPort`)
+ * "tls" (use`FluentHost` and `FluentPort`)
+ * "unix" (use `FluentSocketPath`)
+
 The default is "tcp".
 
 ### FluentHost
@@ -121,6 +126,12 @@ The default is false.
 When Async is enabled, immediately discard the event queue on close() and return (instead of trying MaxRetry times for each event in the queue before returning)
 The default is false.
 
+### AsyncResultCallback
+
+When Async is enabled, if this is callback is provided, it will be called on every write to Fluentd. The callback function
+takes two arguments - a `[]byte` of the message that was to be sent and an `error`. If the `error` is not nil this means the 
+delivery of the message was unsuccessful.
+
 ### SubSecondPrecision
 
 Enable time encoding as EventTime, which contains sub-second precision values. The messages encoded with this option can be received only by Fluentd v0.14 or later.
@@ -136,6 +147,10 @@ The default is false.
 Sets whether to request acknowledgment from Fluentd to increase the reliability
 of the connection. The default is false.
 
+### TlsInsecureSkipVerify
+
+Skip verifying the server certificate. Useful for development and testing. The default is false.
+
 ## FAQ
 
 ### Does this logger support the features of Fluentd Forward Protocol v1?
@@ -144,7 +159,24 @@ of the connection. The default is false.
 
 This logger doesn't support those features. Patches are welcome!
 
+### Is it allowed to call `Fluent.Post()` after connection close?
+
+Before v1.8.0, the Fluent logger silently reopened connections whenever
+`Fluent.Post()` was called.
+
+```go
+logger, _ := fluent.New(fluent.Config{})
+logger.Post(tag, data)
+logger.Close()
+logger.Post(tag, data)  /* reopen connection */
+```
+
+However, this behavior was confusing, in particular when multiple goroutines
+were involved. Starting v1.8.0, the logger no longer accepts `Fluent.Post()`
+after `Fluent.Close()`, and instead returns a "Logger already closed" error.
+
 ## Tests
 ```
+
 go test
 ```
