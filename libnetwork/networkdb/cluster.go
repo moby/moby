@@ -419,10 +419,10 @@ func (nDB *NetworkDB) reapTableEntries() {
 
 			okTable, okNetwork := nDB.deleteEntry(nid, tname, key)
 			if !okTable {
-				logrus.Errorf("Table tree delete failed, entry with key:%s does not exists in the table:%s network:%s", key, tname, nid)
+				logrus.Errorf("Table tree delete failed, entry with key:%s does not exist in the table:%s network:%s", key, tname, nid)
 			}
 			if !okNetwork {
-				logrus.Errorf("Network tree delete failed, entry with key:%s does not exists in the network:%s table:%s", key, nid, tname)
+				logrus.Errorf("Network tree delete failed, entry with key:%s does not exist in the network:%s table:%s", key, nid, tname)
 			}
 
 			return false
