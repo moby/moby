@@ -242,6 +242,7 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 		AsyncConnect:       asyncConnect,
 		SubSecondPrecision: subSecondPrecision,
 		RequestAck:         requestAck,
+		ForceStopAsyncSend: async || asyncConnect,
 	}
 
 	return config, nil
