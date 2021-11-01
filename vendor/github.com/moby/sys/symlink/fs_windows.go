@@ -89,7 +89,7 @@ func walkSymlinks(path string) (string, error) {
 	var b bytes.Buffer
 	for n := 0; path != ""; n++ {
 		if n > maxIter {
-			return "", errors.New("EvalSymlinks: too many links in " + originalPath)
+			return "", errors.New("too many links in " + originalPath)
 		}
 
 		// A path beginning with `\\?\` represents the root, so automatically
@@ -101,7 +101,7 @@ func walkSymlinks(path string) (string, error) {
 		}
 
 		// find next path component, p
-		var i = -1
+		i := -1
 		for j, c := range path {
 			if c < utf8RuneSelf && os.IsPathSeparator(uint8(c)) {
 				i = j
