@@ -171,14 +171,10 @@ func Register(r *Registration) {
 		panic(err)
 	}
 
-	var last bool
 	for _, requires := range r.Requires {
-		if requires == "*" {
-			last = true
+		if requires == "*" && len(r.Requires) != 1 {
+			panic(ErrInvalidRequires)
 		}
-	}
-	if last && len(r.Requires) != 1 {
-		panic(ErrInvalidRequires)
 	}
 
 	register.r = append(register.r, r)

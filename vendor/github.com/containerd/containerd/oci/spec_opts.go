@@ -1248,16 +1248,16 @@ var ErrNoShmMount = errors.New("no /dev/shm mount specified")
 //
 // The size value is specified in kb, kilobytes.
 func WithDevShmSize(kb int64) SpecOpts {
-	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
-		for _, m := range s.Mounts {
-			if m.Source == "shm" && m.Type == "tmpfs" {
-				for i, o := range m.Options {
-					if strings.HasPrefix(o, "size=") {
-						m.Options[i] = fmt.Sprintf("size=%dk", kb)
-						return nil
+	return func(ctx context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		for i, m := range s.Mounts {
+			if filepath.Clean(m.Destination) == "/dev/shm" && m.Source == "shm" && m.Type == "tmpfs" {
+				for i := 0; i < len(m.Options); i++ {
+					if strings.HasPrefix(m.Options[i], "size=") {
+						m.Options = append(m.Options[:i], m.Options[i+1:]...)
+						i--
 					}
 				}
-				m.Options = append(m.Options, fmt.Sprintf("size=%dk", kb))
+				s.Mounts[i].Options = append(m.Options, fmt.Sprintf("size=%dk", kb))
 				return nil
 			}
 		}

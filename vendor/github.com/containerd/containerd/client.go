@@ -123,6 +123,7 @@ func New(address string, opts ...ClientOpt) (*Client, error) {
 			grpc.FailOnNonTempDialError(true),
 			grpc.WithConnectParams(connParams),
 			grpc.WithContextDialer(dialer.ContextDialer),
+			grpc.WithReturnConnectionError(),
 
 			// TODO(stevvooe): We may need to allow configuration of this on the client.
 			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),

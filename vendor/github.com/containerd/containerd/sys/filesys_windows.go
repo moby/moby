@@ -311,9 +311,10 @@ func cleanupWCOWLayer(layerPath string) error {
 		HomeDir: filepath.Dir(layerPath),
 	}
 
-	// ERROR_DEV_NOT_EXIST is returned if the layer is not currently prepared.
+	// ERROR_DEV_NOT_EXIST is returned if the layer is not currently prepared or activated.
+	// ERROR_FLT_INSTANCE_NOT_FOUND is returned if the layer is currently activated but not prepared.
 	if err := hcsshim.UnprepareLayer(info, filepath.Base(layerPath)); err != nil {
-		if hcserror, ok := err.(*hcsshim.HcsError); !ok || hcserror.Err != windows.ERROR_DEV_NOT_EXIST {
+		if hcserror, ok := err.(*hcsshim.HcsError); !ok || (hcserror.Err != windows.ERROR_DEV_NOT_EXIST && hcserror.Err != syscall.Errno(windows.ERROR_FLT_INSTANCE_NOT_FOUND)) {
 			return errors.Wrapf(err, "failed to unprepare %s", layerPath)
 		}
 	}
