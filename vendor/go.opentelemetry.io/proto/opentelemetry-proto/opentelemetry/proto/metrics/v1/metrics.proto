@@ -180,24 +180,7 @@ message Metric {
   }
 }
 
-// IntGauge is deprecated.  Use Gauge with an integer value in NumberDataPoint.
-//
-// IntGauge represents the type of a int scalar metric that always exports the
-// "current value" for every data point. It should be used for an "unknown"
-// aggregation.
-//
-// A Gauge does not support different aggregation temporalities. Given the
-// aggregation is unknown, points cannot be combined using the same
-// aggregation, regardless of aggregation temporalities. Therefore,
-// AggregationTemporality is not included. Consequently, this also means
-// "StartTimeUnixNano" is ignored for all data points.
-message IntGauge {
-  option deprecated = true;
-
-  repeated IntDataPoint data_points = 1;
-}
-
-// Gauge represents the type of a double scalar metric that always exports the
+// Gauge represents the type of a scalar metric that always exports the
 // "current value" for every data point. It should be used for an "unknown"
 // aggregation.
 //
@@ -210,25 +193,8 @@ message Gauge {
   repeated NumberDataPoint data_points = 1;
 }
 
-// IntSum is deprecated.  Use Sum with an integer value in NumberDataPoint.
-//
-// IntSum represents the type of a numeric int scalar metric that is calculated as
-// a sum of all reported measurements over a time interval.
-message IntSum {
-  option deprecated = true;
-
-  repeated IntDataPoint data_points = 1;
-
-  // aggregation_temporality describes if the aggregator reports delta changes
-  // since last report time, or cumulative changes since a fixed start time.
-  AggregationTemporality aggregation_temporality = 2;
-
-  // If "true" means that the sum is monotonic.
-  bool is_monotonic = 3;
-}
-
-// Sum represents the type of a numeric double scalar metric that is calculated
-// as a sum of all reported measurements over a time interval.
+// Sum represents the type of a scalar metric that is calculated as a sum of all
+// reported measurements over a time interval.
 message Sum {
   repeated NumberDataPoint data_points = 1;
 
@@ -240,23 +206,8 @@ message Sum {
   bool is_monotonic = 3;
 }
 
-// IntHistogram is deprecated, replaced by Histogram points using double-
-// valued exemplars.
-//
-// This represents the type of a metric that is calculated by aggregating as a
-// Histogram of all reported int measurements over a time interval.
-message IntHistogram {
-  option deprecated = true;
-
-  repeated IntHistogramDataPoint data_points = 1;
-
-  // aggregation_temporality describes if the aggregator reports delta changes
-  // since last report time, or cumulative changes since a fixed start time.
-  AggregationTemporality aggregation_temporality = 2;
-}
-
 // Histogram represents the type of a metric that is calculated by aggregating
-// as a Histogram of all reported double measurements over a time interval.
+// as a Histogram of all reported measurements over a time interval.
 message Histogram {
   repeated HistogramDataPoint data_points = 1;
 
@@ -346,37 +297,26 @@ enum AggregationTemporality {
   AGGREGATION_TEMPORALITY_CUMULATIVE = 2;
 }
 
-// IntDataPoint is a single data point in a timeseries that describes the
-// time-varying values of a int64 metric.
-message IntDataPoint {
-  option deprecated = true;
+// DataPointFlags is defined as a protobuf 'uint32' type and is to be used as a
+// bit-field representing 32 distinct boolean flags.  Each flag defined in this
+// enum is a bit-mask.  To test the presence of a single flag in the flags of
+// a data point, for example, use an expression like:
+//
+//   (point.flags & FLAG_NO_RECORDED_VALUE) == FLAG_NO_RECORDED_VALUE
+//
+enum DataPointFlags {
+  FLAG_NONE = 0;
 
-  // The set of labels that uniquely identify this timeseries.
-  repeated opentelemetry.proto.common.v1.StringKeyValue labels = 1;
+  // This DataPoint is valid but has no recorded value.  This value
+  // SHOULD be used to reflect explicitly missing data in a series, as
+  // for an equivalent to the Prometheus "staleness marker".
+  FLAG_NO_RECORDED_VALUE = 1;
 
-  // StartTimeUnixNano is optional but strongly encouraged, see the
-  // the detiled comments above Metric.
-  //
-  // Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
-  // 1970.
-  fixed64 start_time_unix_nano = 2;
-
-  // TimeUnixNano is required, see the detailed comments above Metric.
-  //
-  // Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
-  // 1970.
-  fixed64 time_unix_nano = 3;
-
-  // value itself.
-  sfixed64 value = 4;
-
-  // (Optional) List of exemplars collected from
-  // measurements that were used to form the data point
-  repeated IntExemplar exemplars = 5;
+  // Bits 2-31 are reserved for future use.
 }
 
 // NumberDataPoint is a single data point in a timeseries that describes the
-// time-varying value of a double metric.
+// time-varying scalar value of a metric.
 message NumberDataPoint {
   // The set of key/value pairs that uniquely identify the timeseries from
   // where this point belongs. The list may be empty (may contain 0 elements).
@@ -415,83 +355,16 @@ message NumberDataPoint {
   // (Optional) List of exemplars collected from
   // measurements that were used to form the data point
   repeated Exemplar exemplars = 5;
-}
 
-// IntHistogramDataPoint is deprecated; use HistogramDataPoint.
-//
-// This is a single data point in a timeseries that describes
-// the time-varying values of a Histogram of int values. A Histogram contains
-// summary statistics for a population of values, it may optionally contain
-// the distribution of those values across a set of buckets.
-//
-// If the histogram contains the distribution of values, then both
-// "explicit_bounds" and "bucket counts" fields must be defined.
-// If the histogram does not contain the distribution of values, then both
-// "explicit_bounds" and "bucket_counts" must be omitted and only "count" and
-// "sum" are known.
-message IntHistogramDataPoint {
-  option deprecated = true;
-
-  // The set of labels that uniquely identify this timeseries.
-  repeated opentelemetry.proto.common.v1.StringKeyValue labels = 1;
-
-  // StartTimeUnixNano is optional but strongly encouraged, see the
-  // the detiled comments above Metric.
-  //
-  // Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
-  // 1970.
-  fixed64 start_time_unix_nano = 2;
-
-  // TimeUnixNano is required, see the detailed comments above Metric.
-  //
-  // Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
-  // 1970.
-  fixed64 time_unix_nano = 3;
-
-  // count is the number of values in the population. Must be non-negative. This
-  // value must be equal to the sum of the "count" fields in buckets if a
-  // histogram is provided.
-  fixed64 count = 4;
-
-  // sum of the values in the population. If count is zero then this field
-  // must be zero. This value must be equal to the sum of the "sum" fields in
-  // buckets if a histogram is provided.
-  sfixed64 sum = 5;
-
-  // bucket_counts is an optional field contains the count values of histogram
-  // for each bucket.
-  //
-  // The sum of the bucket_counts must equal the value in the count field.
-  //
-  // The number of elements in bucket_counts array must be by one greater than
-  // the number of elements in explicit_bounds array.
-  repeated fixed64 bucket_counts = 6;
-
-  // explicit_bounds specifies buckets with explicitly defined bounds for values.
-  //
-  // This defines size(explicit_bounds) + 1 (= N) buckets. The boundaries for
-  // bucket at index i are:
-  //
-  // (-infinity, explicit_bounds[i]] for i == 0
-  // (explicit_bounds[i-1], explicit_bounds[i]] for 0 < i < N-1
-  // (explicit_bounds[i], +infinity) for i == N-1
-  //
-  // The values in the explicit_bounds array must be strictly increasing.
-  //
-  // Histogram buckets are inclusive of their upper boundary, except the last
-  // bucket where the boundary is at infinity. This format is intentionally
-  // compatible with the OpenMetrics histogram definition.
-  repeated double explicit_bounds = 7;
-
-  // (Optional) List of exemplars collected from
-  // measurements that were used to form the data point
-  repeated IntExemplar exemplars = 8;
+  // Flags that apply to this specific data point.  See DataPointFlags
+  // for the available flags and their meaning.
+  uint32 flags = 8;
 }
 
 // HistogramDataPoint is a single data point in a timeseries that describes the
-// time-varying values of a Histogram of double values. A Histogram contains
-// summary statistics for a population of values, it may optionally contain the
-// distribution of those values across a set of buckets.
+// time-varying values of a Histogram. A Histogram contains summary statistics
+// for a population of values, it may optionally contain the distribution of
+// those values across a set of buckets.
 //
 // If the histogram contains the distribution of values, then both
 // "explicit_bounds" and "bucket counts" fields must be defined.
@@ -553,12 +426,11 @@ message HistogramDataPoint {
 
   // explicit_bounds specifies buckets with explicitly defined bounds for values.
   //
-  // This defines size(explicit_bounds) + 1 (= N) buckets. The boundaries for
-  // bucket at index i are:
+  // The boundaries for bucket at index i are:
   //
   // (-infinity, explicit_bounds[i]] for i == 0
-  // (explicit_bounds[i-1], explicit_bounds[i]] for 0 < i < N-1
-  // (explicit_bounds[i], +infinity) for i == N-1
+  // (explicit_bounds[i-1], explicit_bounds[i]] for 0 < i < size(explicit_bounds)
+  // (explicit_bounds[i-1], +infinity) for i == size(explicit_bounds)
   //
   // The values in the explicit_bounds array must be strictly increasing.
   //
@@ -570,6 +442,10 @@ message HistogramDataPoint {
   // (Optional) List of exemplars collected from
   // measurements that were used to form the data point
   repeated Exemplar exemplars = 8;
+
+  // Flags that apply to this specific data point.  See DataPointFlags
+  // for the available flags and their meaning.
+  uint32 flags = 10;
 }
 
 // SummaryDataPoint is a single data point in a timeseries that describes the
@@ -637,38 +513,10 @@ message SummaryDataPoint {
   // (Optional) list of values at different quantiles of the distribution calculated
   // from the current snapshot. The quantiles must be strictly increasing.
   repeated ValueAtQuantile quantile_values = 6;
-}
 
-// A representation of an exemplar, which is a sample input int measurement.
-// Exemplars also hold information about the environment when the measurement
-// was recorded, for example the span and trace ID of the active span when the
-// exemplar was recorded.
-message IntExemplar {
-  option deprecated = true;
-
-  // The set of labels that were filtered out by the aggregator, but recorded
-  // alongside the original measurement. Only labels that were filtered out
-  // by the aggregator should be included
-  repeated opentelemetry.proto.common.v1.StringKeyValue filtered_labels = 1;
-
-  // time_unix_nano is the exact time when this exemplar was recorded
-  //
-  // Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
-  // 1970.
-  fixed64 time_unix_nano = 2;
-
-  // Numerical int value of the measurement that was recorded.
-  sfixed64 value = 3;
-
-  // (Optional) Span ID of the exemplar trace.
-  // span_id may be missing if the measurement is not recorded inside a trace
-  // or if the trace is not sampled.
-  bytes span_id = 4;
-
-  // (Optional) Trace ID of the exemplar trace.
-  // trace_id may be missing if the measurement is not recorded inside a trace
-  // or if the trace is not sampled.
-  bytes trace_id = 5;
+  // Flags that apply to this specific data point.  See DataPointFlags
+  // for the available flags and their meaning.
+  uint32 flags = 8;
 }
 
 // A representation of an exemplar, which is a sample input measurement.
@@ -698,13 +546,166 @@ message Exemplar {
   // 1970.
   fixed64 time_unix_nano = 2;
 
-  // Numerical value of the measurement that was recorded. An exemplar is
+  // The value of the measurement that was recorded. An exemplar is
   // considered invalid when one of the recognized value fields is not present
   // inside this oneof.
   oneof value {
     double as_double = 3;
     sfixed64 as_int = 6;
   }
+
+  // (Optional) Span ID of the exemplar trace.
+  // span_id may be missing if the measurement is not recorded inside a trace
+  // or if the trace is not sampled.
+  bytes span_id = 4;
+
+  // (Optional) Trace ID of the exemplar trace.
+  // trace_id may be missing if the measurement is not recorded inside a trace
+  // or if the trace is not sampled.
+  bytes trace_id = 5;
+}
+
+//
+// Move deprecated messages below this line
+//
+
+// IntDataPoint is deprecated. Use integer value in NumberDataPoint.
+message IntDataPoint {
+  option deprecated = true;
+
+  // The set of labels that uniquely identify this timeseries.
+  repeated opentelemetry.proto.common.v1.StringKeyValue labels = 1;
+
+  // StartTimeUnixNano is optional but strongly encouraged, see the
+  // the detiled comments above Metric.
+  //
+  // Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
+  // 1970.
+  fixed64 start_time_unix_nano = 2;
+
+  // TimeUnixNano is required, see the detailed comments above Metric.
+  //
+  // Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
+  // 1970.
+  fixed64 time_unix_nano = 3;
+
+  // value itself.
+  sfixed64 value = 4;
+
+  // (Optional) List of exemplars collected from
+  // measurements that were used to form the data point
+  repeated IntExemplar exemplars = 5;
+}
+
+// IntGauge is deprecated.  Use Gauge with an integer value in NumberDataPoint.
+message IntGauge {
+  option deprecated = true;
+
+  repeated IntDataPoint data_points = 1;
+}
+
+// IntSum is deprecated.  Use Sum with an integer value in NumberDataPoint.
+message IntSum {
+  option deprecated = true;
+
+  repeated IntDataPoint data_points = 1;
+
+  // aggregation_temporality describes if the aggregator reports delta changes
+  // since last report time, or cumulative changes since a fixed start time.
+  AggregationTemporality aggregation_temporality = 2;
+
+  // If "true" means that the sum is monotonic.
+  bool is_monotonic = 3;
+}
+
+// IntHistogramDataPoint is deprecated; use HistogramDataPoint.
+message IntHistogramDataPoint {
+  option deprecated = true;
+
+  // The set of labels that uniquely identify this timeseries.
+  repeated opentelemetry.proto.common.v1.StringKeyValue labels = 1;
+
+  // StartTimeUnixNano is optional but strongly encouraged, see the
+  // the detiled comments above Metric.
+  //
+  // Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
+  // 1970.
+  fixed64 start_time_unix_nano = 2;
+
+  // TimeUnixNano is required, see the detailed comments above Metric.
+  //
+  // Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
+  // 1970.
+  fixed64 time_unix_nano = 3;
+
+  // count is the number of values in the population. Must be non-negative. This
+  // value must be equal to the sum of the "count" fields in buckets if a
+  // histogram is provided.
+  fixed64 count = 4;
+
+  // sum of the values in the population. If count is zero then this field
+  // must be zero. This value must be equal to the sum of the "sum" fields in
+  // buckets if a histogram is provided.
+  sfixed64 sum = 5;
+
+  // bucket_counts is an optional field contains the count values of histogram
+  // for each bucket.
+  //
+  // The sum of the bucket_counts must equal the value in the count field.
+  //
+  // The number of elements in bucket_counts array must be by one greater than
+  // the number of elements in explicit_bounds array.
+  repeated fixed64 bucket_counts = 6;
+
+  // explicit_bounds specifies buckets with explicitly defined bounds for values.
+  //
+  // The boundaries for bucket at index i are:
+  //
+  // (-infinity, explicit_bounds[i]] for i == 0
+  // (explicit_bounds[i-1], explicit_bounds[i]] for 0 < i < size(explicit_bounds)
+  // (explicit_bounds[i-1], +infinity) for i == size(explicit_bounds)
+  //
+  // The values in the explicit_bounds array must be strictly increasing.
+  //
+  // Histogram buckets are inclusive of their upper boundary, except the last
+  // bucket where the boundary is at infinity. This format is intentionally
+  // compatible with the OpenMetrics histogram definition.
+  repeated double explicit_bounds = 7;
+
+  // (Optional) List of exemplars collected from
+  // measurements that were used to form the data point
+  repeated IntExemplar exemplars = 8;
+}
+
+// IntHistogram is deprecated, replaced by Histogram points using double-
+// valued exemplars.
+message IntHistogram {
+  option deprecated = true;
+
+  repeated IntHistogramDataPoint data_points = 1;
+
+  // aggregation_temporality describes if the aggregator reports delta changes
+  // since last report time, or cumulative changes since a fixed start time.
+  AggregationTemporality aggregation_temporality = 2;
+}
+
+// IntExemplar is deprecated. Use Exemplar with as_int for value
+message IntExemplar {
+  option deprecated = true;
+
+  // The set of labels that were filtered out by the aggregator, but recorded
+  // alongside the original measurement. Only labels that were filtered out
+  // by the aggregator should be included
+  repeated opentelemetry.proto.common.v1.StringKeyValue filtered_labels = 1;
+
+  // time_unix_nano is the exact time when this exemplar was recorded
+  //
+  // Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
+  // 1970.
+  fixed64 time_unix_nano = 2;
+
+  // Numerical int value of the measurement that was recorded.
+  sfixed64 value = 3;
 
   // (Optional) Span ID of the exemplar trace.
   // span_id may be missing if the measurement is not recorded inside a trace
