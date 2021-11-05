@@ -22,6 +22,7 @@ func TestWindowsParseMountRaw(t *testing.T) {
 		`c:\program files:d:\s p a c e i n h o s t d i r`,
 		`0123456789name:d:`,
 		`MiXeDcAsEnAmE:d:`,
+		`test-aux-volume:d:`, // includes reserved word, but is not one itself
 		`name:D:`,
 		`name:D::rW`,
 		`name:D::RW`,
