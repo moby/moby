@@ -47,7 +47,7 @@ const (
 	rxName = `[^\\/:*?"<>|\r\n]+`
 
 	// RXReservedNames are reserved names not possible on Windows
-	rxReservedNames = `(con)|(prn)|(nul)|(aux)|(com[1-9])|(lpt[1-9])`
+	rxReservedNames = `(con|prn|nul|aux|com[1-9]|lpt[1-9])`
 
 	// rxPipe is a named path pipe (starts with `\\.\pipe\`, possibly with / instead of \)
 	rxPipe = `[/\\]{2}.[/\\]pipe[/\\][^:*?"<>|\r\n]+`
