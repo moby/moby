@@ -21,6 +21,7 @@ package linux
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -30,6 +31,7 @@ import (
 	"github.com/containerd/containerd/runtime/linux/runctypes"
 	"github.com/containerd/containerd/runtime/v1/shim"
 	"github.com/containerd/containerd/runtime/v1/shim/client"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
 
@@ -48,7 +50,7 @@ func newBundle(id, path, workDir string, spec []byte) (b *bundle, err error) {
 		return nil, err
 	}
 	path = filepath.Join(path, id)
-	if err := os.Mkdir(path, 0711); err != nil {
+	if err := os.Mkdir(path, 0700); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -56,6 +58,9 @@ func newBundle(id, path, workDir string, spec []byte) (b *bundle, err error) {
 			os.RemoveAll(path)
 		}
 	}()
+	if err := prepareBundleDirectoryPermissions(path, spec); err != nil {
+		return nil, err
+	}
 	workDir = filepath.Join(workDir, id)
 	if err := os.MkdirAll(workDir, 0711); err != nil {
 		return nil, err
@@ -75,6 +80,55 @@ func newBundle(id, path, workDir string, spec []byte) (b *bundle, err error) {
 		path:    path,
 		workDir: workDir,
 	}, err
+}
+
+// prepareBundleDirectoryPermissions prepares the permissions of the bundle
+// directory. When user namespaces are enabled, the permissions are modified
+// to allow the remapped root GID to access the bundle.
+func prepareBundleDirectoryPermissions(path string, spec []byte) error {
+	gid, err := remappedGID(spec)
+	if err != nil {
+		return err
+	}
+	if gid == 0 {
+		return nil
+	}
+	if err := os.Chown(path, -1, int(gid)); err != nil {
+		return err
+	}
+	return os.Chmod(path, 0710)
+}
+
+// ociSpecUserNS is a subset of specs.Spec used to reduce garbage during
+// unmarshal.
+type ociSpecUserNS struct {
+	Linux *linuxSpecUserNS
+}
+
+// linuxSpecUserNS is a subset of specs.Linux used to reduce garbage during
+// unmarshal.
+type linuxSpecUserNS struct {
+	GIDMappings []specs.LinuxIDMapping
+}
+
+// remappedGID reads the remapped GID 0 from the OCI spec, if it exists. If
+// there is no remapping, remappedGID returns 0. If the spec cannot be parsed,
+// remappedGID returns an error.
+func remappedGID(spec []byte) (uint32, error) {
+	var ociSpec ociSpecUserNS
+	err := json.Unmarshal(spec, &ociSpec)
+	if err != nil {
+		return 0, err
+	}
+	if ociSpec.Linux == nil || len(ociSpec.Linux.GIDMappings) == 0 {
+		return 0, nil
+	}
+	for _, mapping := range ociSpec.Linux.GIDMappings {
+		if mapping.ContainerID == 0 {
+			return mapping.HostID, nil
+		}
+	}
+	return 0, nil
 }
 
 type bundle struct {
