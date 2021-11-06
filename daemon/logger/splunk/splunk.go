@@ -42,6 +42,7 @@ const (
 	splunkGzipCompressionKey      = "splunk-gzip"
 	splunkGzipCompressionLevelKey = "splunk-gzip-level"
 	splunkIndexAcknowledgment     = "splunk-index-acknowledgment"
+	mode                          = "mode"
 )
 
 const (
@@ -78,6 +79,8 @@ type splunkLogger struct {
 	url         string
 	auth        string
 	nullMessage *splunkMessage
+
+	logNonBlocking bool
 
 	// http compression
 	gzipCompression      bool
@@ -148,6 +151,8 @@ func New(info logger.Info) (logger.Logger, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	logNonBlocking := info.Config["mode"] == "non-blocking"
 
 	// Splunk Token is required parameter
 	splunkToken, ok := info.Config[splunkTokenKey]
@@ -251,6 +256,7 @@ func New(info logger.Info) (logger.Logger, error) {
 			SourceType: info.Config[splunkSourceTypeKey],
 			Index:      info.Config[splunkIndexKey],
 		},
+		logNonBlocking:        logNonBlocking,
 		gzipCompression:       gzipCompression,
 		gzipCompressionLevel:  gzipCompressionLevel,
 		stream:                make(chan *splunkMessage, streamChannelSize),
@@ -384,6 +390,14 @@ func (l *splunkLogger) queueMessageAsync(message *splunkMessage) error {
 	defer l.lock.RUnlock()
 	if l.closedCond != nil {
 		return fmt.Errorf("%s: driver is closed", driverName)
+	}
+	if l.logNonBlocking {
+		select {
+		case l.stream <- message:
+			return nil
+		default:
+			return fmt.Errorf("%s: buffer is full", driverName)
+		}
 	}
 	l.stream <- message
 	return nil
