@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/go-connections/nat"
+	ptypes "github.com/gogo/protobuf/types"
 )
 
 // RootFS returns Image's RootFS description including the layer IDs.
@@ -524,15 +525,13 @@ type Runtime struct {
 	Path string   `json:"path"`
 	Args []string `json:"runtimeArgs,omitempty"`
 
-	// This is exposed here only for internal use
-	// It is not currently supported to specify custom shim configs
-	Shim *ShimConfig `json:"-"`
+	Shim *ShimConfig `json:"shim,omitempty"`
 }
 
 // ShimConfig is used by runtime to configure containerd shims
 type ShimConfig struct {
-	Binary string
-	Opts   interface{}
+	Binary string      `json:"binary,omitempty"`
+	Opts   *ptypes.Any `json:"opts,omitempty"`
 }
 
 // DiskUsageObject represents an object type used for disk usage query filtering.

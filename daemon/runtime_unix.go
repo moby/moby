@@ -13,10 +13,12 @@ import (
 	"github.com/containerd/cgroups"
 	"github.com/containerd/containerd/runtime/linux/runctypes"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
+	typeurl "github.com/containerd/typeurl"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
+	ptypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -40,26 +42,44 @@ func configureRuntimes(conf *config.Config) {
 	conf.Runtimes[config.StockRuntimeName] = conf.Runtimes[config.LinuxV2RuntimeName]
 }
 
+func defaultV2ShimOpts(conf *config.Config, runtimePath string) *ptypes.Any {
+	opt := &v2runcoptions.Options{
+		BinaryName:    runtimePath,
+		Root:          filepath.Join(conf.ExecRoot, "runtime-"+defaultRuntimeName),
+		SystemdCgroup: UsingSystemd(conf),
+		NoPivotRoot:   os.Getenv("DOCKER_RAMDISK") != "",
+	}
+	opts, _ := typeurl.MarshalAny(opt)
+
+	return opts
+}
+
 func defaultV2ShimConfig(conf *config.Config, runtimePath string) *types.ShimConfig {
+	opt := &v2runcoptions.Options{
+		BinaryName:    runtimePath,
+		Root:          filepath.Join(conf.ExecRoot, "runtime-"+defaultRuntimeName),
+		SystemdCgroup: UsingSystemd(conf),
+		NoPivotRoot:   os.Getenv("DOCKER_RAMDISK") != "",
+	}
+
+	opts, _ := typeurl.MarshalAny(opt)
 	return &types.ShimConfig{
 		Binary: linuxShimV2,
-		Opts: &v2runcoptions.Options{
-			BinaryName:    runtimePath,
-			Root:          filepath.Join(conf.ExecRoot, "runtime-"+defaultRuntimeName),
-			SystemdCgroup: UsingSystemd(conf),
-			NoPivotRoot:   os.Getenv("DOCKER_RAMDISK") != "",
-		},
+		Opts:   opts,
 	}
 }
 
 func defaultV1ShimConfig(conf *config.Config, runtimePath string) *types.ShimConfig {
+	opt := &runctypes.RuncOptions{
+		Runtime:       runtimePath,
+		RuntimeRoot:   filepath.Join(conf.ExecRoot, "runtime-"+defaultRuntimeName),
+		SystemdCgroup: UsingSystemd(conf),
+	}
+
+	opts, _ := typeurl.MarshalAny(opt)
 	return &types.ShimConfig{
 		Binary: linuxShimV1,
-		Opts: &runctypes.RuncOptions{
-			Runtime:       runtimePath,
-			RuntimeRoot:   filepath.Join(conf.ExecRoot, "runtime-"+defaultRuntimeName),
-			SystemdCgroup: UsingSystemd(conf),
-		},
+		Opts:   opts,
 	}
 }
 

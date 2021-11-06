@@ -4,7 +4,9 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	typeurl "github.com/containerd/typeurl"
 	"github.com/docker/docker/container"
+	"github.com/sirupsen/logrus"
 )
 
 // getLibcontainerdCreateOptions callers must hold a lock on the container
@@ -20,5 +22,9 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 		return "", nil, translateContainerdStartErr(container.Path, container.SetExitCode, err)
 	}
 
-	return rt.Shim.Binary, rt.Shim.Opts, nil
+	opts, err := typeurl.UnmarshalAny(rt.Shim.Opts)
+	if err != nil {
+		logrus.Errorf("Fail to UnmarshalAny option for runtime shim: %v", err)
+	}
+	return rt.Shim.Binary, opts, nil
 }
