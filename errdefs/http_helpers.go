@@ -100,10 +100,10 @@ func FromStatusCode(err error, statusCode int) error {
 			err = System(err)
 		}
 	default:
-		logrus.WithFields(logrus.Fields{
+		logrus.WithError(err).WithFields(logrus.Fields{
 			"module":      "api",
-			"status_code": fmt.Sprintf("%d", statusCode),
-		}).Debugf("FIXME: Got an status-code for which error does not match any expected type!!!: %d", statusCode)
+			"status_code": statusCode,
+		}).Debug("FIXME: Got an status-code for which error does not match any expected type!!!")
 
 		switch {
 		case statusCode >= 200 && statusCode < 400:
