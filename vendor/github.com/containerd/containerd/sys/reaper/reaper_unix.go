@@ -1,4 +1,3 @@
-//go:build !windows
 // +build !windows
 
 /*
@@ -20,12 +19,12 @@
 package reaper
 
 import (
+	"os/exec"
 	"sync"
 	"time"
 
 	runc "github.com/containerd/go-runc"
 	"github.com/pkg/errors"
-	exec "golang.org/x/sys/execabs"
 	"golang.org/x/sys/unix"
 )
 

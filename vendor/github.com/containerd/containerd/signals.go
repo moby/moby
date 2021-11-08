@@ -24,7 +24,6 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
-	"github.com/moby/sys/signal"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -41,7 +40,7 @@ func GetStopSignal(ctx context.Context, container Container, defaultSignal sysca
 	}
 
 	if stopSignal, ok := labels[StopSignalLabel]; ok {
-		return signal.ParseSignal(stopSignal)
+		return ParseSignal(stopSignal)
 	}
 
 	return defaultSignal, nil
@@ -49,7 +48,7 @@ func GetStopSignal(ctx context.Context, container Container, defaultSignal sysca
 
 // GetOCIStopSignal retrieves the stop signal specified in the OCI image config
 func GetOCIStopSignal(ctx context.Context, image Image, defaultSignal string) (string, error) {
-	_, err := signal.ParseSignal(defaultSignal)
+	_, err := ParseSignal(defaultSignal)
 	if err != nil {
 		return "", err
 	}
@@ -81,13 +80,4 @@ func GetOCIStopSignal(ctx context.Context, image Image, defaultSignal string) (s
 	}
 
 	return config.StopSignal, nil
-}
-
-// ParseSignal parses a given string into a syscall.Signal
-// the rawSignal can be a string with "SIG" prefix,
-// or a signal number in string format.
-//
-// Deprecated: Use github.com/moby/sys/signal instead.
-func ParseSignal(rawSignal string) (syscall.Signal, error) {
-	return signal.ParseSignal(rawSignal)
 }

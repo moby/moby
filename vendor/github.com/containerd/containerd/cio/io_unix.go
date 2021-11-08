@@ -1,4 +1,3 @@
-//go:build !windows
 // +build !windows
 
 /*
@@ -22,6 +21,7 @@ package cio
 import (
 	"context"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -38,7 +38,7 @@ func NewFIFOSetInDir(root, id string, terminal bool) (*FIFOSet, error) {
 			return nil, err
 		}
 	}
-	dir, err := os.MkdirTemp(root, "")
+	dir, err := ioutil.TempDir(root, "")
 	if err != nil {
 		return nil, err
 	}

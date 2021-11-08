@@ -18,6 +18,7 @@ package sys
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -68,7 +69,7 @@ func SetOOMScore(pid, score int) error {
 // no oom score is set, or a sore is set to 0.
 func GetOOMScoreAdj(pid int) (int, error) {
 	path := fmt.Sprintf("/proc/%d/oom_score_adj", pid)
-	data, err := os.ReadFile(path)
+	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return 0, err
 	}

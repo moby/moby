@@ -7,8 +7,6 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
-
-	"golang.org/x/sys/unix"
 )
 
 // flock acquires an advisory lock on a file descriptor.
@@ -51,13 +49,13 @@ func funlock(db *DB) error {
 // mmap memory maps a DB's data file.
 func mmap(db *DB, sz int) error {
 	// Map the data file to memory.
-	b, err := unix.Mmap(int(db.file.Fd()), 0, sz, syscall.PROT_READ, syscall.MAP_SHARED|db.MmapFlags)
+	b, err := syscall.Mmap(int(db.file.Fd()), 0, sz, syscall.PROT_READ, syscall.MAP_SHARED|db.MmapFlags)
 	if err != nil {
 		return err
 	}
 
 	// Advise the kernel that the mmap is accessed randomly.
-	err = unix.Madvise(b, syscall.MADV_RANDOM)
+	err = madvise(b, syscall.MADV_RANDOM)
 	if err != nil && err != syscall.ENOSYS {
 		// Ignore not implemented error in kernel because it still works.
 		return fmt.Errorf("madvise: %s", err)
@@ -78,9 +76,18 @@ func munmap(db *DB) error {
 	}
 
 	// Unmap using the original byte slice.
-	err := unix.Munmap(db.dataref)
+	err := syscall.Munmap(db.dataref)
 	db.dataref = nil
 	db.data = nil
 	db.datasz = 0
 	return err
+}
+
+// NOTE: This function is copied from stdlib because it is not available on darwin.
+func madvise(b []byte, advice int) (err error) {
+	_, _, e1 := syscall.Syscall(syscall.SYS_MADVISE, uintptr(unsafe.Pointer(&b[0])), uintptr(len(b)), uintptr(advice))
+	if e1 != 0 {
+		err = e1
+	}
+	return
 }

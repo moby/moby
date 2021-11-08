@@ -31,6 +31,4 @@ type Container struct {
 	RegistryChanges *RegistryChanges `json:"RegistryChanges,omitempty"`
 
 	AssignedDevices []Device `json:"AssignedDevices,omitempty"`
-
-	AdditionalDeviceNamespace *ContainerDefinitionDevice `json:"AdditionalDeviceNamespace,omitempty"`
 }

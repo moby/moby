@@ -188,6 +188,7 @@ func (tx *Tx) Commit() error {
 	}
 
 	// If strict mode is enabled then perform a consistency check.
+	// Only the first consistency error is reported in the panic.
 	if tx.db.StrictMode {
 		ch := tx.Check()
 		var errs []string
@@ -392,7 +393,7 @@ func (tx *Tx) CopyFile(path string, mode os.FileMode) error {
 		return err
 	}
 
-	_, err = tx.WriteTo(f)
+	err = tx.Copy(f)
 	if err != nil {
 		_ = f.Close()
 		return err

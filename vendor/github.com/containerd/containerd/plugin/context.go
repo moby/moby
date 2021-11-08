@@ -26,7 +26,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// InitContext is used for plugin initialization
+// InitContext is used for plugin inititalization
 type InitContext struct {
 	Context      context.Context
 	Root         string
@@ -34,9 +34,7 @@ type InitContext struct {
 	Config       interface{}
 	Address      string
 	TTRPCAddress string
-
-	// deprecated: will be removed in 2.0, use plugin.EventType
-	Events *exchange.Exchange
+	Events       *exchange.Exchange
 
 	Meta *Meta // plugins can fill in metadata at init.
 
@@ -135,19 +133,6 @@ func (ps *Set) Get(t Type) (interface{}, error) {
 // GetAll plugins in the set
 func (i *InitContext) GetAll() []*Plugin {
 	return i.plugins.ordered
-}
-
-// GetByID returns the plugin of the given type and ID
-func (i *InitContext) GetByID(t Type, id string) (interface{}, error) {
-	ps, err := i.GetByType(t)
-	if err != nil {
-		return nil, err
-	}
-	p, ok := ps[id]
-	if !ok {
-		return nil, errors.Wrapf(errdefs.ErrNotFound, "no %s plugins with id %s", t, id)
-	}
-	return p.Instance()
 }
 
 // GetByType returns all plugins with the specific type.

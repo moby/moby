@@ -31,13 +31,11 @@ import (
 )
 
 type importOpts struct {
-	indexName       string
-	imageRefT       func(string) string
-	dgstRefT        func(digest.Digest) string
-	skipDgstRef     func(string) bool
-	allPlatforms    bool
-	platformMatcher platforms.MatchComparer
-	compress        bool
+	indexName    string
+	imageRefT    func(string) string
+	dgstRefT     func(digest.Digest) string
+	allPlatforms bool
+	compress     bool
 }
 
 // ImportOpt allows the caller to specify import specific options
@@ -61,17 +59,6 @@ func WithDigestRef(f func(digest.Digest) string) ImportOpt {
 	}
 }
 
-// WithSkipDigestRef is used to specify when to skip applying
-// WithDigestRef. The callback receives an image reference (or an empty
-// string if not specified in the image). When the callback returns true,
-// the skip occurs.
-func WithSkipDigestRef(f func(string) bool) ImportOpt {
-	return func(c *importOpts) error {
-		c.skipDgstRef = f
-		return nil
-	}
-}
-
 // WithIndexName creates a tag pointing to the imported index
 func WithIndexName(name string) ImportOpt {
 	return func(c *importOpts) error {
@@ -84,14 +71,6 @@ func WithIndexName(name string) ImportOpt {
 func WithAllPlatforms(allPlatforms bool) ImportOpt {
 	return func(c *importOpts) error {
 		c.allPlatforms = allPlatforms
-		return nil
-	}
-}
-
-// WithImportPlatform is used to import content for specific platform.
-func WithImportPlatform(platformMacher platforms.MatchComparer) ImportOpt {
-	return func(c *importOpts) error {
-		c.platformMatcher = platformMacher
 		return nil
 	}
 }
@@ -144,11 +123,9 @@ func (c *Client) Import(ctx context.Context, reader io.Reader, opts ...ImportOpt
 			Target: index,
 		})
 	}
-	var platformMatcher = c.platform
-	if iopts.allPlatforms {
-		platformMatcher = platforms.All
-	} else if iopts.platformMatcher != nil {
-		platformMatcher = iopts.platformMatcher
+	var platformMatcher = platforms.All
+	if !iopts.allPlatforms {
+		platformMatcher = c.platform
 	}
 
 	var handler images.HandlerFunc = func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
@@ -175,11 +152,6 @@ func (c *Client) Import(ctx context.Context, reader io.Reader, opts ...ImportOpt
 					Target: m,
 				})
 			}
-			if iopts.skipDgstRef != nil {
-				if iopts.skipDgstRef(name) {
-					continue
-				}
-			}
 			if iopts.dgstRefT != nil {
 				ref := iopts.dgstRefT(m.Digest)
 				if ref != "" {
@@ -196,7 +168,7 @@ func (c *Client) Import(ctx context.Context, reader io.Reader, opts ...ImportOpt
 
 	handler = images.FilterPlatforms(handler, platformMatcher)
 	handler = images.SetChildrenLabels(cs, handler)
-	if err := images.WalkNotEmpty(ctx, handler, index); err != nil {
+	if err := images.Walk(ctx, handler, index); err != nil {
 		return nil, err
 	}
 

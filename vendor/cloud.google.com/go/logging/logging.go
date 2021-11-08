@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -246,8 +247,8 @@ type LoggerOption interface {
 
 // CommonResource sets the monitored resource associated with all log entries
 // written from a Logger. If not provided, the resource is automatically
-// detected based on the running environment.  This value can be overridden
-// per-entry by setting an Entry's Resource field.
+// detected based on the running environment (on GCE and GAE Standard only).
+// This value can be overridden per-entry by setting an Entry's Resource field.
 func CommonResource(r *mrpb.MonitoredResource) LoggerOption { return commonResource{r} }
 
 type commonResource struct{ *mrpb.MonitoredResource }
@@ -259,35 +260,56 @@ var detectedResource struct {
 	once sync.Once
 }
 
+func detectGCEResource() *mrpb.MonitoredResource {
+	projectID, err := metadata.ProjectID()
+	if err != nil {
+		return nil
+	}
+	id, err := metadata.InstanceID()
+	if err != nil {
+		return nil
+	}
+	zone, err := metadata.Zone()
+	if err != nil {
+		return nil
+	}
+	name, err := metadata.InstanceName()
+	if err != nil {
+		return nil
+	}
+	return &mrpb.MonitoredResource{
+		Type: "gce_instance",
+		Labels: map[string]string{
+			"project_id":    projectID,
+			"instance_id":   id,
+			"instance_name": name,
+			"zone":          zone,
+		},
+	}
+}
+
+func detectGAEResource() *mrpb.MonitoredResource {
+	return &mrpb.MonitoredResource{
+		Type: "gae_app",
+		Labels: map[string]string{
+			"project_id":  os.Getenv("GOOGLE_CLOUD_PROJECT"),
+			"module_id":   os.Getenv("GAE_SERVICE"),
+			"version_id":  os.Getenv("GAE_VERSION"),
+			"instance_id": os.Getenv("GAE_INSTANCE"),
+			"runtime":     os.Getenv("GAE_RUNTIME"),
+		},
+	}
+}
+
 func detectResource() *mrpb.MonitoredResource {
 	detectedResource.once.Do(func() {
-		if !metadata.OnGCE() {
-			return
-		}
-		projectID, err := metadata.ProjectID()
-		if err != nil {
-			return
-		}
-		id, err := metadata.InstanceID()
-		if err != nil {
-			return
-		}
-		zone, err := metadata.Zone()
-		if err != nil {
-			return
-		}
-		name, err := metadata.InstanceName()
-		if err != nil {
-			return
-		}
-		detectedResource.pb = &mrpb.MonitoredResource{
-			Type: "gce_instance",
-			Labels: map[string]string{
-				"project_id":    projectID,
-				"instance_id":   id,
-				"instance_name": name,
-				"zone":          zone,
-			},
+		switch {
+		// GAE needs to come first, as metadata.OnGCE() is actually true on GAE
+		// Second Gen runtimes.
+		case os.Getenv("GAE_ENV") == "standard":
+			detectedResource.pb = detectGAEResource()
+		case metadata.OnGCE():
+			detectedResource.pb = detectGCEResource()
 		}
 	})
 	return detectedResource.pb
@@ -768,7 +790,6 @@ func jsonValueToStructValue(v interface{}) *structpb.Value {
 // LogSync logs the Entry synchronously without any buffering. Because LogSync is slow
 // and will block, it is intended primarily for debugging or critical errors.
 // Prefer Log for most uses.
-// TODO(jba): come up with a better name (LogNow?) or eliminate.
 func (l *Logger) LogSync(ctx context.Context, e Entry) error {
 	ent, err := l.toLogEntry(e)
 	if err != nil {

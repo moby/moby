@@ -66,7 +66,6 @@ func (c *Client) Install(ctx context.Context, image Image, opts ...InstallOpts) 
 		cr := content.NewReader(ra)
 		r, err := compression.DecompressStream(cr)
 		if err != nil {
-			ra.Close()
 			return err
 		}
 		if _, err := archive.Apply(ctx, path, r, archive.WithFilter(func(hdr *tar.Header) (bool, error) {
@@ -88,11 +87,9 @@ func (c *Client) Install(ctx context.Context, image Image, opts ...InstallOpts) 
 			return result, nil
 		})); err != nil {
 			r.Close()
-			ra.Close()
 			return err
 		}
 		r.Close()
-		ra.Close()
 	}
 	return nil
 }

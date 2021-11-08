@@ -1,4 +1,3 @@
-//go:build freebsd
 // +build freebsd
 
 /*

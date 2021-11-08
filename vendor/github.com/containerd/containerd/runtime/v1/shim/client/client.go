@@ -1,4 +1,3 @@
-//go:build !windows
 // +build !windows
 
 /*
@@ -23,8 +22,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -32,18 +33,20 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/sys/unix"
+
+	"github.com/containerd/ttrpc"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/pkg/dialer"
 	v1 "github.com/containerd/containerd/runtime/v1"
 	"github.com/containerd/containerd/runtime/v1/shim"
 	shimapi "github.com/containerd/containerd/runtime/v1/shim/v1"
 	"github.com/containerd/containerd/sys"
-	"github.com/containerd/ttrpc"
 	ptypes "github.com/gogo/protobuf/types"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	exec "golang.org/x/sys/execabs"
-	"golang.org/x/sys/unix"
 )
 
 var empty = &ptypes.Empty{}
@@ -73,8 +76,8 @@ func WithStart(binary, address, daemonAddress, cgroup string, debug bool, exitHa
 		}
 		defer f.Close()
 
-		stdoutCopy := io.Discard
-		stderrCopy := io.Discard
+		stdoutCopy := ioutil.Discard
+		stderrCopy := ioutil.Discard
 		stdoutLog, err := v1.OpenShimStdoutLog(ctx, config.WorkDir)
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "failed to create stdout log")
@@ -297,19 +300,12 @@ func RemoveSocket(address string) error {
 	return nil
 }
 
-// AnonDialer returns a dialer for a socket
-//
-// NOTE: It is only used for testing.
-func AnonDialer(address string, timeout time.Duration) (net.Conn, error) {
-	return anonDialer(address, timeout)
-}
-
 func connect(address string, d func(string, time.Duration) (net.Conn, error)) (net.Conn, error) {
 	return d(address, 100*time.Second)
 }
 
 func anonDialer(address string, timeout time.Duration) (net.Conn, error) {
-	return net.DialTimeout("unix", socket(address).path(), timeout)
+	return dialer.Dialer(socket(address).path(), timeout)
 }
 
 // WithConnect connects to an existing shim

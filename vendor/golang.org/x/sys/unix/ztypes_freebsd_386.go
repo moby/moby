@@ -31,8 +31,6 @@ type Timeval struct {
 	Usec int32
 }
 
-type Time_t int32
-
 type Rusage struct {
 	Utime    Timeval
 	Stime    Timeval

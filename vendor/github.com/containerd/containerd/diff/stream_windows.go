@@ -1,3 +1,5 @@
+// +build windows
+
 /*
    Copyright The containerd Authors.
 
@@ -21,7 +23,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 
@@ -30,7 +34,6 @@ import (
 	"github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	exec "golang.org/x/sys/execabs"
 )
 
 const processorPipe = "STREAM_PROCESSOR_PIPE"
@@ -154,7 +157,7 @@ func (c *binaryProcessor) Close() error {
 }
 
 func getUiqPath() (string, error) {
-	dir, err := os.MkdirTemp("", "")
+	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		return "", err
 	}

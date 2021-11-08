@@ -635,7 +635,3 @@ const (
 	PPS_GETCAP    = 0x800470a3
 	PPS_FETCH     = 0xc00470a4
 )
-
-const (
-	PIDFD_NONBLOCK = 0x800
-)

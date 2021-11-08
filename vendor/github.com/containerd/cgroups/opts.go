@@ -17,7 +17,7 @@
 package cgroups
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 )
 
 var (

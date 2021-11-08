@@ -1,4 +1,3 @@
-//go:build darwin || openbsd
 // +build darwin openbsd
 
 /*

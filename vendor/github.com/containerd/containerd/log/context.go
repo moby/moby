@@ -52,8 +52,7 @@ const (
 // WithLogger returns a new context with the provided logger. Use in
 // combination with logger.WithField(s) for great effect.
 func WithLogger(ctx context.Context, logger *logrus.Entry) context.Context {
-	e := logger.WithContext(ctx)
-	return context.WithValue(ctx, loggerKey{}, e)
+	return context.WithValue(ctx, loggerKey{}, logger)
 }
 
 // GetLogger retrieves the current logger from the context. If no logger is
@@ -62,7 +61,7 @@ func GetLogger(ctx context.Context) *logrus.Entry {
 	logger := ctx.Value(loggerKey{})
 
 	if logger == nil {
-		return L.WithContext(ctx)
+		return L
 	}
 
 	return logger.(*logrus.Entry)

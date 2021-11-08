@@ -25,4 +25,8 @@ type cmsghdr struct {
 	Type  int32
 }
 
-const sizeofCmsghdr = 12
+const (
+	sizeofCmsghdr       = 12
+	sizeofSockaddrInet  = 16
+	sizeofSockaddrInet6 = 28
+)

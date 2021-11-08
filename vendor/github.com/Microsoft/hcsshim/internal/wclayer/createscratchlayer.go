@@ -28,7 +28,7 @@ func CreateScratchLayer(ctx context.Context, path string, parentLayerPaths []str
 
 	err = createSandboxLayer(&stdDriverInfo, path, 0, layers)
 	if err != nil {
-		return hcserror.New(err, title, "")
+		return hcserror.New(err, title+" - failed", "")
 	}
 	return nil
 }

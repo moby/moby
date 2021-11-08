@@ -1,4 +1,3 @@
-//go:build freebsd
 // +build freebsd
 
 /*
@@ -20,10 +19,10 @@
 package fs
 
 import (
-	"errors"
 	"os"
 	"syscall"
 
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 

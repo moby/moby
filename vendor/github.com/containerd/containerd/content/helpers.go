@@ -19,6 +19,7 @@ package content
 import (
 	"context"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"sync"
 	"time"
@@ -229,7 +230,7 @@ func seekReader(r io.Reader, offset, size int64) (io.Reader, error) {
 	}
 
 	// well then, let's just discard up to the offset
-	n, err := copyWithBuffer(io.Discard, io.LimitReader(r, offset))
+	n, err := copyWithBuffer(ioutil.Discard, io.LimitReader(r, offset))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to discard to offset")
 	}

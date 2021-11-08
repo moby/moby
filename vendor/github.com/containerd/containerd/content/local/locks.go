@@ -41,13 +41,7 @@ func tryLock(ref string) error {
 	defer locksMu.Unlock()
 
 	if v, ok := locks[ref]; ok {
-		// Returning the duration may help developers distinguish dead locks (long duration) from
-		// lock contentions (short duration).
-		now := time.Now()
-		return errors.Wrapf(
-			errdefs.ErrUnavailable,
-			"ref %s locked for %s (since %s)", ref, now.Sub(v.since), v.since,
-		)
+		return errors.Wrapf(errdefs.ErrUnavailable, "ref %s locked since %s", ref, v.since)
 	}
 
 	locks[ref] = &lock{time.Now()}

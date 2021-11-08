@@ -164,9 +164,9 @@ func remove(path string) error {
 	return fmt.Errorf("cgroups: unable to remove path %q", path)
 }
 
-// readPids will read all the pids of processes or tasks in a cgroup by the provided path
-func readPids(path string, subsystem Name, pType procType) ([]Process, error) {
-	f, err := os.Open(filepath.Join(path, pType))
+// readPids will read all the pids of processes in a cgroup by the provided path
+func readPids(path string, subsystem Name) ([]Process, error) {
+	f, err := os.Open(filepath.Join(path, cgroupProcs))
 	if err != nil {
 		return nil, err
 	}
@@ -190,6 +190,36 @@ func readPids(path string, subsystem Name, pType procType) ([]Process, error) {
 	}
 	if err := s.Err(); err != nil {
 		// failed to read all pids?
+		return nil, err
+	}
+	return out, nil
+}
+
+// readTasksPids will read all the pids of tasks in a cgroup by the provided path
+func readTasksPids(path string, subsystem Name) ([]Task, error) {
+	f, err := os.Open(filepath.Join(path, cgroupTasks))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	var (
+		out []Task
+		s   = bufio.NewScanner(f)
+	)
+	for s.Scan() {
+		if t := s.Text(); t != "" {
+			pid, err := strconv.Atoi(t)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, Task{
+				Pid:       pid,
+				Subsystem: subsystem,
+				Path:      path,
+			})
+		}
+	}
+	if err := s.Err(); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -255,16 +285,7 @@ func parseKV(raw string) (string, uint64, error) {
 	}
 }
 
-// ParseCgroupFile parses the given cgroup file, typically /proc/self/cgroup
-// or /proc/<pid>/cgroup, into a map of subsystems to cgroup paths, e.g.
-//   "cpu": "/user.slice/user-1000.slice"
-//   "pids": "/user.slice/user-1000.slice"
-// etc.
-//
-// Note that for cgroup v2 unified hierarchy, there are no per-controller
-// cgroup paths, so the resulting map will have a single element where the key
-// is empty string ("") and the value is the cgroup path the <pid> is in.
-func ParseCgroupFile(path string) (map[string]string, error) {
+func parseCgroupFile(path string) (map[string]string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err

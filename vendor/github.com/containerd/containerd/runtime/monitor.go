@@ -18,11 +18,10 @@ package runtime
 
 // TaskMonitor provides an interface for monitoring of containers within containerd
 type TaskMonitor interface {
-	// Monitor adds the provided container to the monitor.
-	// Labels are optional (can be nil) key value pairs to be added to the metrics namespace.
-	Monitor(task Task, labels map[string]string) error
+	// Monitor adds the provided container to the monitor
+	Monitor(Task) error
 	// Stop stops and removes the provided container from the monitor
-	Stop(task Task) error
+	Stop(Task) error
 }
 
 // NewMultiTaskMonitor returns a new TaskMonitor broadcasting to the provided monitors
@@ -40,7 +39,7 @@ func NewNoopMonitor() TaskMonitor {
 type noopTaskMonitor struct {
 }
 
-func (mm *noopTaskMonitor) Monitor(c Task, labels map[string]string) error {
+func (mm *noopTaskMonitor) Monitor(c Task) error {
 	return nil
 }
 
@@ -52,9 +51,9 @@ type multiTaskMonitor struct {
 	monitors []TaskMonitor
 }
 
-func (mm *multiTaskMonitor) Monitor(task Task, labels map[string]string) error {
+func (mm *multiTaskMonitor) Monitor(c Task) error {
 	for _, m := range mm.monitors {
-		if err := m.Monitor(task, labels); err != nil {
+		if err := m.Monitor(c); err != nil {
 			return err
 		}
 	}

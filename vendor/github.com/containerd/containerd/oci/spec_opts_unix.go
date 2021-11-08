@@ -1,4 +1,3 @@
-//go:build !linux && !windows
 // +build !linux,!windows
 
 /*
@@ -37,7 +36,7 @@ func WithHostDevices(_ context.Context, _ Client, _ *containers.Container, s *Sp
 	return nil
 }
 
-// WithDevices recursively adds devices from the passed in path.
+// WithDevices recursively adds devices from the passed in path and associated cgroup rules for that device.
 // If devicePath is a dir it traverses the dir to add all devices in that dir.
 // If devicePath is not a dir, it attempts to add the single device.
 func WithDevices(devicePath, containerPath, permissions string) SpecOpts {

@@ -17,13 +17,12 @@
 package fs
 
 import (
-	"errors"
-	"fmt"
 	"io"
 	"os"
 	"syscall"
 
 	"github.com/containerd/continuity/sysx"
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 
@@ -42,13 +41,13 @@ func copyFileInfo(fi os.FileInfo, name string) error {
 			}
 		}
 		if err != nil {
-			return fmt.Errorf("failed to chown %s: %w", name, err)
+			return errors.Wrapf(err, "failed to chown %s", name)
 		}
 	}
 
 	if (fi.Mode() & os.ModeSymlink) != os.ModeSymlink {
 		if err := os.Chmod(name, fi.Mode()); err != nil {
-			return fmt.Errorf("failed to chmod %s: %w", name, err)
+			return errors.Wrapf(err, "failed to chmod %s", name)
 		}
 	}
 
@@ -57,7 +56,7 @@ func copyFileInfo(fi os.FileInfo, name string) error {
 		unix.NsecToTimespec(syscall.TimespecToNsec(StatMtime(st))),
 	}
 	if err := unix.UtimesNanoAt(unix.AT_FDCWD, name, timespec, unix.AT_SYMLINK_NOFOLLOW); err != nil {
-		return fmt.Errorf("failed to utime %s: %w", name, err)
+		return errors.Wrapf(err, "failed to utime %s", name)
 	}
 
 	return nil
@@ -68,7 +67,7 @@ const maxSSizeT = int64(^uint(0) >> 1)
 func copyFileContent(dst, src *os.File) error {
 	st, err := src.Stat()
 	if err != nil {
-		return fmt.Errorf("unable to stat source: %w", err)
+		return errors.Wrap(err, "unable to stat source")
 	}
 
 	size := st.Size()
@@ -89,13 +88,13 @@ func copyFileContent(dst, src *os.File) error {
 		n, err := unix.CopyFileRange(srcFd, nil, dstFd, nil, copySize, 0)
 		if err != nil {
 			if (err != unix.ENOSYS && err != unix.EXDEV) || !first {
-				return fmt.Errorf("copy file range failed: %w", err)
+				return errors.Wrap(err, "copy file range failed")
 			}
 
 			buf := bufferPool.Get().(*[]byte)
 			_, err = io.CopyBuffer(dst, src, *buf)
 			bufferPool.Put(buf)
-			return fmt.Errorf("userspace copy failed: %w", err)
+			return errors.Wrap(err, "userspace copy failed")
 		}
 
 		first = false
@@ -108,7 +107,7 @@ func copyFileContent(dst, src *os.File) error {
 func copyXAttrs(dst, src string, excludes map[string]struct{}, errorHandler XAttrErrorHandler) error {
 	xattrKeys, err := sysx.LListxattr(src)
 	if err != nil {
-		e := fmt.Errorf("failed to list xattrs on %s: %w", src, err)
+		e := errors.Wrapf(err, "failed to list xattrs on %s", src)
 		if errorHandler != nil {
 			e = errorHandler(dst, src, "", e)
 		}
@@ -120,7 +119,7 @@ func copyXAttrs(dst, src string, excludes map[string]struct{}, errorHandler XAtt
 		}
 		data, err := sysx.LGetxattr(src, xattr)
 		if err != nil {
-			e := fmt.Errorf("failed to get xattr %q on %s: %w", xattr, src, err)
+			e := errors.Wrapf(err, "failed to get xattr %q on %s", xattr, src)
 			if errorHandler != nil {
 				if e = errorHandler(dst, src, xattr, e); e == nil {
 					continue
@@ -129,7 +128,7 @@ func copyXAttrs(dst, src string, excludes map[string]struct{}, errorHandler XAtt
 			return e
 		}
 		if err := sysx.LSetxattr(dst, xattr, data, 0); err != nil {
-			e := fmt.Errorf("failed to set xattr %q on %s: %w", xattr, dst, err)
+			e := errors.Wrapf(err, "failed to set xattr %q on %s", xattr, dst)
 			if errorHandler != nil {
 				if e = errorHandler(dst, src, xattr, e); e == nil {
 					continue

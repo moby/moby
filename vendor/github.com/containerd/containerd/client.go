@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"runtime"
 	"strconv"
 	"strings"
@@ -62,7 +63,6 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
@@ -123,7 +123,6 @@ func New(address string, opts ...ClientOpt) (*Client, error) {
 			grpc.FailOnNonTempDialError(true),
 			grpc.WithConnectParams(connParams),
 			grpc.WithContextDialer(dialer.ContextDialer),
-			grpc.WithReturnConnectionError(),
 
 			// TODO(stevvooe): We may need to allow configuration of this on the client.
 			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
@@ -135,13 +134,8 @@ func New(address string, opts ...ClientOpt) (*Client, error) {
 		if copts.defaultns != "" {
 			unary, stream := newNSInterceptors(copts.defaultns)
 			gopts = append(gopts,
-				grpc.WithChainUnaryInterceptor(unary, otelgrpc.UnaryClientInterceptor()),
-				grpc.WithChainStreamInterceptor(stream, otelgrpc.StreamClientInterceptor()),
-			)
-		} else {
-			gopts = append(gopts,
-				grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
-				grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
+				grpc.WithUnaryInterceptor(unary),
+				grpc.WithStreamInterceptor(stream),
 			)
 		}
 		connector := func() (*grpc.ClientConn, error) {
@@ -271,8 +265,8 @@ func (c *Client) Containers(ctx context.Context, filters ...string) ([]Container
 	return out, nil
 }
 
-// NewContainer will create a new container with the provided id.
-// The id must be unique within the namespace.
+// NewContainer will create a new container in container with the provided id
+// the id must be unique within the namespace
 func (c *Client) NewContainer(ctx context.Context, id string, opts ...NewContainerOpts) (Container, error) {
 	ctx, done, err := c.WithLease(ctx)
 	if err != nil {
@@ -375,7 +369,9 @@ type RemoteContext struct {
 
 func defaultRemoteContext() *RemoteContext {
 	return &RemoteContext{
-		Resolver: docker.NewResolver(docker.ResolverOptions{}),
+		Resolver: docker.NewResolver(docker.ResolverOptions{
+			Client: http.DefaultClient,
+		}),
 	}
 }
 

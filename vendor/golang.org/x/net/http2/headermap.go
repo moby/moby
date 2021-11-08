@@ -6,6 +6,7 @@ package http2
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 )
 
@@ -78,10 +79,10 @@ func buildCommonHeaderMaps() {
 	}
 }
 
-func lowerHeader(v string) (lower string, ascii bool) {
+func lowerHeader(v string) string {
 	buildCommonHeaderMapsOnce()
 	if s, ok := commonLowerHeader[v]; ok {
-		return s, true
+		return s
 	}
-	return asciiToLower(v)
+	return strings.ToLower(v)
 }

@@ -19,7 +19,3 @@ package labels
 // LabelUncompressed is added to compressed layer contents.
 // The value is digest of the uncompressed content.
 const LabelUncompressed = "containerd.io/uncompressed"
-
-// LabelSharedNamespace is added to a namespace to allow that namespaces
-// contents to be shared.
-const LabelSharedNamespace = "containerd.io/namespace.shareable"

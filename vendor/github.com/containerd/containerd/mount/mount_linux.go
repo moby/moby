@@ -19,12 +19,13 @@ package mount
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/sys"
 	"github.com/pkg/errors"
-	exec "golang.org/x/sys/execabs"
 	"golang.org/x/sys/unix"
 )
 
@@ -377,7 +378,7 @@ func mountAt(chdir string, source, target, fstype string, flags uintptr, data st
 	if !fs.IsDir() {
 		return errors.Wrap(errors.Errorf("%s is not dir", chdir), "failed to mountat")
 	}
-	return errors.Wrap(fMountat(f.Fd(), source, target, fstype, flags, data), "failed to mountat")
+	return errors.Wrap(sys.FMountat(f.Fd(), source, target, fstype, flags, data), "failed to mountat")
 }
 
 func (m *Mount) mountWithHelper(helperBinary, typePrefix, target string) error {

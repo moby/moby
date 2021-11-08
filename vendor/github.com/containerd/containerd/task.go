@@ -315,7 +315,6 @@ func (t *task) Delete(ctx context.Context, opts ...ProcessDeleteOpts) (*ExitStat
 		return nil, errors.Wrapf(errdefs.ErrFailedPrecondition, "task must be stopped before deletion: %s", status.Status)
 	}
 	if t.io != nil {
-		t.io.Close()
 		t.io.Cancel()
 		t.io.Wait()
 	}

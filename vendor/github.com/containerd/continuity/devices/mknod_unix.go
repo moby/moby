@@ -1,4 +1,3 @@
-//go:build linux || darwin || solaris
 // +build linux darwin solaris
 
 /*

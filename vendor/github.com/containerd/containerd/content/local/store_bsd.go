@@ -1,4 +1,3 @@
-//go:build darwin || freebsd || netbsd
 // +build darwin freebsd netbsd
 
 /*

@@ -158,17 +158,7 @@ func WithProcessKill(ctx context.Context, p Process) error {
 		return err
 	}
 	if err := p.Kill(ctx, syscall.SIGKILL, WithKillAll); err != nil {
-		// Kill might still return an IsNotFound error, even if it actually
-		// killed the process.
-		if errdefs.IsNotFound(err) {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-s:
-				return nil
-			}
-		}
-		if errdefs.IsFailedPrecondition(err) {
+		if errdefs.IsFailedPrecondition(err) || errdefs.IsNotFound(err) {
 			return nil
 		}
 		return err

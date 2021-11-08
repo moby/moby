@@ -1,4 +1,3 @@
-//go:build linux
 // +build linux
 
 /*
@@ -86,8 +85,8 @@ func (t *Task) Namespace() string {
 }
 
 // PID of the task
-func (t *Task) PID(_ctx context.Context) (uint32, error) {
-	return uint32(t.pid), nil
+func (t *Task) PID() uint32 {
+	return uint32(t.pid)
 }
 
 // Delete the task and return the exit status
@@ -227,7 +226,7 @@ func (t *Task) Kill(ctx context.Context, signal uint32, all bool) error {
 }
 
 // Exec creates a new process inside the task
-func (t *Task) Exec(ctx context.Context, id string, opts runtime.ExecOpts) (runtime.ExecProcess, error) {
+func (t *Task) Exec(ctx context.Context, id string, opts runtime.ExecOpts) (runtime.Process, error) {
 	if err := identifiers.Validate(id); err != nil {
 		return nil, errors.Wrapf(err, "invalid exec id")
 	}
@@ -317,7 +316,7 @@ func (t *Task) Update(ctx context.Context, resources *types.Any, _ map[string]st
 }
 
 // Process returns a specific process inside the task by the process id
-func (t *Task) Process(ctx context.Context, id string) (runtime.ExecProcess, error) {
+func (t *Task) Process(ctx context.Context, id string) (runtime.Process, error) {
 	p := &Process{
 		id: id,
 		t:  t,

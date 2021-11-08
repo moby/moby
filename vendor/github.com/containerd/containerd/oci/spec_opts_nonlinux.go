@@ -1,4 +1,3 @@
-//go:build !linux
 // +build !linux
 
 /*
@@ -36,12 +35,4 @@ var WithAllCurrentCapabilities = func(ctx context.Context, client Client, c *con
 //nolint: deadcode, unused
 var WithAllKnownCapabilities = func(ctx context.Context, client Client, c *containers.Container, s *Spec) error {
 	return WithCapabilities(nil)(ctx, client, c, s)
-}
-
-// WithCPUShares sets the container's cpu shares
-//nolint: deadcode, unused
-func WithCPUShares(shares uint64) SpecOpts {
-	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
-		return nil
-	}
 }

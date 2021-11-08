@@ -117,13 +117,13 @@ Grouping Logs by Request
 
 To group all the log entries written during a single HTTP request, create two
 Loggers, a "parent" and a "child," with different log IDs. Both should be in the same
-project, and have the same MonitoredResouce type and labels.
+project, and have the same MonitoredResource type and labels.
 
 - Parent entries must have HTTPRequest.Request populated. (Strictly speaking, only the URL is necessary.)
 
-- A child entry's timestamp must be within the time interval covered by the parent request (i.e., older
-than parent.Timestamp, and newer than parent.Timestamp - parent.HTTPRequest.Latency, assuming the
-parent timestamp marks the end of the request.
+- A child entry's timestamp must be within the time interval covered by the parent request. (i.e., before
+the parent.Timestamp and after the parent.Timestamp - parent.HTTPRequest.Latency. This assumes the
+parent.Timestamp marks the end of the request.)
 
 - The trace field must be populated in all of the entries and match exactly.
 

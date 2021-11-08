@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -567,7 +568,7 @@ func (s *store) writer(ctx context.Context, ref string, total int64, expected di
 
 		// the ingest is new, we need to setup the target location.
 		// write the ref to a file for later use
-		if err := os.WriteFile(refp, []byte(ref), 0666); err != nil {
+		if err := ioutil.WriteFile(refp, []byte(ref), 0666); err != nil {
 			return nil, err
 		}
 
@@ -580,7 +581,7 @@ func (s *store) writer(ctx context.Context, ref string, total int64, expected di
 		}
 
 		if total > 0 {
-			if err := os.WriteFile(filepath.Join(path, "total"), []byte(fmt.Sprint(total)), 0666); err != nil {
+			if err := ioutil.WriteFile(filepath.Join(path, "total"), []byte(fmt.Sprint(total)), 0666); err != nil {
 				return nil, err
 			}
 		}
@@ -655,13 +656,13 @@ func (s *store) ingestPaths(ref string) (string, string, string) {
 }
 
 func readFileString(path string) (string, error) {
-	p, err := os.ReadFile(path)
+	p, err := ioutil.ReadFile(path)
 	return string(p), err
 }
 
 // readFileTimestamp reads a file with just a timestamp present.
 func readFileTimestamp(p string) (time.Time, error) {
-	b, err := os.ReadFile(p)
+	b, err := ioutil.ReadFile(p)
 	if err != nil {
 		if os.IsNotExist(err) {
 			err = errors.Wrap(errdefs.ErrNotFound, err.Error())
@@ -682,10 +683,10 @@ func writeTimestampFile(p string, t time.Time) error {
 	if err != nil {
 		return err
 	}
-	return writeToCompletion(p, b, 0666)
+	return atomicWrite(p, b, 0666)
 }
 
-func writeToCompletion(path string, data []byte, mode os.FileMode) error {
+func atomicWrite(path string, data []byte, mode os.FileMode) error {
 	tmp := fmt.Sprintf("%s.tmp", path)
 	f, err := os.OpenFile(tmp, os.O_RDWR|os.O_CREATE|os.O_TRUNC|os.O_SYNC, mode)
 	if err != nil {
@@ -694,11 +695,7 @@ func writeToCompletion(path string, data []byte, mode os.FileMode) error {
 	_, err = f.Write(data)
 	f.Close()
 	if err != nil {
-		return errors.Wrap(err, "write tmp file")
+		return errors.Wrap(err, "write atomic data")
 	}
-	err = os.Rename(tmp, path)
-	if err != nil {
-		return errors.Wrap(err, "rename tmp file")
-	}
-	return nil
+	return os.Rename(tmp, path)
 }

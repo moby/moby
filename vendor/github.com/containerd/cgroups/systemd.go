@@ -17,7 +17,6 @@
 package cgroups
 
 import (
-	"context"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -79,8 +78,7 @@ func (s *SystemdController) Name() Name {
 }
 
 func (s *SystemdController) Create(path string, _ *specs.LinuxResources) error {
-	ctx := context.TODO()
-	conn, err := systemdDbus.NewWithContext(ctx)
+	conn, err := systemdDbus.New()
 	if err != nil {
 		return err
 	}
@@ -92,7 +90,7 @@ func (s *SystemdController) Create(path string, _ *specs.LinuxResources) error {
 	checkDelegate := func() {
 		canDelegate = true
 		dlSlice := newProperty("Delegate", true)
-		if _, err := conn.StartTransientUnitContext(ctx, slice, "testdelegate", []systemdDbus.Property{dlSlice}, nil); err != nil {
+		if _, err := conn.StartTransientUnit(slice, "testdelegate", []systemdDbus.Property{dlSlice}, nil); err != nil {
 			if dbusError, ok := err.(dbus.Error); ok {
 				// Starting with systemd v237, Delegate is not even a property of slices anymore,
 				// so the D-Bus call fails with "InvalidArgs" error.
@@ -102,7 +100,7 @@ func (s *SystemdController) Create(path string, _ *specs.LinuxResources) error {
 			}
 		}
 
-		_, _ = conn.StopUnitContext(ctx, slice, "testDelegate", nil)
+		conn.StopUnit(slice, "testDelegate", nil)
 	}
 	once.Do(checkDelegate)
 	properties := []systemdDbus.Property{
@@ -120,7 +118,7 @@ func (s *SystemdController) Create(path string, _ *specs.LinuxResources) error {
 	}
 
 	ch := make(chan string)
-	_, err = conn.StartTransientUnitContext(ctx, name, "replace", properties, ch)
+	_, err = conn.StartTransientUnit(name, "replace", properties, ch)
 	if err != nil {
 		return err
 	}
@@ -129,15 +127,14 @@ func (s *SystemdController) Create(path string, _ *specs.LinuxResources) error {
 }
 
 func (s *SystemdController) Delete(path string) error {
-	ctx := context.TODO()
-	conn, err := systemdDbus.NewWithContext(ctx)
+	conn, err := systemdDbus.New()
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 	_, name := splitName(path)
 	ch := make(chan string)
-	_, err = conn.StopUnitContext(ctx, name, "replace", ch)
+	_, err = conn.StopUnit(name, "replace", ch)
 	if err != nil {
 		return err
 	}

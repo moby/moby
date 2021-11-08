@@ -1,4 +1,3 @@
-//go:build !windows
 // +build !windows
 
 /*
@@ -42,8 +41,10 @@ type inode struct {
 
 func newInode(stat *syscall.Stat_t) inode {
 	return inode{
-		dev: uint64(stat.Dev), //nolint: unconvert // dev is uint32 on darwin/bsd, uint64 on linux/solaris/freebsd
-		ino: uint64(stat.Ino), //nolint: unconvert // ino is uint32 on bsd, uint64 on darwin/linux/solaris/freebsd
+		// Dev is uint32 on darwin/bsd, uint64 on linux/solaris/freebsd
+		dev: uint64(stat.Dev), // nolint: unconvert
+		// Ino is uint32 on bsd, uint64 on darwin/linux/solaris/freebsd
+		ino: uint64(stat.Ino), // nolint: unconvert
 	}
 }
 

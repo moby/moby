@@ -19,8 +19,7 @@ package process
 import (
 	"net/url"
 	"os"
-
-	exec "golang.org/x/sys/execabs"
+	"os/exec"
 )
 
 // NewBinaryCmd returns a Cmd to be used to start a logging binary.
