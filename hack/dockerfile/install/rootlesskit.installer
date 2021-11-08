@@ -1,6 +1,6 @@
 #!/bin/sh
 
-: "${ROOTLESSKIT_VERSION:=v0.14.4}"
+: "${ROOTLESSKIT_VERSION:=v0.14.6}"
 
 install_rootlesskit() {
 	case "$1" in
