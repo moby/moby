@@ -42,6 +42,7 @@ const (
 	splunkGzipCompressionKey      = "splunk-gzip"
 	splunkGzipCompressionLevelKey = "splunk-gzip-level"
 	splunkIndexAcknowledgment     = "splunk-index-acknowledgment"
+	splunkHTTPTimeout             = "splunk-timeout"
 	envKey                        = "env"
 	envRegexKey                   = "env-regex"
 	labelsKey                     = "labels"
@@ -52,6 +53,8 @@ const (
 const (
 	// How often do we send messages (if we are not reaching batch size)
 	defaultPostMessagesFrequency = 5 * time.Second
+	// HTTP timeout
+	defaultHTTPTimeout = 1 * time.Second
 	// How big can be batch of messages
 	defaultPostMessagesBatchSize = 1000
 	// Maximum number of messages we can store in buffer
@@ -228,12 +231,23 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
+	timeout := defaultHTTPTimeout
+	if timeoutStr, ok := info.Config[splunkHTTPTimeout]; ok {
+		value, err := strconv.ParseInt(timeoutStr, 10, 64)
+
+		if err != nil {
+			return nil, err
+		}
+		timeout = time.Duration(value) * time.Millisecond
+	}
+
 	transport := &http.Transport{
 		TLSClientConfig: tlsConfig,
 		Proxy:           http.ProxyFromEnvironment,
 	}
 	client := &http.Client{
 		Transport: transport,
+		Timeout:   timeout,
 	}
 
 	source := info.Config[splunkSourceKey]
@@ -584,6 +598,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case splunkGzipCompressionKey:
 		case splunkGzipCompressionLevelKey:
 		case splunkIndexAcknowledgment:
+		case splunkHTTPTimeout:
 		case envKey:
 		case envRegexKey:
 		case labelsKey:

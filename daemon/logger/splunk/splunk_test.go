@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"runtime"
@@ -1390,5 +1391,61 @@ func TestDeadlockOnBlockedEndpoint(t *testing.T) {
 		t.Logf("STACK DUMP: \n\n%s\n\n", string(buf))
 		t.Fatal("timeout waiting for close to finish")
 	case <-done:
+	}
+}
+
+func TestCustomHttpTimeout(t *testing.T) {
+	tcpAddr := &net.TCPAddr{IP: []byte{127, 0, 0, 1}, Port: 0, Zone: ""}
+	tcpListener, err := net.ListenTCP("tcp", tcpAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	counter := 0
+	go http.Serve(tcpListener, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method == "POST" {
+			counter++
+			// block so connection will timeout.
+			time.Sleep(5000 * time.Millisecond)
+		}
+		writer.WriteHeader(200)
+	}))
+
+	info := logger.Info{
+		Config: map[string]string{
+			splunkURLKey:      "http://" + tcpListener.Addr().String(),
+			splunkTokenKey:    "1234",
+			splunkHTTPTimeout: "100",
+		},
+		ContainerID:        "containeriid",
+		ContainerName:      "/container_name",
+		ContainerImageID:   "contaimageid",
+		ContainerImageName: "container_image_name",
+	}
+
+	loggerDriver, err := New(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	batchSendTimeout = 1 * time.Second
+	start := time.Now()
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("message1"), Source: "stdout", Timestamp: time.Now()}); err != nil {
+		t.Fatal(err)
+	}
+	err = loggerDriver.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	duration := time.Since(start)
+	if duration > 1*time.Second {
+		t.Fatal("Sending didn't use the custom timeout")
+	}
+	if counter == 0 {
+		t.Fatal("No messages received")
+	}
+
+	err = tcpListener.Close()
+	if err != nil {
+		t.Fatal(err)
 	}
 }
