@@ -17,15 +17,15 @@
 package fs
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"os"
-
-	"github.com/pkg/errors"
 )
 
 func copyFileInfo(fi os.FileInfo, name string) error {
 	if err := os.Chmod(name, fi.Mode()); err != nil {
-		return errors.Wrapf(err, "failed to chmod %s", name)
+		return fmt.Errorf("failed to chmod %s: %w", name, err)
 	}
 
 	// TODO: copy windows specific metadata

@@ -47,6 +47,14 @@ type Process interface {
 	Start(ctx context.Context) error
 	// Wait for the process to exit
 	Wait(ctx context.Context) (*Exit, error)
+}
+
+// ExecProcess is a process spawned in container via Task.Exec call.
+// The only difference from a regular `Process` is that exec process can delete self,
+// while task process requires slightly more complex logic and needs to be deleted through the task manager.
+type ExecProcess interface {
+	Process
+
 	// Delete deletes the process
 	Delete(ctx context.Context) (*Exit, error)
 }
@@ -56,7 +64,7 @@ type Task interface {
 	Process
 
 	// PID of the process
-	PID() uint32
+	PID(ctx context.Context) (uint32, error)
 	// Namespace that the task exists in
 	Namespace() string
 	// Pause pauses the container process
@@ -64,7 +72,7 @@ type Task interface {
 	// Resume unpauses the container process
 	Resume(ctx context.Context) error
 	// Exec adds a process into the container
-	Exec(ctx context.Context, id string, opts ExecOpts) (Process, error)
+	Exec(ctx context.Context, id string, opts ExecOpts) (ExecProcess, error)
 	// Pids returns all pids
 	Pids(ctx context.Context) ([]ProcessInfo, error)
 	// Checkpoint checkpoints a container to an image with live system data
@@ -72,7 +80,7 @@ type Task interface {
 	// Update sets the provided resources to a running task
 	Update(ctx context.Context, resources *types.Any, annotations map[string]string) error
 	// Process returns a process within the task for the provided id
-	Process(ctx context.Context, id string) (Process, error)
+	Process(ctx context.Context, id string) (ExecProcess, error)
 	// Stats returns runtime specific metrics for a task
 	Stats(ctx context.Context) (*types.Any, error)
 }

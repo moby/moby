@@ -40,6 +40,10 @@ var (
 	// This applies only to a single descriptor in a handler
 	// chain and does not apply to descendant descriptors.
 	ErrStopHandler = fmt.Errorf("stop handler")
+
+	// ErrEmptyWalk is used when the WalkNotEmpty handlers return no
+	// children (e.g.: they were filtered out).
+	ErrEmptyWalk = fmt.Errorf("image might be filtered out")
 )
 
 // Handler handles image manifests
@@ -98,6 +102,36 @@ func Walk(ctx context.Context, handler Handler, descs ...ocispec.Descriptor) err
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+// WalkNotEmpty works the same way Walk does, with the exception that it ensures that
+// some children are still found by Walking the descriptors (for example, not all of
+// them have been filtered out by one of the handlers). If there are no children,
+// then an ErrEmptyWalk error is returned.
+func WalkNotEmpty(ctx context.Context, handler Handler, descs ...ocispec.Descriptor) error {
+	isEmpty := true
+	var notEmptyHandler HandlerFunc = func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		children, err := handler.Handle(ctx, desc)
+		if err != nil {
+			return children, err
+		}
+
+		if len(children) > 0 {
+			isEmpty = false
+		}
+
+		return children, nil
+	}
+
+	err := Walk(ctx, notEmptyHandler, descs...)
+	if err != nil {
+		return err
+	}
+
+	if isEmpty {
+		return ErrEmptyWalk
 	}
 
 	return nil

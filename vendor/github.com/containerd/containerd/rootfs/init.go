@@ -19,7 +19,6 @@ package rootfs
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/containerd/containerd/log"
@@ -75,7 +74,7 @@ func createInitLayer(ctx context.Context, parent, initName string, initFn func(s
 	// TODO: ensure not exist error once added to snapshot package
 
 	// Create tempdir
-	td, err := ioutil.TempDir(os.Getenv("XDG_RUNTIME_DIR"), "create-init-")
+	td, err := os.MkdirTemp(os.Getenv("XDG_RUNTIME_DIR"), "create-init-")
 	if err != nil {
 		return "", err
 	}

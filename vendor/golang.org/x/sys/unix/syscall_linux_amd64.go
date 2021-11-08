@@ -8,7 +8,6 @@
 package unix
 
 //sys	dup2(oldfd int, newfd int) (err error)
-//sysnb	EpollCreate(size int) (fd int, err error)
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64
 //sys	Fchown(fd int, uid int, gid int) (err error)
@@ -21,17 +20,6 @@ package unix
 //sysnb	Getgid() (gid int)
 //sysnb	Getrlimit(resource int, rlim *Rlimit) (err error)
 //sysnb	Getuid() (uid int)
-//sysnb	inotifyInit() (fd int, err error)
-
-func InotifyInit() (fd int, err error) {
-	// First try inotify_init1, because Android's seccomp policy blocks the latter.
-	fd, err = InotifyInit1(0)
-	if err == ENOSYS {
-		fd, err = inotifyInit()
-	}
-	return
-}
-
 //sys	Ioperm(from int, num int, on int) (err error)
 //sys	Iopl(level int) (err error)
 //sys	Lchown(path string, uid int, gid int) (err error)

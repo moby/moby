@@ -2,6 +2,8 @@ package signal
 
 import (
 	"syscall"
+
+	"golang.org/x/sys/windows"
 )
 
 // Signals used in cli/command (no windows equivalent, use
@@ -17,10 +19,18 @@ const (
 // SignalMap is a map of "supported" signals. As per the comment in GOLang's
 // ztypes_windows.go: "More invented values for signals". Windows doesn't
 // really support signals in any way, shape or form that Unix does.
-//
-// We have these so that docker kill can be used to gracefully (TERM) and
-// forcibly (KILL) terminate a container on Windows.
 var SignalMap = map[string]syscall.Signal{
-	"KILL": syscall.SIGKILL,
-	"TERM": syscall.SIGTERM,
+	"HUP":  syscall.Signal(windows.SIGHUP),
+	"INT":  syscall.Signal(windows.SIGINT),
+	"QUIT": syscall.Signal(windows.SIGQUIT),
+	"ILL":  syscall.Signal(windows.SIGILL),
+	"TRAP": syscall.Signal(windows.SIGTRAP),
+	"ABRT": syscall.Signal(windows.SIGABRT),
+	"BUS":  syscall.Signal(windows.SIGBUS),
+	"FPE":  syscall.Signal(windows.SIGFPE),
+	"KILL": syscall.Signal(windows.SIGKILL),
+	"SEGV": syscall.Signal(windows.SIGSEGV),
+	"PIPE": syscall.Signal(windows.SIGPIPE),
+	"ALRM": syscall.Signal(windows.SIGALRM),
+	"TERM": syscall.Signal(windows.SIGTERM),
 }

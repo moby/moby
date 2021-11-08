@@ -17,12 +17,11 @@
 package fs
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
-
-	"github.com/pkg/errors"
 )
 
 var bufferPool = &sync.Pool{
@@ -92,35 +91,35 @@ func CopyDir(dst, src string, opts ...CopyDirOpt) error {
 func copyDirectory(dst, src string, inodes map[uint64]string, o *copyDirOpts) error {
 	stat, err := os.Stat(src)
 	if err != nil {
-		return errors.Wrapf(err, "failed to stat %s", src)
+		return fmt.Errorf("failed to stat %s: %w", src, err)
 	}
 	if !stat.IsDir() {
-		return errors.Errorf("source %s is not directory", src)
+		return fmt.Errorf("source %s is not directory", src)
 	}
 
 	if st, err := os.Stat(dst); err != nil {
 		if err := os.Mkdir(dst, stat.Mode()); err != nil {
-			return errors.Wrapf(err, "failed to mkdir %s", dst)
+			return fmt.Errorf("failed to mkdir %s: %w", dst, err)
 		}
 	} else if !st.IsDir() {
-		return errors.Errorf("cannot copy to non-directory: %s", dst)
+		return fmt.Errorf("cannot copy to non-directory: %s", dst)
 	} else {
 		if err := os.Chmod(dst, stat.Mode()); err != nil {
-			return errors.Wrapf(err, "failed to chmod on %s", dst)
+			return fmt.Errorf("failed to chmod on %s: %w", dst, err)
 		}
 	}
 
 	fis, err := ioutil.ReadDir(src)
 	if err != nil {
-		return errors.Wrapf(err, "failed to read %s", src)
+		return fmt.Errorf("failed to read %s: %w", src, err)
 	}
 
 	if err := copyFileInfo(stat, dst); err != nil {
-		return errors.Wrapf(err, "failed to copy file info for %s", dst)
+		return fmt.Errorf("failed to copy file info for %s: %w", dst, err)
 	}
 
 	if err := copyXAttrs(dst, src, o.xex, o.xeh); err != nil {
-		return errors.Wrap(err, "failed to copy xattrs")
+		return fmt.Errorf("failed to copy xattrs: %w", err)
 	}
 
 	for _, fi := range fis {
@@ -136,37 +135,37 @@ func copyDirectory(dst, src string, inodes map[uint64]string, o *copyDirOpts) er
 		case (fi.Mode() & os.ModeType) == 0:
 			link, err := getLinkSource(target, fi, inodes)
 			if err != nil {
-				return errors.Wrap(err, "failed to get hardlink")
+				return fmt.Errorf("failed to get hardlink: %w", err)
 			}
 			if link != "" {
 				if err := os.Link(link, target); err != nil {
-					return errors.Wrap(err, "failed to create hard link")
+					return fmt.Errorf("failed to create hard link: %w", err)
 				}
 			} else if err := CopyFile(target, source); err != nil {
-				return errors.Wrap(err, "failed to copy files")
+				return fmt.Errorf("failed to copy files: %w", err)
 			}
 		case (fi.Mode() & os.ModeSymlink) == os.ModeSymlink:
 			link, err := os.Readlink(source)
 			if err != nil {
-				return errors.Wrapf(err, "failed to read link: %s", source)
+				return fmt.Errorf("failed to read link: %s: %w", source, err)
 			}
 			if err := os.Symlink(link, target); err != nil {
-				return errors.Wrapf(err, "failed to create symlink: %s", target)
+				return fmt.Errorf("failed to create symlink: %s: %w", target, err)
 			}
 		case (fi.Mode() & os.ModeDevice) == os.ModeDevice:
 			if err := copyDevice(target, fi); err != nil {
-				return errors.Wrapf(err, "failed to create device")
+				return fmt.Errorf("failed to create device: %w", err)
 			}
 		default:
 			// TODO: Support pipes and sockets
-			return errors.Wrapf(err, "unsupported mode %s", fi.Mode())
+			return fmt.Errorf("unsupported mode %s: %w", fi.Mode(), err)
 		}
 		if err := copyFileInfo(fi, target); err != nil {
-			return errors.Wrap(err, "failed to copy file info")
+			return fmt.Errorf("failed to copy file info: %w", err)
 		}
 
 		if err := copyXAttrs(target, source, o.xex, o.xeh); err != nil {
-			return errors.Wrap(err, "failed to copy xattrs")
+			return fmt.Errorf("failed to copy xattrs: %w", err)
 		}
 	}
 
@@ -178,12 +177,12 @@ func copyDirectory(dst, src string, inodes map[uint64]string, o *copyDirOpts) er
 func CopyFile(target, source string) error {
 	src, err := os.Open(source)
 	if err != nil {
-		return errors.Wrapf(err, "failed to open source %s", source)
+		return fmt.Errorf("failed to open source %s: %w", source, err)
 	}
 	defer src.Close()
 	tgt, err := os.Create(target)
 	if err != nil {
-		return errors.Wrapf(err, "failed to open target %s", target)
+		return fmt.Errorf("failed to open target %s: %w", target, err)
 	}
 	defer tgt.Close()
 

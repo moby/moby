@@ -19,7 +19,6 @@ package docker
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -263,7 +262,7 @@ func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref str
 
 	pr, pw := io.Pipe()
 	respC := make(chan response, 1)
-	body := ioutil.NopCloser(pr)
+	body := io.NopCloser(pr)
 
 	req.body = func() (io.ReadCloser, error) {
 		if body == nil {

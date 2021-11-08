@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -147,7 +146,7 @@ func WithSpecFromBytes(p []byte) SpecOpts {
 // WithSpecFromFile loads the specification from the provided filename.
 func WithSpecFromFile(filename string) SpecOpts {
 	return func(ctx context.Context, c Client, container *containers.Container, s *Spec) error {
-		p, err := ioutil.ReadFile(filename)
+		p, err := os.ReadFile(filename)
 		if err != nil {
 			return errors.Wrap(err, "cannot load spec config file")
 		}
@@ -522,6 +521,18 @@ func WithNamespacedCgroup() SpecOpts {
 func WithUser(userstr string) SpecOpts {
 	return func(ctx context.Context, client Client, c *containers.Container, s *Spec) error {
 		setProcess(s)
+
+		// For LCOW it's a bit harder to confirm that the user actually exists on the host as a rootfs isn't
+		// mounted on the host and shared into the guest, but rather the rootfs is constructed entirely in the
+		// guest itself. To accommodate this, a spot to place the user string provided by a client as-is is needed.
+		// The `Username` field on the runtime spec is marked by Platform as only for Windows, and in this case it
+		// *is* being set on a Windows host at least, but will be used as a temporary holding spot until the guest
+		// can use the string to perform these same operations to grab the uid:gid inside.
+		if s.Windows != nil && s.Linux != nil {
+			s.Process.User.Username = userstr
+			return nil
+		}
+
 		parts := strings.Split(userstr, ":")
 		switch len(parts) {
 		case 1:
@@ -663,7 +674,9 @@ func WithUserID(uid uint32) SpecOpts {
 // WithUsername sets the correct UID and GID for the container
 // based on the image's /etc/passwd contents. If /etc/passwd
 // does not exist, or the username is not found in /etc/passwd,
-// it returns error.
+// it returns error. On Windows this sets the username as provided,
+// the operating system will validate the user when going to run
+// the container.
 func WithUsername(username string) SpecOpts {
 	return func(ctx context.Context, client Client, c *containers.Container, s *Spec) (err error) {
 		setProcess(s)

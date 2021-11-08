@@ -18,6 +18,7 @@ package mount
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -50,14 +51,20 @@ func (m *Mount) Mount(target string) error {
 	if err = hcsshim.ActivateLayer(di, layerID); err != nil {
 		return errors.Wrapf(err, "failed to activate layer %s", m.Source)
 	}
-	defer func() {
-		if err != nil {
-			hcsshim.DeactivateLayer(di, layerID)
-		}
-	}()
 
 	if err = hcsshim.PrepareLayer(di, layerID, parentLayerPaths); err != nil {
 		return errors.Wrapf(err, "failed to prepare layer %s", m.Source)
+	}
+
+	// We can link the layer mount path to the given target. It is an UNC path, and it needs
+	// a trailing backslash.
+	mountPath, err := hcsshim.GetLayerMountPath(di, layerID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get layer mount path for %s", m.Source)
+	}
+	mountPath = mountPath + `\`
+	if err = os.Symlink(mountPath, target); err != nil {
+		return errors.Wrapf(err, "failed to link mount to taget %s", target)
 	}
 	return nil
 }

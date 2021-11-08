@@ -38,7 +38,7 @@ func PrepareLayer(ctx context.Context, path string, parentLayerPaths []string) (
 	defer prepareLayerLock.Unlock()
 	err = prepareLayer(&stdDriverInfo, path, layers)
 	if err != nil {
-		return hcserror.New(err, title+" - failed", "")
+		return hcserror.New(err, title, "")
 	}
 	return nil
 }

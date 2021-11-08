@@ -48,12 +48,15 @@ var errInvalidArchive = errors.New("invalid archive")
 // Produces a tar using OCI style file markers for deletions. Deleted
 // files will be prepended with the prefix ".wh.". This style is
 // based off AUFS whiteouts.
-// See https://github.com/opencontainers/image-spec/blob/master/layer.md
+// See https://github.com/opencontainers/image-spec/blob/main/layer.md
 func Diff(ctx context.Context, a, b string) io.ReadCloser {
 	r, w := io.Pipe()
 
 	go func() {
 		err := WriteDiff(ctx, w, a, b)
+		if err != nil {
+			log.G(ctx).WithError(err).Debugf("write diff failed")
+		}
 		if err = w.CloseWithError(err); err != nil {
 			log.G(ctx).WithError(err).Debugf("closing tar pipe failed")
 		}
@@ -68,7 +71,7 @@ func Diff(ctx context.Context, a, b string) io.ReadCloser {
 // Produces a tar using OCI style file markers for deletions. Deleted
 // files will be prepended with the prefix ".wh.". This style is
 // based off AUFS whiteouts.
-// See https://github.com/opencontainers/image-spec/blob/master/layer.md
+// See https://github.com/opencontainers/image-spec/blob/main/layer.md
 func WriteDiff(ctx context.Context, w io.Writer, a, b string, opts ...WriteDiffOpt) error {
 	var options WriteDiffOptions
 	for _, opt := range opts {
@@ -89,7 +92,7 @@ func WriteDiff(ctx context.Context, w io.Writer, a, b string, opts ...WriteDiffO
 // Produces a tar using OCI style file markers for deletions. Deleted
 // files will be prepended with the prefix ".wh.". This style is
 // based off AUFS whiteouts.
-// See https://github.com/opencontainers/image-spec/blob/master/layer.md
+// See https://github.com/opencontainers/image-spec/blob/main/layer.md
 func writeDiffNaive(ctx context.Context, w io.Writer, a, b string, _ WriteDiffOptions) error {
 	cw := NewChangeWriter(w, b)
 	err := fs.Changes(ctx, a, b, cw.HandleChange)
@@ -102,7 +105,7 @@ func writeDiffNaive(ctx context.Context, w io.Writer, a, b string, _ WriteDiffOp
 const (
 	// whiteoutPrefix prefix means file is a whiteout. If this is followed by a
 	// filename this means that file has been removed from the base layer.
-	// See https://github.com/opencontainers/image-spec/blob/master/layer.md#whiteouts
+	// See https://github.com/opencontainers/image-spec/blob/main/layer.md#whiteouts
 	whiteoutPrefix = ".wh."
 
 	// whiteoutMetaPrefix prefix means whiteout has a special meaning and is not
@@ -118,7 +121,7 @@ const (
 )
 
 // Apply applies a tar stream of an OCI style diff tar.
-// See https://github.com/opencontainers/image-spec/blob/master/layer.md#applying-changesets
+// See https://github.com/opencontainers/image-spec/blob/main/layer.md#applying-changesets
 func Apply(ctx context.Context, root string, r io.Reader, opts ...ApplyOpt) (int64, error) {
 	root = filepath.Clean(root)
 
@@ -140,7 +143,7 @@ func Apply(ctx context.Context, root string, r io.Reader, opts ...ApplyOpt) (int
 
 // applyNaive applies a tar stream of an OCI style diff tar to a directory
 // applying each file as either a whole file or whiteout.
-// See https://github.com/opencontainers/image-spec/blob/master/layer.md#applying-changesets
+// See https://github.com/opencontainers/image-spec/blob/main/layer.md#applying-changesets
 func applyNaive(ctx context.Context, root string, r io.Reader, options ApplyOptions) (size int64, err error) {
 	var (
 		dirs []*tar.Header
@@ -469,7 +472,7 @@ func mkparent(ctx context.Context, path, root string, parents []string) error {
 // This should be used combining with continuity's diff computing functionality
 // (e.g. `fs.Change` of github.com/containerd/continuity/fs).
 //
-// See also https://github.com/opencontainers/image-spec/blob/master/layer.md for details
+// See also https://github.com/opencontainers/image-spec/blob/main/layer.md for details
 // about OCI layers
 type ChangeWriter struct {
 	tw        *tar.Writer
@@ -595,7 +598,7 @@ func (cw *ChangeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, e
 
 		if capability, err := getxattr(source, "security.capability"); err != nil {
 			return errors.Wrap(err, "failed to get capabilities xattr")
-		} else if capability != nil {
+		} else if len(capability) > 0 {
 			if hdr.PAXRecords == nil {
 				hdr.PAXRecords = map[string]string{}
 			}

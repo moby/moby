@@ -107,6 +107,7 @@
 package platforms
 
 import (
+	"path"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -246,20 +247,7 @@ func Format(platform specs.Platform) string {
 		return "unknown"
 	}
 
-	return joinNotEmpty(platform.OS, platform.Architecture, platform.Variant)
-}
-
-func joinNotEmpty(s ...string) string {
-	var ss []string
-	for _, s := range s {
-		if s == "" {
-			continue
-		}
-
-		ss = append(ss, s)
-	}
-
-	return strings.Join(ss, "/")
+	return path.Join(platform.OS, platform.Architecture, platform.Variant)
 }
 
 // Normalize validates and translate the platform to the canonical value.

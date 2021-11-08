@@ -14,12 +14,10 @@ The Go types and validation should be compatible with the current Go release; ea
 
 Additional documentation about how this group operates:
 
-- [Code of Conduct](https://github.com/opencontainers/tob/blob/d2f9d68c1332870e40693fe077d311e0742bc73d/code-of-conduct.md)
+- [Code of Conduct][code-of-conduct]
 - [Roadmap](#roadmap)
 - [Releases](RELEASES.md)
 - [Project Documentation](project.md)
-
-The _optional_ and _base_ layers of all OCI projects are tracked in the [OCI Scope Table](https://www.opencontainers.org/about/oci-scope-table).
 
 ## Running an OCI Image
 
@@ -71,12 +69,10 @@ It also guarantees that the design is sound before code is written; a GitHub pul
 Typos and grammatical errors can go straight to a pull-request.
 When in doubt, start on the [mailing-list](#mailing-list).
 
-## Weekly Call
+## Meetings
 
-The contributors and maintainers of all OCI projects have a weekly meeting Wednesdays at 2:00 PM (USA Pacific).
-Everyone is welcome to participate via [UberConference web][UberConference] or audio-only: +1-415-968-0849 (no PIN needed).
-An initial agenda will be posted to the [mailing list](#mailing-list) earlier in the week, and everyone is welcome to propose additional topics or suggest other agenda alterations there.
-Minutes are posted to the [mailing list](#mailing-list) and minutes from past calls are archived [here][minutes].
+Please see the [OCI org repository README](https://github.com/opencontainers/org#meetings) for the most up-to-date information on OCI contributor and maintainer meeting schedules. 
+You can also find links to meeting agendas and minutes for all prior meetings.
 
 ## Mailing List
 
@@ -162,6 +158,5 @@ Read more on [How to Write a Git Commit Message](http://chris.beams.io/posts/git
 8. When possible, one keyword to scope the change in the subject (i.e. "README: ...", "runtime: ...")
 
 
-[UberConference]: https://www.uberconference.com/opencontainers
+[code-of-conduct]: https://github.com/opencontainers/org/blob/master/CODE_OF_CONDUCT.md
 [irc-logs]: http://ircbot.wl.linuxfoundation.org/eavesdrop/%23opencontainers/
-[minutes]: http://ircbot.wl.linuxfoundation.org/meetings/opencontainers/

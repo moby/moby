@@ -76,7 +76,7 @@ func readTombstones(path string) (map[string]([]string), error) {
 	defer tf.Close()
 	s := bufio.NewScanner(tf)
 	if !s.Scan() || s.Text() != "\xef\xbb\xbfVersion 1.0" {
-		return nil, errors.New("Invalid tombstones file")
+		return nil, errors.New("invalid tombstones file")
 	}
 
 	ts := make(map[string]([]string))

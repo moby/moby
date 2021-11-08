@@ -210,7 +210,7 @@ func (p *process) Delete(ctx context.Context, opts ...ProcessDeleteOpts) (*ExitS
 	}
 	switch status.Status {
 	case Running, Paused, Pausing:
-		return nil, errors.Wrapf(errdefs.ErrFailedPrecondition, "process must be stopped before deletion")
+		return nil, errors.Wrapf(errdefs.ErrFailedPrecondition, "current process state: %s, process must be stopped before deletion", status.Status)
 	}
 	r, err := p.task.client.TaskService().DeleteProcess(ctx, &tasks.DeleteProcessRequest{
 		ContainerID: p.task.id,

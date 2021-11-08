@@ -41,7 +41,6 @@ var (
 	modiphlpapi = windows.NewLazySystemDLL("iphlpapi.dll")
 	modkernel32 = windows.NewLazySystemDLL("kernel32.dll")
 	modadvapi32 = windows.NewLazySystemDLL("advapi32.dll")
-	modpsapi    = windows.NewLazySystemDLL("psapi.dll")
 	modcfgmgr32 = windows.NewLazySystemDLL("cfgmgr32.dll")
 
 	procNtQuerySystemInformation               = modntdll.NewProc("NtQuerySystemInformation")
@@ -57,10 +56,8 @@ var (
 	procNtOpenJobObject                        = modntdll.NewProc("NtOpenJobObject")
 	procNtCreateJobObject                      = modntdll.NewProc("NtCreateJobObject")
 	procLogonUserW                             = modadvapi32.NewProc("LogonUserW")
-	procRtlMoveMemory                          = modkernel32.NewProc("RtlMoveMemory")
 	procLocalAlloc                             = modkernel32.NewProc("LocalAlloc")
 	procLocalFree                              = modkernel32.NewProc("LocalFree")
-	procQueryWorkingSet                        = modpsapi.NewProc("QueryWorkingSet")
 	procGetProcessImageFileNameW               = modkernel32.NewProc("GetProcessImageFileNameW")
 	procGetActiveProcessorCount                = modkernel32.NewProc("GetActiveProcessorCount")
 	procCM_Get_Device_ID_List_SizeA            = modcfgmgr32.NewProc("CM_Get_Device_ID_List_SizeA")
@@ -219,18 +216,6 @@ func LogonUser(username *uint16, domain *uint16, password *uint16, logonType uin
 	return
 }
 
-func RtlMoveMemory(destination *byte, source *byte, length uintptr) (err error) {
-	r1, _, e1 := syscall.Syscall(procRtlMoveMemory.Addr(), 3, uintptr(unsafe.Pointer(destination)), uintptr(unsafe.Pointer(source)), uintptr(length))
-	if r1 == 0 {
-		if e1 != 0 {
-			err = errnoErr(e1)
-		} else {
-			err = syscall.EINVAL
-		}
-	}
-	return
-}
-
 func LocalAlloc(flags uint32, size int) (ptr uintptr) {
 	r0, _, _ := syscall.Syscall(procLocalAlloc.Addr(), 2, uintptr(flags), uintptr(size), 0)
 	ptr = uintptr(r0)
@@ -239,18 +224,6 @@ func LocalAlloc(flags uint32, size int) (ptr uintptr) {
 
 func LocalFree(ptr uintptr) {
 	syscall.Syscall(procLocalFree.Addr(), 1, uintptr(ptr), 0, 0)
-	return
-}
-
-func QueryWorkingSet(handle windows.Handle, pv uintptr, cb uint32) (err error) {
-	r1, _, e1 := syscall.Syscall(procQueryWorkingSet.Addr(), 3, uintptr(handle), uintptr(pv), uintptr(cb))
-	if r1 == 0 {
-		if e1 != 0 {
-			err = errnoErr(e1)
-		} else {
-			err = syscall.EINVAL
-		}
-	}
 	return
 }
 

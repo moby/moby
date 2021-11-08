@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"path"
 
 	"github.com/containerd/containerd/archive/compression"
@@ -32,6 +31,7 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/platforms"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -186,15 +186,25 @@ func ImportIndex(ctx context.Context, store content.Store, reader io.Reader, opt
 			return ocispec.Descriptor{}, errors.Wrap(err, "write docker manifest")
 		}
 
-		platforms, err := images.Platforms(ctx, store, desc)
+		imgPlatforms, err := images.Platforms(ctx, store, desc)
 		if err != nil {
 			return ocispec.Descriptor{}, errors.Wrap(err, "unable to resolve platform")
 		}
-		if len(platforms) > 0 {
+		if len(imgPlatforms) > 0 {
 			// Only one platform can be resolved from non-index manifest,
 			// The platform can only come from the config included above,
 			// if the config has no platform it can be safely omitted.
-			desc.Platform = &platforms[0]
+			desc.Platform = &imgPlatforms[0]
+
+			// If the image we've just imported is a Windows image without the OSVersion set,
+			// we could just assume it matches this host's OS Version. Without this, the
+			// children labels might not be set on the image content, leading to it being
+			// garbage collected, breaking the image.
+			// See: https://github.com/containerd/containerd/issues/5690
+			if desc.Platform.OS == "windows" && desc.Platform.OSVersion == "" {
+				platform := platforms.DefaultSpec()
+				desc.Platform.OSVersion = platform.OSVersion
+			}
 		}
 
 		if len(mfst.RepoTags) == 0 {
@@ -223,7 +233,7 @@ func ImportIndex(ctx context.Context, store content.Store, reader io.Reader, opt
 }
 
 func onUntarJSON(r io.Reader, j interface{}) error {
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return err
 	}

@@ -117,9 +117,6 @@ func ParseProcPIDStatus(r io.Reader) (map[Type]uint64, error) {
 // the current process.
 //
 // The result is like []string{"CAP_SYS_ADMIN", ...}.
-//
-// The result does not contain caps that are not recognized by
-// the "github.com/syndtr/gocapability" library.
 func Current() ([]string, error) {
 	f, err := os.Open("/proc/self/status")
 	if err != nil {

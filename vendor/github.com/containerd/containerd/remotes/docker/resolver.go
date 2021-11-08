@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path"
@@ -359,7 +358,7 @@ func (r *dockerResolver) Resolve(ctx context.Context, ref string) (string, ocisp
 							return "", ocispec.Descriptor{}, err
 						}
 					}
-				} else if _, err := io.Copy(ioutil.Discard, &bodyReader); err != nil {
+				} else if _, err := io.Copy(io.Discard, &bodyReader); err != nil {
 					return "", ocispec.Descriptor{}, err
 				}
 				size = bodyReader.bytesRead

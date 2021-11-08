@@ -26,11 +26,7 @@ func Pipe(p []int) (err error) {
 		return EINVAL
 	}
 	var pp [2]_C_int
-	// Try pipe2 first for Android O, then try pipe for kernel 2.6.23.
 	err = pipe2(&pp, 0)
-	if err == ENOSYS {
-		err = pipe(&pp)
-	}
 	p[0] = int(pp[0])
 	p[1] = int(pp[1])
 	return
@@ -77,7 +73,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 // 64-bit file system and 32-bit uid calls
 // (16-bit uid calls are not always supported in newer kernels)
 //sys	dup2(oldfd int, newfd int) (err error)
-//sysnb	EpollCreate(size int) (fd int, err error)
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
 //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
@@ -86,7 +81,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 //sysnb	Geteuid() (euid int) = SYS_GETEUID32
 //sysnb	Getgid() (gid int) = SYS_GETGID32
 //sysnb	Getuid() (uid int) = SYS_GETUID32
-//sysnb	InotifyInit() (fd int, err error)
 //sys	Lchown(path string, uid int, gid int) (err error) = SYS_LCHOWN32
 //sys	Listen(s int, n int) (err error)
 //sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64

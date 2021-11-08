@@ -24,12 +24,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"strconv"
 	"sync"
 
 	"github.com/containerd/containerd/log"
 	"github.com/klauspost/compress/zstd"
+	exec "golang.org/x/sys/execabs"
 )
 
 type (

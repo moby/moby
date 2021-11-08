@@ -65,11 +65,16 @@ func (c *Client) newUnpacker(ctx context.Context, rCtx *RemoteContext) (*unpacke
 			return nil, err
 		}
 	}
+	var limiter *semaphore.Weighted
+	if rCtx.MaxConcurrentDownloads > 0 {
+		limiter = semaphore.NewWeighted(int64(rCtx.MaxConcurrentDownloads))
+	}
 	return &unpacker{
 		updateCh:    make(chan ocispec.Descriptor, 128),
 		snapshotter: snapshotter,
 		config:      config,
 		c:           c,
+		limiter:     limiter,
 	}, nil
 }
 

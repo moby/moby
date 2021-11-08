@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 /*
@@ -22,7 +23,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -542,7 +542,7 @@ func (s *Service) checkProcesses(e runc.Exit) {
 
 func shouldKillAllOnExit(ctx context.Context, bundlePath string) bool {
 	var bundleSpec specs.Spec
-	bundleConfigContents, err := ioutil.ReadFile(filepath.Join(bundlePath, "config.json"))
+	bundleConfigContents, err := os.ReadFile(filepath.Join(bundlePath, "config.json"))
 	if err != nil {
 		log.G(ctx).WithError(err).Error("shouldKillAllOnExit: failed to read config.json")
 		return true

@@ -61,6 +61,8 @@ type Image interface {
 	ContentStore() content.Store
 	// Metadata returns the underlying image metadata
 	Metadata() images.Image
+	// Platform returns the platform match comparer. Can be nil.
+	Platform() platforms.MatchComparer
 }
 
 type usageOptions struct {
@@ -447,4 +449,8 @@ func (i *image) checkSnapshotterSupport(ctx context.Context, snapshotterName str
 
 func (i *image) ContentStore() content.Store {
 	return i.client.ContentStore()
+}
+
+func (i *image) Platform() platforms.MatchComparer {
+	return i.platform
 }

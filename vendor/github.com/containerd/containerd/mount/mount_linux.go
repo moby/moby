@@ -19,12 +19,12 @@ package mount
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
 	"time"
 
 	"github.com/pkg/errors"
+	exec "golang.org/x/sys/execabs"
 	"golang.org/x/sys/unix"
 )
 

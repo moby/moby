@@ -338,11 +338,13 @@ func WithDigest(name Named, digest digest.Digest) (Canonical, error) {
 
 // TrimNamed removes any tag or digest from the named reference.
 func TrimNamed(ref Named) Named {
-	domain, path := SplitHostname(ref)
-	return repository{
-		domain: domain,
-		path:   path,
+	repo := repository{}
+	if r, ok := ref.(namedRepository); ok {
+		repo.domain, repo.path = r.Domain(), r.Path()
+	} else {
+		repo.domain, repo.path = splitDomain(ref.Name())
 	}
+	return repo
 }
 
 func getBestReferenceType(ref reference) Reference {

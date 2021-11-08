@@ -1,3 +1,4 @@
+//go:build openbsd
 // +build openbsd
 
 /*

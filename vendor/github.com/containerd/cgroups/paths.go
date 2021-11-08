@@ -17,10 +17,9 @@
 package cgroups
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 )
 
 type Path func(subsystem Name) (string, error)
@@ -39,7 +38,7 @@ func StaticPath(path string) Path {
 // NestedPath will nest the cgroups based on the calling processes cgroup
 // placing its child processes inside its own path
 func NestedPath(suffix string) Path {
-	paths, err := parseCgroupFile("/proc/self/cgroup")
+	paths, err := ParseCgroupFile("/proc/self/cgroup")
 	if err != nil {
 		return errorPath(err)
 	}
@@ -50,9 +49,9 @@ func NestedPath(suffix string) Path {
 // This is commonly used for the Load function to restore an existing container
 func PidPath(pid int) Path {
 	p := fmt.Sprintf("/proc/%d/cgroup", pid)
-	paths, err := parseCgroupFile(p)
+	paths, err := ParseCgroupFile(p)
 	if err != nil {
-		return errorPath(errors.Wrapf(err, "parse cgroup file %s", p))
+		return errorPath(fmt.Errorf("parse cgroup file %s: %w", p, err))
 	}
 	return existingPath(paths, "")
 }

@@ -55,6 +55,28 @@ func (s *imageStore) Get(ctx context.Context, name string) (images.Image, error)
 
 	if err := view(ctx, s.db, func(tx *bolt.Tx) error {
 		bkt := getImagesBucket(tx, namespace)
+		if bkt == nil || bkt.Bucket([]byte(name)) == nil {
+			nsbkt := getNamespacesBucket(tx)
+			cur := nsbkt.Cursor()
+			for k, _ := cur.First(); k != nil; k, _ = cur.Next() {
+				// If this namespace has the sharedlabel
+				if hasSharedLabel(tx, string(k)) {
+					// and has the image we are looking for
+					bkt = getImagesBucket(tx, string(k))
+					if bkt == nil {
+						continue
+					}
+
+					ibkt := bkt.Bucket([]byte(name))
+					if ibkt == nil {
+						continue
+					}
+					// we are done
+					break
+				}
+
+			}
+		}
 		if bkt == nil {
 			return errors.Wrapf(errdefs.ErrNotFound, "image %q", name)
 		}

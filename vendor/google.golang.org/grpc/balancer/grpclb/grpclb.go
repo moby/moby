@@ -25,6 +25,7 @@ package grpclb
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -221,6 +222,7 @@ type lbBalancer struct {
 	// when resolved address updates are received, and read in the goroutine
 	// handling fallback.
 	resolvedBackendAddrs []resolver.Address
+	connErr              error // the last connection error
 }
 
 // regeneratePicker takes a snapshot of the balancer, and generates a picker from
@@ -230,7 +232,7 @@ type lbBalancer struct {
 // Caller must hold lb.mu.
 func (lb *lbBalancer) regeneratePicker(resetDrop bool) {
 	if lb.state == connectivity.TransientFailure {
-		lb.picker = &errPicker{err: balancer.ErrTransientFailure}
+		lb.picker = &errPicker{err: fmt.Errorf("all SubConns are in TransientFailure, last connection error: %v", lb.connErr)}
 		return
 	}
 
@@ -336,6 +338,8 @@ func (lb *lbBalancer) UpdateSubConnState(sc balancer.SubConn, scs balancer.SubCo
 		// When an address was removed by resolver, b called RemoveSubConn but
 		// kept the sc's state in scStates. Remove state for this sc here.
 		delete(lb.scStates, sc)
+	case connectivity.TransientFailure:
+		lb.connErr = scs.ConnectionError
 	}
 	// Force regenerate picker if
 	//  - this sc became ready from not-ready
@@ -484,3 +488,5 @@ func (lb *lbBalancer) Close() {
 	}
 	lb.cc.close()
 }
+
+func (lb *lbBalancer) ExitIdle() {}

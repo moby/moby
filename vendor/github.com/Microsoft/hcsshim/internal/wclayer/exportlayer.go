@@ -35,7 +35,7 @@ func ExportLayer(ctx context.Context, path string, exportFolderPath string, pare
 
 	err = exportLayer(&stdDriverInfo, path, exportFolderPath, layers)
 	if err != nil {
-		return hcserror.New(err, title+" - failed", "")
+		return hcserror.New(err, title, "")
 	}
 	return nil
 }

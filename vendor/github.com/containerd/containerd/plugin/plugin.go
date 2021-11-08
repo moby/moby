@@ -20,9 +20,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/containerd/ttrpc"
 	"github.com/pkg/errors"
-	"google.golang.org/grpc"
 )
 
 var (
@@ -63,6 +61,8 @@ const (
 	ServicePlugin Type = "io.containerd.service.v1"
 	// GRPCPlugin implements a grpc service
 	GRPCPlugin Type = "io.containerd.grpc.v1"
+	// TTRPCPlugin implements a ttrpc shim service
+	TTRPCPlugin Type = "io.containerd.ttrpc.v1"
 	// SnapshotPlugin implements a snapshotter
 	SnapshotPlugin Type = "io.containerd.snapshotter.v1"
 	// TaskMonitorPlugin implements a task monitor
@@ -75,6 +75,10 @@ const (
 	ContentPlugin Type = "io.containerd.content.v1"
 	// GCPlugin implements garbage collection policy
 	GCPlugin Type = "io.containerd.gc.v1"
+	// EventPlugin implements event handling
+	EventPlugin Type = "io.containerd.event.v1"
+	// TracingProcessorPlugin implements a open telemetry span processor
+	TracingProcessorPlugin Type = "io.containerd.tracing.processor.v1"
 )
 
 const (
@@ -120,21 +124,6 @@ func (r *Registration) Init(ic *InitContext) *Plugin {
 // URI returns the full plugin URI
 func (r *Registration) URI() string {
 	return fmt.Sprintf("%s.%s", r.Type, r.ID)
-}
-
-// Service allows GRPC services to be registered with the underlying server
-type Service interface {
-	Register(*grpc.Server) error
-}
-
-// TTRPCService allows TTRPC services to be registered with the underlying server
-type TTRPCService interface {
-	RegisterTTRPC(*ttrpc.Server) error
-}
-
-// TCPService allows GRPC services to be registered with the underlying tcp server
-type TCPService interface {
-	RegisterTCP(*grpc.Server) error
 }
 
 var register = struct {

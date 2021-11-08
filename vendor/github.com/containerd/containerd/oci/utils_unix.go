@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 /*
@@ -19,7 +20,6 @@
 package oci
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -52,7 +52,7 @@ func getDevices(path, containerPath string) ([]specs.LinuxDevice, error) {
 		return []specs.LinuxDevice{*dev}, nil
 	}
 
-	files, err := ioutil.ReadDir(path)
+	files, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}

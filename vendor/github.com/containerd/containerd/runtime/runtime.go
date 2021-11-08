@@ -72,5 +72,5 @@ type PlatformRuntime interface {
 	// Add adds a task into runtime.
 	Add(ctx context.Context, task Task) error
 	// Delete remove a task.
-	Delete(ctx context.Context, taskID string)
+	Delete(ctx context.Context, taskID string) (*Exit, error)
 }

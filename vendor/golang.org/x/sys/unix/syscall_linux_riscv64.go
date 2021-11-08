@@ -9,13 +9,6 @@ package unix
 
 import "unsafe"
 
-func EpollCreate(size int) (fd int, err error) {
-	if size <= 0 {
-		return -1, EINVAL
-	}
-	return EpollCreate1(0)
-}
-
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
 //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64
 //sys	Fchown(fd int, uid int, gid int) (err error)
@@ -190,10 +183,6 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 
 func (rsa *RawSockaddrNFCLLCP) SetServiceNameLen(length int) {
 	rsa.Service_name_len = uint64(length)
-}
-
-func InotifyInit() (fd int, err error) {
-	return InotifyInit1(0)
 }
 
 func Pause() error {

@@ -1,16 +1,41 @@
 # go-toml
 
-Go library for the [TOML](https://github.com/mojombo/toml) format.
+Go library for the [TOML](https://toml.io/) format.
 
 This library supports TOML version
-[v1.0.0-rc.1](https://github.com/toml-lang/toml/blob/master/versions/en/toml-v1.0.0-rc.1.md)
+[v1.0.0-rc.3](https://toml.io/en/v1.0.0-rc.3)
 
-[![GoDoc](https://godoc.org/github.com/pelletier/go-toml?status.svg)](http://godoc.org/github.com/pelletier/go-toml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/pelletier/go-toml.svg)](https://pkg.go.dev/github.com/pelletier/go-toml)
 [![license](https://img.shields.io/github/license/pelletier/go-toml.svg)](https://github.com/pelletier/go-toml/blob/master/LICENSE)
 [![Build Status](https://dev.azure.com/pelletierthomas/go-toml-ci/_apis/build/status/pelletier.go-toml?branchName=master)](https://dev.azure.com/pelletierthomas/go-toml-ci/_build/latest?definitionId=1&branchName=master)
 [![codecov](https://codecov.io/gh/pelletier/go-toml/branch/master/graph/badge.svg)](https://codecov.io/gh/pelletier/go-toml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/pelletier/go-toml)](https://goreportcard.com/report/github.com/pelletier/go-toml)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fpelletier%2Fgo-toml.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fpelletier%2Fgo-toml?ref=badge_shield)
+
+
+## Development status
+
+**ℹ️ Consider go-toml v2!**
+
+The next version of go-toml is in [active development][v2-dev], and
+[nearing completion][v2-map].
+
+Though technically in beta, v2 is already more tested, [fixes bugs][v1-bugs],
+and [much faster][v2-bench]. If you only need reading and writing TOML documents
+(majority of cases), those features are implemented and the API unlikely to
+change.
+
+The remaining features (Document structure editing and tooling) will be added
+shortly. While pull-requests are welcome on v1, no active development is
+expected on it. When v2.0.0 is released, v1 will be deprecated.
+
+👉 [go-toml v2][v2]
+
+[v2]: https://github.com/pelletier/go-toml/tree/v2
+[v2-map]: https://github.com/pelletier/go-toml/discussions/506
+[v2-dev]: https://github.com/pelletier/go-toml/tree/v2
+[v1-bugs]: https://github.com/pelletier/go-toml/issues?q=is%3Aissue+is%3Aopen+label%3Av2-fixed
+[v2-bench]: https://github.com/pelletier/go-toml/tree/v2#benchmarks
 
 ## Features
 
@@ -81,11 +106,11 @@ for ii, item := range results.Values() {
 ## Documentation
 
 The documentation and additional examples are available at
-[godoc.org](http://godoc.org/github.com/pelletier/go-toml).
+[pkg.go.dev](https://pkg.go.dev/github.com/pelletier/go-toml).
 
 ## Tools
 
-Go-toml provides two handy command line tools:
+Go-toml provides three handy command line tools:
 
 * `tomll`: Reads TOML files and lints them.
 
@@ -109,7 +134,7 @@ Go-toml provides two handy command line tools:
 
 ### Docker image
 
-Those tools are also availble as a Docker image from
+Those tools are also available as a Docker image from
 [dockerhub](https://hub.docker.com/r/pelletier/go-toml). For example, to
 use `tomljson`:
 
@@ -148,4 +173,4 @@ this document. The last two major versions of Go are supported
 
 ## License
 
-The MIT License (MIT). Read [LICENSE](LICENSE).
+The MIT License (MIT) + Apache 2.0. Read [LICENSE](LICENSE).

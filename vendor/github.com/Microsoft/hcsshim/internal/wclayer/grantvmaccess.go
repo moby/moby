@@ -20,7 +20,7 @@ func GrantVmAccess(ctx context.Context, vmid string, filepath string) (err error
 
 	err = grantVmAccess(vmid, filepath)
 	if err != nil {
-		return hcserror.New(err, title+" - failed", "")
+		return hcserror.New(err, title, "")
 	}
 	return nil
 }

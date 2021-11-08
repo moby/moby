@@ -1,5 +1,3 @@
-// +build linux
-
 /*
    Copyright The containerd Authors.
 
@@ -19,11 +17,11 @@
 package client
 
 import (
-	"os/exec"
 	"syscall"
 
 	"github.com/containerd/cgroups"
 	"github.com/pkg/errors"
+	exec "golang.org/x/sys/execabs"
 )
 
 func getSysProcAttr() *syscall.SysProcAttr {

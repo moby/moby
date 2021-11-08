@@ -251,12 +251,13 @@ func (opts Options) New(req *pluginpb.CodeGeneratorRequest) (*Plugin, error) {
 					"\t• a \"M\" argument on the command line.\n\n"+
 					"See %v for more information.\n",
 				fdesc.GetName(), goPackageDocURL)
-		case !strings.Contains(string(importPaths[filename]), "/"):
-			// Check that import paths contain at least one slash to avoid a
-			// common mistake where import path is confused with package name.
+		case !strings.Contains(string(importPaths[filename]), ".") &&
+			!strings.Contains(string(importPaths[filename]), "/"):
+			// Check that import paths contain at least a dot or slash to avoid
+			// a common mistake where import path is confused with package name.
 			return nil, fmt.Errorf(
 				"invalid Go import path %q for %q\n\n"+
-					"The import path must contain at least one forward slash ('/') character.\n\n"+
+					"The import path must contain at least one period ('.') or forward slash ('/') character.\n\n"+
 					"See %v for more information.\n",
 				string(importPaths[filename]), fdesc.GetName(), goPackageDocURL)
 		case packageNames[filename] == "":

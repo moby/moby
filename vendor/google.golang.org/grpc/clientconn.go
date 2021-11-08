@@ -322,6 +322,7 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 	// A blocking dial blocks until the clientConn is ready.
 	if cc.dopts.block {
 		for {
+			cc.Connect()
 			s := cc.GetState()
 			if s == connectivity.Ready {
 				break
@@ -539,10 +540,29 @@ func (cc *ClientConn) WaitForStateChange(ctx context.Context, sourceState connec
 //
 // Experimental
 //
-// Notice: This API is EXPERIMENTAL and may be changed or removed in a
-// later release.
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a later
+// release.
 func (cc *ClientConn) GetState() connectivity.State {
 	return cc.csMgr.getState()
+}
+
+// Connect causes all subchannels in the ClientConn to attempt to connect if
+// the channel is idle.  Does not wait for the connection attempts to begin
+// before returning.
+//
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a later
+// release.
+func (cc *ClientConn) Connect() {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	if cc.balancerWrapper != nil && cc.balancerWrapper.exitIdle() {
+		return
+	}
+	for ac := range cc.conns {
+		go ac.connect()
+	}
 }
 
 func (cc *ClientConn) scWatcher() {
@@ -711,7 +731,12 @@ func (cc *ClientConn) switchBalancer(name string) {
 		return
 	}
 	if cc.balancerWrapper != nil {
+		// Don't hold cc.mu while closing the balancers. The balancers may call
+		// methods that require cc.mu (e.g. cc.NewSubConn()). Holding the mutex
+		// would cause a deadlock in that case.
+		cc.mu.Unlock()
 		cc.balancerWrapper.close()
+		cc.mu.Lock()
 	}
 
 	builder := balancer.Get(name)
@@ -840,8 +865,7 @@ func (ac *addrConn) connect() error {
 	ac.updateConnectivityState(connectivity.Connecting, nil)
 	ac.mu.Unlock()
 
-	// Start a goroutine connecting to the server asynchronously.
-	go ac.resetTransport()
+	ac.resetTransport()
 	return nil
 }
 
@@ -878,6 +902,10 @@ func (ac *addrConn) tryUpdateAddrs(addrs []resolver.Address) bool {
 	// ac.state is Ready, try to find the connected address.
 	var curAddrFound bool
 	for _, a := range addrs {
+		// a.ServerName takes precedent over ClientConn authority, if present.
+		if a.ServerName == "" {
+			a.ServerName = ac.cc.authority
+		}
 		if reflect.DeepEqual(ac.curAddr, a) {
 			curAddrFound = true
 			break
@@ -1046,11 +1074,11 @@ func (cc *ClientConn) Close() error {
 
 	cc.blockingpicker.close()
 
-	if rWrapper != nil {
-		rWrapper.close()
-	}
 	if bWrapper != nil {
 		bWrapper.close()
+	}
+	if rWrapper != nil {
+		rWrapper.close()
 	}
 
 	for ac := range conns {
@@ -1130,112 +1158,86 @@ func (ac *addrConn) adjustParams(r transport.GoAwayReason) {
 }
 
 func (ac *addrConn) resetTransport() {
-	for i := 0; ; i++ {
-		if i > 0 {
-			ac.cc.resolveNow(resolver.ResolveNowOptions{})
-		}
-
-		ac.mu.Lock()
-		if ac.state == connectivity.Shutdown {
-			ac.mu.Unlock()
-			return
-		}
-
-		addrs := ac.addrs
-		backoffFor := ac.dopts.bs.Backoff(ac.backoffIdx)
-		// This will be the duration that dial gets to finish.
-		dialDuration := minConnectTimeout
-		if ac.dopts.minConnectTimeout != nil {
-			dialDuration = ac.dopts.minConnectTimeout()
-		}
-
-		if dialDuration < backoffFor {
-			// Give dial more time as we keep failing to connect.
-			dialDuration = backoffFor
-		}
-		// We can potentially spend all the time trying the first address, and
-		// if the server accepts the connection and then hangs, the following
-		// addresses will never be tried.
-		//
-		// The spec doesn't mention what should be done for multiple addresses.
-		// https://github.com/grpc/grpc/blob/master/doc/connection-backoff.md#proposed-backoff-algorithm
-		connectDeadline := time.Now().Add(dialDuration)
-
-		ac.updateConnectivityState(connectivity.Connecting, nil)
-		ac.transport = nil
+	ac.mu.Lock()
+	if ac.state == connectivity.Shutdown {
 		ac.mu.Unlock()
-
-		newTr, addr, reconnect, err := ac.tryAllAddrs(addrs, connectDeadline)
-		if err != nil {
-			// After exhausting all addresses, the addrConn enters
-			// TRANSIENT_FAILURE.
-			ac.mu.Lock()
-			if ac.state == connectivity.Shutdown {
-				ac.mu.Unlock()
-				return
-			}
-			ac.updateConnectivityState(connectivity.TransientFailure, err)
-
-			// Backoff.
-			b := ac.resetBackoff
-			ac.mu.Unlock()
-
-			timer := time.NewTimer(backoffFor)
-			select {
-			case <-timer.C:
-				ac.mu.Lock()
-				ac.backoffIdx++
-				ac.mu.Unlock()
-			case <-b:
-				timer.Stop()
-			case <-ac.ctx.Done():
-				timer.Stop()
-				return
-			}
-			continue
-		}
-
-		ac.mu.Lock()
-		if ac.state == connectivity.Shutdown {
-			ac.mu.Unlock()
-			newTr.Close(fmt.Errorf("reached connectivity state: SHUTDOWN"))
-			return
-		}
-		ac.curAddr = addr
-		ac.transport = newTr
-		ac.backoffIdx = 0
-
-		hctx, hcancel := context.WithCancel(ac.ctx)
-		ac.startHealthCheck(hctx)
-		ac.mu.Unlock()
-
-		// Block until the created transport is down. And when this happens,
-		// we restart from the top of the addr list.
-		<-reconnect.Done()
-		hcancel()
-		// restart connecting - the top of the loop will set state to
-		// CONNECTING.  This is against the current connectivity semantics doc,
-		// however it allows for graceful behavior for RPCs not yet dispatched
-		// - unfortunate timing would otherwise lead to the RPC failing even
-		// though the TRANSIENT_FAILURE state (called for by the doc) would be
-		// instantaneous.
-		//
-		// Ideally we should transition to Idle here and block until there is
-		// RPC activity that leads to the balancer requesting a reconnect of
-		// the associated SubConn.
+		return
 	}
+
+	addrs := ac.addrs
+	backoffFor := ac.dopts.bs.Backoff(ac.backoffIdx)
+	// This will be the duration that dial gets to finish.
+	dialDuration := minConnectTimeout
+	if ac.dopts.minConnectTimeout != nil {
+		dialDuration = ac.dopts.minConnectTimeout()
+	}
+
+	if dialDuration < backoffFor {
+		// Give dial more time as we keep failing to connect.
+		dialDuration = backoffFor
+	}
+	// We can potentially spend all the time trying the first address, and
+	// if the server accepts the connection and then hangs, the following
+	// addresses will never be tried.
+	//
+	// The spec doesn't mention what should be done for multiple addresses.
+	// https://github.com/grpc/grpc/blob/master/doc/connection-backoff.md#proposed-backoff-algorithm
+	connectDeadline := time.Now().Add(dialDuration)
+
+	ac.updateConnectivityState(connectivity.Connecting, nil)
+	ac.mu.Unlock()
+
+	if err := ac.tryAllAddrs(addrs, connectDeadline); err != nil {
+		ac.cc.resolveNow(resolver.ResolveNowOptions{})
+		// After exhausting all addresses, the addrConn enters
+		// TRANSIENT_FAILURE.
+		ac.mu.Lock()
+		if ac.state == connectivity.Shutdown {
+			ac.mu.Unlock()
+			return
+		}
+		ac.updateConnectivityState(connectivity.TransientFailure, err)
+
+		// Backoff.
+		b := ac.resetBackoff
+		ac.mu.Unlock()
+
+		timer := time.NewTimer(backoffFor)
+		select {
+		case <-timer.C:
+			ac.mu.Lock()
+			ac.backoffIdx++
+			ac.mu.Unlock()
+		case <-b:
+			timer.Stop()
+		case <-ac.ctx.Done():
+			timer.Stop()
+			return
+		}
+
+		ac.mu.Lock()
+		if ac.state != connectivity.Shutdown {
+			ac.updateConnectivityState(connectivity.Idle, err)
+		}
+		ac.mu.Unlock()
+		return
+	}
+	// Success; reset backoff.
+	ac.mu.Lock()
+	ac.backoffIdx = 0
+	ac.mu.Unlock()
 }
 
-// tryAllAddrs tries to creates a connection to the addresses, and stop when at the
-// first successful one. It returns the transport, the address and a Event in
-// the successful case. The Event fires when the returned transport disconnects.
-func (ac *addrConn) tryAllAddrs(addrs []resolver.Address, connectDeadline time.Time) (transport.ClientTransport, resolver.Address, *grpcsync.Event, error) {
+// tryAllAddrs tries to creates a connection to the addresses, and stop when at
+// the first successful one. It returns an error if no address was successfully
+// connected, or updates ac appropriately with the new transport.
+func (ac *addrConn) tryAllAddrs(addrs []resolver.Address, connectDeadline time.Time) error {
 	var firstConnErr error
 	for _, addr := range addrs {
 		ac.mu.Lock()
 		if ac.state == connectivity.Shutdown {
 			ac.mu.Unlock()
-			return nil, resolver.Address{}, nil, errConnClosing
+			return errConnClosing
 		}
 
 		ac.cc.mu.RLock()
@@ -1250,9 +1252,9 @@ func (ac *addrConn) tryAllAddrs(addrs []resolver.Address, connectDeadline time.T
 
 		channelz.Infof(logger, ac.channelzID, "Subchannel picks a new address %q to connect", addr.Addr)
 
-		newTr, reconnect, err := ac.createTransport(addr, copts, connectDeadline)
+		err := ac.createTransport(addr, copts, connectDeadline)
 		if err == nil {
-			return newTr, addr, reconnect, nil
+			return nil
 		}
 		if firstConnErr == nil {
 			firstConnErr = err
@@ -1261,57 +1263,54 @@ func (ac *addrConn) tryAllAddrs(addrs []resolver.Address, connectDeadline time.T
 	}
 
 	// Couldn't connect to any address.
-	return nil, resolver.Address{}, nil, firstConnErr
+	return firstConnErr
 }
 
-// createTransport creates a connection to addr. It returns the transport and a
-// Event in the successful case. The Event fires when the returned transport
-// disconnects.
-func (ac *addrConn) createTransport(addr resolver.Address, copts transport.ConnectOptions, connectDeadline time.Time) (transport.ClientTransport, *grpcsync.Event, error) {
-	prefaceReceived := make(chan struct{})
-	onCloseCalled := make(chan struct{})
-	reconnect := grpcsync.NewEvent()
+// createTransport creates a connection to addr. It returns an error if the
+// address was not successfully connected, or updates ac appropriately with the
+// new transport.
+func (ac *addrConn) createTransport(addr resolver.Address, copts transport.ConnectOptions, connectDeadline time.Time) error {
+	// TODO: Delete prefaceReceived and move the logic to wait for it into the
+	// transport.
+	prefaceReceived := grpcsync.NewEvent()
+	connClosed := grpcsync.NewEvent()
 
 	// addr.ServerName takes precedent over ClientConn authority, if present.
 	if addr.ServerName == "" {
 		addr.ServerName = ac.cc.authority
 	}
 
-	once := sync.Once{}
-	onGoAway := func(r transport.GoAwayReason) {
-		ac.mu.Lock()
-		ac.adjustParams(r)
-		once.Do(func() {
-			if ac.state == connectivity.Ready {
-				// Prevent this SubConn from being used for new RPCs by setting its
-				// state to Connecting.
-				//
-				// TODO: this should be Idle when grpc-go properly supports it.
-				ac.updateConnectivityState(connectivity.Connecting, nil)
-			}
-		})
-		ac.mu.Unlock()
-		reconnect.Fire()
-	}
+	hctx, hcancel := context.WithCancel(ac.ctx)
+	hcStarted := false // protected by ac.mu
 
 	onClose := func() {
 		ac.mu.Lock()
-		once.Do(func() {
-			if ac.state == connectivity.Ready {
-				// Prevent this SubConn from being used for new RPCs by setting its
-				// state to Connecting.
-				//
-				// TODO: this should be Idle when grpc-go properly supports it.
-				ac.updateConnectivityState(connectivity.Connecting, nil)
-			}
-		})
-		ac.mu.Unlock()
-		close(onCloseCalled)
-		reconnect.Fire()
+		defer ac.mu.Unlock()
+		defer connClosed.Fire()
+		if !hcStarted || hctx.Err() != nil {
+			// We didn't start the health check or set the state to READY, so
+			// no need to do anything else here.
+			//
+			// OR, we have already cancelled the health check context, meaning
+			// we have already called onClose once for this transport.  In this
+			// case it would be dangerous to clear the transport and update the
+			// state, since there may be a new transport in this addrConn.
+			return
+		}
+		hcancel()
+		ac.transport = nil
+		// Refresh the name resolver
+		ac.cc.resolveNow(resolver.ResolveNowOptions{})
+		if ac.state != connectivity.Shutdown {
+			ac.updateConnectivityState(connectivity.Idle, nil)
+		}
 	}
 
-	onPrefaceReceipt := func() {
-		close(prefaceReceived)
+	onGoAway := func(r transport.GoAwayReason) {
+		ac.mu.Lock()
+		ac.adjustParams(r)
+		ac.mu.Unlock()
+		onClose()
 	}
 
 	connectCtx, cancel := context.WithDeadline(ac.ctx, connectDeadline)
@@ -1320,27 +1319,67 @@ func (ac *addrConn) createTransport(addr resolver.Address, copts transport.Conne
 		copts.ChannelzParentID = ac.channelzID
 	}
 
-	newTr, err := transport.NewClientTransport(connectCtx, ac.cc.ctx, addr, copts, onPrefaceReceipt, onGoAway, onClose)
+	newTr, err := transport.NewClientTransport(connectCtx, ac.cc.ctx, addr, copts, func() { prefaceReceived.Fire() }, onGoAway, onClose)
 	if err != nil {
 		// newTr is either nil, or closed.
-		channelz.Warningf(logger, ac.channelzID, "grpc: addrConn.createTransport failed to connect to %v. Err: %v. Reconnecting...", addr, err)
-		return nil, nil, err
+		channelz.Warningf(logger, ac.channelzID, "grpc: addrConn.createTransport failed to connect to %v. Err: %v", addr, err)
+		return err
 	}
 
 	select {
-	case <-time.After(time.Until(connectDeadline)):
+	case <-connectCtx.Done():
 		// We didn't get the preface in time.
-		newTr.Close(fmt.Errorf("failed to receive server preface within timeout"))
-		channelz.Warningf(logger, ac.channelzID, "grpc: addrConn.createTransport failed to connect to %v: didn't receive server preface in time. Reconnecting...", addr)
-		return nil, nil, errors.New("timed out waiting for server handshake")
-	case <-prefaceReceived:
+		// The error we pass to Close() is immaterial since there are no open
+		// streams at this point, so no trailers with error details will be sent
+		// out. We just need to pass a non-nil error.
+		newTr.Close(transport.ErrConnClosing)
+		if connectCtx.Err() == context.DeadlineExceeded {
+			err := errors.New("failed to receive server preface within timeout")
+			channelz.Warningf(logger, ac.channelzID, "grpc: addrConn.createTransport failed to connect to %v: %v", addr, err)
+			return err
+		}
+		return nil
+	case <-prefaceReceived.Done():
 		// We got the preface - huzzah! things are good.
-	case <-onCloseCalled:
-		// The transport has already closed - noop.
-		return nil, nil, errors.New("connection closed")
-		// TODO(deklerk) this should bail on ac.ctx.Done(). Add a test and fix.
+		ac.mu.Lock()
+		defer ac.mu.Unlock()
+		if connClosed.HasFired() {
+			// onClose called first; go idle but do nothing else.
+			if ac.state != connectivity.Shutdown {
+				ac.updateConnectivityState(connectivity.Idle, nil)
+			}
+			return nil
+		}
+		if ac.state == connectivity.Shutdown {
+			// This can happen if the subConn was removed while in `Connecting`
+			// state. tearDown() would have set the state to `Shutdown`, but
+			// would not have closed the transport since ac.transport would not
+			// been set at that point.
+			//
+			// We run this in a goroutine because newTr.Close() calls onClose()
+			// inline, which requires locking ac.mu.
+			//
+			// The error we pass to Close() is immaterial since there are no open
+			// streams at this point, so no trailers with error details will be sent
+			// out. We just need to pass a non-nil error.
+			go newTr.Close(transport.ErrConnClosing)
+			return nil
+		}
+		ac.curAddr = addr
+		ac.transport = newTr
+		hcStarted = true
+		ac.startHealthCheck(hctx) // Will set state to READY if appropriate.
+		return nil
+	case <-connClosed.Done():
+		// The transport has already closed.  If we received the preface, too,
+		// this is not an error.
+		select {
+		case <-prefaceReceived.Done():
+			return nil
+		default:
+			return errors.New("connection closed before server preface received")
+		}
 	}
-	return newTr, reconnect, nil
 }
 
 // startHealthCheck starts the health checking stream (RPC) to watch the health
@@ -1424,26 +1463,14 @@ func (ac *addrConn) resetConnectBackoff() {
 	ac.mu.Unlock()
 }
 
-// getReadyTransport returns the transport if ac's state is READY.
-// Otherwise it returns nil, false.
-// If ac's state is IDLE, it will trigger ac to connect.
-func (ac *addrConn) getReadyTransport() (transport.ClientTransport, bool) {
+// getReadyTransport returns the transport if ac's state is READY or nil if not.
+func (ac *addrConn) getReadyTransport() transport.ClientTransport {
 	ac.mu.Lock()
-	if ac.state == connectivity.Ready && ac.transport != nil {
-		t := ac.transport
-		ac.mu.Unlock()
-		return t, true
+	defer ac.mu.Unlock()
+	if ac.state == connectivity.Ready {
+		return ac.transport
 	}
-	var idle bool
-	if ac.state == connectivity.Idle {
-		idle = true
-	}
-	ac.mu.Unlock()
-	// Trigger idle ac to connect.
-	if idle {
-		ac.connect()
-	}
-	return nil, false
+	return nil
 }
 
 // tearDown starts to tear down the addrConn.
