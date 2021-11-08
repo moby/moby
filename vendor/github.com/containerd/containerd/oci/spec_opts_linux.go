@@ -48,13 +48,13 @@ func WithDevices(devicePath, containerPath, permissions string) SpecOpts {
 		if err != nil {
 			return err
 		}
-		for _, dev := range devs {
-			s.Linux.Devices = append(s.Linux.Devices, dev)
+		for i := range devs {
+			s.Linux.Devices = append(s.Linux.Devices, devs[i])
 			s.Linux.Resources.Devices = append(s.Linux.Resources.Devices, specs.LinuxDeviceCgroup{
 				Allow:  true,
-				Type:   dev.Type,
-				Major:  &dev.Major,
-				Minor:  &dev.Minor,
+				Type:   devs[i].Type,
+				Major:  &devs[i].Major,
+				Minor:  &devs[i].Minor,
 				Access: permissions,
 			})
 		}

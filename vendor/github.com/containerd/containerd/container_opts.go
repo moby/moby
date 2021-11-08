@@ -18,14 +18,19 @@ package containerd
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/containerd/containerd/containers"
+	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/typeurl"
 	"github.com/gogo/protobuf/types"
 	"github.com/opencontainers/image-spec/identity"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -91,6 +96,39 @@ func WithImageName(n string) NewContainerOpts {
 func WithContainerLabels(labels map[string]string) NewContainerOpts {
 	return func(_ context.Context, _ *Client, c *containers.Container) error {
 		c.Labels = labels
+		return nil
+	}
+}
+
+// WithImageConfigLabels sets the image config labels on the container.
+// The existing labels are cleared as this is expected to be the first
+// operation in setting up a container's labels. Use WithAdditionalContainerLabels
+// to add/overwrite the existing image config labels.
+func WithImageConfigLabels(image Image) NewContainerOpts {
+	return func(ctx context.Context, _ *Client, c *containers.Container) error {
+		ic, err := image.Config(ctx)
+		if err != nil {
+			return err
+		}
+		var (
+			ociimage v1.Image
+			config   v1.ImageConfig
+		)
+		switch ic.MediaType {
+		case v1.MediaTypeImageConfig, images.MediaTypeDockerSchema2Config:
+			p, err := content.ReadBlob(ctx, image.ContentStore(), ic)
+			if err != nil {
+				return err
+			}
+
+			if err := json.Unmarshal(p, &ociimage); err != nil {
+				return err
+			}
+			config = ociimage.Config
+		default:
+			return fmt.Errorf("unknown image config media type %s", ic.MediaType)
+		}
+		c.Labels = config.Labels
 		return nil
 	}
 }

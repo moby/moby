@@ -551,13 +551,13 @@ func (nw *namespacedWriter) createAndCopy(ctx context.Context, desc ocispec.Desc
 	if desc.Size > 0 {
 		ra, err := nw.provider.ReaderAt(ctx, nw.desc)
 		if err != nil {
+			w.Close()
 			return err
 		}
 		defer ra.Close()
 
 		if err := content.CopyReaderAt(w, ra, desc.Size); err != nil {
-			nw.w.Close()
-			nw.w = nil
+			w.Close()
 			return err
 		}
 	}
