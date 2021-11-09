@@ -291,6 +291,7 @@ func (d *Daemon) Cleanup(t testing.TB) {
 	t.Helper()
 	cleanupMount(t, d)
 	cleanupRaftDir(t, d)
+	cleanupDaemonStorage(t, d)
 	cleanupNetworkNamespace(t, d)
 }
 
@@ -827,6 +828,39 @@ func cleanupRaftDir(t testing.TB, d *Daemon) {
 	t.Helper()
 	for _, p := range []string{"wal", "wal-v3-encrypted", "snap-v3-encrypted"} {
 		dir := filepath.Join(d.Root, "swarm/raft", p)
+		if err := os.RemoveAll(dir); err != nil {
+			t.Logf("[%s] error removing %v: %v", d.id, dir, err)
+		}
+	}
+}
+
+// cleanupDaemonStorage removes the daemon's storage directory.
+//
+// Note that we don't delete the whole directory, as some files (e.g. daemon
+// logs) are collected for inclusion in the "bundles" that are stored as Jenkins
+// artifacts.
+//
+// We currently do not include container logs in the bundles, so this also
+// removes the "containers" sub-directory.
+func cleanupDaemonStorage(t testing.TB, d *Daemon) {
+	t.Helper()
+	dirs := []string{
+		"builder",
+		"buildkit",
+		"containers",
+		"image",
+		"network",
+		"plugins",
+		"tmp",
+		"trust",
+		"volumes",
+		// note: this assumes storage-driver name matches the subdirectory,
+		// which is currently true, but not guaranteed.
+		d.storageDriver,
+	}
+
+	for _, p := range dirs {
+		dir := filepath.Join(d.Root, p)
 		if err := os.RemoveAll(dir); err != nil {
 			t.Logf("[%s] error removing %v: %v", d.id, dir, err)
 		}
