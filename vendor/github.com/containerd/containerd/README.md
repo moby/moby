@@ -2,7 +2,6 @@
 
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/containerd/containerd)](https://pkg.go.dev/github.com/containerd/containerd)
 [![Build Status](https://github.com/containerd/containerd/workflows/CI/badge.svg)](https://github.com/containerd/containerd/actions?query=workflow%3ACI)
-[![Windows Build Status](https://ci.appveyor.com/api/projects/status/github/containerd/containerd?branch=master&svg=true)](https://ci.appveyor.com/project/mlaventure/containerd-3g73f?branch=master)
 [![Nightlies](https://github.com/containerd/containerd/workflows/Nightly/badge.svg)](https://github.com/containerd/containerd/actions?query=workflow%3ANightly)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Fcontainerd%2Fcontainerd.svg?type=shield)](https://app.fossa.io/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Fcontainerd%2Fcontainerd?ref=badge_shield)
 [![Go Report Card](https://goreportcard.com/badge/github.com/containerd/containerd)](https://goreportcard.com/report/github.com/containerd/containerd)
@@ -44,13 +43,14 @@ If you are interested in trying out containerd see our example at [Getting Start
 There are nightly builds available for download [here](https://github.com/containerd/containerd/actions?query=workflow%3ANightly).
 Binaries are generated from `master` branch every night for `Linux` and `Windows`.
 
-Please be aware: nightly builds might have critical bugs, it's not recommended for use in prodution and no support provided.
+Please be aware: nightly builds might have critical bugs, it's not recommended for use in production and no support provided.
 
 ## Runtime Requirements
 
 Runtime requirements for containerd are very minimal. Most interactions with
 the Linux and Windows container feature sets are handled via [runc](https://github.com/opencontainers/runc) and/or
-OS-specific libraries (e.g. [hcsshim](https://github.com/Microsoft/hcsshim) for Microsoft). The current required version of `runc` is always listed in [RUNC.md](/RUNC.md).
+OS-specific libraries (e.g. [hcsshim](https://github.com/Microsoft/hcsshim) for Microsoft).
+The current required version of `runc` is described in [RUNC.md](docs/RUNC.md).
 
 There are specific features
 used by containerd core code and snapshotters that will require a minimum kernel
@@ -140,7 +140,7 @@ redis, err := client.NewContainer(context, "redis-master", containerd.WithNewSpe
 
 ### Root Filesystems
 
-containerd allows you to use overlay or snapshot filesystems with your containers.  It comes with builtin support for overlayfs and btrfs.
+containerd allows you to use overlay or snapshot filesystems with your containers.  It comes with built in support for overlayfs and btrfs.
 
 ```go
 // pull an image and unpack it into the configured snapshotter
@@ -171,7 +171,7 @@ Taking a container object and turning it into a runnable process on a system is 
 task, err := redis.NewTask(context, cio.NewCreator(cio.WithStdio))
 defer task.Delete(context)
 
-// the task is now running and has a pid that can be use to setup networking
+// the task is now running and has a pid that can be used to setup networking
 // or other runtime settings outside of containerd
 pid := task.Pid()
 
@@ -184,7 +184,7 @@ status, err := task.Wait(context)
 
 ### Checkpoint and Restore
 
-If you have [criu](https://criu.org/Main_Page) installed on your machine you can checkpoint and restore containers and their tasks.  This allow you to clone and/or live migrate containers to other machines.
+If you have [criu](https://criu.org/Main_Page) installed on your machine you can checkpoint and restore containers and their tasks.  This allows you to clone and/or live migrate containers to other machines.
 
 ```go
 // checkpoint the task then push it to a registry
@@ -224,7 +224,7 @@ effect.
     address =  "/var/run/mysnapshotter.sock"
 ```
 
-See [PLUGINS.md](PLUGINS.md) for how to create plugins
+See [PLUGINS.md](/docs/PLUGINS.md) for how to create plugins
 
 ### Releases and API Stability
 
@@ -232,8 +232,7 @@ Please see [RELEASES.md](RELEASES.md) for details on versioning and stability
 of containerd components.
 
 Downloadable 64-bit Intel/AMD binaries of all official releases are available on
-our [releases page](https://github.com/containerd/containerd/releases), as well as
-auto-published to the [cri-containerd-release storage bucket](https://console.cloud.google.com/storage/browser/cri-containerd-release?pli=1).
+our [releases page](https://github.com/containerd/containerd/releases).
 
 For other architectures and distribution support, you will find that many
 Linux distributions package their own containerd and provide it across several
@@ -258,6 +257,39 @@ file is also available and can be used similarly for zsh users.
 Provide documentation to users to `source` this file into their shell if
 you don't place the autocomplete file in a location where it is automatically
 loaded for the user's shell environment.
+
+### CRI
+
+`cri` is a [containerd](https://containerd.io/) plugin implementation of the Kubernetes [container runtime interface (CRI)](https://github.com/kubernetes/cri-api/blob/master/pkg/apis/runtime/v1alpha2/api.proto). With it, you are able to use containerd as the container runtime for a Kubernetes cluster.
+
+![cri](./docs/cri/cri.png)
+
+#### CRI Status
+
+`cri` is a native plugin of containerd. Since containerd 1.1, the cri plugin is built into the release binaries and enabled by default.
+
+> **Note:** As of containerd 1.5, the `cri` plugin is merged into the containerd/containerd repo. For example, the source code previously stored under [`containerd/cri/pkg`](https://github.com/containerd/cri/tree/release/1.4/pkg)
+was moved to [`containerd/containerd/pkg/cri` package](https://github.com/containerd/containerd/tree/master/pkg/cri).
+
+The `cri` plugin has reached GA status, representing that it is:
+* Feature complete
+* Works with Kubernetes 1.10 and above
+* Passes all [CRI validation tests](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-node/cri-validation.md).
+* Passes all [node e2e tests](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-node/e2e-node-tests.md).
+* Passes all [e2e tests](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-testing/e2e-tests.md).
+
+See results on the containerd k8s [test dashboard](https://k8s-testgrid.appspot.com/sig-node-containerd)
+
+#### Validating Your `cri` Setup
+A Kubernetes incubator project, [cri-tools](https://github.com/kubernetes-sigs/cri-tools), includes programs for exercising CRI implementations. More importantly, cri-tools includes the program `critest` which is used for running [CRI Validation Testing](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-node/cri-validation.md).
+
+#### CRI Guides
+* [Installing with Ansible and Kubeadm](contrib/ansible/README.md)
+* [For Non-Ansible Users, Preforming a Custom Installation Using the Release Tarball and Kubeadm](docs/cri/installation.md)
+* [CRI Plugin Testing Guide](./docs/cri/testing.md)
+* [Debugging Pods, Containers, and Images with `crictl`](./docs/cri/crictl.md)
+* [Configuring `cri` Plugins](./docs/cri/config.md)
+* [Configuring containerd](https://github.com/containerd/containerd/blob/master/docs/man/containerd-config.8.md)
 
 ### Communication
 

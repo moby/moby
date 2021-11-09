@@ -228,6 +228,14 @@ func WithMaxConcurrentDownloads(max int) RemoteOpt {
 	}
 }
 
+// WithMaxConcurrentUploadedLayers sets max concurrent uploaded layer limit.
+func WithMaxConcurrentUploadedLayers(max int) RemoteOpt {
+	return func(client *Client, c *RemoteContext) error {
+		c.MaxConcurrentUploadedLayers = max
+		return nil
+	}
+}
+
 // WithAllMetadata downloads all manifests and known-configuration files
 func WithAllMetadata() RemoteOpt {
 	return func(_ *Client, c *RemoteContext) error {

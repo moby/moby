@@ -193,11 +193,15 @@ func (p *Init) createCheckpointedState(r *CreateConfig, pidFile *pidFile) error 
 			ParentPath: r.ParentCheckpoint,
 		},
 		PidFile:     pidFile.Path(),
-		IO:          p.io.IO(),
 		NoPivot:     p.NoPivotRoot,
 		Detach:      true,
 		NoSubreaper: true,
 	}
+
+	if p.io != nil {
+		opts.IO = p.io.IO()
+	}
+
 	p.initState = &createdCheckpointState{
 		p:    p,
 		opts: opts,
@@ -441,7 +445,7 @@ func (p *Init) checkpoint(ctx context.Context, r *CheckpointConfig) error {
 	}, actions...); err != nil {
 		dumpLog := filepath.Join(p.Bundle, "criu-dump.log")
 		if cerr := copyFile(dumpLog, filepath.Join(work, "dump.log")); cerr != nil {
-			log.G(ctx).Error(err)
+			log.G(ctx).WithError(cerr).Error("failed to copy dump.log to criu-dump.log")
 		}
 		return fmt.Errorf("%s path= %s", criuError(err), dumpLog)
 	}

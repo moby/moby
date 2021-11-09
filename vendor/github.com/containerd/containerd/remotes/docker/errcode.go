@@ -163,7 +163,7 @@ type ErrorDescriptor struct {
 	// keyed value when serializing api errors.
 	Value string
 
-	// Message is a short, human readable decription of the error condition
+	// Message is a short, human readable description of the error condition
 	// included in API responses.
 	Message string
 

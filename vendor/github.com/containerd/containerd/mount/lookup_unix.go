@@ -20,9 +20,8 @@ package mount
 
 import (
 	"path/filepath"
-	"sort"
-	"strings"
 
+	"github.com/moby/sys/mountinfo"
 	"github.com/pkg/errors"
 )
 
@@ -30,24 +29,21 @@ import (
 func Lookup(dir string) (Info, error) {
 	dir = filepath.Clean(dir)
 
-	mounts, err := Self()
+	m, err := mountinfo.GetMounts(mountinfo.ParentsFilter(dir))
 	if err != nil {
-		return Info{}, err
+		return Info{}, errors.Wrapf(err, "failed to find the mount info for %q", dir)
+	}
+	if len(m) == 0 {
+		return Info{}, errors.Errorf("failed to find the mount info for %q", dir)
 	}
 
-	// Sort descending order by Info.Mountpoint
-	sort.SliceStable(mounts, func(i, j int) bool {
-		return mounts[j].Mountpoint < mounts[i].Mountpoint
-	})
-	for _, m := range mounts {
-		// Note that m.{Major, Minor} are generally unreliable for our purpose here
-		// https://www.spinics.net/lists/linux-btrfs/msg58908.html
-		// Note that device number is not checked here, because for overlayfs files
-		// may have different device number with the mountpoint.
-		if strings.HasPrefix(dir, m.Mountpoint) {
-			return m, nil
+	// find the longest matching mount point
+	var idx, maxlen int
+	for i := range m {
+		if len(m[i].Mountpoint) > maxlen {
+			maxlen = len(m[i].Mountpoint)
+			idx = i
 		}
 	}
-
-	return Info{}, errors.Errorf("failed to find the mount info for %q", dir)
+	return *m[idx], nil
 }

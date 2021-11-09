@@ -22,11 +22,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"unsafe"
 
 	"github.com/Microsoft/hcsshim"
+	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
 )
 
@@ -257,12 +260,71 @@ func windowsOpenSequential(path string, mode int, _ uint32) (fd windows.Handle, 
 	return h, e
 }
 
-// ForceRemoveAll is the same as os.RemoveAll, but uses hcsshim.DestroyLayer in order
-// to delete container layers.
+// ForceRemoveAll is the same as os.RemoveAll, but is aware of io.containerd.snapshotter.v1.windows
+// and uses hcsshim to unmount and delete container layers contained therein, in the correct order,
+// when passed a containerd root data directory (i.e. the `--root` directory for containerd).
 func ForceRemoveAll(path string) error {
-	info := hcsshim.DriverInfo{
-		HomeDir: filepath.Dir(path),
+	// snapshots/windows/windows.go init()
+	const snapshotPlugin = "io.containerd.snapshotter.v1" + "." + "windows"
+	// snapshots/windows/windows.go NewSnapshotter()
+	snapshotDir := filepath.Join(path, snapshotPlugin, "snapshots")
+	if stat, err := os.Stat(snapshotDir); err == nil && stat.IsDir() {
+		if err := cleanupWCOWLayers(snapshotDir); err != nil {
+			return errors.Wrapf(err, "failed to cleanup WCOW layers in %s", snapshotDir)
+		}
 	}
 
-	return hcsshim.DestroyLayer(info, filepath.Base(path))
+	return os.RemoveAll(path)
+}
+
+func cleanupWCOWLayers(root string) error {
+	// See snapshots/windows/windows.go getSnapshotDir()
+	var layerNums []int
+	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if path != root && info.IsDir() {
+			if layerNum, err := strconv.Atoi(filepath.Base(path)); err == nil {
+				layerNums = append(layerNums, layerNum)
+			} else {
+				return err
+			}
+			return filepath.SkipDir
+		}
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	sort.Sort(sort.Reverse(sort.IntSlice(layerNums)))
+
+	for _, layerNum := range layerNums {
+		if err := cleanupWCOWLayer(filepath.Join(root, strconv.Itoa(layerNum))); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func cleanupWCOWLayer(layerPath string) error {
+	info := hcsshim.DriverInfo{
+		HomeDir: filepath.Dir(layerPath),
+	}
+
+	// ERROR_DEV_NOT_EXIST is returned if the layer is not currently prepared.
+	if err := hcsshim.UnprepareLayer(info, filepath.Base(layerPath)); err != nil {
+		if hcserror, ok := err.(*hcsshim.HcsError); !ok || hcserror.Err != windows.ERROR_DEV_NOT_EXIST {
+			return errors.Wrapf(err, "failed to unprepare %s", layerPath)
+		}
+	}
+
+	if err := hcsshim.DeactivateLayer(info, filepath.Base(layerPath)); err != nil {
+		return errors.Wrapf(err, "failed to deactivate %s", layerPath)
+	}
+
+	if err := hcsshim.DestroyLayer(info, filepath.Base(layerPath)); err != nil {
+		return errors.Wrapf(err, "failed to destroy %s", layerPath)
+	}
+
+	return nil
 }

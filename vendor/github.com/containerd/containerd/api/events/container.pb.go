@@ -835,10 +835,7 @@ func (m *ContainerCreate) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthContainer
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthContainer
 			}
 			if (iNdEx + skippy) > l {
@@ -957,10 +954,7 @@ func (m *ContainerCreate_Runtime) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthContainer
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthContainer
 			}
 			if (iNdEx + skippy) > l {
@@ -1185,7 +1179,7 @@ func (m *ContainerUpdate) Unmarshal(dAtA []byte) error {
 					if err != nil {
 						return err
 					}
-					if skippy < 0 {
+					if (skippy < 0) || (iNdEx+skippy) < 0 {
 						return ErrInvalidLengthContainer
 					}
 					if (iNdEx + skippy) > postIndex {
@@ -1234,10 +1228,7 @@ func (m *ContainerUpdate) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthContainer
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthContainer
 			}
 			if (iNdEx + skippy) > l {
@@ -1320,10 +1311,7 @@ func (m *ContainerDelete) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthContainer
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthContainer
 			}
 			if (iNdEx + skippy) > l {

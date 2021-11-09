@@ -60,6 +60,10 @@ func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.R
 				log.G(ctx).WithError(err).Debug("failed to parse")
 				continue
 			}
+			if u.Scheme != "http" && u.Scheme != "https" {
+				log.G(ctx).Debug("non-http(s) alternative url is unsupported")
+				continue
+			}
 			log.G(ctx).Debug("trying alternative url")
 
 			// Try this first, parse it
@@ -148,7 +152,7 @@ func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.R
 	})
 }
 
-func (r dockerFetcher) open(ctx context.Context, req *request, mediatype string, offset int64) (io.ReadCloser, error) {
+func (r dockerFetcher) open(ctx context.Context, req *request, mediatype string, offset int64) (_ io.ReadCloser, retErr error) {
 	req.header.Set("Accept", strings.Join([]string{mediatype, `*/*`}, ", "))
 
 	if offset > 0 {
@@ -162,13 +166,17 @@ func (r dockerFetcher) open(ctx context.Context, req *request, mediatype string,
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			resp.Body.Close()
+		}
+	}()
 
 	if resp.StatusCode > 299 {
 		// TODO(stevvooe): When doing a offset specific request, we should
 		// really distinguish between a 206 and a 200. In the case of 200, we
 		// can discard the bytes, hiding the seek behavior from the
 		// implementation.
-		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusNotFound {
 			return nil, errors.Wrapf(errdefs.ErrNotFound, "content at %v not found", req.String())
