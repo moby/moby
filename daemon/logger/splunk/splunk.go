@@ -21,6 +21,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/google/uuid"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
 	"github.com/moby/moby/v2/pkg/pools"
@@ -152,7 +153,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, err
 	}
 
-	logNonBlocking := info.Config["mode"] == "non-blocking"
+	logNonBlocking := containertypes.LogMode(info.Config["mode"]) == containertypes.LogModeNonBlock
 
 	// Splunk Token is required parameter
 	splunkToken, ok := info.Config[splunkTokenKey]
