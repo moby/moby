@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/pools"
@@ -166,7 +167,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, err
 	}
 
-	logNonBlocking := info.Config["mode"] == "non-blocking"
+	logNonBlocking := containertypes.LogMode(info.Config["mode"]) == containertypes.LogModeNonBlock
 
 	// Splunk Token is required parameter
 	splunkToken, ok := info.Config[splunkTokenKey]
