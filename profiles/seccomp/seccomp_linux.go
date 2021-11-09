@@ -13,16 +13,21 @@ import (
 
 // GetDefaultProfile returns the default seccomp profile.
 func GetDefaultProfile(rs *specs.Spec) (*specs.LinuxSeccomp, error) {
-	return setupSeccomp(DefaultProfile(), rs)
+	return setupSeccomp(DefaultProfile(), rs, runtime.GOARCH)
 }
 
 // LoadProfile takes a json string and decodes the seccomp profile.
 func LoadProfile(body string, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
+	return loadProfile(body, rs, runtime.GOARCH)
+}
+
+// loadProfile is used to override GOARCH for testing.
+func loadProfile(body string, rs *specs.Spec, goarch string) (*specs.LinuxSeccomp, error) {
 	var config Seccomp
 	if err := json.Unmarshal([]byte(body), &config); err != nil {
 		return nil, fmt.Errorf("Decoding seccomp profile failed: %v", err)
 	}
-	return setupSeccomp(&config, rs)
+	return setupSeccomp(&config, rs, goarch)
 }
 
 // libseccomp string => seccomp arch
@@ -72,7 +77,7 @@ func inSlice(slice []string, s string) bool {
 	return false
 }
 
-func setupSeccomp(config *Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
+func setupSeccomp(config *Seccomp, rs *specs.Spec, goarch string) (*specs.LinuxSeccomp, error) {
 	if config == nil {
 		return nil, nil
 	}
@@ -96,7 +101,7 @@ func setupSeccomp(config *Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) 
 	var (
 		// Copy all common / standard properties to the output profile
 		newConfig = &config.LinuxSeccomp
-		arch      = goToNative[runtime.GOARCH]
+		arch      = goToNative[goarch]
 	)
 	if seccompArch, ok := nativeToSeccomp[arch]; ok {
 		for _, a := range config.ArchMap {

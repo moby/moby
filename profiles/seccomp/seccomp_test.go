@@ -283,6 +283,75 @@ func TestLoadConditional(t *testing.T) {
 	}
 }
 
+func TestLoadConditionalClone3(t *testing.T) {
+	f, err := os.ReadFile("fixtures/conditional_clone3.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		doc              string
+		cap              string
+		goarch           string
+		expectedAction   specs.LinuxSeccompAction
+		expectedErrNoRet uint
+	}{
+		{
+			doc:              "clone3 default amd64",
+			goarch:           "amd64",
+			expectedAction:   specs.ActErrno,
+			expectedErrNoRet: enosys,
+		},
+		{
+			doc:              "clone3 default mips",
+			goarch:           "mips64",
+			expectedAction:   specs.ActErrno,
+			expectedErrNoRet: enosysMIPS,
+		},
+		{
+			doc:            "clone3 cap_sys_admin amd64",
+			cap:            "CAP_SYS_ADMIN",
+			goarch:         "amd64",
+			expectedAction: specs.ActAllow,
+		},
+		{
+			doc:            "clone3 cap_sys_admin mips",
+			cap:            "CAP_SYS_ADMIN",
+			goarch:         "mips64",
+			expectedAction: specs.ActAllow,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			rs := createSpec(tc.cap)
+			p, err := loadProfile(string(f), &rs, tc.goarch)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(p.Syscalls) != 1 {
+				t.Fatalf("expected 1 syscall in profile, have %d", len(p.Syscalls))
+			}
+			sc := p.Syscalls[0]
+			if sc.Names[0] != "clone3" {
+				t.Fatalf("expected clone3 syscall, have %s", sc.Names[0])
+			}
+			if sc.Action != tc.expectedAction {
+				t.Fatalf("expected %s action, have %s", tc.expectedAction, sc.Action)
+			}
+			if tc.expectedErrNoRet != 0 {
+				if *sc.ErrnoRet != tc.expectedErrNoRet {
+					t.Fatalf("expected %d errNoRet, have %d", tc.expectedErrNoRet, *sc.ErrnoRet)
+				}
+			} else {
+				if sc.ErrnoRet != nil {
+					t.Fatalf("expected errNoRet to be nil, have %d", *sc.ErrnoRet)
+				}
+			}
+		})
+	}
+}
+
 // createSpec() creates a minimum spec for testing
 func createSpec(caps ...string) specs.Spec {
 	rs := specs.Spec{

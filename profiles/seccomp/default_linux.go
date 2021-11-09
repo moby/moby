@@ -41,9 +41,26 @@ func arches() []Architecture {
 	}
 }
 
+const (
+	enosys     uint = 0x26 // enosys for non-mips architectures.
+	enosysMIPS uint = 0x59 // enosys for mips architectures.
+)
+
 // DefaultProfile defines the allowed syscalls for the default seccomp profile.
 func DefaultProfile() *Seccomp {
-	nosys := uint(unix.ENOSYS)
+	// The value of ENOSYS differs between MIPS and non-MIPS architectures. While
+	// this is not problematic for the embedded seccomp profile, it prevents the
+	// profile from being saved as a portable JSON file that can be used for both
+	// architectures.
+	// To work around this situation, we include conditional rules for both arches.
+	// and hard-code the value for ENOSYS in both.
+	// For more details, refer to https://github.com/moby/moby/pull/42836#issuecomment-963429850
+	// and https://github.com/opencontainers/runtime-spec/pull/1087#issuecomment-963463475
+	var (
+		nosys     = enosys
+		nosysMIPS = enosysMIPS
+	)
+
 	syscalls := []*Syscall{
 		{
 			LinuxSyscall: specs.LinuxSyscall{
@@ -625,6 +642,24 @@ func DefaultProfile() *Seccomp {
 				},
 				Action:   specs.ActErrno,
 				ErrnoRet: &nosys,
+			},
+			Comment: "ENOSYS for clone3 on non-mips architectures",
+			Excludes: &Filter{
+				Arches: []string{"mips3l64n32", "mips64", "mips64n32", "mipsel", "mipsel64"},
+				Caps:   []string{"CAP_SYS_ADMIN"},
+			},
+		},
+		{
+			LinuxSyscall: specs.LinuxSyscall{
+				Names: []string{
+					"clone3",
+				},
+				Action:   specs.ActErrno,
+				ErrnoRet: &nosysMIPS,
+			},
+			Comment: "ENOSYS for clone3 on mips architectures",
+			Includes: &Filter{
+				Arches: []string{"mips3l64n32", "mips64", "mips64n32", "mipsel", "mipsel64"},
 			},
 			Excludes: &Filter{
 				Caps: []string{"CAP_SYS_ADMIN"},

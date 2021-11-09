@@ -635,6 +635,36 @@
 			],
 			"action": "SCMP_ACT_ERRNO",
 			"errnoRet": 38,
+			"comment": "ENOSYS for clone3 on non-mips architectures",
+			"excludes": {
+				"caps": [
+					"CAP_SYS_ADMIN"
+				],
+				"arches": [
+					"mips3l64n32",
+					"mips64",
+					"mips64n32",
+					"mipsel",
+					"mipsel64"
+				]
+			}
+		},
+		{
+			"names": [
+				"clone3"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"errnoRet": 89,
+			"comment": "ENOSYS for clone3 on mips architectures",
+			"includes": {
+				"arches": [
+					"mips3l64n32",
+					"mips64",
+					"mips64n32",
+					"mipsel",
+					"mipsel64"
+				]
+			},
 			"excludes": {
 				"caps": [
 					"CAP_SYS_ADMIN"
