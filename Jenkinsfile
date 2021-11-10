@@ -27,7 +27,7 @@ pipeline {
         DOCKER_EXPERIMENTAL = '1'
         DOCKER_GRAPHDRIVER  = 'overlay2'
         APT_MIRROR          = 'cdn-fastly.deb.debian.org'
-        CHECK_CONFIG_COMMIT = '2b0755b936416834e14208c6c37b36977e67ea35'
+        CHECK_CONFIG_COMMIT = '33a3680e08d1007e72c3b3f1454f823d8e9948ee'
         TESTDEBUG           = '0'
         TIMEOUT             = '120m'
     }
