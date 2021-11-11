@@ -522,8 +522,8 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 	return daemon.Unmount(container)
 }
 
-func driverOptions(config *config.Config) []nwconfig.Option {
-	return []nwconfig.Option{}
+func driverOptions(_ *config.Config) nwconfig.Option {
+	return nil
 }
 
 func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
