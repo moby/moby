@@ -3,6 +3,7 @@ package distribution
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 
 	"github.com/containerd/containerd/content"
@@ -10,7 +11,9 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes"
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema1"
+	"github.com/docker/distribution/manifest/schema2"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -165,8 +168,10 @@ func detectManifestMediaType(ra content.ReaderAt) (string, error) {
 func detectManifestBlobMediaType(dt []byte) (string, error) {
 	var mfst struct {
 		MediaType string          `json:"mediaType"`
-		Config    json.RawMessage `json:"config"`   // schema2 Manifest
-		FSLayers  json.RawMessage `json:"fsLayers"` // schema1 Manifest
+		Manifests json.RawMessage `json:"manifests"` // oci index, manifest list
+		Config    json.RawMessage `json:"config"`    // schema2 Manifest
+		Layers    json.RawMessage `json:"layers"`    // schema2 Manifest
+		FSLayers  json.RawMessage `json:"fsLayers"`  // schema1 Manifest
 	}
 
 	if err := json.Unmarshal(dt, &mfst); err != nil {
@@ -177,18 +182,40 @@ func detectManifestBlobMediaType(dt []byte) (string, error) {
 	// Docker types should generally have a media type set.
 	// OCI (golang) types do not have a `mediaType` defined, and it is optional in the spec.
 	//
-	// `distrubtion.UnmarshalManifest`, which is used to unmarshal this for real, checks these media type values.
+	// `distribution.UnmarshalManifest`, which is used to unmarshal this for real, checks these media type values.
 	// If the specified media type does not match it will error, and in some cases (docker media types) it is required.
 	// So pretty much if we don't have a media type we can fall back to OCI.
 	// This does have a special fallback for schema1 manifests just because it is easy to detect.
-	switch {
-	case mfst.MediaType != "":
+	switch mfst.MediaType {
+	case schema2.MediaTypeManifest, specs.MediaTypeImageManifest:
+		if mfst.Manifests != nil || mfst.FSLayers != nil {
+			return "", fmt.Errorf(`media-type: %q should not have "manifests" or "fsLayers"`, mfst.MediaType)
+		}
 		return mfst.MediaType, nil
-	case mfst.FSLayers != nil:
-		return schema1.MediaTypeManifest, nil
-	case mfst.Config != nil:
-		return specs.MediaTypeImageManifest, nil
+	case manifestlist.MediaTypeManifestList, specs.MediaTypeImageIndex:
+		if mfst.Config != nil || mfst.Layers != nil || mfst.FSLayers != nil {
+			return "", fmt.Errorf(`media-type: %q should not have "config", "layers", or "fsLayers"`, mfst.MediaType)
+		}
+		return mfst.MediaType, nil
+	case schema1.MediaTypeManifest:
+		if mfst.Manifests != nil || mfst.Layers != nil {
+			return "", fmt.Errorf(`media-type: %q should not have "manifests" or "layers"`, mfst.MediaType)
+		}
+		return mfst.MediaType, nil
 	default:
+		if mfst.MediaType != "" {
+			return mfst.MediaType, nil
+		}
+	}
+	switch {
+	case mfst.FSLayers != nil && mfst.Manifests == nil && mfst.Layers == nil && mfst.Config == nil:
+		return schema1.MediaTypeManifest, nil
+	case mfst.Config != nil && mfst.Manifests == nil && mfst.FSLayers == nil,
+		mfst.Layers != nil && mfst.Manifests == nil && mfst.FSLayers == nil:
+		return specs.MediaTypeImageManifest, nil
+	case mfst.Config == nil && mfst.Layers == nil && mfst.FSLayers == nil:
+		// fallback to index
 		return specs.MediaTypeImageIndex, nil
 	}
+	return "", errors.New("media-type: cannot determine")
 }
