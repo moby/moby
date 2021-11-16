@@ -2,8 +2,6 @@
 
 package selinux
 
-const privContainerMountLabel = ""
-
 func setDisabled() {
 }
 
@@ -151,4 +149,8 @@ func disableSecOpt() []string {
 
 func getDefaultContextWithLevel(user, level, scon string) (string, error) {
 	return "", nil
+}
+
+func label(_ string) string {
+	return ""
 }
