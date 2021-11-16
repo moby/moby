@@ -10,7 +10,7 @@ func lgetxattr(path, attr string) ([]byte, error) {
 	// Start with a 128 length byte array
 	dest := make([]byte, 128)
 	sz, errno := doLgetxattr(path, attr, dest)
-	for errno == unix.ERANGE {
+	for errno == unix.ERANGE { //nolint:errorlint // unix errors are bare
 		// Buffer too small, use zero-sized buffer to get the actual size
 		sz, errno = doLgetxattr(path, attr, []byte{})
 		if errno != nil {
@@ -31,7 +31,7 @@ func lgetxattr(path, attr string) ([]byte, error) {
 func doLgetxattr(path, attr string, dest []byte) (int, error) {
 	for {
 		sz, err := unix.Lgetxattr(path, attr, dest)
-		if err != unix.EINTR {
+		if err != unix.EINTR { //nolint:errorlint // unix errors are bare
 			return sz, err
 		}
 	}
