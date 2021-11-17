@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/Microsoft/go-winio v0.4.17
-	github.com/Microsoft/hcsshim v0.8.21
+	github.com/Microsoft/hcsshim v0.8.23
 	github.com/containerd/aufs v1.0.0
 	github.com/containerd/btrfs v1.0.0
 	github.com/containerd/cgroups v1.0.1
@@ -15,7 +15,7 @@ require (
 	github.com/containerd/go-runc v1.0.0
 	github.com/containerd/imgcrypt v1.1.1
 	github.com/containerd/nri v0.1.0
-	github.com/containerd/ttrpc v1.0.2
+	github.com/containerd/ttrpc v1.1.0
 	github.com/containerd/typeurl v1.0.2
 	github.com/containerd/zfs v1.0.0
 	github.com/containernetworking/plugins v0.9.1
@@ -46,7 +46,6 @@ require (
 	github.com/pelletier/go-toml v1.8.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
-	github.com/prometheus/procfs v0.6.0 // indirect; temporarily force v0.6.0, which was previously defined in imgcrypt as explicit version
 	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.6.1
