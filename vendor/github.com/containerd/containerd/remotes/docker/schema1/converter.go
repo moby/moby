@@ -256,6 +256,9 @@ func (c *Converter) fetchManifest(ctx context.Context, desc ocispec.Descriptor) 
 	if err := json.Unmarshal(b, &m); err != nil {
 		return err
 	}
+	if len(m.Manifests) != 0 || len(m.Layers) != 0 {
+		return errors.New("converter: expected schema1 document but found extra keys")
+	}
 	c.pulledManifest = &m
 
 	return nil
@@ -472,8 +475,10 @@ type history struct {
 }
 
 type manifest struct {
-	FSLayers []fsLayer `json:"fsLayers"`
-	History  []history `json:"history"`
+	FSLayers  []fsLayer       `json:"fsLayers"`
+	History   []history       `json:"history"`
+	Layers    json.RawMessage `json:"layers,omitempty"`    // OCI manifest
+	Manifests json.RawMessage `json:"manifests,omitempty"` // OCI index
 }
 
 type v1History struct {
