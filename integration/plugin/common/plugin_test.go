@@ -276,11 +276,7 @@ func TestPluginBackCompatMediaTypes(t *testing.T) {
 	assert.NilError(t, err)
 	defer rdr.Close()
 
-	type manifest struct {
-		MediaType string
-		v1.Manifest
-	}
-	var m manifest
+	var m v1.Manifest
 	assert.NilError(t, json.NewDecoder(rdr).Decode(&m))
 	assert.Check(t, cmp.Equal(m.MediaType, images.MediaTypeDockerSchema2Manifest))
 	assert.Check(t, cmp.Len(m.Layers, 1))
