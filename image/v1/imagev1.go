@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -112,9 +111,4 @@ func rawJSON(value interface{}) *json.RawMessage {
 		return nil
 	}
 	return (*json.RawMessage)(&jsonval)
-}
-
-// ValidateID checks whether an ID string is a valid image ID.
-func ValidateID(id string) error {
-	return stringid.ValidateID(id)
 }
