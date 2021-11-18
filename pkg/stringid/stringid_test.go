@@ -78,12 +78,3 @@ func BenchmarkIsShortID(b *testing.B) {
 		}
 	}
 }
-
-func BenchmarkValidateID(b *testing.B) {
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		for _, id := range testIDs {
-			_ = ValidateID(id)
-		}
-	}
-}
