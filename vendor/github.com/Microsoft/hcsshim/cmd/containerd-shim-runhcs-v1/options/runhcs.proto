@@ -9,7 +9,8 @@ option go_package = "github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/
 
 // Options are the set of customizations that can be passed at Create time.
 message Options {
-	// enable debug tracing
+	// Enable debug tracing (sets the logrus log level to debug). This may be deprecated in the future, prefer
+	// log_level as this will override debug if both of them are set.
 	bool debug = 1;
 
 	enum DebugType {
@@ -69,23 +70,34 @@ message Options {
 	// host and UVM.
 	bool scale_cpu_limits_to_sandbox = 11;
 
-	// default_container_scratch_size_in_gb is the default scratch size (sandbox.vhdx) 
+	// default_container_scratch_size_in_gb is the default scratch size (sandbox.vhdx)
 	// to be used for containers. Every container will get a sandbox of `size_in_gb` assigned
-	// instead of the default of 20GB. 
+	// instead of the default of 20GB.
 	int32 default_container_scratch_size_in_gb = 12;
 
-	// default_vm_scratch_size_in_gb is the default scratch size (sandbox.vhdx) 
-	// to be used for the UVM. This only applies to WCOW as LCOW doesn't mount a scratch 
+	// default_vm_scratch_size_in_gb is the default scratch size (sandbox.vhdx)
+	// to be used for the UVM. This only applies to WCOW as LCOW doesn't mount a scratch
 	// specifically for the UVM.
 	int32 default_vm_scratch_size_in_gb = 13;
 
-	// share_scratch specifies if we'd like to reuse scratch space between multiple containers. 
+	// share_scratch specifies if we'd like to reuse scratch space between multiple containers.
 	// This currently only affects LCOW. The sandbox containers scratch space is re-used for all
-	// subsequent containers launched in the pod.  
+	// subsequent containers launched in the pod.
 	bool share_scratch = 14;
-	//NCProxyAddr is the address of the network configuration proxy service. If omitted 
-	// the network is setup locally. 
-	string NCProxyAddr = 15; 
+
+	// NCProxyAddr is the address of the network configuration proxy service. If omitted
+	// the network is setup locally.
+	string NCProxyAddr = 15;
+
+	// log_level specifies the logrus log level for the shim. Supported values are a string representation of the
+	// logrus log levels: "trace", "debug", "info", "warn", "error", "fatal", "panic". This setting will override
+	// the `debug` field if both are specified, unless the level specified is also "debug", as these are equivalent.
+	string log_level = 16;
+
+	// io_retry_timeout_in_sec is the timeout in seconds for how long to try and reconnect to an upstream IO provider if a connection is lost.
+	// The typical example is if Containerd has restarted but is expected to come back online. A 0 for this field is interpreted as an infinite
+	// timeout.
+	int32 io_retry_timeout_in_sec = 17;
 }
 
 // ProcessDetails contains additional information about a process. This is the additional
