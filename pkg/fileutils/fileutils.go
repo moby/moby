@@ -84,9 +84,9 @@ func NewPatternMatcher(patterns []string) (*PatternMatcher, error) {
 //
 // Matches is not safe to call concurrently.
 //
-// This implementation is buggy (it only checks a single parent dir against the
-// pattern) and will be removed soon. Use either MatchesOrParentMatches or
-// MatchesUsingParentResult instead.
+// Deprecated: This implementation is buggy (it only checks a single parent dir
+// against the pattern) and will be removed soon. Use either
+// MatchesOrParentMatches or MatchesUsingParentResults instead.
 func (pm *PatternMatcher) Matches(file string) (bool, error) {
 	matched := false
 	file = filepath.FromSlash(file)
@@ -173,8 +173,10 @@ func (pm *PatternMatcher) MatchesOrParentMatches(file string) (bool, error) {
 //
 // MatchesUsingParentResult is not safe to call concurrently.
 //
-// Deprecated in favor of MatchesUsingParentResults: this function does behave
-// correctly in some cases (see https://github.com/docker/buildx/issues/850).
+// Deprecated: this function does behave correctly in some cases (see
+// https://github.com/docker/buildx/issues/850).
+//
+// Use MatchesUsingParentResults instead.
 func (pm *PatternMatcher) MatchesUsingParentResult(file string, parentMatched bool) (bool, error) {
 	matched := parentMatched
 	file = filepath.FromSlash(file)
