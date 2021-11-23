@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/containerd/containerd/cio"
 	"github.com/docker/docker/pkg/broadcaster"
@@ -91,27 +92,37 @@ func (c *Config) NewNopInputPipe() {
 
 // CloseStreams ensures that the configured streams are properly closed.
 func (c *Config) CloseStreams() error {
-	var errors []string
+	done := make(chan struct{})
+	var errsInLine error
 
-	if c.stdin != nil {
-		if err := c.stdin.Close(); err != nil {
-			errors = append(errors, fmt.Sprintf("error close stdin: %s", err))
+	go func() {
+		var errors []string
+		if c.stdin != nil {
+			if err := c.stdin.Close(); err != nil {
+				errors = append(errors, fmt.Sprintf("error close stdin: %s", err))
+			}
 		}
-	}
 
-	if err := c.stdout.Clean(); err != nil {
-		errors = append(errors, fmt.Sprintf("error close stdout: %s", err))
-	}
+		if err := c.stdout.Clean(); err != nil {
+			errors = append(errors, fmt.Sprintf("error close stdout: %s", err))
+		}
 
-	if err := c.stderr.Clean(); err != nil {
-		errors = append(errors, fmt.Sprintf("error close stderr: %s", err))
-	}
+		if err := c.stderr.Clean(); err != nil {
+			errors = append(errors, fmt.Sprintf("error close stderr: %s", err))
+		}
 
-	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "\n"))
-	}
+		if len(errors) > 0 {
+			errsInLine = fmt.Errorf(strings.Join(errors, "\n"))
+		}
+		close(done)
+	}()
 
-	return nil
+	select {
+	case <-done:
+		return errsInLine
+	case <-time.After(3 * time.Second):
+		return fmt.Errorf("close stream timeout")
+	}
 }
 
 // CopyToPipe connects streamconfig with a libcontainerd.IOPipe
