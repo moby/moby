@@ -309,6 +309,12 @@ type matchesTestCase struct {
 	pass    bool
 }
 
+type multiPatternTestCase struct {
+	patterns []string
+	text     string
+	pass     bool
+}
+
 func TestMatches(t *testing.T) {
 	tests := []matchesTestCase{
 		{"**", "file", true},
@@ -377,6 +383,10 @@ func TestMatches(t *testing.T) {
 		{"a(b)c/def", "a(b)c/xyz", false},
 		{"a.|)$(}+{bc", "a.|)$(}+{bc", true},
 	}
+	multiPatternTests := []multiPatternTestCase{
+		{[]string{"**", "!util/docker/web"}, "util/docker/web/foo", false},
+		{[]string{"**", "!util/docker/web", "util/docker/web/foo"}, "util/docker/web/foo", true},
+	}
 
 	if runtime.GOOS != "windows" {
 		tests = append(tests, []matchesTestCase{
@@ -388,6 +398,14 @@ func TestMatches(t *testing.T) {
 		for _, test := range tests {
 			desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
 			pm, err := NewPatternMatcher([]string{test.pattern})
+			assert.NilError(t, err, desc)
+			res, _ := pm.MatchesOrParentMatches(test.text)
+			assert.Check(t, is.Equal(test.pass, res), desc)
+		}
+
+		for _, test := range multiPatternTests {
+			desc := fmt.Sprintf("patterns=%q text=%q", test.patterns, test.text)
+			pm, err := NewPatternMatcher(test.patterns)
 			assert.NilError(t, err, desc)
 			res, _ := pm.MatchesOrParentMatches(test.text)
 			assert.Check(t, is.Equal(test.pass, res), desc)
@@ -415,6 +433,38 @@ func TestMatches(t *testing.T) {
 		}
 	})
 
+	t.Run("MatchesUsingParentResults", func(t *testing.T) {
+		check := func(pm *PatternMatcher, text string, pass bool, desc string) {
+			parentPath := filepath.Dir(filepath.FromSlash(text))
+			parentPathDirs := strings.Split(parentPath, string(os.PathSeparator))
+
+			parentMatchInfo := MatchInfo{}
+			if parentPath != "." {
+				for i := range parentPathDirs {
+					_, parentMatchInfo, _ = pm.MatchesUsingParentResults(strings.Join(parentPathDirs[:i+1], "/"), parentMatchInfo)
+				}
+			}
+
+			res, _, _ := pm.MatchesUsingParentResults(text, parentMatchInfo)
+			assert.Check(t, is.Equal(pass, res), desc)
+		}
+
+		for _, test := range tests {
+			desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
+			pm, err := NewPatternMatcher([]string{test.pattern})
+			assert.NilError(t, err, desc)
+
+			check(pm, test.text, test.pass, desc)
+		}
+
+		for _, test := range multiPatternTests {
+			desc := fmt.Sprintf("pattern=%q text=%q", test.patterns, test.text)
+			pm, err := NewPatternMatcher(test.patterns)
+			assert.NilError(t, err, desc)
+
+			check(pm, test.text, test.pass, desc)
+		}
+	})
 }
 
 func TestCleanPatterns(t *testing.T) {

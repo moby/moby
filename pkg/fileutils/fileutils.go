@@ -84,9 +84,9 @@ func NewPatternMatcher(patterns []string) (*PatternMatcher, error) {
 //
 // Matches is not safe to call concurrently.
 //
-// This implementation is buggy (it only checks a single parent dir against the
-// pattern) and will be removed soon. Use either MatchesOrParentMatches or
-// MatchesUsingParentResult instead.
+// Deprecated: This implementation is buggy (it only checks a single parent dir
+// against the pattern) and will be removed soon. Use either
+// MatchesOrParentMatches or MatchesUsingParentResults instead.
 func (pm *PatternMatcher) Matches(file string) (bool, error) {
 	matched := false
 	file = filepath.FromSlash(file)
@@ -172,6 +172,11 @@ func (pm *PatternMatcher) MatchesOrParentMatches(file string) (bool, error) {
 // The "file" argument should be a slash-delimited path.
 //
 // MatchesUsingParentResult is not safe to call concurrently.
+//
+// Deprecated: this function does behave correctly in some cases (see
+// https://github.com/docker/buildx/issues/850).
+//
+// Use MatchesUsingParentResults instead.
 func (pm *PatternMatcher) MatchesUsingParentResult(file string, parentMatched bool) (bool, error) {
 	matched := parentMatched
 	file = filepath.FromSlash(file)
@@ -194,6 +199,78 @@ func (pm *PatternMatcher) MatchesUsingParentResult(file string, parentMatched bo
 		}
 	}
 	return matched, nil
+}
+
+// MatchInfo tracks information about parent dir matches while traversing a
+// filesystem.
+type MatchInfo struct {
+	parentMatched []bool
+}
+
+// MatchesUsingParentResults returns true if "file" matches any of the patterns
+// and isn't excluded by any of the subsequent patterns. The functionality is
+// the same as Matches, but as an optimization, the caller passes in
+// intermediate results from matching the parent directory.
+//
+// The "file" argument should be a slash-delimited path.
+//
+// MatchesUsingParentResults is not safe to call concurrently.
+func (pm *PatternMatcher) MatchesUsingParentResults(file string, parentMatchInfo MatchInfo) (bool, MatchInfo, error) {
+	parentMatched := parentMatchInfo.parentMatched
+	if len(parentMatched) != 0 && len(parentMatched) != len(pm.patterns) {
+		return false, MatchInfo{}, errors.New("wrong number of values in parentMatched")
+	}
+
+	file = filepath.FromSlash(file)
+	matched := false
+
+	matchInfo := MatchInfo{
+		parentMatched: make([]bool, len(pm.patterns)),
+	}
+	for i, pattern := range pm.patterns {
+		match := false
+		// If the parent matched this pattern, we don't need to recheck.
+		if len(parentMatched) != 0 {
+			match = parentMatched[i]
+		}
+
+		if !match {
+			// Skip evaluation if this is an inclusion and the filename
+			// already matched the pattern, or it's an exclusion and it has
+			// not matched the pattern yet.
+			if pattern.exclusion != matched {
+				continue
+			}
+
+			var err error
+			match, err = pattern.match(file)
+			if err != nil {
+				return false, matchInfo, err
+			}
+
+			// If the zero value of MatchInfo was passed in, we don't have
+			// any information about the parent dir's match results, and we
+			// apply the same logic as MatchesOrParentMatches.
+			if len(parentMatched) == 0 {
+				if parentPath := filepath.Dir(file); parentPath != "." {
+					parentPathDirs := strings.Split(parentPath, string(os.PathSeparator))
+					// Check to see if the pattern matches one of our parent dirs.
+					for i := range parentPathDirs {
+						match, _ = pattern.match(strings.Join(parentPathDirs[:i+1], string(os.PathSeparator)))
+						if match {
+							break
+						}
+					}
+				}
+			}
+		}
+		matchInfo.parentMatched[i] = match
+
+		if match {
+			matched = !pattern.exclusion
+		}
+	}
+	return matched, matchInfo, nil
 }
 
 // Exclusions returns true if any of the patterns define exclusions
