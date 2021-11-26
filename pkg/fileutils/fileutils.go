@@ -251,7 +251,7 @@ func (pm *PatternMatcher) MatchesUsingParentResults(file string, parentMatchInfo
 			// If the zero value of MatchInfo was passed in, we don't have
 			// any information about the parent dir's match results, and we
 			// apply the same logic as MatchesOrParentMatches.
-			if len(parentMatched) == 0 {
+			if !match && len(parentMatched) == 0 {
 				if parentPath := filepath.Dir(file); parentPath != "." {
 					parentPathDirs := strings.Split(parentPath, string(os.PathSeparator))
 					// Check to see if the pattern matches one of our parent dirs.
