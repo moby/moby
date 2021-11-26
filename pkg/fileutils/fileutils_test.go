@@ -465,6 +465,30 @@ func TestMatches(t *testing.T) {
 			check(pm, test.text, test.pass, desc)
 		}
 	})
+
+	t.Run("MatchesUsingParentResultsNoContext", func(t *testing.T) {
+		check := func(pm *PatternMatcher, text string, pass bool, desc string) {
+			res, _, _ := pm.MatchesUsingParentResults(text, MatchInfo{})
+			assert.Check(t, is.Equal(pass, res), desc)
+		}
+
+		for _, test := range tests {
+			desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
+			pm, err := NewPatternMatcher([]string{test.pattern})
+			assert.NilError(t, err, desc)
+
+			check(pm, test.text, test.pass, desc)
+		}
+
+		for _, test := range multiPatternTests {
+			desc := fmt.Sprintf("pattern=%q text=%q", test.patterns, test.text)
+			pm, err := NewPatternMatcher(test.patterns)
+			assert.NilError(t, err, desc)
+
+			check(pm, test.text, test.pass, desc)
+		}
+	})
+
 }
 
 func TestCleanPatterns(t *testing.T) {
