@@ -27,7 +27,6 @@ import (
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
-	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/user"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -874,13 +873,11 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		devPermissions := s.Linux.Resources.Devices
 
 		if c.HostConfig.Privileged && !userns.RunningInUserNS() {
-			hostDevices, err := devices.HostDevices()
+			hostDevices, err := coci.HostDevices()
 			if err != nil {
 				return err
 			}
-			for _, d := range hostDevices {
-				devs = append(devs, oci.Device(d))
-			}
+			devs = append(devs, hostDevices...)
 
 			// adding device mappings in privileged containers
 			for _, deviceMapping := range c.HostConfig.Devices {
