@@ -1,5 +1,7 @@
 # Go Text
 
+[![Go Reference](https://pkg.go.dev/badge/golang.org/x/text.svg)](https://pkg.go.dev/golang.org/x/text)
+
 This repository holds supplementary Go libraries for text processing, many involving Unicode.
 
 ## Semantic Versioning
