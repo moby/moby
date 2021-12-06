@@ -88,53 +88,42 @@ func (e ChainError) Error() string {
 	return fmt.Sprintf("Error iptables %s: %s", e.Chain, string(e.Output))
 }
 
-func probe() {
-	path, err := exec.LookPath("iptables")
-	if err != nil {
-		logrus.Warnf("Failed to find iptables: %v", err)
-		return
-	}
-	if out, err := exec.Command(path, "--wait", "-t", "nat", "-L", "-n").CombinedOutput(); err != nil {
-		logrus.Warnf("Running iptables --wait -t nat -L -n failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
-	}
-	_, err = exec.LookPath("ip6tables")
-	if err != nil {
-		logrus.Warnf("Failed to find ip6tables: %v", err)
-		return
-	}
-}
-
-func initFirewalld() {
-	if err := FirewalldInit(); err != nil {
-		logrus.Debugf("Fail to initialize firewalld: %v, using raw iptables instead", err)
-	}
-}
-
 func detectIptables() {
 	path, err := exec.LookPath("iptables")
 	if err != nil {
+		logrus.WithError(err).Warnf("failed to find iptables")
 		return
 	}
 	iptablesPath = path
 
-	supportsXlock = exec.Command(iptablesPath, "--wait", "-L", "-n").Run() == nil
+	if out, err := exec.Command(path, "--wait", "-L", "-n").CombinedOutput(); err != nil {
+		logrus.WithError(err).Infof("unable to detect if iptables supports xlock: 'iptables --wait -L -n': `%s`", strings.TrimSpace(string(out)))
+	} else {
+		supportsXlock = true
+	}
+
 	mj, mn, mc, err := GetVersion()
 	if err != nil {
 		logrus.Warnf("Failed to read iptables version: %v", err)
-		return
+	} else {
+		supportsCOpt = supportsCOption(mj, mn, mc)
 	}
-	supportsCOpt = supportsCOption(mj, mn, mc)
 
 	path, err = exec.LookPath("ip6tables")
 	if err != nil {
-		return
+		logrus.WithError(err).Warnf("unable to find ip6tables")
 	} else {
 		ip6tablesPath = path
 	}
 }
 
+func initFirewalld() {
+	if err := FirewalldInit(); err != nil {
+		logrus.WithError(err).Debugf("unable to initialize firewalld; using raw iptables instead")
+	}
+}
+
 func initDependencies() {
-	probe()
 	initFirewalld()
 	detectIptables()
 }
@@ -547,6 +536,9 @@ func (iptable IPTable) raw(args ...string) ([]byte, error) {
 	path := iptablesPath
 	commandName := "iptables"
 	if iptable.Version == IPv6 {
+		if ip6tablesPath == "" {
+			return nil, fmt.Errorf("ip6tables is missing")
+		}
 		path = ip6tablesPath
 		commandName = "ip6tables"
 	}
