@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -57,7 +56,6 @@ var (
 	iptablesPath  string
 	ip6tablesPath string
 	supportsXlock = false
-	supportsCOpt  = false
 	xLockWaitMsg  = "Another app is currently holding the xtables lock"
 	// used to lock iptables commands if xtables lock is not supported
 	bestEffortLock sync.Mutex
@@ -97,17 +95,12 @@ func detectIptables() {
 	}
 	iptablesPath = path
 
+	// The --wait flag was added in iptables v1.6.0.
+	// TODO remove this check once we drop support for CentOS/RHEL 7, which uses an older version of iptables
 	if out, err := exec.Command(path, "--wait", "-L", "-n").CombinedOutput(); err != nil {
 		logrus.WithError(err).Infof("unable to detect if iptables supports xlock: 'iptables --wait -L -n': `%s`", strings.TrimSpace(string(out)))
 	} else {
 		supportsXlock = true
-	}
-
-	mj, mn, mc, err := GetVersion()
-	if err != nil {
-		logrus.Warnf("Failed to read iptables version: %v", err)
-	} else {
-		supportsCOpt = supportsCOption(mj, mn, mc)
 	}
 
 	path, err = exec.LookPath("ip6tables")
@@ -470,26 +463,9 @@ func (iptable IPTable) exists(native bool, table Table, chain string, rule ...st
 		return false
 	}
 
-	if supportsCOpt {
-		// if exit status is 0 then return true, the rule exists
-		_, err := f(append([]string{"-t", string(table), "-C", chain}, rule...)...)
-		return err == nil
-	}
-
-	// parse "iptables -S" for the rule (it checks rules in a specific chain
-	// in a specific table and it is very unreliable)
-	return iptable.existsRaw(table, chain, rule...)
-}
-
-func (iptable IPTable) existsRaw(table Table, chain string, rule ...string) bool {
-	path := iptablesPath
-	if iptable.Version == IPv6 {
-		path = ip6tablesPath
-	}
-	ruleString := fmt.Sprintf("%s %s\n", chain, strings.Join(rule, " "))
-	existingRules, _ := exec.Command(path, "-t", string(table), "-S", chain).Output()
-
-	return strings.Contains(string(existingRules), ruleString)
+	// if exit status is 0 then return true, the rule exists
+	_, err := f(append([]string{"-t", string(table), "-C", chain}, rule...)...)
+	return err == nil
 }
 
 // Maximum duration that an iptables operation can take
@@ -587,34 +563,12 @@ func (iptable IPTable) ExistChain(chain string, table Table) bool {
 	return false
 }
 
-// GetVersion reads the iptables version numbers during initialization
-func GetVersion() (major, minor, micro int, err error) {
-	out, err := exec.Command(iptablesPath, "--version").CombinedOutput()
-	if err == nil {
-		major, minor, micro = parseVersionNumbers(string(out))
-	}
-	return
-}
-
 // SetDefaultPolicy sets the passed default policy for the table/chain
 func (iptable IPTable) SetDefaultPolicy(table Table, chain string, policy Policy) error {
 	if err := iptable.RawCombinedOutput("-t", string(table), "-P", chain, string(policy)); err != nil {
 		return fmt.Errorf("setting default policy to %v in %v chain failed: %v", policy, chain, err)
 	}
 	return nil
-}
-
-func parseVersionNumbers(input string) (major, minor, micro int) {
-	re := regexp.MustCompile(`v\d*.\d*.\d*`)
-	line := re.FindString(input)
-	fmt.Sscanf(line, "v%d.%d.%d", &major, &minor, &micro)
-	return
-}
-
-// iptables -C, --check option was added in v.1.4.11
-// http://ftp.netfilter.org/pub/iptables/changes-iptables-1.4.11.txt
-func supportsCOption(mj, mn, mc int) bool {
-	return mj > 1 || (mj == 1 && (mn > 4 || (mn == 4 && mc >= 11)))
 }
 
 // AddReturnRule adds a return rule for the chain in the filter table

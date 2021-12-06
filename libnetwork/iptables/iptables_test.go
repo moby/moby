@@ -287,44 +287,15 @@ func TestExistsRaw(t *testing.T) {
 		if err != nil {
 			t.Fatalf("i=%d, err: %v", i, err)
 		}
-		if !iptable.existsRaw(Filter, testChain1, r.rule...) {
+		if !iptable.exists(true, Filter, testChain1, r.rule...) {
 			t.Fatalf("Failed to detect rule. i=%d", i)
 		}
 		// Truncate the rule
 		trg := r.rule[len(r.rule)-1]
 		trg = trg[:len(trg)-2]
 		r.rule[len(r.rule)-1] = trg
-		if iptable.existsRaw(Filter, testChain1, r.rule...) {
+		if iptable.exists(true, Filter, testChain1, r.rule...) {
 			t.Fatalf("Invalid detection. i=%d", i)
-		}
-	}
-}
-
-func TestGetVersion(t *testing.T) {
-	mj, mn, mc := parseVersionNumbers("iptables v1.4.19.1-alpha")
-	if mj != 1 || mn != 4 || mc != 19 {
-		t.Fatal("Failed to parse version numbers")
-	}
-}
-
-func TestSupportsCOption(t *testing.T) {
-	input := []struct {
-		mj int
-		mn int
-		mc int
-		ok bool
-	}{
-		{1, 4, 11, true},
-		{1, 4, 12, true},
-		{1, 5, 0, true},
-		{0, 4, 11, false},
-		{0, 5, 12, false},
-		{1, 3, 12, false},
-		{1, 4, 10, false},
-	}
-	for ind, inp := range input {
-		if inp.ok != supportsCOption(inp.mj, inp.mn, inp.mc) {
-			t.Fatalf("Incorrect check: %d", ind)
 		}
 	}
 }
