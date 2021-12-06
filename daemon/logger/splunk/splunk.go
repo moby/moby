@@ -53,8 +53,6 @@ const (
 const (
 	// How often do we send messages (if we are not reaching batch size)
 	defaultPostMessagesFrequency = 5 * time.Second
-	// HTTP timeout
-	defaultHTTPTimeout = 1 * time.Second
 	// How big can be batch of messages
 	defaultPostMessagesBatchSize = 1000
 	// Maximum number of messages we can store in buffer
@@ -231,7 +229,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
-	timeout := defaultHTTPTimeout
+	var timeout time.Duration
 	if timeoutStr, ok := info.Config[splunkHTTPTimeout]; ok {
 		value, err := strconv.ParseInt(timeoutStr, 10, 64)
 
