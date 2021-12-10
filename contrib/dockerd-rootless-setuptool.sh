@@ -363,6 +363,11 @@ cli_ctx_create() {
 	"${BIN}/docker" context create "${name}" --docker "host=${host}" --description "${description}" > /dev/null
 }
 
+cli_ctx_use() {
+	name="$1"
+	"${BIN}/docker" context use "${name}" > /dev/null
+}
+
 cli_ctx_rm() {
 	name="$1"
 	"${BIN}/docker" context rm -f "${name}" > /dev/null
@@ -384,6 +389,9 @@ cmd_entrypoint_install() {
 		cli_ctx_create "${CLI_CONTEXT}" "unix://${XDG_RUNTIME_DIR}/docker.sock" "Rootless mode"
 	fi
 
+	INFO "Use CLI context \"${CLI_CONTEXT}\""
+	cli_ctx_use "${CLI_CONTEXT}"
+
 	echo
 	INFO "Make sure the following environment variables are set (or add them to ~/.bashrc):"
 	echo
@@ -392,6 +400,7 @@ cmd_entrypoint_install() {
 		echo "export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}"
 	fi
 	echo "export PATH=${BIN}:\$PATH"
+	echo "Some applications may require the following environment variable too:"
 	echo "export DOCKER_HOST=unix://${XDG_RUNTIME_DIR}/docker.sock"
 	echo
 
