@@ -8,7 +8,6 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/libnetwork"
-	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/registry"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
