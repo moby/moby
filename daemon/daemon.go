@@ -28,7 +28,6 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
@@ -92,7 +91,6 @@ type Daemon struct {
 	EventsService         *events.Events
 	netController         libnetwork.NetworkController
 	volumes               *volumesservice.VolumesService
-	discoveryWatcher      discovery.Reloader
 	root                  string
 	seccompEnabled        bool
 	apparmorEnabled       bool
@@ -522,8 +520,6 @@ func (daemon *Daemon) restore() error {
 				}
 			}
 
-			// Make sure networks are available before starting
-			daemon.waitForNetworks(c)
 			if err := daemon.containerStart(c, "", "", true); err != nil {
 				log.WithError(err).Error("failed to start container")
 			}
@@ -626,40 +622,6 @@ func (daemon *Daemon) RestartSwarmContainers() {
 		}
 	}
 	group.Wait()
-}
-
-// waitForNetworks is used during daemon initialization when starting up containers
-// It ensures that all of a container's networks are available before the daemon tries to start the container.
-// In practice it just makes sure the discovery service is available for containers which use a network that require discovery.
-func (daemon *Daemon) waitForNetworks(c *container.Container) {
-	if daemon.discoveryWatcher == nil {
-		return
-	}
-
-	// Make sure if the container has a network that requires discovery that the discovery service is available before starting
-	for netName := range c.NetworkSettings.Networks {
-		// If we get `ErrNoSuchNetwork` here, we can assume that it is due to discovery not being ready
-		// Most likely this is because the K/V store used for discovery is in a container and needs to be started
-		if _, err := daemon.netController.NetworkByName(netName); err != nil {
-			if _, ok := err.(libnetwork.ErrNoSuchNetwork); !ok {
-				continue
-			}
-
-			// use a longish timeout here due to some slowdowns in libnetwork if the k/v store is on anything other than --net=host
-			// FIXME: why is this slow???
-			dur := 60 * time.Second
-			timer := time.NewTimer(dur)
-
-			logrus.WithField("container", c.ID).Debugf("Container %s waiting for network to be ready", c.Name)
-			select {
-			case <-daemon.discoveryWatcher.ReadyCh():
-			case <-timer.C:
-			}
-			timer.Stop()
-
-			return
-		}
-	}
 }
 
 func (daemon *Daemon) children(c *container.Container) map[string]*container.Container {
