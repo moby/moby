@@ -2,6 +2,8 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +12,8 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/pkg/system"
+	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -127,4 +131,55 @@ func TestUnprivilegedPortsAndPing(t *testing.T) {
 	assert.Assert(t, is.Len(res.Stderr(), 0))
 	assert.Equal(t, 0, res.ExitCode)
 	assert.Equal(t, "0", strings.TrimSpace(res.Stdout()))
+}
+
+func TestPrivilegedHostDevices(t *testing.T) {
+	// Host devices are linux only. Also it creates host devices,
+	// so needs to be same host.
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	defer setupTest(t)()
+	client := testEnv.APIClient()
+	ctx := context.Background()
+
+	const (
+		devTest         = "/dev/test"
+		devRootOnlyTest = "/dev/root-only/test"
+	)
+
+	// Create Null devices.
+	if err := system.Mknod(devTest, unix.S_IFCHR|0600, int(system.Mkdev(1, 3))); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(devTest)
+	if err := os.Mkdir(filepath.Dir(devRootOnlyTest), 0700); err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(filepath.Dir(devRootOnlyTest))
+	if err := system.Mknod(devRootOnlyTest, unix.S_IFCHR|0600, int(system.Mkdev(1, 3))); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(devRootOnlyTest)
+
+	cID := container.Run(ctx, t, client, container.WithPrivileged(true))
+
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+
+	// Check test device.
+	res, err := container.Exec(ctx, client, cID, []string{"ls", devTest})
+	assert.NilError(t, err)
+	assert.Equal(t, 0, res.ExitCode)
+	assert.Check(t, is.Equal(strings.TrimSpace(res.Stdout()), devTest))
+
+	// Check root-only test device.
+	res, err = container.Exec(ctx, client, cID, []string{"ls", devRootOnlyTest})
+	assert.NilError(t, err)
+	if testEnv.IsRootless() {
+		assert.Equal(t, 1, res.ExitCode)
+		assert.Check(t, is.Contains(res.Stderr(), "No such file or directory"))
+	} else {
+		assert.Equal(t, 0, res.ExitCode)
+		assert.Check(t, is.Equal(strings.TrimSpace(res.Stdout()), devRootOnlyTest))
+	}
 }
