@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
-	zk "github.com/samuel/go-zookeeper/zk"
+	zk "github.com/go-zookeeper/zk"
 )
 
 const (

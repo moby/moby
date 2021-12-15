@@ -1,0 +1,8 @@
+.vscode/
+.DS_Store
+profile.cov
+zookeeper
+zookeeper-*/
+zookeeper-*.tar.gz
+apache-zookeeper-*/
+apache-zookeeper-*.tar.gz
