@@ -89,25 +89,6 @@ function run_overlay_consul_host_tests() {
 	unset _OVERLAY_HOST_MODE
 }
 
-function run_overlay_zk_tests() {
-	## Test overlay network with zookeeper
-	start_dnet 1 zookeeper 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 1 - zookeeper]=dnet-1-zookeeper
-	start_dnet 2 zookeeper 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 2 - zookeeper]=dnet-2-zookeeper
-	start_dnet 3 zookeeper 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 3 - zookeeper]=dnet-3-zookeeper
-
-	./integration-tmp/bin/bats ./test/integration/dnet/overlay-zookeeper.bats
-
-	stop_dnet 1 zookeeper 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-1-zookeeper]
-	stop_dnet 2 zookeeper 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-2-zookeeper]
-	stop_dnet 3 zookeeper 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-3-zookeeper]
-}
-
 function run_overlay_etcd_tests() {
 	## Test overlay network with etcd
 	start_dnet 1 etcd 1>> ${INTEGRATION_ROOT}/test.log 2>&1
@@ -155,29 +136,6 @@ function run_multi_consul_tests() {
 	unset cmap[dnet-3-multi_consul]
 }
 
-function run_multi_zk_tests() {
-	# Test multi node configuration with a global scope test driver backed by zookeeper
-
-	## Setup
-	start_dnet 1 multi_zk zookeeper 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 1 - multi_zk]=dnet-1-multi_zk
-	start_dnet 2 multi_zk zookeeper 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 2 - multi_zk]=dnet-2-multi_zk
-	start_dnet 3 multi_zk zookeeper 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 3 - multi_zk]=dnet-3-multi_zk
-
-	## Run the test cases
-	./integration-tmp/bin/bats ./test/integration/dnet/multi.bats
-
-	## Teardown
-	stop_dnet 1 multi_zk 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-1-multi_zk]
-	stop_dnet 2 multi_zk 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-2-multi_zk]
-	stop_dnet 3 multi_zk 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-3-multi_zk]
-}
-
 function run_multi_etcd_tests() {
 	# Test multi node configuration with a global scope test driver backed by etcd
 
@@ -220,7 +178,7 @@ fi
 # Suite setup
 
 if [ -z "$SUITES" ]; then
-	suites="dnet multi_consul multi_zk multi_etcd  bridge overlay_consul overlay_consul_host overlay_zk overlay_etcd"
+	suites="dnet multi_consul multi_etcd  bridge overlay_consul overlay_consul_host overlay_etcd"
 else
 	suites="$SUITES"
 fi
@@ -229,12 +187,6 @@ if [[ ("$suites" =~ .*consul.*) || ("$suites" =~ .*bridge.*) ]]; then
 	echo "Starting consul ..."
 	start_consul 1>> ${INTEGRATION_ROOT}/test.log 2>&1
 	cmap[pr_consul]=pr_consul
-fi
-
-if [[ "$suites" =~ .*zk.* ]]; then
-	echo "Starting zookeeper ..."
-	start_zookeeper 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[zookeeper_server]=zookeeper_server
 fi
 
 if [[ "$suites" =~ .*etcd.* ]]; then
