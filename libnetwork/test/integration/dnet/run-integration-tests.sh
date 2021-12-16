@@ -52,43 +52,6 @@ function run_overlay_local_tests() {
 	unset cmap[dnet-3-local]
 }
 
-function run_overlay_consul_tests() {
-	## Test overlay network with consul
-	## Setup
-	start_dnet 1 consul 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 1 - consul]=dnet-1-consul
-	start_dnet 2 consul 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 2 - consul]=dnet-2-consul
-	start_dnet 3 consul 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 3 - consul]=dnet-3-consul
-
-	## Run the test cases
-	./integration-tmp/bin/bats ./test/integration/dnet/overlay-consul.bats
-
-	## Teardown
-	stop_dnet 1 consul 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-1-consul]
-	stop_dnet 2 consul 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-2-consul]
-	stop_dnet 3 consul 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-3-consul]
-}
-
-function run_overlay_consul_host_tests() {
-	export _OVERLAY_HOST_MODE="true"
-	## Setup
-	start_dnet 1 consul 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 1 - consul]=dnet-1-consul
-
-	## Run the test cases
-	./integration-tmp/bin/bats ./test/integration/dnet/overlay-consul-host.bats
-
-	## Teardown
-	stop_dnet 1 consul 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-1-consul]
-	unset _OVERLAY_HOST_MODE
-}
-
 function run_overlay_etcd_tests() {
 	## Test overlay network with etcd
 	start_dnet 1 etcd 1>> ${INTEGRATION_ROOT}/test.log 2>&1
@@ -111,29 +74,6 @@ function run_overlay_etcd_tests() {
 function run_dnet_tests() {
 	# Test dnet configuration options
 	./integration-tmp/bin/bats ./test/integration/dnet/dnet.bats
-}
-
-function run_multi_consul_tests() {
-	# Test multi node configuration with a global scope test driver backed by consul
-
-	## Setup
-	start_dnet 1 multi_consul consul 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 1 - multi_consul]=dnet-1-multi_consul
-	start_dnet 2 multi_consul consul 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 2 - multi_consul]=dnet-2-multi_consul
-	start_dnet 3 multi_consul consul 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[dnet - 3 - multi_consul]=dnet-3-multi_consul
-
-	## Run the test cases
-	./integration-tmp/bin/bats ./test/integration/dnet/multi.bats
-
-	## Teardown
-	stop_dnet 1 multi_consul 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-1-multi_consul]
-	stop_dnet 2 multi_consul 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-2-multi_consul]
-	stop_dnet 3 multi_consul 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	unset cmap[dnet-3-multi_consul]
 }
 
 function run_multi_etcd_tests() {
@@ -178,15 +118,9 @@ fi
 # Suite setup
 
 if [ -z "$SUITES" ]; then
-	suites="dnet multi_consul multi_etcd  bridge overlay_consul overlay_consul_host overlay_etcd"
+	suites="dnet multi_etcd  bridge overlay_etcd"
 else
 	suites="$SUITES"
-fi
-
-if [[ ("$suites" =~ .*consul.*) || ("$suites" =~ .*bridge.*) ]]; then
-	echo "Starting consul ..."
-	start_consul 1>> ${INTEGRATION_ROOT}/test.log 2>&1
-	cmap[pr_consul]=pr_consul
 fi
 
 if [[ "$suites" =~ .*etcd.* ]]; then
