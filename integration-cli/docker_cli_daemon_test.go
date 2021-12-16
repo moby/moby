@@ -601,7 +601,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *testing.T) {
 	// which may happen if it was created with the same IP range.
 	deleteInterface(c, "docker0")
 
-	bridgeName := "external-bridge"
+	bridgeName := "ext-bridge1"
 	bridgeIP := "192.169.1.1/24"
 	_, bridgeIPNet, _ := net.ParseCIDR(bridgeIP)
 
@@ -720,7 +720,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr(c *testing.T) {
 	// which may happen if it was created with the same IP range.
 	deleteInterface(c, "docker0")
 
-	bridgeName := "external-bridge"
+	bridgeName := "ext-bridge2"
 	bridgeIP := "192.169.1.1/24"
 
 	createInterface(c, "bridge", bridgeName, bridgeIP)
@@ -746,7 +746,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr2(c *testing.T) {
 	// which may happen if it was created with the same IP range.
 	deleteInterface(c, "docker0")
 
-	bridgeName := "external-bridge"
+	bridgeName := "ext-bridge3"
 	bridgeIP := "10.2.2.1/16"
 
 	createInterface(c, "bridge", bridgeName, bridgeIP)
@@ -775,7 +775,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCIDREqualBridgeNetwork(c *testi
 	// which may happen if it was created with the same IP range.
 	deleteInterface(c, "docker0")
 
-	bridgeName := "external-bridge"
+	bridgeName := "ext-bridge4"
 	bridgeIP := "172.27.42.1/16"
 
 	createInterface(c, "bridge", bridgeName, bridgeIP)
@@ -879,7 +879,7 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *testing.T) {
 	// which may happen if it was created with the same IP range.
 	deleteInterface(c, "docker0")
 
-	bridgeName := "external-bridge"
+	bridgeName := "ext-bridge5"
 	bridgeIP := "192.169.1.1/24"
 
 	createInterface(c, "bridge", bridgeName, bridgeIP)
@@ -917,7 +917,7 @@ func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *testing.T) {
 	// which may happen if it was created with the same IP range.
 	deleteInterface(c, "docker0")
 
-	bridgeName := "external-bridge"
+	bridgeName := "ext-bridge6"
 	bridgeIP := "192.169.1.1/24"
 
 	createInterface(c, "bridge", bridgeName, bridgeIP)
@@ -943,7 +943,7 @@ func (s *DockerDaemonSuite) TestDaemonLinksIpTablesRulesWhenLinkAndUnlink(c *tes
 	// which may happen if it was created with the same IP range.
 	deleteInterface(c, "docker0")
 
-	bridgeName := "external-bridge"
+	bridgeName := "ext-bridge7"
 	bridgeIP := "192.169.1.1/24"
 
 	createInterface(c, "bridge", bridgeName, bridgeIP)
