@@ -40,23 +40,6 @@ function net_disconnect() {
 	dnet_cmd $(inst_id2port ${1}) service unpublish ${2}.${3}
 }
 
-function start_consul() {
-    stop_consul
-    docker run -d \
-	   --name=pr_consul \
-	   -p 8500:8500 \
-	   -p 8300-8302:8300-8302/tcp \
-	   -p 8300-8302:8300-8302/udp \
-	   -h consul \
-	   progrium/consul -server -bootstrap
-    sleep 2
-}
-
-function stop_consul() {
-    echo "consul started"
-    docker rm -f pr_consul || true
-}
-
 hrun() {
     local e E T oldIFS
     [[ ! "$-" =~ e ]] || e=1
@@ -151,8 +134,6 @@ function start_dnet() {
     neighbors=""
     if [ "$store" = "etcd" ]; then
 	read discovery provider address < <(parse_discovery_str etcd://${bridge_ip}:42000/custom_prefix)
-    elif [ "$store" = "consul" ]; then
-	read discovery provider address < <(parse_discovery_str consul://${bridge_ip}:8500/custom_prefix)
     else
 	if [ "$nip" != "" ]; then
 	    neighbors=${nip}
