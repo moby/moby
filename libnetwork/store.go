@@ -6,13 +6,11 @@ import (
 
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/libkv/store/boltdb"
-	"github.com/docker/libkv/store/consul"
 	"github.com/docker/libkv/store/etcd"
 	"github.com/sirupsen/logrus"
 )
 
 func registerKVStores() {
-	consul.Register()
 	etcd.Register()
 	boltdb.Register()
 }

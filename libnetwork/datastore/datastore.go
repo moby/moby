@@ -114,7 +114,7 @@ type ScopeClientCfg struct {
 const (
 	// LocalScope indicates to store the KV object in local datastore such as boltdb
 	LocalScope = "local"
-	// GlobalScope indicates to store the KV object in global datastore such as consul/etcd
+	// GlobalScope indicates to store the KV object in global datastore such as etcd
 	GlobalScope = "global"
 	// SwarmScope is not indicating a datastore location. It is defined here
 	// along with the other two scopes just for consistency.
