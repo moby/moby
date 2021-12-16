@@ -149,9 +149,7 @@ function start_dnet() {
     # Try discovery URLs with or without path
     neigh_ip=""
     neighbors=""
-    if [ "$store" = "zookeeper" ]; then
-	read discovery provider address < <(parse_discovery_str zk://${bridge_ip}:2182)
-    elif [ "$store" = "etcd" ]; then
+    if [ "$store" = "etcd" ]; then
 	read discovery provider address < <(parse_discovery_str etcd://${bridge_ip}:42000/custom_prefix)
     elif [ "$store" = "consul" ]; then
 	read discovery provider address < <(parse_discovery_str consul://${bridge_ip}:8500/custom_prefix)
@@ -286,21 +284,6 @@ function start_etcd() {
 
 function stop_etcd() {
     docker rm -f dn_etcd || true
-}
-
-function start_zookeeper() {
-    stop_zookeeper
-    docker run -d \
-	   --name=zookeeper_server \
-	   -p 2182:2181 \
-	   -h zookeeper \
-	   dnephin/docker-zookeeper:3.4.6
-    sleep 2
-}
-
-function stop_zookeeper() {
-    echo "zookeeper started"
-    docker rm -f zookeeper_server || true
 }
 
 function test_overlay() {

@@ -27,7 +27,7 @@ Docker version 1.8.0-dev, build f39b9a0, experimental
 
 
 Multi-host networking uses a pluggable Key-Value store backend to distribute states using `libkv`.
-`libkv` supports multiple pluggable backends such as `consul`, `etcd` & `zookeeper` (more to come).
+`libkv` supports multiple pluggable backends such as `consul`, `etcd` (more to come).
 
 In this example we will use `consul`
 
