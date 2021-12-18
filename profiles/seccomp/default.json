@@ -501,7 +501,8 @@
 		},
 		{
 			"names": [
-				"sync_file_range2"
+				"sync_file_range2",
+				"swapcontext"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"args": [],

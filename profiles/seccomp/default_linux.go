@@ -466,6 +466,7 @@ func DefaultProfile() *Seccomp {
 		{
 			Names: []string{
 				"sync_file_range2",
+				"swapcontext",
 			},
 			Action: specs.ActAllow,
 			Args:   []*specs.LinuxSeccompArg{},
