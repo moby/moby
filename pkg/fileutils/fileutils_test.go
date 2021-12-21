@@ -382,10 +382,14 @@ func TestMatches(t *testing.T) {
 		{"a(b)c/def", "a(b)c/def", true},
 		{"a(b)c/def", "a(b)c/xyz", false},
 		{"a.|)$(}+{bc", "a.|)$(}+{bc", true},
+		{"dist/proxy.py-2.4.0rc3.dev36+g08acad9-py3-none-any.whl", "dist/proxy.py-2.4.0rc3.dev36+g08acad9-py3-none-any.whl", true},
+		{"dist/*.whl", "dist/proxy.py-2.4.0rc3.dev36+g08acad9-py3-none-any.whl", true},
 	}
 	multiPatternTests := []multiPatternTestCase{
 		{[]string{"**", "!util/docker/web"}, "util/docker/web/foo", false},
 		{[]string{"**", "!util/docker/web", "util/docker/web/foo"}, "util/docker/web/foo", true},
+		{[]string{"**", "!dist/proxy.py-2.4.0rc3.dev36+g08acad9-py3-none-any.whl"}, "dist/proxy.py-2.4.0rc3.dev36+g08acad9-py3-none-any.whl", false},
+		{[]string{"**", "!dist/*.whl"}, "dist/proxy.py-2.4.0rc3.dev36+g08acad9-py3-none-any.whl", false},
 	}
 
 	if runtime.GOOS != "windows" {
