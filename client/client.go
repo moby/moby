@@ -117,6 +117,10 @@ func CheckRedirect(req *http.Request, via []*http.Request) error {
 // highly recommended that you set a version or your client may break if the
 // server is upgraded.
 func NewClientWithOpts(ops ...Opt) (*Client, error) {
+	dockerhost := os.Getenv("DOCKER_HOST")
+	if dockerhost == "" {
+		dockerhost = DefaultDockerHost
+	}
 	client, err := defaultHTTPClient(DefaultDockerHost)
 	if err != nil {
 		return nil, err
