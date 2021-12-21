@@ -19,7 +19,7 @@ const blockThreshold = 1e6
 var (
 	// ErrClosed is returned when Write is called on a closed BytesPipe.
 	ErrClosed = errors.New("write to closed BytesPipe")
-
+	ErrBlockThreshold = errors.New("blockThreshold is full")
 	bufPools     = make(map[int]*sync.Pool)
 	bufPoolsLock sync.Mutex
 )
@@ -85,10 +85,10 @@ loop0:
 
 		// make sure the buffer doesn't grow too big from this write
 		for bp.bufLen >= blockThreshold {
-			bp.wait.Wait()
 			if bp.closeErr != nil {
 				continue loop0
 			}
+			return 0, ErrBlockThreshold
 		}
 
 		// add new byte slice to the buffers slice and continue writing
