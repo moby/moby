@@ -541,23 +541,6 @@ func (c *controller) BuiltinIPAMDrivers() []string {
 	return drivers
 }
 
-func (c *controller) validateHostDiscoveryConfig() bool {
-	if c.cfg == nil || c.cfg.Cluster.Discovery == "" || c.cfg.Cluster.Address == "" {
-		return false
-	}
-	return true
-}
-
-func (c *controller) clusterHostID() string {
-	c.Lock()
-	defer c.Unlock()
-	if c.cfg == nil || c.cfg.Cluster.Address == "" {
-		return ""
-	}
-	addr := strings.Split(c.cfg.Cluster.Address, ":")
-	return addr[0]
-}
-
 func (c *controller) processNodeDiscovery(nodes []net.IP, add bool) {
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
 		c.pushNodeDiscovery(driver, capability, nodes, add)
@@ -567,15 +550,9 @@ func (c *controller) processNodeDiscovery(nodes []net.IP, add bool) {
 
 func (c *controller) pushNodeDiscovery(d driverapi.Driver, cap driverapi.Capability, nodes []net.IP, add bool) {
 	var self net.IP
-	if c.cfg != nil {
-		addr := strings.Split(c.cfg.Cluster.Address, ":")
-		self = net.ParseIP(addr[0])
-		// if external kvstore is not configured, try swarm-mode config
-		if self == nil {
-			if agent := c.getAgent(); agent != nil {
-				self = net.ParseIP(agent.advertiseAddr)
-			}
-		}
+	// try swarm-mode config
+	if agent := c.getAgent(); agent != nil {
+		self = net.ParseIP(agent.advertiseAddr)
 	}
 
 	if d == nil || cap.ConnectivityScope != datastore.GlobalScope || nodes == nil {
