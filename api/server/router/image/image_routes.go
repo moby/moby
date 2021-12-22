@@ -29,13 +29,13 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 	}
 
 	var (
-		image    = r.Form.Get("fromImage")
-		repo     = r.Form.Get("repo")
-		tag      = r.Form.Get("tag")
-		message  = r.Form.Get("message")
-		err      error
-		output   = ioutils.NewWriteFlusher(w)
-		platform *specs.Platform
+		image       = r.Form.Get("fromImage")
+		repo        = r.Form.Get("repo")
+		tag         = r.Form.Get("tag")
+		message     = r.Form.Get("message")
+		progressErr error
+		output      = ioutils.NewWriteFlusher(w)
+		platform    *specs.Platform
 	)
 	defer output.Close()
 
@@ -71,23 +71,20 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 				authConfig = &types.AuthConfig{}
 			}
 		}
-		err = s.backend.PullImage(ctx, image, tag, platform, metaHeaders, authConfig, output)
+		progressErr = s.backend.PullImage(ctx, image, tag, platform, metaHeaders, authConfig, output)
 	} else { // import
 		src := r.Form.Get("fromSrc")
-		// 'err' MUST NOT be defined within this block, we need any error
-		// generated from the download to be available to the output
-		// stream processing below
 		os := ""
 		if platform != nil {
 			os = platform.OS
 		}
-		err = s.backend.ImportImage(src, repo, os, tag, message, r.Body, output, r.Form["changes"])
+		progressErr = s.backend.ImportImage(src, repo, os, tag, message, r.Body, output, r.Form["changes"])
 	}
-	if err != nil {
+	if progressErr != nil {
 		if !output.Flushed() {
-			return err
+			return progressErr
 		}
-		_, _ = output.Write(streamformatter.FormatError(err))
+		_, _ = output.Write(streamformatter.FormatError(progressErr))
 	}
 
 	return nil
