@@ -34,6 +34,12 @@ keywords: "API, Docker, rcli, REST, documentation"
   (`a disk usage operation is already running`) would be returned in this
   situation. This change is not versioned, and affects all API versions if the
   daemon has this patch.
+* The `POST /images/create` now supports both the operating system and architecture
+  that is passed through the `platform` query parameter when using the `fromSrc`
+  option to import an image from an archive. Previously, only the operating system
+  was used and the architecture was ignored. If no `platform` option is set, the
+  host's operating system and architecture as used as default. This change is not
+  versioned, and affects all API versions if the daemon has this patch.
 
 ## v1.41 API changes
 

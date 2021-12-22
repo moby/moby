@@ -7678,7 +7678,22 @@ paths:
             type: "string"
         - name: "platform"
           in: "query"
-          description: "Platform in the format os[/arch[/variant]]"
+          description: |
+            Platform in the format os[/arch[/variant]].
+
+            When used in combination with the `fromImage` option, the daemon checks
+            if the given image is present in the local image cache with the given
+            OS and Architecture, and otherwise attempts to pull the image. If the
+            option is not set, the host's native OS and Architecture are used.
+            If the given image does not exist in the local image cache, the daemon
+            attempts to pull the image with the host's native OS and Architecture.
+            If the given image does exists in the local image cache, but its OS or
+            architecture does not match, a warning is produced.
+
+            When used with the `fromSrc` option to import an image from an archive,
+            this option sets the platform information for the imported image. If
+            the option is not set, the host's native OS and Architecture are used
+            for the imported image.
           type: "string"
           default: ""
       tags: ["Image"]
