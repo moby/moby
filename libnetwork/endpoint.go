@@ -54,7 +54,6 @@ type endpoint struct {
 	iface             *endpointInterface
 	joinInfo          *endpointJoinInfo
 	sandboxID         string
-	locator           string
 	exposedPorts      []types.TransportPort
 	anonymous         bool
 	disableResolution bool
@@ -90,7 +89,6 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 		epMap["generic"] = ep.generic
 	}
 	epMap["sandbox"] = ep.sandboxID
-	epMap["locator"] = ep.locator
 	epMap["anonymous"] = ep.anonymous
 	epMap["disableResolution"] = ep.disableResolution
 	epMap["myAliases"] = ep.myAliases
@@ -190,9 +188,6 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := epMap["disableResolution"]; ok {
 		ep.disableResolution = v.(bool)
 	}
-	if l, ok := epMap["locator"]; ok {
-		ep.locator = l.(string)
-	}
 
 	if sn, ok := epMap["svcName"]; ok {
 		ep.svcName = sn.(string)
@@ -239,7 +234,6 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.name = ep.name
 	dstEp.id = ep.id
 	dstEp.sandboxID = ep.sandboxID
-	dstEp.locator = ep.locator
 	dstEp.dbIndex = ep.dbIndex
 	dstEp.dbExists = ep.dbExists
 	dstEp.anonymous = ep.anonymous
