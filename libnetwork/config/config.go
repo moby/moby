@@ -25,7 +25,6 @@ const (
 // Config encapsulates configurations of various Libnetwork components
 type Config struct {
 	Daemon          DaemonCfg
-	Cluster         ClusterCfg
 	Scopes          map[string]*datastore.ScopeCfg
 	ActiveSandboxes map[string]interface{}
 	PluginGetter    plugingetter.PluginGetter
@@ -44,13 +43,6 @@ type DaemonCfg struct {
 	ClusterProvider        cluster.Provider
 	NetworkControlPlaneMTU int
 	DefaultAddressPool     []*ipamutils.NetworkToSplit
-}
-
-// ClusterCfg represents cluster configuration
-type ClusterCfg struct {
-	Address   string
-	Discovery string
-	Heartbeat uint64
 }
 
 // LoadDefaultScopes loads default scope configs for scopes which

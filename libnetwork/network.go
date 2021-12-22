@@ -1175,7 +1175,6 @@ func (n *network) createEndpoint(name string, options ...EndpointOption) (Endpoi
 	// Initialize ep.network with a possibly stale copy of n. We need this to get network from
 	// store. But once we get it from store we will have the most uptodate copy possibly.
 	ep.network = n
-	ep.locator = n.getController().clusterHostID()
 	ep.network, err = ep.getNetworkFromStore()
 	if err != nil {
 		logrus.Errorf("failed to get network during CreateEndpoint: %v", err)
