@@ -597,6 +597,10 @@ func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *testing.T) {
 	assert.ErrorContains(c, err, "", `--bridge option with an invalid bridge should cause the daemon to fail`)
 	defer d.Restart(c)
 
+	// make sure the default docker0 bridge doesn't interfere with the test,
+	// which may happen if it was created with the same IP range.
+	deleteInterface(c, "docker0")
+
 	bridgeName := "external-bridge"
 	bridgeIP := "192.169.1.1/24"
 	_, bridgeIPNet, _ := net.ParseCIDR(bridgeIP)
@@ -712,6 +716,10 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithBridgeIPChange(c *testing.T) {
 func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr(c *testing.T) {
 	d := s.d
 
+	// make sure the default docker0 bridge doesn't interfere with the test,
+	// which may happen if it was created with the same IP range.
+	deleteInterface(c, "docker0")
+
 	bridgeName := "external-bridge"
 	bridgeIP := "192.169.1.1/24"
 
@@ -733,6 +741,10 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr(c *testing.T) {
 
 func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr2(c *testing.T) {
 	d := s.d
+
+	// make sure the default docker0 bridge doesn't interfere with the test,
+	// which may happen if it was created with the same IP range.
+	deleteInterface(c, "docker0")
 
 	bridgeName := "external-bridge"
 	bridgeIP := "10.2.2.1/16"
@@ -758,6 +770,10 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr2(c *testing.T) {
 
 func (s *DockerDaemonSuite) TestDaemonBridgeFixedCIDREqualBridgeNetwork(c *testing.T) {
 	d := s.d
+
+	// make sure the default docker0 bridge doesn't interfere with the test,
+	// which may happen if it was created with the same IP range.
+	deleteInterface(c, "docker0")
 
 	bridgeName := "external-bridge"
 	bridgeIP := "172.27.42.1/16"
@@ -843,6 +859,10 @@ func (s *DockerDaemonSuite) TestDaemonDefaultNetworkInvalidClusterConfig(c *test
 func (s *DockerDaemonSuite) TestDaemonIP(c *testing.T) {
 	d := s.d
 
+	// make sure the default docker0 bridge doesn't interfere with the test,
+	// which may happen if it was created with the same IP range.
+	deleteInterface(c, "docker0")
+
 	ipStr := "192.170.1.1/24"
 	ip, _, _ := net.ParseCIDR(ipStr)
 	args := []string{"--ip", ip.String()}
@@ -871,6 +891,10 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *testing.T) {
 	testRequires(c, bridgeNfIptables)
 	d := s.d
 
+	// make sure the default docker0 bridge doesn't interfere with the test,
+	// which may happen if it was created with the same IP range.
+	deleteInterface(c, "docker0")
+
 	bridgeName := "external-bridge"
 	bridgeIP := "192.169.1.1/24"
 
@@ -893,6 +917,7 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *testing.T) {
 	ifName := "icc-dummy"
 
 	createInterface(c, "dummy", ifName, ipStr)
+	defer deleteInterface(c, ifName)
 
 	// But, Pinging external or a Host interface must succeed
 	pingCmd := fmt.Sprintf("ping -c 1 %s -W 1", ip.String())
@@ -903,6 +928,10 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *testing.T) {
 
 func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *testing.T) {
 	d := s.d
+
+	// make sure the default docker0 bridge doesn't interfere with the test,
+	// which may happen if it was created with the same IP range.
+	deleteInterface(c, "docker0")
 
 	bridgeName := "external-bridge"
 	bridgeIP := "192.169.1.1/24"
@@ -926,6 +955,10 @@ func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *testing.T) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonLinksIpTablesRulesWhenLinkAndUnlink(c *testing.T) {
+	// make sure the default docker0 bridge doesn't interfere with the test,
+	// which may happen if it was created with the same IP range.
+	deleteInterface(c, "docker0")
+
 	bridgeName := "external-bridge"
 	bridgeIP := "192.169.1.1/24"
 
