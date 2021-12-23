@@ -1,6 +1,7 @@
 linters:
   enable:
     - deadcode
+    - depguard
     - goimports
     - golint
     - gosec
@@ -31,7 +32,13 @@ linters:
 linters-settings:
   govet:
     check-shadowing: false
-
+  depguard:
+    list-type: blacklist
+    include-go-root: true
+    packages:
+      # The io/ioutil package has been deprecated.
+      # https://go.dev/doc/go1.16#ioutil
+      - io/ioutil
 issues:
   # The default exclusion rules are a bit too permissive, so copying the relevant ones below
   exclude-use-default: false
