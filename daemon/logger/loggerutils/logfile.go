@@ -715,6 +715,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate, notifyE
 			defer func() { oldSize = size }()
 			if size < oldSize { // truncated
 				f.Seek(0, 0)
+				dec.Reset(f)
 				return nil
 			}
 		} else {
