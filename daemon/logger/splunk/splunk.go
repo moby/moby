@@ -231,12 +231,12 @@ func New(info logger.Info) (logger.Logger, error) {
 
 	var timeout time.Duration
 	if timeoutStr, ok := info.Config[splunkHTTPTimeout]; ok {
-		value, err := strconv.ParseInt(timeoutStr, 10, 64)
+		value, err := time.ParseDuration(timeoutStr)
 
 		if err != nil {
 			return nil, err
 		}
-		timeout = time.Duration(value) * time.Millisecond
+		timeout = value
 	}
 
 	transport := &http.Transport{

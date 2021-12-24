@@ -1414,7 +1414,7 @@ func TestCustomHttpTimeout(t *testing.T) {
 		Config: map[string]string{
 			splunkURLKey:      "http://" + tcpListener.Addr().String(),
 			splunkTokenKey:    "1234",
-			splunkHTTPTimeout: "100",
+			splunkHTTPTimeout: "100ms",
 		},
 		ContainerID:        "containeriid",
 		ContainerName:      "/container_name",
