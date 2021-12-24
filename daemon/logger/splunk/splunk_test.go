@@ -1449,3 +1449,24 @@ func TestCustomHttpTimeout(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestNegativeTimeout(t *testing.T) {
+	info := logger.Info{
+		Config: map[string]string{
+			splunkURLKey:      "http://localhost:8000",
+			splunkTokenKey:    "1234",
+			splunkHTTPTimeout: "-100ms",
+		},
+		ContainerID:        "containeriid",
+		ContainerName:      "/container_name",
+		ContainerImageID:   "contaimageid",
+		ContainerImageName: "container_image_name",
+	}
+	_, err := New(info)
+	if err == nil {
+		t.Fatal("no error")
+	}
+	if err.Error() != "negative timeout provided: -100ms" {
+		t.Fatalf("unexpected error message: %s", err.Error())
+	}
+}

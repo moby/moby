@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/urlutil"
+	"github.com/docker/docker/vendor/github.com/pkg/errors"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -235,6 +236,9 @@ func New(info logger.Info) (logger.Logger, error) {
 
 		if err != nil {
 			return nil, err
+		}
+		if value < 0 {
+			return nil, errors.Errorf("negative timeout provided: %v", value)
 		}
 		timeout = value
 	}
