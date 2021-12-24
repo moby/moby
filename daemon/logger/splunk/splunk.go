@@ -23,8 +23,8 @@ import (
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/urlutil"
-	"github.com/docker/docker/vendor/github.com/pkg/errors"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
