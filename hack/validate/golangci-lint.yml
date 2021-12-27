@@ -98,11 +98,6 @@ issues:
     - text: "SA1019: httputil.ErrPersistEOF"
       linters:
         - staticcheck
-    # FIXME temporarily suppress these for false positives in tests (see https://github.com/dominikh/go-tools/issues/1022)
-    - text: "SA5011"
-      path: _test\.go
-      linters:
-        - staticcheck
     # This code is doing some fun stuff with reflect and it trips up the linter.
     - text: "field `foo` is unused"
       path: "libnetwork/options/options_test.go"
