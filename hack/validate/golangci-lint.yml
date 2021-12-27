@@ -96,9 +96,6 @@ issues:
       path: "api/types/(volume|container)/"
       linters:
         - golint
-    - text: "(G201|G202): SQL string (formatting|concatenation)"
-      linters:
-        - gosec
     # FIXME: evaluate these and fix where needed: G307: Deferring unsafe method "*os.File" on type "Close" (gosec)
     - text: "G307: Deferring unsafe method"
       linters:
