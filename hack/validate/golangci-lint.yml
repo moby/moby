@@ -24,10 +24,7 @@ linters:
     modules-download-mode: vendor
 
     skip-dirs:
-      - bundles
       - docs
-      # TODO: This package should be completely removed
-      - libnetwork/client/mflag
 
 linters-settings:
   govet:
