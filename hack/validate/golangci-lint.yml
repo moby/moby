@@ -23,7 +23,6 @@ linters:
     modules-download-mode: vendor
 
     skip-dirs:
-      - bundles
       - docs
 
 linters-settings:
