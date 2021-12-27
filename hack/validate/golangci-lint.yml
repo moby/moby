@@ -112,11 +112,6 @@ issues:
     - text: "SA1019: httputil.ErrPersistEOF"
       linters:
         - staticcheck
-    # FIXME temporarily suppress these for false positives in tests (see https://github.com/dominikh/go-tools/issues/1022)
-    - text: "SA5011"
-      path: _test\.go
-      linters:
-        - staticcheck
 
   # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
   max-issues-per-linter: 0
