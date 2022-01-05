@@ -8607,7 +8607,7 @@ paths:
         if `tty` was specified as part of creating and starting the exec instance.
       operationId: "ExecResize"
       responses:
-        201:
+        200:
           description: "No error"
         404:
           description: "No such exec instance"
