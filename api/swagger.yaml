@@ -8609,8 +8609,16 @@ paths:
       responses:
         200:
           description: "No error"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "No such exec instance"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "Server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:
