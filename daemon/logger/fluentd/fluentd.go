@@ -48,14 +48,18 @@ const (
 	defaultMaxRetries = math.MaxInt32
 	defaultRetryWait  = 1000
 
-	addressKey            = "fluentd-address"
-	asyncKey              = "fluentd-async"
-	asyncConnectKey       = "fluentd-async-connect" // deprecated option (use fluent-async instead)
-	bufferLimitKey        = "fluentd-buffer-limit"
-	maxRetriesKey         = "fluentd-max-retries"
-	requestAckKey         = "fluentd-request-ack"
-	retryWaitKey          = "fluentd-retry-wait"
-	subSecondPrecisionKey = "fluentd-sub-second-precision"
+	minReconnectInterval = 100 * time.Millisecond
+	maxReconnectInterval = 10 * time.Second
+
+	addressKey                = "fluentd-address"
+	asyncKey                  = "fluentd-async"
+	asyncConnectKey           = "fluentd-async-connect" // deprecated option (use fluent-async instead)
+	asyncReconnectIntervalKey = "fluentd-async-reconnect-interval"
+	bufferLimitKey            = "fluentd-buffer-limit"
+	maxRetriesKey             = "fluentd-max-retries"
+	requestAckKey             = "fluentd-request-ack"
+	retryWaitKey              = "fluentd-retry-wait"
+	subSecondPrecisionKey     = "fluentd-sub-second-precision"
 )
 
 func init() {
@@ -147,6 +151,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case addressKey:
 		case asyncKey:
 		case asyncConnectKey:
+		case asyncReconnectIntervalKey:
 		case bufferLimitKey:
 		case maxRetriesKey:
 		case requestAckKey:
@@ -216,6 +221,19 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 		}
 	}
 
+	asyncReconnectInterval := 0
+	if cfg[asyncReconnectIntervalKey] != "" {
+		interval, err := time.ParseDuration(cfg[asyncReconnectIntervalKey])
+		if err != nil {
+			return config, errors.Wrapf(err, "invalid value for %s", asyncReconnectIntervalKey)
+		}
+		if interval != 0 && (interval < minReconnectInterval || interval > maxReconnectInterval) {
+			return config, errors.Errorf("invalid value for %s: value (%q) must be between %s and %s",
+				asyncReconnectIntervalKey, interval, minReconnectInterval, maxReconnectInterval)
+		}
+		asyncReconnectInterval = int(interval.Milliseconds())
+	}
+
 	subSecondPrecision := false
 	if cfg[subSecondPrecisionKey] != "" {
 		if subSecondPrecision, err = strconv.ParseBool(cfg[subSecondPrecisionKey]); err != nil {
@@ -231,18 +249,19 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 	}
 
 	config = fluent.Config{
-		FluentPort:         loc.port,
-		FluentHost:         loc.host,
-		FluentNetwork:      loc.protocol,
-		FluentSocketPath:   loc.path,
-		BufferLimit:        bufferLimit,
-		RetryWait:          retryWait,
-		MaxRetry:           maxRetries,
-		Async:              async,
-		AsyncConnect:       asyncConnect,
-		SubSecondPrecision: subSecondPrecision,
-		RequestAck:         requestAck,
-		ForceStopAsyncSend: async || asyncConnect,
+		FluentPort:             loc.port,
+		FluentHost:             loc.host,
+		FluentNetwork:          loc.protocol,
+		FluentSocketPath:       loc.path,
+		BufferLimit:            bufferLimit,
+		RetryWait:              retryWait,
+		MaxRetry:               maxRetries,
+		Async:                  async,
+		AsyncConnect:           asyncConnect,
+		AsyncReconnectInterval: asyncReconnectInterval,
+		SubSecondPrecision:     subSecondPrecision,
+		RequestAck:             requestAck,
+		ForceStopAsyncSend:     async || asyncConnect,
 	}
 
 	return config, nil
