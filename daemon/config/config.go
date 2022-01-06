@@ -7,14 +7,11 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"reflect"
 	"strings"
 	"sync"
 
-	daemondiscovery "github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/registry"
 	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
@@ -301,25 +298,8 @@ func New() *Config {
 			LogConfig: LogConfig{
 				Config: make(map[string]string),
 			},
-			ClusterOpts: make(map[string]string),
 		},
 	}
-}
-
-// ParseClusterAdvertiseSettings parses the specified advertise settings
-func ParseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (string, error) {
-	if clusterAdvertise == "" {
-		return "", daemondiscovery.ErrDiscoveryDisabled
-	}
-	if clusterStore == "" {
-		return "", errors.New("invalid cluster configuration. --cluster-advertise must be accompanied by --cluster-store configuration")
-	}
-
-	advertise, err := discovery.ParseAdvertise(clusterAdvertise)
-	if err != nil {
-		return "", errors.Wrap(err, "discovery advertise parsing failed")
-	}
-	return advertise, nil
 }
 
 // GetConflictFreeLabels validates Labels for conflict
@@ -634,21 +614,6 @@ func ValidateMaxDownloadAttempts(config *Config) error {
 		return fmt.Errorf("invalid max download attempts: %d", *config.MaxDownloadAttempts)
 	}
 	return nil
-}
-
-// ModifiedDiscoverySettings returns whether the discovery configuration has been modified or not.
-func ModifiedDiscoverySettings(config *Config, backendType, advertise string, clusterOpts map[string]string) bool {
-	if config.ClusterStore != backendType || config.ClusterAdvertise != advertise {
-		return true
-	}
-
-	if (config.ClusterOpts == nil && clusterOpts == nil) ||
-		(config.ClusterOpts == nil && len(clusterOpts) == 0) ||
-		(len(config.ClusterOpts) == 0 && clusterOpts == nil) {
-		return false
-	}
-
-	return !reflect.DeepEqual(config.ClusterOpts, clusterOpts)
 }
 
 // GetDefaultRuntimeName returns the current default runtime

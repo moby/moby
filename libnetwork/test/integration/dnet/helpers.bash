@@ -40,23 +40,6 @@ function net_disconnect() {
 	dnet_cmd $(inst_id2port ${1}) service unpublish ${2}.${3}
 }
 
-function start_consul() {
-    stop_consul
-    docker run -d \
-	   --name=pr_consul \
-	   -p 8500:8500 \
-	   -p 8300-8302:8300-8302/tcp \
-	   -p 8300-8302:8300-8302/udp \
-	   -h consul \
-	   progrium/consul -server -bootstrap
-    sleep 2
-}
-
-function stop_consul() {
-    echo "consul started"
-    docker rm -f pr_consul || true
-}
-
 hrun() {
     local e E T oldIFS
     [[ ! "$-" =~ e ]] || e=1
@@ -149,13 +132,6 @@ function start_dnet() {
     # Try discovery URLs with or without path
     neigh_ip=""
     neighbors=""
-    if [ "$store" = "zookeeper" ]; then
-	read discovery provider address < <(parse_discovery_str zk://${bridge_ip}:2182)
-    elif [ "$store" = "etcd" ]; then
-	read discovery provider address < <(parse_discovery_str etcd://${bridge_ip}:42000/custom_prefix)
-    elif [ "$store" = "consul" ]; then
-	read discovery provider address < <(parse_discovery_str consul://${bridge_ip}:8500/custom_prefix)
-    else
 	if [ "$nip" != "" ]; then
 	    neighbors=${nip}
 	fi
@@ -163,7 +139,6 @@ function start_dnet() {
 	discovery=""
 	provider=""
 	address=""
-    fi
 
     if [ "$discovery" != "" ]; then
 	cat > ${tomlfile} <<EOF
@@ -269,38 +244,6 @@ function runc_nofail() {
     status="$?"
     set -e
     dnet_exec ${dnet} "umount /var/run/netns/c && rm /var/run/netns/c"
-}
-
-function start_etcd() {
-    local bridge_ip
-    stop_etcd
-
-    bridge_ip=$(get_docker_bridge_ip)
-    docker run -d \
-	   --net=host \
-	   --name=dn_etcd \
-	   mrjana/etcd --listen-client-urls http://0.0.0.0:42000 \
-	   --advertise-client-urls http://${bridge_ip}:42000
-    sleep 2
-}
-
-function stop_etcd() {
-    docker rm -f dn_etcd || true
-}
-
-function start_zookeeper() {
-    stop_zookeeper
-    docker run -d \
-	   --name=zookeeper_server \
-	   -p 2182:2181 \
-	   -h zookeeper \
-	   dnephin/docker-zookeeper:3.4.6
-    sleep 2
-}
-
-function stop_zookeeper() {
-    echo "zookeeper started"
-    docker rm -f zookeeper_server || true
 }
 
 function test_overlay() {
