@@ -97,3 +97,7 @@ func (cli *DaemonCli) initContainerD(_ context.Context) (func(time.Duration) err
 	system.InitContainerdRuntime(cli.Config.ContainerdAddr)
 	return nil, nil
 }
+
+func validateCPURealtimeOptions(_ *config.Config) error {
+	return nil
+}

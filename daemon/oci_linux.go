@@ -818,16 +818,6 @@ func WithCgroups(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			return nil
 		}
 
-		if cdcgroups.Mode() == cdcgroups.Unified {
-			return errors.New("daemon-scoped cpu-rt-period and cpu-rt-runtime are not implemented for cgroup v2")
-		}
-
-		// FIXME this is very expensive way to check if cpu rt is supported
-		sysInfo := daemon.RawSysInfo()
-		if !sysInfo.CPURealtime {
-			return errors.New("daemon-scoped cpu-rt-period and cpu-rt-runtime are not supported by the kernel")
-		}
-
 		p := cgroupsPath
 		if useSystemd {
 			initPath, err := cgroups.GetInitCgroup("cpu")
