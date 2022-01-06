@@ -474,6 +474,7 @@ func DefaultProfile() *Seccomp {
 			LinuxSyscall: specs.LinuxSyscall{
 				Names: []string{
 					"sync_file_range2",
+					"swapcontext",
 				},
 				Action: specs.ActAllow,
 			},
