@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/container"
 	dconfig "github.com/docker/docker/daemon/config"
 	doci "github.com/docker/docker/oci"
+	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/profiles/seccomp"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"gotest.tools/v3/assert"
@@ -31,7 +32,7 @@ func TestWithSeccomp(t *testing.T) {
 		{
 			comment: "unconfined seccompProfile runs unconfined",
 			daemon: &Daemon{
-				seccompEnabled: true,
+				sysInfo: &sysinfo.SysInfo{Seccomp: true},
 			},
 			c: &container.Container{
 				SeccompProfile: dconfig.SeccompProfileUnconfined,
@@ -45,7 +46,7 @@ func TestWithSeccomp(t *testing.T) {
 		{
 			comment: "privileged container w/ custom profile runs unconfined",
 			daemon: &Daemon{
-				seccompEnabled: true,
+				sysInfo: &sysinfo.SysInfo{Seccomp: true},
 			},
 			c: &container.Container{
 				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_LOG\" }",
@@ -59,7 +60,7 @@ func TestWithSeccomp(t *testing.T) {
 		{
 			comment: "privileged container w/ default runs unconfined",
 			daemon: &Daemon{
-				seccompEnabled: true,
+				sysInfo: &sysinfo.SysInfo{Seccomp: true},
 			},
 			c: &container.Container{
 				SeccompProfile: "",
@@ -73,7 +74,7 @@ func TestWithSeccomp(t *testing.T) {
 		{
 			comment: "privileged container w/ daemon profile runs unconfined",
 			daemon: &Daemon{
-				seccompEnabled: true,
+				sysInfo:        &sysinfo.SysInfo{Seccomp: true},
 				seccompProfile: []byte("{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }"),
 			},
 			c: &container.Container{
@@ -88,7 +89,7 @@ func TestWithSeccomp(t *testing.T) {
 		{
 			comment: "custom profile when seccomp is disabled returns error",
 			daemon: &Daemon{
-				seccompEnabled: false,
+				sysInfo: &sysinfo.SysInfo{Seccomp: false},
 			},
 			c: &container.Container{
 				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }",
@@ -103,7 +104,7 @@ func TestWithSeccomp(t *testing.T) {
 		{
 			comment: "empty profile name loads default profile",
 			daemon: &Daemon{
-				seccompEnabled: true,
+				sysInfo: &sysinfo.SysInfo{Seccomp: true},
 			},
 			c: &container.Container{
 				SeccompProfile: "",
@@ -122,7 +123,7 @@ func TestWithSeccomp(t *testing.T) {
 		{
 			comment: "load container's profile",
 			daemon: &Daemon{
-				seccompEnabled: true,
+				sysInfo: &sysinfo.SysInfo{Seccomp: true},
 			},
 			c: &container.Container{
 				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }",
@@ -143,7 +144,7 @@ func TestWithSeccomp(t *testing.T) {
 		{
 			comment: "load daemon's profile",
 			daemon: &Daemon{
-				seccompEnabled: true,
+				sysInfo:        &sysinfo.SysInfo{Seccomp: true},
 				seccompProfile: []byte("{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }"),
 			},
 			c: &container.Container{
@@ -165,7 +166,7 @@ func TestWithSeccomp(t *testing.T) {
 		{
 			comment: "load prioritise container profile over daemon's",
 			daemon: &Daemon{
-				seccompEnabled: true,
+				sysInfo:        &sysinfo.SysInfo{Seccomp: true},
 				seccompProfile: []byte("{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }"),
 			},
 			c: &container.Container{
@@ -185,6 +186,7 @@ func TestWithSeccomp(t *testing.T) {
 			}(),
 		},
 	} {
+		x := x
 		t.Run(x.comment, func(t *testing.T) {
 			opts := WithSeccomp(x.daemon, x.c)
 			err := opts(nil, nil, nil, &x.inSpec)

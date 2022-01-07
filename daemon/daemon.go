@@ -47,6 +47,7 @@ import (
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/plugin"
@@ -92,8 +93,8 @@ type Daemon struct {
 	netController         libnetwork.NetworkController
 	volumes               *volumesservice.VolumesService
 	root                  string
-	seccompEnabled        bool
-	apparmorEnabled       bool
+	sysInfoOnce           sync.Once
+	sysInfo               *sysinfo.SysInfo
 	shutdown              bool
 	idMapping             *idtools.IdentityMapping
 	graphDriver           string        // TODO: move graphDriver field to an InfoService
@@ -1034,8 +1035,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d.EventsService = events.New()
 	d.root = config.Root
 	d.idMapping = idMapping
-	d.seccompEnabled = sysInfo.Seccomp
-	d.apparmorEnabled = sysInfo.AppArmor
 
 	d.linkIndex = newLinkIndex()
 
@@ -1471,4 +1470,17 @@ func (daemon *Daemon) BuilderBackend() builder.Backend {
 		*Daemon
 		*images.ImageService
 	}{daemon, daemon.imageService}
+}
+
+// RawSysInfo returns *sysinfo.SysInfo .
+func (daemon *Daemon) RawSysInfo() *sysinfo.SysInfo {
+	daemon.sysInfoOnce.Do(func() {
+		// We check if sysInfo is not set here, to allow some test to
+		// override the actual sysInfo.
+		if daemon.sysInfo == nil {
+			daemon.loadSysInfo()
+		}
+	})
+
+	return daemon.sysInfo
 }
