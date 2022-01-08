@@ -350,6 +350,7 @@ func TestCancelledDownload(t *testing.T) {
 	descriptors := downloadDescriptors(nil)
 	_, _, err := ldm.Download(ctx, *image.NewRootFS(), runtime.GOOS, descriptors, progress.ChanOutput(progressChan))
 	if err != context.Canceled {
+		close(progressChan)
 		t.Fatal("expected download to be cancelled")
 	}
 
