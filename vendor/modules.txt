@@ -1,10 +1,8 @@
-# cloud.google.com/go v0.81.0 => cloud.google.com/go v0.44.3
-## explicit; go 1.9
+# cloud.google.com/go v0.81.0 => cloud.google.com/go v0.59.0
+## explicit; go 1.11
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
 cloud.google.com/go/internal/version
-# cloud.google.com/go/bigquery v0.0.0-00010101000000-000000000000 => cloud.google.com/go/bigquery v1.0.0
-## explicit; go 1.9
 # cloud.google.com/go/logging v1.4.2 => cloud.google.com/go/logging v1.0.1-0.20190813144457-ceeb313ad77b
 ## explicit; go 1.9
 cloud.google.com/go/logging
@@ -17,9 +15,6 @@ code.cloudfoundry.org/clock
 ## explicit; go 1.16
 github.com/Azure/go-ansiterm
 github.com/Azure/go-ansiterm/winterm
-# github.com/BurntSushi/toml v0.3.1
-## explicit
-github.com/BurntSushi/toml
 # github.com/Graylog2/go-gelf v0.0.0-20191017102106-1550ee647df0
 ## explicit
 github.com/Graylog2/go-gelf/gelf
@@ -806,10 +801,6 @@ golang.org/x/crypto/pkcs12/internal/rc2
 golang.org/x/crypto/salsa20/salsa
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
-# golang.org/x/exp v0.0.0-20191030013958-a1ab85dbe136
-## explicit; go 1.12
-golang.org/x/exp/apidiff
-golang.org/x/exp/cmd/apidiff
 # golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5
 ## explicit; go 1.11
 golang.org/x/lint
@@ -874,15 +865,8 @@ golang.org/x/time/rate
 ## explicit; go 1.12
 golang.org/x/tools/cmd/goimports
 golang.org/x/tools/go/ast/astutil
-golang.org/x/tools/go/ast/inspector
-golang.org/x/tools/go/buildutil
 golang.org/x/tools/go/gcexportdata
-golang.org/x/tools/go/internal/cgo
 golang.org/x/tools/go/internal/gcimporter
-golang.org/x/tools/go/internal/packagesdriver
-golang.org/x/tools/go/loader
-golang.org/x/tools/go/packages
-golang.org/x/tools/go/types/typeutil
 golang.org/x/tools/internal/event
 golang.org/x/tools/internal/event/core
 golang.org/x/tools/internal/event/keys
@@ -891,8 +875,6 @@ golang.org/x/tools/internal/fastwalk
 golang.org/x/tools/internal/gocommand
 golang.org/x/tools/internal/gopathwalk
 golang.org/x/tools/internal/imports
-golang.org/x/tools/internal/packagesinternal
-golang.org/x/tools/internal/typesinternal
 # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 ## explicit; go 1.11
 golang.org/x/xerrors
@@ -999,34 +981,9 @@ gotest.tools/v3/internal/format
 gotest.tools/v3/internal/source
 gotest.tools/v3/poll
 gotest.tools/v3/skip
-# honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc
-## explicit
-honnef.co/go/tools/arg
-honnef.co/go/tools/callgraph
-honnef.co/go/tools/callgraph/static
-honnef.co/go/tools/cmd/staticcheck
-honnef.co/go/tools/config
-honnef.co/go/tools/deprecated
-honnef.co/go/tools/functions
-honnef.co/go/tools/go/types/typeutil
-honnef.co/go/tools/internal/sharedcheck
-honnef.co/go/tools/lint
-honnef.co/go/tools/lint/lintdsl
-honnef.co/go/tools/lint/lintutil
-honnef.co/go/tools/lint/lintutil/format
-honnef.co/go/tools/printf
-honnef.co/go/tools/simple
-honnef.co/go/tools/ssa
-honnef.co/go/tools/ssa/ssautil
-honnef.co/go/tools/ssautil
-honnef.co/go/tools/staticcheck
-honnef.co/go/tools/staticcheck/vrp
-honnef.co/go/tools/stylecheck
-honnef.co/go/tools/unused
-honnef.co/go/tools/version
 # labix.org/v2/mgo v0.0.0-20140701140051-000000000287
 ## explicit
-# cloud.google.com/go => cloud.google.com/go v0.44.3
+# cloud.google.com/go => cloud.google.com/go v0.59.0
 # cloud.google.com/go/bigquery => cloud.google.com/go/bigquery v1.0.0
 # cloud.google.com/go/logging => cloud.google.com/go/logging v1.0.1-0.20190813144457-ceeb313ad77b
 # github.com/armon/go-metrics => github.com/armon/go-metrics v0.0.0-20150106224455-eb0af217e5e9

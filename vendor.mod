@@ -87,10 +87,8 @@ require (
 )
 
 require (
-	cloud.google.com/go/bigquery v0.0.0-00010101000000-000000000000 // indirect
 	code.cloudfoundry.org/clock v1.0.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
-	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
@@ -138,7 +136,6 @@ require (
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20211202192323-5770296d904e // indirect
-	golang.org/x/exp v0.0.0-20191030013958-a1ab85dbe136 // indirect
 	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
 	golang.org/x/mod v0.4.1 // indirect
 	golang.org/x/oauth2 v0.0.0-20210514164344-f6687ab2804c // indirect
@@ -147,12 +144,11 @@ require (
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/api v0.46.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc // indirect
 	labix.org/v2/mgo v0.0.0-20140701140051-000000000287 // indirect
 )
 
 replace (
-	cloud.google.com/go => cloud.google.com/go v0.44.3
+	cloud.google.com/go => cloud.google.com/go v0.59.0
 	cloud.google.com/go/bigquery => cloud.google.com/go/bigquery v1.0.0
 	cloud.google.com/go/logging => cloud.google.com/go/logging v1.0.1-0.20190813144457-ceeb313ad77b
 	github.com/armon/go-metrics => github.com/armon/go-metrics v0.0.0-20150106224455-eb0af217e5e9

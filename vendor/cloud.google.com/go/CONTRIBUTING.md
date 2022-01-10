@@ -1,35 +1,47 @@
 # Contributing
 
-1. Sign one of the contributor license agreements below.
-1. `go get golang.org/x/review/git-codereview` to install the code reviewing
-tool.
-    1. You will need to ensure that your `GOBIN` directory (by default
-    `$GOPATH/bin`) is in your `PATH` so that git can find the command.
-    1. If you would like, you may want to set up aliases for git-codereview,
-    such that `git codereview change` becomes `git change`. See the
-    [godoc](https://godoc.org/golang.org/x/review/git-codereview) for details.
-    1. Should you run into issues with the git-codereview tool, please note
-    that all error messages will assume that you have set up these aliases.
-1. Get the cloud package by running `go get -d cloud.google.com/go`.
-    1. If you have already checked out the source, make sure that the remote
-    git origin is https://code.googlesource.com/gocloud:
+1. [File an issue](https://github.com/googleapis/google-cloud-go/issues/new/choose).
+   The issue will be used to discuss the bug or feature and should be created
+   before sending a CL.
 
-        ```
-        git remote set-url origin https://code.googlesource.com/gocloud
-        ```
+1. [Install Go](https://golang.org/dl/).
+    1. Ensure that your `GOBIN` directory (by default `$(go env GOPATH)/bin`)
+    is in your `PATH`.
+    1. Check it's working by running `go version`.
+        * If it doesn't work, check the install location, usually
+        `/usr/local/go`, is on your `PATH`.
 
-1. Make sure your auth is configured correctly by visiting
-https://code.googlesource.com, clicking "Generate Password", and following the
-directions.
-1. Make changes and create a change by running `git codereview change <name>`,
-provide a commit message, and use `git codereview mail` to create a Gerrit CL.
-1. Keep amending to the change with `git codereview change` and mail as your
-receive feedback. Each new mailed amendment will create a new patch set for
-your change in Gerrit.
-    - Note: if your change includes a breaking change, our breaking change
-    detector will cause CI/CD to fail. If your breaking change is acceptable
-    in some way, add BREAKING_CHANGE_ACCEPTABLE=<reason> to cause the
-    detector not to be run and to make it clear why that is acceptable.
+1. Sign one of the
+[contributor license agreements](#contributor-license-agreements) below.
+
+1. Clone the repo:
+    `git clone https://github.com/googleapis/google-cloud-go`
+
+1. Change into the checked out source:
+    `cd google-cloud-go`
+
+1. Fork the repo.
+   
+1. Set your fork as a remote:
+    `git remote add fork git@github.com:GITHUB_USERNAME/google-cloud-go.git`
+
+1. Make changes (see [Formatting](#formatting) and [Style](#style)), commit to
+   your fork.
+
+   Commit messages should follow the
+   [Go project style](https://github.com/golang/go/wiki/CommitMessage). For example:
+   ```
+   functions: add gophers codelab
+   ```
+
+1. Send a pull request with your changes.
+
+1. A maintainer will review the pull request and make comments.
+
+   Prefer adding additional commits over amending and force-pushing since it can
+   be difficult to follow code reviews when the commit history changes.
+
+   Commits will be squashed when they're merged.
 
 ## Integration Tests
 
