@@ -22,6 +22,10 @@ func (s *QuotedString) String() string {
 }
 
 func trimQuotes(value string) string {
+	if len(value) < 2 {
+		return value
+	}
+
 	lastIndex := len(value) - 1
 	for _, char := range []byte{'\'', '"'} {
 		if value[0] == char && value[lastIndex] == char {
