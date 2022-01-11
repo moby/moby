@@ -242,21 +242,9 @@ func TestCreateSuccess(t *testing.T) {
 
 	err := stream.create()
 
-	if err != nil {
-		t.Errorf("Received unexpected err: %v\n", err)
-	}
-	if input.LogGroupName == nil {
-		t.Fatal("Expected non-nil LogGroupName")
-	}
-	if *input.LogGroupName != groupName {
-		t.Errorf("Expected LogGroupName to be %s", groupName)
-	}
-	if input.LogStreamName == nil {
-		t.Fatal("Expected non-nil LogStreamName")
-	}
-	if *input.LogStreamName != streamName {
-		t.Errorf("Expected LogStreamName to be %s", streamName)
-	}
+	assert.NilError(t, err)
+	assert.Equal(t, groupName, aws.StringValue(input.LogGroupName), "LogGroupName")
+	assert.Equal(t, streamName, aws.StringValue(input.LogStreamName), "LogStreamName")
 }
 
 func TestCreateStreamSkipped(t *testing.T) {
@@ -274,9 +262,7 @@ func TestCreateStreamSkipped(t *testing.T) {
 
 	err := stream.create()
 
-	if err != nil {
-		t.Errorf("Received unexpected err: %v\n", err)
-	}
+	assert.NilError(t, err)
 }
 
 func TestCreateLogGroupSuccess(t *testing.T) {
@@ -307,33 +293,15 @@ func TestCreateLogGroupSuccess(t *testing.T) {
 
 	err := stream.create()
 
-	if err != nil {
-		t.Errorf("Received unexpected err: %v\n", err)
-	}
+	assert.NilError(t, err)
 	if createLogStreamCalls < 2 {
 		t.Errorf("Expected CreateLogStream to be called twice, was called %d times", createLogStreamCalls)
 	}
-	if logGroupInput == nil {
-		t.Fatal("LogGroupInput should not be nil")
-	}
-	if logGroupInput.LogGroupName == nil {
-		t.Fatal("Expected non-nil LogGroupName in CreateLogGroup")
-	}
-	if *logGroupInput.LogGroupName != groupName {
-		t.Errorf("Expected LogGroupName to be %s in CreateLogGroup", groupName)
-	}
-	if logStreamInput.LogGroupName == nil {
-		t.Fatal("Expected non-nil LogGroupName in CreateLogStream")
-	}
-	if *logStreamInput.LogGroupName != groupName {
-		t.Errorf("Expected LogGroupName to be %s in CreateLogStream", groupName)
-	}
-	if logStreamInput.LogStreamName == nil {
-		t.Fatal("Expected non-nil LogStreamName")
-	}
-	if *logStreamInput.LogStreamName != streamName {
-		t.Errorf("Expected LogStreamName to be %s", streamName)
-	}
+	assert.Check(t, logGroupInput != nil)
+	assert.Equal(t, groupName, aws.StringValue(logGroupInput.LogGroupName), "LogGroupName in LogGroupInput")
+	assert.Check(t, logStreamInput != nil)
+	assert.Equal(t, groupName, aws.StringValue(logStreamInput.LogGroupName), "LogGroupName in LogStreamInput")
+	assert.Equal(t, streamName, aws.StringValue(logStreamInput.LogStreamName), "LogStreamName in LogStreamInput")
 }
 
 func TestCreateError(t *testing.T) {
@@ -378,9 +346,7 @@ func TestLogClosed(t *testing.T) {
 		closed: true,
 	}
 	err := stream.Log(&logger.Message{})
-	if err == nil {
-		t.Fatal("Expected non-nil error")
-	}
+	assert.Check(t, err != nil)
 }
 
 // TestLogBlocking tests that the Log method blocks appropriately when
@@ -453,9 +419,7 @@ func TestLogNonBlockingBufferFull(t *testing.T) {
 	<-started
 	select {
 	case err := <-errorCh:
-		if err == nil {
-			t.Fatal("Expected non-nil error")
-		}
+		assert.Check(t, err != nil)
 	case <-time.After(30 * time.Second):
 		t.Fatal("Expected Log call to not block")
 	}
@@ -484,27 +448,11 @@ func TestPublishBatchSuccess(t *testing.T) {
 	}
 
 	stream.publishBatch(testEventBatch(events))
-	if stream.sequenceToken == nil {
-		t.Fatal("Expected non-nil sequenceToken")
-	}
-	if *stream.sequenceToken != nextSequenceToken {
-		t.Errorf("Expected sequenceToken to be %s, but was %s", nextSequenceToken, *stream.sequenceToken)
-	}
-	if input == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if input.SequenceToken == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput.SequenceToken")
-	}
-	if *input.SequenceToken != sequenceToken {
-		t.Errorf("Expected PutLogEventsInput.SequenceToken to be %s, but was %s", sequenceToken, *input.SequenceToken)
-	}
-	if len(input.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(input.LogEvents))
-	}
-	if input.LogEvents[0] != events[0].inputLogEvent {
-		t.Error("Expected event to equal input")
-	}
+	assert.Equal(t, nextSequenceToken, aws.StringValue(stream.sequenceToken), "sequenceToken")
+	assert.Assert(t, input != nil)
+	assert.Equal(t, sequenceToken, aws.StringValue(input.SequenceToken), "input.SequenceToken")
+	assert.Assert(t, len(input.LogEvents) == 1)
+	assert.Equal(t, events[0].inputLogEvent, input.LogEvents[0])
 }
 
 func TestPublishBatchError(t *testing.T) {
@@ -528,12 +476,7 @@ func TestPublishBatchError(t *testing.T) {
 	}
 
 	stream.publishBatch(testEventBatch(events))
-	if stream.sequenceToken == nil {
-		t.Fatal("Expected non-nil sequenceToken")
-	}
-	if *stream.sequenceToken != sequenceToken {
-		t.Errorf("Expected sequenceToken to be %s, but was %s", sequenceToken, *stream.sequenceToken)
-	}
+	assert.Equal(t, sequenceToken, aws.StringValue(stream.sequenceToken))
 }
 
 func TestPublishBatchInvalidSeqSuccess(t *testing.T) {
@@ -564,49 +507,19 @@ func TestPublishBatchInvalidSeqSuccess(t *testing.T) {
 	}
 
 	stream.publishBatch(testEventBatch(events))
-	if stream.sequenceToken == nil {
-		t.Fatal("Expected non-nil sequenceToken")
-	}
-	if *stream.sequenceToken != nextSequenceToken {
-		t.Errorf("Expected sequenceToken to be %s, but was %s", nextSequenceToken, *stream.sequenceToken)
-	}
-
-	if len(calls) != 2 {
-		t.Fatalf("Expected two calls to PutLogEvents, was %d: %v", len(calls), calls)
-	}
+	assert.Equal(t, nextSequenceToken, aws.StringValue(stream.sequenceToken))
+	assert.Assert(t, len(calls) == 2)
 	argument := calls[0]
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if argument.SequenceToken == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput.SequenceToken")
-	}
-	if *argument.SequenceToken != sequenceToken {
-		t.Errorf("Expected PutLogEventsInput.SequenceToken to be %s, but was %s", sequenceToken, *argument.SequenceToken)
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
-	}
-	if argument.LogEvents[0] != events[0].inputLogEvent {
-		t.Error("Expected event to equal input")
-	}
+	assert.Assert(t, argument != nil)
+	assert.Equal(t, sequenceToken, aws.StringValue(argument.SequenceToken))
+	assert.Assert(t, len(argument.LogEvents) == 1)
+	assert.Equal(t, events[0].inputLogEvent, argument.LogEvents[0])
 
 	argument = calls[1]
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if argument.SequenceToken == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput.SequenceToken")
-	}
-	if *argument.SequenceToken != "token" {
-		t.Errorf("Expected PutLogEventsInput.SequenceToken to be %s, but was %s", "token", *argument.SequenceToken)
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
-	}
-	if argument.LogEvents[0] != events[0].inputLogEvent {
-		t.Error("Expected event to equal input")
-	}
+	assert.Assert(t, argument != nil)
+	assert.Equal(t, "token", aws.StringValue(argument.SequenceToken))
+	assert.Assert(t, len(argument.LogEvents) == 1)
+	assert.Equal(t, events[0].inputLogEvent, argument.LogEvents[0])
 }
 
 func TestPublishBatchAlreadyAccepted(t *testing.T) {
@@ -632,32 +545,14 @@ func TestPublishBatchAlreadyAccepted(t *testing.T) {
 	}
 
 	stream.publishBatch(testEventBatch(events))
-	if stream.sequenceToken == nil {
-		t.Fatal("Expected non-nil sequenceToken")
-	}
-	if *stream.sequenceToken != "token" {
-		t.Errorf("Expected sequenceToken to be %s, but was %s", "token", *stream.sequenceToken)
-	}
-
-	if len(calls) != 1 {
-		t.Fatalf("Expected one call to PutLogEvents, was %d: %v", len(calls), calls)
-	}
+	assert.Assert(t, stream.sequenceToken != nil)
+	assert.Equal(t, "token", aws.StringValue(stream.sequenceToken))
+	assert.Assert(t, len(calls) == 1)
 	argument := calls[0]
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if argument.SequenceToken == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput.SequenceToken")
-	}
-	if *argument.SequenceToken != sequenceToken {
-		t.Errorf("Expected PutLogEventsInput.SequenceToken to be %s, but was %s", sequenceToken, *argument.SequenceToken)
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
-	}
-	if argument.LogEvents[0] != events[0].inputLogEvent {
-		t.Error("Expected event to equal input")
-	}
+	assert.Assert(t, argument != nil)
+	assert.Equal(t, sequenceToken, aws.StringValue(argument.SequenceToken))
+	assert.Assert(t, len(argument.LogEvents) == 1)
+	assert.Equal(t, events[0].inputLogEvent, argument.LogEvents[0])
 }
 
 func TestCollectBatchSimple(t *testing.T) {
@@ -695,19 +590,11 @@ func TestCollectBatchSimple(t *testing.T) {
 	ticks <- time.Time{}
 	stream.Close()
 
-	if len(calls) != 1 {
-		t.Fatalf("Expected one call to PutLogEvents, was %d: %v", len(calls), calls)
-	}
+	assert.Assert(t, len(calls) == 1)
 	argument := calls[0]
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
-	}
-	if *argument.LogEvents[0].Message != logline {
-		t.Errorf("Expected message to be %s but was %s", logline, *argument.LogEvents[0].Message)
-	}
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, len(argument.LogEvents) == 1)
+	assert.Equal(t, logline, aws.StringValue(argument.LogEvents[0].Message))
 }
 
 func TestCollectBatchTicker(t *testing.T) {
@@ -751,23 +638,13 @@ func TestCollectBatchTicker(t *testing.T) {
 	ticks <- time.Time{}
 	// Verify first batch
 	<-called
-	if len(calls) != 1 {
-		t.Fatalf("Expected one call to PutLogEvents, was %d: %v", len(calls), calls)
-	}
+	assert.Assert(t, len(calls) == 1)
 	argument := calls[0]
 	calls = calls[1:]
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != 2 {
-		t.Errorf("Expected LogEvents to contain 2 elements, but contains %d", len(argument.LogEvents))
-	}
-	if *argument.LogEvents[0].Message != logline+" 1" {
-		t.Errorf("Expected message to be %s but was %s", logline+" 1", *argument.LogEvents[0].Message)
-	}
-	if *argument.LogEvents[1].Message != logline+" 2" {
-		t.Errorf("Expected message to be %s but was %s", logline+" 2", *argument.LogEvents[0].Message)
-	}
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, len(argument.LogEvents) == 2)
+	assert.Equal(t, logline+" 1", aws.StringValue(argument.LogEvents[0].Message))
+	assert.Equal(t, logline+" 2", aws.StringValue(argument.LogEvents[1].Message))
 
 	stream.Log(&logger.Message{
 		Line:      []byte(logline + " 3"),
@@ -776,20 +653,12 @@ func TestCollectBatchTicker(t *testing.T) {
 
 	ticks <- time.Time{}
 	<-called
-	if len(calls) != 1 {
-		t.Fatalf("Expected one call to PutLogEvents, was %d: %v", len(calls), calls)
-	}
+	assert.Assert(t, len(calls) == 1)
 	argument = calls[0]
 	close(called)
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
-	}
-	if *argument.LogEvents[0].Message != logline+" 3" {
-		t.Errorf("Expected message to be %s but was %s", logline+" 3", *argument.LogEvents[0].Message)
-	}
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, len(argument.LogEvents) == 1)
+	assert.Equal(t, logline+" 3", aws.StringValue(argument.LogEvents[0].Message))
 
 	stream.Close()
 
@@ -843,9 +712,7 @@ func TestCollectBatchMultilinePattern(t *testing.T) {
 
 	// Verify single multiline event
 	<-called
-	if len(calls) != 1 {
-		t.Fatalf("Expected one call to PutLogEvents, was %d: %v", len(calls), calls)
-	}
+	assert.Assert(t, len(calls) == 1)
 	argument := calls[0]
 	calls = calls[1:]
 	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
@@ -856,9 +723,7 @@ func TestCollectBatchMultilinePattern(t *testing.T) {
 
 	// Verify single event
 	<-called
-	if len(calls) != 1 {
-		t.Fatalf("Expected one call to PutLogEvents, was %d: %v", len(calls), calls)
-	}
+	assert.Assert(t, len(calls) == 1)
 	argument = calls[0]
 	close(called)
 	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
@@ -976,9 +841,7 @@ func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
 
 	// Verify single multiline event is flushed after maximum event buffer age (defaultForceFlushInterval)
 	<-called
-	if len(calls) != 1 {
-		t.Fatalf("Expected one call to PutLogEvents, was %d: %v", len(calls), calls)
-	}
+	assert.Assert(t, len(calls) == 1)
 	argument := calls[0]
 	calls = calls[1:]
 	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
@@ -996,9 +859,7 @@ func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
 
 	// Verify the event buffer is truly flushed - we should only receive a single event
 	<-called
-	if len(calls) != 1 {
-		t.Fatalf("Expected one call to PutLogEvents, was %d: %v", len(calls), calls)
-	}
+	assert.Assert(t, len(calls) == 1)
 	argument = calls[0]
 	close(called)
 	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
@@ -1054,9 +915,7 @@ func TestCollectBatchMultilinePatternNegativeEventAge(t *testing.T) {
 
 	// Verify single multiline event is flushed with a negative event buffer age
 	<-called
-	if len(calls) != 1 {
-		t.Fatalf("Expected one call to PutLogEvents, was %d: %v", len(calls), calls)
-	}
+	assert.Assert(t, len(calls) == 1)
 	argument := calls[0]
 	close(called)
 	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
@@ -1118,9 +977,7 @@ func TestCollectBatchMultilinePatternMaxEventSize(t *testing.T) {
 	// We expect a maximum sized event with no new line characters and a
 	// second short event with a new line character at the end
 	<-called
-	if len(calls) != 1 {
-		t.Fatalf("Expected one call to PutLogEvents, was %d: %v", len(calls), calls)
-	}
+	assert.Assert(t, len(calls) == 1)
 	argument := calls[0]
 	close(called)
 	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
@@ -1168,20 +1025,12 @@ func TestCollectBatchClose(t *testing.T) {
 	stream.Close()
 
 	<-called
-	if len(calls) != 1 {
-		t.Fatalf("Expected one call to PutLogEvents, was %d: %v", len(calls), calls)
-	}
+	assert.Assert(t, len(calls) == 1)
 	argument := calls[0]
 	close(called)
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
-	}
-	if *argument.LogEvents[0].Message != logline {
-		t.Errorf("Expected message to be %s but was %s", logline, *argument.LogEvents[0].Message)
-	}
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, len(argument.LogEvents) == 1)
+	assert.Equal(t, logline, aws.StringValue((argument.LogEvents[0].Message)))
 }
 
 func TestEffectiveLen(t *testing.T) {
@@ -1279,23 +1128,13 @@ func TestCollectBatchLineSplit(t *testing.T) {
 	stream.Close()
 
 	<-called
-	if len(calls) != 1 {
-		t.Fatalf("Expected one call to PutLogEvents, was %d: %v", len(calls), calls)
-	}
+	assert.Assert(t, len(calls) == 1)
 	argument := calls[0]
 	close(called)
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != 2 {
-		t.Errorf("Expected LogEvents to contain 2 elements, but contains %d", len(argument.LogEvents))
-	}
-	if *argument.LogEvents[0].Message != longline {
-		t.Errorf("Expected message to be %s but was %s", longline, *argument.LogEvents[0].Message)
-	}
-	if *argument.LogEvents[1].Message != "B" {
-		t.Errorf("Expected message to be %s but was %s", "B", *argument.LogEvents[1].Message)
-	}
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, len(argument.LogEvents) == 2)
+	assert.Equal(t, longline, aws.StringValue(argument.LogEvents[0].Message))
+	assert.Equal(t, "B", aws.StringValue(argument.LogEvents[1].Message))
 }
 
 func TestCollectBatchLineSplitWithBinary(t *testing.T) {
@@ -1337,23 +1176,13 @@ func TestCollectBatchLineSplitWithBinary(t *testing.T) {
 	stream.Close()
 
 	<-called
-	if len(calls) != 1 {
-		t.Fatalf("Expected one call to PutLogEvents, was %d: %v", len(calls), calls)
-	}
+	assert.Assert(t, len(calls) == 1)
 	argument := calls[0]
 	close(called)
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != 2 {
-		t.Errorf("Expected LogEvents to contain 2 elements, but contains %d", len(argument.LogEvents))
-	}
-	if *argument.LogEvents[0].Message != longline {
-		t.Errorf("Expected message to be %s but was %s", longline, *argument.LogEvents[0].Message)
-	}
-	if *argument.LogEvents[1].Message != "\xFD" {
-		t.Errorf("Expected message to be %s but was %s", "\xFD", *argument.LogEvents[1].Message)
-	}
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, len(argument.LogEvents) == 2)
+	assert.Equal(t, longline, aws.StringValue(argument.LogEvents[0].Message))
+	assert.Equal(t, "\xFD", aws.StringValue(argument.LogEvents[1].Message))
 }
 
 func TestCollectBatchMaxEvents(t *testing.T) {
@@ -1398,25 +1227,15 @@ func TestCollectBatchMaxEvents(t *testing.T) {
 
 	<-called
 	<-called
-	if len(calls) != 2 {
-		t.Fatalf("Expected two calls to PutLogEvents, was %d: %v", len(calls), calls)
-	}
+	assert.Assert(t, len(calls) == 2)
 	argument := calls[0]
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != maximumLogEventsPerPut {
-		t.Errorf("Expected LogEvents to contain %d elements, but contains %d", maximumLogEventsPerPut, len(argument.LogEvents))
-	}
+	assert.Assert(t, argument != nil)
+	assert.Check(t, len(argument.LogEvents) == maximumLogEventsPerPut)
 
 	argument = calls[1]
 	close(called)
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain %d elements, but contains %d", 1, len(argument.LogEvents))
-	}
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, len(argument.LogEvents) == 1)
 }
 
 func TestCollectBatchMaxTotalBytes(t *testing.T) {
@@ -1476,13 +1295,9 @@ func TestCollectBatchMaxTotalBytes(t *testing.T) {
 	for i := 0; i < expectedPuts; i++ {
 		<-called
 	}
-	if len(calls) != expectedPuts {
-		t.Fatalf("Expected %d calls to PutLogEvents, was %d: %v", expectedPuts, len(calls), calls)
-	}
+	assert.Assert(t, len(calls) == expectedPuts)
 	argument := calls[0]
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
+	assert.Assert(t, argument != nil)
 
 	// Should total to the maximum allowed bytes.
 	eventBytes := 0
@@ -1495,21 +1310,13 @@ func TestCollectBatchMaxTotalBytes(t *testing.T) {
 	// don't lend themselves to align with the maximum event size.
 	lowestMaxBatch := maximumBytesPerPut - maximumBytesPerEvent
 
-	if payloadTotal > maximumBytesPerPut {
-		t.Errorf("Expected <= %d bytes but was %d", maximumBytesPerPut, payloadTotal)
-	}
-	if payloadTotal < lowestMaxBatch {
-		t.Errorf("Batch to be no less than %d but was %d", lowestMaxBatch, payloadTotal)
-	}
+	assert.Check(t, payloadTotal <= maximumBytesPerPut)
+	assert.Check(t, payloadTotal >= lowestMaxBatch)
 
 	argument = calls[1]
-	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
-	}
+	assert.Assert(t, len(argument.LogEvents) == 1)
 	message := *argument.LogEvents[len(argument.LogEvents)-1].Message
-	if message[len(message)-1:] != "B" {
-		t.Errorf("Expected message to be %s but was %s", "B", message[len(message)-1:])
-	}
+	assert.Equal(t, "B", message[len(message)-1:])
 }
 
 func TestCollectBatchMaxTotalBytesWithBinary(t *testing.T) {
@@ -1564,13 +1371,9 @@ func TestCollectBatchMaxTotalBytesWithBinary(t *testing.T) {
 	for i := 0; i < expectedPuts; i++ {
 		<-called
 	}
-	if len(calls) != expectedPuts {
-		t.Fatalf("Expected %d calls to PutLogEvents, was %d: %v", expectedPuts, len(calls), calls)
-	}
+	assert.Assert(t, len(calls) == expectedPuts)
 	argument := calls[0]
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
+	assert.Assert(t, argument != nil)
 
 	// Should total to the maximum allowed bytes.
 	eventBytes := 0
@@ -1583,18 +1386,12 @@ func TestCollectBatchMaxTotalBytesWithBinary(t *testing.T) {
 	// don't lend themselves to align with the maximum event size.
 	lowestMaxBatch := maximumBytesPerPut - maximumBytesPerEvent
 
-	if payloadTotal > maximumBytesPerPut {
-		t.Errorf("Expected <= %d bytes but was %d", maximumBytesPerPut, payloadTotal)
-	}
-	if payloadTotal < lowestMaxBatch {
-		t.Errorf("Batch to be no less than %d but was %d", lowestMaxBatch, payloadTotal)
-	}
+	assert.Check(t, payloadTotal <= maximumBytesPerPut)
+	assert.Check(t, payloadTotal >= lowestMaxBatch)
 
 	argument = calls[1]
 	message := *argument.LogEvents[len(argument.LogEvents)-1].Message
-	if message[len(message)-1:] != "B" {
-		t.Errorf("Expected message to be %s but was %s", "B", message[len(message)-1:])
-	}
+	assert.Equal(t, "B", message[len(message)-1:])
 }
 
 func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
@@ -1648,17 +1445,11 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 	stream.Close()
 
 	<-called
-	if len(calls) != 1 {
-		t.Fatalf("Expected one call to PutLogEvents, was %d: %v", len(calls), calls)
-	}
+	assert.Assert(t, len(calls) == 1)
 	argument := calls[0]
 	close(called)
-	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
-	}
-	if len(argument.LogEvents) != times {
-		t.Errorf("Expected LogEvents to contain %d elements, but contains %d", times, len(argument.LogEvents))
-	}
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, len(argument.LogEvents) == times)
 	for i := 0; i < times; i++ {
 		if !reflect.DeepEqual(*argument.LogEvents[i], *expectedEvents[i]) {
 			t.Errorf("Expected event to be %v but was %v", *expectedEvents[i], *argument.LogEvents[i])
@@ -1842,9 +1633,7 @@ func TestCreateTagSuccess(t *testing.T) {
 	assert.Equal(t, 1, len(calls))
 	argument := calls[0]
 
-	if *argument.LogStreamName != "test-container/container-abcdefghijklmnopqrstuvwxyz01234567890" {
-		t.Errorf("Expected LogStreamName to be %s", "test-container/container-abcdefghijklmnopqrstuvwxyz01234567890")
-	}
+	assert.Equal(t, "test-container/container-abcdefghijklmnopqrstuvwxyz01234567890", aws.StringValue(argument.LogStreamName))
 }
 
 func BenchmarkUnwrapEvents(b *testing.B) {
