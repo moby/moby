@@ -24,7 +24,6 @@ import (
 	"github.com/Microsoft/go-winio/backuptar"
 	"github.com/Microsoft/go-winio/vhd"
 	"github.com/Microsoft/hcsshim"
-	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/containerfs"
@@ -324,9 +323,9 @@ func (d *Driver) Remove(id string) error {
 		// not required.
 		computeSystems, err = hcsshim.GetContainers(hcsshim.ComputeSystemQuery{})
 		if err != nil {
-			if osversion.Build() >= osversion.RS3 {
-				return err
-			}
+			// if osversion.Build() >= osversion.RS3 {
+			// 	return err
+			// }
 			if (err == hcsshim.ErrVmcomputeOperationInvalidState) || (err == hcsshim.ErrVmcomputeOperationAccessIsDenied) {
 				if retryCount >= 500 {
 					break
