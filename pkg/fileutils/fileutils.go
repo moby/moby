@@ -313,7 +313,7 @@ func (p *Pattern) Exclusion() bool {
 
 func (p *Pattern) match(path string) (bool, error) {
 	if p.matchType == unknownMatch {
-		if err := p.compile(); err != nil {
+		if err := p.compile(string(os.PathSeparator)); err != nil {
 			return false, filepath.ErrBadPattern
 		}
 	}
@@ -339,7 +339,7 @@ func (p *Pattern) match(path string) (bool, error) {
 	return false, nil
 }
 
-func (p *Pattern) compile() error {
+func (p *Pattern) compile(sl string) error {
 	regStr := "^"
 	pattern := p.cleanedPattern
 	// Go through the pattern and convert it to a regexp.
@@ -347,7 +347,6 @@ func (p *Pattern) compile() error {
 	var scan scanner.Scanner
 	scan.Init(strings.NewReader(pattern))
 
-	sl := string(os.PathSeparator)
 	escSL := sl
 	if sl == `\` {
 		escSL += `\`
