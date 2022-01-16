@@ -7851,7 +7851,7 @@ paths:
         - "text/plain"
         - "application/octet-stream"
       produces:
-        - "application/json"
+        - "application/json-seq"
       responses:
         200:
           description: "no error"
