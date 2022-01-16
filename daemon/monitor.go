@@ -128,7 +128,10 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 
 		daemon.LogContainerEvent(c, "oom")
 	case libcontainerdtypes.EventExit:
-		if int(ei.Pid) == c.Pid {
+		if ei.Pid == 0 {
+			logrus.Warnf("dead shim clean up event about container: %s", c.ID)
+		}
+		if int(ei.Pid) == c.Pid || ei.Pid == 0 {
 			return daemon.handleContainerExit(c, &ei)
 		}
 
