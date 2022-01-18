@@ -112,7 +112,7 @@ func (daemon *Daemon) ContainerExecCreate(name string, config *types.ExecConfig)
 		}
 	}
 
-	execConfig := exec.NewConfig()
+	execConfig := exec.NewConfig(cntr.StreamConfig)
 	execConfig.OpenStdin = config.AttachStdin
 	execConfig.OpenStdout = config.AttachStdout
 	execConfig.OpenStderr = config.AttachStderr
@@ -215,12 +215,6 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 		cStderr = stderr
 	}
 
-	if ec.OpenStdin {
-		ec.StreamConfig.NewInputPipes()
-	} else {
-		ec.StreamConfig.NewNopInputPipe()
-	}
-
 	p := &specs.Process{}
 	if runtime.GOOS != "windows" {
 		ctr, err := daemon.containerdCli.LoadContainer(ctx, ec.ContainerID)
@@ -258,7 +252,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 		CloseStdin: true,
 	}
 	ec.StreamConfig.AttachStreams(&attachConfig)
-	attachErr := ec.StreamConfig.CopyStreams(ctx, &attachConfig)
+	attachErr := stream.CopyStreams(ctx, &attachConfig)
 
 	// Synchronize with libcontainerd event loop
 	ec.Lock()

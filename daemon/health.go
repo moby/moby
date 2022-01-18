@@ -67,7 +67,7 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 		cmdSlice = append(getShell(cntr), cmdSlice...)
 	}
 	entrypoint, args := d.getEntrypointAndArgs(strslice.StrSlice{}, cmdSlice)
-	execConfig := exec.NewConfig()
+	execConfig := exec.NewConfig(cntr.StreamConfig)
 	execConfig.OpenStdin = false
 	execConfig.OpenStdout = true
 	execConfig.OpenStderr = true

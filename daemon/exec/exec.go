@@ -2,13 +2,11 @@ package exec // import "github.com/docker/docker/daemon/exec"
 
 import (
 	"context"
-	"runtime"
 	"sync"
 
 	"github.com/containerd/containerd/cio"
-	"github.com/docker/docker/container/stream"
+	"github.com/docker/docker/container/stream/streamv2"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/sirupsen/logrus"
 )
 
 // Config holds the configurations for execs. The Daemon keeps
@@ -16,77 +14,78 @@ import (
 // examined both during and after completion.
 type Config struct {
 	sync.Mutex
-	Started      chan struct{}
-	StreamConfig *stream.Config
-	ID           string
-	Running      bool
-	ExitCode     *int
-	OpenStdin    bool
-	OpenStderr   bool
-	OpenStdout   bool
-	CanRemove    bool
-	ContainerID  string
-	DetachKeys   []byte
-	Entrypoint   string
-	Args         []string
-	Tty          bool
-	Privileged   bool
-	User         string
-	WorkingDir   string
-	Env          []string
-	Pid          int
+	Started     chan struct{}
+	ID          string
+	Running     bool
+	ExitCode    *int
+	OpenStdin   bool
+	OpenStderr  bool
+	OpenStdout  bool
+	CanRemove   bool
+	ContainerID string
+	DetachKeys  []byte
+	Entrypoint  string
+	Args        []string
+	Tty         bool
+	Privileged  bool
+	User        string
+	WorkingDir  string
+	Env         []string
+	Pid         int
+
+	streams *streamv2.Streams
+	wg      sync.WaitGroup
 }
 
 // NewConfig initializes the a new exec configuration
-func NewConfig() *Config {
+func NewConfig(streams *streamv2.Streams) *Config {
 	return &Config{
-		ID:           stringid.GenerateRandomID(),
-		StreamConfig: stream.NewConfig(),
-		Started:      make(chan struct{}),
+		ID:      stringid.GenerateRandomID(),
+		Started: make(chan struct{}),
 	}
-}
-
-type rio struct {
-	cio.IO
-
-	sc *stream.Config
-}
-
-func (i *rio) Close() error {
-	i.IO.Close()
-
-	return i.sc.CloseStreams()
-}
-
-func (i *rio) Wait() {
-	i.sc.Wait(context.Background())
-
-	i.IO.Wait()
 }
 
 // InitializeStdio is called by libcontainerd to connect the stdio.
 func (c *Config) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
-	c.StreamConfig.CopyToPipe(iop)
-
-	if c.StreamConfig.Stdin() == nil && !c.Tty && runtime.GOOS == "windows" {
-		if iop.Stdin != nil {
-			if err := iop.Stdin.Close(); err != nil {
-				logrus.Errorf("error closing exec stdin: %+v", err)
-			}
-		}
+	if err := c.streams.OpenProcessStreams(context.TODO(), c.ID, iop); err != nil {
+		return nil, err
 	}
-
-	return &rio{IO: iop, sc: c.StreamConfig}, nil
+	c.wg.Add(1)
+	return &stdioStream{IO: iop, ec: c}, nil
 }
 
 // CloseStreams closes the stdio streams for the exec
 func (c *Config) CloseStreams() error {
-	return c.StreamConfig.CloseStreams()
+	err := c.streams.CloseProcessStreams(context.TODO(), c.ID)
+	if err != nil {
+		c.wg.Done()
+	}
+	return err
+}
+
+func (c *Config) waitStreams() {
+	c.wg.Wait()
 }
 
 // SetExitCode sets the exec config's exit code
 func (c *Config) SetExitCode(code int) {
 	c.ExitCode = &code
+}
+
+var _ cio.IO = &stdioStream{}
+
+type stdioStream struct {
+	cio.IO
+	ec *Config
+}
+
+func (s *stdioStream) Close() error {
+	s.IO.Close()
+	return s.ec.CloseStreams()
+}
+
+func (s *stdioStream) Wait() {
+	s.ec.waitStreams()
 }
 
 // Store keeps track of the exec configurations.

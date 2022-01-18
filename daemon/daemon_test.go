@@ -8,6 +8,7 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/idtools"
@@ -113,8 +114,9 @@ func TestGetContainer(t *testing.T) {
 func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
 	var err error
 	daemon := &Daemon{
-		repository: tmp,
-		root:       tmp,
+		repository:  tmp,
+		root:        tmp,
+		configStore: config.New(),
 	}
 	daemon.volumes, err = volumesservice.NewVolumeService(tmp, nil, idtools.Identity{UID: 0, GID: 0}, daemon)
 	if err != nil {

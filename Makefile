@@ -270,3 +270,10 @@ endif
 bundles/buildx: bundles ## build buildx CLI tool
 	curl -fsSL https://raw.githubusercontent.com/moby/buildkit/70deac12b5857a1aa4da65e90b262368e2f71500/hack/install-buildx | VERSION="$(BUILDX_VERSION)" BINDIR="$(@D)" bash
 	$@ version
+
+PROTO_PATHS := ./container/stream/streamv2/stdio
+protos: bundles/bin/protoc-gen-gogomoby
+	@PATH=$(PWD)/bundles/bin:$(PATH) protobuild $(PROTO_PATHS)
+
+bundles/bin/protoc-gen-gogomoby: cmd/protoc-gen-gogomoby
+	$(DOCKER) build --target=gogomoby --output=bundles/bin/ .
