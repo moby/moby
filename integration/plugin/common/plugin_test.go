@@ -231,7 +231,7 @@ func TestPluginsWithRuntimes(t *testing.T) {
 	exec runc $@
 	`, dir)
 
-	assert.NilError(t, os.WriteFile(p, []byte(script), 0777))
+	assert.NilError(t, os.WriteFile(p, []byte(script), 0o777))
 
 	type config struct {
 		Runtimes map[string]types.Runtime `json:"runtimes"`
@@ -244,7 +244,7 @@ func TestPluginsWithRuntimes(t *testing.T) {
 		},
 	})
 	configPath := filepath.Join(dir, "config.json")
-	os.WriteFile(configPath, cfg, 0644)
+	os.WriteFile(configPath, cfg, 0o644)
 
 	t.Run("No Args", func(t *testing.T) {
 		d.Restart(t, "--default-runtime=myrt", "--config-file="+configPath)
