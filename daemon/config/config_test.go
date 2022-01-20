@@ -158,7 +158,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 	expected := []*ipamutils.NetworkToSplit{{Base: "10.123.0.0/16", Size: 24}}
 
 	t.Run("empty config file", func(t *testing.T) {
-		var conf = Config{}
+		conf := Config{}
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
 		assert.Check(t, flags.Set("default-address-pool", "base=10.123.0.0/16,size=24"))
@@ -169,7 +169,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 	})
 
 	t.Run("config file", func(t *testing.T) {
-		var conf = Config{}
+		conf := Config{}
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
 
@@ -179,7 +179,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 	})
 
 	t.Run("with conflicting options", func(t *testing.T) {
-		var conf = Config{}
+		conf := Config{}
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
 		assert.Check(t, flags.Set("default-address-pool", "base=10.123.0.0/16,size=24"))
