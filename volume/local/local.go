@@ -56,7 +56,7 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 		rootIdentity: rootIdentity,
 	}
 
-	if err := idtools.MkdirAllAndChown(r.path, 0701, idtools.CurrentIdentity()); err != nil {
+	if err := idtools.MkdirAllAndChown(r.path, 0o701, idtools.CurrentIdentity()); err != nil {
 		return nil, err
 	}
 
@@ -151,12 +151,12 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 	}
 
 	// Root dir does not need to be accessed by the remapped root
-	if err := idtools.MkdirAllAndChown(v.rootPath, 0701, idtools.CurrentIdentity()); err != nil {
+	if err := idtools.MkdirAllAndChown(v.rootPath, 0o701, idtools.CurrentIdentity()); err != nil {
 		return nil, errors.Wrapf(errdefs.System(err), "error while creating volume root path '%s'", v.rootPath)
 	}
 
 	// Remapped root does need access to the data path
-	if err := idtools.MkdirAllAndChown(v.path, 0755, r.rootIdentity); err != nil {
+	if err := idtools.MkdirAllAndChown(v.path, 0o755, r.rootIdentity); err != nil {
 		return nil, errors.Wrapf(errdefs.System(err), "error while creating volume data path '%s'", v.path)
 	}
 
@@ -372,7 +372,7 @@ func (v *localVolume) saveOpts() error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(filepath.Join(v.rootPath, "opts.json"), b, 0600)
+	err = os.WriteFile(filepath.Join(v.rootPath, "opts.json"), b, 0o600)
 	if err != nil {
 		return errdefs.System(errors.Wrap(err, "error while persisting volume options"))
 	}

@@ -15,8 +15,10 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-const quotaSize = 1024 * 1024
-const quotaSizeLiteral = "1M"
+const (
+	quotaSize        = 1024 * 1024
+	quotaSizeLiteral = "1M"
+)
 
 func TestQuota(t *testing.T) {
 	if msg, ok := quota.CanTestQuota(); !ok {
@@ -59,11 +61,11 @@ func testVolWithQuota(t *testing.T, mountPoint, backingFsDev, testDir string) {
 	testfile := filepath.Join(dir, "testfile")
 
 	// test writing file smaller than quota
-	assert.NilError(t, os.WriteFile(testfile, make([]byte, quotaSize/2), 0644))
+	assert.NilError(t, os.WriteFile(testfile, make([]byte, quotaSize/2), 0o644))
 	assert.NilError(t, os.Remove(testfile))
 
 	// test writing fiel larger than quota
-	err = os.WriteFile(testfile, make([]byte, quotaSize+1), 0644)
+	err = os.WriteFile(testfile, make([]byte, quotaSize+1), 0o644)
 	assert.ErrorContains(t, err, "")
 	if _, err := os.Stat(testfile); err == nil {
 		assert.NilError(t, os.Remove(testfile))

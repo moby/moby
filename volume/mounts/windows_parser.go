@@ -191,6 +191,7 @@ func (p *windowsParser) ValidateVolumeName(name string) error {
 	}
 	return nil
 }
+
 func (p *windowsParser) ValidateMountConfig(mnt *mount.Mount) error {
 	return p.validateMountConfigReg(mnt, windowsValidators)
 }
@@ -199,8 +200,7 @@ type fileInfoProvider interface {
 	fileInfo(path string) (exist, isDir bool, err error)
 }
 
-type defaultFileInfoProvider struct {
-}
+type defaultFileInfoProvider struct{}
 
 func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, err error) {
 	fi, err := os.Stat(path)

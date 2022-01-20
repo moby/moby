@@ -99,13 +99,13 @@ func NewStore(rootPath string, drivers *drivers.Store, opts ...StoreOpt) (*Volum
 	if rootPath != "" {
 		// initialize metadata store
 		volPath := filepath.Join(rootPath, volumeDataDir)
-		if err := os.MkdirAll(volPath, 0750); err != nil {
+		if err := os.MkdirAll(volPath, 0o750); err != nil {
 			return nil, err
 		}
 
 		var err error
 		dbPath := filepath.Join(volPath, "metadata.db")
-		vs.db, err = bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
+		vs.db, err = bolt.Open(dbPath, 0o600, &bolt.Options{Timeout: 1 * time.Second})
 		if err != nil {
 			return nil, errors.Wrapf(err, "error while opening volume store metadata database (%s)", dbPath)
 		}
