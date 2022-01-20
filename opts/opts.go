@@ -300,7 +300,7 @@ type ValidatorFctListType func(val string) ([]string, error)
 
 // ValidateIPAddress validates an Ip address.
 func ValidateIPAddress(val string) (string, error) {
-	var ip = net.ParseIP(strings.TrimSpace(val))
+	ip := net.ParseIP(strings.TrimSpace(val))
 	if ip != nil {
 		return ip.String(), nil
 	}
