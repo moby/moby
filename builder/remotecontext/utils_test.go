@@ -11,7 +11,6 @@ import (
 // When an error occurs, it terminates the test.
 func createTestTempDir(t *testing.T, dir, prefix string) (string, func()) {
 	path, err := os.MkdirTemp(dir, prefix)
-
 	if err != nil {
 		t.Fatalf("Error when creating directory %s with prefix %s: %s", dir, prefix, err)
 	}
@@ -32,7 +31,6 @@ func createTestTempDir(t *testing.T, dir, prefix string) (string, func()) {
 // When an error occurs, it terminates the test.
 func createTestTempSubdir(t *testing.T, dir, prefix string) string {
 	path, err := os.MkdirTemp(dir, prefix)
-
 	if err != nil {
 		t.Fatalf("Error when creating directory %s with prefix %s: %s", dir, prefix, err)
 	}
@@ -45,7 +43,6 @@ func createTestTempSubdir(t *testing.T, dir, prefix string) string {
 func createTestTempFile(t *testing.T, dir, filename, contents string, perm os.FileMode) string {
 	filePath := filepath.Join(dir, filename)
 	err := os.WriteFile(filePath, []byte(contents), perm)
-
 	if err != nil {
 		t.Fatalf("Error when creating %s file: %s", filename, err)
 	}
