@@ -477,6 +477,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.22](v1.22.md) documentation
 
+* The `HostConfig.LxcConf` field has been removed, and is no longer available on
+  `POST /containers/create` and `GET /containers/(id)/json`.
 * `POST /container/(name)/update` updates the resources of a container.
 * `GET /containers/json` supports filter `isolation` on Windows.
 * `GET /containers/json` now returns the list of networks of containers.

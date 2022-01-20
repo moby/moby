@@ -5760,7 +5760,6 @@ paths:
                       property1: "string"
                       property2: "string"
                 IpcMode: ""
-                LxcConf: []
                 Memory: 0
                 MemorySwap: 0
                 MemoryReservation: 0
