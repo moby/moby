@@ -155,7 +155,6 @@ func TestUTSMode(t *testing.T) {
 			assert.Check(t, is.Equal(mode.IsHost(), expected.host))
 			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
 		})
-
 	}
 }
 
