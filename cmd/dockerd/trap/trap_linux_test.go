@@ -26,7 +26,7 @@ func buildTestBinary(t *testing.T, tmpdir string, prefix string) (string, string
 }
 
 func TestTrap(t *testing.T) {
-	var sigmap = []struct {
+	sigmap := []struct {
 		name     string
 		signal   os.Signal
 		multiple bool
