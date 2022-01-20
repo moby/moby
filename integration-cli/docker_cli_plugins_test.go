@@ -261,10 +261,10 @@ func (ps *DockerPluginSuite) TestPluginCreate(c *testing.T) {
 	defer os.RemoveAll(temp)
 
 	data := `{"description": "foo plugin"}`
-	err = os.WriteFile(filepath.Join(temp, "config.json"), []byte(data), 0644)
+	err = os.WriteFile(filepath.Join(temp, "config.json"), []byte(data), 0o644)
 	assert.NilError(c, err)
 
-	err = os.MkdirAll(filepath.Join(temp, "rootfs"), 0700)
+	err = os.MkdirAll(filepath.Join(temp, "rootfs"), 0o700)
 	assert.NilError(c, err)
 
 	out, _, err := dockerCmdWithError("plugin", "create", name, temp)
@@ -400,7 +400,7 @@ func (ps *DockerPluginSuite) TestPluginListDefaultFormat(c *testing.T) {
 	assert.NilError(c, err)
 	defer os.RemoveAll(config)
 
-	err = os.WriteFile(filepath.Join(config, "config.json"), []byte(`{"pluginsFormat": "raw"}`), 0644)
+	err = os.WriteFile(filepath.Join(config, "config.json"), []byte(`{"pluginsFormat": "raw"}`), 0o644)
 	assert.NilError(c, err)
 
 	name := "test:latest"

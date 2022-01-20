@@ -101,6 +101,6 @@ func (s *DockerCLISaveLoadSuite) TestLoadNoStdinFail(c *testing.T) {
 	buf := make([]byte, 1024)
 
 	n, err := pty.Read(buf)
-	assert.NilError(c, err) //could not read tty output
+	assert.NilError(c, err) // could not read tty output
 	assert.Assert(c, strings.Contains(string(buf[:n]), "requested load from stdin, but stdin is empty"))
 }

@@ -342,8 +342,7 @@ func TestDockerHubPullSuite(t *testing.T) {
 	suite.Run(t, newDockerHubPullSuite())
 }
 
-type DockerSuite struct {
-}
+type DockerSuite struct{}
 
 func (s *DockerSuite) OnTimeout(c *testing.T) {
 	if testEnv.IsRemoteDaemon() {
@@ -598,6 +597,7 @@ func (ps *DockerPluginSuite) registryHost() string {
 func (ps *DockerPluginSuite) getPluginRepo() string {
 	return path.Join(ps.registryHost(), "plugin", "basic")
 }
+
 func (ps *DockerPluginSuite) getPluginRepoWithTag() string {
 	return ps.getPluginRepo() + ":" + "latest"
 }

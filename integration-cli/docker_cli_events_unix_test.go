@@ -395,14 +395,14 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *testing.T) {
 	defer os.Remove(configFilePath)
 
 	daemonConfig := `{"labels":["foo=bar"]}`
-	err := os.WriteFile(configFilePath, []byte(daemonConfig), 0644)
+	err := os.WriteFile(configFilePath, []byte(daemonConfig), 0o644)
 	assert.NilError(c, err)
 	s.d.Start(c, "--config-file="+configFilePath)
 
 	info := s.d.Info(c)
 
 	daemonConfig = `{"max-concurrent-downloads":1,"labels":["bar=foo"], "shutdown-timeout": 10}`
-	err = os.WriteFile(configFilePath, []byte(daemonConfig), 0644)
+	err = os.WriteFile(configFilePath, []byte(daemonConfig), 0o644)
 	assert.NilError(c, err)
 
 	assert.NilError(c, s.d.Signal(unix.SIGHUP))
@@ -442,7 +442,7 @@ func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *testing.T) {
 	defer os.Remove(configFilePath)
 
 	daemonConfig := `{"labels":["foo=bar"]}`
-	err := os.WriteFile(configFilePath, []byte(daemonConfig), 0644)
+	err := os.WriteFile(configFilePath, []byte(daemonConfig), 0o644)
 	assert.NilError(c, err)
 	s.d.Start(c, "--config-file="+configFilePath)
 

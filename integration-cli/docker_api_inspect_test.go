@@ -17,8 +17,10 @@ func (s *DockerAPISuite) TestInspectAPIContainerResponse(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
-	keysBase := []string{"Id", "State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings",
-		"ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver", "MountLabel", "ProcessLabel", "GraphDriver"}
+	keysBase := []string{
+		"Id", "State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings",
+		"ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver", "MountLabel", "ProcessLabel", "GraphDriver",
+	}
 
 	type acase struct {
 		version string

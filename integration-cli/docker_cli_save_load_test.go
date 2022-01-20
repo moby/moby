@@ -202,9 +202,7 @@ func (s *DockerCLISaveLoadSuite) TestSaveLoadParents(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	makeImage := func(from string, addfile string) string {
-		var (
-			out string
-		)
+		var out string
 		out, _ = dockerCmd(c, "run", "-d", from, "touch", addfile)
 		cleanedContainerID := strings.TrimSpace(out)
 

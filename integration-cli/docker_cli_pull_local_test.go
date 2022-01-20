@@ -329,23 +329,23 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *testing.T) {
 
 	// Write manifest list to blob store
 	blobDir := filepath.Join(registryV2Path, "blobs", "sha256", hexDigest[:2], hexDigest)
-	err = os.MkdirAll(blobDir, 0755)
+	err = os.MkdirAll(blobDir, 0o755)
 	assert.NilError(c, err, "error creating blob dir")
 	blobPath := filepath.Join(blobDir, "data")
-	err = os.WriteFile(blobPath, manifestListJSON, 0644)
+	err = os.WriteFile(blobPath, manifestListJSON, 0o644)
 	assert.NilError(c, err, "error writing manifest list")
 
 	// Add to revision store
 	revisionDir := filepath.Join(registryV2Path, "repositories", remoteRepoName, "_manifests", "revisions", "sha256", hexDigest)
-	err = os.Mkdir(revisionDir, 0755)
+	err = os.Mkdir(revisionDir, 0o755)
 	assert.Assert(c, err == nil, "error creating revision dir")
 	revisionPath := filepath.Join(revisionDir, "link")
-	err = os.WriteFile(revisionPath, []byte(manifestListDigest.String()), 0644)
+	err = os.WriteFile(revisionPath, []byte(manifestListDigest.String()), 0o644)
 	assert.Assert(c, err == nil, "error writing revision link")
 
 	// Update tag
 	tagPath := filepath.Join(registryV2Path, "repositories", remoteRepoName, "_manifests", "tags", "latest", "current", "link")
-	err = os.WriteFile(tagPath, []byte(manifestListDigest.String()), 0644)
+	err = os.WriteFile(tagPath, []byte(manifestListDigest.String()), 0o644)
 	assert.NilError(c, err, "error writing tag link")
 
 	// Verify that the image can be pulled through the manifest list.
@@ -384,7 +384,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuthLoginWithSchem
 	externalAuthConfig := `{ "credsStore": "shell-test" }`
 
 	configPath := filepath.Join(tmp, "config.json")
-	err = os.WriteFile(configPath, []byte(externalAuthConfig), 0644)
+	err = os.WriteFile(configPath, []byte(externalAuthConfig), 0o644)
 	assert.NilError(c, err)
 
 	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
@@ -426,7 +426,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuth(c *testing.T)
 	externalAuthConfig := `{ "credsStore": "shell-test" }`
 
 	configPath := filepath.Join(tmp, "config.json")
-	err = os.WriteFile(configPath, []byte(externalAuthConfig), 0644)
+	err = os.WriteFile(configPath, []byte(externalAuthConfig), 0o644)
 	assert.NilError(c, err)
 
 	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)

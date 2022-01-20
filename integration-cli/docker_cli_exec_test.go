@@ -408,7 +408,7 @@ func (s *DockerCLIExecSuite) TestRunMutableNetworkFiles(c *testing.T) {
 		contID := strings.TrimSpace(out)
 		netFilePath := containerStorageFile(contID, fn)
 
-		f, err := os.OpenFile(netFilePath, os.O_WRONLY|os.O_SYNC|os.O_APPEND, 0644)
+		f, err := os.OpenFile(netFilePath, os.O_WRONLY|os.O_SYNC|os.O_APPEND, 0o644)
 		assert.NilError(c, err)
 
 		if _, err := f.Seek(0, 0); err != nil {

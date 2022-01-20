@@ -732,9 +732,7 @@ func checkClusterHealth(c *testing.T, cl []*daemon.Daemon, managerCount, workerC
 	var totalMCount, totalWCount int
 
 	for _, d := range cl {
-		var (
-			info swarm.Info
-		)
+		var info swarm.Info
 
 		// check info in a poll.WaitOn(), because if the cluster doesn't have a leader, `info` will return an error
 		checkInfo := func(c *testing.T) (interface{}, string) {

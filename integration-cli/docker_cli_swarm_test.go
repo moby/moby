@@ -610,8 +610,10 @@ func (s *DockerSwarmSuite) TestPsListContainersFilterIsTask(c *testing.T) {
 	assert.Assert(c, lines[0] != bareID, "Expected not %s, but got it for is-task label, output %q", bareID, out)
 }
 
-const globalNetworkPlugin = "global-network-plugin"
-const globalIPAMPlugin = "global-ipam-plugin"
+const (
+	globalNetworkPlugin = "global-network-plugin"
+	globalIPAMPlugin    = "global-ipam-plugin"
+)
 
 func setupRemoteGlobalNetworkPlugin(c *testing.T, mux *http.ServeMux, url, netDrv, ipamDrv string) {
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
@@ -664,7 +666,8 @@ func setupRemoteGlobalNetworkPlugin(c *testing.T, mux *http.ServeMux, url, netDr
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 
 		veth := &netlink.Veth{
-			LinkAttrs: netlink.LinkAttrs{Name: "randomIfName", TxQLen: 0}, PeerName: "cnt0"}
+			LinkAttrs: netlink.LinkAttrs{Name: "randomIfName", TxQLen: 0}, PeerName: "cnt0",
+		}
 		if err := netlink.LinkAdd(veth); err != nil {
 			fmt.Fprintf(w, `{"Error":"failed to add veth pair: `+err.Error()+`"}`)
 		} else {
@@ -768,15 +771,15 @@ func setupRemoteGlobalNetworkPlugin(c *testing.T, mux *http.ServeMux, url, netDr
 		}
 	})
 
-	err := os.MkdirAll("/etc/docker/plugins", 0755)
+	err := os.MkdirAll("/etc/docker/plugins", 0o755)
 	assert.NilError(c, err)
 
 	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", netDrv)
-	err = os.WriteFile(fileName, []byte(url), 0644)
+	err = os.WriteFile(fileName, []byte(url), 0o644)
 	assert.NilError(c, err)
 
 	ipamFileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", ipamDrv)
-	err = os.WriteFile(ipamFileName, []byte(url), 0644)
+	err = os.WriteFile(ipamFileName, []byte(url), 0o644)
 	assert.NilError(c, err)
 }
 
@@ -803,7 +806,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceEnvFile(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 
 	path := filepath.Join(d.Folder, "env.txt")
-	err := os.WriteFile(path, []byte("VAR1=A\nVAR2=A\n"), 0644)
+	err := os.WriteFile(path, []byte("VAR1=A\nVAR2=A\n"), 0o644)
 	assert.NilError(c, err)
 
 	name := "worker"

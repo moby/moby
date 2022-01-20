@@ -265,8 +265,8 @@ func (s *DockerCLICpSuite) TestCpToSymlinkToDirectory(c *testing.T) {
 	// This file will be at "/testDir/some/path/test" and will be copied into
 	// the test volume later.
 	hostTestFilename := filepath.Join(testDir, cpFullPath)
-	assert.NilError(c, os.MkdirAll(filepath.Dir(hostTestFilename), os.FileMode(0700)))
-	assert.NilError(c, os.WriteFile(hostTestFilename, []byte(cpHostContents), os.FileMode(0600)))
+	assert.NilError(c, os.MkdirAll(filepath.Dir(hostTestFilename), os.FileMode(0o700)))
+	assert.NilError(c, os.WriteFile(hostTestFilename, []byte(cpHostContents), os.FileMode(0o600)))
 
 	// Now create another temp directory to hold a symlink to the
 	// "/testDir/some" directory.
@@ -375,7 +375,7 @@ func (s *DockerCLICpSuite) TestCpUnprivilegedUser(c *testing.T) {
 
 	defer os.RemoveAll(tmpdir)
 
-	err = os.Chmod(tmpdir, 0777)
+	err = os.Chmod(tmpdir, 0o777)
 	assert.NilError(c, err)
 
 	result := icmd.RunCommand("su", "unprivilegeduser", "-c",

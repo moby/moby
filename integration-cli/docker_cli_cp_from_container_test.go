@@ -182,7 +182,7 @@ func (s *DockerCLICpSuite) TestCpFromCaseD(c *testing.T) {
 	// Now try again but using a trailing path separator for dstDir.
 
 	assert.NilError(c, os.RemoveAll(dstDir), "unable to remove dstDir")
-	assert.NilError(c, os.MkdirAll(dstDir, os.FileMode(0755)), "unable to make dstDir")
+	assert.NilError(c, os.MkdirAll(dstDir, os.FileMode(0o755)), "unable to make dstDir")
 
 	dstDir = cpPathTrailingSep(tmpDir, "dir1")
 
@@ -268,7 +268,7 @@ func (s *DockerCLICpSuite) TestCpFromCaseG(c *testing.T) {
 	// Now try again but using a trailing path separator for dstDir.
 
 	assert.NilError(c, os.RemoveAll(dstDir), "unable to remove dstDir")
-	assert.NilError(c, os.MkdirAll(dstDir, os.FileMode(0755)), "unable to make dstDir")
+	assert.NilError(c, os.MkdirAll(dstDir, os.FileMode(0o755)), "unable to make dstDir")
 
 	dstDir = cpPathTrailingSep(tmpDir, "dir2")
 
@@ -354,7 +354,7 @@ func (s *DockerCLICpSuite) TestCpFromCaseJ(c *testing.T) {
 	// Now try again but using a trailing path separator for dstDir.
 
 	assert.NilError(c, os.RemoveAll(dstDir), "unable to remove dstDir")
-	assert.NilError(c, os.MkdirAll(dstDir, os.FileMode(0755)), "unable to make dstDir")
+	assert.NilError(c, os.MkdirAll(dstDir, os.FileMode(0o755)), "unable to make dstDir")
 
 	dstDir = cpPathTrailingSep(tmpDir, "dir2")
 
