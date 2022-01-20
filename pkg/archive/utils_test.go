@@ -40,12 +40,12 @@ func testBreakout(untarFn string, tmpdir string, headers []*tar.Header) error {
 	defer os.RemoveAll(tmpdir)
 
 	dest := filepath.Join(tmpdir, "dest")
-	if err := os.Mkdir(dest, 0755); err != nil {
+	if err := os.Mkdir(dest, 0o755); err != nil {
 		return err
 	}
 
 	victim := filepath.Join(tmpdir, "victim")
-	if err := os.Mkdir(victim, 0755); err != nil {
+	if err := os.Mkdir(victim, 0o755); err != nil {
 		return err
 	}
 	hello := filepath.Join(victim, "hello")
@@ -53,7 +53,7 @@ func testBreakout(untarFn string, tmpdir string, headers []*tar.Header) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(hello, helloData, 0644); err != nil {
+	if err := os.WriteFile(hello, helloData, 0o644); err != nil {
 		return err
 	}
 	helloStat, err := os.Stat(hello)

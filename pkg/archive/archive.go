@@ -43,7 +43,7 @@ import (
 // This value is currently implementation-defined, and not captured in any cross-runtime specification. Thus, it is
 // subject to change in Moby at any time -- image authors who require consistent or known directory permissions
 // should explicitly control them by ensuring that header entries exist for any applicable path.
-const ImpliedDirectoryMode = 0755
+const ImpliedDirectoryMode = 0o755
 
 type (
 	// Compression is the state represents if compressed or not.
@@ -1312,7 +1312,7 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 	// as owner
 	rootIDs := archiver.IDMapping.RootPair()
 	// Create dst, copy src's content into it
-	if err := idtools.MkdirAllAndChownNew(dst, 0755, rootIDs); err != nil {
+	if err := idtools.MkdirAllAndChownNew(dst, 0o755, rootIDs); err != nil {
 		return err
 	}
 	return archiver.TarUntar(src, dst)
@@ -1337,7 +1337,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		dst = filepath.Join(dst, filepath.Base(src))
 	}
 	// Create the holding directory if necessary
-	if err := system.MkdirAll(filepath.Dir(dst), 0700); err != nil {
+	if err := system.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
 		return err
 	}
 

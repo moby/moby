@@ -12,8 +12,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/docker/docker/pkg/archive"
 	"github.com/containerd/containerd/log"
+	"github.com/docker/docker/pkg/archive"
 )
 
 var (
@@ -82,7 +82,7 @@ func prepareUntarSourceDirectory(numberOfFiles int, targetPath string, makeLinks
 	fileData := []byte("fooo")
 	for n := 0; n < numberOfFiles; n++ {
 		fileName := fmt.Sprintf("file-%d", n)
-		if err := os.WriteFile(path.Join(targetPath, fileName), fileData, 0700); err != nil {
+		if err := os.WriteFile(path.Join(targetPath, fileName), fileData, 0o700); err != nil {
 			return 0, err
 		}
 		if makeLinks {

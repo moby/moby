@@ -21,11 +21,11 @@ func TestCopyFileWithInvalidDest(t *testing.T) {
 	dest := "c:dest"
 	srcFolder := filepath.Join(folder, "src")
 	src := filepath.Join(folder, "src", "src")
-	err = os.MkdirAll(srcFolder, 0740)
+	err = os.MkdirAll(srcFolder, 0o740)
 	if err != nil {
 		t.Fatal(err)
 	}
-	os.WriteFile(src, []byte("content"), 0777)
+	os.WriteFile(src, []byte("content"), 0o777)
 	err = defaultCopyWithTar(src, dest)
 	if err == nil {
 		t.Fatalf("archiver.CopyWithTar should throw an error on invalid dest.")
@@ -54,11 +54,11 @@ func TestChmodTarEntry(t *testing.T) {
 	cases := []struct {
 		in, expected os.FileMode
 	}{
-		{0000, 0111},
-		{0777, 0755},
-		{0644, 0755},
-		{0755, 0755},
-		{0444, 0555},
+		{0o000, 0o111},
+		{0o777, 0o755},
+		{0o644, 0o755},
+		{0o755, 0o755},
+		{0o444, 0o555},
 	}
 	for _, v := range cases {
 		if out := chmodTarEntry(v.in); out != v.expected {

@@ -108,8 +108,10 @@ func aufsDeletedFile(root, path string, fi os.FileInfo) (string, error) {
 	return "", nil
 }
 
-type skipChange func(string) (bool, error)
-type deleteChange func(string, string, os.FileInfo) (string, error)
+type (
+	skipChange   func(string) (bool, error)
+	deleteChange func(string, string, os.FileInfo) (string, error)
+)
 
 func changes(layers []string, rw string, dc deleteChange, sc skipChange) ([]Change, error) {
 	var (
@@ -342,9 +344,7 @@ func newRootFileInfo() *FileInfo {
 // ChangesDirs compares two directories and generates an array of Change objects describing the changes.
 // If oldDir is "", then all files in newDir will be Add-Changes.
 func ChangesDirs(newDir, oldDir string) ([]Change, error) {
-	var (
-		oldRoot, newRoot *FileInfo
-	)
+	var oldRoot, newRoot *FileInfo
 	if oldDir == "" {
 		emptyDir, err := os.MkdirTemp("", "empty")
 		if err != nil {
