@@ -737,14 +737,19 @@ func TestCompile(t *testing.T) {
 func testCompile(sl string) func(*testing.T) {
 	return func(t *testing.T) {
 		for _, tt := range compileTests {
-			pattern := tt.pattern
+			// Avoid NewPatternMatcher, which has platform-specific behavior
+			pm := &PatternMatcher{
+				patterns: make([]*Pattern, 1),
+			}
+			pattern := path.Clean(tt.pattern)
 			if sl != "/" {
 				pattern = strings.ReplaceAll(pattern, "/", sl)
 			}
-			pm, err := NewPatternMatcher([]string{pattern})
-			if err != nil {
-				t.Fatalf("Failed to create PatternMatcher for pattern %q: %v", pattern, err)
-			}
+			newp := &Pattern{}
+			newp.cleanedPattern = pattern
+			newp.dirs = strings.Split(pattern, sl)
+			pm.patterns[0] = newp
+
 			if err := pm.patterns[0].compile(sl); err != nil {
 				t.Fatalf("Failed to compile pattern %q: %v", pattern, err)
 			}
