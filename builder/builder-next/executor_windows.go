@@ -15,8 +15,7 @@ func newExecutor(_, _ string, _ *libnetwork.Controller, _ *oci.DNSConfig, _ bool
 	return &winExecutor{}, nil
 }
 
-type winExecutor struct {
-}
+type winExecutor struct{}
 
 func (w *winExecutor) Run(ctx context.Context, id string, root executor.Mount, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (err error) {
 	return errors.New("buildkit executor not implemented for windows")

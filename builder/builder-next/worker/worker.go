@@ -520,8 +520,7 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 	}
 }
 
-type emptyProvider struct {
-}
+type emptyProvider struct{}
 
 func (p *emptyProvider) ReaderAt(ctx context.Context, dec ocispec.Descriptor) (content.ReaderAt, error) {
 	return nil, errors.Errorf("ReaderAt not implemented for empty provider")

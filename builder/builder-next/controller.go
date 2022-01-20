@@ -195,7 +195,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		return nil, err
 	}
 
-	db, err := bolt.Open(filepath.Join(root, "containerdmeta.db"), 0644, nil)
+	db, err := bolt.Open(filepath.Join(root, "containerdmeta.db"), 0o644, nil)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

@@ -21,11 +21,13 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-var keyParent = []byte("parent")
-var keyCommitted = []byte("committed")
-var keyIsCommitted = []byte("iscommitted")
-var keyChainID = []byte("chainid")
-var keySize = []byte("size")
+var (
+	keyParent      = []byte("parent")
+	keyCommitted   = []byte("committed")
+	keyIsCommitted = []byte("iscommitted")
+	keyChainID     = []byte("chainid")
+	keySize        = []byte("size")
+)
 
 // Opt defines options for creating the snapshotter
 type Opt struct {
@@ -57,7 +59,7 @@ type snapshotter struct {
 // NewSnapshotter creates a new snapshotter
 func NewSnapshotter(opt Opt, prevLM leases.Manager) (snapshot.Snapshotter, leases.Manager, error) {
 	dbPath := filepath.Join(opt.Root, "snapshots.db")
-	db, err := bolt.Open(dbPath, 0600, nil)
+	db, err := bolt.Open(dbPath, 0o600, nil)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to open database file %s", dbPath)
 	}
