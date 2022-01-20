@@ -114,15 +114,16 @@ func TestWindowsDevices(t *testing.T) {
 
 			// /Windows/System32/HostDriverStore is mounted from the host when class GUID 5B45201D-F2F2-4F3B-85BB-30FF1F953599
 			// is mounted. See `C:\windows\System32\containers\devices.def` on a Windows host for (slightly more) details.
-			res, err := container.Exec(ctx, client, id, []string{"sh", "-c",
-				"ls -d /Windows/System32/HostDriverStore/* | grep /Windows/System32/HostDriverStore/FileRepository"})
+			res, err := container.Exec(ctx, client, id, []string{
+				"sh", "-c",
+				"ls -d /Windows/System32/HostDriverStore/* | grep /Windows/System32/HostDriverStore/FileRepository",
+			})
 			assert.NilError(t, err)
 			assert.Equal(t, d.expectedExitCode, res.ExitCode)
 			if d.expectedExitCode == 0 {
 				assert.Equal(t, d.expectedStdout, strings.TrimSpace(res.Stdout()))
 				assert.Equal(t, d.expectedStderr, strings.TrimSpace(res.Stderr()))
 			}
-
 		})
 	}
 }

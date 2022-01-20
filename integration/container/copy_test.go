@@ -95,7 +95,7 @@ func TestCopyEmptyFile(t *testing.T) {
 func makeEmptyArchive(t *testing.T) (string, io.ReadCloser) {
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "empty-file.txt")
-	err := os.WriteFile(srcPath, []byte(""), 0400)
+	err := os.WriteFile(srcPath, []byte(""), 0o400)
 	assert.NilError(t, err)
 
 	// TODO(thaJeztah) Add utilities to the client to make steps below less complicated.

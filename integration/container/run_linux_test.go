@@ -155,15 +155,15 @@ func TestPrivilegedHostDevices(t *testing.T) {
 	)
 
 	// Create Null devices.
-	if err := system.Mknod(devTest, unix.S_IFCHR|0600, int(system.Mkdev(1, 3))); err != nil {
+	if err := system.Mknod(devTest, unix.S_IFCHR|0o600, int(system.Mkdev(1, 3))); err != nil {
 		t.Fatal(err)
 	}
 	defer os.Remove(devTest)
-	if err := os.Mkdir(filepath.Dir(devRootOnlyTest), 0700); err != nil {
+	if err := os.Mkdir(filepath.Dir(devRootOnlyTest), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(filepath.Dir(devRootOnlyTest))
-	if err := system.Mknod(devRootOnlyTest, unix.S_IFCHR|0600, int(system.Mkdev(1, 3))); err != nil {
+	if err := system.Mknod(devRootOnlyTest, unix.S_IFCHR|0o600, int(system.Mkdev(1, 3))); err != nil {
 		t.Fatal(err)
 	}
 	defer os.Remove(devRootOnlyTest)
@@ -238,7 +238,7 @@ func TestRunWithAlternativeContainerdShim(t *testing.T) {
 			t.Errorf("shimDir RemoveAll cleanup: %v", err)
 		}
 	})
-	assert.Assert(t, os.Chmod(shimDir, 0777))
+	assert.Assert(t, os.Chmod(shimDir, 0o777))
 	shimDir, err = filepath.Abs(shimDir)
 	assert.Assert(t, err)
 	assert.Assert(t, os.Symlink(realShimPath, filepath.Join(shimDir, "containerd-shim-realfake-v42")))
