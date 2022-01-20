@@ -155,25 +155,12 @@ FROM base AS tomll
 # in CI in the hack/validate/toml script.
 #
 # When updating this version, consider updating the github.com/pelletier/go-toml
-# dependency in vendor.conf accordingly.
+# dependency in vendor.mod accordingly.
 ARG GOTOML_VERSION=v1.8.1
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         GOBIN=/build/ GO111MODULE=on go install "github.com/pelletier/go-toml/cmd/tomll@${GOTOML_VERSION}" \
      && /build/tomll --help
-
-FROM base AS vndr
-# VNDR_VERSION specifies the version of the vndr tool to build and install
-# from the https://github.com/LK4D4/vndr repository.
-#
-# The vndr tool is used to manage vendored go packages in the vendor directory,
-# and is pinned to a fixed version because different versions of this tool
-# can result in differences in the (go) files that are considered for vendoring.
-ARG VNDR_VERSION=v0.1.2
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ GO111MODULE=on go install "github.com/LK4D4/vndr@${VNDR_VERSION}" \
-     && /build/vndr --help
 
 FROM dev-base AS containerd
 ARG DEBIAN_FRONTEND
@@ -318,7 +305,6 @@ COPY --from=tomll         /build/ /usr/local/bin/
 COPY --from=tini          /build/ /usr/local/bin/
 COPY --from=registry      /build/ /usr/local/bin/
 COPY --from=criu          /build/ /usr/local/bin/
-COPY --from=vndr          /build/ /usr/local/bin/
 COPY --from=gotestsum     /build/ /usr/local/bin/
 COPY --from=golangci_lint /build/ /usr/local/bin/
 COPY --from=shfmt         /build/ /usr/local/bin/
