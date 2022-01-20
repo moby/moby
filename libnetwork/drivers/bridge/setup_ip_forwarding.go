@@ -13,7 +13,7 @@ import (
 
 const (
 	ipv4ForwardConf     = "/proc/sys/net/ipv4/ip_forward"
-	ipv4ForwardConfPerm = 0644
+	ipv4ForwardConfPerm = 0o644
 )
 
 func configureIPForwarding(enable bool) error {

@@ -203,7 +203,6 @@ type iptRule struct {
 }
 
 func setupIPTablesInternal(hostIP net.IP, bridgeIface string, addr *net.IPNet, icc, ipmasq, hairpin, enable bool) error {
-
 	var (
 		address   = addr.String()
 		skipDNAT  = iptRule{table: iptables.Nat, chain: DockerChain, preArgs: []string{"-t", "nat"}, args: []string{"-i", bridgeIface, "-j", "RETURN"}}
@@ -260,7 +259,6 @@ func setupIPTablesInternal(hostIP net.IP, bridgeIface string, addr *net.IPNet, i
 }
 
 func programChainRule(version iptables.IPVersion, rule iptRule, ruleDescr string, insert bool) error {
-
 	iptable := iptables.GetIptable(version)
 
 	var (

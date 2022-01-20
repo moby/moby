@@ -116,7 +116,8 @@ func TestLinkCreateTwo(t *testing.T) {
 
 	config := &networkConfiguration{
 		BridgeName: DefaultBridgeName,
-		EnableIPv6: true}
+		EnableIPv6: true,
+	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
@@ -152,7 +153,8 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 	}
 
 	config := &networkConfiguration{
-		BridgeName: DefaultBridgeName}
+		BridgeName: DefaultBridgeName,
+	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
@@ -187,7 +189,8 @@ func TestLinkDelete(t *testing.T) {
 
 	config := &networkConfiguration{
 		BridgeName: DefaultBridgeName,
-		EnableIPv6: true}
+		EnableIPv6: true,
+	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 

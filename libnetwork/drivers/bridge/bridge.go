@@ -50,8 +50,10 @@ func (d defaultBridgeNetworkConflict) Error() string {
 	return fmt.Sprintf("Stale default bridge network %s", d.ID)
 }
 
-type iptableCleanFunc func() error
-type iptablesCleanFuncs []iptableCleanFunc
+type (
+	iptableCleanFunc   func() error
+	iptablesCleanFuncs []iptableCleanFunc
+)
 
 // configuration info for the "bridge" driver.
 type configuration struct {
@@ -969,7 +971,8 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	// Generate and add the interface pipe host <-> sandbox
 	veth := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: hostIfName, TxQLen: 0},
-		PeerName:  containerIfName}
+		PeerName:  containerIfName,
+	}
 	if err = d.nlh.LinkAdd(veth); err != nil {
 		return types.InternalErrorf("failed to add the host (%s) <=> sandbox (%s) pair interfaces: %v", hostIfName, containerIfName, err)
 	}

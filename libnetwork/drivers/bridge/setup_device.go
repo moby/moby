@@ -57,7 +57,7 @@ func setupDefaultSysctl(config *networkConfiguration, i *bridgeInterface) error 
 			Info("failed to read ipv6 net.ipv6.conf.<bridge>.accept_ra")
 		return nil
 	}
-	if err := os.WriteFile(sysPath, []byte{'0', '\n'}, 0644); err != nil {
+	if err := os.WriteFile(sysPath, []byte{'0', '\n'}, 0o644); err != nil {
 		log.G(context.TODO()).WithError(err).Warn("unable to disable IPv6 router advertisement")
 	}
 	return nil
