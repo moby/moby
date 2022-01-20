@@ -44,7 +44,7 @@ func (proxy *TCPProxy) clientLoop(client *net.TCPConn, quit chan bool) {
 	}
 
 	var wg sync.WaitGroup
-	var broker = func(to, from *net.TCPConn) {
+	broker := func(to, from *net.TCPConn) {
 		io.Copy(to, from)
 		from.CloseRead()
 		to.CloseWrite()
