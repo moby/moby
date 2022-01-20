@@ -8,14 +8,12 @@ import (
 	"testing"
 )
 
-var (
-	testMode os.FileMode = 0640
-)
+var testMode os.FileMode = 0o640
 
 func init() {
 	// Windows does not support full Linux file mode
 	if runtime.GOOS == "windows" {
-		testMode = 0666
+		testMode = 0o666
 	}
 }
 
@@ -56,7 +54,7 @@ func TestAtomicWriteSetCommit(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	if err := os.Mkdir(filepath.Join(tmpDir, "tmp"), 0700); err != nil {
+	if err := os.Mkdir(filepath.Join(tmpDir, "tmp"), 0o700); err != nil {
 		t.Fatalf("Error creating tmp directory: %s", err)
 	}
 
@@ -104,7 +102,7 @@ func TestAtomicWriteSetCancel(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	if err := os.Mkdir(filepath.Join(tmpDir, "tmp"), 0700); err != nil {
+	if err := os.Mkdir(filepath.Join(tmpDir, "tmp"), 0o700); err != nil {
 		t.Fatalf("Error creating tmp directory: %s", err)
 	}
 
