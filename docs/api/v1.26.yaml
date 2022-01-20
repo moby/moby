@@ -2980,7 +2980,6 @@ paths:
                 CpuRealtimeRuntime: 10000
                 Devices: []
                 IpcMode: ""
-                LxcConf: []
                 Memory: 0
                 MemorySwap: 0
                 MemoryReservation: 0
