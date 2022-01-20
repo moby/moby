@@ -137,7 +137,7 @@ func getLines(input []byte, commentMarker []byte) [][]byte {
 	lines := bytes.Split(input, []byte("\n"))
 	var output [][]byte
 	for _, currentLine := range lines {
-		var commentIndex = bytes.Index(currentLine, commentMarker)
+		commentIndex := bytes.Index(currentLine, commentMarker)
 		if commentIndex == -1 {
 			output = append(output, currentLine)
 		} else {
