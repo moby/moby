@@ -63,6 +63,7 @@ func initIPAMDrivers(r *DrvRegistry) error {
 
 	return nil
 }
+
 func TestNew(t *testing.T) {
 	getNew(t)
 }
