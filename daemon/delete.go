@@ -116,7 +116,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 	//
 	// If you arrived here and know the answer, you earned yourself a picture
 	// of a cute animal of your own choosing.
-	var stopTimeout = 3
+	stopTimeout := 3
 	if err := daemon.containerStop(context.TODO(), container, containertypes.StopOptions{Timeout: &stopTimeout}); err != nil {
 		return err
 	}

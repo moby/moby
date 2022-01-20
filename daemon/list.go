@@ -330,7 +330,6 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 			// Then walk down the graph and put the imageIds in imagesFilter
 			return populateImageFilterByParents(ctx, imagesFilter, img.ID(), daemon.imageService.Children)
 		})
-
 		if err != nil {
 			return nil, err
 		}

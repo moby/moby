@@ -141,7 +141,7 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 				return err
 			}
 
-			if err := idtools.MkdirAllAndChown(shmPath, 0700, rootIDs); err != nil {
+			if err := idtools.MkdirAllAndChown(shmPath, 0o700, rootIDs); err != nil {
 				return err
 			}
 
@@ -196,7 +196,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		if err != nil {
 			return errors.Wrap(err, "error getting secret file path")
 		}
-		if err := idtools.MkdirAllAndChown(filepath.Dir(fPath), 0700, rootIDs); err != nil {
+		if err := idtools.MkdirAllAndChown(filepath.Dir(fPath), 0o700, rootIDs); err != nil {
 			return errors.Wrap(err, "error creating secret mount path")
 		}
 
@@ -247,7 +247,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		if err != nil {
 			return errors.Wrap(err, "error getting config file path for container")
 		}
-		if err := idtools.MkdirAllAndChown(filepath.Dir(fPath), 0700, rootIDs); err != nil {
+		if err := idtools.MkdirAllAndChown(filepath.Dir(fPath), 0o700, rootIDs); err != nil {
 			return errors.Wrap(err, "error creating config mount path")
 		}
 
@@ -294,7 +294,7 @@ func (daemon *Daemon) createSecretsDir(c *container.Container) error {
 	}
 
 	// create tmpfs
-	if err := idtools.MkdirAllAndChown(dir, 0700, rootIDs); err != nil {
+	if err := idtools.MkdirAllAndChown(dir, 0o700, rootIDs); err != nil {
 		return errors.Wrap(err, "error creating secret local mount path")
 	}
 
@@ -461,5 +461,5 @@ func (daemon *Daemon) setupContainerMountsRoot(c *container.Container) error {
 	if err != nil {
 		return err
 	}
-	return idtools.MkdirAllAndChown(p, 0710, idtools.Identity{UID: idtools.CurrentIdentity().UID, GID: daemon.IdentityMapping().RootPair().GID})
+	return idtools.MkdirAllAndChown(p, 0o710, idtools.Identity{UID: idtools.CurrentIdentity().UID, GID: daemon.IdentityMapping().RootPair().GID})
 }

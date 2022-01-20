@@ -169,7 +169,6 @@ func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container
 }
 
 func (daemon *Daemon) initializeNetworkingPaths(container *container.Container, nc *container.Container) error {
-
 	if nc.HostConfig.Isolation.IsHyperV() {
 		return fmt.Errorf("sharing of hyperv containers network is not supported")
 	}

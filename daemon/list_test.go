@@ -40,7 +40,7 @@ func setupContainerWithName(t *testing.T, name string, daemon *Daemon) *containe
 		computedImageID = image.ID(digest.FromString(id))
 		cRoot           = filepath.Join(root, id)
 	)
-	if err := os.MkdirAll(cRoot, 0755); err != nil {
+	if err := os.MkdirAll(cRoot, 0o755); err != nil {
 		t.Fatal(err)
 	}
 

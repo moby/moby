@@ -258,9 +258,9 @@ func TestRootMountCleanup(t *testing.T) {
 	cfg.ExecRoot = filepath.Join(testRoot, "exec")
 	cfg.Root = filepath.Join(testRoot, "daemon")
 
-	err = os.Mkdir(cfg.ExecRoot, 0755)
+	err = os.Mkdir(cfg.ExecRoot, 0o755)
 	assert.NilError(t, err)
-	err = os.Mkdir(cfg.Root, 0755)
+	err = os.Mkdir(cfg.Root, 0o755)
 	assert.NilError(t, err)
 
 	d := &Daemon{root: cfg.Root}
@@ -319,7 +319,7 @@ func TestRootMountCleanup(t *testing.T) {
 		err = mount.MakeShared(testRoot)
 		assert.NilError(t, err)
 		defer mount.MakePrivate(testRoot)
-		err = os.WriteFile(unmountFile, nil, 0644)
+		err = os.WriteFile(unmountFile, nil, 0o644)
 		assert.NilError(t, err)
 
 		err = setupDaemonRootPropagation(&cfg.Config)

@@ -42,16 +42,16 @@ func Setup(initLayerFs string, rootIdentity idtools.Identity) error {
 
 		if _, err := os.Stat(filepath.Join(initLayer, pth)); err != nil {
 			if os.IsNotExist(err) {
-				if err := idtools.MkdirAllAndChownNew(filepath.Join(initLayer, filepath.Dir(pth)), 0755, rootIdentity); err != nil {
+				if err := idtools.MkdirAllAndChownNew(filepath.Join(initLayer, filepath.Dir(pth)), 0o755, rootIdentity); err != nil {
 					return err
 				}
 				switch typ {
 				case "dir":
-					if err := idtools.MkdirAllAndChownNew(filepath.Join(initLayer, pth), 0755, rootIdentity); err != nil {
+					if err := idtools.MkdirAllAndChownNew(filepath.Join(initLayer, pth), 0o755, rootIdentity); err != nil {
 						return err
 					}
 				case "file":
-					f, err := os.OpenFile(filepath.Join(initLayer, pth), os.O_CREATE, 0755)
+					f, err := os.OpenFile(filepath.Join(initLayer, pth), os.O_CREATE, 0o755)
 					if err != nil {
 						return err
 					}

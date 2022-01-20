@@ -219,7 +219,6 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 
 // Sets the Windows-specific fields of the OCI spec
 func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.Spec, isHyperV bool) error {
-
 	s.Hostname = c.FullHostname()
 
 	if len(s.Process.Cwd) == 0 {

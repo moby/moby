@@ -150,7 +150,7 @@ func TestContainerInitDNS(t *testing.T) {
 
 	containerID := "d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e"
 	containerPath := filepath.Join(tmp, containerID)
-	if err := os.MkdirAll(containerPath, 0755); err != nil {
+	if err := os.MkdirAll(containerPath, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -176,7 +176,7 @@ func TestContainerInitDNS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = os.WriteFile(configPath, []byte(config), 0644); err != nil {
+	if err = os.WriteFile(configPath, []byte(config), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -189,7 +189,7 @@ func TestContainerInitDNS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = os.WriteFile(hostConfigPath, []byte(hostConfig), 0644); err != nil {
+	if err = os.WriteFile(hostConfigPath, []byte(hostConfig), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

@@ -70,7 +70,7 @@ func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 		assert.NilError(t, err)
 		dummyCredFileName := "dummy-cred-spec.json"
 		dummyCredFilePath := filepath.Join(credSpecsDir, dummyCredFileName)
-		err = os.WriteFile(dummyCredFilePath, []byte(dummyCredFileContents), 0644)
+		err = os.WriteFile(dummyCredFilePath, []byte(dummyCredFileContents), 0o644)
 		defer func() {
 			assert.NilError(t, os.Remove(dummyCredFilePath))
 		}()

@@ -24,7 +24,7 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 	root := t.TempDir()
 
 	rootfs := filepath.Join(root, "rootfs")
-	err := os.MkdirAll(rootfs, 0755)
+	err := os.MkdirAll(rootfs, 0o755)
 	assert.NilError(t, err)
 
 	netController, err := libnetwork.New()

@@ -17,10 +17,10 @@ import (
 )
 
 func (daemon *Daemon) configureLocalContentStore(ns string) (content.Store, leases.Manager, error) {
-	if err := os.MkdirAll(filepath.Join(daemon.root, "content"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(daemon.root, "content"), 0o700); err != nil {
 		return nil, nil, errors.Wrap(err, "error creating dir for content store")
 	}
-	db, err := bbolt.Open(filepath.Join(daemon.root, "content", "metadata.db"), 0600, nil)
+	db, err := bbolt.Open(filepath.Join(daemon.root, "content", "metadata.db"), 0o600, nil)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "error opening bolt db for content metadata store")
 	}

@@ -31,7 +31,7 @@ func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir s
 		case err == nil && stat.IsDir():
 			err2 = fmt.Errorf("checkpoint with name %s already exists for container %s", checkpointID, ctrName)
 		case err != nil && os.IsNotExist(err):
-			err2 = os.MkdirAll(checkpointAbsDir, 0700)
+			err2 = os.MkdirAll(checkpointAbsDir, 0o700)
 		case err != nil:
 			err2 = err
 		default:
@@ -111,7 +111,7 @@ func (daemon *Daemon) CheckpointList(name string, config types.CheckpointListOpt
 		return nil, err
 	}
 
-	if err := os.MkdirAll(checkpointDir, 0755); err != nil {
+	if err := os.MkdirAll(checkpointDir, 0o755); err != nil {
 		return nil, err
 	}
 

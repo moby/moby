@@ -10,6 +10,7 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Microsoft/hcsshim/osversion"
+	"github.com/containerd/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
@@ -28,7 +29,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/pkg/errors"
-	"github.com/containerd/containerd/log"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc/mgr"
 )
@@ -198,7 +198,7 @@ func checkSystem() error {
 
 	// Ensure that the required Host Network Service and vmcompute services
 	// are running. Docker will fail in unexpected ways if this is not present.
-	var requiredServices = []string{"hns", "vmcompute"}
+	requiredServices := []string{"hns", "vmcompute"}
 	if err := ensureServicesInstalled(requiredServices); err != nil {
 		return errors.Wrap(err, "a required service is not installed, ensure the Containers feature is installed")
 	}
@@ -390,7 +390,6 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 			}),
 			libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
 		)
-
 		if err != nil {
 			log.G(context.TODO()).Errorf("Error occurred when creating network %v", err)
 		}
@@ -482,7 +481,6 @@ func (daemon *Daemon) runAsHyperVContainer(hostConfig *containertypes.HostConfig
 
 	// Container is requesting an isolation mode. Honour it.
 	return hostConfig.Isolation.IsHyperV()
-
 }
 
 // conditionalMountOnStart is a platform specific helper function during the

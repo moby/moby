@@ -685,7 +685,6 @@ func cleanOperationalData(es *network.EndpointSettings) {
 }
 
 func (daemon *Daemon) updateNetworkConfig(container *container.Container, n libnetwork.Network, endpointConfig *networktypes.EndpointSettings, updateSettings bool) error {
-
 	if containertypes.NetworkMode(n.Name()).IsUserDefined() {
 		addShortID := true
 		shortID := stringid.TruncateID(container.ID)

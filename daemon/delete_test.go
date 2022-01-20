@@ -45,7 +45,8 @@ func TestContainerDelete(t *testing.T) {
 			fixMsg: "Unpause and then stop the container before attempting removal or force remove",
 			initContainer: func() *container.Container {
 				return newContainerWithState(&container.State{Paused: true, Running: true})
-			}},
+			},
+		},
 		// a restarting container
 		{
 			errMsg: "cannot remove a restarting container",
@@ -55,14 +56,16 @@ func TestContainerDelete(t *testing.T) {
 				c.SetRunning(nil, nil, true)
 				c.SetRestarting(&container.ExitStatus{})
 				return c
-			}},
+			},
+		},
 		// a running container
 		{
 			errMsg: "cannot remove a running container",
 			fixMsg: "Stop the container before attempting removal or force remove",
 			initContainer: func() *container.Container {
 				return newContainerWithState(&container.State{Running: true})
-			}},
+			},
+		},
 	}
 
 	for _, te := range tt {
