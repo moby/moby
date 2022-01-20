@@ -688,6 +688,7 @@ func (bla byLikeness) Less(i, j int) bool {
 	bMatch := numOfMatchingPathComponents(bla.arr[j].SourceRepository, bla.pathComponents)
 	return aMatch > bMatch
 }
+
 func (bla byLikeness) Swap(i, j int) {
 	bla.arr[i], bla.arr[j] = bla.arr[j], bla.arr[i]
 }

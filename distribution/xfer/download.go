@@ -96,7 +96,6 @@ type DownloadDescriptor interface {
 // registered layer. This method is called if a cast to DigestRegisterer is
 // successful.
 type DigestRegisterer interface {
-
 	// TODO existing implementations in distribution and builder-next swallow errors
 	// when registering the diffID. Consider changing the Registered signature
 	// to return the error.
