@@ -14,11 +14,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-var (
-	// ErrDoesNotExist is returned if a reference is not found in the
-	// store.
-	ErrDoesNotExist notFoundError = "reference does not exist"
-)
+// ErrDoesNotExist is returned if a reference is not found in the
+// store.
+var ErrDoesNotExist notFoundError = "reference does not exist"
 
 // An Association is a tuple associating a reference with an image ID.
 type Association struct {
@@ -317,7 +315,7 @@ func (store *refStore) save() error {
 	if err != nil {
 		return err
 	}
-	return ioutils.AtomicWriteFile(store.jsonPath, jsonData, 0600)
+	return ioutils.AtomicWriteFile(store.jsonPath, jsonData, 0o600)
 }
 
 func (store *refStore) reload() error {
