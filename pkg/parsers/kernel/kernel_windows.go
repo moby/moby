@@ -21,7 +21,6 @@ func (k *VersionInfo) String() string {
 
 // GetKernelVersion gets the current kernel version.
 func GetKernelVersion() (*VersionInfo, error) {
-
 	KVI := &VersionInfo{"Unknown", 0, 0, 0}
 
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.QUERY_VALUE)
