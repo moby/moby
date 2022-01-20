@@ -37,7 +37,8 @@ func TestInfoAPI(t *testing.T) {
 		"KernelVersion",
 		"Driver",
 		"ServerVersion",
-		"SecurityOptions"}
+		"SecurityOptions",
+	}
 
 	out := fmt.Sprintf("%+v", info)
 	for _, linePrefix := range stringsToCheck {

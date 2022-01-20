@@ -111,7 +111,7 @@ func TestPingBuilderHeader(t *testing.T) {
 		d.Start(t)
 		defer d.Stop(t)
 
-		var expected = types.BuilderBuildKit
+		expected := types.BuilderBuildKit
 		if runtime.GOOS == "windows" {
 			expected = types.BuilderV1
 		}
@@ -123,12 +123,12 @@ func TestPingBuilderHeader(t *testing.T) {
 
 	t.Run("buildkit disabled", func(t *testing.T) {
 		cfg := filepath.Join(d.RootDir(), "daemon.json")
-		err := os.WriteFile(cfg, []byte(`{"features": { "buildkit": false }}`), 0644)
+		err := os.WriteFile(cfg, []byte(`{"features": { "buildkit": false }}`), 0o644)
 		assert.NilError(t, err)
 		d.Start(t, "--config-file", cfg)
 		defer d.Stop(t)
 
-		var expected = types.BuilderV1
+		expected := types.BuilderV1
 		p, err := client.Ping(ctx)
 		assert.NilError(t, err)
 		assert.Equal(t, p.BuilderVersion, expected)
