@@ -154,7 +154,6 @@ func (d *driver) peerDbSearch(nid string, peerIP net.IP) (*peerKey, *peerEntry, 
 
 		return false
 	})
-
 	if err != nil {
 		return nil, nil, fmt.Errorf("peerdb search for peer ip %q failed: %v", peerIP, err)
 	}
@@ -262,8 +261,7 @@ func (d *driver) peerInitOp(nid string) error {
 	})
 }
 
-func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
-	peerMac net.HardwareAddr, vtep net.IP, l2Miss, l3Miss, localPeer bool) {
+func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask, peerMac net.HardwareAddr, vtep net.IP, l2Miss, l3Miss, localPeer bool) {
 	d.peerOpMu.Lock()
 	defer d.peerOpMu.Unlock()
 	err := d.peerAddOp(nid, eid, peerIP, peerIPMask, peerMac, vtep, l2Miss, l3Miss, true, localPeer)
@@ -343,8 +341,7 @@ func (d *driver) peerAddOp(nid, eid string, peerIP net.IP, peerIPMask net.IPMask
 	return nil
 }
 
-func (d *driver) peerDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
-	peerMac net.HardwareAddr, vtep net.IP, localPeer bool) {
+func (d *driver) peerDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMask, peerMac net.HardwareAddr, vtep net.IP, localPeer bool) {
 	d.peerOpMu.Lock()
 	defer d.peerOpMu.Unlock()
 	err := d.peerDeleteOp(nid, eid, peerIP, peerIPMask, peerMac, vtep, localPeer)
