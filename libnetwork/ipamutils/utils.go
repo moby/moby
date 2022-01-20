@@ -15,9 +15,15 @@ var (
 	// (10.x.x.x/24) which do not overlap with the networks in `PredefinedLocalScopeDefaultNetworks`
 	predefinedGlobalScopeDefaultNetworks []*net.IPNet
 	mutex                                sync.Mutex
-	localScopeDefaultNetworks            = []*NetworkToSplit{{"172.17.0.0/16", 16}, {"172.18.0.0/16", 16}, {"172.19.0.0/16", 16},
-		{"172.20.0.0/14", 16}, {"172.24.0.0/14", 16}, {"172.28.0.0/14", 16},
-		{"192.168.0.0/16", 20}}
+	localScopeDefaultNetworks            = []*NetworkToSplit{
+		{"172.17.0.0/16", 16},
+		{"172.18.0.0/16", 16},
+		{"172.19.0.0/16", 16},
+		{"172.20.0.0/14", 16},
+		{"172.24.0.0/14", 16},
+		{"172.28.0.0/14", 16},
+		{"192.168.0.0/16", 20},
+	}
 	globalScopeDefaultNetworks = []*NetworkToSplit{{"10.0.0.0/8", 24}}
 )
 
