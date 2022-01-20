@@ -46,7 +46,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 		specPath = filepath.Join(os.Getenv("programdata"), "docker", "plugins")
 	}
 
-	if err := os.MkdirAll(specPath, 0755); err != nil {
+	if err := os.MkdirAll(specPath, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -61,7 +61,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 		t.Fatal("Failed to start an HTTP Server")
 	}
 
-	if err := os.WriteFile(filepath.Join(specPath, name+".spec"), []byte(server.URL), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(specPath, name+".spec"), []byte(server.URL), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -216,7 +216,7 @@ func (test *testEndpoint) AddTableEntry(tableName string, key string, value []by
 }
 
 func TestGetEmptyCapabilities(t *testing.T) {
-	var plugin = "test-net-driver-empty-cap"
+	plugin := "test-net-driver-empty-cap"
 
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
@@ -246,7 +246,7 @@ func TestGetEmptyCapabilities(t *testing.T) {
 }
 
 func TestGetExtraCapabilities(t *testing.T) {
-	var plugin = "test-net-driver-extra-cap"
+	plugin := "test-net-driver-extra-cap"
 
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
@@ -284,7 +284,7 @@ func TestGetExtraCapabilities(t *testing.T) {
 }
 
 func TestGetInvalidCapabilities(t *testing.T) {
-	var plugin = "test-net-driver-invalid-cap"
+	plugin := "test-net-driver-invalid-cap"
 
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
@@ -316,7 +316,7 @@ func TestGetInvalidCapabilities(t *testing.T) {
 }
 
 func TestRemoteDriver(t *testing.T) {
-	var plugin = "test-net-driver"
+	plugin := "test-net-driver"
 
 	ep := &testEndpoint{
 		t:              t,
@@ -484,7 +484,7 @@ func TestRemoteDriver(t *testing.T) {
 }
 
 func TestDriverError(t *testing.T) {
-	var plugin = "test-net-driver-error"
+	plugin := "test-net-driver-error"
 
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
@@ -512,7 +512,7 @@ func TestDriverError(t *testing.T) {
 }
 
 func TestMissingValues(t *testing.T) {
-	var plugin = "test-net-driver-missing"
+	plugin := "test-net-driver-missing"
 
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
@@ -548,8 +548,7 @@ func TestMissingValues(t *testing.T) {
 	}
 }
 
-type rollbackEndpoint struct {
-}
+type rollbackEndpoint struct{}
 
 func (r *rollbackEndpoint) Interface() driverapi.InterfaceInfo {
 	return r
@@ -576,7 +575,7 @@ func (r *rollbackEndpoint) SetIPAddress(ip *net.IPNet) error {
 }
 
 func TestRollback(t *testing.T) {
-	var plugin = "test-net-driver-rollback"
+	plugin := "test-net-driver-rollback"
 
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
