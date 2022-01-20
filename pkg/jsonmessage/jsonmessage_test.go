@@ -34,7 +34,7 @@ func TestProgressString(t *testing.T) {
 		}
 	}
 
-	var testcases = []struct {
+	testcases := []struct {
 		name     string
 		progress JSONProgress
 		expected expected
@@ -220,9 +220,7 @@ func TestJSONMessageDisplayWithJSONError(t *testing.T) {
 }
 
 func TestDisplayJSONMessagesStreamInvalidJSON(t *testing.T) {
-	var (
-		inFd uintptr
-	)
+	var inFd uintptr
 	data := bytes.NewBuffer([]byte{})
 	reader := strings.NewReader("This is not a 'valid' JSON []")
 	inFd, _ = term.GetFdInfo(reader)
@@ -234,15 +232,14 @@ func TestDisplayJSONMessagesStreamInvalidJSON(t *testing.T) {
 }
 
 func TestDisplayJSONMessagesStream(t *testing.T) {
-	var (
-		inFd uintptr
-	)
+	var inFd uintptr
 
 	messages := map[string][]string{
 		// empty string
 		"": {
 			"",
-			""},
+			"",
+		},
 		// Without progress & ID
 		"{ \"status\": \"status\" }": {
 			"status\n",
