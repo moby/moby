@@ -562,7 +562,7 @@ func (l *logStream) collectBatch(created chan bool) {
 	ticker := newTicker(flushInterval)
 	var eventBuffer []byte
 	var eventBufferTimestamp int64
-	var batch = newEventBatch()
+	batch := newEventBatch()
 	for {
 		select {
 		case t := <-ticker.C:
@@ -691,7 +691,6 @@ func (l *logStream) publishBatch(batch *eventBatch) {
 	cwEvents := unwrapEvents(batch.events())
 
 	nextSequenceToken, err := l.putLogEvents(cwEvents, l.sequenceToken)
-
 	if err != nil {
 		if apiErr := (*types.DataAlreadyAcceptedException)(nil); errors.As(err, &apiErr) {
 			// already submitted, just grab the correct sequence token
