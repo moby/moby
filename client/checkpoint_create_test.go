@@ -67,7 +67,6 @@ func TestCheckpointCreate(t *testing.T) {
 		CheckpointID: expectedCheckpointID,
 		Exit:         true,
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -66,7 +66,7 @@ func TestContainerStatPath(t *testing.T) {
 			}
 			content, err := json.Marshal(types.ContainerPathStat{
 				Name: "name",
-				Mode: 0700,
+				Mode: 0o700,
 			})
 			if err != nil {
 				return nil, err
@@ -88,7 +88,7 @@ func TestContainerStatPath(t *testing.T) {
 	if stat.Name != "name" {
 		t.Fatalf("expected container path stat name to be 'name', got '%s'", stat.Name)
 	}
-	if stat.Mode != 0700 {
+	if stat.Mode != 0o700 {
 		t.Fatalf("expected container path stat mode to be 0700, got '%v'", stat.Mode)
 	}
 }
@@ -190,7 +190,7 @@ func TestCopyFromContainerEmptyResponse(t *testing.T) {
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			content, err := json.Marshal(types.ContainerPathStat{
 				Name: "path/to/file",
-				Mode: 0700,
+				Mode: 0o700,
 			})
 			if err != nil {
 				return nil, err
@@ -244,7 +244,7 @@ func TestCopyFromContainer(t *testing.T) {
 
 			headercontent, err := json.Marshal(types.ContainerPathStat{
 				Name: "name",
-				Mode: 0700,
+				Mode: 0o700,
 			})
 			if err != nil {
 				return nil, err
@@ -267,7 +267,7 @@ func TestCopyFromContainer(t *testing.T) {
 	if stat.Name != "name" {
 		t.Fatalf("expected container path stat name to be 'name', got '%s'", stat.Name)
 	}
-	if stat.Mode != 0700 {
+	if stat.Mode != 0o700 {
 		t.Fatalf("expected container path stat mode to be 0700, got '%v'", stat.Mode)
 	}
 	content, err := io.ReadAll(r)
