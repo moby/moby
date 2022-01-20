@@ -106,7 +106,7 @@ func Build(path, IP, hostname, domainname string, extraContent []Record) error {
 		}
 	}
 
-	return os.WriteFile(path, content.Bytes(), 0644)
+	return os.WriteFile(path, content.Bytes(), 0o644)
 }
 
 // Add adds an arbitrary number of Records to an already existing /etc/hosts file
@@ -122,7 +122,7 @@ func Add(path string, recs []Record) error {
 		return err
 	}
 
-	return os.WriteFile(path, b, 0644)
+	return os.WriteFile(path, b, 0o644)
 }
 
 func mergeRecords(path string, recs []Record) ([]byte, error) {
@@ -187,7 +187,7 @@ loop:
 	if err := s.Err(); err != nil {
 		return err
 	}
-	return os.WriteFile(path, buf.Bytes(), 0644)
+	return os.WriteFile(path, buf.Bytes(), 0o644)
 }
 
 // Update all IP addresses where hostname matches.
@@ -201,6 +201,6 @@ func Update(path, IP, hostname string) error {
 	if err != nil {
 		return err
 	}
-	var re = regexp.MustCompile(fmt.Sprintf("(\\S*)(\\t%s)(\\s|\\.)", regexp.QuoteMeta(hostname)))
-	return os.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$2"+"$3")), 0644)
+	re := regexp.MustCompile(fmt.Sprintf("(\\S*)(\\t%s)(\\s|\\.)", regexp.QuoteMeta(hostname)))
+	return os.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$2"+"$3")), 0o644)
 }
