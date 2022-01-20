@@ -39,7 +39,6 @@ func TestLoadProfile(t *testing.T) {
 				}},
 			},
 			{
-
 				Names:  []string{"open"},
 				Action: specs.ActAllow,
 				Args:   []specs.LinuxSeccompArg{},
@@ -62,7 +61,7 @@ func TestLoadProfile(t *testing.T) {
 }
 
 func TestLoadProfileWithDefaultErrnoRet(t *testing.T) {
-	var profile = []byte(`{
+	profile := []byte(`{
 "defaultAction": "SCMP_ACT_ERRNO",
 "defaultErrnoRet": 6
 }`)
@@ -82,7 +81,7 @@ func TestLoadProfileWithDefaultErrnoRet(t *testing.T) {
 }
 
 func TestLoadProfileWithListenerPath(t *testing.T) {
-	var profile = []byte(`{
+	profile := []byte(`{
 "defaultAction": "SCMP_ACT_ERRNO",
 "listenerPath": "/var/run/seccompaget.sock",
 "listenerMetadata": "opaque-metadata"
