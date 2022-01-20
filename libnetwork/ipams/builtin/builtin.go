@@ -8,10 +8,8 @@ import (
 	"github.com/docker/docker/libnetwork/ipamutils"
 )
 
-var (
-	// defaultAddressPool Stores user configured subnet list
-	defaultAddressPool []*net.IPNet
-)
+// defaultAddressPool Stores user configured subnet list
+var defaultAddressPool []*net.IPNet
 
 // registerBuiltin registers the built-in ipam driver with libnetwork.
 func registerBuiltin(ic ipamapi.Registerer) error {
