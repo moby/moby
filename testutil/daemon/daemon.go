@@ -99,7 +99,7 @@ type Daemon struct {
 func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 	storageDriver := os.Getenv("DOCKER_GRAPHDRIVER")
 
-	if err := os.MkdirAll(SockRoot, 0700); err != nil {
+	if err := os.MkdirAll(SockRoot, 0o700); err != nil {
 		return nil, errors.Wrapf(err, "failed to create daemon socket root %q", SockRoot)
 	}
 
@@ -110,7 +110,7 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 		return nil, err
 	}
 	daemonRoot := filepath.Join(daemonFolder, "root")
-	if err := os.MkdirAll(daemonRoot, 0755); err != nil {
+	if err := os.MkdirAll(daemonRoot, 0o755); err != nil {
 		return nil, errors.Wrapf(err, "failed to create daemon root %q", daemonRoot)
 	}
 
@@ -140,7 +140,7 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 	}
 
 	if d.rootlessUser != nil {
-		if err := os.Chmod(SockRoot, 0777); err != nil {
+		if err := os.Chmod(SockRoot, 0o777); err != nil {
 			return nil, err
 		}
 		uid, err := strconv.Atoi(d.rootlessUser.Uid)
@@ -157,20 +157,20 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 		if err := os.Chown(d.Root, uid, gid); err != nil {
 			return nil, err
 		}
-		if err := os.MkdirAll(filepath.Dir(d.execRoot), 0700); err != nil {
+		if err := os.MkdirAll(filepath.Dir(d.execRoot), 0o700); err != nil {
 			return nil, err
 		}
 		if err := os.Chown(filepath.Dir(d.execRoot), uid, gid); err != nil {
 			return nil, err
 		}
-		if err := os.MkdirAll(d.execRoot, 0700); err != nil {
+		if err := os.MkdirAll(d.execRoot, 0o700); err != nil {
 			return nil, err
 		}
 		if err := os.Chown(d.execRoot, uid, gid); err != nil {
 			return nil, err
 		}
 		d.rootlessXDGRuntimeDir = filepath.Join(d.Folder, "xdgrun")
-		if err := os.MkdirAll(d.rootlessXDGRuntimeDir, 0700); err != nil {
+		if err := os.MkdirAll(d.rootlessXDGRuntimeDir, 0o700); err != nil {
 			return nil, err
 		}
 		if err := os.Chown(d.rootlessXDGRuntimeDir, uid, gid); err != nil {
@@ -308,7 +308,7 @@ func (d *Daemon) Start(t testing.TB, args ...string) {
 // StartWithError starts the daemon and return once it is ready to receive requests.
 // It returns an error in case it couldn't start.
 func (d *Daemon) StartWithError(args ...string) error {
-	logFile, err := os.OpenFile(filepath.Join(d.Folder, "docker.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
+	logFile, err := os.OpenFile(filepath.Join(d.Folder, "docker.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o600)
 	if err != nil {
 		return errors.Wrapf(err, "[%s] failed to create logfile", d.id)
 	}

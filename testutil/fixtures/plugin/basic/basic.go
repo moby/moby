@@ -14,7 +14,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if err := os.MkdirAll(p, 0755); err != nil {
+	if err := os.MkdirAll(p, 0o755); err != nil {
 		panic(err)
 	}
 	l, err := net.Listen("unix", filepath.Join(p, "basic.sock"))

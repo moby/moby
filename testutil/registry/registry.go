@@ -78,7 +78,7 @@ http:
 		username = "testuser"
 		password = "testpassword"
 		email = "test@test.org"
-		err := os.WriteFile(htpasswdPath, []byte(userpasswd), os.FileMode(0644))
+		err := os.WriteFile(htpasswdPath, []byte(userpasswd), os.FileMode(0o644))
 		assert.NilError(t, err)
 		authTemplate = fmt.Sprintf(`auth:
     htpasswd:
@@ -190,7 +190,7 @@ func (r *V2) ReadBlobContents(t testing.TB, blobDigest digest.Digest) []byte {
 // WriteBlobContents write the file corresponding to the specified digest with the given content
 func (r *V2) WriteBlobContents(t testing.TB, blobDigest digest.Digest, data []byte) {
 	t.Helper()
-	err := os.WriteFile(r.getBlobFilename(blobDigest), data, os.FileMode(0644))
+	err := os.WriteFile(r.getBlobFilename(blobDigest), data, os.FileMode(0o644))
 	assert.NilError(t, err, "unable to write malicious data blob")
 }
 

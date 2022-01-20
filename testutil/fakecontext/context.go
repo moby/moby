@@ -34,7 +34,7 @@ func newDir(fake *Fake) error {
 	if err != nil {
 		return err
 	}
-	if err := os.Chmod(tmp, 0755); err != nil {
+	if err := os.Chmod(tmp, 0o755); err != nil {
 		return err
 	}
 	fake.Dir = tmp
@@ -91,11 +91,11 @@ func (f *Fake) addFile(file string, content []byte) error {
 	fp := filepath.Join(f.Dir, filepath.FromSlash(file))
 	dirpath := filepath.Dir(fp)
 	if dirpath != "." {
-		if err := os.MkdirAll(dirpath, 0755); err != nil {
+		if err := os.MkdirAll(dirpath, 0o755); err != nil {
 			return err
 		}
 	}
-	return os.WriteFile(fp, content, 0644)
+	return os.WriteFile(fp, content, 0o644)
 }
 
 // Delete a file at a path

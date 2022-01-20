@@ -97,7 +97,8 @@ type remoteFileServer struct {
 func (f *remoteFileServer) URL() string {
 	u := url.URL{
 		Scheme: "http",
-		Host:   f.host}
+		Host:   f.host,
+	}
 	return u.String()
 }
 
