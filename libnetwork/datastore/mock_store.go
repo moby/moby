@@ -7,10 +7,8 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 )
 
-var (
-	// ErrNotImplemented exported
-	ErrNotImplemented = errors.New("Functionality not implemented")
-)
+// ErrNotImplemented exported
+var ErrNotImplemented = errors.New("Functionality not implemented")
 
 // MockData exported
 type MockData struct {

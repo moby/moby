@@ -207,6 +207,7 @@ type recStruct struct {
 func (r *recStruct) Key() []string {
 	return []string{"recStruct"}
 }
+
 func (r *recStruct) Value() []byte {
 	b, err := json.Marshal(r)
 	if err != nil {
@@ -249,7 +250,8 @@ func dummyKVObject(id string, retValue bool) *dummyObject {
 		DBIndex:     0,
 		ReturnValue: retValue,
 		DBExists:    false,
-		SkipSave:    false}
+		SkipSave:    false,
+	}
 	generic := make(map[string]interface{})
 	generic["label1"] = &recStruct{"value1", 1, cDict, 0, false, false}
 	generic["label2"] = "subnet=10.1.1.0/16"

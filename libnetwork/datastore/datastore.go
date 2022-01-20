@@ -128,8 +128,10 @@ const (
 	EndpointKeyPrefix = "endpoint"
 )
 
-var defaultRootChain = []string{"docker", "network", "v1.0"}
-var rootChain = defaultRootChain
+var (
+	defaultRootChain = []string{"docker", "network", "v1.0"}
+	rootChain        = defaultRootChain
+)
 
 // DefaultScope returns a default scope config for clients to use.
 func DefaultScope(dataDir string) ScopeCfg {
