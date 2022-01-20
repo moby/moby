@@ -947,7 +947,6 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (*
 		err := sb.osSbox.InvokeFunc(func() {
 			sb.osSbox.ApplyOSTweaks(sb.oslTypes)
 		})
-
 		if err != nil {
 			log.G(context.TODO()).Errorf("Failed to apply performance tuning sysctls to the sandbox: %v", err)
 		}

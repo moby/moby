@@ -9,7 +9,6 @@ import (
 const libnGWNetwork = "nat"
 
 func getPlatformOption() EndpointOption {
-
 	epOption := options.Generic{
 		windriver.DisableICC: true,
 		windriver.DisableDNS: true,

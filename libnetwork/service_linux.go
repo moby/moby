@@ -562,7 +562,7 @@ func (sb *Sandbox) configureFWMark(vip net.IP, fwMark uint32, ingressPorts []*Po
 				rule := append([]string{"-t", "nat", "-A", "POSTROUTING"}, ruleParams...)
 				rules = append(rules, rule)
 
-				err := os.WriteFile("/proc/sys/net/ipv4/vs/conntrack", []byte{'1', '\n'}, 0644)
+				err := os.WriteFile("/proc/sys/net/ipv4/vs/conntrack", []byte{'1', '\n'}, 0o644)
 				if err != nil {
 					innerErr = err
 					return

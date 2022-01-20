@@ -379,9 +379,10 @@ type StaticRoute struct {
 func (r *StaticRoute) GetCopy() *StaticRoute {
 	d := GetIPNetCopy(r.Destination)
 	nh := GetIPCopy(r.NextHop)
-	return &StaticRoute{Destination: d,
-		RouteType: r.RouteType,
-		NextHop:   nh,
+	return &StaticRoute{
+		Destination: d,
+		RouteType:   r.RouteType,
+		NextHop:     nh,
 	}
 }
 

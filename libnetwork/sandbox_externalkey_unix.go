@@ -105,7 +105,7 @@ func (c *Controller) startExternalKeyListener() error {
 		execRoot = v
 	}
 	udsBase := filepath.Join(execRoot, execSubdir)
-	if err := os.MkdirAll(udsBase, 0600); err != nil {
+	if err := os.MkdirAll(udsBase, 0o600); err != nil {
 		return err
 	}
 	shortCtlrID := stringid.TruncateID(c.id)
@@ -114,7 +114,7 @@ func (c *Controller) startExternalKeyListener() error {
 	if err != nil {
 		return err
 	}
-	if err := os.Chmod(uds, 0600); err != nil {
+	if err := os.Chmod(uds, 0o600); err != nil {
 		l.Close()
 		return err
 	}

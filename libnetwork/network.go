@@ -1643,7 +1643,7 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 		// irrespective of whether ipam driver returned a gateway already.
 		// If none of the above is true, libnetwork will allocate one.
 		if cfg.Gateway != "" || d.Gateway == nil {
-			var gatewayOpts = map[string]string{
+			gatewayOpts := map[string]string{
 				ipamapi.RequestAddressType: netlabel.Gateway,
 			}
 			if d.Gateway, _, err = ipam.RequestAddress(d.PoolID, net.ParseIP(cfg.Gateway), gatewayOpts); err != nil {
@@ -1919,7 +1919,7 @@ func (n *network) Labels() map[string]string {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
-	var lbls = make(map[string]string, len(n.labels))
+	lbls := make(map[string]string, len(n.labels))
 	for k, v := range n.labels {
 		lbls[k] = v
 	}
