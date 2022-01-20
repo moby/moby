@@ -13,9 +13,7 @@ import (
 	"github.com/docker/docker/libnetwork/internal/kvstore/boltdb"
 )
 
-var (
-	defaultPrefix = filepath.Join(os.TempDir(), "libnetwork", "test", "bitseq")
-)
+var defaultPrefix = filepath.Join(os.TempDir(), "libnetwork", "test", "bitseq")
 
 func init() {
 	boltdb.Register()
