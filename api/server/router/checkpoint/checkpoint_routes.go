@@ -35,7 +35,6 @@ func (s *checkpointRouter) getContainerCheckpoints(ctx context.Context, w http.R
 	checkpoints, err := s.backend.CheckpointList(vars["name"], types.CheckpointListOptions{
 		CheckpointDir: r.Form.Get("dir"),
 	})
-
 	if err != nil {
 		return err
 	}
@@ -52,7 +51,6 @@ func (s *checkpointRouter) deleteContainerCheckpoint(ctx context.Context, w http
 		CheckpointDir: r.Form.Get("dir"),
 		CheckpointID:  vars["checkpoint"],
 	})
-
 	if err != nil {
 		return err
 	}

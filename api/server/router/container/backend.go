@@ -53,7 +53,6 @@ type monitorBackend interface {
 	ContainerLogs(ctx context.Context, name string, config *types.ContainerLogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
 	ContainerStats(ctx context.Context, name string, config *backend.ContainerStatsConfig) error
 	ContainerTop(name string, psArgs string) (*container.ContainerTopOKBody, error)
-
 	Containers(ctx context.Context, config *types.ContainerListOptions) ([]*types.Container, error)
 }
 

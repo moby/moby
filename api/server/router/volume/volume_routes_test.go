@@ -78,7 +78,6 @@ func TestGetVolumeByNameFoundRegular(t *testing.T) {
 	v := &volumeRouter{
 		backend: &fakeVolumeBackend{
 			volumes: map[string]*volume.Volume{
-
 				"volume1": {
 					Name: "volume1",
 				},
@@ -108,6 +107,7 @@ func TestGetVolumeByNameFoundSwarm(t *testing.T) {
 	_, err := callGetVolume(v, "volume1")
 	assert.NilError(t, err)
 }
+
 func TestListVolumes(t *testing.T) {
 	v := &volumeRouter{
 		backend: &fakeVolumeBackend{

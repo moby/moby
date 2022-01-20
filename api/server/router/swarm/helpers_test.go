@@ -9,9 +9,7 @@ import (
 )
 
 func TestAdjustForAPIVersion(t *testing.T) {
-	var (
-		expectedSysctls = map[string]string{"foo": "bar"}
-	)
+	expectedSysctls := map[string]string{"foo": "bar"}
 	// testing the negative -- does this leave everything else alone? -- is
 	// prohibitively time-consuming to write, because it would need an object
 	// with literally every field filled in.
