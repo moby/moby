@@ -3,8 +3,8 @@ package zfs // import "github.com/docker/docker/daemon/graphdriver/zfs"
 import (
 	"strings"
 
-	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/containerd/containerd/log"
+	"github.com/docker/docker/daemon/graphdriver"
 	"golang.org/x/sys/unix"
 )
 

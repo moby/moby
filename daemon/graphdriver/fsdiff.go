@@ -12,11 +12,9 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 )
 
-var (
-	// ApplyUncompressedLayer defines the unpack method used by the graph
-	// driver.
-	ApplyUncompressedLayer = chrootarchive.ApplyUncompressedLayer
-)
+// ApplyUncompressedLayer defines the unpack method used by the graph
+// driver.
+var ApplyUncompressedLayer = chrootarchive.ApplyUncompressedLayer
 
 // NaiveDiffDriver takes a ProtoDriver and adds the
 // capability of the Diffing methods on the local file system,
@@ -41,8 +39,10 @@ type NaiveDiffDriver struct {
 //	ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error)
 //	DiffSize(id, parent string) (size int64, err error)
 func NewNaiveDiffDriver(driver ProtoDriver, idMap idtools.IdentityMapping) Driver {
-	return &NaiveDiffDriver{ProtoDriver: driver,
-		IDMap: idMap}
+	return &NaiveDiffDriver{
+		ProtoDriver: driver,
+		IDMap:       idMap,
+	}
 }
 
 // Diff produces an archive of the changes between the specified

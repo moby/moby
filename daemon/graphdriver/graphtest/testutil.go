@@ -36,17 +36,17 @@ func addFiles(drv graphdriver.Driver, layer string, seed int64) error {
 	}
 	defer drv.Put(layer)
 
-	if err := os.WriteFile(filepath.Join(root, "file-a"), randomContent(64, seed), 0755); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "file-a"), randomContent(64, seed), 0o755); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Join(root, "dir-b"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "dir-b"), 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(root, "dir-b", "file-b"), randomContent(128, seed+1), 0755); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "dir-b", "file-b"), randomContent(128, seed+1), 0o755); err != nil {
 		return err
 	}
 
-	return os.WriteFile(filepath.Join(root, "file-c"), randomContent(128*128, seed+2), 0755)
+	return os.WriteFile(filepath.Join(root, "file-c"), randomContent(128*128, seed+2), 0o755)
 }
 
 func checkFile(drv graphdriver.Driver, layer, filename string, content []byte) error {
@@ -75,7 +75,7 @@ func addFile(drv graphdriver.Driver, layer, filename string, content []byte) err
 	}
 	defer drv.Put(layer)
 
-	return os.WriteFile(filepath.Join(root, filename), content, 0755)
+	return os.WriteFile(filepath.Join(root, filename), content, 0o755)
 }
 
 func addDirectory(drv graphdriver.Driver, layer, dir string) error {
@@ -85,7 +85,7 @@ func addDirectory(drv graphdriver.Driver, layer, dir string) error {
 	}
 	defer drv.Put(layer)
 
-	return os.MkdirAll(filepath.Join(root, dir), 0755)
+	return os.MkdirAll(filepath.Join(root, dir), 0o755)
 }
 
 func removeAll(drv graphdriver.Driver, layer string, names ...string) error {
@@ -128,12 +128,12 @@ func addManyFiles(drv graphdriver.Driver, layer string, count int, seed int64) e
 
 	for i := 0; i < count; i += 100 {
 		dir := filepath.Join(root, fmt.Sprintf("directory-%d", i))
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return err
 		}
 		for j := 0; i+j < count && j < 100; j++ {
 			file := filepath.Join(dir, fmt.Sprintf("file-%d", i+j))
-			if err := os.WriteFile(file, randomContent(64, seed+int64(i+j)), 0755); err != nil {
+			if err := os.WriteFile(file, randomContent(64, seed+int64(i+j)), 0o755); err != nil {
 				return err
 			}
 		}
@@ -152,7 +152,7 @@ func changeManyFiles(drv graphdriver.Driver, layer string, count int, seed int64
 	var changes []archive.Change
 	for i := 0; i < count; i += 100 {
 		archiveRoot := fmt.Sprintf("/directory-%d", i)
-		if err := os.MkdirAll(filepath.Join(root, archiveRoot), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Join(root, archiveRoot), 0o755); err != nil {
 			return nil, err
 		}
 		for j := 0; i+j < count && j < 100; j++ {
@@ -168,14 +168,14 @@ func changeManyFiles(drv graphdriver.Driver, layer string, count int, seed int64
 			case 0:
 				change.Path = filepath.Join(archiveRoot, fmt.Sprintf("file-%d", i+j))
 				change.Kind = archive.ChangeModify
-				if err := os.WriteFile(filepath.Join(root, change.Path), randomContent(64, seed+int64(i+j)), 0755); err != nil {
+				if err := os.WriteFile(filepath.Join(root, change.Path), randomContent(64, seed+int64(i+j)), 0o755); err != nil {
 					return nil, err
 				}
 			// Add file
 			case 1:
 				change.Path = filepath.Join(archiveRoot, fmt.Sprintf("file-%d-%d", seed, i+j))
 				change.Kind = archive.ChangeAdd
-				if err := os.WriteFile(filepath.Join(root, change.Path), randomContent(64, seed+int64(i+j)), 0755); err != nil {
+				if err := os.WriteFile(filepath.Join(root, change.Path), randomContent(64, seed+int64(i+j)), 0o755); err != nil {
 					return nil, err
 				}
 			// Remove file
@@ -254,17 +254,17 @@ func addLayerFiles(drv graphdriver.Driver, layer, parent string, i int) error {
 	}
 	defer drv.Put(layer)
 
-	if err := os.WriteFile(filepath.Join(root, "top-id"), []byte(layer), 0755); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "top-id"), []byte(layer), 0o755); err != nil {
 		return err
 	}
 	layerDir := filepath.Join(root, fmt.Sprintf("layer-%d", i))
-	if err := os.MkdirAll(layerDir, 0755); err != nil {
+	if err := os.MkdirAll(layerDir, 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(layerDir, "layer-id"), []byte(layer), 0755); err != nil {
+	if err := os.WriteFile(filepath.Join(layerDir, "layer-id"), []byte(layer), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(layerDir, "parent-id"), []byte(parent), 0755)
+	return os.WriteFile(filepath.Join(layerDir, "parent-id"), []byte(parent), 0o755)
 }
 
 func addManyLayers(drv graphdriver.Driver, baseLayer string, count int) (string, error) {

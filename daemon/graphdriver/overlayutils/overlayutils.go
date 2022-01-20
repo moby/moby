@@ -60,7 +60,7 @@ func SupportsOverlay(d string, checkMultipleLowers bool) error {
 	}()
 
 	for _, dir := range []string{"lower1", "lower2", "upper", "work", "merged"} {
-		if err := os.Mkdir(filepath.Join(td, dir), 0755); err != nil {
+		if err := os.Mkdir(filepath.Join(td, dir), 0o755); err != nil {
 			return err
 		}
 	}

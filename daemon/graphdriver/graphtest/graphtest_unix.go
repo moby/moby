@@ -18,9 +18,7 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-var (
-	drv *Driver
-)
+var drv *Driver
 
 // Driver conforms to graphdriver.Driver interface and
 // contains information such as root and reference count of the number of clients using it.
@@ -35,7 +33,7 @@ func newDriver(t testing.TB, name string, options []string) *Driver {
 	root, err := os.MkdirTemp("", "docker-graphtest-")
 	assert.NilError(t, err)
 
-	assert.NilError(t, os.MkdirAll(root, 0755))
+	assert.NilError(t, os.MkdirAll(root, 0o755))
 	d, err := graphdriver.GetDriver(name, nil, graphdriver.Options{DriverOptions: options, Root: root})
 	if err != nil {
 		t.Logf("graphdriver: %v\n", err)
@@ -95,7 +93,7 @@ func DriverTestCreateEmpty(t testing.TB, drivername string, driverOptions ...str
 	dir, err := driver.Get("empty", "")
 	assert.NilError(t, err)
 
-	verifyFile(t, dir, 0755|os.ModeDir, 0, 0)
+	verifyFile(t, dir, 0o755|os.ModeDir, 0, 0)
 
 	// Verify that the directory is empty
 	fis, err := readDir(dir)
@@ -296,7 +294,7 @@ func writeRandomFile(path string, size uint64) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0700)
+	return os.WriteFile(path, data, 0o700)
 }
 
 // DriverTestSetQuota Create a driver and test setting quota.

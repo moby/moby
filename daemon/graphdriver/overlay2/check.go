@@ -40,22 +40,22 @@ func doesSupportNativeDiff(d string) error {
 	}()
 
 	// Make directories l1/d, l1/d1, l2/d, l3, work, merged
-	if err := os.MkdirAll(filepath.Join(td, "l1", "d"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(td, "l1", "d"), 0o755); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Join(td, "l1", "d1"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(td, "l1", "d1"), 0o755); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Join(td, "l2", "d"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(td, "l2", "d"), 0o755); err != nil {
 		return err
 	}
-	if err := os.Mkdir(filepath.Join(td, "l3"), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(td, "l3"), 0o755); err != nil {
 		return err
 	}
-	if err := os.Mkdir(filepath.Join(td, workDirName), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(td, workDirName), 0o755); err != nil {
 		return err
 	}
-	if err := os.Mkdir(filepath.Join(td, mergedDirName), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(td, mergedDirName), 0o755); err != nil {
 		return err
 	}
 
@@ -75,7 +75,7 @@ func doesSupportNativeDiff(d string) error {
 	}()
 
 	// Touch file in d to force copy up of opaque directory "d" from "l2" to "l3"
-	if err := os.WriteFile(filepath.Join(td, mergedDirName, "d", "f"), []byte{}, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(td, mergedDirName, "d", "f"), []byte{}, 0o644); err != nil {
 		return errors.Wrap(err, "failed to write to merged directory")
 	}
 
@@ -149,13 +149,13 @@ func usingMetacopy(d string) (bool, error) {
 
 	l1, l2, work, merged := filepath.Join(td, "l1"), filepath.Join(td, "l2"), filepath.Join(td, "work"), filepath.Join(td, "merged")
 	for _, dir := range []string{l1, l2, work, merged} {
-		if err := os.Mkdir(dir, 0755); err != nil {
+		if err := os.Mkdir(dir, 0o755); err != nil {
 			return false, err
 		}
 	}
 
 	// Create empty file in l1 with 0700 permissions for metacopy test
-	if err := os.WriteFile(filepath.Join(l1, "f"), []byte{}, 0700); err != nil {
+	if err := os.WriteFile(filepath.Join(l1, "f"), []byte{}, 0o700); err != nil {
 		return false, err
 	}
 
@@ -180,7 +180,7 @@ func usingMetacopy(d string) (bool, error) {
 	}()
 
 	// Make a change that only impacts the inode, in the upperdir
-	if err := os.Chmod(filepath.Join(merged, "f"), 0600); err != nil {
+	if err := os.Chmod(filepath.Join(merged, "f"), 0o600); err != nil {
 		return false, errors.Wrap(err, "error changing permissions on file for metacopy check")
 	}
 

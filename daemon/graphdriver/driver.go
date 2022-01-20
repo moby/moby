@@ -24,10 +24,8 @@ const (
 	FsMagicUnsupported = FsMagic(0x00000000)
 )
 
-var (
-	// All registered drivers
-	drivers map[string]InitFunc
-)
+// All registered drivers
+var drivers map[string]InitFunc
 
 // CreateOpts contains optional arguments for Create() and CreateReadWrite()
 // methods.
