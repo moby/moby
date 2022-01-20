@@ -352,7 +352,8 @@ func setInterfaceMaster(nlh *netlink.Handle, iface netlink.Link, i *nwIface) err
 	}
 
 	return nlh.LinkSetMaster(iface, &netlink.Bridge{
-		LinkAttrs: netlink.LinkAttrs{Name: i.DstMaster()}})
+		LinkAttrs: netlink.LinkAttrs{Name: i.DstMaster()},
+	})
 }
 
 func setInterfaceMAC(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {

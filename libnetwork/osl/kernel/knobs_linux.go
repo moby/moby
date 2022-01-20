@@ -13,7 +13,7 @@ import (
 // For e.g. net.ipv4.ip_forward translated to /proc/sys/net/ipv4/ip_forward.
 func writeSystemProperty(key, value string) error {
 	keyPath := strings.ReplaceAll(key, ".", "/")
-	return os.WriteFile(path.Join("/proc/sys", keyPath), []byte(value), 0644)
+	return os.WriteFile(path.Join("/proc/sys", keyPath), []byte(value), 0o644)
 }
 
 // readSystemProperty reads the value from the path under /proc/sys and returns it

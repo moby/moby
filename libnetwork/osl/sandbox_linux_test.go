@@ -58,7 +58,8 @@ func newKey(t *testing.T) (string, error) {
 func newInfo(hnd *netlink.Handle, t *testing.T) (Sandbox, error) {
 	veth := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: vethName1, TxQLen: 0},
-		PeerName:  vethName2}
+		PeerName:  vethName2,
+	}
 	if err := hnd.LinkAdd(veth); err != nil {
 		return nil, err
 	}
@@ -97,7 +98,8 @@ func newInfo(hnd *netlink.Handle, t *testing.T) (Sandbox, error) {
 
 	veth = &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: vethName3, TxQLen: 0},
-		PeerName:  vethName4}
+		PeerName:  vethName4,
+	}
 
 	if err := hnd.LinkAdd(veth); err != nil {
 		return nil, err
