@@ -32,7 +32,6 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		EndpointMAC:      ep.mac.String(),
 		TunnelEndpointIP: n.providerAddress,
 	})
-
 	if err != nil {
 		return err
 	}

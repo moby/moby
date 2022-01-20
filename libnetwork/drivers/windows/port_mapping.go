@@ -100,7 +100,7 @@ func allocatePort(portMapper *portmapper.PortMapper, bnd *types.PortBinding, con
 		// For completeness
 		return ErrUnsupportedAddressType(fmt.Sprintf("%T", netAddr))
 	}
-	//Windows does not support host port ranges.
+	// Windows does not support host port ranges.
 	bnd.HostPortEnd = bnd.HostPort
 	return nil
 }
