@@ -89,7 +89,7 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 	}
 	r.setDefaults()
 
-	if err := system.MkdirAll(stateDir, 0700); err != nil {
+	if err := system.MkdirAll(stateDir, 0o700); err != nil {
 		return nil, err
 	}
 
@@ -109,6 +109,7 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 
 	return r, nil
 }
+
 func (r *remote) WaitTimeout(d time.Duration) error {
 	timeout := time.NewTimer(d)
 	defer timeout.Stop()
@@ -127,7 +128,7 @@ func (r *remote) Address() string {
 }
 
 func (r *remote) getContainerdConfig() (string, error) {
-	f, err := os.OpenFile(r.configFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(r.configFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to open containerd config file (%s)", r.configFile)
 	}

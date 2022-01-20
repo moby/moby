@@ -721,13 +721,15 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 				c.logger.WithFields(logrus.Fields{
 					"topic":     ev.Topic,
 					"type":      reflect.TypeOf(t),
-					"container": t.ContainerID},
+					"container": t.ContainerID,
+				},
 				).Info("ignoring event")
 				continue
 			default:
 				c.logger.WithFields(logrus.Fields{
 					"topic": ev.Topic,
-					"type":  reflect.TypeOf(t)},
+					"type":  reflect.TypeOf(t),
+				},
 				).Info("ignoring event")
 				continue
 			}
