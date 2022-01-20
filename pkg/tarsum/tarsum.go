@@ -137,13 +137,11 @@ type tHashConfig struct {
 	hash crypto.Hash
 }
 
-var (
-	// NOTE: DO NOT include MD5 or SHA1, which are considered insecure.
-	standardHashConfigs = map[string]tHashConfig{
-		"sha256": {name: "sha256", hash: crypto.SHA256},
-		"sha512": {name: "sha512", hash: crypto.SHA512},
-	}
-)
+// NOTE: DO NOT include MD5 or SHA1, which are considered insecure.
+var standardHashConfigs = map[string]tHashConfig{
+	"sha256": {name: "sha256", hash: crypto.SHA256},
+	"sha512": {name: "sha512", hash: crypto.SHA512},
+}
 
 // DefaultTHash is default TarSum hashing algorithm - "sha256".
 var DefaultTHash = NewTHash("sha256", sha256.New)

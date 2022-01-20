@@ -35,52 +35,63 @@ var testLayers = []testLayer{
 		filename: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/layer.tar",
 		jsonfile: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/json",
 		version:  Version0,
-		tarsum:   "tarsum+sha256:4095cc12fa5fdb1ab2760377e1cd0c4ecdd3e61b4f9b82319d96fcea6c9a41c6"},
+		tarsum:   "tarsum+sha256:4095cc12fa5fdb1ab2760377e1cd0c4ecdd3e61b4f9b82319d96fcea6c9a41c6",
+	},
 	{
 		filename: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/layer.tar",
 		jsonfile: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/json",
 		version:  VersionDev,
-		tarsum:   "tarsum.dev+sha256:db56e35eec6ce65ba1588c20ba6b1ea23743b59e81fb6b7f358ccbde5580345c"},
+		tarsum:   "tarsum.dev+sha256:db56e35eec6ce65ba1588c20ba6b1ea23743b59e81fb6b7f358ccbde5580345c",
+	},
 	{
 		filename: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/layer.tar",
 		jsonfile: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/json",
 		gzip:     true,
-		tarsum:   "tarsum+sha256:4095cc12fa5fdb1ab2760377e1cd0c4ecdd3e61b4f9b82319d96fcea6c9a41c6"},
+		tarsum:   "tarsum+sha256:4095cc12fa5fdb1ab2760377e1cd0c4ecdd3e61b4f9b82319d96fcea6c9a41c6",
+	},
 	{
 		// Tests existing version of TarSum when xattrs are present
 		filename: "testdata/xattr/layer.tar",
 		jsonfile: "testdata/xattr/json",
 		version:  Version0,
-		tarsum:   "tarsum+sha256:07e304a8dbcb215b37649fde1a699f8aeea47e60815707f1cdf4d55d25ff6ab4"},
+		tarsum:   "tarsum+sha256:07e304a8dbcb215b37649fde1a699f8aeea47e60815707f1cdf4d55d25ff6ab4",
+	},
 	{
 		// Tests next version of TarSum when xattrs are present
 		filename: "testdata/xattr/layer.tar",
 		jsonfile: "testdata/xattr/json",
 		version:  VersionDev,
-		tarsum:   "tarsum.dev+sha256:6c58917892d77b3b357b0f9ad1e28e1f4ae4de3a8006bd3beb8beda214d8fd16"},
+		tarsum:   "tarsum.dev+sha256:6c58917892d77b3b357b0f9ad1e28e1f4ae4de3a8006bd3beb8beda214d8fd16",
+	},
 	{
 		filename: "testdata/511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158/layer.tar",
 		jsonfile: "testdata/511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158/json",
-		tarsum:   "tarsum+sha256:c66bd5ec9f87b8f4c6135ca37684618f486a3dd1d113b138d0a177bfa39c2571"},
+		tarsum:   "tarsum+sha256:c66bd5ec9f87b8f4c6135ca37684618f486a3dd1d113b138d0a177bfa39c2571",
+	},
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
-		tarsum:  "tarsum+sha256:75258b2c5dcd9adfe24ce71eeca5fc5019c7e669912f15703ede92b1a60cb11f"},
+		tarsum:  "tarsum+sha256:75258b2c5dcd9adfe24ce71eeca5fc5019c7e669912f15703ede92b1a60cb11f",
+	},
 	{
 		// this tar has two files with the same path
 		filename: "testdata/collision/collision-0.tar",
-		tarsum:   "tarsum+sha256:7cabb5e9128bb4a93ff867b9464d7c66a644ae51ea2e90e6ef313f3bef93f077"},
+		tarsum:   "tarsum+sha256:7cabb5e9128bb4a93ff867b9464d7c66a644ae51ea2e90e6ef313f3bef93f077",
+	},
 	{
 		// this tar has the same two files (with the same path), but reversed order. ensuring is has different hash than above
 		filename: "testdata/collision/collision-1.tar",
-		tarsum:   "tarsum+sha256:805fd393cfd58900b10c5636cf9bab48b2406d9b66523122f2352620c85dc7f9"},
+		tarsum:   "tarsum+sha256:805fd393cfd58900b10c5636cf9bab48b2406d9b66523122f2352620c85dc7f9",
+	},
 	{
 		// this tar has newer of collider-0.tar, ensuring is has different hash
 		filename: "testdata/collision/collision-2.tar",
-		tarsum:   "tarsum+sha256:85d2b8389f077659d78aca898f9e632ed9161f553f144aef100648eac540147b"},
+		tarsum:   "tarsum+sha256:85d2b8389f077659d78aca898f9e632ed9161f553f144aef100648eac540147b",
+	},
 	{
 		// this tar has newer of collider-1.tar, ensuring is has different hash
 		filename: "testdata/collision/collision-3.tar",
-		tarsum:   "tarsum+sha256:cbe4dee79fe979d69c16c2bccd032e3205716a562f4a3c1ca1cbeed7b256eb19"},
+		tarsum:   "tarsum+sha256:cbe4dee79fe979d69c16c2bccd032e3205716a562f4a3c1ca1cbeed7b256eb19",
+	},
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
 		tarsum:  "tarsum+md5:3a6cdb475d90459ac0d3280703d17be2",
@@ -138,7 +149,7 @@ func sizedTar(opts sizedOptions) io.Reader {
 	for i := int64(0); i < opts.num; i++ {
 		err := tarW.WriteHeader(&tar.Header{
 			Name:     fmt.Sprintf("/testdata%d", i),
-			Mode:     0755,
+			Mode:     0o755,
 			Uid:      0,
 			Gid:      0,
 			Size:     opts.size,
