@@ -36,10 +36,8 @@ import (
 // ProtocolSchemeHTTPV1 is the name of the protocol used for interacting with plugins using this package.
 const ProtocolSchemeHTTPV1 = "moby.plugins.http/v1"
 
-var (
-	// ErrNotImplements is returned if the plugin does not implement the requested driver.
-	ErrNotImplements = errors.New("Plugin does not implement the requested driver")
-)
+// ErrNotImplements is returned if the plugin does not implement the requested driver.
+var ErrNotImplements = errors.New("Plugin does not implement the requested driver")
 
 type plugins struct {
 	sync.Mutex

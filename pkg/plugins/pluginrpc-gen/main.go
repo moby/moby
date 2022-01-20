@@ -22,6 +22,7 @@ func (s stringSet) Set(value string) error {
 	s.values[value] = struct{}{}
 	return nil
 }
+
 func (s stringSet) GetValues() map[string]struct{} {
 	return s.values
 }
@@ -67,7 +68,7 @@ func main() {
 	pkg, err := Parse(*inputFile, *typeName)
 	errorOut(fmt.Sprintf("error parsing requested type %s", *typeName), err)
 
-	var analysis = struct {
+	analysis := struct {
 		InterfaceType string
 		RPCName       string
 		BuildTags     map[string]struct{}
@@ -78,7 +79,7 @@ func main() {
 	errorOut("parser error", generatedTempl.Execute(&buf, analysis))
 	src, err := format.Source(buf.Bytes())
 	errorOut("error formatting generated source:\n"+buf.String(), err)
-	errorOut("error writing file", os.WriteFile(*outputFile, src, 0644))
+	errorOut("error writing file", os.WriteFile(*outputFile, src, 0o644))
 }
 
 func toLower(s string) string {
