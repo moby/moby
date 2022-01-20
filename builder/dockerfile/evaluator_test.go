@@ -104,11 +104,10 @@ func TestDispatch(t *testing.T) {
 			defer cleanup()
 
 			for filename, content := range tc.files {
-				createTestTempFile(t, contextDir, filename, content, 0777)
+				createTestTempFile(t, contextDir, filename, content, 0o777)
 			}
 
 			tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
-
 			if err != nil {
 				t.Fatalf("Error when creating tar stream: %s", err)
 			}
@@ -120,7 +119,6 @@ func TestDispatch(t *testing.T) {
 			}()
 
 			buildContext, err := remotecontext.FromArchive(tarStream)
-
 			if err != nil {
 				t.Fatalf("Error when creating tar context: %s", err)
 			}

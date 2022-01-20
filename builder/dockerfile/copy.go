@@ -406,7 +406,7 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 		tmpFileName = unnamedFilename
 	}
 	tmpFileName = filepath.Join(tmpDir, tmpFileName)
-	tmpFile, err := os.OpenFile(tmpFileName, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+	tmpFile, err := os.OpenFile(tmpFileName, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return
 	}
@@ -510,11 +510,11 @@ func copyFile(archiver *archive.Archiver, source, dest string, identity *idtools
 		// modified for use on Windows to handle volume GUID paths. These paths
 		// are of the form \\?\Volume{<GUID>}\<path>. An example would be:
 		// \\?\Volume{dae8d3ac-b9a1-11e9-88eb-e8554b2ba1db}\bin\busybox.exe
-		if err := system.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		if err := system.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return err
 		}
 	} else {
-		if err := idtools.MkdirAllAndChownNew(filepath.Dir(dest), 0755, *identity); err != nil {
+		if err := idtools.MkdirAllAndChownNew(filepath.Dir(dest), 0o755, *identity); err != nil {
 			return errors.Wrapf(err, "failed to create new directory")
 		}
 	}
