@@ -142,6 +142,7 @@ func getDataPathPort(portNum uint32) (uint32, error) {
 	}
 	return portNum, nil
 }
+
 func resolveDataPathAddr(dataPathAddr string) (string, error) {
 	if dataPathAddr == "" {
 		// dataPathAddr is not defined

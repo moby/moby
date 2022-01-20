@@ -15,12 +15,12 @@ func TestNodeCSIInfoFromGRPC(t *testing.T) {
 		ID: "someID",
 		Description: &swarmapi.NodeDescription{
 			CSIInfo: []*swarmapi.NodeCSIInfo{
-				&swarmapi.NodeCSIInfo{
+				{
 					PluginName:        "plugin1",
 					NodeID:            "p1n1",
 					MaxVolumesPerNode: 1,
 				},
-				&swarmapi.NodeCSIInfo{
+				{
 					PluginName:        "plugin2",
 					NodeID:            "p2n1",
 					MaxVolumesPerNode: 2,

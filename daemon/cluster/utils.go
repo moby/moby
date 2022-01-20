@@ -32,7 +32,7 @@ func savePersistentState(root string, config nodeStartConfig) error {
 	if err != nil {
 		return err
 	}
-	return ioutils.AtomicWriteFile(filepath.Join(root, stateFile), dt, 0600)
+	return ioutils.AtomicWriteFile(filepath.Join(root, stateFile), dt, 0o600)
 }
 
 func clearPersistentState(root string) error {

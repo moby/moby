@@ -118,7 +118,8 @@ func endpointFromGRPC(e *swarmapi.Endpoint) types.Endpoint {
 		for _, v := range e.VirtualIPs {
 			endpoint.VirtualIPs = append(endpoint.VirtualIPs, types.EndpointVirtualIP{
 				NetworkID: v.NetworkID,
-				Addr:      v.Addr})
+				Addr:      v.Addr,
+			})
 		}
 	}
 
