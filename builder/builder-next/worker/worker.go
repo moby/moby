@@ -14,7 +14,6 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/rootfs"
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
-	"github.com/docker/docker/distribution"
 	distmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -70,7 +69,7 @@ type Opt struct {
 	ContentStore      content.Store
 	CacheManager      cache.Manager
 	ImageSource       *containerimage.Source
-	DownloadManager   distribution.RootFSDownloadManager
+	DownloadManager   *xfer.LayerDownloadManager
 	V2MetadataService distmetadata.V2MetadataService
 	Transport         nethttp.RoundTripper
 	Exporter          exporter.Exporter

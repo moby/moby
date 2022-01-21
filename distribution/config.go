@@ -56,7 +56,7 @@ type ImagePullConfig struct {
 	Config
 
 	// DownloadManager manages concurrent pulls.
-	DownloadManager RootFSDownloadManager
+	DownloadManager *xfer.LayerDownloadManager
 	// Schema2Types is the valid schema2 configuration types allowed
 	// by the pull operation.
 	Schema2Types []string
@@ -105,15 +105,6 @@ type PushLayer interface {
 	Size() (int64, error)
 	MediaType() string
 	Release()
-}
-
-// RootFSDownloadManager handles downloading of the rootfs
-type RootFSDownloadManager interface {
-	// Download downloads the layers into the given initial rootfs and
-	// returns the final rootfs.
-	// Given progress output to track download progress
-	// Returns function to release download resources
-	Download(ctx context.Context, initialRootFS image.RootFS, os string, layers []xfer.DownloadDescriptor, progressOutput progress.Output) (image.RootFS, func(), error)
 }
 
 type imageConfigStore struct {
