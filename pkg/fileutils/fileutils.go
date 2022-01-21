@@ -285,11 +285,22 @@ func (pm *PatternMatcher) Patterns() []*Pattern {
 
 // Pattern defines a single regexp used to filter file paths.
 type Pattern struct {
+	matchType      matchType
 	cleanedPattern string
 	dirs           []string
 	regexp         *regexp.Regexp
 	exclusion      bool
 }
+
+type matchType int
+
+const (
+	unknownMatch matchType = iota
+	exactMatch
+	prefixMatch
+	suffixMatch
+	regexpMatch
+)
 
 func (p *Pattern) String() string {
 	return p.cleanedPattern
@@ -301,18 +312,34 @@ func (p *Pattern) Exclusion() bool {
 }
 
 func (p *Pattern) match(path string) (bool, error) {
-	if p.regexp == nil {
-		if err := p.compile(); err != nil {
+	if p.matchType == unknownMatch {
+		if err := p.compile(string(os.PathSeparator)); err != nil {
 			return false, filepath.ErrBadPattern
 		}
 	}
 
-	b := p.regexp.MatchString(path)
+	switch p.matchType {
+	case exactMatch:
+		return path == p.cleanedPattern, nil
+	case prefixMatch:
+		// strip trailing **
+		return strings.HasPrefix(path, p.cleanedPattern[:len(p.cleanedPattern)-2]), nil
+	case suffixMatch:
+		// strip leading **
+		suffix := p.cleanedPattern[2:]
+		if strings.HasSuffix(path, suffix) {
+			return true, nil
+		}
+		// **/foo matches "foo"
+		return suffix[0] == os.PathSeparator && path == suffix[1:], nil
+	case regexpMatch:
+		return p.regexp.MatchString(path), nil
+	}
 
-	return b, nil
+	return false, nil
 }
 
-func (p *Pattern) compile() error {
+func (p *Pattern) compile(sl string) error {
 	regStr := "^"
 	pattern := p.cleanedPattern
 	// Go through the pattern and convert it to a regexp.
@@ -320,13 +347,13 @@ func (p *Pattern) compile() error {
 	var scan scanner.Scanner
 	scan.Init(strings.NewReader(pattern))
 
-	sl := string(os.PathSeparator)
 	escSL := sl
 	if sl == `\` {
 		escSL += `\`
 	}
 
-	for scan.Peek() != scanner.EOF {
+	p.matchType = exactMatch
+	for i := 0; scan.Peek() != scanner.EOF; i++ {
 		ch := scan.Next()
 
 		if ch == '*' {
@@ -341,20 +368,32 @@ func (p *Pattern) compile() error {
 
 				if scan.Peek() == scanner.EOF {
 					// is "**EOF" - to align with .gitignore just accept all
-					regStr += ".*"
+					if p.matchType == exactMatch {
+						p.matchType = prefixMatch
+					} else {
+						regStr += ".*"
+						p.matchType = regexpMatch
+					}
 				} else {
 					// is "**"
 					// Note that this allows for any # of /'s (even 0) because
 					// the .* will eat everything, even /'s
 					regStr += "(.*" + escSL + ")?"
+					p.matchType = regexpMatch
+				}
+
+				if i == 0 {
+					p.matchType = suffixMatch
 				}
 			} else {
 				// is "*" so map it to anything but "/"
 				regStr += "[^" + escSL + "]*"
+				p.matchType = regexpMatch
 			}
 		} else if ch == '?' {
 			// "?" is any char except "/"
 			regStr += "[^" + escSL + "]"
+			p.matchType = regexpMatch
 		} else if shouldEscape(ch) {
 			// Escape some regexp special chars that have no meaning
 			// in golang's filepath.Match
@@ -371,12 +410,20 @@ func (p *Pattern) compile() error {
 			}
 			if scan.Peek() != scanner.EOF {
 				regStr += `\` + string(scan.Next())
+				p.matchType = regexpMatch
 			} else {
 				regStr += `\`
 			}
+		} else if ch == '[' || ch == ']' {
+			regStr += string(ch)
+			p.matchType = regexpMatch
 		} else {
 			regStr += string(ch)
 		}
+	}
+
+	if p.matchType != regexpMatch {
+		return nil
 	}
 
 	regStr += "$"
@@ -387,6 +434,7 @@ func (p *Pattern) compile() error {
 	}
 
 	p.regexp = re
+	p.matchType = regexpMatch
 	return nil
 }
 

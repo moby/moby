@@ -382,10 +382,14 @@ func TestMatches(t *testing.T) {
 		{"a(b)c/def", "a(b)c/def", true},
 		{"a(b)c/def", "a(b)c/xyz", false},
 		{"a.|)$(}+{bc", "a.|)$(}+{bc", true},
+		{"dist/proxy.py-2.4.0rc3.dev36+g08acad9-py3-none-any.whl", "dist/proxy.py-2.4.0rc3.dev36+g08acad9-py3-none-any.whl", true},
+		{"dist/*.whl", "dist/proxy.py-2.4.0rc3.dev36+g08acad9-py3-none-any.whl", true},
 	}
 	multiPatternTests := []multiPatternTestCase{
 		{[]string{"**", "!util/docker/web"}, "util/docker/web/foo", false},
 		{[]string{"**", "!util/docker/web", "util/docker/web/foo"}, "util/docker/web/foo", true},
+		{[]string{"**", "!dist/proxy.py-2.4.0rc3.dev36+g08acad9-py3-none-any.whl"}, "dist/proxy.py-2.4.0rc3.dev36+g08acad9-py3-none-any.whl", false},
+		{[]string{"**", "!dist/*.whl"}, "dist/proxy.py-2.4.0rc3.dev36+g08acad9-py3-none-any.whl", false},
 	}
 
 	if runtime.GOOS != "windows" {
@@ -671,7 +675,7 @@ func errp(e error) string {
 	return e.Error()
 }
 
-// TestMatch test's our version of filepath.Match, called regexpMatch.
+// TestMatch tests our version of filepath.Match, called Matches.
 func TestMatch(t *testing.T) {
 	for _, tt := range matchTests {
 		pattern := tt.pattern
@@ -687,6 +691,81 @@ func TestMatch(t *testing.T) {
 		ok, err := Matches(s, []string{pattern})
 		if ok != tt.match || err != tt.err {
 			t.Fatalf("Match(%#q, %#q) = %v, %q want %v, %q", pattern, s, ok, errp(err), tt.match, errp(tt.err))
+		}
+	}
+}
+
+type compileTestCase struct {
+	pattern               string
+	matchType             matchType
+	compiledRegexp        string
+	windowsCompiledRegexp string
+}
+
+var compileTests = []compileTestCase{
+	{"*", regexpMatch, `^[^/]*$`, `^[^\\]*$`},
+	{"file*", regexpMatch, `^file[^/]*$`, `^file[^\\]*$`},
+	{"*file", regexpMatch, `^[^/]*file$`, `^[^\\]*file$`},
+	{"a*/b", regexpMatch, `^a[^/]*/b$`, `^a[^\\]*\\b$`},
+	{"**", suffixMatch, "", ""},
+	{"**/**", regexpMatch, `^(.*/)?.*$`, `^(.*\\)?.*$`},
+	{"dir/**", prefixMatch, "", ""},
+	{"**/dir", suffixMatch, "", ""},
+	{"**/dir2/*", regexpMatch, `^(.*/)?dir2/[^/]*$`, `^(.*\\)?dir2\\[^\\]*$`},
+	{"**/dir2/**", regexpMatch, `^(.*/)?dir2/.*$`, `^(.*\\)?dir2\\.*$`},
+	{"**file", suffixMatch, "", ""},
+	{"**/file*txt", regexpMatch, `^(.*/)?file[^/]*txt$`, `^(.*\\)?file[^\\]*txt$`},
+	{"**/**/*.txt", regexpMatch, `^(.*/)?(.*/)?[^/]*\.txt$`, `^(.*\\)?(.*\\)?[^\\]*\.txt$`},
+	{"a[b-d]e", regexpMatch, `^a[b-d]e$`, `^a[b-d]e$`},
+	{".*", regexpMatch, `^\.[^/]*$`, `^\.[^\\]*$`},
+	{"abc.def", exactMatch, "", ""},
+	{"abc?def", regexpMatch, `^abc[^/]def$`, `^abc[^\\]def$`},
+	{"**/foo/bar", suffixMatch, "", ""},
+	{"a(b)c/def", exactMatch, "", ""},
+	{"a.|)$(}+{bc", exactMatch, "", ""},
+	{"dist/proxy.py-2.4.0rc3.dev36+g08acad9-py3-none-any.whl", exactMatch, "", ""},
+}
+
+// TestCompile confirms that "compile" assigns the correct match type to a
+// variety of test case patterns. If the match type is regexp, it also confirms
+// that the compiled regexp matches the expected regexp.
+func TestCompile(t *testing.T) {
+	t.Run("slash", testCompile("/"))
+	t.Run("backslash", testCompile(`\`))
+}
+
+func testCompile(sl string) func(*testing.T) {
+	return func(t *testing.T) {
+		for _, tt := range compileTests {
+			// Avoid NewPatternMatcher, which has platform-specific behavior
+			pm := &PatternMatcher{
+				patterns: make([]*Pattern, 1),
+			}
+			pattern := path.Clean(tt.pattern)
+			if sl != "/" {
+				pattern = strings.ReplaceAll(pattern, "/", sl)
+			}
+			newp := &Pattern{}
+			newp.cleanedPattern = pattern
+			newp.dirs = strings.Split(pattern, sl)
+			pm.patterns[0] = newp
+
+			if err := pm.patterns[0].compile(sl); err != nil {
+				t.Fatalf("Failed to compile pattern %q: %v", pattern, err)
+			}
+			if pm.patterns[0].matchType != tt.matchType {
+				t.Errorf("pattern %q: matchType = %v, want %v", pattern, pm.patterns[0].matchType, tt.matchType)
+				continue
+			}
+			if tt.matchType == regexpMatch {
+				if sl == `\` {
+					if pm.patterns[0].regexp.String() != tt.windowsCompiledRegexp {
+						t.Errorf("pattern %q: regexp = %s, want %s", pattern, pm.patterns[0].regexp, tt.windowsCompiledRegexp)
+					}
+				} else if pm.patterns[0].regexp.String() != tt.compiledRegexp {
+					t.Errorf("pattern %q: regexp = %s, want %s", pattern, pm.patterns[0].regexp, tt.compiledRegexp)
+				}
+			}
 		}
 	}
 }
