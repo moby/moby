@@ -68,7 +68,7 @@ func TestTransfer(t *testing.T) {
 }
 
 func TestConcurrencyLimit(t *testing.T) {
-	concurrencyLimit := 3
+	const concurrencyLimit = 3
 	var runningJobs int32
 
 	makeXferFunc := func(id string) DoFunc {
@@ -126,7 +126,7 @@ func TestConcurrencyLimit(t *testing.T) {
 }
 
 func TestInactiveJobs(t *testing.T) {
-	concurrencyLimit := 3
+	const concurrencyLimit = 3
 	var runningJobs int32
 	testDone := make(chan struct{})
 
