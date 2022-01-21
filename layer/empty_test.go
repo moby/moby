@@ -20,11 +20,11 @@ func TestEmptyLayer(t *testing.T) {
 		t.Fatal("expected no parent for empty layer")
 	}
 
-	if size, err := EmptyLayer.Size(); err != nil || size != 0 {
+	if size := EmptyLayer.Size(); size != 0 {
 		t.Fatal("expected zero size for empty layer")
 	}
 
-	if diffSize, err := EmptyLayer.DiffSize(); err != nil || diffSize != 0 {
+	if diffSize := EmptyLayer.DiffSize(); diffSize != 0 {
 		t.Fatal("expected zero diffsize for empty layer")
 	}
 

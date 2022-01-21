@@ -33,10 +33,8 @@ func (i *ImageService) GetContainerLayerSize(containerID string) (int64, int64) 
 	}
 
 	if parent := rwlayer.Parent(); parent != nil {
-		sizeRootfs, err = parent.Size()
-		if err != nil {
-			sizeRootfs = -1
-		} else if sizeRw != -1 {
+		sizeRootfs = parent.Size()
+		if sizeRw != -1 {
 			sizeRootfs += sizeRw
 		}
 	}

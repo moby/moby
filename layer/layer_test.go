@@ -173,14 +173,9 @@ func getCachedLayer(l Layer) *roLayer {
 func createMetadata(layers ...Layer) []Metadata {
 	metadata := make([]Metadata, len(layers))
 	for i := range layers {
-		size, err := layers[i].Size()
-		if err != nil {
-			panic(err)
-		}
-
 		metadata[i].ChainID = layers[i].ChainID()
 		metadata[i].DiffID = layers[i].DiffID()
-		metadata[i].Size = size
+		metadata[i].Size = layers[i].Size()
 		metadata[i].DiffSize = getCachedLayer(layers[i]).size
 	}
 
@@ -229,15 +224,8 @@ func assertLayerEqual(t *testing.T, l1, l2 Layer) {
 		t.Fatalf("Mismatched DiffID: %s vs %s", l1.DiffID(), l2.DiffID())
 	}
 
-	size1, err := l1.Size()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	size2, err := l2.Size()
-	if err != nil {
-		t.Fatal(err)
-	}
+	size1 := l1.Size()
+	size2 := l2.Size()
 
 	if size1 != size2 {
 		t.Fatalf("Mismatched size: %d vs %d", size1, size2)
@@ -266,7 +254,7 @@ func TestMountAndRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	size, _ := layer.Size()
+	size := layer.Size()
 	t.Logf("Layer size: %d", size)
 
 	mount2, err := ls.CreateRWLayer("new-test-mount", layer.ChainID(), nil)

@@ -102,11 +102,11 @@ type Layer interface {
 
 	// Size returns the size of the entire layer chain. The size
 	// is calculated from the total size of all files in the layers.
-	Size() (int64, error)
+	Size() int64
 
 	// DiffSize returns the size difference of the top layer
 	// from parent layer.
-	DiffSize() (int64, error)
+	DiffSize() int64
 
 	// Metadata returns the low level storage metadata associated
 	// with layer.

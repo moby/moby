@@ -42,11 +42,7 @@ func (i *ImageService) LookupImage(name string) (*types.ImageInspect, error) {
 			return nil, err
 		}
 		defer layer.ReleaseAndLog(i.layerStore, l)
-		size, err = l.Size()
-		if err != nil {
-			return nil, err
-		}
-
+		size = l.Size()
 		layerMetadata, err = l.Metadata()
 		if err != nil {
 			return nil, err

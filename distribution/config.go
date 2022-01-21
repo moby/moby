@@ -230,7 +230,7 @@ func (l *storeLayer) Open() (io.ReadCloser, error) {
 }
 
 func (l *storeLayer) Size() (int64, error) {
-	return l.Layer.DiffSize()
+	return l.Layer.DiffSize(), nil
 }
 
 func (l *storeLayer) MediaType() string {

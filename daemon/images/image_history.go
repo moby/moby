@@ -40,12 +40,8 @@ func (i *ImageService) ImageHistory(name string) ([]*image.HistoryResponseItem, 
 			if err != nil {
 				return nil, err
 			}
-			layerSize, err = l.DiffSize()
+			layerSize = l.DiffSize()
 			layer.ReleaseAndLog(i.layerStore, l)
-			if err != nil {
-				return nil, err
-			}
-
 			layerCounter++
 		}
 

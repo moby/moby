@@ -143,12 +143,7 @@ deleteImagesLoop:
 		if d.Deleted != "" {
 			chid := layer.ChainID(d.Deleted)
 			if l, ok := allLayers[chid]; ok {
-				diffSize, err := l.DiffSize()
-				if err != nil {
-					logrus.Warnf("failed to get layer %s size: %v", chid, err)
-					continue
-				}
-				rep.SpaceReclaimed += uint64(diffSize)
+				rep.SpaceReclaimed += uint64(l.DiffSize())
 			}
 		}
 	}

@@ -42,12 +42,12 @@ func (el *emptyLayer) Parent() Layer {
 	return nil
 }
 
-func (el *emptyLayer) Size() (size int64, err error) {
-	return 0, nil
+func (el *emptyLayer) Size() int64 {
+	return 0
 }
 
-func (el *emptyLayer) DiffSize() (size int64, err error) {
-	return 0, nil
+func (el *emptyLayer) DiffSize() int64 {
+	return 0
 }
 
 func (el *emptyLayer) Metadata() (map[string]string, error) {

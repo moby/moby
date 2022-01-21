@@ -48,12 +48,12 @@ func (ml *mockLayer) Parent() layer.Layer {
 	return ml.parent
 }
 
-func (ml *mockLayer) Size() (size int64, err error) {
-	return 0, nil
+func (ml *mockLayer) Size() int64 {
+	return 0
 }
 
-func (ml *mockLayer) DiffSize() (size int64, err error) {
-	return 0, nil
+func (ml *mockLayer) DiffSize() int64 {
+	return 0
 }
 
 func (ml *mockLayer) Metadata() (map[string]string, error) {

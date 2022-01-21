@@ -128,11 +128,8 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 				return nil, err
 			}
 
-			size, err = l.Size()
+			size = l.Size()
 			layer.ReleaseAndLog(i.layerStore, l)
-			if err != nil {
-				return nil, err
-			}
 		}
 
 		summary := newImageSummary(img, size)
@@ -244,11 +241,7 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 					if _, ok := allLayers[chid]; !ok {
 						return nil, fmt.Errorf("layer %v was not found (corruption?)", chid)
 					}
-					diffSize, err := allLayers[chid].DiffSize()
-					if err != nil {
-						return nil, err
-					}
-					summary.SharedSize += diffSize
+					summary.SharedSize += allLayers[chid].DiffSize()
 				}
 			}
 		}
