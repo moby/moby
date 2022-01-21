@@ -8,7 +8,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest"
 	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/image-spec/specs-go/v1"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 const (
@@ -54,6 +54,9 @@ func init() {
 	}
 
 	imageIndexFunc := func(b []byte) (distribution.Manifest, distribution.Descriptor, error) {
+		if err := validateIndex(b); err != nil {
+			return nil, distribution.Descriptor{}, err
+		}
 		m := new(DeserializedManifestList)
 		err := m.UnmarshalJSON(b)
 		if err != nil {
@@ -213,4 +216,24 @@ func (m DeserializedManifestList) Payload() (string, []byte, error) {
 	}
 
 	return mediaType, m.canonical, nil
+}
+
+// unknownDocument represents a manifest, manifest list, or index that has not
+// yet been validated
+type unknownDocument struct {
+	Config interface{} `json:"config,omitempty"`
+	Layers interface{} `json:"layers,omitempty"`
+}
+
+// validateIndex returns an error if the byte slice is invalid JSON or if it
+// contains fields that belong to a manifest
+func validateIndex(b []byte) error {
+	var doc unknownDocument
+	if err := json.Unmarshal(b, &doc); err != nil {
+		return err
+	}
+	if doc.Config != nil || doc.Layers != nil {
+		return errors.New("index: expected index but found manifest")
+	}
+	return nil
 }

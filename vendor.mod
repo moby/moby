@@ -25,7 +25,7 @@ require (
 	github.com/coreos/go-systemd/v22 v22.3.2
 	github.com/creack/pty v1.1.11
 	github.com/deckarep/golang-set v0.0.0-20141123011944-ef32fa3046d9
-	github.com/docker/distribution v2.7.1+incompatible
+	github.com/docker/distribution v2.8.0+incompatible
 	github.com/docker/docker/autogen/winresources/dockerd v0.0.0-00010101000000-000000000000
 	github.com/docker/go-connections v0.4.0
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c
@@ -156,7 +156,6 @@ replace (
 	github.com/containerd/containerd => github.com/containerd/containerd v1.5.8
 	github.com/coreos/go-systemd => github.com/coreos/go-systemd v0.0.0-20180511133405-39ca1b05acc7
 	github.com/coreos/pkg => github.com/coreos/pkg v0.0.0-20180108230652-97fdf19511ea
-	github.com/docker/distribution => github.com/docker/distribution v2.7.1-0.20190205005809-0d3efadf0154+incompatible
 	github.com/gogo/googleapis => github.com/gogo/googleapis v1.3.2
 	github.com/golang/protobuf => github.com/golang/protobuf v1.3.5
 	github.com/google/go-cmp => github.com/google/go-cmp v0.2.0
