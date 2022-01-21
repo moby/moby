@@ -1073,6 +1073,9 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// used above to run migration. They could be initialized in ImageService
 	// if migration is called from daemon/images. layerStore might move as well.
 	d.imageService = images.NewImageService(imgSvcConfig)
+	logrus.Debugf("Max Concurrent Downloads: %d", imgSvcConfig.MaxConcurrentDownloads)
+	logrus.Debugf("Max Concurrent Uploads: %d", imgSvcConfig.MaxConcurrentUploads)
+	logrus.Debugf("Max Download Attempts: %d", imgSvcConfig.MaxDownloadAttempts)
 
 	go d.execCommandGC()
 
