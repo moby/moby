@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"runtime"
 	"time"
 
 	"github.com/docker/distribution"
@@ -14,7 +13,6 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/system"
 	"github.com/sirupsen/logrus"
 )
 
@@ -106,7 +104,7 @@ type DownloadDescriptorWithRegistered interface {
 // Download method is called to get the layer tar data. Layers are then
 // registered in the appropriate order.  The caller must call the returned
 // release function once it is done with the returned RootFS object.
-func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS image.RootFS, os string, layers []DownloadDescriptor, progressOutput progress.Output) (image.RootFS, func(), error) {
+func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS image.RootFS, layers []DownloadDescriptor, progressOutput progress.Output) (image.RootFS, func(), error) {
 	var (
 		topLayer       layer.Layer
 		topDownload    *downloadTransfer
@@ -115,16 +113,6 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		transferKey    = ""
 		downloadsByKey = make(map[string]*downloadTransfer)
 	)
-
-	// Assume that the operating system is the host OS if blank, and validate it
-	// to ensure we don't cause a panic by an invalid index into the layerstores.
-	// TODO remove now that LCOW is no longer a thing
-	if os == "" {
-		os = runtime.GOOS
-	}
-	if !system.IsOSSupported(os) {
-		return image.RootFS{}, nil, system.ErrNotSupportedOperatingSystem
-	}
 
 	rootFS := initialRootFS
 	for _, descriptor := range layers {

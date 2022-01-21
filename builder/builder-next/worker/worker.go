@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	nethttp "net/http"
-	"runtime"
 	"strings"
 	"time"
 
@@ -356,7 +355,7 @@ func (w *Worker) FromRemote(ctx context.Context, remote *solver.Remote) (cache.I
 	}()
 
 	r := image.NewRootFS()
-	rootFS, release, err := w.DownloadManager.Download(ctx, *r, runtime.GOOS, layers, &discardProgress{})
+	rootFS, release, err := w.DownloadManager.Download(ctx, *r, layers, &discardProgress{})
 	if err != nil {
 		return nil, err
 	}

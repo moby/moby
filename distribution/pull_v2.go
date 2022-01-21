@@ -547,7 +547,7 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unv
 		descriptors = append(descriptors, layerDescriptor)
 	}
 
-	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, runtime.GOOS, descriptors, p.config.ProgressOutput)
+	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, descriptors, p.config.ProgressOutput)
 	if err != nil {
 		return "", "", err
 	}
@@ -665,6 +665,12 @@ func (p *v2Puller) pullSchema2Layers(ctx context.Context, target distribution.De
 		}
 	}
 
+	// Assume that the operating system is the host OS if blank, and validate it
+	// to ensure we don't cause a panic by an invalid index into the layerstores.
+	if layerStoreOS != "" && !system.IsOSSupported(layerStoreOS) {
+		return "", system.ErrNotSupportedOperatingSystem
+	}
+
 	if p.config.DownloadManager != nil {
 		go func() {
 			var (
@@ -672,7 +678,7 @@ func (p *v2Puller) pullSchema2Layers(ctx context.Context, target distribution.De
 				rootFS image.RootFS
 			)
 			downloadRootFS := *image.NewRootFS()
-			rootFS, release, err = p.config.DownloadManager.Download(ctx, downloadRootFS, layerStoreOS, descriptors, p.config.ProgressOutput)
+			rootFS, release, err = p.config.DownloadManager.Download(ctx, downloadRootFS, descriptors, p.config.ProgressOutput)
 			if err != nil {
 				// Intentionally do not cancel the config download here
 				// as the error from config download (if there is one)
