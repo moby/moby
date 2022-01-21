@@ -1206,7 +1206,9 @@ func (daemon *Daemon) Shutdown() error {
 	}
 
 	if daemon.imageService != nil {
-		daemon.imageService.Cleanup()
+		if err := daemon.imageService.Cleanup(); err != nil {
+			logrus.Error(err)
+		}
 	}
 
 	// If we are part of a cluster, clean up cluster's stuff
