@@ -108,7 +108,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 	var (
 		topLayer       layer.Layer
 		topDownload    *downloadTransfer
-		watcher        *Watcher
+		watcher        *watcher
 		missingLayer   bool
 		transferKey    = ""
 		downloadsByKey = make(map[string]*downloadTransfer)

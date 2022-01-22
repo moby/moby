@@ -48,7 +48,7 @@ func TestTransfer(t *testing.T) {
 	// Start a few transfers
 	ids := []string{"id1", "id2", "id3"}
 	xfers := make([]transfer, len(ids))
-	watchers := make([]*Watcher, len(ids))
+	watchers := make([]*watcher, len(ids))
 	for i, id := range ids {
 		xfers[i], watchers[i] = tm.transfer(id, makeXferFunc(id), progress.ChanOutput(progressChan))
 	}
@@ -106,7 +106,7 @@ func TestConcurrencyLimit(t *testing.T) {
 	// Start more transfers than the concurrency limit
 	ids := []string{"id1", "id2", "id3", "id4", "id5", "id6", "id7", "id8"}
 	xfers := make([]transfer, len(ids))
-	watchers := make([]*Watcher, len(ids))
+	watchers := make([]*watcher, len(ids))
 	for i, id := range ids {
 		xfers[i], watchers[i] = tm.transfer(id, makeXferFunc(id), progress.ChanOutput(progressChan))
 	}
@@ -167,7 +167,7 @@ func TestInactiveJobs(t *testing.T) {
 	// Start more transfers than the concurrency limit
 	ids := []string{"id1", "id2", "id3", "id4", "id5", "id6", "id7", "id8"}
 	xfers := make([]transfer, len(ids))
-	watchers := make([]*Watcher, len(ids))
+	watchers := make([]*watcher, len(ids))
 	for i, id := range ids {
 		xfers[i], watchers[i] = tm.transfer(id, makeXferFunc(id), progress.ChanOutput(progressChan))
 	}
@@ -214,7 +214,7 @@ func TestWatchRelease(t *testing.T) {
 	tm := newTransferManager(5)
 
 	type watcherInfo struct {
-		watcher               *Watcher
+		watcher               *watcher
 		progressChan          chan progress.Progress
 		progressDone          chan struct{}
 		receivedFirstProgress chan struct{}
@@ -293,7 +293,7 @@ func TestWatchFinishedTransfer(t *testing.T) {
 	tm := newTransferManager(5)
 
 	// Start a transfer
-	watchers := make([]*Watcher, 3)
+	watchers := make([]*watcher, 3)
 	var xfer transfer
 	xfer, watchers[0] = tm.transfer("id1", makeXferFunc("id1"), progress.ChanOutput(make(chan progress.Progress)))
 
@@ -347,7 +347,7 @@ func TestDuplicateTransfer(t *testing.T) {
 
 	type transferInfo struct {
 		xfer                  transfer
-		watcher               *Watcher
+		watcher               *watcher
 		progressChan          chan progress.Progress
 		progressDone          chan struct{}
 		receivedFirstProgress chan struct{}

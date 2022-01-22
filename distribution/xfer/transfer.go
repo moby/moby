@@ -19,8 +19,8 @@ func (e DoNotRetry) Error() string {
 	return e.Err.Error()
 }
 
-// Watcher is returned by Watch and can be passed to Release to stop watching.
-type Watcher struct {
+// watcher is returned by Watch and can be passed to Release to stop watching.
+type watcher struct {
 	// signalChan is used to signal to the watcher goroutine that
 	// new progress information is available, or that the transfer
 	// has finished.
@@ -36,8 +36,8 @@ type Watcher struct {
 
 // transfer represents an in-progress transfer.
 type transfer interface {
-	Watch(progressOutput progress.Output) *Watcher
-	Release(*Watcher)
+	Watch(progressOutput progress.Output) *watcher
+	Release(*watcher)
 	Context() context.Context
 	Close()
 	Done() <-chan struct{}
@@ -53,7 +53,7 @@ type xfer struct {
 
 	// watchers keeps track of the goroutines monitoring progress output,
 	// indexed by the channels that release them.
-	watchers map[chan struct{}]*Watcher
+	watchers map[chan struct{}]*watcher
 
 	// lastProgress is the most recently received progress event.
 	lastProgress progress.Progress
@@ -80,7 +80,7 @@ type xfer struct {
 // newTransfer creates a new transfer.
 func newTransfer() transfer {
 	t := &xfer{
-		watchers:          make(map[chan struct{}]*Watcher),
+		watchers:          make(map[chan struct{}]*watcher),
 		running:           make(chan struct{}),
 		released:          make(chan struct{}),
 		broadcastSyncChan: make(chan struct{}),
@@ -137,11 +137,11 @@ func (t *xfer) Broadcast(mainProgressChan <-chan progress.Progress) {
 
 // Watch adds a watcher to the transfer. The supplied channel gets progress
 // updates and is closed when the transfer finishes.
-func (t *xfer) Watch(progressOutput progress.Output) *Watcher {
+func (t *xfer) Watch(progressOutput progress.Output) *watcher {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	w := &Watcher{
+	w := &watcher{
 		releaseChan: make(chan struct{}),
 		signalChan:  make(chan struct{}),
 		running:     make(chan struct{}),
@@ -205,7 +205,7 @@ func (t *xfer) Watch(progressOutput progress.Output) *Watcher {
 // to be notified about the progress of the transfer. All calls to Watch must
 // be paired with later calls to Release so that the lifecycle of the transfer
 // is properly managed.
-func (t *xfer) Release(watcher *Watcher) {
+func (t *xfer) Release(watcher *watcher) {
 	t.mu.Lock()
 	delete(t.watchers, watcher.releaseChan)
 
@@ -301,7 +301,7 @@ func (tm *transferManager) setConcurrency(concurrency int) {
 // transfer checks if a transfer matching the given key is in progress. If not,
 // it starts one by calling xferFunc. The caller supplies a channel which
 // receives progress output from the transfer.
-func (tm *transferManager) transfer(key string, xferFunc DoFunc, progressOutput progress.Output) (transfer, *Watcher) {
+func (tm *transferManager) transfer(key string, xferFunc DoFunc, progressOutput progress.Output) (transfer, *watcher) {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
