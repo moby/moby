@@ -10,7 +10,7 @@ import (
 
 func TestTransfer(t *testing.T) {
 	makeXferFunc := func(id string) DoFunc {
-		return func(progressChan chan<- progress.Progress, start <-chan struct{}, _ chan<- struct{}) Transfer {
+		return func(progressChan chan<- progress.Progress, start <-chan struct{}, _ chan<- struct{}) transfer {
 			select {
 			case <-start:
 			default:
@@ -47,7 +47,7 @@ func TestTransfer(t *testing.T) {
 
 	// Start a few transfers
 	ids := []string{"id1", "id2", "id3"}
-	xfers := make([]Transfer, len(ids))
+	xfers := make([]transfer, len(ids))
 	watchers := make([]*Watcher, len(ids))
 	for i, id := range ids {
 		xfers[i], watchers[i] = tm.transfer(id, makeXferFunc(id), progress.ChanOutput(progressChan))
@@ -72,7 +72,7 @@ func TestConcurrencyLimit(t *testing.T) {
 	var runningJobs int32
 
 	makeXferFunc := func(id string) DoFunc {
-		return func(progressChan chan<- progress.Progress, start <-chan struct{}, _ chan<- struct{}) Transfer {
+		return func(progressChan chan<- progress.Progress, start <-chan struct{}, _ chan<- struct{}) transfer {
 			xfer := newTransfer()
 			go func() {
 				<-start
@@ -105,7 +105,7 @@ func TestConcurrencyLimit(t *testing.T) {
 
 	// Start more transfers than the concurrency limit
 	ids := []string{"id1", "id2", "id3", "id4", "id5", "id6", "id7", "id8"}
-	xfers := make([]Transfer, len(ids))
+	xfers := make([]transfer, len(ids))
 	watchers := make([]*Watcher, len(ids))
 	for i, id := range ids {
 		xfers[i], watchers[i] = tm.transfer(id, makeXferFunc(id), progress.ChanOutput(progressChan))
@@ -131,7 +131,7 @@ func TestInactiveJobs(t *testing.T) {
 	testDone := make(chan struct{})
 
 	makeXferFunc := func(id string) DoFunc {
-		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
+		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) transfer {
 			xfer := newTransfer()
 			go func() {
 				<-start
@@ -166,7 +166,7 @@ func TestInactiveJobs(t *testing.T) {
 
 	// Start more transfers than the concurrency limit
 	ids := []string{"id1", "id2", "id3", "id4", "id5", "id6", "id7", "id8"}
-	xfers := make([]Transfer, len(ids))
+	xfers := make([]transfer, len(ids))
 	watchers := make([]*Watcher, len(ids))
 	for i, id := range ids {
 		xfers[i], watchers[i] = tm.transfer(id, makeXferFunc(id), progress.ChanOutput(progressChan))
@@ -191,7 +191,7 @@ func TestWatchRelease(t *testing.T) {
 	ready := make(chan struct{})
 
 	makeXferFunc := func(id string) DoFunc {
-		return func(progressChan chan<- progress.Progress, start <-chan struct{}, _ chan<- struct{}) Transfer {
+		return func(progressChan chan<- progress.Progress, start <-chan struct{}, _ chan<- struct{}) transfer {
 			xfer := newTransfer()
 			go func() {
 				defer func() {
@@ -233,7 +233,7 @@ func TestWatchRelease(t *testing.T) {
 
 	// Start a transfer
 	watchers := make([]watcherInfo, 5)
-	var xfer Transfer
+	var xfer transfer
 	watchers[0].progressChan = make(chan progress.Progress)
 	watchers[0].progressDone = make(chan struct{})
 	watchers[0].receivedFirstProgress = make(chan struct{})
@@ -280,7 +280,7 @@ func TestWatchRelease(t *testing.T) {
 
 func TestWatchFinishedTransfer(t *testing.T) {
 	makeXferFunc := func(id string) DoFunc {
-		return func(progressChan chan<- progress.Progress, _ <-chan struct{}, _ chan<- struct{}) Transfer {
+		return func(progressChan chan<- progress.Progress, _ <-chan struct{}, _ chan<- struct{}) transfer {
 			xfer := newTransfer()
 			go func() {
 				// Finish immediately
@@ -294,7 +294,7 @@ func TestWatchFinishedTransfer(t *testing.T) {
 
 	// Start a transfer
 	watchers := make([]*Watcher, 3)
-	var xfer Transfer
+	var xfer transfer
 	xfer, watchers[0] = tm.transfer("id1", makeXferFunc("id1"), progress.ChanOutput(make(chan progress.Progress)))
 
 	// Give it a watcher immediately
@@ -322,7 +322,7 @@ func TestDuplicateTransfer(t *testing.T) {
 	var xferFuncCalls int32
 
 	makeXferFunc := func(id string) DoFunc {
-		return func(progressChan chan<- progress.Progress, _ <-chan struct{}, _ chan<- struct{}) Transfer {
+		return func(progressChan chan<- progress.Progress, _ <-chan struct{}, _ chan<- struct{}) transfer {
 			atomic.AddInt32(&xferFuncCalls, 1)
 			xfer := newTransfer()
 			go func() {
@@ -346,7 +346,7 @@ func TestDuplicateTransfer(t *testing.T) {
 	tm := newTransferManager(5)
 
 	type transferInfo struct {
-		xfer                  Transfer
+		xfer                  transfer
 		watcher               *Watcher
 		progressChan          chan progress.Progress
 		progressDone          chan struct{}

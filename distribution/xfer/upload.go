@@ -38,7 +38,7 @@ func NewLayerUploadManager(concurrencyLimit int, options ...func(*LayerUploadMan
 }
 
 type uploadTransfer struct {
-	Transfer
+	transfer
 
 	remoteDescriptor distribution.Descriptor
 	err              error
@@ -89,7 +89,7 @@ func (lum *LayerUploadManager) Upload(ctx context.Context, layers []UploadDescri
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-upload.Transfer.Done():
+		case <-upload.transfer.Done():
 			if upload.err != nil {
 				return upload.err
 			}
@@ -103,9 +103,9 @@ func (lum *LayerUploadManager) Upload(ctx context.Context, layers []UploadDescri
 }
 
 func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFunc {
-	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
+	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) transfer {
 		u := &uploadTransfer{
-			Transfer: newTransfer(),
+			transfer: newTransfer(),
 		}
 
 		go func() {
@@ -124,7 +124,7 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFun
 
 			retries := 0
 			for {
-				remoteDescriptor, err := descriptor.Upload(u.Transfer.Context(), progressOutput)
+				remoteDescriptor, err := descriptor.Upload(u.transfer.Context(), progressOutput)
 				if err == nil {
 					u.remoteDescriptor = remoteDescriptor
 					break
@@ -133,7 +133,7 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFun
 				// If an error was returned because the context
 				// was cancelled, we shouldn't retry.
 				select {
-				case <-u.Transfer.Context().Done():
+				case <-u.transfer.Context().Done():
 					u.err = err
 					return
 				default:
@@ -160,7 +160,7 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFun
 							ticker.Stop()
 							break selectLoop
 						}
-					case <-u.Transfer.Context().Done():
+					case <-u.transfer.Context().Done():
 						ticker.Stop()
 						u.err = errors.New("upload cancelled during retry delay")
 						return
