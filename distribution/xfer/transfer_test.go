@@ -17,7 +17,7 @@ func TestTransfer(t *testing.T) {
 				t.Errorf("%s: transfer function not started even though concurrency limit not reached", id)
 			}
 
-			xfer := NewTransfer()
+			xfer := newTransfer()
 			go func() {
 				for i := 0; i <= 10; i++ {
 					progressChan <- progress.Progress{ID: id, Action: "testing", Current: int64(i), Total: 10}
@@ -73,7 +73,7 @@ func TestConcurrencyLimit(t *testing.T) {
 
 	makeXferFunc := func(id string) DoFunc {
 		return func(progressChan chan<- progress.Progress, start <-chan struct{}, _ chan<- struct{}) Transfer {
-			xfer := NewTransfer()
+			xfer := newTransfer()
 			go func() {
 				<-start
 				totalJobs := atomic.AddInt32(&runningJobs, 1)
@@ -132,7 +132,7 @@ func TestInactiveJobs(t *testing.T) {
 
 	makeXferFunc := func(id string) DoFunc {
 		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
-			xfer := NewTransfer()
+			xfer := newTransfer()
 			go func() {
 				<-start
 				totalJobs := atomic.AddInt32(&runningJobs, 1)
@@ -192,7 +192,7 @@ func TestWatchRelease(t *testing.T) {
 
 	makeXferFunc := func(id string) DoFunc {
 		return func(progressChan chan<- progress.Progress, start <-chan struct{}, _ chan<- struct{}) Transfer {
-			xfer := NewTransfer()
+			xfer := newTransfer()
 			go func() {
 				defer func() {
 					close(progressChan)
@@ -281,7 +281,7 @@ func TestWatchRelease(t *testing.T) {
 func TestWatchFinishedTransfer(t *testing.T) {
 	makeXferFunc := func(id string) DoFunc {
 		return func(progressChan chan<- progress.Progress, _ <-chan struct{}, _ chan<- struct{}) Transfer {
-			xfer := NewTransfer()
+			xfer := newTransfer()
 			go func() {
 				// Finish immediately
 				close(progressChan)
@@ -324,7 +324,7 @@ func TestDuplicateTransfer(t *testing.T) {
 	makeXferFunc := func(id string) DoFunc {
 		return func(progressChan chan<- progress.Progress, _ <-chan struct{}, _ chan<- struct{}) Transfer {
 			atomic.AddInt32(&xferFuncCalls, 1)
-			xfer := NewTransfer()
+			xfer := newTransfer()
 			go func() {
 				defer func() {
 					close(progressChan)

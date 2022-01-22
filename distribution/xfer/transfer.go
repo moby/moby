@@ -77,8 +77,8 @@ type transfer struct {
 	broadcastSyncChan chan struct{}
 }
 
-// NewTransfer creates a new transfer.
-func NewTransfer() Transfer {
+// newTransfer creates a new transfer.
+func newTransfer() Transfer {
 	t := &transfer{
 		watchers:          make(map[chan struct{}]*Watcher),
 		running:           make(chan struct{}),

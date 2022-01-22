@@ -225,7 +225,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor, parentLayer layer.ChainID, parentDownload *downloadTransfer) DoFunc {
 	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
 		d := &downloadTransfer{
-			Transfer:   NewTransfer(),
+			Transfer:   newTransfer(),
 			layerStore: ldm.layerStore,
 		}
 
@@ -389,7 +389,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor DownloadDescriptor, sourceDownload *downloadTransfer, parentDownload *downloadTransfer) DoFunc {
 	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
 		d := &downloadTransfer{
-			Transfer:   NewTransfer(),
+			Transfer:   newTransfer(),
 			layerStore: ldm.layerStore,
 		}
 
