@@ -22,7 +22,7 @@ type LayerUploadManager struct {
 
 // SetConcurrency sets the max concurrent uploads for each push
 func (lum *LayerUploadManager) SetConcurrency(concurrency int) {
-	lum.tm.SetConcurrency(concurrency)
+	lum.tm.setConcurrency(concurrency)
 }
 
 // NewLayerUploadManager returns a new LayerUploadManager.
@@ -79,7 +79,7 @@ func (lum *LayerUploadManager) Upload(ctx context.Context, layers []UploadDescri
 		}
 
 		xferFunc := lum.makeUploadFunc(descriptor)
-		upload, watcher := lum.tm.Transfer(descriptor.Key(), xferFunc, progressOutput)
+		upload, watcher := lum.tm.transfer(descriptor.Key(), xferFunc, progressOutput)
 		defer upload.Release(watcher)
 		uploads = append(uploads, upload.(*uploadTransfer))
 		dedupDescriptors[key] = upload.(*uploadTransfer)

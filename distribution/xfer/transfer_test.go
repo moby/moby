@@ -50,7 +50,7 @@ func TestTransfer(t *testing.T) {
 	xfers := make([]Transfer, len(ids))
 	watchers := make([]*Watcher, len(ids))
 	for i, id := range ids {
-		xfers[i], watchers[i] = tm.Transfer(id, makeXferFunc(id), progress.ChanOutput(progressChan))
+		xfers[i], watchers[i] = tm.transfer(id, makeXferFunc(id), progress.ChanOutput(progressChan))
 	}
 
 	for i, xfer := range xfers {
@@ -108,7 +108,7 @@ func TestConcurrencyLimit(t *testing.T) {
 	xfers := make([]Transfer, len(ids))
 	watchers := make([]*Watcher, len(ids))
 	for i, id := range ids {
-		xfers[i], watchers[i] = tm.Transfer(id, makeXferFunc(id), progress.ChanOutput(progressChan))
+		xfers[i], watchers[i] = tm.transfer(id, makeXferFunc(id), progress.ChanOutput(progressChan))
 	}
 
 	for i, xfer := range xfers {
@@ -169,7 +169,7 @@ func TestInactiveJobs(t *testing.T) {
 	xfers := make([]Transfer, len(ids))
 	watchers := make([]*Watcher, len(ids))
 	for i, id := range ids {
-		xfers[i], watchers[i] = tm.Transfer(id, makeXferFunc(id), progress.ChanOutput(progressChan))
+		xfers[i], watchers[i] = tm.transfer(id, makeXferFunc(id), progress.ChanOutput(progressChan))
 	}
 
 	close(testDone)
@@ -237,7 +237,7 @@ func TestWatchRelease(t *testing.T) {
 	watchers[0].progressChan = make(chan progress.Progress)
 	watchers[0].progressDone = make(chan struct{})
 	watchers[0].receivedFirstProgress = make(chan struct{})
-	xfer, watchers[0].watcher = tm.Transfer("id1", makeXferFunc("id1"), progress.ChanOutput(watchers[0].progressChan))
+	xfer, watchers[0].watcher = tm.transfer("id1", makeXferFunc("id1"), progress.ChanOutput(watchers[0].progressChan))
 	go progressConsumer(watchers[0])
 
 	// Give it multiple watchers
@@ -295,7 +295,7 @@ func TestWatchFinishedTransfer(t *testing.T) {
 	// Start a transfer
 	watchers := make([]*Watcher, 3)
 	var xfer Transfer
-	xfer, watchers[0] = tm.Transfer("id1", makeXferFunc("id1"), progress.ChanOutput(make(chan progress.Progress)))
+	xfer, watchers[0] = tm.transfer("id1", makeXferFunc("id1"), progress.ChanOutput(make(chan progress.Progress)))
 
 	// Give it a watcher immediately
 	watchers[1] = xfer.Watch(progress.ChanOutput(make(chan progress.Progress)))
@@ -371,7 +371,7 @@ func TestDuplicateTransfer(t *testing.T) {
 		t.progressChan = make(chan progress.Progress)
 		t.progressDone = make(chan struct{})
 		t.receivedFirstProgress = make(chan struct{})
-		t.xfer, t.watcher = tm.Transfer("id1", makeXferFunc("id1"), progress.ChanOutput(t.progressChan))
+		t.xfer, t.watcher = tm.transfer("id1", makeXferFunc("id1"), progress.ChanOutput(t.progressChan))
 		go progressConsumer(*t)
 	}
 

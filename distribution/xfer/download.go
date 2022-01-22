@@ -30,7 +30,7 @@ type LayerDownloadManager struct {
 
 // SetConcurrency sets the max concurrent downloads for each pull
 func (ldm *LayerDownloadManager) SetConcurrency(concurrency int) {
-	ldm.tm.SetConcurrency(concurrency)
+	ldm.tm.setConcurrency(concurrency)
 }
 
 // NewLayerDownloadManager returns a new LayerDownloadManager.
@@ -152,7 +152,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		if existingDownload, ok := downloadsByKey[key]; ok {
 			xferFunc := ldm.makeDownloadFuncFromDownload(descriptor, existingDownload, topDownload)
 			defer topDownload.Transfer.Release(watcher)
-			topDownloadUncasted, watcher = ldm.tm.Transfer(transferKey, xferFunc, progressOutput)
+			topDownloadUncasted, watcher = ldm.tm.transfer(transferKey, xferFunc, progressOutput)
 			topDownload = topDownloadUncasted.(*downloadTransfer)
 			continue
 		}
@@ -167,7 +167,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		} else {
 			xferFunc = ldm.makeDownloadFunc(descriptor, rootFS.ChainID(), nil)
 		}
-		topDownloadUncasted, watcher = ldm.tm.Transfer(transferKey, xferFunc, progressOutput)
+		topDownloadUncasted, watcher = ldm.tm.transfer(transferKey, xferFunc, progressOutput)
 		topDownload = topDownloadUncasted.(*downloadTransfer)
 		downloadsByKey[key] = topDownload
 	}

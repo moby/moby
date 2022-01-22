@@ -291,17 +291,17 @@ func newTransferManager(concurrencyLimit int) *transferManager {
 	}
 }
 
-// SetConcurrency sets the concurrencyLimit
-func (tm *transferManager) SetConcurrency(concurrency int) {
+// setConcurrency sets the concurrencyLimit
+func (tm *transferManager) setConcurrency(concurrency int) {
 	tm.mu.Lock()
 	tm.concurrencyLimit = concurrency
 	tm.mu.Unlock()
 }
 
-// Transfer checks if a transfer matching the given key is in progress. If not,
+// transfer checks if a Transfer matching the given key is in progress. If not,
 // it starts one by calling xferFunc. The caller supplies a channel which
 // receives progress output from the transfer.
-func (tm *transferManager) Transfer(key string, xferFunc DoFunc, progressOutput progress.Output) (Transfer, *Watcher) {
+func (tm *transferManager) transfer(key string, xferFunc DoFunc, progressOutput progress.Output) (Transfer, *Watcher) {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
