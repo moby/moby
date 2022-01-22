@@ -271,18 +271,9 @@ func (t *transfer) Close() {
 // This prevents it from taking up a slot.
 type DoFunc func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer
 
-// TransferManager is used by LayerDownloadManager and LayerUploadManager to
-// schedule and deduplicate transfers. It is up to the TransferManager
-// implementation to make the scheduling and concurrency decisions.
-type TransferManager interface {
-	// Transfer checks if a transfer with the given key is in progress. If
-	// so, it returns progress and error output from that transfer.
-	// Otherwise, it will call xferFunc to initiate the transfer.
-	Transfer(key string, xferFunc DoFunc, progressOutput progress.Output) (Transfer, *Watcher)
-	// SetConcurrency set the concurrencyLimit so that it is adjustable daemon reload
-	SetConcurrency(concurrency int)
-}
-
+// transferManager is used by LayerDownloadManager and LayerUploadManager to
+// schedule and deduplicate transfers. It is up to the transferManager
+// to make the scheduling and concurrency decisions.
 type transferManager struct {
 	mu sync.Mutex
 
@@ -292,8 +283,8 @@ type transferManager struct {
 	waitingTransfers []chan struct{}
 }
 
-// NewTransferManager returns a new TransferManager.
-func NewTransferManager(concurrencyLimit int) TransferManager {
+// newTransferManager returns a new transferManager.
+func newTransferManager(concurrencyLimit int) *transferManager {
 	return &transferManager{
 		concurrencyLimit: concurrencyLimit,
 		transfers:        make(map[string]Transfer),

@@ -16,7 +16,7 @@ const maxUploadAttempts = 5
 // LayerUploadManager provides task management and progress reporting for
 // uploads.
 type LayerUploadManager struct {
-	tm           TransferManager
+	tm           *transferManager
 	waitDuration time.Duration
 }
 
@@ -28,7 +28,7 @@ func (lum *LayerUploadManager) SetConcurrency(concurrency int) {
 // NewLayerUploadManager returns a new LayerUploadManager.
 func NewLayerUploadManager(concurrencyLimit int, options ...func(*LayerUploadManager)) *LayerUploadManager {
 	manager := LayerUploadManager{
-		tm:           NewTransferManager(concurrencyLimit),
+		tm:           newTransferManager(concurrencyLimit),
 		waitDuration: time.Second,
 	}
 	for _, option := range options {

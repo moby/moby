@@ -23,7 +23,7 @@ const maxDownloadAttempts = 5
 // layers.
 type LayerDownloadManager struct {
 	layerStore          layer.Store
-	tm                  TransferManager
+	tm                  *transferManager
 	waitDuration        time.Duration
 	maxDownloadAttempts int
 }
@@ -37,7 +37,7 @@ func (ldm *LayerDownloadManager) SetConcurrency(concurrency int) {
 func NewLayerDownloadManager(layerStore layer.Store, concurrencyLimit int, options ...func(*LayerDownloadManager)) *LayerDownloadManager {
 	manager := LayerDownloadManager{
 		layerStore:          layerStore,
-		tm:                  NewTransferManager(concurrencyLimit),
+		tm:                  newTransferManager(concurrencyLimit),
 		waitDuration:        time.Second,
 		maxDownloadAttempts: maxDownloadAttempts,
 	}
