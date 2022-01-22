@@ -63,7 +63,7 @@ type transfer struct {
 	// running remains open as long as the transfer is in progress.
 	running chan struct{}
 	// released stays open until all watchers release the transfer and
-	// the transfer is no longer tracked by the transfer manager.
+	// the transfer is no longer tracked by the transferManager.
 	released chan struct{}
 
 	// broadcastDone is true if the main progress channel has closed.
@@ -242,7 +242,7 @@ func (t *transfer) Done() <-chan struct{} {
 }
 
 // Released returns a channel which is closed once all watchers release the
-// transfer AND the transfer is no longer tracked by the transfer manager.
+// transfer AND the transfer is no longer tracked by the transferManager.
 func (t *transfer) Released() <-chan struct{} {
 	return t.released
 }
@@ -252,7 +252,7 @@ func (t *transfer) Context() context.Context {
 	return t.ctx
 }
 
-// Close is called by the transfer manager when the transfer is no longer
+// Close is called by the transferManager when the transfer is no longer
 // being tracked.
 func (t *transfer) Close() {
 	t.mu.Lock()
@@ -263,10 +263,10 @@ func (t *transfer) Close() {
 	t.mu.Unlock()
 }
 
-// DoFunc is a function called by the transfer manager to actually perform
+// DoFunc is a function called by the transferManager to actually perform
 // a transfer. It should be non-blocking. It should wait until the start channel
 // is closed before transferring any data. If the function closes inactive, that
-// signals to the transfer manager that the job is no longer actively moving
+// signals to the transferManager that the job is no longer actively moving
 // data - for example, it may be waiting for a dependent transfer to finish.
 // This prevents it from taking up a slot.
 type DoFunc func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer
