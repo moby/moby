@@ -33,7 +33,7 @@ func (s *DockerSuite) TestImportDisplay(c *testing.T) {
 }
 
 func (s *DockerSuite) TestImportBadURL(c *testing.T) {
-	out, _, err := dockerCmdWithError("import", "http://nourl/bad")
+	out, _, err := dockerCmdWithError("import", "https://nosuchdomain.invalid/bad")
 	assert.Assert(c, err != nil, "import was supposed to fail but didn't")
 	// Depending on your system you can get either of these errors
 	if !strings.Contains(out, "dial tcp") &&
