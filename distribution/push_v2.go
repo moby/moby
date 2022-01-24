@@ -451,9 +451,7 @@ func (pd *v2PushDescriptor) uploadUsingSession(
 		return distribution.Descriptor{}, retryOnError(err)
 	}
 
-	size, _ := pd.layer.Size()
-
-	reader = progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, contentReader), progressOutput, size, pd.ID(), "Pushing")
+	reader = progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, contentReader), progressOutput, pd.layer.Size(), pd.ID(), "Pushing")
 
 	switch m := pd.layer.MediaType(); m {
 	case schema2.MediaTypeUncompressedLayer:
@@ -596,7 +594,7 @@ attempts:
 // decision is based on layer size. The smaller the layer, the fewer attempts shall be made because the cost
 // of upload does not outweigh a latency.
 func getMaxMountAndExistenceCheckAttempts(layer PushLayer) (maxMountAttempts, maxExistenceCheckAttempts int, checkOtherRepositories bool) {
-	size, err := layer.Size()
+	size := layer.Size()
 	switch {
 	// big blob
 	case size > middleLayerMaximumSize:
@@ -606,7 +604,7 @@ func getMaxMountAndExistenceCheckAttempts(layer PushLayer) (maxMountAttempts, ma
 		return 4, 3, true
 
 	// middle sized blobs; if we could not get the size, assume we deal with middle sized blob
-	case size > smallLayerMaximumSize, err != nil:
+	case size > smallLayerMaximumSize:
 		// 1st attempt to mount blobs of average size few times
 		// 2nd try at most 1 existence check if there's an existing mapping to the target repository
 		// then fallback to upload
