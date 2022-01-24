@@ -59,7 +59,7 @@ func (i *ImageService) LookupImage(name string) (*types.ImageInspect, error) {
 		return nil, err
 	}
 
-	imageInspect := &types.ImageInspect{
+	return &types.ImageInspect{
 		ID:              img.ID().String(),
 		RepoTags:        repoTags,
 		RepoDigests:     repoDigests,
@@ -77,16 +77,15 @@ func (i *ImageService) LookupImage(name string) (*types.ImageInspect, error) {
 		OsVersion:       img.OSVersion,
 		Size:            size,
 		VirtualSize:     size, // TODO: field unused, deprecate
-		RootFS:          rootFSToAPIType(img.RootFS),
+		GraphDriver: types.GraphDriverData{
+			Name: i.layerStore.DriverName(),
+			Data: layerMetadata,
+		},
+		RootFS: rootFSToAPIType(img.RootFS),
 		Metadata: types.ImageMetadata{
 			LastTagTime: lastUpdated,
 		},
-	}
-
-	imageInspect.GraphDriver.Name = i.layerStore.DriverName()
-	imageInspect.GraphDriver.Data = layerMetadata
-
-	return imageInspect, nil
+	}, nil
 }
 
 func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
