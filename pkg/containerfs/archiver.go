@@ -137,7 +137,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (retErr error) {
 			}
 			defer srcF.Close()
 
-			hdr, err := tar.FileInfoHeader(srcSt, "")
+			hdr, err := archive.FileInfoHeaderNoLookups(srcSt, "")
 			if err != nil {
 				return err
 			}

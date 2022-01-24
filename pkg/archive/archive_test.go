@@ -1360,3 +1360,12 @@ func TestPigz(t *testing.T) {
 		assert.Equal(t, reflect.TypeOf(contextReaderCloserWrapper.Reader), reflect.TypeOf(&gzip.Reader{}))
 	}
 }
+
+func TestNosysFileInfo(t *testing.T) {
+	st, err := os.Stat("archive_test.go")
+	assert.NilError(t, err)
+	h, err := tar.FileInfoHeader(nosysFileInfo{st}, "")
+	assert.NilError(t, err)
+	assert.Check(t, h.Uname == "")
+	assert.Check(t, h.Gname == "")
+}

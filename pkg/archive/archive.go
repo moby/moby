@@ -352,12 +352,64 @@ func (compression *Compression) Extension() string {
 	return ""
 }
 
+// nosysFileInfo hides the system-dependent info of the wrapped FileInfo to
+// prevent tar.FileInfoHeader from introspecting it and potentially calling into
+// glibc.
+type nosysFileInfo struct {
+	os.FileInfo
+}
+
+func (fi nosysFileInfo) Sys() interface{} {
+	// A Sys value of type *tar.Header is safe as it is system-independent.
+	// The tar.FileInfoHeader function copies the fields into the returned
+	// header without performing any OS lookups.
+	if sys, ok := fi.FileInfo.Sys().(*tar.Header); ok {
+		return sys
+	}
+	return nil
+}
+
+// sysStat, if non-nil, populates hdr from system-dependent fields of fi.
+var sysStat func(fi os.FileInfo, hdr *tar.Header) error
+
+// FileInfoHeaderNoLookups creates a partially-populated tar.Header from fi.
+//
+// Compared to the archive/tar.FileInfoHeader function, this function is safe to
+// call from a chrooted process as it does not populate fields which would
+// require operating system lookups. It behaves identically to
+// tar.FileInfoHeader when fi is a FileInfo value returned from
+// tar.Header.FileInfo().
+//
+// When fi is a FileInfo for a native file, such as returned from os.Stat() and
+// os.Lstat(), the returned Header value differs from one returned from
+// tar.FileInfoHeader in the following ways. The Uname and Gname fields are not
+// set as OS lookups would be required to populate them. The AccessTime and
+// ChangeTime fields are not currently set (not yet implemented) although that
+// is subject to change. Callers which require the AccessTime or ChangeTime
+// fields to be zeroed should explicitly zero them out in the returned Header
+// value to avoid any compatibility issues in the future.
+func FileInfoHeaderNoLookups(fi os.FileInfo, link string) (*tar.Header, error) {
+	hdr, err := tar.FileInfoHeader(nosysFileInfo{fi}, link)
+	if err != nil {
+		return nil, err
+	}
+	if sysStat != nil {
+		return hdr, sysStat(fi, hdr)
+	}
+	return hdr, nil
+}
+
 // FileInfoHeader creates a populated Header from fi.
-// Compared to archive pkg this function fills in more information.
-// Also, regardless of Go version, this function fills file type bits (e.g. hdr.Mode |= modeISDIR),
-// which have been deleted since Go 1.9 archive/tar.
+//
+// Compared to the archive/tar package, this function fills in less information
+// but is safe to call from a chrooted process. The AccessTime and ChangeTime
+// fields are not set in the returned header, ModTime is truncated to one-second
+// precision, and the Uname and Gname fields are only set when fi is a FileInfo
+// value returned from tar.Header.FileInfo(). Also, regardless of Go version,
+// this function fills file type bits (e.g. hdr.Mode |= modeISDIR), which have
+// been deleted since Go 1.9 archive/tar.
 func FileInfoHeader(name string, fi os.FileInfo, link string) (*tar.Header, error) {
-	hdr, err := tar.FileInfoHeader(fi, link)
+	hdr, err := FileInfoHeaderNoLookups(fi, link)
 	if err != nil {
 		return nil, err
 	}
@@ -367,9 +419,6 @@ func FileInfoHeader(name string, fi os.FileInfo, link string) (*tar.Header, erro
 	hdr.ChangeTime = time.Time{}
 	hdr.Mode = fillGo18FileTypeBits(int64(chmodTarEntry(os.FileMode(hdr.Mode))), fi)
 	hdr.Name = canonicalTarName(name, fi.IsDir())
-	if err := setHeaderForSpecialDevice(hdr, name, fi.Sys()); err != nil {
-		return nil, err
-	}
 	return hdr, nil
 }
 
@@ -1181,7 +1230,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 			}
 			defer srcF.Close()
 
-			hdr, err := tar.FileInfoHeader(srcSt, "")
+			hdr, err := FileInfoHeaderNoLookups(srcSt, "")
 			if err != nil {
 				return err
 			}
