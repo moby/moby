@@ -42,19 +42,19 @@ type State struct {
 // This type is needed as State include a sync.Mutex field which make
 // copying it unsafe.
 type StateStatus struct {
-	exitCode int
-	err      error
+	ExitCodeValue int
+	Error         error
 }
 
 // ExitCode returns current exitcode for the state.
 func (s StateStatus) ExitCode() int {
-	return s.exitCode
+	return s.ExitCodeValue
 }
 
 // Err returns current error for the state. Returns nil if the container had
 // exited on its own.
 func (s StateStatus) Err() error {
-	return s.err
+	return s.Error
 }
 
 // NewState creates a default state object with a fresh channel for state changes.
@@ -188,8 +188,8 @@ func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateS
 
 		// Send the current status.
 		resultC <- StateStatus{
-			exitCode: s.ExitCode(),
-			err:      s.Err(),
+			ExitCodeValue: s.ExitCode(),
+			Error:         s.Err(),
 		}
 
 		return resultC
@@ -214,8 +214,8 @@ func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateS
 		case <-ctx.Done():
 			// Context timeout or cancellation.
 			resultC <- StateStatus{
-				exitCode: -1,
-				err:      ctx.Err(),
+				ExitCodeValue: -1,
+				Error:         ctx.Err(),
 			}
 			return
 		case <-waitStop:
@@ -224,8 +224,8 @@ func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateS
 
 		s.Lock()
 		result := StateStatus{
-			exitCode: s.ExitCode(),
-			err:      s.Err(),
+			ExitCodeValue: s.ExitCode(),
+			Error:         s.Err(),
 		}
 		s.Unlock()
 
