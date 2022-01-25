@@ -52,7 +52,7 @@ func (daemon *Daemon) containerExport(container *container.Container) (arch io.R
 	}
 	defer func() {
 		if err != nil {
-			daemon.imageService.ReleaseLayer(rwlayer, container.OS)
+			daemon.imageService.ReleaseLayer(rwlayer)
 		}
 	}()
 
@@ -73,7 +73,7 @@ func (daemon *Daemon) containerExport(container *container.Container) (arch io.R
 	arch = ioutils.NewReadCloserWrapper(archv, func() error {
 		err := archv.Close()
 		rwlayer.Unmount()
-		daemon.imageService.ReleaseLayer(rwlayer, container.OS)
+		daemon.imageService.ReleaseLayer(rwlayer)
 		return err
 	})
 	daemon.LogContainerEvent(container, "export")
