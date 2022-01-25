@@ -88,7 +88,7 @@ func TestLayerMigration(t *testing.T) {
 	}
 
 	root := filepath.Join(td, "layers")
-	ls, err := newStoreFromGraphDriver(root, graph, runtime.GOOS)
+	ls, err := newStoreFromGraphDriver(root, graph)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +213,7 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 	}
 
 	root := filepath.Join(td, "layers")
-	ls, err := newStoreFromGraphDriver(root, graph, runtime.GOOS)
+	ls, err := newStoreFromGraphDriver(root, graph)
 	if err != nil {
 		t.Fatal(err)
 	}

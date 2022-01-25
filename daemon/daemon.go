@@ -948,7 +948,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		IDMapping:                 idMapping,
 		PluginGetter:              d.PluginStore,
 		ExperimentalEnabled:       config.Experimental,
-		OS:                        runtime.GOOS,
 	})
 	if err != nil {
 		return nil, err
