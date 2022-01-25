@@ -1,4 +1,7 @@
-package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
+//go:build linux && !cgo
+// +build linux,!cgo
+
+package main
 
 import (
 	"fmt"

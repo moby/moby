@@ -1,7 +1,7 @@
-//go:build !windows && !linux
-// +build !windows,!linux
+//go:build !windows && !linux && !cgo
+// +build !windows,!linux,!cgo
 
-package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
+package main
 
 import "golang.org/x/sys/unix"
 

@@ -6,77 +6,19 @@ package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/docker/pkg/system"
 )
 
-type applyLayerResponse struct {
+// InternalApplyLayerResponse is an internal type but exported because it is
+// cross-package; it is part of the implementation of the "docker-chrootarchive"
+// command.
+type InternalApplyLayerResponse struct {
 	LayerSize int64 `json:"layerSize"`
-}
-
-// applyLayer is the entry-point for docker-applylayer on re-exec. This is not
-// used on Windows as it does not support chroot, hence no point sandboxing
-// through chroot and rexec.
-func applyLayer() {
-
-	var (
-		tmpDir  string
-		err     error
-		options *archive.TarOptions
-	)
-	runtime.LockOSThread()
-	flag.Parse()
-
-	inUserns := userns.RunningInUserNS()
-	if err := chroot(flag.Arg(0)); err != nil {
-		fatal(err)
-	}
-
-	// We need to be able to set any perms
-	oldmask, err := system.Umask(0)
-	defer system.Umask(oldmask)
-	if err != nil {
-		fatal(err)
-	}
-
-	if err := json.Unmarshal([]byte(os.Getenv("OPT")), &options); err != nil {
-		fatal(err)
-	}
-
-	if inUserns {
-		options.InUserNS = true
-	}
-
-	if tmpDir, err = os.MkdirTemp("/", "temp-docker-extract"); err != nil {
-		fatal(err)
-	}
-
-	os.Setenv("TMPDIR", tmpDir)
-	size, err := archive.UnpackLayer("/", os.Stdin, options)
-	os.RemoveAll(tmpDir)
-	if err != nil {
-		fatal(err)
-	}
-
-	encoder := json.NewEncoder(os.Stdout)
-	if err := encoder.Encode(applyLayerResponse{size}); err != nil {
-		fatal(fmt.Errorf("unable to encode layerSize JSON: %s", err))
-	}
-
-	if _, err := flush(os.Stdin); err != nil {
-		fatal(err)
-	}
-
-	os.Exit(0)
 }
 
 // applyLayerHandler parses a diff in the standard layer format from `layer`, and
@@ -108,7 +50,7 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 		return 0, fmt.Errorf("ApplyLayer json encode: %v", err)
 	}
 
-	cmd := reexec.Command("docker-applyLayer", dest)
+	cmd := command("docker-applyLayer", dest)
 	cmd.Stdin = layer
 	cmd.Env = append(cmd.Env, fmt.Sprintf("OPT=%s", data))
 
@@ -119,8 +61,8 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 		return 0, fmt.Errorf("ApplyLayer %s stdout: %s stderr: %s", err, outBuf, errBuf)
 	}
 
-	// Stdout should be a valid JSON struct representing an applyLayerResponse.
-	response := applyLayerResponse{}
+	// Stdout should be a valid JSON struct representing an InternalApplyLayerResponse.
+	response := InternalApplyLayerResponse{}
 	decoder := json.NewDecoder(outBuf)
 	if err = decoder.Decode(&response); err != nil {
 		return 0, fmt.Errorf("unable to decode ApplyLayer JSON response: %s", err)

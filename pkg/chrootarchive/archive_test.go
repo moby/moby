@@ -13,14 +13,9 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
 	"gotest.tools/v3/skip"
 )
-
-func init() {
-	reexec.Init()
-}
 
 var chrootArchiver = NewArchiver(nil)
 
