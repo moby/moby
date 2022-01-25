@@ -3,7 +3,6 @@ package layer // import "github.com/docker/docker/layer"
 import (
 	"fmt"
 	"io"
-	"runtime"
 
 	"github.com/docker/distribution"
 	"github.com/opencontainers/go-digest"
@@ -145,7 +144,7 @@ func storeLayer(tx *fileMetadataTransaction, layer *roLayer) error {
 			return err
 		}
 	}
-	return tx.setOS(runtime.GOOS)
+	return nil
 }
 
 func newVerifiedReadCloser(rc io.ReadCloser, dgst digest.Digest) (io.ReadCloser, error) {

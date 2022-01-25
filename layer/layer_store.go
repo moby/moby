@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	"github.com/moby/locker"
 	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
@@ -154,15 +153,6 @@ func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 	descriptor, err := ls.store.GetDescriptor(layer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get descriptor for %s: %s", layer, err)
-	}
-
-	os, err := ls.store.getOS(layer)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get operating system for %s: %s", layer, err)
-	}
-
-	if !system.IsOSSupported(os) {
-		return nil, fmt.Errorf("failed to load layer with os %s into layerstore: %w", os, system.ErrNotSupportedOperatingSystem)
 	}
 
 	cl = &roLayer{
