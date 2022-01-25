@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/system"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -58,7 +59,9 @@ func (i *ImageService) ImportImage(src string, repository string, platform *spec
 		p := platforms.DefaultSpec()
 		platform = &p
 	}
-
+	if !system.IsOSSupported(platform.OS) {
+		return errdefs.InvalidParameter(system.ErrNotSupportedOperatingSystem)
+	}
 	config, err := dockerfile.BuildFromConfig(&container.Config{}, changes, platform.OS)
 	if err != nil {
 		return err
