@@ -4,15 +4,17 @@ import (
 	"os"
 	"syscall"
 	"time"
-	"unsafe"
 )
 
 // Used by Chtimes
 var unixEpochTime, unixMaxTime time.Time
 
 func init() {
-	unixEpochTime = time.Unix(0, 0)
-	if unsafe.Sizeof(syscall.Timespec{}.Nsec) == 8 {
+	switch interface{}(syscall.Timespec{}.Nsec).(type) {
+	case int32:
+		// This is a 32 bit timespec
+		unixMaxTime = time.Unix(1<<31-1, 0)
+	default:
 		// This is a 64 bit timespec
 		// os.Chtimes limits time to the following
 		//
@@ -20,9 +22,6 @@ func init() {
 		// and nsec internally in time.Unix();
 		// https://github.com/golang/go/blob/go1.19.2/src/time/time.go#L1364-L1380
 		unixMaxTime = time.Unix(0, 1<<63-1)
-	} else {
-		// This is a 32 bit timespec
-		unixMaxTime = time.Unix(1<<31-1, 0)
 	}
 }
 
