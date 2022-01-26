@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
-	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -95,7 +94,7 @@ type ImageService struct {
 
 // DistributionServices provides daemon image storage services
 type DistributionServices struct {
-	DownloadManager   distribution.RootFSDownloadManager
+	DownloadManager   *xfer.LayerDownloadManager
 	V2MetadataService metadata.V2MetadataService
 	LayerStore        layer.Store
 	ImageStore        image.Store

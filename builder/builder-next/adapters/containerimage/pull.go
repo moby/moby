@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"path"
-	"runtime"
 	"sync"
 	"time"
 
@@ -22,7 +21,6 @@ import (
 	"github.com/containerd/containerd/remotes/docker/schema1"
 	distreference "github.com/docker/distribution/reference"
 	dimages "github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -52,7 +50,7 @@ type SourceOpt struct {
 	ContentStore    content.Store
 	CacheAccessor   cache.Accessor
 	ReferenceStore  reference.Store
-	DownloadManager distribution.RootFSDownloadManager
+	DownloadManager *xfer.LayerDownloadManager
 	MetadataStore   metadata.V2MetadataService
 	ImageStore      image.Store
 	RegistryHosts   docker.RegistryHosts
@@ -564,7 +562,7 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 	}()
 
 	r := image.NewRootFS()
-	rootFS, release, err := p.is.DownloadManager.Download(ctx, *r, runtime.GOOS, layers, pkgprogress.ChanOutput(pchan))
+	rootFS, release, err := p.is.DownloadManager.Download(ctx, *r, layers, pkgprogress.ChanOutput(pchan))
 	stopProgress()
 	if err != nil {
 		return nil, err
