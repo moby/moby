@@ -198,7 +198,14 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		// Try to enable project quota support over xfs.
 		if d.quotaCtl, err = quota.NewControl(home); err == nil {
 			projectQuotaSupported = true
-		} else if opts.quota.Size > 0 {
+		} else {
+			// like let me know what the error is because there are gazillion
+			// reasons why this might not be enabled?
+			logger.Warnf("Unable to enable quota, reason: %s", err.Error())
+		}
+		// and test totally different condition under it's own if because how
+		// can quota size > 0 be an else if of error != nil..
+		if opts.quota.Size > 0 {
 			return nil, fmt.Errorf("Storage option overlay2.size not supported. Filesystem does not support Project Quota: %v", err)
 		}
 	} else if opts.quota.Size > 0 {
