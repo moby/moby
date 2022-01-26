@@ -4,25 +4,18 @@ import (
 	"unsafe"
 
 	"github.com/sirupsen/logrus"
-	"golang.org/x/sys/windows"
 )
 
 const (
 	// Deprecated: use github.com/docker/pkg/idtools.SeTakeOwnershipPrivilege
 	SeTakeOwnershipPrivilege = "SeTakeOwnershipPrivilege"
-)
-
-const (
 	// Deprecated: use github.com/docker/pkg/idtools.ContainerAdministratorSidString
 	ContainerAdministratorSidString = "S-1-5-93-2-1"
 	// Deprecated: use github.com/docker/pkg/idtools.ContainerUserSidString
 	ContainerUserSidString = "S-1-5-93-2-2"
 )
 
-var (
-	ntuserApiset      = windows.NewLazyDLL("ext-ms-win-ntuser-window-l1-1-0")
-	procGetVersionExW = modkernel32.NewProc("GetVersionExW")
-)
+var procGetVersionExW = modkernel32.NewProc("GetVersionExW")
 
 // https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-osversioninfoexa
 // TODO: use golang.org/x/sys/windows.OsVersionInfoEx (needs OSVersionInfoSize to be exported)
@@ -53,13 +46,4 @@ func IsWindowsClient() bool {
 	// VER_NT_WORKSTATION, see https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-osversioninfoexa
 	const verNTWorkstation = 0x00000001 // VER_NT_WORKSTATION
 	return osviex.ProductType == verNTWorkstation
-}
-
-// HasWin32KSupport determines whether containers that depend on win32k can
-// run on this machine. Win32k is the driver used to implement windowing.
-func HasWin32KSupport() bool {
-	// For now, check for ntuser API support on the host. In the future, a host
-	// may support win32k in containers even if the host does not support ntuser
-	// APIs.
-	return ntuserApiset.Load() == nil
 }
