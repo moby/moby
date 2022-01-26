@@ -14,6 +14,10 @@ func init() {
 	if unsafe.Sizeof(syscall.Timespec{}.Nsec) == 8 {
 		// This is a 64 bit timespec
 		// os.Chtimes limits time to the following
+		//
+		// Note that this intentionally sets nsec (not sec), which sets both sec
+		// and nsec internally in time.Unix();
+		// https://github.com/golang/go/blob/go1.19.2/src/time/time.go#L1364-L1380
 		maxTime = time.Unix(0, 1<<63-1)
 	} else {
 		// This is a 32 bit timespec
