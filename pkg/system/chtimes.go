@@ -1,8 +1,8 @@
 package system // import "github.com/docker/docker/pkg/system"
 
 import (
+	"math"
 	"os"
-	"syscall"
 	"time"
 )
 
@@ -10,18 +10,17 @@ import (
 var unixEpochTime, unixMaxTime time.Time
 
 func init() {
-	switch interface{}(syscall.Timespec{}.Nsec).(type) {
-	case int32:
+	if math.MaxInt == math.MaxInt32 {
 		// This is a 32 bit timespec
-		unixMaxTime = time.Unix(1<<31-1, 0)
-	default:
+		unixMaxTime = time.Unix(math.MaxInt32, 0)
+	} else {
 		// This is a 64 bit timespec
 		// os.Chtimes limits time to the following
 		//
 		// Note that this intentionally sets nsec (not sec), which sets both sec
 		// and nsec internally in time.Unix();
 		// https://github.com/golang/go/blob/go1.19.2/src/time/time.go#L1364-L1380
-		unixMaxTime = time.Unix(0, 1<<63-1)
+		unixMaxTime = time.Unix(0, math.MaxInt64)
 	}
 }
 
