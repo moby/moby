@@ -126,6 +126,8 @@ type NetworkConfig struct {
 	DefaultAddressPools opts.PoolsOpt `json:"default-address-pools,omitempty"`
 	// NetworkControlPlaneMTU allows to specify the control plane MTU, this will allow to optimize the network use in some components
 	NetworkControlPlaneMTU int `json:"network-control-plane-mtu,omitempty"`
+	// Default options for newly created networks
+	DefaultNetworkOpts map[string]map[string]string `json:"default-network-opts,omitempty"`
 }
 
 // TLSOptions defines TLS configuration for the daemon server.
@@ -289,6 +291,7 @@ func New() (*Config, error) {
 			Mtu:                    DefaultNetworkMtu,
 			NetworkConfig: NetworkConfig{
 				NetworkControlPlaneMTU: DefaultNetworkMtu,
+				DefaultNetworkOpts:     make(map[string]map[string]string),
 			},
 			ContainerdNamespace:       DefaultContainersNamespace,
 			ContainerdPluginNamespace: DefaultPluginNamespace,

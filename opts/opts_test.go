@@ -334,3 +334,34 @@ func TestParseLink(t *testing.T) {
 		assert.Check(t, is.Equal(alias, "bar"))
 	})
 }
+
+func TestMapMapOpts(t *testing.T) {
+	tmpMap := make(map[string]map[string]string)
+	validator := func(val string) (string, error) {
+		if strings.HasPrefix(val, "invalid-key=") {
+			return "", fmt.Errorf("invalid key %s", val)
+		}
+		return val, nil
+	}
+	o := NewMapMapOpts(tmpMap, validator)
+	o.Set("r1=k11=v11")
+	assert.Check(t, is.DeepEqual(tmpMap, map[string]map[string]string{"r1": {"k11": "v11"}}))
+
+	o.Set("r2=k21=v21")
+	assert.Check(t, is.Len(tmpMap, 2))
+
+	if err := o.Set("invalid-syntax"); err == nil {
+		t.Error("invalid mapping syntax is not being caught")
+	}
+
+	if err := o.Set("k=invalid-syntax"); err == nil {
+		t.Error("invalid value syntax is not being caught")
+	}
+
+	o.Set("r1=k12=v12")
+	assert.Check(t, is.DeepEqual(tmpMap["r1"], map[string]string{"k11": "v11", "k12": "v12"}))
+
+	if o.Set("invalid-key={\"k\":\"v\"}") == nil {
+		t.Error("validator is not being called")
+	}
+}

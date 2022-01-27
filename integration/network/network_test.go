@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os/exec"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	ntypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/testutil/daemon"
@@ -174,4 +176,76 @@ func TestHostIPv4BridgeLabel(t *testing.T) {
 	assert.Assert(t, len(out.IPAM.Config) > 0)
 	// Make sure the SNAT rule exists
 	icmd.RunCommand("iptables", "-t", "nat", "-C", "POSTROUTING", "-s", out.IPAM.Config[0].Subnet, "!", "-o", bridgeName, "-j", "SNAT", "--to-source", ipv4SNATAddr).Assert(t, icmd.Success)
+}
+
+func TestDefaultNetworkOpts(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
+
+	tests := []struct {
+		name       string
+		mtu        int
+		configFrom bool
+		args       []string
+	}{
+		{
+			name: "default value",
+			mtu:  1500,
+			args: []string{},
+		},
+		{
+			name: "cmdline value",
+			mtu:  1234,
+			args: []string{"--default-network-opt", "bridge=com.docker.network.driver.mtu=1234"},
+		},
+		{
+			name:       "config-from value",
+			configFrom: true,
+			mtu:        1233,
+			args:       []string{"--default-network-opt", "bridge=com.docker.network.driver.mtu=1234"},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			d := daemon.New(t)
+			d.StartWithBusybox(t, tc.args...)
+			defer d.Stop(t)
+			c := d.NewClientT(t)
+			defer c.Close()
+			ctx := context.Background()
+
+			if tc.configFrom {
+				// Create a new network config
+				network.CreateNoError(ctx, t, c, "from-net", func(create *types.NetworkCreate) {
+					create.ConfigOnly = true
+					create.Options = map[string]string{
+						"com.docker.network.driver.mtu": fmt.Sprint(tc.mtu),
+					}
+				})
+				defer c.NetworkRemove(ctx, "from-net")
+			}
+
+			// Create a new network
+			networkName := "testnet"
+			network.CreateNoError(ctx, t, c, networkName, func(create *types.NetworkCreate) {
+				if tc.configFrom {
+					create.ConfigFrom = &ntypes.ConfigReference{
+						Network: "from-net",
+					}
+				}
+			})
+			defer c.NetworkRemove(ctx, networkName)
+
+			// Start a container to inspect the MTU of its network interface
+			id1 := container.Run(ctx, t, c, container.WithNetworkMode(networkName))
+			defer c.ContainerRemove(ctx, id1, types.ContainerRemoveOptions{Force: true})
+
+			result, err := container.Exec(ctx, c, id1, []string{"ip", "l", "show", "eth0"})
+			assert.NilError(t, err)
+			assert.Check(t, is.Contains(result.Combined(), fmt.Sprintf(" mtu %d ", tc.mtu)), "Network MTU should have been set to %d", tc.mtu)
+		})
+	}
 }
