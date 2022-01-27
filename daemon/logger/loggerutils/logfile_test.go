@@ -23,8 +23,9 @@ import (
 )
 
 type testDecoder struct {
-	rdr     io.Reader
-	scanner *bufio.Scanner
+	rdr        io.Reader
+	scanner    *bufio.Scanner
+	resetCount int
 }
 
 func (d *testDecoder) Decode() (*logger.Message, error) {
@@ -41,6 +42,7 @@ func (d *testDecoder) Decode() (*logger.Message, error) {
 func (d *testDecoder) Reset(rdr io.Reader) {
 	d.rdr = rdr
 	d.scanner = bufio.NewScanner(rdr)
+	d.resetCount++
 }
 
 func (d *testDecoder) Close() {
