@@ -224,8 +224,6 @@ drain:
 }
 
 func (s *journald) followJournal(logWatcher *logger.LogWatcher, j *C.sd_journal, cursor *C.char, untilUnixMicro uint64) *C.char {
-	defer close(logWatcher.Msg)
-
 	waitTimeout := C.uint64_t(250000) // 0.25s
 
 LOOP:
@@ -265,6 +263,9 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 		sinceUnixMicro uint64
 		untilUnixMicro uint64
 	)
+
+	defer close(logWatcher.Msg)
+
 	// Quoting https://www.freedesktop.org/software/systemd/man/sd-journal.html:
 	//     Functions that operate on sd_journal objects are thread
 	//     agnostic — given sd_journal pointer may only be used from one
@@ -277,28 +278,18 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	// Get a handle to the journal.
 	if rc := C.sd_journal_open(&j, C.int(0)); rc != 0 {
 		logWatcher.Err <- errors.New("error opening journal: " + CErr(rc))
-		close(logWatcher.Msg)
 		return
 	}
+	defer C.sd_journal_close(j)
+
 	if config.Follow {
 		// Initialize library inotify watches early
 		if rc := C.sd_journal_get_fd(j); rc < 0 {
 			logWatcher.Err <- errors.New("error getting journald fd: " + CErr(rc))
-			close(logWatcher.Msg)
 			return
 		}
 	}
-	// If we end up following the log, we can set the journal context
-	// pointer and the channel pointer to nil so that we won't close them
-	// here, potentially while the goroutine that uses them is still
-	// running.  Otherwise, close them when we return from this function.
-	following := false
-	defer func() {
-		if !following {
-			close(logWatcher.Msg)
-		}
-		C.sd_journal_close(j)
-	}()
+
 	// Remove limits on the size of data items that we'll retrieve.
 	if rc := C.sd_journal_set_data_threshold(j, C.size_t(0)); rc != 0 {
 		logWatcher.Err <- errors.New("error setting journal data threshold: " + CErr(rc))
@@ -365,11 +356,7 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	}
 	if config.Follow {
 		cursor = s.followJournal(logWatcher, j, cursor, untilUnixMicro)
-		// Let followJournal handle freeing the journal context
-		// object and closing the channel.
-		following = true
 	}
-
 	C.free(unsafe.Pointer(cursor))
 }
 
