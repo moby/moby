@@ -98,7 +98,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	if err := idtools.MkdirAllAndChown(home, 0710, dirID); err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAllAndChown(path.Join(home, linkDir), 700, currentID); err != nil {
+	if err := idtools.MkdirAllAndChown(path.Join(home, linkDir), 0700, currentID); err != nil {
 		return nil, err
 	}
 
