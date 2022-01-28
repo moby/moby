@@ -106,6 +106,7 @@ import "C"
 
 import (
 	"errors"
+	"runtime"
 	"strings"
 	"time"
 	"unsafe"
@@ -264,6 +265,14 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 		sinceUnixMicro uint64
 		untilUnixMicro uint64
 	)
+	// Quoting https://www.freedesktop.org/software/systemd/man/sd-journal.html:
+	//     Functions that operate on sd_journal objects are thread
+	//     agnostic — given sd_journal pointer may only be used from one
+	//     specific thread at all times (and it has to be the very same one
+	//     during the entire lifetime of the object), but multiple,
+	//     independent threads may use multiple, independent objects safely.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 
 	// Get a handle to the journal.
 	if rc := C.sd_journal_open(&j, C.int(0)); rc != 0 {
