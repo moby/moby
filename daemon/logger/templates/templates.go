@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"strings"
 	"text/template"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // basicFunctions are the set of initial
@@ -20,7 +23,7 @@ var basicFunctions = template.FuncMap{
 	},
 	"split":    strings.Split,
 	"join":     strings.Join,
-	"title":    strings.Title,
+	"title":    title,
 	"lower":    strings.ToLower,
 	"upper":    strings.ToUpper,
 	"pad":      padWithSpace,
@@ -47,4 +50,10 @@ func truncateWithLength(source string, length int) string {
 		return source
 	}
 	return source[:length]
+}
+
+// title returns a copy of the string s with all Unicode letters that begin words
+// mapped to their Unicode title case.
+func title(source string) string {
+	return cases.Title(language.Und, cases.NoLower).String(source)
 }

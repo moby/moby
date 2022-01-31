@@ -3,6 +3,9 @@ package main
 import (
 	"strings"
 	"text/template"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 func printArgs(args []arg) string {
@@ -64,7 +67,7 @@ func title(s string) string {
 	if strings.ToLower(s) == "id" {
 		return "ID"
 	}
-	return strings.Title(s)
+	return cases.Title(language.Und, cases.NoLower).String(s)
 }
 
 var generatedTempl = template.Must(template.New("rpc_cient").Funcs(templFuncs).Parse(`
