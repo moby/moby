@@ -150,10 +150,8 @@ func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResp
 			if err.Timeout() {
 				return serverResp, ErrorConnectionFailed(cli.host)
 			}
-			if !err.Temporary() {
-				if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "dial unix") {
-					return serverResp, ErrorConnectionFailed(cli.host)
-				}
+			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "dial unix") {
+				return serverResp, ErrorConnectionFailed(cli.host)
 			}
 		}
 
