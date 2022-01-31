@@ -19,13 +19,11 @@ func (daemon *Daemon) execSetPlatformOpt(c *container.Container, ec *exec.Config
 		}
 	}
 	if ec.Privileged {
-		if p.Capabilities == nil {
-			p.Capabilities = &specs.LinuxCapabilities{}
+		p.Capabilities = &specs.LinuxCapabilities{
+			Bounding:  caps.GetAllCapabilities(),
+			Permitted: caps.GetAllCapabilities(),
+			Effective: caps.GetAllCapabilities(),
 		}
-		p.Capabilities.Bounding = caps.GetAllCapabilities()
-		p.Capabilities.Permitted = p.Capabilities.Bounding
-		p.Capabilities.Inheritable = p.Capabilities.Bounding
-		p.Capabilities.Effective = p.Capabilities.Bounding
 	}
 	if apparmor.HostSupports() {
 		var appArmorProfile string
