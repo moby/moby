@@ -333,6 +333,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             python3-setuptools \
             python3-wheel \
             sudo \
+            systemd-journal-remote \
             thin-provisioning-tools \
             uidmap \
             vim \

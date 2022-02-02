@@ -6,6 +6,7 @@ package journald // import "github.com/docker/docker/daemon/logger/journald"
 import (
 	"fmt"
 	"strconv"
+	"time"
 	"unicode"
 
 	"github.com/coreos/go-systemd/v22/journal"
@@ -15,10 +16,38 @@ import (
 
 const name = "journald"
 
+// Well-known user journal fields.
+// https://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html
+const (
+	fieldSyslogIdentifier = "SYSLOG_IDENTIFIER"
+	fieldSyslogTimestamp  = "SYSLOG_TIMESTAMP"
+)
+
+// User journal fields used by the log driver.
+const (
+	fieldContainerID     = "CONTAINER_ID"
+	fieldContainerIDFull = "CONTAINER_ID_FULL"
+	fieldContainerName   = "CONTAINER_NAME"
+	fieldContainerTag    = "CONTAINER_TAG"
+	fieldImageName       = "IMAGE_NAME"
+
+	// Fields used to serialize PLogMetaData.
+
+	fieldPLogID         = "CONTAINER_PARTIAL_ID"
+	fieldPLogOrdinal    = "CONTAINER_PARTIAL_ORDINAL"
+	fieldPLogLast       = "CONTAINER_PARTIAL_LAST"
+	fieldPartialMessage = "CONTAINER_PARTIAL_MESSAGE"
+)
+
 type journald struct {
 	vars map[string]string // additional variables and values to send to the journal along with the log message
 
 	closed chan struct{}
+
+	// Overrides for unit tests.
+
+	sendToJournal  func(message string, priority journal.Priority, vars map[string]string) error
+	journalReadDir string //nolint:structcheck,unused // Referenced in read.go, which has more restrictive build constraints.
 }
 
 func init() {
@@ -57,6 +86,10 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, fmt.Errorf("journald is not enabled on this host")
 	}
 
+	return new(info)
+}
+
+func new(info logger.Info) (*journald, error) {
 	// parse log tag
 	tag, err := loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
 	if err != nil {
@@ -64,12 +97,12 @@ func New(info logger.Info) (logger.Logger, error) {
 	}
 
 	vars := map[string]string{
-		"CONTAINER_ID":      info.ContainerID[:12],
-		"CONTAINER_ID_FULL": info.ContainerID,
-		"CONTAINER_NAME":    info.Name(),
-		"CONTAINER_TAG":     tag,
-		"IMAGE_NAME":        info.ImageName(),
-		"SYSLOG_IDENTIFIER": tag,
+		fieldContainerID:      info.ContainerID[:12],
+		fieldContainerIDFull:  info.ContainerID,
+		fieldContainerName:    info.Name(),
+		fieldContainerTag:     tag,
+		fieldImageName:        info.ImageName(),
+		fieldSyslogIdentifier: tag,
 	}
 	extraAttrs, err := info.ExtraAttributes(sanitizeKeyMod)
 	if err != nil {
@@ -78,7 +111,7 @@ func New(info logger.Info) (logger.Logger, error) {
 	for k, v := range extraAttrs {
 		vars[k] = v
 	}
-	return &journald{vars: vars, closed: make(chan struct{})}, nil
+	return &journald{vars: vars, closed: make(chan struct{}), sendToJournal: journal.Send}, nil
 }
 
 // We don't actually accept any options, but we have to supply a callback for
@@ -103,12 +136,15 @@ func (s *journald) Log(msg *logger.Message) error {
 	for k, v := range s.vars {
 		vars[k] = v
 	}
+	if !msg.Timestamp.IsZero() {
+		vars[fieldSyslogTimestamp] = msg.Timestamp.Format(time.RFC3339Nano)
+	}
 	if msg.PLogMetaData != nil {
-		vars["CONTAINER_PARTIAL_ID"] = msg.PLogMetaData.ID
-		vars["CONTAINER_PARTIAL_ORDINAL"] = strconv.Itoa(msg.PLogMetaData.Ordinal)
-		vars["CONTAINER_PARTIAL_LAST"] = strconv.FormatBool(msg.PLogMetaData.Last)
+		vars[fieldPLogID] = msg.PLogMetaData.ID
+		vars[fieldPLogOrdinal] = strconv.Itoa(msg.PLogMetaData.Ordinal)
+		vars[fieldPLogLast] = strconv.FormatBool(msg.PLogMetaData.Last)
 		if !msg.PLogMetaData.Last {
-			vars["CONTAINER_PARTIAL_MESSAGE"] = "true"
+			vars[fieldPartialMessage] = "true"
 		}
 	}
 
@@ -117,9 +153,9 @@ func (s *journald) Log(msg *logger.Message) error {
 	logger.PutMessage(msg)
 
 	if source == "stderr" {
-		return journal.Send(line, journal.PriErr, vars)
+		return s.sendToJournal(line, journal.PriErr, vars)
 	}
-	return journal.Send(line, journal.PriInfo, vars)
+	return s.sendToJournal(line, journal.PriInfo, vars)
 }
 
 func (s *journald) Name() string {

@@ -56,6 +56,23 @@ func Open(flags int) (*Journal, error) {
 	return j, nil
 }
 
+// OpenDir opens the journal files at the specified absolute directory path for
+// reading.
+//
+// The returned Journal value may only be used from the same operating system
+// thread which Open was called from. Using it from only a single goroutine is
+// not sufficient; runtime.LockOSThread must also be used.
+func OpenDir(path string, flags int) (*Journal, error) {
+	j := &Journal{}
+	cpath := C.CString(path)
+	defer C.free(unsafe.Pointer(cpath))
+	if rc := C.sd_journal_open_directory(&j.j, cpath, C.int(flags)); rc != 0 {
+		return nil, fmt.Errorf("journald: error opening journal: %w", syscall.Errno(-rc))
+	}
+	runtime.SetFinalizer(j, (*Journal).Close)
+	return j, nil
+}
+
 // Close closes the journal. The return value is always nil.
 func (j *Journal) Close() error {
 	if j.j != nil {
@@ -105,10 +122,27 @@ func (j *Journal) Next() (bool, error) {
 	return rc > 0, nil
 }
 
-// PreviousSkip sets back the read pointer by n entries. The number of entries
-// must be less than or equal to 2147483647 (2**31 - 1).
-func (j *Journal) PreviousSkip(n uint) (int, error) {
-	rc := C.sd_journal_previous_skip(j.j, C.uint64_t(n))
+// Previous sets back the read pointer to the previous entry.
+func (j *Journal) Previous() (bool, error) {
+	rc := C.sd_journal_previous(j.j)
+	if rc < 0 {
+		return false, fmt.Errorf("journald: error setting back read pointer: %w", syscall.Errno(-rc))
+	}
+	return rc > 0, nil
+}
+
+// PreviousSkip sets back the read pointer by skip entries, returning the number
+// of entries set back. skip must be less than or equal to 2147483647
+// (2**31 - 1).
+//
+// skip == 0 is a special case: PreviousSkip(0) resolves the read pointer to a
+// discrete position without setting it back to a different entry. The trouble
+// is, it always returns zero on recent libsystemd versions. There is no way to
+// tell from the return values whether or not it successfully resolved the read
+// pointer to a discrete entry.
+// https://github.com/systemd/systemd/pull/5930#issuecomment-300878104
+func (j *Journal) PreviousSkip(skip uint) (int, error) {
+	rc := C.sd_journal_previous_skip(j.j, C.uint64_t(skip))
 	if rc < 0 {
 		return 0, fmt.Errorf("journald: error setting back read pointer: %w", syscall.Errno(-rc))
 	}
@@ -116,6 +150,9 @@ func (j *Journal) PreviousSkip(n uint) (int, error) {
 }
 
 // SeekHead sets the read pointer to the position before the oldest available entry.
+//
+// BUG: SeekHead() followed by Previous() has unexpected behavior.
+// https://github.com/systemd/systemd/issues/17662
 func (j *Journal) SeekHead() error {
 	if rc := C.sd_journal_seek_head(j.j); rc != 0 {
 		return fmt.Errorf("journald: error seeking to head of journal: %w", syscall.Errno(-rc))
@@ -124,6 +161,9 @@ func (j *Journal) SeekHead() error {
 }
 
 // SeekTail sets the read pointer to the position after the most recent available entry.
+//
+// BUG: SeekTail() followed by Next() has unexpected behavior.
+// https://github.com/systemd/systemd/issues/9934
 func (j *Journal) SeekTail() error {
 	if rc := C.sd_journal_seek_tail(j.j); rc != 0 {
 		return fmt.Errorf("journald: error seeking to tail of journal: %w", syscall.Errno(-rc))
@@ -140,24 +180,6 @@ func (j *Journal) SeekRealtime(t time.Time) error {
 		return fmt.Errorf("journald: error seeking to time %v: %w", t, syscall.Errno(-rc))
 	}
 	return nil
-}
-
-// Cursor returns a serialization of the journal read pointer's current position.
-func (j *Journal) Cursor() (*Cursor, error) {
-	var c *C.char
-	if rc := C.sd_journal_get_cursor(j.j, &c); rc != 0 {
-		return nil, fmt.Errorf("journald: error getting cursor: %w", syscall.Errno(-rc))
-	}
-	return wrapCursor(c), nil
-}
-
-// TestCursor checks whether the current position of the journal read pointer matches c.
-func (j *Journal) TestCursor(c *Cursor) (bool, error) {
-	rc := C.sd_journal_test_cursor(j.j, c.c)
-	if rc < 0 {
-		return false, fmt.Errorf("journald: error testing cursor: %w", syscall.Errno(-rc))
-	}
-	return rc > 0, nil
 }
 
 // Wait blocks until the journal gets changed or timeout has elapsed.
@@ -235,3 +257,8 @@ func (j *Journal) SetDataThreshold(v uint) error {
 	}
 	return nil
 }
+
+type noCopy struct{}
+
+func (noCopy) Lock()   {}
+func (noCopy) Unlock() {}

@@ -12,7 +12,7 @@
 #
 set -eux -o pipefail
 
-BUILDFLAGS=(-tags 'netgo libdm_no_deferred_remove')
+BUILDFLAGS=(-tags 'netgo libdm_no_deferred_remove journald')
 TESTFLAGS+=" -test.timeout=${TIMEOUT:-5m}"
 TESTDIRS="${TESTDIRS:-./...}"
 exclude_paths='/vendor/|/integration'

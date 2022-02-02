@@ -10,6 +10,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/opt"
 
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/logger"
@@ -25,6 +26,9 @@ type Reader struct {
 }
 
 var compareLog cmp.Options = []cmp.Option{
+	// Not all log drivers can round-trip timestamps at full nanosecond
+	// precision.
+	opt.TimeWithThreshold(time.Millisecond),
 	// The json-log driver does not round-trip PLogMetaData and API users do
 	// not expect it.
 	cmpopts.IgnoreFields(logger.Message{}, "PLogMetaData"),
