@@ -79,6 +79,7 @@ type LogFile struct {
 	mu              sync.RWMutex // protects the logfile access
 	f               *os.File     // store for closing
 	closed          bool
+	closedCh        chan struct{}
 	rotateMu        sync.Mutex // blocks the next rotation until the current rotation is completed
 	capacity        int64      // maximum size of each file
 	currentSize     int64      // current size of the latest file
@@ -135,6 +136,7 @@ func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, mar
 
 	return &LogFile{
 		f:               log,
+		closedCh:        make(chan struct{}),
 		capacity:        capacity,
 		currentSize:     size,
 		maxFiles:        maxFiles,
@@ -344,6 +346,7 @@ func (w *LogFile) Close() error {
 		return err
 	}
 	w.closed = true
+	close(w.closedCh)
 	return nil
 }
 
@@ -435,7 +438,7 @@ func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher)
 	})
 	defer w.notifyReaders.Evict(notifyRotate)
 
-	followLogs(currentFile, watcher, notifyRotate, notifyEvict, dec, config.Since, config.Until)
+	followLogs(currentFile, watcher, w.closedCh, notifyRotate, notifyEvict, dec, config.Since, config.Until)
 }
 
 func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []*os.File, err error) {

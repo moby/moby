@@ -23,11 +23,9 @@ const Name = "json-file"
 
 // JSONFileLogger is Logger implementation for default Docker logging.
 type JSONFileLogger struct {
-	mu      sync.Mutex
-	closed  bool
-	writer  *loggerutils.LogFile
-	readers map[*logger.LogWatcher]struct{} // stores the active log followers
-	tag     string                          // tag values requested by the user to log
+	mu     sync.Mutex
+	writer *loggerutils.LogFile
+	tag    string // tag values requested by the user to log
 }
 
 func init() {
@@ -116,9 +114,8 @@ func New(info logger.Info) (logger.Logger, error) {
 	}
 
 	return &JSONFileLogger{
-		writer:  writer,
-		readers: make(map[*logger.LogWatcher]struct{}),
-		tag:     tag,
+		writer: writer,
+		tag:    tag,
 	}, nil
 }
 
@@ -171,14 +168,8 @@ func ValidateLogOpt(cfg map[string]string) error {
 // that the logs producer is gone.
 func (l *JSONFileLogger) Close() error {
 	l.mu.Lock()
-	l.closed = true
-	err := l.writer.Close()
-	for r := range l.readers {
-		r.ProducerGone()
-		delete(l.readers, r)
-	}
-	l.mu.Unlock()
-	return err
+	defer l.mu.Unlock()
+	return l.writer.Close()
 }
 
 // Name returns name of this logger.

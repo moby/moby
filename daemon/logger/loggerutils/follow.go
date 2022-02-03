@@ -20,6 +20,7 @@ type follow struct {
 	dec                       Decoder
 	fileWatcher               filenotify.FileWatcher
 	logWatcher                *logger.LogWatcher
+	producerGone              <-chan struct{}
 	notifyRotate, notifyEvict chan interface{}
 	oldSize                   int64
 	retries                   int
@@ -73,7 +74,7 @@ func (fl *follow) waitRead() error {
 		case fsnotify.Rename, fsnotify.Remove:
 			select {
 			case <-fl.notifyRotate:
-			case <-fl.logWatcher.WatchProducerGone():
+			case <-fl.producerGone:
 				return errDone
 			case <-fl.logWatcher.WatchConsumerGone():
 				return errDone
@@ -97,7 +98,7 @@ func (fl *follow) waitRead() error {
 			return errRetry
 		}
 		return err
-	case <-fl.logWatcher.WatchProducerGone():
+	case <-fl.producerGone:
 		return errDone
 	case <-fl.logWatcher.WatchConsumerGone():
 		return errDone
@@ -183,7 +184,7 @@ func (fl *follow) mainLoop(since, until time.Time) {
 	}
 }
 
-func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate, notifyEvict chan interface{}, dec Decoder, since, until time.Time) {
+func followLogs(f *os.File, logWatcher *logger.LogWatcher, producerGone <-chan struct{}, notifyRotate, notifyEvict chan interface{}, dec Decoder, since, until time.Time) {
 	dec.Reset(f)
 
 	name := f.Name()
@@ -203,6 +204,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate, notifyE
 		oldSize:      -1,
 		logWatcher:   logWatcher,
 		fileWatcher:  fileWatcher,
+		producerGone: producerGone,
 		notifyRotate: notifyRotate,
 		notifyEvict:  notifyEvict,
 		dec:          dec,
