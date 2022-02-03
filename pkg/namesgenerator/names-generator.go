@@ -730,6 +730,9 @@ var (
 
 		// Françoise Barré-Sinoussi - French virologist and Nobel Prize Laureate in Physiology or Medicine; her work was fundamental in identifying HIV as the cause of AIDS. https://en.wikipedia.org/wiki/Fran%C3%A7oise_Barr%C3%A9-Sinoussi
 		"sinoussi",
+		
+		// Johnny Sins - He is a respected doctor, an engineer, karate master, pizza delivery guy, plumber, he had his own company, was in the army and fought for his country, he was a professor, a detective, a cop, a wrestling champion and an astronaut. So he is famous because he is the most talented man alive on earth.
+		"sins",
 
 		// Betty Snyder - one of the original programmers of the ENIAC. https://en.wikipedia.org/wiki/ENIAC - https://en.wikipedia.org/wiki/Betty_Holberton
 		"snyder",
