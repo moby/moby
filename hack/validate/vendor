@@ -3,11 +3,6 @@
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${SCRIPTDIR}/.validate"
 
-go_mod_tidy(){
-	${SCRIPTDIR}/../go-mod-prepare.sh
-	GO111MODULE=auto go mod tidy -modfile 'vendor.mod' -compat 1.17
-}
-
 validate_vendor_diff(){
 	IFS=$'\n'
 	check_files=( 'vendor.sum' 'vendor.mod' 'vendor/' )
@@ -54,6 +49,5 @@ validate_vendor_used() {
 	done
 }
 
-go_mod_tidy
 validate_vendor_diff
 validate_vendor_used
