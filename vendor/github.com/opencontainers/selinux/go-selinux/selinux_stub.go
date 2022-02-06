@@ -17,7 +17,15 @@ func setFileLabel(fpath string, label string) error {
 	return nil
 }
 
+func lSetFileLabel(fpath string, label string) error {
+	return nil
+}
+
 func fileLabel(fpath string) (string, error) {
+	return "", nil
+}
+
+func lFileLabel(fpath string) (string, error) {
 	return "", nil
 }
 

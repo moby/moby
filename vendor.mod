@@ -36,7 +36,7 @@ require (
 	github.com/docker/swarmkit v1.12.1-0.20210726173615-3629f50980f6
 	github.com/fluent/fluent-logger-golang v1.9.0
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/godbus/dbus/v5 v5.0.4
+	github.com/godbus/dbus/v5 v5.0.6
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/gddo v0.0.0-20190904175337-72a348e765d2
 	github.com/google/go-cmp v0.5.5
@@ -62,9 +62,9 @@ require (
 	github.com/morikuni/aec v1.0.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.2
-	github.com/opencontainers/runc v1.0.3
+	github.com/opencontainers/runc v1.1.0
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
-	github.com/opencontainers/selinux v1.9.1
+	github.com/opencontainers/selinux v1.10.0
 	github.com/pelletier/go-toml v1.9.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
@@ -93,14 +93,14 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
-	github.com/cilium/ebpf v0.6.2 // indirect
-	github.com/containerd/console v1.0.2 // indirect
+	github.com/cilium/ebpf v0.7.0 // indirect
+	github.com/containerd/console v1.0.3 // indirect
 	github.com/containerd/go-runc v1.0.0 // indirect
 	github.com/containerd/ttrpc v1.1.0 // indirect
 	github.com/coreos/etcd v3.3.27+incompatible // indirect
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f // indirect
-	github.com/cyphar/filepath-securejoin v0.2.2 // indirect
+	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
 	github.com/fernet/fernet-go v0.0.0-20180830025343-9eac43b88a5e // indirect
 	github.com/gofrs/flock v0.7.3 // indirect
 	github.com/gogo/googleapis v1.4.0 // indirect
