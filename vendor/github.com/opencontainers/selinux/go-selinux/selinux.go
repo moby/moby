@@ -61,14 +61,28 @@ func ClassIndex(class string) (int, error) {
 	return classIndex(class)
 }
 
-// SetFileLabel sets the SELinux label for this path or returns an error.
+// SetFileLabel sets the SELinux label for this path, following symlinks,
+// or returns an error.
 func SetFileLabel(fpath string, label string) error {
 	return setFileLabel(fpath, label)
 }
 
-// FileLabel returns the SELinux label for this path or returns an error.
+// LsetFileLabel sets the SELinux label for this path, not following symlinks,
+// or returns an error.
+func LsetFileLabel(fpath string, label string) error {
+	return lSetFileLabel(fpath, label)
+}
+
+// FileLabel returns the SELinux label for this path, following symlinks,
+// or returns an error.
 func FileLabel(fpath string) (string, error) {
 	return fileLabel(fpath)
+}
+
+// LfileLabel returns the SELinux label for this path, not following symlinks,
+// or returns an error.
+func LfileLabel(fpath string) (string, error) {
+	return lFileLabel(fpath)
 }
 
 // SetFSCreateLabel tells the kernel what label to use for all file system objects

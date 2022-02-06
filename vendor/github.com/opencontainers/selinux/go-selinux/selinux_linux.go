@@ -316,8 +316,9 @@ func classIndex(class string) (int, error) {
 	return index, nil
 }
 
-// setFileLabel sets the SELinux label for this path or returns an error.
-func setFileLabel(fpath string, label string) error {
+// lSetFileLabel sets the SELinux label for this path, not following symlinks,
+// or returns an error.
+func lSetFileLabel(fpath string, label string) error {
 	if fpath == "" {
 		return ErrEmptyPath
 	}
@@ -334,8 +335,46 @@ func setFileLabel(fpath string, label string) error {
 	return nil
 }
 
-// fileLabel returns the SELinux label for this path or returns an error.
+// setFileLabel sets the SELinux label for this path, following symlinks,
+// or returns an error.
+func setFileLabel(fpath string, label string) error {
+	if fpath == "" {
+		return ErrEmptyPath
+	}
+	for {
+		err := unix.Setxattr(fpath, xattrNameSelinux, []byte(label), 0)
+		if err == nil {
+			break
+		}
+		if err != unix.EINTR { //nolint:errorlint // unix errors are bare
+			return &os.PathError{Op: "setxattr", Path: fpath, Err: err}
+		}
+	}
+
+	return nil
+}
+
+// fileLabel returns the SELinux label for this path, following symlinks,
+// or returns an error.
 func fileLabel(fpath string) (string, error) {
+	if fpath == "" {
+		return "", ErrEmptyPath
+	}
+
+	label, err := getxattr(fpath, xattrNameSelinux)
+	if err != nil {
+		return "", &os.PathError{Op: "getxattr", Path: fpath, Err: err}
+	}
+	// Trim the NUL byte at the end of the byte buffer, if present.
+	if len(label) > 0 && label[len(label)-1] == '\x00' {
+		label = label[:len(label)-1]
+	}
+	return string(label), nil
+}
+
+// lFileLabel returns the SELinux label for this path, not following symlinks,
+// or returns an error.
+func lFileLabel(fpath string) (string, error) {
 	if fpath == "" {
 		return "", ErrEmptyPath
 	}
