@@ -578,7 +578,12 @@ definitions:
         items:
           $ref: "#/definitions/DeviceRequest"
       KernelMemoryTCP:
-        description: "Hard limit for kernel TCP buffer memory (in bytes)."
+        description: |
+          Hard limit for kernel TCP buffer memory (in bytes). Depending on the
+          OCI runtime in use, this option may be ignored. It is no longer supported
+          by the default (runc) runtime.
+
+          This field is omitted when empty.
         type: "integer"
         format: "int64"
       MemoryReservation:

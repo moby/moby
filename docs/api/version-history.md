@@ -46,6 +46,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   `POST /containers/{id}/update` endpoints, any value it is set to will be ignored
   on API version `v1.42` and up. Older API versions still accept this field, but
   may take no effect, depending on the kernel version and OCI runtime in use.
+* `GET /containers/{id}/json` now omits the `KernelMemory` and `KernelMemoryTCP`
+  if they are not set.
 * `GET /info` now omits the `KernelMemory` and `KernelMemoryTCP` if they are not
   supported by the host or host's configuration (if cgroups v2 are in use).
 
