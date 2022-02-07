@@ -4648,7 +4648,8 @@ definitions:
         example: true
       KernelMemoryTCP:
         description: |
-          Indicates if the host has kernel memory TCP limit support enabled.
+          Indicates if the host has kernel memory TCP limit support enabled. This
+          field is omitted if not supported.
 
           Kernel memory TCP limits are not supported when using cgroups v2, which
           does not support the corresponding `memory.kmem.tcp.limit_in_bytes` cgroup.

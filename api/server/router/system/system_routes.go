@@ -51,7 +51,8 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 		info.Warnings = append(info.Warnings, info.Swarm.Warnings...)
 	}
 
-	if versions.LessThan(httputils.VersionFromContext(ctx), "1.25") {
+	version := httputils.VersionFromContext(ctx)
+	if versions.LessThan(version, "1.25") {
 		// TODO: handle this conversion in engine-api
 		type oldInfo struct {
 			*types.Info
@@ -72,13 +73,16 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 		old.SecurityOptions = nameOnlySecurityOptions
 		return httputils.WriteJSON(w, http.StatusOK, old)
 	}
-	if versions.LessThan(httputils.VersionFromContext(ctx), "1.39") {
+	if versions.LessThan(version, "1.39") {
 		if info.KernelVersion == "" {
 			info.KernelVersion = "<unknown>"
 		}
 		if info.OperatingSystem == "" {
 			info.OperatingSystem = "<unknown>"
 		}
+	}
+	if versions.GreaterThanOrEqualTo(version, "1.42") {
+		info.KernelMemory = false
 	}
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }

@@ -449,7 +449,7 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 			warnings = append(warnings, "Your kernel does not support kernel memory limit capabilities or the cgroup is not mounted. Limitation discarded.")
 			resources.KernelMemory = 0
 		}
-		if resources.KernelMemory < linuxMinMemory {
+		if resources.KernelMemory > 0 && resources.KernelMemory < linuxMinMemory {
 			return warnings, fmt.Errorf("Minimum kernel memory limit allowed is 6MB")
 		}
 		if !kernel.CheckKernelVersion(4, 0, 0) {
