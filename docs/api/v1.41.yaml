@@ -4467,6 +4467,14 @@ definitions:
           > `kmem.limit_in_bytes`.
         type: "boolean"
         example: true
+      KernelMemoryTCP:
+        description: |
+          Indicates if the host has kernel memory TCP limit support enabled.
+
+          Kernel memory TCP limits are not supported when using cgroups v2, which
+          does not support the corresponding `memory.kmem.tcp.limit_in_bytes` cgroup.
+        type: "boolean"
+        example: true
       CpuCfsPeriod:
         description: |
           Indicates if CPU CFS(Completely Fair Scheduler) period is supported by
