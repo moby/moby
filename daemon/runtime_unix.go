@@ -69,7 +69,9 @@ func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error
 		}
 
 		if err = os.Rename(runtimeDir, runtimeDir+"-old"); err != nil {
-			return
+			if err = os.RemoveAll(runtimeDir); err != nil {
+				return
+			}
 		}
 		if err = os.Rename(tmpDir, runtimeDir); err != nil {
 			err = errors.Wrap(err, "failed to setup runtimes dir, new containers may not start")
