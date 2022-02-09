@@ -3,7 +3,6 @@ package jsonfilelog // import "github.com/docker/docker/daemon/logger/jsonfilelo
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -107,45 +106,6 @@ func TestEncodeDecode(t *testing.T) {
 	assert.Assert(t, err == io.EOF)
 }
 
-func TestUnexpectedEOF(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	msg1 := &logger.Message{Timestamp: time.Now(), Line: []byte("hello1")}
-	msg2 := &logger.Message{Timestamp: time.Now(), Line: []byte("hello2")}
-
-	err := marshalMessage(msg1, json.RawMessage{}, buf)
-	assert.NilError(t, err)
-	err = marshalMessage(msg2, json.RawMessage{}, buf)
-	assert.NilError(t, err)
-
-	r := &readerWithErr{
-		err:   io.EOF,
-		after: buf.Len() / 4,
-		r:     buf,
-	}
-	dec := &decoder{rdr: r, maxRetry: 1}
-
-	_, err = dec.Decode()
-	assert.Error(t, err, io.ErrUnexpectedEOF.Error())
-	// again just to check
-	_, err = dec.Decode()
-	assert.Error(t, err, io.ErrUnexpectedEOF.Error())
-
-	// reset the error
-	// from here all reads should succeed until we get EOF on the underlying reader
-	r.err = nil
-
-	msg, err := dec.Decode()
-	assert.NilError(t, err)
-	assert.Equal(t, string(msg1.Line)+"\n", string(msg.Line))
-
-	msg, err = dec.Decode()
-	assert.NilError(t, err)
-	assert.Equal(t, string(msg2.Line)+"\n", string(msg.Line))
-
-	_, err = dec.Decode()
-	assert.Error(t, err, io.EOF.Error())
-}
-
 func TestReadLogs(t *testing.T) {
 	t.Parallel()
 	r := loggertest.Reader{
@@ -193,6 +153,40 @@ func TestTailLogsWithRotation(t *testing.T) {
 	compress(false)
 }
 
+func TestFollowLogsWithRotation(t *testing.T) {
+	t.Parallel()
+	compress := func(cmprs bool) {
+		t.Run(fmt.Sprintf("compress=%v", cmprs), func(t *testing.T) {
+			t.Parallel()
+			(&loggertest.Reader{
+				Factory: func(t *testing.T, info logger.Info) func(*testing.T) logger.Logger {
+					// The log follower can fall behind and drop logs if there are too many
+					// rotations in a short time. If that was to happen, loggertest would fail the
+					// test. Configure the logger so that there will be only one rotation with the
+					// set of logs that loggertest writes.
+					info.Config = map[string]string{
+						"compress": strconv.FormatBool(cmprs),
+						"max-size": "4096b",
+						"max-file": "3",
+					}
+					dir := t.TempDir()
+					t.Cleanup(func() {
+						t.Logf("%s:\n%s", t.Name(), dirStringer{dir})
+					})
+					info.LogPath = filepath.Join(dir, info.ContainerID+".log")
+					return func(t *testing.T) logger.Logger {
+						l, err := New(info)
+						assert.NilError(t, err)
+						return l
+					}
+				},
+			}).TestFollow(t)
+		})
+	}
+	compress(true)
+	compress(false)
+}
+
 type dirStringer struct {
 	d string
 }
@@ -219,23 +213,4 @@ func (d dirStringer) String() string {
 	btw.Flush()
 	tw.Flush()
 	return buf.String()
-}
-
-type readerWithErr struct {
-	err   error
-	after int
-	r     io.Reader
-	read  int
-}
-
-func (r *readerWithErr) Read(p []byte) (int, error) {
-	if r.err != nil && r.read > r.after {
-		return 0, r.err
-	}
-
-	n, err := r.r.Read(p[:1])
-	if n > 0 {
-		r.read += n
-	}
-	return n, err
 }

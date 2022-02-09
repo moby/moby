@@ -7,16 +7,14 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math"
 	"os"
-	"runtime"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/pkg/filenotify"
 	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/pubsub"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -28,22 +26,63 @@ type rotateFileMetadata struct {
 
 // LogFile is Logger implementation for default Docker logging.
 type LogFile struct {
-	mu            sync.RWMutex // protects the logfile access
-	f             *os.File     // store for closing
-	closed        bool
-	closedCh      chan struct{}
-	rotateMu      sync.Mutex               // blocks the next rotation until the current rotation is completed
-	capacity      int64                    // maximum size of each file
-	currentSize   int64                    // current size of the latest file
-	maxFiles      int                      // maximum number of files
-	compress      bool                     // whether old versions of log files are compressed
-	lastTimestamp time.Time                // timestamp of the last log
-	decompress    *sharedTempFileConverter // keep reference-counted decompressed files
-	notifyReaders *pubsub.Publisher
+	mu       sync.Mutex // protects the logfile access
+	closed   chan struct{}
+	rotateMu sync.Mutex // blocks the next rotation until the current rotation is completed
+	// Lock out readers while performing a non-atomic sequence of filesystem
+	// operations (RLock: open, Lock: rename, delete).
+	//
+	// fsopMu should be locked for writing only while holding rotateMu.
+	fsopMu sync.RWMutex
+
+	// Logger configuration
+
+	capacity int64 // maximum size of each file
+	maxFiles int   // maximum number of files
+	compress bool  // whether old versions of log files are compressed
+	perms    os.FileMode
+
+	// Log file codec
+
 	marshal       logger.MarshalFunc
 	createDecoder MakeDecoderFn
 	getTailReader GetTailReaderFunc
-	perms         os.FileMode
+
+	// Log reader state in a 1-buffered channel.
+	//
+	// Share memory by communicating: receive to acquire, send to release.
+	// The state struct is passed around by value so that use-after-send
+	// bugs cannot escalate to data races.
+	//
+	// A method which receives the state value takes ownership of it. The
+	// owner is responsible for either passing ownership along or sending
+	// the state back to the channel. By convention, the semantics of
+	// passing along ownership is expressed with function argument types.
+	// Methods which take a pointer *logReadState argument borrow the state,
+	// analogous to functions which require a lock to be held when calling.
+	// The caller retains ownership. Calling a method which which takes a
+	// value logFileState argument gives ownership to the callee.
+	read chan logReadState
+
+	decompress *sharedTempFileConverter
+
+	pos           logPos    // Current log file write position.
+	f             *os.File  // Current log file for writing.
+	lastTimestamp time.Time // timestamp of the last log
+}
+
+type logPos struct {
+	// Size of the current file.
+	size int64
+	// File rotation sequence number (modulo 2**16).
+	rotation uint16
+}
+
+type logReadState struct {
+	// Current log file position.
+	pos logPos
+	// Wait list to be notified of the value of pos next time it changes.
+	wait []chan<- logPos
 }
 
 // MakeDecoderFn creates a decoder
@@ -92,15 +131,24 @@ func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, mar
 		return nil, err
 	}
 
+	pos := logPos{
+		size: size,
+		// Force a wraparound on first rotation to shake out any
+		// modular-arithmetic bugs.
+		rotation: math.MaxUint16,
+	}
+	st := make(chan logReadState, 1)
+	st <- logReadState{pos: pos}
+
 	return &LogFile{
 		f:             log,
-		closedCh:      make(chan struct{}),
+		read:          st,
+		pos:           pos,
+		closed:        make(chan struct{}),
 		capacity:      capacity,
-		currentSize:   size,
 		maxFiles:      maxFiles,
 		compress:      compress,
 		decompress:    newSharedTempFileConverter(decompress),
-		notifyReaders: pubsub.NewPublisher(0, 1),
 		marshal:       marshaller,
 		createDecoder: decodeFunc,
 		perms:         perms,
@@ -120,35 +168,45 @@ func (w *LogFile) WriteLogEntry(msg *logger.Message) error {
 	logger.PutMessage(msg)
 	msg = nil // Turn use-after-put bugs into panics.
 
-	w.mu.Lock()
-	if w.closed {
-		w.mu.Unlock()
+	select {
+	case <-w.closed:
 		return errors.New("cannot write because the output file was closed")
+	default:
 	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
-	if err := w.checkCapacityAndRotate(); err != nil {
-		w.mu.Unlock()
-		return errors.Wrap(err, "error rotating log file")
+	// Are we due for a rotation?
+	if w.capacity != -1 && w.pos.size >= w.capacity {
+		if err := w.rotate(); err != nil {
+			return errors.Wrap(err, "error rotating log file")
+		}
 	}
 
 	n, err := w.f.Write(b)
-	if err == nil {
-		w.currentSize += int64(n)
-		w.lastTimestamp = ts
+	if err != nil {
+		return errors.Wrap(err, "error writing log entry")
 	}
+	w.pos.size += int64(n)
+	w.lastTimestamp = ts
 
-	w.mu.Unlock()
-	return errors.Wrap(err, "error writing log entry")
+	// Notify any waiting readers that there is a new log entry to read.
+	st := <-w.read
+	defer func() { w.read <- st }()
+	st.pos = w.pos
+
+	for _, c := range st.wait {
+		c <- st.pos
+	}
+	// Optimization: retain the backing array to save a heap allocation next
+	// time a reader appends to the list.
+	if st.wait != nil {
+		st.wait = st.wait[:0]
+	}
+	return nil
 }
 
-func (w *LogFile) checkCapacityAndRotate() (retErr error) {
-	if w.capacity == -1 {
-		return nil
-	}
-	if w.currentSize < w.capacity {
-		return nil
-	}
-
+func (w *LogFile) rotate() (retErr error) {
 	w.rotateMu.Lock()
 	noCompress := w.maxFiles <= 1 || !w.compress
 	defer func() {
@@ -167,46 +225,56 @@ func (w *LogFile) checkCapacityAndRotate() (retErr error) {
 		}
 	}
 
-	if err := rotate(fname, w.maxFiles, w.compress); err != nil {
-		logrus.WithError(err).Warn("Error rotating log file, log data may have been lost")
-	} else {
-		// We may have readers working their way through the current
-		// log file so we can't truncate it. We need to start writing
-		// new logs to an empty file with the same name as the current
-		// one so we need to rotate the current file out of the way.
-		if w.maxFiles < 2 {
-			if err := unlink(fname); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				logrus.WithError(err).Error("Error unlinking current log file")
-			}
+	file, err := func() (*os.File, error) {
+		w.fsopMu.Lock()
+		defer w.fsopMu.Unlock()
+
+		if err := rotate(fname, w.maxFiles, w.compress); err != nil {
+			logrus.WithError(err).Warn("Error rotating log file, log data may have been lost")
 		} else {
-			if err := os.Rename(fname, fname+".1"); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				logrus.WithError(err).Error("Error renaming current log file")
+			// We may have readers working their way through the
+			// current log file so we can't truncate it. We need to
+			// start writing new logs to an empty file with the same
+			// name as the current one so we need to rotate the
+			// current file out of the way.
+			if w.maxFiles < 2 {
+				if err := unlink(fname); err != nil && !errors.Is(err, fs.ErrNotExist) {
+					logrus.WithError(err).Error("Error unlinking current log file")
+				}
+			} else {
+				if err := os.Rename(fname, fname+".1"); err != nil && !errors.Is(err, fs.ErrNotExist) {
+					logrus.WithError(err).Error("Error renaming current log file")
+				}
 			}
 		}
-	}
 
-	// Notwithstanding the above, open with the truncate flag anyway in case
-	// rotation didn't work out as planned.
-	file, err := openFile(fname, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, w.perms)
+		// Notwithstanding the above, open with the truncate flag anyway
+		// in case rotation didn't work out as planned.
+		return openFile(fname, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, w.perms)
+	}()
 	if err != nil {
 		return err
 	}
 	w.f = file
-	w.currentSize = 0
-
-	w.notifyReaders.Publish(struct{}{})
+	w.pos = logPos{rotation: w.pos.rotation + 1}
 
 	if noCompress {
 		return nil
 	}
 
 	ts := w.lastTimestamp
-
 	go func() {
+		defer w.rotateMu.Unlock()
+		// No need to hold fsopMu as at no point will the filesystem be
+		// in a state which would cause problems for readers. Opening
+		// the uncompressed file is tried first, falling back to the
+		// compressed one. compressFile only deletes the uncompressed
+		// file once the compressed one is fully written out, so at no
+		// point during the compression process will a reader fail to
+		// open a complete copy of the file.
 		if err := compressFile(fname+".1", ts); err != nil {
 			logrus.WithError(err).Error("Error compressing log file after rotation")
 		}
-		w.rotateMu.Unlock()
 	}()
 
 	return nil
@@ -231,8 +299,9 @@ func rotate(name string, maxFiles int, compress bool) error {
 	for i := maxFiles - 1; i > 1; i-- {
 		toPath := name + "." + strconv.Itoa(i) + extension
 		fromPath := name + "." + strconv.Itoa(i-1) + extension
-		logrus.WithField("source", fromPath).WithField("target", toPath).Trace("Rotating log file")
-		if err := os.Rename(fromPath, toPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		err := os.Rename(fromPath, toPath)
+		logrus.WithError(err).WithField("source", fromPath).WithField("target", toPath).Trace("Rotating log file")
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return err
 		}
 	}
@@ -301,38 +370,49 @@ func (w *LogFile) MaxFiles() int {
 func (w *LogFile) Close() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if w.closed {
+	select {
+	case <-w.closed:
 		return nil
+	default:
 	}
 	if err := w.f.Close(); err != nil && !errors.Is(err, fs.ErrClosed) {
 		return err
 	}
-	w.closed = true
-	close(w.closedCh)
+	close(w.closed)
+	// Wait until any in-progress rotation is complete.
+	w.rotateMu.Lock()
+	w.rotateMu.Unlock() //nolint:staticcheck
 	return nil
 }
 
-// ReadLogs decodes entries from log files and sends them the passed in watcher
+// ReadLogs decodes entries from log files.
 //
-// Note: Using the follow option can become inconsistent in cases with very frequent rotations and max log files is 1.
-// TODO: Consider a different implementation which can effectively follow logs under frequent rotations.
+// It is the caller's responsibility to call ConsumerGone on the LogWatcher.
 func (w *LogFile) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
 	watcher := logger.NewLogWatcher()
-	// Lock before starting the reader goroutine to synchronize operations
-	// for race-free unit testing. The writer is locked out until the reader
-	// has opened the log file and set the read cursor to the current
-	// position.
-	w.mu.RLock()
-	go w.readLogsLocked(config, watcher)
+	// Lock out filesystem operations so that we can capture the read
+	// position and atomically open the corresponding log file, without the
+	// file getting rotated out from under us.
+	w.fsopMu.RLock()
+	// Capture the read position synchronously to ensure that we start
+	// following from the last entry logged before ReadLogs was called,
+	// which is required for flake-free unit testing.
+	st := <-w.read
+	pos := st.pos
+	w.read <- st
+	go w.readLogsLocked(pos, config, watcher)
 	return watcher
 }
 
-func (w *LogFile) readLogsLocked(config logger.ReadConfig, watcher *logger.LogWatcher) {
+// readLogsLocked is the bulk of the implementation of ReadLogs.
+//
+// w.fsopMu must be locked for reading when calling this method.
+// w.fsopMu.RUnlock() is called before returning.
+func (w *LogFile) readLogsLocked(currentPos logPos, config logger.ReadConfig, watcher *logger.LogWatcher) {
 	defer close(watcher.Msg)
 
 	currentFile, err := open(w.f.Name())
 	if err != nil {
-		w.mu.RUnlock()
 		watcher.Err <- err
 		return
 	}
@@ -341,25 +421,13 @@ func (w *LogFile) readLogsLocked(config logger.ReadConfig, watcher *logger.LogWa
 	dec := w.createDecoder(nil)
 	defer dec.Close()
 
-	currentChunk, err := newSectionReader(currentFile)
-	if err != nil {
-		w.mu.RUnlock()
-		watcher.Err <- err
-		return
-	}
-
-	notifyEvict := w.notifyReaders.SubscribeTopicWithBuffer(func(i interface{}) bool {
-		_, ok := i.(error)
-		return ok
-	}, 1)
-	defer w.notifyReaders.Evict(notifyEvict)
+	currentChunk := io.NewSectionReader(currentFile, 0, currentPos.size)
 
 	if config.Tail != 0 {
 		// TODO(@cpuguy83): Instead of opening every file, only get the files which
 		// are needed to tail.
 		// This is especially costly when compression is enabled.
 		files, err := w.openRotatedFiles(config)
-		w.mu.RUnlock()
 		if err != nil {
 			watcher.Err <- err
 			return
@@ -392,34 +460,35 @@ func (w *LogFile) readLogsLocked(config logger.ReadConfig, watcher *logger.LogWa
 			readers = append(readers, currentChunk)
 		}
 
-		ok := tailFiles(readers, watcher, dec, w.getTailReader, config, notifyEvict)
+		ok := tailFiles(readers, watcher, dec, w.getTailReader, config)
 		closeFiles()
 		if !ok {
 			return
 		}
-		w.mu.RLock()
+	} else {
+		w.fsopMu.RUnlock()
 	}
 
-	w.mu.RUnlock()
 	if !config.Follow {
 		return
 	}
 
-	notifyRotate := w.notifyReaders.SubscribeTopic(func(i interface{}) bool {
-		_, ok := i.(struct{})
-		return ok
-	})
-	defer w.notifyReaders.Evict(notifyRotate)
-
-	followLogs(currentFile, watcher, w.closedCh, notifyRotate, notifyEvict, dec, config.Since, config.Until)
+	(&follow{
+		LogFile: w,
+		Watcher: watcher,
+		Decoder: dec,
+		Since:   config.Since,
+		Until:   config.Until,
+	}).Do(currentFile, currentPos)
 }
 
-// openRotatedFiles returns a slice of files open for reading, in order from oldest to newest.
+// openRotatedFiles returns a slice of files open for reading, in order from
+// oldest to newest, and calls w.fsopMu.RUnlock() before returning.
+//
+// This method must only be called with w.fsopMu locked for reading.
 func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []readAtCloser, err error) {
-	w.rotateMu.Lock()
-	defer w.rotateMu.Unlock()
-
 	defer func() {
+		w.fsopMu.RUnlock()
 		if err == nil {
 			return
 		}
@@ -491,19 +560,7 @@ func decompress(dst io.WriteSeeker, src io.ReadSeeker) error {
 	return rc.Close()
 }
 
-func newSectionReader(f *os.File) (*io.SectionReader, error) {
-	// seek to the end to get the size
-	// we'll leave this at the end of the file since section reader does not advance the reader
-	size, err := f.Seek(0, io.SeekEnd)
-	if err != nil {
-		return nil, errors.Wrap(err, "error getting current file size")
-	}
-	return io.NewSectionReader(f, 0, size), nil
-}
-
-func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, dec Decoder, getTailReader GetTailReaderFunc, config logger.ReadConfig, notifyEvict <-chan interface{}) (cont bool) {
-	nLines := config.Tail
-
+func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, dec Decoder, getTailReader GetTailReaderFunc, config logger.ReadConfig) (cont bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -511,12 +568,6 @@ func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, dec Decoder, ge
 	// TODO(@cpuguy83): we should plumb a context through instead of dealing with `WatchClose()` here.
 	go func() {
 		select {
-		case err := <-notifyEvict:
-			if err != nil {
-				watcher.Err <- err.(error)
-				cont = false
-				cancel()
-			}
 		case <-ctx.Done():
 		case <-watcher.WatchConsumerGone():
 			cont = false
@@ -527,6 +578,7 @@ func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, dec Decoder, ge
 	readers := make([]io.Reader, 0, len(files))
 
 	if config.Tail > 0 {
+		nLines := config.Tail
 		for i := len(files) - 1; i >= 0 && nLines > 0; i-- {
 			tail, n, err := getTailReader(ctx, files[i], nLines)
 			if err != nil {
@@ -565,42 +617,4 @@ func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, dec Decoder, ge
 		case watcher.Msg <- msg:
 		}
 	}
-}
-
-func watchFile(name string) (filenotify.FileWatcher, error) {
-	var fileWatcher filenotify.FileWatcher
-
-	if runtime.GOOS == "windows" {
-		// FileWatcher on Windows files is based on the syscall notifications which has an issue because of file caching.
-		// It is based on ReadDirectoryChangesW() which doesn't detect writes to the cache. It detects writes to disk only.
-		// Because of the OS lazy writing, we don't get notifications for file writes and thereby the watcher
-		// doesn't work. Hence for Windows we will use poll based notifier.
-		fileWatcher = filenotify.NewPollingWatcher()
-	} else {
-		var err error
-		fileWatcher, err = filenotify.New()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	logger := logrus.WithFields(logrus.Fields{
-		"module": "logger",
-		"file":   name,
-	})
-
-	if err := fileWatcher.Add(name); err != nil {
-		// we will retry using file poller.
-		logger.WithError(err).Warnf("falling back to file poller")
-		fileWatcher.Close()
-		fileWatcher = filenotify.NewPollingWatcher()
-
-		if err := fileWatcher.Add(name); err != nil {
-			fileWatcher.Close()
-			logger.WithError(err).Debugf("error watching log file for modifications")
-			return nil, err
-		}
-	}
-
-	return fileWatcher, nil
 }

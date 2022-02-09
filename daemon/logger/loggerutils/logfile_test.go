@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"text/tabwriter"
 	"time"
@@ -67,7 +66,7 @@ func TestTailFiles(t *testing.T) {
 			started := make(chan struct{})
 			go func() {
 				close(started)
-				tailFiles(files, watcher, dec, tailReader, config, make(chan interface{}))
+				tailFiles(files, watcher, dec, tailReader, config)
 			}()
 			<-started
 		})
@@ -77,7 +76,7 @@ func TestTailFiles(t *testing.T) {
 	started := make(chan struct{})
 	go func() {
 		close(started)
-		tailFiles(files, watcher, dec, tailReader, config, make(chan interface{}))
+		tailFiles(files, watcher, dec, tailReader, config)
 	}()
 	<-started
 
@@ -110,140 +109,6 @@ func (dummyDecoder) Decode() (*logger.Message, error) {
 
 func (dummyDecoder) Close()          {}
 func (dummyDecoder) Reset(io.Reader) {}
-
-func TestFollowLogsConsumerGone(t *testing.T) {
-	lw := logger.NewLogWatcher()
-
-	f, err := os.CreateTemp("", t.Name())
-	assert.NilError(t, err)
-	defer func() {
-		f.Close()
-		os.Remove(f.Name())
-	}()
-
-	dec := dummyDecoder{}
-
-	followLogsDone := make(chan struct{})
-	var since, until time.Time
-	go func() {
-		followLogs(f, lw, nil, make(chan interface{}), make(chan interface{}), dec, since, until)
-		close(followLogsDone)
-	}()
-
-	select {
-	case <-lw.Msg:
-	case err := <-lw.Err:
-		assert.NilError(t, err)
-	case <-followLogsDone:
-		t.Fatal("follow logs finished unexpectedly")
-	case <-time.After(10 * time.Second):
-		t.Fatal("timeout waiting for log message")
-	}
-
-	lw.ConsumerGone()
-	select {
-	case <-followLogsDone:
-	case <-time.After(20 * time.Second):
-		t.Fatal("timeout waiting for followLogs() to finish")
-	}
-}
-
-type dummyWrapper struct {
-	dummyDecoder
-	fn func() error
-}
-
-func (d *dummyWrapper) Decode() (*logger.Message, error) {
-	if err := d.fn(); err != nil {
-		return nil, err
-	}
-	return d.dummyDecoder.Decode()
-}
-
-func TestFollowLogsProducerGone(t *testing.T) {
-	lw := logger.NewLogWatcher()
-	defer lw.ConsumerGone()
-
-	f, err := os.CreateTemp("", t.Name())
-	assert.NilError(t, err)
-	defer os.Remove(f.Name())
-
-	var sent, received, closed int32
-	dec := &dummyWrapper{fn: func() error {
-		switch atomic.LoadInt32(&closed) {
-		case 0:
-			atomic.AddInt32(&sent, 1)
-			return nil
-		case 1:
-			atomic.AddInt32(&closed, 1)
-			t.Logf("logDecode() closed after sending %d messages\n", sent)
-			return io.EOF
-		default:
-			return io.EOF
-		}
-	}}
-	var since, until time.Time
-
-	followLogsDone := make(chan struct{})
-	producerGone := make(chan struct{})
-	go func() {
-		followLogs(f, lw, producerGone, make(chan interface{}), make(chan interface{}), dec, since, until)
-		close(followLogsDone)
-	}()
-
-	// read 1 message
-	select {
-	case <-lw.Msg:
-		received++
-	case err := <-lw.Err:
-		assert.NilError(t, err)
-	case <-followLogsDone:
-		t.Fatal("followLogs() finished unexpectedly")
-	case <-time.After(10 * time.Second):
-		t.Fatal("timeout waiting for log message")
-	}
-
-	// "stop" the "container"
-	atomic.StoreInt32(&closed, 1)
-	close(producerGone)
-
-	// should receive all the messages sent
-	readDone := make(chan struct{})
-	go func() {
-		defer close(readDone)
-		for {
-			select {
-			case <-lw.Msg:
-				received++
-				if received == atomic.LoadInt32(&sent) {
-					return
-				}
-			case err := <-lw.Err:
-				assert.NilError(t, err)
-			}
-		}
-	}()
-	select {
-	case <-readDone:
-	case <-time.After(30 * time.Second):
-		t.Fatalf("timeout waiting for log messages to be read (sent: %d, received: %d", sent, received)
-	}
-
-	t.Logf("messages sent: %d, received: %d", atomic.LoadInt32(&sent), received)
-
-	// followLogs() should be done by now
-	select {
-	case <-followLogsDone:
-	case <-time.After(30 * time.Second):
-		t.Fatal("timeout waiting for followLogs() to finish")
-	}
-
-	select {
-	case <-lw.WatchConsumerGone():
-		t.Fatal("consumer should not have exited")
-	default:
-	}
-}
 
 func TestCheckCapacityAndRotate(t *testing.T) {
 	dir := t.TempDir()
