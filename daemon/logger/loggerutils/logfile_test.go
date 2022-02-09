@@ -180,7 +180,6 @@ func TestFollowLogsProducerGone(t *testing.T) {
 			t.Logf("logDecode() closed after sending %d messages\n", sent)
 			return io.EOF
 		default:
-			t.Fatal("logDecode() called after closing!")
 			return io.EOF
 		}
 	}}
@@ -300,9 +299,8 @@ func TestCheckCapacityAndRotate(t *testing.T) {
 
 	t.Run("with log reader", func(t *testing.T) {
 		// Make sure rotate works with an active reader
-		lw := logger.NewLogWatcher()
+		lw := l.ReadLogs(logger.ReadConfig{Follow: true, Tail: 1000})
 		defer lw.ConsumerGone()
-		go l.ReadLogs(logger.ReadConfig{Follow: true, Tail: 1000}, lw)
 
 		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world 0!")}), ls)
 		// make sure the log reader is primed

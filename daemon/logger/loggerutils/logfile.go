@@ -354,8 +354,20 @@ func (w *LogFile) Close() error {
 //
 // Note: Using the follow option can become inconsistent in cases with very frequent rotations and max log files is 1.
 // TODO: Consider a different implementation which can effectively follow logs under frequent rotations.
-func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher) {
+func (w *LogFile) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
+	watcher := logger.NewLogWatcher()
+	// Lock before starting the reader goroutine to synchronize operations
+	// for race-free unit testing. The writer is locked out until the reader
+	// has opened the log file and set the read cursor to the current
+	// position.
 	w.mu.RLock()
+	go w.readLogsLocked(config, watcher)
+	return watcher
+}
+
+func (w *LogFile) readLogsLocked(config logger.ReadConfig, watcher *logger.LogWatcher) {
+	defer close(watcher.Msg)
+
 	currentFile, err := open(w.f.Name())
 	if err != nil {
 		w.mu.RUnlock()
@@ -426,11 +438,10 @@ func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher)
 		w.mu.RLock()
 	}
 
-	if !config.Follow || w.closed {
-		w.mu.RUnlock()
+	w.mu.RUnlock()
+	if !config.Follow {
 		return
 	}
-	w.mu.RUnlock()
 
 	notifyRotate := w.notifyReaders.SubscribeTopic(func(i interface{}) bool {
 		_, ok := i.(struct{})
