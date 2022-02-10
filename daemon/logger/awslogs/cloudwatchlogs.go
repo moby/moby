@@ -39,7 +39,7 @@ const (
 	tagKey                 = "tag"
 	datetimeFormatKey      = "awslogs-datetime-format"
 	multilinePatternKey    = "awslogs-multiline-pattern"
-	credentialsEndpointKey = "awslogs-credentials-endpoint"
+	credentialsEndpointKey = "awslogs-credentials-endpoint" //nolint:gosec // G101: Potential hardcoded credentials
 	forceFlushIntervalKey  = "awslogs-force-flush-interval-seconds"
 	maxBufferedEventsKey   = "awslogs-max-buffered-events"
 	logFormatKey           = "awslogs-format"
@@ -64,7 +64,7 @@ const (
 	invalidSequenceTokenCode  = "InvalidSequenceTokenException"
 	resourceNotFoundCode      = "ResourceNotFoundException"
 
-	credentialsEndpoint = "http://169.254.170.2"
+	credentialsEndpoint = "http://169.254.170.2" //nolint:gosec // G101: Potential hardcoded credentials
 
 	userAgentHeader = "User-Agent"
 
