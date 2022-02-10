@@ -16,6 +16,18 @@ import (
 	"github.com/docker/docker/daemon/logger"
 )
 
+type syncer interface {
+	// Sync commits the current logs to stable storage such that the most
+	// recently-logged message can be immediately read back by a LogReader.
+	Sync() error
+}
+
+func syncLogger(t *testing.T, l logger.Logger) {
+	if sl, ok := l.(syncer); ok {
+		assert.NilError(t, sl.Sync())
+	}
+}
+
 // Reader tests that a logger.LogReader implementation behaves as it should.
 type Reader struct {
 	// Factory returns a function which constructs loggers for the container
@@ -316,6 +328,7 @@ func (tr Reader) TestFollow(t *testing.T) {
 
 		mm := makeTestMessages()
 		logMessages(t, l, mm[0:2])
+		syncLogger(t, l)
 
 		lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Tail: 0, Follow: true})
 		defer lw.ConsumerGone()
@@ -342,6 +355,7 @@ func (tr Reader) TestFollow(t *testing.T) {
 
 		mm := makeTestMessages()
 		expected := logMessages(t, l, mm[0:2])[1:]
+		syncLogger(t, l)
 
 		lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Tail: 1, Follow: true})
 		defer lw.ConsumerGone()

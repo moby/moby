@@ -6,12 +6,15 @@ package journald // import "github.com/docker/docker/daemon/logger/journald"
 import (
 	"fmt"
 	"strconv"
+	"sync/atomic"
 	"time"
 	"unicode"
 
 	"github.com/coreos/go-systemd/v22/journal"
+
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 const name = "journald"
@@ -37,17 +40,31 @@ const (
 	fieldPLogOrdinal    = "CONTAINER_PARTIAL_ORDINAL"
 	fieldPLogLast       = "CONTAINER_PARTIAL_LAST"
 	fieldPartialMessage = "CONTAINER_PARTIAL_MESSAGE"
+
+	fieldLogEpoch   = "CONTAINER_LOG_EPOCH"
+	fieldLogOrdinal = "CONTAINER_LOG_ORDINAL"
 )
 
+var waitUntilFlushed func(*journald) error
+
 type journald struct {
+	// Sequence number of the most recent message sent by this instance of
+	// the log driver, starting from 1. Corollary: ordinal == 0 implies no
+	// messages have been sent by this instance.
+	ordinal uint64 // Placed first in struct to ensure 8-byte alignment for atomic ops.
+	// Epoch identifier to distinguish sequence numbers from this instance
+	// vs. other instances.
+	epoch string
+
 	vars map[string]string // additional variables and values to send to the journal along with the log message
 
 	closed chan struct{}
 
 	// Overrides for unit tests.
 
-	sendToJournal  func(message string, priority journal.Priority, vars map[string]string) error
-	journalReadDir string //nolint:structcheck,unused // Referenced in read.go, which has more restrictive build constraints.
+	sendToJournal   func(message string, priority journal.Priority, vars map[string]string) error
+	journalReadDir  string //nolint:structcheck,unused // Referenced in read.go, which has more restrictive build constraints.
+	readSyncTimeout time.Duration
 }
 
 func init() {
@@ -96,6 +113,8 @@ func new(info logger.Info) (*journald, error) {
 		return nil, err
 	}
 
+	epoch := stringid.GenerateRandomID()
+
 	vars := map[string]string{
 		fieldContainerID:      info.ContainerID[:12],
 		fieldContainerIDFull:  info.ContainerID,
@@ -103,6 +122,7 @@ func new(info logger.Info) (*journald, error) {
 		fieldContainerTag:     tag,
 		fieldImageName:        info.ImageName(),
 		fieldSyslogIdentifier: tag,
+		fieldLogEpoch:         epoch,
 	}
 	extraAttrs, err := info.ExtraAttributes(sanitizeKeyMod)
 	if err != nil {
@@ -111,7 +131,12 @@ func new(info logger.Info) (*journald, error) {
 	for k, v := range extraAttrs {
 		vars[k] = v
 	}
-	return &journald{vars: vars, closed: make(chan struct{}), sendToJournal: journal.Send}, nil
+	return &journald{
+		epoch:         epoch,
+		vars:          vars,
+		closed:        make(chan struct{}),
+		sendToJournal: journal.Send,
+	}, nil
 }
 
 // We don't actually accept any options, but we have to supply a callback for
@@ -152,6 +177,9 @@ func (s *journald) Log(msg *logger.Message) error {
 	source := msg.Source
 	logger.PutMessage(msg)
 
+	seq := atomic.AddUint64(&s.ordinal, 1)
+	vars[fieldLogOrdinal] = strconv.FormatUint(seq, 10)
+
 	if source == "stderr" {
 		return s.sendToJournal(line, journal.PriErr, vars)
 	}
@@ -164,5 +192,8 @@ func (s *journald) Name() string {
 
 func (s *journald) Close() error {
 	close(s.closed)
+	if waitUntilFlushed != nil {
+		return waitUntilFlushed(s)
+	}
 	return nil
 }

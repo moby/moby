@@ -47,14 +47,59 @@ func TestLogRead(t *testing.T) {
 			assert.NilError(t, rotatedJournal.Send("a log message from a totally different process in the active journal", journal.PriInfo, nil))
 
 			return func(t *testing.T) logger.Logger {
+				s := make(chan sendit, 100)
+				t.Cleanup(func() { close(s) })
+				go func() {
+					for m := range s {
+						<-m.after
+						activeJournal.Send(m.message, m.priority, m.vars)
+						if m.sent != nil {
+							close(m.sent)
+						}
+					}
+				}()
 				l, err := new(info)
 				assert.NilError(t, err)
 				l.journalReadDir = journalDir
-				l.sendToJournal = activeJournal.Send
-				return l
+
+				sl := &syncLogger{journald: l}
+				l.sendToJournal = func(message string, priority journal.Priority, vars map[string]string) error {
+					sent := make(chan struct{})
+					s <- sendit{
+						message:  message,
+						priority: priority,
+						vars:     vars,
+						after:    time.After(150 * time.Millisecond),
+						sent:     sent,
+					}
+					sl.waitOn = sent
+					return nil
+				}
+				l.readSyncTimeout = 3 * time.Second
+				return sl
 			}
 		},
 	}
 	t.Run("Tail", r.TestTail)
 	t.Run("Follow", r.TestFollow)
+}
+
+type sendit struct {
+	message  string
+	priority journal.Priority
+	vars     map[string]string
+	after    <-chan time.Time
+	sent     chan<- struct{}
+}
+
+type syncLogger struct {
+	*journald
+	waitOn <-chan struct{}
+}
+
+func (l *syncLogger) Sync() error {
+	if l.waitOn != nil {
+		<-l.waitOn
+	}
+	return nil
 }
