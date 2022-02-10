@@ -1,3 +1,14 @@
+// Package namesgenerator generates random names.
+//
+// This package is officially "frozen" - no new additions will be accepted.
+//
+// For a long time, this package provided a lot of joy within the project, but
+// at some point the conflicts of opinion became greater than the added joy.
+//
+// At some future time, this may be replaced with something that sparks less
+// controversy, but for now it will remain as-is.
+//
+// See also https://github.com/moby/moby/pull/43210#issuecomment-1029934277
 package namesgenerator // import "github.com/docker/docker/pkg/namesgenerator"
 
 import (
