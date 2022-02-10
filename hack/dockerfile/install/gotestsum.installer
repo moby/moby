@@ -1,9 +1,9 @@
 #!/bin/sh
 
-: ${GOTESTSUM_COMMIT:=v0.5.3}
+: ${GOTESTSUM_VERSION:=v1.7.0}
 
 install_gotestsum() (
 	set -e
-	export GO111MODULE=on
-	GOBIN="${PREFIX}" go get "gotest.tools/gotestsum@${GOTESTSUM_COMMIT}"
+	echo "Install gotestsum version ${GOTESTSUM_VERSION}"
+	GOBIN="${PREFIX}" GO111MODULE=on go install "gotest.tools/gotestsum@${GOTESTSUM_VERSION}"
 )

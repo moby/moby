@@ -14,7 +14,6 @@ LDFLAGS="${LDFLAGS} \
 	-X \"github.com/docker/docker/dockerversion.PlatformName=${PLATFORM}\" \
 	-X \"github.com/docker/docker/dockerversion.ProductName=${PRODUCT}\" \
 	-X \"github.com/docker/docker/dockerversion.DefaultProductLicense=${DEFAULT_PRODUCT_LICENSE}\" \
-	-X \"github.com/docker/docker/dockerversion.InitCommitID=${TINI_COMMIT}\" \
 "
 
 # Compile the Windows resources into the sources
