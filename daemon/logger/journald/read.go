@@ -100,7 +100,8 @@ var errDrainDone = errors.New("journald drain done")
 // journal is reached without encountering a terminal stopping condition,
 // err == nil is returned.
 func (s *journald) drainJournal(logWatcher *logger.LogWatcher, j *sdjournal.Journal, config logger.ReadConfig, initial chan struct{}) (int, error) {
-	if initial != nil {
+	isInitial := initial != nil
+	if isInitial {
 		defer func() {
 			if initial != nil {
 				close(initial)
@@ -148,7 +149,7 @@ func (s *journald) drainJournal(logWatcher *logger.LogWatcher, j *sdjournal.Jour
 
 	var sent int
 	for i := 0; ; i++ {
-		if initial != nil && i == 0 && config.Tail > 0 {
+		if isInitial && i == 0 && config.Tail > 0 {
 			if n, err := j.PreviousSkip(uint(config.Tail)); err != nil || n == 0 {
 				return sent, err
 			}
@@ -156,8 +157,9 @@ func (s *journald) drainJournal(logWatcher *logger.LogWatcher, j *sdjournal.Jour
 			return sent, err
 		}
 
-		if initial != nil && i == 0 {
-			// The cursor is in position. Signal that the watcher is
+		if isInitial && i == 0 {
+			// The cursor is in a position which will be unaffected
+			// by subsequent logging. Signal that the watcher is
 			// initialized.
 			close(initial)
 			initial = nil // Prevent double-closing.
@@ -168,11 +170,13 @@ func (s *journald) drainJournal(logWatcher *logger.LogWatcher, j *sdjournal.Jour
 		if err != nil {
 			return sent, err
 		}
-		if timestamp.Before(config.Since) {
-			if initial != nil && i == 0 && config.Tail > 0 {
-				// PreviousSkip went too far back. Seek forwards.
-				j.SeekRealtime(config.Since)
-			}
+		// Check if the PreviousSkip went too far back. Check only the
+		// initial position as we are comparing wall-clock timestamps,
+		// which may not be monotonic. We don't want to skip over
+		// messages sent later in time just because the clock moved
+		// backwards.
+		if isInitial && i == 0 && config.Tail > 0 && timestamp.Before(config.Since) {
+			j.SeekRealtime(config.Since)
 			continue
 		}
 		if !config.Until.IsZero() && config.Until.Before(timestamp) {

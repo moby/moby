@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 
 	"github.com/docker/docker/daemon/logger"
 	"github.com/pkg/errors"
@@ -12,10 +11,10 @@ import (
 )
 
 type follow struct {
-	LogFile      *LogFile
-	Watcher      *logger.LogWatcher
-	Decoder      Decoder
-	Since, Until time.Time
+	LogFile   *LogFile
+	Watcher   *logger.LogWatcher
+	Decoder   Decoder
+	Forwarder *forwarder
 
 	log *logrus.Entry
 	c   chan logPos
@@ -49,7 +48,7 @@ func (fl *follow) Do(f *os.File, read logPos) {
 				fl.Watcher.Err <- err
 				return
 			}
-			if fl.decode(f) {
+			if !fl.forward(f) {
 				return
 			}
 
@@ -91,7 +90,7 @@ func (fl *follow) Do(f *os.File, read logPos) {
 			read.size = 0
 		}
 
-		if fl.decode(io.NewSectionReader(f, read.size, wrote.size-read.size)) {
+		if !fl.forward(io.NewSectionReader(f, read.size, wrote.size-read.size)) {
 			return
 		}
 		read = wrote
@@ -132,34 +131,10 @@ func (fl *follow) nextPos(current logPos) (next logPos, ok bool) {
 	return next, true
 }
 
-// decode decodes log messages from r and sends messages with timestamps between
-// Since and Until to the log watcher.
+// forward decodes log messages from r and forwards them to the log watcher.
 //
-// The return value, done, signals whether following should end due to a
-// condition encountered during decode.
-func (fl *follow) decode(r io.Reader) (done bool) {
+// The return value, cont, signals whether following should continue.
+func (fl *follow) forward(r io.Reader) (cont bool) {
 	fl.Decoder.Reset(r)
-	for {
-		msg, err := fl.Decoder.Decode()
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				return false
-			}
-			fl.Watcher.Err <- err
-			return true
-		}
-
-		if !fl.Since.IsZero() && msg.Timestamp.Before(fl.Since) {
-			continue
-		}
-		if !fl.Until.IsZero() && msg.Timestamp.After(fl.Until) {
-			return true
-		}
-		// send the message, unless the consumer is gone
-		select {
-		case fl.Watcher.Msg <- msg:
-		case <-fl.Watcher.WatchConsumerGone():
-			return true
-		}
-	}
+	return fl.Forwarder.Do(fl.Watcher, fl.Decoder)
 }

@@ -51,6 +51,7 @@ func makeTestMessages() []*logger.Message {
 		{Source: "stderr", Timestamp: time.Now().Add(-1 * 15 * time.Minute), Line: []byte("continued"), PLogMetaData: &backend.PartialLogMetaData{ID: "bbbbbbbb", Ordinal: 2, Last: true}},
 		{Source: "stderr", Timestamp: time.Now().Add(-1 * 10 * time.Minute), Line: []byte("a really long message " + strings.Repeat("a", 4096))},
 		{Source: "stderr", Timestamp: time.Now().Add(-1 * 10 * time.Minute), Line: []byte("just one more message")},
+		{Source: "stdout", Timestamp: time.Now().Add(-1 * 90 * time.Minute), Line: []byte("someone adjusted the clock")},
 	}
 
 }
@@ -523,13 +524,12 @@ func readMessage(t *testing.T, lw *logger.LogWatcher) *logger.Message {
 			select {
 			case err, open := <-lw.Err:
 				t.Errorf("unexpected receive on lw.Err with closed lw.Msg: err=%v, open=%v", err, open)
-				return nil
 			default:
 			}
+			return nil
 		}
-		if msg != nil {
-			t.Logf("loggertest: ReadMessage [%v %v] %s", msg.Source, msg.Timestamp, msg.Line)
-		}
+		assert.Assert(t, msg != nil)
+		t.Logf("[%v] %s: %s", msg.Timestamp, msg.Source, msg.Line)
 		return msg
 	}
 }
