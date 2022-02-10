@@ -93,7 +93,7 @@ type Container struct {
 	// logDriver for closing
 	LogDriver      logger.Logger  `json:"-"`
 	LogCopier      *logger.Copier `json:"-"`
-	restartManager restartmanager.RestartManager
+	restartManager *restartmanager.RestartManager
 	attachContext  *attachContext
 
 	// Fields here are specific to Unix platforms
@@ -570,7 +570,7 @@ func (container *Container) FullHostname() string {
 }
 
 // RestartManager returns the current restartmanager instance connected to container.
-func (container *Container) RestartManager() restartmanager.RestartManager {
+func (container *Container) RestartManager() *restartmanager.RestartManager {
 	if container.restartManager == nil {
 		container.restartManager = restartmanager.New(container.HostConfig.RestartPolicy, container.RestartCount)
 	}

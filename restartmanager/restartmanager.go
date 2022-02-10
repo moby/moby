@@ -20,13 +20,7 @@ const (
 var ErrRestartCanceled = errors.New("restart canceled")
 
 // RestartManager defines object that controls container restarting rules.
-type RestartManager interface {
-	Cancel()
-	ShouldRestart(exitCode uint32, hasBeenManuallyStopped bool, executionDuration time.Duration) (bool, chan error, error)
-	SetPolicy(policy container.RestartPolicy)
-}
-
-type restartManager struct {
+type RestartManager struct {
 	sync.Mutex
 	sync.Once
 	policy       container.RestartPolicy
@@ -37,18 +31,20 @@ type restartManager struct {
 	canceled     bool
 }
 
-// New returns a new restartManager based on a policy.
-func New(policy container.RestartPolicy, restartCount int) RestartManager {
-	return &restartManager{policy: policy, restartCount: restartCount, cancel: make(chan struct{})}
+// New returns a new RestartManager based on a policy.
+func New(policy container.RestartPolicy, restartCount int) *RestartManager {
+	return &RestartManager{policy: policy, restartCount: restartCount, cancel: make(chan struct{})}
 }
 
-func (rm *restartManager) SetPolicy(policy container.RestartPolicy) {
+// SetPolicy sets the restart-policy for the RestartManager.
+func (rm *RestartManager) SetPolicy(policy container.RestartPolicy) {
 	rm.Lock()
 	rm.policy = policy
 	rm.Unlock()
 }
 
-func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped bool, executionDuration time.Duration) (bool, chan error, error) {
+// ShouldRestart returns whether the container should be restarted.
+func (rm *RestartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped bool, executionDuration time.Duration) (bool, chan error, error) {
 	if rm.policy.IsNone() {
 		return false, nil, nil
 	}
@@ -126,7 +122,8 @@ func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped 
 	return true, ch, nil
 }
 
-func (rm *restartManager) Cancel() {
+// Cancel tells the RestartManager to no longer restart the container.
+func (rm *RestartManager) Cancel() {
 	rm.Do(func() {
 		rm.Lock()
 		rm.canceled = true
