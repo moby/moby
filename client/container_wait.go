@@ -33,7 +33,9 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, condit
 	errC := make(chan error, 1)
 
 	query := url.Values{}
-	query.Set("condition", string(condition))
+	if condition != "" {
+		query.Set("condition", string(condition))
+	}
 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/wait", query, nil, nil)
 	if err != nil {
