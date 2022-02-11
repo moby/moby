@@ -121,6 +121,9 @@ check_device() {
 }
 
 check_distro_userns() {
+	if [ ! -e /etc/os-release ]; then
+		return
+	fi
 	. /etc/os-release 2> /dev/null || /bin/true
 	case "$ID" in
 		centos | rhel)
