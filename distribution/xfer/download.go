@@ -242,6 +242,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				progress.Update(progressOutput, descriptor.ID(), "Waiting")
 				<-start
 			}
+			downloadStart := time.Now()
 
 			if parentDownload != nil {
 				// Did the parent download already fail or get
@@ -312,6 +313,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 			}
 
 			close(inactive)
+			downloadEnd := time.Now()
 
 			if parentDownload != nil {
 				select {
@@ -334,6 +336,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 			reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(d.Transfer.Context(), downloadReader), progressOutput, size, descriptor.ID(), "Extracting")
 			defer reader.Close()
 
+			extractStart := time.Now()
 			inflatedLayerData, err := archive.DecompressStream(reader)
 			if err != nil {
 				d.err = fmt.Errorf("could not get decompression stream: %v", err)
@@ -358,8 +361,14 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				}
 				return
 			}
-
-			progress.Update(progressOutput, descriptor.ID(), "Pull complete")
+			extractEnd := time.Now()
+			_ = progressOutput.WriteProgress(progress.Progress{
+				ID:           descriptor.ID(),
+				Action:       "Pull complete",
+				Total:        size,
+				DownloadCost: downloadEnd.Sub(downloadStart).Round(time.Millisecond),
+				ExtractCost:  extractEnd.Sub(extractStart).Round(time.Millisecond),
+			})
 			withRegistered, hasRegistered := descriptor.(DownloadDescriptorWithRegistered)
 			if hasRegistered {
 				withRegistered.Registered(d.layer.DiffID())

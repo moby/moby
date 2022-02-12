@@ -2,6 +2,7 @@ package progress // import "github.com/docker/docker/pkg/progress"
 
 import (
 	"fmt"
+	"time"
 )
 
 // Progress represents the progress of a transfer.
@@ -25,7 +26,9 @@ type Progress struct {
 	// digests for push signing.
 	Aux interface{}
 
-	LastUpdate bool
+	LastUpdate   bool
+	DownloadCost time.Duration
+	ExtractCost  time.Duration
 }
 
 // Output is an interface for writing progress information. It's
