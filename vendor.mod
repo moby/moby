@@ -170,7 +170,6 @@ replace (
 	github.com/matttproud/golang_protobuf_extensions => github.com/matttproud/golang_protobuf_extensions v1.0.1
 	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.8.0
 	github.com/onsi/gomega => github.com/onsi/gomega v1.5.0
-	github.com/pelletier/go-toml => github.com/pelletier/go-toml v1.8.1
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.6.0
 	github.com/prometheus/common => github.com/prometheus/common v0.9.1
 	github.com/prometheus/procfs => github.com/prometheus/procfs v0.0.11
