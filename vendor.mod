@@ -178,7 +178,6 @@ replace (
 	github.com/vishvananda/netlink => github.com/vishvananda/netlink v1.1.0
 	go.etcd.io/bbolt => go.etcd.io/bbolt v1.3.5
 	go.opencensus.io => go.opencensus.io v0.22.3
-	golang.org/x/net => golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
 	golang.org/x/oauth2 => golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	google.golang.org/api => google.golang.org/api v0.8.0
 	google.golang.org/genproto => google.golang.org/genproto v0.0.0-20200227132054-3f1135a288c9
