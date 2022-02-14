@@ -176,7 +176,6 @@ replace (
 	github.com/prometheus/procfs => github.com/prometheus/procfs v0.0.11
 	github.com/stretchr/testify => github.com/stretchr/testify v1.3.0
 	github.com/vishvananda/netlink => github.com/vishvananda/netlink v1.1.0
-	go.etcd.io/bbolt => go.etcd.io/bbolt v1.3.5
 	go.opencensus.io => go.opencensus.io v0.22.3
 	golang.org/x/oauth2 => golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	google.golang.org/api => google.golang.org/api v0.8.0
