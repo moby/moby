@@ -167,7 +167,6 @@ replace (
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.6.0
 	github.com/prometheus/common => github.com/prometheus/common v0.9.1
 	github.com/prometheus/procfs => github.com/prometheus/procfs v0.0.11
-	github.com/stretchr/testify => github.com/stretchr/testify v1.3.0
 	github.com/vishvananda/netlink => github.com/vishvananda/netlink v1.1.0
 	go.opencensus.io => go.opencensus.io v0.22.3
 	golang.org/x/oauth2 => golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
