@@ -40,7 +40,7 @@ func (u *mockUploadDescriptor) SetRemoteDescriptor(remoteDescriptor distribution
 }
 
 // Upload is called to perform the upload.
-func (u *mockUploadDescriptor) Upload(ctx context.Context, progressOutput progress.Output) (distribution.Descriptor, error) {
+func (u *mockUploadDescriptor) Upload(ctx context.Context, progressOutput progress.Output, compressionThreads int) (distribution.Descriptor, error) {
 	if u.currentUploads != nil {
 		defer atomic.AddInt32(u.currentUploads, -1)
 
