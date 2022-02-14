@@ -40,6 +40,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   was used and the architecture was ignored. If no `platform` option is set, the
   host's operating system and architecture as used as default. This change is not
   versioned, and affects all API versions if the daemon has this patch.
+* The `POST /containers/{id}/wait` endpoint now returns a `400` status code if an
+  invalid `condition` is provided (on API 1.30 and up).
 
 ## v1.41 API changes
 

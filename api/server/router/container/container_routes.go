@@ -336,12 +336,16 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 		if err := httputils.ParseForm(r); err != nil {
 			return err
 		}
-		switch container.WaitCondition(r.Form.Get("condition")) {
-		case container.WaitConditionNextExit:
-			waitCondition = containerpkg.WaitConditionNextExit
-		case container.WaitConditionRemoved:
-			waitCondition = containerpkg.WaitConditionRemoved
-			legacyRemovalWaitPre134 = versions.LessThan(version, "1.34")
+		if v := r.Form.Get("condition"); v != "" {
+			switch container.WaitCondition(v) {
+			case container.WaitConditionNextExit:
+				waitCondition = containerpkg.WaitConditionNextExit
+			case container.WaitConditionRemoved:
+				waitCondition = containerpkg.WaitConditionRemoved
+				legacyRemovalWaitPre134 = versions.LessThan(version, "1.34")
+			default:
+				return errdefs.InvalidParameter(errors.Errorf("invalid condition: %q", v))
+			}
 		}
 	}
 
