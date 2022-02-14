@@ -80,9 +80,14 @@ func (d *frameDec) reset(br byteBuffer) error {
 	d.WindowSize = 0
 	var b []byte
 	for {
-		b = br.readSmall(4)
-		if b == nil {
+		var err error
+		b, err = br.readSmall(4)
+		switch err {
+		case io.EOF, io.ErrUnexpectedEOF:
 			return io.EOF
+		default:
+			return err
+		case nil:
 		}
 		if !bytes.Equal(b[1:4], skippableFrameMagic) || b[0]&0xf0 != 0x50 {
 			if debug {
@@ -92,14 +97,14 @@ func (d *frameDec) reset(br byteBuffer) error {
 			break
 		}
 		// Read size to skip
-		b = br.readSmall(4)
-		if b == nil {
-			println("Reading Frame Size EOF")
-			return io.ErrUnexpectedEOF
+		b, err = br.readSmall(4)
+		if err != nil {
+			println("Reading Frame Size", err)
+			return err
 		}
 		n := uint32(b[0]) | (uint32(b[1]) << 8) | (uint32(b[2]) << 16) | (uint32(b[3]) << 24)
 		println("Skipping frame with", n, "bytes.")
-		err := br.skipN(int(n))
+		err = br.skipN(int(n))
 		if err != nil {
 			if debug {
 				println("Reading discarded frame", err)
@@ -121,7 +126,7 @@ func (d *frameDec) reset(br byteBuffer) error {
 	d.SingleSegment = fhd&(1<<5) != 0
 
 	if fhd&(1<<3) != 0 {
-		return errors.New("Reserved bit set on frame header")
+		return errors.New("reserved bit set on frame header")
 	}
 
 	// Read Window_Descriptor
@@ -147,12 +152,11 @@ func (d *frameDec) reset(br byteBuffer) error {
 		if size == 3 {
 			size = 4
 		}
-		b = br.readSmall(int(size))
-		if b == nil {
-			if debug {
-				println("Reading Dictionary_ID", io.ErrUnexpectedEOF)
-			}
-			return io.ErrUnexpectedEOF
+
+		b, err = br.readSmall(int(size))
+		if err != nil {
+			println("Reading Dictionary_ID", err)
+			return err
 		}
 		var id uint32
 		switch size {
@@ -187,10 +191,10 @@ func (d *frameDec) reset(br byteBuffer) error {
 	}
 	d.FrameContentSize = 0
 	if fcsSize > 0 {
-		b := br.readSmall(fcsSize)
-		if b == nil {
-			println("Reading Frame content", io.ErrUnexpectedEOF)
-			return io.ErrUnexpectedEOF
+		b, err = br.readSmall(fcsSize)
+		if err != nil {
+			println("Reading Frame content", err)
+			return err
 		}
 		switch fcsSize {
 		case 1:
@@ -307,10 +311,10 @@ func (d *frameDec) checkCRC() error {
 	tmp[3] = byte(got >> 24)
 
 	// We can overwrite upper tmp now
-	want := d.rawInput.readSmall(4)
-	if want == nil {
-		println("CRC missing?")
-		return io.ErrUnexpectedEOF
+	want, err := d.rawInput.readSmall(4)
+	if err != nil {
+		println("CRC missing?", err)
+		return err
 	}
 
 	if !bytes.Equal(tmp[:], want) {

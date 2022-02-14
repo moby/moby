@@ -10,8 +10,8 @@ import (
 	"hash/crc32"
 	"io"
 
+	"github.com/golang/snappy"
 	"github.com/klauspost/compress/huff0"
-	"github.com/klauspost/compress/snappy"
 )
 
 const (
@@ -185,7 +185,6 @@ func (r *SnappyConverter) Convert(in io.Reader, w io.Writer) (int64, error) {
 				r.block.reset(nil)
 				r.block.literals, err = snappy.Decode(r.block.literals[:n], r.buf[snappyChecksumSize:chunkLen])
 				if err != nil {
-					println("snappy.Decode:", err)
 					return written, err
 				}
 				err = r.block.encodeLits(r.block.literals, false)

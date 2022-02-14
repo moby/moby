@@ -16,8 +16,7 @@ Currently the package is heavily optimized for 64 bit processors and will be sig
 
 Install using `go get -u github.com/klauspost/compress`. The package is located in `github.com/klauspost/compress/zstd`.
 
-Godoc Documentation: https://godoc.org/github.com/klauspost/compress/zstd
-
+[![Go Reference](https://pkg.go.dev/badge/github.com/klauspost/compress/zstd.svg)](https://pkg.go.dev/github.com/klauspost/compress/zstd)
 
 ## Compressor
 
@@ -152,8 +151,8 @@ This package:
 file    out     level   insize      outsize     millis  mb/s
 silesia.tar zskp    1   211947520   73101992    643     313.87
 silesia.tar zskp    2   211947520   67504318    969     208.38
-silesia.tar zskp    3   211947520   65177448    1899    106.44
-silesia.tar zskp    4   211947520   61381950    8115    24.91
+silesia.tar zskp    3   211947520   64595893    2007    100.68
+silesia.tar zskp    4   211947520   60995370    7691    26.28
 
 cgo zstd:
 silesia.tar zstd    1   211947520   73605392    543     371.56
@@ -171,8 +170,8 @@ https://files.klauspost.com/compress/gob-stream.7z
 file        out     level   insize  outsize     millis  mb/s
 gob-stream  zskp    1   1911399616  235022249   3088    590.30
 gob-stream  zskp    2   1911399616  205669791   3786    481.34
-gob-stream  zskp    3   1911399616  185792019   9324    195.48
-gob-stream  zskp    4   1911399616  171537212   32113   56.76
+gob-stream  zskp    3   1911399616  175034659   9636    189.17
+gob-stream  zskp    4   1911399616  167273881   29337   62.13
 gob-stream  zstd    1   1911399616  249810424   2637    691.26
 gob-stream  zstd    3   1911399616  208192146   3490    522.31
 gob-stream  zstd    6   1911399616  193632038   6687    272.56
@@ -187,8 +186,8 @@ http://mattmahoney.net/dc/textdata.html
 file    out level   insize      outsize     millis  mb/s
 enwik9  zskp    1   1000000000  343848582   3609    264.18
 enwik9  zskp    2   1000000000  317276632   5746    165.97
-enwik9  zskp    3   1000000000  294540704   11725   81.34
-enwik9  zskp    4   1000000000  276609671   44029   21.66
+enwik9  zskp    3   1000000000  292243069   12162   78.41
+enwik9  zskp    4   1000000000  275241169   36430   26.18
 enwik9  zstd    1   1000000000  358072021   3110    306.65
 enwik9  zstd    3   1000000000  313734672   4784    199.35
 enwik9  zstd    6   1000000000  295138875   10290   92.68
@@ -202,8 +201,8 @@ https://files.klauspost.com/compress/github-june-2days-2019.json.zst
 file                        out level   insize      outsize     millis  mb/s
 github-june-2days-2019.json zskp    1   6273951764  699045015   10620   563.40
 github-june-2days-2019.json zskp    2   6273951764  617881763   11687   511.96
-github-june-2days-2019.json zskp    3   6273951764  537511906   29252   204.54
-github-june-2days-2019.json zskp    4   6273951764  512796117   97791   61.18
+github-june-2days-2019.json zskp    3   6273951764  524340691   34043   175.75
+github-june-2days-2019.json zskp    4   6273951764  503314661   93811   63.78
 github-june-2days-2019.json zstd    1   6273951764  766284037   8450    708.00
 github-june-2days-2019.json zstd    3   6273951764  661889476   10927   547.57
 github-june-2days-2019.json zstd    6   6273951764  642756859   22996   260.18
@@ -217,8 +216,8 @@ https://files.klauspost.com/compress/rawstudio-mint14.7z
 file                    out level   insize      outsize     millis  mb/s
 rawstudio-mint14.tar    zskp    1   8558382592  3667489370  20210   403.84
 rawstudio-mint14.tar    zskp    2   8558382592  3364592300  31873   256.07
-rawstudio-mint14.tar    zskp    3   8558382592  3224594213  71751   113.75
-rawstudio-mint14.tar    zskp    4   8558382592  3027332295  486243  16.79
+rawstudio-mint14.tar    zskp    3   8558382592  3158085214  77675   105.08
+rawstudio-mint14.tar    zskp    4   8558382592  3020370044  404956  20.16
 rawstudio-mint14.tar    zstd    1   8558382592  3609250104  17136   476.27
 rawstudio-mint14.tar    zstd    3   8558382592  3341679997  29262   278.92
 rawstudio-mint14.tar    zstd    6   8558382592  3235846406  77904   104.77
@@ -232,8 +231,8 @@ https://files.klauspost.com/compress/nyc-taxi-data-10M.csv.zst
 file                    out level   insize      outsize     millis  mb/s
 nyc-taxi-data-10M.csv   zskp    1   3325605752  641339945   8925    355.35
 nyc-taxi-data-10M.csv   zskp    2   3325605752  591748091   11268   281.44
-nyc-taxi-data-10M.csv   zskp    3   3325605752  538490114   19880   159.53
-nyc-taxi-data-10M.csv   zskp    4   3325605752  495986829   89368   35.49
+nyc-taxi-data-10M.csv   zskp    3   3325605752  530289687   25239   125.66
+nyc-taxi-data-10M.csv   zskp    4   3325605752  490907191   65939   48.10
 nyc-taxi-data-10M.csv   zstd    1   3325605752  687399637   8233    385.18
 nyc-taxi-data-10M.csv   zstd    3   3325605752  598514411   10065   315.07
 nyc-taxi-data-10M.csv   zstd    6   3325605752  570522953   20038   158.27
@@ -405,12 +404,27 @@ BenchmarkDecoder_DecodeAllParallelCgo/comp-data.bin.zst-16        749938        
 
 This reflects the performance around May 2020, but this may be out of date.
 
+## Zstd inside ZIP files
+
+It is possible to use zstandard to compress individual files inside zip archives.
+While this isn't widely supported it can be useful for internal files.
+
+To support the compression and decompression of these files you must register a compressor and decompressor.
+
+It is highly recommended registering the (de)compressors on individual zip Reader/Writer and NOT
+use the global registration functions. The main reason for this is that 2 registrations from 
+different packages will result in a panic.
+
+It is a good idea to only have a single compressor and decompressor, since they can be used for multiple zip
+files concurrently, and using a single instance will allow reusing some resources.
+
+See [this example](https://pkg.go.dev/github.com/klauspost/compress/zstd#example-ZipCompressor) for 
+how to compress and decompress files inside zip archives.
+
 # Contributions
 
 Contributions are always welcome. 
 For new features/fixes, remember to add tests and for performance enhancements include benchmarks.
-
-For sending files for reproducing errors use a service like [goobox](https://goobox.io/#/upload) or similar to share your files.
 
 For general feedback and experience reports, feel free to open an issue or write me on [Twitter](https://twitter.com/sh0dan).
 

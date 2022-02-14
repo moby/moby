@@ -93,7 +93,7 @@ func (h *Header) Decode(in []byte) error {
 	h.HasCheckSum = fhd&(1<<2) != 0
 
 	if fhd&(1<<3) != 0 {
-		return errors.New("Reserved bit set on frame header")
+		return errors.New("reserved bit set on frame header")
 	}
 
 	// Read Window_Descriptor
@@ -174,7 +174,7 @@ func (h *Header) Decode(in []byte) error {
 	if len(in) < 3 {
 		return nil
 	}
-	tmp, in := in[:3], in[3:]
+	tmp := in[:3]
 	bh := uint32(tmp[0]) | (uint32(tmp[1]) << 8) | (uint32(tmp[2]) << 16)
 	h.FirstBlock.Last = bh&1 != 0
 	blockType := blockType((bh >> 1) & 3)

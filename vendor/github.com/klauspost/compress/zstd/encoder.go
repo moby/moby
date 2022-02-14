@@ -340,13 +340,13 @@ func (e *Encoder) ReadFrom(r io.Reader) (n int64, err error) {
 				println("ReadFrom: got EOF final block:", len(e.state.filling))
 			}
 			return n, nil
+		case nil:
 		default:
 			if debug {
 				println("ReadFrom: got error:", err)
 			}
 			e.state.err = err
 			return n, err
-		case nil:
 		}
 		if len(src) > 0 {
 			if debug {
