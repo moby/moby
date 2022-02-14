@@ -5748,6 +5748,10 @@ paths:
                   Message:
                     description: "Details of an error"
                     type: "string"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such container"
           schema:

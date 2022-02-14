@@ -5696,6 +5696,10 @@ paths:
                 description: "Exit code of the container"
                 type: "integer"
                 x-nullable: false
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such container"
           schema:
