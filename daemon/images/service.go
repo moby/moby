@@ -53,9 +53,6 @@ type ImageServiceConfig struct {
 
 // NewImageService returns a new ImageService from a configuration
 func NewImageService(config ImageServiceConfig) *ImageService {
-	logrus.Debugf("Max Concurrent Downloads: %d", config.MaxConcurrentDownloads)
-	logrus.Debugf("Max Concurrent Uploads: %d", config.MaxConcurrentUploads)
-	logrus.Debugf("Max Download Attempts: %d", config.MaxDownloadAttempts)
 	return &ImageService{
 		containers:                config.ContainerStore,
 		distributionMetadataStore: config.DistributionMetadataStore,
