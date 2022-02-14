@@ -176,7 +176,6 @@ replace (
 	google.golang.org/api => google.golang.org/api v0.8.0
 	google.golang.org/genproto => google.golang.org/genproto v0.0.0-20200227132054-3f1135a288c9
 	google.golang.org/grpc => google.golang.org/grpc v1.27.1
-	gopkg.in/fsnotify.v1 => gopkg.in/fsnotify.v1 v1.4.7
 )
 
 // autogen/winresources/dockerd is generated a build time, this replacement is only for the purpose of `go mod vendor`
