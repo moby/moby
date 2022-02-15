@@ -55,7 +55,7 @@ require (
 	github.com/moby/ipvs v1.0.1
 	github.com/moby/locker v1.0.1
 	github.com/moby/sys/mount v0.3.0
-	github.com/moby/sys/mountinfo v0.5.0
+	github.com/moby/sys/mountinfo v0.6.0
 	github.com/moby/sys/signal v0.6.0
 	github.com/moby/sys/symlink v0.2.0
 	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6
