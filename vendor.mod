@@ -35,7 +35,7 @@ require (
 	github.com/docker/libtrust v0.0.0-20150526203908-9cbd2a1374f4
 	github.com/docker/swarmkit v1.12.1-0.20210726173615-3629f50980f6
 	github.com/fluent/fluent-logger-golang v1.9.0
-	github.com/fsnotify/fsnotify v1.4.9
+	github.com/fsnotify/fsnotify v1.5.1
 	github.com/godbus/dbus/v5 v5.0.6
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/gddo v0.0.0-20190904175337-72a348e765d2
