@@ -65,11 +65,6 @@ func GetHTTPErrorStatusCode(err error) int {
 			"error_type": fmt.Sprintf("%T", err),
 		}).Debugf("FIXME: Got an API for which error does not match any expected type!!!: %+v", err)
 	}
-
-	if statusCode == 0 {
-		statusCode = http.StatusInternalServerError
-	}
-
 	return statusCode
 }
 
