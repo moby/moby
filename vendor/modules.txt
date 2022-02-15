@@ -828,10 +828,12 @@ golang.org/x/net/ipv6
 golang.org/x/net/proxy
 golang.org/x/net/trace
 golang.org/x/net/websocket
-# golang.org/x/oauth2 v0.0.0-20210514164344-f6687ab2804c => golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
+# golang.org/x/oauth2 v0.0.0-20210514164344-f6687ab2804c
 ## explicit; go 1.11
 golang.org/x/oauth2
+golang.org/x/oauth2/authhandler
 golang.org/x/oauth2/google
+golang.org/x/oauth2/google/internal/externalaccount
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
@@ -1002,7 +1004,6 @@ gotest.tools/v3/skip
 # github.com/prometheus/procfs => github.com/prometheus/procfs v0.0.11
 # github.com/vishvananda/netlink => github.com/vishvananda/netlink v1.1.0
 # go.opencensus.io => go.opencensus.io v0.22.3
-# golang.org/x/oauth2 => golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 # google.golang.org/api => google.golang.org/api v0.8.0
 # google.golang.org/genproto => google.golang.org/genproto v0.0.0-20200227132054-3f1135a288c9
 # google.golang.org/grpc => google.golang.org/grpc v1.27.1
