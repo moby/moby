@@ -30,14 +30,9 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_info"))()
 
 	sysInfo := daemon.RawSysInfo()
-	cRunning, cPaused, cStopped := stateCtr.get()
 
 	v := &types.Info{
 		ID:                 daemon.ID,
-		Containers:         cRunning + cPaused + cStopped,
-		ContainersRunning:  cRunning,
-		ContainersPaused:   cPaused,
-		ContainersStopped:  cStopped,
 		Images:             daemon.imageService.CountImages(),
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNFCallIPTablesDisabled,
@@ -70,6 +65,7 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 		Isolation:          daemon.defaultIsolation,
 	}
 
+	daemon.fillContainerStates(v)
 	daemon.fillAPIInfo(v)
 	// Retrieve platform specific info
 	daemon.fillPlatformInfo(v, sysInfo)
@@ -179,6 +175,14 @@ func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInf
 	}
 
 	v.SecurityOptions = securityOptions
+}
+
+func (daemon *Daemon) fillContainerStates(v *types.Info) {
+	cRunning, cPaused, cStopped := stateCtr.get()
+	v.Containers = cRunning + cPaused + cStopped
+	v.ContainersPaused = cPaused
+	v.ContainersRunning = cRunning
+	v.ContainersStopped = cStopped
 }
 
 func (daemon *Daemon) fillAPIInfo(v *types.Info) {
