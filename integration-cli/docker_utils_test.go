@@ -96,13 +96,13 @@ func inspectFilter(name, filter string) (string, error) {
 
 // Deprecated: use cli.Inspect
 func inspectFieldWithError(name, field string) (string, error) {
-	return inspectFilter(name, fmt.Sprintf(".%s", field))
+	return inspectFilter(name, "."+field)
 }
 
 // Deprecated: use cli.Inspect
 func inspectField(c *testing.T, name, field string) string {
 	c.Helper()
-	out, err := inspectFilter(name, fmt.Sprintf(".%s", field))
+	out, err := inspectFilter(name, "."+field)
 	assert.NilError(c, err)
 	return out
 }
@@ -110,7 +110,7 @@ func inspectField(c *testing.T, name, field string) string {
 // Deprecated: use cli.Inspect
 func inspectFieldJSON(c *testing.T, name, field string) string {
 	c.Helper()
-	out, err := inspectFilter(name, fmt.Sprintf("json .%s", field))
+	out, err := inspectFilter(name, "json ."+field)
 	assert.NilError(c, err)
 	return out
 }
