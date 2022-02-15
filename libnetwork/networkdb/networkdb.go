@@ -498,7 +498,7 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 	// Indicates if the delete is triggered for the local node
 	isNodeLocal := node == nDB.config.NodeID
 
-	nDB.indexes[byNetwork].WalkPrefix(fmt.Sprintf("/%s", nid),
+	nDB.indexes[byNetwork].WalkPrefix("/"+nid,
 		func(path string, v interface{}) bool {
 			oldEntry := v.(*entry)
 			params := strings.Split(path[1:], "/")
@@ -579,7 +579,7 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 func (nDB *NetworkDB) WalkTable(tname string, fn func(string, string, []byte, bool) bool) error {
 	nDB.RLock()
 	values := make(map[string]interface{})
-	nDB.indexes[byTable].WalkPrefix(fmt.Sprintf("/%s", tname), func(path string, v interface{}) bool {
+	nDB.indexes[byTable].WalkPrefix("/"+tname, func(path string, v interface{}) bool {
 		values[path] = v
 		return false
 	})

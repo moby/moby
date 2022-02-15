@@ -397,7 +397,7 @@ func (nDB *NetworkDB) reapTableEntries() {
 	// The lock is taken at the beginning of the cycle and the deletion is inline
 	for _, nid := range nodeNetworks {
 		nDB.Lock()
-		nDB.indexes[byNetwork].WalkPrefix(fmt.Sprintf("/%s", nid), func(path string, v interface{}) bool {
+		nDB.indexes[byNetwork].WalkPrefix("/"+nid, func(path string, v interface{}) bool {
 			// timeCompensation compensate in case the lock took some time to be released
 			timeCompensation := time.Since(cycleStart)
 			entry, ok := v.(*entry)
@@ -630,7 +630,7 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	}
 
 	for _, nid := range networks {
-		nDB.indexes[byNetwork].WalkPrefix(fmt.Sprintf("/%s", nid), func(path string, v interface{}) bool {
+		nDB.indexes[byNetwork].WalkPrefix("/"+nid, func(path string, v interface{}) bool {
 			entry, ok := v.(*entry)
 			if !ok {
 				return false
