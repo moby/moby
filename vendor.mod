@@ -91,7 +91,6 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/cilium/ebpf v0.7.0 // indirect
 	github.com/containerd/console v1.0.3 // indirect
@@ -106,6 +105,7 @@ require (
 	github.com/gogo/googleapis v1.4.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/certificate-transparency-go v1.0.20 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
@@ -153,39 +153,24 @@ replace (
 	cloud.google.com/go/logging => cloud.google.com/go/logging v1.0.1-0.20190813144457-ceeb313ad77b
 	github.com/armon/go-metrics => github.com/armon/go-metrics v0.0.0-20150106224455-eb0af217e5e9
 	github.com/armon/go-radix => github.com/armon/go-radix v0.0.0-20150105235045-e39d623f12e8
-	github.com/containerd/containerd => github.com/containerd/containerd v1.5.8
 	github.com/coreos/go-systemd => github.com/coreos/go-systemd v0.0.0-20180511133405-39ca1b05acc7
 	github.com/coreos/pkg => github.com/coreos/pkg v0.0.0-20180108230652-97fdf19511ea
 	github.com/gogo/googleapis => github.com/gogo/googleapis v1.3.2
 	github.com/golang/protobuf => github.com/golang/protobuf v1.3.5
 	github.com/google/go-cmp => github.com/google/go-cmp v0.2.0
-	github.com/google/uuid => github.com/google/uuid v1.1.1
-	github.com/grpc-ecosystem/go-grpc-middleware => github.com/grpc-ecosystem/go-grpc-middleware v1.2.0
 	github.com/hashicorp/go-immutable-radix => github.com/tonistiigi/go-immutable-radix v0.0.0-20170803185627-826af9ccf0fe
 	github.com/hashicorp/go-msgpack => github.com/hashicorp/go-msgpack v0.0.0-20140221154404-71c2886f5a67
 	github.com/hashicorp/go-multierror => github.com/hashicorp/go-multierror v1.0.0
 	github.com/hashicorp/serf => github.com/hashicorp/serf v0.7.1-0.20160317193612-598c54895cc5
-	github.com/hpcloud/tail => github.com/hpcloud/tail v1.0.0
-	github.com/klauspost/compress => github.com/klauspost/compress v1.11.13
 	github.com/matttproud/golang_protobuf_extensions => github.com/matttproud/golang_protobuf_extensions v1.0.1
-	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.8.0
-	github.com/onsi/gomega => github.com/onsi/gomega v1.5.0
-	github.com/pelletier/go-toml => github.com/pelletier/go-toml v1.8.1
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.6.0
-	github.com/prometheus/common => github.com/prometheus/common v0.9.1
 	github.com/prometheus/procfs => github.com/prometheus/procfs v0.0.11
-	github.com/stretchr/testify => github.com/stretchr/testify v1.3.0
 	github.com/vishvananda/netlink => github.com/vishvananda/netlink v1.1.0
-	go.etcd.io/bbolt => go.etcd.io/bbolt v1.3.5
 	go.opencensus.io => go.opencensus.io v0.22.3
-	golang.org/x/net => golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
 	golang.org/x/oauth2 => golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	golang.org/x/text => golang.org/x/text v0.3.3
-	golang.org/x/time => golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
 	google.golang.org/api => google.golang.org/api v0.8.0
 	google.golang.org/genproto => google.golang.org/genproto v0.0.0-20200227132054-3f1135a288c9
 	google.golang.org/grpc => google.golang.org/grpc v1.27.1
-	gopkg.in/fsnotify.v1 => gopkg.in/fsnotify.v1 v1.4.7
 )
 
 // autogen/winresources/dockerd is generated a build time, this replacement is only for the purpose of `go mod vendor`

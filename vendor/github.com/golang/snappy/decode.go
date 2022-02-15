@@ -52,6 +52,8 @@ const (
 // Otherwise, a newly allocated slice will be returned.
 //
 // The dst and src must not overlap. It is valid to pass a nil dst.
+//
+// Decode handles the Snappy block format, not the Snappy stream format.
 func Decode(dst, src []byte) ([]byte, error) {
 	dLen, s, err := decodedLen(src)
 	if err != nil {
@@ -83,6 +85,8 @@ func NewReader(r io.Reader) *Reader {
 }
 
 // Reader is an io.Reader that can read Snappy-compressed bytes.
+//
+// Reader handles the Snappy stream format, not the Snappy block format.
 type Reader struct {
 	r       io.Reader
 	err     error

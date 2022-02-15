@@ -220,6 +220,20 @@ encodeLoop:
 			best = bestOf(best, matchAt(candidateL.prev-e.cur, s, uint32(cv), -1))
 			best = bestOf(best, matchAt(candidateL2.offset-e.cur, s+1, uint32(cv2), -1))
 			best = bestOf(best, matchAt(candidateL2.prev-e.cur, s+1, uint32(cv2), -1))
+
+			// See if we can find a better match by checking where the current best ends.
+			// Use that offset to see if we can find a better full match.
+			if sAt := best.s + best.length; sAt < sLimit {
+				nextHashL := hash8(load6432(src, sAt), bestLongTableBits)
+				candidateEnd := e.longTable[nextHashL]
+				if pos := candidateEnd.offset - e.cur - best.length; pos >= 0 {
+					bestEnd := bestOf(best, matchAt(pos, best.s, load3232(src, best.s), -1))
+					if pos := candidateEnd.prev - e.cur - best.length; pos >= 0 {
+						bestEnd = bestOf(bestEnd, matchAt(pos, best.s, load3232(src, best.s), -1))
+					}
+					best = bestEnd
+				}
+			}
 		}
 
 		// We have a match, we can store the forward value

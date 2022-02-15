@@ -179,8 +179,7 @@ func (d *Decoder) Reset(r io.Reader) error {
 
 	// If bytes buffer and < 1MB, do sync decoding anyway.
 	if bb, ok := r.(byter); ok && bb.Len() < 1<<20 {
-		var bb2 byter
-		bb2 = bb
+		bb2 := bb
 		if debug {
 			println("*bytes.Buffer detected, doing sync decode, len:", bb.Len())
 		}
@@ -237,20 +236,17 @@ func (d *Decoder) drainOutput() {
 		println("current already flushed")
 		return
 	}
-	for {
-		select {
-		case v := <-d.current.output:
-			if v.d != nil {
-				if debug {
-					printf("re-adding decoder %p", v.d)
-				}
-				d.decoders <- v.d
+	for v := range d.current.output {
+		if v.d != nil {
+			if debug {
+				printf("re-adding decoder %p", v.d)
 			}
-			if v.err == errEndOfStream {
-				println("current flushed")
-				d.current.flushed = true
-				return
-			}
+			d.decoders <- v.d
+		}
+		if v.err == errEndOfStream {
+			println("current flushed")
+			d.current.flushed = true
+			return
 		}
 	}
 }

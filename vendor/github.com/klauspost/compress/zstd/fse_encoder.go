@@ -708,7 +708,6 @@ func (c *cState) init(bw *bitWriter, ct *cTable, first symbolTransform) {
 	im := int32((nbBitsOut << 16) - first.deltaNbBits)
 	lu := (im >> nbBitsOut) + int32(first.deltaFindState)
 	c.state = c.stateTable[lu]
-	return
 }
 
 // encode the output symbol provided and write it to the bitstream.

@@ -386,9 +386,9 @@ func (b *blockEnc) encodeLits(lits []byte, raw bool) error {
 		b.output = bh.appendTo(b.output)
 		b.output = append(b.output, lits[0])
 		return nil
+	case nil:
 	default:
 		return err
-	case nil:
 	}
 	// Compressed...
 	// Now, allow reuse
@@ -528,11 +528,6 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error {
 		if debug {
 			println("Adding literals RLE")
 		}
-	default:
-		if debug {
-			println("Adding literals ERROR:", err)
-		}
-		return err
 	case nil:
 		// Compressed litLen...
 		if reUsed {
@@ -563,6 +558,11 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error {
 		if debug {
 			println("Adding literals compressed")
 		}
+	default:
+		if debug {
+			println("Adding literals ERROR:", err)
+		}
+		return err
 	}
 	// Sequence compression
 

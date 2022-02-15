@@ -28,7 +28,7 @@ improve the documentation. Fix a typo, clarify an interface, add an
 example, anything goes!
 
 The documentation is present in the [README][readme] and thorough the
-source code. On release, it gets updated on [GoDoc][godoc]. To make a
+source code. On release, it gets updated on [pkg.go.dev][pkg.go.dev]. To make a
 change to the documentation, create a pull request with your proposed
 changes. For simple changes like that, the easiest way to go is probably
 the "Fork this project and edit the file" button on Github, displayed at
@@ -123,7 +123,7 @@ Checklist:
 
 [issues-tracker]: https://github.com/pelletier/go-toml/issues
 [bug-report]: https://github.com/pelletier/go-toml/issues/new?template=bug_report.md
-[godoc]: https://godoc.org/github.com/pelletier/go-toml
+[pkg.go.dev]: https://pkg.go.dev/github.com/pelletier/go-toml
 [readme]: ./README.md
 [fork]: https://help.github.com/articles/fork-a-repo
 [pull-request]: https://help.github.com/en/articles/creating-a-pull-request

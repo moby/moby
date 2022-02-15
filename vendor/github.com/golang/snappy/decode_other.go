@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !amd64 appengine !gc noasm
+// +build !amd64,!arm64 appengine !gc noasm
 
 package snappy
 
@@ -87,7 +87,7 @@ func decode(dst, src []byte) int {
 		}
 		// Copy from an earlier sub-slice of dst to a later sub-slice.
 		// If no overlap, use the built-in copy:
-		if offset > length {
+		if offset >= length {
 			copy(dst[d:d+length], dst[d-offset:])
 			d += length
 			continue
