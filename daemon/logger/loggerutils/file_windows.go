@@ -2,6 +2,7 @@ package loggerutils
 
 import (
 	"os"
+	"path/filepath"
 	"syscall"
 	"unsafe"
 )
@@ -223,4 +224,29 @@ func volumeName(path string) (v string) {
 		}
 	}
 	return ""
+}
+
+func unlink(name string) error {
+	// Rename the file before deleting it so that the original name is freed
+	// up to be reused, even while there are still open FILE_SHARE_DELETE
+	// file handles. Emulate POSIX unlink() semantics, essentially.
+	name, err := filepath.Abs(name)
+	if err != nil {
+		return err
+	}
+	dir, fname := filepath.Split(name)
+	f, err := os.CreateTemp(dir, fname+".*.deleted")
+	if err != nil {
+		return err
+	}
+	tmpname := f.Name()
+	if err := f.Close(); err != nil {
+		return err
+	}
+	err = os.Rename(name, tmpname)
+	rmErr := os.Remove(tmpname)
+	if err != nil {
+		return err
+	}
+	return rmErr
 }
