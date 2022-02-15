@@ -3,7 +3,6 @@ package daemon // import "github.com/docker/docker/testutil/daemon"
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -102,7 +101,7 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 		return nil, errors.Wrapf(err, "failed to create daemon socket root %q", SockRoot)
 	}
 
-	id := fmt.Sprintf("d%s", stringid.TruncateID(stringid.GenerateRandomID()))
+	id := "d" + stringid.TruncateID(stringid.GenerateRandomID())
 	dir := filepath.Join(workingDir, id)
 	daemonFolder, err := filepath.Abs(dir)
 	if err != nil {
@@ -248,7 +247,7 @@ func (d *Daemon) StorageDriver() string {
 
 // Sock returns the socket path of the daemon
 func (d *Daemon) Sock() string {
-	return fmt.Sprintf("unix://" + d.sockPath())
+	return "unix://" + d.sockPath()
 }
 
 func (d *Daemon) sockPath() string {
@@ -347,7 +346,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		"--data-root", d.Root,
 		"--exec-root", d.execRoot,
 		"--pidfile", d.pidFile,
-		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
+		"--userland-proxy="+strconv.FormatBool(d.userlandProxy),
 		"--containerd-namespace", d.id,
 		"--containerd-plugins-namespace", d.id+"p",
 	)
