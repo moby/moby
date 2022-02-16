@@ -179,7 +179,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, container *container.C
 
 	ctr, err := libcontainerd.ReplaceContainer(ctx, daemon.containerd, container.ID, spec, shim, createOptions)
 	if err != nil {
-		return translateContainerdStartErr(container.Path, container.SetExitCode, err)
+		return translateContainerdStartErr(container.SetExitCode, err)
 	}
 
 	// TODO(mlaventure): we need to specify checkpoint options here
@@ -191,7 +191,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, container *container.C
 			logrus.WithError(err).WithField("container", container.ID).
 				Error("failed to delete failed start container")
 		}
-		return translateContainerdStartErr(container.Path, container.SetExitCode, err)
+		return translateContainerdStartErr(container.SetExitCode, err)
 	}
 
 	container.HasBeenManuallyRestarted = false

@@ -17,7 +17,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 
 	rt, err := daemon.getRuntime(container.HostConfig.Runtime)
 	if err != nil {
-		return "", nil, translateContainerdStartErr(container.Path, container.SetExitCode, err)
+		return "", nil, translateContainerdStartErr(container.SetExitCode, err)
 	}
 
 	return rt.Shim.Binary, rt.Shim.Opts, nil
