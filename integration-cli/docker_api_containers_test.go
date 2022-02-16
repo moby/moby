@@ -913,8 +913,8 @@ func (s *DockerSuite) TestContainerAPIRestart(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	timeout := 1 * time.Second
-	err = cli.ContainerRestart(context.Background(), name, &timeout)
+	timeout := 1
+	err = cli.ContainerRestart(context.Background(), name, container.StopOptions{Timeout: &timeout})
 	assert.NilError(c, err)
 
 	assert.Assert(c, waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second) == nil)
@@ -930,7 +930,7 @@ func (s *DockerSuite) TestContainerAPIRestartNotimeoutParam(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	err = cli.ContainerRestart(context.Background(), name, nil)
+	err = cli.ContainerRestart(context.Background(), name, container.StopOptions{})
 	assert.NilError(c, err)
 
 	assert.Assert(c, waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second) == nil)
@@ -965,19 +965,23 @@ func (s *DockerSuite) TestContainerAPIStart(c *testing.T) {
 func (s *DockerSuite) TestContainerAPIStop(c *testing.T) {
 	name := "test-api-stop"
 	runSleepingContainer(c, "-i", "--name", name)
-	timeout := 30 * time.Second
+	timeout := 30
 
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	err = cli.ContainerStop(context.Background(), name, &timeout)
+	err = cli.ContainerStop(context.Background(), name, container.StopOptions{
+		Timeout: &timeout,
+	})
 	assert.NilError(c, err)
 	assert.Assert(c, waitInspect(name, "{{ .State.Running  }}", "false", 60*time.Second) == nil)
 
 	// second call to start should give 304
 	// maybe add ContainerStartWithRaw to test it
-	err = cli.ContainerStop(context.Background(), name, &timeout)
+	err = cli.ContainerStop(context.Background(), name, container.StopOptions{
+		Timeout: &timeout,
+	})
 	assert.NilError(c, err)
 }
 
@@ -1255,7 +1259,7 @@ func (s *DockerSuite) TestContainerAPIPostContainerStop(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	err = cli.ContainerStop(context.Background(), containerID, nil)
+	err = cli.ContainerStop(context.Background(), containerID, container.StopOptions{})
 	assert.NilError(c, err)
 	assert.Assert(c, waitInspect(containerID, "{{ .State.Running  }}", "false", 60*time.Second) == nil)
 }

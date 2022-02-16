@@ -8,6 +8,7 @@ import (
 
 	containerderrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
@@ -80,7 +81,7 @@ func TestPauseStopPausedContainer(t *testing.T) {
 	err := client.ContainerPause(ctx, cID)
 	assert.NilError(t, err)
 
-	err = client.ContainerStop(ctx, cID, nil)
+	err = client.ContainerStop(ctx, cID, containertypes.StopOptions{})
 	assert.NilError(t, err)
 
 	poll.WaitOn(t, container.IsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))

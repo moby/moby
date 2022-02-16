@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
@@ -56,8 +57,7 @@ func TestStopContainerWithTimeout(t *testing.T) {
 			t.Parallel()
 			id := container.Run(ctx, t, client, testCmd)
 
-			timeout := time.Duration(d.timeout) * time.Second
-			err := client.ContainerStop(ctx, id, &timeout)
+			err := client.ContainerStop(ctx, id, containertypes.StopOptions{Timeout: &d.timeout})
 			assert.NilError(t, err)
 
 			poll.WaitOn(t, container.IsStopped(ctx, client, id),

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
@@ -29,7 +30,7 @@ func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
 	}
 
 	for _, name := range names {
-		err := client.ContainerStop(ctx, name, nil)
+		err := client.ContainerStop(ctx, name, containertypes.StopOptions{})
 		assert.NilError(t, err)
 	}
 
