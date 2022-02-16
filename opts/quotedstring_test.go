@@ -16,15 +16,19 @@ func TestQuotedStringSetWithQuotes(t *testing.T) {
 }
 
 func TestQuotedStringSetWithMismatchedQuotes(t *testing.T) {
-	value := ""
-	qs := NewQuotedString(&value)
+	qs := NewQuotedString(new(string))
 	assert.Check(t, qs.Set(`"something'`))
 	assert.Check(t, is.Equal(`"something'`, qs.String()))
 }
 
 func TestQuotedStringSetWithNoQuotes(t *testing.T) {
-	value := ""
-	qs := NewQuotedString(&value)
+	qs := NewQuotedString(new(string))
 	assert.Check(t, qs.Set("something"))
 	assert.Check(t, is.Equal("something", qs.String()))
+}
+
+func TestQuotedStringEmptyOrSingleCharString(t *testing.T) {
+	qs := NewQuotedString(new(string))
+	assert.Check(t, qs.Set(""))
+	assert.Check(t, qs.Set("'"))
 }
