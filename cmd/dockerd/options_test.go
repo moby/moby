@@ -17,9 +17,9 @@ func TestCommonOptionsInstallFlags(t *testing.T) {
 	opts.InstallFlags(flags)
 
 	err := flags.Parse([]string{
-		"--tlscacert=\"/foo/cafile\"",
-		"--tlscert=\"/foo/cert\"",
-		"--tlskey=\"/foo/key\"",
+		"--tlscacert=/foo/cafile",
+		"--tlscert=/foo/cert",
+		"--tlskey=/foo/key",
 	})
 	assert.Check(t, err)
 	assert.Check(t, is.Equal("/foo/cafile", opts.TLSOptions.CAFile))

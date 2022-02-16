@@ -67,15 +67,11 @@ func (o *daemonOptions) InstallFlags(flags *pflag.FlagSet) {
 
 	// TODO use flag flags.String("identity"}, "i", "", "Path to libtrust key file")
 
-	o.TLSOptions = &tlsconfig.Options{
-		CAFile:   filepath.Join(dockerCertPath, DefaultCaFile),
-		CertFile: filepath.Join(dockerCertPath, DefaultCertFile),
-		KeyFile:  filepath.Join(dockerCertPath, DefaultKeyFile),
-	}
+	o.TLSOptions = &tlsconfig.Options{}
 	tlsOptions := o.TLSOptions
-	flags.Var(opts.NewQuotedString(&tlsOptions.CAFile), "tlscacert", "Trust certs signed only by this CA")
-	flags.Var(opts.NewQuotedString(&tlsOptions.CertFile), "tlscert", "Path to TLS certificate file")
-	flags.Var(opts.NewQuotedString(&tlsOptions.KeyFile), "tlskey", "Path to TLS key file")
+	flags.StringVar(&tlsOptions.CAFile, "tlscacert", filepath.Join(dockerCertPath, DefaultCaFile), "Trust certs signed only by this CA")
+	flags.StringVar(&tlsOptions.CertFile, "tlscert", filepath.Join(dockerCertPath, DefaultCertFile), "Path to TLS certificate file")
+	flags.StringVar(&tlsOptions.KeyFile, "tlskey", filepath.Join(dockerCertPath, DefaultKeyFile), "Path to TLS key file")
 
 	hostOpt := opts.NewNamedListOptsRef("hosts", &o.Hosts, opts.ValidateHost)
 	flags.VarP(hostOpt, "host", "H", "Daemon socket(s) to connect to")
