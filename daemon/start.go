@@ -124,7 +124,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, container *container.C
 			container.SetError(retErr)
 			// if no one else has set it, make sure we don't leave it at zero
 			if container.ExitCode() == 0 {
-				container.SetExitCode(128)
+				container.SetExitCode(exitUnknown)
 			}
 			if err := container.CheckpointTo(daemon.containersReplica); err != nil {
 				logrus.Errorf("%s: failed saving state on start failure: %v", container.ID, err)
