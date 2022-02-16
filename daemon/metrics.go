@@ -65,7 +65,7 @@ func init() {
 }
 
 type stateCounter struct {
-	mu     sync.Mutex
+	mu     sync.RWMutex
 	states map[string]string
 	desc   *prometheus.Desc
 }
@@ -78,8 +78,8 @@ func newStateCounter(desc *prometheus.Desc) *stateCounter {
 }
 
 func (ctr *stateCounter) get() (running int, paused int, stopped int) {
-	ctr.mu.Lock()
-	defer ctr.mu.Unlock()
+	ctr.mu.RLock()
+	defer ctr.mu.RUnlock()
 
 	states := map[string]int{
 		"running": 0,
