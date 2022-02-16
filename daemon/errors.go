@@ -176,6 +176,7 @@ func translateContainerdStartErr(setExitCode func(exitStatus), err error) error 
 	}
 
 	// TODO: it would be nice to get some better errors from containerd so we can return better errors here
+	setExitCode(exitUnknown)
 	return errdefs.Unknown(errors.New(errDesc))
 }
 
