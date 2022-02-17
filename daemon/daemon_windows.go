@@ -550,13 +550,13 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 // setDefaultIsolation determine the default isolation mode for the
 // daemon to run in. This is only applicable on Windows
 func (daemon *Daemon) setDefaultIsolation() error {
-	daemon.defaultIsolation = containertypes.Isolation("process")
-
 	// On client SKUs, default to Hyper-V. @engine maintainers. This
 	// should not be removed. Ping Microsoft folks is there are PRs to
 	// to change this.
 	if system.IsWindowsClient() {
-		daemon.defaultIsolation = containertypes.Isolation("hyperv")
+		daemon.defaultIsolation = containertypes.IsolationHyperV
+	} else {
+		daemon.defaultIsolation = containertypes.IsolationProcess
 	}
 	for _, option := range daemon.configStore.ExecOptions {
 		key, val, err := parsers.ParseKeyValueOpt(option)
@@ -571,10 +571,10 @@ func (daemon *Daemon) setDefaultIsolation() error {
 				return fmt.Errorf("Invalid exec-opt value for 'isolation':'%s'", val)
 			}
 			if containertypes.Isolation(val).IsHyperV() {
-				daemon.defaultIsolation = containertypes.Isolation("hyperv")
+				daemon.defaultIsolation = containertypes.IsolationHyperV
 			}
 			if containertypes.Isolation(val).IsProcess() {
-				daemon.defaultIsolation = containertypes.Isolation("process")
+				daemon.defaultIsolation = containertypes.IsolationProcess
 			}
 		default:
 			return fmt.Errorf("Unrecognised exec-opt '%s'\n", key)

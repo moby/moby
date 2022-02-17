@@ -52,8 +52,7 @@ func withCurrentVersionRegistryKey(f func(registry.Key) (string, error)) (string
 
 // GetOperatingSystemVersion gets the version of the current operating system, as a string.
 func GetOperatingSystemVersion() (string, error) {
-	version := osversion.Get()
-	return fmt.Sprintf("%d.%d.%d", version.MajorVersion, version.MinorVersion, version.Build), nil
+	return osversion.Get().ToString(), nil
 }
 
 // IsContainerized returns true if we are running inside a container.

@@ -142,21 +142,9 @@ func UserNamespaceInKernel() bool {
 
 func IsPausable() bool {
 	if testEnv.OSType == "windows" {
-		return testEnv.DaemonInfo.Isolation == "hyperv"
+		return testEnv.DaemonInfo.Isolation.IsHyperV()
 	}
 	return true
-}
-
-func IsolationIs(expectedIsolation string) bool {
-	return testEnv.OSType == "windows" && string(testEnv.DaemonInfo.Isolation) == expectedIsolation
-}
-
-func IsolationIsHyperv() bool {
-	return IsolationIs("hyperv")
-}
-
-func IsolationIsProcess() bool {
-	return IsolationIs("process")
 }
 
 // RegistryHosting returns whether the host can host a registry (v2) or not
