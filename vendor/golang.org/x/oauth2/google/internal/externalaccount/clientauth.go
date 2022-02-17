@@ -19,6 +19,9 @@ type clientAuthentication struct {
 	ClientSecret string
 }
 
+// InjectAuthentication is used to add authentication to a Secure Token Service exchange
+// request.  It modifies either the passed url.Values or http.Header depending on the desired
+// authentication format.
 func (c *clientAuthentication) InjectAuthentication(values url.Values, headers http.Header) {
 	if c.ClientID == "" || c.ClientSecret == "" || values == nil || headers == nil {
 		return

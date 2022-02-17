@@ -36,7 +36,7 @@ type impersonateTokenSource struct {
 	scopes []string
 }
 
-// Token performs the exchange to get a temporary service account
+// Token performs the exchange to get a temporary service account token to allow access to GCP.
 func (its impersonateTokenSource) Token() (*oauth2.Token, error) {
 	reqBody := generateAccessTokenReq{
 		Lifetime: "3600s",
