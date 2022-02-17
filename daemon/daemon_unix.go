@@ -302,25 +302,6 @@ func adjustParallelLimit(n int, limit int) int {
 	return softRlimit / overhead
 }
 
-func checkKernel() error {
-	// Check for unsupported kernel versions
-	// FIXME: it would be cleaner to not test for specific versions, but rather
-	// test for specific functionalities.
-	// Unfortunately we can't test for the feature "does not cause a kernel panic"
-	// without actually causing a kernel panic, so we need this workaround until
-	// the circumstances of pre-3.10 crashes are clearer.
-	// For details see https://github.com/docker/docker/issues/407
-	// Docker 1.11 and above doesn't actually run on kernels older than 3.4,
-	// due to containerd-shim usage of PR_SET_CHILD_SUBREAPER (introduced in 3.4).
-	if !kernel.CheckKernelVersion(3, 10, 0) {
-		v, _ := kernel.GetKernelVersion()
-		if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
-			logrus.Fatalf("Your Linux kernel version %s is not supported for running docker. Please upgrade your kernel to 3.10.0 or newer.", v.String())
-		}
-	}
-	return nil
-}
-
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
 func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
@@ -790,7 +771,7 @@ func verifyDaemonSettings(conf *config.Config) error {
 
 // checkSystem validates platform-specific requirements
 func checkSystem() error {
-	return checkKernel()
+	return nil
 }
 
 // configureMaxThreads sets the Go runtime max threads threshold

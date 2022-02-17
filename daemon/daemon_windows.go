@@ -70,10 +70,6 @@ func setupInitLayer(idMapping *idtools.IdentityMapping) func(containerfs.Contain
 	return nil
 }
 
-func checkKernel() error {
-	return nil
-}
-
 func (daemon *Daemon) getCgroupDriver() string {
 	return ""
 }
