@@ -24,6 +24,7 @@ type DialSettings struct {
 	DefaultMTLSEndpoint string
 	Scopes              []string
 	DefaultScopes       []string
+	EnableJwtWithScope  bool
 	TokenSource         oauth2.TokenSource
 	Credentials         *google.Credentials
 	CredentialsFile     string // if set, Token Source is ignored.
@@ -58,6 +59,19 @@ func (ds *DialSettings) GetScopes() []string {
 		return ds.Scopes
 	}
 	return ds.DefaultScopes
+}
+
+// GetAudience returns the user-provided audience, if set, or else falls back to the default audience.
+func (ds *DialSettings) GetAudience() string {
+	if ds.HasCustomAudience() {
+		return ds.Audiences[0]
+	}
+	return ds.DefaultAudience
+}
+
+// HasCustomAudience returns true if a custom audience is provided by users.
+func (ds *DialSettings) HasCustomAudience() bool {
+	return len(ds.Audiences) > 0
 }
 
 // Validate reports an error if ds is invalid.
