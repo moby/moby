@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -53,7 +52,6 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 		IDMapping:                 &idtools.IdentityMapping{},
 		PluginGetter:              nil,
 		ExperimentalEnabled:       false,
-		OS:                        runtime.GOOS,
 	})
 	i := images.NewImageService(images.ImageServiceConfig{
 		LayerStore: layerStore,

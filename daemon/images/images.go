@@ -285,9 +285,6 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
 		rootFS := image.NewRootFS()
 		parentImg = &image.Image{RootFS: rootFS}
 	}
-	if !system.IsOSSupported(img.OperatingSystem()) {
-		return "", errors.Wrap(err, system.ErrNotSupportedOperatingSystem.Error())
-	}
 	l, err := i.layerStore.Get(img.RootFS.ChainID())
 	if err != nil {
 		return "", errors.Wrap(err, "error getting image layer")

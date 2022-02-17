@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
@@ -319,9 +318,6 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 //
 // TODO: Remove?
 func BuildFromConfig(config *container.Config, changes []string, os string) (*container.Config, error) {
-	if !system.IsOSSupported(os) {
-		return nil, errdefs.InvalidParameter(system.ErrNotSupportedOperatingSystem)
-	}
 	if len(changes) == 0 {
 		return config, nil
 	}

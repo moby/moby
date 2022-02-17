@@ -41,8 +41,6 @@ type layerStore struct {
 
 	// protect *RWLayer() methods from operating on the same name/id
 	locker *locker.Locker
-
-	os string
 }
 
 // StoreOptions are the options used to create a new Store instance
@@ -54,7 +52,6 @@ type StoreOptions struct {
 	IDMapping                 *idtools.IdentityMapping
 	PluginGetter              plugingetter.PluginGetter
 	ExperimentalEnabled       bool
-	OS                        string
 }
 
 // NewStoreFromOptions creates a new Store instance
@@ -73,16 +70,13 @@ func NewStoreFromOptions(options StoreOptions) (Store, error) {
 
 	root := fmt.Sprintf(options.MetadataStorePathTemplate, driver)
 
-	return newStoreFromGraphDriver(root, driver, options.OS)
+	return newStoreFromGraphDriver(root, driver)
 }
 
 // newStoreFromGraphDriver creates a new Store instance using the provided
 // metadata store and graph driver. The metadata store will be used to restore
 // the Store.
-func newStoreFromGraphDriver(root string, driver graphdriver.Driver, os string) (Store, error) {
-	if !system.IsOSSupported(os) {
-		return nil, fmt.Errorf("failed to initialize layer store as operating system '%s' is not supported", os)
-	}
+func newStoreFromGraphDriver(root string, driver graphdriver.Driver) (Store, error) {
 	caps := graphdriver.Capabilities{}
 	if capDriver, ok := driver.(graphdriver.CapabilityDriver); ok {
 		caps = capDriver.Capabilities()
@@ -100,7 +94,6 @@ func newStoreFromGraphDriver(root string, driver graphdriver.Driver, os string) 
 		mounts:      map[string]*mountedLayer{},
 		locker:      locker.New(),
 		useTarSplit: !caps.ReproducesExactDiffs,
-		os:          os,
 	}
 
 	ids, mounts, err := ms.List()
@@ -168,8 +161,8 @@ func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 		return nil, fmt.Errorf("failed to get operating system for %s: %s", layer, err)
 	}
 
-	if os != ls.os {
-		return nil, fmt.Errorf("failed to load layer with os %s into layerstore for %s", os, ls.os)
+	if !system.IsOSSupported(os) {
+		return nil, fmt.Errorf("failed to load layer with os %s into layerstore: %w", os, system.ErrNotSupportedOperatingSystem)
 	}
 
 	cl = &roLayer{

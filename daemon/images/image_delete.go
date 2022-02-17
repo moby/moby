@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
 
@@ -67,9 +66,6 @@ func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.
 	img, err := i.GetImage(imageRef, nil)
 	if err != nil {
 		return nil, err
-	}
-	if !system.IsOSSupported(img.OperatingSystem()) {
-		return nil, errors.Errorf("unable to delete image: %q", system.ErrNotSupportedOperatingSystem)
 	}
 
 	imgID := img.ID()

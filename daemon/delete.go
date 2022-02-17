@@ -77,7 +77,7 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 
 // cleanupContainer unregisters a container from the daemon, stops stats
 // collection and cleanly removes contents and metadata from the filesystem.
-func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemove, removeVolume bool) (err error) {
+func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemove, removeVolume bool) error {
 	if container.IsRunning() {
 		if !forceRemove {
 			state := container.StateString()
@@ -92,15 +92,12 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 			return fmt.Errorf("Could not kill running container %s, cannot remove - %v", container.ID, err)
 		}
 	}
-	if !system.IsOSSupported(container.OS) {
-		return fmt.Errorf("cannot remove %s: %s ", container.ID, system.ErrNotSupportedOperatingSystem)
-	}
 
 	// stop collection of stats for the container regardless
 	// if stats are currently getting collected.
 	daemon.statsCollector.StopCollection(container)
 
-	if err = daemon.containerStop(container, 3); err != nil {
+	if err := daemon.containerStop(container, 3); err != nil {
 		return err
 	}
 
@@ -119,8 +116,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	// When container creation fails and `RWLayer` has not been created yet, we
 	// do not call `ReleaseRWLayer`
 	if container.RWLayer != nil {
-		err := daemon.imageService.ReleaseLayer(container.RWLayer, container.OS)
-		if err != nil {
+		if err := daemon.imageService.ReleaseLayer(container.RWLayer); err != nil {
 			err = errors.Wrapf(err, "container %s", container.ID)
 			container.SetRemovalError(err)
 			return err
@@ -129,9 +125,9 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	}
 
 	if err := system.EnsureRemoveAll(container.Root); err != nil {
-		e := errors.Wrapf(err, "unable to remove filesystem for %s", container.ID)
-		container.SetRemovalError(e)
-		return e
+		err = errors.Wrapf(err, "unable to remove filesystem for %s", container.ID)
+		container.SetRemovalError(err)
+		return err
 	}
 
 	linkNames := daemon.linkIndex.delete(container)
@@ -139,8 +135,8 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)
 	daemon.containersReplica.Delete(container)
-	if e := daemon.removeMountPoints(container, removeVolume); e != nil {
-		logrus.Error(e)
+	if err := daemon.removeMountPoints(container, removeVolume); err != nil {
+		logrus.Error(err)
 	}
 	for _, name := range linkNames {
 		daemon.releaseName(name)

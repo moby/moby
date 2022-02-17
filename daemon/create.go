@@ -123,10 +123,10 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 			return nil, err
 		}
 		os = img.OperatingSystem()
-		imgID = img.ID()
 		if !system.IsOSSupported(os) {
-			return nil, errors.New("operating system on which parent image was created is not Windows")
+			return nil, system.ErrNotSupportedOperatingSystem
 		}
+		imgID = img.ID()
 	} else if isWindows {
 		os = "linux" // 'scratch' case.
 	}

@@ -246,27 +246,19 @@ func (d *dispatchRequest) getImageOrStage(name string, platform *specs.Platform)
 		platform = d.builder.platform
 	}
 
-	// Windows cannot support a container with no base image unless it is LCOW.
+	// Windows cannot support a container with no base image.
 	if name == api.NoBaseImageSpecifier {
-		p := platforms.DefaultSpec()
-		if platform != nil {
-			p = *platform
-		}
-		imageImage := &image.Image{}
-		imageImage.OS = p.OS
-
-		// old windows scratch handling
-		// TODO: scratch should not have an os. It should be nil image.
-		// Windows supports scratch. What is not supported is running containers
-		// from it.
+		// Windows supports scratch. What is not supported is running containers from it.
 		if runtime.GOOS == "windows" {
-			if platform == nil || platform.OS == "linux" {
-				return nil, errors.New("Linux containers are not supported on this system")
-			} else if platform.OS == "windows" {
-				return nil, errors.New("Windows does not support FROM scratch")
-			} else {
-				return nil, errors.Errorf("platform %s is not supported", platforms.Format(p))
-			}
+			return nil, errors.New("Windows does not support FROM scratch")
+		}
+
+		// TODO: scratch should not have an os. It should be nil image.
+		imageImage := &image.Image{}
+		if platform != nil {
+			imageImage.OS = platform.OS
+		} else {
+			imageImage.OS = runtime.GOOS
 		}
 		return builder.Image(imageImage), nil
 	}
