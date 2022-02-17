@@ -405,11 +405,7 @@ func (s *snapshotter) Usage(ctx context.Context, key string) (us snapshots.Usage
 	if l, err := s.getLayer(key, true); err != nil {
 		return usage, err
 	} else if l != nil {
-		s, err := l.DiffSize()
-		if err != nil {
-			return usage, err
-		}
-		usage.Size = s
+		usage.Size = l.DiffSize()
 		return usage, nil
 	}
 

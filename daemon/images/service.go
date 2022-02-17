@@ -205,13 +205,9 @@ func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
 			case <-ctx.Done():
 				return allLayersSize, ctx.Err()
 			default:
-				size, err := l.DiffSize()
-				if err == nil {
-					if _, ok := layerRefs[l.ChainID()]; ok {
-						allLayersSize += size
-					}
-				} else {
-					logrus.Warnf("failed to get diff size for layer %v", l.ChainID())
+				size := l.DiffSize()
+				if _, ok := layerRefs[l.ChainID()]; ok {
+					allLayersSize += size
 				}
 			}
 		}

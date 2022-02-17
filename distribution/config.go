@@ -102,7 +102,7 @@ type PushLayer interface {
 	DiffID() layer.DiffID
 	Parent() PushLayer
 	Open() (io.ReadCloser, error)
-	Size() (int64, error)
+	Size() int64
 	MediaType() string
 	Release()
 }
@@ -220,7 +220,7 @@ func (l *storeLayer) Open() (io.ReadCloser, error) {
 	return l.Layer.TarStream()
 }
 
-func (l *storeLayer) Size() (int64, error) {
+func (l *storeLayer) Size() int64 {
 	return l.Layer.DiffSize()
 }
 

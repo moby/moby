@@ -44,11 +44,7 @@ func TestLayerSize(t *testing.T) {
 		t.Fatalf("Unexpected diff size %d, expected %d", layer1DiffSize, len(content1))
 	}
 
-	layer1Size, err := layer1.Size()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	layer1Size := layer1.Size()
 	if expected := len(content1); int(layer1Size) != expected {
 		t.Fatalf("Unexpected size %d, expected %d", layer1Size, expected)
 	}
@@ -62,10 +58,7 @@ func TestLayerSize(t *testing.T) {
 		t.Fatalf("Unexpected diff size %d, expected %d", layer2DiffSize, len(content2))
 	}
 
-	layer2Size, err := layer2.Size()
-	if err != nil {
-		t.Fatal(err)
-	}
+	layer2Size := layer2.Size()
 
 	if expected := len(content1) + len(content2); int(layer2Size) != expected {
 		t.Fatalf("Unexpected size %d, expected %d", layer2Size, expected)
