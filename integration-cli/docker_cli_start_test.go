@@ -2,15 +2,11 @@ package main
 
 import (
 	"fmt"
-	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 )
@@ -190,18 +186,6 @@ func (s *DockerSuite) TestStartAttachWithRename(c *testing.T) {
 }
 
 func (s *DockerSuite) TestStartReturnCorrectExitCode(c *testing.T) {
-	// Note we parse kernel.GetKernelVersion rather than system.GetOSVersion
-	// as test binaries aren't manifested, so would otherwise report the wrong
-	// build number.
-	if runtime.GOOS == "windows" {
-		v, err := kernel.GetKernelVersion()
-		assert.NilError(c, err)
-		build, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
-		if build < osversion.RS3 {
-			c.Skip("FLAKY on Windows RS1, see #38521")
-		}
-	}
-
 	dockerCmd(c, "create", "--restart=on-failure:2", "--name", "withRestart", "busybox", "sh", "-c", "exit 11")
 	dockerCmd(c, "create", "--rm", "--name", "withRm", "busybox", "sh", "-c", "exit 12")
 

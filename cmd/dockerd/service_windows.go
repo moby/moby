@@ -12,7 +12,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"golang.org/x/sys/windows"
@@ -167,19 +166,11 @@ func registerService() error {
 	}
 	defer m.Disconnect()
 
-	depends := []string{}
-
-	// This dependency is required on build 14393 (RS1)
-	// it is added to the platform in newer builds
-	if osversion.Build() == osversion.RS1 {
-		depends = append(depends, "ConDrv")
-	}
-
 	c := mgr.Config{
 		ServiceType:  windows.SERVICE_WIN32_OWN_PROCESS,
 		StartType:    mgr.StartAutomatic,
 		ErrorControl: mgr.ErrorNormal,
-		Dependencies: depends,
+		Dependencies: []string{},
 		DisplayName:  "Docker Engine",
 	}
 

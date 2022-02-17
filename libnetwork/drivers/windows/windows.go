@@ -21,7 +21,6 @@ import (
 	"sync"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
@@ -218,9 +217,6 @@ func (d *driver) parseNetworkOptions(id string, genericOptions map[string]string
 			}
 			config.VSID = uint(vsid)
 		case EnableOutboundNat:
-			if osversion.Build() <= 16236 {
-				return nil, fmt.Errorf("Invalid network option. OutboundNat is not supported on this OS version")
-			}
 			b, err := strconv.ParseBool(value)
 			if err != nil {
 				return nil, err

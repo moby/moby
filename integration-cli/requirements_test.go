@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -25,17 +24,6 @@ func ArchitectureIsNot(arch string) bool {
 
 func DaemonIsWindows() bool {
 	return testEnv.OSType == "windows"
-}
-
-func DaemonIsWindowsAtLeastBuild(buildNumber int) func() bool {
-	return func() bool {
-		if testEnv.OSType != "windows" {
-			return false
-		}
-		version := testEnv.DaemonInfo.KernelVersion
-		numVersion, _ := strconv.Atoi(strings.Split(version, " ")[1])
-		return numVersion >= buildNumber
-	}
 }
 
 func DaemonIsLinux() bool {

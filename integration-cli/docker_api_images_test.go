@@ -4,18 +4,14 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 
-	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 )
@@ -59,17 +55,6 @@ func (s *DockerSuite) TestAPIImagesFilter(c *testing.T) {
 }
 
 func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *testing.T) {
-	if runtime.GOOS == "windows" {
-		// Note we parse kernel.GetKernelVersion rather than osversion.Build()
-		// as test binaries aren't manifested, so would otherwise report build 9200.
-		v, err := kernel.GetKernelVersion()
-		assert.NilError(c, err)
-		buildNumber, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
-		if buildNumber <= osversion.RS3 {
-			c.Skip("Temporarily disabled on RS3 and older because they are too slow. See #39909")
-		}
-	}
-
 	testRequires(c, Network)
 	buildImageSuccessfully(c, "saveandload", build.WithDockerfile("FROM busybox\nENV FOO bar"))
 	id := getIDByName(c, "saveandload")
@@ -141,17 +126,6 @@ func (s *DockerSuite) TestAPIImagesHistory(c *testing.T) {
 }
 
 func (s *DockerSuite) TestAPIImagesImportBadSrc(c *testing.T) {
-	if runtime.GOOS == "windows" {
-		// Note we parse kernel.GetKernelVersion rather than osversion.Build()
-		// as test binaries aren't manifested, so would otherwise report build 9200.
-		v, err := kernel.GetKernelVersion()
-		assert.NilError(c, err)
-		buildNumber, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
-		if buildNumber == osversion.RS3 {
-			c.Skip("Temporarily disabled on RS3 builds")
-		}
-	}
-
 	testRequires(c, Network, testEnv.IsLocalDaemon)
 
 	server := httptest.NewServer(http.NewServeMux())

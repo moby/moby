@@ -155,42 +155,40 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	hnsEndpoint.Policies = append(hnsEndpoint.Policies, paPolicy)
 
-	if osversion.Build() > 16236 {
-		natPolicy, err := json.Marshal(hcsshim.PaPolicy{
-			Type: "OutBoundNAT",
-		})
+	natPolicy, err := json.Marshal(hcsshim.PaPolicy{
+		Type: "OutBoundNAT",
+	})
 
-		if err != nil {
-			return err
-		}
-
-		hnsEndpoint.Policies = append(hnsEndpoint.Policies, natPolicy)
-
-		epConnectivity, err := windows.ParseEndpointConnectivity(epOptions)
-		if err != nil {
-			return err
-		}
-
-		ep.portMapping = epConnectivity.PortBindings
-		ep.portMapping, err = windows.AllocatePorts(n.portMapper, ep.portMapping, ep.addr.IP)
-		if err != nil {
-			return err
-		}
-
-		defer func() {
-			if err != nil {
-				windows.ReleasePorts(n.portMapper, ep.portMapping)
-			}
-		}()
-
-		pbPolicy, err := windows.ConvertPortBindings(ep.portMapping)
-		if err != nil {
-			return err
-		}
-		hnsEndpoint.Policies = append(hnsEndpoint.Policies, pbPolicy...)
-
-		ep.disablegateway = true
+	if err != nil {
+		return err
 	}
+
+	hnsEndpoint.Policies = append(hnsEndpoint.Policies, natPolicy)
+
+	epConnectivity, err := windows.ParseEndpointConnectivity(epOptions)
+	if err != nil {
+		return err
+	}
+
+	ep.portMapping = epConnectivity.PortBindings
+	ep.portMapping, err = windows.AllocatePorts(n.portMapper, ep.portMapping, ep.addr.IP)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			windows.ReleasePorts(n.portMapper, ep.portMapping)
+		}
+	}()
+
+	pbPolicy, err := windows.ConvertPortBindings(ep.portMapping)
+	if err != nil {
+		return err
+	}
+	hnsEndpoint.Policies = append(hnsEndpoint.Policies, pbPolicy...)
+
+	ep.disablegateway = true
 
 	configurationb, err := json.Marshal(hnsEndpoint)
 	if err != nil {
