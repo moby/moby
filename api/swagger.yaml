@@ -1989,6 +1989,14 @@ definitions:
         description: "The error message."
         type: "string"
         x-nullable: false
+      details:
+        description: |
+          Additional details about the error (for debugging purposes).
+
+          This field is only propagated if the daemon is started with
+          the `DOCKER_DEBUG_TRACE` variable set, and omitted otherwise.
+        type: "string"
+        x-nullable: true
     example:
       message: "Something went wrong."
 
