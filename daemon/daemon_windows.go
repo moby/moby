@@ -59,10 +59,6 @@ func getPluginExecRoot(root string) string {
 }
 
 func (daemon *Daemon) parseSecurityOpt(container *container.Container, hostConfig *containertypes.HostConfig) error {
-	return parseSecurityOpt(container, hostConfig)
-}
-
-func parseSecurityOpt(container *container.Container, config *containertypes.HostConfig) error {
 	return nil
 }
 
@@ -70,21 +66,9 @@ func setupInitLayer(idMapping *idtools.IdentityMapping) func(containerfs.Contain
 	return nil
 }
 
-func checkKernel() error {
-	return nil
-}
-
-func (daemon *Daemon) getCgroupDriver() string {
-	return ""
-}
-
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
 func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
-	if hostConfig == nil {
-		return nil
-	}
-
 	return nil
 }
 
@@ -643,12 +627,7 @@ func (daemon *Daemon) loadRuntimes() error {
 	return nil
 }
 
-func (daemon *Daemon) initRuntimes(_ map[string]types.Runtime) error {
-	return nil
-}
-
-func setupResolvConf(config *config.Config) {
-}
+func setupResolvConf(config *config.Config) {}
 
 // RawSysInfo returns *sysinfo.SysInfo .
 func (daemon *Daemon) RawSysInfo() *sysinfo.SysInfo {
