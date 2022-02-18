@@ -35,8 +35,8 @@ const (
 	// maximum number of attempts that
 	// may take place at a time for each pull when the connection is lost.
 	DefaultDownloadAttempts = 5
-	// DefaultShmSize is the default value for container's shm size
-	DefaultShmSize = int64(67108864)
+	// DefaultShmSize is the default value for container's shm size (64 MiB)
+	DefaultShmSize int64 = 64 * 1024 * 1024
 	// DefaultNetworkMtu is the default value for network MTU
 	DefaultNetworkMtu = 1500
 	// DisableNetworkBridge is the default value of the option to disable network bridge
