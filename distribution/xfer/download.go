@@ -137,8 +137,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 					missingLayer = false
 					rootFS.Append(diffID)
 					// Register this repository as a source of this layer.
-					withRegistered, hasRegistered := descriptor.(DownloadDescriptorWithRegistered)
-					if hasRegistered { // As layerstore may set the driver
+					if withRegistered, ok := descriptor.(DownloadDescriptorWithRegistered); ok { // As layerstore may set the driver
 						withRegistered.Registered(diffID)
 					}
 					continue
@@ -360,8 +359,8 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 			}
 
 			progress.Update(progressOutput, descriptor.ID(), "Pull complete")
-			withRegistered, hasRegistered := descriptor.(DownloadDescriptorWithRegistered)
-			if hasRegistered {
+
+			if withRegistered, ok := descriptor.(DownloadDescriptorWithRegistered); ok {
 				withRegistered.Registered(d.layer.DiffID())
 			}
 
@@ -453,8 +452,7 @@ func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor Downloa
 				return
 			}
 
-			withRegistered, hasRegistered := descriptor.(DownloadDescriptorWithRegistered)
-			if hasRegistered {
+			if withRegistered, ok := descriptor.(DownloadDescriptorWithRegistered); ok {
 				withRegistered.Registered(d.layer.DiffID())
 			}
 
