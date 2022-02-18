@@ -34,7 +34,7 @@ func (ldm *LayerDownloadManager) SetConcurrency(concurrency int) {
 }
 
 // NewLayerDownloadManager returns a new LayerDownloadManager.
-func NewLayerDownloadManager(layerStore layer.Store, concurrencyLimit int, options ...func(*LayerDownloadManager)) *LayerDownloadManager {
+func NewLayerDownloadManager(layerStore layer.Store, concurrencyLimit int, options ...DownloadOption) *LayerDownloadManager {
 	manager := LayerDownloadManager{
 		layerStore:          layerStore,
 		tm:                  newTransferManager(concurrencyLimit),
@@ -47,9 +47,12 @@ func NewLayerDownloadManager(layerStore layer.Store, concurrencyLimit int, optio
 	return &manager
 }
 
+// DownloadOption set options for the LayerDownloadManager.
+type DownloadOption func(*LayerDownloadManager)
+
 // WithMaxDownloadAttempts configures the maximum number of download
 // attempts for a download manager.
-func WithMaxDownloadAttempts(max int) func(*LayerDownloadManager) {
+func WithMaxDownloadAttempts(max int) DownloadOption {
 	return func(dlm *LayerDownloadManager) {
 		dlm.maxDownloadAttempts = max
 	}
