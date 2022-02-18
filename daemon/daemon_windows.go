@@ -629,9 +629,8 @@ func (daemon *Daemon) loadRuntimes() error {
 
 func setupResolvConf(config *config.Config) {}
 
-// RawSysInfo returns *sysinfo.SysInfo .
-func (daemon *Daemon) RawSysInfo() *sysinfo.SysInfo {
-	return sysinfo.New()
+func (daemon *Daemon) loadSysInfo() {
+	daemon.sysInfo = sysinfo.New()
 }
 
 func (daemon *Daemon) initLibcontainerd(ctx context.Context) error {
