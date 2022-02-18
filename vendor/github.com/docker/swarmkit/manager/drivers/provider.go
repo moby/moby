@@ -3,7 +3,7 @@ package drivers
 import (
 	"fmt"
 
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/moby/moby/pkg/plugingetter"
 	"github.com/docker/swarmkit/api"
 )
 

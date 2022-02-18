@@ -1,4 +1,4 @@
-package opts // import "github.com/docker/docker/opts"
+package opts // import "github.com/moby/moby/opts"
 
 // QuotedString is a string that may have extra quotes around the value. The
 // quotes are stripped from the value.

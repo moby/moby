@@ -7,11 +7,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/testutils"
-	"github.com/docker/docker/libnetwork/types"
-	"github.com/docker/docker/pkg/reexec"
+	"github.com/moby/moby/libnetwork/netlabel"
+	"github.com/moby/moby/libnetwork/ns"
+	"github.com/moby/moby/libnetwork/testutils"
+	"github.com/moby/moby/libnetwork/types"
+	"github.com/moby/moby/pkg/reexec"
 )
 
 func TestMain(m *testing.M) {

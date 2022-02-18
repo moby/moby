@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/profiles/seccomp"
+	"github.com/moby/moby/profiles/seccomp"
 )
 
 // saves the default seccomp profile as a json file so people can use it as a

@@ -1,4 +1,4 @@
-package container // import "github.com/docker/docker/container"
+package container // import "github.com/moby/moby/container"
 
 import (
 	"context"
@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	units "github.com/docker/go-units"
+	"github.com/moby/moby/api/types"
 )
 
 // State holds the current container state, and has methods to get and

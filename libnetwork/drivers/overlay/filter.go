@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/docker/docker/libnetwork/iptables"
+	"github.com/moby/moby/libnetwork/iptables"
 	"github.com/sirupsen/logrus"
 )
 

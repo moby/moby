@@ -5,11 +5,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/config"
-	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/libkv/store"
+	"github.com/moby/moby/libnetwork/config"
+	"github.com/moby/moby/libnetwork/datastore"
+	"github.com/moby/moby/libnetwork/netlabel"
+	"github.com/moby/moby/libnetwork/options"
 )
 
 func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Config) {

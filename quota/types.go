@@ -1,4 +1,4 @@
-package quota // import "github.com/docker/docker/quota"
+package quota // import "github.com/moby/moby/quota"
 
 import "sync"
 

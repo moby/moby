@@ -1,4 +1,4 @@
-package load // import "github.com/docker/docker/testutil/fixtures/load"
+package load // import "github.com/moby/moby/testutil/fixtures/load"
 
 import (
 	"bufio"
@@ -10,9 +10,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/pkg/jsonmessage"
 	"github.com/moby/term"
 	"github.com/pkg/errors"
 )

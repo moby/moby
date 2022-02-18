@@ -1,11 +1,11 @@
-package metadata // import "github.com/docker/docker/distribution/metadata"
+package metadata // import "github.com/moby/moby/distribution/metadata"
 
 import (
 	"os"
 	"path/filepath"
 	"sync"
 
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/moby/pkg/ioutils"
 )
 
 // Store implements a K/V store for mapping distribution-related IDs

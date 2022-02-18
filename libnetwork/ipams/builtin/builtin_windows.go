@@ -6,12 +6,12 @@ package builtin
 import (
 	"errors"
 
-	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/ipam"
-	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/libnetwork/ipamutils"
+	"github.com/moby/moby/libnetwork/datastore"
+	"github.com/moby/moby/libnetwork/ipam"
+	"github.com/moby/moby/libnetwork/ipamapi"
+	"github.com/moby/moby/libnetwork/ipamutils"
 
-	windowsipam "github.com/docker/docker/libnetwork/ipams/windowsipam"
+	windowsipam "github.com/moby/moby/libnetwork/ipams/windowsipam"
 )
 
 var (

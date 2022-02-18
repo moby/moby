@@ -68,7 +68,7 @@ You should follow the basic GitHub workflow:
  3. make sure the tests pass
  4. PR
 
-Additionally, you must [sign your commits](https://github.com/docker/docker/blob/master/CONTRIBUTING.md#sign-your-work). It's very simple:
+Additionally, you must [sign your commits](https://github.com/moby/moby/blob/master/CONTRIBUTING.md#sign-your-work). It's very simple:
 
  - configure your name with git: `git config user.name "Real Name" && git config user.email mail@example.com`
  - sign your commits using `-s`: `git commit -s -m "My commit"`
@@ -92,7 +92,7 @@ Your PR will be reviewed by the community, then ultimately by the project mainta
 
 It's mandatory to:
 
- - interact respectfully with other community members and maintainers - more generally, you are expected to abide by the [Docker community rules](https://github.com/docker/docker/blob/master/CONTRIBUTING.md#docker-community-guidelines)
+ - interact respectfully with other community members and maintainers - more generally, you are expected to abide by the [Docker community rules](https://github.com/moby/moby/blob/master/CONTRIBUTING.md#docker-community-guidelines)
  - address maintainers' comments and modify your submission accordingly
  - write tests for any new code
 

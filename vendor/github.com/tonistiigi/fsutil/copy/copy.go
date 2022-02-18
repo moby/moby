@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/containerd/continuity/fs"
-	"github.com/docker/docker/pkg/fileutils"
+	"github.com/moby/moby/pkg/fileutils"
 	"github.com/pkg/errors"
 )
 

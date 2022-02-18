@@ -100,7 +100,7 @@ Only `Consul` and `etcd` have support for TLS and you should build and provide y
 
 ## Contributing
 
-Want to hack on libkv? [Docker's contributions guidelines](https://github.com/docker/docker/blob/master/CONTRIBUTING.md) apply.
+Want to hack on libkv? [Docker's contributions guidelines](https://github.com/moby/moby/blob/master/CONTRIBUTING.md) apply.
 
 ## Copyright and license
 

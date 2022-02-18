@@ -1,13 +1,13 @@
 //go:build !windows
 // +build !windows
 
-package listeners // import "github.com/docker/docker/daemon/listeners"
+package listeners // import "github.com/moby/moby/daemon/listeners"
 
 import (
 	"fmt"
 	"strconv"
 
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/moby/pkg/idtools"
 )
 
 const defaultSocketGroup = "docker"

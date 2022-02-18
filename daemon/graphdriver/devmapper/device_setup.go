@@ -1,4 +1,4 @@
-package devmapper // import "github.com/docker/docker/daemon/graphdriver/devmapper"
+package devmapper // import "github.com/moby/moby/daemon/graphdriver/devmapper"
 
 import (
 	"bufio"

@@ -2,7 +2,7 @@
 // terminal (state, sizes).
 //
 // Deprecated: use github.com/moby/term instead
-package term // import "github.com/docker/docker/pkg/term"
+package term // import "github.com/moby/moby/pkg/term"
 
 import (
 	"github.com/moby/term"

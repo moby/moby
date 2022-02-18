@@ -1,4 +1,4 @@
-package common // import "github.com/docker/docker/integration/plugin/common"
+package common // import "github.com/moby/moby/integration/plugin/common"
 
 import (
 	"context"
@@ -16,12 +16,12 @@ import (
 
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/testutil/daemon"
-	"github.com/docker/docker/testutil/fixtures/plugin"
-	"github.com/docker/docker/testutil/registry"
-	"github.com/docker/docker/testutil/request"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/pkg/jsonmessage"
+	"github.com/moby/moby/testutil/daemon"
+	"github.com/moby/moby/testutil/fixtures/plugin"
+	"github.com/moby/moby/testutil/registry"
+	"github.com/moby/moby/testutil/request"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"

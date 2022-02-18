@@ -16,14 +16,14 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/fakecontext"
-	"github.com/docker/docker/testutil/fakegit"
-	"github.com/docker/docker/testutil/fakestorage"
+	"github.com/moby/moby/integration-cli/cli"
+	"github.com/moby/moby/integration-cli/cli/build"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/system"
+	"github.com/moby/moby/testutil"
+	"github.com/moby/moby/testutil/fakecontext"
+	"github.com/moby/moby/testutil/fakegit"
+	"github.com/moby/moby/testutil/fakestorage"
 	"github.com/moby/buildkit/frontend/dockerfile/command"
 	digest "github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
@@ -438,7 +438,7 @@ ADD %s/file /`
 
 }
 
-// Regression for https://github.com/docker/docker/pull/27805
+// Regression for https://github.com/moby/moby/pull/27805
 // Makes sure that we don't use the cache if the contents of
 // a file in a subfolder of the context is modified and we re-build.
 func (s *DockerSuite) TestBuildModifyFileInFolder(c *testing.T) {
@@ -5972,7 +5972,7 @@ func (s *DockerSuite) TestBuildIntermediateTarget(c *testing.T) {
 
 // TestBuildOpaqueDirectory tests that a build succeeds which
 // creates opaque directories.
-// See https://github.com/docker/docker/issues/25244
+// See https://github.com/moby/moby/issues/25244
 func (s *DockerSuite) TestBuildOpaqueDirectory(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerFile := `

@@ -1,4 +1,4 @@
-package distribution // import "github.com/docker/docker/distribution"
+package distribution // import "github.com/moby/moby/distribution"
 
 import (
 	"context"
@@ -17,17 +17,17 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/distribution/metadata"
-	"github.com/docker/docker/distribution/xfer"
-	"github.com/docker/docker/image"
-	v1 "github.com/docker/docker/image/v1"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
-	refstore "github.com/docker/docker/reference"
-	"github.com/docker/docker/registry"
+	"github.com/moby/moby/distribution/metadata"
+	"github.com/moby/moby/distribution/xfer"
+	"github.com/moby/moby/image"
+	v1 "github.com/moby/moby/image/v1"
+	"github.com/moby/moby/layer"
+	"github.com/moby/moby/pkg/ioutils"
+	"github.com/moby/moby/pkg/progress"
+	"github.com/moby/moby/pkg/stringid"
+	"github.com/moby/moby/pkg/system"
+	refstore "github.com/moby/moby/reference"
+	"github.com/moby/moby/registry"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -626,7 +626,7 @@ func (p *v2Puller) pullSchema2Layers(ctx context.Context, target distribution.De
 		layerStoreOS = platform.OS
 	}
 
-	// https://github.com/docker/docker/issues/24766 - Err on the side of caution,
+	// https://github.com/moby/moby/issues/24766 - Err on the side of caution,
 	// explicitly blocking images intended for linux from the Windows daemon. On
 	// Windows, we do this before the attempt to download, effectively serialising
 	// the download slightly slowing it down. We have to do it this way, as

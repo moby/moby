@@ -2,7 +2,7 @@
 // +build !autogen
 
 // Package dockerversion is auto-generated at build-time
-package dockerversion // import "github.com/docker/docker/dockerversion"
+package dockerversion // import "github.com/moby/moby/dockerversion"
 
 // Default build-time variable for library-import.
 // These variables are overridden on build with build-time information.

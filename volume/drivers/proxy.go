@@ -1,13 +1,13 @@
 // generated code - DO NOT EDIT
 
-package drivers // import "github.com/docker/docker/volume/drivers"
+package drivers // import "github.com/moby/moby/volume/drivers"
 
 import (
 	"errors"
 	"time"
 
-	"github.com/docker/docker/pkg/plugins"
-	"github.com/docker/docker/volume"
+	"github.com/moby/moby/pkg/plugins"
+	"github.com/moby/moby/volume"
 )
 
 const (

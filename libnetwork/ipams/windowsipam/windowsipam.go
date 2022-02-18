@@ -3,9 +3,9 @@ package windowsipam
 import (
 	"net"
 
-	"github.com/docker/docker/libnetwork/discoverapi"
-	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/moby/moby/libnetwork/discoverapi"
+	"github.com/moby/moby/libnetwork/ipamapi"
+	"github.com/moby/moby/libnetwork/types"
 	"github.com/sirupsen/logrus"
 )
 

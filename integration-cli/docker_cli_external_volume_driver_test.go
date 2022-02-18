@@ -13,11 +13,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/docker/docker/pkg/stringid"
-	testdaemon "github.com/docker/docker/testutil/daemon"
-	"github.com/docker/docker/volume"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/integration-cli/daemon"
+	"github.com/moby/moby/pkg/stringid"
+	testdaemon "github.com/moby/moby/testutil/daemon"
+	"github.com/moby/moby/volume"
 	"gotest.tools/v3/assert"
 )
 

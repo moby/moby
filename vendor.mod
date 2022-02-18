@@ -26,7 +26,7 @@ require (
 	github.com/creack/pty v1.1.11
 	github.com/deckarep/golang-set v0.0.0-20141123011944-ef32fa3046d9
 	github.com/docker/distribution v2.8.0+incompatible
-	github.com/docker/docker/autogen/winresources/dockerd v0.0.0-00010101000000-000000000000
+	github.com/moby/moby/autogen/winresources/dockerd v0.0.0-00010101000000-000000000000
 	github.com/docker/go-connections v0.4.0
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c
 	github.com/docker/go-metrics v0.0.1
@@ -172,4 +172,4 @@ replace (
 )
 
 // autogen/winresources/dockerd is generated a build time, this replacement is only for the purpose of `go mod vendor`
-replace github.com/docker/docker/autogen/winresources/dockerd => ./hack/make/.resources-windows
+replace github.com/moby/moby/autogen/winresources/dockerd => ./hack/make/.resources-windows

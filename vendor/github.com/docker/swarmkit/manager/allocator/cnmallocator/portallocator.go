@@ -3,7 +3,7 @@ package cnmallocator
 import (
 	"fmt"
 
-	"github.com/docker/docker/libnetwork/idm"
+	"github.com/moby/moby/libnetwork/idm"
 	"github.com/docker/swarmkit/api"
 )
 

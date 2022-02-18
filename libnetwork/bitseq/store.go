@@ -3,8 +3,8 @@ package bitseq
 import (
 	"encoding/json"
 
-	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/moby/moby/libnetwork/datastore"
+	"github.com/moby/moby/libnetwork/types"
 )
 
 // Key provides the Key to be used in KV Store

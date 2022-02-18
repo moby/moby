@@ -1,13 +1,13 @@
 // Package logentries provides the log driver for forwarding server logs
 // to logentries endpoints.
-package logentries // import "github.com/docker/docker/daemon/logger/logentries"
+package logentries // import "github.com/moby/moby/daemon/logger/logentries"
 
 import (
 	"fmt"
 	"strconv"
 
 	"github.com/bsphere/le_go"
-	"github.com/docker/docker/daemon/logger"
+	"github.com/moby/moby/daemon/logger"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

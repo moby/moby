@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/moby/moby/api/types"
 	"gotest.tools/v3/assert"
 )
 

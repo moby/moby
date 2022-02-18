@@ -1,9 +1,9 @@
-package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
+package supervisor // import "github.com/moby/moby/libcontainerd/supervisor"
 
 import (
 	"os"
 
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/system"
 )
 
 const (

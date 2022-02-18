@@ -7,9 +7,9 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/moby/moby/libnetwork/driverapi"
+	"github.com/moby/moby/libnetwork/netlabel"
+	"github.com/moby/moby/libnetwork/types"
 )
 
 func testNetwork(networkType string, t *testing.T) {

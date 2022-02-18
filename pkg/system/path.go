@@ -1,4 +1,4 @@
-package system // import "github.com/docker/docker/pkg/system"
+package system // import "github.com/moby/moby/pkg/system"
 
 const defaultUnixPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 

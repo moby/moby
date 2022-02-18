@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/daemon"
+package daemon // import "github.com/moby/moby/daemon"
 
 import (
 	"os"
@@ -6,13 +6,13 @@ import (
 	"runtime"
 	"testing"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/truncindex"
-	volumesservice "github.com/docker/docker/volume/service"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/errdefs"
+	"github.com/moby/moby/libnetwork"
+	"github.com/moby/moby/pkg/idtools"
+	"github.com/moby/moby/pkg/truncindex"
+	volumesservice "github.com/moby/moby/volume/service"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
@@ -20,7 +20,7 @@ import (
 )
 
 //
-// https://github.com/docker/docker/issues/8069
+// https://github.com/moby/moby/issues/8069
 //
 
 func TestGetContainer(t *testing.T) {

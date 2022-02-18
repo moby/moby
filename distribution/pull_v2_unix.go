@@ -1,7 +1,7 @@
 //go:build !windows
 // +build !windows
 
-package distribution // import "github.com/docker/docker/distribution"
+package distribution // import "github.com/moby/moby/distribution"
 
 import (
 	"context"

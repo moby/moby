@@ -1,7 +1,7 @@
 //go:build !windows
 // +build !windows
 
-package archive // import "github.com/docker/docker/pkg/archive"
+package archive // import "github.com/moby/moby/pkg/archive"
 
 import (
 	"archive/tar"
@@ -16,7 +16,7 @@ import (
 	"testing"
 
 	"github.com/containerd/containerd/pkg/userns"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/system"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

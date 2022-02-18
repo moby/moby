@@ -1,7 +1,7 @@
 //go:build !darwin && !windows
 // +build !darwin,!windows
 
-package mount // import "github.com/docker/docker/pkg/mount"
+package mount // import "github.com/moby/moby/pkg/mount"
 
 // Deprecated: this package is not maintained and will be removed.
 // Use github.com/moby/sys/mount and github.com/moby/sys/mountinfo instead.

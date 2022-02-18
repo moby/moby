@@ -1,6 +1,6 @@
 // Package checker provides helpers for gotest.tools/assert.
 // Please remove this package whenever possible.
-package checker // import "github.com/docker/docker/integration-cli/checker"
+package checker // import "github.com/moby/moby/integration-cli/checker"
 
 import (
 	"fmt"

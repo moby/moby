@@ -7,13 +7,13 @@ source hack/dockerfile/install/tini.installer
 source hack/dockerfile/install/containerd.installer
 
 LDFLAGS="${LDFLAGS} \
-	-X \"github.com/docker/docker/dockerversion.Version=${VERSION}\" \
-	-X \"github.com/docker/docker/dockerversion.GitCommit=${GITCOMMIT}\" \
-	-X \"github.com/docker/docker/dockerversion.BuildTime=${BUILDTIME}\" \
-	-X \"github.com/docker/docker/dockerversion.IAmStatic=${IAMSTATIC:-true}\" \
-	-X \"github.com/docker/docker/dockerversion.PlatformName=${PLATFORM}\" \
-	-X \"github.com/docker/docker/dockerversion.ProductName=${PRODUCT}\" \
-	-X \"github.com/docker/docker/dockerversion.DefaultProductLicense=${DEFAULT_PRODUCT_LICENSE}\" \
+	-X \"github.com/moby/moby/dockerversion.Version=${VERSION}\" \
+	-X \"github.com/moby/moby/dockerversion.GitCommit=${GITCOMMIT}\" \
+	-X \"github.com/moby/moby/dockerversion.BuildTime=${BUILDTIME}\" \
+	-X \"github.com/moby/moby/dockerversion.IAmStatic=${IAMSTATIC:-true}\" \
+	-X \"github.com/moby/moby/dockerversion.PlatformName=${PLATFORM}\" \
+	-X \"github.com/moby/moby/dockerversion.ProductName=${PRODUCT}\" \
+	-X \"github.com/moby/moby/dockerversion.DefaultProductLicense=${DEFAULT_PRODUCT_LICENSE}\" \
 "
 
 # Compile the Windows resources into the sources

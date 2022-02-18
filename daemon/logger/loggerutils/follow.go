@@ -1,12 +1,12 @@
-package loggerutils // import "github.com/docker/docker/daemon/logger/loggerutils"
+package loggerutils // import "github.com/moby/moby/daemon/logger/loggerutils"
 
 import (
 	"io"
 	"os"
 	"time"
 
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/pkg/filenotify"
+	"github.com/moby/moby/daemon/logger"
+	"github.com/moby/moby/pkg/filenotify"
 	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"

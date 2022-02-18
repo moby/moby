@@ -1,7 +1,7 @@
 //go:build freebsd || darwin
 // +build freebsd darwin
 
-package operatingsystem // import "github.com/docker/docker/pkg/parsers/operatingsystem"
+package operatingsystem // import "github.com/moby/moby/pkg/parsers/operatingsystem"
 
 import (
 	"bytes"

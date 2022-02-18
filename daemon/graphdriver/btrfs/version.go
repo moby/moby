@@ -1,7 +1,7 @@
 //go:build linux
 // +build linux
 
-package btrfs // import "github.com/docker/docker/daemon/graphdriver/btrfs"
+package btrfs // import "github.com/moby/moby/daemon/graphdriver/btrfs"
 
 /*
 #include <btrfs/version.h>

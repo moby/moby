@@ -1,4 +1,4 @@
-package httputils // import "github.com/docker/docker/api/server/httputils"
+package httputils // import "github.com/moby/moby/api/server/httputils"
 
 import (
 	"context"
@@ -7,11 +7,11 @@ import (
 	"net/url"
 	"sort"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/backend"
+	"github.com/moby/moby/pkg/ioutils"
+	"github.com/moby/moby/pkg/jsonmessage"
+	"github.com/moby/moby/pkg/stdcopy"
 )
 
 // WriteLogStream writes an encoded byte stream of log messages from the

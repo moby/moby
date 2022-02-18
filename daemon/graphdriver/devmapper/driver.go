@@ -1,7 +1,7 @@
 //go:build linux
 // +build linux
 
-package devmapper // import "github.com/docker/docker/daemon/graphdriver/devmapper"
+package devmapper // import "github.com/moby/moby/daemon/graphdriver/devmapper"
 
 import (
 	"fmt"
@@ -9,10 +9,10 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/containerfs"
-	"github.com/docker/docker/pkg/devicemapper"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/moby/daemon/graphdriver"
+	"github.com/moby/moby/pkg/containerfs"
+	"github.com/moby/moby/pkg/devicemapper"
+	"github.com/moby/moby/pkg/idtools"
 	units "github.com/docker/go-units"
 	"github.com/moby/locker"
 	"github.com/moby/sys/mount"

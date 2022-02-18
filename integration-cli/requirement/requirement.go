@@ -1,4 +1,4 @@
-package requirement // import "github.com/docker/docker/integration-cli/requirement"
+package requirement // import "github.com/moby/moby/integration-cli/requirement"
 
 import (
 	"path"

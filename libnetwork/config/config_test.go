@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/netlabel"
+	"github.com/moby/moby/libnetwork/netlabel"
 )
 
 func TestInvalidConfig(t *testing.T) {

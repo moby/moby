@@ -1,11 +1,11 @@
-package logging // import "github.com/docker/docker/integration/plugin/logging"
+package logging // import "github.com/moby/moby/integration/plugin/logging"
 
 import (
 	"fmt"
 	"os"
 	"testing"
 
-	"github.com/docker/docker/testutil/environment"
+	"github.com/moby/moby/testutil/environment"
 )
 
 var (

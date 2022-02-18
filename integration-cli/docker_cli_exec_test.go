@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/integration-cli/cli"
+	"github.com/moby/moby/integration-cli/cli/build"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -510,7 +510,7 @@ func (s *DockerSuite) TestExecStartFails(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "executable file not found"))
 }
 
-// Fix regression in https://github.com/docker/docker/pull/26461#issuecomment-250287297
+// Fix regression in https://github.com/moby/moby/pull/26461#issuecomment-250287297
 func (s *DockerSuite) TestExecWindowsPathNotWiped(c *testing.T) {
 	testRequires(c, DaemonIsWindows)
 	out, _ := dockerCmd(c, "run", "-d", "--name", "testing", minimalBaseImage(), "powershell", "start-sleep", "60")

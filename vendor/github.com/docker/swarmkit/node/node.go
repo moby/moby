@@ -19,8 +19,8 @@ import (
 	"github.com/docker/swarmkit/ca/keyutils"
 	"github.com/docker/swarmkit/identity"
 
-	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/moby/moby/libnetwork/drivers/overlay/overlayutils"
+	"github.com/moby/moby/pkg/plugingetter"
 	"github.com/docker/go-metrics"
 	"github.com/docker/swarmkit/agent"
 	"github.com/docker/swarmkit/agent/exec"

@@ -1,6 +1,6 @@
-package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
+package sysinfo // import "github.com/moby/moby/pkg/sysinfo"
 
-import "github.com/docker/docker/pkg/parsers"
+import "github.com/moby/moby/pkg/parsers"
 
 // Opt for New().
 type Opt func(info *SysInfo)

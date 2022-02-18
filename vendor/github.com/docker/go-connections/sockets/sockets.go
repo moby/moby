@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Why 32? See https://github.com/docker/docker/pull/8035.
+// Why 32? See https://github.com/moby/moby/pull/8035.
 const defaultTimeout = 32 * time.Second
 
 // ErrProtocolNotAvailable is returned when a given transport protocol is not provided by the operating system.

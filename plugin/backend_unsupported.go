@@ -1,7 +1,7 @@
 //go:build !linux
 // +build !linux
 
-package plugin // import "github.com/docker/docker/plugin"
+package plugin // import "github.com/moby/moby/plugin"
 
 import (
 	"context"
@@ -10,8 +10,8 @@ import (
 	"net/http"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/filters"
 )
 
 var errNotSupported = errors.New("plugins are not supported on this platform")

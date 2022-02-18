@@ -1,9 +1,9 @@
-package daemon // import "github.com/docker/docker/daemon"
+package daemon // import "github.com/moby/moby/daemon"
 
 import (
 	"testing"
 
-	containertypes "github.com/docker/docker/api/types/container"
+	containertypes "github.com/moby/moby/api/types/container"
 )
 
 func TestMergeAndVerifyLogConfigNilConfig(t *testing.T) {

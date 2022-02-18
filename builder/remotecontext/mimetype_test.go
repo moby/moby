@@ -1,4 +1,4 @@
-package remotecontext // import "github.com/docker/docker/builder/remotecontext"
+package remotecontext // import "github.com/moby/moby/builder/remotecontext"
 
 import (
 	"testing"

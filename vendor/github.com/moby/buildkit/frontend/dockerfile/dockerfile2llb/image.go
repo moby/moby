@@ -3,7 +3,7 @@ package dockerfile2llb
 import (
 	"time"
 
-	"github.com/docker/docker/api/types/strslice"
+	"github.com/moby/moby/api/types/strslice"
 	"github.com/moby/buildkit/util/system"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )

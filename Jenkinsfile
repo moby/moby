@@ -94,8 +94,8 @@ pipeline {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/moby/moby/bundles" \
+                                  -v "$WORKSPACE/.git:/go/src/github.com/moby/moby/.git" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
@@ -112,7 +112,7 @@ pipeline {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/moby/moby/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
@@ -155,7 +155,7 @@ pipeline {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/moby/moby/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
@@ -168,7 +168,7 @@ pipeline {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/moby/moby/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
@@ -185,7 +185,7 @@ pipeline {
                                 '''
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/moby/moby/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
@@ -206,7 +206,7 @@ pipeline {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                                  -v "$WORKSPACE/.git:/go/src/github.com/moby/moby/.git" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
@@ -288,9 +288,9 @@ pipeline {
                                 run_tests() {
                                         [ -n "$TESTDEBUG" ] && rm= || rm=--rm;
                                         docker run $rm -t --privileged \
-                                          -v "$WORKSPACE/bundles/${TEST_INTEGRATION_DEST}:/go/src/github.com/docker/docker/bundles" \
-                                          -v "$WORKSPACE/bundles/dynbinary-daemon:/go/src/github.com/docker/docker/bundles/dynbinary-daemon" \
-                                          -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                                          -v "$WORKSPACE/bundles/${TEST_INTEGRATION_DEST}:/go/src/github.com/moby/moby/bundles" \
+                                          -v "$WORKSPACE/bundles/dynbinary-daemon:/go/src/github.com/moby/moby/bundles/dynbinary-daemon" \
+                                          -v "$WORKSPACE/.git:/go/src/github.com/moby/moby/.git" \
                                           --name "$CONTAINER_NAME" \
                                           -e KEEPBUNDLE=1 \
                                           -e TESTDEBUG \
@@ -314,8 +314,8 @@ pipeline {
                                 CONTAINER_NAME=docker-pr$BUILD_NUMBER
 
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/moby/moby/bundles" \
+                                  -v "$WORKSPACE/.git:/go/src/github.com/moby/moby/.git" \
                                   --name ${CONTAINER_NAME}-build \
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
@@ -411,7 +411,7 @@ pipeline {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/moby/moby/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
@@ -493,7 +493,7 @@ pipeline {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/moby/moby/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
@@ -585,7 +585,7 @@ pipeline {
                                 '''
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/moby/moby/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
@@ -607,7 +607,7 @@ pipeline {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/moby/moby/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
@@ -692,7 +692,7 @@ pipeline {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/moby/moby/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
@@ -787,7 +787,7 @@ pipeline {
                                 '''
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/moby/moby/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
@@ -809,7 +809,7 @@ pipeline {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/moby/moby/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
@@ -901,7 +901,7 @@ pipeline {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/moby/moby/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
@@ -986,7 +986,7 @@ pipeline {
                                 '''
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/moby/moby/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
@@ -1008,7 +1008,7 @@ pipeline {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/moby/moby/bundles" \
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_EXPERIMENTAL \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \

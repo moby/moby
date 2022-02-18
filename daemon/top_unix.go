@@ -1,7 +1,7 @@
 //go:build !windows
 // +build !windows
 
-package daemon // import "github.com/docker/docker/daemon"
+package daemon // import "github.com/moby/moby/daemon"
 
 import (
 	"bytes"
@@ -12,15 +12,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/errdefs"
 	"github.com/pkg/errors"
 )
 
 func validatePSArgs(psArgs string) error {
 	// NOTE: \\s does not detect unicode whitespaces.
 	// So we use fieldsASCII instead of strings.Fields in parsePSOutput.
-	// See https://github.com/docker/docker/pull/24358
+	// See https://github.com/moby/moby/pull/24358
 	//nolint: gosimple
 	re := regexp.MustCompile("\\s+([^\\s]*)=\\s*(PID[^\\s]*)")
 	for _, group := range re.FindAllStringSubmatch(psArgs, -1) {

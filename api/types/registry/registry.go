@@ -1,4 +1,4 @@
-package registry // import "github.com/docker/docker/api/types/registry"
+package registry // import "github.com/moby/moby/api/types/registry"
 
 import (
 	"encoding/json"

@@ -1,7 +1,7 @@
 //go:build !windows
 // +build !windows
 
-package plugins // import "github.com/docker/docker/pkg/plugins"
+package plugins // import "github.com/moby/moby/pkg/plugins"
 
 import (
 	"fmt"

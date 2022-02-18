@@ -1,4 +1,4 @@
-package urlutil // import "github.com/docker/docker/pkg/urlutil"
+package urlutil // import "github.com/moby/moby/pkg/urlutil"
 
 import "testing"
 

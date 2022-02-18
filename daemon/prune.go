@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/daemon"
+package daemon // import "github.com/moby/moby/daemon"
 
 import (
 	"context"
@@ -8,13 +8,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
-	timetypes "github.com/docker/docker/api/types/time"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/runconfig"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/filters"
+	timetypes "github.com/moby/moby/api/types/time"
+	"github.com/moby/moby/errdefs"
+	"github.com/moby/moby/libnetwork"
+	"github.com/moby/moby/runconfig"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -165,7 +165,7 @@ func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters fil
 			if !matchLabels(pruneFilters, nw.Labels) {
 				continue
 			}
-			// https://github.com/docker/docker/issues/24186
+			// https://github.com/moby/moby/issues/24186
 			// `docker network inspect` unfortunately displays ONLY those containers that are local to that node.
 			// So we try to remove it anyway and check the error
 			err = cluster.RemoveNetwork(nw.ID)

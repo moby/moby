@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/Microsoft/hcsshim/osversion"
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/moby/moby/integration-cli/cli"
+	"github.com/moby/moby/pkg/parsers/kernel"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 )
 
-// Regression test for https://github.com/docker/docker/issues/7843
+// Regression test for https://github.com/moby/moby/issues/7843
 func (s *DockerSuite) TestStartAttachReturnsOnError(c *testing.T) {
 	// Windows does not support link
 	testRequires(c, DaemonIsLinux)

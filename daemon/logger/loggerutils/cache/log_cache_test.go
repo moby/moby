@@ -8,7 +8,7 @@ import (
 
 	"bytes"
 
-	"github.com/docker/docker/daemon/logger"
+	"github.com/moby/moby/daemon/logger"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 )

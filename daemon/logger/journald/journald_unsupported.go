@@ -1,7 +1,7 @@
 //go:build !linux
 // +build !linux
 
-package journald // import "github.com/docker/docker/daemon/logger/journald"
+package journald // import "github.com/moby/moby/daemon/logger/journald"
 
 type journald struct {
 }

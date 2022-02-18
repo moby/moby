@@ -4,12 +4,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/libnetwork/drvregistry"
-	"github.com/docker/docker/libnetwork/ipamapi"
-	builtinIpam "github.com/docker/docker/libnetwork/ipams/builtin"
-	nullIpam "github.com/docker/docker/libnetwork/ipams/null"
-	remoteIpam "github.com/docker/docker/libnetwork/ipams/remote"
-	"github.com/docker/docker/libnetwork/ipamutils"
+	"github.com/moby/moby/libnetwork/drvregistry"
+	"github.com/moby/moby/libnetwork/ipamapi"
+	builtinIpam "github.com/moby/moby/libnetwork/ipams/builtin"
+	nullIpam "github.com/moby/moby/libnetwork/ipams/null"
+	remoteIpam "github.com/moby/moby/libnetwork/ipams/remote"
+	"github.com/moby/moby/libnetwork/ipamutils"
 	"github.com/sirupsen/logrus"
 )
 

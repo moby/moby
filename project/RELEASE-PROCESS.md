@@ -50,7 +50,7 @@ etc.) allows to get early feedback on the design before getting into the
 implementation, which usually reduces the time needed to discuss a changeset.
 - If the code is commented, fully tested and by extension follows every single
 rules defined by the [CONTRIBUTING guide](
-https://github.com/docker/docker/blob/master/CONTRIBUTING.md), this will help
+https://github.com/moby/moby/blob/master/CONTRIBUTING.md), this will help
 the maintainers by speeding up the review.
 
 ## The release

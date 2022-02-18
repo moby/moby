@@ -1,13 +1,13 @@
-package system // import "github.com/docker/docker/api/server/router/system"
+package system // import "github.com/moby/moby/api/server/router/system"
 
 import (
 	"context"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/swarm"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/swarm"
 )
 
 // DiskUsageOptions holds parameters for system disk usage query.

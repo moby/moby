@@ -16,18 +16,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
-	mounttypes "github.com/docker/docker/api/types/mount"
-	networktypes "github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/testutil/request"
-	"github.com/docker/docker/volume"
+	"github.com/moby/moby/api/types"
+	containertypes "github.com/moby/moby/api/types/container"
+	mounttypes "github.com/moby/moby/api/types/mount"
+	networktypes "github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/integration-cli/cli"
+	"github.com/moby/moby/integration-cli/cli/build"
+	"github.com/moby/moby/pkg/ioutils"
+	"github.com/moby/moby/pkg/stringid"
+	"github.com/moby/moby/testutil/request"
+	"github.com/moby/moby/volume"
 	"github.com/docker/go-connections/nat"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -1222,7 +1222,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 	assert.Assert(c, os.IsNotExist(err), "expected to get ErrNotExist error, got %v", err)
 }
 
-// Regression test for https://github.com/docker/docker/issues/6231
+// Regression test for https://github.com/moby/moby/issues/6231
 func (s *DockerSuite) TestContainerAPIChunkedEncoding(c *testing.T) {
 
 	config := map[string]interface{}{

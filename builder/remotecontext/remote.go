@@ -1,4 +1,4 @@
-package remotecontext // import "github.com/docker/docker/builder/remotecontext"
+package remotecontext // import "github.com/moby/moby/builder/remotecontext"
 
 import (
 	"bytes"
@@ -9,8 +9,8 @@ import (
 	"net/url"
 	"regexp"
 
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/moby/errdefs"
+	"github.com/moby/moby/pkg/ioutils"
 	"github.com/pkg/errors"
 )
 

@@ -1,7 +1,7 @@
 //go:build !windows
 // +build !windows
 
-package idtools // import "github.com/docker/docker/pkg/idtools"
+package idtools // import "github.com/moby/moby/pkg/idtools"
 
 import (
 	"bytes"
@@ -13,7 +13,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/system"
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/pkg/errors"
 )

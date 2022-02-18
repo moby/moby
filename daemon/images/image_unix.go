@@ -1,7 +1,7 @@
 //go:build linux || freebsd
 // +build linux freebsd
 
-package images // import "github.com/docker/docker/daemon/images"
+package images // import "github.com/moby/moby/daemon/images"
 
 import (
 	"github.com/sirupsen/logrus"

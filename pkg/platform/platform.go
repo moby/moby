@@ -1,4 +1,4 @@
-package platform // import "github.com/docker/docker/pkg/platform"
+package platform // import "github.com/moby/moby/pkg/platform"
 
 import (
 	"runtime"

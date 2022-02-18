@@ -1,7 +1,7 @@
 //go:build !windows
 // +build !windows
 
-package container // import "github.com/docker/docker/container"
+package container // import "github.com/moby/moby/container"
 
 // Mount contains information for a mount operation.
 type Mount struct {

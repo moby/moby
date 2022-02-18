@@ -4,9 +4,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/moby/moby/libnetwork/driverapi"
+	"github.com/moby/moby/libnetwork/ipamapi"
+	"github.com/moby/moby/pkg/plugingetter"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/allocator"
 	"github.com/docker/swarmkit/manager/state/store"

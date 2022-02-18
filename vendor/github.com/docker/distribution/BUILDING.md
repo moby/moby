@@ -82,7 +82,7 @@ build:
     + vet
     + lint
     + build
-    github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar
+    github.com/moby/moby/vendor/src/code.google.com/p/go/src/pkg/archive/tar
     github.com/sirupsen/logrus
     github.com/docker/libtrust
     ...

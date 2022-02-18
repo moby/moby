@@ -13,7 +13,7 @@ import (
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/moby/moby/integration-cli/cli/build"
 	digest "github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"

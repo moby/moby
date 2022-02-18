@@ -1,4 +1,4 @@
-package mounts // import "github.com/docker/docker/volume/mounts"
+package mounts // import "github.com/moby/moby/volume/mounts"
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/docker/api/types/mount"
+	"github.com/moby/moby/api/types/mount"
 )
 
 // NewLCOWParser creates a parser with Linux Containers on Windows semantics.

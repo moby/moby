@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/pkg/fileutils"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/moby/pkg/fileutils"
+	"github.com/moby/moby/pkg/idtools"
 	iradix "github.com/hashicorp/go-immutable-radix"
 	"github.com/hashicorp/golang-lru/simplelru"
 	"github.com/moby/buildkit/cache"

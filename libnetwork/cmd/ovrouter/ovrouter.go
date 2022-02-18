@@ -9,12 +9,12 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/drivers/overlay"
-	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/types"
-	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/pkg/reexec"
+	"github.com/moby/moby/libnetwork/driverapi"
+	"github.com/moby/moby/libnetwork/drivers/overlay"
+	"github.com/moby/moby/libnetwork/netlabel"
+	"github.com/moby/moby/libnetwork/types"
+	"github.com/moby/moby/pkg/plugingetter"
+	"github.com/moby/moby/pkg/reexec"
 	"github.com/vishvananda/netlink"
 )
 

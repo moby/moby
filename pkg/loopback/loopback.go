@@ -1,7 +1,7 @@
 //go:build linux && cgo
 // +build linux,cgo
 
-package loopback // import "github.com/docker/docker/pkg/loopback"
+package loopback // import "github.com/moby/moby/pkg/loopback"
 
 import (
 	"fmt"

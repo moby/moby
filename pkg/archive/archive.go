@@ -1,4 +1,4 @@
-package archive // import "github.com/docker/docker/pkg/archive"
+package archive // import "github.com/moby/moby/pkg/archive"
 
 import (
 	"archive/tar"
@@ -18,11 +18,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/pkg/fileutils"
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/fileutils"
+	"github.com/moby/moby/pkg/idtools"
+	"github.com/moby/moby/pkg/ioutils"
+	"github.com/moby/moby/pkg/pools"
+	"github.com/moby/moby/pkg/system"
 	"github.com/klauspost/compress/zstd"
 	"github.com/sirupsen/logrus"
 	exec "golang.org/x/sys/execabs"

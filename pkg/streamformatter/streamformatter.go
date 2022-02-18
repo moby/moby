@@ -1,13 +1,13 @@
 // Package streamformatter provides helper functions to format a stream.
-package streamformatter // import "github.com/docker/docker/pkg/streamformatter"
+package streamformatter // import "github.com/moby/moby/pkg/streamformatter"
 
 import (
 	"encoding/json"
 	"fmt"
 	"io"
 
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/progress"
+	"github.com/moby/moby/pkg/jsonmessage"
+	"github.com/moby/moby/pkg/progress"
 )
 
 const streamNewline = "\r\n"

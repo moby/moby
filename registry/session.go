@@ -1,4 +1,4 @@
-package registry // import "github.com/docker/docker/registry"
+package registry // import "github.com/moby/moby/registry"
 
 import (
 	// this is required for some certificates
@@ -11,12 +11,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/moby/api/types"
+	registrytypes "github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/errdefs"
+	"github.com/moby/moby/pkg/ioutils"
+	"github.com/moby/moby/pkg/jsonmessage"
+	"github.com/moby/moby/pkg/stringid"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

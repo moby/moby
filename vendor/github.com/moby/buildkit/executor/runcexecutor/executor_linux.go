@@ -9,7 +9,7 @@ import (
 
 	"github.com/containerd/console"
 	runc "github.com/containerd/go-runc"
-	"github.com/docker/docker/pkg/signal"
+	"github.com/moby/moby/pkg/signal"
 	"github.com/moby/buildkit/executor"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"

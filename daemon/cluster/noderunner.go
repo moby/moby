@@ -1,4 +1,4 @@
-package cluster // import "github.com/docker/docker/daemon/cluster"
+package cluster // import "github.com/moby/moby/daemon/cluster"
 
 import (
 	"context"
@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	types "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/daemon/cluster/executor/container"
-	lncluster "github.com/docker/docker/libnetwork/cluster"
 	swarmapi "github.com/docker/swarmkit/api"
 	swarmallocator "github.com/docker/swarmkit/manager/allocator/cnmallocator"
 	swarmnode "github.com/docker/swarmkit/node"
+	types "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/daemon/cluster/executor/container"
+	lncluster "github.com/moby/moby/libnetwork/cluster"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"

@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/moby/moby/integration-cli/cli/build"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 )

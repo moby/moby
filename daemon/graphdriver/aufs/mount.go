@@ -1,7 +1,7 @@
 //go:build linux
 // +build linux
 
-package aufs // import "github.com/docker/docker/daemon/graphdriver/aufs"
+package aufs // import "github.com/moby/moby/daemon/graphdriver/aufs"
 
 import (
 	"os/exec"

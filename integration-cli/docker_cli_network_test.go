@@ -3,7 +3,7 @@ package main
 import (
 	"net/http/httptest"
 
-	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/moby/moby/integration-cli/daemon"
 )
 
 type DockerNetworkSuite struct {

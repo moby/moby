@@ -1,16 +1,16 @@
 // Package signal provides helper functions for dealing with signals across
 // various operating systems.
-package signal // import "github.com/docker/docker/pkg/signal"
+package signal // import "github.com/moby/moby/pkg/signal"
 
 import (
-	"github.com/docker/docker/pkg/stack"
+	"github.com/moby/moby/pkg/stack"
 	msignal "github.com/moby/sys/signal"
 )
 
 var (
 	// DumpStacks appends the runtime stack into file in dir and returns full path
 	// to that file.
-	// Deprecated: use github.com/docker/docker/pkg/stack.Dump instead.
+	// Deprecated: use github.com/moby/moby/pkg/stack.Dump instead.
 	DumpStacks = stack.DumpToFile
 
 	// CatchAll catches all signals and relays them to the specified channel.
@@ -50,6 +50,6 @@ const (
 	SIGPIPE = msignal.SIGPIPE
 
 	// DefaultStopSignal has been deprecated and removed. The default value is
-	// now defined in github.com/docker/docker/container. Clients should omit
+	// now defined in github.com/moby/moby/container. Clients should omit
 	// the container's stop-signal field if the default should be used.
 )

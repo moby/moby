@@ -1,4 +1,4 @@
-package registry // import "github.com/docker/docker/registry"
+package registry // import "github.com/moby/moby/registry"
 
 import (
 	"encoding/json"
@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
-	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/gorilla/mux"
+	registrytypes "github.com/moby/moby/api/types/registry"
 
 	"github.com/sirupsen/logrus"
 )

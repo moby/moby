@@ -1,10 +1,10 @@
-package v1 // import "github.com/docker/docker/image/v1"
+package v1 // import "github.com/moby/moby/image/v1"
 
 import (
 	"encoding/json"
 	"testing"
 
-	"github.com/docker/docker/image"
+	"github.com/moby/moby/image"
 )
 
 func TestMakeV1ConfigFromConfig(t *testing.T) {

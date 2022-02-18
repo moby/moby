@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/moby/moby/libnetwork/types"
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
 )

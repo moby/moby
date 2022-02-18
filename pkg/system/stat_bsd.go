@@ -1,7 +1,7 @@
 //go:build freebsd || netbsd
 // +build freebsd netbsd
 
-package system // import "github.com/docker/docker/pkg/system"
+package system // import "github.com/moby/moby/pkg/system"
 
 import "syscall"
 

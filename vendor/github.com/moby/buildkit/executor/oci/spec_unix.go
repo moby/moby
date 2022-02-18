@@ -7,8 +7,8 @@ import (
 
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/oci"
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/profiles/seccomp"
+	"github.com/moby/moby/pkg/idtools"
+	"github.com/moby/moby/profiles/seccomp"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/entitlements/security"
 	"github.com/moby/buildkit/util/system"

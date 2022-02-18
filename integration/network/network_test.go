@@ -1,4 +1,4 @@
-package network // import "github.com/docker/docker/integration/network"
+package network // import "github.com/moby/moby/integration/network"
 
 import (
 	"bytes"
@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/integration/internal/network"
-	"github.com/docker/docker/testutil/daemon"
-	"github.com/docker/docker/testutil/request"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/integration/internal/container"
+	"github.com/moby/moby/integration/internal/network"
+	"github.com/moby/moby/testutil/daemon"
+	"github.com/moby/moby/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"

@@ -1,11 +1,11 @@
-package distribution // import "github.com/docker/docker/integration/distribution"
+package distribution // import "github.com/moby/moby/integration/distribution"
 
 import (
 	"fmt"
 	"os"
 	"testing"
 
-	"github.com/docker/docker/internal/test/environment"
+	"github.com/moby/moby/internal/test/environment"
 )
 
 var testEnv *environment.Execution

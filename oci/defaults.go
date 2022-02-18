@@ -1,10 +1,10 @@
-package oci // import "github.com/docker/docker/oci"
+package oci // import "github.com/moby/moby/oci"
 
 import (
 	"os"
 	"runtime"
 
-	"github.com/docker/docker/oci/caps"
+	"github.com/moby/moby/oci/caps"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 

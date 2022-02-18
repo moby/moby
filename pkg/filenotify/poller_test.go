@@ -1,4 +1,4 @@
-package filenotify // import "github.com/docker/docker/pkg/filenotify"
+package filenotify // import "github.com/moby/moby/pkg/filenotify"
 
 import (
 	"fmt"

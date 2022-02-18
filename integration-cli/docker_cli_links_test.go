@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/runconfig"
+	"github.com/moby/moby/runconfig"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 )

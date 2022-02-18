@@ -12,8 +12,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/libnetwork/types"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/moby/libnetwork/types"
+	"github.com/moby/moby/pkg/stringid"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )

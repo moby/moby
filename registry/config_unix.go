@@ -1,13 +1,13 @@
 //go:build !windows
 // +build !windows
 
-package registry // import "github.com/docker/docker/registry"
+package registry // import "github.com/moby/moby/registry"
 
 import (
 	"path/filepath"
 
-	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/rootless"
+	"github.com/moby/moby/pkg/homedir"
+	"github.com/moby/moby/rootless"
 )
 
 // CertsDir is the directory where certificates are stored

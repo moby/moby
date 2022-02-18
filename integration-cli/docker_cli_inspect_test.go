@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 )

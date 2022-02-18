@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/moby/moby/libnetwork/types"
 )
 
 // MarshalJSON encodes IPAMData into json message

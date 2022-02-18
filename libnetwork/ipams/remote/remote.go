@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/docker/docker/libnetwork/discoverapi"
-	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/libnetwork/ipams/remote/api"
-	"github.com/docker/docker/libnetwork/types"
-	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/moby/moby/libnetwork/discoverapi"
+	"github.com/moby/moby/libnetwork/ipamapi"
+	"github.com/moby/moby/libnetwork/ipams/remote/api"
+	"github.com/moby/moby/libnetwork/types"
+	"github.com/moby/moby/pkg/plugingetter"
+	"github.com/moby/moby/pkg/plugins"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

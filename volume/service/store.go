@@ -1,4 +1,4 @@
-package service // import "github.com/docker/docker/volume/service"
+package service // import "github.com/moby/moby/volume/service"
 
 import (
 	"context"
@@ -9,12 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/drivers"
-	volumemounts "github.com/docker/docker/volume/mounts"
-	"github.com/docker/docker/volume/service/opts"
 	"github.com/moby/locker"
+	"github.com/moby/moby/errdefs"
+	"github.com/moby/moby/volume"
+	"github.com/moby/moby/volume/drivers"
+	volumemounts "github.com/moby/moby/volume/mounts"
+	"github.com/moby/moby/volume/service/opts"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"

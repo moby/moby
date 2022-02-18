@@ -1,7 +1,7 @@
 //go:build linux && cgo && !static_build && !libdm_dlsym_deferred_remove && !libdm_no_deferred_remove
 // +build linux,cgo,!static_build,!libdm_dlsym_deferred_remove,!libdm_no_deferred_remove
 
-package devicemapper // import "github.com/docker/docker/pkg/devicemapper"
+package devicemapper // import "github.com/moby/moby/pkg/devicemapper"
 
 /*
 #include <libdevmapper.h>

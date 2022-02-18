@@ -1,7 +1,7 @@
 //go:build linux
 // +build linux
 
-package fsutils // import "github.com/docker/docker/pkg/fsutils"
+package fsutils // import "github.com/moby/moby/pkg/fsutils"
 
 import (
 	"os"

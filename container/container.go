@@ -1,4 +1,4 @@
-package container // import "github.com/docker/docker/container"
+package container // import "github.com/moby/moby/container"
 
 import (
 	"bytes"
@@ -15,26 +15,26 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/cio"
-	containertypes "github.com/docker/docker/api/types/container"
-	mounttypes "github.com/docker/docker/api/types/mount"
-	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/container/stream"
-	"github.com/docker/docker/daemon/exec"
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/jsonfilelog"
-	"github.com/docker/docker/daemon/logger/local"
-	"github.com/docker/docker/daemon/logger/loggerutils/cache"
-	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/containerfs"
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/restartmanager"
-	"github.com/docker/docker/volume"
-	volumemounts "github.com/docker/docker/volume/mounts"
+	containertypes "github.com/moby/moby/api/types/container"
+	mounttypes "github.com/moby/moby/api/types/mount"
+	swarmtypes "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/container/stream"
+	"github.com/moby/moby/daemon/exec"
+	"github.com/moby/moby/daemon/logger"
+	"github.com/moby/moby/daemon/logger/jsonfilelog"
+	"github.com/moby/moby/daemon/logger/local"
+	"github.com/moby/moby/daemon/logger/loggerutils/cache"
+	"github.com/moby/moby/daemon/network"
+	"github.com/moby/moby/errdefs"
+	"github.com/moby/moby/image"
+	"github.com/moby/moby/layer"
+	"github.com/moby/moby/pkg/containerfs"
+	"github.com/moby/moby/pkg/idtools"
+	"github.com/moby/moby/pkg/ioutils"
+	"github.com/moby/moby/pkg/system"
+	"github.com/moby/moby/restartmanager"
+	"github.com/moby/moby/volume"
+	volumemounts "github.com/moby/moby/volume/mounts"
 	units "github.com/docker/go-units"
 	agentexec "github.com/docker/swarmkit/agent/exec"
 	"github.com/moby/sys/signal"
@@ -537,7 +537,7 @@ func (container *Container) StopTimeout() int {
 // The non-recommended host configuration in the start api can
 // make these fields nil again, this corrects that issue until
 // we remove that behavior for good.
-// See https://github.com/docker/docker/pull/17779
+// See https://github.com/moby/moby/pull/17779
 // for a more detailed explanation on why we don't want that.
 func (container *Container) InitDNSHostConfig() {
 	container.Lock()

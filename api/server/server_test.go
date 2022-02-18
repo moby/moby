@@ -1,4 +1,4 @@
-package server // import "github.com/docker/docker/api/server"
+package server // import "github.com/moby/moby/api/server"
 
 import (
 	"context"
@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/server/middleware"
+	"github.com/moby/moby/api"
+	"github.com/moby/moby/api/server/httputils"
+	"github.com/moby/moby/api/server/middleware"
 )
 
 func TestMiddlewares(t *testing.T) {

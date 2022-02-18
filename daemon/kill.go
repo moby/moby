@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/daemon"
+package daemon // import "github.com/moby/moby/daemon"
 
 import (
 	"context"
@@ -7,9 +7,9 @@ import (
 	"syscall"
 	"time"
 
-	containerpkg "github.com/docker/docker/container"
-	"github.com/docker/docker/errdefs"
-	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
+	containerpkg "github.com/moby/moby/container"
+	"github.com/moby/moby/errdefs"
+	libcontainerdtypes "github.com/moby/moby/libcontainerd/types"
 	"github.com/moby/sys/signal"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"

@@ -262,7 +262,7 @@ Try {
     Get-ChildItem Env: | Out-String
 
     # PR
-    if (-not ($null -eq $env:PR)) { Write-Output "INFO: PR#$env:PR (https://github.com/docker/docker/pull/$env:PR)" }
+    if (-not ($null -eq $env:PR)) { Write-Output "INFO: PR#$env:PR (https://github.com/moby/moby/pull/$env:PR)" }
 
     # Make sure docker is installed
     if ($null -eq (Get-Command "docker" -ErrorAction SilentlyContinue)) { Throw "ERROR: docker is not installed or not found on path" }
@@ -485,7 +485,7 @@ Try {
     # Following at the moment must be docker\docker as it's dictated by dockerfile.Windows
     $contPath="$COMMITHASH`:c`:\gopath\src\github.com\docker\docker\bundles"
 
-    # After https://github.com/docker/docker/pull/30290, .git was added to .dockerignore. Therefore
+    # After https://github.com/moby/moby/pull/30290, .git was added to .dockerignore. Therefore
     # we have to calculate unsupported outside of the container, and pass the commit ID in through
     # an environment variable for the binary build
     $CommitUnsupported=""

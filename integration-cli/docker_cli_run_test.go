@@ -23,14 +23,14 @@ import (
 	"time"
 
 	"github.com/Microsoft/hcsshim/osversion"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/libnetwork/resolvconf"
-	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/fakecontext"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/integration-cli/cli"
+	"github.com/moby/moby/integration-cli/cli/build"
+	"github.com/moby/moby/libnetwork/resolvconf"
+	"github.com/moby/moby/pkg/stringid"
+	"github.com/moby/moby/runconfig"
+	"github.com/moby/moby/testutil"
+	"github.com/moby/moby/testutil/fakecontext"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/sys/mountinfo"
 	"gotest.tools/v3/assert"
@@ -544,7 +544,7 @@ func (s *DockerSuite) TestRunNoDupVolumes(c *testing.T) {
 		}
 	}
 
-	// Test for https://github.com/docker/docker/issues/22093
+	// Test for https://github.com/moby/moby/issues/22093
 	volumename1 := "test1"
 	volumename2 := "test2"
 	volume1 := volumename1 + someplace
@@ -2055,7 +2055,7 @@ func (s *DockerSuite) TestRunPortInUse(c *testing.T) {
 	}
 }
 
-// https://github.com/docker/docker/issues/12148
+// https://github.com/moby/moby/issues/12148
 func (s *DockerSuite) TestRunAllocatePortInReservedRange(c *testing.T) {
 	// TODO Windows. -P is not yet supported
 	testRequires(c, DaemonIsLinux)
@@ -2120,7 +2120,7 @@ func (s *DockerSuite) TestRunMountOrdering(c *testing.T) {
 		"ls "+prefix+"/tmp/touch-me && ls "+prefix+"/tmp/foo/touch-me && ls "+prefix+"/tmp/tmp2/touch-me && ls "+prefix+"/tmp/tmp2/foo/touch-me")
 }
 
-// Regression test for https://github.com/docker/docker/issues/8259
+// Regression test for https://github.com/moby/moby/issues/8259
 func (s *DockerSuite) TestRunReuseBindVolumeThatIsSymlink(c *testing.T) {
 	// Not applicable on Windows as Windows does not support volumes
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, NotUserNamespace)
@@ -2987,7 +2987,7 @@ func (s *DockerSuite) TestRunCapAddCHOWN(c *testing.T) {
 	}
 }
 
-// https://github.com/docker/docker/pull/14498
+// https://github.com/moby/moby/pull/14498
 func (s *DockerSuite) TestVolumeFromMixedRWOptions(c *testing.T) {
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 

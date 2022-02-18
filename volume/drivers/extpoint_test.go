@@ -1,9 +1,9 @@
-package drivers // import "github.com/docker/docker/volume/drivers"
+package drivers // import "github.com/moby/moby/volume/drivers"
 
 import (
 	"testing"
 
-	volumetestutils "github.com/docker/docker/volume/testutils"
+	volumetestutils "github.com/moby/moby/volume/testutils"
 )
 
 func TestGetDriver(t *testing.T) {

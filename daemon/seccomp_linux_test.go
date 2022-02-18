@@ -1,18 +1,18 @@
 //go:build linux && seccomp
 // +build linux,seccomp
 
-package daemon // import "github.com/docker/docker/daemon"
+package daemon // import "github.com/moby/moby/daemon"
 
 import (
 	"testing"
 
 	coci "github.com/containerd/containerd/oci"
-	config "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/container"
-	dconfig "github.com/docker/docker/daemon/config"
-	doci "github.com/docker/docker/oci"
-	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/docker/docker/profiles/seccomp"
+	config "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/container"
+	dconfig "github.com/moby/moby/daemon/config"
+	doci "github.com/moby/moby/oci"
+	"github.com/moby/moby/pkg/sysinfo"
+	"github.com/moby/moby/profiles/seccomp"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"gotest.tools/v3/assert"
 )

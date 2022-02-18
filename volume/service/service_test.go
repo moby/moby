@@ -5,12 +5,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/volume"
-	volumedrivers "github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/service/opts"
-	"github.com/docker/docker/volume/testutils"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/errdefs"
+	"github.com/moby/moby/volume"
+	volumedrivers "github.com/moby/moby/volume/drivers"
+	"github.com/moby/moby/volume/service/opts"
+	"github.com/moby/moby/volume/testutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

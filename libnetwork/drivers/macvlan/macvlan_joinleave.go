@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/netutils"
-	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/osl"
+	"github.com/moby/moby/libnetwork/driverapi"
+	"github.com/moby/moby/libnetwork/netutils"
+	"github.com/moby/moby/libnetwork/ns"
+	"github.com/moby/moby/libnetwork/osl"
 	"github.com/sirupsen/logrus"
 )
 

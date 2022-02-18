@@ -238,7 +238,7 @@ Function Validate-DCO($headCommit, $upstreamCommit) {
         $badCommits | %{ $e+=" - $_`n"}
         $e += "`nPlease amend each commit to include a properly formatted DCO marker.`n`n"
         $e += "Visit the following URL for information about the Docker DCO:`n"
-        $e += "https://github.com/docker/docker/blob/master/CONTRIBUTING.md#sign-your-work`n"
+        $e += "https://github.com/moby/moby/blob/master/CONTRIBUTING.md#sign-your-work`n"
         Throw $e
     }
 }
@@ -256,8 +256,8 @@ Function Validate-PkgImports($headCommit, $upstreamCommit) {
         if ($LASTEXITCODE -ne 0) { Throw "Failed go list for dependencies on $file" }
         $imports = $imports -Replace "\[" -Replace "\]", "" -Split(" ") | Sort-Object | Get-Unique
         # Filter out what we are looking for
-        $imports = @() + $imports -NotMatch "^github.com/docker/docker/pkg/" `
-                                  -NotMatch "^github.com/docker/docker/vendor" `
+        $imports = @() + $imports -NotMatch "^github.com/moby/moby/pkg/" `
+                                  -NotMatch "^github.com/moby/moby/vendor" `
                                   -Match "^github.com/docker/docker" `
                                   -Replace "`n", ""
         $imports | ForEach-Object{ $badFiles+="$file imports $_`n" }
@@ -316,9 +316,9 @@ Function Run-UnitTests() {
     $pkgList = $(Invoke-Expression $goListCommand)
     if ($LASTEXITCODE -ne 0) { Throw "go list for unit tests failed" }
     $pkgList = $pkgList | Select-String -Pattern "github.com/docker/docker"
-    $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/vendor"
-    $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/man"
-    $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/integration"
+    $pkgList = $pkgList | Select-String -NotMatch "github.com/moby/moby/vendor"
+    $pkgList = $pkgList | Select-String -NotMatch "github.com/moby/moby/man"
+    $pkgList = $pkgList | Select-String -NotMatch "github.com/moby/moby/integration"
     $pkgList = $pkgList -replace "`r`n", " "
 
     $goTestArg = "--format=standard-verbose --jsonfile=bundles\go-test-report-unit-tests.json --junitfile=bundles\junit-report-unit-tests.xml -- " + $raceParm + " -cover -ldflags -w -a """ + "-test.timeout=10m" + """ $pkgList"

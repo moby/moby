@@ -1,4 +1,4 @@
-package registry // import "github.com/docker/docker/registry"
+package registry // import "github.com/moby/moby/registry"
 
 import (
 	"net/http"
@@ -9,8 +9,8 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/moby/moby/api/types"
+	registrytypes "github.com/moby/moby/api/types/registry"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )

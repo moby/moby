@@ -1,7 +1,7 @@
 //go:build linux
 // +build linux
 
-package btrfs // import "github.com/docker/docker/daemon/graphdriver/btrfs"
+package btrfs // import "github.com/moby/moby/daemon/graphdriver/btrfs"
 
 /*
 #include <stdlib.h>
@@ -27,12 +27,12 @@ import (
 	"unsafe"
 
 	"github.com/containerd/containerd/pkg/userns"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/containerfs"
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/system"
 	units "github.com/docker/go-units"
+	"github.com/moby/moby/daemon/graphdriver"
+	"github.com/moby/moby/pkg/containerfs"
+	"github.com/moby/moby/pkg/idtools"
+	"github.com/moby/moby/pkg/parsers"
+	"github.com/moby/moby/pkg/system"
 	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"

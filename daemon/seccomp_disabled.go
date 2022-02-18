@@ -1,7 +1,7 @@
 //go:build linux && !seccomp
 // +build linux,!seccomp
 
-package daemon // import "github.com/docker/docker/daemon"
+package daemon // import "github.com/moby/moby/daemon"
 
 import (
 	"context"
@@ -9,8 +9,8 @@ import (
 
 	"github.com/containerd/containerd/containers"
 	coci "github.com/containerd/containerd/oci"
-	"github.com/docker/docker/container"
-	dconfig "github.com/docker/docker/daemon/config"
+	"github.com/moby/moby/container"
+	dconfig "github.com/moby/moby/daemon/config"
 )
 
 const supportsSeccomp = false

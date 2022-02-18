@@ -1,4 +1,4 @@
-package plugin // import "github.com/docker/docker/api/server/router/plugin"
+package plugin // import "github.com/moby/moby/api/server/router/plugin"
 
 import (
 	"context"
@@ -10,12 +10,12 @@ import (
 	"strings"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/moby/moby/api/server/httputils"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/errdefs"
+	"github.com/moby/moby/pkg/ioutils"
+	"github.com/moby/moby/pkg/streamformatter"
 	"github.com/pkg/errors"
 )
 

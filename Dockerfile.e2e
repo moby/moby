@@ -11,8 +11,8 @@ RUN apk --no-cache add \
     jq
 
 RUN mkdir -p /build/
-RUN mkdir -p /go/src/github.com/docker/docker/
-WORKDIR /go/src/github.com/docker/docker/
+RUN mkdir -p /go/src/github.com/moby/moby/
+WORKDIR /go/src/github.com/moby/moby/
 
 FROM base AS frozen-images
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
@@ -36,7 +36,7 @@ FROM base AS contrib
 COPY contrib/syscall-test           /build/syscall-test
 COPY contrib/httpserver/Dockerfile  /build/httpserver/Dockerfile
 COPY contrib/httpserver             contrib/httpserver
-RUN CGO_ENABLED=0 go build -buildmode=pie -o /build/httpserver/httpserver github.com/docker/docker/contrib/httpserver
+RUN CGO_ENABLED=0 go build -buildmode=pie -o /build/httpserver/httpserver github.com/moby/moby/contrib/httpserver
 
 # Build the integration tests and copy the resulting binaries to /build/tests
 FROM base AS builder

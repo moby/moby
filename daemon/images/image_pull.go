@@ -1,4 +1,4 @@
-package images // import "github.com/docker/docker/daemon/images"
+package images // import "github.com/moby/moby/daemon/images"
 
 import (
 	"context"
@@ -10,12 +10,12 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	dist "github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/distribution"
-	progressutils "github.com/docker/docker/distribution/utils"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/distribution"
+	progressutils "github.com/moby/moby/distribution/utils"
+	"github.com/moby/moby/errdefs"
+	"github.com/moby/moby/pkg/progress"
+	"github.com/moby/moby/pkg/streamformatter"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -66,7 +66,7 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag string, platfor
 		img, err := i.GetImage(image, platform)
 
 		// Note that this is a special case where GetImage returns both an image
-		// and an error: https://github.com/docker/docker/blob/v20.10.7/daemon/images/image.go#L175-L183
+		// and an error: https://github.com/moby/moby/blob/v20.10.7/daemon/images/image.go#L175-L183
 		if errdefs.IsNotFound(err) && img != nil {
 			po := streamformatter.NewJSONProgressOutput(outStream, false)
 			progress.Messagef(po, "", `WARNING: %s`, err.Error())

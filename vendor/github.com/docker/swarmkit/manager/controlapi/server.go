@@ -3,7 +3,7 @@ package controlapi
 import (
 	"errors"
 
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/moby/moby/pkg/plugingetter"
 	"github.com/docker/swarmkit/ca"
 	"github.com/docker/swarmkit/manager/drivers"
 	"github.com/docker/swarmkit/manager/state/raft"

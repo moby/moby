@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/integration/daemon"
+package daemon // import "github.com/moby/moby/integration/daemon"
 
 import (
 	"context"
@@ -13,9 +13,9 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/testutil/daemon"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/daemon/config"
+	"github.com/moby/moby/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/env"

@@ -1,14 +1,14 @@
 //go:build linux || freebsd
 // +build linux freebsd
 
-package graphtest // import "github.com/docker/docker/daemon/graphdriver/graphtest"
+package graphtest // import "github.com/moby/moby/daemon/graphdriver/graphtest"
 
 import (
 	"io"
 	"testing"
 
 	contdriver "github.com/containerd/continuity/driver"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/moby/pkg/stringid"
 	"gotest.tools/v3/assert"
 )
 

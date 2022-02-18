@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api"
+	"github.com/moby/moby/api"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/env"
 )

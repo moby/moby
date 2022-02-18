@@ -7,7 +7,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/moby/moby/libnetwork/types"
 )
 
 // processSetKeyReexec is a private function that must be called only on an reexec path

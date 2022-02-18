@@ -1,12 +1,12 @@
-package daemon // import "github.com/docker/docker/daemon"
+package daemon // import "github.com/moby/moby/daemon"
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/libnetwork"
+	"github.com/moby/moby/pkg/system"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

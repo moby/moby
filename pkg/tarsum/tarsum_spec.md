@@ -218,10 +218,10 @@ with matching paths, and orders the list of file sums accordingly [3].
 
 ## Footnotes
 
-* [0] Versioning https://github.com/docker/docker/commit/747f89cd327db9d50251b17797c4d825162226d0
-* [1] Alternate ciphers https://github.com/docker/docker/commit/4e9925d780665149b8bc940d5ba242ada1973c4e
+* [0] Versioning https://github.com/moby/moby/commit/747f89cd327db9d50251b17797c4d825162226d0
+* [1] Alternate ciphers https://github.com/moby/moby/commit/4e9925d780665149b8bc940d5ba242ada1973c4e
 * [2] Tar http://en.wikipedia.org/wiki/Tar_%28computing%29
-* [3] Name collision https://github.com/docker/docker/commit/c5e6362c53cbbc09ddbabd5a7323e04438b57d31
+* [3] Name collision https://github.com/moby/moby/commit/c5e6362c53cbbc09ddbabd5a7323e04438b57d31
 
 ## Acknowledgments
 

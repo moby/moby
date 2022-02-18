@@ -1,7 +1,7 @@
 //go:build !windows
 // +build !windows
 
-package daemon // import "github.com/docker/docker/daemon"
+package daemon // import "github.com/moby/moby/daemon"
 
 import (
 	"fmt"
@@ -10,10 +10,10 @@ import (
 	"strconv"
 	"strings"
 
-	mounttypes "github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/pkg/fileutils"
-	volumemounts "github.com/docker/docker/volume/mounts"
+	mounttypes "github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/pkg/fileutils"
+	volumemounts "github.com/moby/moby/volume/mounts"
 	"github.com/moby/sys/mount"
 )
 

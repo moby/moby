@@ -1,7 +1,7 @@
 //go:build !windows
 // +build !windows
 
-package containerfs // import "github.com/docker/docker/pkg/containerfs"
+package containerfs // import "github.com/moby/moby/pkg/containerfs"
 
 import "path/filepath"
 

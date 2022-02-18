@@ -1,11 +1,11 @@
-package secret // import "github.com/docker/docker/integration/secret"
+package secret // import "github.com/moby/moby/integration/secret"
 
 import (
 	"fmt"
 	"os"
 	"testing"
 
-	"github.com/docker/docker/testutil/environment"
+	"github.com/moby/moby/testutil/environment"
 )
 
 var testEnv *environment.Execution

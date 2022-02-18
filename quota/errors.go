@@ -1,6 +1,6 @@
-package quota // import "github.com/docker/docker/quota"
+package quota // import "github.com/moby/moby/quota"
 
-import "github.com/docker/docker/errdefs"
+import "github.com/moby/moby/errdefs"
 
 var (
 	_ errdefs.ErrNotImplemented = (*errQuotaNotSupported)(nil)

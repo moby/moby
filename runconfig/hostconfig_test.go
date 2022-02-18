@@ -1,7 +1,7 @@
 //go:build !windows
 // +build !windows
 
-package runconfig // import "github.com/docker/docker/runconfig"
+package runconfig // import "github.com/moby/moby/runconfig"
 
 import (
 	"bytes"
@@ -9,8 +9,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/pkg/sysinfo"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

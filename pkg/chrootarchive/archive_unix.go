@@ -1,7 +1,7 @@
 //go:build !windows
 // +build !windows
 
-package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
+package chrootarchive // import "github.com/moby/moby/pkg/chrootarchive"
 
 import (
 	"bytes"
@@ -14,8 +14,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/reexec"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/reexec"
 	"github.com/pkg/errors"
 )
 

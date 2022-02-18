@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/datastore"
+	"github.com/moby/moby/libnetwork/datastore"
 	"github.com/docker/libkv/store"
 )
 

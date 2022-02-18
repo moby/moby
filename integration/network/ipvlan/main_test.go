@@ -1,14 +1,14 @@
 //go:build !windows
 // +build !windows
 
-package ipvlan // import "github.com/docker/docker/integration/network/ipvlan"
+package ipvlan // import "github.com/moby/moby/integration/network/ipvlan"
 
 import (
 	"fmt"
 	"os"
 	"testing"
 
-	"github.com/docker/docker/testutil/environment"
+	"github.com/moby/moby/testutil/environment"
 )
 
 var testEnv *environment.Execution

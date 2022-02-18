@@ -1,15 +1,15 @@
 //go:build linux
 // +build linux
 
-package local // import "github.com/docker/docker/volume/local"
+package local // import "github.com/moby/moby/volume/local"
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/quota"
+	"github.com/moby/moby/pkg/idtools"
+	"github.com/moby/moby/quota"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

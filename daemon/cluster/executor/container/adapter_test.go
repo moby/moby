@@ -1,4 +1,4 @@
-package container // import "github.com/docker/docker/daemon/cluster/executor/container"
+package container // import "github.com/moby/moby/daemon/cluster/executor/container"
 
 import (
 	"testing"
@@ -6,8 +6,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/docker/docker/daemon"
 	"github.com/docker/swarmkit/api"
+	"github.com/moby/moby/daemon"
 )
 
 // TestWaitNodeAttachment tests that the waitNodeAttachment method successfully

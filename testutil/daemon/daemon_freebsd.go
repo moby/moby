@@ -1,7 +1,7 @@
 //go:build freebsd
 // +build freebsd
 
-package daemon // import "github.com/docker/docker/testutil/daemon"
+package daemon // import "github.com/moby/moby/testutil/daemon"
 
 import (
 	"testing"

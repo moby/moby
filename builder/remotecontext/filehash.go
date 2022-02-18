@@ -1,4 +1,4 @@
-package remotecontext // import "github.com/docker/docker/builder/remotecontext"
+package remotecontext // import "github.com/moby/moby/builder/remotecontext"
 
 import (
 	"archive/tar"
@@ -6,8 +6,8 @@ import (
 	"hash"
 	"os"
 
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/tarsum"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/tarsum"
 )
 
 // NewFileHash returns new hash that is used for the builder cache keys

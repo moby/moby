@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/stringid"
+	"github.com/moby/moby/pkg/system"
 	"gotest.tools/v3/assert"
 )
 

@@ -1,10 +1,10 @@
-package container // import "github.com/docker/docker/integration/container"
+package container // import "github.com/moby/moby/integration/container"
 
 import (
 	"net/http"
 	"testing"
 
-	"github.com/docker/docker/testutil/request"
+	"github.com/moby/moby/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

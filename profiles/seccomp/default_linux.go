@@ -1,7 +1,7 @@
 //go:build seccomp
 // +build seccomp
 
-package seccomp // import "github.com/docker/docker/profiles/seccomp"
+package seccomp // import "github.com/moby/moby/profiles/seccomp"
 
 import (
 	"github.com/opencontainers/runtime-spec/specs-go"

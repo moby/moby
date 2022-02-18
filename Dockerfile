@@ -252,7 +252,7 @@ RUN useradd --create-home --gid docker unprivilegeduser \
  && mkdir -p /home/unprivilegeduser/.local/share/docker \
  && chown -R unprivilegeduser /home/unprivilegeduser
 # Let us use a .bashrc file
-RUN ln -sfv /go/src/github.com/docker/docker/.bashrc ~/.bashrc
+RUN ln -sfv /go/src/github.com/moby/moby/.bashrc ~/.bashrc
 # Activate bash completion and include Docker's completion if mounted with DOCKER_BASH_COMPLETION_PATH
 RUN echo "source /usr/share/bash-completion/bash_completion" >> /etc/bash.bashrc
 RUN ln -s /usr/local/completion/bash/docker /etc/bash_completion.d/docker
@@ -374,7 +374,7 @@ FROM binary-base AS build-cross
 ARG DOCKER_CROSSPLATFORMS
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=bind,target=/go/src/github.com/docker/docker \
-    --mount=type=tmpfs,target=/go/src/github.com/docker/docker/autogen \
+    --mount=type=tmpfs,target=/go/src/github.com/moby/moby/autogen \
         hack/make.sh cross
 
 FROM scratch AS binary

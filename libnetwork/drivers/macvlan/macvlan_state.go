@@ -6,7 +6,7 @@ package macvlan
 import (
 	"fmt"
 
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/moby/moby/libnetwork/types"
 	"github.com/sirupsen/logrus"
 )
 

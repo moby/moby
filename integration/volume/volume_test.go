@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	volumetypes "github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/testutil/request"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/filters"
+	volumetypes "github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/integration/internal/container"
+	"github.com/moby/moby/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

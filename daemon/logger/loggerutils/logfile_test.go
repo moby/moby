@@ -1,4 +1,4 @@
-package loggerutils // import "github.com/docker/docker/daemon/logger/loggerutils"
+package loggerutils // import "github.com/moby/moby/daemon/logger/loggerutils"
 
 import (
 	"bufio"
@@ -14,9 +14,9 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/pkg/pubsub"
-	"github.com/docker/docker/pkg/tailfile"
+	"github.com/moby/moby/daemon/logger"
+	"github.com/moby/moby/pkg/pubsub"
+	"github.com/moby/moby/pkg/tailfile"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 )

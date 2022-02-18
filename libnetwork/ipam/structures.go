@@ -7,9 +7,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/moby/moby/libnetwork/datastore"
+	"github.com/moby/moby/libnetwork/ipamapi"
+	"github.com/moby/moby/libnetwork/types"
 )
 
 // SubnetKey is the pointer to the configured pools in each address space

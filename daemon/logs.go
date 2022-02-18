@@ -1,18 +1,18 @@
-package daemon // import "github.com/docker/docker/daemon"
+package daemon // import "github.com/moby/moby/daemon"
 
 import (
 	"context"
 	"strconv"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/backend"
-	containertypes "github.com/docker/docker/api/types/container"
-	timetypes "github.com/docker/docker/api/types/time"
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/logger"
-	logcache "github.com/docker/docker/daemon/logger/loggerutils/cache"
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/backend"
+	containertypes "github.com/moby/moby/api/types/container"
+	timetypes "github.com/moby/moby/api/types/time"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/daemon/logger"
+	logcache "github.com/moby/moby/daemon/logger/loggerutils/cache"
+	"github.com/moby/moby/errdefs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

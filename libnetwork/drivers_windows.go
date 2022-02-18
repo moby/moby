@@ -1,10 +1,10 @@
 package libnetwork
 
 import (
-	"github.com/docker/docker/libnetwork/drivers/null"
-	"github.com/docker/docker/libnetwork/drivers/remote"
-	"github.com/docker/docker/libnetwork/drivers/windows"
-	"github.com/docker/docker/libnetwork/drivers/windows/overlay"
+	"github.com/moby/moby/libnetwork/drivers/null"
+	"github.com/moby/moby/libnetwork/drivers/remote"
+	"github.com/moby/moby/libnetwork/drivers/windows"
+	"github.com/moby/moby/libnetwork/drivers/windows/overlay"
 )
 
 func getInitializers(experimental bool) []initializer {

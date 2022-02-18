@@ -1,11 +1,11 @@
 // Package backend includes types to send information to server backends.
-package backend // import "github.com/docker/docker/api/types/backend"
+package backend // import "github.com/moby/moby/api/types/backend"
 
 import (
 	"io"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types/container"
 )
 
 // ContainerAttachConfig holds the streams to use when connecting to a container to view logs.

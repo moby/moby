@@ -1,4 +1,4 @@
-package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
+package supervisor // import "github.com/moby/moby/libcontainerd/supervisor"
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/services/server/config"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/system"
 	"github.com/pelletier/go-toml"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
