@@ -6,6 +6,12 @@ ARG GO_VERSION=1.18.5
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_VERSION=0.5.0
 
+# REGISTRY_VERSION specifies the version of the registry to build and install
+# from the https://github.com/docker/distribution repository. This version of
+# the registry is used to test both schema 1 and schema 2 manifests. Generally,
+# the version specified here should match a current release.
+ARG REGISTRY_VERSION=2.8.1
+
 ARG BASE_DEBIAN_DISTRO="bullseye"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
@@ -26,14 +32,11 @@ RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
         && apt-get install -y --no-install-recommends criu \
         && install -D /usr/sbin/criu /build/criu
 
-FROM base AS registry
-WORKDIR /go/src/github.com/docker/distribution
+FROM registry:$REGISTRY_VERSION AS registry-v2
+RUN mkdir /build && mv /bin/registry /build/registry-v2
 
-# REGISTRY_VERSION specifies the version of the registry to build and install
-# from the https://github.com/docker/distribution repository. This version of
-# the registry is used to test both schema 1 and schema 2 manifests. Generally,
-# the version specified here should match a current release.
-ARG REGISTRY_VERSION=v2.8.1
+FROM base AS registry-v1
+WORKDIR /go/src/github.com/docker/distribution
 
 # REGISTRY_VERSION_SCHEMA1 specifies the version of the registry to build and
 # install from the https://github.com/docker/distribution repository. This is
@@ -45,17 +48,14 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ \
         set -x \
-        && git clone https://github.com/docker/distribution.git . \
-        && git checkout -q "$REGISTRY_VERSION" \
-        && GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
-           go build -buildmode=pie -o /build/registry-v2 github.com/docker/distribution/cmd/registry \
-        && case $(dpkg --print-architecture) in \
-               amd64|armhf|ppc64*|s390x) \
+        case $(dpkg --print-architecture) in \
+            amd64|armhf|ppc64*|s390x) \
+               git clone https://github.com/docker/distribution.git .; \
                git checkout -q "$REGISTRY_VERSION_SCHEMA1"; \
                GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"; \
                    go build -buildmode=pie -o /build/registry-v2-schema1 github.com/docker/distribution/cmd/registry; \
-                ;; \
-           esac
+            ;; \
+       esac
 
 FROM base AS swagger
 WORKDIR $GOPATH/src/github.com/go-swagger/go-swagger
@@ -359,7 +359,8 @@ COPY --from=delve         /build/ /usr/local/bin/
 COPY --from=tomll         /build/ /usr/local/bin/
 COPY --from=gowinres      /build/ /usr/local/bin/
 COPY --from=tini          /build/ /usr/local/bin/
-COPY --from=registry      /build/ /usr/local/bin/
+COPY --from=registry-v1   /build/ /usr/local/bin/
+COPY --from=registry-v2   /build/ /usr/local/bin/
 COPY --from=criu          /build/ /usr/local/bin/
 COPY --from=gotestsum     /build/ /usr/local/bin/
 COPY --from=golangci_lint /build/ /usr/local/bin/
