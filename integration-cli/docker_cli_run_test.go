@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
@@ -1875,11 +1874,6 @@ func (s *DockerSuite) TestRunBindMounts(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 	if testEnv.OSType == "linux" {
 		testRequires(c, DaemonIsLinux, NotUserNamespace)
-	}
-
-	if testEnv.OSType == "windows" {
-		// Disabled prior to RS5 due to how volumes are mapped
-		testRequires(c, DaemonIsWindowsAtLeastBuild(osversion.RS5))
 	}
 
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
@@ -4105,7 +4099,7 @@ func (s *DockerSuite) TestRunWindowsWithCPUPercent(c *testing.T) {
 }
 
 func (s *DockerSuite) TestRunProcessIsolationWithCPUCountCPUSharesAndCPUPercent(c *testing.T) {
-	testRequires(c, IsolationIsProcess)
+	testRequires(c, DaemonIsWindows, testEnv.DaemonInfo.Isolation.IsProcess)
 
 	out, _ := dockerCmd(c, "run", "--cpu-count=1", "--cpu-shares=1000", "--cpu-percent=80", "--name", "test", "busybox", "echo", "testing")
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), "WARNING: Conflicting options: CPU count takes priority over CPU shares on Windows Server Containers. CPU shares discarded"))
@@ -4122,7 +4116,7 @@ func (s *DockerSuite) TestRunProcessIsolationWithCPUCountCPUSharesAndCPUPercent(
 }
 
 func (s *DockerSuite) TestRunHypervIsolationWithCPUCountCPUSharesAndCPUPercent(c *testing.T) {
-	testRequires(c, IsolationIsHyperv)
+	testRequires(c, DaemonIsWindows, testEnv.DaemonInfo.Isolation.IsHyperV)
 
 	out, _ := dockerCmd(c, "run", "--cpu-count=1", "--cpu-shares=1000", "--cpu-percent=80", "--name", "test", "busybox", "echo", "testing")
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), "testing"))
@@ -4413,7 +4407,7 @@ func (s *DockerSuite) TestRunAddDeviceCgroupRule(c *testing.T) {
 
 // Verifies that running as local system is operating correctly on Windows
 func (s *DockerSuite) TestWindowsRunAsSystem(c *testing.T) {
-	testRequires(c, DaemonIsWindowsAtLeastBuild(osversion.RS3))
+	testRequires(c, DaemonIsWindows)
 	out, _ := dockerCmd(c, "run", "--net=none", `--user=nt authority\system`, "--hostname=XYZZY", minimalBaseImage(), "cmd", "/c", `@echo %USERNAME%`)
 	assert.Equal(c, strings.TrimSpace(out), "XYZZY$")
 }

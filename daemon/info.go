@@ -253,14 +253,11 @@ func operatingSystem() (operatingSystem string) {
 	} else {
 		operatingSystem = s
 	}
-	// Don't do containerized check on Windows
-	if runtime.GOOS != "windows" {
-		if inContainer, err := operatingsystem.IsContainerized(); err != nil {
-			logrus.Errorf("Could not determine if daemon is containerized: %v", err)
-			operatingSystem += " (error determining if containerized)"
-		} else if inContainer {
-			operatingSystem += " (containerized)"
-		}
+	if inContainer, err := operatingsystem.IsContainerized(); err != nil {
+		logrus.Errorf("Could not determine if daemon is containerized: %v", err)
+		operatingSystem += " (error determining if containerized)"
+	} else if inContainer {
+		operatingSystem += " (containerized)"
 	}
 
 	return operatingSystem

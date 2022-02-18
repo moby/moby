@@ -303,7 +303,7 @@ func (s *DockerSuite) TestCreateWithWorkdir(c *testing.T) {
 	// Windows does not create the workdir until the container is started
 	if testEnv.OSType == "windows" {
 		dockerCmd(c, "start", name)
-		if IsolationIsHyperv() {
+		if testEnv.DaemonInfo.Isolation.IsHyperV() {
 			// Hyper-V isolated containers do not allow file-operations on a
 			// running container. This test currently uses `docker cp` to verify
 			// that the WORKDIR was automatically created, which cannot be done
