@@ -678,6 +678,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 
 	case tar.TypeLink:
+		//#nosec G305 -- The target path is checked for path traversal.
 		targetPath := filepath.Join(extractDir, hdr.Linkname)
 		// check for hardlink breakout
 		if !strings.HasPrefix(targetPath, extractDir) {
@@ -690,7 +691,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	case tar.TypeSymlink:
 		// 	path 				-> hdr.Linkname = targetPath
 		// e.g. /extractDir/path/to/symlink 	-> ../2/file	= /extractDir/path/2/file
-		targetPath := filepath.Join(filepath.Dir(path), hdr.Linkname)
+		targetPath := filepath.Join(filepath.Dir(path), hdr.Linkname) //#nosec G305 -- The target path is checked for path traversal.
 
 		// the reason we don't need to check symlinks in the path (with FollowSymlinkInScope) is because
 		// that symlink would first have to be created, which would be caught earlier, at this very check:
@@ -1019,6 +1020,7 @@ loop:
 			}
 		}
 
+		//#nosec G305 -- The joined path is checked for path traversal.
 		path := filepath.Join(dest, hdr.Name)
 		rel, err := filepath.Rel(dest, path)
 		if err != nil {
@@ -1083,6 +1085,7 @@ loop:
 	}
 
 	for _, hdr := range dirs {
+		//#nosec G305 -- The header was checked for path traversal before it was appended to the dirs slice.
 		path := filepath.Join(dest, hdr.Name)
 
 		if err := system.Chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
