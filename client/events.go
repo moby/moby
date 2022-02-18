@@ -32,7 +32,10 @@ func (cli *Client) Events(ctx context.Context, options types.EventsOptions) (<-c
 			return
 		}
 
-		resp, err := cli.get(ctx, "/events", query, nil)
+		headers := map[string][]string{
+			"Accept": {"application/json-seq", "application/json"},
+		}
+		resp, err := cli.get(ctx, "/events", query, headers)
 		if err != nil {
 			close(started)
 			errs <- err

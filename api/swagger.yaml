@@ -8532,6 +8532,7 @@ paths:
 
       operationId: "SystemEvents"
       produces:
+        - "application/json-seq"
         - "application/json"
       responses:
         200:
