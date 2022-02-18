@@ -166,7 +166,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		// Layer is not known to exist - download and register it.
 		progress.Update(progressOutput, descriptor.ID(), "Pulling fs layer")
 
-		var xferFunc DoFunc
+		var xferFunc doFunc
 		if topDownload != nil {
 			xferFunc = ldm.makeDownloadFunc(descriptor, "", topDownload)
 			defer topDownload.transfer.release(watcher)
@@ -228,7 +228,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 // complete before the registration step, and registers the downloaded data
 // on top of parentDownload's resulting layer. Otherwise, it registers the
 // layer on top of the ChainID given by parentLayer.
-func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor, parentLayer layer.ChainID, parentDownload *downloadTransfer) DoFunc {
+func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor, parentLayer layer.ChainID, parentDownload *downloadTransfer) doFunc {
 	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) transfer {
 		d := &downloadTransfer{
 			transfer:   newTransfer(),
@@ -392,7 +392,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 // parentDownload. This function does not log progress output because it would
 // interfere with the progress reporting for sourceDownload, which has the same
 // Key.
-func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor DownloadDescriptor, sourceDownload *downloadTransfer, parentDownload *downloadTransfer) DoFunc {
+func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor DownloadDescriptor, sourceDownload *downloadTransfer, parentDownload *downloadTransfer) doFunc {
 	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) transfer {
 		d := &downloadTransfer{
 			transfer:   newTransfer(),

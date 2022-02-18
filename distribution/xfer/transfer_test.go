@@ -9,7 +9,7 @@ import (
 )
 
 func TestTransfer(t *testing.T) {
-	makeXferFunc := func(id string) DoFunc {
+	makeXferFunc := func(id string) doFunc {
 		return func(progressChan chan<- progress.Progress, start <-chan struct{}, _ chan<- struct{}) transfer {
 			select {
 			case <-start:
@@ -71,7 +71,7 @@ func TestConcurrencyLimit(t *testing.T) {
 	const concurrencyLimit = 3
 	var runningJobs int32
 
-	makeXferFunc := func(id string) DoFunc {
+	makeXferFunc := func(id string) doFunc {
 		return func(progressChan chan<- progress.Progress, start <-chan struct{}, _ chan<- struct{}) transfer {
 			xfer := newTransfer()
 			go func() {
@@ -130,7 +130,7 @@ func TestInactiveJobs(t *testing.T) {
 	var runningJobs int32
 	testDone := make(chan struct{})
 
-	makeXferFunc := func(id string) DoFunc {
+	makeXferFunc := func(id string) doFunc {
 		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) transfer {
 			xfer := newTransfer()
 			go func() {
@@ -190,7 +190,7 @@ func TestInactiveJobs(t *testing.T) {
 func TestWatchRelease(t *testing.T) {
 	ready := make(chan struct{})
 
-	makeXferFunc := func(id string) DoFunc {
+	makeXferFunc := func(id string) doFunc {
 		return func(progressChan chan<- progress.Progress, start <-chan struct{}, _ chan<- struct{}) transfer {
 			xfer := newTransfer()
 			go func() {
@@ -279,7 +279,7 @@ func TestWatchRelease(t *testing.T) {
 }
 
 func TestWatchFinishedTransfer(t *testing.T) {
-	makeXferFunc := func(id string) DoFunc {
+	makeXferFunc := func(id string) doFunc {
 		return func(progressChan chan<- progress.Progress, _ <-chan struct{}, _ chan<- struct{}) transfer {
 			xfer := newTransfer()
 			go func() {
@@ -321,7 +321,7 @@ func TestDuplicateTransfer(t *testing.T) {
 
 	var xferFuncCalls int32
 
-	makeXferFunc := func(id string) DoFunc {
+	makeXferFunc := func(id string) doFunc {
 		return func(progressChan chan<- progress.Progress, _ <-chan struct{}, _ chan<- struct{}) transfer {
 			atomic.AddInt32(&xferFuncCalls, 1)
 			xfer := newTransfer()

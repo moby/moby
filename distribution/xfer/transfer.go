@@ -263,13 +263,13 @@ func (t *xfer) close() {
 	t.mu.Unlock()
 }
 
-// DoFunc is a function called by the transferManager to actually perform
+// doFunc is a function called by the transferManager to actually perform
 // a transfer. It should be non-blocking. It should wait until the start channel
 // is closed before transferring any data. If the function closes inactive, that
 // signals to the transferManager that the job is no longer actively moving
 // data - for example, it may be waiting for a dependent transfer to finish.
 // This prevents it from taking up a slot.
-type DoFunc func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) transfer
+type doFunc func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) transfer
 
 // transferManager is used by LayerDownloadManager and LayerUploadManager to
 // schedule and deduplicate transfers. It is up to the transferManager
@@ -301,7 +301,7 @@ func (tm *transferManager) setConcurrency(concurrency int) {
 // transfer checks if a transfer matching the given key is in progress. If not,
 // it starts one by calling xferFunc. The caller supplies a channel which
 // receives progress output from the transfer.
-func (tm *transferManager) transfer(key string, xferFunc DoFunc, progressOutput progress.Output) (transfer, *watcher) {
+func (tm *transferManager) transfer(key string, xferFunc doFunc, progressOutput progress.Output) (transfer, *watcher) {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
