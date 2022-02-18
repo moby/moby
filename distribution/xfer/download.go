@@ -90,13 +90,12 @@ type DownloadDescriptor interface {
 	Close()
 }
 
-// DownloadDescriptorWithRegistered is a DownloadDescriptor that has an
-// additional Registered method which gets called after a downloaded layer is
-// registered. This allows the user of the download manager to know the DiffID
-// of each registered layer. This method is called if a cast to
-// DownloadDescriptorWithRegistered is successful.
-type DownloadDescriptorWithRegistered interface {
-	DownloadDescriptor
+// DigestRegisterer can be implemented by a DownloadDescriptor, and provides a
+// Registered method which gets called after a downloaded layer is registered.
+// This allows the user of the download manager to know the DiffID of each
+// registered layer. This method is called if a cast to DigestRegisterer is
+// successful.
+type DigestRegisterer interface {
 
 	// TODO existing implementations in distribution and builder-next swallow errors
 	// when registering the diffID. Consider changing the Registered signature
@@ -145,7 +144,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 					missingLayer = false
 					rootFS.Append(diffID)
 					// Register this repository as a source of this layer.
-					if withRegistered, ok := descriptor.(DownloadDescriptorWithRegistered); ok { // As layerstore may set the driver
+					if withRegistered, ok := descriptor.(DigestRegisterer); ok { // As layerstore may set the driver
 						withRegistered.Registered(diffID)
 					}
 					continue
@@ -368,7 +367,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 
 			progress.Update(progressOutput, descriptor.ID(), "Pull complete")
 
-			if withRegistered, ok := descriptor.(DownloadDescriptorWithRegistered); ok {
+			if withRegistered, ok := descriptor.(DigestRegisterer); ok {
 				withRegistered.Registered(d.layer.DiffID())
 			}
 
@@ -460,7 +459,7 @@ func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor Downloa
 				return
 			}
 
-			if withRegistered, ok := descriptor.(DownloadDescriptorWithRegistered); ok {
+			if withRegistered, ok := descriptor.(DigestRegisterer); ok {
 				withRegistered.Registered(d.layer.DiffID())
 			}
 
