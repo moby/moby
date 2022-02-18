@@ -151,7 +151,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		var topDownloadUncasted transfer
 		if existingDownload, ok := downloadsByKey[key]; ok {
 			xferFunc := ldm.makeDownloadFuncFromDownload(descriptor, existingDownload, topDownload)
-			defer topDownload.transfer.Release(watcher)
+			defer topDownload.transfer.release(watcher)
 			topDownloadUncasted, watcher = ldm.tm.transfer(transferKey, xferFunc, progressOutput)
 			topDownload = topDownloadUncasted.(*downloadTransfer)
 			continue
@@ -163,7 +163,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		var xferFunc DoFunc
 		if topDownload != nil {
 			xferFunc = ldm.makeDownloadFunc(descriptor, "", topDownload)
-			defer topDownload.transfer.Release(watcher)
+			defer topDownload.transfer.release(watcher)
 		} else {
 			xferFunc = ldm.makeDownloadFunc(descriptor, rootFS.ChainID(), nil)
 		}
@@ -192,15 +192,15 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 
 	select {
 	case <-ctx.Done():
-		topDownload.transfer.Release(watcher)
+		topDownload.transfer.release(watcher)
 		return rootFS, func() {}, ctx.Err()
-	case <-topDownload.Done():
+	case <-topDownload.done():
 		break
 	}
 
 	l, err := topDownload.result()
 	if err != nil {
-		topDownload.transfer.Release(watcher)
+		topDownload.transfer.release(watcher)
 		return rootFS, func() {}, err
 	}
 
@@ -208,13 +208,13 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 	// base layer on Windows.
 	for range layers {
 		if l == nil {
-			topDownload.transfer.Release(watcher)
+			topDownload.transfer.release(watcher)
 			return rootFS, func() {}, errors.New("internal error: too few parent layers")
 		}
 		rootFS.DiffIDs = append([]layer.DiffID{l.DiffID()}, rootFS.DiffIDs...)
 		l = l.Parent()
 	}
-	return rootFS, func() { topDownload.transfer.Release(watcher) }, err
+	return rootFS, func() { topDownload.transfer.release(watcher) }, err
 }
 
 // makeDownloadFunc returns a function that performs the layer download and
@@ -247,7 +247,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				// Did the parent download already fail or get
 				// cancelled?
 				select {
-				case <-parentDownload.Done():
+				case <-parentDownload.done():
 					_, err := parentDownload.result()
 					if err != nil {
 						d.err = err
@@ -267,7 +267,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 			defer descriptor.Close()
 
 			for {
-				downloadReader, size, err = descriptor.Download(d.transfer.Context(), progressOutput)
+				downloadReader, size, err = descriptor.Download(d.transfer.context(), progressOutput)
 				if err == nil {
 					break
 				}
@@ -275,7 +275,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				// If an error was returned because the context
 				// was cancelled, we shouldn't retry.
 				select {
-				case <-d.transfer.Context().Done():
+				case <-d.transfer.context().Done():
 					d.err = err
 					return
 				default:
@@ -302,7 +302,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 							ticker.Stop()
 							break selectLoop
 						}
-					case <-d.transfer.Context().Done():
+					case <-d.transfer.context().Done():
 						ticker.Stop()
 						d.err = errors.New("download cancelled during retry delay")
 						return
@@ -315,11 +315,11 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 
 			if parentDownload != nil {
 				select {
-				case <-d.transfer.Context().Done():
+				case <-d.transfer.context().Done():
 					d.err = errors.New("layer registration cancelled")
 					downloadReader.Close()
 					return
-				case <-parentDownload.Done():
+				case <-parentDownload.done():
 				}
 
 				l, err := parentDownload.result()
@@ -331,7 +331,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				parentLayer = l.ChainID()
 			}
 
-			reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(d.transfer.Context(), downloadReader), progressOutput, size, descriptor.ID(), "Extracting")
+			reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(d.transfer.context(), downloadReader), progressOutput, size, descriptor.ID(), "Extracting")
 			defer reader.Close()
 
 			inflatedLayerData, err := archive.DecompressStream(reader)
@@ -351,7 +351,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 			}
 			if err != nil {
 				select {
-				case <-d.transfer.Context().Done():
+				case <-d.transfer.context().Done():
 					d.err = errors.New("layer registration cancelled")
 				default:
 					d.err = fmt.Errorf("failed to register layer: %v", err)
@@ -368,7 +368,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 			// Doesn't actually need to be its own goroutine, but
 			// done like this so we can defer close(c).
 			go func() {
-				<-d.transfer.Released()
+				<-d.transfer.released()
 				if d.layer != nil {
 					layer.ReleaseAndLog(d.layerStore, d.layer)
 				}
@@ -403,10 +403,10 @@ func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor Downloa
 			close(inactive)
 
 			select {
-			case <-d.transfer.Context().Done():
+			case <-d.transfer.context().Done():
 				d.err = errors.New("layer registration cancelled")
 				return
-			case <-parentDownload.Done():
+			case <-parentDownload.done():
 			}
 
 			l, err := parentDownload.result()
@@ -420,10 +420,10 @@ func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor Downloa
 			// parentDownload finished, but wait for it explicitly
 			// to be sure.
 			select {
-			case <-d.transfer.Context().Done():
+			case <-d.transfer.context().Done():
 				d.err = errors.New("layer registration cancelled")
 				return
-			case <-sourceDownload.Done():
+			case <-sourceDownload.done():
 			}
 
 			l, err = sourceDownload.result()
@@ -461,7 +461,7 @@ func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor Downloa
 			// Doesn't actually need to be its own goroutine, but
 			// done like this so we can defer close(c).
 			go func() {
-				<-d.transfer.Released()
+				<-d.transfer.released()
 				if d.layer != nil {
 					layer.ReleaseAndLog(d.layerStore, d.layer)
 				}

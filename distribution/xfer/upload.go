@@ -80,7 +80,7 @@ func (lum *LayerUploadManager) Upload(ctx context.Context, layers []UploadDescri
 
 		xferFunc := lum.makeUploadFunc(descriptor)
 		upload, watcher := lum.tm.transfer(descriptor.Key(), xferFunc, progressOutput)
-		defer upload.Release(watcher)
+		defer upload.release(watcher)
 		uploads = append(uploads, upload.(*uploadTransfer))
 		dedupDescriptors[key] = upload.(*uploadTransfer)
 	}
@@ -89,7 +89,7 @@ func (lum *LayerUploadManager) Upload(ctx context.Context, layers []UploadDescri
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-upload.transfer.Done():
+		case <-upload.transfer.done():
 			if upload.err != nil {
 				return upload.err
 			}
@@ -124,7 +124,7 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFun
 
 			retries := 0
 			for {
-				remoteDescriptor, err := descriptor.Upload(u.transfer.Context(), progressOutput)
+				remoteDescriptor, err := descriptor.Upload(u.transfer.context(), progressOutput)
 				if err == nil {
 					u.remoteDescriptor = remoteDescriptor
 					break
@@ -133,7 +133,7 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFun
 				// If an error was returned because the context
 				// was cancelled, we shouldn't retry.
 				select {
-				case <-u.transfer.Context().Done():
+				case <-u.transfer.context().Done():
 					u.err = err
 					return
 				default:
@@ -160,7 +160,7 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFun
 							ticker.Stop()
 							break selectLoop
 						}
-					case <-u.transfer.Context().Done():
+					case <-u.transfer.context().Done():
 						ticker.Stop()
 						u.err = errors.New("upload cancelled during retry delay")
 						return

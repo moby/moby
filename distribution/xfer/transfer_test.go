@@ -54,8 +54,8 @@ func TestTransfer(t *testing.T) {
 	}
 
 	for i, xfer := range xfers {
-		<-xfer.Done()
-		xfer.Release(watchers[i])
+		<-xfer.done()
+		xfer.release(watchers[i])
 	}
 	close(progressChan)
 	<-progressDone
@@ -112,8 +112,8 @@ func TestConcurrencyLimit(t *testing.T) {
 	}
 
 	for i, xfer := range xfers {
-		<-xfer.Done()
-		xfer.Release(watchers[i])
+		<-xfer.done()
+		xfer.release(watchers[i])
 	}
 	close(progressChan)
 	<-progressDone
@@ -174,8 +174,8 @@ func TestInactiveJobs(t *testing.T) {
 
 	close(testDone)
 	for i, xfer := range xfers {
-		<-xfer.Done()
-		xfer.Release(watchers[i])
+		<-xfer.done()
+		xfer.release(watchers[i])
 	}
 	close(progressChan)
 	<-progressDone
@@ -201,7 +201,7 @@ func TestWatchRelease(t *testing.T) {
 				for i := int64(0); ; i++ {
 					select {
 					case <-time.After(10 * time.Millisecond):
-					case <-xfer.Context().Done():
+					case <-xfer.context().Done():
 						return
 					}
 					progressChan <- progress.Progress{ID: id, Action: "testing", Current: i, Total: 10}
@@ -245,7 +245,7 @@ func TestWatchRelease(t *testing.T) {
 		watchers[i].progressChan = make(chan progress.Progress)
 		watchers[i].progressDone = make(chan struct{})
 		watchers[i].receivedFirstProgress = make(chan struct{})
-		watchers[i].watcher = xfer.Watch(progress.ChanOutput(watchers[i].progressChan))
+		watchers[i].watcher = xfer.watch(progress.ChanOutput(watchers[i].progressChan))
 		go progressConsumer(watchers[i])
 	}
 
@@ -260,17 +260,17 @@ func TestWatchRelease(t *testing.T) {
 
 	// Release one watcher every 5ms
 	for _, w := range watchers {
-		xfer.Release(w.watcher)
+		xfer.release(w.watcher)
 		<-time.After(5 * time.Millisecond)
 	}
 
 	// Now that all watchers have been released, Released() should
 	// return a closed channel.
-	<-xfer.Released()
+	<-xfer.released()
 
 	// Done() should return a closed channel because the xfer func returned
 	// due to cancellation.
-	<-xfer.Done()
+	<-xfer.done()
 
 	for _, w := range watchers {
 		close(w.progressChan)
@@ -298,22 +298,22 @@ func TestWatchFinishedTransfer(t *testing.T) {
 	xfer, watchers[0] = tm.transfer("id1", makeXferFunc("id1"), progress.ChanOutput(make(chan progress.Progress)))
 
 	// Give it a watcher immediately
-	watchers[1] = xfer.Watch(progress.ChanOutput(make(chan progress.Progress)))
+	watchers[1] = xfer.watch(progress.ChanOutput(make(chan progress.Progress)))
 
 	// Wait for the transfer to complete
-	<-xfer.Done()
+	<-xfer.done()
 
 	// Set up another watcher
-	watchers[2] = xfer.Watch(progress.ChanOutput(make(chan progress.Progress)))
+	watchers[2] = xfer.watch(progress.ChanOutput(make(chan progress.Progress)))
 
 	// Release the watchers
 	for _, w := range watchers {
-		xfer.Release(w)
+		xfer.release(w)
 	}
 
 	// Now that all watchers have been released, Released() should
 	// return a closed channel.
-	<-xfer.Released()
+	<-xfer.released()
 }
 
 func TestDuplicateTransfer(t *testing.T) {
@@ -333,7 +333,7 @@ func TestDuplicateTransfer(t *testing.T) {
 				for i := int64(0); ; i++ {
 					select {
 					case <-time.After(10 * time.Millisecond):
-					case <-xfer.Context().Done():
+					case <-xfer.context().Done():
 						return
 					}
 					progressChan <- progress.Progress{ID: id, Action: "testing", Current: i, Total: 10}
@@ -390,17 +390,17 @@ func TestDuplicateTransfer(t *testing.T) {
 
 	// Release one watcher every 5ms
 	for _, t := range transfers {
-		t.xfer.Release(t.watcher)
+		t.xfer.release(t.watcher)
 		<-time.After(5 * time.Millisecond)
 	}
 
 	for _, t := range transfers {
 		// Now that all watchers have been released, Released() should
 		// return a closed channel.
-		<-t.xfer.Released()
+		<-t.xfer.released()
 		// Done() should return a closed channel because the xfer func returned
 		// due to cancellation.
-		<-t.xfer.Done()
+		<-t.xfer.done()
 	}
 
 	for _, t := range transfers {
