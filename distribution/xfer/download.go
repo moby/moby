@@ -94,6 +94,11 @@ type DownloadDescriptor interface {
 // DownloadDescriptorWithRegistered is successful.
 type DownloadDescriptorWithRegistered interface {
 	DownloadDescriptor
+
+	// TODO existing implementations in distribution and builder-next swallow errors
+	// when registering the diffID. Consider changing the Registered signature
+	// to return the error.
+
 	Registered(diffID layer.DiffID)
 }
 
