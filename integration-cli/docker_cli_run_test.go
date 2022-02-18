@@ -4157,17 +4157,19 @@ func (s *DockerSuite) TestRunEmptyEnv(c *testing.T) {
 
 // #28658
 func (s *DockerSuite) TestSlowStdinClosing(c *testing.T) {
-	name := "testslowstdinclosing"
-	repeat := 3 // regression happened 50% of the time
+	const repeat = 3 // regression happened 50% of the time
 	for i := 0; i < repeat; i++ {
 		cmd := icmd.Cmd{
-			Command: []string{dockerBinary, "run", "--rm", "--name", name, "-i", "busybox", "cat"},
+			Command: []string{dockerBinary, "run", "--rm", "-i", "busybox", "cat"},
 			Stdin:   &delayedReader{},
 		}
 		done := make(chan error, 1)
 		go func() {
-			err := icmd.RunCmd(cmd).Error
-			done <- err
+			result := icmd.RunCmd(cmd)
+			if out := result.Combined(); out != "" {
+				c.Log(out)
+			}
+			done <- result.Error
 		}()
 
 		select {
