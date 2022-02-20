@@ -27,6 +27,11 @@ if [ -n "$DOCKER_PORT" ]; then
 	listen_port="${ports[-1]}"
 fi
 
+if [ -n "$DELVE_PORT" ]; then
+	IFS=':' read -r -a ports <<< "$DELVE_PORT"
+	delve_listen_port="${ports[-1]}"
+fi
+
 extra_params="$DOCKERD_ARGS"
 if [ "$DOCKER_REMAP_ROOT" ]; then
 	extra_params="$extra_params --userns-remap $DOCKER_REMAP_ROOT"
@@ -36,7 +41,7 @@ if [ -n "$DOCKER_EXPERIMENTAL" ]; then
 	extra_params="$extra_params --experimental"
 fi
 
-dockerd="dockerd"
+dockerd="$(command -v dockerd)"
 socket=/var/run/docker.sock
 if [ -n "$DOCKER_ROOTLESS" ]; then
 	user="unprivilegeduser"
@@ -44,7 +49,6 @@ if [ -n "$DOCKER_ROOTLESS" ]; then
 	# shellcheck disable=SC2174
 	mkdir -p -m 700 "/tmp/docker-${uid}"
 	chown $user "/tmp/docker-${uid}"
-	dockerd="sudo -u $user -E XDG_RUNTIME_DIR=/tmp/docker-${uid} -E HOME=/home/${user} -- dockerd-rootless.sh"
 	socket=/tmp/docker-${uid}/docker.sock
 fi
 
@@ -55,6 +59,29 @@ args="--debug \
 	$storage_params \
 	$extra_params"
 
+if [ -n "$DELVE_PORT" ]; then
+	dockerd="dlv --listen=0.0.0.0:$delve_listen_port \
+		--headless=true \
+		--log \
+		--api-version=2 \
+		--only-same-user=false \
+		--check-go-version=false \
+		--accept-multiclient \
+		exec ${dockerd} --"
+fi
+
 echo "${dockerd} ${args}"
-# shellcheck disable=SC2086
-exec "${dockerd}" ${args}
+
+if [ -n "$DOCKER_ROOTLESS" ]; then
+	# shellcheck disable=SC2068
+	# shellcheck disable=SC2086
+	exec sudo -u $user \
+		-E DOCKERD="$dockerd" \
+		-E XDG_RUNTIME_DIR=/tmp/docker-${uid} \
+		-E XDG_CONFIG_HOME=/home/${user}/.config \
+		-E HOME=/home/${user} \
+		-- /go/src/github.com/docker/docker/contrib/dockerd-rootless.sh ${args}
+else
+	# shellcheck disable=SC2086
+	exec ${dockerd} ${args}
+fi

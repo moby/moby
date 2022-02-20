@@ -250,3 +250,4 @@ jobs can be triggered and re-ran by the Moby maintainers
 
 Congratulations, you have successfully completed the basics you need to
 understand the Moby test framework.
+In the next section you'll [learn how to debug Docker daemon, running inside the development container](debug.md).

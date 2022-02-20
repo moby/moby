@@ -77,6 +77,8 @@ if [ -z "$mtu" ]; then
 	mtu=1500
 fi
 
+dockerd="${DOCKERD:-dockerd}"
+
 if [ -z "$_DOCKERD_ROOTLESS_CHILD" ]; then
 	_DOCKERD_ROOTLESS_CHILD=1
 	export _DOCKERD_ROOTLESS_CHILD
@@ -128,5 +130,7 @@ else
 		mount --rbind ${realpath_etc_ssl} /etc/ssl
 	fi
 
-	exec dockerd $@
+	# shellcheck disable=SC2068
+	# shellcheck disable=SC2086
+	exec $dockerd $@
 fi
