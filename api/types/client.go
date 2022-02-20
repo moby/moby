@@ -175,6 +175,11 @@ type ImageBuildOptions struct {
 	ShmSize        int64
 	Dockerfile     string
 	Ulimits        []*units.Ulimit
+
+	// Applicable to Windows
+	CPUCount   int64 `json:"CpuCount"`   // CPU count
+	CPUPercent int64 `json:"CpuPercent"` // CPU percent
+
 	// BuildArgs needs to be a *string instead of just a string so that
 	// we can tell the difference between "" (empty string) and no value
 	// at all (nil). See the parsing of buildArgs in

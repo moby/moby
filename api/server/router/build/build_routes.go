@@ -115,6 +115,14 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		options.Ulimits = buildUlimits
 	}
 
+	if versions.GreaterThanOrEqualTo(version, "1.42") {
+		options.CPUCount = httputils.Int64ValueOrZero(r, "cpucount")
+	}
+
+	if versions.GreaterThanOrEqualTo(version, "1.42") {
+		options.CPUPercent = httputils.Int64ValueOrZero(r, "cpupercent")
+	}
+
 	// Note that there are two ways a --build-arg might appear in the
 	// json of the query param:
 	//     "foo":"bar"

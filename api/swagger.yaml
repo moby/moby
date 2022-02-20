@@ -8032,6 +8032,25 @@ paths:
           in: "query"
           description: "Microseconds of CPU time that the container can get in a CPU period."
           type: "integer"
+        # Applicable to Windows
+        - name: "cpucount"
+          in: "query"
+          description: |
+            The number of usable CPUs (Windows only).
+
+            On Windows Server containers, the processor resource controls are
+            mutually exclusive. The order of precedence is `CPUCount` first, then
+            `CPUShares`, and `CPUPercent` last.
+          type: "integer"
+        - name: "cpupercent"
+          in: "query"
+          description: |
+            The usable percentage of the available CPUs (Windows only).
+
+            On Windows Server containers, the processor resource controls are
+            mutually exclusive. The order of precedence is `CPUCount` first, then
+            `CPUShares`, and `CPUPercent` last.
+          type: "integer"
         - name: "buildargs"
           in: "query"
           description: >

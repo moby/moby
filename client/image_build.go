@@ -104,6 +104,19 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 	}
 	query.Set("ulimits", string(ulimitsJSON))
 
+	if options.CPUCount > 0 {
+		if err := cli.NewVersionError("1.42", "CPUCount"); err != nil {
+			return query, err
+		}
+		query.Set("cpucount", strings.ToLower(strconv.FormatInt(options.CPUCount, 10)))
+	}
+	if options.CPUPercent > 0 {
+		if err := cli.NewVersionError("1.42", "CPUPercent"); err != nil {
+			return query, err
+		}
+		query.Set("cpupercent", strings.ToLower(strconv.FormatInt(options.CPUPercent, 10)))
+	}
+
 	buildArgsJSON, err := json.Marshal(options.BuildArgs)
 	if err != nil {
 		return query, err
