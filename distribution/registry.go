@@ -68,7 +68,6 @@ func NewV2Repository(
 	direct := &net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
-		DualStack: true,
 	}
 
 	// TODO(dmcgowan): Call close idle connections when complete, use keep alive
