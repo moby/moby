@@ -37,13 +37,15 @@ func errnoErr(e syscall.Errno) error {
 }
 
 var (
+	modkernel32 = windows.NewLazySystemDLL("kernel32.dll")
 	modntdll    = windows.NewLazySystemDLL("ntdll.dll")
 	modiphlpapi = windows.NewLazySystemDLL("iphlpapi.dll")
-	modkernel32 = windows.NewLazySystemDLL("kernel32.dll")
 	modadvapi32 = windows.NewLazySystemDLL("advapi32.dll")
-	modpsapi    = windows.NewLazySystemDLL("psapi.dll")
 	modcfgmgr32 = windows.NewLazySystemDLL("cfgmgr32.dll")
 
+	procCreatePseudoConsole                    = modkernel32.NewProc("CreatePseudoConsole")
+	procClosePseudoConsole                     = modkernel32.NewProc("ClosePseudoConsole")
+	procResizePseudoConsole                    = modkernel32.NewProc("ResizePseudoConsole")
 	procNtQuerySystemInformation               = modntdll.NewProc("NtQuerySystemInformation")
 	procSetJobCompartmentId                    = modiphlpapi.NewProc("SetJobCompartmentId")
 	procSearchPathW                            = modkernel32.NewProc("SearchPathW")
@@ -57,11 +59,8 @@ var (
 	procNtOpenJobObject                        = modntdll.NewProc("NtOpenJobObject")
 	procNtCreateJobObject                      = modntdll.NewProc("NtCreateJobObject")
 	procLogonUserW                             = modadvapi32.NewProc("LogonUserW")
-	procRtlMoveMemory                          = modkernel32.NewProc("RtlMoveMemory")
 	procLocalAlloc                             = modkernel32.NewProc("LocalAlloc")
 	procLocalFree                              = modkernel32.NewProc("LocalFree")
-	procQueryWorkingSet                        = modpsapi.NewProc("QueryWorkingSet")
-	procGetProcessImageFileNameW               = modkernel32.NewProc("GetProcessImageFileNameW")
 	procGetActiveProcessorCount                = modkernel32.NewProc("GetActiveProcessorCount")
 	procCM_Get_Device_ID_List_SizeA            = modcfgmgr32.NewProc("CM_Get_Device_ID_List_SizeA")
 	procCM_Get_Device_ID_ListA                 = modcfgmgr32.NewProc("CM_Get_Device_ID_ListA")
@@ -73,6 +72,33 @@ var (
 	procNtQueryDirectoryObject                 = modntdll.NewProc("NtQueryDirectoryObject")
 	procRtlNtStatusToDosError                  = modntdll.NewProc("RtlNtStatusToDosError")
 )
+
+func createPseudoConsole(size uint32, hInput windows.Handle, hOutput windows.Handle, dwFlags uint32, hpcon *windows.Handle) (hr error) {
+	r0, _, _ := syscall.Syscall6(procCreatePseudoConsole.Addr(), 5, uintptr(size), uintptr(hInput), uintptr(hOutput), uintptr(dwFlags), uintptr(unsafe.Pointer(hpcon)), 0)
+	if int32(r0) < 0 {
+		if r0&0x1fff0000 == 0x00070000 {
+			r0 &= 0xffff
+		}
+		hr = syscall.Errno(r0)
+	}
+	return
+}
+
+func ClosePseudoConsole(hpc windows.Handle) {
+	syscall.Syscall(procClosePseudoConsole.Addr(), 1, uintptr(hpc), 0, 0)
+	return
+}
+
+func resizePseudoConsole(hPc windows.Handle, size uint32) (hr error) {
+	r0, _, _ := syscall.Syscall(procResizePseudoConsole.Addr(), 2, uintptr(hPc), uintptr(size), 0)
+	if int32(r0) < 0 {
+		if r0&0x1fff0000 == 0x00070000 {
+			r0 &= 0xffff
+		}
+		hr = syscall.Errno(r0)
+	}
+	return
+}
 
 func NtQuerySystemInformation(systemInfoClass int, systemInformation uintptr, systemInfoLength uint32, returnLength *uint32) (status uint32) {
 	r0, _, _ := syscall.Syscall6(procNtQuerySystemInformation.Addr(), 4, uintptr(systemInfoClass), uintptr(systemInformation), uintptr(systemInfoLength), uintptr(unsafe.Pointer(returnLength)), 0, 0)
@@ -219,18 +245,6 @@ func LogonUser(username *uint16, domain *uint16, password *uint16, logonType uin
 	return
 }
 
-func RtlMoveMemory(destination *byte, source *byte, length uintptr) (err error) {
-	r1, _, e1 := syscall.Syscall(procRtlMoveMemory.Addr(), 3, uintptr(unsafe.Pointer(destination)), uintptr(unsafe.Pointer(source)), uintptr(length))
-	if r1 == 0 {
-		if e1 != 0 {
-			err = errnoErr(e1)
-		} else {
-			err = syscall.EINVAL
-		}
-	}
-	return
-}
-
 func LocalAlloc(flags uint32, size int) (ptr uintptr) {
 	r0, _, _ := syscall.Syscall(procLocalAlloc.Addr(), 2, uintptr(flags), uintptr(size), 0)
 	ptr = uintptr(r0)
@@ -239,31 +253,6 @@ func LocalAlloc(flags uint32, size int) (ptr uintptr) {
 
 func LocalFree(ptr uintptr) {
 	syscall.Syscall(procLocalFree.Addr(), 1, uintptr(ptr), 0, 0)
-	return
-}
-
-func QueryWorkingSet(handle windows.Handle, pv uintptr, cb uint32) (err error) {
-	r1, _, e1 := syscall.Syscall(procQueryWorkingSet.Addr(), 3, uintptr(handle), uintptr(pv), uintptr(cb))
-	if r1 == 0 {
-		if e1 != 0 {
-			err = errnoErr(e1)
-		} else {
-			err = syscall.EINVAL
-		}
-	}
-	return
-}
-
-func GetProcessImageFileName(hProcess windows.Handle, imageFileName *uint16, nSize uint32) (size uint32, err error) {
-	r0, _, e1 := syscall.Syscall(procGetProcessImageFileNameW.Addr(), 3, uintptr(hProcess), uintptr(unsafe.Pointer(imageFileName)), uintptr(nSize))
-	size = uint32(r0)
-	if size == 0 {
-		if e1 != 0 {
-			err = errnoErr(e1)
-		} else {
-			err = syscall.EINVAL
-		}
-	}
 	return
 }
 

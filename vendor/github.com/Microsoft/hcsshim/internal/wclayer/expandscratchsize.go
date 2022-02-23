@@ -25,7 +25,7 @@ func ExpandScratchSize(ctx context.Context, path string, size uint64) (err error
 
 	err = expandSandboxSize(&stdDriverInfo, path, size)
 	if err != nil {
-		return hcserror.New(err, title+" - failed", "")
+		return hcserror.New(err, title, "")
 	}
 
 	// Manually expand the volume now in order to work around bugs in 19H1 and

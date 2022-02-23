@@ -19,7 +19,7 @@ func DestroyLayer(ctx context.Context, path string) (err error) {
 
 	err = destroyLayer(&stdDriverInfo, path)
 	if err != nil {
-		return hcserror.New(err, title+" - failed", "")
+		return hcserror.New(err, title, "")
 	}
 	return nil
 }

@@ -20,6 +20,7 @@ type HNSEndpoint struct {
 	IPv6Address        net.IP            `json:",omitempty"`
 	DNSSuffix          string            `json:",omitempty"`
 	DNSServerList      string            `json:",omitempty"`
+	DNSDomain          string            `json:",omitempty"`
 	GatewayAddress     string            `json:",omitempty"`
 	GatewayAddressV6   string            `json:",omitempty"`
 	EnableInternalDNS  bool              `json:",omitempty"`
