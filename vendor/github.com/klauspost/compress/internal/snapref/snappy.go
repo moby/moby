@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package snappy implements the Snappy compression format. It aims for very
+// Package snapref implements the Snappy compression format. It aims for very
 // high speeds and reasonable compression.
 //
 // There are actually two Snappy formats: block and stream. They are related,
@@ -17,7 +17,7 @@
 //
 // The canonical, C++ implementation is at https://github.com/google/snappy and
 // it only implements the block format.
-package snappy // import "github.com/golang/snappy"
+package snapref
 
 import (
 	"hash/crc32"

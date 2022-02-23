@@ -91,7 +91,7 @@ func (r *readerWrapper) readSmall(n int) ([]byte, error) {
 		if err == io.EOF {
 			return nil, io.ErrUnexpectedEOF
 		}
-		if debug {
+		if debugDecoder {
 			println("readSmall: got", n2, "want", n, "err", err)
 		}
 		return nil, err

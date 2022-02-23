@@ -161,6 +161,70 @@ func compress(in []byte, s *Scratch, compressor func(src []byte) ([]byte, error)
 	return s.Out, false, nil
 }
 
+// EstimateSizes will estimate the data sizes
+func EstimateSizes(in []byte, s *Scratch) (tableSz, dataSz, reuseSz int, err error) {
+	s, err = s.prepare(in)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	// Create histogram, if none was provided.
+	tableSz, dataSz, reuseSz = -1, -1, -1
+	maxCount := s.maxCount
+	var canReuse = false
+	if maxCount == 0 {
+		maxCount, canReuse = s.countSimple(in)
+	} else {
+		canReuse = s.canUseTable(s.prevTable)
+	}
+
+	// We want the output size to be less than this:
+	wantSize := len(in)
+	if s.WantLogLess > 0 {
+		wantSize -= wantSize >> s.WantLogLess
+	}
+
+	// Reset for next run.
+	s.clearCount = true
+	s.maxCount = 0
+	if maxCount >= len(in) {
+		if maxCount > len(in) {
+			return 0, 0, 0, fmt.Errorf("maxCount (%d) > length (%d)", maxCount, len(in))
+		}
+		if len(in) == 1 {
+			return 0, 0, 0, ErrIncompressible
+		}
+		// One symbol, use RLE
+		return 0, 0, 0, ErrUseRLE
+	}
+	if maxCount == 1 || maxCount < (len(in)>>7) {
+		// Each symbol present maximum once or too well distributed.
+		return 0, 0, 0, ErrIncompressible
+	}
+
+	// Calculate new table.
+	err = s.buildCTable()
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	if false && !s.canUseTable(s.cTable) {
+		panic("invalid table generated")
+	}
+
+	tableSz, err = s.cTable.estTableSize(s)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	if canReuse {
+		reuseSz = s.prevTable.estimateSize(s.count[:s.symbolLen])
+	}
+	dataSz = s.cTable.estimateSize(s.count[:s.symbolLen])
+
+	// Restore
+	return tableSz, dataSz, reuseSz, nil
+}
+
 func (s *Scratch) compress1X(src []byte) ([]byte, error) {
 	return s.compress1xDo(s.Out, src)
 }
