@@ -1,11 +1,16 @@
 package jsonfilelog // import "github.com/docker/docker/daemon/logger/jsonfilelog"
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
+	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
+	"text/tabwriter"
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
@@ -142,7 +147,8 @@ func TestUnexpectedEOF(t *testing.T) {
 }
 
 func TestReadLogs(t *testing.T) {
-	loggertest.Reader{
+	t.Parallel()
+	r := loggertest.Reader{
 		Factory: func(t *testing.T, info logger.Info) func(*testing.T) logger.Logger {
 			dir := t.TempDir()
 			info.LogPath = filepath.Join(dir, info.ContainerID+".log")
@@ -152,7 +158,67 @@ func TestReadLogs(t *testing.T) {
 				return l
 			}
 		},
-	}.Do(t)
+	}
+	t.Run("Tail", r.TestTail)
+	t.Run("Follow", r.TestFollow)
+}
+
+func TestTailLogsWithRotation(t *testing.T) {
+	t.Parallel()
+	compress := func(cmprs bool) {
+		t.Run(fmt.Sprintf("compress=%v", cmprs), func(t *testing.T) {
+			t.Parallel()
+			(&loggertest.Reader{
+				Factory: func(t *testing.T, info logger.Info) func(*testing.T) logger.Logger {
+					info.Config = map[string]string{
+						"compress": strconv.FormatBool(cmprs),
+						"max-size": "1b",
+						"max-file": "10",
+					}
+					dir := t.TempDir()
+					t.Cleanup(func() {
+						t.Logf("%s:\n%s", t.Name(), dirStringer{dir})
+					})
+					info.LogPath = filepath.Join(dir, info.ContainerID+".log")
+					return func(t *testing.T) logger.Logger {
+						l, err := New(info)
+						assert.NilError(t, err)
+						return l
+					}
+				},
+			}).TestTail(t)
+		})
+	}
+	compress(true)
+	compress(false)
+}
+
+type dirStringer struct {
+	d string
+}
+
+func (d dirStringer) String() string {
+	ls, err := os.ReadDir(d.d)
+	if err != nil {
+		return ""
+	}
+	buf := bytes.NewBuffer(nil)
+	tw := tabwriter.NewWriter(buf, 1, 8, 1, '\t', 0)
+	buf.WriteString("\n")
+
+	btw := bufio.NewWriter(tw)
+
+	for _, entry := range ls {
+		fi, err := entry.Info()
+		if err != nil {
+			return ""
+		}
+
+		btw.WriteString(fmt.Sprintf("%s\t%s\t%dB\t%s\n", fi.Name(), fi.Mode(), fi.Size(), fi.ModTime()))
+	}
+	btw.Flush()
+	tw.Flush()
+	return buf.String()
 }
 
 type readerWithErr struct {

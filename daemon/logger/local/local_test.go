@@ -79,7 +79,7 @@ func TestWriteLog(t *testing.T) {
 }
 
 func TestReadLog(t *testing.T) {
-	loggertest.Reader{
+	r := loggertest.Reader{
 		Factory: func(t *testing.T, info logger.Info) func(*testing.T) logger.Logger {
 			dir := t.TempDir()
 			info.LogPath = filepath.Join(dir, info.ContainerID+".log")
@@ -89,7 +89,9 @@ func TestReadLog(t *testing.T) {
 				return l
 			}
 		},
-	}.Do(t)
+	}
+	t.Run("Tail", r.TestTail)
+	t.Run("Follow", r.TestFollow)
 }
 
 func BenchmarkLogWrite(b *testing.B) {

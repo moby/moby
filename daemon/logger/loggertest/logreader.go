@@ -1,6 +1,7 @@
 package loggertest // import "github.com/docker/docker/daemon/logger/loggertest"
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -29,13 +30,12 @@ var compareLog cmp.Options = []cmp.Option{
 	cmp.Transformer("string", func(b []byte) string { return string(b) }),
 }
 
-// Do tests the behavior of the LogReader implementation.
-func (tr Reader) Do(t *testing.T) {
-	t.Run("Live/Tail", func(t *testing.T) { tr.testTail(t, true) })
-	t.Run("Live/TailEmpty", func(t *testing.T) { tr.testTailEmptyLogs(t, true) })
-	t.Run("Live/Follow", tr.testFollow)
-	t.Run("Stopped/Tail", func(t *testing.T) { tr.testTail(t, false) })
-	t.Run("Stopped/TailEmpty", func(t *testing.T) { tr.testTailEmptyLogs(t, false) })
+// TestTail tests the behavior of the LogReader's tail implementation.
+func (tr Reader) TestTail(t *testing.T) {
+	t.Run("Live", func(t *testing.T) { tr.testTail(t, true) })
+	t.Run("LiveEmpty", func(t *testing.T) { tr.testTailEmptyLogs(t, true) })
+	t.Run("Stopped", func(t *testing.T) { tr.testTail(t, false) })
+	t.Run("StoppedEmpty", func(t *testing.T) { tr.testTailEmptyLogs(t, false) })
 }
 
 func makeTestMessages() []*logger.Message {
@@ -170,8 +170,11 @@ func (tr Reader) testTailEmptyLogs(t *testing.T, live bool) {
 	}
 }
 
-func (tr Reader) testFollow(t *testing.T) {
-	t.Parallel()
+// TestFollow tests the LogReader's follow implementation.
+//
+// The LogReader is expected to be able to follow an arbitrary number of
+// messages at a high rate with no dropped messages.
+func (tr Reader) TestFollow(t *testing.T) {
 	// Reader sends all logs and closes after logger is closed
 	// - Starting from empty log (like run)
 	t.Run("FromEmptyLog", func(t *testing.T) {
@@ -390,6 +393,7 @@ func logMessages(t *testing.T, l logger.Logger, messages []*logger.Message) []*l
 		// Copy the log message because the underlying log writer resets
 		// the log message and returns it to a buffer pool.
 		assert.NilError(t, l.Log(copyLogMessage(m)))
+		runtime.Gosched()
 
 		// Copy the log message again so as not to mutate the input.
 		expect := copyLogMessage(m)
@@ -436,6 +440,9 @@ func readMessage(t *testing.T, lw *logger.LogWatcher) *logger.Message {
 				return nil
 			default:
 			}
+		}
+		if msg != nil {
+			t.Logf("loggertest: ReadMessage [%v %v] %s", msg.Source, msg.Timestamp, msg.Line)
 		}
 		return msg
 	}
