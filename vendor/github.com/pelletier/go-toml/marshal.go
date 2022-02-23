@@ -258,11 +258,12 @@ type Encoder struct {
 	w io.Writer
 	encOpts
 	annotation
-	line        int
-	col         int
-	order       MarshalOrder
-	promoteAnon bool
-	indentation string
+	line            int
+	col             int
+	order           MarshalOrder
+	promoteAnon     bool
+	compactComments bool
+	indentation     string
 }
 
 // NewEncoder returns a new encoder that writes to w.
@@ -369,6 +370,12 @@ func (e *Encoder) PromoteAnonymous(promote bool) *Encoder {
 	return e
 }
 
+// CompactComments removes the new line before each comment in the tree.
+func (e *Encoder) CompactComments(cc bool) *Encoder {
+	e.compactComments = cc
+	return e
+}
+
 func (e *Encoder) marshal(v interface{}) ([]byte, error) {
 	// Check if indentation is valid
 	for _, char := range e.indentation {
@@ -408,7 +415,7 @@ func (e *Encoder) marshal(v interface{}) ([]byte, error) {
 	}
 
 	var buf bytes.Buffer
-	_, err = t.writeToOrdered(&buf, "", "", 0, e.arraysOneElementPerLine, e.order, e.indentation, false)
+	_, err = t.writeToOrdered(&buf, "", "", 0, e.arraysOneElementPerLine, e.order, e.indentation, e.compactComments, false)
 
 	return buf.Bytes(), err
 }
