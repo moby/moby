@@ -218,7 +218,7 @@ github.com/containerd/containerd/snapshots/proxy
 github.com/containerd/containerd/sys
 github.com/containerd/containerd/sys/reaper
 github.com/containerd/containerd/version
-# github.com/containerd/continuity v0.1.0
+# github.com/containerd/continuity v0.2.2
 ## explicit; go 1.13
 github.com/containerd/continuity/devices
 github.com/containerd/continuity/driver
