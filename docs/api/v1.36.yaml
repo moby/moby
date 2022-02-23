@@ -5748,6 +5748,10 @@ paths:
                   Message:
                     description: "Details of an error"
                     type: "string"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such container"
           schema:
@@ -5767,8 +5771,15 @@ paths:
           type: "string"
         - name: "condition"
           in: "query"
-          description: "Wait until a container state reaches the given condition, either 'not-running' (default), 'next-exit', or 'removed'."
+          description: |
+            Wait until a container state reaches the given condition.
+
+            Defaults to `not-running` if omitted or empty.
           type: "string"
+          enum:
+            - "not-running"
+            - "next-exit"
+            - "removed"
           default: "not-running"
       tags: ["Container"]
   /containers/{id}:
