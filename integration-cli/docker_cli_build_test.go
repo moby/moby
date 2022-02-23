@@ -384,7 +384,7 @@ func (s *DockerCLIBuildSuite) TestBuildCacheAdd(c *testing.T) {
 	cli.BuildCmd(c, name, build.WithDockerfile(fmt.Sprintf(`FROM scratch
 		ADD %s/robots.txt /`, server.URL())))
 
-	result := cli.Docker(cli.Build(name), build.WithDockerfile(fmt.Sprintf(`FROM scratch
+	result := cli.Docker(cli.Args("build", "-t", name), build.WithDockerfile(fmt.Sprintf(`FROM scratch
 		ADD %s/index.html /`, server.URL())))
 	result.Assert(c, icmd.Success)
 	if strings.Contains(result.Combined(), "Using cache") {
@@ -3777,13 +3777,13 @@ func (s *DockerCLIBuildSuite) TestBuildSpaces(c *testing.T) {
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile("FROM busybox\nCOPY\n"))
 	defer ctx.Close()
 
-	result1 := cli.Docker(cli.Build(name), build.WithExternalBuildContext(ctx))
+	result1 := cli.Docker(cli.Args("build", "-t", name), build.WithExternalBuildContext(ctx))
 	result1.Assert(c, icmd.Expected{
 		ExitCode: 1,
 	})
 
 	ctx.Add("Dockerfile", "FROM busybox\nCOPY    ")
-	result2 := cli.Docker(cli.Build(name), build.WithExternalBuildContext(ctx))
+	result2 := cli.Docker(cli.Args("build", "-t", name), build.WithExternalBuildContext(ctx))
 	result2.Assert(c, icmd.Expected{
 		ExitCode: 1,
 	})
@@ -3802,7 +3802,7 @@ func (s *DockerCLIBuildSuite) TestBuildSpaces(c *testing.T) {
 	}
 
 	ctx.Add("Dockerfile", "FROM busybox\n   COPY")
-	result2 = cli.Docker(cli.Build(name), build.WithoutCache, build.WithExternalBuildContext(ctx))
+	result2 = cli.Docker(cli.Args("build", "-t", name), build.WithoutCache, build.WithExternalBuildContext(ctx))
 	result2.Assert(c, icmd.Expected{
 		ExitCode: 1,
 	})
@@ -3817,7 +3817,7 @@ func (s *DockerCLIBuildSuite) TestBuildSpaces(c *testing.T) {
 	}
 
 	ctx.Add("Dockerfile", "FROM busybox\n   COPY    ")
-	result2 = cli.Docker(cli.Build(name), build.WithoutCache, build.WithExternalBuildContext(ctx))
+	result2 = cli.Docker(cli.Args("build", "-t", name), build.WithoutCache, build.WithExternalBuildContext(ctx))
 	result2.Assert(c, icmd.Expected{
 		ExitCode: 1,
 	})
@@ -5677,7 +5677,7 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageCopyFromErrors(c *testing.T) {
 				"foo": "abc",
 			}))
 
-		cli.Docker(cli.Build("build1"), build.WithExternalBuildContext(ctx)).Assert(c, icmd.Expected{
+		cli.Docker(cli.Args("build", "-t", "build1"), build.WithExternalBuildContext(ctx)).Assert(c, icmd.Expected{
 			ExitCode: 1,
 			Err:      tc.expectedError,
 		})
@@ -5879,7 +5879,7 @@ func (s *DockerCLIBuildSuite) TestBuildCopyFromWindowsIsCaseInsensitive(c *testi
 		COPY --from=0 c:\\fOo c:\\copied
 		RUN type c:\\copied
 		`
-	cli.Docker(cli.Build("copyfrom-windows-insensitive"), build.WithBuildContext(c,
+	cli.Docker(cli.Args("build", "-t", "copyfrom-windows-insensitive"), build.WithBuildContext(c,
 		build.WithFile("Dockerfile", dockerfile),
 		build.WithFile("foo", "hello world"),
 	)).Assert(c, icmd.Expected{
@@ -5932,7 +5932,7 @@ func (s *DockerCLIBuildSuite) TestBuildIntermediateTarget(c *testing.T) {
 	res = cli.InspectCmd(c, "build1", cli.Format("json .Config.Cmd")).Combined()
 	assert.Equal(c, strings.TrimSpace(res), `["/dev"]`)
 
-	result := cli.Docker(cli.Build("build1"), build.WithExternalBuildContext(ctx),
+	result := cli.Docker(cli.Args("build", "-t", "build1"), build.WithExternalBuildContext(ctx),
 		cli.WithFlags("--target", "nosuchtarget"))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
@@ -6050,7 +6050,7 @@ func (s *DockerCLIBuildSuite) TestBuildLineErrorOnBuild(c *testing.T) {
 // FIXME(vdemeester) should be a unit test
 func (s *DockerCLIBuildSuite) TestBuildLineErrorUnknownInstruction(c *testing.T) {
 	name := "test_build_line_error_unknown_instruction"
-	cli.Docker(cli.Build(name), build.WithDockerfile(`FROM busybox
+	cli.Docker(cli.Args("build", "-t", name), build.WithDockerfile(`FROM busybox
   RUN echo hello world
   NOINSTRUCTION echo ba
   RUN echo hello
@@ -6064,7 +6064,7 @@ func (s *DockerCLIBuildSuite) TestBuildLineErrorUnknownInstruction(c *testing.T)
 // FIXME(vdemeester) should be a unit test
 func (s *DockerCLIBuildSuite) TestBuildLineErrorWithEmptyLines(c *testing.T) {
 	name := "test_build_line_error_with_empty_lines"
-	cli.Docker(cli.Build(name), build.WithDockerfile(`
+	cli.Docker(cli.Args("build", "-t", name), build.WithDockerfile(`
   FROM busybox
 
   RUN echo hello world
@@ -6081,7 +6081,7 @@ func (s *DockerCLIBuildSuite) TestBuildLineErrorWithEmptyLines(c *testing.T) {
 // FIXME(vdemeester) should be a unit test
 func (s *DockerCLIBuildSuite) TestBuildLineErrorWithComments(c *testing.T) {
 	name := "test_build_line_error_with_comments"
-	cli.Docker(cli.Build(name), build.WithDockerfile(`FROM busybox
+	cli.Docker(cli.Args("build", "-t", name), build.WithDockerfile(`FROM busybox
   # This will print hello world
   # and then ba
   RUN echo hello world
@@ -6148,7 +6148,7 @@ func (s *DockerCLIBuildSuite) TestBuildIidFileCleanupOnFail(c *testing.T) {
 	err = os.WriteFile(tmpIidFile, []byte("Dummy"), 0666)
 	assert.NilError(c, err)
 
-	cli.Docker(cli.Build("testbuildiidfilecleanuponfail"),
+	cli.Docker(cli.Args("build", "-t", "testbuildiidfilecleanuponfail"),
 		build.WithDockerfile(`FROM `+minimalBaseImage()+`
 	RUN /non/existing/command`),
 		cli.WithFlags("--iidfile", tmpIidFile)).Assert(c, icmd.Expected{

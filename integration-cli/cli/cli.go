@@ -32,12 +32,12 @@ func DockerCmd(t testing.TB, args ...string) *icmd.Result {
 
 // BuildCmd executes the specified docker build command and expect a success
 func BuildCmd(t testing.TB, name string, cmdOperators ...CmdOperator) *icmd.Result {
-	return Docker(Build(name), cmdOperators...).Assert(t, icmd.Success)
+	return Docker(Args("build", "-t", name), cmdOperators...).Assert(t, icmd.Success)
 }
 
 // InspectCmd executes the specified docker inspect command and expect a success
 func InspectCmd(t testing.TB, name string, cmdOperators ...CmdOperator) *icmd.Result {
-	return Docker(Inspect(name), cmdOperators...).Assert(t, icmd.Success)
+	return Docker(Args("inspect", name), cmdOperators...).Assert(t, icmd.Success)
 }
 
 // WaitRun will wait for the specified container to be running, maximum 5 seconds.
@@ -120,16 +120,6 @@ func validateArgs(args ...string) error {
 		}
 	}
 	return nil
-}
-
-// Build executes the specified docker build command
-func Build(name string) icmd.Cmd {
-	return icmd.Command("build", "-t", name)
-}
-
-// Inspect executes the specified docker inspect command
-func Inspect(name string) icmd.Cmd {
-	return icmd.Command("inspect", name)
 }
 
 // Format sets the specified format with --format flag

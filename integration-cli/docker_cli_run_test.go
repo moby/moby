@@ -3943,7 +3943,7 @@ func (s *DockerCLIRunSuite) TestRunRm(c *testing.T) {
 	name := "miss-me-when-im-gone"
 	cli.DockerCmd(c, "run", "--name="+name, "--rm", "busybox")
 
-	cli.Docker(cli.Inspect(name), cli.Format(".name")).Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("inspect", name), cli.Format(".name")).Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "No such object: " + name,
 	})
@@ -3955,7 +3955,7 @@ func (s *DockerCLIRunSuite) TestRunRmPre125Api(c *testing.T) {
 	envs := appendBaseEnv(os.Getenv("DOCKER_TLS_VERIFY") != "", "DOCKER_API_VERSION=1.24")
 	cli.Docker(cli.Args("run", "--name="+name, "--rm", "busybox"), cli.WithEnvironmentVariables(envs...)).Assert(c, icmd.Success)
 
-	cli.Docker(cli.Inspect(name), cli.Format(".name")).Assert(c, icmd.Expected{
+	cli.Docker(cli.Args("inspect", name), cli.Format(".name")).Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "No such object: " + name,
 	})
