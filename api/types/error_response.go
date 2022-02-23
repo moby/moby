@@ -7,6 +7,13 @@ package types
 // swagger:model ErrorResponse
 type ErrorResponse struct {
 
+	// Additional details about the error (for debugging purposes).
+	//
+	// This field is only propagated if the daemon is started with
+	// the `DOCKER_DEBUG_TRACE` variable set, and omitted otherwise.
+	//
+	Details *string `json:"details,omitempty"`
+
 	// The error message.
 	// Required: true
 	Message string `json:"message"`

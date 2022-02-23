@@ -40,6 +40,10 @@ keywords: "API, Docker, rcli, REST, documentation"
   was used and the architecture was ignored. If no `platform` option is set, the
   host's operating system and architecture as used as default. This change is not
   versioned, and affects all API versions if the daemon has this patch.
+* The API `ErrorResponse` now has a `details` field. This field is omitted by
+  default but can contain debugging information if the `DOCKER_DEBUG_TRACE`
+  environment variable is set when the daemon is started. This option should only
+  be used for debugging purposes and not recommended for production environments. 
 
 ## v1.41 API changes
 

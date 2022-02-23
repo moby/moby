@@ -2,9 +2,11 @@ package httputils // import "github.com/docker/docker/api/server/httputils"
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -102,11 +104,41 @@ func MakeErrorHandler(err error) http.HandlerFunc {
 			response := &types.ErrorResponse{
 				Message: err.Error(),
 			}
+			if trace := getTrace(err); trace != "" {
+				response.Details = &trace
+			}
 			_ = WriteJSON(w, statusCode, response)
 		} else {
 			http.Error(w, status.Convert(err).Message(), statusCode)
 		}
 	}
+}
+
+type stackTracer interface {
+	StackTrace() errors.StackTrace
+}
+
+type causer interface {
+	Cause() error
+}
+
+// getTrace returns the stack-trace from the given error (if present).
+func getTrace(err error) string {
+	if err == nil || os.Getenv("DOCKER_DEBUG_TRACE") == "" {
+		return ""
+	}
+	if _, ok := err.(stackTracer); ok {
+		return fmt.Sprintf("%+v", err)
+	}
+	if e := errors.Unwrap(err); e != nil {
+		return getTrace(e)
+	}
+	// Take into account errors that implemented the pkg/errors.Causer(), but
+	// did not implement errors.Unwrap()
+	if e, ok := err.(causer); ok {
+		return getTrace(e.Cause())
+	}
+	return ""
 }
 
 func apiVersionSupportsJSONErrors(version string) bool {
