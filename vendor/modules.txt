@@ -806,7 +806,7 @@ golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 ## explicit; go 1.11
 golang.org/x/lint
 golang.org/x/lint/golint
-# golang.org/x/mod v0.4.1
+# golang.org/x/mod v0.4.2
 ## explicit; go 1.12
 golang.org/x/mod/module
 golang.org/x/mod/semver
