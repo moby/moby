@@ -40,6 +40,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   was used and the architecture was ignored. If no `platform` option is set, the
   host's operating system and architecture as used as default. This change is not
   versioned, and affects all API versions if the daemon has this patch.
+* `GET /info` now includes a `DNSDefaults` struct, providing the default DNS
+  configuration that is used when creating new containers (`DNS`, `DNSOptions`,
+  `DNSSearch`).
 
 ## v1.41 API changes
 
