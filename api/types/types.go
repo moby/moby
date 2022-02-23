@@ -659,3 +659,8 @@ type BuildCachePruneOptions struct {
 	KeepStorage int64
 	Filters     filters.Args
 }
+
+// ExecSignalConfig holds options to signal a container
+type ExecSignalConfig struct {
+	Signal string
+}
