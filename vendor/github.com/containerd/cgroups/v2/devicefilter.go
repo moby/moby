@@ -23,15 +23,16 @@
 //
 // This particular Go implementation based on runc version
 // https://github.com/opencontainers/runc/blob/master/libcontainer/cgroups/ebpf/devicefilter/devicefilter.go
+
 package v2
 
 import (
+	"errors"
 	"fmt"
 	"math"
 
 	"github.com/cilium/ebpf/asm"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 
@@ -106,13 +107,13 @@ func (p *program) appendDevice(dev specs.LinuxDeviceCgroup) error {
 		hasType = false
 	default:
 		// if not specified in OCI json, typ is set to DeviceTypeAll
-		return errors.Errorf("invalid DeviceType %q", dev.Type)
+		return fmt.Errorf("invalid DeviceType %q", dev.Type)
 	}
 	if *dev.Major > math.MaxUint32 {
-		return errors.Errorf("invalid major %d", *dev.Major)
+		return fmt.Errorf("invalid major %d", *dev.Major)
 	}
 	if *dev.Minor > math.MaxUint32 {
-		return errors.Errorf("invalid minor %d", *dev.Major)
+		return fmt.Errorf("invalid minor %d", *dev.Major)
 	}
 	hasMajor := *dev.Major >= 0 // if not specified in OCI json, major is set to -1
 	hasMinor := *dev.Minor >= 0
@@ -126,7 +127,7 @@ func (p *program) appendDevice(dev specs.LinuxDeviceCgroup) error {
 		case 'm':
 			bpfAccess |= unix.BPF_DEVCG_ACC_MKNOD
 		default:
-			return errors.Errorf("unknown device access %v", r)
+			return fmt.Errorf("unknown device access %v", r)
 		}
 	}
 	// If the access is rwm, skip the check.

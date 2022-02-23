@@ -130,7 +130,7 @@ func (b *blkioController) Stat(path string, stats *v1.Metrics) error {
 		}
 	}
 
-	f, err := os.Open(filepath.Join(b.procRoot, "diskstats"))
+	f, err := os.Open(filepath.Join(b.procRoot, "partitions"))
 	if err != nil {
 		return err
 	}
@@ -335,7 +335,10 @@ func getDevices(r io.Reader) (map[deviceKey]string, error) {
 		s       = bufio.NewScanner(r)
 		devices = make(map[deviceKey]string)
 	)
-	for s.Scan() {
+	for i := 0; s.Scan(); i++ {
+		if i < 2 {
+			continue
+		}
 		fields := strings.Fields(s.Text())
 		major, err := strconv.Atoi(fields[0])
 		if err != nil {
@@ -352,7 +355,7 @@ func getDevices(r io.Reader) (map[deviceKey]string, error) {
 		if _, ok := devices[key]; ok {
 			continue
 		}
-		devices[key] = filepath.Join("/dev", fields[2])
+		devices[key] = filepath.Join("/dev", fields[3])
 	}
 	return devices, s.Err()
 }
