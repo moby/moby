@@ -36,7 +36,7 @@ func ImportLayer(ctx context.Context, path string, importFolderPath string, pare
 
 	err = importLayer(&stdDriverInfo, path, importFolderPath, layers)
 	if err != nil {
-		return hcserror.New(err, title+" - failed", "")
+		return hcserror.New(err, title, "")
 	}
 	return nil
 }

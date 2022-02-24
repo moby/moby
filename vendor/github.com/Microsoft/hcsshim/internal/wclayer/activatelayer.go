@@ -21,7 +21,7 @@ func ActivateLayer(ctx context.Context, path string) (err error) {
 
 	err = activateLayer(&stdDriverInfo, path)
 	if err != nil {
-		return hcserror.New(err, title+" - failed", "")
+		return hcserror.New(err, title, "")
 	}
 	return nil
 }

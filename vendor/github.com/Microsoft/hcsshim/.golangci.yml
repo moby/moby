@@ -1,0 +1,99 @@
+run:
+  timeout: 8m
+
+linters:
+  enable:
+    - stylecheck
+
+linters-settings:
+  stylecheck:
+    # https://staticcheck.io/docs/checks
+    checks: ["all"]
+
+
+issues:
+  # This repo has a LOT of generated schema files, operating system bindings, and other things that ST1003 from stylecheck won't like
+  # (screaming case Windows api constants for example). There's also some structs that we *could* change the initialisms to be Go
+  # friendly (Id -> ID) but they're exported and it would be a breaking change. This makes it so that most new code, code that isn't
+  # supposed to be a pretty faithful mapping to an OS call/constants, or non-generated code still checks if we're following idioms,
+  # while ignoring the things that are just noise or would be more of a hassle than it'd be worth to change.
+  exclude-rules:
+    - path: layer.go
+      linters:
+        - stylecheck
+      Text: "ST1003:"
+
+    - path: hcsshim.go
+      linters:
+        - stylecheck
+      Text: "ST1003:"
+
+    - path: internal\\hcs\\schema2\\
+      linters:
+        - stylecheck
+      Text: "ST1003:"
+
+    - path: internal\\wclayer\\
+      linters:
+        - stylecheck
+      Text: "ST1003:"
+
+    - path: hcn\\
+      linters:
+        - stylecheck
+      Text: "ST1003:"
+
+    - path: internal\\hcs\\schema1\\
+      linters:
+        - stylecheck
+      Text: "ST1003:"
+
+    - path: internal\\hns\\
+      linters:
+        - stylecheck
+      Text: "ST1003:"
+
+    - path: ext4\\internal\\compactext4\\
+      linters:
+        - stylecheck
+      Text: "ST1003:"
+
+    - path: ext4\\internal\\format\\
+      linters:
+        - stylecheck
+      Text: "ST1003:"
+
+    - path: internal\\guestrequest\\
+      linters:
+        - stylecheck
+      Text: "ST1003:"
+
+    - path: internal\\guest\\prot\\
+      linters:
+        - stylecheck
+      Text: "ST1003:"
+
+    - path: internal\\windevice\\
+      linters:
+        - stylecheck
+      Text: "ST1003:"
+
+    - path: internal\\winapi\\
+      linters:
+        - stylecheck
+      Text: "ST1003:"
+
+    - path: internal\\vmcompute\\
+      linters:
+        - stylecheck
+      Text: "ST1003:"
+
+    - path: internal\\regstate\\
+      linters:
+        - stylecheck
+      Text: "ST1003:"
+
+    - path: internal\\hcserror\\
+      linters:
+        - stylecheck
+      Text: "ST1003:"

@@ -78,6 +78,13 @@ var (
 
 	// ErrNotSupported is an error encountered when hcs doesn't support the request
 	ErrPlatformNotSupported = errors.New("unsupported platform request")
+
+	// ErrProcessAlreadyStopped is returned by hcs if the process we're trying to kill has already been stopped.
+	ErrProcessAlreadyStopped = syscall.Errno(0x8037011f)
+
+	// ErrInvalidHandle is an error that can be encountrered when querying the properties of a compute system when the handle to that
+	// compute system has already been closed.
+	ErrInvalidHandle = syscall.Errno(0x6)
 )
 
 type ErrorEvent struct {
@@ -249,6 +256,14 @@ func IsNotExist(err error) bool {
 		err == ErrElementNotFound
 }
 
+// IsErrorInvalidHandle checks whether the error is the result of an operation carried
+// out on a handle that is invalid/closed. This error popped up while trying to query
+// stats on a container in the process of being stopped.
+func IsErrorInvalidHandle(err error) bool {
+	err = getInnerError(err)
+	return err == ErrInvalidHandle
+}
+
 // IsAlreadyClosed checks if an error is caused by the Container or Process having been
 // already closed by a call to the Close() method.
 func IsAlreadyClosed(err error) bool {
@@ -281,6 +296,7 @@ func IsTimeout(err error) bool {
 func IsAlreadyStopped(err error) bool {
 	err = getInnerError(err)
 	return err == ErrVmcomputeAlreadyStopped ||
+		err == ErrProcessAlreadyStopped ||
 		err == ErrElementNotFound
 }
 
