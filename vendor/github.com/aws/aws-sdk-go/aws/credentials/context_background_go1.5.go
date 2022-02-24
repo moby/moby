@@ -1,12 +1,12 @@
 // +build !go1.7
 
-package aws
+package credentials
 
 import (
 	"github.com/aws/aws-sdk-go/internal/context"
 )
 
-// BackgroundContext returns a context that will never be canceled, has no
+// backgroundContext returns a context that will never be canceled, has no
 // values, and no deadline. This context is used by the SDK to provide
 // backwards compatibility with non-context API operations and functionality.
 //
@@ -17,6 +17,6 @@ import (
 // The context returned will be the value returned by context.Background()
 //
 // See https://golang.org/pkg/context for more information on Contexts.
-func BackgroundContext() Context {
+func backgroundContext() Context {
 	return context.BackgroundCtx
 }

@@ -14,7 +14,7 @@ require (
 	github.com/Microsoft/hcsshim v0.8.23
 	github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
 	github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310
-	github.com/aws/aws-sdk-go v1.28.11
+	github.com/aws/aws-sdk-go v1.31.6
 	github.com/bsphere/le_go v0.0.0-20170215134836-7a984a84b549
 	github.com/cloudflare/cfssl v0.0.0-20180323000720-5d63dbd981b5
 	github.com/containerd/cgroups v1.0.1
