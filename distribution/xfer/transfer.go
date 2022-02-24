@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/progress"
+	"github.com/pkg/errors"
 )
 
 // DoNotRetry is an error wrapper indicating that the error cannot be resolved
@@ -17,6 +18,13 @@ type DoNotRetry struct {
 // Error returns the stringified representation of the encapsulated error.
 func (e DoNotRetry) Error() string {
 	return e.Err.Error()
+}
+
+// IsDoNotRetryError returns true if the error is caused by DoNotRetry error,
+// and the transfer should not be retried.
+func IsDoNotRetryError(err error) bool {
+	var dnr DoNotRetry
+	return errors.As(err, &dnr)
 }
 
 // Watcher is returned by Watch and can be passed to Release to stop watching.
