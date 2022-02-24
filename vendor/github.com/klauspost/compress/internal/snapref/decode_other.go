@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !amd64,!arm64 appengine !gc noasm
-
-package snappy
+package snapref
 
 // decode writes the decoding of src to dst. It assumes that the varint-encoded
 // length of the decompressed bytes has already been read, and that len(dst)

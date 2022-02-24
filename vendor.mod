@@ -17,9 +17,9 @@ require (
 	github.com/aws/aws-sdk-go v1.31.6
 	github.com/bsphere/le_go v0.0.0-20170215134836-7a984a84b549
 	github.com/cloudflare/cfssl v0.0.0-20180323000720-5d63dbd981b5
-	github.com/containerd/cgroups v1.0.1
+	github.com/containerd/cgroups v1.0.3
 	github.com/containerd/containerd v1.5.9
-	github.com/containerd/continuity v0.1.0
+	github.com/containerd/continuity v0.2.2
 	github.com/containerd/fifo v1.0.0
 	github.com/containerd/typeurl v1.0.2
 	github.com/coreos/go-systemd/v22 v22.3.2
@@ -39,7 +39,7 @@ require (
 	github.com/godbus/dbus/v5 v5.0.6
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/gddo v0.0.0-20190904175337-72a348e765d2
-	github.com/google/go-cmp v0.5.5
+	github.com/google/go-cmp v0.5.6
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/go-immutable-radix v1.0.0
@@ -48,7 +48,7 @@ require (
 	github.com/hashicorp/serf v0.8.2
 	github.com/imdario/mergo v0.3.12
 	github.com/ishidawataru/sctp v0.0.0-20210226210310-f2269e66cdee
-	github.com/klauspost/compress v1.12.3
+	github.com/klauspost/compress v1.14.2
 	github.com/miekg/dns v1.1.27
 	github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible
 	github.com/moby/buildkit v0.8.2-0.20210615162540-9f254e18360a
@@ -65,7 +65,7 @@ require (
 	github.com/opencontainers/runc v1.1.0
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 	github.com/opencontainers/selinux v1.10.0
-	github.com/pelletier/go-toml v1.9.1
+	github.com/pelletier/go-toml v1.9.4
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/sirupsen/logrus v1.8.1
@@ -105,7 +105,6 @@ require (
 	github.com/gogo/googleapis v1.4.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/certificate-transparency-go v1.0.20 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
@@ -137,10 +136,10 @@ require (
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20211202192323-5770296d904e // indirect
 	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
-	golang.org/x/mod v0.4.1 // indirect
-	golang.org/x/oauth2 v0.0.0-20210514164344-f6687ab2804c // indirect
+	golang.org/x/mod v0.4.2 // indirect
+	golang.org/x/oauth2 v0.0.0-20210805134026-6f1e6394065a // indirect
 	golang.org/x/text v0.3.6 // indirect
-	golang.org/x/tools v0.1.0 // indirect
+	golang.org/x/tools v0.1.5 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/api v0.46.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect

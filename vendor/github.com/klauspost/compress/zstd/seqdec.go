@@ -278,7 +278,7 @@ func (s *sequenceDecs) decode(seqs int, br *bitReader, hist []byte) error {
 			mlState = mlTable[mlState.newState()&maxTableMask]
 			ofState = ofTable[ofState.newState()&maxTableMask]
 		} else {
-			bits := br.getBitsFast(nBits)
+			bits := br.get32BitsFast(nBits)
 			lowBits := uint16(bits >> ((ofState.nbBits() + mlState.nbBits()) & 31))
 			llState = llTable[(llState.newState()+lowBits)&maxTableMask]
 
@@ -326,7 +326,7 @@ func (s *sequenceDecs) updateAlt(br *bitReader) {
 		s.offsets.state.state = s.offsets.state.dt[c.newState()]
 		return
 	}
-	bits := br.getBitsFast(nBits)
+	bits := br.get32BitsFast(nBits)
 	lowBits := uint16(bits >> ((c.nbBits() + b.nbBits()) & 31))
 	s.litLengths.state.state = s.litLengths.state.dt[a.newState()+lowBits]
 

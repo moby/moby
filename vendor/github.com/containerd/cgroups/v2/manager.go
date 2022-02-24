@@ -18,6 +18,9 @@ package v2
 
 import (
 	"bufio"
+	"context"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"math"
 	"os"
@@ -28,10 +31,10 @@ import (
 	"time"
 
 	"github.com/containerd/cgroups/v2/stats"
+
 	systemdDbus "github.com/coreos/go-systemd/v22/dbus"
 	"github.com/godbus/dbus/v5"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -270,7 +273,9 @@ func (c *Manager) ToggleControllers(controllers []string, t ControllerToggle) er
 			// When running as rootless, the user may face EPERM on parent groups, but it is neglible when the
 			// controller is already written.
 			// So we only return the last error.
-			lastErr = errors.Wrapf(err, "failed to write subtree controllers %+v to %q", controllers, filePath)
+			lastErr = fmt.Errorf("failed to write subtree controllers %+v to %q: %w", controllers, filePath, err)
+		} else {
+			lastErr = nil
 		}
 	}
 	return lastErr
@@ -300,15 +305,23 @@ func (c *Manager) NewChild(name string, resources *Resources) (*Manager, error) 
 	if err := os.MkdirAll(path, defaultDirPerm); err != nil {
 		return nil, err
 	}
+	m := Manager{
+		unifiedMountpoint: c.unifiedMountpoint,
+		path:              path,
+	}
+	if resources != nil {
+		if err := m.ToggleControllers(resources.EnabledControllers(), Enable); err != nil {
+			// clean up cgroup dir on failure
+			os.Remove(path)
+			return nil, err
+		}
+	}
 	if err := setResources(path, resources); err != nil {
 		// clean up cgroup dir on failure
 		os.Remove(path)
 		return nil, err
 	}
-	return &Manager{
-		unifiedMountpoint: c.unifiedMountpoint,
-		path:              path,
-	}, nil
+	return &m, nil
 }
 
 func (c *Manager) AddProc(pid uint64) error {
@@ -515,7 +528,7 @@ func readKVStatsFile(path string, file string, out map[string]interface{}) error
 	for s.Scan() {
 		name, value, err := parseKV(s.Text())
 		if err != nil {
-			return errors.Wrapf(err, "error while parsing %s (line=%q)", filepath.Join(path, file), s.Text())
+			return fmt.Errorf("error while parsing %s (line=%q): %w", filepath.Join(path, file), s.Text(), err)
 		}
 		out[name] = value
 	}
@@ -547,17 +560,39 @@ func (c *Manager) freeze(path string, state State) error {
 	}
 }
 
+func (c *Manager) isCgroupEmpty() bool {
+	// In case of any error we return true so that we exit and don't leak resources
+	out := make(map[string]interface{})
+	if err := readKVStatsFile(c.path, "cgroup.events", out); err != nil {
+		return true
+	}
+	if v, ok := out["populated"]; ok {
+		populated, ok := v.(uint64)
+		if !ok {
+			return true
+		}
+		return populated == 0
+	}
+	return true
+}
+
 // MemoryEventFD returns inotify file descriptor and 'memory.events' inotify watch descriptor
 func (c *Manager) MemoryEventFD() (int, uint32, error) {
 	fpath := filepath.Join(c.path, "memory.events")
 	fd, err := syscall.InotifyInit()
 	if err != nil {
-		return 0, 0, errors.Errorf("Failed to create inotify fd")
+		return 0, 0, errors.New("failed to create inotify fd")
 	}
 	wd, err := syscall.InotifyAddWatch(fd, fpath, unix.IN_MODIFY)
-	if wd < 0 {
+	if err != nil {
 		syscall.Close(fd)
-		return 0, 0, errors.Errorf("Failed to add inotify watch for %q", fpath)
+		return 0, 0, fmt.Errorf("failed to add inotify watch for %q: %w", fpath, err)
+	}
+	// monitor to detect process exit/cgroup deletion
+	evpath := filepath.Join(c.path, "cgroup.events")
+	if _, err = syscall.InotifyAddWatch(fd, evpath, unix.IN_MODIFY); err != nil {
+		syscall.Close(fd)
+		return 0, 0, fmt.Errorf("failed to add inotify watch for %q: %w", evpath, err)
 	}
 
 	return fd, uint32(wd), nil
@@ -565,22 +600,56 @@ func (c *Manager) MemoryEventFD() (int, uint32, error) {
 
 func (c *Manager) EventChan() (<-chan Event, <-chan error) {
 	ec := make(chan Event)
-	errCh := make(chan error)
+	errCh := make(chan error, 1)
 	go c.waitForEvents(ec, errCh)
 
-	return ec, nil
+	return ec, errCh
+}
+
+func parseMemoryEvents(out map[string]interface{}) (Event, error) {
+	e := Event{}
+	if v, ok := out["high"]; ok {
+		e.High, ok = v.(uint64)
+		if !ok {
+			return Event{}, fmt.Errorf("cannot convert high to uint64: %+v", v)
+		}
+	}
+	if v, ok := out["low"]; ok {
+		e.Low, ok = v.(uint64)
+		if !ok {
+			return Event{}, fmt.Errorf("cannot convert low to uint64: %+v", v)
+		}
+	}
+	if v, ok := out["max"]; ok {
+		e.Max, ok = v.(uint64)
+		if !ok {
+			return Event{}, fmt.Errorf("cannot convert max to uint64: %+v", v)
+		}
+	}
+	if v, ok := out["oom"]; ok {
+		e.OOM, ok = v.(uint64)
+		if !ok {
+			return Event{}, fmt.Errorf("cannot convert oom to uint64: %+v", v)
+		}
+	}
+	if v, ok := out["oom_kill"]; ok {
+		e.OOMKill, ok = v.(uint64)
+		if !ok {
+			return Event{}, fmt.Errorf("cannot convert oom_kill to uint64: %+v", v)
+		}
+	}
+	return e, nil
 }
 
 func (c *Manager) waitForEvents(ec chan<- Event, errCh chan<- error) {
-	fd, wd, err := c.MemoryEventFD()
+	defer close(errCh)
 
-	defer syscall.InotifyRmWatch(fd, wd)
-	defer syscall.Close(fd)
-
+	fd, _, err := c.MemoryEventFD()
 	if err != nil {
 		errCh <- err
 		return
 	}
+	defer syscall.Close(fd)
 
 	for {
 		buffer := make([]byte, syscall.SizeofInotifyEvent*10)
@@ -591,46 +660,20 @@ func (c *Manager) waitForEvents(ec chan<- Event, errCh chan<- error) {
 		}
 		if bytesRead >= syscall.SizeofInotifyEvent {
 			out := make(map[string]interface{})
-			if err := readKVStatsFile(c.path, "memory.events", out); err == nil {
-				e := Event{}
-				if v, ok := out["high"]; ok {
-					e.High, ok = v.(uint64)
-					if !ok {
-						errCh <- errors.Errorf("cannot convert high to uint64: %+v", v)
-						return
-					}
+			if err := readKVStatsFile(c.path, "memory.events", out); err != nil {
+				// When cgroup is deleted read may return -ENODEV instead of -ENOENT from open.
+				if _, statErr := os.Lstat(filepath.Join(c.path, "memory.events")); !os.IsNotExist(statErr) {
+					errCh <- err
 				}
-				if v, ok := out["low"]; ok {
-					e.Low, ok = v.(uint64)
-					if !ok {
-						errCh <- errors.Errorf("cannot convert low to uint64: %+v", v)
-						return
-					}
-				}
-				if v, ok := out["max"]; ok {
-					e.Max, ok = v.(uint64)
-					if !ok {
-						errCh <- errors.Errorf("cannot convert max to uint64: %+v", v)
-						return
-					}
-				}
-				if v, ok := out["oom"]; ok {
-					e.OOM, ok = v.(uint64)
-					if !ok {
-						errCh <- errors.Errorf("cannot convert oom to uint64: %+v", v)
-						return
-					}
-				}
-				if v, ok := out["oom_kill"]; ok {
-					e.OOMKill, ok = v.(uint64)
-					if !ok {
-						errCh <- errors.Errorf("cannot convert oom_kill to uint64: %+v", v)
-						return
-					}
-				}
-				ec <- e
-			} else {
+				return
+			}
+			e, err := parseMemoryEvents(out)
+			if err != nil {
 				errCh <- err
+				return
+			}
+			ec <- e
+			if c.isCgroupEmpty() {
 				return
 			}
 		}
@@ -645,9 +688,9 @@ func setDevices(path string, devices []specs.LinuxDeviceCgroup) error {
 	if err != nil {
 		return err
 	}
-	dirFD, err := unix.Open(path, unix.O_DIRECTORY|unix.O_RDONLY, 0600)
+	dirFD, err := unix.Open(path, unix.O_DIRECTORY|unix.O_RDONLY|unix.O_CLOEXEC, 0600)
 	if err != nil {
-		return errors.Errorf("cannot get dir FD for %s", path)
+		return fmt.Errorf("cannot get dir FD for %s", path)
 	}
 	defer unix.Close(dirFD)
 	if _, err := LoadAttachCgroupDeviceFilter(insts, license, dirFD); err != nil {
@@ -662,8 +705,9 @@ func NewSystemd(slice, group string, pid int, resources *Resources) (*Manager, e
 	if slice == "" {
 		slice = defaultSlice
 	}
+	ctx := context.TODO()
 	path := filepath.Join(defaultCgroup2Path, slice, group)
-	conn, err := systemdDbus.New()
+	conn, err := systemdDbus.NewWithContext(ctx)
 	if err != nil {
 		return &Manager{}, err
 	}
@@ -733,7 +777,7 @@ func NewSystemd(slice, group string, pid int, resources *Resources) (*Manager, e
 	}
 
 	statusChan := make(chan string, 1)
-	if _, err := conn.StartTransientUnit(group, "replace", properties, statusChan); err == nil {
+	if _, err := conn.StartTransientUnitContext(ctx, group, "replace", properties, statusChan); err == nil {
 		select {
 		case <-statusChan:
 		case <-time.After(time.Second):
@@ -759,14 +803,15 @@ func LoadSystemd(slice, group string) (*Manager, error) {
 }
 
 func (c *Manager) DeleteSystemd() error {
-	conn, err := systemdDbus.New()
+	ctx := context.TODO()
+	conn, err := systemdDbus.NewWithContext(ctx)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 	group := systemdUnitFromPath(c.path)
 	ch := make(chan string)
-	_, err = conn.StopUnit(group, "replace", ch)
+	_, err = conn.StopUnitContext(ctx, group, "replace", ch)
 	if err != nil {
 		return err
 	}

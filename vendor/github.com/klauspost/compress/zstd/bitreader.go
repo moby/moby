@@ -50,16 +50,23 @@ func (b *bitReader) getBits(n uint8) int {
 	if n == 0 /*|| b.bitsRead >= 64 */ {
 		return 0
 	}
-	return b.getBitsFast(n)
+	return int(b.get32BitsFast(n))
 }
 
-// getBitsFast requires that at least one bit is requested every time.
+// get32BitsFast requires that at least one bit is requested every time.
 // There are no checks if the buffer is filled.
-func (b *bitReader) getBitsFast(n uint8) int {
+func (b *bitReader) get32BitsFast(n uint8) uint32 {
 	const regMask = 64 - 1
 	v := uint32((b.value << (b.bitsRead & regMask)) >> ((regMask + 1 - n) & regMask))
 	b.bitsRead += n
-	return int(v)
+	return v
+}
+
+func (b *bitReader) get16BitsFast(n uint8) uint16 {
+	const regMask = 64 - 1
+	v := uint16((b.value << (b.bitsRead & regMask)) >> ((regMask + 1 - n) & regMask))
+	b.bitsRead += n
+	return v
 }
 
 // fillFast() will make sure at least 32 bits are available.
