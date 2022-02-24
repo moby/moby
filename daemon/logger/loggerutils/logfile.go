@@ -487,48 +487,72 @@ func (w *LogFile) readLogsLocked(currentPos logPos, config logger.ReadConfig, wa
 //
 // This method must only be called with w.fsopMu locked for reading.
 func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []readAtCloser, err error) {
+	type rotatedFile struct {
+		f          *os.File
+		compressed bool
+	}
+
+	var q []rotatedFile
 	defer func() {
-		w.fsopMu.RUnlock()
-		if err == nil {
-			return
-		}
-		for _, f := range files {
-			f.Close()
+		if err != nil {
+			for _, qq := range q {
+				qq.f.Close()
+			}
+			for _, f := range files {
+				f.Close()
+			}
 		}
 	}()
 
-	for i := w.maxFiles; i > 1; i-- {
-		var f readAtCloser
-		f, err = open(fmt.Sprintf("%s.%d", w.f.Name(), i-1))
-		if err != nil {
-			if !errors.Is(err, fs.ErrNotExist) {
-				return nil, errors.Wrap(err, "error opening rotated log file")
-			}
+	q, err = func() (q []rotatedFile, err error) {
+		defer w.fsopMu.RUnlock()
 
-			f, err = w.maybeDecompressFile(fmt.Sprintf("%s.%d.gz", w.f.Name(), i-1), config)
+		q = make([]rotatedFile, 0, w.maxFiles)
+		for i := w.maxFiles; i > 1; i-- {
+			var f rotatedFile
+			f.f, err = open(fmt.Sprintf("%s.%d", w.f.Name(), i-1))
 			if err != nil {
 				if !errors.Is(err, fs.ErrNotExist) {
-					return nil, err
+					return nil, errors.Wrap(err, "error opening rotated log file")
 				}
-				continue
-			} else if f == nil {
-				// The log before `config.Since` does not need to read
-				continue
+				f.compressed = true
+				f.f, err = open(fmt.Sprintf("%s.%d.gz", w.f.Name(), i-1))
+				if err != nil {
+					if !errors.Is(err, fs.ErrNotExist) {
+						return nil, errors.Wrap(err, "error opening file for decompression")
+					}
+					continue
+				}
 			}
+			q = append(q, f)
 		}
-		files = append(files, f)
+		return q, nil
+	}()
+	if err != nil {
+		return nil, err
 	}
 
+	for len(q) > 0 {
+		qq := q[0]
+		q = q[1:]
+		if qq.compressed {
+			defer qq.f.Close()
+			f, err := w.maybeDecompressFile(qq.f, config)
+			if err != nil {
+				return nil, err
+			}
+			if f != nil {
+				// The log before `config.Since` does not need to read
+				files = append(files, f)
+			}
+		} else {
+			files = append(files, qq.f)
+		}
+	}
 	return files, nil
 }
 
-func (w *LogFile) maybeDecompressFile(fileName string, config logger.ReadConfig) (readAtCloser, error) {
-	cf, err := open(fileName)
-	if err != nil {
-		return nil, errors.Wrap(err, "error opening file for decompression")
-	}
-	defer cf.Close()
-
+func (w *LogFile) maybeDecompressFile(cf *os.File, config logger.ReadConfig) (readAtCloser, error) {
 	rc, err := gzip.NewReader(cf)
 	if err != nil {
 		return nil, errors.Wrap(err, "error making gzip reader for compressed log file")
