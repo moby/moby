@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
@@ -856,9 +857,17 @@ func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mf
 	return id, manifestListDigest, err
 }
 
+const (
+	defaultSchemaPullBackoff     = 250 * time.Millisecond
+	defaultMaxSchemaPullAttempts = 5
+)
+
 func (p *v2Puller) pullSchema2Config(ctx context.Context, dgst digest.Digest) (configJSON []byte, err error) {
 	blobs := p.repo.Blobs(ctx)
-	configJSON, err = blobs.Get(ctx, dgst)
+	err = retry(ctx, defaultMaxSchemaPullAttempts, defaultSchemaPullBackoff, func(ctx context.Context) (err error) {
+		configJSON, err = blobs.Get(ctx, dgst)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -875,6 +884,32 @@ func (p *v2Puller) pullSchema2Config(ctx context.Context, dgst digest.Digest) (c
 	}
 
 	return configJSON, nil
+}
+
+func retry(ctx context.Context, maxAttempts int, sleep time.Duration, f func(ctx context.Context) error) (err error) {
+	attempt := 0
+	for ; attempt < maxAttempts; attempt++ {
+		err = retryOnError(f(ctx))
+		if err == nil {
+			return nil
+		}
+		if xfer.IsDoNotRetryError(err) {
+			break
+		}
+
+		if attempt+1 < maxAttempts {
+			timer := time.NewTimer(sleep)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			case <-timer.C:
+				logrus.WithError(err).WithField("attempts", attempt+1).Debug("retrying after error")
+				sleep *= 2
+			}
+		}
+	}
+	return errors.Wrapf(err, "download failed after attempts=%d", attempt+1)
 }
 
 // schema2ManifestDigest computes the manifest digest, and, if pulling by
