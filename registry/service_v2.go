@@ -7,7 +7,7 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 )
 
-func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndpoint, err error) {
+func (s *defaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndpoint, err error) {
 	tlsConfig := tlsconfig.ServerDefault()
 	if hostname == DefaultNamespace || hostname == IndexHostname {
 		for _, mirror := range s.config.Mirrors {

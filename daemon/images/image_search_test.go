@@ -11,16 +11,15 @@ import (
 	"github.com/docker/docker/registry"
 )
 
-type FakeService struct {
-	registry.DefaultService
-
+type fakeService struct {
+	registry.Service
 	shouldReturnError bool
 
 	term    string
 	results []registrytypes.SearchResult
 }
 
-func (s *FakeService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
+func (s *fakeService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
 	if s.shouldReturnError {
 		return nil, errors.New("Search unknown error")
 	}
@@ -76,7 +75,7 @@ func TestSearchRegistryForImagesErrors(t *testing.T) {
 	}
 	for index, e := range errorCases {
 		daemon := &ImageService{
-			registryService: &FakeService{
+			registryService: &fakeService{
 				shouldReturnError: e.shouldReturnError,
 			},
 		}
@@ -322,7 +321,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 	}
 	for index, s := range successCases {
 		daemon := &ImageService{
-			registryService: &FakeService{
+			registryService: &fakeService{
 				term:    term,
 				results: s.registryResults,
 			},
