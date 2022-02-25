@@ -5,23 +5,6 @@ import (
 	registrytypes "github.com/docker/docker/api/types/registry"
 )
 
-// RepositoryData tracks the image list, list of endpoints for a repository
-type RepositoryData struct {
-	// ImgList is a list of images in the repository
-	ImgList map[string]*ImgData
-	// Endpoints is a list of endpoints returned in X-Docker-Endpoints
-	Endpoints []string
-}
-
-// ImgData is used to transfer image checksums to and from the registry
-type ImgData struct {
-	// ID is an opaque string that identifies the image
-	ID              string `json:"id"`
-	Checksum        string `json:"checksum,omitempty"`
-	ChecksumPayload string `json:"-"`
-	Tag             string `json:",omitempty"`
-}
-
 // PingResult contains the information returned when pinging a registry. It
 // indicates the registry's version and whether the registry claims to be a
 // standalone registry.
