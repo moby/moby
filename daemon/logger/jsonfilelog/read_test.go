@@ -4,21 +4,20 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/fs"
 )
 
 func BenchmarkJSONFileLoggerReadLogs(b *testing.B) {
-	tmp := fs.NewDir(b, "bench-jsonfilelog")
-	defer tmp.Remove()
+	tmp := b.TempDir()
 
 	jsonlogger, err := New(logger.Info{
 		ContainerID: "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657",
-		LogPath:     tmp.Join("container.log"),
+		LogPath:     filepath.Join(tmp, "container.log"),
 		Config: map[string]string{
 			"labels": "first,second",
 		},
@@ -30,24 +29,32 @@ func BenchmarkJSONFileLoggerReadLogs(b *testing.B) {
 	assert.NilError(b, err)
 	defer jsonlogger.Close()
 
-	msg := &logger.Message{
-		Line:      []byte("Line that thinks that it is log line from docker\n"),
-		Source:    "stderr",
-		Timestamp: time.Now().UTC(),
+	const line = "Line that thinks that it is log line from docker\n"
+	ts := time.Date(2007, 1, 2, 3, 4, 5, 6, time.UTC)
+	msg := func() *logger.Message {
+		m := logger.NewMessage()
+		m.Line = append(m.Line, line...)
+		m.Source = "stderr"
+		m.Timestamp = ts
+		return m
 	}
 
-	buf := bytes.NewBuffer(nil)
-	assert.NilError(b, marshalMessage(msg, nil, buf))
+	var buf bytes.Buffer
+	assert.NilError(b, marshalMessage(msg(), nil, &buf))
 	b.SetBytes(int64(buf.Len()))
 
 	b.ResetTimer()
 
-	chError := make(chan error, b.N+1)
+	chError := make(chan error)
 	go func() {
 		for i := 0; i < b.N; i++ {
-			chError <- jsonlogger.Log(msg)
+			if err := jsonlogger.Log(msg()); err != nil {
+				chError <- err
+			}
 		}
-		chError <- jsonlogger.Close()
+		if err := jsonlogger.Close(); err != nil {
+			chError <- err
+		}
 	}()
 
 	lw := jsonlogger.(*JSONFileLogger).ReadLogs(logger.ReadConfig{Follow: true})
@@ -57,9 +64,7 @@ func BenchmarkJSONFileLoggerReadLogs(b *testing.B) {
 		case <-lw.WatchProducerGone():
 			return
 		case err := <-chError:
-			if err != nil {
-				b.Fatal(err)
-			}
+			b.Fatal(err)
 		}
 	}
 }
