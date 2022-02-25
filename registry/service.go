@@ -218,7 +218,7 @@ func (s *DefaultService) Search(ctx context.Context, term string, limit int, aut
 		}
 	}
 
-	r := newSession(client, authConfig, endpoint)
+	r := newSession(client, endpoint)
 
 	if index.Official {
 		// If pull "library/foo", it's stored locally under "foo"

@@ -25,9 +25,7 @@ import (
 type Session struct {
 	indexEndpoint *V1Endpoint
 	client        *http.Client
-	// TODO(tiborvass): remove authConfig
-	authConfig *types.AuthConfig
-	id         string
+	id            string
 }
 
 type authTransport struct {
@@ -178,9 +176,8 @@ func authorizeClient(client *http.Client, authConfig *types.AuthConfig, endpoint
 	return nil
 }
 
-func newSession(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) *Session {
+func newSession(client *http.Client, endpoint *V1Endpoint) *Session {
 	return &Session{
-		authConfig:    authConfig,
 		client:        client,
 		indexEndpoint: endpoint,
 		id:            stringid.GenerateRandomID(),
@@ -194,7 +191,7 @@ func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *V1E
 		return nil, err
 	}
 
-	return newSession(client, authConfig, endpoint), nil
+	return newSession(client, endpoint), nil
 }
 
 // SearchRepositories performs a search against the remote repository
