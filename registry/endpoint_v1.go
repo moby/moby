@@ -109,12 +109,12 @@ func newV1EndpointFromStr(address string, tlsConfig *tls.Config, userAgent strin
 	}
 
 	// TODO(tiborvass): make sure a ConnectTimeout transport is used
-	tr := NewTransport(tlsConfig)
+	tr := newTransport(tlsConfig)
 
 	return &V1Endpoint{
 		IsSecure: tlsConfig == nil || !tlsConfig.InsecureSkipVerify,
 		URL:      uri,
-		client:   HTTPClient(transport.NewTransport(tr, Headers(userAgent, metaHeaders)...)),
+		client:   httpClient(transport.NewTransport(tr, Headers(userAgent, metaHeaders)...)),
 	}, nil
 }
 

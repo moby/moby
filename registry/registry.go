@@ -120,9 +120,9 @@ func Headers(userAgent string, metaHeaders http.Header) []transport.RequestModif
 	return modifiers
 }
 
-// HTTPClient returns an HTTP client structure which uses the given transport
+// httpClient returns an HTTP client structure which uses the given transport
 // and contains the necessary headers for redirected requests
-func HTTPClient(transport http.RoundTripper) *http.Client {
+func httpClient(transport http.RoundTripper) *http.Client {
 	return &http.Client{
 		Transport:     transport,
 		CheckRedirect: addRequiredHeadersToRedirectedRequests,
@@ -165,9 +165,9 @@ func addRequiredHeadersToRedirectedRequests(req *http.Request, via []*http.Reque
 	return nil
 }
 
-// NewTransport returns a new HTTP transport. If tlsConfig is nil, it uses the
+// newTransport returns a new HTTP transport. If tlsConfig is nil, it uses the
 // default TLS configuration.
-func NewTransport(tlsConfig *tls.Config) *http.Transport {
+func newTransport(tlsConfig *tls.Config) *http.Transport {
 	if tlsConfig == nil {
 		tlsConfig = tlsconfig.ServerDefault()
 	}
@@ -177,7 +177,7 @@ func NewTransport(tlsConfig *tls.Config) *http.Transport {
 		KeepAlive: 30 * time.Second,
 	}
 
-	base := &http.Transport{
+	return &http.Transport{
 		Proxy:               http.ProxyFromEnvironment,
 		DialContext:         direct.DialContext,
 		TLSHandshakeTimeout: 10 * time.Second,
@@ -185,6 +185,4 @@ func NewTransport(tlsConfig *tls.Config) *http.Transport {
 		// TODO(dmcgowan): Call close idle connections when complete and use keep alive
 		DisableKeepAlives: true,
 	}
-
-	return base
 }
