@@ -14,6 +14,19 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// v1PingResult contains the information returned when pinging a registry. It
+// indicates the registry's version and whether the registry claims to be a
+// standalone registry.
+type v1PingResult struct {
+	// Version is the registry version supplied by the registry in an HTTP
+	// header
+	Version string `json:"version"`
+	// Standalone is set to true if the registry indicates it is a
+	// standalone registry in the X-Docker-Registry-Standalone
+	// header
+	Standalone bool `json:"standalone"`
+}
+
 // v1Endpoint stores basic information about a V1 registry endpoint.
 type v1Endpoint struct {
 	client   *http.Client
@@ -47,7 +60,7 @@ func validateEndpoint(endpoint *v1Endpoint) error {
 
 	// Try HTTPS ping to registry
 	endpoint.URL.Scheme = "https"
-	if _, err := endpoint.Ping(); err != nil {
+	if _, err := endpoint.ping(); err != nil {
 		if endpoint.IsSecure {
 			// If registry is secure and HTTPS failed, show user the error and tell them about `--insecure-registry`
 			// in case that's what they need. DO NOT accept unknown CA certificates, and DO NOT fallback to HTTP.
@@ -59,7 +72,7 @@ func validateEndpoint(endpoint *v1Endpoint) error {
 		endpoint.URL.Scheme = "http"
 
 		var err2 error
-		if _, err2 = endpoint.Ping(); err2 == nil {
+		if _, err2 = endpoint.ping(); err2 == nil {
 			return nil
 		}
 
@@ -123,51 +136,46 @@ func (e *v1Endpoint) String() string {
 	return e.URL.String() + "/v1/"
 }
 
-// Path returns a formatted string for the URL
-// of this endpoint with the given path appended.
-func (e *v1Endpoint) Path(path string) string {
-	return e.URL.String() + "/v1/" + path
-}
-
-// Ping returns a PingResult which indicates whether the registry is standalone or not.
-func (e *v1Endpoint) Ping() (PingResult, error) {
+// ping returns a v1PingResult which indicates whether the registry is standalone or not.
+func (e *v1Endpoint) ping() (v1PingResult, error) {
 	if e.String() == IndexServer {
 		// Skip the check, we know this one is valid
 		// (and we never want to fallback to http in case of error)
-		return PingResult{}, nil
+		return v1PingResult{}, nil
 	}
 
 	logrus.Debugf("attempting v1 ping for registry endpoint %s", e)
-	req, err := http.NewRequest(http.MethodGet, e.Path("_ping"), nil)
+	pingURL := e.String() + "_ping"
+	req, err := http.NewRequest(http.MethodGet, pingURL, nil)
 	if err != nil {
-		return PingResult{}, err
+		return v1PingResult{}, err
 	}
 
 	resp, err := e.client.Do(req)
 	if err != nil {
-		return PingResult{}, err
+		return v1PingResult{}, err
 	}
 
 	defer resp.Body.Close()
 
 	jsonString, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return PingResult{}, fmt.Errorf("error while reading the http response: %s", err)
+		return v1PingResult{}, fmt.Errorf("error while reading the http response: %s", err)
 	}
 
 	// If the header is absent, we assume true for compatibility with earlier
 	// versions of the registry. default to true
-	info := PingResult{
+	info := v1PingResult{
 		Standalone: true,
 	}
 	if err := json.Unmarshal(jsonString, &info); err != nil {
-		logrus.Debugf("Error unmarshaling the _ping PingResult: %s", err)
+		logrus.Debugf("Error unmarshaling the _ping v1PingResult: %s", err)
 		// don't stop here. Just assume sane defaults
 	}
 	if hdr := resp.Header.Get("X-Docker-Registry-Version"); hdr != "" {
 		info.Version = hdr
 	}
-	logrus.Debugf("PingResult.Version: %q", info.Version)
+	logrus.Debugf("v1PingResult.Version: %q", info.Version)
 
 	standalone := resp.Header.Get("X-Docker-Registry-Standalone")
 
@@ -178,6 +186,6 @@ func (e *v1Endpoint) Ping() (PingResult, error) {
 		// there is a header set, and it is not "true" or "1", so assume fails
 		info.Standalone = false
 	}
-	logrus.Debugf("PingResult.Standalone: %t", info.Standalone)
+	logrus.Debugf("v1PingResult.Standalone: %t", info.Standalone)
 	return info, nil
 }

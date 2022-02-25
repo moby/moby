@@ -5,19 +5,6 @@ import (
 	registrytypes "github.com/docker/docker/api/types/registry"
 )
 
-// PingResult contains the information returned when pinging a registry. It
-// indicates the registry's version and whether the registry claims to be a
-// standalone registry.
-type PingResult struct {
-	// Version is the registry version supplied by the registry in an HTTP
-	// header
-	Version string `json:"version"`
-	// Standalone is set to true if the registry indicates it is a
-	// standalone registry in the X-Docker-Registry-Standalone
-	// header
-	Standalone bool `json:"standalone"`
-}
-
 // APIVersion is an integral representation of an API version (presently
 // either 1 or 2)
 type APIVersion int

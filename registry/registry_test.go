@@ -51,7 +51,7 @@ func TestPingRegistryEndpoint(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		regInfo, err := ep.Ping()
+		regInfo, err := ep.ping()
 		if err != nil {
 			t.Fatal(err)
 		}
