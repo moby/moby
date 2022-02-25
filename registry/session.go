@@ -23,7 +23,7 @@ import (
 
 // A Session is used to communicate with a V1 registry
 type Session struct {
-	indexEndpoint *V1Endpoint
+	indexEndpoint *v1Endpoint
 	client        *http.Client
 	id            string
 }
@@ -147,7 +147,7 @@ func (tr *authTransport) CancelRequest(req *http.Request) {
 	}
 }
 
-func authorizeClient(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) error {
+func authorizeClient(client *http.Client, authConfig *types.AuthConfig, endpoint *v1Endpoint) error {
 	var alwaysSetBasicAuth bool
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
@@ -176,7 +176,7 @@ func authorizeClient(client *http.Client, authConfig *types.AuthConfig, endpoint
 	return nil
 }
 
-func newSession(client *http.Client, endpoint *V1Endpoint) *Session {
+func newSession(client *http.Client, endpoint *v1Endpoint) *Session {
 	return &Session{
 		client:        client,
 		indexEndpoint: endpoint,
@@ -186,7 +186,7 @@ func newSession(client *http.Client, endpoint *V1Endpoint) *Session {
 
 // NewSession creates a new session
 // TODO(tiborvass): remove authConfig param once registry client v2 is vendored
-func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) (*Session, error) {
+func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *v1Endpoint) (*Session, error) {
 	if err := authorizeClient(client, authConfig, endpoint); err != nil {
 		return nil, err
 	}

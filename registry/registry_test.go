@@ -18,7 +18,7 @@ import (
 
 func spawnTestRegistrySession(t *testing.T) *Session {
 	authConfig := &types.AuthConfig{}
-	endpoint, err := NewV1Endpoint(makeIndex("/v1/"), "", nil)
+	endpoint, err := newV1Endpoint(makeIndex("/v1/"), "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 func TestPingRegistryEndpoint(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	testPing := func(index *registrytypes.IndexInfo, expectedStandalone bool, assertMessage string) {
-		ep, err := NewV1Endpoint(index, "", nil)
+		ep, err := newV1Endpoint(index, "", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -67,8 +67,8 @@ func TestPingRegistryEndpoint(t *testing.T) {
 func TestEndpoint(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	// Simple wrapper to fail test if err != nil
-	expandEndpoint := func(index *registrytypes.IndexInfo) *V1Endpoint {
-		endpoint, err := NewV1Endpoint(index, "", nil)
+	expandEndpoint := func(index *registrytypes.IndexInfo) *v1Endpoint {
+		endpoint, err := newV1Endpoint(index, "", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -77,14 +77,14 @@ func TestEndpoint(t *testing.T) {
 
 	assertInsecureIndex := func(index *registrytypes.IndexInfo) {
 		index.Secure = true
-		_, err := NewV1Endpoint(index, "", nil)
+		_, err := newV1Endpoint(index, "", nil)
 		assert.ErrorContains(t, err, "insecure-registry", index.Name+": Expected insecure-registry  error for insecure index")
 		index.Secure = false
 	}
 
 	assertSecureIndex := func(index *registrytypes.IndexInfo) {
 		index.Secure = true
-		_, err := NewV1Endpoint(index, "", nil)
+		_, err := newV1Endpoint(index, "", nil)
 		assert.ErrorContains(t, err, "certificate signed by unknown authority", index.Name+": Expected cert error for secure index")
 		index.Secure = false
 	}
@@ -131,7 +131,7 @@ func TestEndpoint(t *testing.T) {
 	}
 	for _, address := range badEndpoints {
 		index.Name = address
-		_, err := NewV1Endpoint(index, "", nil)
+		_, err := newV1Endpoint(index, "", nil)
 		assert.Check(t, err != nil, "Expected error while expanding bad endpoint: %s", address)
 	}
 }

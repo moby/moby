@@ -177,7 +177,7 @@ func (s *defaultService) Search(ctx context.Context, term string, limit int, aut
 	}
 
 	// *TODO: Search multiple indexes.
-	endpoint, err := NewV1Endpoint(index, userAgent, headers)
+	endpoint, err := newV1Endpoint(index, userAgent, headers)
 	if err != nil {
 		return nil, err
 	}

@@ -14,16 +14,16 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// V1Endpoint stores basic information about a V1 registry endpoint.
-type V1Endpoint struct {
+// v1Endpoint stores basic information about a V1 registry endpoint.
+type v1Endpoint struct {
 	client   *http.Client
 	URL      *url.URL
 	IsSecure bool
 }
 
-// NewV1Endpoint parses the given address to return a registry endpoint.
+// newV1Endpoint parses the given address to return a registry endpoint.
 // TODO: remove. This is only used by search.
-func NewV1Endpoint(index *registrytypes.IndexInfo, userAgent string, metaHeaders http.Header) (*V1Endpoint, error) {
+func newV1Endpoint(index *registrytypes.IndexInfo, userAgent string, metaHeaders http.Header) (*v1Endpoint, error) {
 	tlsConfig, err := newTLSConfig(index.Name, index.Secure)
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func NewV1Endpoint(index *registrytypes.IndexInfo, userAgent string, metaHeaders
 	return endpoint, nil
 }
 
-func validateEndpoint(endpoint *V1Endpoint) error {
+func validateEndpoint(endpoint *v1Endpoint) error {
 	logrus.Debugf("pinging registry endpoint %s", endpoint)
 
 	// Try HTTPS ping to registry
@@ -93,7 +93,7 @@ func trimV1Address(address string) (string, error) {
 	return address, nil
 }
 
-func newV1EndpointFromStr(address string, tlsConfig *tls.Config, userAgent string, metaHeaders http.Header) (*V1Endpoint, error) {
+func newV1EndpointFromStr(address string, tlsConfig *tls.Config, userAgent string, metaHeaders http.Header) (*v1Endpoint, error) {
 	if !strings.HasPrefix(address, "http://") && !strings.HasPrefix(address, "https://") {
 		address = "https://" + address
 	}
@@ -111,7 +111,7 @@ func newV1EndpointFromStr(address string, tlsConfig *tls.Config, userAgent strin
 	// TODO(tiborvass): make sure a ConnectTimeout transport is used
 	tr := newTransport(tlsConfig)
 
-	return &V1Endpoint{
+	return &v1Endpoint{
 		IsSecure: tlsConfig == nil || !tlsConfig.InsecureSkipVerify,
 		URL:      uri,
 		client:   httpClient(transport.NewTransport(tr, Headers(userAgent, metaHeaders)...)),
@@ -119,18 +119,18 @@ func newV1EndpointFromStr(address string, tlsConfig *tls.Config, userAgent strin
 }
 
 // Get the formatted URL for the root of this registry Endpoint
-func (e *V1Endpoint) String() string {
+func (e *v1Endpoint) String() string {
 	return e.URL.String() + "/v1/"
 }
 
 // Path returns a formatted string for the URL
 // of this endpoint with the given path appended.
-func (e *V1Endpoint) Path(path string) string {
+func (e *v1Endpoint) Path(path string) string {
 	return e.URL.String() + "/v1/" + path
 }
 
 // Ping returns a PingResult which indicates whether the registry is standalone or not.
-func (e *V1Endpoint) Ping() (PingResult, error) {
+func (e *v1Endpoint) Ping() (PingResult, error) {
 	if e.String() == IndexServer {
 		// Skip the check, we know this one is valid
 		// (and we never want to fallback to http in case of error)
