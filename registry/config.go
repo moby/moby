@@ -159,21 +159,15 @@ func (config *serviceConfig) loadInsecureRegistries(registries []string) error {
 	// stop-gap for people who are running a private registry on localhost.
 	registries = append(registries, "127.0.0.0/8")
 
-	// Store original InsecureRegistryCIDRs and IndexConfigs
-	// Clean InsecureRegistryCIDRs and IndexConfigs in config, as passed registries has all insecure registry info.
-	originalCIDRs := config.ServiceConfig.InsecureRegistryCIDRs
-	originalIndexInfos := config.ServiceConfig.IndexConfigs
-
-	config.ServiceConfig.InsecureRegistryCIDRs = make([]*registry.NetIPNet, 0)
-	config.ServiceConfig.IndexConfigs = make(map[string]*registry.IndexInfo)
+	var (
+		insecureRegistryCIDRs = make([]*registry.NetIPNet, 0)
+		indexConfigs          = make(map[string]*registry.IndexInfo)
+	)
 
 skip:
 	for _, r := range registries {
 		// validate insecure registry
 		if _, err := ValidateIndexName(r); err != nil {
-			// before returning err, roll back to original data
-			config.ServiceConfig.InsecureRegistryCIDRs = originalCIDRs
-			config.ServiceConfig.IndexConfigs = originalIndexInfos
 			return err
 		}
 		if strings.HasPrefix(strings.ToLower(r), "http://") {
@@ -183,10 +177,6 @@ skip:
 			logrus.Warnf("insecure registry %s should not contain 'https://' and 'https://' has been removed from the insecure registry config", r)
 			r = r[8:]
 		} else if hasScheme(r) {
-			// Insecure registry should not contain '://'
-			// before returning err, roll back to original data
-			config.ServiceConfig.InsecureRegistryCIDRs = originalCIDRs
-			config.ServiceConfig.IndexConfigs = originalIndexInfos
 			return invalidParamf("insecure registry %s should not contain '://'", r)
 		}
 		// Check if CIDR was passed to --insecure-registry
@@ -194,22 +184,19 @@ skip:
 		if err == nil {
 			// Valid CIDR. If ipnet is already in config.InsecureRegistryCIDRs, skip.
 			data := (*registry.NetIPNet)(ipnet)
-			for _, value := range config.InsecureRegistryCIDRs {
+			for _, value := range insecureRegistryCIDRs {
 				if value.IP.String() == data.IP.String() && value.Mask.String() == data.Mask.String() {
 					continue skip
 				}
 			}
 			// ipnet is not found, add it in config.InsecureRegistryCIDRs
-			config.InsecureRegistryCIDRs = append(config.InsecureRegistryCIDRs, data)
-
+			insecureRegistryCIDRs = append(insecureRegistryCIDRs, data)
 		} else {
 			if err := validateHostPort(r); err != nil {
-				config.ServiceConfig.InsecureRegistryCIDRs = originalCIDRs
-				config.ServiceConfig.IndexConfigs = originalIndexInfos
 				return invalidParamWrapf(err, "insecure registry %s is not valid", r)
 			}
 			// Assume `host:port` if not CIDR.
-			config.IndexConfigs[r] = &registry.IndexInfo{
+			indexConfigs[r] = &registry.IndexInfo{
 				Name:     r,
 				Mirrors:  make([]string, 0),
 				Secure:   false,
@@ -219,12 +206,14 @@ skip:
 	}
 
 	// Configure public registry.
-	config.IndexConfigs[IndexName] = &registry.IndexInfo{
+	indexConfigs[IndexName] = &registry.IndexInfo{
 		Name:     IndexName,
 		Mirrors:  config.Mirrors,
 		Secure:   true,
 		Official: true,
 	}
+	config.InsecureRegistryCIDRs = insecureRegistryCIDRs
+	config.IndexConfigs = indexConfigs
 
 	return nil
 }
