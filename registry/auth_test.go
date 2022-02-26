@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
+	"gotest.tools/v3/assert"
 )
 
 func buildAuthConfigs() map[string]types.AuthConfig {
@@ -32,10 +33,10 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 	}
 
 	resolved := ResolveAuthConfig(authConfigs, officialIndex)
-	assertEqual(t, resolved, indexConfig, "Expected ResolveAuthConfig to return IndexServer")
+	assert.Equal(t, resolved, indexConfig, "Expected ResolveAuthConfig to return IndexServer")
 
 	resolved = ResolveAuthConfig(authConfigs, privateIndex)
-	assertNotEqual(t, resolved, indexConfig, "Expected ResolveAuthConfig to not return IndexServer")
+	assert.Check(t, resolved != indexConfig, "Expected ResolveAuthConfig to not return IndexServer")
 }
 
 func TestResolveAuthConfigFullURL(t *testing.T) {

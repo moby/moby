@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
@@ -55,7 +56,7 @@ func TestPingRegistryEndpoint(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		assertEqual(t, regInfo.Standalone, expectedStandalone, assertMessage)
+		assert.Equal(t, regInfo.Standalone, expectedStandalone, assertMessage)
 	}
 
 	testPing(makeIndex("/v1/"), true, "Expected standalone to be true (default)")
@@ -77,50 +78,48 @@ func TestEndpoint(t *testing.T) {
 	assertInsecureIndex := func(index *registrytypes.IndexInfo) {
 		index.Secure = true
 		_, err := NewV1Endpoint(index, "", nil)
-		assertNotEqual(t, err, nil, index.Name+": Expected error for insecure index")
-		assertEqual(t, strings.Contains(err.Error(), "insecure-registry"), true, index.Name+": Expected insecure-registry  error for insecure index")
+		assert.ErrorContains(t, err, "insecure-registry", index.Name+": Expected insecure-registry  error for insecure index")
 		index.Secure = false
 	}
 
 	assertSecureIndex := func(index *registrytypes.IndexInfo) {
 		index.Secure = true
 		_, err := NewV1Endpoint(index, "", nil)
-		assertNotEqual(t, err, nil, index.Name+": Expected cert error for secure index")
-		assertEqual(t, strings.Contains(err.Error(), "certificate signed by unknown authority"), true, index.Name+": Expected cert error for secure index")
+		assert.ErrorContains(t, err, "certificate signed by unknown authority", index.Name+": Expected cert error for secure index")
 		index.Secure = false
 	}
 
 	index := &registrytypes.IndexInfo{}
 	index.Name = makeURL("/v1/")
 	endpoint := expandEndpoint(index)
-	assertEqual(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
+	assert.Equal(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
 	assertInsecureIndex(index)
 
 	index.Name = makeURL("")
 	endpoint = expandEndpoint(index)
-	assertEqual(t, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
+	assert.Equal(t, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
 	assertInsecureIndex(index)
 
 	httpURL := makeURL("")
 	index.Name = strings.SplitN(httpURL, "://", 2)[1]
 	endpoint = expandEndpoint(index)
-	assertEqual(t, endpoint.String(), httpURL+"/v1/", index.Name+": Expected endpoint to be "+httpURL+"/v1/")
+	assert.Equal(t, endpoint.String(), httpURL+"/v1/", index.Name+": Expected endpoint to be "+httpURL+"/v1/")
 	assertInsecureIndex(index)
 
 	index.Name = makeHTTPSURL("/v1/")
 	endpoint = expandEndpoint(index)
-	assertEqual(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
+	assert.Equal(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
 	assertSecureIndex(index)
 
 	index.Name = makeHTTPSURL("")
 	endpoint = expandEndpoint(index)
-	assertEqual(t, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
+	assert.Equal(t, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
 	assertSecureIndex(index)
 
 	httpsURL := makeHTTPSURL("")
 	index.Name = strings.SplitN(httpsURL, "://", 2)[1]
 	endpoint = expandEndpoint(index)
-	assertEqual(t, endpoint.String(), httpsURL+"/v1/", index.Name+": Expected endpoint to be "+httpsURL+"/v1/")
+	assert.Equal(t, endpoint.String(), httpsURL+"/v1/", index.Name+": Expected endpoint to be "+httpsURL+"/v1/")
 	assertSecureIndex(index)
 
 	badEndpoints := []string{
@@ -133,7 +132,7 @@ func TestEndpoint(t *testing.T) {
 	for _, address := range badEndpoints {
 		index.Name = address
 		_, err := NewV1Endpoint(index, "", nil)
-		checkNotEqual(t, err, nil, "Expected error while expanding bad endpoint")
+		assert.Check(t, err != nil, "Expected error while expanding bad endpoint: %s", address)
 	}
 }
 
@@ -359,12 +358,12 @@ func TestParseRepositoryInfo(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		} else {
-			checkEqual(t, repoInfo.Index.Name, expectedRepoInfo.Index.Name, reposName)
-			checkEqual(t, reference.Path(repoInfo.Name), expectedRepoInfo.RemoteName, reposName)
-			checkEqual(t, reference.FamiliarName(repoInfo.Name), expectedRepoInfo.LocalName, reposName)
-			checkEqual(t, repoInfo.Name.Name(), expectedRepoInfo.CanonicalName, reposName)
-			checkEqual(t, repoInfo.Index.Official, expectedRepoInfo.Index.Official, reposName)
-			checkEqual(t, repoInfo.Official, expectedRepoInfo.Official, reposName)
+			assert.Check(t, is.Equal(repoInfo.Index.Name, expectedRepoInfo.Index.Name), reposName)
+			assert.Check(t, is.Equal(reference.Path(repoInfo.Name), expectedRepoInfo.RemoteName), reposName)
+			assert.Check(t, is.Equal(reference.FamiliarName(repoInfo.Name), expectedRepoInfo.LocalName), reposName)
+			assert.Check(t, is.Equal(repoInfo.Name.Name(), expectedRepoInfo.CanonicalName), reposName)
+			assert.Check(t, is.Equal(repoInfo.Index.Official, expectedRepoInfo.Index.Official), reposName)
+			assert.Check(t, is.Equal(repoInfo.Official, expectedRepoInfo.Official), reposName)
 		}
 	}
 }
@@ -376,10 +375,10 @@ func TestNewIndexInfo(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			} else {
-				checkEqual(t, index.Name, expectedIndexInfo.Name, indexName+" name")
-				checkEqual(t, index.Official, expectedIndexInfo.Official, indexName+" is official")
-				checkEqual(t, index.Secure, expectedIndexInfo.Secure, indexName+" is secure")
-				checkEqual(t, len(index.Mirrors), len(expectedIndexInfo.Mirrors), indexName+" mirrors")
+				assert.Check(t, is.Equal(index.Name, expectedIndexInfo.Name), indexName+" name")
+				assert.Check(t, is.Equal(index.Official, expectedIndexInfo.Official), indexName+" is official")
+				assert.Check(t, is.Equal(index.Secure, expectedIndexInfo.Secure), indexName+" is secure")
+				assert.Check(t, is.Equal(len(index.Mirrors), len(expectedIndexInfo.Mirrors)), indexName+" mirrors")
 			}
 		}
 	}
@@ -552,9 +551,9 @@ func TestSearchRepositories(t *testing.T) {
 	if results == nil {
 		t.Fatal("Expected non-nil SearchResults object")
 	}
-	assertEqual(t, results.NumResults, 1, "Expected 1 search results")
-	assertEqual(t, results.Query, "fakequery", "Expected 'fakequery' as query")
-	assertEqual(t, results.Results[0].StarCount, 42, "Expected 'fakeimage' to have 42 stars")
+	assert.Equal(t, results.NumResults, 1, "Expected 1 search results")
+	assert.Equal(t, results.Query, "fakequery", "Expected 'fakequery' as query")
+	assert.Equal(t, results.Results[0].StarCount, 42, "Expected 'fakeimage' to have 42 stars")
 }
 
 func TestTrustedLocation(t *testing.T) {
@@ -580,7 +579,7 @@ func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
 		reqFrom.Header.Add("Authorization", "super_secret")
 		reqTo, _ := http.NewRequest(http.MethodGet, urls[1], nil)
 
-		addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
+		_ = addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
 
 		if len(reqTo.Header) != 1 {
 			t.Fatalf("Expected 1 headers, got %d", len(reqTo.Header))
@@ -604,7 +603,7 @@ func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
 		reqFrom.Header.Add("Authorization", "super_secret")
 		reqTo, _ := http.NewRequest(http.MethodGet, urls[1], nil)
 
-		addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
+		_ = addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
 
 		if len(reqTo.Header) != 2 {
 			t.Fatalf("Expected 2 headers, got %d", len(reqTo.Header))
