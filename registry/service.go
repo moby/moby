@@ -39,7 +39,7 @@ type Service interface {
 // of mirrors.
 type defaultService struct {
 	config *serviceConfig
-	mu     sync.Mutex
+	mu     sync.RWMutex
 }
 
 // NewService returns a new instance of defaultService ready to be
@@ -52,8 +52,8 @@ func NewService(options ServiceOptions) (Service, error) {
 
 // ServiceConfig returns the public registry service configuration.
 func (s *defaultService) ServiceConfig() *registry.ServiceConfig {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	servConfig := registry.ServiceConfig{
 		AllowNondistributableArtifactsCIDRs:     make([]*(registry.NetIPNet), 0),
@@ -167,9 +167,9 @@ func (s *defaultService) Search(ctx context.Context, term string, limit int, aut
 	indexName, remoteName := splitReposSearchTerm(term)
 
 	// Search is a long-running operation, just lock s.config to avoid block others.
-	s.mu.Lock()
+	s.mu.RLock()
 	index, err := newIndexInfo(s.config, indexName)
-	s.mu.Unlock()
+	s.mu.RUnlock()
 
 	if err != nil {
 		return nil, err
@@ -226,8 +226,8 @@ func (s *defaultService) Search(ctx context.Context, term string, limit int, aut
 // ResolveRepository splits a repository name into its components
 // and configuration of the associated registry.
 func (s *defaultService) ResolveRepository(name reference.Named) (*RepositoryInfo, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return newRepositoryInfo(s.config, name)
 }
 
@@ -244,22 +244,18 @@ type APIEndpoint struct {
 
 // TLSConfig constructs a client TLS configuration based on server defaults
 func (s *defaultService) TLSConfig(hostname string) (*tls.Config, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	secure := isSecureIndex(s.config, hostname)
+	s.mu.RUnlock()
 
-	return s.tlsConfig(hostname)
-}
-
-// tlsConfig constructs a client TLS configuration based on server defaults
-func (s *defaultService) tlsConfig(hostname string) (*tls.Config, error) {
-	return newTLSConfig(hostname, isSecureIndex(s.config, hostname))
+	return newTLSConfig(hostname, secure)
 }
 
 // LookupPullEndpoints creates a list of v2 endpoints to try to pull from, in order of preference.
 // It gives preference to mirrors over the actual registry, and HTTPS over plain HTTP.
 func (s *defaultService) LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	return s.lookupV2Endpoints(hostname)
 }
@@ -267,8 +263,8 @@ func (s *defaultService) LookupPullEndpoints(hostname string) (endpoints []APIEn
 // LookupPushEndpoints creates a list of v2 endpoints to try to push to, in order of preference.
 // It gives preference to HTTPS over plain HTTP. Mirrors are not included.
 func (s *defaultService) LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	allEndpoints, err := s.lookupV2Endpoints(hostname)
 	if err == nil {

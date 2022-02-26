@@ -20,6 +20,7 @@ func HostCertsDir(hostname string) string {
 	return filepath.Join(CertsDir(), cleanPath(hostname))
 }
 
+// newTLSConfig constructs a client TLS configuration based on server defaults
 func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 	// PreferredServerCipherSuites should have no effect
 	tlsConfig := tlsconfig.ServerDefault()
