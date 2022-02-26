@@ -94,7 +94,7 @@ func TestLoadAllowNondistributableArtifacts(t *testing.T) {
 	}
 	for _, testCase := range testCases {
 		config := emptyServiceConfig
-		err := config.LoadAllowNondistributableArtifacts(testCase.registries)
+		err := config.loadAllowNondistributableArtifacts(testCase.registries)
 		if testCase.err == "" {
 			if err != nil {
 				t.Fatalf("expect no error, got '%s'", err)
@@ -237,7 +237,7 @@ func TestLoadInsecureRegistries(t *testing.T) {
 	}
 	for _, testCase := range testCases {
 		config := emptyServiceConfig
-		err := config.LoadInsecureRegistries(testCase.registries)
+		err := config.loadInsecureRegistries(testCase.registries)
 		if testCase.err == "" {
 			if err != nil {
 				t.Fatalf("expect no error, got '%s'", err)

@@ -84,7 +84,7 @@ func (s *defaultService) LoadAllowNondistributableArtifacts(registries []string)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.config.LoadAllowNondistributableArtifacts(registries)
+	return s.config.loadAllowNondistributableArtifacts(registries)
 }
 
 // LoadMirrors loads registry mirrors for Service
@@ -92,7 +92,7 @@ func (s *defaultService) LoadMirrors(mirrors []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.config.LoadMirrors(mirrors)
+	return s.config.loadMirrors(mirrors)
 }
 
 // LoadInsecureRegistries loads insecure registries for Service
@@ -100,7 +100,7 @@ func (s *defaultService) LoadInsecureRegistries(registries []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.config.LoadInsecureRegistries(registries)
+	return s.config.loadInsecureRegistries(registries)
 }
 
 // Auth contacts the public registry with the provided credentials,

@@ -79,21 +79,21 @@ func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
 			// and Mirrors are only for the official registry anyways.
 		},
 	}
-	if err := config.LoadAllowNondistributableArtifacts(options.AllowNondistributableArtifacts); err != nil {
+	if err := config.loadAllowNondistributableArtifacts(options.AllowNondistributableArtifacts); err != nil {
 		return nil, err
 	}
-	if err := config.LoadMirrors(options.Mirrors); err != nil {
+	if err := config.loadMirrors(options.Mirrors); err != nil {
 		return nil, err
 	}
-	if err := config.LoadInsecureRegistries(options.InsecureRegistries); err != nil {
+	if err := config.loadInsecureRegistries(options.InsecureRegistries); err != nil {
 		return nil, err
 	}
 
 	return config, nil
 }
 
-// LoadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries into config.
-func (config *serviceConfig) LoadAllowNondistributableArtifacts(registries []string) error {
+// loadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries into config.
+func (config *serviceConfig) loadAllowNondistributableArtifacts(registries []string) error {
 	cidrs := map[string]*registrytypes.NetIPNet{}
 	hostnames := map[string]bool{}
 
@@ -129,9 +129,9 @@ func (config *serviceConfig) LoadAllowNondistributableArtifacts(registries []str
 	return nil
 }
 
-// LoadMirrors loads mirrors to config, after removing duplicates.
+// loadMirrors loads mirrors to config, after removing duplicates.
 // Returns an error if mirrors contains an invalid mirror.
-func (config *serviceConfig) LoadMirrors(mirrors []string) error {
+func (config *serviceConfig) loadMirrors(mirrors []string) error {
 	mMap := map[string]struct{}{}
 	unique := []string{}
 
@@ -159,8 +159,8 @@ func (config *serviceConfig) LoadMirrors(mirrors []string) error {
 	return nil
 }
 
-// LoadInsecureRegistries loads insecure registries to config
-func (config *serviceConfig) LoadInsecureRegistries(registries []string) error {
+// loadInsecureRegistries loads insecure registries to config
+func (config *serviceConfig) loadInsecureRegistries(registries []string) error {
 	// Localhost is by default considered as an insecure registry. This is a
 	// stop-gap for people who are running a private registry on localhost.
 	registries = append(registries, "127.0.0.0/8")
