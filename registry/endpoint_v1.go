@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/docker/distribution/registry/client/transport"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/sirupsen/logrus"
 )
 
@@ -35,7 +35,7 @@ type v1Endpoint struct {
 
 // newV1Endpoint parses the given address to return a registry endpoint.
 // TODO: remove. This is only used by search.
-func newV1Endpoint(index *registrytypes.IndexInfo, userAgent string, metaHeaders http.Header) (*v1Endpoint, error) {
+func newV1Endpoint(index *registry.IndexInfo, userAgent string, metaHeaders http.Header) (*v1Endpoint, error) {
 	tlsConfig, err := newTLSConfig(index.Name, index.Secure)
 	if err != nil {
 		return nil, err

@@ -10,7 +10,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -48,7 +48,7 @@ func spawnTestRegistrySession(t *testing.T) *session {
 
 func TestPingRegistryEndpoint(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	testPing := func(index *registrytypes.IndexInfo, expectedStandalone bool, assertMessage string) {
+	testPing := func(index *registry.IndexInfo, expectedStandalone bool, assertMessage string) {
 		ep, err := newV1Endpoint(index, "", nil)
 		if err != nil {
 			t.Fatal(err)
@@ -69,7 +69,7 @@ func TestPingRegistryEndpoint(t *testing.T) {
 func TestEndpoint(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	// Simple wrapper to fail test if err != nil
-	expandEndpoint := func(index *registrytypes.IndexInfo) *v1Endpoint {
+	expandEndpoint := func(index *registry.IndexInfo) *v1Endpoint {
 		endpoint, err := newV1Endpoint(index, "", nil)
 		if err != nil {
 			t.Fatal(err)
@@ -77,21 +77,21 @@ func TestEndpoint(t *testing.T) {
 		return endpoint
 	}
 
-	assertInsecureIndex := func(index *registrytypes.IndexInfo) {
+	assertInsecureIndex := func(index *registry.IndexInfo) {
 		index.Secure = true
 		_, err := newV1Endpoint(index, "", nil)
 		assert.ErrorContains(t, err, "insecure-registry", index.Name+": Expected insecure-registry  error for insecure index")
 		index.Secure = false
 	}
 
-	assertSecureIndex := func(index *registrytypes.IndexInfo) {
+	assertSecureIndex := func(index *registry.IndexInfo) {
 		index.Secure = true
 		_, err := newV1Endpoint(index, "", nil)
 		assert.ErrorContains(t, err, "certificate signed by unknown authority", index.Name+": Expected cert error for secure index")
 		index.Secure = false
 	}
 
-	index := &registrytypes.IndexInfo{}
+	index := &registry.IndexInfo{}
 	index.Name = makeURL("/v1/")
 	endpoint := expandEndpoint(index)
 	assert.Equal(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
@@ -140,7 +140,7 @@ func TestEndpoint(t *testing.T) {
 
 func TestParseRepositoryInfo(t *testing.T) {
 	type staticRepositoryInfo struct {
-		Index         *registrytypes.IndexInfo
+		Index         *registry.IndexInfo
 		RemoteName    string
 		CanonicalName string
 		LocalName     string
@@ -149,7 +149,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 
 	expectedRepoInfos := map[string]staticRepositoryInfo{
 		"fooo/bar": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -159,7 +159,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"library/ubuntu": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -169,7 +169,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      true,
 		},
 		"nonlibrary/ubuntu": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -179,7 +179,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"ubuntu": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -189,7 +189,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      true,
 		},
 		"other/library": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -199,7 +199,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"127.0.0.1:8000/private/moonbase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "127.0.0.1:8000",
 				Official: false,
 			},
@@ -209,7 +209,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"127.0.0.1:8000/privatebase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "127.0.0.1:8000",
 				Official: false,
 			},
@@ -219,7 +219,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"localhost:8000/private/moonbase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "localhost:8000",
 				Official: false,
 			},
@@ -229,7 +229,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"localhost:8000/privatebase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "localhost:8000",
 				Official: false,
 			},
@@ -239,7 +239,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"example.com/private/moonbase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "example.com",
 				Official: false,
 			},
@@ -249,7 +249,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"example.com/privatebase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "example.com",
 				Official: false,
 			},
@@ -259,7 +259,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"example.com:8000/private/moonbase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "example.com:8000",
 				Official: false,
 			},
@@ -269,7 +269,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"example.com:8000/privatebase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "example.com:8000",
 				Official: false,
 			},
@@ -279,7 +279,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"localhost/private/moonbase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "localhost",
 				Official: false,
 			},
@@ -289,7 +289,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"localhost/privatebase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     "localhost",
 				Official: false,
 			},
@@ -299,7 +299,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		IndexName + "/public/moonbase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -309,7 +309,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"index." + IndexName + "/public/moonbase": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -319,7 +319,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      false,
 		},
 		"ubuntu-12.04-base": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -329,7 +329,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      true,
 		},
 		IndexName + "/ubuntu-12.04-base": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -339,7 +339,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			Official:      true,
 		},
 		"index." + IndexName + "/ubuntu-12.04-base": {
-			Index: &registrytypes.IndexInfo{
+			Index: &registry.IndexInfo{
 				Name:     IndexName,
 				Official: true,
 			},
@@ -371,7 +371,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 }
 
 func TestNewIndexInfo(t *testing.T) {
-	testIndexInfo := func(config *serviceConfig, expectedIndexInfos map[string]*registrytypes.IndexInfo) {
+	testIndexInfo := func(config *serviceConfig, expectedIndexInfos map[string]*registry.IndexInfo) {
 		for indexName, expectedIndexInfo := range expectedIndexInfos {
 			index, err := newIndexInfo(config, indexName)
 			if err != nil {
@@ -387,7 +387,7 @@ func TestNewIndexInfo(t *testing.T) {
 
 	config := emptyServiceConfig
 	var noMirrors []string
-	expectedIndexInfos := map[string]*registrytypes.IndexInfo{
+	expectedIndexInfos := map[string]*registry.IndexInfo{
 		IndexName: {
 			Name:     IndexName,
 			Official: true,
@@ -422,7 +422,7 @@ func TestNewIndexInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedIndexInfos = map[string]*registrytypes.IndexInfo{
+	expectedIndexInfos = map[string]*registry.IndexInfo{
 		IndexName: {
 			Name:     IndexName,
 			Official: true,
@@ -472,7 +472,7 @@ func TestNewIndexInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectedIndexInfos = map[string]*registrytypes.IndexInfo{
+	expectedIndexInfos = map[string]*registry.IndexInfo{
 		"example.com": {
 			Name:     "example.com",
 			Official: false,

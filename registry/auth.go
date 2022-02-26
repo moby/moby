@@ -10,7 +10,7 @@ import (
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -153,7 +153,7 @@ func ConvertToHostname(url string) string {
 }
 
 // ResolveAuthConfig matches an auth configuration to a server address or a URL
-func ResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registrytypes.IndexInfo) types.AuthConfig {
+func ResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registry.IndexInfo) types.AuthConfig {
 	configKey := GetAuthConfigKey(index)
 	// First try the happy case
 	if c, found := authConfigs[configKey]; found || index.Official {

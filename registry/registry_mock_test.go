@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
@@ -75,22 +75,22 @@ func makeHTTPSURL(req string) string {
 	return testHTTPSServer.URL + req
 }
 
-func makeIndex(req string) *registrytypes.IndexInfo {
-	index := &registrytypes.IndexInfo{
+func makeIndex(req string) *registry.IndexInfo {
+	index := &registry.IndexInfo{
 		Name: makeURL(req),
 	}
 	return index
 }
 
-func makeHTTPSIndex(req string) *registrytypes.IndexInfo {
-	index := &registrytypes.IndexInfo{
+func makeHTTPSIndex(req string) *registry.IndexInfo {
+	index := &registry.IndexInfo{
 		Name: makeHTTPSURL(req),
 	}
 	return index
 }
 
-func makePublicIndex() *registrytypes.IndexInfo {
-	index := &registrytypes.IndexInfo{
+func makePublicIndex() *registry.IndexInfo {
+	index := &registry.IndexInfo{
 		Name:     IndexServer,
 		Secure:   true,
 		Official: true,
@@ -134,10 +134,10 @@ func handlerGetPing(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerSearch(w http.ResponseWriter, r *http.Request) {
-	result := &registrytypes.SearchResults{
+	result := &registry.SearchResults{
 		Query:      "fakequery",
 		NumResults: 1,
-		Results:    []registrytypes.SearchResult{{Name: "fakeimage", StarCount: 42}},
+		Results:    []registry.SearchResult{{Name: "fakeimage", StarCount: 42}},
 	}
 	writeResponse(w, result, http.StatusOK)
 }

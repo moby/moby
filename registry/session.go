@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -185,7 +185,7 @@ func newSession(client *http.Client, endpoint *v1Endpoint) *session {
 }
 
 // searchRepositories performs a search against the remote repository
-func (r *session) searchRepositories(term string, limit int) (*registrytypes.SearchResults, error) {
+func (r *session) searchRepositories(term string, limit int) (*registry.SearchResults, error) {
 	if limit < 1 || limit > 100 {
 		return nil, invalidParamf("limit %d is outside the range of [1, 100]", limit)
 	}
@@ -209,6 +209,6 @@ func (r *session) searchRepositories(term string, limit int) (*registrytypes.Sea
 			Code:    res.StatusCode,
 		}
 	}
-	result := new(registrytypes.SearchResults)
+	result := new(registry.SearchResults)
 	return result, errors.Wrap(json.NewDecoder(res.Body).Decode(result), "error decoding registry search results")
 }

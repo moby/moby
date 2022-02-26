@@ -11,7 +11,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	"github.com/sirupsen/logrus"
 )
@@ -27,8 +27,8 @@ type Service interface {
 	LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error)
 	LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error)
 	ResolveRepository(name reference.Named) (*RepositoryInfo, error)
-	Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error)
-	ServiceConfig() *registrytypes.ServiceConfig
+	Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error)
+	ServiceConfig() *registry.ServiceConfig
 	TLSConfig(hostname string) (*tls.Config, error)
 	LoadAllowNondistributableArtifacts([]string) error
 	LoadMirrors([]string) error
@@ -51,15 +51,15 @@ func NewService(options ServiceOptions) (Service, error) {
 }
 
 // ServiceConfig returns the public registry service configuration.
-func (s *defaultService) ServiceConfig() *registrytypes.ServiceConfig {
+func (s *defaultService) ServiceConfig() *registry.ServiceConfig {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	servConfig := registrytypes.ServiceConfig{
-		AllowNondistributableArtifactsCIDRs:     make([]*(registrytypes.NetIPNet), 0),
+	servConfig := registry.ServiceConfig{
+		AllowNondistributableArtifactsCIDRs:     make([]*(registry.NetIPNet), 0),
 		AllowNondistributableArtifactsHostnames: make([]string, 0),
-		InsecureRegistryCIDRs:                   make([]*(registrytypes.NetIPNet), 0),
-		IndexConfigs:                            make(map[string]*(registrytypes.IndexInfo)),
+		InsecureRegistryCIDRs:                   make([]*(registry.NetIPNet), 0),
+		IndexConfigs:                            make(map[string]*(registry.IndexInfo)),
 		Mirrors:                                 make([]string, 0),
 	}
 
@@ -158,7 +158,7 @@ func splitReposSearchTerm(reposName string) (string, string) {
 
 // Search queries the public registry for images matching the specified
 // search terms, and returns the results.
-func (s *defaultService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
+func (s *defaultService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error) {
 	// TODO Use ctx when searching for repositories
 	if hasScheme(term) {
 		return nil, invalidParamf("invalid repository name: repository name (%s) should not have a scheme", term)

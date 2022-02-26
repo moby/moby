@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/docker/distribution/reference"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,7 +21,7 @@ type ServiceOptions struct {
 
 // serviceConfig holds daemon configuration for the registry service.
 type serviceConfig struct {
-	registrytypes.ServiceConfig
+	registry.ServiceConfig
 }
 
 // TODO(thaJeztah) both the "index.docker.io" and "registry-1.docker.io" domains
@@ -66,9 +66,9 @@ var (
 // newServiceConfig returns a new instance of ServiceConfig
 func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
 	config := &serviceConfig{
-		ServiceConfig: registrytypes.ServiceConfig{
-			InsecureRegistryCIDRs: make([]*registrytypes.NetIPNet, 0),
-			IndexConfigs:          make(map[string]*registrytypes.IndexInfo),
+		ServiceConfig: registry.ServiceConfig{
+			InsecureRegistryCIDRs: make([]*registry.NetIPNet, 0),
+			IndexConfigs:          make(map[string]*registry.IndexInfo),
 			// Hack: Bypass setting the mirrors to IndexConfigs since they are going away
 			// and Mirrors are only for the official registry anyways.
 		},
@@ -88,7 +88,7 @@ func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
 
 // loadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries into config.
 func (config *serviceConfig) loadAllowNondistributableArtifacts(registries []string) error {
-	cidrs := map[string]*registrytypes.NetIPNet{}
+	cidrs := map[string]*registry.NetIPNet{}
 	hostnames := map[string]bool{}
 
 	for _, r := range registries {
@@ -101,7 +101,7 @@ func (config *serviceConfig) loadAllowNondistributableArtifacts(registries []str
 
 		if _, ipnet, err := net.ParseCIDR(r); err == nil {
 			// Valid CIDR.
-			cidrs[ipnet.String()] = (*registrytypes.NetIPNet)(ipnet)
+			cidrs[ipnet.String()] = (*registry.NetIPNet)(ipnet)
 		} else if err = validateHostPort(r); err == nil {
 			// Must be `host:port` if not CIDR.
 			hostnames[r] = true
@@ -110,7 +110,7 @@ func (config *serviceConfig) loadAllowNondistributableArtifacts(registries []str
 		}
 	}
 
-	config.AllowNondistributableArtifactsCIDRs = make([]*(registrytypes.NetIPNet), 0)
+	config.AllowNondistributableArtifactsCIDRs = make([]*(registry.NetIPNet), 0)
 	for _, c := range cidrs {
 		config.AllowNondistributableArtifactsCIDRs = append(config.AllowNondistributableArtifactsCIDRs, c)
 	}
@@ -143,7 +143,7 @@ func (config *serviceConfig) loadMirrors(mirrors []string) error {
 	config.Mirrors = unique
 
 	// Configure public registry since mirrors may have changed.
-	config.IndexConfigs[IndexName] = &registrytypes.IndexInfo{
+	config.IndexConfigs[IndexName] = &registry.IndexInfo{
 		Name:     IndexName,
 		Mirrors:  config.Mirrors,
 		Secure:   true,
@@ -164,8 +164,8 @@ func (config *serviceConfig) loadInsecureRegistries(registries []string) error {
 	originalCIDRs := config.ServiceConfig.InsecureRegistryCIDRs
 	originalIndexInfos := config.ServiceConfig.IndexConfigs
 
-	config.ServiceConfig.InsecureRegistryCIDRs = make([]*registrytypes.NetIPNet, 0)
-	config.ServiceConfig.IndexConfigs = make(map[string]*registrytypes.IndexInfo)
+	config.ServiceConfig.InsecureRegistryCIDRs = make([]*registry.NetIPNet, 0)
+	config.ServiceConfig.IndexConfigs = make(map[string]*registry.IndexInfo)
 
 skip:
 	for _, r := range registries {
@@ -193,7 +193,7 @@ skip:
 		_, ipnet, err := net.ParseCIDR(r)
 		if err == nil {
 			// Valid CIDR. If ipnet is already in config.InsecureRegistryCIDRs, skip.
-			data := (*registrytypes.NetIPNet)(ipnet)
+			data := (*registry.NetIPNet)(ipnet)
 			for _, value := range config.InsecureRegistryCIDRs {
 				if value.IP.String() == data.IP.String() && value.Mask.String() == data.Mask.String() {
 					continue skip
@@ -209,7 +209,7 @@ skip:
 				return invalidParamWrapf(err, "insecure registry %s is not valid", r)
 			}
 			// Assume `host:port` if not CIDR.
-			config.IndexConfigs[r] = &registrytypes.IndexInfo{
+			config.IndexConfigs[r] = &registry.IndexInfo{
 				Name:     r,
 				Mirrors:  make([]string, 0),
 				Secure:   false,
@@ -219,7 +219,7 @@ skip:
 	}
 
 	// Configure public registry.
-	config.IndexConfigs[IndexName] = &registrytypes.IndexInfo{
+	config.IndexConfigs[IndexName] = &registry.IndexInfo{
 		Name:     IndexName,
 		Mirrors:  config.Mirrors,
 		Secure:   true,
@@ -272,7 +272,7 @@ func isSecureIndex(config *serviceConfig, indexName string) bool {
 // isCIDRMatch returns true if URLHost matches an element of cidrs. URLHost is a URL.Host (`host:port` or `host`)
 // where the `host` part can be either a domain name or an IP address. If it is a domain name, then it will be
 // resolved to IP addresses for matching. If resolution fails, false is returned.
-func isCIDRMatch(cidrs []*registrytypes.NetIPNet, URLHost string) bool {
+func isCIDRMatch(cidrs []*registry.NetIPNet, URLHost string) bool {
 	host, _, err := net.SplitHostPort(URLHost)
 	if err != nil {
 		// Assume URLHost is of the form `host` without the port and go on.
@@ -365,7 +365,7 @@ func validateHostPort(s string) error {
 }
 
 // newIndexInfo returns IndexInfo configuration from indexName
-func newIndexInfo(config *serviceConfig, indexName string) (*registrytypes.IndexInfo, error) {
+func newIndexInfo(config *serviceConfig, indexName string) (*registry.IndexInfo, error) {
 	var err error
 	indexName, err = ValidateIndexName(indexName)
 	if err != nil {
@@ -378,7 +378,7 @@ func newIndexInfo(config *serviceConfig, indexName string) (*registrytypes.Index
 	}
 
 	// Construct a non-configured index info.
-	index := &registrytypes.IndexInfo{
+	index := &registry.IndexInfo{
 		Name:     indexName,
 		Mirrors:  make([]string, 0),
 		Official: false,
@@ -389,7 +389,7 @@ func newIndexInfo(config *serviceConfig, indexName string) (*registrytypes.Index
 
 // GetAuthConfigKey special-cases using the full index address of the official
 // index as the AuthConfig key, and uses the (host)name[:port] for private indexes.
-func GetAuthConfigKey(index *registrytypes.IndexInfo) string {
+func GetAuthConfigKey(index *registry.IndexInfo) string {
 	if index.Official {
 		return IndexServer
 	}
@@ -423,7 +423,7 @@ func ParseRepositoryInfo(reposName reference.Named) (*RepositoryInfo, error) {
 // information of the registry (to provide credentials if needed). We should
 // move this function (or equivalent) to the CLI, as it's doing too much just
 // for that.
-func ParseSearchIndexInfo(reposName string) (*registrytypes.IndexInfo, error) {
+func ParseSearchIndexInfo(reposName string) (*registry.IndexInfo, error) {
 	indexName, _ := splitReposSearchTerm(reposName)
 
 	indexInfo, err := newIndexInfo(emptyServiceConfig, indexName)

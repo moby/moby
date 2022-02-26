@@ -2,7 +2,7 @@ package registry // import "github.com/docker/docker/registry"
 
 import (
 	"github.com/docker/distribution/reference"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/registry"
 )
 
 // APIVersion is an integral representation of an API version (presently
@@ -28,7 +28,7 @@ var apiVersions = map[APIVersion]string{
 type RepositoryInfo struct {
 	Name reference.Named
 	// Index points to registry information
-	Index *registrytypes.IndexInfo
+	Index *registry.IndexInfo
 	// Official indicates whether the repository is considered official.
 	// If the registry is official, and the normalized name does not
 	// contain a '/' (e.g. "foo"), then it is considered an official repo.
