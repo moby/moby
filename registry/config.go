@@ -161,11 +161,8 @@ func (config *serviceConfig) LoadMirrors(mirrors []string) error {
 
 // LoadInsecureRegistries loads insecure registries to config
 func (config *serviceConfig) LoadInsecureRegistries(registries []string) error {
-	// Localhost is by default considered as an insecure registry
-	// This is a stop-gap for people who are running a private registry on localhost (especially on Boot2docker).
-	//
-	// TODO: should we deprecate this once it is easier for people to set up a TLS registry or change
-	// daemon flags on boot2docker?
+	// Localhost is by default considered as an insecure registry. This is a
+	// stop-gap for people who are running a private registry on localhost.
 	registries = append(registries, "127.0.0.0/8")
 
 	// Store original InsecureRegistryCIDRs and IndexConfigs
