@@ -20,9 +20,7 @@ type ServiceOptions struct {
 }
 
 // serviceConfig holds daemon configuration for the registry service.
-type serviceConfig struct {
-	registry.ServiceConfig
-}
+type serviceConfig registry.ServiceConfig
 
 // TODO(thaJeztah) both the "index.docker.io" and "registry-1.docker.io" domains
 // are here for historic reasons and backward-compatibility. These domains
@@ -65,14 +63,7 @@ var (
 
 // newServiceConfig returns a new instance of ServiceConfig
 func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
-	config := &serviceConfig{
-		ServiceConfig: registry.ServiceConfig{
-			InsecureRegistryCIDRs: make([]*registry.NetIPNet, 0),
-			IndexConfigs:          make(map[string]*registry.IndexInfo),
-			// Hack: Bypass setting the mirrors to IndexConfigs since they are going away
-			// and Mirrors are only for the official registry anyways.
-		},
-	}
+	config := &serviceConfig{}
 	if err := config.loadAllowNondistributableArtifacts(options.AllowNondistributableArtifacts); err != nil {
 		return nil, err
 	}
@@ -87,15 +78,15 @@ func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
 }
 
 // copy constructs a new ServiceConfig with a copy of the configuration in config.
-func (config *serviceConfig) copy() *registrytypes.ServiceConfig {
-	ic := make(map[string]*registrytypes.IndexInfo)
+func (config *serviceConfig) copy() *registry.ServiceConfig {
+	ic := make(map[string]*registry.IndexInfo)
 	for key, value := range config.IndexConfigs {
 		ic[key] = value
 	}
-	return &registrytypes.ServiceConfig{
-		AllowNondistributableArtifactsCIDRs:     append([]*registrytypes.NetIPNet(nil), config.AllowNondistributableArtifactsCIDRs...),
+	return &registry.ServiceConfig{
+		AllowNondistributableArtifactsCIDRs:     append([]*registry.NetIPNet(nil), config.AllowNondistributableArtifactsCIDRs...),
 		AllowNondistributableArtifactsHostnames: append([]string(nil), config.AllowNondistributableArtifactsHostnames...),
-		InsecureRegistryCIDRs:                   append([]*registrytypes.NetIPNet(nil), config.InsecureRegistryCIDRs...),
+		InsecureRegistryCIDRs:                   append([]*registry.NetIPNet(nil), config.InsecureRegistryCIDRs...),
 		IndexConfigs:                            ic,
 		Mirrors:                                 append([]string(nil), config.Mirrors...),
 	}
@@ -158,11 +149,13 @@ func (config *serviceConfig) loadMirrors(mirrors []string) error {
 	config.Mirrors = unique
 
 	// Configure public registry since mirrors may have changed.
-	config.IndexConfigs[IndexName] = &registry.IndexInfo{
-		Name:     IndexName,
-		Mirrors:  config.Mirrors,
-		Secure:   true,
-		Official: true,
+	config.IndexConfigs = map[string]*registry.IndexInfo{
+		IndexName: {
+			Name:     IndexName,
+			Mirrors:  unique,
+			Secure:   true,
+			Official: true,
+		},
 	}
 
 	return nil
