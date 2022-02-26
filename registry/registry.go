@@ -16,13 +16,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// HostCertsDir returns the config directory for a specific host
-func HostCertsDir(hostname string) (string, error) {
-	certsDir := CertsDir()
-
-	hostDir := filepath.Join(certsDir, cleanPath(hostname))
-
-	return hostDir, nil
+// HostCertsDir returns the config directory for a specific host.
+func HostCertsDir(hostname string) string {
+	return filepath.Join(CertsDir(), cleanPath(hostname))
 }
 
 func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
@@ -32,11 +28,7 @@ func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 	tlsConfig.InsecureSkipVerify = !isSecure
 
 	if isSecure && CertsDir() != "" {
-		hostDir, err := HostCertsDir(hostname)
-		if err != nil {
-			return nil, err
-		}
-
+		hostDir := HostCertsDir(hostname)
 		logrus.Debugf("hostDir: %s", hostDir)
 		if err := ReadCertsDirectory(tlsConfig, hostDir); err != nil {
 			return nil, err
