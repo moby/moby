@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -117,7 +116,7 @@ func (s *defaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 		}
 		u, err := url.Parse(serverAddress)
 		if err != nil {
-			return "", "", errdefs.InvalidParameter(errors.Errorf("unable to parse server address: %v", err))
+			return "", "", invalidParamWrapf(err, "unable to parse server address")
 		}
 		registryHostName = u.Host
 	}
@@ -127,7 +126,7 @@ func (s *defaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 	// to a mirror.
 	endpoints, err := s.LookupPushEndpoints(registryHostName)
 	if err != nil {
-		return "", "", errdefs.InvalidParameter(err)
+		return "", "", invalidParam(err)
 	}
 
 	for _, endpoint := range endpoints {
@@ -162,7 +161,7 @@ func splitReposSearchTerm(reposName string) (string, string) {
 func (s *defaultService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
 	// TODO Use ctx when searching for repositories
 	if hasScheme(term) {
-		return nil, errors.New(`invalid repository name (ex: "registry.domain.tld/myrepos")`)
+		return nil, invalidParamf("invalid repository name: repository name (%s) should not have a scheme", term)
 	}
 
 	indexName, remoteName := splitReposSearchTerm(term)

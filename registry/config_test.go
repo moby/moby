@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -255,9 +256,8 @@ func TestLoadInsecureRegistries(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expect error '%s', got no error", testCase.err)
 			}
-			if !strings.Contains(err.Error(), testCase.err) {
-				t.Fatalf("expect error '%s', got '%s'", testCase.err, err)
-			}
+			assert.ErrorContains(t, err, testCase.err)
+			assert.Check(t, errdefs.IsInvalidParameter(err))
 		}
 	}
 }
@@ -313,6 +313,7 @@ func TestNewServiceConfig(t *testing.T) {
 		_, err := newServiceConfig(testCase.opts)
 		if testCase.errStr != "" {
 			assert.Check(t, is.Error(err, testCase.errStr))
+			assert.Check(t, errdefs.IsInvalidParameter(err))
 		} else {
 			assert.Check(t, err)
 		}
@@ -377,5 +378,6 @@ func TestValidateIndexNameWithError(t *testing.T) {
 	for _, testCase := range invalid {
 		_, err := ValidateIndexName(testCase.index)
 		assert.Check(t, is.Error(err, testCase.err))
+		assert.Check(t, errdefs.IsInvalidParameter(err))
 	}
 }

@@ -3,7 +3,6 @@ package registry // import "github.com/docker/docker/registry"
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -53,7 +52,7 @@ func hasFile(files []os.DirEntry, name string) bool {
 func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 	fs, err := os.ReadDir(directory)
 	if err != nil && !os.IsNotExist(err) {
-		return err
+		return invalidParam(err)
 	}
 
 	for _, f := range fs {
@@ -61,7 +60,7 @@ func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 			if tlsConfig.RootCAs == nil {
 				systemPool, err := tlsconfig.SystemCertPool()
 				if err != nil {
-					return fmt.Errorf("unable to get system cert pool: %v", err)
+					return invalidParamWrapf(err, "unable to get system cert pool")
 				}
 				tlsConfig.RootCAs = systemPool
 			}
@@ -77,7 +76,7 @@ func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 			keyName := certName[:len(certName)-5] + ".key"
 			logrus.Debugf("cert: %s", filepath.Join(directory, f.Name()))
 			if !hasFile(fs, keyName) {
-				return fmt.Errorf("missing key %s for client certificate %s. Note that CA certificates should use the extension .crt", keyName, certName)
+				return invalidParamf("missing key %s for client certificate %s. CA certificates must use the extension .crt", keyName, certName)
 			}
 			cert, err := tls.LoadX509KeyPair(filepath.Join(directory, certName), filepath.Join(directory, keyName))
 			if err != nil {
@@ -90,7 +89,7 @@ func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 			certName := keyName[:len(keyName)-4] + ".cert"
 			logrus.Debugf("key: %s", filepath.Join(directory, f.Name()))
 			if !hasFile(fs, certName) {
-				return fmt.Errorf("Missing client certificate %s for key %s", certName, keyName)
+				return invalidParamf("missing client certificate %s for key %s", certName, keyName)
 			}
 		}
 	}

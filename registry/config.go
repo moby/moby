@@ -1,7 +1,6 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
-	"fmt"
 	"net"
 	"net/url"
 	"regexp"
@@ -97,17 +96,17 @@ func (config *serviceConfig) loadAllowNondistributableArtifacts(registries []str
 			return err
 		}
 		if hasScheme(r) {
-			return fmt.Errorf("allow-nondistributable-artifacts registry %s should not contain '://'", r)
+			return invalidParamf("allow-nondistributable-artifacts registry %s should not contain '://'", r)
 		}
 
 		if _, ipnet, err := net.ParseCIDR(r); err == nil {
 			// Valid CIDR.
 			cidrs[ipnet.String()] = (*registrytypes.NetIPNet)(ipnet)
-		} else if err := validateHostPort(r); err == nil {
+		} else if err = validateHostPort(r); err == nil {
 			// Must be `host:port` if not CIDR.
 			hostnames[r] = true
 		} else {
-			return fmt.Errorf("allow-nondistributable-artifacts registry %s is not valid: %v", r, err)
+			return invalidParamWrapf(err, "allow-nondistributable-artifacts registry %s is not valid", r)
 		}
 	}
 
@@ -188,7 +187,7 @@ skip:
 			// before returning err, roll back to original data
 			config.ServiceConfig.InsecureRegistryCIDRs = originalCIDRs
 			config.ServiceConfig.IndexConfigs = originalIndexInfos
-			return fmt.Errorf("insecure registry %s should not contain '://'", r)
+			return invalidParamf("insecure registry %s should not contain '://'", r)
 		}
 		// Check if CIDR was passed to --insecure-registry
 		_, ipnet, err := net.ParseCIDR(r)
@@ -207,8 +206,7 @@ skip:
 			if err := validateHostPort(r); err != nil {
 				config.ServiceConfig.InsecureRegistryCIDRs = originalCIDRs
 				config.ServiceConfig.IndexConfigs = originalIndexInfos
-				return fmt.Errorf("insecure registry %s is not valid: %v", r, err)
-
+				return invalidParamWrapf(err, "insecure registry %s is not valid", r)
 			}
 			// Assume `host:port` if not CIDR.
 			config.IndexConfigs[r] = &registrytypes.IndexInfo{
@@ -310,18 +308,18 @@ func isCIDRMatch(cidrs []*registrytypes.NetIPNet, URLHost string) bool {
 func ValidateMirror(val string) (string, error) {
 	uri, err := url.Parse(val)
 	if err != nil {
-		return "", fmt.Errorf("invalid mirror: %q is not a valid URI", val)
+		return "", invalidParamWrapf(err, "invalid mirror: %q is not a valid URI", val)
 	}
 	if uri.Scheme != "http" && uri.Scheme != "https" {
-		return "", fmt.Errorf("invalid mirror: unsupported scheme %q in %q", uri.Scheme, uri)
+		return "", invalidParamf("invalid mirror: unsupported scheme %q in %q", uri.Scheme, uri)
 	}
 	if (uri.Path != "" && uri.Path != "/") || uri.RawQuery != "" || uri.Fragment != "" {
-		return "", fmt.Errorf("invalid mirror: path, query, or fragment at end of the URI %q", uri)
+		return "", invalidParamf("invalid mirror: path, query, or fragment at end of the URI %q", uri)
 	}
 	if uri.User != nil {
 		// strip password from output
 		uri.User = url.UserPassword(uri.User.Username(), "xxxxx")
-		return "", fmt.Errorf("invalid mirror: username/password not allowed in URI %q", uri)
+		return "", invalidParamf("invalid mirror: username/password not allowed in URI %q", uri)
 	}
 	return strings.TrimSuffix(val, "/") + "/", nil
 }
@@ -333,7 +331,7 @@ func ValidateIndexName(val string) (string, error) {
 		val = "docker.io"
 	}
 	if strings.HasPrefix(val, "-") || strings.HasSuffix(val, "-") {
-		return "", fmt.Errorf("invalid index name (%s). Cannot begin or end with a hyphen", val)
+		return "", invalidParamf("invalid index name (%s). Cannot begin or end with a hyphen", val)
 	}
 	return val, nil
 }
@@ -352,7 +350,7 @@ func validateHostPort(s string) error {
 	// If match against the `host:port` pattern fails,
 	// it might be `IPv6:port`, which will be captured by net.ParseIP(host)
 	if !validHostPortRegex.MatchString(s) && net.ParseIP(host) == nil {
-		return fmt.Errorf("invalid host %q", host)
+		return invalidParamf("invalid host %q", host)
 	}
 	if port != "" {
 		v, err := strconv.Atoi(port)
@@ -360,7 +358,7 @@ func validateHostPort(s string) error {
 			return err
 		}
 		if v < 0 || v > 65535 {
-			return fmt.Errorf("invalid port %q", port)
+			return invalidParamf("invalid port %q", port)
 		}
 	}
 	return nil

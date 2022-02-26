@@ -169,7 +169,7 @@ func authorizeClient(client *http.Client, authConfig *types.AuthConfig, endpoint
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
-		return errors.New("cookiejar.New is not supposed to return an error")
+		return errdefs.System(errors.New("cookiejar.New is not supposed to return an error"))
 	}
 	client.Jar = jar
 
@@ -187,14 +187,14 @@ func newSession(client *http.Client, endpoint *v1Endpoint) *session {
 // searchRepositories performs a search against the remote repository
 func (r *session) searchRepositories(term string, limit int) (*registrytypes.SearchResults, error) {
 	if limit < 1 || limit > 100 {
-		return nil, errdefs.InvalidParameter(errors.Errorf("Limit %d is outside the range of [1, 100]", limit))
+		return nil, invalidParamf("limit %d is outside the range of [1, 100]", limit)
 	}
 	logrus.Debugf("Index server: %s", r.indexEndpoint)
 	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term) + "&n=" + url.QueryEscape(fmt.Sprintf("%d", limit))
 
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
-		return nil, errors.Wrap(errdefs.InvalidParameter(err), "Error building request")
+		return nil, invalidParamWrapf(err, "error building request")
 	}
 	// Have the AuthTransport send authentication, when logged in.
 	req.Header.Set("X-Docker-Token", "true")

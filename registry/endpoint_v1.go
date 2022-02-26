@@ -3,7 +3,6 @@ package registry // import "github.com/docker/docker/registry"
 import (
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -64,7 +63,7 @@ func validateEndpoint(endpoint *v1Endpoint) error {
 		if endpoint.IsSecure {
 			// If registry is secure and HTTPS failed, show user the error and tell them about `--insecure-registry`
 			// in case that's what they need. DO NOT accept unknown CA certificates, and DO NOT fallback to HTTP.
-			return fmt.Errorf("invalid registry endpoint %s: %v. If this private registry supports only HTTP or HTTPS with an unknown CA certificate, please add `--insecure-registry %s` to the daemon's arguments. In the case of HTTPS, if you have access to the registry's CA certificate, no need for the flag; simply place the CA certificate at /etc/docker/certs.d/%s/ca.crt", endpoint, err, endpoint.URL.Host, endpoint.URL.Host)
+			return invalidParamf("invalid registry endpoint %s: %v. If this private registry supports only HTTP or HTTPS with an unknown CA certificate, please add `--insecure-registry %s` to the daemon's arguments. In the case of HTTPS, if you have access to the registry's CA certificate, no need for the flag; simply place the CA certificate at /etc/docker/certs.d/%s/ca.crt", endpoint, err, endpoint.URL.Host, endpoint.URL.Host)
 		}
 
 		// If registry is insecure and HTTPS failed, fallback to HTTP.
@@ -76,7 +75,7 @@ func validateEndpoint(endpoint *v1Endpoint) error {
 			return nil
 		}
 
-		return fmt.Errorf("invalid registry endpoint %q. HTTPS attempt: %v. HTTP attempt: %v", endpoint, err, err2)
+		return invalidParamf("invalid registry endpoint %q. HTTPS attempt: %v. HTTP attempt: %v", endpoint, err, err2)
 	}
 
 	return nil
@@ -99,7 +98,7 @@ func trimV1Address(address string) (string, error) {
 
 	for k, v := range apiVersions {
 		if k != APIVersion1 && apiVersionStr == v {
-			return "", fmt.Errorf("unsupported V1 version path %s", apiVersionStr)
+			return "", invalidParamf("unsupported V1 version path %s", apiVersionStr)
 		}
 	}
 
@@ -118,7 +117,7 @@ func newV1EndpointFromStr(address string, tlsConfig *tls.Config, userAgent strin
 
 	uri, err := url.Parse(address)
 	if err != nil {
-		return nil, err
+		return nil, invalidParam(err)
 	}
 
 	// TODO(tiborvass): make sure a ConnectTimeout transport is used
@@ -148,19 +147,19 @@ func (e *v1Endpoint) ping() (v1PingResult, error) {
 	pingURL := e.String() + "_ping"
 	req, err := http.NewRequest(http.MethodGet, pingURL, nil)
 	if err != nil {
-		return v1PingResult{}, err
+		return v1PingResult{}, invalidParam(err)
 	}
 
 	resp, err := e.client.Do(req)
 	if err != nil {
-		return v1PingResult{}, err
+		return v1PingResult{}, invalidParam(err)
 	}
 
 	defer resp.Body.Close()
 
 	jsonString, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return v1PingResult{}, fmt.Errorf("error while reading the http response: %s", err)
+		return v1PingResult{}, invalidParamWrapf(err, "error while reading response from %s", pingURL)
 	}
 
 	// If the header is absent, we assume true for compatibility with earlier
