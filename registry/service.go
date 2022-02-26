@@ -174,8 +174,11 @@ func (s *defaultService) Search(ctx context.Context, term string, limit int, aut
 	if err != nil {
 		return nil, err
 	}
+	if index.Official {
+		// If pull "library/foo", it's stored locally under "foo"
+		remoteName = strings.TrimPrefix(remoteName, "library/")
+	}
 
-	// *TODO: Search multiple indexes.
 	endpoint, err := newV1Endpoint(index, userAgent, headers)
 	if err != nil {
 		return nil, err
@@ -195,7 +198,7 @@ func (s *defaultService) Search(ctx context.Context, term string, limit int, aut
 		v2Client, err := v2AuthHTTPClient(endpoint.URL, endpoint.client.Transport, modifiers, creds, scopes)
 		if err != nil {
 			if fErr, ok := err.(fallbackError); ok {
-				logrus.Errorf("Cannot use identity token for search, v2 auth not supported: %v", fErr.err)
+				logrus.WithError(fErr.err).Error("cannot use identity token for search, v2 auth not supported")
 			} else {
 				return nil, err
 			}
@@ -217,13 +220,7 @@ func (s *defaultService) Search(ctx context.Context, term string, limit int, aut
 		}
 	}
 
-	r := newSession(client, endpoint)
-
-	if index.Official {
-		// If pull "library/foo", it's stored locally under "foo"
-		remoteName = strings.TrimPrefix(remoteName, "library/")
-	}
-	return r.searchRepositories(remoteName, limit)
+	return newSession(client, endpoint).searchRepositories(remoteName, limit)
 }
 
 // ResolveRepository splits a repository name into its components

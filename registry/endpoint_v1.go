@@ -67,7 +67,7 @@ func validateEndpoint(endpoint *v1Endpoint) error {
 		}
 
 		// If registry is insecure and HTTPS failed, fallback to HTTP.
-		logrus.Debugf("Error from registry %q marked as insecure: %v. Insecurely falling back to HTTP", endpoint, err)
+		logrus.WithError(err).Debugf("error from registry %q marked as insecure - insecurely falling back to HTTP", endpoint)
 		endpoint.URL.Scheme = "http"
 
 		var err2 error
@@ -84,14 +84,9 @@ func validateEndpoint(endpoint *v1Endpoint) error {
 // trimV1Address trims the version off the address and returns the
 // trimmed address or an error if there is a non-V1 version.
 func trimV1Address(address string) (string, error) {
-	var (
-		chunks        []string
-		apiVersionStr string
-	)
-
 	address = strings.TrimSuffix(address, "/")
-	chunks = strings.Split(address, "/")
-	apiVersionStr = chunks[len(chunks)-1]
+	chunks := strings.Split(address, "/")
+	apiVersionStr := chunks[len(chunks)-1]
 	if apiVersionStr == "v1" {
 		return strings.Join(chunks[:len(chunks)-1], "/"), nil
 	}
@@ -168,7 +163,7 @@ func (e *v1Endpoint) ping() (v1PingResult, error) {
 		Standalone: true,
 	}
 	if err := json.Unmarshal(jsonString, &info); err != nil {
-		logrus.Debugf("Error unmarshaling the _ping v1PingResult: %s", err)
+		logrus.WithError(err).Debug("error unmarshaling _ping response")
 		// don't stop here. Just assume sane defaults
 	}
 	if hdr := resp.Header.Get("X-Docker-Registry-Version"); hdr != "" {

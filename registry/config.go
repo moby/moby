@@ -110,12 +110,12 @@ func (config *serviceConfig) loadAllowNondistributableArtifacts(registries []str
 		}
 	}
 
-	config.AllowNondistributableArtifactsCIDRs = make([]*(registry.NetIPNet), 0)
+	config.AllowNondistributableArtifactsCIDRs = make([]*registry.NetIPNet, 0, len(cidrs))
 	for _, c := range cidrs {
 		config.AllowNondistributableArtifactsCIDRs = append(config.AllowNondistributableArtifactsCIDRs, c)
 	}
 
-	config.AllowNondistributableArtifactsHostnames = make([]string, 0)
+	config.AllowNondistributableArtifactsHostnames = make([]string, 0, len(hostnames))
 	for h := range hostnames {
 		config.AllowNondistributableArtifactsHostnames = append(config.AllowNondistributableArtifactsHostnames, h)
 	}
@@ -378,13 +378,12 @@ func newIndexInfo(config *serviceConfig, indexName string) (*registry.IndexInfo,
 	}
 
 	// Construct a non-configured index info.
-	index := &registry.IndexInfo{
+	return &registry.IndexInfo{
 		Name:     indexName,
 		Mirrors:  make([]string, 0),
+		Secure:   isSecureIndex(config, indexName),
 		Official: false,
-	}
-	index.Secure = isSecureIndex(config, indexName)
-	return index, nil
+	}, nil
 }
 
 // GetAuthConfigKey special-cases using the full index address of the official
