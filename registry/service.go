@@ -161,8 +161,8 @@ func splitReposSearchTerm(reposName string) (string, string) {
 // search terms, and returns the results.
 func (s *defaultService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
 	// TODO Use ctx when searching for repositories
-	if err := validateNoScheme(term); err != nil {
-		return nil, err
+	if hasScheme(term) {
+		return nil, errors.New(`invalid repository name (ex: "registry.domain.tld/myrepos")`)
 	}
 
 	indexName, remoteName := splitReposSearchTerm(term)

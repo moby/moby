@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/distribution/reference"
 	registrytypes "github.com/docker/docker/api/types/registry"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -58,10 +57,6 @@ var (
 		Host:   DefaultRegistryHost,
 	}
 
-	// ErrInvalidRepositoryName is an error returned if the repository name did
-	// not have the correct form
-	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
-
 	emptyServiceConfig, _ = newServiceConfig(ServiceOptions{})
 	validHostPortRegex    = regexp.MustCompile(`^` + reference.DomainRegexp.String() + `$`)
 
@@ -101,7 +96,7 @@ func (config *serviceConfig) loadAllowNondistributableArtifacts(registries []str
 		if _, err := ValidateIndexName(r); err != nil {
 			return err
 		}
-		if validateNoScheme(r) != nil {
+		if hasScheme(r) {
 			return fmt.Errorf("allow-nondistributable-artifacts registry %s should not contain '://'", r)
 		}
 
@@ -188,7 +183,7 @@ skip:
 		} else if strings.HasPrefix(strings.ToLower(r), "https://") {
 			logrus.Warnf("insecure registry %s should not contain 'https://' and 'https://' has been removed from the insecure registry config", r)
 			r = r[8:]
-		} else if validateNoScheme(r) != nil {
+		} else if hasScheme(r) {
 			// Insecure registry should not contain '://'
 			// before returning err, roll back to original data
 			config.ServiceConfig.InsecureRegistryCIDRs = originalCIDRs
@@ -343,12 +338,8 @@ func ValidateIndexName(val string) (string, error) {
 	return val, nil
 }
 
-func validateNoScheme(reposName string) error {
-	if strings.Contains(reposName, "://") {
-		// It cannot contain a scheme!
-		return ErrInvalidRepositoryName
-	}
-	return nil
+func hasScheme(reposName string) bool {
+	return strings.Contains(reposName, "://")
 }
 
 func validateHostPort(s string) error {
