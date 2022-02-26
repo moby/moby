@@ -50,32 +50,11 @@ func NewService(options ServiceOptions) (Service, error) {
 	return &defaultService{config: config}, err
 }
 
-// ServiceConfig returns the public registry service configuration.
+// ServiceConfig returns a copy of the public registry service's configuration.
 func (s *defaultService) ServiceConfig() *registry.ServiceConfig {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
-	servConfig := registry.ServiceConfig{
-		AllowNondistributableArtifactsCIDRs:     make([]*(registry.NetIPNet), 0),
-		AllowNondistributableArtifactsHostnames: make([]string, 0),
-		InsecureRegistryCIDRs:                   make([]*(registry.NetIPNet), 0),
-		IndexConfigs:                            make(map[string]*(registry.IndexInfo)),
-		Mirrors:                                 make([]string, 0),
-	}
-
-	// construct a new ServiceConfig which will not retrieve s.Config directly,
-	// and look up items in s.config with mu locked
-	servConfig.AllowNondistributableArtifactsCIDRs = append(servConfig.AllowNondistributableArtifactsCIDRs, s.config.ServiceConfig.AllowNondistributableArtifactsCIDRs...)
-	servConfig.AllowNondistributableArtifactsHostnames = append(servConfig.AllowNondistributableArtifactsHostnames, s.config.ServiceConfig.AllowNondistributableArtifactsHostnames...)
-	servConfig.InsecureRegistryCIDRs = append(servConfig.InsecureRegistryCIDRs, s.config.ServiceConfig.InsecureRegistryCIDRs...)
-
-	for key, value := range s.config.ServiceConfig.IndexConfigs {
-		servConfig.IndexConfigs[key] = value
-	}
-
-	servConfig.Mirrors = append(servConfig.Mirrors, s.config.ServiceConfig.Mirrors...)
-
-	return &servConfig
+	return s.config.copy()
 }
 
 // LoadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries for Service.

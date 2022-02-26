@@ -86,6 +86,21 @@ func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
 	return config, nil
 }
 
+// copy constructs a new ServiceConfig with a copy of the configuration in config.
+func (config *serviceConfig) copy() *registrytypes.ServiceConfig {
+	ic := make(map[string]*registrytypes.IndexInfo)
+	for key, value := range config.IndexConfigs {
+		ic[key] = value
+	}
+	return &registrytypes.ServiceConfig{
+		AllowNondistributableArtifactsCIDRs:     append([]*registrytypes.NetIPNet(nil), config.AllowNondistributableArtifactsCIDRs...),
+		AllowNondistributableArtifactsHostnames: append([]string(nil), config.AllowNondistributableArtifactsHostnames...),
+		InsecureRegistryCIDRs:                   append([]*registrytypes.NetIPNet(nil), config.InsecureRegistryCIDRs...),
+		IndexConfigs:                            ic,
+		Mirrors:                                 append([]string(nil), config.Mirrors...),
+	}
+}
+
 // loadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries into config.
 func (config *serviceConfig) loadAllowNondistributableArtifacts(registries []string) error {
 	cidrs := map[string]*registry.NetIPNet{}
