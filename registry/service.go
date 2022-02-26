@@ -224,7 +224,7 @@ func (s *defaultService) Search(ctx context.Context, term string, limit int, aut
 		// If pull "library/foo", it's stored locally under "foo"
 		remoteName = strings.TrimPrefix(remoteName, "library/")
 	}
-	return r.SearchRepositories(remoteName, limit)
+	return r.searchRepositories(remoteName, limit)
 }
 
 // ResolveRepository splits a repository name into its components

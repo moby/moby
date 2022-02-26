@@ -16,7 +16,7 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-func spawnTestRegistrySession(t *testing.T) *Session {
+func spawnTestRegistrySession(t *testing.T) *session {
 	authConfig := &types.AuthConfig{}
 	endpoint, err := newV1Endpoint(makeIndex("/v1/"), "", nil)
 	if err != nil {
@@ -26,10 +26,12 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 	var tr http.RoundTripper = debugTransport{newTransport(nil), t.Log}
 	tr = transport.NewTransport(AuthTransport(tr, authConfig, false), Headers(userAgent, nil)...)
 	client := httpClient(tr)
-	r, err := NewSession(client, authConfig, endpoint)
-	if err != nil {
+
+	if err := authorizeClient(client, authConfig, endpoint); err != nil {
 		t.Fatal(err)
 	}
+	r := newSession(client, endpoint)
+
 	// In a normal scenario for the v1 registry, the client should send a `X-Docker-Token: true`
 	// header while authenticating, in order to retrieve a token that can be later used to
 	// perform authenticated actions.
@@ -544,7 +546,7 @@ func TestMirrorEndpointLookup(t *testing.T) {
 
 func TestSearchRepositories(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	results, err := r.SearchRepositories("fakequery", 25)
+	results, err := r.searchRepositories("fakequery", 25)
 	if err != nil {
 		t.Fatal(err)
 	}

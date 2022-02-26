@@ -21,8 +21,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// A Session is used to communicate with a V1 registry
-type Session struct {
+// A session is used to communicate with a V1 registry
+type session struct {
 	indexEndpoint *v1Endpoint
 	client        *http.Client
 	id            string
@@ -176,26 +176,16 @@ func authorizeClient(client *http.Client, authConfig *types.AuthConfig, endpoint
 	return nil
 }
 
-func newSession(client *http.Client, endpoint *v1Endpoint) *Session {
-	return &Session{
+func newSession(client *http.Client, endpoint *v1Endpoint) *session {
+	return &session{
 		client:        client,
 		indexEndpoint: endpoint,
 		id:            stringid.GenerateRandomID(),
 	}
 }
 
-// NewSession creates a new session
-// TODO(tiborvass): remove authConfig param once registry client v2 is vendored
-func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *v1Endpoint) (*Session, error) {
-	if err := authorizeClient(client, authConfig, endpoint); err != nil {
-		return nil, err
-	}
-
-	return newSession(client, endpoint), nil
-}
-
-// SearchRepositories performs a search against the remote repository
-func (r *Session) SearchRepositories(term string, limit int) (*registrytypes.SearchResults, error) {
+// searchRepositories performs a search against the remote repository
+func (r *session) searchRepositories(term string, limit int) (*registrytypes.SearchResults, error) {
 	if limit < 1 || limit > 100 {
 		return nil, errdefs.InvalidParameter(errors.Errorf("Limit %d is outside the range of [1, 100]", limit))
 	}
