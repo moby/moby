@@ -64,15 +64,6 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 	var (
 		lastErr error
 
-		// discardNoSupportErrors is used to track whether an endpoint encountered an error of type registry.ErrNoSupport
-		// By default it is false, which means that if an ErrNoSupport error is encountered, it will be saved in lastErr.
-		// As soon as another kind of error is encountered, discardNoSupportErrors is set to true, avoiding the saving of
-		// any subsequent ErrNoSupport errors in lastErr.
-		// It's needed for pull-by-digest on v1 endpoints: if there are only v1 endpoints configured, the error should be
-		// returned and displayed, but if there was a v2 endpoint which supports pull-by-digest, then the last relevant
-		// error is the ones from v2 endpoints not v1.
-		discardNoSupportErrors bool
-
 		// confirmedTLSRegistries is a map indicating which registries
 		// are known to be using TLS. There should never be a plaintext
 		// retry for any of these.
@@ -110,22 +101,12 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 				}
 			}
 			if fallback {
-				if _, ok := err.(ErrNoSupport); !ok {
-					// Because we found an error that's not ErrNoSupport, discard all subsequent ErrNoSupport errors.
-					discardNoSupportErrors = true
-					// append subsequent errors
-					lastErr = err
-				} else if !discardNoSupportErrors {
-					// Save the ErrNoSupport error, because it's either the first error or all encountered errors
-					// were also ErrNoSupport errors.
-					// append subsequent errors
-					lastErr = err
-				}
+				lastErr = err
 				logrus.Infof("Attempting next endpoint for pull after error: %v", err)
 				continue
 			}
 			logrus.Errorf("Not continuing with pull after error: %v", err)
-			return TranslatePullError(err, ref)
+			return translatePullError(err, ref)
 		}
 
 		imagePullConfig.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), "pull")
@@ -136,7 +117,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 		lastErr = fmt.Errorf("no endpoints found for %s", reference.FamiliarString(ref))
 	}
 
-	return TranslatePullError(lastErr, ref)
+	return translatePullError(lastErr, ref)
 }
 
 // writeStatus writes a status message to out. If layersDownloaded is true, the

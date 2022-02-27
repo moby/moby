@@ -41,14 +41,14 @@ var (
 	errRootFSInvalid  = errors.New("invalid rootfs in image configuration")
 )
 
-// ImageConfigPullError is an error pulling the image config blob
+// imageConfigPullError is an error pulling the image config blob
 // (only applies to schema2).
-type ImageConfigPullError struct {
+type imageConfigPullError struct {
 	Err error
 }
 
-// Error returns the error string for ImageConfigPullError.
-func (e ImageConfigPullError) Error() string {
+// Error returns the error string for imageConfigPullError.
+func (e imageConfigPullError) Error() string {
 	return "error pulling image configuration: " + e.Err.Error()
 }
 
@@ -619,7 +619,7 @@ func (p *v2Puller) pullSchema2Layers(ctx context.Context, target distribution.De
 	go func() {
 		configJSON, err := p.pullSchema2Config(ctx, target.Digest)
 		if err != nil {
-			configErrChan <- ImageConfigPullError{Err: err}
+			configErrChan <- imageConfigPullError{Err: err}
 			cancel()
 			return
 		}
