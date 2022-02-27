@@ -122,7 +122,6 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 			ReferenceStore:   i.referenceStore,
 		},
 		DownloadManager: i.downloadManager,
-		Schema2Types:    distribution.ImageTypes,
 		Platform:        platform,
 	}
 

@@ -57,8 +57,9 @@ type ImagePullConfig struct {
 
 	// DownloadManager manages concurrent pulls.
 	DownloadManager *xfer.LayerDownloadManager
-	// Schema2Types is the valid schema2 configuration types allowed
-	// by the pull operation.
+	// Schema2Types is an optional list of valid schema2 configuration types
+	// allowed by the pull operation. If omitted, the default list of accepted
+	// types is used.
 	Schema2Types []string
 	// Platform is the requested platform of the image being pulled
 	Platform *specs.Platform

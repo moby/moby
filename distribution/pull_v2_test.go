@@ -356,7 +356,6 @@ func testNewPuller(t *testing.T, rawurl string) *v2Puller {
 				RegistryToken: secretRegistryToken,
 			},
 		},
-		Schema2Types: ImageTypes,
 	}
 
 	puller, err := newPuller(endpoint, repoInfo, imagePullConfig, nil)

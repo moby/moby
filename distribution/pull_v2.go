@@ -397,19 +397,8 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named, platform 
 	}
 
 	if m, ok := manifest.(*schema2.DeserializedManifest); ok {
-		var allowedMediatype bool
-		for _, t := range p.config.Schema2Types {
-			if m.Manifest.Config.MediaType == t {
-				allowedMediatype = true
-				break
-			}
-		}
-		if !allowedMediatype {
-			configClass := mediaTypeClasses[m.Manifest.Config.MediaType]
-			if configClass == "" {
-				configClass = "unknown"
-			}
-			return false, invalidManifestClassError{m.Manifest.Config.MediaType, configClass}
+		if err := p.validateMediaType(m.Manifest.Config.MediaType); err != nil {
+			return false, err
 		}
 	}
 
@@ -484,6 +473,28 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named, platform 
 		}
 	}
 	return true, nil
+}
+
+// validateMediaType validates if the given mediaType is accepted by the puller's
+// configuration.
+func (p *v2Puller) validateMediaType(mediaType string) error {
+	var allowedMediaTypes []string
+	if len(p.config.Schema2Types) > 0 {
+		allowedMediaTypes = p.config.Schema2Types
+	} else {
+		allowedMediaTypes = defaultImageTypes
+	}
+	for _, t := range allowedMediaTypes {
+		if mediaType == t {
+			return nil
+		}
+	}
+
+	configClass := mediaTypeClasses[mediaType]
+	if configClass == "" {
+		configClass = "unknown"
+	}
+	return invalidManifestClassError{mediaType, configClass}
 }
 
 func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unverifiedManifest *schema1.SignedManifest, platform *specs.Platform) (id digest.Digest, manifestDigest digest.Digest, err error) {
