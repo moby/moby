@@ -17,7 +17,7 @@ func (s *defaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 			if err != nil {
 				return nil, invalidParam(err)
 			}
-			mirrorTLSConfig, err := newTLSConfig(mirrorURL.Host, isSecureIndex(s.config, mirrorURL.Host))
+			mirrorTLSConfig, err := newTLSConfig(mirrorURL.Host, s.config.isSecureIndex(mirrorURL.Host))
 			if err != nil {
 				return nil, err
 			}
@@ -40,12 +40,12 @@ func (s *defaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 		return endpoints, nil
 	}
 
-	tlsConfig, err := newTLSConfig(hostname, isSecureIndex(s.config, hostname))
+	tlsConfig, err := newTLSConfig(hostname, s.config.isSecureIndex(hostname))
 	if err != nil {
 		return nil, err
 	}
 
-	ana := allowNondistributableArtifacts(s.config, hostname)
+	ana := s.config.allowNondistributableArtifacts(hostname)
 	endpoints = []APIEndpoint{
 		{
 			URL: &url.URL{

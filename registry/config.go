@@ -242,7 +242,7 @@ skip:
 // hostname should be a URL.Host (`host:port` or `host`) where the `host` part can be either a domain name
 // or an IP address. If it is a domain name, then it will be resolved to IP addresses for matching. If
 // resolution fails, CIDR matching is not performed.
-func allowNondistributableArtifacts(config *serviceConfig, hostname string) bool {
+func (config *serviceConfig) allowNondistributableArtifacts(hostname string) bool {
 	for _, h := range config.AllowNondistributableArtifactsHostnames {
 		if h == hostname {
 			return true
@@ -263,7 +263,7 @@ func allowNondistributableArtifacts(config *serviceConfig, hostname string) bool
 // or an IP address. If it is a domain name, then it will be resolved in order to check if the IP is contained
 // in a subnet. If the resolving is not successful, isSecureIndex will only try to match hostname to any element
 // of insecureRegistries.
-func isSecureIndex(config *serviceConfig, indexName string) bool {
+func (config *serviceConfig) isSecureIndex(indexName string) bool {
 	// Check for configured index, first.  This is needed in case isSecureIndex
 	// is called from anything besides newIndexInfo, in order to honor per-index configurations.
 	if index, ok := config.IndexConfigs[indexName]; ok {
@@ -385,7 +385,7 @@ func newIndexInfo(config *serviceConfig, indexName string) (*registry.IndexInfo,
 	return &registry.IndexInfo{
 		Name:     indexName,
 		Mirrors:  make([]string, 0),
-		Secure:   isSecureIndex(config, indexName),
+		Secure:   config.isSecureIndex(indexName),
 		Official: false,
 	}, nil
 }

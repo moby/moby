@@ -660,7 +660,7 @@ func TestAllowNondistributableArtifacts(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if v := allowNondistributableArtifacts(config, tt.addr); v != tt.expected {
+		if v := config.allowNondistributableArtifacts(tt.addr); v != tt.expected {
 			t.Errorf("allowNondistributableArtifacts failed for %q %v, expected %v got %v", tt.addr, tt.registries, tt.expected, v)
 		}
 	}
@@ -703,7 +703,7 @@ func TestIsSecureIndex(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if sec := isSecureIndex(config, tt.addr); sec != tt.expected {
+		if sec := config.isSecureIndex(tt.addr); sec != tt.expected {
 			t.Errorf("isSecureIndex failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
 		}
 	}

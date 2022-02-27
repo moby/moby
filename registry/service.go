@@ -224,7 +224,7 @@ type APIEndpoint struct {
 // TLSConfig constructs a client TLS configuration based on server defaults
 func (s *defaultService) TLSConfig(hostname string) (*tls.Config, error) {
 	s.mu.RLock()
-	secure := isSecureIndex(s.config, hostname)
+	secure := s.config.isSecureIndex(hostname)
 	s.mu.RUnlock()
 
 	return newTLSConfig(hostname, secure)
