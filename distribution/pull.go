@@ -38,7 +38,7 @@ func Pull(ctx context.Context, ref reference.Named, config *ImagePullConfig, loc
 	}
 
 	// makes sure name is not `scratch`
-	if err := ValidateRepoName(repoInfo.Name); err != nil {
+	if err := validateRepoName(repoInfo.Name); err != nil {
 		return err
 	}
 
@@ -112,8 +112,8 @@ func writeStatus(requestedTag string, out progress.Output, layersDownloaded bool
 	}
 }
 
-// ValidateRepoName validates the name of a repository.
-func ValidateRepoName(name reference.Named) error {
+// validateRepoName validates the name of a repository.
+func validateRepoName(name reference.Named) error {
 	if reference.FamiliarName(name) == api.NoBaseImageSpecifier {
 		return errors.WithStack(reservedNameError(api.NoBaseImageSpecifier))
 	}

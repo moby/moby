@@ -53,10 +53,10 @@ func init() {
 	}
 }
 
-// NewV2Repository returns a repository (v2 only). It creates an HTTP transport
+// newRepository returns a repository (v2 only). It creates an HTTP transport
 // providing timeout settings and authentication support, and also verifies the
 // remote API version.
-func NewV2Repository(
+func newRepository(
 	ctx context.Context, repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint,
 	metaHeaders http.Header, authConfig *types.AuthConfig, actions ...string,
 ) (repo distribution.Repository, err error) {
