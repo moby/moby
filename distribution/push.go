@@ -14,58 +14,40 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Pusher is an interface that abstracts pushing for different API versions.
-type Pusher interface {
-	// Push tries to push the image configured at the creation of Pusher.
-	// Push returns an error if any, as well as a boolean that determines whether to retry Push on the next configured endpoint.
-	//
-	// TODO(tiborvass): have Push() take a reference to repository + tag, so that the pusher itself is repository-agnostic.
-	Push(ctx context.Context) error
-}
-
 const compressionBufSize = 32768
 
-// NewPusher creates a new Pusher interface that will push to either a v1 or v2
-// registry. The endpoint argument contains a Version field that determines
-// whether a v1 or v2 pusher will be created. The other parameters are passed
-// through to the underlying pusher implementation for use during the actual
-// push operation.
-func NewPusher(ref reference.Named, endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePushConfig *ImagePushConfig) (Pusher, error) {
-	switch endpoint.Version {
-	case registry.APIVersion2:
-		return &v2Pusher{
-			v2MetadataService: metadata.NewV2MetadataService(imagePushConfig.MetadataStore),
-			ref:               ref,
-			endpoint:          endpoint,
-			repoInfo:          repoInfo,
-			config:            imagePushConfig,
-		}, nil
-	case registry.APIVersion1:
-		return nil, fmt.Errorf("protocol version %d no longer supported. Please contact admins of registry %s", endpoint.Version, endpoint.URL)
+// newPusher creates a new pusher for pushing to a v2 registry.
+// The parameters are passed through to the underlying pusher implementation for
+// use during the actual push operation.
+func newPusher(ref reference.Named, endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, config *ImagePushConfig) *pusher {
+	return &pusher{
+		metadataService: metadata.NewV2MetadataService(config.MetadataStore),
+		ref:             ref,
+		endpoint:        endpoint,
+		repoInfo:        repoInfo,
+		config:          config,
 	}
-	return nil, fmt.Errorf("unknown version %d for registry %s", endpoint.Version, endpoint.URL)
 }
 
-// Push initiates a push operation on ref.
-// ref is the specific variant of the image to be pushed.
-// If no tag is provided, all tags will be pushed.
-func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushConfig) error {
+// Push initiates a push operation on ref. ref is the specific variant of the
+// image to push. If no tag is provided, all tags are pushed.
+func Push(ctx context.Context, ref reference.Named, config *ImagePushConfig) error {
 	// FIXME: Allow to interrupt current push when new push of same image is done.
 
 	// Resolve the Repository name from fqn to RepositoryInfo
-	repoInfo, err := imagePushConfig.RegistryService.ResolveRepository(ref)
+	repoInfo, err := config.RegistryService.ResolveRepository(ref)
 	if err != nil {
 		return err
 	}
 
-	endpoints, err := imagePushConfig.RegistryService.LookupPushEndpoints(reference.Domain(repoInfo.Name))
+	endpoints, err := config.RegistryService.LookupPushEndpoints(reference.Domain(repoInfo.Name))
 	if err != nil {
 		return err
 	}
 
-	progress.Messagef(imagePushConfig.ProgressOutput, "", "The push refers to repository [%s]", repoInfo.Name.Name())
+	progress.Messagef(config.ProgressOutput, "", "The push refers to repository [%s]", repoInfo.Name.Name())
 
-	associations := imagePushConfig.ReferenceStore.ReferencesByName(repoInfo.Name)
+	associations := config.ReferenceStore.ReferencesByName(repoInfo.Name)
 	if len(associations) == 0 {
 		return fmt.Errorf("An image does not exist locally with the tag: %s", reference.FamiliarName(repoInfo.Name))
 	}
@@ -87,14 +69,9 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 			}
 		}
 
-		logrus.Debugf("Trying to push %s to %s %s", repoInfo.Name.Name(), endpoint.URL, endpoint.Version)
+		logrus.Debugf("Trying to push %s to %s", repoInfo.Name.Name(), endpoint.URL)
 
-		pusher, err := NewPusher(ref, endpoint, repoInfo, imagePushConfig)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		if err := pusher.Push(ctx); err != nil {
+		if err := newPusher(ref, endpoint, repoInfo, config).push(ctx); err != nil {
 			// Was this push cancelled? If so, don't try to fall
 			// back.
 			select {
@@ -115,7 +92,7 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 			return err
 		}
 
-		imagePushConfig.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), "push")
+		config.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), "push")
 		return nil
 	}
 

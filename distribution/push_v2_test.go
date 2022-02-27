@@ -395,16 +395,16 @@ func TestLayerAlreadyExists(t *testing.T) {
 		}
 		ctx := context.Background()
 		ms := &mockV2MetadataService{}
-		pd := &v2PushDescriptor{
+		pd := &pushDescriptor{
 			hmacKey:  []byte(tc.hmacKey),
 			repoInfo: repoInfo,
 			layer: &storeLayer{
 				Layer: layer.EmptyLayer,
 			},
-			repo:              repo,
-			v2MetadataService: ms,
-			pushState:         &pushState{remoteLayers: make(map[layer.DiffID]distribution.Descriptor)},
-			checkedDigests:    make(map[digest.Digest]struct{}),
+			repo:            repo,
+			metadataService: ms,
+			pushState:       &pushState{remoteLayers: make(map[layer.DiffID]distribution.Descriptor)},
+			checkedDigests:  make(map[digest.Digest]struct{}),
 		}
 
 		desc, exists, err := pd.layerAlreadyExists(ctx, &progressSink{t}, layer.EmptyLayer.DiffID(), tc.checkOtherRepositories, tc.maxExistenceChecks, tc.metadata)
@@ -522,7 +522,7 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 		}
 		imagePushConfig.ReferenceStore = &mockReferenceStore{}
 		repoInfo, _ := reference.ParseNormalizedNamed("xujihui1985/test.img")
-		pusher := &v2Pusher{
+		pusher := &pusher{
 			config: imagePushConfig,
 			repoInfo: &registry.RepositoryInfo{
 				Name: repoInfo,
@@ -536,7 +536,7 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 				TrimHostname: true,
 			},
 		}
-		pusher.Push(context.Background())
+		pusher.push(context.Background())
 		if pusher.pushState.hasAuthInfo != authInfo.expected {
 			t.Errorf("hasAuthInfo does not match expected: %t != %t", authInfo.expected, pusher.pushState.hasAuthInfo)
 		}
@@ -598,14 +598,14 @@ func TestPushRegistryWhenAuthInfoEmpty(t *testing.T) {
 			requests: []string{},
 		},
 	}
-	pd := &v2PushDescriptor{
+	pd := &pushDescriptor{
 		hmacKey:  []byte("abcd"),
 		repoInfo: repoInfo,
 		layer: &storeLayer{
 			Layer: layer.EmptyLayer,
 		},
-		repo:              repo,
-		v2MetadataService: ms,
+		repo:            repo,
+		metadataService: ms,
 		pushState: &pushState{
 			remoteLayers: make(map[layer.DiffID]distribution.Descriptor),
 			hasAuthInfo:  false,
