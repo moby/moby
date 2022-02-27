@@ -52,6 +52,19 @@ func (e imageConfigPullError) Error() string {
 	return "error pulling image configuration: " + e.Err.Error()
 }
 
+// newPuller returns a puller to pull from a v2 registry.
+func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, config *ImagePullConfig, local ContentStore) *puller {
+	return &puller{
+		metadataService: metadata.NewV2MetadataService(config.MetadataStore),
+		endpoint:        endpoint,
+		config:          config,
+		repoInfo:        repoInfo,
+		manifestStore: &manifestStore{
+			local: local,
+		},
+	}
+}
+
 type puller struct {
 	metadataService metadata.V2MetadataService
 	endpoint        registry.APIEndpoint
@@ -122,9 +135,21 @@ func (p *puller) pullRepository(ctx context.Context, ref reference.Named) (err e
 		}
 	}
 
-	writeStatus(reference.FamiliarString(ref), p.config.ProgressOutput, layersDownloaded)
+	p.writeStatus(reference.FamiliarString(ref), layersDownloaded)
 
 	return nil
+}
+
+// writeStatus writes a status message to out. If layersDownloaded is true, the
+// status message indicates that a newer image was downloaded. Otherwise, it
+// indicates that the image is up to date. requestedTag is the tag the message
+// will refer to.
+func (p *puller) writeStatus(requestedTag string, layersDownloaded bool) {
+	if layersDownloaded {
+		progress.Message(p.config.ProgressOutput, "", "Status: Downloaded newer image for "+requestedTag)
+	} else {
+		progress.Message(p.config.ProgressOutput, "", "Status: Image is up to date for "+requestedTag)
+	}
 }
 
 type layerDescriptor struct {

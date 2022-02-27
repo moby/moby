@@ -6,27 +6,11 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/distribution/metadata"
-	"github.com/docker/docker/pkg/progress"
 	refstore "github.com/docker/docker/reference"
-	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
-
-// newPuller returns a puller to pull from a v2 registry.
-func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, config *ImagePullConfig, local ContentStore) *puller {
-	return &puller{
-		metadataService: metadata.NewV2MetadataService(config.MetadataStore),
-		endpoint:        endpoint,
-		config:          config,
-		repoInfo:        repoInfo,
-		manifestStore: &manifestStore{
-			local: local,
-		},
-	}
-}
 
 // Pull initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
@@ -98,18 +82,6 @@ func Pull(ctx context.Context, ref reference.Named, config *ImagePullConfig, loc
 	}
 
 	return translatePullError(lastErr, ref)
-}
-
-// writeStatus writes a status message to out. If layersDownloaded is true, the
-// status message indicates that a newer image was downloaded. Otherwise, it
-// indicates that the image is up to date. requestedTag is the tag the message
-// will refer to.
-func writeStatus(requestedTag string, out progress.Output, layersDownloaded bool) {
-	if layersDownloaded {
-		progress.Message(out, "", "Status: Downloaded newer image for "+requestedTag)
-	} else {
-		progress.Message(out, "", "Status: Image is up to date for "+requestedTag)
-	}
 }
 
 // validateRepoName validates the name of a repository.

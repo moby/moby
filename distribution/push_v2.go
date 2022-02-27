@@ -34,6 +34,19 @@ const (
 	middleLayerMaximumSize = 10 * (1 << 20)  // 10MB
 )
 
+// newPusher creates a new pusher for pushing to a v2 registry.
+// The parameters are passed through to the underlying pusher implementation for
+// use during the actual push operation.
+func newPusher(ref reference.Named, endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, config *ImagePushConfig) *pusher {
+	return &pusher{
+		metadataService: metadata.NewV2MetadataService(config.MetadataStore),
+		ref:             ref,
+		endpoint:        endpoint,
+		repoInfo:        repoInfo,
+		config:          config,
+	}
+}
+
 type pusher struct {
 	metadataService metadata.V2MetadataService
 	ref             reference.Named

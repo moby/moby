@@ -8,26 +8,11 @@ import (
 	"io"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/registry"
 	"github.com/sirupsen/logrus"
 )
 
 const compressionBufSize = 32768
-
-// newPusher creates a new pusher for pushing to a v2 registry.
-// The parameters are passed through to the underlying pusher implementation for
-// use during the actual push operation.
-func newPusher(ref reference.Named, endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, config *ImagePushConfig) *pusher {
-	return &pusher{
-		metadataService: metadata.NewV2MetadataService(config.MetadataStore),
-		ref:             ref,
-		endpoint:        endpoint,
-		repoInfo:        repoInfo,
-		config:          config,
-	}
-}
 
 // Push initiates a push operation on ref. ref is the specific variant of the
 // image to push. If no tag is provided, all tags are pushed.
