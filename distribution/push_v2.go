@@ -118,7 +118,7 @@ func (p *pusher) pushTag(ctx context.Context, ref reference.NamedTagged, id dige
 		return fmt.Errorf("could not find image from tag %s: %v", reference.FamiliarString(ref), err)
 	}
 
-	rootfs, err := p.config.ImageStore.RootFSFromConfig(imgConfig)
+	rootfs, err := rootFSFromConfig(imgConfig)
 	if err != nil {
 		return fmt.Errorf("unable to get rootfs for image %s: %s", reference.FamiliarString(ref), err)
 	}

@@ -647,7 +647,7 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 	// check to block Windows images being pulled on Linux is implemented, it
 	// may be necessary to perform the same type of serialisation.
 	if runtime.GOOS == "windows" {
-		configJSON, configRootFS, configPlatform, err = receiveConfig(p.config.ImageStore, configChan, configErrChan)
+		configJSON, configRootFS, configPlatform, err = receiveConfig(configChan, configErrChan)
 		if err != nil {
 			return "", err
 		}
@@ -708,7 +708,7 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 	}
 
 	if configJSON == nil {
-		configJSON, configRootFS, _, err = receiveConfig(p.config.ImageStore, configChan, configErrChan)
+		configJSON, configRootFS, _, err = receiveConfig(configChan, configErrChan)
 		if err == nil && configRootFS == nil {
 			err = errRootFSInvalid
 		}
@@ -773,14 +773,14 @@ func (p *puller) pullOCI(ctx context.Context, ref reference.Named, mfst *ocische
 	return id, manifestDigest, err
 }
 
-func receiveConfig(s ImageConfigStore, configChan <-chan []byte, errChan <-chan error) ([]byte, *image.RootFS, *specs.Platform, error) {
+func receiveConfig(configChan <-chan []byte, errChan <-chan error) ([]byte, *image.RootFS, *specs.Platform, error) {
 	select {
 	case configJSON := <-configChan:
-		rootfs, err := s.RootFSFromConfig(configJSON)
+		rootfs, err := rootFSFromConfig(configJSON)
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		platform, err := s.PlatformFromConfig(configJSON)
+		platform, err := platformFromConfig(configJSON)
 		if err != nil {
 			return nil, nil, nil, err
 		}

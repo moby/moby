@@ -87,8 +87,6 @@ type ImagePushConfig struct {
 type ImageConfigStore interface {
 	Put(context.Context, []byte) (digest.Digest, error)
 	Get(context.Context, digest.Digest) ([]byte, error)
-	RootFSFromConfig([]byte) (*image.RootFS, error)
-	PlatformFromConfig([]byte) (*specs.Platform, error)
 }
 
 // PushLayerProvider provides layers to be pushed by ChainID.
@@ -133,7 +131,7 @@ func (s *imageConfigStore) Get(_ context.Context, d digest.Digest) ([]byte, erro
 	return img.RawJSON(), nil
 }
 
-func (s *imageConfigStore) RootFSFromConfig(c []byte) (*image.RootFS, error) {
+func rootFSFromConfig(c []byte) (*image.RootFS, error) {
 	var unmarshalledConfig image.Image
 	if err := json.Unmarshal(c, &unmarshalledConfig); err != nil {
 		return nil, err
@@ -141,7 +139,7 @@ func (s *imageConfigStore) RootFSFromConfig(c []byte) (*image.RootFS, error) {
 	return unmarshalledConfig.RootFS, nil
 }
 
-func (s *imageConfigStore) PlatformFromConfig(c []byte) (*specs.Platform, error) {
+func platformFromConfig(c []byte) (*specs.Platform, error) {
 	var unmarshalledConfig image.Image
 	if err := json.Unmarshal(c, &unmarshalledConfig); err != nil {
 		return nil, err
@@ -154,7 +152,12 @@ func (s *imageConfigStore) PlatformFromConfig(c []byte) (*specs.Platform, error)
 	if !system.IsOSSupported(os) {
 		return nil, errors.Wrapf(system.ErrNotSupportedOperatingSystem, "image operating system %q cannot be used on this platform", os)
 	}
-	return &specs.Platform{OS: os, Architecture: unmarshalledConfig.Architecture, Variant: unmarshalledConfig.Variant, OSVersion: unmarshalledConfig.OSVersion}, nil
+	return &specs.Platform{
+		OS:           os,
+		Architecture: unmarshalledConfig.Architecture,
+		Variant:      unmarshalledConfig.Variant,
+		OSVersion:    unmarshalledConfig.OSVersion,
+	}, nil
 }
 
 type storeLayerProvider struct {
