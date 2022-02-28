@@ -5275,22 +5275,22 @@ definitions:
         type: "integer"
         format: "int64"
         example: 3987495
-      # TODO Not yet including these fields for now, as they are nil / omitted in our response.
-      # urls:
-      #   description: |
-      #     List of URLs from which this object MAY be downloaded.
-      #   type: "array"
-      #   items:
-      #     type: "string"
-      #     format: "uri"
-      # annotations:
-      #   description: |
-      #     Arbitrary metadata relating to the targeted content.
-      #   type: "object"
-      #   additionalProperties:
-      #     type: "string"
-      # platform:
-      #   $ref: "#/definitions/OCIPlatform"
+        # TODO Not yet including these fields for now, as they are nil / omitted in our response.
+        # urls:
+        #   description: |
+        #     List of URLs from which this object MAY be downloaded.
+        #   type: "array"
+        #   items:
+        #     type: "string"
+        #     format: "uri"
+        # annotations:
+        #   description: |
+        #     Arbitrary metadata relating to the targeted content.
+        #   type: "object"
+        #   additionalProperties:
+        #     type: "string"
+        # platform:
+        #   $ref: "#/definitions/OCIPlatform"
 
   OCIPlatform:
     type: "object"
