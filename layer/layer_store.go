@@ -284,7 +284,9 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 	var p *roLayer
 
 	if string(parent) != "" {
+		ls.layerL.Lock()
 		p = ls.get(parent)
+		ls.layerL.Unlock()
 		if p == nil {
 			return nil, ErrLayerDoesNotExist
 		}
@@ -351,7 +353,7 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 	ls.layerL.Lock()
 	defer ls.layerL.Unlock()
 
-	if existingLayer := ls.getWithoutLock(layer.chainID); existingLayer != nil {
+	if existingLayer := ls.get(layer.chainID); existingLayer != nil {
 		// Set error for cleanup, but do not return the error
 		err = errors.New("layer already exists")
 		return existingLayer.getReference(), nil
@@ -366,28 +368,20 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 	return layer.getReference(), nil
 }
 
-func (ls *layerStore) getWithoutLock(layer ChainID) *roLayer {
+func (ls *layerStore) get(layer ChainID) *roLayer {
 	l, ok := ls.layerMap[layer]
 	if !ok {
 		return nil
 	}
-
 	l.referenceCount++
-
 	return l
-}
-
-func (ls *layerStore) get(l ChainID) *roLayer {
-	ls.layerL.Lock()
-	defer ls.layerL.Unlock()
-	return ls.getWithoutLock(l)
 }
 
 func (ls *layerStore) Get(l ChainID) (Layer, error) {
 	ls.layerL.Lock()
 	defer ls.layerL.Unlock()
 
-	layer := ls.getWithoutLock(l)
+	layer := ls.get(l)
 	if layer == nil {
 		return nil, ErrLayerDoesNotExist
 	}
@@ -520,7 +514,9 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWL
 	var pid string
 	var p *roLayer
 	if string(parent) != "" {
+		ls.layerL.Lock()
 		p = ls.get(parent)
+		ls.layerL.Unlock()
 		if p == nil {
 			return nil, ErrLayerDoesNotExist
 		}
