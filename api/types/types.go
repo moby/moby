@@ -27,30 +27,112 @@ type RootFS struct {
 // ImageInspect contains response of Engine API:
 // GET "/images/{name:.*}/json"
 type ImageInspect struct {
-	ID              string `json:"Id"`
-	RepoTags        []string
-	RepoDigests     []string
-	Parent          string
-	Comment         string
-	Created         string
-	Container       string
+	// ID is the content-addressable ID of an image.
+	//
+	// This identified is a content-addressable digest calculated from the
+	// image's configuration (which includes the digests of layers used by
+	// the image).
+	//
+	// Note that this digest differs from the `RepoDigests` below, which
+	// holds digests of image manifests that reference the image.
+	ID string `json:"Id"`
+
+	// RepoTags is a list of image names/tags in the local image cache that
+	// reference this image.
+	//
+	// Multiple image tags can refer to the same imagem and this list may be
+	// empty if no tags reference the image, in which case the image is
+	// "untagged", in which case it can still be referenced by its ID.
+	RepoTags []string
+
+	// RepoDigests is a list of content-addressable digests of locally available
+	// image manifests that the image is referenced from. Multiple manifests can
+	// refer to the same image.
+	//
+	// These digests are usually only available if the image was either pulled
+	// from a registry, or if the image was pushed to a registry, which is when
+	// the manifest is generated and its digest calculated.
+	RepoDigests []string
+
+	// Parent is the ID of the parent image.
+	//
+	// Depending on how the image was created, this field may be empty and
+	// is only set for images that were built/created locally. This field
+	// is empty if the image was pulled from an image registry.
+	Parent string
+
+	// Comment is an optional message that can be set when committing or
+	// importing the image.
+	Comment string
+
+	// Created is the date and time at which the image was created, formatted in
+	// RFC 3339 nano-seconds (time.RFC3339Nano).
+	Created string
+
+	// Container is the ID of the container that was used to create the image.
+	//
+	// Depending on how the image was created, this field may be empty.
+	Container string
+
+	// ContainerConfig is the configuration of the container that was committed
+	// into the image.
 	ContainerConfig *container.Config
-	DockerVersion   string
-	Author          string
-	Config          *container.Config
-	Architecture    string
-	Variant         string `json:",omitempty"`
-	Os              string
-	OsVersion       string `json:",omitempty"`
-	Size            int64
-	VirtualSize     int64
-	GraphDriver     GraphDriverData
-	RootFS          RootFS
-	Metadata        ImageMetadata
+
+	// DockerVersion is the version of Docker that was used to build the image.
+	//
+	// Depending on how the image was created, this field may be empty.
+	DockerVersion string
+
+	// Author is the name of the author that was specified when committing the
+	// image, or as specified through MAINTAINER (deprecated) in the Dockerfile.
+	Author string
+	Config *container.Config
+
+	// Architecture is the hardware CPU architecture that the image runs on.
+	Architecture string
+
+	// Variant is the CPU architecture variant (presently ARM-only).
+	Variant string `json:",omitempty"`
+
+	// OS is the Operating System the image is built to run on.
+	Os string
+
+	// OsVersion is the version of the Operating System the image is built to
+	// run on (especially for Windows).
+	OsVersion string `json:",omitempty"`
+
+	// Size is the total size of the image including all layers it is composed of.
+	Size int64
+
+	// VirtualSize is the total size of the image including all layers it is
+	// composed of.
+	//
+	// In versions of Docker before v1.10, this field was calculated from
+	// the image itself and all of its parent images. Docker v1.10 and up
+	// store images self-contained, and no longer use a parent-chain, making
+	// this field an equivalent of the Size field.
+	//
+	// This field is kept for backward compatibility, but may be removed in
+	// a future version of the API.
+	VirtualSize int64 // TODO(thaJeztah): deprecate this field
+
+	// GraphDriver holds information about the storage driver used to store the
+	// container's and image's filesystem.
+	GraphDriver GraphDriverData
+
+	// RootFS contains information about the image's RootFS, including the
+	// layer IDs.
+	RootFS RootFS
+
+	// Metadata of the image in the local cache.
+	//
+	// This information is local to the daemon, and not part of the image itself.
+	Metadata ImageMetadata
 }
 
 // ImageMetadata contains engine-local data about the image
 type ImageMetadata struct {
+	// LastTagTime is the date and time at which the image was last tagged.
 	LastTagTime time.Time `json:",omitempty"`
 }
 
