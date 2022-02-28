@@ -461,7 +461,11 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 		// only produce warnings if the setting wasn't to *disable* the OOM Kill; no point
 		// warning the caller if they already wanted the feature to be off
 		if *resources.OomKillDisable {
-			warnings = append(warnings, "Your kernel does not support OomKillDisable. OomKillDisable discarded.")
+			if cgroups.Mode() == cgroups.Unified {
+				warnings = append(warnings, "You are using cgroups v2 which does not support OomKillDisable. OomKillDisable discarded.")
+			} else {
+				warnings = append(warnings, "Your kernel does not support OomKillDisable. OomKillDisable discarded.")
+			}
 		}
 		resources.OomKillDisable = nil
 	}

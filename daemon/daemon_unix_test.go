@@ -295,6 +295,7 @@ func TestVerifyPlatformContainerResources(t *testing.T) {
 			},
 			sysInfo: sysInfo(t, withMemoryLimit),
 			expectedWarnings: []string{
+				"You are using cgroups v2 which does not support OomKillDisable. OomKillDisable discarded.",
 				"Your kernel does not support OomKillDisable. OomKillDisable discarded.",
 			},
 		},
