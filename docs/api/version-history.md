@@ -354,6 +354,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /version` now returns `MinAPIVersion`.
 * `POST /build` accepts `networkmode` parameter to specify network used during build.
 * `GET /images/(name)/json` now returns `OsVersion` if populated
+* `GET /images/(name)/json` no longer contains the `RootFS.BaseLayer` field. This
+  field was used for Windows images that used a base-image that was pre-installed
+  on the host (`RootFS.Type` `layers+base`), which is no longer supported, and
+  the `RootFS.BaseLayer` field has been removed.
 * `GET /info` now returns `Isolation`.
 * `POST /containers/create` now takes `AutoRemove` in HostConfig, to enable auto-removal of the container on daemon side when the container's process exits.
 * `GET /containers/json` and `GET /containers/(id or name)/json` now return `"removing"` as a value for the `State.Status` field if the container is being removed. Previously, "exited" was returned as status.

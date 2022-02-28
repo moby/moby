@@ -889,8 +889,6 @@ definitions:
             type: "array"
             items:
               type: "string"
-          BaseLayer:
-            type: "string"
 
   ImageSummary:
     type: "object"
