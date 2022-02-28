@@ -746,6 +746,7 @@ definitions:
     description: |
       Health stores information about the container's healthcheck results.
     type: "object"
+    x-nullable: true
     properties:
       Status:
         description: |
@@ -1108,14 +1109,18 @@ definitions:
               type: "string"
 
   ContainerConfig:
-    description: "Configuration for a container that is portable between hosts"
+    description: |
+      Configuration for a container that is portable between hosts.
     type: "object"
     properties:
       Hostname:
-        description: "The hostname to use for the container, as a valid RFC 1123 hostname."
+        description: |
+          The hostname to use for the container, as a valid RFC 1123 hostname.
         type: "string"
+        example: "439f4e91bd1d"
       Domainname:
-        description: "The domain name to use for the container."
+        description: |
+          The domain name to use for the container.
         type: "string"
       User:
         description: "The user that commands are run as inside the container."
@@ -1138,11 +1143,16 @@ definitions:
 
           `{"<port>/<tcp|udp|sctp>": {}}`
         type: "object"
+        x-nullable: true
         additionalProperties:
           type: "object"
           enum:
             - {}
           default: {}
+        example: {
+          "80/tcp": {},
+          "443/tcp": {}
+        }
       Tty:
         description: |
           Attach standard streams to a TTY, including `stdin` if it is not closed.
@@ -1164,21 +1174,29 @@ definitions:
         type: "array"
         items:
           type: "string"
+        example:
+          - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       Cmd:
         description: |
           Command to run specified as a string or an array of strings.
         type: "array"
         items:
           type: "string"
+        example: ["/bin/sh"]
       Healthcheck:
         $ref: "#/definitions/HealthConfig"
       ArgsEscaped:
         description: "Command is already escaped (Windows only)"
         type: "boolean"
+        default: false
+        example: false
+        x-nullable: true
       Image:
         description: |
-          The name of the image to use when creating the container/
+          The name (or reference) of the image to use when creating the container,
+          or which was used when the container was created.
         type: "string"
+        example: "example-image:1.0"
       Volumes:
         description: |
           An object mapping mount point paths inside the container to empty
@@ -1192,6 +1210,7 @@ definitions:
       WorkingDir:
         description: "The working directory for commands to run in."
         type: "string"
+        example: "/public/"
       Entrypoint:
         description: |
           The entry point for the container as a string or an array of strings.
@@ -1202,38 +1221,50 @@ definitions:
         type: "array"
         items:
           type: "string"
+        example: []
       NetworkDisabled:
         description: "Disable networking for the container."
         type: "boolean"
+        x-nullable: true
       MacAddress:
         description: "MAC address of the container."
         type: "string"
+        x-nullable: true
       OnBuild:
         description: |
           `ONBUILD` metadata that were defined in the image's `Dockerfile`.
         type: "array"
+        x-nullable: true
         items:
           type: "string"
+        example: []
       Labels:
         description: "User-defined key/value metadata."
         type: "object"
         additionalProperties:
           type: "string"
+        example:
+          com.example.some-label: "some-value"
+          com.example.some-other-label: "some-other-value"
       StopSignal:
         description: |
           Signal to stop a container as a string or unsigned integer.
         type: "string"
-        default: "SIGTERM"
+        example: "SIGTERM"
+        x-nullable: true
       StopTimeout:
         description: "Timeout to stop a container in seconds."
         type: "integer"
         default: 10
+        x-nullable: true
       Shell:
         description: |
           Shell for when `RUN`, `CMD`, and `ENTRYPOINT` uses a shell.
         type: "array"
+        x-nullable: true
         items:
           type: "string"
+        example: ["/bin/sh", "-c"]
 
   NetworkingConfig:
     description: |
@@ -1490,107 +1521,219 @@ definitions:
         example: "4443"
 
   GraphDriverData:
-    description: "Information about a container's graph driver."
+    description: |
+      Information about the storage driver used to store the container's and
+      image's filesystem.
     type: "object"
     required: [Name, Data]
     properties:
       Name:
+        description: "Name of the storage driver."
         type: "string"
         x-nullable: false
+        example: "overlay2"
       Data:
+        description: |
+          Low-level storage metadata, provided as key/value pairs.
+
+          This information is driver-specific, and depends on the storage-driver
+          in use, and should be used for informational purposes only.
         type: "object"
         x-nullable: false
         additionalProperties:
           type: "string"
+        example: {
+          "MergedDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/merged",
+          "UpperDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/diff",
+          "WorkDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/work"
+        }
 
-  Image:
+  ImageInspect:
+    description: |
+      Information about an image in the local image cache.
     type: "object"
-    required:
-      - Id
-      - Parent
-      - Comment
-      - Created
-      - Container
-      - DockerVersion
-      - Author
-      - Architecture
-      - Os
-      - Size
-      - VirtualSize
-      - GraphDriver
-      - RootFS
     properties:
       Id:
+        description: |
+          ID is the content-addressable ID of an image.
+
+          This identified is a content-addressable digest calculated from the
+          image's configuration (which includes the digests of layers used by
+          the image).
+
+          Note that this digest differs from the `RepoDigests` below, which
+          holds digests of image manifests that reference the image.
         type: "string"
         x-nullable: false
+        example: "sha256:ec3f0931a6e6b6855d76b2d7b0be30e81860baccd891b2e243280bf1cd8ad710"
       RepoTags:
+        description: |
+          List of image names/tags in the local image cache that reference this
+          image.
+
+          Multiple image tags can refer to the same imagem and this list may be
+          empty if no tags reference the image, in which case the image is
+          "untagged", in which case it can still be referenced by its ID.
         type: "array"
         items:
           type: "string"
+        example:
+          - "example:1.0"
+          - "example:latest"
+          - "example:stable"
+          - "internal.registry.example.com:5000/example:1.0"
       RepoDigests:
+        description: |
+          List of content-addressable digests of locally available image manifests
+          that the image is referenced from. Multiple manifests can refer to the
+          same image.
+
+          These digests are usually only available if the image was either pulled
+          from a registry, or if the image was pushed to a registry, which is when
+          the manifest is generated and its digest calculated.
         type: "array"
         items:
           type: "string"
+        example:
+          - "example@sha256:afcc7f1ac1b49db317a7196c902e61c6c3c4607d63599ee1a82d702d249a0ccb"
+          - "internal.registry.example.com:5000/example@sha256:b69959407d21e8a062e0416bf13405bb2b71ed7a84dde4158ebafacfa06f5578"
       Parent:
+        description: |
+          ID of the parent image.
+
+          Depending on how the image was created, this field may be empty and
+          is only set for images that were built/created locally. This field
+          is empty if the image was pulled from an image registry.
         type: "string"
         x-nullable: false
+        example: ""
       Comment:
+        description: |
+          Optional message that was set when committing or importing the image.
         type: "string"
         x-nullable: false
+        example: ""
       Created:
+        description: |
+          Date and time at which the image was created, formatted in
+          [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
         type: "string"
         x-nullable: false
+        example: "2022-02-04T21:20:12.497794809Z"
       Container:
+        description: |
+          The ID of the container that was used to create the image.
+
+          Depending on how the image was created, this field may be empty.
         type: "string"
         x-nullable: false
+        example: "65974bc86f1770ae4bff79f651ebdbce166ae9aada632ee3fa9af3a264911735"
       ContainerConfig:
         $ref: "#/definitions/ContainerConfig"
       DockerVersion:
+        description: |
+          The version of Docker that was used to build the image.
+
+          Depending on how the image was created, this field may be empty.
         type: "string"
         x-nullable: false
+        example: "20.10.7"
       Author:
+        description: |
+          Name of the author that was specified when committing the image, or as
+          specified through MAINTAINER (deprecated) in the Dockerfile.
         type: "string"
         x-nullable: false
+        example: ""
       Config:
         $ref: "#/definitions/ContainerConfig"
       Architecture:
+        description: |
+          Hardware CPU architecture that the image runs on.
         type: "string"
         x-nullable: false
+        example: "arm"
+      Variant:
+        description: |
+          CPU architecture variant (presently ARM-only).
+        type: "string"
+        x-nullable: true
+        example: "v7"
       Os:
+        description: |
+          Operating System the image is built to run on.
         type: "string"
         x-nullable: false
+        example: "linux"
       OsVersion:
+        description: |
+          Operating System version the image is built to run on (especially
+          for Windows).
         type: "string"
+        example: ""
+        x-nullable: true
       Size:
+        description: |
+          Total size of the image including all layers it is composed of.
         type: "integer"
         format: "int64"
         x-nullable: false
+        example: 1239828
       VirtualSize:
+        description: |
+          Total size of the image including all layers it is composed of.
+
+          In versions of Docker before v1.10, this field was calculated from
+          the image itself and all of its parent images. Docker v1.10 and up
+          store images self-contained, and no longer use a parent-chain, making
+          this field an equivalent of the Size field.
+
+          This field is kept for backward compatibility, but may be removed in
+          a future version of the API.
         type: "integer"
         format: "int64"
         x-nullable: false
+        example: 1239828
       GraphDriver:
         $ref: "#/definitions/GraphDriverData"
       RootFS:
+        description: |
+          Information about the image's RootFS, including the layer IDs.
         type: "object"
         required: [Type]
         properties:
           Type:
             type: "string"
             x-nullable: false
+            example: "layers"
           Layers:
             type: "array"
             items:
               type: "string"
+            example:
+              - "sha256:1834950e52ce4d5a88a1bbd131c537f4d0e56d10ff0dd69e66be3b7dfa9df7e6"
+              - "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
           BaseLayer:
             type: "string"
+            x-nullable: true
+            example: ""
       Metadata:
+        description: |
+          Additional metadata of the image in the local cache. This information
+          is local to the daemon, and not part of the image itself.
         type: "object"
         properties:
           LastTagTime:
+            description: |
+              Date and time at which the image was last tagged in
+              [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
+
+              This information is only available if the image was tagged locally,
+              and omitted otherwise.
             type: "string"
             format: "dateTime"
-
+            example: "2022-02-28T14:40:02.623929178Z"
+            x-nullable: true
   ImageSummary:
     type: "object"
     required:
@@ -7705,84 +7848,7 @@ paths:
         200:
           description: "No error"
           schema:
-            $ref: "#/definitions/Image"
-          examples:
-            application/json:
-              Id: "sha256:85f05633ddc1c50679be2b16a0479ab6f7637f8884e0cfe0f4d20e1ebb3d6e7c"
-              Container: "cb91e48a60d01f1e27028b4fc6819f4f290b3cf12496c8176ec714d0d390984a"
-              Comment: ""
-              Os: "linux"
-              Architecture: "amd64"
-              Parent: "sha256:91e54dfb11794fad694460162bf0cb0a4fa710cfa3f60979c177d920813e267c"
-              ContainerConfig:
-                Tty: false
-                Hostname: "e611e15f9c9d"
-                Domainname: ""
-                AttachStdout: false
-                PublishService: ""
-                AttachStdin: false
-                OpenStdin: false
-                StdinOnce: false
-                NetworkDisabled: false
-                OnBuild: []
-                Image: "91e54dfb11794fad694460162bf0cb0a4fa710cfa3f60979c177d920813e267c"
-                User: ""
-                WorkingDir: ""
-                MacAddress: ""
-                AttachStderr: false
-                Labels:
-                  com.example.license: "GPL"
-                  com.example.version: "1.0"
-                  com.example.vendor: "Acme"
-                Env:
-                  - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-                Cmd:
-                  - "/bin/sh"
-                  - "-c"
-                  - "#(nop) LABEL com.example.vendor=Acme com.example.license=GPL com.example.version=1.0"
-              DockerVersion: "1.9.0-dev"
-              VirtualSize: 188359297
-              Size: 0
-              Author: ""
-              Created: "2015-09-10T08:30:53.26995814Z"
-              GraphDriver:
-                Name: "aufs"
-                Data: {}
-              RepoDigests:
-                - "localhost:5000/test/busybox/example@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"
-              RepoTags:
-                - "example:1.0"
-                - "example:latest"
-                - "example:stable"
-              Config:
-                Image: "91e54dfb11794fad694460162bf0cb0a4fa710cfa3f60979c177d920813e267c"
-                NetworkDisabled: false
-                OnBuild: []
-                StdinOnce: false
-                PublishService: ""
-                AttachStdin: false
-                OpenStdin: false
-                Domainname: ""
-                AttachStdout: false
-                Tty: false
-                Hostname: "e611e15f9c9d"
-                Cmd:
-                  - "/bin/bash"
-                Env:
-                  - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-                Labels:
-                  com.example.vendor: "Acme"
-                  com.example.version: "1.0"
-                  com.example.license: "GPL"
-                MacAddress: ""
-                AttachStderr: false
-                WorkingDir: ""
-                User: ""
-              RootFS:
-                Type: "layers"
-                Layers:
-                  - "sha256:1834950e52ce4d5a88a1bbd131c537f4d0e56d10ff0dd69e66be3b7dfa9df7e6"
-                  - "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+            $ref: "#/definitions/ImageInspect"
         404:
           description: "No such image"
           schema:
