@@ -54,7 +54,7 @@ require (
 	github.com/moby/buildkit v0.8.2-0.20210615162540-9f254e18360a
 	github.com/moby/ipvs v1.0.1
 	github.com/moby/locker v1.0.1
-	github.com/moby/sys/mount v0.3.0
+	github.com/moby/sys/mount v0.3.1
 	github.com/moby/sys/mountinfo v0.6.0
 	github.com/moby/sys/signal v0.7.0
 	github.com/moby/sys/symlink v0.2.0
