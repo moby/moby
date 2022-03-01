@@ -111,7 +111,7 @@ type timeApproximator struct {
 
 func (a timeApproximator) compare(x, y time.Time) bool {
 	// Avoid subtracting times to avoid overflow when the
-	// difference is larger than the largest representible duration.
+	// difference is larger than the largest representable duration.
 	if x.After(y) {
 		// Ensure x is always before y
 		x, y = y, x
