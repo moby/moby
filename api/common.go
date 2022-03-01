@@ -8,7 +8,4 @@ const (
 	// NoBaseImageSpecifier is the symbol used by the FROM
 	// command to specify that no base image is to be used.
 	NoBaseImageSpecifier = "scratch"
-
-	// MediaTypeJsonSequence is media type for RFC-7464
-	MediaTypeJsonSequence = "application/json-seq"
 )

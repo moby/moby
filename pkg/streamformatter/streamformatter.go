@@ -4,8 +4,6 @@ package streamformatter // import "github.com/docker/docker/pkg/streamformatter"
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types"
 	"io"
 
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -100,7 +98,7 @@ func NewProgressOutput(out io.Writer) progress.Output {
 // using JSON objects
 func NewJSONProgressOutput(out io.Writer, newLines bool) progress.Output {
 	var recordSeparator []byte
-	if mt, ok := out.(types.HasMediaType); ok && mt.MediaType() == api.MediaTypeJsonSequence {
+	if mt, ok := out.(HasMediaType); ok && mt.MediaType() == MediaTypeJSONSequence {
 		recordSeparator = []byte{0x1E}
 	}
 	return &progressOutput{sf: &jsonProgressFormatter{}, out: out, newLines: newLines, recordSeparator: recordSeparator}

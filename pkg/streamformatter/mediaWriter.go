@@ -1,4 +1,4 @@
-package types
+package streamformatter
 
 import "io"
 
@@ -16,10 +16,15 @@ func WithMediaType(w io.Writer, mediaType string) io.Writer {
 	}
 }
 
+// MediaType implements HasMediaType
 func (w mediaWriter) MediaType() string {
 	return w.mediaType
 }
 
+// HasMediaType is for types which declare an explicit Media Type
 type HasMediaType interface {
 	MediaType() string
 }
+
+// MediaTypeJSONSequence is media type for RFC-7464
+const MediaTypeJSONSequence = "application/json-seq"

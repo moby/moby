@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/docker/docker/api"
 	"net/http"
 	"strconv"
 	"strings"
@@ -41,9 +40,9 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 	defer output.Close()
 
 	mediaType := httputil.NegotiateContentType(r,
-		[]string{api.MediaTypeJsonSequence, "application/json"}, "application/json")
+		[]string{streamformatter.MediaTypeJSONSequence, "application/json"}, "application/json")
 	w.Header().Set("Content-Type", mediaType)
-	out := types.WithMediaType(output, mediaType)
+	out := streamformatter.WithMediaType(output, mediaType)
 
 	version := httputils.VersionFromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, "1.32") {
@@ -123,9 +122,9 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 	defer output.Close()
 
 	mediaType := httputil.NegotiateContentType(r,
-		[]string{api.MediaTypeJsonSequence, "application/json"}, "application/json")
+		[]string{streamformatter.MediaTypeJSONSequence, "application/json"}, "application/json")
 	w.Header().Set("Content-Type", mediaType)
-	out := types.WithMediaType(output, mediaType)
+	out := streamformatter.WithMediaType(output, mediaType)
 
 	if err := s.backend.PushImage(ctx, image, tag, metaHeaders, authConfig, out); err != nil {
 		if !output.Flushed() {
@@ -171,9 +170,9 @@ func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter,
 	defer output.Close()
 
 	mediaType := httputil.NegotiateContentType(r,
-		[]string{api.MediaTypeJsonSequence, "application/json"}, "application/json")
+		[]string{streamformatter.MediaTypeJSONSequence, "application/json"}, "application/json")
 	w.Header().Set("Content-Type", mediaType)
-	out := types.WithMediaType(output, mediaType)
+	out := streamformatter.WithMediaType(output, mediaType)
 
 	if err := s.backend.LoadImage(r.Body, out, quiet); err != nil {
 		_, _ = output.Write(streamformatter.FormatError(err))
