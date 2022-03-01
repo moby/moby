@@ -93,7 +93,7 @@ code on your system and rebuild any time:
 
 To build Moby, run:
 
-    $DOCKER_GITCOMMIT=(git rev-parse --short HEAD)
+    DOCKER_GITCOMMIT=$(git rev-parse --short HEAD)
     docker run --name binaries -e DOCKER_GITCOMMIT=$DOCKER_GITCOMMIT nativebuildimage hack\make.ps1 -Binary
     docker run --name binaries -e DOCKER_GITCOMMIT=$DOCKER_GITCOMMIT -m 2GB nativebuildimage hack\make.ps1 -Binary  # (if using Hyper-V containers)
 
