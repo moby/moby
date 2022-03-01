@@ -972,7 +972,7 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# gotest.tools/v3 v3.0.3
+# gotest.tools/v3 v3.1.0
 ## explicit; go 1.11
 gotest.tools/v3/assert
 gotest.tools/v3/assert/cmp

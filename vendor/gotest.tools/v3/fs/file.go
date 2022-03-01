@@ -113,3 +113,19 @@ func (d *Dir) Remove() {
 func (d *Dir) Join(parts ...string) string {
 	return filepath.Join(append([]string{d.Path()}, parts...)...)
 }
+
+// DirFromPath returns a Dir for a path that already exists. No directory is created.
+// Unlike NewDir the directory will not be removed automatically when the test exits,
+// it is the callers responsibly to remove the directory.
+// DirFromPath can be used with Apply to modify an existing directory.
+//
+// If the path does not already exist, use NewDir instead.
+func DirFromPath(t assert.TestingT, path string, ops ...PathOp) *Dir {
+	if ht, ok := t.(helperT); ok {
+		ht.Helper()
+	}
+
+	dir := &Dir{path: path}
+	assert.NilError(t, applyPathOps(dir, ops))
+	return dir
+}

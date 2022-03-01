@@ -1,10 +1,10 @@
 package icmd
 
 import (
-	"os/exec"
 	"syscall"
 
 	"github.com/pkg/errors"
+	exec "golang.org/x/sys/execabs"
 )
 
 // getExitCode returns the ExitStatus of a process from the error returned by
