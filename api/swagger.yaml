@@ -8054,6 +8054,9 @@ paths:
       operationId: "ImagePush"
       consumes:
         - "application/octet-stream"
+      produces:
+        - "application/json-seq"
+        - "application/json"
       responses:
         200:
           description: "No error"
@@ -8797,6 +8800,7 @@ paths:
       consumes:
         - "application/x-tar"
       produces:
+        - "application/json-seq"
         - "application/json"
       responses:
         200:

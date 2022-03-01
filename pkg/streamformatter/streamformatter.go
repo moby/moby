@@ -4,6 +4,8 @@ package streamformatter // import "github.com/docker/docker/pkg/streamformatter"
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
 	"io"
 
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -97,7 +99,11 @@ func NewProgressOutput(out io.Writer) progress.Output {
 // NewJSONProgressOutput returns a progress.Output that formats output
 // using JSON objects
 func NewJSONProgressOutput(out io.Writer, newLines bool) progress.Output {
-	return &progressOutput{sf: &jsonProgressFormatter{}, out: out, newLines: newLines}
+	var recordSeparator []byte
+	if mt, ok := out.(types.HasMediaType); ok && mt.MediaType() == api.MediaTypeJsonSequence {
+		recordSeparator = []byte{0x1E}
+	}
+	return &progressOutput{sf: &jsonProgressFormatter{}, out: out, newLines: newLines, recordSeparator: recordSeparator}
 }
 
 type formatProgress interface {
@@ -106,13 +112,15 @@ type formatProgress interface {
 }
 
 type progressOutput struct {
-	sf       formatProgress
-	out      io.Writer
-	newLines bool
+	sf              formatProgress
+	out             io.Writer
+	newLines        bool
+	recordSeparator []byte
 }
 
 // WriteProgress formats progress information from a ProgressReader.
 func (out *progressOutput) WriteProgress(prog progress.Progress) error {
+	out.out.Write(out.recordSeparator)
 	var formatted []byte
 	if prog.Message != "" {
 		formatted = out.sf.formatStatus(prog.ID, prog.Message)

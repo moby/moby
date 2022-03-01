@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/docker/docker/api"
 	"net/http"
 	"strconv"
 	"strings"
@@ -39,8 +40,10 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 	)
 	defer output.Close()
 
-	w.Header().Set("Content-Type", httputil.NegotiateContentType(r,
-		[]string{"application/json-seq", "application/json"}, "application/json"))
+	mediaType := httputil.NegotiateContentType(r,
+		[]string{api.MediaTypeJsonSequence, "application/json"}, "application/json")
+	w.Header().Set("Content-Type", mediaType)
+	out := types.WithMediaType(output, mediaType)
 
 	version := httputils.VersionFromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, "1.32") {
@@ -71,10 +74,10 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 				authConfig = &types.AuthConfig{}
 			}
 		}
-		progressErr = s.backend.PullImage(ctx, image, tag, platform, metaHeaders, authConfig, output)
+		progressErr = s.backend.PullImage(ctx, image, tag, platform, metaHeaders, authConfig, out)
 	} else { // import
 		src := r.Form.Get("fromSrc")
-		progressErr = s.backend.ImportImage(src, repo, platform, tag, message, r.Body, output, r.Form["changes"])
+		progressErr = s.backend.ImportImage(src, repo, platform, tag, message, r.Body, out, r.Form["changes"])
 	}
 	if progressErr != nil {
 		if !output.Flushed() {
@@ -119,9 +122,12 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 
-	w.Header().Set("Content-Type", "application/json")
+	mediaType := httputil.NegotiateContentType(r,
+		[]string{api.MediaTypeJsonSequence, "application/json"}, "application/json")
+	w.Header().Set("Content-Type", mediaType)
+	out := types.WithMediaType(output, mediaType)
 
-	if err := s.backend.PushImage(ctx, image, tag, metaHeaders, authConfig, output); err != nil {
+	if err := s.backend.PushImage(ctx, image, tag, metaHeaders, authConfig, out); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -161,11 +167,15 @@ func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter,
 	}
 	quiet := httputils.BoolValueOrDefault(r, "quiet", true)
 
-	w.Header().Set("Content-Type", "application/json")
-
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
-	if err := s.backend.LoadImage(r.Body, output, quiet); err != nil {
+
+	mediaType := httputil.NegotiateContentType(r,
+		[]string{api.MediaTypeJsonSequence, "application/json"}, "application/json")
+	w.Header().Set("Content-Type", mediaType)
+	out := types.WithMediaType(output, mediaType)
+
+	if err := s.backend.LoadImage(r.Body, out, quiet); err != nil {
 		_, _ = output.Write(streamformatter.FormatError(err))
 	}
 	return nil
