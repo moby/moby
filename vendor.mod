@@ -48,7 +48,7 @@ require (
 	github.com/hashicorp/serf v0.8.2
 	github.com/imdario/mergo v0.3.12
 	github.com/ishidawataru/sctp v0.0.0-20210226210310-f2269e66cdee
-	github.com/klauspost/compress v1.14.2
+	github.com/klauspost/compress v1.14.3
 	github.com/miekg/dns v1.1.27
 	github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible
 	github.com/moby/buildkit v0.8.2-0.20210615162540-9f254e18360a

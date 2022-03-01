@@ -516,7 +516,7 @@ github.com/jmespath/go-jmespath
 github.com/jstemmer/go-junit-report
 github.com/jstemmer/go-junit-report/formatter
 github.com/jstemmer/go-junit-report/parser
-# github.com/klauspost/compress v1.14.2
+# github.com/klauspost/compress v1.14.3
 ## explicit; go 1.15
 github.com/klauspost/compress
 github.com/klauspost/compress/fse

@@ -85,7 +85,7 @@ func (e *fastEncoder) Encode(blk *blockEnc, src []byte) {
 	// TEMPLATE
 	const hashLog = tableBits
 	// seems global, but would be nice to tweak.
-	const kSearchStrength = 7
+	const kSearchStrength = 6
 
 	// nextEmit is where in src the next emitLiteral should start from.
 	nextEmit := s
@@ -334,7 +334,7 @@ func (e *fastEncoder) EncodeNoHist(blk *blockEnc, src []byte) {
 	// TEMPLATE
 	const hashLog = tableBits
 	// seems global, but would be nice to tweak.
-	const kSearchStrength = 8
+	const kSearchStrength = 6
 
 	// nextEmit is where in src the next emitLiteral should start from.
 	nextEmit := s
