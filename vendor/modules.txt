@@ -105,7 +105,7 @@ github.com/beorn7/perks/quantile
 # github.com/bsphere/le_go v0.0.0-20170215134836-7a984a84b549
 ## explicit
 github.com/bsphere/le_go
-# github.com/cespare/xxhash/v2 v2.1.1
+# github.com/cespare/xxhash/v2 v2.1.2
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
 # github.com/cilium/ebpf v0.7.0
