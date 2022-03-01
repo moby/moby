@@ -36,7 +36,7 @@ WORKDIR /go/src/github.com/docker/distribution
 # the version specified here should match a current release.
 ARG REGISTRY_VERSION=v2.3.0
 
-# REGISTRY_VERSION_SCHEMA1 specifies the version of the regsitry to build and
+# REGISTRY_VERSION_SCHEMA1 specifies the version of the registry to build and
 # install from the https://github.com/docker/distribution repository. This is
 # an older (pre v2.3.0) version of the registry that only supports schema1
 # manifests. This version of the registry is not working on arm64, so installation
@@ -131,7 +131,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-false-aptlib,target=/var/lib
 FROM --platform=linux/amd64 runtime-dev-cross-false AS runtime-dev-cross-true
 ARG DEBIAN_FRONTEND
 # These crossbuild packages rely on gcc-<arch>, but this doesn't want to install
-# on non-amd64 systems, so other architectures cannnot crossbuild amd64.
+# on non-amd64 systems, so other architectures cannot crossbuild amd64.
 RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-cross-true-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
