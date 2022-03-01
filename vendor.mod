@@ -72,7 +72,7 @@ require (
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	github.com/tchap/go-patricia v2.3.0+incompatible
-	github.com/tonistiigi/fsutil v0.0.0-20210609172227-d72af97c0eaf
+	github.com/tonistiigi/fsutil v0.0.0-20220115021204-b19f7f9cb274
 	github.com/vbatts/tar-split v0.11.2
 	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852
 	github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae

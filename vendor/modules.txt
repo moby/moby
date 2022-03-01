@@ -737,11 +737,10 @@ github.com/tchap/go-patricia/patricia
 # github.com/tinylib/msgp v1.1.0
 ## explicit
 github.com/tinylib/msgp/msgp
-# github.com/tonistiigi/fsutil v0.0.0-20210609172227-d72af97c0eaf
+# github.com/tonistiigi/fsutil v0.0.0-20220115021204-b19f7f9cb274
 ## explicit; go 1.13
 github.com/tonistiigi/fsutil
 github.com/tonistiigi/fsutil/copy
-github.com/tonistiigi/fsutil/prefix
 github.com/tonistiigi/fsutil/types
 # github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea
 ## explicit
