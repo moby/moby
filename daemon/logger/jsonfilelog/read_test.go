@@ -61,9 +61,10 @@ func BenchmarkJSONFileLoggerReadLogs(b *testing.B) {
 	lw := jsonlogger.(*JSONFileLogger).ReadLogs(logger.ReadConfig{Follow: true})
 	for {
 		select {
-		case <-lw.Msg:
-		case <-lw.WatchProducerGone():
-			return
+		case _, ok := <-lw.Msg:
+			if !ok {
+				return
+			}
 		case err := <-chError:
 			b.Fatal(err)
 		}

@@ -79,6 +79,7 @@ type LogFile struct {
 	mu              sync.RWMutex // protects the logfile access
 	f               *os.File     // store for closing
 	closed          bool
+	closedCh        chan struct{}
 	rotateMu        sync.Mutex // blocks the next rotation until the current rotation is completed
 	capacity        int64      // maximum size of each file
 	currentSize     int64      // current size of the latest file
@@ -87,7 +88,6 @@ type LogFile struct {
 	lastTimestamp   time.Time  // timestamp of the last log
 	filesRefCounter refCounter // keep reference-counted of decompressed files
 	notifyReaders   *pubsub.Publisher
-	readers         map[*logger.LogWatcher]struct{} // stores the active log followers
 	marshal         logger.MarshalFunc
 	createDecoder   MakeDecoderFn
 	getTailReader   GetTailReaderFunc
@@ -136,13 +136,13 @@ func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, mar
 
 	return &LogFile{
 		f:               log,
+		closedCh:        make(chan struct{}),
 		capacity:        capacity,
 		currentSize:     size,
 		maxFiles:        maxFiles,
 		compress:        compress,
 		filesRefCounter: refCounter{counter: make(map[string]int)},
 		notifyReaders:   pubsub.NewPublisher(0, 1),
-		readers:         make(map[*logger.LogWatcher]struct{}),
 		marshal:         marshaller,
 		createDecoder:   decodeFunc,
 		perms:           perms,
@@ -344,14 +344,11 @@ func (w *LogFile) Close() error {
 	if w.closed {
 		return nil
 	}
-	for r := range w.readers {
-		r.ProducerGone()
-		delete(w.readers, r)
-	}
 	if err := w.f.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
 		return err
 	}
 	w.closed = true
+	close(w.closedCh)
 	return nil
 }
 
@@ -361,10 +358,6 @@ func (w *LogFile) Close() error {
 // TODO: Consider a different implementation which can effectively follow logs under frequent rotations.
 func (w *LogFile) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
 	watcher := logger.NewLogWatcher()
-	w.mu.Lock()
-	w.readers[watcher] = struct{}{}
-	w.mu.Unlock()
-
 	// Lock before starting the reader goroutine to synchronize operations
 	// for race-free unit testing. The writer is locked out until the reader
 	// has opened the log file and set the read cursor to the current
@@ -375,12 +368,7 @@ func (w *LogFile) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
 }
 
 func (w *LogFile) readLogsLocked(config logger.ReadConfig, watcher *logger.LogWatcher) {
-	defer func() {
-		close(watcher.Msg)
-		w.mu.Lock()
-		delete(w.readers, watcher)
-		w.mu.Unlock()
-	}()
+	defer close(watcher.Msg)
 
 	currentFile, err := open(w.f.Name())
 	if err != nil {
@@ -464,7 +452,7 @@ func (w *LogFile) readLogsLocked(config logger.ReadConfig, watcher *logger.LogWa
 	})
 	defer w.notifyReaders.Evict(notifyRotate)
 
-	followLogs(currentFile, watcher, notifyRotate, notifyEvict, dec, config.Since, config.Until)
+	followLogs(currentFile, watcher, w.closedCh, notifyRotate, notifyEvict, dec, config.Since, config.Until)
 }
 
 func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []*os.File, err error) {

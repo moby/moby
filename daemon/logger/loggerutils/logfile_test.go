@@ -126,7 +126,7 @@ func TestFollowLogsConsumerGone(t *testing.T) {
 	followLogsDone := make(chan struct{})
 	var since, until time.Time
 	go func() {
-		followLogs(f, lw, make(chan interface{}), make(chan interface{}), dec, since, until)
+		followLogs(f, lw, nil, make(chan interface{}), make(chan interface{}), dec, since, until)
 		close(followLogsDone)
 	}()
 
@@ -186,8 +186,9 @@ func TestFollowLogsProducerGone(t *testing.T) {
 	var since, until time.Time
 
 	followLogsDone := make(chan struct{})
+	producerGone := make(chan struct{})
 	go func() {
-		followLogs(f, lw, make(chan interface{}), make(chan interface{}), dec, since, until)
+		followLogs(f, lw, producerGone, make(chan interface{}), make(chan interface{}), dec, since, until)
 		close(followLogsDone)
 	}()
 
@@ -205,7 +206,7 @@ func TestFollowLogsProducerGone(t *testing.T) {
 
 	// "stop" the "container"
 	atomic.StoreInt32(&closed, 1)
-	lw.ProducerGone()
+	close(producerGone)
 
 	// should receive all the messages sent
 	readDone := make(chan struct{})
@@ -317,9 +318,8 @@ func waitForMsg(t *testing.T, lw *logger.LogWatcher, timeout time.Duration) {
 	defer timer.Stop()
 
 	select {
-	case <-lw.Msg:
-	case <-lw.WatchProducerGone():
-		t.Fatal("log producer gone before log message arrived")
+	case _, ok := <-lw.Msg:
+		assert.Assert(t, ok, "log producer gone before log message arrived")
 	case err := <-lw.Err:
 		assert.NilError(t, err)
 	case <-timer.C:
