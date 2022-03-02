@@ -440,11 +440,10 @@ func (w *LogFile) readLogsLocked(config logger.ReadConfig, watcher *logger.LogWa
 		w.mu.RLock()
 	}
 
-	if !config.Follow || w.closed {
-		w.mu.RUnlock()
+	w.mu.RUnlock()
+	if !config.Follow {
 		return
 	}
-	w.mu.RUnlock()
 
 	notifyRotate := w.notifyReaders.SubscribeTopic(func(i interface{}) bool {
 		_, ok := i.(struct{})

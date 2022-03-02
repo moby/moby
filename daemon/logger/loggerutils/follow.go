@@ -21,6 +21,7 @@ type follow struct {
 	fileWatcher               filenotify.FileWatcher
 	logWatcher                *logger.LogWatcher
 	producerGone              <-chan struct{}
+	draining                  bool
 	notifyRotate, notifyEvict chan interface{}
 	oldSize                   int64
 	retries                   int
@@ -99,7 +100,14 @@ func (fl *follow) waitRead() error {
 		}
 		return err
 	case <-fl.producerGone:
-		return errDone
+		// There may be messages written out which the fileWatcher has
+		// not yet notified us about.
+		if fl.draining {
+			return errDone
+		}
+		fl.draining = true
+		fl.dec.Reset(fl.file)
+		return nil
 	case <-fl.logWatcher.WatchConsumerGone():
 		return errDone
 	}

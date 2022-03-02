@@ -179,7 +179,6 @@ func TestFollowLogsProducerGone(t *testing.T) {
 			t.Logf("logDecode() closed after sending %d messages\n", sent)
 			return io.EOF
 		default:
-			t.Fatal("logDecode() called after closing!")
 			return io.EOF
 		}
 	}}
