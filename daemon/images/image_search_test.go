@@ -7,7 +7,9 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/registry"
 )
 
@@ -21,7 +23,7 @@ type fakeService struct {
 
 func (s *fakeService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
 	if s.shouldReturnError {
-		return nil, errors.New("Search unknown error")
+		return nil, errdefs.Unknown(errors.New("search unknown error"))
 	}
 	return &registrytypes.SearchResults{
 		Query:      s.term,
@@ -32,44 +34,49 @@ func (s *fakeService) Search(ctx context.Context, term string, limit int, authCo
 
 func TestSearchRegistryForImagesErrors(t *testing.T) {
 	errorCases := []struct {
-		filtersArgs       string
+		filtersArgs       filters.Args
 		shouldReturnError bool
 		expectedError     string
 	}{
 		{
-			expectedError:     "Search unknown error",
+			expectedError:     "search unknown error",
 			shouldReturnError: true,
 		},
 		{
-			filtersArgs:   "invalid json",
-			expectedError: "invalid character 'i' looking for beginning of value",
-		},
-		{
-			filtersArgs:   `{"type":{"custom":true}}`,
+			filtersArgs:   filters.NewArgs(filters.Arg("type", "custom")),
 			expectedError: "invalid filter 'type'",
 		},
 		{
-			filtersArgs:   `{"is-automated":{"invalid":true}}`,
+			filtersArgs:   filters.NewArgs(filters.Arg("is-automated", "invalid")),
 			expectedError: "invalid filter 'is-automated=[invalid]'",
 		},
 		{
-			filtersArgs:   `{"is-automated":{"true":true,"false":true}}`,
+			filtersArgs: filters.NewArgs(
+				filters.Arg("is-automated", "true"),
+				filters.Arg("is-automated", "false"),
+			),
 			expectedError: "invalid filter 'is-automated",
 		},
 		{
-			filtersArgs:   `{"is-official":{"invalid":true}}`,
+			filtersArgs:   filters.NewArgs(filters.Arg("is-official", "invalid")),
 			expectedError: "invalid filter 'is-official=[invalid]'",
 		},
 		{
-			filtersArgs:   `{"is-official":{"true":true,"false":true}}`,
+			filtersArgs: filters.NewArgs(
+				filters.Arg("is-official", "true"),
+				filters.Arg("is-official", "false"),
+			),
 			expectedError: "invalid filter 'is-official",
 		},
 		{
-			filtersArgs:   `{"stars":{"invalid":true}}`,
+			filtersArgs:   filters.NewArgs(filters.Arg("stars", "invalid")),
 			expectedError: "invalid filter 'stars=invalid'",
 		},
 		{
-			filtersArgs:   `{"stars":{"1":true,"invalid":true}}`,
+			filtersArgs: filters.NewArgs(
+				filters.Arg("stars", "1"),
+				filters.Arg("stars", "invalid"),
+			),
 			expectedError: "invalid filter 'stars=invalid'",
 		},
 	}
@@ -86,23 +93,30 @@ func TestSearchRegistryForImagesErrors(t *testing.T) {
 		if !strings.Contains(err.Error(), e.expectedError) {
 			t.Errorf("%d: expected error to contain %s, got %s", index, e.expectedError, err.Error())
 		}
+		if e.shouldReturnError {
+			if !errdefs.IsUnknown(err) {
+				t.Errorf("%d: expected expected an errdefs.ErrUnknown, got: %T: %v", index, err, err)
+			}
+			continue
+		}
+		if !errdefs.IsInvalidParameter(err) {
+			t.Errorf("%d: expected expected an errdefs.ErrInvalidParameter, got: %T: %v", index, err, err)
+		}
 	}
 }
 
 func TestSearchRegistryForImages(t *testing.T) {
 	term := "term"
 	successCases := []struct {
-		filtersArgs     string
+		filtersArgs     filters.Args
 		registryResults []registrytypes.SearchResult
 		expectedResults []registrytypes.SearchResult
 	}{
 		{
-			filtersArgs:     "",
 			registryResults: []registrytypes.SearchResult{},
 			expectedResults: []registrytypes.SearchResult{},
 		},
 		{
-			filtersArgs: "",
 			registryResults: []registrytypes.SearchResult{
 				{
 					Name:        "name",
@@ -117,7 +131,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			},
 		},
 		{
-			filtersArgs: `{"is-automated":{"true":true}}`,
+			filtersArgs: filters.NewArgs(filters.Arg("is-automated", "true")),
 			registryResults: []registrytypes.SearchResult{
 				{
 					Name:        "name",
@@ -127,7 +141,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			expectedResults: []registrytypes.SearchResult{},
 		},
 		{
-			filtersArgs: `{"is-automated":{"true":true}}`,
+			filtersArgs: filters.NewArgs(filters.Arg("is-automated", "true")),
 			registryResults: []registrytypes.SearchResult{
 				{
 					Name:        "name",
@@ -144,7 +158,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			},
 		},
 		{
-			filtersArgs: `{"is-automated":{"false":true}}`,
+			filtersArgs: filters.NewArgs(filters.Arg("is-automated", "false")),
 			registryResults: []registrytypes.SearchResult{
 				{
 					Name:        "name",
@@ -155,7 +169,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			expectedResults: []registrytypes.SearchResult{},
 		},
 		{
-			filtersArgs: `{"is-automated":{"false":true}}`,
+			filtersArgs: filters.NewArgs(filters.Arg("is-automated", "false")),
 			registryResults: []registrytypes.SearchResult{
 				{
 					Name:        "name",
@@ -172,7 +186,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			},
 		},
 		{
-			filtersArgs: `{"is-official":{"true":true}}`,
+			filtersArgs: filters.NewArgs(filters.Arg("is-official", "true")),
 			registryResults: []registrytypes.SearchResult{
 				{
 					Name:        "name",
@@ -182,7 +196,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			expectedResults: []registrytypes.SearchResult{},
 		},
 		{
-			filtersArgs: `{"is-official":{"true":true}}`,
+			filtersArgs: filters.NewArgs(filters.Arg("is-official", "true")),
 			registryResults: []registrytypes.SearchResult{
 				{
 					Name:        "name",
@@ -199,7 +213,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			},
 		},
 		{
-			filtersArgs: `{"is-official":{"false":true}}`,
+			filtersArgs: filters.NewArgs(filters.Arg("is-official", "false")),
 			registryResults: []registrytypes.SearchResult{
 				{
 					Name:        "name",
@@ -210,7 +224,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			expectedResults: []registrytypes.SearchResult{},
 		},
 		{
-			filtersArgs: `{"is-official":{"false":true}}`,
+			filtersArgs: filters.NewArgs(filters.Arg("is-official", "false")),
 			registryResults: []registrytypes.SearchResult{
 				{
 					Name:        "name",
@@ -227,7 +241,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			},
 		},
 		{
-			filtersArgs: `{"stars":{"0":true}}`,
+			filtersArgs: filters.NewArgs(filters.Arg("stars", "0")),
 			registryResults: []registrytypes.SearchResult{
 				{
 					Name:        "name",
@@ -244,7 +258,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			},
 		},
 		{
-			filtersArgs: `{"stars":{"1":true}}`,
+			filtersArgs: filters.NewArgs(filters.Arg("stars", "1")),
 			registryResults: []registrytypes.SearchResult{
 				{
 					Name:        "name",
@@ -255,7 +269,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			expectedResults: []registrytypes.SearchResult{},
 		},
 		{
-			filtersArgs: `{"stars":{"1":true}}`,
+			filtersArgs: filters.NewArgs(filters.Arg("stars", "1")),
 			registryResults: []registrytypes.SearchResult{
 				{
 					Name:        "name0",
@@ -277,7 +291,11 @@ func TestSearchRegistryForImages(t *testing.T) {
 			},
 		},
 		{
-			filtersArgs: `{"stars":{"1":true}, "is-official":{"true":true}, "is-automated":{"true":true}}`,
+			filtersArgs: filters.NewArgs(
+				filters.Arg("stars", "1"),
+				filters.Arg("is-official", "true"),
+				filters.Arg("is-automated", "true"),
+			),
 			registryResults: []registrytypes.SearchResult{
 				{
 					Name:        "name0",

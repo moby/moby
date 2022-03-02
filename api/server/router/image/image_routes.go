@@ -298,7 +298,12 @@ func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter
 			return errdefs.InvalidParameter(errors.Wrap(err, "invalid limit specified"))
 		}
 	}
-	query, err := s.backend.SearchRegistryForImages(ctx, r.Form.Get("filters"), r.Form.Get("term"), limit, config, headers)
+	searchFilters, err := filters.FromJSON(r.Form.Get("filters"))
+	if err != nil {
+		return err
+	}
+
+	query, err := s.backend.SearchRegistryForImages(ctx, searchFilters, r.Form.Get("term"), limit, config, headers)
 	if err != nil {
 		return err
 	}

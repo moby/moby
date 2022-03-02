@@ -21,14 +21,10 @@ var acceptedSearchFilterTags = map[string]bool{
 //
 // TODO: this could be implemented in a registry service instead of the image
 // service.
-func (i *ImageService) SearchRegistryForImages(ctx context.Context, filtersArgs string, term string, limit int,
+func (i *ImageService) SearchRegistryForImages(ctx context.Context, searchFilters filters.Args, term string, limit int,
 	authConfig *types.AuthConfig,
 	headers map[string][]string) (*registrytypes.SearchResults, error) {
 
-	searchFilters, err := filters.FromJSON(filtersArgs)
-	if err != nil {
-		return nil, err
-	}
 	if err := searchFilters.Validate(acceptedSearchFilterTags); err != nil {
 		return nil, err
 	}
