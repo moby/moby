@@ -73,7 +73,7 @@ func (s *DockerSuite) TestSearchWithLimit(c *testing.T) {
 		assert.Equal(c, len(outSlice), limit+2) // 1 header, 1 carriage return
 	}
 
-	for _, limit := range []int{-1, 0, 101} {
+	for _, limit := range []int{-1, 101} {
 		_, _, err := dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
 		assert.ErrorContains(c, err, "")
 	}

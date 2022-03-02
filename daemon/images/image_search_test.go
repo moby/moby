@@ -79,7 +79,7 @@ func TestSearchRegistryForImagesErrors(t *testing.T) {
 				shouldReturnError: e.shouldReturnError,
 			},
 		}
-		_, err := daemon.SearchRegistryForImages(context.Background(), e.filtersArgs, "term", 25, nil, map[string][]string{})
+		_, err := daemon.SearchRegistryForImages(context.Background(), e.filtersArgs, "term", 0, nil, map[string][]string{})
 		if err == nil {
 			t.Errorf("%d: expected an error, got nothing", index)
 		}
@@ -326,7 +326,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 				results: s.registryResults,
 			},
 		}
-		results, err := daemon.SearchRegistryForImages(context.Background(), s.filtersArgs, term, 25, nil, map[string][]string{})
+		results, err := daemon.SearchRegistryForImages(context.Background(), s.filtersArgs, term, 0, nil, map[string][]string{})
 		if err != nil {
 			t.Errorf("%d: %v", index, err)
 		}

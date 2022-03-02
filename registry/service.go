@@ -16,11 +16,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	// DefaultSearchLimit is the default value for maximum number of returned search results.
-	DefaultSearchLimit = 25
-)
-
 // Service is the interface defining what a registry service should implement.
 type Service interface {
 	Auth(ctx context.Context, authConfig *types.AuthConfig, userAgent string) (status, token string, err error)
