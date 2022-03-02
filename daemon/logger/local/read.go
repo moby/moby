@@ -202,7 +202,7 @@ func (d *decoder) decodeLogEntry() (*logger.Message, error) {
 	}
 
 	msg := protoToMessage(d.proto)
-	if msg.PLogMetaData == nil {
+	if msg.PLogMetaData == nil || msg.PLogMetaData.Last {
 		msg.Line = append(msg.Line, '\n')
 	}
 
