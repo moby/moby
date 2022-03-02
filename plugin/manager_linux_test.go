@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
@@ -24,7 +24,7 @@ func TestManagerWithPluginMounts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer system.EnsureRemoveAll(root)
+	defer containerfs.EnsureRemoveAll(root)
 
 	s := NewStore()
 	managerRoot := filepath.Join(root, "manager")
@@ -110,7 +110,7 @@ func TestCreateFailed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer system.EnsureRemoveAll(root)
+	defer containerfs.EnsureRemoveAll(root)
 
 	s := NewStore()
 	managerRoot := filepath.Join(root, "manager")
@@ -181,7 +181,7 @@ func TestPluginAlreadyRunningOnStartup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer system.EnsureRemoveAll(root)
+	defer containerfs.EnsureRemoveAll(root)
 
 	for _, test := range []struct {
 		desc   string
@@ -237,7 +237,7 @@ func TestPluginAlreadyRunningOnStartup(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer system.EnsureRemoveAll(config.ExecRoot)
+			defer containerfs.EnsureRemoveAll(config.ExecRoot)
 
 			m, err := NewManager(config)
 			if err != nil {

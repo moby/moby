@@ -23,7 +23,6 @@ import (
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/docker/docker/pkg/system"
 	"github.com/moby/locker"
 	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -310,7 +309,7 @@ func (d *Driver) Remove(id string) error {
 		}
 	}
 
-	if err := system.EnsureRemoveAll(dir); err != nil && !os.IsNotExist(err) {
+	if err := containerfs.EnsureRemoveAll(dir); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil

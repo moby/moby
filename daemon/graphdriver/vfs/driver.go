@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/quota"
 	units "github.com/docker/go-units"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -186,7 +185,7 @@ func (d *Driver) dir(id string) string {
 
 // Remove deletes the content from the directory for a given id.
 func (d *Driver) Remove(id string) error {
-	return system.EnsureRemoveAll(d.dir(id))
+	return containerfs.EnsureRemoveAll(d.dir(id))
 }
 
 // Get returns the directory for the given id.

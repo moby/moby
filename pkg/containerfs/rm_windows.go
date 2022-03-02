@@ -1,4 +1,4 @@
-package system
+package containerfs // import "github.com/docker/docker/pkg/containerfs"
 
 import "os"
 

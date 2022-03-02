@@ -17,9 +17,9 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/authorization"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pubsub"
-	"github.com/docker/docker/pkg/system"
 	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/registry"
 	digest "github.com/opencontainers/go-digest"
@@ -193,7 +193,7 @@ func (pm *Manager) reload() error { // todo: restore
 		} else {
 			if validFullID.MatchString(strings.TrimSuffix(v.Name(), "-removing")) {
 				// There was likely some error while removing this plugin, let's try to remove again here
-				if err := system.EnsureRemoveAll(v.Name()); err != nil {
+				if err := containerfs.EnsureRemoveAll(v.Name()); err != nil {
 					logrus.WithError(err).WithField("id", v.Name()).Warn("error while attempting to clean up previously removed plugin")
 				}
 			}

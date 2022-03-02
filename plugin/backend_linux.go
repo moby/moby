@@ -27,10 +27,10 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/moby/sys/mount"
 	digest "github.com/opencontainers/go-digest"
@@ -803,7 +803,7 @@ func atomicRemoveAll(dir string) error {
 		// even if `dir` doesn't exist, we can still try and remove `renamed`
 	case os.IsExist(err):
 		// Some previous remove failed, check if the origin dir exists
-		if e := system.EnsureRemoveAll(renamed); e != nil {
+		if e := containerfs.EnsureRemoveAll(renamed); e != nil {
 			return errors.Wrap(err, "rename target already exists and could not be removed")
 		}
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -819,7 +819,7 @@ func atomicRemoveAll(dir string) error {
 		return errors.Wrap(err, "failed to rename dir for atomic removal")
 	}
 
-	if err := system.EnsureRemoveAll(renamed); err != nil {
+	if err := containerfs.EnsureRemoveAll(renamed); err != nil {
 		os.Rename(renamed, dir)
 		return err
 	}

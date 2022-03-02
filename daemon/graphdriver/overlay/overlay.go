@@ -20,7 +20,6 @@ import (
 	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/system"
 	"github.com/moby/locker"
 	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -351,7 +350,7 @@ func (d *Driver) Remove(id string) error {
 	}
 	d.locker.Lock(id)
 	defer d.locker.Unlock(id)
-	return system.EnsureRemoveAll(d.dir(id))
+	return containerfs.EnsureRemoveAll(d.dir(id))
 }
 
 // Get creates and mounts the required file system for the given id and returns the mount path.

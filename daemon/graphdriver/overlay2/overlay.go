@@ -24,7 +24,6 @@ import (
 	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/quota"
 	units "github.com/docker/go-units"
 	"github.com/moby/locker"
@@ -514,7 +513,7 @@ func (d *Driver) Remove(id string) error {
 		}
 	}
 
-	if err := system.EnsureRemoveAll(dir); err != nil && !os.IsNotExist(err) {
+	if err := containerfs.EnsureRemoveAll(dir); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil

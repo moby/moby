@@ -42,7 +42,6 @@ import (
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/system"
 	"github.com/moby/locker"
 	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -164,7 +163,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 			}
 			if strings.HasSuffix(entry.Name(), "-removing") {
 				logger.WithField("dir", entry.Name()).Debug("Cleaning up stale layer dir")
-				if err := system.EnsureRemoveAll(filepath.Join(p, entry.Name())); err != nil {
+				if err := containerfs.EnsureRemoveAll(filepath.Join(p, entry.Name())); err != nil {
 					logger.WithField("dir", entry.Name()).WithError(err).Error("Error removing stale layer dir")
 				}
 			}
@@ -357,7 +356,7 @@ func atomicRemove(source string) error {
 		return errors.Wrapf(err, "error preparing atomic delete")
 	}
 
-	return system.EnsureRemoveAll(target)
+	return containerfs.EnsureRemoveAll(target)
 }
 
 // Get returns the rootfs path for the id.

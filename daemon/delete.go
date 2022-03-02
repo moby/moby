@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -124,7 +124,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 		container.RWLayer = nil
 	}
 
-	if err := system.EnsureRemoveAll(container.Root); err != nil {
+	if err := containerfs.EnsureRemoveAll(container.Root); err != nil {
 		err = errors.Wrapf(err, "unable to remove filesystem for %s", container.ID)
 		container.SetRemovalError(err)
 		return err
