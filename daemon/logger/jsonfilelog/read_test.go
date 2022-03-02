@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/loggertest"
 	"gotest.tools/v3/assert"
 )
 
@@ -137,6 +138,20 @@ func TestUnexpectedEOF(t *testing.T) {
 
 	_, err = dec.Decode()
 	assert.Error(t, err, io.EOF.Error())
+}
+
+func TestReadLogs(t *testing.T) {
+	loggertest.Reader{
+		Factory: func(t *testing.T, info logger.Info) func(*testing.T) logger.Logger {
+			dir := t.TempDir()
+			info.LogPath = filepath.Join(dir, info.ContainerID+".log")
+			return func(t *testing.T) logger.Logger {
+				l, err := New(info)
+				assert.NilError(t, err)
+				return l
+			}
+		},
+	}.Do(t)
 }
 
 type readerWithErr struct {
