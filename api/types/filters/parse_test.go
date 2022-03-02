@@ -69,8 +69,13 @@ func TestFromJSON(t *testing.T) {
 	}
 
 	for _, invalid := range invalids {
-		if _, err := FromJSON(invalid); err == nil {
+		_, err := FromJSON(invalid)
+		if err == nil {
 			t.Fatalf("Expected an error with %v, got nothing", invalid)
+		}
+		var invalidFilterError invalidFilter
+		if !errors.As(err, &invalidFilterError) {
+			t.Fatalf("Expected an invalidFilter error, got %T", err)
 		}
 	}
 
@@ -327,8 +332,13 @@ func TestValidate(t *testing.T) {
 	}
 
 	f.Add("bogus", "running")
-	if err := f.Validate(valid); err == nil {
+	err := f.Validate(valid)
+	if err == nil {
 		t.Fatal("Expected to return an error, got nil")
+	}
+	var invalidFilterError invalidFilter
+	if !errors.As(err, &invalidFilterError) {
+		t.Fatalf("Expected an invalidFilter error, got %T", err)
 	}
 }
 

@@ -21,7 +21,7 @@ func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter
 
 	filters, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
-		return errdefs.InvalidParameter(errors.Wrap(err, "error reading volume filters"))
+		return errors.Wrap(err, "error reading volume filters")
 	}
 	volumes, warnings, err := v.backend.List(ctx, filters)
 	if err != nil {
