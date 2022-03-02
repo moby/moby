@@ -184,7 +184,7 @@ func (daemon *Daemon) reloadAllowNondistributableArtifacts(conf *config.Config, 
 	// Update corresponding configuration.
 	if conf.IsValueSet("allow-nondistributable-artifacts") {
 		daemon.configStore.AllowNondistributableArtifacts = conf.AllowNondistributableArtifacts
-		if err := daemon.RegistryService.LoadAllowNondistributableArtifacts(conf.AllowNondistributableArtifacts); err != nil {
+		if err := daemon.registryService.LoadAllowNondistributableArtifacts(conf.AllowNondistributableArtifacts); err != nil {
 			return err
 		}
 	}
@@ -209,7 +209,7 @@ func (daemon *Daemon) reloadInsecureRegistries(conf *config.Config, attributes m
 	// update corresponding configuration
 	if conf.IsValueSet("insecure-registries") {
 		daemon.configStore.InsecureRegistries = conf.InsecureRegistries
-		if err := daemon.RegistryService.LoadInsecureRegistries(conf.InsecureRegistries); err != nil {
+		if err := daemon.registryService.LoadInsecureRegistries(conf.InsecureRegistries); err != nil {
 			return err
 		}
 	}
@@ -234,7 +234,7 @@ func (daemon *Daemon) reloadRegistryMirrors(conf *config.Config, attributes map[
 	// update corresponding configuration
 	if conf.IsValueSet("registry-mirrors") {
 		daemon.configStore.Mirrors = conf.Mirrors
-		if err := daemon.RegistryService.LoadMirrors(conf.Mirrors); err != nil {
+		if err := daemon.registryService.LoadMirrors(conf.Mirrors); err != nil {
 			return err
 		}
 	}

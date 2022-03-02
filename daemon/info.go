@@ -32,7 +32,7 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 	sysInfo := daemon.RawSysInfo()
 
 	v := &types.Info{
-		ID:                 daemon.ID,
+		ID:                 daemon.id,
 		Images:             daemon.imageService.CountImages(),
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNFCallIPTablesDisabled,
@@ -50,7 +50,7 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 		IndexServerAddress: registry.IndexServer,
 		OSType:             platform.OSType,
 		Architecture:       platform.Architecture,
-		RegistryConfig:     daemon.RegistryService.ServiceConfig(),
+		RegistryConfig:     daemon.registryService.ServiceConfig(),
 		NCPU:               sysinfo.NumCPU(),
 		MemTotal:           memInfo().MemTotal,
 		GenericResources:   daemon.genericResources,
