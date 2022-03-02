@@ -68,7 +68,7 @@ func (s *DockerSuite) TestImagesOrderedByCreationDate(c *testing.T) {
 func (s *DockerSuite) TestImagesErrorWithInvalidFilterNameTest(c *testing.T) {
 	out, _, err := dockerCmdWithError("images", "-f", "FOO=123")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "Invalid filter"))
+	assert.Assert(c, strings.Contains(out, "invalid filter"))
 }
 
 func (s *DockerSuite) TestImagesFilterLabelMatch(c *testing.T) {
@@ -252,7 +252,7 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *testing.T) 
 func (s *DockerSuite) TestImagesWithIncorrectFilter(c *testing.T) {
 	out, _, err := dockerCmdWithError("images", "-f", "dangling=invalid")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "Invalid filter"))
+	assert.Assert(c, strings.Contains(out, "invalid filter"))
 }
 
 func (s *DockerSuite) TestImagesEnsureOnlyHeadsImagesShown(c *testing.T) {

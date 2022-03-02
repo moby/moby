@@ -46,31 +46,31 @@ func TestSearchRegistryForImagesErrors(t *testing.T) {
 		},
 		{
 			filtersArgs:   `{"type":{"custom":true}}`,
-			expectedError: "Invalid filter 'type'",
+			expectedError: "invalid filter 'type'",
 		},
 		{
 			filtersArgs:   `{"is-automated":{"invalid":true}}`,
-			expectedError: "Invalid filter 'is-automated=[invalid]'",
+			expectedError: "invalid filter 'is-automated=[invalid]'",
 		},
 		{
 			filtersArgs:   `{"is-automated":{"true":true,"false":true}}`,
-			expectedError: "Invalid filter 'is-automated",
+			expectedError: "invalid filter 'is-automated",
 		},
 		{
 			filtersArgs:   `{"is-official":{"invalid":true}}`,
-			expectedError: "Invalid filter 'is-official=[invalid]'",
+			expectedError: "invalid filter 'is-official=[invalid]'",
 		},
 		{
 			filtersArgs:   `{"is-official":{"true":true,"false":true}}`,
-			expectedError: "Invalid filter 'is-official",
+			expectedError: "invalid filter 'is-official",
 		},
 		{
 			filtersArgs:   `{"stars":{"invalid":true}}`,
-			expectedError: "Invalid filter 'stars=invalid'",
+			expectedError: "invalid filter 'stars=invalid'",
 		},
 		{
 			filtersArgs:   `{"stars":{"1":true,"invalid":true}}`,
-			expectedError: "Invalid filter 'stars=invalid'",
+			expectedError: "invalid filter 'stars=invalid'",
 		},
 	}
 	for index, e := range errorCases {
