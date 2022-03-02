@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"sync"
 
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog/jsonlog"
@@ -22,11 +21,8 @@ const Name = "json-file"
 
 // JSONFileLogger is Logger implementation for default Docker logging.
 type JSONFileLogger struct {
-	mu      sync.Mutex
-	closed  bool
-	writer  *loggerutils.LogFile
-	readers map[*logger.LogWatcher]struct{} // stores the active log followers
-	tag     string                          // tag values requested by the user to log
+	writer *loggerutils.LogFile
+	tag    string // tag values requested by the user to log
 }
 
 func init() {
@@ -115,18 +111,14 @@ func New(info logger.Info) (logger.Logger, error) {
 	}
 
 	return &JSONFileLogger{
-		writer:  writer,
-		readers: make(map[*logger.LogWatcher]struct{}),
-		tag:     tag,
+		writer: writer,
+		tag:    tag,
 	}, nil
 }
 
 // Log converts logger.Message to jsonlog.JSONLog and serializes it to file.
 func (l *JSONFileLogger) Log(msg *logger.Message) error {
-	l.mu.Lock()
-	err := l.writer.WriteLogEntry(msg)
-	l.mu.Unlock()
-	return err
+	return l.writer.WriteLogEntry(msg)
 }
 
 func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {
@@ -169,15 +161,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 // Close closes underlying file and signals all the readers
 // that the logs producer is gone.
 func (l *JSONFileLogger) Close() error {
-	l.mu.Lock()
-	l.closed = true
-	err := l.writer.Close()
-	for r := range l.readers {
-		r.ProducerGone()
-		delete(l.readers, r)
-	}
-	l.mu.Unlock()
-	return err
+	return l.writer.Close()
 }
 
 // Name returns name of this logger.

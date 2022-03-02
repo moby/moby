@@ -18,24 +18,7 @@ const maxJSONDecodeRetry = 20000
 // ReadLogs implements the logger's LogReader interface for the logs
 // created by this driver.
 func (l *JSONFileLogger) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
-	logWatcher := logger.NewLogWatcher()
-
-	go l.readLogs(logWatcher, config)
-	return logWatcher
-}
-
-func (l *JSONFileLogger) readLogs(watcher *logger.LogWatcher, config logger.ReadConfig) {
-	defer close(watcher.Msg)
-
-	l.mu.Lock()
-	l.readers[watcher] = struct{}{}
-	l.mu.Unlock()
-
-	l.writer.ReadLogs(config, watcher)
-
-	l.mu.Lock()
-	delete(l.readers, watcher)
-	l.mu.Unlock()
+	return l.writer.ReadLogs(config)
 }
 
 func decodeLogLine(dec *json.Decoder, l *jsonlog.JSONLog) (*logger.Message, error) {

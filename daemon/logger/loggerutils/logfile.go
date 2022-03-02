@@ -87,6 +87,7 @@ type LogFile struct {
 	lastTimestamp   time.Time  // timestamp of the last log
 	filesRefCounter refCounter // keep reference-counted of decompressed files
 	notifyReaders   *pubsub.Publisher
+	readers         map[*logger.LogWatcher]struct{} // stores the active log followers
 	marshal         logger.MarshalFunc
 	createDecoder   MakeDecoderFn
 	getTailReader   GetTailReaderFunc
@@ -141,6 +142,7 @@ func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, mar
 		compress:        compress,
 		filesRefCounter: refCounter{counter: make(map[string]int)},
 		notifyReaders:   pubsub.NewPublisher(0, 1),
+		readers:         make(map[*logger.LogWatcher]struct{}),
 		marshal:         marshaller,
 		createDecoder:   decodeFunc,
 		perms:           perms,
@@ -342,6 +344,10 @@ func (w *LogFile) Close() error {
 	if w.closed {
 		return nil
 	}
+	for r := range w.readers {
+		r.ProducerGone()
+		delete(w.readers, r)
+	}
 	if err := w.f.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
 		return err
 	}
@@ -353,8 +359,29 @@ func (w *LogFile) Close() error {
 //
 // Note: Using the follow option can become inconsistent in cases with very frequent rotations and max log files is 1.
 // TODO: Consider a different implementation which can effectively follow logs under frequent rotations.
-func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher) {
+func (w *LogFile) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
+	watcher := logger.NewLogWatcher()
+	w.mu.Lock()
+	w.readers[watcher] = struct{}{}
+	w.mu.Unlock()
+
+	// Lock before starting the reader goroutine to synchronize operations
+	// for race-free unit testing. The writer is locked out until the reader
+	// has opened the log file and set the read cursor to the current
+	// position.
 	w.mu.RLock()
+	go w.readLogsLocked(config, watcher)
+	return watcher
+}
+
+func (w *LogFile) readLogsLocked(config logger.ReadConfig, watcher *logger.LogWatcher) {
+	defer func() {
+		close(watcher.Msg)
+		w.mu.Lock()
+		delete(w.readers, watcher)
+		w.mu.Unlock()
+	}()
+
 	currentFile, err := open(w.f.Name())
 	if err != nil {
 		w.mu.RUnlock()

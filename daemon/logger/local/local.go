@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"io"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types/backend"
@@ -56,10 +55,7 @@ func init() {
 }
 
 type driver struct {
-	mu      sync.Mutex
-	closed  bool
 	logfile *loggerutils.LogFile
-	readers map[*logger.LogWatcher]struct{} // stores the active log followers
 }
 
 // New creates a new local logger
@@ -145,7 +141,6 @@ func newDriver(logPath string, cfg *CreateConfig) (logger.Logger, error) {
 	}
 	return &driver{
 		logfile: lf,
-		readers: make(map[*logger.LogWatcher]struct{}),
 	}, nil
 }
 
@@ -154,22 +149,11 @@ func (d *driver) Name() string {
 }
 
 func (d *driver) Log(msg *logger.Message) error {
-	d.mu.Lock()
-	err := d.logfile.WriteLogEntry(msg)
-	d.mu.Unlock()
-	return err
+	return d.logfile.WriteLogEntry(msg)
 }
 
 func (d *driver) Close() error {
-	d.mu.Lock()
-	d.closed = true
-	err := d.logfile.Close()
-	for r := range d.readers {
-		r.ProducerGone()
-		delete(d.readers, r)
-	}
-	d.mu.Unlock()
-	return err
+	return d.logfile.Close()
 }
 
 func messageToProto(msg *logger.Message, proto *logdriver.LogEntry, partial *logdriver.PartialLogEntryMetadata) {
