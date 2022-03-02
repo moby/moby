@@ -37,13 +37,9 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNFCallIPTablesDisabled,
 		BridgeNfIP6tables:  !sysInfo.BridgeNFCallIP6TablesDisabled,
-		Debug:              debug.IsEnabled(),
 		Name:               hostName(),
-		NFd:                fileutils.GetTotalUsedFds(),
-		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
 		LoggingDriver:      daemon.defaultLogConfig.Type,
-		NEventsListener:    daemon.EventsService.SubscribersCount(),
 		KernelVersion:      kernelVersion(),
 		OperatingSystem:    operatingSystem(),
 		OSVersion:          osVersion(),
@@ -66,6 +62,7 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 	}
 
 	daemon.fillContainerStates(v)
+	daemon.fillDebugInfo(v)
 	daemon.fillAPIInfo(v)
 	// Retrieve platform specific info
 	daemon.fillPlatformInfo(v, sysInfo)
@@ -183,6 +180,21 @@ func (daemon *Daemon) fillContainerStates(v *types.Info) {
 	v.ContainersPaused = cPaused
 	v.ContainersRunning = cRunning
 	v.ContainersStopped = cStopped
+}
+
+// fillDebugInfo sets the current debugging state of the daemon, and additional
+// debugging information, such as the number of Go-routines, and file descriptors.
+//
+// Note that this currently always collects the information, but the CLI only
+// prints it if the daemon has debug enabled. We should consider to either make
+// this information optional (cli to request "with debugging information"), or
+// only collect it if the daemon has debug enabled. For the CLI code, see
+// https://github.com/docker/cli/blob/v20.10.12/cli/command/system/info.go#L239-L244
+func (daemon *Daemon) fillDebugInfo(v *types.Info) {
+	v.Debug = debug.IsEnabled()
+	v.NFd = fileutils.GetTotalUsedFds()
+	v.NGoroutines = runtime.NumGoroutine()
+	v.NEventsListener = daemon.EventsService.SubscribersCount()
 }
 
 func (daemon *Daemon) fillAPIInfo(v *types.Info) {
