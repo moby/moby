@@ -207,9 +207,10 @@ func (opts formatOptions) FormatValue(v reflect.Value, parentKind reflect.Kind, 
 		// Check whether this is a []byte of text data.
 		if t.Elem() == reflect.TypeOf(byte(0)) {
 			b := v.Bytes()
-			isPrintSpace := func(r rune) bool { return unicode.IsPrint(r) && unicode.IsSpace(r) }
+			isPrintSpace := func(r rune) bool { return unicode.IsPrint(r) || unicode.IsSpace(r) }
 			if len(b) > 0 && utf8.Valid(b) && len(bytes.TrimFunc(b, isPrintSpace)) == 0 {
 				out = opts.formatString("", string(b))
+				skipType = true
 				return opts.WithTypeMode(emitType).FormatType(t, out)
 			}
 		}

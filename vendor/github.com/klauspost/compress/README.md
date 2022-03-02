@@ -17,6 +17,14 @@ This package provides various compression algorithms.
 
 # changelog
 
+* Jan 25, 2022 (v1.14.2)
+	* zstd: improve header decoder by @dsnet  [#476](https://github.com/klauspost/compress/pull/476)
+	* zstd: Add bigger default blocks  [#469](https://github.com/klauspost/compress/pull/469)
+	* zstd: Remove unused decompression buffer [#470](https://github.com/klauspost/compress/pull/470)
+	* zstd: Fix logically dead code by @ningmingxiao [#472](https://github.com/klauspost/compress/pull/472)
+	* flate: Improve level 7-9 [#471](https://github.com/klauspost/compress/pull/471) [#473](https://github.com/klauspost/compress/pull/473)
+	* zstd: Add noasm tag for xxhash [#475](https://github.com/klauspost/compress/pull/475)
+
 * Jan 11, 2022 (v1.14.1)
 	* s2: Add stream index in [#462](https://github.com/klauspost/compress/pull/462)
 	* flate: Speed and efficiency improvements in [#439](https://github.com/klauspost/compress/pull/439) [#461](https://github.com/klauspost/compress/pull/461) [#455](https://github.com/klauspost/compress/pull/455) [#452](https://github.com/klauspost/compress/pull/452) [#458](https://github.com/klauspost/compress/pull/458)
