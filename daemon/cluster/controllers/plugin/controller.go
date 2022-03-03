@@ -6,7 +6,8 @@ import (
 	"net/http"
 
 	"github.com/docker/distribution/reference"
-	enginetypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm/runtime"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/plugin"
@@ -41,11 +42,11 @@ type Controller struct {
 // Backend is the interface for interacting with the plugin manager
 // Controller actions are passed to the configured backend to do the real work.
 type Backend interface {
-	Disable(name string, config *enginetypes.PluginDisableConfig) error
-	Enable(name string, config *enginetypes.PluginEnableConfig) error
-	Remove(name string, config *enginetypes.PluginRmConfig) error
-	Pull(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *enginetypes.AuthConfig, privileges enginetypes.PluginPrivileges, outStream io.Writer, opts ...plugin.CreateOpt) error
-	Upgrade(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *enginetypes.AuthConfig, privileges enginetypes.PluginPrivileges, outStream io.Writer) error
+	Disable(name string, config *types.PluginDisableConfig) error
+	Enable(name string, config *types.PluginEnableConfig) error
+	Remove(name string, config *types.PluginRmConfig) error
+	Pull(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer, opts ...plugin.CreateOpt) error
+	Upgrade(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer) error
 	Get(name string) (*v2.Plugin, error)
 	SubscribeEvents(buffer int, events ...plugin.Event) (eventCh <-chan interface{}, cancel func())
 }
@@ -96,7 +97,7 @@ func (p *Controller) Prepare(ctx context.Context) (err error) {
 		p.spec.Name = remote.String()
 	}
 
-	var authConfig enginetypes.AuthConfig
+	var authConfig registry.AuthConfig
 	privs := convertPrivileges(p.spec.Privileges)
 
 	pl, err := p.backend.Get(p.spec.Name)
@@ -112,7 +113,7 @@ func (p *Controller) Prepare(ctx context.Context) (err error) {
 			return errors.Errorf("plugin already exists: %s", p.spec.Name)
 		}
 		if pl.IsEnabled() {
-			if err := p.backend.Disable(pl.GetID(), &enginetypes.PluginDisableConfig{ForceDisable: true}); err != nil {
+			if err := p.backend.Disable(pl.GetID(), &types.PluginDisableConfig{ForceDisable: true}); err != nil {
 				p.logger.WithError(err).Debug("could not disable plugin before running upgrade")
 			}
 		}
@@ -143,12 +144,12 @@ func (p *Controller) Start(ctx context.Context) error {
 
 	if p.spec.Disabled {
 		if pl.IsEnabled() {
-			return p.backend.Disable(p.pluginID, &enginetypes.PluginDisableConfig{ForceDisable: false})
+			return p.backend.Disable(p.pluginID, &types.PluginDisableConfig{ForceDisable: false})
 		}
 		return nil
 	}
 	if !pl.IsEnabled() {
-		return p.backend.Enable(p.pluginID, &enginetypes.PluginEnableConfig{Timeout: 30})
+		return p.backend.Enable(p.pluginID, &types.PluginEnableConfig{Timeout: 30})
 	}
 	return nil
 }
@@ -232,7 +233,7 @@ func (p *Controller) Remove(ctx context.Context) error {
 
 	// This may error because we have exactly 1 plugin, but potentially multiple
 	// tasks which are calling remove.
-	err = p.backend.Remove(p.pluginID, &enginetypes.PluginRmConfig{ForceRemove: true})
+	err = p.backend.Remove(p.pluginID, &types.PluginRmConfig{ForceRemove: true})
 	if isNotFound(err) {
 		return nil
 	}
@@ -245,10 +246,10 @@ func (p *Controller) Close() error {
 	return nil
 }
 
-func convertPrivileges(ls []*runtime.PluginPrivilege) enginetypes.PluginPrivileges {
-	var out enginetypes.PluginPrivileges
+func convertPrivileges(ls []*runtime.PluginPrivilege) types.PluginPrivileges {
+	var out types.PluginPrivileges
 	for _, p := range ls {
-		pp := enginetypes.PluginPrivilege{
+		pp := types.PluginPrivilege{
 			Name:        p.Name,
 			Description: p.Description,
 			Value:       p.Value,

@@ -10,7 +10,8 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
-	enginetypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm/runtime"
 	"github.com/docker/docker/pkg/pubsub"
 	"github.com/docker/docker/plugin"
@@ -341,27 +342,27 @@ type mockBackend struct {
 	pub *pubsub.Publisher
 }
 
-func (m *mockBackend) Disable(name string, config *enginetypes.PluginDisableConfig) error {
+func (m *mockBackend) Disable(name string, config *types.PluginDisableConfig) error {
 	m.p.PluginObj.Enabled = false
 	m.pub.Publish(plugin.EventDisable{})
 	return nil
 }
 
-func (m *mockBackend) Enable(name string, config *enginetypes.PluginEnableConfig) error {
+func (m *mockBackend) Enable(name string, config *types.PluginEnableConfig) error {
 	m.p.PluginObj.Enabled = true
 	m.pub.Publish(plugin.EventEnable{})
 	return nil
 }
 
-func (m *mockBackend) Remove(name string, config *enginetypes.PluginRmConfig) error {
+func (m *mockBackend) Remove(name string, config *types.PluginRmConfig) error {
 	m.p = nil
 	m.pub.Publish(plugin.EventRemove{})
 	return nil
 }
 
-func (m *mockBackend) Pull(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *enginetypes.AuthConfig, privileges enginetypes.PluginPrivileges, outStream io.Writer, opts ...plugin.CreateOpt) error {
+func (m *mockBackend) Pull(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer, opts ...plugin.CreateOpt) error {
 	m.p = &v2.Plugin{
-		PluginObj: enginetypes.Plugin{
+		PluginObj: types.Plugin{
 			ID:              "1234",
 			Name:            name,
 			PluginReference: ref.String(),
@@ -370,7 +371,7 @@ func (m *mockBackend) Pull(ctx context.Context, ref reference.Named, name string
 	return nil
 }
 
-func (m *mockBackend) Upgrade(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *enginetypes.AuthConfig, privileges enginetypes.PluginPrivileges, outStream io.Writer) error {
+func (m *mockBackend) Upgrade(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer) error {
 	m.p.PluginObj.PluginReference = pluginTestRemoteUpgrade
 	return nil
 }
