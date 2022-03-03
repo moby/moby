@@ -26,10 +26,24 @@ type serviceConfig struct {
 	registrytypes.ServiceConfig
 }
 
+// TODO(thaJeztah) both the "index.docker.io" and "registry-1.docker.io" domains
+// are here for historic reasons and backward-compatibility. These domains
+// are still supported by Docker Hub (and will continue to be supported), but
+// there are new domains already in use, and plans to consolidate all legacy
+// domains to new "canonical" domains. Once those domains are decided on, we
+// should update these consts (but making sure to preserve compatibility with
+// existing installs, clients, and user configuration).
 const (
 	// DefaultNamespace is the default namespace
 	DefaultNamespace = "docker.io"
-	// IndexHostname is the index hostname
+	// DefaultRegistryHost is the hostname for the default (Docker Hub) registry
+	// used for pushing and pulling images. This hostname is hard-coded to handle
+	// the conversion from image references without registry name (e.g. "ubuntu",
+	// or "ubuntu:latest"), as well as references using the "docker.io" domain
+	// name, which is used as canonical reference for images on Docker Hub, but
+	// does not match the domain-name of Docker Hub's registry.
+	DefaultRegistryHost = "registry-1.docker.io"
+	// IndexHostname is the index hostname, used for authentication and image search.
 	IndexHostname = "index.docker.io"
 	// IndexServer is used for user auth and image search
 	IndexServer = "https://" + IndexHostname + "/v1/"
@@ -38,10 +52,10 @@ const (
 )
 
 var (
-	// DefaultV2Registry is the URI of the default v2 registry
+	// DefaultV2Registry is the URI of the default (Docker Hub) registry.
 	DefaultV2Registry = &url.URL{
 		Scheme: "https",
-		Host:   "registry-1.docker.io",
+		Host:   DefaultRegistryHost,
 	}
 
 	// ErrInvalidRepositoryName is an error returned if the repository name did
