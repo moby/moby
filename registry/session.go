@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
@@ -28,7 +27,7 @@ type session struct {
 
 type authTransport struct {
 	http.RoundTripper
-	*types.AuthConfig
+	*registry.AuthConfig
 
 	alwaysSetBasicAuth bool
 	token              []string
@@ -50,7 +49,7 @@ type authTransport struct {
 // If the server sends a token without the client having requested it, it is ignored.
 //
 // This RoundTripper also has a CancelRequest method important for correct timeout handling.
-func newAuthTransport(base http.RoundTripper, authConfig *types.AuthConfig, alwaysSetBasicAuth bool) *authTransport {
+func newAuthTransport(base http.RoundTripper, authConfig *registry.AuthConfig, alwaysSetBasicAuth bool) *authTransport {
 	if base == nil {
 		base = http.DefaultTransport
 	}
@@ -145,7 +144,7 @@ func (tr *authTransport) CancelRequest(req *http.Request) {
 	}
 }
 
-func authorizeClient(client *http.Client, authConfig *types.AuthConfig, endpoint *v1Endpoint) error {
+func authorizeClient(client *http.Client, authConfig *registry.AuthConfig, endpoint *v1Endpoint) error {
 	var alwaysSetBasicAuth bool
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers

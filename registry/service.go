@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	"github.com/sirupsen/logrus"
@@ -18,11 +17,11 @@ import (
 
 // Service is the interface defining what a registry service should implement.
 type Service interface {
-	Auth(ctx context.Context, authConfig *types.AuthConfig, userAgent string) (status, token string, err error)
+	Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (status, token string, err error)
 	LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error)
 	LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error)
 	ResolveRepository(name reference.Named) (*RepositoryInfo, error)
-	Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error)
+	Search(ctx context.Context, term string, limit int, authConfig *registry.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error)
 	ServiceConfig() *registry.ServiceConfig
 	LoadAllowNondistributableArtifacts([]string) error
 	LoadMirrors([]string) error
@@ -78,7 +77,7 @@ func (s *defaultService) LoadInsecureRegistries(registries []string) error {
 // Auth contacts the public registry with the provided credentials,
 // and returns OK if authentication was successful.
 // It can be used to verify the validity of a client's credentials.
-func (s *defaultService) Auth(ctx context.Context, authConfig *types.AuthConfig, userAgent string) (status, token string, err error) {
+func (s *defaultService) Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (status, token string, err error) {
 	// TODO Use ctx when searching for repositories
 	var registryHostName = IndexHostname
 
@@ -131,7 +130,7 @@ func splitReposSearchTerm(reposName string) (string, string) {
 
 // Search queries the public registry for images matching the specified
 // search terms, and returns the results.
-func (s *defaultService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error) {
+func (s *defaultService) Search(ctx context.Context, term string, limit int, authConfig *registry.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error) {
 	// TODO Use ctx when searching for repositories
 	if hasScheme(term) {
 		return nil, invalidParamf("invalid repository name: repository name (%s) should not have a scheme", term)
