@@ -12,7 +12,6 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -27,7 +26,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 	w.Header().Set("Content-Type", "application/json")
 
 	var (
-		config              = &types.AuthConfig{}
+		config              = &registry.AuthConfig{}
 		authEncoded         = r.Header.Get(registry.AuthHeader)
 		distributionInspect registry.DistributionInspect
 	)
@@ -37,7 +36,7 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 		if err := json.NewDecoder(authJSON).Decode(&config); err != nil {
 			// for a search it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
-			config = &types.AuthConfig{}
+			config = &registry.AuthConfig{}
 		}
 	}
 

@@ -65,13 +65,13 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 		}
 
 		authEncoded := r.Header.Get(registry.AuthHeader)
-		authConfig := &types.AuthConfig{}
+		authConfig := &registry.AuthConfig{}
 		if authEncoded != "" {
 			authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 			if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
 				// for a pull it is not an error if no auth was given
 				// to increase compatibility with the existing api it is defaulting to be empty
-				authConfig = &types.AuthConfig{}
+				authConfig = &registry.AuthConfig{}
 			}
 		}
 		progressErr = s.backend.PullImage(ctx, image, tag, platform, metaHeaders, authConfig, output)
@@ -99,7 +99,7 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	authConfig := &types.AuthConfig{}
+	authConfig := &registry.AuthConfig{}
 
 	authEncoded := r.Header.Get(registry.AuthHeader)
 	if authEncoded != "" {
@@ -107,7 +107,7 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 		if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
 			// to increase compatibility to existing api it is defaulting to be empty
-			authConfig = &types.AuthConfig{}
+			authConfig = &registry.AuthConfig{}
 		}
 	} else {
 		// the old format is supported for compatibility if there was no authConfig header
@@ -360,7 +360,7 @@ func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 	var (
-		config      *types.AuthConfig
+		config      *registry.AuthConfig
 		authEncoded = r.Header.Get(registry.AuthHeader)
 		headers     = map[string][]string{}
 	)
@@ -370,7 +370,7 @@ func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter
 		if err := json.NewDecoder(authJSON).Decode(&config); err != nil {
 			// for a search it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
-			config = &types.AuthConfig{}
+			config = &registry.AuthConfig{}
 		}
 	}
 	for k, v := range r.Header {
