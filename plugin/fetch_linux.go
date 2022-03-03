@@ -12,7 +12,7 @@ import (
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
@@ -59,7 +59,7 @@ func setupProgressOutput(outStream io.Writer, cancel func()) (progress.Output, f
 
 // fetch the content related to the passed in reference into the blob store and appends the provided images.Handlers
 // There is no need to use remotes.FetchHandler since it already gets set
-func (pm *Manager) fetch(ctx context.Context, ref reference.Named, auth *types.AuthConfig, out progress.Output, metaHeader http.Header, handlers ...images.Handler) (err error) {
+func (pm *Manager) fetch(ctx context.Context, ref reference.Named, auth *registry.AuthConfig, out progress.Output, metaHeader http.Header, handlers ...images.Handler) (err error) {
 	// We need to make sure we have a domain on the reference
 	withDomain, err := reference.ParseNormalizedNamed(ref.String())
 	if err != nil {
