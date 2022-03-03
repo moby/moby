@@ -13,7 +13,7 @@ import (
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -74,7 +74,7 @@ func init() {
 // remote API version.
 func newRepository(
 	ctx context.Context, repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint,
-	metaHeaders http.Header, authConfig *types.AuthConfig, actions ...string,
+	metaHeaders http.Header, authConfig *registrytypes.AuthConfig, actions ...string,
 ) (repo distribution.Repository, err error) {
 	repoName := repoInfo.Name.Name()
 	// If endpoint does not support CanonicalName, use the RemoteName instead

@@ -16,7 +16,6 @@ import (
 
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/registry"
@@ -351,7 +350,7 @@ func testNewPuller(t *testing.T, rawurl string) *puller {
 	imagePullConfig := &ImagePullConfig{
 		Config: Config{
 			MetaHeaders: http.Header{},
-			AuthConfig: &types.AuthConfig{
+			AuthConfig: &registrytypes.AuthConfig{
 				RegistryToken: secretRegistryToken,
 			},
 		},
