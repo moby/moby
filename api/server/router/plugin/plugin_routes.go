@@ -17,7 +17,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func parseHeaders(headers http.Header) (map[string][]string, *types.AuthConfig) {
+func parseHeaders(headers http.Header) (map[string][]string, *registry.AuthConfig) {
 
 	metaHeaders := map[string][]string{}
 	for k, v := range headers {
@@ -28,11 +28,11 @@ func parseHeaders(headers http.Header) (map[string][]string, *types.AuthConfig) 
 
 	// Get X-Registry-Auth
 	authEncoded := headers.Get(registry.AuthHeader)
-	authConfig := &types.AuthConfig{}
+	authConfig := &registry.AuthConfig{}
 	if authEncoded != "" {
 		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 		if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
-			authConfig = &types.AuthConfig{}
+			authConfig = &registry.AuthConfig{}
 		}
 	}
 

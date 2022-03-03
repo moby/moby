@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
@@ -296,8 +297,8 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	return nil
 }
 
-func getAuthConfigs(header http.Header) map[string]types.AuthConfig {
-	authConfigs := map[string]types.AuthConfig{}
+func getAuthConfigs(header http.Header) map[string]registry.AuthConfig {
+	authConfigs := map[string]registry.AuthConfig{}
 	authConfigsEncoded := header.Get("X-Registry-Config")
 
 	if authConfigsEncoded == "" {
