@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	units "github.com/docker/go-units"
 )
@@ -144,7 +145,7 @@ func TestImageBuild(t *testing.T) {
 		},
 		{
 			buildOptions: types.ImageBuildOptions{
-				AuthConfigs: map[string]types.AuthConfig{
+				AuthConfigs: map[string]registry.AuthConfig{
 					"https://index.docker.io/v1/": {
 						Auth: "dG90bwo=",
 					},
