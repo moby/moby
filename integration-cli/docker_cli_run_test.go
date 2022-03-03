@@ -4151,25 +4151,29 @@ func (s *DockerSuite) TestRunEmptyEnv(c *testing.T) {
 
 // #28658
 func (s *DockerSuite) TestSlowStdinClosing(c *testing.T) {
-	name := "testslowstdinclosing"
-	repeat := 3 // regression happened 50% of the time
+	const repeat = 3 // regression happened 50% of the time
 	for i := 0; i < repeat; i++ {
-		cmd := icmd.Cmd{
-			Command: []string{dockerBinary, "run", "--rm", "--name", name, "-i", "busybox", "cat"},
-			Stdin:   &delayedReader{},
-		}
-		done := make(chan error, 1)
-		go func() {
-			err := icmd.RunCmd(cmd).Error
-			done <- err
-		}()
+		c.Run(strconv.Itoa(i), func(c *testing.T) {
+			cmd := icmd.Cmd{
+				Command: []string{dockerBinary, "run", "--rm", "-i", "busybox", "cat"},
+				Stdin:   &delayedReader{},
+			}
+			done := make(chan error, 1)
+			go func() {
+				result := icmd.RunCmd(cmd)
+				if out := result.Combined(); out != "" {
+					c.Log(out)
+				}
+				done <- result.Error
+			}()
 
-		select {
-		case <-time.After(30 * time.Second):
-			c.Fatal("running container timed out") // cleanup in teardown
-		case err := <-done:
-			assert.NilError(c, err)
-		}
+			select {
+			case <-time.After(30 * time.Second):
+				c.Fatal("running container timed out") // cleanup in teardown
+			case err := <-done:
+				assert.NilError(c, err)
+			}
+		})
 	}
 }
 
