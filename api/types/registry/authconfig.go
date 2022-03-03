@@ -1,4 +1,12 @@
 package registry // import "github.com/docker/docker/api/types/registry"
+import (
+	"encoding/base64"
+	"encoding/json"
+	"io"
+	"strings"
+
+	"github.com/pkg/errors"
+)
 
 // AuthHeader is the name of the header used to send encoded registry
 // authorization credentials for registry operations (push/pull).
@@ -24,3 +32,55 @@ type AuthConfig struct {
 	// RegistryToken is a bearer token to be sent to a registry
 	RegistryToken string `json:"registrytoken,omitempty"`
 }
+
+// DecodeAuthConfig decodes base64url encoded (RFC4648, section 5) JSON
+// authentication information as sent through the X-Registry-Auth header.
+//
+// This function always returns an AuthConfig, even if an error occurs. It is up
+// to the caller to decide if authentication is required, and if the error can
+// be ignored.
+//
+// For details on base64url encoding, see:
+// - RFC4648, section 5:   https://tools.ietf.org/html/rfc4648#section-5
+func DecodeAuthConfig(authEncoded string) (*AuthConfig, error) {
+	if authEncoded == "" {
+		return &AuthConfig{}, nil
+	}
+
+	authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
+	return decodeAuthConfigFromReader(authJSON)
+}
+
+// DecodeAuthConfigBody decodes authentication information as sent as JSON in the
+// body of a request. This function is to provide backward compatibility with old
+// clients and API versions. Current clients and API versions expect authentication
+// to be provided through the X-Registry-Auth header.
+//
+// Like DecodeAuthConfig, this function always returns an AuthConfig, even if an
+// error occurs. It is up to the caller to decide if authentication is required,
+// and if the error can be ignored.
+func DecodeAuthConfigBody(rdr io.ReadCloser) (*AuthConfig, error) {
+	return decodeAuthConfigFromReader(rdr)
+}
+
+func decodeAuthConfigFromReader(rdr io.Reader) (*AuthConfig, error) {
+	authConfig := &AuthConfig{}
+	if err := json.NewDecoder(rdr).Decode(authConfig); err != nil {
+		// always return an (empty) AuthConfig to increase compatibility with
+		// the existing API.
+		return &AuthConfig{}, invalid(err)
+	}
+	return authConfig, nil
+}
+
+func invalid(err error) error {
+	return errInvalidParameter{errors.Wrap(err, "invalid X-Registry-Auth header")}
+}
+
+type errInvalidParameter struct{ error }
+
+func (errInvalidParameter) InvalidParameter() {}
+
+func (e errInvalidParameter) Cause() error { return e.error }
+
+func (e errInvalidParameter) Unwrap() error { return e.error }

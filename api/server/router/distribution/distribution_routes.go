@@ -2,10 +2,8 @@ package distribution // import "github.com/docker/docker/api/server/router/distr
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema1"
@@ -25,21 +23,6 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 
 	w.Header().Set("Content-Type", "application/json")
 
-	var (
-		config              = &registry.AuthConfig{}
-		authEncoded         = r.Header.Get(registry.AuthHeader)
-		distributionInspect registry.DistributionInspect
-	)
-
-	if authEncoded != "" {
-		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
-		if err := json.NewDecoder(authJSON).Decode(&config); err != nil {
-			// for a search it is not an error if no auth was given
-			// to increase compatibility with the existing api it is defaulting to be empty
-			config = &registry.AuthConfig{}
-		}
-	}
-
 	image := vars["name"]
 
 	// TODO why is reference.ParseAnyReference() / reference.ParseNormalizedNamed() not using the reference.ErrTagInvalidFormat (and so on) errors?
@@ -56,12 +39,16 @@ func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.Res
 		return errdefs.InvalidParameter(errors.Errorf("unknown image reference format: %s", image))
 	}
 
-	distrepo, err := s.backend.GetRepository(ctx, namedRef, config)
+	// For a search it is not an error if no auth was given. Ignore invalid
+	// AuthConfig to increase compatibility with the existing API.
+	authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
+	distrepo, err := s.backend.GetRepository(ctx, namedRef, authConfig)
 	if err != nil {
 		return err
 	}
 	blobsrvc := distrepo.Blobs(ctx)
 
+	var distributionInspect registry.DistributionInspect
 	if canonicalRef, ok := namedRef.(reference.Canonical); !ok {
 		namedRef = reference.TagNameOnly(namedRef)
 

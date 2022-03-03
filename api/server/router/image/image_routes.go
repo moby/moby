@@ -2,8 +2,6 @@ package image // import "github.com/docker/docker/api/server/router/image"
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -64,16 +62,9 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 			}
 		}
 
-		authEncoded := r.Header.Get(registry.AuthHeader)
-		authConfig := &registry.AuthConfig{}
-		if authEncoded != "" {
-			authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
-			if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
-				// for a pull it is not an error if no auth was given
-				// to increase compatibility with the existing api it is defaulting to be empty
-				authConfig = &registry.AuthConfig{}
-			}
-		}
+		// For a pull it is not an error if no auth was given. Ignore invalid
+		// AuthConfig to increase compatibility with the existing API.
+		authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
 		progressErr = s.backend.PullImage(ctx, image, tag, platform, metaHeaders, authConfig, output)
 	} else { // import
 		src := r.Form.Get("fromSrc")
@@ -99,32 +90,29 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	authConfig := &registry.AuthConfig{}
 
-	authEncoded := r.Header.Get(registry.AuthHeader)
-	if authEncoded != "" {
-		// the new format is to handle the authConfig as a header
-		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
-		if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
-			// to increase compatibility to existing api it is defaulting to be empty
-			authConfig = &registry.AuthConfig{}
-		}
+	var authConfig *registry.AuthConfig
+	if authEncoded := r.Header.Get(registry.AuthHeader); authEncoded != "" {
+		// the new format is to handle the authConfig as a header. Ignore invalid
+		// AuthConfig to increase compatibility with the existing API.
+		authConfig, _ = registry.DecodeAuthConfig(authEncoded)
 	} else {
 		// the old format is supported for compatibility if there was no authConfig header
-		if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
-			return errors.Wrap(errdefs.InvalidParameter(err), "Bad parameters and missing X-Registry-Auth")
+		var err error
+		authConfig, err = registry.DecodeAuthConfigBody(r.Body)
+		if err != nil {
+			return errors.Wrap(err, "bad parameters and missing X-Registry-Auth")
 		}
 	}
-
-	image := vars["name"]
-	tag := r.Form.Get("tag")
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if err := s.backend.PushImage(ctx, image, tag, metaHeaders, authConfig, output); err != nil {
+	img := vars["name"]
+	tag := r.Form.Get("tag")
+	if err := s.backend.PushImage(ctx, img, tag, metaHeaders, authConfig, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -359,20 +347,8 @@ func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	var (
-		config      *registry.AuthConfig
-		authEncoded = r.Header.Get(registry.AuthHeader)
-		headers     = map[string][]string{}
-	)
 
-	if authEncoded != "" {
-		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
-		if err := json.NewDecoder(authJSON).Decode(&config); err != nil {
-			// for a search it is not an error if no auth was given
-			// to increase compatibility with the existing api it is defaulting to be empty
-			config = &registry.AuthConfig{}
-		}
-	}
+	var headers = map[string][]string{}
 	for k, v := range r.Header {
 		if strings.HasPrefix(k, "X-Meta-") {
 			headers[k] = v
@@ -392,7 +368,10 @@ func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	query, err := s.backend.SearchRegistryForImages(ctx, searchFilters, r.Form.Get("term"), limit, config, headers)
+	// For a search it is not an error if no auth was given. Ignore invalid
+	// AuthConfig to increase compatibility with the existing API.
+	authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
+	query, err := s.backend.SearchRegistryForImages(ctx, searchFilters, r.Form.Get("term"), limit, authConfig, headers)
 	if err != nil {
 		return err
 	}
