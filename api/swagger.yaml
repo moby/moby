@@ -5755,7 +5755,6 @@ paths:
                       property1: "string"
                       property2: "string"
                 IpcMode: ""
-                LxcConf: []
                 Memory: 0
                 MemorySwap: 0
                 MemoryReservation: 0
@@ -8607,10 +8606,18 @@ paths:
         if `tty` was specified as part of creating and starting the exec instance.
       operationId: "ExecResize"
       responses:
-        201:
+        200:
           description: "No error"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "No such exec instance"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "Server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:

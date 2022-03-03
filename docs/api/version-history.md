@@ -32,7 +32,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * The `filter` (singular) query parameter, which was deprecated in favor of the
   `filters` option in Docker 1.13, has now been removed from the `GET /images/json`
   endpoint. The parameter remains available when using API version 1.40 or below.
-* `GET /services` now returns `CappAdd` and `CapDrop` as part of the `ContainerSpec`.
+* `GET /services` now returns `CapAdd` and `CapDrop` as part of the `ContainerSpec`.
 * `GET /services/{id}` now returns `CapAdd` and `CapDrop` as part of the `ContainerSpec`.
 * `POST /services/create` now accepts `CapAdd` and `CapDrop` as part of the `ContainerSpec`.
 * `POST /services/{id}/update` now accepts `CapAdd` and `CapDrop` as part of the `ContainerSpec`.
@@ -477,6 +477,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.22](v1.22.md) documentation
 
+* The `HostConfig.LxcConf` field has been removed, and is no longer available on
+  `POST /containers/create` and `GET /containers/(id)/json`.
 * `POST /container/(name)/update` updates the resources of a container.
 * `GET /containers/json` supports filter `isolation` on Windows.
 * `GET /containers/json` now returns the list of networks of containers.
