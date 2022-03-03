@@ -7,8 +7,8 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -18,7 +18,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/registry"
+	registrypkg "github.com/docker/docker/registry"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -144,14 +144,14 @@ func newROLayerForImage(img *image.Image, layerStore layer.Store) (builder.ROLay
 }
 
 // TODO: could this use the regular daemon PullImage ?
-func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer, platform *specs.Platform) (*image.Image, error) {
+func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]registry.AuthConfig, output io.Writer, platform *specs.Platform) (*image.Image, error) {
 	ref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return nil, err
 	}
 	ref = reference.TagNameOnly(ref)
 
-	pullRegistryAuth := &types.AuthConfig{}
+	pullRegistryAuth := &registry.AuthConfig{}
 	if len(authConfigs) > 0 {
 		// The request came with a full auth config, use it
 		repoInfo, err := i.registryService.ResolveRepository(ref)
@@ -159,7 +159,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 			return nil, err
 		}
 
-		resolvedConfig := registry.ResolveAuthConfig(authConfigs, repoInfo.Index)
+		resolvedConfig := registrypkg.ResolveAuthConfig(authConfigs, repoInfo.Index)
 		pullRegistryAuth = &resolvedConfig
 	}
 
