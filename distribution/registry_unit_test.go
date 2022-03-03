@@ -9,9 +9,8 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/registry"
+	"github.com/docker/docker/api/types/registry"
+	registrypkg "github.com/docker/docker/registry"
 	"github.com/sirupsen/logrus"
 )
 
@@ -41,7 +40,7 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 		t.Fatalf("could not parse url from test server: %v", err)
 	}
 
-	endpoint := registry.APIEndpoint{
+	endpoint := registrypkg.APIEndpoint{
 		Mirror:       false,
 		URL:          uri,
 		Version:      2,
@@ -50,9 +49,9 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 		TLSConfig:    nil,
 	}
 	n, _ := reference.ParseNormalizedNamed("testremotename")
-	repoInfo := &registry.RepositoryInfo{
+	repoInfo := &registrypkg.RepositoryInfo{
 		Name: n,
-		Index: &registrytypes.IndexInfo{
+		Index: &registry.IndexInfo{
 			Name:     "testrepo",
 			Mirrors:  nil,
 			Secure:   false,
@@ -63,7 +62,7 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 	imagePullConfig := &ImagePullConfig{
 		Config: Config{
 			MetaHeaders: http.Header{},
-			AuthConfig: &types.AuthConfig{
+			AuthConfig: &registry.AuthConfig{
 				RegistryToken: secretRegistryToken,
 			},
 		},
