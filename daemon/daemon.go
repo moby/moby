@@ -78,7 +78,7 @@ var (
 
 // Daemon holds information about the Docker daemon.
 type Daemon struct {
-	ID                    string
+	id                    string
 	repository            string
 	containers            container.Store
 	containersReplica     container.ViewDB
@@ -88,7 +88,7 @@ type Daemon struct {
 	configStore           *config.Config
 	statsCollector        *stats.Collector
 	defaultLogConfig      containertypes.LogConfig
-	RegistryService       registry.Service
+	registryService       registry.Service
 	EventsService         *events.Events
 	netController         libnetwork.NetworkController
 	volumes               *volumesservice.VolumesService
@@ -852,7 +852,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 	}
 
-	d.RegistryService = registryService
+	d.registryService = registryService
 	logger.RegisterPluginGetter(d.PluginStore)
 
 	metricsSockPath, err := d.listenMetricsSock()
@@ -1021,7 +1021,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, errors.New("Devices cgroup isn't mounted")
 	}
 
-	d.ID = trustKey.PublicKey().KeyID()
+	d.id = trustKey.PublicKey().KeyID()
 	d.repository = daemonRepo
 	d.containers = container.NewMemoryStore()
 	if d.containersReplica, err = container.NewViewDB(); err != nil {

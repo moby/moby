@@ -91,7 +91,7 @@ func (daemon *Daemon) LogDaemonEventWithAttributes(action string, attributes map
 			attributes["name"] = info.Name
 		}
 		actor := events.Actor{
-			ID:         daemon.ID,
+			ID:         daemon.id,
 			Attributes: attributes,
 		}
 		daemon.EventsService.Log(action, events.DaemonEventType, actor)
