@@ -1,7 +1,7 @@
 //go:build !darwin && !windows
 // +build !darwin,!windows
 
-package system // import "github.com/docker/docker/pkg/system"
+package containerfs // import "github.com/docker/docker/pkg/containerfs"
 
 import (
 	"os"
@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"github.com/moby/sys/mount"
-	"gotest.tools/v3/skip"
 )
 
 func TestEnsureRemoveAllWithMount(t *testing.T) {
-	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
+	if os.Getuid() != 0 {
+		t.Skip("skipping test that requires root")
+	}
 
 	dir1, err := os.MkdirTemp("", "test-ensure-removeall-with-dir1")
 	if err != nil {

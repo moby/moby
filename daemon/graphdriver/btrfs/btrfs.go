@@ -31,7 +31,6 @@ import (
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/system"
 	units "github.com/docker/go-units"
 	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -627,7 +626,7 @@ func (d *Driver) Remove(id string) error {
 		//
 		// From https://github.com/containers/storage/pull/508/commits/831e32b6bdcb530acc4c1cb9059d3c6dba14208c
 	}
-	if err := system.EnsureRemoveAll(dir); err != nil {
+	if err := containerfs.EnsureRemoveAll(dir); err != nil {
 		return err
 	}
 	return d.subvolRescanQuota()

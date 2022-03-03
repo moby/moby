@@ -1,7 +1,7 @@
 //go:build !darwin
 // +build !darwin
 
-package system // import "github.com/docker/docker/pkg/system"
+package containerfs // import "github.com/docker/docker/pkg/containerfs"
 
 import (
 	"os"

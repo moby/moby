@@ -2,7 +2,7 @@ package containerfs // import "github.com/docker/docker/pkg/containerfs"
 
 import (
 	"archive/tar"
-	"fmt"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -100,7 +100,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (retErr error) {
 	}
 
 	if srcSt.IsDir() {
-		return fmt.Errorf("Can't copy a directory")
+		return errors.New("cannot copy a directory")
 	}
 
 	// Clean up the trailing slash. This must be done in an operating
