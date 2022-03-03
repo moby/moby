@@ -13,7 +13,8 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
-	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
 	containerpkg "github.com/docker/docker/container"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
@@ -48,8 +49,8 @@ type Backend interface {
 	ContainerRm(name string, config *types.ContainerRmConfig) error
 	ContainerKill(name string, sig string) error
 	SetContainerDependencyStore(name string, store exec.DependencyGetter) error
-	SetContainerSecretReferences(name string, refs []*swarmtypes.SecretReference) error
-	SetContainerConfigReferences(name string, refs []*swarmtypes.ConfigReference) error
+	SetContainerSecretReferences(name string, refs []*swarm.SecretReference) error
+	SetContainerConfigReferences(name string, refs []*swarm.ConfigReference) error
 	SystemInfo() *types.Info
 	Containers(config *types.ContainerListOptions) ([]*types.Container, error)
 	SetNetworkBootstrapKeys([]*networktypes.EncryptionKey) error
@@ -73,7 +74,7 @@ type VolumeBackend interface {
 
 // ImageBackend is used by an executor to perform image operations
 type ImageBackend interface {
-	PullImage(ctx context.Context, image, tag string, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
-	GetRepository(context.Context, reference.Named, *types.AuthConfig) (distribution.Repository, error)
+	PullImage(ctx context.Context, image, tag string, platform *specs.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
+	GetRepository(context.Context, reference.Named, *registry.AuthConfig) (distribution.Repository, error)
 	GetImage(refOrID string, platform *specs.Platform) (retImg *image.Image, retErr error)
 }
