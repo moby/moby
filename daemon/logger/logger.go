@@ -49,20 +49,12 @@ func PutMessage(msg *Message) {
 // Message is subtyped from backend.LogMessage because there is a lot of
 // internal complexity around the Message type that should not be exposed
 // to any package not explicitly importing the logger type.
-//
-// Any changes made to this struct must also be updated in the `reset` function
 type Message backend.LogMessage
 
 // reset sets the message back to default values
 // This is used when putting a message back into the message pool.
-// Any changes to the `Message` struct should be reflected here.
 func (m *Message) reset() {
-	m.Line = m.Line[:0]
-	m.Source = ""
-	m.Attrs = nil
-	m.PLogMetaData = nil
-
-	m.Err = nil
+	*m = Message{Line: m.Line[:0]}
 }
 
 // AsLogMessage returns a pointer to the message as a pointer to

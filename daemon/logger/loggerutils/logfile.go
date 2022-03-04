@@ -156,7 +156,9 @@ func (w *LogFile) WriteLogEntry(msg *logger.Message) error {
 		return errors.Wrap(err, "error marshalling log message")
 	}
 
+	ts := msg.Timestamp
 	logger.PutMessage(msg)
+	msg = nil // Turn use-after-put bugs into panics.
 
 	w.mu.Lock()
 	if w.closed {
@@ -172,7 +174,7 @@ func (w *LogFile) WriteLogEntry(msg *logger.Message) error {
 	n, err := w.f.Write(b)
 	if err == nil {
 		w.currentSize += int64(n)
-		w.lastTimestamp = msg.Timestamp
+		w.lastTimestamp = ts
 	}
 
 	w.mu.Unlock()

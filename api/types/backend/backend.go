@@ -38,8 +38,6 @@ type PartialLogMetaData struct {
 // LogMessage is datastructure that represents piece of output produced by some
 // container.  The Line member is a slice of an array whose contents can be
 // changed after a log driver's Log() method returns.
-// changes to this struct need to be reflect in the reset method in
-// daemon/logger/logger.go
 type LogMessage struct {
 	Line         []byte
 	Source       string
