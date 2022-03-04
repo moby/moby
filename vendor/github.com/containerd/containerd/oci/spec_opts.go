@@ -590,6 +590,8 @@ func WithUser(userstr string) SpecOpts {
 			if err != nil {
 				return err
 			}
+
+			mounts = tryReadonlyMounts(mounts)
 			return mount.WithTempMount(ctx, mounts, f)
 		default:
 			return fmt.Errorf("invalid USER value %s", userstr)
@@ -643,6 +645,8 @@ func WithUserID(uid uint32) SpecOpts {
 		if err != nil {
 			return err
 		}
+
+		mounts = tryReadonlyMounts(mounts)
 		return mount.WithTempMount(ctx, mounts, func(root string) error {
 			user, err := UserFromPath(root, func(u user.User) bool {
 				return u.Uid == int(uid)
@@ -692,6 +696,8 @@ func WithUsername(username string) SpecOpts {
 			if err != nil {
 				return err
 			}
+
+			mounts = tryReadonlyMounts(mounts)
 			return mount.WithTempMount(ctx, mounts, func(root string) error {
 				user, err := UserFromPath(root, func(u user.User) bool {
 					return u.Name == username
@@ -776,6 +782,8 @@ func WithAdditionalGIDs(userstr string) SpecOpts {
 		if err != nil {
 			return err
 		}
+
+		mounts = tryReadonlyMounts(mounts)
 		return mount.WithTempMount(ctx, mounts, setAdditionalGids)
 	}
 }
@@ -1263,4 +1271,22 @@ func WithDevShmSize(kb int64) SpecOpts {
 		}
 		return ErrNoShmMount
 	}
+}
+
+// tryReadonlyMounts is used by the options which are trying to get user/group
+// information from container's rootfs. Since the option does read operation
+// only, this helper will append ReadOnly mount option to prevent linux kernel
+// from syncing whole filesystem in umount syscall.
+//
+// TODO(fuweid):
+//
+// Currently, it only works for overlayfs. I think we can apply it to other
+// kinds of filesystem. Maybe we can return `ro` option by `snapshotter.Mount`
+// API, when the caller passes that experimental annotation
+// `containerd.io/snapshot/readonly.mount` something like that.
+func tryReadonlyMounts(mounts []mount.Mount) []mount.Mount {
+	if len(mounts) == 1 && mounts[0].Type == "overlay" {
+		mounts[0].Options = append(mounts[0].Options, "ro")
+	}
+	return mounts
 }

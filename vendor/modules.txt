@@ -142,7 +142,7 @@ github.com/containerd/cgroups/v2/stats
 # github.com/containerd/console v1.0.3
 ## explicit; go 1.13
 github.com/containerd/console
-# github.com/containerd/containerd v1.5.9
+# github.com/containerd/containerd v1.5.10
 ## explicit; go 1.16
 github.com/containerd/containerd
 github.com/containerd/containerd/api/events
