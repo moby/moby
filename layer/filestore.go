@@ -13,7 +13,7 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/docker/docker/pkg/ioutils"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

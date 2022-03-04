@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/pkg/containerfs"
 	iradix "github.com/hashicorp/go-immutable-radix"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil"
 )

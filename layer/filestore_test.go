@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/stringid"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 )
 
 func randomLayerID(seed int64) ChainID {

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/reference"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

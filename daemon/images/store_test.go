@@ -13,7 +13,7 @@ import (
 	"github.com/containerd/containerd/metadata"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/docker/docker/image"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.etcd.io/bbolt"
 	"gotest.tools/v3/assert"

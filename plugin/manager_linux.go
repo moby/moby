@@ -18,7 +18,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/moby/sys/mount"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
