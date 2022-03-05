@@ -20,7 +20,6 @@ import (
 	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -167,10 +166,11 @@ func (i *ImageService) GetLayerMountID(cid string) (string, error) {
 
 // Cleanup resources before the process is shutdown.
 // called from daemon.go Daemon.Shutdown()
-func (i *ImageService) Cleanup() {
+func (i *ImageService) Cleanup() error {
 	if err := i.layerStore.Cleanup(); err != nil {
-		logrus.Errorf("Error during layer Store.Cleanup(): %v", err)
+		return errors.Wrap(err, "error during layerStore.Cleanup()")
 	}
+	return nil
 }
 
 // GraphDriverName returns the name of the graph drvier
