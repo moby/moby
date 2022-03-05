@@ -1919,6 +1919,44 @@ definitions:
               is set to `-1` if the reference-count is not available.
             x-nullable: false
 
+  VolumeCreateOptions:
+    description: "Volume configuration"
+    type: "object"
+    title: "VolumeConfig"
+    x-go-name: "VolumeCreateBody"
+    properties:
+      Name:
+        description: |
+          The new volume's name. If not specified, Docker generates a name.
+        type: "string"
+        x-nullable: false
+        example: "tardis"
+      Driver:
+        description: "Name of the volume driver to use."
+        type: "string"
+        default: "local"
+        x-nullable: false
+        example: "custom"
+      DriverOpts:
+        description: |
+          A mapping of driver options and values. These options are
+          passed directly to the driver and are driver specific.
+        type: "object"
+        additionalProperties:
+          type: "string"
+        example:
+          device: "tmpfs"
+          o: "size=100m,uid=1000"
+          type: "tmpfs"
+      Labels:
+        description: "User-defined key/value metadata."
+        type: "object"
+        additionalProperties:
+          type: "string"
+        example:
+          com.example.some-label: "some-value"
+          com.example.some-other-label: "some-other-value"
+
   Network:
     type: "object"
     properties:
@@ -8862,38 +8900,7 @@ paths:
           required: true
           description: "Volume configuration"
           schema:
-            type: "object"
-            description: "Volume configuration"
-            title: "VolumeConfig"
-            properties:
-              Name:
-                description: |
-                  The new volume's name. If not specified, Docker generates a name.
-                type: "string"
-                x-nullable: false
-              Driver:
-                description: "Name of the volume driver to use."
-                type: "string"
-                default: "local"
-                x-nullable: false
-              DriverOpts:
-                description: |
-                  A mapping of driver options and values. These options are
-                  passed directly to the driver and are driver specific.
-                type: "object"
-                additionalProperties:
-                  type: "string"
-              Labels:
-                description: "User-defined key/value metadata."
-                type: "object"
-                additionalProperties:
-                  type: "string"
-            example:
-              Name: "tardis"
-              Labels:
-                com.example.some-label: "some-value"
-                com.example.some-other-label: "some-other-value"
-              Driver: "custom"
+            $ref: "#/definitions/VolumeCreateOptions"
       tags: ["Volume"]
 
   /volumes/{name}:
