@@ -4617,6 +4617,26 @@ definitions:
       Health:
         $ref: "#/definitions/Health"
 
+  ContainerCreateResponse:
+    description: "OK response to ContainerCreate operation"
+    type: "object"
+    title: "ContainerCreateResponse"
+    x-go-name: "ContainerCreateCreatedBody"
+    required: [Id, Warnings]
+    properties:
+      Id:
+        description: "The ID of the created container"
+        type: "string"
+        x-nullable: false
+        example: "ede54ee1afda366ab42f824e8a5ffd195155d853ceaec74a927f249ea270c743"
+      Warnings:
+        description: "Warnings encountered when creating the container"
+        type: "array"
+        x-nullable: false
+        items:
+          type: "string"
+        example: []
+
   ContainerWaitResponse:
     description: "OK response to ContainerWait operation"
     type: "object"
@@ -6081,25 +6101,7 @@ paths:
         201:
           description: "Container created successfully"
           schema:
-            type: "object"
-            title: "ContainerCreateResponse"
-            description: "OK response to ContainerCreate operation"
-            required: [Id, Warnings]
-            properties:
-              Id:
-                description: "The ID of the created container"
-                type: "string"
-                x-nullable: false
-              Warnings:
-                description: "Warnings encountered when creating the container"
-                type: "array"
-                x-nullable: false
-                items:
-                  type: "string"
-          examples:
-            application/json:
-              Id: "e90e34656806"
-              Warnings: []
+            $ref: "#/definitions/ContainerCreateResponse"
         400:
           description: "bad parameter"
           schema:
