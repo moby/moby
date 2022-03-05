@@ -1075,8 +1075,9 @@ definitions:
             description: "Mount the container's root filesystem as read only."
           SecurityOpt:
             type: "array"
-            description: "A list of string values to customize labels for MLS
-            systems, such as SELinux."
+            description: |
+              A list of string values to customize labels for MLS systems, such
+              as SELinux.
             items:
               type: "string"
           StorageOpt:
