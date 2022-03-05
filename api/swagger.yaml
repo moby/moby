@@ -2036,7 +2036,7 @@ definitions:
     description: "Volume configuration"
     type: "object"
     title: "VolumeConfig"
-    x-go-name: "VolumeCreateBody"
+    x-go-name: "CreateOptions"
     properties:
       Name:
         description: |

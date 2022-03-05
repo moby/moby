@@ -28,7 +28,7 @@ func TestVolumesCreateAndList(t *testing.T) {
 	if testEnv.OSType == "windows" {
 		name = strings.ToLower(name)
 	}
-	vol, err := client.VolumeCreate(ctx, volume.VolumeCreateBody{
+	vol, err := client.VolumeCreate(ctx, volume.CreateOptions{
 		Name: name,
 	})
 	assert.NilError(t, err)
@@ -90,7 +90,7 @@ func TestVolumesInspect(t *testing.T) {
 	ctx := context.Background()
 
 	now := time.Now()
-	vol, err := client.VolumeCreate(ctx, volume.VolumeCreateBody{})
+	vol, err := client.VolumeCreate(ctx, volume.CreateOptions{})
 	assert.NilError(t, err)
 
 	inspected, err := client.VolumeInspect(ctx, vol.Name)

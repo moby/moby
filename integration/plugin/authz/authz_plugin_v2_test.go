@@ -75,7 +75,7 @@ func TestAuthZPluginV2Disable(t *testing.T) {
 	d.Restart(t, "--authorization-plugin="+authzPluginNameWithTag)
 	d.LoadBusybox(t)
 
-	_, err = c.VolumeCreate(context.Background(), volume.VolumeCreateBody{Driver: "local"})
+	_, err = c.VolumeCreate(context.Background(), volume.CreateOptions{Driver: "local"})
 	assert.Assert(t, err != nil)
 	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
@@ -84,7 +84,7 @@ func TestAuthZPluginV2Disable(t *testing.T) {
 	assert.NilError(t, err)
 
 	// now test to see if the docker api works.
-	_, err = c.VolumeCreate(context.Background(), volume.VolumeCreateBody{Driver: "local"})
+	_, err = c.VolumeCreate(context.Background(), volume.CreateOptions{Driver: "local"})
 	assert.NilError(t, err)
 }
 
@@ -101,7 +101,7 @@ func TestAuthZPluginV2RejectVolumeRequests(t *testing.T) {
 	// restart the daemon with the plugin
 	d.Restart(t, "--authorization-plugin="+authzPluginNameWithTag)
 
-	_, err = c.VolumeCreate(context.Background(), volume.VolumeCreateBody{Driver: "local"})
+	_, err = c.VolumeCreate(context.Background(), volume.CreateOptions{Driver: "local"})
 	assert.Assert(t, err != nil)
 	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 

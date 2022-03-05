@@ -158,7 +158,7 @@ func TestEventsVolumeCreate(t *testing.T) {
 		}
 	}
 
-	_, err := client.VolumeCreate(ctx, volume.VolumeCreateBody{Name: volName})
+	_, err := client.VolumeCreate(ctx, volume.CreateOptions{Name: volName})
 	assert.NilError(t, err)
 
 	filter := filters.NewArgs(
