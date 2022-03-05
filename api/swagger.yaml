@@ -2073,7 +2073,7 @@ definitions:
   VolumeListResponse:
     type: "object"
     title: "VolumeListResponse"
-    x-go-name: "VolumeListOKBody"
+    x-go-name: "ListResponse"
     description: "Volume list response"
     properties:
       Volumes:

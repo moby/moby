@@ -69,7 +69,7 @@ func TestVolumeList(t *testing.T) {
 				if actualFilters != listCase.expectedFilters {
 					return nil, fmt.Errorf("filters not set in URL query properly. Expected '%s', got %s", listCase.expectedFilters, actualFilters)
 				}
-				content, err := json.Marshal(volume.VolumeListOKBody{
+				content, err := json.Marshal(volume.ListResponse{
 					Volumes: []*volume.Volume{
 						{
 							Name:   "volume",
