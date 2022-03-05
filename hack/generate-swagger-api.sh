@@ -14,6 +14,11 @@ swagger generate model -f api/swagger.yaml \
 	-n Volume
 
 swagger generate model -f api/swagger.yaml \
+	-t api -m types/container --skip-validator -C api/swagger-gen.yaml \
+	-n ContainerWaitResponse \
+	-n ContainerWaitExitError
+
+swagger generate model -f api/swagger.yaml \
 	-t api -m types/volume --skip-validator -C api/swagger-gen.yaml \
 	-n VolumeCreateOptions
 
@@ -25,6 +30,5 @@ swagger generate operation -f api/swagger.yaml \
 	-n ContainerCreate \
 	-n ContainerTop \
 	-n ContainerUpdate \
-	-n ContainerWait \
 	-n ImageHistory \
 	-n VolumeList
