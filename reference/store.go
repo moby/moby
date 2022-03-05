@@ -10,7 +10,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/pkg/ioutils"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 

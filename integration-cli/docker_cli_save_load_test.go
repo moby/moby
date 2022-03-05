@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/cli/build"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
