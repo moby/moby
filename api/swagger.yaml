@@ -4621,7 +4621,7 @@ definitions:
     description: "OK response to ContainerCreate operation"
     type: "object"
     title: "ContainerCreateResponse"
-    x-go-name: "ContainerCreateCreatedBody"
+    x-go-name: "CreateResponse"
     required: [Id, Warnings]
     properties:
       Id:
