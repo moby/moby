@@ -2009,6 +2009,7 @@ definitions:
       UsageData:
         type: "object"
         x-nullable: true
+        x-go-name: "UsageData"
         required: [Size, RefCount]
         description: |
           Usage details about the volume. This information is used by the

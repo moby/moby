@@ -69,7 +69,7 @@ func (s *VolumesService) volumesToAPI(ctx context.Context, volumes []volume.Volu
 				logrus.WithError(err).WithField("volume", v.Name()).Warnf("Failed to determine size of volume")
 				sz = -1
 			}
-			apiV.UsageData = &volumetypes.VolumeUsageData{Size: sz, RefCount: int64(s.vs.CountReferences(v))}
+			apiV.UsageData = &volumetypes.UsageData{Size: sz, RefCount: int64(s.vs.CountReferences(v))}
 		}
 
 		out = append(out, &apiV)
