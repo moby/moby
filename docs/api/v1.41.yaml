@@ -4517,6 +4517,29 @@ definitions:
         x-nullable: true
         $ref: "#/definitions/Health"
 
+  ContainerWaitResponse:
+    description: "OK response to ContainerWait operation"
+    type: "object"
+    x-go-name: "ContainerWaitOKBody"
+    title: "ContainerWaitResponse"
+    required: [StatusCode, Error]
+    properties:
+      StatusCode:
+        description: "Exit code of the container"
+        type: "integer"
+        x-nullable: false
+      Error:
+        $ref: "#/definitions/ContainerWaitExitError"
+
+  ContainerWaitExitError:
+    description: "container waiting error, if any"
+    type: "object"
+    x-go-name: "ContainerWaitOKBodyError"
+    properties:
+      Message:
+        description: "Details of an error"
+        type: "string"
+
   SystemVersion:
     type: "object"
     description: |
@@ -7251,22 +7274,7 @@ paths:
         200:
           description: "The container has exit."
           schema:
-            type: "object"
-            title: "ContainerWaitResponse"
-            description: "OK response to ContainerWait operation"
-            required: [StatusCode]
-            properties:
-              StatusCode:
-                description: "Exit code of the container"
-                type: "integer"
-                x-nullable: false
-              Error:
-                description: "container waiting error, if any"
-                type: "object"
-                properties:
-                  Message:
-                    description: "Details of an error"
-                    type: "string"
+            $ref: "#/definitions/ContainerWaitResponse"
         400:
           description: "bad parameter"
           schema:
