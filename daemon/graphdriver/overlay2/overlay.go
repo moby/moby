@@ -662,10 +662,40 @@ func (d *Driver) Put(id string) error {
 	return nil
 }
 
-// Exists checks to see if the id is already mounted.
+// Exists checks to see if the id is already mounted and valid.
 func (d *Driver) Exists(id string) bool {
-	_, err := os.Stat(d.dir(id))
-	return err == nil
+	dir := d.dir(id)
+	_, err := os.Stat(dir)
+	if err != nil {
+		return false
+	}
+
+	// Check link file, link file must exist and has content.
+	link, err := os.ReadFile(path.Join(dir, "link"))
+	if err != nil {
+		return false
+	}
+	if len(link) == 0 {
+		return false
+	}
+
+	// Check lower file, lower file must has content if exist.
+	lowerFilePath := path.Join(dir, lowerFile)
+	_, err = os.Stat(lowerFilePath)
+	if os.IsNotExist(err) {
+		return true
+	}
+	if err != nil {
+		return false
+	}
+	lower, err := os.ReadFile(lowerFilePath)
+	if err != nil {
+		return false
+	}
+	if len(lower) == 0 {
+		return false
+	}
+	return true
 }
 
 // isParent determines whether the given parent is the direct parent of the
