@@ -24,7 +24,7 @@ type TestContainerConfig struct {
 }
 
 // create creates a container with the specified options
-func create(ctx context.Context, t *testing.T, client client.APIClient, ops ...func(*TestContainerConfig)) (container.ContainerCreateCreatedBody, error) {
+func create(ctx context.Context, t *testing.T, client client.APIClient, ops ...func(*TestContainerConfig)) (container.CreateResponse, error) {
 	t.Helper()
 	cmd := []string{"top"}
 	if runtime.GOOS == "windows" {
