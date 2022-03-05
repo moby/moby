@@ -38,7 +38,7 @@ func TestContainerWait(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			b, err := json.Marshal(container.ContainerWaitOKBody{
+			b, err := json.Marshal(container.WaitResponse{
 				StatusCode: 15,
 			})
 			if err != nil {

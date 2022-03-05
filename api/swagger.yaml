@@ -4619,7 +4619,7 @@ definitions:
   ContainerWaitResponse:
     description: "OK response to ContainerWait operation"
     type: "object"
-    x-go-name: "ContainerWaitOKBody"
+    x-go-name: "WaitResponse"
     title: "ContainerWaitResponse"
     required: [StatusCode, Error]
     properties:
@@ -4633,7 +4633,7 @@ definitions:
   ContainerWaitExitError:
     description: "container waiting error, if any"
     type: "object"
-    x-go-name: "ContainerWaitOKBodyError"
+    x-go-name: "WaitExitError"
     properties:
       Message:
         description: "Details of an error"
