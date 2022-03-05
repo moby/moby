@@ -1776,18 +1776,22 @@ definitions:
         type: "string"
         description: "Name of the volume."
         x-nullable: false
+        example: "tardis"
       Driver:
         type: "string"
         description: "Name of the volume driver used by the volume."
         x-nullable: false
+        example: "custom"
       Mountpoint:
         type: "string"
         description: "Mount path of the volume on the host."
         x-nullable: false
+        example: "/var/lib/docker/volumes/tardis"
       CreatedAt:
         type: "string"
         format: "dateTime"
         description: "Date/Time the volume was created."
+        example: "2016-06-07T20:31:11.853781916Z"
       Status:
         type: "object"
         description: |
@@ -1799,12 +1803,17 @@ definitions:
           does not support this feature.
         additionalProperties:
           type: "object"
+        example:
+          hello: "world"
       Labels:
         type: "object"
         description: "User-defined key/value metadata."
         x-nullable: false
         additionalProperties:
           type: "string"
+        example:
+          com.example.some-label: "some-value"
+          com.example.some-other-label: "some-other-value"
       Scope:
         type: "string"
         description: |
@@ -1813,12 +1822,17 @@ definitions:
         default: "local"
         x-nullable: false
         enum: ["local", "global"]
+        example: "local"
       Options:
         type: "object"
         description: |
           The driver specific options used when creating the volume.
         additionalProperties:
           type: "string"
+        example:
+          device: "tmpfs"
+          o: "size=100m,uid=1000"
+          type: "tmpfs"
       UsageData:
         type: "object"
         x-nullable: true
@@ -1843,18 +1857,6 @@ definitions:
               The number of containers referencing this volume. This field
               is set to `-1` if the reference-count is not available.
             x-nullable: false
-
-    example:
-      Name: "tardis"
-      Driver: "custom"
-      Mountpoint: "/var/lib/docker/volumes/tardis"
-      Status:
-        hello: "world"
-      Labels:
-        com.example.some-label: "some-value"
-        com.example.some-other-label: "some-other-value"
-      Scope: "local"
-      CreatedAt: "2016-06-07T20:31:11.853781916Z"
 
   Network:
     type: "object"
@@ -8483,23 +8485,6 @@ paths:
                   Warnings that occurred when fetching the list of volumes.
                 items:
                   type: "string"
-
-          examples:
-            application/json:
-              Volumes:
-                - CreatedAt: "2017-07-19T12:00:26Z"
-                  Name: "tardis"
-                  Driver: "local"
-                  Mountpoint: "/var/lib/docker/volumes/tardis"
-                  Labels:
-                    com.example.some-label: "some-value"
-                    com.example.some-other-label: "some-other-value"
-                  Scope: "local"
-                  Options:
-                    device: "tmpfs"
-                    o: "size=100m,uid=1000"
-                    type: "tmpfs"
-              Warnings: []
         500:
           description: "Server error"
           schema:
