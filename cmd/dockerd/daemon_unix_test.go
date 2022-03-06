@@ -15,7 +15,6 @@ import (
 func TestLoadDaemonCliConfigWithDaemonFlags(t *testing.T) {
 	content := `{"log-opts": {"max-size": "1k"}}`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	opts.Debug = true
@@ -36,7 +35,6 @@ func TestLoadDaemonCliConfigWithDaemonFlags(t *testing.T) {
 func TestLoadDaemonConfigWithNetwork(t *testing.T) {
 	content := `{"bip": "127.0.0.2", "ip": "127.0.0.1"}`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
@@ -50,7 +48,6 @@ func TestLoadDaemonConfigWithNetwork(t *testing.T) {
 func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
 	content := `{"log-opts": {"tag": "test"}}`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
@@ -63,7 +60,6 @@ func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
 func TestLoadDaemonConfigWithTrueDefaultValues(t *testing.T) {
 	content := `{ "userland-proxy": false }`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
@@ -82,7 +78,6 @@ func TestLoadDaemonConfigWithTrueDefaultValues(t *testing.T) {
 
 func TestLoadDaemonConfigWithTrueDefaultValuesLeaveDefaults(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{}`))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)

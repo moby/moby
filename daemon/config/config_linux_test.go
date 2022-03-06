@@ -29,7 +29,6 @@ func TestGetConflictFreeConfiguration(t *testing.T) {
 		}`
 
 	file := fs.NewFile(t, "docker-config", fs.WithContent(configFileData))
-	defer file.Remove()
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	var debug bool
@@ -70,7 +69,6 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 		}`
 
 	file := fs.NewFile(t, "docker-config", fs.WithContent(configFileData))
-	defer file.Remove()
 
 	c := &Config{
 		CommonConfig: CommonConfig{
@@ -117,7 +115,6 @@ func TestDaemonConfigurationMergeShmSize(t *testing.T) {
 	data := `{"default-shm-size": "1g"}`
 
 	file := fs.NewFile(t, "docker-config", fs.WithContent(data))
-	defer file.Remove()
 
 	c := &Config{}
 

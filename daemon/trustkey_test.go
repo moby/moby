@@ -25,7 +25,6 @@ func TestLoadOrCreateTrustKeyInvalidKeyFile(t *testing.T) {
 
 func TestLoadOrCreateTrustKeyCreateKeyWhenFileDoesNotExist(t *testing.T) {
 	tmpKeyFolderPath := fs.NewDir(t, "api-trustkey-test")
-	defer tmpKeyFolderPath.Remove()
 
 	// Without the need to create the folder hierarchy
 	tmpKeyFile := tmpKeyFolderPath.Join("keyfile")
@@ -40,7 +39,6 @@ func TestLoadOrCreateTrustKeyCreateKeyWhenFileDoesNotExist(t *testing.T) {
 
 func TestLoadOrCreateTrustKeyCreateKeyWhenDirectoryDoesNotExist(t *testing.T) {
 	tmpKeyFolderPath := fs.NewDir(t, "api-trustkey-test")
-	defer tmpKeyFolderPath.Remove()
 	tmpKeyFile := tmpKeyFolderPath.Join("folder/hierarchy/keyfile")
 
 	key, err := loadOrCreateTrustKey(tmpKeyFile)

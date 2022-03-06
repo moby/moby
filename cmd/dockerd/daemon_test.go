@@ -50,7 +50,6 @@ func TestLoadDaemonCliConfigWithTLS(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"labels": ["l3=foo"]}`))
-	defer tempFile.Remove()
 	configFile := tempFile.Path()
 
 	opts := defaultOptions(t, configFile)
@@ -66,7 +65,6 @@ func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 
 func TestLoadDaemonCliWithConflictingNodeGenericResources(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"node-generic-resources": ["foo=bar", "bar=baz"]}`))
-	defer tempFile.Remove()
 	configFile := tempFile.Path()
 
 	opts := defaultOptions(t, configFile)
@@ -104,7 +102,6 @@ func TestLoadDaemonCliWithDuplicateLabels(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"tlsverify": true}`))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	opts.TLSOptions.CAFile = "/tmp/ca.pem"
@@ -117,7 +114,6 @@ func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithExplicitTLSVerifyFalse(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"tlsverify": false}`))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	opts.TLSOptions.CAFile = "/tmp/ca.pem"
@@ -130,7 +126,6 @@ func TestLoadDaemonCliConfigWithExplicitTLSVerifyFalse(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithoutTLSVerify(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{}`))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	opts.TLSOptions.CAFile = "/tmp/ca.pem"
@@ -143,7 +138,6 @@ func TestLoadDaemonCliConfigWithoutTLSVerify(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"log-level": "warn"}`))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
@@ -155,7 +149,6 @@ func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
 func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 	content := `{"tlscacert": "/etc/certs/ca.pem", "log-driver": "syslog"}`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
@@ -172,7 +165,6 @@ func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 		"insecure-registries": ["https://insecure-registry.example.com"]
 	}`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
-	defer tempFile.Remove()
 
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)

@@ -280,7 +280,6 @@ func testDaemonIpcFromConfig(t *testing.T, mode string, mustExist bool) {
 	skip.If(t, testEnv.IsRootless, "cannot test /dev/shm in rootless")
 	config := `{"default-ipc-mode": "` + mode + `"}`
 	file := fs.NewFile(t, "test-daemon-ipc-config", fs.WithContent(config))
-	defer file.Remove()
 
 	testDaemonIpcPrivateShareable(t, mustExist, "--config-file", file.Path())
 }
