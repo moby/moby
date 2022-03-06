@@ -2,7 +2,6 @@ package operatingsystem // import "github.com/docker/docker/pkg/parsers/operatin
 
 import (
 	"fmt"
-	"syscall"
 	"unsafe"
 
 	"github.com/Microsoft/hcsshim/osversion"
@@ -57,17 +56,24 @@ func callBrandingFormatString() (string, error) {
 		return "", err
 	}
 
+	// BrandingFormatString("%WINDOWS_LONG%") returns the OS full name. The 'winver' program also uses this API.
 	arg, err := windows.UTF16PtrFromString("%WINDOWS_LONG%")
 	if err != nil {
 		return "", err
 	}
+
+	// The returned error is always non-nil, constructed from the result of GetLastError.
+	// Callers must inspect the primary return value to decide whether an error occurred
+	// (according to the semantics of the specific function being called) before consulting
+	// the error.
 	r1, _, err := brandingFormatString.Call(uintptr(unsafe.Pointer(arg)))
-	if err != syscall.Errno(0) {
+	brand := (*uint16)(unsafe.Pointer(r1))
+	if brand == nil {
 		return "", err
 	}
 	defer callGlobalFree(r1)
 
-	return windows.UTF16PtrToString((*uint16)(unsafe.Pointer(r1))), nil
+	return windows.UTF16PtrToString(brand), nil
 }
 
 func callGlobalFree(v uintptr) {
