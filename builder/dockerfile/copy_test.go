@@ -11,9 +11,7 @@ import (
 
 func TestIsExistingDirectory(t *testing.T) {
 	tmpfile := fs.NewFile(t, "file-exists-test", fs.WithContent("something"))
-	defer tmpfile.Remove()
 	tmpdir := fs.NewDir(t, "dir-exists-test")
-	defer tmpdir.Remove()
 
 	testcases := []struct {
 		doc      string
