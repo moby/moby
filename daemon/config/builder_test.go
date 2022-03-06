@@ -57,7 +57,6 @@ func TestBuilderGC_DeprecatedKeepStorage(t *testing.T) {
     }
   }
 }`))
-	defer tempFile.Remove()
 	configFile := tempFile.Path()
 
 	cfg, err := MergeDaemonConfigurations(&Config{}, nil, configFile)

@@ -38,8 +38,6 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 	ctx := setupTest(t)
 
 	tmpDir := fs.NewDir(t, "network-file-mounts", fs.WithMode(0o755), fs.WithFile("nwfile", "network file bind mount", fs.WithMode(0o644)))
-	defer tmpDir.Remove()
-
 	tmpNWFileMount := tmpDir.Join("nwfile")
 
 	config := containertypes.Config{
@@ -226,13 +224,9 @@ func TestContainerBindMountNonRecursive(t *testing.T) {
 
 	ctx := setupTest(t)
 
-	tmpDir1 := fs.NewDir(t, "tmpdir1", fs.WithMode(0o755),
-		fs.WithDir("mnt", fs.WithMode(0o755)))
-	defer tmpDir1.Remove()
+	tmpDir1 := fs.NewDir(t, "tmpdir1", fs.WithMode(0o755), fs.WithDir("mnt", fs.WithMode(0o755)))
 	tmpDir1Mnt := filepath.Join(tmpDir1.Path(), "mnt")
-	tmpDir2 := fs.NewDir(t, "tmpdir2", fs.WithMode(0o755),
-		fs.WithFile("file", "should not be visible when NonRecursive", fs.WithMode(0o644)))
-	defer tmpDir2.Remove()
+	tmpDir2 := fs.NewDir(t, "tmpdir2", fs.WithMode(0o755), fs.WithFile("file", "should not be visible when NonRecursive", fs.WithMode(0o644)))
 
 	err := mount.Mount(tmpDir2.Path(), tmpDir1Mnt, "none", "bind,ro")
 	if err != nil {
@@ -284,9 +278,7 @@ func TestContainerVolumesMountedAsShared(t *testing.T) {
 	ctx := setupTest(t)
 
 	// Prepare a source directory to bind mount
-	tmpDir1 := fs.NewDir(t, "volume-source", fs.WithMode(0o755),
-		fs.WithDir("mnt1", fs.WithMode(0o755)))
-	defer tmpDir1.Remove()
+	tmpDir1 := fs.NewDir(t, "volume-source", fs.WithMode(0o755), fs.WithDir("mnt1", fs.WithMode(0o755)))
 	tmpDir1Mnt := filepath.Join(tmpDir1.Path(), "mnt1")
 
 	// Convert this directory into a shared mount point so that we do
@@ -336,16 +328,12 @@ func TestContainerVolumesMountedAsSlave(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 
 	// Prepare a source directory to bind mount
-	tmpDir1 := fs.NewDir(t, "volume-source", fs.WithMode(0o755),
-		fs.WithDir("mnt1", fs.WithMode(0o755)))
-	defer tmpDir1.Remove()
+	tmpDir1 := fs.NewDir(t, "volume-source", fs.WithMode(0o755), fs.WithDir("mnt1", fs.WithMode(0o755)))
 	tmpDir1Mnt := filepath.Join(tmpDir1.Path(), "mnt1")
 
 	// Prepare a source directory with file in it. We will bind mount this
 	// directory and see if file shows up.
-	tmpDir2 := fs.NewDir(t, "volume-source2", fs.WithMode(0o755),
-		fs.WithFile("slave-testfile", "Test", fs.WithMode(0o644)))
-	defer tmpDir2.Remove()
+	tmpDir2 := fs.NewDir(t, "volume-source2", fs.WithMode(0o755), fs.WithFile("slave-testfile", "Test", fs.WithMode(0o644)))
 
 	// Convert this directory into a shared mount point so that we do
 	// not rely on propagation properties of parent mount.

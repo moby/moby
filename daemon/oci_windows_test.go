@@ -22,9 +22,6 @@ import (
 func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 	// we need a temp directory to act as the daemon's root
 	tmpDaemonRoot := fs.NewDir(t, t.Name()).Path()
-	defer func() {
-		assert.NilError(t, os.RemoveAll(tmpDaemonRoot))
-	}()
 
 	daemon := &Daemon{
 		root: tmpDaemonRoot,
