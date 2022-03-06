@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/docker/daemon/logger"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/env"
 )
 
 // Validate options
@@ -85,8 +84,7 @@ func TestNewMissedToken(t *testing.T) {
 
 func TestNewWithProxy(t *testing.T) {
 	proxy := "http://proxy.testing:8888"
-	reset := env.Patch(t, "HTTP_PROXY", proxy)
-	defer reset()
+	t.Setenv("HTTP_PROXY", proxy)
 
 	// must not be localhost
 	splunkURL := "http://example.com:12345"

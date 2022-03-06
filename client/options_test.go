@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/api"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/env"
 )
 
 func TestOptionWithHostFromEnv(t *testing.T) {
@@ -18,7 +17,7 @@ func TestOptionWithHostFromEnv(t *testing.T) {
 	assert.Equal(t, c.addr, defaultAddr)
 	assert.Equal(t, c.basePath, "")
 
-	defer env.Patch(t, "DOCKER_HOST", "tcp://foo.example.com:2376/test/")()
+	t.Setenv("DOCKER_HOST", "tcp://foo.example.com:2376/test/")
 
 	c, err = NewClientWithOpts(WithHostFromEnv())
 	assert.NilError(t, err)
@@ -44,7 +43,7 @@ func TestOptionWithVersionFromEnv(t *testing.T) {
 	assert.Equal(t, c.version, api.DefaultVersion)
 	assert.Equal(t, c.manualOverride, false)
 
-	defer env.Patch(t, "DOCKER_API_VERSION", "2.9999")()
+	t.Setenv("DOCKER_API_VERSION", "2.9999")
 
 	c, err = NewClientWithOpts(WithVersionFromEnv())
 	assert.NilError(t, err)

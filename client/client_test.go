@@ -174,12 +174,12 @@ func TestParseHostURL(t *testing.T) {
 }
 
 func TestNewClientWithOpsFromEnvSetsDefaultVersion(t *testing.T) {
-	defer env.PatchAll(t, map[string]string{
+	env.PatchAll(t, map[string]string{
 		"DOCKER_HOST":        "",
 		"DOCKER_API_VERSION": "",
 		"DOCKER_TLS_VERIFY":  "",
 		"DOCKER_CERT_PATH":   "",
-	})()
+	})
 
 	client, err := NewClientWithOpts(FromEnv)
 	if err != nil {
@@ -200,7 +200,7 @@ func TestNewClientWithOpsFromEnvSetsDefaultVersion(t *testing.T) {
 // downgrades to the correct API version if the API's ping response does not
 // return an API version.
 func TestNegotiateAPIVersionEmpty(t *testing.T) {
-	defer env.PatchAll(t, map[string]string{"DOCKER_API_VERSION": ""})()
+	t.Setenv("DOCKER_API_VERSION", "")
 
 	client, err := NewClientWithOpts(FromEnv)
 	assert.NilError(t, err)
@@ -289,7 +289,7 @@ func TestNegotiateAPIVersion(t *testing.T) {
 // environment variable when negotiating versions.
 func TestNegotiateAPVersionOverride(t *testing.T) {
 	const expected = "9.99"
-	defer env.PatchAll(t, map[string]string{"DOCKER_API_VERSION": expected})()
+	t.Setenv("DOCKER_API_VERSION", expected)
 
 	client, err := NewClientWithOpts(FromEnv)
 	assert.NilError(t, err)
