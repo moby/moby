@@ -79,7 +79,6 @@ func WrapMountTest(imageFileName string, enableQuota bool, testFunc func(t *test
 		}
 
 		mountPointDir := fs.NewDir(t, "xfs-mountPoint")
-		defer mountPointDir.Remove()
 		mountPoint := mountPointDir.Path()
 
 		out, err := exec.Command("mount", "-o", mountOptions, imageFileName, mountPoint).CombinedOutput()
