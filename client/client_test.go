@@ -113,9 +113,9 @@ func TestGetAPIPath(t *testing.T) {
 		query    url.Values
 		expected string
 	}{
-		{"", "/containers/json", nil, "/containers/json"},
-		{"", "/containers/json", url.Values{}, "/containers/json"},
-		{"", "/containers/json", url.Values{"s": []string{"c"}}, "/containers/json?s=c"},
+		{"", "/containers/json", nil, "/v" + api.DefaultVersion + "/containers/json"},
+		{"", "/containers/json", url.Values{}, "/v" + api.DefaultVersion + "/containers/json"},
+		{"", "/containers/json", url.Values{"s": []string{"c"}}, "/v" + api.DefaultVersion + "/containers/json?s=c"},
 		{"1.22", "/containers/json", nil, "/v1.22/containers/json"},
 		{"1.22", "/containers/json", url.Values{}, "/v1.22/containers/json"},
 		{"1.22", "/containers/json", url.Values{"s": []string{"c"}}, "/v1.22/containers/json?s=c"},
@@ -127,10 +127,11 @@ func TestGetAPIPath(t *testing.T) {
 
 	ctx := context.TODO()
 	for _, tc := range testcases {
-		client := Client{
-			version:  tc.version,
-			basePath: "/",
-		}
+		client, err := NewClientWithOpts(
+			WithVersion(tc.version),
+			WithHost("tcp://localhost:2375"),
+		)
+		assert.NilError(t, err)
 		actual := client.getAPIPath(ctx, tc.path, tc.query)
 		assert.Check(t, is.Equal(actual, tc.expected))
 	}
