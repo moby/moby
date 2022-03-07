@@ -463,6 +463,11 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		conf.TLSVerify = conf.TLS
 	}
 
+	err = validateCPURealtimeOptions(conf)
+	if err != nil {
+		return nil, err
+	}
+
 	return conf, nil
 }
 
