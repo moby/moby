@@ -38,8 +38,7 @@ othergrp:x:6666:
 	remapped := idtools.IdentityMapping{UIDMaps: idMaps, GIDMaps: idMaps}
 	unmapped := idtools.IdentityMapping{}
 
-	contextDir, cleanup := createTestTempDir(t, "", "builder-chown-parse-test")
-	defer cleanup()
+	contextDir := t.TempDir()
 
 	if err := os.Mkdir(filepath.Join(contextDir, "etc"), 0o755); err != nil {
 		t.Fatalf("error creating test directory: %v", err)

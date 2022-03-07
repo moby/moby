@@ -94,15 +94,10 @@ func TestOverlayTarUntar(t *testing.T) {
 	restore := overrideUmask(0)
 	defer restore()
 
-	src, err := os.MkdirTemp("", "docker-test-overlay-tar-src")
-	assert.NilError(t, err)
-	defer os.RemoveAll(src)
-
+	src := t.TempDir()
 	setupOverlayTestDir(t, src)
 
-	dst, err := os.MkdirTemp("", "docker-test-overlay-tar-dst")
-	assert.NilError(t, err)
-	defer os.RemoveAll(dst)
+	dst := t.TempDir()
 
 	options := &TarOptions{
 		Compression:    Uncompressed,
@@ -160,15 +155,11 @@ func TestOverlayTarAUFSUntar(t *testing.T) {
 	restore := overrideUmask(0)
 	defer restore()
 
-	src, err := os.MkdirTemp("", "docker-test-overlay-tar-src")
-	assert.NilError(t, err)
-	defer os.RemoveAll(src)
+	src := t.TempDir()
 
 	setupOverlayTestDir(t, src)
 
-	dst, err := os.MkdirTemp("", "docker-test-overlay-tar-dst")
-	assert.NilError(t, err)
-	defer os.RemoveAll(dst)
+	dst := t.TempDir()
 
 	archive, err := TarWithOptions(src, &TarOptions{
 		Compression:    Uncompressed,
