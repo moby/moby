@@ -23,17 +23,13 @@ import (
 )
 
 func TestEmptyDockerfile(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
-	defer cleanup()
-
+	contextDir := t.TempDir()
 	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, "", 0o777)
-
 	readAndCheckDockerfile(t, "emptyDockerfile", contextDir, "", "the Dockerfile (Dockerfile) cannot be empty")
 }
 
 func TestSymlinkDockerfile(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
-	defer cleanup()
+	contextDir := t.TempDir()
 
 	createTestSymlink(t, contextDir, builder.DefaultDockerfileName, "/etc/passwd")
 
@@ -47,24 +43,17 @@ func TestSymlinkDockerfile(t *testing.T) {
 }
 
 func TestDockerfileOutsideTheBuildContext(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
-	defer cleanup()
-
 	expectedError := "path outside the build context: ../../Dockerfile ()"
 	if runtime.GOOS == "windows" {
 		expectedError = "failed to resolve scoped path ../../Dockerfile ()"
 	}
 
-	readAndCheckDockerfile(t, "DockerfileOutsideTheBuildContext", contextDir, "../../Dockerfile", expectedError)
+	readAndCheckDockerfile(t, "DockerfileOutsideTheBuildContext", t.TempDir(), "../../Dockerfile", expectedError)
 }
 
 func TestNonExistingDockerfile(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
-	defer cleanup()
-
 	expectedError := "Cannot locate specified Dockerfile: Dockerfile"
-
-	readAndCheckDockerfile(t, "NonExistingDockerfile", contextDir, "Dockerfile", expectedError)
+	readAndCheckDockerfile(t, "NonExistingDockerfile", t.TempDir(), "Dockerfile", expectedError)
 }
 
 func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, expectedError string) {

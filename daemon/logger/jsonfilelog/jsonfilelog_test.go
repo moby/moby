@@ -16,19 +16,12 @@ import (
 	"github.com/docker/docker/daemon/logger/jsonfilelog/jsonlog"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/fs"
 )
 
 func TestJSONFileLogger(t *testing.T) {
-	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
-	tmp, err := os.MkdirTemp("", "docker-logger-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
-	filename := filepath.Join(tmp, "container.log")
+	filename := filepath.Join(t.TempDir(), "container.log")
 	l, err := New(logger.Info{
-		ContainerID: cid,
+		ContainerID: "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657",
 		LogPath:     filename,
 	})
 	if err != nil {
@@ -60,20 +53,13 @@ func TestJSONFileLogger(t *testing.T) {
 }
 
 func TestJSONFileLoggerWithTags(t *testing.T) {
-	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
-	cname := "test-container"
-	tmp, err := os.MkdirTemp("", "docker-logger-")
-
-	assert.NilError(t, err)
-
-	defer os.RemoveAll(tmp)
-	filename := filepath.Join(tmp, "container.log")
+	filename := filepath.Join(t.TempDir(), "container.log")
 	l, err := New(logger.Info{
 		Config: map[string]string{
 			"tag": "{{.ID}}/{{.Name}}", // first 12 characters of ContainerID and full ContainerName
 		},
-		ContainerID:   cid,
-		ContainerName: cname,
+		ContainerID:   "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657",
+		ContainerName: "test-container",
 		LogPath:       filename,
 	})
 
@@ -100,11 +86,9 @@ func TestJSONFileLoggerWithTags(t *testing.T) {
 }
 
 func BenchmarkJSONFileLoggerLog(b *testing.B) {
-	tmp := fs.NewDir(b, "bench-jsonfilelog")
-
 	jsonlogger, err := New(logger.Info{
 		ContainerID: "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657",
-		LogPath:     tmp.Join("container.log"),
+		LogPath:     filepath.Join(b.TempDir(), "container.log"),
 		Config: map[string]string{
 			"labels":   "first,second",
 			"max-file": "10",
@@ -151,16 +135,10 @@ func BenchmarkJSONFileLoggerLog(b *testing.B) {
 }
 
 func TestJSONFileLoggerWithOpts(t *testing.T) {
-	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
-	tmp, err := os.MkdirTemp("", "docker-logger-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
-	filename := filepath.Join(tmp, "container.log")
+	filename := filepath.Join(t.TempDir(), "container.log")
 	config := map[string]string{"max-file": "3", "max-size": "1k", "compress": "true"}
 	l, err := New(logger.Info{
-		ContainerID: cid,
+		ContainerID: "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657",
 		LogPath:     filename,
 		Config:      config,
 	})
@@ -268,16 +246,10 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 }
 
 func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
-	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
-	tmp, err := os.MkdirTemp("", "docker-logger-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
-	filename := filepath.Join(tmp, "container.log")
+	filename := filepath.Join(t.TempDir(), "container.log")
 	config := map[string]string{"labels": "rack,dc", "labels-regex": "^loc", "env": "environ,debug,ssl", "env-regex": "^dc"}
 	l, err := New(logger.Info{
-		ContainerID:     cid,
+		ContainerID:     "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657",
 		LogPath:         filename,
 		Config:          config,
 		ContainerLabels: map[string]string{"rack": "101", "dc": "lhr", "location": "here"},
