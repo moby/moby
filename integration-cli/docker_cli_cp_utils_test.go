@@ -215,17 +215,6 @@ func startContainerGetOutput(t *testing.T, containerID string) (string, error) {
 	return out, nil
 }
 
-func getTestDir(t *testing.T, label string) (tmpDir string) {
-	t.Helper()
-	var err error
-
-	tmpDir, err = os.MkdirTemp("", label)
-	// unable to make temporary directory
-	assert.NilError(t, err)
-
-	return tmpDir
-}
-
 func isCpDirNotExist(err error) is.Comparison {
 	return is.ErrorContains(err, archive.ErrDirNotExists.Error())
 }

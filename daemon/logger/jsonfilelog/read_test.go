@@ -20,11 +20,9 @@ import (
 )
 
 func BenchmarkJSONFileLoggerReadLogs(b *testing.B) {
-	tmp := b.TempDir()
-
 	jsonlogger, err := New(logger.Info{
 		ContainerID: "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657",
-		LogPath:     filepath.Join(tmp, "container.log"),
+		LogPath:     filepath.Join(b.TempDir(), "container.log"),
 		Config: map[string]string{
 			"labels": "first,second",
 		},

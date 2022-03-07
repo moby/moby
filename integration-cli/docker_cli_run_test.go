@@ -387,11 +387,7 @@ func (s *DockerCLIRunSuite) TestRunCreateVolumesInSymlinkDir(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 	name := "test-volume-symlink"
 
-	dir, err := os.MkdirTemp("", name)
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := c.TempDir()
 
 	// In the case of Windows to Windows CI, if the machine is setup so that
 	// the temp directory is not the C: drive, this test is invalid and will
@@ -623,15 +619,14 @@ func (s *DockerCLIRunSuite) TestRunCreateVolume(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunCreateVolumeWithSymlink(c *testing.T) {
 	// Cannot run on Windows as relies on Linux-specific functionality (sh -c mount...)
 	testRequires(c, DaemonIsLinux)
-	workingDirectory, err := os.MkdirTemp("", "TestRunCreateVolumeWithSymlink")
-	assert.NilError(c, err)
+	workingDirectory := c.TempDir()
 	const imgName = "docker-test-createvolumewithsymlink"
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", imgName, "-")
 	buildCmd.Stdin = strings.NewReader(`FROM busybox
 		RUN ln -s home /bar`)
 	buildCmd.Dir = workingDirectory
-	err = buildCmd.Run()
+	err := buildCmd.Run()
 	if err != nil {
 		c.Fatalf("could not build '%s': %v", imgName, err)
 	}
@@ -661,8 +656,7 @@ func (s *DockerCLIRunSuite) TestRunVolumesFromSymlinkPath(c *testing.T) {
 	// Windows does not support symlinks inside a volume path
 	testRequires(c, DaemonIsLinux)
 
-	workingDirectory, err := os.MkdirTemp("", "TestRunVolumesFromSymlinkPath")
-	assert.NilError(c, err)
+	workingDirectory := c.TempDir()
 	name := "docker-test-volumesfromsymlinkpath"
 	prefix := ""
 	dfContents := `FROM busybox
@@ -681,7 +675,7 @@ func (s *DockerCLIRunSuite) TestRunVolumesFromSymlinkPath(c *testing.T) {
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, "-")
 	buildCmd.Stdin = strings.NewReader(dfContents)
 	buildCmd.Dir = workingDirectory
-	err = buildCmd.Run()
+	err := buildCmd.Run()
 	if err != nil {
 		c.Fatalf("could not build 'docker-test-volumesfromsymlinkpath': %v", err)
 	}
@@ -1885,12 +1879,7 @@ func (s *DockerCLIRunSuite) TestRunBindMounts(c *testing.T) {
 
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
-	tmpDir, err := os.MkdirTemp("", "docker-test-container")
-	if err != nil {
-		c.Fatal(err)
-	}
-
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 	writeFile(path.Join(tmpDir, "touch-me"), "", c)
 
 	// Test reading from a read-only bind mount
@@ -1909,7 +1898,7 @@ func (s *DockerCLIRunSuite) TestRunBindMounts(c *testing.T) {
 	readFile(path.Join(tmpDir, "holla"), c) // Will fail if the file doesn't exist
 
 	// test mounting to an illegal destination directory
-	_, _, err = dockerCmdWithError("run", "-v", fmt.Sprintf("%s:.", tmpDir), "busybox", "ls", ".")
+	_, _, err := dockerCmdWithError("run", "-v", fmt.Sprintf("%s:.", tmpDir), "busybox", "ls", ".")
 	if err == nil {
 		c.Fatal("Container bind mounted illegal directory")
 	}
@@ -1932,11 +1921,7 @@ func (s *DockerCLIRunSuite) TestRunCidFileCleanupIfEmpty(c *testing.T) {
 	// Skip on Windows. Base image on Windows has a CMD set in the image.
 	testRequires(c, DaemonIsLinux)
 
-	tmpDir, err := os.MkdirTemp("", "TestRunCidFile")
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 	tmpCidFile := path.Join(tmpDir, "cid")
 
 	// This must be an image that has no CMD or ENTRYPOINT set
@@ -1958,12 +1943,7 @@ func (s *DockerCLIRunSuite) TestRunCidFileCleanupIfEmpty(c *testing.T) {
 // sudo docker run --cidfile /tmp/docker_tesc.cid ubuntu echo "test"
 // TestRunCidFile tests that run --cidfile returns the longid
 func (s *DockerCLIRunSuite) TestRunCidFileCheckIDLength(c *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "TestRunCidFile")
-	if err != nil {
-		c.Fatal(err)
-	}
-	tmpCidFile := path.Join(tmpDir, "cid")
-	defer os.RemoveAll(tmpDir)
+	tmpCidFile := path.Join(c.TempDir(), "cid")
 
 	id := cli.DockerCmd(c, "run", "-d", "--cidfile", tmpCidFile, "busybox", "true").Stdout()
 	id = strings.TrimSpace(id)
@@ -2063,17 +2043,8 @@ func (s *DockerCLIRunSuite) TestRunMountOrdering(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, NotUserNamespace)
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
-	tmpDir, err := os.MkdirTemp("", "docker_nested_mount_test")
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	tmpDir2, err := os.MkdirTemp("", "docker_nested_mount_test2")
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir2)
+	tmpDir := c.TempDir()
+	tmpDir2 := c.TempDir()
 
 	// Create a temporary tmpfs mount.
 	fooDir := filepath.Join(tmpDir, "foo")
@@ -2108,12 +2079,7 @@ func (s *DockerCLIRunSuite) TestRunReuseBindVolumeThatIsSymlink(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, NotUserNamespace)
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
-	tmpDir, err := os.MkdirTemp(os.TempDir(), "testlink")
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
+	tmpDir := c.TempDir()
 	linkPath := os.TempDir() + "/testlink2"
 	if err := os.Symlink(tmpDir, linkPath); err != nil {
 		c.Fatal(err)
@@ -4206,9 +4172,7 @@ func (s *delayedReader) Read([]byte) (int, error) {
 // #28823 (originally #28639)
 func (s *DockerCLIRunSuite) TestRunMountReadOnlyDevShm(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, NotUserNamespace)
-	emptyDir, err := os.MkdirTemp("", "test-read-only-dev-shm")
-	assert.NilError(c, err)
-	defer os.RemoveAll(emptyDir)
+	emptyDir := c.TempDir()
 	out, _, err := dockerCmdWithError("run", "--rm", "--read-only",
 		"-v", fmt.Sprintf("%s:/dev/shm:ro", emptyDir),
 		"busybox", "touch", "/dev/shm/foo")
@@ -4220,11 +4184,7 @@ func (s *DockerCLIRunSuite) TestRunMount(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon, NotUserNamespace)
 
 	// mnt1, mnt2, and testCatFooBar are commonly used in multiple test cases
-	tmpDir, err := os.MkdirTemp("", "mount")
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 	mnt1, mnt2 := path.Join(tmpDir, "mnt1"), path.Join(tmpDir, "mnt2")
 	if err := os.Mkdir(mnt1, 0o755); err != nil {
 		c.Fatal(err)
