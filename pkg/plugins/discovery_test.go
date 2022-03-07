@@ -7,16 +7,12 @@ import (
 )
 
 func Setup(t *testing.T) (string, func(), LocalRegistry) {
-	tmpdir, err := os.MkdirTemp("", "docker-test")
-	if err != nil {
-		t.Fatal(err)
-	}
+	tmpdir := t.TempDir()
 	backup := socketsPath
 	socketsPath = tmpdir
 
 	return tmpdir, func() {
 			socketsPath = backup
-			os.RemoveAll(tmpdir)
 		}, LocalRegistry{
 			func() []string {
 				return []string{tmpdir}

@@ -1086,13 +1086,7 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverShouldBeIgnoredForBuild(c *te
 }
 
 func (s *DockerDaemonSuite) TestDaemonUnixSockCleanedUp(c *testing.T) {
-	dir, err := os.MkdirTemp("", "socket-cleanup-test")
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
-	sockPath := filepath.Join(dir, "docker.sock")
+	sockPath := filepath.Join(c.TempDir(), "docker.sock")
 	s.d.Start(c, "--host", "unix://"+sockPath)
 
 	if _, err := os.Stat(sockPath); err != nil {
@@ -1617,9 +1611,7 @@ func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *testing.T
 func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, Network)
 
-	testDir, err := os.MkdirTemp("", "no-space-left-on-device-test")
-	assert.NilError(c, err)
-	defer os.RemoveAll(testDir)
+	testDir := c.TempDir()
 	assert.Assert(c, mount.MakeRShared(testDir) == nil)
 	defer mount.Unmount(testDir)
 
@@ -2416,10 +2408,8 @@ func (s *DockerDaemonSuite) TestDaemonWithUserlandProxyPath(c *testing.T) {
 
 	dockerProxyPath, err := exec.LookPath("docker-proxy")
 	assert.NilError(c, err)
-	tmpDir, err := os.MkdirTemp("", "test-docker-proxy")
-	assert.NilError(c, err)
 
-	newProxyPath := filepath.Join(tmpDir, "docker-proxy")
+	newProxyPath := filepath.Join(c.TempDir(), "docker-proxy")
 	cmd := exec.Command("cp", dockerProxyPath, newProxyPath)
 	assert.NilError(c, cmd.Run())
 
@@ -2631,10 +2621,7 @@ func (s *DockerDaemonSuite) TestShmSize(c *testing.T) {
 func (s *DockerDaemonSuite) TestShmSizeReload(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
-	configPath, err := os.MkdirTemp("", "test-daemon-shm-size-reload-config")
-	assert.Assert(c, err == nil, "could not create temp file for config reload")
-	defer os.RemoveAll(configPath) // clean up
-	configFile := filepath.Join(configPath, "config.json")
+	configFile := filepath.Join(c.TempDir(), "config.json")
 
 	size := 67108864 * 2
 	configData := []byte(fmt.Sprintf(`{"default-shm-size": "%dM"}`, size/1024/1024))

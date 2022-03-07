@@ -10,8 +10,7 @@ import (
 )
 
 func TestIsExistingDirectory(t *testing.T) {
-	tmpfile := fs.NewFile(t, "file-exists-test", fs.WithContent("something"))
-	tmpdir := fs.NewDir(t, "dir-exists-test")
+	tmpfile := fs.NewFile(t, "file-exists-test", fs.WithContent("something")).Path()
 
 	testcases := []struct {
 		doc      string
@@ -20,7 +19,7 @@ func TestIsExistingDirectory(t *testing.T) {
 	}{
 		{
 			doc:      "directory exists",
-			path:     tmpdir.Path(),
+			path:     t.TempDir(),
 			expected: true,
 		},
 		{
@@ -30,7 +29,7 @@ func TestIsExistingDirectory(t *testing.T) {
 		},
 		{
 			doc:      "file exists",
-			path:     tmpfile.Path(),
+			path:     tmpfile,
 			expected: false,
 		},
 	}

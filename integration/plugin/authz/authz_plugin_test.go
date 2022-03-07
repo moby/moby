@@ -334,18 +334,15 @@ func TestAuthZPluginEnsureLoadImportWorking(t *testing.T) {
 	c := d.NewClientT(t)
 	ctx := context.Background()
 
-	tmp, err := os.MkdirTemp("", "test-authz-load-import")
-	assert.NilError(t, err)
-	defer os.RemoveAll(tmp)
+	tmpDir := t.TempDir()
+	savedImagePath := filepath.Join(tmpDir, "save.tar")
 
-	savedImagePath := filepath.Join(tmp, "save.tar")
-
-	err = imageSave(c, savedImagePath, "busybox")
+	err := imageSave(c, savedImagePath, "busybox")
 	assert.NilError(t, err)
 	err = imageLoad(c, savedImagePath)
 	assert.NilError(t, err)
 
-	exportedImagePath := filepath.Join(tmp, "export.tar")
+	exportedImagePath := filepath.Join(tmpDir, "export.tar")
 
 	cID := container.Run(ctx, t, c)
 
@@ -368,11 +365,7 @@ func TestAuthzPluginEnsureContainerCopyToFrom(t *testing.T) {
 	ctrl.resRes.Allow = true
 	d.StartWithBusybox(t, "--authorization-plugin="+testAuthZPlugin, "--authorization-plugin="+testAuthZPlugin)
 
-	dir, err := os.MkdirTemp("", t.Name())
-	assert.NilError(t, err)
-	defer os.RemoveAll(dir)
-
-	f, err := os.CreateTemp(dir, "send")
+	f, err := os.CreateTemp(t.TempDir(), "send")
 	assert.NilError(t, err)
 	defer f.Close()
 

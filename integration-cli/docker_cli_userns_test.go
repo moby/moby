@@ -25,14 +25,11 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 
 	s.d.StartWithBusybox(c, "--userns-remap", "default")
 
-	tmpDir, err := os.MkdirTemp("", "userns")
-	assert.NilError(c, err)
-
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	// Set a non-existent path
 	tmpDirNotExists := path.Join(os.TempDir(), "userns"+stringid.GenerateRandomID())
-	defer os.RemoveAll(tmpDirNotExists)
+	c.Cleanup(func() { _ = os.RemoveAll(tmpDirNotExists) })
 
 	// we need to find the uid and gid of the remapped root from the daemon's root dir info
 	uidgid := strings.Split(filepath.Base(s.d.Root), ".")

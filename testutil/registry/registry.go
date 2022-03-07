@@ -53,8 +53,7 @@ func NewV2(t testing.TB, ops ...func(*Config)) *V2 {
 	for _, op := range ops {
 		op(c)
 	}
-	tmp, err := os.MkdirTemp("", "registry-test-")
-	assert.NilError(t, err)
+	tmp := t.TempDir()
 	template := `version: 0.1
 loglevel: debug
 storage:
@@ -114,8 +113,6 @@ http:
 	cmd.Stdout = c.stdout
 	cmd.Stderr = c.stderr
 	if err := cmd.Start(); err != nil {
-		// FIXME(vdemeester) use a defer/clean func
-		os.RemoveAll(tmp)
 		t.Fatal(err)
 	}
 	return &V2{
