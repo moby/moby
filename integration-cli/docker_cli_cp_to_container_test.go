@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -25,8 +24,7 @@ func (s *DockerCLICpSuite) TestCpToSymlinkDestination(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, testEnv.IsLocalDaemon) // Requires local volume mount bind.
 
-	testVol := getTestDir(c, "test-cp-to-symlink-destination-")
-	defer os.RemoveAll(testVol)
+	testVol := c.TempDir()
 
 	makeTestContentInDir(c, testVol)
 
@@ -106,8 +104,7 @@ func (s *DockerCLICpSuite) TestCpToCaseA(c *testing.T) {
 		workDir: "/root", command: makeCatFileCommand("itWorks.txt"),
 	})
 
-	tmpDir := getTestDir(c, "test-cp-to-case-a")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -127,8 +124,7 @@ func (s *DockerCLICpSuite) TestCpToCaseB(c *testing.T) {
 		command: makeCatFileCommand("testDir/file1"),
 	})
 
-	tmpDir := getTestDir(c, "test-cp-to-case-b")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -150,8 +146,7 @@ func (s *DockerCLICpSuite) TestCpToCaseC(c *testing.T) {
 		command: makeCatFileCommand("file2"),
 	})
 
-	tmpDir := getTestDir(c, "test-cp-to-case-c")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -175,8 +170,7 @@ func (s *DockerCLICpSuite) TestCpToCaseD(c *testing.T) {
 		command:    makeCatFileCommand("/dir1/file1"),
 	})
 
-	tmpDir := getTestDir(c, "test-cp-to-case-d")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -212,8 +206,7 @@ func (s *DockerCLICpSuite) TestCpToCaseE(c *testing.T) {
 		command: makeCatFileCommand("/testDir/file1-1"),
 	})
 
-	tmpDir := getTestDir(c, "test-cp-to-case-e")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -246,8 +239,7 @@ func (s *DockerCLICpSuite) TestCpToCaseF(c *testing.T) {
 		addContent: true, workDir: "/root",
 	})
 
-	tmpDir := getTestDir(c, "test-cp-to-case-f")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -270,8 +262,7 @@ func (s *DockerCLICpSuite) TestCpToCaseG(c *testing.T) {
 		command: makeCatFileCommand("dir2/dir1/file1-1"),
 	})
 
-	tmpDir := getTestDir(c, "test-cp-to-case-g")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -307,8 +298,7 @@ func (s *DockerCLICpSuite) TestCpToCaseH(c *testing.T) {
 		command: makeCatFileCommand("/testDir/file1-1"),
 	})
 
-	tmpDir := getTestDir(c, "test-cp-to-case-h")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -341,8 +331,7 @@ func (s *DockerCLICpSuite) TestCpToCaseI(c *testing.T) {
 		addContent: true, workDir: "/root",
 	})
 
-	tmpDir := getTestDir(c, "test-cp-to-case-i")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -366,8 +355,7 @@ func (s *DockerCLICpSuite) TestCpToCaseJ(c *testing.T) {
 		command: makeCatFileCommand("/dir2/file1-1"),
 	})
 
-	tmpDir := getTestDir(c, "test-cp-to-case-j")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -397,8 +385,7 @@ func (s *DockerCLICpSuite) TestCpToCaseJ(c *testing.T) {
 func (s *DockerCLICpSuite) TestCpToErrReadOnlyRootfs(c *testing.T) {
 	// --read-only + userns has remount issues
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
-	tmpDir := getTestDir(c, "test-cp-to-err-read-only-rootfs")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -420,8 +407,7 @@ func (s *DockerCLICpSuite) TestCpToErrReadOnlyRootfs(c *testing.T) {
 func (s *DockerCLICpSuite) TestCpToErrReadOnlyVolume(c *testing.T) {
 	// --read-only + userns has remount issues
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
-	tmpDir := getTestDir(c, "test-cp-to-err-read-only-volume")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 

@@ -3,7 +3,6 @@
 package overlay2
 
 import (
-	"os"
 	"path"
 	"testing"
 
@@ -21,12 +20,7 @@ func init() {
 }
 
 func skipIfNaive(t *testing.T) {
-	td, err := os.MkdirTemp("", "naive-check-")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(td)
-
+	td := t.TempDir()
 	if useNaiveDiff(td) {
 		t.Skipf("Cannot run test with naive diff")
 	}

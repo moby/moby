@@ -41,9 +41,7 @@ func (s *DockerRegistrySuite) TestV2Only(c *testing.T) {
 
 	s.d.Start(c, "--insecure-registry", reg.URL())
 
-	tmp, err := os.MkdirTemp("", "integration-cli-")
-	assert.NilError(c, err)
-	defer os.RemoveAll(tmp)
+	tmp := c.TempDir()
 
 	dockerfileName, err := makefile(tmp, fmt.Sprintf("FROM %s/busybox", reg.URL()))
 	assert.NilError(c, err, "Unable to create test dockerfile")
