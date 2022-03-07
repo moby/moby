@@ -221,30 +221,69 @@ func TestNegotiateAPIVersionEmpty(t *testing.T) {
 // TestNegotiateAPIVersion asserts that client.Client can
 // negotiate a compatible APIVersion with the server
 func TestNegotiateAPIVersion(t *testing.T) {
-	client, err := NewClientWithOpts(FromEnv)
-	assert.NilError(t, err)
-
-	expected := "1.21"
-	ping := types.Ping{
-		APIVersion:   expected,
-		OSType:       "linux",
-		Experimental: false,
+	tests := []struct {
+		doc             string
+		clientVersion   string
+		pingVersion     string
+		expectedVersion string
+	}{
+		{
+			// client should downgrade to the version reported by the daemon.
+			doc:             "downgrade from default",
+			pingVersion:     "1.21",
+			expectedVersion: "1.21",
+		},
+		{
+			// client should not downgrade to the version reported by the
+			// daemon if a custom version was set.
+			doc:             "no downgrade from custom version",
+			clientVersion:   "1.25",
+			pingVersion:     "1.21",
+			expectedVersion: "1.25",
+		},
+		{
+			// client should downgrade to the last version before version
+			// negotiation was added (1.24) if the daemon does not report
+			// a version.
+			doc:             "downgrade legacy",
+			pingVersion:     "",
+			expectedVersion: "1.24",
+		},
+		{
+			// client should downgrade to the version reported by the daemon.
+			// version negotiation was added in API 1.25, so this is theoretical,
+			// but it should negotiate to versions before that if the daemon
+			// gives that as a response.
+			doc:             "downgrade old",
+			pingVersion:     "1.19",
+			expectedVersion: "1.19",
+		},
+		{
+			// client should not upgrade to a newer version if a version was set,
+			// even if both the daemon and the client support it.
+			doc:             "no upgrade",
+			clientVersion:   "1.20",
+			pingVersion:     "1.21",
+			expectedVersion: "1.20",
+		},
 	}
 
-	// set our version to something new
-	client.version = "1.22"
-
-	// test downgrade
-	client.NegotiateAPIVersionPing(ping)
-	assert.Check(t, is.Equal(expected, client.version))
-
-	// set the client version to something older, and verify that we keep the
-	// original setting.
-	expected = "1.20"
-	client.version = expected
-	client.NegotiateAPIVersionPing(ping)
-	assert.Check(t, is.Equal(client.version, expected))
-
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			opts := make([]Opt, 0)
+			if tc.clientVersion != "" {
+				// Note that this check is redundant, as WithVersion() considers
+				// an empty version equivalent to "not setting a version", but
+				// doing this just to be explicit we are using the default.
+				opts = append(opts, WithVersion(tc.clientVersion))
+			}
+			client, err := NewClientWithOpts(opts...)
+			assert.NilError(t, err)
+			client.NegotiateAPIVersionPing(types.Ping{APIVersion: tc.pingVersion})
+			assert.Equal(t, tc.expectedVersion, client.ClientVersion())
+		})
+	}
 }
 
 // TestNegotiateAPIVersionOverride asserts that we honor the DOCKER_API_VERSION
@@ -357,16 +396,19 @@ func TestClientRedirect(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		req, err := http.NewRequest(tc.httpMethod, "/redirectme", nil)
-		assert.Check(t, err)
-		resp, err := client.Do(req)
-		assert.Check(t, is.Equal(resp.StatusCode, tc.statusCode))
-		if tc.expectedErr == nil {
-			assert.Check(t, is.Nil(err))
-		} else {
-			urlError, ok := err.(*url.Error)
-			assert.Assert(t, ok, "%T is not *url.Error", err)
-			assert.Check(t, is.Equal(*urlError, *tc.expectedErr))
-		}
+		tc := tc
+		t.Run(tc.httpMethod, func(t *testing.T) {
+			req, err := http.NewRequest(tc.httpMethod, "/redirectme", nil)
+			assert.Check(t, err)
+			resp, err := client.Do(req)
+			assert.Check(t, is.Equal(resp.StatusCode, tc.statusCode))
+			if tc.expectedErr == nil {
+				assert.NilError(t, err)
+			} else {
+				urlError, ok := err.(*url.Error)
+				assert.Assert(t, ok, "%T is not *url.Error", err)
+				assert.Check(t, is.Equal(*urlError, *tc.expectedErr))
+			}
+		})
 	}
 }
