@@ -5,9 +5,9 @@ import (
 	"path"
 	"strings"
 
+	"github.com/containerd/cgroups"
 	cgroupsV2 "github.com/containerd/cgroups/v2"
 	"github.com/containerd/containerd/pkg/userns"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/sirupsen/logrus"
 )
 
