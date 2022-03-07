@@ -212,7 +212,7 @@ func (cli *Client) ClientVersion() string {
 // by the client, it uses the client's maximum version.
 //
 // If a manual override is in place, either through the "DOCKER_API_VERSION"
-// environment variable, or if the client is initialized
+// (EnvOverrideAPIVersion) environment variable, or if the client is initialized
 // with a fixed version (WithVersion(xx)), no negotiation is performed.
 //
 // If the API server's ping response does not contain an API version, or if the
@@ -233,7 +233,7 @@ func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 // version.
 //
 // If a manual override is in place, either through the "DOCKER_API_VERSION"
-// environment variable, or if the client is initialized
+// (EnvOverrideAPIVersion) environment variable, or if the client is initialized
 // with a fixed version (WithVersion(xx)), no negotiation is performed.
 //
 // If the API server's ping response does not contain an API version, we assume
