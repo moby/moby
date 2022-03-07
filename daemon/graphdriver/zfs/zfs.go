@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	zfs "github.com/mistifyio/go-zfs"
+	"github.com/moby/locker"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -125,6 +126,7 @@ func Init(base string, opt []string, uidMaps, gidMaps []idtools.IDMap) (graphdri
 		uidMaps:          uidMaps,
 		gidMaps:          gidMaps,
 		ctr:              graphdriver.NewRefCounter(graphdriver.NewDefaultChecker()),
+		locker:           locker.New(),
 	}
 	return graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps), nil
 }
@@ -182,6 +184,7 @@ type Driver struct {
 	uidMaps          []idtools.IDMap
 	gidMaps          []idtools.IDMap
 	ctr              *graphdriver.RefCounter
+	locker           *locker.Locker
 }
 
 func (d *Driver) String() string {
@@ -353,6 +356,8 @@ func setQuota(name string, quota string) error {
 
 // Remove deletes the dataset, filesystem and the cache for the given id.
 func (d *Driver) Remove(id string) error {
+	d.locker.Lock(id)
+	defer d.locker.Unlock(id)
 	name := d.zfsPath(id)
 	dataset := zfs.Dataset{Name: name}
 	err := dataset.Destroy(zfs.DestroyRecursive)
@@ -366,6 +371,8 @@ func (d *Driver) Remove(id string) error {
 
 // Get returns the mountpoint for the given id after creating the target directories if necessary.
 func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr error) {
+	d.locker.Lock(id)
+	defer d.locker.Unlock(id)
 	mountpoint := d.mountPath(id)
 	if count := d.ctr.Increment(mountpoint); count > 1 {
 		return containerfs.NewLocalContainerFS(mountpoint), nil
@@ -412,6 +419,8 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 
 // Put removes the existing mountpoint for the given id if it exists.
 func (d *Driver) Put(id string) error {
+	d.locker.Lock(id)
+	defer d.locker.Unlock(id)
 	mountpoint := d.mountPath(id)
 	if count := d.ctr.Decrement(mountpoint); count > 0 {
 		return nil
