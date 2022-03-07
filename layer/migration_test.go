@@ -3,7 +3,6 @@ package layer // import "github.com/docker/docker/layer"
 import (
 	"bytes"
 	"io"
-	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -39,11 +38,7 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Failing on Windows")
 	}
-	td, err := os.MkdirTemp("", "migration-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(td)
+	tempDir := t.TempDir()
 
 	layer1Files := []FileApplier{
 		newTestFile("/root/.bashrc", []byte("# Boring configuration"), 0o644),
@@ -54,7 +49,7 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 		newTestFile("/root/.bashrc", []byte("# Updated configuration"), 0o644),
 	}
 
-	graph, err := newVFSGraphDriver(filepath.Join(td, "graphdriver-"))
+	graph, err := newVFSGraphDriver(filepath.Join(tempDir, "graphdriver-"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,13 +66,13 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	root := filepath.Join(td, "layers")
+	root := filepath.Join(tempDir, "layers")
 	ls, err := newStoreFromGraphDriver(root, graph)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	newTarDataPath := filepath.Join(td, ".migration-tardata")
+	newTarDataPath := filepath.Join(tempDir, ".migration-tardata")
 	diffID, size, err := ls.(*layerStore).ChecksumForGraphID(graphID1, "", newTarDataPath)
 	if err != nil {
 		t.Fatal(err)
