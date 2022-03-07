@@ -7,9 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/fs"
-
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/container"
 	swarmagent "github.com/moby/swarmkit/v2/agent"
@@ -17,11 +14,12 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/windows/registry"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 	// we need a temp directory to act as the daemon's root
-	tmpDaemonRoot := fs.NewDir(t, t.Name()).Path()
+	tmpDaemonRoot := t.TempDir()
 
 	daemon := &Daemon{
 		root: tmpDaemonRoot,

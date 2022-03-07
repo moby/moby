@@ -61,15 +61,12 @@ func (s *DockerCLIRunSuite) TestRunRedirectStdout(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunWithVolumesIsRecursive(c *testing.T) {
 	// /tmp gets permission denied
 	testRequires(c, NotUserNamespace, testEnv.IsLocalDaemon)
-	tmpDir, err := os.MkdirTemp("", "docker_recursive_mount_test")
-	assert.NilError(c, err)
-
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	// Create a temporary tmpfs mount.
 	tmpfsDir := filepath.Join(tmpDir, "tmpfs")
-	assert.Assert(c, os.MkdirAll(tmpfsDir, 0o777) == nil, "failed to mkdir at %s", tmpfsDir)
-	assert.Assert(c, mount.Mount("tmpfs", tmpfsDir, "tmpfs", "") == nil, "failed to create a tmpfs mount at %s", tmpfsDir)
+	assert.Assert(c, os.MkdirAll(tmpfsDir, 0o777), "failed to mkdir at %s", tmpfsDir)
+	assert.Assert(c, mount.Mount("tmpfs", tmpfsDir, "tmpfs", ""), "failed to create a tmpfs mount at %s", tmpfsDir)
 	defer mount.Unmount(tmpfsDir)
 
 	f, err := os.CreateTemp(tmpfsDir, "touch-me")
@@ -243,22 +240,20 @@ func (s *DockerCLIRunSuite) TestRunAttachDetachFromConfig(c *testing.T) {
 	keyA := []byte{97}
 
 	// Setup config
-	tmpDir, err := os.MkdirTemp("", "fake-home")
-	assert.NilError(c, err)
-	defer os.RemoveAll(tmpDir)
+	tmpHomeDir := c.TempDir()
 
-	dotDocker := filepath.Join(tmpDir, ".docker")
+	dotDocker := filepath.Join(tmpHomeDir, ".docker")
 	os.Mkdir(dotDocker, 0o600)
 	tmpCfg := filepath.Join(dotDocker, "config.json")
 
 	// TODO(thaJeztah): migrate this test to docker/cli, and run on Windows as well (using USERPROFILE for home-dir)
-	c.Setenv("HOME", tmpDir)
+	c.Setenv("HOME", tmpHomeDir)
 
 	data := `{
 		"detachKeys": "ctrl-a,a"
 	}`
 
-	err = os.WriteFile(tmpCfg, []byte(data), 0o600)
+	err := os.WriteFile(tmpCfg, []byte(data), 0o600)
 	assert.NilError(c, err)
 
 	// Then do the work
@@ -324,22 +319,20 @@ func (s *DockerCLIRunSuite) TestRunAttachDetachKeysOverrideConfig(c *testing.T) 
 	keyA := []byte{97}
 
 	// Setup config
-	tmpDir, err := os.MkdirTemp("", "fake-home")
-	assert.NilError(c, err)
-	defer os.RemoveAll(tmpDir)
+	tmpHomeDir := c.TempDir()
 
-	dotDocker := filepath.Join(tmpDir, ".docker")
+	dotDocker := filepath.Join(tmpHomeDir, ".docker")
 	os.Mkdir(dotDocker, 0o600)
 	tmpCfg := filepath.Join(dotDocker, "config.json")
 
 	// TODO(thaJeztah): migrate this test to docker/cli, and run on Windows as well (using USERPROFILE for home-dir)
-	c.Setenv("HOME", tmpDir)
+	c.Setenv("HOME", tmpHomeDir)
 
 	data := `{
 		"detachKeys": "ctrl-e,e"
 	}`
 
-	err = os.WriteFile(tmpCfg, []byte(data), 0o600)
+	err := os.WriteFile(tmpCfg, []byte(data), 0o600)
 	assert.NilError(c, err)
 
 	// Then do the work
@@ -1332,14 +1325,11 @@ func (s *DockerCLIRunSuite) TestRunDeviceSymlink(c *testing.T) {
 	}
 
 	// Create a temporary directory to create symlink
-	tmpDir, err := os.MkdirTemp("", "docker_device_follow_symlink_tests")
-	assert.NilError(c, err)
-
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	// Create a symbolic link to /dev/zero
 	symZero := filepath.Join(tmpDir, "zero")
-	err = os.Symlink("/dev/zero", symZero)
+	err := os.Symlink("/dev/zero", symZero)
 	assert.NilError(c, err)
 
 	// Create a temporary file "temp" inside tmpDir, write some data to "tmpDir/temp",

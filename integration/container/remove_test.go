@@ -2,6 +2,7 @@ package container
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -11,7 +12,6 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/fs"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
@@ -32,18 +32,19 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
-	tempDir := fs.NewDir(t, "test-rm-container-with-removed-volume", fs.WithMode(0o755))
+	tempDir := t.TempDir()
+	hostPath := filepath.Join(tempDir, "hostPath")
 
-	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"), container.WithBind(tempDir.Path(), prefix+slash+"test"))
+	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"), container.WithBind(hostPath, prefix+slash+"test"))
 	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited))
 
-	err := os.RemoveAll(tempDir.Path())
+	err := os.RemoveAll(hostPath)
 	assert.NilError(t, err)
 
 	err = apiClient.ContainerRemove(ctx, cID, containertypes.RemoveOptions{
 		RemoveVolumes: true,
 	})
-	assert.NilError(t, err)
+	assert.Check(t, err)
 
 	_, err = apiClient.ContainerInspect(ctx, cID)
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))

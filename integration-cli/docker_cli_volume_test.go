@@ -108,14 +108,11 @@ func (s *DockerCLIVolumeSuite) TestVolumeLsFormatDefaultFormat(c *testing.T) {
 	const config = `{
 		"volumesFormat": "{{ .Name }} default"
 }`
-	d, err := os.MkdirTemp("", "integration-cli-")
-	assert.NilError(c, err)
-	defer os.RemoveAll(d)
-
-	err = os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0o644)
+	tmpDir := c.TempDir()
+	err := os.WriteFile(filepath.Join(tmpDir, "config.json"), []byte(config), 0o644)
 	assert.NilError(c, err)
 
-	out := cli.DockerCmd(c, "--config", d, "volume", "ls").Stdout()
+	out := cli.DockerCmd(c, "--config", tmpDir, "volume", "ls").Stdout()
 	assertVolumesInList(c, out, []string{"aaa default", "soo default", "test default"})
 }
 
