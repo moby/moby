@@ -935,8 +935,7 @@ func (s *DockerAPISuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRoot
 	// --read-only + userns has remount issues
 	testRequires(c, testEnv.IsLocalDaemon, NotUserNamespace, DaemonIsLinux)
 
-	testVol := getTestDir(c, "test-put-container-archive-err-symlink-in-volume-to-read-only-rootfs-")
-	defer os.RemoveAll(testVol)
+	testVol := c.TempDir()
 
 	makeTestContentInDir(c, testVol)
 
@@ -1231,6 +1230,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 	}
 
 	if testEnv.IsLocalDaemon() {
+		// TODO(thaJeztah): t.TempDir() doesn't work for this one.
 		tmpDir, err := os.MkdirTemp("", "test-mounts-api")
 		assert.NilError(c, err)
 		defer os.RemoveAll(tmpDir)
@@ -1444,10 +1444,8 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 func (s *DockerAPISuite) TestContainerAPICreateMountsBindRead(c *testing.T) {
 	testRequires(c, NotUserNamespace, testEnv.IsLocalDaemon)
 	// also with data in the host side
-	tmpDir, err := os.MkdirTemp("", "test-mounts-api-bind")
-	assert.NilError(c, err)
-	defer os.RemoveAll(tmpDir)
-	err = os.WriteFile(filepath.Join(tmpDir, "bar"), []byte("hello"), 0o666)
+	tmpDir := c.TempDir()
+	err := os.WriteFile(filepath.Join(tmpDir, "bar"), []byte("hello"), 0o666)
 	assert.NilError(c, err)
 	config := container.Config{
 		Image: "busybox",

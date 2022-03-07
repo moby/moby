@@ -158,10 +158,8 @@ func (s *DockerCLIPruneSuite) TestPruneContainerLabel(c *testing.T) {
 
 	// Add a config file of label=foobar, that will have no impact if cli is label!=foobar
 	config := `{"pruneFilters": ["label=foobar"]}`
-	d, err := os.MkdirTemp("", "integration-cli-")
-	assert.NilError(c, err)
-	defer os.RemoveAll(d)
-	err = os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0o644)
+	d := c.TempDir()
+	err := os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0o644)
 	assert.NilError(c, err)
 
 	// With config.json only, prune based on label=foobar
@@ -216,10 +214,8 @@ func (s *DockerCLIPruneSuite) TestPruneVolumeLabel(c *testing.T) {
 
 	// Add a config file of label=foobar, that will have no impact if cli is label!=foobar
 	config := `{"pruneFilters": ["label=foobar"]}`
-	d, err := os.MkdirTemp("", "integration-cli-")
-	assert.NilError(c, err)
-	defer os.RemoveAll(d)
-	err = os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0o644)
+	d := c.TempDir()
+	err := os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0o644)
 	assert.NilError(c, err)
 
 	// With config.json only, prune based on label=foobar

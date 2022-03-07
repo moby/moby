@@ -1,7 +1,6 @@
 package volumes
 
 import (
-	"os"
 	"testing"
 
 	plugintypes "github.com/moby/moby/api/types/plugin"
@@ -29,9 +28,7 @@ func TestPluginWithDevMounts(t *testing.T) {
 
 	c := d.NewClientT(t)
 
-	testDir, err := os.MkdirTemp("", "test-dir")
-	assert.NilError(t, err)
-	defer os.RemoveAll(testDir)
+	testDir := t.TempDir()
 
 	createPlugin(ctx, t, c, "test", "dummy", asVolumeDriver, func(c *plugin.Config) {
 		root := "/"
@@ -47,7 +44,7 @@ func TestPluginWithDevMounts(t *testing.T) {
 		c.IpcHost = true
 	})
 
-	_, err = c.PluginEnable(ctx, "test", client.PluginEnableOptions{Timeout: 30})
+	_, err := c.PluginEnable(ctx, "test", client.PluginEnableOptions{Timeout: 30})
 	assert.NilError(t, err)
 	defer func() {
 		_, err := c.PluginRemove(ctx, "test", client.PluginRemoveOptions{Force: true})
