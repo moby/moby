@@ -2,12 +2,11 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
 	"context"
-	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/oci"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/moby/sys/symlink"
 	lcUser "github.com/opencontainers/runc/libcontainer/user"
 	"github.com/pkg/errors"
 )
@@ -25,19 +24,11 @@ func parseChownFlag(ctx context.Context, builder *Builder, state *dispatchState,
 		userStr, grpStr = parts[0], parts[1]
 	}
 
-	passwdPath, err := symlink.FollowSymlinkInScope(filepath.Join(ctrRootPath, "etc", "passwd"), ctrRootPath)
-	if err != nil {
-		return idtools.Identity{}, errors.Wrapf(err, "can't resolve /etc/passwd path in container rootfs")
-	}
-	groupPath, err := symlink.FollowSymlinkInScope(filepath.Join(ctrRootPath, "etc", "group"), ctrRootPath)
-	if err != nil {
-		return idtools.Identity{}, errors.Wrapf(err, "can't resolve /etc/group path in container rootfs")
-	}
-	uid, err := lookupUser(userStr, passwdPath)
+	uid, err := lookupUser(ctrRootPath, userStr)
 	if err != nil {
 		return idtools.Identity{}, errors.Wrapf(err, "can't find uid for user "+userStr)
 	}
-	gid, err := lookupGroup(grpStr, groupPath)
+	gid, err := lookupGroup(ctrRootPath, grpStr)
 	if err != nil {
 		return idtools.Identity{}, errors.Wrapf(err, "can't find gid for group "+grpStr)
 	}
@@ -50,40 +41,40 @@ func parseChownFlag(ctx context.Context, builder *Builder, state *dispatchState,
 	return chownPair, nil
 }
 
-func lookupUser(userStr, filepath string) (int, error) {
+func lookupUser(root, userStr string) (int, error) {
 	// if the string is actually a uid integer, parse to int and return
 	// as we don't need to translate with the help of files
 	uid, err := strconv.Atoi(userStr)
 	if err == nil {
 		return uid, nil
 	}
-	users, err := lcUser.ParsePasswdFileFilter(filepath, func(u lcUser.User) bool {
+	user, err := oci.UserFromPath(root, func(u lcUser.User) bool {
 		return u.Name == userStr
 	})
 	if err != nil {
+		if errors.Is(err, oci.ErrNoUsersFound) {
+			return 0, errors.New("no such user: " + userStr)
+		}
 		return 0, err
 	}
-	if len(users) == 0 {
-		return 0, errors.New("no such user: " + userStr)
-	}
-	return users[0].Uid, nil
+	return user.Uid, nil
 }
 
-func lookupGroup(groupStr, filepath string) (int, error) {
+func lookupGroup(root, groupStr string) (int, error) {
 	// if the string is actually a gid integer, parse to int and return
 	// as we don't need to translate with the help of files
 	gid, err := strconv.Atoi(groupStr)
 	if err == nil {
 		return gid, nil
 	}
-	groups, err := lcUser.ParseGroupFileFilter(filepath, func(g lcUser.Group) bool {
+	group, err := oci.GIDFromPath(root, func(g lcUser.Group) bool {
 		return g.Name == groupStr
 	})
 	if err != nil {
+		if errors.Is(err, oci.ErrNoGroupsFound) {
+			return 0, errors.New("no such group: " + groupStr)
+		}
 		return 0, err
 	}
-	if len(groups) == 0 {
-		return 0, errors.New("no such group: " + groupStr)
-	}
-	return groups[0].Gid, nil
+	return int(group), nil
 }
