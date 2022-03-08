@@ -4,22 +4,11 @@
 package idtools // import "github.com/docker/docker/pkg/idtools"
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
+	"os/user"
 	"path/filepath"
-	"strconv"
-	"sync"
 	"syscall"
-
-	"github.com/opencontainers/runc/libcontainer/user"
-)
-
-var (
-	entOnce   sync.Once
-	getentCmd string
 )
 
 func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting bool) error {
@@ -79,126 +68,6 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 	return nil
 }
 
-// LookupUser uses traditional local system files lookup (from libcontainer/user) on a username,
-// followed by a call to `getent` for supporting host configured non-files passwd and group dbs
-func LookupUser(name string) (user.User, error) {
-	// first try a local system files lookup using existing capabilities
-	usr, err := user.LookupUser(name)
-	if err == nil {
-		return usr, nil
-	}
-	// local files lookup failed; attempt to call `getent` to query configured passwd dbs
-	usr, err = getentUser(name)
-	if err != nil {
-		return user.User{}, err
-	}
-	return usr, nil
-}
-
-// LookupUID uses traditional local system files lookup (from libcontainer/user) on a uid,
-// followed by a call to `getent` for supporting host configured non-files passwd and group dbs
-func LookupUID(uid int) (user.User, error) {
-	// first try a local system files lookup using existing capabilities
-	usr, err := user.LookupUid(uid)
-	if err == nil {
-		return usr, nil
-	}
-	// local files lookup failed; attempt to call `getent` to query configured passwd dbs
-	return getentUser(strconv.Itoa(uid))
-}
-
-func getentUser(name string) (user.User, error) {
-	reader, err := callGetent("passwd", name)
-	if err != nil {
-		return user.User{}, err
-	}
-	users, err := user.ParsePasswd(reader)
-	if err != nil {
-		return user.User{}, err
-	}
-	if len(users) == 0 {
-		return user.User{}, fmt.Errorf("getent failed to find passwd entry for %q", name)
-	}
-	return users[0], nil
-}
-
-// LookupGroup uses traditional local system files lookup (from libcontainer/user) on a group name,
-// followed by a call to `getent` for supporting host configured non-files passwd and group dbs
-func LookupGroup(name string) (user.Group, error) {
-	// first try a local system files lookup using existing capabilities
-	group, err := user.LookupGroup(name)
-	if err == nil {
-		return group, nil
-	}
-	// local files lookup failed; attempt to call `getent` to query configured group dbs
-	return getentGroup(name)
-}
-
-// LookupGID uses traditional local system files lookup (from libcontainer/user) on a group ID,
-// followed by a call to `getent` for supporting host configured non-files passwd and group dbs
-func LookupGID(gid int) (user.Group, error) {
-	// first try a local system files lookup using existing capabilities
-	group, err := user.LookupGid(gid)
-	if err == nil {
-		return group, nil
-	}
-	// local files lookup failed; attempt to call `getent` to query configured group dbs
-	return getentGroup(strconv.Itoa(gid))
-}
-
-func getentGroup(name string) (user.Group, error) {
-	reader, err := callGetent("group", name)
-	if err != nil {
-		return user.Group{}, err
-	}
-	groups, err := user.ParseGroup(reader)
-	if err != nil {
-		return user.Group{}, err
-	}
-	if len(groups) == 0 {
-		return user.Group{}, fmt.Errorf("getent failed to find groups entry for %q", name)
-	}
-	return groups[0], nil
-}
-
-func callGetent(database, key string) (io.Reader, error) {
-	entOnce.Do(func() { getentCmd, _ = resolveBinary("getent") })
-	// if no `getent` command on host, can't do anything else
-	if getentCmd == "" {
-		return nil, fmt.Errorf("unable to find getent command")
-	}
-	out, err := exec.Command(getentCmd, database, key).CombinedOutput()
-	if err != nil {
-		exitCode, errC := getExitCode(err)
-		if errC != nil {
-			return nil, err
-		}
-		switch exitCode {
-		case 1:
-			return nil, fmt.Errorf("getent reported invalid parameters/database unknown")
-		case 2:
-			return nil, fmt.Errorf("getent unable to find entry %q in %s database", key, database)
-		case 3:
-			return nil, fmt.Errorf("getent database doesn't support enumeration")
-		default:
-			return nil, err
-		}
-	}
-	return bytes.NewReader(out), nil
-}
-
-// getExitCode returns the ExitStatus of the specified error if its type is
-// exec.ExitError, returns 0 and an error otherwise.
-func getExitCode(err error) (int, error) {
-	exitCode := 0
-	if exiterr, ok := err.(*exec.ExitError); ok {
-		if procExit, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			return procExit.ExitStatus(), nil
-		}
-	}
-	return exitCode, fmt.Errorf("failed to get exit code")
-}
-
 // setPermissions performs a chown/chmod only if the uid/gid don't match what's requested
 // Normally a Chown is a no-op if uid/gid match, but in some cases this can still cause an error, e.g. if the
 // dir is on an NFS share, so don't call chown unless we absolutely must.
@@ -227,7 +96,7 @@ func setPermissions(p string, mode os.FileMode, owner Identity, stat os.FileInfo
 // using the data from /etc/sub{uid,gid} ranges, creates the
 // proper uid and gid remapping ranges for that user/group pair
 func LoadIdentityMapping(name string) (IdentityMapping, error) {
-	usr, err := LookupUser(name)
+	usr, err := user.Lookup(name)
 	if err != nil {
 		return IdentityMapping{}, fmt.Errorf("could not get user for username %s: %v", name, err)
 	}
@@ -247,8 +116,8 @@ func LoadIdentityMapping(name string) (IdentityMapping, error) {
 	}, nil
 }
 
-func lookupSubUIDRanges(usr user.User) ([]IDMap, error) {
-	rangeList, err := parseSubuid(strconv.Itoa(usr.Uid))
+func lookupSubUIDRanges(usr *user.User) ([]IDMap, error) {
+	rangeList, err := parseSubuid(usr.Uid)
 	if err != nil {
 		return nil, err
 	}
@@ -264,8 +133,8 @@ func lookupSubUIDRanges(usr user.User) ([]IDMap, error) {
 	return createIDMap(rangeList), nil
 }
 
-func lookupSubGIDRanges(usr user.User) ([]IDMap, error) {
-	rangeList, err := parseSubgid(strconv.Itoa(usr.Uid))
+func lookupSubGIDRanges(usr *user.User) ([]IDMap, error) {
+	rangeList, err := parseSubgid(usr.Uid)
 	if err != nil {
 		return nil, err
 	}
