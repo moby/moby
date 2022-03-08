@@ -1620,10 +1620,6 @@ definitions:
             example:
               - "sha256:1834950e52ce4d5a88a1bbd131c537f4d0e56d10ff0dd69e66be3b7dfa9df7e6"
               - "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
-          BaseLayer:
-            type: "string"
-            x-nullable: true
-            example: ""
       Metadata:
         description: |
           Additional metadata of the image in the local cache. This information

@@ -19,9 +19,8 @@ import (
 
 // RootFS returns Image's RootFS description including the layer IDs.
 type RootFS struct {
-	Type      string
-	Layers    []string `json:",omitempty"`
-	BaseLayer string   `json:",omitempty"`
+	Type   string   `json:",omitempty"`
+	Layers []string `json:",omitempty"`
 }
 
 // ImageInspect contains response of Engine API:

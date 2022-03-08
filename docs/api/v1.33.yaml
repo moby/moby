@@ -1209,8 +1209,6 @@ definitions:
             type: "array"
             items:
               type: "string"
-          BaseLayer:
-            type: "string"
       Metadata:
         type: "object"
         properties:
