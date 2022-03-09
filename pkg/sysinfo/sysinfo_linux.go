@@ -5,22 +5,62 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 
-	cdcgroups "github.com/containerd/cgroups"
-	cdseccomp "github.com/containerd/containerd/pkg/seccomp"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/containerd/cgroups"
+	"github.com/containerd/containerd/pkg/seccomp"
+	"github.com/moby/sys/mountinfo"
 	"github.com/sirupsen/logrus"
 )
 
-func findCgroupMountpoints() (map[string]string, error) {
-	cgMounts, err := cgroups.GetCgroupMounts(false)
+var (
+	readMountinfoOnce sync.Once
+	readMountinfoErr  error
+	cgroupMountinfo   []*mountinfo.Info
+)
+
+// readCgroupMountinfo returns a list of cgroup v1 mounts (i.e. the ones
+// with fstype of "cgroup") for the current running process.
+//
+// The results are cached (to avoid re-reading mountinfo which is relatively
+// expensive), so it is assumed that cgroup mounts are not being changed.
+func readCgroupMountinfo() ([]*mountinfo.Info, error) {
+	readMountinfoOnce.Do(func() {
+		cgroupMountinfo, readMountinfoErr = mountinfo.GetMounts(
+			mountinfo.FSTypeFilter("cgroup"),
+		)
+	})
+
+	return cgroupMountinfo, readMountinfoErr
+}
+
+func findCgroupV1Mountpoints() (map[string]string, error) {
+	mounts, err := readCgroupMountinfo()
+	if err != nil {
+		return nil, err
+	}
+
+	allSubsystems, err := cgroups.ParseCgroupFile("/proc/self/cgroup")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse cgroup information: %v", err)
 	}
+
+	allMap := make(map[string]bool)
+	for s := range allSubsystems {
+		allMap[s] = false
+	}
+
 	mps := make(map[string]string)
-	for _, m := range cgMounts {
-		for _, ss := range m.Subsystems {
-			mps[ss] = m.Mountpoint
+	for _, mi := range mounts {
+		for _, opt := range strings.Split(mi.VFSOptions, ",") {
+			seen, known := allMap[opt]
+			if known && !seen {
+				allMap[opt] = true
+				mps[strings.TrimPrefix(opt, "name=")] = mi.Mountpoint
+			}
+		}
+		if len(mps) >= len(allMap) {
+			break
 		}
 	}
 	return mps, nil
@@ -45,7 +85,7 @@ func WithCgroup2GroupPath(g string) Opt {
 // New returns a new SysInfo, using the filesystem to detect which features
 // the kernel supports.
 func New(options ...Opt) *SysInfo {
-	if cdcgroups.Mode() == cdcgroups.Unified {
+	if cgroups.Mode() == cgroups.Unified {
 		return newV2(options...)
 	}
 	return newV1()
@@ -64,7 +104,7 @@ func newV1() *SysInfo {
 		applyCgroupNsInfo,
 	}
 
-	sysInfo.cgMounts, err = findCgroupMountpoints()
+	sysInfo.cgMounts, err = findCgroupV1Mountpoints()
 	if err != nil {
 		logrus.Warn(err)
 	} else {
@@ -246,7 +286,7 @@ func applyCgroupNsInfo(info *SysInfo) {
 
 // applySeccompInfo checks if Seccomp is supported, via CONFIG_SECCOMP.
 func applySeccompInfo(info *SysInfo) {
-	info.Seccomp = cdseccomp.IsEnabled()
+	info.Seccomp = seccomp.IsEnabled()
 }
 
 func cgroupEnabled(mountPoint, name string) bool {
