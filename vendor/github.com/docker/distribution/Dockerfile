@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.3
 
-ARG GO_VERSION=1.16
+ARG GO_VERSION=1.16.15
 ARG GORELEASER_XX_VERSION=1.2.5
 
 FROM --platform=$BUILDPLATFORM crazymax/goreleaser-xx:${GORELEASER_XX_VERSION} AS goreleaser-xx
@@ -12,6 +12,10 @@ WORKDIR /go/src/github.com/docker/distribution
 FROM base AS build
 ENV GO111MODULE=auto
 ENV CGO_ENABLED=0
+# GIT_REF is used by goreleaser-xx to handle the proper git ref when available.
+# It will fallback to the working tree info if empty and use "git tag --points-at"
+# or "git describe" to define the version info.
+ARG GIT_REF
 ARG TARGETPLATFORM
 ARG PKG="github.com/distribution/distribution"
 ARG BUILDTAGS="include_oss include_gcs"
@@ -28,7 +32,7 @@ RUN --mount=type=bind,rw \
     --files="LICENSE" \
     --files="README.md"
 
-FROM scratch AS artifacts
+FROM scratch AS artifact
 COPY --from=build /out/*.tar.gz /
 COPY --from=build /out/*.zip /
 COPY --from=build /out/*.sha256 /
