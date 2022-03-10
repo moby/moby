@@ -21,18 +21,19 @@ package google
 import (
 	"context"
 	"net"
+	"strings"
 
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/internal"
 )
 
-const cfeClusterName = "google-cfe"
+const cfeClusterNamePrefix = "google_cfe_"
 
 // clusterTransportCreds is a combo of TLS + ALTS.
 //
 // On the client, ClientHandshake picks TLS or ALTS based on address attributes.
 // - if attributes has cluster name
-//   - if cluster name is "google_cfe", use TLS
+//   - if cluster name has prefix "google_cfe_", use TLS
 //   - otherwise, use ALTS
 // - else, do TLS
 //
@@ -55,7 +56,7 @@ func (c *clusterTransportCreds) ClientHandshake(ctx context.Context, authority s
 		return c.tls.ClientHandshake(ctx, authority, rawConn)
 	}
 	cn, ok := internal.GetXDSHandshakeClusterName(chi.Attributes)
-	if !ok || cn == cfeClusterName {
+	if !ok || strings.HasPrefix(cn, cfeClusterNamePrefix) {
 		return c.tls.ClientHandshake(ctx, authority, rawConn)
 	}
 	// If attributes have cluster name, and cluster name is not cfe, it's a

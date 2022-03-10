@@ -20,6 +20,7 @@ import (
 	"archive/tar"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"path"
 	"sort"
@@ -31,7 +32,6 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 type exportOptions struct {
@@ -230,7 +230,7 @@ func Export(ctx context.Context, store content.Provider, writer io.Writer, opts 
 							manifest: manifests[0],
 						}
 					} else if eo.platform != nil {
-						return errors.Wrap(errdefs.ErrNotFound, "no manifest found for platform")
+						return fmt.Errorf("no manifest found for platform: %w", errdefs.ErrNotFound)
 					}
 				}
 				resolvedIndex[desc.Digest] = d
@@ -243,14 +243,14 @@ func Export(ctx context.Context, store content.Provider, writer io.Writer, opts 
 
 			}
 		default:
-			return errors.Wrap(errdefs.ErrInvalidArgument, "only manifests may be exported")
+			return fmt.Errorf("only manifests may be exported: %w", errdefs.ErrInvalidArgument)
 		}
 	}
 
 	if len(dManifests) > 0 {
 		tr, err := manifestsRecord(ctx, store, dManifests)
 		if err != nil {
-			return errors.Wrap(err, "unable to create manifests file")
+			return fmt.Errorf("unable to create manifests file: %w", err)
 		}
 
 		records = append(records, tr)
@@ -316,7 +316,7 @@ func blobRecord(cs content.Provider, desc ocispec.Descriptor, opts *blobRecordOp
 		CopyTo: func(ctx context.Context, w io.Writer) (int64, error) {
 			r, err := cs.ReaderAt(ctx, desc)
 			if err != nil {
-				return 0, errors.Wrap(err, "failed to get reader")
+				return 0, fmt.Errorf("failed to get reader: %w", err)
 			}
 			defer r.Close()
 
@@ -325,10 +325,10 @@ func blobRecord(cs content.Provider, desc ocispec.Descriptor, opts *blobRecordOp
 
 			n, err := io.Copy(io.MultiWriter(w, dgstr.Hash()), content.NewReader(r))
 			if err != nil {
-				return 0, errors.Wrap(err, "failed to copy to tar")
+				return 0, fmt.Errorf("failed to copy to tar: %w", err)
 			}
 			if dgstr.Digest() != desc.Digest {
-				return 0, errors.Errorf("unexpected digest %s copied", dgstr.Digest())
+				return 0, fmt.Errorf("unexpected digest %s copied", dgstr.Digest())
 			}
 			return n, nil
 		},
@@ -424,7 +424,7 @@ func manifestsRecord(ctx context.Context, store content.Provider, manifests map[
 			return tarRecord{}, err
 		}
 		if err := manifest.Config.Digest.Validate(); err != nil {
-			return tarRecord{}, errors.Wrapf(err, "invalid manifest %q", m.manifest.Digest)
+			return tarRecord{}, fmt.Errorf("invalid manifest %q: %w", m.manifest.Digest, err)
 		}
 
 		dgst := manifest.Config.Digest
@@ -491,10 +491,10 @@ func writeTar(ctx context.Context, tw *tar.Writer, recordsWithEmpty []tarRecord)
 				return err
 			}
 			if n != record.Header.Size {
-				return errors.Errorf("unexpected copy size for %s", record.Header.Name)
+				return fmt.Errorf("unexpected copy size for %s", record.Header.Name)
 			}
 		} else if record.Header.Size > 0 {
-			return errors.Errorf("no content to write to record with non-zero size for %s", record.Header.Name)
+			return fmt.Errorf("no content to write to record with non-zero size for %s", record.Header.Name)
 		}
 	}
 	return nil

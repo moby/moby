@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 /*
@@ -20,14 +21,16 @@ package archive
 
 import (
 	"archive/tar"
+	"errors"
+	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"syscall"
 
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/continuity/sysx"
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 
@@ -40,6 +43,20 @@ func chmodTarEntry(perm os.FileMode) os.FileMode {
 }
 
 func setHeaderForSpecialDevice(hdr *tar.Header, name string, fi os.FileInfo) error {
+	// Devmajor and Devminor are only needed for special devices.
+
+	// In FreeBSD, RDev for regular files is -1 (unless overridden by FS):
+	// https://cgit.freebsd.org/src/tree/sys/kern/vfs_default.c?h=stable/13#n1531
+	// (NODEV is -1: https://cgit.freebsd.org/src/tree/sys/sys/param.h?h=stable/13#n241).
+
+	// ZFS in particular does not override the default:
+	// https://cgit.freebsd.org/src/tree/sys/contrib/openzfs/module/os/freebsd/zfs/zfs_vnops_os.c?h=stable/13#n2027
+
+	// Since `Stat_t.Rdev` is uint64, the cast turns -1 into (2^64 - 1).
+	// Such large values cannot be encoded in a tar header.
+	if runtime.GOOS == "freebsd" && hdr.Typeflag != tar.TypeBlock && hdr.Typeflag != tar.TypeChar {
+		return nil
+	}
 	s, ok := fi.Sys().(*syscall.Stat_t)
 	if !ok {
 		return errors.New("unsupported stat type")
@@ -69,6 +86,7 @@ func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
 	}
 	// Call chmod to avoid permission mask
 	if err := os.Chmod(name, perm); err != nil {
+		f.Close()
 		return nil, err
 	}
 	return f, err
@@ -122,7 +140,7 @@ func getxattr(path, attr string) ([]byte, error) {
 func setxattr(path, key, value string) error {
 	// Do not set trusted attributes
 	if strings.HasPrefix(key, "trusted.") {
-		return errors.Wrap(unix.ENOTSUP, "admin attributes from archive not supported")
+		return fmt.Errorf("admin attributes from archive not supported: %w", unix.ENOTSUP)
 	}
 	return unix.Lsetxattr(path, key, []byte(value), 0)
 }
@@ -142,12 +160,12 @@ func copyDirInfo(fi os.FileInfo, path string) error {
 			}
 		}
 		if err != nil {
-			return errors.Wrapf(err, "failed to chown %s", path)
+			return fmt.Errorf("failed to chown %s: %w", path, err)
 		}
 	}
 
 	if err := os.Chmod(path, fi.Mode()); err != nil {
-		return errors.Wrapf(err, "failed to chmod %s", path)
+		return fmt.Errorf("failed to chmod %s: %w", path, err)
 	}
 
 	timespec := []unix.Timespec{
@@ -155,7 +173,7 @@ func copyDirInfo(fi os.FileInfo, path string) error {
 		unix.NsecToTimespec(syscall.TimespecToNsec(fs.StatMtime(st))),
 	}
 	if err := unix.UtimesNanoAt(unix.AT_FDCWD, path, timespec, unix.AT_SYMLINK_NOFOLLOW); err != nil {
-		return errors.Wrapf(err, "failed to utime %s", path)
+		return fmt.Errorf("failed to utime %s: %w", path, err)
 	}
 
 	return nil
@@ -167,7 +185,7 @@ func copyUpXAttrs(dst, src string) error {
 		if err == unix.ENOTSUP || err == sysx.ENODATA {
 			return nil
 		}
-		return errors.Wrapf(err, "failed to list xattrs on %s", src)
+		return fmt.Errorf("failed to list xattrs on %s: %w", src, err)
 	}
 	for _, xattr := range xattrKeys {
 		// Do not copy up trusted attributes
@@ -179,10 +197,10 @@ func copyUpXAttrs(dst, src string) error {
 			if err == unix.ENOTSUP || err == sysx.ENODATA {
 				continue
 			}
-			return errors.Wrapf(err, "failed to get xattr %q on %s", xattr, src)
+			return fmt.Errorf("failed to get xattr %q on %s: %w", xattr, src, err)
 		}
 		if err := lsetxattrCreate(dst, xattr, data); err != nil {
-			return errors.Wrapf(err, "failed to set xattr %q on %s", xattr, dst)
+			return fmt.Errorf("failed to set xattr %q on %s: %w", xattr, dst, err)
 		}
 	}
 

@@ -17,10 +17,9 @@
 package docker
 
 import (
+	"errors"
 	"net"
 	"net/http"
-
-	"github.com/pkg/errors"
 )
 
 // HostCapabilities represent the capabilities of the registry

@@ -35,27 +35,40 @@ const tokenRequestTimeout = 30 * time.Second
 
 var logger = grpclog.Component("credentials")
 
+// DefaultCredentialsOptions constructs options to build DefaultCredentials.
+type DefaultCredentialsOptions struct {
+	// PerRPCCreds is a per RPC credentials that is passed to a bundle.
+	PerRPCCreds credentials.PerRPCCredentials
+}
+
+// NewDefaultCredentialsWithOptions returns a credentials bundle that is
+// configured to work with google services.
+//
+// This API is experimental.
+func NewDefaultCredentialsWithOptions(opts DefaultCredentialsOptions) credentials.Bundle {
+	if opts.PerRPCCreds == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), tokenRequestTimeout)
+		defer cancel()
+		var err error
+		opts.PerRPCCreds, err = oauth.NewApplicationDefault(ctx)
+		if err != nil {
+			logger.Warningf("NewDefaultCredentialsWithOptions: failed to create application oauth: %v", err)
+		}
+	}
+	c := &creds{opts: opts}
+	bundle, err := c.NewWithMode(internal.CredsBundleModeFallback)
+	if err != nil {
+		logger.Warningf("NewDefaultCredentialsWithOptions: failed to create new creds: %v", err)
+	}
+	return bundle
+}
+
 // NewDefaultCredentials returns a credentials bundle that is configured to work
 // with google services.
 //
 // This API is experimental.
 func NewDefaultCredentials() credentials.Bundle {
-	c := &creds{
-		newPerRPCCreds: func() credentials.PerRPCCredentials {
-			ctx, cancel := context.WithTimeout(context.Background(), tokenRequestTimeout)
-			defer cancel()
-			perRPCCreds, err := oauth.NewApplicationDefault(ctx)
-			if err != nil {
-				logger.Warningf("google default creds: failed to create application oauth: %v", err)
-			}
-			return perRPCCreds
-		},
-	}
-	bundle, err := c.NewWithMode(internal.CredsBundleModeFallback)
-	if err != nil {
-		logger.Warningf("google default creds: failed to create new creds: %v", err)
-	}
-	return bundle
+	return NewDefaultCredentialsWithOptions(DefaultCredentialsOptions{})
 }
 
 // NewComputeEngineCredentials returns a credentials bundle that is configured to work
@@ -64,28 +77,21 @@ func NewDefaultCredentials() credentials.Bundle {
 //
 // This API is experimental.
 func NewComputeEngineCredentials() credentials.Bundle {
-	c := &creds{
-		newPerRPCCreds: func() credentials.PerRPCCredentials {
-			return oauth.NewComputeEngine()
-		},
-	}
-	bundle, err := c.NewWithMode(internal.CredsBundleModeFallback)
-	if err != nil {
-		logger.Warningf("compute engine creds: failed to create new creds: %v", err)
-	}
-	return bundle
+	return NewDefaultCredentialsWithOptions(DefaultCredentialsOptions{
+		PerRPCCreds: oauth.NewComputeEngine(),
+	})
 }
 
 // creds implements credentials.Bundle.
 type creds struct {
+	opts DefaultCredentialsOptions
+
 	// Supported modes are defined in internal/internal.go.
 	mode string
-	// The transport credentials associated with this bundle.
+	// The active transport credentials associated with this bundle.
 	transportCreds credentials.TransportCredentials
-	// The per RPC credentials associated with this bundle.
+	// The active per RPC credentials associated with this bundle.
 	perRPCCreds credentials.PerRPCCredentials
-	// Creates new per RPC credentials
-	newPerRPCCreds func() credentials.PerRPCCredentials
 }
 
 func (c *creds) TransportCredentials() credentials.TransportCredentials {
@@ -112,8 +118,8 @@ var (
 // existing Bundle may cause races.
 func (c *creds) NewWithMode(mode string) (credentials.Bundle, error) {
 	newCreds := &creds{
-		mode:           mode,
-		newPerRPCCreds: c.newPerRPCCreds,
+		opts: c.opts,
+		mode: mode,
 	}
 
 	// Create transport credentials.
@@ -129,7 +135,7 @@ func (c *creds) NewWithMode(mode string) (credentials.Bundle, error) {
 	}
 
 	if mode == internal.CredsBundleModeFallback || mode == internal.CredsBundleModeBackendFromBalancer {
-		newCreds.perRPCCreds = newCreds.newPerRPCCreds()
+		newCreds.perRPCCreds = newCreds.opts.PerRPCCreds
 	}
 
 	return newCreds, nil

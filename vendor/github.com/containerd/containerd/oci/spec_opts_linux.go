@@ -1,5 +1,3 @@
-// +build linux
-
 /*
    Copyright The containerd Authors.
 
@@ -142,4 +140,16 @@ var WithAllKnownCapabilities = func(ctx context.Context, client Client, c *conta
 // WithoutRunMount removes the `/run` inside the spec
 func WithoutRunMount(ctx context.Context, client Client, c *containers.Container, s *Spec) error {
 	return WithoutMounts("/run")(ctx, client, c, s)
+}
+
+// WithRdt sets the container's RDT parameters
+func WithRdt(closID, l3CacheSchema, memBwSchema string) SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		s.Linux.IntelRdt = &specs.LinuxIntelRdt{
+			ClosID:        closID,
+			L3CacheSchema: l3CacheSchema,
+			MemBwSchema:   memBwSchema,
+		}
+		return nil
+	}
 }

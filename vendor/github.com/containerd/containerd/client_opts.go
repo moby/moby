@@ -34,6 +34,7 @@ type clientOpts struct {
 	defaultPlatform platforms.MatchComparer
 	services        *services
 	dialOptions     []grpc.DialOption
+	callOptions     []grpc.CallOption
 	timeout         time.Duration
 }
 
@@ -71,6 +72,14 @@ func WithDefaultPlatform(platform platforms.MatchComparer) ClientOpt {
 func WithDialOpts(opts []grpc.DialOption) ClientOpt {
 	return func(c *clientOpts) error {
 		c.dialOptions = opts
+		return nil
+	}
+}
+
+// WithCallOpts allows grpc.CallOptions to be set on the connection
+func WithCallOpts(opts []grpc.CallOption) ClientOpt {
+	return func(c *clientOpts) error {
+		c.callOptions = opts
 		return nil
 	}
 }

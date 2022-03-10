@@ -15,16 +15,22 @@
 
 # Go command to use for build
 GO ?= go
+INSTALL ?= install
 
 # Root directory of the project (absolute path).
 ROOTDIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
 # Base path used to install.
-DESTDIR ?= /usr/local
+# The files will be installed under `$(DESTDIR)/$(PREFIX)`.
+# The convention of `DESTDIR` was changed in containerd v1.6.
+PREFIX        ?= /usr/local
+DATADIR       ?= $(PREFIX)/share
+MANDIR        ?= $(DATADIR)/man
+
 TEST_IMAGE_LIST ?=
 
 # Used to populate variables in version package.
-VERSION=$(shell git describe --match 'v[0-9]*' --dirty='.m' --always)
+VERSION ?= $(shell git describe --match 'v[0-9]*' --dirty='.m' --always)
 REVISION=$(shell git rev-parse HEAD)$(shell if ! git diff --no-ext-diff --quiet --exit-code; then echo .m; fi)
 PACKAGE=github.com/containerd/containerd
 SHIM_CGO_ENABLED ?= 0
@@ -68,7 +74,7 @@ endif
 WHALE = "🇩"
 ONI = "👹"
 
-RELEASE=containerd-$(VERSION:v%=%).${GOOS}-${GOARCH}
+RELEASE=containerd-$(VERSION:v%=%)-${GOOS}-${GOARCH}
 CRIRELEASE=cri-containerd-$(VERSION:v%=%)-${GOOS}-${GOARCH}
 CRICNIRELEASE=cri-containerd-cni-$(VERSION:v%=%)-${GOOS}-${GOARCH}
 
@@ -83,12 +89,14 @@ ifdef BUILDTAGS
 endif
 GO_BUILDTAGS ?=
 GO_BUILDTAGS += ${DEBUG_TAGS}
-GO_TAGS=$(if $(GO_BUILDTAGS),-tags "$(GO_BUILDTAGS)",)
+GO_TAGS=$(if $(GO_BUILDTAGS),-tags "$(strip $(GO_BUILDTAGS))",)
 GO_LDFLAGS=-ldflags '-X $(PKG)/version.Version=$(VERSION) -X $(PKG)/version.Revision=$(REVISION) -X $(PKG)/version.Package=$(PACKAGE) $(EXTRA_LDFLAGS)'
 SHIM_GO_LDFLAGS=-ldflags '-X $(PKG)/version.Version=$(VERSION) -X $(PKG)/version.Revision=$(REVISION) -X $(PKG)/version.Package=$(PACKAGE) -extldflags "-static" $(EXTRA_LDFLAGS)'
 
 # Project packages.
 PACKAGES=$(shell $(GO) list ${GO_TAGS} ./... | grep -v /vendor/ | grep -v /integration)
+API_PACKAGES=$(shell (cd api && $(GO) list ${GO_TAGS} ./... | grep -v /vendor/ | grep -v /integration))
+NON_API_PACKAGES=$(shell $(GO) list ${GO_TAGS} ./... | grep -v /vendor/ | grep -v /integration | grep -v "containerd/api")
 TEST_REQUIRES_ROOT_PACKAGES=$(filter \
     ${PACKAGES}, \
     $(shell \
@@ -133,6 +141,9 @@ CRIDIR=$(OUTPUTDIR)/cri
 .PHONY: clean all AUTHORS build binaries test integration generate protos checkprotos coverage ci check help install uninstall vendor release mandir install-man genman install-cri-deps cri-release cri-cni-release cri-integration install-deps bin/cri-integration.test
 .DEFAULT: default
 
+# Forcibly set the default goal to all, in case an include above brought in a rule definition.
+.DEFAULT_GOAL := all
+
 all: binaries
 
 check: proto-fmt ## run all linters
@@ -150,7 +161,13 @@ generate: protos
 
 protos: bin/protoc-gen-gogoctrd ## generate protobuf
 	@echo "$(WHALE) $@"
-	@PATH="${ROOTDIR}/bin:${PATH}" protobuild --quiet ${PACKAGES}
+	@find . -path ./vendor -prune -false -o -name '*.pb.go' | xargs rm
+	$(eval TMPDIR := $(shell mktemp -d))
+	@mv ${ROOTDIR}/vendor ${TMPDIR}
+	@(cd ${ROOTDIR}/api && PATH="${ROOTDIR}/bin:${PATH}" protobuild --quiet ${API_PACKAGES})
+	@(PATH="${ROOTDIR}/bin:${PATH}" protobuild --quiet ${NON_API_PACKAGES})
+	@mv ${TMPDIR}/vendor ${ROOTDIR}
+	@rm -rf ${TMPDIR}
 
 check-protos: protos ## check if protobufs needs to be generated again
 	@echo "$(WHALE) $@"
@@ -194,7 +211,7 @@ bin/cri-integration.test:
 
 cri-integration: binaries bin/cri-integration.test ## run cri integration tests
 	@echo "$(WHALE) $@"
-	@./script/test/cri-integration.sh
+	@bash -x ./script/test/cri-integration.sh
 	@rm -rf bin/cri-integration.test
 
 benchmark: ## run benchmarks tests
@@ -213,16 +230,16 @@ bin/%: cmd/% FORCE
 	$(call BUILD_BINARY)
 
 bin/containerd-shim: cmd/containerd-shim FORCE # set !cgo and omit pie for a static shim build: https://github.com/golang/go/issues/17789#issuecomment-258542220
-	@echo "$(WHALE) bin/containerd-shim"
-	@CGO_ENABLED=${SHIM_CGO_ENABLED} $(GO) build ${GO_BUILD_FLAGS} -o bin/containerd-shim ${SHIM_GO_LDFLAGS} ${GO_TAGS} ./cmd/containerd-shim
+	@echo "$(WHALE) $@"
+	@CGO_ENABLED=${SHIM_CGO_ENABLED} $(GO) build ${GO_BUILD_FLAGS} -o $@ ${SHIM_GO_LDFLAGS} ${GO_TAGS} ./cmd/containerd-shim
 
 bin/containerd-shim-runc-v1: cmd/containerd-shim-runc-v1 FORCE # set !cgo and omit pie for a static shim build: https://github.com/golang/go/issues/17789#issuecomment-258542220
-	@echo "$(WHALE) bin/containerd-shim-runc-v1"
-	@CGO_ENABLED=${SHIM_CGO_ENABLED} $(GO) build ${GO_BUILD_FLAGS} -o bin/containerd-shim-runc-v1 ${SHIM_GO_LDFLAGS} ${GO_TAGS} ./cmd/containerd-shim-runc-v1
+	@echo "$(WHALE) $@"
+	@CGO_ENABLED=${SHIM_CGO_ENABLED} $(GO) build ${GO_BUILD_FLAGS} -o $@ ${SHIM_GO_LDFLAGS} ${GO_TAGS} ./cmd/containerd-shim-runc-v1
 
 bin/containerd-shim-runc-v2: cmd/containerd-shim-runc-v2 FORCE # set !cgo and omit pie for a static shim build: https://github.com/golang/go/issues/17789#issuecomment-258542220
-	@echo "$(WHALE) bin/containerd-shim-runc-v2"
-	@CGO_ENABLED=${SHIM_CGO_ENABLED} $(GO) build ${GO_BUILD_FLAGS} -o bin/containerd-shim-runc-v2 ${SHIM_GO_LDFLAGS} ${GO_TAGS} ./cmd/containerd-shim-runc-v2
+	@echo "$(WHALE) $@"
+	@CGO_ENABLED=${SHIM_CGO_ENABLED} $(GO) build ${GO_BUILD_FLAGS} -o $@ ${SHIM_GO_LDFLAGS} ${GO_TAGS} ./cmd/containerd-shim-runc-v2
 
 binaries: $(BINARIES) ## build binaries
 	@echo "$(WHALE) $@"
@@ -238,30 +255,31 @@ genman: man/containerd.8 man/ctr.8
 
 man/containerd.8: FORCE
 	@echo "$(WHALE) $@"
-	$(GO) run cmd/gen-manpages/main.go $(@F) $(@D)
+	$(GO) run -mod=readonly ${GO_TAGS} cmd/gen-manpages/main.go $(@F) $(@D)
 
 man/ctr.8: FORCE
 	@echo "$(WHALE) $@"
-	$(GO) run cmd/gen-manpages/main.go $(@F) $(@D)
+	$(GO) run -mod=readonly ${GO_TAGS} cmd/gen-manpages/main.go $(@F) $(@D)
 
 man/%: docs/man/%.md FORCE
 	@echo "$(WHALE) $@"
 	go-md2man -in "$<" -out "$@"
 
 define installmanpage
-mkdir -p $(DESTDIR)/man/man$(2);
-gzip -c $(1) >$(DESTDIR)/man/man$(2)/$(3).gz;
+$(INSTALL) -d $(DESTDIR)$(MANDIR)/man$(2);
+gzip -c $(1) >$(DESTDIR)$(MANDIR)/man$(2)/$(3).gz;
 endef
 
-install-man:
+install-man: man
 	@echo "$(WHALE) $@"
 	$(foreach manpage,$(addprefix man/,$(MANPAGES)), $(call installmanpage,$(manpage),$(subst .,,$(suffix $(manpage))),$(notdir $(manpage))))
+
 
 releases/$(RELEASE).tar.gz: $(BINARIES)
 	@echo "$(WHALE) $@"
 	@rm -rf releases/$(RELEASE) releases/$(RELEASE).tar.gz
-	@install -d releases/$(RELEASE)/bin
-	@install $(BINARIES) releases/$(RELEASE)/bin
+	@$(INSTALL) -d releases/$(RELEASE)/bin
+	@$(INSTALL) $(BINARIES) releases/$(RELEASE)/bin
 	@tar -czf releases/$(RELEASE).tar.gz -C releases/$(RELEASE) bin
 	@rm -rf releases/$(RELEASE)
 
@@ -272,18 +290,18 @@ release: releases/$(RELEASE).tar.gz
 # install of cri deps into release output directory
 ifeq ($(GOOS),windows)
 install-cri-deps: $(BINARIES)
-	mkdir -p $(CRIDIR)
+	$(INSTALL) -d $(CRIDIR)
 	DESTDIR=$(CRIDIR) script/setup/install-cni-windows
 	cp bin/* $(CRIDIR)
 else
 install-cri-deps: $(BINARIES)
 	@rm -rf ${CRIDIR}
-	@install -d ${CRIDIR}/usr/local/bin
-	@install -D -m 755 bin/* ${CRIDIR}/usr/local/bin
-	@install -d ${CRIDIR}/opt/containerd/cluster
+	@$(INSTALL) -d ${CRIDIR}/usr/local/bin
+	@$(INSTALL) -D -m 755 bin/* ${CRIDIR}/usr/local/bin
+	@$(INSTALL) -d ${CRIDIR}/opt/containerd/cluster
 	@cp -r contrib/gce ${CRIDIR}/opt/containerd/cluster/
-	@install -d ${CRIDIR}/etc/systemd/system
-	@install -m 644 containerd.service ${CRIDIR}/etc/systemd/system
+	@$(INSTALL) -d ${CRIDIR}/etc/systemd/system
+	@$(INSTALL) -m 644 containerd.service ${CRIDIR}/etc/systemd/system
 	echo "CONTAINERD_VERSION: '$(VERSION:v%=%)'" | tee ${CRIDIR}/opt/containerd/cluster/version
 
 	DESTDIR=$(CRIDIR) script/setup/install-runc
@@ -291,8 +309,8 @@ install-cri-deps: $(BINARIES)
 	DESTDIR=$(CRIDIR) script/setup/install-critools
 	DESTDIR=$(CRIDIR) script/setup/install-imgcrypt
 
-	@install -d $(CRIDIR)/bin
-	@install $(BINARIES) $(CRIDIR)/bin
+	@$(INSTALL) -d $(CRIDIR)/bin
+	@$(INSTALL) $(BINARIES) $(CRIDIR)/bin
 endif
 
 ifeq ($(GOOS),windows)
@@ -345,12 +363,12 @@ clean-test: ## clean up debris from previously failed tests
 
 install: ## install binaries
 	@echo "$(WHALE) $@ $(BINARIES)"
-	@mkdir -p $(DESTDIR)/bin
-	@install $(BINARIES) $(DESTDIR)/bin
+	@$(INSTALL) -d $(DESTDIR)$(PREFIX)/bin
+	@$(INSTALL) $(BINARIES) $(DESTDIR)$(PREFIX)/bin
 
 uninstall:
 	@echo "$(WHALE) $@"
-	@rm -f $(addprefix $(DESTDIR)/bin/,$(notdir $(BINARIES)))
+	@rm -f $(addprefix $(DESTDIR)$(PREFIX)/bin/,$(notdir $(BINARIES)))
 
 ifeq ($(GOOS),windows)
 install-deps:
@@ -394,10 +412,23 @@ root-coverage: ## generate coverage profiles for unit tests that require root
 		fi; \
 	done )
 
-vendor: ## vendor
+vendor: ## ensure all the go.mod/go.sum files are up-to-date including vendor/ directory
 	@echo "$(WHALE) $@"
 	@$(GO) mod tidy
 	@$(GO) mod vendor
+	@$(GO) mod verify
+	@(cd ${ROOTDIR}/integration/client && ${GO} mod tidy)
+
+verify-vendor: ## verify if all the go.mod/go.sum files are up-to-date
+	@echo "$(WHALE) $@"
+	$(eval TMPDIR := $(shell mktemp -d))
+	@cp -R ${ROOTDIR} ${TMPDIR}
+	@(cd ${TMPDIR}/containerd && ${GO} mod tidy)
+	@(cd ${TMPDIR}/containerd/integration/client && ${GO} mod tidy)
+	@diff -r -u -q ${ROOTDIR} ${TMPDIR}/containerd
+	@rm -rf ${TMPDIR}
+	@${ROOTDIR}/script/verify-go-modules.sh integration/client
+
 
 help: ## this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort

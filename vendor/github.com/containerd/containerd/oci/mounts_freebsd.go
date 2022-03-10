@@ -1,5 +1,3 @@
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
-
 /*
    Copyright The containerd Authors.
 
@@ -16,28 +14,25 @@
    limitations under the License.
 */
 
-package containerd
+package oci
 
 import (
-	"fmt"
-	"strconv"
-	"strings"
-	"syscall"
-
-	"golang.org/x/sys/unix"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
-// ParseSignal parses a given string into a syscall.Signal
-// the rawSignal can be a string with "SIG" prefix,
-// or a signal number in string format.
-func ParseSignal(rawSignal string) (syscall.Signal, error) {
-	s, err := strconv.Atoi(rawSignal)
-	if err == nil {
-		return syscall.Signal(s), nil
+func defaultMounts() []specs.Mount {
+	return []specs.Mount{
+		{
+			Destination: "/dev",
+			Type:        "devfs",
+			Source:      "devfs",
+			Options:     []string{"ruleset=4"},
+		},
+		{
+			Destination: "/dev/fd",
+			Type:        "fdescfs",
+			Source:      "fdescfs",
+			Options:     []string{},
+		},
 	}
-	signal := unix.SignalNum(strings.ToUpper(rawSignal))
-	if signal == 0 {
-		return -1, fmt.Errorf("unknown signal %q", rawSignal)
-	}
-	return signal, nil
 }

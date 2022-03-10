@@ -18,12 +18,11 @@ package docker
 
 import (
 	"bytes"
+	"fmt"
 	"io"
-	"io/ioutil"
 
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
-	"github.com/pkg/errors"
 )
 
 const maxRetry = 3
@@ -70,7 +69,7 @@ func (hrs *httpReadSeeker) Read(p []byte) (n int, err error) {
 		}
 		if hrs.rc != nil {
 			if clsErr := hrs.rc.Close(); clsErr != nil {
-				log.L.WithError(clsErr).Errorf("httpReadSeeker: failed to close ReadCloser")
+				log.L.WithError(clsErr).Error("httpReadSeeker: failed to close ReadCloser")
 			}
 			hrs.rc = nil
 		}
@@ -95,7 +94,7 @@ func (hrs *httpReadSeeker) Close() error {
 
 func (hrs *httpReadSeeker) Seek(offset int64, whence int) (int64, error) {
 	if hrs.closed {
-		return 0, errors.Wrap(errdefs.ErrUnavailable, "Fetcher.Seek: closed")
+		return 0, fmt.Errorf("Fetcher.Seek: closed: %w", errdefs.ErrUnavailable)
 	}
 
 	abs := hrs.offset
@@ -106,21 +105,21 @@ func (hrs *httpReadSeeker) Seek(offset int64, whence int) (int64, error) {
 		abs += offset
 	case io.SeekEnd:
 		if hrs.size == -1 {
-			return 0, errors.Wrap(errdefs.ErrUnavailable, "Fetcher.Seek: unknown size, cannot seek from end")
+			return 0, fmt.Errorf("Fetcher.Seek: unknown size, cannot seek from end: %w", errdefs.ErrUnavailable)
 		}
 		abs = hrs.size + offset
 	default:
-		return 0, errors.Wrap(errdefs.ErrInvalidArgument, "Fetcher.Seek: invalid whence")
+		return 0, fmt.Errorf("Fetcher.Seek: invalid whence: %w", errdefs.ErrInvalidArgument)
 	}
 
 	if abs < 0 {
-		return 0, errors.Wrapf(errdefs.ErrInvalidArgument, "Fetcher.Seek: negative offset")
+		return 0, fmt.Errorf("Fetcher.Seek: negative offset: %w", errdefs.ErrInvalidArgument)
 	}
 
 	if abs != hrs.offset {
 		if hrs.rc != nil {
 			if err := hrs.rc.Close(); err != nil {
-				log.L.WithError(err).Errorf("Fetcher.Seek: failed to close ReadCloser")
+				log.L.WithError(err).Error("Fetcher.Seek: failed to close ReadCloser")
 			}
 
 			hrs.rc = nil
@@ -141,17 +140,17 @@ func (hrs *httpReadSeeker) reader() (io.Reader, error) {
 		// only try to reopen the body request if we are seeking to a value
 		// less than the actual size.
 		if hrs.open == nil {
-			return nil, errors.Wrapf(errdefs.ErrNotImplemented, "cannot open")
+			return nil, fmt.Errorf("cannot open: %w", errdefs.ErrNotImplemented)
 		}
 
 		rc, err := hrs.open(hrs.offset)
 		if err != nil {
-			return nil, errors.Wrapf(err, "httpReadSeeker: failed open")
+			return nil, fmt.Errorf("httpReadSeeker: failed open: %w", err)
 		}
 
 		if hrs.rc != nil {
 			if err := hrs.rc.Close(); err != nil {
-				log.L.WithError(err).Errorf("httpReadSeeker: failed to close ReadCloser")
+				log.L.WithError(err).Error("httpReadSeeker: failed to close ReadCloser")
 			}
 		}
 		hrs.rc = rc
@@ -162,7 +161,7 @@ func (hrs *httpReadSeeker) reader() (io.Reader, error) {
 		// as the length is already satisfied but we just return the empty
 		// reader instead.
 
-		hrs.rc = ioutil.NopCloser(bytes.NewReader([]byte{}))
+		hrs.rc = io.NopCloser(bytes.NewReader([]byte{}))
 	}
 
 	return hrs.rc, nil

@@ -19,7 +19,7 @@ issues:
     - EXC0002
 
 run:
-  timeout: 3m
+  timeout: 8m
   skip-dirs:
     - api
     - design

@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"sync"
 
 	"golang.org/x/oauth2"
@@ -56,6 +57,16 @@ func (ts TokenSource) RequireTransportSecurity() bool {
 	return true
 }
 
+// removeServiceNameFromJWTURI removes RPC service name from URI.
+func removeServiceNameFromJWTURI(uri string) (string, error) {
+	parsed, err := url.Parse(uri)
+	if err != nil {
+		return "", err
+	}
+	parsed.Path = "/"
+	return parsed.String(), nil
+}
+
 type jwtAccess struct {
 	jsonKey []byte
 }
@@ -75,9 +86,15 @@ func NewJWTAccessFromKey(jsonKey []byte) (credentials.PerRPCCredentials, error) 
 }
 
 func (j jwtAccess) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+	// Remove RPC service name from URI that will be used as audience
+	// in a self-signed JWT token. It follows https://google.aip.dev/auth/4111.
+	aud, err := removeServiceNameFromJWTURI(uri[0])
+	if err != nil {
+		return nil, err
+	}
 	// TODO: the returned TokenSource is reusable. Store it in a sync.Map, with
 	// uri as the key, to avoid recreating for every RPC.
-	ts, err := google.JWTAccessTokenSourceFromJSON(j.jsonKey, uri[0])
+	ts, err := google.JWTAccessTokenSourceFromJSON(j.jsonKey, aud)
 	if err != nil {
 		return nil, err
 	}

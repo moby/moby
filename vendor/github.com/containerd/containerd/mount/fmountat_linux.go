@@ -14,20 +14,20 @@
    limitations under the License.
 */
 
-package sys
+package mount
 
 import (
+	"fmt"
 	"runtime"
 	"syscall"
 	"unsafe"
 
 	"github.com/containerd/containerd/log"
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 
-// FMountat performs mount from the provided directory.
-func FMountat(dirfd uintptr, source, target, fstype string, flags uintptr, data string) error {
+// fMountat performs mount from the provided directory.
+func fMountat(dirfd uintptr, source, target, fstype string, flags uintptr, data string) error {
 	var (
 		sourceP, targetP, fstypeP, dataP *byte
 		pid                              uintptr
@@ -62,7 +62,7 @@ func FMountat(dirfd uintptr, source, target, fstype string, flags uintptr, data 
 
 	var pipefds [2]int
 	if err := syscall.Pipe2(pipefds[:], syscall.O_CLOEXEC); err != nil {
-		return errors.Wrap(err, "failed to open pipe")
+		return fmt.Errorf("failed to open pipe: %w", err)
 	}
 
 	defer func() {
@@ -82,7 +82,7 @@ func FMountat(dirfd uintptr, source, target, fstype string, flags uintptr, data 
 	)
 
 	if errno != 0 {
-		return errors.Wrap(errno, "failed to fork thread")
+		return fmt.Errorf("failed to fork thread: %w", errno)
 	}
 
 	defer func() {
@@ -101,11 +101,11 @@ func FMountat(dirfd uintptr, source, target, fstype string, flags uintptr, data 
 		uintptr(unsafe.Pointer(&status)),
 		unsafe.Sizeof(status))
 	if errno != 0 {
-		return errors.Wrap(errno, "failed to read pipe")
+		return fmt.Errorf("failed to read pipe: %w", errno)
 	}
 
 	if status != 0 {
-		return errors.Wrap(status, "failed to mount")
+		return fmt.Errorf("failed to mount: %w", status)
 	}
 
 	return nil

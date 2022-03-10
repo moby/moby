@@ -28,7 +28,6 @@ import (
 	"github.com/containerd/containerd/remotes"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // LegacyConfigMediaType should be replaced by OCI image spec.
@@ -52,12 +51,12 @@ func ConvertManifest(ctx context.Context, store content.Store, desc ocispec.Desc
 	// read manifest data
 	mb, err := content.ReadBlob(ctx, store, desc)
 	if err != nil {
-		return ocispec.Descriptor{}, errors.Wrap(err, "failed to read index data")
+		return ocispec.Descriptor{}, fmt.Errorf("failed to read index data: %w", err)
 	}
 
 	var manifest ocispec.Manifest
 	if err := json.Unmarshal(mb, &manifest); err != nil {
-		return ocispec.Descriptor{}, errors.Wrap(err, "failed to unmarshal data into manifest")
+		return ocispec.Descriptor{}, fmt.Errorf("failed to unmarshal data into manifest: %w", err)
 	}
 
 	// check config media type
@@ -68,7 +67,7 @@ func ConvertManifest(ctx context.Context, store content.Store, desc ocispec.Desc
 	manifest.Config.MediaType = images.MediaTypeDockerSchema2Config
 	data, err := json.MarshalIndent(manifest, "", "   ")
 	if err != nil {
-		return ocispec.Descriptor{}, errors.Wrap(err, "failed to marshal manifest")
+		return ocispec.Descriptor{}, fmt.Errorf("failed to marshal manifest: %w", err)
 	}
 
 	// update manifest with gc labels
@@ -82,7 +81,7 @@ func ConvertManifest(ctx context.Context, store content.Store, desc ocispec.Desc
 
 	ref := remotes.MakeRefKey(ctx, desc)
 	if err := content.WriteBlob(ctx, store, ref, bytes.NewReader(data), desc, content.WithLabels(labels)); err != nil {
-		return ocispec.Descriptor{}, errors.Wrap(err, "failed to update content")
+		return ocispec.Descriptor{}, fmt.Errorf("failed to update content: %w", err)
 	}
 	return desc, nil
 }

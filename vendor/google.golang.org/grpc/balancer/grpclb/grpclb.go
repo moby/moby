@@ -135,6 +135,7 @@ func (b *lbBuilder) Build(cc balancer.ClientConn, opt balancer.BuildOptions) bal
 
 	lb := &lbBalancer{
 		cc:              newLBCacheClientConn(cc),
+		dialTarget:      opt.Target.Endpoint,
 		target:          opt.Target.Endpoint,
 		opt:             opt,
 		fallbackTimeout: b.fallbackTimeout,
@@ -164,9 +165,10 @@ func (b *lbBuilder) Build(cc balancer.ClientConn, opt balancer.BuildOptions) bal
 }
 
 type lbBalancer struct {
-	cc     *lbCacheClientConn
-	target string
-	opt    balancer.BuildOptions
+	cc         *lbCacheClientConn
+	dialTarget string // user's dial target
+	target     string // same as dialTarget unless overridden in service config
+	opt        balancer.BuildOptions
 
 	usePickFirst bool
 
@@ -398,6 +400,30 @@ func (lb *lbBalancer) handleServiceConfig(gc *grpclbServiceConfig) {
 	lb.mu.Lock()
 	defer lb.mu.Unlock()
 
+	// grpclb uses the user's dial target to populate the `Name` field of the
+	// `InitialLoadBalanceRequest` message sent to the remote balancer. But when
+	// grpclb is used a child policy in the context of RLS, we want the `Name`
+	// field to be populated with the value received from the RLS server. To
+	// support this use case, an optional "target_name" field has been added to
+	// the grpclb LB policy's config.  If specified, it overrides the name of
+	// the target to be sent to the remote balancer; if not, the target to be
+	// sent to the balancer will continue to be obtained from the target URI
+	// passed to the gRPC client channel. Whenever that target to be sent to the
+	// balancer is updated, we need to restart the stream to the balancer as
+	// this target is sent in the first message on the stream.
+	if gc != nil {
+		target := lb.dialTarget
+		if gc.TargetName != "" {
+			target = gc.TargetName
+		}
+		if target != lb.target {
+			lb.target = target
+			if lb.ccRemoteLB != nil {
+				lb.ccRemoteLB.cancelRemoteBalancerCall()
+			}
+		}
+	}
+
 	newUsePickFirst := childIsPickFirst(gc)
 	if lb.usePickFirst == newUsePickFirst {
 		return
@@ -488,3 +514,5 @@ func (lb *lbBalancer) Close() {
 	}
 	lb.cc.close()
 }
+
+func (lb *lbBalancer) ExitIdle() {}

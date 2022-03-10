@@ -19,6 +19,7 @@ package containerd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -33,7 +34,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -61,6 +61,8 @@ type Image interface {
 	ContentStore() content.Store
 	// Metadata returns the underlying image metadata
 	Metadata() images.Image
+	// Platform returns the platform match comparer. Can be nil.
+	Platform() platforms.MatchComparer
 }
 
 type usageOptions struct {
@@ -397,10 +399,10 @@ func (i *image) getLayers(ctx context.Context, platform platforms.MatchComparer,
 	cs := i.ContentStore()
 	diffIDs, err := i.i.RootFS(ctx, cs, platform)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to resolve rootfs")
+		return nil, fmt.Errorf("failed to resolve rootfs: %w", err)
 	}
 	if len(diffIDs) != len(manifest.Layers) {
-		return nil, errors.Errorf("mismatched image rootfs and manifest layers")
+		return nil, errors.New("mismatched image rootfs and manifest layers")
 	}
 	layers := make([]rootfs.Layer, len(diffIDs))
 	for i := range diffIDs {
@@ -447,4 +449,8 @@ func (i *image) checkSnapshotterSupport(ctx context.Context, snapshotterName str
 
 func (i *image) ContentStore() content.Store {
 	return i.client.ContentStore()
+}
+
+func (i *image) Platform() platforms.MatchComparer {
+	return i.platform
 }

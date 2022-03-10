@@ -18,11 +18,10 @@ package mount
 
 import (
 	"context"
-	"io/ioutil"
+	"fmt"
 	"os"
 
 	"github.com/containerd/containerd/log"
-	"github.com/pkg/errors"
 )
 
 var tempMountLocation = getTempDir()
@@ -31,9 +30,9 @@ var tempMountLocation = getTempDir()
 // The mounts are valid during the call to the f.
 // Finally we will unmount and remove the temp dir regardless of the result of f.
 func WithTempMount(ctx context.Context, mounts []Mount, f func(root string) error) (err error) {
-	root, uerr := ioutil.TempDir(tempMountLocation, "containerd-mount")
+	root, uerr := os.MkdirTemp(tempMountLocation, "containerd-mount")
 	if uerr != nil {
-		return errors.Wrapf(uerr, "failed to create temp dir")
+		return fmt.Errorf("failed to create temp dir: %w", uerr)
 	}
 	// We use Remove here instead of RemoveAll.
 	// The RemoveAll will delete the temp dir and all children it contains.
@@ -44,25 +43,28 @@ func WithTempMount(ctx context.Context, mounts []Mount, f func(root string) erro
 	// For details, please refer to #1868 #1785.
 	defer func() {
 		if uerr = os.Remove(root); uerr != nil {
-			log.G(ctx).WithError(uerr).WithField("dir", root).Errorf("failed to remove mount temp dir")
+			log.G(ctx).WithError(uerr).WithField("dir", root).Error("failed to remove mount temp dir")
 		}
 	}()
 
 	// We should do defer first, if not we will not do Unmount when only a part of Mounts are failed.
 	defer func() {
 		if uerr = UnmountAll(root, 0); uerr != nil {
-			uerr = errors.Wrapf(uerr, "failed to unmount %s", root)
+			uerr = fmt.Errorf("failed to unmount %s: %w", root, uerr)
 			if err == nil {
 				err = uerr
 			} else {
-				err = errors.Wrap(err, uerr.Error())
+				err = fmt.Errorf("%s: %w", uerr.Error(), err)
 			}
 		}
 	}()
 	if uerr = All(mounts, root); uerr != nil {
-		return errors.Wrapf(uerr, "failed to mount %s", root)
+		return fmt.Errorf("failed to mount %s: %w", root, uerr)
 	}
-	return errors.Wrapf(f(root), "mount callback failed on %s", root)
+	if err := f(root); err != nil {
+		return fmt.Errorf("mount callback failed on %s: %w", root, err)
+	}
+	return nil
 }
 
 func getTempDir() string {
