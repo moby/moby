@@ -151,19 +151,16 @@ require (
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/api v0.46.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/protobuf v1.27.1 // indirect
 	labix.org/v2/mgo v0.0.0-20140701140051-000000000287 // indirect
 )
 
 replace (
-	cloud.google.com/go => cloud.google.com/go v0.59.0
-	cloud.google.com/go/bigquery => cloud.google.com/go/bigquery v1.0.0
-	cloud.google.com/go/logging => cloud.google.com/go/logging v1.0.1-0.20190813144457-ceeb313ad77b
 	github.com/armon/go-metrics => github.com/armon/go-metrics v0.0.0-20150106224455-eb0af217e5e9
 	github.com/armon/go-radix => github.com/armon/go-radix v0.0.0-20150105235045-e39d623f12e8
 	github.com/coreos/go-systemd => github.com/coreos/go-systemd v0.0.0-20180511133405-39ca1b05acc7
 	github.com/coreos/pkg => github.com/coreos/pkg v0.0.0-20180108230652-97fdf19511ea
 	github.com/gogo/googleapis => github.com/gogo/googleapis v1.3.2
-	github.com/golang/protobuf => github.com/golang/protobuf v1.3.5
 	github.com/hashicorp/go-immutable-radix => github.com/tonistiigi/go-immutable-radix v0.0.0-20170803185627-826af9ccf0fe
 	github.com/hashicorp/go-msgpack => github.com/hashicorp/go-msgpack v0.0.0-20140221154404-71c2886f5a67
 	github.com/hashicorp/go-multierror => github.com/hashicorp/go-multierror v1.0.0
@@ -173,9 +170,6 @@ replace (
 	github.com/prometheus/procfs => github.com/prometheus/procfs v0.0.11
 	github.com/vishvananda/netlink => github.com/vishvananda/netlink v1.1.0
 	go.opencensus.io => go.opencensus.io v0.22.3
-	google.golang.org/api => google.golang.org/api v0.8.0
-	google.golang.org/genproto => google.golang.org/genproto v0.0.0-20200227132054-3f1135a288c9
-	google.golang.org/grpc => google.golang.org/grpc v1.27.1
 )
 
 // Removes etcd dependency

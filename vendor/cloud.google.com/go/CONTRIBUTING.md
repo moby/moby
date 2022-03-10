@@ -21,20 +21,24 @@
     `cd google-cloud-go`
 
 1. Fork the repo.
-   
+
 1. Set your fork as a remote:
     `git remote add fork git@github.com:GITHUB_USERNAME/google-cloud-go.git`
 
-1. Make changes (see [Formatting](#formatting) and [Style](#style)), commit to
-   your fork.
+1. Make changes, commit to your fork.
 
    Commit messages should follow the
-   [Go project style](https://github.com/golang/go/wiki/CommitMessage). For example:
+   [Conventional Commits Style](https://www.conventionalcommits.org). The scope
+   portion should always be filled with the name of the package affected by the
+   changes being made. For example:
    ```
-   functions: add gophers codelab
+   feat(functions): add gophers codelab
    ```
 
 1. Send a pull request with your changes.
+
+   To minimize friction, consider setting `Allow edits from maintainers` on the
+   PR, which will enable project committers and automation to update your PR.
 
 1. A maintainer will review the pull request and make comments.
 
@@ -43,7 +47,13 @@
 
    Commits will be squashed when they're merged.
 
-## Integration Tests
+## Testing
+
+We test code against two versions of Go, the minimum and maximum versions
+supported by our clients. To see which versions these are checkout our
+[README](README.md#supported-versions).
+
+### Integration Tests
 
 In addition to the unit tests, you may run the integration test suite. These
 directions describe setting up your environment to run integration tests for
@@ -93,7 +103,8 @@ Next, ensure the following APIs are enabled in the general project:
 - Google Compute Engine Instance Group Updater API
 - Google Compute Engine Instance Groups API
 - Kubernetes Engine API
-- Stackdriver Error Reporting API
+- Cloud Error Reporting API
+- Pub/Sub Lite API
 
 Next, create a Datastore database in the general project, and a Firestore
 database in the Firestore project.
@@ -118,10 +129,13 @@ project's service account.
 (e.g. doorway-cliff-677) for the Firestore project.
 - `GCLOUD_TESTS_GOLANG_FIRESTORE_KEY`: The path to the JSON key file of the
 Firestore project's service account.
+- `GCLOUD_TESTS_API_KEY`: API key for using the Translate API created above.
+
+As part of the setup that follows, the following variables will be configured:
+
 - `GCLOUD_TESTS_GOLANG_KEYRING`: The full name of the keyring for the tests,
 in the form
 "projects/P/locations/L/keyRings/R". The creation of this is described below.
-- `GCLOUD_TESTS_API_KEY`: API key for using the Translate API.
 - `GCLOUD_TESTS_GOLANG_ZONE`: Compute Engine zone.
 
 Install the [gcloud command-line tool][gcloudcli] to your machine and use it to
@@ -140,7 +154,7 @@ $ gcloud auth login
 $ gcloud datastore indexes create datastore/testdata/index.yaml
 
 # Creates a Google Cloud storage bucket with the same name as your test project,
-# and with the Stackdriver Logging service account as owner, for the sink
+# and with the Cloud Logging service account as owner, for the sink
 # integration tests in logging.
 $ gsutil mb gs://$GCLOUD_TESTS_GOLANG_PROJECT_ID
 $ gsutil acl ch -g cloud-logs@google.com:O gs://$GCLOUD_TESTS_GOLANG_PROJECT_ID
@@ -148,7 +162,7 @@ $ gsutil acl ch -g cloud-logs@google.com:O gs://$GCLOUD_TESTS_GOLANG_PROJECT_ID
 # Creates a PubSub topic for integration tests of storage notifications.
 $ gcloud beta pubsub topics create go-storage-notification-test
 # Next, go to the Pub/Sub dashboard in GCP console. Authorize the user
-# "service-<numberic project id>@gs-project-accounts.iam.gserviceaccount.com"
+# "service-<numeric project id>@gs-project-accounts.iam.gserviceaccount.com"
 # as a publisher to that topic.
 
 # Creates a Spanner instance for the spanner integration tests.
@@ -167,7 +181,38 @@ $ gcloud kms keys create key2 --keyring $MY_KEYRING --location $MY_LOCATION --pu
 # Sets the GCLOUD_TESTS_GOLANG_KEYRING environment variable.
 $ export GCLOUD_TESTS_GOLANG_KEYRING=projects/$GCLOUD_TESTS_GOLANG_PROJECT_ID/locations/$MY_LOCATION/keyRings/$MY_KEYRING
 # Authorizes Google Cloud Storage to encrypt and decrypt using key1.
-gsutil kms authorize -p $GCLOUD_TESTS_GOLANG_PROJECT_ID -k $GCLOUD_TESTS_GOLANG_KEYRING/cryptoKeys/key1
+$ gsutil kms authorize -p $GCLOUD_TESTS_GOLANG_PROJECT_ID -k $GCLOUD_TESTS_GOLANG_KEYRING/cryptoKeys/key1
+```
+
+It may be useful to add exports to your shell initialization for future use.
+For instance, in `.zshrc`:
+
+```sh
+#### START GO SDK Test Variables
+# Developers Console project's ID (e.g. bamboo-shift-455) for the general project.
+export GCLOUD_TESTS_GOLANG_PROJECT_ID=your-project
+
+# The path to the JSON key file of the general project's service account.
+export GCLOUD_TESTS_GOLANG_KEY=~/directory/your-project-abcd1234.json
+
+# Developers Console project's ID (e.g. doorway-cliff-677) for the Firestore project.
+export GCLOUD_TESTS_GOLANG_FIRESTORE_PROJECT_ID=your-firestore-project
+
+# The path to the JSON key file of the Firestore project's service account.
+export GCLOUD_TESTS_GOLANG_FIRESTORE_KEY=~/directory/your-firestore-project-abcd1234.json
+
+# The full name of the keyring for the tests, in the form "projects/P/locations/L/keyRings/R".
+# The creation of this is described below.
+export MY_KEYRING=my-golang-sdk-test
+export MY_LOCATION=global
+export GCLOUD_TESTS_GOLANG_KEYRING=projects/$GCLOUD_TESTS_GOLANG_PROJECT_ID/locations/$MY_LOCATION/keyRings/$MY_KEYRING
+
+# API key for using the Translate API.
+export GCLOUD_TESTS_API_KEY=abcdefghijk123456789
+
+# Compute Engine zone. (https://cloud.google.com/compute/docs/regions-zones)
+export GCLOUD_TESTS_GOLANG_ZONE=your-chosen-region
+#### END GO SDK Test Variables
 ```
 
 #### Running
@@ -176,7 +221,15 @@ Once you've done the necessary setup, you can run the integration tests by
 running:
 
 ``` sh
-$ go test -v cloud.google.com/go/...
+$ go test -v ./...
+```
+
+Note that the above command will not run the tests in other modules. To run
+tests on other modules, first navigate to the appropriate
+subdirectory. For instance, to run only the tests for datastore:
+``` sh
+$ cd datastore
+$ go test -v ./...
 ```
 
 #### Replay
