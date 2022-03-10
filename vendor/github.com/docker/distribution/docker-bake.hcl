@@ -1,3 +1,15 @@
+// GITHUB_REF is the actual ref that triggers the workflow
+// https://docs.github.com/en/actions/learn-github-actions/environment-variables#default-environment-variables
+variable "GITHUB_REF" {
+  default = ""
+}
+
+target "_common" {
+  args = {
+    GIT_REF = GITHUB_REF
+  }
+}
+
 group "default" {
   targets = ["image-local"]
 }
@@ -8,12 +20,14 @@ target "docker-metadata-action" {
 }
 
 target "binary" {
+  inherits = ["_common"]
   target = "binary"
   output = ["./bin"]
 }
 
 target "artifact" {
-  target = "artifacts"
+  inherits = ["_common"]
+  target = "artifact"
   output = ["./bin"]
 }
 
@@ -30,7 +44,7 @@ target "artifact-all" {
 }
 
 target "image" {
-  inherits = ["docker-metadata-action"]
+  inherits = ["_common", "docker-metadata-action"]
 }
 
 target "image-local" {
